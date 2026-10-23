@@ -98,5 +98,6 @@
     }
     "llm/vllm": {
         gpu_memory_utilization: 0.82
+        kv_cache_dtype: auto
     }
 }

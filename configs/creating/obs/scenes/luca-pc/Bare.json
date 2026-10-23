@@ -169,7 +169,7 @@
     },
     {
       "prev_ver": 537001986,
-      "name": "Game Audio",
+      "name": "Application Audio",
       "uuid": "00000000-0000-4000-8000-0000000000a3",
       "id": "pipewire_audio_application_capture",
       "versioned_id": "pipewire_audio_application_capture",
@@ -244,8 +244,12 @@
             "name": "Screen Capture",
             "source_uuid": "34ad521d-ff60-4125-95b1-05d28c35a096",
             "visible": true,
-            "locked": false,
+            "locked": true,
             "rot": 0.0,
+            "scale_ref": {
+              "x": 3840.0,
+              "y": 2160.0
+            },
             "align": 5,
             "bounds_type": 2,
             "bounds_align": 0,
@@ -260,13 +264,25 @@
               "x": 0.0,
               "y": 0.0
             },
+            "pos_rel": {
+              "x": -1.7777777910232544,
+              "y": -1.0
+            },
             "scale": {
+              "x": 1.0,
+              "y": 1.0
+            },
+            "scale_rel": {
               "x": 1.0,
               "y": 1.0
             },
             "bounds": {
               "x": 3840.0,
               "y": 2160.0
+            },
+            "bounds_rel": {
+              "x": 3.555555582046509,
+              "y": 2.0
             },
             "scale_filter": "disable",
             "blend_method": "default",
@@ -280,11 +296,15 @@
             "private_settings": {}
           },
           {
-            "name": "Game Audio",
+            "name": "Application Audio",
             "source_uuid": "00000000-0000-4000-8000-0000000000a3",
             "visible": true,
             "locked": true,
             "rot": 0.0,
+            "scale_ref": {
+              "x": 3840.0,
+              "y": 2160.0
+            },
             "align": 5,
             "bounds_type": 0,
             "bounds_align": 0,
@@ -299,11 +319,23 @@
               "x": 0.0,
               "y": 0.0
             },
+            "pos_rel": {
+              "x": -1.7777777910232544,
+              "y": -1.0
+            },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
+            "scale_rel": {
+              "x": 1.0,
+              "y": 1.0
+            },
             "bounds": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "bounds_rel": {
               "x": 0.0,
               "y": 0.0
             },
@@ -324,6 +356,10 @@
             "visible": true,
             "locked": true,
             "rot": 0.0,
+            "scale_ref": {
+              "x": 3840.0,
+              "y": 2160.0
+            },
             "align": 5,
             "bounds_type": 0,
             "bounds_align": 0,
@@ -338,11 +374,23 @@
               "x": 0.0,
               "y": 0.0
             },
+            "pos_rel": {
+              "x": -1.7777777910232544,
+              "y": -1.0
+            },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
+            "scale_rel": {
+              "x": 1.0,
+              "y": 1.0
+            },
             "bounds": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "bounds_rel": {
               "x": 0.0,
               "y": 0.0
             },

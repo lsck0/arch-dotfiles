@@ -43,11 +43,15 @@ description: The OBS setup in configs/creating/obs (the Streaming, VirtualCam an
 ## Hearing the stream
 
 The mixer's HEAR switch (System / OBS output), `qs ipc -p ~/.config/quickshell call obs toggleListen` and
-`scripts/toggles/toggle-obs-listen.nu` switch every track-1 input without monitoring to monitor-and-output, remember
-which (`obs-listen-inputs` state) and set only those back to none when off, and set `dot.obs-listen` on the default
-metadata, which mutes the per-app loopbacks (`configs/desktop/pipewire`) while obs runs. OBS keeps monitor types in the
-collection on exit, so the bar runs the toggle's `reconcile` when it connects. App captures tap the app's own stream,
-which plays at full level: the system faders never change what OBS hears.
+`scripts/toggles/toggle-obs-listen.nu` switch every track-1 input to monitor-and-output (on) or back to none (off),
+always from OBS's own live `GetInputAudioMonitorType`/`GetInputAudioTracks` state, never from memory of what this
+script last touched: a scene collection can arrive already carrying monitor-and-output on a stream-track input (a
+fresh install inheriting a committed collection, a restore, a manual OBS edit), and that must not survive a
+reconcile while the toggle is off, or the app plays twice (its own output, plus OBS monitoring it). It also sets
+`dot.obs-listen` on the default metadata, which mutes the per-app loopbacks (`configs/desktop/pipewire`) while obs
+runs. OBS keeps monitor types in the collection on exit, so the bar runs the toggle's `reconcile` (always enforces
+live, no "nothing tracked" shortcut) when it connects. App captures tap the app's own stream, which plays at full
+level: the system faders never change what OBS hears.
 
 ## Inspect a running OBS
 

@@ -1,12 +1,16 @@
 #!/usr/bin/env -S nu --no-config-file
 # Hear obs: the stream mix instead of the system audio. Every input on the stream track monitors to the profile's
 # monitoring device; app-loopback.lua (configs/desktop/pipewire) mutes the per-app paths while dot.obs-listen is set.
+# Monitoring is enforced strictly from OBS's own live state, never from this script's memory of what it last
+# touched: a scene collection can arrive already carrying monitor-and-output on a stream-track input (committed
+# from a machine where listening was left on, restored from backup, or edited by hand in OBS), and that must not
+# survive a reconcile while the toggle is off, or audio plays twice (once through the app's own output, once
+# through OBS monitoring it).
 
-use lib.nu [switch-run state-get state-set state-clear state-file]
+use lib.nu [switch-run state-get state-set state-clear]
 use ../../configs/desktop/quickshell/plugins/bar/widgets/obs-status.nu [config-read socket-open socket-identify request]
 
 const STATE = "obs-listen"
-const STATE_INPUTS = "obs-listen-inputs"
 const LISTEN_KEY = "dot.obs-listen"
 const STREAM_TRACK = "1"
 const MONITOR_NONE = "OBS_MONITORING_TYPE_NONE"
@@ -20,9 +24,17 @@ def obs-connect []: nothing -> int {
     $socket
 }
 
-def inputs-get []: nothing -> list<string> {
-    let file = state-file $STATE_INPUTS
-    if ($file | path exists) { open $file | from nuon } else { [] }
+def monitor-type-of [socket: int, name: string]: nothing -> string {
+    request $socket GetInputAudioMonitorType {inputName: $name} | get -o monitorType | default $MONITOR_NONE
+}
+
+# Every input OBS actually mixes into the stream track, live from OBS: the source of truth, never this script's
+# own memory of what it previously touched.
+def stream-track-inputs [socket: int]: nothing -> list<string> {
+    request $socket GetInputList | get -o inputs | default [] | get inputName | where {|name|
+        (request $socket GetInputAudioTracks {inputName: $name}
+            | default {} | get -o inputAudioTracks | get -o $STREAM_TRACK) == true
+    }
 }
 
 def monitor-set [socket: int, names: list<string>, type: string]: nothing -> nothing {
@@ -34,22 +46,13 @@ def monitor-set [socket: int, names: list<string>, type: string]: nothing -> not
 }
 
 def monitor-enable [socket: int]: nothing -> nothing {
-    let already = inputs-get
-    let names = request $socket GetInputList | get -o inputs | default [] | get inputName | where {|name|
-        $name not-in $already
-            and ((request $socket GetInputAudioTracks {inputName: $name}
-                | default {} | get -o inputAudioTracks | get -o $STREAM_TRACK) == true)
-            and ((request $socket GetInputAudioMonitorType {inputName: $name}
-                | get -o monitorType | default $MONITOR_NONE) == $MONITOR_NONE)
-    }
-    if ($names | is-empty) { return }
-    $already | append $names | uniq | to nuon | save --force (state-file $STATE_INPUTS)
-    monitor-set $socket $names $MONITOR_AND_OUTPUT
+    let names = stream-track-inputs $socket | where {|name| (monitor-type-of $socket $name) == $MONITOR_NONE }
+    if ($names | is-not-empty) { monitor-set $socket $names $MONITOR_AND_OUTPUT }
 }
 
 def monitor-disable [socket: int]: nothing -> nothing {
-    monitor-set $socket (inputs-get) $MONITOR_NONE
-    state-clear $STATE_INPUTS
+    let names = stream-track-inputs $socket | where {|name| (monitor-type-of $socket $name) != $MONITOR_NONE }
+    if ($names | is-not-empty) { monitor-set $socket $names $MONITOR_NONE }
 }
 
 def listen-on []: nothing -> nothing {
@@ -68,10 +71,12 @@ def listen-off []: nothing -> nothing {
     job kill $socket
 }
 
-# Puts obs's monitors and the metadata key in line with the state; the bar runs it when it connects to obs.
+# Puts every stream-track input's monitoring, and the metadata key, in line with the toggle's state; the bar runs
+# this whenever it connects to obs. Always enforces live (no "nothing tracked, nothing to do" shortcut): a scene
+# collection can carry monitor-and-output this toggle never set, and that must be caught every time, not only when
+# this script remembers setting it.
 def reconcile []: nothing -> nothing {
     let on = (state-get $STATE) == on
-    if not $on and (inputs-get | is-empty) { return }
     let socket = obs-connect
     if $on {
         monitor-enable $socket

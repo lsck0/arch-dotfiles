@@ -139,7 +139,13 @@ local function background_clear(hl, name)
 end
 
 -- Runs after every ColorScheme handler: plugins (barbar, lualine) redefine their groups in theirs.
+-- Neovide has no parent terminal to show through: clearing Normal's bg here just falls back to its own
+-- default (near-black) fill, which Hyprland's windowrule opacity then blends, looking much darker than
+-- intended. Neovide gets its translucency from that windowrule alone (options.lua), so skip entirely here.
 local function transparency_apply()
+    if vim.g.neovide then
+        return
+    end
     for _, name in ipairs(CLEAR_BG) do
         background_clear(hl_get(name), name)
     end
