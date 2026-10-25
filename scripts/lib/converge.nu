@@ -296,16 +296,26 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
         $a | merge {ok: false, error: $a.reason, aside: null, output: "", hash: null, at: null} | insert ms 0
     }
     # within a run of file writes, the new files land before the changed ones: a live reader (quickshell's
-    # qmldir) never sees a reference to a file not there yet; a write with a --then (a restart) keeps its place,
-    # so its hook never runs ahead of the files it restarts for
-    let file_write = {|a| $a.kind in [create update] and $a.decl.kind? != "link" and ($a.decl.then? | default [] | is-empty) }
+    # qmldir) never sees a reference to a file not there yet
+    let file_write = {|a| $a.kind in [create update] and $a.decl.kind? != "link" }
+    let hooked = {|a| $a.decl.then? | default [] | is-not-empty }
     let ordered = $actions | where kind not-in [skip drift unreadable] | chunk-by $file_write
-        | each {|run| if (do $file_write $run.0) { ($run | where kind == create) ++ ($run | where kind == update) } else { $run } }
+        | each {|run|
+            if not (do $file_write $run.0) { $run } else {
+                let plain = $run | where {|a| not (do $hooked $a) }
+                # a write with a --then (a restart) goes last, after every file of its run it may need
+                ($plain | where kind == create) ++ ($plain | where kind == update) ++ ($run | where {|a| do $hooked $a })
+            }
+        }
         | flatten
+    # pipeline-apply's --timeout cancels a module through this marker: a killed job's try would otherwise go on
+    let cancel = $env.DOT_CANCEL_FILE? | default ""
     let recorded = if ($ordered | any { $in.kind == "merge" }) { recorded-hashes } else { {} }
     let run = $ordered | reduce --fold {written: $recorded, outcomes: []} {|a, acc|
         let start = date now
-        let result = try {
+        let result = if $cancel != "" and ($cancel | path exists) {
+            {ok: false, error: "cancelled, the module timed out", aside: null, output: "", hash: null, at: null}
+        } else { try {
             match $a.kind {
                 "create" | "update" => {
                     sync-guard $a.target
@@ -365,7 +375,7 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                 "exec" => { {output: (run-exec $a $dir)} }
             }
             | {ok: true, error: null, aside: ($in.aside? | default null), output: ($in.output? | default ""), hash: ($in.hash? | default null), at: ($in.at? | default null)}
-        } catch {|e| {ok: false, error: $e.msg, aside: null, output: "", hash: null, at: null} }
+        } catch {|e| {ok: false, error: $e.msg, aside: null, output: "", hash: null, at: null} } }
         let ms = since-ms $start
         log-record (if $result.ok { "DEBUG" } else { "ERROR" }) $"($a.kind) ($a.target)" {module: $a.module, kind: $a.kind, target: $a.target, ms: $ms, outcome: (if $result.ok { "ok" } else { $result.error })}
         {

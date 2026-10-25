@@ -1,7 +1,7 @@
 local platform = require("platform")
 
--- X11 apps under force_zero_scaling: gtk reads GDK_SCALE, qt's xcb and most others Xft.dpi (hyprland_autostart.lua);
--- native wayland apps take the compositor's fractional scale and ignore both
+-- X11 apps under force_zero_scaling: gtk scales by GDK_SCALE; no Xft.dpi, gtk would scale its fonts by it a second
+-- time; native wayland apps take the compositor's fractional scale
 hl.env("GDK_SCALE", platform.xwayland_scale)
 
 hl.config({

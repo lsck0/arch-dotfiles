@@ -246,6 +246,12 @@ def main [] {
     let found = try { answers-find } catch { null }
     if $found != null { print $"install: answers from ($found.origin)" }
     let early = answers-early $found.file?
+    # an older stub on a frozen stick exported its Wi-Fi box's layout as the answer before handing over; without
+    # a cmdline or answer-file keymap (early.keymap reads both) that value can only be from the box: a preselection
+    if ($env.LSCK0_STUB_UPDATED? | is-not-empty) and ($early.keymap | is-empty) and ($env.BOOTSTRAP_KEYMAP? | is-not-empty) {
+        $env.BOOTSTRAP_KEYMAP_DEFAULT = $env.BOOTSTRAP_KEYMAP
+        hide-env BOOTSTRAP_KEYMAP
+    }
     if ($early.keymap | is-not-empty) and (^loadkeys $early.keymap | complete).exit_code == 0 { $env.BOOTSTRAP_KEYMAP = $early.keymap }
 
     if not (network-step $early.wifi) { print "install: stopped; run lsck0-install to start over"; return }

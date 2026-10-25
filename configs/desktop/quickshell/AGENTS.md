@@ -42,8 +42,8 @@ lock, notifications, OSD and overlays. QML.
   - `background`: `refresh`, `set <path>`, `setInstant <path>`.
   - `obs` (`Commons/ObsProcess.qml`): `toggleListen`, `listen <bool>`, `listening`.
   - `toggles` (`Commons/ToggleEvents.qml`): `changed <script>`, called by `scripts/toggles/lib.nu` after a flip.
-- `mod.nu` copies the tree into `~/.config/quickshell` (only `theme.json` stays a link, edited live); quickshell
-  reloads on `dot apply desktop/quickshell`, never while the lock is held. `restart.nu` restarts the unit
+- `mod.nu` copies the tree into `~/.config/quickshell`, `theme.json` included: a live edit is drift, change the repo
+  file and apply; quickshell reloads on `dot apply desktop/quickshell`, never while the lock is held. `restart.nu` restarts the unit
   (`quickshell.service`). See the `l-dotfiles-quickshell-dev` skill for logs and screenshots.
 
 ## Palette

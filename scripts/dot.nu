@@ -445,8 +445,13 @@ def "main module reset" [file: path]: nothing -> nothing {
             if $row == null and not $managed { error make {msg: $"($target) is no file a module manages; dot status lists the changed ones"} }
             error make {msg: $"($target) is not changed since its apply, nothing to reset"}
         }
+        # an orphan (a module that stopped declaring the file) has no source to put back
+        if ($current.reason | str starts-with "no longer declared") {
+            error make {msg: $"($target) is no longer declared by ($row.id), there is nothing to reset it to; delete or keep it by hand"}
+        }
         let forced = pipeline-plan $ctx link [$row.id] true | where id == $row.id | first
         let reset = $forced.actions | where target == $target | first
+        if $reset.kind == drift { error make {msg: $"($target) stays drift even when forced: ($reset.reason)"} }
         let actions = $row.actions | each {|a| if $a.target == $target { $reset } else { $a } }
         let result = with-env (platform-env $ctx.platform) {
             pipeline-apply $ctx [($row | update actions $actions | update after [])] link 1

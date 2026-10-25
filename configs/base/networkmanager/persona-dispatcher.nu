@@ -147,7 +147,8 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
             # the conflict drops lockdown before the load, so a failed load would leave no table at all
             if not (ok systemctl start fw-inbound.service) { ok systemctl start fw-lockdown.service | ignore }
         }
-        ok systemctl unmask --runtime avahi-daemon.service | ignore
+        # the socket too: an older dispatcher runtime-masked it as well
+        ok systemctl unmask --runtime avahi-daemon.service avahi-daemon.socket | ignore
         ok systemctl start avahi-daemon.socket | ignore
         ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=0" | ignore
         ok nmcli connection modify $uuid ipv6.method auto | ignore

@@ -25,9 +25,10 @@ monitoring), notifications, filters and loopbacks keep their route. The quickshe
 (`Audio.levelOf`) and routes it (`Audio.route`, by object.serial: state-stream saves a route only as a serial). A
 mixer that moves the app stream itself (pavucontrol, wiremix) routes its loopback instead. The service's stop hands
 each loopback's level to its streams (times their own, recorded in its state), its start splits them again, so a
-restart keeps both. The record is by the app's key and node name, not the session's serial, so a stream that comes
-back in a later session (a pipewire restart, a relogin, a reboot) reclaims too; any other stream that appears later
-is only routed, never leveled, and a loopback with no stream keeps its own. The shell's cues play as `media.role` Notification, past the loopbacks. While
+restart keeps both. The record is by the app's key, node name and media name, not the session's serial, so a stream that comes
+back in a later session (a pipewire restart, a relogin, a reboot) reclaims too; streams sharing all three take their
+own levels in order, and a record no stream reclaimed within two service starts is dropped. Any other stream that
+appears later is only routed, never leveled, and a loopback with no stream keeps its own. The shell's cues play as `media.role` Notification, past the loopbacks. While
 `dot.obs-listen` is set on the default metadata and obs runs, every loopback is muted
 (`scripts/toggles/toggle-obs-listen.nu`, the mixer's HEAR System / OBS output switch).
 

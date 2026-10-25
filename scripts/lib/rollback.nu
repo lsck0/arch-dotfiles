@@ -3,6 +3,7 @@
 
 use log.nu [log-info log-warn]
 use state.nu [SYSTEM_REPO]
+use system.nu [ENTRY]
 use ledger.nu [ledger-get]
 use migrate.nu [migrations-list migration-run]
 
@@ -68,8 +69,11 @@ export def rollback-run [target: string, --dry-run]: nothing -> nothing {
     if ($env.DIRENV_DIR? | is-not-empty) { error make {msg: "run outside a direnv directory"} }
     let sha = rollback-resolve $target
     let short = $sha | str substring 0..11
-    let later = migrations-list $REPO | where id in (ledger-get migration) | where {|m| not (git-ok cat-file -e $"($sha):($m.file | path relative-to $REPO)") }
-    let stuck = $later | where not reversible
+    let newer = migrations-list $REPO | where {|m| not (git-ok cat-file -e $"($sha):($m.file | path relative-to $REPO)") }
+    # user ones from this ledger; system ones root checks against its own ledger (migrate --down)
+    let later = $newer | where layer == user and id in (ledger-get migration)
+    let later_system = $newer | where layer == system
+    let stuck = $later ++ $later_system | where not reversible
     if ($stuck | is-not-empty) { error make {msg: $"($target) predates migration ($stuck.id | str join ', '), which has no down"} }
     let label = describe-commit $sha
     let admin = ^id -nG | split row " " | any { $in == wheel }
@@ -94,6 +98,7 @@ export def rollback-run [target: string, --dry-run]: nothing -> nothing {
     let drive = drivers $sha
     let steps = [
         (if ($later | is-not-empty) { $"migration down ($later.id | reverse | str join ' ')" })
+        (if $admin and ($later_system | is-not-empty) { $"root migration down ($later_system.id | reverse | str join ' ')" })
         $"git checkout --detach ($short)"
         (if $admin and not $drive.nu { "root copy --rollback" })
         ($drive.apply | str join " ")
@@ -103,6 +108,9 @@ export def rollback-run [target: string, --dry-run]: nothing -> nothing {
         return
     }
     $later | reverse | each { migration-run $in down } | ignore
+    if $admin and ($later_system | is-not-empty) {
+        ^sudo ($SYSTEM_REPO | path join $ENTRY) migrate --down ...$later_system.id
+    }
     ^git -C $REPO -c submodule.recurse=false checkout --quiet --detach $sha
     log-info $"checkout detached at ($short); return with: git switch ($BRANCH)"
     cd $REPO

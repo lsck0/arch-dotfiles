@@ -159,6 +159,6 @@ Each kind of data has one home, and there is no catch-all backup: data that fits
   files) are rewritten every run, never hand-edit them; `dot explain <path>` names the writer.
 - Background GUI testing stays off the user's screen: an app launched only to screenshot or check it goes on the
   agent's own headless output, never a visible workspace or a monitor rule (skill `l-dotfiles-gui-testing`).
-- `xwayland.force_zero_scaling = true`: X11 apps scale through `GDK_SCALE` (gtk) and `Xft.dpi` (qt xcb, most others) (1 on a
+- `xwayland.force_zero_scaling = true`: X11 apps scale through `GDK_SCALE` (gtk; no `Xft.dpi`, gtk would double its fonts) (1 on a
   laptop, else 2); Java apps get the same value from `display-xwayland-scale` (`platform.nu`).
 - A module runs only when its group is in the platform's `groups` and its `enable` option is true.

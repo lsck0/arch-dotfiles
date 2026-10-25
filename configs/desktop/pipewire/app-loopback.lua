@@ -7,6 +7,10 @@ OUT_SUFFIX = ".out"
 STATE_NAME = "app-loopback"
 STATE_LISTEN = "listen."
 STATE_OWN = "own."
+STATE_EPOCH = "epoch"
+-- an own-level record no stream reclaimed within this many service starts is dropped, so a stale one never levels an
+-- unrelated stream of the app days later
+OWN_EPOCHS_KEPT = 2
 LISTEN_KEY = "dot.obs-listen"
 OBS_BINARY = "obs"
 SETTLE_MS = 300
@@ -192,10 +196,53 @@ function mute_set(node, mute)
     node:set_param("Props", Pod.Object({ "Spa:Pod:Object:Param:Props", "Props", mute = mute }))
 end
 
--- The record of a level the stop handed to a stream, by its loopback key and node name: a serial dies with the
--- pipewire session, while state-stream restores the handed level to the next session's stream of the same app.
+-- The record of the levels the stop handed out, by loopback key, node name and media name (a serial dies with the
+-- pipewire session, while state-stream restores the handed level to the next session's stream of the same app):
+-- "<key> <epoch> <loopback level> <own level>...", one own level per stream that shares all three, taken in order.
 function own_mark(props, key)
-    return STATE_OWN .. key .. "." .. (props["node.name"] or "")
+    return STATE_OWN .. key .. "." .. (props["node.name"] or "") .. "." .. (props["media.name"] or "")
+end
+
+function own_parse(record)
+    local fields = {}
+    for field in (record or ""):gmatch("%S+") do
+        fields[#fields + 1] = field
+    end
+    if #fields < 4 then
+        return nil
+    end
+    local owns = {}
+    for i = 4, #fields do
+        owns[#owns + 1] = tonumber(fields[i])
+    end
+    return { key = fields[1], epoch = tonumber(fields[2]) or 0, loop = tonumber(fields[3]) or VOLUME_FULL, owns = owns }
+end
+
+function own_format(record)
+    local owns = {}
+    for i, own in ipairs(record.owns) do
+        owns[i] = tostring(own)
+    end
+    return record.key .. " " .. record.epoch .. " " .. record.loop .. " " .. table.concat(owns, " ")
+end
+
+function epoch_current()
+    return tonumber(known[STATE_EPOCH]) or 0
+end
+
+-- each start is a new epoch; records older than OWN_EPOCHS_KEPT starts go
+function epoch_advance()
+    local epoch = epoch_current() + 1
+    known[STATE_EPOCH] = tostring(epoch)
+    for mark, value in pairs(known) do
+        if mark:sub(1, #STATE_OWN) == STATE_OWN then
+            local record = own_parse(value)
+            if not record or record.epoch < epoch - OWN_EPOCHS_KEPT then
+                known[mark] = nil
+            end
+        end
+    end
+    state:save_after_timeout(known)
 end
 
 -- The start, or the stream's next appearance in any later session: a stream the stop handed a level to gives it back
@@ -208,8 +255,8 @@ function level_reclaim(stream_id, sink_id, out_id, retries)
         return
     end
     local mark = own_mark(stream.properties, stream_key(stream.properties) or "")
-    local key, own = (known[mark] or ""):match("^(%S+) (%S+)$")
-    if not key or key ~= stream_key(stream.properties) then
+    local record = own_parse(known[mark])
+    if not record or record.key ~= stream_key(stream.properties) then
         return
     end
     if not link_contains(stream_id, sink_id) then
@@ -218,13 +265,13 @@ function level_reclaim(stream_id, sink_id, out_id, retries)
         end, retries)
         return
     end
-    known[mark] = nil
+    -- each stream of that name takes one own level; the loopback gets the level the stop recorded, the same for all
+    local own = table.remove(record.owns, 1)
+    known[mark] = #record.owns > 0 and own_format(record) or nil
     state:save_after_timeout(known)
-    own = tonumber(own)
     level_get(stream, function(handed)
-        local level = own > VOLUME_EPSILON and level_mean(handed.levels) / own or VOLUME_FULL
         level_get(out, function(loop)
-            level_set(out, level_scale(level_full(loop.levels), level), handed.mute)
+            level_set(out, level_scale(level_full(loop.levels), record.loop), handed.mute)
             level_set(stream, level_scale(level_full(handed.levels), own), false)
             Log.info("gave the level of " .. stream.properties["node.name"] .. " back to its loopback")
         end)
@@ -317,13 +364,23 @@ function release_all()
                 local into_sink = {
                     Constraint({ "link.input.node", "=", sink["bound-id"], type = "pw-global" }),
                 }
+                -- one link per channel: each stream once
+                local seen = {}
                 for link in links_om:iterate(into_sink) do
-                    local stream = node_get(tonumber(link.properties["link.output.node"]))
+                    local stream_id = tonumber(link.properties["link.output.node"])
+                    local stream = not seen[stream_id] and node_get(stream_id) or nil
+                    seen[stream_id] = true
                     if stream then
                         handed = true
                         pending = pending + 1
                         level_get(stream, function(own)
-                            known[own_mark(stream.properties, key)] = key .. " " .. level_mean(own.levels)
+                            local mark = own_mark(stream.properties, key)
+                            local record = own_parse(known[mark])
+                            if not record or record.epoch ~= epoch_current() then
+                                record = { key = key, epoch = epoch_current(), loop = level, owns = {} }
+                            end
+                            record.owns[#record.owns + 1] = level_mean(own.levels)
+                            known[mark] = own_format(record)
                             level_set(stream, level_scale(own.levels, level), mute)
                             done()
                         end)
@@ -402,6 +459,7 @@ nodes_om:connect("installed", function()
     installed = true
     listen_apply()
 end)
+epoch_advance()
 
 for key, name in pairs(known) do
     if not key:find(".", 1, true) then

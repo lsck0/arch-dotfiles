@@ -9,6 +9,8 @@ const OUT = "/tmp/dotfiles-report"
 
 def main [user: string, checkout: path]: nothing -> nothing {
     let url = open --raw ($STATE_DIR | path join report) | str trim
+    # portmaster blocks the guest's requests to the watcher; only a watched install gets here
+    do { ^systemctl stop portmaster.service } | complete | ignore
     let ok = try { report $user $checkout $url; true } catch {|e| print --stderr $"stage-report: ($e.msg)"; false }
     ^curl -s -m 10 $"($url)/beacon/(if $ok { 'chain-done' } else { 'chain-fail' })" | complete | ignore
 }

@@ -31,8 +31,15 @@ def note [message: string]: nothing -> nothing {
     $"(date now | format date '%+') ($message)\n" | ^sudo tee -a ($STATE_DIR | path join log) | ignore
 }
 
+# portmaster, once the install brought it up, blocks the guest's requests to the watcher; only a watched (test)
+# install has a report url, so the stop never touches a real machine
+def watcher-unblock []: nothing -> nothing {
+    if ($REPORT | path exists) { do { ^sudo systemctl stop portmaster.service } | complete | ignore }
+}
+
 def report-beacon [tag: string]: nothing -> nothing {
     if not ($REPORT | path exists) { return }
+    watcher-unblock
     ^curl -s -m 10 $"(open --raw $REPORT | str trim)/beacon/($tag)" | complete | ignore
 }
 

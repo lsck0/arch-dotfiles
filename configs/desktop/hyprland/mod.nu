@@ -10,7 +10,7 @@ export const meta = {
             hyprpm libnotify libx11 meson mission-center omarchy-share-picker-git pavucontrol playerctl polkit
             polkit-kde-agent qt5-wayland qt6-wayland rose-pine-cursor rose-pine-hyprcursor slurp wayland
             wayland-boomer-git wl-clip-persist wl-clipboard xdg-desktop-portal-gtk xdg-desktop-portal-hyprland
-            xdg-desktop-portal-kde xorg-server xorg-xauth xorg-xhost xorg-xinput xorg-xrdb xorg-xwayland ydotool
+            xdg-desktop-portal-kde xorg-server xorg-xauth xorg-xhost xorg-xinput xorg-xwayland ydotool
         ]
     }
     # core/locale's keyboard, written by localectl: a layout change re-renders platform.lua
@@ -45,7 +45,7 @@ export const options = {
     xwayland_scale: {
         type: int?
         default: null
-        doc: "GDK_SCALE and Xft.dpi (96 per step) for X11 apps (force_zero_scaling); detected: the main monitor's scale rounded, else 1 on a laptop and 2 elsewhere"
+        doc: "GDK_SCALE for X11 apps (force_zero_scaling); detected: the main monitor's scale rounded, else 1 on a laptop and 2 elsewhere"
         label: "XWayland scale"
         group: display
         min: 1

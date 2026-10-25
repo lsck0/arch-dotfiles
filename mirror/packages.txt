@@ -962,7 +962,6 @@ xorg-xauth
 xorg-xeyes
 xorg-xhost
 xorg-xinput
-xorg-xrdb
 xorg-xwayland
 xournalpp
 yara

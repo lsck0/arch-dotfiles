@@ -617,7 +617,7 @@ the value comes from the hardware or system when the platform and profile leave 
 | `desktop/hyprland.monitors` | `list<record>?` | detected | One hl.monitor per output: output, mode, position, scale; detected from the connected outputs, any other output gets its preferred mode and an auto scale |
 | `desktop/hyprland.main_monitor` | `string?` | detected | The output holding workspace 1, the bar's notifications, steam's toasts and the tablet; detected: the internal panel, else the largest, leftmost on a tie |
 | `desktop/hyprland.workspaces` | `record?` | detected | Workspace to output; detected: the first ceil(10 / outputs) on the main monitor, the rest split over the others left to right |
-| `desktop/hyprland.xwayland_scale` | `int?` | detected | GDK_SCALE and Xft.dpi (96 per step) for X11 apps (force_zero_scaling); detected: the main monitor's scale rounded, else 1 on a laptop and 2 elsewhere |
+| `desktop/hyprland.xwayland_scale` | `int?` | detected | GDK_SCALE for X11 apps (force_zero_scaling); detected: the main monitor's scale rounded, else 1 on a laptop and 2 elsewhere |
 | `desktop/hyprland.app_workspaces` | `list<record>` | `[]` | Homes for apps by window class: {class, workspace, silent}; silent opens them without focus |
 | `desktop/hyprland.pointer_sensitivity` | `float` | `0.0` | libinput pointer acceleration, -1 to 1 |
 | `desktop/hyprland.natural_scroll` | `bool` | `false` | Touchpad content follows the fingers |

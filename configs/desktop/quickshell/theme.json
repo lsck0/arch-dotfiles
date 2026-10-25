@@ -1,6 +1,6 @@
 {
   "_comment": [
-    "Live-watched, save to re-theme. Values here override the code defaults.",
+    "Edit the repo copy and dot apply desktop/quickshell; the shell reloads it. Values here override the code defaults.",
     "Defaults, ranges and meaning: Commons/Theme.qml.",
     "The font comes from ~/.cache/wal/font.json (toggle-font, a theme's font); font.size scales the whole shell.",
     "palette.* conditions wallust colours, it does not replace them."

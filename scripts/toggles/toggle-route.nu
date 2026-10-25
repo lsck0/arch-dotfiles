@@ -8,6 +8,8 @@ const ROUTES = {direct: Direct, proton: ProtonVPN, tor: Tor, offline: Offline}
 const COUNTRY = "CH"
 const TOR_UNIT = "tor-router.service"
 const NM_ONLINE_TIMEOUT_S = 30
+# the persona dispatcher's mark on a tor it started (lockdown-tor on a foreign network); vpn-up stops that one itself
+const DISPATCHER_TOR = "/run/persona-tor"
 
 def radios []: nothing -> table { ^rfkill -rno ID,SOFT | lines | parse "{id} {soft}" }
 
@@ -74,12 +76,14 @@ def offline-leave []: nothing -> nothing {
     rm --force $saved (state-file offline-vpn --volatile)
 }
 
-# a vpn connects while tor still carries the link, so tor stops only after proton0 is up; --keep-tor leaves tor to the
-# persona dispatcher, which stops the tor it started itself on vpn-up (auto-vpn, a background service, never prompts)
+# a vpn connects while tor still carries the link, so tor stops only after proton0 is up, and only a tor the user
+# chose: the dispatcher stops the one it started itself on vpn-up, and --keep-tor (auto-vpn, a background service)
+# never stops any. A declined stop prompt leaves tor running beside proton, no failed switch.
 def apply [route: string, --keep-tor]: nothing -> nothing {
     if $route not-in $ROUTES { error make {msg: $"route must be one of ($ROUTES | columns | str join ', ')"} }
     let from = current
     if $route == $from { return }
+    let dispatcher_tor = $DISPATCHER_TOR | path exists
     try {
         if $from == offline { offline-leave }
         match $route {
@@ -87,7 +91,9 @@ def apply [route: string, --keep-tor]: nothing -> nothing {
             proton => {
                 if $from == offline { ^nm-online -qt $NM_ONLINE_TIMEOUT_S | complete | ignore }
                 proton-connect
-                if not $keep_tor { tor-stop }
+                if not $keep_tor and not $dispatcher_tor {
+                    try { tor-stop } catch { notify Route "ProtonVPN is up, tor keeps running beside it" }
+                }
             }
             tor => { tor-start; proton-disconnect }
             offline => { offline-enter }

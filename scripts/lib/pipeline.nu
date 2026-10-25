@@ -230,6 +230,9 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
     mut results = []
     mut pending = $planned
     let planned_ids = $planned.id
+    # a timed-out module's marker: apply-module stops at its next action and the job sends nothing
+    let cancel_dir = if $timeout == null { "" } else { mktemp --directory --tmpdir dot-cancel-XXXXXX }
+    mut killed = false
     while ($pending | is-not-empty) or ($running | is-not-empty) {
         let finished = $done
         let busy = $running | columns | length
@@ -237,7 +240,11 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
         let serial_wait = $ready | where serial | is-not-empty
         let startable = if $busy == 0 and $serial_wait { $ready | where serial | first 1 } else { $ready | where not serial | first ([($jobs - $busy) 0] | math max) }
         for m in $startable {
-            let id = job spawn { module-run $ctx $m $verb $args | job send 0 }
+            let cancel = if $cancel_dir == "" { "" } else { $cancel_dir | path join ($m.id | str replace --all "/" "+") }
+            let id = job spawn {
+                let result = with-env {DOT_CANCEL_FILE: $cancel} { module-run $ctx $m $verb $args }
+                if $cancel == "" or not ($cancel | path exists) { $result | job send 0 }
+            }
             $running = $running | insert $m.id $id
             $started = $started | upsert $m.id (date now)
             $pending = $pending | where id != $m.id
@@ -249,7 +256,9 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
             let since = $started
             let late = $running | columns | where {|id| (date now) - ($since | get $id) > $timeout } | get --optional 0
             if $late != null {
-                job kill ($running | get $late)
+                touch ($cancel_dir | path join ($late | str replace --all "/" "+"))
+                $killed = true
+                try { job kill ($running | get $late) }
                 module-procs-kill $late
                 log-warn $"($late): ($verb) still running after ($timeout), killed" {module: $late}
                 {id: $late, ok: false, log: "", outcomes: [], error: $"timed out after ($timeout)", notes: [], ms: ($timeout / 1ms)}
@@ -257,7 +266,8 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
                 try { job recv --timeout 1sec } catch { null }
             }
         }
-        if $result == null { continue }
+        # a late send from a module already given up on, or from an earlier call's killed job
+        if $result == null or $result.id not-in ($running | columns) { continue }
         $running = $running | reject $result.id
         $done = $done | insert $result.id $result.ok
         $results = $results | append $result
@@ -270,5 +280,7 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
             if not $result.ok { print $"error: ($result.error)" }
         }
     }
+    # a killed job may still be between actions and must keep seeing its marker
+    if $cancel_dir != "" and not $killed { rm --recursive --force $cancel_dir }
     $results
 }

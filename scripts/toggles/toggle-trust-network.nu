@@ -43,11 +43,10 @@ def store [gateways: list<string>]: nothing -> nothing {
     settled (^nu --no-config-file $DOT set --machine $OPTION ($gateways | to nuon) | complete)
 }
 
-# Already listed yet not home (a forgotten and rejoined wifi got a fresh profile with a random mac): the system
-# layer's networkmanager home step gives the profile its hardware mac back.
-def reconverge []: nothing -> nothing {
-    settled (^nu --no-config-file $DOT apply --system | complete)
-}
+# Already listed yet not home (a forgotten and rejoined wifi got a fresh profile with a random mac): storing the same
+# list again runs dot set's system part (sudo on a tty, pkexec from the bar), whose networkmanager home step gives the
+# profile its hardware mac back.
+def reconverge [gateways: list<string>]: nothing -> nothing { store $gateways }
 
 def link []: nothing -> record {
     let link = uplink
@@ -62,7 +61,7 @@ def main [action: string = "toggle", --json] {
         on: {||
             let gateways = listed
             let mac = (link).mac
-            if $mac not-in $gateways { store ($gateways | append $mac) } else { reconverge }
+            if $mac not-in $gateways { store ($gateways | append $mac) } else { reconverge $gateways }
         }
         off: {||
             let gateways = listed

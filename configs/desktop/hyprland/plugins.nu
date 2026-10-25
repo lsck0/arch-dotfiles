@@ -8,6 +8,20 @@ const PLUGIN = "dynamic-cursors"
 const REPOS = [{url: "https://github.com/virtcode/hypr-dynamic-cursors", name: "dynamic-cursors"}]
 const BUILT_FOR = ".local/state/hypr-plugins-built-for"
 
+# The installed hyprland's commit (the binary on disk, which the plugins must match after the next login), and the
+# running one's; they differ between a package upgrade and the relogin.
+def commit-installed []: nothing -> string {
+    try { ^Hyprland --version | parse --regex 'at commit (?<c>[0-9a-f]+)' | get 0.c } catch { "" }
+}
+
+def commit-running []: nothing -> string {
+    try { ^hyprctl version -j | from json | get commit } catch { "" }
+}
+
+def built-for []: nothing -> string {
+    try { open --raw ($nu.home-dir | path join $BUILT_FOR) | str trim } catch { "" }
+}
+
 def loaded []: nothing -> bool {
     ^hyprctl plugin list | complete | get stdout | str lowercase | str contains $PLUGIN
 }
@@ -27,13 +41,23 @@ def main [--build] {
             ^notify-send -a hyprpm "Hyprland plugins not built" "run dot sync (or configs/desktop/hyprland/plugins.nu) from a terminal" | complete | ignore
             return
         }
+        if (built-for) != (commit-installed) {
+            ^notify-send -a hyprpm "Hyprland plugins built for an older Hyprland" "run dot sync (or configs/desktop/hyprland/plugins.nu) from a terminal" | complete | ignore
+            return
+        }
         if not (loaded) { ^hyprpm reload }
         return
     }
-    # headers first: `hyprpm add` refuses to build without them; every hyprland update rebuilds each added repo
+    # headers first: `hyprpm add` refuses to build without them; every hyprland update rebuilds each added repo. Stale
+    # against the installed hyprland; built only once the running one is that same hyprland, since hyprpm fetches the
+    # running instance's headers: a sync that just upgraded hyprland leaves it stale for the sync after the relogin
     let state = $nu.home-dir | path join $BUILT_FOR
-    let commit = try { ^hyprctl version -j | from json | get commit } catch { "" }
-    let stale = $commit == "" or (try { open --raw $state | str trim } catch { "" }) != $commit
+    let commit = commit-installed
+    if $commit != "" and (commit-running) not-in ["" $commit] {
+        print "note: hyprland was upgraded, its plugins rebuild after the next login (dot sync or plugins.nu)"
+        return
+    }
+    let stale = $commit == "" or (built-for) != $commit
     let updated = $stale and (hyprpm-yes update -f)
     if $updated {
         mkdir ($state | path dirname)

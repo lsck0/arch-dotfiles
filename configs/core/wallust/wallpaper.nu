@@ -29,9 +29,11 @@ def request-take []: nothing -> string {
 }
 
 # Links `file` and recolors with wallust; false when a newer request arrived meanwhile, so the theme verbs of this
-# palette would be wasted.
+# palette would be wasted. A theme's font applies only when the wallpaper changes: a re-run on the same one (toggle-font
+# asks for it) keeps the font just picked.
 def recolor [file: path]: nothing -> bool {
     if not ($file | path exists) { error make {msg: $"wallpaper not found: ($file)"} }
+    let switched = (wallpaper-get) != ($file | path expand)
     ^ln -sfn $file (wal wallpaper)
     $"($file)\n" | save --force (wal wallpaper_path)
     let shell = $nu.home-dir | path join .config quickshell
@@ -42,7 +44,7 @@ def recolor [file: path]: nothing -> bool {
     let nvim_theme = if $theme != null {
         # by path: wallust matches a name as a prefix, so gruvbox-dark was ambiguous with gruvbox-dark-soft
         ^wallust cs -s --wallpaper $file $theme.path
-        if ($theme.spec.font? | default "" | is-not-empty) { font-save {family: $theme.spec.font} }
+        if $switched and ($theme.spec.font? | default "" | is-not-empty) { font-save {family: $theme.spec.font} }
         $theme.name
     } else {
         ^wallust run -s $file
@@ -52,17 +54,17 @@ def recolor [file: path]: nothing -> bool {
     not (request-pending)
 }
 
-# The unit's body: applies the newest request until none is left, so a burst of switches costs at most the running
-# one plus the last.
+# The unit's body: applies the newest request, one per run, so the unit's timeout bounds one switch; a request
+# written meanwhile keeps the file there and dot-theme.path starts the next run, so a burst costs at most the running
+# switch plus the last.
 export def theme-serve []: nothing -> nothing {
-    loop {
-        let request = request-take
-        if $request == "" { break }
-        let file = $request | lines | first
-        if (recolor $file) {
-            ^nu --no-config-file $INTERNAL theme apply $file
-        }
-    }
+    let request = request-take
+    if $request == "" { return }
+    let file = $request | lines | first
+    # a failed verb is the theme apply's own report; the run still succeeds, so dot-theme.service keeps a newer request
+    try {
+        if (recolor $file) { ^nu --no-config-file $INTERNAL theme apply $file }
+    } catch {|e| print --stderr $"theme: ($file | path basename): ($e.msg)" }
 }
 
 export def wallpaper-get []: nothing -> string {
@@ -95,14 +97,15 @@ export def wallpaper-set [wallpaper: string, --sync]: nothing -> nothing {
         theme-serve
         return
     }
-    # dot-theme.path starts the run; --sync waits for it, again while a run that ended just before this request
-    # left it waiting
+    # dot-theme.path starts the run; --sync starts it too: a start joins a run already going and returns when it ends,
+    # so the loop returns once the run that took this request is done, not only once the request was taken
     if not $sync { return }
-    while (request-pending) {
+    loop {
         let started = do { ^systemctl --user start $UNIT } | complete
         if $started.exit_code != 0 {
             error make {msg: $"wallpaper: switching to ($file) failed, journalctl --user -u ($UNIT)"}
         }
+        if not (request-pending) { break }
     }
 }
 

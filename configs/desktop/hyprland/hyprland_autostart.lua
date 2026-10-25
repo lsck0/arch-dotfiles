@@ -1,7 +1,6 @@
 hl.on("hyprland.start", function()
     -- the hl.env scales too, so quickshell.service and every app it launches see what the compositor's children see
     hl.exec_cmd("uwsm finalize GDK_SCALE")
-    hl.exec_cmd("echo 'Xft.dpi: " .. 96 * tonumber(require("platform").xwayland_scale) .. "' | xrdb -merge")
 
     -- quickshell's unit waits for the finalize above
     hl.exec_cmd("systemctl --user start quickshell.service")

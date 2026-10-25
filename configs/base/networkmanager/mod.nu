@@ -134,50 +134,68 @@ export def system [cfg: record] {
     ]
 }
 
+# Home is three sources, each with one owner: the admin's secrets (home-gateways.secret, home-ssids.secret: copied
+# while the secrets are at hand, kept while they are locked, so a locked apply never forgets the owner's home), the
+# install's answer and pre-split leftovers (home-gateways.local, written by the bootstrap, never by an apply), and
+# the home_gateways option, read whole every run so toggle-trust-network off drops a gateway even while locked.
+# home-gateways, which 70-home-network reads, is their union, rewritten every run.
 export def home [home_wired: string, ...gateways: string]: nothing -> nothing {
     let secrets = $env.DOTFILES_SECRETS? | default "/nonexistent"
-    let profiles = ^nmcli -g UUID,TYPE connection show | lines | parse "{uuid}:{type}"
+    let secret_gateways = $"($NM)/home-gateways.secret"
+    let secret_ssids = $"($NM)/home-ssids.secret"
+    let local = $"($NM)/home-gateways.local"
+    let file = $"($NM)/home-gateways"
+    let macs = {|path| if ($path | path exists) { open --raw $path | lines | where $it =~ $MAC | str lowercase } else { [] } }
+
+    let secret = $secrets | path join home-gateways
+    if ($secret | path exists) {
+        let lines = open --raw $secret | lines
+        if ($lines | any {|l| not ($l =~ $MAC or $l =~ '^(#.*)?$') }) or not ($lines | any { $in =~ $MAC }) {
+            error make {msg: $"networkmanager: home-gateways is not one mac address per line, keeping ($file)"}
+        }
+        $lines | where $it =~ $MAC | each { $"($in)\n" } | str join | save --force $secret_gateways
+    }
     let wifi = $secrets | path join wifi
     if ($wifi | path exists) {
-        let ssids = open --raw $wifi | lines | each { split row "\t" | first } | where $it != ""
-        for p in ($profiles | where type == 802-11-wireless) {
-            let mac = ^nmcli -g 802-11-wireless.cloned-mac-address connection show $p.uuid | str trim
-            if (^nmcli -g 802-11-wireless.ssid connection show $p.uuid | str trim) in $ssids and $mac != "permanent" {
-                ^nmcli connection modify $p.uuid 802-11-wireless.cloned-mac-address permanent ipv6.method auto
-                if $p.uuid in (^nmcli -g UUID connection show --active | lines) { ^nmcli connection up $p.uuid | ignore }
-            }
+        open --raw $wifi | lines | each { split row "\t" | first } | where $it != "" | each { $"($in)\n" } | str join
+        | save --force $secret_ssids
+    }
+    let option = $gateways | str lowercase
+    # once, from the single file before the split: what neither the secrets nor the option name came from the install
+    if not ($local | path exists) {
+        let known = (do $macs $secret_gateways) ++ $option
+        do $macs $file | where $it not-in $known | each { $"($in)\n" } | str join | save --force $local
+    }
+    # a seed taken while locked may hold the owner's macs: the secrets own those, so dropping one there untrusts it
+    if ($secret | path exists) and ($local | path exists) {
+        let owned = do $macs $secret_gateways
+        do $macs $local | where $it not-in $owned | each { $"($in)\n" } | str join | save --force $local
+    }
+    let want = (do $macs $secret_gateways) ++ (do $macs $local) ++ $option | uniq
+    $want | each { $"($in)\n" } | str join | save --force $file
+
+    let ssids = if ($secret_ssids | path exists) { open --raw $secret_ssids | lines | where $it != "" } else { [] }
+    let profiles = ^nmcli -g UUID,TYPE connection show | lines | parse "{uuid}:{type}"
+    for p in ($profiles | where type == 802-11-wireless) {
+        let mac = ^nmcli -g 802-11-wireless.cloned-mac-address connection show $p.uuid | str trim
+        if (^nmcli -g 802-11-wireless.ssid connection show $p.uuid | str trim) in $ssids and $mac != "permanent" {
+            ^nmcli connection modify $p.uuid 802-11-wireless.cloned-mac-address permanent ipv6.method auto
+            if $p.uuid in (^nmcli -g UUID connection show --active | lines) { ^nmcli connection up $p.uuid | ignore }
         }
     }
     if $home_wired == "true" {
         for p in ($profiles | where type == 802-3-ethernet) { ^nmcli connection modify $p.uuid ipv6.method auto }
     }
-    let file = $"($NM)/home-gateways"
-    let secret = $secrets | path join home-gateways
-    let listed = if ($secret | path exists) {
-        let lines = open --raw $secret | lines
-        if ($lines | any {|l| not ($l =~ $MAC or $l =~ '^(#.*)?$') }) or not ($lines | any { $in =~ $MAC }) {
-            error make {msg: $"networkmanager: home-gateways is not one mac address per line, keeping ($file)"}
-        }
-        $lines
-    } else if ($file | path exists) { open --raw $file | lines | where $it =~ $MAC } else { [] }
-    let want = $listed | append ($gateways | where $it not-in $listed)
-    # with the secrets at hand the file is rewritten whole, so a gateway dropped from the option (toggle-trust-network
-    # off) stops being home; locked secrets never reach the system archive, so then the file only grows and no profile
-    # loses its hardware mac: the owner's home stays home until an unlocked apply decides
-    let complete = $secret | path exists
-    if $complete or ($want | is-not-empty) { $want | each { $"($in)\n" } | str join | save --force $file }
-    let ssids = if ($wifi | path exists) { open --raw $wifi | lines | each { split row "\t" | first } } else { [] }
     let connected = ^nmcli -g DEVICE,STATE device | lines | parse "{dev}:{state}" | where state == connected | get dev
-    for dev in $connected { trusted-wifi-mac $dev ($want | str lowercase) $ssids $complete }
+    for dev in $connected { trusted-wifi-mac $dev $want $ssids }
     for link in $connected {
         ^$"($DISPATCHERS)/70-home-network" $link up
     }
 }
 
 # A wifi profile on a trusted gateway keeps the hardware mac, which 70-home-network needs to call it home; one no
-# longer trusted (and not a secrets ssid) gets the global random mac back, only when the secrets tell the whole list.
-# Only the active profile knows its gateway.
-def trusted-wifi-mac [dev: string, gateways: list<string>, ssids: list<string>, complete: bool]: nothing -> nothing {
+# longer trusted (and not a secrets ssid) gets the global random mac back. Only the active profile knows its gateway.
+def trusted-wifi-mac [dev: string, gateways: list<string>, ssids: list<string>]: nothing -> nothing {
     let uuid = ^nmcli -g GENERAL.CON-UUID device show $dev | str trim
     if $uuid == "" or (^nmcli -g connection.type connection show $uuid | str trim) != "802-11-wireless" { return }
     let gateway = ^ip -4 route show default dev $dev | lines | get --optional 0 | default "" | split row " " | get --optional 2
@@ -188,7 +206,7 @@ def trusted-wifi-mac [dev: string, gateways: list<string>, ssids: list<string>, 
     let ssid = ^nmcli -g 802-11-wireless.ssid connection show $uuid | str trim
     if $trusted and not $permanent {
         ^nmcli connection modify $uuid 802-11-wireless.cloned-mac-address permanent ipv6.method auto
-    } else if $complete and not $trusted and $permanent and $ssid not-in $ssids {
+    } else if not $trusted and $permanent and $ssid not-in $ssids {
         ^nmcli connection modify $uuid 802-11-wireless.cloned-mac-address ""
     } else { return }
     ^nmcli connection up $uuid | ignore

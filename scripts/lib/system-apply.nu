@@ -8,7 +8,7 @@ use pipeline.nu [pipeline-load pipeline-plan pipeline-apply]
 use modules.nu [modules-packages]
 use ledger.nu [packages-convergence ledger-get ledger-set ledger-packages ledger-units]
 use preserve.nu [tty-confirm preserve-prune]
-use migrate.nu [migrations-run]
+use migrate.nu [migrations-run migrations-list migration-run]
 use system.nu [system-unpack system-secrets ENTRY]
 
 const EXIT_FAILURES = 1
@@ -136,6 +136,8 @@ def "main install" [--unattended]: nothing -> nothing {
     locked
     unattended $unattended
     failures-start
+    # the install stage runs base/pacman's verb, so root's state converts before it as before config
+    migrations-run $repo system | ignore
     ^pacman-key --init
     ^pacman-key --populate archlinux
     let offline = (which nm-online | is-not-empty) and not (try { ^nm-online $"--timeout=($OFFLINE_WAIT_S)"; true } catch { false })
@@ -231,9 +233,16 @@ def "main module" [id: string, verb: string]: nothing -> nothing {
     if not (module-system $ctx $id) { exit 1 }
 }
 
-def "main migrate" [--baseline]: nothing -> nothing {
+# migrate --down <id>...: a rollback undoes root's later migrations with the copy that still has them
+def "main migrate" [--baseline, --down, ...ids: string]: nothing -> nothing {
     let repo = repo-guard
     locked
+    if $down {
+        let applied = ledger-get migration
+        migrations-list $repo | where layer == system and id in $ids and id in $applied | reverse
+        | each { migration-run $in down } | ignore
+        return
+    }
     migrations-run $repo system --baseline=$baseline | ignore
 }
 

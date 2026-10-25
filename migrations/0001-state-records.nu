@@ -18,7 +18,11 @@ export def convert [dir: path]: nothing -> nothing {
     let backup = $dir | path join $BACKUP
     mkdir $backup
     for f in $OLD { if ($dir | path join $f | path exists) { cp -p ($dir | path join $f) $backup } }
+    # a re-run replaces the backup, cp -r would merge into it and bring removed modules back on down
+    rm --recursive --force ($backup | path join modules)
     if ($modules | path exists) { cp -rp $modules $backup }
+    let written_file = $dir | path join written
+    let written_at = if ($written_file | path exists) { ls $written_file | get 0.modified | into int } else { 0 }
     let written = if ($dir | path join written | path exists) {
         open --raw ($dir | path join written) | lines | where $it != "" | split column "\t" path sum
         | reduce --fold {} {|r, acc| $acc | upsert $r.path $r.sum }
@@ -36,6 +40,9 @@ export def convert [dir: path]: nothing -> nothing {
         let own = $entries | where target == $path
         {path: $path, sum: $sum, at: (($own | get at | append 0 | math max) + 1), matched: ($own | any { $in.hash == $sum }), ids: ($own | get id | uniq)}
     }
+    # a hash the written file holds but a record wrote over later is stale: the new engine ran before this
+    # migration (a sync's install, a theme switch), the record is current
+    let marks = $marks | where {|m| $m.matched or ($m.at - 1) <= $written_at }
     let lost = $marks | where not $it.matched and ($it.ids | is-empty)
     if ($lost | is-not-empty) { print $"0001: no record holds ($lost.path | str join ' '), what dot wrote there is no longer recorded" }
     for r in $records {
@@ -52,14 +59,20 @@ export def convert [dir: path]: nothing -> nothing {
     for f in $OLD { rm --force ($dir | path join $f) }
 }
 
-# Puts the old files and records back from the backup up made.
+# Back to the old shape from the records as they are now, so every write since up stays known: the written
+# file gets the newest hash per path across file and merge entries, the records lose at and the merge entries.
+# The generations file comes back from the backup, it only lists history.
 export def restore [dir: path]: nothing -> nothing {
+    let modules = $dir | path join modules
     let backup = $dir | path join $BACKUP
-    if not ($backup | path exists) { error make {msg: $"0001: no backup at ($backup), nothing to restore"} }
-    for f in $OLD { if ($backup | path join $f | path exists) { cp -p ($backup | path join $f) $dir } }
-    if ($backup | path join modules | path exists) {
-        rm --recursive --force ($dir | path join modules)
-        cp -rp ($backup | path join modules) $dir
+    for f in [generations written.seen] { if ($backup | path join $f | path exists) { cp -p ($backup | path join $f) $dir } }
+    let files = glob ($modules | path join **/*.nuon)
+    let entries = $files | each {|f| open $f | get outputs | where kind in [file json ini] and ($it.hash? | default null) != null } | flatten
+    $entries | sort-by { $in.at? | default 0 } | reduce --fold {} {|e, acc| $acc | upsert $e.target $e.hash }
+    | items {|path, sum| $"($path)\t($sum)" } | str join "\n" | $"($in)\n" | save --force ($dir | path join written)
+    for f in $files {
+        let rec = open $f
+        $rec | update outputs { where kind not-in [json ini] | each { reject --optional at } } | to nuon | save --force $f
     }
 }
 

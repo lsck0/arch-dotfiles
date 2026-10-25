@@ -32,7 +32,8 @@ def keys-of [listing: string]: nothing -> list<record> {
         let rows = $key | each { split row ":" }
         let uid = $rows | where { $in.0 == uid and $in.1 != r } | get --optional 0.9
         let fpr = $rows | where { $in.0 == fpr } | get --optional 0.9
-        if $uid != null and $fpr != null and $rows.0.1 not-in [r e] { {fpr: $fpr, uid: $uid, caps: $rows.0.11} }
+        let validity = $rows.0.1
+        if $uid != null and $fpr != null and $validity not-in [r e] { {fpr: $fpr, uid: $uid, caps: $rows.0.11, validity: $validity} }
     }
     | compact
 }
@@ -55,34 +56,47 @@ def main []: nothing -> nothing {
     exit 2
 }
 
-# Keys that can be encrypted to, own ones (a secret key here) marked and first.
+# Keys that can be encrypted to, own ones (a secret key here) marked and first; valid: certified (full or ultimate
+# validity), which gpg --batch encrypts to without a trust override.
 def "main keys" []: nothing -> nothing {
     let own = keys-of "--list-secret-keys" | get fpr
     let keys = keys-of "--list-keys" | where { $in.caps =~ E }
-        | each {|k| {fpr: $k.fpr, uid: $k.uid, own: ($k.fpr in $own)} } | sort-by --reverse own | uniq-by fpr
+        | each {|k| {fpr: $k.fpr, uid: $k.uid, own: ($k.fpr in $own), valid: ($k.validity in [f u])} }
+        | sort-by --reverse own | uniq-by fpr
     emit {keys: $keys, signer: (signer)}
 }
 
-# stdin to the given recipients and the signer, signed, armored.
-def "main encrypt" [...recipients: string]: string -> nothing {
+# stdin to the given recipients and the signer, signed, armored; --trust-unverified: the user confirmed an uncertified
+# recipient in the window, so gpg encrypts to it (--trust-model always) instead of refusing it in batch mode.
+def "main encrypt" [...recipients: string, --trust-unverified]: string -> nothing {
     let text = $in
     let me = signer
     if $me == null { return (emit {ok: false, error: "no secret key to sign with"}) }
     if ($recipients | is-empty) { return (emit {ok: false, error: "no recipient picked"}) }
     let to = $recipients | append $me | uniq | each { [--recipient $in] } | flatten
-    let run = $"($text)\n" | do { ^gpg --batch --armor --local-user $me --sign --encrypt ...$to } | complete
+    let trust = if $trust_unverified { [--trust-model always] } else { [] }
+    let run = $"($text)\n" | do { ^gpg --batch ...$trust --armor --local-user $me --sign --encrypt ...$to } | complete
     if $run.exit_code != 0 { return (emit {ok: false, error: ($run.stderr | lines | where { not ($in starts-with "[GNUPG:]") } | last | default "gpg failed")}) }
     emit {ok: true, armored: ($run.stdout | str trim --right --char "\n")}
 }
 
-# stdin decrypted or verified: the plaintext and its signature, for the window only.
+# stdin decrypted or verified: the plaintext and its signature, for the window only. An encrypted message counts only
+# with DECRYPTION_OKAY and no failure line: a tampered or truncated one streams plaintext before gpg notices, and
+# none of it is shown.
 def "main decrypt" []: string -> nothing {
     let run = $in | do { ^gpg --batch --status-fd 2 --decrypt } | complete
     let status = status-of $run.stderr
+    let has = {|pattern| $status | any { $in =~ $'^\[GNUPG:\] ($pattern)' } }
     let sig = signature $status
-    let opened = $status | any { $in =~ '^\[GNUPG:\] (DECRYPTION_OKAY|PLAINTEXT)' }
-    if not $opened and $sig.state == "none" {
+    if (do $has 'BEGIN_DECRYPTION') {
+        if (do $has '(DECRYPTION_FAILED|BADMDC)') or not (do $has 'DECRYPTION_OKAY') {
+            return (emit {ok: false, error: "decryption failed: no key for it, or the message was altered or cut short"})
+        }
+    } else if $sig.state == "none" {
         return (emit {ok: false, error: "no OpenPGP message in this entry"})
+    }
+    if $run.exit_code != 0 and $sig.state in [none good untrusted] {
+        return (emit {ok: false, error: ($run.stderr | lines | where { not ($in starts-with "[GNUPG:]") } | last | default "gpg failed")})
     }
     emit {ok: true, plaintext: $run.stdout, signature: $sig}
 }

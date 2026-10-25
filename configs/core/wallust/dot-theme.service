@@ -1,11 +1,15 @@
 [Unit]
 Description=Apply the newest requested wallpaper and theme
-# started by dot-theme.path while $XDG_RUNTIME_DIR/theme.request exists; the run takes the request file and applies
-# the newest one, systemd never runs it twice at once
+# started by dot-theme.path while $XDG_RUNTIME_DIR/theme.request exists; each run takes the request file and applies
+# that one switch, systemd never runs it twice at once
 
 [Service]
 Type=oneshot
 ExecStart=%h/.local/bin/dot internal theme serve
-# a hung theme verb must not block every later switch: the run is killed, and the path unit starts the next one for
-# any request still waiting
-TimeoutStartSec=3min
+# one switch: wallust, the parallel theme verbs, then spotify and discord in order, each verb capped at 60s
+# (THEME_VERB_TIMEOUT); a hung run is killed and the path unit starts the next one for any request still waiting
+TimeoutStartSec=5min
+# a run that failed outright (a broken checkout mid-pull, theme-serve itself never fails on a verb) drops the waiting
+# request, or PathExists would restart the unit until its start limit fails the path unit for good
+ExecStopPost=/bin/sh -c 'case "$SERVICE_RESULT" in success|timeout) ;; *) rm -f %t/theme.request ;; esac'
+

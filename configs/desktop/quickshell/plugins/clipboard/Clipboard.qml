@@ -26,6 +26,13 @@ Item {
   property var gpgResult: null
   property string gpgError: ""
   property string gpgText: ""
+  // a picked key nobody certified needs a second ENTER: gpg then encrypts to it with --trust-model always
+  property bool gpgUnverifiedArmed: false
+  // every reset bumps the serial: a gpg run that finishes after the window closed or was reset is dropped
+  property int gpgSerial: 0
+  property int gpgRunSerial: -1
+  // a gpg run longer than a moment likely waits on pinentry or a key touch: the overlay unmaps so that window shows
+  property bool gpgHidden: false
   readonly property bool gpgBusy: gpgKeysProc.running || gpgEncryptProc.running || gpgDecryptProc.running
   readonly property string gpgHelper: root.pluginDir + "/gpg.nu"
 
@@ -43,6 +50,7 @@ Item {
   property int rowHeight: Style.space(44)
 
   function open() {
+    root.gpgReset()
     root.opened = true
     root.filterText = ""
     root.selectedIndex = 0
@@ -59,12 +67,18 @@ Item {
   }
 
   function gpgReset() {
+    root.gpgSerial++
+    gpgKeysProc.running = false
+    gpgEncryptProc.running = false
+    gpgDecryptProc.running = false
+    root.gpgHidden = false
     root.gpgMode = ""
     root.gpgKeys = []
     root.gpgPicked = {}
     root.gpgResult = null
     root.gpgError = ""
     root.gpgText = ""
+    root.gpgUnverifiedArmed = false
   }
 
   function selectedEntryText() {
@@ -72,10 +86,14 @@ Item {
     return row && row.entryType === "text" ? row.fullText : ""
   }
 
-  // gpg-agent's pinentry is a window of its own: the overlay lets go of the keyboard while gpg runs
+  function gpgCurrent() { return root.opened && root.gpgRunSerial === root.gpgSerial }
+
+  // gpg-agent's pinentry is a window of its own: the overlay lets go of the keyboard while gpg runs, and unmaps after
+  // gpgHideTimer so the dialog is not drawn under the card
   function gpgRun(proc, argv, text) {
     if (root.gpgBusy) return
     root.gpgError = ""
+    root.gpgRunSerial = root.gpgSerial
     proc.command = argv
     proc.process.stdinEnabled = true
     proc.run()
@@ -89,6 +107,7 @@ Item {
     root.gpgReset()
     root.gpgText = text
     root.gpgMode = "encrypt"
+    root.gpgRunSerial = root.gpgSerial
     gpgKeysProc.run()
   }
 
@@ -107,12 +126,21 @@ Item {
     if (picked[fpr]) delete picked[fpr]
     else picked[fpr] = true
     root.gpgPicked = picked
+    root.gpgUnverifiedArmed = false
   }
 
   function encryptPicked() {
     var to = Object.keys(root.gpgPicked)
     if (to.length === 0) { root.gpgError = "pick at least one recipient (space)"; return }
-    root.gpgRun(gpgEncryptProc, [root.gpgHelper, "encrypt"].concat(to), root.gpgText)
+    var unverified = root.gpgKeys.filter(function (k) { return root.gpgPicked[k.fpr] && !k.valid })
+    if (unverified.length > 0 && !root.gpgUnverifiedArmed) {
+      root.gpgUnverifiedArmed = true
+      root.gpgError = "not certified: " + unverified.map(function (k) { return k.uid }).join(", ")
+        + "; check the fingerprint, ENTER again encrypts to it anyway"
+      return
+    }
+    var flags = unverified.length > 0 ? ["--trust-unverified"] : []
+    root.gpgRun(gpgEncryptProc, [root.gpgHelper, "encrypt"].concat(flags).concat(to), root.gpgText)
   }
 
   function gpgKey(event) {
@@ -296,7 +324,7 @@ Item {
 
   function copyRow(row) {
     if (!row) return
-    root.opened = false
+    root.close()
     if (row.entryType === "image") {
       Quickshell.execDetached(["bash", "-c", "wl-copy --type " + Util.shellQuote(row.mime) + " < " + Util.shellQuote(row.path)])
     } else if (row.fullText && !copyTextProc.running) {
@@ -316,6 +344,7 @@ Item {
     id: gpgKeysProc
     command: [root.gpgHelper, "keys"]
     onParsed: function (data) {
+      if (!root.gpgCurrent()) return
       root.gpgKeys = data.keys || []
       var picked = {}
       if (data.signer) picked[data.signer] = true
@@ -324,13 +353,15 @@ Item {
       root.gpgKeyIndex = Math.max(0, own)
       if (root.gpgKeys.length === 0) root.gpgError = "no key to encrypt to"
     }
-    onFailed: function (error) { root.gpgError = "gpg keys: " + error }
+    onFailed: function (error) { if (root.gpgCurrent()) root.gpgError = "gpg keys: " + error }
   }
 
   // the armored message replaces the plaintext: onto the clipboard, the plaintext's history entry forgotten
   JsonProcess {
     id: gpgEncryptProc
     onParsed: function (data) {
+      if (!root.gpgCurrent()) return
+      root.gpgHidden = false
       if (!data.ok) { root.gpgError = data.error; return }
       var plain = root.gpgText
       root.close()
@@ -341,23 +372,38 @@ Item {
       root.forgetTextHash(Qt.md5(plain))
       Quickshell.execDetached(["notify-send", "--app-name=clipboard", "Encrypted and signed", "The armored message is on the clipboard"])
     }
-    onFailed: function (error) { root.gpgError = "gpg encrypt: " + error }
+    onFailed: function (error) { if (root.gpgCurrent()) { root.gpgHidden = false; root.gpgError = "gpg encrypt: " + error } }
   }
 
   JsonProcess {
     id: gpgDecryptProc
     onParsed: function (data) {
+      if (!root.gpgCurrent()) return
+      root.gpgHidden = false
       if (!data.ok) { root.gpgError = data.error; return }
       root.gpgResult = { plaintext: String(data.plaintext || "").replace(/\n+$/, ""), signature: data.signature }
     }
-    onFailed: function (error) { root.gpgError = "gpg decrypt: " + error }
+    onFailed: function (error) { if (root.gpgCurrent()) { root.gpgHidden = false; root.gpgError = "gpg decrypt: " + error } }
   }
 
   function openRow(row) {
     if (!row) return
-    root.opened = false
+    root.close()
     Quickshell.execDetached(["uwsm-app", "--", "xdg-open", row.path || row.fullText])
   }
+
+  Timer {
+    id: gpgHideTimer
+    interval: 600
+    running: root.gpgBusy && (gpgEncryptProc.running || gpgDecryptProc.running)
+    onTriggered: {
+      root.gpgHidden = true
+      Quickshell.execDetached(["notify-send", "--app-name=clipboard", "Waiting for gpg", "pinentry or a key touch; the clipboard window comes back after"])
+    }
+  }
+
+  // back from a pinentry: the card maps again and takes the keyboard
+  onGpgHiddenChanged: if (!root.gpgHidden && root.opened) Qt.callLater(function() { keyCatcher.forceActiveFocus() })
 
   Component.onCompleted: initProc.running = true
 
@@ -435,7 +481,7 @@ Item {
 
   OverlayCard {
     id: panel
-    open: root.opened
+    open: root.opened && !root.gpgHidden
     name: "clipboard"
     title: "clipboard"
     suffix: "[" + String(displayModel.count) + "]"
@@ -792,7 +838,8 @@ Item {
                   anchors.fill: parent
                   anchors.margins: Style.spacing.sm
                   textFormat: Text.PlainText
-                  text: (keyRow.picked ? "[x] " : "[ ] ") + keyRow.modelData.uid + (keyRow.modelData.own ? "  (own)" : "")
+                  text: (keyRow.picked ? "[x] " : "[ ] ") + keyRow.modelData.uid + (keyRow.modelData.own ? "  (own)"
+                    : keyRow.modelData.valid ? "" : "  (not certified)")
                     + "\n    " + keyRow.modelData.fpr
                   color: keyRow.hasCursor ? root.selectedText : root.foreground
                   font.family: root.fontFamily

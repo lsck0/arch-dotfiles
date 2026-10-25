@@ -12,10 +12,15 @@ const RETRY_FIRST = 15sec
 const RETRY_MAX = 5min
 const RETRY_ATTEMPTS = 6
 const MONITOR_END = "eof"
+# the persona dispatcher's mark on a tor it started; a tor route without it is the user's choice
+const DISPATCHER_TOR = "/run/persona-tor"
 
-def vpn-on []: nothing -> bool {
-    (do { ^$TOGGLE get } | complete | get stdout | str trim) == "proton"
-}
+def route []: nothing -> string { do { ^$TOGGLE get } | complete | get stdout | str trim }
+
+def vpn-on []: nothing -> bool { (route) == "proton" }
+
+# a tor route the user picked stays: auto-vpn neither adds proton beside it nor ends it at home
+def user-tor []: nothing -> bool { (route) == "tor" and not ($DISPATCHER_TOR | path exists) }
 
 def decide [state: record]: nothing -> record {
     # DEVICE last: a bluetooth one is an address, its escaped colons stay in the remainder
@@ -23,6 +28,7 @@ def decide [state: record]: nothing -> record {
         | parse --regex '^(?<type>[^:]*):(?<state>[^:]*):(?<path>[^:]*):(?<dev>.*)$'
         | where type in $LINK_TYPES and state == connected
     if ($links | is-empty) { return ($state | update retry_at null) }
+    if (user-tor) { return ($state | update retry_at null) }
     let home_links = if ($HOME_NETWORK | path exists) { open --raw $HOME_NETWORK | lines } else { [] }
     if ($links | all { $in.type not-in $MOBILE_TYPES and $in.dev in $home_links }) {
         if $state.last != home and (vpn-on) { try { ^$TOGGLE direct } }
