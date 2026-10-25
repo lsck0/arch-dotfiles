@@ -1,100 +1,64 @@
 import QtQuick
 import qs.Commons
 
-BorderSurface {
+Item {
   id: root
 
-  property string label: ""
-  property string description: ""
   property bool checked: false
+
+  property bool interactive: true
 
   property bool hasCursor: false
 
+  property bool cursorRing: interactive
+  property int cursorPad: Style.spacing.xs
   property color foreground: Colors.foreground
   property color accent: Colors.accent
-  property string fontFamily: Style.font.family
-  property real titleSize: Style.font.subtitle
-  property real descriptionSize: Style.font.caption
 
-  signal clicked()
   signal hovered(bool isHovered)
 
-  activeFocusOnTab: true
-  Keys.onReturnPressed: root.clicked()
-  Keys.onEnterPressed: root.clicked()
-  Keys.onSpacePressed: root.clicked()
+  readonly property alias containsMouse: mouse.containsMouse
+  readonly property bool hot: hasCursor || mouse.containsMouse
 
-  implicitHeight: Math.max(54, content.implicitHeight + Style.spacing.lg)
-  implicitWidth: Style.space(240)
-  radius: Style.shape.data
+  readonly property int _pad: cursorRing ? cursorPad : 0
 
-  readonly property bool _hot: hasCursor || mouse.containsMouse
-  readonly property var _borderSpec: Border.controlSpec(activeFocus ? "focus" : (_hot ? "hover-cursor" : "normal"), foreground, accent)
+  implicitWidth: widest.advanceWidth + _pad * 2
+  implicitHeight: label.implicitHeight + _pad * 2
 
-  color: Style.controlFill(activeFocus, _hot, foreground, accent)
-  borderSpec: _borderSpec
+  TextMetrics {
+    id: widest
+    font: label.font
+    text: "[ off]"
+  }
 
-  Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
+  BorderSurface {
+    anchors.fill: parent
+    visible: root.cursorRing && root.hot
+    color: "transparent"
+    radius: Style.shape.data
+    borderSpec: Border.controlSpec("hover-cursor", root.foreground, root.accent)
+  }
 
-  layer.enabled: Style.fx.glow > 0 && activeFocus
-  layer.effect: Glow {}
-
-  Row {
-    id: content
-    anchors.left: parent.left
-    anchors.right: parent.right
-    anchors.verticalCenter: parent.verticalCenter
-    anchors.leftMargin: root.borderWidth + Style.spacing.rowPaddingX
-    anchors.rightMargin: root.borderWidth + Style.spacing.rowPaddingX
-    spacing: Style.spacing.rowPaddingX
-
-    Column {
-      width: parent.width - track.width - parent.spacing
-      spacing: Style.spacing.xs
-      anchors.verticalCenter: parent.verticalCenter
-
-      Text {
-        textFormat: Text.PlainText
-        text: root.label
-        color: root.foreground
-        font.family: root.fontFamily
-        font.pixelSize: root.titleSize
-        font.bold: true
-        elide: Text.ElideRight
-        width: parent.width
-      }
-
-      Text {
-        textFormat: Text.PlainText
-        visible: root.description !== ""
-        text: root.description
-        color: Util.alpha(root.foreground, Style.emphasis.dim)
-        font.family: root.fontFamily
-        font.pixelSize: root.descriptionSize
-        wrapMode: Text.WordWrap
-        width: parent.width
-      }
-    }
-
-    ToggleSwitch {
-      id: track
-      checked: root.checked
-      foreground: root.foreground
-      accent: root.accent
-      interactive: false
-      anchors.verticalCenter: parent.verticalCenter
-    }
+  Text {
+    id: label
+    anchors.centerIn: parent
+    textFormat: Text.PlainText
+    text: root.checked ? "[on ]" : "[ off]"
+    color: root.checked ? Style.selectedStateColor(root.foreground, root.accent) : root.foreground
+    opacity: root.checked ? 1 : Style.emphasis.faint
+    font.family: Style.font.family
+    font.pixelSize: Style.font.body
+    font.bold: root.checked
+    layer.enabled: Style.fx.glow > 0 && root.checked
+    layer.effect: Glow {}
   }
 
   MouseArea {
     id: mouse
     anchors.fill: parent
+    enabled: root.interactive
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
-    onClicked: root.clicked()
-  }
-
-  HoverHandler {
-    onHoveredChanged: root.hovered(hovered)
+    onContainsMouseChanged: root.hovered(containsMouse)
   }
 }

@@ -49,10 +49,6 @@ def z-path [dir: path]: nothing -> string {
     $"Z:($dir | str replace --all '/' '\')\\"
 }
 
-def refresh-rate []: nothing -> int {
-    try { ^hyprctl -j monitors | from json | where name !~ '^HEADLESS-' | get refreshRate | math max | math round } catch { 60 }
-}
-
 export def link [cfg: record] {
     let base = lod-detect
     if $cfg.game_dir == null or $base == null or not (wine-bin | path exists) { return [] }
@@ -65,7 +61,6 @@ export def link [cfg: record] {
         (if $cfg.save_dir != null and not (save-path-set $cfg.save_dir) { step save-path $cfg.save_dir } else { [] })
         (file-render pd2.sh (root | path join pd2.sh) {
             game: (lod-dir | path join ProjectD2), prefix: (prefix-dir), wine: $wine, width: $SIZE.w, height: $SIZE.h
-            refresh: (refresh-rate)
         } --mode "755")
         (file-text ($nu.home-dir | path join .local share applications pd2.desktop) (desktop))
     ]

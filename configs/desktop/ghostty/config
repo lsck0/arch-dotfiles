@@ -2,6 +2,7 @@ config-file=?~/.cache/wal/ghostty.conf
 config-file=?~/.config/dotfiles/ghostty-style.conf
 config-file=?~/.cache/ghostty-powersave.conf
 config-file=?~/.config/dotfiles/ghostty-env.conf
+config-file=?~/.config/dotfiles/ghostty-font.conf
 
 app-notifications = false
 confirm-close-surface = false
@@ -13,9 +14,6 @@ cursor-style = block
 cursor-style-blink = true
 mouse-hide-while-typing = true
 
-font-family = Kode Mono
-font-family = Symbols Nerd Font Mono
-font-size = 13
 
 window-width = 115
 window-height = 35

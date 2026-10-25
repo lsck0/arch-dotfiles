@@ -1,5 +1,6 @@
 use module.nu *
 use ../../core/wallust/palette.nu [OPACITY_SURFACE]
+use ../../core/wallust/font.nu [font-load]
 
 export const meta = {deps: [desktop/hyprland], packages: {pacman: [ghostty xdg-terminal-exec]}}
 
@@ -11,8 +12,7 @@ export def link [cfg: record] {
     let runtime = $env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u | str trim)"
     let scale = xwayland-scale-for $cfg
     [
-        # a link: toggle-font rewrites the repo file
-        (file-link config ($config | path join ghostty config))
+        (file-copy config ($config | path join ghostty config))
         (link-commands xdg/ghostty-window.nu)
         (file-render xdg/ghostty-new-window.desktop ($apps | path join ghostty-new-window.desktop) {HOME: $nu.home-dir})
         (file-copy xdg/xdg-terminals.list ($config | path join xdg-terminals.list))
@@ -27,9 +27,16 @@ export def link [cfg: record] {
 }
 
 export def theme [cfg: record, wallpaper: string] {
-    if (^pgrep -x ghostty | complete).exit_code != 0 { return [] }
-    exec ghostty-reload [
-        timeout 5 gdbus call --session --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty
-        --method org.gtk.Actions.Activate reload-config "[]" "{}"
+    let config = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config)
+    let font = font-load
+    let fragment = $"font-family = ($font.mono)\nfont-family = Symbols Nerd Font Mono\nfont-size = ($font.size)\n"
+    [
+        (file-text ($config | path join dotfiles ghostty-font.conf) $fragment --generated)
+        (if (^pgrep -x ghostty | complete).exit_code != 0 { [] } else {
+            exec ghostty-reload [
+                timeout 5 gdbus call --session --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty
+                --method org.gtk.Actions.Activate reload-config "[]" "{}"
+            ]
+        })
     ]
 }

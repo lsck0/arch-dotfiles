@@ -1,5 +1,5 @@
-# Shared helpers for scripts/toggles/toggle-*.nu: state files, the root helper, bar notifications, and switch-run, the
-# get/label/on/off/toggle dispatch every on/off toggle uses.
+# Shared helpers for scripts/toggles/toggle-*.nu: state files, the root helper, bar notifications, the status record
+# every toggle answers to `get --json`, and switch-run, the get/on/off/toggle dispatch every on/off toggle uses.
 
 use ../lib/log.nu [log-err]
 
@@ -79,13 +79,38 @@ export def cycle-next [current: any]: list -> any {
     $list | get (($index + 1) mod ($list | length))
 }
 
-# Dispatches get, label, on, off or toggle for a switch of closures {label, is-on, on, off}; a failure exits 1.
-export def switch-run [switch: record, action: string]: nothing -> any {
+# The record a toggle answers to `get --json`, the one shape status.nu, the menu, the bar and the settings window
+# read: `state` its value, `text` that value for people, `states` every value with the resting one first (empty for an
+# open setting like the font), `on` whether it is away from rest, `available` whether this machine offers it.
+export def status-record [
+    label: string, state: string, --text: string, --states: list<string> = [], --available = true
+]: nothing -> record {
+    {
+        name: ($env.PROCESS_PATH | path basename | str replace --regex '^toggle-(.*)\.nu$' '$1')
+        label: $label
+        state: $state
+        text: ($text | default $state)
+        states: $states
+        on: (($states | is-not-empty) and $state != $states.0)
+        available: $available
+    }
+}
+
+# `get` prints the state alone, `get --json` the whole record.
+export def status-print [status: record, json: bool]: nothing -> any {
+    if $json { $status | to json --raw } else { $status.state }
+}
+
+# Dispatches get, on, off or toggle for a switch of closures {label, is-on, on, off} and an optional `available`;
+# a failure exits 1.
+export def switch-run [switch: record, action: string, --json]: nothing -> any {
     let state = if (do $switch.is-on) { "on" } else { "off" }
     let action = if $action == toggle { if $state == on { "off" } else { "on" } } else { $action }
     match $action {
-        get => $state
-        label => $"(if $state == on { '●' } else { '○' }) ($switch.label) \(($state)\)"
+        get => {
+            let available = if "available" in $switch { do $switch.available } else { true }
+            status-print (status-record $switch.label $state --states [off on] --available=$available) $json
+        }
         on | off => {
             try { do ($switch | get $action) } catch {|err|
                 notify $switch.label $"Failed to turn ($action)" --critical
@@ -95,7 +120,7 @@ export def switch-run [switch: record, action: string]: nothing -> any {
             notify $switch.label $"Turned ($action)"
         }
         _ => {
-            print -e $"usage: ($env.PROCESS_PATH | path basename) {get|label|on|off|toggle}"
+            print -e $"usage: ($env.PROCESS_PATH | path basename) {get [--json]|on|off|toggle}"
             exit 1
         }
     }
@@ -113,8 +138,10 @@ export def service-switch [label: string, unit: string]: nothing -> record {
 # A switch for an nmcli radio; on fails without the hardware, which the soft switch alone would report enabled.
 export def radio-switch [label: string, radio: string]: nothing -> record {
     let hardware = $"($radio | str uppercase)-HW"
+    let types = if $radio == wwan { [gsm wwan] } else { [$radio] }
     {
         label: $label
+        available: {|| ^nmcli -t -f TYPE device | lines | any {|type| $type in $types } }
         is-on: {|| (^nmcli -t -f $"($hardware),($radio | str uppercase)" radio | complete).stdout == "enabled:enabled\n" }
         on: {||
             if (^nmcli -t -f $hardware radio | str trim) != enabled {

@@ -1,6 +1,7 @@
 use module.nu *
 use ../spotify/mod.nu [spicetify-colors]
 use ../../core/wallust/palette.nu [RADIUS_PX]
+use ../../core/wallust/font.nu [font-load]
 
 export const meta = {packages: {pacman: [discord discordo-git]}}
 
@@ -87,10 +88,12 @@ def rgb [hex: string]: nothing -> string {
 
 export def theme [cfg: record, wallpaper: string] {
     let palette = spicetify-colors | default [] | reduce --fold {} {|c, acc| $acc | insert $c.key $c.hex }
-    let font = try { ^($env.DOTFILES | path join scripts toggles toggle-font.nu) get | str trim } catch { "" }
+    let font = font-load
     let colours = $THEME_SLOTS | items {|var, key| {var: $var, hex: ($palette | get --optional $key)} }
         | where hex != null | each {|c| {var: $c.var, value: (rgb $c.hex)} }
-    let values = $colours ++ [{var: radius, value: $"($RADIUS_PX)px"}] ++ (if ($font | is-empty) { [] } else { [{var: font, value: $'"($font)"'}] })
+    let values = $colours ++ [
+        {var: radius, value: $"($RADIUS_PX)px"} {var: font, value: $'"($font.family)"'} {var: font-scale, value: $font.scale}
+    ]
     let text = $values | reduce --fold (open --raw $THEME) {|v, css|
         $css | str replace --regex --multiline ('^(\s*--' + $v.var + ':) .*$') $"${1} ($v.value);"
     }

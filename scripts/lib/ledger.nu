@@ -1,9 +1,11 @@
-# The ledger: what dot enabled or installed (units, packages) and each generation's package snapshot, so
-# what no module declares any more can be found and, after a yes, disabled or removed.
+# The ledger: what dot enabled or installed (units, packages), the applied migrations and the lsck0 snapshot,
+# so what no module declares any more can be found and, after a yes, disabled or removed. Units and packages
+# stay here, not in the module records: dot owns a unit a module's files name and a package its meta declares,
+# neither a verb's output.
 
 use log.nu *
 use state.nu [state-dir save-atomic]
-use written.nu [tty-confirm]
+use preserve.nu [tty-confirm]
 use converge.nu [unit-states]
 
 export const PACKAGES_DENY = '^(base|base-devel|linux.*|.*-firmware|.*-ucode|binutils|sbctl|cryptsetup|btrfs-progs|mkinitcpio|systemd.*|networkmanager|sudo|pacman|git|gnupg|yay|nix|nushell|libfido2|openssh|age|age-plugin-yubikey|git-crypt|pcsclite|zsh)$'
@@ -80,11 +82,4 @@ export def ledger-packages [declared: list<string>]: nothing -> nothing {
     ledger-set pkg ($resolved ++ (if $removing { [] } else { $dropped }))
     let by_hand = ^pacman -Qqe | lines | where $it not-in (ledger-get pkg)
     if ($by_hand | is-not-empty) { log-info $"installed by hand, not managed: ($by_hand | str join ' ')" }
-}
-
-# One line per commit sha, <sha> <pin|latest> <db time> <db sha256>, replacing an earlier line for it.
-export def ledger-generation [file: path, sha: string, snapshot: string]: nothing -> nothing {
-    if not ($sha =~ '^[0-9a-f]{40}$') { error make {msg: $"ledger-generation: ($sha) is not a commit sha"} }
-    let kept = if ($file | path exists) { open --raw $file | lines | where {|l| ($l | split row " " | first) != $sha } } else { [] }
-    $kept | append $"($sha) ($snapshot)" | str join "\n" | $"($in)\n" | save-atomic $file
 }

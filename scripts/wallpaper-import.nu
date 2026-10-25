@@ -5,8 +5,8 @@ use ($SCRIPTS | path join lib usage.nu) [die]
 
 const REPO = $SCRIPTS | path dirname
 const PUBLIC_DIR = $REPO | path join wallpapers
-const SECRET_DIR = $REPO | path join configs secrets state wallpapers
-const SUBMODULE = $REPO | path join configs secrets
+# syncthing carries them to every machine; the user imports them, dot never writes there
+const BOUGHT = "sync/wallpapers"
 const IMAGE_SUFFIXES = [jpg jpeg png webp]
 const FINGERPRINT_SIZE = "32x18!"
 const MATCH_DISTANCE_MAX = 12
@@ -24,10 +24,11 @@ def is-image [file: path]: nothing -> bool {
     ($file | path parse | get extension | str lowercase) in $IMAGE_SUFFIXES
 }
 
-# Import high-res wallpapers (files, dirs, zips) into configs/secrets/state/wallpapers/, shadowing matching low-res ones.
+# Import high-res wallpapers (files, dirs, zips) into ~/sync/wallpapers/, shadowing matching low-res ones.
 def main [...sources: path]: nothing -> nothing {
     if ($sources | is-empty) { die --misuse "the following arguments are required: file|dir|zip" }
-    if not ($SUBMODULE | path join .git | path exists) { die "configs/secrets/ is not pulled: dot secrets unlock" }
+    let bought = $nu.home-dir | path join $BOUGHT
+    if not ($bought | path dirname | path exists) { die "~/sync is missing: syncthing is not set up here" }
     let public = ls $PUBLIC_DIR | get name | where { is-image $in }
         | par-each --keep-order { {name: ($in | path basename), fingerprint: (fingerprint-of $in)} }
     let unzipped = mktemp --directory --tmpdir
@@ -43,7 +44,7 @@ def main [...sources: path]: nothing -> nothing {
             _ => [$source]
         }
     } | flatten | where { is-image $in }
-    mkdir $SECRET_DIR
+    mkdir $bought
     $images | each {|image|
         let candidate = fingerprint-of $image
         let best = $public | each {|p|
@@ -55,11 +56,11 @@ def main [...sources: path]: nothing -> nothing {
             let slug = $parts.stem | str lowercase | str replace --all --regex '[^a-z0-9]+' '-' | str trim --char '-'
             $"($slug).($parts.extension | str lowercase)"
         }
-        cp $image ($SECRET_DIR | path join $target)
+        cp $image ($bought | path join $target)
         let size = ^magick identify -format "%wx%h" $"($image)[0]"
         let how = if $target == $best.name { $"shadows wallpapers/($best.name)" } else { "new, no public match" }
         let distance = $best.distance | into string --decimals 1
-        print $"($name)  ($size)  -> configs/secrets/state/wallpapers/($target)  \(($how), distance ($distance)\)"
+        print $"($name)  ($size)  as ~/sync/wallpapers/($target)  \(($how), distance ($distance)\)"
     } | ignore
     rm --recursive --force $unzipped
 }

@@ -1,17 +1,21 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "Palette.js" as Palette
 pragma Singleton
 
 QtObject {
     id: root
 
     readonly property string path: Quickshell.shellDir + "/theme.json"
+    // the font is a theme input beside the palette (configs/core/wallust/font.nu), set by a theme or toggle-font
+    readonly property string fontPath: Quickshell.env("HOME") + "/.cache/wal/font.json"
     property string fontFamily: "Kode Mono"
-    property int fontSize: 12
-    property real backgroundValueMin: 0.08
-    property real backgroundValueMax: 0.26
-    property real lightLuminance: 0.4
+    property int fontSize: 13
+    // the clamps are palette.nu's, through Palette.js's generated block; theme.json may override them
+    property real backgroundValueMin: Palette.BG_VALUE_MIN
+    property real backgroundValueMax: Palette.BG_VALUE_MAX
+    property real lightLuminance: Palette.LIGHT_LUMINANCE
     property real foregroundContrast: 7
     property real accentMinSaturation: 0.7
     property real accentMinValue: 0.62
@@ -31,6 +35,7 @@ QtObject {
     property int revision: 0
     readonly property int reloadDelayMs: 80
     property FileView file
+    property FileView fontFile
     property Timer reloadTimer
 
     file: FileView {
@@ -44,9 +49,23 @@ QtObject {
         onFileChanged: root.reloadTimer.restart()
     }
 
+    fontFile: FileView {
+        path: root.fontPath
+        watchChanges: true
+        printErrors: false
+        onLoaded: {
+            root.applyFont(text());
+            Util.rearmWatch(this);
+        }
+        onFileChanged: root.reloadTimer.restart()
+    }
+
     reloadTimer: Timer {
         interval: root.reloadDelayMs
-        onTriggered: root.file.reload()
+        onTriggered: {
+            root.file.reload();
+            root.fontFile.reload();
+        }
     }
 
     function _num(value, fallback, min, max) {
@@ -55,6 +74,22 @@ QtObject {
             return fallback;
 
         return Math.max(min, Math.min(max, n));
+    }
+
+    function applyFont(raw) {
+        var font;
+        try {
+            font = JSON.parse(raw || "{}");
+        } catch (e) {
+            return ;
+        }
+        if (typeof font.family === "string" && font.family.trim().length > 0)
+            fontFamily = font.family.trim();
+
+        if (font.size !== undefined)
+            fontSize = Math.round(_num(font.size, fontSize, 6, 32));
+
+        revision++;
     }
 
     function apply(raw) {
@@ -72,19 +107,11 @@ QtObject {
             console.warn("theme.json is not an object, keeping previous theme");
             return ;
         }
-        var font = parsed.font || {
-        };
-        if (typeof font.family === "string" && font.family.trim().length > 0)
-            fontFamily = font.family.trim();
-
-        if (font.size !== undefined)
-            fontSize = Math.round(_num(font.size, fontSize, 6, 32));
-
         var p = parsed.palette || {
         };
-        backgroundValueMin = _num(p.backgroundValueMin, backgroundValueMin, 0, 1);
-        backgroundValueMax = Math.max(backgroundValueMin, _num(p.backgroundValueMax, backgroundValueMax, 0, 1));
-        lightLuminance = _num(p.lightLuminance, lightLuminance, 0, 1);
+        backgroundValueMin = _num(p.backgroundValueMin, Palette.BG_VALUE_MIN, 0, 1);
+        backgroundValueMax = Math.max(backgroundValueMin, _num(p.backgroundValueMax, Palette.BG_VALUE_MAX, 0, 1));
+        lightLuminance = _num(p.lightLuminance, Palette.LIGHT_LUMINANCE, 0, 1);
         foregroundContrast = _num(p.foregroundContrast, foregroundContrast, 1, 21);
         accentMinSaturation = _num(p.accentMinSaturation, accentMinSaturation, 0, 1);
         accentMinValue = _num(p.accentMinValue, accentMinValue, 0, 1);

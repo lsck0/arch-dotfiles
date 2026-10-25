@@ -12,19 +12,18 @@ use ($LIB | path join profile.nu) [profile-has]
 use ($LIB | path join options.nu) [OPTION_ENABLE options-schema option-value-errors options-notify options-to-nuon]
 use ($LIB | path join modules.nu) [modules-graph modules-packages modules-eval]
 use ($LIB | path join pipeline.nu) [pipeline-load pipeline-plan pipeline-apply]
-use ($LIB | path join converge.nu) [state-read observe decls-check plan-module recorded-hashes apply-module state-write output-file-state]
-use ($LIB | path join written.nu) [written-begin written-prune written-end preserve-report tty-confirm]
+use ($LIB | path join converge.nu) [state-read observe plan-module recorded-hashes apply-module state-write output-file-state]
+use ($LIB | path join preserve.nu) [preserve-report tty-confirm]
 use ($LIB | path join ledger.nu) [ledger-units ledger-get ledger-set packages-convergence]
 use ($LIB | path join migrate.nu) [migrations-run migrations-pending]
-use ($LIB | path join sandbox.nu) [plan-sandbox plan-snapshot-units plan-report plan-end]
 use ($LIB | path join gate.nu) [gate-lint gate-tools gate-palette]
-use ($LIB | path join vm.nu) [USER PROFILE PLATFORM vm-run vm-logs vm-drill vm-destroy vm-type screenshot]
-use ($LIB | path join yubikey.nu) [yubikey-init yubikey-seal yubikey-unlock yubikey-lock]
-use ($LIB | path join audit.nu) [audit-run audit-rotated audit-drilled]
+use ($LIB | path join vm.nu) [USER PROFILE PLATFORM vm-run vm-destroy screenshot]
+use ($REPO | path join configs base yubikey yubikey.nu) [yubikey-init yubikey-seal yubikey-unlock yubikey-lock]
+use ($REPO | path join configs base yubikey audit.nu) [audit-run audit-rotated audit-drilled]
 use ($LIB | path join drift.nu) [drift-view]
 use ($LIB | path join doctor.nu) [doctor-run doctor-checks]
 use ($LIB | path join system.nu) [system-pack system-archive ENTRY]
-use ($LIB | path join wallpaper.nu) [wallpaper-set wallpaper-random wallpaper-pick]
+use ($REPO | path join configs core wallust wallpaper.nu) [wallpaper-set wallpaper-random wallpaper-pick]
 use ($LIB | path join rollback.nu) [rollback-run]
 use ($LIB | path join sync.nu) [sync-pull sync-commit sync-can-sign]
 
@@ -43,7 +42,7 @@ const FLATPAK_SYSTEM_EXPORTS = "/var/lib/flatpak/exports/share"
 const FLATPAK_USER_EXPORTS = ".local/share/flatpak/exports/share"
 const DATA_DIRS_DEFAULT = "/usr/local/share:/usr/share"
 const SYSTEM_SEED = 'set -e; umask 022; copy=$1; mkdir -p "${copy%/*}"; exec 9>"${copy%/*}/lock"; flock 9; rm -rf "$copy.new"; mkdir "$copy.new"; tar -x --no-same-owner --no-same-permissions -C "$copy.new" -f -; printf "%s\n" "$2" > "$copy.new/.source"; rm -rf "$copy"; mv "$copy.new" "$copy"'
-const THEME_STAMP_PATHS = [configs/core/wallust themes 'configs/*/*/mod.nu' scripts/lib/wallpaper.nu]
+const THEME_STAMP_PATHS = [configs/core/wallust themes 'configs/*/*/mod.nu']
 const THEME_DEFAULT_WALLPAPER = "alena-aenami-cover-art-007-3.jpg"
 
 def summary [results: table]: nothing -> nothing {
@@ -86,7 +85,6 @@ def --env link-run [mods: list<string>, force: bool, plan: bool]: nothing -> tab
     let full = $mods | is-empty
     $env.DOT_FULL_RUN = $full
     failures-open
-    if $full { written-begin }
     let results = with-env (platform-env $ctx.platform) { pipeline-apply $ctx $planned link (jobs) }
     let wallpaper = $nu.home-dir | path join .cache wal wallpaper
     let themed = if ($wallpaper | path exists) {
@@ -95,7 +93,6 @@ def --env link-run [mods: list<string>, force: bool, plan: bool]: nothing -> tab
         pipeline-plan $ctx theme $ids false [$real_wallpaper] | where native | pipeline-apply $ctx $in theme (jobs) [$real_wallpaper]
     } else { [] }
     if $full {
-        if ($results | all { $in.ok }) { written-prune (owned-targets) } else { written-end }
         for dir in [$nu.home-dir ($nu.home-dir | path join .local bin)] {
             ls -a $dir | where type == symlink | where {|l| not ($l.name | path exists) and ((^readlink $l.name) | str starts-with $"($REPO)/") } | each { rm $in.name } | ignore
         }
@@ -105,10 +102,6 @@ def --env link-run [mods: list<string>, force: bool, plan: bool]: nothing -> tab
     }
     summary ($results ++ $themed)
     $results ++ $themed
-}
-
-def owned-targets []: nothing -> list<string> {
-    glob (state-dir | path join modules **/*.nuon) | each { open $in | get outputs.target } | concat
 }
 
 def theme-init []: nothing -> nothing {
@@ -195,7 +188,6 @@ def --wrapped main [...args: string]: nothing -> nothing {
 def "main plan" [
     ...mods: string@module-ids
     --system   # the system layer
-    --sandbox  # also a real run under bubblewrap, for its write set
     --force    # as an apply --force would
     --order    # each enabled module with its level and what it waits for
     --modules  # every module: kind, verbs, whether this machine runs it
@@ -234,17 +226,6 @@ def "main plan" [
         if ($extra.remove | is-not-empty) {
             print $"installed, declared by no module \(($extra.remove | length)\): ($extra.remove | str join ' ')\n  dot apply --packages removes them after a yes"
         }
-        if $sandbox {
-            let dir = mktemp --directory
-            plan-snapshot-units $dir user
-            let roots = [$nu.home-dir] | append (if ($REPO | str starts-with $nu.home-dir) { [] } else { [$REPO] })
-            let status = with-env {FAILURES_FILE: ($dir | path join FAILURES)} {
-                plan-sandbox $dir $roots [($REPO | path join scripts dot.nu) apply --user ...$mods]
-            }
-            print (plan-report $dir ($dir | path join FAILURES))
-            plan-end $dir
-            if $status != 0 { log-err $"the sandboxed run itself failed \(($status)\), the write set above is partial" }
-        }
     }
 }
 
@@ -274,11 +255,21 @@ def system-run [stage: string, --force]: nothing -> int {
         if $runner != "sudo" { error make {msg: $"($SYSTEM_REPO) has no ($ENTRY) yet, run dot apply at a terminal once"} }
         system-pack $REPO --rollback=$rollback | ^sudo sh -c $SYSTEM_SEED sh $SYSTEM_REPO $head
     }
-    let pin = $env.LSCK0_SNAPSHOT? | default "" | if ($in | is-empty) { [] } else { [--pin $in] }
     let forced = if $force { [--force] } else { [] }
-    let flags = [--unattended=($env.DOTFILES_UNATTENDED? == "1")] ++ $pin ++ $forced
+    let flags = [--unattended=($env.DOTFILES_UNATTENDED? == "1")] ++ $forced
     let archive = system-archive $REPO (platform-load $REPO).facts.wireguard? --rollback=$rollback
-    try { $archive | ^$runner $entry apply $head $stage ...$flags; 0 } catch {|e| $e.exit_code? | default 1 }
+    let code = try { $archive | ^$runner $entry apply $head $stage ...$flags; 0 } catch {|e| $e.exit_code? | default 1 }
+    interrupted-exit $code
+    $code
+}
+
+# A root run stopped by ctrl+c ends the whole run: sudo's pty can take the interrupt alone, so the user side
+# learns of it only from the exit code (130, or -2 for a signal-killed child).
+def interrupted-exit [code: int]: nothing -> nothing {
+    if $code in [130 -2] {
+        log-err "interrupted (ctrl+c) in the system layer: the run stopped, its later phases did not run"
+        exit 130
+    }
 }
 
 def --env system-skipped [what: string, pending: bool]: nothing -> nothing {
@@ -369,7 +360,7 @@ def "main apply" [
     }
 }
 
-# one module by hand: adopt, unlink, remove, restore
+# one module by hand: adopt, reset, unlink, remove, restore
 def "main module" []: nothing -> nothing { help main module }
 
 # reverse a native module's last apply; files changed since stay, originals come back
@@ -384,12 +375,10 @@ def --env unlink-run [mod: string]: nothing -> table {
     if $m == null { error make {msg: $"no module ($mod); dot plan --modules lists them"} }
     if ($m.native | is-empty) { error make {msg: $"($mod) only declares packages, there is nothing to unlink"} }
     failures-open
-    let extra = if "unlink" in $m.native { modules-eval [$m] unlink {$mod: $m.cfg} [] | get 0.decls } else { [] }
-    decls-check $mod $extra
     let rows = [link theme] | each {|verb|
         let prev = (state-read $mod $verb).outputs
         let seen = observe ($prev | where kind != unit | get target) ($prev | where kind == unit | get target) user
-        let actions = plan-module $mod (if $verb == "link" { $extra } else { [] }) $prev $seen (recorded-hashes) $REPO false
+        let actions = plan-module $mod [] $prev $seen (recorded-hashes) $REPO false
         {verb: $verb, prev: $prev, actions: $actions}
     }
     plan-print ($rows | each {|r| {id: $"($mod) ($r.verb)", native: true, error: null, actions: $r.actions} }) unlink
@@ -439,6 +428,31 @@ def "main module adopt" [file: path]: nothing -> nothing {
         if $found.decl.source == null { error make {msg: $"($target) is rendered by ($found.module), adopt it by editing its template"} }
         ^cp $target $found.decl.source
         log-info $"($target) -> ($found.decl.source | path relative-to $REPO)"
+    }
+}
+
+# put one changed managed file back to its module's copy, the edit preserved aside; the module's other files stay
+def "main module reset" [file: path]: nothing -> nothing {
+    user-locked
+    guarded reset {
+        let target = $file | path expand
+        let ctx = pipeline-load $REPO user
+        let planned = pipeline-plan $ctx link [] false
+        let row = $planned | where {|m| $m.actions | any {|a| $a.target == $target and $a.decl.kind? == file } } | get --optional 0
+        let current = if $row == null { null } else { $row.actions | where target == $target | first }
+        if $current == null or $current.kind != drift {
+            let managed = $planned | any {|m| $m.prev | any {|o| $o.target? == $target and $o.kind? == file } }
+            if $row == null and not $managed { error make {msg: $"($target) is no file a module manages; dot status lists the changed ones"} }
+            error make {msg: $"($target) is not changed since its apply, nothing to reset"}
+        }
+        let forced = pipeline-plan $ctx link [$row.id] true | where id == $row.id | first
+        let reset = $forced.actions | where target == $target | first
+        let actions = $row.actions | each {|a| if $a.target == $target { $reset } else { $a } }
+        let result = with-env (platform-env $ctx.platform) {
+            pipeline-apply $ctx [($row | update actions $actions | update after [])] link 1
+        } | first
+        if not $result.ok { error make {msg: $"reset ($target): ($result.error)"} }
+        log-info $"($target) <- ($row.id), the edit kept aside: dot status lists preserved copies"
     }
 }
 
@@ -505,7 +519,7 @@ def --env install-run [user: bool, yes: bool]: nothing -> int {
     let ctx = pipeline-load $REPO user
     install-user (modules-packages $REPO $ctx.modules $ctx.platform)
     if $system {
-        try { ^sudo ($SYSTEM_REPO | path join $ENTRY) packages --unattended=($env.DOTFILES_UNATTENDED? == "1") ...(if $yes { [--yes] } else { [] }) } catch { fail "system layer: removing undeclared packages" }
+        try { ^sudo ($SYSTEM_REPO | path join $ENTRY) packages --unattended=($env.DOTFILES_UNATTENDED? == "1") ...(if $yes { [--yes] } else { [] }) } catch {|e| interrupted-exit ($e.exit_code? | default 1); fail "system layer: removing undeclared packages" }
     }
     let failed = open --raw $env.FAILURES_FILE | str trim
     hide-env FAILURES_FILE
@@ -704,9 +718,11 @@ def --env update-run [yes: bool]: nothing -> record {
     let install = install-run false $yes
     if $install == $EXIT_ABORTED { exit $EXIT_ABORTED }
     if (system-allowed) {
-        try { ^sudo ($SYSTEM_REPO | path join $ENTRY) migrate } catch { fail "system layer: migrations" }
+        try { ^sudo ($SYSTEM_REPO | path join $ENTRY) migrate } catch {|e| interrupted-exit ($e.exit_code? | default 1); fail "system layer: migrations" }
     } else if (admin) { system-skipped "system migrations" false }
-    {install: $install, results: (apply-run true true false)}
+    let results = apply-run true true false
+    try { ^nu --no-config-file $INTERNAL update } catch { log-warn "update: a module's update verb failed, see dot log" }
+    {install: $install, results: $results}
 }
 
 # the one command: pull, migrate, install, apply, back up app state, commit the signed generation, push
@@ -734,9 +750,9 @@ def "main sync" [
 }
 
 # back to an earlier generation, undoing newer migrations
-def "main rollback" [target: string, --full, --dry-run]: nothing -> nothing {
+def "main rollback" [target: string, --dry-run]: nothing -> nothing {
     guarded rollback {
-        rollback-run $target --full=$full --dry-run=$dry_run
+        rollback-run $target --dry-run=$dry_run
     }
 }
 
@@ -837,7 +853,7 @@ def gate-report [what: string, findings: list<string>, notes: list<string>]: not
     print $"dot test: ($what) clean"
 }
 
-# the static gates (lint, check, fmt) and the vm test (run, logs, drill, shot, type, destroy)
+# the static gates (lint, check, fmt) and the vm test (run, logs, shot, type, destroy)
 def "main test" []: nothing -> nothing { help main test }
 
 # static checks: module refs, layer rules, ~/sync writes, generated files, *.test.nu
@@ -852,30 +868,18 @@ def "main test check" []: nothing -> nothing {
 
 const VM_NAME = "archlinux-test"
 
-# end-to-end vm test from the iso through the whole chain; hours; local tree unless --master
+# end-to-end vm test from the lsck0 iso (the published one unless --iso) through the whole chain; hours; local tree
+# unless --master; the chain reports its logs to ~/.cache/vm-test/<name>/logs
 def "main test run" [--iso: path, --platform: string, --user: string, --profile: string, --master, --name: string = $VM_NAME]: nothing -> nothing {
     guarded test {
         let problems = gate-lint
         if ($problems | is-not-empty) { error make {msg: ($problems | str join "\n")} }
-        vm-run $name ($iso | default ($nu.home-dir | path join sync isos archlinux-x86_64.iso)) ($platform | default $PLATFORM) ($user | default $USER) ($profile | default $PROFILE) $master
+        vm-run $name $iso ($platform | default $PLATFORM) ($user | default $USER) ($profile | default $PROFILE) $master
     }
-}
-
-# pull the stage logs, FAILURES.* and every *.log of the test vm to ~/.cache/vm-test/<name>/logs
-def "main test logs" [--user: string, --name: string = $VM_NAME]: nothing -> nothing { guarded test { vm-logs $name ($user | default $USER) } }
-
-# the egress drill on a passed run's vm; it changes the vm
-def "main test drill" [drill: string@[egress], --user: string, --name: string = $VM_NAME]: nothing -> nothing {
-    guarded test { vm-drill $name $drill ($user | default $USER) }
 }
 
 # screenshot of the test vm to ~/.cache/vm-test/<name>/screen.png
 def "main test shot" [--name: string = $VM_NAME]: nothing -> nothing { guarded test { print (screenshot $name) } }
-
-# type text on the test vm's console (\n for enter)
-def "main test type" [text: string, --layout: string = "de", --name: string = $VM_NAME]: nothing -> nothing {
-    guarded test { vm-type $name $text $layout }
-}
 
 # delete the test vm and its disk
 def "main test destroy" [--name: string = $VM_NAME]: nothing -> nothing { guarded test { vm-destroy $name } }

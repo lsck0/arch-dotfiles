@@ -226,11 +226,12 @@ BorderSurface {
 
           Repeater {
             model: root.isRow ? [] : root.actions
-            ActionButton {
+            Button {
+              variant: "action"
               required property var modelData
-              label: modelData.text
-              tint: Colors.notifications.text
-              onActivated: root.actionInvoked(modelData.id)
+              text: modelData.text
+              foreground: Colors.notifications.text
+              onClicked: root.actionInvoked(modelData.id)
             }
           }
         }

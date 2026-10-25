@@ -41,7 +41,7 @@ Build the iso with `dot internal iso` (needs root for mkarchiso).
 
 - `bootstrap.sh` (about 50 lines of bash, the official iso has no nu) runs only on the Arch ISO or in WSL, installs nushell
   (growing the iso's overlay when it is too small), clones master and refuses to run anything unless HEAD is signed by
-  `SIGNING_KEY_FINGERPRINT` (`BOOTSTRAP_INSECURE=1` skips that). From an existing checkout (dot test run, the lsck0 stub's verified clone) it skips the clone.
+  `SIGNING_KEY_FINGERPRINT` (`BOOTSTRAP_INSECURE=1` skips that). From an existing checkout (the lsck0 stub's verified clone) it skips the clone.
 - Questions live in `scripts/lib/bootstrap/questions.nuon`, in the order they are asked: id (the answer-file key),
   kind, title, text, options, default, `BOOTSTRAP_*` env var and `when` (the walker in `bootstrap.nu` is the
   reference); a top-level `answers` list holds the answer-file-only keys. Its
@@ -58,7 +58,7 @@ Build the iso with `dot internal iso` (needs root for mkarchiso).
   boot; both write the root-owned `/etc/dotfiles/platform.nuon` (and `.options.nuon`) and drop
   `/etc/dotfiles/platform`. `server` takes `platforms/server.nuon` (base plus docker, no desktop), `custom` asks the
   package groups. `vm` and `server` are left out of the machine list (the platform question's `hidden`; `server` is
-  offered as its own option), the vm test passes `vm` by argument.
+  offered as its own option), the vm test's answer file names `vm`.
 - Every machine asks whether to encrypt the disk (LUKS2, default yes); server and custom also ask for secure boot:
   `own` keys, `microsoft` (own keys plus Microsoft's, the default) or `off`.
 - Prompt texts stay short: one question, the options, at most one line of context for a risky choice.
@@ -73,14 +73,15 @@ fail2ban, endlessh, ossec), vpn (protonvpn, protonvpn-netns, wireguard) and tor 
 ## Unattended runs
 
 Without a tty, or with `BOOTSTRAP_ASSUME_YES=1`, every answer comes from env: `BOOTSTRAP_{USERNAME,DISK,PASSWORD,
-USER_PASSWORD,ROOT_PASSWORD,KEYMAP}` (the keymap, de-latin1 by default, is the first question and is loaded at once;
+USER_PASSWORD,ROOT_PASSWORD,KEYMAP}` (the keymap, de-latin1 by default, is the first question and is loaded at once; the
+iso's Wi-Fi password keymap only preselects it, as `BOOTSTRAP_KEYMAP_DEFAULT`;
 the username has no default), `BOOTSTRAP_PROFILE=<name>|custom` (default custom), `BOOTSTRAP_PLATFORM=<host>|server|
 custom` (default custom; the argument to `bootstrap.sh` wins), `BOOTSTRAP_HOME_NETWORK=0|1` and `BOOTSTRAP_ENCRYPT=0|1`
 (default 1); for server or custom also `BOOTSTRAP_{HOSTNAME,GROUPS,TIMEZONE,LOCALE,SSH_KEY}` and
 `BOOTSTRAP_SECURE_BOOT=own|microsoft|off` (default microsoft). The old `BOOTSTRAP_SERVER=1` still turns custom into
-server. `BOOTSTRAP_REINSTALL=1` lets it erase a disk still in its install chain. Each question's `env` and `default` in `scripts/lib/bootstrap/questions.nuon` is the reference. `dot test run` drives exactly this, passes
-`--profile` (default luca) as `BOOTSTRAP_PROFILE` and `BOOTSTRAP_{SERVER,SECURE_BOOT,HOSTNAME,GROUPS,SSH_KEY}` from the
-host into the guest (skill `l-dotfiles-vm-test`).
+server. `BOOTSTRAP_REINSTALL=1` lets it erase a disk still in its install chain. Each question's `env` and `default` in `scripts/lib/bootstrap/questions.nuon` is the reference. `dot test run` drives exactly this through an answer file: `--profile` (default luca) as `profile`, and
+`BOOTSTRAP_{SERVER,SECURE_BOOT,HOSTNAME,GROUPS,SSH_KEY}` from the host as their answers; its `report` answer
+(`BOOTSTRAP_REPORT`) makes the stages beacon and the chain's end upload its logs (skill `l-dotfiles-vm-test`).
 
 ## Check the chain
 
@@ -93,7 +94,8 @@ host into the guest (skill `l-dotfiles-vm-test`).
 ## Updating an installed machine
 
 Everyone runs `dot sync`, the owner and everyone else. It pulls `origin/master` (the secrets submodule only for a
-profile with `secrets`), migrates, installs and applies. Only a machine holding the secret key that `bootstrap.sh`'s
+profile with `secrets`), migrates, installs, applies and runs every module's `update` verb (rustup, opam,
+editor plugins, the Hyprland plugins). Only a machine holding the secret key that `bootstrap.sh`'s
 `SIGNING_KEY_FINGERPRINT` names goes on to back up, commit and push. Anywhere else the run stops after the apply
 and says so. It never commits there, and `--no-push` is not needed. A login outside wheel converges only its user
 layer: its root half waits for a wheel user's run. Local edits in the checkout are autostashed across the pull. An

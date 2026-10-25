@@ -2,6 +2,16 @@
 
 const togglesId = ":toggles"
 const togglesLabel = "Quick toggles"
+const systemId = ":system"
+const systemLabel = "System"
+// what the window runs of dot itself; a terminal one may ask for sudo, a key touch or package removals
+const systemActions = [
+  { name: "update", detail: "dot sync: pull, install, apply, commit", args: ["sync"], terminal: true },
+  { name: "apply", detail: "dot apply --user", args: ["apply", "--user"], terminal: false },
+  { name: "apply system", detail: "dot apply --system", args: ["apply", "--system"], terminal: true },
+  { name: "packages", detail: "dot apply --packages", args: ["apply", "--packages"], terminal: true }
+]
+const driftChoices = ["adopt", "reset"]
 const segmentedMax = 4
 const choicePageSize = 30
 const applyOrder = ["live", "relink", "relogin", "reboot"]
@@ -61,13 +71,18 @@ function sectionLabel(module) {
   return group ? module.name.slice(group.length + 1) : module.name
 }
 
-function sections(modules, toggles, query) {
+function sections(modules, toggles, query, status) {
   var needle = query.trim().toLowerCase()
   var out = [{
     kind: "section",
     id: togglesId,
     label: togglesLabel,
     count: toggleEntries(toggles, needle).filter(function (r) { return r.kind !== "header" }).length
+  }, {
+    kind: "section",
+    id: systemId,
+    label: systemLabel,
+    count: systemEntries(status, needle).filter(function (r) { return r.kind !== "header" }).length
   }]
   var group = null
   var sorted = modules.slice().sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0 })
@@ -90,7 +105,7 @@ function optionRow(module, option) {
   return { kind: "option", id: optionId(module, option), option: option }
 }
 
-function toggleCycles(toggle) { return toggle.setting || (toggle.cycles !== undefined ? toggle.cycles : /: /.test(toggle.label)) }
+function toggleIsSwitch(toggle) { return toggle.states.length === 2 && toggle.states[0] === "off" && toggle.states[1] === "on" }
 
 function toggleRow(toggle) { return { kind: "toggle", id: togglesId + "." + toggle.name, toggle: toggle } }
 
@@ -107,6 +122,7 @@ function toggleEntries(toggles, needle) {
   var grouped = []
   for (let t = 0; t < toggles.length; t++) {
     let toggle = toggles[t]
+    if (!toggle.available) continue
     if ((toggle.options || []).length === 0) {
       if (!needle || toggleMatches(needle, toggle)) plain.push(toggleRow(toggle))
       continue
@@ -118,13 +134,67 @@ function toggleEntries(toggles, needle) {
   return plain.concat(grouped)
 }
 
-function rows(modules, toggles, sectionId, query) {
+// dot status --json as rows: the actions, each managed file edited since its apply, then the checks, failing first
+function systemEntries(status, needle) {
+  if (!status) return needle ? [] : [{ kind: "header", id: "#" + systemId + "/loading", text: "status loading" }]
+  var checks = (status.checks || []).map(function (c) {
+    return { kind: "check", id: systemId + ".check." + c.check, level: String(c.level), name: c.check, text: c.text }
+  })
+  var pending = (status.migrations_pending || []).map(function (m) {
+    return { kind: "check", id: systemId + ".migration." + m, level: "pending", name: "migration", text: m + " runs with the next dot sync" }
+  }).concat((status.system_pending || []).map(function (p) {
+    return { kind: "check", id: systemId + ".system." + p, level: "pending", name: "system", text: p + ": apply system runs it" }
+  })).concat((status.pending_apply || []).map(function (d) {
+    return { kind: "check", id: systemId + ".pending." + d.target, level: "pending", name: d.module, text: d.target + " (" + d.drift + "): apply puts it back" }
+  }))
+  var actions = systemActions.map(function (a) { return Object.assign({ kind: "action", id: systemId + ".action." + a.name }, a) })
+  var drifted = status.drift || []
+  var drift = drifted.map(function (d) {
+    return { kind: "drift", id: systemId + ".drift." + d.target, module: d.module, target: d.target, drift: d.drift }
+  })
+  var match = function (r) { return !needle || contains(needle, [r.name, r.text, r.detail, r.module, r.target, r.level, systemLabel]) }
+  var out = []
+  var failing = function (c) { return c.level === "ok" ? 1 : 0 }
+  checks.sort(function (a, b) { return failing(a) - failing(b) })
+  var groups = [["actions", actions], ["edited since apply", drift],
+    ["status", [{ kind: "check", id: systemId + ".generation", level: "info", name: "generation", text: status.generation || "" }]
+      .concat(pending, checks)]]
+  for (let g = 0; g < groups.length; g++) {
+    let hits = groups[g][1].filter(match)
+    if (hits.length === 0) continue
+    out.push({ kind: "header", id: "#" + systemId + "/" + groups[g][0], text: groups[g][0] })
+    out = out.concat(hits)
+  }
+  return out
+}
+
+function checkFailed(row) { return row.level === "FAIL" }
+
+// the dot command line a system row runs: an action's own, a drift row's reset of that one file, or its adopt
+// followed by an apply of the module, which records the adopted file as the module's output again
+function systemCommand(dot, row, choice) {
+  if (row.kind === "action") return [dot].concat(row.args)
+  if (row.kind === "drift" && choice === "reset") return [dot, "module", "reset", row.target]
+  if (row.kind === "drift") {
+    return ["sh", "-c", '"$0" module adopt "$1" || exit; "$0" apply "$2"; r=$?; [ $r -eq 3 ] && exit 0; exit $r', dot, row.target, row.module]
+  }
+  return []
+}
+
+// a terminal that stays until a key, so the run's last lines and any prompt stay readable
+function terminalCommand(argv, label) {
+  var quoted = argv.map(function (a) { return "'" + String(a).replace(/'/g, "'\\''") + "'" }).join(" ")
+  return ["app2unit", "-T", "--", "bash", "-c", quoted + "; echo; read -rsn1 -p '" + label + " finished, any key closes'"]
+}
+
+function rows(modules, toggles, sectionId, query, status) {
   var needle = query.trim().toLowerCase()
   var out = []
   if (needle) {
     let hits = toggleEntries(toggles, needle)
     if (hits.length > 0) out.push({ kind: "header", id: "#" + togglesId, text: togglesLabel })
     out = out.concat(hits)
+    out = out.concat(systemEntries(status, needle))
     for (let m = 0; m < modules.length; m++) {
       let module = modules[m]
       let matched = (module.options || []).filter(function (o) { return optionMatches(needle, module, o) })
@@ -134,6 +204,7 @@ function rows(modules, toggles, sectionId, query) {
     return out
   }
   if (sectionId === togglesId) return toggleEntries(toggles, "")
+  if (sectionId === systemId) return systemEntries(status, "")
   for (let m = 0; m < modules.length; m++) {
     let module = modules[m]
     if (module.name !== sectionId) continue

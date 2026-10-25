@@ -110,8 +110,8 @@ alias mv = mv -v
 alias trash-rm = trash -v
 alias sshnb = sshk luca@192.168.178.73
 alias sshpc = sshk luca@192.168.178.138
-alias toroff = sudo systemctl stop tor-router.service
-alias toron = sudo systemctl start tor-router.service
+def toroff [] { ^($env.DOTFILES | path join scripts toggles toggle-route.nu) direct }
+def toron [] { ^($env.DOTFILES | path join scripts toggles toggle-route.nu) tor }
 
 # Git, with clone recursing into submodules: no git config covers them on the initial clone.
 def --wrapped git [...rest] {

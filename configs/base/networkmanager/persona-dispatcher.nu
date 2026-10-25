@@ -147,14 +147,17 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
             # the conflict drops lockdown before the load, so a failed load would leave no table at all
             if not (ok systemctl start fw-inbound.service) { ok systemctl start fw-lockdown.service | ignore }
         }
-        ok systemctl unmask --runtime avahi-daemon.socket avahi-daemon.service | ignore
+        ok systemctl unmask --runtime avahi-daemon.service | ignore
         ok systemctl start avahi-daemon.socket | ignore
         ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=0" | ignore
         ok nmcli connection modify $uuid ipv6.method auto | ignore
     } else {
         ok systemctl start fw-lockdown.service | ignore
-        # a stop alone is undone by dbus activation through the dbus-org.freedesktop.Avahi alias
-        ok systemctl mask --runtime --now avahi-daemon.socket avahi-daemon.service | ignore
+        # a stop alone is undone by dbus or socket activation, so the daemon (the only part on the network) is masked;
+        # the socket, a unix one, stays unmasked so base/systemd can keep it enabled (enable refuses a masked unit)
+        ok systemctl unmask --runtime avahi-daemon.socket | ignore
+        ok systemctl stop avahi-daemon.socket | ignore
+        ok systemctl mask --runtime --now avahi-daemon.service | ignore
         if $action == up and $policy == lockdown-tor {
             ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=1" | ignore
             if $iface not-in (home-links) { ok nmcli connection modify $uuid ipv6.method disabled | ignore }

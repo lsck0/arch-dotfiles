@@ -1,13 +1,22 @@
 use module.nu *
 use ../../core/wallust/palette.nu [OPACITY_SURFACE]
+use ../../core/wallust/font.nu [font-load]
 
 export const meta = {packages: {pacman: [emacs hunspell-en_us]}}
 
 const CONFIG_DIR = ".config/emacs"
 const THEME = ".cache/wal/doom-pywal-theme.el"
 const FRAME = ".cache/wal/emacs-frame.el"
+const FONT = ".cache/wal/emacs-font.el"
 const GRAMMAR_DIRS = [tree-sitter /usr/lib]
 const FORMATTING = [chktexrc clang-format latexindent.yaml prettierrc.json ruff.toml rustfmt.toml stylua.toml]
+const UPGRADE = "(progn (require 'package)
+  (setq package-archives '((\"gnu\" . \"https://elpa.gnu.org/packages/\")
+                            (\"nongnu\" . \"https://elpa.nongnu.org/nongnu/\")
+                            (\"melpa\" . \"https://melpa.org/packages/\")))
+  (package-initialize)
+  (package-refresh-contents)
+  (package-upgrade-all))"
 
 def config-dir []: nothing -> path { $nu.home-dir | path join $CONFIG_DIR }
 
@@ -35,8 +44,10 @@ export def link [cfg: record] {
 }
 
 export def theme [cfg: record, wallpaper: string] {
+    let font = font-load
+    let font_el = file-text ($nu.home-dir | path join $FONT) $"\(setq my/font-family ($font.mono | to json) my/font-size ($font.size)\)\n" --generated
     let p = palette-load
-    if $p == null { return [] }
+    if $p == null { return [$font_el] }
     let theme = $nu.home-dir | path join $THEME
     let shade = if $p.light == "1" { {mode: light, darken: lighten, lighten: darken} } else { {mode: dark, darken: darken, lighten: lighten} }
     let strings = [[background-color $p.bg_conditioned] [foreground-color $p.fg]]
@@ -46,24 +57,20 @@ export def theme [cfg: record, wallpaper: string] {
     [
         (file-render doom-pywal-theme.el.in $theme ($p | merge $shade | rename --block { str uppercase }) | file-text $theme $in.content --generated)
         (file-text ($nu.home-dir | path join $FRAME) $"($frame)\n" --generated)
+        $font_el
         (step theme-push)
     ]
 }
 
-# The font toggle-font writes into the repo's early-init.el.
-def font-get []: nothing -> record {
-    let text = open --raw early-init.el
-    {
-        family: ($text | parse --regex '\(defvar my/font-family "(?<v>[^"]*)"\)' | get 0.v)
-        size: ($text | parse --regex '\(defvar my/font-size (?<v>[0-9]+)\)' | get 0.v)
-    }
-}
-
 export def theme-push []: nothing -> nothing {
     if (which emacsclient | is-empty) { return }
-    let font = font-get
+    let font = font-load
     # default-frame-alist's font wins over the faces on every frame made later
     let faces = "(dolist (face '(default fixed-pitch variable-pitch)) (set-face-attribute face nil :family my/font-family :height (* 10 my/font-size))) (setf (alist-get 'font default-frame-alist) (format \"%s-%d\" my/font-family my/font-size))"
-    let eval = $"\(progn \(setq my/font-family ($font.family | to json) my/font-size ($font.size)\) ($faces) \(my/apply-system-theme\)\)"
+    let eval = $"\(progn \(setq my/font-family ($font.mono | to json) my/font-size ($font.size)\) ($faces) \(my/apply-system-theme\)\)"
     try { ^timeout 5 emacsclient --eval $eval o+e>| ignore }
+}
+
+export def update [cfg: record]: nothing -> nothing {
+    ^emacs --batch --init-directory (config-dir) --eval $UPGRADE
 }

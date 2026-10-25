@@ -445,35 +445,38 @@ BarWidget {
                 spacing: Style.spacing.xs
                 visible: root.connected
 
-                ActionButton {
+                Button {
+                    variant: "action"
                     width: (parent.width - Style.spacing.xs * 2) / 3
-                    glyph: root.streaming ? "\u{f1721}" : "\u{f1720}" // md-broadcast_off / md-broadcast
-                    label: root.streaming ? "Stop" : "Go live"
-                    tint: root.streaming ? Colors.semantic.live : Colors.menu.text
+                    iconText: root.streaming ? "\u{f1721}" : "\u{f1720}" // md-broadcast_off / md-broadcast
+                    text: root.streaming ? "Stop" : "Go live"
+                    foreground: root.streaming ? Colors.semantic.live : Colors.menu.text
                     danger: root.streaming
-                    onActivated: root.send({
+                    onClicked: root.send({
                         "cmd": "toggleStream"
                     })
                 }
 
-                ActionButton {
+                Button {
+                    variant: "action"
                     width: (parent.width - Style.spacing.xs * 2) / 3
-                    glyph: root.recording ? "\u{f04db}" : "\u{f044a}" // md-stop / md-record
-                    label: root.recording ? "Stop rec" : "Record"
-                    tint: root.recording ? Colors.semantic.live : Colors.menu.text
+                    iconText: root.recording ? "\u{f04db}" : "\u{f044a}" // md-stop / md-record
+                    text: root.recording ? "Stop rec" : "Record"
+                    foreground: root.recording ? Colors.semantic.live : Colors.menu.text
                     danger: root.recording
-                    onActivated: root.send({
+                    onClicked: root.send({
                         "cmd": "toggleRecord"
                     })
                 }
 
-                ActionButton {
+                Button {
+                    variant: "action"
                     width: (parent.width - Style.spacing.xs * 2) / 3
                     enabled: root.recording
-                    glyph: root.recordPaused ? "\u{f040a}" : "\u{f03e4}" // md-play / md-pause
-                    label: root.recordPaused ? "Resume" : "Pause"
-                    tint: root.recordPaused ? Colors.semantic.recording : Colors.menu.text
-                    onActivated: {
+                    iconText: root.recordPaused ? "\u{f040a}" : "\u{f03e4}" // md-play / md-pause
+                    text: root.recordPaused ? "Resume" : "Pause"
+                    foreground: root.recordPaused ? Colors.semantic.recording : Colors.menu.text
+                    onClicked: {
                         if (root.recording) {
                             root.send({
                             "cmd": "toggleRecordPause"
@@ -501,7 +504,8 @@ BarWidget {
                 Repeater {
                     model: root.scenes
 
-                    delegate: Chip {
+                    delegate: Button {
+                        variant: "chip"
                         focusable: true
                         required property string modelData
 

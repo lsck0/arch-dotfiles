@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [notify state-file]
+use lib.nu [status-record status-print notify state-file]
 use ../lib/log.nu [log-err]
-use ../lib/wallpaper-list.nu [wallpaper-resolve]
+use ../../configs/core/wallust/wallpaper-list.nu [wallpaper-resolve]
 use ../../configs/core/wallust/palette.nu [hex-to-rgb is-light]
 
 const THEMES = path self ../../themes
@@ -65,8 +65,8 @@ def target []: nothing -> record {
 def flip []: nothing -> nothing {
     try {
         let to = target
-        ^nu --no-config-file $DOT theme $to.wallpaper
-        if (current-wallpaper) != ($to.wallpaper | path expand) { error make {msg: "a theme switch is already running"} }
+        ^nu --no-config-file $DOT theme --sync $to.wallpaper
+        if (current-wallpaper) != ($to.wallpaper | path expand) { error make {msg: "a newer switch replaced this one"} }
         {from: $to.from, to: ($to.wallpaper | path expand)} | to nuon | save --force (state-file $LAST_FLIP)
         notify "Theme" $"($to.mode | str capitalize)(if $to.theme != '' { $': ($to.theme)' })"
     } catch {|err|
@@ -76,13 +76,9 @@ def flip []: nothing -> nothing {
     }
 }
 
-def "main get" [] { current-mode }
-
-def "main label" [] {
-    match (current-mode) {
-        light => "● Theme: Light"
-        _ => "○ Theme: Dark"
-    }
+def "main get" [--json] {
+    let mode = current-mode
+    status-print (status-record Theme $mode --text ($mode | str capitalize) --states [dark light]) $json
 }
 
 # what toggle would switch to, without switching

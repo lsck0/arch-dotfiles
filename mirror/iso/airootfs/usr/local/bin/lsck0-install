@@ -30,7 +30,7 @@ const TUI_WIDTH = "72"
 const WIFI_SCAN_WAIT = 3sec
 
 const TEXT = {
-    keymap: {title: "keyboard", text: "Keyboard layout, used for the Wi-Fi password and the install:"}
+    keymap: {title: "keyboard", text: "Keyboard layout for the Wi-Fi password (the install asks again):"}
     wifi: {
         title: "Wi-Fi"
         text: "{missing}\n\nPick a network:"
@@ -111,7 +111,8 @@ def answers-early [file: any]: nothing -> record {
     let wifi = if (do $param wifi.ssid) == null { $wifi } else { [{ssid: (do $param wifi.ssid), psk: (do $param wifi.psk | default "")}] ++ $wifi }
     let keymap = do $param keymap | default ($a.keymap? | if ($in | is-a string) { $in } else { "" })
     let source = $a.source? | if ($in | is-a record) and ($in.bundle? | is-a string) { $in } else { null }
-    {keymap: $keymap, wifi: $wifi, source: $source}
+    let report = $a.report? | if ($in | is-a string) and ($in =~ '^https?://') { $in } else { "" }
+    {keymap: $keymap, wifi: $wifi, source: $source, report: $report}
 }
 
 def network-missing []: nothing -> string {
@@ -159,10 +160,12 @@ def --wrapped dlg [...args: string]: nothing -> any {
     try { ^dialog --backtitle $TUI_BACKTITLE --stdout ...$args | collect } catch { null }
 }
 
+# only for typing the Wi-Fi password: the install's keyboard menu still asks, preselected with this one, so an Enter
+# on the prefilled default does not decide the installed layout
 def --env keymap-ensure []: nothing -> nothing {
-    if ($env.BOOTSTRAP_KEYMAP? | is-not-empty) { return }
+    if ($env.BOOTSTRAP_KEYMAP? | is-not-empty) or ($env.BOOTSTRAP_KEYMAP_DEFAULT? | is-not-empty) { return }
     let keymap = dlg --title $TEXT.keymap.title --inputbox $TEXT.keymap.text $TUI_BOX_ROWS $TUI_WIDTH $KEYMAP_DEFAULT | default $KEYMAP_DEFAULT | str trim
-    if (^loadkeys $keymap | complete).exit_code == 0 { $env.BOOTSTRAP_KEYMAP = $keymap }
+    if (^loadkeys $keymap | complete).exit_code == 0 { $env.BOOTSTRAP_KEYMAP_DEFAULT = $keymap }
 }
 
 def --env network-step [networks: list]: nothing -> bool {
@@ -267,5 +270,12 @@ def main [] {
     let status = if $repo == null { 1 } else {
         with-env $handover { try { ^bash ($repo | path join bootstrap.sh); 0 } catch { $env.LAST_EXIT_CODE } }
     }
-    if $status != 0 { print $"install: failed \(exit ($status)\); run lsck0-install to start over" }
+    if $status != 0 {
+        print $"install: failed \(exit ($status)\); run lsck0-install to start over"
+        # the answers' watcher (dot test) gets the log and the verdict instead of reading the screen
+        if ($early.report | is-not-empty) {
+            ^curl -sT /tmp/lsck0-install.log $"($early.report)/bootstrap.log" | complete | ignore
+            ^curl -s $"($early.report)/beacon/bootstrap-fail" | complete | ignore
+        }
+    }
 }

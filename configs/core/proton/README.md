@@ -4,7 +4,7 @@ VPN and Pass tooling. No credentials in this repo; auth is manual.
 
 ## Manual steps
 
-1. `protonvpn signin` once; `scripts/toggles/toggle-protonvpn.nu` connects after that.
+1. `protonvpn signin` once; `scripts/toggles/toggle-route.nu proton` connects after that.
 2. Set up `pass` + `pass-otp`:
 
    ```

@@ -984,7 +984,8 @@ BarWidget {
           visible: root.radarFrames.length > 0
           spacing: Style.spacing.xs
 
-          PanelActionButton {
+          Button {
+            variant: "icon"
             iconText: root.radarPlaying ? "\u{f04c}" : "\u{f04b}"
             tooltipText: root.radarPlaying ? "Pause radar" : "Play radar"
             size: Style.space(22)

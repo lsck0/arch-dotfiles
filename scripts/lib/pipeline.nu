@@ -72,6 +72,8 @@ def outputs-clean [outputs: list<record>, seen: record]: nothing -> bool {
             "link" => ($obs.link? == $o.source)
             "exec" => ($o.source | path exists)
             "unit" => (match ($o.state? | default enabled) { "disabled" => (($seen.units | get --optional $o.target) != "enabled"), $s => (($seen.units | get --optional $o.target) == $s) })
+            # an owned merge is no output of its own: the module's inputs decide whether it merges again
+            _ => true
         }
     }
 }
@@ -208,10 +210,23 @@ def module-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
     $result | insert id $m.id | insert notes $notes | insert ms (since-ms $start)
 }
 
-# Runs the planned modules as jobs, each once its after list finished, at most jobs at once, a serial one alone.
-export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int, args: list = []]: nothing -> table {
+# Kills what a timed-out module started: its job's externals and their children, setsid'd ones included, all carry
+# this run's DOT_RUN_FILE and the module's DOTFILES_MODULE (module-run's with-env).
+def module-procs-kill [id: string]: nothing -> nothing {
+    let marks = [$"DOTFILES_MODULE=($id)" $"DOT_RUN_FILE=($env.DOT_RUN_FILE? | default '')"]
+    let pids = glob /proc/[0-9]*/environ | each {|f|
+        let environ = try { open --raw $f | decode utf-8 | split row (char nul) } catch { [] }
+        if ($marks | all {|m| $m in $environ }) { $f | path dirname | path basename }
+    } | compact | where $it != ($nu.pid | into string)
+    if ($pids | is-not-empty) { ^kill -KILL ...$pids | complete | ignore }
+}
+
+# Runs the planned modules as jobs, each once its after list finished, at most jobs at once, a serial one alone;
+# --timeout: a module still running after it is killed and counts as failed, the others go on.
+export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int, args: list = [], --timeout: duration]: nothing -> table {
     mut done = {}
     mut running = {}
+    mut started = {}
     mut results = []
     mut pending = $planned
     let planned_ids = $planned.id
@@ -224,12 +239,25 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
         for m in $startable {
             let id = job spawn { module-run $ctx $m $verb $args | job send 0 }
             $running = $running | insert $m.id $id
+            $started = $started | upsert $m.id (date now)
             $pending = $pending | where id != $m.id
         }
         if ($running | is-empty) {
             error make {msg: $"nothing can start: ($pending.id | str join ' ') wait for each other"}
         }
-        let result = job recv
+        let result = if $timeout == null { job recv } else {
+            let since = $started
+            let late = $running | columns | where {|id| (date now) - ($since | get $id) > $timeout } | get --optional 0
+            if $late != null {
+                job kill ($running | get $late)
+                module-procs-kill $late
+                log-warn $"($late): ($verb) still running after ($timeout), killed" {module: $late}
+                {id: $late, ok: false, log: "", outcomes: [], error: $"timed out after ($timeout)", notes: [], ms: ($timeout / 1ms)}
+            } else {
+                try { job recv --timeout 1sec } catch { null }
+            }
+        }
+        if $result == null { continue }
         $running = $running | reject $result.id
         $done = $done | insert $result.id $result.ok
         $results = $results | append $result

@@ -350,22 +350,15 @@ Item {
         }
     }
 
-    Process {
+    JsonProcess {
         id: notesProc
 
         command: ["bash", "-c", "cat \"$1\"/*.json \"$1\"/history/*.json 2>/dev/null" + " | jq -s -c --argjson since \"$2\" '[.[] | select((.timestamp // 0) >= $since)" + " | {app: (.app // \"\"), timestamp}] | unique_by([.timestamp, .app]) | sort_by(-.timestamp)'", "--", root.notesDir, String(Math.floor(root.lockedAtMs))]
 
-        stdout: StdioCollector {
-            waitForEnd: true
-            onStreamFinished: {
-                try {
-                    const parsed = JSON.parse(text || "[]");
-                    root.notes = Array.isArray(parsed) ? parsed : [];
-                } catch (e) {
-                    root.notes = [];
-                }
-            }
+        onParsed: function(parsed) {
+            root.notes = Array.isArray(parsed) ? parsed : [];
         }
+        onFailed: root.notes = []
 
     }
 

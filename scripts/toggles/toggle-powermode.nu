@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [notify root-run state-get state-set state-clear state-file quickshell-call cycle-next toggle-run]
+use lib.nu [status-record status-print notify root-run state-get state-set state-clear state-file quickshell-call cycle-next toggle-run]
 use ../lib/platform.nu [platform-load]
 
 const MODES = {
@@ -45,14 +45,12 @@ def apply [mode: string]: nothing -> nothing {
     notify "Power mode" ($MODES | get $mode | get label)
 }
 
-# empty means no forced mode
-def "main get" [] { current | default "" }
-
-def "main label" [] {
-    match (current) {
-        null => "○ Power: Auto"
-        $mode => $"● Power: ($MODES | get $mode | get label)"
-    }
+# empty means no forced mode; the record calls it auto
+def "main get" [--json] {
+    let mode = current
+    if not $json { return ($mode | default "") }
+    let text = if $mode == null { "Auto" } else { $MODES | get $mode | get label }
+    status-print (status-record Power ($mode | default auto) --text $text --states ([auto] | append ($MODES | columns))) true
 }
 
 # auto is a stop of its own: else the first press leaves it for good

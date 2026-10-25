@@ -1,4 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
+# hyprpm builds the headers and each plugin with cmake, meson and the base-devel toolchain, declared in this module
 # hyprpm runs every write to its root-owned store through sudo, a FIDO2 prompt nobody answers at login: build only
 # from a terminal, or with --build where sudo asks nothing (the install chain's config stage)
 
@@ -11,8 +12,11 @@ def loaded []: nothing -> bool {
     ^hyprctl plugin list | complete | get stdout | str lowercase | str contains $PLUGIN
 }
 
+# a failure prints hyprpm's own output, the build log is the only clue to a missing header or toolchain
 def --wrapped hyprpm-yes [...args: string]: nothing -> bool {
-    (^yes | ^hyprpm ...$args | complete).exit_code == 0
+    let run = ^yes | ^hyprpm ...$args | complete
+    if $run.exit_code != 0 { print --stderr $"hyprpm ($args | str join ' ') failed:\n($run.stdout)($run.stderr)" }
+    $run.exit_code == 0
 }
 
 def main [--build] {
@@ -20,7 +24,7 @@ def main [--build] {
     if not $build and not (is-terminal --stdout) {
         # a built .so, not the store dir: any hyprpm call creates an empty headersRoot, and reloading that fails
         if (glob $"($STORE)/($env.USER)/*/*.so" | is-empty) {
-            ^notify-send -a hyprpm "Hyprland plugins not built" "run system-update (or configs/desktop/hyprland/plugins.nu) from a terminal" | complete | ignore
+            ^notify-send -a hyprpm "Hyprland plugins not built" "run dot sync (or configs/desktop/hyprland/plugins.nu) from a terminal" | complete | ignore
             return
         }
         if not (loaded) { ^hyprpm reload }
@@ -37,10 +41,13 @@ def main [--build] {
     }
     let listed = ^hyprpm list | complete | get stdout | str lowercase
     let added = $REPOS | where {|r| not ($listed | str contains $"repository ($r.name) ") } | each {|r| hyprpm-yes add $r.url }
+    # a failed rebuild leaves the old .so in place, so the exit code, not the files, tells the caller
+    let failed = ($stale and not $updated) or (false in $added)
     if $updated or ($added | is-not-empty) or not (loaded) {
         ^hyprpm enable $PLUGIN | complete | ignore
         # no session yet in the install chain: the login's plugins.nu loads it
         let sig = $env.HYPRLAND_INSTANCE_SIGNATURE? | default ""
         if $sig != "" and ($env.XDG_RUNTIME_DIR | path join hypr $sig .socket.sock | path exists) { ^hyprpm reload }
     }
+    if $failed { exit 1 }
 }

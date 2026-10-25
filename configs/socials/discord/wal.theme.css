@@ -292,3 +292,18 @@ li[class*="messageListItem"]:hover {
     border-bottom: 1px solid rgba(var(--accentcolor), 0.5);
     border-right: 1px solid rgba(var(--accentcolor), 0.5);
 }
+
+/* the call view always draws white icons over the video or avatar backdrop; on a light palette the control groups
+   took the light accent and the icons vanished, so inside a call the controls stay on a dark translucent glass */
+[class*="callContainer"],
+[class*="videoGrid"],
+[class*="centerControlTray"] {
+    --button-secondary-background: rgba(0, 0, 0, 0.45) !important;
+    --button-secondary-background-hover: rgba(0, 0, 0, 0.6) !important;
+    --button-secondary-background-active: rgba(0, 0, 0, 0.7) !important;
+    --control-secondary-background-default: rgba(0, 0, 0, 0.45) !important;
+    --control-secondary-background-hover: rgba(0, 0, 0, 0.6) !important;
+    --control-secondary-background-active: rgba(0, 0, 0, 0.7) !important;
+    --background-surface-highest: rgba(0, 0, 0, 0.45) !important;
+    --background-accent: rgba(0, 0, 0, 0.45) !important;
+}

@@ -1,8 +1,8 @@
-# @PASSWORD@ and @DISK@ are filled in by dot test.
+# vm rows run as root at the end of a dot test chain (stage-report.nu), @USER@ and @LUKS@ filled in there.
 stage_armed       no   live  test -e /var/lib/dotfiles-stage/next && echo yes || echo no
-sudo_passwordless no   vm    sudo -n true 2>/dev/null && echo yes || echo no
+sudo_passwordless no   vm    runuser -u @USER@ -- sudo -n true 2>/dev/null && echo yes || echo no
 keyfile_present   no   vm    test -e /etc/cryptsetup-keys.d/root.key && echo yes || echo no
-luks_keyslots     1    vm    echo @PASSWORD@ | sudo -S cryptsetup luksDump @DISK@2 2>/dev/null | grep -cE '^  [0-9]+: luks2'
+luks_keyslots     1    vm    cryptsetup luksDump @LUKS@ 2>/dev/null | grep -cE '^  [0-9]+: luks2'
 secure_boot       1    live  [ -d /sys/firmware/efi ] || { echo n/a; exit 0; }; od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c | awk '{print $NF}'
 setup_mode        0    live  [ -d /sys/firmware/efi ] || { echo n/a; exit 0; }; od -An -t u1 /sys/firmware/efi/efivars/SetupMode-8be4df61-93ca-11d2-aa0d-00e098032b8c | awk '{print $NF}'
 kernel_modules    yes  live  [ "$(systemd-detect-virt 2>/dev/null)" != wsl ] || { echo n/a; exit 0; }; test -d "/usr/lib/modules/$(uname -r)" && echo yes || echo no

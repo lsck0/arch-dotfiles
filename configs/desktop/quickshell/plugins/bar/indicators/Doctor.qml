@@ -33,12 +33,5 @@ BarIndicator {
     onFileChanged: reload()
   }
 
-  Timer {
-    interval: 10 * 60 * 1000
-    running: true
-    repeat: true
-    onTriggered: file.reload()
-  }
-
   onPressed: Quickshell.execDetached(["systemctl", "--user", "start", "--no-block", "doctor-check.service"])
 }

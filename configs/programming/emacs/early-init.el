@@ -5,6 +5,7 @@
 
 (defvar my/font-family "Kode Mono")
 (defvar my/font-size 13)
+(load (expand-file-name "wal/emacs-font" (or (getenv "XDG_CACHE_HOME") "~/.cache")) t t)
 
 (setq default-frame-alist
       `((tool-bar-lines . 0)

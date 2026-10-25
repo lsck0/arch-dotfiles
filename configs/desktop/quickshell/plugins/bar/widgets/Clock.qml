@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
@@ -95,15 +94,10 @@ BarWidget {
     return " (" + sign + text + "h)"
   }
 
-  Process {
+  JsonProcess {
     id: offsetsProc
     command: [Paths.barWidget("timezone-offsets.nu")]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try { root.zoneOffsets = JSON.parse(text || "[]") } catch (e) {}
-      }
-    }
+    onParsed: function(data) { root.zoneOffsets = data }
   }
 
   Timer {
@@ -315,12 +309,13 @@ BarWidget {
         onMoved: function(v) { root.travelHours = v }
       }
 
-      ActionButton {
+      Button {
+        variant: "action"
         visible: root.travelHours !== 0
         width: parent.width
-        label: "reset to now"
-        tint: Colors.accent
-        onActivated: root.travelHours = 0
+        text: "reset to now"
+        foreground: Colors.accent
+        onClicked: root.travelHours = 0
       }
 
       PanelSeparator {}

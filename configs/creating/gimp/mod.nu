@@ -1,5 +1,5 @@
 use module.nu *
-use written.nu [preserve-aside]
+use preserve.nu [preserve-aside]
 
 export const meta = {packages: {pacman: [gimp]}}
 

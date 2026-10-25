@@ -187,13 +187,13 @@ BarWidget {
           }
         }
 
-        Toggle {
+        PanelRow {
           width: parent.width
           label: "Do not disturb"
-          description: "Silence new notification popups"
-          checked: root.dndOn
-          onClicked: root.toggleDnd()
-          borderSpec: Border.flat("transparent", 0)
+          trailing: "silence popups"
+          stateMarker: true
+          on: root.dndOn
+          onActivated: root.toggleDnd()
         }
 
         PanelSeparator {}

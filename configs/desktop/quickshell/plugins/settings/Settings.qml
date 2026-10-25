@@ -29,6 +29,9 @@ Item {
   property string loadError: ""
   property var toggles: []
   property var busyToggles: ({})
+  property var dotStatus: null
+  property var driftChoice: ({})
+  property string confirmId: ""
 
   property var pending: ({})
   property var errors: ({})
@@ -36,13 +39,13 @@ Item {
   property var batch: ({ applied: [], failed: 0, notes: [] })
   property bool systemPending: false
   readonly property int exitSystemPending: 3
-  readonly property bool busy: setProc.running || systemApplyProc.running || toggleProc.running
+  readonly property bool busy: setProc.running || systemApplyProc.running || toggleProc.running || systemProc.running
   property string notice: ""
 
   readonly property string dot: Paths.home + "/.local/bin/dot"
-  readonly property var sections: Schema.sections(modules, toggles, query)
+  readonly property var sections: Schema.sections(modules, toggles, query, dotStatus)
   readonly property var section: sections[Math.min(sectionIndex, sections.length - 1)] || null
-  readonly property var rows: Schema.rows(modules, toggles, section ? section.id : "", query)
+  readonly property var rows: Schema.rows(modules, toggles, section ? section.id : "", query, dotStatus)
   readonly property var cursorRow: rowIndex >= 0 && rowIndex < rows.length ? rows[rowIndex] : null
   readonly property var choiceList: expandedId && cursorRow && cursorRow.id === expandedId
     ? Schema.choicesMatching(cursorRow.option, choiceQuery) : []
@@ -54,11 +57,13 @@ Item {
       ["CTRL+R", "reset"]]
     if (cursorRow && cursorRow.kind === "option" && cursorRow.option.type === "path") out.push(["CTRL+O", "browse"])
     if (queued.length > 0) out.push(["CTRL+S", "apply"], ["CTRL+Z", "revert"])
+    out.push(["CTRL+U", "update"])
     out.push(["ESC", root.editingId || root.expandedId ? "back" : root.query ? "clear" : "close"])
     return out
   }
 
   onExpandedIdChanged: root.choiceQuery = ""
+  onRowIndexChanged: root.confirmId = ""
 
   function open(output) {
     var name = output || (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : "")
@@ -69,6 +74,7 @@ Item {
     root.notice = ""
     root.load()
     statusProc.refresh()
+    dotStatusProc.refresh()
     Qt.callLater(function () { keyCatcher.forceActiveFocus() })
   }
 
@@ -141,12 +147,36 @@ Item {
 
   function printable(text) { return text && text.length === 1 && text.charCodeAt(0) >= 32 && text.charCodeAt(0) !== 127 }
 
+  function update() { root.runSystem(Object.assign({ kind: "action" }, Schema.systemActions[0]), "") }
+
+  function choiceOf(row) { return root.driftChoice[row.id] || Schema.driftChoices[0] }
+
+  // a terminal action leaves the window for its terminal; reset overwrites a hand edit, so it asks twice
+  function runSystem(row, choice) {
+    if (row.kind === "drift" && choice === "reset" && root.confirmId !== row.id) {
+      root.confirmId = row.id
+      return
+    }
+    root.confirmId = ""
+    var argv = Schema.systemCommand(root.dot, row, choice)
+    if (row.terminal) {
+      Quickshell.execDetached(Schema.terminalCommand(argv, argv.slice(1).join(" ")))
+      root.close()
+      return
+    }
+    if (systemProc.running) return
+    systemProc.label = row.kind === "drift" ? choice + " " + row.target : row.name
+    systemProc.command = argv
+    systemProc.running = true
+  }
+
   function handleKey(key, text, modifiers) {
     var ctrl = (modifiers & Qt.ControlModifier) !== 0
     var row = root.pane === "rows" ? root.cursorRow : null
 
     if (key === Qt.Key_Escape) {
-      if (root.editingId) root.endEdit(false)
+      if (root.confirmId) root.confirmId = ""
+      else if (root.editingId) root.endEdit(false)
       else if (root.choiceQuery) root.filterChoices("")
       else if (root.expandedId) root.expandedId = ""
       else if (root.query) root.setQuery("")
@@ -165,6 +195,7 @@ Item {
     if (ctrl) {
       if (key === Qt.Key_S) root.applyQueued()
       else if (key === Qt.Key_Z) root.revertQueued()
+      else if (key === Qt.Key_U) root.update()
       else if (key === Qt.Key_R && row && row.kind === "option") root.reset(row)
       else if (key === Qt.Key_O && row && row.kind === "option" && row.option.type === "path") root.browse(row)
       else return false
@@ -236,7 +267,14 @@ Item {
   }
 
   function adjust(row, direction) {
-    if (row.kind === "toggle") return false
+    if (row.kind === "drift") {
+      let at = Schema.driftChoices.indexOf(root.choiceOf(row))
+      let n = Schema.driftChoices.length
+      root.driftChoice = Util.mapSet(root.driftChoice, row.id, Schema.driftChoices[(at + direction + n) % n])
+      root.confirmId = ""
+      return true
+    }
+    if (row.kind !== "option") return false
     if (row.option.type === "enum" && !Schema.segmented(row.option)) return false
     var next = Schema.adjusted(row.option, root.valueOf(row), direction)
     if (next === undefined) return false
@@ -246,6 +284,8 @@ Item {
 
   function activate(row) {
     if (row.kind === "toggle") { root.runToggle(row.toggle); return }
+    if (row.kind === "action" || row.kind === "drift") { root.runSystem(row, root.choiceOf(row)); return }
+    if (row.kind !== "option") return
     var option = row.option
     if (option.type === "bool") {
       root.change(row, !root.valueOf(row))
@@ -440,6 +480,31 @@ Item {
       root.notice = exitCode === 0 ? ["system part applied"].concat(Schema.notes(applyErr.text)).concat(Schema.notes(applyOut.text)).join("; ")
         : "apply failed: " + String(applyErr.text || applyOut.text || "").trim().split("\n").pop()
       root.load()
+    }
+  }
+
+  Process {
+    id: systemProc
+    property string label: ""
+    stdout: StdioCollector { id: systemOut; waitForEnd: true }
+    stderr: StdioCollector { id: systemErr; waitForEnd: true }
+    onExited: function (exitCode) {
+      var last = String(systemErr.text || systemOut.text || "").trim().split("\n").pop()
+      root.notice = exitCode === 0 || exitCode === root.exitSystemPending
+        ? [systemProc.label + " done"].concat(Schema.notes(systemErr.text)).concat(Schema.notes(systemOut.text)).join("; ")
+        : systemProc.label + " failed: " + last
+      root.load()
+      dotStatusProc.run()
+    }
+  }
+
+  JsonProcess {
+    id: dotStatusProc
+    command: [root.dot, "status", "--json"]
+    onParsed: function (data) {
+      if (Schema.equal(data, root.dotStatus)) return
+      root.dotStatus = data
+      if (root.rowIndex < 0 || root.rowIndex >= root.rows.length) root.selectRow(Schema.selectable(root.rows, 0, 1))
     }
   }
 
@@ -639,7 +704,10 @@ Item {
               id: loader
               width: parent.width
               sourceComponent: slot.modelData.kind === "header" ? headerRow
-                : slot.modelData.kind === "toggle" ? toggleRow : optionRow
+                : slot.modelData.kind === "toggle" ? toggleRow
+                : slot.modelData.kind === "check" ? checkRow
+                : slot.modelData.kind === "action" ? actionRow
+                : slot.modelData.kind === "drift" ? driftRow : optionRow
             }
 
             Component {
@@ -655,9 +723,7 @@ Item {
               Rectangle {
                 readonly property var toggle: slot.modelData.toggle
                 readonly property bool busy: root.busyToggles[toggle.name] === true
-                readonly property int split: Schema.toggleCycles(toggle) ? toggle.label.indexOf(": ") : -1
-                readonly property string name: split > 0 ? toggle.label.slice(0, split) : toggle.label
-                readonly property string stateText: split > 0 ? toggle.label.slice(split + 2) : "next"
+                readonly property bool isSwitch: Schema.toggleIsSwitch(toggle)
 
                 implicitHeight: Style.row.list
                 radius: Style.shape.data
@@ -670,16 +736,16 @@ Item {
                   anchors.rightMargin: Style.spacing.md
                   anchors.verticalCenter: parent.verticalCenter
                   textFormat: Text.PlainText
-                  text: (slot.hasCursor ? "> " : "  ") + parent.name
+                  text: (slot.hasCursor ? "> " : "  ") + parent.toggle.label
                   color: slot.hasCursor ? Colors.menu.selectedText : Colors.menu.text
                   font.family: Style.font.family
                   font.pixelSize: Style.font.body
                   elide: Text.ElideRight
                 }
 
-                ToggleSwitch {
+                Toggle {
                   id: toggleState
-                  visible: !Schema.toggleCycles(parent.toggle) && !parent.busy
+                  visible: parent.isSwitch && !parent.busy
                   anchors.right: parent.right
                   anchors.rightMargin: Style.spacing.md
                   anchors.verticalCenter: parent.verticalCenter
@@ -689,12 +755,12 @@ Item {
                 }
 
                 Text {
-                  visible: Schema.toggleCycles(parent.toggle) || parent.busy
+                  visible: !parent.isSwitch || parent.busy
                   anchors.right: parent.right
                   anchors.rightMargin: Style.spacing.md
                   anchors.verticalCenter: parent.verticalCenter
                   textFormat: Text.PlainText
-                  text: parent.busy ? "..." : "[" + parent.stateText + "]"
+                  text: parent.busy ? "..." : "[" + parent.toggle.text + "]"
                   color: Colors.accent
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
@@ -710,6 +776,164 @@ Item {
                     root.pane = "rows"
                     root.rowIndex = slot.index
                     root.runToggle(parent.toggle)
+                  }
+                }
+              }
+            }
+
+            Component {
+              id: checkRow
+              Rectangle {
+                readonly property var check: slot.modelData
+                readonly property color levelColor: check.level === "FAIL" ? Colors.urgent
+                  : check.level === "WARN" || check.level === "pending" ? Colors.warn
+                  : check.level === "ok" ? Colors.ok : Colors.accent
+
+                implicitHeight: Math.max(Style.row.list, checkText.implicitHeight + Style.spacing.sm * 2)
+                radius: Style.shape.data
+                color: slot.hasCursor ? Colors.menu.selectedBackground : "transparent"
+
+                Text {
+                  id: checkLevel
+                  anchors.left: parent.left
+                  anchors.leftMargin: Style.spacing.md
+                  anchors.top: parent.top
+                  anchors.topMargin: Style.spacing.sm
+                  width: Style.space(70)
+                  textFormat: Text.PlainText
+                  text: (slot.hasCursor ? "> " : "  ") + "[" + parent.check.level + "]"
+                  color: parent.levelColor
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.caption
+                  font.bold: true
+                }
+
+                Text {
+                  id: checkText
+                  anchors.left: checkLevel.right
+                  anchors.leftMargin: Style.spacing.sm
+                  anchors.right: parent.right
+                  anchors.rightMargin: Style.spacing.md
+                  anchors.top: parent.top
+                  anchors.topMargin: Style.spacing.sm
+                  textFormat: Text.PlainText
+                  text: parent.check.name + ": " + parent.check.text
+                  color: slot.hasCursor ? Colors.menu.selectedText : Colors.menu.text
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.body
+                  wrapMode: Text.Wrap
+                }
+
+                MouseArea {
+                  anchors.fill: parent
+                  onClicked: { root.pane = "rows"; root.rowIndex = slot.index }
+                }
+              }
+            }
+
+            Component {
+              id: actionRow
+              PanelRow {
+                label: (slot.hasCursor ? "> " : "  ") + slot.modelData.name
+                trailing: slot.modelData.detail + (slot.modelData.terminal ? "  [terminal]" : "")
+                on: slot.hasCursor
+                enabled: !systemProc.running
+                onActivated: {
+                  root.pane = "rows"
+                  root.rowIndex = slot.index
+                  root.runSystem(slot.modelData, "")
+                }
+              }
+            }
+
+            Component {
+              id: driftRow
+              Rectangle {
+                id: drift
+                readonly property var entry: slot.modelData
+                readonly property string choice: root.choiceOf(entry)
+                readonly property bool confirming: root.confirmId === entry.id
+
+                implicitHeight: driftColumn.implicitHeight + Style.spacing.sm * 2
+                radius: Style.shape.data
+                color: slot.hasCursor ? Colors.menu.selectedBackground : driftMouse.containsMouse ? Style.hoverFill : "transparent"
+
+                MouseArea {
+                  id: driftMouse
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  onClicked: { root.pane = "rows"; root.rowIndex = slot.index }
+                }
+
+                Text {
+                  id: driftCursor
+                  anchors.left: parent.left
+                  anchors.leftMargin: Style.spacing.md
+                  anchors.top: driftColumn.top
+                  textFormat: Text.PlainText
+                  text: slot.hasCursor ? "> " : "  "
+                  color: Colors.menu.selectedText
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.body
+                }
+
+                Column {
+                  id: driftColumn
+                  anchors.left: driftCursor.right
+                  anchors.right: driftButtons.left
+                  anchors.rightMargin: Style.spacing.md
+                  anchors.verticalCenter: parent.verticalCenter
+                  spacing: Style.spacing.xxs
+
+                  Text {
+                    width: parent.width
+                    textFormat: Text.PlainText
+                    text: drift.entry.target.replace(Paths.home, "~")
+                    color: slot.hasCursor ? Colors.menu.selectedText : Colors.menu.text
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.body
+                    elide: Text.ElideMiddle
+                  }
+
+                  Text {
+                    width: parent.width
+                    textFormat: Text.PlainText
+                    text: drift.confirming
+                      ? "reset puts the repo's copy of only this file back, your edit is kept aside in dot's preserved/;"
+                        + " enter again to reset, esc keeps it"
+                      : drift.entry.module + ", " + drift.entry.drift + ": adopt carries the edit into the repo, reset puts the repo's "
+                        + "copy of this file back"
+                    color: drift.confirming ? Colors.warn : Colors.menu.text
+                    opacity: drift.confirming ? 1 : Style.emphasis.faint
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                    wrapMode: Text.Wrap
+                  }
+                }
+
+                Row {
+                  id: driftButtons
+                  anchors.right: parent.right
+                  anchors.rightMargin: Style.spacing.md
+                  anchors.verticalCenter: parent.verticalCenter
+                  spacing: Style.spacing.xs
+
+                  Repeater {
+                    model: Schema.driftChoices
+                    Button {
+                      required property string modelData
+                      variant: "chip"
+                      text: modelData
+                      selected: drift.choice === modelData
+                      danger: modelData === "reset" && drift.confirming
+                      enabled: !systemProc.running
+                      onClicked: {
+                        root.pane = "rows"
+                        root.rowIndex = slot.index
+                        root.driftChoice = Util.mapSet(root.driftChoice, drift.entry.id, modelData)
+                        root.runSystem(drift.entry, modelData)
+                      }
+                    }
                   }
                 }
               }

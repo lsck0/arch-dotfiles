@@ -6,8 +6,8 @@ use log.nu *
 use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir]
 use pipeline.nu [pipeline-load pipeline-plan pipeline-apply]
 use modules.nu [modules-packages]
-use ledger.nu [packages-convergence ledger-get ledger-set ledger-packages ledger-generation ledger-units]
-use written.nu [tty-confirm written-begin written-prune written-end preserve-prune]
+use ledger.nu [packages-convergence ledger-get ledger-set ledger-packages ledger-units]
+use preserve.nu [tty-confirm preserve-prune]
 use migrate.nu [migrations-run]
 use system.nu [system-unpack system-secrets ENTRY]
 
@@ -37,9 +37,12 @@ def repo-guard []: nothing -> path {
     $repo
 }
 
-def --wrapped locked [...args: string]: nothing -> nothing {
+# Re-execs this very command line (the arguments after this script's path, verbatim) once under the lock.
+def locked []: nothing -> nothing {
     if ($env.DOT_SYSTEM_LOCKED? | is-empty) {
         mkdir $SYSTEM_STATE
+        let argv = open --raw $"/proc/($nu.pid)/cmdline" | into binary | decode utf-8 | split row (char nul) | drop 1
+        let args = $argv | skip until { $in | str ends-with $ENTRY } | skip 1
         exec ($SYSTEM_REPO | path join scripts lib interruptible.sh) --lock ($SYSTEM_STATE | path join lock) env DOT_SYSTEM_LOCKED=1 /usr/bin/nu --no-config-file ($SYSTEM_REPO | path join $ENTRY) ...$args
     }
 }
@@ -104,16 +107,16 @@ def main [] {
 }
 
 # apply <sha> <install|config>: unpack the repo and secrets archive on stdin, run the stage from the new copy
-def "main apply" [sha: string, stage: string, --unattended, --force, --pin: string]: nothing -> nothing {
+def "main apply" [sha: string, stage: string, --unattended, --force]: nothing -> nothing {
     repo-guard | ignore
     if $stage not-in [install config] { error make {msg: $"apply: ($stage) is neither install nor config"} }
-    locked apply $sha $stage --unattended=($unattended) --force=($force) ...(if $pin == null { [] } else { [--pin $pin] })
+    locked
     let work = mktemp --directory --tmpdir-path /run
     let status = try {
         ^tar -x --no-same-owner --no-same-permissions -C $work -f - repo.tar secrets.tar
         open --raw ($work | path join repo.tar) | system-unpack $SYSTEM_REPO $sha
         let entry = $SYSTEM_REPO | path join $ENTRY
-        let flags = if $stage == "install" { [--unattended=($unattended)] ++ (if $pin == null { [] } else { [--pin $pin] }) } else { [--unattended=($unattended) --force=($force)] }
+        let flags = if $stage == "install" { [--unattended=($unattended)] } else { [--unattended=($unattended) --force=($force)] }
         try { open --raw ($work | path join secrets.tar) | ^/usr/bin/nu --no-config-file $entry $stage ...$flags; 0 } catch {|e| $e.exit_code? | default 1 }
     } catch {|e|
         rm --recursive --force $work
@@ -128,16 +131,16 @@ def --env unattended [on: bool]: nothing -> nothing {
 }
 
 # every declared package from [lsck0] in one pass, base/pacman first, base/yubikey last
-def "main install" [--unattended, --pin: string]: nothing -> nothing {
+def "main install" [--unattended]: nothing -> nothing {
     let repo = repo-guard
-    locked install --unattended=($unattended) ...(if $pin == null { [] } else { [--pin $pin] })
+    locked
     unattended $unattended
     failures-start
     ^pacman-key --init
     ^pacman-key --populate archlinux
     let offline = (which nm-online | is-not-empty) and not (try { ^nm-online $"--timeout=($OFFLINE_WAIT_S)"; true } catch { false })
     if $offline { log-warn $"still offline after ($OFFLINE_WAIT_S)s" }
-    let ctx = pipeline-load $repo system | if $pin == null { $in } else { update platform.facts.lsck0_snapshot $pin }
+    let ctx = pipeline-load $repo system
     if not (module-system $ctx $PACMAN_MODULE) {
         fail $PACMAN_MODULE
         exit $EXIT_ABORTED
@@ -156,8 +159,6 @@ def "main install" [--unattended, --pin: string]: nothing -> nothing {
     pacman-retry "the install pass" $DOWNLOAD_TRIES $upgrade --needed --noconfirm --ask 4 ...$wanted
     let snapshot = $"($ctx.platform.facts.lsck0_snapshot | default latest) (ls $LSCK0_DB | get 0.modified | date to-timezone UTC | format date '%FT%TZ') (open --raw $LSCK0_DB | hash sha256)"
     ledger-set snapshot [$snapshot]
-    let source = $repo | path join .source
-    if ($source | path exists) { ledger-generation ($SYSTEM_STATE | path join generations) (open --raw $source | str trim) $snapshot }
     try { ledger-packages $declared.pacman } catch {|e| fail $"ledger: removing dropped packages: ($e.msg)" }
     if ($declared.nix | is-not-empty) and (which nix | is-not-empty) {
         try { ^systemctl enable --now nix-daemon.socket } catch { fail "nix-daemon.socket" }
@@ -171,9 +172,11 @@ def "main install" [--unattended, --pin: string]: nothing -> nothing {
 # every system verb; the secrets arrive as a tar on stdin into a tmpfs gone at exit
 def "main config" [--unattended, --force]: nothing -> nothing {
     let repo = repo-guard
-    locked config --unattended=($unattended) --force=($force)
+    locked
     unattended $unattended
     failures-start
+    # a pending migration converts root's state before any verb reads it, also without a sync
+    migrations-run $repo system | ignore
     let ctx = pipeline-load $repo system
     let secrets = mktemp --directory --tmpdir-path /run
     try {
@@ -182,12 +185,8 @@ def "main config" [--unattended, --force]: nothing -> nothing {
         ^find $secrets -mindepth 1 ! -type d -print0 | split row (char nul) | where $it != ""
         | where {|f| ($f | path type) != "file" or ($f | path relative-to $secrets) not-in $allowed } | each { rm --force $in } | ignore
         $env.DOTFILES_SECRETS = $secrets
-        written-begin
         let planned = pipeline-plan $ctx system [] $force | where id != $PACMAN_MODULE
-        let results = pipeline-apply $ctx $planned system 1
-        # a module skipped by its input hash writes nothing this run, so its targets have to be kept explicitly
-        let owned = glob (state-dir | path join modules **/*.nuon) | each { open $in | get outputs.target } | flatten
-        if ($results | all { $in.ok }) { written-prune $owned } else { written-end }
+        pipeline-apply $ctx $planned system 1 | ignore
     } catch {|e|
         rm --recursive --force $secrets
         error make {msg: $e.msg}
@@ -207,7 +206,7 @@ def "main config" [--unattended, --force]: nothing -> nothing {
 def "main packages" [--yes, --plan, --unattended]: nothing -> nothing {
     let repo = repo-guard
     unattended $unattended
-    locked packages --yes=($yes) --plan=($plan) --unattended=($unattended)
+    locked
     let ctx = pipeline-load $repo system
     let declared = modules-packages $repo $ctx.modules $ctx.platform
     let found = packages-convergence $declared.pacman $ctx.platform.packages_keep
@@ -226,7 +225,7 @@ def "main packages" [--yes, --plan, --unattended]: nothing -> nothing {
 
 def "main module" [id: string, verb: string]: nothing -> nothing {
     let repo = repo-guard
-    locked module $id $verb
+    locked
     let ctx = pipeline-load $repo system
     if $verb not-in ($ctx.modules | where id == $id | get --optional 0.native | default []) { error make {msg: $"($id) has no native ($verb) verb"} }
     if not (module-system $ctx $id) { exit 1 }
@@ -234,13 +233,13 @@ def "main module" [id: string, verb: string]: nothing -> nothing {
 
 def "main migrate" [--baseline]: nothing -> nothing {
     let repo = repo-guard
-    locked migrate --baseline=($baseline)
+    locked
     migrations-run $repo system --baseline=$baseline | ignore
 }
 
 def "main preserve-prune" [days: int]: nothing -> nothing {
     repo-guard | ignore
-    locked preserve-prune ($days | into string)
+    locked
     preserve-prune $days
 }
 

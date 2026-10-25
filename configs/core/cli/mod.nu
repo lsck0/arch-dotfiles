@@ -11,18 +11,18 @@ export const meta = {
     ]}
 }
 
-def tldr-pages []: nothing -> path {
-    $env.TEALDEER_CACHE_DIR? | default ($nu.home-dir | path join .local share tealdeer) | path join tldr-pages
-}
+# the pages are data for offline lookups, not a cache to sweep: under XDG data, set as tealdeer's cache_dir
+def tldr-dir []: nothing -> path { $nu.home-dir | path join .local share tealdeer }
 
 export def link [cfg: record] {
     [
-        (file-copy tealdeer.toml ($nu.home-dir | path join .config tealdeer config.toml))
+        (file-text ($nu.home-dir | path join .config tealdeer config.toml)
+            ((open --raw tealdeer.toml) + $"\n[directories]\ncache_dir = \"(tldr-dir)\"\n"))
         (unit-file tldr-update.service)
         (unit-file tldr-update.timer --enable --now)
         # the first fetch here, so the pages are there before the timer's first run
         (if (^pacman -Q tealdeer | complete).exit_code != 0 { [] } else {
-            exec tldr-pages [env $"TEALDEER_CACHE_DIR=(tldr-pages | path dirname)" tldr --update] --creates (tldr-pages)
+            exec tldr-pages [tldr --update] --creates (tldr-dir | path join tldr-pages)
         })
     ]
 }

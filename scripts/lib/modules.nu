@@ -7,8 +7,9 @@ use state.nu [LIB_DIR nu-bin SYSTEM_STATE]
 const SELF = path self
 const REPO = path self ../..
 
-export const VERBS = [link unlink system theme apply backup restore check]
-const HOOKS = [detect packages]
+# the verbs the engine calls on a module, and the hooks it reads while loading; nothing else is dispatched by name
+export const VERBS = [link system theme apply backup restore update]
+export const HOOKS = [detect packages]
 const MARKER = "mod.nu"
 const ROOT_MODULES = [scripts skills]
 export const SECRETS_GROUP = "secrets"

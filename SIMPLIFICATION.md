@@ -19,246 +19,133 @@ the engine (`scripts/dot.nu` plus `scripts/lib`) 8k, the 213 `mod.nu` with their
 
 ## 1. Font becomes a theme input, the repo is never rewritten at runtime
 
-Now: `scripts/toggles/toggle-font.nu` (251) rewrites tracked repo files (ghostty `config`, kitty `kitty.conf`,
-qutebrowser `config.py` and `startpage.html`, zed `settings.json`, emacs `early-init.el`, discord `wal.theme.css`,
-spotify `user.css`, quickshell `theme.json`). To make that visible live, those modules `file-link` the repo file
-instead of copying it (comments like "a link: toggle-font rewrites the repo file" in `desktop/kitty/mod.nu`), and
-`scripts/lib/wallpaper.nu` calls the toggle when a theme names a font. Every font switch dirties `git status` and
-lands in the next `Generation` commit.
-
-Proposed: the font is a field of the theme state, next to the palette (`~/.cache/wal/` already carries the
-palette). `dot internal theme apply` writes `font.json` beside it; each module renders its font in its `theme` verb
-from that file with `file-text --generated`, the way colors work. `toggle-font.nu` shrinks to a cycle over a font
-list that sets the field and runs the theme apply.
-
-Removes: about 200 lines of `toggle-font.nu`, the per-app regex edits, 8 of the 20 `file-link` exceptions (they go
-back to managed copies), the dirty checkout.
-
-Risk: medium. Apps that only read their font at start need their existing reload hooks; emacs reads
-`early-init.el` once.
-
-Migration: add the font field and the per-module renders, switch each module from `file-link` to `file-copy`
-plus a generated font include, reset the font lines in the repo files to the default, delete the regex edits.
-
-Verify: `dot theme <name>` with a font on a dark and a light theme (skill `l-dotfiles-theming`), `git status`
-clean afterwards, `dot test lint`.
+Done: the font lives in `~/.cache/wal/font.json` beside the palette (`configs/core/wallust/font.nu`: `font-load`,
+`font-save`, the defaults and the monospace partners). `toggle-font.nu` (251 to 94 lines) saves it and requests a
+theme run through `dot-theme.service`; a theme's `"font"` is saved the same way. Each program gets it from its own
+theme verb: a generated include (ghostty, kitty, emacs, firefox chrome), a rendered config (zathura, gtk.css, the
+qutebrowser start page, zed settings), a merge (vscodium, kdeglobals, discord and spotify css), or a read at start
+(qutebrowser `config.py`, nvim's guifont, quickshell's `Theme.qml` watching the file). Seven repo `file-link`s became
+managed copies; a font switch leaves `git status` untouched. Neovide now follows the terminal size (was a fixed h16).
 
 ## 2. One serialized theme run
 
-Now: a theme switch starts from the bar, `toggle-theme-mode.nu` (99), `dot theme` or the wallpaper picker; each runs
-`scripts/lib/wallpaper.nu` (101) in the caller's process with a `theme.lock`, a background and a foreground pass of
-`dot internal theme apply`. Switching fast queues several full runs or interleaves them; a module whose theme verb
-fails or is skipped keeps the previous palette (the reported dolphin search bar and nvim lualine bleed).
-
-Proposed: every caller writes the wanted wallpaper or theme into one request file and starts
-`dot-theme.service` (user, `Type=oneshot`). systemd never runs it twice at once; the unit reads the latest request
-when it starts, so ten fast clicks cost at most two runs and the last one wins. Every theme verb gets the palette by
-path and a run id, and records it, so `dot status` can name a module still on an older palette.
-
-Removes: the lock and its stale handling, the duplicated launch code in the toggles and the picker, the
-background/foreground split if the unit's ordering covers it. About 80 lines; fixes the class of bug instead of
-each symptom.
-
-Risk: low. Native mechanism (systemd's own job queue).
-
-Verify: switch themes ten times in two seconds, then `dot status` shows every themed module on the final palette.
+Done: every caller writes `$XDG_RUNTIME_DIR/theme.request` and starts the user unit `dot-theme.service`
+(`dot internal theme serve`, `configs/core/wallust/dot-theme.service`), whose loop applies the newest request until
+none newer is left; the token, `theme.lock`, `theme-background.lock` and the foreground/background split are gone
+(`THEME_ORDERED` only orders spotify before discord). Ten switches in two seconds: one unit run, ends on the last.
+Not done: a per-module palette id for `dot status`.
 
 ## 3. Homelab coupling by hostname only
 
 See the homelab section below; listed here for order. Removes the duplicated homelab blocks in two platform option
 files and every literal address of a guest.
 
-## 4. A fixed verb set, one-off verbs become plain scripts
+## 4. A fixed verb set
 
-Now: `mod.nu` files export 153 `link`, 70 `system`, 25 `theme`, 14 `detect`, 9 `backup`, 6 `seed` and 84 other
-names used by one to three modules (`wine-dpi`, `wine-bin-fixup`, `wifi-teardown`, `mcp-cache`, `tunnel`,
-`theme-push`, `relocate`, `profile-create`, `xcu-update`, `wire`, ...). They are reached from units, toggles and
-`dot internal`, each with its own call shape.
-
-Proposed: the engine knows `link`, `system`, `theme`, `detect`, `backup`, `restore`, `update` and nothing else. A
-module's helper that a unit or toggle runs is a script file in the module dir (`files-into` or `link-commands`
-already install them), called by path. `seed` folds into `restore` (both put state back), `relocate` into a
-migration.
-
-Removes: the verb dispatch for arbitrary names in `modules.nu` and `internal.nu`, the per-name calls; makes a verb a
-contract the lint can check. About 150 to 250 lines.
-
-Risk: medium, many small edits. Each removed verb has its callers in units and toggles; `grep` finds them.
-
-Verify: `dot plan --modules`, `dot test lint` with a new check that only the fixed verbs are exported.
+Done: the count above was a miscount; the other 84 names were never dispatched by name, they are `step` targets of
+their own mod.nu (`seed`, `relocate`, `setcap`, ... run by the engine's `step` declaration) or helpers another module
+imports (`lod-detect`, `spicetify-colors`). `VERBS` dropped the two nobody exported (`unlink`, `check`) and the
+`unlink` call in `dot module unlink`; `HOOKS` is exported beside it, and `lint-exports` (`gate.nu`) fails any
+`export def` that is no verb, hook, step of its file or import of another module. `seed` stays a first-apply step, not
+a `restore`: it runs once when the live file is missing, `restore` on demand.
 
 ## 5. `update` verb, `system-update.nu` and the non-owner update path
 
-Now: `scripts/system-update.nu` (49) knows every tool's upgrade (flatpak, rustup, opam, ghcup, hyprpm, tldr, nvim
-lazy and mason, emacs packages) and runs `dot apply --packages` and `dot apply` itself. A machine without the signing
-key updates with `dot sync`, which stops after the apply, so this path and `system-update` overlap.
-
-Proposed: each module owns its upgrade in an `update` verb (nvim's mason and lazy in `programming/nvim`, ghcup in
-`programming/ghcup`, ...). `dot sync` is the one update command for everyone: pull, migrate, install, apply, every
-`update` verb, then backup, commit and push only where the machine signs. `system-update.nu` is deleted.
-
-Removes: `system-update.nu`, the hardcoded tool list; answers "how does a non-owner update" with the same command
-the owner runs.
-
-Risk: low.
-
-Verify: `dot sync --no-push` on a machine without the key in the VM test.
+Done: `update` is a verb (`base/essentials` rustup, `programming/opam`, `desktop/hyprland` plugins,
+`programming/nvim`, `programming/emacs`), `dot sync` runs them after the apply through `dot internal update`;
+`system-update.nu` is gone. Flatpak commits and ghcup versions are pins and move by a repo edit; tldr keeps its
+weekly timer, which works for a machine that rarely syncs.
 
 ## 6. One state store
 
-Now: dot's state is spread over `written` (hash per written file, `written.nu` 120), `seen`, `ledger` (enabled units,
-installed packages, package snapshots per generation, `ledger.nu` 90), `modules/<id>/<verb>.nuon` (input hash and
-outputs per verb, `converge.nu`), the drift reports (`drift.nu` 141) and `preserved/`. Drift, `explain`, `module
-remove` and the doctor each join several of them.
-
-Proposed: the per-verb record is the only record: outputs with their hash, mode, units enabled, packages declared.
-`written` and the unit and package halves of the ledger become queries over all records; the ledger keeps only the
-per-generation package snapshot that `rollback --full` needs.
-
-Removes: about 150 lines and the class of bugs where two stores disagree.
-
-Risk: high. State migration on every machine; needs a migration with a real `down`.
-
-Verify: before and after the migration, `dot plan`, `dot status --json` and `dot explain` on a sample of paths give
-identical answers.
+Done: `modules/<id>/<verb>.nuon` is the one record of what dot wrote. Each file output carries the time dot wrote it
+(`at`, ns) and an owned json/ini merge is an entry of its own; `recorded-hashes` is the newest write per path over
+all records, so `written`, its `seen` list, `written-record`/`written-forget`/`written-prune` and their locked.nu
+halves are gone (`written.nu` is now `preserve.nu`: the preserved/ dir, the ~/sync guard, tty-confirm). The
+wireguard config is a declaration instead of a step writing behind the engine. The per-generation `generations`
+file went with `rollback --full`. Migrations `0001` (user) and `0002` (system, also run by `dot apply --system`)
+fold the old files into the records and keep them under `migrated/0001` for `down`. The ledger keeps units,
+packages, migrations and the lsck0 snapshot: dot owns a unit its modules' files name and a package a meta declares,
+neither a verb's output, and the snapshot feeds the doctor's mirror-age check and the drift report.
 
 ## 7. Engine lib holds only the engine
 
-Now: `scripts/lib` carries feature code: `anonymous-socks.nu` (195, the tor SOCKS pool), `yubikey.nu` (274),
-`wallpaper.nu`, `wallpaper-list.nu`, `wallpaper-pick.nu` (225 together), `picker.nu`, `audit.nu` (156).
-
-Proposed: each moves into its module dir (`base/tor`, `base/yubikey` or the secrets module, `core/wallust`,
-`core/gnupg`), loaded by the CLI from there. `scripts/lib` shrinks to plan, apply, state, CLI, install and test.
-
-Removes: no lines by itself; makes the engine size the engine's and makes each feature removable with its module.
-
-Risk: low; `use` paths change.
-
-Verify: `dot test lint`, `dot --help`, each moved command once.
+Done: `anonymous-socks.nu` in `base/tor`, `yubikey.nu` and `audit.nu` in `base/yubikey`, `wallpaper*.nu` in
+`core/wallust`, `picker.nu` in `desktop/hyprland`; `scripts/lib` keeps the engine.
 
 ## 8. Toggle protocol as data
 
-Now: a toggle prints a label line, and `scripts/toggles/status.nu` parses it: `●`/`○` prefixes, ` (on)`/` (off)`
-suffixes decide `on`, `setting` and `cycles`. The settings window's `Schema.js` (251) and the bar re-derive the
-same. Root halves go through `root-run` per call, so a toggle that touches several root things prompts several times
-(the firewall toggle asks for the password about four times).
-
-Proposed: `toggle-<name>.nu get --json` answers `{name, label, state, states, available}`; `status.nu` concatenates.
-A toggle's root half is one `system-apply.nu toggle <name> <state>` call, so one prompt per flip.
-
-Removes: the label parser, glyph conventions in every toggle, about 60 lines, and the repeated prompts.
-
-Risk: low.
-
-Verify: `scripts/toggles/status.nu | from json`, flip every toggle from the bar.
+Done: every toggle answers `get --json` with one status record from `status-record` in `scripts/toggles/lib.nu`
+(`{name, label, state, text, states, on, available}`; `available` folds the old `available` verbs and the network
+panel's own nmcli probe); `label`, the `●`/`○` and ` (on)`/` (off)` conventions and `status.nu`'s parser are gone.
+`status.nu [name...]` concatenates the records, the menu, the settings window (`Schema.toggleIsSwitch`) and the network
+panel (one `status.nu` call instead of twelve processes) read them. Every flip already makes at most one root call.
 
 ## 9. Values defined once
 
-Now: the background value clamps live in `configs/core/wallust/palette.nu`, `Commons/Theme.qml` and
-`quickshell/theme.json`; `lint-palette` in `gate.nu` compares the three. `Palette.js` is generated from `palette.nu`
-and checked by `dot internal gen --check`. `scripts/lib/system-apply.nu` re-execs each command under flock with its
-flags spelled out again, and `lint-locked-flags` checks that none is dropped.
-
-Proposed: `dot internal gen` also writes the clamps into a generated qml/json fragment; `lint-palette` goes.
-`locked` re-execs with the original argv verbatim, so `lint-locked-flags` goes.
-
-Removes: two lint checks (about 40 lines) and two places a value can drift.
-
-Risk: low.
-
-Verify: `dot internal gen --check`, `dot test lint`.
+Done: `Theme.qml` takes the clamps and light luminance from `Palette.js`'s generated block (theme.json only
+overrides), `lint-palette` and the luminance copy check are gone; `locked` re-execs the command line verbatim,
+`lint-locked-flags` is gone.
 
 ## 10. Quickshell: shared parts and events instead of polling
 
-Now: 28k lines. `Ui/` has eleven button, toggle and card components (`Button`, `ActionButton`, `BarIconButton`,
-`PanelActionButton`, `WidgetButton`, `Toggle`, `ToggleSwitch`, `Chip`, `PopupCard`, `OverlayCard`, `HoverPanel`,
-1223 lines together). 82 raw `Process {}` blocks beside the `JsonProcess`, `KeyValueProcess` and `ProcessQueue`
-helpers. Polling timers: `Network.qml` every 2 s, `Media.qml` every 1 s, `Notifications.qml` 30 s, `Homelab.qml` runs
-`homelab-status.nu` every 30 or 300 s, `Weather.qml` a 250 ms timer. Large single files: `Weather.qml` 1083 (its own
-chart, the misaligned rain and temperature diagram), `System.qml` 986, `ImagePicker.qml` 956, `Service.qml` 883.
+Done: `Ui/Button` takes a `variant` (plain, icon, action, chip) and replaces `PanelActionButton`, `ActionButton` and
+`Chip`; `Ui/Toggle` is the one on/off switch (`ToggleSwitch` renamed; the row card's only user, the DND row, is a
+`PanelRow` like every other toggle row). The JSON-reading script calls (display, network, clock, keyboard, lock notes,
+workspace rules) go through `JsonProcess`; raw `Process` stays for streams, stdin writers and plain-text output.
+The Doctor indicator's 10-minute reload is gone (its `FileView` watch already reloads).
 
-Proposed:
-- `Ui/Button` with a variant, `Ui/Toggle`, `Ui/Card`: three components replace eleven.
-- Every script call through `JsonProcess`; raw `Process` only for streams.
-- Event sources where the system has them: NetworkManager's D-Bus signals (`nmcli monitor` at most) for Network,
-  MPRIS `positionChanged` plus a local clock for Media, the notification server's own signals, a ntfy or SSE push
-  for the homelab status instead of a poll.
-- One `Ui/Chart` (axes, bands, labels on one layout grid) used by Weather, `Sparkline`, `Heatmap` and `BarGauge`;
-  fixes the diagram alignment once.
+Kept, on purpose: `WidgetButton`/`BarIconButton` (bar items: bar tooltip, wheel, vertical bar); `PopupCard`,
+`OverlayCard`, `HoverPanel` (three different window kinds, not cards of one shape); the remaining timers, which are
+clocks or run only while their panel is open (network throughput, media position, notification ages); the Homelab
+poll until the lab pushes status; `Sparkline`, `Heatmap`, `BarGauge` as they are, since Weather composes them on one
+slot grid already and a shared `Ui/Chart` would add code. The doc's 3000 to 5000 line estimate assumed the polling
+and the Weather chart were still bespoke; the rest of the 28k is feature code.
 
-Removes: an estimated 3000 to 5000 lines; idle CPU from the polls.
+## 11. Pick one of each
 
-Risk: medium, visual. Each widget lands alone with screenshots (skill `l-dotfiles-quickshell-dev`).
+Decided: keep all editors, terminals, browsers, both firewalls; one route toggle.
 
-Verify: screenshots before and after per widget on a dark and a light theme; `qmllint` through `dot test check`.
+Done (route): `toggle-route.nu` (direct, proton, tor, offline) replaces `toggle-protonvpn`, `toggle-tor` and
+`toggle-offline`; the network panel picks a route like the firewall mode, `auto-vpn` and `timezone-auto` read it.
+`toggle-vpn` (wg0 carries only the lab subnets) and `toggle-anonymous-socks` (SOCKS ports on lo) are not routes: they
+work beside any of them and stay separate; offline still takes wg0 down and restores it.
 
-## 11. Pick one of each (needs a decision)
+Still open: the shells' duplicated aliases (one table rendered into both, with item 3); `desktop/plasma` trimmed to the
+KDE apps if the applet layout is unused.
 
-The repo configures several tools for one job. Each kept one costs its module, its theme verb, its font edit and its
-apparmor profile where it has one. These are questions, not findings:
+## 12. Bought wallpapers move to ~/sync (decided: public assets stay in git)
 
-- Editors: `programming/nvim` (246), `programming/emacs` (2193, a full doom-style config), `zed`, `vscode`,
-  `jetbrains`.
-- Terminals: `desktop/ghostty`, `desktop/kitty`, `desktop/konsole`.
-- Browsers: `desktop/firefox` (513), `desktop/chromium`, `desktop/qutebrowser` (555).
-- Shells: `core/zsh` (`zshrc` 172) and `core/nushell` (`config.nu` 159) duplicate aliases (`sshpc`, `sshnb`, ...). If
-  both stay, one alias table rendered into both.
-- VPN paths: `base/protonvpn` (the app), `base/protonvpn-netns` (164, fail-closed netns), `gaming/vpn-bypass` (145),
-  `base/wireguard`, `base/tor` plus the SOCKS pool. Each is a real feature; the toggles around them
-  (`toggle-protonvpn`, `toggle-vpn`, `toggle-anonymous-socks`, `toggle-tor`, `toggle-offline`) could be one n-state
-  `toggle-route` (direct, homelab, proton, tor, offline) if they are mutually exclusive in practice.
-- Firewalls: `base/nftables` (190) and `base/portmaster` (116) both filter; `portmaster-bypass.nft` exists to make
-  them coexist. One filter, the other dropped or reduced to its UI.
-- `desktop/plasma` (1536): kept for dolphin, kded and KDE apps; if only the apps are wanted, the applet layout and rc
-  templates can go.
-
-## 12. Assets out of git
-
-Now: `wallpapers/` 121 MB, `showcase/` 13 MB, `desktop/shimoji` 8.3 MB of `.wlshm` packs in the public repo. Every
-other user clones them.
-
-Proposed: pinned `fetch-file` downloads (the mirror can serve them) or `configs/secrets/state` for the bought ones;
-`showcase/` on the mirror or the README host.
-
-Removes: about 140 MB from every clone and the ISO's verified checkout.
-
-Risk: low; needs a history rewrite only if the clone size matters, otherwise only future clones of a fresh mirror
-benefit.
+Done: the 53 bought wallpapers (223 MB) live in `~/sync/wallpapers`, copied and checksum-verified, removed from the
+secrets submodule (staged, the next `dot sync` commits it); `wallpaper-list.nu` resolves `~/sync/wallpapers` before
+`wallpapers/`, `wallpaper-import` copies into it. `wallpapers/`, `showcase/` and the shimeji packs stay in git.
 
 ## 13. Install and VM test
 
-Now: `bootstrap.sh` (46), `scripts/lib/bootstrap.nu` (894), `bootstrap/questions.nuon` (322), `iso-install.nu`
-(222), `iso.nu` (122), `stage.nu` (134); the VM test `vm.nu` (569) plus `vm/` (200) drives the Arch iso by sendkey
-and OCR.
+Done: `dot test run` boots the lsck0 iso (the published one, sha256-checked, or `--iso`) with an answer file and
+types and reads nothing: the answers' `report` url (`BOOTSTRAP_REPORT`, `questions.nuon`) makes the stub upload its
+log and beacon `bootstrap-fail` on failure, each stage beacon `install-*`/`config-*`, and the disarmed chain's end
+run `scripts/lib/stage-report.nu` as root from the root copy (invariant probes, backup roundtrip, logs up as
+`logs.tgz`, beacon `chain-done`). Gone: the sendkey key tables and typing, the tesseract screen reading, the tty
+login, the typed Arch-iso bootstrap, `dot test logs` and `dot test type`; `vm.nu` 455 to 251 lines, `serve.sh`
+serves beacons and uploads only. `curl | sh` stays for WSL and foreign live systems. Lost coverage: the Arch-iso
+route has no end-to-end test, and the finished system's first boot past the disk passphrase is no longer checked
+(the report runs right before that reboot).
 
-Proposed: the lsck0 iso with an answer file is the one unattended path (`lsck0.*` boot parameters already map to
-`BOOTSTRAP_*`). The VM test boots that iso with an answer file and only watches beacons, so the sendkey and OCR
-driver goes. `curl | sh` stays for WSL and foreign live systems, sharing `questions.nuon`.
+## 14. Rarely used engine features
 
-Removes: about 300 lines of VM driving.
-
-Risk: medium; the Arch-iso route loses its end-to-end test.
-
-## 14. Rarely used engine features (needs a decision)
-
-- `dot plan --sandbox` (`sandbox.nu` 146, `plan-systemctl.nu` 106): a bubblewrap apply to show the write set. `dot
-  plan` already lists actions per module.
-- `dot rollback --full` (`rollback.nu` 208): reinstalls packages from a mirror snapshot and a nixpkgs pin. Plain
-  `rollback` (check out and converge) is a fraction of it.
-- `dot test drill egress`.
-
-Each removed one takes its tests, docs and completion entries with it. Keep what is used.
+Done: `dot plan --sandbox` (`sandbox.nu`, `plan-systemctl.nu`, the plan notes, `locked.nu units-set`), `dot rollback
+--full` (the snapshot, mirror and nixpkgs pin lookups, the `--pin`/`LSCK0_SNAPSHOT` plumbing to root) and `dot
+test drill egress` (`vm/egress.nu`, `vm/bypass.nu`, `vm/prelude.nu`, the drill steps in `vm.nu`) are gone.
 
 ## 15. Docs from the source
 
-Now: `FEATURES.md` (638), `README.md`, root `AGENTS.md` (165), 18 group or module `AGENTS.md`, 13
-`l-dotfiles-*` skills, 506 lines of module READMEs. The feature list and the module list drift from the modules.
-
-Proposed: `meta.doc`, one line per module; `dot explain --modules` (or a generated `FEATURES.md` checked by
-`dot internal gen --check`) replaces the hand list. Skills keep procedures only, no lists that the code already
-answers.
-
-Removes: about 500 lines of hand-kept lists.
+Done: `FEATURES.md`'s Options table is generated by `dot internal gen` from every public module's `options` (type,
+default, `detected` when the module's detect hook names it, doc) between two markers, and `gen --check` in
+`dot test lint` fails a stale copy; the hand copy had drifted (10 options missing, docs out of date). The quickshell
+skill points at `quickshell ipc show` instead of a hand list of IPC targets. No `meta.doc`: the topical prose in
+`FEATURES.md` is not a module list, and a one-liner per module would be a new hand-kept list. The AGENTS.md skill
+table stays, it is the agents' index.
 
 ## 16. Migrations
 
@@ -316,5 +203,5 @@ Agreed with the homelab session (`homelab-f2`, grouping confirmed by Luca; its s
 ## Order and estimate
 
 Low risk first: 2, 7, 8, 9, 5, 3, 1, 4, 10, 15, 12, 13, 6; 11 and 14 wait for a decision. Without 11 and 14 the
-estimate is 4500 to 7000 lines removed (most of it quickshell), 140 MB of assets out of the clone, two lint checks
+estimate is 4500 to 7000 lines removed (most of it quickshell), 223 MB of bought wallpapers out of the secrets submodule, two lint checks
 and one state store fewer. Each decision in 11 removes a whole module tree on top (emacs alone 2193 lines).

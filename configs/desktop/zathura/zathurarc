@@ -24,7 +24,7 @@ set statusbar-basename true
 set statusbar-home-tilde true
 set statusbar-page-percent true
 set guioptions "sv"
-set font "Kode Mono 11"
+set font "@FONT@ @UI_SIZE@"
 
 map <Button4> navigate previous
 map <Button5> navigate next

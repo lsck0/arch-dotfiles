@@ -1,42 +1,160 @@
+# the default app per type: viewers over editors (krita, inkscape, gimp register for every image and csv),
+# office formats in onlyoffice; types left out fall back to whichever app registered them
+
 [Added Associations]
 application/pdf=org.kde.okular.desktop;
 inode/directory=org.kde.dolphin.desktop;
 x-scheme-handler/curseforge=curseforge.desktop;
 
 [Default Applications]
+# office: onlyoffice, libreoffice as the fallback
+text/csv=onlyoffice-desktopeditors.desktop;libreoffice-calc.desktop;
+text/tab-separated-values=onlyoffice-desktopeditors.desktop;libreoffice-calc.desktop;
+application/vnd.ms-excel=onlyoffice-desktopeditors.desktop;libreoffice-calc.desktop;
+application/vnd.openxmlformats-officedocument.spreadsheetml.sheet=onlyoffice-desktopeditors.desktop;libreoffice-calc.desktop;
+application/vnd.oasis.opendocument.spreadsheet=onlyoffice-desktopeditors.desktop;libreoffice-calc.desktop;
+application/msword=onlyoffice-desktopeditors.desktop;libreoffice-writer.desktop;
+application/vnd.openxmlformats-officedocument.wordprocessingml.document=onlyoffice-desktopeditors.desktop;libreoffice-writer.desktop;
+application/vnd.oasis.opendocument.text=onlyoffice-desktopeditors.desktop;libreoffice-writer.desktop;
+application/rtf=onlyoffice-desktopeditors.desktop;libreoffice-writer.desktop;
+application/vnd.ms-powerpoint=onlyoffice-desktopeditors.desktop;libreoffice-impress.desktop;
+application/vnd.openxmlformats-officedocument.presentationml.presentation=onlyoffice-desktopeditors.desktop;libreoffice-impress.desktop;
+application/vnd.oasis.opendocument.presentation=onlyoffice-desktopeditors.desktop;libreoffice-impress.desktop;
+# documents
 application/pdf=org.kde.okular.desktop;org.pwmt.zathura.desktop;
-inode/directory=org.kde.dolphin.desktop;nemo.desktop;
-application/x-www-form-urlencoded=firefox.desktop
-audio/mpeg=mpv.desktop
-audio/ogg=mpv.desktop
+x-scheme-handler/pdf=org.kde.okular.desktop;org.pwmt.zathura.desktop;
+application/epub+zip=okularApplication_epub.desktop;
+application/x-mobipocket-ebook=okularApplication_mobi.desktop;
+image/vnd.djvu=okularApplication_djvu.desktop;
+image/vnd.djvu+multipage=okularApplication_djvu.desktop;
+# images: viewers, never the editors
 image/jpeg=feh.desktop;nsxiv.desktop;
 image/png=feh.desktop;nsxiv.desktop;
-text/html=firefox.desktop
+image/gif=feh.desktop;nsxiv.desktop;
+image/webp=feh.desktop;nsxiv.desktop;
+image/bmp=feh.desktop;nsxiv.desktop;
+image/tiff=feh.desktop;nsxiv.desktop;
+image/avif=feh.desktop;nsxiv.desktop;
+image/heif=feh.desktop;nsxiv.desktop;
+image/jxl=feh.desktop;nsxiv.desktop;
+image/svg+xml=feh.desktop;nsxiv.desktop;
+image/vnd.microsoft.icon=feh.desktop;nsxiv.desktop;
+# camera raw: the raw developer
+image/x-canon-cr2=rawtherapee.desktop;
+image/x-canon-cr3=rawtherapee.desktop;
+image/x-nikon-nef=rawtherapee.desktop;
+image/x-sony-arw=rawtherapee.desktop;
+image/x-adobe-dng=rawtherapee.desktop;
+image/x-fuji-raf=rawtherapee.desktop;
+image/x-olympus-orf=rawtherapee.desktop;
+image/x-panasonic-rw2=rawtherapee.desktop;
+# audio and video
+video/mp4=mpv.desktop;
+video/x-matroska=mpv.desktop;
+video/webm=mpv.desktop;
+video/quicktime=mpv.desktop;
+video/vnd.avi=mpv.desktop;
+video/mpeg=mpv.desktop;
+video/ogg=mpv.desktop;
+video/x-flv=mpv.desktop;
+video/3gpp=mpv.desktop;
+audio/mpeg=mpv.desktop;
+audio/ogg=mpv.desktop;
+audio/flac=mpv.desktop;
+audio/vnd.wave=mpv.desktop;
+audio/x-opus+ogg=mpv.desktop;
+audio/aac=mpv.desktop;
+audio/mp4=mpv.desktop;
+audio/x-vorbis+ogg=mpv.desktop;
+# archives
+application/zip=org.kde.ark.desktop;
+application/x-7z-compressed=org.kde.ark.desktop;
+application/x-tar=org.kde.ark.desktop;
+application/x-compressed-tar=org.kde.ark.desktop;
+application/x-bzip2-compressed-tar=org.kde.ark.desktop;
+application/x-xz-compressed-tar=org.kde.ark.desktop;
+application/x-zstd-compressed-tar=org.kde.ark.desktop;
+application/vnd.rar=org.kde.ark.desktop;
+application/gzip=org.kde.ark.desktop;
+application/x-xz=org.kde.ark.desktop;
+application/zstd=org.kde.ark.desktop;
+# text, source and config
 text/plain=nvim.desktop;org.gnome.TextEditor.desktop;
-video/mp4=mpv.desktop
-video/x-matroska=mpv.desktop
-x-scheme-handler/about=firefox.desktop
-x-scheme-handler/betterdiscord=discord.desktop
-x-scheme-handler/http=firefox.desktop
-x-scheme-handler/https=firefox.desktop
-x-scheme-handler/jetbrains=jetbrainsd.desktop
-x-scheme-handler/pdf=org.kde.okular.desktop;org.pwmt.zathura.desktop;
-x-scheme-handler/ror2mm=r2modman.desktop
-x-scheme-handler/unknown=firefox.desktop
-x-scheme-handler/claude-cli=claude-code-url-handler.desktop
-application/x-uproject=unreal-engine.desktop
-x-scheme-handler/proton-inbox=proton-mail.desktop
 text/markdown=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-log=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-readme=nvim.desktop;org.gnome.TextEditor.desktop;
 text/x-shellscript=nvim.desktop;org.gnome.TextEditor.desktop;
+application/x-shellscript=nvim.desktop;org.gnome.TextEditor.desktop;
 application/json=nvim.desktop;org.gnome.TextEditor.desktop;
+application/yaml=nvim.desktop;org.gnome.TextEditor.desktop;
+application/toml=nvim.desktop;org.gnome.TextEditor.desktop;
+application/xml=nvim.desktop;org.gnome.TextEditor.desktop;
 text/x-python=nvim.desktop;org.gnome.TextEditor.desktop;
 text/x-lua=nvim.desktop;org.gnome.TextEditor.desktop;
 text/x-tex=nvim.desktop;org.gnome.TextEditor.desktop;
-application/x-shellscript=nvim.desktop;org.gnome.TextEditor.desktop;
 text/x-csrc=nvim.desktop;org.gnome.TextEditor.desktop;
-x-scheme-handler/proton-meet=proton-meet.desktop
-x-scheme-handler/bruno=bruno.desktop
-x-scheme-handler/curseforge=curseforge.desktop
+text/x-chdr=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-c++src=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-c++hdr=nvim.desktop;org.gnome.TextEditor.desktop;
+text/rust=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-go=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-nix=nvim.desktop;org.gnome.TextEditor.desktop;
+text/javascript=nvim.desktop;org.gnome.TextEditor.desktop;
+application/typescript=nvim.desktop;org.gnome.TextEditor.desktop;
+text/css=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-scss=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-java=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-csharp=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-haskell=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-ocaml=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-kotlin=nvim.desktop;org.gnome.TextEditor.desktop;
+application/x-perl=nvim.desktop;org.gnome.TextEditor.desktop;
+application/x-ruby=nvim.desktop;org.gnome.TextEditor.desktop;
+application/x-php=nvim.desktop;org.gnome.TextEditor.desktop;
+application/sql=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-patch=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-makefile=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-cmake=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-dockerfile=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-meson=nvim.desktop;org.gnome.TextEditor.desktop;
+text/x-systemd-unit=nvim.desktop;org.gnome.TextEditor.desktop;
+application/x-desktop=nvim.desktop;org.gnome.TextEditor.desktop;
+application/x-subrip=nvim.desktop;org.gnome.TextEditor.desktop;
+application/x-zerosize=nvim.desktop;org.gnome.TextEditor.desktop;
+# fonts
+font/ttf=com.github.FontManager.FontViewer.desktop;
+font/otf=com.github.FontManager.FontViewer.desktop;
+font/woff=com.github.FontManager.FontViewer.desktop;
+font/woff2=com.github.FontManager.FontViewer.desktop;
+# torrents, mail, calendar, contacts
+application/x-bittorrent=org.qbittorrent.qBittorrent.desktop;
+x-scheme-handler/magnet=org.qbittorrent.qBittorrent.desktop;
+x-scheme-handler/mailto=org.mozilla.Thunderbird.desktop;
+message/rfc822=org.mozilla.Thunderbird.desktop;
+text/vcard=org.mozilla.Thunderbird.desktop;
+text/calendar=org.gnome.Calendar.desktop;
+# web
+text/html=firefox.desktop;
+application/xhtml+xml=firefox.desktop;
+application/x-www-form-urlencoded=firefox.desktop;
+x-scheme-handler/http=firefox.desktop;
+x-scheme-handler/https=firefox.desktop;
+x-scheme-handler/about=firefox.desktop;
+x-scheme-handler/unknown=firefox.desktop;
+# files
+inode/directory=org.kde.dolphin.desktop;nemo.desktop;
+# apps that register their own links
+x-scheme-handler/betterdiscord=discord.desktop;
+x-scheme-handler/jetbrains=jetbrainsd.desktop;
+x-scheme-handler/ror2mm=r2modman.desktop;
+x-scheme-handler/claude-cli=claude-code-url-handler.desktop;
+application/x-uproject=unreal-engine.desktop;
+x-scheme-handler/proton-inbox=proton-mail.desktop;
+x-scheme-handler/proton-meet=proton-meet.desktop;
+x-scheme-handler/bruno=bruno.desktop;
+x-scheme-handler/curseforge=curseforge.desktop;
 
 [Removed Associations]
 application/pdf=chromium.desktop;
+text/csv=krita_csv.desktop;
+application/zip=org.openstreetmap.josm.desktop;

@@ -192,15 +192,22 @@ function mute_set(node, mute)
     node:set_param("Props", Pod.Object({ "Spa:Pod:Object:Param:Props", "Props", mute = mute }))
 end
 
--- The start: a stream the stop handed a level to gives it back to its loopback and returns to its own level (the
--- app's, e.g. spotify's slider). Only once it plays into the loopback: lowered while still on the device, it would jump.
--- A stream the stop never saw keeps its level, since it is the app's own: moving it would move the app's slider.
+-- The record of a level the stop handed to a stream, by its loopback key and node name: a serial dies with the
+-- pipewire session, while state-stream restores the handed level to the next session's stream of the same app.
+function own_mark(props, key)
+    return STATE_OWN .. key .. "." .. (props["node.name"] or "")
+end
+
+-- The start, or the stream's next appearance in any later session: a stream the stop handed a level to gives it back
+-- to its loopback and returns to its own level (the app's, e.g. spotify's slider). Only once it plays into the
+-- loopback: lowered while still on the device, it would jump. A stream without a record keeps its level, since it is
+-- the app's own: moving it would move the app's slider. The record stays until its stream comes back.
 function level_reclaim(stream_id, sink_id, out_id, retries)
     local stream, out = node_get(stream_id), node_get(out_id)
     if not (stream and out) then
         return
     end
-    local mark = STATE_OWN .. stream.properties["object.serial"]
+    local mark = own_mark(stream.properties, stream_key(stream.properties) or "")
     local key, own = (known[mark] or ""):match("^(%S+) (%S+)$")
     if not key or key ~= stream_key(stream.properties) then
         return
@@ -222,16 +229,6 @@ function level_reclaim(stream_id, sink_id, out_id, retries)
             Log.info("gave the level of " .. stream.properties["node.name"] .. " back to its loopback")
         end)
     end)
-end
-
--- Drops the records of streams that never came back after a stop.
-function own_forget()
-    for mark in pairs(known) do
-        if mark:sub(1, #STATE_OWN) == STATE_OWN then
-            known[mark] = nil
-        end
-    end
-    state:save_after_timeout(known)
 end
 
 function stream_attach(id, retries, reclaim)
@@ -326,8 +323,7 @@ function release_all()
                         handed = true
                         pending = pending + 1
                         level_get(stream, function(own)
-                            local serial = stream.properties["object.serial"]
-                            known[STATE_OWN .. serial] = key .. " " .. level_mean(own.levels)
+                            known[own_mark(stream.properties, key)] = key .. " " .. level_mean(own.levels)
                             level_set(stream, level_scale(own.levels, level), mute)
                             done()
                         end)
@@ -398,17 +394,13 @@ nodes_om:connect("object-added", function(_, node)
     end
     -- state-stream restores the target at node-added; act after it
     Core.timeout_add(SETTLE_MS, function()
-        stream_attach(id, 0, false)
+        stream_attach(id, 0, true)
         return false
     end)
 end)
 nodes_om:connect("installed", function()
     installed = true
     listen_apply()
-    Core.timeout_add(RETRY_MS * RETRY_COUNT_MAX + SETTLE_MS, function()
-        own_forget()
-        return false
-    end)
 end)
 
 for key, name in pairs(known) do

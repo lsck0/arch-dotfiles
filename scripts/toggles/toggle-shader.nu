@@ -2,7 +2,7 @@
 # Cycles the hyprland screen shaders in ~/.config/hypr/shaders; each <name>.frag carries `// @label`, `@variants`,
 # `@animated` and `@themed` header lines. Any shader costs direct scanout.
 
-use lib.nu [notify state-get state-set quickshell-call]
+use lib.nu [status-record status-print notify state-get state-set quickshell-call]
 
 const DAMAGE_FULL = 2
 const DAMAGE_NONE = 0
@@ -115,17 +115,15 @@ def apply [entry: string, shaders: table]: nothing -> nothing {
     notify Shader (entry-label $entry $shaders)
 }
 
-def "main get" [] { current }
+def "main get" [--json] {
+    let entry = current
+    if not $json { return $entry }
+    let shaders = shaders
+    let text = match $entry { off => "Off", custom => "Custom", _ => (entry-label $entry $shaders) }
+    status-print (status-record Shader $entry --text $text --states ([off] | append (entries $shaders))) true
+}
 def "main list" [] { print (entries (shaders) | str join "\n") }
 def "main status" [] { {current: (current), shaders: (shaders | select name label variants)} | to json --raw }
-
-def "main label" [] {
-    match (current) {
-        off => "○ Shader: Off"
-        custom => "● Shader: Custom"
-        $entry => $"● Shader: (entry-label $entry (shaders))"
-    }
-}
 
 def "main off" [] { apply off (shaders) }
 

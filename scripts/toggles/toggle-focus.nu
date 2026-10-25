@@ -4,7 +4,7 @@ use lib.nu [switch-run toggle-run state-get state-set state-file]
 const PARTS = [dnd keep-awake nightlight]
 const GRADING_PRESET = "grayscale"
 
-def main [action: string = "toggle"] {
+def main [action: string = "toggle", --json] {
     let previous = state-file focus-previous
     switch-run {
         label: "Focus mode"
@@ -29,5 +29,5 @@ def main [action: string = "toggle"] {
             rm --force $previous
             state-set focus off
         }
-    } $action
+    } $action --json=$json
 }

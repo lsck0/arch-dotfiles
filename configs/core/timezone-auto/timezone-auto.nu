@@ -1,7 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
 const TOGGLES = path self | path expand | path dirname | path join .. .. .. scripts toggles | path expand
-const TUNNELS = [vpn protonvpn tor]
 # not ipapi.co: it 429ed about every second keyless request
 const LOOKUP_URL = "https://ipinfo.io/json"
 const LOOKUP_TIMEOUT = 8sec
@@ -21,11 +20,10 @@ def tz-current []: nothing -> string {
 
 # The tunnel carrying traffic, null for none; an unknown state counts as up, so nothing geolocates through an exit.
 def tunnel-up []: nothing -> any {
-    for t in $TUNNELS {
-        let toggle = $TOGGLES | path join $"toggle-($t).nu"
-        if not ($toggle | path exists) { return $"($t)?" }
-        if (do { ^$toggle get } | complete | get stdout | str trim) == "on" { return $t }
-    }
+    let get = {|name| do { ^($TOGGLES | path join $"toggle-($name).nu") get } | complete | get stdout | str trim }
+    let route = do $get route
+    if $route not-in [direct offline] { return (if $route == "" { "route?" } else { $route }) }
+    if (do $get vpn) != off { return vpn }
     null
 }
 

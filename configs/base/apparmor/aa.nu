@@ -10,6 +10,7 @@ const BASELINE_FLAGS = "/etc/apparmor/flags.d/dotfiles.conf"
 const ETC = "/etc/apparmor.d"
 const SOURCE = "/usr/share/apparmor.d"
 const OWN_MARKER = "# managed by arch-dotfiles/apparmor"
+const OWN_SUFFIX = ".dotfiles"
 
 def available []: nothing -> list<string> {
     if (which aa-install | is-empty) { die "apparmor.d (aa-install) is not installed" }
@@ -17,7 +18,9 @@ def available []: nothing -> list<string> {
         glob $"($SOURCE)/**/*" --no-dir | where not ($it =~ '/(abstractions|tunables)/')
     } else { [] }
     let etc = if ($ETC | path exists) { ls $ETC | where type == file | get name } else { [] }
-    $upstream ++ $etc | path basename | uniq | sort
+    $upstream ++ $etc | path basename
+    | each {|n| if ($n | str ends-with $OWN_SUFFIX) { $n | str substring 0..<(($n | str length) - ($OWN_SUFFIX | str length)) } else { $n } }
+    | uniq | sort
 }
 
 def first-word [line: string]: nothing -> string {
@@ -37,7 +40,7 @@ def mode-set [profile: string, mode: string]: nothing -> nothing {
     } else { "" }
     open --raw $FLAGS | lines | where (first-word $it) != $profile | append $"($profile) ($mode)($extra)"
     | str join "\n" | $"($in)\n" | sudo-save $FLAGS
-    let file = $ETC | path join $profile
+    let file = $ETC | path join $"($profile)($OWN_SUFFIX)"
     if ($file | path exists) and (open --raw $file | lines | any { $in == $OWN_MARKER }) {
         let flag = if $mode == "enforce" { "" } else { $"($mode)," }
         open --raw $file | lines | each {|l|

@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [notify root-run unit-active cycle-next]
+use lib.nu [notify root-run unit-active cycle-next status-record status-print]
 
 const STATES = {permissive: Permissive, default: Default, restrictive: Restrictive}
 
@@ -16,10 +16,8 @@ def apply [state: string]: nothing -> nothing {
     notify Firewall ($STATES | get (current))
 }
 
-def "main get" [] { current }
-
-# portmaster and the nft table should agree; say so when they don't
-def "main label" [] {
+# portmaster and the nft table should agree; the text says so when they don't
+def "main get" [--json] {
     let state = current
     let portmaster = unit-active portmaster.service
     let suffix = if $state != permissive and not $portmaster {
@@ -29,7 +27,7 @@ def "main label" [] {
     } else {
         ""
     }
-    $"(if $state == permissive { '○' } else { '●' }) Firewall: ($STATES | get $state)($suffix)"
+    status-print (status-record Firewall $state --text $"($STATES | get $state)($suffix)" --states ($STATES | columns)) $json
 }
 
 # a press while a switch waits on its authentication is dropped, not queued behind it

@@ -67,6 +67,27 @@ TestCase {
     compare\(Schema.fromText\({ type: \"string\", nuType: \"string?\" }, \"de\"\), \"de\"\)
   }
 
+  function test_system\() {
+    var status = { generation: \"Generation: 7\", checks: [{ level: \"FAIL\", check: \"failures\", text: \"x\" }],
+      migrations_pending: [\"0001-a\"], system_pending: [], pending_apply: [],
+      drift: [{ module: \"core/btop\", target: \"/h/.config/btop/btop.conf\", drift: \"changed\" }] }
+    var rows = Schema.systemEntries\(status, \"\"\)
+    var kinds = rows.map\(function \(r\) { return r.kind }\).join\(\",\"\)
+    compare\(kinds, \"header,action,action,action,action,header,drift,header,check,check,check\"\)
+    verify\(Schema.checkFailed\(rows[10]\)\)
+    var drift = rows[6]
+    var adopt = Schema.systemCommand\(\"dot\", drift, \"adopt\"\)
+    compare\(adopt.slice\(0, 2\).join\(\" \"\), \"sh -c\"\)
+    compare\(adopt.slice\(3\).join\(\" \"\), \"dot /h/.config/btop/btop.conf core/btop\"\)
+    compare\(Schema.systemCommand\(\"dot\", drift, \"reset\"\).join\(\" \"\), \"dot module reset /h/.config/btop/btop.conf\"\)
+    compare\(Schema.systemCommand\(\"dot\", rows[1], \"\"\).join\(\" \"\), \"dot sync\"\)
+    compare\(Schema.systemEntries\(status, \"btop\"\).filter\(function \(r\) { return r.kind === \"drift\" }\).length, 1\)
+    compare\(Schema.systemEntries\(null, \"\"\)[0].kind, \"header\"\)
+    var term = Schema.terminalCommand\([\"dot\", \"it's\"], \"dot sync\"\)
+    compare\(term.slice\(0, 5\).join\(\" \"\), \"app2unit -T -- bash -c\"\)
+    console.log\(\"TERM \" + term[5]\)
+  }
+
   function test_type\() {
     compare\(Schema.typeOf\({ type: \"filesize?\" }\), \"filesize\"\)
     compare\(Schema.typeOf\({ type: \"list<record>?\" }\), \"json\"\)
@@ -82,6 +103,9 @@ TestCase {
 def main [] {
     let dir = mktemp --directory
     let output = qml-test $dir
+    let term = $output | lines | parse --regex 'qml: TERM (?<script>.*)$' | get 0.script
+    let echoed = ^bash -c ($term | str replace "; echo; read" "; exit 0; read" | str replace "'dot'" "'echo'") | str trim
+    if $echoed != "it's" { error make {msg: $"terminal command quotes wrong: ($term) ran as ($echoed)"} }
     let args = $output | lines | parse --regex 'qml: ARG (?<arg>.*)$' | get arg | each { from json }
     $READER | save ($dir | path join reader.nu)
     let failed = $CASES | zip $args | each {|pair|

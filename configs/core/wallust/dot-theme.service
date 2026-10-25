@@ -1,0 +1,11 @@
+[Unit]
+Description=Apply the newest requested wallpaper and theme
+# started by dot-theme.path while $XDG_RUNTIME_DIR/theme.request exists; the run takes the request file and applies
+# the newest one, systemd never runs it twice at once
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/dot internal theme serve
+# a hung theme verb must not block every later switch: the run is killed, and the path unit starts the next one for
+# any request still waiting
+TimeoutStartSec=3min

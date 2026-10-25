@@ -5,6 +5,8 @@ export const meta = {packages: {native: [apparmor apparmor.d]}, volatile: true}
 
 const MANUAL = "/etc/apparmor/flags.d/manual.conf"
 const ETC = "/etc/apparmor.d"
+# an own profile's file: never the bare name, which the apparmor package owns and aa-install's overwrite.d disables
+const OWN_SUFFIX = ".dotfiles"
 const PARSER_CONF = "/etc/apparmor/parser.conf"
 const SYSCTL = "/etc/sysctl.d/99-apparmor.conf"
 const EARLY_POLICY = "/etc/apparmor/earlypolicy"
@@ -45,7 +47,7 @@ def own-profile [file: path, mode: any]: nothing -> record {
             $l | str replace "flags=(" $"flags=\(($mode),"
         } else { $l }
     } | str join "\n"
-    file-text ($ETC | path join ($file | path basename)) $"($text)\n"
+    file-text ($ETC | path join $"($file | path basename)($OWN_SUFFIX)") $"($text)\n"
 }
 
 export def system [cfg: record] {
@@ -88,12 +90,20 @@ export def build []: nothing -> nothing {
     if (which aa-install | is-not-empty) and (^aa-install --install --no-reload | complete).exit_code != 0 {
         print "note: apparmor: aa-install failed, the profiles keep their last build"
     }
-    # an own profile is its name's only source: apparmor.d's earlier build or disable/ link would shadow or unload it
-    for name in (own) {
-        rm --force ($ETC | path join $"($name).apparmor.d") ($ETC | path join disable $name)
+    # an own profile is its name's only source: apparmor.d's build of it goes, and the apparmor package's stock file of
+    # that name (an unconfined stub declaring the same profile) stays disabled
+    # always, even before the stub exists: a later apparmor upgrade brings it back while the link already waits, and
+    # this step runs before the <name>.dotfiles files are written, so nothing here may depend on them yet
+    let own = own
+    mkdir ($ETC | path join disable)
+    for name in $own {
+        rm --force ($ETC | path join $"($name).apparmor.d")
+        ^ln -sfn $"../($name)" ($ETC | path join disable $name)
     }
-    for name in (modes | items {|name, mode| if $mode == enforce { $name }} | compact) {
-        rm --force ($ETC | path join disable $name)
+    # a disable/ link only shadows an enforced profile when nothing replaces the file it disables: aa-install's
+    # overwrite.d links (chromium, signal-desktop, ...) disable the stock stub in favour of <name>.apparmor.d
+    for name in (modes | items {|name, mode| if $mode == enforce and $name not-in $own { $name }} | compact) {
+        if not ($ETC | path join $"($name).apparmor.d" | path exists) { rm --force ($ETC | path join disable $name) }
     }
 }
 

@@ -6,13 +6,15 @@ use ../../core/wallust/palette.nu [RADIUS_PX BORDER_PX OPACITY_WINDOW OPACITY_SU
 export const meta = {
     packages: {
         pacman: [
-            app2unit bemenu-wayland brightnessctl cpio ddcutil grim hyprcursor hypridle hyprland hyprlock hyprpicker
-            hyprpm libnotify libx11 mission-center omarchy-share-picker-git pavucontrol playerctl polkit
+            app2unit bemenu-wayland brightnessctl cmake cpio ddcutil grim hyprcursor hypridle hyprland hyprlock hyprpicker
+            hyprpm libnotify libx11 meson mission-center omarchy-share-picker-git pavucontrol playerctl polkit
             polkit-kde-agent qt5-wayland qt6-wayland rose-pine-cursor rose-pine-hyprcursor slurp wayland
             wayland-boomer-git wl-clip-persist wl-clipboard xdg-desktop-portal-gtk xdg-desktop-portal-hyprland
-            xdg-desktop-portal-kde xorg-server xorg-xauth xorg-xhost xorg-xinput xorg-xwayland ydotool
+            xdg-desktop-portal-kde xorg-server xorg-xauth xorg-xhost xorg-xinput xorg-xrdb xorg-xwayland ydotool
         ]
     }
+    # core/locale's keyboard, written by localectl: a layout change re-renders platform.lua
+    inputs: [/etc/X11/xorg.conf.d/00-keyboard.conf]
 }
 
 export const options = {
@@ -43,7 +45,7 @@ export const options = {
     xwayland_scale: {
         type: int?
         default: null
-        doc: "GDK_SCALE and QT_AUTO_SCREEN_SCALE_FACTOR for X11 apps (force_zero_scaling); detected: the main monitor's scale rounded, else 1 on a laptop and 2 elsewhere"
+        doc: "GDK_SCALE and Xft.dpi (96 per step) for X11 apps (force_zero_scaling); detected: the main monitor's scale rounded, else 1 on a laptop and 2 elsewhere"
         label: "XWayland scale"
         group: display
         min: 1
@@ -56,27 +58,6 @@ export const options = {
         doc: "Homes for apps by window class: {class, workspace, silent}; silent opens them without focus"
         label: "App workspaces"
         group: display
-    }
-    kb_layout: {
-        type: string?
-        default: null
-        doc: "xkb layout; detected from the keymap localectl set (/etc/X11/xorg.conf.d/00-keyboard.conf)"
-        label: "Keyboard layout"
-        group: input
-    }
-    kb_variant: {
-        type: string?
-        default: null
-        doc: "xkb variant; detected like the layout"
-        label: "Keyboard variant"
-        group: input
-    }
-    kb_options: {
-        type: string?
-        default: null
-        doc: "xkb options, comma separated (ctrl:nocaps); detected like the layout"
-        label: "Keyboard options"
-        group: input
     }
     pointer_sensitivity: {
         type: float
@@ -176,12 +157,15 @@ def workspaces-split [outputs: list<string>, main: any]: nothing -> record {
     } | reduce --fold {} {|w, acc| $acc | insert $w.ws $w.output }
 }
 
-def keyboard-detect []: nothing -> record {
-    if not ($KEYBOARD_CONF | path exists) { return {} }
-    let conf = open --raw $KEYBOARD_CONF
-    [[key xkb]; [kb_layout XkbLayout] [kb_variant XkbVariant] [kb_options XkbOptions]]
-    | each {|f| {key: $f.key, value: ($conf | parse --regex ('"' + $f.xkb + '"\s+"(?<v>[^"]*)"') | get --optional 0.v)} }
-    | where value != null | reduce --fold {} {|f, acc| $acc | insert $f.key $f.value }
+# the layout core/locale set through localectl: that module owns it, the compositor only follows
+def keyboard-read []: nothing -> record {
+    let conf = if ($KEYBOARD_CONF | path exists) { open --raw $KEYBOARD_CONF } else { "" }
+    let field = {|xkb| $conf | parse --regex ('"' + $xkb + '"\s+"(?<v>[^"]*)"') | get --optional 0.v }
+    {
+        layout: (do $field XkbLayout | default us)
+        variant: (do $field XkbVariant | default "")
+        options: (do $field XkbOptions | default "")
+    }
 }
 
 def lua-from [value: any]: nothing -> string {
@@ -206,7 +190,7 @@ export def detect [cfg: record]: nothing -> record {
         main_monitor: $main
         workspaces: (workspaces-split ($monitors | each { $in.output }) $main)
         xwayland_scale: (xwayland-scale ($monitors | where output == $main | get --optional 0.scale))
-    } | merge (keyboard-detect)
+    }
 }
 
 # Outside hyprland detect sees no output: the same picks over the platform's monitors keep platform.lua (and
@@ -223,7 +207,7 @@ def platform-lua [cfg: record]: nothing -> string {
         monitors: $monitors
         workspaces: ($cfg.workspaces | default (workspaces-split ($monitors | each { $in.output }) $main))
         app_workspaces: $cfg.app_workspaces
-        keyboard: {layout: ($cfg.kb_layout | default us), variant: ($cfg.kb_variant | default ""), options: ($cfg.kb_options | default "")}
+        keyboard: (keyboard-read)
         pointer: {sensitivity: $cfg.pointer_sensitivity, natural_scroll: $cfg.natural_scroll}
         kbd_backlight: $backlight
     }
@@ -249,12 +233,22 @@ export def link [cfg: record] {
     ]
 }
 
-# Builds the plugins where sudo asks nothing for hyprpm's root-owned store: the install chain's config stage.
-export def plugins-build []: nothing -> nothing {
-    if (glob $"/var/cache/hyprpm/($env.USER)/*/*.so" | is-not-empty) { return }
-    if (do { ^sudo -n true } | complete).exit_code != 0 { return }
-    ^($env.DOTFILES | path join configs desktop hyprland plugins.nu) --build
+# Builds the plugins where sudo asks nothing for hyprpm's root-owned store: the install chain's config stage, or
+# --rebuild (a sync's update, sudo still warm from the system layer) against a newer hyprland.
+export def plugins-build [--rebuild]: nothing -> nothing {
+    if not $rebuild and (glob $"/var/cache/hyprpm/($env.USER)/*/*.so" | is-not-empty) { return }
+    let script = $env.DOTFILES | path join configs desktop hyprland plugins.nu
+    if (do { ^sudo -n true } | complete).exit_code != 0 {
+        print $"note: hyprland plugins not built, sudo would ask: run ($script) in a terminal"
+        return
+    }
+    let built = try { ^$script --build; true } catch { false }
+    if not $built or (glob $"/var/cache/hyprpm/($env.USER)/*/*.so" | is-empty) {
+        error make {msg: $"hyprland plugins did not build, hyprpm's output is above; retry with ($script) in a terminal"}
+    }
 }
+
+export def update [cfg: record]: nothing -> nothing { plugins-build --rebuild }
 
 # Reloads hyprland; the shader goes last, a config write or scale re-render after it drops it.
 export def reload []: nothing -> nothing {

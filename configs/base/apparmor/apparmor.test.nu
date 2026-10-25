@@ -74,9 +74,9 @@ def compile-check [rows: table, source: path, etc: path]: nothing -> list<string
     glob local/* | each { cp $in ($work | path join local) } | ignore
     let profiles = $own | each { $"profiles/($in)" } | where not (parse-ok $it $work $etc)
         | each { $"($in) does not compile" }
-    # apparmor.d deploys a profile that replaces a stock one as <name>.apparmor.d
+    # apparmor.d deploys a profile that replaces a stock one as <name>.apparmor.d, this module its own as <name>.dotfiles
     let locals = basenames local | each {|n|
-        let target = [$"($n).apparmor.d" $n] | each {|f| $etc | path join $f }
+        let target = [$"($n).dotfiles" $"($n).apparmor.d" $n] | each {|f| $etc | path join $f }
             | where ($it | path exists) and ($it | path expand | path type) == file | get --optional 0
         if $target != null and not (parse-ok $target $work $etc) { $"($target) does not compile with local/($n)" }
     } | compact

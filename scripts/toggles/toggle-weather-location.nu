@@ -90,7 +90,7 @@ def "main resolve" [] { resolve }
 def "main coords" [] { resolve | split row " " | get 1? | default "" }
 def "main source" [] { resolve | split row " " | get 0 }
 
-def main [action: string = "toggle"] {
+def main [action: string = "toggle", --json] {
     switch-run {
         label: "Weather location (manual)"
         is-on: {|| manual-coords | is-not-empty }
@@ -103,5 +103,5 @@ def main [action: string = "toggle"] {
             $coords | save --force (manual-file)
         }
         off: {|| rm --force (manual-file) }
-    } $action
+    } $action --json=$json
 }

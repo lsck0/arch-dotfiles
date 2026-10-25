@@ -19,6 +19,8 @@ dot log                   # the last changing run's records (read-only runs like
 dot log <run> --trace     # the span tree with timings; run ids complete
 dot plan [mod...]         # what an apply would do, drift included; touches nothing
 dot explain <path|pkg>    # which module, verb and run wrote a path, or which module declares a package
+dot module adopt <file>   # a hand edit of a managed file becomes the module's source
+dot module reset <file>   # that one file back to the module's copy, the edit preserved aside (dot status lists it)
 ```
 
 - `FAILURES.config` / `FAILURES.install` at the repo root: what failed in the last run, system failures included;

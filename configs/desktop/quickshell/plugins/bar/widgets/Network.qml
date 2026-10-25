@@ -9,20 +9,29 @@ BarWidget {
   id: root
   moduleName: "network"
 
-  property string homeVpnState: "off"
-  property string protonVpnState: "off"
-  property string torState: "off"
-  property bool anonymousSocksOn: false
-  property bool btPowered: false
-  property bool wifiOn: true
-  property bool ethernetOn: false
-  property bool mobileOn: false
-  property bool hasMobile: false
-  property bool offlineModeOn: false
-  property string firewallState: ""
-  property bool homelabAvailable: false
-  property bool trustedNetwork: false
-  property bool trustAvailable: false
+  // the network toggles' status records (scripts/toggles/status.nu), by name
+  property var toggles: ({})
+  function toggleState(name, fallback) { return toggles[name] ? toggles[name].state : fallback }
+  function toggleOn(name) { return toggleState(name, "off") === "on" }
+  function toggleAvailable(name) { return !!toggles[name] && toggles[name].available }
+  readonly property var toggleNames: ["route", "vpn", "anonymous-socks", "bluetooth", "wifi", "ethernet", "mobile", "firewall",
+    "trust-network"]
+
+  readonly property string homeVpnState: toggleState("vpn", "off")
+  readonly property string route: toggleState("route", "direct")
+  readonly property string protonVpnState: route === "proton" ? "on" : "off"
+  readonly property string torState: route === "tor" ? "on" : "off"
+  readonly property bool anonymousSocksOn: toggleOn("anonymous-socks")
+  readonly property bool btPowered: toggleOn("bluetooth")
+  readonly property bool wifiOn: toggleState("wifi", "on") === "on"
+  readonly property bool ethernetOn: toggleOn("ethernet")
+  readonly property bool mobileOn: toggleOn("mobile")
+  readonly property bool hasMobile: toggleAvailable("mobile")
+  readonly property bool offlineModeOn: route === "offline"
+  readonly property string firewallState: toggleState("firewall", "")
+  readonly property bool homelabAvailable: toggleAvailable("vpn")
+  readonly property bool trustedNetwork: toggleOn("trust-network")
+  readonly property bool trustAvailable: toggleAvailable("trust-network")
 
   property bool detailsConnected: false
   property string connectivity: "unknown"
@@ -57,18 +66,7 @@ BarWidget {
 
   function refreshAll() {
     lastRefreshMs = Date.now()
-    homeVpnProc.running = true
-    protonVpnProc.running = true
-    torProc.running = true
-    anonymousSocksProc.running = true
-    btProc.running = true
-    wifiProc.running = true
-    ethProc.running = true
-    mobileProc.running = true
-    firewallProc.running = true
-    trustProc.running = true
-    trustAvailableProc.running = true
-    rfkillProc.running = true
+    togglesProc.run()
     if (!detailsProc.running) detailsProc.running = true
   }
 
@@ -101,130 +99,56 @@ BarWidget {
 
   function runToggle(script) { Quickshell.execDetached([Paths.toggle(script), "toggle"]) }
   function toggleHomeVpn() { runToggle("toggle-vpn.nu") }
-  function toggleProtonVpn() { runToggle("toggle-protonvpn.nu") }
-  function toggleTor() { runToggle("toggle-tor.nu") }
   function toggleAnonymousSocks() { runToggle("toggle-anonymous-socks.nu") }
   function toggleBluetooth() { runToggle("toggle-bluetooth.nu") }
   function toggleWifi() { runToggle("toggle-wifi.nu") }
   function toggleEthernet() { runToggle("toggle-ethernet.nu") }
   function toggleMobile() { runToggle("toggle-mobile.nu") }
-  function toggleOfflineMode() { runToggle("toggle-offline.nu") }
   function toggleTrustNetwork() { runToggle("toggle-trust-network.nu") }
+  function setRoute(state) { Quickshell.execDetached([Paths.toggle("toggle-route.nu"), "set", state]) }
   function setFirewall(state) { Quickshell.execDetached([Paths.toggle("toggle-firewall.nu"), "set", state]) }
 
+  readonly property var routeModes: [
+    { value: "direct", label: "DIRECT" },
+    { value: "proton", label: "PROTON" },
+    { value: "tor", label: "TOR" },
+    { value: "offline", label: "OFFLINE" }
+  ]
   readonly property var firewallModes: [
     { value: "permissive", label: "PERMISSIVE" },
     { value: "default", label: "DEFAULT" },
     { value: "restrictive", label: "RESTRICTIVE" }
   ]
 
-  Process {
-    id: homeVpnProc
-    command: [Paths.toggle("toggle-vpn.nu"), "get"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.homeVpnState = String(text || "off").trim() }
-  }
-  Process {
-    id: protonVpnProc
-    command: [Paths.toggle("toggle-protonvpn.nu"), "get"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.protonVpnState = String(text || "off").trim() }
-  }
-  Process {
-    id: torProc
-    command: [Paths.toggle("toggle-tor.nu"), "get"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.torState = String(text || "off").trim() }
-  }
-  Process {
-    id: anonymousSocksProc
-    command: [Paths.toggle("toggle-anonymous-socks.nu"), "get"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.anonymousSocksOn = String(text || "").trim() === "on" }
-  }
-  Process {
-    id: btProc
-    command: [Paths.toggle("toggle-bluetooth.nu"), "get"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.btPowered = String(text || "").trim() === "on" }
-  }
-  Process {
-    id: wifiProc
-    command: [Paths.toggle("toggle-wifi.nu"), "get"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.wifiOn = String(text || "").trim() === "on" }
-  }
-  Process {
-    id: ethProc
-    command: [Paths.toggle("toggle-ethernet.nu"), "get"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.ethernetOn = String(text || "").trim() === "on" }
-  }
-  Process {
-    id: mobileProc
-    command: [Paths.toggle("toggle-mobile.nu"), "get"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.mobileOn = String(text || "").trim() === "on" }
-  }
-  Component.onCompleted: { hasMobileProc.running = true; homelabProc.running = true; refreshAll() }
-  Process {
-    id: homelabProc
-    command: [Paths.toggle("toggle-vpn.nu"), "available"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.homelabAvailable = String(text || "").trim() === "true" }
-  }
-  Process {
-    id: trustProc
-    command: [Paths.toggle("toggle-trust-network.nu"), "get"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.trustedNetwork = String(text || "").trim() === "on" }
-  }
-  Process {
-    id: trustAvailableProc
-    command: [Paths.toggle("toggle-trust-network.nu"), "available"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.trustAvailable = String(text || "").trim() === "true" }
-  }
-  Process {
-    id: firewallProc
-    command: [Paths.toggle("toggle-firewall.nu"), "get"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.firewallState = String(text || "").trim() }
-  }
-  Process {
-    id: hasMobileProc
-    command: ["nmcli", "-t", "-f", "TYPE", "device"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        var types = String(text || "").trim().split("\n")
-        root.hasMobile = types.indexOf("gsm") !== -1 || types.indexOf("wwan") !== -1
-      }
+  JsonProcess {
+    id: togglesProc
+    command: [Paths.toggle("status.nu")].concat(root.toggleNames)
+    onParsed: function (data) {
+      var next = {}
+      for (let i = 0; i < data.length; i++) next[data[i].name] = data[i]
+      root.toggles = next
     }
   }
-  Process {
-    id: rfkillProc
-    command: [Paths.toggle("toggle-offline.nu"), "get"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.offlineModeOn = String(text || "").trim() === "on" }
-  }
-  Process {
+  Component.onCompleted: refreshAll()
+  JsonProcess {
     id: detailsProc
     command: [Paths.barWidget("network-details.nu")]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try {
-          let d = JSON.parse(text || "{}")
-          root.detailsConnected = !!d.connected
-          root.connectivity = d.connectivity || "unknown"
-          root.detailsDevice = d.device || ""
-          root.detailsSsid = d.ssid || ""
-          root.detailsIp4 = d.ip4 || ""
-          root.detailsMac = d.mac || ""
-          root.detailsRxKbps = d.rxKbps || 0
-          root.detailsTxKbps = d.txKbps || 0
-          root.rxHist = Util.historyPush(root.rxHist, root.detailsRxKbps)
-          root.txHist = Util.historyPush(root.txHist, root.detailsTxKbps)
-        } catch (e) {}
-      }
+    onParsed: function(d) {
+      root.detailsConnected = !!d.connected
+      root.connectivity = d.connectivity || "unknown"
+      root.detailsDevice = d.device || ""
+      root.detailsSsid = d.ssid || ""
+      root.detailsIp4 = d.ip4 || ""
+      root.detailsMac = d.mac || ""
+      root.detailsRxKbps = d.rxKbps || 0
+      root.detailsTxKbps = d.txKbps || 0
+      root.rxHist = Util.historyPush(root.rxHist, root.detailsRxKbps)
+      root.txHist = Util.historyPush(root.txHist, root.detailsTxKbps)
     }
   }
-  Process {
+  JsonProcess {
     id: wifiScanProc
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try { root.wifiNetworks = JSON.parse(text || "[]") } catch (e) {}
-      }
-    }
+    onParsed: function(data) { root.wifiNetworks = data }
   }
   Process {
     id: connectProc
@@ -268,11 +192,9 @@ BarWidget {
     onTriggered: nmMonitorProc.running = true
   }
 
-  readonly property var networkToggles: ["toggle-vpn.nu", "toggle-protonvpn.nu", "toggle-tor.nu", "toggle-anonymous-socks.nu", "toggle-bluetooth.nu",
-    "toggle-wifi.nu", "toggle-ethernet.nu", "toggle-mobile.nu", "toggle-offline.nu", "toggle-firewall.nu", "toggle-trust-network.nu"]
   Connections {
     target: ToggleEvents
-    function onChanged(script) { if (root.networkToggles.indexOf(script) >= 0) nmDebounce.restart() }
+    function onChanged(script) { if (root.toggleNames.indexOf(script.replace(/^toggle-(.*)\.nu$/, "$1")) >= 0) nmDebounce.restart() }
   }
 
   // rxKbps/txKbps need continuous sampling; nmcli monitor only emits on connectivity changes, not throughput
@@ -574,10 +496,18 @@ BarWidget {
       ToggleRow { visible: root.trustAvailable; label: "Trust this network"; on: root.trustedNetwork; onActivated: root.toggleTrustNetwork() }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "TUNNELS" }
-      ToggleRow { label: "ProtonVPN"; on: root.protonVpnState === "on"; onActivated: root.toggleProtonVpn() }
+      PanelSectionHeader { text: "ROUTE" }
+      ButtonGroup {
+        width: content.width
+        fill: true
+        spacing: Style.spacing.xs
+        fontSize: Style.font.caption
+        options: root.routeModes
+        value: root.route
+        onChanged: function(state) { if (state !== root.route) root.setRoute(state) }
+      }
+      // beside any route: wg0 carries only the lab subnets, the SOCKS pool listens on lo
       ToggleRow { visible: root.homelabAvailable; label: "Homelab VPN"; on: root.homeVpnState === "on"; onActivated: root.toggleHomeVpn() }
-      ToggleRow { label: "Tor network"; on: root.torState === "on"; onActivated: root.toggleTor() }
       ToggleRow { label: "Anonymous SOCKS"; on: root.anonymousSocksOn; onActivated: root.toggleAnonymousSocks() }
 
       PanelSeparator {}
@@ -586,7 +516,6 @@ BarWidget {
       ToggleRow { label: "Ethernet"; on: root.ethernetOn; onActivated: root.toggleEthernet() }
       ToggleRow { visible: root.hasMobile; label: "Mobile"; on: root.mobileOn; onActivated: root.toggleMobile() }
       ToggleRow { label: "Bluetooth"; on: root.btPowered; onActivated: root.toggleBluetooth() }
-      ToggleRow { label: "Offline mode"; on: root.offlineModeOn; onActivated: root.toggleOfflineMode() }
 
       PanelSeparator {}
       PanelSectionHeader { text: "TOOLS" }

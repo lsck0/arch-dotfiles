@@ -29,10 +29,15 @@ set.cursorline = true
 set.expandtab = true
 set.fillchars = { eob = " " }
 do
-    local f = io.open((vim.env.XDG_STATE_HOME or vim.env.HOME .. "/.local/state") .. "/toggles/nvim-guifont")
-    set.guifont = f and f:read("*l") or "Kode Mono:h16"
+    -- the font beside the palette (configs/core/wallust/font.nu), for neovide
+    set.guifont = "Kode Mono:h16"
+    local f = io.open((vim.env.XDG_CACHE_HOME or vim.env.HOME .. "/.cache") .. "/wal/font.json")
     if f then
+        local ok, font = pcall(vim.json.decode, f:read("*a"))
         f:close()
+        if ok and type(font) == "table" and font.mono and font.size then
+            set.guifont = font.mono .. ":h" .. font.size
+        end
     end
 end
 set.ignorecase = true

@@ -251,6 +251,8 @@
         {id: reinstall, type: bool, env: BOOTSTRAP_REINSTALL}
         {id: wifi, type: "list<record>", keys: {ssid: string, psk: string, hidden: bool}}
         {id: source, type: record, keys: {bundle: string, lfs: string}}
+        # a watcher's url (dot test): every stage beacons to it, the finished chain uploads its logs there
+        {id: report, type: string, env: BOOTSTRAP_REPORT}
     ]
 
     messages: {

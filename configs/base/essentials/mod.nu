@@ -8,3 +8,8 @@ export const meta = {
         ]
     }
 }
+
+# the stable toolchain floats by design; dated and nightly ones other modules pin stay put
+export def update [cfg: record]: nothing -> nothing {
+    if (which rustup | is-not-empty) { ^rustup update }
+}

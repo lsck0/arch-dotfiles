@@ -89,24 +89,16 @@ ShellRoot {
 
   property string workspaceOneRuleMonitor: ""
 
-  Process {
+  JsonProcess {
     id: workspaceRulesProc
     command: ["hyprctl", "-j", "workspacerules"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        var name = ""
-        try {
-          let rules = JSON.parse(text || "[]")
-          for (let i = 0; i < rules.length; i++) {
-            let ws = String(rules[i].workspaceString || "")
-            if (ws === "1" && rules[i].monitor) { name = String(rules[i].monitor); break }
-          }
-        } catch (e) {
-          console.warn("workspacerules parse failed:", e)
-        }
-        shell.workspaceOneRuleMonitor = name
-      }
+    onParsed: function(rules) {
+      var rule = (rules || []).find(r => String(r.workspaceString || "") === "1" && r.monitor)
+      shell.workspaceOneRuleMonitor = rule ? String(rule.monitor) : ""
+    }
+    onFailed: function(error) {
+      console.warn("workspacerules parse failed:", error)
+      shell.workspaceOneRuleMonitor = ""
     }
   }
 

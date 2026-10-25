@@ -197,7 +197,8 @@ Item {
                   }
                 }
 
-                PanelActionButton {
+                Button {
+                  variant: "icon"
                   id: closeButton
                   anchors.right: parent.right
                   anchors.top: parent.top
@@ -212,17 +213,20 @@ Item {
                 anchors.right: parent.right
                 spacing: Style.spacing.xs
 
-                Chip {
+                Button {
+                  variant: "chip"
                   visible: card.modelData.kind === "reminder"
                   text: "Snooze 5 min"
                   onClicked: root.snoozeAt(card.index, 5)
                 }
-                Chip {
+                Button {
+                  variant: "chip"
                   visible: card.modelData.kind === "reminder"
                   text: "Snooze 15 min"
                   onClicked: root.snoozeAt(card.index, 15)
                 }
-                Chip {
+                Button {
+                  variant: "chip"
                   text: "Dismiss"
                   selected: true
                   onClicked: root.dismissAt(card.index)

@@ -474,7 +474,8 @@ BarWidget {
           anchors.horizontalCenter: parent.horizontalCenter
           spacing: Style.spacing.sm
 
-          PanelActionButton {
+          Button {
+            variant: "icon"
             iconText: "\u{f074}"
             tooltipText: "Shuffle"
             foreground: root.player && root.player.shuffle ? Colors.accent : Colors.menu.text
@@ -484,7 +485,8 @@ BarWidget {
             onClicked: if (root.player) root.player.shuffle = !root.player.shuffle
           }
 
-          PanelActionButton {
+          Button {
+            variant: "icon"
             iconText: "\u{f048}"
             tooltipText: "Previous"
             foreground: Colors.menu.text
@@ -494,7 +496,8 @@ BarWidget {
             onClicked: if (root.player) root.player.previous()
           }
 
-          PanelActionButton {
+          Button {
+            variant: "icon"
             iconText: root.playing ? "\u{f04c}" : "\u{f04b}"
             tooltipText: root.playing ? "Pause" : "Play"
             foreground: Colors.menu.text
@@ -505,7 +508,8 @@ BarWidget {
             onClicked: if (root.player) root.player.togglePlaying()
           }
 
-          PanelActionButton {
+          Button {
+            variant: "icon"
             iconText: "\u{f051}"
             tooltipText: "Next"
             foreground: Colors.menu.text
@@ -515,7 +519,8 @@ BarWidget {
             onClicked: if (root.player) root.player.next()
           }
 
-          PanelActionButton {
+          Button {
+            variant: "icon"
             iconText: root.player && root.player.loopState === MprisLoopState.Track
               ? "\u{f0458}" : "\u{f0456}"
             tooltipText: {

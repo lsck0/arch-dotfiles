@@ -159,21 +159,25 @@ export def home [home_wired: string, ...gateways: string]: nothing -> nothing {
             error make {msg: $"networkmanager: home-gateways is not one mac address per line, keeping ($file)"}
         }
         $lines
-    } else { [] }
-    # rewritten every time, so a gateway dropped from the option (toggle-trust-network off) stops being home
+    } else if ($file | path exists) { open --raw $file | lines | where $it =~ $MAC } else { [] }
     let want = $listed | append ($gateways | where $it not-in $listed)
-    $want | each { $"($in)\n" } | str join | save --force $file
+    # with the secrets at hand the file is rewritten whole, so a gateway dropped from the option (toggle-trust-network
+    # off) stops being home; locked secrets never reach the system archive, so then the file only grows and no profile
+    # loses its hardware mac: the owner's home stays home until an unlocked apply decides
+    let complete = $secret | path exists
+    if $complete or ($want | is-not-empty) { $want | each { $"($in)\n" } | str join | save --force $file }
     let ssids = if ($wifi | path exists) { open --raw $wifi | lines | each { split row "\t" | first } } else { [] }
     let connected = ^nmcli -g DEVICE,STATE device | lines | parse "{dev}:{state}" | where state == connected | get dev
-    for dev in $connected { trusted-wifi-mac $dev ($want | str lowercase) $ssids }
+    for dev in $connected { trusted-wifi-mac $dev ($want | str lowercase) $ssids $complete }
     for link in $connected {
         ^$"($DISPATCHERS)/70-home-network" $link up
     }
 }
 
 # A wifi profile on a trusted gateway keeps the hardware mac, which 70-home-network needs to call it home; one no
-# longer trusted (and not a secrets ssid) gets the global random mac back. Only the active profile knows its gateway.
-def trusted-wifi-mac [dev: string, gateways: list<string>, ssids: list<string>]: nothing -> nothing {
+# longer trusted (and not a secrets ssid) gets the global random mac back, only when the secrets tell the whole list.
+# Only the active profile knows its gateway.
+def trusted-wifi-mac [dev: string, gateways: list<string>, ssids: list<string>, complete: bool]: nothing -> nothing {
     let uuid = ^nmcli -g GENERAL.CON-UUID device show $dev | str trim
     if $uuid == "" or (^nmcli -g connection.type connection show $uuid | str trim) != "802-11-wireless" { return }
     let gateway = ^ip -4 route show default dev $dev | lines | get --optional 0 | default "" | split row " " | get --optional 2
@@ -184,7 +188,7 @@ def trusted-wifi-mac [dev: string, gateways: list<string>, ssids: list<string>]:
     let ssid = ^nmcli -g 802-11-wireless.ssid connection show $uuid | str trim
     if $trusted and not $permanent {
         ^nmcli connection modify $uuid 802-11-wireless.cloned-mac-address permanent ipv6.method auto
-    } else if not $trusted and $permanent and $ssid not-in $ssids {
+    } else if $complete and not $trusted and $permanent and $ssid not-in $ssids {
         ^nmcli connection modify $uuid 802-11-wireless.cloned-mac-address ""
     } else { return }
     ^nmcli connection up $uuid | ignore

@@ -7,9 +7,9 @@ use platform.nu [platform-load]
 use profile.nu [profile-has]
 use secrets.nu [secret-is-plaintext]
 use system.nu [system-files]
-use written.nu [preserve-report]
+use preserve.nu [preserve-report]
 use drift.nu [drift-report]
-use audit.nu [audit-findings]
+use ../../configs/base/yubikey/audit.nu [audit-findings]
 
 const REPO = path self ../..
 const INVARIANTS = path self invariants.txt
@@ -110,7 +110,9 @@ def apparmor []: nothing -> list<record> {
         | where ($it | str ends-with " (complain)") | each { str replace " (complain)" "" } | uniq | sort
         | where $it in $enforced | each { $"($in):complain \(running\)" }
     let disabled = if ("/etc/apparmor.d/disable" | path exists) {
+        # a link aa-install made to disable the stock stub of a profile apparmor.d or this repo replaces is no back-off
         ls /etc/apparmor.d/disable | get name | path basename | where $it in $enforced
+            | where {|n| [$"($n).apparmor.d" $"($n).dotfiles"] | all {|f| not ("/etc/apparmor.d" | path join $f | path exists) } }
             | each { $"($in):disabled" }
     } else { [] }
     if ($backed ++ $live ++ $disabled | is-not-empty) {
@@ -129,7 +131,7 @@ def snapshot []: nothing -> list<record> {
     let day = $entry.1 | split row T | first
     let age = days-since ($entry.1 | into datetime)
     if $age > $SNAPSHOT_MAX_DAYS {
-        [(report FAIL snapshot $"lsck0 snapshot ($pin) from ($day), ($age) days old: scripts/system-update.nu")]
+        [(report FAIL snapshot $"lsck0 snapshot ($pin) from ($day), ($age) days old: dot sync")]
     } else {
         [(report ok snapshot $"lsck0 snapshot ($pin) from ($day), ($age) days old")]
     }

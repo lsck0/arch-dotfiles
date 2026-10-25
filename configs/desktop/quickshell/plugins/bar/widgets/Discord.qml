@@ -282,29 +282,32 @@ BarWidget {
         width: parent.width
         spacing: Style.spacing.xs
 
-        ActionButton {
+        Button {
+          variant: "action"
           width: (parent.width - Style.spacing.xs * 2) / 3
-          glyph: root.selfMute ? "\u{f036d}" : "\u{f036c}"
-          label: root.selfMute ? "Unmute" : "Mute"
+          iconText: root.selfMute ? "\u{f036d}" : "\u{f036c}"
+          text: root.selfMute ? "Unmute" : "Mute"
           danger: root.selfMute
-          tint: root.selfMute ? Colors.urgent : Colors.menu.text
-          onActivated: DiscordControl.send("toggleSelfMute")
+          foreground: root.selfMute ? Colors.urgent : Colors.menu.text
+          onClicked: DiscordControl.send("toggleSelfMute")
         }
-        ActionButton {
+        Button {
+          variant: "action"
           width: (parent.width - Style.spacing.xs * 2) / 3
-          glyph: root.selfDeaf ? "\u{f0581}" : "\u{f02cb}"
-          label: root.selfDeaf ? "Undeafen" : "Deafen"
+          iconText: root.selfDeaf ? "\u{f0581}" : "\u{f02cb}"
+          text: root.selfDeaf ? "Undeafen" : "Deafen"
           danger: root.selfDeaf
-          tint: root.selfDeaf ? Colors.urgent : Colors.menu.text
-          onActivated: DiscordControl.send("toggleSelfDeaf")
+          foreground: root.selfDeaf ? Colors.urgent : Colors.menu.text
+          onClicked: DiscordControl.send("toggleSelfDeaf")
         }
-        ActionButton {
+        Button {
+          variant: "action"
           width: (parent.width - Style.spacing.xs * 2) / 3
-          glyph: "\u{f03f5}"   // md-phone_hangup
-          label: "Leave"
+          iconText: "\u{f03f5}"   // md-phone_hangup
+          text: "Leave"
           danger: true
-          tint: Colors.urgent
-          onActivated: {
+          foreground: Colors.urgent
+          onClicked: {
             DiscordControl.send("disconnect")
             if (root.bar) root.bar.closePanel(root.moduleName)
           }

@@ -3,10 +3,10 @@
 
 use ../../configs/core/wallust/palette.nu
 use platform.nu [PLATFORM_FACTS]
+use modules.nu [VERBS HOOKS]
 
 const REPO = path self ../..
 const SUDO = '\bsudo\b'
-const NU_VERB = '(?ms)^export def (?<verb>link|unlink|system|theme|apply|backup|restore|check) \[.*?^\}'
 const NU_USER_FACT = '(profile-has|profile-load|\$nu\.home-dir|\$env\.HOME\b|\$env\.USER\b|~/)'
 const QUOTED = r#''[^']*'|"(?:[^"\\]|\\.)*"'#
 const ROOT_MODULES = [scripts skills]
@@ -68,9 +68,10 @@ def lint-layers []: nothing -> list<string> {
     let configs = $REPO | path join configs
     let mods = glob $"($configs)/**/mod.nu" --exclude $SECRETS_DATA
         | append ($ROOT_MODULES | each {|r| $REPO | path join $r mod.nu } | where ($it | path exists))
+    let verb_body = $"\(?ms\)^export def \(?<verb>($VERBS | str join '|')\) \\[.*?^\\}"
     let verbs = $mods | each {|f|
         let text = open --raw $f
-        $text | parse --regex $"\(?<body>($NU_VERB)\)" | each {|m|
+        $text | parse --regex $"\(?<body>($verb_body)\)" | each {|m|
             let line = ($text | split row $m.body | first | lines | length) + 1
             let body = $m.body | lines | where not ($it | str trim --left | str starts-with "#") | str join "\n"
             let fact = $body | parse --regex $NU_USER_FACT | get --optional 0.capture0
@@ -83,6 +84,27 @@ def lint-layers []: nothing -> list<string> {
     let marker = ["is_" "personal"] | str join
     let personal = walk | where {|p| (open --raw $p | into binary | bytes index-of ($marker | into binary)) >= 0 } | each { $"(rel $in): ($marker), use profile-has or a machine fact" }
     $verbs ++ $personal
+}
+
+# A mod.nu exports its verbs and hooks, the commands its own `step` runs, and what another module imports by name;
+# anything else is a plain def, so the export list is the module's whole contract.
+def lint-exports []: nothing -> list<string> {
+    let mods = glob $"($REPO)/configs/**/mod.nu" --exclude $SECRETS_DATA
+        | append ($ROOT_MODULES | each {|r| $REPO | path join $r mod.nu } | where ($it | path exists))
+    let imported = glob $"($REPO)/{configs,scripts}/**/*.nu" --exclude $SECRETS_DATA | each {|f|
+        open --raw $f | parse --regex 'use \S*mod\.nu \[(?<names>[^\]]*)\]' | get names | split row " " | where $it != ""
+    } | flatten | uniq
+    $mods | each {|f|
+        let text = open --raw $f
+        let steps = $text | parse --regex 'step "?(?<name>[a-z0-9-]+)' | get name
+        let allowed = $VERBS ++ $HOOKS ++ $steps ++ $imported
+        $text | lines | enumerate | each {|l|
+            let name = $l.item | parse --regex '^export def (?:--env )?"?(?<name>[a-z0-9-]+)' | get --optional 0.name
+            if $name != null and $name not-in $allowed {
+                $"(rel $f):($l.index + 1): export def ($name) is no verb \(($VERBS | str join ' ')\), step or import; make it a plain def"
+            }
+        } | compact
+    } | flatten
 }
 
 def lint-sync []: nothing -> list<string> {
@@ -123,32 +145,6 @@ def lint-platform-facts []: nothing -> list<string> {
     glob ($REPO | path join platforms '*.nuon') | where not ($it | str ends-with ".options.nuon") | sort | each {|f|
         open $f | get --optional facts | default {} | columns | where $it not-in $PLATFORM_FACTS
         | each { $"(rel $f): fact '($in)' is not in PLATFORM_FACTS; add it there so modules see it, or it is set for nothing" }
-    } | flatten
-}
-
-def lint-palette []: nothing -> list<string> {
-    let band = {|text, pattern| $text | parse --regex $pattern | reduce --fold {} {|m, acc| $acc | insert ($m.k | str uppercase) ($m.v | into float) } }
-    let py = do $band (open --raw ($REPO | path join $PALETTE_NU)) 'BG_VALUE_(?<k>MIN|MAX)\s*=\s*(?<v>[0-9.]+)'
-    let qml = do $band (open --raw ($REPO | path join configs desktop quickshell Commons Theme.qml)) 'backgroundValue(?<k>Min|Max)\s*:\s*(?<v>[0-9.]+)'
-    let json = open ($REPO | path join configs desktop quickshell theme.json) | get --optional palette | default {}
-    [MIN MAX] | each {|k|
-        let vals = {"palette.nu": ($py | get --optional $k), "Theme.qml": ($qml | get --optional $k), "theme.json": ($json | get --optional $"backgroundValue($k | str capitalize | str replace 'Min' 'Min')")}
-        let vals = $vals | update "theme.json" ($json | get --optional (if $k == "MIN" { "backgroundValueMin" } else { "backgroundValueMax" }))
-        if ($vals | values | uniq | length) != 1 { $"palette clamp BG_VALUE_($k) drifted: ($vals | items {|n, v| $'($n)=($v)' } | str join ', ')" }
-    } | compact
-}
-
-const SYSTEM_APPLY = "scripts/lib/system-apply.nu"
-
-# root re-execs each command under flock with the flags it spells out; a flag it leaves out is dropped silently.
-def lint-locked-flags []: nothing -> list<string> {
-    open --raw ($REPO | path join $SYSTEM_APPLY)
-    | parse --regex '(?ms)^def "main (?<cmd>[a-z-]+)" \[(?<sig>[^\]]*)\][^\n]*\n(?<body>.*?)^\}'
-    | each {|d|
-        let call = $d.body | lines | str trim | where ($it | str starts-with $"locked ($d.cmd)") | get --optional 0
-        if $call == null { return [] }
-        $d.sig | parse --regex '--(?<flag>[a-z][a-z-]*)' | get flag | where {|f| not ($call =~ $"--($f)\\b") }
-        | each {|f| $"($SYSTEM_APPLY): main ($d.cmd) takes --($f), its locked re-exec drops it" }
     } | flatten
 }
 
@@ -203,7 +199,7 @@ def unit-tests []: nothing -> list<string> {
 
 # Every lint finding, one line each; empty when the repo passes.
 export def gate-lint []: nothing -> list<string> {
-    [(lint-modules) (lint-layers) (lint-sync) (lint-stray) (lint-platform-facts) (lint-nu-pitfalls) (lint-exec-bits) (lint-platform-options) (lint-palette) (lint-generated) (lint-locked-flags) (unit-tests)] | flatten
+    [(lint-modules) (lint-layers) (lint-exports) (lint-sync) (lint-stray) (lint-platform-facts) (lint-nu-pitfalls) (lint-exec-bits) (lint-platform-options) (lint-generated) (unit-tests)] | flatten
 }
 
 def pkgbuild [path: path]: nothing -> bool {
@@ -345,20 +341,17 @@ QtObject {
 # Compares palette.nu with Palette.js run in qml6, the engine quickshell uses, so rounding differences show.
 export def gate-palette []: nothing -> record {
     let themes = $PALETTE_THEMES | each {|t| $REPO | path join themes $"($t).json" }
-    let py = {synced: (palette palette-js-sync), light: $palette.LIGHT_LUMINANCE, expected: ($themes | each { palette-expect $in })}
+    let py = {synced: (palette palette-js-sync), expected: ($themes | each { palette-expect $in })}
     let sync = if $py.synced { [] } else { [$"($PALETTE_JS): constants block is stale, run ($PALETTE_NU) js --write"] }
-    let qml_light = open --raw ($REPO | path join configs desktop quickshell Commons Theme.qml) | parse --regex 'lightLuminance\s*:\s*(?<v>[0-9.]+)' | get --optional 0.v | if $in == null { null } else { into float }
-    let json_light = open ($REPO | path join configs desktop quickshell theme.json) | get --optional palette.lightLuminance
-    let light = [["Theme.qml" $qml_light] ["theme.json" $json_light]] | where {|w| $w.1 != $py.light } | each {|w| $"palette: ($w.0) lightLuminance=($w.1), palette.nu LIGHT_LUMINANCE=($py.light)" }
     let qml = which qml6 | get --optional 0.path | default "/usr/lib/qt6/bin/qml"
-    if not ($qml | path exists) { return {findings: ($sync ++ $light), notes: ["qml6: not installed, palette.nu against Palette.js not compared"]} }
+    if not ($qml | path exists) { return {findings: $sync, notes: ["qml6: not installed, palette.nu against Palette.js not compared"]} }
     let dir = mktemp --directory
     let probe = $dir | path join probe.qml
     $PALETTE_PROBE_QML | str replace "@JS@" $"file://($REPO | path join $PALETTE_JS)" | str replace "@INPUTS@" ($themes | each { open $in } | to json --raw) | save $probe
     let run = with-env {QT_QPA_PLATFORM: offscreen, QT_FORCE_STDERR_LOGGING: "1"} { ^timeout $PALETTE_TIMEOUT_S $qml $probe | complete }
     rm --recursive --force $dir
     let line = $run.stderr | lines | where ($it | str contains "qml: probe ") | get --optional 0
-    if $line == null { return {findings: ($sync ++ $light ++ [$"palette: Palette.js probe failed:\n($run.stderr | str trim)"]), notes: []} }
+    if $line == null { return {findings: ($sync ++ [$"palette: Palette.js probe failed:\n($run.stderr | str trim)"]), notes: []} }
     let got = $line | split row "qml: probe " | last | from json
     let diffs = $PALETTE_THEMES | enumerate | each {|t|
         let want = $py.expected | get $t.index
@@ -368,5 +361,5 @@ export def gate-palette []: nothing -> record {
         let detail = if $at == null { $"length: palette.nu ($want | length) != Palette.js ($have | length)" } else { $"($at.index): palette.nu ($at.item.0 | to json --raw) != Palette.js ($at.item.1 | to json --raw)" }
         $"palette: palette.nu and Palette.js differ on ($t.item), first at probe entry ($detail)"
     } | compact
-    {findings: ($sync ++ $light ++ $diffs), notes: []}
+    {findings: ($sync ++ $diffs), notes: []}
 }

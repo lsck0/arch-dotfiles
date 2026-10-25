@@ -130,14 +130,15 @@ OverlayCard {
       width: inner.width
       implicitHeight: runAgain.implicitHeight
       height: implicitHeight
-      ActionButton {
+      Button {
+        variant: "action"
         id: runAgain
         anchors.horizontalCenter: parent.horizontalCenter
-        label: "run again"
-        tint: root.onCard
+        text: "run again"
+        foreground: root.onCard
         enabled: !root.running
         opacity: root.running ? 0 : 1
-        onActivated: root.runAgainRequested()
+        onClicked: root.runAgainRequested()
 
         Behavior on opacity {
           NumberAnimation { duration: Style.motion.slow; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }

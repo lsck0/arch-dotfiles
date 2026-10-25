@@ -1,16 +1,26 @@
 use module.nu *
+use ../../core/wallust/font.nu [font-load]
 
 export const meta = {packages: {pacman: [zed]}}
 
 const CONFIG_DIR = ".config/zed"
 
 export def link [cfg: record] {
-    files-into ($nu.home-dir | path join $CONFIG_DIR) settings.json keymap.json
+    files-into ($nu.home-dir | path join $CONFIG_DIR) keymap.json
+}
+
+# Merged, not rendered: zed rewrites settings.json from its settings UI and keeps its own keys there; the repo's keys
+# and the font win, every other key survives.
+def settings []: nothing -> record {
+    let font = font-load
+    let edits = open settings.json | merge {buffer_font_family: $font.mono, buffer_font_size: $font.size}
+        | items {|k, v| json-set [$k] $v }
+    json-merge ($nu.home-dir | path join $CONFIG_DIR settings.json) $edits
 }
 
 export def theme [cfg: record, wallpaper: string] {
     let p = palette-load
-    if $p == null { return [] }
+    if $p == null { return (settings) }
     let ansi = [black red green yellow blue magenta cyan white] | enumerate | each {|c|
         [[$"terminal.ansi.($c.item)" ($p | get $"c($c.index)")] [$"terminal.ansi.bright_($c.item)" ($p | get $"c($c.index + 8)")]]
     } | flatten | into record
@@ -58,5 +68,8 @@ export def theme [cfg: record, wallpaper: string] {
         author: "pywal (generated)"
         themes: [{name: Pywal, appearance: (if $p.light == "1" { "light" } else { "dark" }), style: $style}]
     }
-    file-text ($nu.home-dir | path join $CONFIG_DIR themes pywal.json) $"($theme | to json --indent 2)\n" --generated
+    [
+        (file-text ($nu.home-dir | path join $CONFIG_DIR themes pywal.json) $"($theme | to json --indent 2)\n" --generated)
+        (settings)
+    ]
 }

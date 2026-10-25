@@ -22,7 +22,7 @@ links only where an app reads the repo live.
 - `scripts/`: scripts that are meant to be called directly.
 - `scripts/toggles/`: on/off switches for system features (wifi, vpn, dnd, ...), plus a menu and a status script.
 - `configs/secrets/`: the private submodule, committed and pushed by dot sync before the generation: `keys/` the
-  git-crypt secrets, `state/` the plaintext backed-up app state (dalamud, ffxiv, wallpapers, drift, firefox,
+  git-crypt secrets, `state/` the plaintext backed-up app state (dalamud, ffxiv, drift, firefox,
   repositories), `<module>/mod.nu` the owner's own modules (yubikey, capgemini, weblinks; group `secrets`). Anything
   else there makes sync refuse.
 - `showcase/`: screenshots of the setup.

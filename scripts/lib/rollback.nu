@@ -1,20 +1,14 @@
-# `dot rollback`: check out an older generation of master and converge to it, undoing later migrations first;
-# --full also reinstalls packages from the target's [lsck0] snapshot and nixpkgs pin.
+# `dot rollback`: check out an older generation of master and converge to it, undoing later migrations first.
+# Packages stay as installed; the config layer goes back.
 
 use log.nu [log-info log-warn]
-use state.nu [SYSTEM_REPO SYSTEM_STATE]
-use platform.nu [PLATFORM_NAME_FILE]
+use state.nu [SYSTEM_REPO]
 use ledger.nu [ledger-get]
 use migrate.nu [migrations-list migration-run]
 
 const REPO = path self ../..
 const BRANCH = "master"
 const FLOOR_FILES = [scripts/lib/system-apply.sh scripts/lib/system-apply.nu]
-const PACMAN_CONF = "configs/base/pacman/pacman.conf"
-const PLATFORM_LOCAL = "/etc/dotfiles/platform.nuon"
-const NIX = [nix --extra-experimental-features "nix-command flakes"]
-const NIXPKGS_PREFIX = "github:NixOS/nixpkgs/"
-const SNAPSHOT_DATE = '\d{4}-\d{2}-\d{2}'
 
 def --wrapped git-out [...args: string]: nothing -> string { ^git -C $REPO ...$args | str trim }
 
@@ -46,60 +40,13 @@ export def rollback-resolve [target: string]: nothing -> string {
     $sha
 }
 
-def platform-pin [sha: string]: nothing -> string {
-    let name = try { open --raw $PLATFORM_NAME_FILE | str trim } catch { "" }
-    let text = if ($PLATFORM_LOCAL | path exists) { open --raw $PLATFORM_LOCAL } else if $name != "" {
-        do { ^git -C $REPO show $"($sha):platforms/($name).nuon" } | complete | get stdout
-    } else { "" }
-    try { $text | from nuon | get facts.lsck0_snapshot? | default "" } catch { "" }
-}
-
-def mirror-snapshot [sha: string]: nothing -> string {
-    let arch = ^uname -m | str trim
-    let conf = git-out show $"($sha):($PACMAN_CONF)" | lines
-    let section = $conf | skip until { $in == "[lsck0]" } | skip 1 | take until { $in | str starts-with "[" }
-    let base = $section | parse --regex '^Server = (?<url>https://.*)/\$arch$' | get --optional 0.url
-    if $base == null { error make {msg: $"no [lsck0] https Server line in ($sha):($PACMAN_CONF)"} }
-    let committed = git-out log -1 --format=%ct $sha | into int
-    let dates = http get --raw $"($base)/" | parse --regex ('href="(?<d>' + $SNAPSHOT_DATE + ')/"')
-        | get d | uniq | sort --reverse
-    $dates | where {|d|
-        let published = try {
-            http head $"($base)/($d)/($arch)/lsck0.db"
-            | where { ($in.name | str lowercase) == "last-modified" } | get 0.value
-        } catch { return false }
-        ($published | into datetime | into int) // 1_000_000_000 <= $committed
-    } | get --optional 0 | default ""
-}
-
-def nixpkgs-pin [rev: string]: nothing -> string {
-    let pattern = $'NIXPKGS[[:space:]]*=[[:space:]]*"?($NIXPKGS_PREFIX)[0-9a-f]+'
-    do { ^git -C $REPO grep -h -o -E $pattern $rev -- install.sh scripts } | complete
-    | get stdout | lines | get --optional 0 | default "" | str replace --regex '^[^g]*' ''
-}
-
-def nix-stale [rev: string]: nothing -> list<string> {
-    if (which nix | is-empty) { return [] }
-    ^$NIX.0 ...($NIX | skip 1) profile list --json | from json | get elements
-    | items {|name, e| {name: $name, url: $e.originalUrl? } }
-    | where { ($in.url | default "" | str starts-with $NIXPKGS_PREFIX) and $in.url != $rev } | get name | sort
-}
-
-def drivers [sha: string, pin: string]: nothing -> record {
-    let dot = [nu --no-config-file scripts/dot.nu]
-    if (git-ok cat-file -e $"($sha):scripts/lib/internal.nu") {
-        {root: ($dot ++ [apply --packages]), user: ($dot ++ [apply --packages --user]), apply: ($dot ++ [apply]), nu: true}
-    } else if (git-ok cat-file -e $"($sha):scripts/lib/system-apply.nu") {
-        {root: ($dot ++ [install]), user: ($dot ++ [install --user]), apply: ($dot ++ [apply]), nu: true}
+# The target's own apply: a generation from before system-apply.nu applied with config.sh and the root copy's
+# bash rollback.
+def drivers [sha: string]: nothing -> record {
+    if (git-ok cat-file -e $"($sha):scripts/lib/system-apply.nu") {
+        {apply: [nu --no-config-file scripts/dot.nu apply], nu: true}
     } else {
-        let unattended = ($env.DOTFILES_UNATTENDED? | is-not-empty) or not (is-terminal --stdin)
-        let entry = $SYSTEM_REPO | path join scripts lib system-apply.sh
-        {
-            root: ([sudo $"LSCK0_SNAPSHOT=($pin)" $entry install] ++ (if $unattended { [--unattended] } else { [] }))
-            user: [./install.sh --user]
-            apply: [./config.sh]
-            nu: false
-        }
+        {apply: [./config.sh], nu: false}
     }
 }
 
@@ -116,7 +63,7 @@ def driver-run [argv: list<string>, what: string]: nothing -> bool {
     $ok
 }
 
-export def rollback-run [target: string, --full, --dry-run]: nothing -> nothing {
+export def rollback-run [target: string, --dry-run]: nothing -> nothing {
     if (is-admin) { error make {msg: "run as the admin, not root; the root half goes through sudo"} }
     if ($env.DIRENV_DIR? | is-not-empty) { error make {msg: "run outside a direnv directory"} }
     let sha = rollback-resolve $target
@@ -136,33 +83,6 @@ export def rollback-run [target: string, --full, --dry-run]: nothing -> nothing 
     } else {
         log-info "not in wheel: the user layer only"
     }
-    mut pin = ""
-    mut stale = []
-    if $full {
-        $pin = platform-pin $sha
-        if $pin != "" {
-            log-info $"lsck0: the target's platform file pins ($pin)"
-        } else {
-            $pin = mirror-snapshot $sha
-            if $pin == "" {
-                let why = $"the mirror keeps no [lsck0] snapshot from before ($short)"
-                error make {msg: $"($why); --full cannot reproduce it, drop --full for the config layer"}
-            }
-            log-info $"lsck0: dated snapshot ($pin), the newest published before the commit"
-        }
-        let installed = with-env {DOT_LAYER: system} { ledger-get snapshot } | get --optional 0 | default unknown
-        log-info $"lsck0: installed now ($installed) \(ledger\)"
-        if not $admin { log-warn "not in wheel: the [lsck0] packages stay, only nix and the user parts go back" }
-        let rev = nixpkgs-pin $sha
-        if $rev == "" {
-            log-warn "nix: the target pins no nixpkgs rev, its install adds only what is missing"
-        } else {
-            $stale = nix-stale $rev
-            let names = if ($stale | is-empty) { "none" } else { $stale | str join " " }
-            let now = nixpkgs-pin HEAD | path basename
-            log-info $"nix: ($rev | path basename) \(now ($now)\), re-pinning ($stale | length): ($names)"
-        }
-    }
     if ($dirty | is-not-empty) {
         print -e ($dirty | first 10 | str join "\n")
         if not $dry_run {
@@ -171,19 +91,11 @@ export def rollback-run [target: string, --full, --dry-run]: nothing -> nothing 
         }
         log-warn $"the working tree has ($dirty | length) uncommitted changes, a real rollback refuses"
     }
-    let drive = drivers $sha $pin
-    let installs = match [$full $admin $drive.nu] {
-        [false _ _] => []
-        [true false _] => [$drive.user]
-        [true true true] => [$drive.root]
-        _ => [$drive.root $drive.user]
-    }
+    let drive = drivers $sha
     let steps = [
         (if ($later | is-not-empty) { $"migration down ($later.id | reverse | str join ' ')" })
         $"git checkout --detach ($short)"
         (if $admin and not $drive.nu { "root copy --rollback" })
-        (if ($stale | is-not-empty) { $"nix profile remove ($stale | str join ' ')" })
-        ...($installs | each { str join " " })
         ($drive.apply | str join " ")
     ] | compact
     if $dry_run {
@@ -195,14 +107,6 @@ export def rollback-run [target: string, --full, --dry-run]: nothing -> nothing 
     log-info $"checkout detached at ($short); return with: git switch ($BRANCH)"
     cd $REPO
     if $admin and not $drive.nu { copy-rollback }
-    if ($stale | is-not-empty) { ^$NIX.0 ...($NIX | skip 1) profile remove ...$stale }
-    with-env {LSCK0_SNAPSHOT: $pin, DOT_ROLLBACK: "1"} {
-        let installs_ok = $installs | each { driver-run $in install } | all { $in }
-        if $installs_ok {
-            driver-run $drive.apply apply
-        } else {
-            log-warn "skipping apply: an install step failed, rollback is incomplete"
-        }
-    }
-    log-info $"at ($short) \(($label)\); to return: git switch ($BRANCH) && dot apply --packages && dot apply"
+    with-env {DOT_ROLLBACK: "1"} { driver-run $drive.apply apply | ignore }
+    log-info $"at ($short) \(($label)\); to return: git switch ($BRANCH) && dot apply"
 }

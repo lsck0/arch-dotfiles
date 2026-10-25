@@ -1,20 +1,11 @@
-# The written file: the hash of every file dot wrote, which tells drift (changed since) from dot's own
-# copy, plus the preserved/ dir where a replaced or drifted file is kept aside.
+# The preserved/ dir, where a replaced or drifted file is kept aside, the ~/sync write guard and the one
+# terminal question; what dot wrote is in the module records (converge.nu).
 
 use log.nu *
-use state.nu [state-dir state-locked path-kind]
-use sandbox.nu [plan-note]
+use state.nu [state-dir path-kind]
 
 const STAMP = '\.(\d{14})(\.\d+)?$'
 const STAMP_FORMAT = "%Y%m%d%H%M%S"
-
-export def written-file []: nothing -> path {
-    state-dir | path join written
-}
-
-def seen-file []: nothing -> path {
-    $"(written-file).seen"
-}
 
 export def preserve-dir []: nothing -> path {
     state-dir | path join preserved
@@ -40,42 +31,8 @@ export def preserve-aside [path: path]: nothing -> any {
     }
     mkdir ($dest | path dirname)
     ^mv -n $path $dest
-    plan-note preserve $path $"aside to ($dest)"
     log-info $"($path): the earlier copy kept as ($dest)"
     $dest
-}
-
-export def written-record [path: path]: nothing -> nothing {
-    if (seen-file | path exists) { $"($path)\n" | save --append (seen-file) }
-    state-locked $"(written-file).lock" written-record {file: (written-file), path: $path, sum: (open --raw $path | hash sha256)}
-}
-
-export def written-forget [...paths: path]: nothing -> nothing {
-    state-locked $"(written-file).lock" written-forget {file: (written-file), paths: $paths}
-}
-
-# Starts a run's seen list; written-prune then forgets every recorded path no module wrote or kept.
-export def written-begin []: nothing -> nothing {
-    mkdir (state-dir)
-    "" | save --force (seen-file)
-}
-
-# Called only after every module finished: else what a failed module did not reach would be forgotten.
-export def written-prune [keep: list<string>]: nothing -> nothing {
-    if not ((seen-file | path exists) and (written-file | path exists)) { return }
-    let seen = open --raw (seen-file) | lines | append $keep
-    let gone = open --raw (written-file) | lines | where $it != "" | split column "\t" path sum
-        | where {|row| (path-kind $row.path) == "" or $row.path not-in $seen }
-    for row in $gone {
-        plan-note forget $row.path "no module manages it any more"
-        log-info $"no longer managed, forgotten: ($row.path)"
-    }
-    if ($gone | is-not-empty) { written-forget ...$gone.path }
-    written-end
-}
-
-export def written-end []: nothing -> nothing {
-    rm --force (seen-file)
 }
 
 # Every preserved copy with its stamp, read from the name since mv keeps the original mtime.

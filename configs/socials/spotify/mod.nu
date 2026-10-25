@@ -1,5 +1,6 @@
 use module.nu *
 use ../../core/wallust/palette.nu *
+use ../../core/wallust/font.nu [font-load]
 
 export const meta = {packages: {pacman: [spicetify-cli spotify spotify-player websocat]}}
 
@@ -69,6 +70,15 @@ export def spicetify-colors []: nothing -> any {
     ] | each { {key: $in.0, hex: ($in.1 | rgb-to-hex)} }
 }
 
+# user.css with the radius and the font
+def user-css []: nothing -> string {
+    let font = font-load
+    open --raw user.css
+    | str replace --regex --multiline '^(\s*--radius:) .*$' $"${1} ($RADIUS_PX)px;"
+    | str replace --regex --multiline '^(\s*--font-scale:) .*$' $"${1} ($font.scale);"
+    | str replace --regex 'font-family: "[^"]*", "Symbols Nerd Font"' $'font-family: "($font.family)", "Symbols Nerd Font"'
+}
+
 export def theme [cfg: record, wallpaper: string] {
     let ini = spicetify-dir | path join $THEME_INI
     let css = spicetify-dir | path join $THEME_CSS
@@ -78,7 +88,7 @@ export def theme [cfg: record, wallpaper: string] {
     let body = $colors | each { $"($in.key | fill --width $width) = ($in.hex)\n" } | str join
     [
         (file-text $ini $"[pywal]\n($body)" --generated)
-        (file-text $css (open --raw user.css | str replace --regex --multiline '^(\s*--radius:) .*$' $"${1} ($RADIUS_PX)px;") --generated)
+        (file-text $css (user-css) --generated)
         (exec spotify-reload [./spotify-reload.nu])
     ]
 }

@@ -32,5 +32,5 @@ Extends the root `AGENTS.md` and the `configs/desktop/AGENTS.md`. The Hyprland c
 
 - Per-machine behavior comes from `platform.lua`, never a hostname check: a new setting is an option in `mod.nu`,
   valued per machine in `platforms/<host>.options.nuon` (`dot set --machine`). See the `l-dotfiles-platform-facts` skill.
-- XWayland scaling is `force_zero_scaling`; X11 apps scale via `GDK_SCALE`/`QT_AUTO_SCREEN_SCALE_FACTOR` from the
+- XWayland scaling is `force_zero_scaling`; X11 apps scale via `GDK_SCALE` (gtk) and `Xft.dpi` (qt xcb, most others) from the
   `xwayland_scale` option; other modules read it as `$cfg.deps."desktop/hyprland".xwayland_scale`.

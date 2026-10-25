@@ -152,7 +152,7 @@ Item {
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
 
-          sourceComponent: ToggleSwitch {
+          sourceComponent: Toggle {
             checked: row.value === true
             interactive: false
             hasCursor: row.hasCursor
@@ -304,7 +304,8 @@ Item {
         Repeater {
           model: row.expanded ? row.page : row.type === "list" ? (row.value || []) : []
 
-          Chip {
+          Button {
+            variant: "chip"
             required property var modelData
             required property int index
             text: row.expanded ? modelData.label : String(modelData) + "  x"

@@ -78,22 +78,16 @@ BarWidget {
   function shaderName(entry) { return String(entry).split(":")[0] }
   function shaderVariant(entry) { var i = String(entry).indexOf(":"); return i < 0 ? "" : String(entry).substring(i + 1) }
 
-  Process {
+  JsonProcess {
     id: gradingProc
     command: [root.gradingCli, "status"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: { try { root.grading = JSON.parse(text || "{}") } catch (e) {} }
-    }
+    onParsed: function(data) { root.grading = data }
   }
 
-  Process {
+  JsonProcess {
     id: shaderProc
     command: [root.shaderScript, "status"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: { try { root.shaders = JSON.parse(text || "{}") } catch (e) {} }
-    }
+    onParsed: function(data) { root.shaders = data }
   }
 
   Process {
@@ -106,13 +100,11 @@ BarWidget {
   }
 
   // the theme the light/dark flip lands on, so the row says where it goes
-  Process {
+  JsonProcess {
     id: themeTargetProc
     command: [root.themeModeScript, "target"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: { try { root.themePartner = JSON.parse(text || "{}").theme || "" } catch (e) { root.themePartner = "" } }
-    }
+    onParsed: function(data) { root.themePartner = (data && data.theme) || "" }
+    onFailed: root.themePartner = ""
   }
 
   Connections {
@@ -164,19 +156,12 @@ BarWidget {
     }
   }
 
-  Process {
+  JsonProcess {
     id: monitorsProc
     command: ["hyprctl", "monitors", "all", "-j"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try {
-          root.monitors = JSON.parse(text || "[]")
-        } catch (e) {
-          return
-        }
-        if (!root.brightnessKnown) root.refreshAllBrightness()
-      }
+    onParsed: function(data) {
+      root.monitors = data
+      if (!root.brightnessKnown) root.refreshAllBrightness()
     }
   }
 
@@ -316,7 +301,8 @@ BarWidget {
                 if (others > 0 || monitorRow.disabled) opts.push({ value: "off", label: "Off" })
                 return opts
               }
-              Chip {
+              Button {
+                variant: "chip"
                 focusable: true
                 required property var modelData
                 text: modelData.label
@@ -332,7 +318,8 @@ BarWidget {
             spacing: Style.spacing.xs
             Repeater {
               model: [1, 1.25, 1.5, 1.666667, 2]
-              Chip {
+              Button {
+                variant: "chip"
                 focusable: true
                 required property real modelData
                 selected: Math.abs(Number(monitorRow.modelData.scale) - modelData) < 0.01

@@ -1,6 +1,6 @@
 ---
 name: l-dotfiles-add-module
-description: Creating a configs/<group>/<module>/mod.nu (meta with deps and packages, typed options, the link/system/theme/apply/unlink verbs), how dot picks it up, and running it alone. Load when adding, porting or restructuring a module.
+description: Creating a configs/<group>/<module>/mod.nu (meta with deps and packages, typed options, the fixed verbs and steps), how dot picks it up, and running it alone. Load when adding, porting or restructuring a module.
 ---
 
 # add-module
@@ -75,8 +75,12 @@ export def packages [cfg: record]: nothing -> record {
 }
 ```
 
-- Verbs: `link`, `system`, `theme`, `apply`, `unlink` (only for what the declarations cannot reverse; returns `exec`
-  steps), `backup`, `restore`, `check`. Each takes the resolved options record (`enable` is always there) and
+- Verbs, a fixed set (`VERBS` in `scripts/lib/modules.nu`): `link`, `system`, `theme`, `apply` (an option's live
+  apply), `backup`, `restore`, `update` (what floats outside pacman, run by `dot sync` after the apply). Any other
+  exported command is a `step` target of the same mod.nu or a name another module imports (`use ../x/mod.nu
+  [name]`); everything else is a plain `def` (`dot test lint` checks it). A helper a unit, toggle or keybind runs is a
+  script file in the module dir, installed by `link-commands` or `files-into`. Each verb takes the resolved options
+  record (`enable` is always there) and
   returns a declaration or a list of them (`decls-flatten` flattens nested lists). A module turned off (`enable`
   false, its group gone from the platform) is planned with nothing declared on the next full `link` or `system` run,
   so its recorded files, links and units are removed and disabled; what a `step` or `exec` did is not recorded and

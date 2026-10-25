@@ -44,21 +44,6 @@ hl.bind(
     { description = "screenshot a region to the clipboard" }
 )
 hl.bind(
-    mod .. " + SHIFT + d",
-    hl.dsp.exec_cmd(shell_bin("gpg-clip") .. " decrypt"),
-    { description = "decrypt the clipboard with gpg" }
-)
-hl.bind(
-    mod .. " + SHIFT + x",
-    hl.dsp.exec_cmd(shell_bin("gpg-clip") .. " encrypt"),
-    { description = "encrypt the clipboard with gpg" }
-)
-hl.bind(
-    mod .. " + SHIFT + c",
-    hl.dsp.exec_cmd(shell_bin("gpg-clip") .. " sign"),
-    { description = "sign the clipboard with gpg" }
-)
-hl.bind(
     mod .. " + SHIFT + PRINT",
     hl.dsp.exec_cmd("grim -o \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .name')\" - | wl-copy"),
     { description = "screenshot the focused monitor to the clipboard" }
@@ -94,7 +79,7 @@ hl.bind(mod .. " + d", quickshell_toggle("appsearch"), { description = "app laun
 hl.bind(
     mod .. " + ALT + d",
     hl.dsp.exec_cmd(
-        "cmd=$(bash -c 'compgen -c' | sort -u | $DOTFILES/scripts/lib/picker.nu -p run) && uwsm-app -- sh -c \"$cmd\""
+        "cmd=$(bash -c 'compgen -c' | sort -u | $DOTFILES/configs/desktop/hyprland/picker.nu -p run) && uwsm-app -- sh -c \"$cmd\""
     ),
     { description = "run a command from $PATH (the launcher while quickshell is down)" }
 )

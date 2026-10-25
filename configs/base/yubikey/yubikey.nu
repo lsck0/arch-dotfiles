@@ -1,15 +1,15 @@
 # `dot secrets unlock|lock|seal` and yubikey init: the git-crypt key sealed to every enrolled yubikey's age
 # recipient, plus pgp, ssh and u2f enrollment, one touch per step.
 
-use profile.nu [profile-load]
-use secrets.nu [secret-is-plaintext secrets-wanted]
+use ../../../scripts/lib/profile.nu [profile-load]
+use ../../../scripts/lib/secrets.nu [secret-is-plaintext secrets-wanted]
 
-const REPO = path self ../..
-const KEY_DIR = path self ../../configs/base/yubikey
-const OWNER_DIR = path self ../../configs/secrets/yubikey
-const SECRETS = path self ../../configs/secrets
-const SEALED_KEY = path self ../../configs/base/yubikey/secrets.key.age
-const WITNESS = path self ../../configs/secrets/keys/pgp_privatekey.asc
+const REPO = path self ../../..
+const KEY_DIR = path self .
+const OWNER_DIR = path self ../../secrets/yubikey
+const SECRETS = path self ../../secrets
+const SEALED_KEY = path self secrets.key.age
+const WITNESS = path self ../../secrets/keys/pgp_privatekey.asc
 const PAM_ORIGIN = "pam://lsck0"
 const SSH_APPLICATION = "ssh:lsck0"
 const AGE_SLOT = "1"

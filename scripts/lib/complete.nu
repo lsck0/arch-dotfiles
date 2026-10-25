@@ -5,7 +5,7 @@ use log.nu [runs-dir]
 use platform.nu [platform-load]
 use modules.nu [modules-discover]
 use options.nu [options-schema]
-use wallpaper.nu [wallpaper-list]
+use ../../configs/core/wallust/wallpaper.nu [wallpaper-list]
 use cli.nu [concat]
 
 const REPO = path self ../..

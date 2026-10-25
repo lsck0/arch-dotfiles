@@ -18,6 +18,14 @@ except (OSError, ValueError):
 with open(os.path.expanduser("~/.config/dotfiles/style.json")) as _f:
     _style = json.load(_f)
 
+# the font a theme or toggle-font set (configs/core/wallust/font.nu), its defaults when unset
+_font = {"family": "Kode Mono", "ui_size": 11}
+try:
+    with open(os.path.expanduser("~/.cache/wal/font.json")) as _f:
+        _font.update(json.load(_f))
+except (OSError, ValueError):
+    pass
+
 
 def _c(section, key):
     return _wal.get(section, {}).get(key) or _fb[section][key]
@@ -103,9 +111,9 @@ c.tabs.show = "multiple"
 c.tabs.indicator.width = 2
 c.statusbar.show = "in-mode"
 c.scrolling.smooth = True
-c.fonts.default_family = "Kode Mono"
-c.fonts.default_size = "11pt"
-c.fonts.hints = "bold 11pt default_family"
+c.fonts.default_family = _font["family"]
+c.fonts.default_size = f"{_font['ui_size']}pt"
+c.fonts.hints = f"bold {_font['ui_size']}pt default_family"
 
 c.colors.webpage.preferred_color_scheme = "light" if _is_light(bg) else "dark"
 c.colors.webpage.bg = bg

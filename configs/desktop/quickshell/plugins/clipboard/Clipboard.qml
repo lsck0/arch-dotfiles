@@ -17,6 +17,18 @@ Item {
   property bool clearConfirmOpen: false
   property var history: []
 
+  // OpenPGP on the selected text entry (gpg.nu): "encrypt" picks recipients in the right pane, "decrypt" shows the
+  // signature and the plaintext there; the plaintext lives only in gpgResult and goes when the window closes
+  property string gpgMode: ""
+  property var gpgKeys: []
+  property var gpgPicked: ({})
+  property int gpgKeyIndex: 0
+  property var gpgResult: null
+  property string gpgError: ""
+  property string gpgText: ""
+  readonly property bool gpgBusy: gpgKeysProc.running || gpgEncryptProc.running || gpgDecryptProc.running
+  readonly property string gpgHelper: root.pluginDir + "/gpg.nu"
+
   readonly property string historyPath: Paths.runtime + "/clipboard-history.json"
   readonly property int historyLimit: 500
 
@@ -42,7 +54,98 @@ Item {
 
   function close() {
     root.cancelClearHistory()
+    root.gpgReset()
     root.opened = false
+  }
+
+  function gpgReset() {
+    root.gpgMode = ""
+    root.gpgKeys = []
+    root.gpgPicked = {}
+    root.gpgResult = null
+    root.gpgError = ""
+    root.gpgText = ""
+  }
+
+  function selectedEntryText() {
+    var row = displayModel.count > 0 ? displayModel.get(root.selectedIndex) : null
+    return row && row.entryType === "text" ? row.fullText : ""
+  }
+
+  // gpg-agent's pinentry is a window of its own: the overlay lets go of the keyboard while gpg runs
+  function gpgRun(proc, argv, text) {
+    if (root.gpgBusy) return
+    root.gpgError = ""
+    proc.command = argv
+    proc.process.stdinEnabled = true
+    proc.run()
+    proc.process.write(text)
+    proc.process.stdinEnabled = false
+  }
+
+  function startEncrypt() {
+    var text = root.selectedEntryText()
+    if (!text || root.gpgBusy) return
+    root.gpgReset()
+    root.gpgText = text
+    root.gpgMode = "encrypt"
+    gpgKeysProc.run()
+  }
+
+  function startDecrypt() {
+    var text = root.selectedEntryText()
+    if (!text) return
+    root.gpgReset()
+    root.gpgMode = "decrypt"
+    root.gpgRun(gpgDecryptProc, [root.gpgHelper, "decrypt"], text)
+  }
+
+  function gpgToggleKey(index) {
+    if (index < 0 || index >= root.gpgKeys.length) return
+    var picked = Object.assign({}, root.gpgPicked)
+    var fpr = root.gpgKeys[index].fpr
+    if (picked[fpr]) delete picked[fpr]
+    else picked[fpr] = true
+    root.gpgPicked = picked
+  }
+
+  function encryptPicked() {
+    var to = Object.keys(root.gpgPicked)
+    if (to.length === 0) { root.gpgError = "pick at least one recipient (space)"; return }
+    root.gpgRun(gpgEncryptProc, [root.gpgHelper, "encrypt"].concat(to), root.gpgText)
+  }
+
+  function gpgKey(event) {
+    if (event.key === Qt.Key_Escape) { root.gpgReset(); return true }
+    if (root.gpgMode !== "encrypt" || root.gpgBusy) return true
+    var n = root.gpgKeys.length
+    if (event.key === Qt.Key_Up && n > 0) root.gpgKeyIndex = (root.gpgKeyIndex - 1 + n) % n
+    else if (event.key === Qt.Key_Down && n > 0) root.gpgKeyIndex = (root.gpgKeyIndex + 1) % n
+    else if (event.key === Qt.Key_Space) root.gpgToggleKey(root.gpgKeyIndex)
+    else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) root.encryptPicked()
+    return true
+  }
+
+  function signatureLine(sig) {
+    if (!sig) return ""
+    var who = (sig.signer || "") + (sig.fpr ? "\n" + sig.fpr : "")
+    switch (sig.state) {
+      case "good": return "GOOD SIGNATURE\n" + who
+      case "untrusted": return "SIGNED BY AN UNCERTIFIED KEY, the name may be anyone's\n" + who
+      case "bad": return "BAD SIGNATURE, the message was altered or the signature is forged\n" + who
+      case "expired": return "EXPIRED SIGNATURE OR KEY\n" + who
+      case "revoked": return "SIGNED BY A REVOKED KEY\n" + who
+      case "unverified": return "UNVERIFIED SIGNATURE, missing key or unsupported algorithm\n" + who
+      default: return "NOT SIGNED"
+    }
+  }
+
+  function signatureColor(sig) {
+    if (!sig) return root.foreground
+    if (sig.state === "good") return Colors.ok
+    if (sig.state === "untrusted" || sig.state === "expired") return Colors.warn
+    if (sig.state === "none") return root.foreground
+    return Colors.urgent
   }
 
   function toggle() {
@@ -209,6 +312,47 @@ Item {
     command: ["wl-copy"]
   }
 
+  JsonProcess {
+    id: gpgKeysProc
+    command: [root.gpgHelper, "keys"]
+    onParsed: function (data) {
+      root.gpgKeys = data.keys || []
+      var picked = {}
+      if (data.signer) picked[data.signer] = true
+      root.gpgPicked = picked
+      var own = root.gpgKeys.findIndex(function (k) { return k.fpr === data.signer })
+      root.gpgKeyIndex = Math.max(0, own)
+      if (root.gpgKeys.length === 0) root.gpgError = "no key to encrypt to"
+    }
+    onFailed: function (error) { root.gpgError = "gpg keys: " + error }
+  }
+
+  // the armored message replaces the plaintext: onto the clipboard, the plaintext's history entry forgotten
+  JsonProcess {
+    id: gpgEncryptProc
+    onParsed: function (data) {
+      if (!data.ok) { root.gpgError = data.error; return }
+      var plain = root.gpgText
+      root.close()
+      copyTextProc.stdinEnabled = true
+      copyTextProc.running = true
+      copyTextProc.write(data.armored + "\n")
+      copyTextProc.stdinEnabled = false
+      root.forgetTextHash(Qt.md5(plain))
+      Quickshell.execDetached(["notify-send", "--app-name=clipboard", "Encrypted and signed", "The armored message is on the clipboard"])
+    }
+    onFailed: function (error) { root.gpgError = "gpg encrypt: " + error }
+  }
+
+  JsonProcess {
+    id: gpgDecryptProc
+    onParsed: function (data) {
+      if (!data.ok) { root.gpgError = data.error; return }
+      root.gpgResult = { plaintext: String(data.plaintext || "").replace(/\n+$/, ""), signature: data.signature }
+    }
+    onFailed: function (error) { root.gpgError = "gpg decrypt: " + error }
+  }
+
   function openRow(row) {
     if (!row) return
     root.opened = false
@@ -298,7 +442,10 @@ Item {
     prompt: true
     query: root.filterText
     placeholder: "search clipboard"
-    hints: [["ESC", "close"], ["ENTER", "copy"], ["ALT+ENTER", "open"], ["DEL", "forget"]]
+    hints: root.gpgMode === "encrypt" ? [["ESC", "back"], ["UP/DOWN", "key"], ["SPACE", "pick"], ["ENTER", "encrypt"]]
+      : root.gpgMode === "decrypt" ? [["ESC", "back"]]
+      : [["ESC", "close"], ["ENTER", "copy"], ["ALT+ENTER", "open"], ["DEL", "forget"], ["CTRL+E", "encrypt"], ["CTRL+D", "decrypt"]]
+    keyboard: !root.gpgBusy
     cardWidth: Style.space(700)
     cardHeight: Style.space(480)
     onDismissed: root.close()
@@ -314,6 +461,16 @@ Item {
         if (root.clearConfirmOpen) {
           if (clearConfirm.handleKey(event)) event.accepted = true
           return
+        }
+        if (root.gpgMode !== "") {
+          event.accepted = root.gpgKey(event)
+          return
+        }
+        if (event.modifiers & Qt.ControlModifier) {
+          if (event.key === Qt.Key_E) root.startEncrypt()
+          else if (event.key === Qt.Key_D) root.startDecrypt()
+          event.accepted = event.key === Qt.Key_E || event.key === Qt.Key_D
+          if (event.accepted) return
         }
 
         if (event.key === Qt.Key_Escape) {
@@ -533,12 +690,12 @@ Item {
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.leftMargin: root.contentMargin
-            text: "preview"
+            text: root.gpgMode === "encrypt" ? "encrypt to" : root.gpgMode === "decrypt" ? "decrypted" : "preview"
           }
 
           Text {
             textFormat: Text.PlainText
-            visible: parent.activeRow && !parent.activeRow.previewImage
+            visible: root.gpgMode === "" && parent.activeRow && !parent.activeRow.previewImage
             anchors.fill: parent
             anchors.leftMargin: root.contentMargin
             anchors.topMargin: previewLabel.height + Style.spacing.xs
@@ -552,7 +709,7 @@ Item {
           }
 
           Image {
-            visible: parent.activeRow && parent.activeRow.previewImage
+            visible: root.gpgMode === "" && parent.activeRow && parent.activeRow.previewImage
             anchors.fill: parent
             anchors.leftMargin: root.contentMargin
             anchors.topMargin: previewLabel.height + Style.spacing.xs
@@ -562,6 +719,99 @@ Item {
             verticalAlignment: Image.AlignTop
             asynchronous: true
             smooth: true
+          }
+
+          Column {
+            visible: root.gpgMode !== ""
+            anchors.fill: parent
+            anchors.leftMargin: root.contentMargin
+            anchors.topMargin: previewLabel.height + Style.spacing.xs
+            spacing: Style.spacing.sm
+
+            Text {
+              width: parent.width
+              visible: text !== ""
+              textFormat: Text.PlainText
+              text: root.gpgBusy ? "> waiting for gpg (pinentry or a key touch may ask)" : root.gpgError
+              color: root.gpgBusy ? root.foreground : Colors.urgent
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+              wrapMode: Text.Wrap
+            }
+
+            Text {
+              width: parent.width
+              visible: root.gpgMode === "decrypt" && root.gpgResult !== null
+              textFormat: Text.PlainText
+              text: root.gpgResult ? root.signatureLine(root.gpgResult.signature) : ""
+              color: root.gpgResult ? root.signatureColor(root.gpgResult.signature) : root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+              font.bold: true
+              wrapMode: Text.Wrap
+            }
+
+            Text {
+              width: parent.width
+              height: parent.height - y
+              visible: root.gpgMode === "decrypt" && root.gpgResult !== null
+              textFormat: Text.PlainText
+              text: root.gpgResult ? root.gpgResult.plaintext : ""
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+              wrapMode: Text.WrapAnywhere
+              elide: Text.ElideRight
+            }
+
+            ListView {
+              id: gpgKeyList
+              width: parent.width
+              height: parent.height - y
+              visible: root.gpgMode === "encrypt"
+              model: root.gpgKeys
+              clip: true
+              spacing: Style.spacing.xs
+              currentIndex: root.gpgKeyIndex
+              onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
+
+              delegate: Rectangle {
+                id: keyRow
+                required property int index
+                required property var modelData
+                readonly property bool hasCursor: index === root.gpgKeyIndex
+                readonly property bool picked: root.gpgPicked[modelData.fpr] === true
+
+                width: ListView.view.width
+                height: keyText.implicitHeight + Style.spacing.sm * 2
+                radius: Style.shape.data
+                color: hasCursor ? root.selectedBackground : "transparent"
+
+                Text {
+                  id: keyText
+                  anchors.fill: parent
+                  anchors.margins: Style.spacing.sm
+                  textFormat: Text.PlainText
+                  text: (keyRow.picked ? "[x] " : "[ ] ") + keyRow.modelData.uid + (keyRow.modelData.own ? "  (own)" : "")
+                    + "\n    " + keyRow.modelData.fpr
+                  color: keyRow.hasCursor ? root.selectedText : root.foreground
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                  elide: Text.ElideRight
+                }
+
+                HudFrame { shown: keyRow.hasCursor }
+
+                MouseArea {
+                  anchors.fill: parent
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: {
+                    root.gpgKeyIndex = keyRow.index
+                    root.gpgToggleKey(keyRow.index)
+                  }
+                }
+              }
+            }
           }
         }
       }

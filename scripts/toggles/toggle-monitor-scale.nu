@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [notify state-set state-file]
+use lib.nu [status-record status-print notify state-set state-file]
 
 const DOT = path self ../dot.nu
 const HYPRLAND = "desktop/hyprland"
@@ -123,9 +123,11 @@ def scale-check [scale: string]: nothing -> nothing {
     if $scale !~ '^[0-9]+(\.[0-9]+)?$' { error make {msg: "scale must be a number"} }
 }
 
-def "main get" [monitor?: string] { scale-get ($monitor | default (monitor-default)) }
-
-def "main label" [] { let monitor = monitor-default; $"󰍹 Scale: ($monitor) (scale-get $monitor)x" }
+def "main get" [monitor?: string, --json] {
+    let monitor = $monitor | default (monitor-default)
+    let scale = scale-get $monitor
+    status-print (status-record Scale $scale --text $"($monitor) ($scale)x" --states $SCALES) $json
+}
 
 def "main list" [] {
     let rows = ^hyprctl -j monitors | from json | each {|m| $"($m.name)\t(mode-of $m)\t($m.scale)" }
@@ -143,4 +145,4 @@ def "main toggle" [] {
 }
 
 def "main reapply" [] { reapply }
-def main [] { main label }
+def main [] { main get }

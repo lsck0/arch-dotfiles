@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # no connectivity check before a connect: until proton0 is up the system layer keeps the link on tor
 
-const TOGGLE = path self | path expand | path dirname | path join .. .. .. scripts toggles toggle-protonvpn.nu
+const TOGGLE = path self | path expand | path dirname | path join .. .. .. scripts toggles toggle-route.nu
     | path expand
 const HOME_NETWORK = "/run/home-network"
 const LINK_TYPES = [ethernet wifi gsm bt]
@@ -14,7 +14,7 @@ const RETRY_ATTEMPTS = 6
 const MONITOR_END = "eof"
 
 def vpn-on []: nothing -> bool {
-    (do { ^$TOGGLE get } | complete | get stdout | str trim) == "on"
+    (do { ^$TOGGLE get } | complete | get stdout | str trim) == "proton"
 }
 
 def decide [state: record]: nothing -> record {
@@ -25,14 +25,14 @@ def decide [state: record]: nothing -> record {
     if ($links | is-empty) { return ($state | update retry_at null) }
     let home_links = if ($HOME_NETWORK | path exists) { open --raw $HOME_NETWORK | lines } else { [] }
     if ($links | all { $in.type not-in $MOBILE_TYPES and $in.dev in $home_links }) {
-        if $state.last != home and (vpn-on) { try { ^$TOGGLE off } }
+        if $state.last != home and (vpn-on) { try { ^$TOGGLE direct } }
         return {last: home, attempts: $state.attempts, retry_at: null}
     }
     let net = $links.path | str join " "
     let state = if $state.last != $net { {last: $net, attempts: 0, retry_at: ((date now) + $HOME_WAIT)} } else { $state }
     let due = $state.retry_at == null or (date now) >= $state.retry_at
     if $state.attempts >= $RETRY_ATTEMPTS or not $due { return $state }
-    if (vpn-on) or (try { ^$TOGGLE on; true } catch { false }) {
+    if (vpn-on) or (try { ^$TOGGLE proton --keep-tor; true } catch { false }) {
         return ($state | merge {attempts: $RETRY_ATTEMPTS, retry_at: null})
     }
     let attempts = $state.attempts + 1

@@ -17,6 +17,8 @@ export def link [cfg: record] {
         ($templates | each {|t| file-copy $t ($dir | path join $t) })
         (files-into ($dir | path join colorschemes) ...(glob ../../../themes/*.json))
         (file-text ($nu.home-dir | path join $STYLE_JSON) (style-json) --generated)
+        (unit-file dot-theme.service)
+        (unit-file dot-theme.path --enable --now)
         # theme verbs of later modules read colors.json now, before a fresh home's first theme switch
         (if (which wallust | is-empty) { [] } else {
             exec palette-stand-in [wallust cs -q -s $STAND_IN] --creates ($nu.home-dir | path join .cache wal colors.json)

@@ -58,6 +58,9 @@ Item {
     opened = true
     if (duration > 0) hideTimer.restart()
     else hideTimer.stop()
+    // the launcher's close is a separate ipc call that can overtake this present; never outlive its own timeout
+    if (root.launching) launchCeiling.restart()
+    else launchCeiling.stop()
     if (root.launching) Qt.callLater(root.launchGlitch)
   }
 
@@ -115,6 +118,12 @@ Item {
     id: hideTimer
     interval: root.duration
     onTriggered: root.opened = false
+  }
+
+  Timer {
+    id: launchCeiling
+    interval: 15000
+    onTriggered: if (root.launching) root.opened = false
   }
 
   TextMetrics {

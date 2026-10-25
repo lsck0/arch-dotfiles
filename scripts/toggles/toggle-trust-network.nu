@@ -3,7 +3,7 @@
 # machine's options file, so the choice is reproducible), and the system apply that dot set runs lets 70-home-network
 # decide the link again. Home is still the gateway mac plus the hardware one, never the ssid.
 
-use lib.nu [switch-run]
+use lib.nu [notify switch-run]
 
 const DOT = path self ../dot.nu
 const OPTION = "base/networkmanager.home_gateways"
@@ -30,13 +30,23 @@ def listed []: nothing -> list<string> {
     | get 0.value | str lowercase
 }
 
-def store [gateways: list<string>]: nothing -> nothing {
-    let run = ^nu --no-config-file $DOT set --machine $OPTION ($gateways | to nuon) | complete
+# A pending system part is no failure: the option is written, the network follows on the next system apply.
+def settled [run: record]: nothing -> nothing {
     if $run.exit_code == $EXIT_SYSTEM_PENDING {
-        error make {msg: "stored, the network changes on the next dot apply"}
+        notify "Trusted network" "Saved; the network changes with the next dot apply --system"
     } else if $run.exit_code != 0 {
         error make {msg: ($run.stderr | str trim | lines | last 1 | str join "")}
     }
+}
+
+def store [gateways: list<string>]: nothing -> nothing {
+    settled (^nu --no-config-file $DOT set --machine $OPTION ($gateways | to nuon) | complete)
+}
+
+# Already listed yet not home (a forgotten and rejoined wifi got a fresh profile with a random mac): the system
+# layer's networkmanager home step gives the profile its hardware mac back.
+def reconverge []: nothing -> nothing {
+    settled (^nu --no-config-file $DOT apply --system | complete)
 }
 
 def link []: nothing -> record {
@@ -45,14 +55,14 @@ def link []: nothing -> record {
     $link
 }
 
-def main [action: string = "toggle"] {
+def main [action: string = "toggle", --json] {
     switch-run {
         label: "Trusted network"
         is-on: {|| let link = uplink; $link != null and $link.dev in (home-links) }
         on: {||
             let gateways = listed
             let mac = (link).mac
-            if $mac not-in $gateways { store ($gateways | append $mac) }
+            if $mac not-in $gateways { store ($gateways | append $mac) } else { reconverge }
         }
         off: {||
             let gateways = listed
@@ -62,8 +72,8 @@ def main [action: string = "toggle"] {
             }
             store ($gateways | where $it != $mac)
         }
-    } $action
+        # only while a link has a gateway
+        available: {|| uplink | is-not-empty }
+    } $action --json=$json
 }
 
-# the network panel shows the row only while a link has a gateway
-def "main available" [] { uplink | is-not-empty }

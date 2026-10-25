@@ -1,14 +1,14 @@
 #!/usr/bin/env -S nu --no-config-file
 use lib.nu [switch-run]
-use ../lib/anonymous-socks.nu *
+use ../../configs/base/tor/anonymous-socks.nu *
 
-def main [action: string = "toggle"] {
+def main [action: string = "toggle", --json] {
     switch-run {
         label: "Anonymous SOCKS"
         is-on: {|| (anonymous-socks-status) == on }
         on: {|| anonymous-socks-up }
         off: {|| anonymous-socks-down }
-    } $action
+    } $action --json=$json
 }
 
 # every pool port reachable and leaving through a tor exit

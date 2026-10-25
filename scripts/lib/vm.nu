@@ -1,56 +1,29 @@
-# The end-to-end VM test behind `dot test`: a libvirt guest installed from the Arch or lsck0 iso, driven by sendkey and
-# an OCR'd screen, talking back over a socat server on the host (beacons, uploads, served steps).
+# The end-to-end VM test behind `dot test`: a libvirt guest installed from the lsck0 iso with an answer file, watched
+# through beacons and uploads to a socat server on the host; the guest's chain reports its own verdict at the end.
 
 const REPO = path self ../..
 const VM_DIR = path self vm
-const REPO_URL = "https://github.com/lsck0/arch-dotfiles.git"
 const CONNECT = "qemu:///system"
 const POOL = "default"
 const POOL_DIR = "/var/lib/libvirt/images"
 const CONSOLE_DIR = "/var/log/libvirt/qemu"
-const ISO_VOLUME = "vm-test-archlinux.iso"
-const LSCK0_ISO_LABEL = "ARCH_LSCK0_"
-const LSCK0_VOLUME = "vm-test-archlinux-lsck0.iso"
+const ISO_VOLUME = "vm-test-archlinux-lsck0.iso"
+const ISO_URL = "https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso"
 const ANSWERS_LABEL = "LSCK0"
 const ANSWERS_NAME = "lsck0.nuon"
-const LSCK0_FAILED = "install: failed"
 export const USER = "luca"
 export const PROFILE = "luca"
 const PASSWORD = "admin"
 export const PLATFORM = "vm"
-const BOOTSTRAP_PASSTHROUGH = [BOOTSTRAP_SERVER BOOTSTRAP_SECURE_BOOT BOOTSTRAP_HOSTNAME BOOTSTRAP_GROUPS BOOTSTRAP_SSH_KEY]
 const DISK = "/dev/vda"
 const PORT = 8765
-const HOST = "10.0.2.2:8765"
+const REPORT_URL = "http://10.0.2.2:8765"
 const POLL = 15sec
 const DISK_GIB = 200
 const BOOTSTRAP_TIMEOUT = 1hr
 const CHAIN_TIMEOUT = 12hr
-export const BOOT_TIMEOUT = 5min
-const LOGIN_ATTEMPTS = 3
-const LOGIN_TTY = 3
 const SNAPSHOT_REF = "refs/vm-test/snapshot"
-const KEY_HOLD_MS = 10
-const KEY_GAP = 30ms
 const SUDO_KEEPALIVE = 50sec
-const MODIFIERS = [shift shift_r ctrl ctrl_r alt alt_r]
-const DRILL_STEP_TIMEOUT = 1hr
-const DRILL_SETTLE = 30sec
-const DRILL_VALUE = '^[A-Za-z0-9._:+-]+$'
-const UPLOAD_TIMEOUT = 5min
-const KEYS_US = {
-    " ": spc "-": minus ".": dot "/": slash ":": shift-semicolon ";": semicolon "$": shift-4 "(": shift-9 ")": shift-0
-    "*": shift-8 "_": shift-minus "=": equal ">": shift-dot "<": shift-comma "'": apostrophe "\"": shift-apostrophe
-    "\n": ret ",": comma "&": shift-7 "|": shift-backslash "~": shift-grave_accent "@": shift-2 "%": shift-5 "#": shift-3
-    "!": shift-1 "?": shift-slash "\\": backslash "+": shift-equal "[": bracket_left "]": bracket_right
-    "{": shift-bracket_left "}": shift-bracket_right
-}
-const KEYS_DE = {
-    " ": spc "-": slash ".": dot "/": shift-7 ":": shift-dot ";": shift-comma "$": shift-4 "(": shift-8 ")": shift-9
-    "*": shift-bracket_right "_": shift-slash "=": shift-0 ">": shift-less "<": less "'": shift-backslash "\"": shift-2
-    "\n": ret ",": comma "&": shift-6 "|": alt_r-less "~": alt_r-bracket_right "@": alt_r-q "%": shift-5 "#": backslash
-    "!": shift-1 "?": shift-minus "\\": alt_r-minus "+": bracket_right "[": alt_r-8 "]": alt_r-9 "{": alt_r-7 "}": alt_r-0
-}
 
 def --wrapped virsh [...args: string]: nothing -> string {
     ^sudo virsh -c $CONNECT ...$args | complete | get stdout
@@ -62,7 +35,7 @@ export def cache-dir [name: string]: nothing -> path {
     $dir
 }
 
-export def sudo-keepalive []: nothing -> nothing {
+def sudo-keepalive []: nothing -> nothing {
     ^sudo -v
     job spawn { loop { "" | ^sudo -n true | complete | ignore; sleep $SUDO_KEEPALIVE } } | ignore
 }
@@ -78,49 +51,8 @@ export def screenshot [name: string]: nothing -> path {
     $png
 }
 
-def screen-text [name: string]: nothing -> string {
-    let ppm = cache-dir $name | path join screen.ppm
-    let shot = ^sudo virsh -q -c $CONNECT screenshot $name /dev/stdout | complete
-    if $shot.exit_code != 0 { return "" }
-    $shot.stdout | save --force --raw $ppm
-    ^tesseract $ppm - | complete | get stdout
-}
-
-def wait-screen [name: string, needles: list<string>, timeout: duration]: nothing -> any {
-    let deadline = (date now) + $timeout
-    while (date now) < $deadline {
-        let text = screen-text $name
-        let found = $needles | where {|n| $text | str contains $n } | get --optional 0
-        if $found != null { return $found }
-        sleep $POLL
-    }
-    error make {msg: $"none of ($needles | str join ', ') on screen after ($timeout), see `dot test shot`"}
-}
-
-def key-for [ch: string, layout: string]: nothing -> string {
-    let table = if $layout == "de" { $KEYS_DE } else { $KEYS_US }
-    if $ch in $table { return ($table | get $ch) }
-    if $ch =~ '^[0-9]$' { return $ch }
-    if not ($ch =~ '^[A-Za-z]$') { error make {msg: $"no key for ($ch | to nuon) on layout ($layout)"} }
-    let swapped = if $layout == "de" { {y: z, z: y, Y: Z, Z: Y} | get --optional $ch | default $ch } else { $ch }
-    $"(if $swapped =~ '[A-Z]' { 'shift-' } else { '' })($swapped | str lowercase)"
-}
-
-# Types text through sendkey, one virsh call per key; the guest console drops keys sent faster.
-export def type-text [name: string, text: string, layout: string]: nothing -> nothing {
-    let keys = $text | split chars | each {|c| key-for $c $layout }
-    for k in ($keys ++ $MODIFIERS) {
-        virsh qemu-monitor-command $name --hmp $"sendkey ($k) ($KEY_HOLD_MS)" | ignore
-        sleep $KEY_GAP
-    }
-}
-
-def clear-line [name: string]: nothing -> nothing {
-    virsh qemu-monitor-command $name --hmp "sendkey ctrl-u" | ignore
-}
-
 # Starts the host server on $PORT for this vm, killing a stale one of ours; any other holder is an error.
-export def host-start [name: string, upload_to: path]: nothing -> record {
+def host-start [name: string]: nothing -> record {
     let holders = ^ss -Hltnp $"sport = :($PORT)" | parse --regex 'pid=(?<pid>\d+)' | get pid | uniq
     for pid in $holders {
         let cmdline = try { open --raw $"/proc/($pid)/cmdline" | str replace --all (char nul) " " } catch { "" }
@@ -132,69 +64,18 @@ export def host-start [name: string, upload_to: path]: nothing -> record {
     if ($holders | is-not-empty) { sleep 500ms }
     let dir = cache-dir $name | path join host
     rm --recursive --force $dir
-    mkdir ($dir | path join step) ($dir | path join file)
+    mkdir ($dir | path join upload)
     "" | save ($dir | path join beacons)
-    "0" | save ($dir | path join beacons.read)
-    $upload_to | save ($dir | path join upload-to)
     let pid = ^bash -c $"socat TCP-LISTEN:($PORT),bind=127.0.0.1,reuseaddr,fork EXEC:'bash ($VM_DIR)/serve.sh ($dir)' > /dev/null 2>&1 & echo $!" | str trim
-    {dir: $dir, pid: $pid}
+    {dir: $dir, pid: $pid, read: 0}
 }
 
-export def host-stop [host: record]: nothing -> nothing {
+def host-stop [host: record]: nothing -> nothing {
     ^kill $host.pid | complete | ignore
 }
 
-def host-upload-to [host: record, path: path]: nothing -> nothing {
-    $path | save --force ($host.dir | path join upload-to)
-    rm --force ($host.dir | path join uploaded)
-}
-
-def host-uploaded [host: record, timeout: duration]: nothing -> bool {
-    let deadline = (date now) + $timeout
-    while (date now) < $deadline {
-        if ($host.dir | path join uploaded | path exists) { return true }
-        sleep 1sec
-    }
-    false
-}
-
-def unread [host: record]: nothing -> list<string> {
-    let read = open --raw ($host.dir | path join beacons.read) | into int
-    open --raw ($host.dir | path join beacons) | lines | skip $read
-}
-
-def mark-read [host: record, n: int]: nothing -> nothing {
-    let read = open --raw ($host.dir | path join beacons.read) | into int
-    $read + $n | into string | save --force ($host.dir | path join beacons.read)
-}
-
-# The first unread beacon starting with `prefix`, dropping older unrelated ones; null on timeout.
-export def beacon [host: record, prefix: string, timeout: duration]: nothing -> any {
-    let deadline = (date now) + $timeout
-    while (date now) < $deadline {
-        let new = unread $host
-        let at = $new | enumerate | where {|b| $b.item | str starts-with $prefix } | get --optional 0
-        if $at != null {
-            mark-read $host ($at.index + 1)
-            return $at.item
-        }
-        mark-read $host ($new | length)
-        sleep 1sec
-    }
-    null
-}
-
-def drain [host: record]: nothing -> list<string> {
-    let new = unread $host
-    mark-read $host ($new | length)
-    $new
-}
-
-def beacon-cmd [tag: string]: nothing -> string { $"curl -s ($HOST)/beacon/($tag)" }
-
-def run-step [name: string, host: record, step: string, script: string, layout: string]: nothing -> nothing {
-    $script | save --force ($host.dir | path join step $step)
-    type-text $name $"curl -so /tmp/($step) ($HOST)/step/($step) && bash /tmp/($step)\n" $layout
+def beacons [host: record]: nothing -> list<string> {
+    open --raw ($host.dir | path join beacons) | lines
 }
 
 def pool-iso [iso: path, volume: string, --fresh]: nothing -> string {
@@ -205,16 +86,32 @@ def pool-iso [iso: path, volume: string, --fresh]: nothing -> string {
     }
     if not (virsh pool-info $POOL | str contains running) { virsh pool-start $POOL | ignore }
     let size = ls $iso | get 0.size | into int | into string
-    if $fresh or not (virsh vol-info --pool $POOL $volume --bytes | str contains $size) {
+    # the uploaded iso's checksum: a new latest build of the same size still replaces the volume
+    let stamp = $nu.home-dir | path join .cache vm-test $"($volume).sha256"
+    let sum = open --raw $iso | hash sha256
+    let current = try { open --raw $stamp | str trim } catch { "" }
+    if $fresh or $current != $sum or not (virsh vol-info --pool $POOL $volume --bytes | str contains $size) {
         virsh vol-delete --pool $POOL $volume | ignore
         virsh vol-create-as $POOL $volume $size --format raw | ignore
         virsh vol-upload --pool $POOL $volume $iso | ignore
+        mkdir ($stamp | path dirname)
+        $"($sum)\n" | save --force $stamp
     }
     virsh vol-path --pool $POOL $volume | str trim
 }
 
-def iso-is-lsck0 [iso: path]: nothing -> bool {
-    ^blkid -p -s LABEL -o value $iso | complete | get stdout | str trim | str starts-with $LSCK0_ISO_LABEL
+# The published iso, fetched once into the cache and checked against its .sha256; a local build wins via --iso.
+def iso-latest []: nothing -> path {
+    let iso = $nu.home-dir | path join .cache vm-test ($ISO_URL | path basename)
+    mkdir ($iso | path dirname)
+    ^curl -fsSL -o $"($iso).sha256" $"($ISO_URL).sha256"
+    let want = open --raw $"($iso).sha256" | split row " " | first
+    let sum = {|| ^sha256sum $iso | split row " " | first }
+    if not (($iso | path exists) and (do $sum) == $want) {
+        ^curl -fL -o $iso $ISO_URL
+        if (do $sum) != $want { error make {msg: $"($ISO_URL) does not match its .sha256"} }
+    }
+    $iso
 }
 
 def answers-volume [name: string]: nothing -> string { $"vm-test-($name)-answers.iso" }
@@ -238,8 +135,10 @@ def answers-iso [name: string, bundle: any, platform: string, user: string, prof
         if $lfs != null { cp $lfs ($dir | path join snapshot-lfs.tar) }
         {source: ({bundle: snapshot.bundle} | merge (if $lfs == null { {} } else { {lfs: snapshot-lfs.tar} }))}
     }
-    {username: $user, profile: $profile, platform: $platform, disk: $DISK, password: $PASSWORD, unattended: true}
-    | merge $passthrough | merge $source | to nuon | save --force ($dir | path join $ANSWERS_NAME)
+    {
+        username: $user, profile: $profile, platform: $platform, disk: $DISK, password: $PASSWORD, unattended: true
+        report: $REPORT_URL
+    } | merge $passthrough | merge $source | to nuon | save --force ($dir | path join $ANSWERS_NAME)
     let iso = cache-dir $name | path join answers.iso
     ^xorriso -as mkisofs -quiet -V $ANSWERS_LABEL -J -r -o $iso $dir
     $iso
@@ -280,100 +179,49 @@ def snapshot-lfs [name: string]: nothing -> any {
     $tar
 }
 
-def lsck0-await [name: string]: nothing -> nothing {
-    let deadline = (date now) + $BOOTSTRAP_TIMEOUT
-    while (virsh domstate $name | str trim) != "shut off" {
-        if (screen-text $name | str contains $LSCK0_FAILED) { error make {msg: "the lsck0 iso's install failed, see `dot test shot` (log in the guest's /tmp/lsck0-install.log)"} }
-        if (date now) > $deadline { error make {msg: $"the lsck0 iso's install still running after ($BOOTSTRAP_TIMEOUT)"} }
-        sleep $POLL
-    }
-}
-
+# The iso's install: the guest powers off when done, beacons bootstrap-fail (with its log uploaded) when not.
 def bootstrap [name: string, iso: path, host: record, bundle: any, platform: string, user: string, profile: string]: nothing -> nothing {
     vm-destroy $name
-    let lsck0 = iso-is-lsck0 $iso
-    let cdrom = if $lsck0 { pool-iso $iso $LSCK0_VOLUME } else { pool-iso $iso $ISO_VOLUME }
-    let answers = if $lsck0 {
-        [--disk $"path=(pool-iso (answers-iso $name $bundle $platform $user $profile) (answers-volume $name) --fresh),device=cdrom,readonly=on"]
-    } else { [] }
+    let cdrom = pool-iso $iso $ISO_VOLUME
+    let answers = pool-iso (answers-iso $name $bundle $platform $user $profile) (answers-volume $name) --fresh
     let console = $CONSOLE_DIR | path join $"($name)-serial.log"
     (^sudo virt-install --connect $CONNECT --name $name --memory 12288 --vcpus 8 --cpu host-passthrough
-        --serial $"file,path=($console)" --disk $"pool=($POOL),size=($DISK_GIB),format=qcow2,bus=virtio,discard=unmap" --cdrom $cdrom ...$answers
+        --serial $"file,path=($console)" --disk $"pool=($POOL),size=($DISK_GIB),format=qcow2,bus=virtio,discard=unmap"
+        --cdrom $cdrom --disk $"path=($answers),device=cdrom,readonly=on"
         --osinfo archlinux --network user,model=virtio --graphics spice --video virtio --noautoconsole
         --features smm.state=on
         --boot "uefi,firmware.feature0.name=secure-boot,firmware.feature0.enabled=yes,firmware.feature1.name=enrolled-keys,firmware.feature1.enabled=no")
-    let follow = ^bash -c $"sudo -n tail --pid=($nu.pid) -n +1 -F '($console)' >&2 2>/dev/null & echo $!" | str trim
-    if $lsck0 {
-        lsck0-await $name
-        ^kill $follow | complete | ignore
-        virsh start $name | ignore
-        return
-    }
-    wait-screen $name [root@archiso] $BOOT_TIMEOUT | ignore
-    let checkout = if $bundle == null { "" } else {
-        ^ln -sf $bundle ($host.dir | path join file snapshot.bundle)
-        let lfs = snapshot-lfs $name
-        let objects = if $lfs == null { "" } else {
-            ^ln -sf $lfs ($host.dir | path join file snapshot-lfs.tar)
-            $" && curl -s ($HOST)/file/snapshot-lfs.tar | tar -xC .git"
-        }
-        $" && curl -so /tmp/snapshot.bundle ($HOST)/file/snapshot.bundle && git fetch -q /tmp/snapshot.bundle ($SNAPSHOT_REF) && git checkout -q FETCH_HEAD($objects)"
-    }
-    let log = cache-dir $name | path join bootstrap.log
-    host-upload-to $host $log
-    let answers = $BOOTSTRAP_PASSTHROUGH | where {|n| $env | get --optional $n | is-not-empty } | each {|n|
-        $"($n)='($env | get $n | str replace --all "'" "'\\''")' "
-    } | str join
-    run-step $name $host bootstrap ([
-        "set -o pipefail"
-        "exec > >(tee /dev/ttyS0) 2>&1"
-        "pacman -Sy --noconfirm --needed git"
-        $"cd /tmp && git clone ($REPO_URL) && cd arch-dotfiles($checkout) \\"
-        $"    && ($answers)BOOTSTRAP_DISK=($DISK) BOOTSTRAP_PASSWORD=($PASSWORD) BOOTSTRAP_USERNAME=($user) BOOTSTRAP_PROFILE=($profile) BOOTSTRAP_ASSUME_YES=1 ./bootstrap.sh ($platform) 2>&1 \\"
-        "    | tee /tmp/bootstrap.log \\"
-        $"    || { curl -sT /tmp/bootstrap.log ($HOST)/bootstrap.log; (beacon-cmd bootstrap-fail); }"
-    ] | str join "\n" | $"($in)\n") us
     let deadline = (date now) + $BOOTSTRAP_TIMEOUT
-    let failed = try {
-        while (virsh domstate $name | str trim) != "shut off" {
-            if (beacon $host bootstrap-fail $POLL) != null { error make {msg: $"bootstrap.sh failed, see ($log)"} }
-            if (date now) > $deadline { error make {msg: $"bootstrap.sh still running after ($BOOTSTRAP_TIMEOUT)"} }
+    while (virsh domstate $name | str trim) != "shut off" {
+        if "bootstrap-fail" in (beacons $host) {
+            error make {msg: $"the iso's install failed, see ($host.dir)/upload/bootstrap.log"}
         }
-        null
-    } catch {|e| $e.msg }
-    ^kill $follow | complete | ignore
-    if $failed != null { error make {msg: $failed} }
+        if (date now) > $deadline { error make {msg: $"the iso's install still running after ($BOOTSTRAP_TIMEOUT), see `dot test shot`"} }
+        sleep $POLL
+    }
     virsh start $name | ignore
 }
 
-def await-chain [name: string]: nothing -> nothing {
+# Waits for the chain's own report: a beacon per stage, then chain-done (or chain-fail) once its logs are uploaded.
+def await-chain [name: string, host: record]: nothing -> path {
     let start = date now
-    wait-screen $name ["nter passphrase" "root volume"] $CHAIN_TIMEOUT | ignore
-    print $"dot test: chain done after ((date now) - $start)"
-    type-text $name $"($PASSWORD)\n" de
-}
-
-# Logs in on a text tty, retrying until a beacon proves a shell: getty drops early input, the shell starts slowly.
-export def login-tty [name: string, host: record, user: string]: nothing -> any {
-    for attempt in 0..<$LOGIN_ATTEMPTS {
-        sleep (if $attempt == 0 { $POLL } else { 3sec })
-        virsh qemu-monitor-command $name --hmp $"sendkey ctrl-alt-f($LOGIN_TTY)" | ignore
-        sleep 3sec
-        type-text $name $"($user)\n" de
-        sleep 3sec
-        type-text $name $"($PASSWORD)\n" de
-        sleep 5sec
-        clear-line $name
-        type-text $name $"echo ($PASSWORD) | sudo -S systemctl stop portmaster.service 2>/dev/null\n" de
-        for poll in 0..<4 {
-            sleep 6sec
-            clear-line $name
-            let tag = $"login-($attempt)-($poll)"
-            type-text $name $"(beacon-cmd $tag)\n" de
-            if (beacon $host $tag 15sec) != null { return }
-        }
+    mut seen = []
+    while "chain-done" not-in $seen and "chain-fail" not-in $seen {
+        if (date now) > ($start + $CHAIN_TIMEOUT) { error make {msg: $"no chain-done after ($CHAIN_TIMEOUT), see `dot test shot`"} }
+        sleep $POLL
+        let now = beacons $host
+        for b in ($now | skip ($seen | length)) { print $"dot test: ($b) after ((date now) - $start)" }
+        $seen = $now
     }
-    error make {msg: $"login failed ($LOGIN_ATTEMPTS) times, see `dot test shot`"}
+    let tgz = $host.dir | path join upload logs.tgz
+    if not ($tgz | path exists) {
+        error make {msg: (if "chain-fail" in $seen { "the chain failed before uploading its logs, see `dot test shot`" } else { "chain-done without a log upload" })}
+    }
+    let logs = cache-dir $name | path join logs
+    rm --recursive --force $logs
+    mkdir $logs
+    ^tar -xzf $tgz -C $logs
+    $logs
 }
 
 def invariants []: nothing -> table {
@@ -381,41 +229,8 @@ def invariants []: nothing -> table {
     | parse --regex '^(?<key>\S+)\s+(?<want>\S+)\s+(?<where>\S+)\s+(?<probe>.*)$'
 }
 
-# Runs the invariant probes and log collection on the guest and unpacks the upload into the cache dir.
-export def pull-logs [name: string, host: record]: nothing -> path {
-    let out = cache-dir $name
-    let tgz = $out | path join logs.tgz
-    rm --force $tgz
-    host-upload-to $host $tgz
-    clear-line $name
-    let probes = invariants | each {|i|
-        let probe = $i.probe | str replace --all "@PASSWORD@" $PASSWORD | str replace --all "@DISK@" $DISK
-        '    printf "%s=%s\n" ' + $i.key + ' "$(' + $probe + ')"'
-    } | str join "\n"
-    run-step $name $host logs ([
-        "cd ~/projects/arch-dotfiles"
-        "sudo -k"
-        "{"
-        $probes
-        '    echo "backup_roundtrip=$(nu --no-config-file scripts/dot.nu internal backup --roundtrip > backup-roundtrip.log 2>&1 && echo ok || echo fail)"'
-        "} > verify.log"
-        "cp /var/lib/dotfiles-stage/log stage.log"
-        $"echo ($PASSWORD) | sudo -S journalctl -u dotfiles-stage.service --no-pager -o short-iso > stage-journal.log"
-        $"echo ($PASSWORD) | sudo -S journalctl -b -1 -p warning --no-pager -o short-iso > config-boot-warnings.log"
-        "{ resolvectl status; cat /etc/resolv.conf; } > network.log 2>&1"
-        "tar czf /tmp/vm-test-logs.tgz $(ls FAILURES.* 2>/dev/null) $(find . -name '*.log')"
-        $"curl -sT /tmp/vm-test-logs.tgz ($HOST)/logs.tgz"
-    ] | str join "\n" | $"($in)\n") de
-    if not (host-uploaded $host $UPLOAD_TIMEOUT) { error make {msg: "no log upload arrived, see `dot test shot`"} }
-    let logs = $out | path join logs
-    rm --recursive --force $logs
-    mkdir $logs
-    ^tar -xzf $tgz -C $logs
-    $logs
-}
-
-# Every problem in pulled logs: invariants off their wanted value, non-empty FAILURES files, stages not ok.
-export def verify [logs: path]: nothing -> list<string> {
+# Every problem in the reported logs: invariants off their wanted value, non-empty FAILURES files, stages not ok.
+def verify [logs: path]: nothing -> list<string> {
     let state = open --raw ($logs | path join verify.log) | lines | where ($it | str contains "=") | parse "{key}={value}" | reduce --fold {} {|r, acc| $acc | upsert $r.key $r.value }
     let expected = invariants | reduce --fold {backup_roundtrip: ok} {|i, acc| $acc | insert $i.key $i.want }
     let facts = $expected | items {|key, want| let got = $state | get --optional $key; if $got != $want { $"($key)=($got), expected ($want)" } } | compact
@@ -426,144 +241,19 @@ export def verify [logs: path]: nothing -> list<string> {
 }
 
 # Installs a fresh vm through the whole unattended chain and verifies it; `master` takes GitHub master, not a snapshot.
-export def vm-run [name: string, iso: path, platform: string, user: string, profile: string, master: bool]: nothing -> nothing {
-    for t in [virt-install virsh tesseract magick socat xorriso blkid] {
+export def vm-run [name: string, iso: any, platform: string, user: string, profile: string, master: bool]: nothing -> nothing {
+    for t in [virt-install virsh socat xorriso curl] {
         if (which $t | is-empty) { error make {msg: $"($t) missing"} }
     }
+    let iso = if $iso == null { iso-latest } else { $iso }
     if not ($iso | path exists) { error make {msg: $"no iso at ($iso)"} }
     sudo-keepalive
-    let host = host-start $name (cache-dir $name | path join logs.tgz)
+    let host = host-start $name
     bootstrap $name $iso $host (if $master { null } else { snapshot-bundle $name }) $platform $user $profile
-    await-chain $name
-    login-tty $name $host $user
-    let logs = pull-logs $name $host
+    let logs = await-chain $name $host
     host-stop $host
     print $"dot test: logs in ($logs)"
     let problems = verify $logs
-    virsh qemu-monitor-command $name --hmp "sendkey ctrl-alt-f1" | ignore
-    sleep 5sec
-    print (screenshot $name)
     if ($problems | is-not-empty) { error make {msg: ($problems | str join "\n")} }
-    print "dot test: chain succeeded, the screenshot shows the login manager"
-}
-
-def unlock [name: string, timeout: duration]: nothing -> bool {
-    let deadline = (date now) + $timeout
-    while (date now) < $deadline {
-        let text = screen-text $name
-        if ($text | str contains "nter passphrase") or ($text | str contains "root volume") {
-            type-text $name $"($PASSWORD)\n" de
-            return true
-        }
-        sleep $POLL
-    }
-    false
-}
-
-def drill-reboot [name: string, host: record, user: string, --again]: nothing -> nothing {
-    if not (unlock $name $BOOT_TIMEOUT) { error make {msg: "no passphrase prompt after the drill's reboot, see `dot test shot`"} }
-    if $again {
-        sleep $DRILL_SETTLE
-        unlock $name $BOOT_TIMEOUT | ignore
-    }
-    login-tty $name $host $user
-}
-
-def drill-step [name: string, host: record, step: string, values: record = {}, files: record = {}]: nothing -> record {
-    let scripts = [prelude $step] | each {|script|
-        let text = open --raw ($VM_DIR | path join $"($script).nu") | str replace --all "@HOST@" $HOST
-        $values | items {|k, v| {k: $k, v: ($v | into string)} } | reduce --fold $text {|kv, acc|
-            if not ($kv.v =~ $DRILL_VALUE) { error make {msg: $"drill value ($kv.k)=($kv.v | to nuon) is no plain word, not handing it to the guest"} }
-            $acc | str replace --all $"@($kv.k | str uppercase)@" $kv.v
-        }
-    }
-    let left = $scripts | str join | parse --regex '(?<p>@[A-Z_]+@)' | get p | uniq
-    if ($left | is-not-empty) { error make {msg: $"drill step ($step) left ($left | str join ' ') unfilled"} }
-    let log = cache-dir $name | path join $"drill-($step).log"
-    rm --force $log
-    host-upload-to $host $log
-    $scripts.0 | save --force ($host.dir | path join step prelude.nu)
-    $scripts.1 | save --force ($host.dir | path join step $"($step).nu")
-    $files | items {|suffix, text| $text | save --force ($host.dir | path join step $"($step).($suffix)") } | ignore
-    clear-line $name
-    let fetch = [prelude.nu $"($step).nu"] | each { $"curl -so /tmp/($in) ($HOST)/step/($in)" } | str join " && "
-    run-step $name $host $step $"($fetch) && echo ($PASSWORD) | sudo -S -p '' nu --no-config-file /tmp/($step).nu > /tmp/($step).nu.log 2>&1\n" de
-    if not (host-uploaded $host $DRILL_STEP_TIMEOUT) { error make {msg: $"drill step ($step) sent no report in ($DRILL_STEP_TIMEOUT), see `dot test shot`"} }
-    open --raw $log | lines | parse --regex '^drill: (?<k>[a-z0-9_]+)=(?<v>.*)$' | reduce --fold {} {|r, acc| $acc | upsert $r.k $r.v }
-}
-
-def expect [step: string, got: record, want: record]: nothing -> list<string> {
-    $want | items {|k, v| if ($got | get --optional $k) != $v { $"($step): ($k)=($got | get --optional $k), expected ($v)" } } | compact
-}
-
-const BYPASS_MEMBER_GID = 4711
-const BYPASS_PROBES = [
-    [phase name proto daddr dport gid marked];
-    [away lo_udp udp 127.0.0.1 5000 0 true] [away lo_tcp tcp 127.0.0.1 5001 0 true]
-    [away lo_dns_udp udp 127.0.0.1 53 0 false] [away lo_dns_tcp tcp 127.0.0.1 53 0 false]
-    [away lo_dot tcp 127.0.0.1 853 0 false] [away lo6_udp udp "::1" 5002 0 true] [away lo6_dns udp "::1" 53 0 false]
-    [away labdns_away udp 192.168.178.29 53 0 false] [away lab_v4_10 udp 10.8.0.1 5003 0 true]
-    [away lab_v4_172 tcp 172.16.1.1 5004 0 true] [away lab_v4_192 udp 192.168.50.1 5005 0 true]
-    [away lab_internet udp 1.1.1.1 5006 0 false] [away lab_v6 udp "fd00::1" 5007 0 true]
-    [away lab_v6_internet udp "2001:db8::1" 5008 0 false] [away wan_lab_range udp 172.20.1.1 5009 0 false]
-    [away wan_member_gid udp 203.0.113.7 5010 4711 true] [away wan_member_gid6 udp "2001:db8:ff::7" 5011 4711 true]
-    [away wan_other_gid udp 203.0.113.7 5012 4712 false] [away wan_root udp 203.0.113.7 5013 0 false]
-    [home labdns_udp udp 192.168.178.29 53 0 true] [home labdns_tcp tcp 192.168.178.29 53 0 true]
-    [home labdns_other_port udp 192.168.178.29 5353 0 false] [home home_other_dns udp 192.168.178.1 53 0 false]
-    [home home_lan udp 192.168.178.5 5014 0 false]
-]
-
-def drill-egress [name: string, host: record, user: string]: nothing -> list<string> {
-    drain $host | ignore
-    let bypass = open --raw ($VM_DIR | path join bypass.nu)
-        | str replace "@MEMBER_GID@" ($BYPASS_MEMBER_GID | into string)
-        | str replace "@PROBES@" ($BYPASS_PROBES | reject marked | to nuon)
-    let got = drill-step $name $host egress {} {bypass: $bypass}
-    let want = {bypass_deployed: yes, bypass_live_gids: yes}
-        | merge ($BYPASS_PROBES | reduce --fold {} {|p, acc| $acc | insert $"bypass_($p.name)" (if $p.marked { "marked" } else { "unmarked" }) })
-        | merge {
-            vpn_conf: drill, vpn_module: ok, vpn_links: "lo,wg-protonvpn", vpn_routes: "default dev wg-protonvpn scope link"
-            vpn_ipv6_off: "1", vpn_route_host: wg-protonvpn, vpn_run_user: $user, vpn_run_ns: yes, vpn_up_curl: no, vpn_up_dns: no
-            vpn_down_route: none, vpn_down_curl: no, vpn_gone_links: lo, vpn_gone_leak: no, vpn_gone_run: refused
-            vpn_gone_shim: refused, vpn_restart_links: "lo,wg-protonvpn", vpn_stopped_ns: absent, vpn_stopped_run: refused
-        }
-    let beacons = drain $host
-    let control = if "drill-control" in $beacons { [] } else { ["egress: the control beacon never reached the host, so no leak beacon could have either"] }
-    (expect egress $got $want) ++ $control ++ ($beacons | where ($it | str contains leak) | each { $"egress: ($in) reached the host from inside the namespace" })
-}
-
-# Runs a named drill (only egress) on an installed vm, starting it when shut off.
-export def vm-drill [name: string, drill: string, user: string]: nothing -> nothing {
-    if $drill != "egress" { error make {msg: $"no drill ($drill), the one drill is egress"} }
-    sudo-keepalive
-    match (virsh domstate $name | str trim) {
-        "shut off" => {
-            virsh start $name | ignore
-            if not (unlock $name $BOOT_TIMEOUT) { error make {msg: $"($name) started but asked no passphrase, see `dot test shot`"} }
-        }
-        "running" => {}
-        $state => { error make {msg: $"no installed vm ($name) \(($state | default missing)\), `dot test run` makes one"} }
-    }
-    let host = host-start $name (cache-dir $name | path join drill.log)
-    login-tty $name $host $user
-    let problems = drill-egress $name $host $user
-    host-stop $host
-    if ($problems | is-not-empty) { error make {msg: ($problems | str join "\n")} }
-    print $"dot test: drill ($drill) passed, its logs are (cache-dir $name)/drill-*.log"
-}
-
-export def vm-logs [name: string, user: string]: nothing -> nothing {
-    sudo-keepalive
-    let host = host-start $name (cache-dir $name | path join logs.tgz)
-    login-tty $name $host $user
-    let logs = pull-logs $name $host
-    host-stop $host
-    print $logs
-    let problems = verify $logs
-    print (if ($problems | is-empty) { "dot test: verify found no problems" } else { $problems | str join "\n" })
-}
-
-# Types text into the vm, a literal \n as enter.
-export def vm-type [name: string, text: string, layout: string]: nothing -> nothing {
-    type-text $name ($text | str replace --all '\n' "\n") $layout
+    print "dot test: chain succeeded"
 }

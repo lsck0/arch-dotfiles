@@ -4,11 +4,12 @@
 use module.nu *
 use ini.nu [ini-apply ini-rows]
 use ../../core/wallust/palette.nu [hex-to-rgb readable-on rgb-to-hex]
+use ../../core/wallust/font.nu [font-load]
 
 export const meta = {
     packages: {
         pacman: [
-            bluedevil dolphin kdeplasma-addons kscreen plasma-desktop plasma-integration plasma-nm plasma-pa plasma-vault
+            ark bluedevil dolphin kdeplasma-addons kscreen plasma-desktop plasma-integration plasma-nm plasma-pa plasma-vault
             polkit-kde-agent spectacle
         ]
     }
@@ -164,13 +165,11 @@ def wallpaper-set [wallpaper: string]: nothing -> list<record> {
     ]
 }
 
-# The qt font strings' family and size over the template's, so a switch keeps what toggle-font set.
+# The qt font strings' family and size over the template's: the font beside the palette (core/wallust/font.nu).
 def kde-fonts [template: string]: nothing -> record {
-    let toggle = $env.DOTFILES | path join scripts toggles toggle-font.nu
-    let family = ^$toggle get | complete | get stdout | str trim
-    let size = ^$toggle ui-size | complete | get stdout | str trim
-    if ($family | is-empty) or $size !~ '^[0-9]+$' { return {} }
-    let size = $size | into int
+    let font = font-load
+    let family = $font.family
+    let size = $font.ui_size
     let current = $template | lines
     $KDE_FONT_KEYS | reduce --fold {} {|k, acc|
         let line = $current | where ($it | str starts-with $"($k.key)=") | get --optional 0

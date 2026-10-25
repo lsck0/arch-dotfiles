@@ -2,17 +2,10 @@
   "_comment": [
     "Live-watched, save to re-theme. Values here override the code defaults.",
     "Defaults, ranges and meaning: Commons/Theme.qml.",
-    "font.size scales the whole shell; icon font is fixed in code.",
+    "The font comes from ~/.cache/wal/font.json (toggle-font, a theme's font); font.size scales the whole shell.",
     "palette.* conditions wallust colours, it does not replace them."
   ],
-  "font": {
-    "family": "Kode Mono",
-    "size": 13
-  },
   "palette": {
-    "backgroundValueMin": 0.08,
-    "backgroundValueMax": 0.26,
-    "lightLuminance": 0.4,
     "foregroundContrast": 7.0,
     "accentMinSaturation": 0.7,
     "accentMinValue": 0.62,

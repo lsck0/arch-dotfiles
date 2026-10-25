@@ -1,10 +1,16 @@
 #!/usr/bin/env -S nu --no-config-file
 use lib.nu [TOGGLES_DIR toggle-run]
 
-const PICKER = path self ../lib/picker.nu
+const PICKER = path self ../../configs/desktop/hyprland/picker.nu
+
+# an on/off switch shows its label alone, any other toggle its state too
+def line [toggle: record]: nothing -> string {
+    let mark = if $toggle.on { '●' } else { '○' }
+    if $toggle.states == [off on] { $"($mark) ($toggle.label)" } else { $"($mark) ($toggle.label): ($toggle.text)" }
+}
 
 def main [--fzf] {
-    let toggles = ^($TOGGLES_DIR | path join status.nu) | from json | each {|t| $t | insert line $"(if $t.on { '●' } else { '○' }) ($t.label)" }
+    let toggles = ^($TOGGLES_DIR | path join status.nu) | from json | where available | each {|t| $t | insert line (line $t) }
     let lines = $toggles.line | to text
     let picked = if $fzf {
         $lines | ^fzf --prompt="Toggles> " --height=~60% --border --header="enter: toggle | esc: cancel" | complete

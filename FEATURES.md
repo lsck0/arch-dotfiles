@@ -43,8 +43,7 @@ the tree itself; this file says what they do.
   copy `/var/lib/dotfiles/repo`, then the user layer. `--system` and `--user` (or naming modules) run one layer alone.
   `--packages`: every declared package from the `[lsck0]` mirror, the user's flatpak and nix packages, then
   offers to remove packages no module declares.
-- `dot plan`: what an apply would do, touching nothing; `--sandbox` also runs the user layer in a bubblewrap overlay
-  and reports its write set; `--system` for the system layer; `--order` the run order, `--modules` every module.
+- `dot plan`: what an apply would do, touching nothing; `--system` for the system layer; `--order` the run order, `--modules` every module.
 - `dot status`: generation, last run, pending migrations and system parts, managed files changed since their apply, then
   every health check (failures, pending applies, drift, firewall, units, the [lsck0] snapshot, secrets due for rotation or
   a recovery drill) and the drift report each machine publishes into `configs/secrets/state/drift/<host>`; `--brief` the
@@ -57,8 +56,8 @@ the tree itself; this file says what they do.
   keeps it. `unlink <module>` reverses a module's last apply (unchanged files, links and units go, originals come
   back); `remove <module>` also turns it off (`--machine` for the machine) and offers its packages for removal;
   `restore <module>` runs its restore verb.
-- `dot rollback`: back to an earlier generation, undoing newer migrations; `--full` also takes the packages back (the
-  `[lsck0]` snapshot and nixpkgs pin of that commit); `--dry-run` only reports what it would do.
+- `dot rollback`: back to an earlier generation's config layer, undoing newer migrations; packages stay as
+  installed; `--dry-run` only reports what it would do.
 - `dot theme [name|random]`: wallpaper and theme switching, fzf with previews without a name (see Theming).
 - `dot secrets unlock|lock|init|seal`: the git-crypt `configs/secrets/` worktree behind the YubiKey; `--identity <age
   file>` without one. `dot secrets audit [rotated|drilled]`: what is due for rotation or a recovery drill, and recording
@@ -72,16 +71,17 @@ the tree itself; this file says what they do.
   `iso-install`, `stage` (the install chain), `iso` (the install iso), `complete <words>` and `completions zsh|nu`
   (installed by `base/dot`).
 - `dot test lint`: static rules (module refs, layer rules, `~/sync` writes, stray files, platform facts and options,
-  nu pitfalls, exec bits, palette clamps, generated files, locked flags, every `*.test.sh`/`*.test.nu`); `dot test
+  nu pitfalls, exec bits, generated files, every `*.test.sh`/`*.test.nu`); `dot test
   check`: every formatter and linter (the sync gate); `dot test fmt` applies them.
-- `dot test run`: the end-to-end VM test: a libvirt VM with secure boot in setup mode boots the ISO, `bootstrap.sh` is
-  typed in, the chain installs on its own boots; `dot test drill egress|rollback`, `logs`, `shot`, `type`, `destroy`.
+- `dot test run`: the end-to-end VM test: a libvirt VM with secure boot in setup mode boots the lsck0 iso with an
+  answer file, the chain installs on its own boots and reports its verdict and logs back; `dot test shot`, `destroy`.
 - A pkexec-only polkit action (`base/dot`) lets `dot set` from the settings window apply the system layer, asking the
   admin password every time.
 - `FAILURES.*` at the repo root lists what failed in the last run; a login notification shows them
   (`failures-login.service`).
-- `system-update`: confirm, then `dot sync --no-push`, flatpak, rustup, opam, ghcup, Hyprland plugins, tldr, nvim
-  Lazy/Mason/treesitter and emacs package upgrades.
+- `dot sync` also runs every module's `update` verb after the apply: rustup, opam, the Hyprland plugins against a
+  newer Hyprland, nvim Lazy/Mason/treesitter and emacs packages. Pinned things (flatpak commits, ghcup versions)
+  move only by a repo edit; tldr pages refresh on their own weekly timer.
 
 ## Machines, profiles and options
 
@@ -95,7 +95,8 @@ the tree itself; this file says what they do.
   gets base, core and programming.
 - Skills: `skills/l-*` are symlinked into Claude Code, Copilot and Hermes skill dirs and registered with Gemini.
 - `[lsck0]` package mirror: own pkgbuilds in `mirror/pkgbuilds` and AUR dependency fixes in `mirror/overrides.conf`,
-  built by the homelab; pacman trusts it first, optionally pinned to a dated snapshot (`LSCK0_SNAPSHOT`).
+  built by the homelab; pacman trusts it first, optionally pinned to a dated snapshot (the
+  `lsck0_snapshot` platform fact).
 
 ## Security and privacy
 
@@ -158,7 +159,7 @@ the tree itself; this file says what they do.
 - `protonvpn` network namespace with a fail-closed WireGuard tunnel; `vpn <cmd>` runs a command inside it, and
   yt-dlp, mpv streaming, ani-cli, gallery-dl, spotdl and nicotine are shimmed to always run there.
 - tor transparent proxy (`tor-router`): all TCP and DNS through tor with exemptions for tunnels, home LAN and guests;
-  `toron`/`toroff` and `toggle-tor`.
+  `toron`/`toroff` and `toggle-route tor`.
 - `toggle-anonymous-socks`: a separate tor with a pool of isolated SOCKS ports, each verified as tor, a round-robin
   proxychains config, NEWNYM, optional rate cap and TTL persona.
 - Portmaster application firewall with DoT to Cloudflare and filter lists (trackers, malware, ads); a bypass for
@@ -200,7 +201,7 @@ the tree itself; this file says what they do.
 - Printing: driverless printers found over mDNS get permanent queues (`printers-sync`), plus a cups-pdf "PDF" queue.
 - Timezone follows the IP location on home networks only and never with a VPN or tor up (`timezone-auto`).
 - Mirrorlist ranked weekly and rebuilt monthly by ghostmirror; the homelab mirror goes first when it answers.
-- KDE Connect and LocalSend ports open on home links; `toggle-wifi`, `toggle-ethernet`, `toggle-offline`.
+- KDE Connect and LocalSend ports open on home links; `toggle-wifi`, `toggle-ethernet`, `toggle-route offline`.
 
 ## Boot, power and system
 
@@ -255,8 +256,6 @@ the tree itself; this file says what they do.
 - Power saver turns off animations, blur, shadows, shaders and dynamic cursors.
 - hypr-dynamic-cursors plugin (shake to find) via hyprpm.
 - Desktop mascots (wl_shimeji) on `SUPER+y`.
-- GPG on the clipboard: `gpg-clip decrypt|encrypt|sign` on `SUPER+SHIFT+d/x/c`; plaintext shown in a pager, never
-  copied.
 
 ## Desktop: quickshell
 
@@ -279,9 +278,9 @@ One quickshell process draws the bar, panels, launcher, notifications, OSD, lock
 - Homelab: status, alerts, hosts, storage, traffic, services; connect the homelab VPN.
 - System: CPU, memory, GPU and temperature with history, top processes, OSSEC alerts, power mode selector, disk speed
   test.
-- Network: details, throughput, Wi-Fi list with password entry, tunnel switches (ProtonVPN, homelab VPN, tor,
-  anonymous SOCKS), radios (Wi-Fi, Ethernet, mobile, Bluetooth, offline), a firewall mode picker (permissive, default,
-  restrictive), speed test, Wi-Fi QR share.
+- Network: details, throughput, Wi-Fi list with password entry, a route picker (direct, ProtonVPN, tor, offline), the
+  homelab VPN and anonymous SOCKS switches, radios (Wi-Fi, Ethernet, mobile, Bluetooth), a firewall mode picker
+  (permissive, default, restrictive), speed test, Wi-Fi QR share.
 - Display: brightness per monitor (backlight or DDC), color grading presets, night light, shaders, monitor layout
   (extend, mirror, off) and scale.
 - Audio: output and input devices, fader and meters, per-app routing, "heard by", deafen, qpwgraph.
@@ -301,7 +300,9 @@ One quickshell process draws the bar, panels, launcher, notifications, OSD, lock
 - Launcher (`SUPER+d`): apps by fuzzy and frecency score; `=` calculator (qalc, Enter copies), `>` run a command, `@`
   windows, `:` clipboard.
 - Clipboard (`SUPER+v`): text and image history (500 entries, runtime dir only), skips password manager entries;
-  copy, open, forget, clear.
+  copy, open, forget, clear. OpenPGP on the selected entry: `CTRL+E` encrypts and signs to recipients picked in the
+  window (own key preselected), the armored message replaces the plaintext on the clipboard and in the history;
+  `CTRL+D` decrypts or verifies, showing the signature verdict and the plaintext in the window only, never copied.
 - OSD: volume, mic, brightness, keyboard backlight and app launch on the focused output.
 - Notifications: toasts fold per app, hover pauses, critical stays; history of 30; DND persists and turns on while OBS
   runs.
@@ -318,8 +319,9 @@ One quickshell process draws the bar, panels, launcher, notifications, OSD, lock
 
 ## Toggles
 
-`scripts/toggles/toggle-<name>.nu` with `on|off|toggle|get|label`; `SUPER+t` (menu), the bar drawers and the settings
-window list them through `status.nu`. Privileged halves go through `pkexec toggle-root` with polkit rules for wheel.
+`scripts/toggles/toggle-<name>.nu` with `on|off|toggle|get` (or `set <state>`); `get --json` answers one status record
+(name, label, state, text, states, on, available), which `SUPER+t` (menu), the bar drawers and the settings window
+read through `status.nu`. A flip's privileged half is one `pkexec toggle-root` call with polkit rules for wheel.
 
 - `anonymous-socks`: tor SOCKS port pool with persona and rate cap; `check`, `newnym`, `proxylist`, `proxyconf`.
 - `bluetooth`, `wifi`, `ethernet`, `mobile`: radios and devices through bluetoothctl and nmcli.
@@ -334,10 +336,11 @@ window list them through `status.nu`. Privileged halves go through `pkexec toggl
 - `monitor-scale`: steps the scale and stores it with `dot set --machine`; `live`, `layout extend|off|mirror`.
 - `nightlight`: 4000K white point.
 - `obs-listen`: hear the OBS stream mix instead of the system audio (stream inputs monitored, per-app paths muted).
-- `offline`: networking and radios off, tunnels down; off restores them.
 - `powermode`: auto, balanced, performance or power saver through TLP, and power saver in Hyprland, ghostty and
   quickshell.
-- `protonvpn`: connect with the kill switch, Portmaster paused meanwhile.
+- `route`: where traffic leaves, one at a time: direct, ProtonVPN (kill switch, Portmaster paused meanwhile), the tor
+  router, or offline (networking and radios off, wg0 down; leaving restores them); `set`, `direct`, `proton`, `tor`,
+  `offline`.
 - `shader`: a Hyprland screen shader or off; `set`, `list`.
 - `theme-mode`: flips the theme to its light or dark pair; `light`, `dark`, `set`.
 - `vpn`: homelab WireGuard `wg0`.
@@ -356,7 +359,7 @@ window list them through `status.nu`. Privileged halves go through `pkexec toggl
   (pywalfox), Thunderbird, Spotify (spicetify), Discord (BetterDiscord), Steam (Millennium), caido, ghidra, gh-dash,
   hermes, telegram palette, delta.
 - `toggle-font` switches the UI and terminal font family everywhere.
-- Wallpapers fit-checked per monitor (`wallpaper-list`), private ones imported into `configs/secrets/`
+- Wallpapers fit-checked per monitor (`wallpaper-list`), bought ones imported into `~/sync/wallpapers` (`wallpaper-import`)
   (`wallpaper-import`).
 
 ## Shell and terminal
@@ -557,50 +560,65 @@ them all. Most used:
 Every typed option besides `enable` (`dot set` shows values and sources and changes one). Detected means
 the value comes from the hardware or system when the platform and profile leave it unset.
 
+<!-- options: generated by dot internal gen from each module's options -->
 | option | type | default | what it does |
 |---|---|---|---|
 | `base/boot/hardening.allow_smt` | `bool` | `false` | Keep hyperthreading despite MDS/MMIO, accepting the cross-sibling leak for the threads |
 | `base/boot/remote-unlock.ssh_unlock` | `bool` | `false` | Wake-on-lan this machine, then ssh into the initramfs to unlock LUKS remotely |
 | `base/boot/remote-unlock.wifi` | `bool` | `false` | Also join the home wifis (configs/secrets/keys/wifi) in the initramfs; their keys are written into the image |
+| `base/cleanup.journal_max_use` | `string` | `"500M"` | Total disk space the systemd journal may keep, journald.conf(5) size syntax |
+| `base/coredump.max_use` | `string` | `"256M"` | Total disk space systemd-coredump may keep across every stored core, systemd.coredump(5) size syntax |
+| `base/coredump.process_size_max` | `string` | `"1G"` | Largest process core systemd-coredump will process at all, above it the core is skipped entirely |
+| `base/coredump.external_size_max` | `string` | `"1G"` | Largest core systemd-coredump will write to storage, independent of the process size limit |
+| `base/fail2ban.bantime` | `int` | `3600` | Seconds an IP stays banned after too many failed attempts, fail2ban jail.conf(5) bantime |
+| `base/fail2ban.findtime` | `int` | `600` | Seconds of history fail2ban scans for failed attempts, fail2ban jail.conf(5) findtime |
+| `base/fail2ban.maxretry` | `int` | `5` | Failed attempts within findtime before an IP is banned, fail2ban jail.conf(5) maxretry |
 | `base/ghostmirror.homelab_mirror` | `string?` | unset | A homelab pacman mirror's URL ($repo and $arch as in a mirrorlist), put first on a homelab machine |
-| `base/hardware.nvidia_driver` | `string?` | unset | NVIDIA driver branch: open (Turing on), 580xx (Maxwell to Volta), 470xx (Kepler), none (nouveau) |
+| `base/hardware.nvidia_driver` | `string?` | detected | NVIDIA driver branch: open (Turing on), 580xx (Maxwell to Volta), 470xx (Kepler), none (nouveau) |
 | `base/networkmanager.untrusted_policy` | `string` | `"firewall-only"` | Off the home network: lockdown-tor closes inbound and lets out only tor, dhcp and tunnels until a VPN is up; firewall-only closes inbound and leaves egress open; off treats every network as home |
-| `base/networkmanager.home_wired` | `bool?` | detected | Ethernet is always the home network: it keeps the hardware MAC and wake-on-lan (a desktop); null detects it from the form factor |
+| `base/networkmanager.home_wired` | `bool?` | detected | Ethernet is always the home network and keeps its hardware MAC (a desktop); null detects it from the form factor |
+| `base/networkmanager.wake_on_lan` | `bool` | `false` | Wake on a magic packet over ethernet (udev sets it on every wired link, NetworkManager leaves it) |
 | `base/networkmanager.wifi_radio` | `bool?` | detected | Wi-Fi radio on at first boot; off on a desktop wired to the network, so only the link in use is up. Later toggles (toggle-wifi) persist in NetworkManager's own state; null detects it |
 | `base/networkmanager.home_gateways` | `list<string>` | `[]` | Router MACs that make a network home, beside the admin's configs/secrets/keys/home-gateways |
 | `base/networkmanager.homelab_dns` | `string?` | unset | The homelab's split-horizon resolver, asked for homelab_domain out a home link (homelab machines) |
 | `base/networkmanager.homelab_domain` | `string?` | unset | The homelab's DNS zone |
 | `base/networkmanager.homelab_subnets` | `list<string>` | `[]` | The homelab's subnets, routed straight out a home link and through wg0 elsewhere |
+| `base/nftables.ssh_knock_window` | `string` | `"1h"` | How long a successful SSH port-knock keeps that IP allowed through to port 2222, nft timeout syntax |
 | `base/oomd.session_memory_low` | `filesize?` | detected | session.slice's MemoryLow, the desktop working set a build's reclaim keeps; null: 15% of RAM, 2 GiB max |
+| `base/pacman.yay_cache_days` | `int` | `30` | Days an unused yay build cache dir may sit in ~/.cache/yay before yay-cache-clean.timer deletes it, find -mtime argument |
 | `base/pam.fido_origin` | `string?` | detected | FIDO2 origin and appid every enrolled key's mapping was made for (pamu2fcfg -o); null: pam://<hostname> |
+| `base/smartd.test_schedule` | `string` | `"S/../.././02\|L/../../6/03"` | When smartd runs self-tests, smartd.conf(5) -s regex syntax (default: short test daily at 02:00, long test Saturday at 03:00) |
 | `base/ssh.homelab_hosts` | `list<string>` | `[]` | ssh patterns of the homelab's guests, router and hypervisor: root, accept-new host keys from known_hosts.homelab (homelab profiles only) |
 | `base/ssh.wake_router` | `string?` | unset | The always-on homelab router whose `wol-pc` wakes the desktop (wake-pc, homelab profiles only) |
 | `base/ssh.wake_host` | `string?` | unset | The desktop wake-pc wakes and then ssh-es into |
 | `base/tlp.charge_start` | `int` | `95` | Battery charge level below which charging starts (laptops whose firmware supports thresholds) |
 | `base/tlp.charge_stop` | `int` | `100` | Battery charge level at which charging stops; 80 spares an always-plugged battery |
 | `base/v4l2loopback.video_nr` | `int?` | detected | /dev/video<n> of the OBS virtual camera; null: a loaded one's, else the first free from 10, past webcams |
+| `base/zram.compression_algorithm` | `string` | `"zstd"` | Compression used for the zram swap device, zram-generator.conf(5) compression-algorithm (a weaker CPU may prefer lz4) |
+| `base/zram.swappiness` | `int` | `150` | How aggressively the kernel swaps to zram versus reclaiming page cache, sysctl(8) vm.swappiness (a zram swap favors higher than disk swap's usual 60) |
 | `core/btop.accent` | `string` | `"c4"` | Palette slot for titles, highlights and the selection |
+| `core/gnupg.cache_ttl` | `int` | `600` | Seconds gpg-agent caches a passphrase after use before re-asking, gpg-agent.conf(5) default-cache-ttl |
+| `core/gnupg.cache_ttl_max` | `int` | `7200` | Seconds gpg-agent caches a passphrase at most, however often it is used, gpg-agent.conf(5) max-cache-ttl |
 | `core/locale.lang` | `string?` | detected | LANG in /etc/locale.conf; detected: the one bootstrap set |
-| `core/locale.formats` | `string?` | detected | Locale for dates, numbers, money, units, paper and addresses (every LC_ but messages and collation); detected: the LC_TIME bootstrap set, unset follows the language |
+| `core/locale.formats` | `string?` | detected | Locale for dates, numbers, money, units, paper and addresses (every LC_ but messages and collation); unset follows the language |
 | `core/locale.keyboard_layout` | `string?` | detected | xkb layout of the console, X11 and the compositor; detected: the one bootstrap set |
-| `core/locale.keyboard_variant` | `string?` | unset | xkb variant, e.g. nodeadkeys |
-| `core/locale.keyboard_options` | `list<string>?` | unset | xkb options, e.g. ctrl:nocaps |
+| `core/locale.keyboard_variant` | `string?` | detected | xkb variant, e.g. nodeadkeys |
+| `core/locale.keyboard_options` | `list<string>?` | detected | xkb options, e.g. ctrl:nocaps |
 | `core/locale.wifi_country` | `string?` | detected | Wi-Fi regulatory domain (ISO 3166 alpha-2); detected: the country of the timezone, else the world domain |
-| `creating/obs.vaapi_render_node` | `string?` | unset | The /dev/dri render node the vaapi encoders use, by-path so it survives reboots |
-| `creating/obs.canvas` | `string?` | unset | Base and output canvas of every profile and the repo collections (Bare, VirtualCam), WxH |
-| `creating/obs.mic` | `string?` | unset | The pipewire source node the repo collections' Mic/Aux captures |
-| `creating/obs.webcam` | `string?` | unset | The v4l2 device the VirtualCam collection's Webcam captures, by-id so it survives replugging |
-| `creating/obs.monitor_device` | `string?` | unset | The pipewire sink node obs monitors audio on |
-| `creating/obs.record_encoder` | `string?` | unset | The recording encoder of the Recording and Streaming profiles |
-| `creating/obs.stream_encoder` | `string?` | unset | The streaming encoder; h264 is what every ingest takes |
+| `core/starship.scan_timeout_ms` | `int` | `500` | Milliseconds starship waits for a directory scan (project file detection) before giving up, starship.toml scan_timeout |
+| `core/trash.retention_days` | `int` | `1` | Days trash-empty.timer keeps a deleted file before purging it, trash-empty(1) --trash-dir day argument |
+| `creating/obs.vaapi_render_node` | `string?` | detected | The /dev/dri render node the vaapi encoders use, by-path so it survives reboots |
+| `creating/obs.canvas` | `string?` | detected | Base and output canvas of every profile and the repo collections (Bare, VirtualCam), WxH |
+| `creating/obs.mic` | `string?` | detected | The pipewire source node every collection's Mic/Aux captures |
+| `creating/obs.webcam` | `string?` | detected | The v4l2 device the VirtualCam collection's Camera captures, by-id so it survives replugging |
+| `creating/obs.monitor_device` | `string?` | detected | The pipewire sink node obs monitors audio on |
+| `creating/obs.record_encoder` | `string?` | detected | The recording encoder of the Recording and Streaming profiles |
+| `creating/obs.stream_encoder` | `string?` | detected | The streaming encoder; h264 is what every ingest takes |
 | `desktop/hyprland.monitors` | `list<record>?` | detected | One hl.monitor per output: output, mode, position, scale; detected from the connected outputs, any other output gets its preferred mode and an auto scale |
 | `desktop/hyprland.main_monitor` | `string?` | detected | The output holding workspace 1, the bar's notifications, steam's toasts and the tablet; detected: the internal panel, else the largest, leftmost on a tie |
 | `desktop/hyprland.workspaces` | `record?` | detected | Workspace to output; detected: the first ceil(10 / outputs) on the main monitor, the rest split over the others left to right |
-| `desktop/hyprland.xwayland_scale` | `int?` | detected | GDK_SCALE and QT_AUTO_SCREEN_SCALE_FACTOR for X11 apps (force_zero_scaling); detected: the main monitor's scale rounded, else 1 on a laptop and 2 elsewhere |
+| `desktop/hyprland.xwayland_scale` | `int?` | detected | GDK_SCALE and Xft.dpi (96 per step) for X11 apps (force_zero_scaling); detected: the main monitor's scale rounded, else 1 on a laptop and 2 elsewhere |
 | `desktop/hyprland.app_workspaces` | `list<record>` | `[]` | Homes for apps by window class: {class, workspace, silent}; silent opens them without focus |
-| `desktop/hyprland.kb_layout` | `string?` | detected | xkb layout; detected from the keymap localectl set (/etc/X11/xorg.conf.d/00-keyboard.conf) |
-| `desktop/hyprland.kb_variant` | `string?` | detected | xkb variant; detected like the layout |
-| `desktop/hyprland.kb_options` | `string?` | detected | xkb options, comma separated (ctrl:nocaps); detected like the layout |
 | `desktop/hyprland.pointer_sensitivity` | `float` | `0.0` | libinput pointer acceleration, -1 to 1 |
 | `desktop/hyprland.natural_scroll` | `bool` | `false` | Touchpad content follows the fingers |
 | `desktop/hyprland.idle_dim_s` | `int` | `900` | Idle seconds until the screens dim |
@@ -610,7 +628,8 @@ the value comes from the hardware or system when the platform and profile leave 
 | `desktop/hyprland.idle_dim_saver_s` | `int` | `300` | Idle seconds until the screens dim in power saver (a laptop on battery) |
 | `desktop/hyprland.idle_lock_saver_s` | `int` | `600` | Idle seconds until the session locks in power saver |
 | `desktop/hyprland.idle_suspend_saver_s` | `int` | `1800` | Idle seconds until suspend in power saver |
-| `desktop/pipewire.app_loopbacks` | `bool` | `true` | Every app plays through a loopback of its own that carries its system volume, so a capture of the app (obs) stays at full level |
+| `desktop/mpv.ytdl_max_height` | `int` | `2160` | Max video height mpv's bundled yt-dlp fetches for a stream URL, mpv ytdl-format height filter (pixels) |
+| `desktop/pipewire.app_loopbacks` | `bool` | `true` | every app plays through a loopback of its own that carries its system volume, so a capture of the app (obs) stays at full level |
 | `desktop/pipewire.eq_target` | `string?` | unset | node.name of the headset sink the eq attaches to as a smart filter; unset, no eq chain |
 | `desktop/pipewire.eq_preset` | `string` | `"pro-x-2.txt"` | AutoEq ParametricEQ preset for that headset, a file in this module or an absolute path |
 | `desktop/plasma.kwin_outputs` | `bool?` | detected | Ship the committed kwin output layout; detected: on when a connected monitor's EDID is one it describes |
@@ -622,17 +641,22 @@ the value comes from the hardware or system when the platform and profile leave 
 | `gaming/d2launcher.base_dir` | `string?` | detected | A Diablo II: Lord of Destruction install the game dir is seeded from; detected in the lutris prefixes |
 | `gaming/d2launcher.resolution` | `string?` | detected | The monitor the render size derives from, WxH; detected from the focused monitor |
 | `gaming/d2launcher.render_size` | `string?` | unset | The 4:3 size the game renders at inside gamescope, WxH; the monitor's full height by default |
-| `gaming/gamemode.gpu_device` | `int?` | unset | The /dev/dri/cardN gamemode tunes while a game runs; none leaves the gpu alone |
-| `gaming/gamemode.amd_performance_level` | `string?` | unset | The amdgpu power_dpm_force_performance_level during a game; high holds the clocks up, wasteful on battery |
-| `gaming/lutris.dpi` | `int?` | unset | Logical dpi wine apps draw at under xwayland (LogPixels), 96 times the main monitor's scale |
+| `gaming/gamemode.gpu_device` | `int?` | detected | The /dev/dri/cardN gamemode tunes while a game runs; none leaves the gpu alone |
+| `gaming/gamemode.amd_performance_level` | `string?` | detected | The amdgpu power_dpm_force_performance_level during a game; high holds the clocks up, wasteful on battery |
+| `gaming/lutris.dpi` | `int?` | detected | Logical dpi wine apps draw at under xwayland (LogPixels), 96 times the main monitor's scale |
+| `gaming/mangohud.font_size` | `int` | `18` | MangoHud overlay text size in pixels, MangoHud.conf font_size |
+| `gaming/pd2.game_dir` | `string?` | detected | The ProjectD2 dir; detected under ~/sync/games/d2 |
+| `gaming/pd2.save_dir` | `string?` | detected | The single player saves (.d2s, plugy's .d2x and .sss); detected as Save beside the install |
 | `llm/vllm.model` | `string` | `"RogerS-01/Josiefied-Qwen3-8B-abliterated-v1-AWQ"` | The hugging face repo vllm serves; an uncensored 4-bit AWQ build of Josiefied-Qwen3-8B-abliterated-v1 |
 | `llm/vllm.model_revision` | `string` | `"0244c2514cc272a603368c0440ff3002143b2336"` | The model repo's commit, weights and tokenizer alike; bump from https://huggingface.co/api/models/<model>/revision/main |
 | `llm/vllm.tool_call_parser` | `string` | `"hermes"` | vllm's tool call parser for the model's chat format (hermes for qwen3, gemma4 for gemma 4) |
 | `llm/vllm.reasoning_parser` | `string` | `"qwen3"` | vllm's reasoning parser, which moves the model's thinking out of the reply into reasoning_content |
-| `llm/vllm.gpu_memory_utilization` | `float?` | unset | The share of vram vllm takes; the rest stays for the desktop rendering on the same card |
+| `llm/vllm.gpu_memory_utilization` | `float?` | detected | The share of vram vllm takes; the rest stays for the desktop rendering on the same card |
+| `llm/vllm.kv_cache_dtype` | `string` | `"fp8"` | fp8 halves the kv cache's vram use but has no native matrix support on RDNA3; auto (bf16) is faster there |
 | `programming/android.avd` | `string` | `"nya35"` | Name of the emulator image made from the system image; empty makes none |
 | `programming/claude.model` | `string` | `"claude-opus-5-5"` | The model every session starts on |
 | `programming/claude.effort` | `string` | `"medium"` | Reasoning effort of that model |
 | `programming/task.sync_url` | `string?` | unset | The taskchampion server every replica syncs with as the one client of configs/secrets/keys/taskwarrior-*; none: no sync |
 | `programming/task.recurrence` | `bool` | `true` | This replica creates the instances of recurring tasks; one per sync, or each adds its own copy (task-sync(5)) |
 | `programming/trmnl-claude.poster` | `bool` | `false` | This machine posts its Claude usage to the TRMNL panel; one poster per panel, a second would overwrite it |
+<!-- options end -->

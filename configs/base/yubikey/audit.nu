@@ -1,13 +1,13 @@
 # `dot secrets audit`: every credential under configs/secrets/keys classed with a maximum age, checked against
 # its last rotation (rotation.txt, else git history), plus the recovery drill.
 
-use secrets.nu [secret-is-plaintext secrets-wanted]
+use ../../../scripts/lib/secrets.nu [secret-is-plaintext secrets-wanted]
 
-const SECRETS = path self ../../configs/secrets/keys
-const KEY_DIR = path self ../../configs/base/yubikey
-const OWNER_DIR = path self ../../configs/secrets/yubikey
-const ROTATION = path self ../../configs/secrets/keys/rotation.txt
-const WITNESS = path self ../../configs/secrets/keys/pgp_privatekey.asc
+const SECRETS = path self ../../secrets/keys
+const KEY_DIR = path self .
+const OWNER_DIR = path self ../../secrets/yubikey
+const ROTATION = path self ../../secrets/keys/rotation.txt
+const WITNESS = path self ../../secrets/keys/pgp_privatekey.asc
 const DRILL = "recovery-drill"
 const REMIND_STATE = "secrets-audit/reminded"
 const REMIND_EVERY = 28day
@@ -16,7 +16,7 @@ const CLASSES = [
     [glob class];
     ["wg0.*.conf" wireguard] ["wg0.*.png" -] [ssh_privatekey.asc ssh] [ssh_passphrase ssh]
     ["initramfs-ssh/*/sshkeydir/.ed25519.sk" ssh] ["yubikey/ssh-*" ssh] ["gh/*/token" api] [googleapi api] [sdd_github api] [de-arrow-key api]
-    [ntfy-desktop-token api] [trmnl-claude.env api] [hermes-anthropic.env api] [protonvpn-netns.conf api] ["taskwarrior-*" api]
+    [ntfy-desktop-token api] [trmnl-claude.env api] [calendar.env api] [hermes-anthropic.env api] [protonvpn-netns.conf api] ["taskwarrior-*" api]
     [samba-homelab password] [wifi password] [pgp_privatekey.asc identity]
     [vorrh.private-key.asc identity] [age.txt identity] [age-recovery-key.txt identity] ["syncthing/*/key.pem" identity]
     ["*.pub*" -] ["*_publickey.asc" -] ["*.public-key.asc" -] ["syncthing/*" -] ["initramfs-ssh/*" -] ["borg-*" -]
@@ -57,7 +57,7 @@ def credentials []: nothing -> list<record> {
         let class = secret-class $path
         if $class == "-" { return null }
         if $class == "" {
-            return (finding note $"configs/secrets/keys/($path) has no class, add it to CLASSES in scripts/lib/audit.nu")
+            return (finding note $"configs/secrets/keys/($path) has no class, add it to CLASSES in configs/base/yubikey/audit.nu")
         }
         let day = rotation-date $path
         let limit = $MAX_DAYS | get $class

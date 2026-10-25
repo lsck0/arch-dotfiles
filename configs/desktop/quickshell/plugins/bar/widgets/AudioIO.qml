@@ -174,7 +174,8 @@ BarWidget {
                             values: Audio.sinks
                         }
 
-                        delegate: Chip {
+                        delegate: Button {
+                            variant: "chip"
                             focusable: true
                             required property var modelData
 
@@ -226,7 +227,8 @@ BarWidget {
                             values: Audio.sources
                         }
 
-                        delegate: Chip {
+                        delegate: Button {
+                            variant: "chip"
                             focusable: true
                             required property var modelData
 
@@ -626,7 +628,8 @@ BarWidget {
 
             }
 
-            Chip {
+            Button {
+                variant: "chip"
                 focusable: true
                 id: routeChip
 
@@ -652,7 +655,8 @@ BarWidget {
             visible: stream.routing
             spacing: Style.spacing.xs
 
-            Chip {
+            Button {
+                variant: "chip"
                 focusable: true
                 text: "AUTO"
                 onClicked: {
@@ -667,7 +671,8 @@ BarWidget {
                     values: Audio.sinks
                 }
 
-                delegate: Chip {
+                delegate: Button {
+                    variant: "chip"
                     focusable: true
                     required property var modelData
 

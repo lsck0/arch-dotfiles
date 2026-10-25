@@ -1,5 +1,6 @@
 use module.nu *
 use ../../core/wallust/palette.nu [RADIUS_PX OPACITY_BAR]
+use ../../core/wallust/font.nu [font-load]
 
 export const meta = {
     packages: {pacman: [espeak-ng firefox python-pywalfox speech-dispatcher]}
@@ -135,8 +136,7 @@ export def link [cfg: record] {
     [(file-link $root ($nu.home-dir | path join .config firefox))]
     | append (profiles $ini | each {|dir|
         [
-            # a link: toggle-font rewrites the repo file
-            (file-link userChrome.css ($dir | path join chrome userChrome.css))
+            (file-copy userChrome.css ($dir | path join chrome userChrome.css))
             (file-text ($dir | path join chrome dotfiles-style.css) (chrome-style) --generated)
             (file-render user.js ($dir | path join user.js) {HOME: $nu.home-dir})
         ]
@@ -191,10 +191,20 @@ export def restore [cfg: record] {
     noscript-restore
 }
 
+# The chrome's font, imported by userChrome.css; firefox reads it at its next start.
+def chrome-font []: nothing -> string {
+    let font = font-load
+    $":root {\n    --rtk-chrome-font: \"($font.family)\", \"JetBrainsMono Nerd Font\", monospace, sans-serif;\n    --rtk-chrome-font-size: ($font.ui_size)pt;\n}\n"
+}
+
 export def theme [cfg: record, wallpaper: string] {
+    let ini = $nu.home-dir | path join $HOME_DIR profiles.ini
+    let fonts = if ($ini | path exists) {
+        profiles $ini | each {|dir| file-text ($dir | path join chrome dotfiles-font.css) (chrome-font) --generated }
+    } else { [] }
     let socket = $env.TMPDIR? | default /tmp | path join $"pywalfox_socket_(^id -u | str trim)"
-    if (which pywalfox | is-empty) or not ($socket | path exists) { return [] }
-    exec pywalfox-update [pywalfox update]
+    if (which pywalfox | is-empty) or not ($socket | path exists) { return $fonts }
+    $fonts | append (exec pywalfox-update [pywalfox update])
 }
 
 export def system [cfg: record] {

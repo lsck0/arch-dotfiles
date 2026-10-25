@@ -432,6 +432,8 @@ def stage-arm [c: record, root_uuid: string]: nothing -> nothing {
     mkdir $state
     "install\n" | save --force ($state | path join next)
     if $c.encrypt { $"/dev/disk/by-uuid/($root_uuid)\n" | save --force ($state | path join luks-device) }
+    let report = env-or BOOTSTRAP_REPORT
+    if $report != "" { $"($report)\n" | save --force ($state | path join report) }
     $"($c.username) ALL=\(ALL:ALL\) NOPASSWD: ALL\nDefaults:($c.username) verifypw=any\n" | save --force $"($MOUNT)/etc/sudoers.d/zz-dotfiles-stage"
     ^chmod 440 $"($MOUNT)/etc/sudoers.d/zz-dotfiles-stage"
     "a dotfiles install chain runs from this disk; the lsck0 iso will not erase it unattended\n" | save --force $"($MOUNT)($STAGE_ESP_MARKER)"
@@ -537,12 +539,15 @@ def answer-menu [e: record, c: record]: nothing -> string {
     $value
 }
 
+# BOOTSTRAP_KEYMAP answers; BOOTSTRAP_KEYMAP_DEFAULT (the iso stub's Wi-Fi password keymap) only preselects
 def answer-keymap [m: record, e: record, c: record]: nothing -> string {
     let valid = {|k| answer-valid $e $k $c }
     let given = env-or $e.env
-    let keymap = if ($given | is-not-empty) { $given } else if not (tui) { ask $m $valid $e.other.title "" $e.default } else {
-        let picked = menu $e.title $e.text $e.default ((options-items $e $c) ++ [$e.other.value $e.other.label])
-        if $picked != $e.other.value { $picked } else { ask $m $valid $e.other.title $e.other.text "" }
+    let preset = $env.BOOTSTRAP_KEYMAP_DEFAULT? | default "" | if ($in | is-empty) { $e.default } else { $in }
+    let listed = $preset in $e.options.value
+    let keymap = if ($given | is-not-empty) { $given } else if not (tui) { ask $m $valid $e.other.title "" $preset } else {
+        let picked = menu $e.title $e.text (if $listed { $preset } else { $e.other.value }) ((options-items $e $c) ++ [$e.other.value $e.other.label])
+        if $picked != $e.other.value { $picked } else { ask $m $valid $e.other.title $e.other.text (if $listed { "" } else { $preset }) }
     }
     if not (do $valid $keymap) { answer-invalid $e $keymap $c }
     $keymap

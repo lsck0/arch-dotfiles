@@ -86,7 +86,8 @@ Row {
     id: chips
     model: root.options
 
-    delegate: Chip {
+    delegate: Button {
+      variant: "chip"
       required property var modelData
       required property int index
       readonly property int _share: Math.floor(root._slack / Math.max(1, chips.count))

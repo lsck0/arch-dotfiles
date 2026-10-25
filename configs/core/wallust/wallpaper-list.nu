@@ -1,15 +1,17 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const LIB = path self | path expand | path dirname
-use ($LIB | path join usage.nu) [die]
+use ../../../scripts/lib/usage.nu [die]
 
-const PUBLIC_DIR = $LIB | path dirname --num-levels 2 | path join wallpapers
-const SECRET_DIR = $LIB | path dirname --num-levels 2 | path join configs secrets state wallpapers
+const PUBLIC_DIR = path self ../../../wallpapers
 const IMAGE_SUFFIXES = [jpg jpeg png gif webp]
 const SCREEN_DEFAULT = "3840x2160"
 const CROP_PERCENT_MAX = 10
 const UPSCALE_PERCENT_MAX = 105
 const CACHE = ".cache/wallpaper-list/sizes.tsv"
+# the bought ones, synced across machines by syncthing, absent on a machine without ~/sync
+const BOUGHT = "sync/wallpapers"
+
+def bought-dir []: nothing -> path { $nu.home-dir | path join $BOUGHT }
 
 def images-in [dir: path]: nothing -> table {
     if not ($dir | path exists) { return [] }
@@ -17,9 +19,9 @@ def images-in [dir: path]: nothing -> table {
     | each { {path: $in.name, mtime: ($in.modified | into int)} }
 }
 
-# configs/secrets/state/wallpapers (purchased, private) shadows wallpapers/ by file name.
+# ~/sync/wallpapers (bought, private) shadows wallpapers/ by file name.
 def wallpapers []: nothing -> table {
-    images-in $PUBLIC_DIR | append (images-in $SECRET_DIR)
+    images-in $PUBLIC_DIR | append (images-in (bought-dir))
     | insert name { $in.path | path basename } | reverse | uniq-by name | reject name | sort-by path
 }
 
@@ -45,10 +47,10 @@ def sizes-of [files: table]: nothing -> table {
     $sizes
 }
 
-# The file a bare wallpaper name refers to, the secret dir first; null when none.
+# The file a bare wallpaper name refers to, the bought one first; null when none.
 export def wallpaper-resolve [name: string]: nothing -> any {
     if $name == "" or "/" in $name or $name in [. ..] { return null }
-    [$SECRET_DIR $PUBLIC_DIR] | each { path join $name }
+    [(bought-dir) $PUBLIC_DIR] | each { path join $name }
     | where { ($in | path type) == file }
     | get --optional 0
 }

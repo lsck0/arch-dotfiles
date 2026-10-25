@@ -87,7 +87,7 @@ def reconcile []: nothing -> nothing {
     job kill $socket
 }
 
-def main [action: string = "toggle"] {
+def main [action: string = "toggle", --json] {
     if $action == reconcile {
         reconcile
         return
@@ -97,5 +97,5 @@ def main [action: string = "toggle"] {
         is-on: {|| (state-get $STATE) == on }
         on: {|| listen-on }
         off: {|| listen-off }
-    } $action
+    } $action --json=$json
 }

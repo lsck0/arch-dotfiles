@@ -1,4 +1,5 @@
 @import url("dotfiles-style.css");
+@import url("dotfiles-font.css");
 
 :root {
     --appshell-field-opacity: 55%;
@@ -44,8 +45,6 @@ body {
 }
 
 :root {
-    --rtk-chrome-font: "Kode Mono", "JetBrainsMono Nerd Font", monospace, sans-serif;
-    --rtk-chrome-font-size: 11pt;
     --rtk-accent: var(--lwt-accent-color, var(--toolbar-bgcolor, AccentColor));
     --tab-border-radius: var(--rtk-radius) !important;
     --toolbarbutton-border-radius: var(--rtk-radius) !important;

@@ -1,4 +1,5 @@
 use module.nu *
+use ../../core/wallust/font.nu [font-load]
 
 export const meta = {packages: {pacman: [vscodium-bin]}}
 
@@ -26,7 +27,9 @@ def settings [] {
             }
         }
     }
-    let edits = open settings.json | merge $theme | items {|k, v| json-set [$k] $v }
+    let font = font-load
+    let typeface = {"editor.fontFamily": $"'($font.mono)', 'monospace'", "editor.fontSize": $font.size}
+    let edits = open settings.json | merge $typeface | merge $theme | items {|k, v| json-set [$k] $v }
     json-merge ($nu.home-dir | path join $USER_DIR settings.json) $edits
 }
 

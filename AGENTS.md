@@ -31,8 +31,7 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
 ## Commands
 
 - `dot test lint`: static checks (module refs, layer rules, `~/sync` writes, stray files outside the repo layout,
-  platform facts and options, nu pitfalls, exec bits, the palette clamps, `dot internal gen --check`, system-apply's
-  locked flags) plus every `*.test.nu`/`*.test.sh` under `configs/`, `themes/` and `scripts/`; about a minute, no root.
+  platform facts and options, nu pitfalls, exec bits, `dot internal gen --check`) plus every `*.test.nu`/`*.test.sh` under `configs/`, `themes/` and `scripts/`; about a minute, no root.
   `dot test run` is the multi-hour VM test.
 - `configs/base/apparmor/apparmor.test.nu`: profiles.conf policy and a compile of every own profile and `local/`
   drop-in; the "Failed to create cache" warnings are expected without root.
@@ -42,17 +41,16 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
 - `dot apply [mod...] [--user|--system] [--packages] [--force]`: converge now, no git. No flag: the system layer for a
   wheel user, then the user layer; modules or `--user` the user layer alone, incremental; `--system` the system layer
   alone; `--packages` every declared package, flatpak and nix, then convergence.
-- `dot plan [mod...] [--system] [--sandbox]`: what an apply would do (actions per module, drift, pending migrations,
-  undeclared packages); `--sandbox` adds the write set of a real run under bubblewrap; `--order` the run order,
-  `--modules` every module. Touches nothing.
+- `dot plan [mod...] [--system]`: what an apply would do (actions per module, drift, pending migrations,
+  undeclared packages); `--order` the run order, `--modules` every module. Touches nothing.
 - `dot status [--brief] [--json]`: generation, pending work, managed files changed since their apply, every health
   check, secrets due, each machine's drift report. `dot set [mod[.key] [value]] [--default] [--machine] [--json]`:
-  list, show, set or reset options. `dot module adopt|unlink|remove|restore`, `dot explain <path|package>`,
+  list, show, set or reset options. `dot module adopt|reset|unlink|remove|restore`, `dot explain <path|package>`,
   `dot log [--trace]`, `dot secrets audit`.
 - `dot internal <cmd>`: what scripts, units and completion run, kept out of `dot --help` (`scripts/lib/internal.nu`):
   `gen` regenerates `mirror/packages.txt` (`dot test lint` fails when it drifts), `iso [--out] [--work] [--mirror]
   [--sign] [--keep]` builds the install iso (root for mkarchiso), `packages`, `migrate`, `fetch`,
-  `stage`, `bootstrap`, `iso-install`, `backup`, `watch`, `prune`, `theme get|list|apply`, `drift report|publish`,
+  `stage`, `bootstrap`, `iso-install`, `backup`, `update`, `watch`, `prune`, `theme get|list|apply`, `drift report|publish`,
   `audit remind`, `complete <words>` / `completions zsh|nu` (subcommands, flags, module ids, option keys and values,
   themes; `base/dot` installs `_dot` and the nushell externs under `$XDG_DATA_HOME`).
 - Agents never reach root: run `dot` with `DOT_SYSTEM=skip` (or `--no-system` on sync, apply, set); a system part is
@@ -83,7 +81,7 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
 - `configs/desktop/quickshell/` (bar, launcher, lock, notifications), `configs/desktop/hyprland/` (Lua config).
 - `configs/secrets/`: the group `secrets`, a private submodule pulled only for a profile with `secrets`. `keys/` in
   it holds every credential, git-crypt encrypted (nothing else is); `state/` the plaintext app state that is no
-  credential (game and plugin configs, the bought wallpapers, the drift reports). Beside them, the owner's own modules (`yubikey`, `capgemini`, `weblinks`, anything personal): plaintext, so found locked; on wherever the
+  credential (game and plugin configs, the drift reports). Beside them, the owner's own modules (`yubikey`, `capgemini`, `weblinks`, anything personal): plaintext, so found locked; on wherever the
   submodule is pulled, never a platform's choice; applied after every other group; their packages kept out of
   `mirror/packages.txt`.
 - `mirror/`: own pkgbuilds and `overrides.conf` for the `[lsck0]` package mirror;
@@ -147,7 +145,8 @@ Each kind of data has one home, and there is no catch-all backup: data that fits
   `install.log` / `config.log` keep the terminal output (`.log` and `FAILURES*` are gitignored);
   every run's structured log and span tree is `dot log [run] [--trace]`, a crash leaves `<state>/crash.json`.
 - dot's state: `~/.local/state/dotfiles` (root's `/var/lib/dotfiles`): `modules/<id>/<verb>.nuon` what each native
-  module owns (input hash, outputs), `written`, `ledger`, `runs/`, `preserved/`.
+  module owns (input hash, outputs with the hash dot wrote and when; the one record of what dot wrote), `ledger`
+  (units, packages, migrations, the lsck0 snapshot), `runs/`, `preserved/`.
 - Locked secrets are git-crypt blobs starting with `\0GITCRYPT`; check with `secret-is-plaintext`, never write
   into `configs/secrets/` while locked.
 - AppArmor: everything that opens other people's content stays `enforce` in `profiles.conf`;
@@ -160,6 +159,6 @@ Each kind of data has one home, and there is no catch-all backup: data that fits
   files) are rewritten every run, never hand-edit them; `dot explain <path>` names the writer.
 - Background GUI testing stays off the user's screen: an app launched only to screenshot or check it goes on the
   agent's own headless output, never a visible workspace or a monitor rule (skill `l-dotfiles-gui-testing`).
-- `xwayland.force_zero_scaling = true`: X11 apps scale through `GDK_SCALE`/`QT_AUTO_SCREEN_SCALE_FACTOR` (1 on a
+- `xwayland.force_zero_scaling = true`: X11 apps scale through `GDK_SCALE` (gtk) and `Xft.dpi` (qt xcb, most others) (1 on a
   laptop, else 2); Java apps get the same value from `display-xwayland-scale` (`platform.nu`).
 - A module runs only when its group is in the platform's `groups` and its `enable` option is true.

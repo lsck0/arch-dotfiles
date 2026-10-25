@@ -1,11 +1,11 @@
 #!/usr/bin/env -S nu --no-config-file
 use lib.nu [switch-run quickshell-call]
 
-def main [action: string = "toggle"] {
+def main [action: string = "toggle", --json] {
     switch-run {
         label: "Do not disturb"
         is-on: {|| (quickshell-call notifications isDnd | str trim) == on }
         on: {|| quickshell-call notifications setDnd "true" o> /dev/null }
         off: {|| quickshell-call notifications setDnd "false" o> /dev/null }
-    } $action
+    } $action --json=$json
 }

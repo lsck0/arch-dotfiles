@@ -12,6 +12,7 @@ export const meta = {
 }
 
 const PLUGIN_DIR = ".local/share/nvim/lazy"
+const TREESITTER_TIMEOUT_MS = 600000
 const THEME_NAME = ".cache/wal/nvim_theme"
 # lazy skips a plugin outright when its spec's cond is false (image.nvim: only in a kitty-protocol terminal);
 # headless install has no such terminal, so lazy-lock.json's pin for it is never meant to be cloned there
@@ -76,21 +77,24 @@ report("mason", require("lib.mason_packages"), "/mason/packages/%s/mason-receipt
 report("parser", require("lib.treesitter_parsers"), "/site/parser/%s.so")
 '
 
+# before the first apply links the config there is no lib to read: nothing counts as missing yet
 def tools-missing []: nothing -> table<kind: string, name: string> {
-    ^nvim --headless -c $"lua ($MISSING_LUA)" -c "qa" | lines | parse "{kind} {name}"
+    let run = ^nvim --headless -c $"lua ($MISSING_LUA)" -c "qa" | complete
+    if $run.exit_code != 0 { return [] }
+    $run.stdout | lines | parse "{kind} {name}"
+}
+
+def install-commands [missing: table]: nothing -> list<string> {
+    let kinds = $missing | get kind | uniq
+    [
+        ...(if "parser" in $kinds { ["+TSInstallSync"] } else { [] })
+        ...(if "mason" in $kinds { ["+MasonToolsInstallSync"] } else { [] })
+    ]
 }
 
 # a link, not copies: lazy writes lazy-lock.json and zg the spell word lists back into the config dir
 export def link [cfg: record] {
-    let restore = if (plugins-stale | is-not-empty) {
-        ["+Lazy! restore" "+TSInstallSync" "+MasonToolsInstallSync"]
-    } else {
-        let kinds = tools-missing | get kind | uniq
-        [
-            ...(if "parser" in $kinds { ["+TSInstallSync"] } else { [] })
-            ...(if "mason" in $kinds { ["+MasonToolsInstallSync"] } else { [] })
-        ]
-    }
+    let restore = if (plugins-stale | is-not-empty) { ["+Lazy! restore"] } else { install-commands (tools-missing) }
     [
         (file-link . ($nu.home-dir | path join .config nvim))
         (step prefetch ...$restore)
@@ -104,6 +108,9 @@ export def prefetch [...restore: string]: nothing -> nothing {
     if ($stale | is-not-empty) {
         error make {msg: $"($stale | length) plugins are not at their lazy-lock.json pin after the restore: ($stale | str join ' ')"}
     }
+    # a session that just cloned mason and treesitter has not loaded them: their installs run in a fresh one
+    let pending = tools-missing
+    if ($pending | is-not-empty) { ^env ...$QUIET_GIT nvim --headless ...(install-commands $pending) "+qa" }
     let missing = tools-missing
     if ($missing | is-not-empty) {
         error make {msg: $"($missing | length) tools are not installed after the restore \(:MasonLog, :checkhealth nvim-treesitter\): ($missing | each { $'($in.kind)/($in.name)' } | str join ' ')"}
@@ -121,4 +128,10 @@ export def theme-push []: nothing -> nothing {
     for server in (glob ($env.XDG_RUNTIME_DIR? | default "/tmp" | path join "nvim.*")) {
         try { ^nvim --server $server --remote-expr $expr o+e>| ignore }
     }
+}
+
+# moves the plugin pins (lazy-lock.json in the repo, committed by the sync) and the mason tools and parsers
+export def update [cfg: record]: nothing -> nothing {
+    (^nvim --headless "+Lazy! sync" +MasonUpdate +MasonToolsUpdateSync
+        $"+lua require\('nvim-treesitter'\).update\(\):wait\(($TREESITTER_TIMEOUT_MS)\)" +qa)
 }

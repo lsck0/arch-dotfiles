@@ -1,5 +1,6 @@
 use module.nu *
 use ../../core/wallust/palette.nu [RADIUS_PX]
+use ../../core/wallust/font.nu [font-load]
 
 export const meta = {deps: [core/wallust], packages: {pacman: [qutebrowser python-adblock]}}
 
@@ -33,14 +34,8 @@ export def link [cfg: record] {
     let search = if $cfg.search_url == $SEARCH_DEFAULT { (detect $cfg).search_url } else { $cfg.search_url }
     let dir = $nu.home-dir | path join $CONFIG_DIR
     [
-        # a link: toggle-font rewrites the repo file
-        (file-link config.py ($dir | path join config.py))
+        (file-copy config.py ($dir | path join config.py))
         (file-text ($dir | path join search-url) $"($search)\n")
-        (file-render startpage.html ($dir | path join startpage.html) {
-            HOME: $nu.home-dir
-            DATA: ($env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share))
-            RADIUS: $RADIUS_PX
-        })
     ] | append (if (lists-ready) { [] } else { [(step lists-fetch)] })
 }
 
@@ -56,7 +51,14 @@ export def lists-fetch [] {
 }
 
 export def theme [cfg: record, wallpaper: string] {
+    let dest = $nu.home-dir | path join $CONFIG_DIR startpage.html
+    let startpage = file-render startpage.html $dest {
+        HOME: $nu.home-dir
+        DATA: ($env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share))
+        RADIUS: $RADIUS_PX
+        FONT: (font-load).family
+    } | file-text $dest $in.content --generated
     # without a running instance the command would start one
-    if not (qutebrowser-running) { return [] }
-    exec qutebrowser-config-source [qutebrowser :config-source]
+    if not (qutebrowser-running) { return [$startpage] }
+    [$startpage (exec qutebrowser-config-source [qutebrowser :config-source])]
 }

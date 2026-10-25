@@ -58,11 +58,13 @@ export const options = {
 }
 
 # A Lord of Destruction install in the lutris prefixes, null without one.
+# lutris's game entries first, then any prefix synced under ~/sync/games/d2: a fresh install has no lutris entry yet
 export def lod-detect []: nothing -> any {
     let games = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join lutris games
-    let prefixes = glob ($games | path join *.yml)
-        | each {|f| try { open $f | get --optional game.prefix } catch { null } }
-    $prefixes | compact | each { path expand | path join $BASE_IN_PREFIX }
+    let lutris = glob ($games | path join *.yml)
+        | each {|f| try { open $f | get --optional game.prefix } catch { null } } | compact
+    let synced = glob ($nu.home-dir | path join sync games d2 * drive_c) | path dirname
+    $lutris ++ $synced | each { path expand | path join $BASE_IN_PREFIX }
         | where { path join $BASE_MARKER | path exists } | get --optional 0
 }
 

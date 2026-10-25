@@ -20,6 +20,7 @@ arch-wiki-lite
 archiso
 argon2
 arjun
+ark
 arp-scan
 aseprite
 asm-lsp
@@ -961,6 +962,7 @@ xorg-xauth
 xorg-xeyes
 xorg-xhost
 xorg-xinput
+xorg-xrdb
 xorg-xwayland
 xournalpp
 yara

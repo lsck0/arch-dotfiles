@@ -12,7 +12,7 @@ Never print, copy out or commit a secret's value. Locations only.
 - `configs/secrets/`: private submodule `github.com/lsck0/secrets`. Owner-only: needs the `secrets` profile capability.
 - `configs/secrets/keys/`: every secret, the only git-crypt path (`configs/secrets/.gitattributes`). Locked, each
   file starts with `\0GITCRYPT`.
-- `configs/secrets/state/`: private app state that is no credential (dalamud, ffxiv, wallpapers, drift reports,
+- `configs/secrets/state/`: private app state that is no credential (dalamud, ffxiv, drift reports,
   firefox's noscript list, repositories), plaintext so backups diff and delta; readable locked.
 - `configs/secrets/<module>/`: the owner's modules (group `secrets`, plaintext code): `yubikey`, `capgemini`,
   `weblinks`. `dot sync` refuses to commit any new or changed file outside `keys/`, `state/` and the module dirs.
@@ -35,7 +35,7 @@ nu -c 'use scripts/lib/secrets.nu *; if (secret-is-plaintext configs/secrets/key
 unlocks through the PGP key; `unlock --identity <file>` is the recovery path. Unlock needs a person to touch the key:
 ask, do not wait in a loop.
 
-Touch steps (`with-touch` in `scripts/lib/yubikey.nu`) run on the terminal with only a 15min stall cap: the pull clones
+Touch steps (`with-touch` in `configs/base/yubikey/yubikey.nu`) run on the terminal with only a 15min stall cap: the pull clones
 the whole submodule (~300 MB), so a short per-attempt timeout kills it mid-clone and restarts it forever, each retry
 wanting another touch, which looks like "touched, nothing happens". `age-plugin-yubikey` prints no touch prompt; the
 key's blink is the only cue. Without `--foreground`, `timeout` puts the child in its own background process group: the

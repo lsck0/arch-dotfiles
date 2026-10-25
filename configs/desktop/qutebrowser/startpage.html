@@ -36,7 +36,7 @@
         top: 50%;
         transform: translate(-50%, -50%);
         z-index: 2;
-        font-family: "Kode Mono", monospace;
+        font-family: "@FONT@", monospace;
         color: var(--foreground);
         text-align: center;
         user-select: none;
@@ -66,7 +66,7 @@
         width: 100%;
         box-sizing: border-box;
         padding: 0.7rem 1rem;
-        font-family: "Kode Mono", monospace;
+        font-family: "@FONT@", monospace;
         font-size: 1.1rem;
         color: var(--foreground);
         background: color-mix(in srgb, var(--background) 72%, transparent);
@@ -89,7 +89,7 @@
         flex-wrap: wrap;
         justify-content: center;
         gap: 0.4rem 1.2rem;
-        font-family: "Kode Mono", monospace;
+        font-family: "@FONT@", monospace;
         font-size: 0.95rem;
       }
       #links a {
@@ -186,7 +186,7 @@
         context.globalCompositeOperation = "source-over";
 
         context.fillStyle = head_color;
-        context.font = cell_size + "px \"Kode Mono\", monospace";
+        context.font = cell_size + "px \"@FONT@\", monospace";
         context.textBaseline = "top";
 
         for (let i = 0; i < drops.length; i++) {

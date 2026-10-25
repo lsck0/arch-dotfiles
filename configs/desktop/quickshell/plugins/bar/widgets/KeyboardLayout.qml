@@ -55,7 +55,7 @@ BarWidget {
     }
   }
 
-  Process {
+  JsonProcess {
     id: queryProc
     command: ["hyprctl", "-j", "devices"]
     onRunningChanged: {
@@ -67,34 +67,25 @@ BarWidget {
       stallTimer.stop()
       if (root.refreshPending) root.refresh()
     }
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        let listed
-        try {
-          listed = JSON.parse(text || "{}").keyboards
-        } catch (e) {
-          return
+    onParsed: function(devices) {
+      const listed = devices ? devices.keyboards : null
+      if (!Array.isArray(listed)) return
+
+      const typed = listed.filter(k => KeyboardLayoutModel.isTypedKeyboard(k.name))
+      const kb = KeyboardLayoutModel.selectKeyboard(typed, root.typedKeyboardName)
+      if (!kb || !kb.active_keymap) {
+        root.keyboardUnresolved = true
+        if (typed.length === 0) {
+          root.layoutFull = ""
+          root.keyboardName = ""
         }
-
-        if (!Array.isArray(listed)) return
-
-        const typed = listed.filter(k => KeyboardLayoutModel.isTypedKeyboard(k.name))
-        const kb = KeyboardLayoutModel.selectKeyboard(typed, root.typedKeyboardName)
-        if (!kb || !kb.active_keymap) {
-          root.keyboardUnresolved = true
-          if (typed.length === 0) {
-            root.layoutFull = ""
-            root.keyboardName = ""
-          }
-          return
-        }
-
-        root.keyboardUnresolved = false
-        root.keyboardName = String(kb.name || "")
-        root.multipleLayouts = kb.layout === undefined || String(kb.layout).indexOf(",") !== -1
-        root.layoutFull = kb.active_keymap
+        return
       }
+
+      root.keyboardUnresolved = false
+      root.keyboardName = String(kb.name || "")
+      root.multipleLayouts = kb.layout === undefined || String(kb.layout).indexOf(",") !== -1
+      root.layoutFull = kb.active_keymap
     }
   }
 

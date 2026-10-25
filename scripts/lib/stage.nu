@@ -22,10 +22,18 @@ const EFI_ATTRS_NV_BS_RT = 0x[07 00 00 00]
 const INSTALL_ATTEMPTS_MAX = 3
 const INSTALL_EXIT_ABORTED = 2
 const CRYPTSETUP_NO_KEY = 2
+# a watcher's url (dot test, BOOTSTRAP_REPORT): the stages beacon to it, the chain's end reports to it
+const REPORT = "/var/lib/dotfiles-stage/report"
+const ROOT_COPY = "/var/lib/dotfiles/repo"
 
 def note [message: string]: nothing -> nothing {
     log-info $message
     $"(date now | format date '%+') ($message)\n" | ^sudo tee -a ($STATE_DIR | path join log) | ignore
+}
+
+def report-beacon [tag: string]: nothing -> nothing {
+    if not ($REPORT | path exists) { return }
+    ^curl -s -m 10 $"(open --raw $REPORT | str trim)/beacon/($tag)" | complete | ignore
 }
 
 def luks-device []: nothing -> string {
@@ -86,6 +94,8 @@ export def stage-run [repo: path]: nothing -> nothing {
                 note $"disarm failed ($tries) times, retrying next boot"
                 ^sudo mkdir -p ($ISSUE | path dirname)
                 $"\n($message)\n\n" | ^sudo tee $ISSUE | ignore
+                # a watcher would otherwise poll until its chain timeout
+                report-beacon chain-fail
                 exit 1
             }
             sleep $DISARM_BACKOFF
@@ -103,6 +113,7 @@ export def stage-run [repo: path]: nothing -> nothing {
     let args = if $stage == "install" { [apply --packages] } else { [apply] }
     let status = try { "" | ^nu --no-config-file ($repo | path join scripts dot.nu) ...$args; 0 } catch {|e| $e.exit_code? | default 1 }
     note (if $status == 0 { $"($stage): ok" } else { $"($stage): failed, see ($stage).log" })
+    report-beacon $"($stage)-(if $status == 0 { 'ok' } else { 'failed' })"
     if $stage == "install" and $status == $INSTALL_EXIT_ABORTED {
         let attempts = (try { open --raw ($STATE_DIR | path join install-attempts) | into int } catch { 0 }) + 1
         $"($attempts)\n" | ^sudo tee ($STATE_DIR | path join install-attempts) | ignore
@@ -130,5 +141,9 @@ export def stage-run [repo: path]: nothing -> nothing {
         $"\n($message)\n\n" | ^sudo tee $SECRETS_ISSUE | ignore
     }
     boot-next-here
-    ^sudo sh -c $"rm -f ($SUDOERS_DROPIN); systemctl disable dotfiles-stage.service; rm -f ($UNIT) ($STATE_DIR)/next ($ESP_MARKER); systemctl reboot"
+    # the report runs as root from the root copy, after the chain is disarmed, so it sees the finished system
+    let report = if ($REPORT | path exists) {
+        $"nu --no-config-file ($ROOT_COPY)/scripts/lib/stage-report.nu ($env.USER) ($repo); "
+    } else { "" }
+    ^sudo sh -c $"rm -f ($SUDOERS_DROPIN); systemctl disable dotfiles-stage.service; rm -f ($UNIT) ($STATE_DIR)/next ($ESP_MARKER); ($report)systemctl reboot"
 }

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# One request of the dot test host server (socat forks one per connection): beacons append to $dir/beacons, the
+# guest's uploads land in $dir/upload.
 set -euo pipefail
 dir=$1
 read -r method path _
@@ -12,18 +14,8 @@ case "$method $path" in
         echo "${path#/beacon/}" >> "$dir/beacons"
         reply "204 No Content" 0
         ;;
-    "GET /step/"* | "GET /file/"*)
-        file="$dir/${path#/}"
-        if [[ "$path" != *..* && -f "$file" ]]; then
-            reply "200 OK" "$(stat -L -c %s "$file")"
-            cat "$file"
-        else
-            reply "404 Not Found" 0
-        fi
-        ;;
-    "PUT /bootstrap.log" | "PUT /logs.tgz" | "PUT /drill.log")
-        head -c "$len" > "$(< "$dir/upload-to")"
-        touch "$dir/uploaded"
+    "PUT /bootstrap.log" | "PUT /logs.tgz")
+        head -c "$len" > "$dir/upload/${path#/}"
         reply "204 No Content" 0
         ;;
     *) reply "404 Not Found" 0 ;;

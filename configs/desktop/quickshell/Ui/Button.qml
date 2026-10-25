@@ -1,8 +1,16 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
 
+// One clickable control in four looks:
+//   plain   an icon and/or text on a fill that lights on hover, focus, selection
+//   icon    a square glyph button (panel toolbars, media transport)
+//   action  a tinted "[ LABEL ]" verb (notification actions, dialogs)
+//   chip    a selectable choice in a row of options
 BorderSurface {
   id: root
+
+  property string variant: "plain"
 
   property string text: ""
   property string iconText: ""
@@ -10,73 +18,103 @@ BorderSurface {
 
   property bool selected: false
   property bool active: false
+  property bool danger: false
   property bool hasCursor: false
   property bool focusable: false
+  property bool focused: activeFocus
   property bool bordered: false
 
-  property color foreground: Colors.foreground
+  property color foreground: variant === "action" || variant === "chip" ? Colors.menu.text : Colors.foreground
   property color background: "transparent"
-  property color accent: Colors.accent
+  property color accent: variant === "icon" ? foreground : Colors.accent
 
-  property string fontFamily: Style.font.family
-  property real fontSize: Style.font.body
-  property real iconSize: Style.font.icon
-  property real horizontalPadding: Style.spacing.controlPaddingX
-  property real verticalPadding: Style.spacing.controlPaddingY
-
-  leftPadding: horizontalPadding
-  rightPadding: horizontalPadding
-  topPadding: verticalPadding
-  bottomPadding: verticalPadding
+  property string fontFamily: variant === "icon" ? Style.font.iconFamily : Style.font.family
+  property real fontSize: variant === "icon" ? Style.font.icon
+    : variant === "plain" ? Style.font.body
+    : Style.font.caption
+  property real iconSize: variant === "action" ? Style.font.caption : Style.font.icon
+  property real size: Math.max(Style.space(22), fontSize + Style.spacing.xs * 2)
+  property real minimumWidth: variant === "chip" ? Style.space(40) : 0
+  property real horizontalPadding: variant === "plain" ? Style.spacing.controlPaddingX
+    : variant === "action" ? Style.spacing.md
+    : variant === "chip" ? Style.spacing.sm
+    : 0
+  property real verticalPadding: variant === "plain" ? Style.spacing.controlPaddingY : 0
 
   signal clicked()
   signal rightClicked()
+
+  readonly property bool isIcon: variant === "icon"
+  readonly property bool isAction: variant === "action"
+  readonly property bool isChip: variant === "chip"
+  readonly property bool hot: (mouseArea.containsMouse || hasCursor) && enabled
+  readonly property bool _showFocusRing: (focusable || isAction) && activeFocus
 
   activeFocusOnTab: focusable
   Keys.onReturnPressed: if (focusable) root.clicked()
   Keys.onEnterPressed: if (focusable) root.clicked()
   Keys.onSpacePressed: if (focusable) root.clicked()
 
-  implicitWidth: row.implicitWidth + (horizontalPadding + _reservedBorder) * 2
-  implicitHeight: row.implicitHeight + (verticalPadding + _reservedBorder) * 2
-  radius: Style.shape.data
+  leftPadding: horizontalPadding
+  rightPadding: horizontalPadding
+  topPadding: verticalPadding
+  bottomPadding: verticalPadding
 
-  readonly property bool hot: mouseArea.containsMouse || hasCursor
-  readonly property bool _showFocusRing: focusable && activeFocus
-  readonly property color _selectedColor: Style.selectedStateColor(root.foreground, root.accent)
+  implicitWidth: isIcon ? size : Math.max(minimumWidth, row.implicitWidth + (horizontalPadding + _reservedBorder) * 2)
+  implicitHeight: isIcon ? size
+    : isAction || isChip ? Style.row.control
+    : row.implicitHeight + (verticalPadding + _reservedBorder) * 2
+  radius: Style.shape.data
+  opacity: enabled ? 1 : (isAction || isChip ? Style.emphasis.disabled : 1)
+
   readonly property var _focusBorderSpec: Border.controlSpec("focus", root.foreground, root.accent)
   readonly property var _hoverBorderSpec: Border.controlSpec("hover-cursor", root.foreground, root.accent)
   readonly property var _selectedBorderSpec: Border.controlSpec("selected", root.foreground, root.accent)
-  readonly property var _normalBorderSpec: Border.controlSpec("normal", root.foreground, root.accent)
-  readonly property real _reservedBorder: Math.max(
+  readonly property var _normalBorderSpec: Border.controlSpec("normal", root.foreground, Colors.accent)
+  readonly property real _reservedBorder: isPlain ? Math.max(
     focusable ? Border.width(_focusBorderSpec) : 0,
     Border.width(_hoverBorderSpec),
     Border.width(_selectedBorderSpec),
-    bordered ? Border.width(_normalBorderSpec) : 0)
-  readonly property var _borderSpec: _showFocusRing ? _focusBorderSpec
-    : hot                      ? _hoverBorderSpec
-    : selected                 ? (Style.selectedBorderWidth > 0 ? _selectedBorderSpec : (bordered ? _normalBorderSpec : Border.none()))
-    : bordered                 ? _normalBorderSpec
+    bordered ? Border.width(_normalBorderSpec) : 0) : 0
+  readonly property bool isPlain: variant === "plain"
+
+  borderSpec: isAction ? (activeFocus ? Border.flat(Util.alpha(foreground, Style.focusBorderAlpha), Style.focusBorderWidth) : Border.none())
+    : isChip ? (focused ? Border.flat(Util.alpha(Style.focusStateColor(Colors.foreground, Colors.accent), Style.focusBorderAlpha), Style.focusBorderWidth)
+      : hot && !selected ? Border.flat(Style.hoverBorderColor, Style.hoverBorderWidth)
+      : Border.none())
+    : _showFocusRing ? _focusBorderSpec
+    : hot && (isPlain || bordered) ? _hoverBorderSpec
+    : selected && isPlain ? (Style.selectedBorderWidth > 0 ? _selectedBorderSpec : (bordered ? _normalBorderSpec : Border.none()))
+    : bordered ? _normalBorderSpec
     : Border.none()
 
-  color: mouseArea.pressed ? Style.pressedFillFor(root.foreground, root.accent)
-    : _showFocusRing       ? Style.focusFillFor(root.foreground, root.accent)
-    : hot                  ? Style.hoverFillFor(root.foreground, root.accent)
-    : selected             ? Style.selectedFillFor(root.foreground, root.accent)
-    : active               ? Style.selectedFillFor(root.foreground, root.accent)
+  color: isAction ? Util.alpha(foreground, (hot || activeFocus ? 0.20 : 0.10) + (danger ? 0.08 : 0))
+    : isChip ? (danger ? Util.alpha(Colors.urgent, hot ? 0.40 : 0.28)
+      : selected ? Colors.menu.selectedBackground
+      : mouseArea.pressed ? Style.pressedFill
+      : hot ? Style.hoverFill
+      : Style.normalFill)
+    : mouseArea.pressed && isPlain ? Style.pressedFillFor(foreground, accent)
+    : _showFocusRing ? Style.focusFillFor(foreground, accent)
+    : hot ? Style.hoverFillFor(foreground, accent)
+    : (selected || active) && isPlain ? Style.selectedFillFor(foreground, accent)
     : background
-
-  borderSpec: _borderSpec
 
   Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
   transformOrigin: Item.Center
-  scale: mouseArea.pressed ? 0.98 : 1.0
+  scale: mouseArea.pressed && !isIcon ? 0.98 : 1.0
   Behavior on scale { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
-  readonly property bool _glowing: Style.fx.glow > 0 && (_showFocusRing || selected || active || mouseArea.pressed)
-  layer.enabled: _glowing
+  layer.enabled: Style.fx.glow > 0 && (isPlain ? (_showFocusRing || selected || active || mouseArea.pressed) : isChip && selected)
   layer.effect: Glow {}
+
+  readonly property color _textColor: !enabled && isIcon ? Util.alpha(foreground, Style.emphasis.faint)
+    : isChip ? (danger ? Colors.urgent : selected ? Colors.menu.selectedText : foreground)
+    : selected ? Style.selectedStateColor(foreground, accent)
+    : foreground
+  readonly property bool _textGlow: Style.fx.glow > 0 && enabled
+    && (isIcon ? (_showFocusRing || hot) : isAction && hot)
 
   PanelToolTip {
     visible: root.tooltipText !== "" && mouseArea.containsMouse
@@ -86,40 +124,50 @@ BorderSurface {
 
   Row {
     id: row
-    anchors.verticalCenter: parent.verticalCenter
-    anchors.horizontalCenter: parent.horizontalCenter
-    spacing: Style.spacing.controlGap
+    anchors.centerIn: parent
+    spacing: root.isAction ? Style.spacing.xs : Style.spacing.controlGap
 
     Text {
       textFormat: Text.PlainText
       visible: root.iconText !== ""
-      text: root.iconText
-      color: root.selected ? root._selectedColor : root.foreground
-      font.family: root.fontFamily
-      font.pixelSize: root.iconSize
       anchors.verticalCenter: parent.verticalCenter
+      text: root.iconText
+      color: root._textColor
+      font.family: root.isPlain ? root.fontFamily : Style.font.iconFamily
+      font.pixelSize: root.isIcon ? root.fontSize : root.iconSize
+      layer.enabled: root.isIcon && root._textGlow
+      layer.effect: Glow {}
     }
 
     Text {
       textFormat: Text.PlainText
       visible: root.text !== ""
-      text: root.text
-      color: root.selected ? root._selectedColor : root.foreground
+      anchors.verticalCenter: parent.verticalCenter
+      width: root.isChip ? Math.min(implicitWidth, root.width - Style.spacing.xs * 2) : implicitWidth
+      horizontalAlignment: Text.AlignHCenter
+      elide: root.isChip ? Text.ElideRight : Text.ElideNone
+      text: root.isAction ? "[ " + root.text + " ]" : root.text
+      color: root._textColor
       font.family: root.fontFamily
       font.pixelSize: root.fontSize
-      font.bold: root.selected
-      anchors.verticalCenter: parent.verticalCenter
+      font.bold: root.selected && root.isPlain
+      font.capitalization: root.isAction ? Font.AllUppercase : Font.MixedCase
+      font.letterSpacing: root.isAction ? Style.labelTracking : 0
+      layer.enabled: root.isAction && root._textGlow
+      layer.effect: Glow { shadowColor: root.foreground }
     }
   }
 
   MouseArea {
     id: mouseArea
     anchors.fill: parent
+    enabled: root.enabled
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
     acceptedButtons: Qt.LeftButton | Qt.RightButton
     onClicked: function(mouse) {
-      if (root.focusable) root.forceActiveFocus()
+      // a chip keeps the keyboard focus where it was, its ring only follows the keyboard
+      if (root.focusable && !root.isChip) root.forceActiveFocus()
       if (mouse.button === Qt.RightButton) root.rightClicked()
       else root.clicked()
     }

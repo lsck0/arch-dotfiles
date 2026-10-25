@@ -187,7 +187,8 @@ Item {
 
         Repeater {
           model: chips.presets
-          Chip {
+          Button {
+            variant: "chip"
             required property int modelData
             width: (chips.width - chips.spacing * (chips.presets.length - 1)) / chips.presets.length
             text: modelData + " min"
@@ -276,7 +277,8 @@ Item {
                 font.pixelSize: Style.font.body
               }
             }
-            PanelActionButton {
+            Button {
+              variant: "icon"
               id: rename
               anchors.right: cancel.left
               anchors.verticalCenter: parent.verticalCenter
@@ -285,7 +287,8 @@ Item {
               foreground: Colors.menu.text
               onClicked: root.askRename(reminderRow.modelData)
             }
-            PanelActionButton {
+            Button {
+              variant: "icon"
               id: cancel
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
@@ -365,21 +368,24 @@ Item {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             spacing: Style.spacing.xs
-            PanelActionButton {
+            Button {
+              variant: "icon"
               iconText: root.pomo.paused ? "\u{f040a}" : "\u{f03e4}"
               tooltipText: root.pomo.paused ? "Resume" : "Pause"
               foreground: Colors.menu.text
               fontSize: Style.font.heading
               onClicked: root.run([root.pomodoroScript, "toggle"])
             }
-            PanelActionButton {
+            Button {
+              variant: "icon"
               iconText: "\u{f04ad}"
               tooltipText: "Skip to next phase"
               foreground: Colors.menu.text
               fontSize: Style.font.heading
               onClicked: root.run([root.pomodoroScript, "skip"])
             }
-            PanelActionButton {
+            Button {
+              variant: "icon"
               iconText: "\u{f04db}"
               tooltipText: "Stop"
               foreground: Colors.menu.text
@@ -437,7 +443,8 @@ Item {
                 width: parent.width
                 height: Math.max(less.height, amount.implicitHeight)
 
-                PanelActionButton {
+                Button {
+                  variant: "icon"
                   id: less
                   anchors.left: parent.left
                   anchors.verticalCenter: parent.verticalCenter
@@ -456,7 +463,8 @@ Item {
                   font.family: Style.font.family
                   font.pixelSize: Style.font.body
                 }
-                PanelActionButton {
+                Button {
+                  variant: "icon"
                   anchors.right: parent.right
                   anchors.verticalCenter: parent.verticalCenter
                   iconText: "\u{f0415}" // md-plus
