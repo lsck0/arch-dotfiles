@@ -190,7 +190,12 @@ export def theme [cfg: record, wallpaper: string] {
         let colors = if $f == "kdeglobals" { $colors | merge deep (kde-fonts (open --raw $f)) } else { $colors | upsert General.Name pywal }
         file-text $dest (open --raw $f | ini-apply $colors false) --generated
     }
-    $themed ++ (wallpaper-set $wallpaper)
+    # running KDE apps (dolphin's daemon most of all) keep their palette until told, and widgets built later from it
+    # (the search and location bars) came up in the last theme's colors
+    let notify = if $colors == null or ($env.DBUS_SESSION_BUS_ADDRESS? | is-empty) { [] } else {
+        [(exec kde-palette [dbus-send --session --type=signal /KGlobalSettings org.kde.KGlobalSettings.notifyChange int32:0 int32:0])]
+    }
+    $themed ++ $notify ++ (wallpaper-set $wallpaper)
 }
 
 def themed-keys []: nothing -> list<string> {

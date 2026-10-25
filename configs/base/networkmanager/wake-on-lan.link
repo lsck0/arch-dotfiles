@@ -1,0 +1,10 @@
+# 99-default.link plus WakeOnLan for wired links: udev sets it on every add, NM leaves it (20-wake-on-lan.conf).
+# 90 runs after the 80-container/vm links and before 99-default, which a matching file replaces.
+[Match]
+Type=ether
+
+[Link]
+NamePolicy=keep kernel database onboard slot path
+AlternativeNamesPolicy=database onboard slot path mac
+MACAddressPolicy=persistent
+WakeOnLan=magic

@@ -13,6 +13,13 @@ Extends the root `AGENTS.md`. Game launchers, performance tooling and the game n
   `~/.d2launcher/{bin,patches,backup}`. `bin/diablo2` is seeded from a Lord of Destruction install (`base_dir`, detected
   in the lutris prefixes). The game runs inside gamescope (`gamescope.sh`, the launcher's `custom_command`) at a 4:3
   `render_size`, so its window resizes freely; its stream is named "Diablo II" through `PIPEWIRE_ALSA`.
+- `pd2`: Project Diablo 2 (season 3, 1.13c) single player with PlugY (shared and multi-page stash, stat and skill
+  unassign: `PlugY.ini` in the install). The install (`game_dir`, `~/sync/games/d2/ProjectD2`) and the saves
+  (`save_dir`, `~/sync/games/d2/Save`: PD2 characters with PlugY's `.d2x`/`.sss` stashes, so they load in neither
+  vanilla LoD nor Median XL) stay in `~/sync`; `~/.local/share/pd2/Diablo II` links the lutris LoD files with
+  `ProjectD2` inside it (PD2's dll refuses a dir outside a LoD install), the prefix's `Save Path` points at the saves.
+  It runs on d2launcher's wine 5.12 (the system's wine-staging overflows the 1.13c Game.exe's stack) with cnc-ddraw
+  (`ddraw=n,b`) inside gamescope, launched by `pd2.sh` / the "Project Diablo II" desktop entry.
 - `ffxiv`: the FFXIV client and launcher config, seeded once from `configs/secrets/state/ffxiv/<host>` (its `backup`
   verb).
 - `gamemode`: feral gamemode (`gamemode.ini`, its `[gpu]` from the detected card), engaged per game through a launch

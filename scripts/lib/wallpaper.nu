@@ -11,14 +11,36 @@ const FONT = path self ../toggles/toggle-font.nu
 const THEMES = path self ../../themes
 const WAL = ".cache/wal"
 const LOCK = "theme.lock"
+const BACKGROUND_LOCK = "theme-background.lock"
+# the token of the newest request: a queued switch or background run that finds another one there was superseded
+const WANT = "theme.want"
 const LOCK_BUSY = 75
+const LOCK_WAIT_S = "120"
 const IPC_TIMEOUT_S = "3"
 
 def wal [...parts: string]: nothing -> path { $nu.home-dir | path join $WAL ...$parts }
 
-# Background verbs run detached outside the lock, so a hung one never blocks later switches.
-def theme-run [file: path, sync: bool]: nothing -> nothing {
-    let background = [nu --no-config-file $INTERNAL theme apply $file --only background]
+def runtime [name: string]: nothing -> path { $env.XDG_RUNTIME_DIR? | default /tmp | path join $name }
+
+export def superseded [token: string]: nothing -> bool {
+    (try { open --raw (runtime $WANT) | str trim } catch { "" }) != $token
+}
+
+# The background verbs of one switch, run one switch at a time: a stale palette never lands after a newer one, and
+# a queued run a newer switch replaced is dropped. One that waited out a hung run goes ahead unlocked.
+export def theme-background [file: path, token: string]: nothing -> nothing {
+    let script = $"use wallpaper.nu [superseded]; if not \(superseded ($token | to nuon)\) { ^nu --no-config-file ($INTERNAL | to nuon) theme apply ($file | to nuon) --only background }"
+    let run = [nu --no-config-file -I $LIB_DIR -c $script]
+    let code = try {
+        ^flock --wait $LOCK_WAIT_S --conflict-exit-code $LOCK_BUSY --close (runtime $BACKGROUND_LOCK) ...$run
+        0
+    } catch {|e| $e.exit_code? | default 1 }
+    if $code == $LOCK_BUSY { ^$run.0 ...($run | skip 1) }
+}
+
+# Background verbs run detached outside the switch's lock, so a slow one never delays the next switch.
+def theme-run [file: path, sync: bool, token: string]: nothing -> nothing {
+    let background = [nu --no-config-file -I $LIB_DIR -c $"use wallpaper.nu [theme-background]; theme-background ($file | to nuon) ($token | to nuon)"]
     if $sync {
         ^$background.0 ...($background | skip 1) | ignore
     } else {
@@ -27,8 +49,12 @@ def theme-run [file: path, sync: bool]: nothing -> nothing {
     ^nu --no-config-file $INTERNAL theme apply $file --only foreground | ignore
 }
 
-# Switches to `file` unlocked; callers go through wallpaper-set, which single-flights it.
-export def wallpaper-apply [file: path, sync: bool]: nothing -> nothing {
+# Switches to `file` unlocked; callers go through wallpaper-set, which serializes it and drops superseded requests.
+export def wallpaper-apply [file: path, sync: bool, token: string]: nothing -> nothing {
+    if (superseded $token) {
+        print -e "wallpaper: a newer switch replaced this one, skipping"
+        return
+    }
     if not ($file | path exists) { error make {msg: $"wallpaper not found: ($file)"} }
     let file = $file | path expand
     ^ln -sfn $file (wal wallpaper)
@@ -36,10 +62,11 @@ export def wallpaper-apply [file: path, sync: bool]: nothing -> nothing {
     let shell = $nu.home-dir | path join .config quickshell
     do { ^timeout $IPC_TIMEOUT_S quickshell ipc -p $shell call background set $file } | complete | ignore
     let theme = glob ($THEMES | path join "*.json") | sort
-        | each {|f| {name: ($f | path parse | get stem), spec: (open $f)} }
+        | each {|f| {name: ($f | path parse | get stem), path: $f, spec: (open $f)} }
         | where spec.wallpaper? == ($file | path basename) | get --optional 0
     let nvim_theme = if $theme != null {
-        ^wallust cs -s --wallpaper $file $theme.name
+        # by path: wallust matches a name as a prefix, so gruvbox-dark was ambiguous with gruvbox-dark-soft
+        ^wallust cs -s --wallpaper $file $theme.path
         if ($theme.spec.font? | default "" | is-not-empty) { do { ^$FONT set $theme.spec.font } | complete | ignore }
         $theme.name
     } else {
@@ -47,7 +74,7 @@ export def wallpaper-apply [file: path, sync: bool]: nothing -> nothing {
         "pywal"
     }
     $"($nvim_theme)\n" | save --force (wal nvim_theme)
-    theme-run $file $sync
+    theme-run $file $sync $token
 }
 
 export def wallpaper-get []: nothing -> string {
@@ -63,21 +90,23 @@ export def wallpaper-list []: nothing -> list<string> {
     ^$LIST ...(if $screen == null { [] } else { [--screen $"($screen.0)x($screen.1)"] }) | lines
 }
 
-# Switches to a path or a wallpaper name; a switch while another runs is skipped.
+# Switches to a path or a wallpaper name. Switches run one at a time and the newest request wins: one queued
+# behind a running switch is dropped when a newer one arrives meanwhile.
 export def wallpaper-set [wallpaper: string, --sync]: nothing -> nothing {
     let file = if ($wallpaper | str contains "/") { $wallpaper } else {
         let found = do { ^$LIST --resolve $wallpaper } | complete
         if $found.exit_code != 0 { error make {msg: ($found.stderr | str trim)} }
         $found.stdout | str trim
     }
-    let lock = $env.XDG_RUNTIME_DIR? | default /tmp | path join $LOCK
-    let script = $"use wallpaper.nu [wallpaper-apply]; wallpaper-apply ($file | path expand | to nuon) ($sync)"
+    let token = random uuid
+    $"($token)\n" | save --force (runtime $WANT)
+    let script = $"use wallpaper.nu [wallpaper-apply]; wallpaper-apply ($file | path expand | to nuon) ($sync) ($token | to nuon)"
     let code = try {
-        ^flock --nonblock --conflict-exit-code $LOCK_BUSY --close $lock nu --no-config-file -I $LIB_DIR -c $script
+        ^flock --wait $LOCK_WAIT_S --conflict-exit-code $LOCK_BUSY --close (runtime $LOCK) nu --no-config-file -I $LIB_DIR -c $script
         0
     } catch {|e| $e.exit_code? | default 1 }
     if $code == $LOCK_BUSY {
-        print -e "wallpaper: a switch is already running, skipping"
+        print -e "wallpaper: the running switch did not finish in time, skipping"
     } else if $code != 0 {
         error make {msg: $"wallpaper: switching to ($file) failed"}
     }

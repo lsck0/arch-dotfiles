@@ -17,14 +17,16 @@ chain, and a loopback per app that carries its system volume.
 
 ## Per-app loopbacks
 
-Every app stream plays at full level into `app.<key>` (an Audio/Sink), whose `app.<key>.out` stream carries the
-system volume, mute and route to the device; wireplumber's state-stream keeps those per app. A capture of the app's
+Every app stream plays at its own level (the app's, e.g. spotify's slider, never touched) into `app.<key>` (an
+Audio/Sink), whose `app.<key>.out` stream carries the system volume, mute and route to the device; wireplumber's
+state-stream keeps those per app. A capture of the app's
 own ports (obs's application capture) so never follows the system fader. Streams with a target of their own (obs
 monitoring), notifications, filters and loopbacks keep their route. The quickshell mixer drives `app.<key>.out`
 (`Audio.levelOf`) and routes it (`Audio.route`, by object.serial: state-stream saves a route only as a serial). A
 mixer that moves the app stream itself (pavucontrol, wiremix) routes its loopback instead. The service's stop hands
-each loopback's level back to its streams, its start takes it back, so a restart keeps the levels; a loopback with
-no stream keeps its own. The shell's cues play as `media.role` Notification, past the loopbacks. While
+each loopback's level to its streams (times their own, recorded in its state), its start splits them again, so a
+restart keeps both; a stream that appears later is only routed, never leveled, and a loopback with no stream keeps
+its own. The shell's cues play as `media.role` Notification, past the loopbacks. While
 `dot.obs-listen` is set on the default metadata and obs runs, every loopback is muted
 (`scripts/toggles/toggle-obs-listen.nu`, the mixer's HEAR System / OBS output switch).
 

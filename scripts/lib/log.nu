@@ -85,6 +85,8 @@ export def --env run-begin [name: string, --read-only]: nothing -> nothing {
     $env.DOT_RUN_FILE = runs-dir | path join $"($env.DOT_RUN_ID).jsonl"
     $env.DOT_SPAN = ""
     mkdir (runs-dir)
+    let pointer = $env.DOT_RUN_POINTER? | default ""
+    if $pointer != "" and ($pointer | path exists) and (open --raw $pointer | is-empty) { $env.DOT_RUN_FILE | save --force $pointer }
     let runs = runs-list
     let changing = $runs.files | where $it not-in $runs.read_only
     ($changing | drop $RUNS_KEEP) ++ ($runs.read_only | drop $RUNS_READ_ONLY_KEEP) | each { rm --force $in } | ignore

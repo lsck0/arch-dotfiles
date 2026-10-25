@@ -24,9 +24,23 @@ export def build []: nothing -> record {
     {commit: $head, dirty: $dirty, nu: (version | get version)}
 }
 
-# Runs body as one logged run; an unexpected error leaves crash.json.
-# --read-only: its log never evicts one that changed something.
+# This process's argv, to re-exec it.
+export def self-argv []: nothing -> list<string> {
+    open --raw $"/proc/($nu.pid)/cmdline" | into binary | decode utf-8 | split row (char nul) | drop 1
+}
+
+# Re-execs this command under interruptible.sh unless one already watches this session: nushell's try
+# would swallow a ctrl+c and run the later phases. A session without a terminal has no ctrl+c.
+export def interruptible []: nothing -> nothing {
+    if not (is-terminal --stdin) { return }
+    if ($env.DOT_INTERRUPTIBLE? | default "") == (^ps -o sid= -p $nu.pid | str trim) { return }
+    exec ($REPO | path join scripts lib interruptible.sh) ...(self-argv)
+}
+
+# Runs body as one logged run; an unexpected error leaves crash.json; ctrl+c ends it (interruptible).
+# --read-only: its log never evicts one that changed something, and ctrl+c is nushell's own.
 export def guarded [name: string, body: closure, --read-only]: nothing -> any {
+    if not $read_only { interruptible }
     run-begin $name --read-only=$read_only | ignore
     $env.DOTFILES = $REPO
     $env.LOG_TAG = "dot"

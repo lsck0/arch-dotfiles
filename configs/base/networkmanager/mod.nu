@@ -22,7 +22,7 @@ export const options = {
     wake_on_lan: {
         type: bool
         default: false
-        doc: "Wake on a magic packet over ethernet (NetworkManager sets it on every wired connection it brings up)"
+        doc: "Wake on a magic packet over ethernet (udev sets it on every wired link, NetworkManager leaves it)"
         label: "Wake-on-LAN"
         scope: machine
     }
@@ -118,7 +118,11 @@ export def system [cfg: record] {
         (file-copy NetworkManager.conf $"($NM)/NetworkManager.conf" --then $restart)
         # NM's one auto wired profile serves every wired network, so a laptop's ethernet is never home (fail closed)
         (if $home_wired { file-copy home-wired.conf $"($NM)/conf.d/10-home-wired.conf" --then $restart } else { [] })
-        (if $cfg.wake_on_lan { file-copy wake-on-lan.conf $"($NM)/conf.d/20-wake-on-lan.conf" --then $restart } else { [] })
+        (if $cfg.wake_on_lan {[
+            (file-copy wake-on-lan.link /etc/systemd/network/90-wake-on-lan.link
+                --then [sh -c "udevadm control --reload && udevadm trigger --action=add --subsystem-match=net"])
+            (file-copy wake-on-lan.conf $"($NM)/conf.d/20-wake-on-lan.conf" --then $restart)
+        ]} else { [] })
         (do $dispatcher home-network.nu 70-home-network)
         (do $dispatcher connectivity-check.nu 75-connectivity-check)
         (do $dispatcher homelab-routes.nu 80-homelab-routes)
@@ -155,10 +159,33 @@ export def home [home_wired: string, ...gateways: string]: nothing -> nothing {
             error make {msg: $"networkmanager: home-gateways is not one mac address per line, keeping ($file)"}
         }
         $lines
-    } else if ($file | path exists) { open --raw $file | lines } else { [] }
+    } else { [] }
+    # rewritten every time, so a gateway dropped from the option (toggle-trust-network off) stops being home
     let want = $listed | append ($gateways | where $it not-in $listed)
-    if ($want | is-not-empty) { $want | str join "\n" | $"($in)\n" | save --force $file }
-    for link in (^nmcli -g DEVICE,STATE device | lines | parse "{dev}:{state}" | where state == connected | get dev) {
+    $want | each { $"($in)\n" } | str join | save --force $file
+    let ssids = if ($wifi | path exists) { open --raw $wifi | lines | each { split row "\t" | first } } else { [] }
+    let connected = ^nmcli -g DEVICE,STATE device | lines | parse "{dev}:{state}" | where state == connected | get dev
+    for dev in $connected { trusted-wifi-mac $dev ($want | str lowercase) $ssids }
+    for link in $connected {
         ^$"($DISPATCHERS)/70-home-network" $link up
     }
+}
+
+# A wifi profile on a trusted gateway keeps the hardware mac, which 70-home-network needs to call it home; one no
+# longer trusted (and not a secrets ssid) gets the global random mac back. Only the active profile knows its gateway.
+def trusted-wifi-mac [dev: string, gateways: list<string>, ssids: list<string>]: nothing -> nothing {
+    let uuid = ^nmcli -g GENERAL.CON-UUID device show $dev | str trim
+    if $uuid == "" or (^nmcli -g connection.type connection show $uuid | str trim) != "802-11-wireless" { return }
+    let gateway = ^ip -4 route show default dev $dev | lines | get --optional 0 | default "" | split row " " | get --optional 2
+    if $gateway == null { return }
+    let mac = ^ip neigh show $gateway dev $dev | parse --regex 'lladdr (?<mac>\S+)' | get --optional 0.mac | default ""
+    let trusted = ($mac | str lowercase) in $gateways
+    let permanent = (^nmcli -g 802-11-wireless.cloned-mac-address connection show $uuid | str trim) == "permanent"
+    let ssid = ^nmcli -g 802-11-wireless.ssid connection show $uuid | str trim
+    if $trusted and not $permanent {
+        ^nmcli connection modify $uuid 802-11-wireless.cloned-mac-address permanent ipv6.method auto
+    } else if not $trusted and $permanent and $ssid not-in $ssids {
+        ^nmcli connection modify $uuid 802-11-wireless.cloned-mac-address ""
+    } else { return }
+    ^nmcli connection up $uuid | ignore
 }

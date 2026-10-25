@@ -1,68 +1,4 @@
-local installed = {
-    "asm-lsp",
-    "bash-language-server",
-    "bibtex-tidy",
-    "clangd",
-    "cobol-language-support",
-    "codelldb",
-    "css-lsp",
-    "cssmodules-language-server",
-    "debugpy",
-    "docker-compose-language-service",
-    "dockerfile-language-server",
-    "emmet-language-server",
-    "eslint-lsp",
-    "glsl_analyzer",
-    "gopls",
-    "haskell-language-server",
-    "hlint",
-    "html-lsp",
-    "hyprls",
-    "java-debug-adapter",
-    "java-test",
-    "jdtls",
-    "jinja-lsp",
-    "js-debug-adapter",
-    "json-lsp",
-    "latexindent",
-    "lean-language-server",
-    "lemminx",
-    "lua-language-server",
-    "nil",
-    "ormolu",
-    "pyright",
-    "ruff",
-    "rust-analyzer",
-    "slang-server",
-    "sqruff", -- sqlls is unmaintained and crashes on load
-    "stylua",
-    "gofumpt",
-    "goimports",
-    "tailwindcss-language-server", -- shfmt is a pacman package (programming/formatting)
-    "taplo",
-    "terraform-ls",
-    "texlab",
-    "tinymist",
-    "typescript-language-server",
-    "typos-lsp",
-    "vim-language-server",
-    "wgsl-analyzer", -- mason package hyphenated, lspconfig server is wgsl_analyzer
-    "yaml-language-server",
-    "zls",
-    "clojure-lsp",
-    "graphql-language-service-cli",
-    "intelephense",
-    "marksman",
-    "omnisharp",
-    "svelte-language-server",
-    "vue-language-server",
-    "cljfmt",
-    "csharpier",
-    "ktlint",
-    "php-cs-fixer",
-    "rubocop",
-    "sql-formatter",
-}
+local installed = require("lib.mason_packages")
 
 return {
     {
@@ -124,6 +60,10 @@ return {
                 ensure_installed = installed,
                 run_on_start = true,
             })
+            -- lazy-loaded on a later buffer, VimEnter has already fired then
+            if vim.v.vim_did_enter == 1 then
+                require("mason-tool-installer").run_on_start()
+            end
             vim.lsp.config("clangd", {
                 cmd = {
                     "clangd",

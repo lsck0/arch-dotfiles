@@ -260,6 +260,14 @@ BarWidget {
     implicitWidth: Style.panelWidth.wide
     implicitHeight: Math.min(content.implicitHeight, maxBodyHeight) + padding * 2 + titleInset
 
+    component AxisLabel: Text {
+      textFormat: Text.PlainText
+      color: Colors.menu.text
+      opacity: Style.emphasis.faint
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+    }
+
     component Stat: Column {
       id: stat
       property string glyph: ""
@@ -493,152 +501,110 @@ BarWidget {
           text: "NEXT 24 HOURS" + (root.hourly.length > 0 ? " :: " + root.t(root.hourlyTempMin) + " .. " + root.t(root.hourlyTempMax) : "")
         }
 
-        Row {
+        // both charts share one axis column and one slot per hour, so a temperature point sits over its rain bar and
+        // every tick is centered under the hour it names
+        Item {
+          id: hourlyChart
           width: parent.width
-          height: Style.space(64)
+          height: tempRow.height + Style.spacing.xs + rainCaption.implicitHeight + Style.spacing.xxs + rainRow.height
           visible: root.hourly.length > 0
-          spacing: Style.spacing.xs
+
+          readonly property real axisWidth: Math.max(tempMaxLabel.implicitWidth, tempMinLabel.implicitWidth, rainMaxLabel.implicitWidth)
+          readonly property real plotX: axisWidth + Style.spacing.xs
+          readonly property real plotWidth: width - plotX
+          readonly property int count: Math.max(1, root.hourly.length)
+          readonly property real gap: 1
+          readonly property real slot: (plotWidth + gap) / count
+          readonly property real barWidth: slot - gap
+          function slotCenter(i) { return plotX + i * slot + barWidth / 2 }
 
           Item {
-            id: tempAxis
-            width: Math.max(tempMaxLabel.implicitWidth, tempMinLabel.implicitWidth)
-            height: parent.height
+            id: tempRow
+            width: parent.width
+            height: Style.space(64)
 
-            Text {
-              id: tempMaxLabel
-              anchors.top: parent.top
-              anchors.right: parent.right
-              textFormat: Text.PlainText
-              text: root.t(root.hourlyTempMax)
-              color: Colors.menu.text
-              opacity: Style.emphasis.faint
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
-            }
+            AxisLabel { id: tempMaxLabel; anchors.top: parent.top; x: hourlyChart.axisWidth - implicitWidth; text: root.t(root.hourlyTempMax) }
+            AxisLabel { id: tempMinLabel; anchors.bottom: parent.bottom; x: hourlyChart.axisWidth - implicitWidth; text: root.t(root.hourlyTempMin) }
 
-            Text {
-              id: tempMinLabel
-              anchors.bottom: parent.bottom
-              anchors.right: parent.right
-              textFormat: Text.PlainText
-              text: root.t(root.hourlyTempMin)
+            Sparkline {
+              x: hourlyChart.slotCenter(0)
+              width: hourlyChart.slotCenter(hourlyChart.count - 1) - x
+              height: parent.height
               color: Colors.menu.text
-              opacity: Style.emphasis.faint
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
+              glow: true
+              minValue: root.hourlyTempMin - 1
+              maxValue: root.hourlyTempMax + 1
+              values: root.hourlyTemps
             }
           }
 
-          Sparkline {
-            width: parent.width - tempAxis.width - parent.spacing
-            height: parent.height
-            color: Colors.menu.text
-            glow: true
-            minValue: root.hourlyTempMin - 1
-            maxValue: root.hourlyTempMax + 1
-            values: root.hourlyTemps
-          }
-        }
-
-        Column {
-          width: parent.width
-          spacing: Style.spacing.xxs
-          visible: root.hourly.length > 0
-
-          Text {
-            textFormat: Text.PlainText
+          AxisLabel {
+            id: rainCaption
+            y: tempRow.height + Style.spacing.xs
+            x: hourlyChart.plotX
             text: "RAIN CHANCE"
-            color: Colors.menu.text
-            opacity: Style.emphasis.faint
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
             font.letterSpacing: Style.headerTracking
           }
 
-          Row {
+          Item {
+            id: rainRow
+            y: rainCaption.y + rainCaption.implicitHeight + Style.spacing.xxs
             width: parent.width
-            spacing: Style.spacing.xs
+            height: rainBars.height + ticks.height
+
+            AxisLabel { id: rainMaxLabel; anchors.top: parent.top; x: hourlyChart.axisWidth - implicitWidth; text: "100%" }
+            AxisLabel { y: rainBars.height - implicitHeight; x: hourlyChart.axisWidth - implicitWidth; text: "0%" }
 
             Item {
-              id: rainAxis
-              width: Style.space(28)
+              id: rainBars
+              width: parent.width
               height: Style.space(28)
-
-              Text {
-                anchors.top: parent.top
-                anchors.right: parent.right
-                textFormat: Text.PlainText
-                text: "100%"
-                color: Colors.menu.text
-                opacity: Style.emphasis.faint
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
-              }
-
-              Text {
-                anchors.bottom: parent.bottom
-                anchors.right: parent.right
-                textFormat: Text.PlainText
-                text: "0%"
-                color: Colors.menu.text
-                opacity: Style.emphasis.faint
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
+              Repeater {
+                model: root.hourly
+                delegate: Rectangle {
+                  id: hourBar
+                  required property var modelData
+                  required property int index
+                  x: hourlyChart.plotX + index * hourlyChart.slot
+                  width: hourlyChart.barWidth
+                  height: Math.max(1, rainBars.height * Math.max(0, Math.min(100, Number(hourBar.modelData.pop) || 0)) / 100)
+                  anchors.bottom: parent.bottom
+                  color: Util.alpha(Colors.accent, 0.55)
+                  antialiasing: false
+                }
               }
             }
 
-            Column {
-              id: rainChart
-              width: parent.width - rainAxis.width - parent.spacing
-              spacing: 0
-
-              Item {
-                id: hourlyBars
-                width: parent.width
-                height: Style.space(28)
-                Row {
-                  anchors.fill: parent
-                  spacing: 1
-                  Repeater {
-                    model: root.hourly
-                    delegate: Item {
-                      id: hourBar
-                      required property var modelData
-                      width: (hourlyBars.width - (root.hourly.length - 1)) / Math.max(1, root.hourly.length)
-                      height: hourlyBars.height
-                      Rectangle {
-                        anchors.bottom: parent.bottom
-                        width: parent.width
-                        height: Math.max(1, parent.height * Math.max(0, Math.min(100, Number(hourBar.modelData.pop) || 0)) / 100)
-                        color: Util.alpha(Colors.accent, 0.55)
-                        antialiasing: false
-                      }
-                    }
-                  }
-                }
+            Item {
+              id: ticks
+              y: rainBars.height
+              width: parent.width
+              height: tickProbe.implicitHeight
+              Column {
+                id: tickProbe
+                visible: false
+                Text { text: "0"; font.family: Style.font.iconFamily; font.pixelSize: Style.font.iconSmall }
+                Text { text: "0"; font.family: Style.font.family; font.pixelSize: Style.font.caption }
               }
-
-              Row {
-                width: parent.width
-                spacing: 1
-                Repeater {
-                  model: root.hourly
-                  delegate: Column {
-                    id: hourTick
-                    required property var modelData
-                    required property int index
-                    width: (hourlyBars.width - (root.hourly.length - 1)) / Math.max(1, root.hourly.length)
-                    spacing: 0
-                    Text {
-                      text: hourTick.index % 6 === 0 ? root.iconFor(hourTick.modelData.code, 1) : ""
-                      color: Colors.accent
-                      font.family: Style.font.iconFamily; font.pixelSize: Style.font.iconSmall
-                    }
-                    Text {
-                      text: hourTick.index % 6 === 0 ? hourTick.modelData.h : ""
-                      color: Colors.menu.text; opacity: Style.emphasis.faint
-                      font.family: Style.font.family; font.pixelSize: Style.font.caption
-                    }
+              Repeater {
+                model: root.hourly
+                delegate: Column {
+                  id: hourTick
+                  required property var modelData
+                  required property int index
+                  visible: index % 6 === 0
+                  x: hourlyChart.slotCenter(index) - width / 2
+                  Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: root.iconFor(hourTick.modelData.code, 1)
+                    color: Colors.accent
+                    font.family: Style.font.iconFamily; font.pixelSize: Style.font.iconSmall
+                  }
+                  Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: hourTick.modelData.h
+                    color: Colors.menu.text; opacity: Style.emphasis.faint
+                    font.family: Style.font.family; font.pixelSize: Style.font.caption
                   }
                 }
               }

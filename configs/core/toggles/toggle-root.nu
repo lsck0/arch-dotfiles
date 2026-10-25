@@ -8,12 +8,14 @@ const PERSONA_DISPATCHER = "/etc/NetworkManager/dispatcher.d/90-anonymous-person
 const NFT_TABLE = "anonymous_socks"
 const PERSONA_CHAIN = "ANONSOCKS_PERSONA"
 const TLP_MODES = [balanced performance power-saver]
+const FIREWALL_STATES = [permissive default restrictive]
+const VPN_INTERFACE = "proton0"
 const PERSONA_TTLS = ["64" "128"]
 const PORT_MAX = 65535
 const POOL_SIZE_MAX = 999
 
 def usage []: nothing -> nothing {
-    print -e "usage: toggle-root {tlp MODE|wg up|down|vllm on|off|firewall-chosen|anonsocks VERB...}"
+    print -e "usage: toggle-root {tlp MODE|wg up|down|vllm on|off|firewall STATE|anonsocks VERB...}"
     exit 1
 }
 
@@ -126,7 +128,20 @@ def --wrapped main [...args: string] {
                 _ => { usage }
             }
         }
-        [1, "firewall-chosen"] => { rm --force $PERSONA_LOCKDOWN }
+        # one call per switch, so 49-toggles.rules asks once; portmaster stays off under a live protonvpn tunnel
+        [2, "firewall"] => {
+            let state = $args.1
+            if $state not-in $FIREWALL_STATES { usage }
+            match $state {
+                permissive => { ^systemctl stop fw-inbound.service fw-lockdown.service portmaster.service }
+                _ => {
+                    ^systemctl start (if $state == default { "fw-inbound.service" } else { "fw-lockdown.service" })
+                    if not ($"/sys/class/net/($VPN_INTERFACE)" | path exists) { ^systemctl start portmaster.service }
+                }
+            }
+            # the admin chose, so the dispatcher's lockdown marker no longer holds the link
+            rm --force $PERSONA_LOCKDOWN
+        }
         [_, "anonsocks"] => { anonsocks ($args | skip 1) }
         _ => { usage }
     }

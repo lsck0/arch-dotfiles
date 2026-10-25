@@ -58,6 +58,7 @@ export def link [cfg: record] {
     let bootstrapping = (^pgrep -x updater_bootstr | complete).exit_code == 0
     [
         (json-merge ($config | path join settings.json) ($SETTINGS | items {|k, v| json-set [$k] $v }))
+        (file-copy discordo.toml ($nu.home-dir | path join .config discordo config.toml))
         # never beside a running bootstrap: they share one download dir
         (if $bootstrapping or not ($BOOTSTRAP | path exists) { [] } else {
             let download = [sh -c $BOOTSTRAP_RUN discord-app $BOOTSTRAP_TIMEOUT $BOOTSTRAP $config $UPDATES_URL]

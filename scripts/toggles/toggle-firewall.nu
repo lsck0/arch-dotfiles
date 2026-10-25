@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [notify root-run systemctl-guarded unit-active cycle-next]
+use lib.nu [notify root-run unit-active cycle-next]
 
 const STATES = {permissive: Permissive, default: Default, restrictive: Restrictive}
 
@@ -7,19 +7,9 @@ def current []: nothing -> string {
     if (unit-active fw-lockdown.service) { "restrictive" } else if (unit-active fw-inbound.service) { "default" } else { "permissive" }
 }
 
-def portmaster-start []: nothing -> nothing {
-    if not ("/sys/class/net/proton0" | path exists) { ^systemctl --no-ask-password start portmaster.service }
-}
-
+# one root call, so one password prompt at most (49-toggles.rules)
 def apply [state: string]: nothing -> nothing {
-    try {
-        match $state {
-            default => { systemctl-guarded start fw-inbound.service; portmaster-start }
-            restrictive => { ^systemctl --no-ask-password start fw-lockdown.service; portmaster-start }
-            permissive => { systemctl-guarded stop fw-inbound.service fw-lockdown.service portmaster.service }
-        }
-        root-run firewall-chosen
-    } catch {
+    try { root-run firewall $state } catch {
         notify Firewall $"Switch failed, now ($STATES | get (current))" --critical
         exit 1
     }

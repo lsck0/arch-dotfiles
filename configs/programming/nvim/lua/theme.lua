@@ -195,6 +195,9 @@ function M.apply(name)
         vim.g.colors_name = nil
         vim.o.background = background
     end
+    -- a colorscheme clears only when colors_name is set, so groups the last one or its plugin integrations
+    -- defined (barbar's Buffer*) kept their colors across a background flip
+    vim.cmd.highlight("clear")
     local ok, err = pcall(vim.cmd.colorscheme, colorscheme)
     if not ok then
         vim.schedule(function()

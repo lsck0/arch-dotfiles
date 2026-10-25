@@ -16,6 +16,7 @@ apparmor
 apparmor.d
 appimagetool-git
 arch-audit
+arch-wiki-lite
 archiso
 argon2
 arjun
@@ -130,6 +131,7 @@ cups-pdf
 cups-pk-helper
 curl
 curseforge
+cyan
 czmq-git
 dalfox-bin
 ddcutil
@@ -726,6 +728,8 @@ tar-scripts
 taskwarrior-tui
 tauri-cli
 tcpdump
+teal
+tealdeer
 teamspeak6-client
 tectonic
 telegram-desktop
@@ -752,7 +756,6 @@ tinyssh
 tinyssh-convert
 tk
 tla-toolbox
-tldr
 tlp
 tlpui
 tmux
@@ -937,6 +940,7 @@ wiremix
 wireplumber
 wireshark-qt
 wivrn-server
+wl-clip-persist
 wl-clipboard
 wl_shimeji-git
 wmctrl

@@ -25,6 +25,9 @@ const HOOK = "/usr/share/doc/timew/ext/on-modify.timewarrior"
 const CLIENT_ID = "configs/secrets/keys/taskwarrior-client-id"
 const SECRET = "configs/secrets/keys/taskwarrior-encryption-secret"
 const SYNC_RC = ".config/task/sync.taskrc"
+# CALENDAR_FEED (the homelab calendar feed dir) and CALENDAR_UPLOAD (its push url), read by task-calendar.nu
+const CALENDAR = "configs/secrets/keys/calendar.env"
+const CALENDAR_ENV = ".config/task/calendar.env"
 
 def secret-read [file: path]: nothing -> string {
     open --raw $file | str trim --right
@@ -49,8 +52,17 @@ def sync-text [cfg: record]: nothing -> string {
     }
 }
 
+# Like the sync config: locked secrets keep the file as it is.
+def calendar-text []: nothing -> string {
+    let env_file = $env.DOTFILES | path join $CALENDAR
+    let live = $nu.home-dir | path join $CALENDAR_ENV
+    if (secret-is-plaintext $env_file) { return (open --raw $env_file) }
+    if ($live | path exists) { open --raw $live } else { "" }
+}
+
 export def link [cfg: record] {
     let sync = sync-text $cfg
+    let calendar = calendar-text
     let bugwarrior = (profile-has secrets) and (which bugwarrior | is-not-empty)
     [
         (file-copy taskrc ($nu.home-dir | path join .config task taskrc))
@@ -58,6 +70,8 @@ export def link [cfg: record] {
         (if ($HOOK | path exists) { file-copy $HOOK ($nu.home-dir | path join .task hooks on-modify.timewarrior) --mode 755 } else { [] })
         (if $bugwarrior { [] } else { file-text ($nu.home-dir | path join .config bugwarrior uda.taskrc) "" })
         (file-text ($nu.home-dir | path join $SYNC_RC) $sync --mode 600)
+        (if ($calendar | is-empty) { [] } else { file-text ($nu.home-dir | path join $CALENDAR_ENV) $calendar --mode 600 })
+        (link-commands task-calendar.nu)
         (if ($sync | is-empty) { [] } else { (unit-file task-sync.service) ++ (unit-file task-sync.timer --enable --now) })
     ]
 }

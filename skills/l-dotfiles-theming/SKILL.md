@@ -23,8 +23,11 @@ It links `~/.cache/wal/wallpaper`, then:
   string]` in its `mod.nu`, returning declarations like `link`. It reads the palette with `palette-load` (`bg`, `fg`,
   `c0` to `c15`, `light`, `bg_conditioned`) or `configs/core/wallust/palette.nu` directly, the one conditioning
   authority (contrast, tone map, readable text).
-- The verbs run in the background outside the switch's lock; `THEME_FOREGROUND` in `scripts/lib/internal.nu` names the few
-  that must run in order under it (spotify before discord). Live pokes are theme verbs too (hyprland reload,
+- Switches run one at a time under `$XDG_RUNTIME_DIR/theme.lock` and the newest request wins: each writes its token
+  to `theme.want`, and a queued switch whose token is no longer there is dropped. The verbs run in the background
+  outside that lock, one switch's set at a time under `theme-background.lock` (a stale set never lands after a newer
+  one); `THEME_FOREGROUND` in `scripts/lib/internal.nu` names the few that must run in order under the switch's lock
+  (spotify before discord). Live pokes are theme verbs too (hyprland reload,
   kitty, ghostty, tmux, nvim, emacs, pywalfox). quickshell recolours itself from `colors.json` through
   `Commons/Palette.js`, the JS port of `palette.nu`.
 

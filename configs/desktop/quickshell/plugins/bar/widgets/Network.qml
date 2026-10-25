@@ -21,6 +21,8 @@ BarWidget {
   property bool offlineModeOn: false
   property string firewallState: ""
   property bool homelabAvailable: false
+  property bool trustedNetwork: false
+  property bool trustAvailable: false
 
   property bool detailsConnected: false
   property string connectivity: "unknown"
@@ -64,6 +66,8 @@ BarWidget {
     ethProc.running = true
     mobileProc.running = true
     firewallProc.running = true
+    trustProc.running = true
+    trustAvailableProc.running = true
     rfkillProc.running = true
     if (!detailsProc.running) detailsProc.running = true
   }
@@ -105,6 +109,7 @@ BarWidget {
   function toggleEthernet() { runToggle("toggle-ethernet.nu") }
   function toggleMobile() { runToggle("toggle-mobile.nu") }
   function toggleOfflineMode() { runToggle("toggle-offline.nu") }
+  function toggleTrustNetwork() { runToggle("toggle-trust-network.nu") }
   function setFirewall(state) { Quickshell.execDetached([Paths.toggle("toggle-firewall.nu"), "set", state]) }
 
   readonly property var firewallModes: [
@@ -158,6 +163,16 @@ BarWidget {
     id: homelabProc
     command: [Paths.toggle("toggle-vpn.nu"), "available"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.homelabAvailable = String(text || "").trim() === "true" }
+  }
+  Process {
+    id: trustProc
+    command: [Paths.toggle("toggle-trust-network.nu"), "get"]
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.trustedNetwork = String(text || "").trim() === "on" }
+  }
+  Process {
+    id: trustAvailableProc
+    command: [Paths.toggle("toggle-trust-network.nu"), "available"]
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.trustAvailable = String(text || "").trim() === "true" }
   }
   Process {
     id: firewallProc
@@ -254,7 +269,7 @@ BarWidget {
   }
 
   readonly property var networkToggles: ["toggle-vpn.nu", "toggle-protonvpn.nu", "toggle-tor.nu", "toggle-anonymous-socks.nu", "toggle-bluetooth.nu",
-    "toggle-wifi.nu", "toggle-ethernet.nu", "toggle-mobile.nu", "toggle-offline.nu", "toggle-firewall.nu"]
+    "toggle-wifi.nu", "toggle-ethernet.nu", "toggle-mobile.nu", "toggle-offline.nu", "toggle-firewall.nu", "toggle-trust-network.nu"]
   Connections {
     target: ToggleEvents
     function onChanged(script) { if (root.networkToggles.indexOf(script) >= 0) nmDebounce.restart() }
@@ -555,6 +570,8 @@ BarWidget {
         value: root.firewallState
         onChanged: function(state) { if (state !== root.firewallState) root.setFirewall(state) }
       }
+      // home lifts the lockdown on this link: the gateway joins networkmanager's home_gateways
+      ToggleRow { visible: root.trustAvailable; label: "Trust this network"; on: root.trustedNetwork; onActivated: root.toggleTrustNetwork() }
 
       PanelSeparator {}
       PanelSectionHeader { text: "TUNNELS" }

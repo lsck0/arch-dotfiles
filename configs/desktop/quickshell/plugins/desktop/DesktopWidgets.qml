@@ -25,7 +25,9 @@ Item {
         return out;
     }
     readonly property var tasks: Array.prototype.slice.call(TaskState.tasks, 0, root.taskMax)
-    readonly property bool agendaEmpty: reminderRows.length === 0 && tasks.length === 0
+    readonly property int eventMax: 4
+    readonly property var events: Array.prototype.slice.call(CalendarState.events, 0, root.eventMax)
+    readonly property bool agendaEmpty: reminderRows.length === 0 && tasks.length === 0 && events.length === 0
 
     FileView {
         id: notesFile
@@ -157,6 +159,19 @@ Item {
                             trailing: modelData.remaining
                             trailingColor: Colors.accent2
                             trailingOpacity: Style.emphasis.strong
+                        }
+
+                    }
+
+                    Repeater {
+                        model: root.events
+
+                        delegate: Line {
+                            required property var modelData
+
+                            label: modelData.summary
+                            trailing: modelData.when
+                            trailingColor: Colors.accent
                         }
 
                     }

@@ -7,3 +7,6 @@ Type=oneshot
 # quiet; a server that answers yet refuses the sync (another client id, another secret) still fails and notifies
 ExecCondition=/bin/sh -c 'curl -sfo /dev/null --max-time 10 "$$(task _get rc.sync.server.url)"'
 ExecStart=/usr/bin/task sync
+# the due tasks into the homelab calendar; a no-op without ~/.config/task/calendar.env; a refused upload is
+# logged, not a failed sync
+ExecStartPost=-%h/.local/bin/task-calendar push

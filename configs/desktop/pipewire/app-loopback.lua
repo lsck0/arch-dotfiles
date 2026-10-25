@@ -6,6 +6,7 @@ PREFIX = "app."
 OUT_SUFFIX = ".out"
 STATE_NAME = "app-loopback"
 STATE_LISTEN = "listen."
+STATE_OWN = "own."
 LISTEN_KEY = "dot.obs-listen"
 OBS_BINARY = "obs"
 SETTLE_MS = 300
@@ -191,32 +192,49 @@ function mute_set(node, mute)
     node:set_param("Props", Pod.Object({ "Spa:Pod:Object:Param:Props", "Props", mute = mute }))
 end
 
--- Moves the stream to full only once it plays into the loopback: raised while still on the device, it would blast.
-function level_take(stream_id, sink_id, out_id, retries)
+-- The start: a stream the stop handed a level to gives it back to its loopback and returns to its own level (the
+-- app's, e.g. spotify's slider). Only once it plays into the loopback: lowered while still on the device, it would jump.
+-- A stream the stop never saw keeps its level, since it is the app's own: moving it would move the app's slider.
+function level_reclaim(stream_id, sink_id, out_id, retries)
     local stream, out = node_get(stream_id), node_get(out_id)
     if not (stream and out) then
         return
     end
+    local mark = STATE_OWN .. stream.properties["object.serial"]
+    local key, own = (known[mark] or ""):match("^(%S+) (%S+)$")
+    if not key or key ~= stream_key(stream.properties) then
+        return
+    end
     if not link_contains(stream_id, sink_id) then
         retry(function(r)
-            level_take(stream_id, sink_id, out_id, r)
+            level_reclaim(stream_id, sink_id, out_id, r)
         end, retries)
         return
     end
-    level_get(stream, function(own)
-        local level = level_mean(own.levels)
-        if level > VOLUME_FULL - VOLUME_EPSILON and not own.mute then
-            return
-        end
+    known[mark] = nil
+    state:save_after_timeout(known)
+    own = tonumber(own)
+    level_get(stream, function(handed)
+        local level = own > VOLUME_EPSILON and level_mean(handed.levels) / own or VOLUME_FULL
         level_get(out, function(loop)
-            level_set(out, level_scale(level_full(loop.levels), level), own.mute)
-            level_set(stream, level_full(own.levels), false)
-            Log.info("moved the level of " .. stream.properties["node.name"] .. " onto its loopback")
+            level_set(out, level_scale(level_full(loop.levels), level), handed.mute)
+            level_set(stream, level_scale(level_full(handed.levels), own), false)
+            Log.info("gave the level of " .. stream.properties["node.name"] .. " back to its loopback")
         end)
     end)
 end
 
-function stream_attach(id, retries)
+-- Drops the records of streams that never came back after a stop.
+function own_forget()
+    for mark in pairs(known) do
+        if mark:sub(1, #STATE_OWN) == STATE_OWN then
+            known[mark] = nil
+        end
+    end
+    state:save_after_timeout(known)
+end
+
+function stream_attach(id, retries, reclaim)
     local stream = node_get(id)
     if not stream then
         return
@@ -230,7 +248,7 @@ function stream_attach(id, retries)
     local metadata = metadata_om:lookup()
     if not (sink and out and metadata) then
         retry(function(r)
-            stream_attach(id, r)
+            stream_attach(id, r, reclaim)
         end, retries)
         return
     end
@@ -244,7 +262,9 @@ function stream_attach(id, retries)
         end
         metadata:set(id, "target.object", "Spa:Id", serial)
     end
-    level_take(id, sink["bound-id"], out["bound-id"], 0)
+    if reclaim then
+        level_reclaim(id, sink["bound-id"], out["bound-id"], 0)
+    end
 end
 
 function listen_active()
@@ -273,7 +293,8 @@ function listen_apply()
     end
 end
 
--- The stop: every looped stream takes its loopback's level and mute, the loopback goes to full for the next start.
+-- The stop: every looped stream takes its loopback's level times its own and the mute, the loopback goes to full;
+-- the stream's own level is recorded so the next start can split them again.
 function release_all()
     local pending = 0
     local function done()
@@ -305,7 +326,9 @@ function release_all()
                         handed = true
                         pending = pending + 1
                         level_get(stream, function(own)
-                            level_set(stream, level_scale(level_full(own.levels), level), mute)
+                            local serial = stream.properties["object.serial"]
+                            known[STATE_OWN .. serial] = key .. " " .. level_mean(own.levels)
+                            level_set(stream, level_scale(own.levels, level), mute)
                             done()
                         end)
                     end
@@ -347,7 +370,7 @@ metadata_om:connect("object-added", function(_, metadata)
         end
         local node = node_get(subject)
         if node and node.properties["media.class"] == "Stream/Output/Audio" and stream_key(node.properties) then
-            stream_attach(subject, 0)
+            stream_attach(subject, 0, false)
         end
     end)
     listen_apply()
@@ -370,18 +393,22 @@ nodes_om:connect("object-added", function(_, node)
     loopback_create(key, name)
     local id = node["bound-id"]
     if not installed then
-        stream_attach(id, 0)
+        stream_attach(id, 0, true)
         return
     end
-    -- state-stream restores the target and volume at node-added; act after it
+    -- state-stream restores the target at node-added; act after it
     Core.timeout_add(SETTLE_MS, function()
-        stream_attach(id, 0)
+        stream_attach(id, 0, false)
         return false
     end)
 end)
 nodes_om:connect("installed", function()
     installed = true
     listen_apply()
+    Core.timeout_add(RETRY_MS * RETRY_COUNT_MAX + SETTLE_MS, function()
+        own_forget()
+        return false
+    end)
 end)
 
 for key, name in pairs(known) do

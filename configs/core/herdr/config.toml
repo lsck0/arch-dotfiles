@@ -31,6 +31,10 @@ prompt_new_tab_name = false
 pane_outer_borders = false
 pane_scrollbars = false
 
+[terminal]
+# kitty graphics in panes, so discordo and yazi draw real images instead of half blocks
+kitty_graphics = true
+
 [keys]
 prefix = "ctrl+q"
 split_horizontal = "prefix+s"    # tmux: bind s split-window -v (stacked)

@@ -64,7 +64,7 @@ Known floating sources, fix them when touching the module:
   (`skills@1.7.0`).
 - `uvx` with no `--exclude-newer`: `configs/latex/zotero` (`zotero-mcp-server==0.14.1`), `configs/pentesting/wireshark`
   (`wireshark-mcp==3.0.0`), `configs/programming/docker` (`mcp-server-docker==0.3.0`).
-- Tools installed at their latest version: mason (`mason-tool-installer` in
-  `configs/programming/nvim/lua/plugins/lsp.lua`), the VSCodium vim extension (`configs/programming/vscode`), and the
-  browser extensions Firefox and Chromium force from their stores (`policies.json`, `policy.json`), which update
-  themselves. Rustup toolchains and Claude Code plugins other than caveman also float.
+- Tools installed at their latest version: mason (`configs/programming/nvim/lua/lib/mason_packages.lua`), the VSCodium
+  vim extension (`configs/programming/vscode`), and the browser extensions Firefox and Chromium force from their stores
+  (`policies.json`, `policy.json`), which update themselves. Rustup toolchains and Claude Code plugins other than
+  caveman also float.

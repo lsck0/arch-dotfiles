@@ -335,6 +335,8 @@ def scene-back [cfg: record, live: path, src: path, dest: path, --machine]: noth
     }
     mkdir ($dest | path dirname)
     $"($saved | to json --indent 2)\n" | save --force $dest
+    # dest is the next link's source: record it as loaded, or the next backup takes its own write for a repo edit
+    if ($applied | path exists) { scene-render $cfg $dest --machine=$machine | scene-hash | save --force $applied }
 }
 
 # Writes a live profile back to the repo: placeholders stay, paths under this user's dirs become placeholders again.

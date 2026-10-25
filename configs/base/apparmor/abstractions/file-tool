@@ -22,7 +22,11 @@
   deny @{user_config_dirs}/{mimeapps.list,user-dirs.dirs} w,
   deny @{user_bin_dirs}/{,**} w,
   deny @{user_share_dirs}/{applications,dbus-1,systemd}/{,**} w,
-  deny @{user_share_dirs}/nvim/{,**} w,
+  # all of nvim's data dir but mason/staging, where mason runs unzip to unpack every LSP it installs
+  deny @{user_share_dirs}/nvim/{,*} w,
+  deny @{user_share_dirs}/nvim/{[^m]*,m[^a]*}/** w,
+  deny @{user_share_dirs}/nvim/mason/{,*} w,
+  deny @{user_share_dirs}/nvim/mason/{[^s]*,s[^t]*}/** w,
   deny @{HOME}/.claude/{,**} w,
   deny @{HOME}/projects/arch-dotfiles/{,**} w,
 

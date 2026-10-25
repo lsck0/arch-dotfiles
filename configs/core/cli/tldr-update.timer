@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly tldr pages refresh
+
+[Timer]
+OnCalendar=weekly
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

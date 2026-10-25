@@ -1,0 +1,9 @@
+# managed by arch-dotfiles/apparmor
+include <abstractions/dotfiles/nssdb>
+@{PROC}/uptime r,
+@{sys}/fs/cgroup/user.slice/user-@{uid}.slice/user@@{uid}.service/**/{memory.max,memory.high,cpu.max} r,
+# xdg-mime registering itself as the mail handler: mimeapps.list is the dotfiles' own
+deny @{bin}/xprop rx,
+deny @{bin}/dbus-send rx,
+deny @{user_config_dirs}/mimeapps.list* w,
+deny /etc/ r,

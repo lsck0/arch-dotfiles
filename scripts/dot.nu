@@ -3,7 +3,7 @@
 const REPO = path self | path expand | path dirname | path dirname
 const LIB = $REPO | path join scripts lib
 use ($LIB | path join log.nu) *
-use ($LIB | path join cli.nu) [concat jobs build guarded]
+use ($LIB | path join cli.nu) [concat jobs build guarded self-argv]
 use ($LIB | path join usage.nu) [die]
 use ($LIB | path join complete.nu) [command-table module-ids option-keys option-values theme-names run-ids]
 use ($LIB | path join state.nu) [SYSTEM_REPO SYSTEM_STATE state-dir save-atomic]
@@ -314,8 +314,7 @@ def user-locked []: nothing -> nothing {
     let lock = state-dir | path join run.lock
     mkdir (state-dir)
     if (^flock --nonblock $lock true | complete).exit_code != 0 { print -e "dot: another dot run holds the user layer, waiting for it" }
-    let argv = open --raw $"/proc/($nu.pid)/cmdline" | into binary | decode utf-8 | split row (char nul) | drop 1
-    exec flock --close $lock env DOT_USER_LOCKED=1 ...$argv
+    exec ($REPO | path join scripts lib interruptible.sh) --lock $lock env DOT_USER_LOCKED=1 ...(self-argv)
 }
 
 def flag [name: string, on: bool]: nothing -> list<string> {

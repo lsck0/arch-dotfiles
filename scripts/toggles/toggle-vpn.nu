@@ -1,7 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
 use lib.nu [switch-run root-run]
 use ../lib/profile.nu [profile-has]
-use ../lib/platform.nu [platform-has]
+use ../lib/platform.nu [platform-load]
+
+const REPO = path self ../..
 
 def main [action: string = "toggle"] {
     switch-run {
@@ -12,5 +14,6 @@ def main [action: string = "toggle"] {
     } $action
 }
 
-# the network panel shows the row only to the owner on a machine that reaches the homelab
-def "main available" [] { (profile-has secrets) and (platform-has homelab) }
+# the network panel shows the row only to the owner on a machine with a wg0 config; read from the platform file, since
+# the facts' env vars exist only inside a dot run
+def "main available" [] { (profile-has secrets) and ((platform-load $REPO).facts.wireguard | is-not-empty) }

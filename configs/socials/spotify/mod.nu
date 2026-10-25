@@ -5,7 +5,6 @@ export const meta = {packages: {pacman: [spicetify-cli spotify spotify-player we
 
 const THEMES_URL = "https://github.com/spicetify/spicetify-themes.git"
 const THEMES_COMMIT = "33a08ea009687f5a42ff678015c28797fe142a7c"
-const LOUDNESS = {"": {audio.normalize_v2: "true", audio.loudness.environment: "1"}}
 
 const THEME_INI = "Themes/wal/color.ini"
 const THEME_CSS = "Themes/wal/user.css"
@@ -23,12 +22,8 @@ export def link [cfg: record] {
     ] | decls-flatten
     if (^pacman -Q spotify | complete).exit_code != 0 { return $base }
     let prefs = $nu.home-dir | path join .config spotify prefs
-    let running = (^pgrep -x spotify | complete).exit_code == 0
     [
         $base
-        (if $running { [] } else {
-            glob ($nu.home-dir | path join .config spotify Users * prefs) | each {|p| ini-merge $p $LOUDNESS }
-        })
         # spicetify's first run reads spotify's prefs; an empty one stands in before spotify's first start
         (exec spotify-prefs [install -D --mode 644 /dev/null $prefs] --creates $prefs)
         (file-copy adblock.js (spicetify-dir | path join Extensions adblock.js))

@@ -57,12 +57,20 @@ export const options = {
     }
 }
 
-export def detect [cfg: record]: nothing -> record {
+# A Lord of Destruction install in the lutris prefixes, null without one.
+export def lod-detect []: nothing -> any {
     let games = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join lutris games
     let prefixes = glob ($games | path join *.yml)
         | each {|f| try { open $f | get --optional game.prefix } catch { null } }
-    let base = $prefixes | compact | each { path expand | path join $BASE_IN_PREFIX }
+    $prefixes | compact | each { path expand | path join $BASE_IN_PREFIX }
         | where { path join $BASE_MARKER | path exists } | get --optional 0
+}
+
+# The launcher's own wine (5.12): 1.13c game.exe overflows its stack under the system's wine-staging.
+export def wine-bin []: nothing -> path { home-dir | path join bin wine bin wine }
+
+export def detect [cfg: record]: nothing -> record {
+    let base = lod-detect
     let monitor = try {
         ^hyprctl -j monitors | from json | where name !~ $HEADLESS_MONITORS | sort-by focused --reverse | first
     } catch { null }
@@ -181,7 +189,6 @@ export def d2gl-window [width: string, height: string]: nothing -> nothing {
     $text | ini-apply $keys false | save -f $ini
 }
 
-def wine-bin []: nothing -> path { home-dir | path join bin wine bin wine }
 
 # ~/sync ignores permissions (core/syncthing, ignorePerms), so a resync silently drops wine's execute bit
 export def wine-bin-fixup []: nothing -> nothing {

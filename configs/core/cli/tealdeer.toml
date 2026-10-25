@@ -1,0 +1,3 @@
+# the pages are refreshed by tldr-update.timer, so a lookup never waits on the network and works offline
+[updates]
+auto_update = false

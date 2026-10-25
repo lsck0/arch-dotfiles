@@ -14,15 +14,13 @@ do
     end
 end
 
+-- over ssh both ways go through the local terminal: ghostty answers osc 52 reads (clipboard-read = allow)
 if vim.env.SSH_TTY or vim.env.SSH_CONNECTION then
     local osc = require("vim.ui.clipboard.osc52")
-    local function from_reg()
-        return { vim.fn.split(vim.fn.getreg(""), "\n"), vim.fn.getregtype("") }
-    end
     vim.g.clipboard = {
         name = "OSC 52",
         copy = { ["+"] = osc.copy("+"), ["*"] = osc.copy("*") },
-        paste = { ["+"] = from_reg, ["*"] = from_reg },
+        paste = { ["+"] = osc.paste("+"), ["*"] = osc.paste("*") },
     }
 end
 set.cmdheight = 0

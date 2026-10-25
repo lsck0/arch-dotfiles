@@ -123,9 +123,10 @@ Singleton {
   readonly property string reminderTooltip: reminderCount === 0 ? "Set Reminder"
     : reminderCount === 1 ? "1 reminder" : reminderCount + " reminders"
 
+  // Reminders show their countdown on the desktop and in the bar too, not only in the overlay.
   Timer {
     interval: 1000
-    running: root.overlayOpen || root.pomoTicking
+    running: root.overlayOpen || root.pomoTicking || root.reminderList.length > 0
     repeat: true
     triggeredOnStart: true
     onTriggered: root.nowSec = Math.floor(Date.now() / 1000)

@@ -90,6 +90,15 @@ host into the guest (skill `l-dotfiles-vm-test`).
 3. An aborted `dot apply --packages` (exit 2) is retried on the next boot, 3 attempts in all; after the third the
    chain moves on to config and `dot apply --packages` is rerun by hand.
 
+## Updating an installed machine
+
+Everyone runs `dot sync`, the owner and everyone else. It pulls `origin/master` (the secrets submodule only for a
+profile with `secrets`), migrates, installs and applies. Only a machine holding the secret key that `bootstrap.sh`'s
+`SIGNING_KEY_FINGERPRINT` names goes on to back up, commit and push. Anywhere else the run stops after the apply
+and says so. It never commits there, and `--no-push` is not needed. A login outside wheel converges only its user
+layer: its root half waits for a wheel user's run. Local edits in the checkout are autostashed across the pull. An
+edit that conflicts stops the run. A checkout off `master` refuses until `git switch master`.
+
 ## Another login on an installed machine
 
 ```bash

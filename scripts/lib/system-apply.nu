@@ -1,6 +1,6 @@
 #!/usr/bin/nu --no-config-file
 # Root's one entry, what sudo or the polkit action runs: each command re-execs itself under one flock and
-# runs only from the root-owned copy.
+# interruptible.sh (sudo relays ctrl+c, which nushell's try would swallow) and runs only from the root-owned copy.
 
 use log.nu *
 use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir]
@@ -14,11 +14,14 @@ use system.nu [system-unpack system-secrets ENTRY]
 const EXIT_FAILURES = 1
 const EXIT_ABORTED = 2
 const OFFLINE_WAIT_S = 120
-# the mirror answers 429 past its per-ip budget; each pass after the budget refills fetches the next files
-const DOWNLOAD_TRIES = 80
+# the mirror answers 429 past its per-ip budget; each pass after the budget refills fetches the next files.
+# The wait grows linearly (5s, 10s, ... up to a minute): a client hammering a refusing mirror every 5s only
+# deepens the refusal. 40 tries wait about 35 minutes in all.
+const DOWNLOAD_TRIES = 40
 const OFFLINE_TRIES = 3
-const DOWNLOAD_BACKOFF = 5sec
-const DOWNLOAD_ERRORS = '(?i)failed retrieving file|failed to retrieve some files|failed to synchronize|could not resolve|returned error: (429|5\d\d)|timed? ?out|too slow|connection (refused|reset)|could not connect|network is unreachable'
+const DOWNLOAD_BACKOFF_STEP = 5sec
+const DOWNLOAD_BACKOFF_MAX = 1min
+const DOWNLOAD_ERRORS = '(?i)failed retrieving file|failed to retrieve some files|failed to synchronize|could not resolve|returned error: (403|429|5\d\d)|timed? ?out|too slow|connection (refused|reset)|could not connect|network is unreachable'
 const LSCK0_DB = "/var/lib/pacman/sync/lsck0.db"
 const PACMAN_LOCK = "/var/lib/pacman/db.lck"
 const PACMAN_MODULE = "base/pacman"
@@ -37,7 +40,7 @@ def repo-guard []: nothing -> path {
 def --wrapped locked [...args: string]: nothing -> nothing {
     if ($env.DOT_SYSTEM_LOCKED? | is-empty) {
         mkdir $SYSTEM_STATE
-        exec flock ($SYSTEM_STATE | path join lock) env DOT_SYSTEM_LOCKED=1 /usr/bin/nu --no-config-file ($SYSTEM_REPO | path join $ENTRY) ...$args
+        exec ($SYSTEM_REPO | path join scripts lib interruptible.sh) --lock ($SYSTEM_STATE | path join lock) env DOT_SYSTEM_LOCKED=1 /usr/bin/nu --no-config-file ($SYSTEM_REPO | path join $ENTRY) ...$args
     }
 }
 
@@ -72,7 +75,7 @@ def --wrapped pacman-try [...args: string]: nothing -> record {
     let text = open --raw $err
     rm --force $err
     if ($text | is-not-empty) { print -e --no-newline $text }
-    {ok: $ok, download: (not $ok and $text =~ $DOWNLOAD_ERRORS)}
+    {ok: $ok, download: (not $ok and $text =~ $DOWNLOAD_ERRORS), refused: (not $ok and $text =~ 'returned error: (403|429)')}
 }
 
 # Retries a download error up to tries times; exits EXIT_ABORTED when it never got through, EXIT_FAILURES
@@ -84,8 +87,10 @@ def --wrapped pacman-retry [what: string, tries: int, ...args: string]: nothing 
         if $r.ok { return }
         if not $r.download { fail $"pacman: ($what) failed"; exit $EXIT_FAILURES }
         if $try >= $tries { fail $"pacman: ($what): download failed ($tries) times"; exit $EXIT_ABORTED }
-        log-warn $"($what): download failed, try ($try)/($tries), again in ($DOWNLOAD_BACKOFF)"
-        sleep $DOWNLOAD_BACKOFF
+        let wait = [($DOWNLOAD_BACKOFF_STEP * $try) $DOWNLOAD_BACKOFF_MAX] | math min
+        let why = if $r.refused { "the mirror refused it (403/429), likely a rate ban, so waiting it out" } else { "the network or a mirror dropped" }
+        log-warn $"($what): download failed, ($why), try ($try)/($tries), again in ($wait)"
+        sleep $wait
         $try += 1
     }
 }

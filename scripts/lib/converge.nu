@@ -290,7 +290,13 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
         log-record "ERROR" $"unreadable ($a.target)" {module: $a.module, kind: $a.kind, target: $a.target, ms: 0, outcome: $a.reason}
         $a | merge {ok: false, error: $a.reason, aside: null, output: ""} | insert ms 0
     }
-    let outcomes = $actions | where kind not-in [skip drift unreadable] | each {|a|
+    # within a run of file writes, the new files land before the changed ones: a live reader (quickshell's
+    # qmldir) never sees a reference to a file not there yet
+    let file_write = {|a| $a.kind in [create update] and $a.decl.kind? != "link" }
+    let ordered = $actions | where kind not-in [skip drift unreadable] | chunk-by $file_write
+        | each {|run| if (do $file_write $run.0) { ($run | where kind == create) ++ ($run | where kind == update) } else { $run } }
+        | flatten
+    let outcomes = $ordered | each {|a|
         let start = date now
         let result = try {
             match $a.kind {

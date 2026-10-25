@@ -35,7 +35,20 @@ polkit.addRule(function (action, subject) {
     }
 });
 
-// everything else goes through the one root helper, which checks its own arguments; none of its verbs opens the
+// the firewall switch is one root helper call: restrictive tightens, unprompted; default and permissive can lower it,
+// so they ask once (kept a few minutes) instead of once per unit
+polkit.addRule(function (action, subject) {
+    if (action.id !== "org.freedesktop.policykit.exec" || action.lookup("program") !== "/usr/local/bin/toggle-root" ||
+        !atTheMachine(subject)) {
+        return;
+    }
+    var argv = String(action.lookup("command_line") || "").split(" ");
+    if (argv[1] === "firewall" && argv[2] !== "restrictive") {
+        return polkit.Result.AUTH_ADMIN_KEEP;
+    }
+});
+
+// everything else goes through the one root helper, which checks its own arguments; none of its other verbs opens the
 // firewall or tor (anonsocks nft-off only lifts the guard on the caller's own slice, which that caller can leave anyway)
 polkit.addRule(function (action, subject) {
     if (action.id === "org.freedesktop.policykit.exec" &&

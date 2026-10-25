@@ -50,24 +50,40 @@ Singleton {
     return "in " + Math.max(1, Math.floor(diff / 60000)) + "m"
   }
 
-  // on-modify.timewarrior tags each interval with the task's description: the join key back to a task.
+  // on-modify.timewarrior tags each interval with the task's description, project and tags, and timew exports them
+  // sorted: every tag of an interval counts toward it, the description is the join key back to a task.
   function buildTracked(data) {
     var list = (data && data.length) ? Array.prototype.slice.call(data) : []
-    var now = Date.now()
-    var out = {}
+    var byTag = {}
+    var closed = 0
+    var openMs = 0
     for (let i = 0; i < list.length; i++) {
       let iv = list[i]
-      let desc = (iv.tags && iv.tags[0]) || ""
       let start = twDate(iv.start)
-      if (!desc || !start) continue
-      let end = iv.end ? twDate(iv.end) : new Date(now)
-      out[desc] = (out[desc] || 0) + Math.max(0, (end.getTime() - start.getTime()) / 1000)
+      if (!start) continue
+      if (!iv.end) { openMs = start.getTime(); continue }
+      let secs = Math.max(0, (twDate(iv.end).getTime() - start.getTime()) / 1000)
+      closed += secs
+      let tags = iv.tags || []
+      for (let j = 0; j < tags.length; j++) byTag[tags[j]] = (byTag[tags[j]] || 0) + secs
     }
-    return out
+    root.openTags = list.length > 0 && !list[list.length - 1].end ? Array.prototype.slice.call(list[list.length - 1].tags || []) : []
+    root.openStartMs = openMs
+    root.closedSeconds = closed
+    return byTag
+  }
+
+  property var openTags: []
+  property real openStartMs: 0
+  property real closedSeconds: 0
+
+  function openSeconds() {
+    return root.openStartMs > 0 ? Math.max(0, (root.nowTick - root.openStartMs) / 1000) : 0
   }
 
   function trackedText(desc) {
-    return root.durationText(root.tracked[desc] || 0)
+    var open = root.openTags.indexOf(desc) >= 0 ? root.openSeconds() : 0
+    return root.durationText((root.tracked[desc] || 0) + open)
   }
 
   function durationText(secs) {
@@ -91,11 +107,7 @@ Singleton {
     return root.durationText(Math.max(0, (root.nowTick - t.startMs) / 1000))
   }
 
-  readonly property int trackedTotalSeconds: {
-    let s = 0
-    for (let k in root.tracked) s += root.tracked[k]
-    return s
-  }
+  readonly property int trackedTotalSeconds: root.closedSeconds + root.openSeconds()
 
   function totalTrackedText() {
     return root.durationText(root.trackedTotalSeconds)
@@ -156,7 +168,13 @@ Singleton {
 
   function markDone(uuid) { if (uuid) run([uuid, "done"]) }
   function remove(uuid) { if (uuid) run([uuid, "delete"]) }
-  function toggleActive(uuid, active) { if (uuid) run([uuid, active ? "stop" : "start"]) }
+  // One task tracks at a time: timew start closes the running interval, so the task that owned it stops too.
+  function toggleActive(uuid, active) {
+    if (!uuid) return
+    if (active) { run([uuid, "stop"]); return }
+    for (let i = 0; i < root.tasks.length; i++) if (root.tasks[i].active && root.tasks[i].uuid !== uuid) run([root.tasks[i].uuid, "stop"])
+    run([uuid, "start"])
+  }
 
   function checkDue() {
     if (!root.notifiedReady || !root.loaded) return
