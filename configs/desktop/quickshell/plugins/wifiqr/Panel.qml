@@ -156,7 +156,6 @@ Item {
   }
 
   OverlayCard {
-    id: panel
     open: root.opened
     name: "network-qr"
     title: root.ssid || "wi-fi"

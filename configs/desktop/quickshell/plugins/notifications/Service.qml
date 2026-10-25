@@ -26,7 +26,6 @@ Item {
   property var liveRefs: ({})
 
   FileView {
-    id: settingsFile
     path: service.settingsPath
     blockLoading: true
     atomicWrites: true

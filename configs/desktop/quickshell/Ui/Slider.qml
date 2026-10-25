@@ -75,7 +75,6 @@ Item {
   }
 
   Rectangle {
-    id: knob
     width: root.knobWidth
     height: root._hot ? root.knobSize : Math.round(root.knobSize * 0.75)
     radius: Style.shape.data

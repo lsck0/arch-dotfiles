@@ -16,7 +16,8 @@ export const SECRETS_GROUP = "secrets"
 const SECRETS_DATA = ["secrets/keys/**" "secrets/state/**"]
 const META_DEFAULT = {deps: [], packages: {pacman: [], native: [], flatpak: {}, nix: []}, serial: false}
 
-def names-read [file: path]: nothing -> list<string> {
+# The first word of each non-comment line of a dependencies.txt, none for a missing file.
+export def names-read [file: path]: nothing -> list<string> {
     if not ($file | path exists) { return [] }
     open --raw $file | lines | each { split row "#" | first | str trim | split row " " | first } | where $it != ""
 }

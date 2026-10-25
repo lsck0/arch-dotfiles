@@ -296,7 +296,6 @@ PanelWindow {
     }
 
     Item {
-      id: centerHolder
       readonly property real gapLeft: leftHolder.x + leftHolder.width + parent.keepClear
       readonly property real gapRight: rightHolder.x - parent.keepClear
       anchors.verticalCenter: parent.verticalCenter
@@ -319,7 +318,6 @@ PanelWindow {
   }
 
   PopupWindow {
-    id: tooltipWindow
     visible: root.tooltipShown && root.tooltipItem !== null && root.visible
     color: "transparent"
     implicitWidth: tooltipSurface.width

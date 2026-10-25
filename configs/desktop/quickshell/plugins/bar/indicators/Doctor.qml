@@ -24,7 +24,6 @@ BarIndicator {
   }
 
   FileView {
-    id: file
     path: root.findingsPath
     watchChanges: true
     printErrors: false

@@ -27,7 +27,6 @@ QtObject {
     readonly property int bracketWidth: Math.max(1, Math.round(1.5 * root.scale))
     readonly property real flicker: Power.saver ? 0 : Theme.crtFlicker
     readonly property real matrixRain: Power.saver ? 0 : Theme.matrixRain
-    function glowAlpha(mult) { return Math.min(1, root.fx.glow * (mult === undefined ? 1 : mult)) }
   }
   readonly property FxTokens fx: FxTokens {}
 
@@ -114,10 +113,7 @@ QtObject {
     readonly property int controlPaddingX: md
     readonly property int controlPaddingY: sm
     readonly property int inputPaddingY: sm
-    readonly property int controlHeight: xxl
-    readonly property int rowPaddingX: md
     readonly property int panelPadding: lg
-    readonly property int popupPadding: lg
   }
   readonly property SpacingTokens spacing: SpacingTokens {}
 
@@ -172,7 +168,6 @@ QtObject {
     readonly property string family: root.resolvedFontFamily
     readonly property string iconFamily: root.resolvedIconFontFamily
 
-    readonly property int micro: Math.max(1, root.baseSize - 2)
     readonly property int captionFloor: 11
     readonly property int caption: Math.max(captionFloor, root.baseSize - 1)
     readonly property int bodySmall: caption
@@ -202,7 +197,6 @@ QtObject {
 
     readonly property int itemPaddingX: Math.round((iconSlot - iconCanvas) / 2)
     readonly property int itemGap: root.spacing.xxs
-    readonly property int sectionGap: root.spacing.sm
     readonly property int groupGap: root.spacing.md
     readonly property int pillInset: root.spacing.xs
   }

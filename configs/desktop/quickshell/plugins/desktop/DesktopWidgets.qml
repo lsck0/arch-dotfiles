@@ -73,7 +73,6 @@ Item {
             }
 
             Column {
-                id: stack
 
                 anchors.top: parent.top
                 anchors.right: parent.right

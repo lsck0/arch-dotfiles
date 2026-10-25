@@ -811,7 +811,6 @@ Item {
             }
 
             ListView {
-              id: gpgKeyList
               width: parent.width
               height: parent.height - y
               visible: root.gpgMode === "encrypt"

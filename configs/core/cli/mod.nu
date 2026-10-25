@@ -4,7 +4,7 @@ use module.nu *
 export const meta = {
     packages: {pacman: [
         arch-wiki-lite bind bpftop caligula chafa clonezilla cmatrix croc direnv diskwatch dua-cli dwarfs dysk eza fd
-        ffmpeg fzf gping gum ipython just kmon lazyjournal lolcat lshw mtools netkit-bsd-finger ntfs-3g openbsd-netcat
+        ffmpeg fzf gping gum ipython just kmon lazyjournal lolcat lshw mtools netkit-bsd-finger ntfs-3g
         ouch pandoc-cli parallel pdftk procs rar rsync rustnet s-tui sd socat sshfs sshpass superseedr tailspin
         tar-scripts tealdeer tparted-bin trippy usbtree ventoy-bin whois wiki-tui xdg-ninja xdg-user-dirs xdg-utils
         zoxide

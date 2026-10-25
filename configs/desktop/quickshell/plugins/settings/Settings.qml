@@ -656,7 +656,6 @@ Item {
       }
 
       Item {
-        id: main
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.left: divider.right

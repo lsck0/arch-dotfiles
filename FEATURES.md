@@ -359,8 +359,7 @@ read through `status.nu`. A flip's privileged half is one `pkexec toggle-root` c
   (pywalfox), Thunderbird, Spotify (spicetify), Discord (BetterDiscord), Steam (Millennium), caido, ghidra, gh-dash,
   hermes, telegram palette, delta.
 - `toggle-font` switches the UI and terminal font family everywhere.
-- Wallpapers fit-checked per monitor (`wallpaper-list`), bought ones imported into `~/sync/wallpapers` (`wallpaper-import`)
-  (`wallpaper-import`).
+- Wallpapers fit-checked per monitor (`wallpaper-list`), bought ones imported into `~/sync/wallpapers` (`wallpaper-import`).
 
 ## Shell and terminal
 

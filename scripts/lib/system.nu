@@ -2,7 +2,7 @@
 # repo and the system secrets into one archive and the root entry of the existing copy unpacks it.
 
 use log.nu *
-use state.nu [SYSTEM_REPO SYSTEM_STATE]
+use state.nu [SYSTEM_REPO]
 use secrets.nu [secret-is-plaintext]
 
 const SYSTEM_PATHS = [configs migrations platforms profiles scripts]

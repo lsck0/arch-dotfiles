@@ -152,7 +152,6 @@ Item {
         anchors.fill: parent
 
         Image {
-          id: base
           anchors.fill: parent
           source: Util.fileUrl(root.displayedBackground)
           sourceSize: panel.decodeSize
@@ -169,7 +168,6 @@ Item {
         }
 
         Image {
-          id: oldFrame
           anchors.fill: parent
           source: Util.fileUrl(root.oldBackground)
           sourceSize: panel.decodeSize
@@ -182,7 +180,6 @@ Item {
         }
 
         Item {
-          id: incomingLayer
           anchors.fill: parent
           visible: root.incomingBackground !== "" && incomingFrame.status === Image.Ready && (root.revealProgress >= 1 || panel.maskReady)
           layer.enabled: root.incomingBackground !== "" && root.revealProgress < 1

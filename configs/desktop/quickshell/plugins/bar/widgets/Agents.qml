@@ -152,7 +152,6 @@ BarWidget {
   }
 
   HoverPanel {
-    id: panel
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root

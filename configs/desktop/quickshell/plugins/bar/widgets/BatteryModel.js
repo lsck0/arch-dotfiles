@@ -33,16 +33,6 @@ function batteryIcon(device, onBattery, states) {
   return defaultIcons[index]
 }
 
-function modeLabel(device, onBattery, states) {
-  var d = device || {}
-  if (!d.isPresent) return ""
-
-  if (chargeThresholdActive(d, onBattery, states)) return "Threshold"
-  if (onBattery) return "On battery"
-  if (d.percentage >= 1) return "Fully charged"
-  return "Charging"
-}
-
 function formatDuration(seconds) {
   var total = Math.max(0, Math.round(Number(seconds) || 0))
   var hours = Math.floor(total / 3600)

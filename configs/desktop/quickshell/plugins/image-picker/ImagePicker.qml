@@ -843,7 +843,6 @@ Item {
                     spacing: Style.spacing.xxs
 
                     Text {
-                        id: queryText
 
                         anchors.verticalCenter: parent.verticalCenter
                         width: Math.min(implicitWidth, queryRow.width - caret.width - queryRow.spacing)

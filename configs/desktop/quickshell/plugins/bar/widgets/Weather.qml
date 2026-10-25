@@ -76,7 +76,6 @@ BarWidget {
 
   property var field: ({})
   readonly property var fieldCells: field.cells || []
-  readonly property bool hasField: fieldCells.length > 0
 
   property var radar: ({})
   readonly property var radarFrames: radar.frames || []

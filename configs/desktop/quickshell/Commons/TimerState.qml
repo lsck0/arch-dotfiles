@@ -12,7 +12,6 @@ Singleton {
   readonly property string pomoConfigPath: Paths.home + "/.config/quickshell/pomodoro.json"
 
   readonly property string pomoScript: Paths.script("pomodoro.nu")
-  readonly property string reminderScript: Paths.script("reminder.nu")
 
   readonly property var pomoConfigDefault: ({ focus: 25, break: 5, long: 15, cycles: 4 })
   property var pomoConfig: pomoConfigDefault
@@ -26,7 +25,6 @@ Singleton {
 
   function reload() { reloadTimer.restart() }
   function runPomo(args) { Quickshell.execDetached([root.pomoScript].concat(args)); reload() }
-  function runReminder(args) { Quickshell.execDetached([root.reminderScript].concat(args)); reload() }
 
   property var pomoSetQueued: ({})
   readonly property bool pomoSaving: pomoSetProc.running

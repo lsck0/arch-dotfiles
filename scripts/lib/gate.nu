@@ -3,7 +3,7 @@
 
 use ../../configs/core/wallust/palette.nu
 use platform.nu [PLATFORM_FACTS]
-use modules.nu [VERBS HOOKS]
+use modules.nu [VERBS HOOKS names-read]
 
 const REPO = path self ../..
 const SUDO = '\bsudo\b'
@@ -14,7 +14,6 @@ const SECRETS_DATA = ["secrets/keys/**" "secrets/state/**"]
 # the folder root itself (syncthing needs it) and .stignore (per device) are not writes into it
 const SYNC_PATH = '(?:\$\{?HOME\}?|~|%h)/sync(?<tail>[^\w].*|$)'
 const SYNC_WRITE = '(^|[^\w-])(mkdir|touch|cp|mv|install|tee|rm|ln|unzip|tar|curl|wget)([^\w-]|$)|--mkdir|>'
-const DOCS_DIFF_LINES = 40
 const FMT_DIR = path self ../../configs/programming/formatting
 const FMT_EXCLUDE = "configs/core/wallust/templates/"
 # empty on purpose: shfmt reads .editorconfig only when no formatting flag is given
@@ -29,10 +28,6 @@ def rel [path: path]: nothing -> string { $path | path relative-to $REPO }
 
 def code-lines [file: path]: nothing -> table<n: int, line: string> {
     open --raw $file | lines | enumerate | where not ($it.item | str trim --left | str starts-with "#") | each {|l| {n: ($l.index + 1), line: $l.item} }
-}
-
-def names-read [file: path]: nothing -> list<string> {
-    open --raw $file | lines | each { split row "#" | first | str trim } | where $it != "" | each { split row " " | first }
 }
 
 def unquote [line: string, keep: closure]: nothing -> string {
@@ -121,7 +116,7 @@ def lint-sync []: nothing -> list<string> {
 
 const ROOT_FILES = [
     .editorconfig .gitattributes .gitignore .gitleaks.toml .gitmodules .ruff.toml .shellcheckrc AGENTS.md FEATURES.md
-    LICENSE.md README.md SIMPLIFICATION.md bootstrap.sh
+    LICENSE.md README.md bootstrap.sh
 ]
 const ROOT_DIRS = [configs migrations mirror platforms profiles scripts showcase skills themes wallpapers]
 const GROUP_FILES = [AGENTS.md dependencies.txt]

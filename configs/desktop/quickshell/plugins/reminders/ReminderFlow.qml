@@ -133,7 +133,6 @@ Item {
   Binding { target: TimerState; property: "overlayOpen"; value: root.opened }
 
   OverlayCard {
-    id: panel
     open: root.opened
     name: "reminders"
     title: "reminders"

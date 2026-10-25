@@ -3,7 +3,7 @@
 # interruptible.sh (sudo relays ctrl+c, which nushell's try would swallow) and runs only from the root-owned copy.
 
 use log.nu *
-use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir]
+use state.nu [SYSTEM_REPO SYSTEM_STATE]
 use pipeline.nu [pipeline-load pipeline-plan pipeline-apply]
 use modules.nu [modules-packages]
 use ledger.nu [packages-convergence ledger-get ledger-set ledger-packages ledger-units]

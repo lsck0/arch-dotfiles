@@ -445,7 +445,6 @@ Item {
                 }
 
                 AsciiProjection {
-                    id: projection
 
                     anchors.fill: parent
                     image: wallpaper

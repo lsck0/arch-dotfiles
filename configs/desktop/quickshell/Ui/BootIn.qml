@@ -22,7 +22,6 @@ Item {
   readonly property int staggerCap: 8
   readonly property int timelineMs: 220
 
-  readonly property string typedTitle: title.substring(0, typed)
   readonly property real bracketInset: (1 - progress) * span
   readonly property bool running: anim.running
 

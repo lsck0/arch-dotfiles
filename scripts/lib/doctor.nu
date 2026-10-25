@@ -16,7 +16,6 @@ const INVARIANTS = path self invariants.txt
 const PROFILES_CONF = path self ../../configs/base/apparmor/profiles.conf
 const LUKS_TOKENS = [TPM2 FIDO2]
 const LUKS_TOKEN_MISSING = 'No valid (?<token>TPM2|FIDO2) token data found'
-const SYNCTHING_CONFIG = ".local/state/syncthing/config.xml"
 const WITNESS = path self ../../configs/secrets/keys/pgp_privatekey.asc
 const APPARMOR_MANUAL = "/etc/apparmor/flags.d/manual.conf"
 const SNAPSHOT_MAX_DAYS = 30

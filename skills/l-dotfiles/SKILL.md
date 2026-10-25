@@ -27,7 +27,8 @@ links only where an app reads the repo live.
   else there makes sync refuse.
 - `showcase/`: screenshots of the setup.
 - `skills/`: llm personas, prompts and my styles.
-- `wallpapers/`: wallpapers which are either set through a theme or by itself and then have a theme dynamically generated.
+- `wallpapers/`: wallpapers which are either set through a theme or by itself and then have a theme dynamically generated;
+  the bought ones live in `~/sync/wallpapers`, outside the repo.
 - `bootstrap.sh` (then `dot internal bootstrap`), `dot apply --packages`, `dot apply`, `dot internal stage`: install stages 1 to 3 (base system from the ISO, packages, user and system config) and the per-boot chain that runs them unattended.
 - `dot sync`: the one command: pull, migrate, install, apply, back up live app state, signed `Generation: <n>` commit,
   push (`--no-push`, and any machine without the signing key, stop after the apply: no backup, commit or push).

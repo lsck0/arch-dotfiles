@@ -330,7 +330,6 @@ Item {
       }
 
       Item {
-        id: tasksView
         anchors.top: viewTabs.bottom
         anchors.topMargin: Style.spacing.sm
         anchors.left: parent.left
