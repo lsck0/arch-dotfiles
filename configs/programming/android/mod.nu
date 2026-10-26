@@ -45,7 +45,10 @@ export def link [cfg: record] {
     let install = {|p| exec $"sdkmanager ($p.package)" [env ...(env-vars) sh -c $'yes | "$0" --licenses >/dev/null; "$0" --install "$1"' $sdkmanager $p.package] --creates ($sdk | path join $p.created) }
     let avd = $nu.home-dir | path join .local share android avd $"($cfg.avd).avd"
     let avdmanager = $sdk | path join cmdline-tools latest bin avdmanager
+    # adb and the emulator on PATH for the session (systemd's environment.d) and zsh (zshenv sources the same dir)
+    let path = $"PATH=${PATH}:($sdk)/platform-tools:($sdk)/emulator\n"
     [
+        (file-text ($nu.home-dir | path join .config environment.d android.conf) $path)
         (fetch-file $CMDLINE_TOOLS_URL $CMDLINE_TOOLS_SHA256 ($sdk | path join cmdline-tools latest) --extract cmdline-tools)
         ($PACKAGES | each {|p| do $install $p })
         (if ($cfg.avd | is-empty) { [] } else {
