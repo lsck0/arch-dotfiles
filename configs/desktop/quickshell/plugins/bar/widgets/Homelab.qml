@@ -8,6 +8,8 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "homelab"
+  hoverPanel: true
+  hoverFill: true
   panelPinOnClick: false
 
   property bool received: false
@@ -93,13 +95,6 @@ BarWidget {
     }
   }
 
-  Rectangle {
-    anchors.fill: parent
-    radius: Style.shape.data
-    color: mouseArea.containsMouse ? Style.hoverFill : "transparent"
-    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
-  }
-
   Row {
     id: trigger
     anchors.centerIn: parent
@@ -133,10 +128,7 @@ BarWidget {
   MouseArea {
     id: mouseArea
     anchors.fill: parent
-    hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
-    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
-    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
     onClicked: root.open(root.links.homepage)
   }
 
@@ -333,22 +325,34 @@ BarWidget {
     BarGauge { width: mg.width; height: Style.spacing.sm; segments: 24; value: mg.fraction; color: mg.tint }
   }
 
-  component GaugeRow: Column {
+  component GaugeRow: Item {
     id: gr
     property string label: ""
     property string readout: ""
     property real fraction: 0
-    property color tint: Colors.accent
+    property bool alert: false
+    property string url: ""
+    property color tint: alert ? Colors.urgent : Colors.accent
     width: parent ? parent.width : 0
-    spacing: Style.spacing.xxs
-    MetricHeader { width: gr.width; label: gr.label; readout: gr.readout; tint: gr.tint }
-    BarGauge { width: gr.width; height: Style.spacing.sm; segments: 24; value: gr.fraction; color: gr.tint }
+    implicitHeight: gauge.implicitHeight
+    height: implicitHeight
+    Column {
+      id: gauge
+      width: gr.width
+      spacing: Style.spacing.xxs
+      MetricHeader { width: gr.width; label: gr.label; readout: gr.readout; tint: gr.tint }
+      BarGauge { width: gr.width; height: Style.spacing.sm; segments: 24; value: gr.fraction; color: gr.tint }
+    }
+    MouseArea {
+      anchors.fill: parent
+      enabled: gr.url !== ""
+      cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+      onClicked: root.open(gr.url)
+    }
   }
 
   HoverPanel {
     id: panel
-    bar: root.bar
-    moduleName: root.moduleName
     anchorWidget: root
     title: "Homelab"
     implicitWidth: Style.panelWidth.wide
@@ -443,41 +447,32 @@ BarWidget {
 
           PanelSeparator {}
           PanelSectionHeader { text: "Storage" }
-          LinkStat {
-            label: "NAS free"
-            value: root.num(root.storage.nasFreeGb) + " / " + root.num(root.storage.nasTotalGb, " GB")
-            url: root.links.nas
-          }
-          LinkStat {
-            label: "Disks"
-            value: root.num(root.storage.disksHealthy) + " / " + root.num(root.storage.disksTotal, " healthy")
-            alert: root.storage.disksHealthy < root.storage.disksTotal
-            url: root.links.dashboard
-          }
-          LinkStat { label: "NVMe wear"; value: root.num(root.storage.nvmeWearPct, "%"); url: root.links.dashboard }
-          LinkStat {
-            label: "Last backup"
-            value: root.storage.backupAgeMin === null || root.storage.backupAgeMin === undefined
-              ? "never" : Util.ago(root.storage.backupAgeMin)
-            alert: root.backupStale
-            url: root.links.nas
-          }
           GaugeRow {
             label: "NAS free"
-            readout: root.num(root.storage.nasFreeGb, " GB")
+            readout: root.num(root.storage.nasFreeGb) + " / " + root.num(root.storage.nasTotalGb, " GB")
             fraction: (Number(root.storage.nasTotalGb) || 0) > 0 ? (Number(root.storage.nasFreeGb) || 0) / Number(root.storage.nasTotalGb) : 0
+            url: root.links.nas
           }
           GaugeRow {
             label: "Disks OK"
             readout: root.num(root.storage.disksHealthy) + " / " + root.num(root.storage.disksTotal)
             fraction: (Number(root.storage.disksTotal) || 0) > 0 ? (Number(root.storage.disksHealthy) || 0) / Number(root.storage.disksTotal) : 0
-            tint: root.storage.disksHealthy < root.storage.disksTotal ? Colors.urgent : Colors.accent
+            alert: root.storage.disksHealthy < root.storage.disksTotal
+            url: root.links.dashboard
           }
           GaugeRow {
             visible: root.storage.nvmeWearPct !== null && root.storage.nvmeWearPct !== undefined
             label: "NVMe wear"
             readout: root.num(root.storage.nvmeWearPct, "%")
             fraction: (Number(root.storage.nvmeWearPct) || 0) / 100
+            url: root.links.dashboard
+          }
+          LinkStat {
+            label: "Last backup"
+            value: root.storage.backupAgeMin === null || root.storage.backupAgeMin === undefined
+              ? "never" : Util.ago(root.storage.backupAgeMin)
+            alert: root.backupStale
+            url: root.links.nas
           }
 
           PanelSeparator {}

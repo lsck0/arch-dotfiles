@@ -77,26 +77,15 @@ BarWidget {
     }
 
     moduleName: "system"
+
+    hoverPanel: true
+
+    hoverFill: true
     implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
     implicitHeight: barSize
     onStatsIntervalSChanged: {
         statsProc.running = false;
         statsRestart.restart();
-    }
-
-    Rectangle {
-        anchors.fill: parent
-        radius: Style.shape.data
-        color: mouseArea.containsMouse ? Style.hoverFill : "transparent"
-
-        Behavior on color {
-            ColorAnimation {
-                duration: Style.motion.fast
-                easing.type: Style.motion.fastEasing
-            }
-
-        }
-
     }
 
     Timer {
@@ -235,29 +224,8 @@ BarWidget {
 
     }
 
-    MouseArea {
-        id: mouseArea
-
-        anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onEntered: {
-            if (root.bar) {
-                root.bar.hoverOpen(root.moduleName);
-            }
-        }
-        onExited: {
-            if (root.bar) {
-                root.bar.hoverTriggerExit(root.moduleName);
-            }
-        }
-    }
-
     HoverPanel {
         id: panel
-
-        bar: root.bar
-        moduleName: root.moduleName
         anchorWidget: root
         title: "SYSTEM"
         implicitWidth: Style.panelWidth.normal
@@ -729,7 +697,7 @@ BarWidget {
                         if (root.bar)
                             root.bar.closePanel(root.moduleName);
 
-                        Quickshell.execDetached(Paths.ipcCall("shell", "summon", "panel.disk-speedtest", "{}"));
+                        Quickshell.execDetached(Paths.ipcCall("shell", "summon", "panel.speedtest", "{\"mode\":\"disk\"}"));
                     }
                 }
 
@@ -781,31 +749,6 @@ BarWidget {
                 font.pixelSize: slotText.font.pixelSize
             }
 
-        }
-
-    }
-
-    component SectionHead: Item {
-        property string text: ""
-
-        width: parent ? parent.width : 0
-        implicitHeight: hdr.implicitHeight
-        height: implicitHeight
-
-        PanelSectionHeader {
-            id: hdr
-
-            anchors.left: parent.left
-            text: parent.text
-        }
-
-        Rectangle {
-            anchors.left: hdr.right
-            anchors.leftMargin: Style.spacing.xs
-            anchors.right: parent.right
-            anchors.verticalCenter: hdr.verticalCenter
-            height: 1
-            color: Util.alpha(Colors.accent, 0.35)
         }
 
     }

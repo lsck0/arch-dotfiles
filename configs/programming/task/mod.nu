@@ -11,13 +11,13 @@ export const options = {
         default: null
         doc: "The taskchampion server every replica syncs with as the one client of configs/secrets/keys/taskwarrior-*; none: no sync"
         label: "Sync server"
+        scope: user
     }
     recurrence: {
         type: bool
         default: true
         doc: "This replica creates the instances of recurring tasks; one per sync, or each adds its own copy (task-sync(5))"
         label: "Create recurring tasks"
-        scope: machine
     }
 }
 
@@ -25,7 +25,7 @@ const HOOK = "/usr/share/doc/timew/ext/on-modify.timewarrior"
 const CLIENT_ID = "configs/secrets/keys/taskwarrior-client-id"
 const SECRET = "configs/secrets/keys/taskwarrior-encryption-secret"
 const SYNC_RC = ".config/task/sync.taskrc"
-# CALENDAR_FEED (the homelab calendar feed dir) and CALENDAR_UPLOAD (its push url), read by task-calendar.nu
+# CALENDAR_FEED (the homelab calendar feed dir), read by task-calendar.nu
 const CALENDAR = "configs/secrets/keys/calendar.env"
 const CALENDAR_ENV = ".config/task/calendar.env"
 
@@ -65,10 +65,10 @@ export def link [cfg: record] {
     let calendar = calendar-text
     let bugwarrior = (profile-has secrets) and (which bugwarrior | is-not-empty)
     [
-        (file-copy taskrc ($nu.home-dir | path join .config task taskrc))
-        (file-copy wal.theme ($nu.home-dir | path join .config task wal.theme))
+        (file-copy taskrc (xdg config task taskrc))
+        (file-copy wal.theme (xdg config task wal.theme))
         (if ($HOOK | path exists) { file-copy $HOOK ($nu.home-dir | path join .task hooks on-modify.timewarrior) --mode 755 } else { [] })
-        (if $bugwarrior { [] } else { file-text ($nu.home-dir | path join .config bugwarrior uda.taskrc) "" })
+        (if $bugwarrior { [] } else { file-text (xdg config bugwarrior uda.taskrc) "" })
         (file-text ($nu.home-dir | path join $SYNC_RC) $sync --mode 600)
         (if ($calendar | is-empty) { [] } else { file-text ($nu.home-dir | path join $CALENDAR_ENV) $calendar --mode 600 })
         (link-commands task-calendar.nu)

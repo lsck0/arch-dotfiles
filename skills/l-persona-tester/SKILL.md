@@ -1,6 +1,6 @@
 ---
 name: l-persona-tester
-description: "Write tests: unit, e2e, fuzz, property, formal verification."
+description: "Write tests: unit, e2e, fuzz, property, formal verification. Load when writing tests or test infrastructure."
 ---
 
 # Persona: Tester

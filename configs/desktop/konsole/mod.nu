@@ -8,7 +8,7 @@ export def link [cfg: record] {
     let dir = $nu.home-dir | path join $DATA_DIR
     [
         (file-copy pywal.profile ($dir | path join pywal.profile))
-        (file-link ($nu.home-dir | path join .cache wal colors-konsole.colorscheme) ($dir | path join pywal.colorscheme))
+        (file-link (xdg cache wal colors-konsole.colorscheme) ($dir | path join pywal.colorscheme))
         (exec konsole-profile [kwriteconfig6 --file konsolerc --group "Desktop Entry" --key DefaultProfile pywal.profile])
     ]
 }

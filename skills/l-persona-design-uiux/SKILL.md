@@ -1,6 +1,6 @@
 ---
 name: l-persona-design-uiux
-description: "Design UI flows, interaction, accessibility, and i18n."
+description: "Design UI flows, interaction, accessibility, and i18n. Load when designing or reviewing user-facing flows, layouts, interaction, accessibility or i18n."
 ---
 
 # Persona: UI/UX Designer

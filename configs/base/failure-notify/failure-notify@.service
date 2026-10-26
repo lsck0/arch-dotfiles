@@ -4,9 +4,8 @@ ConditionEnvironment=WAYLAND_DISPLAY
 
 [Service]
 Type=oneshot
-# kwalletd6 exits nonzero by design whenever ~/.config/kwalletrc has [Wallet] Enabled=false (this machine's
-# wallet is off; secrets live in pass/gnupg instead) and dbus-broker's generated unit name changes every
-# activation, so there is no stable unit to put a per-unit OnFailure= override on; skip it here instead
+# kwalletd6 exits nonzero by design with the wallet disabled, and dbus-broker renames its unit on every activation,
+# so no per-unit OnFailure= override can catch it
 ExecCondition=/usr/bin/sh -c 'case "%i" in dbus-*-org.kde.kwalletd6@*.service) exit 1;; esac'
 ExecStartPre=/usr/bin/gdbus wait --session org.freedesktop.Notifications
 ExecStart=/usr/bin/notify-send -u critical -a systemd "%i failed" "journalctl --user -xeu %i"

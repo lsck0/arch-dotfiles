@@ -5,7 +5,7 @@ export const meta = {inputs: [~/sync/vendor ~/.local/share/unreal-engine/.instal
 const MCP = {type: http, url: "http://127.0.0.1:8766/mcp"}
 
 def data-dir []: nothing -> path {
-    $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share)
+    (xdg data)
 }
 
 export def link [cfg: record] {
@@ -19,8 +19,7 @@ export def link [cfg: record] {
     [
         (link-commands unreal-editor.nu unreal-install-plugins.nu)
         (file-copy uproject.xml ($mime | path join packages uproject.xml) --then [update-mime-database $mime])
-        (json-merge ($nu.home-dir | path join .claude.json)
-            [(if $installed { json-set [mcpServers unreal-mcp] $MCP } else { json-delete [mcpServers unreal-mcp] })])
+        (mcp-servers {unreal-mcp: (if $installed { $MCP })})
         (if $zip == null or $current { [] } else { exec unreal-install [($env.PWD | path join hook unreal-install.nu)] })
         (if $installed { [] } else { user-hook unreal-install hook/unreal-install.nu --watch ["%h/sync/vendor"] })
     ]

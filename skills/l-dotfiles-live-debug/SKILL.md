@@ -1,6 +1,6 @@
 ---
 name: l-dotfiles-live-debug
-description: Reading the live system dot manages: dot status, run logs and traces, FAILURES files, the crash record, user journals and failed units, drift, which module wrote a file, AppArmor denials, quickshell logs, restarting a user service. Load when something on the machine misbehaves or a dot run failed.
+description: Reading the live system dot manages: dot status, run logs and traces, FAILURES files, the crash record, user journals and failed units, files changed since their apply, which module wrote a file, AppArmor denials, quickshell logs, restarting a user service. Load when something on the machine misbehaves or a dot run failed.
 ---
 
 # live-debug
@@ -12,7 +12,7 @@ Read first, change nothing: every command here only reads, except the restart at
 ```bash
 dot status --brief        # failed checks only, "<check>: <text>"
 dot status                # generation, last run and errors, pending migrations / system parts / applies, managed files
-                          # changed since their apply, every check, then each machine's drift report (state/drift)
+                          # changed since their apply, every check
 dot status --json         # the same as one record
 dot log                   # the last changing run's records (read-only runs like status/plan skipped), INFO and up;
                           # --module <id>, --level WARN
@@ -27,8 +27,6 @@ dot module reset <file>   # that one file back to the module's copy, the edit pr
   `config.log` / `install.log` the terminal output.
 - `~/.local/state/dotfiles/crash.json`: the record a crashed run leaves. Root's state is `/var/lib/dotfiles`.
 - Exit 3 from a `DOT_SYSTEM=skip` run is a pending system part, not a failure.
-- Another machine's drift: `configs/secrets/state/drift/<host>` (plaintext); `dot internal drift report` gives this
-  machine's.
 
 ## systemd
 
@@ -65,30 +63,11 @@ pgrep -x Hyprland                                             # empty = Hyprland
 ```
 
 `hypridle.service` can show `active running` as a leftover user unit even when KWin, not Hyprland, owns the
-session — its presence alone is not proof Hyprland is up.
+session: its presence alone is no proof Hyprland is up.
 
 ## Homelab connectivity
 
-The homelab lives in the sibling repo `~/projects/homelab` (Proxmox + NixOS guests), not in arch-dotfiles. When a
-mount, ssh or any named service to a homelab guest (`10.100.0.0/16`/`10.200.0.0/16`) times out on TCP while ICMP to
-the same IP succeeds, the guest isn't down — the router's firewall only opens that flow to specific source IPs
-(`~/projects/homelab/src/modules/flows.nix`, the named `workstation`/`notebook` sources), not the whole subnet.
-Compare this machine's current DHCP lease against the IP the firewall trusts:
-
-```bash
-ip -4 addr show <iface>                                                         # current lease
-grep -A1 '"workstation"\|"notebook"' ~/projects/homelab/src/generated/site.json # the IP the firewall trusts
-```
-
-A mismatch (the router gave a different lease than its own reservation) silently locks out every named TCP flow
-while ping still answers; fix is a DHCP renew (`nmcli connection down/up <profile>`) or the router's reservation
-itself, never the dotfiles.
-
-A `.mount` unit's own `TimeoutSec` is the only thing that bounds the hang in this failure mode: against a host
-that drops packets instead of rejecting them, the kernel's TCP connect takes longer than any application-level
-timeout can interrupt, so a short `TimeoutSec` (not `soft`/`echo_interval`) is what actually caps the wait — and
-since autofs has no negative-cache, every single stat through the mountpoint (or a symlink into it, e.g. `~/nas`)
-re-triggers the same hang until the route to the host is fixed.
+A homelab service that times out from here: skill `l-homelab`, section Debugging.
 
 ## Everything at once
 

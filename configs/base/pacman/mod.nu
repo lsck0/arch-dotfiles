@@ -43,7 +43,7 @@ export def trust []: nothing -> nothing {
 
 export def link [cfg: record] {
     [
-        (files-into ($nu.home-dir | path join .config pacman) makepkg.conf)
+        (files-into (xdg config pacman) makepkg.conf)
         (file-render yay-cache-clean.service (unit-dir | path join yay-cache-clean.service) {CACHE_DAYS: $cfg.yay_cache_days})
         (unit-file yay-cache-clean.timer --enable --now)
     ]

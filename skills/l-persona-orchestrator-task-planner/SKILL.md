@@ -1,6 +1,6 @@
 ---
 name: l-persona-orchestrator-task-planner
-description: "Turn a raw ask into an ordered set of tickets."
+description: "Turn a raw ask into an ordered set of tickets. Spawned by the multi-agent mode skills to split an ask into tickets; load directly when asked to break work into tickets."
 ---
 
 # Persona: Task Planner

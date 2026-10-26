@@ -11,6 +11,9 @@ const POLICY_FILE = "/etc/NetworkManager/untrusted-policy"
 const HOMELAB_ENV = "/etc/NetworkManager/homelab.env"
 const VPN_IFACE = "proton0"
 const WG_IFACE = "wg0"
+# protonvpn-netns' tunnel: its link lives in the namespace, its udp socket in ours with the fwmark
+const NETNS = "protonvpn"
+const NETNS_IFACE = "wg-protonvpn"
 const PORTAL_S = 120
 const PORTAL_UNIT = "persona-portal"
 const UNREACHABLE_METRIC = "4000"  # kept in sync by hand with homelab-routes.nu's own copy; same ordering invariant
@@ -68,11 +71,11 @@ def tor-off []: nothing -> nothing {
     ok systemctl stop --no-block tor-router.service | ignore
 }
 
-# Never over a live protonvpn tunnel, it clobbers the wg fwmark.
-def portmaster-on []: nothing -> nothing {
-    if (ok systemctl is-active -q fw-inbound.service fw-lockdown.service) and not (ok ip link show $VPN_IFACE) {
-        ok systemctl start portmaster.service | ignore
-    }
+# Never over a live protonvpn tunnel or the netns one: its connmark restore clobbers the wg fwmark that fw-egress
+# and tor-router let out.
+def portmaster-on [gone: string = ""]: nothing -> nothing {
+    if ($VPN_IFACE != $gone and (ok ip link show $VPN_IFACE)) or (ok ip -n $NETNS link show $NETNS_IFACE) { return }
+    if (ok systemctl is-active -q fw-inbound.service fw-lockdown.service) { ok systemctl start portmaster.service | ignore }
 }
 
 def vpn-event [policy: string, action: string]: nothing -> nothing {
@@ -86,9 +89,7 @@ def vpn-event [policy: string, action: string]: nothing -> nothing {
         }
         "down" | "vpn-down" => {
             if (foreign $policy) { tor-on $policy $VPN_IFACE }
-            if (ok systemctl is-active -q fw-inbound.service fw-lockdown.service) {
-                ok systemctl start portmaster.service | ignore
-            }
+            portmaster-on $VPN_IFACE
         }
     }
 }
@@ -141,14 +142,14 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
     } else if not ($VM_GUEST | path exists) {
         ok systemctl start fw-egress.service | ignore
     }
-    if $action == up and ($HOME_NETWORK | path exists) and not (foreign $policy) {
+    # off treats every network as home, a known gateway or not
+    if $policy == off or ($action == up and ($HOME_NETWORK | path exists) and not (foreign $policy)) {
         if ($MARKER | path exists) {
             rm --force $MARKER
             # the conflict drops lockdown before the load, so a failed load would leave no table at all
             if not (ok systemctl start fw-inbound.service) { ok systemctl start fw-lockdown.service | ignore }
         }
-        # the socket too: an older dispatcher runtime-masked it as well
-        ok systemctl unmask --runtime avahi-daemon.service avahi-daemon.socket | ignore
+        ok systemctl unmask --runtime avahi-daemon.service | ignore
         ok systemctl start avahi-daemon.socket | ignore
         ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=0" | ignore
         ok nmcli connection modify $uuid ipv6.method auto | ignore
@@ -156,7 +157,6 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
         ok systemctl start fw-lockdown.service | ignore
         # a stop alone is undone by dbus or socket activation, so the daemon (the only part on the network) is masked;
         # the socket, a unix one, stays unmasked so base/systemd can keep it enabled (enable refuses a masked unit)
-        ok systemctl unmask --runtime avahi-daemon.socket | ignore
         ok systemctl stop avahi-daemon.socket | ignore
         ok systemctl mask --runtime --now avahi-daemon.service | ignore
         if $action == up and $policy == lockdown-tor {

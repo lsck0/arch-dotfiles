@@ -6,7 +6,6 @@ export const options = {
         default: "500M"
         doc: "Total disk space the systemd journal may keep, journald.conf(5) size syntax"
         label: "Max journal size"
-        scope: machine
     }
 }
 

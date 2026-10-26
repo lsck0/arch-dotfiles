@@ -11,7 +11,7 @@ lock, notifications, OSD and overlays. QML.
 - `plugins/Plugins.js`: the registry. `shell` maps a summon id (`panel.*`, `service.*`) to a QML file; `bar`/`barSecondary`
   map bar positions (left/center/right) to widget names under `plugins/bar/widgets`.
 - `plugins/`: one dir per feature (bar, background, osd, clipboard, appsearch, power, overview, lock, notifications,
-  alert, reminders, speedtest, disk-speedtest, image-picker, wifiqr, tasks, `desktop` (the bottom-layer agenda and
+  alert, reminders, speedtest (network and disk), image-picker, wifiqr, tasks, `desktop` (the bottom-layer agenda and
   notes cards), `settings` (the settings window over `dot set --json`, `Schema.js`)).
 - `Commons/`: singletons and shared logic. Palette and style tokens live in `Colors.qml`, `Theme.qml`, `Style.qml`,
   `Border.qml`, `Palette.js` (generated from `palette.nu`); also `Audio.qml`, `Cava.qml`/`CavaRef.qml`, `Paths.qml`,

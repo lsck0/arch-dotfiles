@@ -377,6 +377,8 @@ Item {
 
   JsonProcess {
     id: gpgDecryptProc
+    // gpg.nu answers one JSON line: parsed per line, no collector keeps the plaintext after the window closes
+    streaming: true
     onParsed: function (data) {
       if (!root.gpgCurrent()) return
       root.gpgHidden = false

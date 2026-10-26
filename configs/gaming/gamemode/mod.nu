@@ -8,7 +8,6 @@ export const options = {
         default: null
         doc: "The /dev/dri/cardN gamemode tunes while a game runs; none leaves the gpu alone"
         label: "GPU card"
-        scope: machine
     }
     amd_performance_level: {
         type: string?
@@ -16,7 +15,6 @@ export const options = {
         doc: "The amdgpu power_dpm_force_performance_level during a game; high holds the clocks up, wasteful on battery"
         label: "AMD performance level"
         choices: [auto high]
-        scope: machine
     }
 }
 
@@ -36,7 +34,7 @@ export def link [cfg: record] {
         $"\n[gpu]\napply_gpu_optimisations=accept-responsibility\ngpu_device=($cfg.gpu_device)\n($level)"
     }
     [
-        (file-text ($nu.home-dir | path join .config gamemode.ini) $"(open --raw gamemode.ini)($gpu)")
+        (file-text (xdg config gamemode.ini) $"(open --raw gamemode.ini)($gpu)")
         (link-commands gamemode-hook.nu)
     ]
 }

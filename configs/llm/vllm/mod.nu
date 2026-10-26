@@ -7,29 +7,21 @@ export const options = {
         type: string
         default: "RogerS-01/Josiefied-Qwen3-8B-abliterated-v1-AWQ"
         doc: "The hugging face repo vllm serves; an uncensored 4-bit AWQ build of Josiefied-Qwen3-8B-abliterated-v1"
-        label: "Model"
-        scope: machine
     }
     model_revision: {
         type: string
         default: 0244c2514cc272a603368c0440ff3002143b2336
         doc: "The model repo's commit, weights and tokenizer alike; bump from https://huggingface.co/api/models/<model>/revision/main"
-        label: "Model revision"
-        scope: machine
     }
     tool_call_parser: {
         type: string
         default: hermes
         doc: "vllm's tool call parser for the model's chat format (hermes for qwen3, gemma4 for gemma 4)"
-        label: "Tool call parser"
-        scope: machine
     }
     reasoning_parser: {
         type: string
         default: qwen3
         doc: "vllm's reasoning parser, which moves the model's thinking out of the reply into reasoning_content"
-        label: "Reasoning parser"
-        scope: machine
     }
     gpu_memory_utilization: {
         type: float?
@@ -38,7 +30,6 @@ export const options = {
         label: "GPU memory share"
         min: 0.1
         max: 0.95
-        scope: machine
     }
     kv_cache_dtype: {
         type: string
@@ -46,7 +37,6 @@ export const options = {
         doc: "fp8 halves the kv cache's vram use but has no native matrix support on RDNA3; auto (bf16) is faster there"
         label: "KV cache dtype"
         choices: [auto fp8]
-        scope: machine
     }
 }
 

@@ -58,48 +58,17 @@ at a glance instead of hand-parsing `task list`/`task export`.
 
 ## Detecting / scaffolding
 
-- Detect: `TASKRC` env var (auto-exported by devenv+direnv on shell
-  entry), or a `<project-root>/tasks/.taskrc` file even when operating
-  outside that shell (pass it explicitly: `TASKRC=./tasks/.taskrc task ...`).
-- If neither exists, run `taskwarrior-init [project-dir]` (defaults to
-  `$PWD`; it wraps this skill's `scripts/scaffold.nu`). It is safe to
-  re-run: every step checks before writing and existing db data is never
-  touched. It:
-  - `git init`s a new repo at the target if it isn't already inside one
-    (never touches an existing repo's history);
-  - creates `tasks/.task/hooks/`, `tasks/.timewarrior/` and
-    `tasks/context/{research,design,questions}/` (each with a `.gitkeep`);
-  - writes `tasks/.taskrc` (`data.location`, `hooks.location`) with this
-    machine's absolute paths, so the db works before any shell entry;
-  - installs the `on-modify.timewarrior` hook if missing, so `task <id>
-    start`/`stop` auto-tracks a matching timewarrior interval;
-  - creates a NEW `devenv.nix` if none exists, or patches an existing
-    one's `enterShell` (adding one if absent), leaving the rest of the
-    file untouched. The patch is a managed block that re-running
-    refreshes in place. On every shell entry that block regenerates
-    `tasks/.taskrc` from `$DEVENV_ROOT`, installs the hook if missing, and
-    exports `TASKRC` and `TIMEWARRIORDB` from `$DEVENV_ROOT`, so a fresh
-    clone on another machine gets a working db on `cd`;
-  - puts `use devenv` first in `.envrc`, creating it if needed;
-  - ensures `.gitignore` covers `tasks/.taskrc`, `tasks/.task/`,
-    `tasks/.timewarrior/` and `tasks/.poll-backoff` (and warns if
-    `tasks/.taskrc` is still tracked from an older scaffold);
-  - for a FRESH repo only, stages exactly what it wrote (`devenv.nix`,
-    `.envrc`, `.gitignore`, `tasks/`) and commits it as the user's
-    configured git identity (no identity configured: staged, not
-    committed). Never `git add -A`, so unrelated pre-existing files are
-    left for the human.
-  Auto-export-on-cd requires `eval "$(direnv hook zsh)"` in the shell rc
-  (already wired in this repo's `configs/core/zsh/zshrc`); without it,
-  `devenv shell` still works, just not automatically on `cd`.
-- One db per root: `taskwarrior-init` on a root that already has one
-  reuses it rather than creating a second.
+- Detect: the `TASKRC` env var (exported by devenv + direnv on `cd`), or a `<project-root>/tasks/.taskrc` used
+  explicitly outside that shell (`TASKRC=./tasks/.taskrc task ...`).
+- Neither: `taskwarrior-init [project-dir]` (default `$PWD`), safe to re-run and never touching existing db data or
+  an existing repo's history; one db per root, an existing one is reused. What it writes:
+  [references/scaffold.md](references/scaffold.md).
 
 ## Task lifecycle: start/stop discipline
 
 `task <id> start` / `task <id> stop` aren't decorative: they drive the
 `on-modify.timewarrior` hook, so they're the only source of truth for how
-long a task was actually worked. Both task-mode skills follow this
+long a task was worked. Both task-mode skills follow this
 without exception:
 
 - The instant a task is claimed or resumed and real work begins,
@@ -134,77 +103,12 @@ modify -stage-land`), then `task <id> done`.
 The concurrency budget and the 2-implementer cap live in
 `l-spec-driven-development` ("Parallelism and model choice").
 
-## The `orchestrator` Hermes profile: where self-polling actually runs
+## Unattended polling
 
-A Hermes process's profile is fixed at launch: nothing a skill does
-mid-session can switch it, and neither the `cronjob` MCP tool nor `herdr
-agent start` take a profile argument; both operate against whichever
-profile is already running them. So the orchestrator's context settings
-have to be solved by LAUNCHING the self-polling process under the right
-profile, not by anything a skill instructs itself to do once running.
-
-The dotfiles provision that profile in `configs/programming/hermes/mod.nu`
-(its `link` verb, run by `dot apply`): a Hermes profile named `orchestrator`,
-cloned from `default` (same model/provider/skills/`.env`), with
-`compression.threshold_tokens: 500000` set ONLY in that profile's
-`config.yaml`. Compressing an orchestrator's chat history is safe because
-its real state lives in `tasks/` (the taskwarrior db plus
-`tasks/context/`). `default` (interactive chat) is never touched.
-
-**Any self-polling orchestrator process (a background loop, or the
-backoff poll cron below) should be launched under this profile**, not
-`default`:
-```bash
-HERMES_HOME="${HOME}/.hermes/profiles/orchestrator" hermes cron create ...
-# or, equivalently, using the profile's own alias:
-hermes-orchestrator cron create ...
-```
-Herdr workers are not launched per profile: `herdr agent start` takes no
-profile, so live workers stay on the profile of the session that spawned
-them. A LIVE session already running under `default` (e.g. a human
-talking to Hermes directly in chat, invoking one of these skills
-interactively) stays on `default` for that turn; there is no way to hop
-profiles mid-conversation, and a live chat has a human present who
-benefits from full context. Reserve `orchestrator` for processes that are
-themselves self-polling/unattended.
-
-## Self-adjusting backoff poll cron (unattended queue polling)
-
-When a project's queue relies on a `cronjob` nudge rather than a human
-re-triggering a live pass, the poll cadence must self-adjust instead of
-polling at a fixed rate forever or requiring the human to manually "wake"
-it back up after answering a question:
-
-- **State file**: `tasks/.poll-backoff`: a single integer, minutes since
-  the last successful advance. Gitignored, local state, same as
-  `tasks/.task/`.
-- **Setup (once per project)**: create the poll job UNDER THE
-  `orchestrator` PROFILE (see above) with `schedule="in 1m"`. Use the
-  `hermes cron create` CLI with `HERMES_HOME` set (or the
-  `hermes-orchestrator` alias), not the `cronjob` MCP tool, since that
-  tool is bound to whatever profile is running the CURRENT session (the
-  one doing the setup, likely `default`). Then immediately edit it to bake
-  its own returned job id into its prompt (a job doesn't otherwise know
-  its own id), so every run can reschedule itself.
-- **Inside each run**: once the job actually fires, the session executing
-  it already belongs to the `orchestrator` profile (a job lives in
-  whichever profile's cron store created it), so the `cronjob` MCP tool
-  IS the right tool to reschedule itself at that point. `HERMES_HOME` only
-  matters at initial setup time from a different (e.g. `default`)
-  session.
-- **End of every run**:
-  - Progress happened this pass (claimed new work, folded in an answered
-    question, a waited-on PR merged or got feedback, a stage advanced) ->
-    write `1` to `.poll-backoff` and reschedule to `in 1m`.
-  - No progress was possible (everything workable waits on an unanswered
-    question or an unchanged PR) -> read current N from `.poll-backoff` (default 1),
-    write `N+1`, and reschedule to `in {N+1}m`.
-- Linear backoff, not exponential (1, 2, 3, 4... minutes), so a
-  long-blocked project still gets checked at a bounded, predictable rate.
-  The human never has to manually kick the job after answering a
-  question file; it comes back on its own within the current backoff
-  window and snaps back to 1-minute checks the instant it finds progress
-  again.
+A self-polling orchestrator (a background loop or the backoff poll cron) runs under the `orchestrator` Hermes profile
+(provisioned by the dotfiles' `programming/hermes`), never `default`; live sessions stay on the profile that
+launched them. The cron reschedules itself with a linear backoff kept in `tasks/.poll-backoff`. Setup and the
+per-run rules: [references/unattended.md](references/unattended.md).
 
 ## `project:` = one decomposed prompt
 
@@ -212,7 +116,7 @@ Taskwarrior's own `project:` field is reused as "which prompt/initiative
 does this ticket belong to", not a separate sprint concept. One `+prompt`
 task, once decomposed, becomes one `project:<slug>.*` family; every ticket
 under it is one step from the task-planner's breakdown. The groupings
-(full rules in `l-multi-agent-task-mode`, "Intake"):
+(full rules in `l-multi-agent-task-mode`, `references/intake.md`):
 `project:<slug>.research`, `.design`, `.spec`, then one `.p<k>` per
 `SPEC.md` Roadmap phase once the spec PR merged.
 
@@ -233,7 +137,7 @@ task project:sale-tracker.research list
   work: it never carries `+agent-task` or a `+stage-*` tag, and no
   orchestrator picks it up to "work" in place. It exists to be
   decomposed: a task-planner worker turns it into a `project:<slug>.*`
-  family of `+agent-task` tickets (see "Intake" in
+  family of `+agent-task` tickets (see Intake, `references/intake.md` in
   `l-multi-agent-task-mode`), and the `+prompt` task itself gets
   annotated with a pointer to that breakdown and closed (it was scope,
   not a unit of work). Keeping `+prompt` and `+agent-task` as two
@@ -293,50 +197,12 @@ forget it. A task that just became `+human-clarification-needed`- or
 `+human-review-ready`-blocked and sits on the critical path should
 usually be bumped to H; routine follow-up work stays M/L.
 
-## `tasks/context/`: durable docs, source of truth for everything
+## `tasks/context/`: the durable record
 
-```
-tasks/context/
-  research/<uuid8>-<slug>.md      # findings, spikes, investigation notes
-  design/<uuid8>-<slug>.md        # design notes and decisions behind a change
-  questions/<uuid8>-<slug>.md     # open questions blocking a +human-clarification-needed task
-```
-The specs themselves live in the repo's spec corpus (`specs/`, see
-`l-spec-driven-development`); `tasks/context/` holds the notes behind a
-change, in place of the corpus's `notes/` directory. Name every
-long-lived file or dir `<uuid8>-<slug>`, where uuid8 is the first 8
-characters of the task's uuid (see Pitfalls):
-```bash
-task _get 14.uuid | cut -c1-8     # -> 3f2a9c1d
-```
-This directory is the durable record of WHY decisions were made and WHAT
-was found: not agent conversation history, and not taskwarrior
-annotations beyond a pointer to the file. Record the file's path as a
-task annotation the moment it's created:
-```bash
-task 14 annotate "context: tasks/context/research/3f2a9c1d-dark-mode-toggle.md"
-```
-
-### Question file shape
-
-```markdown
-# Task 3f2a9c1d: Dark mode toggle
-Stage: design
-Asked: 2026-09-04
-
-## Q1: Local accounts or OAuth?
-This affects the API, data model, security model, and deployment
-architecture.
-Recommendation: OAuth.
-
-**Your answer:**
-
-```
-One `## Q<n>` section per open decision, each with the same "why this
-needs human judgment + a recommendation" framing a design-review gate
-would use. Never ask trivial questions this way: if it doesn't
-materially change the design, just decide it and record the reasoning in
-`design/` instead of blocking on it.
+`tasks/context/{research,design,questions}/<uuid8>-<slug>.md` hold why decisions were made and what was found, in
+place of the spec corpus's `notes/`; the specs themselves live in `specs/` (`l-spec-driven-development`). Annotate
+every file's path on its task the moment it exists (`task 14 annotate "context: tasks/context/research/<file>"`).
+Naming, uuid8, and the question-file template: [references/context-files.md](references/context-files.md).
 
 ## Pitfalls
 

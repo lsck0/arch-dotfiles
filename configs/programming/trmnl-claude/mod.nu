@@ -6,7 +6,6 @@ export const options = {
         default: false
         doc: "This machine posts its Claude usage to the TRMNL panel; one poster per panel, a second would overwrite it"
         label: "Post to TRMNL"
-        scope: machine
     }
 }
 

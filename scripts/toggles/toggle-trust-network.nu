@@ -1,7 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-# The network of the default route as home: its gateway's mac joins networkmanager's home_gateways option (the
-# machine's options file, so the choice is reproducible), and the system apply that dot set runs lets 70-home-network
-# decide the link again. Home is still the gateway mac plus the hardware one, never the ssid.
+# The default route's network as home: its gateway's mac joins networkmanager's home_gateways machine option, and
+# dot set's system apply lets 70-home-network decide the link again.
 
 use lib.nu [notify switch-run]
 
@@ -43,9 +42,8 @@ def store [gateways: list<string>]: nothing -> nothing {
     settled (^nu --no-config-file $DOT set --machine $OPTION ($gateways | to nuon) | complete)
 }
 
-# Already listed yet not home (a forgotten and rejoined wifi got a fresh profile with a random mac): storing the same
-# list again runs dot set's system part (sudo on a tty, pkexec from the bar), whose networkmanager home step gives the
-# profile its hardware mac back.
+# Listed yet not home (a rejoined wifi's fresh profile has a random mac): storing the list again reruns the system
+# part, whose home step gives the profile its hardware mac back.
 def reconverge [gateways: list<string>]: nothing -> nothing { store $gateways }
 
 def link []: nothing -> record {

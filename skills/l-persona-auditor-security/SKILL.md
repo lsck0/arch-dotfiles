@@ -1,6 +1,6 @@
 ---
 name: l-persona-auditor-security
-description: "Passive security audit: code, config, CI/CD, dependencies."
+description: "Passive security audit: code, config, CI/CD, dependencies. Load when asked for a security review of code, configs, CI/CD or dependencies (not active pentesting: that is l-persona-pentester)."
 ---
 
 # Persona: Security Auditor

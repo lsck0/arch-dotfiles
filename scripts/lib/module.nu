@@ -43,7 +43,7 @@ export def unit-dir []: nothing -> path {
     if (layer-is-system) {
         "/etc/systemd/system"
     } else {
-        $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join systemd user
+        xdg config systemd user
     }
 }
 
@@ -83,6 +83,37 @@ export def link-commands [...files: path]: nothing -> list<record> {
 # Applies json-set/json-delete edits to a live JSON file, keeping every other key.
 export def json-merge [file: path, edits: list<record>, --then: list<string> = []]: nothing -> record {
     decl json $file {edits: $edits, then: $then}
+}
+
+# A path under an XDG base dir (config, data, cache, state), honoring XDG_*_HOME.
+export def xdg [kind: string, ...parts: string]: nothing -> path {
+    let base = match $kind {
+        config => ($env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config))
+        data => ($env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share))
+        cache => ($env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache))
+        state => ($env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state))
+        _ => (error make {msg: $"xdg: no base dir '($kind)'"})
+    }
+    $base | path join ...$parts
+}
+
+# Whether a process of this exact name runs: a theme or reload step only acts on a running app.
+export def process-running [name: string]: nothing -> bool {
+    (^pgrep -x $name | complete).exit_code == 0
+}
+
+# Sets whole keys in a desktop entry's text (the first Key= line each), for desktop-override's edit.
+export def desktop-set [values: record]: string -> string {
+    let text = $in
+    $values | items {|key, value| {key: $key, value: $value} }
+    | reduce --fold $text {|kv, t| $t | str replace --regex $"\(?m\)^($kv.key)=.*$" $"($kv.key)=($kv.value)" }
+}
+
+# Registers MCP servers with the agents (~/.claude.json's mcpServers), name -> server spec; null drops the name.
+export def mcp-servers [servers: record]: nothing -> record {
+    json-merge ($nu.home-dir | path join .claude.json) ($servers | items {|name, spec|
+        if $spec == null { json-delete [mcpServers $name] } else { json-set [mcpServers $name] $spec }
+    })
 }
 
 # Forces only these keys ("" is the part before any section); --missing-only seeds absent keys only.
@@ -127,7 +158,7 @@ export def desktop-override [id: string, edit: closure]: nothing -> list<record>
     if not ($system | path exists) {
         return []
     }
-    let dest = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join applications $id
+    let dest = xdg data applications $id
     [(file-text $dest (open --raw $system | do $edit))]
 }
 

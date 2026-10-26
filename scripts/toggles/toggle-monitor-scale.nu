@@ -126,7 +126,8 @@ def scale-check [scale: string]: nothing -> nothing {
 def "main get" [monitor?: string, --json] {
     let monitor = $monitor | default (monitor-default)
     let scale = scale-get $monitor
-    status-print (status-record Scale $scale --text $"($monitor) ($scale)x" --states $SCALES) $json
+    let shown = try { $scale | into float | math round --precision 2 } catch { $scale }
+    status-print (status-record "Monitor scale" $scale --text $"($monitor) ($shown)x" --states $SCALES) $json
 }
 
 def "main list" [] {

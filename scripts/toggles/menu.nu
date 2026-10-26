@@ -10,7 +10,8 @@ def line [toggle: record]: nothing -> string {
 }
 
 def main [--fzf] {
-    let toggles = ^($TOGGLES_DIR | path join status.nu) | from json | where available | each {|t| $t | insert line (line $t) }
+    let toggles = ^($TOGGLES_DIR | path join status.nu) | from json | where available | sort-by --ignore-case label
+        | each {|t| $t | insert line (line $t) }
     let lines = $toggles.line | to text
     let picked = if $fzf {
         $lines | ^fzf --prompt="Toggles> " --height=~60% --border --header="enter: toggle | esc: cancel" | complete

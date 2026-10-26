@@ -16,7 +16,7 @@ export const options = {
 
 export def link [cfg: record] {
     [
-        (file-render MangoHud.conf ($nu.home-dir | path join .config MangoHud MangoHud.conf) {FONT_SIZE: $cfg.font_size})
+        (file-render MangoHud.conf (xdg config MangoHud MangoHud.conf) {FONT_SIZE: $cfg.font_size})
         (link-commands mangohud-toggle.nu)
     ]
 }

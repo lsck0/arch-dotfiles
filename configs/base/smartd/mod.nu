@@ -8,7 +8,6 @@ export const options = {
         default: "S/../.././02|L/../../6/03"
         doc: "When smartd runs self-tests, smartd.conf(5) -s regex syntax (default: short test daily at 02:00, long test Saturday at 03:00)"
         label: "SMART test schedule"
-        scope: machine
     }
 }
 

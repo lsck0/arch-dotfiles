@@ -11,7 +11,7 @@ def theme-dir []: nothing -> path {
 
 export def link [cfg: record] {
     let steam = $nu.home-dir | path join $STEAM
-    let palette = $nu.home-dir | path join .cache wal colors-steam.css
+    let palette = xdg cache wal colors-steam.css
     let colors = theme-dir | path join colors.css
     let xtst = try { ^readlink ($steam | path join ubuntu12_32 libXtst.so.6) | str trim } catch { "" }
     let linked = $xtst | str starts-with $"($MILLENNIUM_LIB)/"
@@ -24,7 +24,7 @@ export def link [cfg: record] {
         (if ($palette | path exists) and not ($colors | path exists) {
             exec steam-palette [cp $palette $colors] --creates $colors
         } else { [] })
-        (json-merge ($nu.home-dir | path join .config millennium config.json) [
+        (json-merge (xdg config millennium config.json) [
             (json-set [themes activeTheme] cyberpunk)
         ])
         (link-commands steam-launch-options.nu)

@@ -8,7 +8,7 @@ const CONFIG_VERSION = 1
 
 export def link [cfg: record] {
     [
-        (json-merge ($nu.home-dir | path join .local share qrenderdoc UI.config) [
+        (json-merge (xdg data qrenderdoc UI.config) [
             (json-set [$CONFIG_MAGIC] $CONFIG_VERSION)
             (json-set [Analytics_TotalOptOut] true)
         ])

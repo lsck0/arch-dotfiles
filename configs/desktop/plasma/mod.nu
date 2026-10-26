@@ -21,7 +21,6 @@ export const options = {
         default: null
         doc: "Ship the committed kwin output layout; detected: on when a connected monitor's EDID is one it describes"
         label: "KWin output layout"
-        scope: machine
     }
 }
 
@@ -81,13 +80,7 @@ def dolphin-view [dest: path]: nothing -> list<record> {
     if ($values | is-empty) { [] } else { [(ini-merge $dest $values --missing-only)] }
 }
 
-# Options at their default take the detected values, until dot runs detect itself (modules.nu VERBS lacks it).
-def detected [cfg: record]: nothing -> record {
-    if $cfg.kwin_outputs == null { $cfg | merge (detect $cfg) } else { $cfg }
-}
-
 export def link [cfg: record] {
-    let cfg = detected $cfg
     let config = $nu.home-dir | path join $CONFIG
     let values = {HOME: $nu.home-dir, DOTFILES: $env.DOTFILES}
     # kickoff ports its favorites into the activity database only while this is false; a fresh account has none yet
@@ -100,9 +93,9 @@ export def link [cfg: record] {
     let dirs = $CONFIG_DIRS | each {|d| glob ($DIR | path join $d "**/*") --no-dir } | flatten
         | each {|f| file-copy $f ($config | path join ($f | path relative-to $DIR)) }
     [
-        (files-into ($nu.home-dir | path join .local share applications) ...(glob ($DIR | path join applications "*.desktop")))
-        (dolphin-view ($nu.home-dir | path join .local share $DOLPHIN_VIEW))
-        (files-into ($nu.home-dir | path join .local share dbus-1 services) dbus/org.kde.KSplash.service)
+        (files-into (xdg data applications) ...(glob ($DIR | path join applications "*.desktop")))
+        (dolphin-view (xdg data $DOLPHIN_VIEW))
+        (files-into (xdg data dbus-1 services) dbus/org.kde.KSplash.service)
         # no kiosk key hides dolphin's dock short of shell_access=false, which also stops it running any executable
         (ini-merge ($nu.home-dir | path join $DOLPHIN_STATE) {State: {State: (open --raw dolphin/dock-state | str trim)}})
         (rc-files | where {|f| $f != plasma-localerc or (profile-has secrets) } | each {|f| file-copy $f ($config | path join $f) })
@@ -111,8 +104,8 @@ export def link [cfg: record] {
         (file-render kscreenlockerrc ($config | path join kscreenlockerrc) $values)
         (if $cfg.kwin_outputs == true { file-copy $OUTPUTS ($config | path join $OUTPUTS) } else { [] })
         $dirs
-        (if ($nu.home-dir | path join .local share plasma plasmoids $MODERNCLOCK.id | path exists) { [] } else {
-            let src = $nu.home-dir | path join .cache dotfiles modernclock
+        (if (xdg data plasma plasmoids $MODERNCLOCK.id | path exists) { [] } else {
+            let src = xdg cache dotfiles modernclock
             (fetch-git $MODERNCLOCK.url $MODERNCLOCK.commit $src) ++ [(exec $"install ($MODERNCLOCK.id)" [kpackagetool6 -t Plasma/Applet -i ($src | path join package)])]
         })
     ]
@@ -158,7 +151,7 @@ def kde-colors [p: record]: nothing -> record {
 def wallpaper-set [wallpaper: string]: nothing -> list<record> {
     let applets = config-path $APPLETSRC
     if $wallpaper == "" or not ($applets | path exists) { return [] }
-    let running = (^pgrep -x plasmashell | complete).exit_code == 0
+    let running = process-running plasmashell
     [
         (ini-merge $applets (wallpaper-values (open --raw $applets) $wallpaper))
         (if $running { exec plasma-wallpaper [plasma-apply-wallpaperimage $wallpaper] } else { [] })
@@ -184,13 +177,12 @@ export def theme [cfg: record, wallpaper: string] {
     let p = palette-load
     let colors = if $p == null { null } else { kde-colors $p }
     let themed = $THEMED | each {|f|
-        let dest = if $f == "kdeglobals" { config-path $f } else { $nu.home-dir | path join .local share $f }
+        let dest = if $f == "kdeglobals" { config-path $f } else { xdg data $f }
         if $colors == null { return (file-copy $f $dest) }
         let colors = if $f == "kdeglobals" { $colors | merge deep (kde-fonts (open --raw $f)) } else { $colors | upsert General.Name pywal }
         file-text $dest (open --raw $f | ini-apply $colors false) --generated
     }
-    # running KDE apps (dolphin's daemon most of all) keep their palette until told, and widgets built later from it
-    # (the search and location bars) came up in the last theme's colors
+    # running KDE apps (dolphin's daemon) keep their palette until told, and widgets built later inherit it
     let notify = if $colors == null or ($env.DBUS_SESSION_BUS_ADDRESS? | is-empty) { [] } else {
         [(exec kde-palette [dbus-send --session --type=signal /KGlobalSettings org.kde.KGlobalSettings.notifyChange int32:0 int32:0])]
     }
@@ -216,7 +208,6 @@ def kdeglobals-back [live: string, template: string]: nothing -> string {
 }
 
 export def backup [cfg: record]: nothing -> nothing {
-    let cfg = detected $cfg
     let files = rc-files | append (if $cfg.kwin_outputs == true { [$OUTPUTS] } else { [] })
     for f in $files {
         if (config-path $f | path exists) { cp --force (config-path $f) ($DIR | path join $f) }

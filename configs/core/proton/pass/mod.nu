@@ -7,13 +7,9 @@ export def link [cfg: record] {
     let store = $nu.home-dir | path join .password-store
     let synced = $nu.home-dir | path join sync password-store
     let fpr = (profile-load).gpg_fingerprint
-    if not ($synced | path exists) {
-        log-info $"pass: no ($synced) yet; it arrives with syncthing, or start one with: pass init ($fpr)"
+    # the store and its .gpg-id are syncthing's: dot never runs `pass init` there, a half-synced folder would fork it
+    if not ($synced | path join .gpg-id | path exists) {
+        log-info $"pass: ($synced) has no .gpg-id yet; it arrives with syncthing, or start a store with: pass init ($fpr)"
     }
-    let has_key = $fpr != "" and (^gpg --list-keys $fpr | complete).exit_code == 0
-    let init = $has_key and ($synced | path exists) and not ($synced | path join .gpg-id | path exists)
-    [
-        (file-link $synced $store)
-        (if $init { exec pass-init [pass init $fpr] } else { [] })
-    ]
+    [(file-link $synced $store)]
 }

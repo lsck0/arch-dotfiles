@@ -8,7 +8,7 @@ hl.on("hyprland.start", function()
     -- a copy outlives the app it came from, so a paste after closing it still has something
     hl.exec_cmd("uwsm app -s b -- wl-clip-persist --clipboard regular")
 
-    -- the shell expands $DOTFILES (an unset getenv would abort this hook); no hyprpm reload here, it races plugins.nu's
+    -- the shell expands $DOTFILES (an unset getenv would abort this hook); plugins.nu builds and loads the plugins
     hl.exec_cmd("uwsm app -s b -- $DOTFILES/configs/desktop/hyprland/plugins.nu")
     hl.exec_cmd("uwsm app -s b -- $DOTFILES/configs/desktop/shimoji/packs.nu")
 

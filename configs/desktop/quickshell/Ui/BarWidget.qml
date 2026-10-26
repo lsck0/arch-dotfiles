@@ -55,4 +55,30 @@ Item {
   }
 
   Component.onCompleted: refreshBarX()
+
+  // a widget with a hover panel: entering opens it, leaving starts its close; hoverFill tints the trigger meanwhile
+  property bool hoverPanel: false
+  property bool hoverFill: false
+  property int hoverCursor: Qt.PointingHandCursor
+  readonly property bool hovered: hover.hovered
+
+  Rectangle {
+    anchors.fill: parent
+    z: -1
+    visible: root.hoverFill
+    radius: Style.shape.data
+    color: hover.hovered ? Style.hoverFill : "transparent"
+    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
+  }
+
+  HoverHandler {
+    id: hover
+    enabled: root.hoverPanel || root.hoverFill
+    cursorShape: root.hoverCursor
+    onHoveredChanged: {
+      if (!root.hoverPanel || !root.bar) return
+      if (hovered) root.bar.hoverOpen(root.moduleName)
+      else root.bar.hoverTriggerExit(root.moduleName)
+    }
+  }
 }

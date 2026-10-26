@@ -11,7 +11,7 @@ export const meta = {
 
 def paths []: nothing -> record {
     {
-        pob: ($nu.home-dir | path join .local share pobfrontend "Path of Building" Builds)
+        pob: (xdg data pobfrontend "Path of Building" Builds)
         pob_synced: ($nu.home-dir | path join sync games pob)
     }
 }

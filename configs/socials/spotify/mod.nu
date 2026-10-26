@@ -11,7 +11,7 @@ const THEME_INI = "Themes/wal/color.ini"
 const THEME_CSS = "Themes/wal/user.css"
 
 def spicetify-dir []: nothing -> path {
-    $nu.home-dir | path join .config spicetify
+    xdg config spicetify
 }
 
 export def link [cfg: record] {
@@ -19,10 +19,10 @@ export def link [cfg: record] {
     let base = [
         (fetch-git $THEMES_URL $THEMES_COMMIT $themes)
         # spotify's slider is its stream's channel volume; a restored stream volume under it caps max volume
-        (file-copy wireplumber.conf ($nu.home-dir | path join .config wireplumber wireplumber.conf.d spotify.conf))
+        (file-copy wireplumber.conf (xdg config wireplumber wireplumber.conf.d spotify.conf))
     ] | decls-flatten
     if (^pacman -Q spotify | complete).exit_code != 0 { return $base }
-    let prefs = $nu.home-dir | path join .config spotify prefs
+    let prefs = xdg config spotify prefs
     [
         $base
         # spicetify's first run reads spotify's prefs; an empty one stands in before spotify's first start

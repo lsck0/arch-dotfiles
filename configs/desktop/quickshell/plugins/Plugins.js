@@ -2,7 +2,6 @@
 
 const shell = {
     "panel.alert":           "alert/Alert.qml",
-    "panel.disk-speedtest":  "disk-speedtest/Panel.qml",
     "panel.image-picker":    "image-picker/ImagePicker.qml",
     "panel.reminders":       "reminders/ReminderFlow.qml",
     "panel.speedtest":       "speedtest/Panel.qml",

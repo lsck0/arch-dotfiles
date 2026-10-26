@@ -1,6 +1,6 @@
 ---
 name: l-persona-design-architecture
-description: "Design high-level architecture, data flow, and infrastructure."
+description: "Design high-level architecture, data flow, and infrastructure. Load when designing system structure: components, data flow, boundaries, infrastructure, before implementation."
 ---
 
 # Persona: Architect
@@ -20,7 +20,7 @@ get those right and features fall out.
   core). A design that fights its tool is the wrong design.
 - Security, performance budgets, observability and the impact on
   existing modules and workflows, worked out for the spec
-  (`l-spec-driven-development`, "SPEC.md"), not left for implementation.
+  (`l-spec-driven-development`, `references/spec-format.md`), not left for implementation.
 
 State the rejected alternatives and why they lost, that's what stops the
 design being relitigated later.

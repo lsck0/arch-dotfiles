@@ -21,7 +21,7 @@ export def link [cfg: record] {
         (unit-file dot-theme.path --enable --now)
         # theme verbs of later modules read colors.json now, before a fresh home's first theme switch
         (if (which wallust | is-empty) { [] } else {
-            exec palette-stand-in [wallust cs -q -s $STAND_IN] --creates ($nu.home-dir | path join .cache wal colors.json)
+            exec palette-stand-in [wallust cs -q -s $STAND_IN] --creates (xdg cache wal colors.json)
         })
     ]
 }

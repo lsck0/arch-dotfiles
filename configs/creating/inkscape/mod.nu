@@ -21,20 +21,18 @@ export def link [cfg: record] {
     let preferences = $nu.home-dir | path join $PREFERENCES
     [
         (if (start-screen-set $preferences) { [] } else { step start-screen-off $preferences })
-        (json-merge ($nu.home-dir | path join .claude.json) [
-            (json-set [mcpServers inkscape-mcp] {
-                type: stdio
-                command: uvx
-                args: [--python $MCP_PYTHON --exclude-newer $MCP_RELEASED --from $pkg inkscape-mcp --mode stdio]
-                env: {FASTMCP_CHECK_FOR_UPDATES: "off"}
-            })
-        ])
+        (mcp-servers {inkscape-mcp: {
+            type: stdio
+            command: uvx
+            args: [--python $MCP_PYTHON --exclude-newer $MCP_RELEASED --from $pkg inkscape-mcp --mode stdio]
+            env: {FASTMCP_CHECK_FOR_UPDATES: "off"}
+        }})
         (if (cache-stamp $pkg | path exists) { [] } else { step mcp-cache $pkg })
     ]
 }
 
 def cache-stamp [pkg: string]: nothing -> path {
-    $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join dotfiles uvx $"($pkg)@($MCP_RELEASED)-py($MCP_PYTHON)"
+    xdg cache dotfiles uvx $"($pkg)@($MCP_RELEASED)-py($MCP_PYTHON)"
 }
 
 export def mcp-cache [pkg: string]: nothing -> nothing {

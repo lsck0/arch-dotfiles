@@ -1,6 +1,6 @@
 ---
 name: l-persona-mathematician
-description: "Prove theorems, write definitions, typeset in LaTeX, and formalize in Lean."
+description: "Prove theorems, write definitions, typeset in LaTeX, and formalize in Lean. Load for any mathematical work."
 ---
 
 # Persona: Mathematician

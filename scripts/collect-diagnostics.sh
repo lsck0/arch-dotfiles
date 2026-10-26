@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # no-errexit: a failing probe is a finding to record, the rest must still be collected
 set -uo pipefail
+# the bundle gets shared: only its owner may read it
+umask 077
 
 case "${1:-}" in
     -h | --help)
@@ -12,7 +14,8 @@ self=$(dirname "$(realpath "$0")")
 if [[ -n "${1:-}" ]]; then
     dest=$1
 elif [[ -f "$self/dot.nu" ]]; then
-    dest=$PWD
+    # never into the checkout: dot sync would commit it
+    dest=$HOME
 else
     dest=$self
 fi
@@ -196,7 +199,8 @@ run session wpctl status
 run session upower -d
 run session sensors
 run session loginctl list-sessions
-run session env
+# credentials from direnv or the shell stay out of a bundle meant to be handed out
+env | sed -E 's/^([^=]*(TOKEN|KEY|SECRET|PASSWORD|PASS|CREDENTIAL|AUTH|COOKIE)[^=]*)=.*/\1=<redacted>/I' > "$out/session-env.txt"
 
 run desktop hyprctl version
 run desktop hyprctl monitors

@@ -3,149 +3,26 @@
 const REPO = path self | path expand | path dirname | path dirname
 const LIB = $REPO | path join scripts lib
 use ($LIB | path join log.nu) *
-use ($LIB | path join cli.nu) [concat jobs build guarded self-argv]
+use ($LIB | path join cli.nu) [concat build guarded]
 use ($LIB | path join usage.nu) [die]
 use ($LIB | path join complete.nu) [command-table module-ids option-keys option-values theme-names run-ids]
-use ($LIB | path join state.nu) [SYSTEM_REPO SYSTEM_STATE state-dir save-atomic]
-use ($LIB | path join platform.nu) [platform-load platform-env]
-use ($LIB | path join profile.nu) [profile-has]
-use ($LIB | path join options.nu) [OPTION_ENABLE options-schema option-value-errors options-notify options-to-nuon]
+use ($LIB | path join state.nu) [state-dir SYSTEM_STATE]
+use ($LIB | path join platform.nu) [platform-env]
 use ($LIB | path join modules.nu) [modules-graph modules-packages modules-eval]
 use ($LIB | path join pipeline.nu) [pipeline-load pipeline-plan pipeline-apply]
-use ($LIB | path join converge.nu) [state-read observe plan-module recorded-hashes apply-module state-write output-file-state]
 use ($LIB | path join preserve.nu) [preserve-report tty-confirm]
-use ($LIB | path join ledger.nu) [ledger-units ledger-set packages-convergence]
-use ($LIB | path join migrate.nu) [migrations-run migrations-pending]
+use ($LIB | path join ledger.nu) [packages-convergence PACKAGES_DENY]
+use ($LIB | path join migrate.nu) [migrations-pending]
 use ($LIB | path join gate.nu) [gate-lint gate-tools gate-palette]
 use ($LIB | path join vm.nu) [USER PROFILE PLATFORM vm-run vm-destroy screenshot]
 use ($REPO | path join configs base yubikey yubikey.nu) [yubikey-init yubikey-seal yubikey-unlock yubikey-lock]
 use ($REPO | path join configs base yubikey audit.nu) [audit-run audit-rotated audit-drilled]
-use ($LIB | path join drift.nu) [drift-view]
 use ($LIB | path join doctor.nu) [doctor-run doctor-checks]
-use ($LIB | path join system.nu) [system-pack system-archive ENTRY]
 use ($REPO | path join configs core wallust wallpaper.nu) [wallpaper-set wallpaper-random wallpaper-pick]
-use ($LIB | path join rollback.nu) [rollback-run]
-use ($LIB | path join sync.nu) [sync-pull sync-commit sync-can-sign]
+use ($LIB | path join sync.nu) [sync-commit sync-can-sign]
+use ($LIB | path join run.nu) [plan-print link-run failures-publish finish admin system-allowed pty-log system-skipped pending-exit apply-run user-locked unlink-run install-run pending-file system-part update-run managed-drift INTERNAL]
+use ($LIB | path join set.nu) [options-list option-target option-write option-apply]
 
-const INTERNAL = $LIB | path join internal.nu
-const FAILURES = "FAILURES.config"
-const EXIT_SYSTEM_PENDING = 3
-const FAILURES_INSTALL = "FAILURES.install"
-const EXIT_ABORTED = 2
-const NIXPKGS = "github:NixOS/nixpkgs/b6c8664de9b6cc07fe5666a29f91884ba81197c4"
-const FLATHUB = "https://dl.flathub.org/repo/flathub.flatpakrepo"
-const LFS_FILTER = [
-    -c "filter.lfs.clean=git-lfs clean -- %f" -c "filter.lfs.smudge=git-lfs smudge -- %f"
-    -c "filter.lfs.process=git-lfs filter-process" -c filter.lfs.required=true
-]
-const FLATPAK_SYSTEM_EXPORTS = "/var/lib/flatpak/exports/share"
-const FLATPAK_USER_EXPORTS = ".local/share/flatpak/exports/share"
-const DATA_DIRS_DEFAULT = "/usr/local/share:/usr/share"
-const SYSTEM_SEED = 'set -e; umask 022; copy=$1; mkdir -p "${copy%/*}"; exec 9>"${copy%/*}/lock"; flock 9; rm -rf "$copy.new"; mkdir "$copy.new"; tar -x --no-same-owner --no-same-permissions -C "$copy.new" -f -; printf "%s\n" "$2" > "$copy.new/.source"; rm -rf "$copy"; mv "$copy.new" "$copy"'
-const THEME_STAMP_PATHS = [configs/core/wallust themes 'configs/*/*/mod.nu']
-const THEME_DEFAULT_WALLPAPER = "alena-aenami-cover-art-007-3.jpg"
-
-def summary [results: table]: nothing -> nothing {
-    let outcomes = $results | get outcomes | concat
-    let counts = $outcomes | group-by kind | items {|k, v| $"($v | length) ($k)" } | str join ", "
-    let busy = $results | where {|r| ($r.outcomes | is-not-empty) or ($r.log | str trim | is-not-empty) } | get id | uniq
-    let skipped = ($results.id | uniq | length) - ($busy | length)
-    log-info $"($results.id | uniq | length) modules, ($skipped) unchanged(if ($counts | is-empty) { '' } else { $', ($counts)' })" {kind: summary}
-    let slow = $results | sort-by ms --reverse | first 5 | each { $"($in.ms / 1000 | math round --precision 1)s ($in.id)" } | str join ", "
-    log-debug $"slowest: ($slow)"
-}
-
-def plan-print [planned: table, verb: string, modules: table = [], mods: list<string> = []]: nothing -> nothing {
-    let busy = $planned | where {|m| $m.error != null or ($m.actions | any { $in.kind != skip }) }
-    for m in $busy {
-        if $m.error != null {
-            print $"($m.id): error: ($m.error)"
-        } else {
-            print $m.id
-            $m.actions | where kind != skip | each {|a| print $"  ($a.kind | fill --width 8) ($a.target)(if ($a.reason | is-empty) { '' } else { $'  (($a.reason))' })" } | ignore
-        }
-    }
-    let layer = if $verb == "system" { "system" } else { "user" }
-    let absent = $mods | where $it not-in $planned.id | each {|id|
-        let m = $modules | where id == $id | first
-        if not $m.cfg.enable { $"($id): disabled on this machine" } else { $"($id): no ($layer) layer" }
-    }
-    $absent | each { print $in } | ignore
-    if ($busy | is-empty) and ($absent | is-empty) { print (if $verb == "unlink" { "nothing to undo" } else { "nothing to apply" }) }
-}
-
-def --env link-run [mods: list<string>, force: bool, plan: bool]: nothing -> table {
-    let ctx = pipeline-load $REPO user
-    $env.GOPATH = $nu.home-dir | path join .go
-    let planned = pipeline-plan $ctx link $mods $force
-    if $plan {
-        plan-print $planned link $ctx.modules $mods
-        return []
-    }
-    let full = $mods | is-empty
-    $env.DOT_FULL_RUN = $full
-    failures-open
-    let results = with-env (platform-env $ctx.platform) { pipeline-apply $ctx $planned link (jobs) }
-    let wallpaper = $nu.home-dir | path join .cache wal wallpaper
-    let themed = if ($wallpaper | path exists) {
-        let ids = $planned | where native and id not-in ($ctx.modules | where broken | get id) | get id
-        let real_wallpaper = ^readlink -f $wallpaper | str trim
-        pipeline-plan $ctx theme $ids false [$real_wallpaper] | where native | pipeline-apply $ctx $in theme (jobs) [$real_wallpaper]
-    } else { [] }
-    if $full {
-        for dir in [$nu.home-dir ($nu.home-dir | path join .local bin)] {
-            ls -a $dir | where type == symlink | where {|l| not ($l.name | path exists) and ((^readlink $l.name) | str starts-with $"($REPO)/") } | each { rm $in.name } | ignore
-        }
-        let units = ledger-units $REPO ($ctx.modules | where cfg.enable | get dir) user
-        $units.by_hand | each { log-info $"enabled by hand, not managed: ($in)" } | ignore
-        theme-init
-    }
-    summary ($results ++ $themed)
-    $results ++ $themed
-}
-
-def theme-init []: nothing -> nothing {
-    let files = ^git -C $REPO ls-files --cached --others --exclude-standard ...$THEME_STAMP_PATHS | lines | where $it != ""
-        | each {|f| $REPO | path join $f } | where ($it | path exists) | uniq
-    let stamp = ^sha1sum ...$files | ^sha1sum | str trim
-    let cache = $nu.home-dir | path join .cache wal
-    let current = try { open --raw ($cache | path join .theme-stamp) | str trim } catch { "" }
-    if ($cache | path join wallpaper | path exists) and $current == $stamp {
-        return
-    }
-    let link = $cache | path join wallpaper
-    let wallpaper = if ($link | path exists) { ^readlink -f $link | str trim } else { $THEME_DEFAULT_WALLPAPER }
-    wallpaper-set $wallpaper --sync
-    $"($stamp)\n" | save --force ($cache | path join .theme-stamp)
-}
-
-def --env failures-open []: nothing -> nothing {
-    if ($env.FAILURES_FILE? | is-empty) {
-        $env.FAILURES_FILE = $env.DOT_RUN_FILE | str replace ".jsonl" ".failures"
-        $env.DOT_FAILURES_OWNED = true
-    }
-}
-
-def failures-publish [results: table]: nothing -> bool {
-    let owned = $env.DOT_FAILURES_OWNED? == true
-    let failures = if $owned and ($env.FAILURES_FILE | path exists) { open --raw $env.FAILURES_FILE | str trim } else { "" }
-    if ($failures | is-not-empty) {
-        let published = $REPO | path join $FAILURES
-        $"($failures)\n" | save --force $"($published).($env.DOT_RUN_ID)"
-        mv --force $"($published).($env.DOT_RUN_ID)" $published
-        print "=== FAILED ==="
-        print $failures
-        return false
-    }
-    if ($results | any { not $in.ok }) { return false }
-    if $owned and ($env.DOT_FULL_RUN? == true) { rm --force ($REPO | path join $FAILURES) }
-    true
-}
-
-def finish [results: table]: nothing -> nothing {
-    run-journal
-    if not (failures-publish $results) { exit 1 }
-}
 
 const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo prescribes and records it
 
@@ -160,17 +37,11 @@ const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo 
   module adopt|unlink|remove|restore
   log [run] | explain <thing>     a run's records | who wrote a path, who declares a package
   secrets unlock|lock|init|seal|audit
-  rollback [gen]                  an earlier generation
   test lint|check|fmt|run|...     the gates and the vm test
 
   --no-system on sync, apply, set: only the user part, same as DOT_SYSTEM=skip
   dot <command> --help for its flags"
 
-const COMMANDS_MOVED = {
-    update: sync, link: "apply --user", system: "apply --system", install: "apply --packages", gen: "internal gen"
-    options: set, unlink: "module unlink", remove: "module remove", adopt: "module adopt", restore: "module restore"
-    diff: plan, watch: "internal watch"
-}
 const LOG_LEVELS = [TRACE DEBUG INFO WARN ERROR PANIC]
 
 # this machine as code; `dot sync` brings it to what the repo prescribes
@@ -180,8 +51,7 @@ def --wrapped main [...args: string]: nothing -> nothing {
         print $USAGE
         return
     }
-    let moved = $COMMANDS_MOVED | transpose name now | where name == $word | get --optional 0.now
-    die --misuse $"unknown command '($word)'(if $moved == null { ', dot lists them' } else { $', it is dot ($moved) now' })"
+    die --misuse $"unknown command '($word)', dot lists them"
 }
 
 # what an apply would do, touching nothing
@@ -210,6 +80,8 @@ def "main plan" [
         })
     }
     guarded plan --read-only {
+        # read before pipeline-load switches DOT_LAYER: the pending list lives in the user's state
+        let waiting = try { open --raw (pending-file) | lines | uniq } catch { [] }
         if $system {
             let ctx = pipeline-load $REPO system
             plan-print (pipeline-plan $ctx system $mods $force) system $ctx.modules $mods
@@ -218,7 +90,6 @@ def "main plan" [
         }
         let pending = migrations-pending $REPO (if $system { "system" } else { "user" })
         if ($pending | is-not-empty) { print $"migrations pending: ($pending.id | str join ' ')" }
-        let waiting = try { open --raw (pending-file) | lines | uniq } catch { [] }
         if ($waiting | is-not-empty) { print $"system part pending for: ($waiting | str join ' '); dot apply runs it" }
         let ctx = pipeline-load $REPO system
         let declared = modules-packages $REPO $ctx.modules $ctx.platform
@@ -227,85 +98,6 @@ def "main plan" [
             print $"installed, declared by no module \(($extra.remove | length)\): ($extra.remove | str join ' ')\n  dot apply --packages removes them after a yes"
         }
     }
-}
-
-def admin []: nothing -> bool {
-    ^id -nG | split row " " | any { $in == wheel }
-}
-
-def system-allowed []: nothing -> bool {
-    $env.DOT_SYSTEM? != "skip" and (admin)
-}
-
-def --env pty-log [name: string, args: list<string>]: nothing -> nothing {
-    if ($env.DOT_PTY_LOG? | is-not-empty) { return }
-    if not (is-terminal --stdin) { $env.DOTFILES_UNATTENDED = "1" }
-    if (is-terminal --stdout) and (which script | is-not-empty) {
-        let cmd = [nu --no-config-file ($REPO | path join scripts dot.nu) ...$args] | each {|w| $"'($w | str replace --all "'" "'\\''")'" } | str join " "
-        exec env DOT_PTY_LOG=1 script -qe -c $cmd ($REPO | path join $"($name).log")
-    }
-}
-
-def system-run [stage: string, --force]: nothing -> int {
-    let runner = $env.DOTFILES_ROOT_RUNNER? | default sudo
-    let head = ^git -C $REPO rev-parse HEAD | str trim
-    let entry = $SYSTEM_REPO | path join $ENTRY
-    let rollback = $env.DOT_ROLLBACK? == "1"
-    if not ($entry | path exists) {
-        if $runner != "sudo" { error make {msg: $"($SYSTEM_REPO) has no ($ENTRY) yet, run dot apply at a terminal once"} }
-        system-pack $REPO --rollback=$rollback | ^sudo sh -c $SYSTEM_SEED sh $SYSTEM_REPO $head
-    }
-    let forced = if $force { [--force] } else { [] }
-    let flags = [--unattended=($env.DOTFILES_UNATTENDED? == "1")] ++ $forced
-    let archive = system-archive $REPO (platform-load $REPO).facts.wireguard? --rollback=$rollback
-    let code = try { $archive | ^$runner $entry apply $head $stage ...$flags; 0 } catch {|e| $e.exit_code? | default 1 }
-    interrupted-exit $code
-    $code
-}
-
-# A root run stopped by ctrl+c ends the whole run: sudo's pty can take the interrupt alone, so the user side
-# learns of it only from the exit code (130, or -2 for a signal-killed child).
-def interrupted-exit [code: int]: nothing -> nothing {
-    if $code in [130 -2] {
-        log-err "interrupted (ctrl+c) in the system layer: the run stopped, its later phases did not run"
-        exit 130
-    }
-}
-
-def --env system-skipped [what: string, pending: bool]: nothing -> nothing {
-    if $pending { $"($what)\n" | save --append (pending-file) }
-    log-note $"system part pending \(DOT_SYSTEM=skip\): ($what)"
-    $env.DOT_SYSTEM_PENDING = true
-}
-
-def --env pending-exit []: nothing -> nothing {
-    if $env.DOT_SYSTEM_PENDING? == true { exit $EXIT_SYSTEM_PENDING }
-}
-
-def system-failed [stage: string]: nothing -> nothing {
-    fail $"system layer: ($stage)"
-    let root = $SYSTEM_STATE | path join FAILURES
-    if ($root | path exists) { open --raw $root | save --append $env.FAILURES_FILE }
-}
-
-def --env apply-run [system: bool, user: bool, force: bool]: nothing -> table {
-    failures-open
-    if (profile-has secrets) { try { yubikey-unlock } catch {|e| fail $"dot secrets unlock: ($e.msg)" } }
-    if (which git-lfs | is-not-empty) { try { ^git -C $REPO ...$LFS_FILTER lfs pull } catch { fail "git lfs pull" } }
-    if $system and (system-allowed) {
-        if (system-run config --force=$force) == 0 { rm --force (pending-file) } else { system-failed config }
-    } else if $system and (admin) {
-        system-skipped "system layer" true
-    }
-    if $user { link-run [] $force false } else { [] }
-}
-
-def user-locked []: nothing -> nothing {
-    if ($env.DOT_USER_LOCKED? | is-not-empty) { return }
-    let lock = state-dir | path join run.lock
-    mkdir (state-dir)
-    if (^flock --nonblock $lock true | complete).exit_code != 0 { print -e "dot: another dot run holds the user layer, waiting for it" }
-    exec ($REPO | path join scripts lib interruptible.sh) --lock $lock env DOT_USER_LOCKED=1 ...(self-argv)
 }
 
 def flag [name: string, on: bool]: nothing -> list<string> {
@@ -369,29 +161,6 @@ def "main module unlink" [mod: string@module-ids]: nothing -> nothing {
     guarded unlink { unlink-run $mod | finish $in }
 }
 
-def --env unlink-run [mod: string]: nothing -> table {
-    let ctx = pipeline-load $REPO user
-    let m = $ctx.modules | where id == $mod | get --optional 0
-    if $m == null { error make {msg: $"no module ($mod); dot plan --modules lists them"} }
-    if ($m.native | is-empty) { error make {msg: $"($mod) only declares packages, there is nothing to unlink"} }
-    failures-open
-    let rows = [link theme] | each {|verb|
-        let prev = (state-read $mod $verb).outputs
-        let seen = observe ($prev | where kind != unit | get target) ($prev | where kind == unit | get target) user
-        let actions = plan-module $mod [] $prev $seen (recorded-hashes) $REPO false
-        {verb: $verb, prev: $prev, actions: $actions}
-    }
-    plan-print ($rows | each {|r| {id: $"($mod) ($r.verb)", native: true, error: null, actions: $r.actions} }) unlink
-    let outcomes = $rows | each {|r|
-        let done = apply-module $r.actions $m.dir user
-        state-write $mod $r.verb "" $r.actions $done $r.prev
-        $done
-    } | concat
-    let kept = $rows | get actions | concat | where kind == drift
-    if ($kept | is-not-empty) { log-warn $"left in place, changed since the last apply: ($kept.target | str join ' ')" }
-    [{id: $mod, ok: ($outcomes | all { $in.ok }), outcomes: $outcomes, ms: 0, log: "", error: null}]
-}
-
 # unlink a module, turn it off (--machine: for the machine), offer its packages for removal
 def "main module remove" [mod: string@module-ids, --machine, --yes]: nothing -> nothing {
     user-locked
@@ -405,8 +174,12 @@ def "main module remove" [mod: string@module-ids, --machine, --yes]: nothing -> 
         option-write $mod enable false $machine | ignore
         if $machine and "system" in $m.verbs and (admin) { system-part $"($mod).enable" }
         let others = modules-packages $REPO ($ctx.modules | where id != $mod) $ctx.platform | get pacman
-        let only = $m.meta.packages.pacman | where $it not-in $others
-        if ($only | is-not-empty) {
+        let installed = ^pacman -Qq | lines
+        # the same spares as the ledger's removal: dot itself, the shell and the boot chain never go
+        let only = $m.meta.packages.pacman | where {|p| $p not-in $others and $p in $installed and not ($p =~ $PACKAGES_DENY) }
+        if not $machine and ($only | is-not-empty) {
+            print $"($mod) stays on for the system layer, its packages too; --machine turns it off machine-wide and offers them for removal"
+        } else if ($only | is-not-empty) {
             print $"packages only ($mod) declares: ($only | str join ' ')"
             if not (system-allowed) {
                 print $"remove them as root: pacman -Rns ($only | str join ' ')"
@@ -472,176 +245,6 @@ def "main module restore" [mod: string@module-ids]: nothing -> nothing {
     }
 }
 
-def install-user [declared: record]: nothing -> nothing {
-    if (which rustup | is-not-empty) { try { ^rustup default stable } catch { fail "rustup default stable" } }
-    let apps = $declared.flatpak | transpose app commit
-    if ($apps | is-not-empty) and (which flatpak | is-not-empty) {
-        let exports = [($nu.home-dir | path join $FLATPAK_USER_EXPORTS) $FLATPAK_SYSTEM_EXPORTS]
-        let dirs = $exports ++ ($env.XDG_DATA_DIRS? | default $DATA_DIRS_DEFAULT | split row ":") | uniq | str join ":"
-        with-env {XDG_DATA_DIRS: $dirs} {
-            if (^flatpak remote-add --user --if-not-exists flathub $FLATHUB | complete).exit_code != 0 {
-                fail "flatpak remote-add --user flathub"
-            } else {
-                let deployed = {|app| ^flatpak info --user --show-commit $app | complete | if $in.exit_code == 0 { $in.stdout | str trim } else { "" } }
-                for a in $apps {
-                    if not ($a.commit =~ '^[0-9a-f]{64}$') { fail $"flatpak ($a.app): no pinned commit"; continue }
-                    let now = do $deployed $a.app
-                    if $now != $a.commit {
-                        if $a.app in (^flatpak mask --user | lines | str trim) { ^flatpak mask --user --remove $a.app }
-                        if $now == "" and (try { ^flatpak install --user --noninteractive flathub $a.app; false } catch { true }) { fail $"flatpak install --user ($a.app)"; continue }
-                        try { ^flatpak update --user --noninteractive $"--commit=($a.commit)" $a.app } catch { fail $"flatpak update --user --commit=($a.commit) ($a.app)" }
-                    }
-                    try { ^flatpak mask --user $a.app } catch { fail $"flatpak mask --user ($a.app)" }
-                }
-                ledger-set flatpak ($apps | each {|a| let c = do $deployed $a.app; if $c == "" { "" } else { $"($a.app) ($c)" } })
-            }
-        }
-    }
-    if ($declared.nix | is-not-empty) and (which nix | is-not-empty) {
-        let nix = [--extra-experimental-features "nix-command flakes"]
-        let missing = $declared.nix | where $it not-in (^nix ...$nix profile list --json | from json | get elements | columns)
-        if ($missing | is-not-empty) {
-            try { ^nix ...$nix profile add ...($missing | each { $"($NIXPKGS)#($in)" }) } catch { fail $"nix profile add ($missing | str join ' ')" }
-        }
-    }
-}
-
-def --env install-run [user: bool, yes: bool]: nothing -> int {
-    let system = not $user and (system-allowed)
-    if not $user and not $system and (admin) { system-skipped "packages" false }
-    $env.FAILURES_FILE = $env.DOT_RUN_FILE | str replace ".jsonl" ".install-failures"
-    "" | save --force $env.FAILURES_FILE
-    if $system {
-        let status = system-run install
-        if $status == $EXIT_ABORTED {
-            fail "system layer: install aborted"
-            $"(open --raw $env.FAILURES_FILE | str trim)\n" | save --force ($REPO | path join $FAILURES_INSTALL)
-            hide-env FAILURES_FILE
-            return $EXIT_ABORTED
-        }
-        if $status != 0 { system-failed install }
-    }
-    let ctx = pipeline-load $REPO user
-    install-user (modules-packages $REPO $ctx.modules $ctx.platform)
-    if $system {
-        try { ^sudo ($SYSTEM_REPO | path join $ENTRY) packages --unattended=($env.DOTFILES_UNATTENDED? == "1") ...(if $yes { [--yes] } else { [] }) } catch {|e| interrupted-exit ($e.exit_code? | default 1); fail "system layer: removing undeclared packages" }
-    }
-    let failed = open --raw $env.FAILURES_FILE | str trim
-    hide-env FAILURES_FILE
-    if ($failed | is-empty) { rm --force ($REPO | path join $FAILURES_INSTALL); return 0 }
-    $"($failed)\n" | save --force ($REPO | path join $FAILURES_INSTALL)
-    print $"=== FAILED ===\n($failed)"
-    1
-}
-
-def toggle-script [name: string]: nothing -> path {
-    $REPO | path join scripts toggles $"toggle-($name).nu"
-}
-
-def option-runtime [spec: record]: nothing -> any {
-    if ($spec.toggle? | default null) == null { return null }
-    try { ^(toggle-script $spec.toggle) get | str trim } catch { null }
-}
-
-def options-list [mod: any, json: bool]: nothing -> any {
-    let ctx = pipeline-load $REPO user
-    let mods = $ctx.modules | where {|m| $mod == null or $m.id == $mod }
-    if $json {
-        let modules = $mods | each {|m|
-            let options = options-schema $m | items {|key, spec|
-                $spec | reject --optional env toggle | merge {
-                    key: $key
-                    value: ($m.cfg | get $key)
-                    source: ($m.sources | get $key)
-                    runtime: (if $spec.apply == "live" { option-runtime $spec } else { null })
-                }
-            }
-            {name: $m.id, label: $m.id, doc: ($m.meta.doc? | default ""), options: $options}
-        }
-        return ({modules: $modules} | to json --raw)
-    }
-    $mods | each {|m| options-schema $m | items {|key, spec| {module: $m.id, option: $key, value: ($m.cfg | get $key), source: ($m.sources | get $key)} } }
-    | concat | where {|r| $mod != null or $r.option != "enable" or not $r.value }
-}
-
-def option-target [target: string]: nothing -> record {
-    let parts = $target | parse --regex '^(?<mod>.+)\.(?<key>[a-z][a-z0-9_]*)$' | get --optional 0
-    if $parts == null { error make {msg: $"($target): want <group/module>.<option>"} }
-    $parts
-}
-
-def option-write [mod: string, key: string, value: any, machine: bool]: nothing -> record {
-    let ctx = pipeline-load $REPO user
-    let m = $ctx.modules | where id == $mod | get --optional 0
-    if $m == null { error make {msg: $"no module ($mod); dot plan --modules lists them"} }
-    let spec = options-schema $m | get --optional $key
-    if $spec == null { error make {msg: $"($mod) has no option ($key); dot set ($mod) lists them"} }
-    let bad = if $value == null { [] } else { option-value-errors $mod $key $spec $value "dot set" }
-    if ($bad | is-not-empty) { error make {msg: ($bad | str join "\n")} }
-    if $spec.scope == "machine" and not $machine { error make {msg: $"($mod).($key) is a machine option: dot set --machine"} }
-    let file = if $machine { $ctx.platform.options_file } else { $ctx.profile.options_file }
-    if $file == null or ($file | str starts-with "/etc/") { error make {msg: $"this machine's options are root's ($file | default '/etc/dotfiles'), not settable from here"} }
-    let current = if ($file | path exists) { open $file } else { {} }
-    let cell = [$mod $key] | into cell-path
-    let updated = if $value == null { $current | reject --optional $cell } else { $current | upsert $cell $value }
-    $updated | items {|id, opts| {id: $id, opts: $opts} } | where ($it.opts | is-not-empty) | reduce --fold {} {|e, acc| $acc | insert $e.id $e.opts }
-    | options-to-nuon | $"($in)\n" | save-atomic $file
-    let resolved = pipeline-load $REPO user | get modules | where id == $mod | first
-    {module: $m, spec: $spec, value: ($resolved.cfg | get $key), source: ($resolved.sources | get $key), machine: $machine}
-}
-
-def option-apply [target: string, set: record]: nothing -> nothing {
-    mut results = []
-    mut toggle_error = ""
-    mut runtime: any = null
-    match $set.spec.apply {
-        "live" => {
-            if "apply" in $set.module.native {
-                let ctx = pipeline-load $REPO user
-                $results = pipeline-apply $ctx (pipeline-plan $ctx apply [$set.module.id] true) apply 1
-            } else if ($set.spec.toggle? | default null) != null {
-                let argv = match ($set.value | describe) { "bool" => [(if $set.value { "on" } else { "off" })], _ => [set ($set.value | into string)] }
-                let toggled = ^(toggle-script $set.spec.toggle) ...$argv | complete
-                if ($toggled.stdout | str trim | is-not-empty) { print ($toggled.stdout | str trim) }
-                if $toggled.exit_code != 0 {
-                    $toggle_error = $"toggle-($set.spec.toggle) exited ($toggled.exit_code): ($toggled.stderr | str trim | lines | last 1 | str join '')"
-                }
-                $runtime = option-runtime $set.spec
-            }
-        }
-        $apply => {
-            if ($target | str ends-with $".($OPTION_ENABLE)") and $set.value == false and ($set.module.native | is-not-empty) {
-                $results = unlink-run $set.module.id
-                print $"note: ($set.module.id) unlinked; dot module remove ($set.module.id) also drops its packages"
-            } else if "link" in $set.module.verbs { $results = link-run [$set.module.id] false false }
-            if ($set.spec.scope == "machine" or $set.machine) and "system" in $set.module.verbs and (admin) { system-part $target }
-            if $apply != "relink" {
-                log-note $"($target) takes effect after a ($apply)"
-            }
-        }
-    }
-    let failed = $results | where not ok | each {|r| $"($r.id): ($r.error | default 'failed')" }
-    let error = if ($failed | is-not-empty) { $"stored, the apply failed: ($failed | str join '; ')" } else if $toggle_error != "" { $"stored, ($toggle_error)" } else { null }
-    options-notify $target $set.value $set.source $runtime --error $error
-    if $error != null { error make {msg: $"($target): ($error)"} }
-    pending-exit
-}
-
-def pending-file []: nothing -> path {
-    state-dir | path join system-pending
-}
-
-def --env system-part [target: string]: nothing -> nothing {
-    let tty = (^test -t 0 | complete).exit_code == 0
-    let graphical = ($env.WAYLAND_DISPLAY? | is-not-empty) or ($env.DISPLAY? | is-not-empty)
-    let runner = if $env.DOT_SYSTEM? == "skip" { null } else if $tty { "sudo" } else if $graphical and (which pkexec | is-not-empty) { "pkexec" } else { null }
-    let ok = $runner != null and (with-env {DOTFILES_ROOT_RUNNER: $runner} { system-run config }) == 0
-    if $ok { return }
-    $"($target)\n" | save --append (pending-file)
-    log-note $"($target): system part pending, runs on the next dot apply"
-    $env.DOT_SYSTEM_PENDING = true
-}
-
 # options: every one off its default, a module's, one; a value sets it, --default resets it
 def "main set" [
     target?: string@option-keys
@@ -680,29 +283,6 @@ def "main set" [
     }
 }
 
-def managed-drift []: nothing -> table {
-    let written = recorded-hashes
-    glob (state-dir | path join modules **/*.nuon) | each {|f|
-        let id = $f | path dirname | path relative-to (state-dir | path join modules)
-        let outs = open $f | get outputs
-        let seen = observe ($outs | where kind != unit | get target) ($outs | where kind == unit | get target) user
-        $outs | each {|o|
-            let obs = $seen.paths | get --optional $o.target
-            let state = match $o.kind {
-                "file" => (output-file-state $o $obs $REPO ($written | get --optional $o.target))
-                "link" => (if $obs.link? != $o.source { "relinked" } else { null })
-                "unit" => {
-                    let now = $seen.units | get --optional $o.target
-                    let held = match ($o.state? | default enabled) { "disabled" => ($now != "enabled"), $want => ($now == $want) }
-                    if $held { null } else { $now | default missing }
-                }
-                _ => null
-            }
-            if $state == null { null } else { {module: $id, target: $o.target, drift: $state, pending: ($o.kind == "unit" or $state == "missing")} }
-        } | compact
-    } | flatten
-}
-
 # wallpaper and theme: fzf without a name, random for any
 def "main theme" [
     wallpaper?: string@theme-names
@@ -715,19 +295,6 @@ def "main theme" [
             _ => (wallpaper-set $wallpaper --sync=$sync)
         }
     }
-}
-
-def --env update-run [yes: bool]: nothing -> record {
-    sync-pull $REPO
-    migrations-run $REPO user | ignore
-    let install = install-run false $yes
-    if $install == $EXIT_ABORTED { exit $EXIT_ABORTED }
-    if (system-allowed) {
-        try { ^sudo ($SYSTEM_REPO | path join $ENTRY) migrate } catch {|e| interrupted-exit ($e.exit_code? | default 1); fail "system layer: migrations" }
-    } else if (admin) { system-skipped "system migrations" false }
-    let results = apply-run true true false
-    try { ^nu --no-config-file $INTERNAL update } catch { log-warn "update: a module's update verb failed, see dot log" }
-    {install: $install, results: $results}
 }
 
 # the one command: pull, migrate, install, apply, back up app state, commit the signed generation, push
@@ -751,13 +318,6 @@ def "main sync" [
         run-journal
         if not $clean or $run.install != 0 { exit 1 }
         pending-exit
-    }
-}
-
-# back to an earlier generation, undoing newer migrations
-def "main rollback" [target: string, --dry-run]: nothing -> nothing {
-    guarded rollback {
-        rollback-run $target --dry-run=$dry_run
     }
 }
 
@@ -801,7 +361,6 @@ def "main status" [
         $drift | where not pending | each { print $"changed since its apply: ($in.target) \(($in.module), ($in.drift)\); dot module adopt or apply --force" } | ignore
         print ""
         let failed = doctor-run
-        try { drift-view } catch { }
         if $failed { exit 1 }
     }
 }
@@ -832,10 +391,14 @@ def "main log" [run?: string@run-ids, --module: string@module-ids, --level: stri
 # which module and run wrote a path, or which module declares a package
 def "main explain" [thing: string]: nothing -> nothing {
     guarded explain --read-only {
-        let target = if ($thing | str contains "/") { $thing | path expand } else { $thing }
-        let owners = glob (state-dir | path join modules **/*.nuon) | each {|f|
-            let st = open $f
-            $st.outputs | where target == $target | each { {module: ($f | path dirname | path relative-to (state-dir | path join modules)), verb: ($f | path parse | get stem), output: $in, run: $st.run, time: $st.time} }
+        let target = if ($thing | str contains "/") { $thing | path expand --no-symlink } else { $thing }
+        # both layers' records: root's are world-readable, a file the system layer writes has its writer there
+        let owners = [(state-dir) $SYSTEM_STATE] | uniq | each {|dir|
+            let root = $dir | path join modules
+            glob ($root | path join **/*.nuon) | each {|f|
+                let st = try { open $f } catch { {outputs: []} }
+                $st.outputs | where target == $target | each { {module: ($f | path dirname | path relative-to $root), verb: ($f | path parse | get stem), output: $in, run: $st.run?, time: $st.time?} }
+            } | flatten
         } | flatten
         let declares = if $target != $thing { [] } else {
             pipeline-load $REPO user | get modules | where {|m|

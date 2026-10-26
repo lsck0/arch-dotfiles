@@ -1,15 +1,23 @@
 #!/usr/bin/env -S nu --no-config-file
-# hyprpm builds the headers and each plugin with cmake, meson and the base-devel toolchain, declared in this module
-# hyprpm runs every write to its root-owned store through sudo, a FIDO2 prompt nobody answers at login: build only
-# from a terminal, or with --build where sudo asks nothing (the install chain's config stage)
+# Hyprland plugins built as the user against the hyprland package's own headers and loaded with hyprctl: no hyprpm,
+# whose store and pkg-config rewrite need root. Each repo is pinned; its hyprpm.toml maps a hyprland commit to the
+# plugin commit that builds against it, so a hyprland upgrade needs a newer repo pin only when that map lacks it.
 
-const STORE = "/var/cache/hyprpm"
-const PLUGIN = "dynamic-cursors"
-const REPOS = [{url: "https://github.com/virtcode/hypr-dynamic-cursors", name: "dynamic-cursors"}]
-const BUILT_FOR = ".local/state/hypr-plugins-built-for"
+const PLUGINS = [
+    {name: "dynamic-cursors", url: "https://github.com/virtcode/hypr-dynamic-cursors", commit: "2a8d0b735328d874a78ca93b2f201649f712a74a"}
+]
+const PC = "/usr/share/pkgconfig/hyprland.pc"
 
-# The installed hyprland's commit (the binary on disk, which the plugins must match after the next login), and the
-# running one's; they differ between a package upgrade and the relogin.
+def cache-dir []: nothing -> path {
+    $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join hypr-plugins
+}
+
+def out-dir []: nothing -> path {
+    $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join hypr-plugins
+}
+
+# The installed hyprland's commit, which the plugins must match after the next login, and the running one's; they
+# differ between a package upgrade and the relogin.
 def commit-installed []: nothing -> string {
     try { ^Hyprland --version | parse --regex 'at commit (?<c>[0-9a-f]+)' | get 0.c } catch { "" }
 }
@@ -18,60 +26,54 @@ def commit-running []: nothing -> string {
     try { ^hyprctl version -j | from json | get commit } catch { "" }
 }
 
-def built-for []: nothing -> string {
-    try { open --raw ($nu.home-dir | path join $BUILT_FOR) | str trim } catch { "" }
+def so-path [name: string, hyprland: string]: nothing -> path { out-dir | path join $"($name)-($hyprland).so" }
+
+# the package's pc file with its own prefix: an earlier hyprpm may have pointed it at its root store
+def pc-dir []: nothing -> path {
+    let dir = cache-dir | path join pkgconfig
+    mkdir $dir
+    open --raw $PC | str replace --regex '(?m)^prefix=.*$' 'prefix=/usr/include' | save --force ($dir | path join hyprland.pc)
+    $dir
 }
 
-def loaded []: nothing -> bool {
-    ^hyprctl plugin list | complete | get stdout | str lowercase | str contains $PLUGIN
+def plugin-commit [src: path, hyprland: string]: nothing -> string {
+    let pins = open --raw ($src | path join hyprpm.toml) | parse --regex '\["(?<h>[0-9a-f]{40})",\s*"(?<p>[0-9a-f]{40})"\]'
+    let hit = $pins | where h == $hyprland | get --optional 0.p
+    if $hit == null { error make {msg: $"no plugin pin for hyprland ($hyprland) at the pinned repo commit; bump it in plugins.nu"} }
+    $hit
 }
 
-# a failure prints hyprpm's own output, the build log is the only clue to a missing header or toolchain
-def --wrapped hyprpm-yes [...args: string]: nothing -> bool {
-    let run = ^yes | ^hyprpm ...$args | complete
-    if $run.exit_code != 0 { print --stderr $"hyprpm ($args | str join ' ') failed:\n($run.stdout)($run.stderr)" }
-    $run.exit_code == 0
+def build [plugin: record, hyprland: string]: nothing -> nothing {
+    let src = cache-dir | path join $plugin.name
+    if not ($src | path join .git | path exists) { ^git clone --quiet $plugin.url $src }
+    if (do { ^git -C $src cat-file -e $"($plugin.commit)^{commit}" } | complete).exit_code != 0 { ^git -C $src fetch --quiet origin }
+    ^git -C $src checkout --quiet --force $plugin.commit
+    ^git -C $src checkout --quiet --force (plugin-commit $src $hyprland)
+    do { cd $src; ^make clean | ignore }
+    let made = do { cd $src; with-env {PKG_CONFIG_PATH: (pc-dir)} { ^make $"-j(sys cpu | length)" all } } | complete
+    if $made.exit_code != 0 { error make {msg: $"($plugin.name) did not build:\n($made.stderr | lines | last 20 | str join "\n")"} }
+    mkdir (out-dir)
+    cp ($src | path join out $"($plugin.name).so") (so-path $plugin.name $hyprland)
+    # builds for other hyprland commits are dead after the upgrade
+    glob (out-dir | path join $"($plugin.name)-*.so") | where $it != (so-path $plugin.name $hyprland) | each { rm $in } | ignore
 }
 
-def main [--build] {
-    if (which hyprpm | is-empty) { return }
-    if not $build and not (is-terminal --stdout) {
-        # a built .so, not the store dir: any hyprpm call creates an empty headersRoot, and reloading that fails
-        if (glob $"($STORE)/($env.USER)/*/*.so" | is-empty) {
-            ^notify-send -a hyprpm "Hyprland plugins not built" "run dot sync (or configs/desktop/hyprland/plugins.nu) from a terminal" | complete | ignore
-            return
-        }
-        if (built-for) != (commit-installed) {
-            ^notify-send -a hyprpm "Hyprland plugins built for an older Hyprland" "run dot sync (or configs/desktop/hyprland/plugins.nu) from a terminal" | complete | ignore
-            return
-        }
-        if not (loaded) { ^hyprpm reload }
-        return
+# Builds what the installed hyprland lacks, then loads it into the running one when they match.
+def main []: nothing -> nothing {
+    let hyprland = commit-installed
+    if $hyprland == "" { return }
+    let failed = $PLUGINS | where {|p|
+        if (so-path $p.name $hyprland | path exists) { return false }
+        try { build $p $hyprland; false } catch {|e| print --stderr $e.msg; true }
     }
-    # headers first: `hyprpm add` refuses to build without them; every hyprland update rebuilds each added repo. Stale
-    # against the installed hyprland; built only once the running one is that same hyprland, since hyprpm fetches the
-    # running instance's headers: a sync that just upgraded hyprland leaves it stale for the sync after the relogin
-    let state = $nu.home-dir | path join $BUILT_FOR
-    let commit = commit-installed
-    if $commit != "" and (commit-running) not-in ["" $commit] {
-        print "note: hyprland was upgraded, its plugins rebuild after the next login (dot sync or plugins.nu)"
-        return
+    if ($failed | is-not-empty) {
+        ^notify-send -a hyprland "Hyprland plugins did not build" ($failed | get name | str join ", ") | complete | ignore
     }
-    let stale = $commit == "" or (built-for) != $commit
-    let updated = $stale and (hyprpm-yes update -f)
-    if $updated {
-        mkdir ($state | path dirname)
-        $"($commit)\n" | save --force $state
-    }
-    let listed = ^hyprpm list | complete | get stdout | str lowercase
-    let added = $REPOS | where {|r| not ($listed | str contains $"repository ($r.name) ") } | each {|r| hyprpm-yes add $r.url }
-    # a failed rebuild leaves the old .so in place, so the exit code, not the files, tells the caller
-    let failed = ($stale and not $updated) or (false in $added)
-    if $updated or ($added | is-not-empty) or not (loaded) {
-        ^hyprpm enable $PLUGIN | complete | ignore
-        # no session yet in the install chain: the login's plugins.nu loads it
-        let sig = $env.HYPRLAND_INSTANCE_SIGNATURE? | default ""
-        if $sig != "" and ($env.XDG_RUNTIME_DIR | path join hypr $sig .socket.sock | path exists) { ^hyprpm reload }
-    }
-    if $failed { exit 1 }
+    if (commit-running) != $hyprland { return }
+    let listed = ^hyprctl plugin list | complete | get stdout
+    let loaded = $PLUGINS | where {|p| (so-path $p.name $hyprland | path exists) and not ($listed | str contains $p.name) }
+        | each {|p| ^hyprctl plugin load (so-path $p.name $hyprland) | complete | get exit_code }
+    # plugin options are only accepted once the plugin is in, so the config is read again
+    if ($loaded | is-not-empty) { ^hyprctl reload | ignore }
+    if ($failed | is-not-empty) { exit 1 }
 }

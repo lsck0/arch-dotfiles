@@ -11,5 +11,5 @@ export const meta = {
 
 export def link [cfg: record] {
     if (which tracy-profiler | is-empty) { return [] }
-    ini-merge ($nu.home-dir | path join .config tracy tracy.ini) {achievements: {enabled: 0, asked: 1}} --missing-only
+    ini-merge (xdg config tracy tracy.ini) {achievements: {enabled: 0, asked: 1}} --missing-only
 }

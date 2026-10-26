@@ -6,7 +6,7 @@ const HERE = path self | path dirname
 const BUILD_TIMEOUT = "900"
 
 def data-dir []: nothing -> path {
-    $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join krita
+    xdg data krita
 }
 
 export def link [cfg: record] {

@@ -7,7 +7,7 @@ const GTK_THEME = "oomox-colors-oomox"
 const INTERFACE = "org.gnome.desktop.interface"
 
 export def link [cfg: record] {
-    let config = $nu.home-dir | path join .config
+    let config = xdg config
     [
         # libadwaita ignores gtk-theme-name, so its gtk.css is oomox's export; dangling until the first theme switch
         (file-link ($nu.home-dir | path join .themes $GTK_THEME gtk-4.0 gtk.css) ($config | path join gtk-4.0 gtk.css))
@@ -16,7 +16,7 @@ export def link [cfg: record] {
 
 export def theme [cfg: record, wallpaper: string] {
     let font = font-load
-    let css = file-render gtk.css ($nu.home-dir | path join .config gtk-3.0 gtk.css) {FONT: $font.family}
+    let css = file-render gtk.css (xdg config gtk-3.0 gtk.css) {FONT: $font.family}
         | file-text $in.target $in.content --generated
     let p = palette-load
     if $p == null { return [$css] }
@@ -25,7 +25,7 @@ export def theme [cfg: record, wallpaper: string] {
     let ini = ["[Settings]" $"gtk-theme-name=($GTK_THEME)" $"gtk-font-name=($font)"]
     let set = {|name, key, value| exec $name [gsettings set $INTERFACE $key $value] }
     [$css] | append ([gtk-3.0 gtk-4.0] | each {|dir|
-        file-text ($nu.home-dir | path join .config $dir settings.ini) ($ini | str join "\n" | $"($in)\n") --generated
+        file-text (xdg config $dir settings.ini) ($ini | str join "\n" | $"($in)\n") --generated
     }) | append [
         (do $set gtk-scheme color-scheme $scheme)
         (do $set gtk-font font-name $font)

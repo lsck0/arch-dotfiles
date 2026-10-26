@@ -12,7 +12,7 @@ Never print, copy out or commit a secret's value. Locations only.
 - `configs/secrets/`: private submodule `github.com/lsck0/secrets`. Owner-only: needs the `secrets` profile capability.
 - `configs/secrets/keys/`: every secret, the only git-crypt path (`configs/secrets/.gitattributes`). Locked, each
   file starts with `\0GITCRYPT`.
-- `configs/secrets/state/`: private app state that is no credential (dalamud, ffxiv, drift reports,
+- `configs/secrets/state/`: private app state that is no credential (dalamud, ffxiv,
   firefox's noscript list, repositories), plaintext so backups diff and delta; readable locked.
 - `configs/secrets/<module>/`: the owner's modules (group `secrets`, plaintext code): `yubikey`, `capgemini`,
   `weblinks`. `dot sync` refuses to commit any new or changed file outside `keys/`, `state/` and the module dirs.

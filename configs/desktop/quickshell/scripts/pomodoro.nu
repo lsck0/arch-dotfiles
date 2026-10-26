@@ -21,9 +21,7 @@ def state-path []: nothing -> path { $env.XDG_RUNTIME_DIR | path join quickshell
 
 def lock-path []: nothing -> path { $env.XDG_RUNTIME_DIR | path join quickshell-pomodoro.lock }
 
-# state-save and timer-arm must commit as one unit: a concurrent invocation (e.g. two rapid
-# "set" calls) can otherwise leave the persisted endsAt out of sync with whichever timer
-# actually ended up armed, freezing the UI at a stale remaining time.
+# state-save and timer-arm as one unit: two rapid "set" calls would leave endsAt and the armed timer disagreeing
 def with-lock [...rest: string]: nothing -> nothing {
     mkdir (state-path | path dirname)
     ^flock (lock-path) $nu.current-exe --no-config-file ($env.CURRENT_FILE | path expand) locked ...$rest
@@ -198,4 +196,9 @@ def "main locked skip" []: nothing -> nothing { phase-advance }
 def "main locked retime" []: nothing -> nothing { retime }
 
 # the timer's own command
-def "main locked _elapsed" []: nothing -> nothing { phase-advance --chime }
+# a timer that fired while a pause or skip held the lock is stale by the time it gets it
+def "main locked _elapsed" []: nothing -> nothing {
+    let state = state-load
+    if not $state.running or $state.paused or $state.endsAt > (now) { return }
+    phase-advance --chime
+}

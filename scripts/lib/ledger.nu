@@ -1,7 +1,6 @@
-# The ledger: what dot enabled or installed (units, packages), the applied migrations and the lsck0 snapshot,
-# so what no module declares any more can be found and, after a yes, disabled or removed. Units and packages
-# stay here, not in the module records: dot owns a unit a module's files name and a package its meta declares,
-# neither a verb's output.
+# The ledger: what dot enabled or installed (units, packages), the applied migrations and the lsck0 snapshot, so
+# what no module declares any more can be disabled or removed. Units and packages are no verb's output, hence not
+# in the module records.
 
 use log.nu *
 use state.nu [state-dir save-atomic]

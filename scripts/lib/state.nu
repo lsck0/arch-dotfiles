@@ -31,6 +31,7 @@ export def save-atomic [file: path]: string -> nothing {
     let file = if (path-kind $file) == "symlink" { ^readlink -f $file | str trim } else { $file }
     let tmp = $"($file).($nu.pid)-(random chars --length 6).new"
     $in | save --force --raw $tmp
+    if ($file | path exists) { ^chmod --reference $file $tmp }
     mv --force $tmp $file
 }
 

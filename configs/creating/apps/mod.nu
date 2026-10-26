@@ -13,7 +13,7 @@ export const meta = {
 const FAMISTUDIO_SETTINGS_VERSION = 11
 
 export def link [cfg: record] {
-    let config = $nu.home-dir | path join .config
+    let config = xdg config
     [
         (if (which kdenlive | is-empty) { [] } else {
             ini-merge ($config | path join kdenliverc) {startup: {showWelcome: "false"}}
@@ -25,7 +25,7 @@ export def link [cfg: record] {
                 (ini-merge $ini {General: {ShowTutorial: "False"}})
             ] ++ (
                 desktop-override famistudio.desktop {
-                    str replace --regex '(?m)^Version=.*$' "Version=1.5" | str replace --regex '(?m)^Categories=.*$' "Categories=AudioVideo;Audio;"
+                    desktop-set {Version: "1.5", Categories: "AudioVideo;Audio;"}
                 }
             )
         })

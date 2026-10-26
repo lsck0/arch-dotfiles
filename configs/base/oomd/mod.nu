@@ -10,7 +10,6 @@ export const options = {
         default: null
         doc: "session.slice's MemoryLow, the desktop working set a build's reclaim keeps; null: 15% of RAM, 2 GiB max"
         label: "Desktop memory reserve"
-        scope: machine
     }
 }
 

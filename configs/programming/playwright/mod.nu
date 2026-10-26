@@ -12,15 +12,15 @@ def playwright [browser: string, exe: string, out: path]: nothing -> record {
 }
 
 export def link [cfg: record] {
-    let out = $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join playwright-mcp
+    let out = xdg cache playwright-mcp
     let chromium = playwright chromium $CHROMIUM $out
-    json-merge ($nu.home-dir | path join .claude.json) [
-        (json-set [mcpServers playwright] ($chromium | update args { append "--sandbox" }))
-        (json-set [mcpServers playwright-firefox] (playwright moz-firefox /usr/bin/firefox $out))
-        (json-set [mcpServers chrome-devtools] {
+    mcp-servers {
+        playwright: ($chromium | update args { append "--sandbox" })
+        playwright-firefox: (playwright moz-firefox /usr/bin/firefox $out)
+        chrome-devtools: {
             type: stdio command: chrome-devtools-mcp
             args: [--executablePath $CHROMIUM --no-usage-statistics --no-performance-crux]
             env: {CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS: "1"}
-        })
-    ]
+        }
+    }
 }

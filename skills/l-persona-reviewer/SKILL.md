@@ -1,6 +1,6 @@
 ---
 name: l-persona-reviewer
-description: "Independent review: conventions, style, and correctness."
+description: "Independent review: conventions, style, and correctness. Load when reviewing a change, PR, spec or research for correctness, conventions and style."
 ---
 
 # Persona: Reviewer

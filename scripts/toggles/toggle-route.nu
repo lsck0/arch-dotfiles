@@ -29,7 +29,8 @@ def portmaster-restore []: nothing -> nothing {
 
 def proton-connect []: nothing -> nothing {
     let settings = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join Proton VPN settings.json
-    if not (try { "killswitch" in (open $settings) } catch { false }) {
+    # the app writes every default into settings.json, killswitch 0 included: the value counts, not the key
+    if (try { (open $settings).killswitch? | default 0 } catch { 0 }) == 0 {
         ^protonvpn config set kill-switch standard | complete
     }
     ^systemctl --no-ask-password stop portmaster.service | complete
@@ -58,7 +59,8 @@ def offline-enter []: nothing -> nothing {
     let vpn = (try { toggle-run vpn get | str trim }) == on
     if $vpn { try { toggle-run vpn off } catch { print -e "offline: failed to take wg0 down, continuing" } }
     proton-disconnect
-    tor-stop
+    # offline cuts every link below tor anyway: a declined password prompt must not leave the switch half done
+    try { tor-stop } catch { print -e "offline: tor keeps running, its links go down anyway" }
     radios | where soft == unblocked | get id | str join "\n" | save --force (state-file offline-rfkill --volatile)
     state-set offline-vpn (if $vpn { "on" } else { "off" }) --volatile
     ^nmcli networking off
@@ -76,9 +78,8 @@ def offline-leave []: nothing -> nothing {
     rm --force $saved (state-file offline-vpn --volatile)
 }
 
-# a vpn connects while tor still carries the link, so tor stops only after proton0 is up, and only a tor the user
-# chose: the dispatcher stops the one it started itself on vpn-up, and --keep-tor (auto-vpn, a background service)
-# never stops any. A declined stop prompt leaves tor running beside proton, no failed switch.
+# tor stops only after proton0 is up, and only a tor the user chose: the dispatcher stops its own on vpn-up, and
+# --keep-tor (auto-vpn) stops none. A declined prompt leaves tor running beside proton.
 def apply [route: string, --keep-tor]: nothing -> nothing {
     if $route not-in $ROUTES { error make {msg: $"route must be one of ($ROUTES | columns | str join ', ')"} }
     let from = current

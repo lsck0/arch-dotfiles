@@ -9,7 +9,10 @@ def main []: nothing -> nothing {
     mkdir $state
     let run = ^nu --no-config-file $DOT status --brief | complete
     print --stderr --no-newline $run.stderr
-    if $run.exit_code > 1 { exit $run.exit_code }
+    # 1 means findings, but guarded also exits 1 on a crash: findings always print a line, a crash prints none
+    if $run.exit_code > 1 or ($run.exit_code == 1 and ($run.stdout | str trim | is-empty)) {
+        exit ([$run.exit_code 1] | math max)
+    }
     $run.stdout | save --force ($state | path join findings)
     let findings = $run.stdout | lines
     let digest = $findings | str replace --all --regex '[0-9]+' N | str join "\n" | hash sha256

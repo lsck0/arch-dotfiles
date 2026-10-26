@@ -54,7 +54,8 @@ const SERVER = "server"
 const PROFILE_CUSTOM = "custom"
 const SBCTL_MODULE = "base/boot/sbctl"
 const LOGIN_SHELL = "/usr/bin/zsh"
-const HOME_GATEWAYS = "/etc/NetworkManager/home-gateways"
+# the install's answer: base/networkmanager's own source, and the union 70-home-network reads until the first apply
+const HOME_GATEWAYS = ["/etc/NetworkManager/home-gateways.local" "/etc/NetworkManager/home-gateways"]
 const MAC_PATTERN = '^([0-9a-f]{2}:){5}[0-9a-f]{2}$'
 const TUI_WIDTH = 72
 const TUI_BOX_ROWS = 4
@@ -494,7 +495,8 @@ def answer-valid [e: record, value: string, c: record]: nothing -> bool {
     if ($value | is-empty) and ($e.empty_ok? | default false) { return true }
     if $e.pattern? != null and $value !~ $e.pattern { return false }
     match $e.id {
-        "hostname" => ($value not-in $c.platforms)
+        # no other named platform's name; a server may be called server
+        "hostname" => ($value not-in ($c.platforms | where $it != $c.platform))
         "timezone" => ($"/usr/share/zoneinfo/($value)" | path exists)
         "locale" => ($value in (open --raw /etc/locale.gen | lines | each { str replace --regex '^#' '' | split row " " | first }))
         "keymap" => ((^loadkeys $value | complete).exit_code == 0)
@@ -876,7 +878,7 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
     }
 
     wifi-carry $c
-    if $c.home_gateway != null { $"($c.home_gateway)\n" | save --force $"($MOUNT)($HOME_GATEWAYS)" }
+    if $c.home_gateway != null { for f in $HOME_GATEWAYS { $"($c.home_gateway)\n" | save --force $"($MOUNT)($f)" } }
 
     if "secrets" in $capabilities {
         if not (try { ^pacman -Sy --noconfirm --needed ...$SECRETS_TOOLS; true } catch { false }) { log-warn "secrets tools did not install, the config stage unlocks instead" }

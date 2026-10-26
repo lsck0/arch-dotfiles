@@ -16,6 +16,7 @@ OpticalGlyph 1.0 OpticalGlyph.qml
 PanelKeyCatcher 1.0 PanelKeyCatcher.qml
 PanelRow 1.0 PanelRow.qml
 PanelSectionHeader 1.0 PanelSectionHeader.qml
+SectionHead 1.0 SectionHead.qml
 PanelSeparator 1.0 PanelSeparator.qml
 Slider 1.0 Slider.qml
 PanelToolTip 1.0 PanelToolTip.qml

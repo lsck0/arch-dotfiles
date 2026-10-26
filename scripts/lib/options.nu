@@ -6,7 +6,7 @@ const SPEC_REQUIRED = [type default doc]
 export const OPTION_APPLY = [live relink relogin reboot]
 export const OPTION_SCOPE = [machine user]
 const OPTION_APPLY_DEFAULT = "relink"
-const OPTION_SCOPE_DEFAULT = "user"
+const OPTION_SCOPE_DEFAULT = "machine"
 export const OPTION_ENABLE = "enable"
 
 # Whether value fits a spec type; a trailing ? admits null, an int passes as float, a string as path.
@@ -164,6 +164,10 @@ export def options-to-nuon [--indent: int = 0]: any -> string {
 
 # A string bare where nuon reads it back as the same string, quoted otherwise.
 def nuon-word [text: string]: nothing -> string {
-    let bare = $text =~ '^[A-Za-z_][A-Za-z0-9_.-]*$' and $text not-in ["true" "false" "null"]
+    # bare only when nuon reads it back as this string: true, null, inf and nan would come back as other types
+    let bare = $text =~ '^[A-Za-z_][A-Za-z0-9_.-]*$' and (try {
+        let back = $"{x: ($text)}" | from nuon | get x
+        ($back | describe) == "string" and $back == $text
+    } catch { false })
     if $bare { $text } else { $text | to nuon }
 }

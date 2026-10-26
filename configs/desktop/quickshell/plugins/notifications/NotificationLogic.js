@@ -209,3 +209,19 @@ function historyRows(raw, liveRows, limit) {
   })
   return out.sort(function(a, b) { return b.timestamp - a.timestamp }).slice(0, limit)
 }
+
+// The bar's history list from the popup and history files' lines: one entry per notification, newest first.
+function historyList(raw) {
+    var seen = {}
+    var rows = []
+    String(raw || "").split("\n").forEach(function(line) {
+        var entry = null
+        try { entry = JSON.parse(line) } catch (e) { return }
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return
+        var key = entry.timestamp + ":" + entry.originalId
+        if (seen[key]) return
+        seen[key] = true
+        rows.push(entry)
+    })
+    return rows.sort(function(a, b) { return (b.timestamp || 0) - (a.timestamp || 0) })
+}

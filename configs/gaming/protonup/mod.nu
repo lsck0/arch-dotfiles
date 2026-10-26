@@ -9,7 +9,7 @@ const OVERLAY_SHA256 = "ba515bf1fa6e7f9634cb894640f21f0359dc7435c3a5ce458a37087e
 const OVERLAY_DIR = "Proton-LayeredOverlay"
 
 def steam-data []: nothing -> path {
-    $nu.home-dir | path join .local share Steam
+    xdg data Steam
 }
 
 # Not ~/.steam/root, a link steam.sh makes on first launch: a real dir there blocks it, so the tools go to the data dir.

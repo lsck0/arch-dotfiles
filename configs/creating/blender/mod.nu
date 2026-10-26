@@ -14,7 +14,7 @@ const INSTALL_FLAGS = ["--compile-bytecode"]
 const HERE = path self | path dirname
 
 def src []: nothing -> path {
-    $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join blender-mcp src
+    xdg cache blender-mcp src
 }
 
 def pin []: nothing -> string {
@@ -40,12 +40,10 @@ export def link [cfg: record] {
             let entry = $text | str replace --regex '(?m)^\[Desktop Entry\]$' "[Desktop Entry]\nActions=mcp-bridge;"
             $"($entry)($action)"
         })
-        (json-merge ($nu.home-dir | path join .claude.json) [
-            (json-set [mcpServers blender-mcp] {
-                type: stdio, command: (^uv tool dir --bin | str trim | path expand | path join blender-mcp), args: []
-                env: {BLENDER_MCP_HOST: "127.0.0.1", BLENDER_MCP_PORT: $MCP_PORT}
-            })
-        ])
+        (mcp-servers {blender-mcp: {
+            type: stdio, command: (^uv tool dir --bin | str trim | path expand | path join blender-mcp), args: []
+            env: {BLENDER_MCP_HOST: "127.0.0.1", BLENDER_MCP_PORT: $MCP_PORT}
+        }})
     ]
 }
 

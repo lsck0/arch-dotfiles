@@ -2,7 +2,7 @@ use module.nu *
 use ../../core/wallust/palette.nu *
 
 # after caveman and rtk: the orchestrator profile is a one-time clone of ~/.hermes, which they fill with skills
-export const meta = {deps: [programming/caveman programming/rtk], packages: {pacman: [herdr-bin hermes-agent]}}
+export const meta = {deps: [programming/caveman programming/rtk desktop/idle-guards], packages: {pacman: [herdr-bin hermes-agent]}}
 
 use ../../desktop/idle-guards/mod.nu [AGENT_GUARD]
 

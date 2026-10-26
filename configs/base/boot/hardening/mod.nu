@@ -8,7 +8,6 @@ export const options = {
         doc: "Keep hyperthreading despite MDS/MMIO, accepting the cross-sibling leak for the threads"
         label: "Allow SMT"
         apply: reboot
-        scope: machine
     }
 }
 

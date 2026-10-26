@@ -3,6 +3,6 @@ use module.nu *
 export const meta = {packages: {pacman: [telegram-desktop]}}
 
 export def link [cfg: record] {
-    let palette = $nu.home-dir | path join .cache wal colors-telegram.tdesktop-palette
-    file-link $palette ($nu.home-dir | path join .local share TelegramDesktop pywal-cyberpunk.tdesktop-palette)
+    let palette = xdg cache wal colors-telegram.tdesktop-palette
+    file-link $palette (xdg data TelegramDesktop pywal-cyberpunk.tdesktop-palette)
 }

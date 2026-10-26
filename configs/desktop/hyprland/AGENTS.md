@@ -15,7 +15,7 @@ Extends the root `AGENTS.md` and the `configs/desktop/AGENTS.md`. The Hyprland c
 - `hl.meta.lua`: the type stub for the global `hl` api (LSP only).
 - `wal_colors.lua`: the wallust palette, dropped and re-required on reload.
 - Helper scripts: `boomer.nu`, `screenshot-region.nu`, `screen-dim.nu`, `lockscreen-stats.nu`,
-  `quickshell-lock-launch.nu`, `plugins.nu` (hyprpm), `window-close.nu` (`SUPER+Q`: closes the active window, kills
+  `quickshell-lock-launch.nu`, `plugins.nu` (plugins built per user against the package headers), `window-close.nu` (`SUPER+Q`: closes the active window, kills
   a gamescope one that ignores the request). Config in `hypridle.conf` (idle timings rendered from options),
   `hyprlock.conf`, `xdph.conf` (xdg-desktop-portal-hyprland: restore tokens by default, the share picker); `shaders/`.
 - `mod.nu` copies all of it into `~/.config/hypr`: an edit lands with `dot apply desktop/hyprland`, whose reload step

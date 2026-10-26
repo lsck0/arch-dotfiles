@@ -9,42 +9,33 @@ export const options = {
         doc: "LANG in /etc/locale.conf; detected: the one bootstrap set"
         label: "Language"
         apply: relogin
-        scope: machine
     }
     formats: {
         type: string?
         default: null
         doc: "Locale for dates, numbers, money, units, paper and addresses (every LC_ but messages and collation); unset follows the language"
-        label: "Formats"
         apply: relogin
-        scope: machine
     }
     keyboard_layout: {
         type: string?
         default: null
         doc: "xkb layout of the console, X11 and the compositor; detected: the one bootstrap set"
-        label: "Keyboard layout"
         group: input
         apply: relogin
-        scope: machine
     }
     keyboard_variant: {
         type: string?
         default: null
         doc: "xkb variant, e.g. nodeadkeys"
-        label: "Keyboard variant"
         group: input
         apply: relogin
-        scope: machine
     }
     keyboard_options: {
         type: list<string>?
         default: null
         doc: "xkb options, e.g. ctrl:nocaps"
-        label: "Keyboard options"
         group: input
         apply: relogin
-        scope: machine
     }
     wifi_country: {
         type: string?
@@ -52,7 +43,6 @@ export const options = {
         doc: "Wi-Fi regulatory domain (ISO 3166 alpha-2); detected: the country of the timezone, else the world domain"
         label: "Wi-Fi country"
         apply: reboot
-        scope: machine
     }
 }
 

@@ -8,7 +8,7 @@ description: "Poll a per-project taskwarrior db and work +agent-task tickets you
 This instance works a project's `l-agent-task-db` (taskwarrior) queue
 directly, itself, one task at a time: no Herdr, no worker panes, no
 persona pipeline. It reads a task, does the work (research, writing,
-coding, whatever the task actually needs), records the result durably,
+coding, whatever the task needs), records the result durably,
 updates tags/priority, and moves to the next task. The right mode when the
 work doesn't need multiple specialist perspectives in parallel: most
 routine queued work.
@@ -31,7 +31,7 @@ natural body for the self-adjusting backoff poll cron described in
 the project, and let the run's own progress/no-progress outcome drive the
 reschedule at the end per that skill's procedure. That cron job should be
 created under the `orchestrator` Hermes profile, not `default`: see
-`l-agent-task-db`'s "The `orchestrator` Hermes profile" section for why
+`l-agent-task-db`, `references/unattended.md`, for why
 and how (its compression setting fits this mode's own habit of keeping
 real state in `tasks/context/` rather than conversation history).
 
@@ -117,7 +117,7 @@ is a project tree, not single-ticket work (step 5).
    model choice"): the "one task at a time" rule is about not claiming a
    second taskwarrior task in parallel, not about serializing every tool
    call within the task you're currently working. If a claimed task turns
-   out to actually need a project-tree breakdown (multiple independent
+   out to need a project-tree breakdown (multiple independent
    sub-workstreams, specialist handoffs, a new spec with several phases)
    rather than being directly workable, that's out of scope here: `task <id>
    stop`, flag it and hand off to `l-multi-agent-task-mode`'s intake
@@ -147,7 +147,7 @@ is a project tree, not single-ticket work (step 5).
    what's now most urgent: priorities are a live signal, not set-once.
 10. Move to the next workable task. Repeat until no workable tasks remain
     or a reasonable session budget is spent (don't run an unbounded loop
-    in a single turn if the queue is very large: do a batch, summarize,
+    in a single turn if the queue is large: do a batch, summarize,
     and let the human decide whether to continue).
 11. End with a short summary: what was completed, what's now
     `+human-clarification-needed` or `+human-review-ready` and where its

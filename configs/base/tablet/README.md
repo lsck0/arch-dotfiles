@@ -55,7 +55,7 @@ Six separate faults stack up, and the first two hide the rest:
    to an output and half the screen is physically unreachable, which looks
    exactly like a clamped mapping.
 4. **It almost never announces pen-lift.** Across 7470 captured reports it sent
-   an out-of-range status exactly once; normally it just stops reporting.
+   an out-of-range status exactly once; normally it stops reporting.
    Taken literally that freezes the tip in whatever state it last had, so
    lifting mid-stroke leaves the tip logically down and the next touch draws a
    line joining the two points. The driver treats a silence longer than
@@ -176,7 +176,7 @@ the defaults. Delete the file to go back to them.
   re-creating its input nodes, so udev replays nothing and the old properties
   stay in the database. `udevadm test` shows the new result while
   the live device keeps the old one. Force real `add` events by rebinding the
-  interfaces, or just replug:
+  interfaces, or replug:
 
   ```bash
   for i in <bus>-<port>:1.1 <bus>-<port>:1.2; do

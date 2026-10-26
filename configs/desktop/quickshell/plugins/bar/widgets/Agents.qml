@@ -6,6 +6,8 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "agents"
+  hoverPanel: true
+  hoverFill: true
 
   property bool received: false
   property var usage: ({})
@@ -50,13 +52,6 @@ BarWidget {
     onFailed: function (error) { root.received = true; root.errorText = "bad json" }
   }
 
-  Rectangle {
-    anchors.fill: parent
-    radius: Style.shape.data
-    color: mouseArea.containsMouse ? Style.hoverFill : "transparent"
-    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
-  }
-
   Row {
     id: trigger
     anchors.centerIn: parent
@@ -91,18 +86,10 @@ BarWidget {
     }
   }
 
-  MouseArea {
-    id: mouseArea
-    anchors.fill: parent
-    hoverEnabled: true
-    cursorShape: Qt.PointingHandCursor
-    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
-    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
-  }
-
   component BarRow: Item {
     id: barRow
     property string label: ""
+    property bool upper: true
     property string value: ""
     property string note: ""
     property int pct: -1
@@ -127,6 +114,8 @@ BarWidget {
       color: Colors.menu.text
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
+      font.capitalization: barRow.upper ? Font.AllUppercase : Font.MixedCase
+      font.letterSpacing: barRow.upper ? Style.labelTracking : 0
       elide: Text.ElideRight
     }
     Row {
@@ -152,8 +141,6 @@ BarWidget {
   }
 
   HoverPanel {
-    bar: root.bar
-    moduleName: root.moduleName
     anchorWidget: root
     title: "Claude Code"
     onOpened: usageProc.refresh()
@@ -245,6 +232,7 @@ BarWidget {
         BarRow {
           visible: root.usage.u_sonnet !== undefined && root.usage.u_sonnet !== "\u2014"
           label: root.usage.u_model || "Model"
+          upper: false
           value: root.usage.u_sonnet + "%"
           pct: Number(root.usage.u_sonnet) || 0
         }
@@ -297,6 +285,7 @@ BarWidget {
             delegate: BarRow {
               required property var modelData
               label: modelData.name
+              upper: false
               value: modelData.tokens
               note: modelData.cost
               pct: modelData.pct

@@ -7,11 +7,17 @@ const PROPERTIES = [
     InaccessiblePaths=-/run/dbus PrivateIPC=yes
 ]
 
+# home paths holding keys and tokens, relative to $HOME
+const SENSITIVE_HOME = [
+    .ssh .gnupg .pgpass .netrc .kube .aws .docker .claude .codex .password-store sync
+    .config/gh .config/rclone .config/dotfiles .local/share/keyrings .local/share/password-store
+]
+
 # ProtectHome=read-only still lets a build READ these and copy them into the work dir; hide them outright.
 def sensitive-home-properties []: nothing -> list<string> {
     let secrets = $env.DOTFILES? | default ($nu.home-dir | path join projects arch-dotfiles) | path join configs secrets
-    [$"InaccessiblePaths=-($nu.home-dir | path join .ssh)" $"InaccessiblePaths=-($nu.home-dir | path join .gnupg)"
-        $"InaccessiblePaths=-($nu.home-dir | path join sync)" $"InaccessiblePaths=-($secrets)"]
+    $SENSITIVE_HOME | each {|p| $nu.home-dir | path join $p } | append $secrets
+    | each { $"InaccessiblePaths=-($in)" }
 }
 
 # Run a command offline in the work dir, e.g. `sandbox-build -- cargo test` or `sandbox-build -w ./crate -- make`.

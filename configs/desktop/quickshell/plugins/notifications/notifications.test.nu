@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# NotificationLogic.js under qmltestrunner: the toast's action filter and the sender name of a snapshot
+# NotificationLogic.js under qmltestrunner: the toast's action filter, the sender name of a snapshot, the history list
 
 const LOGIC = path self | path dirname | path join NotificationLogic.js
 const RUNNER = "/usr/lib/qt6/bin/qmltestrunner"
@@ -28,6 +28,15 @@ TestCase {
     compare(NotificationLogic.snapshotOf({ id: 1, appIcon: "gtk-dialog-info" }, 5, "", "").appIcon, "dialog-info")
     compare(NotificationLogic.snapshotOf({ id: 1, appIcon: "" }, 5, "", "timeshift").appIcon, "timeshift")
     compare(NotificationLogic.replacementSnapshot({ id: 9, appName: "" }, 3, 5, "ZapZap").app, "ZapZap")
+  }
+
+  function test_history_list() {
+    var entry = function(id, t) { return JSON.stringify({ originalId: id, timestamp: t }) }
+    var raw = [entry(1, 10), entry(2, 30), entry(1, 10), "not json", "[1]", "", entry(3, 20)].join("\n")
+    var rows = NotificationLogic.historyList(raw)
+    compare(rows.length, 3)
+    compare(rows.map(function(r) { return r.timestamp }).join(","), "30,20,10")
+    compare(NotificationLogic.historyList("").length, 0)
   }
 }
 '

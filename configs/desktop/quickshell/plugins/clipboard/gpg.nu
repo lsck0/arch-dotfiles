@@ -80,9 +80,8 @@ def "main encrypt" [...recipients: string, --trust-unverified]: string -> nothin
     emit {ok: true, armored: ($run.stdout | str trim --right --char "\n")}
 }
 
-# stdin decrypted or verified: the plaintext and its signature, for the window only. An encrypted message counts only
-# with DECRYPTION_OKAY and no failure line: a tampered or truncated one streams plaintext before gpg notices, and
-# none of it is shown.
+# stdin decrypted or verified: the plaintext and its signature, for the window only. Plaintext counts only with
+# DECRYPTION_OKAY and no failure line: gpg streams a tampered message's plaintext before it notices.
 def "main decrypt" []: string -> nothing {
     let run = $in | do { ^gpg --batch --status-fd 2 --decrypt } | complete
     let status = status-of $run.stderr

@@ -49,7 +49,7 @@ def collections [root: path]: nothing -> list<path> {
 }
 
 def bookmarks []: nothing -> list<string> {
-    try { open ($nu.home-dir | path join .config tms config.toml) | get bookmarks } catch { [] }
+    try { open (xdg config tms config.toml) | get bookmarks } catch { [] }
 }
 
 def icon-set [root: path]: nothing -> bool {

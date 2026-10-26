@@ -9,7 +9,7 @@ export def link [cfg: record] {
 }
 
 export def theme [cfg: record, wallpaper: string] {
-    let rendered = $nu.home-dir | path join .cache wal colors-yazi.toml
+    let rendered = xdg cache wal colors-yazi.toml
     if not ($rendered | path exists) { return [] }
     file-text ($nu.home-dir | path join $CONFIG_DIR theme.toml) (open --raw $rendered) --generated
 }

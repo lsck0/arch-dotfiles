@@ -21,35 +21,28 @@ export const options = {
         default: null
         doc: "The /dev/dri render node the vaapi encoders use, by-path so it survives reboots"
         label: "VAAPI render node"
-        scope: machine
     }
     canvas: {
         type: string?
         default: null
         doc: "Base and output canvas of every profile and the repo collections (Bare, VirtualCam), WxH"
-        label: "Canvas"
-        scope: machine
     }
     mic: {
         type: string?
         default: null
         doc: "The pipewire source node every collection's Mic/Aux captures"
         label: "Microphone"
-        scope: machine
     }
     webcam: {
         type: string?
         default: null
         doc: "The v4l2 device the VirtualCam collection's Camera captures, by-id so it survives replugging"
-        label: "Webcam"
-        scope: machine
     }
     monitor_device: {
         type: string?
         default: null
         doc: "The pipewire sink node obs monitors audio on"
         label: "Monitoring device"
-        scope: machine
     }
     record_encoder: {
         type: string?
@@ -59,7 +52,6 @@ export const options = {
         choices: [
             av1_ffmpeg_vaapi_tex hevc_ffmpeg_vaapi_tex ffmpeg_vaapi_tex obs_nvenc_av1_tex obs_nvenc_h264_tex obs_x264
         ]
-        scope: machine
     }
     stream_encoder: {
         type: string?
@@ -67,7 +59,6 @@ export const options = {
         doc: "The streaming encoder; h264 is what every ingest takes"
         label: "Streaming encoder"
         choices: [ffmpeg_vaapi_tex obs_nvenc_h264_tex obs_x264]
-        scope: machine
     }
 }
 
@@ -223,7 +214,7 @@ def scene-file [dest: path, text: string, mode: string]: nothing -> record {
 
 # Which repo collection a live one was last installed from, so backup can tell an edit obs has not loaded.
 def applied-file [live: path]: nothing -> path {
-    let state = $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state)
+    let state = (xdg state)
     $state | path join dotfiles obs $"($live | path basename).applied"
 }
 
@@ -299,11 +290,7 @@ export def link [cfg: record] {
         (file-copy ($HERE | path join mcp package-lock.json) ($prefix | path join package-lock.json) --then $npm_ci)
         (exec obs-mcp-install $npm_ci --creates ($prefix | path join node_modules .bin obs-mcp))
         (link-commands obs-mcp.nu)
-        (json-merge ($nu.home-dir | path join .claude.json) [
-            (json-set [mcpServers obs-mcp] {
-                type: stdio, command: ($nu.home-dir | path join .local bin obs-mcp), args: []
-            })
-        ])
+        (mcp-servers {obs-mcp: {type: stdio, command: ($nu.home-dir | path join .local bin obs-mcp), args: []}})
         (desktop-override com.obsproject.Studio.desktop {
             $in | str replace --all --regex '(?m)^Exec=obs.*' $"Exec=obs ($LAUNCH_FLAGS)"
         })

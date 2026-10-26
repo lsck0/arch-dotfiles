@@ -76,7 +76,7 @@ It holds:
   | `run-tests` | running the suites, reading a failing seed, coverage |
   | `access-staging` | reaching staging, where its credentials live |
   ```
-- Build/test/lint/run commands that actually work, the one-liners only;
+- Build/test/lint/run commands that work, the one-liners only;
   anything longer is a skill.
 - Layout: where the important things live.
 - Conventions: naming, error handling, commit style, branch model,

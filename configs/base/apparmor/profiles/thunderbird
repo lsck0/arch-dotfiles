@@ -59,6 +59,7 @@ profile thunderbird /usr/{bin/thunderbird,lib/thunderbird/thunderbird} flags=(at
 
   @{exec_path} mrix,
 
+  @{lib_dirs}/gfxtest    rpx -> thunderbird//&thunderbird-gfxtest,
   @{lib_dirs}/glxtest    rpx -> thunderbird//&thunderbird-glxtest,
   @{lib_dirs}/vaapitest  rpx -> thunderbird//&thunderbird-vaapitest,
 

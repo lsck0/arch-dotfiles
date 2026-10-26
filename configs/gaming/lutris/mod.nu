@@ -10,6 +10,7 @@ export const options = {
         label: "Wine dpi"
         min: 96
         max: 480
+        scope: user
     }
 }
 
@@ -25,8 +26,8 @@ export def detect [cfg: record]: nothing -> record {
 # Lutris writes both LogPixels keys from a game's own wine options; battle.net's cef renders blank when they differ.
 export def link [cfg: record] {
     if (which lutris | is-empty) { return [] }
-    let config = $nu.home-dir | path join .config lutris
-    let dir = if ($config | path exists) { $config } else { $nu.home-dir | path join .local share lutris }
+    let config = xdg config lutris
+    let dir = if ($config | path exists) { $config } else { xdg data lutris }
     let file = $dir | path join runners wine.yml
     let want = wine-keys $cfg.dpi
     let current = if ($file | path exists) { open $file | get --optional wine | default {} } else { {} }

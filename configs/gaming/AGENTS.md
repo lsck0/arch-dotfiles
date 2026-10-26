@@ -10,16 +10,23 @@ Extends the root `AGENTS.md`. Game launchers, performance tooling and the game n
 - `d2launcher`: the Diablo II / Median XL launcher, a pinned upstream checkout (it has no aur package) plus its config
   and desktop entry; its bulk downloads (the game, the proton build, median xl patches, save backups and the wine
   prefix) live in `~/sync/vendor/d2launcher`, reached through symlinks because the script hardcodes
-  `~/.d2launcher/{bin,patches,backup}`. `bin/diablo2` is seeded from a Lord of Destruction install (`base_dir`, detected
-  in the lutris prefixes). The game runs inside gamescope (`gamescope.sh`, the launcher's `custom_command`) at a 4:3
+  `~/.d2launcher/{bin,patches,backup}`. Without that synced dir the vendor dir is `$XDG_DATA_HOME/d2launcher-vendor`
+  and the module fetches the launcher's wine itself (Kron4ek `wine-7.0-5-proton`, pinned sha256; it reports
+  `wine-5.12-...`), so vanilla LoD and `pd2` set up on a fresh install too. `bin/diablo2` is seeded from a Lord of Destruction install (`base_dir`, detected
+  in the lutris prefixes, else under `~/sync/games/d2`). The game runs inside gamescope (`gamescope.sh`, the launcher's `custom_command`) at a 4:3
   `render_size`, so its window resizes freely; its stream is named "Diablo II" through `PIPEWIRE_ALSA`.
-- `pd2`: Project Diablo 2 (season 3, 1.13c) single player with PlugY (shared and multi-page stash, stat and skill
-  unassign: `PlugY.ini` in the install). The install (`game_dir`, `~/sync/games/d2/ProjectD2`) and the saves
-  (`save_dir`, `~/sync/games/d2/Save`: PD2 characters with PlugY's `.d2x`/`.sss` stashes, so they load in neither
-  vanilla LoD nor Median XL) stay in `~/sync`; `~/.local/share/pd2/Diablo II` links the lutris LoD files with
-  `ProjectD2` inside it (PD2's dll refuses a dir outside a LoD install), the prefix's `Save Path` points at the saves.
-  It runs on d2launcher's wine 5.12 (the system's wine-staging overflows the 1.13c Game.exe's stack) with cnc-ddraw
-  (`ddraw=n,b`) inside gamescope, launched by `pd2.sh` / the "Project Diablo II" desktop entry.
+- `pd2`: Project Diablo 2 single player, two seasons side by side, each in its own tree (`~/.local/share/pd2-s14`,
+  `~/.local/share/pd2`): a `Diablo II` dir linking the lutris LoD files with `ProjectD2` inside it (PD2's dll refuses a
+  dir outside a LoD install), its own prefix and `pd2.sh`, all on d2launcher's wine 5.12 (the system's wine-staging
+  overflows the 1.13c Game.exe's stack) with cnc-ddraw (`ddraw=n,b`) inside gamescope.
+  - Season 14 ("Project Diablo II"): the client from PD2's own host `pd2-client-files.projectdiablo2.com`, every file
+    pinned by sha256 in `s14-client.nuon` (`pd2-pin.nu` re-pins it from the official `metadata.json` md5s after a PD2
+    patch). Runs `Game.exe` without PlugY: S14 has its own shared stash (`pd2_shared.stash`) and tabs. Its save dir is
+    `classic_game_settings.other.save_path` in `ProjectD2/ProjectDiablo.json` (not the registry), merged from
+    `s14_save_dir`, `~/sync/games/d2/Save-S14`.
+  - Season 3 ("Project Diablo II S3"): the old install (`game_dir`, `~/sync/games/d2/ProjectD2`) with PlugY (big
+    stash, stat and skill unassign: `PlugY.ini`) and its saves (`save_dir`, `~/sync/games/d2/Save`, the prefix's
+    `Save Path`). They can't move to S14: PD2-Converter stops at season 8 and nothing edits S14's stash.
 - `ffxiv`: the FFXIV client and launcher config, seeded once from `configs/secrets/state/ffxiv/<host>` (its `backup`
   verb).
 - `gamemode`: feral gamemode (`gamemode.ini`, its `[gpu]` from the detected card), engaged per game through a launch

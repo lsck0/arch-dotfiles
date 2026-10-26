@@ -311,10 +311,17 @@ Item {
     }
   }
   property var fileJob: null
-  property int historyRevision: 0
+  // the bar's history: the popup and history files, newest first, re-read after every file job that touched them
+  property var history: []
 
-  function enqueueFileJob(command, done) {
-    fileJobQueue.enqueue({ command: command, done: done || null })
+  function enqueueFileJob(command, done, quiet) {
+    fileJobQueue.enqueue({ command: command, done: done || null, quiet: !!quiet })
+  }
+
+  function refreshHistory() {
+    enqueueFileJob(["bash", "-c", "shopt -s nullglob; files=(\"$1\"/*.json \"$2\"/*.json); (( ${#files[@]} )) && awk 1 \"${files[@]}\"; true",
+      "--", popupStateDir, historyDir],
+      function(raw) { service.history = NotificationLogic.historyList(raw) }, true)
   }
 
   Process {
@@ -323,11 +330,11 @@ Item {
     stdout: StdioCollector { id: fileJobOut; waitForEnd: true }
     onExited: {
       var done = service.fileJob.done
-      var touchedFiles = service.fileJob.command.some(function(arg) {
+      var touchedFiles = !service.fileJob.quiet && service.fileJob.command.some(function(arg) {
         return String(arg).indexOf(service.popupStateDir) === 0
       })
       service.fileJob = null
-      if (touchedFiles) service.historyRevision++
+      if (touchedFiles) service.refreshHistory()
       try {
         if (done) done(fileJobOut.text)
       } catch (e) {
@@ -478,12 +485,14 @@ Item {
   }
 
   function clearHistory() {
+    service.history = []
     clearPopups()
     enqueueFileJob(["bash", "-c", "dir=\"$1\" keep=0 imgs=\"$2\"\n" + trimScript, "--", historyDir, imagesDir])
   }
 
   function removeEntry(originalId, timestamp) {
     var row = { originalId: originalId, timestamp: timestamp }
+    service.history = service.history.filter(function(e) { return e.originalId !== originalId || e.timestamp !== timestamp })
     enqueueFileJob(["bash", "-c",
       "rm -f \"$1/$3.json\" \"$2/$3.json\" \"$4/$3\"-*", "--",
       popupStateDir, historyDir, NotificationLogic.imageStem(row), imagesDir])

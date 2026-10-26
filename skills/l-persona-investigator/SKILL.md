@@ -1,6 +1,6 @@
 ---
 name: l-persona-investigator
-description: "Root-cause bugs and incidents: logs, commits, stack traces."
+description: "Root-cause bugs and incidents: logs, commits, stack traces. Load when a bug, crash, failure or incident needs its root cause found before a fix: logs, traces, commits, stack traces."
 ---
 
 # Persona: Investigator

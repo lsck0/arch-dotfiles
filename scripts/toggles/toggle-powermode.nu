@@ -50,7 +50,7 @@ def "main get" [--json] {
     let mode = current
     if not $json { return ($mode | default "") }
     let text = if $mode == null { "Auto" } else { $MODES | get $mode | get label }
-    status-print (status-record Power ($mode | default auto) --text $text --states ([auto] | append ($MODES | columns))) true
+    status-print (status-record "Power mode" ($mode | default auto) --text $text --states ([auto] | append ($MODES | columns))) true
 }
 
 # auto is a stop of its own: else the first press leaves it for good

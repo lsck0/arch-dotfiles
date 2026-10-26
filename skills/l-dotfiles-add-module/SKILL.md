@@ -1,6 +1,6 @@
 ---
 name: l-dotfiles-add-module
-description: Creating a configs/<group>/<module>/mod.nu (meta with deps and packages, typed options, the fixed verbs and steps), how dot picks it up, and running it alone. Load when adding, porting or restructuring a module.
+description: Writing a configs/<group>/<module>/mod.nu (meta with deps and packages, typed options, the fixed verbs, declarations and helpers), how dot picks it up, and running it alone. Load when adding, porting or restructuring a module, or when a new program, service or setting needs a home in the dotfiles.
 ---
 
 # add-module
@@ -36,7 +36,7 @@ export const options = {
         label: "Accent colour"                        # the settings UI's; group, choices, min/max/step too
         choices: [c1 c2 c3 c4 c5 c6]
         apply: live                                   # live | relink | relogin | reboot
-        scope: user                                   # user: the profile may set it; machine: the platform only
+        scope: user                                   # default machine (the platform only); user: the profile may set it
     }
 }
 
@@ -98,18 +98,25 @@ export def packages [cfg: record]: nothing -> record {
   <command> [args]` (one of the module's own exported commands, run at apply time on live state), `fetch-file <url>
   <sha256> <dest> [--extract <member>]` and `fetch-git <url> <commit> <dir>` (pinned downloads and checkouts),
   `group-admins <group>` (a system group every wheel member is in), `user-hook <name> <script> --watch [paths]`
-  (a path unit that runs the script on a change), `palette-load` (the current palette or null, for `theme`).
+  (a path unit that runs the script on a change), `mcp-servers {name: spec}` (`~/.claude.json` MCP entries, a null
+  spec drops one), `palette-load` (the current palette or null, for `theme`).
+- Helpers, not declarations: `xdg config|data|cache|state ...parts` (an XDG path honouring `XDG_*`), `unit-dir`,
+  `process-running <name>` (gate a reload in a `theme` verb), `desktop-set {Key: value}` (inside a `desktop-override`
+  closure). The user layer runs with `configs/base/xdg/app-dirs.conf` loaded, so a tool a verb runs already sees its
+  XDG redirection; don't copy those variables into a module.
 - Option keys: `type`, `default`, `doc` (required); `label`, `group`, `choices`, `min`/`max`/`step`, `apply`
-  (default relink), `scope` (default user), `toggle` (a live option set through `scripts/toggles/toggle-<name>.nu`:
+  (default relink), `scope` (default machine), `toggle` (a live option set through `scripts/toggles/toggle-<name>.nu`:
   `on`/`off` for a bool, else `set <value>`; its `get` is the live value the settings window shows).
 - Facts: `platform-has homelab|wireguard|secure_boot_own_keys|lsck0_snapshot` (machine; `PLATFORM_FACTS` in
   `scripts/lib/platform.nu`), `$env.FORM_FACTOR` (`desktop laptop server vm wsl`, not the platform file's name),
   `profile-has secrets` (user, link only). A per-module setting is an option, set with `dot set <group/module>.<key>
   <value> [--machine]`.
 - A file the app later edits is drift: `dot plan` shows it, apply keeps it until `dot module adopt <file>` (copies it
-  back into the module) or `dot apply --force <group>/<module>` (preserves it aside).
-- A one-time move (an old path, a renamed state dir) is a `migrations/<NNNN>-<slug>.nu` copied from `0000-sample.nu`;
-  `export const layer = "system"` runs it as root.
+  back into the module) or `dot module reset <file>` (writes the module's copy back, the edit preserved aside; `dot
+  apply --force <group>/<module>` does that for every changed file of the module).
+- A one-time structural change for machines already installed is a `migrations/<NNNN>-<slug>.nu` copied from
+  `0000-sample.nu` (an `up` only; `export const layer = "system"` runs it as root). A fresh install marks every
+  existing one as run, so a migration never replaces a module declaration.
 - A program that rewrites its own config over the copy (OBS, apps that save on exit) needs a `backup` verb that
   carries the live file back into the repo or `configs/secrets/`; `dot sync` runs it. State that differs per machine
   (resolution, devices, layout, logins) goes to `host-file <dir> <file>` (`<dir>/<host>/<file>`), so machines never

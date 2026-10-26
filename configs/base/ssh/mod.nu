@@ -9,19 +9,16 @@ export const options = {
         doc: ("ssh patterns of the homelab's guests, router and hypervisor: root, accept-new host keys from "
             + "known_hosts.homelab (homelab profiles only)")
         label: "Homelab ssh hosts"
-        scope: machine
     }
     wake_router: {
         type: string?
         default: null
         doc: "The always-on homelab router whose `wol-pc` wakes the desktop (wake-pc, homelab profiles only)"
-        scope: machine
     }
     wake_host: {
         type: string?
         default: null
         doc: "The desktop wake-pc wakes and then ssh-es into"
-        scope: machine
     }
 }
 

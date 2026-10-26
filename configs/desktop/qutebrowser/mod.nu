@@ -13,6 +13,7 @@ export const options = {
         default: $SEARCH_DEFAULT
         doc: "The default search engine, {} is the query; the homelab's searxng is reachable only on a homelab machine"
         label: "Search engine URL"
+        scope: user
     }
 }
 
@@ -26,7 +27,7 @@ export def detect [cfg: record]: nothing -> record {
 }
 
 def lists-ready []: nothing -> bool {
-    let data = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join qutebrowser
+    let data = xdg data qutebrowser
     $LISTS | all {|f| ($data | path join $f | path exists) and (ls ($data | path join $f) | get 0.size | into int) > 0 }
 }
 
@@ -39,11 +40,9 @@ export def link [cfg: record] {
     ] | append (if (lists-ready) { [] } else { [(step lists-fetch)] })
 }
 
-def qutebrowser-running []: nothing -> bool { (^pgrep -x qutebrowser | complete).exit_code == 0 }
-
 # Fetches the adblock lists in a windowless instance, never beside a running one: the quit would reach it over ipc.
 export def lists-fetch [] {
-    if (qutebrowser-running) { return }
+    if (process-running qutebrowser) { return }
     with-env {QT_QPA_PLATFORM: offscreen} {
         ^timeout $FETCH_TIMEOUT qutebrowser --nowindow ":adblock-update" $":later ($FETCH_QUIT_MS) quit" | complete | ignore
     }
@@ -54,11 +53,11 @@ export def theme [cfg: record, wallpaper: string] {
     let dest = $nu.home-dir | path join $CONFIG_DIR startpage.html
     let startpage = file-render startpage.html $dest {
         HOME: $nu.home-dir
-        DATA: ($env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share))
+        DATA: ((xdg data))
         RADIUS: $RADIUS_PX
         FONT: (font-load).family
     } | file-text $dest $in.content --generated
     # without a running instance the command would start one
-    if not (qutebrowser-running) { return [$startpage] }
+    if not (process-running qutebrowser) { return [$startpage] }
     [$startpage (exec qutebrowser-config-source [qutebrowser :config-source])]
 }

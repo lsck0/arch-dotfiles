@@ -41,9 +41,9 @@ def line-drop [pattern: string]: string -> string {
 }
 
 export def link [cfg: record] {
-    let apps = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join applications
+    let apps = xdg data applications
     let run = $nu.home-dir | path join .local bin desktop-run
-    let filezilla = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join $FILEZILLA_XML
+    let filezilla = xdg config $FILEZILLA_XML
     [(link-commands desktop-run.nu hollywood-run.nu)]
     # Exec needs the absolute path, ~/.local/bin is not on every session's PATH
     | append (glob *.desktop | each {|entry|
@@ -55,7 +55,7 @@ export def link [cfg: record] {
         desktop-override $"($id).desktop" { str replace --regex '(?m)^\[Desktop Entry\]$' "[Desktop Entry]\nNoDisplay=true" }
     })
     | append (desktop-override wayvr.desktop {
-        str replace --regex '(?m)^Terminal=true$' 'Terminal=false' | str replace --regex '(?m)^Exec=wayvr$' $"Exec=($run) --notify -- wayvr"
+        desktop-set {Terminal: false} | str replace --regex '(?m)^Exec=wayvr$' $"Exec=($run) --notify -- wayvr"
     })
     | append (if ($filezilla | path exists) { [] } else { [(step filezilla-seed $filezilla)] })
     | append [(exec desktop-database [update-desktop-database $apps])]

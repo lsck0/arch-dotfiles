@@ -1,6 +1,6 @@
 ---
 name: l-persona-programmer
-description: "Implement tickets: write the actual code."
+description: "Implement tickets: write the actual code. Load when implementing a ticket or a planned change: writing the code, its tests and the trace back to the spec."
 ---
 
 # Persona: Programmer

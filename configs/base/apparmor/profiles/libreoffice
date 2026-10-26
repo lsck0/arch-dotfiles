@@ -29,6 +29,7 @@ profile libreoffice /usr/lib/libreoffice/program/soffice flags=(attach_disconnec
   include <abstractions/fontconfig-cache-read>
   include <abstractions/graphics>
   include <abstractions/java>
+  include <abstractions/kde-globals-write>
   include <abstractions/attached/nameservice-strict>
   include <abstractions/python>
   include <abstractions/qt-settings-write>
@@ -105,10 +106,11 @@ profile libreoffice /usr/lib/libreoffice/program/soffice flags=(attach_disconnec
   /{,usr/}lib{,exec,32,64}/kf5/kioslave5 Px,
   /{,usr/}lib{,exec,32,64}/kf6/kioworker Px,
 
-  @{lib}/jvm/java*/bin/java               rix,
+  @{lib}/jvm/java*/{,jre/}bin/java        rix,
   @{lib}/jvm/java*/lib/** rm,
   @{lib}/libreoffice/program/javaldx      rix,
   @{lib}/libreoffice/program/oosplash     rix,
+  @{lib}/libreoffice/program/opencltest   rix,
   @{lib}/libreoffice/program/soffice.bin  rix,
   @{lib}/libreoffice/program/xpdfimport   rix,
 
@@ -130,6 +132,7 @@ profile libreoffice /usr/lib/libreoffice/program/soffice flags=(attach_disconnec
   /etc/fstab r,
   /etc/krb5.conf.d/{,**} r,
   /etc/libreoffice/{,**} r,
+  /etc/OpenCL/vendors/{,*} r,
   /etc/papersize r,
   /etc/paperspecs r,
   /etc/samba/smb.conf r,
@@ -141,9 +144,6 @@ profile libreoffice /usr/lib/libreoffice/program/soffice flags=(attach_disconnec
   owner @{user_cache_dirs}/libreoffice/{,**} rw,
 
   owner @{user_config_dirs}/kbookmarkrc r,
-  owner @{user_config_dirs}/kdeglobals w,
-  owner @{user_config_dirs}/kdeglobals.@{rand6} rwl,
-  owner @{user_config_dirs}/kdeglobals.lock rwk,
   owner @{user_config_dirs}/kioslaverc r,
   owner @{user_config_dirs}/knfsshare r,
   owner @{user_config_dirs}/kservicemenurc r,
@@ -155,9 +155,7 @@ profile libreoffice /usr/lib/libreoffice/program/soffice flags=(attach_disconnec
 
   owner @{user_share_dirs}/user-places.xbel r,
 
-  owner @{user_state_dirs}/soffice.binstaterc rw,
-  owner @{user_state_dirs}/soffice.binstaterc.@{rand6} rwl,
-  owner @{user_state_dirs}/soffice.binstaterc.lock rwk,
+  owner @{user_state_dirs}/soffice.binstaterc@{atomic} rwlk,
 
         @{tmp}/ r,
   owner @{tmp}/.java_pid@{int}{,.tmp} rw,
@@ -165,6 +163,7 @@ profile libreoffice /usr/lib/libreoffice/program/soffice flags=(attach_disconnec
   owner @{tmp}/@{rand6} rwk,
   owner @{tmp}/@{u64} rw,
   owner @{tmp}/*.tmp/{,**} rwk,
+  owner @{tmp}/dep-@{hex6}.d rw,
   owner @{tmp}/hsperfdata_@{user}/  rw,
   owner @{tmp}/hsperfdata_@{user}/@{int} rwk,
   owner @{tmp}/OSL_PIPE_@{uid}_SingleOfficeIPC_@{hex} rw,
@@ -174,14 +173,17 @@ profile libreoffice /usr/lib/libreoffice/program/soffice flags=(attach_disconnec
   owner @{run}/user/@{uid}/soffice.*.socket rwl -> @{run}/user/@{uid}/#@{int},
   owner @{run}/user/@{uid}/gvfsd/socket-@{rand8} rw,
 
+        @{sys}/devices/@{pci}/**/block/**/queue/rotational r,
         @{sys}/devices/virtual/block/**/queue/rotational r,
         @{sys}/kernel/mm/hugepages/ r,
+        @{sys}/kernel/mm/hugepages/hugepages-*/nr_hugepages r,
         @{sys}/kernel/mm/transparent_hugepage/shmem_enabled r,
 
         @{PROC}/@{pid}/net/if_inet6 r,
         @{PROC}/version r,
   owner @{PROC}/@{pid}/mountinfo r,
   owner @{PROC}/@{pid}/mounts r,
+  owner @{PROC}/@{pid}/task/@{tid}/comm w,
 
   /dev/tty rw,
 

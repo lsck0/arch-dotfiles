@@ -8,12 +8,16 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "network"
+  hoverPanel: true
+  hoverFill: true
+  hoverCursor: Qt.ArrowCursor
 
   // the network toggles' status records (scripts/toggles/status.nu), by name
   property var toggles: ({})
   function toggleState(name, fallback) { return toggles[name] ? toggles[name].state : fallback }
   function toggleOn(name) { return toggleState(name, "off") === "on" }
   function toggleAvailable(name) { return !!toggles[name] && toggles[name].available }
+  function toggleLabel(name, fallback) { return toggles[name] && toggles[name].label ? toggles[name].label : fallback }
   readonly property var toggleNames: ["route", "vpn", "anonymous-socks", "bluetooth", "wifi", "ethernet", "mobile", "firewall",
     "trust-network"]
 
@@ -223,13 +227,6 @@ BarWidget {
     }
   }
 
-  Rectangle {
-    anchors.fill: parent
-    radius: Style.shape.data
-    color: hoverArea.containsMouse ? Style.hoverFill : "transparent"
-    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
-  }
-
   Row {
     id: trigger
     anchors.centerIn: parent
@@ -249,18 +246,8 @@ BarWidget {
     }
   }
 
-  MouseArea {
-    id: hoverArea
-    anchors.fill: parent
-    hoverEnabled: true
-    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
-    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
-  }
-
   HoverPanel {
     id: panel
-    bar: root.bar
-    moduleName: root.moduleName
     anchorWidget: root
     onOpened: root.panelOpened()
     pinned: root.passwordFocused
@@ -324,11 +311,13 @@ BarWidget {
       }
 
       PanelSeparator {
-        visible: root.detailsConnected
+        visible: root.detailsConnected && root.wifiOn
       }
-      PanelSectionHeader { text: "WI-FI NETWORKS" }
+      // with the radio off there is nothing to list: the RADIOS section turns it on
+      PanelSectionHeader { visible: root.wifiOn; text: "WI-FI NETWORKS" }
 
       Column {
+        visible: root.wifiOn
         width: content.width
         spacing: Style.spacing.xxs
 
@@ -377,6 +366,8 @@ BarWidget {
                 layer.effect: Glow {}
               }
               Text {
+                // an access point picks its SSID: never markup
+                textFormat: Text.PlainText
                 anchors.left: netIcon.right
                 anchors.leftMargin: Style.spacing.xs
                 anchors.right: netSignal.left
@@ -471,6 +462,7 @@ BarWidget {
         }
 
         Text {
+          textFormat: Text.PlainText
           visible: root.connectError !== ""
           width: content.width
           wrapMode: Text.Wrap
@@ -493,21 +485,36 @@ BarWidget {
         onChanged: function(state) { if (state !== root.firewallState) root.setFirewall(state) }
       }
       // home lifts the lockdown on this link: the gateway joins networkmanager's home_gateways
-      ToggleRow { visible: root.trustAvailable; label: "Trust this network"; on: root.trustedNetwork; onActivated: root.toggleTrustNetwork() }
+      ToggleRow { visible: root.trustAvailable; label: root.toggleLabel("trust-network", "Trusted network"); on: root.trustedNetwork; onActivated: root.toggleTrustNetwork() }
 
       PanelSeparator {}
       PanelSectionHeader { text: "ROUTE" }
-      ButtonGroup {
+      // the homelab sits beside the routes, not among them: wg0 carries only the lab subnets, so it adds to any route
+      Row {
         width: content.width
-        fill: true
         spacing: Style.spacing.xs
-        fontSize: Style.font.caption
-        options: root.routeModes
-        value: root.route
-        onChanged: function(state) { if (state !== root.route) root.setRoute(state) }
+
+        ButtonGroup {
+          width: parent.width - (homelabChip.visible ? homelabChip.width + parent.spacing : 0)
+          fill: true
+          spacing: Style.spacing.xs
+          fontSize: Style.font.caption
+          options: root.routeModes
+          value: root.route
+          onChanged: function(state) { if (state !== root.route) root.setRoute(state) }
+        }
+
+        Button {
+          id: homelabChip
+          visible: root.homelabAvailable
+          variant: "chip"
+          text: "+ HOMELAB"
+          fontSize: Style.font.caption
+          selected: root.homeVpnState === "on"
+          onClicked: root.toggleHomeVpn()
+        }
       }
-      // beside any route: wg0 carries only the lab subnets, the SOCKS pool listens on lo
-      ToggleRow { visible: root.homelabAvailable; label: "Homelab VPN"; on: root.homeVpnState === "on"; onActivated: root.toggleHomeVpn() }
+      // the SOCKS pool listens on lo, beside any route
       ToggleRow { label: "Anonymous SOCKS"; on: root.anonymousSocksOn; onActivated: root.toggleAnonymousSocks() }
 
       PanelSeparator {}

@@ -15,7 +15,7 @@ export const options = {
 export def link [cfg: record] {
     let screenshots = $nu.home-dir | path join pictures screenshots
     [
-        (file-render mpv.conf ($nu.home-dir | path join .config mpv mpv.conf) {YTDL_MAX_HEIGHT: $cfg.ytdl_max_height})
+        (file-render mpv.conf (xdg config mpv mpv.conf) {YTDL_MAX_HEIGHT: $cfg.ytdl_max_height})
         (exec mpv-screenshots [mkdir -p $screenshots] --creates $screenshots)
     ]
 }

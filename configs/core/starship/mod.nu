@@ -13,5 +13,5 @@ export const options = {
 }
 
 export def link [cfg: record] {
-    file-render starship.toml ($nu.home-dir | path join .config starship.toml) {SCAN_TIMEOUT_MS: $cfg.scan_timeout_ms}
+    file-render starship.toml (xdg config starship.toml) {SCAN_TIMEOUT_MS: $cfg.scan_timeout_ms}
 }

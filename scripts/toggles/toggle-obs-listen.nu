@@ -1,11 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 # Hear obs: the stream mix instead of the system audio. Every input on the stream track monitors to the profile's
 # monitoring device; app-loopback.lua (configs/desktop/pipewire) mutes the per-app paths while dot.obs-listen is set.
-# Monitoring is enforced strictly from OBS's own live state, never from this script's memory of what it last
-# touched: a scene collection can arrive already carrying monitor-and-output on a stream-track input (committed
-# from a machine where listening was left on, restored from backup, or edited by hand in OBS), and that must not
-# survive a reconcile while the toggle is off, or audio plays twice (once through the app's own output, once
-# through OBS monitoring it).
 
 use lib.nu [switch-run state-get state-set state-clear]
 use ../../configs/desktop/quickshell/plugins/bar/widgets/obs-status.nu [config-read socket-open socket-identify request]
@@ -71,10 +66,8 @@ def listen-off []: nothing -> nothing {
     job kill $socket
 }
 
-# Puts every stream-track input's monitoring, and the metadata key, in line with the toggle's state; the bar runs
-# this whenever it connects to obs. Always enforces live (no "nothing tracked, nothing to do" shortcut): a scene
-# collection can carry monitor-and-output this toggle never set, and that must be caught every time, not only when
-# this script remembers setting it.
+# Puts every stream-track input's monitoring and the metadata key in line with the toggle, from OBS's live state: a
+# scene collection can carry monitor-and-output the toggle never set, which would play audio twice.
 def reconcile []: nothing -> nothing {
     let on = (state-get $STATE) == on
     let socket = obs-connect

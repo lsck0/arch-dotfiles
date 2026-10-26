@@ -7,8 +7,9 @@ import qs.Commons
 PanelWindow {
   id: root
 
-  property var bar: null
-  property string moduleName: ""
+  // the widget it hangs off gives the bar and the panel's name
+  property var bar: anchorWidget ? anchorWidget.bar : null
+  property string moduleName: anchorWidget ? anchorWidget.moduleName : ""
   property real padding: Style.surface.padding
   property string title: ""
   readonly property real titleInset: titleBar.visible ? titleBar.height + Style.spacing.sm : 0

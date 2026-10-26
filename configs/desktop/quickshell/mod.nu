@@ -6,10 +6,10 @@ export const meta = {
 }
 
 export const options = {
-    pomodoro_focus_min: {type: int, default: 25, doc: "Minutes of one focus block", label: "Focus", group: pomodoro, min: 1, max: 180, apply: live}
-    pomodoro_break_min: {type: int, default: 5, doc: "Minutes of the short break after a focus block", label: "Break", group: pomodoro, min: 1, max: 60, apply: live}
-    pomodoro_long_break_min: {type: int, default: 15, doc: "Minutes of the long break after the last focus block of a round", label: "Long break", group: pomodoro, min: 1, max: 120, apply: live}
-    pomodoro_cycles: {type: int, default: 4, doc: "Focus blocks before a long break", label: "Cycles", group: pomodoro, min: 1, max: 12, apply: live}
+    pomodoro_focus_min: {type: int, default: 25, doc: "Minutes of one focus block", label: "Focus", group: pomodoro, min: 1, max: 180, apply: live, scope: user}
+    pomodoro_break_min: {type: int, default: 5, doc: "Minutes of the short break after a focus block", label: "Break", group: pomodoro, min: 1, max: 60, apply: live, scope: user}
+    pomodoro_long_break_min: {type: int, default: 15, doc: "Minutes of the long break after the last focus block of a round", label: "Long break", group: pomodoro, min: 1, max: 120, apply: live, scope: user}
+    pomodoro_cycles: {type: int, default: 4, doc: "Focus blocks before a long break", label: "Cycles", group: pomodoro, min: 1, max: 12, apply: live, scope: user}
 }
 
 const CONFIG_DIR = ".config/quickshell"

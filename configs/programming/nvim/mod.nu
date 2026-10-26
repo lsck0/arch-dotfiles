@@ -96,7 +96,7 @@ def install-commands [missing: table]: nothing -> list<string> {
 export def link [cfg: record] {
     let restore = if (plugins-stale | is-not-empty) { ["+Lazy! restore"] } else { install-commands (tools-missing) }
     [
-        (file-link . ($nu.home-dir | path join .config nvim))
+        (file-link . (xdg config nvim))
         (step prefetch ...$restore)
     ]
 }

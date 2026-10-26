@@ -6,22 +6,43 @@ use secrets.nu [secret-is-plaintext secrets-wanted]
 
 const BRANCH = "master"
 const PUSH_TRIES = 3
+const SIGNING_KEY_FILE = "configs/core/gnupg/luca-sandrock.pub.asc"
 const FINGERPRINT_LINE = '(?m)^SIGNING_KEY_FINGERPRINT=(?<fpr>[0-9A-F]{40})$'
 const LUKS_HEADER_MAX_AGE_DAYS = 90
 
-# Fails unless HEAD is on master: a rollback's detached HEAD would commit off it and the push would fail.
+# Fails unless HEAD is on master: a detached HEAD would commit off it and the push would fail.
 export def sync-branch-check [repo: path]: nothing -> nothing {
     if (try { ^git -C $repo symbolic-ref -q --short HEAD | str trim } catch { "" }) != $BRANCH {
         error make {msg: $"HEAD is not on ($BRANCH), go back with: git switch ($BRANCH)"}
     }
 }
 
+# The fetched origin head must carry the owner's signature before anything merges it: the next system apply runs it as
+# root. Checked against the key in the repo with a throwaway keyring, so a machine without the owner's gpg setup
+# (a server, a custom profile) checks it too.
+def origin-verified [repo: path]: nothing -> nothing {
+    let rev = $"origin/($BRANCH)"
+    let gnupg = mktemp --directory
+    let status = with-env {GNUPGHOME: $gnupg} {
+        ^gpg --batch --quiet --import ($repo | path join $SIGNING_KEY_FILE)
+        ^git -C $repo verify-commit --raw $rev | complete
+    }
+    rm --recursive --force $gnupg
+    let signer = $status.stderr | lines | where ($it | str contains "VALIDSIG") | get --optional 0 | default "" | split row " " | last
+    if $status.exit_code != 0 or $signer != (fingerprint $repo) {
+        error make {msg: $"($rev) is not signed by (fingerprint $repo), nothing merged: check git -C ($repo) log ($rev)"}
+    }
+}
+
 # Fast-forwards with local edits autostashed; conflicts stop the run, the submodule is skipped without secrets.
 export def sync-pull [repo: path]: nothing -> nothing {
     sync-branch-check $repo
-    let recurse = if (secrets-wanted) { [] } else { [--no-recurse-submodules] }
-    try { ^git -C $repo pull --ff-only --autostash ...$recurse } catch {
-        error make {msg: $"git pull --ff-only failed: offline, or ($BRANCH) diverged from origin \(git -C ($repo) pull --rebase\)"}
+    try { ^git -C $repo fetch --quiet --no-recurse-submodules origin } catch {
+        error make {msg: "git fetch failed: offline?"}
+    }
+    origin-verified $repo
+    try { ^git -C $repo merge --ff-only --autostash $"origin/($BRANCH)" } catch {
+        error make {msg: $"git merge --ff-only failed: ($BRANCH) diverged from origin \(git -C ($repo) pull --rebase\)"}
     }
     let conflicts = ^git -C $repo diff --name-only --diff-filter=U | lines
     if ($conflicts | is-not-empty) {
@@ -160,9 +181,8 @@ def luks-header-checked-stamp []: nothing -> path {
     $nu.home-dir | path join .local state dotfiles $"luks-header-checked-(open --raw /etc/hostname | str trim)"
 }
 
-# Missing: due. Otherwise due when we last actually ran header-backup.nu (recorded in a stamp outside git,
-# since git-crypt is deterministic and an unchanged header produces no new commit to measure age from)
-# longer than LUKS_HEADER_MAX_AGE_DAYS ago.
+# Due when missing or last backed up over LUKS_HEADER_MAX_AGE_DAYS ago; the stamp lives outside git, since an
+# unchanged header makes no new commit to date it by.
 def luks-header-due [header: path]: nothing -> bool {
     if not ($header | path exists) { return true }
     let stamp = luks-header-checked-stamp
@@ -189,6 +209,7 @@ export def luks-header-sync [repo: path]: nothing -> nothing {
 
 def sync-catch-up [repo: path]: nothing -> nothing {
     ^git -C $repo fetch --quiet --no-recurse-submodules origin
+    origin-verified $repo
     if (^git -C $repo merge --ff-only --autostash $"origin/($BRANCH)" | complete).exit_code != 0 {
         error make {msg: $"($BRANCH) diverged from origin while syncing, nothing committed: git -C ($repo) pull --rebase"}
     }

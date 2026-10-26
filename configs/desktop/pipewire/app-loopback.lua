@@ -7,10 +7,15 @@ OUT_SUFFIX = ".out"
 STATE_NAME = "app-loopback"
 STATE_LISTEN = "listen."
 STATE_OWN = "own."
-STATE_EPOCH = "epoch"
+STATE_SEEN = "seen."
+-- dotted, like every other bookkeeping key: the start loop treats a dotless key as an app
+STATE_EPOCH = "state.epoch"
 -- an own-level record no stream reclaimed within this many service starts is dropped, so a stale one never levels an
 -- unrelated stream of the app days later
 OWN_EPOCHS_KEPT = 2
+-- an app no stream played from within this many service starts loses its loopback, so one-off players (installers,
+-- paplay) don't keep a sink pair forever
+APP_EPOCHS_KEPT = 20
 LISTEN_KEY = "dot.obs-listen"
 OBS_BINARY = "obs"
 SETTLE_MS = 300
@@ -196,8 +201,7 @@ function mute_set(node, mute)
     node:set_param("Props", Pod.Object({ "Spa:Pod:Object:Param:Props", "Props", mute = mute }))
 end
 
--- The record of the levels the stop handed out, by loopback key, node name and media name (a serial dies with the
--- pipewire session, while state-stream restores the handed level to the next session's stream of the same app):
+-- The levels the stop handed out, by loopback key, node name and media name (a serial dies with the pipewire session):
 -- "<key> <epoch> <loopback level> <own level>...", one own level per stream that shares all three, taken in order.
 function own_mark(props, key)
     return STATE_OWN .. key .. "." .. (props["node.name"] or "") .. "." .. (props["media.name"] or "")
@@ -233,22 +237,33 @@ end
 -- each start is a new epoch; records older than OWN_EPOCHS_KEPT starts go
 function epoch_advance()
     local epoch = epoch_current() + 1
-    known[STATE_EPOCH] = tostring(epoch)
+    local changes = {}
     for mark, value in pairs(known) do
         if mark:sub(1, #STATE_OWN) == STATE_OWN then
             local record = own_parse(value)
             if not record or record.epoch < epoch - OWN_EPOCHS_KEPT then
-                known[mark] = nil
+                changes[mark] = false
+            end
+        elseif not mark:find(".", 1, true) then
+            local seen = tonumber(known[STATE_SEEN .. mark])
+            if seen == nil then
+                changes[STATE_SEEN .. mark] = tostring(epoch)
+            elseif seen < epoch - APP_EPOCHS_KEPT then
+                changes[mark] = false
+                changes[STATE_SEEN .. mark] = false
             end
         end
     end
+    -- applied after the walk: a table must not grow while pairs() walks it
+    for mark, value in pairs(changes) do
+        known[mark] = value or nil
+    end
+    known[STATE_EPOCH] = tostring(epoch)
     state:save_after_timeout(known)
 end
 
--- The start, or the stream's next appearance in any later session: a stream the stop handed a level to gives it back
--- to its loopback and returns to its own level (the app's, e.g. spotify's slider). Only once it plays into the
--- loopback: lowered while still on the device, it would jump. A stream without a record keeps its level, since it is
--- the app's own: moving it would move the app's slider. The record stays until its stream comes back.
+-- A stream the stop handed a level to gives it back to its loopback once it plays into it (on the device it would jump);
+-- a stream without a record keeps its level, which is the app's own slider.
 function level_reclaim(stream_id, sink_id, out_id, retries)
     local stream, out = node_get(stream_id), node_get(out_id)
     if not (stream and out) then
@@ -444,6 +459,11 @@ nodes_om:connect("object-added", function(_, node)
         return
     end
     loopback_create(key, name)
+    local epoch = tostring(epoch_current())
+    if known[STATE_SEEN .. key] ~= epoch then
+        known[STATE_SEEN .. key] = epoch
+        state:save_after_timeout(known)
+    end
     local id = node["bound-id"]
     if not installed then
         stream_attach(id, 0, true)

@@ -12,7 +12,7 @@ const PROPS = {properties: {persist.waydroid.multi_windows: "true", persist.wayd
 const FREEFORM = [
     development_settings_enabled enable_freeform_support force_resizable_activities enable_sizecompat_freeform
 ]
-const DEVPERM_RULES = "/etc/udev/rules.d/99-waydroid-devperm.rules"
+const DEVPERM_RULES = "/etc/udev/rules.d/70-waydroid-devperm.rules"
 
 def pins []: nothing -> string {
     $"($SYSTEM_SHA256) ($VENDOR_SHA256)"
@@ -47,7 +47,7 @@ export def system [cfg: record] {
         (if ($CONFIG | path exists) {
             [(ini-merge $CONFIG $PROPS --then [waydroid upgrade --offline])]
         } else { [] })
-        (file-copy 99-waydroid-devperm.rules $DEVPERM_RULES --then [udevadm control --reload-rules])
+        (file-copy 70-waydroid-devperm.rules $DEVPERM_RULES --then [sh -c "udevadm control --reload-rules && udevadm trigger --subsystem-match=drm --subsystem-match=video4linux"])
         (if $up { [] } else { step devperm-tighten })
         (unit-enable waydroid-container.service --now)
         (if $up { step freeform } else { [] })

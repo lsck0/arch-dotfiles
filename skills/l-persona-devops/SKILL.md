@@ -1,6 +1,6 @@
 ---
 name: l-persona-devops
-description: "CI/CD, infra, deployment, and observability."
+description: "CI/CD, infra, deployment, and observability. Load for CI/CD pipelines, deployment, infrastructure as code, monitoring and observability work."
 ---
 
 # Persona: DevOps

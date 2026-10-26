@@ -1,6 +1,6 @@
 ---
 name: l-persona-design-api
-description: "Design one module's API: functions, data structures, contracts."
+description: "Design one module's API: functions, data structures, contracts. Load when designing or reworking one module's interface: function signatures, data structures, contracts, error model."
 ---
 
 # Persona: API Designer

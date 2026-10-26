@@ -40,14 +40,12 @@ export def role-ensure [admin: string]: nothing -> nothing {
 
 export def link [cfg: record] {
     if (which postgres | is-empty) { return [] }
-    let root = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join pgedge-postgres-mcp
+    let root = xdg data pgedge-postgres-mcp
     let old = if ($root | path exists) { ls $root | where type == dir and ($it.name | path basename) != $VERSION | get name } else { [] }
     [
         (fetch-file $URL $SHA256 ($root | path join $VERSION $BINARY) --mode 755 --extract $BINARY)
         ($old | each {|dir| exec $"drop ($dir)" [rm -rf $dir] })
         (link-commands postgres-mcp.nu)
-        (json-merge ($nu.home-dir | path join .claude.json) [
-            (json-set [mcpServers postgres-mcp] {type: stdio, command: ($nu.home-dir | path join .local bin postgres-mcp), args: [], env: {}})
-        ])
+        (mcp-servers {postgres-mcp: {type: stdio, command: ($nu.home-dir | path join .local bin postgres-mcp), args: [], env: {}}})
     ]
 }

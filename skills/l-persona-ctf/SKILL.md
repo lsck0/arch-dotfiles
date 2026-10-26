@@ -1,6 +1,6 @@
 ---
 name: l-persona-ctf
-description: "Solve CTF challenges: crypto, reversing, pwn, web, forensics, misc."
+description: "Solve CTF challenges: crypto, reversing, pwn, web, forensics, misc. Load for CTF challenges and wargames."
 ---
 
 # Persona: CTF Player

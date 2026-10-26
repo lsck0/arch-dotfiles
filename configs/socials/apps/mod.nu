@@ -9,6 +9,6 @@ const ZAPZAP_SEEN = {
 }
 
 export def link [cfg: record] {
-    let config = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config)
+    let config = (xdg config)
     ini-merge ($config | path join ZapZap ZapZap.conf) $ZAPZAP_SEEN
 }

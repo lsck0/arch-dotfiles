@@ -6,6 +6,8 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "weather"
+  hoverPanel: true
+  hoverFill: true
 
   property var report: null
   property string failNote: ""
@@ -175,13 +177,6 @@ BarWidget {
     }
   }
 
-  Rectangle {
-    anchors.fill: parent
-    radius: Style.shape.data
-    color: hoverArea.containsMouse ? Style.hoverFill : "transparent"
-    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
-  }
-
   Row {
     id: trigger
     anchors.centerIn: parent
@@ -240,19 +235,8 @@ BarWidget {
     }
   }
 
-  MouseArea {
-    id: hoverArea
-    anchors.fill: parent
-    hoverEnabled: true
-    cursorShape: Qt.PointingHandCursor
-    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
-    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
-  }
-
   HoverPanel {
     id: panel
-    bar: root.bar
-    moduleName: root.moduleName
     anchorWidget: root
     title: "WEATHER"
     onOpened: { forecastProc.refresh(); alertsProc.refresh() }
@@ -369,6 +353,7 @@ BarWidget {
                     font.bold: true
                   }
                   Text {
+                    textFormat: Text.PlainText
                     anchors.verticalCenter: parent.verticalCenter
                     text: alertItem.modelData.event || alertItem.modelData.kind || "Weather warning"
                     color: Colors.menu.text

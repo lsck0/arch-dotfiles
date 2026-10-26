@@ -6,7 +6,7 @@ const DAEMON = "/usr/lib/systemd/system/nix-daemon.service"
 const RESTART = "systemctl daemon-reload && systemctl try-restart nix-daemon.service"
 
 export def link [cfg: record] {
-    file-copy nix.conf ($nu.home-dir | path join .config nix nix.conf)
+    file-copy nix.conf (xdg config nix nix.conf)
 }
 
 export def system [cfg: record] {

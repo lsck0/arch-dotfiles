@@ -40,6 +40,8 @@ BarWidget {
     }
 
     moduleName: "audio-io"
+
+    hoverPanel: true
     visible: sink !== null
     implicitWidth: button.implicitWidth
     implicitHeight: button.implicitHeight
@@ -65,23 +67,10 @@ BarWidget {
         onWheelMoved: function(delta) {
             Audio.nudge(root.sink, delta);
         }
-        onEntered: {
-            if (root.bar) {
-                root.bar.hoverOpen(root.moduleName);
-            }
-        }
-        onExited: {
-            if (root.bar) {
-                root.bar.hoverTriggerExit(root.moduleName);
-            }
-        }
     }
 
     HoverPanel {
         id: panel
-
-        bar: root.bar
-        moduleName: root.moduleName
         anchorWidget: root
         title: "AUDIO"
         implicitWidth: Style.panelWidth.wide
@@ -305,7 +294,7 @@ BarWidget {
                         width: (parent.width - parent.spacing) / 2
                         centered: true
                         glyph: root.micMuted ? "\u{f036d}" : "\u{f036c}"
-                        label: root.micMuted ? "Muted" : "Mute"
+                        label: root.micMuted ? "Mic muted" : "Mute mic"
                         on: root.micMuted
                         onActivated: root.toggleMicMute()
                     }
@@ -314,7 +303,7 @@ BarWidget {
                         width: (parent.width - parent.spacing) / 2
                         centered: true
                         glyph: root.deafened ? "\u{f07ce}" : "\u{f02cb}"
-                        label: root.deafened ? "Deafened" : "Deafen"
+                        label: root.deafened ? "All muted" : "Mute all"
                         on: root.deafened
                         onActivated: root.toggleDeafen()
                     }
@@ -375,33 +364,6 @@ BarWidget {
             font.bold: true
             font.capitalization: Font.AllUppercase
             font.letterSpacing: Style.labelTracking
-        }
-
-    }
-
-    component SectionHead: Item {
-        id: head
-
-        property string text: ""
-        default property alias extras: extrasRow.data
-
-        width: parent ? parent.width : 0
-        implicitHeight: Math.max(headTitle.implicitHeight, extrasRow.implicitHeight)
-
-        PanelSectionHeader {
-            id: headTitle
-
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            text: head.text
-        }
-
-        Row {
-            id: extrasRow
-
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.spacing.xs
         }
 
     }

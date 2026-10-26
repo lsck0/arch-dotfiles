@@ -9,6 +9,8 @@ Rectangle {
   property string trailing: ""
 
   property bool stateMarker: false
+  // labels read like the stat rows beside them; a name (a player, a module) opts out
+  property bool upper: true
 
   property bool on: false
 
@@ -84,6 +86,8 @@ Rectangle {
       color: root._text
       font.family: Style.font.family
       font.pixelSize: Style.font.body
+      font.capitalization: root.upper ? Font.AllUppercase : Font.MixedCase
+      font.letterSpacing: root.upper ? Style.labelTracking : 0
       elide: Text.ElideRight
     }
   }

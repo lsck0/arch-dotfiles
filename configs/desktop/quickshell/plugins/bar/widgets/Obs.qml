@@ -177,6 +177,10 @@ BarWidget {
     }
 
     moduleName: "obs"
+
+    hoverPanel: true
+
+    hoverFill: true
     visible: connected || faulted
     implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
     implicitHeight: barSize
@@ -231,21 +235,6 @@ BarWidget {
                     console.warn(line);
 
             }
-        }
-
-    }
-
-    Rectangle {
-        anchors.fill: parent
-        radius: Style.shape.data
-        color: hoverArea.containsMouse ? Style.hoverFill : "transparent"
-
-        Behavior on color {
-            ColorAnimation {
-                duration: Style.motion.fast
-                easing.type: Style.motion.fastEasing
-            }
-
         }
 
     }
@@ -317,28 +306,7 @@ BarWidget {
 
     }
 
-    MouseArea {
-        id: hoverArea
-
-        anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onEntered: {
-            if (root.bar) {
-                root.bar.hoverOpen(root.moduleName);
-            }
-        }
-        onExited: {
-            if (root.bar) {
-                root.bar.hoverTriggerExit(root.moduleName);
-            }
-        }
-    }
-
     HoverPanel {
-
-        bar: root.bar
-        moduleName: root.moduleName
         anchorWidget: root
         title: "OBS"
         implicitWidth: Style.panelWidth.normal

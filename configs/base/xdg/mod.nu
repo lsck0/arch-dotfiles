@@ -23,9 +23,10 @@ const CAPITALIZED = [Desktop Documents Downloads Music Pictures Projects Public 
 
 const RECLAIM = [
     [name target mode];
-    [.dotnet .local/share/dotnet move] [.omnisharp .config/omnisharp move] [.ipython .config/ipython move]
-    [.jupyter .config/jupyter move] [.parallel .config/parallel move] [.w3m .local/state/w3m move]
-    [.sage .local/share/sage move] [.minikube .local/share/minikube/.minikube move] [.npm .cache/npm move]
+    # the install stage runs npm (obs, mason) before the session's environment.d exists; app-dirs.conf covers it after
+    [.npm .cache/npm move]
+    # DOTNET_CLI_HOME moves the sdk's dir, but the runtime's X509 store hardcodes ~/.dotnet/corefx
+    [.dotnet .local/share/dotnet link]
     [.cargo .local/share/cargo link] [.rustup .local/share/rustup link] [.elan .local/share/elan link]
     [.ghcup .local/share/ghcup link] [.opam .local/share/opam link] [.jai .local/share/jai link]
     [.go .local/share/go link] [.kani .local/share/kani link] [.nuget .local/share/nuget link]
@@ -104,9 +105,10 @@ export def link [cfg: record] {
         (files-into $config mimeapps.list user-dirs.conf user-dirs.dirs)
         (files-into ($config | path join environment.d) app-dirs.conf)
         ($RECLAIM | where mode != move and ((home $it.name | path type) not-in [dir file]) | each {|r| file-link (home $r.target) (home $r.name) })
-        # nemo also claims FileManager1 and sorts first; the user dir wins
-        (file-copy dolphin.FileManager1.service
-            (home .local share dbus-1 services org.freedesktop.FileManager1.service))
+        # nemo also claims FileManager1 and sorts first; the user dir wins, so only where dolphin exists
+        (if ("/usr/bin/dolphin" | path exists) {
+            file-copy dolphin.FileManager1.service (home .local share dbus-1 services org.freedesktop.FileManager1.service)
+        } else { [] })
         (file-copy home.hidden (home .hidden))
         (autostart-hidden | each {|id|
             let entry = $"[Desktop Entry]\nType=Application\nName=($id)\nHidden=true\n"

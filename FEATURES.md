@@ -45,8 +45,8 @@ the tree itself; this file says what they do.
   offers to remove packages no module declares.
 - `dot plan`: what an apply would do, touching nothing; `--system` for the system layer; `--order` the run order, `--modules` every module.
 - `dot status`: generation, last run, pending migrations and system parts, managed files changed since their apply, then
-  every health check (failures, pending applies, drift, firewall, units, the [lsck0] snapshot, secrets due for rotation or
-  a recovery drill) and the drift report each machine publishes into `configs/secrets/state/drift/<host>`; `--brief` the
+  every health check (failures, pending applies, firewall, units, the [lsck0] snapshot, secrets due for rotation or
+  a recovery drill); `--brief` the
   failures alone, for the login notice and the bar; `--json` all of it.
 - `dot set`: every option off its default with value and source (default, platform, profile, detected); a module or
   `<module>.<option>` shows those; a value sets one, validated, stored in the profile (or `--machine` in the platform),
@@ -56,8 +56,6 @@ the tree itself; this file says what they do.
   keeps it. `unlink <module>` reverses a module's last apply (unchanged files, links and units go, originals come
   back); `remove <module>` also turns it off (`--machine` for the machine) and offers its packages for removal;
   `restore <module>` runs its restore verb.
-- `dot rollback`: back to an earlier generation's config layer, undoing newer migrations; packages stay as
-  installed; `--dry-run` only reports what it would do.
 - `dot theme [name|random]`: wallpaper and theme switching, fzf with previews without a name (see Theming).
 - `dot secrets unlock|lock|init|seal`: the git-crypt `configs/secrets/` worktree behind the YubiKey; `--identity <age
   file>` without one. `dot secrets audit [rotated|drilled]`: what is due for rotation or a recovery drill, and recording
@@ -67,7 +65,7 @@ the tree itself; this file says what they do.
 - `dot internal`: the plumbing other code runs, out of `dot --help`: `migrate` (`--system`, `--baseline`), `backup`
   (`--roundtrip` backs up, restores into an empty home and fails on any difference), `fetch file|git` (pinned
   downloads and checkouts), `prune <days>`, `gen` (`mirror/packages.txt`), `packages`, `watch` (every option and live
-  state change as JSON lines), `theme get|list|apply`, `drift report|publish` (hourly), `audit remind`, `bootstrap`,
+  state change as JSON lines), `theme get|list|apply`, `audit remind`, `bootstrap`,
   `iso-install`, `stage` (the install chain), `iso` (the install iso), `complete <words>` and `completions zsh|nu`
   (installed by `base/dot`).
 - `dot test lint`: static rules (module refs, layer rules, `~/sync` writes, stray files, platform facts and options,
@@ -501,7 +499,6 @@ Registered in `~/.claude.json` by the module that owns the app; each listens on 
   `configs/secrets/state/<app>/`, written by `dot sync`'s backup and restored by each module's link.
 - syncthing: `~/sync` with the NAS (30 day versioning), announce, relays and NAT off; GUI password from secrets.
 - NAS share at `/mnt/homelab` (automount, sealed SMB 3.1.1) on home or wg0; `~/nas` symlink.
-- `dot rollback` for generations.
 - App state round trips: Claude, gh token, OBS collections, FFXIV and Dalamud, Modrinth, caido, Plasma, Spotify prefs.
 
 ## Keybinds
@@ -585,7 +582,7 @@ the value comes from the hardware or system when the platform and profile leave 
 | `base/nftables.ssh_knock_window` | `string` | `"1h"` | How long a successful SSH port-knock keeps that IP allowed through to port 2222, nft timeout syntax |
 | `base/oomd.session_memory_low` | `filesize?` | detected | session.slice's MemoryLow, the desktop working set a build's reclaim keeps; null: 15% of RAM, 2 GiB max |
 | `base/pacman.yay_cache_days` | `int` | `30` | Days an unused yay build cache dir may sit in ~/.cache/yay before yay-cache-clean.timer deletes it, find -mtime argument |
-| `base/pam.fido_origin` | `string?` | detected | FIDO2 origin and appid every enrolled key's mapping was made for (pamu2fcfg -o); null: pam://<hostname> |
+| `base/pam.fido_origin` | `string` | `"pam://lsck0"` | FIDO2 origin and appid every enrolled key's mapping was made for (pamu2fcfg -o) |
 | `base/smartd.test_schedule` | `string` | `"S/../.././02\|L/../../6/03"` | When smartd runs self-tests, smartd.conf(5) -s regex syntax (default: short test daily at 02:00, long test Saturday at 03:00) |
 | `base/ssh.homelab_hosts` | `list<string>` | `[]` | ssh patterns of the homelab's guests, router and hypervisor: root, accept-new host keys from known_hosts.homelab (homelab profiles only) |
 | `base/ssh.wake_router` | `string?` | unset | The always-on homelab router whose `wol-pc` wakes the desktop (wake-pc, homelab profiles only) |
@@ -644,8 +641,9 @@ the value comes from the hardware or system when the platform and profile leave 
 | `gaming/gamemode.amd_performance_level` | `string?` | detected | The amdgpu power_dpm_force_performance_level during a game; high holds the clocks up, wasteful on battery |
 | `gaming/lutris.dpi` | `int?` | detected | Logical dpi wine apps draw at under xwayland (LogPixels), 96 times the main monitor's scale |
 | `gaming/mangohud.font_size` | `int` | `18` | MangoHud overlay text size in pixels, MangoHud.conf font_size |
-| `gaming/pd2.game_dir` | `string?` | detected | The ProjectD2 dir; detected under ~/sync/games/d2 |
-| `gaming/pd2.save_dir` | `string?` | detected | The single player saves (.d2s, plugy's .d2x and .sss); detected as Save beside the install |
+| `gaming/pd2.game_dir` | `string?` | detected | The season 3 ProjectD2 dir; detected under ~/sync/games/d2 |
+| `gaming/pd2.save_dir` | `string?` | detected | Season 3's single player saves (.d2s, plugy's .d2x and .sss); detected as Save beside the install |
+| `gaming/pd2.s14_save_dir` | `string?` | detected | Season 14's single player saves and shared stash; detected as ~/sync/games/d2/Save-S14 when it exists |
 | `llm/vllm.model` | `string` | `"RogerS-01/Josiefied-Qwen3-8B-abliterated-v1-AWQ"` | The hugging face repo vllm serves; an uncensored 4-bit AWQ build of Josiefied-Qwen3-8B-abliterated-v1 |
 | `llm/vllm.model_revision` | `string` | `"0244c2514cc272a603368c0440ff3002143b2336"` | The model repo's commit, weights and tokenizer alike; bump from https://huggingface.co/api/models/<model>/revision/main |
 | `llm/vllm.tool_call_parser` | `string` | `"hermes"` | vllm's tool call parser for the model's chat format (hermes for qwen3, gemma4 for gemma 4) |

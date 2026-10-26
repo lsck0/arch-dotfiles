@@ -8,16 +8,13 @@ export const options = {
         default: "zstd"
         doc: "Compression used for the zram swap device, zram-generator.conf(5) compression-algorithm (a weaker CPU may prefer lz4)"
         label: "Zram compression algorithm"
-        scope: machine
     }
     swappiness: {
         type: int
         default: 150
         doc: "How aggressively the kernel swaps to zram versus reclaiming page cache, sysctl(8) vm.swappiness (a zram swap favors higher than disk swap's usual 60)"
-        label: "Swappiness"
         min: 0
         max: 200
-        scope: machine
     }
 }
 

@@ -7,19 +7,15 @@ export const options = {
         type: int
         default: 95
         doc: "Battery charge level below which charging starts (laptops whose firmware supports thresholds)"
-        label: "Charge start"
         min: 0
         max: 100
-        scope: machine
     }
     charge_stop: {
         type: int
         default: 100
         doc: "Battery charge level at which charging stops; 80 spares an always-plugged battery"
-        label: "Charge stop"
         min: 1
         max: 100
-        scope: machine
     }
 }
 

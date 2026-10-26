@@ -22,6 +22,7 @@ Load the skill a task needs from `skills/<name>/SKILL.md`.
 | `l-dotfiles-gui-testing` | launching an app only to screenshot or check it: the headless output procedure |
 | `l-dotfiles-live-debug` | reading the live system: status, run logs, journals, drift, denials, who wrote a file |
 | `l-dotfiles-streaming` | OBS collections and websocket, the bar's obs widget, Spotify and Discord live inspection |
+| `l-homelab` | the homelab's services and hostnames, reaching them, their secrets, lab.json, requesting lab changes |
 
 Every `skills/l-*` is global, linked into each agent's skills dir by `skills/mod.nu`: `l-dotfiles` (the repo overview)
 and the `l-dotfiles-*` above cover the dotfiles and system configuration, the other `l-*` are Luca's style guides,
@@ -44,13 +45,13 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
 - `dot plan [mod...] [--system]`: what an apply would do (actions per module, drift, pending migrations,
   undeclared packages); `--order` the run order, `--modules` every module. Touches nothing.
 - `dot status [--brief] [--json]`: generation, pending work, managed files changed since their apply, every health
-  check, secrets due, each machine's drift report. `dot set [mod[.key] [value]] [--default] [--machine] [--json]`:
+  check, secrets due. `dot set [mod[.key] [value]] [--default] [--machine] [--json]`:
   list, show, set or reset options. `dot module adopt|reset|unlink|remove|restore`, `dot explain <path|package>`,
   `dot log [--trace]`, `dot secrets audit`.
 - `dot internal <cmd>`: what scripts, units and completion run, kept out of `dot --help` (`scripts/lib/internal.nu`):
   `gen` regenerates `mirror/packages.txt` (`dot test lint` fails when it drifts), `iso [--out] [--work] [--mirror]
   [--sign] [--keep]` builds the install iso (root for mkarchiso), `packages`, `migrate`, `fetch`,
-  `stage`, `bootstrap`, `iso-install`, `backup`, `update`, `watch`, `prune`, `theme get|list|apply`, `drift report|publish`,
+  `stage`, `bootstrap`, `iso-install`, `backup`, `update`, `watch`, `prune`, `theme get|list|apply`,
   `audit remind`, `complete <words>` / `completions zsh|nu` (subcommands, flags, module ids, option keys and values,
   themes; `base/dot` installs `_dot` and the nushell externs under `$XDG_DATA_HOME`).
 - Agents never reach root: run `dot` with `DOT_SYSTEM=skip` (or `--no-system` on sync, apply, set); a system part is
@@ -71,7 +72,7 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
 - `platforms/<name>.nuon`: machine facts and groups; `<name>.options.nuon` its option values. `profiles/<name>.nuon`:
   user capabilities, copied to `~/.config/dotfiles/profile.nuon` when bootstrap or `adduser-dotfiles --profile` picks
   it (`custom` picks none). A platform's `extra_packages` also land in `mirror/packages.txt`, the mirror's build list.
-- `migrations/<NNNN>-<slug>.nu`: one-time structural changes (`up`, `down`), run once per machine by `dot sync`; a fresh
+- `migrations/<NNNN>-<slug>.nu`: one-time structural changes (`up`), run once per machine by `dot sync`; a fresh
   install marks every existing one as run. `0000-sample.nu` is the empty template to copy.
 - `scripts/`: commands linked into `~/.local/bin`; `scripts/lib/*.nu` the engine (`module.nu` the module API,
   `pipeline.nu` the run, `converge.nu` plan and apply, `system-apply.nu` root's one entry, `system.nu` the root copy).
@@ -81,7 +82,7 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
 - `configs/desktop/quickshell/` (bar, launcher, lock, notifications), `configs/desktop/hyprland/` (Lua config).
 - `configs/secrets/`: the group `secrets`, a private submodule pulled only for a profile with `secrets`. `keys/` in
   it holds every credential, git-crypt encrypted (nothing else is); `state/` the plaintext app state that is no
-  credential (game and plugin configs, the drift reports). Beside them, the owner's own modules (`yubikey`, `capgemini`, `weblinks`, anything personal): plaintext, so found locked; on wherever the
+  credential (game and plugin configs). Beside them, the owner's own modules (`yubikey`, `capgemini`, `weblinks`, anything personal): plaintext, so found locked; on wherever the
   submodule is pulled, never a platform's choice; applied after every other group; their packages kept out of
   `mirror/packages.txt`.
 - `mirror/`: own pkgbuilds and `overrides.conf` for the `[lsck0]` package mirror;

@@ -4,7 +4,7 @@ export const meta = {inputs: [scripts/dot.nu scripts/lib/internal.nu scripts/lib
 
 export def link [cfg: record] {
     let dot = $env.DOTFILES | path join scripts dot.nu
-    let data = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share)
+    let data = (xdg data)
     [
         (file-text ($data | path join zsh site-functions _dot) (^nu --no-config-file $dot internal completions zsh) --generated)
         (file-text ($data | path join nushell vendor autoload dot.nu) (^nu --no-config-file $dot internal completions nu) --generated)

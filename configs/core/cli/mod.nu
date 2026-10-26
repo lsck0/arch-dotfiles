@@ -12,11 +12,11 @@ export const meta = {
 }
 
 # the pages are data for offline lookups, not a cache to sweep: under XDG data, set as tealdeer's cache_dir
-def tldr-dir []: nothing -> path { $nu.home-dir | path join .local share tealdeer }
+def tldr-dir []: nothing -> path { xdg data tealdeer }
 
 export def link [cfg: record] {
     [
-        (file-text ($nu.home-dir | path join .config tealdeer config.toml)
+        (file-text (xdg config tealdeer config.toml)
             ((open --raw tealdeer.toml) + $"\n[directories]\ncache_dir = \"(tldr-dir)\"\n"))
         (unit-file tldr-update.service)
         (unit-file tldr-update.timer --enable --now)

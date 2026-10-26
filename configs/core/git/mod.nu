@@ -49,7 +49,7 @@ export def link [cfg: record] {
         (file-text ($dir | path join config) (ini $sections))
         (file-copy template/hooks/pre-commit ($template | path join hooks pre-commit) --mode 755)
         (if (has mergiraf) { file-text ($dir | path join attributes) $"(^mergiraf languages --gitattributes)\n" } else { [] })
-        (if (has jj) { file-text ($nu.home-dir | path join .config jj config.toml) (jj-config $identity) } else { [] })
+        (if (has jj) { file-text (xdg config jj config.toml) (jj-config $identity) } else { [] })
         (link-commands wtree.nu)
     ]
 }

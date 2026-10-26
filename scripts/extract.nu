@@ -43,7 +43,11 @@ def stage-fill [archive: path, stage: path]: nothing -> nothing {
     if $listing.exit_code != 0 {
         sevenzip-extract $archive $stage
     } else {
-        $listing.stdout | lines | parse --regex $BSDTAR_ROW
+        let rows = $listing.stdout | lines | where $it != ""
+        let parsed = $rows | parse --regex $BSDTAR_ROW
+        # a row the regex skips would also skip the size and count limits
+        if ($parsed | length) != ($rows | length) { error make {msg: $"unreadable entries in the listing of ($archive)"} }
+        $parsed
         | each {|e| {name: $e.name, size: $e.size, link: ($e.mode starts-with l or $e.name =~ " link to ")} }
         | into int size
         | entries-check $in

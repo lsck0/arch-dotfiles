@@ -6,17 +6,16 @@ use log.nu *
 use state.nu [SYSTEM_REPO SYSTEM_STATE]
 use pipeline.nu [pipeline-load pipeline-plan pipeline-apply]
 use modules.nu [modules-packages]
-use ledger.nu [packages-convergence ledger-get ledger-set ledger-packages ledger-units]
+use ledger.nu [packages-convergence ledger-set ledger-packages ledger-units]
 use preserve.nu [tty-confirm preserve-prune]
-use migrate.nu [migrations-run migrations-list migration-run]
+use migrate.nu [migrations-run]
 use system.nu [system-unpack system-secrets ENTRY]
+use cli.nu [supervise self-argv]
 
 const EXIT_FAILURES = 1
 const EXIT_ABORTED = 2
 const OFFLINE_WAIT_S = 120
-# the mirror answers 429 past its per-ip budget; each pass after the budget refills fetches the next files.
-# The wait grows linearly (5s, 10s, ... up to a minute): a client hammering a refusing mirror every 5s only
-# deepens the refusal. 40 tries wait about 35 minutes in all.
+# the mirror answers 429 past its per-ip budget: the wait grows 5s per try up to a minute, about 35 minutes in all
 const DOWNLOAD_TRIES = 40
 const OFFLINE_TRIES = 3
 const DOWNLOAD_BACKOFF_STEP = 5sec
@@ -37,23 +36,15 @@ def repo-guard []: nothing -> path {
     $repo
 }
 
-# Re-execs this very command line (the arguments after this script's path, verbatim) once under the lock.
+# Re-execs this very command line (the arguments after this script's path, verbatim) once under the lock, always
+# through /usr/bin/nu and the root-owned copy.
 def locked []: nothing -> nothing {
-    if ($env.DOT_SYSTEM_LOCKED? | is-empty) {
-        mkdir $SYSTEM_STATE
-        let argv = open --raw $"/proc/($nu.pid)/cmdline" | into binary | decode utf-8 | split row (char nul) | drop 1
-        let args = $argv | skip until { $in | str ends-with $ENTRY } | skip 1
-        exec ($SYSTEM_REPO | path join scripts lib interruptible.sh) --lock ($SYSTEM_STATE | path join lock) env DOT_SYSTEM_LOCKED=1 /usr/bin/nu --no-config-file ($SYSTEM_REPO | path join $ENTRY) ...$args
-    }
+    let args = self-argv | skip until { $in | str ends-with $ENTRY } | skip 1
+    supervise --lock ($SYSTEM_STATE | path join lock) --argv [/usr/bin/nu --no-config-file ($SYSTEM_REPO | path join $ENTRY) ...$args]
 }
 
-def --env failures-start []: nothing -> nothing {
-    $env.FAILURES_FILE = $SYSTEM_STATE | path join FAILURES
-    "" | save --force $env.FAILURES_FILE
-}
-
-def failures-end [what: string]: nothing -> nothing {
-    let failed = open --raw $env.FAILURES_FILE | str trim
+def --env failures-end [what: string]: nothing -> nothing {
+    let failed = failures-take
     if ($failed | is-not-empty) {
         print -e $"=== system FAILED ===\n($failed)"
         exit $EXIT_FAILURES
@@ -135,7 +126,7 @@ def "main install" [--unattended]: nothing -> nothing {
     let repo = repo-guard
     locked
     unattended $unattended
-    failures-start
+    failures-begin ($SYSTEM_STATE | path join FAILURES)
     # the install stage runs base/pacman's verb, so root's state converts before it as before config
     migrations-run $repo system | ignore
     ^pacman-key --init
@@ -176,7 +167,7 @@ def "main config" [--unattended, --force]: nothing -> nothing {
     let repo = repo-guard
     locked
     unattended $unattended
-    failures-start
+    failures-begin ($SYSTEM_STATE | path join FAILURES)
     # a pending migration converts root's state before any verb reads it, also without a sync
     migrations-run $repo system | ignore
     let ctx = pipeline-load $repo system
@@ -204,7 +195,7 @@ def "main config" [--unattended, --force]: nothing -> nothing {
     failures-end config
 }
 
-# remove explicit packages no module declares, keep list aside, recorded in the ledger for rollback
+# remove explicit packages no module declares, after a yes
 def "main packages" [--yes, --plan, --unattended]: nothing -> nothing {
     let repo = repo-guard
     unattended $unattended
@@ -220,9 +211,7 @@ def "main packages" [--yes, --plan, --unattended]: nothing -> nothing {
     let kept = $found.remove | where $it not-in $orphans
     if ($kept | is-not-empty) { log-info $"still needed by another package, kept as a dependency: ($kept | str join ' ')" }
     if ($orphans | is-empty) { return }
-    let versions = ^pacman -Q ...$orphans | lines
     ^pacman -Rns --noconfirm ...$orphans
-    ledger-set removed (ledger-get removed | append ($versions | each {|v| $"($v) (date now | format date '%F')" }))
 }
 
 def "main module" [id: string, verb: string]: nothing -> nothing {
@@ -233,16 +222,9 @@ def "main module" [id: string, verb: string]: nothing -> nothing {
     if not (module-system $ctx $id) { exit 1 }
 }
 
-# migrate --down <id>...: a rollback undoes root's later migrations with the copy that still has them
-def "main migrate" [--baseline, --down, ...ids: string]: nothing -> nothing {
+def "main migrate" [--baseline]: nothing -> nothing {
     let repo = repo-guard
     locked
-    if $down {
-        let applied = ledger-get migration
-        migrations-list $repo | where layer == system and id in $ids and id in $applied | reverse
-        | each { migration-run $in down } | ignore
-        return
-    }
     migrations-run $repo system --baseline=$baseline | ignore
 }
 

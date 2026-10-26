@@ -28,9 +28,8 @@ def request-take []: nothing -> string {
     try { open --raw $taken | str trim } catch { "" }
 }
 
-# Links `file` and recolors with wallust; false when a newer request arrived meanwhile, so the theme verbs of this
-# palette would be wasted. A theme's font applies only when the wallpaper changes: a re-run on the same one (toggle-font
-# asks for it) keeps the font just picked.
+# Links `file` and recolors with wallust; false when a newer request arrived meanwhile. A theme's font applies only
+# when the wallpaper changes, so toggle-font's re-run keeps the font just picked.
 def recolor [file: path]: nothing -> bool {
     if not ($file | path exists) { error make {msg: $"wallpaper not found: ($file)"} }
     let switched = (wallpaper-get) != ($file | path expand)
@@ -42,7 +41,7 @@ def recolor [file: path]: nothing -> bool {
         | each {|f| {name: ($f | path parse | get stem), path: $f, spec: (open $f)} }
         | where spec.wallpaper? == ($file | path basename) | get --optional 0
     let nvim_theme = if $theme != null {
-        # by path: wallust matches a name as a prefix, so gruvbox-dark was ambiguous with gruvbox-dark-soft
+        # by path: wallust matches a name as a prefix, gruvbox-dark would also match gruvbox-dark-soft
         ^wallust cs -s --wallpaper $file $theme.path
         if $switched and ($theme.spec.font? | default "" | is-not-empty) { font-save {family: $theme.spec.font} }
         $theme.name
@@ -54,9 +53,7 @@ def recolor [file: path]: nothing -> bool {
     not (request-pending)
 }
 
-# The unit's body: applies the newest request, one per run, so the unit's timeout bounds one switch; a request
-# written meanwhile keeps the file there and dot-theme.path starts the next run, so a burst costs at most the running
-# switch plus the last.
+# The unit's body: the newest request, one per run; dot-theme.path starts the next run for a request written meanwhile.
 export def theme-serve []: nothing -> nothing {
     let request = request-take
     if $request == "" { return }

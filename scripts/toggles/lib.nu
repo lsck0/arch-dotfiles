@@ -56,6 +56,11 @@ export def toggle-run [name: string, ...args: string]: nothing -> any {
     ^($TOGGLES_DIR | path join $"toggle-($name).nu") ...$args
 }
 
+# A machine without the module has no unit: the toggle is hidden there, not offered and failing.
+export def unit-exists [unit: string]: nothing -> bool {
+    (^systemctl cat $unit | complete).exit_code == 0
+}
+
 export def unit-active [unit: string]: nothing -> bool {
     (^systemctl is-active --quiet $unit | complete).exit_code == 0
 }
@@ -129,6 +134,7 @@ export def switch-run [switch: record, action: string, --json]: nothing -> any {
 export def service-switch [label: string, unit: string]: nothing -> record {
     {
         label: $label
+        available: {|| unit-exists $unit }
         is-on: {|| unit-active $unit }
         on: {|| ^systemctl --no-ask-password start $unit }
         off: {|| systemctl-guarded stop $unit }

@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "../../notifications/components"
@@ -10,33 +9,15 @@ import "../../notifications/NotificationLogic.js" as NotificationLogic
 BarWidget {
   id: root
   moduleName: "notifications"
+  hoverPanel: true
 
   readonly property var service: root.bar && root.bar.shellHost
     ? root.bar.shellHost.plugin("service.notifications") : null
-  readonly property string historyDir: service ? service.historyDir : ""
-  readonly property string popupDir: service ? service.popupStateDir : ""
-
   readonly property bool dndOn: service ? service.doNotDisturb : false
-  property var history: []
+  readonly property var history: service ? service.history : []
 
   implicitWidth: button.implicitWidth
   implicitHeight: barSize
-
-  property bool historyStale: false
-
-  function refreshHistory() {
-    if (!root.historyDir) return
-    if (historyProc.running) root.historyStale = true
-    else historyProc.running = true
-  }
-
-  onHistoryDirChanged: refreshHistory()
-  Component.onCompleted: refreshHistory()
-  Connections {
-    target: root.service
-    enabled: root.service !== null
-    function onHistoryRevisionChanged() { root.refreshHistory() }
-  }
 
   function findEntry(name) {
     var want = String(name || "").trim().toLowerCase()
@@ -80,34 +61,11 @@ BarWidget {
   }
 
   function clearHistory() {
-    if (!root.service) return
-    root.service.clearHistory()
-    root.history = []
+    if (root.service) root.service.clearHistory()
   }
 
   function removeEntry(entry) {
-    if (!root.service) return
-    root.service.removeEntry(entry.originalId || 0, entry.timestamp || 0)
-    root.history = root.history.filter(function(e) { return e !== entry })
-  }
-
-  Process {
-    id: historyProc
-    command: ["bash", "-c",
-      "shopt -s nullglob; files=(\"$1\"/*.json \"$2\"/*.json); " +
-      "{ (( ${#files[@]} )) && awk 1 \"${files[@]}\"; } | " +
-      "jq -R -n -c '[inputs | fromjson? | objects] | unique_by([.timestamp, .originalId]) | sort_by(-.timestamp)'",
-      "--", root.popupDir, root.historyDir]
-    onExited: if (root.historyStale) {
-      root.historyStale = false
-      Qt.callLater(root.refreshHistory)
-    }
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try { root.history = JSON.parse(text || "[]") } catch (e) {}
-      }
-    }
+    if (root.service) root.service.removeEntry(entry.originalId || 0, entry.timestamp || 0)
   }
 
   BarIconButton {
@@ -122,20 +80,16 @@ BarWidget {
     onPressed: function(b) {
       if (b === Qt.MiddleButton) root.toggleDnd()
     }
-    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
-    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
 
   HoverPanel {
     id: panel
-    bar: root.bar
-    moduleName: root.moduleName
     anchorWidget: root
     title: "NOTIFICATIONS"
     implicitWidth: Style.panelWidth.normal
     implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2 + titleInset + Style.fx.bracketWidth)
 
-    onOpened: root.refreshHistory()
+    onOpened: if (root.service) root.service.refreshHistory()
 
     property double nowMs: Date.now()
     Timer {
@@ -160,6 +114,17 @@ BarWidget {
         id: content
         width: parent.width
         spacing: Style.spacing.xs
+
+        PanelRow {
+          width: parent.width
+          label: "Do not disturb"
+          trailing: "silence popups"
+          stateMarker: true
+          on: root.dndOn
+          onActivated: root.toggleDnd()
+        }
+
+        PanelSeparator {}
 
         Item {
           width: parent.width
@@ -186,17 +151,6 @@ BarWidget {
             }
           }
         }
-
-        PanelRow {
-          width: parent.width
-          label: "Do not disturb"
-          trailing: "silence popups"
-          stateMarker: true
-          on: root.dndOn
-          onActivated: root.toggleDnd()
-        }
-
-        PanelSeparator {}
 
         Text {
           visible: root.history.length === 0

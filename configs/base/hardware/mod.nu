@@ -18,7 +18,6 @@ export const options = {
         doc: "NVIDIA driver branch: open (Turing on), 580xx (Maxwell to Volta), 470xx (Kepler), none (nouveau)"
         label: "NVIDIA driver"
         choices: [open 580xx 470xx none]
-        scope: machine
     }
 }
 

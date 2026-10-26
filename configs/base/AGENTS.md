@@ -9,7 +9,7 @@ one of the module's own exported commands, run at apply time.
 
 - `apparmor`: AppArmor confinement policy and the own/local profiles. See `apparmor/AGENTS.md`.
 - `boot`: UKI, secure boot (sbctl), luks, remote-unlock, the boot barrier. See `boot/AGENTS.md`.
-- `cleanup`: journald size cap and periodic pacman cache/orphan cleanup.
+- `cleanup`: journald size cap, the home-sweep timer and nix garbage collection (the pacman cache is `systemd`'s `paccache.timer`).
 - `coredump`: systemd-coredump storage, age and size limits.
 - `dot`: dot's own wiring: the zsh and nushell completions (`dot internal completions`) and the polkit action
   `system-apply.nu` runs under (`dev.lsck0.dotfiles.system-apply` in `dev.lsck0.dotfiles.policy`, auth_admin every
@@ -38,7 +38,7 @@ one of the module's own exported commands, run at apply time.
   The owner's module `configs/secrets/yubikey` writes that file: its `u2f_keys` mapped to the logins in root's
   `/var/lib/dotfiles/owners` (written by the bootstrap and `adduser-dotfiles --profile` for a profile with
   `secrets`), never by name. Without it, the password.
-- `perf`: I/O scheduler tuning and perf_event access.
+- `perf`: the I/O scheduler udev rule.
 - `plymouth`: boot splash.
 - `portmaster`: the application firewall; global rules and the per-connection/dns bypass (see `pentesting`, `gaming`).
 - `powercap`: RAPL power limits.

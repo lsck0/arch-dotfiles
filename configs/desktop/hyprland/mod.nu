@@ -6,8 +6,8 @@ use ../../core/wallust/palette.nu [RADIUS_PX BORDER_PX OPACITY_WINDOW OPACITY_SU
 export const meta = {
     packages: {
         pacman: [
-            app2unit bemenu-wayland brightnessctl cmake cpio ddcutil grim hyprcursor hypridle hyprland hyprlock hyprpicker
-            hyprpm libnotify libx11 meson mission-center omarchy-share-picker-git pavucontrol playerctl polkit
+            app2unit bemenu-wayland brightnessctl cpio ddcutil grim hyprcursor hypridle hyprland hyprlock hyprpicker
+            libnotify libx11 mission-center omarchy-share-picker-git pavucontrol playerctl polkit
             polkit-kde-agent qt5-wayland qt6-wayland rose-pine-cursor rose-pine-hyprcursor slurp wayland
             wayland-boomer-git wl-clip-persist wl-clipboard xdg-desktop-portal-gtk xdg-desktop-portal-hyprland
             xdg-desktop-portal-kde xorg-server xorg-xauth xorg-xhost xorg-xinput xorg-xwayland ydotool
@@ -22,17 +22,13 @@ export const options = {
         type: list<record>?
         default: null
         doc: "One hl.monitor per output: output, mode, position, scale; detected from the connected outputs, any other output gets its preferred mode and an auto scale"
-        label: "Monitors"
         group: display
-        scope: machine
     }
     main_monitor: {
         type: string?
         default: null
         doc: "The output holding workspace 1, the bar's notifications, steam's toasts and the tablet; detected: the internal panel, else the largest, leftmost on a tie"
-        label: "Main monitor"
         group: display
-        scope: machine
     }
     workspaces: {
         type: record?
@@ -40,7 +36,6 @@ export const options = {
         doc: "Workspace to output; detected: the first ceil(10 / outputs) on the main monitor, the rest split over the others left to right"
         label: "Workspace layout"
         group: display
-        scope: machine
     }
     xwayland_scale: {
         type: int?
@@ -50,24 +45,23 @@ export const options = {
         group: display
         min: 1
         max: 4
-        scope: machine
     }
     app_workspaces: {
         type: list<record>
         default: []
         doc: "Homes for apps by window class: {class, workspace, silent}; silent opens them without focus"
-        label: "App workspaces"
         group: display
+        scope: user
     }
     pointer_sensitivity: {
         type: float
         default: 0.0
         doc: "libinput pointer acceleration, -1 to 1"
-        label: "Pointer sensitivity"
         group: input
         min: -1.0
         max: 1.0
         step: 0.05
+        scope: user
     }
     natural_scroll: {
         type: bool
@@ -75,14 +69,15 @@ export const options = {
         doc: "Touchpad content follows the fingers"
         label: "Natural scrolling"
         group: input
+        scope: user
     }
-    idle_dim_s: {type: int, default: 900, doc: "Idle seconds until the screens dim", label: "Dim after", group: idle, min: 60, apply: relogin}
-    idle_lock_s: {type: int, default: 1200, doc: "Idle seconds until the session locks", label: "Lock after", group: idle, min: 60, apply: relogin}
-    idle_dpms_s: {type: int, default: 2100, doc: "Idle seconds until the screens go off", label: "Screens off after", group: idle, min: 60, apply: relogin}
-    idle_suspend_s: {type: int, default: 2400, doc: "Idle seconds until suspend, unless an agent works or an inhibitor holds", label: "Suspend after", group: idle, min: 60, apply: relogin}
-    idle_dim_saver_s: {type: int, default: 300, doc: "Idle seconds until the screens dim in power saver (a laptop on battery)", label: "Dim in power saver after", group: idle, min: 60, apply: relogin}
-    idle_lock_saver_s: {type: int, default: 600, doc: "Idle seconds until the session locks in power saver", label: "Lock in power saver after", group: idle, min: 60, apply: relogin}
-    idle_suspend_saver_s: {type: int, default: 1800, doc: "Idle seconds until suspend in power saver", label: "Suspend in power saver after", group: idle, min: 60, apply: relogin}
+    idle_dim_s: {type: int, default: 900, doc: "Idle seconds until the screens dim", label: "Dim after", group: idle, min: 60, apply: relogin, scope: user}
+    idle_lock_s: {type: int, default: 1200, doc: "Idle seconds until the session locks", label: "Lock after", group: idle, min: 60, apply: relogin, scope: user}
+    idle_dpms_s: {type: int, default: 2100, doc: "Idle seconds until the screens go off", label: "Screens off after", group: idle, min: 60, apply: relogin, scope: user}
+    idle_suspend_s: {type: int, default: 2400, doc: "Idle seconds until suspend, unless an agent works or an inhibitor holds", label: "Suspend after", group: idle, min: 60, apply: relogin, scope: user}
+    idle_dim_saver_s: {type: int, default: 300, doc: "Idle seconds until the screens dim in power saver (a laptop on battery)", label: "Dim in power saver after", group: idle, min: 60, apply: relogin, scope: user}
+    idle_lock_saver_s: {type: int, default: 600, doc: "Idle seconds until the session locks in power saver", label: "Lock in power saver after", group: idle, min: 60, apply: relogin, scope: user}
+    idle_suspend_saver_s: {type: int, default: 1800, doc: "Idle seconds until suspend in power saver", label: "Suspend in power saver after", group: idle, min: 60, apply: relogin, scope: user}
 }
 
 const CONFIG_DIR = ".config/hypr"
@@ -233,22 +228,13 @@ export def link [cfg: record] {
     ]
 }
 
-# Builds the plugins where sudo asks nothing for hyprpm's root-owned store: the install chain's config stage, or
-# --rebuild (a sync's update, sudo still warm from the system layer) against a newer hyprland.
-export def plugins-build [--rebuild]: nothing -> nothing {
-    if not $rebuild and (glob $"/var/cache/hyprpm/($env.USER)/*/*.so" | is-not-empty) { return }
-    let script = $env.DOTFILES | path join configs desktop hyprland plugins.nu
-    if (do { ^sudo -n true } | complete).exit_code != 0 {
-        print $"note: hyprland plugins not built, sudo would ask: run ($script) in a terminal"
-        return
-    }
-    let built = try { ^$script --build; true } catch { false }
-    if not $built or (glob $"/var/cache/hyprpm/($env.USER)/*/*.so" | is-empty) {
-        error make {msg: $"hyprland plugins did not build, hyprpm's output is above; retry with ($script) in a terminal"}
-    }
+# Builds the plugins as the user for the installed hyprland (plugins.nu), so an apply or a sync's update brings them
+# along with a hyprland upgrade; no root involved.
+export def plugins-build []: nothing -> nothing {
+    ^($env.DOTFILES | path join configs desktop hyprland plugins.nu)
 }
 
-export def update [cfg: record]: nothing -> nothing { plugins-build --rebuild }
+export def update [cfg: record]: nothing -> nothing { plugins-build }
 
 # Reloads hyprland; the shader goes last, a config write or scale re-render after it drops it.
 export def reload []: nothing -> nothing {

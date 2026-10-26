@@ -10,6 +10,8 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "media"
+  hoverPanel: true
+  hoverFill: true
   panelPinOnClick: false
 
   property string pinnedPlayer: ""
@@ -243,13 +245,6 @@ BarWidget {
   implicitWidth: row.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
-  Rectangle {
-    anchors.fill: parent
-    radius: Style.shape.data
-    color: hoverArea.containsMouse ? Style.hoverFill : "transparent"
-    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
-  }
-
   Row {
     id: row
     anchors.centerIn: parent
@@ -295,7 +290,6 @@ BarWidget {
   MouseArea {
     id: hoverArea
     anchors.fill: parent
-    hoverEnabled: true
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
     onClicked: function (mouse) {
       if (!root.player) return
@@ -303,14 +297,10 @@ BarWidget {
       else if (mouse.button === Qt.MiddleButton) root.player.next()
       else if (mouse.button === Qt.RightButton) root.player.previous()
     }
-    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
-    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
 
   HoverPanel {
     id: panel
-    bar: root.bar
-    moduleName: root.moduleName
     anchorWidget: root
     title: "MEDIA"
     implicitWidth: Style.panelWidth.normal
@@ -620,6 +610,7 @@ BarWidget {
             on: root.player === modelData
             glyph: modelData.playbackState === MprisPlaybackState.Playing ? "\u{f04b}" : ""
             label: modelData.identity || modelData.dbusName
+            upper: false
             onActivated: root.pinnedPlayer =
               (root.pinnedPlayer === modelData.dbusName) ? "" : modelData.dbusName
           }

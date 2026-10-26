@@ -38,8 +38,8 @@ const FONTS = [KodeMono.ttf Tektur.ttf Vollkorn.ttf Vollkorn-Italic.ttf]
 const LICENSES = [KodeMono.OFL.txt Tektur.OFL.txt Vollkorn.OFL.txt]
 
 export def link [cfg: record] {
-    let config = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config)
-    let fonts = $nu.home-dir | path join .local share fonts
+    let config = (xdg config)
+    let fonts = xdg data fonts
     [
         ($FONTS | each {|f| file-copy $f ($fonts | path join $f) --then [fc-cache -f $fonts] })
         ($LICENSES | each {|f| file-copy $f ($fonts | path join $f) })

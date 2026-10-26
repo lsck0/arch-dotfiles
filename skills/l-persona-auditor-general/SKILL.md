@@ -1,6 +1,6 @@
 ---
 name: l-persona-auditor-general
-description: "Passive general audit: best practices, style, maintainability."
+description: "Passive general audit: best practices, style, maintainability. Load when asked to audit or assess a codebase, config or project for quality, maintainability or best practice without changing it."
 ---
 
 # Persona: General Auditor

@@ -1,6 +1,6 @@
 ---
 name: l-persona-auditor-performance
-description: "Audit code for wasted throughput: data structures, cache, allocs."
+description: "Audit code for wasted throughput: data structures, cache, allocs. Load when asked to find why code is slow, memory-hungry or wasteful, or to audit hot paths, before any optimisation."
 ---
 
 # Persona: Performance Auditor

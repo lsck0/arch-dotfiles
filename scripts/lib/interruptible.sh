@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
-# Runs a dot command so ctrl+c ends the whole run. Nushell's try catches an interrupt like any other error
-# and goes on with the next phase, so on SIGINT this sends SIGTERM to every nu below it and to every
-# process in another session (a setsid'd module command, which never saw the signal); everything else,
-# pacman or git, got the SIGINT from the terminal and stops itself. Exits 130 after an interrupt.
-# --lock <file>: holds that flock for the run (a flock process between would die of the SIGINT and orphan
-# the run). DOT_INTERRUPTIBLE names this session, so a dot below it under its own pty wraps itself again;
-# DOT_RUN_POINTER names a file the run writes its log path into, so the interrupt lands in that log too.
+# Runs a dot command so ctrl+c ends the whole run: nushell's try would catch the interrupt and go on, so on SIGINT
+# every nu below and every setsid'd command get SIGTERM; exits 130. --lock <file> holds that flock for the run.
+# DOT_RUN_POINTER names the file the run writes its log path into, so the interrupt is logged there too.
 set -euo pipefail
 
 if [[ ${1-} == --lock ]]; then

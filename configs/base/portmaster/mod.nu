@@ -15,6 +15,6 @@ export def system [cfg: record] {
 
 export def link [cfg: record] {
     if not ("/etc/xdg/autostart/portmaster-autostart.desktop" | path exists) { return [] }
-    let autostart = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join autostart
+    let autostart = xdg config autostart
     files-into $autostart portmaster-autostart.desktop
 }

@@ -7,21 +7,18 @@ export const options = {
         default: "256M"
         doc: "Total disk space systemd-coredump may keep across every stored core, systemd.coredump(5) size syntax"
         label: "Max total coredump storage"
-        scope: machine
     }
     process_size_max: {
         type: string
         default: "1G"
         doc: "Largest process core systemd-coredump will process at all, above it the core is skipped entirely"
         label: "Max process size to dump"
-        scope: machine
     }
     external_size_max: {
         type: string
         default: "1G"
         doc: "Largest core systemd-coredump will write to storage, independent of the process size limit"
         label: "Max stored core size"
-        scope: machine
     }
 }
 

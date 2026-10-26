@@ -833,6 +833,7 @@ Item {
             Component {
               id: actionRow
               PanelRow {
+                upper: false
                 label: (slot.hasCursor ? "> " : "  ") + slot.modelData.name
                 trailing: slot.modelData.detail + (slot.modelData.terminal ? "  [terminal]" : "")
                 on: slot.hasCursor

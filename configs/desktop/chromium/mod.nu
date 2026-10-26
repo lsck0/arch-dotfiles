@@ -14,7 +14,7 @@ def profile-style [dir: path]: nothing -> list<record> {
 }
 
 export def link [cfg: record] {
-    let config = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config)
+    let config = (xdg config)
     profile-style ($config | path join chromium)
     | append (file-text ($config | path join chromium-flags.conf) "--no-first-run\n")
     | append (desktop-override chromium.desktop { str replace --all --regex '(?m)^Exec=chromium' 'Exec=chromium --ozone-platform-hint=auto' })

@@ -2,7 +2,7 @@
 
 const HERE = path self | path dirname
 const MARKER = "# managed by arch-dotfiles/apparmor"
-const OVERRIDES = [firefox thunderbird libreoffice qutebrowser]
+const OVERRIDES = [firefox thunderbird libreoffice]
 const ENFORCED = [
     firefox chromium qutebrowser lynx cha thunderbird discord signal-desktop telegram-desktop element-desktop hexchat
     zapzap spotify mpv zathura sioyek okular bookokrat libreoffice onlyoffice feh nsxiv imv obsidian zotero
@@ -84,6 +84,22 @@ def compile-check [rows: table, source: path, etc: path]: nothing -> list<string
     $names ++ $profiles ++ $locals
 }
 
+# An override is apparmor.d's profile with only its attachment changed: everything below its own header, except the
+# profile line, must equal the upstream file, so an apparmor.d update is re-synced instead of silently drifting.
+def override-check [source: path]: nothing -> list<string> {
+    let body = {|text| $text | lines | where not ($it =~ '^profile ') }
+    $OVERRIDES | each {|n|
+        let upstream = glob $"($source)/**/($n)" --no-dir | where not ($it =~ '/(abstractions|tunables)/') | get --optional 0
+        if $upstream == null { return $"apparmor.d no longer ships ($n), profiles/($n) has nothing to follow" }
+        let own = open --raw $"profiles/($n)" | lines
+        let header = $own | take while { $in != "" } | length
+        let ours = $own | skip ($header + 1) | str join "\n"
+        if (do $body $ours) != (do $body (open --raw $upstream)) {
+            $"profiles/($n) drifted from ($upstream): re-sync it, keeping only its profile line"
+        }
+    } | compact
+}
+
 def main []: nothing -> nothing {
     cd $HERE
     let source = $env.APPARMOR_D_SRC? | default /usr/share/apparmor.d
@@ -95,7 +111,8 @@ def main []: nothing -> nothing {
         and (which apparmor_parser | is-not-empty)
     )
     let compiled = if $compilable { compile-check $rows $source $etc } else { [] }
-    let failures = (rows-check $rows) ++ (own-check $rows) ++ $compiled
+    let drifted = if ($source | path exists) { override-check $source } else { [] }
+    let failures = (rows-check $rows) ++ (own-check $rows) ++ $compiled ++ $drifted
     for f in $failures { print --stderr $"apparmor.test: ($f)" }
     if ($failures | is-not-empty) { exit 1 }
 }

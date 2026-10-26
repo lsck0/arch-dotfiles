@@ -17,7 +17,6 @@ use ($LIB | path join fetch.nu) [fetch-file-run fetch-git-run]
 use ($LIB | path join bootstrap.nu) [bootstrap-run]
 use ($LIB | path join stage.nu) [stage-run]
 use ($REPO | path join configs base yubikey audit.nu) [audit-remind]
-use ($LIB | path join drift.nu) [drift-report drift-publish]
 use ($REPO | path join configs core wallust wallpaper.nu) [theme-serve wallpaper-get wallpaper-list]
 use ($LIB | path join iso.nu) [iso-build]
 use ($LIB | path join iso-install.nu) [iso-install-run]
@@ -55,12 +54,12 @@ def "main fetch" []: nothing -> nothing { help main fetch }
 
 # download a pinned file, verify its sha256, put it in place; --extract <member> or .
 def "main fetch file" [url: string, sha256: string, dest: path, --mode: string = "644", --extract: string]: nothing -> nothing {
-    guarded fetch { fetch-file-run $url $sha256 $dest --mode $mode --extract=$extract }
+    guarded fetch --background { fetch-file-run $url $sha256 $dest --mode $mode --extract=$extract }
 }
 
 # <dir> checked out at exactly <commit>, submodules too
 def "main fetch git" [url: string, commit: string, dir: path]: nothing -> nothing {
-    guarded fetch { fetch-git-run $url $commit $dir }
+    guarded fetch --background { fetch-git-run $url $commit $dir }
 }
 
 # install a machine from the Arch ISO or set up a fresh WSL distro
@@ -118,7 +117,7 @@ def features-render []: nothing -> string {
 
 # regenerate mirror/packages.txt and FEATURES.md's options table; --check fails when either is stale
 def "main gen" [--check]: nothing -> nothing {
-    guarded gen {
+    guarded gen --background {
         let outputs = [[file text]; [$MIRROR_LIST (mirror-list)] [$FEATURES (features-render)]]
         if $check {
             let stale = $outputs | where {|o| (open --raw ($REPO | path join $o.file)) != $o.text } | get file
@@ -168,13 +167,7 @@ def "main watch" []: nothing -> nothing {
     ^tail --follow=name --retry --lines=0 $file
 }
 
-# what this machine runs that no module declares
-def "main drift" []: nothing -> nothing { help main drift }
 
-# this machine's drift report
-def "main drift report" []: nothing -> nothing { guarded drift --read-only { drift-report | print -n } }
-# publish this machine's report into configs/secrets/state/drift/<host> when it changed
-def "main drift publish" []: nothing -> nothing { guarded drift { drift-publish } }
 
 # secret rotation and recovery drill reminders
 def "main audit" []: nothing -> nothing { help main audit }
@@ -217,7 +210,7 @@ def backup-native [ctx: record, m: record]: nothing -> record {
 
 # every enabled module's update verb: the upgrades of what floats outside pacman (toolchains, editor plugins)
 def "main update" []: nothing -> nothing {
-    guarded update {
+    guarded update --background {
         let ctx = pipeline-load $REPO user
         let mods = $ctx.modules | where {|m| "update" in $m.native and $m.cfg.enable }
         with-env (platform-env $ctx.platform) {
@@ -229,7 +222,7 @@ def "main update" []: nothing -> nothing {
 
 # copy live app state into the repo; --roundtrip backs up, restores, backs up and compares
 def "main backup" [--roundtrip]: nothing -> nothing {
-    guarded backup {
+    guarded backup --background {
         let ctx = pipeline-load $REPO user
         let wanted = secrets-wanted
         let locked = not $wanted or not (secret-is-plaintext ($REPO | path join configs secrets keys pgp_privatekey.asc))

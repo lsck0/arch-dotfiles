@@ -67,6 +67,19 @@ export def fail [message: string]: nothing -> nothing {
     $"($message)\n" | save --append $target
 }
 
+# Collects every fail of this phase into file, empty at the start.
+export def --env failures-begin [file: path]: nothing -> nothing {
+    $env.FAILURES_FILE = $file
+    "" | save --force $file
+}
+
+# The failures this phase collected, which ends the collection.
+export def --env failures-take []: nothing -> string {
+    let file = $env.FAILURES_FILE? | default ""
+    hide-env --ignore-errors FAILURES_FILE
+    if ($file | is-not-empty) and ($file | path exists) { open --raw $file | str trim } else { "" }
+}
+
 def runs-list []: nothing -> record {
     let files = glob (runs-dir | path join "*.jsonl") | sort
     let read_only = if ($files | is-empty) { [] } else { ^grep --files-with-matches --fixed-strings $RUN_READ_ONLY_MARK ...$files | complete | get stdout | lines }
@@ -90,6 +103,9 @@ export def --env run-begin [name: string, --read-only]: nothing -> nothing {
     let runs = runs-list
     let changing = $runs.files | where $it not-in $runs.read_only
     ($changing | drop $RUNS_KEEP) ++ ($runs.read_only | drop $RUNS_READ_ONLY_KEEP) | each { rm --force $in } | ignore
+    # a run's side files (.failures, .install-failures) go with its log
+    glob (runs-dir | path join "*.*failures") | where {|f| not ($f | str replace --regex '\.[a-z-]*failures$' '.jsonl' | path exists) }
+        | each { rm --force $in } | ignore
     log-debug $"run ($name)" {kind: run, target: $name, read_only: $read_only}
 }
 

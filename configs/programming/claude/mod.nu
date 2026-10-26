@@ -1,15 +1,17 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [claude-code claude-desktop-extra]}, backup: {secrets: true}}
+# after idle-guards: the guard hooks go in only once its agent-guard exists (a dep outside the platform's groups is dropped)
+export const meta = {deps: [desktop/idle-guards], packages: {pacman: [claude-code claude-desktop-extra]}, backup: {secrets: true}}
 
 export const options = {
-    model: {type: string, default: "claude-opus-5-5", doc: "The model every session starts on", label: "Model"}
+    model: {type: string, default: "claude-opus-5-5", doc: "The model every session starts on", label: "Model", scope: user}
     effort: {
         type: string
         default: medium
         doc: "Reasoning effort of that model"
         label: "Effort"
         choices: [low medium high xhigh max]
+        scope: user
     }
 }
 
@@ -51,10 +53,9 @@ export def link [cfg: record] {
     let settings = home .claude settings.json
     let current = if ($settings | path exists) { open $settings | get --optional hooks | default {} } else { {} }
     let creds = home .claude .credentials.json
-    let token = $env.DOTFILES | path join configs secrets keys claude-oauth-token
     [
         (files-into (home .claude) CLAUDE.md RTK.md keybindings.json)
-        (json-merge $settings ([
+        (json-merge $settings [
             (json-set [remoteControlAtStartup] true)
             (json-set [model] $cfg.model)
             (json-set [voice] {enabled: true, mode: hold})
@@ -66,11 +67,10 @@ export def link [cfg: record] {
             (json-set [includeCoAuthoredBy] false)
             (json-set [modelSettings $cfg.model effortLevel] $cfg.effort)
             (json-set [hooks] (hooks-merge $current (home $AGENT_GUARD)))
-        ] ++ (if (secret-is-plaintext $token) {
-            # claude's own settings env block, read only by the claude process; not a session-wide
-            # environment.d drop-in every other process (sandboxed or not) would inherit
-            [(json-set [env CLAUDE_CODE_OAUTH_TOKEN] (open --raw $token | str trim))]
-        } else { [] })))
+            # login is credentials.json alone: settings.json is linked into every identity's config dir, so a token
+            # in its env block would authenticate those identities as the owner
+            (json-delete [env CLAUDE_CODE_OAUTH_TOKEN])
+        ])
         (if (secret-is-plaintext (backup-dir | path join credentials.json)) and not ($creds | path exists) {
             [
                 (exec claude-login [install -Dm600 (backup-dir | path join credentials.json) $creds] --creates $creds)

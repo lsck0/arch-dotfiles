@@ -34,16 +34,13 @@ export def system-secrets [wireguard: any]: nothing -> list<string> {
     $SYSTEM_SECRETS | append $"initramfs-ssh/(sys host | get hostname)/sshkeydir/.ed25519.sk" | append ([$wireguard] | flatten | compact | where $it != "")
 }
 
-# The repo as a tar; refused unless the copy's commit is an ancestor of HEAD (with --rollback a descendant).
-export def system-pack [checkout: path, --rollback]: nothing -> binary {
+# The repo as a tar; refused unless the copy's commit is an ancestor of HEAD.
+export def system-pack [checkout: path]: nothing -> binary {
     let head = ^git -C $checkout rev-parse HEAD | str trim
     let source = $SYSTEM_REPO | path join .source
     if ($source | path exists) {
         let old = open --raw $source | str trim
-        let forward = (^git -C $checkout merge-base --is-ancestor $old $head | complete).exit_code == 0
-        let back = $rollback and (^git -C $checkout merge-base --is-ancestor $head $old | complete).exit_code == 0
-        if not $forward and not $back { error make {msg: $"($SYSTEM_REPO) is at ($old), not an ancestor of ($checkout)'s HEAD ($head); keeping it, pull first"} }
-        if $back { log-warn $"($SYSTEM_REPO) steps back from ($old) to ($head), an explicit rollback" }
+        if (^git -C $checkout merge-base --is-ancestor $old $head | complete).exit_code != 0 { error make {msg: $"($SYSTEM_REPO) is at ($old), not an ancestor of ($checkout)'s HEAD ($head); keeping it, pull first"} }
     }
     let tracked = system-files $checkout "--cached"
     let untracked = system-files $checkout "--others" | where $it not-in $tracked
@@ -73,9 +70,9 @@ export def system-unpack [copy: path, sha: string]: binary -> nothing {
 }
 
 # The repo tar and the plaintext system secrets, flat as DOTFILES_SECRETS/<file>, in one tar for system-apply.
-export def system-archive [checkout: path, wireguard: any, --rollback]: nothing -> binary {
+export def system-archive [checkout: path, wireguard: any]: nothing -> binary {
     let work = mktemp --directory
-    system-pack $checkout --rollback=$rollback | save --raw ($work | path join repo.tar)
+    system-pack $checkout | save --raw ($work | path join repo.tar)
     let dir = if ($checkout | path join configs secrets keys | path exists) { $checkout | path join configs secrets keys } else { $checkout }
     let names = system-secrets $wireguard | where {|n| secret-is-plaintext ($dir | path join $n) }
     $names | str join (char nul) | ^tar -C $dir -c --null -T - -f - | save --raw ($work | path join secrets.tar)

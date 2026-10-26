@@ -8,21 +8,18 @@ export const options = {
         default: 3600
         doc: "Seconds an IP stays banned after too many failed attempts, fail2ban jail.conf(5) bantime"
         label: "Ban duration (s)"
-        scope: machine
     }
     findtime: {
         type: int
         default: 600
         doc: "Seconds of history fail2ban scans for failed attempts, fail2ban jail.conf(5) findtime"
         label: "Lookback window (s)"
-        scope: machine
     }
     maxretry: {
         type: int
         default: 5
         doc: "Failed attempts within findtime before an IP is banned, fail2ban jail.conf(5) maxretry"
         label: "Max retries before ban"
-        scope: machine
     }
 }
 

@@ -9,6 +9,7 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "display"
+  hoverPanel: true
 
   property real brightnessPct: 50
   property bool brightnessKnown: false
@@ -50,10 +51,6 @@ BarWidget {
   readonly property string shaderScript: Paths.toggle("toggle-shader.nu")
   property var grading: ({ preset: "", nightlight: false, presets: [] })
   property var shaders: ({ current: "off", shaders: [] })
-  readonly property string themeModeScript: Paths.toggle("toggle-theme-mode.nu")
-  property string themeMode: "dark"
-  property string themePartner: ""
-
   readonly property int colorMinAgeMs: 60 * 1000
   property real colorReadMs: 0
 
@@ -61,12 +58,6 @@ BarWidget {
     root.colorReadMs = Date.now()
     if (!gradingProc.running) gradingProc.running = true
     if (!shaderProc.running) shaderProc.running = true
-    root.refreshTheme()
-  }
-
-  function refreshTheme() {
-    if (!themeModeProc.running) themeModeProc.running = true
-    if (!themeTargetProc.running) themeTargetProc.running = true
   }
 
   function colorRun(argv) {
@@ -88,28 +79,6 @@ BarWidget {
     id: shaderProc
     command: [root.shaderScript, "status"]
     onParsed: function(data) { root.shaders = data }
-  }
-
-  Process {
-    id: themeModeProc
-    command: [root.themeModeScript, "get"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: { var mode = String(text || "").trim(); if (mode !== "") root.themeMode = mode }
-    }
-  }
-
-  // the theme the light/dark flip lands on, so the row says where it goes
-  JsonProcess {
-    id: themeTargetProc
-    command: [root.themeModeScript, "target"]
-    onParsed: function(data) { root.themePartner = (data && data.theme) || "" }
-    onFailed: root.themePartner = ""
-  }
-
-  Connections {
-    target: ToggleEvents
-    function onChanged(script) { if (script === "toggle-theme-mode.nu") root.refreshTheme() }
   }
 
   Process {
@@ -181,13 +150,9 @@ BarWidget {
     anchors.fill: parent
     bar: root.bar
     text: "\u{f0379}"
-    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
-    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
 
   HoverPanel {
-    bar: root.bar
-    moduleName: root.moduleName
     anchorWidget: root
     implicitWidth: Style.panelWidth.normal
     implicitHeight: content.implicitHeight + padding * 2 + titleInset
@@ -196,7 +161,6 @@ BarWidget {
       root.refreshMonitors()
       if (Date.now() - root.colorReadMs >= root.colorMinAgeMs) root.refreshColor()
       root.refreshAllBrightness()
-      root.refreshTheme()
     }
 
     title: "DISPLAY"
@@ -330,33 +294,6 @@ BarWidget {
         }
       }
 
-      PanelSectionHeader { text: "THEME" }
-
-      PanelRow {
-        width: parent.width
-        glyph: "\u{f050e}"   // md-theme_light_dark
-        on: root.themeMode === "light"
-        label: "Light mode" + (root.themePartner !== "" ? " :: " + root.themePartner : "")
-        onActivated: Quickshell.execDetached([root.themeModeScript, "toggle"])
-      }
-
-      PanelRow {
-        width: parent.width
-        glyph: "\u{f02e9}"   // md-image
-        label: "Pick wallpaper"
-        onActivated: {
-          if (root.bar) root.bar.closePanel(root.moduleName)
-          Quickshell.execDetached([Paths.script("wallpaper-picker.nu")])
-        }
-      }
-
-      PanelRow {
-        width: parent.width
-        glyph: "\u{f049d}"   // md-shuffle_variant
-        label: "Random theme"
-        onActivated: Quickshell.execDetached([Paths.dotfiles + "/scripts/dot.nu", "theme", "random"])
-      }
-
       PanelSectionHeader { text: "COLOR GRADING" }
 
       Column {
@@ -377,6 +314,7 @@ BarWidget {
 
         PanelRow {
           width: parent.width
+          stateMarker: true
           on: root.grading.nightlight === true
           label: "Night light"
           onActivated: root.colorRun([Paths.toggle("toggle-nightlight.nu"), "toggle"])

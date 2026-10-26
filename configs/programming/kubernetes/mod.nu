@@ -6,7 +6,5 @@ const MCP = {type: stdio, command: npx, args: [-y "kubernetes-mcp-server@0.0.67"
 
 export def link [cfg: record] {
     let kubeconfig = $env.KUBECONFIG? | default ($nu.home-dir | path join .kube config) | split row ":" | first
-    json-merge ($nu.home-dir | path join .claude.json) [
-        (if ($kubeconfig | path exists) { json-set [mcpServers kubernetes] $MCP } else { json-delete [mcpServers kubernetes] })
-    ]
+    mcp-servers {kubernetes: (if ($kubeconfig | path exists) { $MCP })}
 }

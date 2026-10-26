@@ -7,8 +7,6 @@ export const options = {
         type: string?
         default: null
         doc: "A homelab pacman mirror's URL ($repo and $arch as in a mirrorlist), put first on a homelab machine"
-        label: "Homelab mirror"
-        scope: machine
     }
 }
 

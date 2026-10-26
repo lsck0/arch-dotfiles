@@ -405,6 +405,7 @@ Item {
         }
 
         PanelRow {
+          upper: false
           width: parent.width
           visible: !root.pomo.running
           glyph: "\u{f040a}"

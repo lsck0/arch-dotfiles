@@ -1,6 +1,6 @@
 ---
 name: l-personas
-description: "Persona system: domain-specific instructions layered onto an agent."
+description: "Persona system: domain-specific instructions layered onto an agent. Load before non-trivial work to pick a matching l-persona-* skill, or when a mode skill spawns persona workers."
 ---
 
 # l-personas

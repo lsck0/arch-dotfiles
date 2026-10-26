@@ -90,10 +90,8 @@ export def build []: nothing -> nothing {
     if (which aa-install | is-not-empty) and (^aa-install --install --no-reload | complete).exit_code != 0 {
         print "note: apparmor: aa-install failed, the profiles keep their last build"
     }
-    # an own profile is its name's only source: apparmor.d's build of it goes, and the apparmor package's stock file of
-    # that name (an unconfined stub declaring the same profile) stays disabled
-    # always, even before the stub exists: a later apparmor upgrade brings it back while the link already waits, and
-    # this step runs before the <name>.dotfiles files are written, so nothing here may depend on them yet
+    # an own profile is its name's only source: apparmor.d's build goes and the package's unconfined stub stays disabled,
+    # linked even before the stub exists (an upgrade brings it back); the .dotfiles files are not written yet here
     let own = own
     mkdir ($ETC | path join disable)
     for name in $own {

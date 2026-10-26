@@ -2,23 +2,22 @@ use module.nu *
 
 export const meta = {
     packages: {pacman: [thunderbird]}
-    inputs: ["~/.config/thunderbird/profiles.ini" "~/.config/mozilla/thunderbird/profiles.ini" "~/.thunderbird/profiles.ini"]
+    inputs: ["~/.config/thunderbird/profiles.ini"]
 }
 
 const HEADLESS_TIMEOUT = "20"
 
-# A fresh home gets ~/.config/thunderbird (thunderbird 156 on), older homes keep ~/.thunderbird.
+# thunderbird keeps its profiles under the XDG config dir (since 156); none yet before its first start
 def profiles-root []: nothing -> any {
-    let config = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config)
-    [($config | path join thunderbird) ($nu.home-dir | path join .config mozilla thunderbird) ($nu.home-dir | path join .thunderbird)]
-    | where ($it | path join profiles.ini | path exists) | get --optional 0
+    let root = xdg config thunderbird
+    if ($root | path join profiles.ini | path exists) { $root }
 }
 
 export def link [cfg: record] {
     if (which thunderbird | is-empty) { return [] }
     let root = profiles-root
     if $root == null { return [(step profile-create)] }
-    let colors = $nu.home-dir | path join .cache wal colors-thunderbird.css
+    let colors = xdg cache wal colors-thunderbird.css
     open --raw ($root | path join profiles.ini) | lines | parse "Path={path}" | get path
     | each {|p| $root | path join $p } | where ($it | path exists) | each {|dir|
         [

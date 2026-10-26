@@ -10,7 +10,6 @@ export const options = {
         doc: "Wake-on-lan this machine, then ssh into the initramfs to unlock LUKS remotely"
         label: "Remote unlock"
         apply: reboot
-        scope: machine
     }
     wifi: {
         type: bool
@@ -18,7 +17,6 @@ export const options = {
         doc: "Also join the home wifis (configs/secrets/keys/wifi) in the initramfs; their keys are written into the image"
         label: "Remote unlock over wifi"
         apply: reboot
-        scope: machine
     }
 }
 

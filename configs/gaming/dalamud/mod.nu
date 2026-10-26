@@ -22,7 +22,7 @@ export def link [cfg: record] {
     let p = paths
     let unlocked = secret-is-plaintext $p.seed.config
     if (which xivlauncher-core | is-empty) or not $unlocked { return [] }
-    let delisted = $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join dalamud-restore
+    let delisted = xdg cache dalamud-restore
     let manifests = glob ($p.manifests | path join *.json)
         | where {|m| not ($delisted | path join $"($m | path parse | get stem).delisted" | path exists) }
     [

@@ -1,6 +1,6 @@
 ---
 name: l-persona-research-codebase
-description: "Search the codebase for patterns, conventions, API boundaries."
+description: "Search the codebase for patterns, conventions, API boundaries. Load when a task first needs to know how an existing codebase does something: patterns, conventions, APIs, call sites."
 ---
 
 # Persona: Codebase Researcher

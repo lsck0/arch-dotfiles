@@ -10,21 +10,17 @@ export def link [cfg: record] {
     if (which openscad uvx | length) < 2 { return [] }
     let pkg = $"openscad-mcp==($MCP_VERSION)"
     [
-        (ini-merge ($nu.home-dir | path join .config OpenSCAD OpenSCAD.conf) {launcher: {showOnStartup: "false"}})
-        (json-merge ($nu.home-dir | path join .claude.json) [
-            (json-set [mcpServers openscad] {
-                type: stdio, command: uvx, args: [--exclude-newer $MCP_FROZEN $pkg]
-                env: {
-                    FASTMCP_CHECK_FOR_UPDATES: "off", FASTMCP_SHOW_SERVER_BANNER: "false", FASTMCP_TELEMETRY_MODE: "off"
-                }
-            })
-        ])
+        (ini-merge (xdg config OpenSCAD OpenSCAD.conf) {launcher: {showOnStartup: "false"}})
+        (mcp-servers {openscad: {
+            type: stdio, command: uvx, args: [--exclude-newer $MCP_FROZEN $pkg]
+            env: {FASTMCP_CHECK_FOR_UPDATES: "off", FASTMCP_SHOW_SERVER_BANNER: "false", FASTMCP_TELEMETRY_MODE: "off"}
+        }})
         (if (cache-stamp $pkg | path exists) { [] } else { step mcp-cache $pkg })
     ]
 }
 
 def cache-stamp [pkg: string]: nothing -> path {
-    $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join dotfiles uvx $"($pkg)@($MCP_FROZEN)"
+    xdg cache dotfiles uvx $"($pkg)@($MCP_FROZEN)"
 }
 
 export def mcp-cache [pkg: string]: nothing -> nothing {

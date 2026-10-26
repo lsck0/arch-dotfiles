@@ -1,6 +1,6 @@
 ---
 name: l-persona-research-market
-description: "Survey competitors, alternatives, patents, and licensing."
+description: "Survey competitors, alternatives, patents, and licensing. Load when surveying competitors, alternatives, patents or licensing for a product or idea."
 ---
 
 # Persona: Market Researcher

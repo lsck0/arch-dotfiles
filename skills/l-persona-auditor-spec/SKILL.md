@@ -1,6 +1,6 @@
 ---
 name: l-persona-auditor-spec
-description: "Passive spec-compliance audit: does the code match the spec."
+description: "Passive spec-compliance audit: does the code match the spec. Load when checking whether an implementation matches its spec (SPEC.md, ticket, phase) under l-spec-driven-development."
 ---
 
 # Persona: Spec Compliance Auditor

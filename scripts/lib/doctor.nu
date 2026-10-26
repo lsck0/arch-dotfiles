@@ -1,4 +1,4 @@
-# The health checks of `dot status`: failures, pending config, reboot, invariants, apparmor, snapshots, drift,
+# The health checks of `dot status`: failures, pending config, reboot, invariants, apparmor, snapshots, packages,
 # firewall, units, luks tokens, secrets and preserved copies, each as {level, check, text} records.
 
 use state.nu [SYSTEM_REPO SYSTEM_STATE]
@@ -8,7 +8,8 @@ use profile.nu [profile-has]
 use secrets.nu [secret-is-plaintext]
 use system.nu [system-files]
 use preserve.nu [preserve-report]
-use drift.nu [drift-report]
+use pipeline.nu [pipeline-load]
+use modules.nu [modules-packages]
 use ../../configs/base/yubikey/audit.nu [audit-findings]
 
 const REPO = path self ../..
@@ -136,24 +137,17 @@ def snapshot []: nothing -> list<record> {
     }
 }
 
-def drift []: nothing -> list<record> {
-    let text = try { drift-report } catch {
-        return [(report note drift "no drift report (no machine ledger or platform file)")]
-    }
-    let names = {|kind|
-        $text | lines | where ($it | str starts-with $"($kind) ") | each { str substring (($kind | str length) + 1).. }
-    }
-    let missing = do $names missing
-    let hand = do $names hand
-    let units = do $names unit-hand | each { str replace " " ":" }
-    [
-        (if ($missing | is-not-empty) {
-            report FAIL drift $"dot apply --packages pending, declared but not installed: (shown $missing)"
-        })
-        (if ($hand | is-not-empty) { report note drift $"($hand | length) packages installed by hand: (shown $hand)" })
-        (if ($units | is-not-empty) { report note drift $"($units | length) units enabled by hand: (shown $units)" })
-        (if ($missing ++ $hand ++ $units | is-empty) { report ok drift "packages and units as declared" })
-    ] | compact
+# Declared pacman packages that are not installed (a package group counts as installed): an install that failed or
+# a name new to the mirror.
+def packages []: nothing -> list<record> {
+    if (which pacman | is-empty) { return [] }
+    let ctx = pipeline-load $REPO system
+    let declared = modules-packages $REPO $ctx.modules $ctx.platform | get pacman
+    let missing = with-env {LC_ALL: C} { do { ^pacman -Qq ...$declared } | complete }
+        | get stderr | lines | parse "error: package '{name}' was not found" | get name
+        | where {|n| (do { ^pacman -Qqg $n } | complete).exit_code != 0 }
+    if ($missing | is-empty) { return [(report ok packages "every declared package installed")] }
+    [(report FAIL packages $"dot apply --packages pending, declared but not installed: (shown $missing)")]
 }
 
 def succeeds [argv: list<string>]: nothing -> bool { (do { ^$argv.0 ...($argv | skip 1) } | complete).exit_code == 0 }
@@ -214,14 +208,15 @@ def preserved []: nothing -> list<record> {
 }
 
 const CHECKS = [
-    failures config-pending reboot invariants apparmor snapshot drift firewall luks units secrets
+    failures config-pending reboot invariants apparmor snapshot packages firewall luks units secrets
     preserved
 ]
 
 def check-run [check: string]: nothing -> list<record> {
     match $check {
         failures => (failures), config-pending => (config-pending), reboot => (reboot), invariants => (invariants)
-        apparmor => (apparmor), snapshot => (snapshot), drift => (drift), firewall => (firewall), luks => (luks), units => (units)
+        apparmor => (apparmor), snapshot => (snapshot), packages => (packages), firewall => (firewall), luks => (luks)
+        units => (units)
         secrets => (secrets), preserved => (preserved)
     }
 }

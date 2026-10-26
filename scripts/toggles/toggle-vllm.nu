@@ -1,9 +1,10 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [switch-run root-run unit-active]
+use lib.nu [switch-run root-run unit-active unit-exists]
 
 def main [action: string = "toggle", --json] {
     switch-run {
         label: vLLM
+        available: {|| unit-exists vllm.socket }
         is-on: {|| unit-active vllm.socket }
         on: {||
             if (^systemctl cat vllm.socket | complete).exit_code != 0 {

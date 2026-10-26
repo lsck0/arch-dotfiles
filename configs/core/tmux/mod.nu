@@ -21,7 +21,7 @@ export def link [cfg: record] {
 }
 
 export def tmux-reload []: nothing -> nothing {
-    let colors = $nu.home-dir | path join .cache wal colors-tmux.conf
+    let colors = xdg cache wal colors-tmux.conf
     for s in (glob ($env.TMUX_TMPDIR? | default /tmp | path join $"tmux-(^id -u | str trim)" "*")) {
         try { ^tmux -S $s source-file $colors o+e>| ignore }
     }

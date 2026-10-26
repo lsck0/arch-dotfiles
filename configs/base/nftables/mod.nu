@@ -8,7 +8,6 @@ export const options = {
         default: "1h"
         doc: "How long a successful SSH port-knock keeps that IP allowed through to port 2222, nft timeout syntax"
         label: "SSH knock access window"
-        scope: machine
     }
 }
 

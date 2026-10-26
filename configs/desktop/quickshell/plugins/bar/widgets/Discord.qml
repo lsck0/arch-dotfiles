@@ -9,6 +9,8 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "discord"
+  hoverPanel: true
+  hoverFill: true
 
   readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || ""
   readonly property string statePath:
@@ -91,13 +93,6 @@ BarWidget {
     }
     onLoadFailed: root.inVoice = false
     onFileChanged: reload()
-  }
-
-  Rectangle {
-    anchors.fill: parent
-    radius: Style.shape.data
-    color: hoverArea.containsMouse ? Style.hoverFill : "transparent"
-    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
   }
 
   Row {
@@ -210,18 +205,7 @@ BarWidget {
     }
   }
 
-  MouseArea {
-    id: hoverArea
-    anchors.fill: parent
-    hoverEnabled: true
-    cursorShape: Qt.PointingHandCursor
-    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
-    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
-  }
-
   HoverPanel {
-    bar: root.bar
-    moduleName: root.moduleName
     anchorWidget: root
     title: "VOICE"
     implicitWidth: Style.panelWidth.narrow

@@ -11,11 +11,5 @@ export def system [cfg: record] {
     ]
 }
 
-export def link [cfg: record] {
-    # no MCP server here: mcp-server-docker's typical mount (-v /:/host) gives root-equivalent host
-    # access to anything that can reach it, breaking "agents never reach root" even for a docker-group
-    # member; this only clears a stale entry left by an earlier version of this module
-    json-merge ($nu.home-dir | path join .claude.json) [
-        (json-delete [mcpServers docker])
-    ]
-}
+# no MCP server here: mcp-server-docker's typical mount (-v /:/host) gives root-equivalent host access to anything
+# that can reach it, breaking "agents never reach root" even for a docker-group member

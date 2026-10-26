@@ -10,21 +10,18 @@ export const options = {
             + "is up; firewall-only closes inbound and leaves egress open; off treats every network as home")
         label: "Untrusted networks"
         choices: [lockdown-tor firewall-only off]
-        scope: machine
     }
     home_wired: {
         type: bool?
         default: null
         doc: "Ethernet is always the home network and keeps its hardware MAC (a desktop); null detects it from the form factor"
         label: "Wired is home"
-        scope: machine
     }
     wake_on_lan: {
         type: bool
         default: false
         doc: "Wake on a magic packet over ethernet (udev sets it on every wired link, NetworkManager leaves it)"
         label: "Wake-on-LAN"
-        scope: machine
     }
     wifi_radio: {
         type: bool?
@@ -32,32 +29,26 @@ export const options = {
         doc: ("Wi-Fi radio on at first boot; off on a desktop wired to the network, so only the link in use is up. "
             + "Later toggles (toggle-wifi) persist in NetworkManager's own state; null detects it")
         label: "Wi-Fi radio"
-        scope: machine
     }
     home_gateways: {
         type: list<string>
         default: []
         doc: "Router MACs that make a network home, beside the admin's configs/secrets/keys/home-gateways"
-        label: "Home gateways"
-        scope: machine
     }
     homelab_dns: {
         type: string?
         default: null
         doc: "The homelab's split-horizon resolver, asked for homelab_domain out a home link (homelab machines)"
-        scope: machine
     }
     homelab_domain: {
         type: string?
         default: null
         doc: "The homelab's DNS zone"
-        scope: machine
     }
     homelab_subnets: {
         type: list<string>
         default: []
         doc: "The homelab's subnets, routed straight out a home link and through wg0 elsewhere"
-        scope: machine
     }
 }
 
@@ -134,11 +125,8 @@ export def system [cfg: record] {
     ]
 }
 
-# Home is three sources, each with one owner: the admin's secrets (home-gateways.secret, home-ssids.secret: copied
-# while the secrets are at hand, kept while they are locked, so a locked apply never forgets the owner's home), the
-# install's answer and pre-split leftovers (home-gateways.local, written by the bootstrap, never by an apply), and
-# the home_gateways option, read whole every run so toggle-trust-network off drops a gateway even while locked.
-# home-gateways, which 70-home-network reads, is their union, rewritten every run.
+# home-gateways, which 70-home-network reads, is rewritten every run as the union of three sources: the secrets'
+# (home-*.secret, kept while locked), the install's answer (home-gateways.local) and the home_gateways option.
 export def home [home_wired: string, ...gateways: string]: nothing -> nothing {
     let secrets = $env.DOTFILES_SECRETS? | default "/nonexistent"
     let secret_gateways = $"($NM)/home-gateways.secret"
@@ -161,16 +149,6 @@ export def home [home_wired: string, ...gateways: string]: nothing -> nothing {
         | save --force $secret_ssids
     }
     let option = $gateways | str lowercase
-    # once, from the single file before the split: what neither the secrets nor the option name came from the install
-    if not ($local | path exists) {
-        let known = (do $macs $secret_gateways) ++ $option
-        do $macs $file | where $it not-in $known | each { $"($in)\n" } | str join | save --force $local
-    }
-    # a seed taken while locked may hold the owner's macs: the secrets own those, so dropping one there untrusts it
-    if ($secret | path exists) and ($local | path exists) {
-        let owned = do $macs $secret_gateways
-        do $macs $local | where $it not-in $owned | each { $"($in)\n" } | str join | save --force $local
-    }
     let want = (do $macs $secret_gateways) ++ (do $macs $local) ++ $option | uniq
     $want | each { $"($in)\n" } | str join | save --force $file
 

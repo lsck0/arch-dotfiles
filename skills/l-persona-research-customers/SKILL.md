@@ -1,6 +1,6 @@
 ---
 name: l-persona-research-customers
-description: "Mine forums/social for user needs, complaints, and requests."
+description: "Mine forums/social for user needs, complaints, and requests. Load when researching what users want or complain about: forums, issues, reviews, social posts."
 ---
 
 # Persona: Customer Researcher

@@ -11,7 +11,7 @@ const RENAMES = {gimp-vector-tool: gimp-path-tool, tools-vector: tools-path, gim
 const RENAMED_FILES = [toolrc shortcutsrc sessionrc]
 
 def unpacked []: nothing -> path {
-    $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join photogimp $PHOTOGIMP_VERSION
+    xdg cache photogimp $PHOTOGIMP_VERSION
 }
 
 def stale [dir: path]: nothing -> bool {
@@ -32,7 +32,7 @@ export def link [cfg: record] {
     if (which gimp | is-empty) { return [] }
     let release = ^gimp --version | parse --regex '(?<v>\d+\.\d+\.\d+)' | get 0.v
     let version = $release | split row "." | first 2 | str join "."
-    let config = $nu.home-dir | path join .config GIMP $version
+    let config = xdg config GIMP $version
     if ($config | path join $".photogimp-($PHOTOGIMP_VERSION)" | path exists) {
         return [
             (if $version != "3.0" and (stale $config) { step migrate $config } else { [] })

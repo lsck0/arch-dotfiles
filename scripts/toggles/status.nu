@@ -15,9 +15,9 @@ def main [...names: string, --options] {
     $scripts | par-each {|script|
         let name = $script | path parse | get stem | str replace --regex '^toggle-' ''
         let reply = ^$script get --json | complete
-        let toggle = try { $reply.stdout | from json } catch {
-            {name: $name, label: $name, state: error, text: error, states: [], on: false, available: true}
-        }
+        # empty stdout parses as null without raising: a toggle that broke shows as an error, not as nothing
+        let parsed = if $reply.exit_code == 0 { try { $reply.stdout | from json } catch { null } }
+        let toggle = $parsed | default {name: $name, label: $name, state: error, text: error, states: [], on: false, available: true}
         if $options and (open --raw $script | str contains $OPTIONS_VERB) {
             let rows = ^$script options | complete
             $toggle | insert options (if $rows.exit_code == 0 { $rows.stdout | from json } else { [] })

@@ -117,18 +117,22 @@ function toggleOptionRow(toggle, option) {
   }
 }
 
+function toggleLabel(toggle) { return String(toggle.label || toggle.name) }
+
 function toggleEntries(toggles, needle) {
   var plain = []
   var grouped = []
-  for (let t = 0; t < toggles.length; t++) {
-    let toggle = toggles[t]
+  // by what the row shows, not the script name: "Hear OBS output" files as obs-listen
+  var sorted = toggles.slice().sort(function (a, b) { return toggleLabel(a).localeCompare(toggleLabel(b)) })
+  for (let t = 0; t < sorted.length; t++) {
+    let toggle = sorted[t]
     if (!toggle.available) continue
     if ((toggle.options || []).length === 0) {
       if (!needle || toggleMatches(needle, toggle)) plain.push(toggleRow(toggle))
       continue
     }
     let options = toggle.options.filter(function (o) { return !needle || toggleOptionMatches(needle, toggle, o) })
-    if (options.length > 0) grouped.push({ kind: "header", id: "#" + togglesId + "/" + toggle.name, text: toggle.name })
+    if (options.length > 0) grouped.push({ kind: "header", id: "#" + togglesId + "/" + toggle.name, text: toggleLabel(toggle) })
     for (let o = 0; o < options.length; o++) grouped.push(toggleOptionRow(toggle, options[o]))
   }
   return plain.concat(grouped)

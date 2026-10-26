@@ -1,7 +1,8 @@
 use module.nu *
 
-# after claude: `claude plugin` rewrites ~/.claude.json whole, outside the engine's json lock
-export const meta = {deps: [programming/claude]}
+# serial, after claude: `claude plugin` and `gemini extensions` rewrite ~/.claude.json and gemini's files whole,
+# outside the engine's json lock, so nothing registering an mcp server may run beside it
+export const meta = {deps: [programming/claude], serial: true}
 
 const URL = "https://github.com/JuliusBrussee/caveman.git"
 const COMMIT = "6571943370f7c9d4de1946481177ee7b306cd8e8"
@@ -44,7 +45,7 @@ def gemini-steps []: nothing -> list<record> {
 }
 
 export def link [cfg: record] {
-    let dir = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join caveman
+    let dir = xdg data caveman
     let probe = $dir | path join $PROBE
     let hermes = $nu.home-dir | path join .hermes skills productivity caveman SKILL.md
     let copilot = $nu.home-dir | path join .agents skills caveman SKILL.md

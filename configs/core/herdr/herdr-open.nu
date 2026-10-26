@@ -2,6 +2,8 @@
 
 const PROMPT = '(λ|❯|[$%#])[[:space:]]*$'
 const PROMPT_TIMEOUT_MS = 600000
+# "<sha256>  <path>" per allowed .herdr-create: a cloned repo's script never runs until allowed, like direnv allow
+const TRUST = ($nu.home-dir | path join .local state herdr create-allowed)
 
 # Runs argv once the pane shows a prompt: herdr pane run drops keystrokes typed before direnv/devenv is ready.
 def pane-run [pane: string, ...argv: string]: nothing -> nothing {
@@ -9,7 +11,22 @@ def pane-run [pane: string, ...argv: string]: nothing -> nothing {
     if $ready.exit_code == 0 { ^herdr pane run $pane ...$argv | ignore }
 }
 
-# Focus the herdr workspace for <dir>, or create it with nvim, claude and zsh tabs (or run its .herdr-create).
+def create-line [create: path]: nothing -> string { $"(open --raw $create | hash sha256)  ($create)" }
+
+def create-allowed [create: path]: nothing -> bool {
+    ($TRUST | path exists) and ((create-line $create) in (open --raw $TRUST | lines))
+}
+
+# Allow <dir>'s current .herdr-create; editing it afterwards needs a new allow.
+def "main allow" [dir: path]: nothing -> nothing {
+    let create = $dir | path join .herdr-create | path expand
+    if not ($create | path exists) { error make {msg: $"no ($create)"} }
+    let kept = if ($TRUST | path exists) { open --raw $TRUST | lines | where { not ($in | str ends-with $"  ($create)") } } else { [] }
+    mkdir ($TRUST | path dirname)
+    $kept | append (create-line $create) | str join "\n" | $"($in)\n" | save --force $TRUST
+}
+
+# Focus the herdr workspace for <dir>, or create it with nvim, claude and zsh tabs (or run its allowed .herdr-create).
 def main [dir: path, label?: string]: nothing -> nothing {
     let label = $label | default ($dir | path basename)
     let listed = do { ^herdr workspace list } | complete
@@ -20,8 +37,11 @@ def main [dir: path, label?: string]: nothing -> nothing {
         ^herdr workspace focus $existing | ignore
         return
     }
-    let create = $dir | path join .herdr-create
-    if ($create | path exists) and (ls --long $create | get 0.mode | str contains x) { exec $create $label }
+    let create = $dir | path join .herdr-create | path expand
+    if ($create | path exists) and (ls --long $create | get 0.mode | str contains x) {
+        if (create-allowed $create) { exec $create $label }
+        ^notify-send -a herdr "herdr: .herdr-create not allowed" $"($create)\nread it, then: herdr-open allow ($dir)" | complete | ignore
+    }
 
     let created = ^herdr workspace create --cwd $dir --label $label --focus | from json | get result
     let first_tab = $created.tab.tab_id

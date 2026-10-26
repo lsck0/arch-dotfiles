@@ -48,11 +48,8 @@ def secrets-lock-0600 []: nothing -> nothing {
     ^find ($SECRETS | path join keys) -type f ! -name '.*' ! -name '*.pub' ! -name '*public*' -exec chmod 600 '{}' +
 }
 
-# Each attempt runs on the terminal (ssh's touch request, the clone's progress and any error are seen) and ends on
-# its own without a touch: the key times out its own touch wait, ssh or the age plugin fail, and the loop asks again.
-# The per-attempt cap only guards a stalled network; it is far above a clone of the hundreds-of-MB secrets repo, which
-# a 60s cap killed and restarted forever, each retry wanting another touch. --foreground keeps the terminal, a
-# background process group would stop on a tty read; age-plugin-yubikey prints no touch prompt, the key's blink is it.
+# Each attempt runs on the terminal (--foreground: a background group would stop on the tty read) and ends on its own
+# when no touch comes; the per-attempt cap only guards a stalled network, far above a clone of the secrets repo.
 def with-touch [argv: list<string>]: nothing -> bool {
     let deadline = (date now) + $TOUCH_WAIT
     while not (try { ^timeout --foreground $TOUCH_ATTEMPT_S ...$argv; true } catch { false }) {

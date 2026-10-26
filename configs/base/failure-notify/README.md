@@ -15,6 +15,6 @@ Everything that should reach the admin as a desktop notification instead of only
   packages have an arch security advisory with a fix
 - `doctor-check`, hourly: `dot status --brief` into `~/.local/state/doctor/findings`, which the bar's doctor
   indicator shows while it is not empty; a notification only when the findings become a set not notified before
-  (ages and counts ignored). It also publishes this machine's drift report for `dot status`
+  (ages and counts ignored).
 - `recovery-drill`, monthly for a `secrets` profile: a reminder once the paper-key drill (RECOVERY.md, "Test it") is
   a year old or was never recorded; `dot secrets audit drilled` records it

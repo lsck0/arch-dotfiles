@@ -7,6 +7,8 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "clock"
+  hoverPanel: true
+  hoverFill: true
 
   property date now: new Date()
   property date nowPrecise: new Date()
@@ -18,13 +20,6 @@ BarWidget {
 
   implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
-
-  Rectangle {
-    anchors.fill: parent
-    radius: Style.shape.data
-    color: mouseArea.containsMouse ? Style.hoverFill : "transparent"
-    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
-  }
 
   readonly property real travelMs: travelHours * 3600000
   readonly property date travelledNow: new Date(now.getTime() + travelMs)
@@ -126,18 +121,7 @@ BarWidget {
     font.letterSpacing: Style.displayTracking
   }
 
-  MouseArea {
-    id: mouseArea
-    anchors.fill: parent
-    hoverEnabled: true
-    cursorShape: Qt.PointingHandCursor
-    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
-    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
-  }
-
   HoverPanel {
-    bar: root.bar
-    moduleName: root.moduleName
     anchorWidget: root
     title: "CLOCK"
     onOpened: { root.refreshOffsets(); TimerState.reload() }

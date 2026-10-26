@@ -29,7 +29,7 @@ export def plugin-enable [vault: path]: nothing -> nothing {
 
 export def link [cfg: record] {
     let vault = $nu.home-dir | path join $VAULT
-    let config = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join obsidian obsidian.json
+    let config = xdg config obsidian obsidian.json
     let plugin = $vault | path join .obsidian plugins $REST_ID
     let settings = $plugin | path join data.json
     let vaults = json-read $config | get --optional vaults | default {}
@@ -52,8 +52,6 @@ export def link [cfg: record] {
         (json-merge $settings ($mint ++ $server) --then [chmod 600 $settings])
         (link-commands obsidian-launch.nu)
         (desktop-override obsidian.desktop { str replace --all --regex '(?m)^Exec=/usr/bin/obsidian' $"Exec=($nu.home-dir)/.local/bin/obsidian-launch" })
-        (json-merge ($nu.home-dir | path join .claude.json) [
-            (json-set [mcpServers obsidian-mcp] {type: http, url: $"http://127.0.0.1:($REST_PORT)/mcp/", headersHelper: $header})
-        ])
+        (mcp-servers {obsidian-mcp: {type: http, url: $"http://127.0.0.1:($REST_PORT)/mcp/", headersHelper: $header}})
     ]
 }

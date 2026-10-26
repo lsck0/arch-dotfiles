@@ -1,6 +1,6 @@
 ---
 name: l-persona-research-literature
-description: "Search prior art: papers, algorithms, how others solved this."
+description: "Search prior art: papers, algorithms, how others solved this. Load when researching prior art: papers, algorithms, existing solutions to the problem."
 ---
 
 # Persona: Literature Researcher

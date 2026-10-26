@@ -23,7 +23,7 @@ const READY_POLLS = 100
 const READY_POLL_INTERVAL = 1sec
 
 def library-bib-path []: nothing -> path {
-    $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join zotero library.bib
+    xdg data zotero library.bib
 }
 
 # Better BibTeX's pref key for an auto-export to file: encodeURIComponent, then .!'()* as lowercase %xx.
@@ -57,7 +57,7 @@ export def link [cfg: record] {
         ($profiles | each {|dir| fetch-file $BBT_URL $BBT_SHA256 ($dir | path join extensions $"($BBT_ID).xpi") } | flatten)
         # the auto-export runs only on a library change, so an unchanged library never gets its file
         (if ($profiles | is-empty) or ($bib | path exists) { [] } else { step library-export $bib })
-        (json-merge ($nu.home-dir | path join .claude.json) [(json-set [mcpServers zotero-mcp] $MCP)])
+        (mcp-servers {zotero-mcp: $MCP})
     ]
 }
 

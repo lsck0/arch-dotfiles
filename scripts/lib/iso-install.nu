@@ -79,11 +79,15 @@ def cmdline-value [spec: record, key: string, raw: string]: nothing -> any {
     }
 }
 
+const STUB_PARAMS = [insecure]
+
 # The lsck0.* kernel parameters: lsck0.answers=<url or path> and overrides, wifi.* setting the first network.
 export def answers-cmdline [spec: record, cmdline: string]: nothing -> record {
     $cmdline | parse --regex $CMDLINE_PARAM | reduce --fold {answers: null, overrides: {}} {|p, acc|
         let raw = if ($p.quoted | is-not-empty) { $p.quoted } else { $p.plain }
         if $p.key == "answers" { return ($acc | update answers $raw) }
+        # read by the stub alone (accepting an unsigned answers source), no answer
+        if $p.key in $STUB_PARAMS { return $acc }
         let path = if ($p.key | str starts-with "wifi.") { $p.key | str replace "wifi." "wifi.0." } else { $p.key }
         let cells = $path | split row "." | each {|c| if $c =~ '^\d+$' { $c | into int } else { $c } } | into cell-path
         let overrides = if ($p.key | str starts-with "wifi.") and ($acc.overrides.wifi? == null) { $acc.overrides | insert wifi [{}] } else { $acc.overrides }

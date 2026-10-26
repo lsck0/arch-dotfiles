@@ -32,9 +32,22 @@ def detect [ctx: record, modules: table]: nothing -> record {
     } | reduce --fold {} {|r, acc| $acc | insert $r.id $r.values }
 }
 
+# The user layer runs before a login session has read environment.d (the install chain, a tty), so the tools a module
+# runs (npm, dotnet, mason) still see base/xdg's app dirs; a value the session already set wins.
+def --env app-dirs-load [repo: path]: nothing -> nothing {
+    let file = $repo | path join configs base xdg app-dirs.conf
+    if not ($file | path exists) { return }
+    open --raw $file | lines | parse --regex '^(?<k>[A-Za-z_][A-Za-z0-9_]*)=(?<v>.*)$'
+    | where {|e| ($env | get --optional $e.k) == null }
+    | each {|e| {($e.k): ($e.v | str replace --all '${HOME}' $nu.home-dir)} }
+    | reduce --fold {} {|e, acc| $acc | merge $e }
+    | load-env
+}
+
 # The run context for a layer: repo, platform, profile and every discovered module with its resolved options.
 export def --env pipeline-load [repo: path, layer: string]: nothing -> record {
     $env.DOT_LAYER = $layer
+    if $layer == "user" { app-dirs-load $repo }
     let platform = span platform {} { platform-load $repo }
     let profile = if $layer == "user" { profile-load } else { null }
     let found = span discover {} { modules-discover $repo $platform.groups }
@@ -55,6 +68,24 @@ export def --env pipeline-load [repo: path, layer: string]: nothing -> record {
 
 def stamp [dir: path]: nothing -> string {
     ^find $dir -type f -not -name '*.log' -printf $HASH_STAMP | lines | sort | str join "\n"
+}
+
+# The .nu files outside a module's own dir that its scripts import (a mod.nu using core/wallust/palette.nu), followed
+# transitively: a change there must re-run the module, its own dir's stamp does not see it.
+def imports-outside [dir: path]: nothing -> list<string> {
+    mut seen = []
+    mut todo = glob ($dir | path join "**" "*.nu")
+    while ($todo | is-not-empty) {
+        let file = $todo | first
+        $todo = $todo | skip 1
+        let found = open --raw $file | lines
+            | parse --regex '^\s*(?:export\s+)?(?:use|source|source-env)\s+(?<p>\.{1,2}/\S+\.nu)'
+            | get p | each {|p| $file | path dirname | path join $p | path expand }
+            | where {|f| not ($f | str starts-with $"($dir)/") and not ($f | str starts-with $LIB_DIR) and $f not-in $seen and ($f | path exists) }
+        $seen = $seen ++ $found
+        $todo = $todo ++ $found
+    }
+    $seen | sort
 }
 
 # A path that cannot be read (a nas link while the nas is down) counts as missing, never a crash.
@@ -126,13 +157,12 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     let natives = $graph | where $verb in $it.native | each {|m|
         let prev = state-read $m.id $verb
         let outside = $prev.outputs | where kind in [file link] and source != null and not ($it.source | str starts-with $m.dir)
-        # a link depends only on its source being there: a linked live app dir's mtime moves all day; the
-        # source can be an unreachable network mount, so bound the probe (LINK_PROBE_TIMEOUT_S) instead of
-        # a bare `path exists`, whose stat() can block for a kernel TCP-connect timeout on a dead autofs mount
+        # a link depends only on its source existing; the probe is bounded, a stat() on a dead autofs mount blocks
         let links = $outside | where kind == link | get source
             | each {|s| $"($s) ((do { ^timeout $LINK_PROBE_TIMEOUT_S test -e $s } | complete).exit_code == 0)" }
             | str join "\n"
-        let input = [$global (stamp $m.dir) ($m.cfg | to nuon) (stat $ctx.repo ($m.meta.inputs? | default [])) (stat $ctx.repo ($outside | where kind == file | get source)) $links] | str join "\n" | hash sha256
+        let imported = imports-outside $m.dir | each {|f| $"($f) (open --raw $f | hash sha256)" } | str join "\n"
+        let input = [$global (stamp $m.dir) $imported ($m.cfg | to nuon) (stat $ctx.repo ($m.meta.inputs? | default [])) (stat $ctx.repo ($outside | where kind == file | get source)) $links] | str join "\n" | hash sha256
         {id: $m.id, prev: $prev, input: $input, volatile: ($m.meta.volatile? | default false)}
     }
     let prev_targets = $natives | reduce --fold [] {|n, acc| $acc ++ $n.prev.outputs }

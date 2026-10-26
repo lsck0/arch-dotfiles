@@ -1,6 +1,6 @@
 ---
 name: l-persona-orchestrator
-description: "Spawn and direct other agents; the authority over the run."
+description: "Spawn and direct other agents; the authority over the run. Loaded by l-multi-agent-mode and l-multi-agent-task-mode for the agent that runs the workers; not for a single task."
 ---
 
 # Persona: Orchestrator

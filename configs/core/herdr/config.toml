@@ -1,6 +1,7 @@
 onboarding = false
 
 [theme]
+# BEGIN PYWAL THEME
 [theme.custom]
 sidebar_bg = "reset"
 panel_bg = "reset"
@@ -21,6 +22,7 @@ blue = "#39BAE6"
 mauve = "#D2A6FF"
 teal = "#95E6CB"
 peach = "#E6B450"
+# END PYWAL THEME
 
 [ui]
 sidebar_width = 20

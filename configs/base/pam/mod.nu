@@ -4,12 +4,12 @@ export const meta = {packages: {pacman: [pam-u2f pamtester]}, volatile: true}
 
 export const options = {
     fido_origin: {
-        type: string?
-        default: null
-        doc: "FIDO2 origin and appid every enrolled key's mapping was made for (pamu2fcfg -o); null: pam://<hostname>"
+        type: string
+        # base/yubikey enrolls every key for this origin (its PAM_ORIGIN), so one mapping works on every machine
+        default: "pam://lsck0"
+        doc: "FIDO2 origin and appid every enrolled key's mapping was made for (pamu2fcfg -o)"
         label: "U2F origin"
         apply: relink
-        scope: machine
     }
 }
 
@@ -19,10 +19,6 @@ const POLKIT_VENDOR = "/usr/lib/pam.d/polkit-1"
 const SUDO = "/etc/pam.d/sudo"
 const FPRINT_LINE = "auth       sufficient pam_fprintd.so"
 const HUMAN_UIDS = 1000..59999
-
-export def detect [cfg: record]: nothing -> record {
-    {fido_origin: $"pam://(open --raw /etc/hostname | str trim)"}
-}
 
 # The pam_u2f line against the owner's /etc/u2f_mappings, touch alone, no pin; no nouserok: a user without a key
 # falls through to the password include.

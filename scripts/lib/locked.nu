@@ -3,6 +3,7 @@
 
 use json.nu [json-edits-apply]
 use ini.nu [ini-apply]
+use state.nu [save-atomic]
 
 def main [] {
     error make {msg: "locked.nu <json-update|ini-update>"}
@@ -18,7 +19,7 @@ def "main json-update" []: string -> nothing {
         return
     }
     let owned = ($raw | is-not-empty) and ($raw | hash sha256) == $args.recorded_sum
-    $merged | to json --indent 2 | $"($in)\n" | save --force $args.file
+    $merged | to json --indent 2 | $"($in)\n" | save-atomic $args.file
     print (if $owned { "changed owned" } else { "changed" })
 }
 
@@ -28,7 +29,7 @@ def "main ini-update" []: string -> nothing {
     let raw = if ($args.file | path exists) { open --raw $args.file } else { "" }
     let merged = $args.edits | reduce --fold $raw {|e, text| $text | ini-apply $e.values $e.missing_only }
     if $merged == $raw { return }
-    $merged | save --force --raw $args.file
+    $merged | save-atomic $args.file
     print changed
 }
 

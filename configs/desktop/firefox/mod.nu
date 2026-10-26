@@ -126,14 +126,14 @@ export def link [cfg: record] {
     let speech = if (which speech-dispatcher | is-empty) { [] } else {
         [
             (unit-enable speech-dispatcher.socket --now)
-            (file-text ($nu.home-dir | path join .config speech-dispatcher speechd.conf)
+            (file-text (xdg config speech-dispatcher speechd.conf)
                 "AddModule \"espeak-ng\" \"sd_espeak-ng\" \"espeak-ng.conf\"\nDefaultModule espeak-ng\n")
             (dropin speech-dispatcher.service speech-dispatcher-timeout.conf --then [systemctl --user daemon-reload])
         ]
     }
     let noscript = if (noscript-pending | is-empty) { [] } else { [(step noscript-restore)] }
     # pywalfox looks in ~/.config/firefox
-    [(file-link $root ($nu.home-dir | path join .config firefox))]
+    [(file-link $root (xdg config firefox))]
     | append (profiles $ini | each {|dir|
         [
             (file-copy userChrome.css ($dir | path join chrome userChrome.css))
