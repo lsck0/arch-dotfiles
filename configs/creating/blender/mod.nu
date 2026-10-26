@@ -1,6 +1,8 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [blender uv]}}
+# cuda only for libcudart.so.13: arch's usd and opensubdiv link it without depending on it, so blender cannot start
+# without; drop it once their packages declare it
+export const meta = {packages: {pacman: [blender cuda uv]}}
 
 # the add-on runs any python the server sends, unsandboxed, so the bridge never auto-starts
 const MCP_URL = "https://projects.blender.org/lab/blender_mcp.git"

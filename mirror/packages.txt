@@ -127,6 +127,7 @@ cross
 cryptsetup
 csvi-bin
 ctop
+cuda
 cups
 cups-pdf
 cups-pk-helper
