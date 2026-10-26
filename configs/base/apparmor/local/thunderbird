@@ -4,29 +4,10 @@ owner @{user_config_dirs}/{,.}thunderbird/ rw,
 owner @{user_config_dirs}/{,.}thunderbird/** rwk,
 include <abstractions/dotfiles/viewer-read>
 
-@{lib_dirs}/gfxtest rCx -> gfxtest,
-
 priority=1 @{bin}/gpg{,2} rCx -> gpg,
 priority=1 @{bin}/gpgconf rCx -> gpg,
 priority=1 @{bin}/gpgsm   rCx -> gpg,
 
 profile gpg flags=(attach_disconnected) {
   include <abstractions/dotfiles/gpg-client>
-}
-
-profile gfxtest flags=(attach_disconnected) {
-  include <abstractions/base-strict>
-  include <abstractions/graphics>
-
-  network netlink raw,
-
-  @{lib_dirs}/gfxtest mr,
-
-  / r,
-
-  owner @{HOME}/.thunderbird/**/.parentlock rw,
-  owner @{user_config_dirs}/{,.}thunderbird/**/.parentlock rw,
-  owner @{tmp}/org.mozilla.thunderbird/.parentlock rw,
-
-  owner /dev/pts/@{u8} rw,
 }
