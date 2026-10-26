@@ -85,9 +85,11 @@ def charmap [locale: string]: nothing -> string {
 }
 
 export def system [cfg: record] {
-    let locales = [$cfg.lang $cfg.formats $LOCALE_BASE] | compact | uniq
+    # WSL skips the install's locale question and its image may ship no LANG at all
+    let lang = $cfg.lang | default (if $env.FORM_FACTOR? == "wsl" { $LOCALE_BASE } else { null })
+    let locales = [$lang $cfg.formats $LOCALE_BASE] | compact | uniq
     let formats = if $cfg.formats == null { [] } else { $FORMAT_CATEGORIES | each {|c| [$c $cfg.formats] } }
-    let conf = [[LANG $cfg.lang]] ++ $formats | where $it.1 != null | each { $"($in.0)=($in.1)" }
+    let conf = [[LANG $lang]] ++ $formats | where $it.1 != null | each { $"($in.0)=($in.1)" }
     let console = env-file $VCONSOLE
     let keyboard = [$cfg.keyboard_layout ($cfg.keyboard_variant | default "") ($cfg.keyboard_options | default [] | str join ",")]
     let current = [$console.XKBLAYOUT? ($console.XKBVARIANT? | default "") ($console.XKBOPTIONS? | default "")]

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# One request of the dot test host server (socat forks one per connection): beacons append to $dir/beacons, the
-# guest's uploads land in $dir/upload.
+# One request per socat fork: beacons append to $dir/beacons, uploads land in $dir/upload.
 set -euo pipefail
 dir=$1
 read -r method path _

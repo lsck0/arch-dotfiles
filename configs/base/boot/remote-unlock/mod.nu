@@ -113,7 +113,7 @@ export def keys []: nothing -> nothing {
         ^tinysshd-makekey $KEYDIR
         let backup = $"configs/secrets/keys/initramfs-ssh/($host)"
         print ("note: remote-unlock: generated a new initramfs host key; back it up: "
-            + $"sudo mkdir -p ($backup) && sudo cp -a ($KEYDIR) ($backup)/sshkeydir")
+            + $"mkdir -p ($backup) && sudo cp -r ($KEYDIR) ($backup)/sshkeydir && sudo chown -R $USER: ($backup)")
     }
     let pubkey = $secrets | path join ssh_publickey.asc
     if ($pubkey | path exists) and (open --raw $pubkey | str starts-with "ssh-") {

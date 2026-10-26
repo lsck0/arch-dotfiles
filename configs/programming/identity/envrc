@@ -13,7 +13,7 @@ PERSONAL_CREDENTIAL_VARS=(
 GNUPG_SHARED_ITEMS=(common.conf gpg.conf gpg-agent.conf dirmngr.conf scdaemon.conf)
 GH_SHARED_ITEMS=(config.yml)
 STATE_SHARED_ITEMS=(nix)
-CLAUDE_SHARED_ITEMS=(CLAUDE.md RTK.md settings.json keybindings.json agents commands hooks output-styles plugins skills)
+CLAUDE_SHARED_ITEMS=(CLAUDE.md MACHINE.md RTK.md settings.json keybindings.json agents commands hooks output-styles plugins skills)
 COPILOT_SHARED_ITEMS=(copilot-instructions.md settings.json mcp-config.json lsp-config.json agents hooks
   installed-plugins skills)
 HERMES_SHARED_ITEMS=(SOUL.md config.yaml bin hooks lsp plugins skins context_length_cache.yaml models_dev_cache.etag

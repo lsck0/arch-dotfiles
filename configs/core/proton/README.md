@@ -1,17 +1,7 @@
 # Proton
 
-VPN and Pass tooling. No credentials in this repo; auth is manual.
+No credentials in the repo; sign in by hand once:
 
-## Manual steps
-
-1. `protonvpn signin` once; `scripts/toggles/toggle-route.nu proton` connects after that.
-2. Set up `pass` + `pass-otp`:
-
-   ```
-   gpg --import
-   pass init <gpg-key-id>
-   pass otp insert proton/totp
-   pass otp proton/totp
-   ```
-
-3. Launch `proton-pass` and sign in.
+1. `protonvpn signin`; afterwards `toggle-route proton` connects.
+2. `pass`: `gpg --import`, `pass init <gpg-key-id>`, `pass otp insert proton/totp`.
+3. Start `proton-pass` and sign in.

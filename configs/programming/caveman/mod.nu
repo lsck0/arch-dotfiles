@@ -1,7 +1,6 @@
 use module.nu *
 
-# serial, after claude: `claude plugin` and `gemini extensions` rewrite ~/.claude.json and gemini's files whole,
-# outside the engine's json lock, so nothing registering an mcp server may run beside it
+# serial: claude plugin and gemini extensions rewrite their files whole, outside the json lock
 export const meta = {deps: [programming/claude], serial: true}
 
 const URL = "https://github.com/JuliusBrussee/caveman.git"

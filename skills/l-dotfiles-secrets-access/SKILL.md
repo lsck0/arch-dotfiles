@@ -9,66 +9,53 @@ Never print, copy out or commit a secret's value. Locations only.
 
 ## Where
 
-- `configs/secrets/`: private submodule `github.com/lsck0/secrets`. Owner-only: needs the `secrets` profile capability.
-- `configs/secrets/keys/`: every secret, the only git-crypt path (`configs/secrets/.gitattributes`). Locked, each
-  file starts with `\0GITCRYPT`.
-- `configs/secrets/state/`: private app state that is no credential (dalamud, ffxiv,
-  firefox's noscript list, repositories), plaintext so backups diff and delta; readable locked.
-- `configs/secrets/<module>/`: the owner's modules (group `secrets`, plaintext code): `yubikey`, `capgemini`,
-  `weblinks`. `dot sync` refuses to commit any new or changed file outside `keys/`, `state/` and the module dirs.
-- `configs/base/yubikey/`: what a fresh install reads before the submodule exists: the sealed git-crypt key
-  `secrets.key.age`, one `age-<serial>.identity` and `ssh-<serial>` stub per enrolled YubiKey.
-- `configs/secrets/yubikey/`: `recipients.txt` (offline recovery key), `RECOVERY.md`, and `u2f_keys`, the FIDO keys it
-  maps in `/etc/u2f_mappings` to each login in root's `/var/lib/dotfiles/owners` (the logins installed with an
-  `secrets` profile: bootstrap, `adduser-dotfiles --profile`); `base/pam` reads that file. Its `link` merges
-  `keys/age.txt` and the enrolled identities into `~/.config/sops/age/keys.txt`.
+- `configs/secrets/`: private submodule `github.com/lsck0/secrets`, only with the `secrets` profile capability.
+- `keys/`: every secret, the only git-crypt path. Locked, each file starts with `\0GITCRYPT`.
+- `state/`: plaintext app state that is no credential (dalamud, ffxiv, noscript list, repositories); readable locked.
+- `configs/secrets/<module>/`: the owner's modules (`yubikey`, `capgemini`, `weblinks`), plaintext. `dot sync` refuses
+  to commit any new or changed file outside `keys/`, `state/` and the module dirs.
+- `configs/base/yubikey/`: what a fresh install reads first: sealed git-crypt key `secrets.key.age`, one
+  `age-<serial>.identity` and `ssh-<serial>` stub per YubiKey.
+- `configs/secrets/yubikey/`: `recipients.txt` (offline recovery key), `RECOVERY.md`, `u2f_keys` (mapped in
+  `/etc/u2f_mappings` to each login in `/var/lib/dotfiles/owners`, read by `base/pam`). Its `link` merges
+  `keys/age.txt` and the identities into `~/.config/sops/age/keys.txt`.
 
 ## Unlock and check
 
 ```bash
 nu -c 'use scripts/lib/secrets.nu *; if (secret-is-plaintext configs/secrets/keys/pgp_privatekey.asc) { "unlocked" } else { "locked" }'
-./scripts/dot.nu secrets unlock       # pulls the submodule, then unlocks; one touch each
-./scripts/dot.nu secrets lock         # back to blobs
+./scripts/dot.nu secrets unlock       # pull the submodule, then unlock; one touch each
+./scripts/dot.nu secrets lock
 ```
 
-`dot apply` runs `unlock` itself when the profile has `secrets`. Without a YubiKey, an already pulled worktree
-unlocks through the PGP key; `unlock --identity <file>` is the recovery path. Unlock needs a person to touch the key:
-ask, do not wait in a loop.
-
-Touch steps (`with-touch` in `configs/base/yubikey/yubikey.nu`) run on the terminal with only a 15min stall cap: the pull clones
-the whole submodule (~300 MB), so a short per-attempt timeout kills it mid-clone and restarts it forever, each retry
-wanting another touch, which looks like "touched, nothing happens". `age-plugin-yubikey` prints no touch prompt; the
-key's blink is the only cue. Without `--foreground`, `timeout` puts the child in its own background process group: the
-moment ssh reads `/dev/tty` after the touch (seen live on the ISO: the whole git/ssh chain in state `T`, stopped by
-SIGTTIN) it freezes invisibly until the cap kills and restarts it. Ctrl+C on the console also misses that group, leaving it
-holding the key: an `age -d` tried by hand alongside then hangs without a blink. pcscd on the bare ISO serves root
-without polkit (`ykman piv info` works there); installing polkit would only tighten it.
-
-The pull's ssh stub `configs/base/yubikey/ssh-<serial>` is public, so it is committed passphrase-protected (allowed in
-`.gitleaks.toml`); `stub-decrypt` asks that passphrase once on the terminal into a 600 temp copy before the touch loop,
-and unattended (no tty) skips the pull rather than wait on a prompt. `configs/secrets/keys/yubikey/ssh-<serial>`, the
-copy `link` installs as `~/.ssh/id_ed25519_sk`, is unencrypted under git-crypt. Check a stub with
-`ssh-keygen -y -P "" -f <600 copy>`: it fails on an encrypted one.
+- `dot apply` unlocks itself with the `secrets` profile. Without a YubiKey a pulled worktree unlocks via the PGP key;
+  `unlock --identity <file>` is the recovery path.
+- Unlock needs a person to touch the key: ask, never wait in a loop. `age-plugin-yubikey` prints no prompt; the blink
+  is the only cue.
+- Touch steps (`with-touch`, `configs/base/yubikey/yubikey.nu`) have only a 15 min cap: the pull clones ~300 MB, and a
+  shorter timeout restarts it forever, each retry wanting a new touch.
+- `timeout` needs `--foreground`: otherwise ssh reading `/dev/tty` after the touch is stopped by SIGTTIN and hangs
+  invisibly. Ctrl+C also misses that group, which keeps holding the key, so a manual `age -d` then hangs without blink.
+- pcscd on the bare ISO serves root without polkit.
+- The ssh stub `configs/base/yubikey/ssh-<serial>` is committed passphrase-protected (allowed in `.gitleaks.toml`);
+  `stub-decrypt` asks once into a 600 temp copy, and without a tty skips the pull. `keys/yubikey/ssh-<serial>`
+  (installed as `~/.ssh/id_ed25519_sk`) is unencrypted under git-crypt. Check a stub with
+  `ssh-keygen -y -P "" -f <600 copy>` (fails if encrypted).
 
 ## Use in a module
 
-- `link` verb: read `$env.DOTFILES/configs/secrets/keys/<file>` and guard with `secret-is-plaintext`, skipping with a
-  message when locked (see `configs/core/ntfy/mod.nu`).
-- `system` verb: never reads `configs/secrets/keys/` (a secrets-group module's own plaintext files ride in the root
-  copy like `configs/`). `dot apply` streams the files named in `SYSTEM_SECRETS`
-  (`scripts/lib/system.nu`, plus this host's `initramfs-ssh/<hostname>/sshkeydir/.ed25519.sk` and the platform's
-  `wireguard`; `system-secrets`) in its archive to `system-apply.nu`, which unpacks them to a tmpfs
-  `$DOTFILES_SECRETS` and deletes everything not on that list. Read `$DOTFILES_SECRETS/<path>` (relative to
-  `configs/secrets/keys/`, subdirs kept; a locked file is left out).
-- State restored from `state/` or `keys/` that a `backup` verb carries back: guard the backup with
-  `secret-seed-guard <marker> <witness> <label>`, which fails when live state exists that the repo never seeded (see
-  `configs/gaming/dalamud/mod.nu`).
+- `link`: read `$env.DOTFILES/configs/secrets/keys/<file>`, guard with `secret-is-plaintext`, skip with a message when
+  locked (`configs/core/ntfy/mod.nu`).
+- `system`: never reads `keys/`. `dot apply` streams the files in `SYSTEM_SECRETS` (`scripts/lib/system.nu`, plus this
+  host's `initramfs-ssh/<hostname>/sshkeydir/.ed25519.sk` and the platform's `wireguard`) to a tmpfs
+  `$DOTFILES_SECRETS`; read `$DOTFILES_SECRETS/<path relative to keys/>` (a locked file is absent).
+- State a `backup` verb carries back: guard with `secret-seed-guard <marker> <witness> <label>`
+  (`configs/gaming/dalamud/mod.nu`), which fails on live state the repo never seeded.
 
 ## Add a secret
 
-1. Unlock, then put the file under `configs/secrets/keys/` (subdirs are fine); git-crypt encrypts it on commit.
-   Anywhere else in `configs/secrets/` it would be committed in plaintext: `state/` is for what may be.
-2. A system module needs it: add its path to `SYSTEM_SECRETS` in `scripts/lib/system.nu`.
-3. `dot sync` commits and pushes the submodule, then the main repo. Agents never do.
-4. Writing into `configs/secrets/` while locked would stage plaintext into blob paths: a script that writes there first
-   checks `secret-is-plaintext` on a witness file (`pgp_privatekey.asc`) and stops when it is locked.
+1. Unlock, put it under `configs/secrets/keys/`. Anywhere else in `configs/secrets/` it is committed in plaintext.
+2. A system module needs it: add its path to `SYSTEM_SECRETS`.
+3. `dot sync` commits and pushes (submodule first). Agents never do.
+4. Never write into `configs/secrets/` while locked: a script checks `secret-is-plaintext` on `pgp_privatekey.asc`
+   first and stops.

@@ -37,7 +37,7 @@ return {
             vim.diagnostic.config({
                 severity_sort = true,
                 virtual_text = {
-                    prefix = "●",
+                    prefix = "\u{25cf}",
                     spacing = 2,
                     source = "if_many",
                 },

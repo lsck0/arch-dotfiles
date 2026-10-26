@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Runs a dot command so ctrl+c ends the whole run: nushell's try would catch the interrupt and go on, so on SIGINT
-# every nu below and every setsid'd command get SIGTERM; exits 130. --lock <file> holds that flock for the run.
-# DOT_RUN_POINTER names the file the run writes its log path into, so the interrupt is logged there too.
+# ctrl+c ends the whole run (nushell's try would swallow it): SIGTERM to every nu and setsid'd child, exit 130.
 set -euo pipefail
 
 if [[ ${1-} == --lock ]]; then

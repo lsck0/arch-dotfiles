@@ -1,20 +1,4 @@
 # keyboard
 
-## Build
-
-```bash
-./build.nu
-```
-
-## Flash
-
-1. disconnect the two halves
-2. plug in left side
-3. double click reset button
-4. copy \*.uf2 onto the board
-5. plug in right side
-6. double click reset button
-7. copy \*.uf2 onto the board
-8. disconnect the board
-9. connect the two halves
-10. plug in left side
+`./build.nu`, then for each half (left first): plug it in alone, double-click reset, copy the `*.uf2` onto the board.
+Reconnect the halves and plug in the left side.

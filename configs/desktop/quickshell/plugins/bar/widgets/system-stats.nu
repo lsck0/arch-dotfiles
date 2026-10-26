@@ -1,5 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
+# a desktop's draw at the wall: cpu and gpu plus the rest of the board, through the psu
 const OVERHEAD_W = 40
 const PSU_EFFICIENCY = 0.9
 const FIRST_SAMPLE = 300ms
@@ -158,7 +159,17 @@ def main [interval_s: number = 10] {
             let wrapped = if $delta < 0 and $hw.rapl_max > 0 { $delta + $hw.rapl_max } else { $delta }
             if $wrapped >= 0 { $wrapped / 1000 / $dt_ms }
         }
-        let power_w = if $cpu_w != null or $gpu_w != null { (($cpu_w | default 0) + ($gpu_w | default 0) + $OVERHEAD_W) / $PSU_EFFICIENCY }
+        # a laptop on battery reports its real draw; on ac it has no psu or desktop board, so cpu and gpu alone
+        let battery_w = glob /sys/class/power_supply/BAT*
+            | where { (line-read ($in | path join status)) == "Discharging" }
+            | each { number-or-null (line-read ($in | path join power_now)) $UW_PER_W } | compact | get --optional 0
+        let laptop = glob /sys/class/power_supply/BAT* | is-not-empty
+        let power_w = if $battery_w != null {
+            $battery_w
+        } else if $cpu_w != null or $gpu_w != null {
+            let parts = ($cpu_w | default 0) + ($gpu_w | default 0)
+            if $laptop { $parts } else { ($parts + $OVERHEAD_W) / $PSU_EFFICIENCY }
+        }
         let energy_wh = (line-read $energy_file | default -e "0" | into float) + ($power_w | default 0) * $dt_ms / $MS_PER_HOUR
         if $power_w != null { $"($energy_wh | math round -p 4)\n" | save -f $energy_file }
         def vram-mb [kind: string]: nothing -> any {

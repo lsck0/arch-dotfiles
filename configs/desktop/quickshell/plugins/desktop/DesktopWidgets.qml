@@ -14,7 +14,7 @@ Item {
     readonly property int reminderMax: 4
     readonly property string notesPath: Paths.home + "/sync/notes/notes.md"
     property string notesText: ""
-    readonly property int cardWidth: Style.space(300)
+    readonly property int cardWidth: Style.space(520)
     readonly property var reminderRows: {
         var out = [];
         var list = TimerState.reminders || [];
@@ -171,6 +171,7 @@ Item {
                             label: modelData.summary
                             trailing: modelData.when
                             trailingColor: Colors.accent
+                            trailingOpacity: Style.emphasis.strong
                         }
 
                     }
@@ -320,16 +321,19 @@ Item {
         width: parent ? parent.width : 0
         implicitHeight: Math.max(labelText.implicitHeight, trailingText.implicitHeight)
 
+        // a long title wraps onto a second line instead of losing its end; the time stays on the first line
         Text {
             id: labelText
 
             anchors.left: parent.left
             anchors.right: trailingText.left
             anchors.rightMargin: Style.spacing.sm
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.top: parent.top
             textFormat: Text.PlainText
             text: "> " + parent.label
             color: Colors.foreground
+            wrapMode: Text.WordWrap
+            maximumLineCount: 2
             elide: Text.ElideRight
             font.family: Style.font.family
             font.pixelSize: Style.font.body
@@ -339,13 +343,13 @@ Item {
             id: trailingText
 
             anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.baseline: labelText.baseline
             textFormat: Text.PlainText
             text: parent.trailing
             color: parent.trailingColor
             opacity: parent.trailingOpacity
             font.family: Style.font.family
-            font.pixelSize: Style.font.bodySmall
+            font.pixelSize: Style.font.body
         }
 
     }

@@ -1,5 +1,4 @@
-# Pinned downloads behind fetch-file and fetch-git (module.nu): a file checked against its sha256 and cached
-# by it, a git tree at a commit; a stamp per destination says it is done.
+# Pinned downloads: files by sha256, git trees by commit.
 
 use state.nu [state-dir path-kind]
 
@@ -24,14 +23,12 @@ def extract [archive: path, into: path]: nothing -> nothing {
     if (^file -b --mime-type $archive | str trim) == "application/zip" { ^unzip -q $archive -d $into } else { ^tar -xf $archive -C $into }
 }
 
-# Downloads url (or takes it from the cache), checks the sha256 and swaps it in at dest; --extract names an
-# archive member, or . for all.
+# --extract names an archive member, or . for all.
 export def fetch-file-run [url: string, sha256: string, dest: path, --mode: string = "644", --extract: string]: nothing -> nothing {
     let cached = fetch-cache | path join $sha256
     if not ($cached | path exists) {
         mkdir ($cached | path dirname)
-        # --retry-all-errors: large third-party downloads (sourceforge, mirrors) drop mid-transfer in ways
-        # curl's default retryable-error set does not cover; -C - resumes instead of restarting each attempt
+        # --retry-all-errors: mirrors drop mid-transfer outside curl's default set; -C - resumes
         let got = ^curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors -C - -o $"($cached).part" $url | complete
         if $got.exit_code != 0 { error make {msg: $"download of ($url) failed: ($got.stderr | str trim | lines | last)"} }
         if (open --raw $"($cached).part" | hash sha256) != $sha256 {

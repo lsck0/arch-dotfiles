@@ -11,6 +11,11 @@ def ollama-mark []: nothing -> path {
     $env.XDG_RUNTIME_DIR | path join toggles gamemode-ollama
 }
 
+# vllm.service's stop leaves the gpu level to gamemode while this exists
+def vllm-mark []: nothing -> path {
+    $env.XDG_RUNTIME_DIR | path join toggles gamemode-vllm
+}
+
 def --wrapped succeeds [...argv: string]: nothing -> bool {
     (do { ^$argv.0 ...($argv | skip 1) } | complete).exit_code == 0
 }
@@ -26,7 +31,11 @@ def main []: nothing -> nothing {
 
 def "main start" []: nothing -> nothing {
     if (succeeds systemctl --user is-enabled -q $TRMNL_TIMER) { ^systemctl --user stop $TRMNL_TIMER }
-    if (succeeds systemctl is-active -q $VLLM_PROXY) { ^systemctl --no-ask-password stop $VLLM_PROXY }
+    if (succeeds systemctl is-active -q $VLLM_PROXY) {
+        mkdir (vllm-mark | path dirname)
+        touch (vllm-mark)
+        ^systemctl --no-ask-password stop $VLLM_PROXY
+    }
     if (succeeds systemctl is-active -q $OLLAMA) {
         mkdir (ollama-mark | path dirname)
         touch (ollama-mark)
@@ -41,5 +50,10 @@ def "main end" []: nothing -> nothing {
     if (ollama-mark | path exists) {
         rm (ollama-mark)
         ^systemctl --no-ask-password start $OLLAMA
+    }
+    # gamemode restores the level vllm had set, so vllm comes back with it
+    if (vllm-mark | path exists) {
+        rm (vllm-mark)
+        ^systemctl --no-ask-password start $VLLM_PROXY
     }
 }

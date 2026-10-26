@@ -189,14 +189,20 @@ hl.bind(
     { locked = true, description = "keyboard backlight on or off" }
 )
 
--- agent-guard can inhibit the lid switch, then closing the lid undocked would neither suspend nor lock
+-- agent-guard can inhibit the lid switch; then an undocked close locks instead of suspending
 hl.bind(
     "switch:on:Lid Switch",
     hl.dsp.exec_cmd(
-        "loginctl show-session -p BlockInhibited --value | grep -qw handle-lid-switch"
+        "$DOTFILES/configs/desktop/hyprland/lid.nu closed;"
+            .. " loginctl show-session -p BlockInhibited --value | grep -qw handle-lid-switch"
             .. " && loginctl show-session -p Docked --value | grep -qx no && loginctl lock-session"
     ),
-    { locked = true, description = "lid closed undocked while the lid is inhibited: lock the session" }
+    { locked = true, description = "lid closed: internal panel off when docked, lock when inhibited and undocked" }
+)
+hl.bind(
+    "switch:off:Lid Switch",
+    hl.dsp.exec_cmd("$DOTFILES/configs/desktop/hyprland/lid.nu open"),
+    { locked = true, description = "lid opened: internal panel back on" }
 )
 
 local DIRECTIONS = {

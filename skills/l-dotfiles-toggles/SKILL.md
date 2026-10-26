@@ -5,23 +5,16 @@ description: Adding an on/off or n-state switch as scripts/toggles/toggle-<name>
 
 # toggles
 
-Every `scripts/toggles/toggle-*.nu` answers `get` (the state alone) and `get --json`, its status record from
-`status-record` in `lib.nu`: `{name, label, state, text, states, on, available}`, `states` every value with the
-resting one first (`[off on]` for a switch, empty for an open setting like the font), `on` whether it is away from
-rest, `available` whether this machine offers it. An on/off one also answers `on | off | toggle` through `switch-run`
-(its switch record may carry an `available` closure); an n-state one (route, firewall, powermode, shader,
-color-grading, font, monitor-scale) has its states as a const record and `set <value>` plus `toggle` (most cycle with
-`cycle-next`; shader switches between off and the last shader, monitor-scale steps up and wraps, route skips offline). Patterns worth copying:
-`toggle-focus.nu` (on/off over other toggles through `toggle-run`, restoring their states), `toggle-weather-location.nu`
-(on/off plus `set <lat> <lon>`, `clear` and query verbs), `toggle-theme-mode.nu` (two states without `switch-run`:
-its own `get`, `set light|dark`, `light`, `dark`, `toggle`), `toggle-obs-listen.nu` (an app's live state over its
-websocket), `toggle-route.nu` (exclusive states over several tools: direct, protonvpn, the tor router, offline).
-`status.nu [name...]` lists the records of every toggle or the named ones (plus `options` with `--options`), `menu.nu`
-on `SUPER+t` shows the available ones in `configs/desktop/hyprland/picker.nu` (`--fzf` in a terminal). A new script appears in both without
-registration. `get` stays cheap and side-effect free: `dot set` and the settings window read it.
-A script that also answers `options` (JSON rows shaped like `dot set --json`, each with the `set` verb that
-writes it, see `toggle-font.nu`) shows those rows in the settings window instead of its step row, through
-`status.nu --options`; a long `choices` list there is a filterable pick list.
+Every `scripts/toggles/toggle-*.nu` answers `get` (the state) and `get --json` (the record from `status-record` in
+`lib.nu`: `{name, label, state, text, states, on, available}`; `states` lists the resting state first). On/off ones go
+through `switch-run` (`on|off|toggle`); n-state ones (route, firewall, powermode, shader, color-grading, font,
+monitor-scale) keep their states in a const record with `set <value>` and `toggle` (`cycle-next`). `status.nu
+[name...]` lists the records, `menu.nu` (`SUPER+t`) shows them; a new script appears in both without registration.
+`get` stays cheap and side-effect free: `dot set` and the settings window call it. A script answering `options`
+(rows shaped like `dot set --json`, see `toggle-font.nu`) shows those rows in the settings window instead.
+
+Examples: `toggle-focus.nu` (combines toggles via `toggle-run`), `toggle-theme-mode.nu` (own `get`/`set`),
+`toggle-obs-listen.nu` (live app state), `toggle-route.nu` (exclusive states over several tools).
 
 ## Add one
 
@@ -36,32 +29,25 @@ writes it, see `toggle-font.nu`) shows those rows in the settings window instead
            is-on: {|| ... }      # bool, no side effects
            on: {|| ... }
            off: {|| ... }
-           available: {|| ... }  # optional, bool
+           available: {|| ... }  # optional
        } $action --json=$json
    }
    ```
-   Shortcuts: `switch-run (service-switch <label> <unit>) $action --json=$json` for a systemd unit, `radio-switch <label>
-   wifi|wwan`. State without a live probe: `state-get`/`state-set`/`state-clear` (`~/.local/state/toggles`), with
-   `--volatile` (tmpfs) for state that resets on boot. Another toggle: `toggle-run <name> <action>`.
-2. Root work goes through one `root-run <verb> ...` per flip (one password prompt at most), which runs `/usr/local/bin/toggle-root` (from
-   `configs/core/toggles/toggle-root.nu`) via pkexec for wheel users only; add the verb there and the polkit rule in
-   `configs/core/toggles/49-toggles.rules` if needed. Anything that lowers a guard uses `systemctl-guarded`.
-3. `switch-run` calls `notify`, which pings quickshell (`toggles changed <script>`) and sends a notification; an
-   n-state toggle calls `notify` itself after a change. Nothing polls.
+   Shortcuts: `service-switch <label> <unit>`, `radio-switch <label> wifi|wwan`; state without a probe:
+   `state-get`/`state-set`/`state-clear` (`--volatile` resets on boot).
+2. Root work: one `root-run <verb>` per flip (one prompt at most), running `toggle-root`
+   (`configs/core/toggles/toggle-root.nu`) via pkexec; add the verb there and a rule in `49-toggles.rules` if needed.
+   Lowering a guard uses `systemctl-guarded`.
+3. `switch-run` notifies quickshell (`toggles changed <script>`); an n-state toggle calls `notify` itself.
 
-## Quickshell wiring (only for a dedicated control)
-
-- Run it: `Quickshell.execDetached([Paths.toggle("toggle-<name>.nu"), "toggle"])`.
-- Refresh on change: connect to `ToggleEvents.changed(script)` and compare `script === "toggle-<name>.nu"`
-  (see `plugins/bar/indicators/StayAwake.qml`).
+Quickshell control (only for a dedicated one): run `Quickshell.execDetached([Paths.toggle("toggle-<name>.nu"),
+"toggle"])`, refresh on `ToggleEvents.changed(script)`.
 
 ## Test
 
 ```bash
-scripts/toggles/toggle-<name>.nu get
-scripts/toggles/toggle-<name>.nu get --json   # the status record
+scripts/toggles/toggle-<name>.nu get --json
 scripts/toggles/toggle-<name>.nu toggle; scripts/toggles/toggle-<name>.nu toggle
-scripts/toggles/status.nu | jq '.[] | select(.name == "<name>")'
 nu --no-config-file --ide-check 50 scripts/toggles/toggle-<name>.nu
 dot test lint
 ```

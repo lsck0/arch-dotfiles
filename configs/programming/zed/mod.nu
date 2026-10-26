@@ -9,8 +9,7 @@ export def link [cfg: record] {
     files-into ($nu.home-dir | path join $CONFIG_DIR) keymap.json
 }
 
-# Merged, not rendered: zed rewrites settings.json from its settings UI and keeps its own keys there; the repo's keys
-# and the font win, every other key survives.
+# Merged: zed's UI edits survive, the repo's keys and the font win.
 def settings []: nothing -> record {
     let font = font-load
     let edits = open settings.json | merge {buffer_font_family: $font.mono, buffer_font_size: $font.size}

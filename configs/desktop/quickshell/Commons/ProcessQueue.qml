@@ -1,8 +1,6 @@
 import QtQuick
 
-// Serial job queue: holds items, runs one at a time via the caller's own Process. The caller runs
-// runItem's item and calls done() from that Process's onExited; everything else (the Process, its
-// stdout/stderr handling, what counts as an error) stays with the caller.
+// Serial queue over the caller's Process: it runs runItem's item and calls done() from onExited.
 QtObject {
   id: root
 

@@ -1,5 +1,4 @@
-# Install a machine from the Arch ISO or set up a fresh WSL distro: walks bootstrap/questions.nuon in order;
-# unattended (no tty or BOOTSTRAP_ASSUME_YES=1) every answer comes from its BOOTSTRAP_* variable or its default.
+# Install from the Arch ISO or set up WSL from bootstrap/questions.nuon; unattended from BOOTSTRAP_*.
 
 use log.nu *
 use state.nu [SYSTEM_REPO path-kind]
@@ -15,8 +14,8 @@ const MIRROR_AGE_H = 12
 const MIRROR_DOWNLOAD_TIMEOUT_S = 5
 const REFLECTOR_WAIT_S = 90
 const GEO_TIMEOUT_S = 3
-const HOMELAB_MIRROR = 'http://10.100.0.104:8090/archlinux/$repo/os/$arch'
-const HOMELAB_MIRROR_PROBE = "http://10.100.0.104:8090/archlinux/core/os/x86_64/core.db"
+const HOMELAB_MIRROR = 'http://10.100.0.100:8090/archlinux/$repo/os/$arch'
+const HOMELAB_MIRROR_PROBE = "http://10.100.0.100:8090/archlinux/core/os/x86_64/core.db"
 
 const KBD_MODEL_MAP = "/usr/share/systemd/kbd-model-map"
 const ESP_SIZE_MIB = 1024
@@ -318,7 +317,20 @@ def user-setup [c: record]: nothing -> nothing {
         ^chmod 600 $keys
     }
     try { system-pack $c.repo | system-unpack $"($root)($SYSTEM_REPO)" (^git -C $c.repo rev-parse HEAD | str trim) } catch {|e| die $"cannot seed the root copy ($root)($SYSTEM_REPO): ($e.msg)" }
+    login-seed $home $c.username
     in-target $root chown -R $"($c.username):($c.username)" $"/home/($c.username)"
+}
+
+# Before the first apply: `dot` on PATH and no zsh newuser wizard; the apply takes both files over.
+def login-seed [home: path, user: string]: nothing -> nothing {
+    let bin = $home | path join .local bin
+    mkdir $bin
+    let dot = $bin | path join dot
+    if not ($dot | path exists --no-symlink) { ^ln -s $"/home/($user)/projects/arch-dotfiles/scripts/dot.nu" $dot }
+    let zshenv = $home | path join .zshenv
+    if not ($zshenv | path exists) { "typeset -U path\npath=(\"$HOME/.local/bin\" $path)\n" | save $zshenv }
+    let zshrc = $home | path join .zshrc
+    if not ($zshrc | path exists) { "" | save $zshrc }
 }
 
 def --wrapped in-target-ok [root: string, ...cmd: string]: nothing -> bool {
@@ -463,11 +475,13 @@ def platform-names [repo: path]: nothing -> list<string> {
 
 def platform-items [e: record, c: record]: nothing -> list<string> {
     let fixed = platform-names $c.repo | where $it not-in $e.hidden | each {|p|
-        {name: $p, form_factor: (open ($c.repo | path join platforms $"($p).nuon") | get --optional form_factor | default "")}
+        let raw = open ($c.repo | path join platforms $"($p).nuon")
+        {name: $p, form_factor: ($raw.form_factor? | default ""), label: ($raw.label? | default "")}
     } | where {|p| ($p.form_factor == "wsl") == $c.host_wsl } | each {|p|
-        [$p.name ($e.form_factors | get --optional $p.form_factor | default $p.form_factor)]
+        [$p.name ($p.label | default -e ($e.form_factors | get --optional $p.form_factor | default $p.form_factor))]
     } | flatten
-    $fixed ++ (options-items $e $c)
+    # the generic choices first: a named platform is one person's machine
+    (options-items $e $c) ++ $fixed
 }
 
 # The profiles/<picked> name and its capabilities; custom has none and copies no file.

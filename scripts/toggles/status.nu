@@ -4,8 +4,7 @@ use lib.nu [TOGGLES_DIR]
 
 const OPTIONS_VERB = 'def "main options"'
 
-# names: only those toggles (the network panel's); --options adds the rows of each script that answers `options`,
-# which only the settings window edits
+# names limits the list; --options adds the rows only the settings window edits
 def main [...names: string, --options] {
     let scripts = if ($names | is-empty) {
         glob ($TOGGLES_DIR | path join toggle-*.nu)

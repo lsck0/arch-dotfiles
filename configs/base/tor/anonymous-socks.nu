@@ -1,5 +1,4 @@
-# A pool of isolated tor SOCKS ports for toggle-anonymous-socks: tor runs unprivileged in its own slice, confined to lo
-# by a root netfilter guard, with an optional rate cap and TTL persona.
+# Pool of isolated tor SOCKS ports on lo for toggle-anonymous-socks.
 
 const CONFIG = ".config/anonymous-socks/config"
 const DEFAULTS = {

@@ -69,7 +69,7 @@
       scroll-preserve-screen-position t)
 (setq-default truncate-lines t
               fill-column 120)
-(setq display-fill-column-indicator-character ?▕)
+(setq display-fill-column-indicator-character ?\u2595)
 (global-display-fill-column-indicator-mode 1)
 
 (dolist (hook '(term-mode-hook eat-mode-hook eshell-mode-hook dired-mode-hook))

@@ -136,7 +136,8 @@ def --wrapped main [...args: string] {
                 permissive => { ^systemctl stop fw-inbound.service fw-lockdown.service portmaster.service }
                 _ => {
                     ^systemctl start (if $state == default { "fw-inbound.service" } else { "fw-lockdown.service" })
-                    if not ($"/sys/class/net/($VPN_INTERFACE)" | path exists) { ^systemctl start portmaster.service }
+                    let tunnel = ($"/sys/class/net/($VPN_INTERFACE)" | path exists) or ((^ip -n protonvpn link show wg-protonvpn | complete).exit_code == 0)
+                    if not $tunnel { ^systemctl start portmaster.service }
                 }
             }
             # the admin chose, so the dispatcher's lockdown marker no longer holds the link

@@ -1,5 +1,4 @@
-# One layer's run: load platform, profile, modules and options, plan every module (skipping those whose
-# inputs and outputs are unchanged), then apply them in dependency order as parallel jobs.
+# One layer's run: load, plan (unchanged modules skipped), apply in dependency order as parallel jobs.
 
 use log.nu *
 use state.nu [LIB_DIR]
@@ -14,9 +13,10 @@ const HASH_STAMP = '%P %s %T@\n'
 const EXEC_PASSES_MAX = 3
 const NOTE_PREFIX = "note:"
 const REVERT_VERBS = [link system]
-# a link's source can be a live mount (autofs, a network share): bound the existence probe so one
-# unreachable host doesn't stall every plan/apply; a timeout counts as "gone", same as a real miss
+# a link source can be a dead mount: bound the probe, a timeout counts as gone
 const LINK_PROBE_TIMEOUT_S = 2
+# a hung theme verb is killed after this; the run goes on
+export const THEME_VERB_TIMEOUT = 60sec
 
 def eval-env [ctx: record]: nothing -> record {
     platform-env $ctx.platform | merge {DOT_LAYER: $ctx.layer, DOTFILES: $ctx.repo}
@@ -32,8 +32,7 @@ def detect [ctx: record, modules: table]: nothing -> record {
     } | reduce --fold {} {|r, acc| $acc | insert $r.id $r.values }
 }
 
-# The user layer runs before a login session has read environment.d (the install chain, a tty), so the tools a module
-# runs (npm, dotnet, mason) still see base/xdg's app dirs; a value the session already set wins.
+# The install chain has no environment.d yet: load base/xdg's app dirs; session values win.
 def --env app-dirs-load [repo: path]: nothing -> nothing {
     let file = $repo | path join configs base xdg app-dirs.conf
     if not ($file | path exists) { return }
@@ -70,8 +69,7 @@ def stamp [dir: path]: nothing -> string {
     ^find $dir -type f -not -name '*.log' -printf $HASH_STAMP | lines | sort | str join "\n"
 }
 
-# The .nu files outside a module's own dir that its scripts import (a mod.nu using core/wallust/palette.nu), followed
-# transitively: a change there must re-run the module, its own dir's stamp does not see it.
+# Imports outside the module's dir, followed transitively, so a change there re-runs the module.
 def imports-outside [dir: path]: nothing -> list<string> {
     mut seen = []
     mut todo = glob ($dir | path join "**" "*.nu")
@@ -134,8 +132,14 @@ def eval-plan [ctx: record, mods: table, verb: string, args: list, prev: record,
     }
 }
 
-# One row per module in run order with its planned actions; a module with unchanged inputs and clean
-# outputs is skipped unevaluated, a module turned off plans the removal of what it installed.
+# root's secrets arrive in a fresh dir each run: their content, not their path, decides whether a module re-runs
+def secrets-stamp []: nothing -> string {
+    let dir = $env.DOTFILES_SECRETS? | default ""
+    if $dir == "" or not ($dir | path exists) { return "" }
+    glob ($dir | path join "**" "*") --no-dir | sort | each {|f| $"($f | path relative-to $dir) (open --raw $f | hash sha256)" } | str join "\n" | hash sha256
+}
+
+# Unchanged modules are skipped unevaluated; a disabled one plans its removals.
 export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: bool, args: list = []]: nothing -> table {
     let unknown = $ids | where $it not-in $ctx.modules.id
     if ($unknown | is-not-empty) {
@@ -153,6 +157,7 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     let global = [
         (stamp $LIB_DIR) ($ctx.platform.facts | to nuon) ($ctx.profile.capabilities? | default [] | to nuon)
         (secret-is-plaintext ($ctx.repo | path join configs secrets keys pgp_privatekey.asc)) $verb ($args | to nuon)
+        (secrets-stamp)
     ] | str join "\n"
     let natives = $graph | where $verb in $it.native | each {|m|
         let prev = state-read $m.id $verb
@@ -240,8 +245,7 @@ def module-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
     $result | insert id $m.id | insert notes $notes | insert ms (since-ms $start)
 }
 
-# Kills what a timed-out module started: its job's externals and their children, setsid'd ones included, all carry
-# this run's DOT_RUN_FILE and the module's DOTFILES_MODULE (module-run's with-env).
+# Its processes carry DOT_RUN_FILE and DOTFILES_MODULE, setsid'd ones included.
 def module-procs-kill [id: string]: nothing -> nothing {
     let marks = [$"DOTFILES_MODULE=($id)" $"DOT_RUN_FILE=($env.DOT_RUN_FILE? | default '')"]
     let pids = glob /proc/[0-9]*/environ | each {|f|
@@ -251,8 +255,7 @@ def module-procs-kill [id: string]: nothing -> nothing {
     if ($pids | is-not-empty) { ^kill -KILL ...$pids | complete | ignore }
 }
 
-# Runs the planned modules as jobs, each once its after list finished, at most jobs at once, a serial one alone;
-# --timeout: a module still running after it is killed and counts as failed, the others go on.
+# --timeout: a module still running is killed and counts as failed.
 export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int, args: list = [], --timeout: duration]: nothing -> table {
     mut done = {}
     mut running = {}

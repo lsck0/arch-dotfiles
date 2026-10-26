@@ -43,7 +43,7 @@ end
 set.ignorecase = true
 set.inccommand = "split"
 set.list = true
-set.listchars = { tab = "> ", trail = "-", eol = "↲" }
+set.listchars = { tab = "> ", trail = "-", eol = "\u{21b2}" }
 set.laststatus = 3
 set.mousemoveevent = true
 set.number = true

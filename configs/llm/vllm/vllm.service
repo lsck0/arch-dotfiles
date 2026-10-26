@@ -35,7 +35,7 @@ Environment=VLLM_TARGET_DEVICE=rocm
 Environment=VLLM_USE_TRITON_AWQ=1
 Environment=VLLM_MODEL_REVISION=@MODEL_REVISION@
 ExecStartPre=+/usr/bin/sh -c 'test -e @PERF_LEVEL_PATH@ && echo high > @PERF_LEVEL_PATH@ || true'
-ExecStopPost=+/usr/bin/sh -c 'test -e @PERF_LEVEL_PATH@ && echo auto > @PERF_LEVEL_PATH@ || true'
+ExecStopPost=+/usr/bin/sh -c 'test -e @PERF_LEVEL_PATH@ && ! ls /run/user/*/toggles/gamemode-vllm >/dev/null 2>&1 && echo auto > @PERF_LEVEL_PATH@ || true'
 ExecStart=/opt/vllm/venv/bin/vllm serve @MODEL@ \
     --revision ${VLLM_MODEL_REVISION} \
     --tokenizer-revision ${VLLM_MODEL_REVISION} \

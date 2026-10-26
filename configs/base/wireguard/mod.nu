@@ -6,8 +6,7 @@ export const meta = {packages: {pacman: [openvpn wireguard-tools]}, volatile: tr
 const CONF = "/etc/wireguard/wg0.conf"
 const SECRET_NAME = '^[A-Za-z0-9._-]+$'
 
-# The admin's wg0.conf from the secrets, data only (wg-quick runs its *Up/*Down hooks as root). With the secret
-# absent (locked) dot's own unchanged copy is declared again; a hand-made or edited one is never taken over.
+# Locked secrets: redeclare dot's own unchanged wg0.conf; never take over a hand-made one.
 export def system [cfg: record] {
     let name = $env.WIREGUARD? | default ""
     if $name == "" { return [] }

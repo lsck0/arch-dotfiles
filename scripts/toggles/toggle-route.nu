@@ -1,7 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# Where the machine's traffic leaves: direct, through protonvpn, through the tor router, or nowhere (offline). One of
-# them at a time; the homelab vpn (wg0, the lab subnets only) and the anonymous SOCKS pool (ports on lo) are not
-# routes and stay their own toggles. Offline also takes wg0 down and brings it back on the way out.
+# direct, proton, tor or offline; wg0 and the SOCKS pool are not routes. Offline also cycles wg0.
 use lib.nu [notify cycle-next status-record status-print toggle-run state-get state-set state-file systemctl-guarded unit-active]
 
 const ROUTES = {direct: Direct, proton: ProtonVPN, tor: Tor, offline: Offline}
@@ -24,6 +22,8 @@ def current []: nothing -> string {
 }
 
 def portmaster-restore []: nothing -> nothing {
+    # portmaster's connmark restore breaks the protonvpn netns tunnel's fwmark, as in the dispatcher's portmaster-on
+    if (^systemctl is-active --quiet protonvpn-netns.service | complete).exit_code == 0 { return }
     if (toggle-run firewall get | str trim) != permissive { ^systemctl --no-ask-password start portmaster.service }
 }
 
@@ -78,8 +78,7 @@ def offline-leave []: nothing -> nothing {
     rm --force $saved (state-file offline-vpn --volatile)
 }
 
-# tor stops only after proton0 is up, and only a tor the user chose: the dispatcher stops its own on vpn-up, and
-# --keep-tor (auto-vpn) stops none. A declined prompt leaves tor running beside proton.
+# only a user-chosen tor stops, after proton0 is up; the dispatcher stops its own
 def apply [route: string, --keep-tor]: nothing -> nothing {
     if $route not-in $ROUTES { error make {msg: $"route must be one of ($ROUTES | columns | str join ', ')"} }
     let from = current

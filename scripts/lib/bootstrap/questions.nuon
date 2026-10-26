@@ -283,7 +283,7 @@
         setup_mode_stop: "put the firmware in Secure Boot Setup Mode, then run this again"
         wsl_password_empty: "empty password"
         password_missing: "{username} password is required unattended, set BOOTSTRAP_PASSWORD or BOOTSTRAP_USER_PASSWORD"
-        wsl_done: "done. in windows run: wsl --terminate archlinux, open it again, then: cd ~/projects/arch-dotfiles && dot sync --no-push"
+        wsl_done: "done. in windows run: wsl --terminate archlinux, open it again (you land as your user), then: dot sync --no-push"
         done: "done. rebooting in {delay}, remove the ISO; the install goes on by itself"
     }
 

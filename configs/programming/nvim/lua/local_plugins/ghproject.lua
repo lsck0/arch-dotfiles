@@ -5,11 +5,11 @@ local LIST_WIDTH = 70
 local TITLE_WIDTH = 46
 local FIELD_WIDTH_MAX = 24
 local LEFT = "  " -- left margin on grid lines
-local SEP = " │ " -- between board columns
+local SEP = " \u{2502} " -- between board columns
 local GAP = "  " -- between table columns
 local NS = vim.api.nvim_create_namespace("ghproject")
 local LEGEND =
-    "hjkl move · H/L status · J/K reorder · ⇥ view · v layout · p/P project · / search · e edit · ⏎ open · r refresh · q quit"
+    "hjkl move \u{b7} H/L status \u{b7} J/K reorder \u{b7} \u{21e5} view \u{b7} v layout \u{b7} p/P project \u{b7} / search \u{b7} e edit \u{b7} \u{23ce} open \u{b7} r refresh \u{b7} q quit"
 
 local LAYOUTS = { BOARD_LAYOUT = "board", TABLE_LAYOUT = "table", ROADMAP_LAYOUT = "table" } -- no roadmap in a terminal
 local LAYOUT_CYCLE = { "board", "table", "list" }
@@ -105,7 +105,7 @@ local function truncate(s, n)
         end
         out, w = out .. ch, w + cw
     end
-    return out .. "…"
+    return out .. "\u{2026}"
 end
 
 local function pad(s, n)
@@ -153,9 +153,9 @@ end
 local function rule_line(columns)
     local segs = {}
     for i = 1, #columns do
-        segs[i] = string.rep("─", COL_WIDTH)
+        segs[i] = string.rep("\u{2500}", COL_WIDTH)
     end
-    return table.concat(segs, "─┼─")
+    return table.concat(segs, "\u{2500}\u{253c}\u{2500}")
 end
 
 -- Filter keys compare lowercased with spaces as hyphens ("target-date").
@@ -708,14 +708,20 @@ end
 
 local function render_header(lines, marks)
     local n = projects and #projects or 1
-    local h =
-        string.format("  %s  [%d/%d]  · %s  · %d items", state.title or "", state.idx, n, state.layout, #visible())
+    local h = string.format(
+        "  %s  [%d/%d]  \u{b7} %s  \u{b7} %d items",
+        state.title or "",
+        state.idx,
+        n,
+        state.layout,
+        #visible()
+    )
     if state.filter then
-        h = h .. "  · search: " .. state.filter
+        h = h .. "  \u{b7} search: " .. state.filter
     end
     local ignored = cur_view().ignored
     if #ignored > 0 then
-        h = h .. "  · ignored: " .. table.concat(ignored, " ")
+        h = h .. "  \u{b7} ignored: " .. table.concat(ignored, " ")
     end
     lines[#lines + 1] = h
     marks[#marks + 1] = { grp("GhProjectTitle", "Title"), #lines - 1, 0, -1 }
@@ -724,7 +730,7 @@ local function render_header(lines, marks)
     for i, v in ipairs(state.cviews) do
         local label = " " .. v.name .. " "
         tabs[i] = { #line, #line + #label }
-        line = line .. label .. (i < #state.cviews and "│" or "")
+        line = line .. label .. (i < #state.cviews and "\u{2502}" or "")
     end
     lines[#lines + 1] = line
     for i, r in ipairs(tabs) do
@@ -800,7 +806,7 @@ local function render_table(lines, marks)
     for _, tc in ipairs(cols) do
         total = total + tc.w
     end
-    lines[#lines + 1] = LEFT .. string.rep("─", total)
+    lines[#lines + 1] = LEFT .. string.rep("\u{2500}", total)
     marks[#marks + 1] = { grp("GhProjectSep", "Comment"), #lines - 1, 0, -1 }
 
     local idx, cursor = 0, nil

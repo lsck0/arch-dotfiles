@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# Cycles the hyprland screen shaders in ~/.config/hypr/shaders; each <name>.frag carries `// @label`, `@variants`,
-# `@animated` and `@themed` header lines. Any shader costs direct scanout.
+# Each .frag carries @label/@variants/@animated/@themed headers; any shader costs direct scanout.
 
 use lib.nu [status-record status-print notify state-get state-set quickshell-call]
 

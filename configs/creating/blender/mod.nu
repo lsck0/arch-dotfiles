@@ -1,7 +1,6 @@
 use module.nu *
 
-# cuda only for libcudart.so.13: arch's usd and opensubdiv link it without depending on it, so blender cannot start
-# without; drop it once their packages declare it
+# cuda only for libcudart.so.13: arch's usd and opensubdiv link it undeclared
 export const meta = {packages: {pacman: [blender cuda uv]}}
 
 # the add-on runs any python the server sends, unsandboxed, so the bridge never auto-starts
@@ -53,6 +52,11 @@ export def server-install []: nothing -> nothing {
     pin | save --force (pin-file)
 }
 
+def blender-run [args: list<string>]: nothing -> nothing {
+    let run = ^blender ...$args | complete
+    if $run.exit_code != 0 { error make {msg: $"blender ($args | first 3 | str join ' ') exited ($run.exit_code): ($run.stderr | lines | last 5 | str join "\n")"} }
+}
+
 export def addon-install []: nothing -> nothing {
     let addon = src | path join addon blender_mcp_addon
     let query = 'import bpy; print("EXT=" + bpy.utils.user_resource("EXTENSIONS"))'
@@ -63,9 +67,9 @@ export def addon-install []: nothing -> nothing {
     let same = (^diff -rq -x __pycache__ -x '.*' $addon $installed | complete).exit_code == 0
     if not $same {
         let tmp = mktemp --directory
-        ^blender -c extension build --source-dir $addon --output-filepath ($tmp | path join mcp.zip) | ignore
-        ^blender -c extension install-file -r user_default ($tmp | path join mcp.zip) | ignore
+        blender-run [-c extension build --source-dir $addon --output-filepath ($tmp | path join mcp.zip)]
+        blender-run [-c extension install-file -r user_default ($tmp | path join mcp.zip)]
         rm --recursive $tmp
     }
-    ^blender -b --python-exit-code 1 --python ($HERE | path join mcp-prefs.py) | ignore
+    blender-run [-b --python-exit-code 1 --python ($HERE | path join mcp-prefs.py)]
 }

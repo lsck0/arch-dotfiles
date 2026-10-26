@@ -1,5 +1,6 @@
 {
     hostname: luca-pc
+    label: "Luca's desktop"
     form_factor: desktop
     groups: [base core fonts desktop socials gaming creating latex programming qemu llm rocm pentesting]
     extra_packages: [it87-dkms-git]

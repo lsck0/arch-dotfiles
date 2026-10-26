@@ -1,5 +1,4 @@
-# The static gates: gate-lint behind dot test lint (repo rules and every *.test.nu/sh), gate-tools behind
-# dot test check and fmt (formatters and linters), gate-palette (palette.nu against Palette.js).
+# Static gates behind dot test lint, check and fmt.
 
 use ../../configs/core/wallust/palette.nu
 use platform.nu [PLATFORM_FACTS]
@@ -54,7 +53,7 @@ def lint-modules []: nothing -> list<string> {
     } | flatten
     let order = [[] [--system]] | each {|flags|
         let run = ^nu --no-config-file ($REPO | path join scripts dot.nu) plan --order ...$flags | complete
-        if $run.exit_code != 0 { $"run order (dot plan --order ($flags | str join ' ')): ($run.stderr | str trim)" }
+        if $run.exit_code != 0 { $"run order \(dot plan --order ($flags | str join ' ')\): ($run.stderr | str trim)" }
     } | compact
     $bad_deps ++ $platforms ++ $siblings ++ $order
 }
@@ -81,8 +80,7 @@ def lint-layers []: nothing -> list<string> {
     $verbs ++ $personal
 }
 
-# A mod.nu exports its verbs and hooks, the commands its own `step` runs, and what another module imports by name;
-# anything else is a plain def, so the export list is the module's whole contract.
+# A mod.nu exports only verbs, hooks, its own steps and names other modules import.
 def lint-exports []: nothing -> list<string> {
     let mods = glob $"($REPO)/configs/**/mod.nu" --exclude $SECRETS_DATA
         | append ($ROOT_MODULES | each {|r| $REPO | path join $r mod.nu } | where ($it | path exists))
@@ -166,6 +164,21 @@ def lint-exec-bits []: nothing -> list<string> {
     | each { $"($in.path): has a shebang but is not executable, chmod +x it" }
 }
 
+# ASCII only, except where the bytes are content: a keyboard legend, prompt glyphs, KDE's own rc text, accent tables,
+# a feed's placeholder, real names.
+const ASCII_ALLOW = [
+    '^configs/base/keyboard/sofle_choc/keymap\.c$' '\.age$' '^configs/core/herdr/herdr-open\.nu$'
+    '^configs/socials/desktop/\.herdr-create$' '^configs/core/starship/starship\.toml$' '^configs/desktop/plasma/.*rc$'
+    '^configs/programming/nvim/snippets/tex\.lua$' '^configs/programming/trmnl-claude/template-.*\.html$'
+    '^skills/l-style/SKILL\.md$' '^wallpapers/CREDITS\.md$'
+]
+
+def lint-ascii []: nothing -> list<string> {
+    ^git -C $REPO grep --untracked -I -l -P '[^\x00-\x7F]' -- . $":!($SUBMODULE)" | complete | get stdout | lines
+    | where {|f| not ($ASCII_ALLOW | any {|re| $f =~ $re }) }
+    | each { $"($in): non-ASCII bytes; use ASCII or an escape like \\u{2502}" }
+}
+
 # A renamed or dropped option breaks only the machines whose options file still sets it, at their next install.
 def lint-platform-options []: nothing -> list<string> {
     let script = "use pipeline.nu *; pipeline-load $env.DOT_REPO user | get modules | each {|m| {id: $m.id, keys: ($m.options | columns | append enable)} } | to nuon"
@@ -194,7 +207,7 @@ def unit-tests []: nothing -> list<string> {
 
 # Every lint finding, one line each; empty when the repo passes.
 export def gate-lint []: nothing -> list<string> {
-    [(lint-modules) (lint-layers) (lint-exports) (lint-sync) (lint-stray) (lint-platform-facts) (lint-nu-pitfalls) (lint-exec-bits) (lint-platform-options) (lint-generated) (unit-tests)] | flatten
+    [(lint-modules) (lint-layers) (lint-exports) (lint-sync) (lint-stray) (lint-platform-facts) (lint-nu-pitfalls) (lint-exec-bits) (lint-ascii) (lint-platform-options) (lint-generated) (unit-tests)] | flatten
 }
 
 def pkgbuild [path: path]: nothing -> bool {
@@ -236,8 +249,7 @@ def --wrapped tool [...cmd: string]: nothing -> record {
     do { cd $REPO; ^($cmd | first) ...($cmd | skip 1) } | complete
 }
 
-# Runs every installed formatter and linter, applying fixes first when apply; findings fail check, notes
-# (a missing optional tool) only warn.
+# Fixes first when apply; findings fail, a missing optional tool only warns.
 export def gate-tools [apply: bool]: nothing -> record {
     let paths = walk
     let pick = {|exts| $paths | where { ($in | path parse | get extension) in $exts } | each { rel $in } | sort }

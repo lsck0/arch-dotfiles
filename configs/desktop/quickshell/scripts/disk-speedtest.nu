@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# disk throughput behind a dir: "disk <model>", then "read <MB/s>" and "write <MB/s>" each second, steady mean last.
-# runs as a transient unit: a closed reader breaks the pipe, the unit ends and its ExecStopPost removes the test files
+# runs as a transient unit: a closed reader ends it and ExecStopPost removes the test files
 
 const PHASE_SECONDS = 8
 const PARALLEL = 4

@@ -10,5 +10,6 @@
     "base/tlp": {enable: false}
     "base/v4l-utils": {enable: false}
     "base/v4l2loopback": {enable: false}
-    "base/networkmanager": {home_wired: true}
+    # a server has no untrusted networks: lockdown would close ssh and docker on any unlisted gateway
+    "base/networkmanager": {home_wired: true, untrusted_policy: off}
 }

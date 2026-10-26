@@ -43,7 +43,7 @@
         homelab_subnets: ["10.100.0.0/16" "10.200.0.0/16"]
     }
     "base/ghostmirror": {
-        homelab_mirror: "http://10.100.0.104:8090/archlinux/$repo/os/$arch"
+        homelab_mirror: "http://10.100.0.100:8090/archlinux/$repo/os/$arch"
     }
     "base/pam": {
         fido_origin: "pam://lsck0"
@@ -55,5 +55,8 @@
     }
     "base/v4l2loopback": {
         video_nr: 2
+    }
+    "core/syncthing": {
+        nas_address: "tcp://10.100.0.100:22000"
     }
 }

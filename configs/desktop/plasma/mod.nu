@@ -1,5 +1,3 @@
-# plasma's rc files and applet layout, rendered from templates per machine; theme writes the wallpaper's colors and
-# fonts into kdeglobals, backup carries live settings edits back without them
 
 use module.nu *
 use ini.nu [ini-apply ini-rows]
@@ -195,8 +193,7 @@ def themed-keys []: nothing -> list<string> {
     $colors ++ ($KDE_FONT_KEYS | each { $"($in.group)/($in.key)" }) ++ ["General/ColorSchemeHash"]
 }
 
-# The live kdeglobals with the themed keys as the module has them: those are wallpaper output, so only a real
-# settings edit reaches the backup.
+# Themed keys as the module has them, so only a real settings edit reaches the backup.
 def kdeglobals-back [live: string, template: string]: nothing -> string {
     let themed = themed-keys
     let own = {|r| $r.key != null and $"($r.section)/($r.key)" in $themed }

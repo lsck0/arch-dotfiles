@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# flips the hud of the focused window's game through its control socket (MangoHud.conf control=mangohud-%p);
-# --all flips every running game's hud instead (the old behavior, kept as an escape hatch)
+# flips the focused game's hud via its control socket; --all flips every game's
 
 const SOCKET_PREFIX = "@mangohud-"
 const COMMAND_HUD = ":hud;"
@@ -10,8 +9,7 @@ def sockets []: nothing -> list<string> {
     | where { str starts-with $SOCKET_PREFIX } | uniq
 }
 
-# a dead game can leave its abstract socket name lingering with nothing accepting on it; bound the write so
-# that one stale entry can't hang every other running game's toggle behind it
+# a dead game can leave its socket name behind: bound the write
 def send [socket: string]: nothing -> nothing {
     $COMMAND_HUD | ^timeout 2 socat -u - $"ABSTRACT-CONNECT:($socket | str substring 1..)" | complete | ignore
 }

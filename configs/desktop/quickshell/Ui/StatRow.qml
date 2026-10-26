@@ -52,7 +52,7 @@ Item {
     anchors.baseline: labelText.baseline
     horizontalAlignment: Text.AlignRight
     textFormat: Text.PlainText
-    text: "· ".repeat(120)
+    text: "\u00b7 ".repeat(120)
     color: Util.alpha(Colors.menu.text, Style.emphasis.disabled)
     font.family: Style.font.family
     font.pixelSize: Style.font.caption

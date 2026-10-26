@@ -11,5 +11,4 @@ export def system [cfg: record] {
     ]
 }
 
-# no MCP server here: mcp-server-docker's typical mount (-v /:/host) gives root-equivalent host access to anything
-# that can reach it, breaking "agents never reach root" even for a docker-group member
+# no docker MCP: its host mount is root-equivalent for anything that reaches it

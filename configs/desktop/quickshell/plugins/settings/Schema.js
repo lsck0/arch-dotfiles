@@ -174,8 +174,7 @@ function systemEntries(status, needle) {
 
 function checkFailed(row) { return row.level === "FAIL" }
 
-// the dot command line a system row runs: an action's own, a drift row's reset of that one file, or its adopt
-// followed by an apply of the module, which records the adopted file as the module's output again
+// an adopt is followed by an apply, which records the file as the module's output again
 function systemCommand(dot, row, choice) {
   if (row.kind === "action") return [dot].concat(row.args)
   if (row.kind === "drift" && choice === "reset") return [dot, "module", "reset", row.target]

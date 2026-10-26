@@ -1,5 +1,4 @@
-# Typed module options: schema checks and resolution, defaults < detected < platform < profile; the system
-# layer resolves without the profile, so a user value never reaches root.
+# Option resolution: default < detected < platform < profile; root never sees the profile.
 
 const SPEC_KEYS = [type default doc label group choices min max step apply scope env toggle]
 const SPEC_REQUIRED = [type default doc]

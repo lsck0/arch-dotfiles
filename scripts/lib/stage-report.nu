@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# The end of a watched install chain (dot test), run last by stage.nu as root: the invariant probes and the backup
-# roundtrip, the logs uploaded to the watcher, then chain-done or chain-fail.
+# End of a watched install chain: probes, backup roundtrip, logs uploaded, then the verdict beacon.
 
 const STATE_DIR = "/var/lib/dotfiles-stage"
 const INVARIANTS = path self invariants.txt

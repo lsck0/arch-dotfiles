@@ -1,5 +1,4 @@
-# Migrations: migrations/<NNNN>-<slug>.nu run once per machine and layer, recorded in the ledger;
-# a file with `export const layer = "system"` is root's.
+# Migrations run once per machine and layer; `export const layer = "system"` makes one root's.
 
 use log.nu *
 use state.nu [LIB_DIR nu-bin]
@@ -33,12 +32,13 @@ def migration-run [m: record]: nothing -> nothing {
     ledger-set migration (ledger-get migration | append $m.id)
 }
 
-# Runs every pending migration of layer up; --baseline only records them as applied.
-# A layer whose ledger has never recorded a migration is a fresh install (0000-sample is recorded on the first run):
-# its state was made by the current code, so every existing migration is baselined, never run.
+# A layer's first run baselines every migration; its initialised marker keeps it from looking fresh later.
 export def migrations-run [repo: path, layer: string, --baseline]: nothing -> list<string> {
     let pending = migrations-pending $repo $layer
-    if $baseline or (ledger-get migration | is-empty) {
+    let initialised = ledger-get initialised
+    let fresh = $layer not-in $initialised and (ledger-get migration | is-empty)
+    if $layer not-in $initialised { ledger-set initialised ($initialised | append $layer) }
+    if $baseline or $fresh {
         ledger-set migration (ledger-get migration | append $pending.id)
         return $pending.id
     }

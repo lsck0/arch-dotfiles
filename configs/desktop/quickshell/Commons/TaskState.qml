@@ -50,8 +50,7 @@ Singleton {
     return "in " + Math.max(1, Math.floor(diff / 60000)) + "m"
   }
 
-  // on-modify.timewarrior tags each interval with the task's description, project and tags, and timew exports them
-  // sorted: every tag of an interval counts toward it, the description is the join key back to a task.
+  // timew exports tags sorted: every tag counts, the description is the join key back to a task
   function buildTracked(data) {
     var list = (data && data.length) ? Array.prototype.slice.call(data) : []
     var byTag = {}
@@ -196,7 +195,7 @@ Singleton {
     if (fresh.length === 0) return
     var title = fresh.length === 1 ? (fresh[0].overdue ? "Task overdue" : "Task due " + fresh[0].due) : fresh.length + " tasks due"
     var body = fresh.map(function (t) { return fresh.length === 1 ? t.desc : t.desc + " (" + t.due + ")" }).join("\n")
-    Quickshell.execDetached(["notify-send", "-a", "quickshell-action", "-u", "low", "-h", "string:omarchy-glyph:" + root.glyph, title, body])
+    Quickshell.execDetached(["notify-send", "-a", "quickshell-action", "-u", "low", "-h", "string:omarchy-glyph:" + root.glyph, "--", title, body])
   }
 
   JsonProcess {

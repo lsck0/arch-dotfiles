@@ -138,8 +138,7 @@ local function background_clear(hl, name)
     vim.api.nvim_set_hl(0, name, hl)
 end
 
--- Runs after every ColorScheme handler: plugins (barbar, lualine) redefine their groups in theirs. Not in neovide:
--- a cleared bg there falls back to its near-black fill; its translucency comes from the hyprland windowrule alone.
+-- After every ColorScheme handler; not in neovide, where a cleared bg falls back to near-black.
 local function transparency_apply()
     if vim.g.neovide then
         return
@@ -193,8 +192,7 @@ function M.apply(name)
         vim.g.colors_name = nil
         vim.o.background = background
     end
-    -- a colorscheme clears only when colors_name is set: without this, plugin groups (barbar's Buffer*) keep the
-    -- previous theme's colors across a background flip
+    -- a colorscheme clears only when colors_name is set
     vim.cmd.highlight("clear")
     local ok, err = pcall(vim.cmd.colorscheme, colorscheme)
     if not ok then

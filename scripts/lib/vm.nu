@@ -1,5 +1,4 @@
-# The end-to-end VM test behind `dot test`: a libvirt guest installed from the lsck0 iso with an answer file, watched
-# through beacons and uploads to a socat server on the host; the guest's chain reports its own verdict at the end.
+# The VM test: a libvirt guest from the lsck0 iso with an answer file, watched through beacons.
 
 const REPO = path self ../..
 const VM_DIR = path self vm

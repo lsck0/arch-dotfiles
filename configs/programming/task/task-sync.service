@@ -3,7 +3,6 @@ Description=Sync taskwarrior with the homelab's taskchampion server
 
 [Service]
 Type=oneshot
-# away from the house and wireguard, or before the server answers: skipped, not failed, so failure-notify stays
-# quiet; a server that answers yet refuses the sync (another client id, another secret) still fails and notifies
+# unreachable server: skipped, not failed; a refused sync still fails
 ExecCondition=/bin/sh -c 'curl -sfo /dev/null --max-time 10 "$$(task _get rc.sync.server.url)"'
 ExecStart=/usr/bin/task sync

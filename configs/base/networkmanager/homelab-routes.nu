@@ -6,8 +6,7 @@ const HOME_NETWORK = "/run/home-network"
 const TABLE = "178"
 # below wg-quick's suppress_prefixlength 0 rule (32764) and NM wireguard's
 const PRIORITY = "30000"
-# behind wg0's routes; off home the homelab fails fast instead of leaking out the default route
-# kept in sync by hand with persona-dispatcher.nu's own UNREACHABLE_METRIC; same ordering invariant, two copies
+# behind wg0's routes so the lab fails fast off home; same as persona-dispatcher.nu's UNREACHABLE_METRIC
 const UNREACHABLE_METRIC = "4000"
 
 def --wrapped out [...argv: string]: nothing -> string {

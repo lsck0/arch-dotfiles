@@ -144,8 +144,7 @@ export def mix [a: list<float>, b: list<float>, t: float]: nothing -> list<float
     [0 1 2] | each {|i| ($a | get $i) * (1 - $t) + ($b | get $i) * $t }
 }
 
-# Steps `start` through step up to count_max times, stopping at the first non-null stop result; stop
-# reads the current value and returns null to keep stepping, or whatever should be returned on success.
+# Steps until stop returns non-null, at most count_max times.
 def search-until [count_max: int, start: any, step: closure, stop: closure]: nothing -> record {
     mut out = $start
     for _ in 1..$count_max {

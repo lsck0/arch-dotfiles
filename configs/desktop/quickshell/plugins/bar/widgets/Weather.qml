@@ -485,8 +485,7 @@ BarWidget {
           text: "NEXT 24 HOURS" + (root.hourly.length > 0 ? " :: " + root.t(root.hourlyTempMin) + " .. " + root.t(root.hourlyTempMax) : "")
         }
 
-        // both charts share one axis column and one slot per hour, so a temperature point sits over its rain bar and
-        // every tick is centered under the hour it names
+        // both charts share one axis column and one slot per hour
         Item {
           id: hourlyChart
           width: parent.width

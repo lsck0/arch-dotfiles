@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# prints "<image>\t<thumbnail or image>" per wallpaper eligible for the largest screen, or with `themes`
-# "<image>\t<thumbnail or image>\t<theme>" per theme wallpaper; thumbnails are made afterwards, detached
+# "<image>\t<thumb>" per eligible wallpaper; with `themes` a third <theme> column
 
 const SELF = path self
 

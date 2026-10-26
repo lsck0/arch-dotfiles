@@ -1,17 +1,6 @@
 # latex
 
-Extends the root `AGENTS.md`. The LaTeX authoring stack.
-
-## Modules
-
-- `latex`: the texlive toolchain and build config.
-- `sioyek`: the pdf reader for papers, with SyncTeX forward/inverse search; command on PATH, invoked bare by nvim/viewers.
-- `zotero`: the reference manager, profile created headless on first run. Better BibTeX (pinned xpi in the profile)
-  auto-exports the whole library to `~/.local/share/zotero/library.bib`, the file nvim's citation picker (`<leader>fC`)
-  and completion read beside the project's own `.bib` files.
-
-## Conventions
-
-- SyncTeX edit flow between the reader and the editor is AppArmor-mediated (`base/apparmor abstractions/synctex-edit`,
-  `profiles/sioyek`); both sioyek and zotero stay `enforce` (they open other people's documents).
-- Authoring conventions (project layout, preamble, macros, theorems) are Luca's, in the `l-style-latex` skill, not here.
+- `zotero`: Better BibTeX auto-exports the library to `~/.local/share/zotero/library.bib`, read by nvim's citation
+  picker (`<leader>fC`).
+- SyncTeX between sioyek and nvim goes through AppArmor (`abstractions/synctex-edit`); sioyek and zotero stay enforce.
+- Authoring conventions are the `l-style-latex` skill.

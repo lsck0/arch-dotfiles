@@ -1,6 +1,7 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [modrinth-app]}, backup: {secrets: true}}
+# links into ~/sync depend on what syncthing and the launcher created since, not on any input
+export const meta = {packages: {pacman: [modrinth-app]}, backup: {secrets: true}, volatile: true}
 
 def paths []: nothing -> record {
     let data = xdg data ModrinthApp

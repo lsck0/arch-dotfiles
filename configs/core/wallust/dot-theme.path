@@ -1,8 +1,7 @@
 [Unit]
 Description=Start dot-theme.service while a theme request is waiting
 
-# PathExists, not PathChanged: systemd re-checks it whenever the service goes inactive, so a request written while a
-# run was finishing starts the next run instead of merging into the one that is ending
+# PathExists re-checks when the service goes inactive, so a request written mid-run starts the next run
 [Path]
 PathExists=%t/theme.request
 

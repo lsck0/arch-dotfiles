@@ -1,6 +1,8 @@
 use module.nu *
 
+# links into ~/sync depend on what syncthing and the launcher created since, not on any input
 export const meta = {
+    volatile: true
     packages: {
         pacman: [
             curseforge heroic-games-launcher-bin kpat minecraft-launcher path-of-building-community-git r2modman-bin
@@ -26,14 +28,12 @@ export def link [cfg: record] {
 
 export def relocate []: nothing -> nothing {
     let p = paths
-    if ($p.pob | path exists) and ($p.pob_synced | path exists) {
-        ^cp -rn $"($p.pob)/." $"($p.pob_synced)/"
-        let kept = $"($p.pob).pre-sync.(date now | format date '%s')"
-        mv $p.pob $kept
-        print $"note: games: merged builds into ($p.pob_synced), the old copy kept as ($kept | path basename)"
-    } else if ($p.pob | path exists) {
-        mv $p.pob $p.pob_synced
+    # dot never fills ~/sync: a local dir that holds builds stays for a manual merge
+    if ($p.pob | path exists) and (ls $p.pob | is-not-empty) {
+        print $"note: games: ($p.pob) holds builds; merge them into ($p.pob_synced) by hand, then rerun"
+        return
     }
+    if ($p.pob | path exists) { rm $p.pob }
     mkdir ($p.pob | path dirname)
     ^ln -s $p.pob_synced $p.pob
 }

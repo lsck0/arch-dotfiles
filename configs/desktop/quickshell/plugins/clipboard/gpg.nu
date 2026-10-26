@@ -1,7 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file --stdin
-# The clipboard window's OpenPGP half: the window passes the selected entry on stdin and gets one JSON object back.
-# Plaintext only ever travels over stdin and stdout, never argv, a file or the clipboard; pinentry and the YubiKey
-# touch come from gpg-agent as for any gpg call.
+# Clipboard OpenPGP: entry on stdin, one JSON object out; plaintext never in argv, a file or the clipboard.
 
 def emit [record: record]: nothing -> nothing { print ($record | to json --raw) }
 
@@ -9,8 +7,7 @@ def status-of [stderr: string]: nothing -> list<string> {
     $stderr | lines | where { $in starts-with "[GNUPG:] " }
 }
 
-# The signature on a decrypted or verified message: good (certified), untrusted (good but not certified), bad,
-# expired, revoked, unverified (no key or unsupported) or none.
+# good, untrusted, bad, expired, revoked, unverified or none.
 def signature [status: list<string>]: nothing -> record {
     let has = {|pattern| $status | any { $in =~ $'^\[GNUPG:\] ($pattern)' } }
     let signer = $status | parse --regex '^\[GNUPG:\] (?:GOOD|EXP|EXPKEY|REVKEY|BAD)SIG [0-9A-F]* (?<who>.*)$'
@@ -56,8 +53,7 @@ def main []: nothing -> nothing {
     exit 2
 }
 
-# Keys that can be encrypted to, own ones (a secret key here) marked and first; valid: certified (full or ultimate
-# validity), which gpg --batch encrypts to without a trust override.
+# Own keys first; valid = certified, which gpg --batch encrypts to without a trust override.
 def "main keys" []: nothing -> nothing {
     let own = keys-of "--list-secret-keys" | get fpr
     let keys = keys-of "--list-keys" | where { $in.caps =~ E }
@@ -66,8 +62,7 @@ def "main keys" []: nothing -> nothing {
     emit {keys: $keys, signer: (signer)}
 }
 
-# stdin to the given recipients and the signer, signed, armored; --trust-unverified: the user confirmed an uncertified
-# recipient in the window, so gpg encrypts to it (--trust-model always) instead of refusing it in batch mode.
+# --trust-unverified: the user confirmed an uncertified recipient in the window.
 def "main encrypt" [...recipients: string, --trust-unverified]: string -> nothing {
     let text = $in
     let me = signer
@@ -80,8 +75,7 @@ def "main encrypt" [...recipients: string, --trust-unverified]: string -> nothin
     emit {ok: true, armored: ($run.stdout | str trim --right --char "\n")}
 }
 
-# stdin decrypted or verified: the plaintext and its signature, for the window only. Plaintext counts only with
-# DECRYPTION_OKAY and no failure line: gpg streams a tampered message's plaintext before it notices.
+# Plaintext only with DECRYPTION_OKAY and no failure line: gpg streams a tampered message first.
 def "main decrypt" []: string -> nothing {
     let run = $in | do { ^gpg --batch --status-fd 2 --decrypt } | complete
     let status = status-of $run.stderr

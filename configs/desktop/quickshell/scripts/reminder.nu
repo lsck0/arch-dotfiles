@@ -10,7 +10,7 @@ def reminder-dir []: nothing -> path { $env.XDG_RUNTIME_DIR | path join quickshe
 
 # Sent as the app the shell shows through dnd and keeps out of history (NotificationLogic.js ACTION_APP).
 def notify [glyph: string, title: string, body: string = ""]: nothing -> nothing {
-    ^notify-send -a quickshell-action -u low -h $"string:omarchy-glyph:($glyph)" $title $body
+    ^notify-send -a quickshell-action -u low -h $"string:omarchy-glyph:($glyph)" -- $title $body
 }
 
 # TimerState.qml's remainingText mirrors it.

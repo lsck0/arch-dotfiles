@@ -1,5 +1,4 @@
-# Completion for dot from its own command table: `dot internal complete <words>` answers both zsh's _dot and
-# the generated nushell externs, so neither goes stale.
+# Completion from dot's own command table, for zsh's _dot and the nushell externs.
 
 use log.nu [runs-dir]
 use platform.nu [platform-load]

@@ -1,6 +1,6 @@
 {
     profile: "luca"                   # profiles/<name>, or "custom"
-    platform: "pc"                    # platforms/<name> (pc, notebook), "server" or "custom"
+    platform: "luca-pc"               # platforms/<name> (luca-pc, luca-notebook), "server" or "custom"
     username: "luca"
     keymap: "de-latin1"               # also used for the Wi-Fi password
     disk: "/dev/disk/by-id/nvme-Samsung_SSD_980_1TB_S64ANS0T000000X"  # erased; a by-id path, /dev/sdX can change between boots

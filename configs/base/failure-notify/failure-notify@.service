@@ -1,11 +1,12 @@
 [Unit]
 Description=Desktop notification that %i failed
 ConditionEnvironment=WAYLAND_DISPLAY
+# WSLg has a display but no notification server: the failure stays in the journal only
+ConditionVirtualization=!wsl
 
 [Service]
 Type=oneshot
-# kwalletd6 exits nonzero by design with the wallet disabled, and dbus-broker renames its unit on every activation,
-# so no per-unit OnFailure= override can catch it
+# kwalletd6 exits nonzero by design and dbus-broker renames its unit per activation
 ExecCondition=/usr/bin/sh -c 'case "%i" in dbus-*-org.kde.kwalletd6@*.service) exit 1;; esac'
 ExecStartPre=/usr/bin/gdbus wait --session org.freedesktop.Notifications
 ExecStart=/usr/bin/notify-send -u critical -a systemd "%i failed" "journalctl --user -xeu %i"

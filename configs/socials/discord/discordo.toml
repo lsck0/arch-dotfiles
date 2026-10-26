@@ -1,4 +1,3 @@
-# "auto" picks kitty graphics only when XTVERSION names kitty or ghostty, and herdr answers with its own name;
-# herdr passes kitty graphics through (terminal.kitty_graphics)
+# "auto" misses kitty graphics under herdr, which passes them through
 [ui.messages_list]
 image_protocol = "kitty"

@@ -11,6 +11,8 @@ hl.on("hyprland.start", function()
     -- the shell expands $DOTFILES (an unset getenv would abort this hook); plugins.nu builds and loads the plugins
     hl.exec_cmd("uwsm app -s b -- $DOTFILES/configs/desktop/hyprland/plugins.nu")
     hl.exec_cmd("uwsm app -s b -- $DOTFILES/configs/desktop/shimoji/packs.nu")
+    -- a session started docked with the lid already closed
+    hl.exec_cmd("$DOTFILES/configs/desktop/hyprland/lid.nu")
 
     hl.exec_cmd("xhost +SI:localuser:root")
     local backlight = require("platform").kbd_backlight

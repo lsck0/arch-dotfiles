@@ -30,8 +30,7 @@ export def self-argv []: nothing -> list<string> {
     open --raw $"/proc/($nu.pid)/cmdline" | into binary | decode utf-8 | split row (char nul) | drop 1
 }
 
-# Re-execs this command line once under interruptible.sh, so ctrl+c ends the run; without --lock only from a
-# terminal. --lock holds that flock for the run, and a dot below it on the same lock skips it.
+# Re-execs under interruptible.sh so ctrl+c ends the run; --lock holds a flock that nested runs skip.
 export def supervise [--lock: path, --argv: list<string>]: nothing -> nothing {
     let argv = $argv | default (self-argv)
     if $lock == null {
@@ -44,10 +43,7 @@ export def supervise [--lock: path, --argv: list<string>]: nothing -> nothing {
     exec $SUPERVISOR --lock $lock env $"DOT_LOCK=($lock)" ...$argv
 }
 
-# Runs body as one logged run; an unexpected error leaves crash.json; ctrl+c ends it (supervise).
-# --read-only: its log never evicts one that changed something, and ctrl+c is nushell's own.
-# --background: a helper run (gen, fetch, update, backup) that may write but is no apply: it is kept with the read-only
-# runs, so `dot log` and `dot status` keep pointing at the last real apply.
+# One logged run, crash.json on error. --read-only and --background runs never replace the last apply.
 export def guarded [name: string, body: closure, --read-only, --background]: nothing -> any {
     if not $read_only { supervise }
     run-begin $name --read-only=($read_only or $background) | ignore

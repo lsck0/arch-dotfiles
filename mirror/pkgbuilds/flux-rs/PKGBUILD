@@ -11,7 +11,7 @@ license=(MIT Apache-2.0)
 depends=(rustup liquid-fixpoint z3)
 makedepends=(git)
 options=(!strip !lto)
-source=("git+$url.git")
+source=("git+$url.git#commit=48f83cd0fe7142d472cebc68ef2b4172cb2a68b8")
 sha256sums=(SKIP)
 
 pkgver() {

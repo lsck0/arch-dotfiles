@@ -1,5 +1,4 @@
-# The writes that must not interleave, each run under flock by state-locked (state.nu) with its
-# arguments as json on stdin.
+# Writes that must not interleave, run under flock by state-locked with json args on stdin.
 
 use json.nu [json-edits-apply]
 use ini.nu [ini-apply]

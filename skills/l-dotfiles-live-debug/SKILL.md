@@ -5,82 +5,62 @@ description: Reading the live system dot manages: dot status, run logs and trace
 
 # live-debug
 
-Read first, change nothing: every command here only reads, except the restart at the end.
+Everything here only reads, except the restart at the end.
 
 ## dot
 
 ```bash
-dot status --brief        # failed checks only, "<check>: <text>"
-dot status                # generation, last run and errors, pending migrations / system parts / applies, managed files
-                          # changed since their apply, every check
-dot status --json         # the same as one record
-dot log                   # the last changing run's records (read-only runs like status/plan skipped), INFO and up;
-                          # --module <id>, --level WARN
-dot log <run> --trace     # the span tree with timings; run ids complete
-dot plan [mod...]         # what an apply would do, drift included; touches nothing
-dot explain <path|pkg>    # which module, verb and run wrote a path, or which module declares a package
-dot module adopt <file>   # a hand edit of a managed file becomes the module's source
-dot module reset <file>   # that one file back to the module's copy, the edit preserved aside (dot status lists it)
+dot status --brief        # failed checks only
+dot status [--json]       # generation, last run, pending work, managed files changed since their apply, every check
+dot log [--module <id>] [--level WARN]   # the last changing run's records
+dot log <run> --trace     # span tree with timings
+dot plan [mod...]         # what an apply would do, drift included
+dot explain <path|pkg>    # which module, verb and run wrote it, or declares the package
+dot module adopt <file>   # a hand edit becomes the module's source
+dot module reset <file>   # back to the module's copy, the edit preserved aside
 ```
 
-- `FAILURES.config` / `FAILURES.install` at the repo root: what failed in the last run, system failures included;
-  `config.log` / `install.log` the terminal output.
-- `~/.local/state/dotfiles/crash.json`: the record a crashed run leaves. Root's state is `/var/lib/dotfiles`.
-- Exit 3 from a `DOT_SYSTEM=skip` run is a pending system part, not a failure.
+- `FAILURES.config` / `FAILURES.install` at the repo root: the last run's failures, system included; `config.log` /
+  `install.log` the terminal output.
+- A crashed run leaves `~/.local/state/dotfiles/crash.json`. Root's state: `/var/lib/dotfiles`.
+- Exit 3 under `DOT_SYSTEM=skip` is a pending system part, not a failure.
 
-## systemd
+## systemd, AppArmor, quickshell
 
 ```bash
 systemctl --user --failed
 journalctl --user -u <unit> -b --no-pager | tail -50
 journalctl -b -p warning --no-pager | tail -50
+journalctl -k -b --no-pager -g 'apparmor="DENIED"' | tail     # fix: l-dotfiles-apparmor-profile
+journalctl --user -u quickshell -o cat                        # the running shell
 ```
 
-## AppArmor
+Each quickshell instance also logs to `/run/user/$UID/quickshell/by-id/<id>/log.log` (newest dir is live); reload and
+IPC: `l-dotfiles-quickshell-dev`.
+
+## Is Hyprland even running
+
+A keybind, `hyprctl` call or bar that does nothing may mean the session is Plasma: `ly` remembers the last session.
 
 ```bash
-journalctl -k -b --no-pager -g 'apparmor="DENIED"' | tail
+loginctl show-session "$XDG_SESSION_ID" -p Desktop -p Type   # Desktop=KDE: plain Plasma
+pgrep -x Hyprland                                             # empty: not running
 ```
 
-The fix is skill `l-dotfiles-apparmor-profile`.
+`hypridle.service` can show active as a leftover under KWin; it proves nothing.
 
-## quickshell
+## Homelab
 
-`journalctl --user -u quickshell -o cat` is the running shell. Each instance also logs under
-`/run/user/$UID/quickshell/by-id/<id>/log.log`; the newest dir (`ls -t`) is the live one. Skill
-`l-dotfiles-quickshell-dev` covers reload and IPC.
-
-## Hyprland vs the actual session
-
-A Hyprland keybind, `hyprctl`/IPC call or quickshell behavior that silently does nothing may mean Hyprland isn't
-the running compositor at all: `ly` remembers the last-selected session (`save = true` in its config), so a login
-can silently land in a plain Plasma/KWin session instead, where none of the dotfiles' Hyprland config (keybinds,
-quickshell, the bar) applies. Check this before debugging the keybind itself:
-
-```bash
-loginctl show-session "$XDG_SESSION_ID" -p Desktop -p Type   # Desktop=KDE, Type=wayland = plain Plasma, not Hyprland
-pgrep -x Hyprland                                             # empty = Hyprland is not running
-```
-
-`hypridle.service` can show `active running` as a leftover user unit even when KWin, not Hyprland, owns the
-session: its presence alone is no proof Hyprland is up.
-
-## Homelab connectivity
-
-A homelab service that times out from here: skill `l-homelab`, section Debugging.
+A homelab service that times out: `l-homelab`, section Debugging.
 
 ## Everything at once
 
-`collect-diagnostics [dest]` (`scripts/collect-diagnostics.sh`) gathers one folder, `dest/diag-<host>-<time>/`:
-hardware, boot, network, DNS and firewall, this boot's journals (warnings, kernel, AppArmor, the previous boot), the
-last five boots as zstd journal exports, every failed unit's status and journal, `dot status` and `dot log`,
-`FAILURES*`, the run logs, the crash record and the install stage state, Hyprland's and quickshell's logs. Bash and
-coreutils only: it runs from a USB stick on any Linux, where nushell, dot or the network do not. It asks sudo once up
-front for the root parts (nft, sbctl, root-only files) and skips them without it. `dest` defaults to `$PWD` for the
-linked command, else the script's own dir (the stick).
+`collect-diagnostics [dest]` writes `dest/diag-<host>-<time>/`: hardware, boot, network, DNS, firewall, journals (this
+boot, previous, last five as zstd exports), failed units, `dot status`, `dot log`, `FAILURES*`, run logs, crash record,
+stage state, Hyprland and quickshell logs. Bash and coreutils only, so it runs from a USB stick. Asks sudo once for the
+root parts, skips them without. `dest` defaults to `$PWD`, from the stick to the script's dir.
 
 ## Restart
 
-A user service restarts with `systemctl --user restart <unit>`, after `systemctl --user reset-failed <unit>` when
-it hit its start limit. Quickshell restarts through `configs/desktop/quickshell/restart.nu`. Never restart an app
-the user is working in without asking.
+`systemctl --user restart <unit>` (after `reset-failed` if it hit its start limit); quickshell via
+`configs/desktop/quickshell/restart.nu`. Never restart an app the user is working in without asking.

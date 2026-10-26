@@ -90,16 +90,14 @@ export def build []: nothing -> nothing {
     if (which aa-install | is-not-empty) and (^aa-install --install --no-reload | complete).exit_code != 0 {
         print "note: apparmor: aa-install failed, the profiles keep their last build"
     }
-    # an own profile is its name's only source: apparmor.d's build goes and the package's unconfined stub stays disabled,
-    # linked even before the stub exists (an upgrade brings it back); the .dotfiles files are not written yet here
+    # Own profile is the only source: drop apparmor.d's build, keep the stock unconfined stub disabled.
     let own = own
     mkdir ($ETC | path join disable)
     for name in $own {
         rm --force ($ETC | path join $"($name).apparmor.d")
         ^ln -sfn $"../($name)" ($ETC | path join disable $name)
     }
-    # a disable/ link only shadows an enforced profile when nothing replaces the file it disables: aa-install's
-    # overwrite.d links (chromium, signal-desktop, ...) disable the stock stub in favour of <name>.apparmor.d
+    # A disable/ link stays when <name>.apparmor.d replaces the stock stub (aa-install overwrite.d).
     for name in (modes | items {|name, mode| if $mode == enforce and $name not-in $own { $name }} | compact) {
         if not ($ETC | path join $"($name).apparmor.d" | path exists) { rm --force ($ETC | path join disable $name) }
     }

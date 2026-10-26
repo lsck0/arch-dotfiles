@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# The font is a theme input beside the palette (configs/core/wallust/font.nu): a change saves it and reruns the
-# current theme, whose verbs render it into each program; nothing in the repo is rewritten.
+# Saves font.json and reruns the current theme; nothing in the repo is rewritten.
 use lib.nu [status-record status-print notify cycle-next]
 use ../../configs/core/wallust/font.nu [font-load font-save]
 

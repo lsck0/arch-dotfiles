@@ -1,6 +1,4 @@
-# Plan and apply for native modules: observes each declared target, classifies it against what dot last
-# wrote (create, update, skip, drift, merge, remove), applies the actions and records the outputs per verb:
-# that record is dot's one store, what dot last wrote anywhere is a query over all of them.
+# Plan and apply for native modules; the per-verb records are dot's only store.
 
 use log.nu *
 use state.nu [state-dir state-locked path-kind nu-bin save-atomic LIB_DIR SYSTEM_STATE]
@@ -27,8 +25,7 @@ def assert-shape [value: record, keys: list<string>, what: string]: nothing -> n
     }
 }
 
-# Fails on anything not a declaration before any target is observed, so a malformed one fails this module
-# and not the whole layer.
+# Rejects non-declarations before observing, so a bad one fails only its module.
 export def decls-check [id: string, decls: list]: nothing -> nothing {
     for decl in $decls {
         if ($decl | describe) !~ '^record' { error make {msg: $"($id) declares ($decl | to nuon), not one declaration"} }
@@ -71,8 +68,7 @@ export def observe [targets: list<string>, units: list<string>, scope: string]: 
     }
 }
 
-# The hash dot last wrote per path: the newest write (at, ns) of a file or an owned merge across every record,
-# so one verb's merge onto another's file is no drift.
+# Newest write per path across all records, so one verb's merge onto another's file is no drift.
 export def recorded-hashes []: nothing -> record {
     glob (state-dir | path join modules **/*.nuon) | each { open $in | get outputs } | flatten
     | where {|o| $o.kind in [file json ini] and ($o.hash? | default null) != null }
@@ -132,8 +128,7 @@ def file-classify [obs: record, want: string, recorded: any, generated: bool, st
     }
 }
 
-# A recorded output as the next apply sees it, without evaluating its module: changed, missing or null;
-# written is the hash dot last wrote there, so another verb's merge onto it is no drift.
+# A recorded output's state without evaluating its module: changed, missing or null.
 export def output-file-state [output: record, obs: record, repo: string, written: any = null]: nothing -> any {
     if $written != null and $obs.hash? == $written { return null }
     let c = file-classify $obs $output.hash $output.hash ($output.generated? | default false) (link-stale $obs $output.target $repo) false
@@ -145,8 +140,7 @@ def merge-read [obs: record, target: string]: nothing -> string {
     try { open --raw $target } catch { "" }
 }
 
-# The actions for one module: its declarations against what is on disk, then its orphaned outputs
-# (removals and disables, sorted first).
+# Declarations against disk, then orphans (removals and disables first).
 export def plan-module [id: string, decls: list<record>, prev: list<record>, seen: record, recorded: record, repo: string, force: bool, all_targets: list<string> = []]: nothing -> list<record> {
     let wanted = (fold-merges $decls) | each {|d|
         let obs = $seen.paths | get --optional $d.target
@@ -272,8 +266,7 @@ def systemctl-retry [scope: string, ...args: string]: nothing -> nothing {
     }
 }
 
-# A failed --then fails the write: the record keeps the earlier hash, so the next apply records the file again
-# and runs the --then once more.
+# A failed --then keeps the old hash, so the next apply runs it again.
 def run-then [a: record, dir: path]: nothing -> string {
     if ($a.decl.then | is-empty) { return "" }
     run-exec ($a | update decl.argv $a.decl.then) $dir
@@ -287,16 +280,13 @@ def run-exec [a: record, dir: path]: nothing -> string {
     $out.output
 }
 
-# Runs a module's planned actions; one outcome per action, a failure confined to that action. A write's
-# outcome carries the hash it left and when (at), which state-write records; merges read what dot last wrote
-# from the records plus this run's own writes.
+# One outcome per action; a failure stays with its action.
 export def apply-module [actions: list<record>, dir: path, scope: string]: nothing -> list<record> {
     let unreadable = $actions | where kind == unreadable | each {|a|
         log-record "ERROR" $"unreadable ($a.target)" {module: $a.module, kind: $a.kind, target: $a.target, ms: 0, outcome: $a.reason}
         $a | merge {ok: false, error: $a.reason, aside: null, output: "", hash: null, at: null} | insert ms 0
     }
-    # within a run of file writes, the new files land before the changed ones: a live reader (quickshell's
-    # qmldir) never sees a reference to a file not there yet
+    # new files before changed ones: a live reader never sees a reference to a missing file
     let file_write = {|a| $a.kind in [create update] and $a.decl.kind? != "link" }
     let hooked = {|a| $a.decl.then? | default [] | is-not-empty }
     let ordered = $actions | where kind not-in [skip drift unreadable] | chunk-by $file_write
@@ -391,9 +381,7 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
     $outcomes ++ $unreadable
 }
 
-# Records what the module now owns: each file, link, unit and created exec, plus each merge whose result dot
-# owns, with the hash it last wrote and when; a failed action keeps its previous output and clears the input
-# hash so the next run plans it again.
+# A failed action keeps its previous output and clears the input hash, so it is planned again.
 export def state-write [id: string, verb: string, input: string, actions: list<record>, outcomes: list<record>, prev: list<record>]: nothing -> nothing {
     let done = $outcomes | where ok | reduce --fold {} {|o, acc| $acc | upsert (out-key $o.decl.kind $o.target) $o }
     let failed = $outcomes | where not ok | get target

@@ -1,16 +1,5 @@
-# Telegram Desktop theming
+# Telegram
 
-Telegram cannot load a palette from disk or hot-reload one (tdesktop#31183),
-so importing is a manual step, repeated after each wallpaper switch.
-
-Wallust renders `../../core/wallust/templates/wal/colors-telegram.tdesktop-palette` to
-`~/.cache/wal/`; the module's `link` verb links it to
-`~/.local/share/TelegramDesktop/pywal-cyberpunk.tdesktop-palette`.
-
-## Import
-
-1. Settings > Chat Settings > Theme.
-2. Open the `...` menu next to the themes.
-3. Create new theme > Import theme.
-4. Pick `~/.local/share/TelegramDesktop/pywal-cyberpunk.tdesktop-palette`.
-5. Save the theme.
+Telegram can't load or reload a palette from disk (tdesktop#31183), so import it by hand after each theme switch:
+Settings, Chat Settings, Theme, `...`, Create new theme, Import theme,
+`~/.local/share/TelegramDesktop/pywal-cyberpunk.tdesktop-palette`, Save.

@@ -71,8 +71,7 @@ def tor-off []: nothing -> nothing {
     ok systemctl stop --no-block tor-router.service | ignore
 }
 
-# Never over a live protonvpn tunnel or the netns one: its connmark restore clobbers the wg fwmark that fw-egress
-# and tor-router let out.
+# Never over a live proton tunnel: its connmark restore clobbers the wg fwmark.
 def portmaster-on [gone: string = ""]: nothing -> nothing {
     if ($VPN_IFACE != $gone and (ok ip link show $VPN_IFACE)) or (ok ip -n $NETNS link show $NETNS_IFACE) { return }
     if (ok systemctl is-active -q fw-inbound.service fw-lockdown.service) { ok systemctl start portmaster.service | ignore }
@@ -155,8 +154,7 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
         ok nmcli connection modify $uuid ipv6.method auto | ignore
     } else {
         ok systemctl start fw-lockdown.service | ignore
-        # a stop alone is undone by dbus or socket activation, so the daemon (the only part on the network) is masked;
-        # the socket, a unix one, stays unmasked so base/systemd can keep it enabled (enable refuses a masked unit)
+        # mask the daemon, a stop is undone by activation; the unix socket stays enabled for base/systemd
         ok systemctl stop avahi-daemon.socket | ignore
         ok systemctl mask --runtime --now avahi-daemon.service | ignore
         if $action == up and $policy == lockdown-tor {

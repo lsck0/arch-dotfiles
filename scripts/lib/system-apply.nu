@@ -1,6 +1,5 @@
 #!/usr/bin/nu --no-config-file
-# Root's one entry, what sudo or the polkit action runs: each command re-execs itself under one flock and
-# interruptible.sh (sudo relays ctrl+c, which nushell's try would swallow) and runs only from the root-owned copy.
+# Root's one entry: re-execs under one flock and interruptible.sh, only from the root-owned copy.
 
 use log.nu *
 use state.nu [SYSTEM_REPO SYSTEM_STATE]
@@ -36,8 +35,7 @@ def repo-guard []: nothing -> path {
     $repo
 }
 
-# Re-execs this very command line (the arguments after this script's path, verbatim) once under the lock, always
-# through /usr/bin/nu and the root-owned copy.
+# Verbatim argv, always through /usr/bin/nu and the root copy.
 def locked []: nothing -> nothing {
     let args = self-argv | skip until { $in | str ends-with $ENTRY } | skip 1
     supervise --lock ($SYSTEM_STATE | path join lock) --argv [/usr/bin/nu --no-config-file ($SYSTEM_REPO | path join $ENTRY) ...$args]
@@ -52,8 +50,7 @@ def --env failures-end [what: string]: nothing -> nothing {
     log-info $"($what) done"
 }
 
-# The targets still missing; --needed would still name every installed one, and a group counts by its
-# missing members.
+# --needed would still list installed ones; a group counts by its missing members.
 def packages-wanted [names: list<string>]: nothing -> list<string> {
     let groups = ^pacman -Sgg | lines | parse "{group} {name}" | where group in $names
     let installed = ^pacman -Qq | lines
@@ -72,8 +69,7 @@ def --wrapped pacman-try [...args: string]: nothing -> record {
     {ok: $ok, download: (not $ok and $text =~ $DOWNLOAD_ERRORS), refused: (not $ok and $text =~ 'returned error: (403|429)')}
 }
 
-# Retries a download error up to tries times; exits EXIT_ABORTED when it never got through, EXIT_FAILURES
-# on any other error.
+# EXIT_ABORTED when a download never got through, EXIT_FAILURES on any other error.
 def --wrapped pacman-retry [what: string, tries: int, ...args: string]: nothing -> nothing {
     mut try = 1
     loop {
@@ -152,7 +148,11 @@ def "main install" [--unattended]: nothing -> nothing {
     pacman-retry "the install pass" $DOWNLOAD_TRIES $upgrade --needed --noconfirm --ask 4 ...$wanted
     let snapshot = $"($ctx.platform.facts.lsck0_snapshot | default latest) (ls $LSCK0_DB | get 0.modified | date to-timezone UTC | format date '%FT%TZ') (open --raw $LSCK0_DB | hash sha256)"
     ledger-set snapshot [$snapshot]
-    try { ledger-packages $declared.pacman } catch {|e| fail $"ledger: removing dropped packages: ($e.msg)" }
+    if ($declared.incomplete | is-not-empty) {
+        fail $"ledger: not removing dropped packages, these modules declare none: ($declared.incomplete | str join ' ')"
+    } else {
+        try { ledger-packages $declared.pacman } catch {|e| fail $"ledger: removing dropped packages: ($e.msg)" }
+    }
     if ($declared.nix | is-not-empty) and (which nix | is-not-empty) {
         try { ^systemctl enable --now nix-daemon.socket } catch { fail "nix-daemon.socket" }
         # nix ships no /nix/store and a user's first call fails on it
@@ -202,6 +202,9 @@ def "main packages" [--yes, --plan, --unattended]: nothing -> nothing {
     locked
     let ctx = pipeline-load $repo system
     let declared = modules-packages $repo $ctx.modules $ctx.platform
+    if ($declared.incomplete | is-not-empty) {
+        error make {msg: $"not removing anything, these modules declare no packages right now: ($declared.incomplete | str join ' ')"}
+    }
     let found = packages-convergence $declared.pacman $ctx.platform.packages_keep
     if ($found.remove | is-empty) { return }
     print $"not declared by any module: ($found.remove | str join ' ')"
@@ -240,8 +243,7 @@ const SIGNING_KEY_FILE = "configs/core/gnupg/luca-sandrock.pub.asc"
 const DOTFILES_URL = "https://github.com/lsck0/arch-dotfiles.git"
 const PROFILE_CUSTOM = "custom"
 
-# adduser-dotfiles <name> [--profile <p>]: a new non-wheel login with its own verified checkout and user layer;
-# rerun-safe. The profile is a profiles/ name or custom (nothing personal); without the flag it is asked on a tty
+# adduser-dotfiles <name> [--profile <p>]: a non-wheel login with its own checkout; rerun-safe.
 def "main adduser" [name: string, --profile: string]: nothing -> nothing {
     let repo = repo-guard
     if not ($name =~ $USERNAME_PATTERN) { error make {msg: $"invalid name '($name)', expected ($USERNAME_PATTERN)"} }

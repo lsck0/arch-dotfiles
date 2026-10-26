@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# steam with the hidden mangohud overlay and obs capture; gamemode stays per game: preloaded into the client it
-# stays on while steam idles and breaks the webhelper's websocket
+# gamemode stays per game: preloaded into the client it breaks the webhelper's websocket
 
 const SELF = path self
 const GROUP = "games"

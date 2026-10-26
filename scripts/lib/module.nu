@@ -24,8 +24,7 @@ def decl [kind: string, target: string, fields: record]: nothing -> record {
     } | merge $fields
 }
 
-# A dep's resolved xwayland_scale option, falling back to the detected value for an app with no option UI of
-# its own to set it (desktop/hyprland's own xwayland_scale wins once set).
+# Falls back to the detected value for an app without an option of its own.
 export def xwayland-scale-for [cfg: record]: nothing -> int {
     $cfg.deps?."desktop/hyprland"?.xwayland_scale? | default (display-xwayland-scale ($env.FORM_FACTOR? | default ""))
 }
@@ -52,8 +51,7 @@ export def file-copy [src: path, dest: path, --mode: string = $MODE_FILE, --then
     decl file $dest {source: (module-path $src), mode: $mode, then: $then}
 }
 
-# Writes content to dest; --generated rewrites it every run without drift, --in-place keeps the inode
-# for a watcher that reads a rename as delete plus add.
+# --generated rewrites every run without drift; --in-place keeps the inode for watchers.
 export def file-text [dest: path, content: string, --mode: string = $MODE_FILE, --generated, --in-place, --then: list<string> = []]: nothing -> record {
     decl file $dest {content: $content, mode: $mode, generated: $generated, inplace: $in_place, then: $then}
 }
@@ -162,8 +160,7 @@ export def desktop-override [id: string, edit: closure]: nothing -> list<record>
     [(file-text $dest (open --raw $system | do $edit))]
 }
 
-# An imperative command the declarations cannot express, run when the module applies; skipped once
-# --creates exists.
+# An imperative command, skipped once --creates exists.
 export def exec [name: string, argv: list<string>, --creates: path]: nothing -> record {
     decl exec $name {argv: $argv, creates: $creates}
 }
@@ -202,8 +199,7 @@ export def group-admins [group: string]: nothing -> list<record> {
     )
 }
 
-# Runs script on a watched path change and once when its units change; without --permanent it
-# retires once undeclared.
+# Without --permanent it retires once undeclared.
 export def user-hook [name: string, script: path, --watch: list<string>, --permanent, --no-brake, --mkdir]: nothing -> list<record> {
     let dir = unit-dir
     let path_unit = [
@@ -228,8 +224,7 @@ export def palette-load []: nothing -> any {
     $PALETTE_SLOTS | zip (palette-slots) | reduce --fold {} {|p, acc| $acc | insert $p.0 $p.1 }
 }
 
-# This machine's copy of per-machine app state, <dir>/<host>/<file>, so machines backing up into one
-# repo never overwrite each other's.
+# <dir>/<host>/<file>, so machines backing up into one repo never overwrite each other.
 export def host-file [dir: path, ...file: string]: nothing -> path {
     $dir | path join (sys host | get hostname) ...$file
 }

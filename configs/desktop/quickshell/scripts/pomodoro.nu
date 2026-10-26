@@ -195,8 +195,7 @@ def "main locked skip" []: nothing -> nothing { phase-advance }
 
 def "main locked retime" []: nothing -> nothing { retime }
 
-# the timer's own command
-# a timer that fired while a pause or skip held the lock is stale by the time it gets it
+# a timer that fired while a pause or skip held the lock is stale
 def "main locked _elapsed" []: nothing -> nothing {
     let state = state-load
     if not $state.running or $state.paused or $state.endsAt > (now) { return }

@@ -7,64 +7,51 @@ description: Adding or removing a package in a module's meta (pacman, flatpak, n
 
 ## Where
 
-- The module that needs it, in its `mod.nu` meta:
+- The module that needs it, in its meta:
   ```nu
   export const meta = {packages: {pacman: [btop], native: [], flatpak: {"org.app.Id": "<commit>"}, nix: []}}
   ```
-  `native` is the hardware-only half, skipped on WSL. A flatpak is pinned to a commit (installed `--user` at it and
-  masked; bump with `flatpak remote-info --log flathub <app>`), nix by `NIXPKGS` in `scripts/dot.nu`.
-- One machine only: `extra_packages` in `platforms/<name>.nuon` (pc, notebook, wsl, server, vm; this machine's name
-  is in `/etc/dotfiles/platform`). Every platform's `extra_packages` also land in `mirror/packages.txt`.
-- `dot internal packages [pacman|flatpak|nix] [--groups g,g --form-factor f]` prints what this machine (or the given
-  groups and form factor) declares; `dot internal gen` rewrites
-  `mirror/packages.txt`, the list the homelab mirror builds (`dot test lint` fails when it is stale).
+  `native`: hardware-only, skipped on WSL. flatpak pinned to a commit (installed `--user` and masked; bump with
+  `flatpak remote-info --log flathub <app>`); nix by `NIXPKGS` in `scripts/lib/run.nu`.
+- One machine only: `extra_packages` in `platforms/<name>.nuon` (this machine: `/etc/dotfiles/platform`); these also
+  land in `mirror/packages.txt`.
+- `dot internal packages [pacman|flatpak|nix] [--groups g,g --form-factor f]` prints what is declared;
+  `dot internal gen` rewrites `mirror/packages.txt` (lint fails when stale).
 
 ## Steps
 
 1. Add the name, then `dot internal gen`.
-2. Check the mirror serves it; nothing is built on the machine:
-   ```bash
-   pacman -Sp --print-format '%n %r' <pkg>
-   ```
-   `<pkg> lsck0` is good; `error: target not found` means the mirror lacks it (`not on the mirror: <pkg>` in
-   `FAILURES.install`). Own pkgbuilds live in `mirror/pkgbuilds/`, missing deps of AUR recipes in
-   `mirror/overrides.conf`.
-3. `dot apply --packages` installs it. Never `pacman -S` by hand: `dot plan` lists it as declared by no module.
+2. Check the mirror serves it (nothing is built on the machine): `pacman -Sp --print-format '%n %r' <pkg>` must say
+   `<pkg> lsck0`. `target not found`: the mirror lacks it (`FAILURES.install` says `not on the mirror: <pkg>`). Own
+   pkgbuilds in `mirror/pkgbuilds/`, missing AUR deps in `mirror/overrides.conf`.
+3. `dot apply --packages`. Never `pacman -S` by hand.
 
 ## Removing
 
-Delete the name. `dot apply --packages` removes what the ledger owns and nothing declares, then every explicitly
-installed package no module declares (minus `packages_keep` in the platform file and the boot/unlock deny list), each
-after a yes at the tty (`--yes` skips the question; the deny list is `PACKAGES_DENY` in `scripts/lib/ledger.nu`);
-`dot plan` lists them.
+Delete the name. `dot apply --packages` removes what the ledger owns and nothing declares, then every explicit package
+no module declares (minus the platform's `packages_keep` and `PACKAGES_DENY` in `scripts/lib/ledger.nu`), each after a
+yes (`--yes` skips). `dot plan` lists them.
 
 ## Supply chain
 
-Everything a module pulls in runs as the user or as root, so each source is pinned and checked. The rules, then
-what still floats:
+Every source is pinned and checked:
 
-- pacman: signed (`SigLevel = Required`); the `[lsck0]` mirror is signed by its own key. Its AUR packages are built
-  from AUR recipes by the homelab builder, so the signature proves who built a package, not that the recipe is
-  benign. Before adding an AUR package, read its PKGBUILD and check who maintains it.
-- flatpak: a commit (above). nix: `NIXPKGS` in `scripts/dot.nu`.
-- A download: `fetch-file <url> <sha256> <dest>` (`scripts/lib/module.nu`), never a bare curl, and never `curl | sh`.
-  A git source: `fetch-git <url> <commit> <dir>`, a commit and not a branch or tag (see `configs/programming/caveman`).
-- python tools through `uvx`: `--exclude-newer <date>` plus `--from <pkg>==<version>` (see
-  `configs/creating/audacity`). A bare `<pkg>==<version>` pins only the top package, and its dependencies resolve
-  fresh on every start.
-- node tools: a committed `package-lock.json` installed with `npm ci` (see `configs/creating/obs/mcp`).
-  `npx -y <pkg>@<version>` pins only the top package; its dependency tree floats.
-- The repo itself: `bootstrap.sh`, the iso stub and `system-apply.nu` refuse a HEAD that is not signed by
-  `SIGNING_KEY_FINGERPRINT`, and `merge.verifySignatures` makes `dot sync`'s pull refuse unsigned commits.
+- pacman: `SigLevel = Required`; `[lsck0]` signed by its own key. Its AUR packages build from AUR recipes, so the
+  signature proves the builder, not the recipe: read the PKGBUILD and maintainer first.
+- Downloads: `fetch-file <url> <sha256> <dest>`, never bare curl or `curl | sh`. Git: `fetch-git <url> <commit>
+  <dir>`, a commit, not a branch or tag (`configs/programming/caveman`).
+- `uvx`: `--exclude-newer <date>` plus `--from <pkg>==<version>` (`configs/creating/audacity`); a bare pin leaves
+  dependencies floating.
+- node: committed `package-lock.json` with `npm ci` (`configs/creating/obs/mcp`); `npx -y <pkg>@<version>` floats.
+- The repo: `bootstrap.sh`, the iso stub and `system-apply.nu` refuse a HEAD not signed by
+  `SIGNING_KEY_FINGERPRINT`; `merge.verifySignatures` makes the sync pull refuse unsigned commits.
 
-Known floating sources, fix them when touching the module:
+Still floating, fix when touching the module:
 
-- `npx` with no lockfile: `configs/programming/kubernetes` (`kubernetes-mcp-server@0.0.67`),
-  `configs/programming/godot/godot-mcp.nu` (`godot-mcp-server@0.6.0`), `configs/programming/caveman`
-  (`skills@1.7.0`).
-- `uvx` with no `--exclude-newer`: `configs/latex/zotero` (`zotero-mcp-server==0.14.1`), `configs/pentesting/wireshark`
+- `npx` without lockfile: `configs/programming/kubernetes` (`kubernetes-mcp-server@0.0.67`),
+  `configs/programming/godot/godot-mcp.nu` (`godot-mcp-server@0.6.0`), `configs/programming/caveman` (`skills@1.7.0`).
+- `uvx` without `--exclude-newer`: `configs/latex/zotero` (`zotero-mcp-server==0.14.1`), `configs/pentesting/wireshark`
   (`wireshark-mcp==3.0.0`), `configs/programming/docker` (`mcp-server-docker==0.3.0`).
-- Tools installed at their latest version: mason (`configs/programming/nvim/lua/lib/mason_packages.lua`), the VSCodium
-  vim extension (`configs/programming/vscode`), and the browser extensions Firefox and Chromium force from their stores
-  (`policies.json`, `policy.json`), which update themselves. Rustup toolchains and Claude Code plugins other than
-  caveman also float.
+- Latest-version installs: mason (`configs/programming/nvim/lua/lib/mason_packages.lua`), the VSCodium vim extension,
+  Firefox and Chromium store extensions (`policies.json`, `policy.json`), rustup toolchains, Claude Code plugins other
+  than caveman.

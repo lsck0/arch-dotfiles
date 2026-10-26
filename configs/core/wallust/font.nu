@@ -1,5 +1,4 @@
-# The font, a theme input beside the palette: ~/.cache/wal/font.json, written by toggle-font and by a theme that names
-# a font, read by each module's theme verb, never by editing a repo file.
+# The font as a theme input: ~/.cache/wal/font.json, rendered by each module's theme verb.
 
 const FILE = ".cache/wal/font.json"
 export const FONT_DEFAULT = {family: "Kode Mono", size: 13, ui_size: 11}
@@ -23,8 +22,7 @@ export def font-load []: nothing -> record {
     $font | insert mono $mono | insert scale ($font.ui_size / $UI_SIZE_BASE | math round --precision 2)
 }
 
-# Merges `changes` (any of family, size, ui_size) into font.json, written resolved (mono and scale too) so a reader
-# without fc-list (nvim) takes it as is.
+# Written resolved (mono, scale) so readers without fc-list (nvim) take it as is.
 export def font-save [changes: record]: nothing -> nothing {
     let file = font-file
     let set = try { open $file } catch { {} } | select --optional family size ui_size | compact

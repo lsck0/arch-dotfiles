@@ -10,7 +10,7 @@ url="https://github.com/J08nY/ecgen"
 license=(GPL-2.0-only)
 depends=(pari)
 makedepends=(git)
-source=("git+$url.git")
+source=("git+$url.git#commit=4a05ee08b3d934bc2ff06c2d00cdc08e482d735e")
 sha256sums=(SKIP)
 
 prepare() {

@@ -1,5 +1,3 @@
-# Shared helpers for scripts/toggles/toggle-*.nu: state files, the root helper, bar notifications, the status record
-# every toggle answers to `get --json`, and switch-run, the get/on/off/toggle dispatch every on/off toggle uses.
 
 use ../lib/log.nu [log-err]
 
@@ -37,8 +35,7 @@ def user-is-admin []: nothing -> bool {
     $ADMIN_GROUP in (^id -nG | str trim | split row " ")
 }
 
-# Runs `verb` on each unit in its own call: several at once use EnqueueUnitJobMany, which the system bus refuses a
-# user before polkit can ask. A non-admin gets --no-ask-password.
+# One unit per call: EnqueueUnitJobMany is refused before polkit can ask.
 export def systemctl-guarded [verb: string, ...units: string]: nothing -> nothing {
     let ask = if (user-is-admin) { [] } else { [--no-ask-password] }
     for unit in $units { ^systemctl ...$ask $verb $unit }
@@ -84,9 +81,7 @@ export def cycle-next [current: any]: list -> any {
     $list | get (($index + 1) mod ($list | length))
 }
 
-# The record a toggle answers to `get --json`, the one shape status.nu, the menu, the bar and the settings window
-# read: `state` its value, `text` that value for people, `states` every value with the resting one first (empty for an
-# open setting like the font), `on` whether it is away from rest, `available` whether this machine offers it.
+# The record status.nu, the menu, the bar and settings read; `states` lists the resting value first.
 export def status-record [
     label: string, state: string, --text: string, --states: list<string> = [], --available = true
 ]: nothing -> record {
@@ -106,14 +101,13 @@ export def status-print [status: record, json: bool]: nothing -> any {
     if $json { $status | to json --raw } else { $status.state }
 }
 
-# Dispatches get, on, off or toggle for a switch of closures {label, is-on, on, off} and an optional `available`;
-# a failure exits 1.
+# get/on/off/toggle for a switch; a failure exits 1.
 export def switch-run [switch: record, action: string, --json]: nothing -> any {
-    let state = if (do $switch.is-on) { "on" } else { "off" }
+    let available = if "available" in $switch { do $switch.available } else { true }
+    let state = if $available and (do $switch.is-on) { "on" } else { "off" }
     let action = if $action == toggle { if $state == on { "off" } else { "on" } } else { $action }
     match $action {
         get => {
-            let available = if "available" in $switch { do $switch.available } else { true }
             status-print (status-record $switch.label $state --states [off on] --available=$available) $json
         }
         on | off => {

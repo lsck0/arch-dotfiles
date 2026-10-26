@@ -20,8 +20,8 @@ return {
                 },
             },
             todo_states = {
-                unchecked = { marker = "□" },
-                checked = { marker = "✔" },
+                unchecked = { marker = "\u{25a1}" },
+                checked = { marker = "\u{2714}" },
             },
         },
     },

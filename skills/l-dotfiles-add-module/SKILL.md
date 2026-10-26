@@ -5,15 +5,13 @@ description: Writing a configs/<group>/<module>/mod.nu (meta with deps and packa
 
 # add-module
 
-A module is one folder, `configs/<group>/<module>/`, with a `mod.nu`. Nothing central changes: `dot` discovers the
-folder, its verbs (the commands it exports), its options and its packages.
+A module is one folder `configs/<group>/<module>/` with a `mod.nu`. Nothing central changes: `dot` discovers its verbs,
+options and packages.
 
-A module only the owner wants (an employer's setup, their bookmarks, their own keys' wiring) goes in the private
-submodule instead: `configs/secrets/<module>/mod.nu`, id `secrets/<module>`, group `secrets`. Same contract; it runs
-after every other group, on every machine that pulled the submodule (gate it inside: `profile-has` in `link`, a platform
-fact such as `$env.FORM_FACTOR` in `system`), its code is plaintext (only `configs/secrets/keys/` is git-crypt), and its
-packages stay out of `mirror/packages.txt`, so one it needs from the mirror goes in the platform's `extra_packages`.
-`dot test lint` checks its layer rules like any other.
+An owner-only module (employer setup, bookmarks, key wiring) goes in the private submodule:
+`configs/secrets/<module>/mod.nu`, id `secrets/<module>`. Same contract; runs after every other group wherever the
+submodule is pulled (gate inside: `profile-has` in `link`, `$env.FORM_FACTOR` in `system`); plaintext code; packages
+stay out of `mirror/packages.txt` (a mirror package it needs goes in the platform's `extra_packages`).
 
 ## The contract
 
@@ -75,69 +73,56 @@ export def packages [cfg: record]: nothing -> record {
 }
 ```
 
-- Verbs, a fixed set (`VERBS` in `scripts/lib/modules.nu`): `link`, `system`, `theme`, `apply` (an option's live
-  apply), `backup`, `restore`, `update` (what floats outside pacman, run by `dot sync` after the apply). Any other
-  exported command is a `step` target of the same mod.nu or a name another module imports (`use ../x/mod.nu
-  [name]`); everything else is a plain `def` (`dot test lint` checks it). A helper a unit, toggle or keybind runs is a
-  script file in the module dir, installed by `link-commands` or `files-into`. Each verb takes the resolved options
-  record (`enable` is always there) and
-  returns a declaration or a list of them (`decls-flatten` flattens nested lists). A module turned off (`enable`
-  false, its group gone from the platform) is planned with nothing declared on the next full `link` or `system` run,
-  so its recorded files, links and units are removed and disabled; what a `step` or `exec` did is not recorded and
-  stays, so declare anything that must go with the module.
-- Hooks (`HOOKS` in `scripts/lib/modules.nu`), not verbs: `detect` returns a record of option values, used where
-  platform and profile leave an option null (a failure only warns, the options stay unset); `packages` returns a
-  `{pacman, native, flatpak, nix}` part appended to `meta.packages` for packages that follow an option.
-- Declarations (`scripts/lib/module.nu`): `file-copy <src> <dest>` (a real copy, hash recorded; `--then` runs when it
-  changed), `files-into <dir> <src...>`, `file-text <dest> <text> [--generated] [--in-place]`, `file-render <src>
-  <dest> {KEY: value}` (`@KEY@`), `file-link <src> <dest>` (only where the app must read the repo live),
-  `link-commands <file...>`, `json-merge <file> [(json-set [k k] v) (json-delete [k])]`, `ini-merge <file> {section:
-  {key: v}} [--missing-only]` (only those keys), `unit-file <src> [--enable --now]`, `unit-enable|unit-disable|
-  unit-mask <name> [--now]`, `unit-restart <name> [--reload]` (a `--then` that skips a unit not installed yet),
-  `dropin <unit> <src> [--name]`, `desktop-override <id> {|text| ...}`, `exec <name> [argv] [--creates path]`, `step
-  <command> [args]` (one of the module's own exported commands, run at apply time on live state), `fetch-file <url>
-  <sha256> <dest> [--extract <member>]` and `fetch-git <url> <commit> <dir>` (pinned downloads and checkouts),
-  `group-admins <group>` (a system group every wheel member is in), `user-hook <name> <script> --watch [paths]`
-  (a path unit that runs the script on a change), `mcp-servers {name: spec}` (`~/.claude.json` MCP entries, a null
-  spec drops one), `palette-load` (the current palette or null, for `theme`).
-- Helpers, not declarations: `xdg config|data|cache|state ...parts` (an XDG path honouring `XDG_*`), `unit-dir`,
-  `process-running <name>` (gate a reload in a `theme` verb), `desktop-set {Key: value}` (inside a `desktop-override`
-  closure). The user layer runs with `configs/base/xdg/app-dirs.conf` loaded, so a tool a verb runs already sees its
-  XDG redirection; don't copy those variables into a module.
-- Option keys: `type`, `default`, `doc` (required); `label`, `group`, `choices`, `min`/`max`/`step`, `apply`
-  (default relink), `scope` (default machine), `toggle` (a live option set through `scripts/toggles/toggle-<name>.nu`:
-  `on`/`off` for a bool, else `set <value>`; its `get` is the live value the settings window shows).
-- Facts: `platform-has homelab|wireguard|secure_boot_own_keys|lsck0_snapshot` (machine; `PLATFORM_FACTS` in
-  `scripts/lib/platform.nu`), `$env.FORM_FACTOR` (`desktop laptop server vm wsl`, not the platform file's name),
-  `profile-has secrets` (user, link only). A per-module setting is an option, set with `dot set <group/module>.<key>
-  <value> [--machine]`.
-- A file the app later edits is drift: `dot plan` shows it, apply keeps it until `dot module adopt <file>` (copies it
-  back into the module) or `dot module reset <file>` (writes the module's copy back, the edit preserved aside; `dot
-  apply --force <group>/<module>` does that for every changed file of the module).
-- A one-time structural change for machines already installed is a `migrations/<NNNN>-<slug>.nu` copied from
-  `0000-sample.nu` (an `up` only; `export const layer = "system"` runs it as root). A fresh install marks every
-  existing one as run, so a migration never replaces a module declaration.
-- A program that rewrites its own config over the copy (OBS, apps that save on exit) needs a `backup` verb that
-  carries the live file back into the repo or `configs/secrets/`; `dot sync` runs it. State that differs per machine
-  (resolution, devices, layout, logins) goes to `host-file <dir> <file>` (`<dir>/<host>/<file>`), so machines never
-  overwrite each other's; the restore reads `host-seed <dir> <file>` (this machine's copy, else the shared seed
-  `<dir>/<file>`), a credential only `host-file` (no seed: a new machine logs in itself). Theme output is no state:
-  strip it in the backup instead.
+- Verbs (`VERBS` in `scripts/lib/modules.nu`): `link`, `system`, `theme`, `apply`, `backup`, `restore`, `update` (what
+  floats outside pacman, run by `dot sync`). Any other export is a `step` target or a name another module imports;
+  everything else is a plain `def` (lint checks). A helper a unit, toggle or keybind runs is a script in the module
+  dir, installed with `link-commands` or `files-into`.
+- Each verb takes the resolved options (`enable` always present) and returns declarations (nested lists fine).
+- A disabled module (option off, group gone) declares nothing on the next full run, so its files, links and units go.
+  What a `step` or `exec` did is not recorded and stays: declare anything that must go with the module.
+- Hooks (`HOOKS`): `detect` fills options platform and profile left null (a failure only warns); `packages` adds a
+  `{pacman, native, flatpak, nix}` part.
+- Declarations (`scripts/lib/module.nu`):
+  - files: `file-copy <src> <dest> [--then]`, `files-into <dir> <src...>`, `file-text <dest> <text> [--generated]
+    [--in-place]`, `file-render <src> <dest> {KEY: v}` (`@KEY@`), `file-link` (only where the app reads the repo
+    live), `link-commands <file...>`, `json-merge <file> [(json-set [k] v) (json-delete [k])]`, `ini-merge <file>
+    {section: {key: v}} [--missing-only]`, `desktop-override <id> {|text| ...}`, `mcp-servers {name: spec}`
+    (`~/.claude.json`; null drops one).
+  - units: `unit-file <src> [--enable --now]`, `unit-enable|unit-disable|unit-mask <name> [--now]`,
+    `unit-restart <name> [--reload]` (a `--then` that skips a unit not installed yet), `dropin <unit> <src> [--name]`,
+    `user-hook <name> <script> --watch [paths]`.
+  - other: `exec <name> [argv] [--creates path]`, `step <command> [args]` (an own export, run at apply time),
+    `fetch-file <url> <sha256> <dest> [--extract <member>]`, `fetch-git <url> <commit> <dir>`, `group-admins <group>`,
+    `palette-load` (for `theme`).
+- Helpers: `xdg config|data|cache|state ...parts`, `unit-dir`, `process-running <name>` (gate a reload in `theme`),
+  `desktop-set {Key: v}` (in a `desktop-override` closure). The user layer already has `configs/base/xdg/app-dirs.conf`
+  loaded; don't copy those variables into a module.
+- Option keys: `type`, `default`, `doc` required; `label`, `group`, `choices`, `min`/`max`/`step`, `apply` (default
+  relink), `scope` (default machine), `toggle` (set through `scripts/toggles/toggle-<name>.nu`: `on`/`off` for a bool,
+  else `set <value>`; its `get` is what the settings window shows).
+- Facts: `platform-has homelab|wireguard|secure_boot_own_keys|lsck0_snapshot` (`PLATFORM_FACTS`),
+  `$env.FORM_FACTOR` (`desktop laptop server vm wsl`), `profile-has secrets` (link only). Settings are options:
+  `dot set <group/module>.<key> <value> [--machine]`.
+- A file the app later edits is drift: kept until `dot module adopt <file>` (into the module) or `dot module reset
+  <file>` (module's copy back, edit preserved aside); `dot apply --force <group>/<module>` resets all.
+- One-time change on installed machines: `migrations/<NNNN>-<slug>.nu` from `0000-sample.nu` (`up` only;
+  `export const layer = "system"` runs as root). Fresh installs mark all as run, so a migration never replaces a
+  declaration.
+- An app that saves over its copy (OBS, save-on-exit apps) needs a `backup` verb carrying the live file back (run by
+  `dot sync`). Per-machine state (resolution, devices, logins) goes to `host-file <dir> <file>`
+  (`<dir>/<host>/<file>`); restore reads `host-seed <dir> <file>` (own copy, else `<dir>/<file>`), a credential only
+  `host-file`. Strip theme output in the backup.
 
 ## Run it alone
 
 ```bash
-dot plan <group>/<module>          # actions, touching nothing; again after the apply, it should be empty
+dot plan <group>/<module>          # actions; empty after the apply
 dot apply <group>/<module>         # its user layer; a second run is a no-op
-dot module unlink <group>/<module> # reverse it; apply again restores it
+dot module unlink <group>/<module> # reverse it
 dot plan --system <group>/<module> # the system verb, planned as the user
-dot test lint                      # module refs, layer rules per verb, the module's *.test.nu
-dot test check                     # formatters and linters, the nu parse gate
+dot test lint                      # refs, layer rules, the module's *.test.nu
+dot test check                     # formatters, linters, nu parse gate
 ```
 
-`dot log --trace` shows where the time went, `dot explain <path>` which module and run wrote a file.
-
-Agents and tests run with `DOT_SYSTEM=skip` (or `--no-system` on `dot set`, `dot apply`, `dot sync`): nothing reaches
-sudo or pkexec, a machine option's system part is only recorded as pending (exit 3). A root prompt on Luca's screen asks
-for his YubiKey: polkit's PAM stack (and sudo's) tries pam_u2f first, a touch without a PIN, then an enrolled finger,
-then the password.
+`dot log --trace` shows timing, `dot explain <path>` the writer. Agents run with `DOT_SYSTEM=skip` (or `--no-system`):
+a system part is pending (exit 3). A root prompt on Luca's side takes a YubiKey touch, a finger or the password.

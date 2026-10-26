@@ -1,5 +1,4 @@
-# Logging: lines to stderr at DOT_LOG's level and every record as json into the run's file
-# <runs>/<id>.jsonl, with spans for dot log --trace.
+# Lines to stderr at DOT_LOG's level, every record as json in <runs>/<id>.jsonl.
 
 use state.nu [state-dir SYSTEM_STATE]
 
@@ -46,8 +45,7 @@ export def log-warn [message: string, fields: record = {}]: nothing -> nothing {
 export def log-note [message: string, fields: record = {}]: nothing -> nothing { log-record INFO $"note: ($message)" ($fields | merge {kind: note}) }
 export def log-err [message: string, fields: record = {}]: nothing -> nothing { log-record ERROR $message $fields }
 
-# Runs argv with its output streamed under tag and kept; setsid and no stdin, since under dot's pty a
-# background command touching the terminal is stopped for good.
+# setsid and no stdin: under dot's pty a background command touching the tty is stopped for good.
 export def command-stream [tag: string, argv: list]: nothing -> record {
     let log = mktemp --tmpdir
     let code = try {
@@ -59,8 +57,7 @@ export def command-stream [tag: string, argv: list]: nothing -> record {
     {exit_code: $code, output: $output, tail: ($output | lines | last $STREAM_TAIL_LINES | str join "\n")}
 }
 
-# Logs message as a failure and appends it to FAILURES_FILE, falling back to the run's own
-# failures path when no phase has opened one (a crash here must never take down the whole run).
+# Falls back to the run's own failures file: a crash here must not take down the run.
 export def fail [message: string]: nothing -> nothing {
     log-err $message {kind: failure}
     let target = if ($env.FAILURES_FILE? | is-empty) { $env.DOT_RUN_FILE | str replace ".jsonl" ".failures" } else { $env.FAILURES_FILE }
@@ -125,7 +122,7 @@ export def span [name: string, fields: record, body: closure]: nothing -> any {
 }
 
 const ERROR_AT = '\[(?<file>[^\]\s]+):(?<line>\d+):\d+\]'
-const ERROR_MARK = '^(x|×) '
+const ERROR_MARK = '^(x|\x{d7}) '
 
 # One line from a rendered nushell error: the first file:line it points at, then its message.
 export def error-brief [rendered: string, --root: path]: nothing -> string {

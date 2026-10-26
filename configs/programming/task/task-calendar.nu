@@ -1,8 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
-# Today's and tomorrow's events from the homelab calendar feed, for the agenda; does nothing without
-# ~/.config/task/calendar.env.
+# Agenda events from the homelab calendar; no-op without ~/.config/task/calendar.env.
 
 const ENV_FILE = ($nu.home-dir | path join .config task calendar.env)
+# the last good answer, served while the feed is unreachable so the agenda keeps its events
+const CACHE_FILE = ($nu.home-dir | path join .cache task-calendar events.json)
 
 def endpoints []: nothing -> record {
     if not ($ENV_FILE | path exists) { return {} }
@@ -14,11 +15,20 @@ def endpoints []: nothing -> record {
 def "main events" [] {
     let feed = endpoints | get -o CALENDAR_FEED
     if $feed == null { print '{"events":[]}'; return }
-    let events = ["day.json" "day-next.json"] | each {|name|
-        let view = ^curl -sSf --max-time 10 $"($feed | str trim --right --char '/')/($name)" | from json
-        $view.day.events | each {|event| $event | insert day $view.weekday | insert today $view.is_today }
-    } | flatten
-    {events: $events} | to json --raw | print
+    let fetched = try {
+        ["day.json" "day-next.json"] | each {|name|
+            let view = ^curl -sSf --max-time 10 $"($feed | str trim --right --char '/')/($name)" | from json
+            $view.day.events | each {|event| $event | insert day $view.weekday | insert today $view.is_today }
+        } | flatten
+    } catch { null }
+    if $fetched == null {
+        if ($CACHE_FILE | path exists) { open --raw $CACHE_FILE | print } else { print '{"events":[]}' }
+        return
+    }
+    let out = {events: $fetched} | to json --raw
+    mkdir ($CACHE_FILE | path dirname)
+    $out | save --force $CACHE_FILE
+    $out | print
 }
 
 def main [] { help main }

@@ -1,7 +1,6 @@
 use module.nu *
 
-# serial, after claude: rtk init rewrites the agents' settings files whole, outside the engine's json lock, so it
-# must not run beside a module merging into them (claude, gemini-cli, hermes, copilot)
+# serial: rtk init rewrites the agents' settings whole, outside the json lock
 export const meta = {deps: [programming/claude], packages: {pacman: [rtk]}, serial: true}
 
 # the hook's entry in the settings file, not the hook script, tells a patch that never landed

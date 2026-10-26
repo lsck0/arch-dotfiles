@@ -1,5 +1,4 @@
-# The runs behind dot's commands: apply, install, update and the system layer through root, with their failure
-# reports; dot.nu is the command line over them.
+# The runs behind dot's commands, the system layer through root included.
 
 const REPO = path self ../..
 use log.nu *
@@ -8,7 +7,7 @@ use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir]
 use platform.nu [platform-load platform-env]
 use profile.nu [profile-has]
 use modules.nu [modules-packages]
-use pipeline.nu [pipeline-load pipeline-plan pipeline-apply]
+use pipeline.nu [pipeline-load pipeline-plan pipeline-apply THEME_VERB_TIMEOUT]
 use converge.nu [state-read observe plan-module recorded-hashes apply-module state-write output-file-state]
 use ledger.nu [ledger-units ledger-set]
 use migrate.nu [migrations-run]
@@ -81,7 +80,8 @@ export def --env link-run [mods: list<string>, force: bool, plan: bool]: nothing
     # an empty id list means every module to pipeline-plan: a run that planned no link rows themes none
     let themed = if ($wallpaper | path exists) and ($ids | is-not-empty) {
         let real_wallpaper = ^readlink -f $wallpaper | str trim
-        pipeline-plan $ctx theme $ids false [$real_wallpaper] | where native | pipeline-apply $ctx $in theme (jobs) [$real_wallpaper]
+        pipeline-plan $ctx theme $ids false [$real_wallpaper] | where native
+        | pipeline-apply $ctx $in theme (jobs) [$real_wallpaper] --timeout $THEME_VERB_TIMEOUT
     } else { [] }
     if $full {
         for dir in [$nu.home-dir ($nu.home-dir | path join .local bin)] {
@@ -122,6 +122,12 @@ export def failures-publish [results: table]: nothing -> bool {
     let failures = if $owned and ($env.FAILURES_FILE | path exists) { open --raw $env.FAILURES_FILE | str trim } else { "" }
     if ($failures | is-not-empty) {
         let published = $REPO | path join $FAILURES
+        # a partial run adds to what earlier runs recorded instead of replacing it
+        let earlier = if ($published | path exists) { open --raw $published | lines } else { [] }
+        let kept = if ($env.DOT_FULL_RUN? != true) { $earlier } else if ($env.DOT_SYSTEM_RAN? != true) {
+            $earlier | where ($it | str starts-with "system layer:") or ($it | str starts-with "not on the mirror")
+        } else { [] }
+        let failures = $kept | append ($failures | lines) | where ($it | str trim) != "" | uniq | str join "\n"
         $"($failures)\n" | save --force $"($published).($env.DOT_RUN_ID)"
         mv --force $"($published).($env.DOT_RUN_ID)" $published
         print "=== FAILED ==="
@@ -174,8 +180,7 @@ def system-run [stage: string, --force]: nothing -> int {
     $code
 }
 
-# A root run stopped by ctrl+c ends the whole run: sudo's pty can take the interrupt alone, so the user side
-# learns of it only from the exit code (130, or -2 for a signal-killed child).
+# sudo's pty can take the interrupt alone; the exit code (130, or -2) carries it.
 def interrupted-exit [code: int]: nothing -> nothing {
     if $code in [130 -2] {
         log-err "interrupted (ctrl+c) in the system layer: the run stopped, its later phases did not run"

@@ -31,10 +31,11 @@ const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo 
     --user | --system             one layer
     --packages                    declared packages, flatpak and nix instead, removals after a yes
   plan [mod...]                   what an apply would do; --order the run order, --modules every module
-  status [--brief]                generation, pending work, failures, drift, secrets
+  status [--brief]                generation, pending work, failures, changed files, health checks, secrets
   set [mod[.key] [value]]         options: every set one, a module's, one; a value sets it, --default resets it
   theme [name|random]             wallpaper and theme, fzf without a name
-  module adopt|unlink|remove|restore
+  module adopt|reset <file>       a changed file: into the repo | back to the repo copy
+  module unlink|remove|restore    a module: off | gone with its packages | back
   log [run] | explain <thing>     a run's records | who wrote a path, who declares a package
   secrets unlock|lock|init|seal|audit
   test lint|check|fmt|run|...     the gates and the vm test
@@ -173,10 +174,15 @@ def "main module remove" [mod: string@module-ids, --machine, --yes]: nothing -> 
         if ($m.native | is-not-empty) { unlink-run $mod | ignore }
         option-write $mod enable false $machine | ignore
         if $machine and "system" in $m.verbs and (admin) { system-part $"($mod).enable" }
-        let others = modules-packages $REPO ($ctx.modules | where id != $mod) $ctx.platform | get pacman
+        let declared = modules-packages $REPO ($ctx.modules | where id != $mod) $ctx.platform
+        if ($declared.incomplete | is-not-empty) {
+            error make {msg: $"not offering packages for removal, these modules declare none right now: ($declared.incomplete | str join ' ')"}
+        }
+        let others = $declared.pacman
         let installed = ^pacman -Qq | lines
+        let own = $m.meta.packages.pacman ++ (if $ctx.platform.form_factor == "wsl" { [] } else { $m.meta.packages.native })
         # the same spares as the ledger's removal: dot itself, the shell and the boot chain never go
-        let only = $m.meta.packages.pacman | where {|p| $p not-in $others and $p in $installed and not ($p =~ $PACKAGES_DENY) }
+        let only = $own | where {|p| $p not-in $others and $p in $installed and not ($p =~ $PACKAGES_DENY) }
         if not $machine and ($only | is-not-empty) {
             print $"($mod) stays on for the system layer, its packages too; --machine turns it off machine-wide and offers them for removal"
         } else if ($only | is-not-empty) {
@@ -436,8 +442,7 @@ def "main test check" []: nothing -> nothing {
 
 const VM_NAME = "archlinux-test"
 
-# end-to-end vm test from the lsck0 iso (the published one unless --iso) through the whole chain; hours; local tree
-# unless --master; the chain reports its logs to ~/.cache/vm-test/<name>/logs
+# end-to-end vm test from the lsck0 iso, hours; --master tests github master; logs in ~/.cache/vm-test/<name>/logs
 def "main test run" [--iso: path, --platform: string, --user: string, --profile: string, --master, --name: string = $VM_NAME]: nothing -> nothing {
     guarded test {
         let problems = gate-lint

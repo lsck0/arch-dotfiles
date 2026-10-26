@@ -1,5 +1,4 @@
-# The lsck0 iso's second stage, run from the checkout its stub verified: the answer file and lsck0.* boot
-# parameters, checked against bootstrap/questions.nuon, become BOOTSTRAP_* for dot internal bootstrap.
+# The iso's second stage: answer file and lsck0.* params become BOOTSTRAP_* for the bootstrap.
 
 use log.nu *
 

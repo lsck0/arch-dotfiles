@@ -20,8 +20,7 @@ const SUDO = "/etc/pam.d/sudo"
 const FPRINT_LINE = "auth       sufficient pam_fprintd.so"
 const HUMAN_UIDS = 1000..59999
 
-# The pam_u2f line against the owner's /etc/u2f_mappings, touch alone, no pin; no nouserok: a user without a key
-# falls through to the password include.
+# u2f against /etc/u2f_mappings, touch only; no nouserok: a user without a key falls through to the password.
 def u2f-line [origin: string]: nothing -> string {
     let options = $"cue pinverification=0 authfile=/etc/u2f_mappings origin=($origin) appid=($origin)"
     $"auth       sufficient pam_u2f.so ($options)"
@@ -44,9 +43,11 @@ export def system [cfg: record] {
         (file-copy quickshell-lock /etc/pam.d/quickshell-lock)
         (file-render quickshell-lock-u2f /etc/pam.d/quickshell-lock-u2f {ORIGIN: $cfg.fido_origin})
         (step sudo-stack ($u2f | into string) $line)
+        # pkexec takes the same factors as sudo: the key, then an enrolled finger, then the password
         (if $u2f and ($POLKIT_VENDOR | path exists) {
-            let text = auth-insert (open --raw $POLKIT_VENDOR | lines) $line | str join "\n" | $"($in)\n"
-            file-text /etc/pam.d/polkit-1 $text
+            let with_u2f = auth-insert (open --raw $POLKIT_VENDOR | lines) $line
+            let lines = if (has-fprint) and ($FPRINT_MODULE | path exists) { auth-insert $with_u2f $FPRINT_LINE } else { $with_u2f }
+            file-text /etc/pam.d/polkit-1 ($lines | str join "\n" | $"($in)\n")
         } else { [] })
     ]
 }

@@ -5,7 +5,7 @@ const PICKER = path self ../../configs/desktop/hyprland/picker.nu
 
 # an on/off switch shows its label alone, any other toggle its state too
 def line [toggle: record]: nothing -> string {
-    let mark = if $toggle.on { '●' } else { '○' }
+    let mark = if $toggle.on { "\u{25cf}" } else { "\u{25cb}" }
     if $toggle.states == [off on] { $"($mark) ($toggle.label)" } else { $"($mark) ($toggle.label): ($toggle.text)" }
 }
 

@@ -1,5 +1,4 @@
-# `dot secrets audit`: every credential under configs/secrets/keys classed with a maximum age, checked against
-# its last rotation (rotation.txt, else git history), plus the recovery drill.
+# `dot secrets audit`: credential ages against their last rotation, plus the recovery drill.
 
 use ../../../scripts/lib/secrets.nu [secret-is-plaintext secrets-wanted]
 

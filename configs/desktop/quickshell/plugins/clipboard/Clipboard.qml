@@ -17,8 +17,7 @@ Item {
   property bool clearConfirmOpen: false
   property var history: []
 
-  // OpenPGP on the selected text entry (gpg.nu): "encrypt" picks recipients in the right pane, "decrypt" shows the
-  // signature and the plaintext there; the plaintext lives only in gpgResult and goes when the window closes
+  // OpenPGP on the selected entry (gpg.nu); the plaintext lives only in gpgResult until close
   property string gpgMode: ""
   property var gpgKeys: []
   property var gpgPicked: ({})
@@ -88,8 +87,7 @@ Item {
 
   function gpgCurrent() { return root.opened && root.gpgRunSerial === root.gpgSerial }
 
-  // gpg-agent's pinentry is a window of its own: the overlay lets go of the keyboard while gpg runs, and unmaps after
-  // gpgHideTimer so the dialog is not drawn under the card
+  // release the keyboard and unmap while gpg runs, so pinentry is not drawn under the card
   function gpgRun(proc, argv, text) {
     if (root.gpgBusy) return
     root.gpgError = ""

@@ -13,7 +13,7 @@ makedepends=(git)
 options=(!strip)
 _stackver=3.11.1
 source=(
-    "git+$url.git"
+    "git+$url.git#commit=0b924442ce26a8f270bffac18ba6295bc7411646"
     "stack-$_stackver::https://github.com/commercialhaskell/stack/releases/download/v$_stackver/stack-$_stackver-linux-x86_64-bin"
 )
 sha256sums=(

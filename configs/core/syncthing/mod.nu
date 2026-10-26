@@ -5,6 +5,15 @@ export const meta = {
     inputs: [~/.local/state/syncthing/cert.pem ~/.local/state/syncthing/key.pem ~/sync/.stignore]
 }
 
+export const options = {
+    nas_address: {
+        type: string?
+        default: null
+        doc: "Address of the homelab NAS device (the one named *nas), e.g. tcp://10.100.0.100:22000; discovery is off, so this is how it is found"
+        label: "NAS address"
+    }
+}
+
 const STATE = ".local/state/syncthing"
 const IDENTITY = [[file mode]; [config.xml 600] [cert.pem 644] [key.pem 600]]
 const GUI_SECRET = "configs/secrets/keys/syncthing-gui-password"
@@ -70,8 +79,15 @@ def gui-login [user: string, password: string]: nothing -> nothing {
     if not $set { error make {msg: "syncthing: the gui login did not stick, the gui is open to every local user"} }
 }
 
-export def api-config [paired: string]: nothing -> nothing {
+export def api-config [paired: string, nas: string = ""]: nothing -> nothing {
     api-wait
+    if $nas != "" {
+        for id in (st config devices list | lines) {
+            if (st config devices $id name get) =~ '(^|-)nas$' and (try { st config devices $id addresses 0 get } catch { "" }) != $nas {
+                ^syncthing cli config devices $id addresses 0 set $nas
+            }
+        }
+    }
     for option in [local-ann-enabled global-ann-enabled relays-enabled natenabled crenabled] {
         ^syncthing cli config options $option set false
     }
@@ -103,6 +119,6 @@ export def link [cfg: record] {
         (if $changed { step identity-install } else { [] })
         (dropin syncthing.service 10-background.conf --then [systemctl --user try-restart syncthing.service])
         (unit-enable syncthing.service --now)
-        (step api-config ($paired | into string))
+        (step api-config ($paired | into string) ($cfg.nas_address | default ""))
     ]
 }

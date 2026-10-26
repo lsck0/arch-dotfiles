@@ -1,5 +1,6 @@
 {
     hostname: luca-notebook
+    label: "Luca's laptop"
     form_factor: laptop
     groups: [base core fonts desktop socials creating latex programming pentesting]
     extra_packages: [python-validity-git]

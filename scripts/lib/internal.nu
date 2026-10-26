@@ -9,7 +9,7 @@ use ($LIB | path join complete.nu) [command-table complete-run completions-run m
 use ($LIB | path join platform.nu) [platform-env]
 use ($LIB | path join options.nu) [options-events-file]
 use ($LIB | path join modules.nu) [modules-packages modules-eval SECRETS_GROUP]
-use ($LIB | path join pipeline.nu) [pipeline-load pipeline-plan pipeline-apply]
+use ($LIB | path join pipeline.nu) [pipeline-load pipeline-plan pipeline-apply THEME_VERB_TIMEOUT]
 use ($LIB | path join secrets.nu) [secret-is-plaintext secrets-wanted]
 use ($LIB | path join preserve.nu) [preserve-prune]
 use ($LIB | path join migrate.nu) [migrations-run]
@@ -29,7 +29,6 @@ const OPTIONS_END = "<!-- options end -->"
 # in order: discord recolours from spotify's palette
 const THEME_ORDERED = [socials/spotify socials/discord]
 # one theme verb past this is killed so a hung program never blocks the switch (dot-theme.service allows 3min)
-const THEME_VERB_TIMEOUT = 60sec
 
 # dot internal <command> --help for each
 def main []: nothing -> nothing { help main }

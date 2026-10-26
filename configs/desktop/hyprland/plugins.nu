@@ -1,7 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# Hyprland plugins built as the user against the hyprland package's own headers and loaded with hyprctl: no hyprpm,
-# whose store and pkg-config rewrite need root. Each repo is pinned; its hyprpm.toml maps a hyprland commit to the
-# plugin commit that builds against it, so a hyprland upgrade needs a newer repo pin only when that map lacks it.
+# Plugins built as the user against hyprland's headers (hyprpm needs root); hyprpm.toml maps commits.
 
 const PLUGINS = [
     {name: "dynamic-cursors", url: "https://github.com/virtcode/hypr-dynamic-cursors", commit: "2a8d0b735328d874a78ca93b2f201649f712a74a"}
@@ -16,8 +14,7 @@ def out-dir []: nothing -> path {
     $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join hypr-plugins
 }
 
-# The installed hyprland's commit, which the plugins must match after the next login, and the running one's; they
-# differ between a package upgrade and the relogin.
+# Installed vs running hyprland commit: they differ between an upgrade and the relogin.
 def commit-installed []: nothing -> string {
     try { ^Hyprland --version | parse --regex 'at commit (?<c>[0-9a-f]+)' | get 0.c } catch { "" }
 }
@@ -69,7 +66,10 @@ def main []: nothing -> nothing {
     if ($failed | is-not-empty) {
         ^notify-send -a hyprland "Hyprland plugins did not build" ($failed | get name | str join ", ") | complete | ignore
     }
-    if (commit-running) != $hyprland { return }
+    if (commit-running) != $hyprland {
+        if ($failed | is-not-empty) { exit 1 }
+        return
+    }
     let listed = ^hyprctl plugin list | complete | get stdout
     let loaded = $PLUGINS | where {|p| (so-path $p.name $hyprland | path exists) and not ($listed | str contains $p.name) }
         | each {|p| ^hyprctl plugin load (so-path $p.name $hyprland) | complete | get exit_code }

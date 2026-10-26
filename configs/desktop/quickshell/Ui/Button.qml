@@ -2,11 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
 
-// One clickable control in four looks:
-//   plain   an icon and/or text on a fill that lights on hover, focus, selection
-//   icon    a square glyph button (panel toolbars, media transport)
-//   action  a tinted "[ LABEL ]" verb (notification actions, dialogs)
-//   chip    a selectable choice in a row of options
+// Variants: plain (fill on hover), icon (square glyph), action ("[ LABEL ]"), chip (choice in a row).
 BorderSurface {
   id: root
 

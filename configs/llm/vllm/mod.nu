@@ -90,8 +90,7 @@ export def venv []: nothing -> nothing {
     mkdir $PREFIX
     if (^find $PREFIX ! -user root -print -quit | str trim | is-not-empty) { ^chown -R root:root $PREFIX }
     let venv = $PREFIX | path join venv
-    # the rocm wheel index has no upload-time metadata (torch, triton, flash_attn, ... built there too), so
-    # --exclude-newer can't apply to it; pin it off for that index alone and keep the cutoff for everything else
+    # the rocm index has no upload times, so --exclude-newer is pinned off for it alone
     let uv_config = mktemp --tmpdir --suffix .toml
     $"[[index]]\nname = \"vllm-rocm\"\nurl = \"($WHEELS_URL)\"\nexclude-newer = false\n" | save --force $uv_config
     with-env {UV_PYTHON_INSTALL_DIR: ($PREFIX | path join python)} {

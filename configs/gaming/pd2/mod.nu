@@ -1,9 +1,7 @@
 use module.nu *
 use ../d2launcher/mod.nu [lod-detect wine-bin]
 
-# Project Diablo 2 single player, two seasons side by side, each linked onto the lord of destruction base in a dir of
-# its own: season 14 from PD2's client host (pinned in s14-client.nuon, no plugy), season 3 the synced install with
-# plugy. Season 3 saves can't move to 14: no converter or stash editor covers seasons past 8.
+# S14 from PD2's client host (no plugy), S3 synced with plugy; S3 saves can't move to S14.
 export const meta = {deps: [gaming/d2launcher]}
 
 const PD2_MARKER = "ProjectDiablo.dll"

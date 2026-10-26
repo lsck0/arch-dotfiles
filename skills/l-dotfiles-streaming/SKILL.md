@@ -7,69 +7,53 @@ description: The OBS setup in configs/creating/obs (the Streaming, VirtualCam an
 
 ## OBS state
 
-- Collections, three, each meant for the profile of its use (obs has no pairing, pick both in the menus):
-  - `Streaming` (profile Streaming): the stream and record setup, from `configs/secrets/keys/obs-Streaming.json`
-    (alert tokens), installed as is but for the mic, which takes the machine's detected `mic` option (the backup puts
-    the secret's own device back).
-  - `VirtualCam` (profile VirtualCam): `configs/creating/obs/scenes/VirtualCam.json`. Scene `Desktop` holds the screen
-    capture, scene `Webcam` the `Camera` (v4l2, option `webcam`, detected by-id, MJPG 1080p30) full frame, so its crop
-    and filters live in one place; `Cam top left|top right|bottom left|bottom right` nest `Desktop` and `Webcam`, the
-    latter a quarter of the canvas wide in that corner. Switching scene moves the cam, `Desktop` is the one without it.
-    No audio sources: the virtual camera carries none.
-  - `Bare` (profile Recording): `scenes/Bare.json`, scene `Desktop`, the screen capture with Desktop Audio, Game
-    Audio and Mic/Aux.
-- Every `scenes/*.json` in the module is a collection; `scene-render --machine` fits it to this machine: the items'
-  absolute pos and bounds scale from its `resolution` to the canvas (the `*_rel` copies obs prefers then go), the
-  mic and webcam options fill `AuxAudioDevice1` and every `v4l2_input`. `scene-back` carries them back without the
-  portal `RestoreToken`. A new collection is a new file there and nothing else. A machine's own copy is
-  `scenes/<hostname>/<name>.json` (`host-seed`, by hostname, not platform name): apply prefers it, and the backup
-  writes live edits there. Edit the shared file for every machine, the host one for one machine.
-- Profiles `Streaming`, `Recording`, `VirtualCam` live in `configs/creating/obs/profiles/`; `basic.ini` keeps
-  `@KEY@` placeholders. VirtualCam is capped at 720p (`VIRTUALCAM_HEIGHT`): the raw YUYV feed at 4k is ~500 MB/s.
-  Streaming keeps the full canvas as output (its parallel recording stays 4k) and scales only the stream encoder to
-  `STREAM_RES` (canvas aspect, at most 1080 high; `AdvOut RescaleFilter=4` lanczos, `0` disables it): Twitch ingests
-  1080p60 at 6000 kbps CBR, keyint 2 (`streamEncoder.json`). Recording: full canvas, the `record_encoder` option
-  (AV1 where vaapi encodes it, else h264 through vaapi, nvenc or x264) at CQP 18, hybrid mp4, replay buffer 60 s.
-- Audio tracks (a source's `mixers` bitmask): 1 the full mix (stream), 2 the mic alone, 3 the apps without mic, 4 the
-  Twitch VOD track (all but Spotify). Recordings take tracks 1 to 3 (`RecTracks=7`).
-- OBS writes its loaded collection and profile over the live copies on exit, so `dot apply --user creating/obs`
-  refuses while OBS runs and anything changed; close OBS first. Live edits made in OBS reach the repo through the
-  module's `backup` verb, which `dot sync` runs; `scene-back` keeps a repo edit OBS has not loaded yet.
-- A live profile change without a restart: `SetProfileParameter` over the websocket (the advanced output reads
-  `AdvOut` at each stream start), so the copy obs saves on exit matches the repo.
-- PNGTuber Plus runs under `obs-gamecapture` (steam launch options, `configs/gaming/steam/steam-launch-options.nu`)
-  so the obs-vkcapture source sees it.
+Three collections, each with its profile (OBS doesn't pair them; pick both):
+
+- `Streaming` (profile Streaming): `configs/secrets/keys/obs-Streaming.json` (alert tokens), as is except the mic, which
+  takes the detected `mic` option (the backup restores the secret's own device).
+- `VirtualCam` (profile VirtualCam): `scenes/VirtualCam.json`. `Desktop` is the screen, `Webcam` the `Camera` (v4l2,
+  option `webcam`, MJPG 1080p30) full frame; `Cam top left|top right|bottom left|bottom right` nest both, the cam a
+  quarter wide in that corner. No audio.
+- `Bare` (profile Recording): `scenes/Bare.json`, `Desktop` with Desktop Audio, Game Audio, Mic/Aux.
+
+- Every `scenes/*.json` is a collection; a new one is a new file. `scene-render --machine` scales positions from its
+  `resolution` to the canvas and fills `AuxAudioDevice1` and every `v4l2_input`; `scene-back` reverses it, minus the
+  portal `RestoreToken`. Per machine: `scenes/<hostname>/<name>.json` (`host-seed`), preferred by apply, written by the
+  backup.
+- Profiles in `profiles/`, `basic.ini` with `@KEY@` placeholders. VirtualCam capped at 720p (`VIRTUALCAM_HEIGHT`; 4k
+  YUYV is ~500 MB/s). Streaming outputs the full canvas (recording stays 4k) and scales only the stream to `STREAM_RES`
+  (at most 1080 high, lanczos `RescaleFilter=4`): 1080p60, 6000 kbps CBR, keyint 2 (`streamEncoder.json`). Recording:
+  `record_encoder` option (AV1 on vaapi, else h264 via vaapi, nvenc or x264), CQP 18, hybrid mp4, 60 s replay buffer.
+- Tracks (`mixers` bitmask): 1 full mix, 2 mic, 3 apps without mic, 4 Twitch VOD (all but Spotify). Recordings take
+  1 to 3 (`RecTracks=7`).
+- OBS saves collection and profile over the live copies on exit: `dot apply --user creating/obs` refuses while OBS runs
+  with changes. Live edits reach the repo through the `backup` verb (`dot sync`).
+- Change a profile live with `SetProfileParameter` (AdvOut is read each stream start), so the exit save matches.
+- PNGTuber Plus runs under `obs-gamecapture` (`configs/gaming/steam/steam-launch-options.nu`) for obs-vkcapture.
 
 ## Hearing the stream
 
-The mixer's HEAR switch (System / OBS output), `qs ipc -p ~/.config/quickshell call obs toggleListen` and
-`scripts/toggles/toggle-obs-listen.nu` switch every track-1 input to monitor-and-output (on) or back to none (off),
-always from OBS's own live `GetInputAudioMonitorType`/`GetInputAudioTracks` state, never from memory of what this
-script last touched: a scene collection can arrive already carrying monitor-and-output on a stream-track input (a
-fresh install inheriting a committed collection, a restore, a manual OBS edit), and that must not survive a
-reconcile while the toggle is off, or the app plays twice (its own output, plus OBS monitoring it). It also sets
-`dot.obs-listen` on the default metadata, which mutes the per-app loopbacks (`configs/desktop/pipewire`) while obs
-runs. OBS keeps monitor types in the collection on exit, so the bar runs the toggle's `reconcile` (always enforces
-live, no "nothing tracked" shortcut) when it connects. App captures tap the app's own stream, which plays at full
-level: the system faders never change what OBS hears.
+HEAR in the mixer, `qs ipc -p ~/.config/quickshell call obs toggleListen` and `scripts/toggles/toggle-obs-listen.nu`
+switch every track-1 input to monitor-and-output or none, always from OBS's live
+`GetInputAudioMonitorType`/`GetInputAudioTracks`, never from remembered state: a collection can arrive with monitoring
+on, which would play the app twice. It also sets `dot.obs-listen` on the default metadata, muting the per-app loopbacks
+(`configs/desktop/pipewire`). The bar runs the toggle's `reconcile` on connect. App captures tap the app's own stream,
+so system faders don't change what OBS hears.
 
 ## Inspect a running OBS
 
-obs-websocket v5 on `ws://127.0.0.1:4455`, password `server_password` in
+obs-websocket v5, `ws://127.0.0.1:4455`, password `server_password` in
 `~/.config/obs-studio/plugin_config/obs-websocket/config.json`. Auth: `secret = base64(sha256(password + salt))`,
-`auth = base64(sha256(secret + challenge))` from the Hello (op 0), sent in Identify (op 1). `obs-mcp` (Claude MCP,
-`obs-mcp.nu` reads the password at start) does this for you; `plugins/bar/widgets/obs-status.nu` is a working
-websocat client to copy from.
+`auth = base64(sha256(secret + challenge))` from Hello (op 0), sent in Identify (op 1). `obs-mcp` does this;
+`plugins/bar/widgets/obs-status.nu` is a websocat client to copy.
 
-The bar's obs widget runs `obs-status.nu` (the `~/.config/quickshell` copy) as a long-lived helper, only while OBS
-runs. It finds the per-app captures by input kind and the mute sources `Mic/Aux`, `Desktop Audio`, `Game Audio` by
-name, so renaming one breaks it. An edit takes `dot apply desktop/quickshell`, then an OBS restart or
-`configs/desktop/quickshell/restart.nu`; the obs keybinds run the repo copy.
+The bar's obs widget runs `obs-status.nu` (the `~/.config/quickshell` copy) while OBS runs. It finds captures by input
+kind and `Mic/Aux`, `Desktop Audio`, `Game Audio` by name: renaming breaks it. Edits need `dot apply
+desktop/quickshell`, then an OBS restart or `configs/desktop/quickshell/restart.nu`.
 
 ## Spotify
 
-Launched with `--remote-debugging-port=9233` (`DEVTOOLS_PORT` in `configs/socials/spotify/spotify-reload.nu`, used by
-`spotify-launch.nu`):
+`--remote-debugging-port=9233` (`DEVTOOLS_PORT` in `configs/socials/spotify/spotify-reload.nu`):
 
 ```bash
 curl -s http://127.0.0.1:9233/json/list | jq -r '.[] | "\(.type) \(.url) \(.webSocketDebuggerUrl)"'
@@ -78,7 +62,7 @@ echo '{"id":1,"method":"Runtime.evaluate","params":{"expression":"document.title
 
 ## Discord
 
-No CDP port. The BetterDiscord plugin `configs/socials/discord/plugins/QuickshellVoiceStatus.plugin.js` publishes
-voice state to `$XDG_RUNTIME_DIR/quickshell-discord-voice.json` and runs JSON lines `{"cmd": ...}` written to
-`$XDG_RUNTIME_DIR/quickshell-discord-cmd` (unlinked on read; write a temp file and `mv` it in). The commands
-quickshell sends are `toggleSelfMute`, `toggleSelfDeaf`, `disconnect` (`Commons/DiscordControl.qml`).
+No CDP. `configs/socials/discord/plugins/QuickshellVoiceStatus.plugin.js` writes voice state to
+`$XDG_RUNTIME_DIR/quickshell-discord-voice.json` and runs JSON lines `{"cmd": ...}` from
+`$XDG_RUNTIME_DIR/quickshell-discord-cmd` (unlinked on read; write a temp file and `mv` it). Commands:
+`toggleSelfMute`, `toggleSelfDeaf`, `disconnect`.

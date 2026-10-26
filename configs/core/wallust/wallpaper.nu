@@ -1,5 +1,3 @@
-# Wallpaper switching for `dot theme` and the bar: link the image, recolor with wallust (a themes/*.json naming the
-# wallpaper wins), then run every module's theme verb.
 
 use font.nu [font-save]
 
@@ -8,8 +6,7 @@ const LIST = path self wallpaper-list.nu
 const PICK = path self wallpaper-pick.nu
 const THEMES = path self ../../../themes
 const WAL = ".cache/wal"
-# the one pending switch, the wallpaper's path and a nonce: callers write it, dot-theme.path starts UNIT while it
-# exists, and the run renames it to TAKEN before applying, so a request written meanwhile is a new file
+# path + nonce; renamed to TAKEN before applying, so a newer request is a new file
 const REQUEST = "theme.request"
 const TAKEN = "theme.taken"
 const UNIT = "dot-theme.service"
@@ -28,8 +25,7 @@ def request-take []: nothing -> string {
     try { open --raw $taken | str trim } catch { "" }
 }
 
-# Links `file` and recolors with wallust; false when a newer request arrived meanwhile. A theme's font applies only
-# when the wallpaper changes, so toggle-font's re-run keeps the font just picked.
+# False when a newer request arrived. A theme's font applies only when the wallpaper changes.
 def recolor [file: path]: nothing -> bool {
     if not ($file | path exists) { error make {msg: $"wallpaper not found: ($file)"} }
     let switched = (wallpaper-get) != ($file | path expand)
@@ -77,8 +73,7 @@ export def wallpaper-list []: nothing -> list<string> {
     ^$LIST ...(if $screen == null { [] } else { [--screen $"($screen.0)x($screen.1)"] }) | lines
 }
 
-# Switches to a path or a wallpaper name: the newest request wins, the unit runs one switch at a time. --sync waits
-# for every theme verb. Before the unit is installed (a fresh home's first apply) the switch runs here.
+# Newest request wins, one switch at a time; before the unit exists (first apply) it runs inline.
 export def wallpaper-set [wallpaper: string, --sync]: nothing -> nothing {
     let file = if ($wallpaper | str contains "/") { $wallpaper } else {
         let found = do { ^$LIST --resolve $wallpaper } | complete
@@ -94,8 +89,7 @@ export def wallpaper-set [wallpaper: string, --sync]: nothing -> nothing {
         theme-serve
         return
     }
-    # dot-theme.path starts the run; --sync starts it too: a start joins a run already going and returns when it ends,
-    # so the loop returns once the run that took this request is done, not only once the request was taken
+    # a start joins a running run and returns when it ends
     if not $sync { return }
     loop {
         let started = do { ^systemctl --user start $UNIT } | complete

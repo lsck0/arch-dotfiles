@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# after steam's first run: millennium replaces libXtst in steam's runtime dirs, which exist only from then on, and the
-# bootstrap's copy of steam.desktop leaves the desktop dir
+# after steam's first run: millennium patches libXtst in steam's runtime dirs
 
 const LIB = "/usr/lib/millennium"
 const LINKS = [

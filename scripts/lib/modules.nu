@@ -1,5 +1,4 @@
-# Module discovery, ordering and evaluation: finds every mod.nu, reads its meta, options and verbs in one
-# child nu, sorts modules by group and meta deps, and evaluates a verb for many modules in one child.
+# Module discovery, ordering and evaluation, each batch in one child nu.
 
 use log.nu *
 use state.nu [LIB_DIR nu-bin SYSTEM_STATE]
@@ -155,8 +154,7 @@ export def modules-graph [repo: path, modules: table]: nothing -> table {
     $order
 }
 
-# Calls verb on each module in one child nu: one row per module with its flattened declarations or its error;
-# --private runs it under umask 077, for a backup writing into configs/secrets/.
+# --private runs under umask 077, for a backup writing into configs/secrets/.
 export def modules-eval [modules: table, verb: string, cfgs: record, args: list, --private]: nothing -> table {
     if ($modules | is-empty) { return [] }
     let calls = $modules | enumerate | each {|m|
@@ -184,15 +182,16 @@ export def modules-packages [repo: path, modules: table, platform: record]: noth
     let wsl = $platform.form_factor == "wsl"
     let selected = $modules | where {|m| $m.selected and $m.cfg.enable }
     let computing = $selected | where {|m| "packages" in $m.native }
-    let computed = modules-eval $computing packages ($computing | reduce --fold {} {|m, acc| $acc | insert $m.id $m.cfg }) []
-        | reduce --fold {} {|r, acc|
-            if not $r.ok { log-warn $"($r.id): packages failed: ($r.error)" }
-            $acc | insert $r.id ($r.decls | get --optional 0 | default {})
-        }
+    let results = modules-eval $computing packages ($computing | reduce --fold {} {|m, acc| $acc | insert $m.id $m.cfg }) []
+    $results | where not ok | each { log-warn $"($in.id): packages failed: ($in.error)" } | ignore
+    let computed = $results | reduce --fold {} {|r, acc| $acc | insert $r.id ($r.decls | get --optional 0 | default {}) }
+    # a broken module or a failed packages hook declares too little: callers must not remove by this list
+    let incomplete = ($results | where not ok | get id) ++ ($modules | where {|m| $m.selected and ($m.broken? | default false) } | get id)
     let on = $selected | each {|m| $m | update meta.packages {|x| $x.meta.packages | merge deep --strategy=append ($computed | get --optional $m.id | default {}) } }
     {
         pacman: ($on | each {|m| $m.meta.packages.pacman ++ (if $wsl { [] } else { $m.meta.packages.native }) } | flatten | append $platform.extra_packages | uniq | sort)
         flatpak: ($on | reduce --fold {} {|m, acc| $acc | merge $m.meta.packages.flatpak })
         nix: ($on | each { $in.meta.packages.nix } | flatten | uniq | sort)
+        incomplete: $incomplete
     }
 }

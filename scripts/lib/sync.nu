@@ -1,5 +1,4 @@
-# The git half of dot sync: pull with the secrets submodule following, then the signed `Generation: <n>` commit
-# and push, retried on top when another machine pushed first.
+# The git half of dot sync: verified pull, signed generation commit, push with retry.
 
 use log.nu *
 use secrets.nu [secret-is-plaintext secrets-wanted]
@@ -17,9 +16,7 @@ export def sync-branch-check [repo: path]: nothing -> nothing {
     }
 }
 
-# The fetched origin head must carry the owner's signature before anything merges it: the next system apply runs it as
-# root. Checked against the key in the repo with a throwaway keyring, so a machine without the owner's gpg setup
-# (a server, a custom profile) checks it too.
+# origin's head must carry the owner's signature (throwaway keyring): root runs it next.
 def origin-verified [repo: path]: nothing -> nothing {
     let rev = $"origin/($BRANCH)"
     let gnupg = mktemp --directory
@@ -153,9 +150,20 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
             error make {msg: $"push failed, nothing rewound: (error-brief $push.stderr)"}
         }
         if $committed { ^git -C $repo reset --soft HEAD~1 }
+        # move the secrets submodule first, so the stash carries no gitlink change
+        if (secrets-wanted) and ($secrets | path join .git | path exists) {
+            ^git -C $secrets fetch --quiet origin
+            if (^git -C $secrets merge --ff-only --quiet $"origin/($BRANCH)" | complete).exit_code != 0 {
+                error make {msg: $"secrets: ($secrets) and origin/($BRANCH) diverged after pushing, nothing committed; reconcile it, then dot sync again"}
+            }
+        }
         ^git -C $repo stash push --quiet --include-untracked
-        sync-catch-up $repo
-        ^git -C $repo stash pop --quiet
+        try { sync-catch-up $repo } catch {|e|
+            error make {msg: $"($e.msg)\nthis machine's changes are stashed, not lost: git -C ($repo) stash pop, then dot sync again"}
+        }
+        if (^git -C $repo stash pop --quiet | complete).exit_code != 0 {
+            error make {msg: $"the stashed changes conflict with origin's generation; they stay in `git -C ($repo) stash list`, resolve them, then dot sync again"}
+        }
         ^git -C $repo add .
         if $committed { generation-commit $repo $fpr }
         $push = ^git -C $repo push --no-recurse-submodules | complete
@@ -181,8 +189,7 @@ def luks-header-checked-stamp []: nothing -> path {
     $nu.home-dir | path join .local state dotfiles $"luks-header-checked-(open --raw /etc/hostname | str trim)"
 }
 
-# Due when missing or last backed up over LUKS_HEADER_MAX_AGE_DAYS ago; the stamp lives outside git, since an
-# unchanged header makes no new commit to date it by.
+# The stamp lives outside git: an unchanged header makes no commit to date it by.
 def luks-header-due [header: path]: nothing -> bool {
     if not ($header | path exists) { return true }
     let stamp = luks-header-checked-stamp
@@ -191,8 +198,7 @@ def luks-header-due [header: path]: nothing -> bool {
     (date now) - $touched > ($LUKS_HEADER_MAX_AGE_DAYS * 1day)
 }
 
-# Keeps the LUKS header backup current: missing or stale, root re-backs it up (base/boot/luks/header-backup.nu)
-# so the secrets commit right after carries it. Silently skipped off a LUKS root or while secrets are locked.
+# Root re-backs up a missing or stale LUKS header; skipped off LUKS or while secrets are locked.
 export def luks-header-sync [repo: path]: nothing -> nothing {
     if not (luks-root) { return }
     if $env.DOT_SYSTEM? == "skip" { return }
@@ -212,5 +218,10 @@ def sync-catch-up [repo: path]: nothing -> nothing {
     origin-verified $repo
     if (^git -C $repo merge --ff-only --autostash $"origin/($BRANCH)" | complete).exit_code != 0 {
         error make {msg: $"($BRANCH) diverged from origin while syncing, nothing committed: git -C ($repo) pull --rebase"}
+    }
+    # a conflicting autostash pop still exits 0 and leaves markers that `git add .` would commit
+    let conflicted = ^git -C $repo diff --name-only --diff-filter=U | lines
+    if ($conflicted | is-not-empty) {
+        error make {msg: $"origin's generation and this machine's changes conflict in ($conflicted | str join ', '), nothing committed; resolve them in ($repo) \(the stash is kept\), then dot sync again"}
     }
 }

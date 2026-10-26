@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# Re-pins s14-client.nuon to PD2's current client: downloads every file metadata.json lists, checks it against that md5
-# and records its sha256. Run by hand when PD2 patches the client, then `dot apply gaming/pd2`.
+# Re-pins s14-client.nuon after a PD2 patch: md5 from metadata.json checked, sha256 recorded.
 
 const URL = "https://pd2-client-files.projectdiablo2.com"
 const OUT = path self | path dirname | path join s14-client.nuon

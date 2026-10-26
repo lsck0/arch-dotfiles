@@ -1,5 +1,4 @@
-# Machine facts: the platform file bootstrap installed, its groups, form factor and facts; the facts reach
-# modules as uppercase env vars, read with platform-has.
+# Machine facts, exported to modules as uppercase env vars (platform-has).
 
 use log.nu *
 
@@ -7,21 +6,25 @@ const PLATFORM_LOCAL_DIR = "/etc/dotfiles"
 export const PLATFORM_NAME_FILE = "/etc/dotfiles/platform"
 const FORM_FACTORS = [desktop laptop server vm wsl]
 export const PLATFORM_FACTS = [form_factor homelab wireguard secure_boot_own_keys lsck0_snapshot]
-const PLATFORM_KEYS = [hostname form_factor groups extra_packages facts packages_keep]
+const PLATFORM_KEYS = [hostname label form_factor groups extra_packages facts packages_keep]
 
 # Every group under configs/ but secrets, which is on wherever the submodule is pulled.
 export def platform-groups-all [repo: path]: nothing -> list<string> {
     ls ($repo | path join configs) | where type == dir | get name | path basename | where $it != secrets | sort
 }
 
-# The first of /etc/dotfiles/platform.nuon, platforms/local.nuon and the installed platforms/<name>.nuon, or null.
+# A name with no platform file is an error, never a fallback to every group.
 export def platform-file [repo: path]: nothing -> any {
     let name = try { open --raw $PLATFORM_NAME_FILE | str trim } catch { "" }
-    [
-        ($PLATFORM_LOCAL_DIR | path join platform.nuon)
-        ($repo | path join platforms local.nuon)
-        (if $name != "" { $repo | path join platforms $"($name).nuon" })
-    ] | compact | where ($it | path exists) | get --optional 0
+    let named = if $name != "" { $repo | path join platforms $"($name).nuon" }
+    let found = [($PLATFORM_LOCAL_DIR | path join platform.nuon) ($repo | path join platforms local.nuon) $named]
+        | compact | where ($it | path exists) | get --optional 0
+    if $found == null and $named != null {
+        let known = glob ($repo | path join platforms *.nuon) | path basename | where $it !~ '\.options\.nuon$'
+            | each { str replace '.nuon' '' } | str join ', '
+        error make {msg: $"($PLATFORM_NAME_FILE) names '($name)', but there is no ($named) \(platforms: ($known)\); fix it with: echo <platform> | sudo tee ($PLATFORM_NAME_FILE)"}
+    }
+    $found
 }
 
 export def platform-options-file [file: path]: nothing -> path {

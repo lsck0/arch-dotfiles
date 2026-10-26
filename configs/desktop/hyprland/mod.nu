@@ -102,7 +102,8 @@ def hyprland-live []: nothing -> bool {
 
 def outputs-live []: nothing -> table {
     if not (hyprland-live) { return [] }
-    try { ^hyprctl -j monitors | from json } catch { [] } | where name !~ '^HEADLESS-' | sort-by x
+    # disabled outputs too: a docked closed lid turns the panel off, and it must stay the layout's main
+    try { ^hyprctl -j monitors all | from json } catch { [] } | where name !~ '^HEADLESS-' | sort-by x
 }
 
 def mode-best [modes: list<string>]: nothing -> string {
@@ -188,8 +189,7 @@ export def detect [cfg: record]: nothing -> record {
     }
 }
 
-# Outside hyprland detect sees no output: the same picks over the platform's monitors keep platform.lua (and
-# hyprland) from flipping on every apply.
+# Detect sees no output outside hyprland: picks over the platform's monitors keep platform.lua stable.
 def platform-lua [cfg: record]: nothing -> string {
     let backlight = glob /sys/class/leds/*kbd_backlight* | get --optional 0 | if $in == null { null } else { $in | path basename }
     let monitors = $cfg.monitors | default []
@@ -228,8 +228,6 @@ export def link [cfg: record] {
     ]
 }
 
-# Builds the plugins as the user for the installed hyprland (plugins.nu), so an apply or a sync's update brings them
-# along with a hyprland upgrade; no root involved.
 export def plugins-build []: nothing -> nothing {
     ^($env.DOTFILES | path join configs desktop hyprland plugins.nu)
 }

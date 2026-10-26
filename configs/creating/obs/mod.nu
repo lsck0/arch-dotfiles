@@ -1,5 +1,3 @@
-# obs's collections and profiles rendered per machine (canvas, mic, webcam, encoders) from the repo seeds and the
-# secret Streaming collection; backup carries obs's own edits back into them
 
 use module.nu *
 use converge.nu [recorded-hashes]
@@ -92,8 +90,7 @@ def --wrapped pactl-read [...args: string]: nothing -> oneof<string, nothing> {
     ^pactl ...$args | complete | if $in.exit_code == 0 { $in.stdout | str trim } else { null }
 }
 
-# The hardware node of a kind, never the default one, which follows the bar's picker and an agent's null sink;
-# an external one over the built-in.
+# The hardware node, never the default (it follows the bar's picker); external over built-in.
 def audio-device [kind: string]: nothing -> oneof<string, nothing> {
     let nodes = pactl-read -f json list $kind
     if $nodes == null { return null }
@@ -307,8 +304,7 @@ export def websocket-init [file: path]: nothing -> nothing {
     chmod 600 $file
 }
 
-# Carries a live collection back to dest, unless src changed since link (an edit obs has not loaded).
-# The portal token is this machine's, never stored.
+# Skips a collection edited since link that obs has not loaded; the portal token is never stored.
 def scene-back [cfg: record, live: path, src: path, dest: path, --machine]: nothing -> nothing {
     if not ($live | path exists) { return }
     let applied = applied-file $live

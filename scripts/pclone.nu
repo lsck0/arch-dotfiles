@@ -11,7 +11,7 @@ def popup-fail [message: string]: nothing -> nothing {
 
 # Clone a git url or user/repo into ~/projects with submodules and open it in the multiplexer.
 def main []: nothing -> nothing {
-    let typed = try { ^gum input --prompt "❯ " --placeholder "git url or user/repo" --width 60 } catch { "" }
+    let typed = try { ^gum input --prompt "\u{276f} " --placeholder "git url or user/repo" --width 60 } catch { "" }
     if $typed == "" { return }
     let url = match $typed {
         $u if $u =~ '://' or ($u | str starts-with "git@") => $u

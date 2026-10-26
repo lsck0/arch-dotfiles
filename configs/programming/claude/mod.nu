@@ -1,7 +1,13 @@
 use module.nu *
 
 # after idle-guards: the guard hooks go in only once its agent-guard exists (a dep outside the platform's groups is dropped)
-export const meta = {deps: [desktop/idle-guards], packages: {pacman: [claude-code claude-desktop-extra]}, backup: {secrets: true}}
+export const meta = {
+    deps: [desktop/idle-guards]
+    packages: {pacman: [claude-code claude-desktop-extra]}
+    backup: {secrets: true}
+    # planned before idle-guards runs on a fresh install: the guard appearing re-plans the hooks
+    inputs: [~/.config/idle-guards/agent-guard.nu]
+}
 
 export const options = {
     model: {type: string, default: "claude-opus-5-5", doc: "The model every session starts on", label: "Model", scope: user}
@@ -67,8 +73,7 @@ export def link [cfg: record] {
             (json-set [includeCoAuthoredBy] false)
             (json-set [modelSettings $cfg.model effortLevel] $cfg.effort)
             (json-set [hooks] (hooks-merge $current (home $AGENT_GUARD)))
-            # login is credentials.json alone: settings.json is linked into every identity's config dir, so a token
-            # in its env block would authenticate those identities as the owner
+            # login via credentials.json only: settings.json is shared into every identity
             (json-delete [env CLAUDE_CODE_OAUTH_TOKEN])
         ])
         (if (secret-is-plaintext (backup-dir | path join credentials.json)) and not ($creds | path exists) {

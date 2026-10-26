@@ -73,7 +73,11 @@ def is-ready [task: record]: nothing -> bool {
 def agent-db [taskrc: path]: nothing -> record {
     let root = $taskrc | path dirname --num-levels 2
     let name = $root | path basename
-    let export = with-env {TASKRC: $taskrc} { do { ^task rc.verbose=nothing export } | complete }
+    # a cloned repo's taskrc can alias export to execute: never load it, only read its data dir
+    let data = $taskrc | path dirname | path join .task
+    let export = with-env {TASKRC: /dev/null} {
+        do { ^task $"rc.data.location=($data)" rc.hooks=0 rc.verbose=nothing export } | complete
+    }
     let all = try { $export.stdout | from json } catch { null }
     if $export.exit_code != 0 or $all == null { return {name: $name, note: "(unreadable db)"} }
     let open = $all | where { $in.status? == pending and "agent-task" in (tags-of $in) }

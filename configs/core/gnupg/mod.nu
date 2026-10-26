@@ -59,7 +59,11 @@ export def link [cfg: record] {
     [
         (exec gnupg-dir [install -d -m 700 $dir] --creates $dir)
         # reload keeps cached keys; scdaemon reads its config only at start
-        (file-render gpg-agent.conf ($dir | path join gpg-agent.conf) {CACHE_TTL: $cfg.cache_ttl, CACHE_TTL_MAX: $cfg.cache_ttl_max}
+        (file-render gpg-agent.conf ($dir | path join gpg-agent.conf) {
+            CACHE_TTL: $cfg.cache_ttl, CACHE_TTL_MAX: $cfg.cache_ttl_max
+            # pinentry-qt needs Qt6/KF6, which only the desktop group installs; the wrapper falls back to curses
+            PINENTRY: (if ($env.FORM_FACTOR? | default "") == "wsl" { "/usr/bin/pinentry" } else { "/usr/bin/pinentry-qt" })
+        }
             --then [gpgconf --reload gpg-agent])
         (file-copy scdaemon.conf ($dir | path join scdaemon.conf) --then [gpgconf --kill scdaemon])
         (file-text ($dir | path join gpg.conf) $"(open --raw gpg.conf)($default_key)" --mode 600)

@@ -1,5 +1,4 @@
-# The lsck0 install iso: archiso's releng plus mirror/iso, the [lsck0] repo and key, and the stub's trust anchor
-# taken from bootstrap.sh; no checkout on it, the stub fetches and verifies master at install time.
+# The install iso: releng plus mirror/iso and the [lsck0] repo; the stub verifies master at install.
 
 use log.nu *
 

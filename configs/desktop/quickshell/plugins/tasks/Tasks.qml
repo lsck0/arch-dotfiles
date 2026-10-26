@@ -190,8 +190,7 @@ Item {
   readonly property var fieldKeywords: ["project:", "due:", "priority:"]
   readonly property var priorities: ["H", "M", "L"]
 
-  // a keyword already has its colon (+tag, project:x, pro:x, due:x, priority:x, prio:x): complete the value after
-  // it. otherwise complete the bare word (proj, du, prio) into the keyword itself (project:, due:, priority:).
+  // after a keyword's colon complete its value, else complete the bare word into the keyword
   function completeInput() {
     var head = input.text.slice(0, input.cursorPosition)
     var start = head.search(/\S*$/)

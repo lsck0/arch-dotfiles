@@ -1,5 +1,4 @@
-# The preserved/ dir, where a replaced or drifted file is kept aside, the ~/sync write guard and the one
-# terminal question; what dot wrote is in the module records (converge.nu).
+# preserved/, the ~/sync write guard and the one tty question.
 
 use log.nu *
 use state.nu [state-dir path-kind]
@@ -18,8 +17,7 @@ export def sync-guard [path: path]: nothing -> nothing {
     }
 }
 
-# Moves path under preserved/ by its full path and a timestamp, never beside the original where a scanning
-# dir would load it as a second config; null when the path is already gone.
+# Kept under preserved/, never beside the original where a scanning dir would load it.
 export def preserve-aside [path: path]: nothing -> any {
     if (path-kind $path) == "" { return null }
     let base = $"(preserve-dir)(^realpath -ms $path).(date now | format date $STAMP_FORMAT)"
@@ -64,8 +62,7 @@ export def preserve-prune [days: int]: nothing -> nothing {
     ^find (preserve-dir) -mindepth 1 -type d -empty -delete
 }
 
-# Yes only from a person at the terminal: stdin may carry the secrets tar and stderr is captured under sync,
-# so question and answer go through /dev/tty; no terminal means no.
+# Asks via /dev/tty: stdin may carry the secrets tar and stderr is captured under sync.
 export def tty-confirm [question: string]: nothing -> bool {
     if ($env.DOTFILES_UNATTENDED? | is-not-empty) {
         log-warn "unattended, nothing done"

@@ -1,6 +1,4 @@
--- every app's playback runs through a loopback of its own: app -> app.<key> (Audio/Sink) -> app.<key>.out -> device,
--- so a capture of the app's ports (obs) keeps full level while .out carries the system volume, mute and route.
--- run by wpexec (app-loopback.service) outside wireplumber; listening to obs (dot.obs-listen) mutes every loopback.
+-- app -> app.<key> -> app.<key>.out -> device: obs captures the app at full level, .out carries volume and route
 
 PREFIX = "app."
 OUT_SUFFIX = ".out"
@@ -10,11 +8,9 @@ STATE_OWN = "own."
 STATE_SEEN = "seen."
 -- dotted, like every other bookkeeping key: the start loop treats a dotless key as an app
 STATE_EPOCH = "state.epoch"
--- an own-level record no stream reclaimed within this many service starts is dropped, so a stale one never levels an
--- unrelated stream of the app days later
+-- own-level records unclaimed for this many starts are dropped
 OWN_EPOCHS_KEPT = 2
--- an app no stream played from within this many service starts loses its loopback, so one-off players (installers,
--- paplay) don't keep a sink pair forever
+-- apps silent for this many starts lose their loopback
 APP_EPOCHS_KEPT = 20
 LISTEN_KEY = "dot.obs-listen"
 OBS_BINARY = "obs"
@@ -201,8 +197,7 @@ function mute_set(node, mute)
     node:set_param("Props", Pod.Object({ "Spa:Pod:Object:Param:Props", "Props", mute = mute }))
 end
 
--- The levels the stop handed out, by loopback key, node name and media name (a serial dies with the pipewire session):
--- "<key> <epoch> <loopback level> <own level>...", one own level per stream that shares all three, taken in order.
+-- "<key> <epoch> <loopback level> <own level>..." per node and media name (a serial dies with pipewire)
 function own_mark(props, key)
     return STATE_OWN .. key .. "." .. (props["node.name"] or "") .. "." .. (props["media.name"] or "")
 end
@@ -262,8 +257,7 @@ function epoch_advance()
     state:save_after_timeout(known)
 end
 
--- A stream the stop handed a level to gives it back to its loopback once it plays into it (on the device it would jump);
--- a stream without a record keeps its level, which is the app's own slider.
+-- A recorded stream hands its level back to the loopback once it plays; others keep their own.
 function level_reclaim(stream_id, sink_id, out_id, retries)
     local stream, out = node_get(stream_id), node_get(out_id)
     if not (stream and out) then
@@ -352,8 +346,7 @@ function listen_apply()
     end
 end
 
--- The stop: every looped stream takes its loopback's level times its own and the mute, the loopback goes to full;
--- the stream's own level is recorded so the next start can split them again.
+-- Stop: streams take loopback level times their own, loopbacks go to full, own levels recorded.
 function release_all()
     local pending = 0
     local function done()

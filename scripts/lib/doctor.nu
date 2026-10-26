@@ -1,5 +1,4 @@
-# The health checks of `dot status`: failures, pending config, reboot, invariants, apparmor, snapshots, packages,
-# firewall, units, luks tokens, secrets and preserved copies, each as {level, check, text} records.
+# The health checks of `dot status`.
 
 use state.nu [SYSTEM_REPO SYSTEM_STATE]
 use ledger.nu [ledger-get]
@@ -137,8 +136,7 @@ def snapshot []: nothing -> list<record> {
     }
 }
 
-# Declared pacman packages that are not installed (a package group counts as installed): an install that failed or
-# a name new to the mirror.
+# A package group counts as installed.
 def packages []: nothing -> list<record> {
     if (which pacman | is-empty) { return [] }
     let ctx = pipeline-load $REPO system

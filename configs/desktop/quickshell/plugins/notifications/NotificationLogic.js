@@ -7,8 +7,14 @@ function isChromiumDerived(app, appIcon) {
   return /chrom|brave|vivaldi|microsoft-edge|opera/.test((String(app || "") + "\n" + String(appIcon || "")).toLowerCase())
 }
 
+// until stable: one pass would let a nested tag rebuild an <img> that StyledText then fetches
 function stripImageTags(text) {
-  return text.replace(/<[^A-Za-z0-9>]*img(?![A-Za-z0-9])[^>]*(?:>|$)/gi, "")
+  var prev
+  do {
+    prev = text
+    text = text.replace(/<[^A-Za-z0-9>]*img(?![A-Za-z0-9])[^>]*(?:>|$)/gi, "")
+  } while (text !== prev)
+  return text
 }
 
 function styledBody(body, app, appIcon) {

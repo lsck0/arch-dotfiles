@@ -74,8 +74,7 @@ export const options = {
     }
 }
 
-# A Lord of Destruction install in the lutris prefixes, null without one.
-# lutris's game entries first, then any prefix synced under ~/sync/games/d2: a fresh install has no lutris entry yet
+# lutris prefixes first, then ~/sync/games/d2 (a fresh install has no lutris entry)
 export def lod-detect []: nothing -> any {
     let games = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join lutris games
     let lutris = glob ($games | path join *.yml)
@@ -107,8 +106,7 @@ export def link [cfg: record] {
     let seedable = $base != "" and ($base | path join $BASE_MARKER | path exists)
     let seeded = $game | path join $BASE_MARKER | path exists
     let game_empty = ($game | path type) == dir and (ls $game | is-empty)
-    # a synced vendor dir arrives filled (game dir, patches, prefix with the median saves): dot only reads it, since
-    # nothing dot writes may land in ~/sync; the fallback vendor dir is dot's own to create and fill
+    # a synced vendor dir is read-only to dot (nothing lands in ~/sync); the fallback one is dot's
     let own = not (synced-vendor | path exists)
     if not $own and not ($game | path join $PATCH_VERSION | path exists) {
         log-note $"d2launcher: ($game) is not set up in the synced vendor dir; set it up on the machine that owns it"
@@ -141,8 +139,7 @@ export def link [cfg: record] {
     ]
 }
 
-# Plain lord of destruction beside median xl (whose game dir d2launcher patches): the synced install linked into a
-# dir of its own, so the game's logs land there, run by the launcher's wine in a prefix of its own.
+# Plain LoD beside median xl, linked into its own dir so its logs land there.
 def vanilla-root []: nothing -> path {
     $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join diablo2
 }
@@ -234,17 +231,10 @@ def render-size [cfg: record]: nothing -> record {
     {w: ($h // 3 * 4), h: $h}
 }
 
-# Gamescope paces at 60 unless told the monitor's rate; outside a session (install stage) 60 stays.
-def refresh-rate []: nothing -> int {
-    try {
-        ^hyprctl -j monitors | from json | where name !~ $HEADLESS_MONITORS | get refreshRate | math max | math round
-    } catch { 60 }
-}
-
 def gamescope-values [cfg: record]: nothing -> record {
     let size = render-size $cfg
     {
-        game: (game-dir), prefix: (prefix-dir), width: $size.w, height: $size.h, args: $D2_ARGS, refresh: (refresh-rate)
+        game: (game-dir), prefix: (prefix-dir), width: $size.w, height: $size.h, args: $D2_ARGS
         wine: (wine-bin | path dirname), exe: (game-dir | path join $D2_EXE)
     }
 }

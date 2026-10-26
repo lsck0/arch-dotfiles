@@ -1,6 +1,4 @@
-# The ledger: what dot enabled or installed (units, packages), the applied migrations and the lsck0 snapshot, so
-# what no module declares any more can be disabled or removed. Units and packages are no verb's output, hence not
-# in the module records.
+# Units, packages, migrations and the lsck0 snapshot dot recorded, so undeclared ones can go.
 
 use log.nu *
 use state.nu [state-dir save-atomic]
@@ -28,8 +26,7 @@ export def ledger-set [kind: string, names: list<string>]: nothing -> nothing {
     $kept | append ($names | where $it != "" | each { $"($kind) ($in)" }) | uniq | sort | str join "\n" | $"($in)\n" | save-atomic $file
 }
 
-# Enabled units against those named in an enabled module's dir or scripts/; a dropped one is disabled after
-# a yes, and by_hand lists what was enabled outside dot.
+# Dropped units are disabled after a yes; by_hand lists units enabled outside dot.
 export def ledger-units [repo: path, dirs: list<path>, scope: string, --plan]: nothing -> record {
     let paths = $dirs | append ($repo | path join scripts) | where ($it | path exists)
     let declared = ^grep -rhoIE $UNIT_NAME --exclude=*.log -- ...$paths | lines | uniq

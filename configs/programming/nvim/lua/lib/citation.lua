@@ -1,5 +1,4 @@
---- Citation keys from the project's .bib files and the Zotero export, for the picker and the completion source.
---- A parsed file is cached until its mtime or size changes, a buffer's bib list until it is written.
+--- Citation keys from .bib files and the Zotero export, cached by mtime and size.
 
 local M = {}
 

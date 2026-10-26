@@ -52,12 +52,11 @@ def record [name: string, kind: string, expr: string]: nothing -> nothing {
 }
 
 def reapply []: nothing -> nothing {
-    for kind in [layout scale] {
-        for file in (glob (state-file $"monitor-*-($kind)" --volatile)) {
-            let saved = open --raw $file | split row --number 2 " "
-            if $saved.0 == (instance) { ^hyprctl eval $saved.1 o> /dev/null }
-        }
-    }
+    let saved = [layout scale] | each {|kind|
+        glob (state-file $"monitor-*-($kind)" --volatile) | each { open --raw $in | split row --number 2 " " }
+    } | flatten | where { $in.0 == (instance) } | each { $in.1 }
+    # a scale expression re-enables its output: a monitor turned off (lid closed) goes off again last
+    for expr in ($saved ++ ($saved | where { $in =~ 'disabled = true' })) { ^hyprctl eval $expr o> /dev/null }
 }
 
 def lua-monitor [fields: record]: nothing -> string {

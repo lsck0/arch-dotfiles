@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# links a profile firefox made itself (a downgrade, about:profiles), which has no user.js or userChrome.css yet
-# the unit's environment has no DOTFILES outside a uwsm session
+# links a profile firefox made itself; the unit has no DOTFILES outside a uwsm session
 
 const DOT = path self | path dirname | path join .. .. .. .. scripts dot.nu
 

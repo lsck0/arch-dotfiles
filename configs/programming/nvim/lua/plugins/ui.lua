@@ -58,7 +58,7 @@ return {
         "xiyaowong/virtcolumn.nvim",
         event = "VeryLazy",
         config = function()
-            vim.g.virtcolumn_char = "▕"
+            vim.g.virtcolumn_char = "\u{2595}"
             vim.g.virtcolumn_priority = 10
         end,
     },

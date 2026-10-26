@@ -125,8 +125,7 @@ export def system [cfg: record] {
     ]
 }
 
-# home-gateways, which 70-home-network reads, is rewritten every run as the union of three sources: the secrets'
-# (home-*.secret, kept while locked), the install's answer (home-gateways.local) and the home_gateways option.
+# home-gateways = the secrets' list (kept while locked) + the install answer (.local) + home_gateways
 export def home [home_wired: string, ...gateways: string]: nothing -> nothing {
     let secrets = $env.DOTFILES_SECRETS? | default "/nonexistent"
     let secret_gateways = $"($NM)/home-gateways.secret"
@@ -171,8 +170,7 @@ export def home [home_wired: string, ...gateways: string]: nothing -> nothing {
     }
 }
 
-# A wifi profile on a trusted gateway keeps the hardware mac, which 70-home-network needs to call it home; one no
-# longer trusted (and not a secrets ssid) gets the global random mac back. Only the active profile knows its gateway.
+# A trusted gateway's wifi keeps the hardware mac (70-home-network needs it); untrusted gets random back.
 def trusted-wifi-mac [dev: string, gateways: list<string>, ssids: list<string>]: nothing -> nothing {
     let uuid = ^nmcli -g GENERAL.CON-UUID device show $dev | str trim
     if $uuid == "" or (^nmcli -g connection.type connection show $uuid | str trim) != "802-11-wireless" { return }

@@ -1,5 +1,4 @@
-# The root copy /var/lib/dotfiles/repo: root never executes a file a user can write, so the user packs the
-# repo and the system secrets into one archive and the root entry of the existing copy unpacks it.
+# Root never runs user-writable files: the user packs repo and secrets, the root copy unpacks them.
 
 use log.nu *
 use state.nu [SYSTEM_REPO]
@@ -34,13 +33,17 @@ export def system-secrets [wireguard: any]: nothing -> list<string> {
     $SYSTEM_SECRETS | append $"initramfs-ssh/(sys host | get hostname)/sshkeydir/.ed25519.sk" | append ([$wireguard] | flatten | compact | where $it != "")
 }
 
-# The repo as a tar; refused unless the copy's commit is an ancestor of HEAD.
+# Refused only when HEAD is behind the copy (no rollback); a copy commit gone from history only warns.
 export def system-pack [checkout: path]: nothing -> binary {
     let head = ^git -C $checkout rev-parse HEAD | str trim
     let source = $SYSTEM_REPO | path join .source
     if ($source | path exists) {
         let old = open --raw $source | str trim
-        if (^git -C $checkout merge-base --is-ancestor $old $head | complete).exit_code != 0 { error make {msg: $"($SYSTEM_REPO) is at ($old), not an ancestor of ($checkout)'s HEAD ($head); keeping it, pull first"} }
+        let ancestor = {|a, b| (^git -C $checkout merge-base --is-ancestor $a $b | complete).exit_code == 0 }
+        if $old != $head and not (do $ancestor $old $head) {
+            if (do $ancestor $head $old) { error make {msg: $"($SYSTEM_REPO) is at ($old), ahead of ($checkout)'s HEAD ($head); keeping it, pull first"} }
+            log-warn $"($SYSTEM_REPO) was at ($old), which ($checkout)'s history no longer has; replacing it with ($head)"
+        }
     }
     let tracked = system-files $checkout "--cached"
     let untracked = system-files $checkout "--others" | where $it not-in $tracked

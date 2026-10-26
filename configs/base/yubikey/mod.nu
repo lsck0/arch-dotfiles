@@ -6,12 +6,22 @@ export const meta = {
     }
 }
 
+const SECRETS_ISSUE = "/etc/issue.d/dotfiles-secrets.issue"
+
+def secrets-arrived []: nothing -> bool {
+    let dir = $env.DOTFILES_SECRETS? | default ""
+    $dir != "" and (glob ($dir | path join "**" "*") --no-dir | is-not-empty)
+}
+
+export def secrets-issue-clear []: nothing -> nothing { rm --force $SECRETS_ISSUE }
+
 export def system [cfg: record] {
     [
         (file-copy pcsc.rules /etc/polkit-1/rules.d/50-pcsc-wheel.rules)
         (file-copy 70-yubikey-hidraw.rules /etc/udev/rules.d/70-yubikey-hidraw.rules
             --then [sh -c "udevadm control --reload && udevadm trigger --action=change --subsystem-match=hidraw"])
         (unit-enable pcscd.socket --now)
+        (if (secrets-arrived) and ($SECRETS_ISSUE | path exists) { step secrets-issue-clear } else { [] })
     ]
 }
 

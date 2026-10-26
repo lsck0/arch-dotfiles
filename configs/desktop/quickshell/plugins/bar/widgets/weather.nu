@@ -205,7 +205,7 @@ def forecast-get []: nothing -> record {
         stale: false
         current: ($current | update isDay ($d.current.is_day? | default 1))
         units: {
-            temp: ($units.temperature_2m? | default "°C")
+            temp: ($units.temperature_2m? | default "\u{b0}C")
             wind: ($units.wind_speed_10m? | default "km/h")
             precip: ($units.precipitation? | default "mm")
         }

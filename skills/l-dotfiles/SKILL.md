@@ -5,52 +5,43 @@ description: "Luca's arch-dotfiles repo (~/projects/arch-dotfiles), the only way
 
 # l-dotfiles
 
-This machine is rebuilt from `~/projects/arch-dotfiles` by one command, `dot`, and a fresh install must end up
-identical. So nothing on it is changed by hand: a package, setting, unit or PATH entry is a file in this repo, applied
-by `dot`. Managed files are hash-recorded copies; links only where an app must read the repo live.
+This machine is rebuilt from `~/projects/arch-dotfiles` by `dot`, and a fresh install must end up identical. Nothing
+is changed by hand: a package, setting, unit or PATH entry is a file in this repo, applied by `dot`. The repo's
+`AGENTS.md` is the working index, with the table of topic skills `l-dotfiles-<topic>`.
 
-`AGENTS.md` at the repo root is the working index (verified commands, conventions, gotchas) with the table of the
-topic skills `l-dotfiles-<topic>`. This skill is the orientation; load the topic skill a task needs.
+## Need from another project
 
-## When the need comes from another project
+An agent working elsewhere does not install anything. It messages the dotfiles session (list agents, the one named
+`arch-dotfiles-*`) with the exact need ("adb and the emulator on PATH") and waits for confirmation. Project-local
+dependencies (venvs, `node_modules`, devenv) stay in that project. Homelab changes: `l-homelab`.
 
-An agent working elsewhere (a game, a paper, a service) that needs something on the machine does not install it. It
-messages the dotfiles session (list agents, the one named `arch-dotfiles-*`) with the exact need, e.g. "adb and the
-emulator on PATH", and waits for the confirmation. Project-local dependencies (venvs, `node_modules`, devenv, files
-inside the project) stay that project's own. Homelab changes go through the homelab session instead: `l-homelab`.
+## Making a change
 
-## Making a change here
-
-1. Find the owner: `dot explain <path|package>` names the module that writes a file or declares a package.
-2. Edit that module (`configs/<group>/<module>/mod.nu`, its files, an option in `platforms/<name>.options.nuon`), or
-   add one: `l-dotfiles-add-module`, `l-dotfiles-add-package`.
-3. `DOT_SYSTEM=skip dot apply <group>/<module>` for the user layer. The system layer needs root: an agent never gets
-   it, so the run records it as pending (exit 3) and Luca runs `dot apply --system`.
+1. `dot explain <path|package>` names the owning module.
+2. Edit that module (`configs/<group>/<module>/`, or an option in `platforms/<name>.options.nuon`), or add one:
+   `l-dotfiles-add-module`, `l-dotfiles-add-package`.
+3. `DOT_SYSTEM=skip dot apply <group>/<module>`. The system layer needs root: it is recorded as pending (exit 3) and
+   Luca runs `dot apply --system`.
 4. `dot test lint` before reporting.
 
 ## Layout
 
-- `configs/<group>/<module>/`: one tool or task each, groups enabled per platform.
-- `platforms/<name>.nuon`: machine facts and groups (pc, notebook, wsl, server, vm); `<name>.options.nuon` its
-  option values. A named machine's choice is `/etc/dotfiles/platform`; a server or custom machine's answers are
-  `/etc/dotfiles/platform{,.options}.nuon`.
-- `profiles/`: per-user profile templates (`secrets` marks the owner).
-- `scripts/`: commands linked into `~/.local/bin`; `scripts/lib/` the engine; `scripts/toggles/` the on/off and
-  n-state switches with their menu and status.
-- `themes/` and `wallpapers/`: color themes and the public wallpapers; the bought ones live in `~/sync/wallpapers`.
-- `mirror/`: own pkgbuilds and the `[lsck0]` package mirror's build list; `mirror/iso/` the install ISO.
-- `configs/secrets/`: the private submodule. `keys/` holds the git-crypt secrets, `state/` the plaintext backed-up
-  app state (dalamud, ffxiv, firefox, repositories), `<module>/mod.nu` the owner's own modules (yubikey, capgemini,
-  weblinks). Anything else there makes sync refuse. Skill `l-dotfiles-secrets-access`.
-- `skills/`: these skills, Luca's style guides and personas, linked into every agent's skills dir.
-- `showcase/`: screenshots.
-- Install: `bootstrap.sh` then `dot internal bootstrap`, `dot apply --packages`, `dot apply`, with `dot internal stage`
-  running them unattended across boots. Skill `l-dotfiles-install`.
+- `configs/<group>/<module>/`: one tool or task; groups enabled per platform.
+- `platforms/<name>.nuon` (luca-pc, luca-notebook, wsl, server, vm) and `<name>.options.nuon`. The machine's choice is
+  `/etc/dotfiles/platform`; server or custom answers are `/etc/dotfiles/platform{,.options}.nuon`.
+- `profiles/`: user profile templates (`secrets` marks the owner).
+- `scripts/` (in `~/.local/bin`), `scripts/lib/` the engine, `scripts/toggles/` the switches.
+- `themes/`, `wallpapers/` (public; bought ones in `~/sync/wallpapers`).
+- `mirror/`: own pkgbuilds, the `[lsck0]` build list, `iso/`.
+- `configs/secrets/`: private submodule; `keys/` git-crypt, `state/` plaintext app state, `<module>/` the owner's
+  modules; anything else makes sync refuse (`l-dotfiles-secrets-access`).
+- `skills/`: linked into every agent's skills dir. `showcase/`: screenshots.
+- Install: `bootstrap.sh`, `dot internal bootstrap`, then `dot internal stage` runs `dot apply --packages` and
+  `dot apply` across boots (`l-dotfiles-install`).
 
-## Rules for agents
+## Rules
 
-- Never commit, push or run `dot sync`: it pulls, commits the signed `Generation: <n>` and pushes. Luca runs it.
-  Commits are `Generation: <n>`, not conventional commits (overrides `l-style-tooling`'s Git section).
+- Never commit, push or run `dot sync`; Luca does. Commits are `Generation: <n>`, not conventional commits
+  (overrides `l-style-tooling`).
 - Run `dot` with `DOT_SYSTEM=skip` (or `--no-system`); exit 3 means a system part is pending.
-- Every setting must be reproducible through the install stages on a fresh system.
-- dot never writes into `~/sync`; reading it is fine.
+- Every setting reproducible on a fresh system. dot never writes into `~/sync`; reading is fine.

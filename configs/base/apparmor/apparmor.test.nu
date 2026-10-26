@@ -84,8 +84,7 @@ def compile-check [rows: table, source: path, etc: path]: nothing -> list<string
     $names ++ $profiles ++ $locals
 }
 
-# An override is apparmor.d's profile with only its attachment changed: everything below its own header, except the
-# profile line, must equal the upstream file, so an apparmor.d update is re-synced instead of silently drifting.
+# An override differs from its upstream apparmor.d profile only in the profile line.
 def override-check [source: path]: nothing -> list<string> {
     let body = {|text| $text | lines | where not ($it =~ '^profile ') }
     $OVERRIDES | each {|n|

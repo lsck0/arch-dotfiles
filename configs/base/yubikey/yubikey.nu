@@ -1,5 +1,4 @@
-# `dot secrets unlock|lock|seal` and yubikey init: the git-crypt key sealed to every enrolled yubikey's age
-# recipient, plus pgp, ssh and u2f enrollment, one touch per step.
+# `dot secrets unlock|lock|seal` and yubikey enrollment.
 
 use ../../../scripts/lib/profile.nu [profile-load]
 use ../../../scripts/lib/secrets.nu [secret-is-plaintext secrets-wanted]
@@ -20,8 +19,9 @@ const INIT_STEPS = [pins pgp ssh u2f age]
 const SECRETS_ISSUE = "/etc/issue.d/dotfiles-secrets.issue"
 
 # Clears the install chain's "still locked" login banner once secrets actually unlock.
+# best effort without a prompt: the system layer's base/yubikey clears it on the next system apply
 def clear-secrets-issue []: nothing -> nothing {
-    if ($SECRETS_ISSUE | path exists) { ^sudo rm -f $SECRETS_ISSUE }
+    if ($SECRETS_ISSUE | path exists) { do { ^sudo -n rm -f $SECRETS_ISSUE } | complete | ignore }
 }
 
 def unwanted []: nothing -> bool {
@@ -48,8 +48,7 @@ def secrets-lock-0600 []: nothing -> nothing {
     ^find ($SECRETS | path join keys) -type f ! -name '.*' ! -name '*.pub' ! -name '*public*' -exec chmod 600 '{}' +
 }
 
-# Each attempt runs on the terminal (--foreground: a background group would stop on the tty read) and ends on its own
-# when no touch comes; the per-attempt cap only guards a stalled network, far above a clone of the secrets repo.
+# --foreground: a background group stops on the tty read; the cap only guards a stalled network.
 def with-touch [argv: list<string>]: nothing -> bool {
     let deadline = (date now) + $TOUCH_WAIT
     while not (try { ^timeout --foreground $TOUCH_ATTEMPT_S ...$argv; true } catch { false }) {
@@ -60,8 +59,7 @@ def with-touch [argv: list<string>]: nothing -> bool {
     true
 }
 
-# The committed ssh stub is public and so passphrase-protected: decrypt the private copy once, on the terminal, before
-# the touch loop. Left encrypted, ssh asks on every attempt, and unattended nothing can answer and it waits forever.
+# Decrypt the passphrase-protected ssh stub once before the touch loop, or ssh asks every attempt.
 def stub-decrypt [key_file: path]: nothing -> bool {
     if (do { ^ssh-keygen -y -P "" -f $key_file } | complete).exit_code == 0 { return true }
     if ($env.DOTFILES_UNATTENDED? | is-not-empty) or not (is-terminal --stdin) { return false }
@@ -157,9 +155,12 @@ def init-step [step: string, sn: string]: nothing -> nothing {
             let file = $OWNER_DIR | path join u2f_keys
             if ($file | path exists) {
                 let added = $line | str replace $"($user):" ""
-                open --raw $file | lines
-                | each { if ($in | str starts-with $"($user):") { $"($in):($added)" } else { $in } }
-                | str join "\n" | $"($in)\n" | save --force $file
+                let lines = open --raw $file | lines | where ($it | str trim) != ""
+                if ($lines | is-empty) { $"($line)\n" | save --force $file } else {
+                    # the owner's keys sit on line 0 whatever login made them (secrets/yubikey maps them to the owners)
+                    $lines | enumerate | each {|l| if $l.index == 0 { $"($l.item):($added)" } else { $l.item } }
+                    | str join "\n" | $"($in)\n" | save --force $file
+                }
             } else {
                 $"($line)\n" | save $file
             }
@@ -189,10 +190,24 @@ export def yubikey-init [...steps: string]: nothing -> nothing {
     heading $"done: commit configs/base/yubikey; homelab .sops.yaml needs ($r)"
 }
 
+# Without a YubiKey (WSL): gh credentials, else the account's ssh key; never an https prompt.
+def secrets-pull-with-account []: nothing -> nothing {
+    let pull = {|config: list<string>|
+        (do { with-env {GIT_TERMINAL_PROMPT: "0"} { ^git -C $REPO ...$config submodule update --init configs/secrets } }
+            | complete).exit_code == 0
+    }
+    let gh = (which gh | is-not-empty) and ((do { ^gh auth status } | complete).exit_code == 0)
+    if $gh and (do $pull [-c "credential.helper=" -c "credential.helper=!gh auth git-credential"]) { return }
+    let ssh = "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+    if not (do $pull [-c $"core.sshCommand=($ssh)" -c "url.git@github.com:lsck0/.insteadOf=https://github.com/lsck0/"]) {
+        error make {msg: "yubikey: cannot fetch the private secrets submodule: log in with `gh auth login`, or add an ssh key with access to github.com/lsck0/secrets, then rerun"}
+    }
+}
+
 def unlock-identity [identity: path]: nothing -> nothing {
     if not ($identity | path exists) { error make {msg: $"yubikey: no identity file '($identity)'"} }
     if not ($SEALED_KEY | path exists) { error make {msg: $"yubikey: no sealed key ($SEALED_KEY)"} }
-    if not ($SECRETS | path join .git | path exists) { ^git -C $REPO submodule update --init configs/secrets }
+    if not ($SECRETS | path join .git | path exists) { secrets-pull-with-account }
     if (secret-is-plaintext $WITNESS) {
         print "yubikey: secrets already unlocked"
         return

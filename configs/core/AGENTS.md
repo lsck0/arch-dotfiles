@@ -1,40 +1,9 @@
 # core
 
-Extends the root `AGENTS.md`. The user-layer baseline on every machine: shell, prompt, terminal multiplexer,
-version control, backups, theming and the toggle framework. Each module is a `mod.nu`; its packages are in its meta.
+The user-layer baseline on every machine.
 
-## Modules
-
-- `btop`: resource monitor, themed by wallust.
-- `cli`: the command-line tools with no config of their own (packages only).
-- `fastfetch`: system summary.
-- `gh`: GitHub CLI and credential storage.
-- `git`: git config; a user without an identity keeps the generic config.
-- `gnupg`: gpg config and the shipped public key, imported for the matching identity.
-- `herdr`: the herdr multiplexer config (palette rendered in), `herdr-open` and `herdr-fingers` on PATH, a clean
-  session at every login (user tmpfiles).
-- `locale`: language, formats (every LC_ but messages and collation), keyboard layout and Wi-Fi country (options,
-  detected from what bootstrap set).
-- `nas`: the NAS mount (system verb) and a homelab user's `~/nas` shortcut.
-- `ntfy`: notification forwarder to the homelab ntfy (homelab users with a token only).
-- `nushell`: nushell config sourcing vendor init scripts.
-- `proton/pass`: the `pass` password store, linked into `~/sync` (identity users only); Proton auth is manual
-  (README.md), no credentials in the repo.
-- `starship`: shell prompt.
-- `syncthing`: the `~/sync` syncing daemon and folders (primary home for live shared data; see root).
-- `timezone-auto`: network-based timezone updates.
-- `tmux`: tmux config and autoreload.
-- `toggles`: the on/off switch framework (`scripts/toggles`), its root half and polkit wiring. See the `l-dotfiles-toggles` skill.
-- `trash`: daily trash cleanup for home and tmpfs trash.
-- `veracrypt`: veracrypt volume tooling (the mount prompt needs a terminal, link only hints).
-- `wallust`: the theming engine, its templates and `palette.nu`, the colour authority; copies the root `themes/*.json`. See the `l-dotfiles-theming` skill.
-- `yazi`: file manager, theme rendered by wallust.
-- `yt-dlp`: a fail-closed wrapper routing through the VPN namespace or refusing, never bare `/usr/bin`.
-- `zsh`: the login shell config.
-
-## Conventions
-
-- Theming flows through `wallust` and `themes/*.json`; a themed program ships a template here, not a hardcoded palette.
-- A toggle is `scripts/toggles/toggle-*.nu` with a root half and quickshell/menu wiring. See the `l-dotfiles-toggles` skill.
-- Owner-only modules (`gnupg`, `nas`, `ntfy`, `syncthing`, `proton/pass`) read `profile-has secrets`, never a
-  username.
+- A themed program ships a wallust template (`core/wallust`), never a hardcoded palette: `l-dotfiles-theming`.
+- Toggles: `l-dotfiles-toggles`.
+- Owner-only modules (`gnupg`, `nas`, `ntfy`, `syncthing`, `proton/pass`) check `profile-has secrets`.
+- `yt-dlp` is a fail-closed wrapper into the VPN namespace, never bare `/usr/bin/yt-dlp`.
+- `herdr-open` only runs a `.herdr-create` that was allowed (`herdr-open allow <dir>`).

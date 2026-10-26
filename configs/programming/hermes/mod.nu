@@ -2,7 +2,12 @@ use module.nu *
 use ../../core/wallust/palette.nu *
 
 # after caveman and rtk: the orchestrator profile is a one-time clone of ~/.hermes, which they fill with skills
-export const meta = {deps: [programming/caveman programming/rtk desktop/idle-guards], packages: {pacman: [herdr-bin hermes-agent]}}
+export const meta = {
+    deps: [programming/caveman programming/rtk desktop/idle-guards]
+    packages: {pacman: [herdr-bin hermes-agent]}
+    # the guard appears after planning on a fresh install; as an input it re-plans the hooks
+    inputs: [~/.config/idle-guards/agent-guard.nu]
+}
 
 use ../../desktop/idle-guards/mod.nu [AGENT_GUARD]
 
@@ -47,8 +52,7 @@ def homes []: nothing -> record {
     {default: $default, orchestrator: ($default | path join $ORCHESTRATOR)}
 }
 
-# `hermes pm install` runs against the active per-generation venv under ~/.hermes/installs/, user-writable;
-# `uv sync` is a fast no-op once an extra is already there, so this is cheap to re-run on every apply.
+# uv sync is a no-op once installed, so cheap on every apply
 export def required-extras []: nothing -> nothing {
     ^hermes pm install ...($REQUIRED_EXTRAS | each {|e| [--extra $e] } | flatten)
 }

@@ -1,5 +1,4 @@
-# One stage of the unattended install chain per boot (dotfiles-stage.service): install, then config, which
-# disarms the chain (keyfile, sudo drop-in, unit) and reboots into the finished system.
+# One install stage per boot: install, then config, which disarms the chain and reboots.
 
 use log.nu *
 use secrets.nu [secret-is-plaintext]
@@ -31,8 +30,7 @@ def note [message: string]: nothing -> nothing {
     $"(date now | format date '%+') ($message)\n" | ^sudo tee -a ($STATE_DIR | path join log) | ignore
 }
 
-# portmaster, once the install brought it up, blocks the guest's requests to the watcher; only a watched (test)
-# install has a report url, so the stop never touches a real machine
+# portmaster blocks the watcher; only a test install has a report url
 def watcher-unblock []: nothing -> nothing {
     if ($REPORT | path exists) { do { ^sudo systemctl stop portmaster.service } | complete | ignore }
 }

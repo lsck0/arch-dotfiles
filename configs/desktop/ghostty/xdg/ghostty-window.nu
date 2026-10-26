@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# xdg-terminal-exec's terminal: ghostty-window [--title=<t>] [--working-directory=<dir>] [-e <command...>]
-# a hung ghostty still answers a d-bus ping while every action times out after 25s, so kitty takes over
+# a hung ghostty still answers d-bus pings while actions time out (25s), so kitty takes over
 
 def ghostty-answers []: nothing -> bool {
     (^timeout 3 gdbus call --session --timeout 2 --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty
