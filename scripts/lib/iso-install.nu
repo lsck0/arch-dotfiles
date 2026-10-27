@@ -106,7 +106,12 @@ def answers-in [dir: path]: nothing -> list<path> {
 
 def answers-media []: nothing -> any {
     let handed = $env.LSCK0_ANSWERS? | default ""
-    if $handed != "" { return (answers-parse (open --raw $handed) ($env.LSCK0_ANSWERS_ORIGIN? | default $handed) | insert origin ($env.LSCK0_ANSWERS_ORIGIN? | default $handed)) }
+    if $handed != "" {
+        # a malformed handed file must not abort the second stage after network and the master clone: warn and fall through to interactive, matching the stub's own fallback
+        let origin = $env.LSCK0_ANSWERS_ORIGIN? | default $handed
+        let parsed = try { answers-parse (open --raw $handed) $origin | insert origin $origin } catch {|e| log-warn $"answer file ($origin) is not valid nuon, continuing interactively: ($e.msg)"; null }
+        if $parsed != null { return $parsed }
+    }
     for f in (answers-in $BOOT_MEDIUM) { return (answers-parse (open --raw $f) $f | insert origin $f) }
     let devices = ^lsblk -J -l -pno NAME,FSTYPE,MOUNTPOINT | from json | get blockdevices | where fstype in $MEDIA_FSTYPES
     let label = if ($ANSWERS_LABEL | path exists) { $ANSWERS_LABEL | path expand } else { "" }
@@ -123,7 +128,8 @@ def answers-media []: nothing -> any {
             try { answers-parse (open --raw $found) $origin | insert origin $origin } catch {|e| {error: $e.msg} }
         }
         if not $mounted { ^umount $dir | complete | ignore }
-        if $a.error? != null { error make {msg: $a.error} }
+        # a stray/broken answer file on an unrelated scanned device is not fatal: skip it and keep looking, stay interactive
+        if $a.error? != null { log-warn $"ignoring unparseable answer file on ($d.name): ($a.error)"; continue }
         if $a != null { return $a }
     }
     null

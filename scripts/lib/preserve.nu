@@ -28,7 +28,10 @@ export def preserve-aside [path: path]: nothing -> any {
         $dest = $"($base).($n)"
     }
     mkdir ($dest | path dirname)
-    ^mv -n $path $dest
+    let moved = ^mv -n $path $dest | complete
+    if $moved.exit_code != 0 { error make {msg: $"($path): could not preserve to ($dest): ($moved.stderr | str trim)"} }
+    # `mv -n` exits 0 and does nothing if $dest raced into existence, so an exit code alone cannot prove the move; confirm the source is gone, else the caller would overwrite an un-backed-up original
+    if (path-kind $path) != "" { error make {msg: $"($path): preserve raced, ($dest) already existed"} }
     log-info $"($path): the earlier copy kept as ($dest)"
     $dest
 }
@@ -70,5 +73,5 @@ export def tty-confirm [question: string]: nothing -> bool {
     }
     let asked = ^bash -c 'exec 3<>/dev/tty 2>/dev/null || exit 1; printf "%s [y/N] " "$1" >&3; read -r a <&3 && printf %s "$a"' confirm $question | complete
     if $asked.exit_code != 0 { log-warn $"($question) no terminal to ask on, nothing done" }
-    ($asked.stdout | str trim) == "y"
+    ($asked.stdout | str trim | str lowercase) in ["y" "yes"]
 }

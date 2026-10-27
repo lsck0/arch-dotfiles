@@ -4,6 +4,7 @@
 const STATE_DIR = "/var/lib/dotfiles-stage"
 const INVARIANTS = path self invariants.txt
 const OUT = "/tmp/dotfiles-report"
+const REPORT_ARCHIVE = $OUT + ".tgz"
 
 def main [user: string, checkout: path]: nothing -> nothing {
     let url = open --raw ($STATE_DIR | path join report) | str trim
@@ -33,6 +34,6 @@ def report [user: string, checkout: path, url: string]: nothing -> nothing {
     ^bash -c "{ resolvectl status; cat /etc/resolv.conf; } 2>&1" | save --force ($OUT | path join network.log)
     let logs = glob ($checkout | path join "{FAILURES.*,*.log,**/*.log}") --exclude [**/.git/**]
     for f in $logs { cp $f $OUT }
-    ^tar -czf /tmp/dotfiles-report.tgz -C $OUT .
-    ^curl -s -m 120 -T /tmp/dotfiles-report.tgz $"($url)/logs.tgz" | complete | ignore
+    ^tar -czf $REPORT_ARCHIVE -C $OUT .
+    ^curl -s -m 120 -T $REPORT_ARCHIVE $"($url)/logs.tgz" | complete | ignore
 }

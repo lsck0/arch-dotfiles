@@ -266,7 +266,6 @@ export def d2gl-window [width: string, height: string]: nothing -> nothing {
     $text | ini-apply $keys false | save -f $ini
 }
 
-
 # ~/sync ignores permissions (core/syncthing, ignorePerms), so a resync silently drops wine's execute bit
 export def wine-bin-fixup []: nothing -> nothing {
     let dir = wine-bin | path dirname

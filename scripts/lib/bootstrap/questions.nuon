@@ -249,7 +249,8 @@
         {id: server, type: bool, env: BOOTSTRAP_SERVER}
         {id: unattended, type: bool, env: BOOTSTRAP_ASSUME_YES}
         {id: reinstall, type: bool, env: BOOTSTRAP_REINSTALL}
-        {id: wifi, type: "list<record>", keys: {ssid: string, psk: string, hidden: bool}}
+        # psk networks carry ssid/psk/hidden; enterprise (802.1X, eduroam) carry eap/identity/password and must carry domain for server validation (see wifi-carry and the iso stub)
+        {id: wifi, type: "list<record>", keys: {ssid: string, psk: string, hidden: bool, eap: string, identity: string, anonymous_identity: string, password: string, phase2: string, domain: string}}
         {id: source, type: record, keys: {bundle: string, lfs: string}}
         # a watcher's url (dot test): every stage beacons to it, the finished chain uploads its logs there
         {id: report, type: string, env: BOOTSTRAP_REPORT}
@@ -291,6 +292,7 @@
         title: "summary"
         question: "Install now? This erases {disk}."
         install: "install"
+        review: "change an answer"
         quit: "quit"
         rows: {
             login: "login"

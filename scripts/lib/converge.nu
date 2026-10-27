@@ -243,6 +243,8 @@ def write-file [a: record]: nothing -> nothing {
     ^chmod $d.mode $tmp
     if ($d.inplace? | default false) and (path-kind $d.target) == "file" {
         ^cp $tmp $d.target
+        # cp into an existing file keeps the target's mode, so re-assert the declared one or a mode drift re-plans forever
+        ^chmod $d.mode $d.target
         rm $tmp
     } else {
         ^mv -fT $tmp $d.target
@@ -327,10 +329,11 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     sync-guard $a.target
                     mkdir ($a.target | path dirname)
                     let last = $acc.written | get --optional $a.target
+                    let lock = $"(state-dir)/json.lock"
                     let out = if $a.decl.kind == "ini" {
-                        state-locked $"(state-dir)/json.lock" ini-update {file: $a.target, edits: $a.decl.edits} | complete
+                        state-locked $lock ini-update {file: $a.target, edits: $a.decl.edits} | complete
                     } else {
-                        state-locked $"(state-dir)/json.lock" json-update {file: $a.target, edits: $a.decl.edits, recorded_sum: ($last | default "")} | complete
+                        state-locked $lock json-update {file: $a.target, edits: $a.decl.edits, recorded_sum: ($last | default "")} | complete
                     }
                     if $out.exit_code != 0 { error make {msg: $"($a.decl.kind) merge exited ($out.exit_code): (error-brief $out.stderr)"} }
                     let owned = ($out.stdout | str contains owned) or ($a.decl.kind == "ini" and $a.before != null and $a.before == $last and ($out.stdout | str contains changed))

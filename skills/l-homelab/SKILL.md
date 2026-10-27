@@ -17,7 +17,7 @@ change goes through that repo and session, since a hand change on a guest is los
 | internal | `tasks` | taskchampion sync (own client id/secret) |
 | internal | `cal` | calendar feeds and ICS upload (own token) |
 | internal | `terminal` | TRMNL feeds |
-| internal | `grafana`*, `homelab`*, `start`*, `search`* | metrics; admin dashboard; dashboard; searxng |
+| internal | `grafana`*, `homelab`*, `start`*, `search` | metrics; admin dashboard; dashboard; searxng (login only from outside the house and wireguard) |
 | internal | `nas`*, `backup`*, `sync`* | filebrowser; kopia; syncthing |
 | internal | `auth`, `lldap`* | Authelia and OIDC; users |
 | internal | `registry` (basic auth), `registry-ui`*, `traefik`*, `proxmox`*, `archbuild`* | registry; ingress; hypervisor; mirror build |

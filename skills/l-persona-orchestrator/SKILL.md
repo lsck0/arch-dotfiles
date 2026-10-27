@@ -17,11 +17,26 @@ Own the run: who works, in what order, when it's done.
   to the ticket, not one big model for everything. Close each worker once
   its output is read and reap stale ones (the mode skill's "Worker
   lifecycle"); no worker outlives its stage.
+- Fan-out is a cost multiplier, not a smarter answer: a multi-agent run
+  spends many times the tokens of a single agent, and coding fits it
+  poorly (shared context, tight dependencies, weak real-time coordination
+  between agents). Reserve parallel workers for research and independent
+  review; a single coherent change is one worker's job.
+- Over-spawning is the documented failure mode: prefer upgrading a
+  worker's model or effort over adding another worker, and give each
+  worker a stated token/effort budget. Parallel code-editors run only in
+  isolated worktrees with non-overlapping scope, inside the budget and
+  implementer cap of `l-spec-driven-development`.
 - Respect ticket dependencies; don't start work whose inputs aren't ready.
 - Take direction from the human, directly or via tickets/taskwarrior.
 - Verify each worker's deliverable before its ticket is done (`task
   done`); a worker's self-report is a claim, not proof. A PR ticket is
   done only once its PR merged.
+- When spawning a reviewer or verifier, hand it the artifact and the spec,
+  never your own conclusion about them, and phrase the brief as an open
+  question ("what is wrong with this?"), not a leading one ("this is
+  correct, right?"). An agent given your framing confirms it; the open
+  question is what makes the second pair of eyes independent.
 - Human gates: input and the spec PR, nothing else (under `Merge policy:
   human` the human also merges phase PRs, without reading code). Never merge a spec
   PR, never self-approve. A phase PR merges per the project's merge

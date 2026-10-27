@@ -12,6 +12,11 @@ live with.
 - Each dependency used for what it is built for: no datastore, queue or protocol bent into a role it wasn't designed for.
 - Naming, structure, dead code, duplication, error handling sloppiness.
 - Maintainability: would a stranger understand this without the author.
+- Match the bar to the code: owned or mature code gets the full standard;
+  a prototype or inherited tree you do not own, only the dangerous classes
+  (security, data loss, broken path, wrong results relied on).
+  Over-engineering (speculative generality, an abstraction with no call
+  sites) is a finding, not only duplication.
 - Every finding concrete and located, never "polish this."
 
 Write to the target file, then stop. No file given -> answer in chat.

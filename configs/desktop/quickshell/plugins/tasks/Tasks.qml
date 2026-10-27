@@ -23,6 +23,7 @@ Item {
 
   readonly property bool opened: TaskState.panelOpen
   readonly property int rowHeight: Style.space(40)
+  readonly property int reminderShownMax: 3
 
   readonly property var filtered: {
     var list = TaskState.tasks || []
@@ -572,7 +573,7 @@ Item {
             anchors.centerIn: parent
             visible: root.filtered.length === 0
             textFormat: Text.PlainText
-            text: !TaskState.loaded ? "> LOADING" : root.filterText ? "> NO MATCH" : "> NOTHING PENDING"
+            text: TaskState.errorText ? "> FAILED" : !TaskState.loaded ? "> LOADING" : root.filterText ? "> NO MATCH" : "> NOTHING PENDING"
             color: Colors.menu.text
             opacity: Style.emphasis.dim
             font.family: Style.font.family
@@ -625,7 +626,8 @@ Item {
           }
 
           Repeater {
-            model: TimerState.reminders
+            // bound the strip: an unbounded reminder set would grow upward and squeeze the task list to nothing
+            model: TimerState.reminders.slice(0, root.reminderShownMax)
 
             Text {
               required property var modelData
@@ -637,6 +639,17 @@ Item {
               font.pixelSize: Style.font.caption
               elide: Text.ElideRight
             }
+          }
+
+          Text {
+            width: parent.width
+            visible: TimerState.reminderCount > root.reminderShownMax
+            textFormat: Text.PlainText
+            text: "+" + (TimerState.reminderCount - root.reminderShownMax) + " more reminders"
+            color: Colors.accent2
+            opacity: Style.emphasis.dim
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
           }
         }
       }

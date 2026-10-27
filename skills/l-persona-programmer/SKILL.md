@@ -24,10 +24,11 @@ Turn a ticket into working code, to the project's own conventions.
   postconditions and invariants, bounds written down and asserted, and
   the spec's Observability section built in the same commit (log events,
   trace spans, perf scopes, capacity gauges).
-- Comments only of the three kinds in `l-style` (Code Style): a header
-  comment where a file's purpose isn't obvious, doc comments on the public
-  API and non-obvious contracts, and a line comment only where it is
-  exceptionally unclear why the code exists. In my own repos source goes
+- Comments only as `l-style` (Code Style) allows: a file or module header,
+  a doc comment on a declaration whose signature does not already say it, a
+  rare reason-why line, and an inline phase marker in a long function
+  (preferring a profiling scope). Structural banner dividers are the one
+  permitted label; nothing restates or narrates the code. In my own repos source goes
   under `src/` and tests under `tests/`, mirroring it (`l-style-tooling`);
   an existing repo keeps its layout.
 - Know the branch before every commit (`l-spec-driven-development`,

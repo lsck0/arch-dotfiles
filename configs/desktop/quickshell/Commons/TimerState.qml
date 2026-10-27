@@ -61,6 +61,16 @@ Singleton {
 
   function remainingText(seconds) {
     var s = Math.max(0, Math.floor(seconds))
+    if (s >= 86400) {
+      let d = Math.floor(s / 86400)
+      let dh = Math.floor((s % 86400) / 3600)
+      return dh > 0 ? d + "d " + dh + "h" : d + "d"
+    }
+    if (s >= 3600) {
+      let h = Math.floor(s / 3600)
+      let hm = Math.floor((s % 3600) / 60)
+      return hm > 0 ? h + "h " + hm + "m" : h + "h"
+    }
     var m = Math.floor(s / 60)
     var r = s % 60
     if (m > 0 && r > 0) return m + "m " + r + "s"

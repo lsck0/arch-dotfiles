@@ -25,8 +25,12 @@ Item {
         return out;
     }
     readonly property var tasks: Array.prototype.slice.call(TaskState.tasks, 0, root.taskMax)
-    readonly property int eventMax: 4
+    readonly property int eventMax: 8
     readonly property var events: Array.prototype.slice.call(CalendarState.events, 0, root.eventMax)
+    // the agenda caps each section; surface what the caps hid rather than dropping it silently
+    readonly property int hiddenCount: Math.max(0, (TimerState.reminders ? TimerState.reminders.length : 0) - root.reminderMax)
+        + Math.max(0, CalendarState.events.length - root.eventMax)
+        + Math.max(0, TaskState.tasks.length - root.taskMax)
     readonly property bool agendaEmpty: reminderRows.length === 0 && tasks.length === 0 && events.length === 0
 
     FileView {
@@ -187,6 +191,11 @@ Item {
                             trailingColor: modelData.overdue ? Colors.urgent : Colors.foreground
                         }
 
+                    }
+
+                    Line {
+                        visible: root.hiddenCount > 0
+                        label: "+" + root.hiddenCount + " more"
                     }
 
                 }

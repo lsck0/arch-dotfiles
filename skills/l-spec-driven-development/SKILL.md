@@ -79,6 +79,15 @@ sign-off. In led mode the human merges every PR.
 or `Merge policy: human` (the agent asks the human to merge, and waits
 for it). No line means `human`.
 
+## Two build shapes
+
+The stages below produce a spec and then build it. How the building is shaped depends on where the project is:
+
+- **Incremental** (the default once anything must keep working): one capability at a time, each landing as its own revertible phase PR that leaves the system running (Phase loop, Phase rules). This is the shape for a live codebase, a shared repo, or anything past its MVP.
+- **Whole-project, the pottery shape** (greenfield, pre-MVP, one owner): write one spec that encompasses the whole project up front, then throw the whole thing on the wheel. Implement every feature in a broad, deliberately rough first pass that need not keep anything running or revert cleanly, getting the full shape into existence. Then converge it by repetition: iterate, benchmark, test, refine, and again, shaving and perfecting pass after pass until it holds. Quality here comes from the refinement cycles, not from each step being final. This is why the pre-MVP git exemption exists (`l-style-tooling`, Git): the rough pass is allowed to be messy history. The moment the project has something worth keeping running, it graduates to the incremental shape, and the phase rules apply from then on.
+
+Both shapes use the same spec corpus and the same stages; they differ only in whether the roadmap is built one revertible phase at a time or thrown whole and then refined. Pick the shape that fits the project's stage, and say which one when it is not obvious.
+
 ## Stages (drop what a small task doesn't need, keep the order)
 
 **Sync.** Fetch, get onto the up-to-date base branch (`master`
@@ -115,7 +124,11 @@ worked out: architecture, API, data model, UI, workflows, failure modes,
 security, performance, accessibility, rejected alternatives. Reviewed.
 Ask the human on anything that isn't yours to decide (led mode: that is
 every real decision; autonomous mode: write the open question into the
-spec PR, where the human signs it off).
+spec PR, where the human signs it off). An uncertain external mechanism
+(a framework's fixed-step mode, headless rendering, a new backend) is
+de-risked by a throwaway spike with a written verdict before a phase
+depends on it; the design records the spike result and names the fallback
+if it fails.
 
 **Spec** -> amend `SPEC.md` ([references/spec-format.md](references/spec-format.md)): every section, filled from
 the reviewed design. New target requirements as unticked lines, the
@@ -176,7 +189,11 @@ the same way.
    changes and report instead; Sync's clean-tree check is waived there.
 6. Report: phase, requirement IDs built, every link, how to run it, every
    check as passed, failed or not run. Never round "could not run" up to
-   "passed".
+   "passed". When the run leaves a process running or anything unverified
+   (an autonomous run above all), the report is a handover note: what is
+   running (pid, port, version), how to check, stop and resume it, the one
+   command to resume, where screenshots are, and an explicit "not done or
+   not checked" section. The owner must be able to pick it up cold.
 
 The next phase starts only after this one merged. Trunk-based solo repos
 may land a phase as commits on the base instead of a PR; the review and
@@ -228,7 +245,12 @@ panes, subagents, or plain tool calls (e.g. a web lookup alongside repo
 scaffolding). A ceiling, not a target: run 1 when only 1 is workable.
 Never start a 4th before one of the 3 finishes. Never parallelize a
 dependency (a design review needs the design doc first); a dependency
-chain stays sequential whatever the budget.
+chain stays sequential whatever the budget. Work forward one unit at a
+time, parallel only where the units are genuinely independent, and bound
+the parallelism by the machine's memory, not just this count: heavy
+building or compiling agents each hold a real footprint, so on a large
+build run at most two at once however much the budget would otherwise
+allow.
 
 **Implementer cap.** At most 2 workstreams implemented concurrently, each
 in its own worktree ([references/worktrees.md](references/worktrees.md)). They count inside the budget of 3, not on

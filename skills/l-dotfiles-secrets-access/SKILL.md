@@ -7,12 +7,25 @@ description: Where secrets live (the git-crypt configs/secrets/ submodule), unlo
 
 Never print, copy out or commit a secret's value. Locations only.
 
+## Personal rollout needs the profile AND the YubiKey, both at once
+
+The dotfiles are installable by anyone, so the owner's personal configuration is gated by two independent facts that
+must both hold, never one alone: the `secrets` profile is selected, and the owner's YubiKey is present (it is what
+decrypts `keys/`). Selecting the owner profile is necessary but not sufficient. Without the key the machine stays a
+generic, still fully capable desktop; it never rolls out the owner's personal things just because someone named the
+profile. A module that rolls out personal config or credentials gates on `owner-unlocked` (the two checks together, in
+`scripts/lib/secrets.nu`), not merely `profile-has secrets`. When it cannot roll out, an owner-only module skips with
+a one-line log (as `bugwarrior`, `ntfy`, `projects` do), and a value gate instead defaults the owner value to the
+generic one (as `core/git`'s identity and `core/gnupg`'s default-key do); either way a keyless install gets the
+generic layer, never the owner's. The offline recovery key is the deliberate exception for a lost YubiKey, not the
+normal path.
+
 ## Where
 
 - `configs/secrets/`: private submodule `github.com/lsck0/secrets`, only with the `secrets` profile capability.
 - `keys/`: every secret, the only git-crypt path. Locked, each file starts with `\0GITCRYPT`.
 - `state/`: plaintext app state that is no credential (dalamud, ffxiv, noscript list, repositories); readable locked.
-- `configs/secrets/<module>/`: the owner's modules (`yubikey`, `capgemini`, `weblinks`), plaintext. `dot sync` refuses
+- `configs/secrets/<module>/`: the owner's own modules (`yubikey`, `weblinks`, and the like), plaintext. `dot sync` refuses
   to commit any new or changed file outside `keys/`, `state/` and the module dirs.
 - `configs/base/yubikey/`: what a fresh install reads first: sealed git-crypt key `secrets.key.age`, one
   `age-<serial>.identity` and `ssh-<serial>` stub per YubiKey.

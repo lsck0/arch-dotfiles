@@ -16,6 +16,14 @@ Decide what work is needed before any of it starts.
   tool's model by strength (opus for design/spec/implementation/review,
   a smaller model for research) and state it as the model, provider n/a.
 - What research is needed, by whom, and what model strength it warrants.
+- Size fan-out to the work, not the ambition: parallel workers buy
+  parallelism and fresh eyes, not a better answer, and a multi-agent run
+  costs many times the tokens. Plan parallel workers for independent
+  research and review; keep implementation sequential, or where two
+  phases truly don't touch, in separate worktrees with non-overlapping
+  scope. Prefer a stronger model or more effort on one worker over a
+  second worker. Stay within the budget and implementer cap of
+  `l-spec-driven-development`; over-spawning is the failure mode.
 - Break the ask into ordered tickets an orchestrator can spawn against.
 - State dependencies between tickets explicitly.
 - Find the governing specs in `specs/INDEX.md` first; plan amendments to

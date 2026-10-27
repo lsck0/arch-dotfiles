@@ -77,7 +77,10 @@ It holds:
   | `access-staging` | reaching staging, where its credentials live |
   ```
 - Build/test/lint/run commands that work, the one-liners only;
-  anything longer is a skill.
+  anything longer is a skill. The one line that matters most here is the
+  pass/fail check the agent closes its own loop on (test, build, lint):
+  with it the agent edits, runs, reads the failure and fixes without you;
+  without it you are its test suite.
 - Layout: where the important things live.
 - Conventions: naming, error handling, commit style, branch model,
   `Merge policy:` and `Reviewer:` (`l-spec-driven-development`).
@@ -98,21 +101,29 @@ It holds:
   access skill.
 - A convention or command changed: update the stale skill or line in
   the same commit as the change; never append a contradiction.
-- The user states a project rule ("we always X here"): record it.
+- The user states a project rule ("we always X here"): record it. If the rule is project-specific, it goes in this repo's `AGENTS.md` or a skill; if it is a general, cross-project rule the user stated explicitly (a style, architecture or workflow habit), send it to the arch-dotfiles session to fold into the global `l-*` skills, so every project inherits it, and still note the project-specific slice here.
 
 ## What stays out
 
 - Secrets and credential values. Locations only.
 - Personal preferences and cross-project habits.
 - Anything generated or already in the README or specs: link it.
+- Anything the agent derives by reading the repo: file layout,
+  conventions, the test framework, existing patterns. It reads the code
+  faster than a description of it. Write down only what the code can't
+  tell it: an off-repo decision, a command, a thing that looks wrong but
+  isn't.
 - Task state and completed-work logs.
 - Speculation. Only record what you verified in this repo.
 
 ## How to keep it good
 
-- `AGENTS.md` is read into context every session: a screen or two,
-  declarative, no narration. Detail belongs in the skills, which load
-  only when needed.
+- `AGENTS.md` is read into context every session, so it stays small: a
+  screen or two, declarative, no narration. Context is finite with
+  diminishing returns, every line spends attention on every task whether
+  it applies or not, and a bloated file degrades recall (context rot).
+  Detail belongs in the skills, which load just in time, only when a task
+  needs them.
 - Every index row matches a skill directory and every skill has a row.
   Remove both together.
 - Verify a command before writing it as truth.

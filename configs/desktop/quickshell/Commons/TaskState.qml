@@ -61,7 +61,9 @@ Singleton {
       let start = twDate(iv.start)
       if (!start) continue
       if (!iv.end) { openMs = start.getTime(); continue }
-      let secs = Math.max(0, (twDate(iv.end).getTime() - start.getTime()) / 1000)
+      let end = twDate(iv.end)
+      if (!end) continue
+      let secs = Math.max(0, (end.getTime() - start.getTime()) / 1000)
       closed += secs
       let tags = iv.tags || []
       for (let j = 0; j < tags.length; j++) byTag[tags[j]] = (byTag[tags[j]] || 0) + secs
@@ -210,7 +212,8 @@ Singleton {
       root.exportDone()
     }
     onFailed: function (error) {
-      root.tasks = []
+      // keep the last-good list: a transient export failure (a db lock from an overlapping poll) must not blank the widget
+      root.loaded = true
       root.errorText = "task export failed"
       root.exportDone()
     }

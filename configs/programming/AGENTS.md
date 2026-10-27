@@ -7,6 +7,6 @@
 - Package-only modules (`toolchains`, `python`, `debugging`, `security`, `verification`, `math`, `vcs`, `http`, `infra`,
   `devtools`): a package goes into the module that uses it, else the closest of these.
 - Formatter configs live in `programming/formatting` and are passed by nvim's conform and emacs' apheleia, not linked.
-- Owner-only modules (`bugwarrior`, `jai`, `projects`, `task`) check `profile-has secrets`. `projects` runs after
+- Owner-only modules (`bugwarrior`, `jai`, `projects`, `task`) gate on the owner actually being unlocked (`owner-unlocked`: the secrets profile AND the YubiKey), not `profile-has secrets` alone. `projects` runs after
   `core/gh`.
 - Telemetry off for every agent and editor.

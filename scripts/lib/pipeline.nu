@@ -277,7 +277,10 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
         let busy = $running | columns | length
         let ready = $pending | where {|m| $m.after | all {|a| $a in $finished or $a not-in $planned_ids } }
         let serial_wait = $ready | where serial | is-not-empty
-        let startable = if $busy == 0 and $serial_wait { $ready | where serial | first 1 } else { $ready | where not serial | first ([($jobs - $busy) 0] | math max) }
+        # a serial module rewrites a whole shared file (~/.claude.json) without the lock, so it runs alone: while one is
+        # running, start nothing, or a concurrent locked json-merge and its unlocked rewrite clobber each other
+        let running_serial = $planned | where id in ($running | columns) | any {|m| $m.serial? | default false }
+        let startable = if $running_serial { [] } else if $busy == 0 and $serial_wait { $ready | where serial | first 1 } else { $ready | where not serial | first ([($jobs - $busy) 0] | math max) }
         for m in $startable {
             let cancel = if $cancel_dir == "" { "" } else { $cancel_dir | path join ($m.id | str replace --all "/" "+") }
             let id = job spawn {

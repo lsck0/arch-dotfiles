@@ -28,6 +28,7 @@ const TUI_BOX_ROWS = "8"
 const TUI_MENU_ROWS = "12"
 const TUI_WIDTH = "72"
 const WIFI_SCAN_WAIT = 3sec
+const CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
 
 const TEXT = {
     keymap: {title: "keyboard", text: "Keyboard layout for the Wi-Fi password (the install asks again):"}
@@ -39,7 +40,12 @@ const TEXT = {
         shell: "a shell, no install"
         name: "Network name:"
         password: "Password for {ssid}, empty if open:"
+        eap_method: "Authentication for {ssid}:"
+        identity: "Username for {ssid} (user@realm):"
+        domain: "Server domain for {ssid} (e.g. example.edu), required:"
+        no_domain: "{ssid}: an enterprise network needs a server domain"
         failed: "did not connect"
+        draw_failed: "the dialog could not be drawn (terminal too small?); scanning again"
     }
     source: {
         title: "unverified source"
@@ -147,7 +153,46 @@ def wifi-scan [device: string]: nothing -> table {
     | parse --regex '^\s*>?\s+(?<ssid>\S.*?)\s{2,}(?<security>\S+)\s+(?<signal>\*+)\s*$'
 }
 
+# An iwd 802.1X provisioning file at /var/lib/iwd/=<hex ssid>.8021x, so iwctl connects an enterprise network without
+# prompting on the terminal. Server validation is mandatory: EAP-<M>-CACert (the system CA bundle) plus ServerDomainMask,
+# or the supplicant would hand credentials to any AP broadcasting the SSID.
+def wifi-provision [network: record]: nothing -> nothing {
+    let m = ($network.eap | str uppercase)
+    # TTLS non-EAP phase2 needs iwd's Tunneled- token (Tunneled-PAP, Tunneled-MSCHAPv2); PEAP's inner is a bare EAP name
+    let p2raw = ($network.phase2? | default "mschapv2" | str lowercase)
+    let p2 = if $m == "TTLS" {
+        match $p2raw { "pap" => "Tunneled-PAP", "chap" => "Tunneled-CHAP", "mschapv2" => "Tunneled-MSCHAPv2", _ => $"Tunneled-($p2raw | str uppercase)" }
+    } else { $p2raw | str uppercase }
+    # the outer (anonymous) realm must route to the home RADIUS, so take it from the user identity's realm, not the server cert domain
+    let realm = if ($network.identity | str contains "@") { $network.identity | split row "@" | last } else { $network.domain }
+    let outer = $network.anonymous_identity? | default --empty $"anonymous@($realm)"
+    let lines = [
+        "[Security]"
+        $"EAP-Method=($m)"
+        $"EAP-Identity=($outer)"
+        # iwd does not consult a system trust store on its own: without an explicit CA the server cert is unvalidated and ServerDomainMask alone cannot establish trust, so point at the system CA bundle
+        $"EAP-($m)-CACert=($CA_BUNDLE)"
+        $"EAP-($m)-ServerDomainMask=($network.domain)"
+        $"EAP-($m)-Phase2-Method=($p2)"
+        $"EAP-($m)-Phase2-Identity=($network.identity)"
+        $"EAP-($m)-Phase2-Password=($network.password)"
+        ""
+        "[Settings]"
+        "AutoConnect=true"
+    ]
+    let file = $"/var/lib/iwd/=($network.ssid | encode hex | str lowercase).8021x"
+    $lines | str join "\n" | $"($in)\n" | save --force $file
+    ^chmod 600 $file
+}
+
 def wifi-connect [device: string, network: record]: nothing -> string {
+    if ($network.eap? | is-not-empty) {
+        if ($network.domain? | default "" | is-empty) { return (text-fill $TEXT.wifi.no_domain {ssid: $network.ssid}) }
+        wifi-provision $network
+        let r = ^iwctl station $device connect $network.ssid | complete
+        if $r.exit_code != 0 { return $"($network.ssid): ($r.stdout | ansi strip | str trim | default --empty $TEXT.wifi.failed)" }
+        return (network-wait $ONLINE_WAIT)
+    }
     let verb = if ($network.hidden? | default false) == true { "connect-hidden" } else { "connect" }
     let psk = $network.psk? | default "" | into string
     let secret = if ($psk | is-empty) { [] } else { [--passphrase $psk] }
@@ -156,15 +201,26 @@ def wifi-connect [device: string, network: record]: nothing -> string {
     network-wait $ONLINE_WAIT
 }
 
-def --wrapped dlg [...args: string]: nothing -> any {
-    try { ^dialog --backtitle $TUI_BACKTITLE --stdout ...$args | collect } catch { null }
+# Box width clamped to the terminal so a narrow console (serial, IPMI) does not make every dialog fail; floor 40, cap TUI_WIDTH.
+def tui-width []: nothing -> string {
+    let cols = try { term size | get columns } catch { 0 }
+    if $cols < 1 { return $TUI_WIDTH }
+    [([($cols - 4) ($TUI_WIDTH | into int)] | math min) 40] | math max | into string
+}
+
+# {code, out, err}: dialog exits 0 ok, 1 cancel/no, 255 esc; a draw failure exits with another code and writes stderr.
+# Callers must tell a genuine cancel (1/255) from a draw failure so a box that cannot render retries instead of aborting.
+def --wrapped dlg [...args: string]: nothing -> record {
+    let r = ^dialog --backtitle $TUI_BACKTITLE --stdout ...$args | complete
+    {code: $r.exit_code, out: ($r.stdout | str trim), err: ($r.stderr | ansi strip | str trim)}
 }
 
 # only for typing the Wi-Fi password: the install's keyboard menu still asks, preselected with this one, so an Enter
 # on the prefilled default does not decide the installed layout
 def --env keymap-ensure []: nothing -> nothing {
     if ($env.BOOTSTRAP_KEYMAP? | is-not-empty) or ($env.BOOTSTRAP_KEYMAP_DEFAULT? | is-not-empty) { return }
-    let keymap = dlg --title $TEXT.keymap.title --inputbox $TEXT.keymap.text $TUI_BOX_ROWS $TUI_WIDTH $KEYMAP_DEFAULT | default $KEYMAP_DEFAULT | str trim
+    let d = dlg --title $TEXT.keymap.title --inputbox $TEXT.keymap.text $TUI_BOX_ROWS (tui-width) $KEYMAP_DEFAULT
+    let keymap = if $d.code == 0 and ($d.out | is-not-empty) { $d.out } else { $KEYMAP_DEFAULT }
     if (^loadkeys $keymap | complete).exit_code == 0 { $env.BOOTSTRAP_KEYMAP_DEFAULT = $keymap }
 }
 
@@ -187,19 +243,39 @@ def --env network-step [networks: list]: nothing -> bool {
             $missing = network-missing
             continue
         }
+        let width = tui-width
         let found = wifi-scan $device
         let items = $found | each {|n| [$n.ssid $"($n.security) ($n.signal)"] } | flatten
         let extra = [$PICK_RESCAN $TEXT.wifi.rescan $PICK_HIDDEN $TEXT.wifi.hidden $PICK_SHELL $TEXT.wifi.shell]
-        let pick = dlg --title $TEXT.wifi.title --menu (text-fill $TEXT.wifi.text {missing: $missing}) "0" $TUI_WIDTH $TUI_MENU_ROWS ...$items ...$extra
-        if $pick == null or $pick == $PICK_SHELL { return false }
+        let menu = dlg --title $TEXT.wifi.title --menu (text-fill $TEXT.wifi.text {missing: $missing}) "0" $width $TUI_MENU_ROWS ...$items ...$extra
+        # a draw failure (not a clean cancel/esc) must not abort the install: report it and rescan
+        if $menu.code not-in [0 1 255] { print $"install: ($TEXT.wifi.draw_failed)"; $missing = network-missing; continue }
+        let pick = $menu.out
+        if $menu.code != 0 or $pick == $PICK_SHELL { return false }
         if $pick == $PICK_RESCAN { $missing = network-missing; continue }
         let hidden = $pick == $PICK_HIDDEN
-        let ssid = if $hidden { dlg --title $TEXT.wifi.title --inputbox $TEXT.wifi.name $TUI_BOX_ROWS $TUI_WIDTH | default "" } else { $pick }
-        if $ssid == "" { continue }
-        let open = not $hidden and ($found | where ssid == $ssid | get --optional 0.security) == "open"
-        if not $open { keymap-ensure }
-        let psk = if $open { "" } else { dlg --title $TEXT.wifi.title --insecure --passwordbox (text-fill $TEXT.wifi.password {ssid: $ssid}) $TUI_BOX_ROWS $TUI_WIDTH | default "" }
-        $missing = wifi-connect $device {ssid: $ssid, psk: $psk, hidden: $hidden}
+        let name = if $hidden { dlg --title $TEXT.wifi.title --inputbox $TEXT.wifi.name $TUI_BOX_ROWS $width } else { {code: 0, out: $pick} }
+        if $name.code != 0 or ($name.out | is-empty) { continue }
+        let ssid = $name.out
+        let security = if $hidden { "" } else { $found | where ssid == $ssid | get --optional 0.security | default "" }
+        if $security != "open" { keymap-ensure }
+        if $security == "8021x" {
+            let method = dlg --title $TEXT.wifi.title --menu (text-fill $TEXT.wifi.eap_method {ssid: $ssid}) "0" $width "3" peap "PEAP / MSCHAPv2" ttls-pap "TTLS / PAP" ttls-mschapv2 "TTLS / MSCHAPv2"
+            if $method.code != 0 { continue }
+            let eap = if $method.out == peap { {eap: peap, phase2: mschapv2} } else if $method.out == "ttls-pap" { {eap: ttls, phase2: pap} } else { {eap: ttls, phase2: mschapv2} }
+            let id = dlg --title $TEXT.wifi.title --inputbox (text-fill $TEXT.wifi.identity {ssid: $ssid}) $TUI_BOX_ROWS $width
+            if $id.code != 0 or ($id.out | is-empty) { continue }
+            let dom = dlg --title $TEXT.wifi.title --inputbox (text-fill $TEXT.wifi.domain {ssid: $ssid}) $TUI_BOX_ROWS $width
+            if $dom.code != 0 or ($dom.out | is-empty) { print $"install: (text-fill $TEXT.wifi.no_domain {ssid: $ssid})"; continue }
+            let pw = dlg --title $TEXT.wifi.title --insecure --passwordbox (text-fill $TEXT.wifi.password {ssid: $ssid}) $TUI_BOX_ROWS $width
+            if $pw.code != 0 { continue }
+            $missing = wifi-connect $device {ssid: $ssid, eap: $eap.eap, phase2: $eap.phase2, identity: $id.out, domain: $dom.out, password: $pw.out}
+        } else {
+            let open = $security == "open"
+            let pw = if $open { {code: 0, out: ""} } else { dlg --title $TEXT.wifi.title --insecure --passwordbox (text-fill $TEXT.wifi.password {ssid: $ssid}) $TUI_BOX_ROWS $width }
+            if $pw.code != 0 { continue }
+            $missing = wifi-connect $device {ssid: $ssid, psk: $pw.out, hidden: $hidden}
+        }
     }
     true
 }
@@ -226,7 +302,7 @@ def source-allowed [origin: string]: nothing -> bool {
     if (open --raw /proc/cmdline) =~ $INSECURE_PARAM { return true }
     if (^systemd-detect-virt --vm --quiet | complete).exit_code == 0 { return true }
     let text = text-fill $TEXT.source.text {origin: $origin}
-    (^dialog --backtitle $TUI_BACKTITLE --stdout --defaultno --title $TEXT.source.title --yesno $text "10" $TUI_WIDTH | complete).exit_code == 0
+    (^dialog --backtitle $TUI_BACKTITLE --stdout --defaultno --title $TEXT.source.title --yesno $text "10" (tui-width) | complete).exit_code == 0
 }
 
 def checkout-bundle [repo: path, source: record]: nothing -> nothing {

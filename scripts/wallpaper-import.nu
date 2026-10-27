@@ -51,15 +51,17 @@ def main [...sources: path]: nothing -> nothing {
             {name: $p.name, distance: ($candidate | zip $p.fingerprint | each { $in.0 - $in.1 | math abs } | math avg)}
         } | sort-by distance | first
         let name = $image | path basename
-        let target = if $best.distance <= $MATCH_DISTANCE_MAX { $best.name } else {
+        # $best is null when wallpapers/ holds no images: then every import is new, with no match to compare against
+        let matched = $best != null and $best.distance <= $MATCH_DISTANCE_MAX
+        let target = if $matched { $best.name } else {
             let parts = $name | path parse
             let slug = $parts.stem | str lowercase | str replace --all --regex '[^a-z0-9]+' '-' | str trim --char '-'
             $"($slug).($parts.extension | str lowercase)"
         }
         cp $image ($bought | path join $target)
         let size = ^magick identify -format "%wx%h" $"($image)[0]"
-        let how = if $target == $best.name { $"shadows wallpapers/($best.name)" } else { "new, no public match" }
-        let distance = $best.distance | into string --decimals 1
+        let how = if $matched { $"shadows wallpapers/($best.name)" } else { "new, no public match" }
+        let distance = if $best == null { "n/a" } else { $best.distance | into string --decimals 1 }
         print $"($name)  ($size)  as ~/sync/wallpapers/($target)  \(($how), distance ($distance)\)"
     } | ignore
     rm --recursive --force $unzipped

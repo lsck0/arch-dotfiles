@@ -152,6 +152,10 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
         ok systemctl start avahi-daemon.socket | ignore
         ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=0" | ignore
         ok nmcli connection modify $uuid ipv6.method auto | ignore
+        # portmaster's global drop-in is gone whenever it stops (a vpn up, a portal, by hand); pin the link so the
+        # strict-dot default never strands lab names on the home resolver, which serves no dot on 853
+        let tls = if (ok systemctl is-active -q portmaster.service) { "no" } else { "opportunistic" }
+        ok resolvectl dnsovertls $iface $tls | ignore
     } else {
         ok systemctl start fw-lockdown.service | ignore
         # mask the daemon, a stop is undone by activation; the unix socket stays enabled for base/systemd

@@ -13,11 +13,21 @@ def notify [glyph: string, title: string, body: string = ""]: nothing -> nothing
     ^notify-send -a quickshell-action -u low -h $"string:omarchy-glyph:($glyph)" -- $title $body
 }
 
-# TimerState.qml's remainingText mirrors it.
+# TimerState.qml's remainingText mirrors it: keep the two in sync.
 def remaining-format [seconds: int]: nothing -> string {
-    let minutes = $seconds // 60
-    let rest = $seconds mod 60
-    if $minutes > 0 and $rest > 0 { $"($minutes)m ($rest)s" } else if $minutes > 0 { $"($minutes)m" } else { $"($rest)s" }
+    if $seconds >= 86400 {
+        let days = $seconds // 86400
+        let hours = ($seconds mod 86400) // 3600
+        if $hours > 0 { $"($days)d ($hours)h" } else { $"($days)d" }
+    } else if $seconds >= 3600 {
+        let hours = $seconds // 3600
+        let minutes = ($seconds mod 3600) // 60
+        if $minutes > 0 { $"($hours)h ($minutes)m" } else { $"($hours)h" }
+    } else {
+        let minutes = $seconds // 60
+        let rest = $seconds mod 60
+        if $minutes > 0 and $rest > 0 { $"($minutes)m ($rest)s" } else if $minutes > 0 { $"($minutes)m" } else { $"($rest)s" }
+    }
 }
 
 def reminder-list []: nothing -> table {

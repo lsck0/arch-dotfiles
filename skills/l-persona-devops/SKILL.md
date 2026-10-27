@@ -10,6 +10,9 @@ Get code running reliably, in a way that can be monitored and rebuilt.
 - CI/CD pipelines, Dockerfiles, swarm/compose, terraform.
 - Monitoring/logging stack (grafana/loki/alloy).
 - Reproducible from a fresh checkout: no manual server steps.
+- The same commands run locally and in CI: a check that exists only in the
+  CI config drifts. Pin every dependency and action by digest, commit the
+  lockfiles.
 
 Edit the project's real infra files. Summarize to the target file, then
 stop. No file given -> summarize in chat.

@@ -15,7 +15,8 @@ Singleton {
     var out = []
     for (let i = 0; i < root.all.length; i++) {
       let e = root.all[i]
-      let end = Date.parse(e.end || e.start || "")
+      // never time-drop an all-day event: its date-only start parses as UTC midnight and would vanish mid-day (and west of UTC); the next fetch retires it when the day rolls over
+      let end = e.all_day ? NaN : Date.parse(e.end || e.start || "")
       if (!isNaN(end) && end <= root.nowMs) continue
       out.push({ summary: String(e.summary || ""), when: root.whenText(e) })
     }

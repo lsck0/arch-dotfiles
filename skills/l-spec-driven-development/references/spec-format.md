@@ -63,8 +63,12 @@ does not apply says why in one line; it is never dropped silently.
 - **Gaps**: every `[ ]` requirement, with what the code does instead and
   the roadmap phase or issue that closes it. An open requirement without
   a gap entry is a hidden promise.
-- **Decisions**: the only place with dates and history. `- YYYY-MM-DD:
-  <decision>. Rejected: <A> (<why>), <B> (<why>).`
+- **Decisions**: the only place with dates and history. `- YYYY-MM-DD
+  (<owner>): <decision>. Rejected: <A> (<why>), <B> (<why>).` Carry who
+  made it, not just when; an agent-proposed decision reads "proposed,
+  needs confirmation" until the owner confirms it. A reversal is a new
+  dated line that keeps the old one and names what flipped it, never an
+  edit over the original.
 - **Coverage table** last: `ID | implemented at (path#Symbol) | proven by
   (test) | done/gap`. The spec auditor and tester work from this table.
 

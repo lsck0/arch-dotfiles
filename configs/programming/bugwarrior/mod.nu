@@ -7,7 +7,11 @@ const LOG_DIR = ".local/state/bugwarrior"
 const TASKRC = ($nu.home-dir | path join .config task taskrc)
 
 export def link [cfg: record] {
-    if not (profile-has secrets) { return [] }
+    # owner-identifying config (the GitHub login): roll out only when actually unlocked, not on profile selection alone
+    if not (owner-unlocked) {
+        if (profile-has secrets) { log-warn "bugwarrior: secrets locked, owner config not rolled out" }
+        return []
+    }
     let dir = $nu.home-dir | path join $CONFIG_DIR
     let log = $nu.home-dir | path join $LOG_DIR
     [

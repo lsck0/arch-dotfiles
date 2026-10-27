@@ -214,7 +214,7 @@ def lines-agent-flow [projects: list]: nothing -> list {
     } | flatten
 }
 
-def heading [text: string]: nothing -> string { capture gum style --bold --foreground 6 $">> ($text)" }
+def heading [text: string]: nothing -> string { if (has gum) { capture gum style --bold --foreground 6 $">> ($text)" } else { $">> ($text)" } }
 
 def section [title: string, body: string]: nothing -> list<string> {
     [(heading $title) (if ($body | str trim) == "" { "  (none)" } else { $body })]
@@ -222,7 +222,7 @@ def section [title: string, body: string]: nothing -> list<string> {
 
 def page []: nothing -> string {
     let title = $"TASK DASHBOARD // (date now | format date '%Y-%m-%d %H:%M')"
-    let banner = capture gum style --border double --border-foreground 5 --padding "0 2" --bold --foreground 6 $title
+    let banner = if (has gum) { capture gum style --border double --border-foreground 5 --padding "0 2" --bold --foreground 6 $title } else { $title }
     if not (has task) { return ([$banner "  taskwarrior not installed"] | str join "\n") }
     let timer = if (has timew) { capture timew | if $in == "" { "  (no active timer)" } else { $in } }
     let active = [$timer (report +ACTIVE)] | where { is-not-empty } | str join "\n"
@@ -276,7 +276,8 @@ def hours [secs: number]: nothing -> string {
 
 def due-relative [task: record]: nothing -> string {
     if $task.due? == null { return "" }
-    let days = ((local-date $task.due | into datetime) - (today | into datetime)) / 1day | into int
+    # round, not truncate: both sides are local midnights, so a DST boundary makes the gap 23h or 25h and truncation would print today for tomorrow
+    let days = ((local-date $task.due | into datetime) - (today | into datetime)) / 1day | math round | into int
     match $days {
         -1 => "yesterday"
         0 => "today"
@@ -476,9 +477,14 @@ def frame [state: record, tab: int, scroll: int, cols: int, rows: int]: nothing 
         paint [(put 0 0 "terminal too small" bold)] $cols $rows
         return {scroll: $scroll}
     }
-    let labels = $TABS | enumerate | each {|t|
+    let full = $TABS | enumerate | each {|t|
         let count = tab-count $state $t.item | if $in == null { " " } else { $" \(($in)\) " }
         {text: $" ($t.index + 1):($t.item)($count)", style: (if $t.index == $tab { "reverse" } else { "dim" })}
+    }
+    let full_width = $full | reduce --fold 1 {|l, acc| $acc + ($l.text | str length) + 1 }
+    # drop the counts and the per-tab gap when the full bar would run past the screen edge, so every tab stays visible on a narrow tty
+    let labels = if $full_width <= ($cols - 1) { $full } else {
+        $TABS | enumerate | each {|t| {text: $" ($t.index + 1):($t.item)", style: (if $t.index == $tab { "reverse" } else { "dim" })} }
     }
     let tab_ops = $labels | reduce --fold {x: 1, ops: []} {|l, acc|
         {x: ($acc.x + ($l.text | str length) + 1), ops: ($acc.ops | append (put 0 $acc.x $l.text $l.style))}

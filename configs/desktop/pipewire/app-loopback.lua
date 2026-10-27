@@ -197,9 +197,11 @@ function mute_set(node, mute)
     node:set_param("Props", Pod.Object({ "Spa:Pod:Object:Param:Props", "Props", mute = mute }))
 end
 
--- "<key> <epoch> <loopback level> <own level>..." per node and media name (a serial dies with pipewire)
+-- "<key> <epoch> <loopback level> <own level>..." per app key and node name. Not media.name: for a player like
+-- Spotify it is the track title and changes every song, so keying on it broke the stop->start reclaim and left the
+-- .out (the system volume) stranded at full. The owns list already holds one level per concurrent stream of the key.
 function own_mark(props, key)
-    return STATE_OWN .. key .. "." .. (props["node.name"] or "") .. "." .. (props["media.name"] or "")
+    return STATE_OWN .. key .. "." .. (props["node.name"] or "")
 end
 
 function own_parse(record)
@@ -412,6 +414,8 @@ if release then
         Core.sync(release_all)
     end)
     Core.timeout_add(RELEASE_TIMEOUT_MS, function()
+        -- a node whose Props cannot be read leaves pending above 0, so done()'s save never fires; persist what was recorded before quitting, or every level this stop recorded is lost and the next start cannot reclaim
+        state:save(known)
         Core.quit()
         return false
     end)

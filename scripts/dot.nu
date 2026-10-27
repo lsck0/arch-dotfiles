@@ -23,7 +23,6 @@ use ($LIB | path join sync.nu) [sync-commit sync-can-sign]
 use ($LIB | path join run.nu) [plan-print link-run failures-publish finish admin system-allowed pty-log system-skipped pending-exit apply-run user-locked unlink-run install-run pending-file system-part update-run managed-drift INTERNAL]
 use ($LIB | path join set.nu) [options-list option-target option-write option-apply]
 
-
 const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo prescribes and records it
 
   sync [--no-push]                pull, migrate, install, apply, back up, commit the signed generation, push

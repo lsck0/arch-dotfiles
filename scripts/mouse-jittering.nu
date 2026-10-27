@@ -44,6 +44,8 @@ def main [
             y: ($centre.y + ($angle | math sin) * $dist | math round)
         }
         $last = glide $target
-        sleep (random int 200..($pause / 1ms | into int) | into duration --unit ms)
+        # clamp the upper bound to the 200ms floor: a --pause under 200ms would make a descending range and crash
+        let hi = [200 ($pause / 1ms | into int)] | math max
+        sleep (random int 200..$hi | into duration --unit ms)
     }
 }

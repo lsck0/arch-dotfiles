@@ -17,6 +17,7 @@ const GPU_TEMP_LABEL = "edge"
 const MS_PER_HOUR = 3_600_000
 const UW_PER_W = 1_000_000
 const KIB_PER_GIB = 1048576
+const PAGE_KIB = 4
 const BYTES_PER_MIB = 1048576
 
 # Unreadable reads as missing: intel-rapl energy_uj is root-only, and a throw here respawns the script forever.
@@ -62,9 +63,18 @@ def top-cpu [now: table, before: table, dt_ms: number, tck: int]: nothing -> lis
     } | where pct > 0 | top-by-name
 }
 
+# Read RSS from /proc directly, like top-cpu, instead of forking `ps` every tick. statm field 2 is resident pages.
 def top-mem []: nothing -> list {
-    ^ps -eo %mem,comm --no-headers | lines | parse -r '^\s*(?<pct>\S+)\s+(?<name>.*)$'
-        | each {|p| {name: ($p.name | str trim), pct: ($p.pct | into float)} } | top-by-name
+    let total_kib = open --raw /proc/meminfo | parse -r '(?m)^MemTotal:\s+(?<kb>\d+) kB' | get 0?.kb | default "0" | into int
+    if $total_kib <= 0 { return [] }
+    glob /proc/[0-9]*/statm | each {|f|
+        let pid = $f | parse -r '/proc/(?<p>\d+)/statm' | get 0?.p
+        let rss_pages = try { open --raw $f | split row ' ' | get 1? | default "0" | into int } catch { 0 }
+        if $rss_pages <= 0 or $pid == null { null } else {
+            let name = try { open --raw $"/proc/($pid)/comm" | str trim } catch { "" }
+            if $name == "" { null } else { {name: $name, pct: ($rss_pages * $PAGE_KIB * 100 / $total_kib)} }
+        }
+    } | compact | top-by-name
 }
 
 def hardware-detect []: nothing -> record {

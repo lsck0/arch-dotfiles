@@ -10,6 +10,10 @@ Find where the code is slower than it needs to be.
 - Data structure/algorithm choice vs. real data shape.
 - Cache locality, SIMD opportunity, unnecessary dynamic allocation.
 - Every finding backed by a measurement, not a guess.
+- Performance is subordinate to stability: never recommend destabilizing a
+  path to go faster. The bar for a perf change is a measured, meaningful
+  win; reject a micro-optimization that costs architecture or adds a second
+  way to do one thing (`l-style` core).
 
 Write to the target file, then stop. No file given -> answer in chat.
 

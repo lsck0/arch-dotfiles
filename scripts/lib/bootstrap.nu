@@ -20,6 +20,7 @@ const HOMELAB_MIRROR_PROBE = "http://10.100.0.100:8090/archlinux/core/os/x86_64/
 const KBD_MODEL_MAP = "/usr/share/systemd/kbd-model-map"
 const ESP_SIZE_MIB = 1024
 const LUKS_NAME = "root"
+const PART_TYPE_ESP = "ef00"
 const PART_TYPE_LUKS = "8309"
 const PART_TYPE_ROOT = "8304"
 const MOUNT = "/mnt"
@@ -60,6 +61,8 @@ const TUI_WIDTH = 72
 const TUI_BOX_ROWS = 4
 const TUI_INPUT_ROWS = 7
 const TUI_TEXT_MARGIN = 6
+const TUI_HEIGHT_RESERVE = 4
+const TUI_HEIGHT_MIN = 8
 const TUI_BACKTITLE = "arch-dotfiles bootstrap"
 const QUESTIONS = path self bootstrap/questions.nuon
 
@@ -126,14 +129,24 @@ def --wrapped dlg [...args: string]: nothing -> string {
     try { ^dialog --backtitle $TUI_BACKTITLE --cr-wrap --stdout ...$args | collect } catch { die (questions-load).messages.aborted }
 }
 
+# Box width clamped to the terminal so a narrow console does not make every dialog abort the install; floor 40, cap TUI_WIDTH.
+def tui-width []: nothing -> string {
+    let cols = try { term size | get columns } catch { 0 }
+    if $cols < 1 { return ($TUI_WIDTH | into string) }
+    [([($cols - 4) $TUI_WIDTH] | math min) 40] | math max | into string
+}
+
 def height [text: string, rows: int]: nothing -> string {
-    ($text | ^fold -s -w ($TUI_WIDTH - $TUI_TEXT_MARGIN) | lines | length) + $rows | into string
+    let wanted = ($text | ^fold -s -w ($TUI_WIDTH - $TUI_TEXT_MARGIN) | lines | length) + $rows
+    # clamp to the terminal so long content scrolls or truncates inside the box instead of overflowing and aborting the install; fall back to the unclamped height when the terminal size is unknown
+    let avail = (try { term size | get rows } catch { 0 }) - $TUI_HEIGHT_RESERVE
+    if $avail < $TUI_HEIGHT_MIN { $wanted | into string } else { [$wanted $avail] | math min | into string }
 }
 
 def screen [title: string, kind: string, text: string, ...init: string]: nothing -> string {
     let rows = if $kind in [inputbox passwordbox] { $TUI_INPUT_ROWS } else { $TUI_BOX_ROWS }
     let extra = if $kind == "passwordbox" { [--insecure] } else { [] }
-    dlg --title $title --no-collapse ...$extra $"--($kind)" $text (height $text $rows) ($TUI_WIDTH | into string) ...$init
+    dlg --title $title --no-collapse ...$extra $"--($kind)" $text (height $text $rows) (tui-width) ...$init
 }
 
 def ask [m: record, check: closure, label: string, text: string, default: string]: nothing -> any {
@@ -148,7 +161,7 @@ def ask [m: record, check: closure, label: string, text: string, default: string
 }
 
 def menu [title: string, text: string, default: string, items: list<string>]: nothing -> string {
-    dlg --title $title --default-item $default --menu $text "0" ($TUI_WIDTH | into string) "0" ...$items
+    dlg --title $title --default-item $default --menu $text "0" (tui-width) "0" ...$items
 }
 
 def menu-plain [label: string, default: string, items: list<string>]: nothing -> string {
@@ -160,7 +173,7 @@ def yes [title: string, text: string, --default-yes]: nothing -> bool {
     if (tui) {
         let default = if $default_yes { [] } else { [--defaultno] }
         # --stdout: else dialog draws into complete's pipe and the next enter answers a box never shown
-        let status = (^dialog --backtitle $TUI_BACKTITLE --stdout --cr-wrap --title $title ...$default --yesno $text (height $text $TUI_BOX_ROWS) ($TUI_WIDTH | into string) | complete).exit_code
+        let status = (^dialog --backtitle $TUI_BACKTITLE --stdout --cr-wrap --title $title ...$default --yesno $text (height $text $TUI_BOX_ROWS) (tui-width) | complete).exit_code
         if $status > 1 { die (questions-load).messages.aborted }
         $status == 0
     } else if $default_yes {
@@ -368,16 +381,45 @@ def wifi-sae-only []: nothing -> list<string> {
     } | flatten | uniq
 }
 
+# The [802-1x] block for an enterprise iwd network, with mandatory server validation (domain-suffix-match plus the
+# system CA store): without it the supplicant hands the user's credentials to any AP broadcasting the SSID.
+def wifi-eap-section [text: string]: nothing -> list<string> {
+    let method = iwd-get $text Security EAP-Method | str lowercase
+    let outer = iwd-get $text Security EAP-Identity
+    let domain = iwd-get $text Security $"EAP-($method | str uppercase)-ServerDomainMask"
+    # NetworkManager phase2-auth takes a bare token (pap, mschapv2); iwd TTLS stores it as Tunneled-PAP, so strip the prefix
+    let p2method = iwd-get $text Security $"EAP-($method | str uppercase)-Phase2-Method" | str lowercase | str replace --regex '^tunneled-' ''
+    let inner = iwd-get $text Security $"EAP-($method | str uppercase)-Phase2-Identity" | default --empty $outer
+    let password = iwd-get $text Security $"EAP-($method | str uppercase)-Phase2-Password"
+    ["" "[802-1x]" $"eap=($method)"]
+        | append (if ($inner | is-not-empty) { [$"identity=(keyfile-escape $inner)"] } else { [] })
+        | append (if ($outer | is-not-empty) { [$"anonymous-identity=(keyfile-escape $outer)"] } else { [] })
+        | append (if ($password | is-not-empty) { [$"password=(keyfile-escape $password)"] } else { [] })
+        | append (if ($p2method | is-not-empty) { [$"phase2-auth=($p2method)"] } else { [] })
+        | append (if ($domain | is-not-empty) { [$"domain-suffix-match=(keyfile-escape $domain)"] } else { [] })
+        | append ["system-ca-certs=true"]
+}
+
 def wifi-carry [c: record]: nothing -> nothing {
     let sae_only = wifi-sae-only
-    for f in (glob /var/lib/iwd/*.{psk,open}) {
+    for f in (glob /var/lib/iwd/*.{psk,open,8021x}) {
         let name = $f | path parse | get stem
-        let open = ($f | path parse | get extension) == "open"
+        let kind = $f | path parse | get extension
+        let open = $kind == "open"
+        let enterprise = $kind == "8021x"
         let ssid = if ($name | str starts-with "=") { $name | str substring 1.. | decode hex | decode utf-8 } else { $name }
         let text = open --raw $f
         let psk = iwd-get $text Security Passphrase | default --empty (iwd-get $text Security PreSharedKey)
-        if not $open and ($psk | is-empty) { continue }
-        let security = if $open { [] } else {
+        if not $open and not $enterprise and ($psk | is-empty) { continue }
+        let eap = if $enterprise { wifi-eap-section $text } else { [] }
+        # enforce the mandatory server domain: carrying an enterprise network without domain-suffix-match would trust any AP broadcasting the SSID
+        if $enterprise and not ($eap | any {|l| $l | str starts-with "domain-suffix-match=" }) {
+            log-warn $"($ssid): enterprise network without a server domain, not carried"
+            continue
+        }
+        let security = if $open { [] } else if $enterprise {
+            ["" "[wifi-security]" "key-mgmt=wpa-eap"] ++ $eap
+        } else {
             let mgmt = if $ssid in $sae_only and ($psk | str length) != 64 { "sae" } else { "wpa-psk" }
             ["" "[wifi-security]" $"key-mgmt=($mgmt)" $"psk=(keyfile-escape $psk)"]
         }
@@ -604,8 +646,10 @@ def answer-groups [e: record, c: record]: nothing -> list<string> {
     let chosen = if $c.server { $c.groups } else if (env-or $e.env | is-not-empty) {
         env-or $e.env | split row --regex '\s+' | where $it != ""
     } else if (assume) { $universe } else if (tui) {
-        let items = $universe | where $it != $e.required | each {|g| [$g ($e.options | where value == $g | get --optional 0.label | default "") on] } | flatten
-        dlg --title $e.title --separate-output --checklist (text-fill $e.text $required) "0" ($TUI_WIDTH | into string) "0" ...$items | lines
+        # first walk has no default (all on, opt-out); a review re-walk carries the prior selection so deselections survive
+        let preset = $e.default? | default []
+        let items = $universe | where $it != $e.required | each {|g| let on = if ($preset | is-empty) or ($g in $preset) { "on" } else { "off" }; [$g ($e.options | where value == $g | get --optional 0.label | default "") $on] } | flatten
+        dlg --title $e.title --separate-output --checklist (text-fill $e.text $required) "0" (tui-width) "0" ...$items | lines
     } else {
         print -e (text-fill $e.plain $required)
         $universe | enumerate | each { print -e $"  ($in.index + 1)  ($in.item)" } | ignore
@@ -743,6 +787,19 @@ def question-defaults [q: record]: nothing -> record {
     | reduce --fold {} {|e, acc| $acc | upsert $e.id $e.default }
 }
 
+# For the review re-walk: each id'd question's current answer becomes its default, so a second pass prefills what was
+# chosen and the user only changes what they want. Record-valued answers (profile/platform resolve to records) keep
+# their question default, which is a name the answer-* resolves again.
+def questions-with-current [q: record, c: record]: nothing -> record {
+    let qs = $q.questions | each {|e|
+        let current = if $e.id? == null { null } else { $c | get --optional $e.id }
+        if $current != null and not ($current | describe | str starts-with "record") {
+            $e | upsert default $current
+        } else { $e }
+    }
+    $q | upsert questions $qs
+}
+
 def summary-render [q: record, c: record]: nothing -> string {
     let s = $q.summary
     let width = ($s.rows | values | each { str length } | math max) + 1
@@ -806,23 +863,35 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         return
     }
 
-    let password = one-line (env-or BOOTSTRAP_PASSWORD) "password"
-    let luks = if $c.encrypt { $c.password } else { "" }
-    if ($c.user_password | is-empty) { $c.user_password = if $c.encrypt { $luks } else { $password } }
-    if ($c.user_password | is-empty) { die (text-fill $m.password_missing $c) }
-
-    let summary = summary-render $q $c
-    let disk = $c.disk
-    let capabilities = $c.capabilities
-    if (tui) {
-        dlg --title $q.summary.title --no-collapse --yes-label $q.summary.install --no-label $q.summary.quit --yesno $"($summary)\n\n(text-fill $q.summary.question $c)" (height $summary ($TUI_BOX_ROWS + 2)) ($TUI_WIDTH | into string) | ignore
-        ^clear
+    # review gate: nothing is written before this, so the user reviews every answer and changes any, as often as they
+    # like, before install. A change re-walks with the current answers prefilled, so dependent steps recompute.
+    if (tui) and not (assume) {
+        loop {
+            let summary = summary-render $q $c
+            let text = $"($summary)\n\n(text-fill $q.summary.question $c)"
+            let items = [install $q.summary.install review $q.summary.review quit $q.summary.quit]
+            # clamped box height (not auto "0") so a long summary on a short console scrolls instead of aborting
+            let choice = dlg --title $q.summary.title --default-item install --menu $text (height $text ($TUI_BOX_ROWS + 3)) (tui-width) "0" ...$items
+            if $choice == "quit" { die $m.aborted }
+            if $choice == "install" { ^clear; break }
+            # re-walk from a fresh base so a changed platform re-derives form_factor/homelab/options/groups; current answers prefill as defaults
+            $c = questions-walk (questions-with-current $q $c) ($start | merge (question-defaults $q))
+        }
     } else {
+        let summary = summary-render $q $c
         print $summary
         if not (assume) and not (yes $q.summary.title (text-fill $q.summary.question $c)) { die $m.aborted }
     }
     $env.BOOTSTRAP_TUI = "0"
 
+    # derived after the review loop, so a changed encryption or password choice is reflected
+    let password = one-line (env-or BOOTSTRAP_PASSWORD) "password"
+    let luks = if $c.encrypt { $c.password } else { "" }
+    if ($c.user_password | is-empty) { $c.user_password = if $c.encrypt { $luks } else { $password } }
+    if ($c.user_password | is-empty) { die (text-fill $m.password_missing $c) }
+
+    let disk = $c.disk
+    let capabilities = $c.capabilities
     let luks_pw = $luks
     let c = $c
     let parts = span partition {} {
@@ -834,7 +903,7 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         ^lsblk -J -lnpo NAME,TYPE $disk | from json | get blockdevices | where type == part | each { ^wipefs -af $in.name } | ignore
         ^wipefs -af $disk
         ^sgdisk --zap-all $disk
-        ^sgdisk -n $"1:0:+($ESP_SIZE_MIB)M" -t 1:ef00 -c 1:ESP $disk
+        ^sgdisk -n $"1:0:+($ESP_SIZE_MIB)M" -t $"1:($PART_TYPE_ESP)" -c 1:ESP $disk
         let per_4k = 4096 // (^blockdev --getss $disk | into int)
         let first = ^sgdisk -F $disk | into int
         let last = ^sgdisk -E $disk | into int

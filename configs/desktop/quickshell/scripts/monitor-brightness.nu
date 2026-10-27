@@ -3,6 +3,9 @@
 
 # "<connector>\t<bus>" lines, also read by hyprland/screen-dim.nu; per boot, i2c bus numbers are not stable
 def bus-map-file []: nothing -> path { $env.XDG_RUNTIME_DIR? | default /tmp | path join ddcutil-bus-map.tsv }
+# one lock for every ddcutil access to the i2c bus, shared with media-key.nu and screen-dim.nu: ddcutil's own i2c flock
+# fails with no wait, so concurrent brightness set/get/dim across those three would make the DDC write fail
+def ddc-lock []: nothing -> path { $env.XDG_RUNTIME_DIR? | default /tmp | path join ddc-i2c.lock }
 const SLEEP_MULTIPLIER = "0.2"
 const VCP_BRIGHTNESS = "10"
 
@@ -40,7 +43,7 @@ def "main get" [connector: string] {
         print (if $max > 0 { (^brightnessctl -c backlight -m get | into int) * 100 // $max } else { 0 })
         return
     }
-    let read = {|bus| ^ddcutil --bus $bus --sleep-multiplier $SLEEP_MULTIPLIER getvcp $VCP_BRIGHTNESS --brief e> /dev/null | complete }
+    let read = {|bus| ^flock (ddc-lock) ddcutil --bus $bus --sleep-multiplier $SLEEP_MULTIPLIER getvcp $VCP_BRIGHTNESS --brief e> /dev/null | complete }
     let bus = bus-find $connector
     if $bus == null { exit 1 }
     mut vcp = do $read $bus
@@ -61,7 +64,7 @@ def "main set" [connector: string, percent: int] {
     }
     let bus = bus-find $connector
     if $bus == null { exit 1 }
-    ^ddcutil --bus $bus --noverify --sleep-multiplier $SLEEP_MULTIPLIER setvcp $VCP_BRIGHTNESS $percent o+e> /dev/null
+    ^flock (ddc-lock) ddcutil --bus $bus --noverify --sleep-multiplier $SLEEP_MULTIPLIER setvcp $VCP_BRIGHTNESS $percent o+e> /dev/null
 }
 
 def "main refresh" [] {

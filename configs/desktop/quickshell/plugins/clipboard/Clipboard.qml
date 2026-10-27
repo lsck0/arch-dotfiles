@@ -279,7 +279,8 @@ Item {
       cursorActive = true
       selectedIndex = delta < 0 ? displayModel.count - 1 : 0
     } else {
-      selectedIndex = (selectedIndex + delta + displayModel.count) % displayModel.count
+      // sign-safe wrap: a PageUp step larger than the list (short history) made JS % return a negative index, losing the selection
+      selectedIndex = ((selectedIndex + delta) % displayModel.count + displayModel.count) % displayModel.count
     }
     resultList.positionViewAtIndex(selectedIndex, ListView.Contain)
   }

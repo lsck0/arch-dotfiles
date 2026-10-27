@@ -32,3 +32,9 @@ orchestration mode spawns workers as:
 
 Everything else is a domain persona you load directly (or that a mode skill
 preloads onto a worker) before doing work in that domain.
+
+Spawning a worker per role multiplies token cost many times over a single
+agent, so fan-out buys parallelism and fresh eyes, not a smarter answer.
+Reserve it for independent research and review; a single coherent coding
+change is one focused worker's job. The parallelism budget and the
+implementer cap live in `l-spec-driven-development`.

@@ -22,7 +22,7 @@ const INSTALL_ATTEMPTS_MAX = 3
 const INSTALL_EXIT_ABORTED = 2
 const CRYPTSETUP_NO_KEY = 2
 # a watcher's url (dot test, BOOTSTRAP_REPORT): the stages beacon to it, the chain's end reports to it
-const REPORT = "/var/lib/dotfiles-stage/report"
+const REPORT = ($STATE_DIR | path join report)
 const ROOT_COPY = "/var/lib/dotfiles/repo"
 
 def note [message: string]: nothing -> nothing {
@@ -112,7 +112,7 @@ export def stage-run [repo: path]: nothing -> nothing {
     if $stage == "config" {
         try {
             ^nu --no-config-file ($repo | path join scripts lib internal.nu) migrate --baseline
-            ^sudo ($"/var/lib/dotfiles/repo/scripts/lib/system-apply.nu") migrate --baseline
+            ^sudo ($ROOT_COPY | path join scripts lib system-apply.nu) migrate --baseline
         } catch {|e| note $"migrate --baseline failed: ($e.msg)" }
     }
     let args = if $stage == "install" { [apply --packages] } else { [apply] }

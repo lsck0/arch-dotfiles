@@ -42,7 +42,7 @@ const THEME_SLOTS = {
     backgroundfloating: main-elevated, textbrightest: text, textbrighter: text, textdark: subtext
 }
 
-def bd []: nothing -> path {
+def betterdiscord-dir []: nothing -> path {
     xdg config BetterDiscord
 }
 
@@ -52,11 +52,11 @@ def addon-name [file: path]: nothing -> string {
 
 export def link [cfg: record] {
     let config = xdg config discord
-    let plugins = bd | path join plugins
+    let plugins = betterdiscord-dir | path join plugins
     let fetched = $PLUGINS | insert dest {|p| $plugins | path join ($p.url | path basename) }
     # betterdiscord adds a new addon disabled, keyed by its @name; the updater stays off, it would replace the pins
     let managed = $PLUGINS.name | append (addon-name $VOICE_PLUGIN)
-    let data = bd | path join data stable
+    let data = betterdiscord-dir | path join data stable
     let bootstrapping = process-running updater_bootstr
     [
         (json-merge ($config | path join settings.json) ($SETTINGS | items {|k, v| json-set [$k] $v }))
@@ -98,5 +98,5 @@ export def theme [cfg: record, wallpaper: string] {
     let text = $values | reduce --fold (open --raw $THEME) {|v, css|
         $css | str replace --regex --multiline ('^(\s*--' + $v.var + ':) .*$') $"${1} ($v.value);"
     }
-    file-text (bd | path join themes $THEME) $text --generated --in-place
+    file-text (betterdiscord-dir | path join themes $THEME) $text --generated --in-place
 }

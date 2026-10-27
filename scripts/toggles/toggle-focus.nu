@@ -24,7 +24,7 @@ def main [action: string = "toggle", --json] {
             $PARTS | where {|name| ($states | where name == $name | get state.0? | default off) != on } | each {|name|
                 try { toggle-run $name off o+e> /dev/null }
             }
-            let preset = $states | where name == color-grading | get state.0? | default default
+            let preset = $states | where name == color-grading | get state.0? | default off
             try { toggle-run color-grading set $preset o+e> /dev/null }
             rm --force $previous
             state-set focus off

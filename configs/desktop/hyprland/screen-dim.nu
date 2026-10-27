@@ -56,7 +56,7 @@ def main [action: string] {
         print -e "usage: screen-dim.nu {dim|restore}"
         exit 1
     }
-    ^flock $"(state-file).lock" nu --no-config-file $SELF $"locked-($action)"
+    ^flock ($env.XDG_RUNTIME_DIR | path join ddc-i2c.lock) nu --no-config-file $SELF $"locked-($action)"
 }
 
 def "main locked-dim" [] { dim }

@@ -13,7 +13,7 @@ def db []: nothing -> path {
     $nu.home-dir | path join .var app $APP data alpaca.db
 }
 
-# doubles embedded single quotes, the standard escape for a value spliced into a sqlite string literal
+# sqlite escapes a literal single quote by doubling it
 def sql-escape [s: string]: nothing -> string {
     $s | str replace --all "'" "''"
 }

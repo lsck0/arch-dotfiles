@@ -4,6 +4,13 @@ const BACKEND_URL = "http://127.0.0.1:8001/v1/models"
 const READY_TIMEOUT = 9min
 const POLL_INTERVAL = 2sec
 
+# Stops vllm: one failed request is one try, no restart reloads the weights until the next connection.
+def give-up []: nothing -> nothing {
+    print --stderr "vllm-trigger: vllm.service did not become ready, giving up"
+    ^systemctl stop vllm.service
+    exit 1
+}
+
 # Start vllm.service for the socket proxy and wait until its backend answers.
 def main []: nothing -> nothing {
     let sockets = do { ^ss -Htnp "( sport = :8000 or dport = :8000 )" } | complete | get stdout | lines
@@ -16,11 +23,4 @@ def main []: nothing -> nothing {
         sleep $POLL_INTERVAL
     }
     give-up
-}
-
-# Stops vllm: one failed request is one try, no restart reloads the weights until the next connection.
-def give-up []: nothing -> nothing {
-    print --stderr "vllm-trigger: vllm.service did not become ready, giving up"
-    ^systemctl stop vllm.service
-    exit 1
 }

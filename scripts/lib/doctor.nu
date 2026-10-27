@@ -205,30 +205,24 @@ def preserved []: nothing -> list<record> {
     }
 }
 
-const CHECKS = [
-    failures config-pending reboot invariants apparmor snapshot packages firewall luks units secrets
-    preserved
-]
-
-def check-run [check: string]: nothing -> list<record> {
-    match $check {
-        failures => (failures), config-pending => (config-pending), reboot => (reboot), invariants => (invariants)
-        apparmor => (apparmor), snapshot => (snapshot), packages => (packages), firewall => (firewall), luks => (luks)
-        units => (units)
-        secrets => (secrets), preserved => (preserved)
-    }
+# the health checks, in order; one closure each so the set has a single source and no check can drift out of a dispatcher
+def checks []: nothing -> list<closure> {
+    [
+        {|| failures} {|| config-pending} {|| reboot} {|| invariants} {|| apparmor} {|| snapshot}
+        {|| packages} {|| firewall} {|| luks} {|| units} {|| secrets} {|| preserved}
+    ]
 }
 
 # Every check's records, unprinted.
 export def doctor-checks []: nothing -> list<record> {
-    $CHECKS | each { check-run $in } | flatten
+    checks | each {|c| do $c } | flatten
 }
 
 # Prints every check (--brief: only FAIL lines as "<check>: <text>"); true when one failed.
 export def doctor-run [--brief]: nothing -> bool {
     mut failed = false
-    for check in $CHECKS {
-        for r in (check-run $check) {
+    for c in (checks) {
+        for r in (do $c) {
             if $r.level == "FAIL" { $failed = true }
             if not $brief {
                 print $"($r.level | fill --width 4)  ($r.check | fill --width 10) ($r.text)"

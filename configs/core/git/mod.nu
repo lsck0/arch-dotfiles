@@ -26,7 +26,8 @@ def jj-config [identity: oneof<record, nothing>]: nothing -> string {
 
 export def link [cfg: record] {
     let dir = $nu.home-dir | path join $CONFIG_DIR
-    let identity = if (profile-has secrets) { profile-load | select name email } else { null }
+    # identity rolls out only when the owner is actually unlocked (profile AND the YubiKey), never on profile selection alone
+    let identity = if (owner-unlocked) { profile-load | select name email } else { null }
     let template = $dir | path join template
     let sections = [
         (if $identity == null { null } else { [user $identity] })
