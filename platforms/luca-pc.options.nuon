@@ -103,4 +103,7 @@
     "core/syncthing": {
         nas_address: "tcp://10.100.0.100:22000"
     }
+    "programming/cargo": {
+        sccache_redis: true
+    }
 }

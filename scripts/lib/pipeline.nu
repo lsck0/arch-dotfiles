@@ -133,10 +133,16 @@ def eval-plan [ctx: record, mods: table, verb: string, args: list, prev: record,
 }
 
 # root's secrets arrive in a fresh dir each run: their content, not their path, decides whether a module re-runs
-def secrets-stamp []: nothing -> string {
+# root gets the secrets as DOTFILES_SECRETS, the user layer reads the checkout's keys/ (size and mtime: 60M of keys)
+def secrets-stamp [repo: path]: nothing -> string {
     let dir = $env.DOTFILES_SECRETS? | default ""
-    if $dir == "" or not ($dir | path exists) { return "" }
-    glob ($dir | path join "**" "*") --no-dir | sort | each {|f| $"($f | path relative-to $dir) (open --raw $f | hash sha256)" } | str join "\n" | hash sha256
+    if $dir != "" and ($dir | path exists) {
+        return (glob ($dir | path join "**" "*") --no-dir | sort | each {|f| $"($f | path relative-to $dir) (open --raw $f | hash sha256)" } | str join "\n" | hash sha256)
+    }
+    let keys = $repo | path join configs secrets keys
+    if not ($keys | path exists) { return "" }
+    ls --all ($keys | path join "**" "*" | into glob) | where type == file | sort-by name
+    | each {|f| $"($f.name) ($f.size) ($f.modified)" } | str join "\n" | hash sha256
 }
 
 # Unchanged modules are skipped unevaluated; a disabled one plans its removals.
@@ -157,7 +163,7 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     let global = [
         (stamp $LIB_DIR) ($ctx.platform.facts | to nuon) ($ctx.profile.capabilities? | default [] | to nuon)
         (secret-is-plaintext ($ctx.repo | path join configs secrets keys pgp_privatekey.asc)) $verb ($args | to nuon)
-        (secrets-stamp)
+        (secrets-stamp $ctx.repo)
     ] | str join "\n"
     let natives = $graph | where $verb in $it.native | each {|m|
         let prev = state-read $m.id $verb

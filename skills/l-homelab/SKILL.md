@@ -17,11 +17,11 @@ change goes through that repo and session, since a hand change on a guest is los
 | internal | `tasks` | taskchampion sync (own client id/secret) |
 | internal | `cal` | calendar feeds and ICS upload (own token) |
 | internal | `terminal` | TRMNL feeds |
-| internal | `grafana`*, `homelab`*, `start`* | metrics; admin dashboard; dashboard |
+| internal | `grafana`*, `homelab`*, `start`*, `search`* | metrics; admin dashboard; dashboard; searxng |
 | internal | `nas`*, `backup`*, `sync`* | filebrowser; kopia; syncthing |
 | internal | `auth`, `lldap`* | Authelia and OIDC; users |
 | internal | `registry` (basic auth), `registry-ui`*, `traefik`*, `proxmox`*, `archbuild`* | registry; ingress; hypervisor; mirror build |
-| public | `ntfy`, `mirror`, `search`, `paste`, `share`, `apps` | push; `[lsck0]` repo and iso; searxng; privatebin; files; demos |
+| public | `ntfy`, `mirror`, `paste`, `share`, `apps` | push; `[lsck0]` repo and iso; privatebin; files; demos |
 
 The media guest is parked: treat it as absent.
 

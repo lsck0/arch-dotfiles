@@ -41,7 +41,7 @@ export def link [cfg: record] {
         (if (has git-lfs) {
             ['filter "lfs"' {clean: "git-lfs clean -- %f", smudge: "git-lfs smudge -- %f", process: "git-lfs filter-process", required: true}]
         } else { null })
-        [include {path: ($nu.home-dir | path join $DELTA_THEME)}]
+        [include {path: [($nu.home-dir | path join $DELTA_THEME) ($dir | path join forgejo.inc)]}]
         # the empty helper clears any inherited one, then gh answers
         ...(if (has gh) { $GH_HOSTS | each {|host| [$'credential "https://($host)"' {helper: ["" $GH_HELPER]}] } } else { [] })
     ] | compact

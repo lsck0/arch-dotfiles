@@ -28,6 +28,7 @@ export def link [cfg: record] {
         # spicetify's first run reads spotify's prefs; an empty one stands in before spotify's first start
         (exec spotify-prefs [install -D --mode 644 /dev/null $prefs] --creates $prefs)
         (file-copy adblock.js (spicetify-dir | path join Extensions adblock.js))
+        (file-copy no-music-videos.js (spicetify-dir | path join Extensions no-music-videos.js))
         (step configure)
         (desktop-override spotify.desktop {
             $in | str replace --all --regex '(?m)^Exec=spotify ' $"Exec=($env.PWD)/spotify-launch.nu "
@@ -45,8 +46,9 @@ export def configure []: nothing -> nothing {
     # on, it also strips the [dir=ltr] rules spotify's spacing lives in
     ^spicetify config remove_rtl_rule 0 | ignore
     # `config extensions` toggles an entry, so only when absent
-    if not (^spicetify config extensions | str trim | split row "|" | any { $in == "adblock.js" }) {
-        ^spicetify config extensions adblock.js | ignore
+    let enabled = ^spicetify config extensions | str trim | split row "|"
+    for ext in [adblock.js no-music-videos.js] {
+        if $ext not-in $enabled { ^spicetify config extensions $ext | ignore }
     }
 }
 

@@ -1,5 +1,5 @@
 use module.nu *
-use ../../core/wallust/palette.nu [RADIUS_PX]
+use ../../core/wallust/palette.nu *
 use ../../core/wallust/font.nu [font-load]
 
 export const meta = {deps: [core/wallust], packages: {pacman: [qutebrowser python-adblock]}}
@@ -49,14 +49,32 @@ export def lists-fetch [] {
     if not (lists-ready) { log-warn "qutebrowser: block lists not fetched, dot apply --user --force desktop/qutebrowser retries" }
 }
 
+# the shell's roles from the wal palette, the same derivations caido and the bar use
+def startpage-colors []: nothing -> record {
+    let slot = wal-load "qutebrowser startpage"
+    if $slot == null { return {BG: "#0d1117" SURFACE: "#161b22" FG: "#c9d1d9" MUTED: "#8b949e" ACCENT: "#58a6ff" ACCENT2: "#d2a8ff"} }
+    let bg = do $slot background "#0d1117" | condition-bg
+    let hex = {|c| $c | rgb-to-hex --prefix "#" }
+    {
+        BG: (do $hex $bg)
+        SURFACE: (do $hex ($bg | shade 0.06))
+        FG: (do $hex (do $slot foreground "#c9d1d9" | readable-on $bg))
+        MUTED: (do $hex (do $slot color8 "#8b949e" | readable-on $bg --ratio 3.0))
+        ACCENT: (do $hex (do $slot color4 "#58a6ff" | vivify 0.55 0.62 | readable-on $bg --ratio 3.0))
+        ACCENT2: (do $hex (do $slot color5 "#d2a8ff" | vivify 0.55 0.62 | readable-on $bg --ratio 3.0))
+    }
+}
+
 export def theme [cfg: record, wallpaper: string] {
     let dest = $nu.home-dir | path join $CONFIG_DIR startpage.html
-    let startpage = file-render startpage.html $dest {
+    let search = if $cfg.search_url == $SEARCH_DEFAULT { (detect $cfg).search_url } else { $cfg.search_url }
+    let startpage = file-render startpage.html $dest ({
         HOME: $nu.home-dir
         DATA: ((xdg data))
         RADIUS: $RADIUS_PX
         FONT: (font-load).family
-    } | file-text $dest $in.content --generated
+        SEARCH: $search
+    } | merge (startpage-colors)) | file-text $dest $in.content --generated
     # without a running instance the command would start one
     if not (process-running qutebrowser) { return [$startpage] }
     [$startpage (exec qutebrowser-config-source [qutebrowser :config-source])]

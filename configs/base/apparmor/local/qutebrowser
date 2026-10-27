@@ -1,8 +1,8 @@
 # managed by arch-dotfiles/apparmor
 owner @{HOME}/projects/arch-dotfiles/configs/desktop/qutebrowser/config.py r,
-owner @{user_cache_dirs}/wal/{colors.json,colors-qutebrowser.css} r,
+owner @{user_cache_dirs}/wal/{colors,font}.json r,
 owner @{user_share_dirs}/weblinks/links.js r,
-owner @{HOME}/projects/arch-dotfiles/{,configs/secrets/state/}wallpapers/** r,
+owner @{HOME}/{projects/arch-dotfiles,sync}/wallpapers/** r,
 deny @{user_config_dirs}/chromium/{,**} r,
 @{open_path} rPx -> child-open-strict,
 owner @{user_cache_dirs}/qutebrowser/{,**} l,

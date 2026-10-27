@@ -29,7 +29,8 @@ def "main locked" []: nothing -> nothing {
     let stamp = $dir | path join .dotfiles-source
     let spa = $SPOTIFY_SYSTEM | path join Apps xpui.spa
     let mtime = if ($spa | path exists) { ^stat -c %Y $spa | str trim } else { "" }
-    let source = $"(^pacman -Q spotify | str trim) ($mtime)"
+    # spicetify injects extensions only into a fresh copy: a changed list rebuilds it
+    let source = $"(^pacman -Q spotify | str trim) ($mtime) (^spicetify config extensions | str trim | lines | str join '|')"
     if not ($stamp | path exists) or (open --raw $stamp | str trim) != $source {
         rm --recursive --force $dir
         mkdir ($dir | path dirname)

@@ -729,6 +729,7 @@ tar-scripts
 taskwarrior-tui
 tauri-cli
 tcpdump
+tea
 teal
 tealdeer
 teamspeak6-client

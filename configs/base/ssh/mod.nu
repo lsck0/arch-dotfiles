@@ -59,7 +59,7 @@ export def link [cfg: record] {
         (unit-file ssh-agent.service --enable)
         (file-render ssh-add.service (unit-dir | path join ssh-add.service) {DOTFILES: $env.DOTFILES})
         (if $owner { unit-enable ssh-add.service } else { unit-disable ssh-add.service })
-        (if $hosts != null { file-text (ssh-dir | path join config) $hosts --mode 600 } else { [] })
+        (file-text (ssh-dir | path join config) $"Include ~/.ssh/config.d/*\n($hosts | default '')" --mode 600)
         (if $owner { step authorize } else { [] })
         (link-commands sshk.nu)
         (if $homelab and $cfg.wake_router != null and $cfg.wake_host != null {

@@ -154,6 +154,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `llm/vllm.gpu_memory_utilization` | `float?` | detected | The share of vram vllm takes; the rest stays for the desktop rendering on the same card |
 | `llm/vllm.kv_cache_dtype` | `string` | `"fp8"` | fp8 halves the kv cache's vram use but has no native matrix support on RDNA3; auto (bf16) is faster there |
 | `programming/android.avd` | `string` | `"nya35"` | Name of the emulator image made from the system image; empty makes none |
+| `programming/cargo.sccache_redis` | `bool` | `false` | Compile through sccache with the homelab's shared redis cache (secret sccache.env); plain rustc whenever it is unreachable |
 | `programming/claude.model` | `string` | `"claude-opus-5-5"` | The model every session starts on |
 | `programming/claude.effort` | `string` | `"medium"` | Reasoning effort of that model |
 | `programming/task.sync_url` | `string?` | unset | The taskchampion server every replica syncs with as the one client of configs/secrets/keys/taskwarrior-*; none: no sync |

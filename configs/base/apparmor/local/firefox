@@ -7,7 +7,6 @@ include <abstractions/dotfiles/viewer-read>
 
 owner @{user_config_dirs}/qutebrowser/startpage.html r,
 owner @{user_share_dirs}/weblinks/links.js r,
-owner @{user_cache_dirs}/wal/colors-qutebrowser.css r,
 
 owner /tmp/playwright_firefoxdev_profile-*/ rw,
 owner /tmp/playwright_firefoxdev_profile-*/** rwk,
