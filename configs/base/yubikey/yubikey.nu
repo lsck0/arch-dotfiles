@@ -61,7 +61,11 @@ def with-touch [argv: list<string>]: nothing -> bool {
 
 # Decrypt the passphrase-protected ssh stub once before the touch loop, or ssh asks every attempt.
 def stub-decrypt [key_file: path]: nothing -> bool {
-    if (do { ^ssh-keygen -y -P "" -f $key_file } | complete).exit_code == 0 { return true }
+    let probe = do { ^ssh-keygen -y -P "" -f $key_file } | complete
+    if $probe.exit_code == 0 { return true }
+    # the stub is enrolled with -N "" (no passphrase); a non-passphrase failure (the sk/fido provider, a bad read)
+    # must not loop on a passphrase that does not exist
+    if not ($probe.stderr | str contains "passphrase") { return false }
     if ($env.DOTFILES_UNATTENDED? | is-not-empty) or not (is-terminal --stdin) { return false }
     print ">>> the YubiKey's ssh stub is passphrase-protected, type its passphrase"
     for _ in 1..3 {
