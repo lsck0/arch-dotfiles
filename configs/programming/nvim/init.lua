@@ -28,6 +28,8 @@ require("lazy").setup({
         { import = "plugins" },
         { import = "languages" },
     },
+    -- dot's plan-time probes set vim.g.dot_probe (--cmd): never clone missing plugins as a side effect of planning
+    install = { missing = not vim.g.dot_probe },
 })
 
 require("theme").apply_from_marker()

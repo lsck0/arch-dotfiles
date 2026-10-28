@@ -58,7 +58,7 @@ BorderSurface {
   readonly property real bodyEmphasis: 0.87
   readonly property color bodyColor: Util.alpha(Colors.notifications.text, bodyEmphasis)
   readonly property real edge: isRow ? 0 : Style.surface.borderWidth
-  readonly property color strokeColor: urgency === 2 ? Colors.urgent : Util.alpha(Colors.notifications.border, Style.surface.ruleAlpha)
+  readonly property color strokeColor: urgency === NotificationLogic.URGENCY_CRITICAL ? Colors.urgent : Util.alpha(Colors.notifications.border, Style.surface.ruleAlpha)
 
   implicitWidth: root.isRow ? Style.panelWidth.normal : Style.space(420)
   implicitHeight: mainColumn.implicitHeight + edge * 2
@@ -78,7 +78,7 @@ BorderSurface {
   }
 
   Rectangle {
-    visible: root.isRow && root.urgency === 2
+    visible: root.isRow && root.urgency === NotificationLogic.URGENCY_CRITICAL
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
     width: Style.space(2)
@@ -258,7 +258,7 @@ BorderSurface {
           width: gauge.segment
           height: gauge.height
           radius: Style.shape.data
-          color: root.urgency === 2 ? Colors.urgent : Colors.accent
+          color: root.urgency === NotificationLogic.URGENCY_CRITICAL ? Colors.urgent : Colors.accent
           opacity: index < root.segmentsLeft ? Style.emphasis.dim : Style.emphasis.disabled * 0.5
         }
       }

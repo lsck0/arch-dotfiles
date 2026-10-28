@@ -13,7 +13,7 @@ Item {
   readonly property string userName: Quickshell.env("USER") || Quickshell.env("LOGNAME") || ""
   readonly property var actions: [
     { label: "Lock", hotkey: "L", icon: "\u{f023}", cmd: ["loginctl", "lock-session"] },
-    { label: "Exit", hotkey: "E", icon: "\u{f08b}", cmd: ["uwsm", "stop"] },
+    { label: "Exit", hotkey: "E", icon: "\u{f08b}", cmd: ["uwsm", "stop"], confirm: true },
     { label: "Suspend", hotkey: "H", icon: "\u{f04b2}", cmd: ["systemctl", "suspend"] },
     { label: "Shutdown", hotkey: "S", icon: "\u{f011}", cmd: ["systemctl", "poweroff"], confirm: true },
     { label: "Reboot", hotkey: "R", icon: "\u{f0709}", cmd: ["systemctl", "reboot"], confirm: true },

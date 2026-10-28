@@ -70,7 +70,7 @@ def prefix-init [s: record, wine: path]: nothing -> record {
 }
 
 export def link [cfg: record] {
-    let base = lod-detect
+    let base = $cfg.deps?."gaming/d2launcher"?.base_dir? | default (lod-detect)
     if $base == null or not (wine-bin | path exists) { return [] }
     let wine = wine-bin | path dirname
     (s14 $cfg $base $wine) ++ (s3 $cfg $base $wine) | decls-flatten

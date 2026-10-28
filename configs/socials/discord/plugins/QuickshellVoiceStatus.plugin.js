@@ -59,7 +59,17 @@ module.exports = class QuickshellVoiceStatus {
       selected: get("SelectedChannelStore"),
       channels: get("ChannelStore"),
       guilds: get("GuildStore"),
+      rtc: get("RTCConnectionStore"),
     };
+  }
+
+  // SelectedChannelStore only knows guild voice channels; a DM or group call has no guild voice channel, so fall back
+  // to the RTC connection, which tracks both
+  _voiceChannelId() {
+    const s = this._stores;
+    if (!s) return null;
+    const guild = s.selected && s.selected.getVoiceChannelId ? s.selected.getVoiceChannelId() : null;
+    return guild || (s.rtc && s.rtc.getChannelId ? s.rtc.getChannelId() : null);
   }
 
   _avatarUrl(userId, user) {
@@ -81,9 +91,7 @@ module.exports = class QuickshellVoiceStatus {
     const s = this._stores;
     if (!s || !s.voice || !s.selected || !s.users) return { inVoice: false };
 
-    const channelId = s.selected.getVoiceChannelId
-      ? s.selected.getVoiceChannelId()
-      : null;
+    const channelId = this._voiceChannelId();
     if (!channelId) return { inVoice: false };
 
     const states = s.voice.getVoiceStatesForChannel
@@ -205,12 +213,11 @@ module.exports = class QuickshellVoiceStatus {
     try {
       const dispatcher = W.getModule((m) => m && typeof m.dispatch === "function" && typeof m.subscribe === "function",
         { searchExports: true });
-      const selected = this._stores && this._stores.selected;
       dispatcher.dispatch({
         type: "VOICE_CHANNEL_SELECT",
         guildId: null,
         channelId: null,
-        currentVoiceChannelId: selected ? selected.getVoiceChannelId() : null,
+        currentVoiceChannelId: this._voiceChannelId(),
       });
     } catch (e) {
       console.error("[QuickshellVoiceStatus] no way to disconnect found", e);
@@ -220,15 +227,23 @@ module.exports = class QuickshellVoiceStatus {
   _pollCommands() {
     if (!this._fs || !this._commandPath) return;
     if (!this._fs.existsSync(this._commandPath)) return;
-    let text;
+    // claim the file by renaming first, so a line appended between read and delete is not lost
+    const pending = this._commandPath + ".reading";
     try {
-      text = this._fs.readFileSync(this._commandPath, "utf8");
+      this._fs.renameSync(this._commandPath, pending);
     } catch (e) {
       return;
     }
+    let text;
     try {
-      this._fs.unlinkSync(this._commandPath);
-    } catch (e) {}
+      text = this._fs.readFileSync(pending, "utf8");
+    } catch (e) {
+      return;
+    } finally {
+      try {
+        this._fs.unlinkSync(pending);
+      } catch (e) {}
+    }
     for (const line of String(text).split("\n")) {
       const trimmed = line.trim();
       if (!trimmed) continue;
@@ -286,7 +301,7 @@ module.exports = class QuickshellVoiceStatus {
       this._actions = null;
     }
 
-    for (const key of ["voice", "speaking", "media", "selected"])
+    for (const key of ["voice", "speaking", "media", "selected", "rtc"])
       this._subscribe(this._stores[key]);
 
     try {
@@ -300,15 +315,11 @@ module.exports = class QuickshellVoiceStatus {
     } catch (e) {
       this._commandWatcher = null;
     }
-    this._commandPoll = setInterval(() => this._pollCommands(), this._commandWatcher ? 2000 : 250);
+    // the watcher covers live changes; poll only as a fallback when fs.watch failed
+    if (!this._commandWatcher) this._commandPoll = setInterval(() => this._pollCommands(), 250);
 
     this._heartbeat = setInterval(() => {
-      if (
-        this._stores &&
-        this._stores.selected &&
-        this._stores.selected.getVoiceChannelId &&
-        this._stores.selected.getVoiceChannelId()
-      ) {
+      if (this._voiceChannelId()) {
         this._lastPayload = ""; // force a write so updatedAt advances
         this._publish();
       }

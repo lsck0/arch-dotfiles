@@ -14,8 +14,6 @@ Row {
   property bool focusable: true
   property bool fill: false
 
-  property int cursorIndex: -1
-
   property int _focusedIndex: -1
 
   signal changed(string value)
@@ -94,7 +92,7 @@ Row {
       width: implicitWidth + (index === chips.count - 1 ? root._slack - _share * (chips.count - 1) : _share)
       text: root.optionLabel(modelData)
       selected: root.optionValue(modelData) === root.value
-      hasCursor: root.cursorIndex === index || focused
+      hasCursor: focused
       focused: root.activeFocus && root._focusedIndex === index
       fontFamily: root.fontFamily
       fontSize: root.fontSize

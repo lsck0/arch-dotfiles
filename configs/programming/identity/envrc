@@ -88,9 +88,10 @@ for ((i = 0; i < GIT_CONFIG_COUNT; i++)); do
   export "GIT_CONFIG_KEY_$i=${git_config[i * 2]}" "GIT_CONFIG_VALUE_$i=${git_config[i * 2 + 1]}"
 done
 
+toml_escape() { local s=${1//\\/\\\\}; printf '%s' "${s//\"/\\\"}"; }
 {
-  printf 'user.name = "%s"\nuser.email = "%s"\n' "${GIT_NAME-}" "${GIT_EMAIL-}"
-  [[ -n ${GIT_SIGNING_KEY-} ]] && printf 'signing.behavior = "own"\nsigning.backend = "gpg"\nsigning.key = "%s"\n' "$GIT_SIGNING_KEY"
+  printf 'user.name = "%s"\nuser.email = "%s"\n' "$(toml_escape "${GIT_NAME-}")" "$(toml_escape "${GIT_EMAIL-}")"
+  [[ -n ${GIT_SIGNING_KEY-} ]] && printf 'signing.behavior = "own"\nsigning.backend = "gpg"\nsigning.key = "%s"\n' "$(toml_escape "$GIT_SIGNING_KEY")"
 } >"$identity_dir/jj/config.toml"
 export JJ_CONFIG=$identity_dir/jj/config.toml
 [[ -e $personal_config_dir/jj/config.toml ]] && JJ_CONFIG=$personal_config_dir/jj/config.toml:$JJ_CONFIG

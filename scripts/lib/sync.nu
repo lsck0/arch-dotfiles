@@ -2,6 +2,7 @@
 
 use log.nu *
 use secrets.nu [secret-is-plaintext secrets-wanted]
+use state.nu [state-dir]
 
 const BRANCH = "master"
 const PUSH_TRIES = 3
@@ -20,13 +21,17 @@ export def sync-branch-check [repo: path]: nothing -> nothing {
 def origin-verified [repo: path]: nothing -> nothing {
     let rev = $"origin/($BRANCH)"
     let gnupg = mktemp --directory
-    let status = with-env {GNUPGHOME: $gnupg} {
-        ^gpg --batch --quiet --import ($repo | path join $SIGNING_KEY_FILE)
-        ^git -C $repo verify-commit --raw $rev | complete
-    }
+    # remove the throwaway keyring whether the import and verify succeed or throw
+    let outcome = try {
+        with-env {GNUPGHOME: $gnupg} {
+            ^gpg --batch --quiet --import ($repo | path join $SIGNING_KEY_FILE)
+            ^git -C $repo verify-commit --raw $rev | complete
+        }
+    } catch {|e| {failed: $e.msg} }
     rm --recursive --force $gnupg
-    let signer = $status.stderr | lines | where ($it | str contains "VALIDSIG") | get --optional 0 | default "" | split row " " | last
-    if $status.exit_code != 0 or $signer != (fingerprint $repo) {
+    if ($outcome | get --optional failed) != null { error make {msg: $outcome.failed} }
+    let signer = $outcome.stderr | lines | where ($it | str contains "VALIDSIG") | get --optional 0 | default "" | split row " " | last
+    if $outcome.exit_code != 0 or $signer != (fingerprint $repo) {
         error make {msg: $"($rev) is not signed by (fingerprint $repo), nothing merged: check git -C ($repo) log ($rev)"}
     }
 }
@@ -186,7 +191,7 @@ def luks-root []: nothing -> bool {
 }
 
 def luks-header-checked-stamp []: nothing -> path {
-    $nu.home-dir | path join .local state dotfiles $"luks-header-checked-(open --raw /etc/hostname | str trim)"
+    state-dir | path join $"luks-header-checked-(sys host | get hostname)"
 }
 
 # The stamp lives outside git: an unchanged header makes no commit to date it by.

@@ -8,6 +8,8 @@ export const options = {
         default: "zstd"
         doc: "Compression used for the zram swap device, zram-generator.conf(5) compression-algorithm (a weaker CPU may prefer lz4)"
         label: "Zram compression algorithm"
+        choices: [zstd lz4 lzo-rle lzo]
+        apply: reboot
     }
     swappiness: {
         type: int

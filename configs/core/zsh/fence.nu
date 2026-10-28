@@ -17,7 +17,7 @@ def cpus-build []: nothing -> list<string> {
     $caches | where kb < $max | get cpu
 }
 
-# Run a command at the lowest cpu, io and oom priority, pinned to the non-v-cache ccd where there is one.
+# Run a command at the lowest cpu and oom priority, pinned to the non-v-cache ccd where there is one.
 def --wrapped main [...argv: string]: nothing -> nothing {
     if ($argv | is-empty) {
         print --stderr "usage: fence <command> [args...]"

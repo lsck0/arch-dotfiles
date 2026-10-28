@@ -58,7 +58,7 @@ export def link [cfg: record] {
         ([gnome-keyring-daemon.service gnome-keyring-daemon.socket] | each {|u| if-present $u { unit-mask $u --now } })
         # its secrets component waits for --start, which gnome's OnlyShowIn=GNOME autostart entry would send
         (if $keyring { unit-file keyring-secrets.service --enable } else { [] })
-        ([pipewire-pulse.service pipewire-pulse.socket ssh-agent.service]
+        ([pipewire-pulse.service pipewire-pulse.socket]
             | each {|u| if-present $u { unit-enable $u } })
     ] | decls-flatten
 }

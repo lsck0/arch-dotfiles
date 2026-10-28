@@ -1,4 +1,3 @@
-
 use module.nu *
 use ini.nu [ini-apply ini-rows]
 use ../../core/wallust/palette.nu [hex-to-rgb readable-on rgb-to-hex]
@@ -19,6 +18,12 @@ export const options = {
         default: null
         doc: "Ship the committed kwin output layout; detected: on when a connected monitor's EDID is one it describes"
         label: "KWin output layout"
+    }
+    locale: {
+        type: bool
+        default: true
+        doc: "Ship plasma-localerc (LANG=en_US.UTF-8)"
+        label: "Plasma locale"
     }
 }
 
@@ -43,6 +48,13 @@ const KDE_FONT_KEYS = [
 ]
 const KDE_SMALLEST_OFFSET = 2
 const STATUS_COLORS = {ForegroundNegative: "218,68,83", ForegroundNeutral: "246,116,0", ForegroundPositive: "39,174,96"}
+# Runtime state KDE rewrites on its own; dropped from the backup so the repo does not churn on it.
+const VOLATILE_KEYS = [
+    [file section key];
+    ["KDE/UserFeedback.conf" UserFeedback LastEncouragement]
+    [kded6rc PlasmaBrowserIntegration shownCount]
+    [plasmashellrc Updates performed]
+]
 
 def config-path [name: string]: nothing -> path {
     $nu.home-dir | path join $CONFIG $name
@@ -96,7 +108,7 @@ export def link [cfg: record] {
         (files-into (xdg data dbus-1 services) dbus/org.kde.KSplash.service)
         # no kiosk key hides dolphin's dock short of shell_access=false, which also stops it running any executable
         (ini-merge ($nu.home-dir | path join $DOLPHIN_STATE) {State: {State: (open --raw dolphin/dock-state | str trim)}})
-        (rc-files | where {|f| $f != plasma-localerc or (profile-has secrets) } | each {|f| file-copy $f ($config | path join $f) })
+        (rc-files | where {|f| $f != plasma-localerc or $cfg.locale } | each {|f| file-copy $f ($config | path join $f) })
         $applets
         (file-render plasmarc ($config | path join plasmarc) $values)
         (file-render kscreenlockerrc ($config | path join kscreenlockerrc) $values)
@@ -204,6 +216,16 @@ def kdeglobals-back [live: string, template: string]: nothing -> string {
     } | compact | str join "\n" | $"($in)\n"
 }
 
+# Drops the VOLATILE_KEYS lines from the backed-up copies so KDE's own runtime churn stays out of the repo.
+def strip-volatile []: nothing -> nothing {
+    for v in $VOLATILE_KEYS {
+        let dest = $DIR | path join $v.file
+        if not ($dest | path exists) { continue }
+        ini-rows (open --raw $dest) | where {|r| not ($r.section == $v.section and $r.key == $v.key) }
+        | get line | str join "\n" | $"($in)\n" | save --force $dest
+    }
+}
+
 export def backup [cfg: record]: nothing -> nothing {
     let files = rc-files | append (if $cfg.kwin_outputs == true { [$OUTPUTS] } else { [] })
     for f in $files {
@@ -225,4 +247,5 @@ export def backup [cfg: record]: nothing -> nothing {
         rm --recursive --force ($DIR | path join $d)
         cp --recursive (config-path $d) ($DIR | path join $d)
     }
+    strip-volatile
 }

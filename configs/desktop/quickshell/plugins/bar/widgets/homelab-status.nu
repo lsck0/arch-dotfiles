@@ -137,7 +137,7 @@ def clients [src: record]: nothing -> record {
     {window: $CLIENT_WINDOW, countries: $countries, agents: $agents, hosts: $hosts, traffic: $traffic}
 }
 
-def sample [src: record, summary: bool]: nothing -> record {
+def sample [src: record]: nothing -> record {
     if ($src.by_ip | is-empty) or ($src.prometheus | is-empty) { return {ok: false, error: source} }
     let query = {|expr| fetch $src.prometheus /api/v1/query $expr | get -o data.result | default [] | each {|r| {metric: $r.metric, value: ($r.value.1 | into float)} } }
     let scalar = {|expr| do $query $expr | get 0?.value }
@@ -155,11 +155,13 @@ def sample [src: record, summary: bool]: nothing -> record {
         let ip = $infra.ping | default -e $infra.href | parse -r '^\w+://(?<ip>[^/:]+)' | get 0?.ip
         let vm = if $ip == null { null } else { vm-for $ip $src }
         let key = if $vm != null and ($"($vm.id)/($vm.name)" in $acc) { $"($vm.id)/($vm.name)" } else { $"infra/($infra.name)" }
-        let known = $acc | get -o $key | default {
-            id: -1, url: "", onDemand: false
-            up: (if ($infra.ping | is-empty) { null } else {
-                try { http get --full --allow-errors --insecure --max-time $PROBE_TIMEOUT $infra.ping | ignore; true } catch { false }
-            })
+        let known = if $key in $acc { $acc | get $key } else {
+            {
+                id: -1, url: "", onDemand: false
+                up: (if ($infra.ping | is-empty) { null } else {
+                    try { http get --full --allow-errors --insecure --max-time $PROBE_TIMEOUT $infra.ping | ignore; true } catch { false }
+                })
+            }
         }
         $acc | upsert $key ($known | upsert name ($infra.name | str lowercase) | upsert group infra | upsert order $item.index
             | upsert url ($infra.href | default -e $known.url))
@@ -178,7 +180,6 @@ def sample [src: record, summary: bool]: nothing -> record {
         }
     } | sort-by minutes
     let services = $services | values | sort-by {|s| $s.order? | default $ORDER_UNLISTED } id name
-    if $summary { return {ok: true, links: $src.links, services: $services, alerts: $alerts} }
 
     let host = $'instance="($src.host_ip):9100"'
     let nas = $'instance="($src.nas_ip):9100",mountpoint="/"'
@@ -202,14 +203,14 @@ def sample [src: record, summary: bool]: nothing -> record {
             memUsedGb: (if ($mem_total | default 0) != 0 and $mem_avail != null { do $rounded (($mem_total - $mem_avail) / $GIB) 1 })
             memTotalGb: (if ($mem_total | default 0) != 0 { do $rounded ($mem_total / $GIB) 0 })
             tempC: (do $rounded (do $scalar $"max\(node_hwmon_temp_celsius{($host)})") 0)
-            uptimeH: (do $rounded ((do $scalar $"node_time_seconds{($host)} - node_boot_time_seconds{($host)}" | default 0) / 3600) 0)
+            uptimeH: (let uptime_s = do $scalar $"node_time_seconds{($host)} - node_boot_time_seconds{($host)}"; if $uptime_s != null { do $rounded ($uptime_s / 3600) 0 })
         }
         storage: {
             nasFreeGb: (if $nas_free != null { do $rounded ($nas_free / $GIB) 0 })
             nasTotalGb: (if $nas_size != null { do $rounded ($nas_size / $GIB) 0 })
-            disksHealthy: (do $scalar "sum(smartmon_device_smart_healthy)" | default 0 | into int)
-            disksTotal: (do $scalar "count(smartmon_device_smart_healthy)" | default 0 | into int)
-            nvmeWearPct: (do $rounded ((do $scalar "max(nvme_percentage_used_ratio)" | default 0) * 100) 0)
+            disksHealthy: (let healthy = do $scalar "sum(smartmon_device_smart_healthy)"; if $healthy != null { $healthy | into int })
+            disksTotal: (let total = do $scalar "count(smartmon_device_smart_healthy)"; if $total != null { $total | into int })
+            nvmeWearPct: (let wear = do $scalar "max(nvme_percentage_used_ratio)"; if $wear != null { do $rounded ($wear * 100) 0 })
             backupAgeMin: (if ($backup | default 0) != 0 { ($now_s - $backup) / 60 | into int })
         }
         traffic: {
@@ -221,8 +222,7 @@ def sample [src: record, summary: bool]: nothing -> record {
     }
 }
 
-# --summary: only what the bar icon needs
-def main [interval_s: int = 30, --summary] {
+def main [interval_s: int = 30] {
     let lab_path = $env.HOMELAB_DIR? | default ($nu.home-dir | path join projects homelab) | path join $LAB_RELATIVE
     mut modified: any = null
     mut src = {by_ip: {}, prometheus: ""}
@@ -233,7 +233,7 @@ def main [interval_s: int = 30, --summary] {
             $src = if ($lab | describe) =~ '^record' and $lab.schema? == $LAB_SCHEMA { source-load $lab } else { {by_ip: {}, prometheus: ""} }
             $modified = $stamp
         }
-        let line = try { sample $src $summary } catch {|error| {ok: false, error: $error.msg} }
+        let line = try { sample $src } catch {|error| {ok: false, error: $error.msg} }
         print ($line | to json -r)
         sleep ($interval_s * 1sec)
     }

@@ -5,7 +5,7 @@ const TIMEOUT = "60s"
 const TIMEOUT_EXIT_CODE = 124
 
 def main [] {
-    let repo = $env.DOTFILES? | default ($env.FILE_PWD | path join ../../../../../.. | path expand)
+    let repo = $env.DOTFILES? | default ($nu.home-dir | path join projects arch-dotfiles)
     let script = $repo | path join $SCRIPT_RELATIVE
     let claude = [($nu.home-dir | path join .claude) ($nu.home-dir | path join .config claude)] | any { path exists }
     if not $claude or not ($script | path exists) {

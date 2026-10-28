@@ -1292,10 +1292,26 @@ end
 
 local function fetch(org, num, buf, key, title, idx)
     local got, pending, dead = {}, 4, false
+    local function fail(msg)
+        err(msg)
+        if proj_idx ~= idx or not vim.api.nvim_buf_is_valid(buf) then
+            return
+        end
+        vim.bo[buf].modifiable = true
+        vim.api.nvim_buf_set_lines(
+            buf,
+            0,
+            -1,
+            false,
+            { "", "  " .. title .. " failed to load:", "  " .. msg, "", "  r  refresh" }
+        )
+        vim.bo[buf].modifiable = false
+        set_keys(buf)
+    end
     local function assemble()
         local fields = build_fields(got.fields.fields)
         if not field_by_name(fields, "Status") then
-            err("no Status field on this project")
+            fail("no Status field on this project")
             return
         end
         local prev = cache[key]
@@ -1352,7 +1368,7 @@ local function fetch(org, num, buf, key, title, idx)
             end
             if not ok and not optional then
                 dead = true
-                err(tostring(data))
+                fail(tostring(data))
                 return
             end
             if not ok then
@@ -1472,8 +1488,7 @@ function M.open_board()
     local fresh = not (board_buf and vim.api.nvim_buf_is_valid(board_buf))
     if fresh then
         board_buf = vim.api.nvim_create_buf(true, true)
-        vim.bo[board_buf].buftype = "nofile"
-        vim.bo[board_buf].bufhidden = "hide" -- hide, not wipe: an opened card must leave the board reachable
+        -- a scratch buffer is already buftype=nofile and bufhidden=hide; hide, not wipe, leaves the board reachable after a card opens
     end
     vim.api.nvim_win_set_buf(0, board_buf)
     if fresh then

@@ -27,10 +27,10 @@ def keys-of [listing: string]: nothing -> list<record> {
     | split list --regex --split before '^(pub|sec):' | where { ($in.0? | default "") =~ '^(pub|sec):' }
     | each {|key|
         let rows = $key | each { split row ":" }
-        let uid = $rows | where { $in.0 == uid and $in.1 != r } | get --optional 0.9
+        let uid = $rows | where { $in.0 == uid and $in.1 not-in [r e] } | get --optional 0.9
         let fpr = $rows | where { $in.0 == fpr } | get --optional 0.9
         let validity = $rows.0.1
-        if $uid != null and $fpr != null and $validity not-in [r e] { {fpr: $fpr, uid: $uid, caps: $rows.0.11, validity: $validity} }
+        if $uid != null and $fpr != null and $validity not-in [r e] and not ($rows.0.11 =~ D) { {fpr: $fpr, uid: $uid, caps: $rows.0.11, validity: $validity} }
     }
     | compact
 }
@@ -90,6 +90,9 @@ def "main decrypt" []: string -> nothing {
     }
     if $run.exit_code != 0 and $sig.state in [none good untrusted] {
         return (emit {ok: false, error: ($run.stderr | lines | where { not ($in starts-with "[GNUPG:]") } | last | default "gpg failed")})
+    }
+    if ($run.stdout | describe) == binary {
+        return (emit {ok: false, error: "decrypted plaintext is binary, not text"})
     }
     emit {ok: true, plaintext: $run.stdout, signature: $sig}
 }

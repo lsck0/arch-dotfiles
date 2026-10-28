@@ -255,7 +255,6 @@ gparted
 gpg-tui
 gping
 gpu-screen-recorder
-grafana-alloy
 graphviz
 grex
 grim
@@ -399,7 +398,6 @@ lm_sensors
 lmms
 localsend
 logseq-desktop-bin
-loki
 lolcat
 lorien-bin
 ls-horizons
@@ -583,7 +581,6 @@ proton-pass-bin
 proton-vpn-cli
 proton-vpn-qt-app
 protontricks
-protonup-git
 proxychains-ng
 pwdsafety
 pwndbg

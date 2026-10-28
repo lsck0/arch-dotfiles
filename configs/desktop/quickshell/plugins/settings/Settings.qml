@@ -41,6 +41,8 @@ Item {
   readonly property int exitSystemPending: 3
   readonly property bool busy: setProc.running || systemApplyProc.running || toggleProc.running || systemProc.running
   property string notice: ""
+  property bool noticeIsError: false
+  property bool updateArmed: false
 
   readonly property string dot: Paths.home + "/.local/bin/dot"
   readonly property var sections: Schema.sections(modules, toggles, query, dotStatus)
@@ -57,7 +59,7 @@ Item {
       ["CTRL+R", "reset"]]
     if (cursorRow && cursorRow.kind === "option" && cursorRow.option.type === "path") out.push(["CTRL+O", "browse"])
     if (queued.length > 0) out.push(["CTRL+S", "apply"], ["CTRL+Z", "revert"])
-    out.push(["CTRL+U", "update"])
+    out.push(["CTRL+U", root.updateArmed ? "confirm sync" : "update"])
     out.push(["ESC", root.editingId || root.expandedId ? "back" : root.query ? "clear" : "close"])
     return out
   }
@@ -72,6 +74,8 @@ Item {
     root.expandedId = ""
     root.editingId = ""
     root.notice = ""
+    root.noticeIsError = false
+    root.updateArmed = false
     root.load()
     statusProc.refresh()
     dotStatusProc.refresh()
@@ -149,6 +153,31 @@ Item {
 
   function update() { root.runSystem(Object.assign({ kind: "action" }, Schema.systemActions[0]), "") }
 
+  // Ctrl+U runs a full sync; arm on the first press and run on the second, so one stray keystroke never starts one
+  function armOrUpdate() {
+    if (root.updateArmed) {
+      root.updateArmed = false;
+      updateDisarm.stop();
+      root.update();
+      return;
+    }
+    root.updateArmed = true;
+    root.notice = "press CTRL+U again to sync";
+    root.noticeIsError = false;
+    updateDisarm.restart();
+  }
+
+  Timer {
+    id: updateDisarm
+
+    interval: 3000
+    onTriggered: {
+      root.updateArmed = false;
+      if (root.notice === "press CTRL+U again to sync")
+        root.notice = "";
+    }
+  }
+
   function choiceOf(row) { return root.driftChoice[row.id] || Schema.driftChoices[0] }
 
   // a terminal action leaves the window for its terminal; reset overwrites a hand edit, so it asks twice
@@ -195,7 +224,7 @@ Item {
     if (ctrl) {
       if (key === Qt.Key_S) root.applyQueued()
       else if (key === Qt.Key_Z) root.revertQueued()
-      else if (key === Qt.Key_U) root.update()
+      else if (key === Qt.Key_U) root.armOrUpdate()
       else if (key === Qt.Key_R && row && row.kind === "option") root.reset(row)
       else if (key === Qt.Key_O && row && row.kind === "option" && row.option.type === "path") root.browse(row)
       else return false
@@ -358,6 +387,7 @@ Item {
     for (let id in root.pending) if (root.pending[id].option.apply === "live") kept[id] = root.pending[id]
     root.pending = kept
     root.notice = ""
+    root.noticeIsError = false
   }
 
   function browse(row) {
@@ -423,6 +453,7 @@ Item {
     }
     if (failed > 0) parts.push(failed + " failed, see the marked options")
     root.notice = parts.concat(notes).join("; ")
+    root.noticeIsError = failed > 0
   }
 
   function runToggle(toggle) {
@@ -472,13 +503,14 @@ Item {
 
   Process {
     id: systemApplyProc
-    command: [root.dot, "apply"]
+    command: [root.dot, "apply", "--system"]
     stdout: StdioCollector { id: applyOut; waitForEnd: true }
     stderr: StdioCollector { id: applyErr; waitForEnd: true }
     onExited: function (exitCode) {
       if (exitCode === 0) root.systemPending = false
       root.notice = exitCode === 0 ? ["system part applied"].concat(Schema.notes(applyErr.text)).concat(Schema.notes(applyOut.text)).join("; ")
         : "apply failed: " + String(applyErr.text || applyOut.text || "").trim().split("\n").pop()
+      root.noticeIsError = exitCode !== 0
       root.load()
     }
   }
@@ -493,6 +525,7 @@ Item {
       root.notice = exitCode === 0 || exitCode === root.exitSystemPending
         ? [systemProc.label + " done"].concat(Schema.notes(systemErr.text)).concat(Schema.notes(systemOut.text)).join("; ")
         : systemProc.label + " failed: " + last
+      root.noticeIsError = !(exitCode === 0 || exitCode === root.exitSystemPending)
       root.load()
       dotStatusProc.run()
     }
@@ -671,7 +704,7 @@ Item {
           visible: text !== ""
           textFormat: Text.PlainText
           text: root.loadError ? "x " + root.loadError : ""
-          color: root.loadError ? Colors.urgent : Colors.warn
+          color: Colors.urgent
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
           wrapMode: Text.Wrap
@@ -888,7 +921,11 @@ Item {
                   Text {
                     width: parent.width
                     textFormat: Text.PlainText
-                    text: drift.entry.target.replace(Paths.home, "~")
+                    text: {
+                      var t = drift.entry.target
+                      var h = Paths.home
+                      return (t === h || t.indexOf(h + "/") === 0) ? "~" + t.slice(h.length) : t
+                    }
                     color: slot.hasCursor ? Colors.menu.selectedText : Colors.menu.text
                     font.family: Style.font.family
                     font.pixelSize: Style.font.body
@@ -1068,7 +1105,7 @@ Item {
             visible: root.notice !== ""
             textFormat: Text.PlainText
             text: root.notice
-            color: root.notice.indexOf("failed") >= 0 ? Colors.urgent : Colors.ok
+            color: root.noticeIsError ? Colors.urgent : Colors.ok
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             wrapMode: Text.Wrap

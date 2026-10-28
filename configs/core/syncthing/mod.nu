@@ -108,7 +108,7 @@ export def api-config [paired: string, nas: string = ""]: nothing -> nothing {
 }
 
 export def link [cfg: record] {
-    if not (profile-has secrets) or not (platform-has homelab) { return [] }
+    if not (owner-unlocked) or not (platform-has homelab) { return [] }
     let state = $nu.home-dir | path join $STATE
     let secrets = secret-dir
     let paired = ["config.xml" "key.pem"] | all {|f| secret-is-plaintext ($secrets | path join $f) }

@@ -14,7 +14,7 @@ def lid-closed []: nothing -> bool {
 def main [state?: string] {
     # a quick close and reopen starts two runs: one at a time, each reading the lid as it is now
     if $env.LID_LOCKED? == null {
-        let lock = $env.XDG_RUNTIME_DIR? | default "/tmp" | path join lid.lock
+        let lock = $env.XDG_RUNTIME_DIR | path join lid.lock
         with-env {LID_LOCKED: "1"} { ^flock $lock nu --no-config-file $SELF ...([$state] | compact) }
         return
     }
@@ -25,9 +25,9 @@ def main [state?: string] {
     let external = $monitors | where name !~ $INTERNAL_PANEL and not $it.disabled
     for panel in $internal {
         if $closed and ($external | is-not-empty) and not $panel.disabled {
-            ^nu --no-config-file ($LAYOUT | path expand) layout $panel.name off
+            ^nu --no-config-file $LAYOUT layout $panel.name off
         } else if not $closed and $panel.disabled {
-            ^nu --no-config-file ($LAYOUT | path expand) layout $panel.name extend
+            ^nu --no-config-file $LAYOUT layout $panel.name extend
         }
     }
 }

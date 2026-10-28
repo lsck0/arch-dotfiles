@@ -7,9 +7,9 @@ modules, options and keybinds. SUPER is the mod key.
 
 - `dot sync`: pull, migrate, install, apply, back up app state, signed `Generation: <n>` commit, push.
 - `dot apply`, `dot plan`, `dot status`, `dot set`, `dot theme`, `dot module adopt|reset|unlink|remove|restore`,
-  `dot explain`, `dot log`, `dot secrets`, `dot test lint|check|run`: see `dot --help`.
+  `dot explain`, `dot log`, `dot secrets`, `dot test lint|check|fmt|run`: see `dot --help`.
 - Platforms `luca-pc`, `luca-notebook`, `server`, `vm`, `wsl`; profile `luca` (owner, with secrets) or `custom`.
-- Install: the lsck0 iso (answer file optional) or `curl | sh` from any Arch or WSL.
+- Install: the lsck0 iso (answer file optional) or `curl | sh` from the official Arch ISO or WSL.
 - `[lsck0]` package mirror built by the homelab from `mirror/`.
 
 ## Security
@@ -132,11 +132,13 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/pipewire.eq_target` | `string?` | unset | node.name of the headset sink the eq attaches to as a smart filter; unset, no eq chain |
 | `desktop/pipewire.eq_preset` | `string` | `"pro-x-2.txt"` | AutoEq ParametricEQ preset for that headset, a file in this module or an absolute path |
 | `desktop/plasma.kwin_outputs` | `bool?` | detected | Ship the committed kwin output layout; detected: on when a connected monitor's EDID is one it describes |
+| `desktop/plasma.locale` | `bool` | `true` | Ship plasma-localerc (LANG=en_US.UTF-8) |
 | `desktop/quickshell.pomodoro_focus_min` | `int` | `25` | Minutes of one focus block |
 | `desktop/quickshell.pomodoro_break_min` | `int` | `5` | Minutes of the short break after a focus block |
 | `desktop/quickshell.pomodoro_long_break_min` | `int` | `15` | Minutes of the long break after the last focus block of a round |
 | `desktop/quickshell.pomodoro_cycles` | `int` | `4` | Focus blocks before a long break |
 | `desktop/qutebrowser.search_url` | `string` | `"https://duckduckgo.com/?q={}"` | The default search engine, {} is the query; the homelab's searxng is reachable only on a homelab machine |
+| `desktop/qutebrowser.search_method` | `string` | `"GET"` | GET or POST for the search form; most engines use GET, searxng is POST-only |
 | `gaming/d2launcher.base_dir` | `string?` | detected | A Diablo II: Lord of Destruction install the game dir is seeded from; detected in the lutris prefixes |
 | `gaming/d2launcher.resolution` | `string?` | detected | The monitor the render size derives from, WxH; detected from the focused monitor |
 | `gaming/d2launcher.render_size` | `string?` | unset | The 4:3 size the game renders at inside gamescope, WxH; the monitor's full height by default |

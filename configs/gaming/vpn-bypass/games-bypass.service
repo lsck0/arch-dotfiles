@@ -8,9 +8,9 @@ Before=network-pre.target
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/sbin/nft -f /etc/nftables.d/games-bypass.nft
-ExecStartPost=-/bin/sh -c 'gid=$(getent group games | cut -d: -f3) && /usr/sbin/nft add element inet games_bypass gids "{ $gid }"; true'
+ExecStartPost=-/bin/sh -c 'gid=$(getent group games | cut -d: -f3) && /usr/sbin/nft add element inet games_bypass gids "{ $gid }"'
 ExecReload=/usr/sbin/nft -f /etc/nftables.d/games-bypass.nft
-ExecReload=-/bin/sh -c 'gid=$(getent group games | cut -d: -f3) && /usr/sbin/nft add element inet games_bypass gids "{ $gid }"; true'
+ExecReload=-/bin/sh -c 'gid=$(getent group games | cut -d: -f3) && /usr/sbin/nft add element inet games_bypass gids "{ $gid }"'
 ExecStop=/usr/sbin/nft destroy table inet games_bypass
 
 [Install]

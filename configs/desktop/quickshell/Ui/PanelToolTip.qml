@@ -23,18 +23,16 @@ ToolTip {
   }
 
   contentItem: Item {
-    implicitWidth: tagRow.implicitWidth + tagRow.x + rightPad
-    implicitHeight: tagRow.implicitHeight + tagRow.y + botPad
+    implicitWidth: tagRow.implicitWidth + tagRow.x + padX
+    implicitHeight: tagRow.implicitHeight + tagRow.y + padY
 
-    readonly property real leftPad: Border.width(root.panelBorderSpec) + Style.spacing.controlPaddingX
-    readonly property real rightPad: Border.width(root.panelBorderSpec) + Style.spacing.controlPaddingX
-    readonly property real topPad: Border.width(root.panelBorderSpec) + Style.spacing.controlPaddingY
-    readonly property real botPad: Border.width(root.panelBorderSpec) + Style.spacing.controlPaddingY
+    readonly property real padX: Border.width(root.panelBorderSpec) + Style.spacing.controlPaddingX
+    readonly property real padY: Border.width(root.panelBorderSpec) + Style.spacing.controlPaddingY
 
     Row {
       id: tagRow
-      x: parent.leftPad
-      y: parent.topPad
+      x: parent.padX
+      y: parent.padY
       spacing: Style.spacing.xs
 
       Text {

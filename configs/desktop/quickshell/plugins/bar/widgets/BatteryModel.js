@@ -20,6 +20,7 @@ function chargeThresholdActive(device, onBattery, states) {
 
 function batteryIcon(device, onBattery, states) {
   var d = device || {}
+  var s = states || {}
   if (!d.isPresent) return ""
 
   var chargingIcons = ["\u{f089c}", "\u{f0086}", "\u{f0087}", "\u{f0088}", "\u{f089d}", "\u{f0089}", "\u{f089e}", "\u{f008a}", "\u{f008b}", "\u{f0085}"]
@@ -28,7 +29,7 @@ function batteryIcon(device, onBattery, states) {
   var threshold = chargeThresholdActive(d, onBattery, states)
 
   if (threshold) return defaultIcons[index]
-  if (d.state === states.FullyCharged) return "\u{f0085}"
+  if (d.state === s.FullyCharged) return "\u{f0085}"
   if (!onBattery) return chargingIcons[index]
   return defaultIcons[index]
 }

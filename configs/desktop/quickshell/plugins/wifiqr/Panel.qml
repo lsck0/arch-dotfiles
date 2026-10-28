@@ -157,7 +157,7 @@ Item {
 
   OverlayCard {
     open: root.opened
-    name: "network-qr"
+    name: "wifiqr"
     title: root.ssid || "wi-fi"
     hints: [["ESC", "close"]]
     scanlines: false

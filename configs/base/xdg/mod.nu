@@ -104,6 +104,7 @@ export def link [cfg: record] {
         (step home-dirs)
         (files-into $config mimeapps.list user-dirs.conf user-dirs.dirs)
         (files-into ($config | path join environment.d) app-dirs.conf)
+        (dropin xdg-document-portal.service doc-portal.conf --name 10-success-exit.conf --then [systemctl --user daemon-reload])
         ($RECLAIM | where mode != move and ((home $it.name | path type) not-in [dir file]) | each {|r| file-link (home $r.target) (home $r.name) })
         # nemo also claims FileManager1 and sorts first; the user dir wins, so only where dolphin exists
         (if ("/usr/bin/dolphin" | path exists) {

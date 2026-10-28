@@ -9,7 +9,7 @@ def playing []: nothing -> bool {
 
 def main [] {
     job spawn {
-        ^playerctl --all-players --follow status e>| ignore | lines | each { job send 0 } | ignore
+        ^playerctl --all-players --follow status e> /dev/null | lines | each { job send 0 } | ignore
         $ENDED | job send 0
     }
     mut holder: any = null

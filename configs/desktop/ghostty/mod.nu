@@ -2,12 +2,12 @@ use module.nu *
 use ../../core/wallust/palette.nu [OPACITY_SURFACE]
 use ../../core/wallust/font.nu [font-load]
 
-export const meta = {deps: [desktop/hyprland], packages: {pacman: [ghostty xdg-terminal-exec]}}
+export const meta = {deps: [desktop/hyprland desktop/kitty], packages: {pacman: [ghostty xdg-terminal-exec]}}
 
 const SERVICE = "app-com.mitchellh.ghostty.service"
 
 export def link [cfg: record] {
-    let config = (xdg config)
+    let config = xdg config
     let apps = xdg data applications
     let runtime = $env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u | str trim)"
     let scale = xwayland-scale-for $cfg
@@ -27,7 +27,7 @@ export def link [cfg: record] {
 }
 
 export def theme [cfg: record, wallpaper: string] {
-    let config = (xdg config)
+    let config = xdg config
     let font = font-load
     let fragment = $"font-family = ($font.mono)\nfont-family = Symbols Nerd Font Mono\nfont-size = ($font.size)\n"
     [

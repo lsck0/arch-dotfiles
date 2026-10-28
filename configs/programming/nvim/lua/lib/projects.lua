@@ -7,7 +7,8 @@ local EXCLUDE = { "elpa", "node_modules", ".cargo", "vendor", "target" }
 
 ---@return { path: string, depth: integer }[] dirs, string[] bookmarks
 local function tms_config()
-    local file = vim.fs.normalize("~/.config/tms/config.toml")
+    local config_home = vim.env.XDG_CONFIG_HOME or (vim.env.HOME .. "/.config")
+    local file = vim.fs.normalize(config_home .. "/tms/config.toml")
     local fd = io.open(file, "r")
     if not fd then
         return DEFAULT_DIRS, {}
@@ -87,7 +88,7 @@ function M.list()
     end
     for _, dir in ipairs(dirs) do
         if vim.fn.isdirectory(dir.path) == 1 then
-            local cmd = { "fd", "--type", "d", "--type", "f", "--hidden", "--no-ignore" }
+            local cmd = { "fd", "--type", "d", "--type", "f", "--hidden", "--no-ignore", "--prune" }
             vim.list_extend(cmd, { "--max-depth", tostring(dir.depth + 1) })
             for _, ex in ipairs(EXCLUDE) do
                 vim.list_extend(cmd, { "--exclude", ex })

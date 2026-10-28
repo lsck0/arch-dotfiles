@@ -1,6 +1,7 @@
 use module.nu *
 use converge.nu [state-read]
 
+# openvpn is kept for manual client use (connecting out over third-party ovpn configs); no module wires it
 export const meta = {packages: {pacman: [openvpn wireguard-tools]}, volatile: true}
 
 const CONF = "/etc/wireguard/wg0.conf"

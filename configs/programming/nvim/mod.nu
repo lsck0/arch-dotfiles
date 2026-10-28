@@ -13,7 +13,7 @@ export const meta = {
 
 const PLUGIN_DIR = ".local/share/nvim/lazy"
 const TREESITTER_TIMEOUT_MS = 600000
-const THEME_NAME = ".cache/wal/nvim_theme"
+const THEME_MARKER = ".cache/wal/nvim_theme"
 # lazy skips a plugin whose cond is false (image.nvim outside kitty): its pin is never cloned headless
 const COND_LUA = '
 local cfg = require("lazy.core.config")
@@ -48,7 +48,7 @@ def head-commit [git: path]: nothing -> any {
 
 # A false cond means correctly absent, not stale.
 def plugins-enabled []: nothing -> list<string> {
-    ^env ...$QUIET_GIT nvim --headless -c $"lua ($COND_LUA)" -c "qa" | lines
+    ^env ...$QUIET_GIT nvim --headless --cmd "lua vim.g.dot_probe = true" -c $"lua ($COND_LUA)" -c "qa" | lines
 }
 
 def plugins-stale []: nothing -> list<string> {
@@ -76,7 +76,7 @@ report("parser", require("lib.treesitter_parsers"), "/site/parser/%s.so")
 
 # before the first apply links the config there is no lib to read: nothing counts as missing yet
 def tools-missing []: nothing -> table<kind: string, name: string> {
-    let run = ^nvim --headless -c $"lua ($MISSING_LUA)" -c "qa" | complete
+    let run = ^nvim --headless --cmd "lua vim.g.dot_probe = true" -c $"lua ($MISSING_LUA)" -c "qa" | complete
     if $run.exit_code != 0 { return [] }
     $run.stdout | lines | parse "{kind} {name}"
 }
@@ -121,7 +121,7 @@ export def theme [cfg: record, wallpaper: string] {
 }
 
 export def theme-push []: nothing -> nothing {
-    let name = $nu.home-dir | path join $THEME_NAME
+    let name = $nu.home-dir | path join $THEME_MARKER
     if not ($name | path exists) { return }
     let expr = $"luaeval\('require\(\"theme\"\).apply\(\"(open --raw $name | str trim)\"\)'\)"
     for server in (glob ($env.XDG_RUNTIME_DIR? | default "/tmp" | path join "nvim.*")) {

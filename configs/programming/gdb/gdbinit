@@ -11,20 +11,14 @@ if os.path.isdir(ue_printers):
     sys.path.append(ue_printers)
     from UEPrinters import register_ue_printers
     register_ue_printers(None)
-end
 
-python
-import os as _os
 _pwndbg = "/usr/share/pwndbg/gdbinit.py"
-if _os.path.exists(_pwndbg):
+if os.path.exists(_pwndbg):
     gdb.execute("source " + _pwndbg)
-end
 
-python
-import os as _os
-_state = _os.path.join(_os.environ.get("XDG_STATE_HOME") or _os.path.expanduser("~/.local/state"), "gdb")
-_os.makedirs(_state, mode=0o700, exist_ok=True)
-gdb.execute("set history filename " + _os.path.join(_state, "history"))
+_state = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "gdb")
+os.makedirs(_state, mode=0o700, exist_ok=True)
+gdb.execute("set history filename " + os.path.join(_state, "history"))
 end
 
 set output-radix 10

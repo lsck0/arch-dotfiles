@@ -13,7 +13,7 @@
 (defun my/find-files-dotfiles ()
   "telescope find_files cwd=~/projects/arch-dotfiles."
   (interactive)
-  (consult-fd "~/projects/arch-dotfiles/"))
+  (consult-fd (file-name-as-directory (or (getenv "DOTFILES") "~/projects/arch-dotfiles"))))
 
 (defun my/grep-string ()
   "telescope grep_string: ripgrep the symbol under the cursor."

@@ -7,18 +7,20 @@ Enable per machine in `platforms/<name>.options.nuon`: `"base/boot/remote-unlock
 to also join the home wifis from `configs/secrets/keys/wifi`). The module then declares its packages itself; unsetting
 the option and `dot apply` removes it again.
 
-Secrets (both in `SYSTEM_SECRETS`):
+Secrets:
 
-- `configs/secrets/keys/ssh_publickey.asc`: the only key allowed to log in.
-- `configs/secrets/keys/initramfs-ssh/<host>/sshkeydir/`: the initramfs host key. If absent, the first apply generates
-  one and prints the backup command (copy, then `chown` to your user so `dot sync` can commit it).
+- `configs/secrets/keys/wifi`: the home wifi keys, only with `wifi: true` (in `SYSTEM_SECRETS`).
+- `configs/secrets/keys/ssh_publickey.asc`: the only key allowed to log in (in `SYSTEM_SECRETS`).
+- `configs/secrets/keys/initramfs-ssh/<host>/sshkeydir/`: the initramfs host key, carried separately from
+  `SYSTEM_SECRETS`. If absent, the first apply generates one and prints the backup command (copy, then `chown` to your
+  user so `dot sync` can commit it).
 
 Use:
 
 ```
-wake-pc                      # or on the LAN: ssh root@192.168.178.29 wol-pc
+wake-pc                      # or on the LAN: ssh root@<router> wol-pc (ssh's wake_router host)
 ssh -p 2223 root@<pc-ip>     # type the passphrase, boot continues
-sshk luca@<pc-ip>            # the real sshd on 2222 afterwards
+sshk <user>@<pc-ip>          # the real sshd on 2222 afterwards
 ```
 
 `Ctrl-C` at the prompt opens the initrd shell menu; `journalctl -b -t shell` shows its log.

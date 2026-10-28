@@ -38,7 +38,7 @@ def state-save [state: record]: nothing -> nothing {
 
 # Sent as the app the shell shows through dnd and keeps out of history (NotificationLogic.js ACTION_APP).
 def notify [title: string, body: string = ""]: nothing -> nothing {
-    ^notify-send -a quickshell-action -u low -h $"string:omarchy-glyph:($glyph)" $title $body
+    ^notify-send -a quickshell-action -u low -h $"string:lsck0-glyph:($glyph)" -- $title $body
 }
 
 # Plays in the foreground: the timer's unit kills background children on exit.

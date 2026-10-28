@@ -15,9 +15,6 @@ Item {
   property color foreground: Colors.foreground
   property color accent: Colors.accent
 
-  signal hovered(bool isHovered)
-
-  readonly property alias containsMouse: mouse.containsMouse
   readonly property bool hot: hasCursor || mouse.containsMouse
 
   readonly property int _pad: cursorRing ? cursorPad : 0
@@ -59,6 +56,5 @@ Item {
     enabled: root.interactive
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
-    onContainsMouseChanged: root.hovered(containsMouse)
   }
 }

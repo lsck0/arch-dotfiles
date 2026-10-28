@@ -7,6 +7,7 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
 
 | skill | for |
 |---|---|
+| `l-dotfiles` | the repo layout, the `dot` command, and the rule that every machine change goes through it |
 | `l-dotfiles-install` | installing a machine (owner, generic, WSL), the boot chain, another login |
 | `l-dotfiles-add-module` | a new `configs/<group>/<module>/mod.nu`, verbs, options, running one module |
 | `l-dotfiles-add-package` | packages in a module's meta, the mirror, removal, supply-chain pins |
@@ -33,7 +34,7 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   `dot status [--brief|--json]`, `dot set [mod[.key] [value]] [--default] [--machine] [--json]`,
   `dot module adopt|reset|unlink|remove|restore`, `dot explain <path|package>`, `dot log [--trace]`.
 - `dot internal <cmd>` (`scripts/lib/internal.nu`): plumbing for scripts and units; `gen` regenerates
-  `mirror/packages.txt` (lint fails when stale), `iso` builds the install iso.
+  `mirror/packages.txt` and FEATURES.md's options table (lint fails when either is stale), `iso` builds the install iso.
 - Agents never reach root: run dot with `DOT_SYSTEM=skip` (or `--no-system`); a system part is then pending (exit 3).
   sudo and pkexec take a YubiKey touch or fingerprint on Luca's side, the password as fallback.
 - `dot sync` (pull, migrate, install, apply, back up, signed `Generation: <n>` commit, push) is Luca's only commit
@@ -46,7 +47,7 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   instruction file per directory, no `CLAUDE.md`; `configs/programming/claude/CLAUDE.md` is the global `~/.claude`
   file). `dependencies.txt` names the groups a group reaches into.
 - `platforms/<name>.nuon` (facts, groups) and `<name>.options.nuon`: `luca-pc`, `luca-notebook`, `server`, `vm`,
-  `wsl`. `profiles/<name>.nuon`: user capabilities (`luca`, or `custom` for none).
+  `wsl`. `profiles/<name>.nuon`: user identity and capabilities (`luca`, or `custom` for none).
 - `migrations/<NNNN>-<slug>.nu`: one-time `up` changes; fresh installs mark existing ones as run.
 - `scripts/` (commands in `~/.local/bin`), `scripts/lib/` (the engine: `module.nu` API, `pipeline.nu` run,
   `converge.nu` plan/apply, `system-apply.nu` root entry), `scripts/toggles/`.

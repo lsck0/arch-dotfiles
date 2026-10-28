@@ -64,6 +64,7 @@ import socket
 import struct
 import subprocess
 import sys
+import tempfile
 
 Matrix = tuple[float, float, float, float, float, float, float, float, float]
 
@@ -153,6 +154,7 @@ assert all(0 <= p.curve.floor < p.curve.ceiling <= 1 and p.curve.contrast > 0 fo
 
 NIGHT_KELVIN = 4000
 KELVIN_MIN, KELVIN_MAX = 1000, 20000
+BRIGHTNESS_PERCENT_MIN = 10
 BRIGHTNESS_PERCENT_DEFAULT = 100
 BRIGHTNESS_PERCENT_MAX = 150
 
@@ -237,10 +239,16 @@ def file_read(path: str) -> str | None:
 
 
 def file_write(path: str, text: str) -> None:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path + ".tmp", "w") as fh:
-        fh.write(text + "\n")
-    os.replace(path + ".tmp", path)
+    dirname = os.path.dirname(path)
+    os.makedirs(dirname, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=dirname)
+    try:
+        with os.fdopen(fd, "w") as fh:
+            fh.write(text + "\n")
+        os.replace(tmp, path)
+    except BaseException:
+        os.unlink(tmp)
+        raise
 
 
 def matrix_multiply(a: Matrix, b: Matrix) -> Matrix:
@@ -337,11 +345,11 @@ def nightlight_parse(text: str) -> bool:
 
 
 def brightness_parse(text: str, current_percent: int) -> int:
-    """Absolute percent, or a +N / -N step from the current value, clamped like hyprsunset's gamma."""
+    """Absolute percent, or a +N / -N step from the current value, clamped to a visible range."""
     if not text.lstrip("+-").isdigit():
         raise ValueError(f"brightness must be N, +N or -N percent, got {text!r}")
     value = current_percent + int(text) if text[0] in "+-" else int(text)
-    return min(max(value, 0), BRIGHTNESS_PERCENT_MAX)
+    return min(max(value, BRIGHTNESS_PERCENT_MIN), BRIGHTNESS_PERCENT_MAX)
 
 
 def settings_load() -> Settings:
@@ -390,6 +398,7 @@ def output_control_destroy(client: Client, output: Output) -> None:
     if output.control_id is None:
         return
     client_request(client, output.control_id, GAMMA_CONTROL_DESTROY)
+    client.objects.pop(output.control_id, None)
     output.control_id = None
     output.gamma_size = None
 
@@ -397,6 +406,7 @@ def output_control_destroy(client: Client, output: Output) -> None:
 def output_detach(client: Client, global_name: int) -> None:
     output = client.outputs.pop(global_name)
     output_control_destroy(client, output)
+    client.objects.pop(output.output_id, None)
     if output.version >= WL_OUTPUT_VERSION_RELEASE:
         client_request(client, output.output_id, WL_OUTPUT_RELEASE)
     log(f"{output.name}: gone")

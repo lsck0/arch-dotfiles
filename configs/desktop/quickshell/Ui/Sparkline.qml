@@ -14,8 +14,8 @@ Item {
   property real fillAlpha: 0.22
   property bool glow: false
 
-  implicitWidth: 64
-  implicitHeight: 18
+  implicitWidth: Style.space(64)
+  implicitHeight: Style.space(18)
 
   onValuesChanged: {
     cv.requestPaint()
@@ -35,19 +35,28 @@ Item {
     NumberAnimation { target: root; property: "pulse"; to: 0; duration: Style.motion.ambient / 2; easing.type: Style.motion.ambientEasing }
   }
 
+  // auto-range padding fraction when minValue/maxValue are not set
+  readonly property real autoRangePad: 0.15
+  readonly property var valueRange: {
+    var v = root.values || []
+    var n = v.length
+    var mn = root.minValue, mx = root.maxValue
+    if (mx <= mn) {
+      mn = Infinity; mx = -Infinity
+      for (let i = 0; i < n; i++) { mn = Math.min(mn, v[i]); mx = Math.max(mx, v[i]) }
+      let pad = (mx - mn) * root.autoRangePad
+      if (!(pad > 0)) pad = 1
+      mn -= pad; mx += pad
+    }
+    return { mn: mn, mx: mx }
+  }
+
   readonly property point lastPoint: {
     var v = root.values || []
     var n = v.length
     var w = width, h = height
     if (n < 1) return Qt.point(w, h)
-    var mn = root.minValue, mx = root.maxValue
-    if (mx <= mn) {
-      mn = Infinity; mx = -Infinity
-      for (let i = 0; i < n; i++) { mn = Math.min(mn, v[i]); mx = Math.max(mx, v[i]) }
-      let pad = (mx - mn) * 0.15
-      if (!(pad > 0)) pad = 1
-      mn -= pad; mx += pad
-    }
+    var mn = root.valueRange.mn, mx = root.valueRange.mx
     var ly = h - ((v[n - 1] - mn) / (mx - mn)) * h
     return Qt.point(w, ly)
   }
@@ -76,14 +85,7 @@ Item {
       }
       if (n < 1) return
 
-      var mn = root.minValue, mx = root.maxValue
-      if (mx <= mn) {
-        mn = Infinity; mx = -Infinity
-        for (let i = 0; i < n; i++) { mn = Math.min(mn, v[i]); mx = Math.max(mx, v[i]) }
-        let pad = (mx - mn) * 0.15
-        if (!(pad > 0)) pad = 1
-        mn -= pad; mx += pad
-      }
+      var mn = root.valueRange.mn, mx = root.valueRange.mx
       var stepX = n > 1 ? w / (n - 1) : 0
       function px(i) { return n > 1 ? i * stepX : w }
       function py(val) { return h - ((val - mn) / (mx - mn)) * h }
@@ -110,7 +112,7 @@ Item {
 
   Rectangle {
     visible: (root.values || []).length > 0
-    width: 5; height: 5; radius: Style.shape.data
+    width: Style.space(5); height: Style.space(5); radius: Style.shape.data
     color: root.color
     x: root.lastPoint.x - width / 2
     y: root.lastPoint.y - height / 2
@@ -119,7 +121,7 @@ Item {
   }
   Rectangle {
     visible: (root.values || []).length > 0
-    width: 4; height: 4; radius: Style.shape.data
+    width: Style.space(4); height: Style.space(4); radius: Style.shape.data
     color: Qt.lighter(root.color, 1.4)
     x: root.lastPoint.x - width / 2
     y: root.lastPoint.y - height / 2

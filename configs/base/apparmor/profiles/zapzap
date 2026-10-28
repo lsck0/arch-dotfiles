@@ -46,7 +46,7 @@ profile zapzap @{exec_path} flags=(attach_disconnected,mediate_deleted) {
   owner @{user_music_dirs}/{,**} rwl,
   owner @{user_pictures_dirs}/{,**} rwl,
   owner @{user_videos_dirs}/{,**} rwl,
-  owner @{HOME}/sync/coms/{,**} rwl,
+  owner @{user_sync_dirs}/coms/{,**} rwl,
   include <abstractions/dotfiles/deny-sensitive-home>
   /usr/share/qt6/qtwebengine_dictionaries/{,**} r,
   include <abstractions/dotfiles/nssdb>

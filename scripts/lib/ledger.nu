@@ -51,11 +51,16 @@ export def ledger-units [repo: path, dirs: list<path>, scope: string, --plan]: n
     {owned: $owned, dropped: (if $disable { [] } else { $dropped }), by_hand: $by_hand}
 }
 
-# Explicitly installed packages that no module declares, keep lists or PACKAGES_DENY spares.
-export def packages-convergence [declared: list<string>, keep: list<string>]: nothing -> record {
-    let resolved = ^pacman -Qq ...$declared | complete | get stdout | lines
+# Installed packages the declared names and groups resolve to.
+def packages-resolve [declared: list<string>]: nothing -> list<string> {
+    ^pacman -Qq ...$declared | complete | get stdout | lines
         | append (^pacman -Qqg ...$declared | complete | get stdout | lines | each { split row " " | last })
         | uniq
+}
+
+# Explicitly installed packages that no module declares, keep lists or PACKAGES_DENY spares.
+export def packages-convergence [declared: list<string>, keep: list<string>]: nothing -> record {
+    let resolved = packages-resolve $declared
     let explicit = ^pacman -Qqe | lines
     let extra = $explicit | where $it not-in $resolved and $it not-in $keep and not ($it =~ $PACKAGES_DENY)
     {declared: ($resolved | length), explicit: ($explicit | length), remove: $extra}
@@ -63,8 +68,7 @@ export def packages-convergence [declared: list<string>, keep: list<string>]: no
 
 # Removes, after a yes, recorded packages no module declares; what another package still needs stays as a dependency.
 export def ledger-packages [declared: list<string>]: nothing -> nothing {
-    let resolved = ^pacman -Qq ...$declared | complete | get stdout | lines
-        | append (^pacman -Qqg ...$declared | complete | get stdout | lines | each { split row " " | last }) | uniq | sort
+    let resolved = packages-resolve $declared | sort
     if ($resolved | is-empty) { error make {msg: $"none of the ($declared | length) declared packages is installed, refusing"} }
     let installed = ^pacman -Qq | lines
     let dropped = ledger-get pkg | where {|p| $p in $installed and $p not-in $resolved and not ($p =~ $PACKAGES_DENY) }

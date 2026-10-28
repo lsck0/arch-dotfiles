@@ -5,7 +5,7 @@ export const meta = {volatile: true}
 const VALIDITY_UNITS = [python3-validity.service open-fprintd-resume.service open-fprintd-suspend.service]
 
 # Whether a python-validity sensor is present; elsewhere its fprintd mask leaves a real sensor without a driver.
-def validity-sensor []: nothing -> bool {
+export def validity-sensor []: nothing -> bool {
     [138a: 06cb:009a] | any {|id| (^lsusb -d $id | complete).exit_code == 0 }
 }
 

@@ -23,7 +23,7 @@ def envrc-line-add [envrc: path]: nothing -> nothing {
 def main [repo_dir?: path]: nothing -> nothing {
     let repo = $repo_dir | default "." | path expand
     if ($repo | path type) != dir { die --misuse $"($repo_dir) is not a directory" }
-    if (which direnv | is-empty) { die "direnv missing, install it with 'pacman -S direnv'" }
+    if (which direnv | is-empty) { die "direnv missing: dot apply --packages" }
     let identity = $repo | path join .identity
     mkdir $identity
     ^chmod 700 $identity

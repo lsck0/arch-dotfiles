@@ -8,6 +8,7 @@ const MCP_URL = "https://projects.blender.org/lab/blender_mcp.git"
 # v1.0.3; bump with constraints.txt (uv pip freeze of the tool env)
 const MCP_COMMIT = "2cea8d566dde07fbac28a61d698909d69724e853"
 const MCP_PORT = "9876"
+const MCP_HOST = "127.0.0.1"
 # apparmor's blender-mcp profile keeps the venv read-only, so python cannot write __pycache__ at runtime
 const INSTALL_FLAGS = ["--compile-bytecode"]
 const HERE = path self | path dirname
@@ -24,13 +25,23 @@ def pin-file []: nothing -> path {
     ^uv tool dir | str trim | path join blender-mcp .dotfiles-pin
 }
 
+def addon-pin-file []: nothing -> path {
+    xdg cache blender-mcp .addon-pin
+}
+
+# the add-on tree is fixed by MCP_COMMIT (what fetch-git lands), so the commit plus the prefs script is the whole input
+def addon-pin []: nothing -> string {
+    $"($MCP_COMMIT) (open --raw ($HERE | path join mcp-prefs.py) | hash sha256)"
+}
+
 export def link [cfg: record] {
     if (which blender uv | length) < 2 { return [] }
     let installed = try { open --raw (pin-file) | str trim } catch { "" }
+    let addon_installed = try { open --raw (addon-pin-file) | str trim } catch { "" }
     [
         (fetch-git $MCP_URL $MCP_COMMIT (src))
         (if $installed == (pin) { [] } else { step server-install })
-        (step addon-install)
+        (if $addon_installed == (addon-pin) { [] } else { step addon-install })
         (link-commands blender-mcp-bridge.nu)
         (desktop-override blender.desktop {
             let text = $in
@@ -41,7 +52,7 @@ export def link [cfg: record] {
         })
         (mcp-servers {blender-mcp: {
             type: stdio, command: (^uv tool dir --bin | str trim | path expand | path join blender-mcp), args: []
-            env: {BLENDER_MCP_HOST: "127.0.0.1", BLENDER_MCP_PORT: $MCP_PORT}
+            env: {BLENDER_MCP_HOST: $MCP_HOST, BLENDER_MCP_PORT: $MCP_PORT}
         }})
     ]
 }
@@ -67,9 +78,14 @@ export def addon-install []: nothing -> nothing {
     let same = (^diff -rq -x __pycache__ -x '.*' $addon $installed | complete).exit_code == 0
     if not $same {
         let tmp = mktemp --directory
-        blender-run [-c extension build --source-dir $addon --output-filepath ($tmp | path join mcp.zip)]
-        blender-run [-c extension install-file -r user_default ($tmp | path join mcp.zip)]
-        rm --recursive $tmp
+        try {
+            blender-run [-c extension build --source-dir $addon --output-filepath ($tmp | path join mcp.zip)]
+            blender-run [-c extension install-file -r user_default ($tmp | path join mcp.zip)]
+            rm --recursive $tmp
+        } catch {|e| rm --recursive --force $tmp; error make {msg: $e.msg} }
     }
-    blender-run [-b --python-exit-code 1 --python ($HERE | path join mcp-prefs.py)]
+    with-env {BLENDER_MCP_HOST: $MCP_HOST, BLENDER_MCP_PORT: $MCP_PORT} {
+        blender-run [-b --python-exit-code 1 --python ($HERE | path join mcp-prefs.py)]
+    }
+    addon-pin | save --force (addon-pin-file)
 }

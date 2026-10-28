@@ -29,6 +29,7 @@ Item {
   readonly property string modeQuery: mode === "apps" ? filterText : filterText.substring(1).trim()
 
   readonly property var modeTitles: ({ apps: "applications", calc: "calculator", run: "run", windows: "windows" })
+  readonly property var modePlaceholders: ({ apps: "search applications", calc: "enter an expression", run: "command to run", windows: "search windows" })
   readonly property var modeHints: ({
     apps: [["ESC", "close"], ["^ v", "select"], ["ENTER", "run"], ["= > @ :", "modes"]],
     calc: [["ESC", "clear"], ["ENTER", "copy"]],
@@ -204,7 +205,7 @@ Item {
     suffix: "[" + String(root.rows.length) + "]"
     prompt: true
     query: root.filterText
-    placeholder: "search applications"
+    placeholder: root.modePlaceholders[root.mode]
     hints: root.modeHints[root.mode]
     cardWidth: Style.space(560)
     cardHeight: Style.space(480)

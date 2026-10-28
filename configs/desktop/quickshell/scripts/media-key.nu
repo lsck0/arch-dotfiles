@@ -1,6 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 
 const volume_step_percent = 5
+const volume_max_percent = 100
 const brightness_step_percent = 5
 const shell_config = ($nu.home-dir | path join .config quickshell)
 const monitor_brightness = ($shell_config | path join scripts monitor-brightness.nu)
@@ -54,8 +55,8 @@ def main []: nothing -> nothing {
 }
 
 def "main volume-up" []: nothing -> nothing {
-    pactl set-sink-volume @DEFAULT_SINK@ $"+($volume_step_percent)%"
-    if (sink-volume) > 100 { pactl set-sink-volume @DEFAULT_SINK@ 100% }
+    let target = [$volume_max_percent ((sink-volume) + $volume_step_percent)] | math min
+    pactl set-sink-volume @DEFAULT_SINK@ $"($target)%"
     pactl set-sink-mute @DEFAULT_SINK@ 0
     volume-osd
 }

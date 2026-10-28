@@ -6,4 +6,4 @@ TryExec=gonzo
 Exec=@HOME@/.local/bin/desktop-run --file -- gonzo --file
 Icon=utilities-log-viewer
 Terminal=true
-Categories=Development;Monitor;ConsoleOnly;
+Categories=Development;System;Monitor;ConsoleOnly;

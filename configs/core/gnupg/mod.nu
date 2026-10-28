@@ -62,8 +62,8 @@ export def link [cfg: record] {
         # reload keeps cached keys; scdaemon reads its config only at start
         (file-render gpg-agent.conf ($dir | path join gpg-agent.conf) {
             CACHE_TTL: $cfg.cache_ttl, CACHE_TTL_MAX: $cfg.cache_ttl_max
-            # pinentry-qt needs Qt6/KF6, which only the desktop group installs; the wrapper falls back to curses
-            PINENTRY: (if ($env.FORM_FACTOR? | default "") == "wsl" { "/usr/bin/pinentry" } else { "/usr/bin/pinentry-qt" })
+            # pinentry-qt needs Qt6/KF6, which only the desktop group installs; fall back to the generic wrapper when it is absent (wsl, headless)
+            PINENTRY: (if ("/usr/bin/pinentry-qt" | path exists) { "/usr/bin/pinentry-qt" } else { "/usr/bin/pinentry" })
         }
             --then [gpgconf --reload gpg-agent])
         (file-copy scdaemon.conf ($dir | path join scdaemon.conf) --then [gpgconf --kill scdaemon])

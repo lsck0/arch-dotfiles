@@ -1,4 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
+
 const SHIM = "/usr/local/bin/yt-dlp"
 
 def --wrapped main [...args: string]: nothing -> nothing {

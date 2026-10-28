@@ -55,3 +55,6 @@ Still floating, fix when touching the module:
 - Latest-version installs: mason (`configs/programming/nvim/lua/lib/mason_packages.lua`), the VSCodium vim extension,
   Firefox and Chromium store extensions (`policies.json`, `policy.json`), rustup toolchains, Claude Code plugins other
   than caveman.
+- `mirror/pkgbuilds` resolving dependencies at build time with no lockfile or hashes: `bloodyad` (pip `--target`
+  installs `badldap` and `kerbad` plus their transitive deps), `bruno-cli` and `kulala-fmt` (`npm install -g` of the
+  registry tarball; `kulala-fmt` also runs tree-sitter install scripts).

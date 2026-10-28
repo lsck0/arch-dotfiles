@@ -1,7 +1,6 @@
 {
   "wallpaper": "alena-aenami-cover-art-007-6.jpg",
   "pair": "solarized-dawn",
-  "font": "Kode Mono",
   "special": { "background": "#002b36", "foreground": "#839496", "cursor": "#839496" },
   "colors": {
     "color0": "#073642", "color1": "#dc322f", "color2": "#859900", "color3": "#b58900",

@@ -13,7 +13,7 @@ Item {
     id: root
 
     readonly property string pluginDir: Paths.plugin("image-picker")
-    property string themeDirs: Paths.themes
+    property string themeDir: Paths.themes
     property int mode: 0
     property var modeNames: ["Wallpapers", "Themes"]
     property string imageRows: ""
@@ -284,7 +284,7 @@ Item {
         }
         loadImagesProc.activeSerial = serial;
         loadImagesProc.queuedSerial = 0;
-        loadImagesProc.command = root.mode === 1 ? [root.scriptPath("list.nu"), "themes", root.themeDirs, Paths.wallpaperList] : [root.scriptPath("list.nu"), Paths.wallpaperList];
+        loadImagesProc.command = root.mode === 1 ? [root.scriptPath("list.nu"), "themes", root.themeDir, Paths.wallpaperList] : [root.scriptPath("list.nu"), Paths.wallpaperList];
         loadImagesProc.running = true;
     }
 
@@ -310,14 +310,14 @@ Item {
     }
 
     function open(args) {
-        var tDirs = String(args.themeDirs || themeDirs);
+        var tDirs = String(args.themeDir || themeDir);
         var rows = String(args.imageRows || "");
         var sel = String(args.selectedImage || selectedImage);
         var selFile = String(args.selectionFile || "");
         var doneF = String(args.doneFile || "");
         var labels = args.showLabels === true || args.showLabels === "true";
         var filter = args.filterable === true || args.filterable === "true";
-        themeDirs = tDirs;
+        themeDir = tDirs;
         mode = args.mode === 1 ? 1 : 0;
         openSelector(rows, sel, selFile, doneF, labels, filter);
     }
@@ -439,7 +439,7 @@ Item {
     PanelWindow {
         visible: root.opened || boot.progress > 0
         color: "transparent"
-        WlrLayershell.namespace: "quickshell-image-selector"
+        WlrLayershell.namespace: "quickshell-image-picker"
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: root.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         exclusionMode: ExclusionMode.Ignore

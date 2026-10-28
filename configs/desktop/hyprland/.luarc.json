@@ -13,9 +13,6 @@
         ]
     },
     "workspace": {
-        "library": [
-            "${3rd}/luv/library"
-        ],
         "checkThirdParty": false
     }
 }

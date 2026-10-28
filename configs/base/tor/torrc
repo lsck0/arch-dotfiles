@@ -1,7 +1,6 @@
 User tor
 Log notice syslog
 DataDirectory /var/lib/tor
-IPv6Exit 1
 
 VirtualAddrNetworkIPv4 127.192.0.0/10
 VirtualAddrNetworkIPv6 [FC00::]/7

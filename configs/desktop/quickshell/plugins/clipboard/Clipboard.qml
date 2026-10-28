@@ -36,7 +36,11 @@ Item {
   readonly property string gpgHelper: root.pluginDir + "/gpg.nu"
 
   readonly property string historyPath: Paths.runtime + "/clipboard-history.json"
+  readonly property string imagesDir: Paths.runtime + "/clipboard-images"
   readonly property int historyLimit: 500
+  // the startup sweep waits so the current-clipboard capture can land in history first
+  readonly property int imageSweepDelayMs: 3000
+  property bool imagesSwept: false
 
   property color background: Colors.menu.background
   property color foreground: Colors.menu.text
@@ -208,9 +212,36 @@ Item {
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
 
+  function imagePaths() {
+    const seen = {}
+    const paths = []
+    for (let i = 0; i < root.history.length; i++) {
+      const entry = root.history[i]
+      if (entry.type === "image" && entry.path && !seen[entry.path]) {
+        seen[entry.path] = true
+        paths.push(entry.path)
+      }
+    }
+    return paths
+  }
+
+  // an image file is shared only by identical captures (same sha256 path), so a dropped entry orphans its file
+  function dropImageFile(path) {
+    if (!path || root.imagePaths().indexOf(path) >= 0) return
+    Quickshell.execDetached(["rm", "-f", "--", path])
+  }
+
+  function sweepImageFiles() {
+    Quickshell.execDetached(["bash", "-c",
+      'dir=$1; shift; shopt -s nullglob; declare -A keep; for p in "$@"; do keep[$p]=1; done; for f in "$dir"/*; do [ -n "${keep[$f]:-}" ] || rm -f -- "$f"; done',
+      "clipboard-sweep", root.imagesDir].concat(root.imagePaths()))
+  }
+
   function confirmClearHistory() {
+    const images = root.imagePaths()
     root.history = []
     root.saveHistory()
+    for (let i = 0; i < images.length; i++) Quickshell.execDetached(["rm", "-f", "--", images[i]])
     root.selectedIndex = 0
     root.cursorActive = false
     root.disarmPointer()
@@ -223,8 +254,10 @@ Item {
     if (index < 0 || index >= displayModel.count) return
 
     var row = displayModel.get(index)
+    var imagePath = row.entryType === "image" ? row.path : ""
     root.history = ClipboardHistory.removeEntryAt(root.history, row.historyIndex)
     root.saveHistory()
+    root.dropImageFile(imagePath)
 
     if (displayModel.count <= 1) {
       root.selectedIndex = 0
@@ -321,16 +354,21 @@ Item {
     root.openRow(displayModel.get(index))
   }
 
+  function copyText(text) {
+    if (copyTextProc.running) return
+    copyTextProc.stdinEnabled = true
+    copyTextProc.running = true
+    copyTextProc.write(text)
+    copyTextProc.stdinEnabled = false
+  }
+
   function copyRow(row) {
     if (!row) return
     root.close()
     if (row.entryType === "image") {
       Quickshell.execDetached(["bash", "-c", "wl-copy --type " + Util.shellQuote(row.mime) + " < " + Util.shellQuote(row.path)])
-    } else if (row.fullText && !copyTextProc.running) {
-      copyTextProc.stdinEnabled = true
-      copyTextProc.running = true
-      copyTextProc.write(row.fullText)
-      copyTextProc.stdinEnabled = false
+    } else if (row.fullText) {
+      root.copyText(row.fullText)
     }
   }
 
@@ -364,10 +402,7 @@ Item {
       if (!data.ok) { root.gpgError = data.error; return }
       var plain = root.gpgText
       root.close()
-      copyTextProc.stdinEnabled = true
-      copyTextProc.running = true
-      copyTextProc.write(data.armored + "\n")
-      copyTextProc.stdinEnabled = false
+      root.copyText(data.armored + "\n")
       root.forgetTextHash(Qt.md5(plain))
       Quickshell.execDetached(["notify-send", "--app-name=clipboard", "Encrypted and signed", "The armored message is on the clipboard"])
     }
@@ -396,7 +431,7 @@ Item {
   Timer {
     id: gpgHideTimer
     interval: 600
-    running: root.gpgBusy && (gpgEncryptProc.running || gpgDecryptProc.running)
+    running: gpgEncryptProc.running || gpgDecryptProc.running
     onTriggered: {
       root.gpgHidden = true
       Quickshell.execDetached(["notify-send", "--app-name=clipboard", "Waiting for gpg", "pinentry or a key touch; the clipboard window comes back after"])
@@ -407,6 +442,13 @@ Item {
   onGpgHiddenChanged: if (!root.gpgHidden && root.opened) Qt.callLater(function() { keyCatcher.forceActiveFocus() })
 
   Component.onCompleted: initProc.running = true
+
+  Timer {
+    id: imageSweepTimer
+    interval: root.imageSweepDelayMs
+    repeat: false
+    onTriggered: root.sweepImageFiles()
+  }
 
   ListModel { id: displayModel }
 
@@ -423,6 +465,7 @@ Item {
     printErrors: false
     onLoaded: {
       root.loadHistory(text())
+      if (!root.imagesSwept) { root.imagesSwept = true; imageSweepTimer.start() }
       Util.rearmWatch(this)
     }
     onLoadFailed: root.loadHistory("[]")
@@ -491,7 +534,7 @@ Item {
     placeholder: "search clipboard"
     hints: root.gpgMode === "encrypt" ? [["ESC", "back"], ["UP/DOWN", "key"], ["SPACE", "pick"], ["ENTER", "encrypt"]]
       : root.gpgMode === "decrypt" ? [["ESC", "back"]]
-      : [["ESC", "close"], ["ENTER", "copy"], ["ALT+ENTER", "open"], ["DEL", "forget"], ["CTRL+E", "encrypt"], ["CTRL+D", "decrypt"]]
+      : [["ESC", "close"], ["ENTER", "copy"], ["ALT+ENTER", "open"], ["DEL", "forget"], ["SHIFT+DEL", "clear"], ["CTRL+E", "encrypt"], ["CTRL+D", "decrypt"]]
     keyboard: !root.gpgBusy
     cardWidth: Style.space(700)
     cardHeight: Style.space(480)

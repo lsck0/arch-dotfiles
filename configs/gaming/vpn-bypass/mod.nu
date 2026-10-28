@@ -1,6 +1,6 @@
 use module.nu *
 
-const DISPATCHER = "/etc/NetworkManager/dispatcher.d/85-games-route"
+const DISPATCHER = "/etc/NetworkManager/dispatcher.d/86-games-route"
 const UNIT = "games-bypass.service"
 
 export def system [cfg: record] {

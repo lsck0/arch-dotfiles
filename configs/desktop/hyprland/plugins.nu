@@ -71,8 +71,13 @@ def main []: nothing -> nothing {
         return
     }
     let listed = ^hyprctl plugin list | complete | get stdout
-    let loaded = $PLUGINS | where {|p| (so-path $p.name $hyprland | path exists) and not ($listed | str contains $p.name) }
-        | each {|p| ^hyprctl plugin load (so-path $p.name $hyprland) | complete | get exit_code }
+    let results = $PLUGINS | where {|p| (so-path $p.name $hyprland | path exists) and not ($listed | str contains $p.name) }
+        | each {|p| {name: $p.name, exit_code: (^hyprctl plugin load (so-path $p.name $hyprland) | complete | get exit_code)} }
+    let loaded = $results | where exit_code == 0
+    let load_failed = $results | where exit_code != 0
+    if ($load_failed | is-not-empty) {
+        ^notify-send -a hyprland "Hyprland plugins did not load" ($load_failed | get name | str join ", ") | complete | ignore
+    }
     # plugin options are only accepted once the plugin is in, so the config is read again
     if ($loaded | is-not-empty) { ^hyprctl reload | ignore }
     if ($failed | is-not-empty) { exit 1 }

@@ -1,9 +1,11 @@
+import os
+
 import addon_utils
 import bpy
 
 ADDON = "bl_ext.user_default.mcp"
-HOST = "127.0.0.1"
-PORT = 9876
+HOST = os.environ["BLENDER_MCP_HOST"]
+PORT = int(os.environ["BLENDER_MCP_PORT"])
 
 prefs = bpy.context.preferences
 changed = False
@@ -14,6 +16,7 @@ if not enabled:
     changed = True
 assert addon_utils.check(ADDON)[1], "blender: the mcp add-on would not enable"
 
+# the mcp add-on refuses to start without global online access (its startup checks bpy.app.online_access)
 if not prefs.system.use_online_access:
     prefs.system.use_online_access = True
     changed = True

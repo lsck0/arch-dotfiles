@@ -68,9 +68,11 @@ BarWidget {
           root.ok = s.ok === true
           root.error = s.error || ""
           if (!root.ok) {
-            if (root.error === "source") { root.absent = true; statusProc.running = false }
+            // hide on a missing checkout, but keep polling: homelab-status.nu re-stats lab.json each loop, so the widget returns once it reappears
+            root.absent = root.error === "source"
             return
           }
+          root.absent = false
           if (s.links) root.links = s.links
           root.services = s.services || []
           root.alerts = s.alerts || []

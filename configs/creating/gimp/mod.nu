@@ -9,6 +9,7 @@ const PHOTOGIMP_URL = $"https://github.com/Diolinux/PhotoGIMP/releases/download/
 # gimp 3.2 renamed vectors to paths and rejects a whole toolrc over one unknown tool name
 const RENAMES = {gimp-vector-tool: gimp-path-tool, tools-vector: tools-path, gimp-vectors-list: gimp-path-list}
 const RENAMED_FILES = [toolrc shortcutsrc sessionrc]
+const WELCOME_OFF = "(show-welcome-dialog no)"
 
 def unpacked []: nothing -> path {
     xdg cache photogimp $PHOTOGIMP_VERSION
@@ -18,8 +19,6 @@ def stale [dir: path]: nothing -> bool {
     $RENAMED_FILES | each {|f| $dir | path join $f } | where ($it | path exists)
     | any {|f| let text = open --raw $f; $RENAMES | columns | any {|old| $text | str contains $'"($old)"' } }
 }
-
-const WELCOME_OFF = "(show-welcome-dialog no)"
 
 def welcome-seen-done [config: path, release: string]: nothing -> bool {
     let gimprc = $config | path join gimprc
@@ -48,8 +47,13 @@ export def link [cfg: record] {
 
 export def welcome-seen [config: path, release: string]: nothing -> nothing {
     let gimprc = $config | path join gimprc
-    let text = open --raw $gimprc | str replace --regex '\(config-version "[^"]*"\)' $"\(config-version \"($release)\"\)"
-    let text = if ($text | str contains $WELCOME_OFF) { $text } else { $text | str replace --regex '\(show-welcome-dialog [a-z]+\)\n?' "" | $"($in)($WELCOME_OFF)\n" }
+    let raw = if ($gimprc | path exists) { open --raw $gimprc } else { "" }
+    let versioned = if ($raw | str contains "(config-version ") {
+        $raw | str replace --regex '\(config-version "[^"]*"\)' $"\(config-version \"($release)\"\)"
+    } else {
+        $"($raw)\(config-version \"($release)\"\)\n"
+    }
+    let text = if ($versioned | str contains $WELCOME_OFF) { $versioned } else { $versioned | str replace --regex '\(show-welcome-dialog [a-z]+\)\n?' "" | $"($in)($WELCOME_OFF)\n" }
     $text | save --force $gimprc
 }
 

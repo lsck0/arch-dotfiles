@@ -10,9 +10,9 @@ const REPO = path self ../..
 export const VERBS = [link system theme apply backup restore update]
 export const HOOKS = [detect packages]
 const MARKER = "mod.nu"
-const ROOT_MODULES = [scripts skills]
+export const ROOT_MODULES = [scripts skills]
 export const SECRETS_GROUP = "secrets"
-const SECRETS_DATA = ["secrets/keys/**" "secrets/state/**"]
+export const SECRETS_DATA = ["secrets/keys/**" "secrets/state/**"]
 const META_DEFAULT = {deps: [], packages: {pacman: [], native: [], flatpak: {}, nix: []}, serial: false}
 
 # The first word of each non-comment line of a dependencies.txt, none for a missing file.

@@ -1,7 +1,6 @@
 {
   "wallpaper": "alena-aenami-mushi-shi.jpg",
   "pair": "everforest-light",
-  "font": "Kode Mono",
   "special": { "background": "#2d353b", "foreground": "#d3c6aa", "cursor": "#d3c6aa" },
   "colors": {
     "color0": "#343f44", "color1": "#e67e80", "color2": "#a7c080", "color3": "#dbbc7f",

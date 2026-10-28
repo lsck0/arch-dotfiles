@@ -7,7 +7,6 @@ const PLUGIN_URL = "https://usetrmnl.com/api/custom_plugins"
 const MESSAGES_URL = "https://api.anthropic.com/v1/messages"
 const HTTP_TIMEOUT = 15sec
 const POST_TIMEOUT = 30sec
-const PUSHED = ".trmnl_last_push"
 const PUSH_STALE = 300min
 const DAYS_SCANNED = 7
 const SPARK_BLOCKS = [" " "\u{2581}" "\u{2582}" "\u{2583}" "\u{2584}" "\u{2585}" "\u{2586}" "\u{2587}" "\u{2588}"]
@@ -39,6 +38,11 @@ def sum []: list<number> -> number { reduce --fold 0 {|x, acc| $acc + $x } }
 def claude-dir []: nothing -> path {
     [($nu.home-dir | path join .claude) ($nu.home-dir | path join .config claude)] | where ($it | path exists)
     | get 0? | default ($nu.home-dir | path join .claude)
+}
+
+# push stamp under XDG state; only its mtime is read, to tell whether usage changed since the last post
+def push-stamp []: nothing -> path {
+    ($env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state)) | path join trmnl-claude last-push
 }
 
 def tokens-format [n: int]: nothing -> string {
@@ -200,7 +204,7 @@ def payload-build [include_other: bool, strict_activity: bool, scrape: bool]: no
     let streak_from = if (do $day_total $today $wide) == 0 { 1 } else { 0 }
     let streak = $streak_from..$DAYS_SCANNED | each { $in }
         | take while {|i| (do $day_total (do $day_key $i) $wide) > 0 } | length
-    let models = $counted | group-by model --to-table
+    let models = $counted | where day >= (do $day_key ($DAYS_SCANNED - 1)) | group-by model --to-table
         | each {|g| {key: $g.model, tokens: ($g.items.total | sum), cost: ($g.items.cost | sum)} }
         | sort-by tokens --reverse
     let model_tokens = $models.tokens | sum
@@ -220,7 +224,7 @@ def payload-build [include_other: bool, strict_activity: bool, scrape: bool]: no
         }
     }
     {
-        sub: $credentials.sub, tier: $credentials.tier, active: (sessions-active $claude), fleet: ""
+        sub: $credentials.sub, tier: $credentials.tier, active: (sessions-active $claude)
         t_input: (tokens-format ($today_rows.input | sum)), t_output: (tokens-format ($today_rows.output | sum))
         t_cache_r: (tokens-format ($today_rows.cache_read | sum))
         t_cache_w: (tokens-format ($today_rows.cache_write | sum))
@@ -237,20 +241,20 @@ def payload-build [include_other: bool, strict_activity: bool, scrape: bool]: no
         o_tokens: (tokens-format ($other | where day == $today | get total | sum))
         o_messages: ($other | where day == $today | length)
         u_session: ($limits.session?.pct? | default $NONE), u_week: ($limits.week_all?.pct? | default $NONE)
-        u_sonnet: $NONE, u_model: "Model", u_reset: (if "session" in $limits { $limits.session.resets } else { "" })
+        u_reset: (if "session" in $limits { $limits.session.resets } else { "" })
         updated: ($now | format date "%b %-d, %H:%M")
     } | merge ($slots | reduce --fold {} {|s, acc| $acc | merge $s })
 }
 
 def payload-sample []: nothing -> record {
     {
-        sub: Max, tier: 20x, active: 2, fleet: "2/2", t_input: 1.2M, t_output: 245K, t_cache_r: 3.4M, t_cache_w: 890K
+        sub: Max, tier: 20x, active: 2, t_input: 1.2M, t_output: 245K, t_cache_r: 3.4M, t_cache_w: 890K
         t_total: 5.7M, t_cost: "$18.50", t_sessions: 4, t_messages: 142, trend: up, w_tokens: 28.3M, w_cost: "$67.89"
         w_sessions: 12, w_messages: 847, spark: ([1 3 5 7 4 6 8 5] | each {|i| $SPARK_BLOCKS | get $i } | str join)
         streak: 7, top_project: trmnl-claude, o_tokens: "0", o_messages: 0, updated: "Apr 4, 11:22"
         m1_name: Opus, m1_tokens: 18.2M, m1_pct: 64, m1_cost: "$312", m2_name: Sonnet, m2_tokens: 8.1M, m2_pct: 29
         m2_cost: "$24.30", m3_name: Haiku, m3_tokens: 2.0M, m3_pct: 7, m3_cost: "$1.60", u_session: 42, u_week: 18
-        u_sonnet: 5, u_model: Fable, u_reset: "in 3h"
+        u_reset: "in 3h"
     }
 }
 
@@ -268,7 +272,9 @@ def plugin-post [payload: record]: nothing -> nothing {
         print --stderr $"HTTP ($reply.status): ($answer)"
         exit 1
     }
-    (date now | into int) / 1_000_000_000 | into string | save --force (claude-dir | path join $PUSHED)
+    let stamp = push-stamp
+    mkdir ($stamp | path dirname)
+    touch $stamp
 }
 
 # Post this machine's Claude Code usage to the TRMNL plugin (--dry-run prints the payload instead).
@@ -290,14 +296,25 @@ def main [
 }
 
 # The timer's ExecCondition: exit 0 to post (claude was used since, or the posted data is stale), 1 to skip.
+# systemd reads any 1-254 from ExecCondition as a clean skip, so an uncaught error (which nu exits 1 for)
+# would silently stop all posting; a genuine failure exits 255 instead, which systemd counts as failed.
 def "main changed" []: nothing -> nothing {
-    let claude = claude-dir
-    let pushed = $claude | path join $PUSHED
-    if not ($pushed | path exists) { exit 0 }
-    let at = ls $pushed | get 0.modified
-    if $at < ((date now) - $PUSH_STALE) or ($at | format date "%F") != (date now | format date "%F") { exit 0 }
-    let dirs = [projects sessions] | each {|d| $claude | path join $d } | where ($it | path exists)
-    let files = $dirs | each {|d| glob ($d | path join "**" "*") } | flatten
-    let newer = ($files | is-not-empty) and (ls --all --directory ...$files | any { $in.modified > $at })
-    exit (if $newer { 0 } else { 1 })
+    let code = try {
+        let claude = claude-dir
+        let pushed = push-stamp
+        if not ($pushed | path exists) { 0 } else {
+            let at = ls $pushed | get 0.modified
+            if $at < ((date now) - $PUSH_STALE) or ($at | format date "%F") != (date now | format date "%F") {
+                0
+            } else {
+                let dirs = [projects sessions] | each {|d| $claude | path join $d } | where ($it | path exists)
+                let files = $dirs | each {|d| glob ($d | path join "**" "*") } | flatten
+                if ($files | is-not-empty) and (ls --all --directory ...$files | any { $in.modified > $at }) { 0 } else { 1 }
+            }
+        }
+    } catch {|e|
+        print --stderr $"trmnl-claude changed: ($e.msg)"
+        255
+    }
+    exit $code
 }

@@ -14,6 +14,9 @@ shell_variant = bash
 switch_case_indent = true
 space_redirects = true
 
+[*.{qml,js,json}]
+indent_size = 2
+
 [*.md]
 trim_trailing_whitespace = false
 

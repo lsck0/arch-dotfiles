@@ -15,6 +15,9 @@ const HOME = ".hermes"
 const ORCHESTRATOR = "profiles/orchestrator"
 const PYTHON = "/opt/hermes-agent/venv/bin/python"
 const SKIN = "wallust"
+# the default of llm/vllm's `model` option and its socket; kept in one place so the two vllm records below cannot drift apart
+const VLLM_MODEL = "RogerS-01/Josiefied-Qwen3-8B-abliterated-v1-AWQ"
+const VLLM_BASE_URL = "http://127.0.0.1:8000/v1"
 const SETTINGS = {
     display.interface: tui
     model.default: claude-sonnet-5
@@ -26,14 +29,14 @@ const SETTINGS = {
         {provider: nous, model: "poolside/laguna-s-2.1:free"}
     ]
     model_aliases.vllm: {
-        model: "RogerS-01/Josiefied-Qwen3-8B-abliterated-v1-AWQ"
+        model: $VLLM_MODEL
         provider: custom
-        base_url: "http://127.0.0.1:8000/v1"
+        base_url: $VLLM_BASE_URL
         api_key: null
     }
     providers.vllm: {
-        base_url: "http://127.0.0.1:8000/v1"
-        model: "RogerS-01/Josiefied-Qwen3-8B-abliterated-v1-AWQ"
+        base_url: $VLLM_BASE_URL
+        model: $VLLM_MODEL
     }
 }
 const ORCHESTRATOR_SETTINGS = {compression.threshold_tokens: 500000}

@@ -4,6 +4,7 @@
 const DOT = path self | path dirname | path join .. .. .. .. scripts dot.nu
 
 def main []: nothing -> nothing {
+    # mirrors mod.nu HOME_DIR and its profiles parsing; a standalone hook cannot import the module
     let ini = $nu.home-dir | path join .config mozilla firefox profiles.ini
     if not ($ini | path exists) { return }
     let bare = open --raw $ini | lines | parse "Path={path}" | get path

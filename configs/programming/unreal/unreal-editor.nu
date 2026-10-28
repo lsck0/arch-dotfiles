@@ -14,13 +14,18 @@ def --wrapped main [...args: string]: nothing -> nothing {
     let engine = [$env.UE_ROOT? ($data | path join unreal-engine) /opt/unreal-engine] | compact --empty
         | where { $in | path join $EDITOR | path exists } | get --optional 0
     if $engine == null { print -e "unreal-editor: no engine (set UE_ROOT)"; exit 1 }
-    let toolsets = open --raw ($engine | path join $ALL_TOOLSETS) | from json
+    let toolsets = try {
+        open --raw ($engine | path join $ALL_TOOLSETS) | from json
         | get Plugins.Name | where $it not-in $TOOLSETS_SKIPPED | str join ","
-    let zen_args = open --raw ($engine | path join Engine/Config/BaseEngine.ini) | lines
+    } catch { "" }
+    let enable_plugins = if ($toolsets | is-empty) { "ModelContextProtocol" } else { $"ModelContextProtocol,($toolsets)" }
+    let zen_args = try {
+        open --raw ($engine | path join Engine/Config/BaseEngine.ini) | lines
         | skip until { $in == "[Zen.AutoLaunch]" } | skip 1 | take until { str starts-with "[" }
         | where { str starts-with "ExtraArgs=" } | each { str substring 10.. } | str join "\n"
+    } catch { "" }
     (exec ($engine | path join $EDITOR) ...$args
-        $"-EnablePlugins=ModelContextProtocol,($toolsets)"
+        $"-EnablePlugins=($enable_plugins)"
         -ModelContextProtocolStartServer $"-ModelContextProtocolPort=($MCP_PORT)"
         "-ini:Engine:[HTTPServer.Listeners]:DefaultBindAddress=127.0.0.1"
         $"-ini:Engine:[Zen.AutoLaunch]:ExtraArgs=($zen_args) --http-forceloopback"

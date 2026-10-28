@@ -12,7 +12,7 @@ Item {
     property string mainScreenName: ""
     readonly property int taskMax: 4
     readonly property int reminderMax: 4
-    readonly property string notesPath: Paths.home + "/sync/notes/notes.md"
+    readonly property string notesPath: Paths.notes
     property string notesText: ""
     readonly property int cardWidth: Style.space(520)
     readonly property var reminderRows: {
@@ -219,17 +219,26 @@ Item {
                         font.family: Style.font.family
                         font.pixelSize: Style.font.body
                         property bool edited: false
+                        // the file content this buffer last loaded or saved; a mismatch means it changed under us
+                        property string baseText: ""
 
                         function save() {
                             saveTimer.stop();
                             if (!edited)
                                 return ;
 
+                            if (root.notesText !== baseText)
+                                return ;
+
                             edited = false;
+                            baseText = text;
                             notesFile.setText(text);
                         }
 
-                        Component.onCompleted: text = root.notesText
+                        Component.onCompleted: {
+                            text = root.notesText;
+                            baseText = root.notesText;
+                        }
                         onTextChanged: if (activeFocus) {
                             edited = true;
                             saveTimer.restart();
@@ -249,8 +258,10 @@ Item {
 
                     Connections {
                         function onNotesTextChanged() {
-                            if (!notesEdit.activeFocus)
+                            if (!notesEdit.activeFocus) {
                                 notesEdit.text = root.notesText;
+                                notesEdit.baseText = root.notesText;
+                            }
                         }
 
                         target: root

@@ -3,7 +3,7 @@
 const REPO = path self ../..
 use log.nu *
 use cli.nu [concat jobs supervise]
-use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir]
+use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir EXIT_ABORTED]
 use platform.nu [platform-load platform-env]
 use profile.nu [profile-has]
 use modules.nu [modules-packages]
@@ -20,7 +20,6 @@ export const INTERNAL = path self internal.nu
 const FAILURES = "FAILURES.config"
 const EXIT_SYSTEM_PENDING = 3
 const FAILURES_INSTALL = "FAILURES.install"
-const EXIT_ABORTED = 2
 const NIXPKGS = "github:NixOS/nixpkgs/b6c8664de9b6cc07fe5666a29f91884ba81197c4"
 const FLATHUB = "https://dl.flathub.org/repo/flathub.flatpakrepo"
 const LFS_FILTER = [
@@ -65,7 +64,7 @@ export def plan-print [planned: table, verb: string, modules: table = [], mods: 
 
 export def --env link-run [mods: list<string>, force: bool, plan: bool]: nothing -> table {
     let ctx = pipeline-load $REPO user
-    $env.GOPATH = $nu.home-dir | path join .go
+    $env.GOPATH = $nu.home-dir | path join .local share go
     let planned = pipeline-plan $ctx link $mods $force
     if $plan {
         plan-print $planned link $ctx.modules $mods

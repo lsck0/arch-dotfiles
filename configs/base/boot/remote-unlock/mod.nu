@@ -91,8 +91,9 @@ export def wifi-conf []: nothing -> nothing {
         $fields.1 | ^wpa_passphrase $fields.0 | lines | where not ($it | str trim | str starts-with "#")
     } | flatten
     if not ($WIFI_CONF | path dirname | path exists) { ^install -dm700 ($WIFI_CONF | path dirname) }
+    # create the file 0600 before writing the psk= lines; save --force keeps the mode of an existing file
+    ^install -m600 /dev/null $WIFI_CONF
     ["ctrl_interface=/run/wpa_supplicant" ...$networks ""] | str join "\n" | save --force $WIFI_CONF
-    ^chmod 600 $WIFI_CONF
 }
 
 export def wifi-teardown []: nothing -> nothing {

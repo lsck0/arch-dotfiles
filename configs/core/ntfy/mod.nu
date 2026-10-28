@@ -4,7 +4,7 @@ const TOKEN = "configs/secrets/keys/ntfy-desktop-token"
 const HOMELAB_URL = "https://github.com/lsck0/homelab.git"
 
 export def link [cfg: record] {
-    if not (profile-has secrets) or not (platform-has homelab) or (which notify-send | is-empty) { return [] }
+    if not (owner-unlocked) or not (platform-has homelab) or (which notify-send | is-empty) { return [] }
     if not (secret-is-plaintext ($env.DOTFILES | path join $TOKEN)) {
         log-warn $"ntfy: no readable ($TOKEN), the forwarder idles until the secrets are unlocked"
     }

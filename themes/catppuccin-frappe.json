@@ -1,7 +1,6 @@
 {
   "wallpaper": "alena-aenami-the-way.jpg",
   "pair": "catppuccin-latte",
-  "font": "Kode Mono",
   "special": { "background": "#303446", "foreground": "#c6d0f5", "cursor": "#f2d5cf" },
   "colors": {
     "color0": "#51576d", "color1": "#e78284", "color2": "#a6d189", "color3": "#e5c890",

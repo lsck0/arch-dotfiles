@@ -29,16 +29,21 @@ def main [manifest: path, plugins: path]: nothing -> nothing {
     let version = if $testing { $entry.TestingAssemblyVersion } else { $entry.AssemblyVersion }
     let link = if $testing { $entry.DownloadLinkTesting } else { $entry.DownloadLinkInstall }
     let work = mktemp --directory
-    let dir = $work | path join $name $version
-    mkdir $dir
-    http get --raw --max-time 300sec $link | save ($work | path join plugin.zip)
-    ^bsdtar -xf ($work | path join plugin.zip) -C $dir
-    let fresh = $entry | items {|k, v| {k: $k, v: $v} } | where k in ($old | columns) and k not-in $KEPT
-    $fresh | reduce --fold $old {|f, acc| $acc | upsert $f.k $f.v }
-    | merge {AssemblyVersion: $version, ScheduledForDeletion: false}
-    | update DalamudApiLevel {|m| try { $m.DalamudApiLevel | into int } catch { $m.DalamudApiLevel } }
-    | to json --indent 2 | save --force ($dir | path join $"($name).json")
-    mkdir $plugins
-    mv ($work | path join $name) ($plugins | path join $name)
+    try {
+        let dir = $work | path join $name $version
+        mkdir $dir
+        http get --raw --max-time 300sec $link | save ($work | path join plugin.zip)
+        ^bsdtar -xf ($work | path join plugin.zip) -C $dir
+        let fresh = $entry | items {|k, v| {k: $k, v: $v} } | where k in ($old | columns) and k not-in $KEPT
+        $fresh | reduce --fold $old {|f, acc| $acc | upsert $f.k $f.v }
+        | merge {AssemblyVersion: $version, ScheduledForDeletion: false}
+        | update DalamudApiLevel {|m| try { $m.DalamudApiLevel | into int } catch { $m.DalamudApiLevel } }
+        | to json --indent 2 | save --force ($dir | path join $"($name).json")
+        mkdir $plugins
+        mv ($work | path join $name) ($plugins | path join $name)
+    } catch {|e|
+        rm --recursive --force $work
+        error make {msg: $e.msg}
+    }
     rm --recursive $work
 }

@@ -2,14 +2,12 @@
 
 use ../../configs/core/wallust/palette.nu
 use platform.nu [PLATFORM_FACTS]
-use modules.nu [VERBS HOOKS names-read]
+use modules.nu [VERBS HOOKS names-read ROOT_MODULES SECRETS_DATA]
 
 const REPO = path self ../..
 const SUDO = '\bsudo\b'
-const NU_USER_FACT = '(profile-has|profile-load|\$nu\.home-dir|\$env\.HOME\b|\$env\.USER\b|~/)'
+const NU_USER_FACT = '(profile-has|profile-load|owner-unlocked|\$nu\.home-dir|\$env\.HOME\b|\$env\.USER\b|~/)'
 const QUOTED = r#''[^']*'|"(?:[^"\\]|\\.)*"'#
-const ROOT_MODULES = [scripts skills]
-const SECRETS_DATA = ["secrets/keys/**" "secrets/state/**"]
 # the folder root itself (syncthing needs it) and .stignore (per device) are not writes into it
 const SYNC_PATH = '(?:\$\{?HOME\}?|~|%h)/sync(?<tail>[^\w].*|$)'
 const SYNC_WRITE = '(^|[^\w-])(mkdir|touch|cp|mv|install|tee|rm|ln|unzip|tar|curl|wget)([^\w-]|$)|--mkdir|>'
@@ -42,7 +40,7 @@ def lint-modules []: nothing -> list<string> {
     let configs = $REPO | path join configs
     let groups = ls $configs | where type == dir | get name | path basename
     let deps = $groups | where {|g| $configs | path join $g dependencies.txt | path exists } | reduce --fold {} {|g, acc| $acc | insert $g (names-read ($configs | path join $g dependencies.txt)) }
-    let bad_deps = $deps | items {|g, ds| $ds | where $it not-in $groups | each { $"configs/($g)/dependencies.txt: '($in)' is not a module" } } | flatten
+    let bad_deps = $deps | items {|g, ds| $ds | where $it not-in $groups | each { $"configs/($g)/dependencies.txt: '($in)' is not a group" } } | flatten
     let platforms = glob ($REPO | path join platforms '*.nuon') | where not ($it | str ends-with ".options.nuon") | each {|f|
         open $f | get --optional groups | default [] | where {|g| $g not-in $groups and not ($configs | path join $g mod.nu | path exists) }
         | each { $"(rel $f): groups has '($in)', not a group or module" }
@@ -84,7 +82,7 @@ def lint-layers []: nothing -> list<string> {
 def lint-exports []: nothing -> list<string> {
     let mods = glob $"($REPO)/configs/**/mod.nu" --exclude $SECRETS_DATA
         | append ($ROOT_MODULES | each {|r| $REPO | path join $r mod.nu } | where ($it | path exists))
-    let imported = glob $"($REPO)/{configs,scripts}/**/*.nu" --exclude $SECRETS_DATA | each {|f|
+    let imported = glob $"($REPO)/{configs,scripts}/**/*.nu" --exclude ($SECRETS_DATA | each { $"configs/($in)" }) | each {|f|
         open --raw $f | parse --regex 'use \S*mod\.nu \[(?<names>[^\]]*)\]' | get names | split row " " | where $it != ""
     } | flatten | uniq
     $mods | each {|f|
@@ -232,7 +230,10 @@ def nu-check [files: list<string>]: nothing -> list<string> {
         let bytes = open --raw ($REPO | path join $f) | into binary
         $run.stdout + $run.stderr | lines | each {|l| try { $l | from json } catch { null } } | compact
         | where {|d| $d.severity? == "Error" }
-        | each {|d| $"($f):(($bytes | first $d.span.start | decode utf-8 | lines | length) + (if ($bytes | first $d.span.start | decode utf-8 | str ends-with "\n") { 1 } else { 0 })): ($d.message | lines | first)" }
+        | each {|d|
+            let prefix = $bytes | first $d.span.start | decode utf-8
+            $"($f):($prefix | split row "\n" | length): ($d.message | lines | first)"
+        }
     } | flatten | sort
 }
 
@@ -348,8 +349,8 @@ QtObject {
 # Compares palette.nu with Palette.js run in qml6, the engine quickshell uses, so rounding differences show.
 export def gate-palette []: nothing -> record {
     let themes = $PALETTE_THEMES | each {|t| $REPO | path join themes $"($t).json" }
-    let py = {synced: (palette palette-js-sync), expected: ($themes | each { palette-expect $in })}
-    let sync = if $py.synced { [] } else { [$"($PALETTE_JS): constants block is stale, run ($PALETTE_NU) js --write"] }
+    let nu_side = {synced: (palette palette-js-sync), expected: ($themes | each { palette-expect $in })}
+    let sync = if $nu_side.synced { [] } else { [$"($PALETTE_JS): constants block is stale, run ($PALETTE_NU) js --write"] }
     let qml = which qml6 | get --optional 0.path | default "/usr/lib/qt6/bin/qml"
     if not ($qml | path exists) { return {findings: $sync, notes: ["qml6: not installed, palette.nu against Palette.js not compared"]} }
     let dir = mktemp --directory
@@ -361,7 +362,7 @@ export def gate-palette []: nothing -> record {
     if $line == null { return {findings: ($sync ++ [$"palette: Palette.js probe failed:\n($run.stderr | str trim)"]), notes: []} }
     let got = $line | split row "qml: probe " | last | from json
     let diffs = $PALETTE_THEMES | enumerate | each {|t|
-        let want = $py.expected | get $t.index
+        let want = $nu_side.expected | get $t.index
         let have = $got | get $t.index
         if $want == $have { return null }
         let at = $want | zip $have | enumerate | where {|p| $p.item.0 != $p.item.1 } | get --optional 0

@@ -1,3 +1,5 @@
+# git-crypt plaintext checks and the owner gate.
+
 use profile.nu [profile-has]
 
 const GITCRYPT_MAGIC = 0x[00 47 49 54 43 52 59 50 54]

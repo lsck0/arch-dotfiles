@@ -164,6 +164,9 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
         if $action == up and $policy == lockdown-tor {
             ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=1" | ignore
             if $iface not-in (home-links) { ok nmcli connection modify $uuid ipv6.method disabled | ignore }
+        } else if $policy != lockdown-tor {
+            ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=0" | ignore
+            if $iface not-in (home-links) { ok nmcli connection modify $uuid ipv6.method auto | ignore }
         }
         if (home-links | is-empty) and not ($"/sys/class/net/($WG_IFACE)" | path exists) {
             ok systemctl stop --no-block mnt-homelab.mount | ignore

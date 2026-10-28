@@ -15,8 +15,13 @@ try:
 except (OSError, ValueError):
     pass
 
-with open(os.path.expanduser("~/.config/dotfiles/style.json")) as _f:
-    _style = json.load(_f)
+# the metrics a theme set (configs/core/wallust), its defaults when the file is missing or invalid
+_style = {"light_luminance": 0.4, "radius_px": 2}
+try:
+    with open(os.path.expanduser("~/.config/dotfiles/style.json")) as _f:
+        _style.update(json.load(_f))
+except (OSError, ValueError):
+    pass
 
 # the font a theme or toggle-font set (configs/core/wallust/font.nu), its defaults when unset
 _font = {"family": "Kode Mono", "ui_size": 11}

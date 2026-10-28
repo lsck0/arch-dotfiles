@@ -6,7 +6,10 @@ export const meta = {inputs: [~/sync/vendor ~/.jai/.installed-from]}
 const HOOK = "hook/jai-install.nu"
 
 export def link [cfg: record] {
-    if not (profile-has secrets) { return [] }
+    if not (owner-unlocked) {
+        if (profile-has secrets) { log-warn "jai: secrets locked" }
+        return []
+    }
     let dir = $nu.home-dir | path join .jai
     if not ($dir | path join bin jai-linux | path exists) {
         # no --mkdir: a dir made in ~/sync before syncthing delivers its own can collide

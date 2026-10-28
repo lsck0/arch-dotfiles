@@ -79,8 +79,8 @@ def apps-fill [installed: list<string>]: list -> list {
         let wanted = $LAUNCH_OPTIONS_APPS | get --optional $app.k | default $LAUNCH_OPTIONS_DEFAULT
         let ours = $existing == null or ($existing | str trim) == "" or $existing in $LAUNCH_OPTIONS_OURS
         if not $ours or $existing == $wanted { return $app }
-        let options = if ($app.v | any { $in.k == LaunchOptions }) {
-            $app.v | each { if $in.k == LaunchOptions { $in | update v $wanted } else { $in } }
+        let options = if ($app.v | any { ($in.k | str downcase) == "launchoptions" }) {
+            $app.v | each { if ($in.k | str downcase) == "launchoptions" { $in | update v $wanted } else { $in } }
         } else { $app.v | append {k: LaunchOptions, v: $wanted} }
         $app | update v $options
     }

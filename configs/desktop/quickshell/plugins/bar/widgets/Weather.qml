@@ -35,7 +35,8 @@ BarWidget {
     [2, 2, "\u{f0595}", "\u{f0f31}", "Partly cloudy"],
     [3, 3, "\u{f0590}", "\u{f0590}", "Overcast"],
     [45, 48, "\u{f0591}", "\u{f0591}", "Fog"],
-    [51, 57, "\u{f0597}", "\u{f0597}", "Drizzle"],
+    [51, 55, "\u{f0597}", "\u{f0597}", "Drizzle"],
+    [56, 57, "\u{f067f}", "\u{f067f}", "Freezing drizzle"],
     [61, 65, "\u{f0596}", "\u{f0596}", "Rain"],
     [66, 67, "\u{f067f}", "\u{f067f}", "Freezing rain"],
     [71, 77, "\u{f0598}", "\u{f0598}", "Snow"],
@@ -485,16 +486,17 @@ BarWidget {
           text: "NEXT 24 HOURS" + (root.hourly.length > 0 ? " :: " + root.t(root.hourlyTempMin) + " .. " + root.t(root.hourlyTempMax) : "")
         }
 
-        // both charts share one axis column and one slot per hour
+        // one meteogram: the temperature curve with precip-chance bars behind it, on a shared time axis
         Item {
           id: hourlyChart
           width: parent.width
-          height: tempRow.height + Style.spacing.xs + rainCaption.implicitHeight + Style.spacing.xxs + rainRow.height
+          height: plot.height + Style.spacing.xs + ticks.height
           visible: root.hourly.length > 0
 
-          readonly property real axisWidth: Math.max(tempMaxLabel.implicitWidth, tempMinLabel.implicitWidth, rainMaxLabel.implicitWidth)
+          readonly property real axisWidth: Math.max(tempMaxLabel.implicitWidth, tempMinLabel.implicitWidth)
+          readonly property real rainAxisWidth: Math.max(rainMaxLabel.implicitWidth, rainMinLabel.implicitWidth)
           readonly property real plotX: axisWidth + Style.spacing.xs
-          readonly property real plotWidth: width - plotX
+          readonly property real plotWidth: width - plotX - rainAxisWidth - Style.spacing.xs
           readonly property int count: Math.max(1, root.hourly.length)
           readonly property real gap: 1
           readonly property real slot: (plotWidth + gap) / count
@@ -502,12 +504,30 @@ BarWidget {
           function slotCenter(i) { return plotX + i * slot + barWidth / 2 }
 
           Item {
-            id: tempRow
+            id: plot
             width: parent.width
             height: Style.space(64)
 
             AxisLabel { id: tempMaxLabel; anchors.top: parent.top; x: hourlyChart.axisWidth - implicitWidth; text: root.t(root.hourlyTempMax) }
             AxisLabel { id: tempMinLabel; anchors.bottom: parent.bottom; x: hourlyChart.axisWidth - implicitWidth; text: root.t(root.hourlyTempMin) }
+            AxisLabel { id: rainMaxLabel; anchors.top: parent.top; anchors.right: parent.right; text: "100%"; opacity: Style.emphasis.faint }
+            AxisLabel { id: rainMinLabel; anchors.bottom: parent.bottom; anchors.right: parent.right; text: "0%"; opacity: Style.emphasis.faint }
+
+            // precip-chance bars first so they sit behind the temperature curve
+            Repeater {
+              model: root.hourly
+              delegate: Rectangle {
+                id: hourBar
+                required property var modelData
+                required property int index
+                x: hourlyChart.plotX + index * hourlyChart.slot
+                width: hourlyChart.barWidth
+                height: Math.max(0, plot.height * Math.max(0, Math.min(100, Number(hourBar.modelData.pop) || 0)) / 100)
+                anchors.bottom: parent.bottom
+                color: Util.alpha(Colors.accent, 0.35)
+                antialiasing: false
+              }
+            }
 
             Sparkline {
               x: hourlyChart.slotCenter(0)
@@ -521,74 +541,36 @@ BarWidget {
             }
           }
 
-          AxisLabel {
-            id: rainCaption
-            y: tempRow.height + Style.spacing.xs
-            x: hourlyChart.plotX
-            text: "RAIN CHANCE"
-            font.letterSpacing: Style.headerTracking
-          }
-
           Item {
-            id: rainRow
-            y: rainCaption.y + rainCaption.implicitHeight + Style.spacing.xxs
+            id: ticks
+            y: plot.height + Style.spacing.xs
             width: parent.width
-            height: rainBars.height + ticks.height
-
-            AxisLabel { id: rainMaxLabel; anchors.top: parent.top; x: hourlyChart.axisWidth - implicitWidth; text: "100%" }
-            AxisLabel { y: rainBars.height - implicitHeight; x: hourlyChart.axisWidth - implicitWidth; text: "0%" }
-
-            Item {
-              id: rainBars
-              width: parent.width
-              height: Style.space(28)
-              Repeater {
-                model: root.hourly
-                delegate: Rectangle {
-                  id: hourBar
-                  required property var modelData
-                  required property int index
-                  x: hourlyChart.plotX + index * hourlyChart.slot
-                  width: hourlyChart.barWidth
-                  height: Math.max(1, rainBars.height * Math.max(0, Math.min(100, Number(hourBar.modelData.pop) || 0)) / 100)
-                  anchors.bottom: parent.bottom
-                  color: Util.alpha(Colors.accent, 0.55)
-                  antialiasing: false
-                }
-              }
+            height: tickProbe.implicitHeight
+            Column {
+              id: tickProbe
+              visible: false
+              Text { text: "0"; font.family: Style.font.iconFamily; font.pixelSize: Style.font.iconSmall }
+              Text { text: "0"; font.family: Style.font.family; font.pixelSize: Style.font.caption }
             }
-
-            Item {
-              id: ticks
-              y: rainBars.height
-              width: parent.width
-              height: tickProbe.implicitHeight
-              Column {
-                id: tickProbe
-                visible: false
-                Text { text: "0"; font.family: Style.font.iconFamily; font.pixelSize: Style.font.iconSmall }
-                Text { text: "0"; font.family: Style.font.family; font.pixelSize: Style.font.caption }
-              }
-              Repeater {
-                model: root.hourly
-                delegate: Column {
-                  id: hourTick
-                  required property var modelData
-                  required property int index
-                  visible: index % 6 === 0
-                  x: hourlyChart.slotCenter(index) - width / 2
-                  Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: root.iconFor(hourTick.modelData.code, 1)
-                    color: Colors.accent
-                    font.family: Style.font.iconFamily; font.pixelSize: Style.font.iconSmall
-                  }
-                  Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: hourTick.modelData.h
-                    color: Colors.menu.text; opacity: Style.emphasis.faint
-                    font.family: Style.font.family; font.pixelSize: Style.font.caption
-                  }
+            Repeater {
+              model: root.hourly
+              delegate: Column {
+                id: hourTick
+                required property var modelData
+                required property int index
+                visible: index % 6 === 0
+                x: hourlyChart.slotCenter(index) - width / 2
+                Text {
+                  anchors.horizontalCenter: parent.horizontalCenter
+                  text: root.iconFor(hourTick.modelData.code, hourTick.modelData.isDay)
+                  color: Colors.accent
+                  font.family: Style.font.iconFamily; font.pixelSize: Style.font.iconSmall
+                }
+                Text {
+                  anchors.horizontalCenter: parent.horizontalCenter
+                  text: hourTick.modelData.h
+                  color: Colors.menu.text; opacity: Style.emphasis.faint
+                  font.family: Style.font.family; font.pixelSize: Style.font.caption
                 }
               }
             }

@@ -6,6 +6,9 @@ export const meta = {deps: [core/wallust], packages: {pacman: [qutebrowser pytho
 
 const SEARCH_DEFAULT = "https://duckduckgo.com/?q={}"
 const SEARCH_HOMELAB = "https://search.lsck0.dev/search?q={}"
+const METHOD_DEFAULT = "GET"
+# searxng is POST-only by default: a GET /search 302-redirects to / and drops the query
+const METHOD_HOMELAB = "POST"
 
 export const options = {
     search_url: {
@@ -13,6 +16,13 @@ export const options = {
         default: $SEARCH_DEFAULT
         doc: "The default search engine, {} is the query; the homelab's searxng is reachable only on a homelab machine"
         label: "Search engine URL"
+        scope: user
+    }
+    search_method: {
+        type: string
+        default: $METHOD_DEFAULT
+        doc: "GET or POST for the search form; most engines use GET, searxng is POST-only"
+        label: "Search method"
         scope: user
     }
 }
@@ -23,7 +33,11 @@ const FETCH_QUIT_MS = "60000"
 const FETCH_TIMEOUT = "90"
 
 export def detect [cfg: record]: nothing -> record {
-    {search_url: (if (platform-has homelab) { $SEARCH_HOMELAB } else { $SEARCH_DEFAULT })}
+    if (platform-has homelab) {
+        {search_url: $SEARCH_HOMELAB, search_method: $METHOD_HOMELAB}
+    } else {
+        {search_url: $SEARCH_DEFAULT, search_method: $METHOD_DEFAULT}
+    }
 }
 
 def lists-ready []: nothing -> bool {
@@ -32,7 +46,7 @@ def lists-ready []: nothing -> bool {
 }
 
 export def link [cfg: record] {
-    let search = if $cfg.search_url == $SEARCH_DEFAULT { (detect $cfg).search_url } else { $cfg.search_url }
+    let search = if $cfg.search_url == $SEARCH_DEFAULT { detect $cfg | get search_url } else { $cfg.search_url }
     let dir = $nu.home-dir | path join $CONFIG_DIR
     [
         (file-copy config.py ($dir | path join config.py))
@@ -67,13 +81,16 @@ def startpage-colors []: nothing -> record {
 
 export def theme [cfg: record, wallpaper: string] {
     let dest = $nu.home-dir | path join $CONFIG_DIR startpage.html
-    let search = if $cfg.search_url == $SEARCH_DEFAULT { (detect $cfg).search_url } else { $cfg.search_url }
+    # fall to the platform default (searxng on a homelab machine) unless the user overrode the engine or its method
+    let search = if $cfg.search_url == $SEARCH_DEFAULT { detect $cfg | get search_url } else { $cfg.search_url }
+    let method = if $cfg.search_method == $METHOD_DEFAULT { detect $cfg | get search_method } else { $cfg.search_method }
     let startpage = file-render startpage.html $dest ({
         HOME: $nu.home-dir
-        DATA: ((xdg data))
+        DATA: (xdg data)
         RADIUS: $RADIUS_PX
         FONT: (font-load).family
-        SEARCH: $search
+        SEARCH: ($search | to json)
+        METHOD: $method
     } | merge (startpage-colors)) | file-text $dest $in.content --generated
     # without a running instance the command would start one
     if not (process-running qutebrowser) { return [$startpage] }

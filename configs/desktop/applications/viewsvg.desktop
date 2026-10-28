@@ -6,4 +6,4 @@ TryExec=viewsvg
 Exec=@HOME@/.local/bin/desktop-run --file -- viewsvg
 Icon=image-svg+xml
 Terminal=false
-Categories=Graphics;Viewer;VectorGraphics;
+Categories=Graphics;2DGraphics;VectorGraphics;Viewer;

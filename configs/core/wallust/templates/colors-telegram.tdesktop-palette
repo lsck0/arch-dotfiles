@@ -44,13 +44,13 @@ outlineButtonBgOver: {{color4}}1f; // default left outlined button background wi
 outlineButtonOutlineFg: {{color4}}; // default left outlined button left outline border
 outlineButtonBgRipple: {{color4}}2b; // default left outlined button ripple effect
 menuBg: {{background}}; // default popup menu background
-menuBgOver: {{foreground}}; // default popup menu item background with mouse over
+menuBgOver: {{color4}}1f; // default popup menu item background with mouse over
 menuBgRipple: {{color4}}2b; // default popup menu item ripple effect
 menuIconFg: {{color8}}; // default popup menu item icon (like main menu)
 menuIconFgOver: {{foreground}}; // default popup menu item icon with mouse over
 menuSubmenuArrowFg: {{color4}}; // default popup menu submenu arrow icon (like in message field context menu in case of RTL system language)
-menuFgDisabled: {{background}}; // default popup menu item disabled text (like unavailable items in message field context menu)
-menuSeparatorFg: {{background}}; // default popup menu separator (like in message field context menu)
+menuFgDisabled: {{color8}}; // default popup menu item disabled text (like unavailable items in message field context menu)
+menuSeparatorFg: {{color8}}; // default popup menu separator (like in message field context menu)
 scrollBarBg: {{foreground}}53; // default scroll bar current rectangle, the bar itself (like in chats list)
 scrollBarBgOver: {{foreground}}7a; // default scroll bar current rectangle with mouse over it
 scrollBg: {{foreground}}1a; // default scroll bar background
@@ -61,11 +61,11 @@ radialFg: windowFgActive; // default radial loader line (like in Media Viewer wh
 radialBg: {{color0}}56; // default radial loader background (like in Media Viewer when loading a photo)
 placeholderFg: {{color8}}; // default input field placeholder when field is not focused (like in phone input field when you log in)
 placeholderFgActive: {{color8}}; // default input field placeholder when field is focused
-inputBorderFg: {{background}}; // default input field bottom border (like in code input field when you log in and field is not focused)
-filterInputBorderFg: {{background}}; // default rounded input field border (like in chats list search field when field is focused)
+inputBorderFg: {{color8}}; // default input field bottom border (like in code input field when you log in and field is not focused)
+filterInputBorderFg: {{color8}}; // default rounded input field border (like in chats list search field when field is focused)
 filterInputInactiveBg: {{background}}; // default rounded input field background (like in chats list search field when field is inactive)
 checkboxFg: {{color4}}; // default unchecked checkbox rounded rectangle (and also emoji category icons)
-sliderBgInactive: {{background}}; // default slider not active bar (like in Settings when you choose interface scale or custom notifications count)
+sliderBgInactive: {{color8}}; // default slider not active bar (like in Settings when you choose interface scale or custom notifications count)
 sliderBgActive: {{color4}}; // default slider active bar (like in Settings when you choose interface scale or custom notifications count)
 tooltipBg: {{ bg_alt }}; // tooltip background (like when you put mouse over the message timestamp and wait)
 tooltipFg: {{color4}}; // tooltip text

@@ -30,11 +30,11 @@ const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo 
     --user | --system             one layer
     --packages                    declared packages, flatpak and nix instead, removals after a yes
   plan [mod...]                   what an apply would do; --order the run order, --modules every module
-  status [--brief]                generation, pending work, failures, changed files, health checks, secrets
+  status [--brief|--json]         generation, pending work, failures, changed files, health checks, secrets
   set [mod[.key] [value]]         options: every set one, a module's, one; a value sets it, --default resets it
   theme [name|random]             wallpaper and theme, fzf without a name
   module adopt|reset <file>       a changed file: into the repo | back to the repo copy
-  module unlink|remove|restore    a module: off | gone with its packages | back
+  module unlink|remove|restore    a module: off | gone with its packages | its restore verb (app state)
   log [run] | explain <thing>     a run's records | who wrote a path, who declares a package
   secrets unlock|lock|init|seal|audit
   test lint|check|fmt|run|...     the gates and the vm test
@@ -371,7 +371,7 @@ def "main status" [
 }
 
 # a run's records (default the last) by module and level; --trace the span tree with timings
-def "main log" [run?: string@run-ids, --module: string@module-ids, --level: string@[TRACE DEBUG INFO WARN ERROR PANIC] = "INFO", --trace]: nothing -> any {
+def "main log" [run?: string@run-ids, --module: string@module-ids, --level: string@$LOG_LEVELS = "INFO", --trace]: nothing -> any {
     if ($level | str uppercase) not-in $LOG_LEVELS { die --misuse $"log: --level ($level), one of ($LOG_LEVELS | str join ' ')" }
     let file = if $run == null { run-last-changed } else { runs-dir | path join $"($run).jsonl" }
     if $file == null or not ($file | path exists) { error make --unspanned {msg: "dot log: no such run"} }
@@ -426,7 +426,7 @@ def gate-report [what: string, findings: list<string>, notes: list<string>]: not
     print $"dot test: ($what) clean"
 }
 
-# the static gates (lint, check, fmt) and the vm test (run, logs, shot, type, destroy)
+# the static gates (lint, check, fmt) and the vm test (run, shot, destroy)
 def "main test" []: nothing -> nothing { help main test }
 
 # static checks: module refs, layer rules, ~/sync writes, generated files, *.test.nu

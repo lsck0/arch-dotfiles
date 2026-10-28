@@ -12,9 +12,9 @@ gui:
             - blue
 git:
     diffRenderers:
-        - command: delta --no-gitconfig --dark --paging=never --line-numbers
+        - command: delta --no-gitconfig --paging=never --line-numbers
           name: delta
-        - command: delta --no-gitconfig --dark --paging=never --line-numbers --side-by-side
+        - command: delta --no-gitconfig --paging=never --line-numbers --side-by-side
           name: delta side-by-side
 os:
     editPreset: nvim

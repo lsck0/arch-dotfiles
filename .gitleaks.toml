@@ -8,7 +8,6 @@ paths = [
   '''configs/base/yubikey/ssh-39779321\.pub''',
   '''configs/base/yubikey/ssh-39779321$''',
   '''configs/base/yubikey/age-39779321\.identity''',
-  '''configs/base/yubikey/recipients\.txt''',
   '''configs/base/pacman/archrepo\.asc''',
   '''configs/secrets/.*''',
 ]

@@ -1,6 +1,6 @@
 use module.nu *
 export use ../boot/boot.nu [cmdline-set]
-use ../boot/boot.nu [hooks-read hooks-write]
+use ../boot/boot.nu [hooks-read hooks-write hooks-insert]
 
 export const meta = {
     packages: {
@@ -49,11 +49,21 @@ export def packages [cfg: record]: nothing -> record {
 }
 
 export def system [cfg: record] {
-    if $env.FORM_FACTOR? == "wsl" or $cfg.nvidia_driver == "none" { return [] }
+    if $env.FORM_FACTOR? == "wsl" { return [] }
+    if ($cfg.nvidia_driver | default "none") == "none" { return [(step kms-restore)] }
     [(step cmdline-set nvidia_drm.modeset=1) (step kms-drop)]
 }
 
 # Drops kms from the hooks: it would put nouveau in the initramfs, claiming the gpu before nvidia loads.
 export def kms-drop []: nothing -> nothing {
     hooks-write (hooks-read | where $it != kms)
+}
+
+# Restores kms (inverse of kms-drop) so a box moved off nvidia gets early KMS back for plymouth.
+export def kms-restore []: nothing -> nothing {
+    let hooks = hooks-read
+    if kms in $hooks { return }
+    let anchor = [modconf udev base] | where $it in $hooks | get --optional 0
+    if $anchor == null { error make {msg: "hardware: HOOKS has no modconf/udev/base to insert kms after"} }
+    hooks-write (hooks-insert $hooks kms (($hooks | enumerate | where item == $anchor | get 0.index) + 1))
 }

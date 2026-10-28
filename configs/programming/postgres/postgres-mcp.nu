@@ -11,7 +11,7 @@ def login-works [host: string]: nothing -> bool {
 }
 
 def main []: nothing -> nothing {
-    let pgpass = $nu.home-dir | path join .pgpass
+    let pgpass = $env.PGPASSFILE? | default ($nu.home-dir | path join .local share pgpass)
     let prefix = $"($HOST):($PORT):*:($env.USER):"
     load-env {
         PGHOST: $HOST, PGPORT: ($PORT | into string), PGUSER: $env.USER, PGDATABASE: $env.USER, PGSSLMODE: disable
@@ -30,7 +30,8 @@ def main []: nothing -> nothing {
         with-env {PGHOST: $SOCKET} { $sql | ^psql -Xqw -v ON_ERROR_STOP=1 | ignore }
     }
     let data = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share)
-    let servers = glob ($data | path join pgedge-postgres-mcp * pgedge-postgres-mcp) | sort
+    let servers = glob ($data | path join pgedge-postgres-mcp * pgedge-postgres-mcp)
+        | sort-by {|p| $p | path dirname | path basename | split row . | each { into int } }
     if ($servers | is-empty) { print -e "postgres-mcp: no server installed, run dot apply"; exit 1 }
     exec ($servers | last) -config /dev/null
 }

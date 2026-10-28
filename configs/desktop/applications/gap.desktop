@@ -2,8 +2,8 @@
 Type=Application
 Name=GAP
 Comment=Computational discrete algebra
-TryExec=/usr/bin/gap
-Exec=/usr/bin/gap
+TryExec=gap
+Exec=gap
 Icon=kalgebra
 Terminal=true
 Categories=Science;Math;Education;ConsoleOnly;

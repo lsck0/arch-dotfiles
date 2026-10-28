@@ -202,5 +202,5 @@ ShellRoot {
   PowerMenu {}
   Overview {}
   Settings {}
-  Lock { id: lockScreen }
+  Lock { id: lockScreen; mainScreenName: shell.mainScreenName }
 }

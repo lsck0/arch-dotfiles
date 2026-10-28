@@ -51,7 +51,6 @@ OverlayCard {
   }
 
   readonly property color onCard: Colors.menu.text
-  readonly property color onCardDim: Util.alpha(Colors.menu.text, 0.55)
   readonly property color onCardUrgent: Colors.urgent
 
   title: "speed test"
@@ -131,8 +130,8 @@ OverlayCard {
       implicitHeight: runAgain.implicitHeight
       height: implicitHeight
       Button {
-        variant: "action"
         id: runAgain
+        variant: "action"
         anchors.horizontalCenter: parent.horizontalCenter
         text: "run again"
         foreground: root.onCard

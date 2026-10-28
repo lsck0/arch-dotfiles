@@ -8,9 +8,11 @@ const FRESH_SECONDS = 60
 const EXIT_WAIT_SECONDS = 10
 
 def main []: nothing -> nothing {
-    let asar = $nu.home-dir | path join .config BetterDiscord data betterdiscord.asar
-    let host = $nu.home-dir | path join .config discord Discord
-    let modules_link = $nu.home-dir | path join .local state betterdiscord-modules
+    let config = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config)
+    let state = $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state)
+    let asar = $config | path join BetterDiscord data betterdiscord.asar
+    let host = $config | path join discord Discord
+    let modules_link = $state | path join betterdiscord-modules
     if not ($host | path exists) { return }
     let modules = $host | path expand | path dirname | path join modules
     mkdir ($modules_link | path dirname)
@@ -28,8 +30,10 @@ def main []: nothing -> nothing {
 # Restarts a Discord younger than FRESH_SECONDS: a host update starts it on the bare core, before its modules exist.
 def relaunch-fresh []: nothing -> nothing {
     let main = ^pgrep -o -x Discord | complete | get stdout | str trim
-    if ($main | is-empty) or ((^ps -o etimes= -p $main | str trim | into int) >= $FRESH_SECONDS) { return }
-    ^pkill -x Discord
+    if ($main | is-empty) { return }
+    let etime = ^ps -o etimes= -p $main | complete
+    if $etime.exit_code != 0 or (($etime.stdout | str trim | into int) >= $FRESH_SECONDS) { return }
+    ^pkill -x Discord | complete | ignore
     for _ in 1..$EXIT_WAIT_SECONDS {
         if (^pgrep -x Discord | complete).exit_code != 0 { break }
         sleep 1sec

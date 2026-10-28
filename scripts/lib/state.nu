@@ -5,6 +5,8 @@ export const SYSTEM_STATE = "/var/lib/dotfiles"
 export const LIB_DIR = path self .
 # root runs nu only by absolute path, never what a user's PATH resolves
 export const NU_ROOT = "/usr/bin/nu"
+# the install subprocess exit code for a user-aborted install; shared across the stage, run and system-apply boundaries
+export const EXIT_ABORTED = 2
 const LOCKED_SCRIPT = path self locked.nu
 
 # The running layer's state dir; the system layer's is root's even when a user plans it.

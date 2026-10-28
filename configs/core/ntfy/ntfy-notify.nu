@@ -93,9 +93,9 @@ def notify-send [
 ]: nothing -> int {
     let escaped = $body | str replace --all "&" "&amp;" | str replace --all "<" "&lt;" | str replace --all ">" "&gt;"
     let argv = (
-        [-a $app -u $urgency -p -h $"string:omarchy-glyph:($glyph)"]
+        [-a $app -u $urgency -p -h $"string:lsck0-glyph:($glyph)"]
         ++ (if $replaces != 0 { [-r ($replaces | into string)] } else { [] })
-        ++ (if $click != "" { [-h $"string:omarchy-exec-argv:([xdg-open $click] | to json --raw)"] } else { [] })
+        ++ (if $click != "" { [-h $"string:lsck0-exec-argv:([xdg-open $click] | to json --raw)"] } else { [] })
         ++ [$title $escaped]
     )
     try { do { ^notify-send ...$argv } | complete | get stdout | str trim | into int } catch { 0 }
@@ -138,9 +138,9 @@ def subscribe [sub: record, since: string, token: string]: nothing -> nothing {
     let url = $"($sub.server)/($sub.topics | each { url encode } | str join ',')/json($query)"
     let last_id = state-dir | path join last-id
     # the token goes to curl on stdin: on the command line every local user could read it with ps
-    let stream = ($"Authorization: Bearer ($token)\n" | ^curl --silent --show-error --fail --no-buffer --speed-limit 1
-        --speed-time $IDLE_S --header "User-Agent: ntfy-notify" --header @- $url)
-    for line in ($stream | lines) {
+    # iterate the stream directly: a `let` would collect the whole response first, so nothing shows until curl exits
+    for line in ($"Authorization: Bearer ($token)\n" | ^curl --silent --show-error --fail --no-buffer --speed-limit 1
+        --speed-time $IDLE_S --header "User-Agent: ntfy-notify" --header @- $url | lines) {
         let msg = try { $line | from json } catch { null }
         if ($msg | describe) !~ '^record' { continue }
         if $msg.event? != "message" {

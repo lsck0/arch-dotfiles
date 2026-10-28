@@ -73,15 +73,17 @@
     <script src="file://@DATA@/weblinks/links.js"></script>
     <script>
       "use strict";
-      const SEARCH = "@SEARCH@";
+      const SEARCH = @SEARCH@;
+      const METHOD = "@METHOD@";
       const links = typeof weblinks === "undefined" ? [] : weblinks;
       const q = document.getElementById("q");
       const hint = document.getElementById("hint");
       const groups = document.getElementById("groups");
       const items = [];
+      const boxes = new Map();
 
       for (const link of links) {
-        let box = groups.querySelector(`section[data-g="${link.group}"]`);
+        let box = boxes.get(link.group);
         if (!box) {
           box = document.createElement("section");
           box.dataset.g = link.group;
@@ -90,6 +92,7 @@
           h.textContent = "> " + link.group;
           box.appendChild(h);
           groups.appendChild(box);
+          boxes.set(link.group, box);
         }
         const a = document.createElement("a");
         a.href = link.url;
@@ -141,8 +144,19 @@
         hint.textContent = url ? "enter: open url" : query === "" ? "type to filter, ctrl+1-9 open" : shown.length ? "enter: open, shift+enter: search" : "enter: search";
       }
 
-      function go(href) { window.location.href = href; }
-      function search(text) { go(SEARCH.replace("{}", encodeURIComponent(text.trim()))); }
+      // a synthesized anchor click navigates the tab where scripted location.href is constrained (file:// new-tab context)
+      function go(href) {
+        const a = document.createElement("a");
+        a.href = href;
+        document.body.appendChild(a);
+        a.click();
+      }
+
+      // navigate to the engine's GET query url via the same anchor click go() uses (reliable in the file:// new-tab context)
+      function search(text) {
+        const query = text.trim();
+        if (query !== "") go(SEARCH.replace("{}", encodeURIComponent(query)));
+      }
 
       q.addEventListener("input", () => { sel = 0; render(); });
       q.addEventListener("paste", (e) => {

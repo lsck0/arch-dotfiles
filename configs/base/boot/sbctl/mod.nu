@@ -7,7 +7,6 @@ const PK_CERT = "/var/lib/sbctl/keys/PK/PK.pem"
 const EVENT_LOG = "/sys/kernel/security/tpm0/binary_bios_measurements"
 const BOOT_FILES = [
     /boot/EFI/BOOT/BOOTX64.EFI /boot/EFI/systemd/systemd-bootx64.efi
-    /boot/efi/EFI/BOOT/BOOTX64.EFI /boot/efi/EFI/systemd/systemd-bootx64.efi
 ]
 
 export def system [cfg: record] {

@@ -31,8 +31,10 @@ export def link [cfg: record] {
         })
         (if (which rawtherapee-cli | is-empty) { [] } else {
             # -v exits 255
-            let version = ^rawtherapee-cli -v | complete | get stdout | parse --regex 'version (?<v>[^,]+),' | get 0.v
-            ini-merge ($config | path join RawTherapee options) {General: {Version: $version}}
+            let version = ^rawtherapee-cli -v | complete | get stdout | parse --regex 'version (?<v>[^,]+),' | get --optional 0.v
+            if $version == null { [] } else {
+                ini-merge ($config | path join RawTherapee options) {General: {Version: $version}}
+            }
         })
         (if (which lmms | is-empty) { [] } else {
             let workdir = ^xdg-user-dir DOCUMENTS | str trim | path join lmms

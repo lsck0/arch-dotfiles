@@ -15,7 +15,7 @@ const PORT_MAX = 65535
 const POOL_SIZE_MAX = 999
 
 def usage []: nothing -> nothing {
-    print -e "usage: toggle-root {tlp MODE|wg up|down|vllm on|off|firewall STATE|anonsocks VERB...}"
+    print -e "usage: toggle-root {tlp MODE|start|wg up|down|vllm on|off|firewall STATE|anonsocks VERB...}"
     exit 1
 }
 
@@ -50,7 +50,10 @@ def anonsocks [args: list<string>]: nothing -> nothing {
             let rate = $args.3 | into int
             let last = $port + $pool - 1
             if not ($port >= 1 and $pool in 1..$POOL_SIZE_MAX and $last <= $PORT_MAX and $rate >= 1) { usage }
-            $"table inet ($NFT_TABLE) {
+            $"add table inet ($NFT_TABLE)
+add chain inet ($NFT_TABLE) out { type filter hook output priority 0 ; policy accept ; }
+flush chain inet ($NFT_TABLE) out
+table inet ($NFT_TABLE) {
     chain out {
         type filter hook output priority 0; policy accept;
         oif \"lo\" tcp dport ($port)-($last) ct state new limit rate over ($rate)/second drop
@@ -61,7 +64,10 @@ def anonsocks [args: list<string>]: nothing -> nothing {
         [1, "egress-on"] => {
             let uid = caller-uid
             let slice = $"user.slice/user-($uid).slice/user@($uid).service/anonsocks.slice"
-            $"table inet ($NFT_TABLE) {
+            $"add table inet ($NFT_TABLE)
+add chain inet ($NFT_TABLE) egress { type filter hook output priority 0 ; policy accept ; }
+flush chain inet ($NFT_TABLE) egress
+table inet ($NFT_TABLE) {
     chain egress {
         type filter hook output priority 0; policy accept;
         socket cgroupv2 level 4 \"($slice)\" oif != \"lo\" reject

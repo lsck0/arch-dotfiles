@@ -6,12 +6,14 @@ const BACKLIGHT_LOW_PCT = 10
 const VCP_BRIGHTNESS = "10"
 const SELF = path self
 
-def state-file []: nothing -> path { $env.XDG_RUNTIME_DIR | path join screen-dim }
+def runtime-dir []: nothing -> path { $env.XDG_RUNTIME_DIR? | default /tmp }
+
+def state-file []: nothing -> path { runtime-dir | path join screen-dim }
 
 def backlight []: nothing -> bool { glob /sys/class/backlight/* | is-not-empty }
 
 def buses []: nothing -> list<string> {
-    let mapped = try { open --raw ($env.XDG_RUNTIME_DIR? | default /tmp | path join ddcutil-bus-map.tsv) | lines | each { split row "\t" | get 1 } } catch { [] }
+    let mapped = try { open --raw (runtime-dir | path join ddcutil-bus-map.tsv) | lines | each { split row "\t" | get 1 } } catch { [] }
     if ($mapped | is-not-empty) { return $mapped }
     ^ddcutil detect --terse | complete | get stdout | parse --regex '/dev/i2c-(?<bus>\d+)' | get bus
 }
@@ -20,7 +22,7 @@ def buses []: nothing -> list<string> {
 def dim []: nothing -> nothing {
     if (state-file | path exists) { return }
     let panel = if (backlight) {
-        let current = ^brightnessctl -m --class=backlight | complete | get stdout | lines | get 0? | default "" | split row "," | get 3?
+        let current = ^brightnessctl -m --class=backlight | complete | get stdout | lines | get --optional 0 | default "" | split row "," | get --optional 3
             | default "" | str trim --right --char "%"
         if $current =~ '^\d+$' and ($current | into int) > $BACKLIGHT_LOW_PCT {
             ^brightnessctl --class=backlight -s set $"($BACKLIGHT_LOW_PCT)%" | ignore
@@ -56,7 +58,7 @@ def main [action: string] {
         print -e "usage: screen-dim.nu {dim|restore}"
         exit 1
     }
-    ^flock ($env.XDG_RUNTIME_DIR | path join ddc-i2c.lock) nu --no-config-file $SELF $"locked-($action)"
+    ^flock (runtime-dir | path join ddc-i2c.lock) nu --no-config-file $SELF $"locked-($action)"
 }
 
 def "main locked-dim" [] { dim }

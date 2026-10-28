@@ -42,8 +42,6 @@ frames recolour on a theme switch exactly as a fresh launch would."
   (add-to-list 'custom-theme-load-path
                (expand-file-name "wal/" (or (getenv "XDG_CACHE_HOME")
                                             (expand-file-name "~/.cache/"))))
-  (add-to-list 'custom-theme-load-path
-               (expand-file-name "themes/" user-emacs-directory))
   (my/apply-system-theme)
   (doom-themes-org-config))
 

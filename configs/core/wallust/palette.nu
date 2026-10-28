@@ -241,6 +241,8 @@ def js-constants []: nothing -> string {
 # Whether Palette.js's generated constants block is current; --write regenerates it.
 export def palette-js-sync [--write]: nothing -> bool {
     let text = open --raw $PALETTE_JS
+    # no generated block means the BEGIN/END markers were stripped: nothing to check or rewrite, so fail instead of passing
+    if $text !~ $JS_BLOCK { error make {msg: $"palette.nu: ($PALETTE_JS) has no generated block, restore its BEGIN/END markers"} }
     let fresh = $text | str replace --regex $JS_BLOCK (js-constants)
     if $write and $fresh != $text { $fresh | save --force ($PALETTE_JS | path expand) }
     $write or $fresh == $text

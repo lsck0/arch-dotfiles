@@ -190,7 +190,7 @@ BarWidget {
             Text {
               width: parent.width
               horizontalAlignment: Text.AlignRight
-              text: root.activeMonitors.length > 1 ? root.activeMonitors.length + " MONITORS" : "1 MONITOR"
+              text: root.activeMonitors.length + (root.activeMonitors.length === 1 ? " MONITOR" : " MONITORS")
               color: Colors.menu.text
               opacity: Style.emphasis.dim
               font.pixelSize: Style.font.caption
@@ -349,7 +349,7 @@ BarWidget {
               stateMarker: true
               on: shaderItem.active
               label: shaderItem.modelData.label
-              onActivated: root.colorRun([root.shaderScript, shaderItem.active ? "off" : "set", shaderItem.modelData.name])
+              onActivated: root.colorRun(shaderItem.active ? [root.shaderScript, "off"] : [root.shaderScript, "set", shaderItem.modelData.name])
             }
 
             ButtonGroup {

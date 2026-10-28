@@ -10,7 +10,7 @@ def reminder-dir []: nothing -> path { $env.XDG_RUNTIME_DIR | path join quickshe
 
 # Sent as the app the shell shows through dnd and keeps out of history (NotificationLogic.js ACTION_APP).
 def notify [glyph: string, title: string, body: string = ""]: nothing -> nothing {
-    ^notify-send -a quickshell-action -u low -h $"string:omarchy-glyph:($glyph)" -- $title $body
+    ^notify-send -a quickshell-action -u low -h $"string:lsck0-glyph:($glyph)" -- $title $body
 }
 
 # TimerState.qml's remainingText mirrors it: keep the two in sync.
@@ -82,7 +82,7 @@ def main [
     systemd-run --user --quiet --collect $"--on-active=($minutes)m" $"--unit=($unit)" ($env.CURRENT_FILE | path expand) _fire $unit
     index-write
     let title = if $message != "" { $"($message) in ($unit_label)" } else { $"Reminder set for ($unit_label)" }
-    notify $bell_glyph $title $"Due at (date now | $in + ($minutes * 1min) | format date '%H:%M')"
+    notify $bell_glyph $title $"Due at (date now | $in + ($minutes * 1min) | format date '%-H:%M')"
 }
 
 def "main show" [--json (-j)]: nothing -> nothing {

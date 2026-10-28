@@ -1,5 +1,5 @@
 [Unit]
-Description=Weekly home directory log and temp sweep
+Description=Weekly home directory log sweep
 
 [Timer]
 OnCalendar=weekly

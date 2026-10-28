@@ -158,7 +158,7 @@ def start [s: record]: nothing -> nothing {
 export def anonymous-socks-up []: nothing -> nothing {
     let s = settings
     if (which $s.TOR_BIN | is-empty) {
-        error make {msg: "tor not found (set ANONYMOUS_SOCKS_TOR_BIN or: sudo pacman -S tor)"}
+        error make {msg: "tor not found (set ANONYMOUS_SOCKS_TOR_BIN or: dot apply base/tor)"}
     }
     if ($s.VERIFIED | path exists) and (is-up $s) { return (err "already up") }
     if (do { ^systemctl --user -q is-active $TOR_UNIT } | complete).exit_code == 0 {

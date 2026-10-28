@@ -10,13 +10,21 @@ const PROPERTIES = [
 # home paths holding keys and tokens, relative to $HOME
 const SENSITIVE_HOME = [
     .ssh .gnupg .pgpass .netrc .kube .aws .docker .claude .codex .password-store sync
-    .config/gh .config/rclone .config/dotfiles .local/share/keyrings .local/share/password-store
+    .age .rage
+    .config/gh .config/rclone .config/dotfiles .config/age
+    .local/share/keyrings .local/share/password-store .local/share/kwalletd
 ]
 
 # ProtectHome=read-only still lets a build READ these and copy them into the work dir; hide them outright.
 def sensitive-home-properties []: nothing -> list<string> {
-    let secrets = $env.DOTFILES? | default ($nu.home-dir | path join projects arch-dotfiles) | path join configs secrets
-    $SENSITIVE_HOME | each {|p| $nu.home-dir | path join $p } | append $secrets
+    let repo = $env.DOTFILES? | default ($nu.home-dir | path join projects arch-dotfiles)
+    # the git-crypt symmetric key decrypts every secret; the module copy lives under .git, the submodule's under .git/modules
+    let repo_secrets = [
+        ($repo | path join configs secrets)
+        ($repo | path join .git git-crypt)
+        ($repo | path join .git modules configs secrets git-crypt)
+    ]
+    $SENSITIVE_HOME | each {|p| $nu.home-dir | path join $p } | append $repo_secrets
     | each { $"InaccessiblePaths=-($in)" }
 }
 

@@ -1,7 +1,5 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [grafana-alloy loki]}}
-
 const VERSION = "2.0.2"
 const SHA256 = "624e997b78bcadf236f82f8086827890ba77b6dfdc6fd6446f7c48dfd9e586f0"
 const URL = $"https://github.com/grafana/mcp-grafana/releases/download/v($VERSION)/mcp-grafana_Linux_x86_64.tar.gz"

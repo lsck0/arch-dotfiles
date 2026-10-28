@@ -70,15 +70,6 @@ QtObject {
   readonly property string timeFormat: Qt.locale().timeFormat(Locale.ShortFormat)
   readonly property string dayFormat: Qt.locale().dateFormat(Locale.ShortFormat).replace(/\W*y+\W*/, "")
 
-  readonly property var byteUnits: ["B", "KB", "MB", "GB", "TB"]
-
-  function bytes(count) {
-    var v = Math.max(0, Number(count) || 0)
-    var i = 0
-    while (v >= 1024 && i < byteUnits.length - 1) { v /= 1024; i++ }
-    return Number(v.toPrecision(3)) + " " + byteUnits[i]
-  }
-
   function level(value, thresholds) {
     var stops = Colors.rampStops
     if (value >= thresholds[2]) return Colors.ramp(stops[3])

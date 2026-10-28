@@ -50,8 +50,8 @@ return {
         "nvim-orgmode/orgmode",
         ft = "org",
         opts = {
-            org_agenda_files = "~/orgfiles/**/*",
-            org_default_notes_file = "~/orgfiles/refile.org",
+            org_agenda_files = "~/sync/notes/**/*.org",
+            org_default_notes_file = "~/sync/notes/refile.org",
             mappings = { prefix = "<leader>m" },
         },
     },

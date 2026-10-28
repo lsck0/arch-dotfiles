@@ -2,7 +2,7 @@
 # Root's one entry: re-execs under one flock and interruptible.sh, only from the root-owned copy.
 
 use log.nu *
-use state.nu [SYSTEM_REPO SYSTEM_STATE]
+use state.nu [SYSTEM_REPO SYSTEM_STATE EXIT_ABORTED]
 use pipeline.nu [pipeline-load pipeline-plan pipeline-apply]
 use modules.nu [modules-packages]
 use ledger.nu [packages-convergence ledger-set ledger-packages ledger-units]
@@ -12,7 +12,6 @@ use system.nu [system-unpack system-secrets ENTRY]
 use cli.nu [supervise self-argv]
 
 const EXIT_FAILURES = 1
-const EXIT_ABORTED = 2
 const OFFLINE_WAIT_S = 120
 # the mirror answers 429 past its per-ip budget: the wait grows 5s per try up to a minute, about 35 minutes in all
 const DOWNLOAD_TRIES = 40
@@ -238,10 +237,14 @@ def "main preserve-prune" [days: int]: nothing -> nothing {
 }
 
 const USERNAME_PATTERN = '^[a-z_][a-z0-9_-]{0,31}$'
-const SIGNING_KEY_FINGERPRINT = "E7501F533316E9AFC6AAE907122F2CB527D1EFE3"
-const SIGNING_KEY_FILE = "configs/core/gnupg/luca-sandrock.pub.asc"
-const DOTFILES_URL = "https://github.com/lsck0/arch-dotfiles.git"
 const PROFILE_CUSTOM = "custom"
+
+# The trust anchor (url, signing key file and fingerprint) lives only in bootstrap.sh; read it so a key rotation there reaches adduser too.
+def bootstrap-const [repo: path, name: string]: nothing -> string {
+    let v = open --raw ($repo | path join "bootstrap.sh") | parse --regex ('(?m)^' + $name + '=(?<v>\S+)$') | get v
+    if ($v | length) != 1 { error make {msg: $"bootstrap.sh has no single ($name)=<value>"} }
+    $v.0
+}
 
 # adduser-dotfiles <name> [--profile <p>]: a non-wheel login with its own checkout; rerun-safe.
 def "main adduser" [name: string, --profile: string]: nothing -> nothing {
@@ -262,14 +265,17 @@ def "main adduser" [name: string, --profile: string]: nothing -> nothing {
     let home = ^getent passwd $name | split row ":" | get 5
     let checkout = $home | path join projects arch-dotfiles
     if not ($checkout | path join .git | path exists) {
-        ^runuser -u $name -- git clone $DOTFILES_URL $checkout
+        let dotfiles_url = bootstrap-const $repo DOTFILES_URL
+        let key_file = bootstrap-const $repo SIGNING_KEY_FILE
+        let fingerprint = bootstrap-const $repo SIGNING_KEY_FINGERPRINT
+        ^runuser -u $name -- git clone $dotfiles_url $checkout
         let gnupg = ^runuser -u $name -- mktemp -d | str trim
-        ^runuser -u $name -- env $"GNUPGHOME=($gnupg)" gpg --batch --quiet --import ($SYSTEM_REPO | path join $SIGNING_KEY_FILE)
+        ^runuser -u $name -- env $"GNUPGHOME=($gnupg)" gpg --batch --quiet --import ($repo | path join $key_file)
         let status = ^runuser -u $name -- env $"GNUPGHOME=($gnupg)" git -C $checkout verify-commit --raw HEAD | complete
         rm --recursive --force $gnupg
-        if $status.exit_code != 0 or not ($status.stderr | str contains $"VALIDSIG") or ($status.stderr | lines | where ($it | str contains VALIDSIG) | first | split row " " | last) != $SIGNING_KEY_FINGERPRINT {
+        if $status.exit_code != 0 or not ($status.stderr | str contains "VALIDSIG") or ($status.stderr | lines | where ($it | str contains VALIDSIG) | first | split row " " | last) != $fingerprint {
             rm --recursive --force $checkout
-            error make {msg: $"($DOTFILES_URL) HEAD is not signed by ($SIGNING_KEY_FINGERPRINT), refusing it"}
+            error make {msg: $"($dotfiles_url) HEAD is not signed by ($fingerprint), refusing it"}
         }
     }
     let live = $home | path join .config dotfiles profile.nuon

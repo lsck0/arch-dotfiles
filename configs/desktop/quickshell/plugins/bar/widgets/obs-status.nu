@@ -39,23 +39,25 @@ export def config-read []: nothing -> any {
     {port: ($config.server_port? | default $PORT_DEFAULT), password: ($config.server_password? | default "")}
 }
 
-export def sha256-base64 []: string -> string { hash sha256 --binary | encode base64 }
+def sha256-base64 []: string -> string { hash sha256 --binary | encode base64 }
 
-export def socket-recv []: nothing -> record {
+def socket-recv []: nothing -> record {
     let message = try { job recv --tag $TAG_SOCKET --timeout $RECV_TIMEOUT } catch { error make {msg: "obs-websocket timed out"} }
     if $message.op == null { error make {msg: "connection closed"} }
     $message
 }
 
-export def socket-send [socket: int, message: record]: nothing -> nothing { $message | to json -r | job send $socket }
+def socket-send [socket: int, message: record]: nothing -> nothing { $message | to json -r | job send $socket }
 
 export def request [socket: int, type: string, data: record = {}]: nothing -> any {
     let id = random uuid
     socket-send $socket {op: $OP_REQUEST, d: {requestType: $type, requestId: $id, requestData: $data}}
     let deadline = (date now) + $REQUEST_TIMEOUT
     loop {
-        if (date now) > $deadline { return null }
-        let reply = socket-recv
+        let remaining = $deadline - (date now)
+        if $remaining <= 0sec { return null }
+        let reply = try { job recv --tag $TAG_SOCKET --timeout $remaining } catch { return null }
+        if $reply.op == null { error make {msg: "connection closed"} }
         if $reply.d.requestId? == $id {
             return (if $reply.d.requestStatus.result { $reply.d.responseData? | default {} })
         }
@@ -198,6 +200,7 @@ def main [] {
         let socket = socket-open $config.port
         let failure = try {
             socket-identify $socket $config.password
+            $backoff = $RECONNECT_MIN
             mut due = true
             mut polled = date now
             mut active = false

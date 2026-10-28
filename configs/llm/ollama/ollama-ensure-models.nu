@@ -1,4 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
+# pulls the pinned models on first use; dot apply never downloads models
 const REGISTRY = "https://registry.ollama.ai/v2/library"
 const MANIFEST_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
 const OLLAMA_URL = "http://127.0.0.1:11434"

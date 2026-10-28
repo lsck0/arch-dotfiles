@@ -49,7 +49,8 @@ polkit.addRule(function (action, subject) {
 });
 
 // everything else goes through the one root helper, which checks its own arguments; none of its other verbs opens the
-// firewall or tor (anonsocks nft-off only lifts the guard on the caller's own slice, which that caller can leave anyway)
+// firewall or tor (anonsocks nft-off deletes the whole anonymous_socks table, dropping the egress guard and rate cap
+// for every uid's anonsocks slice; these machines are single-user, so that slice is the caller's own)
 polkit.addRule(function (action, subject) {
     if (action.id === "org.freedesktop.policykit.exec" &&
         action.lookup("program") === "/usr/local/bin/toggle-root" &&

@@ -151,7 +151,7 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     if ($unknown | is-not-empty) {
         error make {msg: $"no module ($unknown | str join ', '); dot plan --modules lists them"}
     }
-    let broken = $ctx.modules | where broken and ($ids | is-empty) or $it.id in $ids | where broken
+    let broken = $ctx.modules | where {|m| $m.broken and (($ids | is-empty) or $m.id in $ids) }
     if ($ids | is-not-empty) and ($broken | is-not-empty) {
         error make {msg: $"($broken.id | str join ', '): mod.nu does not parse"}
     }

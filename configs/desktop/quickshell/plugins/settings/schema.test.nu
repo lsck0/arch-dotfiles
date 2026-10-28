@@ -102,18 +102,22 @@ TestCase {
 
 def main [] {
     let dir = mktemp --directory
-    let output = qml-test $dir
-    let term = $output | lines | parse --regex 'qml: TERM (?<script>.*)$' | get 0.script
-    let echoed = ^bash -c ($term | str replace "; echo; read" "; exit 0; read" | str replace "'dot'" "'echo'") | str trim
-    if $echoed != "it's" { error make {msg: $"terminal command quotes wrong: ($term) ran as ($echoed)"} }
-    let args = $output | lines | parse --regex 'qml: ARG (?<arg>.*)$' | get arg | each { from json }
-    $READER | save ($dir | path join reader.nu)
-    let failed = $CASES | zip $args | each {|pair|
-        let got = ^nu --no-config-file ($dir | path join reader.nu) set -- x.y $pair.1 | str trim
-        let want = $pair.0.want | from nuon | to nuon
-        if $got != $want { $"($pair.0.type) ($pair.0.value | to nuon): argument ($pair.1) stored as ($got), want ($want)" }
-    } | compact
+    let err = try {
+        let output = qml-test $dir
+        let term = $output | lines | parse --regex 'qml: TERM (?<script>.*)$' | get 0.script
+        let echoed = ^bash -c ($term | str replace "; echo; read" "; exit 0; read" | str replace "'dot'" "'echo'") | str trim
+        if $echoed != "it's" { error make {msg: $"terminal command quotes wrong: ($term) ran as ($echoed)"} }
+        let args = $output | lines | parse --regex 'qml: ARG (?<arg>.*)$' | get arg | each { from json }
+        $READER | save ($dir | path join reader.nu)
+        let failed = $CASES | zip $args | each {|pair|
+            let got = ^nu --no-config-file ($dir | path join reader.nu) set -- x.y $pair.1 | str trim
+            let want = $pair.0.want | from nuon | to nuon
+            if $got != $want { $"($pair.0.type) ($pair.0.value | to nuon): argument ($pair.1) stored as ($got), want ($want)" }
+        } | compact
+        if ($args | length) != ($CASES | length) { error make {msg: $"($args | length) arguments for ($CASES | length) cases"} }
+        if ($failed | is-not-empty) { error make {msg: ($failed | str join "\n")} }
+        null
+    } catch {|e| $e.msg }
     rm --recursive --force $dir
-    if ($args | length) != ($CASES | length) { error make {msg: $"($args | length) arguments for ($CASES | length) cases"} }
-    if ($failed | is-not-empty) { error make {msg: ($failed | str join "\n")} }
+    if $err != null { error make {msg: $err} }
 }

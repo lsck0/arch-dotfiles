@@ -58,10 +58,10 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  * | TAB  |   Q  |   W  |   E  |   R  |   T  |                    |   Z  |   U  |   I  |   O  |   P  |  UE  |
  * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
  * | LCTL |   A  |   S  |   D  |   F  |   G  |-------.    ,-------|   H  |   J  |   K  |   L  |  OE  |  AE  |
- * |------+------+------+------+------+------|  Mute |    | Pause |------+------+------+------+------+------|
+ * |------+------+------+------+------+------|  Mute |    | Play  |------+------+------+------+------+------|
  * |LShift|   Y  |   X  |   C  |   V  |   B  |-------|    |-------|   N  |   M  |   ,  |   .  |   -  |RShift|
  * `-----------------------------------------/       /     \      \-----------------------------------------'
- *            |      | LCMD | LALT |LOWER | /Space  /       \Enter \  |RAISE | RALT |      |      |
+ *            |      | LCMD | LALT |LOWER | /Space  /       \Enter \  |UPPER | RALT |      |      |
  *            |      |      |      |      |/       /         \      \ |      |      |      |      |
  *            `----------------------------------'           '------''---------------------------'
  */
@@ -80,7 +80,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  * |  ^   |   1  |   2  |   3  |   4  |   5  |                    |   6  |   7  |   8  |   9  |   0  |  ´   |
  * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
  * |      |      |      |      |      |      |-------.    ,-------| Left | Down |  Up  | Right|      |      |
- * |------+------+------+------+------+------|  Mute |    | Play  |------+------+------+------+------+------|
+ * |------+------+------+------+------+------|       |    |       |------+------+------+------+------+------|
  * |      |  <   |  >   |   ß  |   ?  |      |-------|    |-------| Home | PgDn | PgUp | End  |      |      |
  * `-----------------------------------------/       /     \      \-----------------------------------------'
  *            |      |      |      |      | /       /       \      \  |      |      |      |      |
@@ -148,27 +148,27 @@ static const char PROGMEM qmk_logo[] = {
 };
 
 oled_rotation_t oled_init_user(oled_rotation_t rotation) {
-  if (is_keyboard_master()) {
-    return OLED_ROTATION_270;
-  }
-  return rotation;
+    if (is_keyboard_master()) {
+        return OLED_ROTATION_270;
+    }
+    return rotation;
 }
 
 bool oled_task_user(void) {
-  if (!is_keyboard_master()) {
-    oled_write_P(qmk_logo, false);
+    if (!is_keyboard_master()) {
+        oled_write_P(qmk_logo, false);
+        return false;
+    }
+
+    oled_write_P(PSTR("LAYER\n"), false);
+    switch (get_highest_layer(layer_state)) {
+        case _BASE:  oled_write_P(PSTR("Base\n") , false); break;
+        case _LOWER: oled_write_P(PSTR("Lower\n"), false); break;
+        case _UPPER: oled_write_P(PSTR("Upper\n"), false); break;
+        default:     oled_write_P(PSTR("Undef\n"), false); break;
+    }
+
     return false;
-  }
-
-  oled_write_P(PSTR("LAYER\n"), false);
-  switch (get_highest_layer(layer_state)) {
-      case _BASE:  oled_write_P(PSTR("Base\n") , false); break;
-      case _LOWER: oled_write_P(PSTR("Lower\n"), false); break;
-      case _UPPER: oled_write_P(PSTR("Upper\n"), false); break;
-      default:     oled_write_P(PSTR("Undef\n"), false); break;
-  }
-
-  return false;
 }
 
 #endif

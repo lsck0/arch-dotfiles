@@ -3,7 +3,7 @@ use module.nu *
 export const meta = {packages: {pacman: [pass pass-otp]}, inputs: [~/sync/password-store/.gpg-id]}
 
 export def link [cfg: record] {
-    if not (profile-has secrets) { return [] }
+    if not (owner-unlocked) { return [] }
     let store = $nu.home-dir | path join .password-store
     let synced = $nu.home-dir | path join sync password-store
     let fpr = (profile-load).gpg_fingerprint

@@ -1,7 +1,5 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [protonup-git]}}
-
 const PROTON_GE_VERSION = "GE-Proton11-7"
 const PROTON_GE_SHA256 = "c5448b76a230384e2d7bc6beb5ccb97bafb7e2c3b6c527cb03a1a546bbcb00a0"
 const OVERLAY_URL = "https://github.com/thaylorz/proton-ge-custom/releases/download/proton-layered-overlay-v1/Proton-LayeredOverlay.tar.gz"
@@ -35,6 +33,10 @@ export def root-repair []: nothing -> nothing {
     }
     rm --recursive --force ($stale | path join compatibilitytools.d)
     if ($stale | path join Steam | path type) == symlink { rm ($stale | path join Steam) }
+    for entry in (ls --all $stale | get name) {
+        let dest = (steam-data) | path join ($entry | path basename)
+        if not ($dest | path exists) { mv $entry $dest }
+    }
     ^rmdir $stale
     ^ln -s (steam-data) $stale
 }

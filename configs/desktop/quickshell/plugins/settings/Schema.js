@@ -6,7 +6,7 @@ const systemId = ":system"
 const systemLabel = "System"
 // what the window runs of dot itself; a terminal one may ask for sudo, a key touch or package removals
 const systemActions = [
-  { name: "update", detail: "dot sync: pull, install, apply, commit", args: ["sync"], terminal: true },
+  { name: "update", detail: "dot sync: pull, migrate, install, apply, back up, commit, push", args: ["sync"], terminal: true },
   { name: "apply", detail: "dot apply --user", args: ["apply", "--user"], terminal: false },
   { name: "apply system", detail: "dot apply --system", args: ["apply", "--system"], terminal: true },
   { name: "packages", detail: "dot apply --packages", args: ["apply", "--packages"], terminal: true }

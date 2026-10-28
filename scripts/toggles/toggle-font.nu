@@ -28,9 +28,9 @@ def font-set [changes: record, title: string, value: string]: nothing -> nothing
     notify $title $value
 }
 
-def size-parse [size: string, min: int]: nothing -> int {
-    if $size !~ '^[0-9]+$' or ($size | into int) < $min {
-        error make {msg: $"usage: toggle-font.nu set-size|set-ui-size <n>, n at least ($min)"}
+def size-parse [size: string, min: int, max: int]: nothing -> int {
+    if $size !~ '^[0-9]+$' or ($size | into int) < $min or ($size | into int) > $max {
+        error make {msg: $"usage: toggle-font.nu set-size|set-ui-size <n>, n between ($min) and ($max)"}
     }
     $size | into int
 }
@@ -71,12 +71,12 @@ def "main set" [...family: string] {
 }
 
 def "main set-size" [size: string] {
-    let size = size-parse $size $SIZE_MIN
+    let size = size-parse $size $SIZE_MIN $SIZE_MAX
     font-set {size: $size} "Font size" ($size | into string)
 }
 
 def "main set-ui-size" [size: string] {
-    let size = size-parse $size $UI_SIZE_MIN
+    let size = size-parse $size $UI_SIZE_MIN $SIZE_MAX
     font-set {ui_size: $size} "UI font size" ($size | into string)
 }
 

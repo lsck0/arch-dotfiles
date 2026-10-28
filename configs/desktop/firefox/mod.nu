@@ -3,7 +3,8 @@ use ../../core/wallust/palette.nu [RADIUS_PX OPACITY_BAR]
 use ../../core/wallust/font.nu [font-load]
 
 export const meta = {
-    packages: {pacman: [espeak-ng firefox python-pywalfox speech-dispatcher]}
+    deps: [desktop/qutebrowser]
+    packages: {pacman: [espeak-ng firefox python-pywalfox speech-dispatcher sqlite]}
     inputs: ["~/.config/mozilla/firefox/profiles.ini"]
     backup: {secrets: true}
 }
@@ -34,7 +35,7 @@ def profiles [ini: path]: nothing -> list<path> {
 }
 
 def profile-default [ini: path]: nothing -> any {
-    let path = open --raw $ini | split row "\n[" | where ($it | str starts-with "Install") | get --optional 0
+    let path = (open --raw $ini | $"\n($in)") | split row "\n[" | where ($it | str starts-with "Install") | get --optional 0
         | default "" | lines | parse "Default={path}" | get --optional 0.path
     if $path == null { null } else { $ini | path dirname | path join $path }
 }
@@ -157,8 +158,9 @@ export def noscript-restore []: nothing -> nothing {
     let saved = open (noscript-file)
     for dir in $pending {
         let db = $dir | path join $SYNC_DB
+        let payload = noscript-encode (noscript-merge (noscript-load $db) $saved) | to json --raw
         let file = mktemp --tmpdir noscript.XXXXXX
-        noscript-encode (noscript-merge (noscript-load $db) $saved) | to json --raw | save --force $file
+        $payload | save --force $file
         let sql = $NOSCRIPT_UPSERT | str replace @ID@ $NOSCRIPT_ID | str replace @FILE@ $file
         let out = ^sqlite3 -cmd $SQLITE_TIMEOUT $db $sql | complete
         rm $file
@@ -171,7 +173,8 @@ export def backup [cfg: record]: nothing -> nothing {
     let ini = $nu.home-dir | path join $HOME_DIR profiles.ini
     if not ($ini | path exists) { return }
     let dir = profile-default $ini
-    if $dir == null or not ($dir | path join $SYNC_DB | path exists) { return }
+    if $dir == null { log-warn $"($ini): no default profile; NoScript sites not exported"; return }
+    if not ($dir | path join $SYNC_DB | path exists) { return }
     let live = noscript-load ($dir | path join $SYNC_DB)
     if $live.policy? == null { return }
     # a profile firefox held open at every link never took the saved sites in; exporting it would drop them

@@ -57,7 +57,10 @@ def icon-set [root: path]: nothing -> bool {
 }
 
 export def link [cfg: record] {
-    if not (profile-has secrets) { return [] }
+    if not (owner-unlocked) {
+        if (profile-has secrets) { log-warn "projects: secrets locked, owner config not rolled out" }
+        return []
+    }
     let root = $nu.home-dir | path join $PROJECTS
     let repositories = $env.DOTFILES | path join $REPOSITORIES
     let lines = if (secret-is-plaintext $repositories) {

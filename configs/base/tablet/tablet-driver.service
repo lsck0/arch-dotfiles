@@ -22,6 +22,3 @@ NoNewPrivileges=yes
 RestrictAddressFamilies=AF_UNIX
 RestrictRealtime=yes
 LockPersonality=yes
-
-[Install]
-WantedBy=multi-user.target

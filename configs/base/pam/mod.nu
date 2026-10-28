@@ -1,4 +1,5 @@
 use module.nu *
+use ../fprintd/mod.nu [validity-sensor]
 
 export const meta = {packages: {pacman: [pam-u2f pamtester]}, volatile: true}
 
@@ -54,7 +55,7 @@ export def system [cfg: record] {
 
 def has-fprint []: nothing -> bool {
     let unit = ^systemctl list-unit-files --no-legend python3-validity.service | complete | get stdout | str trim
-    let validity = ($unit | is-not-empty) and ([138a: 06cb:] | any {|id| (^lsusb -d $id | complete).exit_code == 0 })
+    let validity = ($unit | is-not-empty) and (validity-sensor)
     if $validity { return true }
     if (which fprintd-list | is-empty) { return false }
     open --raw /etc/passwd | lines | parse "{name}:{x}:{uid}:{rest}" | where ($it.uid | into int) in $HUMAN_UIDS

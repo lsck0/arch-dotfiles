@@ -9,7 +9,8 @@ const RUN_READ_ONLY_MARK = '"read_only":true'
 const STREAM_TAIL_LINES = 5
 
 def rank [level: string]: nothing -> int {
-    $LEVELS | enumerate | where item == ($level | str uppercase) | get 0.index
+    # an unrecognized DOT_LOG falls back to INFO's rank rather than crashing every log call
+    $LEVELS | enumerate | where item == ($level | str uppercase) | get --optional 0.index | default 2
 }
 
 export def since-ms [start: datetime]: nothing -> int {
@@ -60,8 +61,14 @@ export def command-stream [tag: string, argv: list]: nothing -> record {
 # Falls back to the run's own failures file: a crash here must not take down the run.
 export def fail [message: string]: nothing -> nothing {
     log-err $message {kind: failure}
-    let target = if ($env.FAILURES_FILE? | is-empty) { $env.DOT_RUN_FILE | str replace ".jsonl" ".failures" } else { $env.FAILURES_FILE }
-    $"($message)\n" | save --append $target
+    let target = if ($env.FAILURES_FILE? | is-not-empty) {
+        $env.FAILURES_FILE
+    } else if ($env.DOT_RUN_FILE? | is-not-empty) {
+        $env.DOT_RUN_FILE | str replace ".jsonl" ".failures"
+    } else {
+        null
+    }
+    if $target != null { $"($message)\n" | save --append $target }
 }
 
 # Collects every fail of this phase into file, empty at the start.

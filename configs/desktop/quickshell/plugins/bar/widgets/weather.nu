@@ -1,5 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-# location privacy: every reply is checked against LEAK_KEYS before it is cached or printed
+# location privacy: API replies run through LEAK_KEYS (reply-publish) before caching; the reverse-geocode is
+# cached as only country_code and the coarse ADDRESS_KEYS, never lat/lon, boundingbox or display_name
 
 const LOCATION_TOGGLE = "scripts/toggles/toggle-weather-location.nu"
 const LEAK_KEYS = [
@@ -13,7 +14,7 @@ const FORECAST_URL = (
     "https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
     + "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,is_day,precipitation,cloud_cover,"
     + "wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index,surface_pressure"
-    + "&hourly=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability,weather_code"
+    + "&hourly=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability,weather_code,is_day"
     + "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,"
     + "wind_speed_10m_max,uv_index_max"
     + "&timezone=auto&forecast_days=4&forecast_hours=24"
@@ -25,7 +26,7 @@ const FORECAST_CURRENT = {
 }
 const FORECAST_HOURLY = {
     temp: temperature_2m humidity: relative_humidity_2m precip: precipitation pop: precipitation_probability
-    code: weather_code
+    code: weather_code isDay: is_day
 }
 const FORECAST_DAILY = {
     code: weather_code hi: temperature_2m_max lo: temperature_2m_min precip: precipitation_sum
@@ -118,8 +119,7 @@ def file-save [path: path, body: any]: nothing -> nothing {
 }
 
 def location-resolve []: nothing -> any {
-    let repo = ($env.DOTFILES? | default $env.QS_DOTFILES_DIR?
-        | default ($nu.home-dir | path join projects arch-dotfiles))
+    let repo = $env.DOTFILES? | default ($nu.home-dir | path join projects arch-dotfiles)
     let words = try {
         ^($repo | path join $LOCATION_TOGGLE) resolve | complete | get stdout | str trim | split row -r '\s+'
     } catch { return null }
@@ -414,7 +414,13 @@ def alerts-get []: nothing -> record {
     if (cache-load $place_cache $PLACE_MAX_AGE) == null {
         let url = {lat: $location.lat, lon: $location.lon} | format pattern $NOMINATIM_URL
         let body = http-fetch $url $PLACE_TIMEOUT [User-Agent $NOMINATIM_USER_AGENT]
-        if not ($body | is-empty) { file-save $place_cache $body }
+        let parsed = if ($body | is-empty) { null } else { try { $body | from json } catch { null } }
+        let addr = if ($parsed | describe -d | get type) == record { $parsed.address? | default {} } else { {} }
+        let region = ([country_code] ++ $ADDRESS_KEYS) | reduce --fold {} {|k, acc|
+            let v = $addr | get -o $k
+            if $v == null { $acc } else { $acc | insert $k $v }
+        }
+        if ($region | is-not-empty) { file-save $place_cache ({address: $region} | to json) }
     }
     let place = try { open --raw $place_cache | from json } catch { null }
     let address = if ($place | describe -d | get type) == record { $place.address? | default {} } else { {} }

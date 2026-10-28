@@ -14,4 +14,4 @@ user_pref("app.shield.optoutstudies.enabled", false);
 user_pref("mailnews.start_page.enabled", false);
 
 user_pref("extensions.activeThemeID", "default-theme@mozilla.org");
-user_pref("ui.systemUsesDarkTheme", 1);
+user_pref("ui.systemUsesDarkTheme", @DARK@);

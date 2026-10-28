@@ -46,7 +46,7 @@ export def configure []: nothing -> nothing {
     # on, it also strips the [dir=ltr] rules spotify's spacing lives in
     ^spicetify config remove_rtl_rule 0 | ignore
     # `config extensions` toggles an entry, so only when absent
-    let enabled = ^spicetify config extensions | str trim | split row "|"
+    let enabled = ^spicetify config extensions | lines | str trim | where $it != ""
     for ext in [adblock.js no-music-videos.js] {
         if $ext not-in $enabled { ^spicetify config extensions $ext | ignore }
     }

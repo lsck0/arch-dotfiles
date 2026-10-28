@@ -38,8 +38,13 @@ def round-or-null [precision: int]: any -> any {
     if $in != null { math round -p $precision }
 }
 
+def mem-total-kib []: nothing -> int {
+    open --raw /proc/meminfo | parse -r '(?m)^MemTotal:\s+(?<kb>\d+) kB' | get 0?.kb | default "0" | into int
+}
+
+# user nice system idle iowait irq softirq steal; guest and guest_nice are already folded into user and nice.
 def stat-read []: nothing -> list<int> {
-    open --raw /proc/stat | lines | first | split row -r '\s+' | slice 1..4 | into int
+    open --raw /proc/stat | lines | first | split row -r '\s+' | slice 1..8 | into int
 }
 
 def top-by-name []: table -> list {
@@ -65,7 +70,7 @@ def top-cpu [now: table, before: table, dt_ms: number, tck: int]: nothing -> lis
 
 # Read RSS from /proc directly, like top-cpu, instead of forking `ps` every tick. statm field 2 is resident pages.
 def top-mem []: nothing -> list {
-    let total_kib = open --raw /proc/meminfo | parse -r '(?m)^MemTotal:\s+(?<kb>\d+) kB' | get 0?.kb | default "0" | into int
+    let total_kib = mem-total-kib
     if $total_kib <= 0 { return [] }
     glob /proc/[0-9]*/statm | each {|f|
         let pid = $f | parse -r '/proc/(?<p>\d+)/statm' | get 0?.p
@@ -82,7 +87,7 @@ def hardware-detect []: nothing -> record {
     let gpu_vendor_raw = $gpu | get 3? | default unknown
     # match the drm card by pci address, card numbering is not stable
     let gpu_pci = ^lspci -Dn | lines | where $it =~ $GPU_CLASSES | get 0? | default "" | split row " " | first
-    let gpu_card = glob /sys/class/drm/card[0-9]* | sort | where {|c| $gpu_pci != "" and ($"($c)/device" | path exists) and ($"($c)/device" | path expand | str ends-with $gpu_pci) } | get 0? | default /sys/class/drm/card1
+    let gpu_card = glob /sys/class/drm/card[0-9]* | sort | where {|c| $gpu_pci != "" and ($"($c)/device" | path exists) and ($"($c)/device" | path expand | str ends-with $gpu_pci) } | get 0?
     let gpu_vendor = match $gpu_vendor_raw {
         $v if $v =~ Intel => "intel"
         $v if $v =~ 'AMD|ATI|Advanced Micro' => "amd"
@@ -120,7 +125,7 @@ def hardware-detect []: nothing -> record {
         cpu_temp: $cpu_temp
         gpu_temp: $gpu_temp
         rapl_max: (int-read $"($RAPL)/max_energy_range_uj")
-        mem_total_kb: (open /proc/meminfo | lines | first | split row -r '\s+' | get 1 | into int)
+        mem_total_kb: (mem-total-kib)
     }
 }
 

@@ -1,12 +1,11 @@
 use module.nu *
-use ../boot.nu [ESP CMDLINE esp-supported cmdline-set]
+use ../boot.nu [ESP CMDLINE UKI_DIR esp-supported cmdline-set]
 
 export const meta = {
     packages: {native: [amd-ucode intel-ucode linux linux-headers linux-lts linux-lts-headers mkinitcpio]}
     volatile: true
 }
 
-const UKI_DIR = "/boot/EFI/Linux"
 const PRESETS = "/etc/mkinitcpio.d"
 
 export def system [cfg: record] {

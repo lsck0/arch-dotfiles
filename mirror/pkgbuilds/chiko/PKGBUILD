@@ -9,7 +9,7 @@ arch=(x86_64)
 url="https://github.com/felangga/chiko"
 license=(MIT)
 makedepends=(git go)
-source=("git+$url.git#tag=v$pkgver")
+source=("git+$url.git#commit=8e5d9f9731cc5b466efa7c17c70d36f05df1e41a")
 sha256sums=(SKIP)
 
 build() {

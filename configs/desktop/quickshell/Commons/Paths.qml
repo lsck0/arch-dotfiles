@@ -10,7 +10,7 @@ QtObject {
   readonly property string shellDir: Quickshell.shellDir
 
   readonly property string dotfiles: {
-    var configured = String(Quickshell.env("DOTFILES") || Quickshell.env("QS_DOTFILES_DIR") || "").trim()
+    var configured = String(Quickshell.env("DOTFILES") || "").trim()
     var base = configured || (home + "/projects/arch-dotfiles")
     return base.replace(/\/+$/, "")
   }
@@ -27,6 +27,8 @@ QtObject {
   readonly property string runtime: {
     return String(Quickshell.env("XDG_RUNTIME_DIR") || "").trim().replace(/\/+$/, "") + "/quickshell"
   }
+
+  readonly property string notes: home + "/sync/notes/notes.md"
 
   readonly property string toggles: dotfiles + "/scripts/toggles"
   readonly property string wallpaperList: dotfiles + "/configs/core/wallust/wallpaper-list.nu"

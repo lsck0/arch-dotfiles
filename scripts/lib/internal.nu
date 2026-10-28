@@ -138,7 +138,8 @@ def "main packages" [kind: string@[pacman flatpak nix] = "pacman", --groups: str
         let ctx = pipeline-load $REPO system
         let chosen = $groups | default "" | split row --regex '[ ,]+' | where $it != ""
         let mods = if ($chosen | is-empty) { $ctx.modules } else { $ctx.modules | update selected {|m| $m.group in $chosen or $m.group == "" } }
-        let platform = if ($chosen | is-empty) { $ctx.platform } else { $ctx.platform | update extra_packages [] | update form_factor ($form_factor | default $ctx.platform.form_factor) }
+        let platform = if ($chosen | is-empty) { $ctx.platform } else { $ctx.platform | update extra_packages [] }
+        let platform = if $form_factor == null { $platform } else { $platform | update form_factor $form_factor }
         let out = modules-packages $REPO $mods $platform | get $kind
         print (if $kind == "flatpak" { $out | items {|app, commit| $"($app) ($commit)" } } else { $out } | str join "\n")
     }

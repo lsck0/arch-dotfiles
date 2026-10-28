@@ -129,8 +129,10 @@ Item {
       var target = root.liveValue
       root.dragging = false
       root.released(target)
-      root.liveValue = root.value
     }
-    onWheel: function(wheel) { root.nudge(wheel.angleDelta.y > 0 ? 1 : -1) }
+    onWheel: function(wheel) {
+      if (wheel.angleDelta.y === 0) return
+      root.nudge(wheel.angleDelta.y > 0 ? 1 : -1)
+    }
   }
 }

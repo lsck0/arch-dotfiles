@@ -25,7 +25,7 @@ Item {
       onPaint: {
         var ctx = getContext("2d")
         ctx.clearRect(0, 0, width, height)
-        ctx.strokeStyle = Qt.rgba(0, 0, 0, root.strength)
+        ctx.strokeStyle = Util.alpha(Colors.background, root.strength)
         ctx.lineWidth = 1
         for (let y = 0.5; y < height; y += root.spacing) {
           ctx.beginPath()

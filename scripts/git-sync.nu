@@ -64,10 +64,11 @@ def sync-one [dir: path, bare: bool]: nothing -> list<string> {
     let others = {|refs| $refs | where { not ($in | str starts-with $"($upstream) ") } }
     let fetched = $before != $after and ($upstream == "" or (do $others $before) != (do $others $after))
     let pulled = if $upstream != "" and not ($staged or $unstaged or $unpushed) {
+        let head_before = git-out $dir rev-parse HEAD
         let pull = remote-git $dir pull
         if $pull.exit_code != 0 {
             "PULL FAILED"
-        } else if not ($"($pull.stdout)($pull.stderr)" =~ "Already up to date") {
+        } else if (git-out $dir rev-parse HEAD) != $head_before {
             "PULLED"
         }
     }

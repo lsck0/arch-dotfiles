@@ -5,7 +5,7 @@ const MARKER = "# managed by arch-dotfiles/apparmor"
 const OVERRIDES = [firefox thunderbird libreoffice]
 const ENFORCED = [
     firefox chromium qutebrowser lynx cha thunderbird discord signal-desktop telegram-desktop element-desktop hexchat
-    zapzap spotify mpv zathura sioyek okular bookokrat libreoffice onlyoffice feh nsxiv imv obsidian zotero
+    zapzap protonmail wireshark spotify mpv zathura sioyek okular bookokrat libreoffice onlyoffice feh nsxiv imv obsidian zotero
     localsend-app qbittorrent ouch 7z unrar unzip magick pdftoppm ffmpegthumbnailer ffmpeg ffprobe handbrake
     blender-mcp obs-mcp child-open child-open-any child-open-browsers child-open-strict
 ]

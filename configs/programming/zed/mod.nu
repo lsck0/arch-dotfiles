@@ -63,12 +63,12 @@ export def theme [cfg: record, wallpaper: string] {
     }
     let theme = {
         "$schema": "https://zed.dev/schema/themes/v0.2.0.json"
-        name: Pywal
-        author: "pywal (generated)"
-        themes: [{name: Pywal, appearance: (if $p.light == "1" { "light" } else { "dark" }), style: $style}]
+        name: Wallust
+        author: "wallust (generated)"
+        themes: [{name: Wallust, appearance: (if $p.light == "1" { "light" } else { "dark" }), style: $style}]
     }
     [
-        (file-text ($nu.home-dir | path join $CONFIG_DIR themes pywal.json) $"($theme | to json --indent 2)\n" --generated)
+        (file-text ($nu.home-dir | path join $CONFIG_DIR themes wallust.json) $"($theme | to json --indent 2)\n" --generated)
         (settings)
     ]
 }

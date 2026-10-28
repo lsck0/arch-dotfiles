@@ -14,8 +14,8 @@ Item {
 
   onRowsChanged: if (active) cv.requestPaint()
   onActiveChanged: if (active) cv.requestPaint()
-  onWidthChanged: cv.requestPaint()
-  onHeightChanged: cv.requestPaint()
+  onWidthChanged: if (active) cv.requestPaint()
+  onHeightChanged: if (active) cv.requestPaint()
 
   readonly property real fadeEnd: 0.5
   readonly property real alphaFloor: 0.05

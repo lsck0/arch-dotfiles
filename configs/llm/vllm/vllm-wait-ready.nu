@@ -6,7 +6,7 @@ const POLL_INTERVAL = 2sec
 
 # Stops vllm: one failed request is one try, no restart reloads the weights until the next connection.
 def give-up []: nothing -> nothing {
-    print --stderr "vllm-trigger: vllm.service did not become ready, giving up"
+    print --stderr "vllm-wait-ready: vllm.service did not become ready, giving up"
     ^systemctl stop vllm.service
     exit 1
 }
@@ -14,7 +14,7 @@ def give-up []: nothing -> nothing {
 # Start vllm.service for the socket proxy and wait until its backend answers.
 def main []: nothing -> nothing {
     let sockets = do { ^ss -Htnp "( sport = :8000 or dport = :8000 )" } | complete | get stdout | lines
-    $sockets | where $it !~ systemd-socket-proxyd | each { print --stderr $"vllm-trigger: ($in)" } | ignore
+    $sockets | where $it !~ systemd-socket-proxyd | each { print --stderr $"vllm-wait-ready: ($in)" } | ignore
     ^systemctl start vllm.service
     let deadline = (date now) + $READY_TIMEOUT
     while (date now) < $deadline {

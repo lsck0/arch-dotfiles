@@ -4,6 +4,7 @@ use ../../core/wallust/palette.nu [wal-load condition-bg vivify shade selection-
 export const meta = {packages: {pacman: [themix-gui-git themix-plugin-base16-git xorg-server-xvfb]}}
 
 const EXPORT_DIR = ".config/oomox/export_config"
+# multi_export_oomox_classic.json exports only the qt5ct/qt6ct colors and Xresources, despite its name
 const EXPORT_CONFIGS = [multi_export_oomox_classic.json multi_export_oodwaita.json]
 const COLORS = ".cache/wal/colors-oomox"
 # themix-multi-export can hang forever on an oomox gtk-loop bug sigterm cannot reap

@@ -15,6 +15,7 @@ Item {
   property string fontFamily: Style.font.family
 
   function open(payload) {
+    payload = payload || {}
     if (!payload.title && !payload.body) return
     closeTimer.stop()
     root.closing = false
@@ -198,8 +199,8 @@ Item {
                 }
 
                 Button {
-                  variant: "icon"
                   id: closeButton
+                  variant: "icon"
                   anchors.right: parent.right
                   anchors.top: parent.top
                   iconText: "\u{f0156}"

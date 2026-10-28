@@ -9,7 +9,7 @@ arch=(x86_64)
 url="https://github.com/litescript/ls-horizons"
 license=(Apache-2.0)
 makedepends=(git go)
-source=("git+$url.git#tag=v$pkgver")
+source=("git+$url.git#commit=ccbb6ef4f48f84032b8a815485e01c66fff02a71")
 sha256sums=(SKIP)
 
 build() {

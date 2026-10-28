@@ -34,7 +34,7 @@ def main []: nothing -> nothing {
     rm --recursive --force $dir
     mkdir $dir
     ^unzip -q $zip -d $dir
-    ls ($dir | path join jai) | each { mv $in.name $dir } | ignore
+    ls --all ($dir | path join jai) | each { mv $in.name $dir } | ignore
     rm ($dir | path join jai)
     ^$DOT internal fetch git $JAILS_URL $JAILS_COMMIT ($dir | path join jails)
     do { cd ($dir | path join jails); ^($dir | path join bin jai-linux) build.jai }

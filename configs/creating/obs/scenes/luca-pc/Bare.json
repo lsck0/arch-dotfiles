@@ -169,7 +169,7 @@
     },
     {
       "prev_ver": 537001986,
-      "name": "Application Audio",
+      "name": "Game Audio",
       "uuid": "00000000-0000-4000-8000-0000000000a3",
       "id": "pipewire_audio_application_capture",
       "versioned_id": "pipewire_audio_application_capture",
@@ -296,7 +296,7 @@
             "private_settings": {}
           },
           {
-            "name": "Application Audio",
+            "name": "Game Audio",
             "source_uuid": "00000000-0000-4000-8000-0000000000a3",
             "visible": true,
             "locked": true,

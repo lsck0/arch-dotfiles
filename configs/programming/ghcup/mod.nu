@@ -11,11 +11,14 @@ export def link [cfg: record] {
     if not ($GHCUP | path exists) { return [] }
     let bin = $env.GHCUP_INSTALL_BASE_PREFIX? | default $nu.home-dir | path join .ghcup bin
     $TOOLS | items {|tool, exe|
-        let creates = $bin | path join $exe
         let version = $VERSIONS | get $tool
+        # versioned marker: a VERSIONS bump has no matching file yet, so the install runs
+        let installed = $bin | path join $"($exe)-($version)"
+        # set runs unless the unversioned link already resolves to this version
+        let active_matches = ($bin | path join $exe | path expand | str contains $version)
         [
-            (exec $"ghcup-install-($tool)" [$GHCUP install $tool $version] --creates $creates)
-            (exec $"ghcup-set-($tool)" [$GHCUP set $tool $version] --creates $creates)
-        ]
+            (exec $"ghcup-install-($tool)" [$GHCUP install $tool $version] --creates $installed)
+            (if not $active_matches { exec $"ghcup-set-($tool)" [$GHCUP set $tool $version] })
+        ] | compact
     } | flatten
 }

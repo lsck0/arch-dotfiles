@@ -6,10 +6,7 @@ Item {
   property bool blocked: false
 
   signal moveRequested(int dx, int dy)
-  signal activateRequested()
-  signal returnRequested()
   signal closeRequested()
-  signal deleteRequested()
   signal tabRequested(int direction)
   signal textKey(string text)
 
@@ -37,16 +34,6 @@ Item {
     }
     if (event.key === Qt.Key_Left || event.text === "h") {
       moveRequested(-1, 0); event.accepted = true; return
-    }
-    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-      returnRequested()
-      activateRequested(); event.accepted = true; return
-    }
-    if (event.key === Qt.Key_Space) {
-      activateRequested(); event.accepted = true; return
-    }
-    if (event.text === "x" || event.text === "X") {
-      deleteRequested(); event.accepted = true; return
     }
     if (event.text && event.text.length === 1) {
       textKey(event.text)

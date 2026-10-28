@@ -23,7 +23,6 @@ Item {
   readonly property int timelineMs: 220
 
   readonly property real bracketInset: (1 - progress) * span
-  readonly property bool running: anim.running
 
   function rowOpacity(index) {
     var start = Math.min(Math.max(0, index), staggerCap) * staggerMs / timelineMs

@@ -12,6 +12,8 @@ depends=(python python-pytorch)
 makedepends=(uv)
 options=(!strip !debug)
 _wheel="heretic_llm-$pkgver-py3-none-any.whl"
+# resolve the wheel's dependencies as of this date so the build is reproducible; bump with pkgver
+_exclude_newer="2026-10-28"
 source=("https://files.pythonhosted.org/packages/py3/h/heretic-llm/$_wheel")
 noextract=("$_wheel")
 sha256sums=(81d54d12f63620099a2f18063185967c5365a9af85c0e49e169d060a9ceb8fd7)
@@ -20,7 +22,7 @@ build() {
     export UV_CACHE_DIR="$srcdir/uv-cache" UV_PYTHON_DOWNLOADS=never
     printf '%s\n' torch > torch-excludes.txt
     uv venv --relocatable --system-site-packages --python /usr/bin/python venv
-    uv pip install --python venv/bin/python --excludes torch-excludes.txt "$srcdir/$_wheel"
+    uv pip install --python venv/bin/python --exclude-newer "$_exclude_newer" --excludes torch-excludes.txt "$srcdir/$_wheel"
 }
 
 package() {

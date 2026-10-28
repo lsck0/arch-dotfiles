@@ -6,11 +6,12 @@ export const ESP = "/boot"
 export const CMDLINE = "/etc/kernel/cmdline"
 export const MKINITCPIO = "/etc/mkinitcpio.conf"
 const BACKUP = ".arch-dotfiles-backup"
-const UKI_DIR = "/boot/EFI/Linux"
+export const UKI_DIR = "/boot/EFI/Linux"
 const SDBOOT_EFI = "/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
 const SDBOOT_ESP_FILES = ["/boot/EFI/systemd/systemd-bootx64.efi" "/boot/EFI/BOOT/BOOTX64.EFI"]
 const BOOT_INPUTS = [
     /etc/mkinitcpio.conf /etc/mkinitcpio.conf.d /etc/mkinitcpio.d /etc/kernel/cmdline /etc/crypttab.initramfs
+    /etc/modprobe.d /etc/vconsole.conf
     /etc/plymouth /usr/share/plymouth/themes /etc/mkinitcpio-systemd-tool /etc/tinyssh
     /etc/systemd/system/initrd-tinysshd.service.d /etc/systemd/system/initrd-network.service.d
     /etc/systemd/system/initrd-wifi.service

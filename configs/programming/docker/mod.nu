@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [ctop docker docker-buildx docker-compose lazydocker trivy uv]}}
+export const meta = {packages: {pacman: [ctop docker docker-buildx docker-compose lazydocker trivy]}}
 
 export def system [cfg: record] {
     [

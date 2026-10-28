@@ -45,6 +45,7 @@ BarWidget {
     readonly property var loadThresholds: [60, 80, 92]
     readonly property var tempThresholds: [60, 75, 85]
     readonly property var ossecThresholds: [7, 10, 12]
+    readonly property int ossecRetryMs: 5000
     readonly property var batteryDevice: UPower.displayDevice
     readonly property bool batteryPresent: batteryDevice && batteryDevice.isPresent === true
     readonly property bool onBattery: UPower.onBattery === true
@@ -152,6 +153,8 @@ BarWidget {
         command: [Paths.barWidget("ossec-alerts.nu")]
         streaming: true
         running: true
+        // restart the stream when it exits: the script returns at once while ossec-server.target is down
+        intervalMs: root.ossecRetryMs
         onParsed: function(data) {
             root.ossec = data;
         }

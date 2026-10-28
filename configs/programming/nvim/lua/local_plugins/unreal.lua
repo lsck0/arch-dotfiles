@@ -34,7 +34,7 @@ local function editor_target(root)
         return name:match("Editor%.Target%.cs$") ~= nil
     end, { path = root .. "/Source", limit = 1 })[1]
     if target then
-        return vim.fs.basename(target):gsub("%.Target%.cs$", "")
+        return (vim.fs.basename(target):gsub("%.Target%.cs$", ""))
     end
     return vim.fs.basename(uproject(root)):gsub("%.uproject$", "") .. "Editor"
 end
@@ -44,16 +44,34 @@ local function mtime(path)
     return stat and stat.mtime.sec or 0
 end
 
+-- the generated and vendored trees hold no build inputs, so the walk skips them instead of collecting
+-- hundreds of thousands of entries under them and discarding the hits afterwards
+local STALE_SKIP = {
+    Intermediate = true,
+    Saved = true,
+    Binaries = true,
+    DerivedDataCache = true,
+    [".git"] = true,
+}
+
 local function stale(root)
     local db = mtime(root .. "/compile_commands.json")
     if db == 0 then
         return true
     end
-    local inputs = vim.fs.find(function(name)
-        return name:match("%.Build%.cs$") or name:match("%.Target%.cs$") or name:match("%.uproject$")
-    end, { path = root, limit = math.huge, type = "file" })
-    for _, file in ipairs(inputs) do
-        if not file:find("/Intermediate/", 1, true) and not file:find("/Saved/", 1, true) and mtime(file) > db then
+    for name, kind in
+        vim.fs.dir(root, {
+            depth = math.huge,
+            skip = function(dir)
+                return not STALE_SKIP[dir]
+            end,
+        })
+    do
+        if
+            kind == "file"
+            and (name:match("%.Build%.cs$") or name:match("%.Target%.cs$") or name:match("%.uproject$"))
+            and mtime(root .. "/" .. name) > db
+        then
             return true
         end
     end
@@ -139,7 +157,7 @@ function M.editor(root)
     vim.system({ "unreal-editor", uproject(root) }, { detach = true })
 end
 
-local function attach(path)
+local function attach(path, buf)
     local root = project_root(path)
     if not root then
         return
@@ -150,7 +168,6 @@ local function attach(path)
             M.clangdb(root)
         end
     end
-    local buf = vim.api.nvim_get_current_buf()
     local function map(lhs, fn, desc)
         vim.keymap.set("n", lhs, function()
             fn(root)
@@ -169,8 +186,11 @@ function M.setup()
     vim.api.nvim_create_autocmd("BufEnter", {
         group = group,
         callback = function(args)
+            if vim.bo[args.buf].buftype ~= "" then
+                return
+            end
             local name = vim.api.nvim_buf_get_name(args.buf)
-            attach(name ~= "" and vim.fs.dirname(name) or vim.fn.getcwd())
+            attach(name ~= "" and vim.fs.dirname(name) or vim.fn.getcwd(), args.buf)
         end,
     })
     vim.api.nvim_create_autocmd("BufWritePost", {

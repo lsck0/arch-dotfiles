@@ -33,7 +33,11 @@ def report [user: string, checkout: path, url: string]: nothing -> nothing {
     ^journalctl -b -p warning --no-pager -o short-iso | save --force ($OUT | path join config-boot-warnings.log)
     ^bash -c "{ resolvectl status; cat /etc/resolv.conf; } 2>&1" | save --force ($OUT | path join network.log)
     let logs = glob ($checkout | path join "{FAILURES.*,*.log,**/*.log}") --exclude [**/.git/**]
-    for f in $logs { cp $f $OUT }
+    for f in $logs {
+        let dest = $OUT | path join ($f | path relative-to $checkout)
+        mkdir ($dest | path dirname)
+        cp $f $dest
+    }
     ^tar -czf $REPORT_ARCHIVE -C $OUT .
     ^curl -s -m 120 -T $REPORT_ARCHIVE $"($url)/logs.tgz" | complete | ignore
 }

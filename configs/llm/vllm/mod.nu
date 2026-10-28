@@ -69,7 +69,11 @@ export def system [cfg: record] {
     if not (rocm-gpu) or $cfg.gpu_memory_utilization == null { return [] }
     let share = $cfg.gpu_memory_utilization | into string --decimals 2
     let gpu = gpu-list | where vendor == amd | get --optional 0
-    let perf_path = if $gpu == null { "/nonexistent" } else { $"/sys/class/drm/card($gpu.index)/device/power_dpm_force_performance_level" }
+    # address the card by its stable PCI id, not cardN, which depends on probe order across boots
+    let perf_path = if $gpu == null { "/nonexistent" } else {
+        let pci = $gpu.by_path | path basename | str replace --regex '^pci-(.+)-render$' '$1'
+        $"/sys/bus/pci/devices/($pci)/power_dpm_force_performance_level"
+    }
     let values = {
         MODEL: $cfg.model, MODEL_REVISION: $cfg.model_revision, GPU_MEMORY_UTILIZATION: $share
         TOOL_CALL_PARSER: $cfg.tool_call_parser, REASONING_PARSER: $cfg.reasoning_parser, PERF_LEVEL_PATH: $perf_path
@@ -92,20 +96,24 @@ export def venv []: nothing -> nothing {
     let venv = $PREFIX | path join venv
     # the rocm index has no upload times, so --exclude-newer is pinned off for it alone
     let uv_config = mktemp --tmpdir --suffix .toml
-    $"[[index]]\nname = \"vllm-rocm\"\nurl = \"($WHEELS_URL)\"\nexclude-newer = false\n" | save --force $uv_config
-    with-env {UV_PYTHON_INSTALL_DIR: ($PREFIX | path join python)} {
-        ^uv venv --allow-existing --python $PYTHON_VERSION $venv
-        # mooncake's bundled glog clashes with the system's and aborts the import
-        (^uv pip install --python $venv --config-file $uv_config --exclude-newer $EXCLUDE_NEWER
-            --excludes uv-excludes.txt $"vllm==($VERSION)" $"vllm-omni==($OMNI_VERSION)")
-        ^uv pip uninstall --python $venv -r uv-excludes.txt
-    }
-    rm --force $uv_config
+    try {
+        $"[[index]]\nname = \"vllm-rocm\"\nurl = \"($WHEELS_URL)\"\nexclude-newer = false\n" | save --force $uv_config
+        with-env {UV_PYTHON_INSTALL_DIR: ($PREFIX | path join python)} {
+            ^uv venv --allow-existing --python $PYTHON_VERSION $venv
+            # mooncake's bundled glog clashes with the system's and aborts the import
+            (^uv pip install --python $venv --config-file $uv_config --exclude-newer $EXCLUDE_NEWER
+                --excludes uv-excludes.txt $"vllm==($VERSION)" $"vllm-omni==($OMNI_VERSION)")
+            ^uv pip uninstall --python $venv -r uv-excludes.txt
+        }
+        rm --force $uv_config
+    } catch {|e| rm --force $uv_config; error make {msg: $e.msg} }
     # torch's RUNPATH is $ORIGIN, so the libmpi_cxx stub goes beside it
     let platlib = ^($venv | path join bin python) -c 'import sysconfig; print(sysconfig.get_path("platlib"))' | str trim
     let build = mktemp --directory
-    let stub = $build | path join libmpi_cxx.so.40
-    ^cc -shared -fPIC -O2 -Wall -Werror -Wl,-soname,libmpi_cxx.so.40 -o $stub mpi-cxx-stub.c
-    ^install -m755 $stub ($platlib | path join torch lib libmpi_cxx.so.40)
-    rm --recursive $build
+    try {
+        let stub = $build | path join libmpi_cxx.so.40
+        ^cc -shared -fPIC -O2 -Wall -Werror -Wl,-soname,libmpi_cxx.so.40 -o $stub mpi-cxx-stub.c
+        ^install -m755 $stub ($platlib | path join torch lib libmpi_cxx.so.40)
+        rm --recursive $build
+    } catch {|e| rm --recursive --force $build; error make {msg: $e.msg} }
 }

@@ -8,6 +8,7 @@ const TMPFILES = "/etc/tmpfiles.d/nethack-sysconf.conf"
 export def system [cfg: record] {
     [
         (file-copy nethack-tmpfiles.conf $TMPFILES --then [systemd-tmpfiles --create $TMPFILES])
-        (file-copy nethack.nu /usr/local/bin/nethack --mode 755)
+        # straight to the binary, bypassing arch's wrapper: keeps its games gid and compiled-in /var/games/nethack
+        (file-link /usr/lib/nethack/nethack /usr/local/bin/nethack)
     ]
 }

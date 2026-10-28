@@ -4,11 +4,6 @@ local s, i, t = ls.snippet, ls.insert_node, ls.text_node
 local snippets = require("lib.snippet_banner").create("/*", " *", " * ", " */")
 
 vim.list_extend(snippets, {
-    s("sec", {
-        t({ "/*", " * -----------------------------------------------------------------------------", " * " }),
-        i(1, "SECTION"),
-        t({ "", " * -----------------------------------------------------------------------------", " */", "" }),
-    }),
     s("const", {
         t("// "),
         i(1, "why: measured against, trades off, breaks above/below"),

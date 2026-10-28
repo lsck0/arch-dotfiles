@@ -35,9 +35,7 @@ def spec-errors [id: string, name: string, spec: record]: nothing -> list<string
         (if $apply in $OPTION_APPLY { null } else { $"configs/($id)/mod.nu: option ($name): apply ($apply) is not one of ($OPTION_APPLY | str join ', ')" })
         (if $scope in $OPTION_SCOPE { null } else { $"configs/($id)/mod.nu: option ($name): scope ($scope) is not one of ($OPTION_SCOPE | str join ', ')" })
     ] | compact
-    let default_bad = if ($missing | is-empty) and not ((option-value-errors $id $name $spec $spec.default "the default") | is-empty) {
-        option-value-errors $id $name $spec $spec.default $"configs/($id)/mod.nu"
-    } else { [] }
+    let default_bad = if ($missing | is-empty) { option-value-errors $id $name $spec $spec.default $"configs/($id)/mod.nu" } else { [] }
     $unknown ++ $missing ++ $enums ++ $default_bad
 }
 
@@ -141,7 +139,7 @@ export def options-notify [key: string, value: any, source: string, runtime?: an
 # Nuon with records and lists spelled out one entry per line, never the table form, key order kept.
 export def options-to-nuon [--indent: int = 0]: any -> string {
     let value = $in
-    let pad = "    " | fill --width ($indent * 4) --character " " | str substring 0..<($indent * 4)
+    let pad = "" | fill --width ($indent * 4)
     let inner = $"($pad)    "
     match ($value | describe | split row "<" | first) {
         "record" => {

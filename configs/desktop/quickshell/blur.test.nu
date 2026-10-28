@@ -2,7 +2,7 @@
 # every translucent quickshell surface must be in the namespace list of hyprland_windowrules.lua's quickshell-blur rule
 
 const HERE = path self | path dirname
-const RULES = path self | path dirname | path join ../hyprland/hyprland_windowrules.lua
+const RULES = $HERE | path join ../hyprland/hyprland_windowrules.lua
 const UNBLURRED = [background desktop-widgets notification-image-grab]
 
 def main [] {

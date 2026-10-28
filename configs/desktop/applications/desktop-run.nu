@@ -76,12 +76,18 @@ def main [
 
     if $notify and not (is-terminal --stdin) {
         let started = date now
-        let out = ^($command | first) ...($command | skip 1) | complete
-        print --stderr --no-newline $out.stderr
-        if $out.exit_code != 0 or ((date now) - $started) < $NOTIFY_EARLY {
-            try { ^notify-send -a $title $"($title) did not start" ($out.stderr | lines | last $NOTIFY_LINES | str join "\n") }
+        let errfile = mktemp --tmpdir "desktop-run-XXXXXX"
+        # stdout inherits the journal and stderr streams to a file, so nothing is held in memory for the app's lifetime
+        try { ^($command | first) ...($command | skip 1) e> $errfile } catch { }
+        let exit_code = $env.LAST_EXIT_CODE
+        let stderr_text = open --raw $errfile
+        rm --force $errfile
+        print --stderr --no-newline $stderr_text
+        let early = ((date now) - $started) < $NOTIFY_EARLY
+        if $exit_code != 0 or ($early and ($stderr_text | str trim | is-not-empty)) {
+            try { ^notify-send -a $title $"($title) did not start" ($stderr_text | lines | last $NOTIFY_LINES | str join "\n") }
         }
-        exit $out.exit_code
+        exit $exit_code
     }
     let status = try { ^($command | first) ...($command | skip 1); 0 } catch { $env.LAST_EXIT_CODE }
     if (is-terminal --stdin) and ($hold or ($status != 0 and $status != $EXIT_INTERRUPTED)) {

@@ -1,7 +1,7 @@
 use module.nu *
 use ../../core/wallust/font.nu [font-load]
 
-export const meta = {packages: {pacman: [zathura zathura-pdf-mupdf]}}
+export const meta = {deps: [latex/sioyek], packages: {pacman: [zathura zathura-pdf-mupdf]}}
 
 # zathurarc carries the font, so the theme verb renders it; an apply reruns the theme verb of every module it links
 export def link [cfg: record] { [] }

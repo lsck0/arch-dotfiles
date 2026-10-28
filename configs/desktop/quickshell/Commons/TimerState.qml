@@ -13,6 +13,7 @@ Singleton {
 
   readonly property string pomoScript: Paths.script("pomodoro.nu")
 
+  // fallback only; link always writes pomodoro.json from the pomodoro_* options in mod.nu
   readonly property var pomoConfigDefault: ({ focus: 25, break: 5, long: 15, cycles: 4 })
   property var pomoConfig: pomoConfigDefault
 

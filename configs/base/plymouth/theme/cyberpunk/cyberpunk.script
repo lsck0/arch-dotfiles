@@ -27,7 +27,7 @@ caret.x = prompt.x + prompt.image.GetWidth() + 6;
 caret.y = prompt.y + prompt.image.GetHeight() / 2 - caret.image.GetHeight() / 2;
 caret.sprite.SetPosition(caret.x, caret.y, 5);
 
-# the pngs are 1 px stripes scaled to the screen: a fixed 360x2 bar vanished on a hidpi panel
+# the pngs are small stripes scaled to the computed bar size, so the bar adapts instead of vanishing on a hidpi panel
 bar.width = Math.Int(screen.width * 0.25);
 bar.height = Math.Int(screen.height / 180);
 if (bar.height < 4) bar.height = 4;

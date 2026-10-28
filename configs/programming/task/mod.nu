@@ -63,12 +63,11 @@ def calendar-text []: nothing -> string {
 export def link [cfg: record] {
     let sync = sync-text $cfg
     let calendar = calendar-text
-    let bugwarrior = (profile-has secrets) and (which bugwarrior | is-not-empty)
+    # taskrc includes ~/.config/bugwarrior/uda.taskrc; the bugwarrior module owns that file (empty or generated), so it is not written here
     [
         (file-copy taskrc (xdg config task taskrc))
         (file-copy wal.theme (xdg config task wal.theme))
         (if ($HOOK | path exists) { file-copy $HOOK ($nu.home-dir | path join .task hooks on-modify.timewarrior) --mode 755 } else { [] })
-        (if $bugwarrior { [] } else { file-text (xdg config bugwarrior uda.taskrc) "" })
         (file-text ($nu.home-dir | path join $SYNC_RC) $sync --mode 600)
         (if ($calendar | is-empty) { [] } else { file-text ($nu.home-dir | path join $CALENDAR_ENV) $calendar --mode 600 })
         (link-commands task-calendar.nu)

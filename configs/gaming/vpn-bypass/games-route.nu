@@ -27,7 +27,7 @@ def gateway [iface: string, family: string]: nothing -> string {
 }
 
 def main [iface: string = "", action: string = ""]: nothing -> nothing {
-    if $action not-in [up dhcp4-change down] { return }
+    if $action not-in [up dhcp4-change dhcp6-change down] { return }
     if not ($"/sys/class/net/($iface)/device" | path exists) { return }
 
     if $action == down {

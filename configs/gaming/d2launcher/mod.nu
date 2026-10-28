@@ -1,5 +1,5 @@
 use module.nu *
-use ini.nu [ini-apply]
+use ini.nu [ini-apply ini-rows]
 
 # no wine: gaming/runtime's wine-staging conflicts with it
 export const meta = {packages: {pacman: [curl gamescope jq libnotify unzip wmctrl zenity zip]}}
@@ -7,9 +7,7 @@ export const meta = {packages: {pacman: [curl gamescope jq libnotify unzip wmctr
 const URL = "https://github.com/murkl/d2launcher.git"
 const COMMIT = "73d6d145f1b8fd228fe7ac1263c4f4230d37ebea" # 4.1.3
 
-def install-dir []: nothing -> path {
-    $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join d2launcher
-}
+def install-dir []: nothing -> path { xdg data d2launcher }
 
 # SCRIPT_HOME_DIR is hardcoded in the script.
 def home-dir []: nothing -> path { $nu.home-dir | path join .d2launcher }
@@ -21,7 +19,7 @@ def vendor-dir []: nothing -> path {
     if ($synced | path exists) {
         $synced
     } else {
-        $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join d2launcher-vendor
+        xdg data d2launcher-vendor
     }
 }
 
@@ -76,7 +74,7 @@ export const options = {
 
 # lutris prefixes first, then ~/sync/games/d2 (a fresh install has no lutris entry)
 export def lod-detect []: nothing -> any {
-    let games = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join lutris games
+    let games = xdg data lutris games
     let lutris = glob ($games | path join *.yml)
         | each {|f| try { open $f | get --optional game.prefix } catch { null } } | compact
     let synced = glob ($nu.home-dir | path join sync games d2 * drive_c) | path dirname
@@ -135,19 +133,17 @@ export def link [cfg: record] {
         (wine-desktop-decl)
         # the script forces a migration prompt over a plain d2launcher.desktop
         (file-text ($nu.home-dir | path join .local share applications d2launcher.local.desktop) (desktop $dir))
-        ...(vanilla-decls)
+        ...(vanilla-decls $cfg)
     ]
 }
 
 # Plain LoD beside median xl, linked into its own dir so its logs land there.
-def vanilla-root []: nothing -> path {
-    $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join diablo2
-}
+def vanilla-root []: nothing -> path { xdg data diablo2 }
 
 def vanilla-prefix []: nothing -> path { vanilla-root | path join prefix }
 
-def vanilla-decls []: nothing -> list<record> {
-    let base = lod-detect
+def vanilla-decls [cfg: record]: nothing -> list<record> {
+    let base = $cfg.base_dir | default (lod-detect)
     if $base == null or not (wine-ready) { return [] }
     let game = vanilla-root | path join "Diablo II"
     let wine = wine-bin | path dirname
@@ -239,29 +235,30 @@ def gamescope-values [cfg: record]: nothing -> record {
     }
 }
 
+# gamescope paces the frames; d2gl's own vsync on top adds frames of cursor lag
+def d2gl-screen-keys [width: string, height: string]: nothing -> record {
+    {Screen: {window_width: $width, window_height: $height, centered_window: "true", vsync: "false"}}
+}
+
 def d2gl-window-keys [cfg: record]: nothing -> record {
     let size = render-size $cfg
-    {Screen: {window_width: ($size.w | into string), window_height: ($size.h | into string), centered_window: "true", vsync: "false"}}
+    d2gl-screen-keys ($size.w | into string) ($size.h | into string)
 }
 
 def d2gl-window-decl [cfg: record]: nothing -> list<record> {
     let ini = game-dir | path join d2gl.ini
     if not (game-dir | path join $PATCH_VERSION | path exists) { return [] }
     let want = d2gl-window-keys $cfg
-    let lines = if ($ini | path exists) { open --raw $ini | lines | each { str trim } } else { [] }
-    let start = $lines | enumerate | where item == "[Screen]" | get --optional 0.index
-    let have = if $start == null { {} } else {
-        $lines | skip ($start + 1) | take while { not ($in | str starts-with "[") } | where ($it =~ '^[^;].*=')
-            | parse "{key}={value}" | if ($in | is-empty) { {} } else { transpose -r -d }
-    }
+    let text = if ($ini | path exists) { open --raw $ini } else { "" }
+    let have = ini-rows $text | where section == Screen and key != null
+        | reduce --fold {} {|r, acc| $acc | upsert ($r.key | str trim) ($r.value | str trim) }
     if ($want.Screen | columns | all {|k| ($have | get --optional $k) == ($want.Screen | get $k) }) { return [] }
     [(step d2gl-window ($want.Screen.window_width) ($want.Screen.window_height))]
 }
 
 export def d2gl-window [width: string, height: string]: nothing -> nothing {
     let ini = game-dir | path join d2gl.ini
-    # gamescope paces the frames; d2gl's own vsync on top adds frames of cursor lag
-    let keys = {Screen: {window_width: $width, window_height: $height, centered_window: true, vsync: false}}
+    let keys = d2gl-screen-keys $width $height
     let text = if ($ini | path exists) { open --raw $ini } else { "" }
     $text | ini-apply $keys false | save -f $ini
 }
@@ -332,12 +329,17 @@ export def mxl-install []: nothing -> nothing {
     let zip = home-dir | path join patches $"($name).zip"
     if not ($zip | path exists) {
         let tmp = mktemp --directory --tmpdir d2launcher-mxl.XXXXXX
-        for file in ($manifest.files | get name) {
-            (^curl -fLs --get $manifest.location --data-urlencode $"type=($manifest.channel)"
-                --data-urlencode $"tag=($manifest.tag)" --data-urlencode $"file=($file)" -o ($tmp | path join $file))
+        try {
+            for file in ($manifest.files | get name) {
+                (^curl -fLs --get $manifest.location --data-urlencode $"type=($manifest.channel)"
+                    --data-urlencode $"tag=($manifest.tag)" --data-urlencode $"file=($file)" -o ($tmp | path join $file))
+            }
+            do { cd $tmp; ^zip -q -r -0 $"($zip).part" . }
+            mv $"($zip).part" $zip
+        } catch {|e|
+            rm -rf $tmp
+            error make {msg: $e.msg}
         }
-        do { cd $tmp; ^zip -q -r -0 $"($zip).part" . }
-        mv $"($zip).part" $zip
         rm -rf $tmp
     }
     ^unzip -q -o (install-dir | path join res d2-patch.zip) -d $game

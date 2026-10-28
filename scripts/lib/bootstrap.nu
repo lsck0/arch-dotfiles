@@ -117,6 +117,7 @@ def online []: nothing -> bool {
 
 def --env tui-init []: nothing -> nothing {
     if (assume) or ($env.TERM? | default dumb) == "dumb" or (^test -t 0 | complete).exit_code != 0 { return }
+    # -Sy on the ephemeral live iso: the lsck0 iso already ships dialog, so this partial-upgrade path is only hit on stock media
     if (which dialog | is-empty) and not ((online) and (try { ^pacman -Sy --noconfirm --needed dialog; true } catch { false })) {
         log-warn "dialog unavailable, using plain prompts"
         return
@@ -177,9 +178,9 @@ def yes [title: string, text: string, --default-yes]: nothing -> bool {
         if $status > 1 { die (questions-load).messages.aborted }
         $status == 0
     } else if $default_yes {
-        (input $"($text) [Y/n] " | str lowercase) != "n"
+        not ((input $"($text) [Y/n] " | str lowercase) | str starts-with "n")
     } else {
-        (input $"($text) [y/N] " | str lowercase) == "y"
+        (input $"($text) [y/N] " | str lowercase) in [y yes]
     }
 }
 
@@ -320,7 +321,8 @@ def user-setup [c: record]: nothing -> nothing {
     if ($c.profile_file | is-not-empty) and ("secrets" in (open $c.profile_file | get --optional capabilities | default [])) {
         let owners = $"($root)/var/lib/dotfiles/owners"
         mkdir ($owners | path dirname)
-        $"($c.username)\n" | save --append $owners
+        let have = if ($owners | path exists) { open --raw $owners | lines } else { [] }
+        if $c.username not-in $have { $"($c.username)\n" | save --append $owners }
     }
     if ($c.ssh_key | is-not-empty) {
         let keys = $home | path join .ssh authorized_keys
@@ -448,7 +450,8 @@ def target-system [c: record, root_uuid: string]: nothing -> nothing {
     let t = {|path| $"($MOUNT)($path)" }
     ^ln -sf $"/usr/share/zoneinfo/($c.timezone)" (do $t /etc/localtime)
     in-target $MOUNT hwclock --systohc
-    open --raw (do $t /etc/locale.gen) | str replace --regex --multiline $"^#\(($c.locale) \)" '$1' | save --force (do $t /etc/locale.gen)
+    let locale_rx = $c.locale | str replace --all --regex '([.^$*+?()\[\]{}|\\])' '\$1'
+    open --raw (do $t /etc/locale.gen) | str replace --regex --multiline $"^#\(($locale_rx) \)" '$1' | save --force (do $t /etc/locale.gen)
     in-target $MOUNT locale-gen
     $"LANG=($c.locale)\n" | save --force (do $t /etc/locale.conf)
     [$"KEYMAP=($c.keymap)"] ++ (xkb-vars $c.keymap) | str join "\n" | $"($in)\n" | save --force (do $t /etc/vconsole.conf)
@@ -489,8 +492,11 @@ def stage-arm [c: record, root_uuid: string]: nothing -> nothing {
     if $c.encrypt { $"/dev/disk/by-uuid/($root_uuid)\n" | save --force ($state | path join luks-device) }
     let report = env-or BOOTSTRAP_REPORT
     if $report != "" { $"($report)\n" | save --force ($state | path join report) }
-    $"($c.username) ALL=\(ALL:ALL\) NOPASSWD: ALL\nDefaults:($c.username) verifypw=any\n" | save --force $"($MOUNT)/etc/sudoers.d/zz-dotfiles-stage"
-    ^chmod 440 $"($MOUNT)/etc/sudoers.d/zz-dotfiles-stage"
+    let stage_sudoers = $"($MOUNT)/etc/sudoers.d/zz-dotfiles-stage"
+    $"($c.username) ALL=\(ALL:ALL\) NOPASSWD: ALL\nDefaults:($c.username) verifypw=any\n" | save --force $"($stage_sudoers).new"
+    ^chmod 440 $"($stage_sudoers).new"
+    if not (in-target-ok $MOUNT visudo -cqf /etc/sudoers.d/zz-dotfiles-stage.new) { die "the stage sudoers drop-in does not parse" }
+    mv --force $"($stage_sudoers).new" $stage_sudoers
     "a dotfiles install chain runs from this disk; the lsck0 iso will not erase it unattended\n" | save --force $"($MOUNT)($STAGE_ESP_MARKER)"
     let checkout = $"/home/($c.username)/projects/arch-dotfiles"
     [
@@ -858,6 +864,8 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         ssh_key: "" disk: "" disk_model: "" setup_mode: false
     }
     mut c = questions-walk $q ($start | merge (question-defaults $q))
+    # the stub's keymap only seeds the first walk; afterwards the chosen keymap is the question default, so drop the seed
+    hide-env --ignore-errors BOOTSTRAP_KEYMAP_DEFAULT
     if $c.machine_wsl {
         wsl-install $q $c
         return

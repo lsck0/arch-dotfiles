@@ -26,6 +26,8 @@ local COLORSCHEMES = {
     ["tokyo-night-storm"] = "tokyonight-storm",
     ["void"] = "tokyonight-night",
 }
+-- no marker (or an empty one) means the stock theme; a bad name or a failed apply falls back to FALLBACK
+local DEFAULT = "ayu-dark"
 local FALLBACK = "wal"
 
 local AYU_LINENR = {
@@ -58,7 +60,6 @@ local CLEAR_BG = {
     "SignColumn",
     "CursorLine",
     "CursorLineNr",
-    "StatusLine",
     "StatusLineNC",
     "EndOfBuffer",
     "TelescopeNormal",
@@ -183,7 +184,7 @@ vim.api.nvim_create_autocmd("User", {
 })
 
 function M.apply(name)
-    name = name and name ~= "" and name or "ayu-dark"
+    name = name and name ~= "" and name or DEFAULT
     current = name
     local colorscheme = COLORSCHEMES[name] or FALLBACK
     local background = background_from_wal()

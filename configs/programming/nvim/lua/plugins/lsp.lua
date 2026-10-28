@@ -64,14 +64,23 @@ return {
             if vim.v.vim_did_enter == 1 then
                 require("mason-tool-installer").run_on_start()
             end
+            -- same engine candidates as unreal.lua's engine_root, so a driver found via $UE_ROOT or $XDG_DATA_HOME
+            -- also gets its system includes extracted
+            local ue_data = vim.env.XDG_DATA_HOME or (vim.env.HOME .. "/.local/share")
+            local ue_dirs = { ue_data .. "/unreal-engine", "/opt/unreal-engine" }
+            if vim.env.UE_ROOT then
+                table.insert(ue_dirs, 1, vim.env.UE_ROOT)
+            end
+            local query_drivers = {}
+            for _, dir in ipairs(ue_dirs) do
+                query_drivers[#query_drivers + 1] = dir .. "/**/bin/clang++"
+            end
             vim.lsp.config("clangd", {
                 cmd = {
                     "clangd",
                     "--offset-encoding=utf-16",
                     "--background-index",
-                    "--query-driver=/opt/unreal-engine/**/bin/clang++,"
-                        .. vim.env.HOME
-                        .. "/.local/share/unreal-engine/**/bin/clang++",
+                    "--query-driver=" .. table.concat(query_drivers, ","),
                 },
             })
 
@@ -83,7 +92,15 @@ return {
             end
 
             vim.lsp.config("nushell", {
-                cmd = { "nu", "--no-config-file", "-I", (os.getenv("DOTFILES") or "") .. "/scripts/lib", "--lsp" },
+                cmd = {
+                    "nu",
+                    "--no-config-file",
+                    "-I",
+                    -- $DOTFILES is unset in a non-uwsm session (tty, ssh); the config link resolves into the repo
+                    (os.getenv("DOTFILES") or (vim.uv.fs_realpath(vim.fn.stdpath("config")) .. "/../../.."))
+                        .. "/scripts/lib",
+                    "--lsp",
+                },
             })
             vim.lsp.enable("nushell")
 
@@ -268,8 +285,7 @@ return {
         config = function()
             require("conform").formatters.sortderives = {
                 inherit = false,
-                command = vim.uv.fs_realpath(vim.fn.stdpath("config"))
-                    .. "/../../../scripts/lib/sort-derives-stdout.nu",
+                command = vim.uv.fs_realpath(vim.fn.stdpath("config")) .. "/../formatting/sort-derives-stdout.nu",
                 stdin = true,
             }
             require("conform").formatters["kulala-fmt"] = { command = "kulala-fmt" }

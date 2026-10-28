@@ -28,7 +28,6 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
     let lab = lab-env
     let nets = $lab.HOMELAB_NETS? | default "" | split row " " | where $it != ""
     if ($lab.HOMELAB_DNS? | default "") == "" or ($nets | is-empty) { return }
-    if not ($"/sys/class/net/($iface)/device" | path exists) { return }
 
     if $action == down {
         out ip route flush table $TABLE dev $iface | ignore
@@ -36,6 +35,7 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
         for net in $nets { out ip rule del to $net lookup $TABLE priority $PRIORITY | ignore }
         return
     }
+    if not ($"/sys/class/net/($iface)/device" | path exists) { return }
 
     # the persona dispatcher drops these on wg0 up; a stray link event must not re-add them under it
     if not ("/sys/class/net/wg0" | path exists) {

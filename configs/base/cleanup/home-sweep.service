@@ -1,5 +1,5 @@
 [Unit]
-Description=Sweep accumulated app logs and temp files in the home directory
+Description=Sweep accumulated app logs in the home directory
 
 [Service]
 Type=oneshot

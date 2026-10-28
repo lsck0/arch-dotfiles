@@ -4,14 +4,13 @@ import qs.Commons
 WidgetButton {
   id: root
 
-  property Component iconComponent: null
   property real slotSize: Style.bar.iconSlot
   property real opticalSize: Style.bar.iconCanvas
 
   fontFamily: bar ? bar.iconFontFamily : Style.font.iconFamily
 
   labelVisible: false
-  hasVisualContent: text !== "" || iconComponent !== null
+  hasVisualContent: text !== ""
   fontSize: Style.bar.iconFont
   fixedWidth: vertical ? -1 : slotSize
   fixedHeight: vertical ? slotSize : -1
@@ -23,7 +22,6 @@ WidgetButton {
 
     OpticalGlyph {
       anchors.fill: parent
-      visible: root.iconComponent === null
       text: root.text
       fontFamily: root.fontFamily
       fontSize: root.fontSize
@@ -32,12 +30,6 @@ WidgetButton {
 
       layer.enabled: Style.fx.glow > 0 && root.active
       layer.effect: Glow {}
-    }
-
-    Loader {
-      anchors.fill: parent
-      visible: root.iconComponent !== null
-      sourceComponent: root.iconComponent
     }
   }
 }

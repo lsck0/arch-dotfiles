@@ -20,7 +20,9 @@ def read-or [file: path, fallback: string]: nothing -> string {
 
 def session-id []: string -> string {
     let payload = $in
-    try { $payload | from json | get session_id } catch { $SESSION_DEFAULT } | default $SESSION_DEFAULT
+    let sid = try { $payload | from json | get session_id } catch { $SESSION_DEFAULT } | default $SESSION_DEFAULT
+    # the id becomes a state-file name; a '/' would escape the state dir, so reject it
+    if ($sid | str contains "/") { $SESSION_DEFAULT } else { $sid }
 }
 
 # The hook's caller, the agent process: its exit ends the session's claim.

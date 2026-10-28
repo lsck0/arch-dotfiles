@@ -23,7 +23,6 @@ Singleton {
     for (let i = 0; i < tasks.length; i++) if (tasks[i].overdue) n++
     return n
   }
-  readonly property bool busy: exportProc.running || mutateProc.running
 
   property var notified: ({})
   property bool notifiedReady: false
@@ -121,6 +120,7 @@ Singleton {
       let t = list[i]
       if (!t || !t.uuid) continue
       let d = t.due ? twDate(t.due) : null
+      let s = t.start ? twDate(t.start) : null
       let tags = (t.tags && t.tags.length) ? Array.prototype.slice.call(t.tags).map(String) : []
       out.push({
         uuid: String(t.uuid),
@@ -133,7 +133,7 @@ Singleton {
         due: dueText(t.due),
         overdue: !!d && d.getTime() < Date.now(),
         active: !!t.start,
-        startMs: t.start ? (root.twDate(t.start) ? root.twDate(t.start).getTime() : 0) : 0,
+        startMs: s ? s.getTime() : 0,
         urgency: Number(t.urgency) || 0
       })
     }
@@ -197,7 +197,7 @@ Singleton {
     if (fresh.length === 0) return
     var title = fresh.length === 1 ? (fresh[0].overdue ? "Task overdue" : "Task due " + fresh[0].due) : fresh.length + " tasks due"
     var body = fresh.map(function (t) { return fresh.length === 1 ? t.desc : t.desc + " (" + t.due + ")" }).join("\n")
-    Quickshell.execDetached(["notify-send", "-a", "quickshell-action", "-u", "low", "-h", "string:omarchy-glyph:" + root.glyph, "--", title, body])
+    Quickshell.execDetached(["notify-send", "-a", "quickshell-action", "-u", "low", "-h", "string:lsck0-glyph:" + root.glyph, "--", title, body])
   }
 
   JsonProcess {

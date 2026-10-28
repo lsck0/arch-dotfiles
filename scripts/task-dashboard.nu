@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const HUMAN_TASKRC = ".config/task/taskrc"
+const HUMAN_TASKRC = "task/taskrc"
 const AGENT_DB_GLOB = "projects/*/tasks/.taskrc"
 const READY_LIMIT = 10
 const AGING_LIMIT = 10
@@ -543,7 +543,7 @@ def main [
     --print # print one page instead of the TUI (default off a tty)
     --page (-p) # print one page through less
 ]: nothing -> nothing {
-    $env.TASKRC = $nu.home-dir | path join $HUMAN_TASKRC
+    $env.TASKRC = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join $HUMAN_TASKRC
     hide-env --ignore-errors TASKDATA TIMEWARRIORDB
     let tty = (is-terminal --stdout)
     if $print or $page or not $tty {

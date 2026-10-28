@@ -63,7 +63,7 @@ export def guarded [name: string, body: closure, --read-only, --background]: not
             exit 141
         }
         # ctrl+c is no crash: the supervisor logs the interrupt, nothing goes to crash.json
-        if ($err.debug | str contains "Interrupted") or ($err.msg | str lowercase | str contains "interrupted") {
+        if ($err.debug | str contains "Interrupted") {
             run-journal
             exit 130
         }

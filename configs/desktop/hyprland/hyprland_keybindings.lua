@@ -113,7 +113,6 @@ hl.bind(mod .. " + SHIFT + t", app("missioncenter"), { description = "system mon
 hl.bind(mod .. " + w", helper(shell_bin("wallpaper-picker")), { description = "wallpaper picker" })
 hl.bind(mod .. " + y", helper("spawn-shimeji"), { description = "spawn a desktop mascot" })
 hl.bind(mod .. " + x", app("$DOTFILES/configs/desktop/hyprland/boomer.nu"), { description = "magnifier (boomer)" })
-hl.bind(mod .. " + u", helper("$DOTFILES/scripts/toggles/menu.nu"), { description = "toggles menu" })
 
 hl.bind(mod .. " + Q", hl.dsp.exec_cmd("$DOTFILES/configs/desktop/hyprland/window-close.nu"), {
     description = "close the window (a gamescope game is killed)",
@@ -239,12 +238,12 @@ for workspace = 1, 10 do
     hl.bind(
         mod .. " + " .. key,
         hl.dsp.focus({ workspace = workspace }),
-        { description = "focus workspace 1 to 10 (0 is 10)" }
+        { description = "focus workspace " .. workspace }
     )
     hl.bind(
         mod .. " + SHIFT + " .. key,
         hl.dsp.window.move({ workspace = workspace }),
-        { description = "move the window to workspace 1 to 10 (0 is 10)" }
+        { description = "move the window to workspace " .. workspace }
     )
 end
 

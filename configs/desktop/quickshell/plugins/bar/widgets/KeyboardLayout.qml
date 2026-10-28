@@ -13,7 +13,6 @@ BarWidget {
   property string layoutFull: ""
   property string keyboardName: ""
   property string typedKeyboardName: ""
-  property bool keyboardUnresolved: false
   property bool multipleLayouts: true
   property var layoutBriefs: ({})
   readonly property string layoutLabel: KeyboardLayoutModel.shortLabel(layoutFull, layoutBriefs)
@@ -74,7 +73,6 @@ BarWidget {
       const typed = listed.filter(k => KeyboardLayoutModel.isTypedKeyboard(k.name))
       const kb = KeyboardLayoutModel.selectKeyboard(typed, root.typedKeyboardName)
       if (!kb || !kb.active_keymap) {
-        root.keyboardUnresolved = true
         if (typed.length === 0) {
           root.layoutFull = ""
           root.keyboardName = ""
@@ -82,7 +80,6 @@ BarWidget {
         return
       }
 
-      root.keyboardUnresolved = false
       root.keyboardName = String(kb.name || "")
       root.multipleLayouts = kb.layout === undefined || String(kb.layout).indexOf(",") !== -1
       root.layoutFull = kb.active_keymap
@@ -121,9 +118,9 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.layoutLabel.toUpperCase()
+    text: root.layoutLabel
     fontSize: Style.font.caption
-    horizontalMargin: 6
+    horizontalMargin: Style.spacing.xs
     tooltipText: root.layoutFull
     onPressed: function() { root.cycleLayout() }
   }

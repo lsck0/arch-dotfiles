@@ -3,7 +3,6 @@
   (load)
 ] @keyword.import
 
-
 [
   "if"
   "xx"
@@ -197,14 +196,13 @@ keyword: (identifier) @keyword
 [
   (block_comment)
   (comment)
-] @comment 
+] @comment
 
 (tagged_union_kind name: (identifier) @keyword)
 
 (tagged_union_binding tag: (identifier) @constant)
 
 ",," @operator
-
 
 directive: ("#") @keyword ; #if
 type: ("type_of") @type

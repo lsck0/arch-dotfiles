@@ -14,8 +14,8 @@ self=$(dirname "$(realpath "$0")")
 if [[ -n "${1:-}" ]]; then
     dest=$1
 elif [[ -f "$self/dot.nu" ]]; then
-    # never into the checkout: dot sync would commit it
-    dest=$HOME
+    # never into the checkout (dot sync would commit it) and not straight into $HOME either
+    dest=${XDG_STATE_HOME:-$HOME/.local/state}/diagnostics
 else
     dest=$self
 fi

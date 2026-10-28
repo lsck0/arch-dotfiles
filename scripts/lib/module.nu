@@ -104,7 +104,10 @@ export def process-running [name: string]: nothing -> bool {
 export def desktop-set [values: record]: string -> string {
     let text = $in
     $values | items {|key, value| {key: $key, value: $value} }
-    | reduce --fold $text {|kv, t| $t | str replace --regex $"\(?m\)^($kv.key)=.*$" $"($kv.key)=($kv.value)" }
+    | reduce --fold $text {|kv, t|
+        let pattern = $kv.key | str replace --all --regex '[.^$*+?()\[\]{}|\\]' '\${0}'
+        $t | str replace --regex $"\(?m\)^($pattern)=.*$" $"($kv.key)=($kv.value)"
+    }
 }
 
 # Registers MCP servers with the agents (~/.claude.json's mcpServers), name -> server spec; null drops the name.

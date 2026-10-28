@@ -6,7 +6,7 @@ const POLICY = "/etc/chromium/policies/managed/policy.json"
 const CHROMIUM_LIB = "/usr/lib/chromium"
 const SEARCH_OFF_HOMELAB = {name: DuckDuckGo, url: "https://duckduckgo.com/?q={searchTerms}"}
 
-# Forces system_theme, older profiles keep classic; only while chromium is closed, it rewrites Preferences on exit.
+# Forces system_theme; chromium rewrites Preferences on exit, so an edit made while it runs re-applies on the next apply.
 def profile-style [dir: path]: nothing -> list<record> {
     let prefs = $dir | path join Default Preferences
     if not ($prefs | path exists) { return [] }
@@ -16,8 +16,7 @@ def profile-style [dir: path]: nothing -> list<record> {
 export def link [cfg: record] {
     let config = (xdg config)
     profile-style ($config | path join chromium)
-    | append (file-text ($config | path join chromium-flags.conf) "--no-first-run\n")
-    | append (desktop-override chromium.desktop { str replace --all --regex '(?m)^Exec=chromium' 'Exec=chromium --ozone-platform-hint=auto' })
+    | append (file-text ($config | path join chromium-flags.conf) "--no-first-run\n--ozone-platform-hint=auto\n")
 }
 
 export def system [cfg: record] {

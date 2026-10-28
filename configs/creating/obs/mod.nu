@@ -71,10 +71,9 @@ const STREAM_HEIGHT = 1080
 const PORTAL_TOKEN = "RestoreToken"
 const GLOBAL = {General: {AutomaticSearch: "true", SafeMode: "false", ConfirmOnExit: "true"}}
 # obs 31+ reads the selection here, else it opens an empty Untitled; FirstRun unset opens the setup wizard
-const USER = {
-    Basic: {Profile: Streaming, ProfileDir: Streaming, SceneCollection: Streaming, SceneCollectionFile: Streaming.json}
-    General: {FirstRun: "true"}
-}
+const USER_GENERAL = {General: {FirstRun: "true"}}
+const SELECT_STREAMING = {Profile: Streaming, ProfileDir: Streaming, SceneCollection: Streaming, SceneCollectionFile: Streaming.json}
+const SELECT_BARE = {Profile: Recording, ProfileDir: Recording, SceneCollection: Bare, SceneCollectionFile: Bare.json}
 # obs never shows chromium's local network access prompt, so an https overlay could not reach discord's rpc
 const LAUNCH_FLAGS = "--enable-unsafe-webgpu --enable-features=Vulkan --disable-features=LocalNetworkAccessChecks"
 
@@ -240,10 +239,6 @@ def secret [name: string]: nothing -> path {
     $env.DOTFILES | path join configs secrets keys $name
 }
 
-def obs-running []: nothing -> bool {
-    (ps | where name == obs | is-not-empty)
-}
-
 export def link [cfg: record] {
     let obs = obs-dir
     let basic = $obs | path join basic
@@ -252,7 +247,9 @@ export def link [cfg: record] {
     let scene = {|live, text, mode|
         [(scene-file $live $text $mode) (file-text (applied-file $live) ($text | scene-hash))]
     }
-    let secret_scene = if (secret-is-plaintext $streaming) {
+    let has_stream = secret-is-plaintext $streaming
+    let selection = if $has_stream { $SELECT_STREAMING } else { $SELECT_BARE }
+    let secret_scene = if $has_stream {
         (do $scene ($basic | path join scenes Streaming.json) (scene-render $cfg $streaming) "600")
         | append (file-text ($basic | path join scenes .from-secrets) "")
     } else { [] }
@@ -268,7 +265,7 @@ export def link [cfg: record] {
     }
     let state = $scenes ++ $profiles | decls-flatten
     # obs saves its loaded collection and profile on exit, over anything written under it
-    if (obs-running) and ($state | any {|d| not ($d.target | path exists) or (open --raw $d.target) != $d.content }) {
+    if (process-running obs) and ($state | any {|d| not ($d.target | path exists) or (open --raw $d.target) != $d.content }) {
         error make {msg: "obs runs, close it so its collections and profiles can be updated"}
     }
     let prefix = $nu.home-dir | path join $MCP_PREFIX
@@ -280,7 +277,7 @@ export def link [cfg: record] {
             file-copy $service ($basic | path join profiles Streaming service.json) --mode 600
         } else { [] })
         (ini-merge ($obs | path join global.ini) $GLOBAL)
-        (ini-merge ($obs | path join user.ini) $USER --missing-only)
+        (ini-merge ($obs | path join user.ini) ({Basic: $selection} | merge $USER_GENERAL) --missing-only)
         (if ($websocket | path exists) { [] } else { step websocket-init $websocket })
         (file-copy ($HERE | path join mcp package.json) ($prefix | path join package.json))
         (file-copy ($HERE | path join mcp package-lock.json) ($prefix | path join package-lock.json) --then $npm_ci)
@@ -296,11 +293,12 @@ export def link [cfg: record] {
 export def websocket-init [file: path]: nothing -> nothing {
     mkdir ($file | path dirname)
     let password = random chars --length 32
+    touch $file
+    chmod 600 $file
     {
         alerts_enabled: false, auth_required: true, first_load: false, server_enabled: true
         server_password: $password, server_port: $WEBSOCKET_PORT
-    } | to json --indent 4 | save $file
-    chmod 600 $file
+    } | to json --indent 4 | save --force $file
 }
 
 # Skips a collection edited since link that obs has not loaded; the portal token is never stored.

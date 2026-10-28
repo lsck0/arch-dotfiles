@@ -7,6 +7,6 @@ Type=oneshot
 ExecStart=%h/.local/bin/dot internal theme serve
 # each theme verb is capped at 60s (THEME_VERB_TIMEOUT); past this the path unit starts the next waiting request
 TimeoutStartSec=5min
-# a failed run drops the request, or PathExists would restart the unit until its start limit
+# a failed run drops theme.request so PathExists cannot restart the unit into its start limit; a request queued during the run is dropped with it
 ExecStopPost=/bin/sh -c 'case "$SERVICE_RESULT" in success|timeout) ;; *) rm -f %t/theme.request ;; esac'
 

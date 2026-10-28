@@ -1,6 +1,7 @@
 pragma Singleton
 import QtQuick
 import Quickshell
+import Quickshell.Io
 
 Singleton {
   id: root
@@ -15,10 +16,14 @@ Singleton {
       console.warn("discord: rejected command", cmd)
       return false
     }
-    const target = Util.shellQuote(root.commandPath)
-    const tmp = Util.shellQuote(root.commandPath + ".tmp")
-    Quickshell.execDetached(["bash", "-c",
-      "printf '%s\\n' " + Util.shellQuote(JSON.stringify({ cmd: cmd })) + " > " + tmp + " && mv -f " + tmp + " " + target])
+    commandFile.setText(JSON.stringify({ cmd: cmd }) + "\n")
     return true
+  }
+
+  FileView {
+    id: commandFile
+    path: root.commandPath
+    atomicWrites: true
+    printErrors: false
   }
 }

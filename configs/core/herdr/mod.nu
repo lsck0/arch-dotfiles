@@ -1,7 +1,7 @@
 use module.nu *
 use ../wallust/palette.nu [palette-slots hex-to-rgb rgb-to-hex tone-map mix]
 
-export const meta = {deps: [core/wallust]}
+export const meta = {deps: [core/wallust], packages: {pacman: [herdr-bin]}}
 
 const CONFIG = ".config/herdr/config.toml"
 const BLOCK = '(?s)(# BEGIN PYWAL THEME\n).*?(# END PYWAL THEME)'

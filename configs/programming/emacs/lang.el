@@ -158,7 +158,7 @@ NAMES is a list of file names, or a predicate on a directory, searched upward fr
     (setf (alist-get m apheleia-mode-alist) 'clang-format))
   (setf (alist-get 'leptosfmt   apheleia-formatters) '("leptosfmt" "--stdin" "--rustfmt")
         (alist-get 'sortderives apheleia-formatters)
-        (list (expand-file-name "scripts/lib/sort-derives-stdout.nu" (getenv "DOTFILES"))))
+        (list (expand-file-name "configs/programming/formatting/sort-derives-stdout.nu" (getenv "DOTFILES"))))
   (dolist (m '(rust-mode rust-ts-mode))
     (setf (alist-get m apheleia-mode-alist) '(rustfmt sortderives)))
   (dolist (hook '(rust-mode-hook rust-ts-mode-hook))
@@ -192,7 +192,7 @@ NAMES is a list of file names, or a predicate on a directory, searched upward fr
   :ensure nil
   :defer t
   :config
-  (setq org-directory "~/orgfiles/"
+  (setq org-directory "~/sync/notes/"
         org-default-notes-file (expand-file-name "refile.org" org-directory)
         org-agenda-files (when (file-directory-p org-directory)
                            (directory-files-recursively org-directory "\\.org\\'"))))
@@ -255,8 +255,8 @@ Like nvim's spelloptions=camel, GitHub or LaTeX is never flagged; whole identifi
     (message "spell: added %s" word)))
 
 (defun my/prose-setup ()
-  "nvim prose filetypes: hard wrap at 100 columns and spell check."
-  (setq-local fill-column 100)
+  "nvim prose filetypes: hard wrap at 120 columns and spell check."
+  (setq-local fill-column 120)
   (auto-fill-mode 1)
   (when (my/spell-available-p) (flyspell-mode 1)))
 

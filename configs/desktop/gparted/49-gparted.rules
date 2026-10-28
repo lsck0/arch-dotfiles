@@ -1,8 +1,7 @@
 // gparted is root driven by the session, and any process of it can type into that window: an admin at the machine
 // authenticates once per few minutes (kept), never unprompted; a remote (ssh) or inactive session gets polkit's default
 polkit.addRule(function (action, subject) {
-    var isGparted = action.id === "org.gnome.gparted" ||
-        (action.id === "org.freedesktop.policykit.exec" && action.lookup("program") === "/usr/bin/gparted");
+    var isGparted = action.id === "org.gnome.gparted";
     if (isGparted && subject.local && subject.active && subject.isInGroup("wheel")) {
         return polkit.Result.AUTH_ADMIN_KEEP;
     }

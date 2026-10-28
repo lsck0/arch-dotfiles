@@ -5,23 +5,23 @@ export const meta = {
     packages: {pacman: [imagemagick wallust-git]}
 }
 
-const CONFIG_DIR = ".config/wallust"
+const CONFIG_SUBDIR = "wallust"
 const STAND_IN = "void"
-const STYLE_JSON = ".config/dotfiles/style.json"
+const STYLE_JSON = "dotfiles/style.json"
 
 export def link [cfg: record] {
-    let dir = $nu.home-dir | path join $CONFIG_DIR
+    let dir = xdg config $CONFIG_SUBDIR
     let templates = glob templates/**/* --no-dir | each { path relative-to $env.PWD }
     [
         (file-copy wallust.toml ($dir | path join wallust.toml))
         ($templates | each {|t| file-copy $t ($dir | path join $t) })
         (files-into ($dir | path join colorschemes) ...(glob ../../../themes/*.json))
-        (file-text ($nu.home-dir | path join $STYLE_JSON) (style-json) --generated)
+        (file-text (xdg config $STYLE_JSON) (style-json) --generated)
         (unit-file dot-theme.service)
         (unit-file dot-theme.path --enable --now)
         # theme verbs of later modules read colors.json now, before a fresh home's first theme switch
         (if (which wallust | is-empty) { [] } else {
-            exec palette-stand-in [wallust cs -q -s $STAND_IN] --creates (xdg cache wal colors.json)
+            exec palette-stand-in [wallust cs -q -s ($dir | path join colorschemes $"($STAND_IN).json")] --creates (xdg cache wal colors.json)
         })
     ]
 }

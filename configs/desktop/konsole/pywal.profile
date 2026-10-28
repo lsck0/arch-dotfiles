@@ -1,6 +1,6 @@
 [Appearance]
 ColorScheme=pywal
-Font=Kode Mono,11,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+Font=@FONT@,@UI_SIZE@,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
 
 [General]
 Name=pywal

@@ -3,10 +3,8 @@ use ../../core/wallust/font.nu [font-load]
 
 export const meta = {packages: {pacman: [vscodium-bin]}}
 
-const USER_DIR = ".config/VSCodium/User"
-
 # Merged, not rendered: VSCodium rewrites settings.json from its settings UI and keeps its own keys there.
-def settings [] {
+def settings [user_dir: path] {
     let p = palette-load
     let theme = if $p == null { {} } else {
         {
@@ -30,20 +28,28 @@ def settings [] {
     let font = font-load
     let typeface = {"editor.fontFamily": $"'($font.mono)', 'monospace'", "editor.fontSize": $font.size}
     let edits = open settings.json | merge $typeface | merge $theme | items {|k, v| json-set [$k] $v }
-    json-merge ($nu.home-dir | path join $USER_DIR settings.json) $edits
+    json-merge ($user_dir | path join settings.json) $edits
 }
 
+def code-bin []: nothing -> any { [codium code] | where {|b| which $b | is-not-empty } | get --optional 0 }
+
+# codium and code read different config roots, so the settings follow the binary that is actually present
+def code-user-dir [bin: string]: nothing -> path { xdg config (if $bin == codium { "VSCodium" } else { "Code" }) User }
+
 export def link [cfg: record] {
-    let bin = [codium code] | where {|b| which $b | is-not-empty } | get --optional 0
+    let bin = code-bin
     if $bin == null { return [] }
+    let user_dir = code-user-dir $bin
     let installed = glob ($nu.home-dir | path join .vscode-oss extensions "vscodevim.vim-*") | is-not-empty
     [
-        (files-into ($nu.home-dir | path join $USER_DIR) keybindings.json)
-        (settings)
+        (files-into $user_dir keybindings.json)
+        (settings $user_dir)
         (if $installed { [] } else { [(exec vim-mode [$bin --install-extension vscodevim.vim])] })
     ]
 }
 
 export def theme [cfg: record, wallpaper: string] {
-    settings
+    let bin = code-bin
+    if $bin == null { return [] }
+    settings (code-user-dir $bin)
 }

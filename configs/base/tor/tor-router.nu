@@ -83,12 +83,12 @@ def elements [values: list<string>]: nothing -> string {
 # Refills the lan bypass for the current home links; flushed first, so a failed fill only keeps the lan on tor.
 def home-fill []: nothing -> nothing {
     let ifaces = try { open --raw $HOME_NETWORK | lines | where $it != "" } catch { [] }
+    ^nft flush set inet $TABLE home_ifaces
+    ^nft flush set inet $TABLE lan4
     let links = $ifaces | each {|i|
         ^ip -4 route show dev $i scope link proto kernel | lines | each { split row " " | first }
     }
     let nets = (homelab).nets ++ ($links | flatten) | uniq | sort
-    ^nft flush set inet $TABLE home_ifaces
-    ^nft flush set inet $TABLE lan4
     if ($ifaces | is-not-empty) { ^nft add element inet $TABLE home_ifaces $"{ ($ifaces | str join ',') }" }
     if ($nets | is-not-empty) { ^nft add element inet $TABLE lan4 $"{ ($nets | str join ',') }" }
 }

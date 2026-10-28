@@ -29,6 +29,7 @@ const PLUGINS = [
     ["Hide Chat Icons" "https://raw.githubusercontent.com/Farcrada/DiscordPlugins/c1250d3990ed3b9f1bf3518aa68050402929c52b/Hide-Chat-Icons/HideChatIcons.plugin.js" a3e3b4af105403b12b78a2168ad3a5adfecbe5f72d1dff06ed8c896cd259e085]
 ]
 const SETTINGS = {
+    # devtools stay on to debug the self-authored BetterDiscord plugin in plugins/; the self-XSS risk is accepted on this own machine
     DANGEROUS_ENABLE_DEVTOOLS_ONLY_ENABLE_IF_YOU_KNOW_WHAT_YOURE_DOING: true
     enableHardwareAcceleration: true
     offloadAdmControls: true

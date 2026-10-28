@@ -40,10 +40,12 @@ def sizes-of [files: table]: nothing -> table {
     let sizes = $known ++ $read | sort-by path | select path mtime width height
     $unknown | where path not-in $read.path
     | each { print --stderr $"wallpaper-list: skipping ($in.path): unreadable image" }
-    mkdir ($cache_file | path dirname)
-    let tmp = $"($cache_file).($nu.pid)"
-    $sizes | to tsv --noheaders | save --force $tmp
-    mv --force $tmp $cache_file
+    if ($read | is-not-empty) or (($sizes | length) != ($cached | length)) {
+        mkdir ($cache_file | path dirname)
+        let tmp = $"($cache_file).($nu.pid)"
+        $sizes | to tsv --noheaders | save --force $tmp
+        mv --force $tmp $cache_file
+    }
     $sizes
 }
 
@@ -58,8 +60,7 @@ export def wallpaper-resolve [name: string]: nothing -> any {
 # Integers only: nu compares floats with a tolerance, which blurs the limits.
 def fits-screen [width: int, height: int, screen: record]: nothing -> bool {
     let sides = [($screen.width * $height) ($screen.height * $width)]
-    let upscale = $UPSCALE_PERCENT_MAX
-    let upscaled = 100 * $screen.width > $upscale * $width or 100 * $screen.height > $upscale * $height
+    let upscaled = 100 * $screen.width > $UPSCALE_PERCENT_MAX * $width or 100 * $screen.height > $UPSCALE_PERCENT_MAX * $height
     not $upscaled and (100 - $CROP_PERCENT_MAX) * ($sides | math max) <= 100 * ($sides | math min)
 }
 

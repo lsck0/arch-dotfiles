@@ -4,7 +4,7 @@ export def ini-apply [values: record, missing_only: bool]: string -> string {
     $values | items {|section, keys| {section: $section, keys: $keys} } | reduce --fold ($start | lines) {|s, lines|
         let headers = $lines | enumerate | where ($it.item | str trim) =~ '^\[.*\]$'
         let begin = if $s.section == "" { 0 } else {
-            $headers | where ($it.item | str trim) == $"[($s.section)]" | get --optional 0.index | default null | if $in == null { null } else { $in + 1 }
+            $headers | where ($it.item | str trim) == $"[($s.section)]" | get --optional 0.index | if $in == null { null } else { $in + 1 }
         }
         let lines = if $begin == null { $lines ++ ["" $"[($s.section)]"] } else { $lines }
         let begin = $begin | default ($lines | length)

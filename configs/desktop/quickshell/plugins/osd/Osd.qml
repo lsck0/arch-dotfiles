@@ -106,10 +106,14 @@ Item {
       const p = JSON.parse(payloadJson || "{}")
       if (Array.isArray(p.lines)) {
         root.log(p.lines, p.duration)
-        return
+        return true
       }
       show(p.icon || "", p.message || "", p.value === undefined ? "" : String(p.value), p.max === undefined ? "100" : String(p.max), p.progressText || "", p.duration === undefined ? "1200" : String(p.duration))
-    } catch (e) {}
+      return true
+    } catch (e) {
+      console.warn("osd: bad payload:", e)
+      return false
+    }
   }
 
   function close() { opened = false }
@@ -163,8 +167,7 @@ Item {
   IpcHandler {
     target: "osd"
     function present(payloadJson: string): string {
-      root.open(payloadJson)
-      return "ok"
+      return root.open(payloadJson) ? "ok" : "bad payload"
     }
     function close(): string { root.close(); return "ok" }
     function state(): string { return root.opened ? "open" : "closed" }

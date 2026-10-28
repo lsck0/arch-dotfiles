@@ -7,7 +7,7 @@ pkgrel=1
 pkgdesc="TeamSpeak 6 voice communication client (beta)"
 arch=(x86_64)
 url="https://www.teamspeak.com"
-license=(custom)
+license=(LicenseRef-TeamSpeak)
 depends=(
     alsa-lib aom at-spi2-core avahi brotli bzip2 cairo dav1d
     dbus expat ffmpeg fontconfig freetype2 fribidi gdk-pixbuf2 glib2

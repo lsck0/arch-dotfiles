@@ -1,7 +1,7 @@
 local wal = require("wal_colors")
 local style = require("style")
 
-local walGradient = { colors = { wal.color1, wal.color2, wal.color3 }, angle = 45 }
+local wal_gradient = { colors = { wal.color1, wal.color2, wal.color3 }, angle = 45 }
 
 local function glow(c, a)
     return (c:gsub("rgb%((%x+)%)", "rgba(%1" .. a .. ")"))
@@ -97,7 +97,7 @@ hl.config({
         gaps_out = 8,
         border_size = style.border,
         col = {
-            active_border = walGradient,
+            active_border = wal_gradient,
             inactive_border = "rgba(2a2a2aaa)",
         },
         layout = "dwindle",
@@ -129,7 +129,7 @@ hl.config({
     },
     group = {
         col = {
-            border_active = walGradient,
+            border_active = wal_gradient,
             border_inactive = "rgba(00000000)",
         },
         groupbar = {

@@ -89,7 +89,7 @@ function parseEntryJson(line) {
 
 function searchableText(entry) {
   if (!entry) return ""
-  if (entry.type === "image") return "image screenshot " + String(entry.mime || "") + " " + String(entry.capturedAt || "")
+  if (entry.type === "image") return "image " + String(entry.mime || "") + " " + String(entry.capturedAt || "")
   return String(entry.text || "") + " " + fileEntryText(entry)
 }
 
@@ -136,8 +136,7 @@ function imagePreviewText(entry) {
   var timestamp = String(entry && entry.capturedAt || "")
   if (!timestamp) return "Image"
 
-  var label = String(entry && entry.mime || "") === "image/png" ? "Screenshot" : "Image"
-  return label + " from " + timestamp
+  return "Image from " + timestamp
 }
 
 function previewText(entry) {
@@ -176,9 +175,9 @@ function displayRows(history, query, limit) {
 
   for (var i = 0; i < values.length; i++) {
     var whole = normalizeEntry(values[i])
+    if (!whole) continue
+    if (needle && searchableText(whole).toLowerCase().indexOf(needle) < 0) continue
     var entry = cappedEntry(whole)
-    if (!entry) continue
-    if (needle && searchableText(entry).toLowerCase().indexOf(needle) < 0) continue
 
     var paths = filePaths(entry)
     var isFile = paths.length > 0

@@ -66,7 +66,7 @@ BorderSurface {
   readonly property var _focusBorderSpec: Border.controlSpec("focus", root.foreground, root.accent)
   readonly property var _hoverBorderSpec: Border.controlSpec("hover-cursor", root.foreground, root.accent)
   readonly property var _selectedBorderSpec: Border.controlSpec("selected", root.foreground, root.accent)
-  readonly property var _normalBorderSpec: Border.controlSpec("normal", root.foreground, Colors.accent)
+  readonly property var _normalBorderSpec: Border.controlSpec("normal", root.foreground, root.accent)
   readonly property real _reservedBorder: isPlain ? Math.max(
     focusable ? Border.width(_focusBorderSpec) : 0,
     Border.width(_hoverBorderSpec),

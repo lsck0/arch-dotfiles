@@ -414,7 +414,8 @@ if release then
         Core.sync(release_all)
     end)
     Core.timeout_add(RELEASE_TIMEOUT_MS, function()
-        -- a node whose Props cannot be read leaves pending above 0, so done()'s save never fires; persist what was recorded before quitting, or every level this stop recorded is lost and the next start cannot reclaim
+        -- a node whose Props cannot be read leaves pending above 0, so done()'s save never fires; persist what
+        -- was recorded before quitting, or every level this stop recorded is lost and the next start cannot reclaim
         state:save(known)
         Core.quit()
         return false

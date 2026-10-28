@@ -3,6 +3,8 @@
 const SCRIPTS = path self | path expand | path dirname
 use ($SCRIPTS | path join lib usage.nu) [die]
 
+const EXTRACT = $SCRIPTS | path join extract.nu
+
 const REPO = $SCRIPTS | path dirname
 const PUBLIC_DIR = $REPO | path join wallpapers
 # syncthing carries them to every machine; the user imports them, dot never writes there
@@ -32,37 +34,41 @@ def main [...sources: path]: nothing -> nothing {
     let public = ls $PUBLIC_DIR | get name | where { is-image $in }
         | par-each --keep-order { {name: ($in | path basename), fingerprint: (fingerprint-of $in)} }
     let unzipped = mktemp --directory --tmpdir
-    let images = $sources | each {|source|
-        match ($source | path type) {
-            dir => (glob $"($source | path expand)/**/*" | where { ($in | path type) == file } | sort)
-            _ if ($source | str lowercase | str ends-with .zip) => {
-                let dir = $unzipped | path join ($source | path basename)
-                mkdir $dir
-                ^bsdtar -xf $source -C $dir
-                glob $"($dir)/**/*" | where { ($in | path type) == file }
+    try {
+        let images = $sources | each {|source|
+            match ($source | path type) {
+                dir => (glob $"($source | path expand)/**/*" | where { ($in | path type) == file } | sort)
+                _ if ($source | str lowercase | str ends-with .zip) => {
+                    let done = ^$EXTRACT $source $unzipped | complete
+                    if $done.exit_code != 0 { error make {msg: ($done.stderr | str trim)} }
+                    glob $"($done.stdout | str trim)/**/*" | where { ($in | path type) == file }
+                }
+                _ => [$source]
             }
-            _ => [$source]
-        }
-    } | flatten | where { is-image $in }
-    mkdir $bought
-    $images | each {|image|
-        let candidate = fingerprint-of $image
-        let best = $public | each {|p|
-            {name: $p.name, distance: ($candidate | zip $p.fingerprint | each { $in.0 - $in.1 | math abs } | math avg)}
-        } | sort-by distance | first
-        let name = $image | path basename
-        # $best is null when wallpapers/ holds no images: then every import is new, with no match to compare against
-        let matched = $best != null and $best.distance <= $MATCH_DISTANCE_MAX
-        let target = if $matched { $best.name } else {
-            let parts = $name | path parse
-            let slug = $parts.stem | str lowercase | str replace --all --regex '[^a-z0-9]+' '-' | str trim --char '-'
-            $"($slug).($parts.extension | str lowercase)"
-        }
-        cp $image ($bought | path join $target)
-        let size = ^magick identify -format "%wx%h" $"($image)[0]"
-        let how = if $matched { $"shadows wallpapers/($best.name)" } else { "new, no public match" }
-        let distance = if $best == null { "n/a" } else { $best.distance | into string --decimals 1 }
-        print $"($name)  ($size)  as ~/sync/wallpapers/($target)  \(($how), distance ($distance)\)"
-    } | ignore
+        } | flatten | where { is-image $in }
+        mkdir $bought
+        $images | each {|image|
+            let candidate = fingerprint-of $image
+            let best = $public | each {|p|
+                {name: $p.name, distance: ($candidate | zip $p.fingerprint | each { $in.0 - $in.1 | math abs } | math avg)}
+            } | sort-by distance | first
+            let name = $image | path basename
+            # $best is null when wallpapers/ holds no images: then every import is new, with no match to compare against
+            let matched = $best != null and $best.distance <= $MATCH_DISTANCE_MAX
+            let target = if $matched { $best.name } else {
+                let parts = $name | path parse
+                let slug = $parts.stem | str lowercase | str replace --all --regex '[^a-z0-9]+' '-' | str trim --char '-'
+                $"($slug).($parts.extension | str lowercase)"
+            }
+            cp $image ($bought | path join $target)
+            let size = ^magick identify -format "%wx%h" $"($image)[0]"
+            let how = if $matched { $"shadows wallpapers/($best.name)" } else { "new, no public match" }
+            let distance = if $best == null { "n/a" } else { $best.distance | into string --decimals 1 }
+            print $"($name)  ($size)  as ~/sync/wallpapers/($target)  \(($how), distance ($distance)\)"
+        } | ignore
+    } catch {|err|
+        rm --recursive --force $unzipped
+        die $err.msg
+    }
     rm --recursive --force $unzipped
 }

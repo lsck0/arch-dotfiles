@@ -143,7 +143,6 @@ QtObject {
 
   component MotionTokens: QtObject {
     readonly property bool enabled: !Power.saver
-    readonly property int snap: 0
     readonly property int fast: enabled ? 90 : 0
     readonly property int base: enabled ? 160 : 0
     readonly property int exit: Math.round(base * 0.75)

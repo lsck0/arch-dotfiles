@@ -8,14 +8,13 @@ var widestIcon = "\u{f028}"
 
 function iconFor(name) {
   var n = String(name || "").toLowerCase()
-  if (n === "volume-muted" || n === "volume-mute" || n === "muted" || n === "mute") return "\u{f026}"
-  if (n === "volume-low") return "\u{f027}"
-  if (n === "volume-medium" || n === "volume-high" || n === "volume") return "\u{f028}"
-  if (n === "microphone-muted" || n === "microphone-off" || n === "mic-muted" || n === "mic-off") return "\u{f131}"
-  if (n === "microphone" || n === "mic") return "\u{f130}"
-  if (n === "brightness" || n === "display") return "\u{f042}"
-  if (n === "keyboard-backlight-off" || n === "kbd-backlight-off") return "\u{f0310}"
-  if (n === "keyboard-backlight" || n === "kbd-backlight" || n === "keyboard") return "\u{f030c}"
+  if (n === "volume-muted") return "\u{f026}"
+  if (n === "volume") return "\u{f028}"
+  if (n === "microphone-muted") return "\u{f131}"
+  if (n === "microphone") return "\u{f130}"
+  if (n === "brightness") return "\u{f042}"
+  if (n === "keyboard-backlight-off") return "\u{f0310}"
+  if (n === "keyboard-backlight") return "\u{f030c}"
   if (n === "launch") return "\u{f14de}"
   if (n.length > 0) return name
   return "\u{f0e7}"

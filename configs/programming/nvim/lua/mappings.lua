@@ -2,7 +2,7 @@ vim.keymap.set("n", "<C-s>", "<cmd>w<CR>", { desc = "Save file" })
 vim.keymap.set("i", "<C-c>", "<ESC>", { desc = "Escape insert mode" })
 vim.keymap.set("t", "<C-e>", [[<C-\><C-n>]], { desc = "Exit terminal mode" })
 
-vim.keymap.set("n", "<M-x>", "@", { noremap = true, desc = "Apply macro (@)" })
+vim.keymap.set("n", "<M-x>", "@", { desc = "Apply macro (@)" })
 
 if vim.g.neovide then
     local function scale(factor)
@@ -94,7 +94,10 @@ end
 vim.keymap.set(
     "n",
     "<leader>fc",
-    tb("find_files", { cwd = vim.env.DOTFILES or "$DOTFILES" }),
+    tb(
+        "find_files",
+        { cwd = vim.env.DOTFILES or (vim.fs.dirname(vim.uv.fs_realpath(vim.fn.stdpath("config"))) .. "/../..") }
+    ),
     { desc = "Find files (dotfiles)" }
 )
 vim.keymap.set("n", "<leader>ff", tb("find_files"), { desc = "Find files" })
@@ -143,13 +146,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
     end,
 })
 
-vim.api.nvim_set_keymap(
-    "n",
-    "<leader>v",
-    "<cmd>lua Toggle_venn()<CR>",
-    { noremap = true, desc = "Toggle venn (draw boxes)" }
-)
-function _G.Toggle_venn()
+local function toggle_venn()
     local boxes = { Down = "j", Up = "k", Right = "l", Left = "h" }
     if not vim.b.venn_enabled then
         vim.b.venn_enabled = true
@@ -167,6 +164,7 @@ function _G.Toggle_venn()
         vim.b.venn_enabled = nil
     end
 end
+vim.keymap.set("n", "<leader>v", toggle_venn, { desc = "Toggle venn (draw boxes)" })
 
 vim.keymap.set("n", "<leader>dt", function()
     -- dapui errors when dap is not loaded yet
@@ -221,6 +219,7 @@ vim.keymap.set(
 vim.keymap.set("n", "<leader>tt", "<cmd>Trouble diagnostics<CR>", { desc = "Trouble diagnostics" })
 vim.keymap.set("n", "<leader>ts", "<cmd>Trouble symbols toggle<CR>", { desc = "Trouble symbols" })
 vim.keymap.set("n", "<leader>tl", "<cmd>Trouble lsp toggle<CR>", { desc = "Trouble LSP references" })
+-- m shadows the builtin mark command on purpose: compile-mode muscle memory wins here
 vim.keymap.set("n", "m", "<cmd>belowright Compile<CR>", { desc = "Compile (compile-mode)" })
 
 local function term(cmd)

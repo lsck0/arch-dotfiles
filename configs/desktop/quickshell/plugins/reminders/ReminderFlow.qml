@@ -92,6 +92,7 @@ Item {
   }
 
   property var pomoDraft: ({})
+  // bounds mirror the pomodoro_* option schema in configs/desktop/quickshell/mod.nu
   readonly property var pomoLengths: [
     { key: "focus", label: "Focus", step: 5, minimum: 1, maximum: 180, unit: "min" },
     { key: "break", label: "Break", step: 1, minimum: 1, maximum: 60, unit: "min" },
@@ -277,8 +278,8 @@ Item {
               }
             }
             Button {
-              variant: "icon"
               id: rename
+              variant: "icon"
               anchors.right: cancel.left
               anchors.verticalCenter: parent.verticalCenter
               iconText: "\u{f03eb}" // md-pencil
@@ -287,8 +288,8 @@ Item {
               onClicked: root.askRename(reminderRow.modelData)
             }
             Button {
-              variant: "icon"
               id: cancel
+              variant: "icon"
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
               iconText: "\u{f0156}"
@@ -444,8 +445,8 @@ Item {
                 height: Math.max(less.height, amount.implicitHeight)
 
                 Button {
-                  variant: "icon"
                   id: less
+                  variant: "icon"
                   anchors.left: parent.left
                   anchors.verticalCenter: parent.verticalCenter
                   iconText: "\u{f0374}" // md-minus

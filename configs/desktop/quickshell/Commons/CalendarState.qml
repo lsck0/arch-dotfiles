@@ -9,6 +9,8 @@ Singleton {
   readonly property int refreshMs: 10 * 60 * 1000
   property var all: []
   property real nowMs: Date.now()
+  // local date the events in `all` were fetched for; a rollover past it re-fetches so day labels and all-day events follow the new day
+  property string fetchedDate: ""
 
   // ended events drop out between two fetches
   readonly property var events: {
@@ -28,12 +30,24 @@ Singleton {
     return day + (e.all_day ? "all day" : String(e.time || ""))
   }
 
-  Timer { interval: 60000; running: true; repeat: true; onTriggered: root.nowMs = Date.now() }
+  Timer {
+    interval: 60000
+    running: true
+    repeat: true
+    onTriggered: {
+      root.nowMs = Date.now()
+      if (new Date().toDateString() !== root.fetchedDate) calendarProc.refresh()
+    }
+  }
 
   JsonProcess {
+    id: calendarProc
     command: [Paths.home + "/.local/bin/task-calendar", "events"]
     intervalMs: root.refreshMs
-    onParsed: function (data) { root.all = (data && data.events) ? Array.prototype.slice.call(data.events) : [] }
+    onParsed: function (data) {
+      root.all = (data && data.events) ? Array.prototype.slice.call(data.events) : []
+      root.fetchedDate = new Date().toDateString()
+    }
     onFailed: function (error) { }
   }
 }

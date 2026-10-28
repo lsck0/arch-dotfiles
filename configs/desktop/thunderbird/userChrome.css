@@ -1,7 +1,7 @@
 @import url("colors.css");
+@import url("dotfiles-font.css");
 
 :root {
-    --rtk-chrome-font: "Kode Mono", "JetBrainsMono Nerd Font", monospace, sans-serif;
     --layout-background-0: var(--wal-bg) !important;
     --layout-background-1: var(--wal-bg) !important;
     --layout-background-2: var(--wal-bg-alt) !important;

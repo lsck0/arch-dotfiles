@@ -40,7 +40,9 @@ export def queues []: nothing -> nothing {
         cp $NSSWITCH $"($NSSWITCH).bak-(date now | format date '%Y%m%d')"
         $nss | str replace --regex --multiline '^hosts:.*$' $NSSWITCH_HOSTS | save --force $NSSWITCH
     }
-    if not (queue-pdf) { ^lpadmin -p $PDF_QUEUE -v cups-pdf:/ -m CUPS-PDF_opt.ppd -E }
+    # the PDF queue is the first-install marker: once it exists, leave mdns discovery to the NM dispatcher on home connect
+    if (queue-pdf) { return }
+    ^lpadmin -p $PDF_QUEUE -v cups-pdf:/ -m CUPS-PDF_opt.ppd -E
     try { ^$SYNC } catch { log-warn "printing: some printers found over mdns got no queue, see above" }
     if (^lpstat -v | complete | get stdout) !~ ' dnssd://' {
         log-info "printing: no driverless printer queue yet, the next home connect that finds a printer adds one"

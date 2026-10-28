@@ -22,6 +22,24 @@ local function is_pointer_type(hover)
     return ty:match("%*$") ~= nil
 end
 
+-- Only a dot after an identifier, `)` or `]`, outside comments and strings, can become `->`.
+local function should_query_hover()
+    local line = vim.api.nvim_get_current_line()
+    local col = vim.api.nvim_win_get_cursor(0)[2]
+    local prev_char = col > 0 and line:sub(col, col) or ""
+    if not prev_char:match("[%w_%)%]]") then
+        return false
+    end
+    local ok, node = pcall(vim.treesitter.get_node)
+    if ok and node then
+        local node_type = node:type()
+        if node_type:find("comment") or node_type:find("string") then
+            return false
+        end
+    end
+    return true
+end
+
 function M.dot()
     local ft = vim.bo.filetype
     if ft ~= "c" and ft ~= "cpp" then
@@ -30,6 +48,10 @@ function M.dot()
 
     local clients = vim.lsp.get_clients({ bufnr = 0, name = "clangd" })
     if #clients == 0 then
+        return "."
+    end
+
+    if not should_query_hover() then
         return "."
     end
     -- clangd's own encoding (utf-16), else columns are off

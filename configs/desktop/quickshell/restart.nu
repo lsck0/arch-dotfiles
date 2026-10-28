@@ -19,7 +19,8 @@ def "main prepare" [] {
     let config = $env.HOME | path join .config/quickshell
     # a stray instance draws a second bar; kill its group since quickshell does not reap helpers, sparing hyprland's
     let spared = [(pgid-of $nu.pid) (^pgrep -xo Hyprland | complete | get stdout | str trim | if $in != "" { pgid-of ($in | into int) })]
-    let pids = ^pgrep -u $env.USER -f $"^\([^ ]*/\)?\(quickshell|qs\)\( -[^ ]+\)* -p ($config)\( |$\)" | complete | get stdout | lines
+    let config_rx = $config | str replace --all --regex '([.^$*+?()\[\]{}|\\])' '\$1'
+    let pids = ^pgrep -u $env.USER -f $"^\([^ ]*/\)?\(quickshell|qs\)\( -[^ ]+\)* -p ($config_rx)\( |$\)" | complete | get stdout | lines
     for pid in ($pids | into int) {
         let pgid = pgid-of $pid
         if $pgid != null and $pgid not-in $spared { ^kill -9 -- $"-($pgid)" | complete } else { ^kill -9 $pid | complete }

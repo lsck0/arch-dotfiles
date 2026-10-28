@@ -1,13 +1,11 @@
 pragma ComponentBehavior: Bound
-import Quickshell.Io
 import QtQuick
+import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
 Item {
   id: root
-
-  property var shell: null
 
   property string view: "tasks"
   property string inputMode: ""
@@ -15,7 +13,7 @@ Item {
   property int selectedIndex: 0
   property string selectedUuid: ""
 
-  readonly property string notesPath: Paths.home + "/sync/notes/notes.md"
+  readonly property string notesPath: Paths.notes
   property string notesDisk: ""
   property bool notesLoaded: false
   property bool notesEdited: false
@@ -49,7 +47,7 @@ Item {
     : [["J/K", "move"], ["ENTER/D", "done"], ["S", "start/stop"], ["X", "delete"], ["A", "add"], ["/", "filter"],
        ["TAB", "notes"], ["ESC", "close"]]
 
-  function open(payload) {
+  function open() {
     TaskState.panelOpen = true
   }
 
@@ -234,7 +232,8 @@ Item {
   }
 
   function seedNotes() {
-    if (notesEdit.activeFocus || !root.notesLoaded) return
+    if (!root.notesLoaded) return
+    if (notesEdit.activeFocus && root.notesEdited) return
     if (notesEdit.text !== root.notesDisk) notesEdit.text = root.notesDisk
     root.notesEdited = false
   }

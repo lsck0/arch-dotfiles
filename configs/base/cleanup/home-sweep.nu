@@ -40,5 +40,6 @@ def main []: nothing -> nothing {
         | save --force $"($install_log).new"
         mv --force $"($install_log).new" $install_log
     }
+    # clear the failed state of user units so an old failure does not mask a fresh one
     ^systemctl --user reset-failed | complete | ignore
 }

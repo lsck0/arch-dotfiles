@@ -144,7 +144,7 @@ def init-step [step: string, sn: string]: nothing -> nothing {
             heading "ssh key, touch only; the stub is useless without the key and gets committed"
             let stub = $KEY_DIR | path join $"ssh-($sn)"
             (^ssh-keygen -t ed25519-sk -O resident -O $"application=($SSH_APPLICATION)" -N ""
-                -C $"luca@yubikey-($sn)" -f $stub)
+                -C $"($env.USER)@yubikey-($sn)" -f $stub)
             ^gh auth refresh -h github.com -s admin:public_key
             ^gh ssh-key add $"($stub).pub" --title $"yubikey-($sn)"
         }

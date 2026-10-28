@@ -13,7 +13,7 @@ BarWidget {
   property var usage: ({})
   property string errorText: ""
   property real updatedMs: 0
-  readonly property int staleAfterMs: 2 * 45 * 60 * 1000
+  readonly property int staleAfterMs: usageProc.intervalMs * 2
 
   readonly property int sessionPct: Number(usage.u_session) || 0
   readonly property int weekPct: Number(usage.u_week) || 0
@@ -142,7 +142,7 @@ BarWidget {
 
   HoverPanel {
     anchorWidget: root
-    title: "Claude Code"
+    title: "CLAUDE CODE"
     onOpened: usageProc.refresh()
     implicitWidth: Style.panelWidth.normal
     implicitHeight: content.implicitHeight + padding * 2 + titleInset

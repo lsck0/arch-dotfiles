@@ -9,10 +9,15 @@ return {
         init = function()
             local tunnels = {}
             vim.api.nvim_create_user_command("DapTunnel", function(o)
-                local host, port = o.fargs[1], o.fargs[2]
-                local forward = ("127.0.0.1:%s:127.0.0.1:%s"):format(port, o.fargs[3] or port)
+                local host, port = o.fargs[1], tonumber(o.fargs[2])
+                if #o.fargs < 2 or not port then
+                    vim.notify("DapTunnel: usage :DapTunnel <host> <port> [remote-port]", vim.log.levels.ERROR)
+                    return
+                end
+                local remote = tonumber(o.fargs[3]) or port
+                local forward = ("127.0.0.1:%d:127.0.0.1:%d"):format(port, remote)
                 local stderr = {}
-                tunnels[port] = vim.fn.jobstart({
+                local job = vim.fn.jobstart({
                     "ssh",
                     "-N",
                     "-o",
@@ -37,7 +42,12 @@ return {
                         )
                     end,
                 })
-                vim.notify(("DapTunnel 127.0.0.1:%s -> %s"):format(port, host))
+                if job <= 0 then
+                    vim.notify(("DapTunnel: ssh failed to start (%d)"):format(job), vim.log.levels.ERROR)
+                    return
+                end
+                tunnels[port] = job
+                vim.notify(("DapTunnel 127.0.0.1:%d -> %s"):format(port, host))
             end, { nargs = "+", desc = "SSH port forward for remote debugging" })
             vim.api.nvim_create_user_command("DapTunnelStop", function()
                 for _, job in pairs(tunnels) do
@@ -162,8 +172,12 @@ return {
                     type = "codelldb",
                     request = "launch",
                     program = function()
-                        vim.fn.system("cargo build")
-                        return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/target/debug/", "file")
+                        local out = vim.fn.system("cargo build")
+                        if vim.v.shell_error ~= 0 then
+                            error("cargo build failed:\n" .. out)
+                        end
+                        local target = vim.env.CARGO_TARGET_DIR or (vim.fn.getcwd() .. "/target")
+                        return vim.fn.input("Path to executable: ", target .. "/debug/", "file")
                     end,
                     cwd = "${workspaceFolder}",
                 },

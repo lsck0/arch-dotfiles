@@ -63,7 +63,6 @@ BarWidget {
   implicitHeight: grid.implicitHeight
 
   property real pillTargetX: 0
-  property real pillTargetW: 0
   property real pillX: 0
   property real pillRight: 0
   property bool pillShown: false
@@ -72,7 +71,6 @@ BarWidget {
   function placePill(x, w) {
     root.movingRight = x >= root.pillTargetX
     root.pillTargetX = x
-    root.pillTargetW = w
     if (!root.pillShown) {
       pillXBehavior.enabled = false
       pillRightBehavior.enabled = false
@@ -178,8 +176,19 @@ BarWidget {
   MouseArea {
     anchors.fill: parent
     acceptedButtons: Qt.NoButton
+    readonly property int wheelNotchDelta: 120
+    property int wheelAccumDelta: 0
     onWheel: function(event) {
-      root.scrollWorkspace(event.angleDelta.y < 0 ? 1 : -1)
+      if (event.angleDelta.y === 0) return
+      wheelAccumDelta += event.angleDelta.y
+      while (wheelAccumDelta <= -wheelNotchDelta) {
+        wheelAccumDelta += wheelNotchDelta
+        root.scrollWorkspace(1)
+      }
+      while (wheelAccumDelta >= wheelNotchDelta) {
+        wheelAccumDelta -= wheelNotchDelta
+        root.scrollWorkspace(-1)
+      }
     }
   }
 }

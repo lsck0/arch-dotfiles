@@ -33,14 +33,18 @@ if [[ ! -f "$repo/scripts/dot.nu" ]]; then
     rm -rf "$CLONE_DIR" && git clone "$DOTFILES_URL" "$CLONE_DIR" && repo=$CLONE_DIR
     if [[ "${BOOTSTRAP_INSECURE:-0}" != 1 ]]; then
         gnupg=$(mktemp -d)
+        trap 'gpgconf --homedir "$gnupg" --kill all 2> /dev/null || true; rm -rf "$gnupg"' EXIT
         GNUPGHOME=$gnupg gpg --batch -q --import "$repo/$SIGNING_KEY_FILE"
         if ! status=$(GNUPGHOME=$gnupg git -C "$repo" verify-commit --raw HEAD 2>&1) ||
             ! grep -q "^\[GNUPG:\] VALIDSIG .* $SIGNING_KEY_FINGERPRINT\$" <<< "$status"; then
             echo "bootstrap: $DOTFILES_URL HEAD is not signed by $SIGNING_KEY_FINGERPRINT. BOOTSTRAP_INSECURE=1 skips this check." >&2
             exit 1
         fi
+        gpgconf --homedir "$gnupg" --kill all 2> /dev/null || true
+        rm -rf "$gnupg"
+        trap - EXIT
     fi
 fi
-entry=bootstrap && [[ "${LSCK0_INSTALL:-0}" != 1 ]] || entry=iso-install
+if [[ "${LSCK0_INSTALL:-0}" == 1 ]]; then entry=iso-install; else entry=bootstrap; fi
 if { : < /dev/tty; } 2> /dev/null; then exec nu --no-config-file "$repo/scripts/dot.nu" internal "$entry" "$@" < /dev/tty; fi
 exec nu --no-config-file "$repo/scripts/dot.nu" internal "$entry" "$@" < /dev/null

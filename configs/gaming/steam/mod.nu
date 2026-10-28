@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [millennium steam]}}
+export const meta = {deps: [gaming/gamemode gaming/mangohud], packages: {pacman: [millennium steam]}}
 
 const STEAM = ".local/share/Steam"
 const MILLENNIUM_LIB = "/usr/lib/millennium"

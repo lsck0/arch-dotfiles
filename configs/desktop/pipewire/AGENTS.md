@@ -5,7 +5,6 @@
   `app.<key>`, whose `app.<key>.out` carries the system volume and route. The quickshell mixer drives the `.out` stream.
   On stop each loopback's level is handed to its streams and split again on start, keyed by app key, node name and
   media name; records unclaimed for two starts are dropped, loopbacks of apps unseen for 20 starts are removed. Later
-  streams are only routed. While `dot.obs-listen` is
-  set and OBS runs, all loopbacks are muted.
+  streams are only routed. While `dot.obs-listen` is set and OBS runs, all loopbacks are muted.
 - Never name a loopback node like its app: OBS's application capture matches node.name.
 - Native pipewire/wireplumber only, no easyeffects. No-op on WSL.

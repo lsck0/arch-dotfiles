@@ -25,10 +25,10 @@ PopupWindow {
   readonly property real barW: anchorWindow ? anchorWindow.width : 0
   readonly property real barH: anchorWindow ? anchorWindow.height : 0
   readonly property real availableCardWidth: screenW > 0
-    ? Math.max(120, screenW - ((bar && (bar.position === "left" || bar.position === "right")) ? barW : 0) - root.margin * 2 - root.neckWidth)
+    ? Math.max(Style.space(120), screenW - ((bar && (bar.position === "left" || bar.position === "right")) ? barW : 0) - root.margin * 2 - root.neckWidth)
     : 0
   readonly property real availableCardHeight: screenH > 0
-    ? Math.max(120, screenH - ((bar && (bar.position === "top" || bar.position === "bottom")) ? barH : 0) - root.margin * 2)
+    ? Math.max(Style.space(120), screenH - ((bar && (bar.position === "top" || bar.position === "bottom")) ? barH : 0) - root.margin * 2)
     : 0
   readonly property real verticalContentInset: (padding + Style.surface.borderWidth) * 2
 

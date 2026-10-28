@@ -19,9 +19,11 @@ local function add_prompt(text)
         return
     end
 
-    local start_dir = vim.fn.expand("%:p:h")
-    if start_dir == "" then
+    local start_dir
+    if vim.api.nvim_buf_get_name(0) == "" or vim.bo.buftype ~= "" then
         start_dir = vim.fn.getcwd()
+    else
+        start_dir = vim.fn.expand("%:p:h")
     end
     local taskrc = find_taskrc(start_dir)
     if not taskrc then
@@ -49,7 +51,7 @@ end
 local function herdr_json(args)
     local out = vim.system(args, { text = true }):wait()
     if out.code ~= 0 then
-        return nil, vim.trim(out.stderr or out.stdout or "")
+        return nil, vim.trim((out.stderr ~= "" and out.stderr) or out.stdout or "")
     end
     local ok, decoded = pcall(vim.json.decode, out.stdout)
     if not ok then
@@ -101,7 +103,8 @@ local function find_or_start_hermes_target()
         if raced then
             return raced
         end
-        return nil, "herdr agent start failed: " .. vim.trim(start.stderr or start.stdout or "")
+        return nil,
+            "herdr agent start failed: " .. vim.trim((start.stderr ~= "" and start.stderr) or start.stdout or "")
     end
 
     return new_pane_id
@@ -121,7 +124,8 @@ local function send_to_hermes(text)
     local prompt = vim.system({ "herdr", "agent", "prompt", target, text }, { text = true }):wait()
     if prompt.code ~= 0 then
         vim.notify(
-            "LPrompt: herdr agent prompt failed: " .. vim.trim(prompt.stderr or prompt.stdout or ""),
+            "LPrompt: herdr agent prompt failed: "
+                .. vim.trim((prompt.stderr ~= "" and prompt.stderr) or prompt.stdout or ""),
             vim.log.levels.WARN
         )
     end
@@ -138,9 +142,7 @@ function M.setup()
         end, { range = "%", desc = desc })
     end
     command("LPromptBuffer", send_to_hermes, "Send current buffer (or range) to the lprompt hermes agent")
-    command("LPromptSelection", send_to_hermes, "Send visual selection to the lprompt hermes agent")
     command("LPromptBufferToTaskwarrior", add_prompt, "Add current buffer (or range) as a +prompt taskwarrior task")
-    command("LPromptSelectionToTaskwarrior", add_prompt, "Add visual selection as a +prompt taskwarrior task")
 end
 
 return M

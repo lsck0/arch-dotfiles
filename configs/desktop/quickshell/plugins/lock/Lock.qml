@@ -15,6 +15,8 @@ Item {
 
     property bool locked: false
     property bool authError: false
+    // the shell's main screen (workspace 1, then the 0,0 monitor); lock() falls back to screens[0] when unset
+    property string mainScreenName: ""
     property string primaryScreenName: ""
     property string _pw: ""
     property var activeField: null
@@ -81,7 +83,7 @@ Item {
         root.authError = false;
         root._pw = "";
         var scr = Quickshell.screens;
-        root.primaryScreenName = (scr && scr.length) ? String(scr[0].name) : "";
+        root.primaryScreenName = root.mainScreenName || ((scr && scr.length) ? String(scr[0].name) : "");
         root.locked = true;
     }
 
@@ -388,9 +390,9 @@ Item {
             onVisibleChanged: {
                 if (visible) {
                     Qt.callLater(function() {
-                    pwField.forceActiveFocus();
-                    glitch.play();
-                });
+                        pwField.forceActiveFocus();
+                        glitch.play();
+                    });
                 }
             }
             Component.onCompleted: Qt.callLater(function() {
@@ -407,7 +409,7 @@ Item {
                     id: wallpaper
 
                     anchors.fill: parent
-                    source: root.locked ? Util.fileUrl(Quickshell.env("HOME") + "/.cache/wal/wallpaper") : ""
+                    source: root.locked ? Util.fileUrl(Paths.home + "/.cache/wal/wallpaper") : ""
                     cache: false
                     asynchronous: true
                     fillMode: Image.PreserveAspectCrop
@@ -493,7 +495,7 @@ Item {
                         width: Style.space(320)
                         height: Style.space(46)
                         color: Util.alpha(Colors.background, 0.55)
-                        border.width: root.authError ? 2 : 1
+                        border.width: root.authError ? Style.focusBorderWidth : Style.normalBorderWidth
                         border.color: root.authError ? Colors.urgent : (pwField.activeFocus ? Colors.accent : Style.normalBorderColor)
                         radius: Style.shape.data
                         opacity: (pwField.text.length > 0 || root.authError || pamPw.active || root.keyMode) ? 1 : 0

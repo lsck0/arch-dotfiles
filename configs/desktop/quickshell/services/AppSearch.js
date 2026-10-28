@@ -51,13 +51,7 @@ function entryAcronym(entry) {
 function termMatches(entry, term) {
   if (!term) return true
 
-  var name = entryName(entry).toLowerCase()
-  var id = String((entry && entry.id) || "").toLowerCase()
-  var haystack = entrySearchText(entry)
-
-  if (name.indexOf(term) >= 0) return true
-  if (id.indexOf(term) >= 0) return true
-  if (haystack.indexOf(term) >= 0) return true
+  if (entrySearchText(entry).indexOf(term) >= 0) return true
 
   return term.length <= 5 && entryAcronym(entry).indexOf(term) >= 0
 }
@@ -108,8 +102,7 @@ function sortedEntries(values, query, hiddenCallback, rankCallback) {
     if (!name) continue
     var score = fuzzyScore(entry, q)
     if (score < 0) continue
-    rows.push({ entry: entry, score: score, rank: rankCallback ? rankCallback(entry) : 0,
-                key: entrySortKey(entry), name: name.toLowerCase() })
+    rows.push({ entry: entry, score: score, rank: rankCallback ? rankCallback(entry) : 0, key: entrySortKey(entry) })
   }
 
   rows.sort(function(a, b) {
@@ -117,8 +110,6 @@ function sortedEntries(values, query, hiddenCallback, rankCallback) {
     if (a.rank !== b.rank) return b.rank - a.rank
     if (a.key < b.key) return -1
     if (a.key > b.key) return 1
-    if (a.name < b.name) return -1
-    if (a.name > b.name) return 1
     return 0
   })
 

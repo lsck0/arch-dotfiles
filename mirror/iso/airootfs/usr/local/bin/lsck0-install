@@ -182,8 +182,9 @@ def wifi-provision [network: record]: nothing -> nothing {
         "AutoConnect=true"
     ]
     let file = $"/var/lib/iwd/=($network.ssid | encode hex | str lowercase).8021x"
+    # create at 0600 before writing: the file holds the EAP password, so it must never exist with a wider umask
+    ^install -m 600 /dev/null $file
     $lines | str join "\n" | $"($in)\n" | save --force $file
-    ^chmod 600 $file
 }
 
 def wifi-connect [device: string, network: record]: nothing -> string {

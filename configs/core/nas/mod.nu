@@ -29,5 +29,5 @@ export def system [cfg: record] {
 }
 
 export def link [cfg: record] {
-    if (profile-has secrets) and (platform-has homelab) { file-link $MOUNT ($nu.home-dir | path join nas) } else { [] }
+    if (owner-unlocked) and (platform-has homelab) { file-link $MOUNT ($nu.home-dir | path join nas) } else { [] }
 }

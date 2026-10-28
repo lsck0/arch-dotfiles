@@ -23,6 +23,8 @@ export const options = {
 }
 
 const DROPIN = "/etc/ssh/sshd_config.d/10-hardening.conf"
+const MANAGED_BEGIN = "# arch-dotfiles managed keys (rebuilt from sources; edits outside this block are kept)"
+const MANAGED_END = "# end arch-dotfiles managed keys"
 
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
@@ -79,9 +81,24 @@ export def authorize []: nothing -> nothing {
     let file = ssh-dir | path join authorized_keys
     if not ($file | path exists) { touch $file }
     ^chmod 600 $file
-    let have = open --raw $file | lines
-    let sources = [($secrets | path join ssh_publickey.asc) ...(glob ../yubikey/ssh-*.pub)]
+    let pubkey = $secrets | path join ssh_publickey.asc
+    let sources = [$pubkey ...(glob ../yubikey/ssh-*.pub)]
     let keys = $sources | append (ssh-dir | path join id_ed25519.pub)
-        | where { secret-is-plaintext $in } | each { open --raw $in | str trim } | where $it not-in $have | uniq
-    if ($keys | is-not-empty) { $"($keys | str join "\n")\n" | save --append $file }
+        | where { secret-is-plaintext $in } | each { open --raw $in | str trim } | where $it != "" | uniq
+    let existing = open --raw $file | lines
+    # a locked secrets store cannot read the committed key, so only append what is readable and never prune
+    if not (secret-is-plaintext $pubkey) {
+        let missing = $keys | where $it not-in $existing
+        if ($missing | is-not-empty) { $"($missing | str join "\n")\n" | save --append $file }
+        return
+    }
+    # rebuild the managed block so a key rotated out of the sources loses access; lines outside it are kept
+    let begin = $existing | enumerate | where item == $MANAGED_BEGIN | get --optional 0.index
+    let end = $existing | enumerate | where item == $MANAGED_END | get --optional 0.index
+    let kept = if $begin != null and $end != null and $end > $begin {
+        ($existing | first $begin) ++ ($existing | skip ($end + 1))
+    } else { $existing }
+    let kept = $kept | where $it not-in $keys
+    let out = ($kept ++ [$MANAGED_BEGIN] ++ $keys ++ [$MANAGED_END]) | str join "\n" | $"($in)\n"
+    if $out != (open --raw $file) { $out | save --force $file }
 }

@@ -1,6 +1,7 @@
 # One install stage per boot: install, then config, which disarms the chain and reboots.
 
 use log.nu *
+use state.nu [EXIT_ABORTED]
 use secrets.nu [secret-is-plaintext]
 use profile.nu [profile-has]
 
@@ -19,7 +20,6 @@ const EFIVARS = "/sys/firmware/efi/efivars"
 const EFI_GLOBAL = "8be4df61-93ca-11d2-aa0d-00e098032b8c"
 const EFI_ATTRS_NV_BS_RT = 0x[07 00 00 00]
 const INSTALL_ATTEMPTS_MAX = 3
-const INSTALL_EXIT_ABORTED = 2
 const CRYPTSETUP_NO_KEY = 2
 # a watcher's url (dot test, BOOTSTRAP_REPORT): the stages beacon to it, the chain's end reports to it
 const REPORT = ($STATE_DIR | path join report)
@@ -119,7 +119,7 @@ export def stage-run [repo: path]: nothing -> nothing {
     let status = try { "" | ^nu --no-config-file ($repo | path join scripts dot.nu) ...$args; 0 } catch {|e| $e.exit_code? | default 1 }
     note (if $status == 0 { $"($stage): ok" } else { $"($stage): failed, see ($stage).log" })
     report-beacon $"($stage)-(if $status == 0 { 'ok' } else { 'failed' })"
-    if $stage == "install" and $status == $INSTALL_EXIT_ABORTED {
+    if $stage == "install" and $status == $EXIT_ABORTED {
         let attempts = (try { open --raw ($STATE_DIR | path join install-attempts) | into int } catch { 0 }) + 1
         $"($attempts)\n" | ^sudo tee ($STATE_DIR | path join install-attempts) | ignore
         if $attempts < $INSTALL_ATTEMPTS_MAX {

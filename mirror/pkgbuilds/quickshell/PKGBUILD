@@ -5,7 +5,7 @@ pkgname=quickshell
 pkgver=0.3.2
 pkgrel=2
 pkgdesc="Flexible toolkit for making desktop shells with QtQuick"
-arch=(x86_64 aarch64)
+arch=(x86_64)
 url="https://git.outfoxxed.me/$pkgname/$pkgname"
 license=(LGPL-3.0-only)
 depends=(
@@ -48,8 +48,8 @@ build() {
     cd "$pkgname"
     local cmake_options=(
         -D CMAKE_BUILD_TYPE=RelWithDebInfo
-        -D DISTRIBUTOR='Arch Linux'
-        -D DISTRIBUTOR_DEBUGINFO_AVAILABLE=Yes
+        -D DISTRIBUTOR='lsck0 (patched)'
+        -D DISTRIBUTOR_DEBUGINFO_AVAILABLE=No
         -D CRASH_REPORTER=Off
         -D CMAKE_INSTALL_PREFIX=/usr
         -D INSTALL_QML_PREFIX=lib/qt6/qml

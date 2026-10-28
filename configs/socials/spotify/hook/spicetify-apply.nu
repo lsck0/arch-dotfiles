@@ -7,7 +7,7 @@ const PACMAN_LOCK = "/var/lib/pacman/db.lck"
 const PACMAN_WAIT_S = 300
 
 def main []: nothing -> nothing {
-    let prefs = $nu.home-dir | path join .config spotify prefs
+    let prefs = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join spotify prefs
     let logged_in = ($prefs | path exists) and (open --raw $prefs | lines | any { str starts-with autologin.username })
     if not $logged_in { return }
     # the xpui.spa trigger fires mid-transaction: wait for pacman to finish

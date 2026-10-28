@@ -114,7 +114,7 @@ def file-classify [obs: record, want: string, recorded: any, generated: bool, st
     } else if $stale_link {
         do $c update "a link of the old linked form" false
     } else if $obs.type == file and $obs.hash == $want {
-        if $mode != null and ($obs.mode? | default $mode) != $mode {
+        if $mode != null and ($obs.mode? | default $mode | str trim --left --char "0") != ($mode | str trim --left --char "0") {
             do $c update "mode changed" false
         } else if $recorded == $want { do $c skip "" false } else { do $c record "already this content" false }
     } else if $obs.type == file and ($generated or $recorded == $obs.hash) {

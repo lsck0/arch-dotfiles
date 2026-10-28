@@ -2,9 +2,6 @@
 (prefer-coding-system 'utf-8)
 (setq shell-file-name "/usr/bin/zsh")
 
-(defvar my/font-family "monospace")
-(defvar my/font-size 16)
-
 (defvar my/cache-dir
   (expand-file-name "emacs/" (or (getenv "XDG_CACHE_HOME") "~/.cache/"))
   "Directory for Emacs runtime state, kept out of the dotfiles repo.")

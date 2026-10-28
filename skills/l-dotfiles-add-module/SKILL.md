@@ -10,7 +10,7 @@ options and packages.
 
 An owner-only module (employer setup, bookmarks, key wiring) goes in the private submodule:
 `configs/secrets/<module>/mod.nu`, id `secrets/<module>`. Same contract; runs after every other group wherever the
-submodule is pulled (gate inside: `profile-has` in `link`, `$env.FORM_FACTOR` in `system`); plaintext code; packages
+submodule is pulled (gate inside: `owner-unlocked`, or `profile-has secrets` for a non-personal capability, in `link`, `$env.FORM_FACTOR` in `system`); plaintext code; packages
 stay out of `mirror/packages.txt` (a mirror package it needs goes in the platform's `extra_packages`).
 
 ## The contract
@@ -101,7 +101,7 @@ export def packages [cfg: record]: nothing -> record {
   relink), `scope` (default machine), `toggle` (set through `scripts/toggles/toggle-<name>.nu`: `on`/`off` for a bool,
   else `set <value>`; its `get` is what the settings window shows).
 - Facts: `platform-has homelab|wireguard|secure_boot_own_keys|lsck0_snapshot` (`PLATFORM_FACTS`),
-  `$env.FORM_FACTOR` (`desktop laptop server vm wsl`), `profile-has secrets` (link only). Settings are options:
+  `$env.FORM_FACTOR` (`desktop laptop server vm wsl`), `owner-unlocked` and `profile-has secrets` (link only). Settings are options:
   `dot set <group/module>.<key> <value> [--machine]`.
 - A file the app later edits is drift: kept until `dot module adopt <file>` (into the module) or `dot module reset
   <file>` (module's copy back, edit preserved aside); `dot apply --force <group>/<module>` resets all.

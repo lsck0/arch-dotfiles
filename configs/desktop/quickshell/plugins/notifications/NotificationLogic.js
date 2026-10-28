@@ -89,8 +89,8 @@ function snapshotOf(notification, timestamp, entryName, entryIcon) {
     summary: String(n.summary || ""),
     body: n.body || "",
     image: n.image || "",
-    glyph: stringHint(n.hints, "omarchy-glyph"),
-    execArgv: stringHint(n.hints, "omarchy-exec-argv"),
+    glyph: stringHint(n.hints, "lsck0-glyph"),
+    execArgv: stringHint(n.hints, "lsck0-exec-argv"),
     urgency: n.urgency,
     expireTimeout: nonNegative(n.expireTimeout),
     timestamp: timestamp
@@ -218,16 +218,16 @@ function historyRows(raw, liveRows, limit) {
 
 // The bar's history list from the popup and history files' lines: one entry per notification, newest first.
 function historyList(raw) {
-    var seen = {}
-    var rows = []
-    String(raw || "").split("\n").forEach(function(line) {
-        var entry = null
-        try { entry = JSON.parse(line) } catch (e) { return }
-        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return
-        var key = entry.timestamp + ":" + entry.originalId
-        if (seen[key]) return
-        seen[key] = true
-        rows.push(entry)
-    })
-    return rows.sort(function(a, b) { return (b.timestamp || 0) - (a.timestamp || 0) })
+  var seen = {}
+  var rows = []
+  String(raw || "").split("\n").forEach(function(line) {
+    var entry = null
+    try { entry = JSON.parse(line) } catch (e) { return }
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return
+    var key = entry.timestamp + ":" + entry.originalId
+    if (seen[key]) return
+    seen[key] = true
+    rows.push(entry)
+  })
+  return rows.sort(function(a, b) { return (b.timestamp || 0) - (a.timestamp || 0) })
 }

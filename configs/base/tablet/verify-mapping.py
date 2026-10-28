@@ -31,6 +31,8 @@ EVIOCGNAME = 0x81004506
 BINS = 16
 EVENT_PREFIX = "/dev/input/event"
 DRIVER_NAME = "SDD Tablet T1161"
+# wl_output transforms that rotate by 90 or 270 degrees, so logical width and height swap
+ROTATED_TRANSFORMS = (1, 3, 5, 7)
 
 
 def ioctl_name(fd):
@@ -129,7 +131,7 @@ def summarise(axis, raw_lo, raw_hi, scr_lo, scr_hi, pairs):
     for i, vals in enumerate(buckets):
         lo = raw_lo + (raw_hi - raw_lo) * i / BINS
         hi = raw_lo + (raw_hi - raw_lo) * (i + 1) / BINS
-        label = f"{lo / raw_hi:4.0%}-{hi / raw_hi:4.0%}"
+        label = f"{(lo - raw_lo) / (raw_hi - raw_lo):4.0%}-{(hi - raw_lo) / (raw_hi - raw_lo):4.0%}"
         if not vals:
             print(f"  {label:>12}   {'(not swept)':>21}")
             continue
@@ -172,7 +174,10 @@ def main():
 
     monitors = json.loads(hypr(sock, "j/monitors"))
     for m in monitors:
-        m["rect"] = (m["x"], m["y"], m["x"] + m["width"] / m["scale"], m["y"] + m["height"] / m["scale"])
+        w, h = m["width"], m["height"]
+        if m.get("transform", 0) in ROTATED_TRANSFORMS:
+            w, h = h, w
+        m["rect"] = (m["x"], m["y"], m["x"] + w / m["scale"], m["y"] + h / m["scale"])
     if want is None:
         want = max(monitors, key=lambda m: m["x"])["name"]
     target = next((m for m in monitors if m["name"] == want), None)

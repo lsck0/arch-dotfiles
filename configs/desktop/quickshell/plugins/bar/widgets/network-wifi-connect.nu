@@ -2,6 +2,12 @@
 # the password comes as one stdin line, never argv (readable in /proc); empty falls back to configs/secrets/keys/wifi
 
 const WIFI_TYPE = "802-11-wireless"
+const GITCRYPT_MAGIC = 0x[00 47 49 54 43 52 59 50 54]
+
+# A locked git-crypt secret opens as its \0GITCRYPT header; never parse one as a password file.
+def secret-is-plaintext [file: path]: nothing -> bool {
+    (open --raw $file | first ($GITCRYPT_MAGIC | bytes length) | into binary) != $GITCRYPT_MAGIC
+}
 
 def profile-exists [ssid: string]: nothing -> bool {
     ^nmcli -g TYPE,NAME connection show
@@ -14,7 +20,7 @@ def profile-exists [ssid: string]: nothing -> bool {
 def main [ssid: string] {
     let typed = $in | default "" | lines | get 0? | default ""
     let secrets_wifi = [($env.QS_DOTFILES_DIR? | default $env.DOTFILES? | default ($env.HOME | path join projects/arch-dotfiles)) configs/secrets/keys/wifi] | path join
-    let saved = if $typed == "" and ($secrets_wifi | path exists) and not (profile-exists $ssid) {
+    let saved = if $typed == "" and ($secrets_wifi | path exists) and (secret-is-plaintext $secrets_wifi) and not (profile-exists $ssid) {
         try { open --raw $secrets_wifi | decode utf-8 | lines | parse "{ssid}\t{password}" | where ssid == $ssid and password != "" | get password.0? } catch { null }
     }
     let password = $saved | default $typed
@@ -27,7 +33,7 @@ def main [ssid: string] {
 
     # a saved network is home: reconnect with the hardware mac so the router's dhcp reservation holds
     if $saved != null {
-        ^nmcli connection modify $ssid $"($WIFI_TYPE).cloned-mac-address" permanent
+        ^nmcli connection modify $ssid $"($WIFI_TYPE).cloned-mac-address" permanent ipv6.method auto
         ^nmcli connection up $ssid
     }
 }

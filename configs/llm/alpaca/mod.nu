@@ -1,7 +1,7 @@
 use module.nu *
 
 export const meta = {
-    deps: [llm/vllm]
+    deps: [llm/vllm llm/ollama]
     packages: {flatpak: {com.jeffser.Alpaca: ced59ceb84b2a8824c270305f413e76720ebf0b1d4fcfe224c19b4cd25ae42eb}}
 }
 

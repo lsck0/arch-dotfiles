@@ -9,14 +9,16 @@
     /\/collect(\?|$)/,
     /googleads|doubleclick|google-analytics/,
   ];
-  const blocked = (url) => typeof url === "string" && BLOCK.some((re) => re.test(url));
+  const blocked = (resource) => {
+    const url = String(resource && resource.url ? resource.url : resource);
+    return BLOCK.some((re) => re.test(url));
+  };
   const empty = () =>
     new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
 
   const origFetch = window.fetch;
   window.fetch = function (resource, init) {
-    const url = resource instanceof Request ? resource.url : resource;
-    return blocked(url) ? Promise.resolve(empty()) : origFetch.apply(this, arguments);
+    return blocked(resource) ? Promise.resolve(empty()) : origFetch.apply(this, arguments);
   };
 
   const origOpen = XMLHttpRequest.prototype.open;
@@ -30,9 +32,11 @@
     Object.defineProperty(this, "readyState", { value: 4, configurable: true });
     Object.defineProperty(this, "status", { value: 200, configurable: true });
     Object.defineProperty(this, "responseText", { value: "{}", configurable: true });
+    Object.defineProperty(this, "response", { value: "{}", configurable: true });
     setTimeout(() => {
-      if (typeof this.onreadystatechange === "function") this.onreadystatechange();
-      if (typeof this.onload === "function") this.onload();
+      this.dispatchEvent(new Event("readystatechange"));
+      this.dispatchEvent(new Event("load"));
+      this.dispatchEvent(new Event("loadend"));
     }, 0);
   };
 })();

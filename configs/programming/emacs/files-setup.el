@@ -123,9 +123,9 @@ editing window it merely focuses the tree, so wrap it to always hide when visibl
         dirvish-side-width 30
         dirvish-side-window-parameters '((no-delete-other-windows . t))
         dirvish-quick-access-entries
-        '(("h" "~/"                              "home")
+        `(("h" "~/"                              "home")
           ("p" "~/projects/"                     "projects")
-          ("c" "~/projects/arch-dotfiles/configs/" "configs")))
+          ("c" ,(concat (file-name-as-directory (or (getenv "DOTFILES") "~/projects/arch-dotfiles")) "configs/") "configs")))
 
   (setq dired-listing-switches "-l --almost-all --human-readable --group-directories-first -v --ignore=.git"
         dired-dwim-target t

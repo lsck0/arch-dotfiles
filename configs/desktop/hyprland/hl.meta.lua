@@ -29,7 +29,7 @@
 ---@field bind fun(keys: string, action: HlDispatcher, opts?: table)
 ---@field config fun(cfg: table)
 ---@field curve fun(name: string, spec: table)
----@field define_submap fun(name: string, binds: fun())
+---@field define_submap fun(name: string, reset_or_binds: string|fun(), binds?: fun())
 ---@field env fun(name: string, value: string)
 ---@field exec_cmd fun(cmd: string): any
 ---@field layer_rule fun(rule: table)
