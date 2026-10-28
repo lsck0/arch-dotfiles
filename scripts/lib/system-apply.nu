@@ -137,8 +137,13 @@ def "main install" [--unattended]: nothing -> nothing {
     if ($PACMAN_LOCK | path exists) and (^pgrep -x pacman | complete).exit_code != 0 { rm --force $PACMAN_LOCK }
     let declared = modules-packages $repo $ctx.modules $ctx.platform
     pacman-retry "the database sync" (if $offline { $OFFLINE_TRIES } else { $DOWNLOAD_TRIES }) -Syy --noconfirm
-    let missing = ^pacman -Sp --noconfirm --print-format "%n" ...$declared.pacman | complete | get stderr | lines | parse "error: target not found: {p}" | get p
-    $missing | each { fail $"not on the mirror: ($in) \(a name new since the last nightly build arrives with the next one\)" } | ignore
+    let sp_err = ^pacman -Sp --noconfirm --print-format "%n" ...$declared.pacman | complete | get stderr | lines
+    let not_found = $sp_err | parse "error: target not found: {p}" | get p
+    # a declared package whose own dependency is gone from the mirror drops only that package, not the whole transaction
+    let dep_missing = $sp_err | parse --regex "unable to satisfy dependency '[^']+' required by (?<p>\\S+)" | get p | where $it in $declared.pacman
+    let missing = $not_found ++ $dep_missing | uniq
+    $not_found | each { fail $"not on the mirror: ($in) \(a name new since the last nightly build arrives with the next one\)" } | ignore
+    $dep_missing | each { fail $"($in): a dependency is missing from the mirror, skipping it this pass" } | ignore
     let available = $declared.pacman | where $it not-in $missing
     let wanted = packages-wanted $available
     log-info $"sources: ($available | length) packages, ($wanted | length) to install in one pass, ($missing | length) not on the mirror"
