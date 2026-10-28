@@ -44,6 +44,7 @@ const TEXT = {
         identity: "Username for {ssid} (user@realm):"
         domain: "Server domain for {ssid} (e.g. example.edu), required:"
         no_domain: "{ssid}: an enterprise network needs a server domain"
+        no_creds: "{ssid}: an enterprise network needs a username and password"
         failed: "did not connect"
         draw_failed: "the dialog could not be drawn (terminal too small?); scanning again"
     }
@@ -188,6 +189,10 @@ def wifi-provision [network: record]: nothing -> nothing {
 def wifi-connect [device: string, network: record]: nothing -> string {
     if ($network.eap? | is-not-empty) {
         if ($network.domain? | default "" | is-empty) { return (text-fill $TEXT.wifi.no_domain {ssid: $network.ssid}) }
+        # an unattended answer file can omit these; wifi-provision reads them non-optionally, so a crash would abort the install
+        if ($network.identity? | default "" | is-empty) or ($network.password? | default "" | is-empty) {
+            return (text-fill $TEXT.wifi.no_creds {ssid: $network.ssid})
+        }
         wifi-provision $network
         let r = ^iwctl station $device connect $network.ssid | complete
         if $r.exit_code != 0 { return $"($network.ssid): ($r.stdout | ansi strip | str trim | default --empty $TEXT.wifi.failed)" }

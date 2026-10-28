@@ -26,8 +26,9 @@ def backlight-percent []: nothing -> int {
 
 def brightness-step [delta: int]: nothing -> nothing {
     if (glob /sys/class/backlight/* | is-empty) {
-        # ddc takes ~0.5s and the key repeats: a press while one is in flight is dropped, not queued on the bus
-        let lock = $env.XDG_RUNTIME_DIR | path join ddc-i2c.lock
+        # coalesce repeats only, a press while one is in flight is dropped: a lock of its own, never the ddc-i2c.lock
+        # the called monitor-brightness takes for the bus, or _ddc-step would deadlock waiting on a lock its parent holds
+        let lock = $env.XDG_RUNTIME_DIR | path join media-key-ddc.lock
         ^flock -n -E 0 $lock $env.CURRENT_FILE _ddc-step $delta
         return
     }
