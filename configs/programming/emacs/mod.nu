@@ -45,7 +45,9 @@ export def link [cfg: record] {
 
 export def theme [cfg: record, wallpaper: string] {
     let font = font-load
-    let font_el = file-text ($nu.home-dir | path join $FONT) $"\(setq my/font-family ($font.mono | to json) my/font-size ($font.size)\)\n" --generated
+    # emacs renders at the raw point size and, unlike the gtk apps, gets no desktop scale; fold it in so it matches
+    let size = ($font.size * $font.scale | math round)
+    let font_el = file-text ($nu.home-dir | path join $FONT) $"\(setq my/font-family ($font.mono | to json) my/font-size ($size)\)\n" --generated
     let p = palette-load
     if $p == null { return [$font_el] }
     let theme = $nu.home-dir | path join $THEME
@@ -65,9 +67,10 @@ export def theme [cfg: record, wallpaper: string] {
 export def theme-push []: nothing -> nothing {
     if (which emacsclient | is-empty) { return }
     let font = font-load
+    let size = ($font.size * $font.scale | math round)
     # default-frame-alist's font wins over the faces on every frame made later
     let faces = "(dolist (face '(default fixed-pitch variable-pitch)) (set-face-attribute face nil :family my/font-family :height (* 10 my/font-size))) (setf (alist-get 'font default-frame-alist) (format \"%s-%d\" my/font-family my/font-size))"
-    let eval = $"\(progn \(setq my/font-family ($font.mono | to json) my/font-size ($font.size)\) ($faces) \(my/apply-system-theme\)\)"
+    let eval = $"\(progn \(setq my/font-family ($font.mono | to json) my/font-size ($size)\) ($faces) \(my/apply-system-theme\)\)"
     try { ^timeout 5 emacsclient --eval $eval o+e>| ignore }
 }
 

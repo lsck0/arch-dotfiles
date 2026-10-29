@@ -67,7 +67,7 @@
   <body>
     <main>
       <header><span class="head">&gt; home</span><span id="clock"></span></header>
-      <div id="prompt"><span>&gt;</span><input id="q" autocomplete="off" autofocus placeholder="filter, url or search" /><span id="hint"></span></div>
+      <form id="prompt"><span>&gt;</span><input id="q" name="q" autocomplete="off" autofocus placeholder="filter, url or search" /><span id="hint"></span></form>
       <div id="groups"></div>
     </main>
     <script src="file://@DATA@/weblinks/links.js"></script>
@@ -75,9 +75,19 @@
       "use strict";
       const SEARCH = @SEARCH@;
       const METHOD = "@METHOD@";
+      // split the "<base>?<param>={}" template into a real form target, so Enter submits natively (honours POST)
+      const sm = SEARCH.match(/^([^?]*)\?([^=&]+)=\{\}$/);
+      const SEARCH_ACTION = sm ? sm[1] : SEARCH;
+      const SEARCH_PARAM = sm ? sm[2] : "q";
       const links = typeof weblinks === "undefined" ? [] : weblinks;
+      const form = document.getElementById("prompt");
       const q = document.getElementById("q");
       const hint = document.getElementById("hint");
+      // scripted navigation is unreliable from the file:// new-tab context, but a user's Enter natively submits the
+      // form, which is a trusted navigation: point the form at the engine and let the keydown handler fall through
+      form.action = SEARCH_ACTION;
+      form.method = METHOD;
+      q.name = SEARCH_PARAM;
       const groups = document.getElementById("groups");
       const items = [];
       const boxes = new Map();
@@ -152,12 +162,6 @@
         a.click();
       }
 
-      // navigate to the engine's GET query url via the same anchor click go() uses (reliable in the file:// new-tab context)
-      function search(text) {
-        const query = text.trim();
-        if (query !== "") go(SEARCH.replace("{}", encodeURIComponent(query)));
-      }
-
       q.addEventListener("input", () => { sel = 0; render(); });
       q.addEventListener("paste", (e) => {
         const url = asUrl((e.clipboardData || window.clipboardData).getData("text"));
@@ -178,13 +182,12 @@
           return;
         }
         if (e.key === "Enter") {
-          e.preventDefault();
           const text = q.value;
-          if (text.trim() === "") return;
+          if (text.trim() === "") { e.preventDefault(); return; }
           const url = asUrl(text);
-          if (url) go(url);
-          else if (!e.shiftKey && shown.length > 0) go(shown[sel].it.a.href);
-          else search(text);
+          if (url) { e.preventDefault(); go(url); return; }
+          if (!e.shiftKey && shown.length > 0) { e.preventDefault(); go(shown[sel].it.a.href); return; }
+          // plain search: do not preventDefault, so the Enter natively submits the form to the engine
           return;
         }
         if (document.activeElement !== q && !e.ctrlKey && !e.altKey && !e.metaKey && e.key.length === 1) q.focus();
