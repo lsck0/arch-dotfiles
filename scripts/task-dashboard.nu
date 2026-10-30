@@ -28,7 +28,7 @@ const BAR_PROJECT_W = 6
 const BAR_TIME_W = 8
 const STYLES = {normal: "", dim: "\e[38;5;245m", bold: "\e[1m", reverse: "\e[7m"}
 const TABS = [Dashboard Review Clarify Due GitHub Agents Burndown]
-const FOOTER_KEYS = " 1-7 Tab h l: tabs  j k: scroll  r: refresh  q: quit"
+const FOOTER_KEYS = "Tab h l: tabs  j k: scroll  r: refresh  q: quit"
 const SCREEN_ENTER = "\e[?1049h\e[?25l"
 const SCREEN_LEAVE = "\e[?25h\e[?1049l"
 
@@ -224,7 +224,11 @@ def page []: nothing -> string {
     let title = $"TASK DASHBOARD // (date now | format date '%Y-%m-%d %H:%M')"
     let banner = if (has gum) { capture gum style --border double --border-foreground 5 --padding "0 2" --bold --foreground 6 $title } else { $title }
     if not (has task) { return ([$banner "  taskwarrior not installed"] | str join "\n") }
-    let timer = if (has timew) { capture timew | if $in == "" { "  (no active timer)" } else { $in } }
+    # bare timew exits 1 and says so on stdout when nothing is tracked
+    let timer = if (has timew) {
+        let tracked = do { ^timew } | complete
+        if $tracked.exit_code != 0 { "  (no active timer)" } else { $tracked.stdout | str trim --right --char "\n" }
+    }
     let active = [$timer (report +ACTIVE)] | where { is-not-empty } | str join "\n"
     let issues = lines-github (github-issues (tasks-fetch)) $GITHUB_LIMIT | get s | str join "\n"
     [
@@ -276,7 +280,7 @@ def hours [secs: number]: nothing -> string {
 
 def due-relative [task: record]: nothing -> string {
     if $task.due? == null { return "" }
-    # round, not truncate: both sides are local midnights, so a DST boundary makes the gap 23h or 25h and truncation would print today for tomorrow
+    # round, not truncate: across a DST boundary the gap between local midnights is 23h or 25h
     let days = ((local-date $task.due | into datetime) - (today | into datetime)) / 1day | math round | into int
     match $days {
         -1 => "yesterday"
@@ -482,7 +486,7 @@ def frame [state: record, tab: int, scroll: int, cols: int, rows: int]: nothing 
         {text: $" ($t.index + 1):($t.item)($count)", style: (if $t.index == $tab { "reverse" } else { "dim" })}
     }
     let full_width = $full | reduce --fold 1 {|l, acc| $acc + ($l.text | str length) + 1 }
-    # drop the counts and the per-tab gap when the full bar would run past the screen edge, so every tab stays visible on a narrow tty
+    # drop the counts and the per-tab gap when the full bar would overflow, so every tab fits a narrow tty
     let labels = if $full_width <= ($cols - 1) { $full } else {
         $TABS | enumerate | each {|t| {text: $" ($t.index + 1):($t.item)", style: (if $t.index == $tab { "reverse" } else { "dim" })} }
     }
@@ -497,8 +501,9 @@ def frame [state: record, tab: int, scroll: int, cols: int, rows: int]: nothing 
         {ops: ($shown | each { put (2 + $in.index) 1 $in.item.s $in.item.style }), scroll: $top}
     }
     let updated = $"  updated ($state.updated) "
-    let room = $cols - 1 - ($FOOTER_KEYS | str length)
-    let footer = $FOOTER_KEYS + (if $room >= ($updated | str length) { $updated | fill -a r -w $room } else { "" })
+    let keys = $" 1-($TABS | length) ($FOOTER_KEYS)"
+    let room = $cols - 1 - ($keys | str length)
+    let footer = $keys + (if $room >= ($updated | str length) { $updated | fill -a r -w $room } else { "" })
     let body_ops = $body.ops | where y < $rows - 1
     let rule = put 1 0 ("" | fill -c "-" -w ($cols - 1)) dim
     paint ($tab_ops ++ [$rule] ++ $body_ops ++ [(put ($rows - 1) 0 $footer dim)]) $cols $rows
@@ -528,7 +533,7 @@ def tui []: nothing -> nothing {
         if $key in [q Q esc] or ($key == c and control in $event.modifiers) { break }
         match $key {
             r => { $state = $state | merge {slow_at: $never, fast_at: $never} }
-            $d if $d =~ '^[1-7]$' => { $tab = ($d | into int) - 1; $scroll = 0 }
+            $d if $d =~ '^[1-9]$' and ($d | into int) <= ($TABS | length) => { $tab = ($d | into int) - 1; $scroll = 0 }
             tab | right | l => { $tab = ($tab + 1) mod ($TABS | length); $scroll = 0 }
             backtab | left | h => { $tab = ($tab + ($TABS | length) - 1) mod ($TABS | length); $scroll = 0 }
             down | j => { $scroll += 1 }

@@ -1,5 +1,5 @@
 use module.nu *
-use ../wallust/palette.nu [palette-slots hex-to-rgb rgb-to-hex tone-map mix]
+use ../wallust/palette.nu [hex-to-rgb rgb-to-hex tone-map mix]
 
 export const meta = {deps: [core/wallust], packages: {pacman: [herdr-bin]}}
 
@@ -10,14 +10,12 @@ const BLENDS = {
     active_row_bg: 0.06, selection_bg: 0.11, surface_dim: 0.0, surface0: 0.08, surface1: 0.14, overlay0: 0.22
     overlay1: 0.34, subtext0: 0.65
 }
-const SLOTS = [bg fg c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 c15 light bg_conditioned]
-const WAL_COLORS = ".cache/wal/colors.json"
 const TMPFILES = ".config/user-tmpfiles.d/herdr.conf"
 
 def config-text []: nothing -> string {
     let source = open --raw config.toml
-    if not ($nu.home-dir | path join $WAL_COLORS | path exists) { return $source }
-    let p = $SLOTS | zip (palette-slots) | into record
+    let p = palette-load
+    if $p == null { return $source }
     let bg = if $p.light == "1" { $p.bg_conditioned } else {
         $p.bg_conditioned | hex-to-rgb | tone-map --lo $DARK_FLOOR --hi 1.0 | rgb-to-hex --prefix "#"
     }

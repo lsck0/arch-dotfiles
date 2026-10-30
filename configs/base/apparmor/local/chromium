@@ -1,5 +1,4 @@
 # managed by arch-dotfiles/apparmor
-/opt/proton-pass/resources/assets/proton_pass_nm_host rPUx,
 owner @{HOME}/{.claude,projects/*/.identity/claude}/chrome/chrome-native-host rPUx,
 owner @{user_share_dirs}/capgemini/ rw,
 owner @{user_share_dirs}/capgemini/chromium/ rw,

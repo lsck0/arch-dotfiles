@@ -1,0 +1,29 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# Reason for custom package: aur version stuck at 0.17.1; the afl crate wants a matching cargo-afl
+
+pkgname=cargo-afl
+pkgver=0.18.2
+pkgrel=1
+pkgdesc="Fuzzing Rust code with AFLplusplus"
+arch=(x86_64)
+url="https://github.com/rust-fuzz/afl.rs"
+license=(Apache-2.0)
+depends=(gcc-libs glibc)
+makedepends=(cargo)
+options=(!debug !lto)
+source=("$pkgname-$pkgver.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate")
+sha256sums=(fd3af80f712419acbfa91a599dfeb7930ac43feac7d3be3da993ab3304030a15)
+
+prepare() {
+    cd "$pkgname-$pkgver"
+    cargo fetch --locked --target "$(rustc --print host-tuple)"
+}
+
+build() {
+    cd "$pkgname-$pkgver"
+    cargo build --frozen --release
+}
+
+package() {
+    install -Dm755 "$pkgname-$pkgver/target/release/$pkgname" "$pkgdir/usr/bin/$pkgname"
+}

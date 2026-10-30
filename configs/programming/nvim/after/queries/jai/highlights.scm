@@ -4,35 +4,27 @@
 ] @keyword.import
 
 [
-  "if"
   "xx"
 
   "ifx"
-  "for"
 
   "then"
-  "else"
   "null"
-  "case"
   "enum"
   "true"
   "cast"
 
-  "while"
-  "break"
   "using"
   "defer"
   "false"
   "union"
 
-  "return"
   "struct"
   "inline"
   "remove"
 
   "type_of"
 
-  "continue"
   "operator"
 
   "no_inline"
@@ -52,7 +44,6 @@
   "if"
   "else"
   "case"
-  "break"
 ] @keyword.conditional
 
 ((if_expression
@@ -66,6 +57,7 @@
 [
   "for"
   "while"
+  "break"
   "continue"
 ] @keyword.repeat
 

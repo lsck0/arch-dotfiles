@@ -40,6 +40,7 @@ BarWidget {
     }
 
     moduleName: "audio-io"
+    barPriority: 70
 
     hoverPanel: true
     visible: sink !== null
@@ -74,257 +75,245 @@ BarWidget {
         anchorWidget: root
         title: "AUDIO"
         implicitWidth: Style.panelWidth.wide
-        implicitHeight: Math.min(content.implicitHeight, maxBodyHeight) + padding * 2 + titleInset
         onShownChanged: {
             if (!shown) {
                 root.routingStreamId = -1;
             }
         }
 
-        Flickable {
+        Column {
+            id: content
+
             width: parent.width
-            height: Math.min(content.implicitHeight, panel.maxBodyHeight)
-            contentWidth: width
-            contentHeight: content.implicitHeight
-            interactive: contentHeight > height
-            boundsBehavior: Flickable.StopAtBounds
-            clip: true
+            spacing: Style.spacing.sm
+
+            SectionHead {
+                text: "OUTPUT"
+
+                Tag {
+                    visible: Audio.isTappedByObs(root.sink)
+                    text: "OBS"
+                    tint: Colors.semantic.live
+                }
+
+            }
+
+            Hero {
+                value: String(Math.round(root.volume * 100))
+                unit: "%"
+                color: root.muted ? Colors.urgent : Colors.accent
+            }
+
+            Fader {
+                width: content.width
+                node: root.sink
+                host: root
+                glyph: Audio.volumeIcon(root.volume, false)
+            }
+
+            Item {
+                width: content.width
+                visible: ObsProcess.connected || ObsProcess.listening
+                implicitHeight: hearGroup.implicitHeight
+
+                Caption {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "HEAR"
+                    color: Colors.textDim
+                }
+
+                ButtonGroup {
+                    id: hearGroup
+
+                    anchors.right: parent.right
+                    spacing: Style.spacing.xs
+                    fontSize: Style.font.caption
+                    options: [{
+                        "value": "me",
+                        "label": "System"
+                    }, {
+                        "value": "obs",
+                        "label": "OBS output"
+                    }]
+                    value: ObsProcess.listening ? "obs" : "me"
+                    onChanged: function(v) {
+                        ObsProcess.listenSet(v === "obs");
+                    }
+                }
+
+            }
+
+            Flow {
+                width: content.width
+                spacing: Style.spacing.xs
+
+                Repeater {
+
+                    model: ScriptModel {
+                        values: Audio.sinks
+                    }
+
+                    delegate: Button {
+                        variant: "chip"
+                        focusable: true
+                        required property var modelData
+
+                        text: Audio.deviceName(modelData)
+                        selected: modelData === root.sink
+                        onClicked: Pipewire.preferredDefaultAudioSink = modelData
+                    }
+
+                }
+
+            }
+
+            PanelSeparator {
+            }
+
+            SectionHead {
+                text: "MICROPHONE"
+
+                Tag {
+                    visible: Audio.isTappedByObs(root.source)
+                    text: "OBS"
+                    tint: Colors.semantic.live
+                }
+
+            }
+
+            ObsPair {
+                width: content.width
+                node: root.source
+                host: root
+                glyph: "\u{f036c}"
+                mutedGlyph: "\u{f036d}"
+                obsLabel: "Mic"
+            }
+
+            Meter {
+                width: content.width
+                node: root.source
+                active: root.live
+            }
+
+            Flow {
+                width: content.width
+                spacing: Style.spacing.xs
+
+                Repeater {
+
+                    model: ScriptModel {
+                        values: Audio.sources
+                    }
+
+                    delegate: Button {
+                        variant: "chip"
+                        focusable: true
+                        required property var modelData
+
+                        text: Audio.deviceName(modelData)
+                        selected: modelData === root.source
+                        onClicked: Pipewire.preferredDefaultAudioSource = modelData
+                    }
+
+                }
+
+            }
+
+            Flow {
+                width: content.width
+                visible: Audio.micListeners.length > 0
+                spacing: Style.spacing.xs
+
+                Caption {
+                    text: "HEARD BY"
+                    color: Colors.textDim
+                }
+
+                Repeater {
+
+                    model: ScriptModel {
+                        values: Audio.micListeners
+                    }
+
+                    delegate: Tag {
+                        required property var modelData
+
+                        text: Audio.appName(modelData)
+                        tint: Audio.isObs(modelData) ? Colors.semantic.live : Colors.semantic.speaking
+                    }
+
+                }
+
+            }
 
             Column {
-                id: content
+                width: content.width
+                spacing: Style.spacing.sm
+                visible: Audio.appStreams.length > 0
 
-                width: parent.width
+                PanelSeparator {
+                }
+
+                PanelSectionHeader {
+                    text: "APPS"
+                }
+
+                Repeater {
+
+                    model: ScriptModel {
+                        values: Audio.appStreams
+                    }
+
+                    delegate: StreamRow {
+                        host: root
+                    }
+
+                }
+
+            }
+
+            PanelSeparator {
+            }
+
+            Row {
+                width: content.width
                 spacing: Style.spacing.sm
 
-                SectionHead {
-                    text: "OUTPUT"
-
-                    Tag {
-                        visible: Audio.isTappedByObs(root.sink)
-                        text: "OBS"
-                        tint: Colors.semantic.live
-                    }
-
-                }
-
-                Hero {
-                    value: String(Math.round(root.volume * 100))
-                    unit: "%"
-                    color: root.muted ? Colors.urgent : Colors.accent
-                }
-
-                Fader {
-                    width: content.width
-                    node: root.sink
-                    host: root
-                    glyph: Audio.volumeIcon(root.volume, false)
-                }
-
-                Item {
-                    width: content.width
-                    visible: ObsProcess.connected || ObsProcess.listening
-                    implicitHeight: hearGroup.implicitHeight
-
-                    Caption {
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "HEAR"
-                        opacity: Style.emphasis.dim
-                    }
-
-                    ButtonGroup {
-                        id: hearGroup
-
-                        anchors.right: parent.right
-                        spacing: Style.spacing.xs
-                        fontSize: Style.font.caption
-                        options: [{
-                            "value": "me",
-                            "label": "System"
-                        }, {
-                            "value": "obs",
-                            "label": "OBS output"
-                        }]
-                        value: ObsProcess.listening ? "obs" : "me"
-                        onChanged: function(v) {
-                            ObsProcess.listenSet(v === "obs");
-                        }
-                    }
-
-                }
-
-                Flow {
-                    width: content.width
-                    spacing: Style.spacing.xs
-
-                    Repeater {
-
-                        model: ScriptModel {
-                            values: Audio.sinks
-                        }
-
-                        delegate: Button {
-                            variant: "chip"
-                            focusable: true
-                            required property var modelData
-
-                            text: Audio.deviceName(modelData)
-                            selected: modelData === root.sink
-                            onClicked: Pipewire.preferredDefaultAudioSink = modelData
-                        }
-
-                    }
-
-                }
-
-                PanelSeparator {
-                }
-
-                SectionHead {
-                    text: "MICROPHONE"
-
-                    Tag {
-                        visible: Audio.isTappedByObs(root.source)
-                        text: "OBS"
-                        tint: Colors.semantic.live
-                    }
-
-                }
-
-                ObsPair {
-                    width: content.width
-                    node: root.source
-                    host: root
-                    glyph: "\u{f036c}"
-                    mutedGlyph: "\u{f036d}"
-                    obsLabel: "Mic"
-                }
-
-                Meter {
-                    width: content.width
-                    node: root.source
-                    active: root.live
-                }
-
-                Flow {
-                    width: content.width
-                    spacing: Style.spacing.xs
-
-                    Repeater {
-
-                        model: ScriptModel {
-                            values: Audio.sources
-                        }
-
-                        delegate: Button {
-                            variant: "chip"
-                            focusable: true
-                            required property var modelData
-
-                            text: Audio.deviceName(modelData)
-                            selected: modelData === root.source
-                            onClicked: Pipewire.preferredDefaultAudioSource = modelData
-                        }
-
-                    }
-
-                }
-
-                Flow {
-                    width: content.width
-                    visible: Audio.micListeners.length > 0
-                    spacing: Style.spacing.xs
-
-                    Caption {
-                        text: "HEARD BY"
-                        opacity: Style.emphasis.dim
-                    }
-
-                    Repeater {
-
-                        model: ScriptModel {
-                            values: Audio.micListeners
-                        }
-
-                        delegate: Tag {
-                            required property var modelData
-
-                            text: Audio.appName(modelData)
-                            tint: Audio.isObs(modelData) ? Colors.semantic.live : Colors.semantic.speaking
-                        }
-
-                    }
-
-                }
-
-                Column {
-                    width: content.width
-                    spacing: Style.spacing.sm
-                    visible: Audio.appStreams.length > 0
-
-                    PanelSeparator {
-                    }
-
-                    PanelSectionHeader {
-                        text: "APPS"
-                    }
-
-                    Repeater {
-
-                        model: ScriptModel {
-                            values: Audio.appStreams
-                        }
-
-                        delegate: StreamRow {
-                            host: root
-                        }
-
-                    }
-
-                }
-
-                PanelSeparator {
-                }
-
-                Row {
-                    width: content.width
-                    spacing: Style.spacing.sm
-
-                    PanelRow {
-                        width: (parent.width - parent.spacing) / 2
-                        centered: true
-                        glyph: root.micMuted ? "\u{f036d}" : "\u{f036c}"
-                        label: root.micMuted ? "Mic muted" : "Mute mic"
-                        on: root.micMuted
-                        onActivated: root.toggleMicMute()
-                    }
-
-                    PanelRow {
-                        width: (parent.width - parent.spacing) / 2
-                        centered: true
-                        glyph: root.deafened ? "\u{f07ce}" : "\u{f02cb}"
-                        label: root.deafened ? "All muted" : "Mute all"
-                        on: root.deafened
-                        onActivated: root.toggleDeafen()
-                    }
-
-                }
-
-                PanelSeparator {
+                PanelRow {
+                    width: (parent.width - parent.spacing) / 2
+                    centered: true
+                    glyph: root.micMuted ? "\u{f036d}" : "\u{f036c}"
+                    label: root.micMuted ? "Mic muted" : "Mute mic"
+                    on: root.micMuted
+                    onActivated: root.toggleMicMute()
                 }
 
                 PanelRow {
-                    width: parent.width
-                    glyph: "\u{f1049}"
-                    label: "Patchbay (qpwgraph)"
-                    onActivated: {
-                        if (root.bar)
-                            root.bar.closePanel(root.moduleName);
-
-                        Quickshell.execDetached(["uwsm-app", "--", "qpwgraph"]);
-                    }
+                    width: (parent.width - parent.spacing) / 2
+                    centered: true
+                    glyph: root.deafened ? "\u{f07ce}" : "\u{f02cb}"
+                    label: root.deafened ? "All muted" : "Mute all"
+                    on: root.deafened
+                    onActivated: root.toggleDeafen()
                 }
 
+            }
+
+            PanelSeparator {
+            }
+
+            PanelRow {
+                width: parent.width
+                glyph: "\u{f1049}"
+                label: "Patchbay (qpwgraph)"
+                onActivated: {
+                    if (root.bar)
+                        root.bar.closePanel(root.moduleName);
+
+                    Quickshell.execDetached(["uwsm-app", "--", "qpwgraph"]);
+                }
             }
 
         }
@@ -358,7 +347,7 @@ BarWidget {
             anchors.centerIn: parent
             textFormat: Text.PlainText
             text: tag.text
-            color: tag.tint
+            color: Colors.textOnFill(tag.tint, tag.color)
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             font.bold: true
@@ -440,8 +429,7 @@ BarWidget {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             text: fader.caption
-            color: fader.muted ? Colors.urgent : Colors.menu.text
-            opacity: Style.emphasis.dim
+            color: fader.muted ? Colors.urgentText : Colors.textDim
         }
 
         Text {
@@ -494,7 +482,7 @@ BarWidget {
             anchors.verticalCenter: parent.verticalCenter
             horizontalAlignment: Text.AlignRight
             text: fader.readoutText
-            color: fader.muted ? Colors.urgent : Colors.menu.text
+            color: fader.muted ? Colors.urgentText : Colors.menu.text
         }
 
     }

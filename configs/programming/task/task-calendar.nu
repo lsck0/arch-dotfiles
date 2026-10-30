@@ -3,7 +3,7 @@
 
 const ENV_FILE = ($nu.home-dir | path join .config task calendar.env)
 # the last good answer, served while the feed is unreachable so the agenda keeps its events
-const CACHE_FILE = ($nu.home-dir | path join .cache task-calendar events.json)
+const CACHE_FILE = "task-calendar/events.json"
 
 def endpoints []: nothing -> record {
     if not ($ENV_FILE | path exists) { return {} }
@@ -21,13 +21,14 @@ def "main events" [] {
             $view.day.events | each {|event| $event | insert day $view.weekday | insert today $view.is_today }
         } | flatten
     } catch { null }
+    let cache = $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join $CACHE_FILE
     if $fetched == null {
-        if ($CACHE_FILE | path exists) { open --raw $CACHE_FILE | print } else { print '{"events":[]}' }
+        if ($cache | path exists) { open --raw $cache | print } else { print '{"events":[]}' }
         return
     }
     let out = {events: $fetched} | to json --raw
-    mkdir ($CACHE_FILE | path dirname)
-    $out | save --force $CACHE_FILE
+    mkdir ($cache | path dirname)
+    $out | save --force $cache
     $out | print
 }
 

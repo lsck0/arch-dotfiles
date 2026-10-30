@@ -32,11 +32,11 @@
    (teal       (doom-blend '("@C2@" "@C2@" "brightgreen") '("@C6@" "@C6@" "cyan") 0.5))
    (yellow     '("@C3@"  "@C3@"  "yellow"        ))
    (blue       '("@C4@"  "@C4@"  "brightblue"    ))
-   (dark-blue  (doom-darken '("@C4@" "@C4@" "blue") 0.4))
+   (dark-blue  (doom-@DARKEN@ '("@C4@" "@C4@" "blue") 0.4))
    (magenta    '("@C5@"  "@C5@"  "brightmagenta" ))
    (violet     (doom-blend '("@C5@" "@C5@" "magenta") '("@C4@" "@C4@" "blue") 0.5))
    (cyan       '("@C6@"  "@C6@"  "brightcyan"    ))
-   (dark-cyan  (doom-darken '("@C6@" "@C6@" "cyan") 0.4))
+   (dark-cyan  (doom-@DARKEN@ '("@C6@" "@C6@" "cyan") 0.4))
 
    ;; mandatory "universal syntax classes": doom-themes-base errors without them
    (highlight      blue)
@@ -44,7 +44,7 @@
    (selection      dark-blue)
    (builtin        magenta)
    (comments       base5)
-   (doc-comments   (doom-lighten base5 0.25))
+   (doc-comments   (doom-@LIGHTEN@ base5 0.25))
    (constants      violet)
    (functions      yellow)
    (keywords       blue)

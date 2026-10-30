@@ -1,17 +1,19 @@
 # One install stage per boot: install, then config, which disarms the chain and reboots.
 
 use log.nu *
-use state.nu [EXIT_ABORTED]
-use secrets.nu [secret-is-plaintext]
+use state.nu [EXIT_ABORTED SYSTEM_REPO]
+use secrets.nu [secret-is-plaintext OWNER_WITNESS]
+use system.nu [ENTRY]
 use profile.nu [profile-has]
 
-const WITNESS = path self ../../configs/secrets/keys/pgp_privatekey.asc
-const STATE_DIR = "/var/lib/dotfiles-stage"
-const KEY_FILE = "/etc/cryptsetup-keys.d/root.key"
+const REPO = path self ../..
+const WITNESS = $REPO | path join $OWNER_WITNESS
+export const STAGE_STATE_DIR = "/var/lib/dotfiles-stage"
+export const STAGE_KEY_FILE = "/etc/cryptsetup-keys.d/root.key"
 const MKINITCPIO_DROPIN = "/etc/mkinitcpio.conf.d/dotfiles-stage.conf"
 const SUDOERS_DROPIN = "/etc/sudoers.d/zz-dotfiles-stage"
 const UNIT = "/etc/systemd/system/dotfiles-stage.service"
-const ESP_MARKER = "/boot/dotfiles-stage-in-progress"
+export const STAGE_ESP_MARKER = "/boot/dotfiles-stage-in-progress"
 const ISSUE = "/etc/issue.d/dotfiles-stage.issue"
 const SECRETS_ISSUE = "/etc/issue.d/dotfiles-secrets.issue"
 const DISARM_TRIES = 3
@@ -22,12 +24,11 @@ const EFI_ATTRS_NV_BS_RT = 0x[07 00 00 00]
 const INSTALL_ATTEMPTS_MAX = 3
 const CRYPTSETUP_NO_KEY = 2
 # a watcher's url (dot test, BOOTSTRAP_REPORT): the stages beacon to it, the chain's end reports to it
-const REPORT = ($STATE_DIR | path join report)
-const ROOT_COPY = "/var/lib/dotfiles/repo"
+const REPORT = ($STAGE_STATE_DIR | path join report)
 
 def note [message: string]: nothing -> nothing {
     log-info $message
-    $"(date now | format date '%+') ($message)\n" | ^sudo tee -a ($STATE_DIR | path join log) | ignore
+    $"(date now | format date '%+') ($message)\n" | ^sudo tee -a ($STAGE_STATE_DIR | path join log) | ignore
 }
 
 # portmaster blocks the watcher; only a test install has a report url
@@ -42,26 +43,26 @@ def report-beacon [tag: string]: nothing -> nothing {
 }
 
 def luks-device []: nothing -> string {
-    let file = $STATE_DIR | path join luks-device
+    let file = $STAGE_STATE_DIR | path join luks-device
     if ($file | path exists) { open --raw $file | str trim } else { "" }
 }
 
 def disarm []: nothing -> bool {
     let device = luks-device
-    let armed = (^sudo test -f $KEY_FILE | complete).exit_code == 0
+    let armed = (^sudo test -f $STAGE_KEY_FILE | complete).exit_code == 0
     if $device == "" {
         if $armed { return false }
         ^sudo rm -f $MKINITCPIO_DROPIN
         return true
     }
     if $armed {
-        let status = (^sudo cryptsetup open --test-passphrase --key-file $KEY_FILE $device | complete).exit_code
+        let status = (^sudo cryptsetup open --test-passphrase --key-file $STAGE_KEY_FILE $device | complete).exit_code
         if $status == 0 {
-            if (^sudo cryptsetup luksRemoveKey $device $KEY_FILE | complete).exit_code != 0 { return false }
+            if (^sudo cryptsetup luksRemoveKey $device $STAGE_KEY_FILE | complete).exit_code != 0 { return false }
         } else if $status != $CRYPTSETUP_NO_KEY {
             return false
         }
-        ^sudo rm -f $KEY_FILE
+        ^sudo rm -f $STAGE_KEY_FILE
     }
     ^sudo rm -f $MKINITCPIO_DROPIN
     true
@@ -85,17 +86,17 @@ def stage-reboot []: nothing -> nothing {
 
 # Runs the stage named in the state dir's `next`, then arms the following one or disarms the chain.
 export def stage-run [repo: path]: nothing -> nothing {
-    let stage = open --raw ($STATE_DIR | path join next) | str trim
+    let stage = open --raw ($STAGE_STATE_DIR | path join next) | str trim
     mut next = match $stage {
         "install" => "config"
         "config" => ""
-        _ => { error make {msg: $"unknown stage '($stage)' in ($STATE_DIR)/next"} }
+        _ => { error make {msg: $"unknown stage '($stage)' in ($STAGE_STATE_DIR)/next"} }
     }
     if $stage == "config" {
         mut tries = 1
         while not (disarm) {
             if $tries >= $DISARM_TRIES {
-                let message = $"dotfiles install chain stopped: the temporary disk key is still in place, see ($STATE_DIR)/log"
+                let message = $"dotfiles install chain stopped: the temporary disk key is still in place, see ($STAGE_STATE_DIR)/log"
                 note $"disarm failed ($tries) times, retrying next boot"
                 ^sudo mkdir -p ($ISSUE | path dirname)
                 $"\n($message)\n\n" | ^sudo tee $ISSUE | ignore
@@ -112,7 +113,7 @@ export def stage-run [repo: path]: nothing -> nothing {
     if $stage == "config" {
         try {
             ^nu --no-config-file ($repo | path join scripts lib internal.nu) migrate --baseline
-            ^sudo ($ROOT_COPY | path join scripts lib system-apply.nu) migrate --baseline
+            ^sudo ($SYSTEM_REPO | path join $ENTRY) migrate --baseline
         } catch {|e| note $"migrate --baseline failed: ($e.msg)" }
     }
     let args = if $stage == "install" { [apply --packages] } else { [apply] }
@@ -120,8 +121,8 @@ export def stage-run [repo: path]: nothing -> nothing {
     note (if $status == 0 { $"($stage): ok" } else { $"($stage): failed, see ($stage).log" })
     report-beacon $"($stage)-(if $status == 0 { 'ok' } else { 'failed' })"
     if $stage == "install" and $status == $EXIT_ABORTED {
-        let attempts = (try { open --raw ($STATE_DIR | path join install-attempts) | into int } catch { 0 }) + 1
-        $"($attempts)\n" | ^sudo tee ($STATE_DIR | path join install-attempts) | ignore
+        let attempts = (try { open --raw ($STAGE_STATE_DIR | path join install-attempts) | into int } catch { 0 }) + 1
+        $"($attempts)\n" | ^sudo tee ($STAGE_STATE_DIR | path join install-attempts) | ignore
         if $attempts < $INSTALL_ATTEMPTS_MAX {
             note $"install: aborted, attempt ($attempts)/($INSTALL_ATTEMPTS_MAX), retrying next boot"
             $next = "install"
@@ -131,7 +132,7 @@ export def stage-run [repo: path]: nothing -> nothing {
     }
     note "rebooting"
     if ($next | is-not-empty) {
-        $"($next)\n" | ^sudo tee ($STATE_DIR | path join next) | ignore
+        $"($next)\n" | ^sudo tee ($STAGE_STATE_DIR | path join next) | ignore
         stage-reboot
         return
     }
@@ -147,8 +148,7 @@ export def stage-run [repo: path]: nothing -> nothing {
     }
     boot-next-here
     # the report runs as root from the root copy, after the chain is disarmed, so it sees the finished system
-    let report = if ($REPORT | path exists) {
-        $"nu --no-config-file ($ROOT_COPY)/scripts/lib/stage-report.nu ($env.USER) ($repo); "
-    } else { "" }
-    ^sudo sh -c $"rm -f ($SUDOERS_DROPIN); systemctl disable dotfiles-stage.service; rm -f ($UNIT) ($STATE_DIR)/next ($ESP_MARKER); ($report)systemctl reboot"
+    let report = if ($REPORT | path exists) { 'nu --no-config-file "$1/scripts/lib/stage-report.nu" "$2" "$3"; ' } else { "" }
+    let disarm = $"rm -f ($SUDOERS_DROPIN); systemctl disable dotfiles-stage.service; rm -f ($UNIT) ($STAGE_STATE_DIR)/next ($STAGE_ESP_MARKER); "
+    ^sudo sh -c $"($disarm)($report)systemctl reboot" sh $SYSTEM_REPO $env.USER $repo
 }

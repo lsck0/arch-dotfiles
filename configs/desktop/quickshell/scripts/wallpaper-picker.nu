@@ -5,7 +5,7 @@ const PICK_TIMEOUT = "300"
 const SELECTION_WAIT_TRIES = 20
 
 def main [] {
-    let dotfiles = $env.DOTFILES? | default $env.QS_DOTFILES_DIR? | default ($nu.home-dir | path join projects arch-dotfiles)
+    let dotfiles = $env.DOTFILES? | default ($nu.home-dir | path join projects arch-dotfiles)
     let dot = $nu.home-dir | path join .local bin dot
     let runtime = $env.XDG_RUNTIME_DIR? | default /tmp
     let selection = $runtime | path join $"wallpaper-picker.selection.($nu.pid)"
@@ -15,7 +15,7 @@ def main [] {
         mode: 0
         selectionFile: $selection
         doneFile: $done
-        selectedImage: ($nu.home-dir | path join .cache wal wallpaper | path expand)
+        selectedImage: ($env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join wal wallpaper | path expand)
         filterable: true
         showLabels: true
     }

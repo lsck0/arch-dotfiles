@@ -13,8 +13,9 @@ export def concat []: list -> list {
 
 # Parallel jobs: DOTFILES_JOBS, else the cpu count.
 export def jobs []: nothing -> int {
-    let jobs = $env.DOTFILES_JOBS? | default (sys cpu | length) | into int
-    if $jobs < 1 { error make {msg: $"DOTFILES_JOBS=($jobs) is not a positive number"} }
+    let raw = $env.DOTFILES_JOBS? | default (sys cpu | length)
+    let jobs = try { $raw | into int } catch { error make {msg: $"DOTFILES_JOBS=($raw) is not a positive number"} }
+    if $jobs < 1 { error make {msg: $"DOTFILES_JOBS=($raw) is not a positive number"} }
     $jobs
 }
 

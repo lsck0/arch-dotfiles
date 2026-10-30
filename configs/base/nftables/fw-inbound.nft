@@ -16,8 +16,9 @@ table inet fw {
         ct state established,related accept
         ct state invalid drop
 
-        ip6 nexthdr ipv6-icmp icmpv6 type echo-request limit rate 10/second accept
-        ip6 nexthdr ipv6-icmp accept
+        meta l4proto ipv6-icmp icmpv6 type echo-request limit rate 10/second accept
+        meta l4proto ipv6-icmp icmpv6 type != echo-request accept
+        meta l4proto ipv6-icmp drop
         ip protocol icmp icmp type echo-request limit rate 5/second accept
         ip protocol icmp icmp type { destination-unreachable, time-exceeded, parameter-problem, echo-reply } accept
         ip protocol icmp drop
@@ -27,10 +28,11 @@ table inet fw {
         iifname $trusted_ifaces accept
         iifname "tun0" tcp dport { 4444-4454, 4456-4460, 8000-8099, 9001, 9443 } accept
 
-        ip saddr @ssh_allowed tcp dport 2222 ct state new accept
-        tcp dport 8002 ip saddr @knock2 update @ssh_allowed { ip saddr }
-        tcp dport 7001 ip saddr @knock1 update @knock2 { ip saddr }
-        tcp dport 9003 update @knock1 { ip saddr }
+        # the knock is in a public repo, so it only keeps scanners out of sshd's log; publickey-only auth guards sshd
+        ip saddr @ssh_allowed tcp dport @SSH_PORT@ ct state new accept
+        tcp dport @KNOCK_3@ ip saddr @knock2 update @ssh_allowed { ip saddr }
+        tcp dport @KNOCK_2@ ip saddr @knock1 update @knock2 { ip saddr }
+        tcp dport @KNOCK_1@ update @knock1 { ip saddr }
 
         iifname @home_ifaces tcp dport { 22, 1716, 1739-1764, 9757, 22000, 53317 } accept
         iifname @home_ifaces udp dport { 1716, 5353, 9757, 22000, 53317 } accept

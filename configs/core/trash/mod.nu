@@ -6,7 +6,7 @@ export const options = {
     retention_days: {
         type: int
         default: 1
-        doc: "Days trash-empty.timer keeps a deleted file before purging it, trash-empty(1) --trash-dir day argument"
+        doc: "Days trash-empty.timer keeps a deleted file before purging it, trash-empty(1)'s days argument"
         label: "Trash retention (days)"
         scope: user
     }

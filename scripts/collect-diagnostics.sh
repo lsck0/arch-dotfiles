@@ -22,6 +22,14 @@ fi
 out="$dest/diag-$(cat /etc/hostname 2> /dev/null || uname -n)-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$out" || exit 1
 
+# as root through sudo, the dot state and checkout to report are the invoking user's, not root's
+as_user=()
+user_home=$HOME
+if ((EUID == 0)) && [[ -n "${SUDO_USER:-}" ]]; then
+    as_user=(runuser -u "$SUDO_USER" --)
+    user_home=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+fi
+
 if ((EUID == 0)); then
     as_root=()
 elif sudo -n true 2> /dev/null || sudo -v; then
@@ -49,13 +57,14 @@ grab() {
     local f
     for f in "$@"; do [[ -r "$f" ]] && cp -rL "$f" "$out/files/" 2> /dev/null; done
 }
+# read as root into files/root/, apart from grab's: both layers keep e.g. a runs/ of their own
 root_grab() {
     if ((EUID == 0)) || ((${#as_root[@]})); then
-        "${as_root[@]}" cp -rL --no-preserve=mode,ownership "$@" "$out/files/" 2> /dev/null
+        "${as_root[@]}" cp -rL --no-preserve=mode,ownership "$@" "$out/files/root/" 2> /dev/null
         "${as_root[@]}" chown -R "$(id -u):$(id -g)" "$out/files"
     fi
 }
-mkdir -p "$out/files"
+mkdir -p "$out/files/root"
 
 echo "collecting into $out" >&2
 
@@ -181,16 +190,17 @@ grab /var/log/Xorg.0.log
 root_grab /etc/NetworkManager/NetworkManager.conf /etc/NetworkManager/conf.d /etc/iwd/main.conf /etc/nftables.conf \
     /etc/systemd/network /etc/modprobe.d /etc/mkinitcpio.conf /etc/kernel/cmdline /etc/fstab /etc/crypttab
 
-repo=$(dirname "$(dirname "$(realpath "$HOME/.local/bin/dot" 2> /dev/null)")" 2> /dev/null)
+repo=$(dirname "$(dirname "$(realpath "$user_home/.local/bin/dot" 2> /dev/null)")" 2> /dev/null)
 [[ -f "$repo/scripts/dot.nu" ]] || repo=/var/lib/dotfiles/repo
 run dot git -C "$repo" log -3 --format='%h %ad %s'
 run dot git -C "$repo" status --short
-run dot dot status
-run dot dot log
-run dot dot log --level WARN
+# by path: on PATH, dot can be graphviz's (root's secure_path lacks ~/.local/bin)
+run dot "${as_user[@]}" "$repo/scripts/dot.nu" status
+run dot "${as_user[@]}" "$repo/scripts/dot.nu" log
+run dot "${as_user[@]}" "$repo/scripts/dot.nu" log --level WARN
 grab "$repo"/FAILURES.* "$repo"/install.log "$repo"/config.log "$repo"/stage.log
-grab "$HOME/.local/state/dotfiles/crash.json" "$HOME/.config/dotfiles/profile.nuon"
-grab "$HOME/.local/state/dotfiles/runs" "$HOME/.local/state/dotfiles/ledger"
+grab "$user_home/.local/state/dotfiles/crash.json" "$user_home/.config/dotfiles/profile.nuon"
+grab "$user_home/.local/state/dotfiles/runs" "$user_home/.local/state/dotfiles/ledger"
 root dot cat /var/lib/dotfiles/crash.json
 root dot ls -la /etc/sudoers.d
 root_grab /var/lib/dotfiles-stage /var/lib/dotfiles/runs
@@ -199,8 +209,16 @@ run session wpctl status
 run session upower -d
 run session sensors
 run session loginctl list-sessions
-# credentials from direnv or the shell stay out of a bundle meant to be handed out
-env | sed -E 's/^([^=]*(TOKEN|KEY|SECRET|PASSWORD|PASS|CREDENTIAL|AUTH|COOKIE)[^=]*)=.*/\1=<redacted>/I' > "$out/session-env.txt"
+# credentials from direnv or the shell stay out of a bundle meant to be handed out: whole entries, multi-line values
+# included, by name, and url userinfo in any value
+while IFS= read -r -d '' entry; do
+    name=${entry%%=*}
+    if [[ ${name^^} =~ TOKEN|KEY|SECRET|PASSWORD|PASS|CREDENTIAL|AUTH|COOKIE ]]; then
+        printf '%s=<redacted>\n' "$name"
+    else
+        printf '%s\n' "$entry"
+    fi
+done < <(env -0) | sed -E 's#(://)[^/@[:space:]]+@#\1<redacted>@#g' > "$out/session-env.txt"
 
 run desktop hyprctl version
 run desktop hyprctl monitors

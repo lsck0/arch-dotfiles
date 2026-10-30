@@ -6,8 +6,8 @@ use platform.nu [platform-load platform-env]
 use profile.nu [profile-load]
 use options.nu [options-resolve]
 use modules.nu [modules-discover modules-graph modules-eval]
-use converge.nu [state-read observe recorded-hashes decls-check plan-module apply-module state-write]
-use secrets.nu [secret-is-plaintext]
+use converge.nu [state-read observe recorded-hashes decls-check plan-module apply-module state-write mode-normal]
+use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 
 const HASH_STAMP = '%P %s %T@\n'
 const EXEC_PASSES_MAX = 3
@@ -32,13 +32,20 @@ def detect [ctx: record, modules: table]: nothing -> record {
     } | reduce --fold {} {|r, acc| $acc | insert $r.id $r.values }
 }
 
+# Expands an app-dirs.conf value as environment.d does: ${HOME}, then ${VAR:-default} from the env.
+def app-dirs-expand []: string -> string {
+    let text = $in | str replace --all '${HOME}' $nu.home-dir
+    $text | parse --regex '(?<all>\$\{(?<k>[A-Za-z_][A-Za-z0-9_]*):-(?<d>[^}]*)\})'
+    | reduce --fold $text {|m, acc| $acc | str replace $m.all ($env | get --optional $m.k | default "" | if ($in | is-empty) { $m.d } else { $in }) }
+}
+
 # The install chain has no environment.d yet: load base/xdg's app dirs; session values win.
 def --env app-dirs-load [repo: path]: nothing -> nothing {
     let file = $repo | path join configs base xdg app-dirs.conf
     if not ($file | path exists) { return }
     open --raw $file | lines | parse --regex '^(?<k>[A-Za-z_][A-Za-z0-9_]*)=(?<v>.*)$'
     | where {|e| ($env | get --optional $e.k) == null }
-    | each {|e| {($e.k): ($e.v | str replace --all '${HOME}' $nu.home-dir)} }
+    | each {|e| {($e.k): ($e.v | app-dirs-expand)} }
     | reduce --fold {} {|e, acc| $acc | merge $e }
     | load-env
 }
@@ -66,7 +73,7 @@ export def --env pipeline-load [repo: path, layer: string]: nothing -> record {
 }
 
 def stamp [dir: path]: nothing -> string {
-    ^find $dir -type f -not -name '*.log' -printf $HASH_STAMP | lines | sort | str join "\n"
+    ^find $dir -type f -not -name '*.log' -not -name '*.test.nu' -not -name '*.test.sh' -printf $HASH_STAMP | lines | sort | str join "\n"
 }
 
 # Imports outside the module's dir, followed transitively, so a change there re-runs the module.
@@ -97,7 +104,8 @@ def outputs-clean [outputs: list<record>, seen: record]: nothing -> bool {
     $outputs | all {|o|
         let obs = $seen.paths | get --optional $o.target
         match $o.kind {
-            "file" => ($obs.hash? == $o.hash)
+            # a record from before modes were kept has none, and only its hash counts
+            "file" => ($obs.hash? == $o.hash and ($o.mode? == null or (mode-normal $obs.mode?) == (mode-normal $o.mode)))
             "link" => ($obs.link? == $o.source)
             "exec" => ($o.source | path exists)
             "unit" => (match ($o.state? | default enabled) { "disabled" => (($seen.units | get --optional $o.target) != "enabled"), $s => (($seen.units | get --optional $o.target) == $s) })
@@ -160,9 +168,11 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
         $ctx.modules | where {|m| not $m.cfg.enable and not $m.broken and $verb in $m.native and (($ids | is-empty) or $m.id in $ids) and ((state-read $m.id $verb).outputs | is-not-empty) }
     }
     let graph = span graph {} { modules-graph $ctx.repo ($active ++ $retired) }
+    # the lib's own imports outside it (the wallust palette) count for every module
+    let lib_imported = imports-outside $LIB_DIR | each {|f| $"($f) (open --raw $f | hash sha256)" } | str join "\n"
     let global = [
-        (stamp $LIB_DIR) ($ctx.platform.facts | to nuon) ($ctx.profile.capabilities? | default [] | to nuon)
-        (secret-is-plaintext ($ctx.repo | path join configs secrets keys pgp_privatekey.asc)) $verb ($args | to nuon)
+        (stamp $LIB_DIR) $lib_imported ($ctx.platform.facts | to nuon) ($ctx.profile.capabilities? | default [] | to nuon)
+        (secret-is-plaintext ($ctx.repo | path join $OWNER_WITNESS)) $verb ($args | to nuon)
         (secrets-stamp $ctx.repo)
     ] | str join "\n"
     let natives = $graph | where $verb in $it.native | each {|m|
@@ -184,7 +194,7 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     let planned = eval-plan $ctx $to_eval $verb $args $prev $force
     let rows = $graph | each {|m|
         let native = $natives | where id == $m.id | get --optional 0
-        let row = {id: $m.id, dir: $m.dir, after: $m.after, level: $m.level, serial: $m.meta.serial, cfg: $m.cfg, options: $m.options}
+        let row = {id: $m.id, dir: $m.dir, after: $m.after, level: $m.level, serial: $m.meta.serial, cfg: $m.cfg, options: $m.options, force: $force}
         if $native == null {
             $row | merge {native: false, skipped: false, input: "", prev: [], actions: [], error: null}
         } else if $m.id in $fresh {
@@ -223,7 +233,7 @@ def native-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
         $pass += 1
         log-info $"($m.id): pass ($pass) after ($ran.target | str join ', ')" {kind: pass}
         let outputs = $prev
-        let again = eval-plan $ctx [$m] $verb $args {$m.id: $outputs} false | first
+        let again = eval-plan $ctx [$m] $verb $args {$m.id: $outputs} ($m.force? | default false) | first
         if $again.error != null { error make {msg: $again.error} }
         $actions = $again.actions
     }
@@ -284,7 +294,10 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
         for m in $startable {
             let cancel = if $cancel_dir == "" { "" } else { $cancel_dir | path join ($m.id | str replace --all "/" "+") }
             let id = job spawn {
-                let result = with-env {DOT_CANCEL_FILE: $cancel} { module-run $ctx $m $verb $args }
+                # a job that dies without sending would leave job recv waiting forever
+                let result = try { with-env {DOT_CANCEL_FILE: $cancel} { module-run $ctx $m $verb $args } } catch {|e|
+                    {id: $m.id, ok: false, log: "", outcomes: [], error: $e.msg, notes: [], ms: 0}
+                }
                 if $cancel == "" or not ($cancel | path exists) { $result | job send 0 }
             }
             $running = $running | insert $m.id $id

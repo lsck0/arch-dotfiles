@@ -3,7 +3,7 @@ Type=Application
 Name=Stirling PDF
 Comment=Local PDF toolbox in the browser
 TryExec=stirling-pdf
-Exec=@HOME@/.local/bin/desktop-run --cd @HOME@/.local/share/stirling-pdf --open http://localhost:8080 -- stirling-pdf
+Exec=@HOME@/.local/bin/desktop-run --cd @HOME@/.local/share/stirling-pdf --open http://localhost:@STIRLING_PORT@ -- env SERVER_PORT=@STIRLING_PORT@ stirling-pdf
 Icon=application-pdf
 Terminal=true
 Categories=Office;Graphics;ConsoleOnly;

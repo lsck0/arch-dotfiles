@@ -6,6 +6,7 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "indicators"
+  barPriority: 60
 
   implicitWidth: vertical ? barSize : row.implicitWidth
   implicitHeight: vertical ? row.implicitHeight : barSize

@@ -155,7 +155,7 @@ hl.layer_rule({
 hl.layer_rule({
     name = "quickshell-blur",
     match = {
-        namespace = "^quickshell-(bar|panel-.+|osd|notifications|alert|appsearch|clipboard|powermenu|overview|image-picker|reminders|wifiqr|speedtest|settings|tasks|notes)$",
+        namespace = "^quickshell-(bar|panel-.+|osd|notifications|alert|appsearch|clipboard|powermenu|overview|image-picker|reminders|wifiqr|speedtest|settings|tasks|desktop-widgets)$",
     },
     blur = true,
     ignore_alpha = 0.3,

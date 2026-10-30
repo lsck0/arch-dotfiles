@@ -1,6 +1,6 @@
 # Option resolution: default < detected < platform < profile; root never sees the profile.
 
-const SPEC_KEYS = [type default doc label group choices min max step apply scope env toggle]
+const SPEC_KEYS = [type default doc label group choices min max step apply scope toggle]
 const SPEC_REQUIRED = [type default doc]
 export const OPTION_APPLY = [live relink relogin reboot]
 export const OPTION_SCOPE = [machine user]
@@ -95,7 +95,18 @@ export def options-resolve [modules: table, platform: record, profile: any, dete
         let start = {values: ($schema | items {|name, spec| {name: $name, value: $spec.default} } | reduce --fold {} {|o, acc| $acc | insert $o.name $o.value }), sources: ($schema | columns | reduce --fold {} {|n, acc| $acc | insert $n default }), errors: []}
         let found = $detected | get --optional $module.id | default {} | items {|name, value| {name: $name, value: $value} }
             | where {|d| ($schema | get --optional $d.name | get --optional default) == null and $d.value != null }
-        let start = $found | reduce --fold $start {|d, acc| $acc | update values { upsert $d.name $d.value } | update sources { upsert $d.name detected } }
+        let start = $found | reduce --fold $start {|d, acc|
+            let bad = if $d.name in ($schema | columns) {
+                option-value-errors $module.id $d.name ($schema | get $d.name) $d.value $"configs/($module.id)/mod.nu detect"
+            } else {
+                [$"configs/($module.id)/mod.nu: detect returned ($d.name), no option of it"]
+            }
+            if ($bad | is-not-empty) {
+                $acc | update errors { append $bad }
+            } else {
+                $acc | update values { upsert $d.name $d.value } | update sources { upsert $d.name detected }
+            }
+        }
         let resolved = $layers | reduce --fold $start {|layer, acc|
             let set = $layer.values | get --optional $module.id | default {}
             $set | items {|name, value| {name: $name, value: $value} } | reduce --fold $acc {|entry, inner|

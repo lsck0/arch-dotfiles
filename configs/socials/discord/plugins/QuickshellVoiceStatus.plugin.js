@@ -1,8 +1,8 @@
 /**
  * @name QuickshellVoiceStatus
  * @author Luca
- * @version 1.0.0
- * @description Publish current VC to quickshell.
+ * @version 1.1.0
+ * @description Publish the current VC to quickshell and take its mute, deafen and disconnect commands.
  * @source https://github.com/lsck0/arch-dotfiles
  */
 
@@ -34,13 +34,13 @@ module.exports = class QuickshellVoiceStatus {
     return "QuickshellVoiceStatus";
   }
   getVersion() {
-    return "1.0.0";
+    return "1.1.0";
   }
   getAuthor() {
     return "Luca";
   }
   getDescription() {
-    return "Publish current VC to quickshell.";
+    return "Publish the current VC to quickshell and take its mute, deafen and disconnect commands.";
   }
 
   _resolveStores() {
@@ -89,7 +89,7 @@ module.exports = class QuickshellVoiceStatus {
 
   _snapshot() {
     const s = this._stores;
-    if (!s || !s.voice || !s.selected || !s.users) return { inVoice: false };
+    if (!s || !s.voice || !s.users) return { inVoice: false };
 
     const channelId = this._voiceChannelId();
     if (!channelId) return { inVoice: false };
@@ -255,6 +255,16 @@ module.exports = class QuickshellVoiceStatus {
     }
   }
 
+  _fallbackToPoll() {
+    if (this._commandWatcher) {
+      try {
+        this._commandWatcher.close();
+      } catch (e) {}
+      this._commandWatcher = null;
+    }
+    if (!this._commandPoll) this._commandPoll = setInterval(() => this._pollCommands(), 250);
+  }
+
   _publish() {
     try {
       this._write(this._snapshot());
@@ -312,11 +322,16 @@ module.exports = class QuickshellVoiceStatus {
       this._commandWatcher = this._fs.watch(this._runtimeDir, (event, name) => {
         if (name === "quickshell-discord-cmd") this._pollCommands();
       });
+      // a watcher that errors stops firing for good: fall back to polling instead of going deaf
+      this._commandWatcher.on("error", (e) => {
+        console.error("[QuickshellVoiceStatus] command watcher failed, polling instead", e);
+        this._fallbackToPoll();
+      });
     } catch (e) {
       this._commandWatcher = null;
     }
     // the watcher covers live changes; poll only as a fallback when fs.watch failed
-    if (!this._commandWatcher) this._commandPoll = setInterval(() => this._pollCommands(), 250);
+    if (!this._commandWatcher) this._fallbackToPoll();
 
     this._heartbeat = setInterval(() => {
       if (this._voiceChannelId()) {

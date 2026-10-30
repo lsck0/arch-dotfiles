@@ -1,6 +1,7 @@
 use module.nu *
+use ../fprintd/mod.nu [validity-sensor-ids]
 
-export const meta = {packages: {native: [tlp]}}
+export const meta = {packages: {native: [tlp]}, volatile: true}
 
 export const options = {
     charge_start: {
@@ -23,8 +24,9 @@ export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
     if $cfg.charge_start >= $cfg.charge_stop { error make {msg: "tlp: charge_start must be below charge_stop"} }
     let conf = if $env.FORM_FACTOR? == "laptop" {
-        let thresholds = {START: $cfg.charge_start, STOP: $cfg.charge_stop}
-        file-render bat.tlp.conf /etc/tlp.conf $thresholds --then [systemctl restart tlp.service]
+        let denylist = validity-sensor-ids | str join ' '
+        let values = {START: $cfg.charge_start, STOP: $cfg.charge_stop, USB_DENYLIST: $denylist}
+        file-render bat.tlp.conf /etc/tlp.conf $values --then [systemctl restart tlp.service]
     } else {
         file-copy ac-only.tlp.conf /etc/tlp.conf --then [systemctl restart tlp.service]
     }

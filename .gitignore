@@ -4,3 +4,5 @@
 FAILURES*
 __pycache__
 configs/desktop/plasma/*.lock
+platforms/local.nuon
+platforms/local.options.nuon

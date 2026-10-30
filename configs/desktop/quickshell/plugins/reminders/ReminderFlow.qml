@@ -20,9 +20,9 @@ Item {
   readonly property string reminderScript: Paths.script("reminder.nu")
   readonly property string pomodoroScript: Paths.script("pomodoro.nu")
 
-  readonly property string promptText: step === "name" ? "Name for the " + minutes + " min reminder (optional)"
-    : step === "rename" ? "New name for " + (renameTarget ? renameTarget.label : "")
-    : "Remind me in ... minutes, then a name"
+  readonly property string promptText: step === "name" ? "name for the " + minutes + " min reminder (optional)"
+    : step === "rename" ? "new name for " + (renameTarget ? renameTarget.label : "")
+    : "remind me in ... minutes, then a name"
 
   function reset() {
     root.step = "minutes"
@@ -203,14 +203,13 @@ Item {
         width: parent.width
         spacing: Style.spacing.xs
 
-        PanelSectionHeader { text: "Reminders" }
+        PanelSectionHeader { text: "Pending" }
 
         Text {
           visible: root.reminders.length === 0
           textFormat: Text.PlainText
           text: "> NOTHING HERE"
-          color: Colors.menu.text
-          opacity: Style.emphasis.faint
+          color: Colors.textDim
           font.family: Style.font.family
           font.pixelSize: Style.font.body
         }
@@ -238,7 +237,7 @@ Item {
               anchors.verticalCenter: parent.verticalCenter
               textFormat: Text.PlainText
               text: "\u{f009c}" // md-bell_outline
-              color: Colors.accent
+              color: Colors.accentText
               font.family: Style.font.iconFamily
               font.pixelSize: Style.font.icon
             }
@@ -271,8 +270,7 @@ Item {
               Text {
                 textFormat: Text.PlainText
                 text: reminderRow.modelData.atTime || ""
-                color: Colors.menu.text
-                opacity: Style.emphasis.faint
+                color: Colors.textDim
                 font.family: Style.font.family
                 font.pixelSize: Style.font.body
               }
@@ -358,7 +356,7 @@ Item {
             anchors.top: pomoTime.bottom
             textFormat: Text.PlainText
             text: root.phaseLabel() + (root.pomo.cycle > 0 ? " :: pomodoro " + root.pomo.cycle : "")
-            color: root.pomo.paused ? Colors.menu.text : Colors.accent
+            color: root.pomo.paused ? Colors.menu.text : Colors.accentText
             font.family: Style.font.family
             font.pixelSize: Style.font.body
           }
@@ -418,7 +416,8 @@ Item {
         Row {
           id: lengths
           width: parent.width
-          spacing: Style.spacing.xs
+          // wider than a stepper's own -/value/+ gaps, so a + never reads as paired with the next stepper's -
+          spacing: Style.spacing.xl
 
           Repeater {
             model: root.pomoLengths
@@ -433,8 +432,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 textFormat: Text.PlainText
                 text: length.modelData.label
-                color: Colors.menu.text
-                opacity: Style.emphasis.dim
+                color: Colors.textDim
                 font.family: Style.font.family
                 font.pixelSize: Style.font.caption
                 elide: Text.ElideRight

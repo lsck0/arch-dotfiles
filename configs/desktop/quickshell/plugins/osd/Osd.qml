@@ -108,6 +108,10 @@ Item {
         root.log(p.lines, p.duration)
         return true
       }
+      if (p.message === undefined && p.value === undefined) {
+        console.warn("osd: payload has no lines, message or value")
+        return false
+      }
       show(p.icon || "", p.message || "", p.value === undefined ? "" : String(p.value), p.max === undefined ? "100" : String(p.max), p.progressText || "", p.duration === undefined ? "1200" : String(p.duration))
       return true
     } catch (e) {
@@ -200,7 +204,10 @@ Item {
       Rectangle {
         id: card
         readonly property int logHeight: root.lines.length * Math.ceil(logMetrics.height)
-        width: root.borderWidth * 2 + root.pad * 2 + root.contentWidth
+        readonly property int chromeWidth: root.borderWidth * 2 + root.pad * 2
+        // a long log line elides instead of pushing the card past the screen edges
+        readonly property int contentWidthMax: Math.max(0, parent.width - root.gap * 2 - chromeWidth)
+        width: chromeWidth + Math.min(root.contentWidth, contentWidthMax)
         height: root.borderWidth * 2 + root.pad * 2 + (root.logMode ? logHeight : Style.font.displayLarge)
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
@@ -222,9 +229,11 @@ Item {
             Text {
               required property int index
               textFormat: Text.PlainText
+              width: parent.width
               text: root.typedLine(index)
-              color: index === 0 ? Colors.accent : Colors.popups.text
+              color: index === 0 ? Colors.accentText : Colors.popups.text
               font: logMetrics.font
+              elide: Text.ElideRight
             }
           }
         }
@@ -244,7 +253,7 @@ Item {
               anchors.verticalCenter: parent.verticalCenter
               text: root.icon
               font: iconMetrics.font
-              color: root.launching ? Colors.accent : Colors.popups.text
+              color: root.launching ? Colors.accentText : Colors.popups.text
             }
           }
           BarGauge {

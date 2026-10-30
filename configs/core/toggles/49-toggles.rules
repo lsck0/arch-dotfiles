@@ -46,6 +46,10 @@ polkit.addRule(function (action, subject) {
     if (argv[1] === "firewall" && argv[2] !== "restrictive") {
         return polkit.Result.AUTH_ADMIN_KEEP;
     }
+    // a captive portal stops tor and portmaster and opens fw_egress on the foreign link; ending it early tightens
+    if (argv[1] === "portal" && argv[2] !== "off") {
+        return polkit.Result.AUTH_ADMIN_KEEP;
+    }
 });
 
 // everything else goes through the one root helper, which checks its own arguments; none of its other verbs opens the

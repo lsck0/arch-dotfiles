@@ -1,12 +1,14 @@
-# The font as a theme input: ~/.cache/wal/font.json, rendered by each module's theme verb.
+# The font as a theme input: $XDG_CACHE_HOME/wal/font.json, rendered by each module's theme verb.
 
-const FILE = ".cache/wal/font.json"
+use ../../../scripts/lib/state.nu [xdg]
+
+const FILE = "wal/font.json"
 const FONT_DEFAULT = {family: "Kode Mono", size: 13, ui_size: 11}
 # a family without monospace glyphs takes this partner where the program needs a fixed pitch (terminals, editors)
 const MONO_PARTNERS = {Tektur: "Kode Mono"}
 const UI_SIZE_BASE = 10
 
-def font-file []: nothing -> path { $nu.home-dir | path join $FILE }
+def font-file []: nothing -> path { xdg cache $FILE }
 
 def installed []: nothing -> list<string> {
     if (which fc-list | is-empty) { return [] }

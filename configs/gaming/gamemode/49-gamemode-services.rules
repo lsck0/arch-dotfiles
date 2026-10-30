@@ -1,11 +1,17 @@
-// let the gamemode hook free gpu vram by stopping the local inference services
+// let the gamemode hook free gpu vram by stopping the local inference services and their sockets, and restore them
+var GAMEMODE_UNITS = [
+    "ollama.service",
+    "ollama.socket",
+    "vllm-proxy.service",
+    "vllm.socket"
+];
+
 polkit.addRule(function (action, subject) {
-    if (action.id === "org.freedesktop.systemd1.manage-units" &&
-        subject.local && subject.active && subject.isInGroup("wheel")) {
-        var unit = action.lookup("unit");
-        if (unit === "vllm-proxy.service" || unit === "ollama.service") {
-            return polkit.Result.YES;
-        }
+    var verb = action.lookup("verb");
+    if (action.id === "org.freedesktop.systemd1.manage-units" && (verb === "start" || verb === "stop") &&
+        subject.local && subject.active && subject.isInGroup("wheel") &&
+        GAMEMODE_UNITS.indexOf(action.lookup("unit")) >= 0) {
+        return polkit.Result.YES;
     }
 });
 

@@ -9,6 +9,7 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "display"
+  barPriority: 50
   hoverPanel: true
 
   property real brightnessPct: 50
@@ -155,7 +156,6 @@ BarWidget {
   HoverPanel {
     anchorWidget: root
     implicitWidth: Style.panelWidth.normal
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
     onOpened: {
       root.refreshMonitors()
@@ -191,17 +191,17 @@ BarWidget {
               width: parent.width
               horizontalAlignment: Text.AlignRight
               text: root.activeMonitors.length + (root.activeMonitors.length === 1 ? " MONITOR" : " MONITORS")
-              color: Colors.menu.text
-              opacity: Style.emphasis.dim
+              color: Colors.textDim
               font.pixelSize: Style.font.caption
               font.family: Style.font.family
               font.letterSpacing: Style.labelTracking
             }
-            BarGauge { width: parent.width; height: Style.spacing.sm; segments: 24; value: root.brightnessPct / 100 }
+            BarGauge { visible: root.brightnessKnown; width: parent.width; height: Style.spacing.sm; segments: 24; value: root.brightnessPct / 100 }
           }
         }
 
         Slider {
+          visible: root.brightnessKnown
           width: parent.width
           bar: root.bar
           minimum: 1
@@ -239,8 +239,7 @@ BarWidget {
               text: monitorRow.disabled ? "off"
                 : monitorRow.modelData.width + "x" + monitorRow.modelData.height + "@" + Math.round(monitorRow.modelData.refreshRate) + "Hz"
                   + (monitorRow.mirrorOf ? "  |  mirroring " + monitorRow.mirrorOf : "")
-              color: Colors.menu.text
-              opacity: Style.emphasis.dim
+              color: Colors.textDim
               font.pixelSize: Style.font.bodySmall
               font.family: Style.font.family
             }

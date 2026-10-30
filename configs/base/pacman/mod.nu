@@ -6,7 +6,7 @@ export const options = {
     yay_cache_days: {
         type: int
         default: 30
-        doc: "Days an unused yay build cache dir may sit in ~/.cache/yay before yay-cache-clean.timer deletes it, find -mtime argument"
+        doc: "Days an unused yay build cache dir may sit in $XDG_CACHE_HOME/yay before yay-cache-clean.timer deletes it, find -mtime argument"
         label: "Yay cache retention (days)"
         scope: user
     }

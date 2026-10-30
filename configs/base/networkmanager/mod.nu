@@ -54,11 +54,15 @@ export const options = {
 
 const NM = "/etc/NetworkManager"
 const DISPATCHERS = "/etc/NetworkManager/dispatcher.d"
+const HOME_NETWORK = "/run/home-network"
+const LOCKDOWN_MARKER = "/run/persona-lockdown"
 const MAC = '^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$'
 const IPV4 = '^(\d{1,3}\.){3}\d{1,3}$'
 const CIDR4 = '^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$'
 const DOMAIN = '^[A-Za-z0-9.-]+$'
 const ONLINE_TIMEOUT_S = 60
+# behind wg0's routes and table 178's copies, so the lab fails fast off home
+const HOMELAB_UNREACHABLE_METRIC = 4000
 const ARPHRD_ETHER = "1"
 const WIFI_OFF_MARK = "/var/lib/NetworkManager/dotfiles-wifi-off"
 
@@ -88,7 +92,8 @@ def homelab-env [cfg: record]: nothing -> any {
         | where {|v| not ($v.0 =~ $v.1) }
     if ($bad | is-not-empty) { error make {msg: $"networkmanager: homelab value ($bad.0.0) is not of its shape"} }
     let nets = $cfg.homelab_subnets | str join ' '
-    $"HOMELAB_DNS=($cfg.homelab_dns)\nHOMELAB_DOMAIN=($cfg.homelab_domain)\nHOMELAB_NETS=\"($nets)\"\n"
+    let lab = $"HOMELAB_DNS=($cfg.homelab_dns)\nHOMELAB_DOMAIN=($cfg.homelab_domain)\nHOMELAB_NETS=\"($nets)\"\n"
+    $"($lab)HOMELAB_UNREACHABLE_METRIC=($HOMELAB_UNREACHABLE_METRIC)\n"
 }
 
 export def system [cfg: record] {
@@ -165,8 +170,14 @@ export def home [home_wired: string, ...gateways: string]: nothing -> nothing {
     }
     let connected = ^nmcli -g DEVICE,STATE device | lines | parse "{dev}:{state}" | where state == connected | get dev
     for dev in $connected { trusted-wifi-mac $dev $want $ssids }
+    # 90 only lifts a lockdown on a link that just became home; 70 alone only refills the sets. Any other 90 up
+    # restarts tor and portmaster, undoing an open portal or a stop by hand.
     for link in $connected {
         ^$"($DISPATCHERS)/70-home-network" $link up
+        if not ($LOCKDOWN_MARKER | path exists) or not ($HOME_NETWORK | path exists) { continue }
+        if $link not-in (open --raw $HOME_NETWORK | lines) { continue }
+        let uuid = ^nmcli -g GENERAL.CON-UUID device show $link | str trim
+        with-env {CONNECTION_UUID: $uuid} { ^$"($DISPATCHERS)/90-anonymous-persona" $link up }
     }
 }
 

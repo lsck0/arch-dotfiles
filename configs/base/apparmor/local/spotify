@@ -1,5 +1,4 @@
 # managed by arch-dotfiles/apparmor
-include <abstractions/dotfiles/gtk-theme>
 include <abstractions/dotfiles/nssdb>
 owner @{user_share_dirs}/spotify-patched/{,**} r,
 owner @{user_share_dirs}/spotify-patched/*.so* mr,

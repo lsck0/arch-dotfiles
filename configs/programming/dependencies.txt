@@ -1,1 +1,3 @@
-core                              # wallust palette.nu (the theme verbs of hermes and emacs)
+core                              # wallust palette.nu and font.nu (theme verbs), core/gh (projects)
+desktop                           # idle-guards AGENT_GUARD (claude, hermes)
+llm                               # vllm model option (hermes)

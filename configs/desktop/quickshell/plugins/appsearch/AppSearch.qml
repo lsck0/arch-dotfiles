@@ -24,18 +24,26 @@ Item {
   property int rowHeight: Style.space(44)
   property int iconSize: Style.space(28)
 
-  readonly property var prefixes: ({ "=": "calc", ">": "run", "@": "windows" })
+  readonly property var prefixes: ({ "=": "calc", ">": "run", "@": "windows", "?": "keys" })
   readonly property string mode: prefixes[filterText.charAt(0)] || "apps"
   readonly property string modeQuery: mode === "apps" ? filterText : filterText.substring(1).trim()
 
-  readonly property var modeTitles: ({ apps: "applications", calc: "calculator", run: "run", windows: "windows" })
-  readonly property var modePlaceholders: ({ apps: "search applications", calc: "enter an expression", run: "command to run", windows: "search windows" })
+  readonly property var modeTitles: ({ apps: "applications", calc: "calculator", run: "run", windows: "windows", keys: "keybinds" })
+  readonly property var modePlaceholders: ({ apps: "search applications", calc: "enter an expression", run: "command to run", windows: "search windows", keys: "search keybinds" })
   readonly property var modeHints: ({
-    apps: [["ESC", "close"], ["^ v", "select"], ["ENTER", "run"], ["= > @ :", "modes"]],
-    calc: [["ESC", "clear"], ["ENTER", "copy"]],
-    run: [["ESC", "clear"], ["ENTER", "run"]],
-    windows: [["ESC", "clear"], ["^ v", "select"], ["ENTER", "focus"]]
+    apps: [["ENTER", "open"], ["=", "calc"], [">", "run"], ["@", "windows"], [":", "clipboard"], ["?", "keys"], ["ESC", "close"]],
+    calc: [["ENTER", "copy"], ["ESC", "clear"]],
+    run: [["ENTER", "run"], ["ESC", "clear"]],
+    windows: [["^/v", "select"], ["ENTER", "focus"], ["ESC", "clear"]],
+    keys: [["^/v", "select"], ["ENTER", "close"], ["ESC", "clear"]]
   })
+
+  readonly property var modifierBits: [[64, "SUPER"], [4, "CTRL"], [8, "ALT"], [1, "SHIFT"]]
+  // hyprctl names that the hint grammar spells differently; every other key name is shown upper case
+  readonly property var keyNames: ({ "mouse:272": "LMB", "mouse:273": "RMB", "mouse:274": "MMB", "Return": "ENTER",
+                                     "Escape": "ESC", "Delete": "DEL" })
+  property var binds: []
+  property string bindsState: ""
 
   readonly property int calcDebounceMs: 150
   property string calcResult: ""
@@ -58,6 +66,7 @@ Item {
     root.opened = false
     calcDebounce.stop()
     calcProc.running = false
+    bindsProc.running = false
   }
 
   function toggle() {
@@ -71,8 +80,10 @@ Item {
     var out = []
     for (let i = 0; i < entries.length; i++) {
       const e = entries[i]
-      out.push({ kind: "app", name: root.appLibrary.entryName(e), sub: root.appLibrary.entrySubtext(e),
-                 icon: root.appLibrary.iconSource(e.icon), glyph: "", payload: e })
+      const name = root.appLibrary.entryName(e)
+      const sub = root.appLibrary.entrySubtext(e)
+      out.push({ kind: "app", name: name, sub: sub.toLowerCase() === name.toLowerCase() ? "" : sub,
+                 icon: root.appLibrary.iconSource(e.icon), glyph: "", keys: "", payload: e })
     }
     return out
   }
@@ -88,7 +99,7 @@ Item {
       if (q && (title + " " + cls).toLowerCase().indexOf(q) < 0) continue
       const ws = t.workspace ? String(t.workspace.id) : "--"
       out.push({ kind: "window", name: title || cls || "--", sub: "[" + ws + "] " + cls,
-                 icon: cls ? Util.iconSource(cls.toLowerCase()) : "", glyph: "\u{f2d0}", payload: String(t.address || "") })
+                 icon: cls ? Util.iconSource(cls.toLowerCase()) : "", glyph: "\u{f2d0}", keys: "", payload: String(t.address || "") })
     }
     return out
   }
@@ -99,18 +110,48 @@ Item {
       : root.calcState === "error" ? "x ERR"
       : root.calcState === "loading" && !root.calcResult ? "--"
       : root.calcResult
-    return [{ kind: "calc", name: "= " + text, sub: root.modeQuery, icon: "", glyph: "\u{f00ec}", payload: root.calcResult }]
+    return [{ kind: "calc", name: "= " + text, sub: root.modeQuery, icon: "", glyph: "\u{f00ec}", keys: "", payload: root.calcResult }]
   }
 
   function runRows() {
     if (!root.modeQuery) return []
-    return [{ kind: "run", name: root.modeQuery, sub: "sh -c", icon: "", glyph: "\u{f018d}", payload: root.modeQuery }]
+    return [{ kind: "run", name: root.modeQuery, sub: "sh -c", icon: "", glyph: "\u{f018d}", keys: "", payload: root.modeQuery }]
+  }
+
+  function bindKeys(bind) {
+    var parts = []
+    for (let i = 0; i < root.modifierBits.length; i++) {
+      if (bind.modmask & root.modifierBits[i][0]) parts.push(root.modifierBits[i][1])
+    }
+    const key = String(bind.key || "")
+    parts.push(bind.catch_all ? "ANY"
+      : root.keyNames[key] || key.toUpperCase() || "CODE:" + bind.keycode)
+    return parts.join("+")
+  }
+
+  function bindRows() {
+    var words = root.modeQuery.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 0 })
+    var topLevel = []
+    var submaps = []
+    for (let i = 0; i < root.binds.length; i++) {
+      const b = root.binds[i]
+      const keys = root.bindKeys(b)
+      const name = String(b.description || "") || String(b.dispatcher || "") + " " + String(b.arg || "")
+      const sub = b.submap ? "[" + b.submap + "]" : ""
+      const haystack = (name + " " + keys + " " + sub).toLowerCase()
+      if (!words.every(function(w) { return haystack.indexOf(w) >= 0 })) continue
+      const row = { kind: "bind", name: name, sub: sub, icon: "", glyph: "\u{f030c}", keys: keys, payload: "" }
+      if (b.submap) submaps.push(row)
+      else topLevel.push(row)
+    }
+    return topLevel.concat(submaps)
   }
 
   function rebuild() {
     root.rows = root.mode === "calc" ? calcRows()
       : root.mode === "run" ? runRows()
       : root.mode === "windows" ? windowRows()
+      : root.mode === "keys" ? bindRows()
       : appRows()
     if (root.selectedIndex >= root.rows.length) root.selectedIndex = Math.max(0, root.rows.length - 1)
     else if (root.selectedIndex < 0) root.selectedIndex = 0
@@ -122,8 +163,14 @@ Item {
       Quickshell.execDetached(Paths.ipcCall("clipboard", "open"))
       return
     }
+    const wasKeys = root.mode === "keys"
     root.filterText = text
     root.selectedIndex = 0
+    if (root.mode === "keys" && !wasKeys) {
+      root.binds = []
+      root.bindsState = "loading"
+      bindsProc.running = true
+    }
     if (root.mode === "calc") {
       root.calcState = root.modeQuery ? "loading" : ""
       if (root.modeQuery) calcDebounce.restart()
@@ -179,6 +226,22 @@ Item {
     }
   }
 
+  Process {
+    id: bindsProc
+    command: ["hyprctl", "binds", "-j"]
+    stdout: StdioCollector { id: bindsOut; waitForEnd: true }
+    onExited: function(code) {
+      try {
+        root.binds = code === 0 ? JSON.parse(bindsOut.text) : []
+        root.bindsState = code === 0 ? "" : "error"
+      } catch (e) {
+        root.binds = []
+        root.bindsState = "error"
+      }
+      if (root.mode === "keys") root.rebuild()
+    }
+  }
+
   Connections {
     target: root.appLibrary
     function onAppsChanged() { if (root.opened && root.mode === "apps") root.rebuild() }
@@ -229,10 +292,10 @@ Item {
           root.selectAt(root.selectedIndex + 1)
           event.accepted = true
         } else if (event.key === Qt.Key_PageUp) {
-          root.selectAt(root.selectedIndex - 6)
+          root.selectAt(root.selectedIndex - resultList.pageRows)
           event.accepted = true
         } else if (event.key === Qt.Key_PageDown) {
-          root.selectAt(root.selectedIndex + 6)
+          root.selectAt(root.selectedIndex + resultList.pageRows)
           event.accepted = true
         } else if (event.key === Qt.Key_Home) {
           root.selectAt(0)
@@ -258,7 +321,12 @@ Item {
 
     ListView {
       id: resultList
-      anchors.fill: parent
+      readonly property int rowPitch: root.rowHeight + spacing
+      readonly property int pageRows: Math.max(1, Math.floor((parent.height + spacing) / rowPitch))
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.right
+      height: pageRows * rowPitch - spacing
       clip: true
       model: root.rows
       spacing: Style.spacing.xxs
@@ -289,7 +357,7 @@ Item {
             width: Style.spacing.md
             textFormat: Text.PlainText
             text: rowDelegate.selected ? ">" : ""
-            color: root.selectedText
+            color: Colors.accentText
             font.family: root.fontFamily
             font.pixelSize: Style.font.body
             horizontalAlignment: Text.AlignHCenter
@@ -327,7 +395,7 @@ Item {
 
           Column {
             anchors.verticalCenter: parent.verticalCenter
-            width: parent.width - root.iconSize - cursorMark.width - parent.spacing * 2
+            width: parent.width - root.iconSize - cursorMark.width - keysLabel.width - parent.spacing * 3
 
             Text {
               width: parent.width
@@ -346,12 +414,23 @@ Item {
               width: parent.width
               visible: text.length > 0
               text: rowDelegate.modelData.sub
-              color: rowDelegate.selected ? root.selectedText : root.foreground
-              opacity: Style.emphasis.dim
+              color: rowDelegate.selected ? root.selectedText : Colors.textDim
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
               elide: Text.ElideRight
             }
+          }
+
+          Text {
+            id: keysLabel
+            anchors.verticalCenter: parent.verticalCenter
+            width: text ? implicitWidth : 0
+            textFormat: Text.PlainText
+            text: rowDelegate.modelData.keys
+            color: rowDelegate.selected ? root.selectedText : Colors.accentText
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            font.bold: true
           }
         }
 
@@ -377,7 +456,7 @@ Item {
         Text {
           textFormat: Text.PlainText
           text: "\u{f003b}"
-          color: root.selectedText
+          color: Colors.accentText
           opacity: Style.emphasis.dim
           font.family: Style.font.iconFamily
           font.pixelSize: Style.font.display
@@ -387,9 +466,15 @@ Item {
 
         Text {
           textFormat: Text.PlainText
-          text: root.mode === "apps" || root.modeQuery ? "> NOTHING HERE" : "> TYPE AN EXPRESSION"
-          color: root.foreground
-          opacity: Style.emphasis.dim
+          text: root.mode === "keys" && root.bindsState === "loading" ? "> LOADING"
+            : root.mode === "keys" && root.bindsState === "error" ? "> HYPRCTL BINDS FAILED"
+            : root.modeQuery ? "> NO MATCH"
+            : root.mode === "apps" ? "> NOTHING HERE"
+            : root.mode === "calc" ? "> TYPE AN EXPRESSION"
+            : root.mode === "run" ? "> TYPE A COMMAND"
+            : root.mode === "windows" ? "> NO WINDOWS"
+            : "> NO KEYBINDS"
+          color: Colors.textDim
           font.family: root.fontFamily
           font.pixelSize: Style.font.body
           horizontalAlignment: Text.AlignHCenter

@@ -7,12 +7,14 @@ const PROPERTIES = [
     InaccessiblePaths=-/run/dbus PrivateIPC=yes
 ]
 
-# home paths holding keys and tokens, relative to $HOME
+# home paths holding keys, tokens and browser or messenger sessions, relative to $HOME
 const SENSITIVE_HOME = [
-    .ssh .gnupg .pgpass .netrc .kube .aws .docker .claude .codex .password-store sync
+    .ssh .gnupg .pgpass .netrc .kube .aws .docker .claude .codex .gemini .copilot .hermes .password-store sync
     .age .rage
-    .config/gh .config/rclone .config/dotfiles .config/age
-    .local/share/keyrings .local/share/password-store .local/share/kwalletd
+    .config/gh .config/rclone .config/dotfiles .config/age .config/containers/auth.json
+    .local/share/keyrings .local/share/password-store .local/share/kwalletd .local/share/pgpass
+    .local/share/mozilla .local/share/librewolf .local/share/zen .local/share/qutebrowser .local/share/TelegramDesktop
+    .config/chromium .config/discord .config/Signal
 ]
 
 # ProtectHome=read-only still lets a build READ these and copy them into the work dir; hide them outright.

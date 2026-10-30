@@ -43,11 +43,5 @@
       "last_app": "qt-oomox-styleplugin",
       "default_path_qt-oomox-styleplugin": "~/.config/oomox-qtstyleplugin/themes/<THEME_NAME>.css"
     }
-  },
-  "5": {
-    "name": "export_xresources",
-    "config": {
-      "default_path": "~/.Xcolours/<THEME_NAME>"
-    }
   }
 }

@@ -24,6 +24,11 @@ QtObject {
     return base.replace(/\/+$/, "") + "/quickshell"
   }
 
+  readonly property string wal: {
+    var base = String(Quickshell.env("XDG_CACHE_HOME") || "").trim() || (home + "/.cache")
+    return base.replace(/\/+$/, "") + "/wal"
+  }
+
   readonly property string runtime: {
     return String(Quickshell.env("XDG_RUNTIME_DIR") || "").trim().replace(/\/+$/, "") + "/quickshell"
   }

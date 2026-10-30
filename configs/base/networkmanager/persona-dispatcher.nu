@@ -16,7 +16,6 @@ const NETNS = "protonvpn"
 const NETNS_IFACE = "wg-protonvpn"
 const PORTAL_S = 120
 const PORTAL_UNIT = "persona-portal"
-const UNREACHABLE_METRIC = "4000"  # kept in sync by hand with homelab-routes.nu's own copy; same ordering invariant
 const IFNAME = '^[A-Za-z0-9_.-]{1,15}$'
 
 def --wrapped out [...argv: string]: nothing -> string {
@@ -36,10 +35,14 @@ def policy []: nothing -> string {
     if $policy in [firewall-only off] { $policy } else { "lockdown-tor" }
 }
 
+def lab-value [key: string]: nothing -> string {
+    if not ($HOMELAB_ENV | path exists) { return "" }
+    open --raw $HOMELAB_ENV | lines | parse "{key}={value}" | where key == $key | get --optional 0.value
+    | default "" | str trim --char '"'
+}
+
 def lab-nets []: nothing -> list<string> {
-    if not ($HOMELAB_ENV | path exists) { return [] }
-    open --raw $HOMELAB_ENV | lines | parse "{key}={value}" | where key == HOMELAB_NETS | get --optional 0.value
-    | default "" | str trim --char '"' | split row " " | where $it != ""
+    lab-value HOMELAB_NETS | split row " " | where $it != ""
 }
 
 # Whether any link is not home, by NM's state (not operstate: a cable without a profile is up, a modem reads unknown).
@@ -94,32 +97,39 @@ def vpn-event [policy: string, action: string]: nothing -> nothing {
 }
 
 def wg-event [policy: string, action: string]: nothing -> nothing {
+    let metric = lab-value HOMELAB_UNREACHABLE_METRIC
     match $action {
         "up" => {
             tor-off
             # the fallback sits above wg-quick's suppress_prefixlength rule and would shadow the tunnel
-            for net in (lab-nets) { ok ip route del unreachable $net metric $UNREACHABLE_METRIC | ignore }
+            for net in (lab-nets) { ok ip route del unreachable $net metric $metric | ignore }
         }
         "down" => {
             if (foreign $policy) { tor-on $policy $WG_IFACE }
-            for net in (lab-nets) { ok ip route replace unreachable $net metric $UNREACHABLE_METRIC | ignore }
+            for net in (lab-nets) { ok ip route replace unreachable $net metric $metric | ignore }
         }
     }
 }
 
 # Captive portal mode: its pages live on the foreign network, out of reach of tor and strict dot.
 def portal [iface: string]: nothing -> nothing {
-    if $iface in (home-links) or (ok nft get element inet fw_egress portal $"{ ($iface) }") { return }
-    if not (ok nft add element inet fw_egress portal $"{ ($iface) timeout ($PORTAL_S)s }") { exit 1 }
+    if $iface in (home-links) or (ok systemctl is-active -q $"($PORTAL_UNIT)-($iface).timer") { return }
+    # fw_egress is loaded only under lockdown-tor; strict dot still hides the portal's names without it
+    let egress = ok nft list table inet fw_egress
+    if $egress and not (ok nft add element inet fw_egress portal $"{ ($iface) timeout ($PORTAL_S)s }") {
+        print --stderr $"portal: could not open fw_egress for ($iface)"
+        exit 1
+    }
     let domains = out resolvectl domain $iface | split row ":" | skip 1 | str join ":" | split row --regex '\s+'
         | where $it != ""
-    let back = [--quiet --collect $"--unit=($PORTAL_UNIT)" $"--on-active=($PORTAL_S)s" $SELF $iface portal-end]
+    let back = [--quiet --collect $"--unit=($PORTAL_UNIT)-($iface)" $"--on-active=($PORTAL_S)s" $SELF $iface portal-end]
     if not (ok systemd-run ...$back ...$domains) {
-        ok nft delete element inet fw_egress portal $"{ ($iface) }" | ignore
+        if $egress { ok nft delete element inet fw_egress portal $"{ ($iface) }" | ignore }
+        print --stderr $"portal: could not schedule its end for ($iface)"
         exit 1
     }
     tor-off
-    # portmaster's dns intercept resolves over dot to 853, which the portal set does not pass
+    # portmaster's dns intercept answers from its own dot upstream, never the link's dhcp resolver the portal needs
     ok systemctl stop portmaster.service | ignore
     ok resolvectl dnsovertls $iface no | ignore
     # the global ~. claims every name, so the link's dhcp resolver is asked only with a ~. of its own
@@ -127,6 +137,8 @@ def portal [iface: string]: nothing -> nothing {
 }
 
 def portal-end [policy: string, iface: string, domains: list<string>]: nothing -> nothing {
+    # gone by its own timeout unless toggle-portal ended the window early
+    ok nft delete element inet fw_egress portal $"{ ($iface) }" | ignore
     ok resolvectl domain $iface ...(if ($domains | is-empty) { [""] } else { $domains }) | ignore
     if (foreign $policy) { tor-on $policy }
     portmaster-on
@@ -141,8 +153,8 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
     } else if not ($VM_GUEST | path exists) {
         ok systemctl start fw-egress.service | ignore
     }
-    # off treats every network as home, a known gateway or not
-    if $policy == off or ($action == up and ($HOME_NETWORK | path exists) and not (foreign $policy)) {
+    # off treats every network as home; a down decides over the links still up, 70-home-network dropped the gone one
+    if $policy == off or (($HOME_NETWORK | path exists) and not (foreign $policy)) {
         if ($MARKER | path exists) {
             rm --force $MARKER
             # the conflict drops lockdown before the load, so a failed load would leave no table at all
@@ -150,12 +162,14 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
         }
         ok systemctl unmask --runtime avahi-daemon.service | ignore
         ok systemctl start avahi-daemon.socket | ignore
-        ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=0" | ignore
-        ok nmcli connection modify $uuid ipv6.method auto | ignore
-        # portmaster's global drop-in is gone whenever it stops (a vpn up, a portal, by hand); pin the link so the
-        # strict-dot default never strands lab names on the home resolver, which serves no dot on 853
-        let tls = if (ok systemctl is-active -q portmaster.service) { "no" } else { "opportunistic" }
-        ok resolvectl dnsovertls $iface $tls | ignore
+        if $action == up {
+            ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=0" | ignore
+            ok nmcli connection modify $uuid ipv6.method auto | ignore
+            # portmaster's global drop-in is gone whenever it stops (a vpn up, a portal, by hand); pin the link so
+            # the strict-dot default never strands lab names on the home resolver, which serves no dot on 853
+            let tls = if (ok systemctl is-active -q portmaster.service) { "no" } else { "opportunistic" }
+            ok resolvectl dnsovertls $iface $tls | ignore
+        }
     } else {
         ok systemctl start fw-lockdown.service | ignore
         # mask the daemon, a stop is undone by activation; the unix socket stays enabled for base/systemd
@@ -182,6 +196,8 @@ def main [iface: string = "", action: string = "", ...domains: string]: nothing 
     if $iface == $WG_IFACE { return (wg-event $policy $action) }
     if $action == portal-end { return (portal-end $policy $iface $domains) }
     if $action not-in [up down portal] or not ($iface =~ $IFNAME) { return }
-    if not ($"/sys/class/net/($iface)/device" | path exists) { return }
+    # an unplugged link's node is gone by its down, which under lockdown still re-decides over the links left
+    let unplugged = $action == down and ($MARKER | path exists)
+    if not ($"/sys/class/net/($iface)/device" | path exists) and not $unplugged { return }
     if $action == portal { portal $iface } else { link-event $policy $iface $action }
 }

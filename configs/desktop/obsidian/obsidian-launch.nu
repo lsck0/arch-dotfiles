@@ -26,6 +26,6 @@ def --wrapped main [...args: string]: nothing -> nothing {
         }
         sleep 1sec
     }
-    if $state == on { ^$OBSIDIAN plugins:restrict off | ignore }
+    if $state == on { ^timeout $CLI_TIMEOUT $OBSIDIAN plugins:restrict off | complete | ignore }
     while $app in (job list | get id) { sleep 1sec }
 }

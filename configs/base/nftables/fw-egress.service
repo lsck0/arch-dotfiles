@@ -1,5 +1,6 @@
 [Unit]
-Description=Untrusted-network kill switch, owns table inet fw_egress (always on, independent of the firewall toggle)
+# owns table inet fw_egress, independent of the firewall toggle
+Description=Untrusted-network kill switch (lockdown-tor)
 Before=network-pre.target
 Wants=network-pre.target
 

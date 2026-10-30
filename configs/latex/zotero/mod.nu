@@ -18,8 +18,8 @@ const ZOTERO_USER_LIBRARY_ID = 1
 const ZOTERO_SERVER = "http://127.0.0.1:23119"
 const BBT_READY = $"($ZOTERO_SERVER)/better-bibtex/cayw?probe=true"
 const BBT_EXPORT = $"($ZOTERO_SERVER)/better-bibtex/export/library?/($ZOTERO_USER_LIBRARY_ID)/library.bibtex"
-const EXPORT_TIMEOUT = "120"
-const READY_POLLS = 100
+const EXPORT_TIMEOUT = 120sec
+const READY_TIMEOUT = 90sec
 const READY_POLL_INTERVAL = 1sec
 
 def library-bib-path []: nothing -> path {
@@ -68,14 +68,21 @@ def bbt-ready []: nothing -> bool {
 # Exports the library to <bib> from a running zotero, else from a headless one started for it and stopped after.
 export def library-export [bib: path]: nothing -> nothing {
     let started = if (bbt-ready) { null } else {
+        let seconds = $EXPORT_TIMEOUT / 1sec | into int
         # timeout puts zotero in its own process group and passes a TERM on to all of it, the wrapper script included
-        ^sh -c $"timeout ($EXPORT_TIMEOUT) zotero --headless >/dev/null 2>&1 & echo $!" | str trim | into int
+        ^sh -c $"timeout ($seconds) zotero --headless >/dev/null 2>&1 & echo $!" | str trim | into int
     }
-    if $started != null and not (seq 1 $READY_POLLS | any {|_| sleep $READY_POLL_INTERVAL; bbt-ready }) {
-        ^kill $started
-        error make {msg: "zotero's better bibtex did not answer; dot apply latex/zotero again once zotero starts"}
+    # the ready deadline stays below EXPORT_TIMEOUT, so the export gets the rest before timeout ends zotero
+    let deadline = (date now) + $READY_TIMEOUT
+    mut ready = $started == null
+    while not $ready and (date now) < $deadline {
+        sleep $READY_POLL_INTERVAL
+        $ready = bbt-ready
     }
-    mkdir ($bib | path dirname)
-    http get --raw $BBT_EXPORT | save --force $bib
+    let export = if $ready {
+        mkdir ($bib | path dirname)
+        try { http get --raw $BBT_EXPORT | save --force $bib; null } catch {|e| $e.msg }
+    } else { "zotero's better bibtex did not answer; dot apply latex/zotero again once zotero starts" }
     if $started != null { ^kill $started }
+    if $export != null { error make {msg: $export} }
 }

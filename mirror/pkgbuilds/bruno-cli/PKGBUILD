@@ -19,5 +19,5 @@ package() {
 
     find "$pkgdir/usr" -type d -exec chmod 755 {} +
     local mod="$pkgdir/usr/lib/node_modules/@usebruno/cli"
-    install -Dm644 "$mod/license.md" "$pkgdir/usr/share/licenses/$pkgname/license.md" 2> /dev/null || true
+    install -Dm644 "$mod/license.md" "$pkgdir/usr/share/licenses/$pkgname/license.md"
 }

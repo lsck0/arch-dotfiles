@@ -8,7 +8,7 @@ export const options = {
     app_loopbacks: {
         type: bool
         default: true
-        doc: "every app plays through a loopback of its own that carries its system volume, so a capture of the app (obs) stays at full level"
+        doc: "Every app plays through a loopback of its own that carries its system volume, so a capture of the app (obs) stays at full level"
         label: "Per-app loopbacks"
         group: audio
         scope: user
@@ -16,7 +16,7 @@ export const options = {
     eq_target: {
         type: string?
         default: null
-        doc: "node.name of the headset sink the eq attaches to as a smart filter; unset, no eq chain"
+        doc: "The node.name of the headset sink the eq attaches to as a smart filter; unset, no eq chain"
         label: "EQ headset"
         group: audio
         scope: user

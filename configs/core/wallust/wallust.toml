@@ -5,8 +5,10 @@ style = "dark"
 threshold = 14
 
 [templates]
-wal = { template = 'wal/', target = '~/.cache/wal/', pywal = true }
-steam = { template = 'wal/colors-steam.css', target = '~/.local/share/Steam/millennium/themes/cyberpunk/colors.css', pywal = true }
-omarchy = { template = 'wal/omarchy-colors.toml', target = '~/.local/state/omarchy/current/theme/colors.toml' }
-telegram = { template = 'colors-telegram.tdesktop-palette', target = '~/.cache/wal/colors-telegram.tdesktop-palette' }
-yazi = { template = 'colors-yazi.toml', target = '~/.cache/wal/colors-yazi.toml' }
+wal = { template = 'wal/', target = '@CACHE@/wal/', pywal = true }
+steam = { template = 'wal/colors-steam.css', target = '@DATA@/Steam/millennium/themes/cyberpunk/colors.css', pywal = true }
+# omarchy-share-picker reads ~/.local/state literally, whatever XDG_STATE_HOME says
+omarchy = { template = 'omarchy-colors.toml', target = '~/.local/state/omarchy/current/theme/colors.toml' }
+telegram = { template = 'colors-telegram.tdesktop-palette', target = '@CACHE@/wal/colors-telegram.tdesktop-palette' }
+yazi = { template = 'colors-yazi.toml', target = '@CACHE@/wal/colors-yazi.toml' }
+bookokrat = { template = 'colors-bookokrat.yaml', target = '@CACHE@/wal/colors-bookokrat.yaml' }

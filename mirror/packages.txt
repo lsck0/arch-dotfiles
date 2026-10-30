@@ -59,6 +59,7 @@ bluez-utils
 bookokrat-bin
 bpftop
 bpftrace
+breeze-icons
 brightnessctl
 browserpass
 browserpass-chromium
@@ -330,7 +331,6 @@ kitty
 kleopatra
 kmon
 knockd
-konsole
 kpat
 krita
 kscreen
@@ -404,6 +404,7 @@ ls-horizons
 lshw
 ltrace
 lua51-luautf8
+lua54
 luarocks
 lutris
 ly
@@ -487,10 +488,8 @@ obs-audio-wave-bin
 obs-pipewire-audio-capture
 obs-plugin-waveform-bin
 obs-studio
-obs-studio-plugin-browser
 obs-vkcapture
 obsidian
-obsidian-icon-theme
 odin
 oh-my-zsh-git
 oha
@@ -960,6 +959,7 @@ xorg-xauth
 xorg-xeyes
 xorg-xhost
 xorg-xinput
+xorg-xrdb
 xorg-xwayland
 xournalpp
 yara

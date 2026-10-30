@@ -123,7 +123,7 @@ Item {
     name: "overview"
     title: "workspaces"
     suffix: "[" + String(root.workspaces.length) + "]"
-    hints: [["TAB < > ^ v", "select"], ["ENTER", "go"], ["1-0", "direct"], ["ESC", "close"]]
+    hints: [["TAB/</>/^/v", "select"], ["ENTER", "go"], ["1-0", "direct"], ["ESC", "close"]]
     cardWidth: grid.implicitWidth + Style.spacing.xl * 2 + chromeWidth
     cardHeight: grid.implicitHeight + Style.spacing.xl * 2 + chromeHeight
     onDismissed: root.close()
@@ -219,8 +219,7 @@ Item {
                 elide: Text.ElideRight
                 textFormat: Text.PlainText
                 text: win.modelData.wayland ? String(win.modelData.wayland.appId || "--") : "--"
-                color: Colors.menu.text
-                opacity: Style.emphasis.faint
+                color: Colors.textDim
                 font.family: Style.font.family
                 font.pixelSize: Style.font.caption
               }
@@ -232,8 +231,7 @@ Item {
             visible: tile.toplevels.length === 0
             anchors.centerIn: parent
             text: "--"
-            color: Colors.menu.text
-            opacity: Style.emphasis.faint
+            color: Colors.textDim
             font.family: Style.font.family
             font.pixelSize: Style.font.body
           }
@@ -260,7 +258,7 @@ Item {
               text: "[" + (tile.modelData.id === 10 ? "0" : String(tile.modelData.id)) + "]"
                 + (root.multiMonitor ? " " + String(tile.modelData.monitor.name) : "")
                 + (tile.modelData.active ? " *" : "") + (tile.toplevels.length > 0 ? " " + tile.toplevels.length : "")
-              color: tile.selected ? Colors.accent : tile.modelData.focused ? Colors.menu.selectedText : Colors.menu.text
+              color: tile.selected ? Colors.menu.selectedText : tile.modelData.focused ? Colors.accentText : Colors.menu.text
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
               font.letterSpacing: Style.headerTracking

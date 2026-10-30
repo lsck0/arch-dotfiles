@@ -14,7 +14,8 @@ Item {
   property color foreground: Colors.foreground
   property color scrim: Colors.scrim
   property color selectedBackground: Util.alpha(Colors.foreground, 0.08)
-  property color selectedText: Colors.accent
+  property color selectedText: Colors.menu.selectedText
+  property color accent: Colors.accent
   property string fontFamily: Style.font.family
   property int cornerRadius: Style.shape.surface
 
@@ -58,7 +59,7 @@ Item {
       Behavior on opacity { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
       Behavior on scale { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
       color: root.background
-      borderSpec: Border.flat(root.selectedText, Style.normalBorderWidth)
+      borderSpec: Border.flat(root.accent, Style.normalBorderWidth)
       padding: Style.spacing.lg
       radius: root.cornerRadius
 
@@ -77,7 +78,7 @@ Item {
           anchors.left: parent.left
           anchors.top: parent.top
           text: ">"
-          color: root.selectedText
+          color: Colors.textFor(root.accent)
           opacity: Style.emphasis.dim
           font.family: root.fontFamily
           font.pixelSize: Style.font.title
@@ -120,14 +121,14 @@ Item {
                 : "transparent"
               borderSpec: Border.flat(destructive
                 ? (selected ? Colors.urgent : Util.alpha(Colors.urgent, 0.56))
-                : (selected ? root.selectedText : Util.alpha(root.foreground, 0.38)), Style.normalBorderWidth)
+                : (selected ? root.accent : Util.alpha(root.foreground, 0.38)), Style.normalBorderWidth)
               radius: 0
 
               Text {
                 textFormat: Text.PlainText
                 anchors.centerIn: parent
                 text: "[ " + choice.modelData + " ]"
-                color: choice.destructive ? (choice.selected ? Colors.urgent : root.foreground) : (choice.selected ? root.selectedText : root.foreground)
+                color: choice.selected ? root.selectedText : root.foreground
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.caption
                 font.capitalization: Font.AllUppercase

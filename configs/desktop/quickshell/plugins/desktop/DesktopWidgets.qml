@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
@@ -10,10 +9,10 @@ Item {
     id: root
 
     property string mainScreenName: ""
+    property var shellHost: null
+    readonly property var notifications: shellHost ? shellHost.plugin("service.notifications") : null
     readonly property int taskMax: 4
     readonly property int reminderMax: 4
-    readonly property string notesPath: Paths.notes
-    property string notesText: ""
     readonly property int cardWidth: Style.space(520)
     readonly property var reminderRows: {
         var out = [];
@@ -33,20 +32,6 @@ Item {
         + Math.max(0, TaskState.tasks.length - root.taskMax)
     readonly property bool agendaEmpty: reminderRows.length === 0 && tasks.length === 0 && events.length === 0
 
-    FileView {
-        id: notesFile
-
-        path: root.notesPath
-        watchChanges: true
-        printErrors: false
-        onLoaded: {
-            root.notesText = String(text() || "");
-            Util.rearmWatch(this);
-        }
-        onLoadFailed: root.notesText = ""
-        onFileChanged: reload()
-    }
-
     Variants {
         model: Quickshell.screens
 
@@ -54,6 +39,18 @@ Item {
             id: panel
 
             required property var modelData
+            readonly property var bar: root.shellHost ? root.shellHost.barFor(modelData) : null
+            readonly property bool panelOverWidgets: {
+                var panel = bar ? bar.activePanelWindow : null;
+                if (!panel || !panel.visible)
+                    return false;
+
+                var rect = panel.screenRect;
+                return rect.x < widgetColumn.x + widgetColumn.width && rect.x + rect.width > widgetColumn.x && rect.y + rect.height > widgetColumn.y;
+            }
+            // the toasts stack down the same top-right corner
+            readonly property bool toastsOverWidgets: !!root.notifications && root.notifications.toastsShown && root.notifications.popupScreen === modelData
+            readonly property bool widgetsHidden: panelOverWidgets || toastsOverWidgets
 
             screen: modelData
             visible: String(modelData.name) === root.mainScreenName
@@ -77,6 +74,7 @@ Item {
             }
 
             Column {
+                id: widgetColumn
 
                 anchors.top: parent.top
                 anchors.right: parent.right
@@ -84,6 +82,14 @@ Item {
                 anchors.rightMargin: Style.spacing.lg
                 spacing: Style.spacing.md
                 visible: !screenGuard.remapping
+                opacity: panel.widgetsHidden ? 0 : 1
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Style.motion.base
+                    }
+
+                }
 
                 Card {
                     heading: "Pomodoro"
@@ -112,7 +118,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             textFormat: Text.PlainText
                             text: Util.clock(TimerState.pomoRemainingSeconds)
-                            color: TimerState.pomo.phase === "work" ? Colors.accent : Colors.ok
+                            color: TimerState.pomo.phase === "work" ? Colors.accentText : Colors.okText
                             font.family: Style.font.family
                             font.pixelSize: Style.font.title
                             font.bold: true
@@ -148,8 +154,7 @@ Item {
                         visible: TaskState.activeTask !== null
                         label: TaskState.activeTask ? ("\u25b6 " + TaskState.activeTask.desc) : ""
                         trailing: TaskState.activeElapsedText()
-                        trailingColor: Colors.accent
-                        trailingOpacity: Style.emphasis.strong
+                        trailingColor: Colors.accentText
                     }
 
                     Repeater {
@@ -160,8 +165,7 @@ Item {
 
                             label: modelData.label
                             trailing: modelData.remaining
-                            trailingColor: Colors.accent2
-                            trailingOpacity: Style.emphasis.strong
+                            trailingColor: Colors.accent2Text
                         }
 
                     }
@@ -174,8 +178,7 @@ Item {
 
                             label: modelData.summary
                             trailing: modelData.when
-                            trailingColor: Colors.accent
-                            trailingOpacity: Style.emphasis.strong
+                            trailingColor: Colors.accentText
                         }
 
                     }
@@ -188,7 +191,7 @@ Item {
 
                             label: modelData.desc
                             trailing: modelData.due
-                            trailingColor: modelData.overdue ? Colors.urgent : Colors.foreground
+                            trailingColor: modelData.overdue ? Colors.urgentText : Colors.textDim
                         }
 
                     }
@@ -204,7 +207,17 @@ Item {
                     id: notesCard
 
                     heading: "Notes"
-                    visible: root.notesText.trim().length > 0 || notesEdit.text.length > 0
+                    visible: NotesState.disk.trim().length > 0 || notesEdit.text.length > 0
+
+                    Text {
+                        width: parent.width
+                        visible: NotesState.conflict
+                        text: "changed on disk: ctrl+s overwrites it, ctrl+r takes it"
+                        color: Colors.urgentText
+                        wrapMode: Text.Wrap
+                        font.family: Style.font.family
+                        font.pixelSize: Style.font.caption
+                    }
 
                     TextEdit {
                         id: notesEdit
@@ -218,53 +231,28 @@ Item {
                         persistentSelection: true
                         font.family: Style.font.family
                         font.pixelSize: Style.font.body
-                        property bool edited: false
-                        // the file content this buffer last loaded or saved; a mismatch means it changed under us
-                        property string baseText: ""
-
-                        function save() {
-                            saveTimer.stop();
-                            if (!edited)
-                                return ;
-
-                            if (root.notesText !== baseText)
-                                return ;
-
-                            edited = false;
-                            baseText = text;
-                            notesFile.setText(text);
-                        }
-
-                        Component.onCompleted: {
-                            text = root.notesText;
-                            baseText = root.notesText;
-                        }
-                        onTextChanged: if (activeFocus) {
-                            edited = true;
-                            saveTimer.restart();
-                        }
+                        Component.onCompleted: text = NotesState.text
+                        onTextChanged: if (activeFocus)
+                            NotesState.edit(text)
                         onActiveFocusChanged: if (!activeFocus)
-                            save()
+                            NotesState.save()
                         Keys.onEscapePressed: notesEdit.focus = false
-
-                        Timer {
-                            id: saveTimer
-
-                            interval: 600
-                            onTriggered: notesEdit.save()
+                        Keys.onPressed: function(event) {
+                            event.accepted = NotesState.conflictKey(event.key, event.modifiers);
                         }
-
                     }
 
                     Connections {
-                        function onNotesTextChanged() {
-                            if (!notesEdit.activeFocus) {
-                                notesEdit.text = root.notesText;
-                                notesEdit.baseText = root.notesText;
-                            }
+                        function onTextChanged() {
+                            if (notesEdit.text === NotesState.text)
+                                return ;
+
+                            let cursor = notesEdit.cursorPosition;
+                            notesEdit.text = NotesState.text;
+                            notesEdit.cursorPosition = Math.min(cursor, notesEdit.length);
                         }
 
-                        target: root
+                        target: NotesState
                     }
 
                 }
@@ -272,10 +260,10 @@ Item {
             }
 
             mask: Region {
-                item: notesCard.visible ? notesCard : null
+                item: notesCard.visible && !panel.widgetsHidden ? notesCard : null
 
                 Region {
-                    item: agendaCard.visible ? agendaCard.headingItem : null
+                    item: agendaCard.visible && !panel.widgetsHidden ? agendaCard.headingItem : null
                 }
 
             }
@@ -296,7 +284,7 @@ Item {
         width: root.cardWidth
         implicitHeight: inner.implicitHeight + Style.spacing.lg * 2
         radius: Style.shape.surface
-        color: Util.alpha(Colors.background, 0.72)
+        color: Colors.panelFill
         border.width: Style.normalBorderWidth
         border.color: Util.alpha(Colors.accent, Style.surface.ruleAlpha)
 
@@ -336,7 +324,6 @@ Item {
         property string label: ""
         property string trailing: ""
         property color trailingColor: Colors.foreground
-        property real trailingOpacity: Style.emphasis.dim
 
         width: parent ? parent.width : 0
         implicitHeight: Math.max(labelText.implicitHeight, trailingText.implicitHeight)
@@ -367,7 +354,6 @@ Item {
             textFormat: Text.PlainText
             text: parent.trailing
             color: parent.trailingColor
-            opacity: parent.trailingOpacity
             font.family: Style.font.family
             font.pixelSize: Style.font.body
         }

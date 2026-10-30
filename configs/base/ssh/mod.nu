@@ -3,6 +3,20 @@ use module.nu *
 export const meta = {packages: {pacman: [knockd openbsd-netcat openssh]}}
 
 export const options = {
+    port: {
+        type: int
+        default: 2222
+        doc: "The port sshd listens on, reached through the port-knock (sshk, wake-pc, nftables, fail2ban)"
+        label: "sshd port"
+        min: 1
+        max: 65535
+    }
+    knock: {
+        type: list<int>
+        default: [9003 7001 8002]
+        doc: "The three ports knocked in order to open the sshd port to that address (sshk, wake-pc, nftables)"
+        label: "Knock sequence"
+    }
     homelab_hosts: {
         type: list<string>
         default: []
@@ -28,20 +42,21 @@ const MANAGED_END = "# end arch-dotfiles managed keys"
 
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
-    step sshd
+    step sshd ($cfg.port | into string)
 }
 
-export def sshd []: nothing -> nothing {
+export def sshd [port: string]: nothing -> nothing {
     # sshd -t needs host keys, absent before sshd's first start
     ^ssh-keygen -A
     let before = if ($DROPIN | path exists) { open --raw $DROPIN } else { null }
-    ^install -Dm644 10-hardening.conf $DROPIN
+    open --raw 10-hardening.conf | str replace --all "@PORT@" $port | ^install -Dm644 /dev/stdin $DROPIN
     if (^sshd -t | complete).exit_code != 0 {
         if $before == null { rm $DROPIN } else { $before | save --force $DROPIN }
         error make {msg: "ssh: sshd rejects 10-hardening.conf, kept the previous config"}
     }
     ^systemctl enable sshd.service
-    ^systemctl reload-or-restart sshd.service
+    let active = (^systemctl is-active --quiet sshd.service | complete).exit_code == 0
+    if not $active or (open --raw $DROPIN) != $before { ^systemctl reload-or-restart sshd.service }
 }
 
 def ssh-dir []: nothing -> path {
@@ -51,6 +66,8 @@ def ssh-dir []: nothing -> path {
 export def link [cfg: record] {
     let owner = profile-has secrets
     let homelab = $owner and (platform-has homelab)
+    let bin = $nu.home-dir | path join .local bin
+    let knock = $cfg.knock | str join " "
     let hosts = if $homelab and ($cfg.homelab_hosts | is-not-empty) {
         [
             $"Host ($cfg.homelab_hosts | str join ' ')" "    User root"
@@ -58,15 +75,18 @@ export def link [cfg: record] {
         ] | each { $"($in)\n" } | str join
     }
     [
-        (unit-file ssh-agent.service --enable)
+        # claimed disabled: an orphan disable of the vendor unit would take ssh-agent.socket along (Also=)
+        (unit-disable ssh-agent.service --now)
+        (unit-enable ssh-agent.socket --now)
         (file-render ssh-add.service (unit-dir | path join ssh-add.service) {DOTFILES: $env.DOTFILES})
         (if $owner { unit-enable ssh-add.service } else { unit-disable ssh-add.service })
         (file-text (ssh-dir | path join config) $"Include ~/.ssh/config.d/*\n($hosts | default '')" --mode 600)
         (if $owner { step authorize } else { [] })
-        (link-commands sshk.nu)
+        (file-render sshk.nu ($bin | path join sshk) {DOTFILES: $env.DOTFILES, PORT: $cfg.port, KNOCK: $knock}
+            --mode 755)
         (if $homelab and $cfg.wake_router != null and $cfg.wake_host != null {
-            let values = {ROUTER: $cfg.wake_router, HOST: $cfg.wake_host}
-            file-render wake-pc.nu ($nu.home-dir | path join .local bin wake-pc) $values --mode 755
+            let values = {ROUTER: $cfg.wake_router, HOST: $cfg.wake_host, PORT: $cfg.port, KNOCK: $knock}
+            file-render wake-pc.nu ($bin | path join wake-pc) $values --mode 755
         } else { [] })
     ]
 }

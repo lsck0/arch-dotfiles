@@ -11,6 +11,7 @@ const SEVENZIP_LINK_KEYS = ["Symbolic Link" "Hard Link" "Link"]
 const SEVENZIP_LINK_MODE = '(^|[\s_-])l[r-][w-][xsS-]'
 
 def entries-check [entries: table]: nothing -> nothing {
+    if ($entries | is-empty) { error make {msg: "archive is empty"} }
     let unsafe = $entries | where {|e|
         let parts = $e.name | str replace --all '\' '/' | split row "/"
         $e.name == "" or $parts.0 == "" or ".." in $parts
@@ -24,9 +25,15 @@ def entries-check [entries: table]: nothing -> nothing {
     }
 }
 
+def --wrapped sevenzip [...args: string]: nothing -> string {
+    let run = do { ^7z ...$args } | complete
+    if $run.exit_code != 0 { error make {msg: $"7z failed: ($run.stderr | str trim)"} }
+    $run.stdout
+}
+
 def sevenzip-extract [archive: path, stage: path]: nothing -> nothing {
     if (which 7z | is-empty) { error make {msg: $"unsupported archive \(install 7z\): ($archive)"} }
-    ^7z l -slt -- $archive | split row "\n----------\n" | get --optional 1 | default ""
+    sevenzip l -slt -- $archive | split row "\n----------\n" | get --optional 1 | default ""
     | split row "\n\n" | where $it != "" | each { lines | parse "{key} = {value}" | transpose -r -d }
     | each {|e| {
         name: $e.Path
@@ -35,7 +42,7 @@ def sevenzip-extract [archive: path, stage: path]: nothing -> nothing {
             or ($e.Attributes? | default "") =~ $SEVENZIP_LINK_MODE)
     } }
     | entries-check $in
-    ^7z x -y $"-o($stage)" -- $archive | ignore
+    sevenzip x -y $"-o($stage)" -- $archive | ignore
 }
 
 def stage-fill [archive: path, stage: path]: nothing -> nothing {
@@ -68,6 +75,7 @@ def main [archive: path, destination?: path]: nothing -> nothing {
     let base = $archive | path basename | str replace --regex '(\.tar\.(gz|bz2|xz|zst)|\.[^.]*)$' ''
     let root = $destination | default $env.PWD | path expand
     let dest = $root | path join $base
+    if ($root | path type) != dir { die --misuse $"not a directory: ($root)" }
     if ($dest | path exists) { die $"destination already exists: ($dest)" }
     let stage = mktemp --directory --tmpdir-path $root .extract.XXXXXX
     try { stage-fill $archive $stage } catch {|err|

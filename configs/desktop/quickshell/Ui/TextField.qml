@@ -24,7 +24,7 @@ TextField {
   color: foreground
   selectionColor: selectionTint
   selectedTextColor: foreground
-  placeholderTextColor: Util.alpha(foreground, Style.emphasis.faint)
+  placeholderTextColor: Colors.textDim
 
   Keys.onPressed: function (event) {
     if (root.readOnly || !Util.isWordDelete(event.key, event.modifiers)) return

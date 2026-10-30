@@ -1,11 +1,11 @@
-#!/usr/bin/env -S nu --no-config-file
+#!/usr/bin/env -S setpriv --pdeathsig TERM nu --no-config-file
 
 # a desktop's draw at the wall: cpu and gpu plus the rest of the board, through the psu
 const OVERHEAD_W = 40
 const PSU_EFFICIENCY = 0.9
 const FIRST_SAMPLE = 300ms
-# intel-rapl is also the name on amd zen
-const RAPL = "/sys/class/powercap/intel-rapl:0"
+# base/powercap's root unit: the cpu package's draw in whole watts, energy_uj itself stays root-only
+const CPU_WATTS = "/run/powercap/watts"
 const DMI_DEVICE = "/devices/virtual/dmi/id"
 const CPU_TEMP_DRIVERS = [k10temp coretemp zenpower]
 const CPU_TEMP_LABEL = '^(Tctl|Tdie|Package.*|CPU Temperature)$'
@@ -19,8 +19,10 @@ const UW_PER_W = 1_000_000
 const KIB_PER_GIB = 1048576
 const PAGE_KIB = 4
 const BYTES_PER_MIB = 1048576
+# TASK_COMM_LEN 16 less its NUL: a comm this long is likely cut
+const COMM_LENGTH_MAX = 15
 
-# Unreadable reads as missing: intel-rapl energy_uj is root-only, and a throw here respawns the script forever.
+# Unreadable or absent reads as missing: a throw here respawns the script forever.
 def line-read [path?: string]: nothing -> string {
     if $path == null { return "" }
     try { open --raw $path | lines | get 0? | default "" } catch { "" }
@@ -47,6 +49,13 @@ def stat-read []: nothing -> list<int> {
     open --raw /proc/stat | lines | first | split row -r '\s+' | slice 1..8 | into int
 }
 
+# The kernel cuts comm at COMM_LENGTH_MAX; argv[0]'s basename gives the whole name when it is the same program.
+def proc-name-full [pid: string, comm: string]: nothing -> string {
+    if ($comm | str length) < $COMM_LENGTH_MAX { return $comm }
+    let argv0 = try { open --raw $"/proc/($pid)/cmdline" | split row (char nul) | first | path basename } catch { "" }
+    if ($argv0 | str starts-with $comm) { $argv0 } else { $comm }
+}
+
 def top-by-name []: table -> list {
     group-by name | items {|name, rows| {name: $name, pct: ($rows.pct | math sum)} }
         | sort-by pct -r | first $TOP_COUNT | update pct { math round -p 1 }
@@ -64,8 +73,8 @@ def top-cpu [now: table, before: table, dt_ms: number, tck: int]: nothing -> lis
     if $dt_ms <= 0 { return [] }
     $now | join --left $before pid | each {|p|
         let ticks = [($p.ticks - ($p.ticks_? | default 0)) 0] | math max
-        {name: $p.name, pct: ($ticks * 100_000 / $tck / $dt_ms)}
-    } | where pct > 0 | top-by-name
+        {pid: $p.pid, name: $p.name, pct: ($ticks * 100_000 / $tck / $dt_ms)}
+    } | where pct > 0 | each {|p| $p | update name (proc-name-full $p.pid $p.name) } | top-by-name
 }
 
 # Read RSS from /proc directly, like top-cpu, instead of forking `ps` every tick. statm field 2 is resident pages.
@@ -76,8 +85,8 @@ def top-mem []: nothing -> list {
         let pid = $f | parse -r '/proc/(?<p>\d+)/statm' | get 0?.p
         let rss_pages = try { open --raw $f | split row ' ' | get 1? | default "0" | into int } catch { 0 }
         if $rss_pages <= 0 or $pid == null { null } else {
-            let name = try { open --raw $"/proc/($pid)/comm" | str trim } catch { "" }
-            if $name == "" { null } else { {name: $name, pct: ($rss_pages * $PAGE_KIB * 100 / $total_kib)} }
+            let comm = try { open --raw $"/proc/($pid)/comm" | str trim } catch { "" }
+            if $comm == "" { null } else { {name: (proc-name-full $pid $comm), pct: ($rss_pages * $PAGE_KIB * 100 / $total_kib)} }
         }
     } | compact | top-by-name
 }
@@ -124,7 +133,6 @@ def hardware-detect []: nothing -> record {
         })
         cpu_temp: $cpu_temp
         gpu_temp: $gpu_temp
-        rapl_max: (int-read $"($RAPL)/max_energy_range_uj")
         mem_total_kb: (mem-total-kib)
     }
 }
@@ -139,8 +147,7 @@ def main [interval_s: number = 10] {
 
     let tck = ^getconf CLK_TCK | into int
     mut prev = {
-        stat: (stat-read), rc6: (int-read $rc6_path), energy: (line-read $"($RAPL)/energy_uj"), procs: (proc-ticks)
-        time: (date now)
+        stat: (stat-read), rc6: (int-read $rc6_path), procs: (proc-ticks), time: (date now)
     }
     mut temp_c = 0
     mut delay = $FIRST_SAMPLE
@@ -153,7 +160,6 @@ def main [interval_s: number = 10] {
         let time = date now
         let dt_ms = ($time - $prev.time) / 1ms
         let rc6 = if $amd { $prev.rc6 } else { int-read $rc6_path }
-        let energy = line-read $"($RAPL)/energy_uj"
         let temp_raw = line-read $hw.cpu_temp
         if $temp_raw =~ '^-?[0-9]+$' { $temp_c = ($temp_raw | into int) // 1000 }
 
@@ -169,11 +175,7 @@ def main [interval_s: number = 10] {
         } else { int-read $"($hw.gpu_card)/gt_act_freq_mhz" }
         let gpu_w = if $amd { number-or-null (line-read $hw.gpu_power) $UW_PER_W }
         let gpu_temp_c = number-or-null (line-read $hw.gpu_temp) 1000 | if $in != null { math round }
-        let cpu_w = if $energy != "" and $prev.energy != "" and $dt_ms > 0 {
-            let delta = ($energy | into int) - ($prev.energy | into int)
-            let wrapped = if $delta < 0 and $hw.rapl_max > 0 { $delta + $hw.rapl_max } else { $delta }
-            if $wrapped >= 0 { $wrapped / 1000 / $dt_ms }
-        }
+        let cpu_w = number-or-null (line-read $CPU_WATTS) 1
         # a laptop on battery reports its real draw; on ac it has no psu or desktop board, so cpu and gpu alone
         let battery_w = glob /sys/class/power_supply/BAT*
             | where { (line-read ($in | path join status)) == "Discharging" }
@@ -212,9 +214,6 @@ def main [interval_s: number = 10] {
             top: {cpu: (top-cpu $procs $prev.procs $dt_ms $tck), mem: (top-mem)}
         } | to json -r | print
 
-        $prev = {
-            stat: $stat, rc6: $rc6, energy: (if $energy != "" { $energy } else { $prev.energy }), procs: $procs
-            time: $time
-        }
+        $prev = {stat: $stat, rc6: $rc6, procs: $procs, time: $time}
     }
 }

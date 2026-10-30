@@ -1,18 +1,16 @@
 #!/usr/bin/env -S nu --no-config-file
 # Plugins built as the user against hyprland's headers (hyprpm needs root); hyprpm.toml maps commits.
 
+use ../../../scripts/lib/state.nu [xdg]
+
 const PLUGINS = [
     {name: "dynamic-cursors", url: "https://github.com/virtcode/hypr-dynamic-cursors", commit: "2a8d0b735328d874a78ca93b2f201649f712a74a"}
 ]
 const PC = "/usr/share/pkgconfig/hyprland.pc"
 
-def cache-dir []: nothing -> path {
-    $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join hypr-plugins
-}
+def cache-dir []: nothing -> path { xdg cache hypr-plugins }
 
-def out-dir []: nothing -> path {
-    $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join hypr-plugins
-}
+def out-dir []: nothing -> path { xdg data hypr-plugins }
 
 # Installed vs running hyprland commit: they differ between an upgrade and the relogin.
 def commit-installed []: nothing -> string {
@@ -33,19 +31,24 @@ def pc-dir []: nothing -> path {
     $dir
 }
 
-def plugin-commit [src: path, hyprland: string]: nothing -> string {
+# The plugin commit the checked-out map names for this hyprland, null when it has none.
+def plugin-commit [src: path, hyprland: string]: nothing -> any {
     let pins = open --raw ($src | path join hyprpm.toml) | parse --regex '\["(?<h>[0-9a-f]{40})",\s*"(?<p>[0-9a-f]{40})"\]'
-    let hit = $pins | where h == $hyprland | get --optional 0.p
-    if $hit == null { error make {msg: $"no plugin pin for hyprland ($hyprland) at the pinned repo commit; bump it in plugins.nu"} }
-    $hit
+    $pins | where h == $hyprland | get --optional 0.p
 }
 
-def build [plugin: record, hyprland: string]: nothing -> nothing {
+# Builds a plugin for this hyprland; false when the pinned commit has no map for it yet.
+def build [plugin: record, hyprland: string]: nothing -> bool {
     let src = cache-dir | path join $plugin.name
     if not ($src | path join .git | path exists) { ^git clone --quiet $plugin.url $src }
     if (do { ^git -C $src cat-file -e $"($plugin.commit)^{commit}" } | complete).exit_code != 0 { ^git -C $src fetch --quiet origin }
     ^git -C $src checkout --quiet --force $plugin.commit
-    ^git -C $src checkout --quiet --force (plugin-commit $src $hyprland)
+    let pin = plugin-commit $src $hyprland
+    if $pin == null {
+        print --stderr $"($plugin.name): no pin for hyprland ($hyprland) at the pinned commit, bump PLUGINS in plugins.nu"
+        return false
+    }
+    ^git -C $src checkout --quiet --force $pin
     do { cd $src; ^make clean | ignore }
     let made = do { cd $src; with-env {PKG_CONFIG_PATH: (pc-dir)} { ^make $"-j(sys cpu | length)" all } } | complete
     if $made.exit_code != 0 { error make {msg: $"($plugin.name) did not build:\n($made.stderr | lines | last 20 | str join "\n")"} }
@@ -53,15 +56,21 @@ def build [plugin: record, hyprland: string]: nothing -> nothing {
     cp ($src | path join out $"($plugin.name).so") (so-path $plugin.name $hyprland)
     # builds for other hyprland commits are dead after the upgrade
     glob (out-dir | path join $"($plugin.name)-*.so") | where $it != (so-path $plugin.name $hyprland) | each { rm $in } | ignore
+    true
 }
 
 # Builds what the installed hyprland lacks, then loads it into the running one when they match.
 def main []: nothing -> nothing {
     let hyprland = commit-installed
     if $hyprland == "" { return }
-    let failed = $PLUGINS | where {|p|
-        if (so-path $p.name $hyprland | path exists) { return false }
-        try { build $p $hyprland; false } catch {|e| print --stderr $e.msg; true }
+    let builds = $PLUGINS | where {|p| not (so-path $p.name $hyprland | path exists) } | each {|p|
+        let status = try { if (build $p $hyprland) { "built" } else { "unpinned" } } catch {|e| print --stderr $e.msg; "failed" }
+        {name: $p.name, status: $status}
+    }
+    let failed = $builds | where status == failed
+    let unpinned = $builds | where status == unpinned
+    if ($unpinned | is-not-empty) {
+        ^notify-send -a hyprland -u low "Hyprland plugins off: no build for this Hyprland" $"($unpinned | get name | str join ', '): bump PLUGINS in plugins.nu" | complete | ignore
     }
     if ($failed | is-not-empty) {
         ^notify-send -a hyprland "Hyprland plugins did not build" ($failed | get name | str join ", ") | complete | ignore

@@ -1,13 +1,13 @@
 # The git half of dot sync: verified pull, signed generation commit, push with retry.
 
 use log.nu *
-use secrets.nu [secret-is-plaintext secrets-wanted]
+use secrets.nu [secret-is-plaintext secrets-wanted OWNER_WITNESS]
 use state.nu [state-dir]
 
 const BRANCH = "master"
 const PUSH_TRIES = 3
-const SIGNING_KEY_FILE = "configs/core/gnupg/luca-sandrock.pub.asc"
-const FINGERPRINT_LINE = '(?m)^SIGNING_KEY_FINGERPRINT=(?<fpr>[0-9A-F]{40})$'
+const BOOTSTRAP = "bootstrap.sh"
+export const FINGERPRINT_VALUE = '[0-9A-F]{40}'
 const LUKS_HEADER_MAX_AGE_DAYS = 90
 
 # Fails unless HEAD is on master: a detached HEAD would commit off it and the push would fail.
@@ -24,7 +24,7 @@ def origin-verified [repo: path]: nothing -> nothing {
     # remove the throwaway keyring whether the import and verify succeed or throw
     let outcome = try {
         with-env {GNUPGHOME: $gnupg} {
-            ^gpg --batch --quiet --import ($repo | path join $SIGNING_KEY_FILE)
+            ^gpg --batch --quiet --import ($repo | path join (bootstrap-const $repo SIGNING_KEY_FILE))
             ^git -C $repo verify-commit --raw $rev | complete
         }
     } catch {|e| {failed: $e.msg} }
@@ -78,10 +78,15 @@ def secrets-follow [repo: path]: nothing -> nothing {
     }
 }
 
+# The value of a NAME=value line in bootstrap.sh, the one source of the url and signing key.
+export def bootstrap-const [repo: path, name: string, value: string = '\S+']: nothing -> string {
+    let found = open --raw ($repo | path join $BOOTSTRAP) | parse --regex ('(?m)^' + $name + '=(?<v>' + $value + ')$') | get v
+    if ($found | length) != 1 { error make {msg: $"($BOOTSTRAP) has no single ($name)=($value)"} }
+    $found.0
+}
+
 def fingerprint [repo: path]: nothing -> string {
-    let fpr = open --raw ($repo | path join bootstrap.sh) | parse --regex $FINGERPRINT_LINE | get fpr
-    if ($fpr | length) != 1 { error make {msg: "bootstrap.sh has no single SIGNING_KEY_FINGERPRINT=<40 hex>"} }
-    $fpr.0
+    bootstrap-const $repo SIGNING_KEY_FINGERPRINT $FINGERPRINT_VALUE
 }
 
 # Whether gpg holds the secret key bootstrap.sh's SIGNING_KEY_FINGERPRINT names.
@@ -113,7 +118,7 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
     ^nu --no-config-file ($repo | path join scripts lib internal.nu) backup
     luks-header-sync $repo
     let secrets = $repo | path join configs secrets
-    if (secrets-wanted) and (secret-is-plaintext ($secrets | path join keys pgp_privatekey.asc)) {
+    if (secrets-wanted) and (secret-is-plaintext ($repo | path join $OWNER_WITNESS)) {
         if (^git -C $secrets status --porcelain | str trim | is-not-empty) {
             secrets-plaintext-guard $secrets
             ^git -C $secrets add -A
@@ -151,7 +156,7 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
     while $push.exit_code != 0 {
         $tries += 1
         if $tries > $PUSH_TRIES { error make {msg: $"push still rejected after ($PUSH_TRIES) retries"} }
-        if not ($push.stderr | str contains "non-fast-forward") and not ($push.stderr | str contains "fetch first") and not ($push.stderr | str contains "rejected") {
+        if not ($push.stderr | str contains "! [rejected]") {
             error make {msg: $"push failed, nothing rewound: (error-brief $push.stderr)"}
         }
         if $committed { ^git -C $repo reset --soft HEAD~1 }
@@ -207,8 +212,7 @@ def luks-header-due [header: path]: nothing -> bool {
 export def luks-header-sync [repo: path]: nothing -> nothing {
     if not (luks-root) { return }
     if $env.DOT_SYSTEM? == "skip" { return }
-    let secrets = $repo | path join configs secrets
-    if not (secret-is-plaintext ($secrets | path join keys pgp_privatekey.asc)) { return }
+    if not (secret-is-plaintext ($repo | path join $OWNER_WITNESS)) { return }
     try {
         if not (luks-header-due (luks-header-path $repo)) { return }
         ^nu --no-config-file ($repo | path join configs base boot luks header-backup.nu)

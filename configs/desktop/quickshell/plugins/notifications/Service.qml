@@ -675,7 +675,19 @@ Item {
   }
 
   property var popupScreen: null
+
+  // a bar panel reaching into the toast column hides the toasts while it is open; their countdowns keep running, so
+  // only the criticals and the ones with time left come back when it closes
+  readonly property var popupBar: shell && popupScreen ? shell.barFor(popupScreen) : null
+  readonly property bool panelOverToasts: {
+    var panel = popupBar ? popupBar.activePanelWindow : null
+    if (!panel || !panel.visible) return false
+    return panel.screenRect.x + panel.screenRect.width > popupBar.width - Style.gapsOut - toastWidth
+  }
+  readonly property bool toastsShown: popupScreen !== null && popupModel.count > 0 && !panelOverToasts
   property int popupRevision: 0
+  // a toast's delegate is rebuilt with its window, so its countdown lives here
+  property var toastClocks: ({})
 
   Connections {
     target: popupModel
@@ -685,6 +697,7 @@ Item {
         releaseTimer.stop()
         if (!service.popupScreen) service.popupScreen = service.focusedScreen
       } else {
+        service.toastClocks = ({})
         releaseTimer.restart()
       }
     }
@@ -759,10 +772,12 @@ Item {
 
       anchors { top: true; bottom: true; left: true; right: true }
 
-      mask: Region { item: popupList }
+      mask: Region { item: service.panelOverToasts ? null : popupList }
 
       ListView {
         id: popupList
+        opacity: service.panelOverToasts ? 0 : 1
+        Behavior on opacity { NumberAnimation { duration: Style.motion.fast } }
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.topMargin: service.barClearance
@@ -819,9 +834,16 @@ Item {
           readonly property int segmentsLeft: cardSlot.lifetime > 0
             ? Math.max(0, Math.ceil(cardSlot.remainingMs / cardSlot.quarterMs - 0.001)) : 0
 
+          readonly property string clockKey: cardSlot.originalId + ":" + cardSlot.timestamp
+
+          function saveClock() {
+            service.toastClocks[cardSlot.clockKey] = { remainingMs: cardSlot.remainingMs, resumedAtMs: cardSlot.ticking ? cardSlot.resumedAtMs : 0 }
+          }
+
           function restartLifetime() {
             cardSlot.remainingMs = cardSlot.lifetime
             cardSlot.resumedAtMs = Date.now()
+            cardSlot.saveClock()
             expiryTimer.interval = Math.max(1, cardSlot.quarterMs)
             if (cardSlot.ticking) expiryTimer.restart()
           }
@@ -840,6 +862,7 @@ Item {
               expiryTimer.stop()
               cardSlot.remainingMs = Math.max(1, cardSlot.remainingMs - (Date.now() - cardSlot.resumedAtMs))
             }
+            cardSlot.saveClock()
           }
           onLifetimeChanged: cardSlot.restartLifetime()
           onSummaryChanged: cardSlot.restartLifetime()
@@ -856,12 +879,20 @@ Item {
                 if (cardSlot.index >= 0) service.removePopup(cardSlot.index, "expire")
                 return
               }
+              cardSlot.saveClock()
               interval = cardSlot.nextStepMs()
               restart()
             }
           }
 
-          Component.onCompleted: if (cardSlot.ticking) { expiryTimer.interval = cardSlot.nextStepMs(); expiryTimer.start() }
+          Component.onCompleted: {
+            var clock = service.toastClocks[cardSlot.clockKey]
+            if (clock && cardSlot.lifetime > 0)
+              cardSlot.remainingMs = clock.resumedAtMs ? Math.max(1, clock.remainingMs - (Date.now() - clock.resumedAtMs)) : clock.remainingMs
+            cardSlot.saveClock()
+            if (cardSlot.ticking) { expiryTimer.interval = cardSlot.nextStepMs(); expiryTimer.start() }
+          }
+          Component.onDestruction: if (service.rowIndexOf(cardSlot.originalId, cardSlot.timestamp) < 0) delete service.toastClocks[cardSlot.clockKey]
 
           NotificationCard {
             id: card

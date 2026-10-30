@@ -22,7 +22,8 @@ def rename [sel: string, map: record, names: record]: nothing -> string {
 def main [xpui?: path]: nothing -> nothing {
     let data = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share)
     let xpui = $xpui | default ($data | path join spotify-patched Apps xpui)
-    let backup = $nu.home-dir | path join .local state spicetify Backup xpui.spa
+    let state = $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state)
+    let backup = $state | path join spicetify Backup xpui.spa
     let missing = [$xpui $CSS_MAP $backup] | where not ($it | path exists)
     if ($missing | is-not-empty) {
         print -e $"spicetify-unmap-classes: ($missing.0) missing, nothing to do"

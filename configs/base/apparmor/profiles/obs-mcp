@@ -6,7 +6,7 @@ include <tunables/global>
 
 @{att} = ""
 
-@{obs_mcp} = @{HOME}/.local/share/obs-mcp
+@{obs_mcp} = @{user_share_dirs}/obs-mcp
 
 @{exec_path} = @{obs_mcp}/node_modules/obs-mcp/build/index.js
 profile obs-mcp @{exec_path} flags=(attach_disconnected) {

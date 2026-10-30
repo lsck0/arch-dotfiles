@@ -35,8 +35,7 @@ Text {
     : freshness === "error" ? "x ERR" + (detailed ? " " + error : "")
     : freshness === "stale" ? " ~" + Util.span((nowMs - updatedMs) / minuteMs)
     : ""
-  color: freshness === "error" ? Colors.urgent : Colors.foreground
-  opacity: freshness === "error" ? Style.emphasis.strong : Style.emphasis.faint
+  color: freshness === "error" ? Colors.urgentText : Colors.textDim
   font.family: Style.font.family
   font.pixelSize: Style.font.caption
   elide: Text.ElideRight

@@ -1,9 +1,10 @@
 #!/usr/bin/env -S nu --no-config-file
+# Copies identity/envrc into a repo's .identity/ (git-ignored) and sources it from the repo's .envrc through direnv.
 
 const SCRIPTS = path self | path expand | path dirname
 use ($SCRIPTS | path join lib usage.nu) [die]
 
-const TEMPLATE = $SCRIPTS | path dirname | path join configs programming identity envrc
+const TEMPLATE = $SCRIPTS | path join identity envrc
 const ENVRC_LINE = "source_env_if_exists .identity/envrc"
 
 def envrc-line-add [envrc: path]: nothing -> nothing {
@@ -19,7 +20,7 @@ def envrc-line-add [envrc: path]: nothing -> nothing {
     $"($separator)($ENVRC_LINE)\n" | save --append $envrc
 }
 
-# Give a repository its own customer identity, see configs/programming/identity/envrc.
+# Give a repository its own customer identity, see scripts/identity/envrc.
 def main [repo_dir?: path]: nothing -> nothing {
     let repo = $repo_dir | default "." | path expand
     if ($repo | path type) != dir { die --misuse $"($repo_dir) is not a directory" }

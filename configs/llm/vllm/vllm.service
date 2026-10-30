@@ -13,7 +13,6 @@ StateDirectory=vllm
 CacheDirectory=vllm
 Environment=HOME=%S/vllm
 Environment=XDG_CACHE_HOME=%C/vllm
-ExecPaths=%S/private/vllm %C/private/vllm
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes

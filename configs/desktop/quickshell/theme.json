@@ -2,7 +2,8 @@
   "_comment": [
     "Edit the repo copy and dot apply desktop/quickshell; the shell reloads it. Values here override the code defaults.",
     "Defaults, ranges and meaning: Commons/Theme.qml.",
-    "The font comes from ~/.cache/wal/font.json (toggle-font, a theme's font); font.size scales the whole shell.",
+    "The font comes from $XDG_CACHE_HOME/wal/font.json (toggle-font, a theme's font).",
+    "font.size scales the whole shell.",
     "palette.* conditions wallust colours, it does not replace them."
   ],
   "palette": {
@@ -10,9 +11,11 @@
     "accentMinSaturation": 0.7,
     "accentMinValue": 0.62,
     "accentContrast": 3.0,
+    "textContrast": 4.5,
     "urgentMinSaturation": 0.55,
     "urgentMinValue": 0.55,
     "urgentContrast": 3.0,
+    "semanticContrast": 3.0,
     "mutedContrast": 1.9,
     "transitionMs": 600
   },

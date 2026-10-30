@@ -92,7 +92,6 @@ PanelWindow {
         suffix: root.suffix
         typed: bootIn.typed
         size: Style.font.title
-        decor: true
         rule: true
         blinking: root.open
       }
@@ -114,7 +113,7 @@ PanelWindow {
             id: promptGlyph
             textFormat: Text.PlainText
             text: ">"
-            color: Colors.accent
+            color: Colors.accentText
             font.family: Style.font.family
             font.pixelSize: Style.font.heading
             font.bold: true
@@ -124,8 +123,7 @@ PanelWindow {
             textFormat: Text.PlainText
             width: Math.min(implicitWidth, promptRow.width - promptGlyph.width - caret.width - promptRow.spacing * 2)
             text: root.query || root.placeholder
-            color: Colors.menu.text
-            opacity: root.query ? 1 : Style.emphasis.faint
+            color: root.query ? Colors.menu.text : Colors.textDim
             font.family: Style.font.family
             font.pixelSize: Style.font.heading
             elide: Text.ElideRight
@@ -153,6 +151,7 @@ PanelWindow {
 
       KeyHints {
         id: footer
+        width: parent.width
         visible: root.hints.length > 0
         hints: root.hints
         opacity: bootIn.rowOpacity(bootIn.staggerCap)

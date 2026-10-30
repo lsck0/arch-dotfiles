@@ -3,13 +3,13 @@
 const REPO = path self ../..
 use log.nu *
 use cli.nu [concat jobs supervise]
-use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir EXIT_ABORTED]
-use platform.nu [platform-load platform-env]
+use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir EXIT_ABORTED xdg]
+use platform.nu [platform-load]
 use profile.nu [profile-has]
 use modules.nu [modules-packages]
 use pipeline.nu [pipeline-load pipeline-plan pipeline-apply THEME_VERB_TIMEOUT]
 use converge.nu [state-read observe plan-module recorded-hashes apply-module state-write output-file-state]
-use ledger.nu [ledger-units ledger-set]
+use ledger.nu [ledger-units ledger-get ledger-set ledger-diff ledger-remove]
 use migrate.nu [migrations-run]
 use ../../configs/base/yubikey/yubikey.nu [yubikey-unlock]
 use system.nu [system-pack system-archive ENTRY]
@@ -22,6 +22,7 @@ const EXIT_SYSTEM_PENDING = 3
 const FAILURES_INSTALL = "FAILURES.install"
 const NIXPKGS = "github:NixOS/nixpkgs/b6c8664de9b6cc07fe5666a29f91884ba81197c4"
 const FLATHUB = "https://dl.flathub.org/repo/flathub.flatpakrepo"
+const NIX_FLAGS = [--extra-experimental-features "nix-command flakes"]
 const LFS_FILTER = [
     -c "filter.lfs.clean=git-lfs clean -- %f" -c "filter.lfs.smudge=git-lfs smudge -- %f"
     -c "filter.lfs.process=git-lfs filter-process" -c filter.lfs.required=true
@@ -29,7 +30,7 @@ const LFS_FILTER = [
 const FLATPAK_SYSTEM_EXPORTS = "/var/lib/flatpak/exports/share"
 const FLATPAK_USER_EXPORTS = ".local/share/flatpak/exports/share"
 const DATA_DIRS_DEFAULT = "/usr/local/share:/usr/share"
-const SYSTEM_SEED = 'set -e; umask 022; copy=$1; mkdir -p "${copy%/*}"; exec 9>"${copy%/*}/lock"; flock 9; rm -rf "$copy.new"; mkdir "$copy.new"; tar -x --no-same-owner --no-same-permissions -C "$copy.new" -f -; printf "%s\n" "$2" > "$copy.new/.source"; rm -rf "$copy"; mv "$copy.new" "$copy"'
+const SYSTEM_SEED = 'set -e; umask 022; copy=$1; mkdir -p "${copy%/*}"; exec 9>"${copy%/*}/lock"; flock 9; rm -rf "$copy.new"; mkdir -m 700 "$copy.new"; tar -x --no-same-owner --no-same-permissions -C "$copy.new" -f -; printf "%s\n" "$2" > "$copy.new/.source"; [ ! -d "$copy.new/configs/secrets" ] || chmod -R go= "$copy.new/configs/secrets"; chmod 755 "$copy.new"; rm -rf "$copy"; mv "$copy.new" "$copy"'
 const THEME_STAMP_PATHS = [configs/core/wallust themes 'configs/*/*/mod.nu']
 const THEME_DEFAULT_WALLPAPER = "alena-aenami-cover-art-007-3.jpg"
 
@@ -73,8 +74,8 @@ export def --env link-run [mods: list<string>, force: bool, plan: bool]: nothing
     let full = $mods | is-empty
     $env.DOT_FULL_RUN = $full
     failures-open
-    let results = with-env (platform-env $ctx.platform) { pipeline-apply $ctx $planned link (jobs) }
-    let wallpaper = $nu.home-dir | path join .cache wal wallpaper
+    let results = pipeline-apply $ctx $planned link (jobs)
+    let wallpaper = xdg cache wal wallpaper
     let ids = $planned | where native and id not-in ($ctx.modules | where broken | get id) | get id
     # an empty id list means every module to pipeline-plan: a run that planned no link rows themes none
     let themed = if ($wallpaper | path exists) and ($ids | is-not-empty) {
@@ -98,7 +99,7 @@ def theme-init []: nothing -> nothing {
     let files = ^git -C $REPO ls-files --cached --others --exclude-standard ...$THEME_STAMP_PATHS | lines | where $it != ""
         | each {|f| $REPO | path join $f } | where ($it | path exists) | uniq
     let stamp = ^sha1sum ...$files | ^sha1sum | str trim
-    let cache = $nu.home-dir | path join .cache wal
+    let cache = xdg cache wal
     let current = try { open --raw ($cache | path join .theme-stamp) | str trim } catch { "" }
     if ($cache | path join wallpaper | path exists) and $current == $stamp {
         return
@@ -163,7 +164,7 @@ export def --env pty-log [name: string, args: list<string>]: nothing -> nothing 
     }
 }
 
-def system-run [stage: string, --force]: nothing -> int {
+def system-run [stage: string, --force, --yes]: nothing -> int {
     let runner = $env.DOTFILES_ROOT_RUNNER? | default sudo
     let head = ^git -C $REPO rev-parse HEAD | str trim
     let entry = $SYSTEM_REPO | path join $ENTRY
@@ -172,7 +173,8 @@ def system-run [stage: string, --force]: nothing -> int {
         system-pack $REPO | ^sudo sh -c $SYSTEM_SEED sh $SYSTEM_REPO $head
     }
     let forced = if $force { [--force] } else { [] }
-    let flags = [--unattended=($env.DOTFILES_UNATTENDED? == "1")] ++ $forced
+    let asked = if $yes { [--yes] } else { [] }
+    let flags = [--unattended=($env.DOTFILES_UNATTENDED? == "1")] ++ $forced ++ $asked
     let archive = system-archive $REPO (platform-load $REPO).facts.wireguard?
     let code = try { $archive | ^$runner $entry apply $head $stage ...$flags; 0 } catch {|e| $e.exit_code? | default 1 }
     interrupted-exit $code
@@ -247,46 +249,106 @@ export def --env unlink-run [mod: string]: nothing -> table {
     [{id: $mod, ok: ($outcomes | all { $in.ok }), outcomes: $outcomes, ms: 0, log: "", error: null}]
 }
 
-def install-user [declared: record]: nothing -> nothing {
-    if (which rustup | is-not-empty) { try { ^rustup default stable } catch { fail "rustup default stable" } }
-    let apps = $declared.flatpak | transpose app commit
-    if ($apps | is-not-empty) and (which flatpak | is-not-empty) {
-        let exports = [($nu.home-dir | path join $FLATPAK_USER_EXPORTS) $FLATPAK_SYSTEM_EXPORTS]
-        let dirs = $exports ++ ($env.XDG_DATA_DIRS? | default $DATA_DIRS_DEFAULT | split row ":") | uniq | str join ":"
-        with-env {XDG_DATA_DIRS: $dirs} {
-            if (^flatpak remote-add --user --if-not-exists flathub $FLATHUB | complete).exit_code != 0 {
-                fail "flatpak remote-add --user flathub"
-            } else {
-                let deployed = {|app| ^flatpak info --user --show-commit $app | complete | if $in.exit_code == 0 { $in.stdout | str trim } else { "" } }
-                for a in $apps {
-                    if not ($a.commit =~ '^[0-9a-f]{64}$') { fail $"flatpak ($a.app): no pinned commit"; continue }
-                    let now = do $deployed $a.app
-                    if $now != $a.commit {
-                        if $a.app in (^flatpak mask --user | lines | str trim) { ^flatpak mask --user --remove $a.app }
-                        if $now == "" and (try { ^flatpak install --user --noninteractive flathub $a.app; false } catch { true }) { fail $"flatpak install --user ($a.app)"; continue }
-                        try { ^flatpak update --user --noninteractive $"--commit=($a.commit)" $a.app } catch { fail $"flatpak update --user --commit=($a.commit) ($a.app)" }
-                    }
-                    try { ^flatpak mask --user $a.app } catch { fail $"flatpak mask --user ($a.app)" }
-                }
-                ledger-set flatpak ($apps | each {|a| let c = do $deployed $a.app; if $c == "" { "" } else { $"($a.app) ($c)" } })
-            }
-        }
+def flatpak-installed []: nothing -> list<string> {
+    ^flatpak list --user --app --columns=application | lines | str trim | where $it != ""
+}
+
+def nix-installed []: nothing -> list<string> {
+    ^nix ...$NIX_FLAGS profile list --json | from json | get elements | columns
+}
+
+# An incomplete run removes nothing but still records what it installed, so undeclaring it later counts as dropped.
+def ledger-record [kind: string, declared: list<string>, installed: list<string>]: nothing -> nothing {
+    ledger-set $kind (ledger-get $kind | append ($declared | where $it in $installed))
+}
+
+# What the kind's installed closure lists, null when its tool is absent or its query fails (failed, or warned
+# --read-only; nothing removed).
+def user-installed [kind: string, installed: closure, --read-only]: nothing -> any {
+    if (which $kind | is-empty) { return null }
+    try { do $installed } catch {|e|
+        let message = $"($kind): listing installed packages: ($e.msg)"
+        if $read_only { log-warn $message } else { fail $message }
+        null
     }
-    if ($declared.nix | is-not-empty) and (which nix | is-not-empty) {
-        let nix = [--extra-experimental-features "nix-command flakes"]
-        let missing = $declared.nix | where $it not-in (^nix ...$nix profile list --json | from json | get elements | columns)
-        if ($missing | is-not-empty) {
-            try { ^nix ...$nix profile add ...($missing | each { $"($NIXPKGS)#($in)" }) } catch { fail $"nix profile add ($missing | str join ' ')" }
+}
+
+# Flatpak apps and nix packages apply --packages offers to remove: recorded and no longer declared (dropped), installed
+# by hand and in no keep list (by_hand).
+export def user-packages-undeclared [declared: record, platform: record]: nothing -> record {
+    let none = {dropped: [], by_hand: []}
+    with-env {DOT_LAYER: user} {
+        let flatpaks = user-installed flatpak { flatpak-installed } --read-only
+        let nix = user-installed nix { nix-installed } --read-only
+        {
+            flatpak: (if $flatpaks == null { $none } else { ledger-diff (ledger-get flatpak) ($declared.flatpak | columns) $flatpaks $platform.flatpak_keep })
+            nix: (if $nix == null { $none } else { ledger-diff (ledger-get nix) $declared.nix $nix $platform.nix_keep })
         }
     }
 }
 
-export def --env install-run [user: bool, yes: bool]: nothing -> int {
+def install-user [declared: record, platform: record, yes: bool, offer_by_hand: bool]: nothing -> nothing {
+    if (which rustup | is-not-empty) { try { ^rustup default stable } catch { fail "rustup default stable" } }
+    let complete = $declared.incomplete | is-empty
+    if not $complete { fail $"ledger: not removing undeclared flatpak and nix packages, these modules declare none: ($declared.incomplete | str join ' ')" }
+    let apps = $declared.flatpak | transpose app commit
+    if (which flatpak | is-not-empty) {
+        let exports = [($nu.home-dir | path join $FLATPAK_USER_EXPORTS) $FLATPAK_SYSTEM_EXPORTS]
+        let dirs = $exports ++ ($env.XDG_DATA_DIRS? | default $DATA_DIRS_DEFAULT | split row ":") | uniq | str join ":"
+        with-env {XDG_DATA_DIRS: $dirs} {
+            if ($apps | is-not-empty) {
+                if (^flatpak remote-add --user --if-not-exists flathub $FLATHUB | complete).exit_code != 0 {
+                    fail "flatpak remote-add --user flathub"
+                } else {
+                    let deployed = {|app| ^flatpak info --user --show-commit $app | complete | if $in.exit_code == 0 { $in.stdout | str trim } else { "" } }
+                    for a in $apps {
+                        if not ($a.commit =~ '^[0-9a-f]{64}$') { fail $"flatpak ($a.app): no pinned commit"; continue }
+                        let now = do $deployed $a.app
+                        if $now != $a.commit {
+                            if $a.app in (^flatpak mask --user | lines | str trim) { ^flatpak mask --user --remove $a.app }
+                            if $now == "" and (try { ^flatpak install --user --noninteractive flathub $a.app; false } catch { true }) { fail $"flatpak install --user ($a.app)"; continue }
+                            try { ^flatpak update --user --noninteractive $"--commit=($a.commit)" $a.app } catch { fail $"flatpak update --user --commit=($a.commit) ($a.app)" }
+                        }
+                        try { ^flatpak mask --user $a.app } catch { fail $"flatpak mask --user ($a.app)" }
+                    }
+                }
+            }
+            let installed = user-installed flatpak { flatpak-installed }
+            if $installed != null {
+                if not $complete { ledger-record flatpak ($declared.flatpak | columns) $installed } else {
+                    ledger-remove flatpak ($declared.flatpak | columns) $installed $platform.flatpak_keep $yes --offer-by-hand=$offer_by_hand {|dropped|
+                        let masked = ^flatpak mask --user | lines | str trim
+                        $dropped | where $it in $masked | each { ^flatpak mask --user --remove $in } | ignore
+                        ^flatpak uninstall --user --noninteractive ...$dropped
+                        ^flatpak uninstall --user --noninteractive --unused
+                    }
+                }
+            }
+        }
+    }
+    let before = user-installed nix { nix-installed }
+    if $before != null {
+        let missing = $declared.nix | where $it not-in $before
+        if ($missing | is-not-empty) {
+            try { ^nix ...$NIX_FLAGS profile add ...($missing | each { $"($NIXPKGS)#($in)" }) } catch { fail $"nix profile add ($missing | str join ' ')" }
+        }
+        let installed = if ($missing | is-empty) { $before } else { user-installed nix { nix-installed } }
+        if $installed != null {
+            if not $complete { ledger-record nix $declared.nix $installed } else {
+                ledger-remove nix $declared.nix $installed $platform.nix_keep $yes --offer-by-hand=$offer_by_hand {|dropped|
+                    ^nix ...$NIX_FLAGS profile remove ...$dropped
+                }
+            }
+        }
+    }
+}
+
+export def --env install-run [user: bool, yes: bool, offer_by_hand: bool]: nothing -> int {
     let system = not $user and (system-allowed)
     if not $user and not $system and (admin) { system-skipped "packages" false }
     failures-begin ($env.DOT_RUN_FILE | str replace ".jsonl" ".install-failures")
     if $system {
-        let status = system-run install
+        let status = system-run install --yes=$yes
         if $status == $EXIT_ABORTED {
             fail "system layer: install aborted"
             $"(failures-take)\n" | save --force ($REPO | path join $FAILURES_INSTALL)
@@ -295,7 +357,7 @@ export def --env install-run [user: bool, yes: bool]: nothing -> int {
         if $status != 0 { system-failed install }
     }
     let ctx = pipeline-load $REPO user
-    install-user (modules-packages $REPO $ctx.modules $ctx.platform)
+    install-user (modules-packages $REPO $ctx.modules $ctx.platform) $ctx.platform $yes $offer_by_hand
     if $system {
         try { ^sudo ($SYSTEM_REPO | path join $ENTRY) packages --unattended=($env.DOTFILES_UNATTENDED? == "1") ...(if $yes { [--yes] } else { [] }) } catch {|e| interrupted-exit ($e.exit_code? | default 1); fail "system layer: removing undeclared packages" }
     }
@@ -311,7 +373,7 @@ export def pending-file []: nothing -> path {
 }
 
 export def --env system-part [target: string]: nothing -> nothing {
-    let tty = (^test -t 0 | complete).exit_code == 0
+    let tty = is-terminal --stdin
     let graphical = ($env.WAYLAND_DISPLAY? | is-not-empty) or ($env.DISPLAY? | is-not-empty)
     let runner = if $env.DOT_SYSTEM? == "skip" { null } else if $tty { "sudo" } else if $graphical and (which pkexec | is-not-empty) { "pkexec" } else { null }
     let ok = $runner != null and (with-env {DOTFILES_ROOT_RUNNER: $runner} { system-run config }) == 0
@@ -324,7 +386,7 @@ export def --env system-part [target: string]: nothing -> nothing {
 export def --env update-run [yes: bool]: nothing -> record {
     sync-pull $REPO
     migrations-run $REPO user | ignore
-    let install = install-run false $yes
+    let install = install-run false $yes false
     if $install == $EXIT_ABORTED { exit $EXIT_ABORTED }
     if (system-allowed) {
         try { ^sudo ($SYSTEM_REPO | path join $ENTRY) migrate } catch {|e| interrupted-exit ($e.exit_code? | default 1); fail "system layer: migrations" }
@@ -344,7 +406,7 @@ export def managed-drift []: nothing -> table {
             let obs = $seen.paths | get --optional $o.target
             let state = match $o.kind {
                 "file" => (output-file-state $o $obs $REPO ($written | get --optional $o.target))
-                "link" => (if $obs.link? != $o.source { "relinked" } else { null })
+                "link" => (if ($obs.type? | default "") == "" { "missing" } else if $obs.link != $o.source { "relinked" } else { null })
                 "unit" => {
                     let now = $seen.units | get --optional $o.target
                     let held = match ($o.state? | default enabled) { "disabled" => ($now != "enabled"), $want => ($now == $want) }

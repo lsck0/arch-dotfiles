@@ -1,6 +1,5 @@
 # managed by arch-dotfiles/apparmor
-owner @{HOME}/projects/arch-dotfiles/configs/desktop/qutebrowser/config.py r,
-owner @{user_cache_dirs}/wal/{colors,font}.json r,
+owner @{user_cache_dirs}/wal/{colors,font,qutebrowser-colors}.json r,
 owner @{user_share_dirs}/weblinks/links.js r,
 owner @{HOME}/{projects/arch-dotfiles,sync}/wallpapers/** r,
 deny @{user_config_dirs}/chromium/{,**} r,

@@ -70,8 +70,8 @@ building on either.
   spec is the contract they signed, so the only thing that brings them
   back is a change to it (Phase loop, step 2).
 
-Both modes share the stages, the phase rules, the trace and the GitHub
-rules ([references/trace-and-github.md](references/trace-and-github.md)). The agent never merges a spec PR: that merge is the
+Both modes share the stages, the phase rules, the trace and the GitHub rules
+([references/trace-and-github.md](references/trace-and-github.md)). The agent never merges a spec PR: that merge is the
 sign-off. In led mode the human merges every PR.
 
 **Merge policy.** The project's `AGENTS.md` states who merges phase PRs:
@@ -83,10 +83,20 @@ for it). No line means `human`.
 
 The stages below produce a spec and then build it. How the building is shaped depends on where the project is:
 
-- **Incremental** (the default once anything must keep working): one capability at a time, each landing as its own revertible phase PR that leaves the system running (Phase loop, Phase rules). This is the shape for a live codebase, a shared repo, or anything past its MVP.
-- **Whole-project, the pottery shape** (greenfield, pre-MVP, one owner): write one spec that encompasses the whole project up front, then throw the whole thing on the wheel. Implement every feature in a broad, deliberately rough first pass that need not keep anything running or revert cleanly, getting the full shape into existence. Then converge it by repetition: iterate, benchmark, test, refine, and again, shaving and perfecting pass after pass until it holds. Quality here comes from the refinement cycles, not from each step being final. This is why the pre-MVP git exemption exists (`l-style-tooling`, Git): the rough pass is allowed to be messy history. The moment the project has something worth keeping running, it graduates to the incremental shape, and the phase rules apply from then on.
+- **Incremental** (the default once anything must keep working): one capability at a time, each landing as its own
+  revertible phase PR that leaves the system running (Phase loop, Phase rules). This is the shape for a live codebase, a
+  shared repo, or anything past its MVP.
+- **Whole-project, the pottery shape** (greenfield, pre-MVP, one owner): write one spec that encompasses the whole
+  project up front, then throw the whole thing on the wheel. Implement every feature in a broad, deliberately rough
+  first pass that need not keep anything running or revert cleanly, getting the full shape into existence. Then converge
+  it by repetition: iterate, benchmark, test, refine, and again, shaving and perfecting pass after pass until it holds.
+  Quality here comes from the refinement cycles, not from each step being final. This is why the pre-MVP git exemption
+  exists (`l-style-tooling`, Git): the rough pass is allowed to be messy history. The moment the project has something
+  worth keeping running, it graduates to the incremental shape, and the phase rules apply from then on.
 
-Both shapes use the same spec corpus and the same stages; they differ only in whether the roadmap is built one revertible phase at a time or thrown whole and then refined. Pick the shape that fits the project's stage, and say which one when it is not obvious.
+Both shapes use the same spec corpus and the same stages; they differ only in whether the roadmap is built one
+revertible phase at a time or thrown whole and then refined. Pick the shape that fits the project's stage, and say which
+one when it is not obvious.
 
 ## Stages (drop what a small task doesn't need, keep the order)
 

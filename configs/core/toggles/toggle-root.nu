@@ -5,6 +5,8 @@ const PERSONA_LOCKDOWN = "/run/persona-lockdown"
 const WG_INTERFACE = "wg0"
 const WG_CONFIG = "/etc/wireguard/wg0.conf"
 const PERSONA_DISPATCHER = "/etc/NetworkManager/dispatcher.d/90-anonymous-persona"
+const HOME_NETWORK = "/run/home-network"
+const PORTAL_UNIT = "persona-portal"
 const NFT_TABLE = "anonymous_socks"
 const PERSONA_CHAIN = "ANONSOCKS_PERSONA"
 const TLP_MODES = [balanced performance power-saver]
@@ -15,7 +17,7 @@ const PORT_MAX = 65535
 const POOL_SIZE_MAX = 999
 
 def usage []: nothing -> nothing {
-    print -e "usage: toggle-root {tlp MODE|start|wg up|down|vllm on|off|firewall STATE|anonsocks VERB...}"
+    print -e "usage: toggle-root {tlp MODE|start|wg up|down|vllm on|off|firewall STATE|portal on|off|anonsocks VERB...}"
     exit 1
 }
 
@@ -38,6 +40,37 @@ def persona-off []: nothing -> nothing {
         }
         ^$ipt -t mangle -F $PERSONA_CHAIN | complete
         ^$ipt -t mangle -X $PERSONA_CHAIN | complete
+    }
+}
+
+# Takes no link from the caller: the dispatcher's own idea of foreign, the connected physical links not home.
+def portal [direction: string]: nothing -> nothing {
+    if not ($PERSONA_DISPATCHER | path exists) {
+        print -e "toggle-root: no persona dispatcher"
+        exit 1
+    }
+    match $direction {
+        on => {
+            let home = if ($HOME_NETWORK | path exists) { open --raw $HOME_NETWORK | lines } else { [] }
+            let links = ^nmcli -t -f DEVICE,STATE device | lines | parse --regex '^(?<dev>[^:]*):(?<state>.*)$'
+                | where {|l| $l.state == connected and $l.dev not-in $home }
+                | where {|l| $"/sys/class/net/($l.dev)/device" | path exists }
+            if ($links | is-empty) {
+                print -e "toggle-root: no foreign link to open a portal on"
+                exit 1
+            }
+            for link in $links { ^$PERSONA_DISPATCHER $link.dev portal }
+        }
+        # the timer's service is the dispatcher's own portal-end, with the link's search domains it saved
+        off => {
+            let timers = ^systemctl list-units --type timer --state active --plain --no-legend $"($PORTAL_UNIT)-*.timer"
+                | lines | parse --regex '^(?<unit>\S+)\.timer' | get unit
+            for unit in $timers {
+                ^systemctl start $"($unit).service"
+                ^systemctl stop $"($unit).timer"
+            }
+        }
+        _ => { usage }
     }
 }
 
@@ -149,6 +182,7 @@ def --wrapped main [...args: string] {
             # the admin chose, so the dispatcher's lockdown marker no longer holds the link
             rm --force $PERSONA_LOCKDOWN
         }
+        [2, "portal"] => { portal $args.1 }
         [_, "anonsocks"] => { anonsocks ($args | skip 1) }
         _ => { usage }
     }

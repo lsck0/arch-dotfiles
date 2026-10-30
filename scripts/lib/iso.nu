@@ -1,6 +1,8 @@
 # The install iso: releng plus mirror/iso and the [lsck0] repo; the stub verifies master at install.
 
 use log.nu *
+use state.nu [xdg]
+use sync.nu [bootstrap-const FINGERPRINT_VALUE]
 
 const REPO = path self ../..
 const RELENG = "/usr/share/archiso/configs/releng"
@@ -11,25 +13,20 @@ const LSCK0_KEY = "configs/base/pacman/archrepo.asc"
 const LSCK0_SECTION = "[lsck0]"
 const KEYRING_DIR = "usr/share/pacman/keyrings"
 const TRUST_DIR = "usr/share/lsck0"
-const BOOTSTRAP = "bootstrap.sh"
 const ISO_NAME = "archlinux-lsck0"
 const ISO_ARCH = "x86_64"
 const ISO_LATEST = $"($ISO_NAME)-latest-($ISO_ARCH).iso"
 const ISO_PATTERN = '^archlinux-lsck0-\d{4}\.\d{2}\.\d{2}-x86_64\.iso$'
-const WORK_DEFAULT = ".cache/dotfiles-iso"
+const WORK_DEFAULT = "dotfiles-iso"
 
 def --wrapped as-root [...argv: string]: nothing -> nothing {
     if (is-admin) { run-external ...$argv } else { run-external sudo ...$argv }
 }
 
-def bootstrap-const [name: string]: nothing -> string {
-    open --raw ($REPO | path join $BOOTSTRAP) | parse --regex ('(?m)^' + $name + '=(?<v>\S+)$') | get 0.v
-}
-
 def trust-write [dir: path]: nothing -> nothing {
     mkdir $dir
-    cp ($REPO | path join (bootstrap-const SIGNING_KEY_FILE)) ($dir | path join signing-key.asc)
-    {url: (bootstrap-const DOTFILES_URL), fingerprint: (bootstrap-const SIGNING_KEY_FINGERPRINT)} | to nuon | save --force ($dir | path join trust.nuon)
+    cp ($REPO | path join (bootstrap-const $REPO SIGNING_KEY_FILE)) ($dir | path join signing-key.asc)
+    {url: (bootstrap-const $REPO DOTFILES_URL), fingerprint: (bootstrap-const $REPO SIGNING_KEY_FINGERPRINT $FINGERPRINT_VALUE)} | to nuon | save --force ($dir | path join trust.nuon)
 }
 
 def keyring-write [dir: path]: nothing -> nothing {
@@ -102,7 +99,7 @@ def outputs-publish [built: path, out: path, keep: int, sign: any]: nothing -> l
 # Builds the iso into out (default <work>/out), keeping the newest keep; sign is a gpg key or null.
 export def iso-build [out: any, work: any, mirror: any, sign: any, keep: int]: nothing -> nothing {
     if (which mkarchiso | is-empty) { error make {msg: "iso: mkarchiso missing (pacman -S archiso, declared by qemu/libvirt)"} }
-    let work = $work | default $env.DOT_ISO_WORK? | default ($nu.home-dir | path join $WORK_DEFAULT) | path expand
+    let work = $work | default $env.DOT_ISO_WORK? | default (xdg cache $WORK_DEFAULT) | path expand
     let out = $out | default ($work | path join out) | path expand
     let profile = $work | path join profile
     let build = $work | path join build

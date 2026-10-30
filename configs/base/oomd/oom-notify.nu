@@ -21,6 +21,6 @@ def main []: nothing -> nothing {
             "kernel OOM killer, last resort"
         }
         let message = $entry.MESSAGE? | if ($in | describe) == string { $in } else { "OOM kill event" }
-        ^notify-send -u critical -a "OOM Killer" -- $"Killed: ($unit)" $"($message) \(($source)\)"
+        ^notify-send -u critical -a oomd -- $"Killed: ($unit)" $"($message) \(($source)\)"
     }
 }

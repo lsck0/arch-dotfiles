@@ -1,7 +1,0 @@
-# managed by arch-dotfiles/apparmor
-
-  abi <abi/4.0>,
-
-  owner @{HOME}/projects/arch-dotfiles/configs/desktop/gtk/gtk.css r,
-
-  include if exists <abstractions/dotfiles/gtk-theme.d>

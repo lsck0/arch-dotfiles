@@ -1,11 +1,10 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const REPO = path self | path expand | path dirname | path join ../../.. | path expand
+# spotify_player hardcodes ~/.cache, ignoring XDG_CACHE_HOME
 const SPOTIFY_DIR = ".cache/spotify-player"
 const SPOTIFY_KEEP = 3
 const LOG_AGE_MAX = 14day
 const LOG_EXTENSIONS = [log backtrace txt]
-const INSTALL_LOG_SIZE_MAX = 2MiB
 const APP_LOGS = [
     [dir process];
     [.xlcore/logs XIVLauncher]
@@ -32,13 +31,6 @@ def main []: nothing -> nothing {
     }
     for app in ($APP_LOGS | where not (app-running $it.process)) {
         logs-in $app.dir $LOG_EXTENSIONS | where modified < ((date now) - $LOG_AGE_MAX) | each { rm $in.name } | ignore
-    }
-    let install_log = $REPO | path join install.log
-    let size = if ($install_log | path exists) { ls $install_log | get 0.size } else { 0B }
-    if $size > $INSTALL_LOG_SIZE_MAX {
-        open --raw $install_log | into binary | bytes at ($size - $INSTALL_LOG_SIZE_MAX | into int)..
-        | save --force $"($install_log).new"
-        mv --force $"($install_log).new" $install_log
     }
     # clear the failed state of user units so an old failure does not mask a fresh one
     ^systemctl --user reset-failed | complete | ignore

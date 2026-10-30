@@ -46,6 +46,8 @@ Item {
 
   readonly property string dot: Paths.home + "/.local/bin/dot"
   readonly property var sections: Schema.sections(modules, toggles, query, dotStatus)
+  // room beside each list for its scroll bar, kept when the list fits so the rows never jump
+  readonly property int barGutter: Style.spacing.xs + Style.spacing.xxs * 3
   readonly property var section: sections[Math.min(sectionIndex, sections.length - 1)] || null
   readonly property var rows: Schema.rows(modules, toggles, section ? section.id : "", query, dotStatus)
   readonly property var cursorRow: rowIndex >= 0 && rowIndex < rows.length ? rows[rowIndex] : null
@@ -55,7 +57,7 @@ Item {
   readonly property string queuedNeeds: Schema.strongestApply(queued.map(function (id) { return root.pending[id].option }))
 
   readonly property var hints: {
-    var out = [["TYPE", root.expandedId ? "filter" : "search"], ["TAB", "pane"], ["ENTER", "edit"], ["LEFT/RIGHT", "change"],
+    var out = [["TYPE", root.expandedId ? "filter" : "search"], ["TAB", "pane"], ["ENTER", "edit"], ["</>", "change"],
       ["CTRL+R", "reset"]]
     if (cursorRow && cursorRow.kind === "option" && cursorRow.option.type === "path") out.push(["CTRL+O", "browse"])
     if (queued.length > 0) out.push(["CTRL+S", "apply"], ["CTRL+Z", "revert"])
@@ -116,7 +118,7 @@ Item {
     root.sectionIndex = next
     root.expandedId = ""
     root.selectRow(Schema.selectable(root.rows, 0, 1))
-    sectionList.positionViewAtIndex(root.sectionIndex, ListView.Contain)
+    root.reveal(sectionList, sectionFade, root.sectionIndex)
   }
 
   function enterSection(index) {
@@ -128,7 +130,16 @@ Item {
   function selectRow(index) {
     if (index < 0) { root.rowIndex = Schema.selectable(root.rows, 0, 1); return }
     root.rowIndex = index
-    rowList.positionViewAtIndex(index, ListView.Contain)
+    root.reveal(rowList, rowFade, index)
+  }
+
+  // the overflow fade covers the bottom row: scroll the cursor row above it, unless that runs past the end
+  function reveal(list, fade, index) {
+    list.positionViewAtIndex(index, ListView.Contain)
+    var item = list.itemAtIndex(index)
+    if (!item || !fade.overflows) return
+    var over = item.y + item.height - (list.contentY + list.height - fade.reach)
+    if (over > 0) list.contentY = Math.min(list.contentY + over, list.originY + list.contentHeight - list.height)
   }
 
   function moveRow(delta) {
@@ -484,7 +495,7 @@ Item {
       else root.selectRow(root.rowIndex)
       var at = root.sections[root.sectionIndex]
       if (at && at.kind === "header") root.selectSection(root.sectionIndex)
-      else sectionList.positionViewAtIndex(root.sectionIndex, ListView.Contain)
+      else root.reveal(sectionList, sectionFade, root.sectionIndex)
     }
   }
 
@@ -536,7 +547,11 @@ Item {
     command: [root.dot, "status", "--json"]
     onParsed: function (data) {
       if (Schema.equal(data, root.dotStatus)) return
+      // the first answer adds the System section, which would shift the cursor onto the section above it
+      var id = root.section ? root.section.id : ""
       root.dotStatus = data
+      var at = root.sections.findIndex(function (s) { return s.id === id })
+      if (at >= 0) root.sectionIndex = at
       if (root.rowIndex < 0 || root.rowIndex >= root.rows.length) root.selectRow(Schema.selectable(root.rows, 0, 1))
     }
   }
@@ -581,6 +596,64 @@ Item {
     function close(): string { root.close(); return "ok" }
   }
 
+  // an overflowing list keeps its bar on screen at rest, not only while it scrolls. It sits in the gutter beside
+  // the list, out of its faded layer and clear of the cursor row
+  component ListScrollBar: ScrollBar {
+    id: scrollBar
+    required property ListView list
+
+    parent: list.parent
+    anchors.top: list.top
+    anchors.bottom: list.bottom
+    anchors.left: list.right
+    anchors.leftMargin: Style.spacing.xxs
+    policy: size < 1 ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+    padding: Style.spacing.xxs
+    minimumSize: 0.1
+    background: Rectangle {
+      implicitWidth: Style.spacing.xs + Style.spacing.xxs * 2
+      radius: width / 2
+      color: Util.alpha(Colors.menu.text, Style.hoverFillAlpha)
+    }
+    contentItem: Rectangle {
+      implicitWidth: Style.spacing.xs
+      radius: width / 2
+      color: scrollBar.active || scrollBar.hovered ? Colors.menu.text : Colors.textDim
+    }
+  }
+
+  // alpha mask fading the last visible row of an overflowing list until it reaches its end
+  component ListFade: Item {
+    id: fade
+    required property ListView list
+    readonly property bool overflows: list.contentHeight > list.height + 1
+    readonly property real reach: Style.row.list
+    property real strength: list.atYEnd ? 0 : 1
+
+    anchors.fill: list
+    visible: false
+    layer.enabled: overflows
+    Behavior on strength { NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
+
+    Rectangle {
+      anchors.fill: parent
+      gradient: Gradient {
+        GradientStop { position: 0.0; color: "black" }
+        GradientStop { position: Math.max(0, 1 - fade.reach / Math.max(1, fade.height)); color: "black" }
+        GradientStop { position: 1.0; color: Util.alpha("black", 1 - 0.95 * fade.strength) }
+      }
+    }
+  }
+
+  // a list masked by its ListFade while it overflows
+  component FadedList: ListView {
+    id: fadedList
+    required property ListFade fade
+
+    layer.enabled: fade.overflows
+    layer.effect: FadeMask { maskSource: fadedList.fade }
+  }
+
   OverlayCard {
     id: panel
     open: root.opened && !root.picking
@@ -603,17 +676,18 @@ Item {
       Keys.priority: Keys.BeforeItem
       Keys.onPressed: function (event) { event.accepted = root.handleKey(event.key, event.text, event.modifiers) }
 
-      ListView {
+      FadedList {
         id: sectionList
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.left: parent.left
-        width: Style.space(200)
+        width: Style.space(200) - root.barGutter
         model: root.sections
         clip: true
         spacing: Style.spacing.xxs
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+        ScrollBar.vertical: ListScrollBar { list: sectionList }
+        fade: sectionFade
 
         delegate: Rectangle {
           id: sectionRow
@@ -634,6 +708,13 @@ Item {
           color: header ? "transparent" : hasCursor ? Colors.menu.selectedBackground
             : current || sectionMouse.containsMouse ? Style.hoverFill : "transparent"
 
+          Rectangle {
+            visible: sectionRow.current
+            width: Style.selectedBorderWidth
+            height: parent.height
+            color: Style.selectedMarkColor(Colors.menu.text, Colors.accent)
+          }
+
           Text {
             anchors.left: parent.left
             anchors.leftMargin: Style.spacing.md
@@ -644,8 +725,7 @@ Item {
             textFormat: Text.PlainText
             text: sectionRow.header ? sectionRow.modelData.label.toUpperCase()
               : (sectionRow.hasCursor ? "> " : "") + sectionRow.modelData.label + (sectionRow.hasPending ? " *" : "")
-            color: sectionRow.header ? Colors.accent : sectionRow.current ? Colors.menu.selectedText : Colors.menu.text
-            opacity: sectionRow.header ? Style.emphasis.faint : 1
+            color: sectionRow.header ? Colors.textDim : sectionRow.current ? Colors.menu.selectedText : Colors.menu.text
             font.family: Style.font.family
             font.pixelSize: sectionRow.header ? Style.font.caption : Style.font.body
             font.bold: sectionRow.current || sectionRow.header
@@ -661,8 +741,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             textFormat: Text.PlainText
             text: String(sectionRow.modelData.count)
-            color: Colors.menu.text
-            opacity: Style.emphasis.faint
+            color: Colors.textDim
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
           }
@@ -678,12 +757,17 @@ Item {
         }
       }
 
+      ListFade {
+        id: sectionFade
+        list: sectionList
+      }
+
       Rectangle {
         id: divider
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.left: sectionList.right
-        anchors.leftMargin: Style.spacing.md
+        anchors.leftMargin: root.barGutter + Style.spacing.md
         width: Style.normalBorderWidth
         color: Util.alpha(Colors.menu.border, 0.28)
       }
@@ -704,23 +788,26 @@ Item {
           visible: text !== ""
           textFormat: Text.PlainText
           text: root.loadError ? "x " + root.loadError : ""
-          color: Colors.urgent
+          color: Colors.urgentText
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
           wrapMode: Text.Wrap
         }
 
-        ListView {
+        FadedList {
           id: rowList
           anchors.top: sourceLine.visible ? sourceLine.bottom : parent.top
           anchors.left: parent.left
           anchors.right: parent.right
+          anchors.rightMargin: root.barGutter
           anchors.bottom: pendingBar.top
           anchors.bottomMargin: pendingBar.visible ? Style.spacing.sm : 0
           model: root.rows
           clip: true
           spacing: Style.spacing.xxs
           boundsBehavior: Flickable.StopAtBounds
+          ScrollBar.vertical: ListScrollBar { list: rowList }
+          fade: rowFade
 
           delegate: Item {
             id: slot
@@ -792,8 +879,8 @@ Item {
                   anchors.rightMargin: Style.spacing.md
                   anchors.verticalCenter: parent.verticalCenter
                   textFormat: Text.PlainText
-                  text: parent.busy ? "..." : "[" + parent.toggle.text + "]"
-                  color: Colors.accent
+                  text: parent.busy ? "..." : "[" + String(parent.toggle.text).toLowerCase() + "]"
+                  color: parent.toggle.state === "error" ? Colors.urgentText : Colors.accentText
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
                   font.bold: true
@@ -817,9 +904,9 @@ Item {
               id: checkRow
               Rectangle {
                 readonly property var check: slot.modelData
-                readonly property color levelColor: check.level === "FAIL" ? Colors.urgent
-                  : check.level === "WARN" || check.level === "pending" ? Colors.warn
-                  : check.level === "ok" ? Colors.ok : Colors.accent
+                readonly property color levelColor: check.level === "FAIL" ? Colors.urgentText
+                  : check.level === "WARN" || check.level === "pending" ? Colors.warnText
+                  : check.level === "ok" ? Colors.okText : Colors.accentText
 
                 implicitHeight: Math.max(Style.row.list, checkText.implicitHeight + Style.spacing.sm * 2)
                 radius: Style.shape.data
@@ -833,7 +920,7 @@ Item {
                   anchors.topMargin: Style.spacing.sm
                   width: Style.space(70)
                   textFormat: Text.PlainText
-                  text: (slot.hasCursor ? "> " : "  ") + "[" + parent.check.level + "]"
+                  text: (slot.hasCursor ? "> " : "  ") + "[" + parent.check.level.toLowerCase() + "]"
                   color: parent.levelColor
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
@@ -905,7 +992,7 @@ Item {
                   anchors.top: driftColumn.top
                   textFormat: Text.PlainText
                   text: slot.hasCursor ? "> " : "  "
-                  color: Colors.menu.selectedText
+                  color: Colors.accentText
                   font.family: Style.font.family
                   font.pixelSize: Style.font.body
                 }
@@ -937,11 +1024,10 @@ Item {
                     textFormat: Text.PlainText
                     text: drift.confirming
                       ? "reset puts the repo's copy of only this file back, your edit is kept aside in dot's preserved/;"
-                        + " enter again to reset, esc keeps it"
+                        + " ENTER again to reset, ESC keeps it"
                       : drift.entry.module + ", " + drift.entry.drift + ": adopt carries the edit into the repo, reset puts the repo's "
                         + "copy of this file back"
-                    color: drift.confirming ? Colors.warn : Colors.menu.text
-                    opacity: drift.confirming ? 1 : Style.emphasis.faint
+                    color: drift.confirming ? Colors.warnText : Colors.textDim
                     font.family: Style.font.family
                     font.pixelSize: Style.font.caption
                     wrapMode: Text.Wrap
@@ -1013,11 +1099,15 @@ Item {
             visible: root.rows.length === 0
             textFormat: Text.PlainText
             text: !root.loaded && !root.loadError ? "> LOADING" : root.query ? "> NO MATCH" : "> NOTHING HERE"
-            color: Colors.menu.text
-            opacity: Style.emphasis.dim
+            color: Colors.textDim
             font.family: Style.font.family
             font.pixelSize: Style.font.body
           }
+        }
+
+        ListFade {
+          id: rowFade
+          list: rowList
         }
 
         Column {
@@ -1043,7 +1133,7 @@ Item {
               textFormat: Text.PlainText
               text: root.queued.length + (root.queued.length === 1 ? " change" : " changes") + " pending"
                 + (root.queuedNeeds ? ", needs " + root.queuedNeeds : "")
-              color: Colors.accent2
+              color: Colors.accent2Text
               font.family: Style.font.family
               font.pixelSize: Style.font.body
               elide: Text.ElideRight
@@ -1083,7 +1173,7 @@ Item {
               anchors.verticalCenter: parent.verticalCenter
               textFormat: Text.PlainText
               text: "saved, the system part needs apply"
-              color: Colors.warn
+              color: Colors.warnText
               font.family: Style.font.family
               font.pixelSize: Style.font.body
               elide: Text.ElideRight
@@ -1105,7 +1195,7 @@ Item {
             visible: root.notice !== ""
             textFormat: Text.PlainText
             text: root.notice
-            color: root.noticeIsError ? Colors.urgent : Colors.ok
+            color: root.noticeIsError ? Colors.urgentText : Colors.okText
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             wrapMode: Text.Wrap

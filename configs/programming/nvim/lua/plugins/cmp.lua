@@ -15,7 +15,7 @@ return {
 
                     local Rule = require("nvim-autopairs.rule")
                     local cond = require("nvim-autopairs.conds")
-                    local tex_ft = { "tex", "latex", "markdown" }
+                    local tex_ft = { "tex", "plaintex", "markdown" }
                     npairs.add_rules({
                         Rule("$", "$", tex_ft):with_pair(cond.not_after_regex("[%w]")),
                         Rule("\\(", "\\)", tex_ft),

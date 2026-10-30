@@ -72,8 +72,8 @@ Item {
     title: "session"
     suffix: root.userName.length > 0 ? "@" + root.userName : ""
     hints: root.pendingAction
-      ? [["Y ENTER", "confirm"], ["N ESC", "cancel"]]
-      : [["< >", "select"], ["ENTER", "run"], ["L E H S R F", "direct"], ["ESC", "close"]]
+      ? [["Y/ENTER", "confirm"], ["N/ESC", "cancel"]]
+      : [["</>", "select"], ["ENTER", "run"], ["L/E/H/S/R/F", "direct"], ["ESC", "close"]]
     cardWidth: actionRow.implicitWidth + chromeWidth
     cardHeight: actionRow.implicitHeight + confirmLine.height + Style.spacing.sm + chromeHeight
     onDismissed: root.close()
@@ -157,7 +157,7 @@ Item {
               textFormat: Text.PlainText
               anchors.horizontalCenter: parent.horizontalCenter
               text: tile.modelData.label
-              color: tile.selected ? tile.tint : Colors.menu.text
+              color: Colors.menu.text
               font.family: Style.font.family
               font.pixelSize: Style.font.body
               font.capitalization: Font.AllUppercase
@@ -172,8 +172,7 @@ Item {
             anchors.leftMargin: Style.spacing.xs
             textFormat: Text.PlainText
             text: "[" + tile.modelData.hotkey + "]"
-            color: tile.selected ? tile.tint : Colors.menu.text
-            opacity: tile.selected ? Style.emphasis.strong : Style.emphasis.faint
+            color: tile.selected ? Colors.menu.text : Colors.textDim
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             font.letterSpacing: Style.headerTracking
@@ -204,7 +203,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         textFormat: Text.PlainText
         text: root.pendingAction ? "> " + root.pendingAction.label.toUpperCase() + "? [Y/n]" : ""
-        color: Colors.urgent
+        color: Colors.urgentText
         font.family: Style.font.family
         font.pixelSize: Style.font.body
         font.bold: true
@@ -216,7 +215,7 @@ Item {
         prompt: true
         running: root.pendingAction !== null
         size: Style.font.body
-        color: Colors.urgent
+        color: Colors.urgentText
       }
     }
   }

@@ -1,0 +1,2 @@
+core                              # wallust palette.nu and font.nu, trash
+latex                             # sioyek's synctex-edit

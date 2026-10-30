@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# the server takes no socket path for a host: scram over 127.0.0.1 with a per-machine password in ~/.pgpass
+# the server takes no socket path for a host: scram over 127.0.0.1 with a per-machine password in PGPASSFILE
 
 const HOST = "127.0.0.1"
 const PORT = 5432
@@ -15,6 +15,7 @@ def main []: nothing -> nothing {
     let prefix = $"($HOST):($PORT):*:($env.USER):"
     load-env {
         PGHOST: $HOST, PGPORT: ($PORT | into string), PGUSER: $env.USER, PGDATABASE: $env.USER, PGSSLMODE: disable
+        PGPASSFILE: $pgpass
     }
     let entries = if ($pgpass | path exists) { open --raw $pgpass | lines } else { [] }
     if not ($entries | any { str starts-with $prefix }) {
@@ -22,7 +23,7 @@ def main []: nothing -> nothing {
         $"($prefix)(^openssl rand -hex $PASSWORD_BYTES)\n" | save --append $pgpass
     }
     ^chmod 600 $pgpass
-    # a fresh role or ~/.pgpass is out of step: set it over the socket, through stdin so it stays out of ps
+    # a fresh role or PGPASSFILE is out of step: set it over the socket, through stdin so it stays out of ps
     if not (login-works $HOST) and (login-works $SOCKET) {
         let password = open --raw $pgpass | lines | where { str starts-with $prefix } | first
             | str substring ($prefix | str length)..

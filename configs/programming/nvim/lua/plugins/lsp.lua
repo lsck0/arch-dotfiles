@@ -56,6 +56,31 @@ return {
             })
 
             require("mason").setup()
+            -- uv setenv, scoped to installs: the events fire in a fast context and :terminal keeps the system luarocks
+            local registry = require("mason-registry")
+            local luarocks_config = vim.fn.stdpath("config") .. "/luarocks.lua"
+            local installs = 0
+            local saved_config = nil
+            registry:on("package:install:handle", function()
+                if installs == 0 then
+                    saved_config = vim.uv.os_getenv("LUAROCKS_CONFIG")
+                    vim.uv.os_setenv("LUAROCKS_CONFIG", luarocks_config)
+                end
+                installs = installs + 1
+            end)
+            local function install_end()
+                installs = installs - 1
+                assert(installs >= 0, "mason install end without a start")
+                if installs == 0 then
+                    if saved_config then
+                        vim.uv.os_setenv("LUAROCKS_CONFIG", saved_config)
+                    else
+                        vim.uv.os_unsetenv("LUAROCKS_CONFIG")
+                    end
+                end
+            end
+            registry:on("package:install:success", install_end)
+            registry:on("package:install:failed", install_end)
             require("mason-tool-installer").setup({
                 ensure_installed = installed,
                 run_on_start = true,

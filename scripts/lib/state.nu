@@ -9,6 +9,18 @@ export const NU_ROOT = "/usr/bin/nu"
 export const EXIT_ABORTED = 2
 const LOCKED_SCRIPT = path self locked.nu
 
+# A path under an XDG base dir (config, data, cache, state), honoring XDG_*_HOME.
+export def xdg [kind: string, ...parts: string]: nothing -> path {
+    let base = match $kind {
+        config => ($env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config))
+        data => ($env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share))
+        cache => ($env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache))
+        state => ($env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state))
+        _ => (error make {msg: $"xdg: no base dir '($kind)'"})
+    }
+    $base | path join ...$parts
+}
+
 # The running layer's state dir; the system layer's is root's even when a user plans it.
 export def state-dir []: nothing -> path {
     if (is-admin) or ($env.DOT_LAYER? == "system") {
@@ -23,7 +35,7 @@ export def nu-bin []: nothing -> string {
 }
 
 # Runs op of locked.nu under flock on lock: nu holds no fd lock, so the critical section is a process of its own.
-export def state-locked [lock: path, op: string, args: record]: nothing -> nothing {
+export def state-locked [lock: path, op: string, args: record]: nothing -> any {
     mkdir ($lock | path dirname)
     $args | to json --raw | ^flock $lock (nu-bin) --no-config-file --stdin -I $LIB_DIR $LOCKED_SCRIPT $op
 }

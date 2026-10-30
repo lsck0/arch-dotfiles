@@ -10,6 +10,7 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "media"
+  barPriority: 20
   hoverPanel: true
   hoverFill: true
   panelPinOnClick: false
@@ -265,13 +266,6 @@ BarWidget {
       color: root.bar ? root.bar.barForeground : Colors.foreground
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.body
-
-      MouseArea {
-        anchors.fill: parent
-        z: 1
-        cursorShape: Qt.PointingHandCursor
-        onClicked: if (root.player) root.player.togglePlaying()
-      }
     }
 
     Text {
@@ -280,10 +274,9 @@ BarWidget {
       width: Style.space(200)
       elide: Text.ElideRight
       text: root.title + (root.artist ? " :: " + root.artist : "")
-      color: root.bar ? root.bar.barForeground : Colors.foreground
+      color: Colors.textDim
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
-      opacity: Style.emphasis.dim
     }
   }
 
@@ -304,7 +297,6 @@ BarWidget {
     anchorWidget: root
     title: "MEDIA"
     implicitWidth: Style.panelWidth.normal
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
     Loader {
       active: panel.visible && Cava.available
@@ -357,8 +349,7 @@ BarWidget {
             anchors.centerIn: parent
             visible: !art.visible
             text: "\u{f001}"
-            color: Colors.menu.text
-            opacity: Style.emphasis.faint
+            color: Colors.textDim
             font.family: Style.font.iconFamily
             font.pixelSize: Style.font.title
           }
@@ -387,8 +378,7 @@ BarWidget {
             width: parent.width
             textFormat: Text.PlainText
             text: root.artist
-            color: Colors.menu.text
-            opacity: root.artist !== "" ? Style.emphasis.dim : 0
+            color: Colors.textDim
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             elide: Text.ElideRight
@@ -397,8 +387,8 @@ BarWidget {
             width: parent.width
             textFormat: Text.PlainText
             text: root.album
-            color: Colors.menu.text
-            opacity: root.album !== "" ? Style.emphasis.faint : 0
+            color: Colors.textDim
+            opacity: root.album !== "" ? 1 : 0
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             elide: Text.ElideRight
@@ -442,14 +432,14 @@ BarWidget {
           Text {
             width: parent.width / 2
             text: root.player ? Util.clock(seek.dragging ? seek.liveValue : root.player.position) : "0:00"
-            color: Colors.menu.text; opacity: Style.emphasis.dim
+            color: Colors.textDim
             font.family: Style.font.family; font.pixelSize: Style.font.caption
           }
           Text {
             width: parent.width / 2
             horizontalAlignment: Text.AlignRight
             text: root.player ? Util.clock(root.player.length) : "0:00"
-            color: Colors.menu.text; opacity: Style.emphasis.dim
+            color: Colors.textDim
             font.family: Style.font.family; font.pixelSize: Style.font.caption
           }
         }
@@ -468,7 +458,7 @@ BarWidget {
             variant: "icon"
             iconText: "\u{f074}"
             tooltipText: "Shuffle"
-            foreground: root.player && root.player.shuffle ? Colors.accent : Colors.menu.text
+            foreground: root.player && root.player.shuffle ? Colors.accentText : Colors.menu.text
             opacity: root.player && root.player.shuffleSupported ? 1 : 0.3
             enabled: root.player !== null && root.player.shuffleSupported
             fontFamily: Style.font.family
@@ -522,7 +512,7 @@ BarWidget {
               }
             }
             foreground: root.player && root.player.loopState !== MprisLoopState.None
-              ? Colors.accent : Colors.menu.text
+              ? Colors.accentText : Colors.menu.text
             opacity: root.player && root.player.loopSupported ? 1 : 0.3
             enabled: root.player !== null && root.player.loopSupported
             fontFamily: Style.font.family
@@ -624,15 +614,17 @@ BarWidget {
     property int rows: 4
     property real targetWidth: 0
     property real targetHeight: 0
+    readonly property real capLift: 0.35
     readonly property int cellHeight: Math.max(2, Math.floor((targetHeight - (rows - 1)) / rows))
     readonly property int cellWidth: Math.max(2, Math.floor((targetWidth - spacing * (Cava.barCount - 1)) / Cava.barCount))
 
-    function ledColor(frac, valMul, a) {
+    // accent turned along the spectrum, then conditioned against the bar background: lit cells 3:1, the peak cap 4.5:1
+    function ledHue(frac) {
       var c = Colors.accent
       var h = (c.hsvHue < 0 ? 0 : c.hsvHue) + (frac - 0.5) * 0.16
       if (h < 0) h += 1
       else if (h > 1) h -= 1
-      return Qt.hsva(h, c.hsvSaturation, Math.min(1, c.hsvValue * valMul), a)
+      return Qt.hsva(h, c.hsvSaturation, c.hsvValue, 1)
     }
 
     function heightFrac(level) { return Math.min(1, Math.pow(Math.max(0, Math.min(1, level / 100)), 0.5) * 1.4) }
@@ -649,6 +641,8 @@ BarWidget {
         readonly property real lit: spec.heightFrac(Cava.values[sbar.index] || 0) * spec.rows
         readonly property int cap: Math.ceil(spec.heightFrac(Cava.peaks[sbar.index] || 0) * spec.rows)
         readonly property real frac: Cava.barCount > 1 ? sbar.index / (Cava.barCount - 1) : 0
+        readonly property color litColor: Colors.readable(spec.ledHue(sbar.frac))
+        readonly property color capColor: Colors.textFor(Qt.tint(spec.ledHue(sbar.frac), Util.alpha(Colors.foreground, spec.capLift)))
         spacing: 1
         width: spec.cellWidth
 
@@ -662,9 +656,7 @@ BarWidget {
             width: sbar.width
             height: spec.cellHeight
             antialiasing: false
-            color: sbar.cap === cell.n
-              ? spec.ledColor(sbar.frac, 2.0, 1.0)
-              : spec.ledColor(sbar.frac, 0.7 + cell.on * 0.8, 0.14 + cell.on * 0.86)
+            color: sbar.cap === cell.n ? sbar.capColor : Util.alpha(sbar.litColor, 0.14 + cell.on * 0.86)
           }
         }
       }

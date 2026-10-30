@@ -22,7 +22,8 @@ description: Machine facts in platforms/<name>.nuon versus user capabilities in 
 `platforms/local.nuon`, `platforms/<name>.nuon` for the name in `/etc/dotfiles/platform` (a missing file is an error).
 Keys: `hostname`, `label`, `form_factor` (desktop, laptop, server, vm, wsl; probed when unset), `groups` (entries are
 groups or `group/module`; never `secrets`), `extra_packages` (also in `mirror/packages.txt`), `facts`,
-`packages_keep`. Unknown keys or facts fail the load. `platforms/server.nuon` is the server template.
+`packages_keep`, `flatpak_keep`, `nix_keep` (spared when undeclared packages are removed). Unknown keys or facts fail
+the load. `platforms/server.nuon` is the server template.
 
 ## Add a fact
 

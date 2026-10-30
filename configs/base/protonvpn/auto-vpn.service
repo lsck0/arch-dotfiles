@@ -1,5 +1,7 @@
 [Unit]
 Description=Auto ProtonVPN on untrusted networks
+# not during the install chain: no Proton sign-in and no session yet, so polkit denies the portmaster restore
+ConditionPathExists=!/etc/systemd/system/dotfiles-stage.service
 
 [Service]
 ExecStart=%h/.local/bin/auto-vpn

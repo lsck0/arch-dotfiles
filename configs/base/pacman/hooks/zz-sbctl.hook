@@ -1,0 +1,17 @@
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Target = boot/*
+Target = efi/*
+Target = usr/lib/modules/*/vmlinuz
+Target = usr/lib/modules/*/extramodules/*
+Target = usr/lib/**/efi/*.efi*
+Target = usr/share/**/*.efi*
+
+[Action]
+# shadows sbctl's own hook, which fails every transaction until base/boot/sbctl has created keys
+Description = Signing EFI binaries...
+When = PostTransaction
+Exec = /usr/bin/sh -c '/usr/bin/sbctl status 2>/dev/null | grep -q "Owner GUID" || exit 0; exec /usr/bin/sbctl sign-all -g'

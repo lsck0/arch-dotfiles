@@ -49,7 +49,7 @@ export const options = {
     app_workspaces: {
         type: list<record>
         default: []
-        doc: "Homes for apps by window class: {class, workspace, silent}; silent opens them without focus"
+        doc: "Homes for apps by window class: {class, workspace, silent}; silent opens them without switching to their workspace or focusing them"
         group: display
         scope: user
     }
@@ -81,7 +81,7 @@ export const options = {
 }
 
 const CONFIG_DIR = ".config/hypr"
-const LUA = [
+const CONFIG_FILES = [
     hyprland.lua hyprland_autostart.lua hyprland_cursor.lua hyprland_input.lua hyprland_keybindings.lua
     hyprland_layout.lua hyprland_misc.lua hyprland_monitors.lua hyprland_plugins.lua hyprland_powersave.lua
     hyprland_windowrules.lua hyprland_windows.lua wal_colors.lua hyprlock.conf xdph.conf
@@ -112,18 +112,18 @@ def mode-best [modes: list<string>]: nothing -> string {
     if $best == null { "preferred" } else { $"($best.w)x($best.h)@($best.hz | math round)" }
 }
 
-def scale-for [output: record]: nothing -> float {
+def scale-for [output: record, width: int]: nothing -> float {
     if $output.physicalWidth <= 0 { return 1.0 }
     let target = if $env.FORM_FACTOR == laptop { $TARGET_DPI.laptop } else { $TARGET_DPI.desktop }
-    let wanted = $output.width / ($output.physicalWidth / $MM_PER_INCH) / $target
+    let wanted = $width / ($output.physicalWidth / $MM_PER_INCH) / $target
     $SCALES | sort-by {|s| $s - $wanted | math abs } | first
 }
 
 def monitors-detect []: nothing -> list<record> {
     outputs-live | reduce --fold {x: 0, rows: []} {|o, acc|
-        let scale = scale-for $o
         let mode = mode-best $o.availableModes
         let width = if $mode == "preferred" { $o.width? | default 1920 } else { $mode | split row x | first | into int }
+        let scale = scale-for $o $width
         {
             x: ($acc.x + ($width / $scale | math round))
             rows: ($acc.rows | append {output: $o.name, mode: $mode, position: $"($acc.x)x0", scale: $scale})
@@ -212,7 +212,7 @@ def platform-lua [cfg: record]: nothing -> string {
 export def link [cfg: record] {
     let dir = $nu.home-dir | path join $CONFIG_DIR
     [
-        (files-into $dir ...$LUA)
+        (files-into $dir ...$CONFIG_FILES)
         (glob shaders/* | each {|f| file-copy $f ($dir | path join shaders ($f | path basename)) })
         ($COMMANDS | each {|f| file-copy $f ($dir | path join $f) --mode 755 })
         (file-render hypridle.conf ($dir | path join hypridle.conf) {

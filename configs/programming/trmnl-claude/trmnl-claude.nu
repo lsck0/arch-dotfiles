@@ -17,21 +17,31 @@ const PROJECT_MARKERS = [github gitlab bitbucket repos projects]
 const PRICING = {
     claude-fable-5-1: {input: 10.0, output: 50.0, cache_read: 0.25}
     claude-fable-5: {input: 10.0, output: 50.0, cache_read: 1.00}
+    claude-opus-5-5: {input: 4.0, output: 20.0, cache_read: 0.20}
     claude-opus-5: {input: 5.0, output: 25.0, cache_read: 0.50}
+    claude-opus-4-8: {input: 5.0, output: 25.0, cache_read: 0.50}
+    claude-opus-4-7: {input: 5.0, output: 25.0, cache_read: 0.50}
+    claude-opus-4-6: {input: 5.0, output: 25.0, cache_read: 0.50}
+    claude-sonnet-5-5: {input: 2.0, output: 10.0, cache_read: 0.20}
     claude-sonnet-5: {input: 2.0, output: 10.0, cache_read: 0.20}
     claude-sonnet-4-6: {input: 3.0, output: 15.0, cache_read: 0.30}
+    # a prompt over 100K tokens (input plus cache reads and writes) bills the whole message at the long rate
+    claude-haiku-5-5: {
+        input: 0.10, output: 0.50, cache_read: 0.01
+        long: {above: 100_000, input: 0.50, output: 2.50, cache_read: 0.05}
+    }
     claude-haiku-4-5: {input: 1.0, output: 5.0, cache_read: 0.10}
 }
 const PRICE_DEFAULT = {input: 3.0, output: 15.0, cache_read: 0.30}
 const CACHE_WRITE_5M = 1.25
 const CACHE_WRITE_1H = 2.0
-const MODEL_NAMES = {
-    claude-fable-5-1: Fable, claude-fable-5: Fable, claude-opus-5: Opus, claude-sonnet-5: Sonnet
-    claude-sonnet-4-6: Sonnet, claude-haiku-4-5: Haiku
-}
+# what a family's unlisted versions bill at
+const FAMILY_PRICE = {fable: claude-fable-5, opus: claude-opus-5, sonnet: claude-sonnet-4-6, haiku: claude-haiku-4-5}
 # letter boundaries only: "phi" must not hit claude-delphi, while versions run into names ("qwen3.8-max")
 const ANTHROPIC = '(?<![a-z])(?:fable|opus|sonnet|haiku)(?![a-z])'
 const FOREIGN = '(?<![a-z])(?:gpt|qwen|llama|gemini|mistral|deepseek|grok|kimi|glm|command-r|phi)(?![a-z])'
+# a minor is one or two digits, so a date suffix is not one ("opus-5-20260101")
+const FAMILY_VERSION = '(?<family>fable|opus|sonnet|haiku)(?:-?(?<major>\d{1,2})(?!\d)(?:[.-](?<minor>\d{1,2})\b)?)?'
 
 def sum []: list<number> -> number { reduce --fold 0 {|x, acc| $acc + $x } }
 
@@ -57,22 +67,30 @@ def cost-format [c: float]: nothing -> string {
     } else { $"$($c | into string --decimals (if $c >= 10 { 1 } else { 2 }))" }
 }
 
+# versioned: usage groups by key, so two keys under one name would list that name twice
 def model-key [name: string]: nothing -> any {
     let n = $name | str lowercase
-    if ($n | str contains fable) {
-        if $n =~ 'fable-?5[.-]1' { "claude-fable-5-1" } else { "claude-fable-5" }
-    } else if ($n | str contains opus) { "claude-opus-5" } else if ($n | str contains sonnet) {
-        if $n =~ 'sonnet-?5(?!\d)' { "claude-sonnet-5" } else { "claude-sonnet-4-6" }
-    } else if ($n | str contains haiku) { "claude-haiku-4-5" } else if $n == "" or $n =~ '^[<_]' { null } else {
+    let found = $n | parse --regex $FAMILY_VERSION | get 0?
+    if $found != null {
+        [claude $found.family $found.major $found.minor] | compact --empty | str join "-"
+    } else if $n == "" or $n =~ '^[<_]' { null } else {
         $name
     }
 }
 
+def model-price [key: any]: nothing -> record {
+    let family = $key | default "" | parse --regex '^claude-(?<family>fable|opus|sonnet|haiku)' | get 0?.family
+    let fallback = if $family == null { $PRICE_DEFAULT } else { $PRICING | get ($FAMILY_PRICE | get $family) }
+    $PRICING | get --optional ($key | default "") | default $fallback
+}
+
 def model-display [key: string]: nothing -> string {
-    $MODEL_NAMES | get --optional $key | default {
-        let parts = $key | split row "-" | where $it not-in ["" claude]
-        if ($parts | is-empty) { $key | str substring 0..9 } else { $parts.0 | str capitalize | str substring 0..9 }
-    }
+    let parts = $key | split row "-" | where $it not-in ["" claude]
+    if ($parts | is-empty) { return ($key | str substring 0..9) }
+    let name = $parts.0 | str capitalize
+    if $key =~ '^claude-(?:fable|opus|sonnet|haiku)' and ($parts | length) > 1 {
+        $"($name) ($parts | skip 1 | str join '.')"
+    } else { $name | str substring 0..9 }
 }
 
 def is-anthropic [key: string]: nothing -> bool {
@@ -117,7 +135,8 @@ def usage-row [e: record, session: string, project: string, since: datetime]: no
     let write_1h = $ttl.ephemeral_1h_input_tokens? | default 0
     let write_5m = $ttl.ephemeral_5m_input_tokens? | default (if ($ttl | is-empty) { $write } else { 0 })
     let model = model-key ($e.message.model? | default "")
-    let p = $PRICING | get --optional ($model | default "") | default $PRICE_DEFAULT
+    let base = model-price $model
+    let p = if $base.long? != null and ($input + $read + $write) > $base.long.above { $base.long } else { $base }
     let cost = ($input * $p.input + $output * $p.output + $write_5m * $p.input * $CACHE_WRITE_5M
         + $write_1h * $p.input * $CACHE_WRITE_1H + $read * $p.cache_read)
     {
@@ -238,8 +257,6 @@ def payload-build [include_other: bool, strict_activity: bool, scrape: bool]: no
         top_project: (if ($projects | is-empty) { $NONE } else {
             $projects | sort-by tokens --reverse | first | get name
         })
-        o_tokens: (tokens-format ($other | where day == $today | get total | sum))
-        o_messages: ($other | where day == $today | length)
         u_session: ($limits.session?.pct? | default $NONE), u_week: ($limits.week_all?.pct? | default $NONE)
         u_reset: (if "session" in $limits { $limits.session.resets } else { "" })
         updated: ($now | format date "%b %-d, %H:%M")
@@ -251,10 +268,10 @@ def payload-sample []: nothing -> record {
         sub: Max, tier: 20x, active: 2, t_input: 1.2M, t_output: 245K, t_cache_r: 3.4M, t_cache_w: 890K
         t_total: 5.7M, t_cost: "$18.50", t_sessions: 4, t_messages: 142, trend: up, w_tokens: 28.3M, w_cost: "$67.89"
         w_sessions: 12, w_messages: 847, spark: ([1 3 5 7 4 6 8 5] | each {|i| $SPARK_BLOCKS | get $i } | str join)
-        streak: 7, top_project: trmnl-claude, o_tokens: "0", o_messages: 0, updated: "Apr 4, 11:22"
-        m1_name: Opus, m1_tokens: 18.2M, m1_pct: 64, m1_cost: "$312", m2_name: Sonnet, m2_tokens: 8.1M, m2_pct: 29
-        m2_cost: "$24.30", m3_name: Haiku, m3_tokens: 2.0M, m3_pct: 7, m3_cost: "$1.60", u_session: 42, u_week: 18
-        u_reset: "in 3h"
+        streak: 7, top_project: trmnl-claude, updated: "Apr 4, 11:22"
+        m1_name: "Opus 5.5", m1_tokens: 18.2M, m1_pct: 64, m1_cost: "$312", m2_name: "Sonnet 5", m2_tokens: 8.1M
+        m2_pct: 29, m2_cost: "$24.30", m3_name: "Haiku 4.5", m3_tokens: 2.0M, m3_pct: 7, m3_cost: "$1.60"
+        u_session: 42, u_week: 18, u_reset: "3:00pm"
     }
 }
 

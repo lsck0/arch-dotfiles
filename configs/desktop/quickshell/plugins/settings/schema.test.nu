@@ -1,5 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-# Schema.js under qmltestrunner, and each `dot set` argument it builds read back the way dot.nu reads it
+# Schema.js under qmltestrunner, and each `dot set` argument it builds read back through nu's argument coercion and
+# READER's copy of the value parse in scripts/dot.nu's `main set`; a change to that parse is mirrored here by hand
 
 const SCHEMA = path self | path dirname | path join Schema.js
 const RUNNER = "/usr/lib/qt6/bin/qmltestrunner"
@@ -86,6 +87,13 @@ TestCase {
     var term = Schema.terminalCommand\([\"dot\", \"it's\"], \"dot sync\"\)
     compare\(term.slice\(0, 5\).join\(\" \"\), \"app2unit -T -- bash -c\"\)
     console.log\(\"TERM \" + term[5]\)
+  }
+
+  function test_sections\() {
+    var modules = [{ name: \"base/a\", options: [{ key: \"x\" }] }, { name: \"core/b\", options: [] }]
+    var ids = function \(list\) { return list.map\(function \(s\) { return s.id }\).join\(\",\"\) }
+    compare\(ids\(Schema.sections\(modules, [], \"\", null\)\), \":toggles,#base,base/a\"\)
+    compare\(ids\(Schema.sections\(modules, [], \"zzz\", { checks: [] }\)\), \":toggles,:system,#base,base/a\"\)
   }
 
   function test_type\() {

@@ -7,10 +7,9 @@ Item {
 
   property string text: ""
   property string suffix: ""
-  property bool decor: false
   property bool rule: false
   property bool blinking: true
-  property color color: Colors.accent
+  property color color: Colors.accentText
   property int size: Style.font.caption
   property int typed: -1
 
@@ -37,18 +36,8 @@ Item {
       layer.enabled: Style.fx.glow > 0
       layer.effect: Glow {}
     }
+    Part { visible: root.suffix !== ""; text: root.suffix; color: Colors.textDim }
     BlinkCaret { anchors.verticalCenter: parent.verticalCenter; color: root.color; size: root.size; running: root.blinking }
-    Part { visible: root.suffix !== ""; text: root.suffix; color: Colors.menu.text; opacity: Style.emphasis.faint }
-  }
-
-  Part {
-    visible: root.decor
-    anchors.verticalCenter: row.verticalCenter
-    anchors.right: parent.right
-    text: Style.decor
-    opacity: Style.emphasis.faint
-    font.pixelSize: Style.font.caption
-    font.letterSpacing: Style.headerTracking
   }
 
   Rectangle {

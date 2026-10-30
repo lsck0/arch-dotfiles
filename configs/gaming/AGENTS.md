@@ -11,4 +11,4 @@
   refuses while Steam runs (Steam rewrites `localconfig.vdf` on exit).
 - Games bypass the VPN (`vpn-bypass`); torrents are bound to it.
 - Saves and worlds live in `~/sync`, launcher state in `configs/secrets/` via `backup`/`link`; installs are not backed
-  up. dot never writes into `~/sync`.
+  up.

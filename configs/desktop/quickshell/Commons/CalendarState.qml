@@ -7,10 +7,13 @@ Singleton {
   id: root
 
   readonly property int refreshMs: 10 * 60 * 1000
+  // after a failed or empty fetch the rollover check retries at most this often between polls
+  readonly property int retryMs: 5 * 60 * 1000
   property var all: []
   property real nowMs: Date.now()
   // local date the events in `all` were fetched for; a rollover past it re-fetches so day labels and all-day events follow the new day
   property string fetchedDate: ""
+  property bool fetchFailed: false
 
   // ended events drop out between two fetches
   readonly property var events: {
@@ -36,7 +39,9 @@ Singleton {
     repeat: true
     onTriggered: {
       root.nowMs = Date.now()
-      if (new Date().toDateString() !== root.fetchedDate) calendarProc.refresh()
+      if (new Date().toDateString() === root.fetchedDate) return
+      if (root.fetchFailed) calendarProc.refresh()
+      else calendarProc.run()
     }
   }
 
@@ -44,10 +49,15 @@ Singleton {
     id: calendarProc
     command: [Paths.home + "/.local/bin/task-calendar", "events"]
     intervalMs: root.refreshMs
+    minAgeMs: root.retryMs
     onParsed: function (data) {
       root.all = (data && data.events) ? Array.prototype.slice.call(data.events) : []
       root.fetchedDate = new Date().toDateString()
+      root.fetchFailed = false
     }
-    onFailed: function (error) { }
+    onFailed: function (error) {
+      root.fetchFailed = true
+      console.warn("CalendarState: task-calendar failed:", error)
+    }
   }
 }

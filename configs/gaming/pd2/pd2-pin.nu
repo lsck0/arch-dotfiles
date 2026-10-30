@@ -6,14 +6,17 @@ const OUT = path self | path dirname | path join s14-client.nuon
 
 def main []: nothing -> nothing {
     let work = mktemp --directory
-    let files = http get $"($URL)/metadata.json" | get checksum | parse "{md5}  {name}" | sort-by { $in.name | str downcase }
-    let rows = $files | each {|f|
-        let dest = $work | path join $f.name
-        http get --raw $"($URL)/($f.name | url encode)" | save --force $dest
-        let md5 = open --raw $dest | hash md5
-        if $md5 != $f.md5 { error make {msg: $"($f.name): md5 ($md5), the manifest says ($f.md5)"} }
-        {name: $f.name, sha256: (open --raw $dest | hash sha256), md5: $f.md5}
-    }
+    let rows = try {
+        let files = http get $"($URL)/metadata.json" | get checksum | parse "{md5}  {name}"
+            | sort-by { $in.name | str lowercase }
+        $files | each {|f|
+            let dest = $work | path join $f.name
+            http get --raw $"($URL)/($f.name | url encode)" | save --force $dest
+            let md5 = open --raw $dest | hash md5
+            if $md5 != $f.md5 { error make {msg: $"($f.name): md5 ($md5), the manifest says ($f.md5)"} }
+            {name: $f.name, sha256: (open --raw $dest | hash sha256), md5: $f.md5}
+        }
+    } catch {|e| rm -rf $work; error make {msg: $e.msg} }
     rm -rf $work
     let body = $rows | each { $"    [($in.name | to json) \"($in.sha256)\" \"($in.md5)\"]" } | str join "\n"
     [

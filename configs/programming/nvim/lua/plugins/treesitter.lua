@@ -17,13 +17,10 @@ return {
                 group = vim.api.nvim_create_augroup("TreesitterCustomParsers", { clear = true }),
                 pattern = "TSUpdate",
                 callback = function()
-                    require("nvim-treesitter.parsers").nya = {
-                        install_info = {
-                            url = "https://github.com/lsck0/nyangine",
-                            revision = "e8f4be8a9d48a0908b78e4499e798c1c0ea05962",
-                            location = "src/nyangine-plugins/treesitter",
-                        },
-                    }
+                    local nya = require("lib.nya")
+                    if nya then
+                        require("nvim-treesitter.parsers").nya = { install_info = { path = nya } }
+                    end
                     require("nvim-treesitter.parsers").jai = {
                         install_info = {
                             url = "https://github.com/constantitus/tree-sitter-jai",

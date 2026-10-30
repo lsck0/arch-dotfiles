@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t; -*-
 (defun my/project-root ()
   "Root of the current project, or `default-directory' outside one."
   (if-let* ((proj (project-current)))

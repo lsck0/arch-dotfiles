@@ -6,9 +6,6 @@ export const meta = {deps: [core/wallust], packages: {pacman: [qutebrowser pytho
 
 const SEARCH_DEFAULT = "https://duckduckgo.com/?q={}"
 const SEARCH_HOMELAB = "https://search.lsck0.dev/search?q={}"
-const METHOD_DEFAULT = "GET"
-# searxng is POST-only by default: a GET /search 302-redirects to / and drops the query
-const METHOD_HOMELAB = "POST"
 
 export const options = {
     search_url: {
@@ -20,8 +17,8 @@ export const options = {
     }
     search_method: {
         type: string
-        default: $METHOD_DEFAULT
-        doc: "GET or POST for the search form; most engines use GET, searxng is POST-only"
+        default: "GET"
+        doc: "GET or POST for the startpage's search form; most engines, the homelab's searxng too, take GET; POST works only in qutebrowser"
         label: "Search method"
         scope: user
     }
@@ -31,13 +28,18 @@ const CONFIG_DIR = ".config/qutebrowser"
 const LISTS = [adblock-cache.dat blocked-hosts]
 const FETCH_QUIT_MS = "60000"
 const FETCH_TIMEOUT = "90"
+# the bar's palette knobs, so the startpage's hues match it
+const BAR_THEME = path self ../quickshell/theme.json
+const FALLBACK = {
+    bg: "#0d1117" surface: "#161b22" fg: "#c9d1d9" muted: "#8b949e" accent: "#58a6ff" accent2: "#d2a8ff" urgent: "#ff7b72"
+}
+const CHROME_COLORS = "wal/qutebrowser-colors.json"
+const CHROME_ALT_SHADE = 0.03
+# a match or a muted label keeps some of its hue: a distinct mark beside the text, not body text
+const MARK_RATIO = 3.0
 
 export def detect [cfg: record]: nothing -> record {
-    if (platform-has homelab) {
-        {search_url: $SEARCH_HOMELAB, search_method: $METHOD_HOMELAB}
-    } else {
-        {search_url: $SEARCH_DEFAULT, search_method: $METHOD_DEFAULT}
-    }
+    {search_url: (if (platform-has homelab) { $SEARCH_HOMELAB } else { $SEARCH_DEFAULT })}
 }
 
 def lists-ready []: nothing -> bool {
@@ -46,11 +48,10 @@ def lists-ready []: nothing -> bool {
 }
 
 export def link [cfg: record] {
-    let search = if $cfg.search_url == $SEARCH_DEFAULT { detect $cfg | get search_url } else { $cfg.search_url }
     let dir = $nu.home-dir | path join $CONFIG_DIR
     [
         (file-copy config.py ($dir | path join config.py))
-        (file-text ($dir | path join search-url) $"($search)\n")
+        (file-text ($dir | path join search-url) $"($cfg.search_url)\n")
     ] | append (if (lists-ready) { [] } else { [(step lists-fetch)] })
 }
 
@@ -63,36 +64,93 @@ export def lists-fetch [] {
     if not (lists-ready) { log-warn "qutebrowser: block lists not fetched, dot apply --user --force desktop/qutebrowser retries" }
 }
 
-# the shell's roles from the wal palette, the same derivations caido and the bar use
+def bar-knobs []: nothing -> record {
+    let defaults = {
+        foregroundContrast: $FOREGROUND_RATIO accentMinSaturation: $ACCENT_SATURATION_MIN accentMinValue: $ACCENT_VALUE_MIN
+        textContrast: $TEXT_RATIO
+    }
+    $defaults | merge (open $BAR_THEME | get --optional palette | default {})
+}
+
+def accent-from [slot: closure, knobs: record]: nothing -> list<float> {
+    do $slot color4 $FALLBACK.accent | vivify $knobs.accentMinSaturation $knobs.accentMinValue
+}
+
+# the bar's accent2 pool (Commons/Palette.js conditionPalette): colors 2, 3, 5, 6 away from the urgent hue
+def accent2-from [slot: closure, knobs: record, accent: list<float>, bg: list<float>]: nothing -> list<float> {
+    let urgent = do $slot color1 $FALLBACK.urgent
+    let pool = [color2 color3 color5 color6]
+        | each {|name| do $slot $name $FALLBACK.accent2 | vivify $knobs.accentMinSaturation $knobs.accentMinValue }
+        | where {|c| (hue-apart $urgent $c) >= $URGENT_APART_MIN_DEG }
+    if ($pool | is-empty) { $FALLBACK.accent2 | hex-to-rgb } else { accent2-pick $pool $accent $bg $ACCENT2_RATIO }
+}
+
+# the bar's roles from the wal palette (Commons/Palette.js conditionPalette), every one used as text raised to its textContrast
 def startpage-colors []: nothing -> record {
     let slot = wal-load "qutebrowser startpage"
-    if $slot == null { return {BG: "#0d1117" SURFACE: "#161b22" FG: "#c9d1d9" MUTED: "#8b949e" ACCENT: "#58a6ff" ACCENT2: "#d2a8ff"} }
-    let bg = do $slot background "#0d1117" | condition-bg
+    if $slot == null {
+        return {
+            BG: $FALLBACK.bg SURFACE: $FALLBACK.surface FG: $FALLBACK.fg MUTED: $FALLBACK.muted ACCENT: $FALLBACK.accent
+            ACCENT2: $FALLBACK.accent2
+        }
+    }
+    let knobs = bar-knobs
+    let bg = do $slot background $FALLBACK.bg | condition-bg
+    # text sits on the panel, a mix of surface and bg: readable on surface is readable on any mix of the two
+    let surface = $bg | shade 0.06
+    let accent = accent-from $slot $knobs
     let hex = {|c| $c | rgb-to-hex --prefix "#" }
     {
         BG: (do $hex $bg)
-        SURFACE: (do $hex ($bg | shade 0.06))
-        FG: (do $hex (do $slot foreground "#c9d1d9" | readable-on $bg))
-        MUTED: (do $hex (do $slot color8 "#8b949e" | readable-on $bg --ratio 3.0))
-        ACCENT: (do $hex (do $slot color4 "#58a6ff" | vivify 0.55 0.62 | readable-on $bg --ratio 3.0))
-        ACCENT2: (do $hex (do $slot color5 "#d2a8ff" | vivify 0.55 0.62 | readable-on $bg --ratio 3.0))
+        SURFACE: (do $hex $surface)
+        FG: (do $hex (do $slot foreground $FALLBACK.fg | readable-on $surface --ratio $knobs.foregroundContrast))
+        MUTED: (do $hex (do $slot color8 $FALLBACK.muted | readable-on $surface --ratio $knobs.textContrast))
+        ACCENT: (do $hex ($accent | readable-on $surface --ratio $knobs.textContrast))
+        ACCENT2: (do $hex (accent2-from $slot $knobs $accent $bg | readable-on $surface --ratio $knobs.textContrast))
+    }
+}
+
+# config.py's chrome roles, conditioned like the startpage; config.py falls back to the raw slots without it.
+def chrome-colors []: nothing -> any {
+    let slot = wal-load "qutebrowser chrome"
+    if $slot == null { return null }
+    let bg = do $slot background $FALLBACK.bg | condition-bg
+    # alt rows and tabs are the lower-contrast surface: text readable on it is readable on bg too
+    let alt = $bg | shade $CHROME_ALT_SHADE
+    let fg = do $slot foreground $FALLBACK.fg | readable-on $alt
+    let accent = accent-from $slot (bar-knobs)
+    let selection = do $slot color8 $FALLBACK.muted | selection-pair $fg
+    let hex = {|c| $c | rgb-to-hex --prefix "#" }
+    {
+        bg: (do $hex $bg)
+        bg_alt: (do $hex $alt)
+        fg: (do $hex $fg)
+        muted: (do $hex (do $slot color8 $FALLBACK.muted | readable-on $alt --ratio $MARK_RATIO))
+        accent: (do $hex ($accent | readable-on $alt))
+        selection_bg: (do $hex $selection.0)
+        selection_fg: (do $hex $selection.1)
+        selection_match: (do $hex ($accent | readable-on $selection.0 --ratio $MARK_RATIO))
+        hint_bg: (do $hex $accent)
+        hint_fg: (do $hex ($bg | readable-on $accent))
+        hint_match: (do $hex (do $slot color1 $FALLBACK.urgent | readable-on $accent --ratio $MARK_RATIO))
     }
 }
 
 export def theme [cfg: record, wallpaper: string] {
+    let chrome = chrome-colors
+    let chrome_file = if $chrome == null { [] } else { [(file-text (xdg cache $CHROME_COLORS) ($chrome | to json --indent 2) --generated)] }
     let dest = $nu.home-dir | path join $CONFIG_DIR startpage.html
-    # fall to the platform default (searxng on a homelab machine) unless the user overrode the engine or its method
-    let search = if $cfg.search_url == $SEARCH_DEFAULT { detect $cfg | get search_url } else { $cfg.search_url }
-    let method = if $cfg.search_method == $METHOD_DEFAULT { detect $cfg | get search_method } else { $cfg.search_method }
+    let font = font-load
     let startpage = file-render startpage.html $dest ({
-        HOME: $nu.home-dir
+        CACHE: (xdg cache)
         DATA: (xdg data)
         RADIUS: $RADIUS_PX
-        FONT: (font-load).family
-        SEARCH: ($search | to json)
-        METHOD: $method
-    } | merge (startpage-colors)) | file-text $dest $in.content --generated
+        FONT: $font.family
+        FONT_SIZE: $font.ui_size
+        SEARCH: ($cfg.search_url | to json)
+        METHOD: $cfg.search_method
+    } | merge (startpage-colors)) --generated
     # without a running instance the command would start one
-    if not (process-running qutebrowser) { return [$startpage] }
-    [$startpage (exec qutebrowser-config-source [qutebrowser :config-source])]
+    if not (process-running qutebrowser) { return ($chrome_file ++ [$startpage]) }
+    $chrome_file ++ [$startpage (exec qutebrowser-config-source [qutebrowser :config-source])]
 }

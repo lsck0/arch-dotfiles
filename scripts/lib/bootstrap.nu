@@ -4,6 +4,7 @@ use log.nu *
 use state.nu [SYSTEM_REPO path-kind]
 use system.nu [system-pack system-unpack]
 use platform.nu [platform-groups-all PLATFORM_NAME_FILE]
+use stage.nu [STAGE_STATE_DIR STAGE_KEY_FILE STAGE_ESP_MARKER]
 
 const MIRRORLIST = "/etc/pacman.d/mirrorlist"
 const MIRROR_COUNTRIES = "/etc/pacman.d/mirror-countries"
@@ -35,10 +36,7 @@ const PACSTRAP = [base linux linux-firmware mkinitcpio btrfs-progs cryptsetup bi
 const HOOKS = [base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck]
 const CMDLINE_TAIL = "rw zswap.enabled=0 nmi_watchdog=0 slab_nomerge init_on_alloc=1 init_on_free=1 randomize_kstack_offset=on vsyscall=none page_alloc.shuffle=1"
 const SECRETS_TOOLS = [age age-plugin-yubikey git-crypt pcsclite ccid libfido2 yubikey-manager]
-const STAGE_STATE_DIR = "/var/lib/dotfiles-stage"
-const STAGE_KEY_FILE = "/etc/cryptsetup-keys.d/root.key"
 const STAGE_KEY_BYTES = 64
-const STAGE_ESP_MARKER = "/boot/dotfiles-stage-in-progress"
 const ISO_LOG_TARGET = "/var/log/lsck0-install.log"
 const SETUP_MODE_VAR = "/sys/firmware/efi/efivars/SetupMode-8be4df61-93ca-11d2-aa0d-00e098032b8c"
 const REBOOT_DELAY = 10sec
@@ -116,8 +114,8 @@ def online []: nothing -> bool {
 }
 
 def --env tui-init []: nothing -> nothing {
-    if (assume) or ($env.TERM? | default dumb) == "dumb" or (^test -t 0 | complete).exit_code != 0 { return }
-    # -Sy on the ephemeral live iso: the lsck0 iso already ships dialog, so this partial-upgrade path is only hit on stock media
+    if (assume) or ($env.TERM? | default dumb) == "dumb" or not (is-terminal --stdin) { return }
+    # -Sy on the ephemeral live iso: only stock media lack dialog, the lsck0 iso ships it
     if (which dialog | is-empty) and not ((online) and (try { ^pacman -Sy --noconfirm --needed dialog; true } catch { false })) {
         log-warn "dialog unavailable, using plain prompts"
         return
@@ -130,7 +128,7 @@ def --wrapped dlg [...args: string]: nothing -> string {
     try { ^dialog --backtitle $TUI_BACKTITLE --cr-wrap --stdout ...$args | collect } catch { die (questions-load).messages.aborted }
 }
 
-# Box width clamped to the terminal so a narrow console does not make every dialog abort the install; floor 40, cap TUI_WIDTH.
+# Box width clamped to the terminal so a narrow console does not abort the install; floor 40, cap TUI_WIDTH.
 def tui-width []: nothing -> string {
     let cols = try { term size | get columns } catch { 0 }
     if $cols < 1 { return ($TUI_WIDTH | into string) }
@@ -139,7 +137,7 @@ def tui-width []: nothing -> string {
 
 def height [text: string, rows: int]: nothing -> string {
     let wanted = ($text | ^fold -s -w ($TUI_WIDTH - $TUI_TEXT_MARGIN) | lines | length) + $rows
-    # clamp to the terminal so long content scrolls or truncates inside the box instead of overflowing and aborting the install; fall back to the unclamped height when the terminal size is unknown
+    # clamped to the terminal, so long content scrolls inside the box instead of aborting the install
     let avail = (try { term size | get rows } catch { 0 }) - $TUI_HEIGHT_RESERVE
     if $avail < $TUI_HEIGHT_MIN { $wanted | into string } else { [$wanted $avail] | math min | into string }
 }
@@ -389,7 +387,7 @@ def wifi-eap-section [text: string]: nothing -> list<string> {
     let method = iwd-get $text Security EAP-Method | str lowercase
     let outer = iwd-get $text Security EAP-Identity
     let domain = iwd-get $text Security $"EAP-($method | str uppercase)-ServerDomainMask"
-    # NetworkManager phase2-auth takes a bare token (pap, mschapv2); iwd TTLS stores it as Tunneled-PAP, so strip the prefix
+    # NetworkManager phase2-auth takes a bare token (pap, mschapv2), iwd stores Tunneled-PAP: strip the prefix
     let p2method = iwd-get $text Security $"EAP-($method | str uppercase)-Phase2-Method" | str lowercase | str replace --regex '^tunneled-' ''
     let inner = iwd-get $text Security $"EAP-($method | str uppercase)-Phase2-Identity" | default --empty $outer
     let password = iwd-get $text Security $"EAP-($method | str uppercase)-Phase2-Password"
@@ -414,7 +412,7 @@ def wifi-carry [c: record]: nothing -> nothing {
         let psk = iwd-get $text Security Passphrase | default --empty (iwd-get $text Security PreSharedKey)
         if not $open and not $enterprise and ($psk | is-empty) { continue }
         let eap = if $enterprise { wifi-eap-section $text } else { [] }
-        # enforce the mandatory server domain: carrying an enterprise network without domain-suffix-match would trust any AP broadcasting the SSID
+        # the server domain is mandatory: without domain-suffix-match any AP broadcasting the SSID is trusted
         if $enterprise and not ($eap | any {|l| $l | str starts-with "domain-suffix-match=" }) {
             log-warn $"($ssid): enterprise network without a server domain, not carried"
             continue
@@ -652,7 +650,7 @@ def answer-groups [e: record, c: record]: nothing -> list<string> {
     let chosen = if $c.server { $c.groups } else if (env-or $e.env | is-not-empty) {
         env-or $e.env | split row --regex '\s+' | where $it != ""
     } else if (assume) { $universe } else if (tui) {
-        # first walk has no default (all on, opt-out); a review re-walk carries the prior selection so deselections survive
+        # first walk defaults to all on; a review re-walk carries the prior selection so deselections survive
         let preset = $e.default? | default []
         let items = $universe | where $it != $e.required | each {|g| let on = if ($preset | is-empty) or ($g in $preset) { "on" } else { "off" }; [$g ($e.options | where value == $g | get --optional 0.label | default "") $on] } | flatten
         dlg --title $e.title --separate-output --checklist (text-fill $e.text $required) "0" (tui-width) "0" ...$items | lines
@@ -864,7 +862,7 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         ssh_key: "" disk: "" disk_model: "" setup_mode: false
     }
     mut c = questions-walk $q ($start | merge (question-defaults $q))
-    # the stub's keymap only seeds the first walk; afterwards the chosen keymap is the question default, so drop the seed
+    # the stub's keymap seeds only the first walk; then the chosen keymap is the default, so drop the seed
     hide-env --ignore-errors BOOTSTRAP_KEYMAP_DEFAULT
     if $c.machine_wsl {
         wsl-install $q $c
@@ -882,7 +880,7 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
             let choice = dlg --title $q.summary.title --default-item install --menu $text (height $text ($TUI_BOX_ROWS + 3)) (tui-width) "0" ...$items
             if $choice == "quit" { die $m.aborted }
             if $choice == "install" { ^clear; break }
-            # re-walk from a fresh base so a changed platform re-derives form_factor/homelab/options/groups; current answers prefill as defaults
+            # re-walk from a fresh base so a changed platform re-derives its facts; current answers prefill
             $c = questions-walk (questions-with-current $q $c) ($start | merge (question-defaults $q))
         }
     } else {

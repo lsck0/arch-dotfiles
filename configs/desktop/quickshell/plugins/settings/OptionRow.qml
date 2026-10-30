@@ -39,10 +39,10 @@ Item {
   readonly property var tags: {
     var out = [{ text: option.source || "default", color: Colors.menu.text, faint: true }]
     if (option.apply && option.apply !== "live")
-      out.push({ text: option.apply, color: option.apply === "relink" ? Colors.accent : option.apply === "relogin" ? Colors.warn : Colors.urgent })
+      out.push({ text: option.apply, color: option.apply === "relink" ? Colors.accentText : option.apply === "relogin" ? Colors.warnText : Colors.urgentText })
     if (option.scope === "machine") out.push({ text: "machine", color: Colors.menu.text, faint: true })
     if (Schema.resettable(option) && (hasCursor || rowMouse.containsMouse || pending))
-      out.push({ text: "reset", color: Colors.accent, reset: true })
+      out.push({ text: "reset", color: Colors.accentText, reset: true })
     return out
   }
 
@@ -104,7 +104,7 @@ Item {
           width: Math.min(implicitWidth, head.width - tagRow.implicitWidth - head.spacing)
           textFormat: Text.PlainText
           text: (row.hasCursor ? "> " : "  ") + (row.option.label || row.option.key) + (row.pending ? " *" : "")
-          color: row.pending ? Colors.accent2 : row.hasCursor ? Colors.menu.selectedText : Colors.menu.text
+          color: row.pending ? Colors.accent2Text : row.hasCursor ? Colors.menu.selectedText : Colors.menu.text
           font.family: Style.font.family
           font.pixelSize: Style.font.body
           font.bold: row.pending
@@ -123,8 +123,7 @@ Item {
               required property var modelData
               textFormat: Text.PlainText
               text: "[" + modelData.text + "]"
-              color: modelData.color
-              opacity: modelData.faint ? Style.emphasis.faint : 1
+              color: modelData.faint ? Colors.textDim : modelData.color
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
               font.bold: !modelData.faint
@@ -185,7 +184,7 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           textFormat: Text.PlainText
           text: "[" + Schema.choiceLabel(row.value) + (row.expanded ? " ^]" : " v]")
-          color: row.expanded ? Colors.accent : Colors.menu.text
+          color: row.expanded ? Colors.accentText : Colors.menu.text
           font.family: Style.font.family
           font.pixelSize: Style.font.body
 
@@ -254,7 +253,7 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           textFormat: Text.PlainText
           text: "[browse]"
-          color: Colors.accent
+          color: Colors.accentText
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
           font.bold: true
@@ -278,8 +277,7 @@ Item {
         visible: text !== ""
         textFormat: Text.PlainText
         text: row.option.doc || ""
-        color: Colors.menu.text
-        opacity: Style.emphasis.dim
+        color: Colors.textDim
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
         wrapMode: Text.Wrap
@@ -291,7 +289,7 @@ Item {
         textFormat: Text.PlainText
         text: (row.choiceFilter ? "filter " + row.choiceFilter + ": " : "") + (row.listed.length === 0 ? "no match"
           : (row.pageStart + 1) + "-" + (row.pageStart + row.page.length) + " of " + row.listed.length)
-        color: Colors.accent
+        color: Colors.accentText
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
       }
@@ -328,7 +326,7 @@ Item {
         visible: row.error !== ""
         textFormat: Text.PlainText
         text: "x " + row.error
-        color: Colors.urgent
+        color: Colors.urgentText
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
         wrapMode: Text.Wrap

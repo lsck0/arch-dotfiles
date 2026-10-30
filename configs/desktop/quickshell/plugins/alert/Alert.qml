@@ -133,7 +133,6 @@ Item {
               HudTitle {
                 width: parent.width
                 text: card.modelData.kind || "alert"
-                decor: true
                 rule: true
                 blinking: win.visible
               }
@@ -151,7 +150,7 @@ Item {
                   Text {
                     anchors.centerIn: parent
                     text: card.modelData.glyph
-                    color: Colors.accent
+                    color: Colors.accentText
                     font.family: Style.font.iconFamily
                     font.pixelSize: Style.font.display
                     layer.enabled: Style.fx.glow > 0
@@ -191,8 +190,7 @@ Item {
                   Text {
                     textFormat: Text.PlainText
                     text: card.modelData.at
-                    color: Colors.menu.text
-                    opacity: Style.emphasis.faint
+                    color: Colors.textDim
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
                   }

@@ -2,8 +2,10 @@
 
 const SCRIPTS = path self | path expand | path dirname
 use ($SCRIPTS | path join lib usage.nu) [die]
+use ($SCRIPTS | path join lib state.nu) [xdg]
 
-const TMS_CONFIG = ".config/tms/config.toml"
+const TMS_CONFIG = [tms config.toml]
+const SEARCH_DIR_DEFAULT = "projects"
 const SEARCH_DEPTH_DEFAULT = 10
 const FD_EXCLUDES = [elpa node_modules .cargo vendor target]
 const SERVER_POLLS = 100
@@ -35,12 +37,20 @@ def repos-in [root: string, depth: int]: nothing -> list<record> {
 
 # Pick a project from tms's search dirs and bookmarks and open it as a herdr session.
 def main []: nothing -> nothing {
-    let config = open ($nu.home-dir | path join $TMS_CONFIG)
+    let config_file = xdg config ...$TMS_CONFIG
+    # without one, the same default as the editors' project pickers
+    let config = if ($config_file | path exists) { open $config_file } else {
+        {search_dirs: [{path: ($nu.home-dir | path join $SEARCH_DIR_DEFAULT), depth: $SEARCH_DEPTH_DEFAULT}]}
+    }
     let projects = $config.search_dirs? | default [] | where { $in.path | path exists }
         | each { repos-in $in.path ($in.depth? | default $SEARCH_DEPTH_DEFAULT) } | flatten
     let bookmarks = $config.bookmarks? | default [] | where { ($in | path type) == dir }
         | each { {display: ($in | path basename), full: $in} }
-    let entries = $projects ++ $bookmarks | sort-by display | uniq-by display
+    let unique = $projects ++ $bookmarks | uniq-by full
+    let clashing = $unique.display | uniq --repeated
+    let entries = $unique
+        | each {|e| if $e.display in $clashing { $e | update display $e.full } else { $e } }
+        | sort-by display
     if ($entries | is-empty) { die "no git repos or bookmarks found in tms's config" }
     let rows = $entries | each { $"($in.display)\t($in.full)" } | str join "\n"
     let picked = try { $rows | ^fzf ...$FZF_ARGS } catch { "" }
@@ -49,7 +59,7 @@ def main []: nothing -> nothing {
     if not (server-running) {
         ^setsid -f herdr server out+err> /dev/null
         if not (seq 1 $SERVER_POLLS | any {|_| sleep $SERVER_POLL_INTERVAL; server-running }) {
-            die "herdr server failed to start within 10s"
+            die $"herdr server failed to start within ($SERVER_POLLS * $SERVER_POLL_INTERVAL)"
         }
     }
     ^herdr-open $selected ($selected | path basename)

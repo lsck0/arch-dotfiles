@@ -28,6 +28,10 @@ def main [manifest: path, plugins: path]: nothing -> nothing {
     let testing = $old.Testing and ($entry.TestingAssemblyVersion? | is-not-empty)
     let version = if $testing { $entry.TestingAssemblyVersion } else { $entry.AssemblyVersion }
     let link = if $testing { $entry.DownloadLinkTesting } else { $entry.DownloadLinkInstall }
+    # both name a directory below $plugins, and the version comes from the remote index
+    if $name !~ '^[A-Za-z0-9._-]+$' or $name in [. ..] or $version !~ '^[0-9]+(\.[0-9]+)*$' {
+        error make {msg: $"dalamud: refusing plugin '($name)' version '($version)' from ($url)"}
+    }
     let work = mktemp --directory
     try {
         let dir = $work | path join $name $version

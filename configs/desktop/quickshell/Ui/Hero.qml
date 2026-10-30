@@ -7,7 +7,7 @@ Row {
 
   property string value: "--"
   property string unit: ""
-  property color color: Colors.accent
+  property color color: Colors.accentText
   property bool live: false
   property int size: Style.font.hero
 
@@ -18,7 +18,7 @@ Row {
     anchors.bottom: parent.bottom
     textFormat: Text.PlainText
     text: root.value
-    color: root.color
+    color: Colors.textFor(root.color)
     font.family: Style.font.family
     font.pixelSize: root.size
     font.bold: true
@@ -35,8 +35,8 @@ Row {
     anchors.baseline: number.baseline
     textFormat: Text.PlainText
     text: root.unit
-    color: root.color
-    opacity: Style.emphasis.dim
+    // the unit can carry the meaning (rx or tx, kbps or fps): dimmed with the readable textDim, not with opacity
+    color: Colors.textDim
     font.family: Style.font.family
     font.pixelSize: Style.font.title
     font.capitalization: Font.AllUppercase

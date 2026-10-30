@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t; -*-
 (use-package magit
   :commands (magit-status magit-dispatch magit-file-dispatch)
   :config
@@ -6,8 +7,8 @@
         magit-diff-refine-hunk 'all))
 
 (use-package diff-hl
+  :demand t
   :hook ((dired-mode         . diff-hl-dired-mode)
-         (magit-pre-refresh  . diff-hl-magit-pre-refresh)
          (magit-post-refresh . diff-hl-magit-post-refresh))
   :config
   (global-diff-hl-mode 1)

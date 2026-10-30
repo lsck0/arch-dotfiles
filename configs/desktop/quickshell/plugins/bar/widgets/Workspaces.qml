@@ -8,6 +8,7 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "workspaces"
+  barPriority: 100
 
   function workspaceById(id) {
     var values = Hyprland.workspaces.values
@@ -159,9 +160,9 @@ BarWidget {
           bar: root.bar
           text: cell.modelData === 10 ? "0" : String(cell.modelData)
           active: cell.focused
-          activeColor: Colors.accent
-          foreground: cell.urgent ? Colors.urgent : (root.bar ? root.bar.barForeground : Colors.foreground)
-          opacity: cell.occupied || cell.focused || cell.urgent ? 1 : Style.emphasis.faint
+          activeColor: Colors.textOnFill(Colors.accent, Style.selectedFill)
+          foreground: cell.urgent ? Colors.urgentText
+            : cell.occupied ? (root.bar ? root.bar.barForeground : Colors.foreground) : Colors.textDim
           horizontalMargin: Style.spacing.xs
           verticalPadding: Style.spacing.xs
           fixedWidth: root.vertical ? root.barSize : Style.space(20)

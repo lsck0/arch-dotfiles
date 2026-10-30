@@ -58,7 +58,8 @@ BorderSurface {
   readonly property real bodyEmphasis: 0.87
   readonly property color bodyColor: Util.alpha(Colors.notifications.text, bodyEmphasis)
   readonly property real edge: isRow ? 0 : Style.surface.borderWidth
-  readonly property color strokeColor: urgency === NotificationLogic.URGENCY_CRITICAL ? Colors.urgent : Util.alpha(Colors.notifications.border, Style.surface.ruleAlpha)
+  readonly property bool critical: urgency === NotificationLogic.URGENCY_CRITICAL
+  readonly property color strokeColor: critical ? Colors.urgent : Util.alpha(Colors.notifications.border, Style.surface.ruleAlpha)
 
   implicitWidth: root.isRow ? Style.panelWidth.normal : Style.space(420)
   implicitHeight: mainColumn.implicitHeight + edge * 2
@@ -169,14 +170,25 @@ BorderSurface {
         Row {
           Layout.fillWidth: true
           spacing: Style.spacing.xs
-          visible: root.app.length > 0 || root.timeLabel.length > 0
+          visible: root.critical || root.app.length > 0 || root.timeLabel.length > 0
 
           readonly property bool showDot: root.app.length > 0 && root.timeLabel.length > 0
           readonly property real dotSlotWidth: showDot ? dotText.implicitWidth + spacing : 0
+          readonly property real criticalSlotWidth: root.critical ? criticalText.implicitWidth + spacing : 0
 
+          Text {
+            id: criticalText
+            visible: root.critical
+            textFormat: Text.PlainText
+            text: "! CRITICAL"
+            color: Colors.urgentText
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            font.bold: true
+          }
           Caption {
-            width: Math.min(implicitWidth, parent.width - timeText.implicitWidth - parent.dotSlotWidth - parent.spacing)
-            text: root.app + (root.groupCount > 1 ? " x" + root.groupCount : "")
+            width: Math.min(implicitWidth, parent.width - timeText.implicitWidth - parent.dotSlotWidth - parent.criticalSlotWidth - parent.spacing)
+            text: root.app.toUpperCase() + (root.groupCount > 1 ? " x" + root.groupCount : "")
             elide: Text.ElideRight
           }
           Caption {
@@ -238,29 +250,27 @@ BorderSurface {
       }
     }
 
-    Item {
+    // one unbroken track that empties in quarter steps; dashes this close to the bottom stroke read as gaps in the
+    // border
+    Rectangle {
       id: gauge
       Layout.fillWidth: true
       Layout.leftMargin: Style.spacing.md
       Layout.rightMargin: Style.spacing.md
-      Layout.bottomMargin: Style.spacing.xs
+      Layout.bottomMargin: Style.spacing.sm
       implicitHeight: Style.spacing.xxs
       visible: !root.isRow && root.segmentsLeft > 0
+      radius: Style.shape.data
+      color: Util.alpha(gaugeFill.color, Style.emphasis.disabled * 0.5)
 
-      readonly property real gap: Style.spacing.xxs
-      readonly property real segment: (width - gap * (root.gaugeSegments - 1)) / root.gaugeSegments
-
-      Repeater {
-        model: root.gaugeSegments
-        Rectangle {
-          required property int index
-          x: index * (gauge.segment + gauge.gap)
-          width: gauge.segment
-          height: gauge.height
-          radius: Style.shape.data
-          color: root.urgency === NotificationLogic.URGENCY_CRITICAL ? Colors.urgent : Colors.accent
-          opacity: index < root.segmentsLeft ? Style.emphasis.dim : Style.emphasis.disabled * 0.5
-        }
+      Rectangle {
+        id: gaugeFill
+        width: gauge.width * Math.min(1, root.segmentsLeft / root.gaugeSegments)
+        height: gauge.height
+        radius: gauge.radius
+        color: root.critical ? Colors.urgent : Colors.accent
+        opacity: Style.emphasis.dim
+        Behavior on width { NumberAnimation { duration: Style.motion.base; easing.type: Style.motion.fastEasing } }
       }
     }
   }
@@ -297,8 +307,7 @@ BorderSurface {
 
   component Caption: Text {
     textFormat: Text.PlainText
-    color: Colors.notifications.text
-    opacity: Style.emphasis.faint
+    color: Colors.textDim
     font.family: root.fontFamily
     font.pixelSize: Style.font.caption
   }

@@ -105,13 +105,16 @@ ShellRoot {
   Connections {
     target: Hyprland
     function onRawEvent(event) {
-      if (event.name === "configreloaded") workspaceRulesProc.running = true
+      if (event.name !== "configreloaded") return
+      workspaceRulesProc.running = true
+      Style.gapsOutProc.running = true
     }
   }
 
   Component.onCompleted: workspaceRulesProc.running = true
 
   Variants {
+    id: bars
     model: Quickshell.screens
 
     Bar {
@@ -130,6 +133,12 @@ ShellRoot {
       source: Qt.resolvedUrl("plugins/" + Plugins.shell[modelData])
       onItemChanged: if (item && "shell" in item) item.shell = shell
     }
+  }
+
+  function barFor(screen) {
+    var instances = bars.instances
+    for (let i = 0; i < instances.length; i++) if (instances[i].screen === screen) return instances[i]
+    return null
   }
 
   function plugin(id) {
@@ -195,7 +204,7 @@ ShellRoot {
   }
 
   Background {}
-  DesktopWidgets { mainScreenName: shell.mainScreenName }
+  DesktopWidgets { mainScreenName: shell.mainScreenName; shellHost: shell }
   Osd {}
   Clipboard {}
   AppSearch { appLibrary: shell.appLibrary }

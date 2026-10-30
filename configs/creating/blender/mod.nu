@@ -29,9 +29,10 @@ def addon-pin-file []: nothing -> path {
     xdg cache blender-mcp .addon-pin
 }
 
-# the add-on tree is fixed by MCP_COMMIT (what fetch-git lands), so the commit plus the prefs script is the whole input
+# the add-on tree is fixed by MCP_COMMIT (what fetch-git lands); the prefs script writes MCP_HOST and MCP_PORT into
+# blender's prefs, so those four are the whole input
 def addon-pin []: nothing -> string {
-    $"($MCP_COMMIT) (open --raw ($HERE | path join mcp-prefs.py) | hash sha256)"
+    $"($MCP_COMMIT) (open --raw ($HERE | path join mcp-prefs.py) | hash sha256) ($MCP_HOST):($MCP_PORT)"
 }
 
 export def link [cfg: record] {

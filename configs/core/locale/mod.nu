@@ -13,7 +13,7 @@ export const options = {
     formats: {
         type: string?
         default: null
-        doc: "Locale for dates, numbers, money, units, paper and addresses (every LC_ but messages and collation); unset follows the language"
+        doc: "Locale for dates, numbers, money, units, paper and addresses (every LC_ except CTYPE, MESSAGES, COLLATE and IDENTIFICATION); unset follows the language"
         apply: relogin
     }
     keyboard_layout: {

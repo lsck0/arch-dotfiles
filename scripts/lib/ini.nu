@@ -6,7 +6,7 @@ export def ini-apply [values: record, missing_only: bool]: string -> string {
         let begin = if $s.section == "" { 0 } else {
             $headers | where ($it.item | str trim) == $"[($s.section)]" | get --optional 0.index | if $in == null { null } else { $in + 1 }
         }
-        let lines = if $begin == null { $lines ++ ["" $"[($s.section)]"] } else { $lines }
+        let lines = if $begin == null { $lines ++ (if ($lines | is-empty) { [] } else { [""] }) ++ [$"[($s.section)]"] } else { $lines }
         let begin = $begin | default ($lines | length)
         let end = $lines | enumerate | skip $begin | where ($it.item | str trim) =~ '^\[.*\]$' | get --optional 0.index | default ($lines | length)
         $s.keys | items {|key, value| {key: $key, value: ($value | into string)} } | reduce --fold {lines: $lines, end: $end} {|kv, acc|
@@ -25,8 +25,8 @@ export def ini-apply [values: record, missing_only: bool]: string -> string {
 # One row per line: its section ("" before the first), key and value (null for a header, comment or blank).
 export def ini-rows [text: string]: nothing -> table<section: string, key: any, value: any, line: string> {
     $text | lines | reduce --fold {section: "", rows: []} {|line, acc|
-        let section = $line | parse --regex '^\[(?<s>.*)\]$' | get --optional 0.s | default $acc.section
+        let section = $line | str trim | parse --regex '^\[(?<s>.*)\]$' | get --optional 0.s | default $acc.section
         let kv = if ($line =~ '^\s*[#;\[]') { null } else { $line | parse --regex '^(?<key>[^=]+?)=(?<value>.*)$' | get --optional 0 }
-        {section: $section, rows: ($acc.rows | append {section: $section, key: $kv.key?, value: $kv.value?, line: $line})}
+        {section: $section, rows: ($acc.rows | append {section: $section, key: ($kv.key? | if $in == null { null } else { str trim }), value: ($kv.value? | if $in == null { null } else { str trim }), line: $line})}
     } | get rows
 }

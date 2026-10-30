@@ -108,8 +108,6 @@ alias lt = eza -lah --tree
 alias mkdir = mkdir -v
 alias mv = mv -v
 alias trash-rm = trash -v
-alias sshnb = sshk luca@192.168.178.73
-alias sshpc = sshk luca@192.168.178.138
 def toroff [] { ^($env.DOTFILES | path join scripts toggles toggle-route.nu) direct }
 def toron [] { ^($env.DOTFILES | path join scripts toggles toggle-route.nu) tor }
 
@@ -140,9 +138,9 @@ def --wrapped claude [...rest] {
     ^env -u DO_NOT_TRACK claude ...$rest
 }
 
-const STARSHIP_INIT = $nu.home-dir | path join .cache nushell starship.nu
-const ZOXIDE_INIT = $nu.home-dir | path join .cache nushell zoxide.nu
-const WAL_COLORS = $nu.home-dir | path join .cache wal colors-nushell.nu
+const STARSHIP_INIT = $nu.cache-dir | path join starship.nu
+const ZOXIDE_INIT = $nu.cache-dir | path join zoxide.nu
+const WAL_COLORS = $nu.cache-dir | path dirname | path join wal colors-nushell.nu
 const STARSHIP = if ($STARSHIP_INIT | path exists) { $STARSHIP_INIT }
 const ZOXIDE = if ($ZOXIDE_INIT | path exists) { $ZOXIDE_INIT }
 const WAL = if ($WAL_COLORS | path exists) { $WAL_COLORS }

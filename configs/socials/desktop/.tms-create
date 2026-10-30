@@ -1,4 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
+const SEARCH = "https://lite.duckduckgo.com/lite/"
+
 def main []: nothing -> nothing {
     let home = $nu.home-dir
     let browser = $env.TMUX_PANE
@@ -9,5 +11,5 @@ def main []: nothing -> nothing {
     let dev = ^tmux new-window -a -d -n dev -c $home -t $window -P -F '#{window_id}' 'nvim; exec zsh'
     ^tmux new-window -a -d -n shell -c $home -t $dev
     ^tmux select-pane -t $browser
-    ^tmux respawn-pane -k -c $home -t $browser 'cha https://lite.duckduckgo.com/lite/; exec zsh'
+    ^tmux respawn-pane -k -c $home -t $browser $"cha ($SEARCH); exec zsh"
 }

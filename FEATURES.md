@@ -1,7 +1,7 @@
 # Features
 
-Everything here is set up by `dot sync` on a fresh machine. `dot plan --modules`, `dot set` and `hyprctl binds` list
-modules, options and keybinds. SUPER is the mod key.
+Everything here is set up by the install (bootstrap, then `dot apply`) and kept current by `dot sync`.
+`dot plan --modules`, `dot set` and `hyprctl binds` list modules, options and keybinds. SUPER is the mod key.
 
 ## dot
 
@@ -16,10 +16,12 @@ modules, options and keybinds. SUPER is the mod key.
 
 - AppArmor (apparmor.d plus own profiles, content openers enforced), KSPP cmdline, sysctl hardening.
 - LUKS root: TPM2+PIN, YubiKey FIDO2 or passphrase; remote unlock over initramfs ssh; secure boot with own keys, UKIs.
-- sudo and polkit: YubiKey touch or fingerprint, password fallback.
-- nftables lockdown by default, inbound opens on home networks, port-knocked sshd, egress kill switch off home.
+- sudo and polkit: YubiKey touch or fingerprint (fprintd), password fallback.
+- nftables lockdown by default, inbound opens on home networks, port-knocked sshd; with `untrusted_policy` lockdown-tor
+  (luca-pc, luca-notebook) an egress kill switch off home.
+- fail2ban, an endlessh tarpit on port 22, the OSSEC HIDS with its alerts in the bar's system panel.
 - Untrusted networks: random MAC, ProtonVPN or tor; fail-closed VPN namespace for `vpn <cmd>`; Portmaster.
-- Secrets in a git-crypt submodule unlocked with the YubiKey.
+- Secrets in a git-crypt submodule unlocked with the YubiKey; per-repo credential isolation (`identity-init`).
 - Telemetry off everywhere; browser policies; sandboxed builds (`sandbox-build`), confined GUI apps (`confine`).
 
 ## Desktop
@@ -28,11 +30,14 @@ modules, options and keybinds. SUPER is the mod key.
 - quickshell: bar with clock, weather, media, OBS, Discord, agents, homelab, system, network, display, audio and
   notification panels; launcher, clipboard (with OpenPGP), settings window, tasks and notes, overview, power menu, lock,
   OSD, reminders, pomodoro, desktop agenda.
-- Toggles (`SUPER+t`, `scripts/toggles/`): route (direct, proton, tor, offline), homelab VPN, firewall, radios, focus,
-  night light, shaders, color grading, power mode, font, theme mode and more.
+- Toggles (`scripts/toggles/`; `prefix+m` in tmux and herdr, the bar, the settings window on `SUPER+comma`): route
+  (direct, proton, tor, offline), homelab VPN, firewall, captive portal, radios, focus, night light, shaders, color
+  grading, power mode, font, theme mode and more.
 - Theming: 34 palettes or wallust from the wallpaper, applied live to every themed app (`dot theme`, `SUPER+w`).
 - Idle: dim, lock, screens off, suspend; guards for media, ssh and working agents. Lid closed with an external monitor
   moves the desktop there.
+- Power and disks: tlp, zram, the sched_ext lavd scheduler on laptops, smartd, the CPU package's draw in the bar.
+- Shimeji desktop mascots.
 
 ## Apps
 
@@ -40,19 +45,66 @@ modules, options and keybinds. SUPER is the mod key.
 - Editors: Neovim (LSPs for about 40 languages via mason), Emacs, VSCodium, Zed, JetBrains.
 - Agents: Claude Code, Copilot, Gemini, Hermes, sharing `skills/`; MCP servers registered per app.
 - Toolchains for C, Rust, Go, Zig, Odin, Haskell, OCaml, Lean, Jai, Java, .NET, Node, Android; nix, devenv, docker,
-  podman, kubernetes, PostgreSQL.
+  podman, kubernetes, PostgreSQL; Forgejo (`tea`) and Grafana MCP for the homelab.
+- Mail (Thunderbird), LibreOffice, zathura, Obsidian, VeraCrypt.
 - Browsers: Firefox, Chromium, qutebrowser. Chat: Signal, Telegram, Element, Discord, TeamSpeak. Spotify (spicetify).
 - Taskwarrior with the homelab sync server, timewarrior, bugwarrior; homelab calendar on the desktop agenda.
-- LLMs: ollama and vLLM (ROCm), socket activated.
+- LLMs: ollama and vLLM (ROCm), socket activated, abliterated (uncensored) models pinned by digest; ollama splits a
+  model too big for the GPU into RAM; Alpaca as a desktop client.
 - Gaming: Steam, Proton, gamemode, MangoHud, FFXIV with Dalamud, Lutris, Diablo II (vanilla, Median XL, PD2 S3 and
-  S14), Minecraft, VR.
-- Creating: OBS (streaming, recording, virtual cam), Blender, GIMP, Krita, Inkscape, kdenlive.
+  S14), Minecraft, VR, emulators (RetroArch, melonDS, mGBA), NetHack.
+- Creating: OBS (streaming, recording, virtual cam), Blender, GIMP, Krita, Inkscape, kdenlive, Audacity, OpenSCAD;
+  Godot and Unreal with MCP.
 - LaTeX, Zotero; libvirt, Waydroid; a pentesting toolkit.
 
 ## Backups
 
 - Config in git; app state in the secrets submodule (`keys/` encrypted, `state/` plain), backed up by `dot sync`.
 - `~/sync` via syncthing with the NAS; NAS share at `/mnt/homelab`.
+
+## Keybinds
+
+Keys are SUPER plus the named key unless written as a full chord; `hyprctl binds` prints every bind with its
+description.
+
+- Apps: terminal (`Return`, kitty on `SHIFT+Return`), Firefox (`a`), qutebrowser (`SHIFT+a`), file manager (`e`),
+  editor (`n`), notes pad (`SHIFT+n`), system monitor (`SHIFT+t`), magnifier (`x`), desktop mascots (`y`, `SHIFT+y`
+  stops them).
+- Shell: launcher (`d`, `ALT+d` runs from `$PATH`), clipboard (`v`), overview (`Tab`, a submap while open), tasks
+  (`o`), settings (`comma`), timer (`t`), wallpaper picker (`w`), power menu (`SHIFT+e`), lock (`Escape`), restart
+  quickshell (`SHIFT+r`), discord mute (`m`).
+- Bar panels: `b` then a letter (audio, notifications, clock, display, homelab, agents, media, network, obs, system,
+  discord voice, weather).
+- Windows: focus and move (`hjkl` or arrows, `SHIFT`), close (`q`), float (`space`), fullscreen (`f`), previous
+  window (`s`), split (`g`), groups (`CTRL+hjkl`, `CTRL+w`, `c`), resize mode (`r`), mouse move and resize.
+- Workspaces: `1` to `0` focus, `SHIFT` moves the window there.
+- Capture: a region (`Print` alone or `SHIFT+s`), the monitor (`SHIFT+Print` without SUPER), the window (`Print`),
+  color picker (`p`), OBS replay buffer (`F9` saves, `SHIFT+F9` starts or stops), MangoHud (`SHIFT+F12` without
+  SUPER).
+- Media and hardware keys, also on the lock screen: playback, volume, mic mute, brightness (`SHIFT` for software
+  brightness), keyboard backlight (`SHIFT+b`), lid switch.
+
+## Modules
+
+Every module under `configs/`, the owner's own in `configs/secrets/` aside. A platform runs the groups it lists.
+
+<!-- modules: generated by dot internal gen from configs/ -->
+| group | modules |
+|---|---|
+| `base` | `apparmor`, `boot/hardening`, `boot/luks`, `boot/remote-unlock`, `boot/sbctl`, `boot/systemd-boot`, `cleanup`, `coredump`, `dot`, `endlessh`, `essentials`, `fail2ban`, `failure-notify`, `fancontrol`, `fprintd`, `fwupd`, `ghostmirror`, `hardening`, `hardware`, `i2c`, `lact`, `networkmanager`, `nftables`, `oomd`, `ossec`, `pacman`, `pam`, `perf`, `plymouth`, `portmaster`, `powercap`, `protonvpn`, `protonvpn-netns`, `resolved`, `sandbox`, `scx`, `smartd`, `ssh`, `sudo`, `systemd`, `tablet`, `tlp`, `tor`, `v4l-utils`, `v4l2loopback`, `wireguard`, `xdg`, `yubikey`, `zram` |
+| `core` | `btop`, `cli`, `fastfetch`, `gh`, `git`, `gnupg`, `herdr`, `locale`, `nas`, `ntfy`, `nushell`, `proton/pass`, `starship`, `syncthing`, `timezone-auto`, `tmux`, `toggles`, `trash`, `veracrypt`, `wallust`, `yazi`, `yt-dlp`, `zsh` |
+| `creating` | `apps`, `audacity`, `blender`, `gimp`, `inkscape`, `krita`, `obs`, `openscad` |
+| `desktop` | `applications`, `bookokrat`, `chromium`, `color-grading`, `feather`, `firefox`, `ghostty`, `gparted`, `gtk`, `hyprland`, `idle-guards`, `jdownloader`, `kitty`, `libreoffice`, `ly`, `mpv`, `nsxiv`, `obsidian`, `oomox`, `pipewire`, `plasma`, `printing`, `qbittorrent`, `quickshell`, `qutebrowser`, `shimoji`, `thunderbird`, `uwsm`, `zathura` |
+| `fonts` | `fonts` |
+| `gaming` | `d2launcher`, `dalamud`, `emulators`, `ffxiv`, `gamemode`, `games`, `lutris`, `mangohud`, `modrinth`, `nethack`, `pd2`, `protonup`, `runtime`, `steam`, `vkbasalt`, `vpn-bypass`, `vr` |
+| `latex` | `latex`, `sioyek`, `zotero` |
+| `llm` | `alpaca`, `ollama`, `tools`, `vllm` |
+| `pentesting` | `caido`, `ghidra`, `llm-jailbreaks`, `metasploit`, `netscanner`, `nuclei`, `pentest`, `proxychains`, `rustscan`, `seclists`, `toolkit`, `wireshark`, `zaproxy` |
+| `programming` | `act`, `agent-rules`, `android`, `asm-lsp`, `bruno`, `bugwarrior`, `cargo`, `caveman`, `cgdb`, `claude`, `copilot`, `debugging`, `devtools`, `direnv`, `docker`, `elan`, `emacs`, `flux`, `forgejo`, `formatting`, `gdb`, `gemini-cli`, `gh-dash`, `ghcup`, `godot`, `grafana`, `hermes`, `http`, `infra`, `jai`, `jetbrains`, `kani`, `kubernetes`, `lazygit`, `math`, `nietzschian`, `nix`, `nnd`, `nvim`, `opam`, `playwright`, `postgres`, `projects`, `python`, `registry`, `renderdoc`, `rtk`, `security`, `task`, `toolchains`, `trmnl-claude`, `typos`, `unreal`, `vcs`, `verification`, `vscode`, `zed` |
+| `qemu` | `containers`, `libvirt`, `waydroid` |
+| `rocm` | `compute` |
+| `socials` | `apps`, `desktop`, `discord`, `element`, `spotify`, `teamspeak`, `telegram` |
+<!-- modules end -->
 
 ## Options
 
@@ -81,11 +133,13 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/networkmanager.homelab_dns` | `string?` | unset | The homelab's split-horizon resolver, asked for homelab_domain out a home link (homelab machines) |
 | `base/networkmanager.homelab_domain` | `string?` | unset | The homelab's DNS zone |
 | `base/networkmanager.homelab_subnets` | `list<string>` | `[]` | The homelab's subnets, routed straight out a home link and through wg0 elsewhere |
-| `base/nftables.ssh_knock_window` | `string` | `"1h"` | How long a successful SSH port-knock keeps that IP allowed through to port 2222, nft timeout syntax |
+| `base/nftables.ssh_knock_window` | `string` | `"1h"` | How long a successful SSH port-knock keeps that IP allowed through to base/ssh.port, nft timeout syntax |
 | `base/oomd.session_memory_low` | `filesize?` | detected | session.slice's MemoryLow, the desktop working set a build's reclaim keeps; null: 15% of RAM, 2 GiB max |
-| `base/pacman.yay_cache_days` | `int` | `30` | Days an unused yay build cache dir may sit in ~/.cache/yay before yay-cache-clean.timer deletes it, find -mtime argument |
+| `base/pacman.yay_cache_days` | `int` | `30` | Days an unused yay build cache dir may sit in $XDG_CACHE_HOME/yay before yay-cache-clean.timer deletes it, find -mtime argument |
 | `base/pam.fido_origin` | `string` | `"pam://lsck0"` | FIDO2 origin and appid every enrolled key's mapping was made for (pamu2fcfg -o) |
 | `base/smartd.test_schedule` | `string` | `"S/../.././02\|L/../../6/03"` | When smartd runs self-tests, smartd.conf(5) -s regex syntax (default: short test daily at 02:00, long test Saturday at 03:00) |
+| `base/ssh.port` | `int` | `2222` | The port sshd listens on, reached through the port-knock (sshk, wake-pc, nftables, fail2ban) |
+| `base/ssh.knock` | `list<int>` | `[9003, 7001, 8002]` | The three ports knocked in order to open the sshd port to that address (sshk, wake-pc, nftables) |
 | `base/ssh.homelab_hosts` | `list<string>` | `[]` | ssh patterns of the homelab's guests, router and hypervisor: root, accept-new host keys from known_hosts.homelab (homelab profiles only) |
 | `base/ssh.wake_router` | `string?` | unset | The always-on homelab router whose `wol-pc` wakes the desktop (wake-pc, homelab profiles only) |
 | `base/ssh.wake_host` | `string?` | unset | The desktop wake-pc wakes and then ssh-es into |
@@ -98,17 +152,17 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `core/gnupg.cache_ttl` | `int` | `600` | Seconds gpg-agent caches a passphrase after use before re-asking, gpg-agent.conf(5) default-cache-ttl |
 | `core/gnupg.cache_ttl_max` | `int` | `7200` | Seconds gpg-agent caches a passphrase at most, however often it is used, gpg-agent.conf(5) max-cache-ttl |
 | `core/locale.lang` | `string?` | detected | LANG in /etc/locale.conf; detected: the one bootstrap set |
-| `core/locale.formats` | `string?` | detected | Locale for dates, numbers, money, units, paper and addresses (every LC_ but messages and collation); unset follows the language |
+| `core/locale.formats` | `string?` | detected | Locale for dates, numbers, money, units, paper and addresses (every LC_ except CTYPE, MESSAGES, COLLATE and IDENTIFICATION); unset follows the language |
 | `core/locale.keyboard_layout` | `string?` | detected | xkb layout of the console, X11 and the compositor; detected: the one bootstrap set |
 | `core/locale.keyboard_variant` | `string?` | detected | xkb variant, e.g. nodeadkeys |
 | `core/locale.keyboard_options` | `list<string>?` | detected | xkb options, e.g. ctrl:nocaps |
 | `core/locale.wifi_country` | `string?` | detected | Wi-Fi regulatory domain (ISO 3166 alpha-2); detected: the country of the timezone, else the world domain |
 | `core/starship.scan_timeout_ms` | `int` | `500` | Milliseconds starship waits for a directory scan (project file detection) before giving up, starship.toml scan_timeout |
 | `core/syncthing.nas_address` | `string?` | unset | Address of the homelab NAS device (the one named *nas), e.g. tcp://10.100.0.100:22000; discovery is off, so this is how it is found |
-| `core/trash.retention_days` | `int` | `1` | Days trash-empty.timer keeps a deleted file before purging it, trash-empty(1) --trash-dir day argument |
+| `core/trash.retention_days` | `int` | `1` | Days trash-empty.timer keeps a deleted file before purging it, trash-empty(1)'s days argument |
 | `creating/obs.vaapi_render_node` | `string?` | detected | The /dev/dri render node the vaapi encoders use, by-path so it survives reboots |
-| `creating/obs.canvas` | `string?` | detected | Base and output canvas of every profile and the repo collections (Bare, VirtualCam), WxH |
-| `creating/obs.mic` | `string?` | detected | The pipewire source node every collection's Mic/Aux captures |
+| `creating/obs.canvas` | `string?` | detected | Canvas WxH: every profile's base and video output, and the Bare and VirtualCam collections |
+| `creating/obs.mic` | `string?` | detected | The pipewire source node the Mic/Aux of the Streaming and Bare collections captures |
 | `creating/obs.webcam` | `string?` | detected | The v4l2 device the VirtualCam collection's Camera captures, by-id so it survives replugging |
 | `creating/obs.monitor_device` | `string?` | detected | The pipewire sink node obs monitors audio on |
 | `creating/obs.record_encoder` | `string?` | detected | The recording encoder of the Recording and Streaming profiles |
@@ -117,7 +171,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/hyprland.main_monitor` | `string?` | detected | The output holding workspace 1, the bar's notifications, steam's toasts and the tablet; detected: the internal panel, else the largest, leftmost on a tie |
 | `desktop/hyprland.workspaces` | `record?` | detected | Workspace to output; detected: the first ceil(10 / outputs) on the main monitor, the rest split over the others left to right |
 | `desktop/hyprland.xwayland_scale` | `int?` | detected | GDK_SCALE for X11 apps (force_zero_scaling); detected: the main monitor's scale rounded, else 1 on a laptop and 2 elsewhere |
-| `desktop/hyprland.app_workspaces` | `list<record>` | `[]` | Homes for apps by window class: {class, workspace, silent}; silent opens them without focus |
+| `desktop/hyprland.app_workspaces` | `list<record>` | `[]` | Homes for apps by window class: {class, workspace, silent}; silent opens them without switching to their workspace or focusing them |
 | `desktop/hyprland.pointer_sensitivity` | `float` | `0.0` | libinput pointer acceleration, -1 to 1 |
 | `desktop/hyprland.natural_scroll` | `bool` | `false` | Touchpad content follows the fingers |
 | `desktop/hyprland.idle_dim_s` | `int` | `900` | Idle seconds until the screens dim |
@@ -127,18 +181,18 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/hyprland.idle_dim_saver_s` | `int` | `300` | Idle seconds until the screens dim in power saver (a laptop on battery) |
 | `desktop/hyprland.idle_lock_saver_s` | `int` | `600` | Idle seconds until the session locks in power saver |
 | `desktop/hyprland.idle_suspend_saver_s` | `int` | `1800` | Idle seconds until suspend in power saver |
-| `desktop/mpv.ytdl_max_height` | `int` | `2160` | Max video height mpv's bundled yt-dlp fetches for a stream URL, mpv ytdl-format height filter (pixels) |
-| `desktop/pipewire.app_loopbacks` | `bool` | `true` | every app plays through a loopback of its own that carries its system volume, so a capture of the app (obs) stays at full level |
-| `desktop/pipewire.eq_target` | `string?` | unset | node.name of the headset sink the eq attaches to as a smart filter; unset, no eq chain |
+| `desktop/mpv.ytdl_max_height` | `int` | `2160` | Max video height yt-dlp fetches for a stream (ytdl-format height filter, pixels); applies to mpv-stream, plain mpv runs no yt-dlp |
+| `desktop/pipewire.app_loopbacks` | `bool` | `true` | Every app plays through a loopback of its own that carries its system volume, so a capture of the app (obs) stays at full level |
+| `desktop/pipewire.eq_target` | `string?` | unset | The node.name of the headset sink the eq attaches to as a smart filter; unset, no eq chain |
 | `desktop/pipewire.eq_preset` | `string` | `"pro-x-2.txt"` | AutoEq ParametricEQ preset for that headset, a file in this module or an absolute path |
 | `desktop/plasma.kwin_outputs` | `bool?` | detected | Ship the committed kwin output layout; detected: on when a connected monitor's EDID is one it describes |
-| `desktop/plasma.locale` | `bool` | `true` | Ship plasma-localerc (LANG=en_US.UTF-8) |
+| `desktop/plasma.locale` | `bool` | `true` | Ship plasma-localerc with core/locale's language |
 | `desktop/quickshell.pomodoro_focus_min` | `int` | `25` | Minutes of one focus block |
 | `desktop/quickshell.pomodoro_break_min` | `int` | `5` | Minutes of the short break after a focus block |
 | `desktop/quickshell.pomodoro_long_break_min` | `int` | `15` | Minutes of the long break after the last focus block of a round |
 | `desktop/quickshell.pomodoro_cycles` | `int` | `4` | Focus blocks before a long break |
 | `desktop/qutebrowser.search_url` | `string` | `"https://duckduckgo.com/?q={}"` | The default search engine, {} is the query; the homelab's searxng is reachable only on a homelab machine |
-| `desktop/qutebrowser.search_method` | `string` | `"GET"` | GET or POST for the search form; most engines use GET, searxng is POST-only |
+| `desktop/qutebrowser.search_method` | `string` | `"GET"` | GET or POST for the startpage's search form; most engines, the homelab's searxng too, take GET; POST works only in qutebrowser |
 | `gaming/d2launcher.base_dir` | `string?` | detected | A Diablo II: Lord of Destruction install the game dir is seeded from; detected in the lutris prefixes |
 | `gaming/d2launcher.resolution` | `string?` | detected | The monitor the render size derives from, WxH; detected from the focused monitor |
 | `gaming/d2launcher.render_size` | `string?` | unset | The 4:3 size the game renders at inside gamescope, WxH; the monitor's full height by default |

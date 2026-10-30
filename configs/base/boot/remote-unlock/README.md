@@ -20,7 +20,7 @@ Use:
 ```
 wake-pc                      # or on the LAN: ssh root@<router> wol-pc (ssh's wake_router host)
 ssh -p 2223 root@<pc-ip>     # type the passphrase, boot continues
-sshk <user>@<pc-ip>          # the real sshd on 2222 afterwards
+sshk <user>@<pc-ip>          # the real sshd on base/ssh.port afterwards
 ```
 
 `Ctrl-C` at the prompt opens the initrd shell menu; `journalctl -b -t shell` shows its log.

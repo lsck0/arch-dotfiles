@@ -7,6 +7,8 @@ use secrets.nu [secret-is-plaintext]
 const SYSTEM_PATHS = [configs migrations platforms profiles scripts]
 const SYSTEM_SECRETS = [samba-homelab home-gateways wifi protonvpn-netns.conf ssh_publickey.asc]
 export const ENTRY = "scripts/lib/system-apply.nu"
+export const SECRETS_PREFIX = "configs/secrets/"
+export const SECRETS_DIGEST = ".secrets-digest"
 
 # The secrets group's module files (never keys/), which ride in the root copy like configs/.
 def private-files [checkout: path, which: string]: nothing -> list<string> {
@@ -18,7 +20,13 @@ def private-files [checkout: path, which: string]: nothing -> list<string> {
         let module = $f != "" and ($parts | length) > 1 and $parts.0 != keys and ($dir | path join $parts.0 mod.nu | path exists)
         $module and ($dir | path join $f | path type) == "file" and (secret-is-plaintext ($dir | path join $f))
     }
-    | each { $"configs/secrets/($in)" }
+    | each { $"($SECRETS_PREFIX)($in)" }
+}
+
+# One sha256 over the secrets group's files, which the root copy keeps root-only, so the user compares without
+# reading them.
+export def secrets-digest [dir: path, files: list<string>]: nothing -> string {
+    $files | sort | each {|f| $"(open --raw ($dir | path join $f) | hash sha256)  ($f)" } | str join "\n" | hash sha256
 }
 
 # Every file the root copy holds, by git's view: --cached the tracked, --others the untracked.
@@ -34,15 +42,15 @@ export def system-secrets [wireguard: any]: nothing -> list<string> {
 }
 
 # Refused only when HEAD is behind the copy (no rollback); a copy commit gone from history only warns.
-export def system-pack [checkout: path]: nothing -> binary {
+export def system-pack [checkout: path, copy: path = $SYSTEM_REPO]: nothing -> binary {
     let head = ^git -C $checkout rev-parse HEAD | str trim
-    let source = $SYSTEM_REPO | path join .source
+    let source = $copy | path join .source
     if ($source | path exists) {
         let old = open --raw $source | str trim
         let ancestor = {|a, b| (^git -C $checkout merge-base --is-ancestor $a $b | complete).exit_code == 0 }
         if $old != $head and not (do $ancestor $old $head) {
-            if (do $ancestor $head $old) { error make {msg: $"($SYSTEM_REPO) is at ($old), ahead of ($checkout)'s HEAD ($head); keeping it, pull first"} }
-            log-warn $"($SYSTEM_REPO) was at ($old), which ($checkout)'s history no longer has; replacing it with ($head)"
+            if (do $ancestor $head $old) { error make {msg: $"($copy) is at ($old), ahead of ($checkout)'s HEAD ($head); keeping it, pull first"} }
+            log-warn $"($copy) was at ($old), which ($checkout)'s history no longer has; replacing it with ($head)"
         }
     }
     let tracked = system-files $checkout "--cached"
@@ -63,10 +71,15 @@ export def system-unpack [copy: path, sha: string]: binary -> nothing {
     let next = $"($copy).new"
     rm --recursive --force $next
     mkdir $next
+    ^chmod 700 $next
     $in | ^tar -x --no-same-owner --no-same-permissions -C $next -f -
     if not ($next | path join $ENTRY | path exists) { error make {msg: $"the archive holds no ($ENTRY)"} }
     $"($sha)\n" | save ($next | path join .source)
+    let secrets = $next | path join $SECRETS_PREFIX
+    let private = if ($secrets | path exists) { ^find $secrets -type f -print0 | split row (char nul) | where $it != "" | path relative-to $next } else { [] }
+    secrets-digest $next $private | save ($next | path join $SECRETS_DIGEST)
     ^chmod -R go-w $next
+    if ($secrets | path exists) { ^chmod -R go= $secrets }
     ^chmod 755 $next
     rm --recursive --force $copy
     mv $next $copy

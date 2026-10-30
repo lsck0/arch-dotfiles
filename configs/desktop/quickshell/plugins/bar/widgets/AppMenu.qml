@@ -6,6 +6,7 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "app-menu"
+  barPriority: 55
 
   implicitWidth: button.implicitWidth
   implicitHeight: barSize

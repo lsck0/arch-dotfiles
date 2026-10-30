@@ -6,12 +6,12 @@ Text {
 
   readonly property bool panelSectionHeader: true
 
-  property color foreground: Colors.accent
+  property color foreground: Colors.accentText
   property string fontFamily: Style.font.family
   property real fontSize: Style.font.caption
 
   textFormat: Text.PlainText
-  color: foreground
+  color: Colors.textFor(foreground)
   font.family: fontFamily
   font.pixelSize: fontSize
   font.bold: true

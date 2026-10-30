@@ -1,5 +1,5 @@
 -- parsers installed eagerly by the module's link verb (mod.nu reads this list)
-return {
+local parsers = {
     "asm",
     "bash",
     "c",
@@ -45,7 +45,6 @@ return {
     "nasm",
     "nix",
     "nu",
-    "nya",
     "ocaml",
     "php",
     "printf",
@@ -74,3 +73,9 @@ return {
     "yaml",
     "zig",
 }
+
+if require("lib.nya") then
+    table.insert(parsers, "nya")
+end
+
+return parsers

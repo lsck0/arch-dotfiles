@@ -12,7 +12,7 @@ export def system [cfg: record] {
     [
         (file-copy lynis-audit.nu /usr/local/bin/lynis-audit --mode 755)
         (unit-file lynis-audit.service)
-        (unit-file lynis-audit.timer --enable)
+        (unit-file lynis-audit.timer --enable --now)
     ]
 }
 

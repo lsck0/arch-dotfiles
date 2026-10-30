@@ -1,5 +1,4 @@
 # managed by arch-dotfiles/apparmor
-owner @{user_cache_dirs}/wal/colors-telegram.tdesktop-palette r,
 owner @{run}/user/@{uid}/*-TD-webview-*wayland.lock rwk,
 owner @{run}/user/@{uid}/*-TD-webview-*wayland rw,
 owner /tmp/*-TD-webview-* rw,

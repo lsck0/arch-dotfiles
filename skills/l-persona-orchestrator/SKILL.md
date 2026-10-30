@@ -15,8 +15,8 @@ Own the run: who works, in what order, when it's done.
 
 - Spawn and close workers, one persona per worker; match model strength
   to the ticket, not one big model for everything. Close each worker once
-  its output is read and reap stale ones (the mode skill's "Worker
-  lifecycle"); no worker outlives its stage.
+  its output is read and reap stale ones (the Lifecycle section of
+  `l-multi-agent-mode/references/harness.md`); no worker outlives its stage.
 - Fan-out is a cost multiplier, not a smarter answer: a multi-agent run
   spends many times the tokens of a single agent, and coding fits it
   poorly (shared context, tight dependencies, weak real-time coordination

@@ -46,9 +46,9 @@ def holder-ensure [dir: path]: nothing -> nothing {
         $env.CURRENT_FILE hold) out+err> /dev/null
 }
 
+# Parallel subagent hooks would lose counts in an unlocked read-modify-write.
 def agents-add [dir: path, sid: string, delta: int]: nothing -> nothing {
-    let file = $dir | path join $"($sid).agents"
-    [((read-or $file "0" | into int) + $delta) 0] | math max | into string | save --force $file
+    ^flock ($dir | path join .agents.lock) $nu.current-exe --no-config-file $env.CURRENT_FILE agents-add-locked $sid $"($delta)"
 }
 
 def start [stdin: string, subagent: bool]: nothing -> nothing {
@@ -73,6 +73,11 @@ def "main subagent-stop" []: string -> nothing {
 
 # Exits 0 while any agent works (hypridle's condition).
 def "main busy" []: nothing -> nothing { if not (any-busy (state-dir)) { exit 1 } }
+
+def "main agents-add-locked" [sid: string, delta: int]: nothing -> nothing {
+    let file = state-dir | path join $"($sid).agents"
+    [((read-or $file "0" | into int) + $delta) 0] | math max | into string | save --force $file
+}
 
 def "main hold" []: nothing -> nothing {
     let dir = state-dir

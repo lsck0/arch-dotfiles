@@ -22,12 +22,13 @@ export def system [cfg: record] {
 
 # Starts libvirt's NAT network unless its subnet is taken (a nested guest); slirp would give guest dns to portmaster.
 export def network []: nothing -> nothing {
-    ^virsh -q -c qemu:///system net-autostart default | ignore
-    if (^virsh -q -c qemu:///system net-info default | lines | any { $in =~ '^Active:.*yes' }) { return }
     let taken = ^ip -j -4 route | from json | where dst == $DEFAULT_SUBNET and dev != $DEFAULT_BRIDGE | get --optional 0.dev
     if $taken != null {
+        ^virsh -q -c qemu:///system net-autostart --disable default | ignore
         log-note $"libvirt: ($DEFAULT_SUBNET) is already this machine's network on ($taken), the default network stays off"
         return
     }
+    ^virsh -q -c qemu:///system net-autostart default | ignore
+    if (^virsh -q -c qemu:///system net-info default | lines | any { $in =~ '^Active:.*yes' }) { return }
     ^virsh -q -c qemu:///system net-start default
 }

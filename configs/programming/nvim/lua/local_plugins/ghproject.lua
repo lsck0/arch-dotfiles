@@ -1120,9 +1120,37 @@ local function refresh()
     load_board(proj_idx, true)
 end
 
+local function key_map(buf, lhs, fn)
+    vim.keymap.set("n", lhs, fn, { buffer = buf, nowait = true, silent = true })
+end
+
+-- the keys that need no loaded board, so a failed load still offers refresh, switch and close
+local function set_keys_base(buf)
+    key_map(buf, "p", function()
+        switch_project(1)
+    end)
+    key_map(buf, "P", function()
+        switch_project(-1)
+    end)
+    key_map(buf, "r", refresh)
+    key_map(buf, "q", function()
+        vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+    key_map(buf, "<Esc>", function()
+        vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+end
+
+local function set_keys_failed(buf)
+    for _, m in ipairs(vim.api.nvim_buf_get_keymap(buf, "n")) do
+        vim.keymap.del("n", m.lhs, { buffer = buf })
+    end
+    set_keys_base(buf)
+end
+
 local function set_keys(buf)
     local function map(lhs, fn)
-        vim.keymap.set("n", lhs, fn, { buffer = buf, nowait = true, silent = true })
+        key_map(buf, lhs, fn)
     end
     map("l", function()
         nav_horiz(1)
@@ -1179,23 +1207,11 @@ local function set_keys(buf)
         switch_view(-1)
     end)
     map("v", cycle_layout)
-    map("p", function()
-        switch_project(1)
-    end)
-    map("P", function()
-        switch_project(-1)
-    end)
     map("/", search)
     map("e", edit_field)
     map("<CR>", open_selected)
     map("o", open_selected)
-    map("r", refresh)
-    map("q", function()
-        vim.api.nvim_buf_delete(buf, { force = true })
-    end)
-    map("<Esc>", function()
-        vim.api.nvim_buf_delete(buf, { force = true })
-    end)
+    set_keys_base(buf)
 end
 
 local function build_cards(items)
@@ -1298,15 +1314,17 @@ local function fetch(org, num, buf, key, title, idx)
             return
         end
         vim.bo[buf].modifiable = true
-        vim.api.nvim_buf_set_lines(
-            buf,
-            0,
-            -1,
-            false,
-            { "", "  " .. title .. " failed to load:", "  " .. msg, "", "  r  refresh" }
-        )
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+            "",
+            "  " .. title .. " failed to load:",
+            "  " .. msg,
+            "",
+            "  r    refresh",
+            "  p/P  switch project",
+            "  q    close",
+        })
         vim.bo[buf].modifiable = false
-        set_keys(buf)
+        set_keys_failed(buf)
     end
     local function assemble()
         local fields = build_fields(got.fields.fields)

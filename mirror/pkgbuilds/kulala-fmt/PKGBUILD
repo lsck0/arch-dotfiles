@@ -25,5 +25,5 @@ package() {
     find "$grammar/Release" -mindepth 1 ! -name '*.node' -exec rm -rf {} +
     find "$mod/node_modules/tree-sitter/prebuilds" -mindepth 1 -maxdepth 1 ! -name linux-x64 -exec rm -rf {} +
     find "$pkgdir/usr" -type d -exec chmod 755 {} +
-    install -Dm644 "$mod/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2> /dev/null || true
+    install -Dm644 "$mod/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }

@@ -5,7 +5,7 @@ const QUIET_GIT = [GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=advice.detachedHead GIT_C
 export const meta = {
     packages: {
         pacman: [
-            luarocks namcap neovide neovim python-pynvim python-tree-sitter-html python-tree-sitter-javascript
+            lua54 luarocks namcap neovide neovim python-pynvim python-tree-sitter-html python-tree-sitter-javascript
             python-tree-sitter-json tree-sitter-cli
         ]
     }
@@ -13,7 +13,7 @@ export const meta = {
 
 const PLUGIN_DIR = ".local/share/nvim/lazy"
 const TREESITTER_TIMEOUT_MS = 600000
-const THEME_MARKER = ".cache/wal/nvim_theme"
+const THEME_MARKER = "wal/nvim_theme"
 # lazy skips a plugin whose cond is false (image.nvim outside kitty): its pin is never cloned headless
 const COND_LUA = '
 local cfg = require("lazy.core.config")
@@ -92,15 +92,18 @@ def install-commands [missing: table]: nothing -> list<string> {
 # a link, not copies: lazy writes lazy-lock.json and zg the spell word lists back into the config dir
 export def link [cfg: record] {
     let restore = if (plugins-stale | is-not-empty) { ["+Lazy! restore"] } else { install-commands (tools-missing) }
+    let config = xdg config nvim
+    # before the first link the probes read no config, so only the step itself can tell what is missing
+    let linked = ($config | path expand) == ($env.PWD | path expand)
     [
-        (file-link . (xdg config nvim))
-        (step prefetch ...$restore)
+        (file-link . $config)
+        ...(if ($restore | is-not-empty) or not $linked { [(step prefetch ...$restore)] } else { [] })
     ]
 }
 
 # Restore the plugins; nvim exits 0 even when every fetch failed, so the pins tell.
 export def prefetch [...restore: string]: nothing -> nothing {
-    ^env ...$QUIET_GIT nvim --headless ...$restore "+qa"
+    if ($restore | is-not-empty) { ^env ...$QUIET_GIT nvim --headless ...$restore "+qa" }
     # on a fresh install the plan ran before the config link existed, so the restore was never asked for
     if (plugins-stale | is-not-empty) { ^env ...$QUIET_GIT nvim --headless "+Lazy! restore" "+qa" }
     let stale = plugins-stale
@@ -121,11 +124,11 @@ export def theme [cfg: record, wallpaper: string] {
 }
 
 export def theme-push []: nothing -> nothing {
-    let name = $nu.home-dir | path join $THEME_MARKER
+    let name = xdg cache $THEME_MARKER
     if not ($name | path exists) { return }
     let expr = $"luaeval\('require\(\"theme\"\).apply\(\"(open --raw $name | str trim)\"\)'\)"
     for server in (glob ($env.XDG_RUNTIME_DIR? | default "/tmp" | path join "nvim.*")) {
-        try { ^nvim --server $server --remote-expr $expr o+e>| ignore }
+        try { ^timeout 5 nvim --server $server --remote-expr $expr o+e>| ignore }
     }
 }
 

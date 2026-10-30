@@ -10,7 +10,7 @@ def fail [message: string] {
 }
 
 def qr-escape []: string -> string {
-    str replace -a '\' '\\' | str replace -a ';' '\;' | str replace -a ',' '\,' | str replace -a ':' '\:'
+    str replace -a '\' '\\' | str replace -a ';' '\;' | str replace -a ',' '\,' | str replace -a ':' '\:' | str replace -a '"' '\"'
 }
 
 def main [interface?: string, --meta] {

@@ -7,5 +7,5 @@ const PICKER = path self | path expand | path dirname | path join .. configs des
 def main []: nothing -> nothing {
     let picked = ^shimejictl list | lines | skip 1 | str replace --regex '^[0-9]+: ' '' | str join "\n"
         | do { ^$PICKER -p Shimeji } | complete | get stdout | str trim
-    if $picked not-in ["" CNCLD] { ^shimejictl summon $picked }
+    if $picked != "" { ^shimejictl summon $picked }
 }

@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t; -*-
 (use-package vertico
   :init (vertico-mode 1)
   :config (setq vertico-cycle t

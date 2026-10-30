@@ -1,13 +1,13 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const volume_step_percent = 5
-const volume_max_percent = 100
-const brightness_step_percent = 5
-const shell_config = ($nu.home-dir | path join .config quickshell)
-const monitor_brightness = ($shell_config | path join scripts monitor-brightness.nu)
+const VOLUME_STEP_PERCENT = 5
+const VOLUME_MAX_PERCENT = 100
+const BRIGHTNESS_STEP_PERCENT = 5
+const SHELL_CONFIG = ($nu.home-dir | path join .config quickshell)
+const MONITOR_BRIGHTNESS = ($SHELL_CONFIG | path join scripts monitor-brightness.nu)
 
 def osd [icon: string, field: string, value: any]: nothing -> nothing {
-    ^timeout 2 quickshell ipc -p $shell_config call osd present ({icon: $icon, $field: $value} | to json -r)
+    ^timeout 2 quickshell ipc -p $SHELL_CONFIG call osd present ({icon: $icon, $field: $value} | to json -r)
     | complete | ignore
 }
 
@@ -55,14 +55,14 @@ def main []: nothing -> nothing {
 }
 
 def "main volume-up" []: nothing -> nothing {
-    let target = [$volume_max_percent ((sink-volume) + $volume_step_percent)] | math min
+    let target = [$VOLUME_MAX_PERCENT ((sink-volume) + $VOLUME_STEP_PERCENT)] | math min
     pactl set-sink-volume @DEFAULT_SINK@ $"($target)%"
     pactl set-sink-mute @DEFAULT_SINK@ 0
     volume-osd
 }
 
 def "main volume-down" []: nothing -> nothing {
-    pactl set-sink-volume @DEFAULT_SINK@ $"-($volume_step_percent)%"
+    pactl set-sink-volume @DEFAULT_SINK@ $"-($VOLUME_STEP_PERCENT)%"
     volume-osd
 }
 
@@ -76,9 +76,9 @@ def "main mic-mute" []: nothing -> nothing {
     if (pactl get-source-mute @DEFAULT_SOURCE@) =~ yes { osd microphone-muted message "Mic muted" } else { osd microphone message "Mic live" }
 }
 
-def "main brightness-up" []: nothing -> nothing { brightness-step $brightness_step_percent }
+def "main brightness-up" []: nothing -> nothing { brightness-step $BRIGHTNESS_STEP_PERCENT }
 
-def "main brightness-down" []: nothing -> nothing { brightness-step (0 - $brightness_step_percent) }
+def "main brightness-down" []: nothing -> nothing { brightness-step (0 - $BRIGHTNESS_STEP_PERCENT) }
 
 def "main kbd-backlight-up" []: nothing -> nothing { kbd-step {|current, max| [($current + 1) $max] | math min } }
 
@@ -89,9 +89,9 @@ def "main kbd-backlight-toggle" []: nothing -> nothing { kbd-step {|current, max
 
 def "main _ddc-step" [delta: int]: nothing -> nothing {
     let monitor = hyprctl monitors -j | from json | where focused | get 0.name
-    let current = ^$monitor_brightness get $monitor | complete | get stdout | str trim
+    let current = ^$MONITOR_BRIGHTNESS get $monitor | complete | get stdout | str trim
     if $current !~ '^\d+$' { osd brightness message "No brightness control"; return }
     let next = $current | into int | $in + $delta | [$in 100] | math min | [$in 1] | math max
-    ^$monitor_brightness set $monitor $next
+    ^$MONITOR_BRIGHTNESS set $monitor $next
     osd brightness value $next
 }

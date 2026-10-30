@@ -41,7 +41,7 @@ stuff" in one project.
 ## Dashboard: exactly what's queued, what stage, what needs you
 
 ```bash
-<this-skill-dir>/scripts/task-dashboard.nu [project-dir]   # defaults to $PWD
+<this-skill-dir>/scripts/task-dashboard.nu [project-dir]   # else $TASKRC, else ./tasks/.taskrc
 ```
 Run this skill's own `scripts/task-dashboard.nu`, not the `task-dashboard`
 command on PATH (that one is the human's curses TUI over `~/.config/task/taskrc` and

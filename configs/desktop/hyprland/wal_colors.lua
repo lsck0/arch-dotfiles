@@ -1,7 +1,8 @@
 local FALLBACK = "rgb(2a2a2a)"
 
 local function read_colors()
-    local f = io.open(os.getenv("HOME") .. "/.cache/wal/colors", "r")
+    local cache = os.getenv("XDG_CACHE_HOME") or (os.getenv("HOME") .. "/.cache")
+    local f = io.open(cache .. "/wal/colors", "r")
     if not f then
         return nil
     end

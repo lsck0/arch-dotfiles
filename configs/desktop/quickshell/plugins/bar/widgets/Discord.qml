@@ -9,6 +9,7 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "discord"
+  barPriority: 25
   hoverPanel: true
   hoverFill: true
 
@@ -160,8 +161,7 @@ BarWidget {
             anchors.centerIn: parent
             visible: !avatarImage.visible
             text: String(chip.modelData.name || "?").charAt(0).toUpperCase()
-            color: Colors.menu.text
-            opacity: Style.emphasis.dim
+            color: Colors.textDim
             font.family: Style.font.family
             font.pixelSize: Math.round(root.avatarSize * 0.5)
             font.bold: true
@@ -198,10 +198,9 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       visible: root.participants.length > root.avatarCountMax
       text: "+" + (root.participants.length - root.avatarCountMax)
-      color: root.bar ? root.bar.barForeground : Colors.foreground
+      color: Colors.textDim
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.bodySmall
-      opacity: Style.emphasis.dim
     }
   }
 
@@ -209,7 +208,6 @@ BarWidget {
     anchorWidget: root
     title: "VOICE"
     implicitWidth: Style.panelWidth.narrow
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
     Column {
       id: content
@@ -250,7 +248,7 @@ BarWidget {
             horizontalAlignment: Text.AlignRight
             visible: root.speakingCount > 0
             text: root.speakingCount + " SPEAKING"
-            color: Colors.semantic.speaking
+            color: Colors.textFor(Colors.semantic.speaking)
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             font.capitalization: Font.AllUppercase
@@ -271,7 +269,7 @@ BarWidget {
           iconText: root.selfMute ? "\u{f036d}" : "\u{f036c}"
           text: root.selfMute ? "Unmute" : "Mute"
           danger: root.selfMute
-          foreground: root.selfMute ? Colors.urgent : Colors.menu.text
+          foreground: root.selfMute ? Colors.urgentText : Colors.menu.text
           onClicked: DiscordControl.send("toggleSelfMute")
         }
         Button {
@@ -280,7 +278,7 @@ BarWidget {
           iconText: root.selfDeaf ? "\u{f0581}" : "\u{f02cb}"
           text: root.selfDeaf ? "Undeafen" : "Deafen"
           danger: root.selfDeaf
-          foreground: root.selfDeaf ? Colors.urgent : Colors.menu.text
+          foreground: root.selfDeaf ? Colors.urgentText : Colors.menu.text
           onClicked: DiscordControl.send("toggleSelfDeaf")
         }
         Button {
@@ -289,7 +287,7 @@ BarWidget {
           iconText: "\u{f03f5}"   // md-phone_hangup
           text: "Leave"
           danger: true
-          foreground: Colors.urgent
+          foreground: Colors.urgentText
           onClicked: {
             DiscordControl.send("disconnect")
             if (root.bar) root.bar.closePanel(root.moduleName)
@@ -353,7 +351,7 @@ BarWidget {
               width: Math.min(implicitWidth, parent.width - (youLabel.visible ? youLabel.implicitWidth + parent.spacing : 0))
               textFormat: Text.PlainText
               text: participant.modelData.name
-              color: participant.modelData.speaking ? Colors.accent : Colors.menu.text
+              color: participant.modelData.speaking ? Colors.accentText : Colors.menu.text
               font.family: Style.font.family
               font.pixelSize: Style.font.body
               elide: Text.ElideRight
@@ -365,8 +363,7 @@ BarWidget {
               visible: !!participant.modelData.self
               anchors.baseline: nameLabel.baseline
               text: "you"
-              color: Colors.menu.text
-              opacity: Style.emphasis.faint
+              color: Colors.textDim
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
             }
@@ -381,30 +378,28 @@ BarWidget {
             Text {
               visible: participant.modelData.selfDeaf || participant.modelData.deaf
               text: "\u{f0581}"   // md-volume_off
-              color: participant.modelData.deaf ? Colors.urgent : Util.alpha(Colors.urgent, 0.75)
+              color: participant.modelData.deaf ? Colors.urgentText : Colors.urgent
               font.family: Style.font.iconFamily
               font.pixelSize: Style.font.caption
             }
             Text {
               visible: participant.modelData.selfMute || participant.modelData.mute
               text: "\u{f036d}"   // md-microphone_off
-              color: participant.modelData.mute ? Colors.urgent : Util.alpha(Colors.urgent, 0.75)
+              color: participant.modelData.mute ? Colors.urgentText : Colors.urgent
               font.family: Style.font.iconFamily
               font.pixelSize: Style.font.caption
             }
             Text {
               visible: participant.modelData.video
               text: "\u{f0567}"   // md-video
-              color: Colors.menu.text
-              opacity: Style.emphasis.dim
+              color: Colors.textDim
               font.family: Style.font.iconFamily
               font.pixelSize: Style.font.caption
             }
             Text {
               visible: participant.modelData.streaming
               text: "\u{f1483}"   // md-monitor_share
-              color: Colors.menu.text
-              opacity: Style.emphasis.dim
+              color: Colors.textDim
               font.family: Style.font.iconFamily
               font.pixelSize: Style.font.caption
             }

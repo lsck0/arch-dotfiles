@@ -6,6 +6,7 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "exit"
+  barPriority: 40
 
   implicitWidth: button.implicitWidth
   implicitHeight: barSize

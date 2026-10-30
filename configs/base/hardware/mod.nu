@@ -1,5 +1,5 @@
 use module.nu *
-export use ../boot/boot.nu [cmdline-set]
+export use ../boot/boot.nu [cmdline-set cmdline-unset]
 use ../boot/boot.nu [hooks-read hooks-write hooks-insert]
 
 export const meta = {
@@ -50,7 +50,9 @@ export def packages [cfg: record]: nothing -> record {
 
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
-    if ($cfg.nvidia_driver | default "none") == "none" { return [(step kms-restore)] }
+    if ($cfg.nvidia_driver | default "none") == "none" {
+        return [(step cmdline-unset nvidia_drm.modeset) (step kms-restore)]
+    }
     [(step cmdline-set nvidia_drm.modeset=1) (step kms-drop)]
 }
 

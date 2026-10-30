@@ -5,7 +5,7 @@ description: Reading the live system dot manages: dot status, run logs and trace
 
 # live-debug
 
-Everything here only reads, except the restart at the end.
+Everything here only reads, except `dot module adopt|reset` and the restart at the end.
 
 ## dot
 
@@ -22,7 +22,7 @@ dot module reset <file>   # back to the module's copy, the edit preserved aside
 
 - `FAILURES.config` / `FAILURES.install` at the repo root: the last run's failures, system included; `config.log` /
   `install.log` the terminal output.
-- A crashed run leaves `~/.local/state/dotfiles/crash.json`. Root's state: `/var/lib/dotfiles`.
+- A crashed run leaves `$XDG_STATE_HOME/dotfiles/crash.json`. Root's state: `/var/lib/dotfiles`.
 - Exit 3 under `DOT_SYSTEM=skip` is a pending system part, not a failure.
 
 ## systemd, AppArmor, quickshell
@@ -58,7 +58,8 @@ A homelab service that times out: `l-homelab`, section Debugging.
 `collect-diagnostics [dest]` writes `dest/diag-<host>-<time>/`: hardware, boot, network, DNS, firewall, journals (this
 boot, previous, last five as zstd exports), failed units, `dot status`, `dot log`, `FAILURES*`, run logs, crash record,
 stage state, Hyprland and quickshell logs. Bash and coreutils only, so it runs from a USB stick. Asks sudo once for the
-root parts, skips them without. `dest` defaults to `$PWD`, from the stick to the script's dir.
+root parts, skips them without. `dest` defaults to `$XDG_STATE_HOME/diagnostics` (never the checkout), from the
+stick to the script's dir.
 
 ## Restart
 

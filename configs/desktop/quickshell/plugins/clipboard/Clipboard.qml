@@ -172,10 +172,10 @@ Item {
 
   function signatureColor(sig) {
     if (!sig) return root.foreground
-    if (sig.state === "good") return Colors.ok
-    if (sig.state === "untrusted" || sig.state === "expired") return Colors.warn
+    if (sig.state === "good") return Colors.okText
+    if (sig.state === "untrusted" || sig.state === "expired") return Colors.warnText
     if (sig.state === "none") return root.foreground
-    return Colors.urgent
+    return Colors.urgentText
   }
 
   function toggle() {
@@ -287,6 +287,7 @@ Item {
       displayModel.append({
         entryType: row.entryType,
         fullText: row.fullText,
+        copyText: row.copyText,
         paneText: row.paneText,
         previewText: row.previewText,
         previewImage: row.previewImage ? Util.fileUrl(row.previewImage) : "",
@@ -354,8 +355,9 @@ Item {
     root.openRow(displayModel.get(index))
   }
 
-  function copyText(text) {
+  function copyText(text, mime) {
     if (copyTextProc.running) return
+    copyTextProc.command = mime ? ["wl-copy", "--type", mime] : ["wl-copy"]
     copyTextProc.stdinEnabled = true
     copyTextProc.running = true
     copyTextProc.write(text)
@@ -367,8 +369,8 @@ Item {
     root.close()
     if (row.entryType === "image") {
       Quickshell.execDetached(["bash", "-c", "wl-copy --type " + Util.shellQuote(row.mime) + " < " + Util.shellQuote(row.path)])
-    } else if (row.fullText) {
-      root.copyText(row.fullText)
+    } else if (row.copyText) {
+      root.copyText(row.copyText, row.entryType === "file" ? row.mime : "")
     }
   }
 
@@ -532,9 +534,9 @@ Item {
     prompt: true
     query: root.filterText
     placeholder: "search clipboard"
-    hints: root.gpgMode === "encrypt" ? [["ESC", "back"], ["UP/DOWN", "key"], ["SPACE", "pick"], ["ENTER", "encrypt"]]
+    hints: root.gpgMode === "encrypt" ? [["^/v", "key"], ["SPACE", "pick"], ["ENTER", "encrypt"], ["ESC", "back"]]
       : root.gpgMode === "decrypt" ? [["ESC", "back"]]
-      : [["ESC", "close"], ["ENTER", "copy"], ["ALT+ENTER", "open"], ["DEL", "forget"], ["SHIFT+DEL", "clear"], ["CTRL+E", "encrypt"], ["CTRL+D", "decrypt"]]
+      : [["ENTER", "copy"], ["ALT+ENTER", "open"], ["DEL", "forget"], ["SHIFT+DEL", "clear"], ["CTRL+E", "encrypt"], ["CTRL+D", "decrypt"], ["ESC", "close"]]
     keyboard: !root.gpgBusy
     cardWidth: Style.space(700)
     cardHeight: Style.space(480)
@@ -675,7 +677,7 @@ Item {
                   width: Style.space(12)
                   textFormat: Text.PlainText
                   text: rowDelegate.hasCursor ? ">" : ""
-                  color: root.selectedText
+                  color: Colors.accentText
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.body
                   horizontalAlignment: Text.AlignHCenter
@@ -699,10 +701,10 @@ Item {
                   width: parent.width - reticle.width - parent.spacing - (rowDelegate.previewImage.length > 0 ? parent.height + parent.spacing : 0)
                   height: parent.height
                   text: rowDelegate.previewText
-                  color: rowDelegate.hasCursor ? root.selectedText : root.foreground
+                  color: rowDelegate.hasCursor ? root.selectedText
+                    : rowDelegate.entryType === "image" || rowDelegate.entryType === "file" ? Colors.textDim : root.foreground
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.body
-                  opacity: rowDelegate.entryType === "image" || rowDelegate.entryType === "file" ? 0.72 : 1.0
                   elide: Text.ElideRight
                   wrapMode: Text.NoWrap
                   verticalAlignment: Text.AlignVCenter
@@ -738,7 +740,7 @@ Item {
 
               Text {
                 text: "\u{f014c}"
-                color: root.selectedText
+                color: Colors.accentText
                 opacity: Style.emphasis.dim
                 font.family: Style.font.iconFamily
                 font.pixelSize: Style.font.displayLarge
@@ -749,8 +751,7 @@ Item {
               Text {
                 textFormat: Text.PlainText
                 text: "> NOTHING HERE"
-                color: root.foreground
-                opacity: Style.emphasis.dim
+                color: Colors.textDim
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.body
                 horizontalAlignment: Text.AlignHCenter
@@ -823,7 +824,7 @@ Item {
               visible: text !== ""
               textFormat: Text.PlainText
               text: root.gpgBusy ? "> waiting for gpg (pinentry or a key touch may ask)" : root.gpgError
-              color: root.gpgBusy ? root.foreground : Colors.urgent
+              color: root.gpgBusy ? root.foreground : Colors.urgentText
               font.family: root.fontFamily
               font.pixelSize: Style.font.body
               wrapMode: Text.Wrap

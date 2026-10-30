@@ -63,7 +63,7 @@ local function stale(root)
         vim.fs.dir(root, {
             depth = math.huge,
             skip = function(dir)
-                return not STALE_SKIP[dir]
+                return not STALE_SKIP[vim.fs.basename(dir)]
             end,
         })
     do

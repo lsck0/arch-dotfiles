@@ -1,0 +1,21 @@
+{% set bg_alt = background | blend(foreground) | blend(background) | blend(background) -%}
+{% set bg_sel = background | blend(foreground) | blend(background) -%}
+{% set fg_dim = foreground | blend(background) | blend(foreground) -%}
+scheme: "Wallust"
+author: "dotfiles (wallust)"
+base00: "{{background | strip}}"
+base01: "{{bg_alt | strip}}"
+base02: "{{bg_sel | strip}}"
+base03: "{{color8 | strip}}"
+base04: "{{fg_dim | strip}}"
+base05: "{{foreground | strip}}"
+base06: "{{color7 | strip}}"
+base07: "{{color15 | strip}}"
+base08: "{{color1 | strip}}"
+base09: "{{color1 | blend(color3) | strip}}"
+base0A: "{{color3 | strip}}"
+base0B: "{{color2 | strip}}"
+base0C: "{{color6 | strip}}"
+base0D: "{{color4 | strip}}"
+base0E: "{{color5 | strip}}"
+base0F: "{{color9 | strip}}"

@@ -2,7 +2,6 @@ use module.nu *
 
 export const meta = {packages: {pacman: [libreoffice-fresh]}}
 
-const XCU = ".config/libreoffice/4/user/registrymodifications.xcu"
 # a stored appearance or theme paints the dialogs in its own light palette instead of the gtk one
 const OVERRIDE = 'oor:path="/org.openoffice.Office.Common/Appearance"><prop oor:name="(ApplicationAppearance|LibreOfficeTheme)"'
 const TIPS_KEY = 'oor:name="ShowTipOfTheDay"'
@@ -21,14 +20,14 @@ def version-installed []: nothing -> string {
 }
 
 export def link [cfg: record] {
-    let xcu = $nu.home-dir | path join $XCU
+    let xcu = xdg config libreoffice 4 user registrymodifications.xcu
     let text = if ($xcu | path exists) { open --raw $xcu } else { "" }
     if $text !~ $OVERRIDE and $text =~ $TIPS_KEY and $text =~ $VERSION_KEY { return [] }
     step xcu-update $xcu
 }
 
 export def xcu-update [xcu: path] {
-    if (ps | where name == soffice.bin | is-not-empty) {
+    if (process-running soffice.bin) {
         log-warn "libreoffice: running, registry update skipped"
         return
     }

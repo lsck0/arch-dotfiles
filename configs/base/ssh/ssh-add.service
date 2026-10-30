@@ -1,7 +1,7 @@
 [Unit]
 Description=Load the secrets ssh key into ssh-agent
-Requires=ssh-agent.service
-After=ssh-agent.service graphical-session.target
+Requires=ssh-agent.socket
+After=ssh-agent.socket graphical-session.target
 
 [Service]
 Type=oneshot

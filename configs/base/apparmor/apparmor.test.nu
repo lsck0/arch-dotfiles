@@ -2,13 +2,18 @@
 
 const HERE = path self | path dirname
 const MARKER = "# managed by arch-dotfiles/apparmor"
+const OWN_SUFFIX = ".dotfiles"
 const OVERRIDES = [firefox thunderbird libreoffice]
 const ENFORCED = [
     firefox chromium qutebrowser lynx cha thunderbird discord signal-desktop telegram-desktop element-desktop hexchat
-    zapzap protonmail wireshark spotify mpv zathura sioyek okular bookokrat libreoffice onlyoffice feh nsxiv imv obsidian zotero
-    localsend-app qbittorrent ouch 7z unrar unzip magick pdftoppm ffmpegthumbnailer ffmpeg ffprobe handbrake
+    zapzap protonmail wireshark spotify mpv zathura sioyek okular bookokrat libreoffice onlyoffice feh nsxiv obsidian
+    zotero localsend-app qbittorrent ouch 7z unrar unzip magick pdftoppm ffmpeg ffprobe handbrake
     blender-mcp obs-mcp child-open child-open-any child-open-browsers child-open-strict
 ]
+# rules other modules rely on: the discord voice plugin claims its command file by renaming it to .reading
+const REQUIRED_RULES = {
+    discord: ["owner @{run}/user/@{uid}/quickshell-discord-cmd{,.reading} rw,"]
+}
 
 def basenames [dir: string]: nothing -> list<string> {
     ls $dir | get name | path basename
@@ -57,7 +62,8 @@ def parse-ok [file: path, work: path, etc: path]: nothing -> bool {
             --features-file ($etc | path join abi 4.0) $file)
     } | complete
     print --stderr --no-newline $run.stderr
-    $run.exit_code == 0
+    # a name with a disable/ link is skipped with exit 0, never parsed
+    $run.exit_code == 0 and not ($run.stderr | str contains "Skipping profile")
 }
 
 def compile-check [rows: table, source: path, etc: path]: nothing -> list<string> {
@@ -72,16 +78,32 @@ def compile-check [rows: table, source: path, etc: path]: nothing -> list<string
     mkdir ($work | path join abstractions dotfiles) ($work | path join local)
     glob abstractions/* | each { cp $in ($work | path join abstractions dotfiles) } | ignore
     glob local/* | each { cp $in ($work | path join local) } | ignore
-    let profiles = $own | each { $"profiles/($in)" } | where not (parse-ok $it $work $etc)
-        | each { $"($in) does not compile" }
-    # apparmor.d deploys a profile that replaces a stock one as <name>.apparmor.d, this module its own as <name>.dotfiles
-    let locals = basenames local | each {|n|
-        let target = [$"($n).dotfiles" $"($n).apparmor.d" $n] | each {|f| $etc | path join $f }
+    # parsed under the installed name: the bare one has a disable/ link wherever a stock stub exists
+    let profiles = $own | each {|n|
+        let file = $work | path join $"($n)($OWN_SUFFIX)"
+        cp $"profiles/($n)" $file
+        if not (parse-ok $file $work $etc) { $"profiles/($n) does not compile" }
+    } | compact
+    # an own profile above already pulled in its local from $work; apparmor.d deploys one that replaces a stock
+    # profile as <name>.apparmor.d
+    let locals = basenames local | where $it not-in $own | each {|n|
+        let target = [$"($n).apparmor.d" $n] | each {|f| $etc | path join $f }
             | where ($it | path exists) and ($it | path expand | path type) == file | get --optional 0
-        if $target != null and not (parse-ok $target $work $etc) { $"($target) does not compile with local/($n)" }
+        if $target == null {
+            print --stderr $"apparmor.test: skipped local/($n): no ($n) profile in ($etc)"
+        } else if not (parse-ok $target $work $etc) {
+            $"($target | path basename) does not compile with local/($n)"
+        }
     } | compact
     rm -rf $work
     $names ++ $profiles ++ $locals
+}
+
+def required-check []: nothing -> list<string> {
+    $REQUIRED_RULES | items {|name, rules|
+        let have = open --raw $"local/($name)" | lines | str trim
+        $rules | where $it not-in $have | each {|r| $"local/($name) lacks '($r)'" }
+    } | flatten
 }
 
 # An override differs from its upstream apparmor.d profile only in the profile line.
@@ -109,9 +131,16 @@ def main []: nothing -> nothing {
         ($source | path exists) and ($etc | path join abstractions base-strict | path exists)
         and (which apparmor_parser | is-not-empty)
     )
-    let compiled = if $compilable { compile-check $rows $source $etc } else { [] }
-    let drifted = if ($source | path exists) { override-check $source } else { [] }
-    let failures = (rows-check $rows) ++ (own-check $rows) ++ $compiled ++ $drifted
+    let compiled = if $compilable { compile-check $rows $source $etc } else {
+        let needs = $"($source), ($etc)/abstractions/base-strict and apparmor_parser"
+        print --stderr $"apparmor.test: skipped compiling: needs ($needs)"
+        []
+    }
+    let drifted = if ($source | path exists) { override-check $source } else {
+        print --stderr $"apparmor.test: skipped the override check: no ($source)"
+        []
+    }
+    let failures = (rows-check $rows) ++ (own-check $rows) ++ (required-check) ++ $compiled ++ $drifted
     for f in $failures { print --stderr $"apparmor.test: ($f)" }
     if ($failures | is-not-empty) { exit 1 }
 }

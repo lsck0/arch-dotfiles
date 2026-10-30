@@ -16,7 +16,7 @@ QtObject {
   function controlColor(prefix, foreground, accent) {
     if (prefix === "focus") return Style.focusStateColor(foreground, accent)
     if (prefix === "hover-cursor") return Style.hoverStateColor(foreground, accent)
-    if (prefix === "selected") return Style.selectedStateColor(foreground, accent)
+    if (prefix === "selected") return Style.selectedMarkColor(foreground, accent)
     return Style.normalStateColor(foreground, accent)
   }
 

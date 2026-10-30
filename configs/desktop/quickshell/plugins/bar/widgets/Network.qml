@@ -8,6 +8,7 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "network"
+  barPriority: 75
   hoverPanel: true
   hoverFill: true
   hoverCursor: Qt.ArrowCursor
@@ -19,7 +20,7 @@ BarWidget {
   function toggleAvailable(name) { return !!toggles[name] && toggles[name].available }
   function toggleLabel(name, fallback) { return toggles[name] && toggles[name].label ? toggles[name].label : fallback }
   readonly property var toggleNames: ["route", "vpn", "anonymous-socks", "bluetooth", "wifi", "ethernet", "mobile", "firewall",
-    "trust-network"]
+    "trust-network", "portal"]
 
   readonly property string homeVpnState: toggleState("vpn", "off")
   readonly property string route: toggleState("route", "direct")
@@ -36,12 +37,14 @@ BarWidget {
   readonly property bool homelabAvailable: toggleAvailable("vpn")
   readonly property bool trustedNetwork: toggleOn("trust-network")
   readonly property bool trustAvailable: toggleAvailable("trust-network")
+  readonly property bool portalOpen: toggleOn("portal")
+  readonly property bool portalAvailable: toggleAvailable("portal")
 
   property bool detailsConnected: false
   property string connectivity: "unknown"
   readonly property bool reallyOnline: connectivity === "full" || (detailsConnected && connectivity === "unknown")
   property string detailsDevice: ""
-  property string detailsSsid: ""
+  property string detailsConnection: ""
   property string detailsIp4: ""
   property string detailsMac: ""
   property int detailsRxKbps: 0
@@ -109,6 +112,7 @@ BarWidget {
   function toggleEthernet() { runToggle("toggle-ethernet.nu") }
   function toggleMobile() { runToggle("toggle-mobile.nu") }
   function toggleTrustNetwork() { runToggle("toggle-trust-network.nu") }
+  function togglePortal() { runToggle("toggle-portal.nu") }
   function setRoute(state) { Quickshell.execDetached([Paths.toggle("toggle-route.nu"), "set", state]) }
   function setFirewall(state) { Quickshell.execDetached([Paths.toggle("toggle-firewall.nu"), "set", state]) }
 
@@ -141,7 +145,7 @@ BarWidget {
       root.detailsConnected = !!d.connected
       root.connectivity = d.connectivity || "unknown"
       root.detailsDevice = d.device || ""
-      root.detailsSsid = d.ssid || ""
+      root.detailsConnection = d.connection || ""
       root.detailsIp4 = d.ip4 || ""
       root.detailsMac = d.mac || ""
       root.detailsRxKbps = d.rxKbps || 0
@@ -175,7 +179,7 @@ BarWidget {
   Process {
     id: nmMonitorProc
     running: true
-    command: ["nmcli", "monitor"]
+    command: ["setpriv", "--pdeathsig", "TERM", "nmcli", "monitor"]
     Component.onDestruction: running = false
     stdout: SplitParser {
       splitMarker: "\n"
@@ -237,7 +241,7 @@ BarWidget {
       textFormat: Text.PlainText
       text: root.statusIcon
       color: (root.homeVpnState === "on" || root.protonVpnState === "on" || root.torState === "on")
-        ? Colors.accent
+        ? Colors.accentText
         : (root.bar ? root.bar.barForeground : Colors.foreground)
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
@@ -254,7 +258,6 @@ BarWidget {
     acceptsKeyboard: true
     title: "NETWORK"
     implicitWidth: Style.panelWidth.normal
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
     Column {
       id: content
@@ -277,11 +280,11 @@ BarWidget {
         StatRow {
           label: "Status"
           value: root.connectivityLabel + (root.onEthernet ? " :: LAN" : " :: Wi-Fi")
-          valueColor: root.reallyOnline ? Colors.menu.text : Colors.menu.selectedText
+          valueColor: root.reallyOnline ? Colors.menu.text : Colors.accentText
         }
         StatRow {
           label: "Device"
-          value: root.detailsDevice + (root.detailsSsid ? " (" + root.detailsSsid + ")" : "")
+          value: root.detailsDevice + (root.detailsConnection ? " (" + root.detailsConnection + ")" : "")
           valueElide: Text.ElideLeft
         }
         StatRow { label: "IP"; value: root.detailsIp4 || "--" }
@@ -299,7 +302,10 @@ BarWidget {
         spacing: Style.spacing.xs
 
         Hero {
-          value: root.fmtSpeed(root.detailsRxKbps)
+          readonly property bool txLeads: root.detailsTxKbps > root.detailsRxKbps
+
+          value: root.fmtSpeed(txLeads ? root.detailsTxKbps : root.detailsRxKbps)
+          unit: txLeads ? "tx" : "rx"
           live: true
         }
 
@@ -385,8 +391,7 @@ BarWidget {
                 anchors.rightMargin: Style.spacing.sm
                 anchors.verticalCenter: parent.verticalCenter
                 text: wifiNet.modelData.signal + "%"
-                color: Colors.menu.text
-                opacity: wifiNet.modelData.active ? 1 : Style.emphasis.faint
+                color: wifiNet.modelData.active ? Colors.menu.text : Colors.textDim
                 font.pixelSize: Style.font.caption
                 font.family: Style.font.family
               }
@@ -438,7 +443,7 @@ BarWidget {
                 Text {
                   anchors.centerIn: parent
                   text: root.connectingSsid === wifiNet.modelData.ssid ? "..." : "Connect"
-                  color: Colors.accent
+                  color: Colors.accentText
                   font.pixelSize: Style.font.caption
                   font.family: Style.font.family
                 }
@@ -455,8 +460,7 @@ BarWidget {
         Text {
           visible: root.wifiNetworks.length === 0 || wifiScanProc.running
           text: wifiScanProc.running ? "> SCANNING" : "> NOTHING HERE"
-          color: Colors.menu.text
-          opacity: Style.emphasis.faint
+          color: Colors.textDim
           font.pixelSize: Style.font.caption
           font.family: Style.font.family
         }
@@ -467,7 +471,7 @@ BarWidget {
           width: content.width
           wrapMode: Text.Wrap
           text: root.connectError
-          color: Colors.urgent
+          color: Colors.urgentText
           font.pixelSize: Style.font.caption
           font.family: Style.font.family
         }
@@ -486,6 +490,13 @@ BarWidget {
       }
       // home lifts the lockdown on this link: the gateway joins networkmanager's home_gateways
       ToggleRow { visible: root.trustAvailable; label: root.toggleLabel("trust-network", "Trusted network"); on: root.trustedNetwork; onActivated: root.toggleTrustNetwork() }
+      // offered while NM reports a portal or one is open: tor and strict dot keep its login page out of reach
+      ToggleRow {
+        visible: root.portalAvailable && (root.connectivity === "portal" || root.portalOpen)
+        label: root.toggleLabel("portal", "Captive portal")
+        on: root.portalOpen
+        onActivated: root.togglePortal()
+      }
 
       PanelSeparator {}
       PanelSectionHeader { text: "ROUTE" }
@@ -542,7 +553,7 @@ BarWidget {
         onActivated: {
           if (root.bar) root.bar.closePanel(root.moduleName)
           Quickshell.execDetached(Paths.ipcCall("shell", "summon", "panel.wifiqr",
-            JSON.stringify({ iface: root.detailsDevice, ssid: root.detailsSsid })))
+            JSON.stringify({ iface: root.detailsDevice })))
         }
       }
     }

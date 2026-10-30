@@ -1,7 +1,7 @@
 # Module discovery, ordering and evaluation, each batch in one child nu.
 
 use log.nu *
-use state.nu [LIB_DIR nu-bin SYSTEM_STATE]
+use state.nu [LIB_DIR nu-bin SYSTEM_STATE xdg]
 
 const SELF = path self
 const REPO = path self ../..
@@ -61,7 +61,7 @@ def native-read [dirs: list<path>]: nothing -> list<record> {
 }
 
 def modules-scan [repo: path, markers: list<path>]: nothing -> table {
-    let natives = native-read ($markers | where ($it | path basename) == "mod.nu" | path dirname)
+    let natives = native-read ($markers | path dirname)
     $markers | path dirname | uniq | sort | each {|dir|
         let rel = $dir | path relative-to $repo
         let root = not ($rel | str starts-with "configs/")
@@ -92,7 +92,7 @@ export def modules-discover [repo: path, groups: list<string>]: nothing -> table
         | append $SELF
     let key = ls --full-paths ...$inputs | select name size modified | to nuon | hash sha256
     # the caller's own cache, never root's: a user plans the system layer too
-    let cache = if (is-admin) { $SYSTEM_STATE | path join discover.nuon } else { $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join dotfiles discover.nuon }
+    let cache = if (is-admin) { $SYSTEM_STATE | path join discover.nuon } else { xdg cache dotfiles discover.nuon }
     let cached = try { open $cache } catch { {key: ""} }
     let found = if $cached.key == $key { $cached.modules } else {
         let scanned = modules-scan $repo $markers

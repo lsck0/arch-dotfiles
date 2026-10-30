@@ -1,5 +1,6 @@
+;;; -*- lexical-binding: t; -*-
 (defconst my/tree-ignored-mark "\ue668"
-  "Sidebar marker for gitignored entries: the nerd font seti-ignored glyph nvim's explorer shows.")
+  "Sidebar marker for gitignored entries: the nerd font seti-ignored glyph, distinct from the hidden-file marker.")
 
 (defconst my/tree-hidden-mark "\U000F0209"
   "Sidebar marker for dotfiles that are not gitignored: nerd font md-eye_off, as in nvim.")

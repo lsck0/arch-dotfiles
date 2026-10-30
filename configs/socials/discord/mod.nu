@@ -38,7 +38,7 @@ const SETTINGS = {
     openH264Enabled: true
 }
 const THEME_SLOTS = {
-    accentcolor: button, accentcolor2: button, backgroundprimary: main, backgroundsecondary: main
+    accentcolor: button, backgroundprimary: main, backgroundsecondary: main
     backgroundsecondaryalt: main, backgroundtertiary: main, backgroundaccent: highlight
     backgroundfloating: main-elevated, textbrightest: text, textbrighter: text, textdark: subtext
 }
@@ -58,6 +58,13 @@ export def link [cfg: record] {
     # betterdiscord adds a new addon disabled, keyed by its @name; the updater stays off, it would replace the pins
     let managed = $PLUGINS.name | append (addon-name $VOICE_PLUGIN)
     let data = betterdiscord-dir | path join data stable
+    let plugin_states = $data | path join plugins.json
+    let enabled = try { open $plugin_states } catch { {} }
+    let disabled = $managed | where {|name| ($enabled | get --optional $name) != true }
+    # betterdiscord reads plugins.json only at startup and rewrites it from memory, so a running client keeps them off
+    if ($disabled | is-not-empty) and (process-running Discord) {
+        log-note $"discord: restart Discord or enable in BetterDiscord settings: ($disabled | str join ', ')"
+    }
     let bootstrapping = process-running updater_bootstr
     [
         (json-merge ($config | path join settings.json) ($SETTINGS | items {|k, v| json-set [$k] $v }))
@@ -67,10 +74,10 @@ export def link [cfg: record] {
             let download = [sh -c $BOOTSTRAP_RUN discord-app $BOOTSTRAP_TIMEOUT $BOOTSTRAP $config $UPDATES_URL]
             exec discord-app $download --creates ($config | path join Discord)
         })
-        # copies: betterdiscord misses changes through a symlink
-        (file-copy $VOICE_PLUGIN ($plugins | path join ($VOICE_PLUGIN | path basename)))
-        ($fetched | each {|p| fetch-file $p.url $p.sha256 $p.dest } | flatten)
-        (json-merge ($data | path join plugins.json) ($managed | each {|name| json-set [$name] true }))
+        # in place: betterdiscord disables an addon whose file is renamed over, and misses changes through a symlink
+        (file-copy $VOICE_PLUGIN ($plugins | path join ($VOICE_PLUGIN | path basename)) --in-place)
+        ($fetched | each {|p| fetch-file $p.url $p.sha256 $p.dest --in-place } | flatten)
+        (json-merge $plugin_states ($managed | each {|name| json-set [$name] true }))
         (json-merge ($plugins | path join Incognito.config.json) [
             (json-set [settings blockReadReceipts] false)
             (json-set [settings blockUsageProfiling] false)
@@ -80,6 +87,10 @@ export def link [cfg: record] {
         # discord self-updates and relaunches past any wrapper, so the hook stays armed
         (user-hook betterdiscord-inject hook/betterdiscord-inject.nu --watch [
             "%h/.config/discord/Discord" "%h/.local/state/betterdiscord-modules"
+        ])
+        # discord's own cleanup deletes the openh264 build its host loads, so stream video fails to decode
+        (user-hook discord-openh264 hook/openh264-restore.nu --watch [
+            "%h/.config/discord/discord_asset_cache/openh264" "%h/.config/discord/Discord"
         ])
     ]
 }

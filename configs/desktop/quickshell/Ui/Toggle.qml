@@ -25,7 +25,7 @@ Item {
   TextMetrics {
     id: widest
     font: label.font
-    text: "[ off]"
+    text: "[off]"
   }
 
   BorderSurface {
@@ -38,11 +38,13 @@ Item {
 
   Text {
     id: label
-    anchors.centerIn: parent
+    anchors.right: parent.right
+    anchors.rightMargin: root._pad
+    anchors.verticalCenter: parent.verticalCenter
     textFormat: Text.PlainText
-    text: root.checked ? "[on ]" : "[ off]"
-    color: root.checked ? Style.selectedStateColor(root.foreground, root.accent) : root.foreground
-    opacity: root.checked ? 1 : Style.emphasis.faint
+    // flush right like the [state] of a multi-state toggle, so both read as one column
+    text: root.checked ? "[on]" : "[off]"
+    color: root.checked ? Colors.textFor(root.accent) : Colors.textDim
     font.family: Style.font.family
     font.pixelSize: Style.font.body
     font.bold: root.checked

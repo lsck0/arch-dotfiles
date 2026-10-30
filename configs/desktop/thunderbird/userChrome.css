@@ -29,6 +29,7 @@ menupopup,
 panel,
 .tab-label {
     font-family: var(--rtk-chrome-font) !important;
+    font-size: var(--rtk-chrome-font-size) !important;
 }
 
 .tabmail-tab[selected] .tab-background {

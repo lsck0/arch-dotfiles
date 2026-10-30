@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t; -*-
 (setq treesit-font-lock-level 4)
 
 (use-package treesit-auto
@@ -158,7 +159,7 @@ NAMES is a list of file names, or a predicate on a directory, searched upward fr
     (setf (alist-get m apheleia-mode-alist) 'clang-format))
   (setf (alist-get 'leptosfmt   apheleia-formatters) '("leptosfmt" "--stdin" "--rustfmt")
         (alist-get 'sortderives apheleia-formatters)
-        (list (expand-file-name "configs/programming/formatting/sort-derives-stdout.nu" (getenv "DOTFILES"))))
+        (list (expand-file-name "formatting/sort-derives-stdout.nu" user-emacs-directory)))
   (dolist (m '(rust-mode rust-ts-mode))
     (setf (alist-get m apheleia-mode-alist) '(rustfmt sortderives)))
   (dolist (hook '(rust-mode-hook rust-ts-mode-hook))
@@ -169,7 +170,8 @@ NAMES is a list of file names, or a predicate on a directory, searched upward fr
                html-mode css-ts-mode scss-mode))
     (setf (alist-get m apheleia-mode-alist) 'prettier))
   (setf (alist-get 'gofumpt apheleia-formatters) '("gofumpt")
-        (alist-get 'nixfmt  apheleia-formatters) '("nixfmt"))
+        (alist-get 'nixfmt  apheleia-formatters) '("nixfmt")
+        (alist-get 'latexindent apheleia-formatters) '("latexindent" "-m" "--logfile=/dev/null"))
   (dolist (m '(go-mode go-ts-mode))     (setf (alist-get m apheleia-mode-alist) '(goimports gofumpt)))
   (dolist (m '(sh-mode bash-ts-mode))   (setf (alist-get m apheleia-mode-alist) 'shfmt))
   (dolist (m '(lua-mode lua-ts-mode))   (setf (alist-get m apheleia-mode-alist) 'stylua))

@@ -13,7 +13,7 @@ const FORECAST_TIMEOUT = 12sec
 const FORECAST_URL = (
     "https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
     + "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,is_day,precipitation,cloud_cover,"
-    + "wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index,surface_pressure"
+    + "wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index,pressure_msl"
     + "&hourly=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability,weather_code,is_day"
     + "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,"
     + "wind_speed_10m_max,uv_index_max"
@@ -22,7 +22,7 @@ const FORECAST_URL = (
 const FORECAST_CURRENT = {
     temp: temperature_2m feelsLike: apparent_temperature humidity: relative_humidity_2m code: weather_code isDay: is_day
     precip: precipitation cloud: cloud_cover wind: wind_speed_10m windDir: wind_direction_10m gust: wind_gusts_10m
-    uv: uv_index pressure: surface_pressure
+    uv: uv_index pressure: pressure_msl
 }
 const FORECAST_HOURLY = {
     temp: temperature_2m humidity: relative_humidity_2m precip: precipitation pop: precipitation_probability

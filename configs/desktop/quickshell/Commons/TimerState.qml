@@ -25,7 +25,6 @@ Singleton {
   property double nowSec: Math.floor(Date.now() / 1000)
 
   function reload() { reloadTimer.restart() }
-  function runPomo(args) { Quickshell.execDetached([root.pomoScript].concat(args)); reload() }
 
   property var pomoSetQueued: ({})
   readonly property bool pomoSaving: pomoSetProc.running
@@ -99,11 +98,6 @@ Singleton {
   readonly property string pomoPhaseLabel: pomoState.phase === "work" ? "Focus"
     : pomoState.phase === "long" ? "Long break" : "Break"
 
-  readonly property string pomoTooltip: pomoRunning
-    ? pomoPhaseLabel + " :: " + Util.clock(pomoRemainingSeconds) + " left :: pomodoro " + Number(pomoState.cycle || 0)
-      + (pomoPaused ? " (paused)" : "")
-    : "Pomodoro: off"
-
   readonly property var pomo: ({
     running: pomoRunning,
     paused: pomoPaused,
@@ -113,8 +107,7 @@ Singleton {
     totalSeconds: pomoTotalSeconds,
     cycle: Number(pomoState.cycle || 0),
     longEvery: Number(pomoRunning && pomoState.cycles ? pomoState.cycles : pomoConfig.cycles),
-    defaultWork: Number(pomoConfig.focus),
-    tooltip: pomoTooltip
+    defaultWork: Number(pomoConfig.focus)
   })
 
   readonly property var reminders: {
@@ -129,10 +122,8 @@ Singleton {
   }
 
   readonly property int reminderCount: reminders.length
-  readonly property string reminderTooltip: reminderCount === 0 ? "Set Reminder"
-    : reminderCount === 1 ? "1 reminder" : reminderCount + " reminders"
 
-  // Reminders show their countdown on the desktop and in the bar too, not only in the overlay.
+  // Reminders show their countdown on the desktop and in the tasks panel too, not only in the overlay.
   Timer {
     interval: 1000
     running: root.overlayOpen || root.pomoTicking || root.reminderList.length > 0

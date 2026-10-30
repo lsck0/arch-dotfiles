@@ -115,8 +115,8 @@ live on the task.
 | tester | `l-persona-tester` | tester |
 
 Cross-check this table against `l-personas`' own list before spawning: it
-drifts as personas are added/renamed; that skill's dynamic discovery
-snippet is the source of truth, this table is only a pipeline-stage
+drifts as personas are added/renamed; the installed skill listing
+(`l-personas`) is the source of truth, this table is only a pipeline-stage
 convenience mapping over it.
 
 Run every spawned research worker in parallel (Hermes: spawn all panes,

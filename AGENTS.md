@@ -29,12 +29,14 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
 ## Commands
 
 - `dot test lint` (about a minute, no root): repo rules plus every `*.test.nu`/`*.test.sh`. `dot test check`:
-  formatters and linters. `dot test run`: the VM test.
+  formatters and linters; `dot test fmt` formats. `dot test run`: the VM test.
 - `dot apply [mod...] [--user|--system] [--packages] [--force]`, `dot plan [mod...] [--system] [--order|--modules]`,
   `dot status [--brief|--json]`, `dot set [mod[.key] [value]] [--default] [--machine] [--json]`,
-  `dot module adopt|reset|unlink|remove|restore`, `dot explain <path|package>`, `dot log [--trace]`.
+  `dot module adopt|reset|unlink|remove|restore`, `dot explain <path|package>`, `dot log [--trace]`,
+  `dot theme [wallpaper|random]`, `dot secrets audit`; `dot secrets unlock|lock` are Luca's (YubiKey), never an agent's.
 - `dot internal <cmd>` (`scripts/lib/internal.nu`): plumbing for scripts and units; `gen` regenerates
-  `mirror/packages.txt` and FEATURES.md's options table (lint fails when either is stale), `iso` builds the install iso.
+  `mirror/packages.txt` and FEATURES.md's module and options tables (lint fails when either is stale), `iso` builds
+  the install iso.
 - Agents never reach root: run dot with `DOT_SYSTEM=skip` (or `--no-system`); a system part is then pending (exit 3).
   sudo and pkexec take a YubiKey touch or fingerprint on Luca's side, the password as fallback.
 - `dot sync` (pull, migrate, install, apply, back up, signed `Generation: <n>` commit, push) is Luca's only commit
@@ -50,7 +52,8 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   `wsl`. `profiles/<name>.nuon`: user identity and capabilities (`luca`, or `custom` for none).
 - `migrations/<NNNN>-<slug>.nu`: one-time `up` changes; fresh installs mark existing ones as run.
 - `scripts/` (commands in `~/.local/bin`), `scripts/lib/` (the engine: `module.nu` API, `pipeline.nu` run,
-  `converge.nu` plan/apply, `system-apply.nu` root entry), `scripts/toggles/`.
+  `converge.nu` plan/apply, `system-apply.nu` root entry), `scripts/toggles/`. `scripts/identity/envrc`: per-repo
+  credential isolation, installed into a repo's git-ignored `.identity/` by `identity-init`.
 - `configs/secrets/`: private submodule, pulled only with the `secrets` profile. `keys/` is git-crypt (credentials),
   `state/` plaintext app state, plus the owner's own modules (applied last, packages kept off the mirror).
 - `mirror/`: own pkgbuilds, `overrides.conf`, `iso/` (the install iso; only its stub `lsck0-install` is frozen on a
@@ -65,7 +68,8 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   settings in typed options. Never gate on a username.
 - Modules declare what they want (`scripts/lib/module.nu`); the engine applies the difference. Managed files are copies
   with their hash recorded; a changed copy is kept until `dot module adopt` or `reset`; files dot never wrote are taken
-  over; both preserved aside. Links only where an app reads the repo live. Nothing is written into `~/sync`.
+  over; both preserved aside. Links only where an app reads the repo live. Nothing is written into `~/sync`
+  but `~/sync/.stignore`, where `core/syncthing` keeps its `**/.identity` line.
 - Keep `$HOME` clean: env var to `configs/base/xdg/app-dirs.conf`, hardcoded dirs to `RECLAIM` in
   `configs/base/xdg/mod.nu`, forced non-dot dirs to `home.hidden`.
 - Native over bolt-on: the tool's own mechanism (Hyprland rules, systemd units, pipewire config, pacman hooks, udev),
@@ -83,12 +87,13 @@ One home per kind of data, no catch-all: config in git; app state in `configs/se
 
 - `FAILURES.*` at the root: what failed in the last run. `dot log [run] [--trace]`; a crash leaves
   `<state>/crash.json`.
-- State: `~/.local/state/dotfiles` (root: `/var/lib/dotfiles`); `modules/<id>/<verb>.nuon` is the one record of what
+- State: `$XDG_STATE_HOME/dotfiles` (root: `/var/lib/dotfiles`); `modules/<id>/<verb>.nuon` is the one record of what
   dot wrote; `ledger` holds units, packages, migrations.
 - Locked secrets start with `\0GITCRYPT` (`secret-is-plaintext`); never write into `configs/secrets/` while locked.
 - Hyprland config and dispatch are Lua: `hyprctl dispatch "hl.dsp.exec_cmd('cmd')"`.
 - `~/.config/<app>` holds managed copies: a repo edit changes nothing until `dot apply <group>/<module>`.
-  `file-text --generated` outputs are rewritten every run; `dot explain <path>` names the writer.
+  `file-text --generated` outputs are overwritten without a drift check whenever their module runs;
+  `dot explain <path>` names the writer.
 - GUI testing stays on the agent's own headless output (`l-dotfiles-gui-testing`).
 - X11 apps scale through `GDK_SCALE` only; no `Xft.dpi`.
 - A module runs only when its group is in the platform's `groups` and its `enable` option is true.

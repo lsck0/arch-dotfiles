@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# no betterdiscordctl: it hardcodes discord_desktop_core-1, discord ships -2 and up
+# no betterdiscordctl: it assumes one discord_desktop_core suffix, which differs between hosts
 
 const REPO = path self | path dirname | path join ../../../.. | path expand
 const ASAR_URL = "https://github.com/BetterDiscord/BetterDiscord/releases/download/v1.14.1/betterdiscord.asar"
@@ -21,10 +21,13 @@ def main []: nothing -> nothing {
     let index = $core | default "" | path join discord_desktop_core index.js
     if $core == null or not ($index | path exists) { return }
     let current = ($asar | path exists) and (open --raw $asar | hash sha256) == $ASAR_SHA256
-    if $current and (open --raw $index | str contains betterdiscord) { return }
+    let require = $"require\(\"($asar)\"\);"
+    let injected = open --raw $index | str contains $require
+    if $current and $injected { return }
     if not $current { ^nu --no-config-file ($REPO | path join scripts dot.nu) internal fetch file $ASAR_URL $ASAR_SHA256 $asar }
-    $"require\(\"($asar)\"\);\nmodule.exports = require\(\"./core.asar\"\);\n" | save --force $index
-    relaunch-fresh
+    $"($require)\nmodule.exports = require\(\"./core.asar\"\);\n" | save --force $index
+    # a running discord already loaded betterdiscord through this index: a new asar takes effect on its next start
+    if not $injected { relaunch-fresh }
 }
 
 # Restarts a Discord younger than FRESH_SECONDS: a host update starts it on the bare core, before its modules exist.
@@ -38,6 +41,6 @@ def relaunch-fresh []: nothing -> nothing {
         if (^pgrep -x Discord | complete).exit_code != 0 { break }
         sleep 1sec
     }
-    # its own scope through uwsm, so it outlives this oneshot's cgroup
-    ^uwsm-app -- discord.desktop
+    # a transient service: uwsm-app returns at once, so this oneshot does not hold discord as its child
+    ^uwsm-app -t service -- discord.desktop
 }

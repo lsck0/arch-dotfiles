@@ -9,6 +9,7 @@ import "../../notifications/NotificationLogic.js" as NotificationLogic
 BarWidget {
   id: root
   moduleName: "notifications"
+  barPriority: 65
   hoverPanel: true
 
   readonly property var service: root.bar && root.bar.shellHost
@@ -87,7 +88,7 @@ BarWidget {
     anchorWidget: root
     title: "NOTIFICATIONS"
     implicitWidth: Style.panelWidth.normal
-    implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2 + titleInset + Style.fx.bracketWidth)
+    maxBodyHeight: Style.space(400)
 
     onOpened: if (root.service) root.service.refreshHistory()
 
@@ -100,104 +101,78 @@ BarWidget {
       onTriggered: panel.nowMs = Date.now()
     }
 
-    Flickable {
-      id: historyFlick
-      anchors.fill: parent
-      contentWidth: width
-      contentHeight: content.implicitHeight
-      flickableDirection: Flickable.VerticalFlick
-      interactive: contentHeight > height
-      clip: true
-      boundsBehavior: Flickable.StopAtBounds
+    Column {
+      id: content
+      width: parent.width
+      spacing: Style.spacing.xs
 
-      Column {
-        id: content
+      PanelRow {
         width: parent.width
-        spacing: Style.spacing.xs
+        label: "Do not disturb"
+        trailing: "silence popups"
+        stateMarker: true
+        on: root.dndOn
+        onActivated: root.toggleDnd()
+      }
 
-        PanelRow {
-          width: parent.width
-          label: "Do not disturb"
-          trailing: "silence popups"
-          stateMarker: true
-          on: root.dndOn
-          onActivated: root.toggleDnd()
+      PanelSeparator {}
+
+      Item {
+        width: parent.width
+        implicitHeight: Math.max(notifHeader.implicitHeight, clearLabel.implicitHeight)
+        PanelSectionHeader {
+          id: notifHeader
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          text: "HISTORY" + (root.history.length > 0 ? " :: " + root.history.length : "")
         }
-
-        PanelSeparator {}
-
-        Item {
-          width: parent.width
-          implicitHeight: Math.max(notifHeader.implicitHeight, clearLabel.implicitHeight)
-          PanelSectionHeader {
-            id: notifHeader
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            text: "HISTORY" + (root.history.length > 0 ? " :: " + root.history.length : "")
-          }
-          Text {
-            id: clearLabel
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            visible: root.history.length > 0
-            text: "Clear"
-            color: Colors.accent
-            font.pixelSize: Style.font.caption
-            font.family: Style.font.family
-            MouseArea {
-              anchors.fill: parent
-              cursorShape: Qt.PointingHandCursor
-              onClicked: { root.clearHistory(); if (root.bar) root.bar.closePanel(root.moduleName) }
-            }
-          }
-        }
-
         Text {
-          visible: root.history.length === 0
-          bottomPadding: Style.spacing.md
-          text: "> NOTHING RECENT"
-          color: Colors.menu.text
-          opacity: Style.emphasis.dim
-          font.pixelSize: Style.font.body
+          id: clearLabel
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          visible: root.history.length > 0
+          text: "clear"
+          color: Colors.accentText
+          font.pixelSize: Style.font.caption
           font.family: Style.font.family
-          font.letterSpacing: Style.displayTracking
-        }
-
-        Repeater {
-          model: root.history
-          delegate: NotificationCard {
-            required property var modelData
-            variant: "row"
-            now: panel.nowMs
-            bodyLines: root.history.length <= 2 ? 10 : 3
-            width: content.width
-            app: modelData.app || ""
-            appIcon: modelData.appIcon || ""
-            summary: modelData.summary || ""
-            body: modelData.body || ""
-            image: modelData.image || ""
-            glyph: modelData.glyph || ""
-            urgency: modelData.urgency !== undefined ? modelData.urgency : 1
-            timestamp: modelData.timestamp || 0
-
-            onCardClicked: root.openEntry(modelData)
-            onCloseRequested: root.removeEntry(modelData)
+          MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: { root.clearHistory(); if (root.bar) root.bar.closePanel(root.moduleName) }
           }
         }
       }
-    }
 
-    Rectangle {
-      anchors.left: parent.left
-      anchors.right: parent.right
-      anchors.bottom: parent.bottom
-      height: Style.space(24)
-      visible: historyFlick.contentHeight > historyFlick.height + 1
-      opacity: historyFlick.atYEnd ? 0 : 1
-      Behavior on opacity { NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
-      gradient: Gradient {
-        GradientStop { position: 0.0; color: Util.alpha(Colors.menu.background, 0.0) }
-        GradientStop { position: 1.0; color: Util.alpha(Colors.menu.background, 0.95) }
+      Text {
+        visible: root.history.length === 0
+        bottomPadding: Style.spacing.md
+        text: "> NOTHING RECENT"
+        color: Colors.textDim
+        font.pixelSize: Style.font.body
+        font.family: Style.font.family
+        font.letterSpacing: Style.displayTracking
+      }
+
+      Repeater {
+        model: root.history
+        delegate: NotificationCard {
+          required property var modelData
+          variant: "row"
+          now: panel.nowMs
+          bodyLines: root.history.length <= 2 ? 10 : 3
+          width: content.width
+          app: modelData.app || ""
+          appIcon: modelData.appIcon || ""
+          summary: modelData.summary || ""
+          body: modelData.body || ""
+          image: modelData.image || ""
+          glyph: modelData.glyph || ""
+          urgency: modelData.urgency !== undefined ? modelData.urgency : 1
+          timestamp: modelData.timestamp || 0
+
+          onCardClicked: root.openEntry(modelData)
+          onCloseRequested: root.removeEntry(modelData)
+        }
       }
     }
   }

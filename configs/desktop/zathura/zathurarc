@@ -35,4 +35,4 @@ map <C-i> recolor
 map i recolor
 map p print
 
-include @HOME@/.cache/wal/colors-zathura
+include @CACHE@/wal/colors-zathura

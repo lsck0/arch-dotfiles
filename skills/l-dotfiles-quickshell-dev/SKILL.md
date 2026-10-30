@@ -27,6 +27,10 @@ The bar target is `bar` on the main screen and `bar-<output>` elsewhere. `bar op
 the panel the keyboard: hjkl/arrows move, Tab jumps sections, Esc or q closes. An `IpcHandler { target: "<name>" }`
 adds a target; keybinds call them through `quickshell_call(target, fn)` in `hyprland_keybindings.lua`.
 
+`~/.config/quickshell` is the user's live shell: an agent only reads it (`show`, `list`). A `call` that opens or
+toggles drives the user's screen; check UI on a test shell in the nested Hyprland instead
+(`XDG_RUNTIME_DIR=$rt WAYLAND_DISPLAY=wayland-<n> qs ipc -p <copy> call ...`, `l-dotfiles-gui-testing`).
+
 ## Screenshot one layer
 
 ```bash
@@ -41,6 +45,9 @@ headless output (`l-dotfiles-gui-testing`).
 
 - Never start a second quickshell in the user's session: it takes over notifications, and a test lock locks the real
   screen. Test the lock only in `dbus-run-session` around a nested compositor.
+- A test shell runs on a private short `XDG_RUNTIME_DIR` (`l-dotfiles-gui-testing`): `Lock.qml` keeps its
+  crash-recovery marker in `$XDG_RUNTIME_DIR/quickshell/locked`, so a locked test shell killed on the real one locks the
+  user's shell on its next start. Every helper it started outlives it: teardown in `l-dotfiles-gui-testing`.
 - Hot reload sometimes misses: no fresh `Configuration Loaded` means `restart.nu`.
 - Helper processes keep old code (cava, pomodoro until a shell restart; `obs-status.nu` until OBS restarts).
 - Never `pkill -f`: the pattern matches the agent's own shell. Kill by PID.

@@ -4,7 +4,7 @@ return {
         branch = "latest",
         cmd = { "Compile", "Recompile" },
         dependencies = {
-            { "m00qek/baleia.nvim", tag = "v1.3.0" },
+            "m00qek/baleia.nvim",
         },
         config = function()
             vim.g.compile_mode = {

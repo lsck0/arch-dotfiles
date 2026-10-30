@@ -4,15 +4,17 @@ import os
 
 config.load_autoconfig()
 
+_wal_dir = os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"), "wal")
+
 _fb = {
     "special": {"background": "#1f2430", "foreground": "#cbccc6"},
     "colors": {"color0": "#232834", "color1": "#ff3333", "color2": "#bae67e", "color4": "#73d0ff", "color8": "#5c6773"},
 }
 _wal = _fb
 try:
-    with open(os.path.expanduser("~/.cache/wal/colors.json")) as _f:
+    with open(os.path.join(_wal_dir, "colors.json")) as _f:
         _wal = json.load(_f)
-except (OSError, ValueError):
+except OSError, ValueError:
     pass
 
 # the metrics a theme set (configs/core/wallust), its defaults when the file is missing or invalid
@@ -20,15 +22,24 @@ _style = {"light_luminance": 0.4, "radius_px": 2}
 try:
     with open(os.path.expanduser("~/.config/dotfiles/style.json")) as _f:
         _style.update(json.load(_f))
-except (OSError, ValueError):
+except OSError, ValueError:
     pass
 
 # the font a theme or toggle-font set (configs/core/wallust/font.nu), its defaults when unset
 _font = {"family": "Kode Mono", "ui_size": 11}
 try:
-    with open(os.path.expanduser("~/.cache/wal/font.json")) as _f:
+    with open(os.path.join(_wal_dir, "font.json")) as _f:
         _font.update(json.load(_f))
-except (OSError, ValueError):
+except OSError, ValueError:
+    pass
+
+
+# the chrome roles the theme verb conditioned from the palette (mod.nu chrome-colors), the raw slots without it
+_chrome = {}
+try:
+    with open(os.path.join(_wal_dir, "qutebrowser-colors.json")) as _f:
+        _chrome = json.load(_f)
+except OSError, ValueError:
     pass
 
 
@@ -36,16 +47,20 @@ def _c(section, key):
     return _wal.get(section, {}).get(key) or _fb[section][key]
 
 
-bg = _c("special", "background")
-bg_alt = _c("colors", "color0")
-fg = _c("special", "foreground")
+def _role(name, section, key):
+    return _chrome.get(name) or _c(section, key)
+
+
+bg = _role("bg", "special", "background")
+bg_alt = _role("bg_alt", "colors", "color0")
+fg = _role("fg", "special", "foreground")
 
 
 def _luminance(hex_color):
     h = hex_color.lstrip("#")
     try:
         channels = [int(h[i : i + 2], 16) / 255 for i in (0, 2, 4)]
-    except (ValueError, IndexError):
+    except ValueError, IndexError:
         return 0.0
     r, g, b = (x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in channels)
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
@@ -55,12 +70,17 @@ def _is_light(hex_color):
     return _luminance(hex_color) >= _style["light_luminance"]
 
 
-accent = _c("colors", "color4")
+accent = _role("accent", "colors", "color4")
 blue = _c("colors", "color4")
 green = _c("colors", "color2")
 red = _c("colors", "color1")
-comment = _c("colors", "color8")
-sel = _c("colors", "color8")
+comment = _role("muted", "colors", "color8")
+sel = _role("selection_bg", "colors", "color8")
+sel_fg = _role("selection_fg", "special", "foreground")
+sel_match = _role("selection_match", "colors", "color4")
+hint_bg = _role("hint_bg", "colors", "color4")
+hint_fg = _role("hint_fg", "special", "background")
+hint_match = _role("hint_match", "colors", "color1")
 
 c.colors.completion.fg = fg
 c.colors.completion.odd.bg = bg
@@ -70,10 +90,10 @@ c.colors.completion.category.fg = accent
 c.colors.completion.category.border.top = bg
 c.colors.completion.category.border.bottom = bg
 c.colors.completion.item.selected.bg = sel
-c.colors.completion.item.selected.fg = fg
+c.colors.completion.item.selected.fg = sel_fg
 c.colors.completion.item.selected.border.top = sel
 c.colors.completion.item.selected.border.bottom = sel
-c.colors.completion.item.selected.match.fg = accent
+c.colors.completion.item.selected.match.fg = sel_match
 c.colors.completion.match.fg = accent
 c.colors.completion.scrollbar.fg = fg
 c.colors.completion.scrollbar.bg = bg
@@ -101,9 +121,9 @@ c.colors.tabs.selected.even.fg = accent
 c.colors.tabs.indicator.start = blue
 c.colors.tabs.indicator.stop = green
 
-c.colors.hints.bg = accent
-c.colors.hints.fg = bg
-c.colors.hints.match.fg = red
+c.colors.hints.bg = hint_bg
+c.colors.hints.fg = hint_fg
+c.colors.hints.match.fg = hint_match
 c.hints.border = "0px"
 c.hints.radius = _style["radius_px"]
 

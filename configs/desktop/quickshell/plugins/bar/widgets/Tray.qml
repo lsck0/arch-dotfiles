@@ -6,11 +6,11 @@ import QtQuick.Effects
 import Quickshell.Services.SystemTray
 import qs.Commons
 import qs.Ui
-import "TrayModel.js" as TrayModel
 
 BarWidget {
   id: root
   moduleName: "tray"
+  barPriority: 85
 
   property bool managePopupOpen: false
   property bool trayMenuOpen: false
@@ -123,7 +123,6 @@ BarWidget {
     for (let i = 0; i < values.length; i++) {
       const item = values[i]
       if (item.status === Status.Passive) continue
-      if (TrayModel.hiddenByDefault(item)) continue
       if (category === "all") {
         result.push(item)
         continue
@@ -328,7 +327,7 @@ BarWidget {
 
       Text {
         text: "Tray icons"
-        color: Colors.accent
+        color: Colors.accentText
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         font.bold: true
@@ -338,8 +337,7 @@ BarWidget {
 
       Text {
         text: "Pinned icons stay visible. Hidden icons never show. Shift+right-click an icon opens this."
-        color: root.foreground
-        opacity: Style.emphasis.dim
+        color: Colors.textDim
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         wrapMode: Text.WordWrap
@@ -349,8 +347,7 @@ BarWidget {
       Text {
         visible: root.allItems.length === 0
         text: "No tray items"
-        color: root.foreground
-        opacity: Style.emphasis.faint
+        color: Colors.textDim
         font.family: root.fontFamily
         font.pixelSize: Style.font.bodySmall
         font.italic: true
@@ -610,8 +607,7 @@ BarWidget {
                 horizontalAlignment: Text.AlignHCenter
                 textFormat: Text.PlainText
                 text: ">"
-                color: root.foreground
-                opacity: Style.emphasis.faint
+                color: Colors.textDim
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.bodySmall
               }
@@ -693,14 +689,13 @@ BarWidget {
       sourceSize.height: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
       source: String(trayIconRoot.icon || "")
       visible: false
-      layer.enabled: Style.fx.glow > 0
     }
 
     MultiEffect {
       anchors.fill: trayIconImage
       source: trayIconImage
       visible: true
-      colorization: trayIconRoot.symbolic ? 1.0 : 0.85
+      colorization: trayIconRoot.symbolic ? 1.0 : 0.0
       colorizationColor: root.foreground
     }
   }

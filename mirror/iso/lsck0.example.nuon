@@ -15,8 +15,8 @@
     unattended: false                 # true: no summary and no erase confirmation, missing keys take their defaults, required ones must be set here or in the environment
 
     # a server or custom platform also takes (defaults shown):
-    # hostname: "archlinux"            # letters, digits and dashes
-    # groups: [base core desktop]      # package groups; base is always included
+    # hostname: "archlinux"            # letters, digits and dashes; a server defaults to "server"
+    # groups: [base core desktop]      # default: every group (custom), platforms/server.nuon (server); base always in
     # timezone: "Europe/Berlin"
     # locale: "en_US.UTF-8"
     # ssh_key: ""                      # one ssh public key line; empty leaves just the console

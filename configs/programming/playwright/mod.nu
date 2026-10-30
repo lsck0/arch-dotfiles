@@ -22,7 +22,7 @@ export def link [cfg: record] {
         chrome-devtools: (if $has_chromium {
             {
                 type: stdio command: chrome-devtools-mcp
-                args: [--executablePath $CHROMIUM --no-usage-statistics --no-performance-crux]
+                args: [--executablePath $CHROMIUM --headless --isolated --no-usage-statistics --no-performance-crux]
                 env: {CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS: "1"}
             }
         })

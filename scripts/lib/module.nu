@@ -7,6 +7,7 @@ export use json.nu [json-set json-delete]
 export use secrets.nu [secret-is-plaintext secret-seed-guard owner-unlocked]
 use fetch.nu [fetch-file-done fetch-git-done]
 use state.nu [nu-bin]
+export use state.nu [xdg]
 use ../../configs/core/wallust/palette.nu [palette-slots]
 
 export const DECL_KEYS = [kind target source content mode generated inplace edits state now argv creates then]
@@ -46,21 +47,21 @@ export def unit-dir []: nothing -> path {
     }
 }
 
-# Copies src to dest as a managed file; --then runs once dest changed (a restart, a reload).
-export def file-copy [src: path, dest: path, --mode: string = $MODE_FILE, --then: list<string> = []]: nothing -> record {
-    decl file $dest {source: (module-path $src), mode: $mode, then: $then}
+# Copies src to dest as a managed file; --then runs once dest changed (a restart, a reload); --in-place as file-text.
+export def file-copy [src: path, dest: path, --mode: string = $MODE_FILE, --in-place, --then: list<string> = []]: nothing -> record {
+    decl file $dest {source: (module-path $src), mode: $mode, inplace: $in_place, then: $then}
 }
 
-# --generated rewrites every run without drift; --in-place keeps the inode for watchers.
+# --generated is overwritten without a drift check whenever its module runs; --in-place keeps the inode for watchers.
 export def file-text [dest: path, content: string, --mode: string = $MODE_FILE, --generated, --in-place, --then: list<string> = []]: nothing -> record {
     decl file $dest {content: $content, mode: $mode, generated: $generated, inplace: $in_place, then: $then}
 }
 
 # Writes src to dest with each @key@ replaced by its value.
-export def file-render [src: path, dest: path, values: record, --mode: string = $MODE_FILE, --then: list<string> = []]: nothing -> record {
+export def file-render [src: path, dest: path, values: record, --mode: string = $MODE_FILE, --generated, --then: list<string> = []]: nothing -> record {
     let text = $values | items {|key, value| {key: $key, value: $value} }
         | reduce --fold (open --raw $src) {|pair, acc| $acc | str replace --all $"@($pair.key)@" ($pair.value | into string) }
-    decl file $dest {content: $text, mode: $mode, then: $then}
+    decl file $dest {content: $text, mode: $mode, generated: $generated, then: $then}
 }
 
 # Copies each src into dir under its own name.
@@ -83,18 +84,6 @@ export def json-merge [file: path, edits: list<record>, --then: list<string> = [
     decl json $file {edits: $edits, then: $then}
 }
 
-# A path under an XDG base dir (config, data, cache, state), honoring XDG_*_HOME.
-export def xdg [kind: string, ...parts: string]: nothing -> path {
-    let base = match $kind {
-        config => ($env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config))
-        data => ($env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share))
-        cache => ($env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache))
-        state => ($env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state))
-        _ => (error make {msg: $"xdg: no base dir '($kind)'"})
-    }
-    $base | path join ...$parts
-}
-
 # Whether a process of this exact name runs: a theme or reload step only acts on a running app.
 export def process-running [name: string]: nothing -> bool {
     (^pgrep -x $name | complete).exit_code == 0
@@ -106,7 +95,8 @@ export def desktop-set [values: record]: string -> string {
     $values | items {|key, value| {key: $key, value: $value} }
     | reduce --fold $text {|kv, t|
         let pattern = $kv.key | str replace --all --regex '[.^$*+?()\[\]{}|\\]' '\${0}'
-        $t | str replace --regex $"\(?m\)^($pattern)=.*$" $"($kv.key)=($kv.value)"
+        # a $ in the value is literal, not a capture reference
+        $t | str replace --regex $"\(?m\)^($pattern)=.*$" $"($kv.key)=($kv.value | into string | str replace --all '$' '$$')"
     }
 }
 
@@ -177,11 +167,12 @@ def --wrapped internal [...args: string]: nothing -> list<string> {
     [(nu-bin) --no-config-file ($env.DOTFILES | path join scripts lib internal.nu)] ++ $args
 }
 
-# Downloads url to dest checked against sha256; --extract names an archive member, or . for all.
-export def fetch-file [url: string, sha256: string, dest: path, --mode: string = $MODE_FILE, --extract: string]: nothing -> list<record> {
+# Downloads url to dest checked against sha256; --extract an archive member or . for all; --in-place as file-text.
+export def fetch-file [url: string, sha256: string, dest: path, --mode: string = $MODE_FILE, --extract: string, --in-place]: nothing -> list<record> {
     if (fetch-file-done $sha256 $dest) { return [] }
     let extract = if $extract == null { [] } else { [--extract $extract] }
-    [(exec $"fetch ($dest)" (internal fetch file $url $sha256 $dest --mode $mode ...$extract))]
+    let in_place = if $in_place { [--in-place] } else { [] }
+    [(exec $"fetch ($dest)" (internal fetch file $url $sha256 $dest --mode $mode ...$extract ...$in_place))]
 }
 
 # Checks out url at a pinned commit into dir.
@@ -204,6 +195,7 @@ export def group-admins [group: string]: nothing -> list<record> {
 
 # Without --permanent it retires once undeclared.
 export def user-hook [name: string, script: path, --watch: list<string>, --permanent, --no-brake, --mkdir]: nothing -> list<record> {
+    if (layer-is-system) { error make {msg: $"user-hook ($name): a user-layer helper, its --then starts a user unit"} }
     let dir = unit-dir
     let path_unit = [
         "[Unit]" $"Description=watch for the ($name) hook" "" "[Path]"
@@ -221,7 +213,7 @@ const PALETTE_SLOTS = [bg fg c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 c
 
 # The current wallust palette as a record of slots, or null before the first theme.
 export def palette-load []: nothing -> any {
-    if not ($nu.home-dir | path join .cache wal colors.json | path exists) {
+    if not (xdg cache wal colors.json | path exists) {
         return null
     }
     $PALETTE_SLOTS | zip (palette-slots) | reduce --fold {} {|p, acc| $acc | insert $p.0 $p.1 }

@@ -39,7 +39,7 @@ ToolTip {
         anchors.baseline: tipText.baseline
         textFormat: Text.PlainText
         text: ">"
-        color: Colors.accent
+        color: Colors.accentText
         opacity: Style.emphasis.faint
         font.family: root.fontFamily
         font.pixelSize: root.fontSize

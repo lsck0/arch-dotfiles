@@ -51,10 +51,10 @@ OverlayCard {
   }
 
   readonly property color onCard: Colors.menu.text
-  readonly property color onCardUrgent: Colors.urgent
+  readonly property color onCardUrgent: Colors.urgentText
 
   title: "speed test"
-  hints: root.running ? [["ESC", "close"]] : [["ESC", "close"], ["ENTER", "run again"]]
+  hints: root.running ? [["ESC", "close"]] : [["ENTER", "run again"], ["ESC", "close"]]
   cardWidth: inner.implicitWidth + chromeWidth
   cardHeight: inner.implicitHeight + chromeHeight
   onDismissed: root.closeRequested()
@@ -198,9 +198,7 @@ OverlayCard {
     }
 
     Hero {
-      value: g.reading < 10
-        ? g.reading.toLocaleString(Qt.locale(), 'f', 1)
-        : Math.round(g.reading).toLocaleString(Qt.locale(), 'f', 0)
+      value: g.reading < 10 ? g.reading.toFixed(1) : String(Math.round(g.reading))
       unit: root.unit
       live: true
     }

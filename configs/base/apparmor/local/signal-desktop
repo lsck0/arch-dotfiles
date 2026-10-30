@@ -1,4 +1,3 @@
 # managed by arch-dotfiles/apparmor
-include <abstractions/dotfiles/gtk-theme>
 @{sys}/fs/cgroup/user.slice/user-@{uid}.slice/user@@{uid}.service/**/{memory.max,memory.high,cpu.max} r,
 include <abstractions/dotfiles/nssdb>

@@ -4,8 +4,8 @@ use state.nu [SYSTEM_REPO SYSTEM_STATE]
 use ledger.nu [ledger-get]
 use platform.nu [platform-load]
 use profile.nu [profile-has]
-use secrets.nu [secret-is-plaintext]
-use system.nu [system-files]
+use secrets.nu [secret-is-plaintext OWNER_WITNESS]
+use system.nu [system-files secrets-digest SECRETS_PREFIX SECRETS_DIGEST]
 use preserve.nu [preserve-report]
 use pipeline.nu [pipeline-load]
 use modules.nu [modules-packages]
@@ -16,7 +16,7 @@ const INVARIANTS = path self invariants.txt
 const PROFILES_CONF = path self ../../configs/base/apparmor/profiles.conf
 const LUKS_TOKENS = [TPM2 FIDO2]
 const LUKS_TOKEN_MISSING = 'No valid (?<token>TPM2|FIDO2) token data found'
-const WITNESS = path self ../../configs/secrets/keys/pgp_privatekey.asc
+const WITNESS = $REPO | path join $OWNER_WITNESS
 const APPARMOR_MANUAL = "/etc/apparmor/flags.d/manual.conf"
 const SNAPSHOT_MAX_DAYS = 30
 const SHOWN_MAX = 8
@@ -56,13 +56,20 @@ def config-pending []: nothing -> list<record> {
     let head = ^git -C $REPO rev-parse HEAD | str trim
     let source = try { open --raw ($SYSTEM_REPO | path join .source) | str trim } catch { "" }
     let ours = system-files $REPO "--cached" | append (system-files $REPO "--others") | uniq
-    let theirs = cd $SYSTEM_REPO | ^find . -type f ! -name .source -printf '%P\n' | lines
-    let a = hashes $REPO $ours
+    let private = $ours | where ($it | str starts-with $SECRETS_PREFIX)
+    let skip = $"./($SECRETS_PREFIX | str trim --right --char '/')"
+    let theirs = cd $SYSTEM_REPO | ^find . -path $skip -prune -o -type f ! -name .source ! -name $SECRETS_DIGEST -printf '%P\n' | lines
+    let a = hashes $REPO ($ours | where $it not-in $private)
     let b = hashes $SYSTEM_REPO $theirs
     let changed = ($a | where $it not-in $b) ++ ($b | where $it not-in $a) | each { str substring 66.. } | uniq | length
-    if $changed > 0 {
+    let digest = try { open --raw ($SYSTEM_REPO | path join $SECRETS_DIGEST) | str trim } catch { "" }
+    let differing = [
+        (if $changed > 0 { $"($changed) files" })
+        (if (secrets-digest $REPO $private) != $digest { $SECRETS_PREFIX })
+    ] | compact
+    if ($differing | is-not-empty) {
         let at = $"the root copy is at ($source | str substring 0..6), the checkout at ($head | str substring 0..6)"
-        [(report FAIL config $"dot apply pending: ($at) with ($changed) files differing")]
+        [(report FAIL config $"dot apply pending: ($at) with ($differing | str join ' and ') differing")]
     } else {
         [(report ok config "the root copy matches the checkout")]
     }
@@ -205,7 +212,7 @@ def preserved []: nothing -> list<record> {
     }
 }
 
-# the health checks, in order; one closure each so the set has a single source and no check can drift out of a dispatcher
+# the health checks, in order; one closure each so this list is their single source
 def checks []: nothing -> list<closure> {
     [
         {|| failures} {|| config-pending} {|| reboot} {|| invariants} {|| apparmor} {|| snapshot}

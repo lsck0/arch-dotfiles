@@ -13,6 +13,7 @@ Item {
   property real lineWidth: 1.6
   property real fillAlpha: 0.22
   property bool glow: false
+  readonly property real dotLift: 0.35
 
   implicitWidth: Style.space(64)
   implicitHeight: Style.space(18)
@@ -122,7 +123,8 @@ Item {
   Rectangle {
     visible: (root.values || []).length > 0
     width: Style.space(4); height: Style.space(4); radius: Style.shape.data
-    color: Qt.lighter(root.color, 1.4)
+    // toward the foreground, so the dot stands out on light themes too (Qt.lighter washes it out there)
+    color: Qt.tint(root.color, Util.alpha(Colors.foreground, root.dotLift))
     x: root.lastPoint.x - width / 2
     y: root.lastPoint.y - height / 2
   }

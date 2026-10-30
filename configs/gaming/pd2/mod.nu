@@ -1,11 +1,12 @@
 use module.nu *
-use ../d2launcher/mod.nu [lod-detect wine-bin]
+use ../d2launcher/mod.nu [lod-detect save-path-set wine-bin z-path]
+# re-exported: the save-path step runs in this module
+export use ../d2launcher/mod.nu [save-path]
 
 # S14 from PD2's client host (no plugy), S3 synced with plugy; S3 saves can't move to S14.
 export const meta = {deps: [gaming/d2launcher]}
 
 const PD2_MARKER = "ProjectDiablo.dll"
-const SAVE_KEY = 'HKCU\Software\Blizzard Entertainment\Diablo II'
 const GAMES_DIR = "sync/games/d2"
 const SIZE = {w: 1068, h: 600}
 const S14_URL = "https://pd2-client-files.projectdiablo2.com"
@@ -48,17 +49,10 @@ export def detect [cfg: record]: nothing -> record {
     }
 }
 
-def data-dir []: nothing -> path { $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) }
-
 # Each season's own tree: its prefix, its lord of destruction dir with ProjectD2 inside, its launcher.
 def season [name: string]: nothing -> record {
-    let root = data-dir | path join $name
+    let root = xdg data $name
     {root: $root, prefix: ($root | path join prefix), lod: ($root | path join "Diablo II")}
-}
-
-# A windows path in the prefix's Z: drive, with the trailing separator diablo ii wants.
-def z-path [dir: path]: nothing -> string {
-    $"Z:($dir | str replace --all '/' '\')\\"
 }
 
 def lod-links [base: path, lod: path]: nothing -> list<record> {
@@ -92,7 +86,8 @@ def s14 [cfg: record, base: path, wine: path]: nothing -> list {
         (file-render pd2.sh ($s.root | path join pd2.sh) {
             game: $game, prefix: $s.prefix, wine: $wine, width: $SIZE.w, height: $SIZE.h, exe: "Game.exe"
         } --mode "755")
-        (file-text ($nu.home-dir | path join .local share applications pd2.desktop) (desktop "Project Diablo II" "Diablo II single player, Project Diablo 2 season 14" ($s.root | path join pd2.sh)))
+        (file-text (xdg data applications pd2.desktop) (desktop "Project Diablo II"
+            "Diablo II single player, Project Diablo 2 season 14" ($s.root | path join pd2.sh)))
     ]
 }
 
@@ -107,22 +102,9 @@ def s3 [cfg: record, base: path, wine: path]: nothing -> list {
         (file-render pd2.sh ($s.root | path join pd2.sh) {
             game: ($s.lod | path join ProjectD2), prefix: $s.prefix, wine: $wine, width: $SIZE.w, height: $SIZE.h, exe: "PlugY.exe"
         } --mode "755")
-        (file-text ($nu.home-dir | path join .local share applications pd2-s3.desktop) (desktop "Project Diablo II S3" "Diablo II single player, Project Diablo 2 season 3 with PlugY" ($s.root | path join pd2.sh)))
+        (file-text (xdg data applications pd2-s3.desktop) (desktop "Project Diablo II S3"
+            "Diablo II single player, Project Diablo 2 season 3 with PlugY" ($s.root | path join pd2.sh)))
     ]
-}
-
-def save-path-set [prefix: path, save: path]: nothing -> bool {
-    let reg = $prefix | path join user.reg
-    if not ($reg | path exists) { return false }
-    let want = z-path $save | str replace --all '\' '\\'
-    open --raw $reg | str contains $'"Save Path"="($want)"'
-}
-
-export def save-path [prefix: string, save: string]: nothing -> nothing {
-    with-env {WINEPREFIX: $prefix, WINEDEBUG: "-all", DISPLAY: "", WAYLAND_DISPLAY: ""} {
-        ^(wine-bin) reg add $SAVE_KEY /v "Save Path" /t REG_SZ /d (z-path $save) /f | ignore
-        ^(wine-bin | path dirname | path join wineserver) -w
-    }
 }
 
 def desktop [name: string, comment: string, exec: path]: nothing -> string {

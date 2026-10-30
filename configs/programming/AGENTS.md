@@ -7,6 +7,8 @@
 - Package-only modules (`toolchains`, `python`, `security`, `vcs`, `http`, `infra`, `devtools`): a package goes into
   the module that uses it, else the closest of these.
 - Formatter configs live in `programming/formatting` and are passed by nvim's conform and emacs' apheleia, not linked.
+  The exception is latexindent and chktex: they and texlab find their configs by path, so those are copied into
+  `~/.config`.
 - Owner-only modules (`bugwarrior`, `jai`, `projects`) gate on the owner actually being unlocked
   (`owner-unlocked`: the secrets profile AND the YubiKey), not `profile-has secrets` alone. `projects` runs after
   `core/gh`.

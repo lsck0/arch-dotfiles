@@ -16,7 +16,10 @@ hl.on("hyprland.start", function()
     -- a session started docked with the lid already closed
     hl.exec_cmd("$DOTFILES/configs/desktop/hyprland/lid.nu")
 
+    -- root GUI apps under Xwayland (gparted through pkexec) need the display
     hl.exec_cmd("xhost +SI:localuser:root")
+    -- nsxiv reads its colours only from the X server's resources, which start empty each session
+    hl.exec_cmd('xrdb -nocpp -merge "${XDG_CACHE_HOME:-$HOME/.cache}/wal/colors-nsxiv.Xresources"')
     local backlight = require("platform").kbd_backlight
     if backlight then
         hl.exec_cmd("brightnessctl --device=" .. backlight .. " set 2")

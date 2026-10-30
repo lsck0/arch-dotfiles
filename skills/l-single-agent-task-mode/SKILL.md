@@ -75,8 +75,8 @@ is a project tree, not single-ticket work (step 5).
 
 ## Working procedure
 
-1. Export current state and parse in Python; never hand-parse `task
-   list` text:
+1. Export current state and parse it in code (`from json` in nu);
+   never hand-parse `task list` text:
    ```bash
    task +agent-task status:pending export
    task +agent-task +READY export    # the READY set: no open depends:, not waiting
@@ -103,10 +103,10 @@ is a project tree, not single-ticket work (step 5).
      `+human-clarification-needed`, no `+human-review-ready`.
 3. Pick the single highest-priority workable task (taskwarrior's own
    `priority:` field, then `urgency` as tiebreaker; `task +agent-task
-   +READY list` surfaces this ordering directly). Claim and work ONE
-   ticket fully before claiming the next: never two tickets open at once
-   in this mode (see step 5 for parallelism WITHIN one ticket, which is
-   allowed).
+   +READY export` and sort in code, since `task list` sorts by start, due
+   and project before urgency). Claim and work ONE ticket fully before
+   claiming the next: never two tickets open at once in this mode (see
+   step 5 for parallelism WITHIN one ticket, which is allowed).
 4. `task <id> start` (begins timewarrior tracking via the hook).
 5. Do the actual work yourself, no spawning. Read any existing
    `tasks/context/{research,design}/<uuid8>-*.md` first so you're building

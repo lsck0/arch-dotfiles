@@ -1,8 +1,7 @@
 # managed by arch-dotfiles/protonvpn-netns
 [Unit]
-Description=ProtonVPN-only network namespace for single apps (ani-cli, yt-dlp, mpv-stream)
-Wants=network-online.target
-After=network-online.target fw-egress.service
+Description=ProtonVPN-only network namespace for single apps
+After=fw-egress.service
 
 [Service]
 Type=oneshot

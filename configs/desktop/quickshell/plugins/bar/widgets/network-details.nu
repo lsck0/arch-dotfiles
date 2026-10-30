@@ -28,7 +28,7 @@ def main [] {
         connected: true
         connectivity: $connectivity
         device: $device
-        ssid: ($show | where key == GENERAL.CONNECTION | get value.0? | default "")
+        connection: ($show | where key == GENERAL.CONNECTION | get value.0? | default "")
         ip4: ($show | where key starts-with IP4.ADDRESS | get value.0? | default "")
         mac: (open $"/sys/class/net/($device)/address" | str trim)
         rxKbps: (do $kbps rx)

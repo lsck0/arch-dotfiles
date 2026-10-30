@@ -32,7 +32,7 @@ QtObject {
 
   readonly property real normalFillAlpha: 0.04
   readonly property real hoverFillAlpha: 0.10
-  readonly property real selectedFillAlpha: 0.22
+  readonly property real selectedFillAlpha: 0.20
   readonly property real pressedFillAlpha: 0.28
   readonly property real focusFillAlpha: 0.14
   readonly property real selectionFillAlpha: 0.35
@@ -50,14 +50,16 @@ QtObject {
 
   function normalStateColor(foreground, accent) { return foreground || Colors.foreground }
   function hoverStateColor(foreground, accent) { return foreground || Colors.foreground }
-  function selectedStateColor(foreground, accent) { return accent || Colors.accent }
+  // selected text stays the foreground; the accent fill and the 2px accent border or bar mark the selection
+  function selectedStateColor(foreground, accent) { return foreground || Colors.foreground }
+  function selectedMarkColor(foreground, accent) { return accent || Colors.accent }
   function pressedStateColor(foreground, accent) { return accent || Colors.accent }
   function focusStateColor(foreground, accent) { return accent || Colors.accent }
   function selectionStateColor(foreground, accent) { return accent || Colors.accent }
 
   function normalFillFor(foreground, accent) { return Util.alpha(normalStateColor(foreground, accent), normalFillAlpha) }
   function hoverFillFor(foreground, accent) { return Util.alpha(hoverStateColor(foreground, accent), hoverFillAlpha) }
-  function selectedFillFor(foreground, accent) { return Util.alpha(selectedStateColor(foreground, accent), selectedFillAlpha) }
+  function selectedFillFor(foreground, accent) { return Util.alpha(selectedMarkColor(foreground, accent), selectedFillAlpha) }
   function pressedFillFor(foreground, accent) { return Util.alpha(pressedStateColor(foreground, accent), pressedFillAlpha) }
   function focusFillFor(foreground, accent) { return Util.alpha(focusStateColor(foreground, accent), focusFillAlpha) }
   function selectionFillFor(foreground, accent) { return Util.alpha(selectionStateColor(foreground, accent), selectionFillAlpha) }
@@ -94,6 +96,7 @@ QtObject {
   component EmphasisTokens: QtObject {
     readonly property real strong: 1.0
     readonly property real dim: 0.7
+    // strokes and decoration only: dimmed text is Colors.textDim, which stays readable on light themes
     readonly property real faint: 0.45
     readonly property real disabled: 0.3
   }
@@ -134,8 +137,14 @@ QtObject {
 
   component TranslucencyTokens: QtObject {
     readonly property real saver: 0.96
-    readonly property real bar: Power.saver ? saver : Palette.OPACITY_BAR
-    readonly property real panel: Power.saver ? saver : Palette.OPACITY_SURFACE
+    // light fills go nearly opaque: a dark wallpaper through them eats the dark text
+    readonly property real barLight: 0.94
+    readonly property real panelLight: 0.96
+    readonly property real panelDark: 0.94
+    readonly property bool light: Palette.isLight([Colors.background.r, Colors.background.g, Colors.background.b],
+      Theme.lightLuminance)
+    readonly property real bar: Power.saver ? saver : light ? barLight : Palette.OPACITY_BAR
+    readonly property real panel: Power.saver ? saver : light ? panelLight : panelDark
     readonly property real overlay: Power.saver ? saver : 0.92
     readonly property real scrim: 0.55
   }
@@ -185,7 +194,6 @@ QtObject {
   readonly property real headerTracking: 2.4 * scale
   readonly property real labelTracking: 0.96 * scale
   readonly property real displayTracking: -0.5 * scale
-  readonly property string decor: "[- o x]"
 
   component BarTokens: QtObject {
     readonly property int sizeHorizontal: root.space(30)

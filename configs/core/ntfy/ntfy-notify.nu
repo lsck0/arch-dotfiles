@@ -111,11 +111,11 @@ def notify [msg: record]: nothing -> nothing {
         let previous = $opened | get --optional $key | default 0
         let opened = $opened | reject --optional $key
         let opened = if $payload.status? == "firing" {
-            let id = notify-send Homelab $GLYPH_HOMELAB $s.urgency $s.title $s.body $s.click $previous
+            let id = notify-send homelab $GLYPH_HOMELAB $s.urgency $s.title $s.body $s.click $previous
             if $id != 0 { $opened | insert $key $id } else { $opened }
         } else {
             if $previous != 0 { do { ^gdbus call ...$NOTIFICATIONS ($previous | into string) } | complete | ignore }
-            notify-send Homelab $GLYPH_HOMELAB normal $s.title $s.body $s.click | ignore
+            notify-send homelab $GLYPH_HOMELAB normal $s.title $s.body $s.click | ignore
             $opened
         }
         file-replace (state-dir | path join open-alerts.json) ($opened | to json --raw)

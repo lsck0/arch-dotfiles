@@ -1,20 +1,20 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const config_path = ($nu.home-dir | path join .config quickshell pomodoro.json)
-const config_default = {focus: 25, break: 5, long: 15, cycles: 4}
-const option_names = {
+const CONFIG_PATH = ($nu.home-dir | path join .config quickshell pomodoro.json)
+const CONFIG_DEFAULT = {focus: 25, break: 5, long: 15, cycles: 4}
+const OPTION_NAMES = {
     focus: pomodoro_focus_min, break: pomodoro_break_min, long: pomodoro_long_break_min, cycles: pomodoro_cycles
 }
-const dot = ($nu.home-dir | path join .local bin dot)
-const unit_prefix = "quickshell-pomodoro"
-const glyph = "\u{f051f}"
-const phase_labels = {work: "Focus", break: "Break", long: "Long break"}
-const chime = ($nu.home-dir | path join .config quickshell sounds pomodoro.oga)
-const chime_volume = 0.3
-const chime_timeout = "3s"
+const DOT = ($nu.home-dir | path join .local bin dot)
+const UNIT_PREFIX = "quickshell-pomodoro"
+const GLYPH = "\u{f051f}"
+const PHASE_LABELS = {work: "Focus", break: "Break", long: "Long break"}
+const CHIME = ($nu.home-dir | path join .config quickshell sounds pomodoro.oga)
+const CHIME_VOLUME = 0.3
+const CHIME_TIMEOUT = "3s"
 
 def config-load []: nothing -> record {
-    $config_default | merge (try { open $config_path } catch { {} })
+    $CONFIG_DEFAULT | merge (try { open $CONFIG_PATH } catch { {} })
 }
 
 def state-path []: nothing -> path { $env.XDG_RUNTIME_DIR | path join quickshell-pomodoro state.json }
@@ -38,12 +38,12 @@ def state-save [state: record]: nothing -> nothing {
 
 # Sent as the app the shell shows through dnd and keeps out of history (NotificationLogic.js ACTION_APP).
 def notify [title: string, body: string = ""]: nothing -> nothing {
-    ^notify-send -a quickshell-action -u low -h $"string:lsck0-glyph:($glyph)" -- $title $body
+    ^notify-send -a quickshell-action -u low -h $"string:lsck0-glyph:($GLYPH)" -- $title $body
 }
 
 # Plays in the foreground: the timer's unit kills background children on exit.
 def chime-play []: nothing -> nothing {
-    if ($chime | path exists) { ^timeout $chime_timeout pw-play --media-role Notification --volume $chime_volume $chime | complete | ignore }
+    if ($CHIME | path exists) { ^timeout $CHIME_TIMEOUT pw-play --media-role Notification --volume $CHIME_VOLUME $CHIME | complete | ignore }
 }
 
 def clock [seconds: int]: nothing -> string { $"($seconds // 60):($seconds mod 60 | fill -a r -c 0 -w 2)" }
@@ -51,7 +51,7 @@ def clock [seconds: int]: nothing -> string { $"($seconds // 60):($seconds mod 6
 def now []: nothing -> int { date now | into int | $in // 1_000_000_000 }
 
 def timer-cancel []: nothing -> nothing {
-    let timers = systemctl --user list-timers --all --output=json $"($unit_prefix)-*.timer" | from json | get unit
+    let timers = systemctl --user list-timers --all --output=json $"($UNIT_PREFIX)-*.timer" | from json | get unit
     if ($timers | is-not-empty) { systemctl --user stop ...$timers }
 }
 
@@ -59,7 +59,7 @@ def timer-cancel []: nothing -> nothing {
 def timer-arm [seconds: int]: nothing -> nothing {
     timer-cancel
     (systemd-run --user --quiet --collect $"--on-active=($seconds)s" --timer-property=AccuracySec=1s
-        $"--unit=($unit_prefix)-(date now | into int)" flock (lock-path) $nu.current-exe --no-config-file
+        $"--unit=($UNIT_PREFIX)-(date now | into int)" flock (lock-path) $nu.current-exe --no-config-file
         ($env.CURRENT_FILE | path expand) locked _elapsed)
 }
 
@@ -77,7 +77,7 @@ def phase-advance [--chime]: nothing -> nothing {
         let next = if $state.cycle mod $config.cycles == 0 { "long" } else { "break" }
         let minutes = $lengths | get $next
         phase-start ($state | merge $lengths) $next ($minutes * 60)
-        notify "Focus block done" $"($phase_labels | get $next) for ($minutes) min"
+        notify "Focus block done" $"($PHASE_LABELS | get $next) for ($minutes) min"
     } else {
         let cycle = $state.cycle + 1
         phase-start ($state | merge $lengths | merge {cycle: $cycle}) work ($config.focus * 60)
@@ -117,9 +117,9 @@ def "main skip" []: nothing -> nothing { with-lock skip }
 def "main set" [...pairs: string]: nothing -> nothing {
     if ($pairs | is-empty) or ($pairs | length) mod 2 != 0 { error make {msg: "want <key> <value> pairs, keys: focus break long cycles"} }
     for pair in ($pairs | chunks 2) {
-        let option = $option_names | get --optional $pair.0
-        if $option == null { error make {msg: $"($pair.0): want one of ($option_names | columns | str join ', ')"} }
-        let saved = ^$dot set $"desktop/quickshell.($option)" $pair.1 --no-system | complete
+        let option = $OPTION_NAMES | get --optional $pair.0
+        if $option == null { error make {msg: $"($pair.0): want one of ($OPTION_NAMES | columns | str join ', ')"} }
+        let saved = ^$DOT set $"desktop/quickshell.($option)" $pair.1 --no-system | complete
         if $saved.exit_code != 0 {
             notify "Pomodoro" $"Could not save ($pair.0): ($saved.stderr | str trim | lines | last 1 | str join)"
             exit 1
@@ -138,7 +138,7 @@ def "main status" [--json (-j)]: nothing -> nothing {
         }
     } else {
         let remaining = [(if $state.paused { $state.remaining } else { $state.endsAt - (now) }) 0] | math max
-        let label = $phase_labels | get $state.phase
+        let label = $PHASE_LABELS | get $state.phase
         let paused_note = if $state.paused { " (paused)" } else { "" }
         {
             running: true, paused: $state.paused, phase: $state.phase, label: $label, remainingSeconds: $remaining,

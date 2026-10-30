@@ -37,6 +37,11 @@ export def root-repair []: nothing -> nothing {
         let dest = (steam-data) | path join ($entry | path basename)
         if not ($dest | path exists) { mv $entry $dest }
     }
+    let left = ls --all $stale | get name
+    if ($left | is-not-empty) {
+        let names = $left | path basename | str join ', '
+        error make {msg: $"protonup: ($stale) still holds entries the data dir has too, merge them by hand: ($names)"}
+    }
     ^rmdir $stale
     ^ln -s (steam-data) $stale
 }

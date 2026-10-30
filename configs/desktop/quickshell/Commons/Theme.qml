@@ -9,19 +9,20 @@ QtObject {
 
     readonly property string path: Quickshell.shellDir + "/theme.json"
     // the font is a theme input beside the palette (configs/core/wallust/font.nu), set by a theme or toggle-font
-    readonly property string fontPath: Quickshell.env("HOME") + "/.cache/wal/font.json"
-    property string fontFamily: "Kode Mono"
-    property int fontSize: 13
-    // code defaults for every knob: property inits and apply()'s missing-key fallback both read these, so deleting a
-    // key from theme.json returns to the default instead of keeping the last override. The clamps default to
-    // palette.nu's values from Palette.js.
-    readonly property real foregroundContrastDefault: 7
-    readonly property real accentMinSaturationDefault: 0.7
-    readonly property real accentMinValueDefault: 0.62
+    readonly property string fontPath: Paths.wal + "/font.json"
+    // defaults for every knob, read by the property inits and by apply()'s and applyFont()'s fallback for a missing
+    // key, so a deleted key reverts
+    readonly property string fontFamilyDefault: "Kode Mono"
+    readonly property int fontSizeDefault: 13
+    readonly property real foregroundContrastDefault: Palette.FOREGROUND_RATIO
+    readonly property real accentMinSaturationDefault: Palette.ACCENT_SATURATION_MIN
+    readonly property real accentMinValueDefault: Palette.ACCENT_VALUE_MIN
     readonly property real accentContrastDefault: 3
+    readonly property real textContrastDefault: Palette.TEXT_RATIO
     readonly property real urgentMinSaturationDefault: 0.55
     readonly property real urgentMinValueDefault: 0.55
     readonly property real urgentContrastDefault: 3
+    readonly property real semanticContrastDefault: 3
     readonly property real mutedContrastDefault: 1.9
     readonly property int paletteTransitionMsDefault: 600
     readonly property real glowStrengthDefault: 0.55
@@ -31,6 +32,8 @@ QtObject {
     readonly property bool cornerBracketsDefault: true
     readonly property real crtFlickerDefault: 0.02
     readonly property real matrixRainDefault: 0.5
+    property string fontFamily: fontFamilyDefault
+    property int fontSize: fontSizeDefault
     property real backgroundValueMin: Palette.BG_VALUE_MIN
     property real backgroundValueMax: Palette.BG_VALUE_MAX
     property real lightLuminance: Palette.LIGHT_LUMINANCE
@@ -38,9 +41,11 @@ QtObject {
     property real accentMinSaturation: accentMinSaturationDefault
     property real accentMinValue: accentMinValueDefault
     property real accentContrast: accentContrastDefault
+    property real textContrast: textContrastDefault
     property real urgentMinSaturation: urgentMinSaturationDefault
     property real urgentMinValue: urgentMinValueDefault
     property real urgentContrast: urgentContrastDefault
+    property real semanticContrast: semanticContrastDefault
     property real mutedContrast: mutedContrastDefault
     property int paletteTransitionMs: paletteTransitionMsDefault
     property real glowStrength: glowStrengthDefault
@@ -55,6 +60,7 @@ QtObject {
     property FileView file
     property FileView fontFile
     property Timer reloadTimer
+    property Timer fontReloadTimer
 
     file: FileView {
         path: root.path
@@ -75,15 +81,18 @@ QtObject {
             root.applyFont(text());
             Util.rearmWatch(this);
         }
-        onFileChanged: root.reloadTimer.restart()
+        onLoadFailed: root.applyFont("{}")
+        onFileChanged: root.fontReloadTimer.restart()
     }
 
     reloadTimer: Timer {
         interval: root.reloadDelayMs
-        onTriggered: {
-            root.file.reload();
-            root.fontFile.reload();
-        }
+        onTriggered: root.file.reload()
+    }
+
+    fontReloadTimer: Timer {
+        interval: root.reloadDelayMs
+        onTriggered: root.fontFile.reload()
     }
 
     function _num(value, fallback, min, max) {
@@ -101,12 +110,11 @@ QtObject {
         } catch (e) {
             return ;
         }
-        if (typeof font.family === "string" && font.family.trim().length > 0)
-            fontFamily = font.family.trim();
+        if (!font || typeof font !== "object" || Array.isArray(font))
+            return ;
 
-        if (font.size !== undefined)
-            fontSize = Math.round(_num(font.size, fontSize, 6, 32));
-
+        fontFamily = (typeof font.family === "string" && font.family.trim().length > 0) ? font.family.trim() : fontFamilyDefault;
+        fontSize = Math.round(_num(font.size, fontSizeDefault, 6, 32));
         revision++;
     }
 
@@ -134,9 +142,11 @@ QtObject {
         accentMinSaturation = _num(p.accentMinSaturation, accentMinSaturationDefault, 0, 1);
         accentMinValue = _num(p.accentMinValue, accentMinValueDefault, 0, 1);
         accentContrast = _num(p.accentContrast, accentContrastDefault, 1, 21);
+        textContrast = _num(p.textContrast, textContrastDefault, 1, 21);
         urgentMinSaturation = _num(p.urgentMinSaturation, urgentMinSaturationDefault, 0, 1);
         urgentMinValue = _num(p.urgentMinValue, urgentMinValueDefault, 0, 1);
         urgentContrast = _num(p.urgentContrast, urgentContrastDefault, 1, 21);
+        semanticContrast = _num(p.semanticContrast, semanticContrastDefault, 1, 21);
         mutedContrast = _num(p.mutedContrast, mutedContrastDefault, 1, 21);
         paletteTransitionMs = Math.round(_num(p.transitionMs, paletteTransitionMsDefault, 0, 5000));
         var fx = parsed.fx || {

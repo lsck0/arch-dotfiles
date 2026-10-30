@@ -1,4 +1,4 @@
-[ -f ~/.cache/wal/colors.sh ] && source ~/.cache/wal/colors.sh
+[ -f ${XDG_CACHE_HOME:-$HOME/.cache}/wal/colors.sh ] && source ${XDG_CACHE_HOME:-$HOME/.cache}/wal/colors.sh
 
 fpath=(${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions $fpath)
 export ZSH_DISABLE_COMPFIX=true
@@ -48,7 +48,7 @@ source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zs
 autoload zmv
 autoload -Uz edit-command-line
 zle -N edit-command-line
-[[ -n $KONSOLE_VERSION ]] || bindkey '^e' edit-command-line
+bindkey '^e' edit-command-line
 bindkey ' ' magic-space
 
 HISTSIZE=5000
@@ -67,12 +67,13 @@ setopt sharehistory
 
 path+=("$HOME/.cargo/bin")
 path+=("$HOME/.ghcup/bin")
-path+=("$HOME/.go/bin")
+path+=("${GOPATH:-$HOME/.local/share/go}/bin")
 path+=("$HOME/.jai/bin")
+# again after /etc/profile.d (nix) prepended its own dirs past zshenv
 path=("$HOME/.local/bin" $path)
 [[ -r ~/.opam/opam-init/variables.sh ]] && source ~/.opam/opam-init/variables.sh
 
-export DOTFILES="$HOME/projects/arch-dotfiles"
+export DOTFILES="${DOTFILES:-$HOME/projects/arch-dotfiles}"
 export EDITOR=nvim
 export BAT_THEME=ansi
 export MANPAGER="sh -c 'col -bx | bat -l man -p'"
@@ -82,7 +83,7 @@ export GPG_TTY=$TTY
 [[ -n $SSH_CONNECTION ]] && gpg-connect-agent updatestartuptty /bye >/dev/null
 
 alias cat="bat"
-(( $+commands[zoxide] )) && [[ -z $KONSOLE_VERSION ]] && alias cd="z"
+(( $+commands[zoxide] )) && alias cd="z"
 alias convert="magick"
 alias cp="cp -v"
 alias downgrade="sudo downgrade"
@@ -101,8 +102,6 @@ alias lt="eza -lah --tree"
 alias mkdir="mkdir -pv"
 alias mv="mv -v"
 alias rm="trash -v"
-alias sshnb="sshk luca@192.168.178.73"
-alias sshpc="sshk luca@192.168.178.138"
 alias toroff="$DOTFILES/scripts/toggles/toggle-route.nu direct"
 alias toron="$DOTFILES/scripts/toggles/toggle-route.nu tor"
 
@@ -167,3 +166,7 @@ history_file_follow_direnv() {
 }
 precmd_functions+=(history_file_follow_direnv)
 zsh_init_cache zoxide init zsh && source $REPLY
+
+# drop-ins other modules own, e.g. the owner's private aliases
+for file in ${XDG_CONFIG_HOME:-$HOME/.config}/zsh/conf.d/*.zsh(N); do source $file; done
+unset file

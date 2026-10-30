@@ -40,6 +40,13 @@ profile obsidian @{exec_path} flags=(attach_disconnected,attach_disconnected.pat
   owner @{user_projects_dirs}/{,**} rwkl,
   owner @{user_sync_dirs}/{,**} rwkl,
   owner @{user_download_dirs}/{,**} rwkl,
+  # a vault may live in projects, but never write what runs: the repo root applies, git hooks, agent identities,
+  # agent settings and MCP servers; ** reaches nested repos and .git/modules/* of submodules
+  deny @{HOME}/projects/arch-dotfiles/{,**} wl,
+  deny @{user_projects_dirs}/**/.git/{hooks/{,**},config} wl,
+  deny @{user_projects_dirs}/**/.git/modules/**/{hooks/{,**},config} wl,
+  deny @{user_projects_dirs}/**/{.claude/{,**},.mcp.json} wl,
+  deny @{user_projects_dirs}/*/.identity/{,**} wl,
 
   deny /dev/tty r,
 

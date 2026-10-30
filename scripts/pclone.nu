@@ -1,5 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
 
+const SCRIPTS = path self | path expand | path dirname
+use ($SCRIPTS | path join lib repository.nu) [repository-url repository-name]
+
 const PROJECTS = "projects"
 const COLOR_ERROR = "1"
 
@@ -13,12 +16,9 @@ def popup-fail [message: string]: nothing -> nothing {
 def main []: nothing -> nothing {
     let typed = try { ^gum input --prompt "\u{276f} " --placeholder "git url or user/repo" --width 60 } catch { "" }
     if $typed == "" { return }
-    let url = match $typed {
-        $u if $u =~ '://' or ($u | str starts-with "git@") => $u
-        $u if $u =~ '/' => $"https://github.com/($u | str replace --regex '\.git$' '').git"
-        _ => { popup-fail "need a full URL or user/repo" }
-    }
-    let name = $url | str replace --regex '\.git$' '' | path basename
+    let url = repository-url $typed
+    if $url == null { popup-fail "need a full URL or user/repo" }
+    let name = repository-name $url
     let dest = $nu.home-dir | path join $PROJECTS $name
     if ($dest | path exists) { popup-fail $"($dest) already exists" }
     try {

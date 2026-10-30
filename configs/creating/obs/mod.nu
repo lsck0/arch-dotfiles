@@ -1,11 +1,12 @@
 use module.nu *
 use converge.nu [recorded-hashes]
+use ini.nu [ini-rows]
 
 export const meta = {
     packages: {
         pacman: [
             lib32-obs-vkcapture obs-audio-wave-bin obs-pipewire-audio-capture obs-plugin-waveform-bin obs-studio
-            obs-studio-plugin-browser obs-vkcapture websocat
+            obs-vkcapture websocat
             npm
         ]
     }
@@ -22,12 +23,12 @@ export const options = {
     canvas: {
         type: string?
         default: null
-        doc: "Base and output canvas of every profile and the repo collections (Bare, VirtualCam), WxH"
+        doc: "Canvas WxH: every profile's base and video output, and the Bare and VirtualCam collections"
     }
     mic: {
         type: string?
         default: null
-        doc: "The pipewire source node every collection's Mic/Aux captures"
+        doc: "The pipewire source node the Mic/Aux of the Streaming and Bare collections captures"
         label: "Microphone"
     }
     webcam: {
@@ -60,8 +61,6 @@ export const options = {
 }
 
 const HERE = path self | path dirname
-const OBS = ".config/obs-studio"
-const MCP_PREFIX = ".local/share/obs-mcp"
 const WEBSOCKET_PORT = 4455
 const CANVAS_FALLBACK = "1920x1080"
 const HEADLESS_OUTPUT = '^HEADLESS-'
@@ -118,11 +117,11 @@ export def detect [cfg: record]: nothing -> record {
 }
 
 def obs-dir []: nothing -> path {
-    $nu.home-dir | path join $OBS
+    xdg config obs-studio
 }
 
 def videos-dir []: nothing -> path {
-    try { ^xdg-user-dir VIDEOS | str trim } catch { $nu.home-dir | path join Videos }
+    try { ^xdg-user-dir VIDEOS | str trim } catch { $nu.home-dir | path join videos }
 }
 
 def canvas-size [cfg: record]: nothing -> record {
@@ -217,8 +216,41 @@ def scene-hash []: string -> string {
     from json | strip-token | to json --raw | hash sha256
 }
 
-def vaapi-encoder [cfg: record, src: path]: nothing -> string {
-    let json = open $src
+# The encoder a profile's encoder json configures: the recording one, else the streaming one.
+def json-encoder [cfg: record, file: path]: nothing -> oneof<string, nothing> {
+    if ($file | path basename) == "recordEncoder.json" { $cfg.record_encoder } else { $cfg.stream_encoder }
+}
+
+# The repo keeps the vaapi quality keys (qp, CQP); x264 rates by crf and obs's own nvenc by cqp.
+def encoder-native [encoder: oneof<string, nothing>]: record -> record {
+    let json = $in
+    if $json.qp? == null { return $json }
+    match $encoder {
+        "obs_x264" => {
+            $json | rename --column {qp: crf}
+            | if $in.rate_control? == "CQP" { update rate_control CRF } else { $in }
+        }
+        $e if ($e | default "" | str starts-with "obs_nvenc_") => ($json | rename --column {qp: cqp})
+        _ => $json
+    }
+}
+
+def encoder-repo [encoder: oneof<string, nothing>]: record -> record {
+    let json = $in | reject --optional vaapi_device
+    match $encoder {
+        "obs_x264" if $json.crf? != null => {
+            $json | rename --column {crf: qp}
+            | if $in.rate_control? == "CRF" { update rate_control CQP } else { $in }
+        }
+        $e if ($e | default "" | str starts-with "obs_nvenc_") and $json.cqp? != null => {
+            $json | rename --column {cqp: qp}
+        }
+        _ => $json
+    }
+}
+
+def encoder-json [cfg: record, src: path]: nothing -> string {
+    let json = open $src | encoder-native (json-encoder $cfg $src)
     let json = if $cfg.vaapi_render_node == null { $json } else { $json | upsert vaapi_device $cfg.vaapi_render_node }
     $"($json | to json --indent 2)\n"
 }
@@ -260,7 +292,7 @@ export def link [cfg: record] {
         let dest = $basic | path join ($src | path relative-to $HERE)
         match ($src | path basename) {
             "basic.ini" => (file-render $src $dest (profile-values $cfg))
-            _ => (file-text $dest (vaapi-encoder $cfg $src))
+            _ => (file-text $dest (encoder-json $cfg $src))
         }
     }
     let state = $scenes ++ $profiles | decls-flatten
@@ -268,9 +300,19 @@ export def link [cfg: record] {
     if (process-running obs) and ($state | any {|d| not ($d.target | path exists) or (open --raw $d.target) != $d.content }) {
         error make {msg: "obs runs, close it so its collections and profiles can be updated"}
     }
-    let prefix = $nu.home-dir | path join $MCP_PREFIX
+    let prefix = xdg data obs-mcp
     let websocket = $obs | path join plugin_config obs-websocket config.json
     let npm_ci = [npm ci --no-audit --no-fund --prefix $prefix]
+    # the mcp only with the app it drives
+    let mcp = if (which obs npm | length) < 2 { [] } else {
+        [
+            (file-copy ($HERE | path join mcp package.json) ($prefix | path join package.json))
+            (file-copy ($HERE | path join mcp package-lock.json) ($prefix | path join package-lock.json) --then $npm_ci)
+            (exec obs-mcp-install $npm_ci --creates ($prefix | path join node_modules .bin obs-mcp))
+            (link-commands obs-mcp.nu)
+            (mcp-servers {obs-mcp: {type: stdio, command: ($nu.home-dir | path join .local bin obs-mcp), args: []}})
+        ] | decls-flatten
+    }
     [
         $state
         (if (secret-is-plaintext $service) {
@@ -279,11 +321,7 @@ export def link [cfg: record] {
         (ini-merge ($obs | path join global.ini) $GLOBAL)
         (ini-merge ($obs | path join user.ini) ({Basic: $selection} | merge $USER_GENERAL) --missing-only)
         (if ($websocket | path exists) { [] } else { step websocket-init $websocket })
-        (file-copy ($HERE | path join mcp package.json) ($prefix | path join package.json))
-        (file-copy ($HERE | path join mcp package-lock.json) ($prefix | path join package-lock.json) --then $npm_ci)
-        (exec obs-mcp-install $npm_ci --creates ($prefix | path join node_modules .bin obs-mcp))
-        (link-commands obs-mcp.nu)
-        (mcp-servers {obs-mcp: {type: stdio, command: ($nu.home-dir | path join .local bin obs-mcp), args: []}})
+        $mcp
         (desktop-override com.obsproject.Studio.desktop {
             $in | str replace --all --regex '(?m)^Exec=obs.*' $"Exec=obs ($LAUNCH_FLAGS)"
         })
@@ -321,9 +359,9 @@ def scene-back [cfg: record, live: path, src: path, dest: path, --machine]: noth
 
 # Writes a live profile back to the repo: placeholders stay, paths under this user's dirs become placeholders again.
 def profile-back [live: path, repo: path]: nothing -> nothing {
-    let placeholders = ini-lines (open --raw $repo) | where {|r| $r.value != null and $r.value =~ '^@[A-Z_]+@$' }
+    let placeholders = ini-rows (open --raw $repo) | where {|r| $r.value != null and $r.value =~ '^@[A-Z_]+@$' }
     let videos = videos-dir
-    ini-lines (open --raw $live) | each {|l|
+    ini-rows (open --raw $live) | each {|l|
         let kept = $placeholders | where section == $l.section and key == $l.key | get --optional 0.value
         if $kept != null { return $"($l.key)=($kept)" }
         if $l.key == null or not ($l.key | str ends-with "Path") { return $l.line }
@@ -335,15 +373,6 @@ def profile-back [live: path, repo: path]: nothing -> nothing {
         } else { $l.value }
         $"($l.key)=($path)"
     } | str join "\n" | $"($in)\n" | save --force $repo
-}
-
-def ini-lines [text: string]: nothing -> table {
-    $text | lines | reduce --fold {section: "", rows: []} {|line, acc|
-        let section = $line | parse --regex '^\[(?<s>.*)\]$' | get --optional 0.s | default $acc.section
-        let kv = $line | parse --regex '^(?<key>[A-Za-z0-9_]+)=(?<value>.*)$' | get --optional 0
-        let row = {section: $section, key: $kv.key?, value: $kv.value?, line: $line}
-        {section: $section, rows: ($acc.rows | append $row)}
-    } | get rows
 }
 
 export def backup [cfg: record]: nothing -> nothing {
@@ -366,7 +395,7 @@ export def backup [cfg: record]: nothing -> nothing {
         if ($repo | path basename) == "basic.ini" {
             profile-back $live $repo
         } else {
-            $"(open $live | reject --optional vaapi_device | to json --indent 2)\n" | save --force $repo
+            $"(open $live | encoder-repo (json-encoder $cfg $repo) | to json --indent 2)\n" | save --force $repo
         }
     }
 }

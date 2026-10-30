@@ -11,8 +11,7 @@ import qs.Ui
 Item {
   id: root
 
-  readonly property string home: Quickshell.env("HOME")
-  readonly property string currentBackgroundLink: home + "/.cache/wal/wallpaper"
+  readonly property string currentBackgroundLink: Paths.wal + "/wallpaper"
 
   property string currentBackground: ""
   property string displayedBackground: ""
@@ -56,6 +55,19 @@ Item {
     incomingBackground = path
     revealProgress = 0
     Colors.syncHold = Style.motion.enabled
+  }
+
+  // an undecodable wallpaper keeps the displayed one and lets the same path be set again
+  function abortReveal(path) {
+    if (!path || path !== incomingBackground) return
+    console.warn("Background: cannot decode", path)
+    revealAnimation.stop()
+    finishingTransition = false
+    incomingBackground = ""
+    oldBackground = ""
+    currentBackground = displayedBackground
+    revealProgress = 1
+    Colors.syncHold = false
   }
 
   function startReveal(panel) {
@@ -200,7 +212,10 @@ Item {
             asynchronous: true
             cache: false
             smooth: true
-            onStatusChanged: panel.maybeStartReveal()
+            onStatusChanged: {
+              if (status === Image.Error) root.abortReveal(root.incomingBackground)
+              else panel.maybeStartReveal()
+            }
           }
         }
       }

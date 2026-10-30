@@ -35,7 +35,8 @@ dependencies (venvs, `node_modules`, devenv) stay in that project. Homelab chang
 - `mirror/`: own pkgbuilds, the `[lsck0]` build list, `iso/`.
 - `configs/secrets/`: private submodule; `keys/` git-crypt, `state/` plaintext app state, `<module>/` the owner's
   modules; anything else makes sync refuse (`l-dotfiles-secrets-access`).
-- `skills/`: linked into every agent's skills dir. `showcase/`: screenshots.
+- `skills/`: linked into the skills dir of each installed agent (claude, copilot, gemini, hermes). `showcase/`:
+  screenshots.
 - Install: `bootstrap.sh`, `dot internal bootstrap`, then `dot internal stage` runs `dot apply --packages` and
   `dot apply` across boots (`l-dotfiles-install`).
 
@@ -44,4 +45,5 @@ dependencies (venvs, `node_modules`, devenv) stay in that project. Homelab chang
 - Never commit, push or run `dot sync`; Luca does. Commits are `Generation: <n>`, not conventional commits
   (overrides `l-style-tooling`).
 - Run `dot` with `DOT_SYSTEM=skip` (or `--no-system`); exit 3 means a system part is pending.
-- Every setting reproducible on a fresh system. dot never writes into `~/sync`; reading is fine.
+- Every setting reproducible on a fresh system. dot never writes into `~/sync`, except the
+  `**/.identity` line `core/syncthing` keeps in `~/sync/.stignore`; reading is fine.

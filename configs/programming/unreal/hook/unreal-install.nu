@@ -21,7 +21,7 @@ def desktop-write [version: string]: nothing -> nothing {
     mkdir ($file | path dirname)
     [
         "[Desktop Entry]" "Type=Application" "Name=Unreal Engine" $"Comment=Unreal Editor ($version)"
-        "# the launcher (mod.nu) adds the mcp server"
+        "# the launcher (unreal-editor.nu) starts the mcp server"
         $"Exec=($nu.home-dir | path join .local bin unreal-editor) %U"
         (if ($icon | path exists) { $"Icon=($icon)" })
         "Terminal=false" "Categories=Development;IDE;" "MimeType=application/x-uproject;" "StartupWMClass=UnrealEditor"
@@ -88,5 +88,5 @@ def "main locked" []: nothing -> nothing {
     rm --recursive --force $staging
     desktop-write $version
     try { ^$PLUGINS_INSTALL } catch { print -e "unreal: plugins not installed, rerun unreal-install-plugins" }
-    ^notify-send -a Unreal "Unreal Engine" $"Installed ($version)" | complete | ignore
+    ^notify-send -a unreal "Unreal Engine installed" $"Version ($version) in ($engine)" | complete | ignore
 }

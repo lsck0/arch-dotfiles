@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t; -*-
 (setq gc-cons-threshold most-positive-fixnum
       gc-cons-percentage 0.6)
 
@@ -28,6 +29,6 @@
 (setq warning-minimum-level :error
       warning-minimum-log-level :error
       byte-compile-warnings '(not docstrings free-vars unresolved noruntime
-                                  lexical make-local obsolete))
+                                  make-local obsolete))
 
 (provide 'early-init)

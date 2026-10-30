@@ -1,8 +1,15 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [telegram-desktop]}}
+export const meta = {deps: [core/wallust], packages: {pacman: [telegram-desktop]}}
 
-export def link [cfg: record] {
-    let palette = xdg cache wal colors-telegram.tdesktop-palette
-    file-link $palette (xdg data TelegramDesktop pywal-cyberpunk.tdesktop-palette)
+const PALETTE_RENDERED = "colors-telegram.tdesktop-palette"
+# a stable path in Telegram's own data dir for the manual import in README.md
+const PALETTE_IMPORT = "wallust.tdesktop-palette"
+
+export def link [cfg: record] { [] }
+
+export def theme [cfg: record, wallpaper: string] {
+    let rendered = xdg cache wal $PALETTE_RENDERED
+    if not ($rendered | path exists) { return [] }
+    file-text (xdg data TelegramDesktop $PALETTE_IMPORT) (open --raw $rendered) --generated
 }

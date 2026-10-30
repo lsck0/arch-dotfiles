@@ -3,7 +3,7 @@ use module.nu *
 export const meta = {deps: [core/wallust], packages: {pacman: [git git-delta]}, inputs: [/usr/bin/mergiraf /usr/bin/jj /usr/bin/git-lfs /usr/bin/gh]}
 
 const CONFIG_DIR = ".config/git"
-const DELTA_THEME = ".cache/wal/delta.gitconfig"
+const DELTA_THEME = "wal/delta.gitconfig"
 const MERGIRAF_DRIVER = "mergiraf merge --git %O %A %B -s %S -x %X -y %Y -p %P -l %L"
 const GH_HELPER = "!/usr/bin/gh auth git-credential"
 const GH_HOSTS = [github.com gist.github.com]
@@ -42,7 +42,7 @@ export def link [cfg: record] {
         (if (has git-lfs) {
             ['filter "lfs"' {clean: "git-lfs clean -- %f", smudge: "git-lfs smudge -- %f", process: "git-lfs filter-process", required: true}]
         } else { null })
-        [include {path: [($nu.home-dir | path join $DELTA_THEME) ($dir | path join forgejo.inc)]}]
+        [include {path: [(xdg cache $DELTA_THEME) ($dir | path join forgejo.inc)]}]
         # the empty helper clears any inherited one, then gh answers
         ...(if (has gh) { $GH_HOSTS | each {|host| [$'credential "https://($host)"' {helper: ["" $GH_HELPER]}] } } else { [] })
     ] | compact
@@ -58,5 +58,5 @@ export def link [cfg: record] {
 export def theme [cfg: record, wallpaper: string] {
     let p = palette-load
     if $p == null { return [] }
-    file-text ($nu.home-dir | path join $DELTA_THEME) $"[delta]\n    light = ($p.light == '1')\n" --generated
+    file-text (xdg cache $DELTA_THEME) $"[delta]\n    light = ($p.light == '1')\n" --generated
 }

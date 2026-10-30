@@ -1,5 +1,6 @@
 use module.nu *
 use ../../core/wallust/font.nu [font-load]
+use ../../core/wallust/palette.nu [hex-to-rgb rgb-to-hex shade]
 
 export const meta = {packages: {pacman: [vscodium-bin]}}
 
@@ -7,18 +8,19 @@ export const meta = {packages: {pacman: [vscodium-bin]}}
 def settings [user_dir: path] {
     let p = palette-load
     let theme = if $p == null { {} } else {
+        let chrome = $p.bg_conditioned | hex-to-rgb | shade 0.045 | rgb-to-hex --prefix "#"
         {
             # the base theme carries every token not overridden here, so its luminance must match
             "workbench.colorTheme": (if $p.light == "1" { "Default Light Modern" } else { "Default Dark Modern" })
             "workbench.colorCustomizations": {
                 "editor.background": $p.bg_conditioned
                 "editor.foreground": $p.fg
-                "sideBar.background": $p.c0
-                "activityBar.background": $p.c0
-                "statusBar.background": $p.c0
-                "titleBar.activeBackground": $p.c0
+                "sideBar.background": $chrome
+                "activityBar.background": $chrome
+                "statusBar.background": $chrome
+                "titleBar.activeBackground": $chrome
                 "tab.activeBackground": $p.bg_conditioned
-                "tab.inactiveBackground": $p.c0
+                "tab.inactiveBackground": $chrome
                 "focusBorder": $p.c4
                 "terminal.background": $p.bg_conditioned
                 "terminal.foreground": $p.fg
@@ -40,7 +42,8 @@ export def link [cfg: record] {
     let bin = code-bin
     if $bin == null { return [] }
     let user_dir = code-user-dir $bin
-    let installed = glob ($nu.home-dir | path join .vscode-oss extensions "vscodevim.vim-*") | is-not-empty
+    let extensions = $nu.home-dir | path join (if $bin == codium { ".vscode-oss" } else { ".vscode" }) extensions
+    let installed = glob ($extensions | path join "vscodevim.vim-*") | is-not-empty
     [
         (files-into $user_dir keybindings.json)
         (settings $user_dir)

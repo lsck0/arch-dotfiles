@@ -13,12 +13,6 @@ Item {
   property int selectedIndex: 0
   property string selectedUuid: ""
 
-  readonly property string notesPath: Paths.notes
-  property string notesDisk: ""
-  property bool notesLoaded: false
-  property bool notesEdited: false
-  readonly property int notesSaveDelayMs: 600
-
   readonly property bool opened: TaskState.panelOpen
   readonly property int rowHeight: Style.space(40)
   readonly property int reminderShownMax: 3
@@ -41,10 +35,12 @@ Item {
   readonly property var selectedTask: filtered.length > 0 && selectedIndex >= 0 && selectedIndex < filtered.length
     ? filtered[selectedIndex] : null
 
-  readonly property var hints: view === "notes" ? [["ESC", "close"], ["TAB", "tasks"]]
+  readonly property var hints: view === "notes" && NotesState.conflict
+    ? [["CTRL+S", "overwrite disk"], ["CTRL+R", "take disk"], ["TAB", "tasks"], ["ESC", "close"]]
+    : view === "notes" ? [["TAB", "tasks"], ["ESC", "close"]]
     : inputMode === "add" ? [["ENTER", "add"], ["TAB", "complete +tag project: due: priority:"], ["ESC", "back"]]
-    : inputMode === "filter" ? [["ENTER", "keep"], ["ESC", "clear"], ["TAB", "notes"]]
-    : [["J/K", "move"], ["ENTER/D", "done"], ["S", "start/stop"], ["X", "delete"], ["A", "add"], ["/", "filter"],
+    : inputMode === "filter" ? [["ENTER", "keep"], ["TAB", "notes"], ["ESC", "clear"]]
+    : [["^/v", "move"], ["ENTER/D", "done"], ["S", "start/stop"], ["X", "delete"], ["A", "add"], ["/", "filter"],
        ["TAB", "notes"], ["ESC", "close"]]
 
   function open() {
@@ -65,10 +61,9 @@ Item {
       root.selectedIndex = 0
       root.selectedUuid = ""
       TaskState.refresh()
-      root.seedNotes()
       root.focusView()
     } else {
-      root.saveNotes()
+      NotesState.save()
       keyCatcher.forceActiveFocus()
     }
   }
@@ -82,9 +77,8 @@ Item {
   }
 
   function setView(name) {
-    if (root.view === "notes") root.saveNotes()
+    if (root.view === "notes") NotesState.save()
     root.view = name
-    if (name === "notes") root.seedNotes()
     root.focusView()
   }
 
@@ -231,47 +225,6 @@ Item {
     return parts.join(" ")
   }
 
-  function seedNotes() {
-    if (!root.notesLoaded) return
-    if (notesEdit.activeFocus && root.notesEdited) return
-    if (notesEdit.text !== root.notesDisk) notesEdit.text = root.notesDisk
-    root.notesEdited = false
-  }
-
-  function saveNotes() {
-    saveTimer.stop()
-    if (!root.notesLoaded || !root.notesEdited) return
-    root.notesEdited = false
-    if (notesEdit.text === root.notesDisk) return
-    root.notesDisk = notesEdit.text
-    notesFile.setText(notesEdit.text)
-  }
-
-  FileView {
-    id: notesFile
-    path: root.notesPath
-    watchChanges: true
-    printErrors: false
-    onLoaded: {
-      root.notesDisk = String(text() || "")
-      root.notesLoaded = true
-      root.seedNotes()
-      Util.rearmWatch(this)
-    }
-    onLoadFailed: {
-      root.notesDisk = ""
-      root.notesLoaded = true
-      root.seedNotes()
-    }
-    onFileChanged: reload()
-  }
-
-  Timer {
-    id: saveTimer
-    interval: root.notesSaveDelayMs
-    onTriggered: root.saveNotes()
-  }
-
   IpcHandler {
     target: "tasks"
     function toggle(): string { root.toggle(); return "ok" }
@@ -310,14 +263,15 @@ Item {
         Repeater {
           model: [
             { name: "tasks", label: "tasks :: " + TaskState.pendingCount + (TaskState.overdueCount > 0 ? " :: " + TaskState.overdueCount + " overdue" : "") },
-            { name: "notes", label: "notes" }
+            { name: "notes", label: "notes" + (NotesState.conflict ? " :: changed on disk" : "") }
           ]
 
           PanelSectionHeader {
             required property var modelData
             text: modelData.label
-            foreground: TaskState.overdueCount > 0 && modelData.name === "tasks" && root.view !== "tasks" ? Colors.urgent : Colors.accent
-            opacity: root.view === modelData.name ? Style.emphasis.strong : Style.emphasis.faint
+            foreground: (TaskState.overdueCount > 0 && modelData.name === "tasks" && root.view !== "tasks")
+              || (NotesState.conflict && modelData.name === "notes") ? Colors.urgent
+              : root.view === modelData.name ? Colors.accentText : Colors.textDim
 
             MouseArea {
               anchors.fill: parent
@@ -350,7 +304,7 @@ Item {
             width: Style.space(18)
             textFormat: Text.PlainText
             text: root.inputMode === "add" ? "+" : (root.inputMode === "filter" || root.filterText ? "/" : ">")
-            color: Colors.accent
+            color: Colors.accentText
             font.family: Style.font.family
             font.pixelSize: Style.font.heading
             font.bold: true
@@ -384,8 +338,7 @@ Item {
             text: root.inputMode === "add" ? "description project:x due:tomorrow priority:H +tag"
               : root.inputMode === "filter" ? "filter"
               : root.filterText ? root.filterText : "a to add, / to filter"
-            color: Colors.menu.text
-            opacity: root.inputMode === "" && root.filterText ? Style.emphasis.strong : Style.emphasis.faint
+            color: root.inputMode === "" && root.filterText ? Colors.menu.text : Colors.textDim
             font.family: Style.font.family
             font.pixelSize: Style.font.heading
             elide: Text.ElideRight
@@ -417,7 +370,7 @@ Item {
           visible: TaskState.errorText !== ""
           textFormat: Text.PlainText
           text: "x ERR " + TaskState.errorText
-          color: Colors.urgent
+          color: Colors.urgentText
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
           elide: Text.ElideRight
@@ -471,7 +424,7 @@ Item {
               width: Style.space(12)
               textFormat: Text.PlainText
               text: row.hasCursor ? ">" : ""
-              color: Colors.menu.selectedText
+              color: Colors.accentText
               font.family: Style.font.family
               font.pixelSize: Style.font.body
               layer.enabled: row.hasCursor && Style.fx.glow > 0
@@ -513,8 +466,7 @@ Item {
                 visible: text !== ""
                 textFormat: Text.PlainText
                 text: root.metaText(row.modelData)
-                color: Colors.menu.text
-                opacity: Style.emphasis.faint
+                color: Colors.textDim
                 font.family: Style.font.family
                 font.pixelSize: Style.font.caption
                 elide: Text.ElideRight
@@ -539,7 +491,7 @@ Item {
                   required property var modelData
                   textFormat: Text.PlainText
                   text: "[" + modelData.label + "]"
-                  color: Colors.accent
+                  color: Colors.accentText
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
                   font.bold: true
@@ -558,8 +510,7 @@ Item {
                 visible: row.modelData.due !== ""
                 textFormat: Text.PlainText
                 text: row.modelData.due
-                color: row.modelData.overdue ? Colors.urgent : Colors.menu.text
-                opacity: row.modelData.overdue ? Style.emphasis.strong : Style.emphasis.dim
+                color: row.modelData.overdue ? Colors.urgentText : Colors.textDim
                 font.family: Style.font.family
                 font.pixelSize: Style.font.caption
               }
@@ -573,8 +524,7 @@ Item {
             visible: root.filtered.length === 0
             textFormat: Text.PlainText
             text: TaskState.errorText ? "> FAILED" : !TaskState.loaded ? "> LOADING" : root.filterText ? "> NO MATCH" : "> NOTHING PENDING"
-            color: Colors.menu.text
-            opacity: Style.emphasis.dim
+            color: Colors.textDim
             font.family: Style.font.family
             font.pixelSize: Style.font.body
           }
@@ -596,7 +546,7 @@ Item {
             visible: TaskState.activeTask !== null
             textFormat: Text.PlainText
             text: TaskState.activeTask ? ("tracking :: " + TaskState.activeTask.desc + " " + TaskState.activeElapsedText()) : ""
-            color: Colors.accent
+            color: Colors.accentText
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             elide: Text.ElideRight
@@ -607,8 +557,7 @@ Item {
             visible: TaskState.trackedTotalSeconds > 0
             textFormat: Text.PlainText
             text: "worktime today :: " + TaskState.totalTrackedText()
-            color: Colors.foreground
-            opacity: Style.emphasis.dim
+            color: Colors.textDim
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
           }
@@ -619,7 +568,7 @@ Item {
             textFormat: Text.PlainText
             text: "pomodoro :: " + TimerState.pomoPhaseLabel + " " + Util.clock(TimerState.pomoRemainingSeconds)
               + (TimerState.pomoPaused ? " (paused)" : "")
-            color: TimerState.pomo.phase === "work" ? Colors.accent : Colors.ok
+            color: TimerState.pomo.phase === "work" ? Colors.accentText : Colors.okText
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
           }
@@ -633,7 +582,7 @@ Item {
               width: parent.width
               textFormat: Text.PlainText
               text: "reminder :: " + String(modelData.label || "") + " at " + String(modelData.atTime || "")
-              color: Colors.accent2
+              color: Colors.accent2Text
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
               elide: Text.ElideRight
@@ -645,8 +594,7 @@ Item {
             visible: TimerState.reminderCount > root.reminderShownMax
             textFormat: Text.PlainText
             text: "+" + (TimerState.reminderCount - root.reminderShownMax) + " more reminders"
-            color: Colors.accent2
-            opacity: Style.emphasis.dim
+            color: Colors.textDim
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
           }
@@ -686,11 +634,9 @@ Item {
           font.family: Style.font.family
           font.pixelSize: Style.font.body
 
-          onTextChanged: if (activeFocus) {
-            root.notesEdited = true
-            saveTimer.restart()
-          }
-          onActiveFocusChanged: if (!activeFocus) root.saveNotes()
+          Component.onCompleted: text = NotesState.text
+          onTextChanged: if (activeFocus) NotesState.edit(text)
+          onActiveFocusChanged: if (!activeFocus) NotesState.save()
           onCursorRectangleChanged: notesFlick.ensureVisible(cursorRectangle)
 
           Keys.priority: Keys.BeforeItem
@@ -698,9 +644,21 @@ Item {
             if (event.key === Qt.Key_Escape) {
               root.close()
               event.accepted = true
+            } else if (NotesState.conflictKey(event.key, event.modifiers)) {
+              event.accepted = true
             } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
               root.setView("tasks")
               event.accepted = true
+            }
+          }
+
+          Connections {
+            target: NotesState
+            function onTextChanged() {
+              if (notesEdit.text === NotesState.text) return
+              let cursor = notesEdit.cursorPosition
+              notesEdit.text = NotesState.text
+              notesEdit.cursorPosition = Math.min(cursor, notesEdit.length)
             }
           }
 
@@ -710,8 +668,7 @@ Item {
             visible: notesEdit.text.length === 0
             textFormat: Text.PlainText
             text: "no notes, start typing"
-            color: Colors.menu.text
-            opacity: Style.emphasis.faint
+            color: Colors.textDim
             font.family: Style.font.family
             font.pixelSize: Style.font.body
           }

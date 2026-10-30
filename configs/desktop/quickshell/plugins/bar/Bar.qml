@@ -53,6 +53,8 @@ PanelWindow {
   readonly property bool quiet: Power.saver || fullscreenBelow
 
   property string activePanel: ""
+  // the HoverPanel on screen, open or still closing; the toasts and desktop widgets read its rect to hide under it
+  property var activePanelWindow: null
   property string pinnedPanel: ""
   property bool keyboardPanel: false
   property var panelNames: []
@@ -249,14 +251,48 @@ PanelWindow {
   Scanlines { shown: !root.quiet }
 
   Item {
+    id: rowArea
     anchors.fill: parent
 
     readonly property int keepClear: Style.bar.itemGap * 2
+    readonly property int leftInset: Style.spacing.sm
+
+    // one drop pass over all three sections: the lowest barPriority widget anywhere goes first until the left row, the
+    // center row and the right row fit side by side with keepClear between them; ties go center, right, left
+    readonly property var dropped: {
+      const sections = [centerWidgets, rightWidgets, leftWidgets]
+      var candidates = []
+      var widths = [0, 0, 0]
+      var counts = [0, 0, 0]
+      for (let s = 0; s < sections.length; s++) {
+        for (const widget of sections[s].candidates) {
+          candidates.push({ section: s, index: widget.index, width: widget.width, priority: widget.priority, order: widget.order })
+          widths[s] += widget.width
+          counts[s]++
+        }
+      }
+      candidates.sort(function(a, b) { return a.priority - b.priority || a.section - b.section || a.order - b.order })
+
+      function rowWidth(s) { return counts[s] === 0 ? 0 : widths[s] + (counts[s] - 1) * Style.bar.itemGap }
+      function needed() {
+        return rowArea.leftInset + rowWidth(2) + rowArea.keepClear
+          + (counts[0] > 0 ? rowWidth(0) + rowArea.keepClear : 0) + rowWidth(1)
+      }
+
+      var out = [{}, {}, {}]
+      for (let i = 0; i < candidates.length && needed() > rowArea.width; i++) {
+        const widget = candidates[i]
+        out[widget.section][widget.index] = true
+        widths[widget.section] -= widget.width
+        counts[widget.section]--
+      }
+      return out
+    }
 
     Item {
       id: leftHolder
       anchors.left: parent.left
-      anchors.leftMargin: Style.spacing.sm
+      anchors.leftMargin: parent.leftInset
       anchors.verticalCenter: parent.verticalCenter
       height: parent.height
       clip: true
@@ -266,36 +302,50 @@ PanelWindow {
         id: leftSection
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
-        spacing: Style.bar.itemGap
+        spacing: 0
         onXChanged: root.layoutRevision++
         onWidthChanged: root.layoutRevision++
 
-        BarSection { bar: root; section: "left" }
+        BarSection {
+          id: leftWidgets
+          bar: root
+          section: "left"
+          dropped: rowArea.dropped[2]
+          spacing: Style.bar.itemGap
+        }
       }
     }
 
     Item {
       id: rightHolder
+      readonly property real room: Math.max(0, parent.width - leftHolder.x - leftHolder.width - parent.keepClear
+        - (centerSection.implicitWidth > 0 ? centerSection.implicitWidth + parent.keepClear : 0))
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
       height: parent.height
       clip: true
-      width: Math.max(0, Math.min(rightSection.implicitWidth,
-                                  parent.width - leftHolder.width - parent.keepClear))
+      width: Math.min(rightSection.implicitWidth, room)
 
       RowLayout {
         id: rightSection
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        spacing: Style.bar.itemGap
+        spacing: 0
         onXChanged: root.layoutRevision++
         onWidthChanged: root.layoutRevision++
 
-        BarSection { bar: root; section: "right" }
+        BarSection {
+          id: rightWidgets
+          bar: root
+          section: "right"
+          dropped: rowArea.dropped[1]
+          spacing: Style.bar.itemGap
+        }
       }
     }
 
     Item {
+      id: centerHolder
       readonly property real gapLeft: leftHolder.x + leftHolder.width + parent.keepClear
       readonly property real gapRight: rightHolder.x - parent.keepClear
       anchors.verticalCenter: parent.verticalCenter
@@ -308,11 +358,17 @@ PanelWindow {
         id: centerSection
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        spacing: Style.bar.itemGap
+        spacing: 0
         onXChanged: root.layoutRevision++
         onWidthChanged: root.layoutRevision++
 
-        BarSection { bar: root; section: "center" }
+        BarSection {
+          id: centerWidgets
+          bar: root
+          section: "center"
+          dropped: rowArea.dropped[0]
+          spacing: Style.bar.itemGap
+        }
       }
     }
   }
@@ -359,7 +415,7 @@ PanelWindow {
           anchors.baseline: tooltipLabel.baseline
           textFormat: Text.PlainText
           text: ">"
-          color: Colors.accent
+          color: Colors.accentText
           opacity: Style.emphasis.faint
           font.family: root.fontFamily
           font.pixelSize: Style.font.bodySmall

@@ -17,13 +17,8 @@ SUBSYSTEM=="input", KERNEL=="event*", ATTRS{bInterfaceNumber}=="02", \
 
 SUBSYSTEM=="input", KERNEL=="input*", \
   ENV{ID_VENDOR_ID}=="08f2", ENV{ID_MODEL_ID}=="6811", \
-  ENV{ID_USB_INTERFACE_NUM}=="02", ENV{ID_INPUT_TABLET}=="1", \
-  ENV{ID_INPUT_TABLET}=""
-
-SUBSYSTEM=="input", KERNEL=="input*", \
-  ENV{ID_VENDOR_ID}=="08f2", ENV{ID_MODEL_ID}=="6811", \
   ENV{ID_USB_INTERFACE_NUM}=="02", \
-  ENV{ID_INPUT_KEY}="", ENV{ID_INPUT_KEYBOARD}=""
+  ENV{ID_INPUT_TABLET}="", ENV{ID_INPUT_KEY}="", ENV{ID_INPUT_KEYBOARD}=""
 
 SUBSYSTEM=="input", ATTRS{name}=="SDD Tablet T1161", TAG+="uaccess"
 SUBSYSTEM=="input", ATTRS{name}=="SDD Tablet T1161 Keys", TAG+="uaccess"

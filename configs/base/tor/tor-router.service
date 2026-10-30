@@ -1,7 +1,7 @@
 [Unit]
 Description=Transparent tor routing
 Wants=tor.service
-After=network-online.target tor.service
+After=tor.service
 
 [Service]
 Type=oneshot

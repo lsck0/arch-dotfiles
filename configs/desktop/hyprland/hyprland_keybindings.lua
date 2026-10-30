@@ -38,18 +38,20 @@ local function obs_command(cmd)
 end
 
 hl.bind(mod .. " + SHIFT + e", quickshell_toggle("powermenu"), { description = "power menu" })
+for _, keys in ipairs({ "Print", mod .. " + SHIFT + s" }) do
+    hl.bind(
+        keys,
+        hl.dsp.exec_cmd("$DOTFILES/configs/desktop/hyprland/screenshot-region.nu"),
+        { description = "screenshot a region to the clipboard" }
+    )
+end
 hl.bind(
-    mod .. " + SHIFT + s",
-    hl.dsp.exec_cmd("$DOTFILES/configs/desktop/hyprland/screenshot-region.nu"),
-    { description = "screenshot a region to the clipboard" }
-)
-hl.bind(
-    mod .. " + SHIFT + PRINT",
+    "SHIFT + Print",
     hl.dsp.exec_cmd("grim -o \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .name')\" - | wl-copy"),
     { description = "screenshot the focused monitor to the clipboard" }
 )
 hl.bind(
-    "CTRL + SHIFT + ALT + s",
+    mod .. " + Print",
     hl.dsp.exec_cmd(
         'grim -g "$(hyprctl -j activewindow | jq -r \'select(.at and .size) | "\\(.at[0]),\\(.at[1]) \\(.size[0])x\\(.size[1])"\')" - | wl-copy'
     ),
@@ -114,7 +116,7 @@ hl.bind(mod .. " + w", helper(shell_bin("wallpaper-picker")), { description = "w
 hl.bind(mod .. " + y", helper("spawn-shimeji"), { description = "spawn a desktop mascot" })
 hl.bind(mod .. " + x", app("$DOTFILES/configs/desktop/hyprland/boomer.nu"), { description = "magnifier (boomer)" })
 
-hl.bind(mod .. " + Q", hl.dsp.exec_cmd("$DOTFILES/configs/desktop/hyprland/window-close.nu"), {
+hl.bind(mod .. " + q", hl.dsp.exec_cmd("$DOTFILES/configs/desktop/hyprland/window-close.nu"), {
     description = "close the window (a gamescope game is killed)",
 })
 hl.bind(mod .. " + space", hl.dsp.window.float({ action = "toggle" }), { description = "float or tile the window" })
@@ -261,7 +263,7 @@ local RESIZE = {
     { keys = { "k", "Up" }, x = 0, y = -RESIZE_STEP },
     { keys = { "j", "Down" }, x = 0, y = RESIZE_STEP },
 }
-hl.bind(mod .. " + R", hl.dsp.submap("resize"), { description = "resize mode" })
+hl.bind(mod .. " + r", hl.dsp.submap("resize"), { description = "resize mode" })
 hl.define_submap("resize", function()
     for _, step in ipairs(RESIZE) do
         for _, key in ipairs(step.keys) do
@@ -273,7 +275,7 @@ hl.define_submap("resize", function()
         end
     end
 
-    hl.bind(mod .. " + R", hl.dsp.submap("reset"), { description = "leave resize mode" })
+    hl.bind(mod .. " + r", hl.dsp.submap("reset"), { description = "leave resize mode" })
     hl.bind("Escape", hl.dsp.submap("reset"), { description = "leave resize mode" })
 end)
 

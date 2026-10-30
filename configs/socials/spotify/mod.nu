@@ -33,8 +33,8 @@ export def link [cfg: record] {
         (desktop-override spotify.desktop {
             $in | str replace --all --regex '(?m)^Exec=spotify ' $"Exec=($env.PWD)/spotify-launch.nu "
         })
-        # also on every login: an upgrade while logged out fires no path unit
         (exec spicetify-apply [./hook/spicetify-apply.nu])
+        # --permanent also runs it on every login: an upgrade while logged out fires no path unit
         (user-hook spicetify-apply hook/spicetify-apply.nu --permanent --watch [
             "%h/.config/spotify/prefs" "/opt/spotify/Apps/xpui.spa"
         ])

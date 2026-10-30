@@ -1,4 +1,4 @@
-# Plan and apply for native modules; the per-verb records are dot's only store.
+# Plan and apply for native modules; the per-verb records are the one record of what a module wrote.
 
 use log.nu *
 use state.nu [state-dir state-locked path-kind nu-bin save-atomic LIB_DIR SYSTEM_STATE]
@@ -89,6 +89,7 @@ def action [module: string, kind: string, target: string, reason: string, decl: 
 }
 
 # Folds merge decls on one file into one, else each would plan against the file on disk and the last wins.
+# A --then is one command, so a fold takes at most one distinct --then.
 def fold-merges [decls: list<record>]: nothing -> list<record> {
     let dup = $decls | where kind in [json ini] | group-by target | items {|t, g| if ($g | length) > 1 { $t } } | compact
     if ($dup | is-empty) { return $decls }
@@ -98,8 +99,14 @@ def fold-merges [decls: list<record>]: nothing -> list<record> {
         if $d.kind not-in [json ini] or $d.target not-in $dup { return $d }
         if $r.index not-in $first { return null }
         let g = $decls | where kind in [json ini] and target == $d.target
-        $d | update edits ($g | each { $in.edits } | flatten) | update then ($g | each { $in.then } | flatten | uniq)
+        let thens = $g | get then | where { is-not-empty } | uniq
+        if ($thens | length) > 1 { error make {msg: $"($d.target): merges with different --then, one file runs one: ($thens | to nuon)"} }
+        $d | update edits ($g | each { $in.edits } | flatten) | update then ($thens | get --optional 0 | default [])
     } | compact
+}
+
+export def mode-normal [mode: any]: nothing -> any {
+    if $mode == null { null } else { $mode | str trim --left --char "0" }
 }
 
 def link-stale [obs: record, target: string, repo: string]: nothing -> bool {
@@ -114,7 +121,7 @@ def file-classify [obs: record, want: string, recorded: any, generated: bool, st
     } else if $stale_link {
         do $c update "a link of the old linked form" false
     } else if $obs.type == file and $obs.hash == $want {
-        if $mode != null and ($obs.mode? | default $mode | str trim --left --char "0") != ($mode | str trim --left --char "0") {
+        if $mode != null and (mode-normal ($obs.mode? | default $mode)) != (mode-normal $mode) {
             do $c update "mode changed" false
         } else if $recorded == $want { do $c skip "" false } else { do $c record "already this content" false }
     } else if $obs.type == file and ($generated or $recorded == $obs.hash) {
@@ -145,6 +152,7 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
     let wanted = (fold-merges $decls) | each {|d|
         let obs = $seen.paths | get --optional $d.target
         if $obs.hash? == "unreadable" { return (action $id unreadable $d.target "unreadable as this user, checked at apply" $d null null) }
+        let then_failed = ($d.then | is-not-empty) and ($prev | where kind == $d.kind and target == $d.target | get --optional 0.then_failed | default false)
         match $d.kind {
             "file" => {
                 let want = if $d.content != null { sha $d.content } else { open --raw $d.source | sha $in }
@@ -159,7 +167,7 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
             "link" => {
                 if $obs.type == symlink and $obs.link == $d.source {
                     action $id skip $d.target "" $d $obs.link $d.source
-                } else if $obs.type == "" or ($obs.type == symlink and ((own-link $obs.link $repo) or not ($d.target | path exists))) {
+                } else if $obs.type == "" or (link-stale $obs $d.target $repo) {
                     action $id create $d.target "missing" $d $obs.link $d.source
                 } else if $obs.type == file and ($d.source | path exists) and $obs.hash == (open --raw $d.source | sha $in) {
                     action $id update $d.target "a copy of the source" $d $obs.hash $d.source
@@ -178,12 +186,15 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
                 let current = if ($raw | str trim | is-empty) { {} } else { try { $raw | from json } catch { null } }
                 if $current == null { return (action $id merge $d.target "not valid json now, read again at apply" $d $obs.hash? null) }
                 let merged = $current | json-edits-apply $d.edits
-                if $merged == $current and ($raw | is-not-empty) { action $id skip $d.target "" $d null null } else { action $id merge $d.target "keys differ" $d $obs.hash null }
+                if $then_failed { action $id merge $d.target "its --then failed last time" $d $obs.hash null
+                } else if $merged == $current and ($raw | is-not-empty) { action $id skip $d.target "" $d null null } else { action $id merge $d.target "keys differ" $d $obs.hash null }
             }
             "ini" => {
                 let raw = merge-read $obs $d.target
                 let merged = $d.edits | reduce --fold $raw {|e, text| $text | ini-apply $e.values $e.missing_only }
-                if $merged == $raw { action $id skip $d.target "" $d null null } else { action $id merge $d.target "keys differ" ($d | update content $merged) $obs.hash null }
+                if $merged == $raw and not $then_failed { action $id skip $d.target "" $d null null } else {
+                    action $id merge $d.target (if $merged == $raw { "its --then failed last time" } else { "keys differ" }) ($d | update content $merged) $obs.hash null
+                }
             }
             "unit" => {
                 let state = $seen.units | get --optional $d.target | default "not-found"
@@ -238,13 +249,14 @@ def write-file [a: record]: nothing -> nothing {
     mkdir ($d.target | path dirname)
     # the pid in the name: a second run writing the same target must not take over a half-written temp
     let tmp = $"($d.target).dot-new.($nu.pid)"
-    if (path-kind $tmp) == "symlink" { rm $tmp }
+    if (path-kind $tmp) != "" { rm $tmp }
+    # 600 before any content: save and cp keep an existing file's mode, so a secret never sits umask-readable
+    ^install -m 600 /dev/null $tmp
     if $d.content != null { $d.content | save --force --raw $tmp } else { ^cp $d.source $tmp }
     ^chmod $d.mode $tmp
     if ($d.inplace? | default false) and (path-kind $d.target) == "file" {
-        ^cp $tmp $d.target
-        # cp into an existing file keeps the target's mode, so re-assert the declared one or a mode drift re-plans forever
         ^chmod $d.mode $d.target
+        ^cp $tmp $d.target
         rm $tmp
     } else {
         ^mv -fT $tmp $d.target
@@ -268,7 +280,7 @@ def systemctl-retry [scope: string, ...args: string]: nothing -> nothing {
     }
 }
 
-# A failed --then keeps the old hash, so the next apply runs it again.
+# A failed --then keeps the old hash, so the next apply runs it again; a merge's record carries then_failed instead.
 def run-then [a: record, dir: path]: nothing -> string {
     if ($a.decl.then | is-empty) { return "" }
     run-exec ($a | update decl.argv $a.decl.then) $dir
@@ -321,7 +333,7 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     }
                     let at = now-ns
                     # a --then (a restart) and every later step must see the new unit file or drop-in
-                    if ($a.target | str starts-with (unit-dir)) { ^systemctl $"--($scope)" daemon-reload }
+                    if ($a.target | str starts-with (unit-dir)) { systemctl-retry $scope daemon-reload }
                     {aside: $aside, output: (run-then $a $dir), hash: (if $a.decl.kind == "link" { null } else { $a.after }), at: $at}
                 }
                 "record" => { {output: (run-then $a $dir), hash: $a.after, at: (now-ns)} }
@@ -378,7 +390,8 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
     }
     let outcomes = $run.outcomes
     let unit_root = unit-dir
-    if ($outcomes | any {|o| $o.ok and ($o.target | str starts-with $unit_root) }) {
+    # a create or update under unit_root already reloaded right after its write
+    if ($outcomes | any {|o| $o.ok and $o.kind not-in [create update] and ($o.target | str starts-with $unit_root) }) {
         ^systemctl $"--($scope)" daemon-reload
     }
     $outcomes ++ $unreadable
@@ -393,12 +406,17 @@ export def state-write [id: string, verb: string, input: string, actions: list<r
         let before = $prev | where kind == $a.decl.kind and target == $a.target | get --optional 0
         let o = $done | get --optional (out-key $a.decl.kind $a.target)
         if $a.decl.kind in [json ini] {
-            if $o.hash? != null { {kind: $a.decl.kind, target: $a.target, hash: $o.hash, at: $o.at} } else { $before }
+            let output = if $o.hash? != null { {kind: $a.decl.kind, target: $a.target, hash: $o.hash, at: $o.at} } else { $before }
+            # the merge may have landed before its --then failed: plan-module merges again until the --then ran
+            if $a.target in $failed and ($a.decl.then | is-not-empty) {
+                $output | default {kind: $a.decl.kind, target: $a.target, hash: null, at: null} | upsert then_failed true
+            } else if $output != null { $output | reject --optional then_failed } else { null }
         } else if $a.kind == "skip" or $o != null {
             {
                 kind: $a.decl.kind
                 target: $a.target
                 hash: (if $a.decl.kind == "file" { $a.after } else { null })
+                mode: (if $a.decl.kind == "file" { $a.decl.mode? } else { null })
                 generated: ($a.decl.generated? | default false)
                 source: (if $a.decl.kind == "exec" { $a.decl.creates } else { $a.decl.source })
                 state: $a.decl.state?

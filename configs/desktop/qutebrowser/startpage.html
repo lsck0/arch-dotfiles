@@ -14,7 +14,7 @@
         --accent2: @ACCENT2@;
         --radius: @RADIUS@px;
         font-family: "@FONT@", monospace;
-        font-size: 15px;
+        font-size: @FONT_SIZE@pt;
         color: var(--fg);
       }
       * { box-sizing: border-box; }
@@ -22,14 +22,14 @@
       body {
         background:
           linear-gradient(color-mix(in srgb, var(--bg) 82%, transparent), color-mix(in srgb, var(--bg) 82%, transparent)),
-          url("file://@HOME@/.cache/wal/wallpaper") center / cover no-repeat fixed;
+          url("file://@CACHE@/wal/wallpaper") center / cover no-repeat fixed;
         background-color: var(--bg);
         display: flex;
         min-height: 100vh;
         padding: 3vh 0;
       }
       main {
-        margin: auto;
+        margin: 12vh auto auto;
         width: min(68rem, 94vw);
         padding: 1.6rem 2rem 1.8rem;
         background: color-mix(in srgb, var(--surface) 78%, transparent);
@@ -44,23 +44,26 @@
         border: 1px solid var(--accent); border-radius: var(--radius);
         background: color-mix(in srgb, var(--bg) 70%, transparent);
       }
-      #prompt span { color: var(--accent); font-weight: 700; }
+      #prompt > span:first-child { color: var(--accent); font-weight: 700; }
       #q {
-        flex: 1; border: 0; outline: 0; background: transparent;
+        flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
         color: var(--fg); font: inherit; font-size: 1.1rem;
       }
       #q::placeholder { color: var(--muted); }
-      #hint { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
+      #hint { color: var(--muted); font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      @media (max-width: 40rem) { #hint { display: none; } }
       #groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 1.1rem 1.6rem; }
       section h2 { margin: 0 0 0.45rem; font-size: 0.8rem; }
-      section a {
+      a.link {
         display: flex; gap: 0.5rem; padding: 0.12rem 0.3rem; margin: 0 -0.3rem;
         color: var(--fg); text-decoration: none; border-radius: var(--radius);
       }
-      section a .key { color: var(--muted); min-width: 1ch; }
-      section a:hover, section a.sel { background: color-mix(in srgb, var(--accent) 22%, transparent); }
-      section a.sel { color: var(--accent); }
-      section a.sel .key { color: var(--accent); }
+      a.link .key { color: var(--muted); min-width: 1ch; }
+      a.link .group { display: none; margin-left: auto; color: var(--muted); }
+      #matches a.link .group { display: inline; }
+      a.link:hover, a.link.sel { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+      /* accent text on the accent tint stays under 4.5:1, so the selection is marked by an accent edge instead */
+      a.link.sel { box-shadow: inset 2px 0 var(--accent); }
       [hidden] { display: none !important; }
     </style>
   </head>
@@ -69,6 +72,7 @@
       <header><span class="head">&gt; home</span><span id="clock"></span></header>
       <form id="prompt"><span>&gt;</span><input id="q" name="q" autocomplete="off" autofocus placeholder="filter, url or search" /><span id="hint"></span></form>
       <div id="groups"></div>
+      <div id="matches" hidden></div>
     </main>
     <script src="file://@DATA@/weblinks/links.js"></script>
     <script>
@@ -83,14 +87,18 @@
       const form = document.getElementById("prompt");
       const q = document.getElementById("q");
       const hint = document.getElementById("hint");
-      // scripted navigation is unreliable from the file:// new-tab context, but a user's Enter natively submits the
-      // form, which is a trusted navigation: point the form at the engine and let the keydown handler fall through
+      // a POST search needs a real form: point it at the engine, and the keydown handler lets Enter submit it natively
       form.action = SEARCH_ACTION;
       form.method = METHOD;
       q.name = SEARCH_PARAM;
       const groups = document.getElementById("groups");
+      const matches = document.getElementById("matches");
       const items = [];
       const boxes = new Map();
+
+      function words(text) {
+        return text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w !== "");
+      }
 
       for (const link of links) {
         let box = boxes.get(link.group);
@@ -101,16 +109,21 @@
           h.className = "head";
           h.textContent = "> " + link.group;
           box.appendChild(h);
+          box.order = boxes.size;
           groups.appendChild(box);
           boxes.set(link.group, box);
         }
         const a = document.createElement("a");
+        a.className = "link";
         a.href = link.url;
-        a.innerHTML = '<span class="key"></span><span></span>';
-        a.lastChild.textContent = link.name;
+        a.innerHTML = '<span class="key"></span><span></span><span class="group"></span>';
+        a.children[1].textContent = link.name;
+        a.lastChild.textContent = link.group;
         box.appendChild(a);
-        items.push({ a: a, box: box, text: (link.name + " " + link.group + " " + link.url).toLowerCase() });
+        items.push({ a: a, box: box, name: words(link.name), group: words(link.group) });
       }
+      // screen order on an empty query: group by group, as the grid lays them out
+      items.sort((x, y) => x.box.order - y.box.order);
 
       function asUrl(text) {
         const t = text.trim();
@@ -121,14 +134,14 @@
         return null;
       }
 
-      function score(query, text) {
-        let at = 0, s = 0, run = 0;
-        for (const ch of query) {
-          const i = text.indexOf(ch, at);
-          if (i < 0) return -1;
-          run = i === at ? run + 1 : 0;
-          s += run + (i === 0 ? 2 : 0);
-          at = i + 1;
+      // every query word starts a word of the name or group, so a plain word with no such link falls through to search
+      function score(query, it) {
+        let s = 0;
+        for (const token of query.split(/\s+/)) {
+          const hit = (ws, bonus) => ws.reduce((best, w) => w.startsWith(token) ? Math.max(best, bonus + (w === token ? 2 : 1)) : best, -1);
+          const best = Math.max(hit(it.name, 2), hit(it.group, 0));
+          if (best < 0) return -1;
+          s += best;
         }
         return s;
       }
@@ -141,12 +154,18 @@
         const url = asUrl(q.value);
         shown = [];
         for (const it of items) {
-          const s = query === "" ? 0 : score(query, it.text);
-          it.a.hidden = s < 0;
+          const s = query === "" ? 0 : score(query, it);
           if (s >= 0) shown.push({ it: it, s: s });
         }
-        if (query !== "") shown.sort((x, y) => y.s - x.s);
-        for (const box of groups.children) box.hidden = !box.querySelector("a:not([hidden])");
+        // a query shows one flat ranked list, so the numbers and the arrow order follow the screen
+        if (query === "") {
+          for (const it of items) it.box.appendChild(it.a);
+        } else {
+          shown.sort((x, y) => y.s - x.s);
+          matches.replaceChildren(...shown.map((m) => m.it.a));
+        }
+        groups.hidden = query !== "";
+        matches.hidden = query === "";
         sel = Math.min(sel, Math.max(shown.length - 1, 0));
         items.forEach((it) => { it.a.classList.remove("sel"); it.a.firstChild.textContent = ""; });
         shown.slice(0, 9).forEach((m, i) => { m.it.a.firstChild.textContent = String(i + 1); });
@@ -187,7 +206,8 @@
           const url = asUrl(text);
           if (url) { e.preventDefault(); go(url); return; }
           if (!e.shiftKey && shown.length > 0) { e.preventDefault(); go(shown[sel].it.a.href); return; }
-          // plain search: do not preventDefault, so the Enter natively submits the form to the engine
+          // a GET search navigates like a link; firefox drops a native submit from file://, so only POST falls through
+          if (METHOD.toUpperCase() !== "POST") { e.preventDefault(); go(SEARCH.replace("{}", encodeURIComponent(text.trim()))); }
           return;
         }
         if (document.activeElement !== q && !e.ctrlKey && !e.altKey && !e.metaKey && e.key.length === 1) q.focus();

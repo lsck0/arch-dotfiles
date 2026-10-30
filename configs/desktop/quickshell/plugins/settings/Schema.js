@@ -71,6 +71,8 @@ function sectionLabel(module) {
   return group ? module.name.slice(group.length + 1) : module.name
 }
 
+// a section with nothing to list is left out: System until dot status answers, a module without options; a search
+// keeps every section and only zeroes the counts, so the list keeps its indices while the query changes
 function sections(modules, toggles, query, status) {
   var needle = query.trim().toLowerCase()
   var out = [{
@@ -83,12 +85,13 @@ function sections(modules, toggles, query, status) {
     id: systemId,
     label: systemLabel,
     count: systemEntries(status, needle).filter(function (r) { return r.kind !== "header" }).length
-  }]
+  }].filter(function (s) { return s.id !== systemId || status })
   var group = null
   var sorted = modules.slice().sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0 })
   for (let m = 0; m < sorted.length; m++) {
     let module = sorted[m]
     let options = module.options || []
+    if (options.length === 0) continue
     let g = moduleGroup(module)
     if (g !== group) { out.push({ kind: "header", id: "#" + g, label: g }); group = g }
     out.push({

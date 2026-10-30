@@ -8,7 +8,7 @@ export const MKINITCPIO = "/etc/mkinitcpio.conf"
 const BACKUP = ".arch-dotfiles-backup"
 export const UKI_DIR = "/boot/EFI/Linux"
 const SDBOOT_EFI = "/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
-const SDBOOT_ESP_FILES = ["/boot/EFI/systemd/systemd-bootx64.efi" "/boot/EFI/BOOT/BOOTX64.EFI"]
+export const SDBOOT_ESP_FILES = ["/boot/EFI/systemd/systemd-bootx64.efi" "/boot/EFI/BOOT/BOOTX64.EFI"]
 const BOOT_INPUTS = [
     /etc/mkinitcpio.conf /etc/mkinitcpio.conf.d /etc/mkinitcpio.d /etc/kernel/cmdline /etc/crypttab.initramfs
     /etc/modprobe.d /etc/vconsole.conf
@@ -81,12 +81,22 @@ def boot-inputs-hash []: nothing -> string {
     | each {|f| $"(ls --long $f | get 0.mode) ($f) (open --raw $f | hash sha256)" } | str join "\n" | hash sha256
 }
 
-def sbctl-ready []: nothing -> bool {
+export def sbctl-ready []: nothing -> bool {
     (which sbctl | is-not-empty) and (^sbctl status | str contains "Owner GUID")
 }
 
+export def uki-path [pkgbase: string]: nothing -> path {
+    $"($UKI_DIR)/arch-($pkgbase).efi"
+}
+
+# Runs sbctl and shows its output only on failure, so already signed files print nothing on every run.
+export def --wrapped sbctl-quiet [...args: string]: nothing -> nothing {
+    let out = ^sbctl ...$args | complete
+    if $out.exit_code != 0 { error make {msg: $"sbctl ($args | str join ' '): ($out.stdout)($out.stderr)"} }
+}
+
 def sbctl-sign [...files: path]: nothing -> nothing {
-    for f in ($files | where ($it | path type) == file) { ^sbctl sign -s $f }
+    for f in ($files | where ($it | path type) == file) { sbctl-quiet sign -s $f }
 }
 
 # The boot barrier, last in a system run: one uki rebuild for the whole run, then every boot file signed.
@@ -101,10 +111,10 @@ export def boot-commit []: nothing -> nothing {
     }
     if not (sbctl-ready) { return }
     # -s lists each uki in sbctl's database, so its pacman hook re-signs it after every kernel upgrade
-    sbctl-sign ...(glob /etc/mkinitcpio.d/*.preset | each { $"($UKI_DIR)/arch-($in | path parse | get stem).efi" })
-    ^sbctl sign -s -o $"($SDBOOT_EFI).signed" $SDBOOT_EFI
+    sbctl-sign ...(glob /etc/mkinitcpio.d/*.preset | each { uki-path ($in | path parse | get stem) })
+    sbctl-quiet sign -s -o $"($SDBOOT_EFI).signed" $SDBOOT_EFI
     sbctl-sign ...$SDBOOT_ESP_FILES
-    ^sbctl sign-all
+    sbctl-quiet sign-all
     # plain kernels stay unsigned: a type #1 entry on the unverified esp could boot one with any cmdline
     let unsigned = ^sbctl verify | lines
         | where ($it =~ 'is not signed') and not ($it | str contains $"($ESP)/vmlinuz-") | str join " "

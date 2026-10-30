@@ -3,7 +3,7 @@ use ../../core/wallust/palette.nu *
 
 # after caveman and rtk: the orchestrator profile is a one-time clone of ~/.hermes, which they fill with skills
 export const meta = {
-    deps: [programming/caveman programming/rtk desktop/idle-guards]
+    deps: [programming/caveman programming/rtk desktop/idle-guards llm/vllm]
     packages: {pacman: [herdr-bin hermes-agent]}
     # the guard appears after planning on a fresh install; as an input it re-plans the hooks
     inputs: [~/.config/idle-guards/agent-guard.nu]
@@ -15,9 +15,8 @@ const HOME = ".hermes"
 const ORCHESTRATOR = "profiles/orchestrator"
 const PYTHON = "/opt/hermes-agent/venv/bin/python"
 const SKIN = "wallust"
-# the default of llm/vllm's `model` option and its socket; kept in one place so the two vllm records below cannot drift apart
-const VLLM_MODEL = "RogerS-01/Josiefied-Qwen3-8B-abliterated-v1-AWQ"
 const VLLM_BASE_URL = "http://127.0.0.1:8000/v1"
+const VLLM_KEYS = [model_aliases.vllm providers.vllm]
 const SETTINGS = {
     display.interface: tui
     model.default: claude-sonnet-5
@@ -28,16 +27,6 @@ const SETTINGS = {
         {provider: nous, model: "meituan/longcat-2.0:free"}
         {provider: nous, model: "poolside/laguna-s-2.1:free"}
     ]
-    model_aliases.vllm: {
-        model: $VLLM_MODEL
-        provider: custom
-        base_url: $VLLM_BASE_URL
-        api_key: null
-    }
-    providers.vllm: {
-        base_url: $VLLM_BASE_URL
-        model: $VLLM_MODEL
-    }
 }
 const ORCHESTRATOR_SETTINGS = {compression.threshold_tokens: 500000}
 const ANTHROPIC_KEY_SECRET = "configs/secrets/keys/hermes-anthropic.env"
@@ -78,14 +67,15 @@ def anthropic-key [home: path]: nothing -> list<record> {
     [(file-text ($home | path join .env) (render-env $merged) --mode 600)]
 }
 
-def configure [home: path, settings: record]: nothing -> list<record> {
+def configure [home: path, settings: record, remove: list<string>]: nothing -> list<record> {
     let guard = $nu.home-dir | path join $AGENT_GUARD
     let hooks = if ($guard | path exists) { $GUARD_EVENTS | items {|event, action| {$event: $"($guard) ($action)"} } | into record } else { {} }
-    let want = {settings: $settings, skin: $SKIN, hooks: $hooks}
+    let want = {settings: $settings, remove: $remove, skin: $SKIN, hooks: $hooks}
     let have = try { open ($home | path join config.yaml) } catch { {} }
     let set = $settings | items {|key, value| ($have | get --optional ($key | split row "." | into cell-path)) == $value }
     let hooked = $hooks | items {|event, command| $command in ($have.hooks? | get --optional $event | default [] | get --optional command | default []) }
-    let current = $set ++ $hooked ++ [($have.display?.skin? == $SKIN)] | all { $in }
+    let removed = $remove | each {|key| ($have | get --optional ($key | split row "." | into cell-path)) == null }
+    let current = $set ++ $removed ++ $hooked ++ [($have.display?.skin? == $SKIN)] | all { $in }
     if $current { return [] }
     [(exec $"configure ($home)" [env $"HERMES_HOME=($home)" $PYTHON configure.py ($want | to json --raw)])]
 }
@@ -96,8 +86,20 @@ def bare-alias []: nothing -> bool {
     ($wrapper | path exists) and (open --raw $wrapper | str contains "hermes -p orchestrator")
 }
 
+# without a gpu share llm/vllm serves nothing, so hermes gets no vllm provider
+def vllm-settings [vllm: any]: nothing -> record {
+    if $vllm.gpu_memory_utilization? == null { return {} }
+    {
+        model_aliases.vllm: {model: $vllm.model, provider: custom, base_url: $VLLM_BASE_URL, api_key: null}
+        providers.vllm: {base_url: $VLLM_BASE_URL, model: $vllm.model}
+    }
+}
+
 export def link [cfg: record] {
     let h = homes
+    let vllm = vllm-settings $cfg.deps?."llm/vllm"?
+    let settings = $SETTINGS | merge $vllm
+    let remove = if ($vllm | is-empty) { $VLLM_KEYS } else { [] }
     let skills = glob ($env.DOTFILES | path join skills "l-*") | where ($it | path type) == dir
     [
         (step required-extras)
@@ -107,8 +109,8 @@ export def link [cfg: record] {
         (exec orchestrator-alias [hermes profile alias orchestrator --name hermes-orchestrator] --creates ($nu.home-dir | path join .local bin hermes-orchestrator))
         (if (bare-alias) { exec orchestrator-alias-bare-remove [hermes profile alias orchestrator --remove] } else { [] })
         ($skills | each {|dir| file-link $dir ($h.orchestrator | path join skills ($dir | path basename)) })
-        (configure $h.default $SETTINGS)
-        (configure $h.orchestrator ($SETTINGS | merge $ORCHESTRATOR_SETTINGS))
+        (configure $h.default $settings $remove)
+        (configure $h.orchestrator ($settings | merge $ORCHESTRATOR_SETTINGS) $remove)
         (anthropic-key $h.default)
         (anthropic-key $h.orchestrator)
     ]
@@ -121,15 +123,15 @@ def skin []: nothing -> any {
     let raw_fg = do $slot foreground "#c2c3c5"
     let accent = do $slot color4 "#B68B74" | vivify 0.45 0.55
     let alt = do $slot color5 "#A76495" | vivify 0.35 0.55
-    let cool = do $slot color6 "#A76495" | vivify 0.35 0.55
+    let cool = do $slot color6 "#7dcfff" | vivify 0.35 0.55
     let status = $bg | shade 0.045
-    let menu = $bg | shade 0.045
     let current = $bg | shade 0.11
     let fg = $raw_fg | readable-on $bg --ratio 7.0
     let dim = $fg | dim-toward $bg --ratio 2.6
     let urgent = $accent | semantic error $bg
     let good = $accent | semantic ok $bg
     let warn = $accent | semantic warn $bg
+    let bad = mix $warn $urgent 0.5
     let added = mix $good [1.0 1.0 1.0] 0.88
     let removed = mix $urgent [1.0 1.0 1.0] 0.88
     let on = {|surface, colour, ratio| $colour | readable-on $surface --ratio $ratio | rgb-to-hex --prefix "#" }
@@ -149,10 +151,10 @@ def skin []: nothing -> any {
         [session_label (do $on $bg $alt 4.5)] [session_border (do $hex $dim)] [status_bar_bg (do $hex $status)]
         [status_bar_text (do $on $status $raw_fg 4.5)] [status_bar_strong (do $on $status $accent 4.5)]
         [status_bar_dim (do $on $status $raw_fg 2.4)] [status_bar_good (do $on $status $good 4.5)]
-        [status_bar_warn (do $on $status $warn 4.5)] [status_bar_bad (do $on $status $warn 4.5)]
+        [status_bar_warn (do $on $status $warn 4.5)] [status_bar_bad (do $on $status $bad 4.5)]
         [status_bar_critical (do $on $status $urgent 4.5)] [voice_status_bg (do $hex $status)]
-        [selection_bg (do $hex $current)] [completion_menu_bg (do $hex $menu)]
-        [completion_menu_current_bg (do $hex $current)] [completion_menu_meta_bg (do $hex $menu)]
+        [selection_bg (do $hex $current)] [completion_menu_bg (do $hex $status)]
+        [completion_menu_current_bg (do $hex $current)] [completion_menu_meta_bg (do $hex $status)]
         [completion_menu_meta_current_bg (do $hex $current)]
     ]
     [

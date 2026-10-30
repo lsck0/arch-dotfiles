@@ -6,8 +6,8 @@ include <tunables/global>
 
 @{att} = ""
 
-@{uv_tools} = @{HOME}/.local/share/uv/tools
-@{uv_python} = @{HOME}/.local/share/uv/python/cpython-*
+@{uv_tools} = @{user_share_dirs}/uv/tools
+@{uv_python} = @{user_share_dirs}/uv/python/cpython-*
 
 @{exec_path} = @{uv_tools}/blender-mcp/bin/blender-mcp
 profile blender-mcp @{exec_path} flags=(attach_disconnected) {

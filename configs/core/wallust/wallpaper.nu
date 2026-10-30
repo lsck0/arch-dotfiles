@@ -1,17 +1,18 @@
 use font.nu [font-save]
+use ../../../scripts/lib/state.nu [xdg]
 
 const INTERNAL = path self ../../../scripts/lib/internal.nu
 const LIST = path self wallpaper-list.nu
 const PICK = path self wallpaper-pick.nu
 const THEMES = path self ../../../themes
-const WAL = ".cache/wal"
+const WAL = "wal"
 # path + nonce; renamed to TAKEN before applying, so a newer request is a new file
 const REQUEST = "theme.request"
 const TAKEN = "theme.taken"
 const UNIT = "dot-theme.service"
 const IPC_TIMEOUT_S = "3"
 
-def wal [...parts: string]: nothing -> path { $nu.home-dir | path join $WAL ...$parts }
+def wal [...parts: string]: nothing -> path { xdg cache $WAL ...$parts }
 
 def request-file []: nothing -> path { $env.XDG_RUNTIME_DIR? | default /tmp | path join $REQUEST }
 

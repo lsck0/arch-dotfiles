@@ -1,7 +1,7 @@
 use module.nu *
 use ini.nu [ini-apply ini-rows]
 
-# no wine: gaming/runtime's wine-staging conflicts with it
+# no wine: desktop/applications' wine-staging conflicts with it
 export const meta = {packages: {pacman: [curl gamescope jq libnotify unzip wmctrl zenity zip]}}
 
 const URL = "https://github.com/murkl/d2launcher.git"
@@ -43,6 +43,7 @@ const PATCH_VERSION = "d2launcher-patch.version"
 const D2_EXE = "Diablo II.exe"
 const D2_ARGS = "-3dfx"
 const MXL_MANIFEST = "https://launcher.median-xl.com/mxl/release/public/manifest"
+const MXL_FILES = "https://get.median-xl.com/"
 const OLD_DESKTOP_NAME = "Diablo II"
 const RESOLUTION_FALLBACK = {desktop: "3840x2160", laptop: "1920x1080"}
 const HEADLESS_MONITORS = '^HEADLESS-'
@@ -132,7 +133,7 @@ export def link [cfg: record] {
         (if $own { d2gl-window-decl $cfg } else { [] })
         (wine-desktop-decl)
         # the script forces a migration prompt over a plain d2launcher.desktop
-        (file-text ($nu.home-dir | path join .local share applications d2launcher.local.desktop) (desktop $dir))
+        (file-text (xdg data applications d2launcher.local.desktop) (desktop $dir))
         ...(vanilla-decls $cfg)
     ]
 }
@@ -152,27 +153,30 @@ def vanilla-decls [cfg: record]: nothing -> list<record> {
     [
         ...(ls $base | get name | each {|f| file-link $f ($game | path join ($f | path basename)) })
         (exec diablo2-prefix [...$env_vars ($wine | path join wineboot) --init] --creates (vanilla-prefix | path join user.reg))
-        (if ($save | path exists) and not (save-path-set $save) { step vanilla-save-path $save } else { [] })
+        (if ($save | path exists) and not (save-path-set (vanilla-prefix) $save) {
+            step save-path (vanilla-prefix) $save
+        } else { [] })
         (file-render vanilla.sh (vanilla-root | path join diablo2.sh) {game: $game, prefix: (vanilla-prefix), wine: $wine}
             --mode "755")
-        (file-text ($nu.home-dir | path join .local share applications diablo2.desktop) (vanilla-desktop))
+        (file-text (xdg data applications diablo2.desktop) (vanilla-desktop))
     ]
 }
 
 # A windows path in the prefix's Z: drive, with the trailing separator diablo ii wants.
-def z-path [dir: path]: nothing -> string {
+export def z-path [dir: path]: nothing -> string {
     $"Z:($dir | str replace --all '/' '\')\\"
 }
 
-def save-path-set [save: path]: nothing -> bool {
-    let reg = vanilla-prefix | path join user.reg
+# Shared with pd2's prefixes, which run on this wine.
+export def save-path-set [prefix: path, save: path]: nothing -> bool {
+    let reg = $prefix | path join user.reg
     if not ($reg | path exists) { return false }
     let want = z-path $save | str replace --all '\' '\\'
     open --raw $reg | str contains $'"Save Path"="($want)"'
 }
 
-export def vanilla-save-path [save: string]: nothing -> nothing {
-    with-env {WINEPREFIX: (vanilla-prefix), WINEDEBUG: "-all", DISPLAY: "", WAYLAND_DISPLAY: ""} {
+export def save-path [prefix: string, save: string]: nothing -> nothing {
+    with-env {WINEPREFIX: $prefix, WINEDEBUG: "-all", DISPLAY: "", WAYLAND_DISPLAY: ""} {
         ^(wine-bin) reg add $SAVE_KEY /v "Save Path" /t REG_SZ /d (z-path $save) /f | ignore
         ^(wine-bin | path dirname | path join wineserver) -w
     }
@@ -325,14 +329,31 @@ export def game-seed [base: string]: nothing -> nothing {
 export def mxl-install []: nothing -> nothing {
     let game = game-dir
     let manifest = http get $MXL_MANIFEST
+    # the manifest names the files and the host they come from, so neither may point anywhere else
+    if not ($manifest.location | str starts-with $MXL_FILES) {
+        error make {msg: $"mxl: manifest location ($manifest.location) is not on ($MXL_FILES)"}
+    }
+    let bad = $manifest.files.name | where {|f| ($f | path basename) != $f or $f in [. ..] }
+    if ($bad | is-not-empty) {
+        error make {msg: $"mxl: manifest file names leave the download dir: ($bad | str join ', ')"}
+    }
+    if $manifest.tag !~ '^[A-Za-z0-9._-]+$' {
+        error make {msg: $"mxl: manifest tag '($manifest.tag)' is no plain name"}
+    }
     let name = $"d2launcher-mxl-($manifest.tag)"
     let zip = home-dir | path join patches $"($name).zip"
     if not ($zip | path exists) {
         let tmp = mktemp --directory --tmpdir d2launcher-mxl.XXXXXX
         try {
-            for file in ($manifest.files | get name) {
+            for file in $manifest.files {
+                let out = $tmp | path join $file.name
                 (^curl -fLs --get $manifest.location --data-urlencode $"type=($manifest.channel)"
-                    --data-urlencode $"tag=($manifest.tag)" --data-urlencode $"file=($file)" -o ($tmp | path join $file))
+                    --data-urlencode $"tag=($manifest.tag)" --data-urlencode $"file=($file.name)" -o $out)
+                # the manifest carries a sha1 per file: catches a truncated or swapped download, not a hostile server
+                let sum = ^sha1sum $out | split row " " | first
+                if $file.sha1? != null and $sum != $file.sha1 {
+                    error make {msg: $"mxl: ($file.name) has sha1 ($sum), the manifest says ($file.sha1)"}
+                }
             }
             do { cd $tmp; ^zip -q -r -0 $"($zip).part" . }
             mv $"($zip).part" $zip

@@ -19,6 +19,8 @@ import threading
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# the driver's os.read size per report
+HIDRAW_READ_BYTES = 64
 
 spec = importlib.util.spec_from_file_location("td", os.path.join(HERE, "tablet-driver.py"))
 td = importlib.util.module_from_spec(spec)
@@ -85,7 +87,8 @@ def drive(pen_frames, button_frames=(), calib=None):
     def feed(path, frames):
         with open(path, "wb", buffering=0) as handle:
             for frame in frames:
-                handle.write(frame)
+                # a fifo is a byte stream; one full read per frame keeps hidraw's one report per read
+                handle.write(frame.ljust(HIDRAW_READ_BYTES, b"\0"))
                 time.sleep(0.0005)
             time.sleep(1.0)
             if path == pen_path:

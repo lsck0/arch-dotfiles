@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {backup: {secrets: true}, inputs: [~/.config/gh/hosts.yml ~/.gitconfig]}
+export const meta = {backup: {secrets: true}, inputs: [~/.config/gh/hosts.yml ~/.gitconfig /usr/bin/gh]}
 
 const TOKEN_SHAPE = '^gh[a-z]_'
 const HOSTS = ".config/gh/hosts.yml"

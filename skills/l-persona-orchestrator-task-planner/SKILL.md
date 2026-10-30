@@ -57,6 +57,8 @@ Two calling contexts, different output:
   file in this context. State each ticket's model/provider as
   `model: <model> provider: <provider>` (exact format: the orchestrator
   annotates it verbatim onto the ticket for a later poll pass to read).
+  Also state one `phases: model: <model> provider: <provider>` for the
+  phase tickets the orchestrator creates after the spec merges.
 
 Either way: the plan states which providers/models you checked, how, and
 why you picked them, then stop. The calling orchestrator acts on what you

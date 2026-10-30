@@ -1,4 +1,5 @@
 use ../lib/log.nu [log-err]
+use ../lib/state.nu [xdg]
 
 export const TOGGLES_DIR = path self .
 const ROOT_HELPER = "/usr/local/bin/toggle-root"
@@ -10,7 +11,7 @@ export def state-file [name: string, --volatile]: nothing -> path {
     let dir = if $volatile {
         $env.XDG_RUNTIME_DIR | path join toggles
     } else {
-        $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state) | path join toggles
+        xdg state toggles
     }
     mkdir $dir
     $dir | path join $name
@@ -70,7 +71,7 @@ export def quickshell-call [target: string, ...args: string]: nothing -> string 
 export def notify [summary: string, body: string, --critical]: nothing -> nothing {
     quickshell-call toggles changed ($env.PROCESS_PATH | path basename) | complete | ignore
     let urgency = if $critical { [-u critical] } else { [] }
-    ^timeout $IPC_TIMEOUT_S notify-send -a Toggles ...$urgency $summary $body | complete | ignore
+    ^timeout $IPC_TIMEOUT_S notify-send -a toggles ...$urgency $summary $body | complete | ignore
 }
 
 # The element after `current` in the input list, wrapping; the first when `current` is not in it.
@@ -100,21 +101,31 @@ export def status-print [status: record, json: bool]: nothing -> any {
     if $json { $status | to json --raw } else { $status.state }
 }
 
-# get/on/off/toggle for a switch; a failure exits 1.
+# get/on/off/toggle for a switch; a failure exits 1, except a `get` that cannot read the state, which reports `error`
+# under the switch's own label.
 export def switch-run [switch: record, action: string, --json]: nothing -> any {
-    let available = if "available" in $switch { do $switch.available } else { true }
-    let state = if $available and (do $switch.is-on) { "on" } else { "off" }
-    let action = if $action == toggle { if $state == on { "off" } else { "on" } } else { $action }
+    let available_get = {|| if "available" in $switch { do $switch.available } else { true } }
+    let state_get = {|available| if $available and (do $switch.is-on) { "on" } else { "off" } }
+    let fail = {|message, err|
+        notify $switch.label $message --critical
+        with-env {LOG_TAG: ($env.PROCESS_PATH | path basename)} { log-err $err.msg }
+        exit 1
+    }
     match $action {
         get => {
-            status-print (status-record $switch.label $state --states [off on] --available=$available) $json
-        }
-        on | off => {
-            try { do ($switch | get $action) } catch {|err|
-                notify $switch.label $"Failed to turn ($action)" --critical
-                with-env {LOG_TAG: ($env.PROCESS_PATH | path basename)} { log-err $err.msg }
-                exit 1
+            let status = try {
+                let available = do $available_get
+                status-record $switch.label (do $state_get $available) --states [off on] --available=$available
+            } catch {
+                status-record $switch.label error --available=(try { do $available_get } catch { false })
             }
+            status-print $status $json
+        }
+        on | off | toggle => {
+            let action = if $action != toggle { $action } else {
+                try { if (do $state_get (do $available_get)) == on { "off" } else { "on" } } catch {|err| do $fail "Failed to read its state" $err }
+            }
+            try { do ($switch | get $action) } catch {|err| do $fail $"Failed to turn ($action)" $err }
             notify $switch.label $"Turned ($action)"
         }
         _ => {

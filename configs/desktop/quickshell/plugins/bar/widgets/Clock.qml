@@ -7,6 +7,7 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "clock"
+  barPriority: 88
   hoverPanel: true
   hoverFill: true
 
@@ -126,7 +127,6 @@ BarWidget {
     title: "CLOCK"
     onOpened: { root.refreshOffsets(); TimerState.reload() }
     implicitWidth: Style.panelWidth.normal
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
     Column {
       id: content
@@ -137,7 +137,7 @@ BarWidget {
         anchors.horizontalCenter: parent.horizontalCenter
         textFormat: Text.PlainText
         text: Qt.formatDateTime(root.travelledPrecise, root.preciseFormat)
-        color: Colors.accent
+        color: Colors.accentText
         font.family: Style.font.family
         font.bold: true
         font.pixelSize: Style.font.display
@@ -148,8 +148,7 @@ BarWidget {
         anchors.horizontalCenter: parent.horizontalCenter
         textFormat: Text.PlainText
         text: Qt.formatDate(root.travelledNow, Qt.locale().dateFormat(Locale.LongFormat))
-        color: Colors.menu.text
-        opacity: Style.emphasis.dim
+        color: Colors.textDim
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
         font.letterSpacing: Style.labelTracking
@@ -166,6 +165,8 @@ BarWidget {
           id: calGrid
           anchors.left: parent.left
           anchors.right: parent.right
+          anchors.leftMargin: Style.spacing.sm
+          anchors.rightMargin: Style.spacing.sm
           anchors.verticalCenter: parent.verticalCenter
           spacing: Style.spacing.xs
 
@@ -173,8 +174,7 @@ BarWidget {
             anchors.horizontalCenter: parent.horizontalCenter
             textFormat: Text.PlainText
             text: root.monthLabel().toUpperCase()
-            color: Colors.accent
-            opacity: Style.emphasis.dim
+            color: Colors.textDim
             font.pixelSize: Style.font.caption
             font.family: Style.font.family
             font.letterSpacing: Style.headerTracking
@@ -186,11 +186,10 @@ BarWidget {
               model: root.weekdayLetters
               Text {
                 required property string modelData
-                width: content.width / 7
+                width: calGrid.width / 7
                 horizontalAlignment: Text.AlignHCenter
                 text: modelData
-                color: Colors.menu.text
-                opacity: Style.emphasis.faint
+                color: Colors.textDim
                 font.pixelSize: Style.font.caption
                 font.family: Style.font.family
               }
@@ -202,13 +201,13 @@ BarWidget {
             Row {
               id: week
               required property var modelData
-              width: content.width
+              width: calGrid.width
               Repeater {
                 model: week.modelData
                 Rectangle {
                   id: dayCell
                   required property var modelData
-                  width: content.width / 7
+                  width: calGrid.width / 7
                   height: Style.space(24)
                   radius: Style.shape.data
                   color: modelData && modelData.isTravelled ? Style.selectedFillFor(Colors.menu.text, Colors.accent) : "transparent"
@@ -217,7 +216,9 @@ BarWidget {
                   Text {
                     anchors.centerIn: parent
                     text: dayCell.modelData ? dayCell.modelData.day : ""
-                    color: dayCell.modelData && (dayCell.modelData.isTravelled || dayCell.modelData.isToday) ? Colors.accent : Colors.menu.text
+                    color: !dayCell.modelData ? Colors.menu.text
+                      : dayCell.modelData.isTravelled ? Colors.textOnFill(Colors.accent, Style.selectedFillFor(Colors.menu.text, Colors.accent))
+                      : dayCell.modelData.isToday ? Colors.accentText : Colors.menu.text
                     font.bold: dayCell.modelData && dayCell.modelData.isTravelled
                     font.pixelSize: Style.font.caption
                     font.family: Style.font.family
@@ -246,7 +247,7 @@ BarWidget {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             text: ">"
-            color: Colors.accent
+            color: Colors.accentText
             opacity: Style.emphasis.dim
             font.pixelSize: Style.font.body
             font.family: Style.font.family
@@ -272,7 +273,7 @@ BarWidget {
             width: parent.width * 0.32
             horizontalAlignment: Text.AlignRight
             text: root.timeInZone(zone.modelData.spans)
-            color: Colors.accent
+            color: Colors.accentText
             font.pixelSize: Style.font.body
             font.family: Style.font.family
             font.letterSpacing: Style.displayTracking
@@ -298,7 +299,7 @@ BarWidget {
         visible: root.travelHours !== 0
         width: parent.width
         text: "reset to now"
-        foreground: Colors.accent
+        foreground: Colors.accentText
         onClicked: root.travelHours = 0
       }
 

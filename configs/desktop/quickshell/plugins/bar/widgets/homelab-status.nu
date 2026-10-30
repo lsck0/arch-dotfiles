@@ -1,4 +1,4 @@
-#!/usr/bin/env -S nu --no-config-file
+#!/usr/bin/env -S setpriv --pdeathsig TERM nu --no-config-file
 
 const LAB_RELATIVE = "src/generated/lab.json"
 const LAB_SCHEMA = 1

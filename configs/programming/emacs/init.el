@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t; -*-
 (require 'package)
 (setq package-archives
       '(("gnu"    . "https://elpa.gnu.org/packages/")

@@ -6,6 +6,7 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "agents"
+  barPriority: 15
   hoverPanel: true
   hoverFill: true
 
@@ -27,6 +28,15 @@ BarWidget {
     { name: usage.m2_name, tokens: usage.m2_tokens, pct: Number(usage.m2_pct) || 0, cost: usage.m2_cost },
     { name: usage.m3_name, tokens: usage.m3_tokens, pct: Number(usage.m3_pct) || 0, cost: usage.m3_cost }
   ].filter(function(m) { return m.name })
+
+  // the session reset in the shell's own clock format; a day prefix once it is not today
+  readonly property string sessionResetText: {
+    const at = Number(usage.u_reset_at) || 0
+    if (at <= 0) return usage.u_reset || ""
+    const when = new Date(at * 1000)
+    const sameDay = when.toDateString() === new Date().toDateString()
+    return Qt.formatDateTime(when, sameDay ? Util.timeFormat : Util.dayFormat + " " + Util.timeFormat)
+  }
 
   property var pctHist: []
 
@@ -70,7 +80,7 @@ BarWidget {
       visible: root.hasUsage
       textFormat: Text.PlainText
       text: root.worstWhich + " " + root.worstPctShown + "%"
-      color: root.tight ? Colors.urgent : (root.bar ? root.bar.barForeground : Colors.foreground)
+      color: root.tight ? Colors.urgentText : (root.bar ? root.bar.barForeground : Colors.foreground)
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
       font.letterSpacing: Style.displayTracking
@@ -121,19 +131,18 @@ BarWidget {
     Row {
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
-      spacing: Style.spacing.xs
+      spacing: Style.spacing.sm
       Text {
         id: rowValue
         text: barRow.value
-        color: barRow.alert ? Colors.urgent : Colors.menu.text
+        color: barRow.alert ? Colors.urgentText : Colors.menu.text
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
       }
       Text {
         visible: barRow.note !== ""
         text: barRow.note
-        color: Colors.menu.text
-        opacity: Style.emphasis.faint
+        color: Colors.textDim
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
       }
@@ -145,7 +154,6 @@ BarWidget {
     title: "CLAUDE CODE"
     onOpened: usageProc.refresh()
     implicitWidth: Style.panelWidth.normal
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
     Column {
       id: content
@@ -186,8 +194,7 @@ BarWidget {
               horizontalAlignment: Text.AlignRight
               visible: !!root.usage.sub
               text: root.usage.sub ? root.usage.sub + " " + (root.usage.tier || "") : ""
-              color: Colors.menu.text
-              opacity: Style.emphasis.dim
+              color: Colors.textDim
               textFormat: Text.PlainText
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
@@ -197,8 +204,7 @@ BarWidget {
               width: parent.width
               horizontalAlignment: Text.AlignRight
               text: "SESSION " + root.sessionPct + "% :: WEEK " + root.weekPct + "%"
-              color: root.tight ? Colors.urgent : Colors.menu.text
-              opacity: Style.emphasis.faint
+              color: root.tight ? Colors.urgentText : Colors.textDim
               textFormat: Text.PlainText
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
@@ -219,7 +225,7 @@ BarWidget {
         BarRow {
           label: "Session"
           value: root.sessionPct + "%"
-          note: root.usage.u_reset ? "resets " + root.usage.u_reset : ""
+          note: root.sessionResetText ? "resets " + root.sessionResetText : ""
           pct: root.sessionPct
           alert: root.sessionPct >= 80
         }
@@ -279,7 +285,7 @@ BarWidget {
           spacing: Style.spacing.sm
 
           PanelSeparator {}
-          PanelSectionHeader { text: "Models" }
+          PanelSectionHeader { text: root.usage.m_days ? "Models :: " + root.usage.m_days + "d" : "Models" }
           Repeater {
             model: root.models
             delegate: BarRow {
@@ -294,9 +300,9 @@ BarWidget {
         }
 
         BarRow {
-          visible: !!root.usage.updated
+          visible: root.updatedMs > 0
           label: "Updated"
-          value: root.usage.updated || ""
+          value: root.updatedMs > 0 ? Qt.formatDateTime(new Date(root.updatedMs), Util.dayFormat + " " + Util.timeFormat) : ""
         }
       }
     }

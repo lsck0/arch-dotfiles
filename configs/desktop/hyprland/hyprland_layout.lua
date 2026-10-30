@@ -12,7 +12,7 @@ for _, home in ipairs(platform.app_workspaces) do
         match = {
             class = home.class,
         },
-        workspace = tostring(home.workspace),
+        workspace = tostring(home.workspace) .. (home.silent and " silent" or ""),
         no_initial_focus = home.silent or nil,
     })
 end

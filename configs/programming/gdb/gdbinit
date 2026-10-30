@@ -19,6 +19,7 @@ if os.path.exists(_pwndbg):
 _state = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "gdb")
 os.makedirs(_state, mode=0o700, exist_ok=True)
 gdb.execute("set history filename " + os.path.join(_state, "history"))
+gdb.execute("set history save on")
 end
 
 set output-radix 10

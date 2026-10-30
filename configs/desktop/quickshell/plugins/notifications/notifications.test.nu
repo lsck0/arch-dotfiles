@@ -1,5 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-# NotificationLogic.js under qmltestrunner: the toast's action filter, the sender name of a snapshot, the history list
+# NotificationLogic.js under qmltestrunner: the toast's action filter, the sender name of a snapshot, the history list,
+# the exec argv allowlist and the img tag stripping
 
 const LOGIC = path self | path dirname | path join NotificationLogic.js
 const RUNNER = "/usr/lib/qt6/bin/qmltestrunner"

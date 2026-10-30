@@ -1,11 +1,14 @@
 # The VM test: a libvirt guest from the lsck0 iso with an answer file, watched through beacons.
 
+use state.nu [xdg]
+
 const REPO = path self ../..
 const VM_DIR = path self vm
 const CONNECT = "qemu:///system"
 const POOL = "default"
 const POOL_DIR = "/var/lib/libvirt/images"
 const CONSOLE_DIR = "/var/log/libvirt/qemu"
+const CACHE_NAME = "vm-test"
 const ISO_VOLUME = "vm-test-archlinux-lsck0.iso"
 const ISO_URL = "https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso"
 const ANSWERS_LABEL = "LSCK0"
@@ -16,7 +19,7 @@ const PASSWORD = "admin"
 export const PLATFORM = "vm"
 const DISK = "/dev/vda"
 const PORT = 8765
-const REPORT_URL = "http://10.0.2.2:8765"
+const REPORT_URL = $"http://10.0.2.2:($PORT)"
 const POLL = 15sec
 const DISK_GIB = 200
 const BOOTSTRAP_TIMEOUT = 1hr
@@ -28,8 +31,12 @@ def --wrapped virsh [...args: string]: nothing -> string {
     ^sudo virsh -c $CONNECT ...$args | complete | get stdout
 }
 
+def cache-base []: nothing -> path {
+    xdg cache $CACHE_NAME
+}
+
 export def cache-dir [name: string]: nothing -> path {
-    let dir = $nu.home-dir | path join .cache vm-test $name
+    let dir = cache-base | path join $name
     mkdir $dir
     $dir
 }
@@ -86,7 +93,7 @@ def pool-iso [iso: path, volume: string, --fresh]: nothing -> string {
     if not (virsh pool-info $POOL | str contains running) { virsh pool-start $POOL | ignore }
     let size = ls $iso | get 0.size | into int | into string
     # the uploaded iso's checksum: a new latest build of the same size still replaces the volume
-    let stamp = $nu.home-dir | path join .cache vm-test $"($volume).sha256"
+    let stamp = cache-base | path join $"($volume).sha256"
     let sum = open --raw $iso | hash sha256
     let current = try { open --raw $stamp | str trim } catch { "" }
     if $fresh or $current != $sum or not (virsh vol-info --pool $POOL $volume --bytes | str contains $size) {
@@ -101,7 +108,7 @@ def pool-iso [iso: path, volume: string, --fresh]: nothing -> string {
 
 # The published iso, fetched once into the cache and checked against its .sha256; a local build wins via --iso.
 def iso-latest []: nothing -> path {
-    let iso = $nu.home-dir | path join .cache vm-test ($ISO_URL | path basename)
+    let iso = cache-base | path join ($ISO_URL | path basename)
     mkdir ($iso | path dirname)
     ^curl -fsSL -o $"($iso).sha256" $"($ISO_URL).sha256"
     let want = open --raw $"($iso).sha256" | split row " " | first

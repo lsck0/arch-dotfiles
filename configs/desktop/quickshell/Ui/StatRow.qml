@@ -62,7 +62,7 @@ Item {
     id: valueRow
     anchors.right: parent.right
     anchors.verticalCenter: parent.verticalCenter
-    spacing: Style.spacing.xs
+    spacing: Style.spacing.sm
 
     Text {
       id: valueText
@@ -70,8 +70,7 @@ Item {
       elide: root.valueElide
       textFormat: Text.PlainText
       text: root.value
-      color: root.valueColor
-      opacity: root.dim ? Style.emphasis.faint : 1
+      color: root.dim ? Colors.textDim : root.valueColor
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       font.features: { "tnum": 1 }
@@ -80,8 +79,7 @@ Item {
       visible: root.note !== ""
       textFormat: Text.PlainText
       text: root.note
-      color: Colors.menu.text
-      opacity: Style.emphasis.faint
+      color: Colors.textDim
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       font.features: { "tnum": 1 }

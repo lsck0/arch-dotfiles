@@ -8,6 +8,7 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "homelab"
+  barPriority: 30
   hoverPanel: true
   hoverFill: true
   panelPinOnClick: false
@@ -106,9 +107,7 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       textFormat: Text.PlainText
       text: root.ok || !root.received ? "\u{f048d}" : "\u{f048e}"
-      color: root.ok && root.problemCount > 0 ? Colors.urgent
-        : root.bar ? root.bar.barForeground : Colors.foreground
-      opacity: root.ok && root.problemCount > 0 ? 1 : Style.emphasis.dim
+      color: root.ok && root.problemCount > 0 ? Colors.urgent : Colors.textDim
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
       layer.enabled: Style.fx.glow > 0 && root.ok && root.problemCount > 0
@@ -119,7 +118,7 @@ BarWidget {
       visible: root.ok && root.problemCount > 0
       textFormat: Text.PlainText
       text: root.problemCount
-      color: Colors.urgent
+      color: Colors.urgentText
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
       layer.enabled: Style.fx.glow > 0
@@ -137,7 +136,7 @@ BarWidget {
   component LinkStat: StatRow {
     property string url: ""
     property bool alert: false
-    valueColor: alert ? Colors.urgent : Colors.menu.text
+    valueColor: alert ? Colors.urgentText : Colors.menu.text
     clickable: url !== ""
     onActivated: root.open(url)
   }
@@ -150,7 +149,7 @@ BarWidget {
 
     Text {
       text: list.title
-      color: Colors.accent
+      color: Colors.accentText
       textFormat: Text.PlainText
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
@@ -214,7 +213,7 @@ BarWidget {
 
     Text {
       text: groupBox.title
-      color: Colors.accent
+      color: Colors.accentText
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
     }
@@ -256,8 +255,7 @@ BarWidget {
               anchors.verticalCenter: parent.verticalCenter
               textFormat: Text.PlainText
               text: tile.asleep ? "o" : "*"
-              color: tile.down ? Colors.urgent : Colors.menu.text
-              opacity: tile.asleep ? Style.emphasis.faint : 1
+              color: tile.down ? Colors.urgentText : tile.asleep ? Colors.textDim : Colors.menu.text
               font.family: Style.font.family
               font.pixelSize: Style.font.body
             }
@@ -267,8 +265,7 @@ BarWidget {
               textFormat: Text.PlainText
               text: tile.modelData.name
               elide: Text.ElideRight
-              color: tile.down ? Colors.urgent : Colors.menu.text
-              opacity: tile.asleep ? Style.emphasis.faint : 1
+              color: tile.down ? Colors.urgentText : tile.asleep ? Colors.textDim : Colors.menu.text
               font.family: Style.font.family
               font.pixelSize: Style.font.body
             }
@@ -293,7 +290,7 @@ BarWidget {
     Text {
       width: mh.width * 0.5
       text: mh.label
-      color: mh.tint
+      color: Colors.textFor(mh.tint)
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       font.bold: true
@@ -304,7 +301,7 @@ BarWidget {
       width: mh.width * 0.5
       horizontalAlignment: Text.AlignRight
       text: mh.readout
-      color: mh.tint
+      color: Colors.textFor(mh.tint)
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       font.letterSpacing: Style.displayTracking
@@ -358,197 +355,185 @@ BarWidget {
     anchorWidget: root
     title: "Homelab"
     implicitWidth: Style.panelWidth.wide
-    implicitHeight: Math.min(Style.space(880), content.implicitHeight + padding * 2 + titleInset)
 
-    Flickable {
-      anchors.fill: parent
-      contentWidth: width
-      contentHeight: content.implicitHeight
-      flickableDirection: Flickable.VerticalFlick
-      interactive: contentHeight > height
-      clip: true
-      boundsBehavior: Flickable.StopAtBounds
+    Column {
+      id: content
+      width: parent.width
+      spacing: Style.spacing.sm
+
+      LinkStat {
+        visible: !root.ok
+        label: "Status"
+        value: !root.received ? "Connecting..." : root.error === "source" ? "No homelab checkout" : "Unreachable"
+        alert: root.received
+      }
+      PanelSeparator { visible: root.received && !root.ok && root.error !== "source" }
+      PanelSectionHeader { text: "Tools"; visible: root.received && !root.ok && root.error !== "source" }
+      PanelRow {
+        width: parent.width
+        visible: root.received && !root.ok && root.error !== "source"
+        glyph: "\u{f0582}"   // md-vpn
+        label: "Connect homelab VPN"
+        onActivated: {
+          Quickshell.execDetached([Paths.toggle("toggle-vpn.nu"), "on"])
+          if (root.bar) root.bar.closePanel(root.moduleName)
+        }
+      }
 
       Column {
-        id: content
         width: parent.width
+        visible: root.ok
         spacing: Style.spacing.sm
 
-        LinkStat {
-          visible: !root.ok
-          label: "Status"
-          value: !root.received ? "Connecting..." : root.error === "source" ? "No homelab checkout" : "Unreachable"
-          alert: root.received
-        }
-        PanelSeparator { visible: root.received && !root.ok && root.error !== "source" }
-        PanelSectionHeader { text: "Tools"; visible: root.received && !root.ok && root.error !== "source" }
-        PanelRow {
+        Column {
           width: parent.width
-          visible: root.received && !root.ok && root.error !== "source"
-          glyph: "\u{f0582}"   // md-vpn
-          label: "Connect homelab VPN"
-          onActivated: {
-            Quickshell.execDetached([Paths.toggle("toggle-vpn.nu"), "on"])
-            if (root.bar) root.bar.closePanel(root.moduleName)
+          visible: root.alerts.length > 0
+          spacing: Style.spacing.sm
+
+          PanelSectionHeader { text: "Alerts"; foreground: Colors.urgent }
+          Repeater {
+            model: root.alerts
+            delegate: LinkStat {
+              required property var modelData
+              label: modelData.target || modelData.name
+              value: modelData.target ? modelData.name : ""
+              note: Util.ago(modelData.minutes)
+              url: root.links.alerts
+              alert: true
+            }
           }
+          PanelSeparator {}
+        }
+
+        PanelSectionHeader { text: "Host" }
+        Item {
+          width: parent.width
+          implicitHeight: Math.max(hostHero.implicitHeight, hostReads.implicitHeight)
+          height: implicitHeight
+          Hero { id: hostHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; value: String(Math.round(Number(root.host.cpuPct) || 0)); unit: "%" }
+          Column {
+            id: hostReads
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width * 0.6
+            spacing: Style.spacing.xxs
+            LinkStat {
+              label: "Memory"
+              value: root.num(root.host.memUsedGb) + " / " + root.num(root.host.memTotalGb, " GB")
+              url: root.links.proxmox
+            }
+            LinkStat { label: "Temperature"; value: root.num(root.host.tempC, "\u00b0C"); url: root.links.proxmox }
+            LinkStat { label: "Uptime"; value: root.num(root.host.uptimeH, " h"); url: root.links.proxmox }
+          }
+        }
+        MetricGraph { label: "Usage"; readout: root.num(root.host.cpuPct, "%"); history: root.cpuHist; fraction: (Number(root.host.cpuPct) || 0) / 100 }
+        MetricGraph {
+          label: "Memory"
+          readout: Math.round(root.memFraction * 100) + "%"
+          history: root.memHist
+          fraction: root.memFraction
+        }
+
+        PanelSeparator {}
+        PanelSectionHeader { text: "Storage" }
+        GaugeRow {
+          label: "NAS free"
+          readout: root.num(root.storage.nasFreeGb) + " / " + root.num(root.storage.nasTotalGb, " GB")
+          fraction: (Number(root.storage.nasTotalGb) || 0) > 0 ? (Number(root.storage.nasFreeGb) || 0) / Number(root.storage.nasTotalGb) : 0
+          url: root.links.nas
+        }
+        GaugeRow {
+          label: "Disks OK"
+          readout: root.num(root.storage.disksHealthy) + " / " + root.num(root.storage.disksTotal)
+          fraction: (Number(root.storage.disksTotal) || 0) > 0 ? (Number(root.storage.disksHealthy) || 0) / Number(root.storage.disksTotal) : 0
+          alert: root.storage.disksHealthy < root.storage.disksTotal
+          url: root.links.dashboard
+        }
+        GaugeRow {
+          visible: root.storage.nvmeWearPct !== null && root.storage.nvmeWearPct !== undefined
+          label: "NVMe wear"
+          readout: root.num(root.storage.nvmeWearPct, "%")
+          fraction: (Number(root.storage.nvmeWearPct) || 0) / 100
+          url: root.links.dashboard
+        }
+        LinkStat {
+          label: "Last backup"
+          value: root.storage.backupAgeMin === null || root.storage.backupAgeMin === undefined
+            ? "never" : Util.ago(root.storage.backupAgeMin)
+          alert: root.backupStale
+          url: root.links.nas
+        }
+
+        PanelSeparator {}
+        PanelSectionHeader { text: "Traffic" }
+        LinkStat { label: "Internal"; value: root.num(root.traffic.internalRps, " req/s"); url: root.links.dashboard }
+        LinkStat { label: "Public"; value: root.num(root.traffic.externalRps, " req/s"); url: root.links.dashboard }
+        LinkStat {
+          label: "Server errors"
+          value: root.num(root.traffic.errorRps, " req/s")
+          alert: root.traffic.errorRps > 0
+          url: root.links.dashboard
         }
 
         Column {
           width: parent.width
-          visible: root.ok
+          visible: (root.clients.countries || []).length > 0
           spacing: Style.spacing.sm
 
-          Column {
+          PanelSeparator {}
+          Row {
             width: parent.width
-            visible: root.alerts.length > 0
-            spacing: Style.spacing.sm
-
-            PanelSectionHeader { text: "Alerts"; foreground: Colors.urgent }
-            Repeater {
-              model: root.alerts
-              delegate: LinkStat {
-                required property var modelData
-                label: modelData.target || modelData.name
-                value: modelData.target ? modelData.name : ""
-                note: Util.ago(modelData.minutes)
-                url: root.links.alerts
-                alert: true
-              }
-            }
-            PanelSeparator {}
-          }
-
-          PanelSectionHeader { text: "Host" }
-          Item {
-            width: parent.width
-            implicitHeight: Math.max(hostHero.implicitHeight, hostReads.implicitHeight)
-            height: implicitHeight
-            Hero { id: hostHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; value: String(Math.round(Number(root.host.cpuPct) || 0)); unit: "%" }
-            Column {
-              id: hostReads
-              anchors.right: parent.right
+            spacing: Style.spacing.xs
+            PanelSectionHeader { text: "Incoming" }
+            Text {
               anchors.verticalCenter: parent.verticalCenter
-              width: parent.width * 0.6
-              spacing: Style.spacing.xxs
-              LinkStat {
-                label: "Memory"
-                value: root.num(root.host.memUsedGb) + " / " + root.num(root.host.memTotalGb, " GB")
-                url: root.links.proxmox
-              }
-              LinkStat { label: "Temperature"; value: root.num(root.host.tempC, "\u00b0C"); url: root.links.proxmox }
-              LinkStat { label: "Uptime"; value: root.num(root.host.uptimeH, " h"); url: root.links.proxmox }
+              text: root.clients.window || ""
+              color: Colors.textDim
+              textFormat: Text.PlainText
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
             }
           }
-          MetricGraph { label: "Usage"; readout: root.num(root.host.cpuPct, "%"); history: root.cpuHist; fraction: (Number(root.host.cpuPct) || 0) / 100 }
-          MetricGraph {
-            label: "Memory"
-            readout: Math.round(root.memFraction * 100) + "%"
-            history: root.memHist
-            fraction: root.memFraction
-          }
 
-          PanelSeparator {}
-          PanelSectionHeader { text: "Storage" }
-          GaugeRow {
-            label: "NAS free"
-            readout: root.num(root.storage.nasFreeGb) + " / " + root.num(root.storage.nasTotalGb, " GB")
-            fraction: (Number(root.storage.nasTotalGb) || 0) > 0 ? (Number(root.storage.nasFreeGb) || 0) / Number(root.storage.nasTotalGb) : 0
-            url: root.links.nas
-          }
-          GaugeRow {
-            label: "Disks OK"
-            readout: root.num(root.storage.disksHealthy) + " / " + root.num(root.storage.disksTotal)
-            fraction: (Number(root.storage.disksTotal) || 0) > 0 ? (Number(root.storage.disksHealthy) || 0) / Number(root.storage.disksTotal) : 0
-            alert: root.storage.disksHealthy < root.storage.disksTotal
-            url: root.links.dashboard
-          }
-          GaugeRow {
-            visible: root.storage.nvmeWearPct !== null && root.storage.nvmeWearPct !== undefined
-            label: "NVMe wear"
-            readout: root.num(root.storage.nvmeWearPct, "%")
-            fraction: (Number(root.storage.nvmeWearPct) || 0) / 100
-            url: root.links.dashboard
-          }
-          LinkStat {
-            label: "Last backup"
-            value: root.storage.backupAgeMin === null || root.storage.backupAgeMin === undefined
-              ? "never" : Util.ago(root.storage.backupAgeMin)
-            alert: root.backupStale
-            url: root.links.nas
-          }
-
-          PanelSeparator {}
-          PanelSectionHeader { text: "Traffic" }
-          LinkStat { label: "Internal"; value: root.num(root.traffic.internalRps, " req/s"); url: root.links.dashboard }
-          LinkStat { label: "Public"; value: root.num(root.traffic.externalRps, " req/s"); url: root.links.dashboard }
-          LinkStat {
-            label: "Server errors"
-            value: root.num(root.traffic.errorRps, " req/s")
-            alert: root.traffic.errorRps > 0
-            url: root.links.dashboard
-          }
-
-          Column {
+          Grid {
+            id: clientGrid
             width: parent.width
-            visible: (root.clients.countries || []).length > 0
-            spacing: Style.spacing.sm
+            columns: 4
+            columnSpacing: Style.spacing.sm
+            readonly property real cellWidth:
+              (width - columnSpacing * (columns - 1)) / columns
 
-            PanelSeparator {}
-            Row {
-              width: parent.width
-              spacing: Style.spacing.xs
-              PanelSectionHeader { text: "Incoming" }
-              Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: root.clients.window || ""
-                color: Colors.menu.text
-                opacity: Style.emphasis.faint
-                textFormat: Text.PlainText
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
-              }
-            }
-
-            Grid {
-              id: clientGrid
-              width: parent.width
-              columns: 4
-              columnSpacing: Style.spacing.sm
-              readonly property real cellWidth:
-                (width - columnSpacing * (columns - 1)) / columns
-
-              ClientList { width: clientGrid.cellWidth; title: "From"; rows: root.clients.countries || [] }
-              ClientList { width: clientGrid.cellWidth; title: "Clients"; rows: root.clients.agents || [] }
-              ClientList { width: clientGrid.cellWidth; title: "Asking for"; rows: root.clients.hosts || [] }
-              ClientList { width: clientGrid.cellWidth; title: "How it went"; rows: root.clients.traffic || [] }
-            }
+            ClientList { width: clientGrid.cellWidth; title: "From"; rows: root.clients.countries || [] }
+            ClientList { width: clientGrid.cellWidth; title: "Clients"; rows: root.clients.agents || [] }
+            ClientList { width: clientGrid.cellWidth; title: "Asking for"; rows: root.clients.hosts || [] }
+            ClientList { width: clientGrid.cellWidth; title: "How it went"; rows: root.clients.traffic || [] }
           }
-
-          PanelSeparator {}
-          PanelSectionHeader { text: "Services" }
-          LinkStat {
-            label: "Up"
-            value: root.upCount + " / " + root.monitored.length
-            url: root.links.homepage
-          }
-          LinkStat {
-            visible: root.asleepCount > 0
-            label: "Asleep"
-            value: root.asleepCount
-            url: root.links.homepage
-          }
-          LinkStat {
-            visible: root.downServices.length > 0
-            label: "Down"
-            value: root.downServices.map(function(s) { return s.name }).join(", ")
-            alert: true
-            url: root.links.homepage
-          }
-
-          ServiceGroup { title: "Infra"; group: "infra" }
-          ServiceGroup { title: "Internal"; group: "internal" }
-          ServiceGroup { title: "External"; group: "external" }
         }
+
+        PanelSeparator {}
+        PanelSectionHeader { text: "Services" }
+        LinkStat {
+          label: "Up"
+          value: root.upCount + " / " + root.monitored.length
+          url: root.links.homepage
+        }
+        LinkStat {
+          visible: root.asleepCount > 0
+          label: "Asleep"
+          value: root.asleepCount
+          url: root.links.homepage
+        }
+        LinkStat {
+          visible: root.downServices.length > 0
+          label: "Down"
+          value: root.downServices.map(function(s) { return s.name }).join(", ")
+          alert: true
+          url: root.links.homepage
+        }
+
+        ServiceGroup { title: "Infra"; group: "infra" }
+        ServiceGroup { title: "Internal"; group: "internal" }
+        ServiceGroup { title: "External"; group: "external" }
       }
     }
   }

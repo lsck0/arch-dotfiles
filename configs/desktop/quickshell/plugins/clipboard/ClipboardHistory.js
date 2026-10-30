@@ -147,6 +147,16 @@ function previewText(entry) {
   return String(entry.text || "").replace(/\s+/g, " ")
 }
 
+// a file entry goes back on the clipboard as the uri-list it came as, one CRLF-terminated URI per line
+function uriListText(entry) {
+  var lines = String(entry && entry.text || "").split(/\r?\n/)
+  var uris = []
+  for (var i = 0; i < lines.length; i++) {
+    if (decodeFileUri(lines[i])) uris.push(lines[i].trim())
+  }
+  return uris.length > 0 ? uris.join("\r\n") + "\r\n" : ""
+}
+
 function fullText(entry) {
   if (!entry) return ""
   var paths = filePaths(entry)
@@ -186,11 +196,12 @@ function displayRows(history, query, limit) {
     rows.push({
       entryType: isFile ? "file" : entry.type,
       fullText: isImage ? "" : fullText(whole),
+      copyText: isImage ? "" : (isFile ? uriListText(whole) : String(whole.text || "")),
       paneText: isImage ? "" : fullText(entry),
       previewText: previewText(entry),
       previewImage: previewPath,
       path: isImage ? String(entry.path || "") : (isFile && paths.length === 1 ? paths[0] : ""),
-      mime: isImage ? String(entry.mime || "image/png") : "text/plain",
+      mime: isImage ? String(entry.mime || "image/png") : (isFile ? "text/uri-list" : "text/plain"),
       index: i
     })
     if (rows.length >= max) break

@@ -44,18 +44,21 @@ BarWidget {
     property var bitrateHist: []
     property var dropHist: []
     readonly property color stateColor: (degraded || faulted) ? Colors.semantic.warn : (streaming ? Colors.semantic.live : (recording ? Colors.semantic.recording : Colors.muted))
+    // the state tokens conditioned for text: stat values on the panel, and action labels on their own tint
+    // (0.28 at most)
+    readonly property real actionFillAlphaMax: 0.28
+    readonly property color liveText: Colors.textFor(Colors.semantic.live)
+    readonly property color recordingText: Colors.textFor(Colors.semantic.recording)
+    readonly property color liveActionText: Colors.textOnFill(Colors.semantic.live, Util.alpha(Colors.semantic.live, actionFillAlphaMax))
+    readonly property color recordingActionText: Colors.textOnFill(Colors.semantic.recording, Util.alpha(Colors.semantic.recording, actionFillAlphaMax))
     readonly property bool degraded: streamReconnecting || dropPct >= 1 || congestion >= 0.3
     readonly property bool faulted: obsSeen && !connected && errorText !== ""
     readonly property bool obsSeen: ObsProcess.running
 
+    // the timers keep a padded minute (05:03), so the pill does not widen at 10:00
     function clock(seconds) {
-        var total = Math.max(0, Math.floor(seconds));
-        var h = Math.floor(total / 3600);
-        var m = Math.floor((total % 3600) / 60);
-        var s = total % 60;
-        var mm = String(m).padStart(2, "0");
-        var ss = String(s).padStart(2, "0");
-        return h > 0 ? h + ":" + mm + ":" + ss : mm + ":" + ss;
+        var c = Util.clock(seconds);
+        return c.length === 4 ? "0" + c : c;
     }
 
     function gb(mb) {
@@ -177,6 +180,7 @@ BarWidget {
     }
 
     moduleName: "obs"
+    barPriority: 35
 
     hoverPanel: true
 
@@ -280,11 +284,10 @@ BarWidget {
 
                 return "OBS";
             }
-            color: root.active || root.faulted ? root.stateColor : (root.bar ? root.bar.barForeground : Colors.foreground)
+            color: root.active || root.faulted ? root.stateColor : Colors.textDim
             font.family: root.bar ? root.bar.fontFamily : Style.font.family
             font.pixelSize: Style.font.bodySmall
             font.bold: root.active
-            opacity: root.active || root.faulted ? 1 : 0.55
             layer.enabled: Style.fx.glow > 0 && root.active
 
             layer.effect: Glow {
@@ -298,10 +301,9 @@ BarWidget {
             textFormat: Text.PlainText
             visible: root.active
             text: root.clock(root.streaming ? root.streamSeconds : root.recordSeconds)
-            color: root.bar ? root.bar.barForeground : Colors.foreground
+            color: Colors.textDim
             font.family: root.bar ? root.bar.fontFamily : Style.font.family
             font.pixelSize: Style.font.bodySmall
-            opacity: Style.emphasis.dim
         }
 
     }
@@ -310,7 +312,6 @@ BarWidget {
         anchorWidget: root
         title: "OBS"
         implicitWidth: Style.panelWidth.normal
-        implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
         Column {
             id: content
@@ -347,8 +348,7 @@ BarWidget {
                         width: parent.width
                         horizontalAlignment: Text.AlignRight
                         text: root.streamReconnecting ? "RECONNECTING" : (root.streaming && root.recording ? "LIVE + REC" : (root.streaming ? "LIVE" : (root.recording ? (root.recordPaused ? "REC PAUSED" : "REC") : "IDLE")))
-                        color: root.active ? root.stateColor : Colors.menu.text
-                        opacity: root.active ? 1 : Style.emphasis.dim
+                        color: root.active ? root.stateColor : Colors.textDim
                         font.family: Style.font.family
                         font.pixelSize: Style.font.caption
                         font.bold: true
@@ -361,8 +361,7 @@ BarWidget {
                         horizontalAlignment: Text.AlignRight
                         visible: root.active
                         text: root.clock(root.streaming ? root.streamSeconds : root.recordSeconds)
-                        color: Colors.menu.text
-                        opacity: Style.emphasis.dim
+                        color: Colors.textDim
                         font.family: Style.font.family
                         font.pixelSize: Style.font.caption
                         font.letterSpacing: Style.displayTracking
@@ -400,7 +399,7 @@ BarWidget {
                     wrapMode: Text.Wrap
                     textFormat: Text.PlainText
                     text: root.errorText
-                    color: Colors.semantic.warn
+                    color: Colors.textOnFill(Colors.warn, Util.alpha(Colors.semantic.warn, Style.tintFillAlpha))
                     font.family: Style.font.family
                     font.pixelSize: Style.font.caption
                 }
@@ -417,7 +416,7 @@ BarWidget {
                     width: (parent.width - Style.spacing.xs * 2) / 3
                     iconText: root.streaming ? "\u{f1721}" : "\u{f1720}" // md-broadcast_off / md-broadcast
                     text: root.streaming ? "Stop" : "Go live"
-                    foreground: root.streaming ? Colors.semantic.live : Colors.menu.text
+                    foreground: root.streaming ? root.liveActionText : Colors.menu.text
                     danger: root.streaming
                     onClicked: root.send({
                         "cmd": "toggleStream"
@@ -429,7 +428,7 @@ BarWidget {
                     width: (parent.width - Style.spacing.xs * 2) / 3
                     iconText: root.recording ? "\u{f04db}" : "\u{f044a}" // md-stop / md-record
                     text: root.recording ? "Stop rec" : "Record"
-                    foreground: root.recording ? Colors.semantic.live : Colors.menu.text
+                    foreground: root.recording ? root.liveActionText : Colors.menu.text
                     danger: root.recording
                     onClicked: root.send({
                         "cmd": "toggleRecord"
@@ -442,7 +441,7 @@ BarWidget {
                     enabled: root.recording
                     iconText: root.recordPaused ? "\u{f040a}" : "\u{f03e4}" // md-play / md-pause
                     text: root.recordPaused ? "Resume" : "Pause"
-                    foreground: root.recordPaused ? Colors.semantic.recording : Colors.menu.text
+                    foreground: root.recordPaused ? root.recordingActionText : Colors.menu.text
                     onClicked: {
                         if (root.recording) {
                             root.send({
@@ -496,8 +495,7 @@ BarWidget {
                 width: parent.width
                 visible: root.connected && root.scenes.length === 0
                 text: "No scenes reported"
-                color: Colors.menu.text
-                opacity: Style.emphasis.disabled
+                color: Colors.textDim
                 font.family: Style.font.family
                 font.pixelSize: Style.font.caption
             }
@@ -545,7 +543,7 @@ BarWidget {
             StatRow {
                 label: "State"
                 value: root.streamReconnecting ? "Reconnecting" : (root.streaming ? "Live" : "Stopped")
-                valueColor: root.streamReconnecting ? Colors.semantic.warn : (root.streaming ? Colors.semantic.live : Colors.menu.text)
+                valueColor: root.streamReconnecting ? Colors.warnText : (root.streaming ? root.liveText : Colors.menu.text)
                 dim: !root.streaming && !root.streamReconnecting
             }
 
@@ -571,14 +569,14 @@ BarWidget {
                 visible: root.streaming
                 label: "Dropped frames"
                 value: root.droppedFrames + "  (" + root.dropPct.toFixed(2) + "%)"
-                valueColor: root.dropPct >= 1 ? Colors.semantic.warn : Colors.menu.text
+                valueColor: root.dropPct >= 1 ? Colors.warnText : Colors.menu.text
             }
 
             StatRow {
                 visible: root.streaming
                 label: "Congestion"
                 value: Math.round(root.congestion * 100) + "%"
-                valueColor: root.congestion >= 0.3 ? Colors.semantic.warn : Colors.menu.text
+                valueColor: root.congestion >= 0.3 ? Colors.warnText : Colors.menu.text
             }
 
             BarGauge {
@@ -610,7 +608,7 @@ BarWidget {
             StatRow {
                 label: "State"
                 value: root.recordPaused ? "Paused" : (root.recording ? "Recording" : "Stopped")
-                valueColor: root.recording ? Colors.semantic.recording : Colors.menu.text
+                valueColor: root.recording ? root.recordingText : Colors.menu.text
                 dim: !root.recording
             }
 
@@ -641,7 +639,7 @@ BarWidget {
                 visible: root.recording && root.diskSecondsLeft > 0
                 label: "Disk headroom"
                 value: root.clock(root.diskSecondsLeft) + " at this rate"
-                valueColor: root.diskSecondsLeft < 600 ? Colors.semantic.live : (root.diskSecondsLeft < 3600 ? Colors.semantic.warn : Colors.menu.text)
+                valueColor: root.diskSecondsLeft < 600 ? root.liveText : (root.diskSecondsLeft < 3600 ? Colors.warnText : Colors.menu.text)
             }
 
             PanelSeparator {
@@ -654,13 +652,13 @@ BarWidget {
             StatRow {
                 label: "Rendering"
                 value: root.renderSkipped + " / " + root.renderTotal
-                valueColor: root.renderTotal > 0 && root.renderSkipped / root.renderTotal >= 0.01 ? Colors.semantic.warn : Colors.menu.text
+                valueColor: root.renderTotal > 0 && root.renderSkipped / root.renderTotal >= 0.01 ? Colors.warnText : Colors.menu.text
             }
 
             StatRow {
                 label: "Encoding"
                 value: root.encoderSkipped + " / " + root.encoderTotal
-                valueColor: root.encoderTotal > 0 && root.encoderSkipped / root.encoderTotal >= 0.01 ? Colors.semantic.warn : Colors.menu.text
+                valueColor: root.encoderTotal > 0 && root.encoderSkipped / root.encoderTotal >= 0.01 ? Colors.warnText : Colors.menu.text
             }
 
         }

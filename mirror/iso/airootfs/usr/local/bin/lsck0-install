@@ -3,12 +3,14 @@
 const ANSWERS_LABEL = "/dev/disk/by-label/LSCK0"
 const ANSWERS_NAME = "lsck0.nuon"
 const BOOT_MEDIUM = "/run/archiso/bootmnt"
+const CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
 const CABLE_POLL = 5sec
 const CLONE_DIR = "/tmp/arch-dotfiles"
 const CMDLINE_PARAM = '(?:^|\s)lsck0\.(?<key>keymap|wifi\.ssid|wifi\.psk)=(?:"(?<quoted>[^"]*)"|(?<plain>\S*))'
 const INSECURE_PARAM = '(?:^|\s)lsck0\.insecure=1(?:\s|$)'
 const ISO_GLOB = "archlinux-lsck0*.iso"
 const ISO_SEARCH_DEPTH = 2
+const IWD_PLAIN_NAME = '^[A-Za-z0-9 _-]+$'
 const KEYMAP_DEFAULT = "de-latin1"
 const MEDIA_FSTYPES = [vfat exfat iso9660 udf ntfs ntfs3]
 const ONLINE_POLL = 1sec
@@ -28,7 +30,6 @@ const TUI_BOX_ROWS = "8"
 const TUI_MENU_ROWS = "12"
 const TUI_WIDTH = "72"
 const WIFI_SCAN_WAIT = 3sec
-const CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
 
 const TEXT = {
     keymap: {title: "keyboard", text: "Keyboard layout for the Wi-Fi password (the install asks again):"}
@@ -155,8 +156,8 @@ def wifi-scan [device: string]: nothing -> table {
 }
 
 # An iwd 802.1X provisioning file at /var/lib/iwd/=<hex ssid>.8021x, so iwctl connects an enterprise network without
-# prompting on the terminal. Server validation is mandatory: EAP-<M>-CACert (the system CA bundle) plus ServerDomainMask,
-# or the supplicant would hand credentials to any AP broadcasting the SSID.
+# prompting. Server validation is mandatory: EAP-<M>-CACert (the system CA bundle) plus ServerDomainMask, or the
+# supplicant would hand credentials to any AP broadcasting the SSID.
 def wifi-provision [network: record]: nothing -> nothing {
     let m = ($network.eap | str uppercase)
     # TTLS non-EAP phase2 needs iwd's Tunneled- token (Tunneled-PAP, Tunneled-MSCHAPv2); PEAP's inner is a bare EAP name
@@ -164,14 +165,14 @@ def wifi-provision [network: record]: nothing -> nothing {
     let p2 = if $m == "TTLS" {
         match $p2raw { "pap" => "Tunneled-PAP", "chap" => "Tunneled-CHAP", "mschapv2" => "Tunneled-MSCHAPv2", _ => $"Tunneled-($p2raw | str uppercase)" }
     } else { $p2raw | str uppercase }
-    # the outer (anonymous) realm must route to the home RADIUS, so take it from the user identity's realm, not the server cert domain
+    # the outer (anonymous) realm must route to the home RADIUS: the identity's realm, not the cert domain
     let realm = if ($network.identity | str contains "@") { $network.identity | split row "@" | last } else { $network.domain }
     let outer = $network.anonymous_identity? | default --empty $"anonymous@($realm)"
     let lines = [
         "[Security]"
         $"EAP-Method=($m)"
         $"EAP-Identity=($outer)"
-        # iwd does not consult a system trust store on its own: without an explicit CA the server cert is unvalidated and ServerDomainMask alone cannot establish trust, so point at the system CA bundle
+        # iwd consults no system trust store: without a CA, ServerDomainMask alone validates nothing
         $"EAP-($m)-CACert=($CA_BUNDLE)"
         $"EAP-($m)-ServerDomainMask=($network.domain)"
         $"EAP-($m)-Phase2-Method=($p2)"
@@ -181,7 +182,10 @@ def wifi-provision [network: record]: nothing -> nothing {
         "[Settings]"
         "AutoConnect=true"
     ]
-    let file = $"/var/lib/iwd/=($network.ssid | encode hex | str lowercase).8021x"
+    let name = if $network.ssid =~ $IWD_PLAIN_NAME { $network.ssid } else {
+        $"=($network.ssid | encode hex | str lowercase)"
+    }
+    let file = $"/var/lib/iwd/($name).8021x"
     # create at 0600 before writing: the file holds the EAP password, so it must never exist with a wider umask
     ^install -m 600 /dev/null $file
     $lines | str join "\n" | $"($in)\n" | save --force $file
@@ -190,7 +194,7 @@ def wifi-provision [network: record]: nothing -> nothing {
 def wifi-connect [device: string, network: record]: nothing -> string {
     if ($network.eap? | is-not-empty) {
         if ($network.domain? | default "" | is-empty) { return (text-fill $TEXT.wifi.no_domain {ssid: $network.ssid}) }
-        # an unattended answer file can omit these; wifi-provision reads them non-optionally, so a crash would abort the install
+        # an unattended answer file can omit these; wifi-provision reads them non-optionally
         if ($network.identity? | default "" | is-empty) or ($network.password? | default "" | is-empty) {
             return (text-fill $TEXT.wifi.no_creds {ssid: $network.ssid})
         }
@@ -207,7 +211,7 @@ def wifi-connect [device: string, network: record]: nothing -> string {
     network-wait $ONLINE_WAIT
 }
 
-# Box width clamped to the terminal so a narrow console (serial, IPMI) does not make every dialog fail; floor 40, cap TUI_WIDTH.
+# Box width clamped to the terminal so a narrow console (serial, IPMI) still draws; floor 40, cap TUI_WIDTH.
 def tui-width []: nothing -> string {
     let cols = try { term size | get columns } catch { 0 }
     if $cols < 1 { return $TUI_WIDTH }
@@ -215,7 +219,7 @@ def tui-width []: nothing -> string {
 }
 
 # {code, out, err}: dialog exits 0 ok, 1 cancel/no, 255 esc; a draw failure exits with another code and writes stderr.
-# Callers must tell a genuine cancel (1/255) from a draw failure so a box that cannot render retries instead of aborting.
+# Callers tell a cancel (1/255) from a draw failure, so a box that cannot render retries instead of aborting.
 def --wrapped dlg [...args: string]: nothing -> record {
     let r = ^dialog --backtitle $TUI_BACKTITLE --stdout ...$args | complete
     {code: $r.exit_code, out: ($r.stdout | str trim), err: ($r.stderr | ansi strip | str trim)}
@@ -313,7 +317,12 @@ def source-allowed [origin: string]: nothing -> bool {
 
 def checkout-bundle [repo: path, source: record]: nothing -> nothing {
     let local = {|p|
-        if $p =~ '^https?://' { let to = $STAGE_DIR | path join (random uuid); ^curl -fsSo $to $p; $to } else { $STAGE_DIR | path join ($p | path basename) }
+        if $p =~ '^https?://' { let to = $STAGE_DIR | path join (random uuid); ^curl -fsSo $to $p; return $to }
+        let staged = $STAGE_DIR | path join ($p | path basename)
+        if not ($staged | path exists) {
+            error make {msg: $"answer file source ($p) not found next to the answer file"}
+        }
+        $staged
     }
     let bundle = do $local $source.bundle
     let ref = ^git bundle list-heads $bundle | lines | first | split row " " | last

@@ -296,7 +296,7 @@ Item {
 
     Process {
         running: root.locked
-        command: ["udevadm", "monitor", "--udev", "--subsystem-match=hidraw"]
+        command: ["setpriv", "--pdeathsig", "TERM", "udevadm", "monitor", "--udev", "--subsystem-match=hidraw"]
 
         stdout: SplitParser {
             onRead: function(line) {
@@ -409,7 +409,7 @@ Item {
                     id: wallpaper
 
                     anchors.fill: parent
-                    source: root.locked ? Util.fileUrl(Paths.home + "/.cache/wal/wallpaper") : ""
+                    source: root.locked ? Util.fileUrl(Paths.wal + "/wallpaper") : ""
                     cache: false
                     asynchronous: true
                     fillMode: Image.PreserveAspectCrop
@@ -454,7 +454,20 @@ Item {
                     animate: Style.fx.matrixRain > 0 && Style.motion.enabled
                 }
 
+                // a plate keeps the date and hints readable where the ASCII field runs through the clock block
+                Rectangle {
+                    anchors.centerIn: clockBlock
+                    width: clockBlock.width + Style.surface.padding * 2
+                    height: clockBlock.height + Style.surface.padding * 2
+                    color: Colors.overlayFill
+                    border.width: Style.normalBorderWidth
+                    border.color: Style.normalBorderColor
+                    radius: Style.shape.surface
+                }
+
                 Column {
+                    id: clockBlock
+
                     anchors.centerIn: parent
                     spacing: Style.spacing.sm
 
@@ -469,8 +482,7 @@ Item {
                         anchors.horizontalCenter: parent.horizontalCenter
                         textFormat: Text.PlainText
                         text: root.dateText
-                        color: Colors.foreground
-                        opacity: Style.emphasis.dim
+                        color: Colors.textOnOverlay(Colors.textDim)
                         font.family: Style.font.family
                         font.pixelSize: Style.font.title
                         font.letterSpacing: Style.headerTracking
@@ -484,8 +496,7 @@ Item {
                         elide: Text.ElideRight
                         textFormat: Text.PlainText
                         text: root.mediaText
-                        color: Colors.accent
-                        opacity: Style.emphasis.dim
+                        color: Colors.textOnOverlay(Colors.accentText)
                         font.family: Style.font.family
                         font.pixelSize: Style.font.body
                     }
@@ -515,8 +526,8 @@ Item {
                             font.letterSpacing: Style.labelTracking
                             horizontalAlignment: TextInput.AlignHCenter
                             verticalAlignment: TextInput.AlignVCenter
-                            placeholderText: root.authError ? "  ACCESS DENIED" : "> AUTH REQUIRED"
-                            placeholderTextColor: root.authError ? Colors.urgent : Util.alpha(Colors.foreground, Style.emphasis.faint)
+                            placeholderText: root.authError ? "> ACCESS DENIED" : "> AUTH REQUIRED"
+                            placeholderTextColor: root.authError ? Colors.urgentText : Colors.textDim
                             background: null
                             onTextEdited: {
                                 root.authError = false;
@@ -602,8 +613,8 @@ Item {
                         height: keyStatusMetrics.height
                         textFormat: Text.PlainText
                         text: root.keyStatus
-                        opacity: root.keyStatus !== "" ? Style.emphasis.dim : 0
-                        color: root.keyNote !== "" ? Colors.urgent : Colors.foreground
+                        opacity: root.keyStatus !== "" ? 1 : 0
+                        color: Colors.textOnOverlay(root.keyNote !== "" ? Colors.urgent : Colors.textDim)
                         font.family: Style.font.family
                         font.pixelSize: Style.font.caption
 
@@ -617,52 +628,78 @@ Item {
 
                     KeyHints {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        opacity: root.keyDevice !== "" || root.keyMode ? 1 : 0
-                        hints: root.keyMode ? [["ENTER", "unlock"], ["ESC", "password"]] : [["CTRL+K", "security key"]]
+                        // the password box stays hidden until the first key, so the hint names the way in
+                        hints: (root.keyMode || pwField.text.length > 0 ? [["ENTER", "unlock"]] : [["TYPE", "password"]])
+                            .concat(root.keyDevice !== "" ? [["CTRL+K", "security key"]] : [])
+                            .concat(root.keyMode ? [["ESC", "password"]] : pwField.text.length > 0 ? [["ESC", "clear"]] : [])
                     }
 
                 }
 
-                Text {
+                Rectangle {
                     anchors.left: parent.left
                     anchors.bottom: parent.bottom
                     anchors.margins: Style.spacing.lg
                     visible: surface.isPrimary
-                    textFormat: Text.PlainText
-                    text: root.statsText
-                    color: Colors.foreground
-                    opacity: Style.emphasis.faint
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
+                    width: statsLine.implicitWidth + Style.spacing.xs * 2
+                    height: statsLine.implicitHeight + Style.spacing.xs * 2
+                    color: Colors.overlayFill
+                    border.width: Style.normalBorderWidth
+                    border.color: Style.normalBorderColor
+                    radius: Style.shape.surface
+
+                    Text {
+                        id: statsLine
+
+                        anchors.centerIn: parent
+                        textFormat: Text.PlainText
+                        text: root.statsText
+                        color: Colors.textOnOverlay(Colors.textDim)
+                        font.family: Style.font.family
+                        font.pixelSize: Style.font.caption
+                    }
+
                 }
 
-                Column {
+                Rectangle {
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
                     anchors.margins: Style.spacing.lg
                     visible: surface.isPrimary && root.notes.length > 0
-                    spacing: Style.spacing.xxs
+                    width: notesColumn.implicitWidth + Style.spacing.xs * 2
+                    height: notesColumn.implicitHeight + Style.spacing.xs * 2
+                    color: Colors.overlayFill
+                    border.width: Style.normalBorderWidth
+                    border.color: Style.normalBorderColor
+                    radius: Style.shape.surface
 
-                    HudTitle {
-                        anchors.right: parent.right
-                        text: "notifications"
-                        suffix: "[" + root.notes.length + "]"
-                        blinking: false
-                    }
+                    Column {
+                        id: notesColumn
 
-                    Repeater {
-                        model: root.notes.slice(0, root.notesShown)
+                        anchors.centerIn: parent
+                        spacing: Style.spacing.xxs
 
-                        Text {
-                            required property var modelData
-
+                        HudTitle {
                             anchors.right: parent.right
-                            textFormat: Text.PlainText
-                            text: (modelData.app || "--") + " :: " + Qt.formatDateTime(new Date(modelData.timestamp), "HH:mm")
-                            color: Colors.foreground
-                            opacity: Style.emphasis.dim
-                            font.family: Style.font.family
-                            font.pixelSize: Style.font.caption
+                            text: "notifications"
+                            suffix: "[" + root.notes.length + "]"
+                            blinking: false
+                        }
+
+                        Repeater {
+                            model: root.notes.slice(0, root.notesShown)
+
+                            Text {
+                                required property var modelData
+
+                                anchors.right: parent.right
+                                textFormat: Text.PlainText
+                                text: (modelData.app || "--") + " :: " + Qt.formatDateTime(new Date(modelData.timestamp), Util.timeFormat)
+                                color: Colors.textOnOverlay(Colors.textDim)
+                                font.family: Style.font.family
+                                font.pixelSize: Style.font.caption
+                            }
+
                         }
 
                     }

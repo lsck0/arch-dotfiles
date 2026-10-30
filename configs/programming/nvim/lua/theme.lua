@@ -1,8 +1,8 @@
 local M = {}
 
-local WAL = vim.env.HOME .. "/.cache/wal/"
+local WAL = (vim.env.XDG_CACHE_HOME or vim.env.HOME .. "/.cache") .. "/wal/"
 local MARKER = WAL .. "nvim_theme"
-local STYLE_JSON = vim.env.HOME .. "/.config/dotfiles/style.json"
+local STYLE_JSON = (vim.env.XDG_CONFIG_HOME or vim.env.HOME .. "/.config") .. "/dotfiles/style.json"
 
 local COLORSCHEMES = {
     ["ayu-dark"] = "ayu-dark",

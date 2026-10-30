@@ -1,5 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
+use ../../../scripts/lib/state.nu [xdg]
 use ../../../scripts/lib/usage.nu [die]
 
 const PUBLIC_DIR = path self ../../../wallpapers
@@ -7,7 +8,7 @@ const IMAGE_SUFFIXES = [jpg jpeg png gif webp]
 const SCREEN_DEFAULT = "3840x2160"
 const CROP_PERCENT_MAX = 10
 const UPSCALE_PERCENT_MAX = 105
-const CACHE = ".cache/wallpaper-list/sizes.tsv"
+const CACHE = "wallpaper-list/sizes.tsv"
 # the bought ones, synced across machines by syncthing, absent on a machine without ~/sync
 const BOUGHT = "sync/wallpapers"
 
@@ -27,7 +28,7 @@ def wallpapers []: nothing -> table {
 
 # Header reads only, cached by mtime: one vipsheader call for every file the cache does not know.
 def sizes-of [files: table]: nothing -> table {
-    let cache_file = $nu.home-dir | path join $CACHE
+    let cache_file = xdg cache $CACHE
     let cached = try {
         open --raw $cache_file | from tsv --noheaders | rename path mtime width height | into int mtime width height
     } catch { [] }

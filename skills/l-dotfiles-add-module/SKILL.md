@@ -10,8 +10,9 @@ options and packages.
 
 An owner-only module (employer setup, bookmarks, key wiring) goes in the private submodule:
 `configs/secrets/<module>/mod.nu`, id `secrets/<module>`. Same contract; runs after every other group wherever the
-submodule is pulled (gate inside: `owner-unlocked`, or `profile-has secrets` for a non-personal capability, in `link`, `$env.FORM_FACTOR` in `system`); plaintext code; packages
-stay out of `mirror/packages.txt` (a mirror package it needs goes in the platform's `extra_packages`).
+submodule is pulled (gate inside: `owner-unlocked`, or `profile-has secrets` for a non-personal capability, in `link`,
+`$env.FORM_FACTOR` in `system`); plaintext code; packages stay out of `mirror/packages.txt` (a mirror package it needs
+goes in the platform's `extra_packages`).
 
 ## The contract
 
@@ -41,7 +42,7 @@ export const options = {
 # user layer: declarations of what it wants, nothing written here
 export def link [cfg: record] {
     [
-        (files-into ($nu.home-dir | path join .config btop) btop.conf)
+        (files-into (xdg config btop) btop.conf)
         (unit-file oom-notify.service --enable --now)
     ]
 }
@@ -54,7 +55,7 @@ export def system [cfg: record] {
 export def theme [cfg: record, wallpaper: string] {
     let p = palette-load
     if $p == null { return [] }
-    file-text ($nu.home-dir | path join .config btop themes pywal.theme) $"theme[title]=\"($p | get $cfg.accent)\"\n" --generated
+    file-text (xdg config btop themes pywal.theme) $"theme[title]=\"($p | get $cfg.accent)\"\n" --generated
 }
 
 # a live option's hook: dot set calls it after the value changed
@@ -64,12 +65,12 @@ export def apply [cfg: record] {
 
 # hook: values for options left null by platform and profile (hardware, live state), run before resolving
 export def detect [cfg: record]: nothing -> record {
-    {accent: (if (gpu-list | is-empty) { c2 } else { null })}
+    {accent: (if (gpu-list | is-empty) { "c2" } else { null })}
 }
 
 # hook: packages that depend on an option, merged into meta.packages
 export def packages [cfg: record]: nothing -> record {
-    {pacman: (if $cfg.accent == c4 { [btop-extra] } else { [] })}
+    {pacman: (if $cfg.accent == "c4" { [btop-extra] } else { [] })}
 }
 ```
 
@@ -90,7 +91,7 @@ export def packages [cfg: record]: nothing -> record {
     (`~/.claude.json`; null drops one).
   - units: `unit-file <src> [--enable --now]`, `unit-enable|unit-disable|unit-mask <name> [--now]`,
     `unit-restart <name> [--reload]` (a `--then` that skips a unit not installed yet), `dropin <unit> <src> [--name]`,
-    `user-hook <name> <script> --watch [paths]`.
+    `user-hook <name> <script> --watch [paths] [--permanent] [--no-brake] [--mkdir]`.
   - other: `exec <name> [argv] [--creates path]`, `step <command> [args]` (an own export, run at apply time),
     `fetch-file <url> <sha256> <dest> [--extract <member>]`, `fetch-git <url> <commit> <dir>`, `group-admins <group>`,
     `palette-load` (for `theme`).
@@ -98,10 +99,10 @@ export def packages [cfg: record]: nothing -> record {
   `desktop-set {Key: v}` (in a `desktop-override` closure). The user layer already has `configs/base/xdg/app-dirs.conf`
   loaded; don't copy those variables into a module.
 - Option keys: `type`, `default`, `doc` required; `label`, `group`, `choices`, `min`/`max`/`step`, `apply` (default
-  relink), `scope` (default machine), `toggle` (set through `scripts/toggles/toggle-<name>.nu`: `on`/`off` for a bool,
-  else `set <value>`; its `get` is what the settings window shows).
-- Facts: `platform-has homelab|wireguard|secure_boot_own_keys|lsck0_snapshot` (`PLATFORM_FACTS`),
-  `$env.FORM_FACTOR` (`desktop laptop server vm wsl`), `owner-unlocked` and `profile-has secrets` (link only). Settings are options:
+  relink), `scope` (default machine), `toggle` (set through `scripts/toggles/toggle-<name>.nu`: `on`/`off` for a
+  bool, else `set <value>`; its `get` is what the settings window shows).
+- Facts: `platform-has homelab|wireguard|secure_boot_own_keys|lsck0_snapshot` (`PLATFORM_FACTS`), `$env.FORM_FACTOR`
+  (`desktop laptop server vm wsl`), `owner-unlocked` and `profile-has secrets` (link only). Settings are options:
   `dot set <group/module>.<key> <value> [--machine]`.
 - A file the app later edits is drift: kept until `dot module adopt <file>` (into the module) or `dot module reset
   <file>` (module's copy back, edit preserved aside); `dot apply --force <group>/<module>` resets all.

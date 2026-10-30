@@ -1,7 +1,8 @@
 import QtQuick
 import qs.Commons
 
-Row {
+// wraps onto further lines once a width is set; without one it stays a single row
+Flow {
   id: root
 
   property var hints: []
@@ -18,7 +19,7 @@ Row {
       Text {
         textFormat: Text.PlainText
         text: "[" + parent.modelData[0] + "]"
-        color: Colors.accent
+        color: Colors.accentText
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
         font.bold: true
@@ -26,8 +27,7 @@ Row {
       Text {
         textFormat: Text.PlainText
         text: parent.modelData[1]
-        color: Colors.foreground
-        opacity: Style.emphasis.faint
+        color: Colors.textDim
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
       }

@@ -13,7 +13,6 @@ const EARLY_POLICY = "/etc/apparmor/earlypolicy"
 const PARSER_LINES = [write-cache $"cache-loc ($EARLY_POLICY)/" Optimize=compress-fast]
 # the kernel's CONFIG_LSM default with apparmor before bpf
 const LSM = "lsm=landlock,lockdown,yama,integrity,apparmor,bpf"
-const CONFIG_LINK_HOOKS = [desktop fonts qt5 qt6 kde]
 const USER_DIRS = "../xdg/user-dirs.dirs"
 
 def rows [file: path]: nothing -> table {
@@ -65,16 +64,14 @@ export def system [cfg: record] {
         (file-text /etc/apparmor/ignore.d/dotfiles.conf (do $lines (own)))
         (file-text $"($ETC)/tunables/xdg-user-dirs.d/apparmor.d.d/dotfiles" (xdg-tunables))
         (step build)
-    ] ++ (if not ($"($ETC)/abstractions/base-strict" | path exists) {
+    # base-strict is aa-install's output: gating on it alone would leave a fresh machine's first run without ours
+    ] ++ (if not ($"($ETC)/abstractions/base-strict" | path exists) and (which aa-install | is-empty) {
         []
     } else {
         let modes = modes
         [
             (files-into $"($ETC)/abstractions/dotfiles" ...(glob abstractions/*))
             (files-into $"($ETC)/local" ...(glob local/*))
-            ($CONFIG_LINK_HOOKS | each {|h|
-                file-text $"($ETC)/abstractions/($h).d/dotfiles-config-links" (include config-links)
-            })
             (file-text $"($ETC)/abstractions/common/chromium.d/dotfiles-qtwebengine" (include qtwebengine))
             (glob profiles/* | each {|p| own-profile $p ($modes | get --optional ($p | path basename)) })
         ] | decls-flatten

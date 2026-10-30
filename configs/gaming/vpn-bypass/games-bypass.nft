@@ -12,4 +12,10 @@ table inet games_bypass {
         type route hook output priority mangle; policy accept;
         meta skgid @gids meta mark set $game_mark
     }
+
+    # the reroute after the mark keeps the source address picked for the vpn, so give it the physical link's own
+    chain postrouting {
+        type nat hook postrouting priority srcnat; policy accept;
+        meta mark $game_mark oifname != { "lo", "proton0" } masquerade
+    }
 }

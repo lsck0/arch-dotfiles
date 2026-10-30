@@ -44,6 +44,10 @@ BorderSurface {
   readonly property bool isAction: variant === "action"
   readonly property bool isChip: variant === "chip"
   readonly property bool hot: (mouseArea.containsMouse || hasCursor) && enabled
+  readonly property real _dangerFillAlpha: 0.28
+  readonly property real _dangerHotFillAlpha: 0.40
+  // the danger label stays readable on its own urgent fill, the hot one included; only danger chips pay for the walk
+  readonly property color _dangerText: isChip && danger ? Colors.textOnFill(Colors.urgent, Util.alpha(Colors.urgent, _dangerHotFillAlpha)) : foreground
   readonly property bool _showFocusRing: (focusable || isAction) && activeFocus
 
   activeFocusOnTab: focusable
@@ -77,6 +81,7 @@ BorderSurface {
   borderSpec: isAction ? (activeFocus ? Border.flat(Util.alpha(foreground, Style.focusBorderAlpha), Style.focusBorderWidth) : Border.none())
     : isChip ? (focused ? Border.flat(Util.alpha(Style.focusStateColor(Colors.foreground, Colors.accent), Style.focusBorderAlpha), Style.focusBorderWidth)
       : hot && !selected ? Border.flat(Style.hoverBorderColor, Style.hoverBorderWidth)
+      : selected ? Border.flat(Style.selectedMarkColor(foreground, accent), Style.selectedBorderWidth)
       : Border.none())
     : _showFocusRing ? _focusBorderSpec
     : hot && (isPlain || bordered) ? _hoverBorderSpec
@@ -85,7 +90,7 @@ BorderSurface {
     : Border.none()
 
   color: isAction ? Util.alpha(foreground, (hot || activeFocus ? 0.20 : 0.10) + (danger ? 0.08 : 0))
-    : isChip ? (danger ? Util.alpha(Colors.urgent, hot ? 0.40 : 0.28)
+    : isChip ? (danger ? Util.alpha(Colors.urgent, hot ? _dangerHotFillAlpha : _dangerFillAlpha)
       : selected ? Colors.menu.selectedBackground
       : mouseArea.pressed ? Style.pressedFill
       : hot ? Style.hoverFill
@@ -106,7 +111,7 @@ BorderSurface {
   layer.effect: Glow {}
 
   readonly property color _textColor: !enabled && isIcon ? Util.alpha(foreground, Style.emphasis.faint)
-    : isChip ? (danger ? Colors.urgent : selected ? Colors.menu.selectedText : foreground)
+    : isChip ? (danger ? _dangerText : selected ? Colors.menu.selectedText : foreground)
     : selected ? Style.selectedStateColor(foreground, accent)
     : foreground
   readonly property bool _textGlow: Style.fx.glow > 0 && enabled

@@ -39,6 +39,13 @@ Rectangle {
 
   Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
+  Rectangle {
+    visible: root.on
+    width: Style.selectedBorderWidth
+    height: parent.height
+    color: Style.selectedMarkColor(Colors.menu.text, Colors.accent)
+  }
+
   Row {
     id: content
     anchors.left: root.centered ? undefined : parent.left
@@ -100,8 +107,7 @@ Rectangle {
     anchors.verticalCenter: parent.verticalCenter
     textFormat: Text.PlainText
     text: root.trailing
-    color: Colors.menu.text
-    opacity: root.on ? 1 : Style.emphasis.faint
+    color: root.on ? Colors.menu.text : Colors.textDim
     font.family: Style.font.family
     font.pixelSize: Style.font.caption
   }
@@ -122,7 +128,7 @@ Rectangle {
     anchors.verticalCenter: parent.verticalCenter
     textFormat: Text.PlainText
     text: ">"
-    color: Colors.accent
+    color: Colors.accentText
     font.family: Style.font.family
     font.pixelSize: Style.font.caption
   }

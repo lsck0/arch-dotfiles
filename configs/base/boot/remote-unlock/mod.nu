@@ -20,7 +20,7 @@ export const options = {
     }
 }
 
-export const meta = {volatile: true}
+export const meta = {volatile: true, deps: [base/boot/luks]}
 
 const PACKAGES = [busybox mkinitcpio-systemd-tool tinyssh tinyssh-convert]
 
@@ -97,13 +97,12 @@ export def wifi-conf []: nothing -> nothing {
 }
 
 export def wifi-teardown []: nothing -> nothing {
-    rm --force $WIFI_CONF $"/etc/systemd/system/($WIFI_UNIT)"
+    rm --force $WIFI_CONF
 }
 
 export def keys []: nothing -> nothing {
     let secrets = $env.DOTFILES_SECRETS? | default "/nonexistent"
-    let host = ^uname -n | str trim
-    let secret_key = $secrets | path join initramfs-ssh $host sshkeydir .ed25519.sk
+    let secret_key = host-file ($secrets | path join initramfs-ssh) sshkeydir .ed25519.sk
     if ($secret_key | path exists) and (ls $secret_key | get 0.size | into int) == $ED25519_SK_BYTES {
         ^install -dm700 $KEYDIR
         ^install -m600 $secret_key $"($KEYDIR)/.ed25519.sk"
@@ -112,7 +111,7 @@ export def keys []: nothing -> nothing {
     } else if not ($"($KEYDIR)/.ed25519.sk" | path exists) {
         ^install -dm700 ($KEYDIR | path dirname)
         ^tinysshd-makekey $KEYDIR
-        let backup = $"configs/secrets/keys/initramfs-ssh/($host)"
+        let backup = host-file configs/secrets/keys/initramfs-ssh
         print ("note: remote-unlock: generated a new initramfs host key; back it up: "
             + $"mkdir -p ($backup) && sudo cp -r ($KEYDIR) ($backup)/sshkeydir && sudo chown -R $USER: ($backup)")
     }
@@ -151,6 +150,6 @@ def unwire []: nothing -> nothing {
 
 export def teardown []: nothing -> nothing {
     wifi-teardown
-    rm --force --recursive $AUTHORIZED_KEYS /etc/systemd/system/initrd-tinysshd.service.d
+    rm --force $AUTHORIZED_KEYS
     unwire
 }

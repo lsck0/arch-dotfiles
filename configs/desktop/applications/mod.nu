@@ -16,6 +16,8 @@ export const meta = {
 const SHOWN = [org.kde.knetattach org.kde.bluedevilwizard org.kde.plasma.printqueue]
 const KDE_ONLY = [systemsettings org.kde.plasma.emojier]
 const HIDDEN = [appimagetool byobu]
+# caido keeps the 8080 stirling-pdf defaults to
+const STIRLING_PORT = 8090
 
 # filezilla nags until a greeting version is stored and rewrites the file on exit, so it is seeded only once
 const FILEZILLA_XML = "filezilla/filezilla.xml"
@@ -44,10 +46,11 @@ export def link [cfg: record] {
     let apps = xdg data applications
     let run = $nu.home-dir | path join .local bin desktop-run
     let filezilla = xdg config $FILEZILLA_XML
+    let values = {HOME: $nu.home-dir, DOTFILES: $env.DOTFILES, STIRLING_PORT: $STIRLING_PORT}
     [(link-commands desktop-run.nu hollywood-run.nu)]
     # Exec needs the absolute path, ~/.local/bin is not on every session's PATH
     | append (glob *.desktop | each {|entry|
-        file-render $entry ($apps | path join ($entry | path basename)) {HOME: $nu.home-dir, DOTFILES: $env.DOTFILES}
+        file-render $entry ($apps | path join ($entry | path basename)) $values
     })
     | append ($SHOWN | each {|id| desktop-override $"($id).desktop" { line-drop '^NoDisplay=true$' } })
     | append ($KDE_ONLY | each {|id| desktop-override $"($id).desktop" { line-drop '^OnlyShowIn=KDE;$' } })

@@ -3,6 +3,7 @@
 
 const TRMNL_TIMER = "trmnl-claude.timer"
 const VLLM_PROXY = "vllm-proxy.service"
+const VLLM_SOCKET = "vllm.socket"
 const OLLAMA = "ollama.service"
 const OLLAMA_SOCKET = "ollama.socket"
 const SPLIT_LOCK_MITIGATE = "/usr/local/bin/split-lock-mitigate"
@@ -25,6 +26,23 @@ def admin []: nothing -> bool {
     "wheel" in (^id -nG | split row " ")
 }
 
+# Stops the units, idle sockets included, and records the active ones in mark.
+def units-stop [mark: path, units: list<string>]: nothing -> nothing {
+    let active = $units | where {|u| succeeds systemctl is-active -q $u }
+    if ($active | is-empty) { return }
+    mkdir ($mark | path dirname)
+    $active | str join "\n" | save --force $mark
+    succeeds systemctl --no-ask-password stop ...$units | ignore
+}
+
+# The units units-stop recorded, consuming the mark.
+def units-recorded [mark: path]: nothing -> list<string> {
+    if not ($mark | path exists) { return [] }
+    let units = open --raw $mark | lines | where $it != ""
+    rm $mark
+    $units
+}
+
 def main []: nothing -> nothing {
     print --stderr "usage: gamemode-hook start|end"
     exit 2
@@ -32,31 +50,23 @@ def main []: nothing -> nothing {
 
 def "main start" []: nothing -> nothing {
     if (succeeds systemctl --user is-enabled -q $TRMNL_TIMER) { succeeds systemctl --user stop $TRMNL_TIMER | ignore }
-    if (succeeds systemctl is-active -q $VLLM_PROXY) {
-        mkdir (vllm-mark | path dirname)
-        touch (vllm-mark)
-        succeeds systemctl --no-ask-password stop $VLLM_PROXY | ignore
-    }
-    if (succeeds systemctl is-active -q $OLLAMA) {
-        mkdir (ollama-mark | path dirname)
-        touch (ollama-mark)
-        # the socket re-activates ollama on any request, so stop it too while the game owns the gpu
-        succeeds systemctl --no-ask-password stop $OLLAMA_SOCKET $OLLAMA | ignore
-    }
+    # an idle socket's next request would load the weights onto the gpu mid-game
+    units-stop (vllm-mark) [$VLLM_SOCKET $VLLM_PROXY]
+    units-stop (ollama-mark) [$OLLAMA_SOCKET $OLLAMA]
     if (admin) { succeeds pkexec $SPLIT_LOCK_MITIGATE off | ignore }
 }
 
 def "main end" []: nothing -> nothing {
     if (succeeds systemctl --user is-enabled -q $TRMNL_TIMER) { succeeds systemctl --user start $TRMNL_TIMER | ignore }
-    if (ollama-mark | path exists) {
-        rm (ollama-mark)
-        # re-arm socket activation only; the next request brings ollama.service back on demand
+    # a socket disabled mid-game (the vllm toggle) stays down
+    let ollama = units-recorded (ollama-mark)
+    if ($ollama | is-not-empty) and (succeeds systemctl is-enabled -q $OLLAMA_SOCKET) {
+        # socket activation only; the next request brings ollama.service back on demand
         succeeds systemctl --no-ask-password start $OLLAMA_SOCKET | ignore
     }
-    # gamemode restores the level vllm had set, so vllm comes back with it
-    if (vllm-mark | path exists) {
-        rm (vllm-mark)
-        succeeds systemctl --no-ask-password start $VLLM_PROXY | ignore
+    let vllm = units-recorded (vllm-mark)
+    if ($vllm | is-not-empty) and (succeeds systemctl is-enabled -q $VLLM_SOCKET) {
+        succeeds systemctl --no-ask-password start ...$vllm | ignore
     }
     # split lock last: a denied pkexec must not skip the restores above
     if (admin) { succeeds pkexec $SPLIT_LOCK_MITIGATE on | ignore }

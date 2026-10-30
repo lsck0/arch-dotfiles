@@ -2,7 +2,7 @@
 # Reason for custom package: allow flit-core 4
 
 pkgname=theharvester-git
-pkgver=4.11.1.r467.g49a38f8d
+pkgver=r0
 pkgrel=1
 pkgdesc="Gather emails, names, subdomains, IPs and URLs related to targets using public sources"
 arch=(any)
@@ -32,7 +32,7 @@ makedepends=(git python-build python-installer python-wheel python-flit-core)
 optdepends=("python-httpx: alternative to aiohttp")
 install=theHarvester.install
 source=("$pkgname::git+$url.git#commit=6790b147f52309e4eee22ed941db1d285ab2ec23")
-b2sums=(SKIP)
+sha256sums=(SKIP)
 
 prepare() {
     cd "$pkgname"

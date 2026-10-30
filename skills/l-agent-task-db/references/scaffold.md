@@ -33,8 +33,8 @@ Part of `l-agent-task-db`.
     configured git identity (no identity configured: staged, not
     committed). Never `git add -A`, so unrelated pre-existing files are
     left for the human.
-  Auto-export-on-cd requires `eval "$(direnv hook zsh)"` in the shell rc
-  (already wired in this repo's `configs/core/zsh/zshrc`); without it,
+  Auto-export-on-cd requires a direnv zsh hook in the shell rc
+  (this repo's `configs/core/zsh/zshrc` loads it via `zsh_init_cache`); without it,
   `devenv shell` still works, but not automatically on `cd`.
 - One db per root: `taskwarrior-init` on a root that already has one
   reuses it rather than creating a second.

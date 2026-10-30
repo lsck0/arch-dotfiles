@@ -62,11 +62,11 @@ def wallpaper-problems [themes: list<record>]: nothing -> list<string> {
 def main [] {
     let themes = glob ($THEMES | path join "*.json") | each {|file|
         {name: ($file | path parse | get stem), spec: (open $file)}
-    }
-    let schema = $themes | each {|t| schema-problems $t.name $t.spec } | flatten
+    } | insert schema {|t| schema-problems $t.name $t.spec }
+    let schema = $themes | get schema | flatten
     let wallpaper = wallpaper-problems $themes
     # contrast and pair read the color slots, so only themes with an intact schema are checked for them
-    let good = $themes | where {|t| (schema-problems $t.name $t.spec) | is-empty }
+    let good = $themes | where {|t| $t.schema | is-empty }
     let paired = $good | each {|t|
         {name: $t.name, pair: $t.spec.pair?, light: ($t.spec.special.background | hex-to-rgb | is-light)}
     }

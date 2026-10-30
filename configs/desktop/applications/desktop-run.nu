@@ -41,7 +41,8 @@ def open-when-up [url: string]: nothing -> nothing {
     } | ignore
 }
 
-# Runs a launcher entry's command: a pick appended, sudo unless in --group, a failure held in a terminal or notified.
+# Runs a launcher entry's command: a pick appended, sudo unless in --group, a failure held in a terminal, or notified
+# with --notify.
 def main [
     ...command: any  # any: nu parses a bare true or 3 as a bool or number, a string type would reject it
     --file, --files, --dir
@@ -59,7 +60,7 @@ def main [
         exit $EXIT_USAGE
     }
     let pick = if $file { "file" } else if $files { "files" } else if $dir { "dir" }
-    let title = $command.0 | path basename
+    let title = $command | skip while {|c| $c == sudo } | get --optional 0 | default $command.0 | path basename
     let extra = if $pick != null { picked $pick $title } else if $ask != null { asked $ask $title } else { [] }
     if $extra == null { return }
     if $in_dir {

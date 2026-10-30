@@ -13,15 +13,30 @@ PanelWindow {
   property real padding: Style.surface.padding
   property string title: ""
   readonly property real titleInset: titleBar.visible ? titleBar.height + Style.spacing.sm : 0
-  default property alias body: inner.data
+  default property alias body: inner.flickableData
 
   property BarWidget anchorWidget: null
   readonly property bool anchored: anchorWidget !== null
 
   readonly property real edgeMargin: Style.spacing.sm
+  readonly property real fadeHeight: Style.space(32)
 
-  readonly property real maxBodyHeight: Math.max(Style.space(120),
-    (screen ? screen.height : Style.space(1080)) - Style.bar.sizeHorizontal - Style.gapsOut * 2 - padding * 2 - titleInset) // qmllint disable missing-property
+  // everything around the body: padding, the title and the card's bottom stroke, which the body must not run under
+  readonly property real chromeHeight: padding * 2 + titleInset + card.strokeWidth
+  readonly property real screenBodyHeight: Math.max(Style.space(120),
+    (screen ? screen.height : Style.space(1080)) - Style.bar.sizeHorizontal - Style.gapsOut * 2 - chromeHeight) // qmllint disable missing-property
+  // a panel caps its body below the screen's room here; past it the body scrolls
+  property real maxBodyHeight: screenBodyHeight
+  readonly property real maxHeight: Math.min(maxBodyHeight, screenBodyHeight) + chromeHeight
+
+  // the tallest body child's implicit height: a child filling or anchored to the bottom of the body would otherwise
+  // size the body after itself
+  readonly property real bodyHeight: {
+    var height = 0
+    for (const child of inner.contentItem.children) if (child.visible) height = Math.max(height, child.implicitHeight)
+    return height
+  }
+  implicitHeight: Math.min(maxHeight, bodyHeight + chromeHeight)
 
   readonly property real anchoredLeft: {
     if (!anchored || !bar) return 0
@@ -29,6 +44,9 @@ PanelWindow {
     var maxLeft = Math.max(edgeMargin, bar.width - implicitWidth - edgeMargin)
     return Math.max(edgeMargin, Math.min(maxLeft, centre - implicitWidth / 2))
   }
+  // where the panel sits on its screen: the toasts and the desktop widgets give way to it
+  readonly property rect screenRect: Qt.rect(anchored ? anchoredLeft : (bar ? bar.width : 0) - Style.spacing.sm - implicitWidth,
+    bar ? bar.exclusiveZone : 0, implicitWidth, implicitHeight)
 
   signal opened()
 
@@ -36,25 +54,32 @@ PanelWindow {
   readonly property bool keyboardOpened: shown && bar.keyboardPanel
   readonly property bool barPinned: shown && bar.pinnedPanel === moduleName
 
-  readonly property bool panelRegistered: bar !== null && moduleName !== ""
-  onPanelRegisteredChanged: if (panelRegistered) bar.panelRegister(moduleName)
+  // a hidden or dropped widget takes its panel off the bar: open, toggle and list refuse it, and an open one closes
+  readonly property bool panelRegistered: bar !== null && moduleName !== "" && (!anchored || (anchorWidget.visible && !anchorWidget.dropped))
+  onPanelRegisteredChanged: {
+    if (panelRegistered) bar.panelRegister(moduleName)
+    else if (bar) { bar.closePanel(moduleName); bar.panelUnregister(moduleName) }
+  }
   Component.onCompleted: if (panelRegistered) bar.panelRegister(moduleName)
   Component.onDestruction: if (panelRegistered) bar.panelUnregister(moduleName)
 
   readonly property alias boot: bootIn
 
   visible: shown || bootIn.progress > 0
+  onVisibleChanged: if (!visible && bar && bar.activePanelWindow === root) bar.activePanelWindow = null
   onShownChanged: {
     root.clicked = false
     if (!shown) return
+    bar.activePanelWindow = root
+    inner.contentY = 0
     if (anchorWidget && anchorWidget.refreshBarX) anchorWidget.refreshBarX()
     keys.forceActiveFocus()
     opened()
   }
 
   readonly property bool windowActive: keys.Window.active
-  onWindowActiveChanged: if (windowActive && keyboardOpened && keys.focus) walkFocus(true)
-  onKeyboardOpenedChanged: if (windowActive && keyboardOpened && keys.focus) walkFocus(true)
+  onWindowActiveChanged: if (windowActive && keyboardOpened && keys.focus) walkFocus(true, false)
+  onKeyboardOpenedChanged: if (windowActive && keyboardOpened && keys.focus) walkFocus(true, false)
 
   screen: bar && bar.screen ? bar.screen : null
   color: "transparent"
@@ -100,10 +125,43 @@ PanelWindow {
     }
   }
 
-  function walkFocus(forward) {
+  // reveal scrolls the body until the item clears the edge fades; the first focus on open leaves the body at its top
+  function focusItem(item, reveal) {
+    item.forceActiveFocus()
+    if (reveal === false || !itemInside(item) || !inner.interactive) return
+    var top = item.mapToItem(inner.contentItem, 0, 0).y
+    if (top - fadeHeight < inner.contentY) scrollBy(top - fadeHeight - inner.contentY)
+    else if (top + item.height + fadeHeight > inner.contentY + inner.height)
+      scrollBy(top + item.height + fadeHeight - inner.contentY - inner.height)
+  }
+
+  function walkFocus(forward, reveal) {
     var from = keys.Window.activeFocusItem || keys
     var next = from.nextItemInFocusChain(forward)
-    if (next && next !== from) next.forceActiveFocus()
+    if (next && next !== from) focusItem(next, reveal)
+  }
+
+  readonly property real scrollStep: Style.space(48)
+
+  function scrollBy(dy) {
+    inner.contentY = Math.max(0, Math.min(inner.contentHeight - inner.height, inner.contentY + dy))
+  }
+
+  function itemHidden(item, forward) {
+    var top = item.mapToItem(inner.contentItem, 0, 0).y
+    return forward ? top + item.height > inner.contentY + inner.height : top < inner.contentY
+  }
+
+  // j/k walk the focus chain while the next control is in view; past the view's edge, on a wrap or with nothing to
+  // focus they scroll the body a step, so rows between and after the controls stay readable
+  function moveVertical(forward) {
+    var from = keys.Window.activeFocusItem || keys
+    var next = from.nextItemInFocusChain(forward)
+    var wraps = !next || next === from || !itemInside(next)
+      || (itemInside(from) && (forward ? itemY(next) < itemY(from) : itemY(next) > itemY(from)))
+    if ((wraps || itemHidden(next, forward)) && inner.interactive && !(forward ? inner.atYEnd : inner.atYBeginning))
+      scrollBy((forward ? 1 : -1) * scrollStep)
+    else walkFocus(forward)
   }
 
   readonly property int focusChainMax: 512
@@ -146,14 +204,14 @@ PanelWindow {
       return section
     }
     const current = keys.Window.activeFocusItem
-    if (!current || !itemInside(current)) { items[forward ? 0 : items.length - 1].forceActiveFocus(); return }
+    if (!current || !itemInside(current)) { focusItem(items[forward ? 0 : items.length - 1]); return }
     const sectionCount = headers.length + 1
     const from = sectionOf(itemY(current))
     for (let step = 1; step <= sectionCount; step++) {
       const target = (from + (forward ? step : sectionCount - step)) % sectionCount
       for (let i = 0; i < items.length; i++) {
         if (sectionOf(itemY(items[i])) !== target) continue
-        items[i].forceActiveFocus()
+        focusItem(items[i])
         return
       }
     }
@@ -174,7 +232,11 @@ PanelWindow {
     onCloseRequested: if (root.bar) root.bar.closePanel(root.moduleName)
     onTextKey: function(text) { if (text === "q" && root.bar) root.bar.closePanel(root.moduleName) }
     onTabRequested: function(direction) { root.sectionJump(direction > 0) }
-    onMoveRequested: function(dx, dy) { root.walkFocus(dx + dy > 0) }
+    onMoveRequested: function(dx, dy) {
+      if (dy !== 0) root.moveVertical(dy > 0)
+      else root.walkFocus(dx > 0)
+    }
+    onPageRequested: function(direction) { root.scrollBy(direction * (inner.height - root.scrollStep)) }
 
     Item {
       id: reveal
@@ -208,13 +270,63 @@ PanelWindow {
         HudFrame { inset: bootIn.bracketInset; chamfer: card.cut; chamferCorner: card.cutCorner }
       }
 
-      Item {
+      Flickable {
         id: inner
         x: card.contentLeftInset
         y: card.y + card.contentTopInset + root.titleInset
         width: card.width - card.contentLeftInset - card.contentRightInset
         height: card.height - card.contentTopInset - card.contentBottomInset - root.titleInset
         opacity: bootIn.rowOpacity(1)
+        contentWidth: width
+        contentHeight: Math.max(height, root.bodyHeight)
+        interactive: root.bodyHeight > height
+        flickableDirection: Flickable.VerticalFlick
+        boundsBehavior: Flickable.StopAtBounds
+        clip: interactive
+        layer.enabled: interactive
+        layer.effect: FadeMask { maskSource: bodyFade }
+      }
+
+      // more above or below: the body fades out at that edge and the scroll track shows where the view sits
+      Item {
+        id: bodyFade
+        readonly property real ramp: root.fadeHeight / Math.max(1, height)
+        x: inner.x
+        y: inner.y
+        width: inner.width
+        height: inner.height
+        visible: false
+        layer.enabled: inner.interactive
+
+        Rectangle {
+          anchors.fill: parent
+          gradient: Gradient {
+            GradientStop { position: 0; color: Util.alpha("black", inner.atYBeginning ? 1 : 0) }
+            GradientStop { position: Math.min(0.5, bodyFade.ramp); color: "black" }
+            GradientStop { position: Math.max(0.5, 1 - bodyFade.ramp); color: "black" }
+            GradientStop { position: 1; color: Util.alpha("black", inner.atYEnd ? 1 : 0) }
+          }
+        }
+      }
+
+      Rectangle {
+        id: scrollTrack
+        visible: inner.interactive
+        x: inner.x + inner.width + (root.padding - width) / 2
+        y: inner.y
+        width: Math.max(1, Style.space(3))
+        height: inner.height
+        radius: width / 2
+        color: Util.alpha(Colors.accent, Style.emphasis.disabled)
+        opacity: inner.opacity
+
+        Rectangle {
+          y: inner.visibleArea.yPosition * scrollTrack.height
+          width: parent.width
+          height: Math.max(parent.width * 4, inner.visibleArea.heightRatio * scrollTrack.height)
+          radius: parent.radius
+          color: Colors.accent
+        }
       }
 
       HudTitle {
@@ -227,7 +339,6 @@ PanelWindow {
         height: visible ? implicitHeight : 0
         text: root.title
         typed: bootIn.typed
-        decor: true
         rule: true
         blinking: visible && root.shown
       }

@@ -5,6 +5,7 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "separator"
+  barPriority: 0
 
   readonly property int thickness: Math.max(1, Style.space(1))
   readonly property int pad: setting("pad", Style.bar.groupGap)
@@ -25,7 +26,7 @@ BarWidget {
     function solid(loader) {
       if (!loader || loader === ownLoader) return false
       var item = loader.item
-      if (!item || !item.visible) return false
+      if (!item || !item.visible || loader.dropped) return false
       if (item.moduleName === "separator") return false
       return item.implicitWidth > 0
     }
@@ -59,7 +60,7 @@ BarWidget {
     anchors.centerIn: parent
     textFormat: Text.PlainText
     text: root.vertical ? ":" : "::"
-    color: Colors.accent
+    color: Colors.accentText
     opacity: Style.emphasis.faint
     font.family: root.bar ? root.bar.fontFamily : Style.font.family
     font.pixelSize: Style.font.body

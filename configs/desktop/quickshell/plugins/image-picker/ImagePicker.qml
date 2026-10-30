@@ -776,8 +776,7 @@ Item {
                             anchors.horizontalCenter: parent.horizontalCenter
                             textFormat: Text.PlainText
                             text: parent.modelData[0]
-                            color: root.foreground
-                            opacity: Style.emphasis.faint
+                            color: Colors.textDim
                             font.family: Style.font.family
                             font.pixelSize: Style.font.caption
                         }
@@ -789,7 +788,7 @@ Item {
                 Text {
                     textFormat: Text.PlainText
                     text: root.preview ? ":: " + root.preview.verdict : ":: --"
-                    color: !root.preview ? root.foreground : root.preview.verdict === "OK" ? Colors.ok : Colors.warn
+                    color: !root.preview ? root.foreground : root.preview.verdict === "OK" ? Colors.okText : Colors.warnText
                     font.family: Style.font.family
                     font.pixelSize: Style.font.body
                     font.bold: true
@@ -848,8 +847,7 @@ Item {
                         width: Math.min(implicitWidth, queryRow.width - caret.width - queryRow.spacing)
                         textFormat: Text.PlainText
                         text: root.filterText || "filter by name"
-                        color: root.foreground
-                        opacity: root.filterText ? 1 : Style.emphasis.faint
+                        color: root.filterText ? root.foreground : Colors.textDim
                         font.family: Style.font.family
                         font.pixelSize: Style.font.body
                         elide: Text.ElideRight
@@ -934,7 +932,6 @@ Item {
                     typed: boot.typed
                     suffix: "[" + String(root.filteredCount) + "]"
                     color: root.selectedBorder
-                    decor: true
                     blinking: root.opened
                 }
 

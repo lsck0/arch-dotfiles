@@ -1,6 +1,8 @@
 use module.nu *
+use ../boot/boot.nu [sbctl-quiet sbctl-ready]
 
-export const meta = {packages: {native: [fwupd]}}
+# volatile: sign waits for sbctl's own keys, which a later run may create
+export const meta = {packages: {native: [fwupd]}, volatile: true}
 
 const EFI = "/usr/lib/fwupd/efi/fwupdx64.efi"
 
@@ -14,6 +16,6 @@ export def system [cfg: record] {
 
 # Signs the fwupd efi binary into sbctl's list, so sbctl's pacman hook re-signs it on every fwupd upgrade.
 export def sign []: nothing -> nothing {
-    if (which sbctl | is-empty) or not (^sbctl status | str contains "Owner GUID") { return }
-    ^sbctl sign -s -o $"($EFI).signed" $EFI
+    if not (sbctl-ready) { return }
+    sbctl-quiet sign -s -o $"($EFI).signed" $EFI
 }

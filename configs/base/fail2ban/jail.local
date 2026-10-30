@@ -8,5 +8,5 @@ banaction_allports = nftables-allports
 
 [sshd]
 enabled = true
-port = 2222
+port = @SSH_PORT@
 backend = systemd

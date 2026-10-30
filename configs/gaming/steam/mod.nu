@@ -2,15 +2,14 @@ use module.nu *
 
 export const meta = {deps: [gaming/gamemode gaming/mangohud], packages: {pacman: [millennium steam]}}
 
-const STEAM = ".local/share/Steam"
 const MILLENNIUM_LIB = "/usr/lib/millennium"
 
 def theme-dir []: nothing -> path {
-    $nu.home-dir | path join $STEAM millennium themes cyberpunk
+    xdg data Steam millennium themes cyberpunk
 }
 
 export def link [cfg: record] {
-    let steam = $nu.home-dir | path join $STEAM
+    let steam = xdg data Steam
     let palette = xdg cache wal colors-steam.css
     let colors = theme-dir | path join colors.css
     let xtst = try { ^readlink ($steam | path join ubuntu12_32 libXtst.so.6) | str trim } catch { "" }

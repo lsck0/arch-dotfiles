@@ -14,19 +14,20 @@ answers' `report` url. Up to 12 h.
 
 - `dot test lint` (`run` runs it first).
 - sudo (asked once), `virt-install`, `virsh`, `socat`, `xorriso`, `curl`; `magick` for `shot`.
-- The iso: the published one, fetched to `~/.cache/vm-test/` and checked against `.sha256`; `--iso PATH` a local build.
+- The iso: the published one, fetched to `$XDG_CACHE_HOME/vm-test/` and checked against `.sha256`; `--iso PATH` a
+  local build.
 - Tests the working tree (untracked included) as a bundle over `origin/master`; `--master` tests GitHub master. The
   stub applies the bundle and execs its own stub, so a published iso runs the current installer.
 
 ## Run
 
 ```bash
-dot test run                              # platforms/vm.nuon, login luca, profile luca
+dot test run                              # platforms/vm.nuon, login luca (--user <login>), profile luca
 dot test run --platform luca-notebook
 dot test run --profile custom
 dot test run --platform server
 dot test run --name other-vm              # beside the default archlinux-test
-dot test run --iso ~/.cache/dotfiles-iso/out/archlinux-lsck0-latest-x86_64.iso
+dot test run --iso "${XDG_CACHE_HOME:-$HOME/.cache}"/dotfiles-iso/out/archlinux-lsck0-latest-x86_64.iso
 ```
 
 Run it in the background; it prints each beacon and exits 1 with the problems.
@@ -34,19 +35,19 @@ Run it in the background; it prints each beacon and exits 1 with the problems.
 ## Reports
 
 - Install powers the VM off when done; on failure the stub uploads `/tmp/lsck0-install.log` to
-  `~/.cache/vm-test/<name>/host/upload/bootstrap.log` and beacons `bootstrap-fail`.
+  `$XDG_CACHE_HOME/vm-test/<name>/host/upload/bootstrap.log` and beacons `bootstrap-fail`.
 - Stages beacon `install-ok|failed`, `config-ok|failed` (`stage.nu`, `/var/lib/dotfiles-stage/report`).
 - The chain's end runs `scripts/lib/stage-report.nu` as root: probes in `scripts/lib/invariants.txt`,
   `dot internal backup --roundtrip`, stage log, journals, `FAILURES.*`, `*.log`; uploads `logs.tgz`, beacons
   `chain-done`, reboots (waits at the passphrase; not unlocked).
-- `~/.cache/vm-test/<name>/logs`: the report. Pass is `dot test: chain succeeded`, wanting `stage_armed=no`,
+- `$XDG_CACHE_HOME/vm-test/<name>/logs`: the report. Pass is `dot test: chain succeeded`, wanting `stage_armed=no`,
   `sudo_passwordless=no`, `keyfile_present=no`, `luks_keyslots=1`, `secure_boot=1`, `setup_mode=0`,
   `kernel_modules=yes`, `pdf_queue=yes`, `backup_roundtrip=ok`, both stages `ok`, no non-empty `FAILURES.*`.
 
 ## While and after
 
 ```bash
-dot test shot      # ~/.cache/vm-test/<name>/screen.png
+dot test shot      # $XDG_CACHE_HOME/vm-test/<name>/screen.png
 dot test destroy   # VM, disk, answers volume; the iso volume stays
 ```
 

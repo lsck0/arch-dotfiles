@@ -41,10 +41,12 @@ export const options = {
 }
 
 const PREFIX = "/opt/vllm"
-const VERSION = "0.30.0+rocm723"
+const RELEASE = "0.30.0"
+const ROCM_TAG = "rocm723"
+const VERSION = $"($RELEASE)+($ROCM_TAG)"
 const OMNI_VERSION = "0.30.0"
 # the bare rocm/ index keeps only the newest release; rocm/<release>/<rocm tag>/ keeps the pin resolvable
-const WHEELS_URL = "https://wheels.vllm.ai/rocm/0.30.0/rocm723/"
+const WHEELS_URL = $"https://wheels.vllm.ai/rocm/($RELEASE)/($ROCM_TAG)/"
 # pins the resolver's view of every transitive dep (torch, transformers, ...) as of this date; bump with VERSION
 const EXCLUDE_NEWER = "2026-10-22"
 # rocm wheels are cp312 only
@@ -52,6 +54,8 @@ const PYTHON_VERSION = "3.12"
 const ROCM_BIN = "/opt/rocm/bin"
 const DESKTOP_VRAM = 4.5GiB
 const SHARE_STEP = 0.05
+const STUB_SOURCE = "mpi-cxx-stub.c"
+const UV_EXCLUDES = "uv-excludes.txt"
 
 export def detect [cfg: record]: nothing -> record {
     let gpu = gpu-list | where vendor == amd | get --optional 0
@@ -90,10 +94,20 @@ export def system [cfg: record] {
     ]
 }
 
+# Everything the venv is built from; a venv whose stamp matches is left alone.
+def venv-stamp []: nothing -> string {
+    [$VERSION $OMNI_VERSION $WHEELS_URL $EXCLUDE_NEWER $PYTHON_VERSION (open --raw $STUB_SOURCE | hash sha256)
+        (open --raw $UV_EXCLUDES | hash sha256)] | str join "\n" | $"($in)\n"
+}
+
 export def venv []: nothing -> nothing {
     mkdir $PREFIX
     if (^find $PREFIX ! -user root -print -quit | str trim | is-not-empty) { ^chown -R root:root $PREFIX }
     let venv = $PREFIX | path join venv
+    let stamp_path = $PREFIX | path join venv.stamp
+    let stamp = venv-stamp
+    let python = $venv | path join bin python
+    if ($python | path exists) and ($stamp_path | path exists) and (open --raw $stamp_path) == $stamp { return }
     # the rocm index has no upload times, so --exclude-newer is pinned off for it alone
     let uv_config = mktemp --tmpdir --suffix .toml
     try {
@@ -102,18 +116,19 @@ export def venv []: nothing -> nothing {
             ^uv venv --allow-existing --python $PYTHON_VERSION $venv
             # mooncake's bundled glog clashes with the system's and aborts the import
             (^uv pip install --python $venv --config-file $uv_config --exclude-newer $EXCLUDE_NEWER
-                --excludes uv-excludes.txt $"vllm==($VERSION)" $"vllm-omni==($OMNI_VERSION)")
-            ^uv pip uninstall --python $venv -r uv-excludes.txt
+                --excludes $UV_EXCLUDES $"vllm==($VERSION)" $"vllm-omni==($OMNI_VERSION)")
+            ^uv pip uninstall --python $venv -r $UV_EXCLUDES
         }
         rm --force $uv_config
     } catch {|e| rm --force $uv_config; error make {msg: $e.msg} }
     # torch's RUNPATH is $ORIGIN, so the libmpi_cxx stub goes beside it
-    let platlib = ^($venv | path join bin python) -c 'import sysconfig; print(sysconfig.get_path("platlib"))' | str trim
+    let platlib = ^$python -c 'import sysconfig; print(sysconfig.get_path("platlib"))' | str trim
     let build = mktemp --directory
     try {
         let stub = $build | path join libmpi_cxx.so.40
-        ^cc -shared -fPIC -O2 -Wall -Werror -Wl,-soname,libmpi_cxx.so.40 -o $stub mpi-cxx-stub.c
+        ^cc -shared -fPIC -O2 -Wall -Werror -Wl,-soname,libmpi_cxx.so.40 -o $stub $STUB_SOURCE
         ^install -m755 $stub ($platlib | path join torch lib libmpi_cxx.so.40)
         rm --recursive $build
     } catch {|e| rm --recursive --force $build; error make {msg: $e.msg} }
+    $stamp | save --force $stamp_path
 }

@@ -7,6 +7,7 @@ Target = cdrtools
 Target = diskwatch
 
 [Action]
-Description = Limiting capability and setuid binaries to wheel: btop without caps, diskwatch and cdrtools root:wheel 0750
+# btop loses its caps; diskwatch and cdrtools become root:wheel 0750 with their caps re-applied
+Description = Limiting capability binaries to wheel
 When = PostTransaction
 Exec = /usr/bin/sh -c 'if getcap /usr/bin/btop 2>/dev/null | grep -q .; then setcap -r /usr/bin/btop; fi; for f in /usr/bin/diskwatch /usr/bin/cdrecord /usr/bin/readcd /usr/bin/cdda2wav /usr/bin/rscsi; do [ -f "$f" ] || continue; caps=$(getcap "$f" | cut -d" " -f2); chgrp wheel "$f" && chmod 750 "$f" && { [ -z "$caps" ] || setcap "$caps" "$f"; }; done'

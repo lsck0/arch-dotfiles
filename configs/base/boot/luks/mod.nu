@@ -1,5 +1,6 @@
 use module.nu *
 use ../boot.nu [cmdline-set hooks-read hooks-write hooks-insert]
+use state.nu [SYSTEM_STATE]
 
 export const meta = {packages: {native: [cryptsetup]}, volatile: true}
 
@@ -8,6 +9,7 @@ const CRYPTTAB = "/etc/crypttab"
 const ENTRY_OPTIONS = "luks,nofail,discard,perf-no-read-workqueue,perf-no-write-workqueue"
 # PCR 15 before any volume key is measured into it
 const PCR15_INITIAL = "0000000000000000000000000000000000000000000000000000000000000000"
+const HEADER_STAMP = "luks-header"
 
 def luks-parts []: nothing -> table {
     ^lsblk -J -l -o NAME,UUID,FSTYPE,TYPE | from json | get blockdevices | where fstype == crypto_LUKS and type == part
@@ -58,9 +60,13 @@ def hook-place []: nothing -> nothing {
     hooks-write (hooks-insert $hooks $hook ($hooks | enumerate | where item == filesystems | get 0.index))
 }
 
-# Enrolls the root's tpm seal bound to PCR 15's initial zero, so it never opens after another volume was unlocked.
+# Sets the root's unlock options on the cmdline. The TPM2 enrol note and the header backup reminder print only when
+# the luksDump differs from the last apply's, so once per keyslot change.
 def root-unlock [part: string]: nothing -> nothing {
     let header = ^cryptsetup luksDump $"/dev/($part)"
+    let stamp = $SYSTEM_STATE | path join $HEADER_STAMP
+    let header_hash = $header | hash sha256
+    let header_changed = $header_hash != (try { open --raw $stamp | str trim } catch { "" })
     # with tpm2-measure-pcr, fido2-device=auto and no enrolled token fail the unlock without asking the passphrase
     let fido = $header | str contains systemd-fido2
     if not $fido {
@@ -71,12 +77,18 @@ def root-unlock [part: string]: nothing -> nothing {
     # never TPM-only: any signed uki would unseal it unattended
     let enroll = $"systemd-cryptenroll --tpm2-device=auto --tpm2-with-pin=yes --tpm2-pcrs=7+15:sha256=($PCR15_INITIAL)"
     if not ($header | str contains systemd-tpm2) {
-        print $"note: luks: no TPM2 seal enrolled, for a measured-boot pin unlock: sudo ($enroll) /dev/($part)"
+        if $header_changed {
+            print $"note: luks: no TPM2 seal enrolled, for a measured-boot pin unlock: sudo ($enroll) /dev/($part)"
+        }
     } else if ($header =~ 'tpm2-pin:\s+false') {
         print ("note: luks: a TPM2 seal without a pin unlocks any boot, replace it: "
             + $"sudo ($enroll) --wipe-slot=tpm2 /dev/($part)")
     }
-    print "luks: header backup, after every keyslot change: configs/base/boot/luks/header-backup.nu (as the admin)"
+    if $header_changed {
+        print "luks: keyslots changed, back up the header: configs/base/boot/luks/header-backup.nu (as the admin)"
+        mkdir $SYSTEM_STATE
+        $"($header_hash)\n" | save --force $stamp
+    }
 }
 
 export def configure []: nothing -> nothing {

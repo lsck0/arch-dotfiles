@@ -43,9 +43,9 @@ re-triggering a live pass, the poll cadence must self-adjust instead of
 polling at a fixed rate forever or requiring the human to manually "wake"
 it back up after answering a question:
 
-- **State file**: `tasks/.poll-backoff`: a single integer, minutes since
-  the last successful advance. Gitignored, local state, same as
-  `tasks/.task/`.
+- **State file**: `tasks/.poll-backoff`: a single integer, the current poll
+  interval in minutes (1 after progress, +1 per idle run). Gitignored,
+  local state, same as `tasks/.task/`.
 - **Setup (once per project)**: create the poll job UNDER THE
   `orchestrator` PROFILE (see above) with `schedule="in 1m"`. Use the
   `hermes cron create` CLI with `HERMES_HOME` set (or the

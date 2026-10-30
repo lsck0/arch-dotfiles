@@ -16,7 +16,7 @@ include <abstractions/devices-u2f>
 /etc/arch-release r,
 owner @{user_config_dirs}/BetterDiscord/{,**} rwk,
 owner @{run}/user/@{uid}/quickshell-discord-voice.json{,.tmp} rw,
-owner @{run}/user/@{uid}/quickshell-discord-cmd rw,
+owner @{run}/user/@{uid}/quickshell-discord-cmd{,.reading} rw,
 @{sys}/fs/cgroup/user.slice/user-@{uid}.slice/user@@{uid}.service/**/{memory.max,memory.high,cpu.max} r,
 deny @{bin}/lsb_release x,
 deny @{bin}/xprop rx,

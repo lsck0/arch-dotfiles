@@ -8,6 +8,7 @@ Item {
   signal moveRequested(int dx, int dy)
   signal closeRequested()
   signal tabRequested(int direction)
+  signal pageRequested(int direction)
   signal textKey(string text)
 
   focus: true
@@ -22,6 +23,9 @@ Item {
       tabRequested((event.modifiers & Qt.ShiftModifier) || event.key === Qt.Key_Backtab ? -1 : 1)
       event.accepted = true
       return
+    }
+    if (event.key === Qt.Key_PageDown || event.key === Qt.Key_PageUp) {
+      pageRequested(event.key === Qt.Key_PageDown ? 1 : -1); event.accepted = true; return
     }
     if (event.key === Qt.Key_Down || event.text === "j") {
       moveRequested(0, 1); event.accepted = true; return

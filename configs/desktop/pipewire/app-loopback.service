@@ -1,6 +1,6 @@
 [Unit]
 Description=Per-app loopbacks between app streams and devices
-After=pipewire.service wireplumber.service
+After=pipewire.service pipewire-session-manager.service
 BindsTo=pipewire.service
 
 [Service]

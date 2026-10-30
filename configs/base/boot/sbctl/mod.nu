@@ -1,21 +1,15 @@
 use module.nu *
+use ../boot.nu [SDBOOT_ESP_FILES UKI_DIR sbctl-quiet sbctl-ready]
 
 export const meta = {packages: {native: [sbctl]}, volatile: true}
 
 const PK_VAR = "/sys/firmware/efi/efivars/PK-8be4df61-93ca-11d2-aa0d-00e098032b8c"
 const PK_CERT = "/var/lib/sbctl/keys/PK/PK.pem"
 const EVENT_LOG = "/sys/kernel/security/tpm0/binary_bios_measurements"
-const BOOT_FILES = [
-    /boot/EFI/BOOT/BOOTX64.EFI /boot/EFI/systemd/systemd-bootx64.efi
-]
 
 export def system [cfg: record] {
     if not ("/sys/firmware/efi" | path exists) { return [] }
     step secure-boot (if (platform-has secure_boot_own_keys) { "own" } else { "microsoft" })
-}
-
-def status-has [field: string]: nothing -> bool {
-    ^sbctl status | str contains --ignore-case $field
 }
 
 def enabled [field: string]: nothing -> bool {
@@ -25,14 +19,13 @@ def enabled [field: string]: nothing -> bool {
 def sign-unsigned []: nothing -> nothing {
     let listed = ^sbctl verify | lines | parse --regex '^[^/]*(?<path>/.*) is not signed$' | get path
         | where {|p| not ($p | str starts-with /boot/vmlinuz-) }
-    let extra = $BOOT_FILES | append (glob /boot/EFI/Linux/*.efi) | where {|f|
+    let extra = $SDBOOT_ESP_FILES | append (glob $"($UKI_DIR)/*.efi") | where {|f|
         ($f | path exists) and $f not-in $listed and not (^sbctl verify $f | str contains "is signed")
     }
     for file in ($listed ++ $extra) {
         print $"sbctl: signing ($file)"
-        ^sbctl sign -s $file
+        sbctl-quiet sign -s $file
     }
-    ^sbctl sign-all
 }
 
 # Whether our PK is enrolled: some firmware (ami) clears SetupMode only at the next reset, the PK variable is proof.
@@ -70,7 +63,7 @@ export def secure-boot [keys: string]: nothing -> nothing {
             + "enable Setup Mode, then rerun dot apply")
         return
     }
-    if not (status-has "Owner GUID") { ^sbctl create-keys }
+    if not (sbctl-ready) { ^sbctl create-keys }
     sign-unsigned
     # efivarfs marks them immutable and enroll-keys then never writes PK; the firmware still guards them
     for var in (glob /sys/firmware/efi/efivars/{PK,KEK,db,dbx}-*) { ^chattr -i $var }

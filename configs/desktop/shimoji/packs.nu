@@ -12,7 +12,10 @@ def main []: nothing -> nothing {
     if not ($marker | path exists) {
         # the overlay makes its config root with a plain mkdir
         mkdir ($env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share))
-        for pack in (glob ($env.FILE_PWD | path join "*.wlshm")) { ^shimejictl import $pack }
+        # private packs live in the secrets submodule, present only on an owner checkout
+        let private = $env.FILE_PWD | path join .. .. secrets state shimoji
+        let packs = (glob ($env.FILE_PWD | path join "*.wlshm")) ++ (if ($private | path exists) { glob ($private | path join "*.wlshm") } else { [] })
+        for pack in $packs { ^shimejictl import $pack }
         mkdir ($marker | path dirname)
         touch $marker
     }

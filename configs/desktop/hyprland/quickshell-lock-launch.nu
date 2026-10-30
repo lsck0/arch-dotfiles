@@ -30,7 +30,7 @@ def main [] {
         ^setsid -f hyprlock --grace 0 --immediate-render o+e> /dev/null
         if (granted) { return }
     }
-    ^notify-send -u critical lock "quickshell and hyprlock unreachable, cannot lock" | complete | ignore
+    ^notify-send -u critical "Screen not locked" "quickshell and hyprlock both failed to take the lock" | complete | ignore
     ^hyprctl dispatch "hl.dsp.dpms({ mode = 'off' })" | complete | ignore
     exit 1
 }

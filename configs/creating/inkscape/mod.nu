@@ -7,7 +7,6 @@ const MCP_VERSION = "1.3.1"
 const MCP_RELEASED = "2026-09-01"
 # inkex pins lxml 5.4.0, which has no wheel for and fails to build on python 3.14
 const MCP_PYTHON = "3.12"
-const PREFERENCES = ".config/inkscape/preferences.xml"
 # inkscape merges its preferences over the built-in ones by group id, so this group alone is a complete file
 const START_SCREEN_OFF = '<group id="boot" enabled="0" />'
 
@@ -18,7 +17,7 @@ def start-screen-set [file: path]: nothing -> bool {
 export def link [cfg: record] {
     if (which inkscape uvx | length) < 2 { return [] }
     let pkg = $"inkscape-mcp==($MCP_VERSION)"
-    let preferences = $nu.home-dir | path join $PREFERENCES
+    let preferences = xdg config inkscape preferences.xml
     [
         (if (start-screen-set $preferences) { [] } else { step start-screen-off $preferences })
         (mcp-servers {inkscape-mcp: {

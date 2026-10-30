@@ -1,9 +1,9 @@
 # Pinned downloads: files by sha256, git trees by commit.
 
-use state.nu [state-dir path-kind]
+use state.nu [state-dir path-kind xdg]
 
 def fetch-cache []: nothing -> path {
-    if (is-admin) { "/var/cache/dotfiles/fetch" } else { $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join dotfiles fetch }
+    if (is-admin) { "/var/cache/dotfiles/fetch" } else { xdg cache dotfiles fetch }
 }
 
 def stamp [dest: path]: nothing -> path {
@@ -23,8 +23,8 @@ def extract [archive: path, into: path]: nothing -> nothing {
     if (^file -b --mime-type $archive | str trim) == "application/zip" { ^unzip -q $archive -d $into } else { ^tar -xf $archive -C $into }
 }
 
-# --extract names an archive member, or . for all.
-export def fetch-file-run [url: string, sha256: string, dest: path, --mode: string = "644", --extract: string]: nothing -> nothing {
+# --extract names an archive member, or . for all; --in-place keeps an existing file's inode for watchers.
+export def fetch-file-run [url: string, sha256: string, dest: path, --mode: string = "644", --extract: string, --in-place]: nothing -> nothing {
     let cached = fetch-cache | path join $sha256
     if not ($cached | path exists) {
         mkdir ($cached | path dirname)
@@ -51,8 +51,14 @@ export def fetch-file-run [url: string, sha256: string, dest: path, --mode: stri
         if (path-kind $member) == "dir" { mv $member $next } else { ^install -m $mode $member $next }
         rm --recursive --force $tmp
     }
-    rm --recursive --force $dest
-    mv $next $dest
+    if $in_place and (path-kind $dest) == "file" and (path-kind $next) == "file" {
+        ^chmod $mode $dest
+        ^cp $next $dest
+        rm $next
+    } else {
+        rm --recursive --force $dest
+        mv $next $dest
+    }
     mkdir (stamp $dest | path dirname)
     $sha256 | save --force (stamp $dest)
 }

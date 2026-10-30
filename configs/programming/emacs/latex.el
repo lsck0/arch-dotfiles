@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t; -*-
 (use-package auctex
   :defer t
   :config
@@ -21,8 +22,6 @@
   :hook ((LaTeX-mode . reftex-mode)
          (LaTeX-mode . TeX-source-correlate-mode))
   :config (setq reftex-plug-into-AUCTeX t))
-
-(add-hook 'LaTeX-mode-hook (lambda () (setq indent-tabs-mode t)))
 
 (defconst my/latex-auto-snippets
   '(("//"  "\\frac{" p "}{" p "}")

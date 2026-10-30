@@ -1,5 +1,5 @@
 use module.nu *
-use ../boot.nu [ESP CMDLINE UKI_DIR esp-supported cmdline-set]
+use ../boot.nu [ESP CMDLINE esp-supported cmdline-set uki-path]
 
 export const meta = {
     packages: {native: [amd-ucode intel-ucode linux linux-headers linux-lts linux-lts-headers mkinitcpio]}
@@ -29,7 +29,7 @@ export def install []: nothing -> nothing {
         let want = open --raw $preset | lines
             | where {|l| not ($l =~ '^#?default_(image|uki|cmdline)=') }
             | each {|l| if ($l =~ '^PRESETS=') { "PRESETS=('default')" } else { $l } }
-            | append [$'default_uki="($UKI_DIR)/arch-($pkgbase).efi"' $'default_cmdline="($CMDLINE)"']
+            | append [$'default_uki="(uki-path $pkgbase)"' $'default_cmdline="($CMDLINE)"']
             | str join "\n" | $"($in)\n"
         if $want == (open --raw $preset) { continue }
         let backup = $"($preset).arch-dotfiles-backup"

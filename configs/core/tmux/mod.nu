@@ -13,7 +13,7 @@ export def link [cfg: record] {
     let wanted = {path: $projects, depth: $PROJECTS_DEPTH}
     let searched = if ($tms | path exists) { open $tms | get --optional search_dirs | default [] } else { [] }
     [
-        (file-copy tmux.conf ($dir | path join tmux.conf))
+        (file-render tmux.conf ($dir | path join tmux.conf) {CACHE: (xdg cache)})
         (file-copy popup.nu ($dir | path join popup.nu) --mode 755)
         (file-copy autoreload.nu ($dir | path join autoreload.nu) --mode 755)
         (if $wanted in $searched { [] } else { step tms-search $projects ($PROJECTS_DEPTH | into string) })

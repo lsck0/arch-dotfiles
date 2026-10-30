@@ -1,0 +1,40 @@
+[Unit]
+Description=RAPL package power as whole watts in /run/powercap/watts
+ConditionPathExists=/sys/class/powercap/intel-rapl:0/energy_uj
+
+[Service]
+ExecStart=/usr/local/bin/powercap-watts 10
+Restart=on-failure
+RuntimeDirectory=powercap
+RuntimeDirectoryMode=0755
+UMask=0022
+CPUSchedulingPolicy=idle
+CapabilityBoundingSet=
+AmbientCapabilities=
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+IPAddressDeny=any
+RestrictAddressFamilies=none
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+
+[Install]
+WantedBy=multi-user.target

@@ -32,12 +32,10 @@ export def link [cfg: record] {
     let root = profiles-root
     if $root == null { return [(step profile-create)] }
     let colors = xdg cache wal colors-thunderbird.css
-    let dark = dark-pref
     profile-dirs $root | each {|dir|
         [
             (file-copy userChrome.css ($dir | path join chrome userChrome.css))
             (file-link $colors ($dir | path join chrome colors.css))
-            (file-render user.js ($dir | path join user.js) {DARK: ($dark | into string)})
         ]
     } | flatten
 }
@@ -49,9 +47,10 @@ export def profile-create [] {
 # the chrome's font, imported by userChrome.css; thunderbird reads it at its next start
 def chrome-font []: nothing -> string {
     let font = font-load
-    $":root {\n    --rtk-chrome-font: \"($font.family)\", \"JetBrainsMono Nerd Font\", monospace, sans-serif;\n}\n"
+    $":root {\n    --rtk-chrome-font: \"($font.family)\", \"JetBrainsMono Nerd Font\", monospace, sans-serif;\n    --rtk-chrome-font-size: ($font.ui_size)pt;\n}\n"
 }
 
+# user.js follows the palette's light flag
 export def theme [cfg: record, wallpaper: string] {
     if (which thunderbird | is-empty) { return [] }
     let root = profiles-root
@@ -60,7 +59,7 @@ export def theme [cfg: record, wallpaper: string] {
     profile-dirs $root | each {|dir|
         [
             (file-text ($dir | path join chrome dotfiles-font.css) (chrome-font) --generated)
-            (file-render user.js ($dir | path join user.js) {DARK: ($dark | into string)})
+            (file-render user.js ($dir | path join user.js) {DARK: ($dark | into string)} --generated)
         ]
     } | flatten
 }

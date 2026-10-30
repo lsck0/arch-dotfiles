@@ -6,7 +6,7 @@ const PLATFORM_LOCAL_DIR = "/etc/dotfiles"
 export const PLATFORM_NAME_FILE = "/etc/dotfiles/platform"
 const FORM_FACTORS = [desktop laptop server vm wsl]
 export const PLATFORM_FACTS = [form_factor homelab wireguard secure_boot_own_keys lsck0_snapshot]
-const PLATFORM_KEYS = [hostname label form_factor groups extra_packages facts packages_keep]
+const PLATFORM_KEYS = [hostname label form_factor groups extra_packages facts packages_keep flatpak_keep nix_keep]
 
 # Every group under configs/ but secrets, which is on wherever the submodule is pulled.
 export def platform-groups-all [repo: path]: nothing -> list<string> {
@@ -72,12 +72,14 @@ export def platform-load [repo: path]: nothing -> record {
     let options_file = if $file == null { null } else { platform-options-file $file }
     {
         file: $file
-        hostname: ($raw.hostname? | default (open --raw /etc/hostname | str trim))
+        hostname: ($raw.hostname? | default { open --raw /etc/hostname | str trim })
         form_factor: $form_factor
         groups: $groups
         extra_packages: ($raw.extra_packages? | default [])
         facts: ($PLATFORM_FACTS | reduce --fold {} {|name, acc| $acc | insert $name ($facts | get --optional $name) } | upsert form_factor $form_factor)
         packages_keep: ($raw.packages_keep? | default [])
+        flatpak_keep: ($raw.flatpak_keep? | default [])
+        nix_keep: ($raw.nix_keep? | default [])
         options_file: $options_file
         options: (if $options_file != null and ($options_file | path exists) { open $options_file } else { {} })
     }

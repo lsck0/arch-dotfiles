@@ -23,7 +23,7 @@ export def options-list [mod: any, json: bool]: nothing -> any {
     if $json {
         let modules = $mods | each {|m|
             let options = options-schema $m | items {|key, spec|
-                $spec | reject --optional env toggle | merge {
+                $spec | reject --optional toggle | merge {
                     key: $key
                     value: ($m.cfg | get $key)
                     source: ($m.sources | get $key)

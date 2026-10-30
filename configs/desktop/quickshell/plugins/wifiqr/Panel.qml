@@ -29,8 +29,8 @@ Item {
   readonly property bool showingQr: qrSize > 0 && !loading && error === ""
 
   readonly property color onScrim: Colors.menu.text
-  readonly property color onScrimDim: Util.alpha(Colors.menu.text, Style.emphasis.dim)
-  readonly property color onScrimUrgent: Colors.urgent
+  readonly property color onScrimDim: Colors.textDim
+  readonly property color onScrimUrgent: Colors.urgentText
   readonly property string fontFamily: Style.font.family
 
   function open(payload) {
@@ -186,6 +186,7 @@ Item {
         visible: root.showingQr
         implicitWidth: root.qrSize * moduleSize
         implicitHeight: implicitWidth
+        // fixed dark on light, not theme tokens: scanners need that contrast whatever the palette
         color: "white"
         radius: Style.shape.data
         Layout.alignment: Qt.AlignHCenter
@@ -249,8 +250,7 @@ Item {
         text: root.passwordError !== "" ? root.passwordError
           : root.passwordVisible ? root.password
           : ":: SHOW PASSWORD"
-        color: root.passwordError !== "" ? root.onScrimUrgent : root.onScrim
-        opacity: root.passwordVisible || root.passwordError !== "" ? 1 : 0.6
+        color: root.passwordError !== "" ? root.onScrimUrgent : root.passwordVisible ? root.onScrim : root.onScrimDim
         font.family: root.fontFamily
         font.pixelSize: Style.font.bodySmall
         wrapMode: Text.WrapAnywhere

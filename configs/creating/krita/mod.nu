@@ -18,14 +18,16 @@ export def link [cfg: record] {
 export def resource-db []: nothing -> nothing {
     let tmp = mktemp --directory
     let scratch = {XDG_DATA_HOME: ($tmp | path join data), XDG_CONFIG_HOME: ($tmp | path join config)}
-    with-env ($scratch | merge {QT_QPA_PLATFORM: offscreen, PYTHONPATH: $HERE}) {
-        ^timeout $BUILD_TIMEOUT kritarunner -s warm | ignore
-    }
-    let built = $tmp | path join data kritarunner
-    if not ($built | path join resourcecache.sqlite | path exists) {
-        error make {msg: "krita: kritarunner built no resource db"}
-    }
-    mkdir (data-dir)
-    ^cp -an $"($built)/." (data-dir)
-    rm --recursive $tmp
+    try {
+        with-env ($scratch | merge {QT_QPA_PLATFORM: offscreen, PYTHONPATH: $HERE}) {
+            ^timeout $BUILD_TIMEOUT kritarunner -s warm | ignore
+        }
+        let built = $tmp | path join data kritarunner
+        if not ($built | path join resourcecache.sqlite | path exists) {
+            error make {msg: "krita: kritarunner built no resource db"}
+        }
+        mkdir (data-dir)
+        ^cp -an $"($built)/." (data-dir)
+        rm --recursive $tmp
+    } catch {|e| rm --recursive --force $tmp; error make {msg: $e.msg} }
 }

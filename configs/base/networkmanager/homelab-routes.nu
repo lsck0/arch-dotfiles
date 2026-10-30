@@ -6,8 +6,9 @@ const HOME_NETWORK = "/run/home-network"
 const TABLE = "178"
 # below wg-quick's suppress_prefixlength 0 rule (32764) and NM wireguard's
 const PRIORITY = "30000"
-# behind wg0's routes so the lab fails fast off home; same as persona-dispatcher.nu's UNREACHABLE_METRIC
-const UNREACHABLE_METRIC = "4000"
+const WG_IFACE = "wg0"
+const MIRROR_UPDATE = "/usr/local/bin/mirrorlist-update"
+const MIRROR_LINE = "/etc/pacman.d/homelab-mirror"
 
 def --wrapped out [...argv: string]: nothing -> string {
     do { run-external ...$argv } | complete | get stdout
@@ -23,11 +24,19 @@ def lab-env []: nothing -> record {
     | transpose --header-row --as-record
 }
 
+# A weekly sort while away drops the homelab mirror; back on a home link or wg0 it goes first again. Queued, not
+# waited on: a running sort holds the mirrorlist lock longer than NM's dispatcher timeout.
+def mirror-place []: nothing -> nothing {
+    if not ($MIRROR_UPDATE | path exists) or not ($MIRROR_LINE | path exists) { return }
+    attempt systemd-run --no-block --quiet --collect $MIRROR_UPDATE homelab (open --raw $MIRROR_LINE | str trim)
+}
+
 def main [iface: string = "", action: string = ""]: nothing -> nothing {
     if $action not-in [up dhcp4-change down] or not ($LAB_ENV | path exists) { return }
     let lab = lab-env
     let nets = $lab.HOMELAB_NETS? | default "" | split row " " | where $it != ""
     if ($lab.HOMELAB_DNS? | default "") == "" or ($nets | is-empty) { return }
+    let metric = $lab.HOMELAB_UNREACHABLE_METRIC? | default ""
 
     if $action == down {
         out ip route flush table $TABLE dev $iface | ignore
@@ -35,11 +44,12 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
         for net in $nets { out ip rule del to $net lookup $TABLE priority $PRIORITY | ignore }
         return
     }
+    if $iface == $WG_IFACE and $action == up { return (mirror-place) }
     if not ($"/sys/class/net/($iface)/device" | path exists) { return }
 
     # the persona dispatcher drops these on wg0 up; a stray link event must not re-add them under it
-    if not ("/sys/class/net/wg0" | path exists) {
-        for net in $nets { attempt ip route replace unreachable $net metric $UNREACHABLE_METRIC }
+    if not ($"/sys/class/net/($WG_IFACE)" | path exists) {
+        for net in $nets { attempt ip route replace unreachable $net metric $metric }
     }
     if not ($HOME_NETWORK | path exists) or $iface not-in (open --raw $HOME_NETWORK | lines) { return }
 
@@ -63,4 +73,5 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
             attempt ip rule add to $net lookup $TABLE priority $PRIORITY
         }
     }
+    mirror-place
 }

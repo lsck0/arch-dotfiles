@@ -39,7 +39,7 @@ def main [file: string, line: int, column: int = 0]: nothing -> nothing {
     let file = $file | path expand
     if (nvim-try $file $line $column) or (emacs-try $file $line $column) { return }
     let message = $"($file | path basename):($line) is not open in nvim or emacs"
-    if (ask notify-send -a $NOTIFY_APP -u low synctex $message).exit_code != 0 {
+    if (ask notify-send -a $NOTIFY_APP -u low -- "No editor has the source open" $message).exit_code != 0 {
         print --stderr $"synctex-edit: ($file):($line) is not open in any running nvim or emacs"
     }
     exit 1

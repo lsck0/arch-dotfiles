@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {native: [fail2ban]}}
+export const meta = {packages: {native: [fail2ban]}, deps: [base/ssh]}
 
 export const options = {
     bantime: {
@@ -25,10 +25,12 @@ export const options = {
 
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
+    let values = {
+        BANTIME: $cfg.bantime, FINDTIME: $cfg.findtime, MAXRETRY: $cfg.maxretry, SSH_PORT: $cfg.deps."base/ssh".port
+    }
     [
         # a restart, not a reload: 1.1.1's reload drops a changed banaction
-        (file-render jail.local /etc/fail2ban/jail.local {BANTIME: $cfg.bantime, FINDTIME: $cfg.findtime, MAXRETRY: $cfg.maxretry}
-            --then [systemctl restart fail2ban.service])
+        (file-render jail.local /etc/fail2ban/jail.local $values --then [systemctl restart fail2ban.service])
         (unit-enable fail2ban.service --now)
     ]
 }

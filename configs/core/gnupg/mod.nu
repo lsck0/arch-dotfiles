@@ -2,7 +2,7 @@ use module.nu *
 
 export const meta = {
     packages: {pacman: [gpg-tui]}
-    inputs: [~/.gnupg/pubring.kbx ~/.gnupg/trustdb.gpg ~/.gnupg/private-keys-v1.d]
+    inputs: [~/.gnupg/pubring.kbx ~/.gnupg/trustdb.gpg ~/.gnupg/private-keys-v1.d /usr/bin/pinentry-qt]
 }
 
 export const options = {

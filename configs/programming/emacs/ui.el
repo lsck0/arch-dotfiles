@@ -1,4 +1,6 @@
-(defconst my/system-theme-file (expand-file-name "~/.cache/wal/nvim_theme"))
+;;; -*- lexical-binding: t; -*-
+(defconst my/wal-dir (expand-file-name "wal/" (or (getenv "XDG_CACHE_HOME") "~/.cache")))
+(defconst my/system-theme-file (expand-file-name "nvim_theme" my/wal-dir))
 
 (defconst my/system-theme-alist
   '(("ayu-dark"       . doom-ayu-dark)
@@ -32,16 +34,14 @@ frames recolour on a theme switch exactly as a fresh launch would."
     (load-theme 'doom-one t))
   (setq default-frame-alist
         (assq-delete-all 'background-color (assq-delete-all 'foreground-color default-frame-alist)))
-  (when-let ((alpha (alist-get 'alpha-background default-frame-alist)))
+  (when-let* ((alpha (alist-get 'alpha-background default-frame-alist)))
     (set-frame-parameter nil 'alpha-background alpha)))
 
 (use-package doom-themes
   :config
   (setq doom-themes-enable-bold t
         doom-themes-enable-italic t)
-  (add-to-list 'custom-theme-load-path
-               (expand-file-name "wal/" (or (getenv "XDG_CACHE_HOME")
-                                            (expand-file-name "~/.cache/"))))
+  (add-to-list 'custom-theme-load-path my/wal-dir)
   (my/apply-system-theme)
   (doom-themes-org-config))
 
@@ -87,8 +87,8 @@ frames recolour on a theme switch exactly as a fresh launch would."
   :hook (prog-mode . hl-todo-mode)
   :config
   (setq hl-todo-keyword-faces
-        '(("TODO" . "#ff7eb6") ("FIXME" . "#ee5396")
-          ("HACK" . "#ffe97b") ("NOTE" . "#33b1ff"))))
+        '(("TODO" . font-lock-keyword-face) ("FIXME" . error)
+          ("HACK" . warning) ("NOTE" . success))))
 
 (use-package topsy
   :hook (prog-mode . topsy-mode))

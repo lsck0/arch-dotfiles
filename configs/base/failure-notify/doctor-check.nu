@@ -13,7 +13,6 @@ def main []: nothing -> nothing {
     if $run.exit_code > 1 or ($run.exit_code == 1 and ($run.stdout | str trim | is-empty)) {
         exit ([$run.exit_code 1] | math max)
     }
-    $run.stdout | save --force ($state | path join findings)
     let findings = $run.stdout | lines
     let digest = $findings | str replace --all --regex '[0-9]+' N | str join "\n" | hash sha256
     let notified = $state | path join notified

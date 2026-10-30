@@ -107,12 +107,15 @@ def answers-in [dir: path]: nothing -> list<path> {
 def answers-media []: nothing -> any {
     let handed = $env.LSCK0_ANSWERS? | default ""
     if $handed != "" {
-        # a malformed handed file must not abort the second stage after network and the master clone: warn and fall through to interactive, matching the stub's own fallback
+        # a malformed handed file falls back to interactive, as in the stub, instead of aborting the second stage
         let origin = $env.LSCK0_ANSWERS_ORIGIN? | default $handed
-        let parsed = try { answers-parse (open --raw $handed) $origin | insert origin $origin } catch {|e| log-warn $"answer file ($origin) is not valid nuon, continuing interactively: ($e.msg)"; null }
+        let parsed = try { answers-parse (open --raw $handed) $origin | insert origin $origin } catch {|e| log-warn $"($e.msg), continuing interactively"; null }
         if $parsed != null { return $parsed }
     }
-    for f in (answers-in $BOOT_MEDIUM) { return (answers-parse (open --raw $f) $f | insert origin $f) }
+    for f in (answers-in $BOOT_MEDIUM) {
+        let parsed = try { answers-parse (open --raw $f) $f | insert origin $f } catch {|e| log-warn $"($e.msg), ignoring it"; null }
+        if $parsed != null { return $parsed }
+    }
     let devices = ^lsblk -J -l -pno NAME,FSTYPE,MOUNTPOINT | from json | get blockdevices | where fstype in $MEDIA_FSTYPES
     let label = if ($ANSWERS_LABEL | path exists) { $ANSWERS_LABEL | path expand } else { "" }
     for d in (($devices | where name == $label) ++ ($devices | where name != $label)) {
@@ -128,7 +131,7 @@ def answers-media []: nothing -> any {
             try { answers-parse (open --raw $found) $origin | insert origin $origin } catch {|e| {error: $e.msg} }
         }
         if not $mounted { ^umount $dir | complete | ignore }
-        # a stray/broken answer file on an unrelated scanned device is not fatal: skip it and keep looking, stay interactive
+        # a broken answer file on an unrelated scanned device is not fatal: skip it and keep looking
         if $a.error? != null { log-warn $"ignoring unparseable answer file on ($d.name): ($a.error)"; continue }
         if $a != null { return $a }
     }
@@ -178,7 +181,7 @@ export def answers-unused [questions: record, a: record]: nothing -> list<string
 def answers-ask [questions: record, a: record]: nothing -> record {
     let asks = $questions.questions | where {|e| $e.kind? == "password" } | get id | uniq | where {|k| ($a | get --optional $k) == $PASSWORD_ASK }
     if ($asks | is-empty) { return $a }
-    if (^test -t 0 | complete).exit_code != 0 { error make {msg: $"answers: ($asks | str join ', ') \"($PASSWORD_ASK)\" with unattended, and no console to ask on"} }
+    if not (is-terminal --stdin) { error make {msg: $"answers: ($asks | str join ', ') \"($PASSWORD_ASK)\" with unattended, and no console to ask on"} }
     $asks | reduce --fold $a {|k, acc|
         let entries = $questions.questions | where {|e| $e.id? == $k }
         let e = $entries | first

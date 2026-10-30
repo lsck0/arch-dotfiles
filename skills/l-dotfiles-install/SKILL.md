@@ -38,8 +38,8 @@ Build the iso: `dot internal iso` (root, mkarchiso).
   default, `BOOTSTRAP_*` env, `when`; code steps are entries with `step`). Top-level `answers` holds answer-file-only
   keys; `messages` and `summary` every other text. The iso's second stage reads its keys and types from it. Wording,
   order or a new question is an edit there; `bootstrap.nu` only walks the list.
-- Order: keyboard, login name, profile, machine, home network, then disk, encryption, passwords, summary. Nothing is
-  written before the summary's `install`.
+- Order: keyboard, profile, machine, home network (`server` and `custom` add their questions here), then disk,
+  encryption, login name, passwords, summary. Nothing is written before the summary's `install`.
 - Login name, profile and machine are independent; nothing derives from the login name.
 - Profile: `profiles/<name>.nuon` (luca) or `custom` (default, no file, no capabilities); copied to
   `~/.config/dotfiles/profile.nuon`.
@@ -98,7 +98,7 @@ conflict stops the run; a checkout off `master` refuses.
 ## Another login
 
 `adduser-dotfiles <name> [--profile luca|custom]` (root-owned sh wrapper, runs `adduser` through sudo): creates the user
-(never wheel), its checkout, profile and user layer. Without `--profile` it asks on a tty, else `custom`. Rerun-safe;
-an existing `profile.nuon` is kept. A `secrets` profile adds the login to `/var/lib/dotfiles/owners`, from which
-`configs/secrets/yubikey` maps their YubiKey in `/etc/u2f_mappings` on the next system run (without the submodule,
-sudo takes the password).
+(never wheel), its checkout, profile and user layer (one `dot apply --packages --user` in a login session through
+`systemd-run`). Without `--profile` it asks on a tty, else `custom`. Rerun-safe; an existing `profile.nuon` is kept. A
+`secrets` profile adds the login to `/var/lib/dotfiles/owners`, from which `configs/secrets/yubikey` maps their YubiKey
+in `/etc/u2f_mappings` on the next system run (without the submodule, sudo takes the password).

@@ -20,7 +20,7 @@ use ($REPO | path join configs base yubikey audit.nu) [audit-run audit-rotated a
 use ($LIB | path join doctor.nu) [doctor-run doctor-checks]
 use ($REPO | path join configs core wallust wallpaper.nu) [wallpaper-set wallpaper-random wallpaper-pick]
 use ($LIB | path join sync.nu) [sync-commit sync-can-sign]
-use ($LIB | path join run.nu) [plan-print link-run failures-publish finish admin system-allowed pty-log system-skipped pending-exit apply-run user-locked unlink-run install-run pending-file system-part update-run managed-drift INTERNAL]
+use ($LIB | path join run.nu) [plan-print link-run failures-publish finish admin system-allowed pty-log system-skipped pending-exit apply-run user-locked unlink-run install-run user-packages-undeclared pending-file system-part update-run managed-drift INTERNAL]
 use ($LIB | path join set.nu) [options-list option-target option-write option-apply]
 
 const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo prescribes and records it
@@ -28,7 +28,7 @@ const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo 
   sync [--no-push]                pull, migrate, install, apply, back up, commit the signed generation, push
   apply [mod...]                  converge now, no git: system layer, then user layer; modules: their user layer
     --user | --system             one layer
-    --packages                    declared packages, flatpak and nix instead, removals after a yes
+    --packages                    declared packages, flatpak and nix, then the apply; undeclared ones go after a yes
   plan [mod...]                   what an apply would do; --order the run order, --modules every module
   status [--brief|--json]         generation, pending work, failures, changed files, health checks, secrets
   set [mod[.key] [value]]         options: every set one, a module's, one; a value sets it, --default resets it
@@ -97,6 +97,20 @@ def "main plan" [
         if ($extra.remove | is-not-empty) {
             print $"installed, declared by no module \(($extra.remove | length)\): ($extra.remove | str join ' ')\n  dot apply --packages removes them after a yes"
         }
+        let user = pipeline-load $REPO user
+        let declared_user = modules-packages $REPO $user.modules $user.platform
+        if ($declared_user.incomplete | is-not-empty) {
+            print $"flatpak and nix: dot apply --packages removes none, these modules declare none: ($declared_user.incomplete | str join ' ')"
+            return
+        }
+        let undeclared = user-packages-undeclared $declared_user $user.platform
+        for kind in [flatpak nix] {
+            let diff = $undeclared | get $kind
+            if ($diff.dropped | is-not-empty) { print $"($kind), declared by no module any more: ($diff.dropped | str join ' ')\n  dot apply --packages removes them after a yes" }
+            if ($diff.by_hand | is-not-empty) {
+                print $"($kind), installed by hand, declared by no module \(($diff.by_hand | length)\): ($diff.by_hand | str join ' ')\n  dot apply --packages removes them after a yes, ($kind)_keep in the platform spares them"
+            }
+        }
     }
 }
 
@@ -109,9 +123,9 @@ def "main apply" [
     ...mods: string@module-ids
     --user       # the user layer alone
     --system     # the system layer alone
-    --packages   # every declared package, flatpak and nix, then removals after a yes
+    --packages   # declared packages, flatpak and nix, then the apply; undeclared ones go after a yes
     --force      # overwrite drift, the live copy preserved aside
-    --yes        # with --packages: remove packages no module declares without asking
+    --yes        # with --packages: remove undeclared packages unasked; hand-installed flatpak and nix still ask
     --no-system  # only the user part, same as DOT_SYSTEM=skip
 ]: nothing -> nothing {
     if $no_system { $env.DOT_SYSTEM = "skip" }
@@ -123,7 +137,7 @@ def "main apply" [
         if $one == "system" { die --misuse "apply --packages: both layers, or --user alone" }
         pty-log install ([apply --packages] ++ (flag user ($one == "user")) ++ (flag yes $yes) ++ (flag force $force))
         let pending = guarded apply {
-            let status = install-run ($one == "user") $yes
+            let status = install-run ($one == "user") $yes true
             if $status != 0 { exit $status }
             $env.DOT_SYSTEM_PENDING? == true
         }
@@ -201,7 +215,11 @@ def "main module adopt" [file: path]: nothing -> nothing {
         let target = $file | path expand
         let ctx = pipeline-load $REPO user
         let planned = pipeline-plan $ctx link [] true
-        let found = $planned | get actions | concat | where target == $target and decl.kind == file | get --optional 0
+        let matches = $planned | get actions | concat | where target == $target and decl.kind == file
+        let found = $matches | where {|a| $a.kind not-in [remove forget] and not ($a.reason | str starts-with "no longer declared") } | get --optional 0
+        if $found == null and ($matches | is-not-empty) {
+            error make {msg: $"($target) is no longer declared by ($matches.0.module), there is nothing to adopt it into; delete or keep it by hand"}
+        }
         if $found == null { error make {msg: $"($target) is no file a module copies; dot status lists the changed ones"} }
         if $found.decl.source == null { error make {msg: $"($target) is rendered by ($found.module), adopt it by editing its template"} }
         ^cp $target $found.decl.source
@@ -228,12 +246,11 @@ def "main module reset" [file: path]: nothing -> nothing {
             error make {msg: $"($target) is no longer declared by ($row.id), there is nothing to reset it to; delete or keep it by hand"}
         }
         let forced = pipeline-plan $ctx link [$row.id] true | where id == $row.id | first
+        if $forced.error != null { error make {msg: $"reset ($target): ($forced.error)"} }
         let reset = $forced.actions | where target == $target | first
         if $reset.kind == drift { error make {msg: $"($target) stays drift even when forced: ($reset.reason)"} }
         let actions = $row.actions | each {|a| if $a.target == $target { $reset } else { $a } }
-        let result = with-env (platform-env $ctx.platform) {
-            pipeline-apply $ctx [($row | update actions $actions | update after [])] link 1
-        } | first
+        let result = pipeline-apply $ctx [($row | update actions $actions | update after [])] link 1 | first
         if not $result.ok { error make {msg: $"reset ($target): ($result.error)"} }
         log-info $"($target) <- ($row.id), the edit kept aside: dot status lists preserved copies"
     }
@@ -241,6 +258,7 @@ def "main module reset" [file: path]: nothing -> nothing {
 
 # run one module's restore verb (state its link does not already restore)
 def "main module restore" [mod: string@module-ids]: nothing -> nothing {
+    user-locked
     guarded restore {
         let ctx = pipeline-load $REPO user
         let m = $ctx.modules | where id == $mod | get --optional 0
@@ -305,7 +323,7 @@ def "main theme" [
 # the one command: pull, migrate, install, apply, back up app state, commit the signed generation, push
 def "main sync" [
     --no-push    # stop after the apply: no backup, commit or push; a machine that does not sign always stops there
-    --yes        # remove packages no module declares without asking
+    --yes        # remove undeclared packages without asking; flatpak and nix installed by hand only apply --packages offers
     --no-system  # only the user part, same as DOT_SYSTEM=skip
     --no-verify  # commit without the formatter, linter and gitleaks gates
 ]: nothing -> nothing {
@@ -441,7 +459,7 @@ def "main test check" []: nothing -> nothing {
 
 const VM_NAME = "archlinux-test"
 
-# end-to-end vm test from the lsck0 iso, hours; --master tests github master; logs in ~/.cache/vm-test/<name>/logs
+# end-to-end vm test from the lsck0 iso, hours; --master tests github master; logs in $XDG_CACHE_HOME/vm-test/<name>
 def "main test run" [--iso: path, --platform: string, --user: string, --profile: string, --master, --name: string = $VM_NAME]: nothing -> nothing {
     guarded test {
         let problems = gate-lint
@@ -450,7 +468,7 @@ def "main test run" [--iso: path, --platform: string, --user: string, --profile:
     }
 }
 
-# screenshot of the test vm to ~/.cache/vm-test/<name>/screen.png
+# screenshot of the test vm to $XDG_CACHE_HOME/vm-test/<name>/screen.png
 def "main test shot" [--name: string = $VM_NAME]: nothing -> nothing { guarded test { print (screenshot $name) } }
 
 # delete the test vm and its disk

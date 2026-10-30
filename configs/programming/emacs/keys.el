@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t; -*-
 (use-package general
   :config (general-evil-setup t))
 
@@ -429,10 +430,10 @@
 
   "j"  '(:ignore t :which-key "jupyter")
   "ji" '(run-python :which-key "Init kernel")
-  "je" '(code-cells-eval :which-key "Evaluate operator")
+  "je" '(code-cells-eval :which-key "Evaluate cell or region")
   "jl" '(my/jupyter-eval-line :which-key "Evaluate line")
-  "jv" '(code-cells-eval :which-key "Evaluate selection")
-  "jr" '(code-cells-eval :which-key "Re-evaluate cell")
+  "jv" '(code-cells-eval :which-key "Evaluate region")
+  "jr" '(code-cells-eval :which-key "Evaluate cell")
   "jo" '(my/jupyter-show-output :which-key "Show output")
   "jh" '(my/jupyter-hide-output :which-key "Hide output")
   "jn" '(code-cells-forward-cell :which-key "Next cell")

@@ -6,7 +6,7 @@ export const options = {
     ytdl_max_height: {
         type: int
         default: 2160
-        doc: "Max video height mpv's bundled yt-dlp fetches for a stream URL, mpv ytdl-format height filter (pixels)"
+        doc: "Max video height yt-dlp fetches for a stream (ytdl-format height filter, pixels); applies to mpv-stream, plain mpv runs no yt-dlp"
         label: "Max stream quality (px)"
         scope: user
     }

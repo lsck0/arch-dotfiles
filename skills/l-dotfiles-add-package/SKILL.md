@@ -30,7 +30,11 @@ description: Adding or removing a package in a module's meta (pacman, flatpak, n
 
 Delete the name. `dot apply --packages` removes what the ledger owns and nothing declares, then every explicit package
 no module declares (minus the platform's `packages_keep` and `PACKAGES_DENY` in `scripts/lib/ledger.nu`), each after a
-yes (`--yes` skips). `dot plan` lists them.
+yes (`--yes` skips both). Flatpak and nix take the same two steps: recorded and no longer declared, then installed by
+hand (flatpak: apps only, `flatpak list --user --app`) minus the platform's `flatpak_keep` or `nix_keep`, the second
+always asked. Flatpaks are unmasked first and unused runtimes go after; a removed nix package stays in the store until
+`base/cleanup`'s weekly `nix-gc.timer` collects generations older than 30 days. Nothing is removed while a module fails
+to declare its packages. `dot plan` lists them.
 
 ## Supply chain
 
@@ -51,10 +55,19 @@ Still floating, fix when touching the module:
 - `npx` without lockfile: `configs/programming/kubernetes` (`kubernetes-mcp-server@0.0.67`),
   `configs/programming/godot/godot-mcp.nu` (`godot-mcp-server@0.6.0`), `configs/programming/caveman` (`skills@1.7.0`).
 - `uvx` without `--exclude-newer`: `configs/latex/zotero` (`zotero-mcp-server==0.14.1`), `configs/pentesting/wireshark`
-  (`wireshark-mcp==3.0.0`), `configs/programming/docker` (`mcp-server-docker==0.3.0`).
+  (`wireshark-mcp==3.0.0`).
 - Latest-version installs: mason (`configs/programming/nvim/lua/lib/mason_packages.lua`), the VSCodium vim extension,
   Firefox and Chromium store extensions (`policies.json`, `policy.json`), rustup toolchains, Claude Code plugins other
   than caveman.
 - `mirror/pkgbuilds` resolving dependencies at build time with no lockfile or hashes: `bloodyad` (pip `--target`
   installs `badldap` and `kerbad` plus their transitive deps), `bruno-cli` and `kulala-fmt` (`npm install -g` of the
-  registry tarball; `kulala-fmt` also runs tree-sitter install scripts).
+  registry tarball; `kulala-fmt` also runs tree-sitter install scripts), `lean-tui` (`rustup toolchain install
+  nightly`, whatever nightly is current at build time).
+- Emacs packages (`configs/programming/emacs`): ELPA and MELPA installs at their latest version, and the `:vc` packages
+  `jai-mode` and `claude-code` at `:rev :newest`.
+- Game content that must track upstream: d2launcher's `mxl-install` (the current Median XL release from its live
+  manifest; host, file names and the manifest's sha1s are checked) and dalamud's `plugin-restore.nu` (the version the
+  plugin index lists, as Dalamud itself updates; name and version are checked).
+- AUR `-git` packages in `mirror/packages.txt` build from upstream HEAD. Privileged or always sourced:
+  `it87-dkms-git` (kernel), `python-validity-git` (root daemon), `endlessh-git` (network facing), `oh-my-zsh-git` and
+  `fzf-tab-git` (every shell); an own pkgbuild pinned with `#commit=` is the fix.

@@ -7,6 +7,10 @@ Item {
   property var bar: null
   property string moduleName: ""
   property var settings: ({})
+  // a bar too narrow for every widget drops the lowest first, across all three sections
+  property int barPriority: 0
+  // set by BarSection while the widget is dropped for width: it stays visible but takes no space
+  property bool dropped: false
 
   readonly property bool vertical: bar ? bar.vertical : false
   readonly property int barSize: bar ? bar.barSize : Style.bar.sizeHorizontal

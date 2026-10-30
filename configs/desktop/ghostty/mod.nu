@@ -12,7 +12,7 @@ export def link [cfg: record] {
     let runtime = $env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u | str trim)"
     let scale = xwayland-scale-for $cfg
     [
-        (file-copy config ($config | path join ghostty config))
+        (file-render config ($config | path join ghostty config) {CACHE: (xdg cache), CONFIG: $config})
         (link-commands xdg/ghostty-window.nu)
         (file-render xdg/ghostty-new-window.desktop ($apps | path join ghostty-new-window.desktop) {HOME: $nu.home-dir})
         (file-copy xdg/xdg-terminals.list ($config | path join xdg-terminals.list))

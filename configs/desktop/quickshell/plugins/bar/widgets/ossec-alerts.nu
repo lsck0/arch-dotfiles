@@ -1,4 +1,4 @@
-#!/usr/bin/env -S nu --no-config-file
+#!/usr/bin/env -S setpriv --pdeathsig TERM nu --no-config-file
 
 const ALERTS_DIR = "/var/lib/ossec-hids/logs/alerts"
 const ALERTS_LOG = "/var/lib/ossec-hids/logs/alerts/alerts.log"

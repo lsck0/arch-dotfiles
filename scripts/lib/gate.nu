@@ -2,17 +2,18 @@
 
 use ../../configs/core/wallust/palette.nu
 use platform.nu [PLATFORM_FACTS]
-use modules.nu [VERBS HOOKS names-read ROOT_MODULES SECRETS_DATA]
+use modules.nu [VERBS HOOKS names-read ROOT_MODULES SECRETS_DATA SECRETS_GROUP]
 
 const REPO = path self ../..
 const SUDO = '\bsudo\b'
-const NU_USER_FACT = '(profile-has|profile-load|owner-unlocked|\$nu\.home-dir|\$env\.HOME\b|\$env\.USER\b|~/)'
+const NU_USER_FACT = '(profile-has|profile-load|owner-unlocked|\bxdg (?:config|data|cache|state)\b|\$nu\.home-dir|\$env\.HOME\b|\$env\.USER\b|~/)'
 const QUOTED = r#''[^']*'|"(?:[^"\\]|\\.)*"'#
 # the folder root itself (syncthing needs it) and .stignore (per device) are not writes into it
 const SYNC_PATH = '(?:\$\{?HOME\}?|~|%h)/sync(?<tail>[^\w].*|$)'
 const SYNC_WRITE = '(^|[^\w-])(mkdir|touch|cp|mv|install|tee|rm|ln|unzip|tar|curl|wget)([^\w-]|$)|--mkdir|>'
 const FMT_DIR = path self ../../configs/programming/formatting
-const FMT_EXCLUDE = "configs/core/wallust/templates/"
+# templates carry @placeholders@, so no formatter or walk-based lint reads them
+const WALK_EXCLUDE = "configs/core/wallust/templates/"
 # empty on purpose: shfmt reads .editorconfig only when no formatting flag is given
 const SHFMT_FLAGS = []
 const QMLLINT = "/usr/lib/qt6/bin/qmllint"
@@ -32,7 +33,7 @@ def unquote [line: string, keep: closure]: nothing -> string {
 }
 
 def walk []: nothing -> list<path> {
-    ^git -C $REPO ls-files -z --cached --others --exclude-standard | split row (char nul) | where $it != "" and not ($it | str starts-with $FMT_EXCLUDE)
+    ^git -C $REPO ls-files -z --cached --others --exclude-standard | split row (char nul) | where $it != "" and not ($it | str starts-with $WALK_EXCLUDE)
     | each {|f| $REPO | path join $f } | where {|p| ($p | path type) == "file" }
 }
 
@@ -49,18 +50,34 @@ def lint-modules []: nothing -> list<string> {
         let grp = $df | path relative-to $configs | path split | first
         names-read $df | where {|d| not ($configs | path join $grp $d mod.nu | path exists) } | each { $"(rel $df): '($in)' is no module of configs/($grp)" }
     } | flatten
+    # a group's `use` of another group or meta dep on one of its modules must be declared; a plain path read is not
+    let reach_skip = [base $SECRETS_GROUP]
+    let undeclared = glob $"($configs)/*/**/*.nu" --exclude [secrets/**] | each {|f|
+        let grp = $f | path relative-to $configs | path split | first
+        let dir = $f | path dirname
+        let text = open --raw $f
+        let used = $text | parse --regex '(?m)^\s*(?:export )?use (?<p>\.\.?/\S+)' | get p | each {|p|
+            let target = $dir | path join $p | path expand --no-symlink
+            if ($target | str starts-with $"($configs)/") { $target | path relative-to $configs | path split | first }
+        } | compact
+        let metas = if ($f | path basename) == "mod.nu" {
+            $text | parse --regex 'deps: \[(?<d>[^\]]*)\]' | get d | split row " " | where $it =~ "/" | each { split row "/" | first }
+        } else { [] }
+        $used ++ $metas | uniq | where {|h| $h != $grp and $h not-in $reach_skip and $h in $groups and $h not-in ($deps | get --optional $grp | default []) }
+        | each {|h| $"(rel $f): reaches configs/($h), which configs/($grp)/dependencies.txt does not name" }
+    } | flatten
     let order = [[] [--system]] | each {|flags|
         let run = ^nu --no-config-file ($REPO | path join scripts dot.nu) plan --order ...$flags | complete
         if $run.exit_code != 0 { $"run order \(dot plan --order ($flags | str join ' ')\): ($run.stderr | str trim)" }
     } | compact
-    $bad_deps ++ $platforms ++ $siblings ++ $order
+    $bad_deps ++ $platforms ++ $siblings ++ $undeclared ++ $order
 }
 
 def lint-layers []: nothing -> list<string> {
     let configs = $REPO | path join configs
     let mods = glob $"($configs)/**/mod.nu" --exclude $SECRETS_DATA
         | append ($ROOT_MODULES | each {|r| $REPO | path join $r mod.nu } | where ($it | path exists))
-    let verb_body = $"\(?ms\)^export def \(?<verb>($VERBS | str join '|')\) \\[.*?^\\}"
+    let verb_body = $"\(?ms\)^export def \(?:--\\S+ \)*\(?<verb>($VERBS | str join '|')\) \\[.*?^\\}"
     let verbs = $mods | each {|f|
         let text = open --raw $f
         $text | parse --regex $"\(?<body>($verb_body)\)" | each {|m|
@@ -90,11 +107,15 @@ def lint-exports []: nothing -> list<string> {
         let steps = $text | parse --regex 'step "?(?<name>[a-z0-9-]+)' | get name
         let allowed = $VERBS ++ $HOOKS ++ $steps ++ $imported
         $text | lines | enumerate | each {|l|
-            let name = $l.item | parse --regex '^export def (?:--env )?"?(?<name>[a-z0-9-]+)' | get --optional 0.name
-            if $name != null and $name not-in $allowed {
-                $"(rel $f):($l.index + 1): export def ($name) is no verb \(($VERBS | str join ' ')\), step or import; make it a plain def"
+            let names = if ($l.item | str starts-with "export use ") {
+                $l.item | parse --regex '\[(?<names>[^\]]*)\]' | get --optional 0.names | default "*" | split row " " | where $it != ""
+            } else {
+                $l.item | parse --regex '^export (?:def(?: --\S+)*|alias|extern) "?(?<name>[a-z0-9-]+)' | get name
             }
-        } | compact
+            $names | where $it not-in $allowed | each {|name|
+                $"(rel $f):($l.index + 1): export ($name) is no verb \(($VERBS | str join ' ')\), step or import; make it a plain def"
+            }
+        } | flatten
     } | flatten
 }
 
@@ -198,7 +219,9 @@ def lint-generated []: nothing -> list<string> {
 
 def unit-tests []: nothing -> list<string> {
     glob $"($REPO)/{configs,themes,scripts}/**/*.test.{sh,nu}" --exclude ($SECRETS_DATA | each { $"configs/($in)" }) | sort | each {|t|
-        let run = if ($t | str ends-with ".nu") { ^nu --no-config-file -I ($REPO | path join scripts lib) $t | complete } else { ^bash $t | complete }
+        let run = with-env {DOT_RUN_FILE: "", FAILURES_FILE: ""} {
+            if ($t | str ends-with ".nu") { ^nu --no-config-file -I ($REPO | path join scripts lib) $t | complete } else { ^bash $t | complete }
+        }
         if $run.exit_code != 0 { $"(rel $t): failed\n($run.stdout + $run.stderr | str trim --right)" }
     } | compact
 }
@@ -242,7 +265,7 @@ def qml-lint [files: list<string>]: nothing -> list<string> {
     ^ln -s ($REPO | path join configs desktop quickshell) ($root | path join qs)
     let run = ^$QMLLINT -I $root --json - ...($files | each {|f| $REPO | path join $f }) | complete
     rm --recursive --force $root
-    let report = try { $run.stdout | from json } catch { return [$"qmllint: ($run.stderr | str trim | default 'no json report')"] }
+    let report = try { $run.stdout | from json } catch { return [$"qmllint: ($run.stderr | str trim | default --empty 'no json report')"] }
     $report.files | each {|f| $f.warnings | where type != info | each {|w| $"(rel $f.filename):($w.line? | default 0):($w.column? | default 0): ($w.message | lines | first) [($w.id? | default $w.type)]" } } | flatten
 }
 
@@ -294,7 +317,7 @@ export def gate-tools [apply: bool]: nothing -> record {
         (if ($stylua | is-empty) { [] } else { nonzero "stylua --check" (tool stylua ...$stylua_cfg --check ...$stylua) --stdout })
         (if ($prettier | is-empty) { [] } else {
             let r = tool prettier --check ...$prettier_cfg ...$prettier
-            $r.stdout + "\n" + $r.stderr | lines | where ($it | str starts-with "[warn]") | each { $"prettier would reformat ($in | split row ' ' | skip 1 | str join ' ')" }
+            $r.stdout + "\n" + $r.stderr | lines | where {|l| ($l | str starts-with "[warn]") and not ($l | str contains "Code style issues") } | each { $"prettier would reformat ($in | split row ' ' | skip 1 | str join ' ')" }
         })
         (if ($taplo | is-empty) { [] } else { nonzero "taplo fmt --check" (tool taplo fmt --check ...$taplo) --stdout })
         (do $on $QMLLINT | if ($in | is-empty) { [] } else { qml-lint $in })

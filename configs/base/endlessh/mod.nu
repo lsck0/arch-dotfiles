@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {native: [endlessh-git]}, volatile: true, deps: [ssh]}
+export const meta = {packages: {native: [endlessh-git]}, volatile: true, deps: [base/ssh]}
 
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }

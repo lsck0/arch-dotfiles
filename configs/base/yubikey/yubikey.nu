@@ -63,8 +63,8 @@ def with-touch [argv: list<string>]: nothing -> bool {
 def stub-decrypt [key_file: path]: nothing -> bool {
     let probe = do { ^ssh-keygen -y -P "" -f $key_file } | complete
     if $probe.exit_code == 0 { return true }
-    # the stub is enrolled with -N "" (no passphrase); a non-passphrase failure (the sk/fido provider, a bad read)
-    # must not loop on a passphrase that does not exist
+    # a stub enrolled by init carries a passphrase; any other failure (the sk/fido provider, a bad read) must not loop
+    # on a passphrase prompt
     if not ($probe.stderr | str contains "passphrase") { return false }
     if ($env.DOTFILES_UNATTENDED? | is-not-empty) or not (is-terminal --stdin) { return false }
     print ">>> the YubiKey's ssh stub is passphrase-protected, type its passphrase"
@@ -145,10 +145,18 @@ def init-step [step: string, sn: string]: nothing -> nothing {
             ^ykman openpgp keys set-touch dec on
         }
         ssh => {
-            heading "ssh key, touch only; the stub is useless without the key and gets committed"
+            heading "ssh key, touch only; the committed stub gets a passphrase, the git-crypt copy none"
             let stub = $KEY_DIR | path join $"ssh-($sn)"
+            let copy = $SECRETS | path join keys yubikey $"ssh-($sn)"
             (^ssh-keygen -t ed25519-sk -O resident -O $"application=($SSH_APPLICATION)" -N ""
                 -C $"($env.USER)@yubikey-($sn)" -f $stub)
+            # the copy the module installs as ~/.ssh/id_ed25519_sk, before the stub is encrypted
+            mkdir ($copy | path dirname)
+            ^install -m600 $stub $copy
+            while (do { ^ssh-keygen -y -P "" -f $stub } | complete).exit_code == 0 {
+                print "the stub is committed, give it a non-empty passphrase"
+                ^ssh-keygen -p -f $stub
+            }
             ^gh auth refresh -h github.com -s admin:public_key
             ^gh ssh-key add $"($stub).pub" --title $"yubikey-($sn)"
         }

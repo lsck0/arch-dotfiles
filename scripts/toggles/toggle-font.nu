@@ -1,6 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # Saves font.json and reruns the current theme; nothing in the repo is rewritten.
 use lib.nu [status-record status-print notify cycle-next]
+use ../lib/state.nu [xdg]
 use ../../configs/core/wallust/font.nu [font-load font-save]
 
 const DOT = path self ../dot.nu
@@ -21,7 +22,7 @@ def shortlist []: nothing -> list<string> { let installed = families-installed; 
 # Saves the change and reruns the current theme; quickshell follows font.json live, nvim and firefox on their start.
 def font-set [changes: record, title: string, value: string]: nothing -> nothing {
     font-save $changes
-    let wallpaper = ^readlink -f ($nu.home-dir | path join .cache wal wallpaper) | complete | get stdout | str trim
+    let wallpaper = ^readlink -f (xdg cache wal wallpaper) | complete | get stdout | str trim
     if ($wallpaper | path exists) { ^nu --no-config-file $DOT theme $wallpaper } else {
         print -e "no theme yet: the font applies with the first dot theme"
     }

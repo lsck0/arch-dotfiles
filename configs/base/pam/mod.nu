@@ -1,5 +1,5 @@
 use module.nu *
-use ../fprintd/mod.nu [validity-sensor]
+use ../fprintd/mod.nu [validity-sensor-ids]
 
 export const meta = {packages: {pacman: [pam-u2f pamtester]}, volatile: true}
 
@@ -10,7 +10,6 @@ export const options = {
         default: "pam://lsck0"
         doc: "FIDO2 origin and appid every enrolled key's mapping was made for (pamu2fcfg -o)"
         label: "U2F origin"
-        apply: relink
     }
 }
 
@@ -55,7 +54,7 @@ export def system [cfg: record] {
 
 def has-fprint []: nothing -> bool {
     let unit = ^systemctl list-unit-files --no-legend python3-validity.service | complete | get stdout | str trim
-    let validity = ($unit | is-not-empty) and (validity-sensor)
+    let validity = ($unit | is-not-empty) and (validity-sensor-ids | is-not-empty)
     if $validity { return true }
     if (which fprintd-list | is-empty) { return false }
     open --raw /etc/passwd | lines | parse "{name}:{x}:{uid}:{rest}" | where ($it.uid | into int) in $HUMAN_UIDS

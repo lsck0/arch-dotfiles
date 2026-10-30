@@ -18,3 +18,4 @@ KeyValueProcess 1.0 KeyValueProcess.qml
 singleton TaskState 1.0 TaskState.qml
 ProcessQueue 1.0 ProcessQueue.qml
 singleton CalendarState 1.0 CalendarState.qml
+singleton NotesState 1.0 NotesState.qml

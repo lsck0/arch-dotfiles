@@ -2,7 +2,8 @@
 
 Editing, reload, logs, screenshots: `l-dotfiles-quickshell-dev`.
 
-- `shell.qml`: one `Bar` per screen, loads `plugins/Plugins.js` (summon ids and bar layout), owns the `IpcHandler`s.
+- `shell.qml`: one `Bar` per screen, loads `plugins/Plugins.js` (summon ids and bar layout), owns the `shell` and
+  `discord` IPC targets; every other target lives in the plugin or `Commons/` singleton it drives.
 - `plugins/<feature>/`, `Commons/` (singletons: palette, style, audio, tasks, timers), `Ui/` (shared widgets),
   `scripts/` (helpers the plugins call), `services/` (`AppLibrary`, `AppSearch`), `shaders/` (baked by `restart.nu
   prepare`), `sounds/`.

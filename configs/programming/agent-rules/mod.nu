@@ -1,8 +1,7 @@
 use module.nu *
 
 # One MACHINE.md rule in every harness's global instructions.
-# after hermes: its profile clone fails on an existing dir
-# the orchestrator clone appears after planning on a fresh install: as an input it re-plans the next run
+# after hermes, whose orchestrator clone must not find its dir; an input so a fresh install re-plans
 export const meta = {deps: [programming/claude programming/rtk programming/hermes], inputs: [~/.hermes/profiles/orchestrator]}
 
 const RULES = "MACHINE.md"

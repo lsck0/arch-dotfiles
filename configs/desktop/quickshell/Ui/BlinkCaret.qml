@@ -17,7 +17,7 @@ Text {
 
   textFormat: Text.PlainText
   text: block ? " " : "_"
-  color: Colors.accent
+  color: Colors.accentText
   font.family: Style.font.family
   font.pixelSize: size
   layer.enabled: Style.fx.glow > 0

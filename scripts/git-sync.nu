@@ -6,6 +6,7 @@ use ($SCRIPTS | path join lib usage.nu) [die]
 const JOBS_DEFAULT = 8
 const SEARCH_DEPTH = 5
 const PRUNED = [vendor node_modules .cache target .venv .direnv]
+const CONFLICT = '^(U.|.U|AA|DD)'
 
 def --wrapped git-out [dir: path, ...args: string]: nothing -> string {
     do { ^git -C $dir ...$args } | complete | get stdout | str trim
@@ -46,10 +47,14 @@ def sync-one [dir: path, bare: bool]: nothing -> list<string> {
             (if $no_remote { "NO REMOTE" })
         ] | compact)
     }
-    let porcelain = git-out $dir status --porcelain | lines
-    let staged = $porcelain | any { $in =~ '^[MADRC]' }
-    let unstaged = $porcelain | any { $in =~ '^.[MADRC]' }
+    # untrimmed: the first entry's leading space is what tells unstaged from staged
+    let porcelain = do { ^git -C $dir status --porcelain } | complete | get stdout | lines
+    let conflicted = $porcelain | any { $in =~ $CONFLICT }
+    let resolved = $porcelain | where $it !~ $CONFLICT
+    let staged = $resolved | any { $in =~ '^[MADRCT]' }
+    let unstaged = $resolved | any { $in =~ '^.[MADRCT]' }
     let local = [
+        (if $conflicted { "CONFLICTS" })
         (if $staged { "STAGED CHANGES" })
         (if $unstaged { "UNSTAGED CHANGES" })
         (if ($porcelain | any { str starts-with "??" }) { "UNTRACKED FILES" })
@@ -62,8 +67,10 @@ def sync-one [dir: path, bare: bool]: nothing -> list<string> {
     let fetch_failed = (remote-git $dir fetch --all --quiet).exit_code != 0
     let after = refs-of $dir refs/remotes
     let others = {|refs| $refs | where { not ($in | str starts-with $"($upstream) ") } }
-    let fetched = $before != $after and ($upstream == "" or (do $others $before) != (do $others $after))
-    let pulled = if $upstream != "" and not ($staged or $unstaged or $unpushed) {
+    let pull_skipped = $conflicted or $staged or $unstaged or $unpushed
+    # a pull reports upstream movement as PULLED; without one, it is only FETCHED
+    let fetched = $before != $after and ($upstream == "" or $pull_skipped or (do $others $before) != (do $others $after))
+    let pulled = if $upstream != "" and not $pull_skipped {
         let head_before = git-out $dir rev-parse HEAD
         let pull = remote-git $dir pull
         if $pull.exit_code != 0 {

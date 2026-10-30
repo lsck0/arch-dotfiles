@@ -3,7 +3,7 @@
 
 const HERE = path self | path dirname
 const RULES = $HERE | path join ../hyprland/hyprland_windowrules.lua
-const UNBLURRED = [background desktop-widgets notification-image-grab]
+const UNBLURRED = [background notification-image-grab]
 
 def main [] {
     let pattern = open --raw $RULES | parse --regex 'name = "quickshell-blur",\s*match = \{\s*namespace = "(?<re>[^"]+)"' | get 0.re

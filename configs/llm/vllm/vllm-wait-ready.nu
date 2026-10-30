@@ -4,7 +4,8 @@ const BACKEND_URL = "http://127.0.0.1:8001/v1/models"
 const READY_TIMEOUT = 9min
 const POLL_INTERVAL = 2sec
 
-# Stops vllm: one failed request is one try, no restart reloads the weights until the next connection.
+# Stops vllm: one failed request is one try. The proxy still starts and forwards to the dead backend until its idle
+# exit, so only a connection after that window reloads the weights.
 def give-up []: nothing -> nothing {
     print --stderr "vllm-wait-ready: vllm.service did not become ready, giving up"
     ^systemctl stop vllm.service

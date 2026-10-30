@@ -1,4 +1,5 @@
 use module.nu *
+use repository.nu [repository-url repository-name]
 
 export const meta = {
     deps: [core/gh]
@@ -12,10 +13,6 @@ const ICON = "folder-development"
 # a push to github alone must not reach root here through git-sync and dot apply
 const DOTFILES_GIT = {"pull.rebase": "false", "pull.ff": "only", "merge.verifySignatures": "true"}
 
-def repository-url [spec: string]: nothing -> string {
-    if ($spec =~ '://' or ($spec | str starts-with "git@")) { $spec } else { $"https://github.com/($spec | str replace --regex '\.git$' '').git" }
-}
-
 # A helper that reads the token itself, so it never lands in the url, the remote config or an argv.
 def credential-helper [token: path]: nothing -> string {
     $"!f\(\) { test \"$1\" != get || { echo username=x-access-token; sed -n \"1s/^/password=/p\" '($token)'; }; }; f"
@@ -24,7 +21,11 @@ def credential-helper [token: path]: nothing -> string {
 def clone [root: path, line: string]: nothing -> list<record> {
     let fields = $line | split row --regex '\s+'
     let url = repository-url $fields.0
-    let dest = $root | path join ($fields | get --optional 1 | default ($url | path basename | str replace --regex '\.git$' ''))
+    if $url == null {
+        log-warn $"projects: ($fields.0) in ($REPOSITORIES) is neither a url nor user/repo, skipped"
+        return []
+    }
+    let dest = $root | path join ($fields | get --optional 1 | default (repository-name $url))
     if ($dest | path exists) { return [] }
     let secret = $fields | get --optional 2
     let auth = if $secret == null { [] } else {

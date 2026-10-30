@@ -3,7 +3,7 @@ local style = require("style")
 
 local wal_gradient = { colors = { wal.color1, wal.color2, wal.color3 }, angle = 45 }
 
-local function glow(c, a)
+local function with_alpha(c, a)
     return (c:gsub("rgb%((%x+)%)", "rgba(%1" .. a .. ")"))
 end
 
@@ -98,7 +98,7 @@ hl.config({
         border_size = style.border,
         col = {
             active_border = wal_gradient,
-            inactive_border = "rgba(2a2a2aaa)",
+            inactive_border = with_alpha(wal.color8, "aa"),
         },
         layout = "dwindle",
     },
@@ -123,7 +123,7 @@ hl.config({
             enabled = true,
             range = 12,
             render_power = 3,
-            color = glow(wal.color4, "18"),
+            color = with_alpha(wal.color4, "18"),
             color_inactive = "rgba(00000066)",
         },
     },
@@ -138,7 +138,7 @@ hl.config({
             render_titles = false,
             col = {
                 active = wal.color2,
-                inactive = "rgba(000000cc)",
+                inactive = with_alpha(wal.color8, "cc"),
             },
         },
     },

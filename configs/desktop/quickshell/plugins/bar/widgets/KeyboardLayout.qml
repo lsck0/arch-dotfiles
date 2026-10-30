@@ -9,6 +9,7 @@ import "KeyboardLayoutModel.js" as KeyboardLayoutModel
 BarWidget {
   id: root
   moduleName: "keyboard-layout"
+  barPriority: 45
 
   property string layoutFull: ""
   property string keyboardName: ""

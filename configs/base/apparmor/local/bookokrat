@@ -1,0 +1,3 @@
+# managed by arch-dotfiles/apparmor
+@{sh_path} rix,
+include <abstractions/dotfiles/synctex-edit>

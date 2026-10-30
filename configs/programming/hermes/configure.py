@@ -1,5 +1,5 @@
-"""Set the hermes settings and agent-guard hooks the hermes module passes as JSON (argv[1]) in the profile at HERMES_HOME,
-in hermes' own venv: one interpreter instead of a hermes launch per key."""
+"""Set and remove the hermes settings and set the agent-guard hooks the hermes module passes as JSON (argv[1]) in the
+profile at HERMES_HOME, in hermes' own venv: one interpreter instead of a hermes launch per key."""
 
 import json
 import sys
@@ -20,4 +20,11 @@ for event, command in want["hooks"].items():
     others = [h for h in hooks.get(event) or [] if "agent-guard" not in str(h.get("command", ""))]
     hooks[event] = others + [{"command": command}]
     _record_approval(event, command)
-save_config(config, merge_existing=True)
+for key in want["remove"]:
+    *parents, leaf = key.split(".")
+    parent = config
+    for part in parents:
+        parent = parent.get(part) or {}
+    parent.pop(leaf, None)
+# a merge with the file on disk would bring the removed keys back
+save_config(config, merge_existing=not want["remove"])

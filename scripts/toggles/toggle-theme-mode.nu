@@ -1,16 +1,17 @@
 #!/usr/bin/env -S nu --no-config-file
 use lib.nu [status-record status-print notify state-file]
 use ../lib/log.nu [log-err]
+use ../lib/state.nu [xdg]
 use ../../configs/core/wallust/wallpaper-list.nu [wallpaper-resolve]
 use ../../configs/core/wallust/palette.nu [hex-to-rgb is-light]
 
 const THEMES = path self ../../themes
 const DOT = path self ../dot.nu
-const WAL = ".cache/wal"
+const WAL = "wal"
 const LAST_FLIP = "theme-mode.nuon"
 const MODES = [dark light]
 
-def wal [...parts: string]: nothing -> path { $nu.home-dir | path join $WAL ...$parts }
+def wal [...parts: string]: nothing -> path { xdg cache $WAL ...$parts }
 
 def mode-of [hex: string]: nothing -> string { if ($hex | hex-to-rgb | is-light) { "light" } else { "dark" } }
 
@@ -41,7 +42,7 @@ def current-theme [themes: table, wallpaper: string]: nothing -> record {
     let named = $themes | where wallpaper == ($wallpaper | path basename) | get --optional 0
     if $named != null { return $named }
     let bg = background
-    if $bg == null { error make {msg: "no palette in ~/.cache/wal, run dot theme first"} }
+    if $bg == null { error make {msg: $"no palette in (wal), run dot theme first"} }
     $themes | where mode == (mode-of $bg) | sort-by { distance $in.background $bg } | first
 }
 

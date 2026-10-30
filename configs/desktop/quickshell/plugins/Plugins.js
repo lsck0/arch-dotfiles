@@ -11,10 +11,10 @@ const shell = {
 };
 
 const bar = {
-    left:   ["AppMenu", "Workspaces"],
+    left:   ["AppMenu", "Workspaces", "Submap"],
     center: ["Clock", "Weather", "Media", "Obs", "Discord"],
     right:  ["Tray", "Separator", "Agents", "Homelab", "System", "Network",
              "Display", "AudioIO", "Notifications", "KeyboardLayout", "Indicators", "Exit"]
 };
 
-const barSecondary = { left: ["AppMenu", "Workspaces"], center: [], right: [] };
+const barSecondary = { left: ["AppMenu", "Workspaces", "Submap"], center: [], right: [] };

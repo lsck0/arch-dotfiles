@@ -1,4 +1,4 @@
-;; tempel templates, mirroring nvim's snippets/<filetype>.lua
+;; tempel templates after nvim's snippets/<filetype>.lua: a subset of them, plus the C `sec' banner
 
 c-mode c-ts-mode c++-mode c++-ts-mode js-mode js-ts-mode typescript-ts-mode tsx-ts-mode
 
@@ -43,10 +43,10 @@ LaTeX-mode plain-TeX-mode
 (item "\\begin{itemize}" n> "\\item " p n "\\end{itemize}" >)
 (enum "\\begin{enumerate}" n> "\\item " p n "\\end{enumerate}" >)
 (fig "\\begin{figure}[" (p "htbp") "]" n> "\\centering" n> "\\includegraphics[width=" (p "0.8") "\\textwidth]{" p "}"
-     n> "\\caption{" p "}" n> "\\label{fig:" p "}" n "\\end{figure}" >)
+     n> "\\caption{" p "}" n> "\\label{figure:" p "}" n "\\end{figure}" >)
 (tab "\\begin{table}[" (p "htbp") "]" n> "\\centering" n> "\\begin{tabular}{" (p "ccc") "}" n> p n "\\end{tabular}" >
-     n> "\\caption{" p "}" n> "\\label{tab:" p "}" n "\\end{table}" >)
+     n> "\\caption{" p "}" n> "\\label{table:" p "}" n "\\end{table}" >)
 (mk "$" p "$" :when (not (texmathp)))
 (dm "\\[" n> p n "\\]" > :when (not (texmathp)))
-(eq "\\begin{equation}" n> p n "\\end{equation}" >)
-(ali "\\begin{align}" n> p n "\\end{align}" >)
+(eq "\\begin{equation}" n> "\\label{equation:" p "}" n> p n "\\end{equation}" >)
+(ali "\\begin{align*}" n> p n "\\end{align*}" >)

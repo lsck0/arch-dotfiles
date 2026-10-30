@@ -51,32 +51,42 @@ def tz-detect []: nothing -> any {
     $tz
 }
 
-def apply [dry_run: bool]: nothing -> nothing {
-    if (disabled-flag | path exists) or (off-home) or (tunnel-up) != null { return }
+def in-wheel []: nothing -> bool {
+    "wheel" in (^id -nG | str trim | split row " ")
+}
+
+# Why detection is skipped, null when it may run: nothing reaches ipinfo.io unless the answer could be used.
+def suppressed []: nothing -> any {
+    if (disabled-flag | path exists) { return "disabled" }
+    if (off-home) { return "off home" }
+    let tunnel = tunnel-up
+    if $tunnel != null { return $"tunnel ($tunnel)" }
+    if not (in-wheel) { return "not in wheel" }
+    null
+}
+
+def apply []: nothing -> nothing {
+    if (suppressed) != null { return }
     let current = tz-current
     let want = tz-detect
-    if $want == null or not (tz-valid $want) or $want == $current or $dry_run { return }
-    if "wheel" not-in (^id -nG | str trim | split row " ") { return }
+    if $want == null or not (tz-valid $want) or $want == $current { return }
     ^timedatectl --no-ask-password set-timezone $want
     if (which notify-send | is-not-empty) {
-        do { ^notify-send -a Timezone "Timezone updated" $"($current) -> ($want)" } | complete | ignore
+        do { ^notify-send -a timezone "Timezone updated" $"($current) -> ($want)" } | complete | ignore
     }
     do { ^systemctl --user try-restart quickshell.service } | complete | ignore
 }
 
-def main []: nothing -> nothing { apply false }
+def main []: nothing -> nothing { apply }
 
-def "main apply" []: nothing -> nothing { apply false }
-
-def "main check" []: nothing -> nothing { apply true }
+def "main apply" []: nothing -> nothing { apply }
 
 def "main status" []: nothing -> nothing {
-    let tunnel = tunnel-up
-    let detected = if (off-home) { "(off home, no lookup)" } else {
+    let reason = suppressed
+    let detected = if $reason != null { $"\(($reason), no lookup\)" } else {
         try { tz-detect | default "(unavailable)" } catch { "(unavailable)" }
     }
     print $"current:  (tz-current)"
-    print (if $tunnel == null { "tunnel:   none" } else { $"tunnel:   ($tunnel) \(detection suppressed\)" })
     print (if (disabled-flag | path exists) { "auto:     disabled" } else { "auto:     enabled" })
     print $"detected: ($detected)"
 }

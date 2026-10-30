@@ -1,5 +1,7 @@
 use module.nu *
 
+export const meta = {inputs: [/usr/bin/notify-send]}
+
 const TOKEN = "configs/secrets/keys/ntfy-desktop-token"
 const HOMELAB_URL = "https://github.com/lsck0/homelab.git"
 

@@ -10,6 +10,7 @@ use preserve.nu [tty-confirm preserve-prune]
 use migrate.nu [migrations-run]
 use system.nu [system-unpack system-secrets ENTRY]
 use cli.nu [supervise self-argv]
+use sync.nu [bootstrap-const FINGERPRINT_VALUE]
 
 const EXIT_FAILURES = 1
 const OFFLINE_WAIT_S = 120
@@ -23,7 +24,7 @@ const LSCK0_DB = "/var/lib/pacman/sync/lsck0.db"
 const PACMAN_LOCK = "/var/lib/pacman/db.lck"
 const PACMAN_MODULE = "base/pacman"
 const YUBIKEY_MODULE = "base/yubikey"
-const ADDUSER_LINK = "/usr/local/bin/adduser-dotfiles"
+const ADDUSER_BIN = "/usr/local/bin/adduser-dotfiles"
 
 def repo-guard []: nothing -> path {
     let repo = $env.FILE_PWD | path dirname | path dirname
@@ -93,7 +94,7 @@ def main [] {
 }
 
 # apply <sha> <install|config>: unpack the repo and secrets archive on stdin, run the stage from the new copy
-def "main apply" [sha: string, stage: string, --unattended, --force]: nothing -> nothing {
+def "main apply" [sha: string, stage: string, --unattended, --force, --yes]: nothing -> nothing {
     repo-guard | ignore
     if $stage not-in [install config] { error make {msg: $"apply: ($stage) is neither install nor config"} }
     locked
@@ -102,7 +103,7 @@ def "main apply" [sha: string, stage: string, --unattended, --force]: nothing ->
         ^tar -x --no-same-owner --no-same-permissions -C $work -f - repo.tar secrets.tar
         open --raw ($work | path join repo.tar) | system-unpack $SYSTEM_REPO $sha
         let entry = $SYSTEM_REPO | path join $ENTRY
-        let flags = if $stage == "install" { [--unattended=($unattended)] } else { [--unattended=($unattended) --force=($force)] }
+        let flags = if $stage == "install" { [--unattended=($unattended) --yes=($yes)] } else { [--unattended=($unattended) --force=($force)] }
         try { open --raw ($work | path join secrets.tar) | ^/usr/bin/nu --no-config-file $entry $stage ...$flags; 0 } catch {|e| $e.exit_code? | default 1 }
     } catch {|e|
         rm --recursive --force $work
@@ -117,22 +118,20 @@ def --env unattended [on: bool]: nothing -> nothing {
 }
 
 # every declared package from [lsck0] in one pass, base/pacman first, base/yubikey last
-def "main install" [--unattended]: nothing -> nothing {
+def "main install" [--unattended, --yes]: nothing -> nothing {
     let repo = repo-guard
     locked
     unattended $unattended
     failures-begin ($SYSTEM_STATE | path join FAILURES)
-    # the install stage runs base/pacman's verb, so root's state converts before it as before config
+    # the install stage runs base/pacman's verb, so root's state is migrated before it, as config does
     migrations-run $repo system | ignore
     ^pacman-key --init
     ^pacman-key --populate archlinux
     let offline = (which nm-online | is-not-empty) and not (try { ^nm-online $"--timeout=($OFFLINE_WAIT_S)"; true } catch { false })
     if $offline { log-warn $"still offline after ($OFFLINE_WAIT_S)s" }
     let ctx = pipeline-load $repo system
-    if not (module-system $ctx $PACMAN_MODULE) {
-        fail $PACMAN_MODULE
-        exit $EXIT_ABORTED
-    }
+    # pipeline-apply records the failure itself
+    if not (module-system $ctx $PACMAN_MODULE) { exit $EXIT_ABORTED }
     # a power cut mid-transaction leaves the lock, and every retry boot would fail on it
     if ($PACMAN_LOCK | path exists) and (^pgrep -x pacman | complete).exit_code != 0 { rm --force $PACMAN_LOCK }
     let declared = modules-packages $repo $ctx.modules $ctx.platform
@@ -155,14 +154,14 @@ def "main install" [--unattended]: nothing -> nothing {
     if ($declared.incomplete | is-not-empty) {
         fail $"ledger: not removing dropped packages, these modules declare none: ($declared.incomplete | str join ' ')"
     } else {
-        try { ledger-packages $declared.pacman } catch {|e| fail $"ledger: removing dropped packages: ($e.msg)" }
+        try { ledger-packages $declared.pacman $yes } catch {|e| fail $"ledger: removing dropped packages: ($e.msg)" }
     }
     if ($declared.nix | is-not-empty) and (which nix | is-not-empty) {
         try { ^systemctl enable --now nix-daemon.socket } catch { fail "nix-daemon.socket" }
         # nix ships no /nix/store and a user's first call fails on it
         if not ("/nix/store" | path exists) { ^install -d -o root -g nixbld -m 1775 /nix/store }
     }
-    if not (module-system $ctx $YUBIKEY_MODULE) { fail $YUBIKEY_MODULE }
+    module-system $ctx $YUBIKEY_MODULE | ignore
     failures-end install
 }
 
@@ -189,10 +188,9 @@ def "main config" [--unattended, --force]: nothing -> nothing {
         error make {msg: $e.msg}
     }
     rm --recursive --force $secrets
-    ls /usr/local/bin | where type == symlink | where { (^readlink $in.name | str starts-with "/home/") } | each { rm $in.name } | ignore
-    rm --force $ADDUSER_LINK
-    $"#!/bin/sh\n[ \"$\(id -u\)\" = 0 ] || exec sudo \"$0\" \"$@\"\nexec /usr/bin/nu --no-config-file ($SYSTEM_REPO | path join $ENTRY) adduser \"$@\"\n" | save $ADDUSER_LINK
-    ^chmod 755 $ADDUSER_LINK
+    rm --force $ADDUSER_BIN
+    $"#!/bin/sh\n[ \"$\(id -u\)\" = 0 ] || exec sudo \"$0\" \"$@\"\nexec /usr/bin/nu --no-config-file ($SYSTEM_REPO | path join $ENTRY) adduser \"$@\"\n" | save $ADDUSER_BIN
+    ^chmod 755 $ADDUSER_BIN
     try { ledger-units $repo ($ctx.modules | where cfg.enable | get dir) system | ignore } catch {|e| fail $"ledger: disabling dropped units: ($e.msg)" }
     # last, so every initramfs and cmdline change of this run is rebuilt once, then signed and verified
     try { ^/usr/bin/nu --no-config-file -I ($repo | path join scripts lib) -c $"use ($repo | path join configs base boot boot.nu) [boot-commit]; boot-commit" } catch { fail "boot barrier (configs/base/boot/boot.nu boot-commit)" }
@@ -221,11 +219,12 @@ def "main packages" [--yes, --plan, --unattended]: nothing -> nothing {
     ^pacman -Rns --noconfirm ...$orphans
 }
 
-def "main module" [id: string, verb: string]: nothing -> nothing {
+# module <id>: that module's system verb alone, for running it by hand; the system verb is the only one root runs
+def "main module" [id: string]: nothing -> nothing {
     let repo = repo-guard
     locked
     let ctx = pipeline-load $repo system
-    if $verb not-in ($ctx.modules | where id == $id | get --optional 0.native | default []) { error make {msg: $"($id) has no native ($verb) verb"} }
+    if "system" not-in ($ctx.modules | where id == $id | get --optional 0.native | default []) { error make {msg: $"($id) has no native system verb"} }
     if not (module-system $ctx $id) { exit 1 }
 }
 
@@ -244,19 +243,12 @@ def "main preserve-prune" [days: int]: nothing -> nothing {
 const USERNAME_PATTERN = '^[a-z_][a-z0-9_-]{0,31}$'
 const PROFILE_CUSTOM = "custom"
 
-# The trust anchor (url, signing key file and fingerprint) lives only in bootstrap.sh; read it so a key rotation there reaches adduser too.
-def bootstrap-const [repo: path, name: string]: nothing -> string {
-    let v = open --raw ($repo | path join "bootstrap.sh") | parse --regex ('(?m)^' + $name + '=(?<v>\S+)$') | get v
-    if ($v | length) != 1 { error make {msg: $"bootstrap.sh has no single ($name)=<value>"} }
-    $v.0
-}
-
 # adduser-dotfiles <name> [--profile <p>]: a non-wheel login with its own checkout; rerun-safe.
 def "main adduser" [name: string, --profile: string]: nothing -> nothing {
     let repo = repo-guard
     if not ($name =~ $USERNAME_PATTERN) { error make {msg: $"invalid name '($name)', expected ($USERNAME_PATTERN)"} }
     let profiles = glob ($repo | path join profiles *.nuon) | each { path parse | get stem } | sort | append $PROFILE_CUSTOM
-    let picked = if $profile != null { $profile } else if (^test -t 0 | complete).exit_code == 0 {
+    let picked = if $profile != null { $profile } else if (is-terminal --stdin) {
         print -e $"profiles: ($profiles | str join ' ')"
         input $"profile for ($name) [($PROFILE_CUSTOM)]: " | default --empty $PROFILE_CUSTOM
     } else { $PROFILE_CUSTOM }
@@ -272,7 +264,7 @@ def "main adduser" [name: string, --profile: string]: nothing -> nothing {
     if not ($checkout | path join .git | path exists) {
         let dotfiles_url = bootstrap-const $repo DOTFILES_URL
         let key_file = bootstrap-const $repo SIGNING_KEY_FILE
-        let fingerprint = bootstrap-const $repo SIGNING_KEY_FINGERPRINT
+        let fingerprint = bootstrap-const $repo SIGNING_KEY_FINGERPRINT $FINGERPRINT_VALUE
         ^runuser -u $name -- git clone $dotfiles_url $checkout
         let gnupg = ^runuser -u $name -- mktemp -d | str trim
         ^runuser -u $name -- env $"GNUPGHOME=($gnupg)" gpg --batch --quiet --import ($repo | path join $key_file)
@@ -287,12 +279,12 @@ def "main adduser" [name: string, --profile: string]: nothing -> nothing {
     if $picked != $PROFILE_CUSTOM and not ($live | path exists) {
         ^runuser -u $name -- install -Dm644 ($checkout | path join profiles $"($picked).nuon") $live
     }
-    let picked_file = $checkout | path join profiles $"($picked).nuon"
+    # root's copy: the login can write its own checkout
+    let picked_file = $repo | path join profiles $"($picked).nuon"
     if $picked != $PROFILE_CUSTOM and ("secrets" in (open $picked_file | get --optional capabilities | default [])) {
         let owners = "/var/lib/dotfiles/owners"
         let have = if ($owners | path exists) { open --raw $owners | lines } else { [] }
         if $name not-in $have { $"($name)\n" | save --append $owners }
     }
     ^systemd-run --quiet --wait --pipe --collect $"--uid=($name)" -p PAMName=login -p $"WorkingDirectory=($checkout)" nu --no-config-file scripts/dot.nu apply --packages --user
-    ^systemd-run --quiet --wait --pipe --collect $"--uid=($name)" -p PAMName=login -p $"WorkingDirectory=($checkout)" nu --no-config-file scripts/dot.nu apply --user
 }
