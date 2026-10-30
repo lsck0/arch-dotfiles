@@ -100,5 +100,5 @@ def loopback-link [cfg: record]: nothing -> list<record> {
 export def link [cfg: record] {
     # pipewire also arrives under wsl, as a dependency of the portals, where wslg owns the audio
     if (which pipewire | is-empty) or $env.FORM_FACTOR? == "wsl" { return [] }
-    (eq-link $cfg) ++ (loopback-link $cfg)
+    [(unit-enable wireplumber.service)] ++ (eq-link $cfg) ++ (loopback-link $cfg)
 }
