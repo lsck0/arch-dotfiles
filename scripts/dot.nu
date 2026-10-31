@@ -8,19 +8,19 @@ use ($LIB | path join usage.nu) [die]
 use ($LIB | path join complete.nu) [command-table module-ids option-keys option-values theme-names run-ids]
 use ($LIB | path join state.nu) [state-dir SYSTEM_STATE]
 use ($LIB | path join platform.nu) [platform-env]
-use ($LIB | path join modules.nu) [modules-graph modules-packages modules-eval]
+use ($LIB | path join modules.nu) [modules-graph modules-packages modules-eval VERB_WORK_TIMEOUT]
 use ($LIB | path join pipeline.nu) [pipeline-load pipeline-plan pipeline-apply]
 use ($LIB | path join preserve.nu) [preserve-report tty-confirm]
 use ($LIB | path join ledger.nu) [packages-convergence PACKAGES_DENY]
 use ($LIB | path join migrate.nu) [migrations-pending]
 use ($LIB | path join gate.nu) [gate-lint gate-tools gate-palette]
-use ($LIB | path join vm.nu) [USER PROFILE PLATFORM vm-run vm-destroy screenshot]
+use ($LIB | path join vm.nu) [USER vm-test vm-scenario-names vm-destroy screenshot]
 use ($REPO | path join configs base yubikey yubikey.nu) [yubikey-init yubikey-seal yubikey-unlock yubikey-lock]
 use ($REPO | path join configs base yubikey audit.nu) [audit-run audit-rotated audit-drilled]
 use ($LIB | path join doctor.nu) [doctor-run doctor-checks]
 use ($REPO | path join configs core wallust wallpaper.nu) [wallpaper-set wallpaper-random wallpaper-pick]
 use ($LIB | path join sync.nu) [sync-commit sync-can-sign]
-use ($LIB | path join run.nu) [plan-print link-run failures-publish finish admin system-allowed pty-log system-skipped pending-exit apply-run user-locked unlink-run install-run user-packages-undeclared pending-file system-part update-run managed-drift INTERNAL]
+use ($LIB | path join run.nu) [plan-print link-run link-plan failures-publish finish admin system-allowed pty-log system-skipped pending-exit apply-finish apply-run user-locked unlink-run install-run user-packages-undeclared pending-file system-part update-run managed-drift INTERNAL]
 use ($LIB | path join set.nu) [options-list option-target option-write option-apply]
 
 const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo prescribes and records it
@@ -82,23 +82,25 @@ def "main plan" [
     guarded plan --read-only {
         # read before pipeline-load switches DOT_LAYER: the pending list lives in the user's state
         let waiting = try { open --raw (pending-file) | lines | uniq } catch { [] }
+        # each layer loads once: the plan's context is reused for the packages below
+        let planned_ctx = if $system { pipeline-load $REPO system } else { pipeline-load $REPO user }
         if $system {
-            let ctx = pipeline-load $REPO system
-            plan-print (pipeline-plan $ctx system $mods $force) system $ctx.modules $mods
+            plan-print (pipeline-plan $planned_ctx system $mods $force) system $planned_ctx.modules $mods
         } else {
-            link-run $mods $force true | ignore
+            let planned = link-plan $planned_ctx $mods $force
+            plan-print $planned link $planned_ctx.modules $mods
         }
         let pending = migrations-pending $REPO (if $system { "system" } else { "user" })
         if ($pending | is-not-empty) { print $"migrations pending: ($pending.id | str join ' ')" }
         if ($waiting | is-not-empty) { print $"system part pending for: ($waiting | str join ' '); dot apply runs it" }
-        let ctx = pipeline-load $REPO system
+        let ctx = if $system { $planned_ctx } else { pipeline-load $REPO system }
         let declared = modules-packages $REPO $ctx.modules $ctx.platform
         let extra = packages-convergence $declared.pacman $ctx.platform.packages_keep
         if ($extra.remove | is-not-empty) {
             print $"installed, declared by no module \(($extra.remove | length)\): ($extra.remove | str join ' ')\n  dot apply --packages removes them after a yes"
         }
-        let user = pipeline-load $REPO user
-        let declared_user = modules-packages $REPO $user.modules $user.platform
+        let user = if $system { pipeline-load $REPO user } else { $planned_ctx }
+        let declared_user = with-env {DOT_LAYER: user} { modules-packages $REPO $user.modules $user.platform }
         if ($declared_user.incomplete | is-not-empty) {
             print $"flatpak and nix: dot apply --packages removes none, these modules declare none: ($declared_user.incomplete | str join ' ')"
             return
@@ -145,23 +147,18 @@ def "main apply" [
     }
     match $one {
         "user" => {
-            guarded apply { link-run $mods $force false | finish $in }
-            pending-exit
+            guarded apply { link-run $mods $force | apply-finish $in }
         }
         "system" => {
             pty-log config ([apply --system] ++ (flag force $force))
             guarded apply {
                 if not (admin) { error make {msg: "apply --system: the system layer is root's, and this login is not in wheel"} }
-                apply-run true false $force | finish $in
-                pending-exit
+                apply-run true false $force | apply-finish $in
             }
         }
         _ => {
             pty-log config ([apply] ++ (flag force $force))
-            guarded apply {
-                apply-run true true $force | finish $in
-                pending-exit
-            }
+            guarded apply { apply-run true true $force | apply-finish $in }
         }
     }
 }
@@ -263,7 +260,7 @@ def "main module restore" [mod: string@module-ids]: nothing -> nothing {
         let ctx = pipeline-load $REPO user
         let m = $ctx.modules | where id == $mod | get --optional 0
         if $m == null or "restore" not-in $m.native { error make {msg: $"($mod) has no restore verb"} }
-        let r = with-env (platform-env $ctx.platform) { modules-eval [$m] restore {$m.id: $m.cfg} [] } | first
+        let r = with-env (platform-env $ctx.platform) { modules-eval [$m] restore {$m.id: $m.cfg} [] --timeout $VERB_WORK_TIMEOUT } | first
         if not $r.ok { error make {msg: $"restore ($mod): ($r.error)"} }
     }
 }
@@ -398,13 +395,19 @@ def "main log" [run?: string@run-ids, --module: string@module-ids, --level: stri
         let spans = $records | where kind? == span
         let ends = $spans | where phase == end | reduce --fold {} {|e, acc| $acc | upsert $e.span $e }
         let parents = $spans | where phase == begin | reduce --fold {} {|b, acc| $acc | upsert $b.span $b.parent }
+        # each span's errors under it: the failed step's cause, the FAILURES line, a crash's
+        let errors = $records | where level in [ERROR PANIC] and kind? != span | group-by span
         return ($spans | where phase == begin | each {|b|
             mut depth = 0
             mut up = $b.parent
             while ($up | is-not-empty) { $depth += 1; $up = $parents | get --optional $up | default "" }
             let end = $ends | get --optional $b.span
-            $"('' | fill --width ($depth * 2))($b.target) ($end.ms? | default '?')ms ($end.outcome? | default 'open')"
-        } | str join "\n")
+            let indent = '' | fill --width ($depth * 2)
+            let failed = $errors | get --optional $b.span | default [] | each {|r|
+                $"($indent)  ! ($r.msg)(if ($r.outcome? | is-empty) or $r.outcome == $r.msg { '' } else { $': ($r.outcome)' })"
+            }
+            [$"($indent)($b.target) ($end.ms? | default '?')ms ($end.outcome? | default 'open')"] ++ $failed
+        } | flatten | append ($errors | reject --optional ...($spans | get span | uniq) | values | flatten | each { $"! ($in.msg)" }) | str join "\n")
     }
     let rank = $LOG_LEVELS | enumerate | where item == ($level | str uppercase) | get 0.index
     $records | where {|r| ($LOG_LEVELS | enumerate | where item == $r.level | get 0.index) >= $rank }
@@ -423,7 +426,7 @@ def "main explain" [thing: string]: nothing -> nothing {
                 $st.outputs | where target == $target | each { {module: ($f | path dirname | path relative-to $root), verb: ($f | path parse | get stem), output: $in, run: $st.run?, time: $st.time?} }
             } | flatten
         } | flatten
-        let declares = if $target != $thing { [] } else {
+        let declares = if ($thing | str contains "/") { [] } else {
             pipeline-load $REPO user | get modules | where {|m|
                 let p = $m.meta.packages
                 $thing in ($p.pacman ++ $p.native ++ $p.nix ++ ($p.flatpak | columns))
@@ -459,12 +462,23 @@ def "main test check" []: nothing -> nothing {
 
 const VM_NAME = "archlinux-test"
 
-# end-to-end vm test from the lsck0 iso, hours; --master tests github master; logs in $XDG_CACHE_HOME/vm-test/<name>
-def "main test run" [--iso: path, --platform: string, --user: string, --profile: string, --master, --name: string = $VM_NAME]: nothing -> nothing {
+# end-to-end vm test from the lsck0 iso, hours a run; --master tests github master; logs in $XDG_CACHE_HOME/vm-test/<name>/logs/<scenario>
+def "main test run" [
+    --iso: path
+    --platform: string
+    --user: string
+    --profile: string
+    --master
+    --name: string = $VM_NAME
+    --scenario: string@vm-scenario-names = "home"  # comma list of scenarios and presets (scripts/lib/vm/scenarios.nuon), or all
+    --dry-run  # print each run's answers, network and snapshot edits, boot nothing
+]: nothing -> nothing {
     guarded test {
-        let problems = gate-lint
-        if ($problems | is-not-empty) { error make {msg: ($problems | str join "\n")} }
-        vm-run $name $iso ($platform | default $PLATFORM) ($user | default $USER) ($profile | default $PROFILE) $master
+        if not $dry_run {
+            let problems = gate-lint
+            if ($problems | is-not-empty) { error make {msg: ($problems | str join "\n")} }
+        }
+        vm-test $name $iso $scenario $platform $profile ($user | default $USER) $master $dry_run
     }
 }
 

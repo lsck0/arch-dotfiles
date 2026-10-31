@@ -117,7 +117,7 @@ export def link [cfg: record] {
             file-link (home $r.target) (home $r.name)
         })
         # nemo also claims FileManager1 and sorts first; the user dir wins, so only where dolphin exists
-        (if ("/usr/bin/dolphin" | path exists) {
+        (if (which dolphin | is-not-empty) {
             let service = home .local share dbus-1 services org.freedesktop.FileManager1.service
             file-copy dolphin.FileManager1.service $service
         } else { [] })

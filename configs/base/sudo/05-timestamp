@@ -1,0 +1,6 @@
+# The credential cache, stated rather than inherited: one record per terminal and five minutes long, so a touch in one
+# terminal never authorizes another. A process without a terminal falls back to its parent's record, and pam.d/sudo
+# (base/pam) refuses to authenticate it, so it never gets one. use_pty keeps a root command off the caller's terminal.
+Defaults timestamp_type=tty
+Defaults timestamp_timeout=5
+Defaults use_pty

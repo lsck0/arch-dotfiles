@@ -4,7 +4,7 @@ use ../../core/wallust/font.nu [font-load]
 
 export const meta = {
     deps: [desktop/qutebrowser]
-    packages: {pacman: [espeak-ng firefox python-pywalfox speech-dispatcher sqlite]}
+    packages: {pacman: [espeak-ng firefox plasma-browser-integration python-pywalfox speech-dispatcher sqlite]}
     inputs: ["~/.config/mozilla/firefox/profiles.ini"]
     backup: {secrets: true}
 }

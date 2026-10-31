@@ -41,7 +41,7 @@ export def system [cfg: record] {
     [
         $images
         (if (status | str contains "not initialized") {
-            exec waydroid-init [waydroid init] --creates $CONFIG
+            exec waydroid-init [waydroid init] --creates $CONFIG --network
         } else { [] })
         # a merge planned before init would overwrite init's [waydroid] section with sectionless content
         (if ($CONFIG | path exists) {

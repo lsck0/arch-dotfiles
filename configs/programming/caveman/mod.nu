@@ -40,7 +40,7 @@ def gemini-steps []: nothing -> list<record> {
     let ref = json-or ($ext | path join .gemini-extension-install.json) {} | get --optional ref
     if $ref == $COMMIT { return [] }
     let drop = if ($ext | path exists) { [(exec "caveman gemini drop" [gemini extensions uninstall caveman])] } else { [] }
-    $drop | append (exec "caveman gemini" [gemini extensions install $URL --ref $COMMIT --consent])
+    $drop | append (exec "caveman gemini" [gemini extensions install $URL --ref $COMMIT --consent] --network)
 }
 
 export def link [cfg: record] {
@@ -56,7 +56,7 @@ export def link [cfg: record] {
             [(exec "caveman hermes" [node ($dir | path join bin install.js) --only hermes --non-interactive])]
         } else { [] })
         (if (has copilot) and (has npx) and not (same-file $probe $copilot) {
-            [(exec "caveman copilot" [npx -y $SKILLS_CLI add $dir --skill "*" -a github-copilot -g --yes])]
+            [(exec "caveman copilot" [npx -y $SKILLS_CLI add $dir --skill "*" -a github-copilot -g --yes] --network)]
         } else { [] })
     ]
 }

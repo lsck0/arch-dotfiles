@@ -21,7 +21,7 @@ def config [] {
 }
 
 export def link [cfg: record] {
-    config
+    [(shell-aliases gh-dash) (config)]
 }
 
 export def theme [cfg: record, wallpaper: string] {

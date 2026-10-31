@@ -28,7 +28,7 @@ export def link [cfg: record] {
     let stale = ($installed and $previous != "" and $previous != $channel
         and (toolchain-dir $rustup $previous | path exists))
     [
-        (exec flux-toolchain [rustup toolchain install $channel --profile minimal --component $components] --creates $marker)
+        (exec flux-toolchain [rustup toolchain install $channel --profile minimal --component $components] --creates $marker --network)
         (if $stale { [(exec $"flux-toolchain-drop ($previous)" [rustup toolchain uninstall $previous])] } else { [] })
         (if $installed { [(file-text $stamp $"($channel)\n" --generated)] } else if $previous != "" {
             [(file-text $stamp $"($previous)\n" --generated)]

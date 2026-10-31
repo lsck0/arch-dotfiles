@@ -1,9 +1,23 @@
-# vm rows run as root at the end of a dot test chain (stage-report.nu), @USER@ and @LUKS@ filled in there.
+# vm rows run as root at the end of a dot test chain (stage-report.nu), @USER@, @LUKS@, @CHECKOUT@ and from
+# platforms/homelab.nu @LAB_MIRROR@ and @LSCK0_MIRROR@ (the roots of mirror.arch and mirror.lsck0), @LSCK0_HOST@ (the
+# latter's host) and @LAB_GLOB@ (the subnets as a case pattern) filled in there.
+# a probe answers pending while the module behind it waits on its packages: dot status notes it, dot test fails on it.
 stage_armed       no   live  test -e /var/lib/dotfiles-stage/next && echo yes || echo no
 sudo_passwordless no   vm    runuser -u @USER@ -- sudo -n true 2>/dev/null && echo yes || echo no
 keyfile_present   no   vm    test -e /etc/cryptsetup-keys.d/root.key && echo yes || echo no
 luks_keyslots     1    vm    cryptsetup luksDump @LUKS@ 2>/dev/null | grep -cE '^  [0-9]+: luks2'
-secure_boot       1    live  [ -d /sys/firmware/efi ] || { echo n/a; exit 0; }; od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c | awk '{print $NF}'
-setup_mode        0    live  [ -d /sys/firmware/efi ] || { echo n/a; exit 0; }; od -An -t u1 /sys/firmware/efi/efivars/SetupMode-8be4df61-93ca-11d2-aa0d-00e098032b8c | awk '{print $NF}'
+secure_boot       1    live  [ -d /sys/firmware/efi ] || { echo n/a; exit 0; }; ! grep -qs '^base/boot/sbctl:' /var/lib/dotfiles/modules-pending || { echo pending; exit 0; }; od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c | awk '{print $NF}'
+setup_mode        0    live  [ -d /sys/firmware/efi ] || { echo n/a; exit 0; }; ! grep -qs '^base/boot/sbctl:' /var/lib/dotfiles/modules-pending || { echo pending; exit 0; }; od -An -t u1 /sys/firmware/efi/efivars/SetupMode-8be4df61-93ca-11d2-aa0d-00e098032b8c | awk '{print $NF}'
 kernel_modules    yes  live  [ "$(systemd-detect-virt 2>/dev/null)" != wsl ] || { echo n/a; exit 0; }; test -d "/usr/lib/modules/$(uname -r)" && echo yes || echo no
 pdf_queue         yes  live  command -v lpstat >/dev/null || { echo n/a; exit 0; }; lpstat -p PDF >/dev/null 2>&1 && echo yes || echo no
+# vm rows wanting any are only checked when a dot test scenario expects a value (scripts/lib/vm/scenarios.nuon)
+sshd_installed    yes  vm    test -x /usr/bin/sshd && echo yes || echo no
+mirror_reachable  any  vm    for u in https://archlinux.org @LSCK0_MIRROR@; do curl -fs -m 20 -o /dev/null "$u" && { echo yes; exit 0; }; done; echo no
+issue_escape      any  vm    grep -qE '(^[[:space:]]+|`)dot [a-z]' /etc/issue.d/dotfiles-stage.issue 2>/dev/null && echo yes || echo no
+home_network      any  vm    test -s /run/home-network && echo yes || echo no
+secrets_locked    any  vm    f=@CHECKOUT@/configs/secrets/keys/pgp_privatekey.asc; test -s "$f" && ! head -c 9 "$f" | grep -qa GITCRYPT && echo no || echo yes
+secrets_banner    any  vm    test -s /etc/issue.d/dotfiles-secrets.issue && echo yes || echo no
+mirror_public     any  vm    a=$(getent ahostsv4 @LSCK0_HOST@ | awk 'NR==1{print $1}'); case "$a" in "") echo none;; @LAB_GLOB@) echo no;; *) echo yes;; esac
+lab_reachable     any  vm    curl -s -m 5 -o /dev/null @LAB_MIRROR@ && echo yes || echo no
+tor_installed     any  vm    command -v tor >/dev/null && echo yes || echo no
+planted_dropped   any  vm    grep -qsF lsck0-vm-test- @CHECKOUT@/FAILURES.install @CHECKOUT@/install.log && echo yes || echo no

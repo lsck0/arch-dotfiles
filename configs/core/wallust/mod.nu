@@ -2,6 +2,7 @@ use module.nu *
 use palette.nu [style-json]
 
 export const meta = {
+    deps: [base/essentials core/cli]
     packages: {pacman: [imagemagick wallust-git]}
 }
 
@@ -13,6 +14,7 @@ export def link [cfg: record] {
     let dir = xdg config $CONFIG_SUBDIR
     let templates = glob templates/**/* --no-dir | each { path relative-to $env.PWD }
     [
+        (shell-aliases wallust)
         (file-render wallust.toml ($dir | path join wallust.toml) {CACHE: (xdg cache), DATA: (xdg data)})
         ($templates | each {|t| file-copy $t ($dir | path join $t) })
         (files-into ($dir | path join colorschemes) ...(glob ../../../themes/*.json))

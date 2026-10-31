@@ -53,7 +53,7 @@ export def system [cfg: record] {
 }
 
 export def link [cfg: record] {
-    let keyring = present gnome-keyring-daemon.service
+    let keyring = which gnome-keyring-daemon | is-not-empty
     [
         ([gnome-keyring-daemon.service gnome-keyring-daemon.socket] | each {|u| if-present $u { unit-mask $u --now } })
         # its secrets component waits for --start, which gnome's OnlyShowIn=GNOME autostart entry would send

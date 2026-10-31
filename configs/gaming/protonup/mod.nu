@@ -15,33 +15,8 @@ export def link [cfg: record] {
     let compat = steam-data | path join compatibilitytools.d
     let ge = $"($PROTON_GE_VERSION)-x86_64"
     let ge_url = $"https://github.com/GloriousEggroll/proton-ge-custom/releases/download/($PROTON_GE_VERSION)/($ge).tar.gz"
-    let stale = $nu.home-dir | path join .steam root
     [
-        (if ($stale | path type) == dir { step root-repair } else { [] })
         (fetch-file $ge_url $PROTON_GE_SHA256 ($compat | path join $ge) --extract $ge)
         (fetch-file $OVERLAY_URL $OVERLAY_SHA256 ($compat | path join $OVERLAY_DIR) --extract $OVERLAY_DIR)
     ]
-}
-
-export def root-repair []: nothing -> nothing {
-    let stale = $nu.home-dir | path join .steam root
-    let compat = steam-data | path join compatibilitytools.d
-    mkdir $compat
-    for tool in (glob ($stale | path join compatibilitytools.d *)) {
-        let dest = $compat | path join ($tool | path basename)
-        if not ($dest | path exists) { mv $tool $dest }
-    }
-    rm --recursive --force ($stale | path join compatibilitytools.d)
-    if ($stale | path join Steam | path type) == symlink { rm ($stale | path join Steam) }
-    for entry in (ls --all $stale | get name) {
-        let dest = (steam-data) | path join ($entry | path basename)
-        if not ($dest | path exists) { mv $entry $dest }
-    }
-    let left = ls --all $stale | get name
-    if ($left | is-not-empty) {
-        let names = $left | path basename | str join ', '
-        error make {msg: $"protonup: ($stale) still holds entries the data dir has too, merge them by hand: ($names)"}
-    }
-    ^rmdir $stale
-    ^ln -s (steam-data) $stale
 }

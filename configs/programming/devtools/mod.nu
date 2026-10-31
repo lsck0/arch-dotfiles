@@ -1,3 +1,5 @@
+use module.nu *
+
 export const meta = {
     packages: {
         pacman: [
@@ -7,4 +9,8 @@ export const meta = {
             tesseract tesseract-data-deu tesseract-data-eng tokei vale yozefu
         ]
     }
+}
+
+export def link [cfg: record] {
+    shell-aliases devtools
 }

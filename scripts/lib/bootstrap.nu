@@ -4,7 +4,8 @@ use log.nu *
 use state.nu [SYSTEM_REPO path-kind]
 use system.nu [system-pack system-unpack]
 use platform.nu [platform-groups-all PLATFORM_NAME_FILE]
-use stage.nu [STAGE_STATE_DIR STAGE_KEY_FILE STAGE_ESP_MARKER]
+use stage.nu [STAGE_STATE_DIR STAGE_KEY_FILE STAGE_ESP_MARKER STAGE_SUDOERS_DROPIN REPORT_CHANNEL stage-sudoers]
+use ../../platforms/homelab.nu [HOMELAB]
 
 const MIRRORLIST = "/etc/pacman.d/mirrorlist"
 const MIRROR_COUNTRIES = "/etc/pacman.d/mirror-countries"
@@ -15,8 +16,11 @@ const MIRROR_AGE_H = 12
 const MIRROR_DOWNLOAD_TIMEOUT_S = 5
 const REFLECTOR_WAIT_S = 90
 const GEO_TIMEOUT_S = 3
-const HOMELAB_MIRROR = 'http://10.100.0.100:8090/archlinux/$repo/os/$arch'
-const HOMELAB_MIRROR_PROBE = "http://10.100.0.100:8090/archlinux/core/os/x86_64/core.db"
+# reflector's own timeouts bound each mirror, this its whole run
+const REFLECTOR_TIMEOUT = 5min
+const HOMELAB_MIRROR = $HOMELAB.mirror.arch
+# the core database behind it, which answers only from the lab
+const HOMELAB_MIRROR_PROBE = ($HOMELAB_MIRROR | str replace '$repo' core | str replace '$arch' x86_64) + "/core.db"
 
 const KBD_MODEL_MAP = "/usr/share/systemd/kbd-model-map"
 const ESP_SIZE_MIB = 1024
@@ -32,7 +36,7 @@ const SUBVOLS = [
 ]
 const LUKS_FORMAT = [--type luks2 --cipher aes-xts-plain64 --key-size 512 --sector-size 4096 --pbkdf argon2id]
 const LUKS_OPEN = [--allow-discards --perf-no_read_workqueue --perf-no_write_workqueue --persistent]
-const PACSTRAP = [base linux linux-firmware mkinitcpio btrfs-progs cryptsetup binutils networkmanager sudo git zsh zram-generator libfido2 nushell]
+export const PACSTRAP = [base linux linux-firmware mkinitcpio btrfs-progs cryptsetup binutils networkmanager sudo git zsh zram-generator libfido2 nushell]
 const HOOKS = [base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck]
 const CMDLINE_TAIL = "rw zswap.enabled=0 nmi_watchdog=0 slab_nomerge init_on_alloc=1 init_on_free=1 randomize_kstack_offset=on vsyscall=none page_alloc.shuffle=1"
 const SECRETS_TOOLS = [age age-plugin-yubikey git-crypt pcsclite ccid libfido2 yubikey-manager]
@@ -244,7 +248,7 @@ def mirrors-rank []: nothing -> nothing {
     mut ranked: any = null
     for scope in ([$country worldwide] | where $it != "") {
         let where = if $scope == "worldwide" { [] } else { [--country $scope] }
-        let run = command-stream reflector [reflector --verbose --protocol https --age $MIRROR_AGE_H --latest $MIRROR_CANDIDATES --fastest $MIRROR_KEEP --connection-timeout $GEO_TIMEOUT_S --download-timeout $MIRROR_DOWNLOAD_TIMEOUT_S ...$where --save ($tmp | path join list)]
+        let run = command-stream reflector [reflector --verbose --protocol https --age $MIRROR_AGE_H --latest $MIRROR_CANDIDATES --fastest $MIRROR_KEEP --connection-timeout $GEO_TIMEOUT_S --download-timeout $MIRROR_DOWNLOAD_TIMEOUT_S ...$where --save ($tmp | path join list)] $REFLECTOR_TIMEOUT
         if $run.exit_code != 0 { continue }
         let rates = $run.output | lines | parse --regex '(?<url>\S+)\s+(?<rate>[\d.]+) KiB/s' | where {|r| ($r.rate | into float) > 0 }
         let servers = open --raw ($tmp | path join list) | lines | where ($it | str starts-with "Server") | each {|line|
@@ -483,6 +487,14 @@ def boot-next-installed [esp: string]: nothing -> nothing {
     ^efibootmgr --quiet --bootnext $entry
 }
 
+# A watcher's (dot test) proof the install reached its end, so the power-off that follows is no crash.
+def report-bootstrap-ok []: nothing -> nothing {
+    let report = env-or BOOTSTRAP_REPORT
+    if $report == "" { return }
+    ^curl -s -m 10 $"($report)/beacon/bootstrap-ok" | complete | ignore
+    if ($REPORT_CHANNEL | path exists) { "beacon bootstrap-ok\n" | ^tee $REPORT_CHANNEL | complete | ignore }
+}
+
 def stage-arm [c: record, root_uuid: string]: nothing -> nothing {
     let state = $"($MOUNT)($STAGE_STATE_DIR)"
     mkdir $state
@@ -490,10 +502,10 @@ def stage-arm [c: record, root_uuid: string]: nothing -> nothing {
     if $c.encrypt { $"/dev/disk/by-uuid/($root_uuid)\n" | save --force ($state | path join luks-device) }
     let report = env-or BOOTSTRAP_REPORT
     if $report != "" { $"($report)\n" | save --force ($state | path join report) }
-    let stage_sudoers = $"($MOUNT)/etc/sudoers.d/zz-dotfiles-stage"
-    $"($c.username) ALL=\(ALL:ALL\) NOPASSWD: ALL\nDefaults:($c.username) verifypw=any\n" | save --force $"($stage_sudoers).new"
+    let stage_sudoers = $"($MOUNT)($STAGE_SUDOERS_DROPIN)"
+    stage-sudoers $c.username | save --force $"($stage_sudoers).new"
     ^chmod 440 $"($stage_sudoers).new"
-    if not (in-target-ok $MOUNT visudo -cqf /etc/sudoers.d/zz-dotfiles-stage.new) { die "the stage sudoers drop-in does not parse" }
+    if not (in-target-ok $MOUNT visudo -cqf $"($STAGE_SUDOERS_DROPIN).new") { die "the stage sudoers drop-in does not parse" }
     mv --force $"($stage_sudoers).new" $stage_sudoers
     "a dotfiles install chain runs from this disk; the lsck0 iso will not erase it unattended\n" | save --force $"($MOUNT)($STAGE_ESP_MARKER)"
     let checkout = $"/home/($c.username)/projects/arch-dotfiles"
@@ -984,6 +996,7 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
     }
     ^umount -R $MOUNT
     if $c.encrypt { ^cryptsetup close $LUKS_NAME }
+    report-bootstrap-ok
     log-info (text-fill $m.done {delay: $REBOOT_DELAY})
     sleep $REBOOT_DELAY
     ^reboot

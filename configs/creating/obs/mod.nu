@@ -6,7 +6,7 @@ export const meta = {
     packages: {
         pacman: [
             lib32-obs-vkcapture obs-audio-wave-bin obs-pipewire-audio-capture obs-plugin-waveform-bin obs-studio
-            obs-vkcapture websocat
+            obs-vkcapture websocat xdg-user-dirs
             npm
         ]
     }
@@ -62,6 +62,7 @@ export const options = {
 
 const HERE = path self | path dirname
 const WEBSOCKET_PORT = 4455
+const LOCK_STAMP_LENGTH = 16
 const CANVAS_FALLBACK = "1920x1080"
 const HEADLESS_OUTPUT = '^HEADLESS-'
 # the virtual camera sends raw YUYV: 4k at 30 fps is ~500 MB/s that every consumer scales per frame
@@ -97,10 +98,12 @@ def audio-device [kind: string]: nothing -> oneof<string, nothing> {
 
 export def detect [cfg: record]: nothing -> record {
     let gpu = gpu-list | get --optional 0
-    let monitor = try {
-        ^hyprctl -j monitors | from json | where name !~ $HEADLESS_OUTPUT
-        | sort-by {|m| -1 * $m.width * $m.height } name | first
-    } catch { null }
+    let monitor = if (which hyprctl | is-not-empty) {
+        try {
+            ^hyprctl -j monitors | from json | where name !~ $HEADLESS_OUTPUT
+            | sort-by {|m| -1 * $m.width * $m.height } name | first
+        } catch { null }
+    }
     let node = $cfg.vaapi_render_node | default $gpu.by_path?
     let nvidia = $gpu.vendor? == "nvidia"
     let vaapi = {|profile| $node != null and not $nvidia and (vaapi-encodes $node $profile) }
@@ -302,13 +305,16 @@ export def link [cfg: record] {
     }
     let prefix = xdg data obs-mcp
     let websocket = $obs | path join plugin_config obs-websocket config.json
-    let npm_ci = [npm ci --no-audit --no-fund --prefix $prefix]
+    let lock = $HERE | path join mcp package-lock.json
+    # npm ci empties node_modules first, so a stamp there marks the lockfile it installed; a new lock installs again
+    let installed = $prefix | path join node_modules $".dot-lock-(open --raw $lock | hash sha256 | str substring 0..<($LOCK_STAMP_LENGTH))"
+    let npm_ci = [sh -c 'npm ci --no-audit --no-fund --prefix "$1" && touch "$2"' npm-ci $prefix $installed]
     # the mcp only with the app it drives
     let mcp = if (which obs npm | length) < 2 { [] } else {
         [
             (file-copy ($HERE | path join mcp package.json) ($prefix | path join package.json))
-            (file-copy ($HERE | path join mcp package-lock.json) ($prefix | path join package-lock.json) --then $npm_ci)
-            (exec obs-mcp-install $npm_ci --creates ($prefix | path join node_modules .bin obs-mcp))
+            (file-copy $lock ($prefix | path join package-lock.json))
+            (exec obs-mcp-install $npm_ci --creates $installed --network)
             (link-commands obs-mcp.nu)
             (mcp-servers {obs-mcp: {type: stdio, command: ($nu.home-dir | path join .local bin obs-mcp), args: []}})
         ] | decls-flatten

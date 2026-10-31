@@ -60,6 +60,7 @@ export def link [cfg: record] {
     let current = if ($settings | path exists) { open $settings | get --optional hooks | default {} } else { {} }
     let creds = home .claude .credentials.json
     [
+        (shell-aliases claude)
         (files-into (home .claude) CLAUDE.md RTK.md keybindings.json)
         (json-merge $settings [
             (json-set [remoteControlAtStartup] true)
@@ -70,7 +71,6 @@ export def link [cfg: record] {
             (json-set [env DISABLE_ERROR_REPORTING] "1")
             (json-set [env CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY] "1")
             (json-set [attribution] {commit: "", pr: ""})
-            (json-delete [includeCoAuthoredBy])
             (json-set [modelSettings $cfg.model effortLevel] $cfg.effort)
             (json-set [hooks] (hooks-merge $current (home $AGENT_GUARD)))
             # login via credentials.json only: settings.json is shared into every identity

@@ -1,6 +1,7 @@
 # The dot CLI's shared plumbing: job count, build identity, and the guarded run with its crash record.
 
 use log.nu *
+use cause.nu [cause-from-error cause-text]
 
 const REPO = path self ../..
 const CRASH_LOG_LINES = 20
@@ -71,8 +72,10 @@ export def guarded [name: string, body: closure, --read-only, --background]: not
         let run = $env.DOT_RUN_FILE
         let file = $run | path dirname | path dirname | path join crash.json
         let tail = if ($run | path exists) { open --raw $run | lines | last $CRASH_LOG_LINES } else { [] }
-        {run: $env.DOT_RUN_ID, command: $name, error: $err.msg, debug: $err.debug, rendered: $err.rendered, build: (build), log: $tail} | save --force $file
-        log-record PANIC $"(error-brief $err.rendered --root $REPO); the full error is in ($file)" {msg_detail: $err.msg}
+        let cause = cause-from-error $err
+        let brief = if $cause.command != null or $cause.at != null or $cause.exit_code != null { cause-text $cause } else { error-brief $err.rendered --root $REPO }
+        {run: $env.DOT_RUN_ID, command: $name, error: $err.msg, cause: $cause, debug: $err.debug, rendered: $err.rendered, build: (build), log: $tail} | save --force $file
+        log-record PANIC $"($brief); the full error is in ($file)" {msg_detail: $err.msg, cause: $cause}
         run-journal
         exit 1
     }

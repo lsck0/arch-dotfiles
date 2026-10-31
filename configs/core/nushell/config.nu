@@ -88,36 +88,23 @@ $env.config = {
 
 $env.config.buffer_editor = "nvim"
 
-alias b = bat
-alias cat = bat
-alias convert = magick
+# a tool's aliases and defs are its module's, dropped into the autoload dir (shell-aliases)
 alias cp = cp -v
-alias downgrade = sudo downgrade
-alias e = eza
-alias kubectl = kubecolor
-alias l = eza -lh
-alias la = eza -lah
-alias ldocker = sudo lazydocker
-alias lgit = lazygit
-alias lgithub = gh-dash
-alias ljj = lazyjj
-def ljournal [...args] { lazyjournal -T (date now | format date "%:z") ...$args }
-alias ls = eza
-alias lsql = lazysql
-alias lt = eza -lah --tree
+alias downgrade = sudo-at-terminal downgrade
+alias ldocker = sudo-at-terminal lazydocker
 alias mkdir = mkdir -v
 alias mv = mv -v
-alias trash-rm = trash -v
-def toroff [] { ^($env.DOTFILES | path join scripts toggles toggle-route.nu) direct }
-def toron [] { ^($env.DOTFILES | path join scripts toggles toggle-route.nu) tor }
 
-# Git, with clone recursing into submodules: no git config covers them on the initial clone.
-def --wrapped git [...rest] {
-    if (($rest | length) > 0) and (($rest | first) == "clone") {
-        ^git clone --recurse-submodules ...($rest | skip 1)
-    } else {
-        ^git ...$rest
+const AGENT_MARKERS = [CLAUDECODE AI_AGENT GEMINI_CLI COPILOT_CLI_BINARY_VERSION]
+
+# Root for this shell's defs and aliases, only at a person's terminal: an agent (its marker variable) or a process
+# without one is refused instead of raising a YubiKey request nobody sees. Lint keeps every rc escalation behind it.
+def --wrapped sudo-at-terminal [...rest] {
+    let agent = $AGENT_MARKERS | any {|name| $env | get --optional $name | is-not-empty }
+    if $agent or not (is-terminal --stdin) or not (is-terminal --stderr) {
+        error make --unspanned {msg: $"($rest | get --optional 0 | default sudo): needs root, run it at your own terminal"}
     }
+    ^sudo ...$rest
 }
 
 # Pacman under sudo only for what changes the system, so queries need no fido touch; same letters as zsh's pacman.
@@ -130,12 +117,7 @@ def --wrapped pacman [...rest] {
         if ($a | str starts-with "--") { $long | get -o $a | default "" } else if ($a =~ '^-.') { $a | str substring 1.. } else { "" }
     } | str join)
     let unprivileged = ($ops =~ '[QTVh]') or ($ops =~ 'F' and $ops !~ 'y') or ($ops =~ 'S' and $ops =~ '[siglp]' and $ops !~ '[yucw]')
-    if $unprivileged { ^pacman ...$rest } else { ^sudo pacman ...$rest }
-}
-
-# Claude without DO_NOT_TRACK, under which remote control breaks.
-def --wrapped claude [...rest] {
-    ^env -u DO_NOT_TRACK claude ...$rest
+    if $unprivileged { ^pacman ...$rest } else { sudo-at-terminal pacman ...$rest }
 }
 
 const STARSHIP_INIT = $nu.cache-dir | path join starship.nu
@@ -146,8 +128,6 @@ const ZOXIDE = if ($ZOXIDE_INIT | path exists) { $ZOXIDE_INIT }
 const WAL = if ($WAL_COLORS | path exists) { $WAL_COLORS }
 source $STARSHIP
 source $ZOXIDE
-alias cd = z
-alias cdi = zi
 source $WAL
 
 # config.nu also loads for `nu -l -c`, whose stdout a caller reads

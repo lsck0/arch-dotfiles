@@ -1,0 +1,64 @@
+# dot test run --scenario: conditions a fresh install meets, layered over home (the good path, always the base).
+# A scenario sets any of: answers (answer-file keys), network {block (cidrs, host-lan for the host's link subnets or
+# homelab for base/networkmanager's homelab_subnets, unreachable routes in the pasta namespace passt runs in), dns (the
+# guest's resolver; none relays to the home one, homelab_dns), ipv6 (false: passt -4)}, profile, usb_redirect,
+# extra_packages (into the platform file), replace (path, regex pattern, to; in the snapshot), expect (vm rows of
+# invariants.txt and their wanted value), stages (install or config: ok or failed, ok by default) and
+# failures_allowed (regexes; FAILURES.* lines matching one are notes). Selected scenarios combine; two that disagree
+# are refused. stopped: the rows a chain stopped before config holds instead (any: unchecked); its disarm rows
+# (stage_armed, sudo_passwordless, keyfile_present, luks_keyslots) keep their values, so the report proves the disarm.
+{
+    base: home
+    stopped: {
+        # what config would bring is not there yet
+        secure_boot: any
+        setup_mode: any
+        pdf_queue: any
+        sshd_installed: any
+    }
+    scenarios: {
+        home: {
+            doc: "home network, answer file, lab mirror reachable"
+            answers: {home_network: true}
+            expect: {home_network: "yes"}
+        }
+        off-home: {
+            doc: "no home gateway in the answers; the host's lan, the lab and IPv6 out of reach, public dns"
+            network: {block: [host-lan homelab], dns: "9.9.9.9", ipv6: false}
+            answers: {home_network: false}
+            expect: {home_network: "no"}
+        }
+        secrets-locked: {
+            doc: "owner profile, no usb redirection, so the submodule is never unlocked"
+            profile: luca
+            usb_redirect: false
+            expect: {secrets_locked: "yes", secrets_banner: "yes"}
+        }
+        public-mirror: {
+            doc: "the lab subnets unreachable, public dns, so mirror.lsck0.dev is its public address"
+            network: {block: [homelab], dns: "9.9.9.9"}
+            expect: {mirror_public: "yes", lab_reachable: "no"}
+        }
+        pkg-fail: {
+            doc: "a platform extra package no mirror has: dropped from the pass, the install stage failed, config runs"
+            extra_packages: [lsck0-vm-test-unresolvable]
+            stages: {install: failed}
+            failures_allowed: ['lsck0-vm-test-unresolvable']
+            expect: {planted_dropped: "yes"}
+        }
+        no-tor: {
+            doc: "base/tor declares a package no mirror has in place of tor: dropped, base/tor pending"
+            replace: [{path: configs/base/tor/mod.nu, pattern: '(?<head>native: \[[^\]]*)\btor\b', to: '${head}lsck0-vm-test-no-tor'}]
+            stages: {install: failed}
+            failures_allowed: ['lsck0-vm-test-no-tor' '\bbase/tor\b']
+            expect: {planted_dropped: "yes", tor_installed: "no"}
+        }
+    }
+    presets: {
+        notebook-2026-10-30: {
+            doc: "the luca-notebook install that bricked: off home, secrets locked, public mirror"
+            scenarios: [off-home secrets-locked public-mirror]
+            platform: luca-notebook
+        }
+    }
+}

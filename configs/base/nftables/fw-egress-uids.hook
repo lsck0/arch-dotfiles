@@ -1,0 +1,9 @@
+[Trigger]
+Operation = Install
+Type = Package
+Target = tor
+
+[Action]
+Description = Letting tor out through the kill switch and switching a foreign link onto it
+When = PostTransaction
+Exec = /usr/bin/sh -c 'systemctl try-reload-or-restart fw-egress.service; d=/etc/NetworkManager/dispatcher.d/90-anonymous-persona; [ ! -x "$d" ] || exec "$d" "" tor-arrived'

@@ -28,7 +28,7 @@ export def link [cfg: record] {
             type: stdio, command: uvx, args: [--exclude-newer $MCP_FROZEN --from $pkg audacity-mcp]
             env: {HF_HUB_DISABLE_TELEMETRY: "1"}
         }})
-        (if (cache-stamp $pkg | path exists) { [] } else { step mcp-cache $pkg })
+        (if (cache-stamp $pkg | path exists) { [] } else { step mcp-cache $pkg --network })
     ]
 }
 

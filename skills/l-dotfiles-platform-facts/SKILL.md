@@ -15,6 +15,9 @@ description: Machine facts in platforms/<name>.nuon versus user capabilities in 
   `platform-has <fact>` / `$env.FORM_FACTOR`. The only gate a `system` verb may use.
 - Property of the person: `profile-has secrets` (the owner). User layer only.
 - Never a username or hostname check.
+- A homelab value (domain, address, subnet, mirror): never a literal. `use platforms/homelab.nu [HOMELAB]` (generated
+  from lab.json by `dot internal gen`) as the default of an option a platform may override, acted on only behind
+  `platform-has homelab`.
 
 ## Platform file
 

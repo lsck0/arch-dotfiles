@@ -2,7 +2,9 @@
 
 use ../../configs/core/wallust/palette.nu
 use platform.nu [PLATFORM_FACTS]
-use modules.nu [VERBS HOOKS names-read ROOT_MODULES SECRETS_DATA SECRETS_GROUP]
+use modules.nu [VERBS HOOKS names-read modules-graph ROOT_MODULES SECRETS_DATA SECRETS_GROUP]
+use pipeline.nu [pipeline-load]
+use commands.nu [commands-check]
 
 const REPO = path self ../..
 const SUDO = '\bsudo\b'
@@ -61,16 +63,12 @@ def lint-modules []: nothing -> list<string> {
             if ($target | str starts-with $"($configs)/") { $target | path relative-to $configs | path split | first }
         } | compact
         let metas = if ($f | path basename) == "mod.nu" {
-            $text | parse --regex 'deps: \[(?<d>[^\]]*)\]' | get d | split row " " | where $it =~ "/" | each { split row "/" | first }
+            $text | parse --regex '(?:deps|reads): \[(?<d>[^\]]*)\]' | get d | split row " " | where $it =~ "/" | each { split row "/" | first }
         } else { [] }
         $used ++ $metas | uniq | where {|h| $h != $grp and $h not-in $reach_skip and $h in $groups and $h not-in ($deps | get --optional $grp | default []) }
         | each {|h| $"(rel $f): reaches configs/($h), which configs/($grp)/dependencies.txt does not name" }
     } | flatten
-    let order = [[] [--system]] | each {|flags|
-        let run = ^nu --no-config-file ($REPO | path join scripts dot.nu) plan --order ...$flags | complete
-        if $run.exit_code != 0 { $"run order \(dot plan --order ($flags | str join ' ')\): ($run.stderr | str trim)" }
-    } | compact
-    $bad_deps ++ $platforms ++ $siblings ++ $undeclared ++ $order
+    $bad_deps ++ $platforms ++ $siblings ++ $undeclared
 }
 
 def lint-layers []: nothing -> list<string> {
@@ -106,7 +104,7 @@ def lint-exports []: nothing -> list<string> {
         let text = open --raw $f
         let steps = $text | parse --regex 'step "?(?<name>[a-z0-9-]+)' | get name
         let allowed = $VERBS ++ $HOOKS ++ $steps ++ $imported
-        $text | lines | enumerate | each {|l|
+        $text | lines | enumerate | where ($it.item | str starts-with "export ") | each {|l|
             let names = if ($l.item | str starts-with "export use ") {
                 $l.item | parse --regex '\[(?<names>[^\]]*)\]' | get --optional 0.names | default "*" | split row " " | where $it != ""
             } else {
@@ -123,11 +121,31 @@ def lint-sync []: nothing -> list<string> {
     let files = glob $"($REPO)/configs/**/*.{sh,nu,py}" --exclude $SECRETS_DATA | append (glob $"($REPO)/scripts/**/*.{sh,nu}")
         | append [($REPO | path join bootstrap.sh)]
     $files | where ($it | path exists) | each {|f|
-        code-lines $f | each {|l|
+        code-lines $f | where ($it.line | str contains "/sync") | each {|l|
             let code = unquote ($l.line | split row " #" | first) {|q| $q =~ $SYNC_PATH }
             let writes = $code | parse --regex $SYNC_PATH | any {|m| not ($m.tail =~ `^["']?(\s|$)` or ($m.tail | str starts-with "/.stignore")) }
             if $writes and $code =~ $SYNC_WRITE { $"(rel $f):($l.n): writes into ~/sync, which only syncthing may fill" }
         } | compact
+    } | flatten
+}
+
+# Every shell's functions and aliases also run in agents' shells (Claude Code sources a snapshot of them), so their
+# root goes through sudo-at-terminal, which refuses an agent or a process without a terminal.
+const RC_FILES = [configs/core/zsh/zshrc configs/core/zsh/zshenv configs/core/nushell/config.nu configs/core/nushell/env.nu]
+const RC_DROPINS = "configs/**/{aliases.nu,*.zsh}"
+const RC_ESCALATE = r#'(^|[\s;&|({="'^])(sudo|pkexec|run0|doas|su)(\s|$)'#
+const RC_GUARD = '^(def --wrapped )?sudo-at-terminal\b'
+
+def lint-rc-escalation []: nothing -> list<string> {
+    let dropins = glob ($REPO | path join $RC_DROPINS) --exclude $SECRETS_DATA
+    $RC_FILES | each {|f| $REPO | path join $f } | append $dropins | uniq | where ($it | path exists) | each {|f|
+        let raw = open --raw $f | lines
+        let guards = $raw | enumerate | where ($it.item =~ $RC_GUARD) | each {|g|
+            let end = $raw | enumerate | skip ($g.index + 1) | where ($it.item | str starts-with "}") | get --optional 0.index
+            {first: ($g.index + 1), last: ($end | default ($raw | length) | $in + 1)}
+        }
+        code-lines $f | where {|l| $l.line =~ $RC_ESCALATE and not ($guards | any {|g| $l.n >= $g.first and $l.n <= $g.last }) }
+        | each {|l| $"(rel $f):($l.n): escalates outside sudo-at-terminal, an agent's shell would reach root through it" }
     } | flatten
 }
 
@@ -170,10 +188,37 @@ const NU_PITFALLS = [
     ["\\$'[^']*\\(\\\\" "a ( inside $'...' starts a subexpression, build the regex with + instead"]
 ]
 
-def lint-nu-pitfalls []: nothing -> list<string> {
-    walk | where ($it | str ends-with ".nu") | each {|f|
-        code-lines $f | each {|l| $NU_PITFALLS | where {|p| $l.line =~ $p.pattern } | each {|p| $"(rel $f):($l.n): ($p.why)" } } | flatten
+const SHEBANG_BYTES_MAX = 256
+
+# A file's first line when it starts with #!, else empty. Only that line is decoded, so a multi-byte character the
+# read cuts in two further on cannot hide it.
+export def shebang [head: binary]: nothing -> string {
+    if ($head | bytes at 0..1) != 0x[2321] { return "" }
+    let end = $head | bytes index-of 0x[0a]
+    try { $head | bytes at 0..<(if $end < 0 { $head | bytes length } else { $end }) | decode utf-8 } catch { "" }
+}
+
+def file-shebang [path: path]: nothing -> string {
+    shebang (open --raw $path | into binary | first $SHEBANG_BYTES_MAX)
+}
+
+# A nushell script: a .nu file, or one without extension whose shebang runs nu (the iso stub, git hooks).
+def nu-script [path: path]: nothing -> bool {
+    let ext = $path | path parse | get extension
+    $ext == "nu" or ($ext == "" and (file-shebang $path) =~ '^#!.*\bnu\b')
+}
+
+# The pitfalls in one script's text, by line; the whole text is matched first, so a clean file costs one match a pattern.
+export def nu-pitfalls-find [text: string]: nothing -> table<n: int, why: string> {
+    let hits = $NU_PITFALLS | where {|p| $text =~ $"\(?m\)($p.pattern)" }
+    if ($hits | is-empty) { return [] }
+    $text | lines | enumerate | where not ($it.item | str trim --left | str starts-with "#") | each {|l|
+        $hits | where {|p| $l.item =~ $p.pattern } | each {|p| {n: ($l.index + 1), why: $p.why} }
     } | flatten
+}
+
+def lint-nu-pitfalls []: nothing -> list<string> {
+    walk | where { nu-script $in } | each {|f| nu-pitfalls-find (open --raw $f) | each {|h| $"(rel $f):($h.n): ($h.why)" } } | flatten
 }
 
 # A script with a shebang is run directly (link-commands, unit Exec=), so it needs its executable bit in git.
@@ -198,10 +243,15 @@ def lint-ascii []: nothing -> list<string> {
     | each { $"($in): non-ASCII bytes; use ASCII or an escape like \\u{2502}" }
 }
 
+def order-check [ctx: record, verb: string, flags: string]: nothing -> list<string> {
+    try { modules-graph $ctx.repo ($ctx.modules | where {|m| $verb in $m.verbs and $m.cfg.enable }) | ignore; [] } catch {|e|
+        [$"run order \(dot plan --order($flags)\): ($e.msg)"]
+    }
+}
+
 # A renamed or dropped option breaks only the machines whose options file still sets it, at their next install.
-def lint-platform-options []: nothing -> list<string> {
-    let script = "use pipeline.nu *; pipeline-load $env.DOT_REPO user | get modules | each {|m| {id: $m.id, keys: ($m.options | columns | append enable)} } | to nuon"
-    let known = with-env {DOT_REPO: $REPO} { ^nu --no-config-file -I ($REPO | path join scripts lib) -c $script | from nuon }
+def platform-options-check [modules: table]: nothing -> list<string> {
+    let known = $modules | each {|m| {id: $m.id, keys: ($m.options | columns | append enable)} }
     glob ($REPO | path join platforms '*.options.nuon') | sort | each {|f|
         open $f | items {|id, values|
             let module = $known | where id == $id | get --optional 0
@@ -210,6 +260,21 @@ def lint-platform-options []: nothing -> list<string> {
             }
         } | flatten
     } | flatten
+}
+
+# The lints that need the modules loaded, one load per layer: both layers' run order, the platforms' options files and
+# the commands lint (every command a module runs comes from a package it or its deps declare, and a fail-closed unit
+# keeps its way out). The system layer loads first and in its own scope, so the user layer's app dirs stay out of it.
+export def gate-loaded [repo: path]: nothing -> list<string> {
+    let system = do { order-check (pipeline-load $repo system) system " --system" }
+    let user = pipeline-load $repo user
+    (order-check $user link "") ++ $system ++ (platform-options-check $user.modules) ++ (commands-check $repo $user.modules)
+}
+
+def lint-loaded []: nothing -> list<string> {
+    let script = "use gate.nu [gate-loaded]; gate-loaded $env.DOT_REPO | to nuon"
+    let run = with-env {DOT_REPO: $REPO} { ^nu --no-config-file -I ($REPO | path join scripts lib) -c $script | complete }
+    if $run.exit_code == 0 { $run.stdout | from nuon } else { [$"modules lint: ($run.stderr | str trim)"] }
 }
 
 def lint-generated []: nothing -> list<string> {
@@ -226,9 +291,15 @@ def unit-tests []: nothing -> list<string> {
     } | compact
 }
 
-# Every lint finding, one line each; empty when the repo passes.
+# Every lint finding, one line each; empty when the repo passes. The lints only read, so they run side by side; the
+# unit tests run after them, one at a time.
 export def gate-lint []: nothing -> list<string> {
-    [(lint-modules) (lint-layers) (lint-exports) (lint-sync) (lint-stray) (lint-platform-facts) (lint-nu-pitfalls) (lint-exec-bits) (lint-ascii) (lint-platform-options) (lint-generated) (unit-tests)] | flatten
+    let lints = [
+        {|| lint-modules } {|| lint-layers } {|| lint-exports } {|| lint-sync } {|| lint-stray } {|| lint-platform-facts }
+        {|| lint-nu-pitfalls } {|| lint-exec-bits } {|| lint-ascii } {|| lint-loaded } {|| lint-generated }
+        {|| lint-rc-escalation }
+    ]
+    ($lints | par-each --keep-order {|lint| do $lint } | flatten) ++ (unit-tests)
 }
 
 def pkgbuild [path: path]: nothing -> bool {
@@ -238,7 +309,7 @@ def pkgbuild [path: path]: nothing -> bool {
 # A PKGBUILD and its .install script are bash too, with neither extension nor shebang.
 def shell-script [path: path]: nothing -> bool {
     let ext = $path | path parse | get extension
-    $ext == "sh" or (pkgbuild $path) or ($ext == "" and (try { open --raw $path | into binary | first 128 | decode utf-8 } catch { "" }) =~ '^#!.*\b(ba)?sh\b')
+    $ext == "sh" or (pkgbuild $path) or ($ext == "" and (file-shebang $path) =~ '^#!.*\b(ba)?sh\b')
 }
 
 def nonzero [label: string, run: record, --stdout]: nothing -> list<string> {

@@ -20,10 +20,14 @@ dot module adopt <file>   # a hand edit becomes the module's source
 dot module reset <file>   # back to the module's copy, the edit preserved aside
 ```
 
-- `FAILURES.config` / `FAILURES.install` at the repo root: the last run's failures, system included; `config.log` /
-  `install.log` the terminal output.
-- A crashed run leaves `$XDG_STATE_HOME/dotfiles/crash.json`. Root's state: `/var/lib/dotfiles`.
-- Exit 3 under `DOT_SYSTEM=skip` is a pending system part, not a failure.
+- `FAILURES.config` / `FAILURES.install` at the repo root: the last run's failures, system included, one line each as
+  `<module> <verb>/<step>: <cause>; fix: <hint>` (the command, its exit code or `not installed (<package>)`, the last
+  stderr lines, the file:line); `dot status` groups them by cause. `config.log` / `install.log` the terminal output.
+  The fixes come from `HINTS` in `scripts/lib/cause.nu`; a new failure class is a row there.
+- A crashed run leaves `$XDG_STATE_HOME/dotfiles/crash.json`, its `cause` the same record as the PANIC line's in
+  `dot log`; `dot log --trace` shows each span's errors under it. Root's state: `/var/lib/dotfiles`.
+- Exit 3 means pending, not a failure: a system part under `DOT_SYSTEM=skip`, or modules waiting on their packages
+  (`dot status` lists them; `dot apply --packages` installs them).
 
 ## systemd, AppArmor, quickshell
 

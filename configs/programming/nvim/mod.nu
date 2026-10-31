@@ -13,10 +13,14 @@ export const meta = {
 
 const PLUGIN_DIR = ".local/share/nvim/lazy"
 const TREESITTER_TIMEOUT_MS = 600000
+# every plugin clone, then the mason tools and the parsers compiled one by one
+const PREFETCH_TIMEOUT = 45min
+const INSTALL_PASSES = 2
 const THEME_MARKER = "wal/nvim_theme"
 # lazy skips a plugin whose cond is false (image.nvim outside kitty): its pin is never cloned headless
 const COND_LUA = '
-local cfg = require("lazy.core.config")
+local found, cfg = pcall(require, "lazy.core.config")
+if not found then return end
 local names = {}
 for name, p in pairs(cfg.plugins) do
     local c = p.cond
@@ -97,7 +101,7 @@ export def link [cfg: record] {
     let linked = ($config | path expand) == ($env.PWD | path expand)
     [
         (file-link . $config)
-        ...(if ($restore | is-not-empty) or not $linked { [(step prefetch ...$restore)] } else { [] })
+        ...(if ($restore | is-not-empty) or not $linked { [(step prefetch --network --timeout $PREFETCH_TIMEOUT ...$restore)] } else { [] })
     ]
 }
 
@@ -110,13 +114,27 @@ export def prefetch [...restore: string]: nothing -> nothing {
     if ($stale | is-not-empty) {
         error make {msg: $"($stale | length) plugins are not at their lazy-lock.json pin after the restore: ($stale | str join ' ')"}
     }
-    # a session that just cloned mason and treesitter has not loaded them: their installs run in a fresh one
-    let pending = tools-missing
-    if ($pending | is-not-empty) { ^env ...$QUIET_GIT nvim --headless ...(install-commands $pending) "+qa" }
+    # a session that just cloned mason and treesitter has not loaded them: their installs run in a fresh one; a second
+    # pass takes what a flaky download dropped in the first
+    for _ in 1..$INSTALL_PASSES {
+        let pending = tools-missing
+        if ($pending | is-empty) { break }
+        ^env ...$QUIET_GIT nvim --headless ...(install-commands $pending) "+qa"
+    }
     let missing = tools-missing
     if ($missing | is-not-empty) {
-        error make {msg: $"($missing | length) tools are not installed after the restore \(:MasonLog, :checkhealth nvim-treesitter\): ($missing | each { $'($in.kind)/($in.name)' } | str join ' ')"}
+        let names = $missing | each { $'($in.kind)/($in.name)' } | str join ' '
+        error make {msg: $"($missing | length) tools are not installed after the restore \(:checkhealth nvim-treesitter\): ($names)(mason-errors ($missing | where kind == mason | get name))"}
     }
+}
+
+# Mason's own reason for each package it failed, the last of its log's lines naming it.
+def mason-errors [names: list<string>]: nothing -> string {
+    let log = xdg state nvim mason.log
+    if ($names | is-empty) or not ($log | path exists) { return "" }
+    let failed = open --raw $log | lines | parse --regex 'Installation failed for Package\(name=(?<name>[^)]+)\) error=(?<error>.*)$'
+    let reasons = $names | each {|n| $failed | where name == $n | last 1 | each { $"($n): ($in.error)" } } | flatten
+    if ($reasons | is-empty) { $"; ($log) names no reason" } else { $"; mason: ($reasons | str join '; ')" }
 }
 
 export def theme [cfg: record, wallpaper: string] {

@@ -16,6 +16,7 @@ def send [socket: string]: nothing -> nothing {
 
 # the focused window's pid, when a compositor is up to ask (hyprctl absent or no answer -> no pid)
 def focused-socket []: nothing -> string {
+    if (which hyprctl | is-empty) { return "" }
     let pid = try { ^hyprctl activewindow -j | from json | get pid } catch { return "" }
     $"($SOCKET_PREFIX)($pid)"
 }

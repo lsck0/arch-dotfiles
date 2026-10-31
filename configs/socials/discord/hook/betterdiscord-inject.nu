@@ -36,6 +36,8 @@ def relaunch-fresh []: nothing -> nothing {
     if ($main | is-empty) { return }
     let etime = ^ps -o etimes= -p $main | complete
     if $etime.exit_code != 0 or (($etime.stdout | str trim | into int) >= $FRESH_SECONDS) { return }
+    # without uwsm nothing could start it again
+    if (which uwsm-app | is-empty) { return }
     ^pkill -x Discord | complete | ignore
     for _ in 1..$EXIT_WAIT_SECONDS {
         if (^pgrep -x Discord | complete).exit_code != 0 { break }

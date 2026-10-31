@@ -1,6 +1,15 @@
 use module.nu *
+use ../../../platforms/homelab.nu [HOMELAB]
 
 export const meta = {packages: {pacman: [cifs-utils]}, inputs: [/etc/samba/homelab.cred]}
+
+export const options = {
+    share: {
+        type: string
+        default: $HOMELAB.nas.smb
+        doc: "The homelab NAS's smb share mounted at /mnt/homelab (//host/share)"
+    }
+}
 
 const MOUNT = "/mnt/homelab"
 const CRED = "/etc/samba/homelab.cred"
@@ -24,7 +33,7 @@ export def system [cfg: record] {
         (if $secret == null or not ($secret | path exists) or (try { open --raw $CRED } catch { "" }) == (open --raw $secret) { [] } else {
             exec homelab-cred [install -Dm600 -o root -g root $secret $CRED]
         })
-        (unit-file mnt-homelab.mount)
+        (file-render mnt-homelab.mount (unit-dir | path join mnt-homelab.mount) {SHARE: $cfg.share})
         (unit-file mnt-homelab.automount --enable)
     ]
 }

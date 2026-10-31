@@ -72,7 +72,7 @@ export def link [cfg: record] {
         # never beside a running bootstrap: they share one download dir
         (if $bootstrapping or not ($BOOTSTRAP | path exists) { [] } else {
             let download = [sh -c $BOOTSTRAP_RUN discord-app $BOOTSTRAP_TIMEOUT $BOOTSTRAP $config $UPDATES_URL]
-            exec discord-app $download --creates ($config | path join Discord)
+            exec discord-app $download --creates ($config | path join Discord) --network
         })
         # in place: betterdiscord disables an addon whose file is renamed over, and misses changes through a symlink
         (file-copy $VOICE_PLUGIN ($plugins | path join ($VOICE_PLUGIN | path basename)) --in-place)

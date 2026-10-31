@@ -21,7 +21,7 @@ def paths []: nothing -> record {
 export def link [cfg: record] {
     let p = paths
     # pobfrontend rewrites a build on save, so relinking under it would drop whatever it holds open
-    let busy = ps | where name =~ pobfrontend | is-not-empty
+    let busy = (^pgrep -x pobfrontend | complete).exit_code == 0
     let relink = ($p.pob_synced | path exists) and not $busy and ($p.pob | path type) != symlink
     if $relink { step relocate } else { [] }
 }

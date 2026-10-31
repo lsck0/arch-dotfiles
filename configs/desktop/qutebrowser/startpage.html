@@ -54,6 +54,10 @@
       @media (max-width: 40rem) { #hint { display: none; } }
       #groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 1.1rem 1.6rem; }
       section h2 { margin: 0 0 0.45rem; font-size: 0.8rem; }
+      /* a group longer than the others spans the row and flows into columns instead of one tall column */
+      section.wide { grid-column: 1 / -1; columns: 12rem; column-gap: 1.6rem; }
+      section.wide h2 { column-span: all; }
+      section.wide a.link { break-inside: avoid; }
       a.link {
         display: flex; gap: 0.5rem; padding: 0.12rem 0.3rem; margin: 0 -0.3rem;
         color: var(--fg); text-decoration: none; border-radius: var(--radius);
@@ -79,6 +83,8 @@
       "use strict";
       const SEARCH = @SEARCH@;
       const METHOD = "@METHOD@";
+      // a group with more links than this spans the whole row in columns
+      const WIDE_GROUP = 10;
       // split the "<base>?<param>={}" template into a real form target, so Enter submits natively (honours POST)
       const sm = SEARCH.match(/^([^?]*)\?([^=&]+)=\{\}$/);
       const SEARCH_ACTION = sm ? sm[1] : SEARCH;
@@ -117,12 +123,16 @@
         a.className = "link";
         a.href = link.url;
         a.innerHTML = '<span class="key"></span><span></span><span class="group"></span>';
-        a.children[1].textContent = link.name;
+        // a label shows instead of the name when the command name needs a prefix (lab-grafana shows as grafana)
+        a.children[1].textContent = link.label || link.name;
         a.lastChild.textContent = link.group;
         box.appendChild(a);
-        items.push({ a: a, box: box, name: words(link.name), group: words(link.group) });
+        items.push({ a: a, box: box, name: words(link.name + " " + (link.label || "")), group: words(link.group) });
       }
       // screen order on an empty query: group by group, as the grid lays them out
+      for (const box of boxes.values()) {
+        if (box.querySelectorAll("a.link").length > WIDE_GROUP) box.classList.add("wide");
+      }
       items.sort((x, y) => x.box.order - y.box.order);
 
       function asUrl(text) {

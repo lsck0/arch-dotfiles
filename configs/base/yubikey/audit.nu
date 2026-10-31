@@ -149,6 +149,7 @@ export def audit-remind []: nothing -> nothing {
     if ($state | path exists) and (ls $state | get 0.modified) > ((date now) - $REMIND_EVERY) { return }
     let how = 'RECOVERY.md "Test it": unlock a scratch clone with the paper key, then dot secrets audit drilled'
     let body = $"last: ($drilled | default --empty never). ($how)"
+    if (which notify-send | is-empty) { return }
     if (do { ^notify-send -a secrets -u normal "Recovery drill due" $body } | complete).exit_code != 0 { return }
     mkdir ($state | path dirname)
     touch $state

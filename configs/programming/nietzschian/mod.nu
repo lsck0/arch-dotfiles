@@ -21,7 +21,7 @@ export def link [cfg: record] {
     if (which uv | is-empty) { return [] }
     let installed = try { open --raw (pin-file) | str trim } catch { "" }
     if $installed == (pin) { return [] }
-    [(step install)]
+    [(step install --network)]
 }
 
 export def install []: nothing -> nothing {

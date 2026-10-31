@@ -4,7 +4,7 @@ export const meta = {
     packages: {
         pacman: [
             ani-cli-git bleachbit bluetui chawan filezilla font-manager gearlever geogebra-6-bin gnome-calculator
-            gnome-calendar gnome-maps gnome-text-editor hollywood josm kdeconnect kleopatra linecast localsend
+            gnome-calendar gnome-maps gnome-text-editor hollywood josm kleopatra linecast localsend
             logseq-desktop-bin lynx metadata-cleaner minder mov-cli mpg123 nemo okular onlyoffice-bin piper
             proton-authenticator-bin proton-pass-bin proton-vpn-qt-app snapshot sowon-git stirling-pdf-bin tlpui
             torbrowser-launcher waypipe wev wine-staging xorg-xeyes yubico-authenticator-bin zenity

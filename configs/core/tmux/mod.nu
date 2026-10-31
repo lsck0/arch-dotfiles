@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [entr tmux tmux-fingers tmux-sessionizer]}, inputs: [~/.config/tms/config.toml]}
+export const meta = {deps: [core/cli], packages: {pacman: [entr tmux tmux-fingers tmux-sessionizer]}, inputs: [~/.config/tms/config.toml]}
 
 const CONFIG_DIR = ".config/tmux"
 const TMS_CONFIG = ".config/tms/config.toml"

@@ -1,17 +1,22 @@
 use module.nu *
+use ../../../platforms/homelab.nu [HOMELAB]
+use profile.nu [profile-owner]
 
 export const meta = {
-    packages: {pacman: [syncthing]}
     inputs: [~/.local/state/syncthing/cert.pem ~/.local/state/syncthing/key.pem ~/sync/.stignore]
 }
 
 export const options = {
     nas_address: {
         type: string?
-        default: null
-        doc: "Address of the homelab NAS device (the one named *nas), e.g. tcp://10.100.0.100:22000; discovery is off, so this is how it is found"
+        default: $HOMELAB.nas.syncthing
+        doc: "Address of the homelab NAS device (the lab's nas role); discovery is off, so this is how it is found"
         label: "NAS address"
     }
+}
+
+export def packages [cfg: record]: nothing -> record {
+    {pacman: (if (profile-owner) { [syncthing] } else { [] })}
 }
 
 const STATE = ".local/state/syncthing"

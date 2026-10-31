@@ -7,16 +7,24 @@ pcall(function()
 end)
 
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-if not vim.uv.fs_stat(lazypath) then
+local lazy_missing = not vim.uv.fs_stat(lazypath)
+-- dot's plan-time probes set vim.g.dot_probe (--cmd): they never touch the network, so without lazy no plugins load
+if lazy_missing and vim.g.dot_probe then
+    return
+end
+if lazy_missing then
     local lazyrepo = "https://github.com/folke/lazy.nvim.git"
     local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath })
     if vim.v.shell_error ~= 0 then
         vim.api.nvim_echo({
             { "Failed to clone lazy.nvim:\n", "ErrorMsg" },
             { out, "WarningMsg" },
-            { "\nPress any key to exit..." },
         }, true, {})
-        vim.fn.getchar()
+        -- headless (dot's prefetch) has no key to press: waiting for one hangs it forever
+        if #vim.api.nvim_list_uis() > 0 then
+            vim.api.nvim_echo({ { "Press any key to exit..." } }, true, {})
+            vim.fn.getchar()
+        end
         os.exit(1)
     end
 end

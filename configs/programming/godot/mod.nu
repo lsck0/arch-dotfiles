@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [godot]}}
+export const meta = {packages: {pacman: [godot npm rsync]}}
 
 # bump with SERVER in godot-mcp.nu
 const URL = "https://github.com/tomyud1/godot-mcp.git"

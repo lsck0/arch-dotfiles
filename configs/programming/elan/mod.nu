@@ -11,7 +11,7 @@ export def link [cfg: record] {
     let installed = glob ($home | path join toolchains $"leanprover--lean4-($CHANNEL)---*") | is-not-empty
     let current = try { open ($home | path join settings.toml) | get default_toolchain } catch { null }
     [
-        (if $installed { [] } else { [(exec elan-install [$ELAN toolchain install $CHANNEL])] })
+        (if $installed { [] } else { [(exec elan-install [$ELAN toolchain install $CHANNEL] --network)] })
         (if $current == $CHANNEL { [] } else { [(exec elan-default [$ELAN default $CHANNEL])] })
     ]
 }

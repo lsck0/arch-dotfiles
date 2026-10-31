@@ -21,6 +21,7 @@ use module.nu *
 
 export const meta = {
     deps: [core/gh]                                   # modules that apply first, any group
+    reads: [base/ssh]                                 # options in cfg.deps only: no order, never waits on it
     packages: {pacman: [btop], native: [], flatpak: {}, nix: []}
     serial: false                                     # true: runs alone (rustup, a package manager)
     inputs: [configs/secrets/state/repositories /usr/bin/cargo-kani] # more input-hash files: relative is the repo's, ~ and / as is
@@ -88,13 +89,20 @@ export def packages [cfg: record]: nothing -> record {
     [--in-place]`, `file-render <src> <dest> {KEY: v}` (`@KEY@`), `file-link` (only where the app reads the repo
     live), `link-commands <file...>`, `json-merge <file> [(json-set [k] v) (json-delete [k])]`, `ini-merge <file>
     {section: {key: v}} [--missing-only]`, `desktop-override <id> {|text| ...}`, `mcp-servers {name: spec}`
-    (`~/.claude.json`; null drops one).
+    (`~/.claude.json`; null drops one), `shell-aliases <name>` (the module's `aliases.nu`/`aliases.zsh` into
+    nushell's autoload dir and zsh's conf.d; a tool's aliases and defs live with the module declaring the tool, never
+    in core/nushell or core/zsh, and the commands lint checks them there).
   - units: `unit-file <src> [--enable --now]`, `unit-enable|unit-disable|unit-mask <name> [--now]`,
     `unit-restart <name> [--reload]` (a `--then` that skips a unit not installed yet), `dropin <unit> <src> [--name]`,
     `user-hook <name> <script> --watch [paths] [--permanent] [--no-brake] [--mkdir]`.
   - other: `exec <name> [argv] [--creates path]`, `step <command> [args]` (an own export, run at apply time),
     `fetch-file <url> <sha256> <dest> [--extract <member>]`, `fetch-git <url> <commit> <dir>`, `group-admins <group>`,
-    `palette-load` (for `theme`).
+    `palette-load` (for `theme`). An exec or step that downloads takes `--network`: offline (an HTTPS probe as the
+    user, once per run), or failing on the remote's 5xx, 429 or an unresolvable name, it is pending and runs on the
+    next apply; fetch-* mark themselves. One that builds on an earlier download takes `--requires <path>` (the fetched
+    tree, the image): while the path is missing it is pending instead of failing. Each is killed with its
+    whole tree after 20min (`--timeout <duration>` for longer), a `--then` after 5min, a verb's evaluation after 2min.
+- Evaluation never touches the network: a verb or hook only reads local state; downloads go in a step or exec.
 - Helpers: `xdg config|data|cache|state ...parts`, `unit-dir`, `process-running <name>` (gate a reload in `theme`),
   `desktop-set {Key: v}` (in a `desktop-override` closure). The user layer already has `configs/base/xdg/app-dirs.conf`
   loaded; don't copy those variables into a module.

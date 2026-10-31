@@ -2,7 +2,7 @@ use module.nu *
 
 export const meta = {
     packages: {
-        pacman: [age age-plugin-yubikey ccid git-crypt libfido2 pcsclite yubikey-manager yubikey-personalization]
+        pacman: [age age-plugin-yubikey ccid git-crypt libfido2 openssh pam-u2f pcsclite usbutils yubikey-manager yubikey-personalization]
     }
 }
 

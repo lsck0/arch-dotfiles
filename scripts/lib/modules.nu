@@ -14,6 +14,10 @@ export const ROOT_MODULES = [scripts skills]
 export const SECRETS_GROUP = "secrets"
 export const SECRETS_DATA = ["secrets/keys/**" "secrets/state/**"]
 const META_DEFAULT = {deps: [], packages: {pacman: [], native: [], flatpak: {}, nix: []}, serial: false}
+# a verb or hook evaluated in a child nu is killed past this; a whole layer's batch takes seconds
+export const EVAL_TIMEOUT = 2min
+# the verbs that do their work while evaluated (update, backup, restore) instead of declaring it
+export const VERB_WORK_TIMEOUT = 30min
 
 # The first word of each non-comment line of a dependencies.txt, none for a missing file.
 export def names-read [file: path]: nothing -> list<string> {
@@ -154,20 +158,33 @@ export def modules-graph [repo: path, modules: table]: nothing -> table {
     $order
 }
 
-# --private runs under umask 077, for a backup writing into configs/secrets/.
-export def modules-eval [modules: table, verb: string, cfgs: record, args: list, --private]: nothing -> table {
+# --private runs under umask 077, for a backup writing into configs/secrets/. --timeout bounds the child (EVAL_TIMEOUT
+# by default); a batch past it is evaluated again module by module, so the one that hangs fails alone.
+export def modules-eval [modules: table, verb: string, cfgs: record, args: list, --private, --timeout: duration]: nothing -> table {
     if ($modules | is-empty) { return [] }
+    let timeout = $timeout | default $EVAL_TIMEOUT
     let calls = $modules | enumerate | each {|m|
-        let name = $m.item.dir | path basename
         let cfg = $cfgs | get $m.item.id | to nuon
         $"{id: ($m.item.id | to nuon), run: {|| cd ($m.item.dir | to nuon); with-env {DOTFILES_MODULE: ($m.item.id | to nuon)} { m($m.index) ($verb) ($cfg) ($args | each { to nuon } | str join ' ') } }}"
     }
-    let body = $"[($calls | str join ' ')] | each {|c| try { {id: $c.id, ok: true, decls: \(do $c.run | decls-flatten\), error: null} } catch {|e| {id: $c.id, ok: false, decls: [], error: $e.msg} } } | to nuon | save --force $env.DOT_EVAL_OUT"
-    let run = [(nu-bin) --no-config-file -I $LIB_DIR -c (native-script ($modules | select dir) $"use module.nu *\n($body)")]
+    let body = $"[($calls | str join ' ')] | each {|c| try { {id: $c.id, ok: true, decls: \(do $c.run | decls-flatten\), error: null} } catch {|e| {id: $c.id, ok: false, decls: [], error: \(cause-text \(cause-from-error $e\)\)} } } | to nuon | save --force $env.DOT_EVAL_OUT"
+    let run = [(nu-bin) --no-config-file -I $LIB_DIR -c (native-script ($modules | select dir) $"use module.nu *\nuse cause.nu [cause-from-error cause-text]\n($body)")]
     let out_file = mktemp --tmpdir
-    let out = with-env {DOT_EVAL_OUT: $out_file} {
-        if $private { ^bash -c 'umask 077 && exec "$@"' private ...$run | complete } else { ^($run | first) ...($run | skip 1) | complete }
+    let bounded_run = bounded $timeout {
+        with-env {DOT_EVAL_OUT: $out_file} {
+            if $private { ^bash -c 'umask 077 && exec "$@"' private ...$run | complete } else { ^($run | first) ...($run | skip 1) | complete }
+        }
     }
+    if $bounded_run.timed_out {
+        rm --force $out_file
+        if ($modules | length) == 1 {
+            log-warn $"($modules.0.id): evaluating ($verb) still running after ($timeout), killed"
+            return [{id: $modules.0.id, ok: false, decls: [], error: $"evaluating ($verb) timed out after ($timeout)"}]
+        }
+        log-warn $"evaluating ($verb) of ($modules | length) modules still running after ($timeout), killed: evaluating each alone"
+        return ($modules | each {|m| modules-eval [$m] $verb $cfgs $args --private=$private --timeout $timeout } | flatten)
+    }
+    let out = $bounded_run.value
     child-warnings $out.stderr
     let result = if $out.exit_code == 0 and ($out_file | path type) == "file" { open --raw $out_file | from nuon } else { null }
     rm --force $out_file

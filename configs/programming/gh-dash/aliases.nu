@@ -1,0 +1,1 @@
+alias lgithub = gh-dash

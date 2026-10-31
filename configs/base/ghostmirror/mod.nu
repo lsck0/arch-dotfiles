@@ -1,4 +1,5 @@
 use module.nu *
+use ../../../platforms/homelab.nu [HOMELAB]
 
 # volatile: the homelab mirror is added only when it answers, so a run away from home retries on the next apply
 export const meta = {packages: {pacman: [ghostmirror]}, volatile: true}
@@ -6,8 +7,8 @@ export const meta = {packages: {pacman: [ghostmirror]}, volatile: true}
 export const options = {
     homelab_mirror: {
         type: string?
-        default: null
-        doc: "A homelab pacman mirror's URL ($repo and $arch as in a mirrorlist), put first on a homelab machine"
+        default: $HOMELAB.mirror.arch
+        doc: "A homelab pacman mirror's URL ($repo and $arch as in a mirrorlist), put first on a homelab machine; default the lab's"
     }
 }
 

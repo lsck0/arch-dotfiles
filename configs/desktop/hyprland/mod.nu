@@ -2,8 +2,10 @@
 
 use module.nu *
 use ../../core/wallust/palette.nu [RADIUS_PX BORDER_PX OPACITY_WINDOW OPACITY_SURFACE]
+use plugins.nu [plugins-missing]
 
 export const meta = {
+    deps: [base/essentials]
     packages: {
         pacman: [
             app2unit bemenu-wayland brightnessctl cpio ddcutil grim hyprcursor hypridle hyprland hyprlock hyprpicker
@@ -223,16 +225,22 @@ export def link [cfg: record] {
         (unit-enable hypridle.service --now)
         (file-text ($dir | path join platform.lua) (platform-lua $cfg) --generated)
         (file-text ($dir | path join style.lua) $"return (lua-from {rounding: $RADIUS_PX, border: $BORDER_PX, opacity: $OPACITY_WINDOW, opacity_surface: $OPACITY_SURFACE})\n" --generated)
-        (step plugins-build)
+        # offline only the build waits: plugins built earlier still load
+        (if (plugins-missing | is-empty) { [] } else { [(step plugins-build --network)] })
+        (step plugins-load)
         (step reload)
     ]
 }
 
 export def plugins-build []: nothing -> nothing {
-    ^($env.DOTFILES | path join configs desktop hyprland plugins.nu)
+    ^($env.DOTFILES | path join configs desktop hyprland plugins.nu) build
 }
 
-export def update [cfg: record]: nothing -> nothing { plugins-build }
+export def plugins-load []: nothing -> nothing {
+    ^($env.DOTFILES | path join configs desktop hyprland plugins.nu) load
+}
+
+export def update [cfg: record]: nothing -> nothing { plugins-build; plugins-load }
 
 # Reloads hyprland; the shader goes last, a config write or scale re-render after it drops it.
 export def reload []: nothing -> nothing {

@@ -17,7 +17,9 @@ export const options = {
 const DPI_BASE = 96
 
 export def detect [cfg: record]: nothing -> record {
-    let scale = try { ^hyprctl -j monitors | from json | sort-by focused --reverse | first | get scale } catch { 1 }
+    let scale = if (which hyprctl | is-empty) { 1 } else {
+        try { ^hyprctl -j monitors | from json | sort-by focused --reverse | first | get scale } catch { 1 }
+    }
     {dpi: ($DPI_BASE * $scale | math round | into int)}
 }
 

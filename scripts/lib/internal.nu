@@ -8,18 +8,22 @@ use ($LIB | path join cli.nu) [concat jobs guarded]
 use ($LIB | path join complete.nu) [command-table complete-run completions-run module-ids]
 use ($LIB | path join platform.nu) [platform-env]
 use ($LIB | path join options.nu) [options-events-file]
-use ($LIB | path join modules.nu) [modules-packages modules-eval SECRETS_GROUP]
+use ($LIB | path join modules.nu) [modules-packages modules-eval SECRETS_GROUP VERB_WORK_TIMEOUT]
+use ($LIB | path join online.nu) [network-online]
 use ($LIB | path join pipeline.nu) [pipeline-load pipeline-plan pipeline-apply THEME_VERB_TIMEOUT]
 use ($LIB | path join secrets.nu) [secret-is-plaintext secrets-wanted OWNER_WITNESS]
 use ($LIB | path join preserve.nu) [preserve-prune]
 use ($LIB | path join migrate.nu) [migrations-run]
 use ($LIB | path join fetch.nu) [fetch-file-run fetch-git-run]
-use ($LIB | path join bootstrap.nu) [bootstrap-run]
+use ($LIB | path join state.nu) [EXIT_PENDING]
+use ($LIB | path join bootstrap.nu) [bootstrap-run PACSTRAP]
+use ($LIB | path join commands.nu) [commands-scan commands-used commands-map-load commands-map-render commands-map-resolve module-packages-every packages-every-context COMMANDS_FILE]
 use ($LIB | path join stage.nu) [stage-run]
 use ($REPO | path join configs base yubikey audit.nu) [audit-remind]
 use ($REPO | path join configs core wallust wallpaper.nu) [theme-serve wallpaper-get wallpaper-list]
 use ($LIB | path join iso.nu) [iso-build]
 use ($LIB | path join iso-install.nu) [iso-install-run]
+use ($LIB | path join homelab.nu) [homelab-lab-path homelab-stale homelab-write HOMELAB_FILE]
 
 const DOT = $REPO | path join scripts dot.nu
 const MIRROR_LIST = "mirror/packages.txt"
@@ -77,24 +81,20 @@ def "main stage" []: nothing -> nothing {
     guarded stage { stage-run $REPO }
 }
 
-def mirror-list []: nothing -> string {
-    let ctx = pipeline-load $REPO system
+def mirror-list [ctx: record]: nothing -> string {
     let all = $ctx.modules | where group != $SECRETS_GROUP | update selected true | update cfg { upsert enable true }
     let extras = glob ($REPO | path join platforms *.nuon) | where not ($it | str ends-with ".options.nuon") | each { open $in | get --optional extra_packages | default [] } | flatten
-    let variants = $all | where {|m| "packages" in $m.native } | each {|m|
-        $m.options | items {|name, spec|
-            let values = $spec.choices? | default (if $spec.type == bool { [true false] } else { [] })
-            $values | each {|c| {m: $m, cfg: ($m.cfg | upsert $name $c)} }
-        } | flatten
-    } | flatten
-    let candidates = $variants | each {|v| modules-eval [$v.m] packages {$v.m.id: $v.cfg} [] | get 0.decls | get --optional 0 | default {} | select --optional pacman native | values | flatten } | flatten
+    let every = packages-every-context $REPO
+    let candidates = $all | where {|m| "packages" in $m.native } | each { module-packages-every $in $every } | flatten
     let platform = $ctx.platform | update form_factor desktop | update extra_packages ($extras ++ $candidates)
-    modules-packages $REPO $all $platform | get pacman | str join "\n" | $"($in)\n"
+    # the hooks ran above for every profile and option; run again here they would add only this caller's answer
+    let fixed = $all | update native { where $it != "packages" }
+    modules-packages $REPO $fixed $platform | get pacman | str join "\n" | $"($in)\n"
 }
 
 # One row per typed option but enable, public modules only; a null default a detect hook names reads "detected".
-def options-table []: nothing -> string {
-    let mods = pipeline-load $REPO system | get modules | where group != $SECRETS_GROUP | sort-by id
+def options-table [ctx: record]: nothing -> string {
+    let mods = $ctx.modules | where group != $SECRETS_GROUP | sort-by id
     let cell = {|v| $v | into string | str replace --all "|" '\|' }
     let rows = $mods | each {|m|
         let detects = if "detect" in $m.native {
@@ -109,8 +109,8 @@ def options-table []: nothing -> string {
 }
 
 # One row per group, public modules only, each named by its path below the group.
-def modules-table []: nothing -> string {
-    let mods = pipeline-load $REPO system | get modules | where group != $SECRETS_GROUP and group != ""
+def modules-table [ctx: record]: nothing -> string {
+    let mods = $ctx.modules | where group != $SECRETS_GROUP and group != ""
     let rows = $mods | group-by group | items {|group, ms|
         let names = $ms | get id | each { str substring ($group | str length | $in + 1).. } | sort | each { $"`($in)`" }
         $"| `($group)` | ($names | str join ', ') |"
@@ -124,18 +124,35 @@ def section-replace [text: string, begin: string, end: string, body: string]: no
     $"($head)($begin)\n($body)\n($end)($tail)"
 }
 
-def features-render []: nothing -> string {
+def features-render [ctx: record]: nothing -> string {
     let text = open --raw ($REPO | path join $FEATURES)
-    let modules = section-replace $text $MODULES_BEGIN $MODULES_END (modules-table)
-    section-replace $modules $OPTIONS_BEGIN $OPTIONS_END (options-table)
+    let modules = section-replace $text $MODULES_BEGIN $MODULES_END (modules-table $ctx)
+    section-replace $modules $OPTIONS_BEGIN $OPTIONS_END (options-table $ctx)
 }
 
-# regenerate mirror/packages.txt and FEATURES.md's module and options tables; --check fails when either file is stale
+# Each command the modules run, resolved to its package in the repos' sync databases; check compares only the commands.
+def commands-render [ctx: record, check: bool]: nothing -> string {
+    let used = commands-used (commands-scan $REPO)
+    let previous = commands-map-load ($REPO | path join $COMMANDS_FILE)
+    if $check { return (if ($previous | columns | sort) == $used { open --raw ($REPO | path join $COMMANDS_FILE) } else { "" }) }
+    let every = packages-every-context $REPO
+    let declared = $ctx.modules | where group != $SECRETS_GROUP | each { module-packages-every $in $every } | flatten | uniq
+    commands-map-render (commands-map-resolve $used $declared $PACSTRAP)
+}
+
+# regenerate platforms/homelab.nu (from a present homelab checkout), mirror/packages.txt, scripts/lib/commands.txt and
+# FEATURES.md's module and options tables; --check fails when one is stale (for the commands, when the set of commands
+# changed; for the homelab file, only against a present checkout)
 def "main gen" [--check]: nothing -> nothing {
     guarded gen --background {
-        let outputs = [[file text]; [$MIRROR_LIST (mirror-list)] [$FEATURES (features-render)]]
+        let lab = homelab-lab-path
+        if $check and (homelab-stale $REPO $lab) { error make {msg: $"($HOMELAB_FILE) stale against ($lab), run dot internal gen"} }
+        # first: the modules' option defaults import it, so FEATURES.md below reads the new values
+        if not $check { homelab-write $REPO $lab }
+        let ctx = pipeline-load $REPO system
+        let outputs = [[file text]; [$MIRROR_LIST (mirror-list $ctx)] [$COMMANDS_FILE (commands-render $ctx $check)] [$FEATURES (features-render $ctx)]]
         if $check {
-            let stale = $outputs | where {|o| (open --raw ($REPO | path join $o.file)) != $o.text } | get file
+            let stale = $outputs | where {|o| not ($REPO | path join $o.file | path exists) or (open --raw ($REPO | path join $o.file)) != $o.text } | get file
             if ($stale | is-not-empty) { error make {msg: $"($stale | str join ', ') stale, run dot internal gen"} }
             return
         }
@@ -217,7 +234,7 @@ def module-hash [dir: path]: nothing -> string {
 }
 
 def backup-native [ctx: record, m: record]: nothing -> record {
-    let r = modules-eval [$m] backup {$m.id: $m.cfg} [] --private=($m.meta.backup?.secrets? | default false) | first
+    let r = modules-eval [$m] backup {$m.id: $m.cfg} [] --private=($m.meta.backup?.secrets? | default false) --timeout $VERB_WORK_TIMEOUT | first
     if not $r.ok { log-warn $"backup: ($m.id) failed, its state is from an older run: ($r.error)" }
     $r
 }
@@ -227,8 +244,11 @@ def "main update" []: nothing -> nothing {
     guarded update --background {
         let ctx = pipeline-load $REPO user
         let mods = $ctx.modules | where {|m| "update" in $m.native and $m.cfg.enable }
+        # every update downloads
+        if not (network-online) { log-note "update: offline, the update verbs run with the next dot sync"; return }
         with-env (platform-env $ctx.platform) {
-            modules-eval $mods update ($mods | reduce --fold {} {|m, acc| $acc | insert $m.id $m.cfg }) []
+            # one child each: an update is work, and a batch past its bound would run them all again
+            $mods | each {|m| modules-eval [$m] update {$m.id: $m.cfg} [] --timeout $VERB_WORK_TIMEOUT } | flatten
             | where not ok | each {|r| log-warn $"update: ($r.id) failed: ($r.error)" } | ignore
         }
     }
@@ -252,10 +272,15 @@ def "main backup" [--roundtrip]: nothing -> nothing {
             backup-native $ctx $m | ignore
             let before = module-hash $m.dir
             let home = mktemp --directory
-            let env_home = {HOME: $home, XDG_CONFIG_HOME: $"($home)/.config", XDG_DATA_HOME: $"($home)/.local/share", XDG_STATE_HOME: $"($home)/.local/state", XDG_CACHE_HOME: $"($home)/.cache"}
+            # its failures stay in the scratch home, out of the checkout's FAILURES.config
+            let env_home = {
+                HOME: $home, XDG_CONFIG_HOME: $"($home)/.config", XDG_DATA_HOME: $"($home)/.local/share", XDG_STATE_HOME: $"($home)/.local/state"
+                XDG_CACHE_HOME: $"($home)/.cache", FAILURES_FILE: $"($home)/failures"
+            }
             let restored = with-env $env_home {
                 let step = if "restore" in $m.native { [module restore $m.id] } else { [apply --user $m.id] }
-                (^nu --no-config-file $DOT ...$step | complete).exit_code == 0
+                # pending (a download offline) is no part of the backed-up state
+                (^nu --no-config-file $DOT ...$step | complete).exit_code in [0 $EXIT_PENDING]
             }
             let again = with-env $env_home { backup-native $ctx $m }
             rm --recursive --force $home

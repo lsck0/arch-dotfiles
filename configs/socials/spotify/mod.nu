@@ -2,7 +2,7 @@ use module.nu *
 use ../../core/wallust/palette.nu *
 use ../../core/wallust/font.nu [font-load]
 
-export const meta = {packages: {pacman: [spicetify-cli spotify spotify-player websocat]}}
+export const meta = {packages: {pacman: [spicetify-cli spotify spotify-player unzip websocat]}}
 
 const THEMES_URL = "https://github.com/spicetify/spicetify-themes.git"
 const THEMES_COMMIT = "33a08ea009687f5a42ff678015c28797fe142a7c"

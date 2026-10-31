@@ -11,7 +11,6 @@ const NFT_TABLE = "anonymous_socks"
 const PERSONA_CHAIN = "ANONSOCKS_PERSONA"
 const TLP_MODES = [balanced performance power-saver]
 const FIREWALL_STATES = [permissive default restrictive]
-const VPN_INTERFACE = "proton0"
 const PERSONA_TTLS = ["64" "128"]
 const PORT_MAX = 65535
 const POOL_SIZE_MAX = 999
@@ -138,6 +137,10 @@ def --wrapped main [...args: string] {
     match [($args | length) ($args.0? | default "")] {
         [2, "tlp"] => {
             let mode = $args.1
+            if (which tlp | is-empty) {
+                print -e "toggle-root: tlp is not installed"
+                exit 1
+            }
             if $mode in $TLP_MODES {
                 ^tlp $mode
             } else if $mode == start {
@@ -147,7 +150,7 @@ def --wrapped main [...args: string] {
             }
         }
         [2, "wg"] => {
-            if not ($WG_CONFIG | path exists) {
+            if not ($WG_CONFIG | path exists) or (which wg-quick | is-empty) {
                 print -e $"toggle-root: no ($WG_INTERFACE) configured"
                 exit 1
             }
@@ -175,8 +178,12 @@ def --wrapped main [...args: string] {
                 permissive => { ^systemctl stop fw-inbound.service fw-lockdown.service portmaster.service }
                 _ => {
                     ^systemctl start (if $state == default { "fw-inbound.service" } else { "fw-lockdown.service" })
-                    let tunnel = ($"/sys/class/net/($VPN_INTERFACE)" | path exists) or ((^ip -n protonvpn link show wg-protonvpn | complete).exit_code == 0)
-                    if not $tunnel { ^systemctl start portmaster.service }
+                    # the dispatcher's own decision: not over a tunnel, and off on a foreign link with no tor to route into
+                    if ($PERSONA_DISPATCHER | path exists) {
+                        ^$PERSONA_DISPATCHER "" portmaster
+                    } else {
+                        print -e "toggle-root: no persona dispatcher, portmaster left as it is"
+                    }
                 }
             }
             # the admin chose, so the dispatcher's lockdown marker no longer holds the link

@@ -239,7 +239,7 @@ export def yubikey-unlock [--identity: path]: nothing -> nothing {
     if $identity != null { return (unlock-identity $identity) }
     let pulled = $SECRETS | path join .git | path exists
     if not (present) {
-        if (do { ^lsusb -d 1050: } | complete).exit_code == 0 {
+        if (which lsusb | is-not-empty) and (do { ^lsusb -d 1050: } | complete).exit_code == 0 {
             print "yubikey: plugged in but ykman can not reach it, check pcscd and its polkit rule"
         }
         if $pulled and not (secret-is-plaintext $WITNESS) {

@@ -10,12 +10,13 @@ const WG_IFACE = "wg0"
 const MIRROR_UPDATE = "/usr/local/bin/mirrorlist-update"
 const MIRROR_LINE = "/etc/pacman.d/homelab-mirror"
 
+# a missing binary reads as a failed command, not a crash of the dispatcher
 def --wrapped out [...argv: string]: nothing -> string {
-    do { run-external ...$argv } | complete | get stdout
+    try { do { run-external ...$argv } | complete | get stdout } catch { "" }
 }
 
 def --wrapped attempt [...argv: string]: nothing -> nothing {
-    let r = do { run-external ...$argv } | complete
+    let r = try { do { run-external ...$argv } | complete } catch {|e| {exit_code: 1, stderr: $"($e.msg)\n"} }
     if $r.exit_code != 0 { print --stderr --no-newline $r.stderr }
 }
 
@@ -26,9 +27,13 @@ def lab-env []: nothing -> record {
 
 # A weekly sort while away drops the homelab mirror; back on a home link or wg0 it goes first again. Queued, not
 # waited on: a running sort holds the mirrorlist lock longer than NM's dispatcher timeout.
-def mirror-place []: nothing -> nothing {
+def mirror-place [line: string]: nothing -> nothing {
     if not ($MIRROR_UPDATE | path exists) or not ($MIRROR_LINE | path exists) { return }
-    attempt systemd-run --no-block --quiet --collect $MIRROR_UPDATE homelab (open --raw $MIRROR_LINE | str trim)
+    attempt systemd-run --no-block --quiet --collect $MIRROR_UPDATE homelab $line
+}
+
+def mirror-line []: nothing -> string {
+    if ($MIRROR_LINE | path exists) { open --raw $MIRROR_LINE | str trim } else { "" }
 }
 
 def main [iface: string = "", action: string = ""]: nothing -> nothing {
@@ -44,14 +49,20 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
         for net in $nets { out ip rule del to $net lookup $TABLE priority $PRIORITY | ignore }
         return
     }
-    if $iface == $WG_IFACE and $action == up { return (mirror-place) }
+    if $iface == $WG_IFACE and $action == up { return (mirror-place (mirror-line)) }
     if not ($"/sys/class/net/($iface)/device" | path exists) { return }
 
     # the persona dispatcher drops these on wg0 up; a stray link event must not re-add them under it
-    if not ($"/sys/class/net/($WG_IFACE)" | path exists) {
+    let wg = $"/sys/class/net/($WG_IFACE)" | path exists
+    if not $wg {
         for net in $nets { attempt ip route replace unreachable $net metric $metric }
     }
-    if not ($HOME_NETWORK | path exists) or $iface not-in (open --raw $HOME_NETWORK | lines) { return }
+    let home = if ($HOME_NETWORK | path exists) { open --raw $HOME_NETWORK | lines } else { [] }
+    if $iface not-in $home {
+        # away with no tunnel the lab mirror only stalls pacman; an empty line drops it until home or wg0 is back
+        if ($home | is-empty) and not $wg and $action == up { mirror-place "" }
+        return
+    }
 
     # NM re-pushes the link's resolved config on every ip change; the reapply re-enters here, so skip it
     let dns = out nmcli -g IP4.DNS,IP6.DNS device show $iface | lines | where $it != ""
@@ -73,5 +84,5 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
             attempt ip rule add to $net lookup $TABLE priority $PRIORITY
         }
     }
-    mirror-place
+    mirror-place (mirror-line)
 }

@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [uv]}}
+export const meta = {deps: [base/essentials], packages: {pacman: [uv]}}
 
 export const options = {
     model: {
@@ -84,7 +84,7 @@ export def system [cfg: record] {
         KV_CACHE_DTYPE: $cfg.kv_cache_dtype
     }
     [
-        (step venv)
+        (step venv --network --timeout 60min)
         (file-copy vllm-wait-ready.nu /usr/local/bin/vllm-wait-ready --mode 755)
         (unit-file vllm-proxy.service)
         (file-render vllm.service (unit-dir | path join vllm.service) $values --then [

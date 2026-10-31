@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {volatile: true}
+export const meta = {packages: {native: [wireguard-tools]}, volatile: true}
 
 const CONF = "/etc/wireguard/protonvpn-netns.conf"
 const LIB = "/usr/local/lib/protonvpn-netns"
@@ -19,6 +19,8 @@ def secret []: nothing -> path {
 export def system [cfg: record] {
     # only the machine fact removes it: a run without secrets never undoes one that had them
     if $env.FORM_FACTOR? == "wsl" or not ((secret | path exists) or ($CONF | path exists)) { return [] }
+    # netns up brings the tunnel up with wg and wg-quick
+    if (which wg-quick | is-empty) { return [] }
     let restart = unit-restart $UNIT
     let shims = $SHIMS ++ ($VPN_FORCED | where { $"/usr/bin/($in)" | path exists })
     # validated first, a broken drop-in would lock every admin out

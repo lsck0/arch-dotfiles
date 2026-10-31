@@ -153,9 +153,14 @@ def completions-nu-param [p: record]: nothing -> string {
 }
 
 # Prints zsh's _dot or the nushell externs for the table.
+# zsh's _dot: static, it asks `dot internal complete` for every answer.
+export def completions-zsh []: nothing -> string {
+    $COMPLETE_ZSH | str replace --all "@DOT@" $COMPLETE_DOT
+}
+
 export def completions-run [table: table, shell: string]: nothing -> nothing {
     match $shell {
-        "zsh" => { print -n ($COMPLETE_ZSH | str replace --all "@DOT@" $COMPLETE_DOT) }
+        "zsh" => { print -n (completions-zsh) }
         "nu" => {
             let externs = $table | where name not-in ["internal completions"] | each {|c|
                 let params = $c.params | each { completions-nu-param $in } | append "--help(-h)" | str join ", "

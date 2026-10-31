@@ -6,8 +6,14 @@ use preserve.nu [sync-guard preserve-aside]
 use json.nu [json-edits-apply]
 use module.nu [DECL_KEYS DECL_KINDS unit-dir]
 use ini.nu [ini-apply]
+use cause.nu [cause-from-error cause-from-output cause-text argv-text]
+use online.nu [network-online remote-pending OFFLINE_PENDING]
 
 const OWN_LINK_PREFIXES = [$"($SYSTEM_STATE)/"]
+# a step or exec past this is killed with its whole tree; a declaration's --timeout overrides it
+export const STEP_TIMEOUT = 20min
+# a --then is a restart or a reload
+export const THEN_TIMEOUT = 5min
 
 # The record of what a module's verb owns: <state>/modules/<id>/<verb>.nuon.
 export def state-path [id: string, verb: string]: nothing -> path {
@@ -46,25 +52,39 @@ export def unit-states [scope: string, units: list<string>]: nothing -> list<str
     $units | each {|u| ^systemctl $"--($scope)" is-enabled $u | complete | get stdout | str trim | if ($in | is-empty) { "not-found" } else { $in } }
 }
 
-# What is on disk now for each target (type, hash, link) and each unit's enablement state.
-export def observe [targets: list<string>, units: list<string>, scope: string]: nothing -> record {
-    let paths = $targets | uniq | each {|t|
-        let type = path-kind $t
+# One external call for every path, its NUL-ended answers in order; an answer short (a path gone meanwhile) asks each.
+export def ask-batch [paths: list<string>, batch: closure, each_path: closure]: nothing -> record {
+    if ($paths | is-empty) { return {} }
+    let run = do $batch $paths | complete
+    let answers = $run.stdout | split row (char nul) | drop
+    let got = if $run.exit_code == 0 and ($answers | length) == ($paths | length) { $answers } else { $paths | each {|p| do $each_path $p } }
+    $paths | zip $got | reduce --fold {} {|a, acc| $acc | upsert $a.0 $a.1 }
+}
+
+# What is on disk now for each target (type, hash, link, mode) and each unit's enablement state; known: an earlier
+# observation whose paths and units are taken as they are, only the rest looked at.
+export def observe [targets: list<string>, units: list<string>, scope: string, known: record = {paths: {}, units: {}}]: nothing -> record {
+    let kinds = $targets | uniq | where $it not-in $known.paths | each {|t| {target: $t, type: (path-kind $t)} }
+    # one stat and one readlink for all, not one each: a plan observes a few thousand targets
+    let files = $kinds | where type == file | get target
+    let modes = ask-batch $files {|ps| ^stat --printf '%a\0' ...$ps } {|p| try { ^stat -c "%a" $p | str trim } catch { null } }
+    let links = ask-batch ($kinds | where type == symlink | get target) {|ps| ^readlink -z ...$ps } {|p| ^readlink $p }
+    let paths = $kinds | each {|k|
         {
-            target: $t
-            type: $type
-            hash: (if $type == file { try { open --raw $t | sha $in } catch { "unreadable" } } else { null })
-            link: (if $type == symlink { ^readlink $t } else { null })
-            mode: (if $type == file { try { ^stat -c "%a" $t | str trim } catch { null } } else { null })
+            target: $k.target
+            type: $k.type
+            hash: (if $k.type == file { try { open --raw $k.target | sha $in } catch { "unreadable" } } else { null })
+            link: ($links | get --optional $k.target)
+            mode: ($modes | get --optional $k.target)
         }
     }
-    let unit_names = $units | uniq
+    let unit_names = $units | uniq | where $it not-in $known.units
     let states = if ($unit_names | is-empty) { [] } else {
         unit-states $scope $unit_names
     }
     {
-        paths: ($paths | reduce --fold {} {|p, acc| $acc | insert $p.target $p })
-        units: ($unit_names | zip $states | reduce --fold {} {|u, acc| $acc | insert $u.0 $u.1 })
+        paths: ($paths | reduce --fold $known.paths {|p, acc| $acc | insert $p.target $p })
+        units: ($unit_names | zip $states | reduce --fold $known.units {|u, acc| $acc | insert $u.0 $u.1 })
     }
 }
 
@@ -263,13 +283,24 @@ def write-file [a: record]: nothing -> nothing {
     }
 }
 
-def run-step [a: record, dir: path]: nothing -> string {
-    let call = $"use ($dir | to nuon) [($a.target)]; ($a.target) ($a.decl.argv | each { to nuon } | str join ' ')"
-    let out = do { cd $dir; command-stream $"($a.module) ($a.target)" [(nu-bin) --no-config-file -I $LIB_DIR -c $call] }
-    if $out.exit_code != 0 {
-        error make {msg: $"step ($a.target) exited ($out.exit_code): ($out.tail)"}
-    }
+def home-short []: path -> string {
+    let file = $in
+    let home = $nu.home-dir
+    if ($file | str starts-with $"($home)/") { $"~/($file | path relative-to $home)" } else { $file }
+}
+
+# A command of an action, bounded by timeout: a failure carries its cause, a timeout says so.
+def action-command [a: record, dir: path, what: string, argv: list<string>, timeout: duration]: nothing -> string {
+    let out = do { cd $dir; command-stream $"($a.module) ($a.target)" $argv $timeout }
+    if $out.timed_out { error make {msg: $"`($what)` timed out after ($timeout)"} }
+    if $out.exit_code != 0 { error make {msg: (cause-text (cause-from-output $what $out.exit_code $out.output))} }
     $out.output
+}
+
+# nu -c ends on a failed external with its exit code alone: the step prints the error, its call and line, itself.
+def run-step [a: record, dir: path]: nothing -> string {
+    let call = $"use ($dir | to nuon) [($a.target)]; try { ($a.target) ($a.decl.argv | each { to nuon } | str join ' ') } catch {|e| print -e $e.rendered; exit \($e.exit_code? | default 1\) }"
+    action-command $a $dir $"step ($a.target)" [(nu-bin) --no-config-file -I $LIB_DIR -c $call] ($a.decl.timeout? | default $STEP_TIMEOUT)
 }
 
 # a sibling module's daemon-reload running at the same moment fails a unit verb once
@@ -283,22 +314,18 @@ def systemctl-retry [scope: string, ...args: string]: nothing -> nothing {
 # A failed --then keeps the old hash, so the next apply runs it again; a merge's record carries then_failed instead.
 def run-then [a: record, dir: path]: nothing -> string {
     if ($a.decl.then | is-empty) { return "" }
-    run-exec ($a | update decl.argv $a.decl.then) $dir
+    action-command $a $dir (argv-text $a.decl.then) $a.decl.then $THEN_TIMEOUT
 }
 
 def run-exec [a: record, dir: path]: nothing -> string {
-    let out = do { cd $dir; command-stream $"($a.module) ($a.target)" $a.decl.argv }
-    if $out.exit_code != 0 {
-        error make {msg: $"($a.target) exited ($out.exit_code): ($out.tail)"}
-    }
-    $out.output
+    action-command $a $dir (argv-text $a.decl.argv) $a.decl.argv ($a.decl.timeout? | default $STEP_TIMEOUT)
 }
 
 # One outcome per action; a failure stays with its action.
 export def apply-module [actions: list<record>, dir: path, scope: string]: nothing -> list<record> {
     let unreadable = $actions | where kind == unreadable | each {|a|
         log-record "ERROR" $"unreadable ($a.target)" {module: $a.module, kind: $a.kind, target: $a.target, ms: 0, outcome: $a.reason}
-        $a | merge {ok: false, error: $a.reason, aside: null, output: "", hash: null, at: null} | insert ms 0
+        $a | merge {ok: false, pending: null, error: $a.reason, aside: null, output: "", hash: null, at: null} | insert ms 0
     }
     # new files before changed ones: a live reader never sees a reference to a missing file
     let file_write = {|a| $a.kind in [create update] and $a.decl.kind? != "link" }
@@ -318,7 +345,11 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
     let run = $ordered | reduce --fold {written: $recorded, outcomes: []} {|a, acc|
         let start = date now
         let result = if $cancel != "" and ($cancel | path exists) {
-            {ok: false, error: "cancelled, the module timed out", aside: null, output: "", hash: null, at: null}
+            {ok: false, pending: null, error: "cancelled, the module timed out", aside: null, output: "", hash: null, at: null}
+        } else if $a.kind in [exec step] and $a.decl.requires? != null and not ($a.decl.requires | path exists) {
+            {ok: true, pending: $"waits on ($a.decl.requires | home-short), not there yet", error: null, aside: null, output: "", hash: null, at: null}
+        } else if $a.kind in [exec step] and $a.decl.network? == true and not (network-online) {
+            {ok: true, pending: $OFFLINE_PENDING, error: null, aside: null, output: "", hash: null, at: null}
         } else { try {
             match $a.kind {
                 "create" | "update" => {
@@ -349,7 +380,7 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     }
                     if $out.exit_code != 0 { error make {msg: $"($a.decl.kind) merge exited ($out.exit_code): (error-brief $out.stderr)"} }
                     let owned = ($out.stdout | str contains owned) or ($a.decl.kind == "ini" and $a.before != null and $a.before == $last and ($out.stdout | str contains changed))
-                    let output = if ($a.decl.then | is-not-empty) { run-exec ($a | update decl.argv $a.decl.then) $dir } else { "" }
+                    let output = run-then $a $dir
                     if $owned { {output: $output, hash: (open --raw $a.target | sha $in), at: (now-ns)} } else { {output: $output} }
                 }
                 "disable" => {
@@ -379,10 +410,17 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                 "forget" => { {} }
                 "exec" => { {output: (run-exec $a $dir)} }
             }
-            | {ok: true, error: null, aside: ($in.aside? | default null), output: ($in.output? | default ""), hash: ($in.hash? | default null), at: ($in.at? | default null)}
-        } catch {|e| {ok: false, error: $e.msg, aside: null, output: "", hash: null, at: null} } }
+            | {ok: true, pending: null, error: null, aside: ($in.aside? | default null), output: ($in.output? | default ""), hash: ($in.hash? | default null), at: ($in.at? | default null)}
+        } catch {|e|
+            let error = cause-text (cause-from-error $e)
+            let remote = if $a.kind in [exec step] and $a.decl.network? == true { remote-pending $error } else { null }
+            if $remote != null { {ok: true, pending: $remote, error: null, aside: null, output: "", hash: null, at: null} } else {
+                {ok: false, pending: null, error: $error, aside: null, output: "", hash: null, at: null}
+            }
+        } }
         let ms = since-ms $start
-        log-record (if $result.ok { "DEBUG" } else { "ERROR" }) $"($a.kind) ($a.target)" {module: $a.module, kind: $a.kind, target: $a.target, ms: $ms, outcome: (if $result.ok { "ok" } else { $result.error })}
+        let outcome = if not $result.ok { $result.error } else if $result.pending != null { $"pending, ($result.pending)" } else { "ok" }
+        log-record (if $result.ok { "DEBUG" } else { "ERROR" }) $"($a.kind) ($a.target)" {module: $a.module, kind: $a.kind, target: $a.target, ms: $ms, outcome: $outcome}
         {
             written: (if $result.hash != null { $acc.written | upsert $a.target $result.hash } else { $acc.written })
             outcomes: ($acc.outcomes | append ($a | merge $result | insert ms $ms))
@@ -397,9 +435,10 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
     $outcomes ++ $unreadable
 }
 
-# A failed action keeps its previous output and clears the input hash, so it is planned again.
+# A failed action keeps its previous output and clears the input hash, so it is planned again; a pending one (offline)
+# did not run, so it is no output either.
 export def state-write [id: string, verb: string, input: string, actions: list<record>, outcomes: list<record>, prev: list<record>]: nothing -> nothing {
-    let done = $outcomes | where ok | reduce --fold {} {|o, acc| $acc | upsert (out-key $o.decl.kind $o.target) $o }
+    let done = $outcomes | where {|o| $o.ok and $o.pending? == null } | reduce --fold {} {|o, acc| $acc | upsert (out-key $o.decl.kind $o.target) $o }
     let failed = $outcomes | where not ok | get target
     let kept = {|a| ($a.decl.kind == "exec" and $a.decl.creates? != null and $a.kind in [skip exec]) or ($a.decl.kind in [file link unit] and $a.kind not-in [remove forget unmask] and not ($a.kind == "disable" and $a.decl.state? != "disabled")) or ($a.decl.kind in [json ini] and $a.kind in [merge skip]) }
     let owned = $actions | where {|a| do $kept $a } | each {|a|

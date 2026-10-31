@@ -26,7 +26,7 @@ export def link [cfg: record] {
             args: [--python $MCP_PYTHON --exclude-newer $MCP_RELEASED --from $pkg inkscape-mcp --mode stdio]
             env: {FASTMCP_CHECK_FOR_UPDATES: "off"}
         }})
-        (if (cache-stamp $pkg | path exists) { [] } else { step mcp-cache $pkg })
+        (if (cache-stamp $pkg | path exists) { [] } else { step mcp-cache $pkg --network })
     ]
 }
 

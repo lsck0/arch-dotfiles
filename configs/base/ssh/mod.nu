@@ -1,4 +1,5 @@
 use module.nu *
+use ../../../platforms/homelab.nu [HOMELAB]
 
 export const meta = {packages: {pacman: [knockd openbsd-netcat openssh]}}
 
@@ -19,14 +20,14 @@ export const options = {
     }
     homelab_hosts: {
         type: list<string>
-        default: []
+        default: $HOMELAB.ssh_hosts
         doc: ("ssh patterns of the homelab's guests, router and hypervisor: root, accept-new host keys from "
-            + "known_hosts.homelab (homelab profiles only)")
+            + "known_hosts.homelab (homelab profiles only); default the lab's zones, router and hypervisor")
         label: "Homelab ssh hosts"
     }
     wake_router: {
         type: string?
-        default: null
+        default: $HOMELAB.router
         doc: "The always-on homelab router whose `wol-pc` wakes the desktop (wake-pc, homelab profiles only)"
     }
     wake_host: {

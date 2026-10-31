@@ -1,6 +1,10 @@
 # Pinned downloads: files by sha256, git trees by commit.
 
 use state.nu [state-dir path-kind xdg]
+use online.nu [remote-pending]
+
+# git has no retry of its own: a remote's 5xx or 429 gets these waits before the fetch fails (curl retries files itself)
+const GIT_RETRY_WAITS = [5sec 20sec]
 
 def fetch-cache []: nothing -> path {
     if (is-admin) { "/var/cache/dotfiles/fetch" } else { xdg cache dotfiles fetch }
@@ -12,6 +16,11 @@ def stamp [dest: path]: nothing -> path {
 
 export def fetch-file-done [sha256: string, dest: path]: nothing -> bool {
     ($dest | path exists) and (try { open --raw (stamp $dest) | str trim } catch { "" }) == $sha256
+}
+
+# A download already in the cache needs no network to land.
+export def fetch-file-cached [sha256: string]: nothing -> bool {
+    fetch-cache | path join $sha256 | path exists
 }
 
 export def fetch-git-done [commit: string, dir: path]: nothing -> bool {
@@ -67,7 +76,12 @@ export def fetch-file-run [url: string, sha256: string, dest: path, --mode: stri
 export def fetch-git-run [url: string, commit: string, dir: path]: nothing -> nothing {
     if (fetch-git-done $commit $dir) { return }
     ^git init -q $dir
-    let got = ^git -C $dir fetch -q --depth 1 $url $commit | complete
+    mut got = ^git -C $dir fetch -q --depth 1 $url $commit | complete
+    for wait in $GIT_RETRY_WAITS {
+        if $got.exit_code == 0 or (remote-pending $got.stderr) == null { break }
+        sleep $wait
+        $got = ^git -C $dir fetch -q --depth 1 $url $commit | complete
+    }
     if $got.exit_code != 0 { error make {msg: $"git fetch of ($url) failed: ($got.stderr | str trim | lines | last)"} }
     ^git -C $dir -c advice.detachedHead=false checkout -q $commit
     ^git -C $dir submodule -q update --init --recursive --depth 1

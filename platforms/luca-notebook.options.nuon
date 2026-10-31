@@ -38,25 +38,14 @@
     }
     "base/networkmanager": {
         untrusted_policy: lockdown-tor
-        homelab_dns: "192.168.178.29"
-        homelab_domain: lsck0.dev
-        homelab_subnets: ["10.100.0.0/16" "10.200.0.0/16"]
-    }
-    "base/ghostmirror": {
-        homelab_mirror: "http://10.100.0.100:8090/archlinux/$repo/os/$arch"
     }
     "base/pam": {
         fido_origin: "pam://lsck0"
     }
     "base/ssh": {
-        homelab_hosts: ["10.100.0.*" "10.200.0.*" "192.168.178.29" "192.168.178.200"]
-        wake_router: "192.168.178.29"
         wake_host: "192.168.178.138"
     }
     "base/v4l2loopback": {
         video_nr: 2
-    }
-    "core/syncthing": {
-        nas_address: "tcp://10.100.0.100:22000"
     }
 }

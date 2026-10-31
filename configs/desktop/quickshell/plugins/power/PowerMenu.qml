@@ -14,7 +14,7 @@ Item {
   readonly property var actions: [
     { label: "Lock", hotkey: "L", icon: "\u{f023}", cmd: ["loginctl", "lock-session"] },
     { label: "Exit", hotkey: "E", icon: "\u{f08b}", cmd: ["uwsm", "stop"], confirm: true },
-    { label: "Suspend", hotkey: "H", icon: "\u{f04b2}", cmd: ["systemctl", "suspend"] },
+    { label: "Suspend", hotkey: "H", icon: "\u{f04b2}", cmd: ["systemctl", "suspend", "--check-inhibitors=no"] },
     { label: "Shutdown", hotkey: "S", icon: "\u{f011}", cmd: ["systemctl", "poweroff"], confirm: true },
     { label: "Reboot", hotkey: "R", icon: "\u{f0709}", cmd: ["systemctl", "reboot"], confirm: true },
     { label: "Firmware", hotkey: "F", icon: "\u{f0493}", cmd: ["systemctl", "reboot", "--firmware-setup"], confirm: true }

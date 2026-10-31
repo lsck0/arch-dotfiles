@@ -12,6 +12,7 @@ const MCP_HOST = "127.0.0.1"
 # apparmor's blender-mcp profile keeps the venv read-only, so python cannot write __pycache__ at runtime
 const INSTALL_FLAGS = ["--compile-bytecode"]
 const HERE = path self | path dirname
+const OPENAL_NOISE = "[ALSOFT]"
 
 def src []: nothing -> path {
     xdg cache blender-mcp src
@@ -41,8 +42,9 @@ export def link [cfg: record] {
     let addon_installed = try { open --raw (addon-pin-file) | str trim } catch { "" }
     [
         (fetch-git $MCP_URL $MCP_COMMIT (src))
-        (if $installed == (pin) { [] } else { step server-install })
-        (if $addon_installed == (addon-pin) { [] } else { step addon-install })
+        (if $installed == (pin) { [] } else { step server-install --network })
+        # builds from the fetched tree: while the fetch is pending, so is the add-on
+        (if $addon_installed == (addon-pin) { [] } else { step addon-install --requires (addon-src) })
         (link-commands blender-mcp-bridge.nu)
         (desktop-override blender.desktop {
             let text = $in
@@ -66,11 +68,17 @@ export def server-install []: nothing -> nothing {
 
 def blender-run [args: list<string>]: nothing -> nothing {
     let run = ^blender ...$args | complete
-    if $run.exit_code != 0 { error make {msg: $"blender ($args | first 3 | str join ' ') exited ($run.exit_code): ($run.stderr | lines | last 5 | str join "\n")"} }
+    # blender -c reports its errors on stdout, while stderr carries openal's complaints about a missing sound server
+    let said = $"($run.stdout)\n($run.stderr)" | lines | where {|l| ($l | str trim | is-not-empty) and not ($l | str starts-with $OPENAL_NOISE) }
+    if $run.exit_code != 0 { error make {msg: $"blender ($args | first 3 | str join ' ') exited ($run.exit_code): ($said | last 5 | str join "\n")"} }
+}
+
+def addon-src []: nothing -> path {
+    src | path join addon blender_mcp_addon
 }
 
 export def addon-install []: nothing -> nothing {
-    let addon = src | path join addon blender_mcp_addon
+    let addon = addon-src
     let query = 'import bpy; print("EXT=" + bpy.utils.user_resource("EXTENSIONS"))'
     let probe = ^blender -b --factory-startup --python-expr $query | complete
     let extensions = $probe.stdout | lines | parse "EXT={dir}" | get --optional 0.dir

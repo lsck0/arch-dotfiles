@@ -28,7 +28,7 @@ The media guest is parked: treat it as absent.
 ## Reaching it
 
 - Names resolve through the lab DNS. Bootstrap resolver `192.168.178.29`; `base/networkmanager` routes the lab domain
-  to it (options `homelab_dns`, `homelab_domain`).
+  to it (options `homelab_dns`, `homelab_domain`, defaulting to `platforms/homelab.nu`).
 - Internal routes answer only on the LAN and over wireguard (`toggle-vpn`, `wg0`); public ones anywhere.
 - SMB share `//10.100.0.100/homelab`, credentials `samba-homelab` (`core/nas`).
 - After a service moves: `sudo resolvectl flush-caches` (ask Luca).
@@ -43,7 +43,9 @@ In `configs/secrets/keys/` (`l-dotfiles-secrets-access`), names only: `taskwarri
 ## lab.json
 
 `~/projects/homelab/src/generated/lab.json`, schema 1 (documented in `src/modules/lab-export.nix`): guests and routes,
-read by the bar's `homelab-status.nu` and the ntfy notifier. Use only what schema 1 provides.
+read by the bar's `homelab-status.nu` (guests found by `roles`, never by name) and the ntfy notifier. Use only what
+schema 1 provides. `dot internal gen` renders its addresses, subnets and mirrors into the committed
+`platforms/homelab.nu`, the dotfiles' one source for them; `dot test lint` fails while it is stale.
 
 ## Changing the homelab
 

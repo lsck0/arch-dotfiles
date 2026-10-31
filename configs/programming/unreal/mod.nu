@@ -1,6 +1,9 @@
 use module.nu *
 
-export const meta = {inputs: [~/sync/vendor ~/.local/share/unreal-engine/.installed-from]}
+export const meta = {
+    packages: {pacman: [libnotify shared-mime-info unzip]}
+    inputs: [~/sync/vendor ~/.local/share/unreal-engine/.installed-from]
+}
 
 const MCP = {type: http, url: "http://127.0.0.1:8766/mcp"}
 
@@ -16,7 +19,7 @@ export def link [cfg: record] {
         (link-commands unreal-editor.nu unreal-install-plugins.nu)
         (file-copy uproject.xml ($mime | path join packages uproject.xml) --then [update-mime-database $mime])
         (mcp-servers {unreal-mcp: (if $installed { $MCP })})
-        (if $zip == null or $current { [] } else { exec unreal-install [($env.PWD | path join hook unreal-install.nu)] })
+        (if $zip == null or $current { [] } else { exec unreal-install [($env.PWD | path join hook unreal-install.nu)] --timeout 60min })
         (if $installed { [] } else { user-hook unreal-install hook/unreal-install.nu --watch ["%h/sync/vendor"] })
     ]
 }

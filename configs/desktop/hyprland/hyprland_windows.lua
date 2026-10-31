@@ -117,7 +117,7 @@ hl.config({
             new_optimizations = true,
             popups = true,
             vibrancy = 0.1796,
-            vibrancy_darkness = 3.0,
+            vibrancy_darkness = 1.0,
         },
         shadow = {
             enabled = true,

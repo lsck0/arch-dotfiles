@@ -43,7 +43,6 @@ zsh_init_cache fzf --zsh && source $REPLY
 source /usr/share/zsh/plugins/fzf-tab-git/fzf-tab.plugin.zsh
 source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-(( $+_comps[kubectl] )) && compdef kubecolor=kubectl
 
 autoload zmv
 autoload -Uz edit-command-line
@@ -75,35 +74,25 @@ path=("$HOME/.local/bin" $path)
 
 export DOTFILES="${DOTFILES:-$HOME/projects/arch-dotfiles}"
 export EDITOR=nvim
-export BAT_THEME=ansi
-export MANPAGER="sh -c 'col -bx | bat -l man -p'"
-export MANROFF_OPT=-c
 export SHELL=/usr/bin/zsh
 export GPG_TTY=$TTY
 [[ -n $SSH_CONNECTION ]] && gpg-connect-agent updatestartuptty /bye >/dev/null
 
-alias cat="bat"
-(( $+commands[zoxide] )) && alias cd="z"
-alias convert="magick"
 alias cp="cp -v"
-alias downgrade="sudo downgrade"
-alias kubectl="kubecolor"
-alias l="eza -lh"
-alias la="eza -lah"
-alias ldocker="sudo lazydocker"
-alias ll="eza -lh"
-alias lgit="lazygit"
-alias lgithub="gh-dash"
-alias ljj="lazyjj"
-alias ljournal='lazyjournal -T "$(date +%:z)"'
-alias ls="eza"
-alias lsql="lazysql"
-alias lt="eza -lah --tree"
+alias downgrade="sudo-at-terminal downgrade"
+alias ldocker="sudo-at-terminal lazydocker"
 alias mkdir="mkdir -pv"
 alias mv="mv -v"
-alias rm="trash -v"
-alias toroff="$DOTFILES/scripts/toggles/toggle-route.nu direct"
-alias toron="$DOTFILES/scripts/toggles/toggle-route.nu tor"
+
+# Root for this shell's functions and aliases, only at a person's terminal: an agent (its marker variable) or a process
+# without one is refused instead of raising a YubiKey request nobody sees. Lint keeps every rc escalation behind it.
+sudo-at-terminal() {
+  if [[ ! -t 0 || ! -t 2 || -n ${CLAUDECODE-}${AI_AGENT-}${GEMINI_CLI-}${COPILOT_CLI_BINARY_VERSION-} ]]; then
+    print -u2 "$1: needs root, run it at your own terminal"
+    return 1
+  fi
+  command sudo "$@"
+}
 
 function pacman {
   local arg ops=
@@ -120,26 +109,8 @@ function pacman {
   if [[ $ops == *[QTVh]* || ( $ops == *F* && $ops != *y* ) || ( $ops == *S* && $ops == *[siglp]* && $ops != *[yucw]* ) ]]; then
     command pacman "$@"
   else
-    sudo pacman "$@"
+    sudo-at-terminal pacman "$@"
   fi
-}
-
-anonymous-socks-proxychains() {
-  local rt=${XDG_RUNTIME_DIR:-/run/user/$UID}
-  [[ "$("$DOTFILES/scripts/toggles/toggle-anonymous-socks.nu" get 2>/dev/null)" == on ]] || { echo "anonymous-socks-proxychains: run scripts/toggles/toggle-anonymous-socks.nu on first" >&2; return 1; }
-  systemd-run --user --scope --quiet --slice=anonsocks.slice -- proxychains4 -q -f "${ANONYMOUS_SOCKS_PROXYCHAINS_CONF:-$rt/anonymous-socks-proxychains.conf}" "$@"
-}
-
-git() {
-  if [[ "$1" == clone ]]; then
-    command git clone --recurse-submodules "${@:2}"
-  else
-    command git "$@"
-  fi
-}
-
-claude() {
-  env -u DO_NOT_TRACK claude "$@"
 }
 
 [[ -t 1 && $TERM != dumb ]] && fastfetch
@@ -167,6 +138,6 @@ history_file_follow_direnv() {
 precmd_functions+=(history_file_follow_direnv)
 zsh_init_cache zoxide init zsh && source $REPLY
 
-# drop-ins other modules own, e.g. the owner's private aliases
+# drop-ins other modules own: their tools' aliases and functions (shell-aliases), the owner's private ones
 for file in ${XDG_CONFIG_HOME:-$HOME/.config}/zsh/conf.d/*.zsh(N); do source $file; done
 unset file

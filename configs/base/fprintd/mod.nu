@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {volatile: true}
+export const meta = {packages: {native: [usbutils]}, volatile: true}
 
 const VALIDITY_UNITS = [python3-validity.service open-fprintd-resume.service open-fprintd-suspend.service]
 
@@ -10,6 +10,7 @@ const VALIDITY_USB_FILTERS = [138a:0090 138a:0097 138a:009d 06cb:009a]
 # The vendor:product ids of the python-validity sensors present; without one its fprintd mask leaves a real sensor
 # without a driver.
 export def validity-sensor-ids []: nothing -> list<string> {
+    if (which lsusb | is-empty) { return [] }
     $VALIDITY_USB_FILTERS | each {|filter| ^lsusb -d $filter | complete | get stdout | lines }
     | flatten | parse --regex 'ID (?<id>[0-9a-f]{4}:[0-9a-f]{4})' | get id | uniq
 }
@@ -18,7 +19,9 @@ export def system [cfg: record] {
     let validity = ^systemctl list-unit-files --no-legend python3-validity.service | complete | get stdout | str trim
     if ($validity | is-empty) { return [] }
     if (validity-sensor-ids | is-empty) {
-        let unmask = exec "unmask fprintd" [systemctl unmask fprintd.service]
+        # only while masked: each unmask reloads systemd, which warns about the bus name open-fprintd shares with it
+        let masked = (^systemctl is-enabled fprintd.service | complete | get stdout | str trim) == "masked"
+        let unmask = if $masked { [(exec "unmask fprintd" [systemctl unmask fprintd.service])] } else { [] }
         return ($VALIDITY_UNITS | each { unit-disable $in --now } | append $unmask)
     }
     [

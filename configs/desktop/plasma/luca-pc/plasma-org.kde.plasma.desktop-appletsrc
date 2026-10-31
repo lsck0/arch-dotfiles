@@ -34,7 +34,7 @@ positions={"1920x1080":["1","17","desktop:/videos","0","5","desktop:/projects","
 sortMode=-1
 
 [Containments][1][Wallpaper][org.kde.image][General]
-Image=file://@DOTFILES@/wallpapers/starkiteckt-atlantis-nebula-7.jpg
+Image=file://@HOME@/sync/wallpapers/alena-aenami-all-i-need.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][2]
@@ -53,7 +53,7 @@ DialogHeight=630
 DialogWidth=810
 
 [Containments][2][Wallpaper][org.kde.image][General]
-Image=file://@DOTFILES@/wallpapers/starkiteckt-atlantis-nebula-7.jpg
+Image=file://@HOME@/sync/wallpapers/alena-aenami-all-i-need.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][3]
@@ -209,13 +209,9 @@ plugin=org.kde.plasma.mediacontroller
 immutability=1
 plugin=org.kde.plasma.dwellclicker
 
-[Containments][3][Applets][8][Applets][9]
-immutability=1
-plugin=org.kde.kdeconnect
-
 [Containments][3][Applets][8][General]
-extraItems=org.kde.kdeconnect,org.kde.plasma.vault,org.kde.plasma.bluetooth,org.kde.plasma.cameraindicator,org.kde.plasma.clipboard,org.kde.plasma.devicenotifier,org.kde.plasma.manage-inputmethod,org.kde.plasma.mediacontroller,org.kde.plasma.notifications,org.kde.plasma.keyboardindicator,org.kde.plasma.weather,org.kde.kscreen,org.kde.plasma.battery,org.kde.plasma.brightness,org.kde.plasma.keyboardlayout,org.kde.plasma.networkmanagement,org.kde.plasma.volume,org.kde.plasma.printmanager,org.kde.plasma.dwellclicker
-knownItems=org.kde.kdeconnect,org.kde.plasma.vault,org.kde.plasma.bluetooth,org.kde.plasma.cameraindicator,org.kde.plasma.clipboard,org.kde.plasma.devicenotifier,org.kde.plasma.manage-inputmethod,org.kde.plasma.mediacontroller,org.kde.plasma.notifications,org.kde.plasma.keyboardindicator,org.kde.plasma.weather,org.kde.kscreen,org.kde.plasma.battery,org.kde.plasma.brightness,org.kde.plasma.keyboardlayout,org.kde.plasma.networkmanagement,org.kde.plasma.volume,org.kde.plasma.printmanager,org.kde.plasma.dwellclicker
+extraItems=org.kde.plasma.vault,org.kde.plasma.bluetooth,org.kde.plasma.cameraindicator,org.kde.plasma.clipboard,org.kde.plasma.devicenotifier,org.kde.plasma.manage-inputmethod,org.kde.plasma.mediacontroller,org.kde.plasma.notifications,org.kde.plasma.keyboardindicator,org.kde.plasma.weather,org.kde.kscreen,org.kde.plasma.battery,org.kde.plasma.brightness,org.kde.plasma.keyboardlayout,org.kde.plasma.networkmanagement,org.kde.plasma.volume,org.kde.plasma.printmanager,org.kde.plasma.dwellclicker
+knownItems=org.kde.plasma.vault,org.kde.plasma.bluetooth,org.kde.plasma.cameraindicator,org.kde.plasma.clipboard,org.kde.plasma.devicenotifier,org.kde.plasma.manage-inputmethod,org.kde.plasma.mediacontroller,org.kde.plasma.notifications,org.kde.plasma.keyboardindicator,org.kde.plasma.weather,org.kde.kscreen,org.kde.plasma.battery,org.kde.plasma.brightness,org.kde.plasma.keyboardlayout,org.kde.plasma.networkmanagement,org.kde.plasma.volume,org.kde.plasma.printmanager,org.kde.plasma.dwellclicker
 
 [Containments][3][General]
 AppletOrder=4;6;7;8;23;24

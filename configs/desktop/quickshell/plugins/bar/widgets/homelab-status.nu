@@ -12,6 +12,8 @@ const STATUS_CLASSES = [2xx 3xx 4xx 5xx]
 const FETCH_TIMEOUT = 5sec
 const PROBE_TIMEOUT = 3sec
 const GIB = 1073741824
+# the panel's links: the guest holding the lab-wide role (lab.json guests.roles), then its route of that name
+const LINK_ROLES = {homepage: {role: dashboard, route: homepage}, nas: {role: nas, route: nas}}
 const AGENT_FAMILY = (
     '{{ if or (contains "bot" .ua) (contains "Bot" .ua) (contains "crawl" .ua) (contains "spider" .ua) }}bot'
     + '{{ else if contains "Edg/" .ua }}Edge'
@@ -27,7 +29,8 @@ def fetch [base: string, path: string, expr: string]: nothing -> record {
     http get --max-time $FETCH_TIMEOUT $"($base)($path)?({query: $expr} | url build-query)"
 }
 
-def source-load [lab: record]: nothing -> record {
+# The panel's sources from one lab.json: guests by address, zone prefixes, query apis and links.
+export def source-load [lab: record]: nothing -> record {
     let guests = $lab.guests | transpose key guest | each {|g|
         {
             id: ($g.key | into int)
@@ -36,6 +39,7 @@ def source-load [lab: record]: nothing -> record {
             ip: $g.guest.ip
             enabled: $g.guest.enabled
             onDemand: ($g.guest.enabled == onDemand)
+            roles: ($g.guest.roles? | default [])
         }
     }
     let urls = $lab.routes | transpose route r | where r.protocol == http | each {|route|
@@ -56,8 +60,14 @@ def source-load [lab: record]: nothing -> record {
     let by_ip = if $router == null { $by_ip } else {
         $lab.zones | values | reduce --fold $by_ip {|zone, acc| $acc | upsert $zone.router $router }
     }
-    let named = {|name| $vms | where name == $name | get 0? }
-    let nas = do $named nas
+    let holder = {|role| $vms | where $role in $it.roles | get 0? }
+    let link = {|spec|
+        let vm = do $holder $spec.role
+        if $vm == null { return "" }
+        let route = $lab.routes | get --optional $spec.route
+        if $route != null and $route.vmid? == $vm.id and $route.protocol? == http { $"https://($route.host)" } else { $vm.url }
+    }
+    let nas = do $holder $LINK_ROLES.nas.role
     {
         infra: ($lab.infra | select name href ping | each { default "" href | default "" ping })
         loki: $monitoring.loki
@@ -69,11 +79,11 @@ def source-load [lab: record]: nothing -> record {
         prometheus: $monitoring.prometheus
         nas_ip: ($nas.ip? | default "")
         links: {
-            homepage: (do $named homepage | get -o url | default "")
+            homepage: (do $link $LINK_ROLES.homepage)
             dashboard: $dashboard
             alerts: $"($monitoring.grafana)/alerting/list"
             proxmox: $lab.proxmox.url
-            nas: ($nas.url? | default "")
+            nas: (do $link $LINK_ROLES.nas)
         }
     }
 }

@@ -2,8 +2,8 @@
 # Root's one entry: re-execs under one flock and interruptible.sh, only from the root-owned copy.
 
 use log.nu *
-use state.nu [SYSTEM_REPO SYSTEM_STATE EXIT_ABORTED]
-use pipeline.nu [pipeline-load pipeline-plan pipeline-apply]
+use state.nu [SYSTEM_REPO SYSTEM_STATE EXIT_ABORTED EXIT_PENDING INSTALL_PASS_FILE]
+use pipeline.nu [pipeline-load pipeline-plan pipeline-apply pending-save]
 use modules.nu [modules-packages]
 use ledger.nu [packages-convergence ledger-set ledger-packages ledger-units]
 use preserve.nu [tty-confirm preserve-prune]
@@ -11,6 +11,7 @@ use migrate.nu [migrations-run]
 use system.nu [system-unpack system-secrets ENTRY]
 use cli.nu [supervise self-argv]
 use sync.nu [bootstrap-const FINGERPRINT_VALUE]
+use cause.nu [cause-from-output cause-text failure-line argv-text]
 
 const EXIT_FAILURES = 1
 const OFFLINE_WAIT_S = 120
@@ -25,6 +26,7 @@ const PACMAN_LOCK = "/var/lib/pacman/db.lck"
 const PACMAN_MODULE = "base/pacman"
 const YUBIKEY_MODULE = "base/yubikey"
 const ADDUSER_BIN = "/usr/local/bin/adduser-dotfiles"
+const NOT_ON_MIRROR = "not on the mirror"
 
 def repo-guard []: nothing -> path {
     let repo = $env.FILE_PWD | path dirname | path dirname
@@ -62,11 +64,19 @@ def packages-wanted [names: list<string>]: nothing -> list<string> {
 # Keeps pacman's stderr to tell a download error from the rest; stdout stays the tty for the bars.
 def --wrapped pacman-try [...args: string]: nothing -> record {
     let err = mktemp --tmpdir
-    let ok = try { ^pacman ...$args e> $err; true } catch { false }
+    let code = try { ^pacman ...$args e> $err; 0 } catch {|e| $e.exit_code? | default 1 }
     let text = open --raw $err
     rm --force $err
     if ($text | is-not-empty) { print -e --no-newline $text }
-    {ok: $ok, download: (not $ok and $text =~ $DOWNLOAD_ERRORS), refused: (not $ok and $text =~ 'returned error: (403|429)')}
+    let ok = $code == 0
+    {ok: $ok, code: $code, text: $text, download: (not $ok and $text =~ $DOWNLOAD_ERRORS), refused: (not $ok and $text =~ 'returned error: (403|429)')}
+}
+
+# The FAILURES line of a pacman run that failed: the command, its exit code and its last stderr lines.
+export def pacman-failure [what: string, args: list<string>, code: int, stderr: string, --tries: int]: nothing -> string {
+    let cause = cause-text (cause-from-output (argv-text [pacman ...$args]) $code $stderr)
+    let text = if $tries == null { $cause } else { $"download failed ($tries) times, the last: ($cause)" }
+    failure-line pacman $what $text
 }
 
 # EXIT_ABORTED when a download never got through, EXIT_FAILURES on any other error.
@@ -75,8 +85,8 @@ def --wrapped pacman-retry [what: string, tries: int, ...args: string]: nothing 
     loop {
         let r = pacman-try ...$args
         if $r.ok { return }
-        if not $r.download { fail $"pacman: ($what) failed"; exit $EXIT_FAILURES }
-        if $try >= $tries { fail $"pacman: ($what): download failed ($tries) times"; exit $EXIT_ABORTED }
+        if not $r.download { fail (pacman-failure $what $args $r.code $r.text); exit $EXIT_FAILURES }
+        if $try >= $tries { fail (pacman-failure $what $args $r.code $r.text --tries $tries); exit $EXIT_ABORTED }
         let wait = [($DOWNLOAD_BACKOFF_STEP * $try) $DOWNLOAD_BACKOFF_MAX] | math min
         let why = if $r.refused { "the mirror refused it (403/429), likely a rate ban, so waiting it out" } else { "the network or a mirror dropped" }
         log-warn $"($what): download failed, ($why), try ($try)/($tries), again in ($wait)"
@@ -85,8 +95,57 @@ def --wrapped pacman-retry [what: string, tries: int, ...args: string]: nothing 
     }
 }
 
-def module-system [ctx: record, id: string]: nothing -> bool {
-    pipeline-apply $ctx (pipeline-plan $ctx system [$id] false) system 1 | all { $in.ok }
+# pacman -Sp's complaints over stdout and stderr: targets no repo has, and dependencies none satisfies with who needs
+# them (pacman prints the latter to stdout).
+export def sync-errors-parse [output: list<string>]: nothing -> record {
+    {
+        not_found: ($output | parse "error: target not found: {name}" | get name | uniq)
+        unsatisfied: ($output | parse --regex "unable to satisfy dependency '(?<dep>[^']+)' required by (?<by>\\S+)" | uniq)
+    }
+}
+
+# The targets whose dependency closure does not resolve, found by halving: a half that resolves is cleared whole.
+export def packages-culprits [targets: list<string>, probe: closure]: nothing -> list<string> {
+    if ($targets | is-empty) or (do $probe $targets).ok { return [] }
+    if ($targets | length) == 1 { return $targets }
+    let half = ($targets | length) // 2
+    (packages-culprits ($targets | first $half) $probe) ++ (packages-culprits ($targets | skip $half) $probe)
+}
+
+# Drops targets until probe (pacman -Sp: {ok, output}) resolves the rest: the ones not found first, then the ones a
+# missing dependency names, then, for one only a dependency of theirs needs, the targets pulling it in. Stops when a
+# round finds nothing to drop, so an error of another kind is left to the install pass.
+export def packages-resolve [targets: list<string>, probe: closure]: nothing -> record {
+    mut kept = $targets
+    mut dropped = []
+    while ($kept | is-not-empty) {
+        let current = $kept
+        let r = do $probe $current
+        if $r.ok { break }
+        let found = sync-errors-parse $r.output
+        let direct = $found.unsatisfied | where by in $current
+        let gone = if ($found.not_found | is-not-empty) {
+            $found.not_found | each {|n| {name: $n, why: $NOT_ON_MIRROR} }
+        } else if ($direct | is-not-empty) {
+            $direct | each {|d| {name: $d.by, why: $"needs ($d.dep), which no repo has"} }
+        } else if ($found.unsatisfied | is-not-empty) {
+            let deps = $found.unsatisfied | each { $"($in.dep) \(for ($in.by)\)" } | str join ", "
+            packages-culprits $current $probe | each {|n| {name: $n, why: $"pulls in ($deps), which no repo has"} }
+        } else { [] }
+        let gone = $gone | where name in $current | uniq-by name
+        if ($gone | is-empty) { break }
+        $dropped = $dropped ++ $gone
+        $kept = $current | where $it not-in $gone.name
+    }
+    {kept: $kept, dropped: $dropped}
+}
+
+# --packages-unchecked: runs even before the module's packages are installed (base/pacman, ahead of the install pass).
+def module-system [ctx: record, id: string, --packages-unchecked]: nothing -> bool {
+    let planned = pipeline-plan $ctx system [$id] false --packages-unchecked=$packages_unchecked
+    let results = pipeline-apply $ctx $planned system 1
+    pending-save $planned.id $results
+    $results | all { $in.ok }
 }
 
 def main [] {
@@ -131,24 +190,31 @@ def "main install" [--unattended, --yes]: nothing -> nothing {
     if $offline { log-warn $"still offline after ($OFFLINE_WAIT_S)s" }
     let ctx = pipeline-load $repo system
     # pipeline-apply records the failure itself
-    if not (module-system $ctx $PACMAN_MODULE) { exit $EXIT_ABORTED }
+    if not (module-system $ctx $PACMAN_MODULE --packages-unchecked) { exit $EXIT_ABORTED }
     # a power cut mid-transaction leaves the lock, and every retry boot would fail on it
     if ($PACMAN_LOCK | path exists) and (^pgrep -x pacman | complete).exit_code != 0 { rm --force $PACMAN_LOCK }
     let declared = modules-packages $repo $ctx.modules $ctx.platform
     pacman-retry "the database sync" (if $offline { $OFFLINE_TRIES } else { $DOWNLOAD_TRIES }) -Syy --noconfirm
-    let sp_err = ^pacman -Sp --noconfirm --print-format "%n" ...$declared.pacman | complete | get stderr | lines
-    let not_found = $sp_err | parse "error: target not found: {p}" | get p
-    # a declared package whose own dependency is gone from the mirror drops only that package, not the whole transaction
-    let dep_missing = $sp_err | parse --regex "unable to satisfy dependency '[^']+' required by (?<p>\\S+)" | get p | where $it in $declared.pacman
-    let missing = $not_found ++ $dep_missing | uniq
-    $not_found | each { fail $"not on the mirror: ($in) \(a name new since the last nightly build arrives with the next one\)" } | ignore
-    $dep_missing | each { fail $"($in): a dependency is missing from the mirror, skipping it this pass" } | ignore
-    let available = $declared.pacman | where $it not-in $missing
+    # one package the mirror cannot resolve drops only itself and what needs it, never the whole pass
+    let probe = {|targets|
+        let r = with-env {LC_ALL: C} { ^pacman -Sp --noconfirm --print-format "%n" ...$targets | complete }
+        {ok: ($r.exit_code == 0), output: ($r.stdout + $r.stderr | lines)}
+    }
+    let resolved = packages-resolve $declared.pacman $probe
+    for d in $resolved.dropped {
+        if $d.why == $NOT_ON_MIRROR {
+            fail $"($NOT_ON_MIRROR): ($d.name) \(a name new since the last nightly build arrives with the next one\)"
+        } else {
+            fail $"($d.name): ($d.why), left out of this pass; what needs it stays pending"
+        }
+    }
+    let available = $resolved.kept
     let wanted = packages-wanted $available
-    log-info $"sources: ($available | length) packages, ($wanted | length) to install in one pass, ($missing | length) not on the mirror"
+    log-info $"sources: ($available | length) packages, ($wanted | length) to install in one pass, ($resolved.dropped | length) left out"
     # -uu moves pacstrap's packages onto the snapshot and a pin back onto an older one; --ask 4 replaces old names
     let upgrade = if $unattended or ($ctx.platform.facts.lsck0_snapshot | is-not-empty) { "-Suu" } else { "-Su" }
     pacman-retry "the install pass" $DOWNLOAD_TRIES $upgrade --needed --noconfirm --ask 4 ...$wanted
+    date now | format date '%+' | save --force $INSTALL_PASS_FILE
     let snapshot = $"($ctx.platform.facts.lsck0_snapshot | default latest) (ls $LSCK0_DB | get 0.modified | date to-timezone UTC | format date '%FT%TZ') (open --raw $LSCK0_DB | hash sha256)"
     ledger-set snapshot [$snapshot]
     if ($declared.incomplete | is-not-empty) {
@@ -175,14 +241,16 @@ def "main config" [--unattended, --force]: nothing -> nothing {
     migrations-run $repo system | ignore
     let ctx = pipeline-load $repo system
     let secrets = mktemp --directory --tmpdir-path /run
-    try {
+    let waiting = try {
         ^tar -x --no-same-owner --no-same-permissions -C $secrets -f -
         let allowed = system-secrets $ctx.platform.facts.wireguard?
         ^find $secrets -mindepth 1 ! -type d -print0 | split row (char nul) | where $it != ""
         | where {|f| ($f | path type) != "file" or ($f | path relative-to $secrets) not-in $allowed } | each { rm --force $in } | ignore
         $env.DOTFILES_SECRETS = $secrets
         let planned = pipeline-plan $ctx system [] $force | where id != $PACMAN_MODULE
-        pipeline-apply $ctx $planned system 1 | ignore
+        let results = pipeline-apply $ctx $planned system 1
+        pending-save $planned.id $results --full
+        $results | any { $in.pending? != null }
     } catch {|e|
         rm --recursive --force $secrets
         error make {msg: $e.msg}
@@ -195,6 +263,7 @@ def "main config" [--unattended, --force]: nothing -> nothing {
     # last, so every initramfs and cmdline change of this run is rebuilt once, then signed and verified
     try { ^/usr/bin/nu --no-config-file -I ($repo | path join scripts lib) -c $"use ($repo | path join configs base boot boot.nu) [boot-commit]; boot-commit" } catch { fail "boot barrier (configs/base/boot/boot.nu boot-commit)" }
     failures-end config
+    if $waiting { exit $EXIT_PENDING }
 }
 
 # remove explicit packages no module declares, after a yes

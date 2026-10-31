@@ -48,7 +48,6 @@ export def system [cfg: record] {
         (dropin ly@.service stage.conf)
         (unit-enable $"ly@($TTY).service")
         (unit-disable $"getty@($TTY).service")
-        (unit-disable ly@tty2.service)
     ]
 }
 

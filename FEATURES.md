@@ -92,7 +92,7 @@ Every module under `configs/`, the owner's own in `configs/secrets/` aside. A pl
 | group | modules |
 |---|---|
 | `base` | `apparmor`, `boot/hardening`, `boot/luks`, `boot/remote-unlock`, `boot/sbctl`, `boot/systemd-boot`, `cleanup`, `coredump`, `dot`, `endlessh`, `essentials`, `fail2ban`, `failure-notify`, `fancontrol`, `fprintd`, `fwupd`, `ghostmirror`, `hardening`, `hardware`, `i2c`, `lact`, `networkmanager`, `nftables`, `oomd`, `ossec`, `pacman`, `pam`, `perf`, `plymouth`, `portmaster`, `powercap`, `protonvpn`, `protonvpn-netns`, `resolved`, `sandbox`, `scx`, `smartd`, `ssh`, `sudo`, `systemd`, `tablet`, `tlp`, `tor`, `v4l-utils`, `v4l2loopback`, `wireguard`, `xdg`, `yubikey`, `zram` |
-| `core` | `btop`, `cli`, `fastfetch`, `gh`, `git`, `gnupg`, `herdr`, `locale`, `nas`, `ntfy`, `nushell`, `proton/pass`, `starship`, `syncthing`, `timezone-auto`, `tmux`, `toggles`, `trash`, `veracrypt`, `wallust`, `yazi`, `yt-dlp`, `zsh` |
+| `core` | `btop`, `cli`, `fastfetch`, `gh`, `git`, `gnupg`, `herdr`, `locale`, `nas`, `ntfy`, `nushell`, `proton/pass`, `proton/sessions`, `starship`, `syncthing`, `timezone-auto`, `tmux`, `toggles`, `trash`, `veracrypt`, `wallust`, `yazi`, `yt-dlp`, `zsh` |
 | `creating` | `apps`, `audacity`, `blender`, `gimp`, `inkscape`, `krita`, `obs`, `openscad` |
 | `desktop` | `applications`, `bookokrat`, `chromium`, `color-grading`, `feather`, `firefox`, `ghostty`, `gparted`, `gtk`, `hyprland`, `idle-guards`, `jdownloader`, `kitty`, `libreoffice`, `ly`, `mpv`, `nsxiv`, `obsidian`, `oomox`, `pipewire`, `plasma`, `printing`, `qbittorrent`, `quickshell`, `qutebrowser`, `shimoji`, `thunderbird`, `uwsm`, `zathura` |
 | `fonts` | `fonts` |
@@ -123,16 +123,16 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/fail2ban.bantime` | `int` | `3600` | Seconds an IP stays banned after too many failed attempts, fail2ban jail.conf(5) bantime |
 | `base/fail2ban.findtime` | `int` | `600` | Seconds of history fail2ban scans for failed attempts, fail2ban jail.conf(5) findtime |
 | `base/fail2ban.maxretry` | `int` | `5` | Failed attempts within findtime before an IP is banned, fail2ban jail.conf(5) maxretry |
-| `base/ghostmirror.homelab_mirror` | `string?` | unset | A homelab pacman mirror's URL ($repo and $arch as in a mirrorlist), put first on a homelab machine |
+| `base/ghostmirror.homelab_mirror` | `string?` | `"http://10.100.0.100:8090/archlinux/$repo/os/$arch"` | A homelab pacman mirror's URL ($repo and $arch as in a mirrorlist), put first on a homelab machine; default the lab's |
 | `base/hardware.nvidia_driver` | `string?` | detected | NVIDIA driver branch: open (Turing on), 580xx (Maxwell to Volta), 470xx (Kepler), none (nouveau) |
 | `base/networkmanager.untrusted_policy` | `string` | `"firewall-only"` | Off the home network: lockdown-tor closes inbound and lets out only tor, dhcp and tunnels until a VPN is up; firewall-only closes inbound and leaves egress open; off treats every network as home |
 | `base/networkmanager.home_wired` | `bool?` | detected | Ethernet is always the home network and keeps its hardware MAC (a desktop); null detects it from the form factor |
 | `base/networkmanager.wake_on_lan` | `bool` | `false` | Wake on a magic packet over ethernet (udev sets it on every wired link, NetworkManager leaves it) |
 | `base/networkmanager.wifi_radio` | `bool?` | detected | Wi-Fi radio on at first boot; off on a desktop wired to the network, so only the link in use is up. Later toggles (toggle-wifi) persist in NetworkManager's own state; null detects it |
 | `base/networkmanager.home_gateways` | `list<string>` | `[]` | Router MACs that make a network home, beside the admin's configs/secrets/keys/home-gateways |
-| `base/networkmanager.homelab_dns` | `string?` | unset | The homelab's split-horizon resolver, asked for homelab_domain out a home link (homelab machines) |
-| `base/networkmanager.homelab_domain` | `string?` | unset | The homelab's DNS zone |
-| `base/networkmanager.homelab_subnets` | `list<string>` | `[]` | The homelab's subnets, routed straight out a home link and through wg0 elsewhere |
+| `base/networkmanager.homelab_dns` | `string?` | `"192.168.178.29"` | The homelab's split-horizon resolver, asked for homelab_domain out a home link (homelab machines); default the lab's router |
+| `base/networkmanager.homelab_domain` | `string?` | `"lsck0.dev"` | The homelab's DNS zone |
+| `base/networkmanager.homelab_subnets` | `list<string>` | `["10.100.0.0/24", "10.200.0.0/24", "10.250.0.0/24"]` | The homelab's subnets, routed straight out a home link and through wg0 elsewhere; default the lab's zones |
 | `base/nftables.ssh_knock_window` | `string` | `"1h"` | How long a successful SSH port-knock keeps that IP allowed through to base/ssh.port, nft timeout syntax |
 | `base/oomd.session_memory_low` | `filesize?` | detected | session.slice's MemoryLow, the desktop working set a build's reclaim keeps; null: 15% of RAM, 2 GiB max |
 | `base/pacman.yay_cache_days` | `int` | `30` | Days an unused yay build cache dir may sit in $XDG_CACHE_HOME/yay before yay-cache-clean.timer deletes it, find -mtime argument |
@@ -140,8 +140,8 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/smartd.test_schedule` | `string` | `"S/../.././02\|L/../../6/03"` | When smartd runs self-tests, smartd.conf(5) -s regex syntax (default: short test daily at 02:00, long test Saturday at 03:00) |
 | `base/ssh.port` | `int` | `2222` | The port sshd listens on, reached through the port-knock (sshk, wake-pc, nftables, fail2ban) |
 | `base/ssh.knock` | `list<int>` | `[9003, 7001, 8002]` | The three ports knocked in order to open the sshd port to that address (sshk, wake-pc, nftables) |
-| `base/ssh.homelab_hosts` | `list<string>` | `[]` | ssh patterns of the homelab's guests, router and hypervisor: root, accept-new host keys from known_hosts.homelab (homelab profiles only) |
-| `base/ssh.wake_router` | `string?` | unset | The always-on homelab router whose `wol-pc` wakes the desktop (wake-pc, homelab profiles only) |
+| `base/ssh.homelab_hosts` | `list<string>` | `["10.100.0.*", "10.200.0.*", "10.250.0.*", "192.168.178.29", "192.168.178.200"]` | ssh patterns of the homelab's guests, router and hypervisor: root, accept-new host keys from known_hosts.homelab (homelab profiles only); default the lab's zones, router and hypervisor |
+| `base/ssh.wake_router` | `string?` | `"192.168.178.29"` | The always-on homelab router whose `wol-pc` wakes the desktop (wake-pc, homelab profiles only) |
 | `base/ssh.wake_host` | `string?` | unset | The desktop wake-pc wakes and then ssh-es into |
 | `base/tlp.charge_start` | `int` | `95` | Battery charge level below which charging starts (laptops whose firmware supports thresholds) |
 | `base/tlp.charge_stop` | `int` | `100` | Battery charge level at which charging stops; 80 spares an always-plugged battery |
@@ -157,8 +157,9 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `core/locale.keyboard_variant` | `string?` | detected | xkb variant, e.g. nodeadkeys |
 | `core/locale.keyboard_options` | `list<string>?` | detected | xkb options, e.g. ctrl:nocaps |
 | `core/locale.wifi_country` | `string?` | detected | Wi-Fi regulatory domain (ISO 3166 alpha-2); detected: the country of the timezone, else the world domain |
+| `core/nas.share` | `string` | `"//10.100.0.100/homelab"` | The homelab NAS's smb share mounted at /mnt/homelab (//host/share) |
 | `core/starship.scan_timeout_ms` | `int` | `500` | Milliseconds starship waits for a directory scan (project file detection) before giving up, starship.toml scan_timeout |
-| `core/syncthing.nas_address` | `string?` | unset | Address of the homelab NAS device (the one named *nas), e.g. tcp://10.100.0.100:22000; discovery is off, so this is how it is found |
+| `core/syncthing.nas_address` | `string?` | `"tcp://10.100.0.100:22000"` | Address of the homelab NAS device (the lab's nas role); discovery is off, so this is how it is found |
 | `core/trash.retention_days` | `int` | `1` | Days trash-empty.timer keeps a deleted file before purging it, trash-empty(1)'s days argument |
 | `creating/obs.vaapi_render_node` | `string?` | detected | The /dev/dri render node the vaapi encoders use, by-path so it survives reboots |
 | `creating/obs.canvas` | `string?` | detected | Canvas WxH: every profile's base and video output, and the Bare and VirtualCam collections |

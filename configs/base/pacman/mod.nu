@@ -1,4 +1,6 @@
 use module.nu *
+use ../../../platforms/homelab.nu [HOMELAB]
+use homelab.nu [LSCK0_SERVER_PLACEHOLDER]
 
 export const meta = {packages: {pacman: [downgrade pacman-contrib yay]}}
 
@@ -18,7 +20,7 @@ export def system [cfg: record] {
     let snapshot = $env.LSCK0_SNAPSHOT? | default ""
     if not ($snapshot =~ $SNAPSHOT) { error make {msg: $"pacman: lsck0_snapshot '($snapshot)' is not YYYY-MM-DD"} }
     let suffix = if $snapshot == "" { "" } else { $"/($snapshot)" }
-    let conf = open --raw pacman.conf | split row "\n" | reduce --fold {out: [], lsck0: false} {|l, acc|
+    let conf = open --raw pacman.conf | str replace $LSCK0_SERVER_PLACEHOLDER $HOMELAB.mirror.lsck0 | split row "\n" | reduce --fold {out: [], lsck0: false} {|l, acc|
         let lsck0 = if ($l | str starts-with "[") { $l == "[lsck0]" } else { $acc.lsck0 }
         let line = if $lsck0 { $l | str replace --regex '/\$arch$' $"($suffix)/$$arch" } else { $l }
         {out: ($acc.out | append $line), lsck0: $lsck0}

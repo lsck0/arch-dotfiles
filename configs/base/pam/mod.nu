@@ -18,6 +18,9 @@ const FPRINT_MODULE = "/usr/lib/security/pam_fprintd.so"
 const POLKIT_VENDOR = "/usr/lib/pam.d/polkit-1"
 const SUDO = "/etc/pam.d/sudo"
 const FPRINT_LINE = "auth       sufficient pam_fprintd.so"
+# sudo sets PAM_TTY to its terminal or to "": without one, no factor is tried, so a process with no terminal (an
+# agent's tool shell) can neither raise a key or finger request nobody sees nor pipe a password in
+const TTY_LINE = "auth       requisite  pam_succeed_if.so quiet_success tty =~ ?*"
 const HUMAN_UIDS = 1000..59999
 
 # u2f against /etc/u2f_mappings, touch only; no nouserok: a user without a key falls through to the password.
@@ -61,7 +64,14 @@ def has-fprint []: nothing -> bool {
     | any {|u| ^fprintd-list $u.name | complete | get stdout | str contains "Fingerprints for user" }
 }
 
-# The yubikey line stays highest, so a changed one also drops the fprintd line, reinserted under it.
+# Inserts line before the first auth line, dropping an older copy of it.
+def auth-first [lines: list<string>, line: string]: nothing -> list<string> {
+    let rest = $lines | where $it != $line
+    let at = $rest | enumerate | where {|l| $l.item =~ '^-?auth\s' } | get --optional 0.index
+    if $at == null { $rest } else { ($rest | first $at) ++ [$line] ++ ($rest | skip $at) }
+}
+
+# The terminal gate first, then the yubikey line, so a changed one also drops the fprintd line, reinserted under it.
 export def sudo-stack [u2f: string, line: string]: nothing -> nothing {
     if not ($SUDO | path exists) { return }
     let before = open --raw $SUDO | lines
@@ -74,6 +84,7 @@ export def sudo-stack [u2f: string, line: string]: nothing -> nothing {
     } else if not $fprint {
         $with_u2f | where not ($it =~ '^auth\s+sufficient\s+pam_fprintd\.so')
     } else { $with_u2f }
+    let after = auth-first $after $TTY_LINE
     if $after == $before or not ($after | any { $in =~ system-auth }) { return }
     if not ($"($SUDO).pre-auth.bak" | path exists) { ^cp -a $SUDO $"($SUDO).pre-auth.bak" }
     $after | str join "\n" | $"($in)\n" | save --force $SUDO

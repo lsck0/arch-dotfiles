@@ -7,6 +7,10 @@ export const LIB_DIR = path self .
 export const NU_ROOT = "/usr/bin/nu"
 # the install subprocess exit code for a user-aborted install; shared across the stage, run and system-apply boundaries
 export const EXIT_ABORTED = 2
+# a run that left work pending (a system part skipped, a module waiting on its packages); nothing failed
+export const EXIT_PENDING = 3
+# root's install writes it once its pacman pass went through; the install stage clears it first and reads it after
+export const INSTALL_PASS_FILE = $SYSTEM_STATE | path join install-pass
 const LOCKED_SCRIPT = path self locked.nu
 
 # A path under an XDG base dir (config, data, cache, state), honoring XDG_*_HOME.

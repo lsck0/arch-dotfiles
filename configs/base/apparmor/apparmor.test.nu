@@ -4,6 +4,8 @@ const HERE = path self | path dirname
 const MARKER = "# managed by arch-dotfiles/apparmor"
 const OWN_SUFFIX = ".dotfiles"
 const OVERRIDES = [firefox thunderbird libreoffice]
+# each profile parses from its own file: a few at a time, the parser is cpu bound and the desktop stays usable
+const PARSE_THREADS = 8
 const ENFORCED = [
     firefox chromium qutebrowser lynx cha thunderbird discord signal-desktop telegram-desktop element-desktop hexchat
     zapzap protonmail wireshark spotify mpv zathura sioyek okular bookokrat libreoffice onlyoffice feh nsxiv obsidian
@@ -79,14 +81,14 @@ def compile-check [rows: table, source: path, etc: path]: nothing -> list<string
     glob abstractions/* | each { cp $in ($work | path join abstractions dotfiles) } | ignore
     glob local/* | each { cp $in ($work | path join local) } | ignore
     # parsed under the installed name: the bare one has a disable/ link wherever a stock stub exists
-    let profiles = $own | each {|n|
+    let profiles = $own | par-each --keep-order --threads $PARSE_THREADS {|n|
         let file = $work | path join $"($n)($OWN_SUFFIX)"
         cp $"profiles/($n)" $file
         if not (parse-ok $file $work $etc) { $"profiles/($n) does not compile" }
     } | compact
     # an own profile above already pulled in its local from $work; apparmor.d deploys one that replaces a stock
     # profile as <name>.apparmor.d
-    let locals = basenames local | where $it not-in $own | each {|n|
+    let locals = basenames local | where $it not-in $own | par-each --keep-order --threads $PARSE_THREADS {|n|
         let target = [$"($n).apparmor.d" $n] | each {|f| $etc | path join $f }
             | where ($it | path exists) and ($it | path expand | path type) == file | get --optional 0
         if $target == null {

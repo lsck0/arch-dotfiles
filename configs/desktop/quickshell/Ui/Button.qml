@@ -81,7 +81,6 @@ BorderSurface {
   borderSpec: isAction ? (activeFocus ? Border.flat(Util.alpha(foreground, Style.focusBorderAlpha), Style.focusBorderWidth) : Border.none())
     : isChip ? (focused ? Border.flat(Util.alpha(Style.focusStateColor(Colors.foreground, Colors.accent), Style.focusBorderAlpha), Style.focusBorderWidth)
       : hot && !selected ? Border.flat(Style.hoverBorderColor, Style.hoverBorderWidth)
-      : selected ? Border.flat(Style.selectedMarkColor(foreground, accent), Style.selectedBorderWidth)
       : Border.none())
     : _showFocusRing ? _focusBorderSpec
     : hot && (isPlain || bordered) ? _hoverBorderSpec
@@ -107,7 +106,7 @@ BorderSurface {
   scale: mouseArea.pressed && !isIcon ? 0.98 : 1.0
   Behavior on scale { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
-  layer.enabled: Style.fx.glow > 0 && (isPlain ? (_showFocusRing || selected || active || mouseArea.pressed) : isChip && selected)
+  layer.enabled: Style.fx.glow > 0 && isPlain && (_showFocusRing || selected || active || mouseArea.pressed)
   layer.effect: Glow {}
 
   readonly property color _textColor: !enabled && isIcon ? Util.alpha(foreground, Style.emphasis.faint)
@@ -116,6 +115,14 @@ BorderSurface {
     : foreground
   readonly property bool _textGlow: Style.fx.glow > 0 && enabled
     && (isIcon ? (_showFocusRing || hot) : isAction && hot)
+
+  // a selected chip is marked like an on PanelRow: its fill and a bar on the left edge, no outline
+  Rectangle {
+    visible: root.isChip && root.selected
+    width: Style.selectedBorderWidth
+    height: parent.height
+    color: Style.selectedMarkColor(root.foreground, root.accent)
+  }
 
   PanelToolTip {
     visible: root.tooltipText !== "" && mouseArea.containsMouse

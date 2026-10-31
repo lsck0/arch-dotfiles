@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [sioyek-git]}}
+export const meta = {packages: {pacman: [libnotify sioyek-git]}}
 
 export def link [cfg: record] {
     [

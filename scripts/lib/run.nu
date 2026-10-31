@@ -3,11 +3,11 @@
 const REPO = path self ../..
 use log.nu *
 use cli.nu [concat jobs supervise]
-use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir EXIT_ABORTED xdg]
+use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir EXIT_ABORTED EXIT_PENDING xdg]
 use platform.nu [platform-load]
 use profile.nu [profile-has]
 use modules.nu [modules-packages]
-use pipeline.nu [pipeline-load pipeline-plan pipeline-apply THEME_VERB_TIMEOUT]
+use pipeline.nu [pipeline-load pipeline-plan pipeline-apply pending-save flatpak-installed nix-installed THEME_VERB_TIMEOUT NIX_FLAGS]
 use converge.nu [state-read observe plan-module recorded-hashes apply-module state-write output-file-state]
 use ledger.nu [ledger-units ledger-get ledger-set ledger-diff ledger-remove]
 use migrate.nu [migrations-run]
@@ -15,14 +15,14 @@ use ../../configs/base/yubikey/yubikey.nu [yubikey-unlock]
 use system.nu [system-pack system-archive ENTRY]
 use ../../configs/core/wallust/wallpaper.nu [wallpaper-set]
 use sync.nu [sync-pull]
+use cause.nu [cause-from-error cause-text failure-line failure-is-system SYSTEM_FIX]
+use online.nu [network-online OFFLINE_PENDING]
 
 export const INTERNAL = path self internal.nu
 const FAILURES = "FAILURES.config"
-const EXIT_SYSTEM_PENDING = 3
 const FAILURES_INSTALL = "FAILURES.install"
 const NIXPKGS = "github:NixOS/nixpkgs/b6c8664de9b6cc07fe5666a29f91884ba81197c4"
 const FLATHUB = "https://dl.flathub.org/repo/flathub.flatpakrepo"
-const NIX_FLAGS = [--extra-experimental-features "nix-command flakes"]
 const LFS_FILTER = [
     -c "filter.lfs.clean=git-lfs clean -- %f" -c "filter.lfs.smudge=git-lfs smudge -- %f"
     -c "filter.lfs.process=git-lfs filter-process" -c filter.lfs.required=true
@@ -38,16 +38,20 @@ def summary [results: table]: nothing -> nothing {
     let outcomes = $results | get outcomes | concat
     let counts = $outcomes | group-by kind | items {|k, v| $"($v | length) ($k)" } | str join ", "
     let busy = $results | where {|r| ($r.outcomes | is-not-empty) or ($r.log | str trim | is-not-empty) } | get id | uniq
-    let skipped = ($results.id | uniq | length) - ($busy | length)
-    log-info $"($results.id | uniq | length) modules, ($skipped) unchanged(if ($counts | is-empty) { '' } else { $', ($counts)' })" {kind: summary}
+    let waiting = $results | where pending? != null | get id | uniq
+    let skipped = ($results.id | uniq | length) - ($busy | length) - ($waiting | length)
+    let held = if ($waiting | is-empty) { "" } else { $", ($waiting | length) pending" }
+    log-info $"($results.id | uniq | length) modules, ($skipped) unchanged($held)(if ($counts | is-empty) { '' } else { $', ($counts)' })" {kind: summary}
     let slow = $results | sort-by ms --reverse | first 5 | each { $"($in.ms / 1000 | math round --precision 1)s ($in.id)" } | str join ", "
     log-debug $"slowest: ($slow)"
 }
 
 export def plan-print [planned: table, verb: string, modules: table = [], mods: list<string> = []]: nothing -> nothing {
-    let busy = $planned | where {|m| $m.error != null or ($m.actions | any { $in.kind != skip }) }
+    let busy = $planned | where {|m| $m.pending? != null or $m.error != null or ($m.actions | any { $in.kind != skip }) }
     for m in $busy {
-        if $m.error != null {
+        if $m.pending? != null {
+            print $"($m.id): pending, ($m.pending)(if $m.error == null { '' } else { $'; error: ($m.error)' })"
+        } else if $m.error != null {
             print $"($m.id): error: ($m.error)"
         } else {
             print $m.id
@@ -63,20 +67,24 @@ export def plan-print [planned: table, verb: string, modules: table = [], mods: 
     if ($busy | is-empty) and ($absent | is-empty) { print (if $verb == "unlink" { "nothing to undo" } else { "nothing to apply" }) }
 }
 
-export def --env link-run [mods: list<string>, force: bool, plan: bool]: nothing -> table {
-    let ctx = pipeline-load $REPO user
+# The user layer's plan; the module evaluations see GOPATH.
+export def --env link-plan [ctx: record, mods: list<string>, force: bool]: nothing -> table {
     $env.GOPATH = $nu.home-dir | path join .local share go
-    let planned = pipeline-plan $ctx link $mods $force
-    if $plan {
-        plan-print $planned link $ctx.modules $mods
-        return []
-    }
+    pipeline-plan $ctx link $mods $force
+}
+
+export def --env link-run [mods: list<string>, force: bool]: nothing -> table {
+    let ctx = pipeline-load $REPO user
+    let planned = link-plan $ctx $mods $force
     let full = $mods | is-empty
     $env.DOT_FULL_RUN = $full
     failures-open
     let results = pipeline-apply $ctx $planned link (jobs)
+    pending-save $planned.id $results --full=$full
+    if ($results | any { $in.pending? != null }) { $env.DOT_SYSTEM_PENDING = true }
     let wallpaper = xdg cache wal wallpaper
-    let ids = $planned | where native and id not-in ($ctx.modules | where broken | get id) | get id
+    let waiting = $results | where pending? != null | get id
+    let ids = $planned | where native and id not-in ($ctx.modules | where broken | get id) and id not-in $waiting | get id
     # an empty id list means every module to pipeline-plan: a run that planned no link rows themes none
     let themed = if ($wallpaper | path exists) and ($ids | is-not-empty) {
         let real_wallpaper = ^readlink -f $wallpaper | str trim
@@ -125,7 +133,7 @@ export def failures-publish [results: table]: nothing -> bool {
         # a partial run adds to what earlier runs recorded instead of replacing it
         let earlier = if ($published | path exists) { open --raw $published | lines } else { [] }
         let kept = if ($env.DOT_FULL_RUN? != true) { $earlier } else if ($env.DOT_SYSTEM_RAN? != true) {
-            $earlier | where ($it | str starts-with "system layer:") or ($it | str starts-with "not on the mirror")
+            $earlier | where {|l| failure-is-system $l }
         } else { [] }
         let failures = $kept | append ($failures | lines) | where ($it | str trim) != "" | uniq | str join "\n"
         $"($failures)\n" | save --force $"($published).($env.DOT_RUN_ID)"
@@ -137,7 +145,7 @@ export def failures-publish [results: table]: nothing -> bool {
     if ($results | any { not $in.ok }) { return false }
     # a user-only run cannot vouch for the system layer: its earlier failures stay published until it runs again
     let published = $REPO | path join $FAILURES
-    let system_stale = $env.DOT_SYSTEM_RAN? != true and ($published | path exists) and (open --raw $published | str contains "system layer:")
+    let system_stale = $env.DOT_SYSTEM_RAN? != true and ($published | path exists) and (open --raw $published | lines | any {|l| failure-is-system $l })
     if $owned and ($env.DOT_FULL_RUN? == true) and not $system_stale { rm --force $published }
     true
 }
@@ -196,26 +204,46 @@ export def --env system-skipped [what: string, pending: bool]: nothing -> nothin
 }
 
 export def --env pending-exit []: nothing -> nothing {
-    if $env.DOT_SYSTEM_PENDING? == true { exit $EXIT_SYSTEM_PENDING }
+    if $env.DOT_SYSTEM_PENDING? == true { exit $EXIT_PENDING }
 }
 
-def system-failed [stage: string]: nothing -> nothing {
-    fail $"system layer: ($stage)"
+# An apply's end, called inside its guarded closure where the run's DOT_SYSTEM_PENDING is still visible: exit 1 on a
+# failure, else 3 when anything is left pending.
+export def --env apply-finish [results: table]: nothing -> nothing {
+    finish $results
+    pending-exit
+}
+
+# Root's own lines carry the causes; this run's, by their time. A root line naming no system module gets the layer as
+# its subject, so a later user-only run still knows it for root's. Without one, the layer's exit is the line.
+def system-failed [stage: string, code: int, since: datetime]: nothing -> nothing {
     let root = $SYSTEM_STATE | path join FAILURES
-    if ($root | path exists) { open --raw $root | save --append $env.FAILURES_FILE }
+    let fresh = ($root | path exists) and (ls $root | get 0.modified) >= $since
+    let lines = if $fresh { open --raw $root | lines | where ($it | str trim) != "" } else { [] }
+    for l in $lines { fail (if (failure-is-system $l) { $l } else { $"system layer ($l)" }) }
+    if ($lines | is-empty) {
+        let runner = $env.DOTFILES_ROOT_RUNNER? | default sudo
+        let fix = $"($SYSTEM_FIX) at a terminal; root's run log: ($SYSTEM_STATE | path join runs)"
+        fail (failure-line $"system layer ($stage)" null $"($runner) ($ENTRY) exited ($code), root recorded no failure" --fix $fix)
+    }
 }
 
 export def --env apply-run [system: bool, user: bool, force: bool]: nothing -> table {
     failures-open
-    if (profile-has secrets) { try { yubikey-unlock } catch {|e| fail $"dot secrets unlock: ($e.msg)" } }
-    if (which git-lfs | is-not-empty) { try { ^git -C $REPO ...$LFS_FILTER lfs pull } catch { fail "git lfs pull" } }
+    if (profile-has secrets) { try { yubikey-unlock } catch {|e| fail (failure-line "dot secrets unlock" null (cause-text (cause-from-error $e))) } }
+    if (which git-lfs | is-not-empty) {
+        try { ^git -C $REPO ...$LFS_FILTER lfs pull } catch {|e| fail (failure-line "git lfs pull" null (cause-text (cause-from-error $e))) }
+    }
     if $system and (system-allowed) {
         $env.DOT_SYSTEM_RAN = true
-        if (system-run config --force=$force) == 0 { rm --force (pending-file) } else { system-failed config }
+        let since = date now
+        let code = system-run config --force=$force
+        if $code in [0 $EXIT_PENDING] { rm --force (pending-file) } else { system-failed config $code $since }
+        if $code == $EXIT_PENDING { $env.DOT_SYSTEM_PENDING = true }
     } else if $system and (admin) {
         system-skipped "system layer" true
     }
-    if $user { link-run [] $force false } else { [] }
+    if $user { link-run [] $force } else { [] }
 }
 
 export def user-locked []: nothing -> nothing {
@@ -249,14 +277,6 @@ export def --env unlink-run [mod: string]: nothing -> table {
     [{id: $mod, ok: ($outcomes | all { $in.ok }), outcomes: $outcomes, ms: 0, log: "", error: null}]
 }
 
-def flatpak-installed []: nothing -> list<string> {
-    ^flatpak list --user --app --columns=application | lines | str trim | where $it != ""
-}
-
-def nix-installed []: nothing -> list<string> {
-    ^nix ...$NIX_FLAGS profile list --json | from json | get elements | columns
-}
-
 # An incomplete run removes nothing but still records what it installed, so undeclaring it later counts as dropped.
 def ledger-record [kind: string, declared: list<string>, installed: list<string>]: nothing -> nothing {
     ledger-set $kind (ledger-get $kind | append ($declared | where $it in $installed))
@@ -287,20 +307,30 @@ export def user-packages-undeclared [declared: record, platform: record]: nothin
     }
 }
 
-def install-user [declared: record, platform: record, yes: bool, offer_by_hand: bool]: nothing -> nothing {
-    if (which rustup | is-not-empty) { try { ^rustup default stable } catch { fail "rustup default stable" } }
+# What it could not install offline (online false): those downloads wait for the next apply --packages.
+def install-user [declared: record, platform: record, yes: bool, offer_by_hand: bool, online: bool]: nothing -> list<string> {
+    mut waiting = []
+    if (which rustup | is-not-empty) {
+        if $online {
+            try { ^rustup default stable } catch { fail "rustup default stable" }
+        } else if not (^rustup toolchain list | str contains "stable") {
+            $waiting = $waiting | append "rustup stable"
+        }
+    }
     let complete = $declared.incomplete | is-empty
     if not $complete { fail $"ledger: not removing undeclared flatpak and nix packages, these modules declare none: ($declared.incomplete | str join ' ')" }
     let apps = $declared.flatpak | transpose app commit
     if (which flatpak | is-not-empty) {
         let exports = [($nu.home-dir | path join $FLATPAK_USER_EXPORTS) $FLATPAK_SYSTEM_EXPORTS]
         let dirs = $exports ++ ($env.XDG_DATA_DIRS? | default $DATA_DIRS_DEFAULT | split row ":") | uniq | str join ":"
+        let deployed = {|app| ^flatpak info --user --show-commit $app | complete | if $in.exit_code == 0 { $in.stdout | str trim } else { "" } }
+        let behind = with-env {XDG_DATA_DIRS: $dirs} { $apps | where {|a| (do $deployed $a.app) != $a.commit } | get app }
+        if not $online and ($behind | is-not-empty) { $waiting = $waiting | append $"flatpak ($behind | str join ' ')" }
         with-env {XDG_DATA_DIRS: $dirs} {
-            if ($apps | is-not-empty) {
+            if ($apps | is-not-empty) and $online {
                 if (^flatpak remote-add --user --if-not-exists flathub $FLATHUB | complete).exit_code != 0 {
                     fail "flatpak remote-add --user flathub"
                 } else {
-                    let deployed = {|app| ^flatpak info --user --show-commit $app | complete | if $in.exit_code == 0 { $in.stdout | str trim } else { "" } }
                     for a in $apps {
                         if not ($a.commit =~ '^[0-9a-f]{64}$') { fail $"flatpak ($a.app): no pinned commit"; continue }
                         let now = do $deployed $a.app
@@ -329,7 +359,8 @@ def install-user [declared: record, platform: record, yes: bool, offer_by_hand: 
     let before = user-installed nix { nix-installed }
     if $before != null {
         let missing = $declared.nix | where $it not-in $before
-        if ($missing | is-not-empty) {
+        if ($missing | is-not-empty) and not $online { $waiting = $waiting | append $"nix ($missing | str join ' ')" }
+        if ($missing | is-not-empty) and $online {
             try { ^nix ...$NIX_FLAGS profile add ...($missing | each { $"($NIXPKGS)#($in)" }) } catch { fail $"nix profile add ($missing | str join ' ')" }
         }
         let installed = if ($missing | is-empty) { $before } else { user-installed nix { nix-installed } }
@@ -341,6 +372,7 @@ def install-user [declared: record, platform: record, yes: bool, offer_by_hand: 
             }
         }
     }
+    $waiting
 }
 
 export def --env install-run [user: bool, yes: bool, offer_by_hand: bool]: nothing -> int {
@@ -348,16 +380,20 @@ export def --env install-run [user: bool, yes: bool, offer_by_hand: bool]: nothi
     if not $user and not $system and (admin) { system-skipped "packages" false }
     failures-begin ($env.DOT_RUN_FILE | str replace ".jsonl" ".install-failures")
     if $system {
+        let since = date now
         let status = system-run install --yes=$yes
+        if $status != 0 { system-failed install $status $since }
         if $status == $EXIT_ABORTED {
-            fail "system layer: install aborted"
             $"(failures-take)\n" | save --force ($REPO | path join $FAILURES_INSTALL)
             return $EXIT_ABORTED
         }
-        if $status != 0 { system-failed install }
     }
     let ctx = pipeline-load $REPO user
-    install-user (modules-packages $REPO $ctx.modules $ctx.platform) $ctx.platform $yes $offer_by_hand
+    let waiting = install-user (modules-packages $REPO $ctx.modules $ctx.platform) $ctx.platform $yes $offer_by_hand (network-online)
+    if ($waiting | is-not-empty) {
+        log-note $"packages pending, ($OFFLINE_PENDING) --packages: ($waiting | str join ', ')"
+        $env.DOT_SYSTEM_PENDING = true
+    }
     if $system {
         try { ^sudo ($SYSTEM_REPO | path join $ENTRY) packages --unattended=($env.DOTFILES_UNATTENDED? == "1") ...(if $yes { [--yes] } else { [] }) } catch {|e| interrupted-exit ($e.exit_code? | default 1); fail "system layer: removing undeclared packages" }
     }
@@ -376,7 +412,7 @@ export def --env system-part [target: string]: nothing -> nothing {
     let tty = is-terminal --stdin
     let graphical = ($env.WAYLAND_DISPLAY? | is-not-empty) or ($env.DISPLAY? | is-not-empty)
     let runner = if $env.DOT_SYSTEM? == "skip" { null } else if $tty { "sudo" } else if $graphical and (which pkexec | is-not-empty) { "pkexec" } else { null }
-    let ok = $runner != null and (with-env {DOTFILES_ROOT_RUNNER: $runner} { system-run config }) == 0
+    let ok = $runner != null and (with-env {DOTFILES_ROOT_RUNNER: $runner} { system-run config }) in [0 $EXIT_PENDING]
     if $ok { return }
     $"($target)\n" | save --append (pending-file)
     log-note $"($target): system part pending, runs on the next dot apply"
@@ -398,11 +434,15 @@ export def --env update-run [yes: bool]: nothing -> record {
 
 export def managed-drift []: nothing -> table {
     let written = recorded-hashes
-    glob (state-dir | path join modules **/*.nuon) | each {|f|
-        let id = $f | path dirname | path relative-to (state-dir | path join modules)
-        let outs = open $f | get outputs
-        let seen = observe ($outs | where kind != unit | get target) ($outs | where kind == unit | get target) user
-        $outs | each {|o|
+    let records = glob (state-dir | path join modules **/*.nuon) | each {|f|
+        {id: ($f | path dirname | path relative-to (state-dir | path join modules)), outs: (open $f | get outputs)}
+    }
+    # one observation for every record: one stat, one readlink and one systemctl for the lot
+    let every = $records | get outs | flatten
+    let seen = observe ($every | where kind != unit | get --optional target | default []) ($every | where kind == unit | get --optional target | default []) user
+    $records | each {|r|
+        let id = $r.id
+        $r.outs | each {|o|
             let obs = $seen.paths | get --optional $o.target
             let state = match $o.kind {
                 "file" => (output-file-state $o $obs $REPO ($written | get --optional $o.target))

@@ -7,6 +7,9 @@ const RUNS_KEEP = 50
 const RUNS_READ_ONLY_KEEP = 20
 const RUN_READ_ONLY_MARK = '"read_only":true'
 const STREAM_TAIL_LINES = 5
+# a bounded process past its deadline gets TERM, and KILL this much later
+const BOUND_GRACE = 5sec
+const BOUND_MARK_LENGTH = 16
 
 def rank [level: string]: nothing -> int {
     # an unrecognized DOT_LOG falls back to INFO's rank rather than crashing every log call
@@ -46,21 +49,56 @@ export def log-warn [message: string, fields: record = {}]: nothing -> nothing {
 export def log-note [message: string, fields: record = {}]: nothing -> nothing { log-record INFO $"note: ($message)" ($fields | merge {kind: note}) }
 export def log-err [message: string, fields: record = {}]: nothing -> nothing { log-record ERROR $message $fields }
 
-# setsid and no stdin: under dot's pty a background command touching the tty is stopped for good.
-export def command-stream [tag: string, argv: list]: nothing -> record {
+# Signals every process whose environment holds all of marks ("KEY=value"), setsid'd ones included, this nu excepted.
+export def procs-kill [marks: list<string>, signal: string = "KILL"]: nothing -> nothing {
+    let pids = glob /proc/[0-9]*/environ | each {|f|
+        let environ = try { open --raw $f | decode utf-8 | split row (char nul) } catch { [] }
+        if ($marks | all {|m| $m in $environ }) { $f | path dirname | path basename }
+    } | compact | where $it != ($nu.pid | into string)
+    if ($pids | is-not-empty) { ^kill $"-($signal)" ...$pids | complete | ignore }
+}
+
+# Runs body (which reports failure in its value, a complete) with a mark of its own in the environment: past timeout
+# every process carrying it gets TERM, KILL after BOUND_GRACE. A setsid'd child keeps the mark, so a whole tree dies,
+# and a pipe it held closes. timed_out: the deadline came first, value is then null.
+export def bounded [timeout: duration, body: closure]: nothing -> record {
+    let mark = $"DOT_BOUND_(random chars --length $BOUND_MARK_LENGTH)"
+    let fired = mktemp --tmpdir dot-bound-XXXXXX
+    rm $fired
+    let watchdog = job spawn {
+        sleep $timeout
+        touch $fired
+        procs-kill [$"($mark)=1"] TERM
+        sleep $BOUND_GRACE
+        procs-kill [$"($mark)=1"] KILL
+    }
+    let run = try { {value: (with-env {$mark: "1"} { do $body }), error: null} } catch {|e| {value: null, error: $e.msg} }
+    try { job kill $watchdog }
+    let timed_out = $fired | path exists
+    rm --force $fired
+    if $timed_out { return {value: null, timed_out: true} }
+    if $run.error != null { error make {msg: $run.error} }
+    {value: $run.value, timed_out: false}
+}
+
+# setsid and no stdin: under dot's pty a background command touching the tty is stopped for good. Past timeout its
+# whole tree is killed: timed_out, exit_code null.
+export def command-stream [tag: string, argv: list, timeout: duration]: nothing -> record {
     let log = mktemp --tmpdir
-    let code = try {
-        null | ^setsid --wait ...$argv o+e>| tee { save --force $log } | lines | each {|l| print -e $"($tag) | ($l)" } | ignore
-        0
-    } catch {|e| if $e.exit_code? == null { rm $log; $e.raw } else { $e.exit_code } }
-    let output = open --raw $log
-    rm $log
-    {exit_code: $code, output: $output, tail: ($output | lines | last $STREAM_TAIL_LINES | str join "\n")}
+    let run = bounded $timeout {
+        try {
+            null | ^setsid --wait ...$argv o+e>| tee { save --force $log } | lines | each {|l| print -e $"($tag) | ($l)" } | ignore
+            0
+        } catch {|e| if $e.exit_code? == null { rm $log; $e.raw } else { $e.exit_code } }
+    }
+    let output = try { open --raw $log } catch { "" }
+    rm --force $log
+    {exit_code: $run.value, timed_out: $run.timed_out, output: $output, tail: ($output | lines | last $STREAM_TAIL_LINES | str join "\n")}
 }
 
 # Falls back to the run's own failures file: a crash here must not take down the run.
-export def fail [message: string]: nothing -> nothing {
-    log-err $message {kind: failure}
+export def fail [message: string, fields: record = {}]: nothing -> nothing {
+    log-err $message ($fields | merge {kind: failure})
     let target = if ($env.FAILURES_FILE? | is-not-empty) {
         $env.FAILURES_FILE
     } else if ($env.DOT_RUN_FILE? | is-not-empty) {

@@ -5,12 +5,12 @@ export use profile.nu [profile-has profile-load]
 export use platform.nu [platform-has display-xwayland-scale gpu-list]
 export use json.nu [json-set json-delete]
 export use secrets.nu [secret-is-plaintext secret-seed-guard owner-unlocked]
-use fetch.nu [fetch-file-done fetch-git-done]
+use fetch.nu [fetch-file-done fetch-file-cached fetch-git-done]
 use state.nu [nu-bin]
 export use state.nu [xdg]
 use ../../configs/core/wallust/palette.nu [palette-slots]
 
-export const DECL_KEYS = [kind target source content mode generated inplace edits state now argv creates then]
+export const DECL_KEYS = [kind target source content mode generated inplace edits state now argv creates requires then network timeout]
 export const DECL_KINDS = [file link json ini unit exec step]
 const MODE_FILE = "644"
 const BIN_DIR = ".local/bin"
@@ -21,7 +21,7 @@ const HOOK_BRAKE = "StartLimitIntervalSec=1min\nStartLimitBurst=20\n"
 def decl [kind: string, target: string, fields: record]: nothing -> record {
     {
         kind: $kind target: $target source: null content: null mode: $MODE_FILE generated: false inplace: false edits: []
-        state: null now: false argv: [] creates: null then: []
+        state: null now: false argv: [] creates: null requires: null then: [] network: false timeout: null
     } | merge $fields
 }
 
@@ -77,6 +77,14 @@ export def file-link [src: path, dest: path]: nothing -> record {
 # Links each script into ~/.local/bin under its stem.
 export def link-commands [...files: path]: nothing -> list<record> {
     $files | each {|file| file-link $file ($nu.home-dir | path join $BIN_DIR ($file | path parse | get stem)) }
+}
+
+# The module's aliases and defs for its tools, aliases.nu and aliases.zsh as far as it has them, dropped in as
+# <name>.nu into nushell's user autoload dir and <name>.zsh into the conf.d core/zsh's zshrc sources.
+export def shell-aliases [name: string]: nothing -> list<record> {
+    [[src dir]; [aliases.nu (xdg config nushell autoload)] [aliases.zsh (xdg config zsh conf.d)]]
+    | where { $in.src | path exists }
+    | each {|f| file-copy $f.src ($f.dir | path join $"($name).($f.src | path parse | get extension)") }
 }
 
 # Applies json-set/json-delete edits to a live JSON file, keeping every other key.
@@ -153,14 +161,18 @@ export def desktop-override [id: string, edit: closure]: nothing -> list<record>
     [(file-text $dest (open --raw $system | do $edit))]
 }
 
-# An imperative command, skipped once --creates exists.
-export def exec [name: string, argv: list<string>, --creates: path]: nothing -> record {
-    decl exec $name {argv: $argv, creates: $creates}
+# An imperative command, skipped once --creates exists. --requires: a path an earlier action lands (a fetch, a
+# download), checked when it would run, so without it this waits as pending; --network: it downloads, so offline or
+# on a remote's outage it waits as pending for the next apply; --timeout: its bound when converge's STEP_TIMEOUT is too
+# short for it.
+export def exec [name: string, argv: list<string>, --creates: path, --requires: path, --network, --timeout: duration]: nothing -> record {
+    decl exec $name {argv: $argv, creates: $creates, requires: $requires, network: $network, timeout: $timeout}
 }
 
-# Runs one of the module's own exported commands at apply time, for logic that edits live state.
-export def step [command: string, ...args: string]: nothing -> record {
-    decl step $command {argv: $args}
+# Runs one of the module's own exported commands at apply time, for logic that edits live state; --requires,
+# --network and --timeout as exec's.
+export def step [command: string, ...args: string, --requires: path, --network, --timeout: duration]: nothing -> record {
+    decl step $command {argv: $args, requires: $requires, network: $network, timeout: $timeout}
 }
 
 def --wrapped internal [...args: string]: nothing -> list<string> {
@@ -172,13 +184,13 @@ export def fetch-file [url: string, sha256: string, dest: path, --mode: string =
     if (fetch-file-done $sha256 $dest) { return [] }
     let extract = if $extract == null { [] } else { [--extract $extract] }
     let in_place = if $in_place { [--in-place] } else { [] }
-    [(exec $"fetch ($dest)" (internal fetch file $url $sha256 $dest --mode $mode ...$extract ...$in_place))]
+    [(exec $"fetch ($dest)" (internal fetch file $url $sha256 $dest --mode $mode ...$extract ...$in_place) --network=(not (fetch-file-cached $sha256)))]
 }
 
 # Checks out url at a pinned commit into dir.
 export def fetch-git [url: string, commit: string, dir: path]: nothing -> list<record> {
     if (fetch-git-done $commit $dir) { return [] }
-    [(exec $"fetch ($dir) at ($commit | str substring 0..11)" (internal fetch git $url $commit $dir))]
+    [(exec $"fetch ($dir) at ($commit | str substring 0..11)" (internal fetch git $url $commit $dir) --network)]
 }
 
 # Creates a system group and puts every wheel member in it.

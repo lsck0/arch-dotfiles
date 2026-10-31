@@ -27,7 +27,7 @@ def --wrapped main [...args: string]: nothing -> nothing {
     let flags = [$"--remote-debugging-port=($DEVTOOLS_PORT)"] ++ (if ($env.WAYLAND_DISPLAY? | is-not-empty) { $WAYLAND_FLAGS } else { [] })
     let copy = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join spotify-patched spotify
     if ($copy | path exists) {
-        if (^aa-exec -p spotify -- true | complete).exit_code == 0 {
+        if (which aa-exec | is-not-empty) and (^aa-exec -p spotify -- true | complete).exit_code == 0 {
             exec aa-exec -p spotify -- $copy ...$flags ...$args
         }
         let apparmor = try { open --raw $APPARMOR_ENABLED | str trim } catch { "" }

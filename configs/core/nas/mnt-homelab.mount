@@ -1,5 +1,5 @@
 [Unit]
-Description=NAS homelab share (vm-104)
+Description=NAS homelab share (@SHARE@)
 DefaultDependencies=no
 Conflicts=umount.target
 Before=umount.target
@@ -11,7 +11,7 @@ ConditionPathExists=|/sys/class/net/wg0
 ConditionVirtualization=!wsl
 
 [Mount]
-What=//10.100.0.100/homelab
+What=@SHARE@
 Where=/mnt/homelab
 Type=cifs
 Options=credentials=/etc/samba/homelab.cred,seal,uid=0,gid=wheel,vers=3.1.1,_netdev,nofail,file_mode=0660,dir_mode=0770,soft,echo_interval=10

@@ -59,10 +59,15 @@ def build [plugin: record, hyprland: string]: nothing -> bool {
     true
 }
 
-# Builds what the installed hyprland lacks, then loads it into the running one when they match.
-def main []: nothing -> nothing {
+# The plugins the installed hyprland has no build of; building them downloads.
+export def plugins-missing []: nothing -> list<string> {
     let hyprland = commit-installed
-    if $hyprland == "" { return }
+    if $hyprland == "" { return [] }
+    $PLUGINS | where {|p| not (so-path $p.name $hyprland | path exists) } | get name
+}
+
+# Builds what the installed hyprland lacks; false when a build failed.
+def plugins-build [hyprland: string]: nothing -> bool {
     let builds = $PLUGINS | where {|p| not (so-path $p.name $hyprland | path exists) } | each {|p|
         let status = try { if (build $p $hyprland) { "built" } else { "unpinned" } } catch {|e| print --stderr $e.msg; "failed" }
         {name: $p.name, status: $status}
@@ -75,10 +80,12 @@ def main []: nothing -> nothing {
     if ($failed | is-not-empty) {
         ^notify-send -a hyprland "Hyprland plugins did not build" ($failed | get name | str join ", ") | complete | ignore
     }
-    if (commit-running) != $hyprland {
-        if ($failed | is-not-empty) { exit 1 }
-        return
-    }
+    $failed | is-empty
+}
+
+# Loads the built plugins into the running hyprland when it is the installed one; local, no download.
+def plugins-load [hyprland: string]: nothing -> nothing {
+    if (commit-running) != $hyprland { return }
     let listed = ^hyprctl plugin list | complete | get stdout
     let results = $PLUGINS | where {|p| (so-path $p.name $hyprland | path exists) and not ($listed | str contains $p.name) }
         | each {|p| {name: $p.name, exit_code: (^hyprctl plugin load (so-path $p.name $hyprland) | complete | get exit_code)} }
@@ -89,5 +96,25 @@ def main []: nothing -> nothing {
     }
     # plugin options are only accepted once the plugin is in, so the config is read again
     if ($loaded | is-not-empty) { ^hyprctl reload | ignore }
-    if ($failed | is-not-empty) { exit 1 }
+}
+
+# Builds what the installed hyprland lacks (git and make, the network).
+def "main build" []: nothing -> nothing {
+    let hyprland = commit-installed
+    if $hyprland != "" and not (plugins-build $hyprland) { exit 1 }
+}
+
+# Loads the built plugins into the running hyprland.
+def "main load" []: nothing -> nothing {
+    let hyprland = commit-installed
+    if $hyprland != "" { plugins-load $hyprland }
+}
+
+# Builds what the installed hyprland lacks, then loads it into the running one when they match.
+def main []: nothing -> nothing {
+    let hyprland = commit-installed
+    if $hyprland == "" { return }
+    let built = plugins-build $hyprland
+    plugins-load $hyprland
+    if not $built { exit 1 }
 }

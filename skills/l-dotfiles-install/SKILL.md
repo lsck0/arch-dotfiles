@@ -7,16 +7,23 @@ description: Installing a machine from this repo (owner, generic, WSL), how the 
 
 Three stages: `bootstrap.sh` (nushell, a verified checkout, then `dot internal bootstrap`: keyboard, disk, base system,
 user, root copy, arms the chain), then `dot internal stage` runs `dot apply --packages` and `dot apply` on their own
-boots, unattended, and retires itself and its sudo drop-in at the end.
+boots, unattended, and retires itself and its sudo drop-in at the end, or stops disarmed (Check the chain).
 
 ## Install
 
-1. Arch Linux-LSCK0 iso, https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso (check `.sha256` and `.sig`),
-   written raw to a stick. Its stub autologins on tty1, waits for internet (cable, else the answer file's `wifi` or a
+1. Arch Linux-LSCK0 iso, https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso (check `.sha256`, and `.sig`
+   against `configs/base/pacman/archrepo.asc`, signer `HOMELAB.mirror.isoSigner` in `platforms/homelab.nu`,
+   `88042EFBF5F141C2ACF4697ADD84D7C4053DD354`; `dot test run` checks both), written raw to a stick. Its stub autologins on tty1, waits for internet (cable, else the answer file's `wifi` or a
    picker; never offline), clones master, checks HEAD against the iso's signing key and runs that `bootstrap.sh` with
    `LSCK0_INSTALL=1`, which starts `dot internal iso-install` (`scripts/lib/iso-install.nu`).
-   - Answer file: `lsck0.nuon` on a FAT32 partition labelled `LSCK0` (and other places), keys in
-     `mirror/iso/lsck0.example.nuon`; `lsck0.*` boot parameters map to `BOOTSTRAP_*`. An answered key is not asked.
+   - Answer file: `lsck0.nuon` or `lsck0.<name>.nuon` on a FAT32 partition labelled `LSCK0` (and other places), keys
+     in `mirror/iso/lsck0.example.nuon`; `lsck0.*` boot parameters map to `BOOTSTRAP_*`. An answered key is not asked.
+   - One answer file found: a 10 s yes/no, then it is used (an unattended boot goes on by itself); several: a menu of
+     them plus "no answer file", which takes the first after 10 s only when that one says `unattended: true`. Each
+     file is found once (by path and content); one that does not parse is listed as ignored, never offered. Only the
+     pick's `source` files are staged, into a dir of its own; a missing one stops the install. No answer file means
+     every question is asked; the second stage does not search again, and a picked file it cannot parse stops it.
+     An older stub connects with the first `lsck0.nuon`'s wifi, then switches to master's stub, which asks.
    - `unattended: true` skips the summary, asks each `"ask"` password once up front, logs to `/tmp/lsck0-install.log`
      (copied to `/var/log/lsck0-install.log`).
    - Unattended, a disk whose ESP holds `/boot/dotfiles-stage-in-progress` (a chain still running) is refused unless
@@ -85,8 +92,17 @@ into server. Each question's `env` and `default` is the reference. `dot test run
 
 1. `/var/lib/dotfiles-stage/log`: one `<stage>: ok` per stage.
 2. `install.log`, `config.log`, `FAILURES.install`, `FAILURES.config` in the checkout; `/var/log/lsck0-install.log`.
-3. An aborted `dot apply --packages` (exit 2) retries on the next boot, 3 attempts; then the chain moves on and it is
-   rerun by hand.
+3. The install stage goes on by `/var/lib/dotfiles/install-pass`, not by dot's exit code (`stage-next` in
+   `scripts/lib/stage.nu`). Pass written: config, even after a partial pass; modules whose packages are missing stay
+   pending (exit 3, `dot status`). No pass: a reboot retries after a backoff, 3 attempts in all.
+4. Third attempt without a pass: the chain stops before config and disarms. The stage LUKS key slot, its keyfile and
+   initramfs drop-in go, then `next`, the unit and the passwordless sudoers drop-in; a `stopped` marker stays. The disk
+   asks for its passphrase again, sudo for the password, nothing retries by itself. The login banner
+   (`/etc/issue.d/dotfiles-stage.issue`) names what failed, the way online on a fail-closed network
+   (`dot set --machine base/networkmanager.untrusted_policy firewall-only && dot apply --system`) and the resume.
+5. Resume: `dot internal stage` at a terminal. sudo asks once, the drop-in, unit and install stage are armed again, the
+   install runs; the key is not re-added, so each later boot of the chain asks for the disk passphrase. Without a tty it
+   refuses and names the command.
 
 ## Updating
 

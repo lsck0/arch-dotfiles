@@ -28,5 +28,6 @@ def main []: nothing -> nothing {
     if ($tokens | is-empty) { return }
     let picked = try { $tokens | str join "\n" | ^fzf ...$FZF_ARGS } catch { "" } | str trim --right
     if $picked == "" { return }
+    if (which wl-copy | is-empty) { print $picked; return }
     $picked | ^wl-copy --trim-newline
 }

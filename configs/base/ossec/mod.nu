@@ -4,7 +4,6 @@ export const meta = {packages: {native: [czmq-git ossec-hids-local]}}
 
 const OSSEC_CONF = "/var/lib/ossec-hids/etc/ossec.conf"
 const MARKER = "<!-- appended by the dotfiles (configs/base/ossec)"
-const JOURNAL_LOG = "/run/ossec-journal.log"
 const TMPFILES = "/etc/tmpfiles.d/ossec-alerts.conf"
 
 export def system [cfg: record] {
@@ -21,8 +20,6 @@ export def system [cfg: record] {
 
 # Drops the shipped localfiles: they name syslog files arch never writes, each a 'Could not open file' per start.
 export def localfiles []: nothing -> nothing {
-    # UMask covers only a file systemd creates: an older one keeps its mode until the next boot
-    if ($JOURNAL_LOG | path exists) { ^chmod 600 $JOURNAL_LOG }
     if (^systemctl is-active -q ossec-server.target | complete).exit_code == 0 {
         ^systemctl start ossec-journal.service
     }

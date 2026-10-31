@@ -17,7 +17,7 @@ export def link [cfg: record] {
         # set runs unless the unversioned link already resolves to this version
         let active_matches = ($bin | path join $exe | path expand | str contains $version)
         [
-            (exec $"ghcup-install-($tool)" [$GHCUP install $tool $version] --creates $installed)
+            (exec $"ghcup-install-($tool)" [$GHCUP install $tool $version] --creates $installed --network)
             (if not $active_matches { exec $"ghcup-set-($tool)" [$GHCUP set $tool $version] })
         ] | compact
     } | flatten

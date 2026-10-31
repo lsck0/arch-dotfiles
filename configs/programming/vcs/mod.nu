@@ -1,3 +1,5 @@
+use module.nu *
+
 export const meta = {
     packages: {
         pacman: [
@@ -5,4 +7,8 @@ export const meta = {
             pre-commit tig
         ]
     }
+}
+
+export def link [cfg: record] {
+    shell-aliases vcs
 }

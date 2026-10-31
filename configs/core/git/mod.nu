@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {deps: [core/wallust], packages: {pacman: [git git-delta]}, inputs: [/usr/bin/mergiraf /usr/bin/jj /usr/bin/git-lfs /usr/bin/gh]}
+export const meta = {deps: [core/cli core/tmux core/wallust], packages: {pacman: [git git-delta]}, inputs: [/usr/bin/mergiraf /usr/bin/jj /usr/bin/git-lfs /usr/bin/gh]}
 
 const CONFIG_DIR = ".config/git"
 const DELTA_THEME = "wal/delta.gitconfig"
@@ -52,6 +52,7 @@ export def link [cfg: record] {
         (if (has mergiraf) { file-text ($dir | path join attributes) $"(^mergiraf languages --gitattributes)\n" } else { [] })
         (if (has jj) { file-text (xdg config jj config.toml) (jj-config $identity) } else { [] })
         (link-commands wtree.nu)
+        (shell-aliases git)
     ]
 }
 

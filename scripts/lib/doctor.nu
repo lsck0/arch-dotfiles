@@ -1,14 +1,15 @@
 # The health checks of `dot status`.
 
-use state.nu [SYSTEM_REPO SYSTEM_STATE]
+use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir]
 use ledger.nu [ledger-get]
 use platform.nu [platform-load]
 use profile.nu [profile-has]
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use system.nu [system-files secrets-digest SECRETS_PREFIX SECRETS_DIGEST]
 use preserve.nu [preserve-report]
-use pipeline.nu [pipeline-load]
+use pipeline.nu [pipeline-load PENDING_FILE]
 use modules.nu [modules-packages]
+use cause.nu [failures-group]
 use ../../configs/base/yubikey/audit.nu [audit-findings]
 
 const REPO = path self ../..
@@ -20,6 +21,10 @@ const WITNESS = $REPO | path join $OWNER_WITNESS
 const APPARMOR_MANUAL = "/etc/apparmor/flags.d/manual.conf"
 const SNAPSHOT_MAX_DAYS = 30
 const SHOWN_MAX = 8
+# failure groups dot status shows per FAILURES file, one line each
+const GROUPS_SHOWN = 5
+# an invariant probe's answer while the module behind it waits on its packages
+const INVARIANT_PENDING = "pending"
 
 def report [level: string, check: string, text: string]: nothing -> record {
     {level: $level, check: $check, text: $text}
@@ -37,12 +42,19 @@ def mtime [file: path]: nothing -> datetime { ls $file | get 0.modified }
 def failures []: nothing -> list<record> {
     let files = glob ($REPO | path join "FAILURES.*") | where { (ls $in | get 0.size) > 0B }
     if ($files | is-empty) { return [(report ok failures "no FAILURES.* left by dot apply")] }
+    failures-reports $files
+}
+
+# Per FAILURES file: a head line with its count and where the detail is, then one line per failure group.
+export def failures-reports [files: list<path>]: nothing -> list<record> {
     $files | each {|f|
-        let entries = open --raw $f | lines | where ($it | str trim) != ""
-            | each { str replace --regex '.*/configs/' '' }
+        let entries = open --raw $f | lines | where ($it | str trim) != "" | each { str replace --all $"($REPO)/" "" }
+        let groups = failures-group $entries
+        let more = if ($groups | length) > $GROUPS_SHOWN { [$"  +(($groups | length) - $GROUPS_SHOWN) more in ($f | path basename)"] } else { [] }
         let from = $"($f | path basename) from (mtime $f | format date '%F %H:%M')"
-        report FAIL failures $"($from), ($entries | length): (shown $entries)"
-    }
+        [$"($from), ($entries | length) failed; the detail: dot log --trace"] ++ ($groups | first $GROUPS_SHOWN | each { $"  ($in)" }) ++ $more
+        | each { report FAIL failures $in }
+    } | flatten
 }
 
 def hashes [dir: path, files: list<string>]: nothing -> list<string> {
@@ -93,12 +105,24 @@ def invariants []: nothing -> list<record> {
     | each {|i|
         let value = do { ^bash -c $i.probe } | complete | get stdout | str trim
         if $value == "n/a" { return null }
-        if $value == $i.want {
+        if $value == $INVARIANT_PENDING {
+            report note invariant $"($i.key) pending: its module waits on its packages, see the pending check"
+        } else if $value == $i.want {
             report ok invariant $"($i.key)=($value)"
         } else {
             report FAIL invariant $"($i.key)=($value), expected ($i.want)"
         }
     } | compact
+}
+
+# Modules the last run of either layer left waiting on their packages, the network or a dependency (pending or failed):
+# pending, no failure of their own.
+def modules-pending []: nothing -> list<record> {
+    let lines = [(with-env {DOT_LAYER: user} { state-dir }) $SYSTEM_STATE] | uniq | each {|dir|
+        try { open --raw ($dir | path join $PENDING_FILE) | lines | where $it != "" } catch { [] }
+    } | flatten | uniq
+    if ($lines | is-empty) { return [(report ok pending "no module waits on its packages, the network or a dependency")] }
+    $lines | each { report note pending $in }
 }
 
 def apparmor []: nothing -> list<record> {
@@ -215,7 +239,7 @@ def preserved []: nothing -> list<record> {
 # the health checks, in order; one closure each so this list is their single source
 def checks []: nothing -> list<closure> {
     [
-        {|| failures} {|| config-pending} {|| reboot} {|| invariants} {|| apparmor} {|| snapshot}
+        {|| failures} {|| config-pending} {|| modules-pending} {|| reboot} {|| invariants} {|| apparmor} {|| snapshot}
         {|| packages} {|| firewall} {|| luks} {|| units} {|| secrets} {|| preserved}
     ]
 }

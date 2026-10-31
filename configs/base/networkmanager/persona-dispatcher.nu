@@ -6,6 +6,8 @@ const HOME_NETWORK = "/run/home-network"
 const MARKER = "/run/persona-lockdown"
 const TOR_MARKER = "/run/persona-tor"
 const TOR_ROUTER = "/usr/local/bin/tor-router"
+# what tor-router routes into; without it fw-egress still holds, open only to pacman's escape
+const TOR = "/usr/bin/tor"
 const VM_GUEST = "/etc/NetworkManager/vm-guest"
 const POLICY_FILE = "/etc/NetworkManager/untrusted-policy"
 const HOMELAB_ENV = "/etc/NetworkManager/homelab.env"
@@ -18,12 +20,13 @@ const PORTAL_S = 120
 const PORTAL_UNIT = "persona-portal"
 const IFNAME = '^[A-Za-z0-9_.-]{1,15}$'
 
+# a missing binary reads as a failed command, not a crash that leaves the links undecided
 def --wrapped out [...argv: string]: nothing -> string {
-    do { run-external ...$argv } | complete | get stdout
+    try { do { run-external ...$argv } | complete | get stdout } catch { "" }
 }
 
 def --wrapped ok [...argv: string]: nothing -> bool {
-    (do { run-external ...$argv } | complete).exit_code == 0
+    try { (do { run-external ...$argv } | complete).exit_code == 0 } catch { false }
 }
 
 def home-links []: nothing -> list<string> {
@@ -59,9 +62,14 @@ def foreign [policy: string]: nothing -> bool {
     ($physical | is-empty) or ($physical | any { $in not-in $home })
 }
 
+def tor-missing []: nothing -> bool {
+    not ($TOR | path exists) or not ($TOR_ROUTER | path exists)
+}
+
 # Switches to tor; gone names the tunnel going down, whose link may linger until NM deletes it.
 def tor-on [policy: string, gone: string = ""]: nothing -> nothing {
-    if $policy != lockdown-tor or not ($TOR_ROUTER | path exists) or ($VM_GUEST | path exists) { return }
+    if $policy != lockdown-tor or (tor-missing) { return }
+    if ($VM_GUEST | path exists) { return }
     if ([$VPN_IFACE $WG_IFACE] | any {|t| $t != $gone and (ok ip link show $t) }) { return }
     if (ok systemctl is-active -q tor-router.service) { return }
     touch $TOR_MARKER
@@ -74,8 +82,14 @@ def tor-off []: nothing -> nothing {
     ok systemctl stop --no-block tor-router.service | ignore
 }
 
-# Never over a live proton tunnel: its connmark restore clobbers the wg fwmark.
-def portmaster-on [gone: string = ""]: nothing -> nothing {
+# Never over a live proton tunnel: its connmark restore clobbers the wg fwmark. Kept off on a foreign link under
+# lockdown-tor without tor: its own resolver (root) cannot pass fw-egress, while resolved's strict DoT, back once it
+# stops, is the escape route's way to look up pacman's mirrors.
+def portmaster-on [policy: string, gone: string = ""]: nothing -> nothing {
+    if $policy == lockdown-tor and (tor-missing) and (foreign $policy) {
+        ok systemctl stop portmaster.service | ignore
+        return
+    }
     if ($VPN_IFACE != $gone and (ok ip link show $VPN_IFACE)) or (ok ip -n $NETNS link show $NETNS_IFACE) { return }
     if (ok systemctl is-active -q fw-inbound.service fw-lockdown.service) { ok systemctl start portmaster.service | ignore }
 }
@@ -91,7 +105,7 @@ def vpn-event [policy: string, action: string]: nothing -> nothing {
         }
         "down" | "vpn-down" => {
             if (foreign $policy) { tor-on $policy $VPN_IFACE }
-            portmaster-on $VPN_IFACE
+            portmaster-on $policy $VPN_IFACE
         }
     }
 }
@@ -141,7 +155,7 @@ def portal-end [policy: string, iface: string, domains: list<string>]: nothing -
     ok nft delete element inet fw_egress portal $"{ ($iface) }" | ignore
     ok resolvectl domain $iface ...(if ($domains | is-empty) { [""] } else { $domains }) | ignore
     if (foreign $policy) { tor-on $policy }
-    portmaster-on
+    portmaster-on $policy
     let tls = if (ok systemctl is-active -q portmaster.service) { "no" } else { "opportunistic" }
     ok resolvectl dnsovertls $iface $tls | ignore
 }
@@ -187,7 +201,16 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
         }
     }
     if (foreign $policy) { tor-on $policy } else { tor-off }
-    portmaster-on
+    portmaster-on $policy
+}
+
+# Tor just became usable (installed, tor-router in place): the links' tor decision again, the rest untouched. An open
+# portal keeps it off, its end decides.
+def tor-arrived [policy: string]: nothing -> nothing {
+    let portals = out systemctl list-units --type timer --state active --plain --no-legend $"($PORTAL_UNIT)-*.timer"
+    if ($portals | str trim) != "" or not (foreign $policy) { return }
+    tor-on $policy
+    portmaster-on $policy
 }
 
 def main [iface: string = "", action: string = "", ...domains: string]: nothing -> nothing {
@@ -195,6 +218,9 @@ def main [iface: string = "", action: string = "", ...domains: string]: nothing 
     if $iface == $VPN_IFACE or $env.VPN_IP_IFACE? == $VPN_IFACE { return (vpn-event $policy $action) }
     if $iface == $WG_IFACE { return (wg-event $policy $action) }
     if $action == portal-end { return (portal-end $policy $iface $domains) }
+    if $action == tor-arrived { return (tor-arrived $policy) }
+    # toggle-firewall's way back to portmaster, decided here like on every link event
+    if $action == portmaster { return (portmaster-on $policy) }
     if $action not-in [up down portal] or not ($iface =~ $IFNAME) { return }
     # an unplugged link's node is gone by its down, which under lockdown still re-decides over the links left
     let unplugged = $action == down and ($MARKER | path exists)

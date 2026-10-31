@@ -1,6 +1,7 @@
 use module.nu *
+use ../../../platforms/homelab.nu [HOMELAB]
 
-export const meta = {packages: {native: [ethtool modemmanager networkmanager wpa_supplicant]}, volatile: true}
+export const meta = {packages: {native: [modemmanager networkmanager wpa_supplicant]}, volatile: true}
 
 export const options = {
     untrusted_policy: {
@@ -37,18 +38,18 @@ export const options = {
     }
     homelab_dns: {
         type: string?
-        default: null
-        doc: "The homelab's split-horizon resolver, asked for homelab_domain out a home link (homelab machines)"
+        default: $HOMELAB.router
+        doc: "The homelab's split-horizon resolver, asked for homelab_domain out a home link (homelab machines); default the lab's router"
     }
     homelab_domain: {
         type: string?
-        default: null
+        default: $HOMELAB.domain
         doc: "The homelab's DNS zone"
     }
     homelab_subnets: {
         type: list<string>
-        default: []
-        doc: "The homelab's subnets, routed straight out a home link and through wg0 elsewhere"
+        default: $HOMELAB.subnets
+        doc: "The homelab's subnets, routed straight out a home link and through wg0 elsewhere; default the lab's zones"
     }
 }
 

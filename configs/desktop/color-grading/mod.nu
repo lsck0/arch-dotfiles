@@ -1,5 +1,7 @@
 use module.nu *
 
+export const meta = {packages: {pacman: [python]}}
+
 const UNIT = "color-grading.service"
 const SCRIPT = path self color-grading.py
 

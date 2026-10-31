@@ -80,12 +80,6 @@ def configure [home: path, settings: record, remove: list<string>]: nothing -> l
     [(exec $"configure ($home)" [env $"HERMES_HOME=($home)" $PYTHON configure.py ($want | to json --raw)])]
 }
 
-# Hermes names a profile's wrapper after it; the skills call the orchestrator hermes-orchestrator.
-def bare-alias []: nothing -> bool {
-    let wrapper = $nu.home-dir | path join .local bin orchestrator
-    ($wrapper | path exists) and (open --raw $wrapper | str contains "hermes -p orchestrator")
-}
-
 # without a gpu share llm/vllm serves nothing, so hermes gets no vllm provider
 def vllm-settings [vllm: any]: nothing -> record {
     if $vllm.gpu_memory_utilization? == null { return {} }
@@ -102,12 +96,11 @@ export def link [cfg: record] {
     let remove = if ($vllm | is-empty) { $VLLM_KEYS } else { [] }
     let skills = glob ($env.DOTFILES | path join skills "l-*") | where ($it | path type) == dir
     [
-        (step required-extras)
+        (step required-extras --network)
         (exec orchestrator-create [
             hermes profile create orchestrator --clone --no-alias --description "Orchestrator. Not for interactive chat."
         ] --creates $h.orchestrator)
         (exec orchestrator-alias [hermes profile alias orchestrator --name hermes-orchestrator] --creates ($nu.home-dir | path join .local bin hermes-orchestrator))
-        (if (bare-alias) { exec orchestrator-alias-bare-remove [hermes profile alias orchestrator --remove] } else { [] })
         ($skills | each {|dir| file-link $dir ($h.orchestrator | path join skills ($dir | path basename)) })
         (configure $h.default $settings $remove)
         (configure $h.orchestrator ($settings | merge $ORCHESTRATOR_SETTINGS) $remove)

@@ -3,6 +3,8 @@
 use log.nu *
 use state.nu [xdg]
 use sync.nu [bootstrap-const FINGERPRINT_VALUE]
+use homelab.nu [LSCK0_SERVER_PLACEHOLDER]
+use ../../platforms/homelab.nu [HOMELAB]
 
 const REPO = path self ../..
 const RELENG = "/usr/share/archiso/configs/releng"
@@ -34,6 +36,7 @@ def keyring-write [dir: path]: nothing -> nothing {
     let gnupg = mktemp --directory
     let fingerprint = ^gpg --homedir $gnupg --show-keys --with-colons $key | lines | parse "fpr:{rest}" | get 0.rest | split row ":" | get 8
     rm --recursive --force $gnupg
+    if $fingerprint != $HOMELAB.mirror.isoSigner { error make {msg: $"iso: ($LSCK0_KEY) is ($fingerprint), the lab's signer is ($HOMELAB.mirror.isoSigner)"} }
     mkdir $dir
     cp $key ($dir | path join lsck0.gpg)
     $"($fingerprint):4:\n" | save --force ($dir | path join lsck0-trusted)
@@ -43,7 +46,7 @@ def pacman-live [releng_conf: path]: nothing -> string {
     let section = open --raw ($REPO | path join $PACMAN_CONF) | lines | reduce --fold {inside: false, out: []} {|l, acc|
         let inside = if ($l | str starts-with "[") { $l == $LSCK0_SECTION } else { $acc.inside }
         {inside: $inside, out: (if $inside { $acc.out | append $l } else { $acc.out })}
-    } | get out | str join "\n"
+    } | get out | str join "\n" | str replace $LSCK0_SERVER_PLACEHOLDER $HOMELAB.mirror.lsck0
     $"(open --raw $releng_conf | str trim --right)\n\n($section | str trim --right)\n"
 }
 
@@ -77,6 +80,19 @@ def profile-write [profile: path, mirror: any]: nothing -> nothing {
     }
 }
 
+# Fails unless sig is a good signature of iso by the lab's iso signer, checked against archrepo.asc alone in a throwaway
+# home.
+export def iso-signer-verify [iso: path, sig: path]: nothing -> nothing {
+    let gnupg = mktemp --directory
+    ^gpg --homedir $gnupg --batch --quiet --import ($REPO | path join $LSCK0_KEY)
+    let status = do { ^gpg --homedir $gnupg --batch --status-fd 1 --verify $sig $iso } | complete
+    rm --recursive --force $gnupg
+    let signer = $status.stdout | lines | parse --regex '^\[GNUPG:\] VALIDSIG .* (?<primary>[0-9A-F]{40})$' | get --optional 0.primary
+    if $status.exit_code != 0 or $signer != $HOMELAB.mirror.isoSigner {
+        error make {msg: $"iso: ($iso | path basename) is not signed by ($HOMELAB.mirror.isoSigner)"}
+    }
+}
+
 def outputs-publish [built: path, out: path, keep: int, sign: any]: nothing -> list<path> {
     mkdir $out
     let iso = $out | path join ($built | path basename)
@@ -88,6 +104,7 @@ def outputs-publish [built: path, out: path, keep: int, sign: any]: nothing -> l
     $"($sum)  ($ISO_LATEST)\n" | save --force $"($latest).sha256"
     let signed = if $sign == null { [] } else {
         ^gpg --batch --yes --local-user $sign --detach-sign --output $"($iso).sig" $iso
+        iso-signer-verify $iso $"($iso).sig"
         ^ln -sfn $"($iso | path basename).sig" $"($latest).sig"
         [$"($iso).sig"]
     }

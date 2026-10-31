@@ -500,7 +500,8 @@ BarWidget {
 
       PanelSeparator {}
       PanelSectionHeader { text: "ROUTE" }
-      // the homelab sits beside the routes, not among them: wg0 carries only the lab subnets, so it adds to any route
+      // the homelab chip sits beside the routes, toggled on its own: wg0 is a full tunnel (AllowedIPs 0.0.0.0/0) through
+      // the router, which reaches the lab, the house lan and the internet, so while it is up the internet goes out home
       Row {
         width: content.width
         spacing: Style.spacing.xs

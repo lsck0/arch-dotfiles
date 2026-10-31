@@ -122,7 +122,8 @@ export def link [cfg: record] {
         $dirs
         (if (xdg data plasma plasmoids $MODERNCLOCK.id | path exists) { [] } else {
             let src = xdg cache dotfiles modernclock
-            (fetch-git $MODERNCLOCK.url $MODERNCLOCK.commit $src) ++ [(exec $"install ($MODERNCLOCK.id)" [kpackagetool6 -t Plasma/Applet -i ($src | path join package)])]
+            let package = $src | path join package
+            (fetch-git $MODERNCLOCK.url $MODERNCLOCK.commit $src) ++ [(exec $"install ($MODERNCLOCK.id)" [kpackagetool6 -t Plasma/Applet -i $package] --requires $package)]
         })
     ]
 }

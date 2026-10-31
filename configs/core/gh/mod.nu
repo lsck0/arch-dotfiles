@@ -13,7 +13,7 @@ export def link [cfg: record] {
     let token = token-file
     if (which gh | is-empty) or not (secret-is-plaintext $token) or (open --raw $token) !~ $TOKEN_SHAPE { return [] }
     [
-        (if ($nu.home-dir | path join $HOSTS | path exists) { [] } else { step gh-login })
+        (if ($nu.home-dir | path join $HOSTS | path exists) { [] } else { step gh-login --network })
     ]
 }
 

@@ -1,0 +1,13 @@
+[Unit]
+Description=Restore the Proton sign-ins from the dotfiles secrets
+# the first login after a reinstall; the pam-started keyring is open by then, no Proton app runs yet
+ConditionPathExists=!%S/proton-sessions/restored
+After=keyring-secrets.service
+Before=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/proton-sessions-restore
+
+[Install]
+WantedBy=graphical-session-pre.target

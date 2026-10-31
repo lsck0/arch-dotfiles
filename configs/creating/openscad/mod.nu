@@ -15,7 +15,7 @@ export def link [cfg: record] {
             type: stdio, command: uvx, args: [--exclude-newer $MCP_FROZEN $pkg]
             env: {FASTMCP_CHECK_FOR_UPDATES: "off", FASTMCP_SHOW_SERVER_BANNER: "false", FASTMCP_TELEMETRY_MODE: "off"}
         }})
-        (if (cache-stamp $pkg | path exists) { [] } else { step mcp-cache $pkg })
+        (if (cache-stamp $pkg | path exists) { [] } else { step mcp-cache $pkg --network })
     ]
 }
 

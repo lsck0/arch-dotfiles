@@ -4,7 +4,8 @@ use log.nu *
 
 const DOT = path self ../dot.nu
 const QUESTIONS = path self bootstrap/questions.nuon
-const ANSWERS_NAME = "lsck0.nuon"
+const ANSWERS_GLOB = "lsck0*.nuon"
+const ANSWERS_NONE = "none"
 const ANSWERS_LABEL = "/dev/disk/by-label/LSCK0"
 const BOOT_MEDIUM = "/run/archiso/bootmnt"
 const STAGE_DIR = "/run/lsck0"
@@ -99,19 +100,28 @@ def answers-parse [text: string, origin: string]: nothing -> record {
     if ($a | describe | str starts-with "record") { $a } else { error make {msg: $"($origin): expected a record"} }
 }
 
+# lsck0.nuon and lsck0.<name>.nuon, at the medium's root and beside an iso on it; without the stub's pick, the first
 def answers-in [dir: path]: nothing -> list<path> {
-    let beside = glob --depth $ISO_SEARCH_DEPTH ($dir | path join "**" $ISO_GLOB) | each { path dirname | path join $ANSWERS_NAME }
-    [($dir | path join $ANSWERS_NAME)] ++ $beside | uniq | where { path exists }
+    let beside = glob --depth $ISO_SEARCH_DEPTH ($dir | path join "**" $ISO_GLOB) | each { path dirname }
+    [$dir] ++ $beside | uniq | each {|d| glob --depth 1 ($d | path join $ANSWERS_GLOB) | sort } | flatten | uniq
+}
+
+# The stub's pick, LSCK0_ANSWERS with the text read from it (null when unreadable): {scan, answers}. Empty is no pick,
+# so the media are scanned; none is the user turning the media's files down, so they are not searched again; a file
+# is its answers, and one that does not parse stops the install rather than giving way to another file on the media.
+export def answers-handed [handed: string, origin: string, text: any]: nothing -> record<scan: bool, answers: any> {
+    if $handed == "" { return {scan: true, answers: null} }
+    if $handed == $ANSWERS_NONE { return {scan: false, answers: null} }
+    if $text == null { error make {msg: $"($origin): not readable, nothing installed"} }
+    let a = try { answers-parse $text $origin } catch {|e| error make {msg: $"($e.msg), nothing installed: fix it, or pick no answer file"} }
+    {scan: false, answers: ($a | insert origin $origin)}
 }
 
 def answers-media []: nothing -> any {
     let handed = $env.LSCK0_ANSWERS? | default ""
-    if $handed != "" {
-        # a malformed handed file falls back to interactive, as in the stub, instead of aborting the second stage
-        let origin = $env.LSCK0_ANSWERS_ORIGIN? | default $handed
-        let parsed = try { answers-parse (open --raw $handed) $origin | insert origin $origin } catch {|e| log-warn $"($e.msg), continuing interactively"; null }
-        if $parsed != null { return $parsed }
-    }
+    let text = if $handed in ["" $ANSWERS_NONE] { null } else { try { open --raw $handed | into binary | decode utf-8 } catch { null } }
+    let pick = answers-handed $handed ($env.LSCK0_ANSWERS_ORIGIN? | default $handed) $text
+    if not $pick.scan { return $pick.answers }
     for f in (answers-in $BOOT_MEDIUM) {
         let parsed = try { answers-parse (open --raw $f) $f | insert origin $f } catch {|e| log-warn $"($e.msg), ignoring it"; null }
         if $parsed != null { return $parsed }

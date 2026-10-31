@@ -4,7 +4,8 @@
 
 Easiest: write [Arch Linux-LSCK0](https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso)
 ([sha256](https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso.sha256),
-[sig](https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso.sig)) to a stick and boot it; the installer
+[sig](https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso.sig) by
+`88042EFBF5F141C2ACF4697ADD84D7C4053DD354`, `configs/base/pacman/archrepo.asc`) to a stick and boot it; the installer
 starts on its own (an answer file skips its questions: `mirror/iso/lsck0.example.nuon`).
 
 Or from the official Arch ISO:

@@ -1,6 +1,11 @@
 use module.nu *
+use profile.nu [profile-owner]
 
-export const meta = {packages: {pacman: [pass pass-otp]}, inputs: [~/sync/password-store/.gpg-id]}
+export const meta = {inputs: [~/sync/password-store/.gpg-id]}
+
+export def packages [cfg: record]: nothing -> record {
+    {pacman: (if (profile-owner) { [pass] } else { [] })}
+}
 
 export def link [cfg: record] {
     if not (owner-unlocked) { return [] }

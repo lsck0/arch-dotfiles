@@ -4,7 +4,7 @@ export const meta = {
     packages: {
         pacman: [
             aseprite cava converseen drawy famistudio-bin feh giflib gifsicle gpu-screen-recorder handbrake kdenlive
-            lmms lorien-bin rawtherapee sfxr-qt-bin sox tiled xournalpp
+            lmms lorien-bin rawtherapee sfxr-qt-bin sox tiled xdg-user-dirs xournalpp
         ]
     }
 }

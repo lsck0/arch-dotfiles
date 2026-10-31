@@ -1,7 +1,6 @@
 #!/usr/sbin/nft -f
 define inner_ifaces = { "lo", "proton0", "wg*", "tun*", "docker*", "br-*", "veth*", "virbr*", "waydroid*", "lxc*" }
 define tunnel_marks = { 0x0ea13b2c, 0x0000ca6c }
-define tor_uid = @TOR_UID@
 define game_mark = 0x6761
 
 add table inet fw_egress
@@ -9,6 +8,10 @@ delete table inet fw_egress
 table inet fw_egress {
     set home_ifaces { type ifname; }
     set portal { type ifname; flags timeout; }
+    # filled by fw-egress.service from id -u, so a user not there yet leaves its set empty instead of failing the load
+    set tor_uid { type uid; }
+    set fetch_uid { type uid; }
+    set resolver_uid { type uid; }
 
     chain output {
         type filter hook output priority 0; policy drop;
@@ -18,7 +21,14 @@ table inet fw_egress {
         udp sport 68 udp dport 67 accept
         icmpv6 type { nd-router-solicit, nd-neighbor-solicit, nd-neighbor-advert } ip6 hoplimit 255 accept
         meta l4proto udp meta mark $tunnel_marks accept
-        meta skuid $tor_uid accept
+        meta skuid @tor_uid accept
+        # Pacman's escape (DownloadUser = alpm): without it a machine missing tor could never install it, and off home
+        # updates work without tor. A foreign network sees which mirror is fetched from and roughly which packages;
+        # every package is signature-checked. Under tor-router these connections are redirected into tor before here.
+        meta skuid @fetch_uid tcp dport { 80, 443 } accept
+        # Its lookups, through resolved, over strict DoT only: the network sees TLS to quad9, never the names. This
+        # lets any local app's lookups reach quad9 while tor-router is not up; the apps' own traffic stays dropped.
+        meta skuid @resolver_uid tcp dport 853 accept
         meta mark $game_mark accept
         oifname @portal tcp dport { 80, 443 } accept
         oifname @portal meta l4proto { tcp, udp } th dport 53 accept

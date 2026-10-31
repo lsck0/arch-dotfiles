@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [xivlauncher-bin]}, backup: {secrets: true}}
+export const meta = {packages: {pacman: [rsync xivlauncher-bin]}, backup: {secrets: true}}
 
 const XLCORE = ".xlcore"
 

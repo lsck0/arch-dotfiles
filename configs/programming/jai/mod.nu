@@ -1,7 +1,10 @@
 use module.nu *
 use hook/jai-install.nu [jai-zip]
 
-export const meta = {inputs: [~/sync/vendor ~/.jai/.installed-from]}
+export const meta = {
+    packages: {pacman: [unzip]}
+    inputs: [~/sync/vendor ~/.jai/.installed-from]
+}
 
 const HOOK = "hook/jai-install.nu"
 
@@ -18,5 +21,5 @@ export def link [cfg: record] {
     let zip = jai-zip
     let stamp = try { open --raw ($dir | path join .installed-from) | str trim } catch { "" }
     let newer = $zip != null and ($zip | path basename) != $stamp
-    if $newer or not ($dir | path join bin jai | path exists) { [(exec jai-install [($env.PWD | path join $HOOK)])] } else { [] }
+    if $newer or not ($dir | path join bin jai | path exists) { [(exec jai-install [($env.PWD | path join $HOOK)] --network)] } else { [] }
 }

@@ -52,7 +52,7 @@ export def link [cfg: record] {
     [
         (file-copy config.py ($dir | path join config.py))
         (file-text ($dir | path join search-url) $"($cfg.search_url)\n")
-    ] | append (if (lists-ready) { [] } else { [(step lists-fetch)] })
+    ] | append (if (lists-ready) { [] } else { [(step lists-fetch --network)] })
 }
 
 # Fetches the adblock lists in a windowless instance, never beside a running one: the quit would reach it over ipc.

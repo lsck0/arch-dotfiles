@@ -1,11 +1,16 @@
 #!/usr/bin/env -S nu --no-config-file
 
 const ANSWERS_LABEL = "/dev/disk/by-label/LSCK0"
-const ANSWERS_NAME = "lsck0.nuon"
+const ANSWERS_GLOB = "lsck0*.nuon"
+const ANSWERS_NONE = "none"
+const ANSWERS_WAIT_S = 10
 const BOOT_MEDIUM = "/run/archiso/bootmnt"
 const CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
 const CABLE_POLL = 5sec
 const CLONE_DIR = "/tmp/arch-dotfiles"
+# dialog exits -1 (255) on an error, like esc: the env moves error and timeout to codes of their own
+const DLG_EXIT = {ok: 0, cancel: 1, timeout: 5, error: 6, esc: 255}
+const DLG_RETRIES = 3
 const CMDLINE_PARAM = '(?:^|\s)lsck0\.(?<key>keymap|wifi\.ssid|wifi\.psk)=(?:"(?<quoted>[^"]*)"|(?<plain>\S*))'
 const INSECURE_PARAM = '(?:^|\s)lsck0\.insecure=1(?:\s|$)'
 const ISO_GLOB = "archlinux-lsck0*.iso"
@@ -15,6 +20,7 @@ const KEYMAP_DEFAULT = "de-latin1"
 const MEDIA_FSTYPES = [vfat exfat iso9660 udf ntfs ntfs3]
 const ONLINE_POLL = 1sec
 const ONLINE_WAIT = 20sec
+const PROBLEM_CHARS_MAX = 60
 const PICK_HIDDEN = "hidden"
 const PICK_RESCAN = "rescan"
 const PICK_SHELL = "shell"
@@ -23,6 +29,7 @@ const PROBE_TIMEOUT_S = 5
 const SIGNING_KEY = "/usr/share/lsck0/signing-key.asc"
 const SOURCE_PATH_KEYS = [bundle lfs]
 const STAGE_DIR = "/run/lsck0"
+const STAGE_ID_CHARS = 16
 const STUB_IN_REPO = "mirror/iso/airootfs/usr/local/bin/lsck0-install"
 const TRUST = "/usr/share/lsck0/trust.nuon"
 const TUI_BACKTITLE = "Arch Linux install"
@@ -47,11 +54,22 @@ const TEXT = {
         no_domain: "{ssid}: an enterprise network needs a server domain"
         no_creds: "{ssid}: an enterprise network needs a username and password"
         failed: "did not connect"
-        draw_failed: "the dialog could not be drawn (terminal too small?); scanning again"
+        draw_failed: "the dialog could not be drawn (terminal too small?): {err}; scanning again"
+        draw_stop: "the dialog could not be drawn {count} times: {err}"
     }
     source: {
         title: "unverified source"
         text: "The answer file {origin} brings its own tree (source). It is not signed, replaces the verified master and runs as root.\n\nInstall from it?"
+    }
+    answers: {
+        title: "answer file"
+        text: "Install with which answer file?"
+        one: "Install with {origin}? (picked in {wait}s)"
+        none: "no answer file, every question is asked"
+        ignored: "Ignored, not readable:"
+        unusable: "No usable answer file, every question is asked."
+        draw_failed: "the answer file menu could not be drawn {count} times: {err}"
+        missing: "answer file {origin}: source.{key} {path} not found"
     }
     connecting: "install: connecting to {ssid}"
     waiting: "install: {missing}; checking again in {wait}, Ctrl+C for a shell"
@@ -68,44 +86,193 @@ def is-a [kind: string]: any -> bool {
     ($in | describe) =~ $'^($kind)\b'
 }
 
+# lsck0.nuon and lsck0.<name>.nuon, at the medium's root and beside an iso on it
 def answers-in [dir: path]: nothing -> list<path> {
-    let beside = glob --depth $ISO_SEARCH_DEPTH ($dir | path join "**" $ISO_GLOB) | each { path dirname | path join $ANSWERS_NAME }
-    [($dir | path join $ANSWERS_NAME)] ++ $beside | uniq | where { path exists }
+    let beside = glob --depth $ISO_SEARCH_DEPTH ($dir | path join "**" $ISO_GLOB) | each { path dirname }
+    [$dir] ++ $beside | uniq | each {|d| glob --depth 1 ($d | path join $ANSWERS_GLOB) | sort } | flatten | uniq
 }
 
-def answers-stage [file: path]: nothing -> path {
-    mkdir $STAGE_DIR
-    let copy = $STAGE_DIR | path join $ANSWERS_NAME
-    cp $file $copy
-    let source = try { open --raw $file | from nuon | get --optional source } catch { null }
-    if ($source | is-a record) {
-        for k in $SOURCE_PATH_KEYS {
-            let p = $source | get --optional $k
-            if $p == null or ($p =~ '^https?://') { continue }
-            let from = if ($p | str starts-with "/") { $p } else { $file | path dirname | path join $p }
-            try { cp $from ($STAGE_DIR | path join ($p | path basename)) }
+def answers-text [file: path]: nothing -> string {
+    open --raw $file | into binary | decode utf-8
+}
+
+# Why an answer file cannot be used, empty when it can: it must parse as a nuon record.
+export def answers-check [text: string]: nothing -> string {
+    try {
+        if ($text | from nuon | is-a record) { "" } else { "not a record" }
+    } catch {|e|
+        # the innermost error names the fault and its offset into the text
+        mut d = $e.details? | default {}
+        while ($d.inner? | default [] | is-not-empty) { $d = $d.inner.0 }
+        let label = $d.labels? | default [] | get --optional 0
+        let at = if $label == null { "" } else {
+            let before = try { $text | into binary | bytes at 0..<$label.span.start | decode utf-8 } catch { "" }
+            $"line ($before | split row "\n" | length): ($label.text)"
         }
+        $"not nuon, ($at | default --empty $e.msg)" | str substring 0..<$PROBLEM_CHARS_MAX
     }
-    $copy
 }
 
-def answers-find []: nothing -> any {
-    for f in (answers-in $BOOT_MEDIUM) { return {file: (answers-stage $f), origin: $f} }
-    let devices = ^lsblk -J -l -pno NAME,FSTYPE,MOUNTPOINT | from json | get blockdevices | where fstype in $MEDIA_FSTYPES
+export def answers-unattended [text: string]: nothing -> bool {
+    (try { $text | from nuon | get --optional unattended } catch { null }) == true
+}
+
+# The first file of each real path and each content: the boot medium seen twice, or one file copied to two media, is
+# offered once.
+export def answers-dedupe [found: list<record>]: nothing -> list<record> {
+    $found | reduce --fold [] {|f, acc| if ($acc | any {|k| $k.real == $f.real or $k.hash == $f.hash }) { $acc } else { $acc ++ [$f] } }
+}
+
+# How long the menu of several files waits before it takes the first: only when the first is the one file that says
+# unattended. Two unattended files (a stick for two machines) always wait for a pick, so a stick booted on the wrong
+# machine never erases it with the other machine's answers.
+export def answers-menu-timeout [usable: list<record>]: nothing -> duration {
+    let unattended = $usable | where { $in.unattended? | default false } | length
+    if $unattended == 1 and ($usable | get --optional 0.unattended | default false) { $ANSWERS_WAIT_S * 1sec } else { 0sec }
+}
+
+# Where a staged answer file keeps a source file it names: beside it, by its base name.
+export def answers-source-staged [answers_dir: path, source_path: string]: nothing -> path {
+    $answers_dir | path join ($source_path | path basename)
+}
+
+# Where staging puts a picked file and the local source files it names: a dir of its own, named by its content, so
+# two files' sources never share one. from is resolved against source_dir, the picked file's dir on its medium.
+export def answers-stage-plan [picked: record, stage_root: path, source_dir: path]: nothing -> record {
+    let dir = $stage_root | path join ($picked.hash | str substring 0..<$STAGE_ID_CHARS)
+    let source = try { $picked.text | from nuon | get --optional source } catch { null }
+    let sources = if not ($source | is-a record) { [] } else {
+        $SOURCE_PATH_KEYS | each {|k|
+            let p = $source | get --optional $k
+            if ($p | is-a string) and not ($p =~ '^https?://') {
+                let from = if ($p | str starts-with "/") { $p } else { $source_dir | path join $p }
+                {key: $k, path: $p, from: $from, to: (answers-source-staged $dir $p)}
+            }
+        } | compact
+    }
+    {dir: $dir, copy: ($dir | path join ($picked.rel | path basename)), sources: $sources}
+}
+
+# One answer file as found: root is the dir it was found under, device the one mounted there for the scan alone
+# (empty when the medium stays mounted), so staging can reach its sources again.
+def answers-read [file: path, origin: string, root: path, device: string]: nothing -> record {
+    let text = try { answers-text $file } catch { "" }
+    {
+        origin: $origin, real: ($file | path expand), hash: ($text | hash sha256), text: $text, problem: (answers-check $text)
+        unattended: (answers-unattended $text), rel: ($file | path relative-to $root), root: $root, device: $device
+    }
+}
+
+# Every answer file on the media, the boot medium first, then the LSCK0 label, each once.
+def answers-all []: nothing -> list<record> {
+    let boot = answers-in $BOOT_MEDIUM | each {|f| answers-read $f $f $BOOT_MEDIUM "" }
+    # the boot medium's own device is listed again, mounted at BOOT_MEDIUM
+    let devices = ^lsblk -J -l -pno NAME,FSTYPE,MOUNTPOINT | from json | get blockdevices
+        | where {|d| $d.fstype in $MEDIA_FSTYPES and $d.mountpoint != $BOOT_MEDIUM }
     let label = if ($ANSWERS_LABEL | path exists) { $ANSWERS_LABEL | path expand } else { "" }
-    for d in (($devices | where name == $label) ++ ($devices | where name != $label)) {
+    let media = ($devices | where name == $label) ++ ($devices | where name != $label)
+    let found = $media | reduce --fold $boot {|d, acc|
         let mounted = $d.mountpoint | is-not-empty
         let dir = if $mounted { $d.mountpoint } else { $STAGE_DIR | path join mnt ($d.name | path basename) }
         if not $mounted {
             mkdir $dir
-            if (^mount -o ro $d.name $dir | complete).exit_code != 0 { continue }
+            if (^mount -o ro $d.name $dir | complete).exit_code != 0 { return $acc }
         }
-        let found = answers-in $dir | get --optional 0
-        let staged = if $found == null { null } else { {file: (answers-stage $found), origin: $"($d.name):($found | path relative-to $dir)"} }
+        let device = if $mounted { "" } else { $d.name }
+        let read = answers-in $dir | each {|f| answers-read $f $"($d.name):($f | path relative-to $dir)" $dir $device }
         if not $mounted { ^umount $dir | complete | ignore }
-        if $staged != null { return $staged }
+        $acc ++ $read
     }
-    null
+    answers-dedupe $found
+}
+
+# The picked file and its local sources, copied to a dir of their own: {file, origin}. A source it names that is not
+# there stops the install instead of borrowing another file's.
+def answers-stage [picked: record]: nothing -> record {
+    if $picked.device != "" {
+        mkdir $picked.root
+        let r = ^mount -o ro $picked.device $picked.root | complete
+        if $r.exit_code != 0 { error make {msg: $"answer file ($picked.origin): ($r.stderr | str trim)"} }
+    }
+    let plan = answers-stage-plan $picked $STAGE_DIR ($picked.root | path join $picked.rel | path dirname)
+    let copied = try {
+        mkdir $plan.dir
+        for s in $plan.sources {
+            if not ($s.from | path exists) { error make {msg: (text-fill $TEXT.answers.missing {origin: $picked.origin, key: $s.key, path: $s.path})} }
+            cp $s.from $s.to
+        }
+        ""
+    } catch {|e| $e.msg }
+    if $picked.device != "" { ^umount $picked.root | complete | ignore }
+    if $copied != "" { error make {msg: $copied} }
+    $picked.text | save --force $plan.copy
+    {file: $plan.copy, origin: $picked.origin}
+}
+
+# The menu's footnote naming the files left out, empty when none are.
+def answers-ignored-text [broken: list<record>]: nothing -> string {
+    if ($broken | is-empty) { return "" }
+    $"\n\n($TEXT.answers.ignored)\n" + ($broken | each {|b| $"  ($b.origin): ($b.problem)" } | str join "\n")
+}
+
+# The answer file to install with, or null for none. One usable file is a timed yes/no that keeps it, so an unattended
+# boot goes on by itself; several are a menu with none as its last entry, timed only when the first says unattended.
+# A broken file is named, never offered.
+def answers-find []: nothing -> any {
+    let found = answers-all
+    let usable = $found | where problem == ""
+    let broken = $found | where problem != ""
+    for b in $broken { print $"install: ignoring ($b.origin): ($b.problem)" }
+    let ignored = answers-ignored-text $broken
+    let rows = if ($broken | is-empty) { $TUI_BOX_ROWS } else { "0" }
+    let width = tui-width
+    let wait = $ANSWERS_WAIT_S | into string
+    if ($usable | is-empty) {
+        if ($broken | is-not-empty) { dlg --title $TEXT.answers.title --timeout $wait --msgbox $"($TEXT.answers.unusable)($ignored)" $rows $width | ignore }
+        return null
+    }
+    if ($usable | length) == 1 {
+        let text = text-fill $TEXT.answers.one {origin: $usable.0.origin, wait: $wait}
+        let d = dlg --title $TEXT.answers.title --timeout $wait --yes-label "use it" --no-label "none" --yesno $"($text)($ignored)" $rows $width
+        # only a no turns it down: the timeout, esc and a box that cannot draw keep it
+        return (if $d.kind == cancel { null } else { $usable.0 })
+    }
+    let items = $usable | enumerate | each {|f| [($f.index | into string) $f.origin] } | flatten
+    let timeout = answers-menu-timeout $usable
+    let timed = if $timeout > 0sec { [--timeout ($timeout / 1sec | into string)] } else { [] }
+    let fallback = if $timeout > 0sec { $usable.0 } else { null }
+    mut failures = 0
+    loop {
+        let menu = dlg --title $TEXT.answers.title ...$timed --menu $"($TEXT.answers.text)($ignored)" "0" $width $TUI_MENU_ROWS ...$items $ANSWERS_NONE $TEXT.answers.none
+        match $menu.kind {
+            ok => { return (if $menu.out == $ANSWERS_NONE { null } else { $usable | get ($menu.out | into int) }) }
+            timeout => { return $usable.0 }
+            error => {
+                $failures += 1
+                # a menu that cannot draw picks what its timeout would: the unattended first file, else none
+                if $failures >= $DLG_RETRIES { print $"install: (text-fill $TEXT.answers.draw_failed {count: $failures, err: $menu.err})"; return $fallback }
+            }
+            # cancel and esc: someone is at the console, so it asks again
+            _ => {}
+        }
+    }
+}
+
+# The answer file to install with ({file, origin}, or null for none), or the error that stops the install. A stub
+# switched to master's keeps the pick made before the switch; a picked file that does not parse stops here instead of
+# giving way to another.
+def answers-pick []: nothing -> record {
+    let handed = $env.LSCK0_ANSWERS? | default ""
+    if ($env.LSCK0_STUB_UPDATED? | is-not-empty) and $handed != "" {
+        if $handed == $ANSWERS_NONE { return {found: null, error: ""} }
+        let origin = $env.LSCK0_ANSWERS_ORIGIN? | default $handed
+        let problem = try { answers-check (answers-text $handed) } catch { "not readable" }
+        if $problem != "" { return {found: null, error: $"answer file ($origin): ($problem)"} }
+        return {found: {file: $handed, origin: $origin}, error: ""}
+    }
+    let picked = try { answers-find } catch {|e| print $"install: the media scan failed, no answer file: ($e.msg)"; null }
+    if $picked == null { return {found: null, error: ""} }
+    try { {found: (answers-stage $picked), error: ""} } catch {|e| {found: null, error: $e.msg} }
 }
 
 def answers-early [file: any]: nothing -> record {
@@ -218,11 +385,26 @@ def tui-width []: nothing -> string {
     [([($cols - 4) ($TUI_WIDTH | into int)] | math min) 40] | math max | into string
 }
 
-# {code, out, err}: dialog exits 0 ok, 1 cancel/no, 255 esc; a draw failure exits with another code and writes stderr.
-# Callers tell a cancel (1/255) from a draw failure, so a box that cannot render retries instead of aborting.
+# What a dialog exit means: ok, cancel, esc, timeout or error. An error writes stderr, which marks it on a dialog that
+# ignores DIALOG_ERROR; an esc after the whole timeout is the timeout of a dialog that ignores DIALOG_TIMEOUT.
+export def dlg-kind [code: int, err: string, timeout: duration, elapsed: duration]: nothing -> string {
+    if $code == $DLG_EXIT.ok { return "ok" }
+    if ($err | is-not-empty) or $code not-in [$DLG_EXIT.cancel $DLG_EXIT.timeout $DLG_EXIT.esc] { return "error" }
+    if $code == $DLG_EXIT.cancel { return "cancel" }
+    if $code == $DLG_EXIT.timeout or ($timeout > 0sec and $elapsed >= $timeout) { return "timeout" }
+    "esc"
+}
+
+# {kind, out, err}, kind from dlg-kind. Callers tell a cancel or esc from an error, so a box that cannot draw is
+# retried a bounded number of times instead of being read as the user's answer.
 def --wrapped dlg [...args: string]: nothing -> record {
-    let r = ^dialog --backtitle $TUI_BACKTITLE --stdout ...$args | complete
-    {code: $r.exit_code, out: ($r.stdout | str trim), err: ($r.stderr | ansi strip | str trim)}
+    let at = $args | enumerate | where item == "--timeout" | get --optional 0.index
+    let timeout = if $at == null { 0sec } else { ($args | get ($at + 1) | into int) * 1sec }
+    let codes = {DIALOG_TIMEOUT: ($DLG_EXIT.timeout | into string), DIALOG_ERROR: ($DLG_EXIT.error | into string)}
+    let start = date now
+    let r = with-env $codes { ^dialog --backtitle $TUI_BACKTITLE --stdout ...$args | complete }
+    let err = $r.stderr | ansi strip | str trim
+    {kind: (dlg-kind $r.exit_code $err $timeout ((date now) - $start)), out: ($r.stdout | str trim), err: $err}
 }
 
 # only for typing the Wi-Fi password: the install's keyboard menu still asks, preselected with this one, so an Enter
@@ -230,7 +412,7 @@ def --wrapped dlg [...args: string]: nothing -> record {
 def --env keymap-ensure []: nothing -> nothing {
     if ($env.BOOTSTRAP_KEYMAP? | is-not-empty) or ($env.BOOTSTRAP_KEYMAP_DEFAULT? | is-not-empty) { return }
     let d = dlg --title $TEXT.keymap.title --inputbox $TEXT.keymap.text $TUI_BOX_ROWS (tui-width) $KEYMAP_DEFAULT
-    let keymap = if $d.code == 0 and ($d.out | is-not-empty) { $d.out } else { $KEYMAP_DEFAULT }
+    let keymap = if $d.kind == ok and ($d.out | is-not-empty) { $d.out } else { $KEYMAP_DEFAULT }
     if (^loadkeys $keymap | complete).exit_code == 0 { $env.BOOTSTRAP_KEYMAP_DEFAULT = $keymap }
 }
 
@@ -246,6 +428,7 @@ def --env network-step [networks: list]: nothing -> bool {
             print $"install: ($missing)"
         }
     }
+    mut draw_failures = 0
     while $missing != "" {
         if $device == null {
             print (text-fill $TEXT.waiting {missing: $missing, wait: $CABLE_POLL})
@@ -258,32 +441,39 @@ def --env network-step [networks: list]: nothing -> bool {
         let items = $found | each {|n| [$n.ssid $"($n.security) ($n.signal)"] } | flatten
         let extra = [$PICK_RESCAN $TEXT.wifi.rescan $PICK_HIDDEN $TEXT.wifi.hidden $PICK_SHELL $TEXT.wifi.shell]
         let menu = dlg --title $TEXT.wifi.title --menu (text-fill $TEXT.wifi.text {missing: $missing}) "0" $width $TUI_MENU_ROWS ...$items ...$extra
-        # a draw failure (not a clean cancel/esc) must not abort the install: report it and rescan
-        if $menu.code not-in [0 1 255] { print $"install: ($TEXT.wifi.draw_failed)"; $missing = network-missing; continue }
+        # a draw failure is no cancel: rescan and draw again, up to DLG_RETRIES times in a row
+        if $menu.kind == error {
+            $draw_failures += 1
+            if $draw_failures >= $DLG_RETRIES { print $"install: (text-fill $TEXT.wifi.draw_stop {count: $draw_failures, err: $menu.err})"; return false }
+            print $"install: (text-fill $TEXT.wifi.draw_failed {err: $menu.err})"
+            $missing = network-missing
+            continue
+        }
+        $draw_failures = 0
         let pick = $menu.out
-        if $menu.code != 0 or $pick == $PICK_SHELL { return false }
+        if $menu.kind != ok or $pick == $PICK_SHELL { return false }
         if $pick == $PICK_RESCAN { $missing = network-missing; continue }
         let hidden = $pick == $PICK_HIDDEN
-        let name = if $hidden { dlg --title $TEXT.wifi.title --inputbox $TEXT.wifi.name $TUI_BOX_ROWS $width } else { {code: 0, out: $pick} }
-        if $name.code != 0 or ($name.out | is-empty) { continue }
+        let name = if $hidden { dlg --title $TEXT.wifi.title --inputbox $TEXT.wifi.name $TUI_BOX_ROWS $width } else { {kind: ok, out: $pick} }
+        if $name.kind != ok or ($name.out | is-empty) { continue }
         let ssid = $name.out
         let security = if $hidden { "" } else { $found | where ssid == $ssid | get --optional 0.security | default "" }
         if $security != "open" { keymap-ensure }
         if $security == "8021x" {
             let method = dlg --title $TEXT.wifi.title --menu (text-fill $TEXT.wifi.eap_method {ssid: $ssid}) "0" $width "3" peap "PEAP / MSCHAPv2" ttls-pap "TTLS / PAP" ttls-mschapv2 "TTLS / MSCHAPv2"
-            if $method.code != 0 { continue }
+            if $method.kind != ok { continue }
             let eap = if $method.out == peap { {eap: peap, phase2: mschapv2} } else if $method.out == "ttls-pap" { {eap: ttls, phase2: pap} } else { {eap: ttls, phase2: mschapv2} }
             let id = dlg --title $TEXT.wifi.title --inputbox (text-fill $TEXT.wifi.identity {ssid: $ssid}) $TUI_BOX_ROWS $width
-            if $id.code != 0 or ($id.out | is-empty) { continue }
+            if $id.kind != ok or ($id.out | is-empty) { continue }
             let dom = dlg --title $TEXT.wifi.title --inputbox (text-fill $TEXT.wifi.domain {ssid: $ssid}) $TUI_BOX_ROWS $width
-            if $dom.code != 0 or ($dom.out | is-empty) { print $"install: (text-fill $TEXT.wifi.no_domain {ssid: $ssid})"; continue }
+            if $dom.kind != ok or ($dom.out | is-empty) { print $"install: (text-fill $TEXT.wifi.no_domain {ssid: $ssid})"; continue }
             let pw = dlg --title $TEXT.wifi.title --insecure --passwordbox (text-fill $TEXT.wifi.password {ssid: $ssid}) $TUI_BOX_ROWS $width
-            if $pw.code != 0 { continue }
+            if $pw.kind != ok { continue }
             $missing = wifi-connect $device {ssid: $ssid, eap: $eap.eap, phase2: $eap.phase2, identity: $id.out, domain: $dom.out, password: $pw.out}
         } else {
             let open = $security == "open"
-            let pw = if $open { {code: 0, out: ""} } else { dlg --title $TEXT.wifi.title --insecure --passwordbox (text-fill $TEXT.wifi.password {ssid: $ssid}) $TUI_BOX_ROWS $width }
-            if $pw.code != 0 { continue }
+            let pw = if $open { {kind: ok, out: ""} } else { dlg --title $TEXT.wifi.title --insecure --passwordbox (text-fill $TEXT.wifi.password {ssid: $ssid}) $TUI_BOX_ROWS $width }
+            if $pw.kind != ok { continue }
             $missing = wifi-connect $device {ssid: $ssid, psk: $pw.out, hidden: $hidden}
         }
     }
@@ -315,10 +505,11 @@ def source-allowed [origin: string]: nothing -> bool {
     (^dialog --backtitle $TUI_BACKTITLE --stdout --defaultno --title $TEXT.source.title --yesno $text "10" (tui-width) | complete).exit_code == 0
 }
 
-def checkout-bundle [repo: path, source: record]: nothing -> nothing {
+# The answers' tree over master: its bundle and lfs are urls or the files staged beside the answer file.
+def checkout-bundle [repo: path, source: record, answers_dir: path]: nothing -> nothing {
     let local = {|p|
-        if $p =~ '^https?://' { let to = $STAGE_DIR | path join (random uuid); ^curl -fsSo $to $p; return $to }
-        let staged = $STAGE_DIR | path join ($p | path basename)
+        if $p =~ '^https?://' { let to = $answers_dir | path join (random uuid); ^curl -fsSo $to $p; return $to }
+        let staged = answers-source-staged $answers_dir $p
         if not ($staged | path exists) {
             error make {msg: $"answer file source ($p) not found next to the answer file"}
         }
@@ -334,7 +525,9 @@ def checkout-bundle [repo: path, source: record]: nothing -> nothing {
 
 def main [] {
     print "install: looking for an answer file"
-    let found = try { answers-find } catch { null }
+    let pick = answers-pick
+    if $pick.error != "" { print $"install: ($pick.error); fix it and run lsck0-install to start over"; return }
+    let found = $pick.found
     if $found != null { print $"install: answers from ($found.origin)" }
     let early = answers-early $found.file?
     if ($early.keymap | is-not-empty) and (^loadkeys $early.keymap | complete).exit_code == 0 { $env.BOOTSTRAP_KEYMAP = $early.keymap }
@@ -347,7 +540,7 @@ def main [] {
         try {
             let repo = checkout-master
             if $early.source != null {
-                if (source-allowed $found.origin) { checkout-bundle $repo $early.source } else { print "install: the answers' source is not used, installing the verified master" }
+                if (source-allowed $found.origin) { checkout-bundle $repo $early.source ($found.file | path dirname) } else { print "install: the answers' source is not used, installing the verified master" }
             }
             $repo
         } catch {|e| print $"install: ($e.msg)"; null }
@@ -355,9 +548,11 @@ def main [] {
     let newer = if $repo == null { "" } else { $repo | path join $STUB_IN_REPO }
     if ($env.LSCK0_STUB_UPDATED? | is-empty) and ($newer | path exists) and (open --raw $newer) != (open --raw $env.CURRENT_FILE) {
         print "install: master has a newer installer, switching to it"
-        with-env {LSCK0_STUB_UPDATED: "1", LSCK0_CHECKOUT: $repo} { exec nu --no-config-file $newer }
+        let pick = if $found == null { {LSCK0_ANSWERS: $ANSWERS_NONE} } else { {LSCK0_ANSWERS: $found.file, LSCK0_ANSWERS_ORIGIN: $found.origin} }
+        with-env ({LSCK0_STUB_UPDATED: "1", LSCK0_CHECKOUT: $repo} | merge $pick) { exec nu --no-config-file $newer }
     }
-    let handover = {LSCK0_INSTALL: "1"} | merge (if $found == null { {} } else { {LSCK0_ANSWERS: $found.file, LSCK0_ANSWERS_ORIGIN: $found.origin} })
+    # none tells the second stage not to search the media again for the file the user turned down
+    let handover = {LSCK0_INSTALL: "1"} | merge (if $found == null { {LSCK0_ANSWERS: $ANSWERS_NONE} } else { {LSCK0_ANSWERS: $found.file, LSCK0_ANSWERS_ORIGIN: $found.origin} })
     let status = if $repo == null { 1 } else {
         with-env $handover { try { ^bash ($repo | path join bootstrap.sh); 0 } catch { $env.LAST_EXIT_CODE } }
     }

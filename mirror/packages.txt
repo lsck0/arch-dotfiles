@@ -171,7 +171,6 @@ endlessh-git
 enola
 entr
 espeak-ng
-ethtool
 expect
 exploitdb
 eza
@@ -321,7 +320,6 @@ k9s
 kani
 katana-bin
 kcachegrind
-kdeconnect
 kdenlive
 kdeplasma-addons
 kerbrute-bin
@@ -535,7 +533,6 @@ pamtester
 pandoc-cli
 parallel
 pass
-pass-otp
 pastel
 path-of-building-community-git
 pavucontrol
@@ -549,8 +546,10 @@ pipeline-gtk
 piper
 pipewire
 pipewire-alsa
+pipewire-audio
 pipewire-pulse
 pkgconf
+plasma-browser-integration
 plasma-desktop
 plasma-integration
 plasma-nm
@@ -611,6 +610,7 @@ python-pytorch-opt-rocm
 python-pywalfox
 python-scikit-learn
 python-scipy
+python-secretstorage
 python-sympy
 python-tree-sitter-html
 python-tree-sitter-javascript
@@ -674,6 +674,7 @@ serpl
 sfxr-qt-bin
 shaderc
 shadowsocks-rust
+shared-mime-info
 shellcheck
 shfmt
 signal-desktop
@@ -897,6 +898,7 @@ umu-launcher
 unzip
 updo
 usbtree
+usbutils
 uv
 uwsm
 v4l-utils
@@ -988,4 +990,3 @@ zsh
 zsh-autosuggestions
 zsh-completions
 zsh-syntax-highlighting
-

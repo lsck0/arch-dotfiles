@@ -92,7 +92,7 @@ export def option-apply [target: string, set: record]: nothing -> nothing {
                 let readers = pipeline-load $REPO user | get modules
                     | where {|m| $set.module.id in $m.meta.deps and "link" in $m.verbs and $m.cfg.enable } | get id
                 let ids = (if "link" in $set.module.verbs { [$set.module.id] } else { [] }) ++ $readers
-                if ($ids | is-not-empty) { $results = link-run $ids false false }
+                if ($ids | is-not-empty) { $results = link-run $ids false }
             }
             if ($set.spec.scope == "machine" or $set.machine) and "system" in $set.module.verbs and (admin) { system-part $target }
             if $apply != "relink" {

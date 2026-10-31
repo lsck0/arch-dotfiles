@@ -846,8 +846,8 @@
       "name": "Webcam"
     }
   ],
-  "current_scene": "Cam bottom right",
-  "current_program_scene": "Cam bottom right",
+  "current_scene": "Webcam",
+  "current_program_scene": "Webcam",
   "canvases": [],
   "current_transition": "Fade",
   "transition_duration": 300,

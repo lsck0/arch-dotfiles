@@ -40,7 +40,10 @@ def main [dir: path, label?: string]: nothing -> nothing {
     let create = $dir | path join .herdr-create | path expand
     if ($create | path exists) and (ls --long $create | get 0.mode | str contains x) {
         if (create-allowed $create) { exec $create $label }
-        ^notify-send -a herdr ".herdr-create not allowed" $"($create)\nread it, then: herdr-open allow ($dir)" | complete | ignore
+        let refused = $"($create)\nread it, then: herdr-open allow ($dir)"
+        if (which notify-send | is-empty) { print --stderr $"herdr-open: .herdr-create not allowed: ($refused)" } else {
+            ^notify-send -a herdr ".herdr-create not allowed" $refused | complete | ignore
+        }
     }
 
     let created = ^herdr workspace create --cwd $dir --label $label --focus | from json | get result

@@ -11,6 +11,7 @@ const ASSETS = [
 ]
 
 def main []: nothing -> nothing {
+    if (which magick | is-empty) { error make --unspanned {msg: "make-assets: needs magick, from imagemagick"} }
     for asset in $ASSETS {
         ^magick -size $asset.size $"xc:($asset.color)" $"PNG32:($HERE | path join $asset.file)"
     }

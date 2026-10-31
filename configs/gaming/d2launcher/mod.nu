@@ -88,9 +88,11 @@ export def wine-bin []: nothing -> path { home-dir | path join bin wine bin wine
 
 export def detect [cfg: record]: nothing -> record {
     let base = lod-detect
-    let monitor = try {
-        ^hyprctl -j monitors | from json | where name !~ $HEADLESS_MONITORS | sort-by focused --reverse | first
-    } catch { null }
+    let monitor = if (which hyprctl | is-not-empty) {
+        try {
+            ^hyprctl -j monitors | from json | where name !~ $HEADLESS_MONITORS | sort-by focused --reverse | first
+        } catch { null }
+    }
     {base_dir: $base, resolution: (if $monitor == null { null } else { $"($monitor.width)x($monitor.height)" })}
 }
 
@@ -126,7 +128,7 @@ export def link [cfg: record] {
         (step wine-bin-fixup)
         (if $own and (($seedable and not $seeded) or $game_empty) { step game-seed $base } else { [] })
         (if $own and ($seedable or $seeded) and not ($game | path join $PATCH_VERSION | path exists) {
-            step mxl-install
+            step mxl-install --network
         } else { [] })
         (file-text (home-dir | path join d2launcher.conf) (config))
         (file-render gamescope.sh (home-dir | path join gamescope.sh) (gamescope-values $cfg))

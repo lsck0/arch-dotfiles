@@ -29,7 +29,7 @@ export def link [cfg: record] {
         (if ($p.config | path exists) { [] } else { step seed })
         ($manifests | each {|m|
             let name = $m | path parse | get stem
-            exec $"dalamud-plugin-($name)" [./plugin-restore.nu $m $p.plugins] --creates ($p.plugins | path join $name)
+            exec $"dalamud-plugin-($name)" [./plugin-restore.nu $m $p.plugins] --creates ($p.plugins | path join $name) --network
         })
     ]
 }

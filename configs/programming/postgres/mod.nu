@@ -39,7 +39,7 @@ export def role-ensure [admin: string]: nothing -> nothing {
 }
 
 export def link [cfg: record] {
-    if (which postgres | is-empty) { return [] }
+    if (which postgres | is-empty) { return (shell-aliases postgres) }
     let root = xdg data pgedge-postgres-mcp
     let old = if ($root | path exists) { ls $root | where type == dir and ($it.name | path basename) != $VERSION | get name } else { [] }
     [
@@ -47,5 +47,6 @@ export def link [cfg: record] {
         ($old | each {|dir| exec $"drop ($dir)" [rm -rf $dir] })
         (link-commands postgres-mcp.nu)
         (mcp-servers {postgres-mcp: {type: stdio, command: ($nu.home-dir | path join .local bin postgres-mcp), args: [], env: {}}})
+        (shell-aliases postgres)
     ]
 }

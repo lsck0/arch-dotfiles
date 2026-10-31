@@ -54,7 +54,7 @@ export def link [cfg: record] {
         (files-into $dir ...$sources)
         ($FORMATTING | each {|f| file-copy ($"../formatting/($f)") ($dir | path join formatting $f) })
         (file-copy ../formatting/sort-derives-stdout.nu ($dir | path join formatting sort-derives-stdout.nu) --mode 755)
-        (if not (elpa-ready) or (grammars-missing | is-not-empty) { [(step prefetch)] } else { [] })
+        (if not (elpa-ready) or (grammars-missing | is-not-empty) { [(step prefetch --network)] } else { [] })
     ]
 }
 

@@ -1,0 +1,2 @@
+# Calls the commands lint lets through, one "<module> <command>  # reason" per line, until the module declares the
+# package (meta.packages or a dep that has it) or guards the call with which. Lint fails on a line no finding needs.

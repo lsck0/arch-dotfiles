@@ -5,6 +5,10 @@ export const meta = {packages: {pacman: [playerctl]}}
 const GUARDS = [agent-guard.nu media-guard.nu ssh-guard.nu]
 export const AGENT_GUARD = ".config/idle-guards/agent-guard.nu"
 
+export def system [cfg: record] {
+    [(file-copy 49-idle-guards.rules /etc/polkit-1/rules.d/49-idle-guards.rules)]
+}
+
 export def link [cfg: record] {
     let dir = xdg config idle-guards
     [

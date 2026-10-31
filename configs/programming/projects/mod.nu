@@ -2,13 +2,15 @@ use module.nu *
 use repository.nu [repository-url repository-name]
 
 export const meta = {
-    deps: [core/gh]
-    inputs: [~/projects ~/.config/tms/config.toml configs/secrets/state/repositories]
+    # core/gh logs in and core/git wires gh as github's credential helper, before any private repo is cloned
+    deps: [core/gh core/git core/tmux]
+    inputs: [~/projects ~/.config/tms/config.toml configs/secrets/state/repositories ~/.config/gh/hosts.yml]
 }
 
 const PROJECTS = "projects"
 const REPOSITORIES = "configs/secrets/state/repositories"
 const BARE = [probe]
+const GH_HOSTS = ".config/gh/hosts.yml"
 const ICON = "folder-development"
 # a push to github alone must not reach root here through git-sync and dot apply
 const DOTFILES_GIT = {"pull.rebase": "false", "pull.ff": "only", "merge.verifySignatures": "true"}
@@ -28,6 +30,11 @@ def clone [root: path, line: string]: nothing -> list<record> {
     let dest = $root | path join ($fields | get --optional 1 | default (repository-name $url))
     if ($dest | path exists) { return [] }
     let secret = $fields | get --optional 2
+    # the repos are private: without a github login the clone would only die on a disabled password prompt
+    if $secret == null and ($url | str starts-with "https://github.com/") and not ($nu.home-dir | path join $GH_HOSTS | path exists) {
+        log-warn $"projects: ($dest | path basename) skipped, no github login yet \(core/gh restores it from configs/secrets/keys/gh\)"
+        return []
+    }
     let auth = if $secret == null { [] } else {
         let token = $env.DOTFILES | path join configs secrets keys $secret
         if not (secret-is-plaintext $token) {
@@ -39,7 +46,7 @@ def clone [root: path, line: string]: nothing -> list<record> {
     }
     # core/ntfy may have cloned the homelab since this plan was made
     let git = [env GIT_TERMINAL_PROMPT=0 git ...$auth clone --quiet --recurse-submodules $url $dest]
-    [(exec $"clone ($dest | path basename)" [sh -c 'test -e "$0/.git" || exec "$@"' $dest ...$git] --creates $dest)]
+    [(exec $"clone ($dest | path basename)" [sh -c 'test -e "$0/.git" || exec "$@"' $dest ...$git] --creates $dest --network)]
 }
 
 def collections [root: path]: nothing -> list<path> {

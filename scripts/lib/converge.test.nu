@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 # Table cases for plan-module, state-write and the ledger diff: pure records in, actions and state records out.
-use converge.nu [plan-module state-write state-read]
+use converge.nu [plan-module state-write state-read ask-batch]
 use module.nu [file-text json-merge json-set]
 use ledger.nu [ledger-diff ledger-remove ledger-get ledger-set]
 
@@ -156,7 +156,25 @@ def ledger-remove-cases []: nothing -> nothing {
     }
 }
 
+# One call for all paths, its NUL-ended answers in order; a short or failed batch asks each path instead.
+def ask-batch-cases []: nothing -> nothing {
+    let paths = [/p/one /p/two]
+    let each_path = {|p| $"each ($p)" }
+    let cases = [
+        [name batch wants];
+        ["whole batch" {|ps| ^printf 'a\0b\0' } {/p/one: a, /p/two: b}]
+        ["short batch" {|ps| ^printf 'a\0' } {/p/one: "each /p/one", /p/two: "each /p/two"}]
+        ["failed batch" {|ps| ^sh -c "printf 'a\\0b\\0'; exit 1" } {/p/one: "each /p/one", /p/two: "each /p/two"}]
+    ]
+    for c in $cases {
+        let got = ask-batch $paths $c.batch $each_path
+        if $got != $c.wants { fail $"ask-batch ($c.name): got ($got | to nuon), wants ($c.wants | to nuon)" }
+    }
+    if (ask-batch [] {|ps| ^false } $each_path) != {} { fail "ask-batch: no paths answers something" }
+}
+
 def main [] {
+    ask-batch-cases
     let work = mktemp --directory
     try {
         with-env {XDG_STATE_HOME: ($work | path join state), DOT_LAYER: user, DOT_RUN_ID: "", DOT_RUN_FILE: "", FAILURES_FILE: ""} {
