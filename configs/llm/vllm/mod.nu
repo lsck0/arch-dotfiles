@@ -121,8 +121,8 @@ export def venv []: nothing -> nothing {
         }
         rm --force $uv_config
     } catch {|e| rm --force $uv_config; error make {msg: $e.msg} }
-    # torch's RUNPATH is $ORIGIN, so the libmpi_cxx stub goes beside it
-    let platlib = ^$python -c 'import sysconfig; print(sysconfig.get_path("platlib"))' | str trim
+    # torch's RUNPATH is $ORIGIN, so the libmpi_cxx stub goes beside it; the path is built, so root runs no venv code
+    let platlib = $venv | path join lib $"python($PYTHON_VERSION)" site-packages
     let build = mktemp --directory
     try {
         let stub = $build | path join libmpi_cxx.so.40

@@ -1,7 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
-# pulls the pinned models when run by hand; dot apply never downloads models
+# pulls the pinned models; llm/ollama's link runs it once per pin set where a gpu has vram
 const REGISTRY = "https://registry.ollama.ai/v2"
 const MANIFEST_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
+const MODEL_LAYER_TYPE = "application/vnd.ollama.image.model"
 const OLLAMA_URL = "http://127.0.0.1:11434"
 # a pin is the sha256sum of `curl -H 'Accept: <MANIFEST_TYPE>' <REGISTRY>/<namespace>/<name>/manifests/<tag>`
 # abliterated (uncensored) builds; the 30b moe spills what the gpu lacks into ram and stays fast
@@ -15,21 +16,38 @@ def model-digest [model: string]: nothing -> string {
     http get $"($OLLAMA_URL)/api/tags" | get models | where name == $model | get --optional 0.digest | default ""
 }
 
-def model-pull-pinned [entry: record]: nothing -> nothing {
-    if (model-digest $entry.model) == $entry.pin { return }
+def manifest-get-pinned [entry: record]: nothing -> record {
     let name = $entry.model | split row ":"
     let repo = if ($name.0 | str contains "/") { $name.0 } else { $"library/($name.0)" }
-    let manifest = $"($REGISTRY)/($repo)/manifests/($name.1)"
-    let served = http get --raw --headers [Accept $MANIFEST_TYPE] $manifest | hash sha256
+    let manifest = http get --raw --headers [Accept $MANIFEST_TYPE] $"($REGISTRY)/($repo)/manifests/($name.1)"
+    let served = $manifest | hash sha256
     if $served != $entry.pin {
         let why = $"the registry serves ($entry.model) as ($served), pinned ($entry.pin)"
         error make {msg: $"ollama: ($why); not pulling, bump the pin"}
     }
+    $manifest | from json
+}
+
+def model-pull-pinned [entry: record]: nothing -> nothing {
+    if (model-digest $entry.model) == $entry.pin { return }
+    manifest-get-pinned $entry | ignore
     ^ollama pull $entry.model
     if (model-digest $entry.model) != $entry.pin {
         ^ollama rm $entry.model | ignore
         error make {msg: $"ollama: pulled ($entry.model) does not match its pin ($entry.pin), removed"}
     }
+}
+
+# ollama show prints one `<name> <value>` line per parameter and the base as a `FROM <blob dir>/sha256-<hex>` line,
+# and fails for a missing model
+def long-context-is-current []: nothing -> bool {
+    let parameters = do { ^ollama show $LONG_CONTEXT --parameters } | complete
+    if $parameters.exit_code != 0 { return false }
+    let expected = [num_ctx ($LONG_CONTEXT_TOKENS | into string)]
+    let layer = manifest-get-pinned $SMALL | get layers | where mediaType == $MODEL_LAYER_TYPE | get 0.digest
+    let base = $"/(($layer | str replace ':' '-'))"
+    let from_base = ^ollama show $LONG_CONTEXT --modelfile | lines | any { $in starts-with "FROM " and $in ends-with $base }
+    $from_base and ($parameters.stdout | lines | any { ($in | str trim | split row --regex '\s+') == $expected })
 }
 
 def main []: nothing -> nothing {
@@ -39,7 +57,7 @@ def main []: nothing -> nothing {
         sleep 1sec
     }
     model-pull-pinned $LARGE
-    if (^ollama list | lines | any { $in starts-with $LONG_CONTEXT }) { return }
+    if (long-context-is-current) { return }
     model-pull-pinned $SMALL
     let modelfile = mktemp --tmpdir
     $"FROM ($SMALL.model)\nPARAMETER num_ctx ($LONG_CONTEXT_TOKENS)\n" | save --force $modelfile

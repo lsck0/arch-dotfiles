@@ -1,114 +1,77 @@
+pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
-pragma Singleton
 
 Singleton {
-    id: root
+  id: root
+  property bool running: false
+  property bool probed: false
+  property bool connected: false
+  readonly property bool listening: listenState.state === "on"
+  readonly property string listenScript: listenState.path
+  property var inputVolumes: ({})
+  property var inputMutes: ({})
 
-    property bool running: false
-    property bool probed: false
-    property bool connected: false
-    property bool listening: false
-    readonly property string listenScript: Paths.toggle("toggle-obs-listen.nu")
-    property var inputVolumes: ({
-    })
-    property var inputMutes: ({
-    })
+  signal commandRequested(var command)
 
-    signal commandRequested(var command)
+  function send(command) {
+    root.commandRequested(command)
+  }
 
-    function send(command) {
-        root.commandRequested(command);
+  function listenSet(on) {
+    if (on !== root.listening) Quickshell.execDetached([root.listenScript, on ? "on" : "off"])
+  }
+
+  function probe() {
+    if (!proc.running) proc.running = true
+  }
+
+  Component.onCompleted: root.probe()
+
+  ToggleState {
+    id: listenState
+    script: "toggle-obs-listen.nu"
+  }
+
+  IpcHandler {
+    function toggleListen(): void {
+      root.listenSet(!root.listening)
     }
 
-    function listenSet(on) {
-        if (on !== root.listening)
-            Quickshell.execDetached([root.listenScript, on ? "on" : "off"]);
-
+    function listen(on: bool): void {
+      root.listenSet(on)
     }
 
-    function listenRefresh() {
-        if (!listenProc.running)
-            listenProc.running = true;
-
+    function listening(): string {
+      return root.listening ? "on" : "off"
     }
 
-    function probe() {
-        if (!proc.running)
-            proc.running = true;
+    target: "obs"
+  }
 
+  Process {
+    id: proc
+    command: ["pgrep", "-x", "obs"]
+    onExited: function(exitCode) {
+      root.running = exitCode === 0
+      root.probed = true
+    }
+  }
+
+  Connections {
+    function onValuesChanged() {
+      root.probe()
     }
 
-    Component.onCompleted: {
-        root.probe();
-        root.listenRefresh();
-    }
+    target: ToplevelManager.toplevels
+  }
 
-    Process {
-        id: listenProc
-
-        command: [root.listenScript, "get"]
-        onExited: root.listening = (listenOutput.text || "").trim() === "on"
-
-        stdout: StdioCollector {
-            id: listenOutput
-
-            waitForEnd: true
-        }
-
-    }
-
-    Connections {
-        function onChanged(script) {
-            if (script === "toggle-obs-listen.nu")
-                root.listenRefresh();
-
-        }
-
-        target: ToggleEvents
-    }
-
-    IpcHandler {
-        function toggleListen(): void {
-            root.listenSet(!root.listening);
-        }
-
-        function listen(on: bool): void {
-            root.listenSet(on);
-        }
-
-        function listening(): string {
-            return root.listening ? "on" : "off";
-        }
-
-        target: "obs"
-    }
-
-    Process {
-        id: proc
-
-        command: ["pgrep", "-x", "obs"]
-        onExited: function(exitCode) {
-            root.running = exitCode === 0;
-            root.probed = true;
-        }
-    }
-
-    Connections {
-        function onValuesChanged() {
-            root.probe();
-        }
-
-        target: ToplevelManager.toplevels
-    }
-
-    Timer {
-        interval: 60000
-        running: root.running
-        repeat: true
-        onTriggered: root.probe()
-    }
-
+  Timer {
+    interval: 60000
+    running: root.running
+    repeat: true
+    onTriggered: root.probe()
+  }
 }

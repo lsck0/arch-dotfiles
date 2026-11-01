@@ -9,9 +9,10 @@ Built on apparmor.d (`aa-install`). In `configs/base/apparmor/`:
 
 - `profiles.conf`: every deployed profile, `<name> <mode>[,flags]`. `,flags` only for apparmor.d's; an own profile keeps
   flags in its `profile` line and `mod.nu` writes the mode into it.
-- `profiles/<name>`: own profiles, plus own copies of apparmor.d's firefox, thunderbird, libreoffice (`OVERRIDES` in
-  `apparmor.test.nu`). First line `# managed by arch-dotfiles/apparmor`, then `profile <name> <attachment>
-  flags=(...)`. The test fails once apparmor.d ships one that is no override.
+- `profiles/<name>`: own profiles. First line `# managed by arch-dotfiles/apparmor`, then `profile <name> <attachment>
+  flags=(...)`. apparmor.d's firefox, thunderbird and libreoffice become own profiles too: `OVERRIDES` in `mod.nu`
+  generates them from the installed apparmor.d profile, swapping only its `profile` line, and errors (apply and test)
+  once apparmor.d no longer ships one.
 - `local/<name>`: extra rules for an apparmor.d profile (`/etc/apparmor.d/local/<name>`); the name must be in
   `profiles.conf`.
 - `abstractions/`: installed as `abstractions/dotfiles/<name>`.

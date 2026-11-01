@@ -16,20 +16,16 @@ Flow {
       required property var modelData
       spacing: Style.spacing.xs
 
-      Text {
-        textFormat: Text.PlainText
+      Label {
         text: "[" + parent.modelData[0] + "]"
         color: Colors.accentText
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        caption: true
         font.bold: true
       }
-      Text {
-        textFormat: Text.PlainText
+      Label {
         text: parent.modelData[1]
-        color: Colors.textDim
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        dim: true
+        caption: true
       }
     }
   }

@@ -12,7 +12,7 @@ export const meta = {
             libnotify libx11 mission-center omarchy-share-picker-git pavucontrol playerctl polkit
             qt5-wayland qt6-wayland rose-pine-cursor rose-pine-hyprcursor slurp wayland
             wayland-boomer-git wl-clip-persist wl-clipboard xdg-desktop-portal-gtk xdg-desktop-portal-hyprland
-            xdg-desktop-portal-kde xorg-server xorg-xauth xorg-xhost xorg-xinput xorg-xwayland ydotool
+            xdg-desktop-portal-kde xorg-server xorg-xauth xorg-xhost xorg-xinput xorg-xrdb xorg-xwayland ydotool
         ]
     }
     # core/locale's keyboard, written by localectl: a layout change re-renders platform.lua

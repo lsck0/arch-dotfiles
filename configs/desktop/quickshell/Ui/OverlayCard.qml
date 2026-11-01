@@ -109,22 +109,18 @@ PanelWindow {
           anchors.verticalCenter: parent.verticalCenter
           spacing: Style.spacing.sm
 
-          Text {
+          Label {
             id: promptGlyph
-            textFormat: Text.PlainText
             text: ">"
             color: Colors.accentText
-            font.family: Style.font.family
             font.pixelSize: Style.font.heading
             font.bold: true
           }
 
-          Text {
-            textFormat: Text.PlainText
+          Label {
             width: Math.min(implicitWidth, promptRow.width - promptGlyph.width - caret.width - promptRow.spacing * 2)
             text: root.query || root.placeholder
             color: root.query ? Colors.menu.text : Colors.textDim
-            font.family: Style.font.family
             font.pixelSize: Style.font.heading
             elide: Text.ElideRight
           }

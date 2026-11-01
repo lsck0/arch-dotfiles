@@ -12,6 +12,7 @@ use system.nu [system-unpack system-secrets ENTRY]
 use cli.nu [supervise self-argv]
 use sync.nu [bootstrap-const FINGERPRINT_VALUE]
 use cause.nu [cause-from-output cause-text failure-line argv-text]
+use profile.nu [PROFILE_OWNERS_FILE]
 
 const EXIT_FAILURES = 1
 const OFFLINE_WAIT_S = 120
@@ -152,7 +153,9 @@ def main [] {
     error make {msg: $"system-apply.nu <apply|install|config|packages|module|migrate|preserve-prune>"}
 }
 
-# apply <sha> <install|config>: unpack the repo and secrets archive on stdin, run the stage from the new copy
+# apply <sha> <install|config>: unpack the repo and secrets archive on stdin, run the stage from the new copy. The
+# archive is the user's working tree, uncommitted edits included, on purpose: the YubiKey or fingerprint prompt that
+# started this as root is the gate, not a commit.
 def "main apply" [sha: string, stage: string, --unattended, --force, --yes]: nothing -> nothing {
     repo-guard | ignore
     if $stage not-in [install config] { error make {msg: $"apply: ($stage) is neither install nor config"} }
@@ -351,7 +354,7 @@ def "main adduser" [name: string, --profile: string]: nothing -> nothing {
     # root's copy: the login can write its own checkout
     let picked_file = $repo | path join profiles $"($picked).nuon"
     if $picked != $PROFILE_CUSTOM and ("secrets" in (open $picked_file | get --optional capabilities | default [])) {
-        let owners = "/var/lib/dotfiles/owners"
+        let owners = $PROFILE_OWNERS_FILE
         let have = if ($owners | path exists) { open --raw $owners | lines } else { [] }
         if $name not-in $have { $"($name)\n" | save --append $owners }
     }

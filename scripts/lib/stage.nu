@@ -18,7 +18,7 @@ export const STAGE_ESP_MARKER = "/boot/dotfiles-stage-in-progress"
 const ISSUE = "/etc/issue.d/dotfiles-stage.issue"
 # a chain stopped before config and disarmed: what the console resumes it with
 const NEXT = $STAGE_STATE_DIR | path join next
-const STOPPED = $STAGE_STATE_DIR | path join stopped
+export const STAGE_STOPPED = $STAGE_STATE_DIR | path join stopped
 const ATTEMPTS = $STAGE_STATE_DIR | path join install-attempts
 export const STAGE_RESUME = "dot internal stage"
 const STAGE_STOP = "stop"
@@ -41,7 +41,7 @@ export const REPORT_CHANNEL = "/dev/virtio-ports/lsck0.report"
 # as root, from the root copy: sh -c's $1 the copy, $2 the user, $3 the checkout, $4 set when the chain stopped
 const REPORT_RUN = 'nu --no-config-file "$1/scripts/lib/stage-report.nu" "$2" "$3" ${4:+--stopped}; '
 # as root: no stage left to run, no unit to start one, sudo asking for the password again
-const STOP_DISARM = $"rm -f ($NEXT) ($ATTEMPTS); echo install > ($STOPPED); systemctl disable dotfiles-stage.service; rm -f ($STAGE_SUDOERS_DROPIN); "
+const STOP_DISARM = $"rm -f ($NEXT) ($ATTEMPTS); echo install > ($STAGE_STOPPED); systemctl disable dotfiles-stage.service; rm -f ($STAGE_SUDOERS_DROPIN); "
 # as root: sh -c's $1 the sudoers rule, $2 the drop-in, $3 the next stage's file, $4 the stopped marker, $5 its banner
 const STAGE_REARM = 'set -e; printf "%s" "$1" > "$2.new"; chmod 440 "$2.new"; visudo -cqf "$2.new"; mv -f "$2.new" "$2"; echo install > "$3"; rm -f "$4" "$5"; systemctl enable dotfiles-stage.service'
 
@@ -55,11 +55,18 @@ def watcher-unblock []: nothing -> nothing {
     if ($REPORT | path exists) { do { ^sudo systemctl stop portmaster.service } | complete | ignore }
 }
 
+# A beacon to the watcher at url, and over the vm's channel when there is one; --sudo when the channel is root's.
+export def report-beacon-send [url: string, tag: string, --sudo]: nothing -> nothing {
+    ^curl -s -m 10 $"($url)/beacon/($tag)" | complete | ignore
+    if not ($REPORT_CHANNEL | path exists) { return }
+    let line = $"beacon ($tag)\n"
+    if $sudo { $line | ^sudo tee $REPORT_CHANNEL | complete | ignore } else { $line | ^tee $REPORT_CHANNEL | complete | ignore }
+}
+
 def report-beacon [tag: string]: nothing -> nothing {
     if not ($REPORT | path exists) { return }
     watcher-unblock
-    ^curl -s -m 10 $"(open --raw $REPORT | str trim)/beacon/($tag)" | complete | ignore
-    if ($REPORT_CHANNEL | path exists) { $"beacon ($tag)\n" | ^sudo tee $REPORT_CHANNEL | complete | ignore }
+    report-beacon-send (open --raw $REPORT | str trim) $tag --sudo
 }
 
 def luks-device []: nothing -> string {
@@ -156,7 +163,7 @@ def install-stop [repo: path, attempts: int]: nothing -> nothing {
 # The disk key is not, so each boot left in the chain asks for the passphrase.
 def stage-rearm []: nothing -> nothing {
     if not (is-terminal --stdin) { error make {msg: $"the install chain stopped and is disarmed; resume it at the console: ($STAGE_RESUME)"} }
-    ^sudo sh -c $STAGE_REARM sh (stage-sudoers $env.USER) $STAGE_SUDOERS_DROPIN $NEXT $STOPPED $ISSUE
+    ^sudo sh -c $STAGE_REARM sh (stage-sudoers $env.USER) $STAGE_SUDOERS_DROPIN $NEXT $STAGE_STOPPED $ISSUE
     note "install: resumed at the console, the chain armed again without its disk key"
 }
 
@@ -178,7 +185,7 @@ def stage-reboot []: nothing -> nothing {
 
 # Runs the stage named in the state dir's `next`, then arms the following one or disarms the chain.
 export def stage-run [repo: path]: nothing -> nothing {
-    if not ($NEXT | path exists) and ($STOPPED | path exists) { stage-rearm }
+    if not ($NEXT | path exists) and ($STAGE_STOPPED | path exists) { stage-rearm }
     let stage = open --raw $NEXT | str trim
     if $stage not-in [install config] { error make {msg: $"unknown stage '($stage)' in ($NEXT)"} }
     if $stage == "config" {

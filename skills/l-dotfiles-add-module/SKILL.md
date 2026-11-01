@@ -91,7 +91,7 @@ export def packages [cfg: record]: nothing -> record {
     {section: {key: v}} [--missing-only]`, `desktop-override <id> {|text| ...}`, `mcp-servers {name: spec}`
     (`~/.claude.json`; null drops one), `shell-aliases <name>` (the module's `aliases.nu`/`aliases.zsh` into
     nushell's autoload dir and zsh's conf.d; a tool's aliases and defs live with the module declaring the tool, never
-    in core/nushell or core/zsh, and the commands lint checks them there).
+    in core/nushell or core/zsh).
   - units: `unit-file <src> [--enable --now]`, `unit-enable|unit-disable|unit-mask <name> [--now]`,
     `unit-restart <name> [--reload]` (a `--then` that skips a unit not installed yet), `dropin <unit> <src> [--name]`,
     `user-hook <name> <script> --watch [paths] [--permanent] [--no-brake] [--mkdir]`.

@@ -142,39 +142,33 @@ Item {
             anchors.centerIn: parent
             spacing: Style.spacing.xs
 
-            Text {
-              textFormat: Text.PlainText
+            Label {
               anchors.horizontalCenter: parent.horizontalCenter
               text: tile.modelData.icon
               color: tile.selected ? tile.tint : Colors.menu.text
-              font.family: Style.font.iconFamily
+              icon: true
               font.pixelSize: Style.font.displayLarge
               layer.enabled: tile.selected && Style.fx.glow > 0
               layer.effect: Glow {}
             }
 
-            Text {
-              textFormat: Text.PlainText
+            Label {
               anchors.horizontalCenter: parent.horizontalCenter
               text: tile.modelData.label
               color: Colors.menu.text
-              font.family: Style.font.family
-              font.pixelSize: Style.font.body
               font.capitalization: Font.AllUppercase
               font.letterSpacing: Style.headerTracking
             }
           }
 
-          Text {
+          Label {
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.topMargin: Style.spacing.xs
             anchors.leftMargin: Style.spacing.xs
-            textFormat: Text.PlainText
             text: "[" + tile.modelData.hotkey + "]"
             color: tile.selected ? Colors.menu.text : Colors.textDim
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
+            caption: true
             font.letterSpacing: Style.headerTracking
           }
 
@@ -199,13 +193,10 @@ Item {
       height: Style.font.body + Style.spacing.xs * 2
       spacing: Style.spacing.xs
 
-      Text {
+      Label {
         anchors.verticalCenter: parent.verticalCenter
-        textFormat: Text.PlainText
         text: root.pendingAction ? "> " + root.pendingAction.label.toUpperCase() + "? [Y/n]" : ""
         color: Colors.urgentText
-        font.family: Style.font.family
-        font.pixelSize: Style.font.body
         font.bold: true
         font.letterSpacing: Style.headerTracking
       }

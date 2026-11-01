@@ -13,11 +13,7 @@ BarWidget {
   property var report: null
   property string failNote: ""
   property real updatedMs: 0
-  readonly property var retryDelaysS: [5, 10, 20, 40, 80, 160, 300]
-  property int forecastTries: 0
-  property int alertsTries: 0
-
-  function retryDelayMs(tries) { return retryDelaysS[Math.min(tries, retryDelaysS.length - 1)] * 1000 }
+  readonly property var retryDelaysMs: [5, 10, 20, 40, 80, 160, 300].map(function (s) { return s * 1000 })
   readonly property int staleAfterMs: 2 * 60 * 60 * 1000
 
   readonly property var current: report && report.current ? report.current : null
@@ -65,7 +61,7 @@ BarWidget {
   function n0(v) { return Math.round(Number(v)) }
 
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
-  implicitHeight: barSize
+  implicitHeight: Style.bar.sizeHorizontal
 
   property var alerts: []
   property int countryOthers: 0
@@ -119,6 +115,7 @@ BarWidget {
     command: [Paths.barWidget("weather.nu"), "forecast"]
     minAgeMs: 60 * 1000
     intervalMs: panel.visible ? 30 * 60 * 1000 : 60 * 60 * 1000
+    retryDelaysMs: root.retryDelaysMs
     onParsed: function (d) {
       if (d.ok) {
         root.report = d
@@ -126,24 +123,13 @@ BarWidget {
       }
       if (d.ok && !d.stale) {
         root.failNote = ""
-        root.forecastTries = 0
-        forecastRetry.stop()
+        forecastProc.retryStop()
         return
       }
       root.failNote = String(d.error || "no answer")
-      forecastRetry.interval = root.retryDelayMs(root.forecastTries)
-      forecastRetry.restart()
+      forecastProc.retryStart()
     }
-    onFailed: {
-      root.failNote = "no answer"
-      forecastRetry.interval = root.retryDelayMs(root.forecastTries)
-      forecastRetry.restart()
-    }
-  }
-
-  Timer {
-    id: forecastRetry
-    onTriggered: { root.forecastTries += 1; forecastProc.run() }
+    onFailed: root.failNote = "no answer"
   }
 
   JsonProcess {
@@ -151,26 +137,16 @@ BarWidget {
     command: [Paths.barWidget("weather.nu"), "alerts"]
     minAgeMs: 60 * 1000
     intervalMs: panel.visible ? 30 * 60 * 1000 : 60 * 60 * 1000
+    retryDelaysMs: root.retryDelaysMs
     onParsed: function (d) {
       if (!d.ok) {
-        alertsRetry.interval = root.retryDelayMs(root.alertsTries)
-        alertsRetry.restart()
+        alertsProc.retryStart()
         return
       }
-      root.alertsTries = 0
-      alertsRetry.stop()
+      alertsProc.retryStop()
       root.alerts = d.alerts || []
       root.countryOthers = d.countryOthers || 0
     }
-    onFailed: {
-      alertsRetry.interval = root.retryDelayMs(root.alertsTries)
-      alertsRetry.restart()
-    }
-  }
-
-  Timer {
-    id: alertsRetry
-    onTriggered: { root.alertsTries += 1; alertsProc.run() }
   }
 
   JsonProcess {
@@ -188,14 +164,13 @@ BarWidget {
     anchors.centerIn: parent
     spacing: Style.spacing.xs
 
-    Text {
+    Label {
       id: alertGlyph
       anchors.verticalCenter: parent.verticalCenter
       visible: root.alertProminent
-      textFormat: Text.PlainText
       text: "\u{f0026}"
       color: root.topAlert ? root.alertColor(root.topAlert.level) : Colors.urgent
-      font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
+      icon: true
       font.pixelSize: Style.font.icon
       layer.enabled: Style.fx.glow > 0 && root.alertProminent
       layer.effect: Glow { shadowColor: root.topAlert ? root.alertColor(root.topAlert.level) : Colors.urgent }
@@ -214,22 +189,18 @@ BarWidget {
       }
     }
 
-    Text {
+    Label {
       anchors.verticalCenter: parent.verticalCenter
-      textFormat: Text.PlainText
       text: root.current ? root.iconFor(root.current.code, root.current.isDay) : "\u{f0590}"
-      color: root.bar ? root.bar.barForeground : Colors.foreground
-      font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
+      color: Colors.bar.text
+      icon: true
       font.pixelSize: Style.font.icon
     }
-    Text {
+    Label {
       anchors.verticalCenter: parent.verticalCenter
-      textFormat: Text.PlainText
       visible: root.current !== null
       text: root.current ? root.t(root.current.temp) : ""
-      color: root.bar ? root.bar.barForeground : Colors.foreground
-      font.family: root.bar ? root.bar.fontFamily : Style.font.family
-      font.pixelSize: Style.font.body
+      color: Colors.bar.text
       opacity: Style.emphasis.strong
     }
     DataState {
@@ -248,43 +219,12 @@ BarWidget {
     onOpened: { forecastProc.refresh(); alertsProc.refresh() }
     implicitWidth: Style.panelWidth.wide
 
-    component AxisLabel: Text {
-      textFormat: Text.PlainText
-      color: Colors.textDim
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
+    component AxisLabel: Label {
+      dim: true
+      caption: true
     }
 
-    component Stat: Column {
-      id: stat
-      property string glyph: ""
-      property real glyphRotation: 0
-      property string caption: ""
-      property string value: ""
-      width: statGrid.cellWidth
-      spacing: Style.spacing.xxs
-      Row {
-        spacing: Style.spacing.xs
-        Text {
-          text: stat.glyph
-          rotation: stat.glyphRotation
-          color: Colors.textDim
-          font.family: Style.font.iconFamily; font.pixelSize: Style.font.caption
-        }
-        Text {
-          text: stat.caption
-          color: Colors.menu.text
-          font.family: Style.font.family; font.pixelSize: Style.font.caption
-        }
-      }
-      Text {
-        width: stat.width
-        text: stat.value
-        color: Colors.menu.text
-        font.family: Style.font.family; font.pixelSize: Style.font.body
-        elide: Text.ElideRight
-      }
-    }
+    component Stat: MetricRow { width: statGrid.cellWidth }
 
     Timer {
       interval: 250
@@ -332,35 +272,32 @@ BarWidget {
               Row {
                 width: parent.width
                 spacing: Style.spacing.xs
-                Text {
+                Label {
                   anchors.verticalCenter: parent.verticalCenter
                   text: "\u{f0026}"
                   color: alertItem.textColor
-                  font.family: Style.font.iconFamily
-                  font.pixelSize: Style.font.caption
+                  icon: true
+                  caption: true
                 }
-                Text {
+                Label {
                   anchors.verticalCenter: parent.verticalCenter
                   text: root.alertLabel(alertItem.modelData.level)
                   color: alertItem.textColor
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
+                  caption: true
                   font.letterSpacing: Style.headerTracking
                   font.bold: true
                 }
-                Text {
-                  textFormat: Text.PlainText
+                Label {
                   anchors.verticalCenter: parent.verticalCenter
                   text: alertItem.modelData.event || alertItem.modelData.kind || "weather warning"
                   color: Colors.menu.text
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
+                  caption: true
                   elide: Text.ElideRight
                   width: Math.max(0, parent.width - x)
                 }
               }
 
-              Text {
+              Label {
                 width: parent.width
                 text: {
                   var bits = []
@@ -370,23 +307,21 @@ BarWidget {
                   if (alertItem.modelData.certainty) bits.push(String(alertItem.modelData.certainty).toLowerCase())
                   return bits.join(" :: ")
                 }
-                color: Colors.textDim
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
+                dim: true
+                caption: true
                 elide: Text.ElideRight
               }
             }
           }
         }
 
-        Text {
+        Label {
           width: parent.width
           visible: root.countryOthers > 0
           text: root.countryOthers + " more warning" + (root.countryOthers === 1 ? "" : "s")
             + " elsewhere in your country"
-          color: Colors.textDim
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
+          dim: true
+          caption: true
         }
       }
 
@@ -396,11 +331,11 @@ BarWidget {
         width: parent.width
         spacing: Style.spacing.sm
 
-        Text {
+        Label {
           anchors.verticalCenter: parent.verticalCenter
           text: root.current ? root.iconFor(root.current.code, root.current.isDay) : "\u{f0590}"
           color: Colors.accentText
-          font.family: Style.font.iconFamily
+          icon: true
           font.pixelSize: Style.font.displayLarge
           layer.enabled: Style.fx.glow > 0
           layer.effect: Glow {}
@@ -409,7 +344,7 @@ BarWidget {
         Column {
           anchors.verticalCenter: parent.verticalCenter
           spacing: Style.spacing.xxs
-          Text {
+          Label {
             text: root.current ? root.t(root.current.temp) : "--"
             color: Colors.menu.text
             font.family: Style.font.family; font.pixelSize: Style.font.display
@@ -417,11 +352,11 @@ BarWidget {
             layer.enabled: Style.fx.glow > 0
             layer.effect: Glow {}
           }
-          Text {
+          Label {
             text: root.current
               ? root.labelFor(root.current.code) + " :: feels " + root.t(root.current.feelsLike)
               : (root.failNote ? "> NO DATA :: " + root.failNote + ", retrying" : "--")
-            color: Colors.textDim
+            dim: true
             font.family: Style.font.family; font.pixelSize: Style.font.caption
           }
         }
@@ -437,47 +372,45 @@ BarWidget {
         readonly property real cellWidth: (width - columnSpacing * (columns - 1)) / columns
 
         Stat {
-          glyph: "\u{f0597}"; caption: "RAIN NOW"
+          glyph: "\u{f0597}"; label: "RAIN NOW"
           value: root.current ? (Math.round(Number(root.current.precip) * 10) / 10) + " mm" : "--"
         }
         Stat {
-          glyph: "\u{f054a}"; caption: "POP 1H"
+          glyph: "\u{f054a}"; label: "POP 1H"
           value: root.hourly.length > 0 ? root.n0(root.hourly[0].pop) + "%" : "--"
         }
         Stat {
-          glyph: "\u{f058e}"; caption: "HUMIDITY"
+          glyph: "\u{f058e}"; label: "HUMIDITY"
           value: root.current ? root.n0(root.current.humidity) + "%" : "--"
         }
         Stat {
-          glyph: "\u{f0590}"; caption: "CLOUD"
+          glyph: "\u{f0590}"; label: "CLOUD"
           value: root.current ? root.n0(root.current.cloud) + "%" : "--"
         }
 
         Stat {
           glyph: "\u{f0390}"; glyphRotation: root.current ? Number(root.current.windDir) + 180 : 0
-          caption: "WIND"
+          label: "WIND"
           value: root.current
             ? root.n0(root.current.wind) + " " + root.windUnits + " " + root.compass(root.current.windDir)
             : "--"
         }
         Stat {
-          glyph: "\u{f059d}"; caption: "GUSTS"
+          glyph: "\u{f059d}"; label: "GUSTS"
           value: root.current ? root.n0(root.current.gust) + " " + root.windUnits : "--"
         }
         Stat {
-          glyph: "\u{f029a}"; caption: "PRESSURE"
+          glyph: "\u{f029a}"; label: "PRESSURE"
           value: root.current ? root.n0(root.current.pressure) + " hPa" : "--"
         }
         Stat {
-          glyph: "\u{f0599}"; caption: "UV"
+          glyph: "\u{f0599}"; label: "UV"
           value: root.current ? (Math.round(Number(root.current.uv) * 10) / 10) : "--"
         }
       }
 
-      PanelSeparator {}
-      PanelSectionHeader {
-        text: "NEXT 24 HOURS" + (root.hourly.length > 0 ? " :: " + root.t(root.hourlyTempMin) + " .. " + root.t(root.hourlyTempMax) : "")
-      }
+      PanelSeparator { visible: root.hourly.length > 0 }
+      PanelSectionHeader { visible: root.hourly.length > 0; text: "NEXT 24 HOURS" }
 
       // one meteogram: the temperature curve with precip-chance bars behind it, on a shared time axis
       Item {
@@ -553,16 +486,16 @@ BarWidget {
               required property int index
               visible: index % 6 === 0
               x: hourlyChart.slotCenter(index) - width / 2
-              Text {
+              Label {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: root.iconFor(hourTick.modelData.code, hourTick.modelData.isDay)
                 color: Colors.accentText
                 font.family: Style.font.iconFamily; font.pixelSize: Style.font.iconSmall
               }
-              Text {
+              Label {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: hourTick.modelData.h
-                color: Colors.textDim
+                dim: true
                 font.family: Style.font.family; font.pixelSize: Style.font.caption
               }
             }
@@ -570,11 +503,12 @@ BarWidget {
         }
       }
 
-      PanelSeparator {}
-      PanelSectionHeader { text: "3-DAY FORECAST" }
+      PanelSeparator { visible: root.forecast.length > 0 }
+      PanelSectionHeader { visible: root.forecast.length > 0; text: "3-DAY FORECAST" }
 
       Row {
         width: parent.width
+        visible: root.forecast.length > 0
         spacing: Style.spacing.xs
 
         Repeater {
@@ -599,7 +533,7 @@ BarWidget {
               anchors.topMargin: Style.spacing.sm
               spacing: Style.spacing.xs
 
-              Text {
+              Label {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 text: dayTile.modelData.label
@@ -609,39 +543,33 @@ BarWidget {
                 font.capitalization: Font.AllUppercase
                 font.letterSpacing: Style.headerTracking
               }
-              Text {
+              Label {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 text: dayTile.modelData.windy ? "\u{f059d}" : root.iconFor(dayTile.modelData.code, 1)
                 color: Colors.menu.text
                 font.family: Style.font.iconFamily; font.pixelSize: Style.font.heading
               }
-              Text {
+              Label {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 text: dayTile.modelData.windy ? "windy" : root.labelFor(dayTile.modelData.code)
-                color: Colors.textDim
+                dim: true
                 font.family: Style.font.family; font.pixelSize: Style.font.caption
                 elide: Text.ElideRight
               }
-              Text {
+              Label {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 text: root.t(dayTile.modelData.hi) + "  " + root.t(dayTile.modelData.lo)
                 color: Colors.menu.text
                 font.family: Style.font.family; font.pixelSize: Style.font.caption
               }
-              BarGauge {
-                width: parent.width
-                height: Style.spacing.xs
-                segments: 8
-                value: Math.max(0, Math.min(100, Number(dayTile.modelData.pop) || 0)) / 100
-              }
-              Text {
+              Label {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 text: "\u{f0597} " + root.n0(dayTile.modelData.pop) + "%"
-                color: Colors.textDim
+                dim: true
                 font.family: Style.font.iconFamily; font.pixelSize: Style.font.caption
               }
             }
@@ -943,6 +871,7 @@ BarWidget {
         spacing: Style.spacing.xs
 
         Button {
+          focusable: true
           variant: "icon"
           iconText: root.radarPlaying ? "\u{f04c}" : "\u{f04b}"
           tooltipText: root.radarPlaying ? "pause radar" : "play radar"
@@ -954,7 +883,6 @@ BarWidget {
         Slider {
           anchors.verticalCenter: parent.verticalCenter
           width: parent.width - Style.space(150)
-          bar: root.bar
           minimum: 0
           maximum: Math.max(0, root.radarFrames.length - 1)
           step: 1
@@ -965,7 +893,7 @@ BarWidget {
           }
         }
 
-        Text {
+        Label {
           anchors.verticalCenter: parent.verticalCenter
           width: Style.space(92)
           horizontalAlignment: Text.AlignRight
@@ -976,38 +904,34 @@ BarWidget {
             return m === 0 ? "now" : Util.ago(-m)
           }
           color: root.radarFrame && root.radarFrame.forecast ? Colors.menu.text : Colors.textDim
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
+          caption: true
         }
       }
 
-      Text {
+      Label {
         width: parent.width
         visible: root.radarFrames.length === 0
         text: radarProc.running ? "> LOADING RADAR" : "> RADAR UNAVAILABLE"
-        color: Colors.textDim
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        dim: true
+        caption: true
       }
 
       // the radar source's licence requires its attribution next to the image
-      Text {
+      Label {
         width: parent.width
         visible: root.radarFrames.length > 0 && !!root.radar.attribution
         text: "SOURCE :: " + String(root.radar.attribution || "")
-        color: Colors.textDim
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        dim: true
+        caption: true
       }
 
-      Text {
+      Label {
         width: parent.width
         visible: root.field.pressureMax > 0
         horizontalAlignment: Text.AlignRight
         text: Number(root.field.pressureMin).toFixed(0) + " .. " + Number(root.field.pressureMax).toFixed(0) + " " + root.field.pressureUnits
-        color: Colors.textDim
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        dim: true
+        caption: true
       }
     }
   }

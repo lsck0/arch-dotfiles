@@ -125,6 +125,16 @@ Item {
     function onPomoConfigChanged() { if (!pomoCommit.running && !TimerState.pomoSaving) root.pomoDraft = ({}) }
   }
 
+  // an empty minutes prompt has no use for letters, so they drive the pomodoro and the next reminder
+  function pomoKey(event) {
+    if (event.text === " ") root.run([root.pomodoroScript, root.pomo.running ? "toggle" : "start"])
+    else if (event.text === "n" && root.pomo.running) root.run([root.pomodoroScript, "skip"])
+    else if (event.text === "S" && root.pomo.running) root.run([root.pomodoroScript, "stop"])
+    else if (event.key === Qt.Key_Delete && root.reminders.length > 0) root.run([root.reminderScript, "cancel", root.reminders[0].unit])
+    else return false
+    return true
+  }
+
   function phaseLabel() {
     if (!pomo.running) return "Ready"
     if (pomo.paused) return "Paused"
@@ -140,9 +150,12 @@ Item {
     prompt: true
     query: root.filterText
     placeholder: root.promptText
-    hints: root.step === "minutes"
-      ? [["0-9", "minutes"], ["ENTER", "next"], ["ESC", "close"]]
-      : [["ENTER", "set"], ["ESC", "back"]]
+    hints: root.step !== "minutes" ? [["ENTER", "set"], ["ESC", "back"]]
+      : root.filterText !== "" ? [["0-9", "minutes"], ["ENTER", "next"], ["ESC", "clear"]]
+      : [["0-9", "minutes"], ["SPACE", !root.pomo.running ? "pomodoro" : root.pomo.paused ? "resume" : "pause"]]
+        .concat(root.pomo.running ? [["N", "skip"], ["SHIFT+S", "stop"]] : [])
+        .concat(root.reminders.length > 0 ? [["DEL", "cancel next"]] : [])
+        .concat([["ESC", "close"]])
     cardWidth: Style.space(560)
     cardHeight: flowContent.implicitHeight + chromeHeight
     onDismissed: root.close()
@@ -164,6 +177,8 @@ Item {
           event.accepted = true
         } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
           root.submit()
+          event.accepted = true
+        } else if (root.step === "minutes" && root.filterText === "" && root.pomoKey(event)) {
           event.accepted = true
         } else if (event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127) {
           if (root.step !== "minutes" || /[0-9]/.test(event.text) || /^[0-9]/.test(root.filterText)) root.filterText += event.text
@@ -205,13 +220,10 @@ Item {
 
         PanelSectionHeader { text: "Pending" }
 
-        Text {
+        Label {
           visible: root.reminders.length === 0
-          textFormat: Text.PlainText
           text: "> NOTHING HERE"
-          color: Colors.textDim
-          font.family: Style.font.family
-          font.pixelSize: Style.font.body
+          dim: true
         }
 
         Repeater {
@@ -231,27 +243,23 @@ Item {
             }
             HoverHandler { id: rowHover }
 
-            Text {
+            Label {
               id: bell
               anchors.left: parent.left
               anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
               text: "\u{f009c}" // md-bell_outline
               color: Colors.accentText
-              font.family: Style.font.iconFamily
+              icon: true
               font.pixelSize: Style.font.icon
             }
-            Text {
+            Label {
               anchors.left: bell.right
               anchors.leftMargin: Style.spacing.sm
               anchors.right: when.left
               anchors.rightMargin: Style.spacing.sm
               anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
               text: reminderRow.modelData.label || ""
               color: Colors.menu.text
-              font.family: Style.font.family
-              font.pixelSize: Style.font.body
               elide: Text.ElideRight
             }
             Row {
@@ -260,19 +268,13 @@ Item {
               anchors.rightMargin: Style.spacing.sm
               anchors.verticalCenter: parent.verticalCenter
               spacing: Style.spacing.xs
-              Text {
-                textFormat: Text.PlainText
+              Label {
                 text: "in " + (reminderRow.modelData.remaining || "")
                 color: Colors.menu.text
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
               }
-              Text {
-                textFormat: Text.PlainText
+              Label {
                 text: reminderRow.modelData.atTime || ""
-                color: Colors.textDim
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
+                dim: true
               }
             }
             Button {
@@ -337,28 +339,23 @@ Item {
           height: Math.max(pomoTime.implicitHeight + pomoPhase.implicitHeight, pomoButtons.implicitHeight)
           visible: root.pomo.running
 
-          Text {
+          Label {
             id: pomoTime
             anchors.left: parent.left
             anchors.top: parent.top
-            textFormat: Text.PlainText
             text: root.pomo.remaining || "0:00"
             color: Colors.menu.text
-            font.family: Style.font.family
             font.pixelSize: Style.font.display
             font.bold: true
             style: Style.fx.glow > 0 ? Text.Outline : Text.Normal
             styleColor: Util.alpha(Colors.accent, 0.35)
           }
-          Text {
+          Label {
             id: pomoPhase
             anchors.left: parent.left
             anchors.top: pomoTime.bottom
-            textFormat: Text.PlainText
             text: root.phaseLabel() + (root.pomo.cycle > 0 ? " :: pomodoro " + root.pomo.cycle : "")
             color: root.pomo.paused ? Colors.menu.text : Colors.accentText
-            font.family: Style.font.family
-            font.pixelSize: Style.font.body
           }
 
           Row {
@@ -427,14 +424,12 @@ Item {
               width: (lengths.width - lengths.spacing * (root.pomoLengths.length - 1)) / root.pomoLengths.length
               spacing: Style.spacing.xxs
 
-              Text {
+              Label {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
-                textFormat: Text.PlainText
                 text: length.modelData.label
-                color: Colors.textDim
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
+                dim: true
+                caption: true
                 elide: Text.ElideRight
               }
 
@@ -453,14 +448,11 @@ Item {
                   enabled: root.pomoValue(length.modelData.key) > length.modelData.minimum
                   onClicked: root.pomoStep(length.modelData, -1)
                 }
-                Text {
+                Label {
                   id: amount
                   anchors.centerIn: parent
-                  textFormat: Text.PlainText
                   text: root.pomoValue(length.modelData.key) + (length.modelData.unit ? " " + length.modelData.unit : "")
                   color: Colors.menu.text
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.body
                 }
                 Button {
                   variant: "icon"

@@ -11,6 +11,7 @@ BarWidget {
   moduleName: "notifications"
   barPriority: 65
   hoverPanel: true
+  hoverFill: true
 
   readonly property var service: root.bar && root.bar.shellHost
     ? root.bar.shellHost.plugin("service.notifications") : null
@@ -18,7 +19,7 @@ BarWidget {
   readonly property var history: service ? service.history : []
 
   implicitWidth: button.implicitWidth
-  implicitHeight: barSize
+  implicitHeight: Style.bar.sizeHorizontal
 
   function findEntry(name) {
     var want = String(name || "").trim().toLowerCase()
@@ -126,15 +127,14 @@ BarWidget {
           anchors.verticalCenter: parent.verticalCenter
           text: "HISTORY" + (root.history.length > 0 ? " :: " + root.history.length : "")
         }
-        Text {
+        Label {
           id: clearLabel
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
           visible: root.history.length > 0
           text: "clear"
           color: Colors.accentText
-          font.pixelSize: Style.font.caption
-          font.family: Style.font.family
+          caption: true
           MouseArea {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
@@ -143,13 +143,11 @@ BarWidget {
         }
       }
 
-      Text {
+      Label {
         visible: root.history.length === 0
         bottomPadding: Style.spacing.md
         text: "> NOTHING RECENT"
-        color: Colors.textDim
-        font.pixelSize: Style.font.body
-        font.family: Style.font.family
+        dim: true
         font.letterSpacing: Style.displayTracking
       }
 

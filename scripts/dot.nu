@@ -147,7 +147,7 @@ def "main apply" [
     }
     match $one {
         "user" => {
-            guarded apply { link-run $mods $force | apply-finish $in }
+            guarded apply { link-run $mods $force --user-only | apply-finish $in }
         }
         "system" => {
             pty-log config ([apply --system] ++ (flag force $force))

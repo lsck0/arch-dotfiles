@@ -3,14 +3,13 @@
 use converge.nu [plan-module state-write state-read ask-batch]
 use module.nu [file-text json-merge json-set]
 use ledger.nu [ledger-diff ledger-remove ledger-get ledger-set]
+use std/assert
 
 const ID = "test/converge"
 const TARGET = "/nonexistent/dot-test/file"
 const REPO = "/nonexistent/dot-test/repo"
 const CONTENT = "one\n"
 const CONTENT_OTHER = "two\n"
-
-def fail [msg: string] { error make {msg: $"converge.test: ($msg)"} }
 
 def sha [text: string]: nothing -> string { $text | hash sha256 }
 
@@ -48,7 +47,7 @@ def file-cases []: nothing -> nothing {
     ]
     for c in $cases {
         let a = plan-one [$c.decl] $c.prev $c.seen {} $c.force
-        if $a.kind != $c.kind { fail $"file ($c.name): planned ($a.kind) \(($a.reason)\), wants ($c.kind)" }
+        assert equal $a.kind $c.kind $"file ($c.name): planned ($a.kind) \(($a.reason)\), wants ($c.kind)"
     }
 }
 
@@ -56,11 +55,11 @@ def orphan-cases []: nothing -> nothing {
     let want = sha $CONTENT
     let prev = [{kind: file, target: $TARGET, hash: $want, source: null}]
     let removed = plan-module $ID [] $prev (seen-file $want) {} $REPO false | first
-    if $removed.kind != "remove" { fail $"orphan unchanged: planned ($removed.kind), wants remove" }
+    assert equal $removed.kind "remove" $"orphan unchanged: planned ($removed.kind), wants remove"
     let kept = plan-module $ID [] $prev (seen-file (sha $CONTENT_OTHER)) {} $REPO false | first
-    if $kept.kind != "drift" { fail $"orphan changed: planned ($kept.kind), wants drift" }
+    assert equal $kept.kind "drift" $"orphan changed: planned ($kept.kind), wants drift"
     let claimed = plan-module $ID [] $prev (seen-file $want) {} $REPO false [$TARGET] | first
-    if $claimed.kind != "forget" { fail $"orphan claimed: planned ($claimed.kind), wants forget" }
+    assert equal $claimed.kind "forget" $"orphan claimed: planned ($claimed.kind), wants forget"
 }
 
 def fold-cases [work: path]: nothing -> nothing {
@@ -70,11 +69,11 @@ def fold-cases [work: path]: nothing -> nothing {
     let b = json-merge $file [(json-set [b] 2)] --then ["true"]
     let c = json-merge $file [(json-set [c] 3)] --then ["false"]
     let folded = plan-module $ID [$a $b] [] $seen {} $REPO false
-    if ($folded | length) != 1 { fail $"two merges with one --then: ($folded | length) actions, wants 1" }
-    if $folded.0.decl.then != ["true"] { fail $"two merges with one --then: then ($folded.0.decl.then | to nuon), wants [true]" }
-    if ($folded.0.decl.edits | length) != 2 { fail "two merges: the edits were not folded" }
+    assert equal ($folded | length) 1 $"two merges with one --then: ($folded | length) actions, wants 1"
+    assert equal $folded.0.decl.then ["true"] $"two merges with one --then: then ($folded.0.decl.then | to nuon), wants [true]"
+    assert equal ($folded.0.decl.edits | length) 2 "two merges: the edits were not folded"
     let refused = try { plan-module $ID [$a $c] [] $seen {} $REPO false | ignore; false } catch { true }
-    if not $refused { fail "two merges with different --then were folded into one command" }
+    assert $refused "two merges with different --then were folded into one command"
 }
 
 def then-failed-cases [work: path]: nothing -> nothing {
@@ -83,10 +82,10 @@ def then-failed-cases [work: path]: nothing -> nothing {
     let seen = {paths: {$file: {target: $file, type: file, hash: (open --raw $file | sha $in), link: null, mode: "644"}}, units: {}}
     let decl = json-merge $file [(json-set [a] 1)] --then ["true"]
     let clean = plan-module $ID [$decl] [] $seen {} $REPO false | first
-    if $clean.kind != "skip" { fail $"merge already applied: planned ($clean.kind), wants skip" }
+    assert equal $clean.kind "skip" $"merge already applied: planned ($clean.kind), wants skip"
     let prev = [{kind: json, target: $file, hash: null, at: null, then_failed: true}]
     let retried = plan-module $ID [$decl] $prev $seen {} $REPO false | first
-    if $retried.kind != "merge" { fail $"merge whose --then failed: planned ($retried.kind), wants merge" }
+    assert equal $retried.kind "merge" $"merge whose --then failed: planned ($retried.kind), wants merge"
 }
 
 def state-write-cases [work: path]: nothing -> nothing {
@@ -96,19 +95,19 @@ def state-write-cases [work: path]: nothing -> nothing {
     let failed = $action | merge {ok: false, error: "exited 1", aside: null, output: "", hash: null, at: null, ms: 0}
     state-write $ID link "input" [$action] [$failed] []
     let after_fail = state-read $ID link
-    if $after_fail.input != "" { fail "a failed merge kept the input hash" }
-    if not ($after_fail.outputs | get --optional 0.then_failed | default false) { fail "a merge whose --then failed is not marked then_failed" }
+    assert equal $after_fail.input "" "a failed merge kept the input hash"
+    assert ($after_fail.outputs | get --optional 0.then_failed | default false) "a merge whose --then failed is not marked then_failed"
     let ok = $failed | merge {ok: true, error: null}
     state-write $ID link "input" [$action] [$ok] $after_fail.outputs
     let after_ok = state-read $ID link
-    if ($after_ok.outputs | get --optional 0.then_failed | default false) { fail "a merge whose --then ran keeps then_failed" }
+    assert not ($after_ok.outputs | get --optional 0.then_failed | default false) "a merge whose --then ran keeps then_failed"
 
     let decl = file-text $TARGET $CONTENT --mode "600"
     let write = {module: $ID, kind: create, target: $TARGET, reason: missing, decl: $decl, before: null, after: (sha $CONTENT)}
     let done = $write | merge {ok: true, error: null, aside: null, output: "", hash: (sha $CONTENT), at: 1, ms: 0}
     state-write $ID link "input" [$write] [$done] []
     let mode = state-read $ID link | get outputs | where target == $TARGET | get --optional 0.mode
-    if $mode != "600" { fail $"a written file records mode ($mode | to nuon), wants \"600\"" }
+    assert equal $mode "600" $"a written file records mode ($mode | to nuon), wants \"600\""
 }
 
 def ledger-diff-cases []: nothing -> nothing {
@@ -127,9 +126,9 @@ def ledger-diff-cases []: nothing -> nothing {
     ]
     for c in $cases {
         let got = ledger-diff $c.owned $c.declared $c.installed $c.keep
-        if $got != {dropped: $c.dropped, by_hand: $c.by_hand} { fail $"ledger-diff ($c.name): got ($got | to nuon)" }
+        assert equal $got {dropped: $c.dropped, by_hand: $c.by_hand} $"ledger-diff ($c.name): got ($got | to nuon)"
     }
-    if (ledger-diff [a b] [a] [a b c]) != {dropped: [b], by_hand: [c]} { fail "ledger-diff without keep spares nothing" }
+    assert equal (ledger-diff [a b] [a] [a b c]) {dropped: [b], by_hand: [c]} "ledger-diff without keep spares nothing"
 }
 
 # Recorded [a b], declared [a d], installed [a b c]: b is dropped, c installed by hand.
@@ -150,9 +149,9 @@ def ledger-remove-cases []: nothing -> nothing {
         ledger-set test [a b]
         ledger-remove test [a d] [a b c] $c.keep $c.yes $c.remove --offer-by-hand=$c.offer
         let got = ledger-get test
-        if $got != $c.ledger { fail $"ledger-remove ($c.name): ledger ($got | to nuon), wants ($c.ledger | to nuon)" }
+        assert equal $got $c.ledger $"ledger-remove ($c.name): ledger ($got | to nuon), wants ($c.ledger | to nuon)"
         let removed = if ($env.DOT_TEST_REMOVED | path exists) { open --raw $env.DOT_TEST_REMOVED | from nuon } else { [] }
-        if $removed != $c.removed { fail $"ledger-remove ($c.name): removed ($removed | to nuon), wants ($c.removed | to nuon)" }
+        assert equal $removed $c.removed $"ledger-remove ($c.name): removed ($removed | to nuon), wants ($c.removed | to nuon)"
     }
 }
 
@@ -168,9 +167,9 @@ def ask-batch-cases []: nothing -> nothing {
     ]
     for c in $cases {
         let got = ask-batch $paths $c.batch $each_path
-        if $got != $c.wants { fail $"ask-batch ($c.name): got ($got | to nuon), wants ($c.wants | to nuon)" }
+        assert equal $got $c.wants $"ask-batch ($c.name): got ($got | to nuon), wants ($c.wants | to nuon)"
     }
-    if (ask-batch [] {|ps| ^false } $each_path) != {} { fail "ask-batch: no paths answers something" }
+    assert equal (ask-batch [] {|ps| ^false } $each_path) {} "ask-batch: no paths answers something"
 }
 
 def main [] {

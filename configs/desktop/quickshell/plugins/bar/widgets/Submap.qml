@@ -51,7 +51,7 @@ BarWidget {
 
   visible: submap !== ""
   implicitWidth: chip.width
-  implicitHeight: barSize
+  implicitHeight: Style.bar.sizeHorizontal
 
   Rectangle {
     id: chip
@@ -68,25 +68,21 @@ BarWidget {
       anchors.centerIn: parent
       spacing: Style.spacing.sm
 
-      Text {
+      Label {
         anchors.verticalCenter: parent.verticalCenter
-        textFormat: Text.PlainText
         text: root.submap.toUpperCase()
         color: Colors.accentText
-        font.family: root.bar ? root.bar.fontFamily : Style.font.family
-        font.pixelSize: Style.font.caption
+        caption: true
         font.bold: true
         font.letterSpacing: Style.labelTracking
       }
 
-      Text {
+      Label {
         visible: root.keys !== ""
         anchors.verticalCenter: parent.verticalCenter
-        textFormat: Text.PlainText
         text: root.keys
-        color: root.bar ? root.bar.barForeground : Colors.foreground
-        font.family: root.bar ? root.bar.fontFamily : Style.font.family
-        font.pixelSize: Style.font.caption
+        color: Colors.bar.text
+        caption: true
       }
     }
   }

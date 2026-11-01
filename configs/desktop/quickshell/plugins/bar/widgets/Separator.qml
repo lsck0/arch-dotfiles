@@ -53,17 +53,14 @@ BarWidget {
   Component.onCompleted: settle.restart()
 
   visible: hasNeighbours
-  implicitWidth: vertical ? barSize : thickness + pad * 2
-  implicitHeight: vertical ? thickness + pad * 2 : barSize
+  implicitWidth: thickness + pad * 2
+  implicitHeight: Style.bar.sizeHorizontal
 
-  Text {
+  Label {
     anchors.centerIn: parent
-    textFormat: Text.PlainText
-    text: root.vertical ? ":" : "::"
+    text: "::"
     color: Colors.accentText
     opacity: Style.emphasis.faint
-    font.family: root.bar ? root.bar.fontFamily : Style.font.family
-    font.pixelSize: Style.font.body
     font.letterSpacing: Style.headerTracking
     layer.enabled: Style.fx.glow > 0
     layer.effect: Glow {}

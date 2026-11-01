@@ -54,6 +54,10 @@ BarWidget {
   property var txHist: []
 
   property var wifiNetworks: []
+  // a dense block lists thirty networks: the strongest few show, the rest behind "All networks"
+  readonly property int wifiShownCountMax: 6
+  property bool wifiShowAll: false
+  readonly property var wifiShown: wifiShowAll ? wifiNetworks : wifiNetworks.slice(0, wifiShownCountMax)
   property string connectingSsid: ""
   property string connectError: ""
   property bool passwordFocused: false
@@ -65,7 +69,7 @@ BarWidget {
   }
 
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
-  implicitHeight: barSize
+  implicitHeight: Style.bar.sizeHorizontal
 
   readonly property int refreshMinAgeMs: 60 * 1000
   property real lastRefreshMs: 0
@@ -88,6 +92,7 @@ BarWidget {
 
   function panelOpened() {
     var now = Date.now()
+    wifiShowAll = false
     if (now - lastRefreshMs >= refreshMinAgeMs) refreshAll()
     else if (!detailsProc.running) detailsProc.running = true
     refreshWifiList(now - lastScanMs >= refreshMinAgeMs)
@@ -236,14 +241,13 @@ BarWidget {
     anchors.centerIn: parent
     spacing: Style.spacing.xs
 
-    Text {
+    Label {
       anchors.verticalCenter: parent.verticalCenter
-      textFormat: Text.PlainText
       text: root.statusIcon
       color: (root.homeVpnState === "on" || root.protonVpnState === "on" || root.torState === "on")
         ? Colors.accentText
-        : (root.bar ? root.bar.barForeground : Colors.foreground)
-      font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
+        : Colors.bar.text
+      icon: true
       font.pixelSize: Style.font.icon
       layer.enabled: Style.fx.glow > 0 && (root.homeVpnState === "on" || root.protonVpnState === "on" || root.torState === "on")
       layer.effect: Glow {}
@@ -269,6 +273,12 @@ BarWidget {
         stateMarker: glyph === ""
       }
 
+      component RadioChip: Button {
+        variant: "chip"
+        focusable: true
+        fontSize: Style.font.caption
+      }
+
       PanelSectionHeader {
         visible: root.detailsConnected
         text: "DETAILS"
@@ -289,7 +299,6 @@ BarWidget {
         }
         StatRow { label: "IP"; value: root.detailsIp4 || "--" }
         StatRow { label: "MAC"; value: root.detailsMac || "--" }
-        StatRow { label: "Speed"; value: "rx " + root.fmtSpeed(root.detailsRxKbps) + "  tx " + root.fmtSpeed(root.detailsTxKbps) }
       }
       PanelSeparator {
         visible: root.detailsConnected
@@ -301,14 +310,7 @@ BarWidget {
         width: content.width
         spacing: Style.spacing.xs
 
-        Hero {
-          readonly property bool txLeads: root.detailsTxKbps > root.detailsRxKbps
-
-          value: root.fmtSpeed(txLeads ? root.detailsTxKbps : root.detailsRxKbps)
-          unit: txLeads ? "tx" : "rx"
-          live: true
-        }
-
+        // one sample draws no line, only an empty box
         StatRow { label: "rx"; value: root.fmtSpeed(root.detailsRxKbps) }
         Sparkline { width: parent.width; height: Style.space(30); values: root.rxHist; minValue: 0; maxValue: 0; color: Colors.accent }
 
@@ -328,7 +330,7 @@ BarWidget {
         spacing: Style.spacing.xxs
 
         Repeater {
-          model: root.wifiNetworks
+          model: root.wifiShown
           delegate: Column {
             id: wifiNet
             required property var modelData
@@ -359,21 +361,20 @@ BarWidget {
                 if (netRow.pendingConnect) Qt.callLater(pwInput.forceActiveFocus)
               }
 
-              Text {
+              Label {
                 id: netIcon
                 anchors.left: parent.left
                 anchors.leftMargin: Style.spacing.sm
                 anchors.verticalCenter: parent.verticalCenter
                 text: wifiNet.modelData.active ? "*" : (wifiNet.modelData.secure ? "\u{f023}" : "\u{f1eb}")
                 color: wifiNet.modelData.active ? Colors.menu.selectedText : Colors.menu.text
-                font.pixelSize: Style.font.caption
-                font.family: Style.font.iconFamily
+                caption: true
+                icon: true
                 layer.enabled: Style.fx.glow > 0 && wifiNet.modelData.active
                 layer.effect: Glow {}
               }
-              Text {
+              Label {
                 // an access point picks its SSID: never markup
-                textFormat: Text.PlainText
                 anchors.left: netIcon.right
                 anchors.leftMargin: Style.spacing.xs
                 anchors.right: netSignal.left
@@ -381,19 +382,16 @@ BarWidget {
                 anchors.verticalCenter: parent.verticalCenter
                 text: wifiNet.modelData.ssid
                 color: wifiNet.modelData.active ? Colors.menu.selectedText : Colors.menu.text
-                font.pixelSize: Style.font.body
-                font.family: Style.font.family
                 elide: Text.ElideRight
               }
-              Text {
+              Label {
                 id: netSignal
                 anchors.right: parent.right
                 anchors.rightMargin: Style.spacing.sm
                 anchors.verticalCenter: parent.verticalCenter
                 text: wifiNet.modelData.signal + "%"
                 color: wifiNet.modelData.active ? Colors.menu.text : Colors.textDim
-                font.pixelSize: Style.font.caption
-                font.family: Style.font.family
+                caption: true
               }
 
               MouseArea {
@@ -440,12 +438,11 @@ BarWidget {
                 height: Style.row.control
                 radius: Style.shape.data
                 color: Style.selectedFillFor(Colors.menu.text, Colors.accent)
-                Text {
+                Label {
                   anchors.centerIn: parent
                   text: root.connectingSsid === wifiNet.modelData.ssid ? "..." : "Connect"
                   color: Colors.accentText
-                  font.pixelSize: Style.font.caption
-                  font.family: Style.font.family
+                  caption: true
                 }
                 MouseArea {
                   anchors.fill: parent
@@ -457,23 +454,28 @@ BarWidget {
           }
         }
 
-        Text {
-          visible: root.wifiNetworks.length === 0 || wifiScanProc.running
-          text: wifiScanProc.running ? "> SCANNING" : "> NOTHING HERE"
-          color: Colors.textDim
-          font.pixelSize: Style.font.caption
-          font.family: Style.font.family
+        PanelRow {
+          visible: root.wifiShown.length < root.wifiNetworks.length
+          width: content.width
+          label: "All networks"
+          trailing: "+" + (root.wifiNetworks.length - root.wifiShown.length)
+          onActivated: root.wifiShowAll = true
         }
 
-        Text {
-          textFormat: Text.PlainText
+        Label {
+          visible: root.wifiNetworks.length === 0 || wifiScanProc.running
+          text: wifiScanProc.running ? "> SCANNING" : "> NOTHING HERE"
+          dim: true
+          caption: true
+        }
+
+        Label {
           visible: root.connectError !== ""
           width: content.width
           wrapMode: Text.Wrap
           text: root.connectError
           color: Colors.urgentText
-          font.pixelSize: Style.font.caption
-          font.family: Style.font.family
+          caption: true
         }
       }
 
@@ -517,6 +519,7 @@ BarWidget {
         }
 
         Button {
+          focusable: true
           id: homelabChip
           visible: root.homelabAvailable
           variant: "chip"
@@ -531,10 +534,16 @@ BarWidget {
 
       PanelSeparator {}
       PanelSectionHeader { text: "RADIOS" }
-      ToggleRow { label: "Wi-Fi"; on: root.wifiOn; onActivated: root.toggleWifi() }
-      ToggleRow { label: "Ethernet"; on: root.ethernetOn; onActivated: root.toggleEthernet() }
-      ToggleRow { visible: root.hasMobile; label: "Mobile"; on: root.mobileOn; onActivated: root.toggleMobile() }
-      ToggleRow { label: "Bluetooth"; on: root.btPowered; onActivated: root.toggleBluetooth() }
+      // one chip per radio, lit while it is on: four toggle rows took a row each
+      Flow {
+        width: content.width
+        spacing: Style.spacing.xs
+
+        RadioChip { text: "WI-FI"; selected: root.wifiOn; onClicked: root.toggleWifi() }
+        RadioChip { text: "ETHERNET"; selected: root.ethernetOn; onClicked: root.toggleEthernet() }
+        RadioChip { visible: root.hasMobile; text: "MOBILE"; selected: root.mobileOn; onClicked: root.toggleMobile() }
+        RadioChip { text: "BLUETOOTH"; selected: root.btPowered; onClicked: root.toggleBluetooth() }
+      }
 
       PanelSeparator {}
       PanelSectionHeader { text: "TOOLS" }

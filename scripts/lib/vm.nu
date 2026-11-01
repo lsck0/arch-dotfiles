@@ -4,6 +4,7 @@
 use state.nu [xdg]
 use platform.nu [PLATFORM_NAME_FILE]
 use iso.nu [iso-signer-verify]
+use log.nu [log-warn]
 use ../../platforms/homelab.nu
 
 const REPO = path self ../..
@@ -271,20 +272,28 @@ export def vm-network-command [net: record]: nothing -> list<string> {
     ]
 }
 
-# base/portmaster's bypass group (portmaster-bypass.service)
-const BYPASS_GROUP = "pentest"
+# base/portmaster's launcher: pasta and passt as group vmnet, whose DoT to quad9 passes portmaster, unprompted
+# through polkit
+const VM_NET = "/usr/local/bin/vm-net"
 
+# Without vm-net (not installed, or pkexec refused, as with no active session over ssh) the plain launch runs, and the
+# host's portmaster may block the guest's DoT to quad9 as a secure-dns bypass.
 def network-start [name: string, net: record]: nothing -> nothing {
     network-stop $name
-    cache-dir $name | ignore
-    let argv = vm-network-command $net | each { $"'($in)'" } | str join " "
-    let launch = $"($argv) > '($net.log)' 2>&1 &"
-    # the host's portmaster blocks the guest's DoT to quad9 as a secure-dns bypass; base/portmaster lets the pentest
-    # group through, as it does the system vms, so pasta runs under it when this login is a member
-    if $BYPASS_GROUP in (^id -nG | split row " ") {
-        $launch | ^newgrp $BYPASS_GROUP
+    let elevated = if ($VM_NET | path exists) and (which pkexec | is-not-empty) {
+        let flags = [$net.socket $net.pidfile $net.log ($net.host_port | into string) $net.dns
+            ($net.forward | into string) ($net.ipv6 | into string) ...$net.block]
+        ^pkexec --disable-internal-agent --keep-cwd $VM_NET ...$flags | complete
     } else {
-        ^bash -c $launch
+        {exit_code: 1, stderr: $"($VM_NET) or pkexec missing"}
+    }
+    if $elevated.exit_code != 0 {
+        let reason = $elevated.stderr | str trim
+        log-warn $"dot test: vm-net failed \(($reason)\), plain network launch: portmaster may block the guest's DoT"
+        let argv = vm-network-command $net | each { $"'($in)'" } | str join " "
+        let launch = cache-dir $name | path join network-launch.sh
+        $"($argv) > '($net.log)' 2>&1 &\n" | save --force $launch
+        ^bash $launch
     }
     let deadline = (date now) + $SOCKET_WAIT
     while not ($net.socket | path exists) {
@@ -608,12 +617,15 @@ export def vm-plan-lines [run: record, name: string]: nothing -> list<string> {
     ]
 }
 
-def keep-hint [name: string]: nothing -> string {
-    $"dot test: the vm stays for inspection, remove it with: dot test destroy --name ($name)"
+# A failed run's vm: kept for inspection, else destroyed, as the next run of a series reuses its name.
+def vm-failed-leave [name: string, keep: bool]: nothing -> nothing {
+    if not $keep { vm-destroy $name; return }
+    print --stderr $"dot test: the vm stays for inspection, remove it with: dot test destroy --name ($name)"
 }
 
-# Installs a fresh vm through the whole unattended chain under one run's scenarios and verifies it; a pass destroys it.
-def vm-run [name: string, iso: path, run: record, user: string, master: bool]: nothing -> nothing {
+# Installs a fresh vm through the whole unattended chain under one run's scenarios and verifies it; a pass destroys it,
+# a failure keeps it when keep.
+def vm-run [name: string, iso: path, run: record, user: string, master: bool, keep: bool]: nothing -> nothing {
     print $"dot test: run ($run.label) on ($run.platform) as ($run.profile)"
     vm-destroy $name
     let logs = try {
@@ -626,7 +638,7 @@ def vm-run [name: string, iso: path, run: record, user: string, master: bool]: n
     } catch {|e|
         host-stop $name
         network-stop $name
-        print --stderr (keep-hint $name)
+        vm-failed-leave $name $keep
         error make {msg: $e.msg}
     }
     host-stop $name
@@ -635,7 +647,7 @@ def vm-run [name: string, iso: path, run: record, user: string, master: bool]: n
     let verdict = vm-verify $logs $run
     for n in $verdict.notes { print $"dot test: note: ($n)" }
     if ($verdict.problems | is-not-empty) {
-        print --stderr (keep-hint $name)
+        vm-failed-leave $name $keep
         error make {msg: ($verdict.problems | str join "\n")}
     }
     vm-destroy $name
@@ -653,9 +665,11 @@ export def vm-test [name: string, iso: any, scenario: string, platform: any, pro
     }
     let iso = if $iso == null { iso-latest } else { $iso }
     if not ($iso | path exists) { error make {msg: $"no iso at ($iso)"} }
-    if ($runs | length) == 1 { vm-run $name $iso $runs.0 $user $master; return }
-    let results = $runs | each {|r|
-        let problem = try { vm-run $name $iso $r $user $master; null } catch {|e| $e.msg }
+    if ($runs | length) == 1 { vm-run $name $iso $runs.0 $user $master true; return }
+    let last = ($runs | length) - 1
+    let results = $runs | enumerate | each {|it|
+        let r = $it.item
+        let problem = try { vm-run $name $iso $r $user $master ($it.index == $last); null } catch {|e| $e.msg }
         if $problem != null { print --stderr $"dot test: ($r.label) failed:\n($problem)" }
         {label: $r.label, problem: $problem}
     }

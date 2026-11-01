@@ -35,9 +35,8 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   `dot module adopt|reset|unlink|remove|restore`, `dot explain <path|package>`, `dot log [--trace]`,
   `dot theme [wallpaper|random]`, `dot secrets audit`; `dot secrets unlock|lock` are Luca's (YubiKey), never an agent's.
 - `dot internal <cmd>` (`scripts/lib/internal.nu`): plumbing for scripts and units; `gen` regenerates
-  `mirror/packages.txt`, FEATURES.md's module and options tables and `scripts/lib/commands.txt` (each command a module
-  runs and its package; lint fails when one is stale, and on a call no declared package covers), `iso` builds
-  the install iso.
+  `mirror/packages.txt` and FEATURES.md's module and options tables (lint fails when one is stale), `iso` builds the
+  install iso.
 - Agents never reach root: run dot with `DOT_SYSTEM=skip` (or `--no-system`); a system part is then pending (exit 3).
   sudo and pkexec take a YubiKey touch or fingerprint on Luca's side, the password as fallback.
 - `dot sync` (pull, migrate, install, apply, back up, signed `Generation: <n>` commit, push) is Luca's only commit

@@ -100,27 +100,24 @@ OverlayCard {
       }
     }
 
-    Text {
+    Label {
       width: inner.width
-      textFormat: Text.PlainText
       visible: root.statusText !== ""
       text: "> " + root.statusText
       color: root.onCard
       font.family: root.fontFamily
-      font.pixelSize: Style.font.body
       font.letterSpacing: Style.labelTracking
       wrapMode: Text.Wrap
       horizontalAlignment: Text.AlignHCenter
     }
 
-    Text {
+    Label {
       width: inner.width
-      textFormat: Text.PlainText
       visible: root.failed
       text: "! " + root.error
       color: root.onCardUrgent
       font.family: root.fontFamily
-      font.pixelSize: Style.font.bodySmall
+      caption: true
       wrapMode: Text.Wrap
       horizontalAlignment: Text.AlignHCenter
     }

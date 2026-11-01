@@ -6,7 +6,6 @@ Item {
   id: root
 
   property bool docked: false
-  property bool flipped: false
   property color fillColor: Colors.menu.background
   property color strokeColor: Util.alpha(Colors.accent, Style.surface.ruleAlpha)
   property real strokeWidth: docked ? Math.max(1, Style.fx.bracketWidth) : Style.surface.borderWidth
@@ -25,14 +24,12 @@ Item {
   readonly property real _b: height - _h
   readonly property real _c: Math.max(0, Math.min(chamfer, (_r - _l) / 2, (_b - _t) / 2))
   readonly property real cut: _c
-  readonly property int cutCorner: docked !== flipped ? Qt.BottomRightCorner : Qt.TopRightCorner
+  readonly property int cutCorner: docked ? Qt.BottomRightCorner : Qt.TopRightCorner
   readonly property real _n: neck + _h
 
   layer.enabled: width > 0 && height > 0
   layer.smooth: true
   layer.effect: root.glow && Style.fx.glow > 0 ? glowEffect : null
-
-  transform: Scale { origin.y: root.height / 2; yScale: root.flipped ? -1 : 1 }
 
   Shape {
     anchors.fill: parent

@@ -2,7 +2,7 @@ import QtQuick
 import Quickshell
 import qs.Commons
 
-Text {
+Label {
   id: root
 
   property bool loading: false
@@ -30,13 +30,11 @@ Text {
   }
   onUpdatedMsChanged: nowMs = Date.now()
 
-  textFormat: Text.PlainText
   text: freshness === "loading" ? "--"
     : freshness === "error" ? "x ERR" + (detailed ? " " + error : "")
     : freshness === "stale" ? " ~" + Util.span((nowMs - updatedMs) / minuteMs)
     : ""
   color: freshness === "error" ? Colors.urgentText : Colors.textDim
-  font.family: Style.font.family
-  font.pixelSize: Style.font.caption
+  caption: true
   elide: Text.ElideRight
 }

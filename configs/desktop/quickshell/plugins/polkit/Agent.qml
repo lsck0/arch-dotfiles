@@ -56,24 +56,19 @@ Item {
       width: parent.width
       spacing: Style.spacing.md
 
-      Text {
+      Label {
         Layout.fillWidth: true
-        textFormat: Text.PlainText
         text: root.flow ? root.flow.message : ""
         color: Colors.menu.text
-        font.family: Style.font.family
-        font.pixelSize: Style.font.body
         wrapMode: Text.WordWrap
       }
 
-      Text {
+      Label {
         Layout.fillWidth: true
         visible: text !== ""
-        textFormat: Text.PlainText
-        text: root.flow ? root.flow.supplementaryMessage : ""
-        color: root.flow && root.flow.supplementaryIsError ? Colors.urgentText : Colors.textDim
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        text: root.flow ? root.flow.supplementaryMessage || (root.flow.failed ? "Authentication failed, try again" : "") : ""
+        color: root.flow && (root.flow.supplementaryIsError || root.flow.failed) ? Colors.urgentText : Colors.textDim
+        caption: true
         wrapMode: Text.WordWrap
       }
 

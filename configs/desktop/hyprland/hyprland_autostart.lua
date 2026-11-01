@@ -4,9 +4,11 @@ hl.on("hyprland.start", function()
 
     -- quickshell's unit waits for the finalize above
     hl.exec_cmd("systemctl --user start quickshell.service")
-    -- a copy outlives its app; Qt image copies (they offer image/jxr, whose encoder segfaults) are left alone
+    -- a copy outlives its app; Qt image copies (they offer image/jxr, whose encoder segfaults) are left alone. -f
+    -- needs every offered type to match, so it lists the vendor prefixes too (chromium/ from every Electron app,
+    -- x-special/ from file managers)
     hl.exec_cmd(
-        "uwsm app -s b -- wl-clip-persist --clipboard regular -f '^(text/.*|application/.*|[^/]*|image/(png|jpeg|gif|webp|bmp|tiff|avif|svg\\+xml))$'"
+        "uwsm app -s b -- wl-clip-persist --clipboard regular -f '^((text|application|chromium|x-special)/.*|[^/]*|image/(png|jpeg|gif|webp|bmp|tiff|avif|svg\\+xml))$'"
     )
 
     -- the shell expands $DOTFILES (an unset getenv would abort this hook); plugins.nu builds and loads the plugins
@@ -17,8 +19,11 @@ hl.on("hyprland.start", function()
 
     -- root GUI apps under Xwayland (gparted through pkexec) need the display
     hl.exec_cmd("xhost +SI:localuser:root")
-    -- nsxiv reads its colours only from the X server's resources, which start empty each session
-    hl.exec_cmd('xrdb -nocpp -merge "${XDG_CACHE_HOME:-$HOME/.cache}/wal/colors-nsxiv.Xresources"')
+    -- nsxiv reads its colours only from the X server's resources, which start empty each session; the file is
+    -- desktop/nsxiv's theme output, absent without nsxiv or before the first theme
+    hl.exec_cmd(
+        'f="${XDG_CACHE_HOME:-$HOME/.cache}/wal/colors-nsxiv.Xresources"; [ -f "$f" ] && xrdb -nocpp -merge "$f"'
+    )
     local backlight = require("platform").kbd_backlight
     if backlight then
         hl.exec_cmd("brightnessctl --device=" .. backlight .. " set 2")

@@ -10,23 +10,26 @@ const IMAGE_FETCH_TIMEOUT = "2s"
 # utf-16 without a bom: at least three quarters of the units carry a nul byte, all on one side
 const NUL_SHARE_MIN = 0.75
 const NUL_SHARE_OTHER_MAX = 0.25
+# the share is settled long before this, and the hex split costs about a second per MB
+const SNIFF_BYTES = 8192
 const CONTROL_CHARS = '[\x00-\x08\x0E-\x1A\x1C-\x1F]'
 
 def text-emit []: binary -> nothing {
     let raw = $in
     let size = $raw | bytes length
     if $size == 0 { return }
-    let units = $size / 2
     let has_bom = [0x[FFFE] 0x[FEFF]] | any {|bom| $raw | bytes starts-with $bom }
-    let nuls = if not $has_bom and $size mod 2 == 0 {
-        $raw | encode hex | parse -r '(?<even>..)(?<odd>..)' | {even: ($in | where even == "00" | length), odd: ($in | where odd == "00" | length)}
+    let nuls = if not $has_bom and $size mod 2 == 0 and ($raw | bytes index-of 0x[00]) >= 0 {
+        let sample = $raw | bytes at 0..<$SNIFF_BYTES
+        let pairs = $sample | encode hex | parse -r '(?<even>..)(?<odd>..)'
+        {units: (($sample | bytes length) / 2), even: ($pairs | where even == "00" | length), odd: ($pairs | where odd == "00" | length)}
     }
     let encoding = if $has_bom {
         "utf-16le"
-    } else if $nuls != null and ($nuls.even + $nuls.odd) >= $units * $NUL_SHARE_MIN {
-        if $nuls.odd >= $units * $NUL_SHARE_MIN and $nuls.even < $units * $NUL_SHARE_OTHER_MAX {
+    } else if $nuls != null and ($nuls.even + $nuls.odd) >= $nuls.units * $NUL_SHARE_MIN {
+        if $nuls.odd >= $nuls.units * $NUL_SHARE_MIN and $nuls.even < $nuls.units * $NUL_SHARE_OTHER_MAX {
             "utf-16le"
-        } else if $nuls.even >= $units * $NUL_SHARE_MIN and $nuls.odd < $units * $NUL_SHARE_OTHER_MAX {
+        } else if $nuls.even >= $nuls.units * $NUL_SHARE_MIN and $nuls.odd < $nuls.units * $NUL_SHARE_OTHER_MAX {
             "utf-16be"
         }
     }

@@ -1,2 +1,0 @@
-# managed by arch-dotfiles/gaming/vpn-bypass
-%games ALL=(:games) NOPASSWD: SETENV: ALL

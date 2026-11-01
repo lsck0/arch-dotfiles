@@ -18,6 +18,8 @@ const META_DEFAULT = {deps: [], packages: {pacman: [], native: [], flatpak: {}, 
 export const EVAL_TIMEOUT = 2min
 # the verbs that do their work while evaluated (update, backup, restore) instead of declaring it
 export const VERB_WORK_TIMEOUT = 30min
+# a config home no login has: profile-load under it reads no profile and no options but PROFILE_FILE
+const PROFILE_HOME_NONE = "/nonexistent"
 
 # The first word of each non-comment line of a dependencies.txt, none for a missing file.
 export def names-read [file: path]: nothing -> list<string> {
@@ -119,14 +121,15 @@ export def modules-graph [repo: path, modules: table]: nothing -> table {
         }
         {group: $g, deps: $deps}
     }
+    let known = $ids | reduce --fold {} {|i, acc| $acc | insert $i true }
+    let group_ids = $modules | group-by group | items {|g, ms| {group: $g, ids: $ms.id} } | reduce --fold {} {|r, acc| $acc | insert $r.group $r.ids }
+    let grouped = $modules | where group != "" | get id
+    let group_preds = $group_deps | reduce --fold {} {|g, acc|
+        $acc | insert $g.group ($g.deps | each {|d| $group_ids | get --optional $d | default [] } | flatten)
+    }
     let with_preds = $modules | each {|m|
-        let by_group = if $m.group == "" {
-            $modules | where group != "" | get id
-        } else {
-            let deps = $group_deps | where group == $m.group | get 0.deps
-            $modules | where group in $deps | get id
-        }
-        $m | insert after ($by_group | append $m.meta.deps | where $it in $ids and $it != $m.id | uniq)
+        let by_group = if $m.group == "" { $grouped } else { $group_preds | get $m.group }
+        $m | insert after ($by_group | append $m.meta.deps | where {|a| $a != $m.id and ($known | get --optional $a | default false) } | uniq)
     }
     let sorted = $with_preds | sort-by id
     let position = $sorted | enumerate | reduce --fold {} {|r, acc| $acc | insert $r.item.id $r.index }
@@ -194,21 +197,64 @@ export def modules-eval [modules: table, verb: string, cfgs: record, args: list,
     $result
 }
 
+# Each module's packages, its packages hook merged in, native ones dropped on WSL; ok is false when the hook failed and
+# the module declares its meta alone.
+export def modules-packages-each [modules: table, platform: record]: nothing -> table {
+    let wsl = $platform.form_factor == "wsl"
+    let computing = $modules | where {|m| "packages" in $m.native }
+    let results = modules-eval $computing packages ($computing | reduce --fold {} {|m, acc| $acc | insert $m.id $m.cfg }) []
+    $results | where not ok | each { log-warn $"($in.id): packages failed, checking its meta alone: ($in.error)" } | ignore
+    let computed = $results | reduce --fold {} {|r, acc| $acc | insert $r.id {ok: $r.ok, decls: ($r.decls | get --optional 0 | default {})} }
+    $modules | each {|m|
+        let hook = $computed | get --optional $m.id | default {ok: true, decls: {}}
+        let p = $m.meta.packages | merge deep --strategy=append $hook.decls
+        {id: $m.id, pacman: ($p.pacman ++ (if $wsl { [] } else { $p.native })), flatpak: $p.flatpak, nix: $p.nix, ok: $hook.ok}
+    }
+}
+
 # The pacman, flatpak and nix packages every enabled module on this platform declares.
 export def modules-packages [repo: path, modules: table, platform: record]: nothing -> record {
-    let wsl = $platform.form_factor == "wsl"
-    let selected = $modules | where {|m| $m.selected and $m.cfg.enable }
-    let computing = $selected | where {|m| "packages" in $m.native }
-    let results = modules-eval $computing packages ($computing | reduce --fold {} {|m, acc| $acc | insert $m.id $m.cfg }) []
-    $results | where not ok | each { log-warn $"($in.id): packages failed: ($in.error)" } | ignore
-    let computed = $results | reduce --fold {} {|r, acc| $acc | insert $r.id ($r.decls | get --optional 0 | default {}) }
+    let declared = modules-packages-each ($modules | where {|m| $m.selected and $m.cfg.enable }) $platform
     # a broken module or a failed packages hook declares too little: callers must not remove by this list
-    let incomplete = ($results | where not ok | get id) ++ ($modules | where {|m| $m.selected and ($m.broken? | default false) } | get id)
-    let on = $selected | each {|m| $m | update meta.packages {|x| $x.meta.packages | merge deep --strategy=append ($computed | get --optional $m.id | default {}) } }
+    let incomplete = ($declared | where not ok | get id) ++ ($modules | where {|m| $m.selected and ($m.broken? | default false) } | get id)
     {
-        pacman: ($on | each {|m| $m.meta.packages.pacman ++ (if $wsl { [] } else { $m.meta.packages.native }) } | flatten | append $platform.extra_packages | uniq | sort)
-        flatpak: ($on | reduce --fold {} {|m, acc| $acc | merge $m.meta.packages.flatpak })
-        nix: ($on | each { $in.meta.packages.nix } | flatten | uniq | sort)
+        pacman: ($declared | each { $in.pacman } | flatten | append $platform.extra_packages | uniq | sort)
+        flatpak: ($declared | reduce --fold {} {|p, acc| $acc | merge $p.flatpak })
+        nix: ($declared | each { $in.nix } | flatten | uniq | sort)
         incomplete: $incomplete
     }
+}
+
+# What a packages hook is evaluated under to learn every package it can want, whoever runs it on whichever machine:
+# each repo profile and none, as the env profile-load reads (a config home that does not exist hides the caller's own
+# profile and options), and each value a platform's options file sets.
+export def packages-every-context [repo: path]: nothing -> record {
+    let profiles = glob ($repo | path join profiles *.nuon) | sort | append "" | each {|f| {PROFILE_FILE: $f, XDG_CONFIG_HOME: $PROFILE_HOME_NONE} }
+    let values = glob ($repo | path join platforms *.options.nuon) | sort | each {|f|
+        open $f | items {|id, opts| $opts | items {|name, value| {id: $id, name: $name, value: $value} } } | flatten
+    } | flatten
+    {profiles: $profiles, values: $values}
+}
+
+# Every package a module can declare: meta's pacman and native, flatpak and nix for apps of theirs, and what its
+# packages hook returns under each profile of every and each option value from defaults, choices, bools and platforms.
+export def module-packages-every [m: record, every: record]: nothing -> list<string> {
+    let managers = [[name wanted]; [flatpak ($m.meta.packages.flatpak | is-not-empty)] [nix ($m.meta.packages.nix | is-not-empty)]]
+    let own = $m.meta.packages.pacman ++ $m.meta.packages.native ++ ($managers | where wanted | get name)
+    if "packages" not-in $m.native { return $own }
+    let defaults = $m.options | items {|name, spec| {name: $name, value: $spec.default} } | reduce --fold ($m.cfg | upsert enable true) {|o, acc|
+        $acc | upsert $o.name $o.value
+    }
+    let variants = $m.options | items {|name, spec|
+        let set = $every.values | where id == $m.id and name == $name | get value
+        let type = $spec.type | str trim --right --char "?"
+        let nullable = if $type != $spec.type { [null] } else { [] }
+        let values = $spec.choices? | default (if $type == bool { [true false] } else { [] }) | append $nullable | append $set | uniq
+        $values | each {|v| $defaults | upsert $name $v }
+    } | flatten | prepend $defaults | uniq
+    let runs = $every.profiles | each {|p| $variants | each {|cfg| {env: $p, cfg: $cfg} } } | flatten
+    let hooked = $runs | par-each {|r|
+        with-env $r.env { modules-eval [$m] packages {$m.id: $r.cfg} [] } | get 0.decls | get --optional 0 | default {} | select --optional pacman native | values | flatten | compact
+    } | flatten
+    $own ++ ($hooked | sort) | compact | uniq
 }

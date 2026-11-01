@@ -1,4 +1,6 @@
 use module.nu *
+use state.nu [SYSTEM_REPO]
+use system.nu [ENTRY]
 use ../fprintd/mod.nu [validity-sensor-ids]
 
 export const meta = {packages: {pacman: [pam-u2f pamtester]}, volatile: true}
@@ -17,6 +19,8 @@ const U2F_MODULE = "/usr/lib/security/pam_u2f.so"
 const FPRINT_MODULE = "/usr/lib/security/pam_fprintd.so"
 const POLKIT_VENDOR = "/usr/lib/pam.d/polkit-1"
 const SUDO = "/etc/pam.d/sudo"
+const SYSTEM_POLICY = "dev.lsck0.dotfiles.system.policy"
+const POLKIT_ACTIONS = "/usr/share/polkit-1/actions"
 const FPRINT_LINE = "auth       sufficient pam_fprintd.so"
 # sudo sets PAM_TTY to its terminal or to "": without one, no factor is tried, so a process with no terminal (an
 # agent's tool shell) can neither raise a key or finger request nobody sees nor pipe a password in
@@ -38,10 +42,14 @@ def auth-insert [lines: list<string>, line: string]: nothing -> list<string> {
 }
 
 export def system [cfg: record] {
-    if $env.FORM_FACTOR? == "wsl" { return [] }
+    # WSLg is graphical too, so dot's root-runner can pick pkexec there
+    let entry = $SYSTEM_REPO | path join $ENTRY
+    let policy = file-render $SYSTEM_POLICY ($POLKIT_ACTIONS | path join $SYSTEM_POLICY) {ENTRY: $entry}
+    if $env.FORM_FACTOR? == "wsl" { return [$policy] }
     let line = u2f-line $cfg.fido_origin
     let u2f = $U2F_MODULE | path exists
     [
+        $policy
         # copies, pam follows no symlinks
         (file-copy quickshell-lock /etc/pam.d/quickshell-lock)
         (file-render quickshell-lock-u2f /etc/pam.d/quickshell-lock-u2f {ORIGIN: $cfg.fido_origin})

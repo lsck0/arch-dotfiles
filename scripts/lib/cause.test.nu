@@ -1,18 +1,17 @@
 #!/usr/bin/env -S nu --no-config-file
 # Failure causes: a failing external and a missing binary through apply-module's exec and step and a caught error, the
 # hint table per class, FAILURES grouping and order, and the two failures of a reinstall before and after.
-use cause.nu [cause-from-error cause-from-output cause-text cause-hint failure-line failure-parse failures-group failure-is-system PACKAGES_FIX ONLINE_ESCAPE]
+use cause.nu [command-package FILES_DB_MISSING cause-from-error cause-from-output cause-text cause-hint failure-line failure-parse failures-group failure-is-system PACKAGES_FIX ONLINE_ESCAPE]
 use converge.nu [apply-module]
 use pipeline.nu [module-failure]
 use system-apply.nu [pacman-failure]
 use doctor.nu [failures-reports]
+use std/assert
 
 const ABSENT = "dot-cause-test-absent"
 
-def fail [msg: string] { error make {msg: $"cause.test: ($msg)"} }
-
 def wants [what: string, got: string, parts: list<string>]: nothing -> nothing {
-    for p in $parts { if not ($got | str contains $p) { fail $"($what): ($got | to nuon) lacks ($p | to nuon)" } }
+    for p in $parts { assert ($got | str contains $p) $"($what): ($got | to nuon) lacks ($p | to nuon)" }
 }
 
 def action [kind: string, target: string, argv: list<string>]: nothing -> record {
@@ -21,12 +20,13 @@ def action [kind: string, target: string, argv: list<string>]: nothing -> record
 
 def exec-cases [dir: path]: nothing -> nothing {
     let failing = apply-module [(action exec "fails" [sh -c "echo first >&2; echo the real reason >&2; exit 3"])] $dir user | first
-    if $failing.ok { fail "a command exiting 3 counted as ok" }
+    assert not $failing.ok "a command exiting 3 counted as ok"
     wants "failing exec" $failing.error ["`sh -c 'echo first >&2; echo the real reason >&2; exit 3'`" "exited 3" "the real reason"]
     let absent = apply-module [(action exec "absent" [$ABSENT --flag])] $dir user | first
     wants "absent exec" $absent.error [$"($ABSENT) not installed" "no package known"]
     let known = cause-text (cause-from-output "lsusb -d 1050:" 127 "setsid: failed to execute lsusb: No such file or directory")
     wants "absent, package known" $known ["lsusb not installed (usbutils)"]
+    assert equal (command-package lsusb --sync-dir $dir) $FILES_DB_MISSING "a sync dir without a files db answered a package"
 }
 
 def step-cases [dir: path]: nothing -> nothing {
@@ -43,7 +43,7 @@ def step-cases [dir: path]: nothing -> nothing {
     let absent = apply-module [(action step probe-absent [])] $dir user | first
     wants "step absent" $absent.error [$"($ABSENT) not installed" "mod.nu:2"]
     let made = apply-module [(action step probe-made [])] $dir user | first
-    if $made.error != "the module says why" { fail $"step error make: ($made.error | to nuon)" }
+    assert equal $made.error "the module says why" $"step error make: ($made.error | to nuon)"
 }
 
 # the nvim prefetch of a VM run: its last progress line had no newline, so the error block began mid-line, and the
@@ -64,7 +64,7 @@ def wrapped-cases []: nothing -> nothing {
     ] | str join "\n"
     let text = cause-text (cause-from-output "step prefetch" 1 $output)
     wants "error mid-line" $text ["1 tools are not installed after the restore (:MasonLog, :checkhealth nvim- treesitter): mason/gopls" "All binaries downloaded to /home/u/typst-preview/"]
-    for junk in ["^^^" "122 |" "`----"] { if ($text | str contains $junk) { fail $"error mid-line: ($text | to nuon) carries the snippet's ($junk | to nuon)" } }
+    for junk in ["^^^" "122 |" "`----"] { assert not ($text | str contains $junk) $"error mid-line: ($text | to nuon) carries the snippet's ($junk | to nuon)" }
 }
 
 def caught-cases [dir: path]: nothing -> nothing {
@@ -92,13 +92,15 @@ def tty-cases [dir: path]: nothing -> nothing {
     let run = ^script -qe -c $"($nu.current-exe) --no-config-file -I ($env.FILE_PWD) ($probe)" /dev/null | complete
     # a terminal title nushell sets can lead a line: the probe's lines are found by their markers
     let out = $run.stdout | ansi strip | lines
-    if ($out | where $it =~ 'fancy=true and true$' | length) != 2 { fail $"the probe did not render for a tty, exit ($run.exit_code): ($out | to nuon)" }
+    assert equal ($out | where $it =~ 'fancy=true and true$' | length) 2 $"the probe did not render for a tty, exit ($run.exit_code): ($out | to nuon)"
     let causes = $out | parse --regex 'cause: (?<text>.*?)\s*$' | get text
     wants "tty exit" ($causes | get --optional 0 | default "") ["`sh -c 'exit 7'`" "exited 7" "tty.nu:2"]
     wants "tty absent" ($causes | get --optional 1 | default "") [$"($ABSENT) not installed" "tty.nu:6"]
 }
 
 def hint-cases []: nothing -> nothing {
+    # nushell's own wording for a file it may not read
+    let denied: string = try { open --raw /etc/shadow | ignore; "" } catch {|e| cause-text (cause-from-error $e) }
     let cases = [
         [text class fix];
         ["lsusb not installed (usbutils) (at configs/base/yubikey/yubikey.nu:242)" missing $PACKAGES_FIX]
@@ -114,12 +116,19 @@ def hint-cases []: nothing -> nothing {
         ["`sudo true` exited 1: sudo: a terminal is required to read the password" root "dot apply --system"]
         ["`sudo true` exited 1: sudo: 3 incorrect password attempts" root "dot apply --system"]
         ["`install -m 600 x /etc/y` exited 1: install: cannot create regular file '/etc/y': Permission denied" root "dot apply --system"]
+        ["`tee /run/x` exited 1: tee: /run/x: Permission denied" root "dot apply --system"]
+        ["`tee /sys/class/x` exited 1: tee: /sys/class/x: Permission denied" root "dot apply --system"]
+        [$denied root "dot apply --system"]
+        ["`git fetch origin` exited 128: git@github.com: Permission denied (publickey). / fatal: Could not read from remote repository." null null]
+        ["`cp a ~/x` exited 1: cp: cannot create regular file '/home/u/x': Permission denied" null null]
+        ["`tee /run/user/1000/x` exited 1: tee: /run/user/1000/x: Permission denied" null null]
+        ["`cat /dev/ttyUSB0` exited 1: cat: /dev/ttyUSB0: Permission denied" null null]
         ["plain failure nobody classified" null null]
         ["`aa-status` exited 4 (at configs/base/apparmor/mod.nu:12)" null null]
     ]
     for c in $cases {
         let h = cause-hint $c.text
-        if ($h.class? | default null) != $c.class { fail $"hint of ($c.text | to nuon): class ($h.class? | to nuon), wants ($c.class | to nuon)" }
+        assert equal ($h.class? | default null) $c.class $"hint of ($c.text | to nuon): class ($h.class? | to nuon), wants ($c.class | to nuon)"
         if $c.fix != null { wants $"fix of ($c.class)" $h.fix [$c.fix] }
     }
 }
@@ -145,18 +154,18 @@ def group-cases []: nothing -> nothing {
         "base/f"
         "system layer config: sudo exited 1, root recorded no failure; fix: dot apply --system at a terminal"
     ]
-    if $got != $expected { fail $"grouping:\n($got | str join "\n")\nwants\n($expected | str join "\n")" }
+    assert equal $got $expected "grouping"
     let units = failures-group [
         "base/b link/step y: Job for b.service failed; fix: journalctl -u b.service -b"
         "base/g link/step y: Job for g.service failed; fix: journalctl -u g.service -b"
     ]
-    if $units != ["2 modules (base/b base/g): units failing to start: b.service, g.service; fix: journalctl -u <unit> -b"] { fail $"unit group: ($units | to nuon)" }
+    assert equal $units ["2 modules (base/b base/g): units failing to start: b.service, g.service; fix: journalctl -u <unit> -b"] $"unit group: ($units | to nuon)"
     let p = failure-parse "base/a link/update ~/.config/a: `x` exited 1: a: b; fix: do this"
-    if $p != {subject: base/a, where: "link/update ~/.config/a", text: "`x` exited 1: a: b", fix: "do this"} { fail $"parse: ($p | to nuon)" }
+    assert equal $p {subject: base/a, where: "link/update ~/.config/a", text: "`x` exited 1: a: b", fix: "do this"} $"parse: ($p | to nuon)"
     let systems = [
         ["base/boot system/step commit: x" true] ["system layer pacman the install pass: y" true] ["base/x link/eval: z" false] ["dot secrets unlock: w" false]
     ]
-    for s in $systems { if (failure-is-system $s.0) != $s.1 { fail $"failure-is-system ($s.0)" } }
+    for s in $systems { assert equal (failure-is-system $s.0) $s.1 $"failure-is-system ($s.0)" }
 }
 
 # A crash in a guarded run: crash.json, the run's PANIC record and dot log --trace name the same cause.
@@ -167,9 +176,9 @@ def crash-cases [dir: path]: nothing -> nothing {
     let call = $"use ($file | to nuon) [crash]; use cli.nu [guarded]; guarded probe --read-only { crash }"
     with-env {XDG_STATE_HOME: $state} { ^$nu.current-exe --no-config-file -I ($env.FILE_PWD) -c $call | complete } | ignore
     let crash = open ($state | path join dotfiles crash.json)
-    if $crash.cause.exit_code != 4 or $crash.cause.command != "sh -c 'echo the crash reason >&2; exit 4'" { fail $"crash cause: ($crash.cause | to nuon)" }
+    assert ($crash.cause.exit_code == 4 and $crash.cause.command == "sh -c 'echo the crash reason >&2; exit 4'") $"crash cause: ($crash.cause | to nuon)"
     let panic = open --raw (glob ($state | path join dotfiles runs *.jsonl) | first) | lines | each { from json } | where level == PANIC | first
-    if $panic.cause != $crash.cause { fail $"the PANIC record's cause differs from crash.json's: ($panic.cause | to nuon)" }
+    assert equal $panic.cause $crash.cause $"the PANIC record's cause differs from crash.json's: ($panic.cause | to nuon)"
     wants "panic line" $panic.msg ["`sh -c 'echo the crash reason >&2; exit 4'` exited 4" "crashing.nu:2"]
     let trace = with-env {XDG_STATE_HOME: $state} { ^$nu.current-exe --no-config-file ($env.FILE_PWD | path join .. dot.nu) log $crash.run --trace }
     wants "trace" $trace ["probe" "! `sh -c 'echo the crash reason >&2; exit 4'` exited 4"]
@@ -203,11 +212,11 @@ def reinstall-cases [dir: path]: nothing -> nothing {
     let f = reinstall-fixture $dir
     wants "unlock" $f.after_config.0 ["dot secrets unlock: lsusb not installed (usbutils)" "yubikey.nu:2" $"fix: ($PACKAGES_FIX)"]
     wants "modules" $f.after_config.1 ["30 modules (base/apparmor base/boot/sbctl" "+24 more" "not installed: aa-enabled (apparmor), sbctl (sbctl)" $"fix: ($PACKAGES_FIX)"]
-    if ($f.after_config | length) != 2 { fail $"reinstall config groups: ($f.after_config | to nuon)" }
+    assert equal ($f.after_config | length) 2 $"reinstall config groups: ($f.after_config | to nuon)"
     let file = $dir | path join FAILURES.config
     $f.config | str join "\n" | save --force $file
     let status = failures-reports [$file] | each { $"($in.check): ($in.text)" }
-    if ($status | length) != 3 { fail $"status lines: ($status | to nuon)" }
+    assert equal ($status | length) 3 $"status lines: ($status | to nuon)"
     wants "status head" $status.0 ["FAILURES.config from" "31 failed" "dot log --trace"]
     wants "status groups" ($status | skip 1 | str join "\n") ["  dot secrets unlock: lsusb" "  30 modules (base/apparmor"]
     wants "install" $f.after_install.0 ["pacman the install pass: `pacman -Su --needed" "exited 1" "unable to satisfy dependency 'libjcat' required by fwupd" "fix: no repo has libjcat"]

@@ -116,6 +116,7 @@ local CODE_RULES = {
 
 local DISPLAY_ENVS = { "equation", "align", "gather", "multline", "eqnarray", "displaymath" }
 
+-- The last occurrence of a control sequence, skipping escaped ones: the \[ in a line break \\[2pt] is no opener.
 local function last_at(text, plain)
     local at, from = nil, 1
     while true do
@@ -123,7 +124,11 @@ local function last_at(text, plain)
         if not i then
             return at
         end
-        at, from = i, i + 1
+        local slashes = #text:sub(1, i - 1):match("\\*$")
+        if slashes % 2 == 0 then
+            at = i
+        end
+        from = i + 1
     end
 end
 
@@ -492,7 +497,6 @@ local function append_piece(s, text, pcm)
     return piece
 end
 
--- A piece leaves the window: its words become context for the next requests, and the rewrite takes its range.
 -- A piece leaves the window: its words become context for the next requests. In rewrite mode it is held: a formula
 -- spoken with a pause in it spans pieces, so the rewrite takes everything held at once (flush_rewrite).
 local function finalize(s, piece)
@@ -569,6 +573,10 @@ local function transcribe_piece(s, pcm, done)
     }, { text = true }, function(r)
         os.remove(wav)
         vim.schedule(function()
+            if s.finished then
+                done()
+                return
+            end
             if r.code ~= 0 then
                 notify("whisper-server request failed (" .. r.code .. ")", vim.log.levels.ERROR)
                 done()
@@ -583,7 +591,8 @@ local function transcribe_piece(s, pcm, done)
             if prev then
                 local older
                 older, fresh = split_words(text, prev.text)
-                if older ~= prev.text then
+                -- an empty window (silence, noise) is no correction: it would erase words already dictated
+                if older ~= "" and older ~= prev.text then
                     s.revisions = s.revisions + 1
                     set_piece(s, prev, older)
                 end

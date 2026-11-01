@@ -20,7 +20,6 @@ Item {
   property color foreground: Colors.menu.text
   property color selectedBackground: Colors.menu.selectedBackground
   property color selectedText: Colors.menu.selectedText
-  property string fontFamily: Style.font.family
   property int rowHeight: Style.space(44)
   property int iconSize: Style.space(28)
 
@@ -48,6 +47,8 @@ Item {
   readonly property int calcDebounceMs: 150
   property string calcResult: ""
   property string calcState: ""
+  // ENTER while qalc still runs: copy the result once it lands
+  property bool copyWhenReady: false
   readonly property int exitNotFound: 127
   readonly property int calcTimeoutS: 5
 
@@ -64,6 +65,7 @@ Item {
 
   function close() {
     root.opened = false
+    root.copyWhenReady = false
     calcDebounce.stop()
     calcProc.running = false
     bindsProc.running = false
@@ -164,6 +166,7 @@ Item {
       return
     }
     const wasKeys = root.mode === "keys"
+    root.copyWhenReady = false
     root.filterText = text
     root.selectedIndex = 0
     if (root.mode === "keys" && !wasKeys) {
@@ -195,6 +198,7 @@ Item {
       const address = row.payload.indexOf("0x") === 0 ? row.payload : "0x" + row.payload
       Hyprland.dispatch("hl.dsp.focus({ window = 'address:" + address + "' })")
     } else if (row.kind === "calc") {
+      if (root.calcState === "loading") root.copyWhenReady = true
       if (root.calcState !== "" || !row.payload) return
       Quickshell.execDetached(["wl-copy", "--", row.payload])
     } else if (row.kind === "run") {
@@ -223,6 +227,10 @@ Item {
       root.calcState = code === root.exitNotFound ? "missing" : code !== 0 || !text ? "error" : ""
       root.calcResult = root.calcState === "" ? text : ""
       root.rebuild()
+      if (root.copyWhenReady) {
+        root.copyWhenReady = false
+        root.activateAt(0)
+      }
     }
   }
 
@@ -351,15 +359,12 @@ Item {
           anchors.rightMargin: Style.spacing.md
           spacing: Style.spacing.md
 
-          Text {
+          Label {
             id: cursorMark
             anchors.verticalCenter: parent.verticalCenter
             width: Style.spacing.md
-            textFormat: Text.PlainText
             text: rowDelegate.selected ? ">" : ""
             color: Colors.accentText
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.body
             horizontalAlignment: Text.AlignHCenter
             layer.enabled: rowDelegate.selected && Style.fx.glow > 0
             layer.effect: Glow {}
@@ -382,13 +387,12 @@ Item {
               source: rowDelegate.modelData.icon
             }
 
-            Text {
+            Label {
               anchors.centerIn: parent
               visible: !rowIcon.visible
-              textFormat: Text.PlainText
               text: rowDelegate.modelData.glyph
               color: rowDelegate.selected ? root.selectedText : root.foreground
-              font.family: Style.font.iconFamily
+              icon: true
               font.pixelSize: Style.font.heading
             }
           }
@@ -401,35 +405,31 @@ Item {
               width: parent.width
               textFormat: Text.StyledText
               text: rowDelegate.modelData.kind === "app"
-                ? AppSearch.highlight(rowDelegate.modelData.name, root.modeQuery, String(Colors.accent2))
+                ? AppSearch.highlight(rowDelegate.modelData.name, root.modeQuery, String(Colors.accent2Text))
                 : AppSearch.escapeHtml(rowDelegate.modelData.name)
               color: rowDelegate.selected ? root.selectedText : root.foreground
-              font.family: root.fontFamily
+              font.family: Style.font.family
               font.pixelSize: Style.font.body
               elide: Text.ElideRight
             }
 
-            Text {
-              textFormat: Text.PlainText
+            Label {
               width: parent.width
               visible: text.length > 0
               text: rowDelegate.modelData.sub
               color: rowDelegate.selected ? root.selectedText : Colors.textDim
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
+              caption: true
               elide: Text.ElideRight
             }
           }
 
-          Text {
+          Label {
             id: keysLabel
             anchors.verticalCenter: parent.verticalCenter
             width: text ? implicitWidth : 0
-            textFormat: Text.PlainText
             text: rowDelegate.modelData.keys
             color: rowDelegate.selected ? root.selectedText : Colors.accentText
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
+            caption: true
             font.bold: true
           }
         }
@@ -453,19 +453,17 @@ Item {
         Behavior on opacity { NumberAnimation { duration: Style.motion.base; easing.type: Style.motion.fastEasing } }
         width: parent.width * 0.8
 
-        Text {
-          textFormat: Text.PlainText
+        Label {
           text: "\u{f003b}"
           color: Colors.accentText
           opacity: Style.emphasis.dim
-          font.family: Style.font.iconFamily
+          icon: true
           font.pixelSize: Style.font.display
           horizontalAlignment: Text.AlignHCenter
           width: parent.width
         }
 
-        Text {
-          textFormat: Text.PlainText
+        Label {
           text: root.mode === "keys" && root.bindsState === "loading" ? "> LOADING"
             : root.mode === "keys" && root.bindsState === "error" ? "> HYPRCTL BINDS FAILED"
             : root.modeQuery ? "> NO MATCH"
@@ -474,9 +472,7 @@ Item {
             : root.mode === "run" ? "> TYPE A COMMAND"
             : root.mode === "windows" ? "> NO WINDOWS"
             : "> NO KEYBINDS"
-          color: Colors.textDim
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.body
+          dim: true
           horizontalAlignment: Text.AlignHCenter
           width: parent.width
         }

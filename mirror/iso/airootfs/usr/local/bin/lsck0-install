@@ -2,6 +2,7 @@
 
 const ANSWERS_LABEL = "/dev/disk/by-label/LSCK0"
 const ANSWERS_GLOB = "lsck0*.nuon"
+const ANSWERS_EXAMPLE = "lsck0.example.nuon"
 const ANSWERS_NONE = "none"
 const ANSWERS_WAIT_S = 10
 const BOOT_MEDIUM = "/run/archiso/bootmnt"
@@ -90,6 +91,7 @@ def is-a [kind: string]: any -> bool {
 def answers-in [dir: path]: nothing -> list<path> {
     let beside = glob --depth $ISO_SEARCH_DEPTH ($dir | path join "**" $ISO_GLOB) | each { path dirname }
     [$dir] ++ $beside | uniq | each {|d| glob --depth 1 ($d | path join $ANSWERS_GLOB) | sort } | flatten | uniq
+        | where ($it | path basename) != $ANSWERS_EXAMPLE
 }
 
 def answers-text [file: path]: nothing -> string {
@@ -121,6 +123,11 @@ export def answers-unattended [text: string]: nothing -> bool {
 # offered once.
 export def answers-dedupe [found: list<record>]: nothing -> list<record> {
     $found | reduce --fold [] {|f, acc| if ($acc | any {|k| $k.real == $f.real or $k.hash == $f.hash }) { $acc } else { $acc ++ [$f] } }
+}
+
+# The menu's tag and label pairs, flat as dialog takes them: the file's index, then where it was found.
+export def answers-menu-items [usable: list<record>]: nothing -> list<string> {
+    $usable | enumerate | each {|f| [($f.index | into string) $f.item.origin] } | flatten
 }
 
 # How long the menu of several files waits before it takes the first: only when the first is the one file that says
@@ -237,7 +244,7 @@ def answers-find []: nothing -> any {
         # only a no turns it down: the timeout, esc and a box that cannot draw keep it
         return (if $d.kind == cancel { null } else { $usable.0 })
     }
-    let items = $usable | enumerate | each {|f| [($f.index | into string) $f.origin] } | flatten
+    let items = answers-menu-items $usable
     let timeout = answers-menu-timeout $usable
     let timed = if $timeout > 0sec { [--timeout ($timeout / 1sec | into string)] } else { [] }
     let fallback = if $timeout > 0sec { $usable.0 } else { null }

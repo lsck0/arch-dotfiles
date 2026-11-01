@@ -15,6 +15,7 @@ const FINGERPRINT_SIZE = "32x18!"
 const MATCH_DISTANCE_MAX = 12
 const LETTERBOX_FUZZ = "6.3%"
 const THUMBNAIL_SIZE = "1024x1024>"
+const SLUG_HASH_LENGTH = 12
 
 def fingerprint-of [file: path]: nothing -> list<int> {
     (^magick $"($file)[0]" -grayscale Rec601Luma -thumbnail $THUMBNAIL_SIZE
@@ -64,7 +65,8 @@ def main [...sources: path]: nothing -> nothing {
             let matched = $best != null and $best.distance <= $MATCH_DISTANCE_MAX
             let target = if $matched { $best.name } else {
                 let parts = $image | path basename | path parse
-                let slug = $parts.stem | str lowercase | str replace --all --regex '[^a-z0-9]+' '-' | str trim --char '-'
+                let stem = $parts.stem | str lowercase | str replace --all --regex '[^a-z0-9]+' '-' | str trim --char '-'
+                let slug = if $stem != "" { $stem } else { $"wallpaper-(open --raw $image | hash sha256 | str substring 0..<$SLUG_HASH_LENGTH)" }
                 $"($slug).($parts.extension | str lowercase)"
             }
             {image: $image, best: $best, matched: $matched, target: $target}

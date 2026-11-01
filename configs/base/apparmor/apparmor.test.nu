@@ -1,9 +1,10 @@
 #!/usr/bin/env -S nu --no-config-file
 
+use mod.nu [OVERRIDES override-text]
+
 const HERE = path self | path dirname
 const MARKER = "# managed by arch-dotfiles/apparmor"
 const OWN_SUFFIX = ".dotfiles"
-const OVERRIDES = [firefox thunderbird libreoffice]
 # each profile parses from its own file: a few at a time, the parser is cpu bound and the desktop stays usable
 const PARSE_THREADS = 8
 const ENFORCED = [
@@ -73,22 +74,23 @@ def compile-check [rows: table, source: path, etc: path]: nothing -> list<string
     let own = basenames profiles
     let names = $rows | get name | each {|n|
         if $n in $own {
-            if $n in $upstream and $n not-in $OVERRIDES { $"apparmor.d now ships ($n), drop profiles/($n)" }
+            if $n in $upstream { $"apparmor.d now ships ($n), drop profiles/($n)" }
         } else if $n not-in $upstream { $"apparmor.d has no profile named ($n)" }
     } | compact
     let work = mktemp -d
     mkdir ($work | path join abstractions dotfiles) ($work | path join local)
     glob abstractions/* | each { cp $in ($work | path join abstractions dotfiles) } | ignore
     glob local/* | each { cp $in ($work | path join local) } | ignore
+    let overrides = $OVERRIDES | columns
     # parsed under the installed name: the bare one has a disable/ link wherever a stock stub exists
-    let profiles = $own | par-each --keep-order --threads $PARSE_THREADS {|n|
+    let profiles = $own ++ $overrides | par-each --keep-order --threads $PARSE_THREADS {|n|
         let file = $work | path join $"($n)($OWN_SUFFIX)"
-        cp $"profiles/($n)" $file
-        if not (parse-ok $file $work $etc) { $"profiles/($n) does not compile" }
+        if $n in $overrides { override-text $n $source | save $file } else { cp $"profiles/($n)" $file }
+        if not (parse-ok $file $work $etc) { $"profile ($n) does not compile" }
     } | compact
     # an own profile above already pulled in its local from $work; apparmor.d deploys one that replaces a stock
     # profile as <name>.apparmor.d
-    let locals = basenames local | where $it not-in $own | par-each --keep-order --threads $PARSE_THREADS {|n|
+    let locals = basenames local | where $it not-in ($own ++ $overrides) | par-each --keep-order --threads $PARSE_THREADS {|n|
         let target = [$"($n).apparmor.d" $n] | each {|f| $etc | path join $f }
             | where ($it | path exists) and ($it | path expand | path type) == file | get --optional 0
         if $target == null {
@@ -108,21 +110,6 @@ def required-check []: nothing -> list<string> {
     } | flatten
 }
 
-# An override differs from its upstream apparmor.d profile only in the profile line.
-def override-check [source: path]: nothing -> list<string> {
-    let body = {|text| $text | lines | where not ($it =~ '^profile ') }
-    $OVERRIDES | each {|n|
-        let upstream = glob $"($source)/**/($n)" --no-dir | where not ($it =~ '/(abstractions|tunables)/') | get --optional 0
-        if $upstream == null { return $"apparmor.d no longer ships ($n), profiles/($n) has nothing to follow" }
-        let own = open --raw $"profiles/($n)" | lines
-        let header = $own | take while { $in != "" } | length
-        let ours = $own | skip ($header + 1) | str join "\n"
-        if (do $body $ours) != (do $body (open --raw $upstream)) {
-            $"profiles/($n) drifted from ($upstream): re-sync it, keeping only its profile line"
-        }
-    } | compact
-}
-
 def main []: nothing -> nothing {
     cd $HERE
     let source = $env.APPARMOR_D_SRC? | default /usr/share/apparmor.d
@@ -138,11 +125,7 @@ def main []: nothing -> nothing {
         print --stderr $"apparmor.test: skipped compiling: needs ($needs)"
         []
     }
-    let drifted = if ($source | path exists) { override-check $source } else {
-        print --stderr $"apparmor.test: skipped the override check: no ($source)"
-        []
-    }
-    let failures = (rows-check $rows) ++ (own-check $rows) ++ (required-check) ++ $compiled ++ $drifted
+    let failures = (rows-check $rows) ++ (own-check $rows) ++ (required-check) ++ $compiled
     for f in $failures { print --stderr $"apparmor.test: ($f)" }
     if ($failures | is-not-empty) { exit 1 }
 }

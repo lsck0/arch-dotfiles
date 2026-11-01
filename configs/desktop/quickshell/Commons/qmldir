@@ -13,8 +13,8 @@ singleton Theme 1.0 Theme.qml
 singleton ToggleEvents 1.0 ToggleEvents.qml
 singleton Util 1.0 Util.qml
 JsonProcess 1.0 JsonProcess.qml
+ToggleState 1.0 ToggleState.qml
 singleton TimerState 1.0 TimerState.qml
-KeyValueProcess 1.0 KeyValueProcess.qml
 singleton TaskState 1.0 TaskState.qml
 ProcessQueue 1.0 ProcessQueue.qml
 singleton CalendarState 1.0 CalendarState.qml

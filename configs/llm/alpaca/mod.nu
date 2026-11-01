@@ -45,15 +45,16 @@ export def seed [vllm_model: string]: nothing -> nothing {
     mkdir (db | path dirname)
     let ollama = {
         name: "System Ollama", url: "http://127.0.0.1:11434", api: EMPTY, temperature: 0.7, num_ctx: $LONG_CONTEXT_TOKENS
-        keep_alive: $KEEP_ALIVE_MIN, default_model: $LONG_CONTEXT
+        keep_alive: (($KEEP_ALIVE_MIN * 1min) / 1sec | into int), default_model: $LONG_CONTEXT
     }
     let vllm = {name: vLLM, url: "http://127.0.0.1:8000/v1", api: EMPTY, max_tokens: 2048, override_parameters: true, temperature: 0.7, seed: 0, default_model: $vllm_model, title_model: $vllm_model}
     let rows = [["dotfiles-ollama" ollama $ollama] ["dotfiles-vllm" "openai:generic" $vllm]]
         | where {|r| $r.0 != "dotfiles-vllm" or $vllm_model != "" }
         | each {|r| $"\('($r.0)', 1, '($r.1)', json\('(sql-escape ($r.2 | to json --raw))'\)\)" } | str join ", "
     # Alpaca sends "Bearer <api>" unconditionally; an empty key makes "Bearer ", which httpx rejects
-    let ollama_follow = ($" UPDATE instance SET properties = json_set\(properties, '$.url', '(sql-escape $ollama.url)', '$.api', '($ollama.api)'\)"
-        + " WHERE id = 'dotfiles-ollama';")
+    let ollama_follow = ($" UPDATE instance SET properties = json_set\(properties, '$.url', '(sql-escape $ollama.url)',"
+        + $" '$.api', '($ollama.api)', '$.num_ctx', ($ollama.num_ctx), '$.keep_alive', ($ollama.keep_alive),"
+        + $" '$.default_model', '(sql-escape $ollama.default_model)'\) WHERE id = 'dotfiles-ollama';")
     let vllm_follow = if $vllm_model == "" { " DELETE FROM instance WHERE id = 'dotfiles-vllm';" } else {
         let model = sql-escape $vllm_model
         # an openai instance offers only the models in its added list (its "add" button), empty until one is added

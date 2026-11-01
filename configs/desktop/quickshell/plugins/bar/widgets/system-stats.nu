@@ -12,7 +12,8 @@ const CPU_TEMP_LABEL = '^(Tctl|Tdie|Package.*|CPU Temperature)$'
 const CPU_FREQ = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq"
 const GPU_CLASSES = '^\S+ (0300|0302): '
 const TOP_COUNT = 2
-const PROC_STAT = '(?m)^(?<pid>\d+) \((?<name>.*)\) \S+(?: \S+){10} (?<utime>\d+) (?<stime>\d+) '
+# fields 1, 2, 14, 15 and 24 of /proc/<pid>/stat; rss is in pages
+const PROC_STAT = '(?m)^(?<pid>\d+) \((?<name>.*)\) \S+(?: \S+){10} (?<utime>\d+) (?<stime>\d+)(?: \S+){8} (?<rss>\d+) '
 const GPU_TEMP_LABEL = "edge"
 const MS_PER_HOUR = 3_600_000
 const UW_PER_W = 1_000_000
@@ -65,7 +66,7 @@ def proc-ticks []: nothing -> table {
     let self = $nu.pid | into string
     glob /proc/[0-9]*/stat | each {|f| try { open --raw $f } } | str join "\n" | parse -r $PROC_STAT
         | where pid != $self
-        | each {|p| {pid: $p.pid, name: $p.name, ticks: (($p.utime | into int) + ($p.stime | into int))} }
+        | each {|p| {pid: $p.pid, name: $p.name, ticks: (($p.utime | into int) + ($p.stime | into int)), rss: ($p.rss | into int)} }
 }
 
 # A share of one core since the last sample, like top; ps %cpu is the lifetime average.
@@ -77,18 +78,11 @@ def top-cpu [now: table, before: table, dt_ms: number, tck: int]: nothing -> lis
     } | where pct > 0 | each {|p| $p | update name (proc-name-full $p.pid $p.name) } | top-by-name
 }
 
-# Read RSS from /proc directly, like top-cpu, instead of forking `ps` every tick. statm field 2 is resident pages.
-def top-mem []: nothing -> list {
-    let total_kib = mem-total-kib
+# Resident memory from the same /proc/<pid>/stat walk as top-cpu, so a tick reads /proc once.
+def top-mem [procs: table, total_kib: int]: nothing -> list {
     if $total_kib <= 0 { return [] }
-    glob /proc/[0-9]*/statm | each {|f|
-        let pid = $f | parse -r '/proc/(?<p>\d+)/statm' | get 0?.p
-        let rss_pages = try { open --raw $f | split row ' ' | get 1? | default "0" | into int } catch { 0 }
-        if $rss_pages <= 0 or $pid == null { null } else {
-            let comm = try { open --raw $"/proc/($pid)/comm" | str trim } catch { "" }
-            if $comm == "" { null } else { {name: (proc-name-full $pid $comm), pct: ($rss_pages * $PAGE_KIB * 100 / $total_kib)} }
-        }
-    } | compact | top-by-name
+    $procs | where rss > 0 | each {|p| {name: (proc-name-full $p.pid $p.name), pct: ($p.rss * $PAGE_KIB * 100 / $total_kib)} }
+        | top-by-name
 }
 
 def hardware-detect []: nothing -> record {
@@ -164,7 +158,8 @@ def main [interval_s: number = 10] {
         if $temp_raw =~ '^-?[0-9]+$' { $temp_c = ($temp_raw | into int) // 1000 }
 
         let total = ($stat | math sum) - ($prev.stat | math sum)
-        let idle = $stat.3 - $prev.stat.3
+        # idle and iowait, like top
+        let idle = ($stat.3 + $stat.4) - ($prev.stat.3 + $prev.stat.4)
         let gpu_pct = if $amd {
             number-or-null (line-read $"($device)/gpu_busy_percent") 1
         } else if $has_rc6 and $dt_ms > 0 {
@@ -211,7 +206,7 @@ def main [interval_s: number = 10] {
             energyKwh: ($energy_wh / 1000 | math round -p 4)
             vramUsedMb: $vram_used_mb
             vramTotalMb: $vram_total_mb
-            top: {cpu: (top-cpu $procs $prev.procs $dt_ms $tck), mem: (top-mem)}
+            top: {cpu: (top-cpu $procs $prev.procs $dt_ms $tck), mem: (top-mem $procs $hw.mem_total_kb)}
         } | to json -r | print
 
         $prev = {stat: $stat, rc6: $rc6, procs: $procs, time: $time}

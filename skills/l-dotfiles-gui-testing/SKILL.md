@@ -10,6 +10,10 @@ output, uses it and removes it; several agents can do this at once.
 
 ## Never
 
+- Any of this on Hyprland 0.57 without asking Luca first: on 2026-11-01, within seconds of `hyprctl output create
+  headless` (and a nested Hyprland on it), his live neovide, Firefox, ghostty and quickshell died with
+  `unknown object (N), message attach(?oii)` in the compositor's log. Until that is understood, an output created on
+  the live compositor can kill the user's apps.
 - `hyprctl keyword monitor`, `hl.monitor`, a monitor rule or position: an auto-positioned output follows the rightmost
   one and can push a real monitor off-screen. Create the headless output and nothing else (a nested Hyprland's own
   config, below, is the only place for `hl.monitor`).
@@ -63,6 +67,7 @@ hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
 hl.config({ misc = { disable_hyprland_logo = true, disable_splash_rendering = true }, ecosystem = { no_update_news = true } })
 EOF
 hyprctl dispatch "hl.dsp.exec_cmd('sh -c \"exec env -u HYPRLAND_INSTANCE_SIGNATURE -u DISPLAY XDG_RUNTIME_DIR=$rt dbus-run-session Hyprland -c /tmp/<agent>-nested.lua\"', { workspace = '<ws> silent' })"
+timeout 10 sh -c "until [ -S $rt/hypr/*/.socket.sock ]; do sleep 0.2; done"
 nested=$(ls $rt/hypr)
 XDG_RUNTIME_DIR=$rt HYPRLAND_INSTANCE_SIGNATURE=$nested hyprctl dispatch "hl.dsp.exec_cmd('env PULSE_SINK=agent-null <app>')"
 XDG_RUNTIME_DIR=$rt HYPRLAND_INSTANCE_SIGNATURE=$nested hyprctl clients -j | jq '.[] | {class, title, pid, at, size}'

@@ -69,6 +69,8 @@ const HEADLESS_OUTPUT = '^HEADLESS-'
 const VIRTUALCAM_HEIGHT = 720
 const STREAM_HEIGHT = 1080
 const PORTAL_TOKEN = "RestoreToken"
+# scene item keys obs derives from pos, scale and bounds on load
+const ITEM_RELATIVE_KEYS = [pos_rel scale_rel scale_ref bounds_rel]
 const GLOBAL = {General: {AutomaticSearch: "true", SafeMode: "false", ConfirmOnExit: "true"}}
 # obs 31+ reads the selection here, else it opens an empty Untitled; FirstRun unset opens the setup wizard
 const USER_GENERAL = {General: {FirstRun: "true"}}
@@ -177,9 +179,18 @@ def scene-fit [size: record]: record -> record {
             $src | update settings.items {
                 each {|item|
                     $item | update pos (do $scale $item.pos) | update bounds (do $scale $item.bounds)
-                    | reject --optional pos_rel scale_rel scale_ref bounds_rel
+                    | reject --optional ...$ITEM_RELATIVE_KEYS
                 }
             }
+        }
+    }
+}
+
+def scene-relative-drop []: record -> record {
+    update sources {
+        each {|src|
+            if $src.id != "scene" { return $src }
+            $src | update settings.items { each { reject --optional ...$ITEM_RELATIVE_KEYS } }
         }
     }
 }
@@ -346,7 +357,8 @@ export def websocket-init [file: path]: nothing -> nothing {
 }
 
 # Skips a collection edited since link that obs has not loaded; the portal token is never stored.
-def scene-back [cfg: record, live: path, src: path, dest: path, --machine]: nothing -> nothing {
+# A machine's copy equal to its render of the shared --seed is dropped, the restore falls back to the seed.
+def scene-back [cfg: record, live: path, src: path, dest: path, --machine, --seed: path]: nothing -> nothing {
     if not ($live | path exists) { return }
     let applied = applied-file $live
     if ($applied | path exists) and (open --raw $applied) != (scene-render $cfg $src --machine=$machine | scene-hash) {
@@ -357,10 +369,16 @@ def scene-back [cfg: record, live: path, src: path, dest: path, --machine]: noth
     let saved = if $machine or $saved.AuxAudioDevice1?.settings?.device_id? != $cfg.mic { $saved } else {
         $saved | scene-mic (open $src | get --optional AuxAudioDevice1.settings.device_id)
     }
-    mkdir ($dest | path dirname)
-    $"($saved | to json --indent 2)\n" | save --force $dest
-    # dest is the next link's source: record it as loaded, or the next backup takes its own write for a repo edit
-    if ($applied | path exists) { scene-render $cfg $dest --machine=$machine | scene-hash | save --force $applied }
+    let unchanged = $seed != null and (
+        ($saved | scene-relative-drop) == (scene-render $cfg $seed --machine | from json | strip-token | scene-relative-drop)
+    )
+    let next = if $unchanged { rm --force $dest; $seed } else {
+        mkdir ($dest | path dirname)
+        $"($saved | to json --indent 2)\n" | save --force $dest
+        $dest
+    }
+    # next is the next link's source: record it as loaded, or the next backup takes its own write for a repo edit
+    if ($applied | path exists) { scene-render $cfg $next --machine=$machine | scene-hash | save --force $applied }
 }
 
 # Writes a live profile back to the repo: placeholders stay, paths under this user's dirs become placeholders again.
@@ -389,7 +407,7 @@ export def backup [cfg: record]: nothing -> nothing {
     }
     scene-back $cfg $streaming (secret obs-Streaming.json) (secret obs-Streaming.json)
     for seed in (repo-scenes) {
-        scene-back $cfg ($basic | path join scenes ($seed | path basename)) (scene-seed $seed) (scene-own $seed) --machine
+        scene-back $cfg ($basic | path join scenes ($seed | path basename)) (scene-seed $seed) (scene-own $seed) --machine --seed $seed
     }
     let service = $basic | path join profiles Streaming service.json
     if ($service | path exists) { cp --force $service (secret obs-service.json) }

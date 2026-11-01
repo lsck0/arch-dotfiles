@@ -29,10 +29,12 @@ def thumbnails-spawn [images: list<string>]: nothing -> nothing {
 
 def "main thumbnails" [...images: string] {
     for image in ($images | where { path exists }) {
-        let path = cache-dir | path join $"((thumb-hash $image)).jpg"
+        let hash = thumb-hash $image
+        let path = cache-dir | path join $"($hash).jpg"
         if not ($path | path exists) {
             try {
-                let tmp = $"($path).tmp"
+                # vipsthumbnail picks the saver from the last suffix
+                let tmp = cache-dir | path join $"($hash).tmp.jpg"
                 ^vipsthumbnail $image --size $THUMB_SIZE -o $"($tmp)[Q=($THUMB_QUALITY)]"
                 mv --force $tmp $path
             }

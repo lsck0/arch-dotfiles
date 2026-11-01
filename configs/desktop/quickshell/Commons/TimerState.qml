@@ -123,9 +123,21 @@ Singleton {
 
   readonly property int reminderCount: reminders.length
 
-  // Reminders show their countdown on the desktop and in the tasks panel too, not only in the overlay.
+  // remainingText shows seconds only below this; a reminder further out needs a tick a minute, not a second
+  readonly property int secondsShownBelowS: 3600
+  readonly property real soonestReminderS: {
+    var soonest = Infinity
+    for (const reminder of reminderList || []) {
+      const left = Number(reminder.at || 0) - nowSec
+      if (left > 0) soonest = Math.min(soonest, left)
+    }
+    return soonest
+  }
+
+  // Reminders show their countdown on the desktop and in the tasks panel too, not only in the overlay. The switch to
+  // second ticks looks one minute tick ahead, since nowSec only moves when this timer fires.
   Timer {
-    interval: 1000
+    interval: root.overlayOpen || root.pomoTicking || root.soonestReminderS - 60 < root.secondsShownBelowS ? 1000 : 60000
     running: root.overlayOpen || root.pomoTicking || root.reminderList.length > 0
     repeat: true
     triggeredOnStart: true

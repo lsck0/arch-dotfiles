@@ -1,7 +1,7 @@
 import QtQuick
 import qs.Commons
 
-Text {
+Label {
   id: root
 
   property bool running: true
@@ -15,10 +15,8 @@ Text {
   property bool expired: false
   readonly property bool blinking: running && !expired && !Power.saver
 
-  textFormat: Text.PlainText
   text: block ? " " : "_"
   color: Colors.accentText
-  font.family: Style.font.family
   font.pixelSize: size
   layer.enabled: Style.fx.glow > 0
   layer.effect: Glow {}

@@ -1,4 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
+# one JSON line each: {disk}, then {read} and {write} in MB/s once a second and a final average, or {error}
 # runs as a transient unit: a closed reader ends it and ExecStopPost removes the test files
 
 const PHASE_SECONDS = 8
@@ -9,13 +10,13 @@ const SECTOR_BYTES = 512
 const BYTES_PER_MB = 1_000_000
 const STAT_FIELD = {read: 2, write: 6}
 
-def fail [message: string] {
-    print --stderr $message
-    exit 1
+def emit [line: record] {
+    print ($line | to json --raw)
 }
 
-def rate-format [value: float]: nothing -> string {
-    if $value <= 0 { "0.0" } else if $value < 10 { $value | into string --decimals 1 } else { $value | math round | into string }
+def fail [message: string] {
+    emit {error: $message}
+    exit 1
 }
 
 def disk-root [dev: string]: nothing -> string {
@@ -44,7 +45,7 @@ def phase-run [phase: string, chunk: path, files: list<path>, stat: path] {
         sleep 1sec
         let after = sectors $stat $phase
         $end_time = date now
-        print $"($phase) (rate-format ([0 ($after - $before)] | math max | $in * $SECTOR_BYTES / $BYTES_PER_MB))"
+        emit {$phase: ([0 ($after - $before)] | math max | $in * $SECTOR_BYTES / $BYTES_PER_MB | math round --precision 1)}
         $samples += 1
         if $samples == 1 { $baseline = {sectors: $after, time: $end_time} }
         $before = $after
@@ -55,7 +56,7 @@ def phase-run [phase: string, chunk: path, files: list<path>, stat: path] {
     if $samples > 1 {
         let seconds = ($end_time - $baseline.time) / 1sec
         let rate = if $seconds <= 0 or $before < $baseline.sectors { 0.0 } else { ($before - $baseline.sectors) * $SECTOR_BYTES / $BYTES_PER_MB / $seconds }
-        print $"($phase) (rate-format $rate)"
+        emit {$phase: ($rate | math round --precision 1)}
     }
 }
 
@@ -74,7 +75,7 @@ def "main measure" [run_dir: path, chunk: path] {
 
     let disk = disk-root $dev
     let model = ^lsblk -dno MODEL $"/dev/($disk)" | complete | get stdout | str trim
-    print $"disk ($model | default --empty $disk)"
+    emit {disk: ($model | default --empty $disk)}
 
     ^dd if=/dev/urandom $"of=($chunk)" $"bs=($CHUNK_MB)M" $"count=($FILE_MB // $CHUNK_MB)" status=none
     let files = 0..<$PARALLEL | each { $run_dir | path join $"($in).dat" }

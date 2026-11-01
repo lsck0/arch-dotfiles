@@ -43,7 +43,7 @@ BarWidget {
   visible: hasUsage || errorText !== ""
 
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
-  implicitHeight: barSize
+  implicitHeight: Style.bar.sizeHorizontal
 
   JsonProcess {
     id: usageProc
@@ -67,22 +67,18 @@ BarWidget {
     anchors.centerIn: parent
     spacing: Style.spacing.xs
 
-    Text {
+    Label {
       anchors.verticalCenter: parent.verticalCenter
-      textFormat: Text.PlainText
       text: "\u{ee0d}"
-      color: root.tight ? Colors.urgent : (root.bar ? root.bar.barForeground : Colors.foreground)
-      font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
+      color: root.tight ? Colors.urgent : Colors.bar.text
+      icon: true
       font.pixelSize: Style.font.icon
     }
-    Text {
+    Label {
       anchors.verticalCenter: parent.verticalCenter
       visible: root.hasUsage
-      textFormat: Text.PlainText
       text: root.worstWhich + " " + root.worstPctShown + "%"
-      color: root.tight ? Colors.urgentText : (root.bar ? root.bar.barForeground : Colors.foreground)
-      font.family: root.bar ? root.bar.fontFamily : Style.font.family
-      font.pixelSize: Style.font.body
+      color: root.tight ? Colors.urgentText : Colors.bar.text
       font.letterSpacing: Style.displayTracking
       layer.enabled: Style.fx.glow > 0
       layer.effect: Glow { shadowColor: root.tight ? Colors.urgent : Style.fx.glowColor }
@@ -116,14 +112,13 @@ BarWidget {
       radius: Style.shape.data
       color: barRow.alert ? Util.alpha(Colors.urgent, Style.tintFillAlpha) : Util.alpha(Colors.accent, Style.tintFillAlpha)
     }
-    Text {
+    Label {
       anchors.left: parent.left
       anchors.verticalCenter: parent.verticalCenter
       width: parent.width * 0.4
       text: barRow.label
       color: Colors.menu.text
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
+      caption: true
       font.capitalization: barRow.upper ? Font.AllUppercase : Font.MixedCase
       font.letterSpacing: barRow.upper ? Style.labelTracking : 0
       elide: Text.ElideRight
@@ -132,19 +127,17 @@ BarWidget {
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
       spacing: Style.spacing.sm
-      Text {
+      Label {
         id: rowValue
         text: barRow.value
         color: barRow.alert ? Colors.urgentText : Colors.menu.text
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        caption: true
       }
-      Text {
+      Label {
         visible: barRow.note !== ""
         text: barRow.note
-        color: Colors.textDim
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        dim: true
+        caption: true
       }
     }
   }
@@ -169,59 +162,15 @@ BarWidget {
       Column {
         width: parent.width
         visible: root.hasUsage
-        spacing: Style.spacing.xs
-
-        Item {
-          width: parent.width
-          implicitHeight: Math.max(usageHero.implicitHeight, usageSide.implicitHeight)
-          height: implicitHeight
-          Hero {
-            id: usageHero
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            value: String(root.worstPctShown)
-            unit: "%"
-            color: root.tight ? Colors.urgent : Colors.accent
-          }
-          Column {
-            id: usageSide
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width * 0.56
-            spacing: Style.spacing.xxs
-            Text {
-              width: parent.width
-              horizontalAlignment: Text.AlignRight
-              visible: !!root.usage.sub
-              text: root.usage.sub ? root.usage.sub + " " + (root.usage.tier || "") : ""
-              color: Colors.textDim
-              textFormat: Text.PlainText
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
-              elide: Text.ElideRight
-            }
-            Text {
-              width: parent.width
-              horizontalAlignment: Text.AlignRight
-              text: "SESSION " + root.sessionPct + "% :: WEEK " + root.weekPct + "%"
-              color: root.tight ? Colors.urgentText : Colors.textDim
-              textFormat: Text.PlainText
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
-              font.letterSpacing: Style.labelTracking
-            }
-          }
-        }
-        Sparkline { width: parent.width; height: Style.space(34); values: root.pctHist; minValue: 0; maxValue: 100; color: root.tight ? Colors.urgent : Colors.accent; glow: true }
-        BarGauge { width: parent.width; height: Style.spacing.sm; segments: 24; value: root.worstPct / 100; color: root.tight ? Colors.urgent : Colors.accent }
-      }
-
-      Column {
-        width: parent.width
-        visible: root.hasUsage
         spacing: Style.spacing.sm
 
+        // the bar's worst figure is the larger of these two rows; the sparkline below is its history
         PanelSectionHeader { text: "Limits" }
+        BarRow {
+          visible: !!root.usage.sub
+          label: "Plan"
+          value: root.usage.sub ? root.usage.sub + " " + (root.usage.tier || "") : ""
+        }
         BarRow {
           label: "Session"
           value: root.sessionPct + "%"
@@ -235,13 +184,8 @@ BarWidget {
           pct: root.weekPct
           alert: root.weekPct >= 80
         }
-        BarRow {
-          visible: root.usage.u_sonnet !== undefined && root.usage.u_sonnet !== "\u2014"
-          label: root.usage.u_model || "Model"
-          upper: false
-          value: root.usage.u_sonnet + "%"
-          pct: Number(root.usage.u_sonnet) || 0
-        }
+        // one point draws no line, only an empty box
+        Sparkline { width: parent.width; height: Style.space(34); values: root.pctHist; minValue: 0; maxValue: 100; color: root.tight ? Colors.urgent : Colors.accent; glow: true }
 
         PanelSeparator {}
         PanelSectionHeader { text: "Today" }
@@ -257,7 +201,6 @@ BarWidget {
           visible: (root.usage.active || 0) > 0
           label: "Active now"
           value: String(root.usage.active)
-          note: root.usage.fleet || ""
         }
 
         PanelSeparator {}

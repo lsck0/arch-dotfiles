@@ -31,7 +31,6 @@ Item {
   readonly property color onScrim: Colors.menu.text
   readonly property color onScrimDim: Colors.textDim
   readonly property color onScrimUrgent: Colors.urgentText
-  readonly property string fontFamily: Style.font.family
 
   function open(payload) {
     root.ssid = payload.ssid !== undefined ? String(payload.ssid) : ""
@@ -211,48 +210,42 @@ Item {
         }
       }
 
-      Text {
+      Label {
         visible: root.loading
         text: ":: GENERATING QR CODE"
         color: root.onScrimDim
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
+        caption: true
         Layout.fillWidth: true
         horizontalAlignment: Text.AlignHCenter
       }
 
-      Text {
-        textFormat: Text.PlainText
+      Label {
         visible: root.error !== ""
         text: root.error
         color: root.onScrimUrgent
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
+        caption: true
         wrapMode: Text.Wrap
         Layout.fillWidth: true
         Layout.maximumWidth: Style.space(320)
         horizontalAlignment: Text.AlignHCenter
       }
 
-      Text {
+      Label {
         visible: root.showingQr
         text: ":: SCAN TO JOIN THIS NETWORK"
         color: root.onScrimDim
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
+        caption: true
         Layout.fillWidth: true
         horizontalAlignment: Text.AlignHCenter
       }
 
-      Text {
-        textFormat: Text.PlainText
+      Label {
         visible: root.showingQr && root.secured
         text: root.passwordError !== "" ? root.passwordError
           : root.passwordVisible ? root.password
           : ":: SHOW PASSWORD"
         color: root.passwordError !== "" ? root.onScrimUrgent : root.passwordVisible ? root.onScrim : root.onScrimDim
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
+        caption: true
         wrapMode: Text.WrapAnywhere
         Layout.fillWidth: true
         Layout.maximumWidth: Style.space(320)

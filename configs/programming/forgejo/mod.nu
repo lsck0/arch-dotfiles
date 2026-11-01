@@ -18,6 +18,7 @@ export def link [cfg: record] {
     if not (profile-has secrets) { return [] }
     let secret = $env.DOTFILES | path join $SECRET
     let store = xdg config git forgejo-credentials
+    let inc = xdg config git forgejo.inc
     let tea = xdg config tea config.yml
     let ssh = $nu.home-dir | path join .ssh config.d forgejo
     let texts = if (secret-is-plaintext $secret) {
@@ -32,16 +33,15 @@ export def link [cfg: record] {
                 "    UserKnownHostsFile ~/.ssh/known_hosts.forgejo" "    StrictHostKeyChecking yes"] | str join "\n" | $"($in)\n")
         }
     } else {
-        {store: (kept $store), inc: (kept (xdg config git forgejo.inc)), tea: (kept $tea), ssh: (kept $ssh)}
+        {store: (kept $store), inc: (kept $inc), tea: (kept $tea), ssh: (kept $ssh)}
     }
     if $texts.store == null { return [] }
     [
-        (file-text $store $texts.store --mode 600)
-        (file-text (xdg config git forgejo.inc) $texts.inc)
-        (file-text $tea $texts.tea --mode 600)
-        (file-text $ssh $texts.ssh --mode 600)
+        ([[target text]; [$store $texts.store] [$tea $texts.tea] [$ssh $texts.ssh]] | where text != null
+            | each {|f| file-text $f.target $f.text --mode 600 })
+        (if $texts.inc == null { [] } else { file-text $inc $texts.inc })
         (file-copy known_hosts ($nu.home-dir | path join .ssh known_hosts.forgejo) --mode 600)
-        (step keys-register)
+        (step keys-register --network)
     ]
 }
 
@@ -52,8 +52,8 @@ export def keys-register []: nothing -> nothing {
     let f = env-read $secret
     let api = $"($f.FORGEJO_URL)/api/v1/user/keys"
     let auth = [Authorization $"token ($f.FORGEJO_TOKEN)"]
-    let have = try { http get --max-time 10sec --headers $auth $api | get key | each { split row ' ' | get 1 } } catch {
-        print "note: forgejo: not reachable, ssh keys not registered this run"
+    let have = try { http get --max-time 10sec --headers $auth $api | get key | each { split row ' ' | get 1 } } catch {|e|
+        print $"note: forgejo: ssh keys not registered this run: ($e.msg)"
         return
     }
     let keys = $env.DOTFILES | path join configs secrets keys ssh_publickey.asc
@@ -64,6 +64,8 @@ export def keys-register []: nothing -> nothing {
         let parts = $key | split row ' '
         if ($parts | length) < 2 or $parts.1 in $have { continue }
         let title = $parts | get --optional 2 | default $parts.0
-        http post --max-time 10sec --content-type application/json --headers $auth $api {title: $"($title) (sys host | get hostname)", key: $key} | ignore
+        try {
+            http post --max-time 10sec --content-type application/json --headers $auth $api {title: $"($title) (sys host | get hostname)", key: $key} | ignore
+        } catch {|e| print $"note: forgejo: ssh key ($title) not added: ($e.msg)" }
     }
 }

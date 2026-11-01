@@ -13,9 +13,10 @@ boots, unattended, and retires itself and its sudo drop-in at the end, or stops 
 
 1. Arch Linux-LSCK0 iso, https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso (check `.sha256`, and `.sig`
    against `configs/base/pacman/archrepo.asc`, signer `HOMELAB.mirror.isoSigner` in `platforms/homelab.nu`,
-   `88042EFBF5F141C2ACF4697ADD84D7C4053DD354`; `dot test run` checks both), written raw to a stick. Its stub autologins on tty1, waits for internet (cable, else the answer file's `wifi` or a
-   picker; never offline), clones master, checks HEAD against the iso's signing key and runs that `bootstrap.sh` with
-   `LSCK0_INSTALL=1`, which starts `dot internal iso-install` (`scripts/lib/iso-install.nu`).
+   `88042EFBF5F141C2ACF4697ADD84D7C4053DD354`; `dot test run` checks both), written raw to a stick. Its stub
+   autologins on tty1, waits for internet (cable, else the answer file's `wifi` or a picker; never offline), clones
+   master, checks HEAD against the iso's signing key and runs that `bootstrap.sh` with `LSCK0_INSTALL=1`, which starts
+   `dot internal iso-install` (`scripts/lib/iso-install.nu`).
    - Answer file: `lsck0.nuon` or `lsck0.<name>.nuon` on a FAT32 partition labelled `LSCK0` (and other places), keys
      in `mirror/iso/lsck0.example.nuon`; `lsck0.*` boot parameters map to `BOOTSTRAP_*`. An answered key is not asked.
    - One answer file found: a 10 s yes/no, then it is used (an unattended boot goes on by itself); several: a menu of

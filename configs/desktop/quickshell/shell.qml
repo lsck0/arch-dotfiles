@@ -169,8 +169,6 @@ ShellRoot {
     target: "discord"
 
     function toggleMute(): bool { return DiscordControl.send("toggleSelfMute") }
-    function toggleDeafen(): bool { return DiscordControl.send("toggleSelfDeaf") }
-    function disconnect(): bool { return DiscordControl.send("disconnect") }
   }
 
   IpcHandler {

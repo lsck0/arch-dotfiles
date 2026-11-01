@@ -1,0 +1,27 @@
+{
+  "wallpaper": "alena-aenami-mist.jpg",
+  "pair": "vesper",
+  "special": {
+    "background": "#f2f2f2",
+    "foreground": "#0c0c0c",
+    "cursor": "#a35a00"
+  },
+  "colors": {
+    "color0": "#e0e0e0",
+    "color1": "#b8323c",
+    "color2": "#00735a",
+    "color3": "#a35a00",
+    "color4": "#a35a00",
+    "color5": "#a33f76",
+    "color6": "#00736c",
+    "color7": "#0c0c0c",
+    "color8": "#6b6b6b",
+    "color9": "#b8323c",
+    "color10": "#00735a",
+    "color11": "#a35a00",
+    "color12": "#a35a00",
+    "color13": "#a33f76",
+    "color14": "#00736c",
+    "color15": "#0c0c0c"
+  }
+}

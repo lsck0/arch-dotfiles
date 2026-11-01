@@ -13,13 +13,11 @@ Row {
 
   spacing: Style.spacing.xs
 
-  Text {
+  Label {
     id: number
     anchors.bottom: parent.bottom
-    textFormat: Text.PlainText
     text: root.value
     color: Colors.textFor(root.color)
-    font.family: Style.font.family
     font.pixelSize: root.size
     font.bold: true
     font.letterSpacing: Style.displayTracking
@@ -30,14 +28,12 @@ Row {
     layer.effect: Glow { shadowColor: root.color }
   }
 
-  Text {
+  Label {
     visible: root.unit !== ""
     anchors.baseline: number.baseline
-    textFormat: Text.PlainText
     text: root.unit
     // the unit can carry the meaning (rx or tx, kbps or fps): dimmed with the readable textDim, not with opacity
-    color: Colors.textDim
-    font.family: Style.font.family
+    dim: true
     font.pixelSize: Style.font.title
     font.capitalization: Font.AllUppercase
     font.letterSpacing: Style.labelTracking

@@ -5,8 +5,6 @@ use state.nu [EXIT_PENDING]
 
 const EXIT_FAILED = 1
 
-def fail [msg: string] { error make {msg: $"run.test: ($msg)"} }
-
 def main [] {
     let state = mktemp --directory --tmpdir dot-run-test-XXXXXX
     let src = "use cli.nu [guarded]; use run.nu [apply-finish]
@@ -26,7 +24,7 @@ def --env run-failed [] { $env.DOT_SYSTEM_PENDING = true; [{id: t/failed, ok: fa
         let run = with-env {XDG_STATE_HOME: $state, FAILURES_FILE: null} { ^$nu.current-exe --no-config-file -I ($env.FILE_PWD) -c $"($src)($c.call)" | complete }
         if $run.exit_code != $c.wants {
             rm --recursive --force $state
-            fail $"($c.name): exit ($run.exit_code), wants ($c.wants)\n($run.stdout)($run.stderr)"
+            error make {msg: $"($c.name): exit ($run.exit_code), wants ($c.wants)\n($run.stdout)($run.stderr)"}
         }
     }
     rm --recursive --force $state

@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
@@ -17,26 +16,22 @@ BarWidget {
   property bool ok: false
   property string error: ""
   property bool absent: false
-  property var links: ({ homepage: "", dashboard: "", alerts: "", proxmox: "", nas: "" })
-  property var services: []
-  property var alerts: []
-  property var host: ({})
-  property var storage: ({})
-  property var traffic: ({})
-  property var clients: ({})
+  // the last good homelab-status.nu answer
+  property var lab: ({
+    links: { homepage: "", dashboard: "", alerts: "", proxmox: "", nas: "" },
+    services: [], alerts: [], host: {}, storage: {}, traffic: {}, clients: {}
+  })
 
-  property var cpuHist: []
-  property var memHist: []
 
-  readonly property var monitored: services.filter(function(s) { return s.up === true || s.up === false })
+  readonly property var monitored: lab.services.filter(function(s) { return s.up === true || s.up === false })
   readonly property var downServices: monitored.filter(function(s) { return !s.up && !s.onDemand })
   readonly property int upCount: monitored.filter(function(s) { return s.up }).length
   readonly property int asleepCount: monitored.filter(function(s) { return !s.up && s.onDemand }).length
-  readonly property int problemCount: alerts.length + downServices.length
-  readonly property real memFraction: (Number(host.memTotalGb) || 0) > 0
-    ? (Number(host.memUsedGb) || 0) / Number(host.memTotalGb) : 0
-  readonly property bool backupStale: storage.backupAgeMin === null || storage.backupAgeMin === undefined
-    || storage.backupAgeMin > 26 * 60
+  readonly property int problemCount: lab.alerts.length + downServices.length
+  readonly property real memFraction: (Number(lab.host.memTotalGb) || 0) > 0
+    ? (Number(lab.host.memUsedGb) || 0) / Number(lab.host.memTotalGb) : 0
+  readonly property bool backupStale: lab.storage.backupAgeMin === null || lab.storage.backupAgeMin === undefined
+    || lab.storage.backupAgeMin > 26 * 60
 
   function open(url) {
     if (!url) return
@@ -50,42 +45,22 @@ BarWidget {
 
   visible: !root.absent
   implicitWidth: root.absent ? 0 : trigger.implicitWidth + Style.bar.itemPaddingX * 2
-  implicitHeight: barSize
+  implicitHeight: Style.bar.sizeHorizontal
 
-  Process {
+  JsonProcess {
     id: statusProc
     running: true
-    Component.onDestruction: running = false
-    command: panel.visible
-      ? [Paths.barWidget("homelab-status.nu"), "30"]
-      : [Paths.barWidget("homelab-status.nu"), "300"]
-    stdout: SplitParser {
-      splitMarker: "\n"
-      onRead: function(line) {
-        if (!line) return
-        try {
-          let s = JSON.parse(line)
-          root.received = true
-          root.ok = s.ok === true
-          root.error = s.error || ""
-          if (!root.ok) {
-            // hide on a missing checkout, but keep polling: homelab-status.nu re-stats lab.json each loop, so the widget returns once it reappears
-            root.absent = root.error === "source"
-            return
-          }
-          root.absent = false
-          if (s.links) root.links = s.links
-          root.services = s.services || []
-          root.alerts = s.alerts || []
-          if (!s.host) return
-          root.host = s.host
-          root.storage = s.storage || {}
-          root.traffic = s.traffic || {}
-          root.clients = s.clients || {}
-          root.cpuHist = Util.historyPush(root.cpuHist, Number(root.host.cpuPct) || 0)
-          root.memHist = Util.historyPush(root.memHist, root.memFraction * 100)
-        } catch (e) {}
-      }
+    streaming: true
+    command: [Paths.barWidget("homelab-status.nu"), panel.visible ? "30" : "300"]
+    onParsed: function(s) {
+      root.received = true
+      root.ok = s.ok === true
+      root.error = s.error || ""
+      // hide on a missing checkout, but keep polling: homelab-status.nu re-stats lab.json each loop, so the widget
+      // returns once it reappears
+      root.absent = root.error === "source"
+      if (!root.ok) return
+      root.lab = s
     }
   }
 
@@ -103,24 +78,20 @@ BarWidget {
     anchors.centerIn: parent
     spacing: Style.spacing.xs
 
-    Text {
+    Label {
       anchors.verticalCenter: parent.verticalCenter
-      textFormat: Text.PlainText
       text: root.ok || !root.received ? "\u{f048d}" : "\u{f048e}"
       color: root.ok && root.problemCount > 0 ? Colors.urgent : Colors.textDim
-      font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
+      icon: true
       font.pixelSize: Style.font.icon
       layer.enabled: Style.fx.glow > 0 && root.ok && root.problemCount > 0
       layer.effect: Glow { shadowColor: Colors.urgent }
     }
-    Text {
+    Label {
       anchors.verticalCenter: parent.verticalCenter
       visible: root.ok && root.problemCount > 0
-      textFormat: Text.PlainText
       text: root.problemCount
       color: Colors.urgentText
-      font.family: root.bar ? root.bar.fontFamily : Style.font.family
-      font.pixelSize: Style.font.body
       layer.enabled: Style.fx.glow > 0
       layer.effect: Glow { shadowColor: Colors.urgent }
     }
@@ -130,7 +101,7 @@ BarWidget {
     id: mouseArea
     anchors.fill: parent
     cursorShape: Qt.PointingHandCursor
-    onClicked: root.open(root.links.homepage)
+    onClicked: root.open(root.lab.links.homepage)
   }
 
   component LinkStat: StatRow {
@@ -147,12 +118,10 @@ BarWidget {
     property var rows: []
     spacing: 0
 
-    Text {
+    Label {
       text: list.title
       color: Colors.accentText
-      textFormat: Text.PlainText
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
+      caption: true
       font.capitalization: Font.AllUppercase
       font.letterSpacing: Style.headerTracking
       elide: Text.ElideRight
@@ -176,27 +145,23 @@ BarWidget {
           radius: Style.shape.data
           color: Util.alpha(Colors.accent, Style.tintFillAlpha)
         }
-        Text {
+        Label {
           id: entryName
           anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
           width: parent.width - entryCount.implicitWidth - Style.spacing.xs
-          textFormat: Text.PlainText
           text: entry.modelData.name
           elide: Text.ElideRight
           color: Colors.menu.text
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
+          caption: true
         }
-        Text {
+        Label {
           id: entryCount
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
-          textFormat: Text.PlainText
           text: entry.modelData.count
           color: Colors.menu.text
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
+          caption: true
         }
       }
     }
@@ -206,16 +171,15 @@ BarWidget {
     id: groupBox
     property string title: ""
     property string group: ""
-    readonly property var members: root.services.filter(function(s) { return s.group === groupBox.group })
+    readonly property var members: root.lab.services.filter(function(s) { return s.group === groupBox.group })
     width: parent.width
     visible: members.length > 0
     spacing: Style.spacing.xs
 
-    Text {
+    Label {
       text: groupBox.title
       color: Colors.accentText
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
+      caption: true
     }
 
     Grid {
@@ -236,7 +200,7 @@ BarWidget {
           Keys.onEnterPressed: root.open(tile.modelData.url)
           Keys.onSpacePressed: root.open(tile.modelData.url)
           width: (serviceGrid.width - serviceGrid.columnSpacing * (serviceGrid.columns - 1)) / serviceGrid.columns
-          height: Style.row.control
+          height: tileName.implicitHeight + Style.spacing.xs * 2
 
           Rectangle {
             anchors.fill: parent
@@ -251,23 +215,18 @@ BarWidget {
             anchors.verticalCenter: parent.verticalCenter
             spacing: Style.spacing.xs
 
-            Text {
+            Label {
               anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
               text: tile.asleep ? "o" : "*"
               color: tile.down ? Colors.urgentText : tile.asleep ? Colors.textDim : Colors.menu.text
-              font.family: Style.font.family
-              font.pixelSize: Style.font.body
             }
-            Text {
+            Label {
+              id: tileName
               anchors.verticalCenter: parent.verticalCenter
               width: tile.width - Style.spacing.xs - Style.font.body
-              textFormat: Text.PlainText
               text: tile.modelData.name
               elide: Text.ElideRight
               color: tile.down ? Colors.urgentText : tile.asleep ? Colors.textDim : Colors.menu.text
-              font.family: Style.font.family
-              font.pixelSize: Style.font.body
             }
           }
           MouseArea {
@@ -282,72 +241,13 @@ BarWidget {
     }
   }
 
-  component MetricHeader: Row {
-    id: mh
-    property string label: ""
-    property string readout: ""
-    property color tint: Colors.accent
-    Text {
-      width: mh.width * 0.5
-      text: mh.label
-      color: Colors.textFor(mh.tint)
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
-      font.bold: true
-      font.capitalization: Font.AllUppercase
-      font.letterSpacing: Style.headerTracking
-    }
-    Text {
-      width: mh.width * 0.5
-      horizontalAlignment: Text.AlignRight
-      text: mh.readout
-      color: Colors.textFor(mh.tint)
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
-      font.letterSpacing: Style.displayTracking
-      font.features: { "tnum": 1 }
-    }
-  }
-
-  component MetricGraph: Column {
-    id: mg
-    property var history: []
-    property real fraction: 0
-    property color tint: Colors.accent
-    property string label: ""
-    property string readout: ""
-    property int maxValue: 100
-    width: parent ? parent.width : 0
-    spacing: Style.spacing.xs
-    MetricHeader { width: mg.width; visible: mg.label !== ""; label: mg.label; readout: mg.readout; tint: mg.tint }
-    Sparkline { width: mg.width; height: Style.space(34); values: mg.history; minValue: 0; maxValue: mg.maxValue; color: mg.tint }
-    BarGauge { width: mg.width; height: Style.spacing.sm; segments: 24; value: mg.fraction; color: mg.tint }
-  }
-
-  component GaugeRow: Item {
-    id: gr
-    property string label: ""
-    property string readout: ""
-    property real fraction: 0
+  component GaugeRow: MetricRow {
     property bool alert: false
     property string url: ""
-    property color tint: alert ? Colors.urgent : Colors.accent
-    width: parent ? parent.width : 0
-    implicitHeight: gauge.implicitHeight
-    height: implicitHeight
-    Column {
-      id: gauge
-      width: gr.width
-      spacing: Style.spacing.xxs
-      MetricHeader { width: gr.width; label: gr.label; readout: gr.readout; tint: gr.tint }
-      BarGauge { width: gr.width; height: Style.spacing.sm; segments: 24; value: gr.fraction; color: gr.tint }
-    }
-    MouseArea {
-      anchors.fill: parent
-      enabled: gr.url !== ""
-      cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-      onClicked: root.open(gr.url)
-    }
+    valueBeside: true
+    tint: alert ? Colors.urgent : Colors.accent
+    clickable: url !== ""
+    onActivated: root.open(url)
   }
 
   HoverPanel {
@@ -387,18 +287,18 @@ BarWidget {
 
         Column {
           width: parent.width
-          visible: root.alerts.length > 0
+          visible: root.lab.alerts.length > 0
           spacing: Style.spacing.sm
 
           PanelSectionHeader { text: "Alerts"; foreground: Colors.urgent }
           Repeater {
-            model: root.alerts
+            model: root.lab.alerts
             delegate: LinkStat {
               required property var modelData
               label: modelData.target || modelData.name
               value: modelData.target ? modelData.name : ""
               note: Util.ago(modelData.minutes)
-              url: root.links.alerts
+              url: root.lab.links.alerts
               alert: true
             }
           }
@@ -410,7 +310,7 @@ BarWidget {
           width: parent.width
           implicitHeight: Math.max(hostHero.implicitHeight, hostReads.implicitHeight)
           height: implicitHeight
-          Hero { id: hostHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; value: String(Math.round(Number(root.host.cpuPct) || 0)); unit: "%" }
+          Hero { id: hostHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; value: String(Math.round(Number(root.lab.host.cpuPct) || 0)); unit: "%" }
           Column {
             id: hostReads
             anchors.right: parent.right
@@ -419,65 +319,61 @@ BarWidget {
             spacing: Style.spacing.xxs
             LinkStat {
               label: "Memory"
-              value: root.num(root.host.memUsedGb) + " / " + root.num(root.host.memTotalGb, " GB")
-              url: root.links.proxmox
+              value: root.num(root.lab.host.memUsedGb) + " / " + root.num(root.lab.host.memTotalGb, " GB")
+              url: root.lab.links.proxmox
             }
-            LinkStat { label: "Temperature"; value: root.num(root.host.tempC, "\u00b0C"); url: root.links.proxmox }
-            LinkStat { label: "Uptime"; value: root.num(root.host.uptimeH, " h"); url: root.links.proxmox }
+            LinkStat { label: "Temperature"; value: root.num(root.lab.host.tempC, "\u00b0C"); url: root.lab.links.proxmox }
+            LinkStat { label: "Uptime"; value: root.num(root.lab.host.uptimeH, " h"); url: root.lab.links.proxmox }
           }
         }
-        MetricGraph { label: "Usage"; readout: root.num(root.host.cpuPct, "%"); history: root.cpuHist; fraction: (Number(root.host.cpuPct) || 0) / 100 }
-        MetricGraph {
-          label: "Memory"
-          readout: Math.round(root.memFraction * 100) + "%"
-          history: root.memHist
-          fraction: root.memFraction
-        }
+        // one line and a gauge each: the hero and the readings above already carry the numbers
+        GaugeRow { label: "CPU"; value: root.num(root.lab.host.cpuPct, "%"); fraction: (Number(root.lab.host.cpuPct) || 0) / 100 }
+        GaugeRow { label: "Memory"; value: Math.round(root.memFraction * 100) + "%"; fraction: root.memFraction }
 
         PanelSeparator {}
         PanelSectionHeader { text: "Storage" }
         GaugeRow {
           label: "NAS free"
-          readout: root.num(root.storage.nasFreeGb) + " / " + root.num(root.storage.nasTotalGb, " GB")
-          fraction: (Number(root.storage.nasTotalGb) || 0) > 0 ? (Number(root.storage.nasFreeGb) || 0) / Number(root.storage.nasTotalGb) : 0
-          url: root.links.nas
+          value: root.num(root.lab.storage.nasFreeGb) + " / " + root.num(root.lab.storage.nasTotalGb, " GB")
+          fraction: (Number(root.lab.storage.nasTotalGb) || 0) > 0 ? (Number(root.lab.storage.nasFreeGb) || 0) / Number(root.lab.storage.nasTotalGb) : 0
+          url: root.lab.links.nas
         }
         GaugeRow {
           label: "Disks OK"
-          readout: root.num(root.storage.disksHealthy) + " / " + root.num(root.storage.disksTotal)
-          fraction: (Number(root.storage.disksTotal) || 0) > 0 ? (Number(root.storage.disksHealthy) || 0) / Number(root.storage.disksTotal) : 0
-          alert: root.storage.disksHealthy < root.storage.disksTotal
-          url: root.links.dashboard
+          value: root.num(root.lab.storage.disksHealthy) + " / " + root.num(root.lab.storage.disksTotal)
+          fraction: (Number(root.lab.storage.disksTotal) || 0) > 0 ? (Number(root.lab.storage.disksHealthy) || 0) / Number(root.lab.storage.disksTotal) : 0
+          alert: root.lab.storage.disksHealthy < root.lab.storage.disksTotal
+          url: root.lab.links.dashboard
         }
         GaugeRow {
-          visible: root.storage.nvmeWearPct !== null && root.storage.nvmeWearPct !== undefined
+          visible: root.lab.storage.nvmeWearPct !== null && root.lab.storage.nvmeWearPct !== undefined
           label: "NVMe wear"
-          readout: root.num(root.storage.nvmeWearPct, "%")
-          fraction: (Number(root.storage.nvmeWearPct) || 0) / 100
-          url: root.links.dashboard
+          value: root.num(root.lab.storage.nvmeWearPct, "%")
+          fraction: (Number(root.lab.storage.nvmeWearPct) || 0) / 100
+          url: root.lab.links.dashboard
         }
         LinkStat {
           label: "Last backup"
-          value: root.storage.backupAgeMin === null || root.storage.backupAgeMin === undefined
-            ? "never" : Util.ago(root.storage.backupAgeMin)
+          value: root.lab.storage.backupAgeMin === null || root.lab.storage.backupAgeMin === undefined
+            ? "never" : Util.ago(root.lab.storage.backupAgeMin)
           alert: root.backupStale
-          url: root.links.nas
+          url: root.lab.links.nas
         }
 
         PanelSeparator {}
         PanelSectionHeader { text: "Traffic" }
-        LinkStat { label: "Internal"; value: root.num(root.traffic.internalRps, " req/s"); url: root.links.dashboard }
-        LinkStat { label: "Public"; value: root.num(root.traffic.externalRps, " req/s"); url: root.links.dashboard }
+        LinkStat { label: "Internal"; value: root.num(root.lab.traffic.internalRps, " req/s"); url: root.lab.links.dashboard }
+        LinkStat { label: "Public"; value: root.num(root.lab.traffic.externalRps, " req/s"); url: root.lab.links.dashboard }
         LinkStat {
           label: "Server errors"
-          value: root.num(root.traffic.errorRps, " req/s")
-          alert: root.traffic.errorRps > 0
-          url: root.links.dashboard
+          value: root.num(root.lab.traffic.errorRps, " req/s")
+          alert: root.lab.traffic.errorRps > 0
+          url: root.lab.links.dashboard
         }
 
         Column {
           width: parent.width
-          visible: (root.clients.countries || []).length > 0
+          visible: (root.lab.clients.countries || []).length > 0
           spacing: Style.spacing.sm
 
           PanelSeparator {}
@@ -485,13 +381,11 @@ BarWidget {
             width: parent.width
             spacing: Style.spacing.xs
             PanelSectionHeader { text: "Incoming" }
-            Text {
+            Label {
               anchors.verticalCenter: parent.verticalCenter
-              text: root.clients.window || ""
-              color: Colors.textDim
-              textFormat: Text.PlainText
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
+              text: root.lab.clients.window || ""
+              dim: true
+              caption: true
             }
           }
 
@@ -503,10 +397,10 @@ BarWidget {
             readonly property real cellWidth:
               (width - columnSpacing * (columns - 1)) / columns
 
-            ClientList { width: clientGrid.cellWidth; title: "From"; rows: root.clients.countries || [] }
-            ClientList { width: clientGrid.cellWidth; title: "Clients"; rows: root.clients.agents || [] }
-            ClientList { width: clientGrid.cellWidth; title: "Asking for"; rows: root.clients.hosts || [] }
-            ClientList { width: clientGrid.cellWidth; title: "How it went"; rows: root.clients.traffic || [] }
+            ClientList { width: clientGrid.cellWidth; title: "From"; rows: root.lab.clients.countries || [] }
+            ClientList { width: clientGrid.cellWidth; title: "Clients"; rows: root.lab.clients.agents || [] }
+            ClientList { width: clientGrid.cellWidth; title: "Asking for"; rows: root.lab.clients.hosts || [] }
+            ClientList { width: clientGrid.cellWidth; title: "How it went"; rows: root.lab.clients.traffic || [] }
           }
         }
 
@@ -515,20 +409,15 @@ BarWidget {
         LinkStat {
           label: "Up"
           value: root.upCount + " / " + root.monitored.length
-          url: root.links.homepage
-        }
-        LinkStat {
-          visible: root.asleepCount > 0
-          label: "Asleep"
-          value: root.asleepCount
-          url: root.links.homepage
+          note: root.asleepCount > 0 ? root.asleepCount + " asleep" : ""
+          url: root.lab.links.homepage
         }
         LinkStat {
           visible: root.downServices.length > 0
           label: "Down"
           value: root.downServices.map(function(s) { return s.name }).join(", ")
           alert: true
-          url: root.links.homepage
+          url: root.lab.links.homepage
         }
 
         ServiceGroup { title: "Infra"; group: "infra" }

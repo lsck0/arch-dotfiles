@@ -12,5 +12,8 @@ export const meta = {
 }
 
 export def link [cfg: record] {
-    shell-aliases devtools
+    [
+        (shell-aliases devtools)
+        (files-into (xdg config environment.d) bat.conf)
+    ]
 }

@@ -3,6 +3,7 @@
 use state.nu [state-dir SYSTEM_STATE]
 
 const LEVELS = [TRACE DEBUG INFO WARN ERROR PANIC]
+const LEVEL_DEFAULT = "INFO"
 const RUNS_KEEP = 50
 const RUNS_READ_ONLY_KEEP = 20
 const RUN_READ_ONLY_MARK = '"read_only":true'
@@ -11,9 +12,10 @@ const STREAM_TAIL_LINES = 5
 const BOUND_GRACE = 5sec
 const BOUND_MARK_LENGTH = 16
 
+# An unrecognized DOT_LOG ranks as LEVEL_DEFAULT rather than crashing every log call.
 def rank [level: string]: nothing -> int {
-    # an unrecognized DOT_LOG falls back to INFO's rank rather than crashing every log call
-    $LEVELS | enumerate | where item == ($level | str uppercase) | get --optional 0.index | default 2
+    let known = $level | str uppercase | if $in in $LEVELS { $in } else { $LEVEL_DEFAULT }
+    $LEVELS | enumerate | where item == $known | get 0.index
 }
 
 export def since-ms [start: datetime]: nothing -> int {
@@ -26,7 +28,7 @@ export def runs-dir []: nothing -> path {
 
 # Prints message at or above DOT_LOG and appends it with fields to the run file, if a run is open.
 export def log-record [level: string, message: string, fields: record = {}]: nothing -> nothing {
-    if (rank $level) >= (rank ($env.DOT_LOG? | default INFO)) {
+    if (rank $level) >= (rank ($env.DOT_LOG? | default $LEVEL_DEFAULT)) {
         let prefix = if $level == "INFO" { "" } else { $"($level | str lowercase): " }
         print -e $"($env.LOG_TAG? | default dotfiles): ($prefix)($message)"
     }
@@ -145,8 +147,8 @@ export def --env run-begin [name: string, --read-only]: nothing -> nothing {
     let runs = runs-list
     let changing = $runs.files | where $it not-in $runs.read_only
     ($changing | drop $RUNS_KEEP) ++ ($runs.read_only | drop $RUNS_READ_ONLY_KEEP) | each { rm --force $in } | ignore
-    # a run's side files (.failures, .install-failures) go with its log
-    glob (runs-dir | path join "*.*failures") | where {|f| not ($f | str replace --regex '\.[a-z-]*failures$' '.jsonl' | path exists) }
+    # a run's side files (.failures, .install-failures, cause.nu's .owners) go with its log
+    glob (runs-dir | path join "*.{owners,*failures}") | where {|f| not ($f | str replace --regex '\.(?:owners|[a-z-]*failures)$' '.jsonl' | path exists) }
         | each { rm --force $in } | ignore
     log-debug $"run ($name)" {kind: run, target: $name, read_only: $read_only}
 }

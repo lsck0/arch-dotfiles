@@ -13,7 +13,8 @@ export def link [cfg: record] {
     }
     json-merge $file ([
         (json-set [preferences font codeFont] "Kode Mono")
-        (json-set [preferences telemetry enabled] false)
+        # bruno validates telemetry as an object; a bare boolean fails every save
+        (json-set [preferences telemetry] {enabled: false})
         (json-set [preferences onboarding hasLaunchedBefore] true)
         (json-set [preferences onboarding hasSeenWelcomeModal] true)
     ] ++ $seen ++ (if $current.version? == null { [(json-set [version] "1")] } else { [] }))

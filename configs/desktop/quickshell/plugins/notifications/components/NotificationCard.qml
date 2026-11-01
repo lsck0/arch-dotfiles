@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import qs.Commons
 import qs.Ui
 import "../NotificationLogic.js" as NotificationLogic
@@ -37,7 +38,6 @@ BorderSurface {
     return Qt.formatDateTime(when, sameDay ? Util.timeFormat : Util.dayFormat + " " + Util.timeFormat)
   }
 
-  property string fontFamily: Style.font.family
 
   readonly property bool hovered: hoverTracker.hovered
   readonly property string timeLabel: formatTime(timestamp, now)
@@ -55,8 +55,6 @@ BorderSurface {
   readonly property string sanitizedBody: NotificationLogic.sanitizeBody(body, app, appIcon)
   readonly property string styledBody: NotificationLogic.styledBody(body, app, appIcon)
 
-  readonly property real bodyEmphasis: 0.87
-  readonly property color bodyColor: Util.alpha(Colors.notifications.text, bodyEmphasis)
   readonly property real edge: isRow ? 0 : Style.surface.borderWidth
   readonly property bool critical: urgency === NotificationLogic.URGENCY_CRITICAL
   readonly property color strokeColor: critical ? Colors.urgent : Util.alpha(Colors.notifications.border, Style.surface.ruleAlpha)
@@ -138,26 +136,24 @@ BorderSurface {
           visible: !root.hasGlyph || smallIconImage.status === Image.Ready
         }
 
-        Text {
-          textFormat: Text.PlainText
+        Label {
           anchors.centerIn: parent
           visible: root.hasGlyph && smallIconImage.status !== Image.Ready
           text: root.glyph
           color: Colors.notifications.text
-          font.family: Style.font.iconFamily
+          icon: true
           font.pixelSize: Style.font.displayLarge
           layer.enabled: !root.isRow && Style.fx.glow > 0
           layer.effect: Glow {}
         }
       }
 
-      Text {
-        textFormat: Text.PlainText
+      Label {
         Layout.alignment: Qt.AlignVCenter
         visible: root.compactGlyph
         text: root.glyph
         color: Colors.notifications.text
-        font.family: Style.font.iconFamily
+        icon: true
         font.pixelSize: Style.font.icon
       }
 
@@ -176,14 +172,12 @@ BorderSurface {
           readonly property real dotSlotWidth: showDot ? dotText.implicitWidth + spacing : 0
           readonly property real criticalSlotWidth: root.critical ? criticalText.implicitWidth + spacing : 0
 
-          Text {
+          Label {
             id: criticalText
             visible: root.critical
-            textFormat: Text.PlainText
             text: "! CRITICAL"
             color: Colors.urgentText
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
+            caption: true
             font.bold: true
           }
           Caption {
@@ -202,14 +196,11 @@ BorderSurface {
           }
         }
 
-        Text {
-          textFormat: Text.PlainText
+        Label {
           Layout.fillWidth: true
           visible: root.summary.length > 0
           text: root.summary
-          font.family: root.fontFamily
           color: Colors.notifications.text
-          font.pixelSize: Style.font.body
           font.bold: true
           wrapMode: Text.WordWrap
           elide: Text.ElideRight
@@ -222,8 +213,14 @@ BorderSurface {
           visible: root.sanitizedBody.length > 0
           text: root.styledBody
           textFormat: Text.StyledText
-          font.family: root.fontFamily
-          color: root.bodyColor
+          font.family: Style.font.family
+          color: Colors.notifications.text
+          linkColor: Colors.accentText
+          // same https-only allowlist as a notification's default action
+          onLinkActivated: function (link) {
+            var argv = NotificationLogic.parseExecArgv(JSON.stringify(["xdg-open", link]))
+            if (argv) Quickshell.execDetached(["uwsm-app", "--"].concat(argv))
+          }
           font.pixelSize: Style.font.body
           wrapMode: Text.WordWrap
           elide: Text.ElideRight
@@ -280,19 +277,17 @@ BorderSurface {
     anchors.right: parent.right
     anchors.topMargin: root.edge + Style.spacing.xs
     anchors.rightMargin: root.edge + Style.shape.chamfer
-    width: Style.space(18)
-    height: Style.space(18)
+    width: Style.row.control
+    height: Style.row.control
     visible: opacity > 0
     opacity: root.hovered ? 1 : 0
 
     Behavior on opacity { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
-    Text {
+    Label {
       anchors.centerIn: parent
-      textFormat: Text.PlainText
       text: "x"
-      color: closeArea.containsMouse ? Colors.notifications.text : Util.alpha(Colors.notifications.text, Style.emphasis.dim)
-      font.family: root.fontFamily
+      color: closeArea.containsMouse ? Colors.notifications.text : Colors.textDim
       font.pixelSize: Style.font.heading
     }
 
@@ -305,11 +300,9 @@ BorderSurface {
     }
   }
 
-  component Caption: Text {
-    textFormat: Text.PlainText
-    color: Colors.textDim
-    font.family: root.fontFamily
-    font.pixelSize: Style.font.caption
+  component Caption: Label {
+    dim: true
+    caption: true
   }
 
   HudFrame { shown: !root.isRow; chamfer: toastShape.cut; chamferCorner: toastShape.cutCorner }

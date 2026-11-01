@@ -38,17 +38,18 @@ def plugin-commit [src: path, hyprland: string]: nothing -> any {
 }
 
 # Builds a plugin for this hyprland.
-def build [plugin: record, hyprland: string]: nothing -> bool {
+def build [plugin: record, hyprland: string]: nothing -> nothing {
     let src = cache-dir | path join $plugin.name
     if not ($src | path join .git | path exists) { ^git clone --quiet $plugin.url $src }
     if (do { ^git -C $src cat-file -e $"($plugin.commit)^{commit}" } | complete).exit_code != 0 { ^git -C $src fetch --quiet origin }
     ^git -C $src checkout --quiet --force $plugin.commit
     # the map names older hyprlands; one it lacks builds at the pinned commit itself, hyprpm's own rule, and a broken
     # pairing fails the make below instead of loading
-    let pin = plugin-commit $src $hyprland | default $plugin.commit
-    if $pin == $plugin.commit and (plugin-commit $src $hyprland) == null {
+    let mapped = plugin-commit $src $hyprland
+    if $mapped == null {
         print --stderr $"($plugin.name): no map entry for hyprland ($hyprland), built at the pinned commit"
     }
+    let pin = $mapped | default $plugin.commit
     ^git -C $src checkout --quiet --force $pin
     do { cd $src; ^make clean | ignore }
     let made = do { cd $src; with-env {PKG_CONFIG_PATH: (pc-dir)} { ^make $"-j(sys cpu | length)" all } } | complete
@@ -57,7 +58,6 @@ def build [plugin: record, hyprland: string]: nothing -> bool {
     cp ($src | path join out $"($plugin.name).so") (so-path $plugin.name $hyprland)
     # builds for other hyprland commits are dead after the upgrade
     glob (out-dir | path join $"($plugin.name)-*.so") | where $it != (so-path $plugin.name $hyprland) | each { rm $in } | ignore
-    true
 }
 
 # The plugins the installed hyprland has no build of; building them downloads.
@@ -70,14 +70,10 @@ export def plugins-missing []: nothing -> list<string> {
 # Builds what the installed hyprland lacks; false when a build failed.
 def plugins-build [hyprland: string]: nothing -> bool {
     let builds = $PLUGINS | where {|p| not (so-path $p.name $hyprland | path exists) } | each {|p|
-        let status = try { if (build $p $hyprland) { "built" } else { "unpinned" } } catch {|e| print --stderr $e.msg; "failed" }
+        let status = try { build $p $hyprland; "built" } catch {|e| print --stderr $e.msg; "failed" }
         {name: $p.name, status: $status}
     }
     let failed = $builds | where status == failed
-    let unpinned = $builds | where status == unpinned
-    if ($unpinned | is-not-empty) {
-        ^notify-send -a hyprland -u low "Hyprland plugins off: no build for this Hyprland" $"($unpinned | get name | str join ', '): bump PLUGINS in plugins.nu" | complete | ignore
-    }
     if ($failed | is-not-empty) {
         ^notify-send -a hyprland "Hyprland plugins did not build" ($failed | get name | str join ", ") | complete | ignore
     }

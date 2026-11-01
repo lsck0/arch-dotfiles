@@ -36,7 +36,7 @@ BarWidget {
   visible: live
 
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
-  implicitHeight: barSize
+  implicitHeight: Style.bar.sizeHorizontal
 
   Timer {
     id: staleTimer
@@ -157,12 +157,11 @@ BarWidget {
             Behavior on opacity { NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
           }
 
-          Text {
+          Label {
             anchors.centerIn: parent
             visible: !avatarImage.visible
             text: String(chip.modelData.name || "?").charAt(0).toUpperCase()
-            color: Colors.textDim
-            font.family: Style.font.family
+            dim: true
             font.pixelSize: Math.round(root.avatarSize * 0.5)
             font.bold: true
           }
@@ -194,13 +193,12 @@ BarWidget {
       }
     }
 
-    Text {
+    Label {
       anchors.verticalCenter: parent.verticalCenter
       visible: root.participants.length > root.avatarCountMax
       text: "+" + (root.participants.length - root.avatarCountMax)
-      color: Colors.textDim
-      font.family: root.bar ? root.bar.fontFamily : Style.font.family
-      font.pixelSize: Style.font.bodySmall
+      dim: true
+      caption: true
     }
   }
 
@@ -231,26 +229,23 @@ BarWidget {
           anchors.verticalCenter: parent.verticalCenter
           width: parent.width * 0.56
           spacing: Style.spacing.xxs
-          Text {
+          Label {
             width: parent.width
             horizontalAlignment: Text.AlignRight
-            textFormat: Text.PlainText
             text: root.guildName
               ? root.guildName + "  ::  " + root.channelName
               : (root.channelName || "Voice call")
             color: Colors.menu.text
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
+            caption: true
             elide: Text.ElideRight
           }
-          Text {
+          Label {
             width: parent.width
             horizontalAlignment: Text.AlignRight
             visible: root.speakingCount > 0
             text: root.speakingCount + " SPEAKING"
             color: Colors.textFor(Colors.semantic.speaking)
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
+            caption: true
             font.capitalization: Font.AllUppercase
             font.letterSpacing: Style.labelTracking
           }
@@ -264,6 +259,7 @@ BarWidget {
         spacing: Style.spacing.xs
 
         Button {
+          focusable: true
           variant: "action"
           width: (parent.width - Style.spacing.xs * 2) / 3
           iconText: root.selfMute ? "\u{f036d}" : "\u{f036c}"
@@ -273,6 +269,7 @@ BarWidget {
           onClicked: DiscordControl.send("toggleSelfMute")
         }
         Button {
+          focusable: true
           variant: "action"
           width: (parent.width - Style.spacing.xs * 2) / 3
           iconText: root.selfDeaf ? "\u{f0581}" : "\u{f02cb}"
@@ -282,6 +279,7 @@ BarWidget {
           onClicked: DiscordControl.send("toggleSelfDeaf")
         }
         Button {
+          focusable: true
           variant: "action"
           width: (parent.width - Style.spacing.xs * 2) / 3
           iconText: "\u{f03f5}"   // md-phone_hangup
@@ -346,26 +344,22 @@ BarWidget {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width - Style.space(26) - Style.space(74) - parent.spacing * 2
             spacing: Style.spacing.xs
-            Text {
+            Label {
               id: nameLabel
               width: Math.min(implicitWidth, parent.width - (youLabel.visible ? youLabel.implicitWidth + parent.spacing : 0))
-              textFormat: Text.PlainText
               text: participant.modelData.name
               color: participant.modelData.speaking ? Colors.accentText : Colors.menu.text
-              font.family: Style.font.family
-              font.pixelSize: Style.font.body
               elide: Text.ElideRight
               layer.enabled: Style.fx.glow > 0 && participant.modelData.speaking
               layer.effect: Glow {}
             }
-            Text {
+            Label {
               id: youLabel
               visible: !!participant.modelData.self
               anchors.baseline: nameLabel.baseline
               text: "you"
-              color: Colors.textDim
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
+              dim: true
+              caption: true
             }
           }
 
@@ -375,33 +369,33 @@ BarWidget {
             layoutDirection: Qt.RightToLeft
             spacing: Style.spacing.xs
 
-            Text {
+            Label {
               visible: participant.modelData.selfDeaf || participant.modelData.deaf
               text: "\u{f0581}"   // md-volume_off
               color: participant.modelData.deaf ? Colors.urgentText : Colors.urgent
-              font.family: Style.font.iconFamily
-              font.pixelSize: Style.font.caption
+              icon: true
+              caption: true
             }
-            Text {
+            Label {
               visible: participant.modelData.selfMute || participant.modelData.mute
               text: "\u{f036d}"   // md-microphone_off
               color: participant.modelData.mute ? Colors.urgentText : Colors.urgent
-              font.family: Style.font.iconFamily
-              font.pixelSize: Style.font.caption
+              icon: true
+              caption: true
             }
-            Text {
+            Label {
               visible: participant.modelData.video
               text: "\u{f0567}"   // md-video
-              color: Colors.textDim
-              font.family: Style.font.iconFamily
-              font.pixelSize: Style.font.caption
+              dim: true
+              icon: true
+              caption: true
             }
-            Text {
+            Label {
               visible: participant.modelData.streaming
               text: "\u{f1483}"   // md-monitor_share
-              color: Colors.textDim
-              font.family: Style.font.iconFamily
-              font.pixelSize: Style.font.caption
+              dim: true
+              icon: true
+              caption: true
             }
           }
         }

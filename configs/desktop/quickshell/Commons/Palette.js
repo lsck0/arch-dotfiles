@@ -16,8 +16,8 @@ var WALK_COUNT_MAX = 24;
 var SURFACE_SATURATION = 0.9;
 var RADIUS_PX = 2;
 var BORDER_PX = 1;
-var OPACITY_SURFACE = 0.85;
 var OPACITY_BAR = 0.78;
+var OPACITY_PANEL = 0.94;
 // END generated
 
 // a color1 hue outside this band is no red, so urgent starts from the semantic red instead

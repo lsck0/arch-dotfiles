@@ -1,20 +1,14 @@
 #!/usr/bin/env -S nu --no-config-file
 
 const REPO = path self | path expand | path dirname --num-levels 4
-const LAB_SCHEMA = 1
-
-# The homelab's interface for desktop clients, written by its sync.sh (homelab src/modules/lab-export.nix).
-def lab-json []: nothing -> path {
-    $env.HOMELAB_DIR? | default ($nu.home-dir | path join projects homelab) | path join src generated lab.json
-}
+use ($REPO | path join scripts lib homelab.nu) [homelab-lab-load]
 
 def grafana-url []: nothing -> string {
-    let file = lab-json
-    let lab = try { open $file } catch { null }
-    if ($lab | describe) !~ '^record' { error make --unspanned {msg: $"grafana-mcp: ($file) is missing or not json"} }
-    if $lab.schema? != $LAB_SCHEMA { error make --unspanned {msg: $"grafana-mcp: ($file) has schema ($lab.schema? | to nuon), wants ($LAB_SCHEMA)"} }
-    let url = $lab.monitoring?.grafana?
-    if ($url | describe) != "string" { error make --unspanned {msg: $"grafana-mcp: ($file) names no monitoring.grafana"} }
+    let lab = homelab-lab-load
+    let url = $lab | get --optional monitoring?.grafana?
+    if ($url | describe) != "string" {
+        error make --unspanned {msg: "grafana-mcp: the homelab's lab.json is missing, of another schema or names no monitoring.grafana"}
+    }
     $url
 }
 

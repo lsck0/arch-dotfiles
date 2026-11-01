@@ -281,7 +281,6 @@ honggfuzz-git
 hotspot
 hping
 httpx-bin
-hunspell-en_us
 hydra
 hyperfine
 hyprcursor
@@ -297,7 +296,6 @@ imagemagick
 impacket
 inkscape
 innoextract
-inotify-tools
 intel-media-driver
 intel-ucode
 ipp-usb

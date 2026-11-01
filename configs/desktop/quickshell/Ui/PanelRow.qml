@@ -54,62 +54,53 @@ Rectangle {
     anchors.verticalCenter: parent.verticalCenter
     spacing: Style.spacing.xs
 
-    Text {
+    Label {
       id: glyphText
       anchors.verticalCenter: parent.verticalCenter
       visible: root.glyph !== ""
-      textFormat: Text.PlainText
       text: root.glyph
       color: root._text
-      font.family: Style.font.iconFamily
+      icon: true
       font.pixelSize: Style.font.icon
 
       layer.enabled: Style.fx.glow > 0 && root.on
       layer.effect: Glow {}
     }
 
-    Text {
+    Label {
       id: markerText
       anchors.verticalCenter: parent.verticalCenter
       visible: root.glyph === "" && root.stateMarker
-      textFormat: Text.PlainText
       text: root.on ? "*" : "o"
       color: root._text
-      font.family: Style.font.family
-      font.pixelSize: Style.font.body
 
       layer.enabled: Style.fx.glow > 0 && root.on
       layer.effect: Glow {}
     }
 
-    Text {
+    Label {
       anchors.verticalCenter: parent.verticalCenter
       width: Math.max(0, Math.min(implicitWidth, root.width - Style.spacing.sm * 2
         - (glyphText.visible ? glyphText.implicitWidth + content.spacing : 0)
         - (markerText.visible ? markerText.implicitWidth + content.spacing : 0)
         - (trailingText.visible ? trailingText.implicitWidth + Style.spacing.xs : 0)))
-      textFormat: Text.PlainText
       text: root.label
       color: root._text
-      font.family: Style.font.family
-      font.pixelSize: Style.font.body
       font.capitalization: root.upper ? Font.AllUppercase : Font.MixedCase
       font.letterSpacing: root.upper ? Style.labelTracking : 0
       elide: Text.ElideRight
     }
   }
 
-  Text {
+  Label {
     id: trailingText
     visible: root.trailing !== ""
     anchors.right: parent.right
     anchors.rightMargin: Style.spacing.sm
     anchors.verticalCenter: parent.verticalCenter
-    textFormat: Text.PlainText
     text: root.trailing
     color: root.on ? Colors.menu.text : Colors.textDim
-    font.family: Style.font.family
-    font.pixelSize: Style.font.caption
+    caption: true
   }
 
   MouseArea {
@@ -121,15 +112,13 @@ Rectangle {
     onClicked: root.activated()
   }
 
-  Text {
+  Label {
     visible: root.activeFocus || (mouse.containsMouse && root.enabled)
     opacity: root.activeFocus ? 1 : Style.emphasis.faint
     anchors.right: parent.left
     anchors.verticalCenter: parent.verticalCenter
-    textFormat: Text.PlainText
     text: ">"
     color: Colors.accentText
-    font.family: Style.font.family
-    font.pixelSize: Style.font.caption
+    caption: true
   }
 }

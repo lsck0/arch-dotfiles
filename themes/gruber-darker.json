@@ -1,0 +1,27 @@
+{
+  "wallpaper": "alena-aenami-alone.jpg",
+  "pair": "gruber-darker-light",
+  "special": {
+    "background": "#181818",
+    "foreground": "#e4e4ef",
+    "cursor": "#ffdd33"
+  },
+  "colors": {
+    "color0": "#101010",
+    "color1": "#f43841",
+    "color2": "#73d936",
+    "color3": "#ffdd33",
+    "color4": "#96a6c8",
+    "color5": "#9e95c7",
+    "color6": "#95a99f",
+    "color7": "#e4e4ef",
+    "color8": "#7e8496",
+    "color9": "#ff4f58",
+    "color10": "#8be05a",
+    "color11": "#ffe866",
+    "color12": "#b0bcd8",
+    "color13": "#b6aedb",
+    "color14": "#a9bdb4",
+    "color15": "#f5f5f5"
+  }
+}

@@ -174,8 +174,6 @@ Item {
       return root.open(payloadJson) ? "ok" : "bad payload"
     }
     function close(): string { root.close(); return "ok" }
-    function state(): string { return root.opened ? "open" : "closed" }
-    function ping(): string { return "ok" }
   }
 
   Variants {
@@ -226,9 +224,8 @@ Item {
 
           Repeater {
             model: root.lines.length
-            Text {
+            Label {
               required property int index
-              textFormat: Text.PlainText
               width: parent.width
               text: root.typedLine(index)
               color: index === 0 ? Colors.accentText : Colors.popups.text
@@ -247,8 +244,7 @@ Item {
           Item {
             width: root.iconWidth
             height: parent.height
-            Text {
-              textFormat: Text.PlainText
+            Label {
               x: Math.round((root.iconWidth - root.iconInkWidth) / 2 - iconMetrics.tightBoundingRect.x)
               anchors.verticalCenter: parent.verticalCenter
               text: root.icon
@@ -265,8 +261,7 @@ Item {
             value: root.maxValue > 0 ? root.value / root.maxValue : 0
             color: Colors.accent
           }
-          Text {
-            textFormat: Text.PlainText
+          Label {
             visible: root.message !== ""
             width: root.hasProgress ? root.valueWidth : root.messageWidth
             horizontalAlignment: root.hasProgress ? Text.AlignRight : Text.AlignLeft

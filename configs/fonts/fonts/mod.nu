@@ -40,10 +40,8 @@ export def link [cfg: record] {
     let config = (xdg config)
     let fonts = xdg data fonts
     [
-        ($FONTS | each {|f| file-copy $f ($fonts | path join $f) })
+        ($FONTS | each {|f| file-copy $f ($fonts | path join $f) --then [fc-cache -f $fonts] })
         ($LICENSES | each {|f| file-copy $f ($fonts | path join $f) })
-        # one cache rebuild for all vendored fonts, not one per copy
-        (exec fc-cache [fc-cache -f $fonts])
         # a drop-in, not fonts.conf: plasma's font settings rewrite that one
         (file-copy fonts.conf ($config | path join fontconfig conf.d 50-dotfiles.conf))
     ]

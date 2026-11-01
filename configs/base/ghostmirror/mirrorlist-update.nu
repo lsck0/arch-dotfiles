@@ -38,11 +38,15 @@ def answers [line: string]: nothing -> bool {
     (^curl -fs -m $PROBE_TIMEOUT_S -r 0-0 -o /dev/null $probe | complete).exit_code == 0
 }
 
-# Drops every homelab entry whose Server line is not keep.
+# Drops every homelab entry (comment, Server line, blank separator) whose Server line is not keep.
 def homelab-drop [lines: list<string>, keep: string]: nothing -> list<string> {
     let drop = $lines | enumerate
         | where {|l| ($l.item | str starts-with "# homelab") and ($lines | get --optional ($l.index + 1)) != $keep }
-        | each { [$in.index ($in.index + 1)] } | flatten
+        | each {|l|
+            let separator = if ($lines | get --optional ($l.index + 2)) == "" { [($l.index + 2)] } else { [] }
+            [$l.index ($l.index + 1)] ++ $separator
+        }
+        | flatten
     $lines | enumerate | where index not-in $drop | get item
 }
 

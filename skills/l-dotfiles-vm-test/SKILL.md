@@ -23,8 +23,8 @@ ctrl+c leaves them only until then. Up to 12 h a run.
 
 - `dot test lint` (`run` runs it first).
 - `kvm` group, `virt-install`, `virsh`, `passt`, `pasta`, `socat`, `xorriso`, `curl`; `magick` for `shot`.
-- The iso: the published one, fetched to `$XDG_CACHE_HOME/vm-test/` and checked against `.sha256`; `--iso PATH` a
-  local build.
+- The iso: the published one, fetched to `$XDG_CACHE_HOME/vm-test/` and checked against `.sha256` and its `.sig`
+  (signer `HOMELAB.mirror.isoSigner`); `--iso PATH` a local build.
 - Tests the working tree (untracked included) as a bundle over `origin/master`; `--master` tests GitHub master. The
   stub applies the bundle and execs its own stub, so a published iso runs the current installer.
 
@@ -69,8 +69,8 @@ matches stops the run (and `vm.test.nu` in lint), so a refactor cannot void a sc
 ## Reports
 
 - Install beacons `bootstrap-ok` (http and channel) and powers the VM off when done; a power-off without it is a crash
-  (see `serial.log`), as is a guest that goes down mid-chain with no verdict. On failure the stub uploads `/tmp/lsck0-install.log` to
-  `$XDG_CACHE_HOME/vm-test/<name>/host/upload/bootstrap.log` and beacons `bootstrap-fail`.
+  (see `serial.log`), as is a guest that goes down mid-chain with no verdict. On failure the stub uploads
+  `/tmp/lsck0-install.log` to `$XDG_CACHE_HOME/vm-test/<name>/host/upload/bootstrap.log` and beacons `bootstrap-fail`.
 - Stages beacon `install-ok|failed`, `config-ok|failed` (`stage.nu`, `/var/lib/dotfiles-stage/report`).
 - The chain's end runs `scripts/lib/stage-report.nu` as root: probes in `scripts/lib/invariants.txt`,
   `dot status --json` (`status.json`), `dot internal backup --roundtrip`, stage log, journals, network and nft state,
@@ -84,7 +84,8 @@ matches stops the run (and `vm.test.nu` in lint), so a refactor cannot void a sc
   a chain stopped before config (`chain_stopped=yes`: `--stopped` beside install-stop's `stopped` marker, probed after
   its disarm, so `stage_armed`, `sudo_passwordless`, `keyfile_present` and `luks_keyslots` keep their values) with its
   banner and the rows of `scenarios.nuon`'s `stopped` at theirs. `dot status` FAIL checks print as notes.
-- A pass destroys the VM; a failure keeps it for inspection and prints the `dot test destroy --name` line.
+- A pass destroys the VM; a failure keeps it for inspection and prints the `dot test destroy --name` line. In a
+  series of runs only the last keeps its VM, as the next run reuses the name; the others leave their logs.
 
 ## While and after
 

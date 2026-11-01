@@ -275,8 +275,10 @@ def write-file [a: record]: nothing -> nothing {
     if $d.content != null { $d.content | save --force --raw $tmp } else { ^cp $d.source $tmp }
     ^chmod $d.mode $tmp
     if ($d.inplace? | default false) and (path-kind $d.target) == "file" {
-        ^chmod $d.mode $d.target
+        # owner-writable and private before the content, the declared mode after: a read-only mode would refuse the cp
+        ^chmod u+w,go-rwx $d.target
         ^cp $tmp $d.target
+        ^chmod $d.mode $d.target
         rm $tmp
     } else {
         ^mv -fT $tmp $d.target

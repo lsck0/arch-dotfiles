@@ -1313,6 +1313,10 @@ local function fetch(org, num, buf, key, title, idx)
         if proj_idx ~= idx or not vim.api.nvim_buf_is_valid(buf) then
             return
         end
+        -- a failed refresh keeps the board already drawn from the cache, offline included
+        if state and state.idx == idx and state.buf == buf then
+            return
+        end
         vim.bo[buf].modifiable = true
         vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
             "",

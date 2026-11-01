@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=NetworkManager TUI
-Comment=Edit and activate network connections
-TryExec=nmtui
-Exec=nmtui
-Icon=preferences-system-network
-Terminal=true
-Categories=Network;Settings;ConsoleOnly;

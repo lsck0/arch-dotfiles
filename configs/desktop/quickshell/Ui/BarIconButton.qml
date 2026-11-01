@@ -7,13 +7,12 @@ WidgetButton {
   property real slotSize: Style.bar.iconSlot
   property real opticalSize: Style.bar.iconCanvas
 
-  fontFamily: bar ? bar.iconFontFamily : Style.font.iconFamily
+  fontFamily: Style.font.iconFamily
 
   labelVisible: false
   hasVisualContent: text !== ""
   fontSize: Style.bar.iconFont
-  fixedWidth: vertical ? -1 : slotSize
-  fixedHeight: vertical ? slotSize : -1
+  fixedWidth: slotSize
 
   Item {
     anchors.centerIn: parent
@@ -26,7 +25,6 @@ WidgetButton {
       fontFamily: root.fontFamily
       fontSize: root.fontSize
       color: root.active && root.useActiveColor ? root.activeColor : root.foreground
-      rotation: root.textRotation
 
       layer.enabled: Style.fx.glow > 0 && root.active
       layer.effect: Glow {}

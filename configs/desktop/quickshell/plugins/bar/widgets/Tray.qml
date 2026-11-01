@@ -16,8 +16,6 @@ BarWidget {
   property bool trayMenuOpen: false
   property var activeTrayItem: null
   property var activeTrayAnchor: null
-  readonly property color foreground: bar ? bar.barForeground : Colors.foreground
-  readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property var pinnedIds: settings.pinned instanceof Array ? settings.pinned : []
   readonly property var hiddenIds: settings.hidden instanceof Array ? settings.hidden : []
   readonly property var pinnedItems: bucket("pinned")
@@ -165,14 +163,14 @@ BarWidget {
 
   visible: allItems.length > 0
   clip: false
-  implicitWidth: root.vertical ? root.barSize : (allHidden ? hiddenHandle.implicitWidth : trayContent.implicitWidth)
-  implicitHeight: root.vertical ? (allHidden ? hiddenHandle.implicitHeight : trayContent.implicitHeight) : root.barSize
+  implicitWidth: allHidden ? hiddenHandle.implicitWidth : trayContent.implicitWidth
+  implicitHeight: Style.bar.sizeHorizontal
 
   Loader {
     id: trayContent
     anchors.fill: parent
     active: !root.allHidden
-    sourceComponent: root.vertical ? verticalTray : horizontalTray
+    sourceComponent: horizontalTray
   }
 
   BarIconButton {
@@ -194,7 +192,7 @@ BarWidget {
       readonly property int pinnedWidth: pinnedRow.implicitWidth
 
       implicitWidth: pinnedWidth + root.drawerExtent
-      implicitHeight: root.barSize
+      implicitHeight: Style.bar.sizeHorizontal
 
       containmentMask: QtObject {
         function contains(point: point): bool {
@@ -205,7 +203,7 @@ BarWidget {
 
       Item {
         width: root.drawerExtent
-        height: root.barSize
+        height: Style.bar.sizeHorizontal
         visible: root.allItems.length > 0
 
         MouseArea {
@@ -219,7 +217,7 @@ BarWidget {
         Item {
           anchors.verticalCenter: parent.verticalCenter
           width: root.drawerExtent
-          height: root.barSize
+          height: Style.bar.sizeHorizontal
           clip: true
 
           Row {
@@ -248,69 +246,6 @@ BarWidget {
     }
   }
 
-  Component {
-    id: verticalTray
-
-    Item {
-      id: verticalTrayRoot
-
-      readonly property int pinnedHeight: pinnedCol.implicitHeight
-
-      implicitWidth: root.barSize
-      implicitHeight: pinnedHeight + root.drawerExtent
-
-      containmentMask: QtObject {
-        function contains(point: point): bool {
-          if (point.x < 0 || point.x > verticalTrayRoot.width) return false
-          return point.y >= 0 && point.y <= verticalTrayRoot.implicitHeight
-        }
-      }
-
-      Item {
-        width: root.barSize
-        height: root.drawerExtent
-        visible: root.allItems.length > 0
-
-        MouseArea {
-          anchors.fill: parent
-          acceptedButtons: Qt.RightButton
-          onPressed: function(mouse) {
-            if (mouse.button === Qt.RightButton) root.managePopupOpen = !root.managePopupOpen
-          }
-        }
-
-        Item {
-          anchors.horizontalCenter: parent.horizontalCenter
-          width: root.barSize
-          height: root.drawerExtent
-          clip: true
-
-          Column {
-            anchors.horizontalCenter: parent.horizontalCenter
-            spacing: root.trayItemGap
-
-            Repeater {
-              model: root.drawerItems
-              TrayItem {}
-            }
-          }
-        }
-      }
-
-      Column {
-        id: pinnedCol
-        y: root.drawerExtent
-        anchors.horizontalCenter: parent.horizontalCenter
-        spacing: root.trayItemGap
-        topPadding: root.pinnedItems.length > 0 && root.drawerCount > 0 ? root.trayJoinGap : 0
-        Repeater {
-          model: root.pinnedItems
-          TrayItem {}
-        }
-      }
-    }
-  }
-
   PopupCard {
     id: managePopup
     anchorItem: root
@@ -328,7 +263,7 @@ BarWidget {
       Text {
         text: "Tray icons"
         color: Colors.accentText
-        font.family: root.fontFamily
+        font.family: Style.font.family
         font.pixelSize: Style.font.caption
         font.bold: true
         font.capitalization: Font.AllUppercase
@@ -338,7 +273,7 @@ BarWidget {
       Text {
         text: "Pinned icons stay visible. Hidden icons never show. Shift+right-click an icon opens this."
         color: Colors.textDim
-        font.family: root.fontFamily
+        font.family: Style.font.family
         font.pixelSize: Style.font.caption
         wrapMode: Text.WordWrap
         width: parent.width
@@ -348,7 +283,7 @@ BarWidget {
         visible: root.allItems.length === 0
         text: "No tray items"
         color: Colors.textDim
-        font.family: root.fontFamily
+        font.family: Style.font.family
         font.pixelSize: Style.font.bodySmall
         font.italic: true
       }
@@ -391,19 +326,20 @@ BarWidget {
             anchors.right: rowHideBtn.left
             anchors.rightMargin: Style.spacing.sm
             text: rowRoot.displayName
-            color: root.foreground
-            font.family: root.fontFamily
+            color: Colors.bar.text
+            font.family: Style.font.family
             font.pixelSize: Style.font.bodySmall
             elide: Text.ElideRight
           }
 
           Button {
+            focusable: true
             id: rowPinBtn
             anchors.verticalCenter: parent.verticalCenter
             anchors.right: parent.right
             iconText: "\uf08d"
             text: rowRoot.isPinned ? "Unpin" : "Pin"
-            foreground: root.foreground
+            foreground: Colors.bar.text
             horizontalPadding: Style.spacing.controlPaddingX
             verticalPadding: Style.spacing.controlPaddingY
             iconSize: Style.font.bodySmall
@@ -412,13 +348,14 @@ BarWidget {
           }
 
           Button {
+            focusable: true
             id: rowHideBtn
             anchors.verticalCenter: parent.verticalCenter
             anchors.right: rowPinBtn.left
             anchors.rightMargin: Style.spacing.sm
             iconText: "\uf06e"
             text: rowRoot.isHidden ? "Show" : "Hide"
-            foreground: root.foreground
+            foreground: Colors.bar.text
             horizontalPadding: Style.spacing.controlPaddingX
             verticalPadding: Style.spacing.controlPaddingY
             iconSize: Style.font.bodySmall
@@ -471,7 +408,7 @@ BarWidget {
           Rectangle {
             anchors.fill: parent
             radius: Style.shape.data
-            color: backMouse.containsMouse ? Style.hoverFillFor(root.foreground, root.foreground) : "transparent"
+            color: backMouse.containsMouse ? Style.hoverFillFor(Colors.bar.text, Colors.bar.text) : "transparent"
           }
 
           Text {
@@ -479,9 +416,9 @@ BarWidget {
             anchors.left: parent.left
             width: Style.space(22)
             horizontalAlignment: Text.AlignHCenter
-            text: "\u2039"
-            color: root.foreground
-            font.family: root.fontFamily
+            text: "<"
+            color: Colors.bar.text
+            font.family: Style.font.family
             font.pixelSize: Style.font.bodySmall
           }
 
@@ -493,8 +430,8 @@ BarWidget {
             anchors.right: parent.right
             anchors.rightMargin: Style.spacing.md
             text: root.currentTitle
-            color: root.foreground
-            font.family: root.fontFamily
+            color: Colors.bar.text
+            font.family: Style.font.family
             font.pixelSize: Style.font.bodySmall
             elide: Text.ElideRight
           }
@@ -562,7 +499,28 @@ BarWidget {
               readonly property bool leadingSeparator: atRoot && modelData.isSeparator && index <= 1
               readonly property bool hiddenRow: rootTitleEntry || leadingSeparator
 
+              function activate() {
+                if (root.menuLevelSettling) return
+                if (menuRow.modelData.hasChildren) {
+                  trayMenuFlick.contentY = 0
+                  root.enterSubmenu(menuRow.modelData, menuRow.rowText)
+                } else {
+                  menuRow.modelData.triggered()
+                  root.close()
+                }
+              }
+
               visible: !hiddenRow
+              activeFocusOnTab: !hiddenRow && !modelData.isSeparator && modelData.enabled
+              Keys.onReturnPressed: menuRow.activate()
+              Keys.onEnterPressed: menuRow.activate()
+              Keys.onSpacePressed: menuRow.activate()
+              Keys.onPressed: function(event) {
+                if ((event.key === Qt.Key_Left || event.text === "h") && root.submenuDepth > 0) {
+                  root.leaveSubmenu()
+                  event.accepted = true
+                }
+              }
               width: trayMenuColumn.width
               implicitHeight: hiddenRow ? 0 : (modelData.isSeparator ? Style.space(9) : Style.space(26))
               opacity: modelData.enabled ? 1.0 : 0.45
@@ -583,7 +541,7 @@ BarWidget {
                 visible: !menuRow.modelData.isSeparator
                 anchors.fill: parent
                 radius: Style.shape.data
-                color: rowMouse.containsMouse && menuRow.modelData.enabled ? Style.hoverFillFor(root.foreground, root.foreground) : "transparent"
+                color: (rowMouse.containsMouse || menuRow.activeFocus) && menuRow.modelData.enabled ? Style.hoverFillFor(Colors.bar.text, Colors.bar.text) : "transparent"
               }
 
               Text {
@@ -594,8 +552,8 @@ BarWidget {
                 width: Style.space(22)
                 horizontalAlignment: Text.AlignHCenter
                 text: menuRow.modelData.checkState === Qt.Checked ? "\uf00c" : ""
-                color: root.foreground
-                font.family: root.fontFamily
+                color: Colors.bar.text
+                font.family: Style.font.family
                 font.pixelSize: Style.font.bodySmall
               }
 
@@ -608,7 +566,7 @@ BarWidget {
                 textFormat: Text.PlainText
                 text: ">"
                 color: Colors.textDim
-                font.family: root.fontFamily
+                font.family: Style.font.family
                 font.pixelSize: Style.font.bodySmall
               }
 
@@ -634,8 +592,8 @@ BarWidget {
                 anchors.right: submenuGlyph.left
                 anchors.rightMargin: Style.spacing.sm
                 text: menuRow.rowText
-                color: root.foreground
-                font.family: root.fontFamily
+                color: Colors.bar.text
+                font.family: Style.font.family
                 font.pixelSize: Style.font.bodySmall
                 elide: Text.ElideRight
               }
@@ -646,9 +604,9 @@ BarWidget {
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.right: parent.right
                 anchors.rightMargin: Style.spacing.md
-                text: "\u203a"
-                color: root.foreground
-                font.family: root.fontFamily
+                text: ">"
+                color: Colors.bar.text
+                font.family: Style.font.family
                 font.pixelSize: Style.font.bodySmall
               }
 
@@ -658,16 +616,7 @@ BarWidget {
                 hoverEnabled: true
                 enabled: !menuRow.modelData.isSeparator && menuRow.modelData.enabled
                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: {
-                  if (root.menuLevelSettling) return
-                  if (menuRow.modelData.hasChildren) {
-                    trayMenuFlick.contentY = 0
-                    root.enterSubmenu(menuRow.modelData, menuRow.rowText)
-                  } else {
-                    menuRow.modelData.triggered()
-                    root.close()
-                  }
-                }
+                onClicked: menuRow.activate()
               }
             }
           }
@@ -688,15 +637,15 @@ BarWidget {
       sourceSize.width: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
       sourceSize.height: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
       source: String(trayIconRoot.icon || "")
-      visible: false
+      visible: !trayIconRoot.symbolic
     }
 
     MultiEffect {
       anchors.fill: trayIconImage
       source: trayIconImage
-      visible: true
-      colorization: trayIconRoot.symbolic ? 1.0 : 0.0
-      colorizationColor: root.foreground
+      visible: trayIconRoot.symbolic
+      colorization: 1.0
+      colorizationColor: Colors.bar.text
     }
   }
 

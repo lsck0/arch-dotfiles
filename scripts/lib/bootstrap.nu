@@ -4,7 +4,7 @@ use log.nu *
 use state.nu [SYSTEM_REPO path-kind]
 use system.nu [system-pack system-unpack]
 use platform.nu [platform-groups-all PLATFORM_NAME_FILE]
-use stage.nu [STAGE_STATE_DIR STAGE_KEY_FILE STAGE_ESP_MARKER STAGE_SUDOERS_DROPIN REPORT_CHANNEL stage-sudoers]
+use stage.nu [STAGE_STATE_DIR STAGE_KEY_FILE STAGE_ESP_MARKER STAGE_SUDOERS_DROPIN report-beacon-send stage-sudoers]
 use ../../platforms/homelab.nu [HOMELAB]
 
 const MIRRORLIST = "/etc/pacman.d/mirrorlist"
@@ -29,6 +29,9 @@ const PART_TYPE_ESP = "ef00"
 const PART_TYPE_LUKS = "8309"
 const PART_TYPE_ROOT = "8304"
 const MOUNT = "/mnt"
+# the system CA store, which lsck0-install names as an enterprise network's CA
+const CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
+const NM_CERTS = "/etc/NetworkManager/certs"
 const BTRFS_OPTS = "noatime,compress=zstd"
 const SUBVOLS = [
     [name mount]; ["@" "/"] ["@home" "/home"] ["@log" "/var/log"] ["@pkg" "/var/cache/pacman/pkg"]
@@ -36,7 +39,7 @@ const SUBVOLS = [
 ]
 const LUKS_FORMAT = [--type luks2 --cipher aes-xts-plain64 --key-size 512 --sector-size 4096 --pbkdf argon2id]
 const LUKS_OPEN = [--allow-discards --perf-no_read_workqueue --perf-no_write_workqueue --persistent]
-export const PACSTRAP = [base linux linux-firmware mkinitcpio btrfs-progs cryptsetup binutils networkmanager sudo git zsh zram-generator libfido2 nushell]
+const PACSTRAP = [base linux linux-firmware mkinitcpio btrfs-progs cryptsetup binutils networkmanager sudo git zsh zram-generator libfido2 nushell]
 const HOOKS = [base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck]
 const CMDLINE_TAIL = "rw zswap.enabled=0 nmi_watchdog=0 slab_nomerge init_on_alloc=1 init_on_free=1 randomize_kstack_offset=on vsyscall=none page_alloc.shuffle=1"
 const SECRETS_TOOLS = [age age-plugin-yubikey git-crypt pcsclite ccid libfido2 yubikey-manager]
@@ -386,10 +389,17 @@ def wifi-sae-only []: nothing -> list<string> {
 }
 
 # The [802-1x] block for an enterprise iwd network, with mandatory server validation (domain-suffix-match plus the
-# system CA store): without it the supplicant hands the user's credentials to any AP broadcasting the SSID.
-def wifi-eap-section [text: string]: nothing -> list<string> {
+# network's own CA, copied into the target as NM_CERTS/<name>.pem, or the system CA store): without it the supplicant
+# hands the user's credentials to any AP broadcasting the SSID.
+def wifi-eap-section [text: string, name: string]: nothing -> list<string> {
     let method = iwd-get $text Security EAP-Method | str lowercase
     let outer = iwd-get $text Security EAP-Identity
+    let ca = iwd-get $text Security $"EAP-($method | str uppercase)-CACert"
+    let ca_own = if ($ca | is-not-empty) and $ca != $CA_BUNDLE and ($ca | path exists) { $NM_CERTS | path join $"($name).pem" }
+    if $ca_own != null {
+        mkdir ($MOUNT + $NM_CERTS)
+        cp $ca ($MOUNT + $ca_own)
+    }
     let domain = iwd-get $text Security $"EAP-($method | str uppercase)-ServerDomainMask"
     # NetworkManager phase2-auth takes a bare token (pap, mschapv2), iwd stores Tunneled-PAP: strip the prefix
     let p2method = iwd-get $text Security $"EAP-($method | str uppercase)-Phase2-Method" | str lowercase | str replace --regex '^tunneled-' ''
@@ -401,7 +411,7 @@ def wifi-eap-section [text: string]: nothing -> list<string> {
         | append (if ($password | is-not-empty) { [$"password=(keyfile-escape $password)"] } else { [] })
         | append (if ($p2method | is-not-empty) { [$"phase2-auth=($p2method)"] } else { [] })
         | append (if ($domain | is-not-empty) { [$"domain-suffix-match=(keyfile-escape $domain)"] } else { [] })
-        | append ["system-ca-certs=true"]
+        | append (if $ca_own != null { [$"ca-cert=($ca_own)"] } else { ["system-ca-certs=true"] })
 }
 
 def wifi-carry [c: record]: nothing -> nothing {
@@ -415,7 +425,7 @@ def wifi-carry [c: record]: nothing -> nothing {
         let text = open --raw $f
         let psk = iwd-get $text Security Passphrase | default --empty (iwd-get $text Security PreSharedKey)
         if not $open and not $enterprise and ($psk | is-empty) { continue }
-        let eap = if $enterprise { wifi-eap-section $text } else { [] }
+        let eap = if $enterprise { wifi-eap-section $text $name } else { [] }
         # the server domain is mandatory: without domain-suffix-match any AP broadcasting the SSID is trusted
         if $enterprise and not ($eap | any {|l| $l | str starts-with "domain-suffix-match=" }) {
             log-warn $"($ssid): enterprise network without a server domain, not carried"
@@ -491,8 +501,7 @@ def boot-next-installed [esp: string]: nothing -> nothing {
 def report-bootstrap-ok []: nothing -> nothing {
     let report = env-or BOOTSTRAP_REPORT
     if $report == "" { return }
-    ^curl -s -m 10 $"($report)/beacon/bootstrap-ok" | complete | ignore
-    if ($REPORT_CHANNEL | path exists) { "beacon bootstrap-ok\n" | ^tee $REPORT_CHANNEL | complete | ignore }
+    report-beacon-send $report bootstrap-ok
 }
 
 def stage-arm [c: record, root_uuid: string]: nothing -> nothing {

@@ -33,7 +33,7 @@ def proton-connect []: nothing -> nothing {
     if (try { (open $settings).killswitch? | default 0 } catch { 0 }) == 0 {
         ^protonvpn config set kill-switch standard | complete
     }
-    ^systemctl --no-ask-password stop portmaster.service | complete
+    if (unit-active portmaster.service) { systemctl-guarded stop portmaster.service }
     let connect = ^protonvpn connect --country $COUNTRY | complete
     let output = $connect.stdout + $connect.stderr
     if $output =~ '(?i)authentication required' {

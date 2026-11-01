@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=GAP
-Comment=Computational discrete algebra
-TryExec=gap
-Exec=gap
-Icon=kalgebra
-Terminal=true
-Categories=Science;Math;Education;ConsoleOnly;

@@ -5,16 +5,18 @@ use state.nu [state-dir path-kind]
 
 const STAMP = '\.(\d{14})(\.\d+)?$'
 const STAMP_FORMAT = "%Y%m%d%H%M%S"
+const SYNC_ANY = '^/home/[^/]+/sync(/|$)'
 
 export def preserve-dir []: nothing -> path {
     state-dir | path join preserved
 }
 
-# Refuses a write under ~/sync: a file made there before syncthing delivers the real one collides with it.
+# Refuses a write under ~/sync (any login's, root's layer writes too): a file made there before syncthing delivers the
+# real one collides with it.
 export def sync-guard [path: path]: nothing -> nothing {
     let sync_dir = (^realpath -m ($nu.home-dir | path join sync))
     let target = (^realpath -m $path)
-    if $target == $sync_dir or ($target | str starts-with $"($sync_dir)/") {
+    if $target == $sync_dir or ($target | str starts-with $"($sync_dir)/") or $target =~ $SYNC_ANY {
         error make {msg: $"refusing to write ($path), ~/sync belongs to syncthing"}
     }
 }

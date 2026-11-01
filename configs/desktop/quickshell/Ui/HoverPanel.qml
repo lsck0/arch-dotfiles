@@ -242,18 +242,15 @@ PanelWindow {
       id: reveal
       width: parent.width
       height: Math.round(parent.height * bootIn.progress)
-      y: root.bar && root.bar.position === "bottom" ? parent.height - height : 0
       clip: true
       opacity: bootIn.progress
 
       DockShape {
         id: card
-        y: -reveal.y
         width: root.width
         height: root.height
         docked: true
         neck: 0
-        flipped: root.bar !== null && root.bar.position === "bottom"
         fillColor: Colors.bar.background
 
         readonly property real contentLeftInset: sideInset + strokeWidth + root.padding
@@ -264,7 +261,6 @@ PanelWindow {
 
       Item {
         x: card.sideInset
-        y: card.y
         width: card.width - card.sideInset * 2
         height: card.height
         HudFrame { inset: bootIn.bracketInset; chamfer: card.cut; chamferCorner: card.cutCorner }
@@ -273,7 +269,7 @@ PanelWindow {
       Flickable {
         id: inner
         x: card.contentLeftInset
-        y: card.y + card.contentTopInset + root.titleInset
+        y: card.contentTopInset + root.titleInset
         width: card.width - card.contentLeftInset - card.contentRightInset
         height: card.height - card.contentTopInset - card.contentBottomInset - root.titleInset
         opacity: bootIn.rowOpacity(1)
@@ -288,25 +284,16 @@ PanelWindow {
       }
 
       // more above or below: the body fades out at that edge and the scroll track shows where the view sits
-      Item {
+      FadeRamp {
         id: bodyFade
-        readonly property real ramp: root.fadeHeight / Math.max(1, height)
         x: inner.x
         y: inner.y
         width: inner.width
         height: inner.height
-        visible: false
+        reach: root.fadeHeight
+        fadeTop: inner.atYBeginning ? 0 : 1
+        fadeBottom: inner.atYEnd ? 0 : 1
         layer.enabled: inner.interactive
-
-        Rectangle {
-          anchors.fill: parent
-          gradient: Gradient {
-            GradientStop { position: 0; color: Util.alpha("black", inner.atYBeginning ? 1 : 0) }
-            GradientStop { position: Math.min(0.5, bodyFade.ramp); color: "black" }
-            GradientStop { position: Math.max(0.5, 1 - bodyFade.ramp); color: "black" }
-            GradientStop { position: 1; color: Util.alpha("black", inner.atYEnd ? 1 : 0) }
-          }
-        }
       }
 
       Rectangle {
@@ -334,7 +321,7 @@ PanelWindow {
         visible: root.title.length > 0
         z: 4
         x: card.contentLeftInset
-        y: card.y + card.contentTopInset
+        y: card.contentTopInset
         width: card.width - card.contentLeftInset - card.contentRightInset
         height: visible ? implicitHeight : 0
         text: root.title

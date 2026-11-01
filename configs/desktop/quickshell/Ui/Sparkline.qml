@@ -7,6 +7,8 @@ Item {
   id: root
 
   property var values: []
+  // one point draws no line, only an empty box; a caller's own visible: replaces this default
+  visible: values.length > 1
   property real minValue: 0
   property real maxValue: 0
   property color color: Colors.accent

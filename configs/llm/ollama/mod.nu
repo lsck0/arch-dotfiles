@@ -1,5 +1,5 @@
 use module.nu *
-use ollama-ensure-models.nu [SMALL LARGE]
+use ollama-ensure-models.nu [SMALL LARGE LONG_CONTEXT LONG_CONTEXT_TOKENS]
 
 export const meta = {packages: {pacman: [ollama]}}
 
@@ -11,7 +11,7 @@ export const KEEP_ALIVE_MIN = 30
 const MODELS_TIMEOUT = 3hr
 
 export def link [cfg: record] {
-    let pins = [$SMALL.pin $LARGE.pin] | str join "\n" | hash sha256 | str substring 0..<12
+    let pins = [$SMALL.pin $LARGE.pin $LONG_CONTEXT $LONG_CONTEXT_TOKENS] | str join "\n" | hash sha256 | str substring 0..<12
     let stamp = xdg state ollama-models $pins
     [
         (link-commands ollama-ensure-models.nu)

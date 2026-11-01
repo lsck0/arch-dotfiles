@@ -80,3 +80,12 @@ export def guarded [name: string, body: closure, --read-only, --background]: not
         exit 1
     }
 }
+
+# How this process reaches root: sudo at a terminal a person sees, pkexec's dialog in a graphical session otherwise,
+# null with neither. Claude Code's shells (the agent's and the user's ! commands, CLAUDECODE set) hold a terminal that
+# nobody sees, so sudo's touch cue and password prompt land there unread; its dialog is visible and asks the same key.
+export def root-runner []: nothing -> any {
+    let seen_terminal = (is-terminal --stdin) and ($env.CLAUDECODE? | is-empty)
+    let graphical = ($env.WAYLAND_DISPLAY? | is-not-empty) or ($env.DISPLAY? | is-not-empty)
+    if $seen_terminal { "sudo" } else if $graphical and (which pkexec | is-not-empty) { "pkexec" } else { null }
+}

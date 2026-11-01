@@ -1,8 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # Table cases for desktop-set: whole keys replaced, regex characters in keys and values taken literally.
 use module.nu [desktop-set]
-
-def fail [msg: string] { error make {msg: $"module.test: ($msg)"} }
+use std/assert
 
 def main [] {
     let entry = "[Desktop Entry]\nName=App\nExec=app %U\nX-Key.a=1\n[Desktop Action new]\nExec=app --new\n"
@@ -15,6 +14,6 @@ def main [] {
     ]
     for c in $cases {
         let got = $entry | desktop-set $c.values
-        if $got != $c.wants { fail $"($c.name): got ($got | to nuon), wants ($c.wants | to nuon)" }
+        assert equal $got $c.wants $"($c.name): got ($got | to nuon), wants ($c.wants | to nuon)"
     }
 }

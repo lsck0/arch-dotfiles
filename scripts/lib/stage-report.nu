@@ -2,16 +2,13 @@
 # End of a watched install chain: probes, dot status, backup roundtrip, logs uploaded, then the verdict beacon. Over
 # http to the watcher and, when the vm has one, the virtio channel, which no guest firewall stands in front of.
 
-use stage.nu [STAGE_STATE_DIR]
+use stage.nu [STAGE_STATE_DIR STAGE_STOPPED REPORT_CHANNEL report-beacon-send]
 use homelab.nu [homelab-subnet-glob]
 use ../../platforms/homelab.nu [HOMELAB]
 
 const INVARIANTS = path self invariants.txt
 const OUT = "/tmp/dotfiles-report"
 const REPORT_ARCHIVE = $OUT + ".tgz"
-const CHANNEL = "/dev/virtio-ports/lsck0.report"
-# install-stop's own mark of a chain it stopped and disarmed; --stopped without it is no clean stop
-const STOPPED_MARKER = $STAGE_STATE_DIR + "/stopped"
 # who decides whether the guest gets out: tor's bootstrap, the router table, portmaster's verdicts, the resolver, the
 # persona dispatcher that switches between them
 const NETWORK_UNITS = [tor tor-router portmaster portmaster-bypass fw-egress systemd-resolved NetworkManager-dispatcher]
@@ -22,15 +19,15 @@ def main [user: string, checkout: path, --stopped]: nothing -> nothing {
     let url = open --raw ($STAGE_STATE_DIR | path join report) | str trim
     let ok = try { report $user $checkout $url $stopped; true } catch {|e| print --stderr $"stage-report: ($e.msg)"; false }
     let verdict = if $ok and not $stopped { 'chain-done' } else { 'chain-fail' }
-    ^curl -s -m 10 $"($url)/beacon/($verdict)" | complete | ignore
-    channel-send $verdict
+    channel-archive-send
+    report-beacon-send $url $verdict
 }
 
-# The archive as one base64 line, then the verdict; the watcher reads both off the channel's host file.
-def channel-send [verdict: string]: nothing -> nothing {
-    if not ($CHANNEL | path exists) { return }
+# The archive as one base64 line ahead of the verdict; the watcher reads both off the channel's host file.
+def channel-archive-send []: nothing -> nothing {
+    if not ($REPORT_CHANNEL | path exists) { return }
     let archive = if ($REPORT_ARCHIVE | path exists) { open --raw $REPORT_ARCHIVE | encode base64 } else { "" }
-    $"logs.tgz ($archive)\nbeacon ($verdict)\n" | ^tee $CHANNEL | complete | ignore
+    $"logs.tgz ($archive)\n" | ^tee $REPORT_CHANNEL | complete | ignore
 }
 
 def report [user: string, checkout: path, url: string, stopped: bool]: nothing -> nothing {
@@ -65,7 +62,7 @@ def report [user: string, checkout: path, url: string, stopped: bool]: nothing -
     let roundtrip = do $as_user "nu --no-config-file scripts/dot.nu internal backup --roundtrip"
     $roundtrip.stdout + $roundtrip.stderr | save --force ($OUT | path join backup-roundtrip.log)
     $facts | append $"backup_roundtrip=(if $roundtrip.exit_code == 0 { 'ok' } else { 'fail' })"
-        | append $"chain_stopped=(if $stopped and ($STOPPED_MARKER | path exists) { 'yes' } else { 'no' })" | str join "\n"
+        | append $"chain_stopped=(if $stopped and ($STAGE_STOPPED | path exists) { 'yes' } else { 'no' })" | str join "\n"
         | $"($in)\n" | save --force ($OUT | path join verify.log)
     cp ($STAGE_STATE_DIR | path join log) ($OUT | path join stage.log)
     ^journalctl -u dotfiles-stage.service --no-pager -o short-iso | save --force ($OUT | path join stage-journal.log)

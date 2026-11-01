@@ -2,7 +2,11 @@ use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
 use homelab.nu [LSCK0_SERVER_PLACEHOLDER]
 
-export const meta = {packages: {pacman: [downgrade pacman-contrib yay]}}
+const FILESDB_TIMER = "pacman-filesdb-refresh.timer"
+# pacman-contrib's: the install pass runs this verb before it is installed, the input re-evaluates it once it is
+const FILESDB_TIMER_FILE = $"/usr/lib/systemd/system/($FILESDB_TIMER)"
+
+export const meta = {packages: {pacman: [downgrade pacman-contrib yay]}, inputs: [$FILESDB_TIMER_FILE]}
 
 export const options = {
     yay_cache_days: {
@@ -29,6 +33,8 @@ export def system [cfg: record] {
         (step trust)
         (file-text /etc/pacman.conf $conf)
         (files-into /etc/pacman.d/hooks ...(glob hooks/*.hook))
+        # pacman -F's database, which names the package of a missing command (cause.nu)
+        (if ($FILESDB_TIMER_FILE | path exists) { unit-enable $FILESDB_TIMER --now } else { [] })
     ]
 }
 

@@ -5,6 +5,7 @@ use log.nu *
 const DOT = path self ../dot.nu
 const QUESTIONS = path self bootstrap/questions.nuon
 const ANSWERS_GLOB = "lsck0*.nuon"
+const ANSWERS_EXAMPLE = "lsck0.example.nuon"
 const ANSWERS_NONE = "none"
 const ANSWERS_LABEL = "/dev/disk/by-label/LSCK0"
 const BOOT_MEDIUM = "/run/archiso/bootmnt"
@@ -100,10 +101,11 @@ def answers-parse [text: string, origin: string]: nothing -> record {
     if ($a | describe | str starts-with "record") { $a } else { error make {msg: $"($origin): expected a record"} }
 }
 
-# lsck0.nuon and lsck0.<name>.nuon, at the medium's root and beside an iso on it; without the stub's pick, the first
+# lsck0.nuon and lsck0.<name>.nuon but the repo's example, at the medium's root and beside an iso on it.
 def answers-in [dir: path]: nothing -> list<path> {
     let beside = glob --depth $ISO_SEARCH_DEPTH ($dir | path join "**" $ISO_GLOB) | each { path dirname }
     [$dir] ++ $beside | uniq | each {|d| glob --depth 1 ($d | path join $ANSWERS_GLOB) | sort } | flatten | uniq
+        | where ($it | path basename) != $ANSWERS_EXAMPLE
 }
 
 # The stub's pick, LSCK0_ANSWERS with the text read from it (null when unreadable): {scan, answers}. Empty is no pick,
@@ -117,15 +119,23 @@ export def answers-handed [handed: string, origin: string, text: any]: nothing -
     {scan: false, answers: ($a | insert origin $origin)}
 }
 
+# The first of files that parses, with its origin; one that does not is logged and skipped.
+def answers-first [files: list<path>, origin_of: closure]: nothing -> any {
+    for f in $files {
+        let origin = do $origin_of $f
+        let parsed = try { answers-parse (open --raw $f) $origin | insert origin $origin } catch {|e| log-warn $"($e.msg), ignoring it"; null }
+        if $parsed != null { return $parsed }
+    }
+    null
+}
+
 def answers-media []: nothing -> any {
     let handed = $env.LSCK0_ANSWERS? | default ""
     let text = if $handed in ["" $ANSWERS_NONE] { null } else { try { open --raw $handed | into binary | decode utf-8 } catch { null } }
     let pick = answers-handed $handed ($env.LSCK0_ANSWERS_ORIGIN? | default $handed) $text
     if not $pick.scan { return $pick.answers }
-    for f in (answers-in $BOOT_MEDIUM) {
-        let parsed = try { answers-parse (open --raw $f) $f | insert origin $f } catch {|e| log-warn $"($e.msg), ignoring it"; null }
-        if $parsed != null { return $parsed }
-    }
+    let boot = answers-first (answers-in $BOOT_MEDIUM) {|f| $f }
+    if $boot != null { return $boot }
     let devices = ^lsblk -J -l -pno NAME,FSTYPE,MOUNTPOINT | from json | get blockdevices | where fstype in $MEDIA_FSTYPES
     let label = if ($ANSWERS_LABEL | path exists) { $ANSWERS_LABEL | path expand } else { "" }
     for d in (($devices | where name == $label) ++ ($devices | where name != $label)) {
@@ -135,14 +145,8 @@ def answers-media []: nothing -> any {
             mkdir $dir
             if (^mount -o ro $d.name $dir | complete).exit_code != 0 { continue }
         }
-        let found = answers-in $dir | get --optional 0
-        let a = if $found == null { null } else {
-            let origin = $"($d.name):($found | path relative-to $dir)"
-            try { answers-parse (open --raw $found) $origin | insert origin $origin } catch {|e| {error: $e.msg} }
-        }
+        let a = answers-first (answers-in $dir) {|f| $"($d.name):($f | path relative-to $dir)" }
         if not $mounted { ^umount $dir | complete | ignore }
-        # a broken answer file on an unrelated scanned device is not fatal: skip it and keep looking
-        if $a.error? != null { log-warn $"ignoring unparseable answer file on ($d.name): ($a.error)"; continue }
         if $a != null { return $a }
     }
     null

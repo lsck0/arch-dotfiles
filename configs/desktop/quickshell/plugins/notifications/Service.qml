@@ -45,6 +45,10 @@ Item {
     id: persisted
     reloadableId: "quickshell-notifications"
     property bool obsSession: false
+    property bool shareSession: false
+    // a share outlives a reload but not a restart: a dead shell's claim on disk is released, and since Hyprland
+    // never re-announces a running share and nothing can query one, a share that spans a restart loses its DND
+    onLoaded: if (settings.dndByShare && !shareSession) service.shareSync(false) // qmllint disable unqualified
   }
 
   readonly property alias doNotDisturb: settings.dnd
@@ -73,6 +77,7 @@ Item {
 
   // screencast>>1,<owner> as a share starts, screencast>>0,<owner> as it ends
   function shareSync(sharing) {
+    persisted.shareSession = sharing
     if (sharing) {
       if (!settings.dnd || settings.dndByObs) { // qmllint disable unqualified
         settings.dndByShare = true // qmllint disable unqualified
@@ -278,7 +283,7 @@ Item {
     if (restored) delete restoredPopups[NotificationLogic.popupFileName(entry)]
     popupModel.remove(index)
     try {
-      if (ref && ref.tracked && reason !== "replay") {
+      if (ref && ref.tracked) {
         if (reason === "expire" && typeof ref.expire === "function") ref.expire()
         else ref.dismiss()
       }
@@ -286,8 +291,8 @@ Item {
     }
   }
 
-  function clearPopups(reason) {
-    while (popupModel.count > 0) removePopup(0, reason)
+  function clearPopups() {
+    while (popupModel.count > 0) removePopup(0)
   }
 
   function invokeDefaultAction(entry) {
@@ -535,53 +540,6 @@ Item {
       "done", "--", popupStateDir, historyDir, imagesDir])
   }
 
-  property var replayCarryOver: []
-  property bool historyReadQueued: false
-
-  function showRecentHistory() {
-    if (service.historyReadQueued) return "ok"
-    service.historyReadQueued = true
-    service.replayCarryOver = liveRowsForReplay()
-    readEntryFiles(historyDir, replayHistory)
-    return "ok"
-  }
-
-  function liveRowsForReplay() {
-    var rows = []
-    for (let i = 0; i < popupModel.count; i++) {
-      let row = popupModel.get(i)
-      if (!row || row.originalId < 0) continue
-      let entry = { id: row.id, originalId: row.originalId, timestamp: row.timestamp }
-      NotificationLogic.POPUP_ROLES.forEach(function(role) { entry[role] = row[role] })
-      rows.push(NotificationLogic.persistablePopup(entry, imagesDir).entry)
-    }
-    return rows
-  }
-
-  function replayHistory(raw) {
-    var rows = NotificationLogic.historyRows(raw, service.replayCarryOver, service.historyLimit)
-    service.replayCarryOver = []
-    service.historyReadQueued = false
-
-    if (rows.length === 0) {
-      popupModel.insert(0, NotificationLogic.historyEntry({
-        id: -1,
-        app: NotificationLogic.ACTION_APP,
-        summary: "No recent notifications",
-        glyph: "\u{f009a}",
-        urgency: NotificationUrgency.Low,
-        timestamp: Date.now()
-      }))
-      return
-    }
-
-    clearPopups("replay")
-    for (let i = 0; i < rows.length; i++) {
-      service.restoredPopups[NotificationLogic.popupFileName(rows[i])] = true
-      popupModel.append(rows[i])
-    }
-  }
-
   function restorePopups(raw) {
     var now = Date.now()
     var live = []
@@ -617,63 +575,14 @@ Item {
   IpcHandler {
     target: "notifications"
 
-    function dndState(): string {
-      return service.doNotDisturb ? "on" : "off"
-    }
-
-    function toggleDnd(): string {
-      service.setDoNotDisturb(!service.doNotDisturb)
-      return dndState()
-    }
-
     function setDnd(value: string): string {
       service.setDoNotDisturb(["true", "1", "on", "yes"].indexOf(String(value || "").toLowerCase()) >= 0)
-      return dndState()
+      return isDnd()
     }
 
     function isDnd(): string {
-      return dndState()
+      return service.doNotDisturb ? "on" : "off"
     }
-
-    function showHistory(): string {
-      return service.showRecentHistory()
-    }
-
-    function clear(): string {
-      service.clearHistory()
-      return "ok"
-    }
-
-    function dismissAll(): string {
-      service.clearPopups()
-      return "ok"
-    }
-
-    function dismissOne(): string {
-      if (popupModel.count === 0) return "none"
-      service.removePopup(0)
-      return "ok"
-    }
-
-    function invokeLast(): string {
-      if (popupModel.count === 0) return "none"
-      service.invokePopupDefault(0)
-      return "ok"
-    }
-
-    function dismiss(summary: string): string {
-      var needle = String(summary || "")
-      if (!needle) return "none"
-      var hit = false
-      for (let i = popupModel.count - 1; i >= 0; i--) {
-        if (String(popupModel.get(i).summary || "").indexOf(needle) === -1) continue
-        service.removePopup(i)
-        hit = true
-      }
-      return hit ? "ok" : "none"
-    }
-
-    function ping(): string { return "ok" }
   }
 
   NotificationServer {

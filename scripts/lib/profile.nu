@@ -1,11 +1,13 @@
 # User capabilities and identity from ~/.config/dotfiles/profile.nuon; the system layer never reads them.
 
+use state.nu [SYSTEM_STATE xdg]
+
 const PROFILE_KEYS = [capabilities name email gpg_fingerprint]
 export const PROFILE_CAPABILITIES = [secrets]
-export const PROFILE_OWNERS_FILE = "/var/lib/dotfiles/owners"
+export const PROFILE_OWNERS_FILE = $SYSTEM_STATE | path join owners
 
 def profile-dir []: nothing -> path {
-    $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join dotfiles
+    xdg config dotfiles
 }
 
 export def profile-options-file []: nothing -> path {
@@ -53,9 +55,9 @@ export def profile-has [capability: string]: nothing -> bool {
     $capability in (profile-load).capabilities
 }
 
-# Whether an owner (a login with the secrets capability) uses this machine: root reads no profile, so it asks the
-# owners record bootstrap and system-apply keep.
+# Whether an owner (a login with the secrets capability) uses this machine: the system layer reads no profile, so it
+# asks the owners record bootstrap and system-apply keep, also when a user plans it.
 export def profile-owner []: nothing -> bool {
-    if not (is-admin) { return (profile-has secrets) }
+    if not (is-admin) and $env.DOT_LAYER? != "system" { return (profile-has secrets) }
     (try { open --raw $PROFILE_OWNERS_FILE } catch { "" } | str trim) != ""
 }

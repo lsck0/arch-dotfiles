@@ -61,8 +61,9 @@ export def fetch-file-run [url: string, sha256: string, dest: path, --mode: stri
         rm --recursive --force $tmp
     }
     if $in_place and (path-kind $dest) == "file" and (path-kind $next) == "file" {
-        ^chmod $mode $dest
+        ^chmod u+w,go-rwx $dest
         ^cp $next $dest
+        ^chmod $mode $dest
         rm $next
     } else {
         rm --recursive --force $dest

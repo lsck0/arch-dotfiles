@@ -33,7 +33,7 @@ Item {
     if (!readlinkProc.running) readlinkProc.running = true
   }
 
-  function setBackground(path, instant) {
+  function setBackground(path) {
     path = String(path || "").trim()
     if (!path || path === currentBackground) return
     currentBackground = path
@@ -43,7 +43,7 @@ Item {
     revealAnimation.stop()
     finishingTransition = false
 
-    if (instant || !displayedBackground) {
+    if (!displayedBackground) {
       oldBackground = ""
       incomingBackground = ""
       displayedBackground = path
@@ -82,7 +82,7 @@ Item {
     id: readlinkProc
     command: ["readlink", "-f", root.currentBackgroundLink]
     stdout: StdioCollector {
-      onStreamFinished: root.setBackground(String(text || "").trim(), false)
+      onStreamFinished: root.setBackground(String(text || "").trim())
     }
   }
 
@@ -94,11 +94,7 @@ Item {
     }
 
     function set(path: string): void {
-      root.setBackground(path, false)
-    }
-
-    function setInstant(path: string): void {
-      root.setBackground(path, true)
+      root.setBackground(path)
     }
   }
 

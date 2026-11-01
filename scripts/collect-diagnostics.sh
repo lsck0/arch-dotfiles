@@ -12,20 +12,6 @@ case "${1:-}" in
         ;;
 esac
 self=$(dirname "$(realpath "$0")")
-stick=$(findmnt -rno TARGET -S LABEL=LSCK0 2> /dev/null | head -n1)
-if [[ -n "${1:-}" ]]; then
-    dest=$1
-elif [[ -n $stick ]]; then
-    # the install stick's LSCK0 partition, beside the answer files' medium: the bundle travels with the stick
-    dest=$stick
-elif [[ -f "$self/dot.nu" ]]; then
-    # never into the checkout (dot sync would commit it) and not straight into $HOME either
-    dest=${XDG_STATE_HOME:-$HOME/.local/state}/diagnostics
-else
-    dest=$self
-fi
-out="$dest/diag-$(cat /etc/hostname 2> /dev/null || uname -n)-$(date +%Y%m%d-%H%M%S)"
-mkdir -p "$out" || exit 1
 
 # as root through sudo, the dot state and checkout to report are the invoking user's, not root's
 # and so is the session: its bus, pipewire and Hyprland are reached through the user's runtime dir
@@ -42,6 +28,22 @@ if ((EUID == 0)) && [[ -n "${SUDO_USER:-}" ]]; then
     [[ -n $wayland ]] && session+=(WAYLAND_DISPLAY="$wayland")
     as_user=(runuser -u "$SUDO_USER" -- env "${session[@]}")
 fi
+
+stick=$(findmnt -rno TARGET -S LABEL=LSCK0 2> /dev/null | head -n1)
+if [[ -n "${1:-}" ]]; then
+    dest=$1
+elif [[ -n $stick ]]; then
+    # the install stick's LSCK0 partition, beside the answer files' medium: the bundle travels with the stick
+    dest=$stick
+elif [[ -f "$self/dot.nu" ]]; then
+    # never into the checkout (dot sync would commit it) nor straight into $HOME; made as the user, so sudo leaves no root-owned parent
+    dest=${XDG_STATE_HOME:-$user_home/.local/state}/diagnostics
+    "${as_user[@]}" mkdir -p "$dest"
+else
+    dest=$self
+fi
+out="$dest/diag-$(cat /etc/hostname 2> /dev/null || uname -n)-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$out" || exit 1
 
 if ((EUID == 0)); then
     as_root=()

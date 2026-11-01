@@ -72,9 +72,8 @@ Item {
         anchors.bottomMargin: card.contentBottomInset
         anchors.leftMargin: card.contentLeftInset
 
-        Text {
+        Label {
           id: prompt
-          textFormat: Text.PlainText
           anchors.left: parent.left
           anchors.top: parent.top
           text: ">"
@@ -84,9 +83,8 @@ Item {
           font.pixelSize: Style.font.title
         }
 
-        Text {
+        Label {
           id: messageText
-          textFormat: Text.PlainText
           anchors.left: prompt.right
           anchors.leftMargin: Style.spacing.xs
           anchors.right: parent.right
@@ -124,13 +122,12 @@ Item {
                 : (selected ? root.accent : Util.alpha(root.foreground, 0.38)), Style.normalBorderWidth)
               radius: 0
 
-              Text {
-                textFormat: Text.PlainText
+              Label {
                 anchors.centerIn: parent
                 text: "[ " + choice.modelData + " ]"
                 color: choice.selected ? root.selectedText : root.foreground
                 font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
+                caption: true
                 font.capitalization: Font.AllUppercase
                 font.letterSpacing: Style.labelTracking
               }

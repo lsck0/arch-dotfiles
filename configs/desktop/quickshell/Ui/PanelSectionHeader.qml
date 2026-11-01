@@ -1,7 +1,7 @@
 import QtQuick
 import qs.Commons
 
-Text {
+Label {
   id: root
 
   readonly property bool panelSectionHeader: true
@@ -10,7 +10,6 @@ Text {
   property string fontFamily: Style.font.family
   property real fontSize: Style.font.caption
 
-  textFormat: Text.PlainText
   color: Colors.textFor(foreground)
   font.family: fontFamily
   font.pixelSize: fontSize

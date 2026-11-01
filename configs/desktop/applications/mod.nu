@@ -18,6 +18,7 @@ const KDE_ONLY = [systemsettings org.kde.plasma.emojier]
 const HIDDEN = [appimagetool byobu]
 # caido keeps the 8080 stirling-pdf defaults to
 const STIRLING_PORT = 8090
+const APPS = "apps.nuon"
 
 # filezilla nags until a greeting version is stored and rewrites the file on exit, so it is seeded only once
 const FILEZILLA_XML = "filezilla/filezilla.xml"
@@ -42,23 +43,37 @@ def line-drop [pattern: string]: string -> string {
     lines | where $it !~ $pattern | str join "\n" | $"($in)\n"
 }
 
+# An apps.nuon row as a launcher entry with each @key@ replaced by its value; a ConsoleOnly app runs in a terminal.
+def app-entry [app: record, values: record]: nothing -> string {
+    let text = [
+        "[Desktop Entry]"
+        "Type=Application"
+        $"Name=($app.name? | default $app.id)"
+        $"Comment=($app.comment)"
+        $"TryExec=($app.tryexec? | default $app.id)"
+        $"Exec=($app.exec? | default $app.id)"
+        $"Icon=($app.icon)"
+        $"Terminal=("ConsoleOnly" in $app.categories)"
+        $"Categories=($app.categories | str join ';');"
+    ] | str join "\n" | $"($in)\n"
+    $values | transpose key value | reduce --fold $text {|pair, acc| $acc | str replace --all $"@($pair.key)@" ($pair.value | into string) }
+}
+
 export def link [cfg: record] {
     let apps = xdg data applications
-    let run = $nu.home-dir | path join .local bin desktop-run
-    let filezilla = xdg config $FILEZILLA_XML
-    let values = {HOME: $nu.home-dir, DOTFILES: $env.DOTFILES, STIRLING_PORT: $STIRLING_PORT}
-    [(link-commands desktop-run.nu hollywood-run.nu)]
     # Exec needs the absolute path, ~/.local/bin is not on every session's PATH
-    | append (glob *.desktop | each {|entry|
-        file-render $entry ($apps | path join ($entry | path basename)) $values
-    })
+    let bin = $nu.home-dir | path join .local bin
+    let filezilla = xdg config $FILEZILLA_XML
+    let values = {HOME: $nu.home-dir, BIN: $bin, DOTFILES: $env.DOTFILES, STIRLING_PORT: $STIRLING_PORT}
+    [(link-commands desktop-run.nu hollywood-run.nu)]
+    | append (open $APPS | each {|app| file-text ($apps | path join $"($app.id).desktop") (app-entry $app $values) })
     | append ($SHOWN | each {|id| desktop-override $"($id).desktop" { line-drop '^NoDisplay=true$' } })
     | append ($KDE_ONLY | each {|id| desktop-override $"($id).desktop" { line-drop '^OnlyShowIn=KDE;$' } })
     | append ($HIDDEN | each {|id|
         desktop-override $"($id).desktop" { str replace --regex '(?m)^\[Desktop Entry\]$' "[Desktop Entry]\nNoDisplay=true" }
     })
     | append (desktop-override wayvr.desktop {
-        desktop-set {Terminal: false} | str replace --regex '(?m)^Exec=wayvr$' $"Exec=($run) --notify -- wayvr"
+        desktop-set {Terminal: false} | str replace --regex '(?m)^Exec=wayvr$' $"Exec=($bin)/desktop-run --notify -- wayvr"
     })
     | append (if ($filezilla | path exists) { [] } else { [(step filezilla-seed $filezilla)] })
     | append (if (which update-desktop-database | is-not-empty) {

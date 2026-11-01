@@ -9,12 +9,13 @@ BarWidget {
   barPriority: 40
 
   implicitWidth: button.implicitWidth
-  implicitHeight: barSize
+  implicitHeight: Style.bar.sizeHorizontal
 
   BarIconButton {
     id: button
     anchors.fill: parent
     bar: root.bar
+    hoverFill: true
     text: "\u{f08b}"
     tooltipText: "Power menu"
     onPressed: Quickshell.execDetached(Paths.ipcCall("powermenu", "toggle"))

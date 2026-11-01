@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=bpftop
-Comment=Monitor running eBPF programs
-TryExec=bpftop
-Exec=@HOME@/.local/bin/desktop-run -- sudo bpftop
-Icon=utilities-system-monitor
-Terminal=true
-Categories=System;Monitor;ConsoleOnly;

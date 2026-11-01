@@ -5,7 +5,8 @@ profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
 
 - Hardware and host modules return nothing on WSL; their packages are `meta.packages.native`, which WSL skips.
 - `pacman`'s system verb runs first so the mirror and key exist before any sync.
-- Bypasses are an explicit group or route (`pentest`, `games`), never a loosened global rule.
+- Bypasses are an explicit group or route (`pentest`, `vpn-bypass`, `vmnet` for vm-net's DoT to quad9 only), never a
+  loosened global rule.
 - `pam`: YubiKey and fingerprint on sudo and polkit, additive to the password; `/etc/u2f_mappings` comes from the
   owner's `configs/secrets/yubikey` module, mapped to the logins in `/var/lib/dotfiles/owners`, never by name. sudo's
   stack opens with a terminal gate (`TTY_LINE`): a process without a terminal gets no factor at all, so an agent's
@@ -20,7 +21,7 @@ profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
   download user (tcp 80/443) and resolved (DoT on 853) get out, so a machine without tor can still install it. Once
   tor-router is up everything, those two included, reaches it redirected to loopback with oifname still the uplink,
   so fw-egress accepts loopback by address (`base/tor/tor-router.test.nu` runs both rulesets). The
-  uids are looked up at unit start, so nftables never waits on base/tor (lint: `FAIL_CLOSED` in scripts/lib/commands.nu).
+  uids are looked up at unit start, so nftables never waits on base/tor (lint: `FAIL_CLOSED` in scripts/lib/gate.nu).
 - `powercap`: `powercap-watts.service` writes the RAPL package draw as whole watts to `/run/powercap/watts` for the
   bar, `energy_uj` stays root-only; a udev rule starts it once `intel_rapl_msr` loads.
 - `xdg`: `app-dirs.conf`, `home.hidden`, `RECLAIM` keep `$HOME` clean.

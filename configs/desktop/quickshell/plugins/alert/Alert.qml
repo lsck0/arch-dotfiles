@@ -12,7 +12,6 @@ Item {
 
   property var alerts: []
 
-  property string fontFamily: Style.font.family
 
   function open(payload) {
     payload = payload || {}
@@ -78,7 +77,7 @@ Item {
     anchors { top: true; right: true }
     margins { top: Style.bar.sizeHorizontal + Style.spacing.sm; right: Style.spacing.sm } // qmllint disable missing-property
     implicitWidth: Style.space(440)
-    implicitHeight: stack.implicitHeight
+    implicitHeight: Math.min(stack.implicitHeight, (screen ? screen.height : stack.implicitHeight) - Style.bar.sizeHorizontal - Style.spacing.sm * 2) // qmllint disable missing-property
     color: "transparent"
     WlrLayershell.namespace: "quickshell-alert"
     WlrLayershell.layer: WlrLayer.Overlay
@@ -89,152 +88,154 @@ Item {
       anchors.fill: parent
       onCloseRequested: root.close()
 
-      Column {
-        id: stack
-        width: parent.width
-        spacing: Style.spacing.xs
-        opacity: root.closing ? 0 : 1
-        Behavior on opacity { NumberAnimation { duration: root.closing ? Style.motion.exit : Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: root.closing ? Style.motion.leave : Style.motion.enter } }
+      // a burst of alerts (after a suspend) outgrows the screen, so the stack scrolls below the bar
+      Flickable {
+        id: flick
+        anchors.fill: parent
+        contentHeight: stack.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
 
-        Repeater {
-          model: root.alerts
+        Column {
+          id: stack
+          width: flick.width
+          spacing: Style.spacing.xs
+          opacity: root.closing ? 0 : 1
+          Behavior on opacity { NumberAnimation { duration: root.closing ? Style.motion.exit : Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: root.closing ? Style.motion.leave : Style.motion.enter } }
 
-          delegate: BorderSurface {
-            id: card
-            required property var modelData
-            required property int index
+          Repeater {
+            model: root.alerts
 
-            width: stack.width
-            implicitHeight: inner.implicitHeight + card.contentTopInset + card.contentBottomInset
-            color: Colors.overlayFill
-            borderSpec: Border.flat(Colors.accent, Style.selectedBorderWidth)
-            radius: Style.shape.surface
-            padding: Style.surface.padding
+            delegate: BorderSurface {
+              id: card
+              required property var modelData
+              required property int index
 
-            opacity: 0
-            transform: Translate { id: slide; x: Style.space(24) }
-            Component.onCompleted: appear.start()
-            ParallelAnimation {
-              id: appear
-              NumberAnimation { target: card; property: "opacity"; to: 1; duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
-              NumberAnimation { target: slide; property: "x"; to: 0; duration: Style.motion.slow; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
-            }
+              width: stack.width
+              implicitHeight: inner.implicitHeight + card.contentTopInset + card.contentBottomInset
+              color: Colors.overlayFill
+              borderSpec: Border.flat(Colors.accent, Style.selectedBorderWidth)
+              radius: Style.shape.surface
+              padding: Style.surface.padding
 
-            Column {
-              id: inner
-              anchors.left: parent.left
-              anchors.right: parent.right
-              anchors.top: parent.top
-              anchors.topMargin: card.contentTopInset
-              anchors.leftMargin: card.contentLeftInset
-              anchors.rightMargin: card.contentRightInset
-              spacing: Style.spacing.sm
-
-              HudTitle {
-                width: parent.width
-                text: card.modelData.kind || "alert"
-                rule: true
-                blinking: win.visible
+              opacity: 0
+              transform: Translate { id: slide; x: Style.space(24) }
+              Component.onCompleted: appear.start()
+              ParallelAnimation {
+                id: appear
+                NumberAnimation { target: card; property: "opacity"; to: 1; duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
+                NumberAnimation { target: slide; property: "x"; to: 0; duration: Style.motion.slow; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
               }
 
-              Item {
-                width: parent.width
-                height: Math.max(badge.height, texts.implicitHeight)
-
-                Rectangle {
-                  id: badge
-                  width: Style.space(48)
-                  height: width
-                  radius: Style.shape.data
-                  color: Style.selectedFillFor(Colors.menu.text, Colors.accent)
-                  Text {
-                    anchors.centerIn: parent
-                    text: card.modelData.glyph
-                    color: Colors.accentText
-                    font.family: Style.font.iconFamily
-                    font.pixelSize: Style.font.display
-                    layer.enabled: Style.fx.glow > 0
-                    layer.effect: Glow {}
-                  }
-                }
-
-                Column {
-                  id: texts
-                  anchors.left: badge.right
-                  anchors.leftMargin: Style.spacing.sm
-                  anchors.right: closeButton.left
-                  anchors.rightMargin: Style.spacing.sm
-                  anchors.verticalCenter: badge.verticalCenter
-                  spacing: Style.spacing.xxs
-
-                  Text {
-                    width: parent.width
-                    textFormat: Text.PlainText
-                    text: card.modelData.title
-                    color: Colors.menu.text
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.heading
-                    font.bold: true
-                    wrapMode: Text.WordWrap
-                  }
-                  Text {
-                    width: parent.width
-                    visible: card.modelData.body !== ""
-                    textFormat: Text.PlainText
-                    text: card.modelData.body
-                    color: Colors.menu.text
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.body
-                    wrapMode: Text.WordWrap
-                  }
-                  Text {
-                    textFormat: Text.PlainText
-                    text: card.modelData.at
-                    color: Colors.textDim
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.caption
-                  }
-                }
-
-                Button {
-                  id: closeButton
-                  variant: "icon"
-                  anchors.right: parent.right
-                  anchors.top: parent.top
-                  iconText: "\u{f0156}"
-                  tooltipText: "Dismiss"
-                  foreground: Colors.menu.text
-                  onClicked: root.dismissAt(card.index)
-                }
-              }
-
-              Row {
+              Column {
+                id: inner
+                anchors.left: parent.left
                 anchors.right: parent.right
-                spacing: Style.spacing.xs
+                anchors.top: parent.top
+                anchors.topMargin: card.contentTopInset
+                anchors.leftMargin: card.contentLeftInset
+                anchors.rightMargin: card.contentRightInset
+                spacing: Style.spacing.sm
 
-                Button {
-                  variant: "chip"
-                  visible: card.modelData.kind === "reminder"
-                  text: "Snooze 5 min"
-                  onClicked: root.snoozeAt(card.index, 5)
+                HudTitle {
+                  width: parent.width
+                  text: card.modelData.kind || "alert"
+                  rule: true
+                  blinking: win.visible
                 }
-                Button {
-                  variant: "chip"
-                  visible: card.modelData.kind === "reminder"
-                  text: "Snooze 15 min"
-                  onClicked: root.snoozeAt(card.index, 15)
+
+                Item {
+                  width: parent.width
+                  height: Math.max(badge.height, texts.implicitHeight)
+
+                  Rectangle {
+                    id: badge
+                    width: Style.space(48)
+                    height: width
+                    radius: Style.shape.data
+                    color: Style.selectedFillFor(Colors.menu.text, Colors.accent)
+                    Label {
+                      anchors.centerIn: parent
+                      text: card.modelData.glyph
+                      color: Colors.accentText
+                      icon: true
+                      font.pixelSize: Style.font.display
+                      layer.enabled: Style.fx.glow > 0
+                      layer.effect: Glow {}
+                    }
+                  }
+
+                  Column {
+                    id: texts
+                    anchors.left: badge.right
+                    anchors.leftMargin: Style.spacing.sm
+                    anchors.right: closeButton.left
+                    anchors.rightMargin: Style.spacing.sm
+                    anchors.verticalCenter: badge.verticalCenter
+                    spacing: Style.spacing.xxs
+
+                    Label {
+                      width: parent.width
+                      text: card.modelData.title
+                      color: Colors.menu.text
+                      font.pixelSize: Style.font.heading
+                      font.bold: true
+                      wrapMode: Text.WordWrap
+                    }
+                    Label {
+                      width: parent.width
+                      visible: card.modelData.body !== ""
+                      text: card.modelData.body
+                      color: Colors.menu.text
+                      wrapMode: Text.WordWrap
+                    }
+                    Label {
+                      text: card.modelData.at
+                      dim: true
+                      caption: true
+                    }
+                  }
+
+                  Button {
+                    id: closeButton
+                    variant: "icon"
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    iconText: "\u{f0156}"
+                    tooltipText: "Dismiss"
+                    foreground: Colors.menu.text
+                    onClicked: root.dismissAt(card.index)
+                  }
                 }
-                Button {
-                  variant: "chip"
-                  text: "Dismiss"
-                  selected: true
-                  onClicked: root.dismissAt(card.index)
+
+                Row {
+                  anchors.right: parent.right
+                  spacing: Style.spacing.xs
+
+                  Button {
+                    variant: "chip"
+                    visible: card.modelData.kind === "reminder"
+                    text: "Snooze 5 min"
+                    onClicked: root.snoozeAt(card.index, 5)
+                  }
+                  Button {
+                    variant: "chip"
+                    visible: card.modelData.kind === "reminder"
+                    text: "Snooze 15 min"
+                    onClicked: root.snoozeAt(card.index, 15)
+                  }
+                  Button {
+                    variant: "chip"
+                    text: "Dismiss"
+                    selected: true
+                    onClicked: root.dismissAt(card.index)
+                  }
                 }
               }
-            }
 
-            HudFrame {}
-            Scanlines {}
+              HudFrame {}
+              Scanlines {}
+            }
           }
         }
       }

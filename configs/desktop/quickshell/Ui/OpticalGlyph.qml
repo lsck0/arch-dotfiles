@@ -28,9 +28,8 @@ Item {
     text: root.text
   }
 
-  Text {
+  Label {
     id: glyph
-    textFormat: Text.PlainText
     anchors.centerIn: parent
     anchors.horizontalCenterOffset: root.horizontalCorrection
     anchors.verticalCenterOffset: root.verticalCorrection

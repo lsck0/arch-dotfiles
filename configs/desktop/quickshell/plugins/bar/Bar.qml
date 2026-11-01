@@ -37,16 +37,6 @@ PanelWindow {
   ScreenMoveRemap { id: screenGuard; window: root }
   visible: !screenGuard.remapping
 
-  readonly property bool vertical: false
-  readonly property string position: "top"
-  readonly property int barSize: Style.bar.sizeHorizontal
-  readonly property string fontFamily: Style.resolvedFontFamily
-  readonly property string iconFontFamily: Style.font.iconFamily
-  readonly property bool foregroundAnimationEnabled: true
-  readonly property color barForeground: Colors.bar.text
-  readonly property color background: Colors.bar.background
-  readonly property color urgent: Colors.bar.active
-
   readonly property var hyprMonitor: modelData ? Hyprland.monitorFor(modelData) : null
   readonly property bool fullscreenBelow: !!hyprMonitor && !!hyprMonitor.activeWorkspace
     && hyprMonitor.activeWorkspace.hasFullscreen === true
@@ -233,7 +223,7 @@ PanelWindow {
 
   Rectangle {
     anchors.fill: parent
-    color: root.background
+    color: Colors.bar.background
   }
 
   Rectangle {
@@ -384,7 +374,7 @@ PanelWindow {
       var pos = root.tooltipItem.mapToItem(root.contentItem, 0, 0)
       return Math.max(0, Math.min(root.width - tooltipSurface.width, pos.x))
     }
-    anchor.rect.y: root.barSize + Style.spacing.xxs
+    anchor.rect.y: Style.bar.sizeHorizontal + Style.spacing.xxs
 
     BorderSurface {
       id: tooltipSurface
@@ -411,22 +401,23 @@ PanelWindow {
         y: tooltipSurface.contentTopInset
         spacing: Style.spacing.xs
 
-        Text {
+        Label {
           anchors.baseline: tooltipLabel.baseline
-          textFormat: Text.PlainText
           text: ">"
           color: Colors.accentText
           opacity: Style.emphasis.faint
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
+          caption: true
         }
-        Text {
+        Label {
           id: tooltipLabel
-          textFormat: Text.PlainText
+          // tray items supply their own tooltip text, which can be any length
+          width: Math.min(implicitWidth, Style.panelWidth.wide)
+          wrapMode: Text.Wrap
+          maximumLineCount: 3
+          elide: Text.ElideRight
           text: root.tooltipText
           color: Colors.tooltip.text
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
+          caption: true
         }
       }
     }

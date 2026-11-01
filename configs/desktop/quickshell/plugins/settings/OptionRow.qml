@@ -100,13 +100,10 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: Style.spacing.xs
 
-        Text {
+        Label {
           width: Math.min(implicitWidth, head.width - tagRow.implicitWidth - head.spacing)
-          textFormat: Text.PlainText
           text: (row.hasCursor ? "> " : "  ") + (row.option.label || row.option.key) + (row.pending ? " *" : "")
           color: row.pending ? Colors.accent2Text : row.hasCursor ? Colors.menu.selectedText : Colors.menu.text
-          font.family: Style.font.family
-          font.pixelSize: Style.font.body
           font.bold: row.pending
           elide: Text.ElideRight
         }
@@ -119,13 +116,11 @@ Item {
           Repeater {
             model: row.tags
 
-            Text {
+            Label {
               required property var modelData
-              textFormat: Text.PlainText
               text: "[" + modelData.text + "]"
               color: modelData.faint ? Colors.textDim : modelData.color
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
+              caption: true
               font.bold: !modelData.faint
 
               MouseArea {
@@ -178,15 +173,12 @@ Item {
           }
         }
 
-        Text {
+        Label {
           visible: row.type === "enum" && !row.segmented
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
-          textFormat: Text.PlainText
           text: "[" + Schema.choiceLabel(row.value) + (row.expanded ? " ^]" : " v]")
           color: row.expanded ? Colors.accentText : Colors.menu.text
-          font.family: Style.font.family
-          font.pixelSize: Style.font.body
 
           MouseArea {
             anchors.fill: parent
@@ -246,16 +238,14 @@ Item {
           }
         }
 
-        Text {
+        Label {
           id: browse
           visible: row.type === "path"
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
-          textFormat: Text.PlainText
           text: "[browse]"
           color: Colors.accentText
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
+          caption: true
           font.bold: true
 
           MouseArea {
@@ -272,26 +262,22 @@ Item {
       width: parent.width - x
       spacing: Style.spacing.xs
 
-      Text {
+      Label {
         width: parent.width
         visible: text !== ""
-        textFormat: Text.PlainText
         text: row.option.doc || ""
-        color: Colors.textDim
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        dim: true
+        caption: true
         wrapMode: Text.Wrap
       }
 
-      Text {
+      Label {
         width: parent.width
         visible: row.expanded && (row.choiceFilter !== "" || row.listed.length > Schema.choicePageSize)
-        textFormat: Text.PlainText
         text: (row.choiceFilter ? "filter " + row.choiceFilter + ": " : "") + (row.listed.length === 0 ? "no match"
           : (row.pageStart + 1) + "-" + (row.pageStart + row.page.length) + " of " + row.listed.length)
         color: Colors.accentText
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        caption: true
       }
 
       Flow {
@@ -321,14 +307,12 @@ Item {
         }
       }
 
-      Text {
+      Label {
         width: parent.width
         visible: row.error !== ""
-        textFormat: Text.PlainText
         text: "x " + row.error
         color: Colors.urgentText
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        caption: true
         wrapMode: Text.Wrap
       }
     }

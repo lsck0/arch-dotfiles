@@ -14,6 +14,15 @@ const PARSER_LINES = [write-cache $"cache-loc ($EARLY_POLICY)/" Optimize=compres
 # the kernel's CONFIG_LSM default with apparmor before bpf
 const LSM = "lsm=landlock,lockdown,yama,integrity,apparmor,bpf"
 const USER_DIRS = "../xdg/user-dirs.dirs"
+const SOURCE = "/usr/share/apparmor.d"
+const MARKER = "# managed by arch-dotfiles/apparmor"
+# apparmor.d profiles whose /{{,usr/}...} attachment apparmor 4.1.8 loads but never attaches, so they ran unconfined:
+# installed as own profiles with a plain /usr attachment (usr is merged)
+export const OVERRIDES = {
+    firefox: "/usr/{bin/firefox,lib/firefox/firefox}"
+    libreoffice: "/usr/lib/libreoffice/program/soffice"
+    thunderbird: "/usr/{bin/thunderbird,lib/thunderbird/thunderbird}"
+}
 
 def rows [file: path]: nothing -> table {
     if not ($file | path exists) { return [] }
@@ -22,7 +31,7 @@ def rows [file: path]: nothing -> table {
 }
 
 def own []: nothing -> list<string> {
-    ls profiles | get name | path basename
+    ls profiles | get name | path basename | append ($OVERRIDES | columns) | sort
 }
 
 def modes []: nothing -> record {
@@ -40,13 +49,23 @@ def include [abstraction: string]: nothing -> string {
     $"  include <abstractions/dotfiles/($abstraction)>\n"
 }
 
-def own-profile [file: path, mode: any]: nothing -> record {
-    let text = open --raw $file | lines | each {|l|
+# apparmor.d's profile with only its attachment replaced.
+export def override-text [name: string, source: path]: nothing -> string {
+    let upstream = glob $"($source)/**/($name)" --no-dir | where not ($it =~ '/(abstractions|tunables)/') | get --optional 0
+    if $upstream == null { error make {msg: $"apparmor: apparmor.d no longer ships ($name), drop it from OVERRIDES"} }
+    let text = open --raw $upstream
+    let line = '(?m)^profile ' + $name + ' \S+ flags='
+    if $text !~ $line { error make {msg: $"apparmor: ($upstream) has no 'profile ($name) <attachment> flags=' line"} }
+    $"($MARKER)\n($text | str replace --regex $line $'profile ($name) ($OVERRIDES | get $name) flags=')"
+}
+
+def own-profile [name: string, text: string, mode: any]: nothing -> record {
+    let text = $text | lines | each {|l|
         if $mode in [complain unconfined] and ($l | str starts-with "profile ") {
             $l | str replace "flags=(" $"flags=\(($mode),"
         } else { $l }
     } | str join "\n"
-    file-text ($ETC | path join $"($file | path basename)($OWN_SUFFIX)") $"($text)\n"
+    file-text ($ETC | path join $"($name)($OWN_SUFFIX)") $"($text)\n"
 }
 
 export def system [cfg: record] {
@@ -73,7 +92,11 @@ export def system [cfg: record] {
             (files-into $"($ETC)/abstractions/dotfiles" ...(glob abstractions/*))
             (files-into $"($ETC)/local" ...(glob local/*))
             (file-text $"($ETC)/abstractions/common/chromium.d/dotfiles-qtwebengine" (include qtwebengine))
-            (glob profiles/* | each {|p| own-profile $p ($modes | get --optional ($p | path basename)) })
+            (glob profiles/* | each {|p|
+                let name = $p | path basename
+                own-profile $name (open --raw $p) ($modes | get --optional $name)
+            })
+            ($OVERRIDES | columns | each {|n| own-profile $n (override-text $n $SOURCE) ($modes | get --optional $n) })
         ] | decls-flatten
     }) ++ [(step load)]
 }

@@ -7,10 +7,9 @@ use modules.nu [modules-eval]
 use module.nu [step]
 use cause.nu [cause-hint]
 use online.nu [OFFLINE_PENDING remote-pending]
+use std/assert
 
 const MISSING_HINT = "dot apply --packages"
-
-def fail [msg: string] { error make {msg: $"pipeline.test: ($msg)"} }
 
 def gate-cases []: nothing -> nothing {
     let declared = [
@@ -33,9 +32,9 @@ def gate-cases []: nothing -> nothing {
     ]
     for c in $cases {
         let got = $gate | get --optional $c.id
-        if $got != $c.wants { fail $"gate ($c.id): got ($got | to nuon), wants ($c.wants | to nuon)" }
+        assert equal $got $c.wants $"gate ($c.id): got ($got | to nuon), wants ($c.wants | to nuon)"
     }
-    if (packages-gate $declared {pacman: [], flatpak: [], nix: []}) != {} { fail "gate: nothing absent still holds a module" }
+    assert equal (packages-gate $declared {pacman: [], flatpak: [], nix: []}) {} "gate: nothing absent still holds a module"
 }
 
 def held-cases []: nothing -> nothing {
@@ -52,7 +51,7 @@ def held-cases []: nothing -> nothing {
     ]
     for c in $cases {
         let got = module-held $c.m $done
-        if $got != $c.wants { fail $"held ($c.name): got ($got | to nuon), wants ($c.wants | to nuon)" }
+        assert equal $got $c.wants $"held ($c.name): got ($got | to nuon), wants ($c.wants | to nuon)"
     }
 }
 
@@ -79,7 +78,7 @@ def pending-lines-cases []: nothing -> nothing {
     ]
     for c in $cases {
         let got = pending-lines $c.earlier $c.planned $c.results $c.full
-        if $got != $c.wants { fail $"pending lines ($c.name): got ($got | to nuon), wants ($c.wants | to nuon)" }
+        assert equal $got $c.wants $"pending lines ($c.name): got ($got | to nuon), wants ($c.wants | to nuon)"
     }
 }
 
@@ -123,9 +122,9 @@ def absent-cases [work: path]: nothing -> nothing {
         # PATH holds the fakes alone, so a real flatpak or nix never answers
         let fakes = tools-fake ($work | path join $"absent-($c.index)") $c.item.tools
         let got = with-env {PATH: [$fakes]} { packages-absent $declared }
-        if $got != $c.item.wants { fail $"absent \(($c.item.name)\): got ($got | to nuon), wants ($c.item.wants | to nuon)" }
+        assert equal $got $c.item.wants $"absent \(($c.item.name)\): got ($got | to nuon), wants ($c.item.wants | to nuon)"
     }
-    if (packages-absent ($declared | update pacman [] | update flatpak [] | update nix [])) != {pacman: [], flatpak: [], nix: []} { fail "absent: nothing declared misses a name" }
+    assert equal (packages-absent ($declared | update pacman [] | update flatpak [] | update nix [])) {pacman: [], flatpak: [], nix: []} "absent: nothing declared misses a name"
 }
 
 def alive-cases [work: path]: nothing -> nothing {
@@ -142,11 +141,11 @@ def alive-cases [work: path]: nothing -> nothing {
     for s in ($shells | enumerate) {
         let fakes = tools-fake ($work | path join $"alive-($s.index)") {sh: $s.item.body}
         let got = with-env {PATH: [$fakes ...$env.PATH]} { links-alive [$there $gone] }
-        if $got != $wants { fail $"links alive \(($s.item.name)\): got ($got | to nuon), wants ($wants | to nuon)" }
+        assert equal $got $wants $"links alive \(($s.item.name)\): got ($got | to nuon), wants ($wants | to nuon)"
     }
     let got = links-alive [$there $gone]
-    if $got != $wants { fail $"links alive (one batch): got ($got | to nuon), wants ($wants | to nuon)" }
-    if (links-alive []) != {} { fail "links alive: no sources answers something" }
+    assert equal $got $wants $"links alive \(one batch\): got ($got | to nuon), wants ($wants | to nuon)"
+    assert equal (links-alive []) {} "links alive: no sources answers something"
 }
 
 # rows that are no native module (ok, nothing run) or carry a plan error (failed): the scheduler alone decides
@@ -176,7 +175,7 @@ def apply-cases []: nothing -> nothing {
     let lines = open --raw $failures | lines
     rm --force $failures
     # a held module that also failed to evaluate reports both
-    if ($lines | sort) != ["g/broken link/eval: plan: boom" "g/broken-nopkg link/eval: plan: no tool yet"] { fail $"FAILURES lines: ($lines | to nuon)" }
+    assert equal ($lines | sort) ["g/broken link/eval: plan: boom" "g/broken-nopkg link/eval: plan: no tool yet"] $"FAILURES lines: ($lines | to nuon)"
     let cases = [
         [id ok pending];
         [g/fine true false]
@@ -191,9 +190,9 @@ def apply-cases []: nothing -> nothing {
     ]
     for c in $cases {
         let r = $results | get --optional $c.id
-        if $r == null { fail $"apply ($c.id): no result" }
+        assert not equal $r null $"apply ($c.id): no result"
         if $r.ok != $c.ok or ($r.pending != null) != $c.pending {
-            fail $"apply ($c.id): ok ($r.ok) pending ($r.pending | to nuon), wants ok ($c.ok) pending ($c.pending)"
+            error make {msg: $"apply ($c.id): ok ($r.ok) pending ($r.pending | to nuon), wants ok ($c.ok) pending ($c.pending)"}
         }
     }
 }
@@ -247,17 +246,17 @@ def step-timeout-cases [work: path]: nothing -> nothing {
     let run = apply-native $work [(native-row t/hang $dir [(step-action t/hang (step hang $pidfile --timeout $STEP_BOUND))])] "file:///"
     let took = (date now) - $start
     let r = $run.results | get t/hang
-    if $took > $STEP_WAIT_MAX { fail $"step timeout: returned after ($took), wants within ($STEP_WAIT_MAX)" }
-    if $r.ok { fail "step timeout: a hung step counted ok" }
+    assert ($took <= $STEP_WAIT_MAX) $"step timeout: returned after ($took), wants within ($STEP_WAIT_MAX)"
+    assert not $r.ok "step timeout: a hung step counted ok"
     let wants = $"timed out after ($STEP_BOUND)"
-    if not ($r.error | str contains $wants) { fail $"step timeout: error ($r.error | to nuon), wants it to say ($wants)" }
-    if (cause-hint $r.error | get --optional class) != "timeout" { fail $"step timeout: ($r.error | to nuon) is no timeout class in HINTS" }
+    assert ($r.error | str contains $wants) $"step timeout: error ($r.error | to nuon), wants it to say ($wants)"
+    assert equal (cause-hint $r.error | get --optional class) "timeout" $"step timeout: ($r.error | to nuon) is no timeout class in HINTS"
     if ($run.failures | length) != 1 or not ($run.failures.0 | str starts-with "t/hang link/step hang: ") {
-        fail $"step timeout: FAILURES lines ($run.failures | to nuon)"
+        error make {msg: $"step timeout: FAILURES lines ($run.failures | to nuon)"}
     }
     let pid = try { open --raw $pidfile | str trim } catch { "" }
-    if $pid == "" { fail "step timeout: the step never started its grandchild" }
-    if (pid-alive $pid) { ^kill -KILL $pid; fail $"step timeout: the setsid'd grandchild ($pid) outlived the timeout" }
+    assert not equal $pid "" "step timeout: the step never started its grandchild"
+    if (pid-alive $pid) { ^kill -KILL $pid; error make {msg: $"step timeout: the setsid'd grandchild ($pid) outlived the timeout"} }
 }
 
 def network-cases [work: path]: nothing -> nothing {
@@ -271,20 +270,20 @@ def network-cases [work: path]: nothing -> nothing {
     ]
     let offline = apply-native $work $rows $"file://($work)/unreachable"
     let fetch = $offline.results | get n/fetch
-    if not $fetch.ok or $fetch.pending != $OFFLINE_PENDING { fail $"network offline: ok ($fetch.ok) pending ($fetch.pending | to nuon), wants ok and ($OFFLINE_PENDING)" }
-    if ($marker | path exists) { fail "network offline: the step ran without the network" }
-    if ($offline.failures | is-not-empty) { fail $"network offline: FAILURES lines ($offline.failures | to nuon)" }
+    assert ($fetch.ok and $fetch.pending == $OFFLINE_PENDING) $"network offline: ok ($fetch.ok) pending ($fetch.pending | to nuon), wants ok and ($OFFLINE_PENDING)"
+    assert not ($marker | path exists) "network offline: the step ran without the network"
+    assert ($offline.failures | is-empty) $"network offline: FAILURES lines ($offline.failures | to nuon)"
     let uses = $offline.results | get n/uses
-    if $uses.pending != "waits on n/fetch (pending)" { fail $"network offline: the dependent's pending is ($uses.pending | to nuon)" }
+    assert equal $uses.pending "waits on n/fetch (pending)" $"network offline: the dependent's pending is ($uses.pending | to nuon)"
     let lines = pending-lines [] [n/fetch n/uses] ($offline.results | values) true
-    if $lines != [$"n/fetch: ($OFFLINE_PENDING)" "n/uses: waits on n/fetch (pending)"] { fail $"network offline: pending lines ($lines | to nuon)" }
+    assert equal $lines [$"n/fetch: ($OFFLINE_PENDING)" "n/uses: waits on n/fetch (pending)"] $"network offline: pending lines ($lines | to nuon)"
     let recorded = open ($work | path join state dotfiles modules n fetch link.nuon)
-    if $recorded.input != "" { fail "network offline: the module recorded its input, the next apply would skip it" }
+    assert equal $recorded.input "" "network offline: the module recorded its input, the next apply would skip it"
     let online = apply-native $work $rows $"file://($reachable)"
     let fetch = $online.results | get n/fetch
-    if not $fetch.ok or $fetch.pending != null { fail $"network online: ok ($fetch.ok) pending ($fetch.pending | to nuon), wants ok, not pending" }
-    if not ($marker | path exists) { fail "network online: the step did not run" }
-    if ($online.results | get n/uses | get pending) != null { fail "network online: the dependent still waits" }
+    assert ($fetch.ok and $fetch.pending == null) $"network online: ok ($fetch.ok) pending ($fetch.pending | to nuon), wants ok, not pending"
+    assert ($marker | path exists) "network online: the step did not run"
+    assert equal ($online.results | get n/uses | get pending) null "network online: the dependent still waits"
 }
 
 def remote-pending-cases []: nothing -> nothing {
@@ -303,7 +302,7 @@ def remote-pending-cases []: nothing -> nothing {
     ]
     for c in $cases {
         let got = remote-pending $c.error
-        if $got != $c.wants { fail $"remote pending ($c.name): got ($got | to nuon), wants ($c.wants | to nuon)" }
+        assert equal $got $c.wants $"remote pending ($c.name): got ($got | to nuon), wants ($c.wants | to nuon)"
     }
 }
 
@@ -315,12 +314,12 @@ def requires-cases [work: path]: nothing -> nothing {
     let absent = apply-native $work $rows "file:///"
     let build = $absent.results | get r/build
     let wants = $"waits on ($source), not there yet"
-    if not $build.ok or $build.pending != $wants { fail $"requires absent: ok ($build.ok) pending ($build.pending | to nuon), wants ok and ($wants | to nuon)" }
-    if ($marker | path exists) { fail "requires absent: the step ran without what it requires" }
-    if ($absent.failures | is-not-empty) { fail $"requires absent: FAILURES lines ($absent.failures | to nuon)" }
+    assert ($build.ok and $build.pending == $wants) $"requires absent: ok ($build.ok) pending ($build.pending | to nuon), wants ok and ($wants | to nuon)"
+    assert not ($marker | path exists) "requires absent: the step ran without what it requires"
+    assert ($absent.failures | is-empty) $"requires absent: FAILURES lines ($absent.failures | to nuon)"
     touch $source
     let present = apply-native $work $rows "file:///"
-    if ($present.results | get r/build | get pending) != null or not ($marker | path exists) { fail "requires present: the step did not run" }
+    assert (($present.results | get r/build | get pending) == null and ($marker | path exists)) "requires present: the step did not run"
 }
 
 def remote-cases [work: path]: nothing -> nothing {
@@ -335,12 +334,12 @@ def remote-cases [work: path]: nothing -> nothing {
     let run = apply-native $work $rows $"file://($reachable)"
     let outage = $run.results | get m/outage
     if not $outage.ok or $outage.pending != "the remote answered 503, retried on the next apply" {
-        fail $"remote outage: ok ($outage.ok) pending ($outage.pending | to nuon), wants ok and pending on the 503"
+        error make {msg: $"remote outage: ok ($outage.ok) pending ($outage.pending | to nuon), wants ok and pending on the 503"}
     }
-    if ($run.results | get m/gone | get ok) { fail "remote gone: a 404 counted as the remote's outage" }
-    if ($run.results | get m/local | get ok) { fail "remote local: a step without --network turned its 503 into pending" }
+    assert not ($run.results | get m/gone | get ok) "remote gone: a 404 counted as the remote's outage"
+    assert not ($run.results | get m/local | get ok) "remote local: a step without --network turned its 503 into pending"
     let subjects = $run.failures | each { split row " " | first } | sort
-    if $subjects != [m/gone m/local] { fail $"remote: FAILURES lines ($run.failures | to nuon), wants m/gone and m/local only" }
+    assert equal $subjects [m/gone m/local] $"remote: FAILURES lines ($run.failures | to nuon), wants m/gone and m/local only"
 }
 
 def eval-timeout-cases [work: path]: nothing -> nothing {
@@ -350,10 +349,10 @@ def eval-timeout-cases [work: path]: nothing -> nothing {
     let cfgs = {e/fine: {hang: false}, e/hung: {hang: true}}
     let results = with-env {XDG_STATE_HOME: ($work | path join state)} { modules-eval $mods link $cfgs [] --timeout $EVAL_BOUND }
         | reduce --fold {} {|r, acc| $acc | insert $r.id $r }
-    if not ($results | get e/fine | get ok) { fail $"eval timeout: the module that returns failed: ($results | get e/fine | get error)" }
+    assert ($results | get e/fine | get ok) $"eval timeout: the module that returns failed: ($results | get e/fine | get error)"
     let r = $results | get e/hung
     let wants = $"evaluating link timed out after ($EVAL_BOUND)"
-    if $r.ok or $r.error != $wants { fail $"eval timeout: ok ($r.ok) error ($r.error | to nuon), wants ($wants | to nuon)" }
+    assert (not $r.ok and $r.error == $wants) $"eval timeout: ok ($r.ok) error ($r.error | to nuon), wants ($wants | to nuon)"
 }
 
 def main [] {

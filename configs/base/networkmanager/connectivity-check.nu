@@ -1,5 +1,6 @@
 #!/usr/bin/nu --no-config-file
-# NM dispatcher: home's split-horizon dns cannot resolve NM's probe (a false LIMITED), so the check is off at home only
+# NM dispatcher: home's split-horizon dns cannot resolve NM's probe (a false LIMITED), so the check is off at home only;
+# a re-check after the switch clears a LIMITED the probe set before it
 
 const HOME_NETWORK = "/run/home-network"
 const NM = "org.freedesktop.NetworkManager"
@@ -12,5 +13,9 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
     let want = if $home { "false" } else { "true" }
     let current = do { ^busctl get-property $NM $NM_PATH $NM $PROPERTY } | complete | get stdout | str trim
         | split row " " | get --optional 1
-    if $current != $want { do { ^busctl set-property $NM $NM_PATH $NM $PROPERTY b $want } | complete | ignore }
+    if $current == $want { return }
+    do { ^busctl set-property $NM $NM_PATH $NM $PROPERTY b $want } | complete | ignore
+    # turning the check off keeps the last probe's verdict, so the false LIMITED it was turned off for would stay; no
+    # reply waited for: NM answers only after every probe, which would hold the dispatchers queued behind this one
+    do { ^busctl call --expect-reply=false $NM $NM_PATH $NM CheckConnectivity } | complete | ignore
 }

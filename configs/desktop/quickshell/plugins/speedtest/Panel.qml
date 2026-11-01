@@ -8,17 +8,58 @@ Item {
 
   property bool opened: false
   property bool disk: false
-  readonly property var v: test.values
+  property var v: ({})
+  property string error: ""
+  property bool wanted: false
+  property bool queued: false
+  // the requested mode; disk follows it only when a run starts, so labels always match the running script
+  property bool nextDisk: false
 
   function open(payload) {
-    disk = payload && payload.mode === "disk"
+    nextDisk = !!(payload && payload.mode === "disk")
     opened = true
-    test.start()
+    if (test.running && nextDisk !== disk) {
+      stop()
+      queued = true
+      return
+    }
+    start()
   }
 
-  KeyValueProcess {
+  function start() {
+    queued = test.running && !wanted
+    if (test.running) return
+    disk = nextDisk
+    wanted = true
+    v = {}
+    error = ""
+    test.run()
+  }
+
+  function stop() {
+    wanted = false
+    queued = false
+    test.running = false
+  }
+
+  // the scripts print one JSON object per line; {error} carries a failure
+  JsonProcess {
     id: test
+    streaming: true
     command: [Paths.script(root.disk ? "disk-speedtest.nu" : "network-speedtest.nu")]
+    onParsed: function (data) {
+      root.v = Object.assign({}, root.v, data)
+      if (data.error) root.error = data.error
+    }
+  }
+
+  Connections {
+    target: test.process
+    function onExited(exitCode) {
+      if (root.wanted && exitCode !== 0 && root.error === "") root.error = "exited with " + exitCode
+      root.wanted = false
+      if (root.queued) Qt.callLater(root.start)
+    }
   }
 
   SpeedTestOverlay {
@@ -35,9 +76,9 @@ Item {
     leftLive: test.running && (root.disk ? root.v.write : root.v.up) === undefined
     rightLive: test.running && (root.disk ? root.v.write : root.v.up) !== undefined
     statusText: !root.disk && root.v.ping ? "PING " + root.v.ping + " ms" : ""
-    error: test.error
+    error: root.error
     open: root.opened
-    onCloseRequested: { root.opened = false; test.stop() }
-    onRunAgainRequested: test.start()
+    onCloseRequested: { root.opened = false; root.stop() }
+    onRunAgainRequested: root.start()
   }
 }

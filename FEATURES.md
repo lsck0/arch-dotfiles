@@ -193,7 +193,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/quickshell.pomodoro_long_break_min` | `int` | `15` | Minutes of the long break after the last focus block of a round |
 | `desktop/quickshell.pomodoro_cycles` | `int` | `4` | Focus blocks before a long break |
 | `desktop/qutebrowser.search_url` | `string` | `"https://duckduckgo.com/?q={}"` | The default search engine, {} is the query; the homelab's searxng is reachable only on a homelab machine |
-| `desktop/qutebrowser.search_method` | `string` | `"GET"` | GET or POST for the startpage's search form; most engines, the homelab's searxng too, take GET; POST works only in qutebrowser |
+| `desktop/qutebrowser.search_method` | `string` | `"GET"` | The startpage's search form method; most engines, the homelab's searxng too, take GET; POST works only in qutebrowser |
 | `gaming/d2launcher.base_dir` | `string?` | detected | A Diablo II: Lord of Destruction install the game dir is seeded from; detected in the lutris prefixes |
 | `gaming/d2launcher.resolution` | `string?` | detected | The monitor the render size derives from, WxH; detected from the focused monitor |
 | `gaming/d2launcher.render_size` | `string?` | unset | The 4:3 size the game renders at inside gamescope, WxH; the monitor's full height by default |

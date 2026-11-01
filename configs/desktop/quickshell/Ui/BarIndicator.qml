@@ -19,8 +19,6 @@ BarIconButton {
   interactive: active
   useActiveColor: false
   fontSize: Style.font.caption
-  horizontalMargin: 5
-  verticalPadding: 5
-  fixedWidth: vertical ? -1 : Style.bar.statusSlot
-  fixedHeight: vertical ? Style.bar.statusSlot : -1
+  hoverFill: true
+  fixedWidth: Style.bar.statusSlot
 }

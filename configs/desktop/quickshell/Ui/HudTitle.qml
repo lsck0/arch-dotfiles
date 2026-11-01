@@ -16,11 +16,9 @@ Item {
   implicitWidth: row.implicitWidth
   implicitHeight: row.implicitHeight + (rule ? Style.spacing.xxs + ruleLine.height : 0)
 
-  component Part: Text {
+  component Part: Label {
     anchors.verticalCenter: parent.verticalCenter
-    textFormat: Text.PlainText
     color: root.color
-    font.family: Style.font.family
     font.pixelSize: root.size
   }
 

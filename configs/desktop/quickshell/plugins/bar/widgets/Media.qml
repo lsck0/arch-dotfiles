@@ -244,7 +244,7 @@ BarWidget {
 
   visible: player !== null && recentlyActive
   implicitWidth: row.implicitWidth + Style.bar.itemPaddingX * 2
-  implicitHeight: barSize
+  implicitHeight: Style.bar.sizeHorizontal
 
   Row {
     id: row
@@ -256,27 +256,22 @@ BarWidget {
       visible: root.spectrumLive
       rows: 4
       targetWidth: Style.space(96)
-      targetHeight: root.barSize * 0.4
+      targetHeight: Style.bar.sizeHorizontal * 0.4
     }
 
-    Text {
-      textFormat: Text.PlainText
+    Label {
       anchors.verticalCenter: parent.verticalCenter
       text: root.playing ? "\u{f04c}" : "\u{f04b}"
-      color: root.bar ? root.bar.barForeground : Colors.foreground
-      font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
-      font.pixelSize: Style.font.body
+      color: Colors.bar.text
+      icon: true
     }
 
-    Text {
-      textFormat: Text.PlainText
+    Label {
       anchors.verticalCenter: parent.verticalCenter
       width: Style.space(200)
       elide: Text.ElideRight
       text: root.title + (root.artist ? " :: " + root.artist : "")
-      color: Colors.textDim
-      font.family: root.bar ? root.bar.fontFamily : Style.font.family
-      font.pixelSize: Style.font.body
+      dim: true
     }
   }
 
@@ -345,12 +340,12 @@ BarWidget {
             }
           }
 
-          Text {
+          Label {
             anchors.centerIn: parent
             visible: !art.visible
             text: "\u{f001}"
-            color: Colors.textDim
-            font.family: Style.font.iconFamily
+            dim: true
+            icon: true
             font.pixelSize: Style.font.title
           }
 
@@ -362,35 +357,29 @@ BarWidget {
           spacing: Style.spacing.xxs
           anchors.verticalCenter: parent.verticalCenter
 
-          Text {
+          Label {
             width: parent.width
-            textFormat: Text.PlainText
             text: root.title || "Nothing playing"
             color: Colors.menu.text
-            font.family: Style.font.family
             font.pixelSize: Style.font.title
             font.bold: true
             elide: Text.ElideRight
             layer.enabled: Style.fx.glow > 0
             layer.effect: Glow {}
           }
-          Text {
+          Label {
             width: parent.width
-            textFormat: Text.PlainText
             text: root.artist
-            color: Colors.textDim
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
+            dim: true
+            caption: true
             elide: Text.ElideRight
           }
-          Text {
+          Label {
             width: parent.width
-            textFormat: Text.PlainText
             text: root.album
-            color: Colors.textDim
-            opacity: root.album !== "" ? 1 : 0
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
+            dim: true
+            visible: root.album !== ""
+            caption: true
             elide: Text.ElideRight
           }
         }
@@ -407,19 +396,17 @@ BarWidget {
       Column {
         width: parent.width
         spacing: Style.spacing.xxs
-        readonly property bool supported:
-          root.player !== null && root.player.lengthSupported && root.player.length > 0
-        opacity: supported ? 1 : 0
+        visible: root.player !== null && root.player.lengthSupported && root.player.length > 0
 
         Slider {
           id: seek
           width: parent.width
-          bar: root.bar
+          step: 5
           minimum: 0
           maximum: root.player && root.player.length > 0 ? root.player.length : 1
           value: root.player ? root.player.position : 0
           enabled: root.player !== null && root.player.canSeek
-          opacity: enabled ? 1 : 0.4
+          opacity: enabled ? 1 : Style.emphasis.disabled
           onReleased: function (v) {
             if (!root.player || !root.player.canSeek) return
             root.player.position = v
@@ -429,17 +416,17 @@ BarWidget {
 
         Row {
           width: parent.width
-          Text {
+          Label {
             width: parent.width / 2
             text: root.player ? Util.clock(seek.dragging ? seek.liveValue : root.player.position) : "0:00"
-            color: Colors.textDim
+            dim: true
             font.family: Style.font.family; font.pixelSize: Style.font.caption
           }
-          Text {
+          Label {
             width: parent.width / 2
             horizontalAlignment: Text.AlignRight
             text: root.player ? Util.clock(root.player.length) : "0:00"
-            color: Colors.textDim
+            dim: true
             font.family: Style.font.family; font.pixelSize: Style.font.caption
           }
         }
@@ -455,33 +442,33 @@ BarWidget {
           spacing: Style.spacing.sm
 
           Button {
+            focusable: true
             variant: "icon"
             iconText: "\u{f074}"
             tooltipText: "Shuffle"
             foreground: root.player && root.player.shuffle ? Colors.accentText : Colors.menu.text
-            opacity: root.player && root.player.shuffleSupported ? 1 : 0.3
             enabled: root.player !== null && root.player.shuffleSupported
             fontFamily: Style.font.family
             onClicked: if (root.player) root.player.shuffle = !root.player.shuffle
           }
 
           Button {
+            focusable: true
             variant: "icon"
             iconText: "\u{f048}"
             tooltipText: "Previous"
             foreground: Colors.menu.text
-            opacity: root.player && root.player.canGoPrevious ? 1 : 0.3
             enabled: root.player !== null && root.player.canGoPrevious
             fontFamily: Style.font.family
             onClicked: if (root.player) root.player.previous()
           }
 
           Button {
+            focusable: true
             variant: "icon"
             iconText: root.playing ? "\u{f04c}" : "\u{f04b}"
             tooltipText: root.playing ? "Pause" : "Play"
             foreground: Colors.menu.text
-            opacity: root.player && root.player.canTogglePlaying ? 1 : 0.3
             enabled: root.player !== null && root.player.canTogglePlaying
             fontFamily: Style.font.family
             fontSize: Style.font.icon + Style.space(4)
@@ -489,17 +476,18 @@ BarWidget {
           }
 
           Button {
+            focusable: true
             variant: "icon"
             iconText: "\u{f051}"
             tooltipText: "Next"
             foreground: Colors.menu.text
-            opacity: root.player && root.player.canGoNext ? 1 : 0.3
             enabled: root.player !== null && root.player.canGoNext
             fontFamily: Style.font.family
             onClicked: if (root.player) root.player.next()
           }
 
           Button {
+            focusable: true
             variant: "icon"
             iconText: root.player && root.player.loopState === MprisLoopState.Track
               ? "\u{f0458}" : "\u{f0456}"
@@ -513,7 +501,6 @@ BarWidget {
             }
             foreground: root.player && root.player.loopState !== MprisLoopState.None
               ? Colors.accentText : Colors.menu.text
-            opacity: root.player && root.player.loopSupported ? 1 : 0.3
             enabled: root.player !== null && root.player.loopSupported
             fontFamily: Style.font.family
             onClicked: {
@@ -532,56 +519,38 @@ BarWidget {
         width: parent.width
         spacing: Style.spacing.sm
         visible: root.player !== null
-        opacity: root.volumeAvailable ? 1 : 0.4
+        opacity: root.volumeAvailable ? 1 : Style.emphasis.disabled
 
-        Item {
-          width: Style.space(24)
-          height: playerVolumeSlider.height
-          Text {
-            anchors.centerIn: parent
-            text: Audio.volumeIcon(root.playerVolume, root.playerMuted)
-            color: root.playerMuted ? Colors.urgent : Colors.menu.text
-            font.pixelSize: Style.font.icon
-            font.family: Style.font.iconFamily
-          }
-          MouseArea {
-            anchors.fill: parent
-            enabled: root.volumeAvailable
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.togglePlayerMute()
-          }
+        Button {
+          anchors.verticalCenter: parent.verticalCenter
+          variant: "icon"
+          focusable: true
+          size: Style.space(24)
+          enabled: root.volumeAvailable
+          iconText: Audio.volumeIcon(root.playerVolume, root.playerMuted)
+          foreground: root.playerMuted ? Colors.urgent : Colors.menu.text
+          tooltipText: root.playerMuted ? "Unmute" : "Mute"
+          onClicked: root.togglePlayerMute()
         }
 
         Slider {
           id: playerVolumeSlider
           width: content.width - Style.space(24) - Style.space(40) - parent.spacing * 2
-          bar: root.bar
           enabled: root.volumeAvailable
           value: root.playerVolume
           onMoved: function(v) { root.setPlayerVolume(v) }
           onRightClicked: root.togglePlayerMute()
         }
 
-        Text {
+        Label {
           width: Style.space(40)
           height: playerVolumeSlider.height
           horizontalAlignment: Text.AlignRight
           verticalAlignment: Text.AlignVCenter
           text: root.volumeAvailable ? Math.round(root.playerVolume * 100) + "%" : "--"
           color: Colors.menu.text
-          font.pixelSize: Style.font.caption
-          font.family: Style.font.family
+          caption: true
         }
-      }
-
-      BarGauge {
-        width: content.width
-        height: Style.spacing.sm
-        segments: 24
-        visible: root.player !== null
-        opacity: root.volumeAvailable ? 1 : 0.4
-        value: root.playerVolume
-        color: root.playerMuted ? Colors.urgent : Colors.accent
       }
 
       Column {

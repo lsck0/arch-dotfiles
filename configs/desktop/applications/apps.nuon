@@ -1,0 +1,220 @@
+# One .desktop entry per row, rendered by mod.nu's link; name, exec and tryexec default to the id.
+[
+    {id: alsoft-config, name: "OpenAL Soft Configuration", comment: "Configure the OpenAL Soft 3D audio library",
+        icon: audio-card, categories: [Settings AudioVideo Audio]}
+    {id: angryoxide, name: AngryOxide, comment: "802.11 attack tool", icon: network-wireless,
+        categories: [Network Security ConsoleOnly],
+        exec: "@BIN@/desktop-run --ask Interface -- sudo angryoxide --interface"}
+    {id: ani-cli, comment: "Watch anime", icon: dragonplayer, categories: [AudioVideo Video Player ConsoleOnly]}
+    {id: bacon, comment: "Background Rust code checker", icon: applications-development,
+        categories: [Development ConsoleOnly], exec: "@BIN@/desktop-run --in-dir -- bacon"}
+    {id: bettercap, comment: "Network attack and monitoring framework", icon: firewall-config,
+        categories: [Network Security ConsoleOnly], exec: "@BIN@/desktop-run -- sudo bettercap"}
+    {id: bibiman, comment: "BibLaTeX bibliography manager", icon: text-x-bibtex, categories: [Office ConsoleOnly],
+        exec: "@BIN@/desktop-run --files -- bibiman"}
+    {id: binsider, comment: "Analyze an ELF binary", icon: application-x-executable,
+        categories: [Development ConsoleOnly], exec: "@BIN@/desktop-run --file -- binsider"}
+    {id: bluetooth-sendfile, name: "Bluetooth File Transfer", comment: "Send files to a Bluetooth device",
+        icon: preferences-system-bluetooth, categories: [Network Settings HardwareSettings], exec: bluedevil-sendfile,
+        tryexec: bluedevil-sendfile}
+    {id: bluetui, comment: "Bluetooth manager", icon: preferences-system-bluetooth,
+        categories: [Settings HardwareSettings ConsoleOnly]}
+    {id: bookokrat, name: Bookokrat, comment: "EPUB and PDF reader", icon: okular,
+        categories: [Office Viewer ConsoleOnly]}
+    {id: bpftop, comment: "Monitor running eBPF programs", icon: utilities-system-monitor,
+        categories: [System Monitor ConsoleOnly], exec: "@BIN@/desktop-run -- sudo bpftop"}
+    {id: caligula, name: Caligula, comment: "Burn a disk image to a drive", icon: usb-creator-kde,
+        categories: [System ConsoleOnly], exec: "@BIN@/desktop-run --file -- caligula burn"}
+    {id: cargo-seek, comment: "Search, add and install crates", icon: applications-development,
+        categories: [Development ConsoleOnly]}
+    {id: cava, comment: "Audio visualizer", icon: audio-x-generic, categories: [AudioVideo Audio ConsoleOnly]}
+    {id: cgdb, comment: "Curses frontend for GDB", icon: debug-run, categories: [Development Debugger ConsoleOnly]}
+    {id: chatuino, name: Chatuino, comment: "Twitch chat client", icon: konversation,
+        categories: [Network Chat ConsoleOnly]}
+    {id: chiko, name: Chiko, comment: "gRPC client", icon: network-server,
+        categories: [Development Network ConsoleOnly], exec: "@BIN@/desktop-run -- chiko"}
+    {id: claude-code, name: "Claude Code", comment: "Agentic coding in the terminal", icon: claude-desktop,
+        categories: [Development ConsoleOnly], exec: claude, tryexec: claude}
+    {id: clonezilla, name: Clonezilla, comment: "Clone and image disks and partitions", icon: preferences-system-backup,
+        categories: [System Filesystem ConsoleOnly], exec: "@BIN@/desktop-run -- sudo clonezilla"}
+    {id: cmatrix, comment: "The Matrix rain", icon: preferences-desktop-screensaver,
+        categories: [Game Amusement ConsoleOnly]}
+    {id: copilot-cli, name: "Copilot CLI", comment: "GitHub Copilot in the terminal", icon: applications-development,
+        categories: [Development ConsoleOnly], exec: copilot, tryexec: copilot}
+    {id: crates-tui, comment: "Browse crates.io", icon: applications-development, categories: [Development ConsoleOnly]}
+    {id: csvi, comment: "CSV editor", icon: text-csv, categories: [Office Spreadsheet ConsoleOnly],
+        exec: "@BIN@/desktop-run --file -- csvi"}
+    {id: ctop, comment: "Container metrics", icon: terminal-distrobox-icon, categories: [System Monitor ConsoleOnly],
+        exec: "@BIN@/desktop-run --group docker -- ctop"}
+    {id: discordo, comment: "Discord client", icon: discord, categories: [Network Chat ConsoleOnly]}
+    {id: diskwatch, comment: "Disk health and I/O diagnostics", icon: drive-harddisk,
+        categories: [System Monitor ConsoleOnly]}
+    {id: dnsglobe, comment: "Watch a DNS record propagate", icon: planetkde, categories: [Network ConsoleOnly]}
+    {id: dua-interactive, name: dua, comment: "Interactive disk usage of the home folder", icon: filelight,
+        categories: [System Filesystem ConsoleOnly], exec: "dua interactive @HOME@", tryexec: dua}
+    {id: feh-open, name: feh, comment: "Open images in feh", icon: feh, categories: [Graphics Viewer "2DGraphics"],
+        exec: "@BIN@/desktop-run --files -- feh", tryexec: feh}
+    {id: ffplay, name: FFplay, comment: "Play a media file with FFmpeg", icon: applications-multimedia,
+        categories: [AudioVideo Player Video], exec: "@BIN@/desktop-run --file -- ffplay"}
+    {id: flamelens, comment: "Flamegraph viewer", icon: hotspot, categories: [Development Profiling ConsoleOnly],
+        exec: "@BIN@/desktop-run --file -- flamelens"}
+    {id: gap, name: GAP, comment: "Computational discrete algebra", icon: kalgebra,
+        categories: [Science Math Education ConsoleOnly]}
+    {id: gdb, name: GDB, comment: "The GNU debugger", icon: debug-run, categories: [Development Debugger ConsoleOnly]}
+    {id: gemini-cli, name: "Gemini CLI", comment: "Google's coding agent in the terminal",
+        icon: applications-development, categories: [Development ConsoleOnly], exec: gemini, tryexec: gemini}
+    {id: gh-dash, comment: "GitHub pull requests and issues dashboard", icon: folder-git,
+        categories: [Development RevisionControl ConsoleOnly]}
+    {id: gh-enhance, comment: "GitHub Actions runs of a repository", icon: folder-git,
+        categories: [Development RevisionControl ConsoleOnly], exec: "@BIN@/desktop-run --in-dir -- gh-enhance"}
+    {id: ghcup-tui, name: GHCup, comment: "Manage Haskell toolchains", icon: applications-development,
+        categories: [Development ConsoleOnly], exec: "ghcup tui", tryexec: ghcup}
+    {id: gifview, comment: "Play an animated GIF", icon: image-gif, categories: [Graphics Viewer "2DGraphics"],
+        exec: "@BIN@/desktop-run --file -- gifview --animate"}
+    {id: glow, name: Glow, comment: "Markdown reader", icon: text-markdown, categories: [Office Viewer ConsoleOnly]}
+    {id: gnuplot, comment: "Interactive plotting", icon: kmplot, categories: [Science Math Education ConsoleOnly]}
+    {id: gonzo, name: Gonzo, comment: "Log file analysis", icon: utilities-log-viewer,
+        categories: [Development System Monitor ConsoleOnly], exec: "@BIN@/desktop-run --file -- gonzo --file"}
+    {id: gpg-tui, comment: "Manage GnuPG keys", icon: kleopatra, categories: [Utility Security ConsoleOnly]}
+    {id: gping, comment: "Ping with a live graph", icon: network-wired, categories: [Network Monitor ConsoleOnly],
+        exec: "@BIN@/desktop-run --ask Host -- gping"}
+    {id: heh, comment: "Hex editor", icon: okteta, categories: [Development Utility ConsoleOnly],
+        exec: "@BIN@/desktop-run --file -- heh"}
+    {id: herdr, comment: "Workspace manager for AI coding agents", icon: yakuake, categories: [Development ConsoleOnly]}
+    {id: hermes, name: "Hermes Agent", comment: "Hermes AI agent", icon: system-run,
+        categories: [Development Utility ConsoleOnly]}
+    {id: hollywood, name: Hollywood, comment: "Hollywood hacker melodrama", icon: utilities-terminal,
+        categories: [Game Amusement ConsoleOnly], exec: "@BIN@/hollywood-run"}
+    {id: hyprpicker, name: Hyprpicker, comment: "Pick a color on screen and copy it", icon: kcolorchooser,
+        categories: [Graphics Utility], exec: "hyprpicker --autocopy"}
+    {id: idle, name: IDLE, comment: "Python's own editor and shell", icon: text-x-python, categories: [Development IDE],
+        exec: "idle %F"}
+    {id: imagemagick-animate, name: "ImageMagick Animate", comment: "Play an image sequence or animated GIF",
+        icon: image-gif, categories: [Graphics Viewer "2DGraphics"], exec: "@BIN@/desktop-run --file -- animate",
+        tryexec: animate}
+    {id: imagemagick-display, name: "ImageMagick Display", comment: "Show, edit and convert images",
+        icon: image-x-generic, categories: [Graphics Viewer "2DGraphics" RasterGraphics],
+        exec: "@BIN@/desktop-run --file -- display", tryexec: display}
+    {id: irust, name: IRust, comment: "Rust REPL", icon: applications-development,
+        categories: [Development ConsoleOnly]}
+    {id: jless, comment: "JSON viewer", icon: application-json, categories: [Development ConsoleOnly],
+        exec: "@BIN@/desktop-run --file -- jless"}
+    {id: jolt, comment: "Battery and energy monitor", icon: utilities-energy-monitor,
+        categories: [System Monitor ConsoleOnly]}
+    {id: k9s, comment: "Kubernetes cluster manager", icon: network-server, categories: [Development System ConsoleOnly]}
+    {id: kismet, name: Kismet, comment: "Wireless network detector with a web interface", icon: network-wireless,
+        categories: [Network Monitor ConsoleOnly], exec: "@BIN@/desktop-run --open http://localhost:2501 -- kismet"}
+    {id: kmon, comment: "Linux kernel module manager", icon: hwinfo, categories: [System ConsoleOnly]}
+    {id: lazydocker, comment: "Docker containers, images and logs", icon: terminal-distrobox-icon,
+        categories: [Development System ConsoleOnly], exec: "@BIN@/desktop-run --group docker -- lazydocker"}
+    {id: lazygit, comment: "Git interface", icon: folder-git, categories: [Development RevisionControl ConsoleOnly],
+        exec: "@BIN@/desktop-run --in-dir -- lazygit"}
+    {id: lazyjira, comment: "Jira issues", icon: korg-todo, categories: [Development ProjectManagement ConsoleOnly]}
+    {id: lazyjj, comment: "Jujutsu interface", icon: folder-git, categories: [Development RevisionControl ConsoleOnly],
+        exec: "@BIN@/desktop-run --in-dir -- lazyjj"}
+    {id: lazyjournal, comment: "Browse journald, docker and file logs", icon: utilities-log-viewer,
+        categories: [System Monitor ConsoleOnly]}
+    {id: lazymake, comment: "Run Makefile targets", icon: run-build, categories: [Development Building ConsoleOnly],
+        exec: "@BIN@/desktop-run --in-dir -- lazymake"}
+    {id: lazysql, comment: "SQL database client", icon: sqlitebrowser, categories: [Development Database ConsoleOnly]}
+    {id: lean-tui, comment: "Lean 4 infoview", icon: kalgebra, categories: [Science Math ConsoleOnly]}
+    {id: linecast, comment: "Weather, sunlight, the moon and the sky", icon: weather-clear,
+        categories: [Utility ConsoleOnly], exec: "@BIN@/desktop-run --hold -- linecast weather"}
+    {id: llmfit, comment: "Which LLMs fit this machine", icon: hwinfo, categories: [Utility ConsoleOnly]}
+    {id: ls-horizons, comment: "Deep space network and spacecraft tracker", icon: kstars,
+        categories: [Science Astronomy ConsoleOnly]}
+    {id: lynx, name: Lynx, comment: "Text web browser", icon: internet-web-browser,
+        categories: [Network WebBrowser ConsoleOnly]}
+    {id: macaulay2, name: Macaulay2, comment: "Algebraic geometry and commutative algebra", icon: cantor,
+        categories: [Science Math Education ConsoleOnly], exec: M2, tryexec: M2}
+    {id: mangoplot, name: MangoPlot, comment: "Plot a folder of MangoHud benchmark logs",
+        icon: "io.github.flightlessmango.mangohud", categories: [Game Utility],
+        exec: "@BIN@/desktop-run --dir -- mangoplot"}
+    {id: mitmproxy, comment: "Interactive HTTPS proxy", icon: network-server,
+        categories: [Network Development ConsoleOnly]}
+    {id: mitmweb, comment: "Intercepting HTTPS proxy with a web interface", icon: network-server,
+        categories: [Network Development ConsoleOnly]}
+    {id: mov-cli, comment: "Watch films and shows", icon: kmplayer, categories: [AudioVideo Video Player ConsoleOnly],
+        exec: "@BIN@/desktop-run --ask Search -- mov-cli"}
+    {id: msfconsole, name: Metasploit, comment: "Metasploit Framework console", icon: security-low,
+        categories: [Network Security ConsoleOnly], exec: "@BIN@/desktop-run -- msfconsole"}
+    {id: nethack, name: NetHack, comment: "Explore the Mazes of Menace", icon: applications-games,
+        categories: [Game RolePlaying ConsoleOnly]}
+    {id: netscanner, comment: "Network scanner", icon: network-workgroup, categories: [Network Monitor ConsoleOnly]}
+    {id: nmtui, name: "NetworkManager TUI", comment: "Edit and activate network connections",
+        icon: preferences-system-network, categories: [Network Settings ConsoleOnly]}
+    {id: nnd, comment: Debugger, icon: debug-run, categories: [Development Debugger ConsoleOnly],
+        exec: "@BIN@/desktop-run --file -- nnd"}
+    {id: nsxiv-open, name: nsxiv, comment: "Browse images in nsxiv", icon: nsxiv,
+        categories: [Graphics Viewer "2DGraphics"], exec: "@BIN@/desktop-run --files -- nsxiv", tryexec: nsxiv}
+    {id: nushell, name: Nushell, comment: "A structured data shell", icon: utilities-terminal,
+        categories: [System Utility ConsoleOnly], exec: nu, tryexec: nu}
+    {id: openapi-tui, comment: "Browse an OpenAPI specification", icon: network-server,
+        categories: [Development ConsoleOnly], exec: "@BIN@/desktop-run --file -- openapi-tui --input"}
+    {id: posting, name: Posting, comment: "HTTP client", icon: network-server,
+        categories: [Development Network ConsoleOnly]}
+    {id: python, name: Python, comment: "Python REPL", icon: text-x-python, categories: [Development ConsoleOnly]}
+    {id: qalc, comment: "Calculator with units and currencies", icon: accessories-calculator,
+        categories: [Utility Calculator ConsoleOnly]}
+    {id: rgx, comment: "Regex tester", icon: kfind, categories: [Development ConsoleOnly]}
+    {id: rizin, comment: "Reverse engineering framework", icon: cutter, categories: [Development Debugger ConsoleOnly],
+        exec: "@BIN@/desktop-run --file -- rizin"}
+    {id: rustnet, name: RustNet, comment: "Network connections monitor", icon: network-workgroup,
+        categories: [Network Monitor ConsoleOnly]}
+    {id: s-tui, comment: "CPU frequency, temperature and stress", icon: cpu, categories: [System Monitor ConsoleOnly]}
+    {id: sagemath, name: SageMath, comment: "Mathematics software system", icon: cantor,
+        categories: [Science Math Education ConsoleOnly], exec: sage, tryexec: sage}
+    {id: sdl-testcontroller, name: "SDL Test Controller", comment: "Test gamepads and joysticks", icon: input-gaming,
+        categories: [Development Game], exec: testcontroller, tryexec: testcontroller}
+    {id: serpl, comment: "Search and replace across a folder", icon: edit-find-replace,
+        categories: [Development ConsoleOnly], exec: "@BIN@/desktop-run --in-dir -- serpl"}
+    {id: shimeji, name: Shimeji, comment: "Summon a desktop mascot", icon: face-smile-big, categories: [Game Amusement],
+        exec: "@BIN@/spawn-shimeji", tryexec: shimejictl}
+    {id: sliver-client, name: Sliver, comment: "Sliver C2 client", icon: security-medium,
+        categories: [Network Security ConsoleOnly], exec: "@BIN@/desktop-run --hold -- sliver-client console"}
+    {id: sowon, comment: "Starting soon countdown and clock", icon: kronometer, categories: [Utility Clock]}
+    {id: speedscope, comment: "Open a profile as a flamegraph in the browser", icon: hotspot,
+        categories: [Development Profiling], exec: "@BIN@/desktop-run --file -- speedscope"}
+    {id: spotify-player, name: spotify_player, comment: "Spotify client", icon: spotify,
+        categories: [AudioVideo Audio Player ConsoleOnly], exec: spotify_player, tryexec: spotify_player}
+    {id: stirling-pdf, name: "Stirling PDF", comment: "Local PDF toolbox in the browser", icon: application-pdf,
+        categories: [Office Graphics ConsoleOnly],
+        exec: "@BIN@/desktop-run --cd @HOME@/.local/share/stirling-pdf --open http://localhost:@STIRLING_PORT@ -- env SERVER_PORT=@STIRLING_PORT@ stirling-pdf"}
+    {id: strace-tui, comment: "Trace a command's system calls", icon: debug-run,
+        categories: [Development Debugger ConsoleOnly],
+        exec: "@BIN@/desktop-run --ask Command -- strace-tui trace -- sh -c"}
+    {id: superseedr, comment: "BitTorrent client", icon: ktorrent, categories: [Network P2P FileTransfer ConsoleOnly]}
+    {id: task-dashboard, name: "Task Dashboard", comment: "Taskwarrior, timewarrior and agent tasks", icon: korg-todo,
+        categories: [Office ProjectManagement ConsoleOnly], exec: "@BIN@/task-dashboard",
+        tryexec: "@BIN@/task-dashboard"}
+    {id: tig, comment: "Git history browser", icon: folder-git, categories: [Development RevisionControl ConsoleOnly],
+        exec: "@BIN@/desktop-run --in-dir -- tig"}
+    {id: tmux-sessionizer, comment: "Open a project as a tmux session", icon: folder-development,
+        categories: [Development ConsoleOnly], exec: tms, tryexec: tms}
+    {id: tmux, comment: "Terminal multiplexer", icon: utilities-terminal, categories: [System Utility ConsoleOnly]}
+    {id: tparted, name: TParted, comment: "Partition editor", icon: partitionmanager,
+        categories: [System Filesystem ConsoleOnly], exec: "@BIN@/desktop-run -- sudo tparted"}
+    {id: trippy, name: Trippy, comment: "Traceroute and ping in one", icon: network-server,
+        categories: [Network Monitor ConsoleOnly], exec: "@BIN@/desktop-run --ask Target -- trip", tryexec: trip}
+    {id: updo, comment: "Website uptime monitor", icon: network-wired, categories: [Network Monitor ConsoleOnly],
+        exec: "@BIN@/desktop-run --ask URL -- updo monitor"}
+    {id: usbtree, comment: "Live USB device tree", icon: drive-removable-media-usb,
+        categories: [System Monitor ConsoleOnly]}
+    {id: viewsvg, comment: "View an SVG through resvg", icon: "image-svg+xml",
+        categories: [Graphics "2DGraphics" VectorGraphics Viewer], exec: "@BIN@/desktop-run --file -- viewsvg"}
+    {id: vkcube, comment: "Spinning Vulkan test cube", icon: applications-graphics,
+        categories: [Development Graphics "3DGraphics"]}
+    {id: wayland-boomer, name: Boomer, comment: "Zoom into the screen", icon: kmag, categories: [Utility Accessibility],
+        exec: "@DOTFILES@/configs/desktop/hyprland/boomer.nu"}
+    {id: wev, comment: "Show the Wayland input events a window receives", icon: input-keyboard,
+        categories: [Development Debugger ConsoleOnly]}
+    {id: wiki-tui, comment: "Read Wikipedia", icon: accessories-dictionary, categories: [Network Education ConsoleOnly]}
+    {id: wine-open, name: Wine, comment: "Run a Windows program", icon: winetricks, categories: [System Emulator],
+        exec: "@BIN@/desktop-run --file -- wine start /unix", tryexec: wine}
+    {id: winecfg, name: "Wine Configuration", comment: "Configure the Wine prefix", icon: winetricks,
+        categories: [Settings System Emulator]}
+    {id: xeyes, comment: "Eyes that follow the pointer", icon: xorg, categories: [Game Amusement]}
+    {id: yozefu, name: Yozefu, comment: "Kafka topics explorer", icon: network-server,
+        categories: [Development ConsoleOnly], exec: "yozf --cluster localhost", tryexec: yozf}
+]
+

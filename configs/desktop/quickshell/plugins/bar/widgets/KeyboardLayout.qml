@@ -121,7 +121,8 @@ BarWidget {
     bar: root.bar
     text: root.layoutLabel
     fontSize: Style.font.caption
-    horizontalMargin: Style.spacing.xs
+    horizontalMargin: 4
+    hoverFill: true
     tooltipText: root.layoutFull
     onPressed: function() { root.cycleLayout() }
   }

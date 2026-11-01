@@ -37,13 +37,12 @@ hl.window_rule({
     size = "1150 750",
 })
 
+-- boomer.nu moves it to the layout's top-left once mapped: no static monitor or position fits every layout
 hl.window_rule({
     match = {
         title = "^wayland-boomer$",
     },
     float = true,
-    monitor = "0",
-    move = "0 0",
     no_anim = true,
 })
 

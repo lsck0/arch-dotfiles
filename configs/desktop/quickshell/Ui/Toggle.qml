@@ -15,7 +15,14 @@ Item {
   property color foreground: Colors.foreground
   property color accent: Colors.accent
 
-  readonly property bool hot: hasCursor || mouse.containsMouse
+  readonly property bool hot: hasCursor || mouse.containsMouse || activeFocus
+
+  signal toggled(bool checked)
+
+  activeFocusOnTab: interactive
+  Keys.onSpacePressed: root.toggled(!root.checked)
+  Keys.onReturnPressed: root.toggled(!root.checked)
+  Keys.onEnterPressed: root.toggled(!root.checked)
 
   readonly property int _pad: cursorRing ? cursorPad : 0
 
@@ -36,17 +43,14 @@ Item {
     borderSpec: Border.controlSpec("hover-cursor", root.foreground, root.accent)
   }
 
-  Text {
+  Label {
     id: label
     anchors.right: parent.right
     anchors.rightMargin: root._pad
     anchors.verticalCenter: parent.verticalCenter
-    textFormat: Text.PlainText
     // flush right like the [state] of a multi-state toggle, so both read as one column
     text: root.checked ? "[on]" : "[off]"
     color: root.checked ? Colors.textFor(root.accent) : Colors.textDim
-    font.family: Style.font.family
-    font.pixelSize: Style.font.body
     font.bold: root.checked
     layer.enabled: Style.fx.glow > 0 && root.checked
     layer.effect: Glow {}
@@ -58,5 +62,6 @@ Item {
     enabled: root.interactive
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
+    onClicked: root.toggled(!root.checked)
   }
 }

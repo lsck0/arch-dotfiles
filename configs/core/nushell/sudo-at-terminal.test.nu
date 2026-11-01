@@ -16,6 +16,15 @@ def guard-text []: nothing -> string {
     [$markers] ++ ($lines | slice $first..$last) | str join "\n"
 }
 
+# An alias resolves its command where it is declared, so one ahead of the def runs a missing external.
+def alias-order-check []: nothing -> list<string> {
+    let lines = open --raw ($HERE | path join config.nu) | lines | enumerate
+    let def = $lines | where ($it.item | str starts-with "def --wrapped sudo-at-terminal") | get 0.index
+    $lines | where ($it.item =~ '^alias .*= sudo-at-terminal ') and $it.index < $def | each {|l|
+        $"line ($l.index + 1) runs sudo-at-terminal before its def: ($l.item)"
+    }
+}
+
 def guard-run [dir: path, markers: list<string>, --tty]: nothing -> record {
     let fake = $dir | path join sudo
     let script = $dir | path join guard.nu
@@ -52,7 +61,7 @@ def main [] {
         } else if not $c.ran and not ($out | str contains $REFUSED) {
             $"($c.name): no refusal message: ($out | str trim)"
         }
-    } | compact
+    } | compact | append (alias-order-check)
     rm -rf $dir
     if ($failures | is-not-empty) {
         print --stderr ($failures | str join "\n")

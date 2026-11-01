@@ -2,6 +2,7 @@
 
 use log.nu *
 use state.nu [xdg]
+use cli.nu [root-runner]
 use sync.nu [bootstrap-const FINGERPRINT_VALUE]
 use homelab.nu [LSCK0_SERVER_PLACEHOLDER]
 use ../../platforms/homelab.nu [HOMELAB]
@@ -22,7 +23,10 @@ const ISO_PATTERN = '^archlinux-lsck0-\d{4}\.\d{2}\.\d{2}-x86_64\.iso$'
 const WORK_DEFAULT = "dotfiles-iso"
 
 def --wrapped as-root [...argv: string]: nothing -> nothing {
-    if (is-admin) { run-external ...$argv } else { run-external sudo ...$argv }
+    if (is-admin) { run-external ...$argv; return }
+    let runner = root-runner
+    if $runner == null { error make {msg: "iso: root needed: run it at a terminal or in the graphical session"} }
+    run-external $runner ...$argv
 }
 
 def trust-write [dir: path]: nothing -> nothing {
@@ -121,15 +125,15 @@ export def iso-build [out: any, work: any, mirror: any, sign: any, keep: int]: n
     let profile = $work | path join profile
     let build = $work | path join build
     let staging = $work | path join staging
+    let owner = $"(^id -u | str trim):(^id -g | str trim)"
     mkdir $work
     profile-write $profile $mirror
-    # mkarchiso resumes from its markers, so a stale build dir would ship the last run's root
-    as-root rm --recursive --force $build $staging
     log-info "iso: mkarchiso (several minutes)"
-    as-root mkarchiso -v -r -w $build -o $staging $profile
+    # one root call, one prompt; mkarchiso resumes from its markers, so a stale build dir would ship the last run's root
+    let root_part = 'rm -rf "$1" "$2" && mkarchiso -v -r -w "$1" -o "$2" "$3" && chown -R "$4" "$2" "$3"'
+    as-root sh -c $root_part sh $build $staging $profile $owner
     let built = glob ($staging | path join $"($ISO_NAME)-*-($ISO_ARCH).iso") | get 0
-    if not (is-admin) { as-root chown --recursive $"(^id -u | str trim):(^id -g | str trim)" $staging }
     let outputs = outputs-publish $built $out $keep $sign
-    as-root rm --recursive --force $staging $profile
+    rm --recursive --force $staging $profile
     $outputs | each { print $in } | ignore
 }

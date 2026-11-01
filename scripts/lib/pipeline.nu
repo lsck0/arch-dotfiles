@@ -5,7 +5,7 @@ use state.nu [LIB_DIR state-dir save-atomic]
 use platform.nu [platform-load platform-env]
 use profile.nu [profile-load]
 use options.nu [options-resolve]
-use modules.nu [modules-discover modules-graph modules-eval]
+use modules.nu [modules-discover modules-graph modules-eval modules-packages-each]
 use converge.nu [state-read observe recorded-hashes decls-check plan-module apply-module state-write mode-normal]
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use cause.nu [failure-line cause-from-error cause-text]
@@ -26,6 +26,7 @@ const PACKAGES_HINT = "dot apply --packages"
 const WAITS_ON = "waits on "
 # a link source can be a dead mount: bound the probe, a timeout counts as gone
 const LINK_PROBE_TIMEOUT_S = 2
+const GLOB_META = '[*?\[{]'
 # a hung theme verb is killed after this; the run goes on
 export const THEME_VERB_TIMEOUT = 60sec
 
@@ -94,25 +95,11 @@ export def nix-installed []: nothing -> list<string> {
     ^nix ...$NIX_FLAGS profile list --json | from json | get elements | columns
 }
 
-# Each module's packages, its packages hook merged in; flatpak and nix only for the user layer, which installs them.
+# Each module's packages; flatpak and nix only for the user layer, which installs them.
 def packages-declared [ctx: record, mods: table]: nothing -> table {
-    let wsl = $ctx.platform.form_factor == "wsl"
     let user = $ctx.layer == "user"
-    let computing = $mods | where {|m| "packages" in $m.native }
-    let computed = if ($computing | is-empty) { [] } else {
-        with-env (eval-env $ctx) { modules-eval $computing packages ($computing | reduce --fold {} {|m, acc| $acc | insert $m.id $m.cfg }) [] }
-    } | each {|r|
-        if not $r.ok { log-warn $"($r.id): packages failed, checking its meta alone: ($r.error)" }
-        {id: $r.id, packages: ($r.decls | get --optional 0 | default {})}
-    } | reduce --fold {} {|r, acc| $acc | insert $r.id $r.packages }
-    $mods | each {|m|
-        let p = $m.meta.packages | merge deep --strategy=append ($computed | get --optional $m.id | default {})
-        {
-            id: $m.id
-            pacman: ($p.pacman ++ (if $wsl { [] } else { $p.native }))
-            flatpak: (if $user { $p.flatpak | columns } else { [] })
-            nix: (if $user { $p.nix } else { [] })
-        }
+    with-env (eval-env $ctx) { modules-packages-each $mods $ctx.platform } | each {|p|
+        {id: $p.id, pacman: $p.pacman, flatpak: (if $user { $p.flatpak | columns } else { [] }), nix: (if $user { $p.nix } else { [] })}
     }
 }
 
@@ -227,7 +214,9 @@ def imports-outside [dir: path]: nothing -> list<string> {
 
 # A path that cannot be read (a nas link while the nas is down) counts as missing, never a crash.
 def stat [repo: path, paths: list<string>]: nothing -> string {
-    let found = $paths | each {|p| if ($p | str starts-with "/") or ($p | str starts-with "~") { $p | path expand } else { $repo | path join $p } } | each {|p| try { glob $p } catch { [] } } | flatten | uniq
+    # glob walks a literal dir's whole tree (~/projects) to return the one path, so only a pattern is globbed
+    let found = $paths | each {|p| if ($p | str starts-with "/") or ($p | str starts-with "~") { $p | path expand } else { $repo | path join $p } }
+        | each {|p| if $p =~ $GLOB_META { try { glob $p } catch { [] } } else if ($p | path exists) { [$p] } else { [] } } | flatten | uniq
     if ($found | is-empty) { return "" }
     $found | each {|f| try { ls --directory --full-paths $f | get 0 | select name size modified } catch { {name: $f} } } | to nuon
 }
@@ -281,7 +270,8 @@ def secrets-stamp [repo: path]: nothing -> string {
     }
     let keys = $repo | path join configs secrets keys
     if not ($keys | path exists) { return "" }
-    ls --all ($keys | path join "**" "*" | into glob) | where type == file | sort-by name
+    # an empty keys/ (a submodule half set up) matches nothing, which ls raises
+    try { ls --all ($keys | path join "**" "*" | into glob) } catch { [] } | where type == file | sort-by name
     | each {|f| $"($f.name) ($f.size) ($f.modified)" } | str join "\n" | hash sha256
 }
 
@@ -315,12 +305,16 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
         (secret-is-plaintext ($ctx.repo | path join $OWNER_WITNESS)) $verb ($args | to nuon)
         (secrets-stamp $ctx.repo)
     ] | str join "\n"
+    let imports = $olds | each {|o| {id: $o.m.id, files: (imports-outside $o.m.dir)} }
+    # a shared import (the wallust palette) is hashed once, not once per module importing it
+    let import_hashes = $imports | get files | flatten | uniq | reduce --fold {} {|f, acc| $acc | insert $f (open --raw $f | hash sha256) }
+    let imports_by = $imports | reduce --fold {} {|i, acc| $acc | insert $i.id $i.files }
     let natives = $olds | each {|o|
         let m = $o.m
         let prev = $o.prev
         let outside = $o.outside
         let links = $outside | where kind == link | get source | each {|s| $"($s) ($alive | get $s)" } | str join "\n"
-        let imported = imports-outside $m.dir | each {|f| $"($f) (open --raw $f | hash sha256)" } | str join "\n"
+        let imported = $imports_by | get $m.id | each {|f| $"($f) ($import_hashes | get $f)" } | str join "\n"
         let input = [$global ($stamped | get $m.dir) $imported ($m.cfg | to nuon) (stat $ctx.repo ($m.meta.inputs? | default [])) (stat $ctx.repo ($outside | where kind == file | get source)) $links] | str join "\n" | hash sha256
         {id: $m.id, prev: $prev, input: $input, volatile: ($m.meta.volatile? | default false)}
     }
@@ -334,15 +328,17 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     let waiting = if $verb not-in $GATED_VERBS or $packages_unchecked or ($gated | is-empty) { {} } else {
         span packages {} { let declared = packages-declared $ctx $gated; packages-gate $declared (packages-absent $declared) }
     }
+    let natives_by = $natives | reduce --fold {} {|n, acc| $acc | insert $n.id $n }
+    let planned_by = $planned | reduce --fold {} {|p, acc| $acc | insert $p.id $p }
     let rows = $graph | each {|m|
-        let native = $natives | where id == $m.id | get --optional 0
+        let native = $natives_by | get --optional $m.id
         let row = {id: $m.id, dir: $m.dir, after: $m.after, deps: $m.meta.deps, level: $m.level, serial: $m.meta.serial, cfg: $m.cfg, options: $m.options, force: $force, pending: null}
         if $native == null {
             $row | merge {native: false, skipped: false, input: "", prev: [], actions: [], error: null}
         } else if $m.id in $fresh {
             $row | merge {native: true, skipped: true, input: $native.input, prev: $native.prev.outputs, actions: [], error: null}
         } else {
-            let p = $planned | where id == $m.id | first
+            let p = $planned_by | get $m.id
             $row | merge {native: true, skipped: false, input: $native.input, prev: $native.prev.outputs, actions: $p.actions, error: $p.error, pending: ($waiting | get --optional $m.id)}
         }
     }
@@ -429,20 +425,28 @@ def module-procs-kill [id: string]: nothing -> nothing {
 
 # --timeout: a module still running is killed and counts as failed. A held module (module-held) is not run: its result
 # is ok with pending set, and done records it as pending for whatever depends on it.
+# Each module waiting on id counts one predecessor fewer.
+def waiting-release [waiting: record, dependents: record, id: string]: nothing -> record {
+    $dependents | get --optional $id | default [] | get id | reduce --fold $waiting {|d, acc| $acc | update $d { $in - 1 } }
+}
+
 export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int, args: list = [], --timeout: duration]: nothing -> table {
     mut done = {}
     mut running = {}
     mut started = {}
     mut results = []
-    mut pending = $planned
-    let planned_ids = $planned.id
+    let planned_ids = $planned | reduce --fold {} {|m, acc| $acc | insert $m.id true }
+    mut pending = $planned | update after {|m| $m.after | where {|a| $planned_ids | get --optional $a | default false } | uniq }
+    let dependents = $pending | each {|m| $m.after | each {|a| {after: $a, id: $m.id} } } | flatten | group-by after
+    mut waiting = $pending | reduce --fold {} {|m, acc| $acc | insert $m.id ($m.after | length) }
     # a timed-out module's marker: apply-module stops at its next action and the job sends nothing
     let cancel_dir = if $timeout == null { "" } else { mktemp --directory --tmpdir dot-cancel-XXXXXX }
     mut killed = false
     while ($pending | is-not-empty) or ($running | is-not-empty) {
         let finished = $done
         let busy = $running | columns | length
-        let ready = $pending | where {|m| $m.after | all {|a| $a in $finished or $a not-in $planned_ids } }
+        let open = $waiting
+        let ready = $pending | where {|m| ($open | get $m.id) == 0 }
         let held = $ready | each {|m| let why = module-held $m $finished; if $why != null { {id: $m.id, why: $why} } } | compact
         if ($held | is-not-empty) {
             for h in $held {
@@ -451,6 +455,7 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
                 let error = $planned | where id == $h.id | get --optional 0.error
                 let result = {id: $h.id, ok: ($error == null), pending: $h.why, log: "", outcomes: [], error: $error, notes: [], ms: 0}
                 $done = $done | insert $h.id (if $result.ok { "pending" } else { "failed" })
+                $waiting = waiting-release $waiting $dependents $h.id
                 $results = $results | append $result
                 if not $result.ok {
                     if ($env.FAILURES_FILE? | is-not-empty) { fail (module-failure $result $verb true) {module: $h.id, verb: $verb} }
@@ -501,6 +506,7 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
         let state = if not $result.ok { "failed" } else if $result.pending? != null { "pending" } else { "ok" }
         if $state == "pending" { log-note $"($result.id): pending, ($result.pending)" {module: $result.id} }
         $done = $done | insert $result.id $state
+        $waiting = waiting-release $waiting $dependents $result.id
         $results = $results | append $result
         if not $result.ok and ($env.FAILURES_FILE? | is-not-empty) {
             let unevaluated = ($planned | where id == $result.id | get --optional 0.error) != null

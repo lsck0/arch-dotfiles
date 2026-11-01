@@ -11,6 +11,10 @@ const DEBOUNCE = 500ms
 const ALERT_MARK = "** Alert "
 const MAIN_JOB = 0
 
+def cleared-at [cleared: path]: nothing -> int {
+    try { open --raw $cleared | str trim | into int } catch { 0 }
+}
+
 # Whole alerts only, each blank-line terminated: "** Alert <ts>.<id>: ..." then "Rule: <id> (level <n>) -> '<desc>'".
 def alerts-parse [text: string]: nothing -> table {
     $text | split row $ALERT_MARK | skip 1 | each {|block|
@@ -23,9 +27,13 @@ def alerts-parse [text: string]: nothing -> table {
     }
 }
 
-def main [] {
+# cleared: the file the system panel's "clear alerts" writes the unix time to; alerts up to it are shown no longer.
+def main [cleared: path] {
     if (^systemctl is-active --quiet $OSSEC_TARGET | complete).exit_code != 0 { return }
     job spawn { watch $ALERTS_DIR --quiet --recursive false --debounce $DEBOUNCE | each { job send $MAIN_JOB } }
+    let cleared_dir = $cleared | path dirname
+    mkdir $cleared_dir
+    job spawn { watch $cleared_dir --quiet --recursive false --glob ($cleared | path basename) --debounce $DEBOUNCE | each { job send $MAIN_JOB } }
     mut tail = {inode: 0, offset: 0, pending: ""}
     mut alerts = []
     mut last = ""
@@ -43,7 +51,8 @@ def main [] {
         }
         let now_s = (date now | into int) // 1_000_000_000
         let window_s = $WINDOW // 1sec
-        $alerts = $alerts | where ts >= $now_s - $window_s
+        let cleared_s = cleared-at $cleared
+        $alerts = $alerts | where ts >= $now_s - $window_s and ts > $cleared_s
         let line = {
             total: ($alerts | length)
             high: ($alerts | where level >= $LEVEL_HIGH | length)

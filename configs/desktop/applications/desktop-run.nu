@@ -5,6 +5,9 @@ const EXIT_INTERRUPTED = 130
 const OPEN_TRIES = 120
 const NOTIFY_EARLY = 5sec
 const NOTIFY_LINES = 5
+# words ahead of the program itself, skipped for its title
+const PREFIX_WORDS = [sudo env]
+const ENV_ASSIGNMENT = '^[A-Za-z_][A-Za-z0-9_]*='
 
 def --wrapped zenity-ask [...args: string]: nothing -> any {
     let out = ^zenity ...$args | complete
@@ -60,7 +63,8 @@ def main [
         exit $EXIT_USAGE
     }
     let pick = if $file { "file" } else if $files { "files" } else if $dir { "dir" }
-    let title = $command | skip while {|c| $c == sudo } | get --optional 0 | default $command.0 | path basename
+    let title = $command | skip while {|c| $c in $PREFIX_WORDS or $c =~ $ENV_ASSIGNMENT } | get --optional 0 | default $command.0
+        | path basename
     let extra = if $pick != null { picked $pick $title } else if $ask != null { asked $ask $title } else { [] }
     if $extra == null { return }
     if $in_dir {
@@ -77,16 +81,19 @@ def main [
 
     if $notify and not (is-terminal --stdin) {
         let started = date now
-        let errfile = mktemp --tmpdir "desktop-run-XXXXXX"
-        # stdout inherits the journal and stderr streams to a file, so nothing is held in memory for the app's lifetime
-        try { ^($command | first) ...($command | skip 1) e> $errfile } catch { }
-        let exit_code = $env.LAST_EXIT_CODE
-        let stderr_text = open --raw $errfile
-        rm --force $errfile
-        print --stderr --no-newline $stderr_text
+        let tailfile = mktemp --tmpdir "desktop-run-XXXXXX"
+        # stderr goes on to the journal line by line; its last lines are saved, since a failing command's error drops the
+        # pipeline's value
+        let exit_code = try {
+            ^($command | first) ...($command | skip 1) e>| lines | each {|line| print --stderr $line; $line }
+            | last $NOTIFY_LINES | save --force $tailfile
+            0
+        } catch {|err| $err.exit_code? | default 1 }
+        let stderr_tail = open --raw $tailfile | str trim
+        rm --force $tailfile
         let early = ((date now) - $started) < $NOTIFY_EARLY
-        if $exit_code != 0 or ($early and ($stderr_text | str trim | is-not-empty)) {
-            try { ^notify-send -a $title $"($title) did not start" ($stderr_text | lines | last $NOTIFY_LINES | str join "\n") }
+        if $exit_code != 0 or ($early and ($stderr_tail | is-not-empty)) {
+            try { ^notify-send -a $title $"($title) did not start" $stderr_tail }
         }
         exit $exit_code
     }

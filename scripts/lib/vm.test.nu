@@ -4,6 +4,7 @@
 # vm-verify on reported logs (finished, stopped after its disarm, planted failures, no way online).
 use vm.nu [vm-scenario-plan vm-snapshot-edits vm-verify vm-homelab vm-network vm-network-command vm-processes vm-plan-lines]
 use ../../platforms/homelab.nu [HOMELAB]
+use std/assert
 
 const REPO = path self ../..
 const INVARIANTS = path self invariants.txt
@@ -11,8 +12,6 @@ const HOST = {lan: ["192.168.178.0/24"], lab: $HOMELAB.subnets, home_dns: $HOMEL
 const STAGES_OK = "install: ok\nconfig: ok\n"
 const STAGES_PLANTED = "install: failed, see install.log\nconfig: ok\n"
 const STAGES_STOPPED = "install: failed, see install.log\ninstall: failed, see install.log\ninstall: failed, see install.log\n"
-
-def fail [msg: string] { error make {msg: $"vm.test: ($msg)"} }
 
 def plan [spec: string, platform: any, profile: any]: nothing -> any {
     try { vm-scenario-plan $spec $platform $profile } catch { null }
@@ -71,7 +70,7 @@ def verify-cases []: nothing -> nothing {
     for c in $cases {
         logs-write $dir $c.facts $c.failures $c.stage $c.errors
         let found = vm-verify $dir $c.run | get problems
-        if ($found | length) != $c.problems { fail $"verify ($c.name): ($found | to nuon), wants ($c.problems) problems" }
+        assert equal ($found | length) $c.problems $"verify ($c.name): ($found | to nuon), wants ($c.problems) problems"
     }
     rm --recursive --force $dir
 }
@@ -80,8 +79,8 @@ def verify-cases []: nothing -> nothing {
 # of their own.
 def network-cases []: nothing -> nothing {
     let lab = vm-homelab [luca-notebook]
-    if $lab.subnets != $HOMELAB.subnets or $lab.dns != $HOMELAB.router { fail $"vm-homelab: ($lab | to nuon)" }
-    if (vm-homelab [vm]).subnets != [] { fail "vm-homelab [vm]: the vm platform names no lab" }
+    assert ($lab.subnets == $HOMELAB.subnets and $lab.dns == $HOMELAB.router) $"vm-homelab: ($lab | to nuon)"
+    assert equal (vm-homelab [vm]).subnets [] "vm-homelab [vm]: the vm platform names no lab"
     let cases = [
         [spec block dns forward ipv4_only];
         [home [] $HOMELAB.router true false]
@@ -98,10 +97,10 @@ def network-cases []: nothing -> nothing {
             ipv4_only: ($inner | str contains " -4 ")
         }
         let want = {block: $c.block, dns: $c.dns, forward: $c.forward, ipv4_only: $c.ipv4_only}
-        if $got != $want { fail $"network ($c.spec): ($got | to nuon), wants ($want | to nuon)" }
-        for b in $c.block { if not ($inner | str contains $"unreachable ($b)") { fail $"network ($c.spec): ($b) not unreachable" } }
-        if ($argv | first 2) != [nice -n] { fail $"network ($c.spec): pasta not at low priority: ($argv | to nuon)" }
-        if ($inner | str contains " -P ") { fail $"network ($c.spec): passt writes a pidfile, it is pid 1 in pasta's namespace" }
+        assert equal $got $want $"network ($c.spec): ($got | to nuon), wants ($want | to nuon)"
+        for b in $c.block { assert ($inner | str contains $"unreachable ($b)") $"network ($c.spec): ($b) not unreachable" }
+        assert equal ($argv | first 2) [nice -n] $"network ($c.spec): pasta not at low priority: ($argv | to nuon)"
+        assert not ($inner | str contains " -P ") $"network ($c.spec): passt writes a pidfile, it is pid 1 in pasta's namespace"
     }
 }
 
@@ -110,12 +109,12 @@ def processes-cases []: nothing -> nothing {
     let name = "vm-test-unit"
     let dir = $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join vm-test $name
     let procs = vm-processes $name
-    if ($procs | get what | sort) != [passt pasta socat] { fail $"vm-processes: ($procs | get what | to nuon)" }
+    assert equal ($procs | get what | sort) [passt pasta socat] $"vm-processes: ($procs | get what | to nuon)"
     for p in $procs {
-        if not ($p.pattern | str contains $dir) { fail $"vm-processes ($p.what): ($p.pattern) is not this vm's" }
-        if $p.pidfile != null and not ($p.pidfile | str starts-with $dir) { fail $"vm-processes ($p.what): ($p.pidfile)" }
+        assert ($p.pattern | str contains $dir) $"vm-processes ($p.what): ($p.pattern) is not this vm's"
+        assert ($p.pidfile == null or ($p.pidfile | str starts-with $dir)) $"vm-processes ($p.what): ($p.pidfile)"
     }
-    if ($procs | where what in [socat pasta] | any { $in.pidfile == null }) { fail "socat and pasta need pidfiles" }
+    assert not ($procs | where what in [socat pasta] | any { $in.pidfile == null }) "socat and pasta need pidfiles"
 }
 
 # A dry run plans every run and writes nothing, not even the vm's cache dir.
@@ -123,8 +122,8 @@ def dry-cases []: nothing -> nothing {
     let name = $"vm-test-dry-(random chars --length 8)"
     let dir = $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join vm-test $name
     let lines = vm-scenario-plan "home,pkg-fail" null null | each { vm-plan-lines $in $name } | flatten
-    if not ($lines | any { str contains "snapshot edits platforms/vm.nuon" }) { fail $"dry run: ($lines | to nuon)" }
-    if ($dir | path exists) { rm --recursive --force $dir; fail $"dry run wrote ($dir)" }
+    assert ($lines | any { str contains "snapshot edits platforms/vm.nuon" }) $"dry run: ($lines | to nuon)"
+    if ($dir | path exists) { rm --recursive --force $dir; error make {msg: $"dry run wrote ($dir)"} }
 }
 
 def main [] {
@@ -145,33 +144,33 @@ def main [] {
     for c in $cases {
         let runs = plan $c.spec $c.platform $c.profile
         if $c.runs == null {
-            if $runs != null { fail $"($c.spec | to nuon): planned, wants a refusal" }
+            assert equal $runs null $"($c.spec | to nuon): planned, wants a refusal"
             continue
         }
-        if $runs == null or ($runs | length) != $c.runs { fail $"($c.spec | to nuon): ($runs | length) runs, wants ($c.runs)" }
+        assert ($runs != null and ($runs | length) == $c.runs) $"($c.spec | to nuon): ($runs | length) runs, wants ($c.runs)"
         let r = $runs.0
         let got = [$r.label $r.platform $r.profile ($r.network.block | is-not-empty) $r.answers.home_network]
         let want = [$c.label $c.run_platform $c.run_profile $c.blocks $c.home_network]
-        if $got != $want { fail $"($c.spec | to nuon): ($got | to nuon), wants ($want | to nuon)" }
+        assert equal $got $want $"($c.spec | to nuon): ($got | to nuon), wants ($want | to nuon)"
     }
     let planted = (vm-scenario-plan "pkg-fail,no-tor" null null).0
     if $planted.stages != {install: failed} or ($planted.failures_allowed | length) != 3 { fail $"pkg-fail,no-tor: ($planted | select stages failures_allowed | to nuon)" }
-    if (vm-scenario-plan home null null).0.stages != {} { fail "home expects stages other than ok" }
+    assert equal (vm-scenario-plan home null null).0.stages {} "home expects stages other than ok"
 
     let read = {|p| let f = $REPO | path join $p; if ($f | path exists) { open --raw $f } else { null } }
     let all = vm-scenario-plan all null null
-    if ($all | where label == home | is-empty) { fail "all has no home run" }
+    assert ($all | where label == home | is-not-empty) "all has no home run"
     for r in $all {
-        let edits = try { vm-snapshot-edits $r $read } catch {|e| fail $"($r.label): ($e.msg)" }
+        let edits = try { vm-snapshot-edits $r $read } catch {|e| error make {msg: $"($r.label): ($e.msg)"} }
         let wanted = ($r.extra_packages | is-not-empty | into int) + ($r.replace | length)
-        if ($edits | length) != $wanted { fail $"($r.label): ($edits | length) edits, wants ($wanted)" }
+        assert equal ($edits | length) $wanted $"($r.label): ($edits | length) edits, wants ($wanted)"
         for e in $edits {
-            if $e.text == (do $read $e.path) { fail $"($r.label): ($e.path) unchanged" }
+            assert not equal $e.text (do $read $e.path) $"($r.label): ($e.path) unchanged"
         }
     }
     verify-cases
     network-cases
     processes-cases
     dry-cases
-    if (open --raw ($REPO | path join scripts lib vm.nu) | str contains "sudo") { fail "vm.nu calls sudo, dot test run runs as the user" }
+    assert not (open --raw ($REPO | path join scripts lib vm.nu) | str contains "sudo") "vm.nu calls sudo, dot test run runs as the user"
 }

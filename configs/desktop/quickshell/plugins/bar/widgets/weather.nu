@@ -411,7 +411,9 @@ def alerts-get []: nothing -> record {
     let lon = $location.lon | into float
 
     let place_cache = cache-path weather-place.json
-    if (cache-load $place_cache $PLACE_MAX_AGE) == null {
+    let cached_place = cache-load $place_cache $PLACE_MAX_AGE
+    # anything but the filtered {address} is a miss, so a full reverse geocode cached before the filter is replaced
+    if ($cached_place | describe -d).type != record or ($cached_place | columns) != [address] {
         let url = {lat: $location.lat, lon: $location.lon} | format pattern $NOMINATIM_URL
         let body = http-fetch $url $PLACE_TIMEOUT [User-Agent $NOMINATIM_USER_AGENT]
         let parsed = if ($body | is-empty) { null } else { try { $body | from json } catch { null } }

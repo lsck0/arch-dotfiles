@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- the root helper's own action, so 49-toggles.rules' kept approval covers only the helper, never another pkexec
+     program; the defaults are pkexec's own for a remote or inactive session -->
+<policyconfig>
+  <action id="@ACTION@">
+    <description>Switch a network or system toggle</description>
+    <message>A toggle wants to change system state as root ($(command_line)). Only expected after you pressed a switch in the bar or the toggle menu.</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">@HELPER@</annotate>
+  </action>
+</policyconfig>

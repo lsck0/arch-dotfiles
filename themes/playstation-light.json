@@ -1,0 +1,27 @@
+{
+  "wallpaper": "alena-aenami-heaven.jpg",
+  "pair": "playstation",
+  "special": {
+    "background": "#e5e7eb",
+    "foreground": "#1b1e25",
+    "cursor": "#2a5cc8"
+  },
+  "colors": {
+    "color0": "#d3d6dc",
+    "color1": "#c8313b",
+    "color2": "#1f7a42",
+    "color3": "#8a6500",
+    "color4": "#2a5cc8",
+    "color5": "#a8348d",
+    "color6": "#14758c",
+    "color7": "#1b1e25",
+    "color8": "#5f6573",
+    "color9": "#c8313b",
+    "color10": "#1f7a42",
+    "color11": "#8a6500",
+    "color12": "#2a5cc8",
+    "color13": "#a8348d",
+    "color14": "#14758c",
+    "color15": "#1b1e25"
+  }
+}

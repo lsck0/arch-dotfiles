@@ -74,7 +74,7 @@ export const options = {
 }
 
 # lutris prefixes first, then ~/sync/games/d2 (a fresh install has no lutris entry)
-export def lod-detect []: nothing -> any {
+def lod-detect []: nothing -> any {
     let games = xdg data lutris games
     let lutris = glob ($games | path join *.yml)
         | each {|f| try { open $f | get --optional game.prefix } catch { null } } | compact
@@ -146,7 +146,7 @@ def vanilla-root []: nothing -> path { xdg data diablo2 }
 def vanilla-prefix []: nothing -> path { vanilla-root | path join prefix }
 
 def vanilla-decls [cfg: record]: nothing -> list<record> {
-    let base = $cfg.base_dir | default (lod-detect)
+    let base = $cfg.base_dir
     if $base == null or not (wine-ready) { return [] }
     let game = vanilla-root | path join "Diablo II"
     let wine = wine-bin | path dirname

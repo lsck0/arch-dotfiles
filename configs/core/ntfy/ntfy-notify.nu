@@ -3,8 +3,8 @@
 
 const REPO = path self | path expand | path dirname | path join .. .. ..
 use ($REPO | path join scripts lib secrets.nu) [secret-is-plaintext]
+use ($REPO | path join scripts lib homelab.nu) [homelab-lab-load]
 
-const LAB_SCHEMA = 1
 const MAX_REPLAY = 1hr
 # keepalive is 45s: under a byte a second over 90s is a dead connection
 const IDLE_S = 90
@@ -24,11 +24,6 @@ const NOTIFICATIONS = [
     --method org.freedesktop.Notifications.CloseNotification
 ]
 
-# The homelab's interface for desktop clients, written by its sync.sh (homelab src/modules/lab-export.nix).
-def lab-json []: nothing -> path {
-    $env.HOMELAB_DIR? | default ($nu.home-dir | path join projects homelab) | path join src generated lab.json
-}
-
 def token-file []: nothing -> path {
     $env.NTFY_TOKEN_FILE? | default ($env.DOTFILES? | default $REPO | path join configs secrets keys ntfy-desktop-token)
 }
@@ -38,8 +33,8 @@ def state-dir []: nothing -> path {
 }
 
 def subscription []: nothing -> any {
-    let lab = try { open (lab-json) } catch { null }
-    if ($lab | describe) !~ '^record' or $lab.schema? != $LAB_SCHEMA or ($lab.ntfy.desktop | is-empty) { return null }
+    let lab = homelab-lab-load
+    if $lab == null or ($lab.ntfy.desktop | is-empty) { return null }
     {server: $lab.ntfy.url, topics: $lab.ntfy.desktop}
 }
 
@@ -165,7 +160,7 @@ def main []: nothing -> nothing {
         }
         let sub = subscription
         if $sub == null {
-            print --stderr $"ntfy-notify: no ntfy topics in (lab-json)"
+            print --stderr "ntfy-notify: no ntfy topics in the homelab's lab.json"
             sleep $NO_TOPICS_WAIT
             continue
         }

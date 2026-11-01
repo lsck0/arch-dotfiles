@@ -2,8 +2,8 @@
 
 const REPO = path self ../..
 use log.nu *
-use cli.nu [concat jobs supervise]
-use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir EXIT_ABORTED EXIT_PENDING xdg]
+use cli.nu [concat jobs supervise root-runner]
+use state.nu [SYSTEM_REPO SYSTEM_STATE LIB_DIR state-dir EXIT_ABORTED EXIT_PENDING xdg]
 use platform.nu [platform-load]
 use profile.nu [profile-has]
 use modules.nu [modules-packages]
@@ -30,9 +30,11 @@ const LFS_FILTER = [
 const FLATPAK_SYSTEM_EXPORTS = "/var/lib/flatpak/exports/share"
 const FLATPAK_USER_EXPORTS = ".local/share/flatpak/exports/share"
 const DATA_DIRS_DEFAULT = "/usr/local/share:/usr/share"
-const SYSTEM_SEED = 'set -e; umask 022; copy=$1; mkdir -p "${copy%/*}"; exec 9>"${copy%/*}/lock"; flock 9; rm -rf "$copy.new"; mkdir -m 700 "$copy.new"; tar -x --no-same-owner --no-same-permissions -C "$copy.new" -f -; printf "%s\n" "$2" > "$copy.new/.source"; [ ! -d "$copy.new/configs/secrets" ] || chmod -R go= "$copy.new/configs/secrets"; chmod 755 "$copy.new"; rm -rf "$copy"; mv "$copy.new" "$copy"'
+# the first root copy, before root has an entry of its own: system-unpack from this checkout, under root's lock
+const SYSTEM_SEED = 'set -e; umask 022; mkdir -p "${1%/*}"; exec flock "${1%/*}/lock" /usr/bin/nu --no-config-file --stdin -I "$2" -c "use system.nu [system-unpack]; \$in | into binary | system-unpack \"$1\" $3"'
 const THEME_STAMP_PATHS = [configs/core/wallust themes 'configs/*/*/mod.nu']
-const THEME_DEFAULT_WALLPAPER = "alena-aenami-sundown.jpg"
+# a fresh install's theme: its wallpaper makes wallpaper.nu apply its palette
+const THEME_DEFAULT = path self ../../themes/shien.json
 
 def summary [results: table]: nothing -> nothing {
     let outcomes = $results | get outcomes | concat
@@ -69,11 +71,12 @@ export def plan-print [planned: table, verb: string, modules: table = [], mods: 
 
 # The user layer's plan; the module evaluations see GOPATH.
 export def --env link-plan [ctx: record, mods: list<string>, force: bool]: nothing -> table {
-    $env.GOPATH = $nu.home-dir | path join .local share go
+    $env.GOPATH = xdg data go
     pipeline-plan $ctx link $mods $force
 }
 
-export def --env link-run [mods: list<string>, force: bool]: nothing -> table {
+# The user layer's run; --user-only names the modules whose system part it leaves out, for a caller that runs none.
+export def --env link-run [mods: list<string>, force: bool, --user-only]: nothing -> table {
     let ctx = pipeline-load $REPO user
     let planned = link-plan $ctx $mods $force
     let full = $mods | is-empty
@@ -103,9 +106,8 @@ export def --env link-run [mods: list<string>, force: bool]: nothing -> table {
         theme-init
     }
     summary ($results ++ $themed)
-    # modules name their user layer only; a system part left out says so instead of looking applied
     let system_left = $ctx.modules | where {|m| $m.id in $mods and "system" in $m.native } | get id
-    if ($system_left | is-not-empty) and $env.DOT_SYSTEM? != "skip" {
+    if $user_only and ($system_left | is-not-empty) and $env.DOT_SYSTEM? != "skip" {
         log-note $"system part not applied: ($system_left | str join ' '); dot apply --system converges it"
     }
     $results ++ $themed
@@ -121,7 +123,7 @@ def theme-init []: nothing -> nothing {
         return
     }
     let link = $cache | path join wallpaper
-    let wallpaper = if ($link | path exists) { ^readlink -f $link | str trim } else { $THEME_DEFAULT_WALLPAPER }
+    let wallpaper = if ($link | path exists) { ^readlink -f $link | str trim } else { open $THEME_DEFAULT | get wallpaper }
     wallpaper-set $wallpaper --sync
     $"($stamp)\n" | save --force ($cache | path join .theme-stamp)
 }
@@ -180,13 +182,18 @@ export def --env pty-log [name: string, args: list<string>]: nothing -> nothing 
     }
 }
 
+# What runs the system layer: the caller's DOTFILES_ROOT_RUNNER, else root-runner's pick, else sudo.
+def system-runner []: nothing -> string {
+    $env.DOTFILES_ROOT_RUNNER? | default (root-runner) | default sudo
+}
+
 def system-run [stage: string, --force, --yes]: nothing -> int {
-    let runner = $env.DOTFILES_ROOT_RUNNER? | default sudo
+    let runner = system-runner
     let head = ^git -C $REPO rev-parse HEAD | str trim
     let entry = $SYSTEM_REPO | path join $ENTRY
     if not ($entry | path exists) {
         if $runner != "sudo" { error make {msg: $"($SYSTEM_REPO) has no ($ENTRY) yet, run dot apply at a terminal once"} }
-        system-pack $REPO | ^sudo sh -c $SYSTEM_SEED sh $SYSTEM_REPO $head
+        system-pack $REPO | ^sudo sh -c $SYSTEM_SEED sh $SYSTEM_REPO $LIB_DIR $head
     }
     let forced = if $force { [--force] } else { [] }
     let asked = if $yes { [--yes] } else { [] }
@@ -230,7 +237,7 @@ def system-failed [stage: string, code: int, since: datetime]: nothing -> nothin
     let lines = if $fresh { open --raw $root | lines | where ($it | str trim) != "" } else { [] }
     for l in $lines { fail (if (failure-is-system $l) { $l } else { $"system layer ($l)" }) }
     if ($lines | is-empty) {
-        let runner = $env.DOTFILES_ROOT_RUNNER? | default sudo
+        let runner = system-runner
         let fix = $"($SYSTEM_FIX) at a terminal; root's run log: ($SYSTEM_STATE | path join runs)"
         fail (failure-line $"system layer ($stage)" null $"($runner) ($ENTRY) exited ($code), root recorded no failure" --fix $fix)
     }
@@ -403,7 +410,8 @@ export def --env install-run [user: bool, yes: bool, offer_by_hand: bool]: nothi
         $env.DOT_SYSTEM_PENDING = true
     }
     if $system {
-        try { ^sudo ($SYSTEM_REPO | path join $ENTRY) packages --unattended=($env.DOTFILES_UNATTENDED? == "1") ...(if $yes { [--yes] } else { [] }) } catch {|e| interrupted-exit ($e.exit_code? | default 1); fail "system layer: removing undeclared packages" }
+        let runner = system-runner
+        try { ^$runner ($SYSTEM_REPO | path join $ENTRY) packages --unattended=($env.DOTFILES_UNATTENDED? == "1") ...(if $yes { [--yes] } else { [] }) } catch {|e| interrupted-exit ($e.exit_code? | default 1); fail "system layer: removing undeclared packages" }
     }
     let failed = failures-take
     if ($failed | is-empty) { rm --force ($REPO | path join $FAILURES_INSTALL); return 0 }
@@ -417,9 +425,7 @@ export def pending-file []: nothing -> path {
 }
 
 export def --env system-part [target: string]: nothing -> nothing {
-    let tty = is-terminal --stdin
-    let graphical = ($env.WAYLAND_DISPLAY? | is-not-empty) or ($env.DISPLAY? | is-not-empty)
-    let runner = if $env.DOT_SYSTEM? == "skip" { null } else if $tty { "sudo" } else if $graphical and (which pkexec | is-not-empty) { "pkexec" } else { null }
+    let runner = if $env.DOT_SYSTEM? == "skip" { null } else { root-runner }
     let ok = $runner != null and (with-env {DOTFILES_ROOT_RUNNER: $runner} { system-run config }) in [0 $EXIT_PENDING]
     if $ok { return }
     $"($target)\n" | save --append (pending-file)
@@ -433,7 +439,8 @@ export def --env update-run [yes: bool]: nothing -> record {
     let install = install-run false $yes false
     if $install == $EXIT_ABORTED { exit $EXIT_ABORTED }
     if (system-allowed) {
-        try { ^sudo ($SYSTEM_REPO | path join $ENTRY) migrate } catch {|e| interrupted-exit ($e.exit_code? | default 1); fail "system layer: migrations" }
+        let runner = system-runner
+        try { ^$runner ($SYSTEM_REPO | path join $ENTRY) migrate } catch {|e| interrupted-exit ($e.exit_code? | default 1); fail "system layer: migrations" }
     } else if (admin) { system-skipped "system migrations" false }
     let results = apply-run true true false
     try { ^nu --no-config-file $INTERNAL update } catch { log-warn "update: a module's update verb failed, see dot log" }

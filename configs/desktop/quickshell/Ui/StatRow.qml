@@ -28,22 +28,20 @@ Item {
     Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
   }
 
-  Text {
+  Label {
     id: labelText
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
     width: Math.min(implicitWidth, parent.width - valueRow.width - Style.spacing.md)
-    textFormat: Text.PlainText
     text: root.label
     color: Colors.menu.text
     elide: Text.ElideRight
-    font.family: Style.font.family
-    font.pixelSize: Style.font.caption
+    caption: true
     font.capitalization: Font.AllUppercase
     font.letterSpacing: Style.labelTracking
   }
 
-  Text {
+  Label {
     clip: true
     anchors.left: labelText.right
     anchors.leftMargin: Style.spacing.xs
@@ -51,11 +49,9 @@ Item {
     anchors.rightMargin: Style.spacing.xs
     anchors.baseline: labelText.baseline
     horizontalAlignment: Text.AlignRight
-    textFormat: Text.PlainText
     text: "\u00b7 ".repeat(120)
     color: Util.alpha(Colors.menu.text, Style.emphasis.disabled)
-    font.family: Style.font.family
-    font.pixelSize: Style.font.caption
+    caption: true
   }
 
   Row {
@@ -64,24 +60,20 @@ Item {
     anchors.verticalCenter: parent.verticalCenter
     spacing: Style.spacing.sm
 
-    Text {
+    Label {
       id: valueText
       width: Math.min(implicitWidth, root.width * root.valueShare)
       elide: root.valueElide
-      textFormat: Text.PlainText
       text: root.value
       color: root.dim ? Colors.textDim : root.valueColor
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
+      caption: true
       font.features: { "tnum": 1 }
     }
-    Text {
+    Label {
       visible: root.note !== ""
-      textFormat: Text.PlainText
       text: root.note
-      color: Colors.textDim
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
+      dim: true
+      caption: true
       font.features: { "tnum": 1 }
     }
   }

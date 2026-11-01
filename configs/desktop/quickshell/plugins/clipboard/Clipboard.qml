@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import QtQuick
 import qs.Commons
 import qs.Ui
@@ -48,11 +49,12 @@ Item {
   property color selectedBackground: Colors.menu.selectedBackground
   property color selectedText: Colors.menu.selectedText
   readonly property int cornerRadius: Style.shape.surface
-  property string fontFamily: Style.font.family
   property int contentMargin: Style.spacing.panelPadding
   property int rowHeight: Style.space(44)
 
   function open() {
+    var focused = Hyprland.focusedMonitor
+    panel.screen = Array.from(Quickshell.screens).find(function (s) { return focused && s.name === focused.name }) || null
     root.gpgReset()
     root.opened = true
     root.filterText = ""
@@ -147,6 +149,12 @@ Item {
 
   function gpgKey(event) {
     if (event.key === Qt.Key_Escape) { root.gpgReset(); return true }
+    if (root.gpgMode === "decrypt") {
+      const step = event.key === Qt.Key_Up ? -Style.row.list : event.key === Qt.Key_Down ? Style.row.list
+        : event.key === Qt.Key_PageUp ? -plainFlick.height : event.key === Qt.Key_PageDown ? plainFlick.height : 0
+      plainFlick.contentY = Math.max(0, Math.min(plainFlick.contentY + step, plainFlick.contentHeight - plainFlick.height))
+      return true
+    }
     if (root.gpgMode !== "encrypt" || root.gpgBusy) return true
     var n = root.gpgKeys.length
     if (event.key === Qt.Key_Up && n > 0) root.gpgKeyIndex = (root.gpgKeyIndex - 1 + n) % n
@@ -195,8 +203,11 @@ Item {
   function addClipboardJson(line) {
     var normalized = ClipboardHistory.parseEntryJson(line)
     if (!normalized) return
+    // the history limit can push an image out
+    const before = root.imagePaths()
     root.history = ClipboardHistory.addEntry(root.history, normalized, root.historyLimit)
     root.saveHistory()
+    for (let i = 0; i < before.length; i++) root.dropImageFile(before[i])
     if (root.opened) root.rebuildDisplay()
   }
 
@@ -535,7 +546,7 @@ Item {
     query: root.filterText
     placeholder: "search clipboard"
     hints: root.gpgMode === "encrypt" ? [["^/v", "key"], ["SPACE", "pick"], ["ENTER", "encrypt"], ["ESC", "back"]]
-      : root.gpgMode === "decrypt" ? [["ESC", "back"]]
+      : root.gpgMode === "decrypt" ? [["^/v", "scroll"], ["ESC", "back"]]
       : [["ENTER", "copy"], ["ALT+ENTER", "open"], ["DEL", "forget"], ["SHIFT+DEL", "clear"], ["CTRL+E", "encrypt"], ["CTRL+D", "decrypt"], ["ESC", "close"]]
     keyboard: !root.gpgBusy
     cardWidth: Style.space(700)
@@ -592,9 +603,8 @@ Item {
           root.selectAbsolute(displayModel.count - 1)
           event.accepted = true
         } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-          if (root.cursorActive && (event.modifiers & Qt.AltModifier)) root.openIndex(root.selectedIndex)
-          else if (root.cursorActive) root.activateIndex(root.selectedIndex)
-          else if (displayModel.count > 0) root.cursorActive = true
+          if (event.modifiers & Qt.AltModifier) root.openIndex(root.selectedIndex)
+          else root.activateIndex(root.selectedIndex)
           event.accepted = true
         } else if (event.key === Qt.Key_Backspace) {
           root.setFilter(root.filterText.slice(0, -1))
@@ -618,7 +628,6 @@ Item {
         scrim: root.scrim
         selectedBackground: root.selectedBackground
         selectedText: root.selectedText
-        fontFamily: root.fontFamily
         cornerRadius: root.cornerRadius
         onCanceled: root.cancelClearHistory()
         onConfirmed: root.confirmClearHistory()
@@ -671,15 +680,12 @@ Item {
                 anchors.bottomMargin: Style.spacing.sm
                 spacing: Style.spacing.md
 
-                Text {
+                Label {
                   id: reticle
                   anchors.verticalCenter: parent.verticalCenter
                   width: Style.space(12)
-                  textFormat: Text.PlainText
                   text: rowDelegate.hasCursor ? ">" : ""
                   color: Colors.accentText
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.body
                   horizontalAlignment: Text.AlignHCenter
                   layer.enabled: rowDelegate.hasCursor && Style.fx.glow > 0
                   layer.effect: Glow {}
@@ -696,15 +702,12 @@ Item {
                   smooth: true
                 }
 
-                Text {
-                  textFormat: Text.PlainText
+                Label {
                   width: parent.width - reticle.width - parent.spacing - (rowDelegate.previewImage.length > 0 ? parent.height + parent.spacing : 0)
                   height: parent.height
                   text: rowDelegate.previewText
                   color: rowDelegate.hasCursor ? root.selectedText
                     : rowDelegate.entryType === "image" || rowDelegate.entryType === "file" ? Colors.textDim : root.foreground
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.body
                   elide: Text.ElideRight
                   wrapMode: Text.NoWrap
                   verticalAlignment: Text.AlignVCenter
@@ -738,22 +741,19 @@ Item {
               Behavior on opacity { NumberAnimation { duration: Style.motion.base; easing.type: Style.motion.fastEasing } }
               width: parent.width * 0.8
 
-              Text {
+              Label {
                 text: "\u{f014c}"
                 color: Colors.accentText
                 opacity: Style.emphasis.dim
-                font.family: Style.font.iconFamily
+                icon: true
                 font.pixelSize: Style.font.displayLarge
                 horizontalAlignment: Text.AlignHCenter
                 width: parent.width
               }
 
-              Text {
-                textFormat: Text.PlainText
+              Label {
                 text: "> NOTHING HERE"
-                color: Colors.textDim
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.body
+                dim: true
                 horizontalAlignment: Text.AlignHCenter
                 width: parent.width
               }
@@ -784,16 +784,13 @@ Item {
             text: root.gpgMode === "encrypt" ? "encrypt to" : root.gpgMode === "decrypt" ? "decrypted" : "preview"
           }
 
-          Text {
-            textFormat: Text.PlainText
+          Label {
             visible: root.gpgMode === "" && parent.activeRow && !parent.activeRow.previewImage
             anchors.fill: parent
             anchors.leftMargin: root.contentMargin
             anchors.topMargin: previewLabel.height + Style.spacing.xs
             text: parent.activeRow ? parent.activeRow.paneText : ""
             color: root.foreground
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.body
             wrapMode: Text.WrapAnywhere
             elide: Text.ElideRight
             verticalAlignment: Text.AlignTop
@@ -819,40 +816,40 @@ Item {
             anchors.topMargin: previewLabel.height + Style.spacing.xs
             spacing: Style.spacing.sm
 
-            Text {
+            Label {
               width: parent.width
               visible: text !== ""
-              textFormat: Text.PlainText
               text: root.gpgBusy ? "> waiting for gpg (pinentry or a key touch may ask)" : root.gpgError
               color: root.gpgBusy ? root.foreground : Colors.urgentText
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.body
               wrapMode: Text.Wrap
             }
 
-            Text {
+            Label {
               width: parent.width
               visible: root.gpgMode === "decrypt" && root.gpgResult !== null
-              textFormat: Text.PlainText
               text: root.gpgResult ? root.signatureLine(root.gpgResult.signature) : ""
               color: root.gpgResult ? root.signatureColor(root.gpgResult.signature) : root.foreground
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.body
               font.bold: true
               wrapMode: Text.Wrap
             }
 
-            Text {
+            Flickable {
+              id: plainFlick
               width: parent.width
               height: parent.height - y
               visible: root.gpgMode === "decrypt" && root.gpgResult !== null
-              textFormat: Text.PlainText
-              text: root.gpgResult ? root.gpgResult.plaintext : ""
-              color: root.foreground
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.body
-              wrapMode: Text.WrapAnywhere
-              elide: Text.ElideRight
+              clip: true
+              contentHeight: plainText.implicitHeight
+              boundsBehavior: Flickable.StopAtBounds
+
+              Label {
+                id: plainText
+                width: plainFlick.width
+                text: root.gpgResult ? root.gpgResult.plaintext : ""
+                color: root.foreground
+                wrapMode: Text.WrapAnywhere
+                onTextChanged: plainFlick.contentY = 0
+              }
             }
 
             ListView {
@@ -877,17 +874,15 @@ Item {
                 radius: Style.shape.data
                 color: hasCursor ? root.selectedBackground : "transparent"
 
-                Text {
+                Label {
                   id: keyText
                   anchors.fill: parent
                   anchors.margins: Style.spacing.sm
-                  textFormat: Text.PlainText
                   text: (keyRow.picked ? "[x] " : "[ ] ") + keyRow.modelData.uid + (keyRow.modelData.own ? "  (own)"
                     : keyRow.modelData.valid ? "" : "  (not certified)")
                     + "\n    " + keyRow.modelData.fpr
                   color: keyRow.hasCursor ? root.selectedText : root.foreground
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.caption
+                  caption: true
                   elide: Text.ElideRight
                 }
 

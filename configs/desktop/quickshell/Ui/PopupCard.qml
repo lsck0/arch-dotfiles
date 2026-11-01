@@ -15,26 +15,25 @@ PopupWindow {
   property int contentHeight: Style.space(200)
   property bool open: false
 
-  readonly property bool docked: bar !== null && (bar.position === "top" || bar.position === "bottom")
+  readonly property bool docked: bar !== null
   readonly property real neckWidth: docked ? Style.shape.neck * 2 : 0
 
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
   readonly property var popupScreen: anchorWindow ? anchorWindow.screen : null
   readonly property real screenW: popupScreen ? popupScreen.width : 0
   readonly property real screenH: popupScreen ? popupScreen.height : 0
-  readonly property real barW: anchorWindow ? anchorWindow.width : 0
   readonly property real barH: anchorWindow ? anchorWindow.height : 0
   readonly property real availableCardWidth: screenW > 0
-    ? Math.max(Style.space(120), screenW - ((bar && (bar.position === "left" || bar.position === "right")) ? barW : 0) - root.margin * 2 - root.neckWidth)
+    ? Math.max(Style.space(120), screenW - root.margin * 2 - root.neckWidth)
     : 0
   readonly property real availableCardHeight: screenH > 0
-    ? Math.max(Style.space(120), screenH - ((bar && (bar.position === "top" || bar.position === "bottom")) ? barH : 0) - root.margin * 2)
+    ? Math.max(Style.space(120), screenH - barH - root.margin * 2)
     : 0
   readonly property real verticalContentInset: (padding + Style.surface.borderWidth) * 2
 
   readonly property real slideDistance: Style.space(14)
   readonly property real revealSlide: !docked ? 0
-    : (root.bar && root.bar.position === "bottom" ? 1 : -1) * (1 - boot.progress) * slideDistance
+    : -(1 - boot.progress) * slideDistance
 
   function fittedContentWidth(width, cap) {
     var desired = Math.max(1, Number(width) || 1)
@@ -83,32 +82,9 @@ PopupWindow {
       var window = target.QsWindow.window
       if (!window) return
       var popupWidth = root.implicitWidth
-      var popupHeight = root.implicitHeight
-      var localX = target.width / 2 - popupWidth / 2
-      var localY = target.height + root.margin
-
-      if (root.bar.position === "bottom") {
-        localY = -popupHeight - root.margin
-      } else if (root.bar.position === "left") {
-        localX = target.width + root.margin
-        localY = target.height / 2 - popupHeight / 2
-      } else if (root.bar.position === "right") {
-        localX = -popupWidth - root.margin
-        localY = target.height / 2 - popupHeight / 2
-      }
-
-      var point = window.contentItem.mapFromItem(target, localX, localY) // qmllint disable missing-property
-      if (root.bar.position === "top") point.y = window.height // qmllint disable missing-property
-      else if (root.bar.position === "bottom") point.y = -popupHeight
-
-      if (root.bar.position === "top" || root.bar.position === "bottom") {
-        point.x = Math.max(root.margin, Math.min(point.x, window.width - popupWidth - root.margin)) // qmllint disable missing-property
-      } else {
-        point.y = Math.max(root.margin, Math.min(point.y, window.height - popupHeight - root.margin)) // qmllint disable missing-property
-      }
-
-      root.anchor.rect.x = Math.round(point.x) // qmllint disable missing-property
-      root.anchor.rect.y = Math.round(point.y) // qmllint disable missing-property
+      var point = window.contentItem.mapFromItem(target, target.width / 2 - popupWidth / 2, 0) // qmllint disable missing-property
+      root.anchor.rect.x = Math.round(Math.max(root.margin, Math.min(point.x, window.width - popupWidth - root.margin))) // qmllint disable missing-property
+      root.anchor.rect.y = window.height // qmllint disable missing-property
     }
   }
 
@@ -118,40 +94,53 @@ PopupWindow {
     span: Math.min(card.width, card.height) / 2
   }
 
-  Item {
-    id: reveal
-    width: parent.width
-    height: Math.round(parent.height * boot.progress)
-    y: root.bar && root.bar.position === "bottom" ? parent.height - height : 0
-    clip: true
-    opacity: boot.progress
-    transform: Translate { y: root.revealSlide }
+  function focusWalk(forward) {
+    var next = (keys.Window.activeFocusItem || keys).nextItemInFocusChain(forward)
+    if (next) next.forceActiveFocus()
+  }
 
-    DockShape {
-      id: card
-      y: -reveal.y
-      width: root.width
-      height: root.height
-      docked: root.docked
-      flipped: root.bar !== null && root.bar.position === "bottom"
-      fillColor: Colors.menu.background
-    }
+  onOpenChanged: if (open) keys.forceActiveFocus()
+
+  // Esc closes, Tab and hjkl walk the focusable rows, like a HoverPanel
+  PanelKeyCatcher {
+    id: keys
+    anchors.fill: parent
+    blocked: !root.open
+    onCloseRequested: root.close()
+    onTabRequested: function(direction) { root.focusWalk(direction > 0) }
+    onMoveRequested: function(dx, dy) { root.focusWalk(dy > 0 || dx > 0) }
 
     Item {
-      id: contentHolder
-      x: card.sideInset + card.strokeWidth + root.padding
-      y: card.y + card.strokeWidth + root.padding
-      width: card.width - x * 2
-      height: card.height - (card.strokeWidth + root.padding) * 2
-      opacity: boot.rowOpacity(1)
-    }
+      id: reveal
+      width: parent.width
+      height: Math.round(parent.height * boot.progress)
+      clip: true
+      opacity: boot.progress
+      transform: Translate { y: root.revealSlide }
 
-    Item {
-      x: card.sideInset
-      y: card.y
-      width: card.width - card.sideInset * 2
-      height: card.height
-      HudFrame { inset: boot.bracketInset; chamfer: card.cut; chamferCorner: card.cutCorner }
+      DockShape {
+        id: card
+        width: root.width
+        height: root.height
+        docked: root.docked
+        fillColor: Colors.menu.background
+      }
+
+      Item {
+        id: contentHolder
+        x: card.sideInset + card.strokeWidth + root.padding
+        y: card.strokeWidth + root.padding
+        width: card.width - x * 2
+        height: card.height - (card.strokeWidth + root.padding) * 2
+        opacity: boot.rowOpacity(1)
+      }
+
+      Item {
+        x: card.sideInset
+        width: card.width - card.sideInset * 2
+        height: card.height
+        HudFrame { inset: boot.bracketInset; chamfer: card.cut; chamferCorner: card.cutCorner }
+      }
     }
   }
 }

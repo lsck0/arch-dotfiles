@@ -1,14 +1,14 @@
 [Unit]
-Description=Portmaster bypass for loopback, pentest vpns, the pentest group and system vms, owns table inet portmaster_bypass
+Description=Portmaster bypass for loopback, pentest vpns, the pentest group, system vms and vmnet's DoT to quad9, owns table inet portmaster_bypass
 Before=portmaster.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/sbin/nft -f /etc/nftables.d/portmaster-bypass.nft
-ExecStartPost=-/bin/sh -c 'for g in pentest libvirt-qemu; do gid=$$(getent group $$g | cut -d: -f3) && /usr/sbin/nft add element inet portmaster_bypass gids "{ $$gid }"; done; [ ! -s /run/home-network ] || /usr/sbin/nft add element inet portmaster_bypass home_ifaces "{ $$(paste -sd, /run/home-network) }"; [ ! -r /etc/NetworkManager/homelab.env ] || { . /etc/NetworkManager/homelab.env && /usr/sbin/nft add element inet portmaster_bypass lab_dns "{ $$HOMELAB_DNS }"; }; true'
+ExecStartPost=-/bin/sh -c 'for g in pentest libvirt-qemu; do gid=$$(getent group $$g | cut -d: -f3) && /usr/sbin/nft add element inet portmaster_bypass gids "{ $$gid }"; done; gid=$$(getent group vmnet | cut -d: -f3) && /usr/sbin/nft add element inet portmaster_bypass vmnet_gids "{ $$gid }"; [ ! -s /run/home-network ] || /usr/sbin/nft add element inet portmaster_bypass home_ifaces "{ $$(paste -sd, /run/home-network) }"; [ ! -r /etc/NetworkManager/homelab.env ] || { . /etc/NetworkManager/homelab.env && /usr/sbin/nft add element inet portmaster_bypass lab_dns "{ $$HOMELAB_DNS }"; }; true'
 ExecReload=/usr/sbin/nft -f /etc/nftables.d/portmaster-bypass.nft
-ExecReload=-/bin/sh -c 'for g in pentest libvirt-qemu; do gid=$$(getent group $$g | cut -d: -f3) && /usr/sbin/nft add element inet portmaster_bypass gids "{ $$gid }"; done; [ ! -s /run/home-network ] || /usr/sbin/nft add element inet portmaster_bypass home_ifaces "{ $$(paste -sd, /run/home-network) }"; [ ! -r /etc/NetworkManager/homelab.env ] || { . /etc/NetworkManager/homelab.env && /usr/sbin/nft add element inet portmaster_bypass lab_dns "{ $$HOMELAB_DNS }"; }; true'
+ExecReload=-/bin/sh -c 'for g in pentest libvirt-qemu; do gid=$$(getent group $$g | cut -d: -f3) && /usr/sbin/nft add element inet portmaster_bypass gids "{ $$gid }"; done; gid=$$(getent group vmnet | cut -d: -f3) && /usr/sbin/nft add element inet portmaster_bypass vmnet_gids "{ $$gid }"; [ ! -s /run/home-network ] || /usr/sbin/nft add element inet portmaster_bypass home_ifaces "{ $$(paste -sd, /run/home-network) }"; [ ! -r /etc/NetworkManager/homelab.env ] || { . /etc/NetworkManager/homelab.env && /usr/sbin/nft add element inet portmaster_bypass lab_dns "{ $$HOMELAB_DNS }"; }; true'
 ExecStop=/usr/sbin/nft destroy table inet portmaster_bypass
 
 [Install]

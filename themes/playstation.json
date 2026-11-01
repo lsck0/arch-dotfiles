@@ -1,0 +1,27 @@
+{
+  "wallpaper": "alena-aenami-northern-lights.jpg",
+  "pair": "playstation-light",
+  "special": {
+    "background": "#1c1f26",
+    "foreground": "#e9ecf3",
+    "cursor": "#6f9dff"
+  },
+  "colors": {
+    "color0": "#15171c",
+    "color1": "#f2646e",
+    "color2": "#5fd47e",
+    "color3": "#e8c25e",
+    "color4": "#6f9dff",
+    "color5": "#e07ac8",
+    "color6": "#5fc9e2",
+    "color7": "#c9cdd6",
+    "color8": "#6e7587",
+    "color9": "#ff7f88",
+    "color10": "#7ee39a",
+    "color11": "#f2d47e",
+    "color12": "#8fb4ff",
+    "color13": "#ec97d7",
+    "color14": "#80d8ec",
+    "color15": "#e9ecf3"
+  }
+}

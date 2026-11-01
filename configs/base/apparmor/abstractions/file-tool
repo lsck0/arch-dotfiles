@@ -31,6 +31,14 @@
   deny @{user_share_dirs}/nvim/mason/{,*} w,
   deny @{user_share_dirs}/nvim/mason/{[^s]*,s,s[^t]*,st,st[^a]*,sta,sta[^g]*,stag,stag[^i]*,stagi,stagi[^n]*,stagin,stagin[^g]*,staging?*}/** w,
   deny @{HOME}/.claude/{,**} w,
+  # claude code starts the mcp servers and hooks these name, unconfined and without asking
+  deny @{HOME}/.claude.json{,.backup*} w,
+  deny @{user_projects_dirs}/**/.claude/{,**} w,
+  deny @{user_projects_dirs}/**/.mcp.json w,
+  # ~/.nix-profile/bin is on PATH ahead of /usr/bin; vscode-oss runs its extensions
+  deny @{HOME}/.nix-profile w,
+  deny @{user_state_dirs}/nix/{,**} w,
+  deny @{user_share_dirs}/vscode-oss/{,**} w,
   deny @{HOME}/projects/arch-dotfiles/{,**} w,
   deny @{user_projects_dirs}/*/.identity/{,**} w,
   # git runs hooks and config's core.* commands; ** reaches nested repos and .git/modules/* of submodules

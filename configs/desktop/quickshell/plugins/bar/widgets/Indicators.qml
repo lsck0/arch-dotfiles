@@ -1,6 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Layouts
+import qs.Commons
 import qs.Ui
 
 BarWidget {
@@ -8,16 +8,12 @@ BarWidget {
   moduleName: "indicators"
   barPriority: 60
 
-  implicitWidth: vertical ? barSize : row.implicitWidth
-  implicitHeight: vertical ? row.implicitHeight : barSize
+  implicitWidth: row.implicitWidth
+  implicitHeight: Style.bar.sizeHorizontal
 
-  GridLayout {
+  Row {
     id: row
     anchors.centerIn: parent
-    rows: root.vertical ? -1 : 1
-    columns: root.vertical ? 1 : -1
-    rowSpacing: 0
-    columnSpacing: 0
 
     Repeater {
       model: ["StayAwake.qml"]

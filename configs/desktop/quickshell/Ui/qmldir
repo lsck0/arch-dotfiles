@@ -13,6 +13,7 @@ ConfirmDialog 1.0 ConfirmDialog.qml
 DataState 1.0 DataState.qml
 DockShape 1.0 DockShape.qml
 FadeMask 1.0 FadeMask.qml
+FadeRamp 1.0 FadeRamp.qml
 Glitch 1.0 Glitch.qml
 Glow 1.0 Glow.qml
 Heatmap 1.0 Heatmap.qml
@@ -21,6 +22,8 @@ HoverPanel 1.0 HoverPanel.qml
 HudFrame 1.0 HudFrame.qml
 HudTitle 1.0 HudTitle.qml
 KeyHints 1.0 KeyHints.qml
+Label 1.0 Label.qml
+MetricRow 1.0 MetricRow.qml
 OpticalGlyph 1.0 OpticalGlyph.qml
 OverlayCard 1.0 OverlayCard.qml
 PanelKeyCatcher 1.0 PanelKeyCatcher.qml
@@ -33,7 +36,6 @@ PopupCard 1.0 PopupCard.qml
 PowerModeSelector 1.0 PowerModeSelector.qml
 Scanlines 1.0 Scanlines.qml
 ScreenMoveRemap 1.0 ScreenMoveRemap.qml
-SectionHead 1.0 SectionHead.qml
 Slider 1.0 Slider.qml
 Sparkline 1.0 Sparkline.qml
 SpeedTestOverlay 1.0 SpeedTestOverlay.qml

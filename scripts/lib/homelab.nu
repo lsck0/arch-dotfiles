@@ -23,6 +23,12 @@ export def homelab-lab-path []: nothing -> any {
     if ($lab | path exists) { $lab }
 }
 
+# The checkout's lab.json, null when there is none or its schema is not the one this repo reads.
+export def homelab-lab-load []: nothing -> any {
+    let lab = try { open (homelab-lab-path) } catch { null }
+    if ($lab | describe) =~ '^record' and $lab.schema? == $LAB_SCHEMA { $lab }
+}
+
 # A subnet on an octet boundary as an ssh or shell case glob: 10.100.0.0/24 -> 10.100.0.*
 export def homelab-subnet-glob [subnet: string]: nothing -> string {
     let parsed = $subnet | parse --regex $CIDR4 | first

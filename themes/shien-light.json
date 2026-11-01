@@ -1,0 +1,27 @@
+{
+  "wallpaper": "alena-aenami-dreamer.jpg",
+  "pair": "shien",
+  "special": {
+    "background": "#efeef1",
+    "foreground": "#15131b",
+    "cursor": "#5d507c"
+  },
+  "colors": {
+    "color0": "#dedce3",
+    "color1": "#a34560",
+    "color2": "#3f6b62",
+    "color3": "#7a5d14",
+    "color4": "#5d507c",
+    "color5": "#6e5a99",
+    "color6": "#336b75",
+    "color7": "#15131b",
+    "color8": "#6a6480",
+    "color9": "#a34560",
+    "color10": "#3f6b62",
+    "color11": "#7a5d14",
+    "color12": "#5d507c",
+    "color13": "#6e5a99",
+    "color14": "#336b75",
+    "color15": "#15131b"
+  }
+}

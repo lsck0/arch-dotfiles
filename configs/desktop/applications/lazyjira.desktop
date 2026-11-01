@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=lazyjira
-Comment=Jira issues
-TryExec=lazyjira
-Exec=lazyjira
-Icon=korg-todo
-Terminal=true
-Categories=Development;ProjectManagement;ConsoleOnly;

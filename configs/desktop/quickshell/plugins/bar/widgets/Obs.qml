@@ -6,663 +6,572 @@ import qs.Commons
 import qs.Ui
 
 BarWidget {
-    id: root
+  id: root
+  property bool connected: false
+  property string errorText: ""
+  property bool streaming: false
+  property bool streamReconnecting: false
+  property bool recording: false
+  property bool recordPaused: false
+  property int streamSeconds: 0
+  property int recordSeconds: 0
+  property real streamBytes: 0
+  property real recordBytes: 0
+  property real congestion: 0
+  property int droppedFrames: 0
+  property real dropPct: 0
+  property real fps: 0
+  property real cpu: 0
+  property real memMb: 0
+  property real freeDiskMb: 0
+  property real frameTimeMs: 0
+  property int renderSkipped: 0
+  property int renderTotal: 0
+  property int encoderSkipped: 0
+  property int encoderTotal: 0
+  property string scene: ""
+  property var scenes: []
+  property var mutes: ({})
+  property real prevStreamBytes: -1
+  property real prevRecordBytes: -1
+  property real prevSampleMs: 0
+  property real bitrateKbps: 0
+  property real recordKbps: 0
+  readonly property real diskSecondsLeft: recordKbps > 0 ? (freeDiskMb * 1024 * 8) / recordKbps : 0
+  readonly property bool active: streaming || recording
+  property var bitrateHist: []
+  property var dropHist: []
+  readonly property color stateColor: (degraded || faulted) ? Colors.semantic.warn : (streaming ? Colors.semantic.live : (recording ? Colors.semantic.recording : Colors.muted))
+  // stateColor is a stroke colour at 3:1; labels take its text form
+  readonly property color stateText: Colors.textFor(stateColor)
+  readonly property real actionFillAlphaMax: Style.actionHotFillAlpha + Style.actionDangerFillAlpha
+  // the state tokens conditioned for text: stat values on the panel, and action labels on their own tint
+  readonly property color liveText: Colors.textFor(Colors.semantic.live)
+  readonly property color liveActionText: Colors.textOnFill(Colors.semantic.live, Util.alpha(Colors.semantic.live, actionFillAlphaMax))
+  readonly property color recordingActionText: Colors.textOnFill(Colors.semantic.recording, Util.alpha(Colors.semantic.recording, actionFillAlphaMax))
+  readonly property bool degraded: streamReconnecting || dropPct >= 1 || congestion >= 0.3
+  readonly property bool faulted: obsSeen && !connected && errorText !== ""
+  readonly property bool obsSeen: ObsProcess.running
 
-    property bool connected: false
-    property string errorText: ""
-    property bool streaming: false
-    property bool streamReconnecting: false
-    property bool recording: false
-    property bool recordPaused: false
-    property int streamSeconds: 0
-    property int recordSeconds: 0
-    property real streamBytes: 0
-    property real recordBytes: 0
-    property real congestion: 0
-    property int droppedFrames: 0
-    property real dropPct: 0
-    property real fps: 0
-    property real cpu: 0
-    property real memMb: 0
-    property real freeDiskMb: 0
-    property real frameTimeMs: 0
-    property int renderSkipped: 0
-    property int renderTotal: 0
-    property int encoderSkipped: 0
-    property int encoderTotal: 0
-    property string scene: ""
-    property var scenes: []
-    property var mutes: ({
-    })
-    property real prevStreamBytes: -1
-    property real prevRecordBytes: -1
-    property real prevSampleMs: 0
-    property real bitrateKbps: 0
-    property real recordKbps: 0
-    readonly property real diskSecondsLeft: recordKbps > 0 ? (freeDiskMb * 1024 * 8) / recordKbps : 0
-    readonly property bool active: streaming || recording
-    property var bitrateHist: []
-    property var dropHist: []
-    readonly property color stateColor: (degraded || faulted) ? Colors.semantic.warn : (streaming ? Colors.semantic.live : (recording ? Colors.semantic.recording : Colors.muted))
-    // the state tokens conditioned for text: stat values on the panel, and action labels on their own tint
-    // (0.28 at most)
-    readonly property real actionFillAlphaMax: 0.28
-    readonly property color liveText: Colors.textFor(Colors.semantic.live)
-    readonly property color recordingText: Colors.textFor(Colors.semantic.recording)
-    readonly property color liveActionText: Colors.textOnFill(Colors.semantic.live, Util.alpha(Colors.semantic.live, actionFillAlphaMax))
-    readonly property color recordingActionText: Colors.textOnFill(Colors.semantic.recording, Util.alpha(Colors.semantic.recording, actionFillAlphaMax))
-    readonly property bool degraded: streamReconnecting || dropPct >= 1 || congestion >= 0.3
-    readonly property bool faulted: obsSeen && !connected && errorText !== ""
-    readonly property bool obsSeen: ObsProcess.running
+  // the timers keep a padded minute (05:03), so the pill does not widen at 10:00
+  function clock(seconds) {
+    var c = Util.clock(seconds)
+    return c.length === 4 ? "0" + c : c
+  }
 
-    // the timers keep a padded minute (05:03), so the pill does not widen at 10:00
-    function clock(seconds) {
-        var c = Util.clock(seconds);
-        return c.length === 4 ? "0" + c : c;
+  function gb(mb) {
+    var v = Number(mb) || 0
+    return v >= 1024 ? (v / 1024).toFixed(1) + " GB" : Math.round(v) + " MB"
+  }
+
+  function bytesText(bytes) {
+    var v = Number(bytes) || 0
+    if (v >= 1.07374e+09) return (v / 1.07374e+09).toFixed(2) + " GB"
+    if (v >= 1.04858e+06) return (v / 1.04858e+06).toFixed(0) + " MB"
+    return Math.round(v / 1024) + " KB"
+  }
+
+  function clearSession() {
+    streaming = false
+    streamReconnecting = false
+    recording = false
+    recordPaused = false
+    bitrateKbps = 0
+    recordKbps = 0
+    prevStreamBytes = -1
+    prevRecordBytes = -1
+    prevSampleMs = 0
+    scene = ""
+    scenes = []
+    mutes = ({})
+    ObsProcess.connected = false
+    ObsProcess.inputVolumes = ({})
+    ObsProcess.inputMutes = ({})
+  }
+
+  function apply(payload) {
+    connected = payload.connected === true
+    errorText = String(payload.error || "")
+    if (!connected) {
+      clearSession()
+      return
+    }
+    if (!ObsProcess.connected) Quickshell.execDetached([ObsProcess.listenScript, "reconcile"])
+    ObsProcess.connected = true
+    streaming = payload.streaming === true
+    streamReconnecting = payload.streamReconnecting === true
+    recording = payload.recording === true
+    recordPaused = payload.recordPaused === true
+    streamSeconds = Number(payload.streamSeconds) || 0
+    recordSeconds = Number(payload.recordSeconds) || 0
+    recordBytes = Number(payload.recordBytes) || 0
+    congestion = Number(payload.congestion) || 0
+    droppedFrames = Number(payload.droppedFrames) || 0
+    dropPct = Number(payload.dropPct) || 0
+    fps = Number(payload.fps) || 0
+    cpu = Number(payload.cpu) || 0
+    memMb = Number(payload.memMb) || 0
+    freeDiskMb = Number(payload.freeDiskMb) || 0
+    frameTimeMs = Number(payload.frameTimeMs) || 0
+    renderSkipped = Number(payload.renderSkipped) || 0
+    renderTotal = Number(payload.renderTotal) || 0
+    encoderSkipped = Number(payload.encoderSkipped) || 0
+    encoderTotal = Number(payload.encoderTotal) || 0
+    scene = String(payload.scene || "")
+    if (Array.isArray(payload.scenes)) scenes = payload.scenes
+    if (payload.mutes && typeof payload.mutes === "object") mutes = payload.mutes
+    ObsProcess.inputMutes = mutes
+    ObsProcess.inputVolumes = (payload.volumes && typeof payload.volumes === "object") ? payload.volumes : ({})
+    var sBytes = Number(payload.streamBytes) || 0
+    var rBytes = Number(payload.recordBytes) || 0
+    var nowMs = Date.now()
+    var deltaS = prevSampleMs > 0 ? (nowMs - prevSampleMs) / 1000 : 0
+    function rate(now, prev) {
+      if (prev < 0 || now < prev || deltaS <= 0.2) return -1
+      return Math.max(0, (now - prev) * 8 / 1000 / deltaS)
+    }
+    if (streaming) {
+      let sRate = rate(sBytes, prevStreamBytes)
+      if (sRate >= 0) bitrateKbps = sRate
+    } else {
+      bitrateKbps = 0
+    }
+    if (recording && !recordPaused) {
+      let rRate = rate(rBytes, prevRecordBytes)
+      if (rRate >= 0) recordKbps = rRate
+    } else if (!recording) {
+      recordKbps = 0
+    }
+    streamBytes = sBytes
+    prevStreamBytes = sBytes
+    prevRecordBytes = rBytes
+    prevSampleMs = nowMs
+    bitrateHist = Util.historyPush(bitrateHist, streaming ? bitrateKbps : (recording ? recordKbps : 0))
+    dropHist = Util.historyPush(dropHist, dropPct)
+  }
+
+  function send(command) {
+    if (!statusProc.running) return
+    statusProc.write(JSON.stringify(command) + "\n")
+  }
+
+  moduleName: "obs"
+  barPriority: 35
+
+  hoverPanel: true
+
+  hoverFill: true
+  visible: connected || faulted
+  implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
+  implicitHeight: Style.bar.sizeHorizontal
+  onObsSeenChanged: {
+    if (!obsSeen) {
+      connected = false
+      errorText = ""
+      clearSession()
+    }
+  }
+
+  Connections {
+    function onCommandRequested(command) {
+      root.send(command)
     }
 
-    function gb(mb) {
-        var v = Number(mb) || 0;
-        return v >= 1024 ? (v / 1024).toFixed(1) + " GB" : Math.round(v) + " MB";
+    target: ObsProcess
+  }
+
+  Timer {
+    id: statusRestart
+    interval: 2000
+    onTriggered: statusProc.running = Qt.binding(() => root.obsSeen)
+  }
+
+  Process {
+    id: statusProc
+    running: root.obsSeen
+    onRunningChanged: if (!running && root.obsSeen) statusRestart.restart()
+    stdinEnabled: true
+    command: [Paths.barWidget("obs-status.nu")]
+
+    stdout: SplitParser {
+      splitMarker: "\n"
+      onRead: function(line) {
+        if (!line) return
+        try {
+          root.apply(JSON.parse(line))
+        } catch (e) {}
+      }
     }
 
-    function bytesText(bytes) {
-        var v = Number(bytes) || 0;
-        if (v >= 1.07374e+09)
-            return (v / 1.07374e+09).toFixed(2) + " GB";
+    stderr: SplitParser {
+      splitMarker: "\n"
+      onRead: function(line) {
+        if (line) console.warn(line)
+      }
+    }
+  }
 
-        if (v >= 1.04858e+06)
-            return (v / 1.04858e+06).toFixed(0) + " MB";
+  Row {
+    id: trigger
+    anchors.centerIn: parent
+    spacing: Style.spacing.xs
 
-        return Math.round(v / 1024) + " KB";
+    Rectangle {
+      anchors.verticalCenter: parent.verticalCenter
+      width: Style.space(8)
+      height: width
+      radius: Style.shape.data
+      color: root.stateColor
+      layer.enabled: Style.fx.glow > 0 && root.active
+
+      layer.effect: Glow {
+        shadowColor: root.stateColor
+      }
     }
 
-    function clearSession() {
-        streaming = false;
-        streamReconnecting = false;
-        recording = false;
-        recordPaused = false;
-        bitrateKbps = 0;
-        recordKbps = 0;
-        prevStreamBytes = -1;
-        prevRecordBytes = -1;
-        prevSampleMs = 0;
-        scene = "";
-        scenes = [];
-        mutes = ({
-        });
-        ObsProcess.connected = false;
-        ObsProcess.inputVolumes = ({
-        });
-        ObsProcess.inputMutes = ({
-        });
+    Label {
+      anchors.verticalCenter: parent.verticalCenter
+      text: {
+        if (root.faulted) return "OBS !"
+        if (root.streamReconnecting) return "RECONNECTING"
+        if (root.streaming && root.recording) return "LIVE+REC"
+        if (root.streaming) return "LIVE"
+        if (root.recording) return root.recordPaused ? "REC PAUSED" : "REC"
+        return "OBS"
+      }
+      color: root.active || root.faulted ? root.stateText : Colors.textDim
+      caption: true
+      font.bold: root.active
+      layer.enabled: Style.fx.glow > 0 && root.active
+
+      layer.effect: Glow {
+        shadowColor: root.stateColor
+      }
     }
 
-    function apply(payload) {
-        connected = payload.connected === true;
-        errorText = String(payload.error || "");
-        if (!connected) {
-            clearSession();
-            return ;
-        }
-        if (!ObsProcess.connected)
-            Quickshell.execDetached([ObsProcess.listenScript, "reconcile"]);
-
-        ObsProcess.connected = true;
-        streaming = payload.streaming === true;
-        streamReconnecting = payload.streamReconnecting === true;
-        recording = payload.recording === true;
-        recordPaused = payload.recordPaused === true;
-        streamSeconds = Number(payload.streamSeconds) || 0;
-        recordSeconds = Number(payload.recordSeconds) || 0;
-        recordBytes = Number(payload.recordBytes) || 0;
-        congestion = Number(payload.congestion) || 0;
-        droppedFrames = Number(payload.droppedFrames) || 0;
-        dropPct = Number(payload.dropPct) || 0;
-        fps = Number(payload.fps) || 0;
-        cpu = Number(payload.cpu) || 0;
-        memMb = Number(payload.memMb) || 0;
-        freeDiskMb = Number(payload.freeDiskMb) || 0;
-        frameTimeMs = Number(payload.frameTimeMs) || 0;
-        renderSkipped = Number(payload.renderSkipped) || 0;
-        renderTotal = Number(payload.renderTotal) || 0;
-        encoderSkipped = Number(payload.encoderSkipped) || 0;
-        encoderTotal = Number(payload.encoderTotal) || 0;
-        scene = String(payload.scene || "");
-        if (Array.isArray(payload.scenes))
-            scenes = payload.scenes;
-
-        if (payload.mutes && typeof payload.mutes === "object")
-            mutes = payload.mutes;
-
-        ObsProcess.inputMutes = mutes;
-        ObsProcess.inputVolumes = (payload.volumes && typeof payload.volumes === "object") ? payload.volumes : ({
-        });
-        var sBytes = Number(payload.streamBytes) || 0;
-        var rBytes = Number(payload.recordBytes) || 0;
-        var nowMs = Date.now();
-        var deltaS = prevSampleMs > 0 ? (nowMs - prevSampleMs) / 1000 : 0;
-        function rate(now, prev) {
-            if (prev < 0 || now < prev || deltaS <= 0.2)
-                return -1;
-
-            return Math.max(0, (now - prev) * 8 / 1000 / deltaS);
-        }
-        if (streaming) {
-            let sRate = rate(sBytes, prevStreamBytes);
-            if (sRate >= 0)
-                bitrateKbps = sRate;
-
-        } else {
-            bitrateKbps = 0;
-        }
-        if (recording && !recordPaused) {
-            let rRate = rate(rBytes, prevRecordBytes);
-            if (rRate >= 0)
-                recordKbps = rRate;
-
-        } else if (!recording) {
-            recordKbps = 0;
-        }
-        streamBytes = sBytes;
-        prevStreamBytes = sBytes;
-        prevRecordBytes = rBytes;
-        prevSampleMs = nowMs;
-        bitrateHist = Util.historyPush(bitrateHist, streaming ? bitrateKbps : (recording ? recordKbps : 0));
-        dropHist = Util.historyPush(dropHist, dropPct);
+    Label {
+      anchors.verticalCenter: parent.verticalCenter
+      visible: root.active
+      text: root.clock(root.streaming ? root.streamSeconds : root.recordSeconds)
+      dim: true
+      caption: true
     }
+  }
 
-    function send(command) {
-        if (!statusProc.running)
-            return ;
+  HoverPanel {
+    anchorWidget: root
+    title: "OBS"
+    implicitWidth: Style.panelWidth.normal
 
-        statusProc.write(JSON.stringify(command) + "\n");
-    }
+    Column {
+      id: content
+      width: parent.width
+      spacing: Style.spacing.sm
 
-    moduleName: "obs"
-    barPriority: 35
+      Item {
+        width: parent.width
+        visible: root.connected
+        implicitHeight: Math.max(obsHero.implicitHeight, obsMeta.implicitHeight)
+        height: implicitHeight
 
-    hoverPanel: true
-
-    hoverFill: true
-    visible: connected || faulted
-    implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
-    implicitHeight: barSize
-    onObsSeenChanged: {
-        if (!obsSeen) {
-            connected = false;
-            errorText = "";
-            clearSession();
+        Hero {
+          id: obsHero
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          value: String(root.streaming ? Math.round(root.bitrateKbps) : (root.recording ? Math.round(root.recordKbps) : root.fps.toFixed(0)))
+          unit: root.active ? "kbps" : "fps"
+          color: root.active ? root.stateColor : Colors.accent
+          live: true
         }
-    }
-
-    Connections {
-        function onCommandRequested(command) {
-            root.send(command);
-        }
-
-        target: ObsProcess
-    }
-
-    Timer {
-        id: statusRestart
-
-        interval: 2000
-        onTriggered: statusProc.running = Qt.binding(() => root.obsSeen)
-    }
-
-    Process {
-        id: statusProc
-
-        running: root.obsSeen
-        onRunningChanged: if (!running && root.obsSeen) statusRestart.restart()
-        stdinEnabled: true
-        command: [Paths.barWidget("obs-status.nu")]
-
-        stdout: SplitParser {
-            splitMarker: "\n"
-            onRead: function(line) {
-                if (!line)
-                    return ;
-
-                try {
-                    root.apply(JSON.parse(line));
-                } catch (e) {
-                }
-            }
-        }
-
-        stderr: SplitParser {
-            splitMarker: "\n"
-            onRead: function(line) {
-                if (line)
-                    console.warn(line);
-
-            }
-        }
-
-    }
-
-    Row {
-        id: trigger
-
-        anchors.centerIn: parent
-        spacing: Style.spacing.xs
-
-        Rectangle {
-            anchors.verticalCenter: parent.verticalCenter
-            width: Style.space(8)
-            height: width
-            radius: Style.shape.data
-            color: root.stateColor
-            layer.enabled: Style.fx.glow > 0 && root.active
-
-            layer.effect: Glow {
-                shadowColor: root.stateColor
-            }
-
-        }
-
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            textFormat: Text.PlainText
-            text: {
-                if (root.faulted)
-                    return "OBS !";
-
-                if (root.streamReconnecting)
-                    return "RECONNECTING";
-
-                if (root.streaming && root.recording)
-                    return "LIVE+REC";
-
-                if (root.streaming)
-                    return "LIVE";
-
-                if (root.recording)
-                    return root.recordPaused ? "REC PAUSED" : "REC";
-
-                return "OBS";
-            }
-            color: root.active || root.faulted ? root.stateColor : Colors.textDim
-            font.family: root.bar ? root.bar.fontFamily : Style.font.family
-            font.pixelSize: Style.font.bodySmall
-            font.bold: root.active
-            layer.enabled: Style.fx.glow > 0 && root.active
-
-            layer.effect: Glow {
-                shadowColor: root.stateColor
-            }
-
-        }
-
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            textFormat: Text.PlainText
-            visible: root.active
-            text: root.clock(root.streaming ? root.streamSeconds : root.recordSeconds)
-            color: Colors.textDim
-            font.family: root.bar ? root.bar.fontFamily : Style.font.family
-            font.pixelSize: Style.font.bodySmall
-        }
-
-    }
-
-    HoverPanel {
-        anchorWidget: root
-        title: "OBS"
-        implicitWidth: Style.panelWidth.normal
 
         Column {
-            id: content
+          id: obsMeta
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          width: parent.width * 0.5
+          spacing: Style.spacing.xxs
 
+          Label {
             width: parent.width
-            spacing: Style.spacing.sm
+            horizontalAlignment: Text.AlignRight
+            text: root.streamReconnecting ? "RECONNECTING" : (root.streaming && root.recording ? "LIVE + REC" : (root.streaming ? "LIVE" : (root.recording ? (root.recordPaused ? "REC PAUSED" : "REC") : "IDLE")))
+            color: root.active ? root.stateText : Colors.textDim
+            caption: true
+            font.bold: true
+            font.capitalization: Font.AllUppercase
+            font.letterSpacing: Style.labelTracking
+          }
 
-            Item {
-                width: parent.width
-                visible: root.connected
-                implicitHeight: Math.max(obsHero.implicitHeight, obsMeta.implicitHeight)
-                height: implicitHeight
+          Label {
+            width: parent.width
+            horizontalAlignment: Text.AlignRight
+            visible: root.active
+            text: root.clock(root.streaming ? root.streamSeconds : root.recordSeconds)
+            dim: true
+            caption: true
+            font.letterSpacing: Style.displayTracking
+          }
+        }
+      }
 
-                Hero {
-                    id: obsHero
+      Sparkline {
+        width: parent.width
+        height: Style.space(34)
+        visible: root.connected && root.bitrateHist.length > 1
+        values: root.bitrateHist
+        minValue: 0
+        maxValue: 0
+        color: root.active ? root.stateColor : Colors.accent
+      }
 
-                    anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    value: String(root.streaming ? Math.round(root.bitrateKbps) : (root.recording ? Math.round(root.recordKbps) : root.fps.toFixed(0)))
-                    unit: root.active ? "kbps" : "fps"
-                    color: root.active ? root.stateColor : Colors.accent
-                    live: true
-                }
+      Rectangle {
+        width: parent.width
+        height: faultText.implicitHeight + Style.spacing.xs * 2
+        radius: Style.shape.data
+        visible: root.errorText !== ""
+        color: Util.alpha(Colors.semantic.warn, Style.tintFillAlpha)
 
-                Column {
-                    id: obsMeta
+        Label {
+          id: faultText
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.leftMargin: Style.spacing.sm
+          anchors.rightMargin: Style.spacing.sm
+          anchors.verticalCenter: parent.verticalCenter
+          wrapMode: Text.Wrap
+          text: root.errorText
+          color: Colors.textOnFill(Colors.warn, Util.alpha(Colors.semantic.warn, Style.tintFillAlpha))
+          caption: true
+        }
+      }
 
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width * 0.5
-                    spacing: Style.spacing.xxs
+      Row {
+        width: parent.width
+        spacing: Style.spacing.xs
+        visible: root.connected
 
-                    Text {
-                        width: parent.width
-                        horizontalAlignment: Text.AlignRight
-                        text: root.streamReconnecting ? "RECONNECTING" : (root.streaming && root.recording ? "LIVE + REC" : (root.streaming ? "LIVE" : (root.recording ? (root.recordPaused ? "REC PAUSED" : "REC") : "IDLE")))
-                        color: root.active ? root.stateColor : Colors.textDim
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.caption
-                        font.bold: true
-                        font.capitalization: Font.AllUppercase
-                        font.letterSpacing: Style.labelTracking
-                    }
-
-                    Text {
-                        width: parent.width
-                        horizontalAlignment: Text.AlignRight
-                        visible: root.active
-                        text: root.clock(root.streaming ? root.streamSeconds : root.recordSeconds)
-                        color: Colors.textDim
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.caption
-                        font.letterSpacing: Style.displayTracking
-                    }
-
-                }
-
-            }
-
-            Sparkline {
-                width: parent.width
-                height: Style.space(34)
-                visible: root.connected && root.bitrateHist.length > 1
-                values: root.bitrateHist
-                minValue: 0
-                maxValue: 0
-                color: root.active ? root.stateColor : Colors.accent
-            }
-
-            Rectangle {
-                width: parent.width
-                height: faultText.implicitHeight + Style.spacing.xs * 2
-                radius: Style.shape.data
-                visible: root.errorText !== ""
-                color: Util.alpha(Colors.semantic.warn, Style.tintFillAlpha)
-
-                Text {
-                    id: faultText
-
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.leftMargin: Style.spacing.sm
-                    anchors.rightMargin: Style.spacing.sm
-                    anchors.verticalCenter: parent.verticalCenter
-                    wrapMode: Text.Wrap
-                    textFormat: Text.PlainText
-                    text: root.errorText
-                    color: Colors.textOnFill(Colors.warn, Util.alpha(Colors.semantic.warn, Style.tintFillAlpha))
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
-                }
-
-            }
-
-            Row {
-                width: parent.width
-                spacing: Style.spacing.xs
-                visible: root.connected
-
-                Button {
-                    variant: "action"
-                    width: (parent.width - Style.spacing.xs * 2) / 3
-                    iconText: root.streaming ? "\u{f1721}" : "\u{f1720}" // md-broadcast_off / md-broadcast
-                    text: root.streaming ? "Stop" : "Go live"
-                    foreground: root.streaming ? root.liveActionText : Colors.menu.text
-                    danger: root.streaming
-                    onClicked: root.send({
-                        "cmd": "toggleStream"
-                    })
-                }
-
-                Button {
-                    variant: "action"
-                    width: (parent.width - Style.spacing.xs * 2) / 3
-                    iconText: root.recording ? "\u{f04db}" : "\u{f044a}" // md-stop / md-record
-                    text: root.recording ? "Stop rec" : "Record"
-                    foreground: root.recording ? root.liveActionText : Colors.menu.text
-                    danger: root.recording
-                    onClicked: root.send({
-                        "cmd": "toggleRecord"
-                    })
-                }
-
-                Button {
-                    variant: "action"
-                    width: (parent.width - Style.spacing.xs * 2) / 3
-                    enabled: root.recording
-                    iconText: root.recordPaused ? "\u{f040a}" : "\u{f03e4}" // md-play / md-pause
-                    text: root.recordPaused ? "Resume" : "Pause"
-                    foreground: root.recordPaused ? root.recordingActionText : Colors.menu.text
-                    onClicked: {
-                        if (root.recording) {
-                            root.send({
-                            "cmd": "toggleRecordPause"
-                        });
-                        }
-                    }
-                }
-
-            }
-
-            PanelSeparator {
-                visible: root.connected
-            }
-
-            PanelSectionHeader {
-                text: "SCENES"
-                visible: root.connected
-            }
-
-            Flow {
-                width: parent.width
-                spacing: Style.spacing.xs
-                visible: root.connected
-
-                Repeater {
-                    model: root.scenes
-
-                    delegate: Button {
-                        variant: "chip"
-                        focusable: true
-                        required property string modelData
-
-                        text: modelData
-                        selected: modelData === root.scene
-                        onClicked: {
-                            if (!selected) {
-                                root.send({
-                                "cmd": "setScene",
-                                "scene": modelData
-                            });
-                            }
-                        }
-                    }
-
-                }
-
-            }
-
-            Text {
-                width: parent.width
-                visible: root.connected && root.scenes.length === 0
-                text: "No scenes reported"
-                color: Colors.textDim
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
-            }
-
-            PanelSeparator {
-            }
-
-            PanelSectionHeader {
-                text: "STATUS"
-            }
-
-            StatRow {
-                label: "Scene"
-                value: root.scene || "--"
-                dim: root.scene === ""
-            }
-
-            StatRow {
-                label: "Output FPS"
-                value: root.fps.toFixed(1)
-            }
-
-            StatRow {
-                label: "Frame render"
-                value: root.frameTimeMs.toFixed(2) + " ms"
-            }
-
-            StatRow {
-                label: "OBS CPU"
-                value: root.cpu.toFixed(1) + "%"
-            }
-
-            StatRow {
-                label: "OBS memory"
-                value: root.gb(root.memMb)
-            }
-
-            PanelSeparator {
-            }
-
-            PanelSectionHeader {
-                text: "STREAM"
-            }
-
-            StatRow {
-                label: "State"
-                value: root.streamReconnecting ? "Reconnecting" : (root.streaming ? "Live" : "Stopped")
-                valueColor: root.streamReconnecting ? Colors.warnText : (root.streaming ? root.liveText : Colors.menu.text)
-                dim: !root.streaming && !root.streamReconnecting
-            }
-
-            StatRow {
-                visible: root.streaming
-                label: "Elapsed"
-                value: root.clock(root.streamSeconds)
-            }
-
-            StatRow {
-                visible: root.streaming
-                label: "Bitrate"
-                value: Math.round(root.bitrateKbps) + " kbps"
-            }
-
-            StatRow {
-                visible: root.streaming
-                label: "Sent"
-                value: root.bytesText(root.streamBytes)
-            }
-
-            StatRow {
-                visible: root.streaming
-                label: "Dropped frames"
-                value: root.droppedFrames + "  (" + root.dropPct.toFixed(2) + "%)"
-                valueColor: root.dropPct >= 1 ? Colors.warnText : Colors.menu.text
-            }
-
-            StatRow {
-                visible: root.streaming
-                label: "Congestion"
-                value: Math.round(root.congestion * 100) + "%"
-                valueColor: root.congestion >= 0.3 ? Colors.warnText : Colors.menu.text
-            }
-
-            BarGauge {
-                width: parent.width
-                height: Style.spacing.sm
-                visible: root.streaming
-                segments: 24
-                value: Math.max(0, Math.min(1, root.congestion))
-                color: root.congestion >= 0.3 ? Colors.semantic.warn : Colors.accent
-            }
-
-            Sparkline {
-                width: parent.width
-                height: Style.space(28)
-                visible: root.streaming && root.dropHist.length > 1
-                values: root.dropHist
-                minValue: 0
-                maxValue: 0
-                color: Colors.semantic.warn
-            }
-
-            PanelSeparator {
-            }
-
-            PanelSectionHeader {
-                text: "RECORDING"
-            }
-
-            StatRow {
-                label: "State"
-                value: root.recordPaused ? "Paused" : (root.recording ? "Recording" : "Stopped")
-                valueColor: root.recording ? root.recordingText : Colors.menu.text
-                dim: !root.recording
-            }
-
-            StatRow {
-                visible: root.recording
-                label: "Elapsed"
-                value: root.clock(root.recordSeconds)
-            }
-
-            StatRow {
-                visible: root.recording
-                label: "Bitrate"
-                value: Math.round(root.recordKbps) + " kbps"
-            }
-
-            StatRow {
-                visible: root.recording
-                label: "Written"
-                value: root.bytesText(root.recordBytes)
-            }
-
-            StatRow {
-                label: "Disk free"
-                value: root.gb(root.freeDiskMb)
-            }
-
-            StatRow {
-                visible: root.recording && root.diskSecondsLeft > 0
-                label: "Disk headroom"
-                value: root.clock(root.diskSecondsLeft) + " at this rate"
-                valueColor: root.diskSecondsLeft < 600 ? root.liveText : (root.diskSecondsLeft < 3600 ? Colors.warnText : Colors.menu.text)
-            }
-
-            PanelSeparator {
-            }
-
-            PanelSectionHeader {
-                text: "SKIPPED FRAMES"
-            }
-
-            StatRow {
-                label: "Rendering"
-                value: root.renderSkipped + " / " + root.renderTotal
-                valueColor: root.renderTotal > 0 && root.renderSkipped / root.renderTotal >= 0.01 ? Colors.warnText : Colors.menu.text
-            }
-
-            StatRow {
-                label: "Encoding"
-                value: root.encoderSkipped + " / " + root.encoderTotal
-                valueColor: root.encoderTotal > 0 && root.encoderSkipped / root.encoderTotal >= 0.01 ? Colors.warnText : Colors.menu.text
-            }
-
+        Button {
+          focusable: true
+          variant: "action"
+          width: (parent.width - Style.spacing.xs * 2) / 3
+          iconText: root.streaming ? "\u{f1721}" : "\u{f1720}" // md-broadcast_off / md-broadcast
+          text: root.streaming ? "Stop" : "Go live"
+          foreground: root.streaming ? root.liveActionText : Colors.menu.text
+          danger: root.streaming
+          onClicked: root.send({
+            "cmd": "toggleStream"
+          })
         }
 
-    }
+        Button {
+          focusable: true
+          variant: "action"
+          width: (parent.width - Style.spacing.xs * 2) / 3
+          iconText: root.recording ? "\u{f04db}" : "\u{f044a}" // md-stop / md-record
+          text: root.recording ? "Stop rec" : "Record"
+          foreground: root.recording ? root.liveActionText : Colors.menu.text
+          danger: root.recording
+          onClicked: root.send({
+            "cmd": "toggleRecord"
+          })
+        }
 
+        Button {
+          focusable: true
+          variant: "action"
+          width: (parent.width - Style.spacing.xs * 2) / 3
+          enabled: root.recording
+          iconText: root.recordPaused ? "\u{f040a}" : "\u{f03e4}" // md-play / md-pause
+          text: root.recordPaused ? "Resume" : "Pause"
+          foreground: root.recordPaused ? root.recordingActionText : Colors.menu.text
+          onClicked: {
+            if (root.recording) {
+              root.send({
+              "cmd": "toggleRecordPause"
+            })
+            }
+          }
+        }
+      }
+
+      PanelSeparator {
+        visible: root.connected
+      }
+
+      PanelSectionHeader {
+        text: "SCENES"
+        visible: root.connected
+      }
+
+      Flow {
+        width: parent.width
+        spacing: Style.spacing.xs
+        visible: root.connected
+
+        Repeater {
+          model: root.scenes
+
+          delegate: Button {
+            variant: "chip"
+            focusable: true
+            required property string modelData
+
+            text: modelData
+            selected: modelData === root.scene
+            onClicked: {
+              if (!selected) {
+                root.send({
+                "cmd": "setScene",
+                "scene": modelData
+              })
+              }
+            }
+          }
+        }
+      }
+
+      Label {
+        width: parent.width
+        visible: root.connected && root.scenes.length === 0
+        text: "No scenes reported"
+        dim: true
+        caption: true
+      }
+
+      PanelSeparator {
+        visible: root.connected
+      }
+
+      PanelSectionHeader {
+        text: "STATUS"
+        visible: root.connected
+      }
+
+      StatRow {
+        visible: root.connected && root.active
+        label: "Output FPS"
+        value: root.fps.toFixed(1)
+      }
+
+      StatRow {
+        visible: root.connected
+        label: "Frame render"
+        value: root.frameTimeMs.toFixed(2) + " ms"
+      }
+
+      StatRow {
+        visible: root.connected
+        label: "OBS CPU"
+        value: root.cpu.toFixed(1) + "%"
+      }
+
+      StatRow {
+        visible: root.connected
+        label: "OBS memory"
+        value: root.gb(root.memMb)
+      }
+
+      PanelSeparator {
+        visible: root.streaming
+      }
+
+      PanelSectionHeader {
+        text: "STREAM"
+        visible: root.streaming
+      }
+
+      StatRow {
+        visible: root.streaming
+        label: "Sent"
+        value: root.bytesText(root.streamBytes)
+      }
+
+      StatRow {
+        visible: root.streaming
+        label: "Dropped frames"
+        value: root.droppedFrames + "  (" + root.dropPct.toFixed(2) + "%)"
+        valueColor: root.dropPct >= 1 ? Colors.warnText : Colors.menu.text
+      }
+
+      StatRow {
+        visible: root.streaming
+        label: "Congestion"
+        value: Math.round(root.congestion * 100) + "%"
+        valueColor: root.congestion >= 0.3 ? Colors.warnText : Colors.menu.text
+      }
+
+      Sparkline {
+        width: parent.width
+        height: Style.space(28)
+        visible: root.streaming && root.dropHist.length > 1
+        values: root.dropHist
+        minValue: 0
+        maxValue: 0
+        color: Colors.semantic.warn
+      }
+
+      PanelSeparator {
+        visible: root.connected
+      }
+
+      PanelSectionHeader {
+        text: "RECORDING"
+        visible: root.connected
+      }
+
+      StatRow {
+        visible: root.streaming && root.recording
+        label: "Elapsed"
+        value: root.clock(root.recordSeconds)
+      }
+
+      StatRow {
+        visible: root.streaming && root.recording
+        label: "Bitrate"
+        value: Math.round(root.recordKbps) + " kbps"
+      }
+
+      StatRow {
+        visible: root.recording
+        label: "Written"
+        value: root.bytesText(root.recordBytes)
+      }
+
+      StatRow {
+        visible: root.connected
+        label: "Disk free"
+        value: root.gb(root.freeDiskMb)
+      }
+
+      StatRow {
+        visible: root.recording && root.diskSecondsLeft > 0
+        label: "Disk headroom"
+        value: root.clock(root.diskSecondsLeft) + " at this rate"
+        valueColor: root.diskSecondsLeft < 600 ? root.liveText : (root.diskSecondsLeft < 3600 ? Colors.warnText : Colors.menu.text)
+      }
+
+      PanelSeparator {
+        visible: root.connected
+      }
+
+      PanelSectionHeader {
+        text: "SKIPPED FRAMES"
+        visible: root.connected
+      }
+
+      StatRow {
+        visible: root.connected
+        label: "Rendering"
+        value: root.renderSkipped + " / " + root.renderTotal
+        valueColor: root.renderTotal > 0 && root.renderSkipped / root.renderTotal >= 0.01 ? Colors.warnText : Colors.menu.text
+      }
+
+      StatRow {
+        visible: root.connected
+        label: "Encoding"
+        value: root.encoderSkipped + " / " + root.encoderTotal
+        valueColor: root.encoderTotal > 0 && root.encoderSkipped / root.encoderTotal >= 0.01 ? Colors.warnText : Colors.menu.text
+      }
+    }
+  }
 }

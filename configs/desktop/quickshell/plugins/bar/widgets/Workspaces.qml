@@ -37,7 +37,8 @@ BarWidget {
     return Hyprland.focusedWorkspace !== null ? Hyprland.focusedWorkspace.id : -1
   }
 
-  readonly property var workspaceIds: {
+  // a string, so window churn that leaves the id list as it was does not rebuild the cells
+  readonly property string workspaceKey: {
     var ids = []
     var values = Hyprland.workspaces.values
     var monitorActiveId = root.activeWorkspaceId
@@ -51,14 +52,15 @@ BarWidget {
     }
 
     ids.sort(function(left, right) { return left - right })
-    return ids
+    return ids.join(" ")
   }
+  readonly property var workspaceIds: workspaceKey === "" ? [] : workspaceKey.split(" ").map(Number)
 
   function focusWorkspace(id) {
     Hyprland.dispatch("hl.dsp.focus({ workspace = \"" + id + "\" })")
   }
 
-  readonly property real trailingGap: root.vertical ? 0 : Style.spaceReal(1.5)
+  readonly property real trailingGap: Style.spaceReal(1.5)
 
   implicitWidth: grid.implicitWidth + trailingGap
   implicitHeight: grid.implicitHeight
@@ -125,13 +127,11 @@ BarWidget {
     layer.effect: Glow {}
   }
 
-  GridLayout {
+  RowLayout {
     id: grid
     anchors.fill: parent
     anchors.rightMargin: root.trailingGap
-    columns: root.vertical ? 1 : root.workspaceIds.length
-    columnSpacing: root.vertical ? 0 : Style.space(1)
-    rowSpacing: root.vertical ? Style.space(2) : 0
+    spacing: Style.space(1)
 
     Repeater {
       model: root.workspaceIds
@@ -162,11 +162,9 @@ BarWidget {
           active: cell.focused
           activeColor: Colors.textOnFill(Colors.accent, Style.selectedFill)
           foreground: cell.urgent ? Colors.urgentText
-            : cell.occupied ? (root.bar ? root.bar.barForeground : Colors.foreground) : Colors.textDim
-          horizontalMargin: Style.spacing.xs
-          verticalPadding: Style.spacing.xs
-          fixedWidth: root.vertical ? root.barSize : Style.space(20)
-          fixedHeight: root.barSize
+            : cell.occupied ? Colors.bar.text : Colors.textDim
+          hoverFill: !cell.focused
+          fixedWidth: Style.space(20)
           onPressed: function() { root.focusWorkspace(cell.modelData) }
         }
 

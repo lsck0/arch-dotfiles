@@ -18,7 +18,8 @@ export const options = {
     search_method: {
         type: string
         default: "GET"
-        doc: "GET or POST for the startpage's search form; most engines, the homelab's searxng too, take GET; POST works only in qutebrowser"
+        choices: [GET POST]
+        doc: "The startpage's search form method; most engines, the homelab's searxng too, take GET; POST works only in qutebrowser"
         label: "Search method"
         scope: user
     }

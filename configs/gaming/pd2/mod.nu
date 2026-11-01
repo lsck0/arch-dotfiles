@@ -1,5 +1,5 @@
 use module.nu *
-use ../d2launcher/mod.nu [lod-detect save-path-set wine-bin z-path]
+use ../d2launcher/mod.nu [save-path-set wine-bin z-path]
 # re-exported: the save-path step runs in this module
 export use ../d2launcher/mod.nu [save-path]
 
@@ -64,7 +64,7 @@ def prefix-init [s: record, wine: path]: nothing -> record {
 }
 
 export def link [cfg: record] {
-    let base = $cfg.deps?."gaming/d2launcher"?.base_dir? | default (lod-detect)
+    let base = $cfg.deps?."gaming/d2launcher"?.base_dir?
     if $base == null or not (wine-bin | path exists) { return [] }
     let wine = wine-bin | path dirname
     (s14 $cfg $base $wine) ++ (s3 $cfg $base $wine) | decls-flatten

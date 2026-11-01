@@ -1,0 +1,27 @@
+{
+  "wallpaper": "alena-aenami-northwind.jpg",
+  "pair": "atuel-light",
+  "special": {
+    "background": "#0a1126",
+    "foreground": "#e1e7f5",
+    "cursor": "#99b7f2"
+  },
+  "colors": {
+    "color0": "#060b1a",
+    "color1": "#e6808a",
+    "color2": "#9ec4aa",
+    "color3": "#e6c88a",
+    "color4": "#99b7f2",
+    "color5": "#c49ae6",
+    "color6": "#8ad0e0",
+    "color7": "#e1e7f5",
+    "color8": "#6a7aa8",
+    "color9": "#f09aa3",
+    "color10": "#b5d6bf",
+    "color11": "#f0d6a3",
+    "color12": "#b8cdf7",
+    "color13": "#d6b8f0",
+    "color14": "#a8dde9",
+    "color15": "#f0f4fb"
+  }
+}

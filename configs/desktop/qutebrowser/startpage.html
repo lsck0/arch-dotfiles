@@ -217,7 +217,7 @@
           if (url) { e.preventDefault(); go(url); return; }
           if (!e.shiftKey && shown.length > 0) { e.preventDefault(); go(shown[sel].it.a.href); return; }
           // a GET search navigates like a link; firefox drops a native submit from file://, so only POST falls through
-          if (METHOD.toUpperCase() !== "POST") { e.preventDefault(); go(SEARCH.replace("{}", encodeURIComponent(text.trim()))); }
+          if (METHOD !== "POST") { e.preventDefault(); go(SEARCH.replace("{}", encodeURIComponent(text.trim()))); }
           return;
         }
         if (document.activeElement !== q && !e.ctrlKey && !e.altKey && !e.metaKey && e.key.length === 1) q.focus();

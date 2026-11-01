@@ -30,7 +30,7 @@ export def state-dir []: nothing -> path {
     if (is-admin) or ($env.DOT_LAYER? == "system") {
         $SYSTEM_STATE
     } else {
-        $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state) | path join dotfiles
+        xdg state dotfiles
     }
 }
 

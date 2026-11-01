@@ -88,13 +88,6 @@ $env.config = {
 
 $env.config.buffer_editor = "nvim"
 
-# a tool's aliases and defs are its module's, dropped into the autoload dir (shell-aliases)
-alias cp = cp -v
-alias downgrade = sudo-at-terminal downgrade
-alias ldocker = sudo-at-terminal lazydocker
-alias mkdir = mkdir -v
-alias mv = mv -v
-
 const AGENT_MARKERS = [CLAUDECODE AI_AGENT GEMINI_CLI COPILOT_CLI_BINARY_VERSION]
 
 # Root for this shell's defs and aliases, only at a person's terminal: an agent (its marker variable) or a process
@@ -119,6 +112,14 @@ def --wrapped pacman [...rest] {
     let unprivileged = ($ops =~ '[QTVh]') or ($ops =~ 'F' and $ops !~ 'y') or ($ops =~ 'S' and $ops =~ '[siglp]' and $ops !~ '[yucw]')
     if $unprivileged { ^pacman ...$rest } else { sudo-at-terminal pacman ...$rest }
 }
+
+# a tool's aliases and defs are its module's, dropped into the autoload dir (shell-aliases); an alias
+# resolves its command where it is declared, so these follow the defs they call
+alias cp = cp -v
+alias downgrade = sudo-at-terminal downgrade
+alias ldocker = sudo-at-terminal lazydocker
+alias mkdir = mkdir -v
+alias mv = mv -v
 
 const STARSHIP_INIT = $nu.cache-dir | path join starship.nu
 const ZOXIDE_INIT = $nu.cache-dir | path join zoxide.nu

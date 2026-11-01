@@ -22,9 +22,8 @@ def same-file [a: path, b: path]: nothing -> bool {
     ($a | path exists) and ($b | path exists) and (open --raw $a | hash sha256) == (open --raw $b | hash sha256)
 }
 
-def claude-steps [dir: path]: nothing -> list<record> {
+def claude-steps [dir: path, probe: path]: nothing -> list<record> {
     # the marketplace is the fetched checkout: before the fetch landed these wait instead of failing
-    let fetched = $dir | path join $PROBE
     let plugins = $nu.home-dir | path join .claude plugins
     let installed = json-or ($plugins | path join installed_plugins.json) {} | get --optional plugins."caveman@caveman"
         | default [] | any { $in.gitCommitSha? == $COMMIT }
@@ -33,8 +32,8 @@ def claude-steps [dir: path]: nothing -> list<record> {
     let stale = $market != null and $market.installLocation? != $dir
     let add = $market.installLocation? != $dir
     (if $stale { [(exec "caveman marketplace drop" [...$CLAUDE plugin marketplace remove caveman])] } else { [] })
-    | append (if $add { [(exec "caveman marketplace" [...$CLAUDE plugin marketplace add $dir] --requires $fetched)] } else { [] })
-    | append (exec "caveman claude plugin" [...$CLAUDE plugin install caveman@caveman] --requires $fetched)
+    | append (if $add { [(exec "caveman marketplace" [...$CLAUDE plugin marketplace add $dir] --requires $probe)] } else { [] })
+    | append (exec "caveman claude plugin" [...$CLAUDE plugin install caveman@caveman] --requires $probe)
 }
 
 def gemini-steps []: nothing -> list<record> {
@@ -52,13 +51,14 @@ export def link [cfg: record] {
     let copilot = $nu.home-dir | path join .agents skills caveman SKILL.md
     [
         (fetch-git $URL $COMMIT $dir)
-        (if (has claude) { claude-steps $dir } else { [] })
+        (if (has claude) { claude-steps $dir $probe } else { [] })
         (if (has gemini) { gemini-steps } else { [] })
         (if (has node) and (has hermes) and not (same-file $probe $hermes) {
             [(exec "caveman hermes" [node ($dir | path join bin install.js) --only hermes --non-interactive] --requires $probe)]
         } else { [] })
         (if (has copilot) and (has npx) and not (same-file $probe $copilot) {
-            [(exec "caveman copilot" [npx -y $SKILLS_CLI add $dir --skill "*" -a github-copilot -g --yes] --network)]
+            [(exec "caveman copilot" [npx -y $SKILLS_CLI add $dir --skill "*" -a github-copilot -g --yes]
+                --network --requires $probe)]
         } else { [] })
     ]
 }

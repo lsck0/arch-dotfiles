@@ -17,16 +17,16 @@ QtObject {
   property int gapsOut: 5
 
   component FxTokens: QtObject {
-    readonly property real glow: Power.saver ? 0 : Theme.glowStrength
+    readonly property real glow: Power.saver ? 0 : Theme.values.glowStrength
     readonly property color glowColor: Colors.accent
     readonly property int glowRadius: Math.max(2, Math.round(4 * root.scale))
-    readonly property real scanlineOpacity: Power.saver ? 0 : Theme.scanlineOpacity
-    readonly property int scanlineSpacing: Math.max(2, Theme.scanlineSpacing)
-    readonly property bool brackets: Theme.cornerBrackets
+    readonly property real scanlineOpacity: Power.saver ? 0 : Theme.values.scanlineOpacity
+    readonly property int scanlineSpacing: Math.max(2, Theme.values.scanlineSpacing)
+    readonly property bool brackets: Theme.values.cornerBrackets
     readonly property int bracketLen: root.space(7)
     readonly property int bracketWidth: Math.max(1, Math.round(1.5 * root.scale))
-    readonly property real flicker: Power.saver ? 0 : Theme.crtFlicker
-    readonly property real matrixRain: Power.saver ? 0 : Theme.matrixRain
+    readonly property real flicker: Power.saver ? 0 : Theme.values.crtFlicker
+    readonly property real matrixRain: Power.saver ? 0 : Theme.values.matrixRain
   }
   readonly property FxTokens fx: FxTokens {}
 
@@ -37,6 +37,9 @@ QtObject {
   readonly property real focusFillAlpha: 0.14
   readonly property real selectionFillAlpha: 0.35
   readonly property real tintFillAlpha: 0.16
+  readonly property real actionFillAlpha: 0.10
+  readonly property real actionHotFillAlpha: 0.20
+  readonly property real actionDangerFillAlpha: 0.08
 
   readonly property real normalBorderAlpha: 0.45
   readonly property real hoverBorderAlpha: 0.70
@@ -140,11 +143,10 @@ QtObject {
     // light fills go nearly opaque: a dark wallpaper through them eats the dark text
     readonly property real barLight: 0.94
     readonly property real panelLight: 0.96
-    readonly property real panelDark: 0.94
     readonly property bool light: Palette.isLight([Colors.background.r, Colors.background.g, Colors.background.b],
-      Theme.lightLuminance)
+      Theme.values.lightLuminance)
     readonly property real bar: Power.saver ? saver : light ? barLight : Palette.OPACITY_BAR
-    readonly property real panel: Power.saver ? saver : light ? panelLight : panelDark
+    readonly property real panel: Power.saver ? saver : light ? panelLight : Palette.OPACITY_PANEL
     readonly property real overlay: Power.saver ? saver : 0.92
     readonly property real scrim: 0.55
   }

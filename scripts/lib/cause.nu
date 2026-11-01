@@ -2,10 +2,18 @@
 # a cause: the command line, its exit code or that it is not installed and the package bringing it, the last stderr
 # lines, where it ran. HINTS names the fix of each known failure class; FAILURES lines render, parse and group from it.
 
-use commands.nu [COMMANDS_FILE commands-map-load OWNER_BASE OWNER_NONE]
-
 const REPO = path self ../..
 const STDERR_LINES = 3
+# usrmerge: every bin dir is /usr/bin, which is where the files database lists them
+const PACKAGE_BIN_DIR = "usr/bin/"
+# by path: the command missing may be missing because PATH is bare
+const PACMAN = "/usr/bin/pacman"
+const PACMAN_SYNC_DIR = "/var/lib/pacman/sync"
+const FILES_DB_GLOB = "*.files"
+const OWNER_NONE = "-"
+const PACKAGE_UNKNOWN = "no package known"
+# pacman-filesdb-refresh.timer (base/pacman) downloads it; until then pacman -F finds nothing
+export const FILES_DB_MISSING = "files db missing"
 const COMMAND_WIDTH_MAX = 100
 const GROUP_SUBJECTS_SHOWN = 6
 const GROUP_DETAILS_SHOWN = 6
@@ -50,7 +58,7 @@ export const HINTS = [
     [apparmor '(?i)apparmor="?denied' "apparmor denials" "" "journalctl -k -b -g 'apparmor=\"DENIED\"', then l-dotfiles-apparmor-profile"]
     [unit '(?i)job for (\S+) failed.*--user' "units failing to start" "<unit>" "journalctl --user -u <1> -b"]
     [unit '(?i)job for (\S+) failed|failed to start (\S+?):' "units failing to start" "<unit>" "journalctl -u <1> -b"]
-    [root '(?i)permission denied|operation not permitted|must be run as root|run as root|a password is required|a terminal is required|incorrect password attempt|interactive authentication required' "needs root" "" $SYSTEM_FIX]
+    [root r#'(?i)'?/(?:etc|usr|var|boot|opt|srv|root|run(?!/user/)|sys|proc)/[^\s:']*'?: (?:permission denied|operation not permitted)|I/O error: permission denied|must be run as root|run as root|a password is required|a terminal is required|incorrect password attempt|interactive authentication required'# "needs root" "" $SYSTEM_FIX]
 ]
 
 def repo-relative [file: string]: nothing -> string {
@@ -101,11 +109,23 @@ def rendered-parse [colored: string]: nothing -> record {
     }
 }
 
-# The package that brings a command, from the commands map; null when the map knows none.
-export def command-package [name: string]: nothing -> any {
-    let keys = [$name $"/usr/bin/($name | path basename)" ($name | path basename)]
-    let row = commands-map-load ($REPO | path join $COMMANDS_FILE) | transpose cmd row | where cmd in $keys | get --optional 0.row
-    if $row == null or $row.owner in [$OWNER_BASE $OWNER_NONE] { null } else { $row.owner }
+# The repo package that brings a command, asked of pacman's files database once per run (the run's owners file keeps
+# each answer, none as OWNER_NONE); null when no package has it, FILES_DB_MISSING (never kept) when the sync dir holds
+# no files database to ask.
+export def command-package [name: string, --sync-dir: path = $PACMAN_SYNC_DIR]: nothing -> any {
+    if (glob ($sync_dir | path join $FILES_DB_GLOB) | is-empty) { return $FILES_DB_MISSING }
+    let command = $name | path basename
+    let run = $env.DOT_RUN_FILE? | default ""
+    let cache = if ($run | str ends-with ".jsonl") { $run | str replace --regex '\.jsonl$' ".owners" } else { "" }
+    let cached = if $cache != "" and ($cache | path exists) {
+        open --raw $cache | lines | parse "{command} {package}" | where command == $command | get --optional 0.package
+    }
+    let package = if $cached != null { $cached } else {
+        let found = try { ^$PACMAN -Fq $"($PACKAGE_BIN_DIR)($command)" | complete } catch { {stdout: ""} }
+        $found.stdout | lines | get --optional 0 | default $OWNER_NONE | split row "/" | last
+    }
+    if $cache != "" and $cached == null { $"($command) ($package)\n" | save --append $cache }
+    if $package == $OWNER_NONE { null } else { $package }
 }
 
 def cause-make [message: string, command: any, name: any, exit_code: any, stderr: list<string>, at: any]: nothing -> record {
@@ -163,7 +183,7 @@ export def cause-text [cause: record]: nothing -> string {
     let where = if $cause.at == null { "" } else { $" \(at ($cause.at)\)" }
     let stderr = if ($cause.stderr | is-empty) { "" } else { $": ($cause.stderr | str join ' / ')" }
     let text = if $cause.missing {
-        $"($cause.name) not installed \(($cause.package | default 'no package known')\)"
+        $"($cause.name) not installed \(($cause.package | default $PACKAGE_UNKNOWN)\)"
     } else if $cause.exit_code != null and $cause.command != null {
         $"`($cause.command | command-short)` exited ($cause.exit_code)($stderr)"
     } else {

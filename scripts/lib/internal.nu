@@ -8,7 +8,7 @@ use ($LIB | path join cli.nu) [concat jobs guarded]
 use ($LIB | path join complete.nu) [command-table complete-run completions-run module-ids]
 use ($LIB | path join platform.nu) [platform-env]
 use ($LIB | path join options.nu) [options-events-file]
-use ($LIB | path join modules.nu) [modules-packages modules-eval SECRETS_GROUP VERB_WORK_TIMEOUT]
+use ($LIB | path join modules.nu) [modules-packages modules-eval module-packages-every packages-every-context SECRETS_GROUP VERB_WORK_TIMEOUT]
 use ($LIB | path join online.nu) [network-online]
 use ($LIB | path join pipeline.nu) [pipeline-load pipeline-plan pipeline-apply THEME_VERB_TIMEOUT]
 use ($LIB | path join secrets.nu) [secret-is-plaintext secrets-wanted OWNER_WITNESS]
@@ -16,8 +16,7 @@ use ($LIB | path join preserve.nu) [preserve-prune]
 use ($LIB | path join migrate.nu) [migrations-run]
 use ($LIB | path join fetch.nu) [fetch-file-run fetch-git-run]
 use ($LIB | path join state.nu) [EXIT_PENDING]
-use ($LIB | path join bootstrap.nu) [bootstrap-run PACSTRAP]
-use ($LIB | path join commands.nu) [commands-scan commands-used commands-map-load commands-map-render commands-map-resolve module-packages-every packages-every-context COMMANDS_FILE]
+use ($LIB | path join bootstrap.nu) [bootstrap-run]
 use ($LIB | path join stage.nu) [stage-run]
 use ($REPO | path join configs base yubikey audit.nu) [audit-remind]
 use ($REPO | path join configs core wallust wallpaper.nu) [theme-serve wallpaper-get wallpaper-list]
@@ -130,19 +129,8 @@ def features-render [ctx: record]: nothing -> string {
     section-replace $modules $OPTIONS_BEGIN $OPTIONS_END (options-table $ctx)
 }
 
-# Each command the modules run, resolved to its package in the repos' sync databases; check compares only the commands.
-def commands-render [ctx: record, check: bool]: nothing -> string {
-    let used = commands-used (commands-scan $REPO)
-    let previous = commands-map-load ($REPO | path join $COMMANDS_FILE)
-    if $check { return (if ($previous | columns | sort) == $used { open --raw ($REPO | path join $COMMANDS_FILE) } else { "" }) }
-    let every = packages-every-context $REPO
-    let declared = $ctx.modules | where group != $SECRETS_GROUP | each { module-packages-every $in $every } | flatten | uniq
-    commands-map-render (commands-map-resolve $used $declared $PACSTRAP)
-}
-
-# regenerate platforms/homelab.nu (from a present homelab checkout), mirror/packages.txt, scripts/lib/commands.txt and
-# FEATURES.md's module and options tables; --check fails when one is stale (for the commands, when the set of commands
-# changed; for the homelab file, only against a present checkout)
+# regenerate platforms/homelab.nu (from a present homelab checkout), mirror/packages.txt and FEATURES.md's module and
+# options tables; --check fails when one is stale (for the homelab file, only against a present checkout)
 def "main gen" [--check]: nothing -> nothing {
     guarded gen --background {
         let lab = homelab-lab-path
@@ -150,7 +138,7 @@ def "main gen" [--check]: nothing -> nothing {
         # first: the modules' option defaults import it, so FEATURES.md below reads the new values
         if not $check { homelab-write $REPO $lab }
         let ctx = pipeline-load $REPO system
-        let outputs = [[file text]; [$MIRROR_LIST (mirror-list $ctx)] [$COMMANDS_FILE (commands-render $ctx $check)] [$FEATURES (features-render $ctx)]]
+        let outputs = [[file text]; [$MIRROR_LIST (mirror-list $ctx)] [$FEATURES (features-render $ctx)]]
         if $check {
             let stale = $outputs | where {|o| not ($REPO | path join $o.file | path exists) or (open --raw ($REPO | path join $o.file)) != $o.text } | get file
             if ($stale | is-not-empty) { error make {msg: $"($stale | str join ', ') stale, run dot internal gen"} }

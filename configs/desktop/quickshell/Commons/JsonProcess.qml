@@ -10,6 +10,9 @@ QtObject {
   property real lastRunMs: 0
   property bool streaming: false
   property alias running: proc.running
+  // backoff for retryStart, the last delay repeating; empty means no retries
+  property var retryDelaysMs: []
+  property int retryCount: 0
 
   signal parsed(var data)
   signal failed(string error)
@@ -25,9 +28,21 @@ QtObject {
     run()
   }
 
+  // run again after the next backoff delay; output that is no JSON retries on its own
+  function retryStart() {
+    if (retryDelaysMs.length === 0) return
+    retryTimer.interval = retryDelaysMs[Math.min(retryCount, retryDelaysMs.length - 1)]
+    retryTimer.restart()
+  }
+
+  function retryStop() {
+    retryCount = 0
+    retryTimer.stop()
+  }
+
   function decode(text) {
     var data
-    try { data = JSON.parse(text) } catch (e) { root.failed(String(e)); return }
+    try { data = JSON.parse(text) } catch (e) { root.failed(String(e)); root.retryStart(); return }
     root.parsed(data)
   }
 
@@ -53,5 +68,12 @@ QtObject {
     repeat: true
     triggeredOnStart: true
     onTriggered: root.run()
+  }
+
+  property Timer retryTimer: Timer {
+    onTriggered: {
+      root.retryCount++
+      root.run()
+    }
   }
 }

@@ -11,6 +11,7 @@ BarWidget {
   moduleName: "display"
   barPriority: 50
   hoverPanel: true
+  hoverFill: true
 
   property real brightnessPct: 50
   property bool brightnessKnown: false
@@ -172,44 +173,47 @@ BarWidget {
 
       PanelSectionHeader { text: "BRIGHTNESS" }
 
-      Column {
+      // the slider is the gauge; the monitor list below counts the monitors
+      Item {
         width: parent.width
-        spacing: Style.spacing.xs
-
-        Item {
-          width: parent.width
-          implicitHeight: Math.max(briHero.implicitHeight, briReads.implicitHeight)
-          height: implicitHeight
-          Hero { id: briHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; value: root.brightnessKnown ? String(Math.round(root.brightnessPct)) : "--"; unit: "%" }
-          Column {
-            id: briReads
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width * 0.56
-            spacing: Style.spacing.xs
-            Text {
-              width: parent.width
-              horizontalAlignment: Text.AlignRight
-              text: root.activeMonitors.length + (root.activeMonitors.length === 1 ? " MONITOR" : " MONITORS")
-              color: Colors.textDim
-              font.pixelSize: Style.font.caption
-              font.family: Style.font.family
-              font.letterSpacing: Style.labelTracking
-            }
-            BarGauge { visible: root.brightnessKnown; width: parent.width; height: Style.spacing.sm; segments: 24; value: root.brightnessPct / 100 }
-          }
-        }
+        implicitHeight: Math.max(briSlider.implicitHeight, briValue.implicitHeight)
+        height: implicitHeight
 
         Slider {
+          id: briSlider
           visible: root.brightnessKnown
-          width: parent.width
-          bar: root.bar
+          anchors.left: parent.left
+          anchors.right: briValue.left
+          anchors.rightMargin: Style.spacing.sm
+          anchors.verticalCenter: parent.verticalCenter
           minimum: 1
           maximum: 100
           integer: true
           value: root.brightnessPct
           onMoved: function(v) { root.brightnessDragging = true; root.brightnessPct = v }
           onReleased: function(v) { root.brightnessDragging = false; root.applyBrightnessAll(v) }
+        }
+
+        Label {
+          id: briValue
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          width: briSizer.implicitWidth
+          horizontalAlignment: Text.AlignRight
+          text: root.brightnessKnown ? Math.round(root.brightnessPct) + "%" : "--"
+          color: Colors.menu.text
+          font.letterSpacing: Style.displayTracking
+          font.features: { "tnum": 1 }
+
+          Text {
+            id: briSizer
+            visible: false
+            textFormat: Text.PlainText
+            text: "100%"
+            font.family: briValue.font.family
+            font.pixelSize: briValue.font.pixelSize
+            font.letterSpacing: briValue.font.letterSpacing
+          }
         }
       }
 
@@ -229,19 +233,17 @@ BarWidget {
 
           Row {
             spacing: Style.spacing.sm
-            Text {
+            Label {
               text: monitorRow.modelData.name
               color: Colors.menu.text
-              font.pixelSize: Style.font.bodySmall
-              font.family: Style.font.family
+              caption: true
             }
-            Text {
+            Label {
               text: monitorRow.disabled ? "off"
                 : monitorRow.modelData.width + "x" + monitorRow.modelData.height + "@" + Math.round(monitorRow.modelData.refreshRate) + "Hz"
                   + (monitorRow.mirrorOf ? "  |  mirroring " + monitorRow.mirrorOf : "")
-              color: Colors.textDim
-              font.pixelSize: Style.font.bodySmall
-              font.family: Style.font.family
+              dim: true
+              caption: true
             }
           }
 
@@ -299,16 +301,16 @@ BarWidget {
         width: parent.width
         spacing: Style.spacing.xxs
 
-        Repeater {
-          model: root.grading.presets || []
-          PanelRow {
-            required property var modelData
-            width: parent.width
-            stateMarker: true
-            on: root.grading.preset === modelData.name
-            label: modelData.label
-            onActivated: root.colorRun([Paths.toggle("toggle-color-grading.nu"), "set", modelData.name])
-          }
+        // one preset at a time, like the firewall and route modes: a segmented row instead of a row per preset
+        ButtonGroup {
+          visible: options.length > 0
+          width: parent.width
+          fill: true
+          spacing: Style.spacing.xs
+          fontSize: Style.font.caption
+          options: (root.grading.presets || []).map(function(p) { return { value: p.name, label: String(p.label).toUpperCase() } })
+          value: root.grading.preset
+          onChanged: function(v) { if (v !== root.grading.preset) root.colorRun([Paths.toggle("toggle-color-grading.nu"), "set", v]) }
         }
 
         PanelRow {
@@ -320,20 +322,15 @@ BarWidget {
         }
       }
 
-      PanelSectionHeader { text: "SHADERS" }
+      PanelSectionHeader { visible: shaderList.visible; text: "SHADERS" }
 
       Column {
+        id: shaderList
+        visible: (root.shaders.shaders || []).length > 0
         width: parent.width
         spacing: Style.spacing.xxs
 
-        PanelRow {
-          width: parent.width
-          stateMarker: true
-          on: root.shaders.current === "off"
-          label: "Off"
-          onActivated: root.colorRun([root.shaderScript, "off"])
-        }
-
+        // no "Off" row: the active shader's own row turns it off
         Repeater {
           model: root.shaders.shaders || []
           Column {
@@ -351,8 +348,9 @@ BarWidget {
               onActivated: root.colorRun(shaderItem.active ? [root.shaderScript, "off"] : [root.shaderScript, "set", shaderItem.modelData.name])
             }
 
+            // the variants of the running shader only: activating its row starts the first one
             ButtonGroup {
-              visible: shaderItem.modelData.variants.length > 0
+              visible: shaderItem.active && shaderItem.modelData.variants.length > 0
               width: parent.width
               fill: true
               spacing: Style.spacing.xs

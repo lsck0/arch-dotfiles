@@ -1,0 +1,27 @@
+{
+  "wallpaper": "alena-aenami-horizon.jpg",
+  "pair": "atuel",
+  "special": {
+    "background": "#d9e2f7",
+    "foreground": "#0a1126",
+    "cursor": "#1a3673"
+  },
+  "colors": {
+    "color0": "#c5d1ee",
+    "color1": "#9c2a35",
+    "color2": "#33613f",
+    "color3": "#6e500c",
+    "color4": "#1a3673",
+    "color5": "#633587",
+    "color6": "#22606f",
+    "color7": "#0a1126",
+    "color8": "#475f93",
+    "color9": "#9c2a35",
+    "color10": "#33613f",
+    "color11": "#6e500c",
+    "color12": "#1a3673",
+    "color13": "#633587",
+    "color14": "#22606f",
+    "color15": "#0a1126"
+  }
+}

@@ -12,22 +12,49 @@ const PERCENT_MAX = 100
 # VCP 0x10 maximum when ddcutil cannot report one: most monitors use 100, so percent maps straight to raw
 const VCP_MAX_DEFAULT = 100
 
-# getvcp --brief prints "VCP 10 C <cur> <max>"; the raw VCP maximum for a bus, VCP_MAX_DEFAULT when it cannot be read
-def vcp-max [bus: string]: nothing -> int {
+# the VCP maximum is fixed per monitor, so it is read once per bus map and spares every set a DDC round trip;
+# bus-map-refresh drops them all, so a monitor swapped onto the same port reads its own maximum
+def vcp-max-file [connector: string, bus: string]: nothing -> path {
+    $env.XDG_RUNTIME_DIR? | default /tmp | path join $"ddc-vcp-max.($connector).($bus)"
+}
+
+# atomic, as a concurrent set may read it while get rewrites it; best effort, a refresh may remove the temp file
+def vcp-max-save [connector: string, bus: string, max: int] {
+    let file = vcp-max-file $connector $bus
+    try {
+        $max | into string | save -f $"($file).($nu.pid)"
+        mv -f $"($file).($nu.pid)" $file
+    }
+}
+
+# getvcp --brief prints "VCP 10 C <cur> <max>"; VCP_MAX_DEFAULT when the monitor reports no maximum
+def vcp-parse [stdout: string]: nothing -> record {
+    let fields = $stdout | split row " "
+    let max = $fields | get 4? | default "" | str trim
+    {cur: ($fields | get 3 | str trim | into int), max: (if ($max | is-empty) { $VCP_MAX_DEFAULT } else { $max | into int })}
+}
+
+def vcp-max [connector: string, bus: string]: nothing -> int {
+    let file = vcp-max-file $connector $bus
+    let cached = try { open --raw $file | decode utf-8 | str trim | into int } catch { null }
+    if $cached != null { return $cached }
     let got = ^flock (ddc-lock) ddcutil --bus $bus --sleep-multiplier $SLEEP_MULTIPLIER getvcp $VCP_BRIGHTNESS --brief e> /dev/null | complete
     if $got.exit_code != 0 { return $VCP_MAX_DEFAULT }
-    let max = $got.stdout | split row " " | get 4? | default "" | str trim
-    if ($max | is-empty) { $VCP_MAX_DEFAULT } else { $max | into int }
+    let max = (vcp-parse $got.stdout).max
+    vcp-max-save $connector $bus $max
+    $max
 }
 
 def bus-map-refresh []: nothing -> table {
-    let map = ^ddcutil detect --brief e> /dev/null | complete | get stdout
+    let map = ^flock (ddc-lock) ddcutil detect --brief e> /dev/null | complete | get stdout
         | parse -r 'I2C bus:\s+\S*i2c-(?<bus>\d+)\s+DRM connector:\s+card\d+-(?<connector>\S+)'
         | select connector bus
     let file = bus-map-file
     mkdir ($file | path dirname)
     $map | to tsv --noheaders | save -f $"($file).new"
     mv -f $"($file).new" $file
+    let stale = glob ($file | path dirname | path join "ddc-vcp-max.*")
+    if ($stale | is-not-empty) { rm -f ...$stale }
     $map
 }
 
@@ -55,20 +82,18 @@ def "main get" [connector: string] {
         return
     }
     let read = {|bus| ^flock (ddc-lock) ddcutil --bus $bus --sleep-multiplier $SLEEP_MULTIPLIER getvcp $VCP_BRIGHTNESS --brief e> /dev/null | complete }
-    let bus = bus-find $connector
+    mut bus = bus-find $connector
     if $bus == null { exit 1 }
     mut vcp = do $read $bus
     if $vcp.exit_code != 0 {
-        let fresh = bus-map-refresh | where connector == $connector | get 0?.bus
-        if $fresh == null { exit 1 }
-        $vcp = do $read $fresh
+        $bus = bus-map-refresh | where connector == $connector | get 0?.bus
+        if $bus == null { exit 1 }
+        $vcp = do $read $bus
         if $vcp.exit_code != 0 { exit 1 }
     }
-    let fields = $vcp.stdout | split row " "
-    let cur = $fields | get 3 | str trim | into int
-    let max = $fields | get 4? | default "" | str trim
-    let max = if ($max | is-empty) { $VCP_MAX_DEFAULT } else { $max | into int }
-    print (if $max > 0 { $cur * $PERCENT_MAX // $max } else { 0 })
+    let got = vcp-parse $vcp.stdout
+    vcp-max-save $connector $bus $got.max
+    print (if $got.max > 0 { $got.cur * $PERCENT_MAX // $got.max } else { 0 })
 }
 
 def "main set" [connector: string, percent: int] {
@@ -79,7 +104,7 @@ def "main set" [connector: string, percent: int] {
     }
     let bus = bus-find $connector
     if $bus == null { exit 1 }
-    let raw = $percent * (vcp-max $bus) // $PERCENT_MAX
+    let raw = $percent * (vcp-max $connector $bus) // $PERCENT_MAX
     ^flock (ddc-lock) ddcutil --bus $bus --noverify --sleep-multiplier $SLEEP_MULTIPLIER setvcp $VCP_BRIGHTNESS $raw o+e> /dev/null
 }
 

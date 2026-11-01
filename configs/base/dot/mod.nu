@@ -13,6 +13,5 @@ export def link [cfg: record] {
     ]
 }
 
-export def system [cfg: record] {
-    file-copy dev.lsck0.dotfiles.policy /usr/share/polkit-1/actions/dev.lsck0.dotfiles.policy
-}
+# no system files left; the empty verb lets the engine remove the polkit action it once installed
+export def system [cfg: record] { [] }

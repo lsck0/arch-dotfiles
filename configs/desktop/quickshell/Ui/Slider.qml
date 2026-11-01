@@ -4,15 +4,14 @@ import qs.Commons
 Item {
   id: root
 
-  property var bar: null
   property real value: 0
   property real minimum: 0
   property real maximum: 1
   property real step: 0.05
   property bool integer: false
-  property color trackColor: bar ? Style.selectedFillFor(bar.barForeground, Colors.accent) : Style.selectedFill
-  property color fillColor: bar ? bar.barForeground : Colors.foreground
-  property color knobColor: bar ? bar.barForeground : Colors.foreground
+  property color trackColor: Style.selectedFill
+  property color fillColor: Colors.foreground
+  property color knobColor: Colors.foreground
   property bool dragging: false
   property real trackHeight: Style.spacing.xxs
   property real knobSize: Style.spacing.lg

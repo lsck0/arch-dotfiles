@@ -21,6 +21,8 @@ export const options = {
 }
 
 const SECRET = "configs/secrets/keys/sccache.env"
+const REDIS_PORT = "6379"
+const REDIS_TLS_PORT = "6380"
 
 export def link [cfg: record] {
     let cargo = $nu.home-dir | path join .cargo
@@ -30,10 +32,14 @@ export def link [cfg: record] {
     let s = open --raw $secret | lines | parse --regex '^(?<k>[A-Z_]+)=(?<v>.*)$'
         | reduce --fold {} {|e, acc| $acc | insert $e.k ($e.v | str trim) }
     let url = $s.SCCACHE_REDIS_ENDPOINT | url parse
+    let port = $url.port | default --empty (if $url.scheme == rediss { $REDIS_TLS_PORT } else { $REDIS_PORT })
     let wrapper = $nu.home-dir | path join .local bin rustc-wrapper
+    # a json string is a valid toml basic string
+    let endpoint = $s.SCCACHE_REDIS_ENDPOINT | to json
+    let password = $s.SCCACHE_REDIS_PASSWORD | to json
     [
-        (file-text (xdg config sccache config) $"[cache.redis]\nendpoint = \"redis://($url.host):($url.port)\"\npassword = \"($s.SCCACHE_REDIS_PASSWORD)\"\n" --mode 600)
-        (file-render rustc-wrapper.sh $wrapper {HOST: $url.host, PORT: $url.port} --mode 755)
+        (file-text (xdg config sccache config) $"[cache.redis]\nendpoint = ($endpoint)\npassword = ($password)\n" --mode 600)
+        (file-render rustc-wrapper.sh $wrapper {HOST: $url.host, PORT: $port} --mode 755)
         (file-text ($cargo | path join config.toml) $"(open --raw config.toml)\n[build]\nrustc-wrapper = \"($wrapper)\"\n")
     ]
 }

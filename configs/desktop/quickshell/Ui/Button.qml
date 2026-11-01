@@ -88,7 +88,8 @@ BorderSurface {
     : bordered ? _normalBorderSpec
     : Border.none()
 
-  color: isAction ? Util.alpha(foreground, (hot || activeFocus ? 0.20 : 0.10) + (danger ? 0.08 : 0))
+  color: isAction ? Util.alpha(foreground, (hot || activeFocus ? Style.actionHotFillAlpha : Style.actionFillAlpha)
+    + (danger ? Style.actionDangerFillAlpha : 0))
     : isChip ? (danger ? Util.alpha(Colors.urgent, hot ? _dangerHotFillAlpha : _dangerFillAlpha)
       : selected ? Colors.menu.selectedBackground
       : mouseArea.pressed ? Style.pressedFill
@@ -135,8 +136,7 @@ BorderSurface {
     anchors.centerIn: parent
     spacing: root.isAction ? Style.spacing.xs : Style.spacing.controlGap
 
-    Text {
-      textFormat: Text.PlainText
+    Label {
       visible: root.iconText !== ""
       anchors.verticalCenter: parent.verticalCenter
       text: root.iconText
@@ -147,8 +147,7 @@ BorderSurface {
       layer.effect: Glow {}
     }
 
-    Text {
-      textFormat: Text.PlainText
+    Label {
       visible: root.text !== ""
       anchors.verticalCenter: parent.verticalCenter
       width: root.isChip ? Math.min(implicitWidth, root.width - Style.spacing.xs * 2) : implicitWidth

@@ -1,0 +1,27 @@
+{
+  "wallpaper": "alena-aenami-7-p-m.jpg",
+  "pair": "vesper-light",
+  "special": {
+    "background": "#101010",
+    "foreground": "#ffffff",
+    "cursor": "#ffc799"
+  },
+  "colors": {
+    "color0": "#0c0c0c",
+    "color1": "#ff8080",
+    "color2": "#99ffe4",
+    "color3": "#ffc799",
+    "color4": "#ffc799",
+    "color5": "#ffb3c7",
+    "color6": "#99ffe4",
+    "color7": "#a0a0a0",
+    "color8": "#7e7e7e",
+    "color9": "#ffa0a0",
+    "color10": "#b8ffee",
+    "color11": "#ffd9b3",
+    "color12": "#ffd9b3",
+    "color13": "#ffcce0",
+    "color14": "#b8ffee",
+    "color15": "#ffffff"
+  }
+}

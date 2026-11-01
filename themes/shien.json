@@ -1,0 +1,27 @@
+{
+  "wallpaper": "alena-aenami-eclipse.jpg",
+  "pair": "shien-light",
+  "special": {
+    "background": "#15131b",
+    "foreground": "#bfb3db",
+    "cursor": "#9b8bc1"
+  },
+  "colors": {
+    "color0": "#0f0d14",
+    "color1": "#d98ba0",
+    "color2": "#91bfb6",
+    "color3": "#d9c08b",
+    "color4": "#9b8bc1",
+    "color5": "#b39bdb",
+    "color6": "#8bc1c9",
+    "color7": "#bfb3db",
+    "color8": "#7a7096",
+    "color9": "#e6a3b5",
+    "color10": "#a8d1c9",
+    "color11": "#e6d1a3",
+    "color12": "#b3a6d1",
+    "color13": "#c7b3e6",
+    "color14": "#a3d1d9",
+    "color15": "#d9d0ec"
+  }
+}

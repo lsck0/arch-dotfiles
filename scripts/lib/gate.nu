@@ -4,7 +4,6 @@ use ../../configs/core/wallust/palette.nu
 use platform.nu [PLATFORM_FACTS]
 use modules.nu [VERBS HOOKS names-read modules-graph ROOT_MODULES SECRETS_DATA SECRETS_GROUP]
 use pipeline.nu [pipeline-load]
-use commands.nu [commands-check]
 
 const REPO = path self ../..
 const SUDO = '\bsudo\b'
@@ -23,6 +22,23 @@ const PALETTE_NU = "configs/core/wallust/palette.nu"
 const PALETTE_JS = "configs/desktop/quickshell/Commons/Palette.js"
 const PALETTE_THEMES = [ayu-dark gruvbox-light]
 const PALETTE_TIMEOUT_S = 20
+# nushell's string forms, backtick included: a # inside one starts no comment
+const NU_QUOTED = r#''[^']*'|"(?:[^"\\]|\\.)*"|`[^`]*`'#
+const FAIL_CLOSED_CONST = '(?m)^\s*(?:export )?const (?<name>[A-Z][A-Z0-9_]*) = ["'']?(?<value>/?[\w./+-]+)["'']?\s*$'
+# A fail-closed unit, the binary whose absence must never switch it off (that fails open), and the escape route that
+# lets the machine fetch the binary while the unit holds: a repo file each and the pattern it must keep.
+export const FAIL_CLOSED = [
+    [unit gate file escape];
+    [fw-egress.service tor configs/base/pacman/pacman.conf '(?m)^DownloadUser\s*=\s*alpm\s*$']
+    [fw-egress.service tor configs/base/nftables/fw-egress.service 'u=\$\$\(id -u alpm\) && echo "add element inet fw_egress fetch_uid ']
+    [fw-egress.service tor configs/base/nftables/fw-egress.nft '(?m)^\s*meta skuid @fetch_uid tcp dport \{ 80, 443 \} accept\s*$']
+    [fw-egress.service tor configs/base/resolved/resolved.conf '(?m)^DNSOverTLS=yes\s*$']
+    [fw-egress.service tor configs/base/nftables/fw-egress.service 'u=\$\$\(id -u systemd-resolve\) && echo "add element inet fw_egress resolver_uid ']
+    [fw-egress.service tor configs/base/nftables/fw-egress.nft '(?m)^\s*meta skuid @resolver_uid tcp dport 853 accept\s*$']
+]
+const FAIL_CLOSED_OFF = '\bunit-(disable|mask)\b|\bsystemctl\b.*\b(stop|disable|mask|kill)\b'
+const FAIL_CLOSED_LIST = '(?m)^\s*(?:export )?const (?<name>[A-Z][A-Z0-9_]*) = \[(?<values>[^\]\n]*)\]\s*$'
+const FAIL_CLOSED_LET = '(?m)^\s*(?:let|mut) (?<name>[a-z_][a-z0-9_-]*)\s*=\s*(?<value>.*)$'
 
 def rel [path: path]: nothing -> string { $path | path relative-to $REPO }
 
@@ -262,13 +278,79 @@ def platform-options-check [modules: table]: nothing -> list<string> {
     } | flatten
 }
 
-# The lints that need the modules loaded, one load per layer: both layers' run order, the platforms' options files and
-# the commands lint (every command a module runs comes from a package it or its deps declare, and a fail-closed unit
-# keeps its way out). The system layer loads first and in its own scope, so the user layer's app dirs stay out of it.
+# A nushell line without its comment: a whole-line one leaves nothing, a trailing one is cut outside quotes.
+def fail-closed-code [line: string]: nothing -> string {
+    if ($line | str trim --left | str starts-with "#") { return "" }
+    $line | str replace --regex (r#'^((?:'# + $NU_QUOTED + r#'|[^"'`#])*)\s#.*$'#) '$1'
+}
+
+# The line and the headers of every block around it, found by indentation; an else brings its if along.
+def fail-closed-scope [lines: list<string>, index: int]: nothing -> list<string> {
+    let indent = {|l| ($l | str length) - ($l | str trim --left | str length) }
+    mut limit = do $indent ($lines | get $index)
+    mut scope = [($lines | get $index)]
+    for i in (seq ($index - 1) -1 0) {
+        if $limit == 0 { break }
+        let line = $lines | get $i
+        let at = do $indent $line
+        if ($line | str trim) == "" or $at >= $limit { continue }
+        $scope = $scope | append $line
+        $limit = if ($line | str trim --left | str starts-with "}") { $at + 1 } else { $at }
+    }
+    $scope
+}
+
+# Lines switching the unit off (by name, or through a const naming it) under a condition on the gate binary, with the
+# lets and consts that condition reads resolved.
+def fail-closed-gated [file: record, unit: string, gate: string]: nothing -> list<string> {
+    let lines = $file.text | lines | each { fail-closed-code $in }
+    let code = $lines | str join "\n"
+    let scalars = $code | parse --regex $FAIL_CLOSED_CONST | each {|c| {name: $c.name, values: [$c.value]} }
+    let lists = $code | parse --regex $FAIL_CLOSED_LIST
+        | each {|c| {name: $c.name, values: ($c.values | split row --regex '\s+' | where $it != "" | str trim --char '"')} }
+    let consts = $scalars ++ $lists
+    let lets = $code | parse --regex $FAIL_CLOSED_LET | reduce --fold {} {|l, acc| $acc | upsert $l.name $l.value }
+    let names = $consts | where $unit in $it.values | each { $"\\$($in.name)\\b" }
+    let unit_re = [($unit | str replace --all "." '\.')] ++ $names | str join "|"
+    let gate_re = $"\(which\\s+['\"]?|/usr/bin/|/bin/|id -u\\s+\)($gate)\\b"
+    $lines | enumerate | where {|l| $l.item =~ $FAIL_CLOSED_OFF } | each {|l|
+        let scope = fail-closed-scope $lines $l.index | str join "\n"
+        let read = $scope | parse --regex '\$(?<v>[a-z_][a-z0-9_-]*)' | get v | uniq | each {|v| $lets | get --optional $v } | compact
+        let resolved = $consts | reduce --fold ([$scope] ++ $read | str join "\n") {|c, acc|
+            $acc | str replace --all --regex $"\\$($c.name)\\b" ($c.values | str join " ")
+        }
+        if $scope =~ $unit_re and $resolved =~ $gate_re {
+            $"($file.file):($l.index + 1): switches ($unit) off when ($gate) is missing, which fails open; keep it on, its escape route fetches ($gate)"
+        }
+    } | compact
+}
+
+# Each fail-closed unit's escape route is in place, and no nushell file ({file, text}) switches the unit off for lacking
+# its gate binary.
+export def fail-closed-find [repo: path, files: table<file: string, text: string>]: nothing -> list<string> {
+    let lost = $FAIL_CLOSED | each {|e|
+        let path = $repo | path join $e.file
+        let text = if ($path | path exists) { open --raw $path } else { "" }
+        if not ($text =~ $e.escape) { $"($e.file): lost ($e.unit)'s escape route, wants a match for ($e.escape)" }
+    } | compact
+    let gates = $FAIL_CLOSED | select unit gate | uniq
+    let off = $files | each {|f|
+        $gates | where {|g| $f.text | str contains $g.unit } | each {|g| fail-closed-gated $f $g.unit $g.gate } | flatten
+    } | flatten
+    $lost ++ $off
+}
+
+def lint-fail-closed []: nothing -> list<string> {
+    let files = glob $"($REPO)/configs/*/**/*.nu" --exclude [$"($SECRETS_GROUP)/**" "**/*.test.nu"]
+    fail-closed-find $REPO ($files | each {|f| {file: (rel $f), text: (open --raw $f)} })
+}
+
+# The lints that need the modules loaded, one load per layer: both layers' run order and the platforms' options files.
+# The system layer loads first and in its own scope, so the user layer's app dirs stay out of it.
 export def gate-loaded [repo: path]: nothing -> list<string> {
     let system = do { order-check (pipeline-load $repo system) system " --system" }
     let user = pipeline-load $repo user
-    (order-check $user link "") ++ $system ++ (platform-options-check $user.modules) ++ (commands-check $repo $user.modules)
+    (order-check $user link "") ++ $system ++ (platform-options-check $user.modules)
 }
 
 def lint-loaded []: nothing -> list<string> {
@@ -296,7 +378,7 @@ def unit-tests []: nothing -> list<string> {
 export def gate-lint []: nothing -> list<string> {
     let lints = [
         {|| lint-modules } {|| lint-layers } {|| lint-exports } {|| lint-sync } {|| lint-stray } {|| lint-platform-facts }
-        {|| lint-nu-pitfalls } {|| lint-exec-bits } {|| lint-ascii } {|| lint-loaded } {|| lint-generated }
+        {|| lint-nu-pitfalls } {|| lint-exec-bits } {|| lint-ascii } {|| lint-loaded } {|| lint-generated } {|| lint-fail-closed }
         {|| lint-rc-escalation }
     ]
     ($lints | par-each --keep-order {|lint| do $lint } | flatten) ++ (unit-tests)

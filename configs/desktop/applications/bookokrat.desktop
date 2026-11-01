@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Bookokrat
-Comment=EPUB and PDF reader
-TryExec=bookokrat
-Exec=bookokrat
-Icon=okular
-Terminal=true
-Categories=Office;Viewer;ConsoleOnly;

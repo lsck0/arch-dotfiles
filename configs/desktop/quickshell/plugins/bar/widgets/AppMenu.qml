@@ -9,12 +9,13 @@ BarWidget {
   barPriority: 55
 
   implicitWidth: button.implicitWidth
-  implicitHeight: barSize
+  implicitHeight: Style.bar.sizeHorizontal
 
   BarIconButton {
     id: button
     anchors.fill: parent
     bar: root.bar
+    hoverFill: true
     text: "\u{f303}"
     tooltipText: "Applications"
     onPressed: Quickshell.execDetached(Paths.ipcCall("appsearch", "toggle"))

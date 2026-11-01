@@ -297,15 +297,13 @@ Item {
           anchors.right: parent.right
           height: Style.font.heading + Style.spacing.controlPaddingY * 2
 
-          Text {
+          Label {
             id: inputGlyph
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             width: Style.space(18)
-            textFormat: Text.PlainText
             text: root.inputMode === "add" ? "+" : (root.inputMode === "filter" || root.filterText ? "/" : ">")
             color: Colors.accentText
-            font.family: Style.font.family
             font.pixelSize: Style.font.heading
             font.bold: true
           }
@@ -329,17 +327,15 @@ Item {
             Keys.onPressed: function (event) { event.accepted = root.inputKey(event.key, event.modifiers) }
           }
 
-          Text {
+          Label {
             anchors.left: inputGlyph.right
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             visible: root.inputMode === "" || input.text === ""
-            textFormat: Text.PlainText
             text: root.inputMode === "add" ? "description project:x due:tomorrow priority:H +tag"
               : root.inputMode === "filter" ? "filter"
               : root.filterText ? root.filterText : "a to add, / to filter"
             color: root.inputMode === "" && root.filterText ? Colors.menu.text : Colors.textDim
-            font.family: Style.font.family
             font.pixelSize: Style.font.heading
             elide: Text.ElideRight
           }
@@ -360,7 +356,7 @@ Item {
           }
         }
 
-        Text {
+        Label {
           id: errorLine
           anchors.top: inputLine.bottom
           anchors.topMargin: visible ? Style.spacing.xs : 0
@@ -368,11 +364,9 @@ Item {
           anchors.right: parent.right
           height: visible ? implicitHeight : 0
           visible: TaskState.errorText !== ""
-          textFormat: Text.PlainText
           text: "x ERR " + TaskState.errorText
           color: Colors.urgentText
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
+          caption: true
           elide: Text.ElideRight
         }
 
@@ -416,32 +410,27 @@ Item {
               onDoubleClicked: root.markDone(row.modelData)
             }
 
-            Text {
+            Label {
               id: reticle
               anchors.left: parent.left
               anchors.leftMargin: Style.spacing.md
               anchors.verticalCenter: parent.verticalCenter
               width: Style.space(12)
-              textFormat: Text.PlainText
               text: row.hasCursor ? ">" : ""
               color: Colors.accentText
-              font.family: Style.font.family
-              font.pixelSize: Style.font.body
               layer.enabled: row.hasCursor && Style.fx.glow > 0
               layer.effect: Glow {}
             }
 
-            Text {
+            Label {
               id: activeMark
               anchors.left: reticle.right
               anchors.leftMargin: Style.spacing.sm
               anchors.verticalCenter: parent.verticalCenter
               width: Style.space(16)
-              textFormat: Text.PlainText
               text: row.modelData.active ? "\u{f040a}" : "" // md-play
               color: Colors.ok
-              font.family: Style.font.iconFamily
-              font.pixelSize: Style.font.body
+              icon: true
             }
 
             Column {
@@ -451,24 +440,19 @@ Item {
               anchors.rightMargin: Style.spacing.md
               anchors.verticalCenter: parent.verticalCenter
 
-              Text {
+              Label {
                 width: parent.width
-                textFormat: Text.PlainText
                 text: row.modelData.desc
                 color: row.hasCursor ? Colors.menu.selectedText : Colors.menu.text
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
                 elide: Text.ElideRight
               }
 
-              Text {
+              Label {
                 width: parent.width
                 visible: text !== ""
-                textFormat: Text.PlainText
                 text: root.metaText(row.modelData)
-                color: Colors.textDim
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
+                dim: true
+                caption: true
                 elide: Text.ElideRight
               }
             }
@@ -480,53 +464,49 @@ Item {
               anchors.verticalCenter: parent.verticalCenter
               spacing: Style.spacing.sm
 
+              // always laid out, only shown on the hot row, so hovering never re-elides the description
               Repeater {
-                model: row.hot ? [
+                model: [
                   { label: "done", act: function () { root.markDone(row.modelData) } },
                   { label: row.modelData.active ? "stop" : "start", act: function () { root.toggleActive(row.modelData) } },
                   { label: "del", act: function () { root.remove(row.modelData) } }
-                ] : []
+                ]
 
-                Text {
+                Label {
                   required property var modelData
-                  textFormat: Text.PlainText
+                  opacity: row.hot ? 1 : 0
+                  enabled: row.hot
                   text: "[" + modelData.label + "]"
                   color: Colors.accentText
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
+                  caption: true
                   font.bold: true
 
                   MouseArea {
                     anchors.fill: parent
-                    anchors.margins: -Style.spacing.xxs
+                    anchors.margins: -Style.spacing.xs
                     cursorShape: Qt.PointingHandCursor
                     onClicked: parent.modelData.act()
                   }
                 }
               }
 
-              Text {
+              Label {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: row.modelData.due !== ""
-                textFormat: Text.PlainText
                 text: row.modelData.due
                 color: row.modelData.overdue ? Colors.urgentText : Colors.textDim
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
+                caption: true
               }
             }
 
             HudFrame { shown: row.hasCursor }
           }
 
-          Text {
+          Label {
             anchors.centerIn: parent
             visible: root.filtered.length === 0
-            textFormat: Text.PlainText
             text: TaskState.errorText ? "> FAILED" : !TaskState.loaded ? "> LOADING" : root.filterText ? "> NO MATCH" : "> NOTHING PENDING"
-            color: Colors.textDim
-            font.family: Style.font.family
-            font.pixelSize: Style.font.body
+            dim: true
           }
         }
 
@@ -541,62 +521,52 @@ Item {
 
           PanelSeparator {}
 
-          Text {
+          Label {
             width: parent.width
             visible: TaskState.activeTask !== null
-            textFormat: Text.PlainText
             text: TaskState.activeTask ? ("tracking :: " + TaskState.activeTask.desc + " " + TaskState.activeElapsedText()) : ""
             color: Colors.accentText
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
+            caption: true
             elide: Text.ElideRight
           }
 
-          Text {
+          Label {
             width: parent.width
             visible: TaskState.trackedTotalSeconds > 0
-            textFormat: Text.PlainText
             text: "worktime today :: " + TaskState.totalTrackedText()
-            color: Colors.textDim
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
+            dim: true
+            caption: true
           }
 
-          Text {
+          Label {
             width: parent.width
             visible: TimerState.pomoRunning
-            textFormat: Text.PlainText
             text: "pomodoro :: " + TimerState.pomoPhaseLabel + " " + Util.clock(TimerState.pomoRemainingSeconds)
               + (TimerState.pomoPaused ? " (paused)" : "")
             color: TimerState.pomo.phase === "work" ? Colors.accentText : Colors.okText
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
+            caption: true
           }
 
           Repeater {
             // bound the strip: an unbounded reminder set would grow upward and squeeze the task list to nothing
             model: TimerState.reminders.slice(0, root.reminderShownMax)
 
-            Text {
+            Label {
               required property var modelData
               width: parent.width
-              textFormat: Text.PlainText
               text: "reminder :: " + String(modelData.label || "") + " at " + String(modelData.atTime || "")
               color: Colors.accent2Text
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
+              caption: true
               elide: Text.ElideRight
             }
           }
 
-          Text {
+          Label {
             width: parent.width
             visible: TimerState.reminderCount > root.reminderShownMax
-            textFormat: Text.PlainText
             text: "+" + (TimerState.reminderCount - root.reminderShownMax) + " more reminders"
-            color: Colors.textDim
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
+            dim: true
+            caption: true
           }
         }
       }
@@ -662,15 +632,12 @@ Item {
             }
           }
 
-          Text {
+          Label {
             anchors.left: parent.left
             anchors.top: parent.top
             visible: notesEdit.text.length === 0
-            textFormat: Text.PlainText
             text: "no notes, start typing"
-            color: Colors.textDim
-            font.family: Style.font.family
-            font.pixelSize: Style.font.body
+            dim: true
           }
         }
 

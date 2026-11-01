@@ -20,7 +20,7 @@ BarWidget {
   readonly property var reminders: TimerState.reminders
 
   implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
-  implicitHeight: barSize
+  implicitHeight: Style.bar.sizeHorizontal
 
   readonly property real travelMs: travelHours * 3600000
   readonly property date travelledNow: new Date(now.getTime() + travelMs)
@@ -61,10 +61,6 @@ BarWidget {
     var weeks = []
     for (let w = 0; w < cells.length; w += 7) weeks.push(cells.slice(w, w + 7))
     return weeks
-  }
-
-  function monthLabel() {
-    return Qt.formatDateTime(root.travelledNow, "MMMM yyyy")
   }
 
   function refreshOffsets() {
@@ -111,14 +107,11 @@ BarWidget {
     onTriggered: root.nowPrecise = new Date()
   }
 
-  Text {
+  Label {
     id: label
     anchors.centerIn: parent
-    textFormat: Text.PlainText
     text: Qt.formatDateTime(root.now, "ddd " + Util.dayFormat + " " + Util.timeFormat)
-    color: root.bar ? root.bar.barForeground : Colors.foreground
-    font.family: root.bar ? root.bar.fontFamily : Style.font.family
-    font.pixelSize: Style.font.body
+    color: Colors.bar.text
     font.letterSpacing: Style.displayTracking
   }
 
@@ -133,24 +126,20 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.sm
 
-      Text {
+      Label {
         anchors.horizontalCenter: parent.horizontalCenter
-        textFormat: Text.PlainText
         text: Qt.formatDateTime(root.travelledPrecise, root.preciseFormat)
         color: Colors.accentText
-        font.family: Style.font.family
         font.bold: true
         font.pixelSize: Style.font.display
         font.letterSpacing: Style.displayTracking
       }
 
-      Text {
+      Label {
         anchors.horizontalCenter: parent.horizontalCenter
-        textFormat: Text.PlainText
         text: Qt.formatDate(root.travelledNow, Qt.locale().dateFormat(Locale.LongFormat))
-        color: Colors.textDim
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        dim: true
+        caption: true
         font.letterSpacing: Style.labelTracking
       }
 
@@ -170,28 +159,17 @@ BarWidget {
           anchors.verticalCenter: parent.verticalCenter
           spacing: Style.spacing.xs
 
-          Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            textFormat: Text.PlainText
-            text: root.monthLabel().toUpperCase()
-            color: Colors.textDim
-            font.pixelSize: Style.font.caption
-            font.family: Style.font.family
-            font.letterSpacing: Style.headerTracking
-          }
-
           Row {
             width: parent.width
             Repeater {
               model: root.weekdayLetters
-              Text {
+              Label {
                 required property string modelData
                 width: calGrid.width / 7
                 horizontalAlignment: Text.AlignHCenter
                 text: modelData
-                color: Colors.textDim
-                font.pixelSize: Style.font.caption
-                font.family: Style.font.family
+                dim: true
+                caption: true
               }
             }
           }
@@ -213,15 +191,14 @@ BarWidget {
                   color: modelData && modelData.isTravelled ? Style.selectedFillFor(Colors.menu.text, Colors.accent) : "transparent"
                   border.width: modelData && modelData.isToday && !modelData.isTravelled ? Style.normalBorderWidth : 0
                   border.color: Util.alpha(Colors.accent, Style.hoverBorderAlpha)
-                  Text {
+                  Label {
                     anchors.centerIn: parent
                     text: dayCell.modelData ? dayCell.modelData.day : ""
                     color: !dayCell.modelData ? Colors.menu.text
                       : dayCell.modelData.isTravelled ? Colors.textOnFill(Colors.accent, Style.selectedFillFor(Colors.menu.text, Colors.accent))
                       : dayCell.modelData.isToday ? Colors.accentText : Colors.menu.text
                     font.bold: dayCell.modelData && dayCell.modelData.isTravelled
-                    font.pixelSize: Style.font.caption
-                    font.family: Style.font.family
+                    caption: true
                   }
                 }
               }
@@ -231,8 +208,8 @@ BarWidget {
         HudFrame {}
       }
 
-      PanelSeparator {}
-      PanelSectionHeader { text: "TIMEZONES" }
+      PanelSeparator { visible: root.zoneOffsets.length > 0 }
+      PanelSectionHeader { text: "TIMEZONES"; visible: root.zoneOffsets.length > 0 }
 
       Repeater {
         model: root.zoneOffsets
@@ -242,17 +219,15 @@ BarWidget {
           width: content.width
           implicitHeight: zoneTime.implicitHeight
           height: implicitHeight
-          Text {
+          Label {
             id: zoneMark
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             text: ">"
             color: Colors.accentText
             opacity: Style.emphasis.dim
-            font.pixelSize: Style.font.body
-            font.family: Style.font.family
           }
-          Text {
+          Label {
             anchors.left: zoneMark.right
             anchors.leftMargin: Style.spacing.xs
             anchors.right: zoneTime.left
@@ -260,13 +235,11 @@ BarWidget {
             anchors.verticalCenter: parent.verticalCenter
             text: zone.modelData.zone
             color: Colors.menu.text
-            font.pixelSize: Style.font.body
-            font.family: Style.font.family
             font.capitalization: Font.AllUppercase
             font.letterSpacing: Style.labelTracking
             elide: Text.ElideRight
           }
-          Text {
+          Label {
             id: zoneTime
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
@@ -274,8 +247,6 @@ BarWidget {
             horizontalAlignment: Text.AlignRight
             text: root.timeInZone(zone.modelData.spans)
             color: Colors.accentText
-            font.pixelSize: Style.font.body
-            font.family: Style.font.family
             font.letterSpacing: Style.displayTracking
           }
         }
@@ -295,6 +266,7 @@ BarWidget {
       }
 
       Button {
+        focusable: true
         variant: "action"
         visible: root.travelHours !== 0
         width: parent.width

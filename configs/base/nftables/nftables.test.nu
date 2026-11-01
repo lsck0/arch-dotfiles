@@ -9,10 +9,14 @@ const ESCAPES = {fetch_uid: alpm, resolver_uid: systemd-resolve}
 
 def fail [msg: string] { error make {msg: $"nftables.test: ($msg)"} }
 
-# ExecStart's shell command with systemd's escapes undone and the installed paths pointed at the repo.
+# ExecStart's shell command with systemd's escapes undone and the installed paths pointed at the repo; ExecReload
+# must be the same load, as only ExecStart's runs here.
 def load-command [home: path]: nothing -> string {
-    let line = open --raw $UNIT | lines | where ($it | str starts-with "ExecStart=/bin/sh -c '") | get 0
-    $line | str replace "ExecStart=/bin/sh -c '" "" | str substring 0..-2
+    let lines = open --raw $UNIT | lines
+    let start = $lines | where ($it | str starts-with "ExecStart=") | get 0 | str replace "ExecStart=" ""
+    let reload = $lines | where ($it | str starts-with "ExecReload=") | get 0 | str replace "ExecReload=" ""
+    if $reload != $start { fail "ExecReload is not ExecStart's load" }
+    $start | str replace "/bin/sh -c '" "" | str substring 0..-2
     | str replace --all '$$' '$' | str replace --all '%%' '%'
     | str replace --all /etc/nftables.d/fw-egress.nft $RULESET | str replace --all /usr/sbin/nft nft
     | str replace --all /run/home-network $home

@@ -61,6 +61,9 @@ Item {
       ["CTRL+R", "reset"]]
     if (cursorRow && cursorRow.kind === "option" && cursorRow.option.type === "path") out.push(["CTRL+O", "browse"])
     if (queued.length > 0) out.push(["CTRL+S", "apply"], ["CTRL+Z", "revert"])
+    else if (root.systemPending) out.push(["CTRL+S", "apply system"])
+    // a dot set, toggle or apply can raise a password prompt, so the panel lets go of the keyboard meanwhile
+    if (root.busy) out.push(["--", "keyboard released"])
     out.push(["CTRL+U", root.updateArmed ? "confirm sync" : "update"])
     out.push(["ESC", root.editingId || root.expandedId ? "back" : root.query ? "clear" : "close"])
     return out
@@ -69,8 +72,8 @@ Item {
   onExpandedIdChanged: root.choiceQuery = ""
   onRowIndexChanged: root.confirmId = ""
 
-  function open(output) {
-    var name = output || (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : "")
+  function open() {
+    var name = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
     panel.screen = Array.from(Quickshell.screens).find(function (s) { return s.name === name }) || null
     root.opened = true
     root.expandedId = ""
@@ -390,7 +393,14 @@ Item {
     if (row.option.apply === "live") root.enqueue([row.id])
   }
 
-  function applyQueued() { root.enqueue(root.queued) }
+  function applyQueued() {
+    if (root.queued.length > 0) root.enqueue(root.queued)
+    else if (root.systemPending) root.applySystem()
+  }
+
+  function applySystem() {
+    if (!systemApplyProc.running) systemApplyProc.running = true
+  }
 
   function revertQueued() {
     for (let i = 0; i < root.queued.length; i++) root.errors = root.without(root.errors, root.queued[i])
@@ -470,6 +480,7 @@ Item {
   function runToggle(toggle) {
     if (toggleProc.running) return
     root.busyToggles = Util.mapSet(root.busyToggles, toggle.name, true)
+    toggleProc.name = toggle.name
     toggleProc.command = ["uwsm-app", "-s", "b", "--", Paths.toggle("toggle-" + toggle.name + ".nu"), "toggle"]
     toggleProc.running = true
   }
@@ -558,7 +569,16 @@ Item {
 
   Process {
     id: toggleProc
-    onExited: statusProc.refresh()
+    property string name: ""
+    stdout: StdioCollector { id: toggleOut; waitForEnd: true }
+    stderr: StdioCollector { id: toggleErr; waitForEnd: true }
+    onExited: function (exitCode) {
+      if (exitCode !== 0) {
+        root.notice = toggleProc.name + " failed: " + String(toggleErr.text || toggleOut.text || "").trim().split("\n").pop()
+        root.noticeIsError = true
+      }
+      statusProc.refresh()
+    }
   }
 
   Process {
@@ -591,8 +611,7 @@ Item {
   IpcHandler {
     target: "settings"
     function toggle(): string { root.toggle(); return "ok" }
-    function open(): string { root.open(""); return "ok" }
-    function openOn(output: string): string { root.open(output); return "ok" }
+    function open(): string { root.open(); return "ok" }
     function close(): string { root.close(); return "ok" }
   }
 
@@ -623,26 +642,15 @@ Item {
   }
 
   // alpha mask fading the last visible row of an overflowing list until it reaches its end
-  component ListFade: Item {
-    id: fade
+  component ListFade: FadeRamp {
     required property ListView list
     readonly property bool overflows: list.contentHeight > list.height + 1
-    readonly property real reach: Style.row.list
-    property real strength: list.atYEnd ? 0 : 1
 
     anchors.fill: list
-    visible: false
+    reach: Style.row.list
+    fadeBottom: list.atYEnd ? 0 : 0.95
     layer.enabled: overflows
-    Behavior on strength { NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
-
-    Rectangle {
-      anchors.fill: parent
-      gradient: Gradient {
-        GradientStop { position: 0.0; color: "black" }
-        GradientStop { position: Math.max(0, 1 - fade.reach / Math.max(1, fade.height)); color: "black" }
-        GradientStop { position: 1.0; color: Util.alpha("black", 1 - 0.95 * fade.strength) }
-      }
-    }
+    Behavior on fadeBottom { NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
   }
 
   // a list masked by its ListFade while it overflows
@@ -1186,7 +1194,7 @@ Item {
               text: systemApplyProc.running ? "applying" : "apply system"
               bordered: true
               selected: true
-              onClicked: if (!systemApplyProc.running) systemApplyProc.running = true
+              onClicked: root.applySystem()
             }
           }
 
@@ -1195,7 +1203,7 @@ Item {
             visible: root.notice !== ""
             textFormat: Text.PlainText
             text: root.notice
-            color: root.noticeIsError ? Colors.urgentText : Colors.okText
+            color: root.noticeIsError ? Colors.urgentText : root.updateArmed ? Colors.warnText : Colors.okText
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             wrapMode: Text.Wrap

@@ -1,5 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-# wayland-boomer over every monitor; no_warps while mapping, else the monitor-0 window rule yanks the cursor
+# wayland-boomer over every monitor: one window, moved to the layout's top-left once mapped (monitor ids and a rule's
+# move cannot place it); no_warps while it maps and moves, else focusing it yanks the cursor
 
 const MAP_TRIES = 60
 const MAP_POLL = 50ms
@@ -33,6 +34,7 @@ def main [] {
         if (^hyprctl -j clients | from json | any { $in.title == "wayland-boomer" }) { break }
         sleep $MAP_POLL
     }
+    ^hyprctl dispatch $"hl.dsp.window.move\({ x = ($x), y = ($y), window = 'title:^wayland-boomer$' }\)" | ignore
     sleep $FOCUS_SETTLE
     warps-set $warps_off
     job recv | ignore

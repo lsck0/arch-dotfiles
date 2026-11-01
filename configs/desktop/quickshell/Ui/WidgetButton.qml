@@ -6,16 +6,13 @@ Item {
 
   property var bar: null
   property string text: ""
-  property string fontFamily: bar ? bar.fontFamily : Style.font.family
+  property string fontFamily: Style.font.family
   property real fontSize: Style.font.body
-  property color foreground: bar ? bar.barForeground : Colors.foreground
-  property color activeColor: bar ? bar.urgent : Colors.urgentText
+  property color foreground: Colors.bar.text
+  property color activeColor: Colors.bar.active
   property bool active: false
   property real horizontalMargin: 8.5
-  property real verticalPadding: 6
   property real fixedWidth: -1
-  property real fixedHeight: -1
-  property real textRotation: 0
   property bool keepSpace: false
   property bool dimmed: false
   property bool concealed: false
@@ -23,6 +20,8 @@ Item {
   property bool pressable: true
   property bool useActiveColor: true
   property bool labelVisible: true
+  // tints the button while hovered or pressed; off where the parent BarWidget already tints on hover
+  property bool hoverFill: false
   property bool hasVisualContent: text !== ""
   property string tooltipText: ""
 
@@ -44,23 +43,28 @@ Item {
   onInteractiveChanged: if (!interactive) hideOwnTooltip()
   onConcealedChanged: if (concealed) hideOwnTooltip()
 
-  readonly property bool vertical: bar ? bar.vertical : false
-  readonly property int barSize: bar ? bar.barSize : Style.bar.sizeHorizontal
   readonly property real scaledHorizontalMargin: Style.spaceReal(horizontalMargin)
-  readonly property real scaledVerticalPadding: Style.spaceReal(verticalPadding)
 
   visible: hasVisualContent || keepSpace
   opacity: !hasVisualContent || concealed ? 0 : (dimmed ? 0.45 : 1)
-  implicitWidth: fixedWidth > 0 ? fixedWidth : (vertical ? barSize : Math.max(12, label.implicitWidth + scaledHorizontalMargin * 2))
-  implicitHeight: fixedHeight > 0 ? fixedHeight : (vertical ? Math.max(12, label.implicitHeight + scaledVerticalPadding * 2) : barSize)
+  implicitWidth: fixedWidth > 0 ? fixedWidth : Math.max(12, label.implicitWidth + scaledHorizontalMargin * 2)
+  implicitHeight: Style.bar.sizeHorizontal
 
   Behavior on opacity {
     NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
   }
 
-  Text {
+  Rectangle {
+    anchors.fill: parent
+    z: -1
+    visible: root.hoverFill && root.interactive && root.pressable
+    radius: Style.shape.data
+    color: mouseArea.pressed ? Style.pressedFill : mouseArea.containsMouse ? Style.hoverFill : "transparent"
+    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
+  }
+
+  Label {
     id: label
-    textFormat: Text.PlainText
     visible: root.labelVisible
     anchors.centerIn: parent
     text: root.text
@@ -68,7 +72,6 @@ Item {
     font.family: root.fontFamily
     font.pixelSize: root.fontSize
     renderType: Text.NativeRendering
-    rotation: root.textRotation
     horizontalAlignment: Text.AlignHCenter
     verticalAlignment: Text.AlignVCenter
 
@@ -76,12 +79,12 @@ Item {
     layer.effect: Glow {}
 
     Behavior on color {
-      enabled: !root.bar || root.bar.foregroundAnimationEnabled
       ColorAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
     }
   }
 
   MouseArea {
+    id: mouseArea
     anchors.fill: parent
     acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
     enabled: root.interactive

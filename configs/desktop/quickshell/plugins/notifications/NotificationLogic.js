@@ -204,18 +204,6 @@ function popupExpired(entry, duration, now) {
   return duration > 0 && now - entry.timestamp >= duration
 }
 
-function historyRows(raw, liveRows, limit) {
-  var out = []
-  var seen = {}
-  liveRows.concat(parsePopupFiles(raw)).forEach(function(entry) {
-    var key = popupFileName(entry)
-    if (seen[key]) return
-    seen[key] = true
-    out.push(historyEntry(entry))
-  })
-  return out.sort(function(a, b) { return b.timestamp - a.timestamp }).slice(0, limit)
-}
-
 // The bar's history list from the popup and history files' lines: one entry per notification, newest first.
 function historyList(raw) {
   var seen = {}

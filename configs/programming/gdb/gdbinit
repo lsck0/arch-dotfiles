@@ -6,20 +6,26 @@ import sys
 
 import gdb.printing
 
-ue_printers = os.path.expanduser("~/.config/Epic/GDBPrinters/")
-if os.path.isdir(ue_printers):
-    sys.path.append(ue_printers)
-    from UEPrinters import register_ue_printers
-    register_ue_printers(None)
-
-_pwndbg = "/usr/share/pwndbg/gdbinit.py"
-if os.path.exists(_pwndbg):
-    gdb.execute("source " + _pwndbg)
-
 _state = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "gdb")
 os.makedirs(_state, mode=0o700, exist_ok=True)
 gdb.execute("set history filename " + os.path.join(_state, "history"))
 gdb.execute("set history save on")
+
+ue_printers = os.path.expanduser("~/.config/Epic/GDBPrinters/")
+if os.path.isdir(ue_printers):
+    sys.path.append(ue_printers)
+    try:
+        from UEPrinters import register_ue_printers
+        register_ue_printers(None)
+    except Exception as e:
+        gdb.write(f"UE printers: {e}\n")
+
+_pwndbg = "/usr/share/pwndbg/gdbinit.py"
+if os.path.exists(_pwndbg):
+    try:
+        gdb.execute("source " + _pwndbg)
+    except gdb.error as e:
+        gdb.write(f"pwndbg: {e}\n")
 end
 
 set output-radix 10

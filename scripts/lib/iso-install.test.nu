@@ -3,9 +3,8 @@
 # broken-file marking, dedupe, menu timeout, source staging and dialog exits.
 const STUB = path self ../../mirror/iso/airootfs/usr/local/bin/lsck0-install
 use iso-install.nu [answers-handed]
-use $STUB [answers-check answers-dedupe answers-menu-timeout answers-stage-plan answers-source-staged dlg-kind]
-
-def fail [msg: string] { error make {msg: $"iso-install.test: ($msg)"} }
+use $STUB [answers-check answers-dedupe answers-menu-items answers-menu-timeout answers-stage-plan answers-source-staged dlg-kind]
+use std/assert
 
 def handed-check [] {
     let cases = [
@@ -16,12 +15,12 @@ def handed-check [] {
     ]
     for c in $cases {
         let got = answers-handed $c.handed "usb:lsck0.nuon" $c.text
-        if $got != $c.wants { fail $"handed, ($c.name): got ($got | to nuon), wants ($c.wants | to nuon)" }
+        assert equal $got $c.wants $"handed, ($c.name): got ($got | to nuon), wants ($c.wants | to nuon)"
     }
     let broken = [[name text]; ["not nuon" "{disk: "] ["not a record" "[1 2]"] ["unreadable" null]]
     for c in $broken {
         let got = try { answers-handed "/run/lsck0/a/lsck0.nuon" "usb:lsck0.nuon" $c.text; "no error" } catch {|e| $e.msg }
-        if not ($got =~ '^usb:lsck0\.nuon: .*nothing installed') { fail $"handed, ($c.name): ($got), wants a stop naming the file" }
+        assert ($got =~ '^usb:lsck0\.nuon: .*nothing installed') $"handed, ($c.name): ($got), wants a stop naming the file"
     }
 }
 
@@ -36,7 +35,7 @@ def check-check [] {
     ]
     for c in $cases {
         let got = answers-check $c.text
-        if not ($got =~ $c.wants) { fail $"check, ($c.name): got ($got | to nuon), wants ($c.wants)" }
+        assert ($got =~ $c.wants) $"check, ($c.name): got ($got | to nuon), wants ($c.wants)"
     }
 }
 
@@ -55,7 +54,7 @@ def dedupe-check [] {
     ]
     for c in $cases {
         let got = answers-dedupe $c.found | get --optional origin | default []
-        if $got != $c.wants { fail $"dedupe, ($c.name): got ($got | to nuon), wants ($c.wants | to nuon)" }
+        assert equal $got $c.wants $"dedupe, ($c.name): got ($got | to nuon), wants ($c.wants | to nuon)"
     }
 }
 
@@ -69,8 +68,16 @@ def menu-timeout-check [] {
     ]
     for c in $cases {
         let got = answers-menu-timeout $c.usable
-        if $got != $c.wants { fail $"menu timeout, ($c.name): got ($got), wants ($c.wants)" }
+        assert equal $got $c.wants $"menu timeout, ($c.name): got ($got), wants ($c.wants)"
     }
+}
+
+# Two files on one stick (one per machine) draw the menu: each row is its index and origin.
+def menu-items-check [] {
+    let usable = [{origin: "/dev/sda2:lsck0.notebook.nuon"} {origin: "/dev/sda2:lsck0.pc.nuon"}]
+    let got = answers-menu-items $usable
+    let wants = ["0" "/dev/sda2:lsck0.notebook.nuon" "1" "/dev/sda2:lsck0.pc.nuon"]
+    assert equal $got $wants $"menu items: got ($got | to nuon), wants ($wants | to nuon)"
 }
 
 def picked [rel: string, text: string]: nothing -> record {
@@ -82,18 +89,18 @@ def stage-plan-check [] {
     let b = picked iso/lsck0.vm.nuon "{source: {bundle: repo.bundle, lfs: \"https://x/lfs.tar\"}}"
     let pa = answers-stage-plan $a /run/lsck0 /media/a
     let pb = answers-stage-plan $b /run/lsck0 /media/b/iso
-    if $pa.dir == $pb.dir { fail $"stage plan: two files share ($pa.dir)" }
-    if $pa.copy != ($pa.dir | path join lsck0.nuon) { fail $"stage plan: copy ($pa.copy)" }
+    assert not equal $pa.dir $pb.dir $"stage plan: two files share ($pa.dir)"
+    assert equal $pa.copy ($pa.dir | path join lsck0.nuon) $"stage plan: copy ($pa.copy)"
     let want_a = [
         {key: bundle, path: repo.bundle, from: /media/a/repo.bundle, to: ($pa.dir | path join repo.bundle)}
         {key: lfs, path: /abs/lfs.tar, from: /abs/lfs.tar, to: ($pa.dir | path join lfs.tar)}
     ]
-    if $pa.sources != $want_a { fail $"stage plan: sources ($pa.sources | to nuon), wants ($want_a | to nuon)" }
-    if ($pb.sources | get from) != [/media/b/iso/repo.bundle] { fail $"stage plan: a url is staged or the bundle missed: ($pb.sources | to nuon)" }
+    assert equal $pa.sources $want_a $"stage plan: sources ($pa.sources | to nuon), wants ($want_a | to nuon)"
+    assert equal ($pb.sources | get from) [/media/b/iso/repo.bundle] $"stage plan: a url is staged or the bundle missed: ($pb.sources | to nuon)"
     # checkout-bundle looks where staging put it
-    if (answers-source-staged ($pb.copy | path dirname) repo.bundle) != ($pb.sources.0.to) { fail "stage plan: checkout looks elsewhere than staging puts" }
+    assert equal (answers-source-staged ($pb.copy | path dirname) repo.bundle) ($pb.sources.0.to) "stage plan: checkout looks elsewhere than staging puts"
     let none = answers-stage-plan (picked lsck0.nuon "{disk: /dev/vda}") /run/lsck0 /media/a
-    if $none.sources != [] { fail $"stage plan: sources without a source ($none.sources | to nuon)" }
+    assert equal $none.sources [] $"stage plan: sources without a source ($none.sources | to nuon)"
 }
 
 def dlg-kind-check [] {
@@ -111,7 +118,7 @@ def dlg-kind-check [] {
     ]
     for c in $cases {
         let got = dlg-kind $c.code $c.err $c.timeout $c.elapsed
-        if $got != $c.wants { fail $"dlg kind, ($c.name): got ($got), wants ($c.wants)" }
+        assert equal $got $c.wants $"dlg kind, ($c.name): got ($got), wants ($c.wants)"
     }
 }
 
@@ -120,6 +127,7 @@ def main [] {
     check-check
     dedupe-check
     menu-timeout-check
+    menu-items-check
     stage-plan-check
     dlg-kind-check
 }

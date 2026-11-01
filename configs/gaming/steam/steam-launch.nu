@@ -2,14 +2,39 @@
 # gamemode stays per game: preloaded into the client it breaks the webhelper's websocket
 
 const SELF = path self
-const GROUP = "games"
+const GROUP = "vpn-bypass"
+const GAMES_RUN = "/usr/local/bin/games-run"
+const RUNTIME_ROOT = "/run/user"
+const STASH_NAME = "steam-launch.env"
+# set by nushell itself, refused by load-env
+const ENV_AUTOMATIC = [PWD FILE_PWD CURRENT_FILE]
 const LAUNCH_OPTIONS = path self steam-launch-options.nu
 
-# Steam in the games group, which egresses past proton0 (gaming/vpn-bypass); without the group it stays on the vpn.
+# The session environment for the child under games-run, which pkexec clears. It stays in the owner-only runtime dir
+# rather than on pkexec's command line, which lands in the journal and the prompt. The child removes it on start, so a
+# stash still there after pkexec returns means the child never ran.
+def stash-path []: nothing -> path {
+    [$RUNTIME_ROOT (^id -u | str trim) $STASH_NAME] | path join
+}
+
+def --env stash-load [stash: path]: nothing -> nothing {
+    let text = open --raw $stash
+    rm --force $stash
+    $text | split row (char nul) | where $it != "" | parse --regex '(?s)^(?<k>[^=]+)=(?<v>.*)$'
+    | where k not-in $ENV_AUTOMATIC | transpose --header-row --as-record | load-env
+}
+
+# Steam in the vpn-bypass group, which egresses past proton0 (gaming/vpn-bypass), after one key touch through games-run;
+# without it, or with the prompt dismissed, it stays on the vpn.
 def --wrapped main [...args: string]: nothing -> nothing {
-    let member = $GROUP in (^id -nG | split row " ")
-    if (^id -gn | str trim) != $GROUP and $member and (do { ^sudo -n -g $GROUP true } | complete).exit_code == 0 {
-        exec sudo -E -g $GROUP -- $SELF ...$args
+    let stash = stash-path
+    if (^id -gn | str trim) == $GROUP {
+        if ($stash | path exists) { stash-load $stash }
+    } else if ($GAMES_RUN | path exists) and (which pkexec | is-not-empty) {
+        ^env -0 | save --force $stash
+        let code = try { ^pkexec --keep-cwd $GAMES_RUN $SELF ...$args; 0 } catch {|e| $e.exit_code? | default 1 }
+        if not ($stash | path exists) { exit $code }
+        rm --force $stash
     }
     do { ^$nu.current-exe --no-config-file $LAUNCH_OPTIONS } | complete | ignore
     $env.MANGOHUD = "1"

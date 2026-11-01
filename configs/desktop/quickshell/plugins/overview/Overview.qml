@@ -53,11 +53,6 @@ Item {
     Hyprland.dispatch("hl.dsp.submap(\"reset\")")
   }
 
-  function toggle() {
-    if (root.opened) root.close()
-    else root.open()
-  }
-
   function move(delta) {
     root.selectedIndex = Math.max(0, Math.min(root.workspaces.length - 1, root.selectedIndex + delta))
   }
@@ -90,7 +85,6 @@ Item {
 
   IpcHandler {
     target: "overview"
-    function toggle(): string { root.toggle(); return "ok" }
     function open(): string { root.open(); return "ok" }
     function close(): string { root.close(); return "ok" }
     function next(): string { if (root.opened) root.cycle(1); else root.open(); return "ok" }
@@ -211,29 +205,24 @@ Item {
                 paintCursor: false
               }
 
-              Text {
+              Label {
                 visible: !capture.hasContent
                 anchors.centerIn: parent
                 width: parent.width - Style.spacing.xs * 2
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
-                textFormat: Text.PlainText
                 text: win.modelData.wayland ? String(win.modelData.wayland.appId || "--") : "--"
-                color: Colors.textDim
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
+                dim: true
+                caption: true
               }
             }
           }
 
-          Text {
-            textFormat: Text.PlainText
+          Label {
             visible: tile.toplevels.length === 0
             anchors.centerIn: parent
             text: "--"
-            color: Colors.textDim
-            font.family: Style.font.family
-            font.pixelSize: Style.font.body
+            dim: true
           }
 
           Rectangle {
@@ -251,16 +240,14 @@ Item {
             height: label.implicitHeight + Style.spacing.xs * 2
             color: Colors.overlayFill
 
-            Text {
+            Label {
               id: label
               anchors.centerIn: parent
-              textFormat: Text.PlainText
               text: "[" + (tile.modelData.id === 10 ? "0" : String(tile.modelData.id)) + "]"
                 + (root.multiMonitor ? " " + String(tile.modelData.monitor.name) : "")
                 + (tile.modelData.active ? " *" : "") + (tile.toplevels.length > 0 ? " " + tile.toplevels.length : "")
               color: tile.selected ? Colors.menu.selectedText : tile.modelData.focused ? Colors.accentText : Colors.menu.text
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
+              caption: true
               font.letterSpacing: Style.headerTracking
             }
           }

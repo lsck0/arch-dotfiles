@@ -3,6 +3,7 @@
 # (every unknown target and nothing else, else every unsatisfied dependency with who needs it).
 use system-apply.nu [sync-errors-parse packages-resolve]
 use modules.nu [modules-packages]
+use std/assert
 
 const EXTRA_UNRESOLVABLE = "lsck0-vm-test-unresolvable"
 const REPO_DB = {
@@ -15,8 +16,6 @@ const REPO_DB = {
     libtask: [python-lockfile]
     zsh: []
 }
-
-def fail [msg: string] { error make {msg: $"system-apply.test: ($msg)"} }
 
 def fake-sp [targets: list<string>]: nothing -> record {
     let unknown = $targets | where $it not-in ($REPO_DB | columns)
@@ -49,8 +48,8 @@ def parse-cases []: nothing -> nothing {
         ":: unable to satisfy dependency 'python-lockfile>=0.12' required by bugwarrior"
     ]
     let got = sync-errors-parse $out
-    if $got.not_found != [nonexistent] { fail $"parse not_found: ($got.not_found | to nuon)" }
-    if $got.unsatisfied != [{dep: "python-lockfile>=0.12", by: bugwarrior}] { fail $"parse unsatisfied: ($got.unsatisfied | to nuon)" }
+    assert equal $got.not_found [nonexistent] $"parse not_found: ($got.not_found | to nuon)"
+    assert equal $got.unsatisfied [{dep: "python-lockfile>=0.12", by: bugwarrior}] $"parse unsatisfied: ($got.unsatisfied | to nuon)"
 }
 
 def resolve-cases []: nothing -> nothing {
@@ -66,15 +65,15 @@ def resolve-cases []: nothing -> nothing {
     ]
     for c in $cases {
         let r = packages-resolve $c.targets {|t| fake-sp $t }
-        if $r.kept != $c.kept { fail $"resolve ($c.name): kept ($r.kept | to nuon), wants ($c.kept | to nuon)" }
+        assert equal $r.kept $c.kept $"resolve ($c.name): kept ($r.kept | to nuon), wants ($c.kept | to nuon)"
         if ($r.dropped.name? | default [] | sort) != ($c.dropped | sort) {
-            fail $"resolve ($c.name): dropped ($r.dropped | to nuon), wants ($c.dropped | to nuon)"
+            error make {msg: $"resolve ($c.name): dropped ($r.dropped | to nuon), wants ($c.dropped | to nuon)"}
         }
-        if ($r.dropped | any { $in.why | is-empty }) { fail $"resolve ($c.name): a drop without its reason" }
+        assert not ($r.dropped | any { $in.why | is-empty }) $"resolve ($c.name): a drop without its reason"
     }
     # an error of another kind (a conflict) drops nothing: the install pass reports it
     let stuck = packages-resolve [bash] {|t| {ok: false, output: ["error: unresolvable package conflicts detected"]} }
-    if $stuck != {kept: [bash], dropped: []} { fail $"resolve conflict: ($stuck | to nuon)" }
+    assert equal $stuck {kept: [bash], dropped: []} $"resolve conflict: ($stuck | to nuon)"
 }
 
 # the platform's extra_packages reach the pass in the same list as the modules', so one that does not resolve drops alone
@@ -85,10 +84,10 @@ def extra-cases []: nothing -> nothing {
     }
     let platform = {form_factor: desktop, extra_packages: [$EXTRA_UNRESOLVABLE zsh]}
     let declared = modules-packages "/nonexistent" [$module] $platform
-    if $EXTRA_UNRESOLVABLE not-in $declared.pacman { fail $"extra_packages not declared: ($declared.pacman | to nuon)" }
+    assert ($EXTRA_UNRESOLVABLE in $declared.pacman) $"extra_packages not declared: ($declared.pacman | to nuon)"
     let r = packages-resolve $declared.pacman {|t| fake-sp $t }
-    if $r.dropped.name != [$EXTRA_UNRESOLVABLE] { fail $"extra dropped: ($r.dropped | to nuon)" }
-    if ($r.kept | sort) != [git zsh] { fail $"extra kept: ($r.kept | to nuon)" }
+    assert equal $r.dropped.name [$EXTRA_UNRESOLVABLE] $"extra dropped: ($r.dropped | to nuon)"
+    assert equal ($r.kept | sort) [git zsh] $"extra kept: ($r.kept | to nuon)"
 }
 
 def main [] {
