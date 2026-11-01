@@ -7,6 +7,17 @@ import qs.Ui
 
 BarWidget {
   id: root
+
+  component ToggleRow: PanelRow {
+    width: parent ? parent.width : 0
+    stateMarker: glyph === ""
+  }
+
+  component RadioChip: Button {
+    variant: "chip"
+    focusable: true
+    fontSize: Style.font.caption
+  }
   moduleName: "network"
   barPriority: 75
   hoverPanel: true
@@ -267,17 +278,6 @@ BarWidget {
       id: content
       width: parent.width
       spacing: Style.spacing.xs
-
-      component ToggleRow: PanelRow {
-        width: content.width
-        stateMarker: glyph === ""
-      }
-
-      component RadioChip: Button {
-        variant: "chip"
-        focusable: true
-        fontSize: Style.font.caption
-      }
 
       PanelSectionHeader {
         visible: root.detailsConnected

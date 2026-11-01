@@ -237,11 +237,13 @@ def lint-nu-pitfalls []: nothing -> list<string> {
     walk | where { nu-script $in } | each {|f| nu-pitfalls-find (open --raw $f) | each {|h| $"(rel $f):($h.n): ($h.why)" } } | flatten
 }
 
-# A script with a shebang is run directly (link-commands, unit Exec=), so it needs its executable bit in git.
+# A script with a shebang is run directly (link-commands, unit Exec=), so it needs its executable bit in git. The
+# working tree's bit is what a commit records, and untracked scripts count too, so a new one is caught before it lands.
 def lint-exec-bits []: nothing -> list<string> {
-    ^git -C $REPO ls-files -s | lines | parse "{mode} {hash} {stage}\t{path}" | where mode == "100644"
-    | where {|f| ($REPO | path join $f.path | path exists) and (open --raw ($REPO | path join $f.path) | into binary | bytes at 0..1) == 0x[2321] }
-    | each { $"($in.path): has a shebang but is not executable, chmod +x it" }
+    ^git -C $REPO ls-files --cached --others --exclude-standard | lines | uniq
+    | where {|f| let p = $REPO | path join $f; ($p | path type) == file and (open --raw $p | into binary | bytes at 0..1) == 0x[2321] }
+    | where {|f| (^test -x ($REPO | path join $f) | complete).exit_code != 0 }
+    | each { $"($in): has a shebang but is not executable, chmod +x it" }
 }
 
 # ASCII only, except where the bytes are content: a keyboard legend, prompt glyphs, KDE's own rc text, accent tables,

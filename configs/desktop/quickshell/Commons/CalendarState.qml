@@ -2,7 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 
-// Today's and tomorrow's homelab calendar events (task-calendar events), for the agenda.
+// The next three days' homelab calendar events (task-calendar events), for the agenda.
 Singleton {
   id: root
 

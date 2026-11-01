@@ -602,6 +602,8 @@ BarWidget {
           sourceSize.height: Math.ceil(height * Screen.devicePixelRatio)
           fillMode: Image.PreserveAspectFit
           asynchronous: true
+          // the loop swaps source every frame; without this the box is empty until the next frame decodes
+          retainWhileLoading: true
           smooth: true
           cache: true
         }
