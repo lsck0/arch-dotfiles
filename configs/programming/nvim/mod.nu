@@ -5,8 +5,8 @@ const QUIET_GIT = [GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=advice.detachedHead GIT_C
 export const meta = {
     packages: {
         pacman: [
-            lua54 luarocks namcap neovide neovim python-pynvim python-tree-sitter-html python-tree-sitter-javascript
-            python-tree-sitter-json tree-sitter-cli
+            ggml-vulkan lua54 luarocks namcap neovide neovim python-pynvim python-tree-sitter-html
+            python-tree-sitter-javascript python-tree-sitter-json tree-sitter-cli whisper-cpp
         ]
     }
 }
@@ -17,6 +17,12 @@ const TREESITTER_TIMEOUT_MS = 600000
 const PREFETCH_TIMEOUT = 45min
 const INSTALL_PASSES = 2
 const THEME_MARKER = "wal/nvim_theme"
+# local_plugins/dictate.lua's speech model; huggingface serves it by commit, its lfs oid is the sha256
+const WHISPER_MODEL = {
+    file: "ggml-large-v3-turbo-q5_0.bin"
+    commit: "5359861c739e955e79d9a303bcbc70fb988958b1"
+    sha256: "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2"
+}
 # lazy skips a plugin whose cond is false (image.nvim outside kitty): its pin is never cloned headless
 const COND_LUA = '
 local found, cfg = pcall(require, "lazy.core.config")
@@ -101,6 +107,8 @@ export def link [cfg: record] {
     let linked = ($config | path expand) == ($env.PWD | path expand)
     [
         (file-link . $config)
+        (fetch-file $"https://huggingface.co/ggerganov/whisper.cpp/resolve/($WHISPER_MODEL.commit)/($WHISPER_MODEL.file)"
+            $WHISPER_MODEL.sha256 (xdg data whisper-cpp $WHISPER_MODEL.file))
         ...(if ($restore | is-not-empty) or not $linked { [(step prefetch --network --timeout $PREFETCH_TIMEOUT ...$restore)] } else { [] })
     ]
 }

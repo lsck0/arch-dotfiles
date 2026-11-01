@@ -5,8 +5,8 @@ const MANIFEST_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
 const OLLAMA_URL = "http://127.0.0.1:11434"
 # a pin is the sha256sum of `curl -H 'Accept: <MANIFEST_TYPE>' <REGISTRY>/<namespace>/<name>/manifests/<tag>`
 # abliterated (uncensored) builds; the 30b moe spills what the gpu lacks into ram and stays fast
-const SMALL = {model: "huihui_ai/qwen3-abliterated:8b", pin: "543f9deff86d8347fd96ea1f3e54e73861ea70d52def71d31ccaeaf013de6ba6"}
-const LARGE = {model: "huihui_ai/qwen3-abliterated:30b-a3b", pin: "45838c4ad5680e5f653edbc60079f29a7ab370d0a5e46a67317945c65e80bd9f"}
+export const SMALL = {model: "huihui_ai/qwen3-abliterated:8b", pin: "543f9deff86d8347fd96ea1f3e54e73861ea70d52def71d31ccaeaf013de6ba6"}
+export const LARGE = {model: "huihui_ai/qwen3-abliterated:30b-a3b", pin: "45838c4ad5680e5f653edbc60079f29a7ab370d0a5e46a67317945c65e80bd9f"}
 export const LONG_CONTEXT = "qwen3-abliterated-64k"
 export const LONG_CONTEXT_TOKENS = 65536
 const START_TRIES = 30

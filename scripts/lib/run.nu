@@ -32,7 +32,7 @@ const FLATPAK_USER_EXPORTS = ".local/share/flatpak/exports/share"
 const DATA_DIRS_DEFAULT = "/usr/local/share:/usr/share"
 const SYSTEM_SEED = 'set -e; umask 022; copy=$1; mkdir -p "${copy%/*}"; exec 9>"${copy%/*}/lock"; flock 9; rm -rf "$copy.new"; mkdir -m 700 "$copy.new"; tar -x --no-same-owner --no-same-permissions -C "$copy.new" -f -; printf "%s\n" "$2" > "$copy.new/.source"; [ ! -d "$copy.new/configs/secrets" ] || chmod -R go= "$copy.new/configs/secrets"; chmod 755 "$copy.new"; rm -rf "$copy"; mv "$copy.new" "$copy"'
 const THEME_STAMP_PATHS = [configs/core/wallust themes 'configs/*/*/mod.nu']
-const THEME_DEFAULT_WALLPAPER = "alena-aenami-cover-art-007-3.jpg"
+const THEME_DEFAULT_WALLPAPER = "alena-aenami-sundown.jpg"
 
 def summary [results: table]: nothing -> nothing {
     let outcomes = $results | get outcomes | concat
@@ -98,8 +98,16 @@ export def --env link-run [mods: list<string>, force: bool]: nothing -> table {
         let units = ledger-units $REPO ($ctx.modules | where cfg.enable | get dir) user
         $units.by_hand | each { log-info $"enabled by hand, not managed: ($in)" } | ignore
         theme-init
+    } else if "core/wallust" in $mods {
+        # a changed template is rendered by this run, not by the next theme switch
+        theme-init
     }
     summary ($results ++ $themed)
+    # modules name their user layer only; a system part left out says so instead of looking applied
+    let system_left = $ctx.modules | where {|m| $m.id in $mods and "system" in $m.native } | get id
+    if ($system_left | is-not-empty) and $env.DOT_SYSTEM? != "skip" {
+        log-note $"system part not applied: ($system_left | str join ' '); dot apply --system converges it"
+    }
     $results ++ $themed
 }
 

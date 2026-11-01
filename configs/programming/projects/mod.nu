@@ -12,6 +12,8 @@ const REPOSITORIES = "configs/secrets/state/repositories"
 const BARE = [probe]
 const GH_HOSTS = ".config/gh/hosts.yml"
 const ICON = "folder-development"
+# a first clone fetches every submodule's history and the lfs objects (hundreds of MB), past converge's 20min
+const CLONE_TIMEOUT = 90min
 # a push to github alone must not reach root here through git-sync and dot apply
 const DOTFILES_GIT = {"pull.rebase": "false", "pull.ff": "only", "merge.verifySignatures": "true"}
 
@@ -44,9 +46,11 @@ def clone [root: path, line: string]: nothing -> list<record> {
         # the empty helper first drops gh's, which logs in as another account
         [-c credential.helper= -c $"credential.helper=(credential-helper $token)"]
     }
-    # core/ntfy may have cloned the homelab since this plan was made
-    let git = [env GIT_TERMINAL_PROMPT=0 git ...$auth clone --quiet --recurse-submodules $url $dest]
-    [(exec $"clone ($dest | path basename)" [sh -c 'test -e "$0/.git" || exec "$@"' $dest ...$git] --creates $dest --network)]
+    # core/ntfy may have cloned the homelab since this plan was made. The clone lands beside dest and moves in whole:
+    # one cut off mid-checkout would otherwise stand as dest and satisfy --creates
+    let git = [env GIT_TERMINAL_PROMPT=0 git ...$auth clone --quiet --recurse-submodules $url]
+    let into = 'test -e "$0/.git" && exit 0; rm -rf "$0.partial" && "$@" "$0.partial" && mv "$0.partial" "$0"'
+    [(exec $"clone ($dest | path basename)" [sh -c $into $dest ...$git] --creates $dest --network --timeout $CLONE_TIMEOUT)]
 }
 
 def collections [root: path]: nothing -> list<path> {

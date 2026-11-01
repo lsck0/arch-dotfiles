@@ -1,7 +1,7 @@
 {
   "name": "Bare",
   "AuxAudioDevice1": {
-    "prev_ver": 537001986,
+    "prev_ver": 553648129,
     "name": "Mic/Aux",
     "uuid": "dc7eed07-d3ea-4991-b350-e1443f65021f",
     "id": "pulse_input_capture",
@@ -15,7 +15,7 @@
     "volume": 0.8341541290283203,
     "balance": 0.5,
     "enabled": true,
-    "muted": true,
+    "muted": false,
     "push-to-mute": false,
     "push-to-mute-delay": 0,
     "push-to-talk": false,
@@ -23,18 +23,21 @@
     "hotkeys": {
       "libobs.mute": [],
       "libobs.unmute": [],
+      "libobs.monitor-on": [],
+      "libobs.monitor-off": [],
       "libobs.push-to-mute": [],
       "libobs.push-to-talk": []
     },
     "deinterlace_mode": 0,
     "deinterlace_field_order": 0,
     "monitoring_type": 0,
+    "monitoring_enabled": false,
     "private_settings": {
       "volume_locked": true
     },
     "filters": [
       {
-        "prev_ver": 537001986,
+        "prev_ver": 553648129,
         "name": "Noise Suppression",
         "uuid": "81b71fb6-d17b-43c7-9c9f-681ff6e32370",
         "id": "noise_suppress_filter",
@@ -57,10 +60,11 @@
         "deinterlace_mode": 0,
         "deinterlace_field_order": 0,
         "monitoring_type": 0,
+        "monitoring_enabled": false,
         "private_settings": {}
       },
       {
-        "prev_ver": 537001986,
+        "prev_ver": 553648129,
         "name": "Expander",
         "uuid": "bbddde74-55c6-4b59-8cfe-b8ba5e015976",
         "id": "expander_filter",
@@ -83,10 +87,11 @@
         "deinterlace_mode": 0,
         "deinterlace_field_order": 0,
         "monitoring_type": 0,
+        "monitoring_enabled": false,
         "private_settings": {}
       },
       {
-        "prev_ver": 537001986,
+        "prev_ver": 553648129,
         "name": "Compressor",
         "uuid": "0652b5bc-720d-495b-87c4-ee8a50552cef",
         "id": "compressor_filter",
@@ -112,10 +117,11 @@
         "deinterlace_mode": 0,
         "deinterlace_field_order": 0,
         "monitoring_type": 0,
+        "monitoring_enabled": false,
         "private_settings": {}
       },
       {
-        "prev_ver": 537001986,
+        "prev_ver": 553648129,
         "name": "Limiter",
         "uuid": "76507b4f-6160-47ad-9a4a-c5722a9e42d7",
         "id": "limiter_filter",
@@ -138,13 +144,14 @@
         "deinterlace_mode": 0,
         "deinterlace_field_order": 0,
         "monitoring_type": 0,
+        "monitoring_enabled": false,
         "private_settings": {}
       }
     ]
   },
   "sources": [
     {
-      "prev_ver": 537001986,
+      "prev_ver": 553648129,
       "name": "Screen Capture",
       "uuid": "34ad521d-ff60-4125-95b1-05d28c35a096",
       "id": "pipewire-screen-capture-source",
@@ -165,10 +172,11 @@
       "deinterlace_mode": 0,
       "deinterlace_field_order": 0,
       "monitoring_type": 0,
+      "monitoring_enabled": false,
       "private_settings": {}
     },
     {
-      "prev_ver": 537001986,
+      "prev_ver": 553648129,
       "name": "Game Audio",
       "uuid": "00000000-0000-4000-8000-0000000000a3",
       "id": "pipewire_audio_application_capture",
@@ -190,16 +198,19 @@
       "hotkeys": {
         "libobs.mute": [],
         "libobs.unmute": [],
+        "libobs.monitor-on": [],
+        "libobs.monitor-off": [],
         "libobs.push-to-mute": [],
         "libobs.push-to-talk": []
       },
       "deinterlace_mode": 0,
       "deinterlace_field_order": 0,
       "monitoring_type": 0,
+      "monitoring_enabled": false,
       "private_settings": {}
     },
     {
-      "prev_ver": 537001986,
+      "prev_ver": 553648129,
       "name": "Desktop Audio",
       "uuid": "ba8bc188-cb53-4e59-b6a6-fced40b91ef8",
       "id": "pipewire_audio_application_capture",
@@ -222,16 +233,19 @@
       "hotkeys": {
         "libobs.mute": [],
         "libobs.unmute": [],
+        "libobs.monitor-on": [],
+        "libobs.monitor-off": [],
         "libobs.push-to-mute": [],
         "libobs.push-to-talk": []
       },
       "deinterlace_mode": 0,
       "deinterlace_field_order": 0,
       "monitoring_type": 0,
+      "monitoring_enabled": false,
       "private_settings": {}
     },
     {
-      "prev_ver": 537001986,
+      "prev_ver": 553648129,
       "name": "Desktop",
       "uuid": "00000000-0000-4000-8000-0000000000f5",
       "id": "scene",
@@ -430,6 +444,7 @@
       "deinterlace_mode": 0,
       "deinterlace_field_order": 0,
       "monitoring_type": 0,
+      "monitoring_enabled": false,
       "canvas_uuid": "6c69626f-6273-4c00-9d88-c5136d61696e",
       "private_settings": {}
     }

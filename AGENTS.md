@@ -42,7 +42,8 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   sudo and pkexec take a YubiKey touch or fingerprint on Luca's side, the password as fallback.
 - `dot sync` (pull, migrate, install, apply, back up, signed `Generation: <n>` commit, push) is Luca's only commit
   path: agents never commit, push or run it, `--no-push` included.
-- `collect-diagnostics [dest]`: bash only, runs from a USB stick; hardware, boot, journals, dot state.
+- `collect-diagnostics [dest]`: bash only, runs from a USB stick; hardware, boot, journals, dot state; `dest` defaults to
+  a mounted `LSCK0` stick partition.
 
 ## Layout
 

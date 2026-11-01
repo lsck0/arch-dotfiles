@@ -1,12 +1,25 @@
 use module.nu *
+use ollama-ensure-models.nu [SMALL LARGE]
 
 export const meta = {packages: {pacman: [ollama]}}
 
-const RESTART = [systemctl try-restart ollama.service]
+# the socket starts both again on the next request, with the new settings; a restart of ollama alone stops the proxy
+# bound to it, and that stop cancels ollama's start job
+const RESTART = [systemctl stop ollama-proxy.service ollama.service]
 export const KEEP_ALIVE_MIN = 30
+# the pinned models are tens of GB: pulled once per pin set, and only where a gpu runs them (not the vm test)
+const MODELS_TIMEOUT = 3hr
 
 export def link [cfg: record] {
-    link-commands ollama-ensure-models.nu
+    let pins = [$SMALL.pin $LARGE.pin] | str join "\n" | hash sha256 | str substring 0..<12
+    let stamp = xdg state ollama-models $pins
+    [
+        (link-commands ollama-ensure-models.nu)
+        (if (gpu-list | where vram > 0b | is-empty) { [] } else {
+            exec ollama-models [sh -c 'nu --no-config-file "$1" && mkdir -p "${0%/*}" && touch "$0"' $stamp
+                ($env.PWD | path join ollama-ensure-models.nu)] --creates $stamp --network --timeout $MODELS_TIMEOUT
+        })
+    ]
 }
 
 export def system [cfg: record] {

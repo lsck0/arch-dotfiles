@@ -36,6 +36,10 @@ theme's wallpaper has a public copy in `wallpapers/`; names resolve from `~/sync
 1. `configs/core/wallust/templates/wal/colors-<tool>.<ext>` with the placeholders.
 2. Point the program at `$XDG_CACHE_HOME/wal/colors-<tool>.<ext>` in its module's `link`.
 3. Needs a reload: a `theme` verb that pokes it (`configs/desktop/kitty/mod.nu`).
+4. A tool that reads its file by pywal convention, with no path in the repo (pywal.nvim's `colors-wal.vim`): a row
+   in `READERS` of `configs/core/wallust/readers.test.nu`, or a cleanup will drop the template as unused.
+
+`dot apply core/wallust` renders a changed template at once (`theme-init`), so one apply shows the change.
 
 ## Add a generator
 

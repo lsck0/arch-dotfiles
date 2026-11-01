@@ -454,15 +454,15 @@ Item {
                     animate: Style.fx.matrixRain > 0 && Style.motion.enabled
                 }
 
-                // a plate keeps the date and hints readable where the ASCII field runs through the clock block
-                Rectangle {
+                // a shade keeps the date and hints readable where the ASCII field runs through the clock block; blurred
+                // past its edges it fades into the field instead of standing in it as a box
+                RectangularShadow {
                     anchors.centerIn: clockBlock
                     width: clockBlock.width + Style.surface.padding * 2
                     height: clockBlock.height + Style.surface.padding * 2
+                    radius: height / 2
+                    blur: Style.space(112)
                     color: Colors.overlayFill
-                    border.width: Style.normalBorderWidth
-                    border.color: Style.normalBorderColor
-                    radius: Style.shape.surface
                 }
 
                 Column {

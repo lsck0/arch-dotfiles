@@ -10,6 +10,8 @@ const TOR_ROUTER = "/usr/local/bin/tor-router"
 const TOR = "/usr/bin/tor"
 const VM_GUEST = "/etc/NetworkManager/vm-guest"
 const POLICY_FILE = "/etc/NetworkManager/untrusted-policy"
+# the install chain's unit: while it exists the chain downloads directly; its last step removes it and reboots
+const STAGE_UNIT = "/etc/systemd/system/dotfiles-stage.service"
 const HOMELAB_ENV = "/etc/NetworkManager/homelab.env"
 const VPN_IFACE = "proton0"
 const WG_IFACE = "wg0"
@@ -35,7 +37,9 @@ def home-links []: nothing -> list<string> {
 
 def policy []: nothing -> string {
     let policy = if ($POLICY_FILE | path exists) { open --raw $POLICY_FILE | str trim } else { "" }
-    if $policy in [firewall-only off] { $policy } else { "lockdown-tor" }
+    let policy = if $policy in [firewall-only off] { $policy } else { "lockdown-tor" }
+    # tor would carry every download of the install through a few slow exits that some hosts refuse; inbound stays shut
+    if $policy == lockdown-tor and ($STAGE_UNIT | path exists) { "firewall-only" } else { $policy }
 }
 
 def lab-value [key: string]: nothing -> string {

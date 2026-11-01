@@ -3,13 +3,14 @@ use ../../core/wallust/palette.nu *
 
 # after caveman and rtk: the orchestrator profile is a one-time clone of ~/.hermes, which they fill with skills
 export const meta = {
-    deps: [programming/caveman programming/rtk desktop/idle-guards llm/vllm]
+    deps: [programming/caveman programming/rtk desktop/idle-guards llm/vllm llm/ollama]
     packages: {pacman: [herdr-bin hermes-agent]}
     # the guard appears after planning on a fresh install; as an input it re-plans the hooks
     inputs: [~/.config/idle-guards/agent-guard.nu]
 }
 
 use ../../desktop/idle-guards/mod.nu [AGENT_GUARD]
+use ../../llm/ollama/ollama-ensure-models.nu [LONG_CONTEXT]
 
 const HOME = ".hermes"
 const ORCHESTRATOR = "profiles/orchestrator"
@@ -17,6 +18,9 @@ const PYTHON = "/opt/hermes-agent/venv/bin/python"
 const SKIN = "wallust"
 const VLLM_BASE_URL = "http://127.0.0.1:8000/v1"
 const VLLM_KEYS = [model_aliases.vllm providers.vllm]
+# ollama's openai endpoint; its proxy socket is the 11434 every client uses
+const OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1"
+const OLLAMA_KEYS = [model_aliases.ollama providers.ollama]
 const SETTINGS = {
     display.interface: tui
     model.default: claude-sonnet-5
@@ -89,11 +93,21 @@ def vllm-settings [vllm: any]: nothing -> record {
     }
 }
 
+# llm/ollama pulls its uncensored models only where a gpu runs them; hermes offers the long-context one there
+def ollama-settings [ollama: any]: nothing -> record {
+    if $ollama == null or (gpu-list | where vram > 0b | is-empty) { return {} }
+    {
+        model_aliases.ollama: {model: $LONG_CONTEXT, provider: custom, base_url: $OLLAMA_BASE_URL, api_key: null}
+        providers.ollama: {base_url: $OLLAMA_BASE_URL, model: $LONG_CONTEXT}
+    }
+}
+
 export def link [cfg: record] {
     let h = homes
     let vllm = vllm-settings $cfg.deps?."llm/vllm"?
-    let settings = $SETTINGS | merge $vllm
-    let remove = if ($vllm | is-empty) { $VLLM_KEYS } else { [] }
+    let ollama = ollama-settings $cfg.deps?."llm/ollama"?
+    let settings = $SETTINGS | merge $vllm | merge $ollama
+    let remove = (if ($vllm | is-empty) { $VLLM_KEYS } else { [] }) ++ (if ($ollama | is-empty) { $OLLAMA_KEYS } else { [] })
     let skills = glob ($env.DOTFILES | path join skills "l-*") | where ($it | path type) == dir
     [
         (step required-extras --network)

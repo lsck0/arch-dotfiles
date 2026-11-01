@@ -11,6 +11,8 @@ const FONT = "wal/emacs-font.el"
 const GRAMMAR_DIRS = [tree-sitter /usr/lib]
 const LEXICAL = ";;; -*- lexical-binding: t; -*-"
 const FORMATTING = [clang-format prettierrc.json ruff.toml rustfmt.toml stylua.toml]
+# a fresh install fetches every package and clones and compiles each tree-sitter grammar: past converge's 20min
+const PREFETCH_TIMEOUT = 60min
 const UPGRADE = "(progn (require 'package)
   (setq package-archives '((\"gnu\" . \"https://elpa.gnu.org/packages/\")
                             (\"nongnu\" . \"https://elpa.nongnu.org/nongnu/\")
@@ -54,7 +56,7 @@ export def link [cfg: record] {
         (files-into $dir ...$sources)
         ($FORMATTING | each {|f| file-copy ($"../formatting/($f)") ($dir | path join formatting $f) })
         (file-copy ../formatting/sort-derives-stdout.nu ($dir | path join formatting sort-derives-stdout.nu) --mode 755)
-        (if not (elpa-ready) or (grammars-missing | is-not-empty) { [(step prefetch --network)] } else { [] })
+        (if not (elpa-ready) or (grammars-missing | is-not-empty) { [(step prefetch --network --timeout $PREFETCH_TIMEOUT)] } else { [] })
     ]
 }
 

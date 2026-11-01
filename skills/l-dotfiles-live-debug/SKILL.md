@@ -62,8 +62,9 @@ A homelab service that times out: `l-homelab`, section Debugging.
 `collect-diagnostics [dest]` writes `dest/diag-<host>-<time>/`: hardware, boot, network, DNS, firewall, journals (this
 boot, previous, last five as zstd exports), failed units, `dot status`, `dot log`, `FAILURES*`, run logs, crash record,
 stage state, Hyprland and quickshell logs. Bash and coreutils only, so it runs from a USB stick. Asks sudo once for the
-root parts, skips them without. `dest` defaults to `$XDG_STATE_HOME/diagnostics` (never the checkout), from the
-stick to the script's dir.
+root parts, skips them without. `dest` defaults to a mounted `LSCK0` partition (the install stick's, which carries the
+script too), else `$XDG_STATE_HOME/diagnostics` (never the checkout), from elsewhere to the script's dir. The raw-written
+iso leaves its EFI partition (answer files) nearly full; `LSCK0` is a FAT32 partition added behind it in the free space.
 
 ## Restart
 

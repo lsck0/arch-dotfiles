@@ -6,13 +6,18 @@ umask 077
 
 case "${1:-}" in
     -h | --help)
-        echo "usage: collect-diagnostics [dest]: logs, journals, network and dot state into dest/diag-<host>-<time>/"
+        echo "usage: collect-diagnostics [dest]: logs, journals, network and dot state into dest/diag-<host>-<time>/" \
+            "(default: a mounted LSCK0 stick)"
         exit 0
         ;;
 esac
 self=$(dirname "$(realpath "$0")")
+stick=$(findmnt -rno TARGET -S LABEL=LSCK0 2> /dev/null | head -n1)
 if [[ -n "${1:-}" ]]; then
     dest=$1
+elif [[ -n $stick ]]; then
+    # the install stick's LSCK0 partition, beside the answer files' medium: the bundle travels with the stick
+    dest=$stick
 elif [[ -f "$self/dot.nu" ]]; then
     # never into the checkout (dot sync would commit it) and not straight into $HOME either
     dest=${XDG_STATE_HOME:-$HOME/.local/state}/diagnostics
@@ -23,11 +28,19 @@ out="$dest/diag-$(cat /etc/hostname 2> /dev/null || uname -n)-$(date +%Y%m%d-%H%
 mkdir -p "$out" || exit 1
 
 # as root through sudo, the dot state and checkout to report are the invoking user's, not root's
+# and so is the session: its bus, pipewire and Hyprland are reached through the user's runtime dir
 as_user=()
 user_home=$HOME
+user_runtime=${XDG_RUNTIME_DIR:-/run/user/$UID}
 if ((EUID == 0)) && [[ -n "${SUDO_USER:-}" ]]; then
-    as_user=(runuser -u "$SUDO_USER" --)
     user_home=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+    user_runtime=/run/user/$(id -u "$SUDO_USER")
+    session=(XDG_RUNTIME_DIR="$user_runtime" DBUS_SESSION_BUS_ADDRESS="unix:path=$user_runtime/bus")
+    hypr=$(find "$user_runtime/hypr" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %f\n' 2> /dev/null | sort -rn | head -n1 | cut -d' ' -f2)
+    [[ -n $hypr ]] && session+=(HYPRLAND_INSTANCE_SIGNATURE="$hypr")
+    wayland=$(find "$user_runtime" -maxdepth 1 -type s -name 'wayland-*' -printf '%f\n' 2> /dev/null | head -n1)
+    [[ -n $wayland ]] && session+=(WAYLAND_DISPLAY="$wayland")
+    as_user=(runuser -u "$SUDO_USER" -- env "${session[@]}")
 fi
 
 if ((EUID == 0)); then
@@ -38,6 +51,13 @@ else
     as_root=()
     echo "collect-diagnostics: no sudo, root-only commands are skipped" >&2
 fi
+
+# the bundle belongs to whoever ran it, through sudo the invoking user; FAT and NTFS (the stick) keep no owners
+owner="$(id -u):$(id -g)"
+((EUID == 0)) && owner=${SUDO_USER:+$SUDO_USER:}
+case $(findmnt -rno FSTYPE -T "$out" 2> /dev/null) in
+    vfat | exfat | msdos | ntfs | ntfs3 | fuseblk) owner= ;;
+esac
 
 run() {
     local file=$1
@@ -61,7 +81,7 @@ grab() {
 root_grab() {
     if ((EUID == 0)) || ((${#as_root[@]})); then
         "${as_root[@]}" cp -rL --no-preserve=mode,ownership "$@" "$out/files/root/" 2> /dev/null
-        "${as_root[@]}" chown -R "$(id -u):$(id -g)" "$out/files"
+        [[ -z $owner ]] || "${as_root[@]}" chown -R "$owner" "$out/files"
     fi
 }
 mkdir -p "$out/files/root"
@@ -96,10 +116,10 @@ root boot dmesg --level=err,warn
 run boot journalctl --list-boots --no-pager
 
 run units systemctl --failed --no-pager
-run units systemctl --user --failed --no-pager
+run units "${as_user[@]}" systemctl --user --failed --no-pager
 run units systemctl list-units --state=failed,activating,auto-restart --all --no-pager
 run units systemctl list-jobs --no-pager
-run units systemctl --user list-units --state=failed,activating,auto-restart --all --no-pager
+run units "${as_user[@]}" systemctl --user list-units --state=failed,activating,auto-restart --all --no-pager
 
 run network ip -br link
 run network ip addr
@@ -163,22 +183,22 @@ run packages cat /etc/pacman.d/mirrorlist
 grab /var/log/pacman.log
 
 run journal journalctl -b -p warning --no-pager
-run journal_user journalctl --user -b -p warning --no-pager
+run journal_user "${as_user[@]}" journalctl --user -b -p warning --no-pager
 run journal_net journalctl -b -u NetworkManager -u iwd -u wpa_supplicant -u nftables -u portmaster --no-pager
 root journal_kernel journalctl -k -b --no-pager
 root apparmor journalctl -k -b --no-pager -g 'apparmor="DENIED"'
 root apparmor aa-status
 run journal_full journalctl -b --no-pager -o short-monotonic
 run journal_prev journalctl -b -1 --no-pager -o short-monotonic
-run journal_user_full journalctl --user -b --no-pager -o short-monotonic
+run journal_user_full "${as_user[@]}" journalctl --user -b --no-pager -o short-monotonic
 run coredumps coredumpctl list --no-pager
 for unit in $(systemctl --failed --plain --no-legend 2> /dev/null | awk '{print $1}'); do
     run "failed_$unit" systemctl status "$unit" --no-pager -l
     run "failed_$unit" journalctl -b -u "$unit" --no-pager
 done
-for unit in $(systemctl --user --failed --plain --no-legend 2> /dev/null | awk '{print $1}'); do
-    run "failed_user_$unit" systemctl --user status "$unit" --no-pager -l
-    run "failed_user_$unit" journalctl --user -b -u "$unit" --no-pager
+for unit in $("${as_user[@]}" systemctl --user --failed --plain --no-legend 2> /dev/null | awk '{print $1}'); do
+    run "failed_user_$unit" "${as_user[@]}" systemctl --user status "$unit" --no-pager -l
+    run "failed_user_$unit" "${as_user[@]}" journalctl --user -b -u "$unit" --no-pager
 done
 if command -v zstd > /dev/null; then
     for boot in 0 -1 -2 -3 -4; do
@@ -205,7 +225,7 @@ root dot cat /var/lib/dotfiles/crash.json
 root dot ls -la /etc/sudoers.d
 root_grab /var/lib/dotfiles-stage /var/lib/dotfiles/runs
 
-run session wpctl status
+run session "${as_user[@]}" wpctl status
 run session upower -d
 run session sensors
 run session loginctl list-sessions
@@ -220,16 +240,17 @@ while IFS= read -r -d '' entry; do
     fi
 done < <(env -0) | sed -E 's#(://)[^/@[:space:]]+@#\1<redacted>@#g' > "$out/session-env.txt"
 
-run desktop hyprctl version
-run desktop hyprctl monitors
-run desktop journalctl --user -u quickshell -b --no-pager -o cat
+run desktop "${as_user[@]}" hyprctl version
+run desktop "${as_user[@]}" hyprctl monitors
+run desktop "${as_user[@]}" journalctl --user -u quickshell -b --no-pager -o cat
 newest() {
     local f best=
     for f in "$1"/*/"$2"; do [[ -e "$f" && (-z "$best" || "$f" -nt "$best") ]] && best=$f; done
     [[ -n "$best" ]] && grab "$best"
 }
-newest "${XDG_RUNTIME_DIR:-/run/user/$UID}/hypr" hyprland.log
-newest "${XDG_RUNTIME_DIR:-/run/user/$UID}/quickshell/by-id" log.log
+newest "$user_runtime/hypr" hyprland.log
+newest "$user_runtime/quickshell/by-id" log.log
 
+((EUID == 0)) && [[ -n $owner ]] && chown -R "$owner" "$out"
 sync
 echo "done: $out ($(du -sh "$out" | cut -f1))" >&2

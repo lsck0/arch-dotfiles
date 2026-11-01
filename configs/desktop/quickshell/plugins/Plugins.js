@@ -7,7 +7,8 @@ const shell = {
     "panel.speedtest":       "speedtest/Panel.qml",
     "panel.tasks":           "tasks/Tasks.qml",
     "panel.wifiqr":          "wifiqr/Panel.qml",
-    "service.notifications": "notifications/Service.qml"
+    "service.notifications": "notifications/Service.qml",
+    "service.polkit":        "polkit/Agent.qml"
 };
 
 const bar = {

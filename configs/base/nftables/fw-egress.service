@@ -1,6 +1,8 @@
 [Unit]
 # owns table inet fw_egress, independent of the firewall toggle; the escape uids are looked up on every start and reload
 Description=Untrusted-network kill switch (lockdown-tor)
+# not during the install chain, which downloads directly (persona-dispatcher's policy); its end reboots into this
+ConditionPathExists=!/etc/systemd/system/dotfiles-stage.service
 Before=network-pre.target
 Wants=network-pre.target
 

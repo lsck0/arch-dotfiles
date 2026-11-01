@@ -32,7 +32,8 @@ export def link [cfg: record] {
     }
     [
         (fetch-file $PHOTOGIMP_URL $PHOTOGIMP_SHA256 (unpacked) --extract .)
-        (step seed $config $version)
+        # the seed copies out of the download: run before it landed, it would mark gimp seeded with nothing copied
+        (step seed $config $version --requires (unpacked | path join PhotoGIMP-linux))
         (step welcome-seen $config $release)
     ]
 }

@@ -127,7 +127,11 @@ export def link [cfg: record] {
             file-text ($config | path join autostart $"($id).desktop") $entry
         })
         # a user kde-portals.conf replaces plasma's whole file, so it repeats plasma's lines
-        (if (which Hyprland | is-not-empty) { files-into $portals hyprland-portals.conf } else { [] })
+        # the portal reads its routing only at start
+        (if (which Hyprland | is-not-empty) {
+            (file-copy hyprland-portals.conf ($portals | path join hyprland-portals.conf)
+                --then [systemctl --user try-restart xdg-desktop-portal.service])
+        } else { [] })
         (if (which startplasma-wayland | is-not-empty) { files-into $portals kde-portals.conf } else { [] })
         (file-text ($config | path join gtk-3.0 bookmarks) ($bookmarks | str join "\n" | $"($in)\n"))
         (file-text (home .local share user-places.xbel) (places-xbel (places $nas $projects)) --generated)

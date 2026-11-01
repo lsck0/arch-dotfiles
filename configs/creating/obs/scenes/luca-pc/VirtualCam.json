@@ -2,7 +2,7 @@
   "name": "VirtualCam",
   "sources": [
     {
-      "prev_ver": 553648128,
+      "prev_ver": 553648129,
       "name": "Screen Capture",
       "uuid": "00000000-0000-4000-8000-000000000101",
       "id": "pipewire-screen-capture-source",
@@ -27,7 +27,7 @@
       "private_settings": {}
     },
     {
-      "prev_ver": 553648128,
+      "prev_ver": 553648129,
       "name": "Camera",
       "uuid": "00000000-0000-4000-8000-000000000102",
       "id": "v4l2_input",
@@ -57,7 +57,7 @@
       "private_settings": {}
     },
     {
-      "prev_ver": 553648128,
+      "prev_ver": 553648129,
       "name": "Desktop",
       "uuid": "00000000-0000-4000-8000-000000000110",
       "id": "scene",
@@ -147,7 +147,7 @@
       "private_settings": {}
     },
     {
-      "prev_ver": 553648128,
+      "prev_ver": 553648129,
       "name": "Webcam",
       "uuid": "00000000-0000-4000-8000-000000000120",
       "id": "scene",
@@ -237,7 +237,7 @@
       "private_settings": {}
     },
     {
-      "prev_ver": 553648128,
+      "prev_ver": 553648129,
       "name": "Cam bottom right",
       "uuid": "00000000-0000-4000-8000-000000000111",
       "id": "scene",
@@ -384,7 +384,7 @@
       "private_settings": {}
     },
     {
-      "prev_ver": 553648128,
+      "prev_ver": 553648129,
       "name": "Cam bottom left",
       "uuid": "00000000-0000-4000-8000-000000000112",
       "id": "scene",
@@ -531,7 +531,7 @@
       "private_settings": {}
     },
     {
-      "prev_ver": 553648128,
+      "prev_ver": 553648129,
       "name": "Cam top right",
       "uuid": "00000000-0000-4000-8000-000000000113",
       "id": "scene",
@@ -678,7 +678,7 @@
       "private_settings": {}
     },
     {
-      "prev_ver": 553648128,
+      "prev_ver": 553648129,
       "name": "Cam top left",
       "uuid": "00000000-0000-4000-8000-000000000114",
       "id": "scene",

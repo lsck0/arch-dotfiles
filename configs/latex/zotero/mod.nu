@@ -56,7 +56,10 @@ export def link [cfg: record] {
         ($profiles | each {|dir| file-render user.js ($dir | path join user.js) $prefs })
         ($profiles | each {|dir| fetch-file $BBT_URL $BBT_SHA256 ($dir | path join extensions $"($BBT_ID).xpi") } | flatten)
         # the auto-export runs only on a library change, so an unchanged library never gets its file
-        (if ($profiles | is-empty) or ($bib | path exists) { [] } else { step library-export $bib })
+        # better bibtex answers the export; its download may still be pending (offline), then the export waits too
+        (if ($profiles | is-empty) or ($bib | path exists) { [] } else {
+            step library-export $bib --requires ($profiles | first | path join extensions $"($BBT_ID).xpi")
+        })
         (mcp-servers {zotero-mcp: $MCP})
     ]
 }

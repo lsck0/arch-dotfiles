@@ -17,7 +17,9 @@ profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
 - `ssh` and `nftables`: sshd listens on `base/ssh.port` behind a three-port knock (`base/ssh.knock`, held open for
   `nftables.ssh_knock_window`); `sshk` and `wake-pc` knock first, 22 is the endlessh tarpit.
 - `nftables` fw-egress: under lockdown-tor it fails closed whether tor is there or not; besides tor only pacman's
-  download user (tcp 80/443) and resolved (DoT on 853) get out, so a machine without tor can still install it. The
+  download user (tcp 80/443) and resolved (DoT on 853) get out, so a machine without tor can still install it. Once
+  tor-router is up everything, those two included, reaches it redirected to loopback with oifname still the uplink,
+  so fw-egress accepts loopback by address (`base/tor/tor-router.test.nu` runs both rulesets). The
   uids are looked up at unit start, so nftables never waits on base/tor (lint: `FAIL_CLOSED` in scripts/lib/commands.nu).
 - `powercap`: `powercap-watts.service` writes the RAPL package draw as whole watts to `/run/powercap/watts` for the
   bar, `energy_uj` stays root-only; a udev rule starts it once `intel_rapl_msr` loads.

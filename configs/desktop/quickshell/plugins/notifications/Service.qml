@@ -36,6 +36,8 @@ Item {
       id: settings
       property bool dnd: false
       property bool dndByObs: false
+      // a screen share (Discord, a browser) turned it on: Hyprland's screencast event, any portal share
+      property bool dndByShare: false
     }
   }
 
@@ -49,6 +51,7 @@ Item {
 
   function setDoNotDisturb(value) {
     settings.dndByObs = false // qmllint disable unqualified
+    settings.dndByShare = false // qmllint disable unqualified
     settings.dnd = !!value // qmllint disable unqualified
   }
 
@@ -56,14 +59,36 @@ Item {
     if (!ObsProcess.probed) return
     if (ObsProcess.running && !persisted.obsSession) {
       persisted.obsSession = true
-      if (!settings.dnd) { // qmllint disable unqualified
+      // held by a share already: OBS shares the hold, so the first to end leaves it on
+      if (!settings.dnd || settings.dndByShare) { // qmllint disable unqualified
         settings.dndByObs = true // qmllint disable unqualified
         settings.dnd = true // qmllint disable unqualified
       }
     } else if (!ObsProcess.running) {
-      if (settings.dndByObs) settings.dnd = false // qmllint disable unqualified
+      if (settings.dndByObs && !settings.dndByShare) settings.dnd = false // qmllint disable unqualified
       settings.dndByObs = false // qmllint disable unqualified
       persisted.obsSession = false
+    }
+  }
+
+  // screencast>>1,<owner> as a share starts, screencast>>0,<owner> as it ends
+  function shareSync(sharing) {
+    if (sharing) {
+      if (!settings.dnd || settings.dndByObs) { // qmllint disable unqualified
+        settings.dndByShare = true // qmllint disable unqualified
+        settings.dnd = true // qmllint disable unqualified
+      }
+    } else {
+      if (settings.dndByShare && !settings.dndByObs) settings.dnd = false // qmllint disable unqualified
+      settings.dndByShare = false // qmllint disable unqualified
+    }
+  }
+
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (!event || String(event.name) !== "screencast") return
+      service.shareSync(String(event.data).split(",")[0] === "1")
     }
   }
 

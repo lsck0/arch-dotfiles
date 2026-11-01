@@ -19,7 +19,8 @@ export def link [cfg: record] {
             $in | str replace --all --regex '(?m)^(Exec=proton-pass) ' '$1 --password-store=basic '
         })
         (link-commands proton-sessions-restore.nu)
-        (unit-file proton-sessions-restore.service --enable)
+        # reenable: a changed WantedBy leaves the old target's wants link behind
+        (unit-file proton-sessions-restore.service --enable --then [systemctl --user reenable proton-sessions-restore.service])
         (if (xdg state $MARKER | path exists) { [] } else { step sessions-restore-now })
     ]
 }

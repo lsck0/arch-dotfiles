@@ -171,6 +171,7 @@ endlessh-git
 enola
 entr
 espeak-ng
+ethtool
 expect
 exploitdb
 eza
@@ -214,6 +215,7 @@ gearlever
 gemini-cli
 genius
 geogebra-6-bin
+ggml-vulkan
 gh-dash
 gh-enhance-bin
 ghcup-hs-bin
@@ -931,6 +933,7 @@ wayvr-bin
 websocat
 wev
 wget
+whisper-cpp
 whois
 wiki-tui
 wine-staging

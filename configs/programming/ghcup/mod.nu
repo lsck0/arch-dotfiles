@@ -18,7 +18,8 @@ export def link [cfg: record] {
         let active_matches = ($bin | path join $exe | path expand | str contains $version)
         [
             (exec $"ghcup-install-($tool)" [$GHCUP install $tool $version] --creates $installed --network)
-            (if not $active_matches { exec $"ghcup-set-($tool)" [$GHCUP set $tool $version] })
+            # set reads ghcup's metadata over the network, and only after the install landed
+            (if not $active_matches { exec $"ghcup-set-($tool)" [$GHCUP set $tool $version] --requires $installed --network })
         ] | compact
     } | flatten
 }

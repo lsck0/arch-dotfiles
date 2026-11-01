@@ -10,7 +10,7 @@ export const meta = {
         pacman: [
             app2unit bemenu-wayland brightnessctl cpio ddcutil grim hyprcursor hypridle hyprland hyprlock hyprpicker
             libnotify libx11 mission-center omarchy-share-picker-git pavucontrol playerctl polkit
-            polkit-kde-agent qt5-wayland qt6-wayland rose-pine-cursor rose-pine-hyprcursor slurp wayland
+            qt5-wayland qt6-wayland rose-pine-cursor rose-pine-hyprcursor slurp wayland
             wayland-boomer-git wl-clip-persist wl-clipboard xdg-desktop-portal-gtk xdg-desktop-portal-hyprland
             xdg-desktop-portal-kde xorg-server xorg-xauth xorg-xhost xorg-xinput xorg-xwayland ydotool
         ]

@@ -614,18 +614,12 @@ BarWidget {
     property int rows: 4
     property real targetWidth: 0
     property real targetHeight: 0
-    readonly property real capLift: 0.35
     readonly property int cellHeight: Math.max(2, Math.floor((targetHeight - (rows - 1)) / rows))
     readonly property int cellWidth: Math.max(2, Math.floor((targetWidth - spacing * (Cava.barCount - 1)) / Cava.barCount))
-
-    // accent turned along the spectrum, then conditioned against the bar background: lit cells 3:1, the peak cap 4.5:1
-    function ledHue(frac) {
-      var c = Colors.accent
-      var h = (c.hsvHue < 0 ? 0 : c.hsvHue) + (frac - 0.5) * 0.16
-      if (h < 0) h += 1
-      else if (h > 1) h -= 1
-      return Qt.hsva(h, c.hsvSaturation, c.hsvValue, 1)
-    }
+    // BarGauge's segments: one accent, unlit cells a faint track, the head lighter; the held peak in accent2
+    readonly property color litColor: Colors.readable(Colors.accent)
+    readonly property color headColor: Qt.lighter(litColor, 1.35)
+    readonly property color capColor: Colors.accent2
 
     function heightFrac(level) { return Math.min(1, Math.pow(Math.max(0, Math.min(1, level / 100)), 0.5) * 1.4) }
 
@@ -638,11 +632,8 @@ BarWidget {
       delegate: Column {
         id: sbar
         required property int index
-        readonly property real lit: spec.heightFrac(Cava.values[sbar.index] || 0) * spec.rows
+        readonly property int lit: Math.round(spec.heightFrac(Cava.values[sbar.index] || 0) * spec.rows)
         readonly property int cap: Math.ceil(spec.heightFrac(Cava.peaks[sbar.index] || 0) * spec.rows)
-        readonly property real frac: Cava.barCount > 1 ? sbar.index / (Cava.barCount - 1) : 0
-        readonly property color litColor: Colors.readable(spec.ledHue(sbar.frac))
-        readonly property color capColor: Colors.textFor(Qt.tint(spec.ledHue(sbar.frac), Util.alpha(Colors.foreground, spec.capLift)))
         spacing: 1
         width: spec.cellWidth
 
@@ -652,11 +643,11 @@ BarWidget {
             id: cell
             required property int index
             readonly property int n: spec.rows - cell.index
-            readonly property real on: Math.max(0, Math.min(1, sbar.lit - (cell.n - 1)))
             width: sbar.width
             height: spec.cellHeight
             antialiasing: false
-            color: sbar.cap === cell.n ? sbar.capColor : Util.alpha(sbar.litColor, 0.14 + cell.on * 0.86)
+            color: cell.n > sbar.lit ? (sbar.cap === cell.n && sbar.cap > sbar.lit ? spec.capColor : Util.alpha(spec.litColor, 0.13))
+              : cell.n === sbar.lit ? spec.headColor : spec.litColor
           }
         }
       }

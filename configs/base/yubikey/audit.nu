@@ -16,11 +16,12 @@ const CLASSES = [
     ["wg0.*.conf" wireguard] ["wg0.*.png" -] [ssh_privatekey.asc ssh] [ssh_passphrase ssh]
     ["initramfs-ssh/*/sshkeydir/.ed25519.sk" ssh] ["yubikey/ssh-*" ssh] ["gh/*/token" api] [googleapi api] [sdd_github api] [de-arrow-key api]
     [ntfy-desktop-token api] [trmnl-claude.env api] [calendar.env api] [hermes-anthropic.env api] [protonvpn-netns.conf api] ["taskwarrior-*" api]
+    [forgejo.env api] [registry.env api] [sccache.env api]
     [samba-homelab password] [wifi password] [pgp_privatekey.asc identity]
     [vorrh.private-key.asc identity] [age.txt identity] [age-recovery-key.txt identity] ["syncthing/*/key.pem" identity]
     ["*.pub*" -] ["*_publickey.asc" -] ["*.public-key.asc" -] ["syncthing/*" -] ["initramfs-ssh/*" -]
     ["luks-header-*" -] [rotation.txt -] [home-gateways -] [diablo2/cd-keys -]
-    ["claude/*" -] ["caido/*" -] ["modrinth/*" -] ["obs-*.json" -]
+    ["claude/*" -] ["caido/*" -] ["modrinth/*" -] ["obs-*.json" -] ["proton/*" -]
 ]
 const MAX_DAYS = {wireguard: 365, api: 365, ssh: 730, password: 730, identity: 1825, recovery-drill: 365}
 

@@ -149,7 +149,10 @@ export def link [cfg: record] {
 }
 
 export def profile-create [] {
-    ^timeout $HEADLESS_TIMEOUT firefox --headless about:blank | complete | ignore
+    # the force-installed plasma extension starts its native host, a Qt app that aborts without a display
+    with-env {QT_QPA_PLATFORM: offscreen} {
+        ^timeout $HEADLESS_TIMEOUT firefox --headless about:blank | complete | ignore
+    }
 }
 
 export def noscript-restore []: nothing -> nothing {

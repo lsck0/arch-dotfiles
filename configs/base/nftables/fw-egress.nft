@@ -17,6 +17,10 @@ table inet fw_egress {
         type filter hook output priority 0; policy drop;
         oifname $inner_ifaces accept
         oifname @home_ifaces accept
+        # tor-router's redirects into tor's DNSPort and TransPort: the address is rewritten to loopback, but oifname
+        # still names the link routed to before the redirect, so lo above misses them. Loopback never leaves the host.
+        ip daddr 127.0.0.0/8 accept
+        ip6 daddr ::1 accept
 
         udp sport 68 udp dport 67 accept
         icmpv6 type { nd-router-solicit, nd-neighbor-solicit, nd-neighbor-advert } ip6 hoplimit 255 accept
@@ -24,7 +28,7 @@ table inet fw_egress {
         meta skuid @tor_uid accept
         # Pacman's escape (DownloadUser = alpm): without it a machine missing tor could never install it, and off home
         # updates work without tor. A foreign network sees which mirror is fetched from and roughly which packages;
-        # every package is signature-checked. Under tor-router these connections are redirected into tor before here.
+        # every package is signature-checked. Under tor-router these connections reach here redirected into tor.
         meta skuid @fetch_uid tcp dport { 80, 443 } accept
         # Its lookups, through resolved, over strict DoT only: the network sees TLS to quad9, never the names. This
         # lets any local app's lookups reach quad9 while tor-router is not up; the apps' own traffic stays dropped.

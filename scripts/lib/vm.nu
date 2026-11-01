@@ -271,11 +271,21 @@ export def vm-network-command [net: record]: nothing -> list<string> {
     ]
 }
 
+# base/portmaster's bypass group (portmaster-bypass.service)
+const BYPASS_GROUP = "pentest"
+
 def network-start [name: string, net: record]: nothing -> nothing {
     network-stop $name
     cache-dir $name | ignore
     let argv = vm-network-command $net | each { $"'($in)'" } | str join " "
-    ^bash -c $"($argv) > '($net.log)' 2>&1 &"
+    let launch = $"($argv) > '($net.log)' 2>&1 &"
+    # the host's portmaster blocks the guest's DoT to quad9 as a secure-dns bypass; base/portmaster lets the pentest
+    # group through, as it does the system vms, so pasta runs under it when this login is a member
+    if $BYPASS_GROUP in (^id -nG | split row " ") {
+        $launch | ^newgrp $BYPASS_GROUP
+    } else {
+        ^bash -c $launch
+    }
     let deadline = (date now) + $SOCKET_WAIT
     while not ($net.socket | path exists) {
         if (date now) > $deadline { error make {msg: $"passt did not come up, see ($net.log)"} }

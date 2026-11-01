@@ -25,6 +25,8 @@ export def system [cfg: record] {
         (if-present avahi-daemon.service {
             file-link /usr/lib/systemd/system/avahi-daemon.service $AVAHI_ALIAS
         })
+        # geoclue looks for gps sources over avahi, which stays off away from home: each lookup fails an activation
+        (if-present geoclue.service { file-text /etc/geoclue/conf.d/90-no-network-nmea.conf "[network-nmea]\nenable=false\n" })
         (if-present bluetooth.service { unit-enable bluetooth.service })
         (if-present bluetooth.service { ini-merge /etc/bluetooth/main.conf {Policy: {AutoEnable: "false"}} })
         (if-present cups.socket { unit-enable cups.socket })

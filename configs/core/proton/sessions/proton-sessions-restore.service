@@ -1,6 +1,7 @@
 [Unit]
 Description=Restore the Proton sign-ins from the dotfiles secrets
-# the first login after a reinstall; the pam-started keyring is open by then, no Proton app runs yet
+# the first login after a reinstall; the pam-started keyring is open by then, no Proton app runs yet. Wanted by
+# graphical-session.target, not -pre: a target orders after what it wants, and keyring-secrets runs after -pre
 ConditionPathExists=!%S/proton-sessions/restored
 After=keyring-secrets.service
 Before=graphical-session.target
@@ -10,4 +11,4 @@ Type=oneshot
 ExecStart=%h/.local/bin/proton-sessions-restore
 
 [Install]
-WantedBy=graphical-session-pre.target
+WantedBy=graphical-session.target
