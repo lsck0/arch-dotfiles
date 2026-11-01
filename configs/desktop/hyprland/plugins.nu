@@ -37,16 +37,17 @@ def plugin-commit [src: path, hyprland: string]: nothing -> any {
     $pins | where h == $hyprland | get --optional 0.p
 }
 
-# Builds a plugin for this hyprland; false when the pinned commit has no map for it yet.
+# Builds a plugin for this hyprland.
 def build [plugin: record, hyprland: string]: nothing -> bool {
     let src = cache-dir | path join $plugin.name
     if not ($src | path join .git | path exists) { ^git clone --quiet $plugin.url $src }
     if (do { ^git -C $src cat-file -e $"($plugin.commit)^{commit}" } | complete).exit_code != 0 { ^git -C $src fetch --quiet origin }
     ^git -C $src checkout --quiet --force $plugin.commit
-    let pin = plugin-commit $src $hyprland
-    if $pin == null {
-        print --stderr $"($plugin.name): no pin for hyprland ($hyprland) at the pinned commit, bump PLUGINS in plugins.nu"
-        return false
+    # the map names older hyprlands; one it lacks builds at the pinned commit itself, hyprpm's own rule, and a broken
+    # pairing fails the make below instead of loading
+    let pin = plugin-commit $src $hyprland | default $plugin.commit
+    if $pin == $plugin.commit and (plugin-commit $src $hyprland) == null {
+        print --stderr $"($plugin.name): no map entry for hyprland ($hyprland), built at the pinned commit"
     }
     ^git -C $src checkout --quiet --force $pin
     do { cd $src; ^make clean | ignore }
