@@ -1,6 +1,6 @@
 // the bar and the toggle menu switch these for an admin at the machine; a remote (ssh) or inactive session still has to
 // authenticate. any process of the session passes this check, not only the bar, so only what tightens is unprompted:
-// lowering the firewall or leaving tor asks for the admin password, never silently
+// lowering the firewall or leaving tor asks for the admin password (kept a few minutes), never silently
 function atTheMachine(subject) {
     return subject.local && subject.active && subject.isInGroup("wheel");
 }
@@ -30,9 +30,10 @@ polkit.addRule(function (action, subject) {
         return polkit.Result.YES;
     }
     // fw-lockdown's Conflicts= makes fw-inbound's start stop it, so from restrictive it lowers like every stop here.
-    // asked each time: a kept approval holds for the whole manage-units action, every unit's start and stop
+    // kept a few minutes: the approval holds for the whole manage-units action, so it also covers other guard stops
+    // in that window, right after one was approved at the machine
     if (GUARD_UNITS.indexOf(unit) >= 0 || unit === "fw-inbound.service") {
-        return polkit.Result.AUTH_ADMIN;
+        return polkit.Result.AUTH_ADMIN_KEEP;
     }
 });
 

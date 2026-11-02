@@ -5,7 +5,7 @@ tunnel.
 
 - `vpn-bypass` is a system group of its own with no members: `newgrp` would hand a member the bypass unasked, and the
   shared `games` gid would hand it to every setgid game (nethack).
-- `steam-launch.nu` runs Steam (and its games) as group `vpn-bypass` through `games-run`, which pkexec authorizes under
+- `steam-launch.nu` runs Steam (and its games), while `proton0` is up, as group `vpn-bypass` through `games-run`, which pkexec authorizes under
   its own action `dev.lsck0.vpn-bypass.games-run` (`dev.lsck0.vpn-bypass.policy`, `auth_admin_keep`): one key touch,
   kept a few minutes for `games-run` only, never for another pkexec.
 - `games-bypass.nft` marks sockets of group `vpn-bypass` with `0x6761` and masquerades them off the tunnel;
