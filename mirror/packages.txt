@@ -750,6 +750,7 @@ thermald
 thunderbird
 tig
 tiled
+time
 timew
 tinymist
 tinyssh

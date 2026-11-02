@@ -586,9 +586,12 @@ Item {
       TextField {
         id: filterField
         anchors.top: root.showPalette ? paletteStrip.bottom : carousel.bottom
-        anchors.topMargin: Style.spacing.md
         anchors.horizontalCenter: carousel.horizontalCenter
         width: Math.min(root.expandedWidth, Style.space(360))
+        // shown only once something is typed; it keeps the key focus while collapsed, which visible: false would drop
+        height: text !== "" ? implicitHeight : 0
+        opacity: text !== "" ? 1 : 0
+        anchors.topMargin: text !== "" ? Style.spacing.md : 0
         foreground: root.foreground
         accent: root.selectedBorder
         placeholderText: "filter by name"

@@ -96,7 +96,7 @@ Item {
         anchors.leftMargin: Style.spacing.lg
         // never under the agenda column on a narrow screen
         width: Math.min(root.cardWidth, panel.width - widgetColumn.width - Style.spacing.lg * 3)
-        heading: "Today"
+        heading: "Quote of the day"
         visible: !screenGuard.remapping && width >= root.quoteMinWidth
         opacity: panel.panelOverQuote ? 0 : 1
 
