@@ -554,17 +554,23 @@ Item {
           }
         }
 
-        Rectangle {
+        // the clock's shade, not a box: blurred past the line it fades into the field
+        Item {
           anchors.left: parent.left
           anchors.bottom: parent.bottom
           anchors.margins: Style.spacing.lg
           visible: surface.isPrimary && root.statsText !== ""
-          width: statsLine.implicitWidth + Style.spacing.xs * 2
-          height: statsLine.implicitHeight + Style.spacing.xs * 2
-          color: Colors.overlayFill
-          border.width: Style.normalBorderWidth
-          border.color: Style.normalBorderColor
-          radius: Style.shape.surface
+          width: statsLine.implicitWidth
+          height: statsLine.implicitHeight
+
+          RectangularShadow {
+            anchors.centerIn: parent
+            width: parent.width + Style.surface.padding * 2
+            height: parent.height + Style.surface.padding * 2
+            radius: height / 2
+            blur: Style.space(48)
+            color: Colors.overlayFill
+          }
 
           Text {
             id: statsLine

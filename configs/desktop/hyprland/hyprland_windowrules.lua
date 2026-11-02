@@ -12,6 +12,10 @@ for _, class in ipairs({ "^[Ss]potify$", "^discord$", "^neovide$", "^nemo$", "^(
     hl.window_rule({ match = { class = class }, opacity = style.opacity_surface })
 end
 
+-- a link opened from another app takes you to the browser's workspace; misc.focus_on_activate stays off so no other
+-- window pulls focus by asking
+hl.window_rule({ match = { class = "^(firefox|chromium)$" }, focus_on_activate = true })
+
 hl.window_rule({
     match = {
         initial_title = "^Discord Popout$",
