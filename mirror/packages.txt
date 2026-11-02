@@ -323,6 +323,7 @@ kcachegrind
 kdenlive
 kdeplasma-addons
 kerbrute-bin
+kernel-modules-hook
 kismet
 kiterunner-bin
 kitty

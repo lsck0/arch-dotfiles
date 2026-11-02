@@ -2,7 +2,7 @@ use module.nu *
 use ../boot.nu [ESP CMDLINE esp-supported cmdline-set uki-path]
 
 export const meta = {
-    packages: {native: [amd-ucode intel-ucode linux linux-headers linux-lts linux-lts-headers mkinitcpio]}
+    packages: {native: [amd-ucode intel-ucode kernel-modules-hook linux linux-headers linux-lts linux-lts-headers mkinitcpio]}
     volatile: true
 }
 
@@ -14,6 +14,9 @@ export def system [cfg: record] {
         (step install)
         # not a pacman hook: bootctl update would race sbctl's re-sign hook for the last place in hook order
         (unit-enable systemd-boot-update.service)
+        # kernel-modules-hook keeps the running kernel's modules through a kernel upgrade or downgrade; this drops
+        # them after the next boot
+        (unit-enable linux-modules-cleanup.service)
     ]
 }
 

@@ -146,7 +146,7 @@ def scenario-resolve [spec: record, platform: any, profile: any]: nothing -> rec
         platform: ($platform | default $spec.platform | default $PLATFORM)
         profile: ($profile | default $required | default $PROFILE)
         answers: (($base.answers? | default {}) | merge (do $combine answers))
-        expect: (($base.expect? | default {}) | merge (do $combine expect))
+        expect: (($base.expect? | default {}) | merge (do $combine expect) | home-expect ($platform | default $spec.platform | default $PLATFORM))
         network: {
             block: $block
             dns: (one-of dns ($networks | each { $in.dns? } | compact))
@@ -159,6 +159,18 @@ def scenario-resolve [spec: record, platform: any, profile: any]: nothing -> rec
         extra_packages: (do $field extra_packages | flatten | uniq)
         replace: (do $field replace | flatten)
     }
+}
+
+# The VM's one nic is wired, and base/networkmanager keeps a wired link's hardware mac (so it can be home) only where
+# home_wired holds: set in the platform's options, else a desktop form factor. Elsewhere home_network reads no.
+def home-expect [platform: string]: record -> record {
+    let expect = $in
+    if ($expect.home_network? | default "") != "yes" { return $expect }
+    let facts = open ($REPO | path join platforms $"($platform).nuon")
+    let options = $REPO | path join platforms $"($platform).options.nuon"
+    let set = if ($options | path exists) { open $options | get --optional "base/networkmanager" | get --optional home_wired } else { null }
+    let wired_home = $set | default ($facts.form_factor? == "desktop")
+    if $wired_home { $expect } else { $expect | upsert home_network "no" }
 }
 
 # The runs a --scenario value asks for: a comma list of scenarios and presets is one run, all is each of them alone.

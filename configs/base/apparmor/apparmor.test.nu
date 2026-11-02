@@ -83,10 +83,14 @@ def compile-check [rows: table, source: path, etc: path]: nothing -> list<string
     glob local/* | each { cp $in ($work | path join local) } | ignore
     let overrides = $OVERRIDES | columns
     # parsed under the installed name: the bare one has a disable/ link wherever a stock stub exists
-    let profiles = $own ++ $overrides | par-each --keep-order --threads $PARSE_THREADS {|n|
+    # every file written before any parse starts: written from the parallel parse, some came out mangled
+    let files = $own ++ $overrides | each {|n|
         let file = $work | path join $"($n)($OWN_SUFFIX)"
         if $n in $overrides { override-text $n $source | save $file } else { cp $"profiles/($n)" $file }
-        if not (parse-ok $file $work $etc) { $"profile ($n) does not compile" }
+        {name: $n, file: $file}
+    }
+    let profiles = $files | par-each --keep-order --threads $PARSE_THREADS {|f|
+        if not (parse-ok $f.file $work $etc) { $"profile ($f.name) does not compile" }
     } | compact
     # an own profile above already pulled in its local from $work; apparmor.d deploys one that replaces a stock
     # profile as <name>.apparmor.d

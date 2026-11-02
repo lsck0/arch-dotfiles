@@ -46,7 +46,10 @@ def verify-cases []: nothing -> nothing {
         pdf_queue: n/a, sshd_installed: no
     }
     let stopped_failures = {"FAILURES.install": ["system layer: pacman: failed retrieving file 'core.db' from archlinux.org"]}
-    let planted = {home_network: yes, mirror_reachable: yes, planted_dropped: yes}
+    # the default vm platform's wired nic is never home (vm.nu home-expect), luca-pc's is
+    let planted = {home_network: no, mirror_reachable: yes, planted_dropped: yes}
+    let home_vm = (vm-scenario-plan home null null).0
+    let home_pc = (vm-scenario-plan home luca-pc null).0
     let unresolvable = {"FAILURES.install": ["not on the mirror: lsck0-vm-test-unresolvable (a name new since the last nightly build arrives with the next one)"]}
     let no_tor_failures = {"FAILURES.install": ["not on the mirror: lsck0-vm-test-no-tor (a name new since the last nightly build arrives with the next one)"]}
     let cases = [
@@ -59,6 +62,9 @@ def verify-cases []: nothing -> nothing {
         [offline $off_home {home_network: no, mirror_reachable: no, issue_escape: no} {} $STAGES_OK 0 1]
         [errors $off_home $away {} $STAGES_OK 1 1]
         [at-home $off_home {home_network: yes, mirror_reachable: yes} {} $STAGES_OK 0 1]
+        [home-wired-desktop $home_pc {home_network: yes, mirror_reachable: yes} {} $STAGES_OK 0 0]
+        [home-wired-never-home $home_vm {home_network: no, mirror_reachable: yes} {} $STAGES_OK 0 0]
+        [home-wired-wrongly-home $home_vm {home_network: yes, mirror_reachable: yes} {} $STAGES_OK 0 1]
         [no-config $off_home $away {} "install: ok\n" 0 1]
         [pkg-fail $pkg_fail $planted $unresolvable $STAGES_PLANTED 1 0]
         [pkg-fail-not-planted $pkg_fail ($planted | merge {planted_dropped: no}) {} "install: ok\nconfig: ok\n" 0 2]

@@ -6,6 +6,8 @@ const HOME_NETWORK = "/run/home-network"
 const TOR_ROUTER = "/usr/local/bin/tor-router"
 const TABLES = [fw_egress fw portmaster_bypass]
 const NO_MAC = "00:00:00:00:00:00"
+# /sys/class/net/<link>/addr_assign_type of a mac the device itself carries
+const ASSIGN_PERMANENT = "0"
 
 # a missing binary reads as a failed command, not a crash of the dispatcher
 def --wrapped out [...argv: string]: nothing -> string {
@@ -29,17 +31,22 @@ def gateway-mac [link: string, gateway: string]: nothing -> string {
 }
 
 # NM puts a random mac on every foreign network; only home profiles keep the hardware one. Compared with the hardware's
-# own (ethtool -P): addr_assign_type stays 3 once NM's scan mac was set back, and a random-mac usb adapter or tether
-# has an all-zero hardware mac
-export def hardware-mac-in-use [address: string, ethtool: string]: nothing -> bool {
+# own (ethtool -P): addr_assign_type stays 3 once NM's scan mac was set back. A nic with no stored permanent mac
+# (virtio, some usb adapters) answers all-zero; it is home only while the kernel says the mac is the device's own
+# (addr_assign_type 0), which a random-mac adapter or tether (1) never says.
+export def hardware-mac-in-use [address: string, ethtool: string, assign_type: string]: nothing -> bool {
     let hardware = $ethtool | parse --regex 'Permanent address: (?<mac>\S+)' | get --optional 0.mac | default ""
         | str lowercase
-    $hardware not-in ["" $NO_MAC] and ($address | str trim | str lowercase) == $hardware
+    let address = $address | str trim | str lowercase
+    if $address in ["" $NO_MAC] { return false }
+    if $hardware in ["" $NO_MAC] { return (($assign_type | str trim) == $ASSIGN_PERMANENT) }
+    $address == $hardware
 }
 
 def link-is-home [link: string, gateways: list<string>]: nothing -> bool {
     let address = try { open --raw $"/sys/class/net/($link)/address" } catch { "" }
-    if not (hardware-mac-in-use $address (out ethtool -P $link)) { return false }
+    let assign_type = try { open --raw $"/sys/class/net/($link)/addr_assign_type" } catch { "" }
+    if not (hardware-mac-in-use $address (out ethtool -P $link) $assign_type) { return false }
     let gateway = out ip -4 route show default dev $link | lines | get --optional 0 | default "" | split row " "
         | get --optional 2
     if $gateway == null { return false }
