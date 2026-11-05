@@ -1,7 +1,7 @@
 {
   "LuaSnip": { "branch": "master", "commit": "642b0c595e11608b4c18219e93b88d7637af27bc" },
   "aerial.nvim": { "branch": "master", "commit": "28fe6e822ae344544c379d60fcb13c9519a1f08a" },
-  "baleia.nvim": { "branch": "main", "commit": "14c279cc7241d97585f8000dfd7dcdbca9fb4458" },
+  "baleia.nvim": { "branch": "main", "commit": "710537ff5cd669c5a76c5f5b6a9169fd9b913d18" },
   "barbar.nvim": { "branch": "master", "commit": "337ecfadb8bf005050990bf2f624dc4fc828dabd" },
   "better-type-hover": { "branch": "master", "commit": "c91a5406775f9379a1abc16a869935beba13cfc2" },
   "blink.cmp": { "branch": "main", "commit": "78336bc89ee5365633bcf754d93df01678b5c08f" },
@@ -70,7 +70,7 @@
   "nvim-treesitter": { "branch": "main", "commit": "610734c5d3e59761d5f79318d120633374537fa5" },
   "nvim-treesitter-context": { "branch": "master", "commit": "8decd73460d26ef0a0befb745d022dd1fc2c38b8" },
   "nvim-ufo": { "branch": "main", "commit": "ab3eb124062422d276fae49e0dd63b3ad1062cfc" },
-  "nvim-web-devicons": { "branch": "master", "commit": "ec309a0eaff6ea967e58c275996155ab5c16938d" },
+  "nvim-web-devicons": { "branch": "master", "commit": "0dc0cfb0c6858041174a53c7aa4adaf65e994b3c" },
   "octo.nvim": { "branch": "master", "commit": "302ff3223e9ba954955cc518b0199da62d2a757f" },
   "oil.nvim": { "branch": "master", "commit": "d3733d933833a0e59b813ecec99341527adf0c28" },
   "onedark.nvim": { "branch": "master", "commit": "df4792accde9db0043121f32628bcf8e645d9aea" },

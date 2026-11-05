@@ -3,7 +3,7 @@ use ../../../platforms/homelab.nu [HOMELAB]
 use homelab.nu [LSCK0_SERVER_PLACEHOLDER]
 
 const FILESDB_TIMER = "pacman-filesdb-refresh.timer"
-# pacman-contrib's: the install pass runs this verb before it is installed, the input re-evaluates it once it is
+# pacman-contrib's: the install pass runs this verb before and after installing it, the input re-plans it the second time
 const FILESDB_TIMER_FILE = $"/usr/lib/systemd/system/($FILESDB_TIMER)"
 
 export const meta = {packages: {pacman: [downgrade pacman-contrib yay]}, inputs: [$FILESDB_TIMER_FILE]}

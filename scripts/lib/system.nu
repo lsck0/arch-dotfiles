@@ -5,7 +5,7 @@ use state.nu [SYSTEM_REPO]
 use secrets.nu [secret-is-plaintext]
 
 const SYSTEM_PATHS = [configs migrations platforms profiles scripts]
-const SYSTEM_SECRETS = [samba-homelab home-gateways wifi protonvpn-netns.conf ssh_publickey.asc]
+const SYSTEM_SECRETS = [samba-homelab home-gateways trusted-gateways wifi protonvpn-netns.conf ssh_publickey.asc]
 export const ENTRY = "scripts/lib/system-apply.nu"
 export const SECRETS_PREFIX = "configs/secrets/"
 export const SECRETS_DIGEST = ".secrets-digest"
@@ -81,8 +81,13 @@ export def system-unpack [copy: path, sha: string]: binary -> nothing {
     ^chmod -R go-w $next
     if ($secrets | path exists) { ^chmod -R go= $secrets }
     ^chmod 755 $next
-    rm --recursive --force $copy
-    mv $next $copy
+    # one atomic rename (renameat2 RENAME_EXCHANGE): a power cut leaves the old copy or the new one, never none
+    if ($copy | path exists) {
+        ^mv --exchange --no-target-directory $next $copy
+        rm --recursive --force $next
+    } else {
+        mv $next $copy
+    }
 }
 
 # The repo tar and the plaintext system secrets, flat as DOTFILES_SECRETS/<file>, in one tar for system-apply.

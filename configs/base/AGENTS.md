@@ -13,8 +13,8 @@ profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
   tool shell cannot raise a touch request nobody sees. `sudo`'s `05-timestamp` pins the per-terminal cache.
 - `networkmanager`: two tiers by gateway MAC. Home (`home_gateways`, secrets, the install answer) is the homelab's
   network: homelab routes and split DNS, the homelab mirror put back first, the NAS, printers, no connectivity check.
-  Trusted (`trusted_gateways`, `toggle-trust-network`, plus home) only lifts the untrusted-network persona
-  (`untrusted_policy`): `/run/trusted-network` feeds the firewall's `trusted_links` sets, tor-router and the persona;
+  Trusted (`trusted_gateways`, secrets' `keys/trusted-gateways` where `toggle-trust-network` writes while unlocked,
+  plus home) only lifts the untrusted-network persona (`untrusted_policy`): `/run/trusted-network` feeds the firewall's `trusted_links` sets, tor-router and the persona;
   `/run/home-network` the homelab wiring. The homelab mirror also comes back first on wg0. `toggle-portal` opens a captive portal window for 120 s on every foreign link (the dispatcher's `<iface>
   portal`), off ends it early.
 - `ssh` and `nftables`: sshd listens on `base/ssh.port` behind a three-port knock (`base/ssh.knock`, held open for

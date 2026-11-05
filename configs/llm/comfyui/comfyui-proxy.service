@@ -1,0 +1,13 @@
+[Unit]
+Description=On-demand ComfyUI starter
+Requires=comfyui.socket
+After=comfyui.socket
+
+[Service]
+Type=simple
+Sockets=comfyui.socket
+TimeoutStartSec=6min
+ExecStartPre=-/usr/bin/nu --no-config-file @WAIT_READY@
+# the open editor tab holds its websocket, so the backend stays up while the tab does
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd --exit-idle-time=10min 127.0.0.1:8189
+ExecStopPost=/usr/bin/systemctl --user stop comfyui.service

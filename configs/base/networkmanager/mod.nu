@@ -41,7 +41,8 @@ export const options = {
         type: list<string>
         default: []
         doc: ("Router MACs of trusted networks: no lockdown, direct egress, the lan's inbound services, the hardware "
-            + "MAC, but none of home's homelab wiring; toggle-trust-network adds the current one")
+            + "MAC, but none of home's homelab wiring; beside the admin's configs/secrets/keys/trusted-gateways, "
+            + "where toggle-trust-network adds the current one while unlocked")
     }
     homelab_dns: {
         type: string?
@@ -141,10 +142,13 @@ export def system [cfg: record] {
 }
 
 # home-gateways = the secrets' list (kept while locked) + the install answer (.local) + home_gateways;
-# trusted-gateways = trusted_gateways (comma-joined: a step takes strings), home's own counted by 70-home-network
+# trusted-gateways = the secrets' trusted list (kept while locked) + trusted_gateways (comma-joined: a step takes
+# strings), home's own counted by 70-home-network. The owner's macs live in secrets: the repo is public, and a mac is
+# all a rogue access point needs to pass as home or trusted
 export def home [home_wired: string, trusted: string, ...gateways: string]: nothing -> nothing {
     let secrets = $env.DOTFILES_SECRETS? | default "/nonexistent"
     let secret_gateways = $"($NM)/home-gateways.secret"
+    let secret_trusted = $"($NM)/trusted-gateways.secret"
     let secret_ssids = $"($NM)/home-ssids.secret"
     let local = $"($NM)/home-gateways.local"
     let file = $"($NM)/home-gateways"
@@ -159,6 +163,15 @@ export def home [home_wired: string, trusted: string, ...gateways: string]: noth
         }
         $lines | where $it =~ $MAC | each { $"($in)\n" } | str join | save --force $secret_gateways
     }
+    # may be empty: every trusted network can be dropped again
+    let secret = $secrets | path join trusted-gateways
+    if ($secret | path exists) {
+        let lines = open --raw $secret | lines
+        if ($lines | any {|l| not ($l =~ $MAC or $l =~ '^(#.*)?$') }) {
+            error make {msg: $"networkmanager: trusted-gateways is not one mac address per line, keeping ($trusted_file)"}
+        }
+        $lines | where $it =~ $MAC | each { $"($in)\n" } | str join | save --force $secret_trusted
+    }
     let wifi = $secrets | path join wifi
     if ($wifi | path exists) {
         open --raw $wifi | lines | each { split row "\t" | first } | where $it != "" | each { $"($in)\n" } | str join
@@ -167,7 +180,7 @@ export def home [home_wired: string, trusted: string, ...gateways: string]: noth
     let option = $gateways | str lowercase
     let want = (do $macs $secret_gateways) ++ (do $macs $local) ++ $option | uniq
     $want | each { $"($in)\n" } | str join | save --force $file
-    let trusted_want = $trusted | split row "," | where $it != "" | str lowercase | uniq
+    let trusted_want = (do $macs $secret_trusted) ++ ($trusted | split row "," | where $it != "" | str lowercase) | uniq
     $trusted_want | each { $"($in)\n" } | str join | save --force $trusted_file
 
     let ssids = if ($secret_ssids | path exists) { open --raw $secret_ssids | lines | where $it != "" } else { [] }

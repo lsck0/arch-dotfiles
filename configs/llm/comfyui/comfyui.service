@@ -1,0 +1,25 @@
+[Unit]
+Description=ComfyUI server
+StartLimitIntervalSec=10min
+StartLimitBurst=3
+
+[Service]
+Type=simple
+NoNewPrivileges=yes
+Nice=10
+CPUWeight=20
+Environment=HF_HUB_DISABLE_TELEMETRY=1
+Environment=DO_NOT_TRACK=1
+Environment=TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
+# main.py lists custom_nodes before it creates any dir; no custom node is installed
+ExecStartPre=/usr/bin/mkdir -p @OUTPUT@ @BASE@/custom_nodes
+ExecStart=@PYTHON@ @SRC@/main.py \
+    --listen 127.0.0.1 \
+    --port 8189 \
+    --base-directory @BASE@ \
+    --output-directory @OUTPUT@ \
+    --disable-auto-launch \
+    --offline \
+    --use-pytorch-cross-attention
+Restart=on-failure
+RestartSec=5

@@ -230,6 +230,9 @@ def "main install" [--unattended, --yes]: nothing -> nothing {
         # nix ships no /nix/store and a user's first call fails on it
         if not ("/nix/store" | path exists) { ^install -d -o root -g nixbld -m 1775 /nix/store }
     }
+    # again now its packages are in: config leaves base/pacman out, so what its inputs gate (pacman-contrib's timer)
+    # is planned here or not until the next install pass; unchanged inputs skip it
+    module-system $ctx $PACMAN_MODULE | ignore
     module-system $ctx $YUBIKEY_MODULE | ignore
     failures-end install
 }

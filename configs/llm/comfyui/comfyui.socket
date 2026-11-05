@@ -1,0 +1,10 @@
+[Unit]
+Description=On-demand listening socket for ComfyUI
+
+[Socket]
+ListenStream=127.0.0.1:8188
+Accept=no
+Service=comfyui-proxy.service
+
+[Install]
+WantedBy=sockets.target

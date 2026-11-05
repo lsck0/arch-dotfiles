@@ -1,0 +1,59 @@
+# ComfyUI v0.43.0's requirements.txt, torch from the ROCm index; uv.lock pins every wheel by hash.
+# Bump: copy the new tag's requirements.txt here, move exclude-newer to the tag's date, then `uv lock`.
+[project]
+name = "comfyui-env"
+version = "0"
+requires-python = "==3.12.*"
+dependencies = [
+  "torch==2.14.1+rocm7.2",
+  "torchvision==0.29.1+rocm7.2",
+  # torch's own triton build, only on the ROCm index; a source applies to a direct dependency alone
+  "triton-rocm==3.8.0",
+  "comfyui-frontend-package==1.57.4",
+  "comfyui-workflow-templates==0.11.97",
+  "comfyui-embedded-docs==0.5.15",
+  "torchsde",
+  "numpy>=1.25.0",
+  "einops",
+  "transformers>=4.50.3",
+  "tokenizers>=0.13.3",
+  "sentencepiece",
+  "safetensors>=0.4.2",
+  "aiohttp>=3.11.8",
+  "yarl>=1.18.0",
+  "pyyaml",
+  "Pillow>=10.1.0",
+  "scipy",
+  "tqdm",
+  "psutil",
+  "alembic",
+  "SQLAlchemy>=2.0.0",
+  "filelock",
+  "av>=17.0.0",
+  "comfy-aimdo==0.6.0",
+  "comfy-kitchen==0.2.40",
+  "requests",
+  "simpleeval>=1.0.0",
+  "blake3",
+  "kornia>=0.7.1",
+  "spandrel",
+  "pydantic~=2.0",
+  "pydantic-settings~=2.0",
+  "PyOpenGL>=3.1.8",
+  "comfy-angle",
+]
+
+[tool.uv]
+package = false
+exclude-newer = "2026-10-28T00:00:00Z"
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-rocm" }
+torchvision = { index = "pytorch-rocm" }
+triton-rocm = { index = "pytorch-rocm" }
+
+[[tool.uv.index]]
+name = "pytorch-rocm"
+url = "https://download.pytorch.org/whl/rocm7.2"
+explicit = true

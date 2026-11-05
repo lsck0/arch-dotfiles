@@ -19,6 +19,8 @@ const MARKER = "# managed by arch-dotfiles/apparmor"
 # apparmor.d profiles whose /{{,usr/}...} attachment apparmor 4.1.8 loads but never attaches, so they ran unconfined:
 # installed as own profiles with a plain /usr attachment (usr is merged)
 export const OVERRIDES = {
+    # chromium's px into it found no profile: "profile transition not found" on every native messaging start
+    browserpass: "/usr/bin/browserpass"
     firefox: "/usr/{bin/firefox,lib/firefox/firefox}"
     libreoffice: "/usr/lib/libreoffice/program/soffice"
     thunderbird: "/usr/{bin/thunderbird,lib/thunderbird/thunderbird}"
