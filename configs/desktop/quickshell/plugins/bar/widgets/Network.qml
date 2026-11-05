@@ -109,14 +109,15 @@ BarWidget {
     refreshWifiList(now - lastScanMs >= refreshMinAgeMs)
   }
 
-  function connectTo(ssid, password) {
+  // identity (user@realm) only for a wpa-eap network: the script's second stdin line
+  function connectTo(ssid, password, identity) {
     if (connectProc.running) return
     root.connectingSsid = ssid
     root.connectError = ""
     connectProc.command = [Paths.barWidget("network-wifi-connect.nu"), ssid]
     connectProc.stdinEnabled = true
     connectProc.running = true
-    connectProc.write((password || "") + "\n")
+    connectProc.write((password || "") + "\n" + (identity || "") + "\n")
     connectProc.stdinEnabled = false
   }
 
@@ -358,7 +359,7 @@ BarWidget {
                   return
                 }
                 netRow.pendingConnect = !netRow.pendingConnect
-                if (netRow.pendingConnect) Qt.callLater(pwInput.forceActiveFocus)
+                if (netRow.pendingConnect) Qt.callLater(wifiNet.modelData.enterprise ? idInput.forceActiveFocus : pwInput.forceActiveFocus)
               }
 
               Label {
@@ -404,6 +405,44 @@ BarWidget {
             }
 
             Row {
+              visible: netRow.pendingConnect && !wifiNet.modelData.active && !!wifiNet.modelData.enterprise
+              width: parent.width
+              leftPadding: Style.spacing.sm
+              bottomPadding: Style.spacing.xs
+
+              Rectangle {
+                width: parent.width - parent.leftPadding
+                height: Style.row.control
+                radius: Style.shape.data
+                color: Style.normalFill
+                border.width: idInput.activeFocus ? 1 : 0
+                border.color: Colors.accent
+
+                TextInput {
+                  id: idInput
+                  onActiveFocusChanged: root.passwordFocused = activeFocus
+                  Component.onDestruction: if (activeFocus) root.passwordFocused = false
+                  anchors.fill: parent
+                  anchors.leftMargin: Style.spacing.xs
+                  anchors.rightMargin: Style.spacing.xs
+                  verticalAlignment: TextInput.AlignVCenter
+                  color: Colors.menu.text
+                  font.pixelSize: Style.font.caption
+                  font.family: Style.font.family
+                  onAccepted: pwInput.forceActiveFocus()
+
+                  Label {
+                    visible: idInput.text === ""
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "user@university.edu"
+                    dim: true
+                    caption: true
+                  }
+                }
+              }
+            }
+
+            Row {
               visible: netRow.pendingConnect && !wifiNet.modelData.active
               width: parent.width
               spacing: Style.spacing.xs
@@ -429,7 +468,7 @@ BarWidget {
                   color: Colors.menu.text
                   font.pixelSize: Style.font.caption
                   font.family: Style.font.family
-                  onAccepted: { root.connectTo(wifiNet.modelData.ssid, text); netRow.pendingConnect = false }
+                  onAccepted: { root.connectTo(wifiNet.modelData.ssid, text, idInput.text); netRow.pendingConnect = false }
                 }
               }
               Rectangle {
@@ -447,7 +486,7 @@ BarWidget {
                 MouseArea {
                   anchors.fill: parent
                   cursorShape: Qt.PointingHandCursor
-                  onClicked: { root.connectTo(wifiNet.modelData.ssid, pwInput.text); netRow.pendingConnect = false }
+                  onClicked: { root.connectTo(wifiNet.modelData.ssid, pwInput.text, idInput.text); netRow.pendingConnect = false }
                 }
               }
             }

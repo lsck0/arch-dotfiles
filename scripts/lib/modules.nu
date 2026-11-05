@@ -162,7 +162,9 @@ export def modules-graph [repo: path, modules: table]: nothing -> table {
 }
 
 # --private runs under umask 077, for a backup writing into configs/secrets/. --timeout bounds the child (EVAL_TIMEOUT
-# by default); a batch past it is evaluated again module by module, so the one that hangs fails alone.
+# by default); a batch past it is evaluated again module by module, so the one that hangs fails alone. The modules of
+# a batch evaluate in parallel (declarations only, no effects), results in input order: a theme switch on a laptop
+# spent half its time here one module after another.
 export def modules-eval [modules: table, verb: string, cfgs: record, args: list, --private, --timeout: duration]: nothing -> table {
     if ($modules | is-empty) { return [] }
     let timeout = $timeout | default $EVAL_TIMEOUT
@@ -170,7 +172,7 @@ export def modules-eval [modules: table, verb: string, cfgs: record, args: list,
         let cfg = $cfgs | get $m.item.id | to nuon
         $"{id: ($m.item.id | to nuon), run: {|| cd ($m.item.dir | to nuon); with-env {DOTFILES_MODULE: ($m.item.id | to nuon)} { m($m.index) ($verb) ($cfg) ($args | each { to nuon } | str join ' ') } }}"
     }
-    let body = $"[($calls | str join ' ')] | each {|c| try { {id: $c.id, ok: true, decls: \(do $c.run | decls-flatten\), error: null} } catch {|e| {id: $c.id, ok: false, decls: [], error: \(cause-text \(cause-from-error $e\)\)} } } | to nuon | save --force $env.DOT_EVAL_OUT"
+    let body = $"[($calls | str join ' ')] | par-each --keep-order {|c| try { {id: $c.id, ok: true, decls: \(do $c.run | decls-flatten\), error: null} } catch {|e| {id: $c.id, ok: false, decls: [], error: \(cause-text \(cause-from-error $e\)\)} } } | to nuon | save --force $env.DOT_EVAL_OUT"
     let run = [(nu-bin) --no-config-file -I $LIB_DIR -c (native-script ($modules | select dir) $"use module.nu *\nuse cause.nu [cause-from-error cause-text]\n($body)")]
     let out_file = mktemp --tmpdir
     let bounded_run = bounded $timeout {

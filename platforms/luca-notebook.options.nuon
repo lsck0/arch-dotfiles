@@ -16,6 +16,7 @@
     }
     "base/boot/hardening": {
         allow_smt: true
+        relax_mitigations: true
     }
     "base/boot/remote-unlock": {
         ssh_unlock: true
@@ -38,12 +39,14 @@
     }
     "base/networkmanager": {
         untrusted_policy: lockdown-tor
+        home_gateways: ["e6:28:1b:27:21:d3"]
     }
     "base/pam": {
         fido_origin: "pam://lsck0"
     }
     "base/ssh": {
         wake_host: "192.168.178.138"
+        wake_router_tunnel: "10.0.0.1"
     }
     "base/v4l2loopback": {
         video_nr: 2

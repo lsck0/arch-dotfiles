@@ -9,7 +9,20 @@ export const options = {
         label: "Allow SMT"
         apply: reboot
     }
+    relax_mitigations: {
+        type: bool
+        default: false
+        doc: ("Trade kernel hardening for speed on an old Intel cpu: retbleed=stuff for IBRS, no page zeroing on "
+            + "alloc and free, a lazy iommu; a Kaby Lake laptop paid 1.4 µs per syscall and faulted fresh memory "
+            + "at 1 GB/s")
+        label: "Relax mitigations"
+        apply: reboot
+    }
 }
+
+# relax_mitigations swaps these by key (cmdline-set replaces a token of the same key). Arch builds init_on_alloc on by
+# default, so off is spelled out; retbleed=stuff (call depth tracking) is the skylake-family's cheap, best-effort fix
+const RELAXED = [init_on_alloc=0 init_on_free=0 iommu.strict=0 retbleed=stuff]
 
 # not set: lockdown (unsigned it87-dkms, bpf), debugfs=off (bpftrace), module.sig_enforce (dkms), iommu=pt
 const TOKENS = [
@@ -30,10 +43,13 @@ def smt-leaks []: nothing -> bool {
 
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
-    step harden ...(if not $cfg.allow_smt and (smt-leaks) { [nosmt] } else { [] })
+    let smt = if not $cfg.allow_smt and (smt-leaks) { [nosmt] } else { [] }
+    let extra = $smt ++ (if $cfg.relax_mitigations { $RELAXED } else { [] })
+    step harden ...$extra
 }
 
 export def harden [...extra: string]: nothing -> nothing {
     cmdline-set ...$TOKENS ...$extra
     if "nosmt" not-in $extra { cmdline-unset nosmt }
+    if "retbleed=stuff" not-in $extra { cmdline-unset retbleed }
 }

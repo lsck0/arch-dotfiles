@@ -13,6 +13,7 @@ export def system [cfg: record] {
         (unit-file ossec-journal.service)
         (unit-enable ossec-server.target)
         (unit-enable ossec-journal.service)
+        (dropin ossec-syscheckd.service syscheckd-idle.conf --name idle.conf)
         (step localfiles)
         (file-copy alerts-acl.conf $TMPFILES --then [systemd-tmpfiles --create $TMPFILES])
     ]

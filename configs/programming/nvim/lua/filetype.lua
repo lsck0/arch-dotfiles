@@ -5,6 +5,8 @@ vim.filetype.add({
         con = "c",
         fx = "hlsl",
         hlsl = "hlsl",
+        -- nvim guesses lifelines for an .ll without a leading comment or target line
+        ll = "llvm",
         shader = "hlsl",
         nya = "nya",
         nuon = "nu",

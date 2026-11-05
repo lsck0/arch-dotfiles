@@ -369,6 +369,12 @@ return {
             end, "--config=", "ruff.toml")
             require("conform").formatters.ruff_format = { prepend_args = ruff }
             require("conform").formatters.ruff_organize_imports = { prepend_args = ruff }
+            -- plain text has no formatter of its own: fmt rewraps lines past 120 and never joins short ones, so lists,
+            -- tables and hand-broken lines survive
+            require("conform").formatters.fmt_text = {
+                command = "fmt",
+                args = { "--split-only", "--width=120", "--goal=120" },
+            }
             require("conform").formatters.php_cs_fixer = {
                 prepend_args = function(_, ctx)
                     local configs = { ".php-cs-fixer.php", ".php-cs-fixer.dist.php" }
@@ -415,6 +421,7 @@ return {
                 clojure = { "cljfmt" },
                 elixir = { "mix" },
                 sql = { "sql_formatter" },
+                text = { "fmt_text" },
             }
             for _, ft in ipairs({
                 "css",

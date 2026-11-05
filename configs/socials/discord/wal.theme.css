@@ -203,13 +203,21 @@ html {
     --font-primary: var(--font), sans-serif;
     --font-display: var(--font), sans-serif;
     --font-headline: var(--font), sans-serif;
-    --font-feature-settings: normal;
+    /* a coding font's calt ligatures fold a run of dots into a ".." or "..." glyph, so typed dots seem to vanish */
+    --font-feature-settings: "calt" 0, "liga" 0;
 }
 body,
 #app-mount,
 [class*="app-"],
 [class*="base-"] {
     font-family: var(--font), sans-serif !important;
+}
+*,
+*::placeholder {
+    font-variant-ligatures: none !important;
+    font-feature-settings:
+        "calt" 0,
+        "liga" 0 !important;
 }
 html {
     font-size: calc(var(--font-scale) * 100%) !important;

@@ -134,6 +134,9 @@ tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"wi
 FocusPolicy=FocusFollowsMouse
 NextFocusPrefersMouse=true
 
+[Xwayland]
+Scale=1
+
 [org.kde.kdecoration2]
 BorderSize=Normal
 BorderSizeAuto=false

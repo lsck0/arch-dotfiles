@@ -114,6 +114,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | option | type | default | what it does |
 |---|---|---|---|
 | `base/boot/hardening.allow_smt` | `bool` | `false` | Keep hyperthreading despite MDS/MMIO, accepting the cross-sibling leak for the threads |
+| `base/boot/hardening.relax_mitigations` | `bool` | `false` | Trade kernel hardening for speed on an old Intel cpu: retbleed=stuff for IBRS, no page zeroing on alloc and free, a lazy iommu; a Kaby Lake laptop paid 1.4 µs per syscall and faulted fresh memory at 1 GB/s |
 | `base/boot/remote-unlock.ssh_unlock` | `bool` | `false` | Wake-on-lan this machine, then ssh into the initramfs to unlock LUKS remotely |
 | `base/boot/remote-unlock.wifi` | `bool` | `false` | Also join the home wifis (configs/secrets/keys/wifi) in the initramfs; their keys are written into the image |
 | `base/cleanup.journal_max_use` | `string` | `"500M"` | Total disk space the systemd journal may keep, journald.conf(5) size syntax |
@@ -142,6 +143,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/ssh.knock` | `list<int>` | `[9003, 7001, 8002]` | The three ports knocked in order to open the sshd port to that address (sshk, wake-pc, nftables) |
 | `base/ssh.homelab_hosts` | `list<string>` | `["10.100.0.*", "10.200.0.*", "10.250.0.*", "192.168.178.29", "192.168.178.200"]` | ssh patterns of the homelab's guests, router and hypervisor: root, accept-new host keys from known_hosts.homelab (homelab profiles only); default the lab's zones, router and hypervisor |
 | `base/ssh.wake_router` | `string?` | `"192.168.178.29"` | The always-on homelab router whose `wol-pc` wakes the desktop (wake-pc, homelab profiles only) |
+| `base/ssh.wake_router_tunnel` | `string?` | unset | The router's address inside the wireguard tunnel, which wake-pc asks away from home: its lan address is unrouted there, or shadowed by a foreign lan on the same subnet |
 | `base/ssh.wake_host` | `string?` | unset | The desktop wake-pc wakes and then ssh-es into |
 | `base/tlp.charge_start` | `int` | `95` | Battery charge level below which charging starts (laptops whose firmware supports thresholds) |
 | `base/tlp.charge_stop` | `int` | `100` | Battery charge level at which charging stops; 80 spares an always-plugged battery |
@@ -192,7 +194,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/quickshell.pomodoro_break_min` | `int` | `5` | Minutes of the short break after a focus block |
 | `desktop/quickshell.pomodoro_long_break_min` | `int` | `15` | Minutes of the long break after the last focus block of a round |
 | `desktop/quickshell.pomodoro_cycles` | `int` | `4` | Focus blocks before a long break |
-| `desktop/qutebrowser.search_url` | `string` | `"https://duckduckgo.com/?q={}"` | The default search engine, {} is the query; the homelab's searxng is reachable only on a homelab machine |
+| `desktop/qutebrowser.search_url` | `string?` | detected | The default search engine, {} is the query; unset, the homelab's searxng on a homelab machine, else duckduckgo |
 | `desktop/qutebrowser.search_method` | `string` | `"GET"` | The startpage's search form method; most engines, the homelab's searxng too, take GET; POST works only in qutebrowser |
 | `gaming/d2launcher.base_dir` | `string?` | detected | A Diablo II: Lord of Destruction install the game dir is seeded from; detected in the lutris prefixes |
 | `gaming/d2launcher.resolution` | `string?` | detected | The monitor the render size derives from, WxH; detected from the focused monitor |

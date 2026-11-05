@@ -14,6 +14,8 @@ OWN_EPOCHS_KEPT = 2
 APP_EPOCHS_KEPT = 20
 LISTEN_KEY = "dot.obs-listen"
 OBS_BINARY = "obs"
+-- a browser source that does not route its audio through obs (the "... For Me" alerts) plays from cef's own process
+OBS_BROWSER_BINARY = "obs-browser-page"
 SETTLE_MS = 300
 RETRY_MS = 100
 RETRY_COUNT_MAX = 20
@@ -46,8 +48,10 @@ function stream_key(props)
     if props["media.role"] == "Notification" then
         return nil
     end
-    -- obs's monitoring is the listen path itself, which the muted loopbacks must not silence
-    if props["application.process.binary"] == OBS_BINARY then
+    -- obs's monitoring is the listen path itself, which the muted loopbacks must not silence; its browser sources'
+    -- own playback is meant for the streamer's ears the same way
+    local binary = props["application.process.binary"]
+    if binary == OBS_BINARY or binary == OBS_BROWSER_BINARY then
         return nil
     end
     local name = props["application.name"] or props["application.process.binary"] or props["node.name"]

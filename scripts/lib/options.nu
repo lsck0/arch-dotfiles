@@ -93,8 +93,13 @@ export def options-resolve [modules: table, platform: record, profile: any, dete
         let schema = options-schema $module
         let spec_errors = $module.options | items {|name, spec| spec-errors $module.id $name $spec } | flatten
         let start = {values: ($schema | items {|name, spec| {name: $name, value: $spec.default} } | reduce --fold {} {|o, acc| $acc | insert $o.name $o.value }), sources: ($schema | columns | reduce --fold {} {|n, acc| $acc | insert $n default }), errors: []}
-        let found = $detected | get --optional $module.id | default {} | items {|name, value| {name: $name, value: $value} }
-            | where {|d| ($schema | get --optional $d.name | get --optional default) == null and $d.value != null }
+        let returned = $detected | get --optional $module.id | default {} | items {|name, value| {name: $name, value: $value} }
+            | where value != null
+        let found = $returned | where {|d| ($schema | get --optional $d.name | get --optional default) == null }
+        # a detected value lands only on an option defaulting to null; one with a default would drop it unseen
+        let shadowed = $returned | where {|d| $d.name in ($schema | columns) and ($schema | get $d.name | get --optional default) != null }
+            | each {|d| $"configs/($module.id)/mod.nu: detect returned ($d.name), whose non-null default always wins" }
+        let start = $start | update errors { append $shadowed }
         let start = $found | reduce --fold $start {|d, acc|
             let bad = if $d.name in ($schema | columns) {
                 option-value-errors $module.id $d.name ($schema | get $d.name) $d.value $"configs/($module.id)/mod.nu detect"

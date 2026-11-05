@@ -37,6 +37,7 @@ local parsers = {
     "json",
     "just",
     "kotlin",
+    "llvm",
     "lua",
     "luadoc",
     "make",

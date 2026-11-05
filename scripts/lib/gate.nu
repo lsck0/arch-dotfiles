@@ -167,7 +167,7 @@ def lint-rc-escalation []: nothing -> list<string> {
 
 const ROOT_FILES = [
     .editorconfig .gitattributes .gitignore .gitleaks.toml .gitmodules .ruff.toml .shellcheckrc AGENTS.md FEATURES.md
-    LICENSE.md README.md bootstrap.sh
+    LICENSE.md README.md TODO.md bootstrap.sh
 ]
 const ROOT_DIRS = [configs migrations mirror platforms profiles scripts showcase skills themes wallpapers]
 const GROUP_FILES = [AGENTS.md dependencies.txt]

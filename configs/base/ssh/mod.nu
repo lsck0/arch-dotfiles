@@ -30,6 +30,12 @@ export const options = {
         default: $HOMELAB.router
         doc: "The always-on homelab router whose `wol-pc` wakes the desktop (wake-pc, homelab profiles only)"
     }
+    wake_router_tunnel: {
+        type: string?
+        default: null
+        doc: ("The router's address inside the wireguard tunnel, which wake-pc asks away from home: its lan address is "
+            + "unrouted there, or shadowed by a foreign lan on the same subnet")
+    }
     wake_host: {
         type: string?
         default: null
@@ -86,7 +92,10 @@ export def link [cfg: record] {
         (file-render sshk.nu ($bin | path join sshk) {DOTFILES: $env.DOTFILES, PORT: $cfg.port, KNOCK: $knock}
             --mode 755)
         (if $homelab and $cfg.wake_router != null and $cfg.wake_host != null {
-            let values = {ROUTER: $cfg.wake_router, HOST: $cfg.wake_host, PORT: $cfg.port, KNOCK: $knock}
+            let values = {
+                ROUTER: $cfg.wake_router, ROUTER_TUNNEL: ($cfg.wake_router_tunnel | default "")
+                HOST: $cfg.wake_host, PORT: $cfg.port, KNOCK: $knock
+            }
             file-render wake-pc.nu ($bin | path join wake-pc) $values --mode 755
         } else { [] })
     ]

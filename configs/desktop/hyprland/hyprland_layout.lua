@@ -17,15 +17,6 @@ for _, home in ipairs(platform.app_workspaces) do
     })
 end
 
--- themix's headless export still maps a window for a moment
-hl.window_rule({
-    match = {
-        class = "^multi_export_cli.py$",
-    },
-    float = true,
-    move = "1000000 1000000",
-})
-
 hl.config({
     dwindle = {
         force_split = 0,

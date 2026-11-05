@@ -17,6 +17,8 @@ def main [mode?: string] {
             ssid: $n.ssid
             signal: ($n.signal | into int)
             secure: ($n.security not-in ["" "--"])
+            # wpa-eap (eduroam): asks for an identity next to the password
+            enterprise: ($n.security =~ "802\\.1X")
         } }
         | sort-by --reverse active signal
         | uniq-by ssid

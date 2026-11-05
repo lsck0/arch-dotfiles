@@ -8,10 +8,12 @@ const SEARCH_DEFAULT = "https://duckduckgo.com/?q={}"
 const SEARCH_HOMELAB = "https://search.lsck0.dev/search?q={}"
 
 export const options = {
+    # null so detect fills it: a detected value only lands on an option without a default
     search_url: {
-        type: string
-        default: $SEARCH_DEFAULT
-        doc: "The default search engine, {} is the query; the homelab's searxng is reachable only on a homelab machine"
+        type: string?
+        default: null
+        doc: ("The default search engine, {} is the query; unset, the homelab's searxng on a homelab machine, else "
+            + "duckduckgo")
         label: "Search engine URL"
         scope: user
     }
@@ -52,7 +54,7 @@ export def link [cfg: record] {
     let dir = $nu.home-dir | path join $CONFIG_DIR
     [
         (file-copy config.py ($dir | path join config.py))
-        (file-text ($dir | path join search-url) $"($cfg.search_url)\n")
+        (file-text ($dir | path join search-url) $"($cfg.search_url | default $SEARCH_DEFAULT)\n")
     ] | append (if (lists-ready) { [] } else { [(step lists-fetch --network)] })
 }
 
@@ -148,7 +150,7 @@ export def theme [cfg: record, wallpaper: string] {
         RADIUS: $RADIUS_PX
         FONT: $font.family
         FONT_SIZE: $font.ui_size
-        SEARCH: ($cfg.search_url | to json)
+        SEARCH: ($cfg.search_url | default $SEARCH_DEFAULT | to json)
         METHOD: $cfg.search_method
     } | merge (startpage-colors)) --generated
     # without a running instance the command would start one

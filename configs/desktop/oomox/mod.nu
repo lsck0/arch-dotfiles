@@ -39,12 +39,14 @@ export def theme [cfg: record, wallpaper: string] {
     ]
 }
 
-# Exports the gtk themes from the wallust colors, under Xvfb without a display: themix cannot init gtk headless.
+# Exports the gtk themes from the wallust colors, always under Xvfb: themix cannot init gtk headless, and on the
+# session's display it maps a window for a moment (a flash in a corner on every theme switch)
 export def themix-export []: nothing -> nothing {
-    let headless = ($env.WAYLAND_DISPLAY? | is-empty) and ($env.DISPLAY? | is-empty) and (which xvfb-run | is-not-empty)
-    let themix = (if $headless { [xvfb-run -a -e /dev/stderr] } else { [] }) ++ [themix-multi-export]
-    let argv = $THEMIX_TIMEOUT ++ $themix
-    let out = ^($argv | first) ...($argv | skip 1) ($nu.home-dir | path join $EXPORT_DIR $EXPORT_CONFIG) (xdg cache $COLORS) o+e>| complete
+    # xvfb-run sleeps a fixed 3s for Xvfb to come up; it is listening in well under one
+    let argv = $THEMIX_TIMEOUT ++ [xvfb-run -a -w 1 -e /dev/stderr themix-multi-export]
+    let out = with-env {GDK_BACKEND: x11, WAYLAND_DISPLAY: null} {
+        ^($argv | first) ...($argv | skip 1) ($nu.home-dir | path join $EXPORT_DIR $EXPORT_CONFIG) (xdg cache $COLORS) o+e>| complete
+    }
     if $out.exit_code != 0 {
         error make {msg: $"themix export ($EXPORT_CONFIG) exited ($out.exit_code): ($out.stdout | lines | last 6 | str join ' ')"}
     }
