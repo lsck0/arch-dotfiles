@@ -6,7 +6,7 @@ const LOOKUP_URL = "https://ipinfo.io/json"
 const LOOKUP_TIMEOUT = 8sec
 const RETRY_DELAY = 5sec
 const HOME_DISPATCHER = "/etc/NetworkManager/dispatcher.d/70-home-network"
-const HOME_NETWORK = "/run/home-network"
+const TRUSTED_NETWORK = "/run/trusted-network"
 const ZONEINFO = "/usr/share/zoneinfo"
 const TZ_SHAPE = '^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){1,2}$'
 
@@ -27,8 +27,8 @@ def tunnel-up []: nothing -> any {
     null
 }
 
-def off-home []: nothing -> bool {
-    ($HOME_DISPATCHER | path exists) and not (($HOME_NETWORK | path exists) and (open --raw $HOME_NETWORK | is-not-empty))
+def off-trusted []: nothing -> bool {
+    ($HOME_DISPATCHER | path exists) and not (($TRUSTED_NETWORK | path exists) and (open --raw $TRUSTED_NETWORK | is-not-empty))
 }
 
 def tz-valid [tz: string]: nothing -> bool {
@@ -58,7 +58,7 @@ def in-wheel []: nothing -> bool {
 # Why detection is skipped, null when it may run: nothing reaches ipinfo.io unless the answer could be used.
 def suppressed []: nothing -> any {
     if (disabled-flag | path exists) { return "disabled" }
-    if (off-home) { return "off home" }
+    if (off-trusted) { return "off a trusted network" }
     let tunnel = tunnel-up
     if $tunnel != null { return $"tunnel ($tunnel)" }
     if not (in-wheel) { return "not in wheel" }

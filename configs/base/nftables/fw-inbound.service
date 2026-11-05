@@ -7,9 +7,9 @@ Wants=network-pre.target
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/sbin/nft -f /etc/nftables.d/fw-inbound.nft
-ExecStartPost=-/bin/sh -c '[ -s /run/home-network ] || exit 0; exec /usr/sbin/nft add element inet fw home_ifaces "{ $$(paste -sd, /run/home-network) }"'
+ExecStartPost=-/bin/sh -c '[ -s /run/trusted-network ] || exit 0; exec /usr/sbin/nft add element inet fw trusted_links "{ $$(paste -sd, /run/trusted-network) }"'
 ExecReload=/usr/sbin/nft -f /etc/nftables.d/fw-inbound.nft
-ExecReload=-/bin/sh -c '[ -s /run/home-network ] || exit 0; exec /usr/sbin/nft add element inet fw home_ifaces "{ $$(paste -sd, /run/home-network) }"'
+ExecReload=-/bin/sh -c '[ -s /run/trusted-network ] || exit 0; exec /usr/sbin/nft add element inet fw trusted_links "{ $$(paste -sd, /run/trusted-network) }"'
 ExecStop=/usr/sbin/nft destroy table inet fw
 
 [Install]

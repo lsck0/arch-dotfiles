@@ -7,7 +7,7 @@ table inet fw {
     set knock1 { type ipv4_addr; flags timeout; timeout 10s; }
     set knock2 { type ipv4_addr; flags timeout; timeout 10s; }
     set ssh_allowed { type ipv4_addr; flags timeout; timeout @SSH_KNOCK_WINDOW@; }
-    set home_ifaces { type ifname; }
+    set trusted_links { type ifname; }
 
     chain input {
         type filter hook input priority 0; policy drop;
@@ -34,8 +34,8 @@ table inet fw {
         tcp dport @KNOCK_2@ ip saddr @knock1 update @knock2 { ip saddr }
         tcp dport @KNOCK_1@ update @knock1 { ip saddr }
 
-        iifname @home_ifaces tcp dport { 22, 9757, 22000, 53317 } accept
-        iifname @home_ifaces udp dport { 5353, 9757, 22000, 53317 } accept
+        iifname @trusted_links tcp dport { 22, 9757, 22000, 53317 } accept
+        iifname @trusted_links udp dport { 5353, 9757, 22000, 53317 } accept
     }
 
     chain forward {
@@ -44,7 +44,7 @@ table inet fw {
         ct state established,related accept
         ct state invalid drop
         iifname $trusted_ifaces accept
-        iifname @home_ifaces ct status dnat accept
+        iifname @trusted_links ct status dnat accept
         iifname "tun0" meta l4proto tcp ct original proto-dst { 4444-4454, 4456-4460, 8000-8099, 9001, 9443 } ct status dnat accept
     }
 }

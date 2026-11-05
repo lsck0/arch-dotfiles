@@ -59,6 +59,10 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
     }
     let home = if ($HOME_NETWORK | path exists) { open --raw $HOME_NETWORK | lines } else { [] }
     if $iface not-in $home {
+        # the dns override below is runtime only (nmcli device modify) and outlives the link's home status, e.g. a
+        # network trusted as home and then moved to trusted_gateways: a reapply puts the profile's own dns back
+        let dns = out nmcli -g IP4.DNS device show $iface | lines | where $it != ""
+        if $dns == [$lab.HOMELAB_DNS] { out nmcli device reapply $iface | ignore }
         # away with no tunnel the lab mirror only stalls pacman; an empty line drops it until home or wg0 is back
         if ($home | is-empty) and not $wg and $action == up { mirror-place "" }
         return

@@ -11,9 +11,11 @@ profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
   owner's `configs/secrets/yubikey` module, mapped to the logins in `/var/lib/dotfiles/owners`, never by name. sudo's
   stack opens with a terminal gate (`TTY_LINE`): a process without a terminal gets no factor at all, so an agent's
   tool shell cannot raise a touch request nobody sees. `sudo`'s `05-timestamp` pins the per-terminal cache.
-- `networkmanager`: home detection by gateway MAC (`home_gateways`, secrets, the install answer), the untrusted-network
-  persona (`untrusted_policy`), homelab routes and split DNS, the homelab mirror put back first on a home link or
-  wg0. `toggle-portal` opens a captive portal window for 120 s on every foreign link (the dispatcher's `<iface>
+- `networkmanager`: two tiers by gateway MAC. Home (`home_gateways`, secrets, the install answer) is the homelab's
+  network: homelab routes and split DNS, the homelab mirror put back first, the NAS, printers, no connectivity check.
+  Trusted (`trusted_gateways`, `toggle-trust-network`, plus home) only lifts the untrusted-network persona
+  (`untrusted_policy`): `/run/trusted-network` feeds the firewall's `trusted_links` sets, tor-router and the persona;
+  `/run/home-network` the homelab wiring. The homelab mirror also comes back first on wg0. `toggle-portal` opens a captive portal window for 120 s on every foreign link (the dispatcher's `<iface>
   portal`), off ends it early.
 - `ssh` and `nftables`: sshd listens on `base/ssh.port` behind a three-port knock (`base/ssh.knock`, held open for
   `nftables.ssh_knock_window`); `sshk` and `wake-pc` knock first, 22 is the endlessh tarpit.

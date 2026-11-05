@@ -6,12 +6,14 @@ const TRANS_PORT = 9040
 const DNS_PORT = 6669
 const TUNNEL_MARKS = "0x0ea13b2c, 0x0000ca6c"
 const HOME_NETWORK = "/run/home-network"
+const TRUSTED_NETWORK = "/run/trusted-network"
 const HOMELAB_ENV = "/etc/NetworkManager/homelab.env"
 const RULESET = r#'add table inet @TABLE@
 delete table inet @TABLE@
 table inet @TABLE@ {
-	# lan and homelab stay direct only out a home link (homelab also wg0), so a foreign same-subnet lan goes via tor
-	set home_ifaces { type ifname; }
+	# the lan stays direct only out a trusted link, the homelab only out a home one (and wg0), so a foreign same-subnet
+	# lan goes via tor
+	set trusted_links { type ifname; }
 	set lan4 { type ipv4_addr; flags interval; auto-merge; }
 	set homelab4 { type ipv4_addr; flags interval; @HOMELAB4@ }
 	set lab_dns { type ipv4_addr; @LAB_DNS@ }
@@ -28,12 +30,12 @@ table inet @TABLE@ {
 		# the dhcp client's unicast renew and broadcast rebind; redirected, the lease runs out
 		udp sport 68 udp dport 67 return
 		# the homelab's split-horizon dns stays plain out a home link, before the redirect below
-		oifname @home_ifaces ip daddr @lab_dns meta l4proto { tcp, udp } th dport 53 return
+		oifname @trusted_links ip daddr @lab_dns meta l4proto { tcp, udp } th dport 53 return
 		udp dport 53 redirect to :@DNS_PORT@
 		tcp dport 53 redirect to :@TRANS_PORT@
 		# no lo: the automapped 127.192.0.0/10 must still reach the TransPort
 		oifname { "virbr*", "docker*", "br-*", "veth*", "waydroid*", "lxc*" } return
-		oifname @home_ifaces ip daddr @lan4 return
+		oifname @trusted_links ip daddr @lan4 return
 		oifname "wg0" ip daddr @homelab4 return
 		ip daddr @direct4 return
 		ip6 daddr @direct6 return
@@ -44,7 +46,7 @@ table inet @TABLE@ {
 		type filter hook output priority filter; policy accept;
 		ct direction reply accept
 		oifname { "lo", "virbr*", "docker*", "br-*", "veth*", "waydroid*", "lxc*" } accept
-		oifname @home_ifaces ip daddr @lan4 accept
+		oifname @trusted_links ip daddr @lan4 accept
 		oifname "wg0" ip daddr @homelab4 accept
 		ip daddr 127.0.0.0/8 accept
 		ip6 daddr @direct6 accept
@@ -80,16 +82,22 @@ def elements [values: list<string>]: nothing -> string {
     if ($values | is-empty) { "" } else { $"elements = { ($values | str join ',') }" }
 }
 
-# Refills the lan bypass for the current home links; flushed first, so a failed fill only keeps the lan on tor.
+def links-in [file: path]: nothing -> list<string> {
+    try { open --raw $file | lines | where $it != "" } catch { [] }
+}
+
+# Refills the lan bypass for the current trusted links, the homelab's subnets only with a home one among them;
+# flushed first, so a failed fill only keeps the lan on tor.
 def home-fill []: nothing -> nothing {
-    let ifaces = try { open --raw $HOME_NETWORK | lines | where $it != "" } catch { [] }
-    ^nft flush set inet $TABLE home_ifaces
+    let ifaces = links-in $TRUSTED_NETWORK
+    ^nft flush set inet $TABLE trusted_links
     ^nft flush set inet $TABLE lan4
     let links = $ifaces | each {|i|
         ^ip -4 route show dev $i scope link proto kernel | lines | each { split row " " | first }
     }
-    let nets = (homelab).nets ++ ($links | flatten) | uniq | sort
-    if ($ifaces | is-not-empty) { ^nft add element inet $TABLE home_ifaces $"{ ($ifaces | str join ',') }" }
+    let lab = if (links-in $HOME_NETWORK | is-empty) { [] } else { (homelab).nets }
+    let nets = $lab ++ ($links | flatten) | uniq | sort
+    if ($ifaces | is-not-empty) { ^nft add element inet $TABLE trusted_links $"{ ($ifaces | str join ',') }" }
     if ($nets | is-not-empty) { ^nft add element inet $TABLE lan4 $"{ ($nets | str join ',') }" }
 }
 

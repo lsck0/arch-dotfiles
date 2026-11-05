@@ -1,20 +1,20 @@
 #!/usr/bin/env -S nu --no-config-file
-# The persona dispatcher's captive portal window on the non-home links: on opens it, off ends it early.
+# The persona dispatcher's captive portal window on the untrusted links: on opens it, off ends it early.
 use lib.nu [switch-run root-run]
 
 const DISPATCHER = "/etc/NetworkManager/dispatcher.d/90-anonymous-persona"
-const HOME_NETWORK = "/run/home-network"
+const TRUSTED_NETWORK = "/run/trusted-network"
 const PORTAL_TIMERS = "persona-portal-*.timer"
 
-def home-links []: nothing -> list<string> {
-    if ($HOME_NETWORK | path exists) { open --raw $HOME_NETWORK | lines } else { [] }
+def trusted-links []: nothing -> list<string> {
+    if ($TRUSTED_NETWORK | path exists) { open --raw $TRUSTED_NETWORK | lines } else { [] }
 }
 
 # The connected physical links the dispatcher treats as foreign; toggle-root decides the same on its own.
 def foreign-links []: nothing -> list<string> {
-    let home = home-links
+    let trusted = trusted-links
     ^nmcli -t -f DEVICE,STATE device | lines | parse --regex '^(?<dev>[^:]*):(?<state>.*)$'
-    | where {|l| $l.state == connected and $l.dev not-in $home }
+    | where {|l| $l.state == connected and $l.dev not-in $trusted }
     | where {|l| $"/sys/class/net/($l.dev)/device" | path exists }
     | get dev
 }

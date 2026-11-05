@@ -1,8 +1,12 @@
 #!/usr/bin/nu --no-config-file
-# NM dispatcher: home is the hardware mac plus a known gateway mac, never the ssid, which a foreign network can copy
+# NM dispatcher: a link is trusted by the hardware mac plus a known gateway mac, never the ssid, which a foreign network
+# can copy. Home (home-gateways: the homelab's network) is trusted too; a trusted network (trusted-gateways) only lifts
+# the lockdown. /run/trusted-network feeds the firewall sets and tor-router; /run/home-network the homelab wiring.
 
 const GATEWAYS = "/etc/NetworkManager/home-gateways"
+const TRUSTED_GATEWAYS = "/etc/NetworkManager/trusted-gateways"
 const HOME_NETWORK = "/run/home-network"
+const TRUSTED_NETWORK = "/run/trusted-network"
 const TOR_ROUTER = "/usr/local/bin/tor-router"
 const TABLES = [fw_egress fw portmaster_bypass]
 const NO_MAC = "00:00:00:00:00:00"
@@ -18,8 +22,21 @@ def physical [link: string]: nothing -> bool {
     $"/sys/class/net/($link)/device" | path exists
 }
 
-def home-links []: nothing -> list<string> {
-    if ($HOME_NETWORK | path exists) { open --raw $HOME_NETWORK | lines } else { [] }
+def links-in [file: path]: nothing -> list<string> {
+    if ($file | path exists) { open --raw $file | lines } else { [] }
+}
+
+def macs [file: path]: nothing -> list<string> {
+    if ($file | path exists) { open --raw $file | lines | where $it != "" | str lowercase } else { [] }
+}
+
+# Writes the links one per line, atomically; none removes the file.
+def links-save [file: path, links: list<string>]: nothing -> nothing {
+    if ($links | is-empty) { rm --force $file; return }
+    let next = $"($file).new"
+    $links | each { $"($in)\n" } | str join | save --force $next
+    ^chmod 644 $next
+    mv --force $next $file
 }
 
 def gateway-mac [link: string, gateway: string]: nothing -> string {
@@ -43,7 +60,7 @@ export def hardware-mac-in-use [address: string, ethtool: string, assign_type: s
     $address == $hardware
 }
 
-def link-is-home [link: string, gateways: list<string>]: nothing -> bool {
+def link-gateway-in [link: string, gateways: list<string>]: nothing -> bool {
     let address = try { open --raw $"/sys/class/net/($link)/address" } catch { "" }
     let assign_type = try { open --raw $"/sys/class/net/($link)/addr_assign_type" } catch { "" }
     if not (hardware-mac-in-use $address (out ethtool -P $link) $assign_type) { return false }
@@ -56,25 +73,21 @@ def link-is-home [link: string, gateways: list<string>]: nothing -> bool {
 
 def main [iface: string = "", action: string = ""]: nothing -> nothing {
     if $action not-in [up down] { return }
-    if not (physical $iface) and $iface not-in (home-links) { return }
-    let gateways = if ($GATEWAYS | path exists) { open --raw $GATEWAYS | lines | str lowercase } else { [] }
-    let home = if ($gateways | is-empty) { [] } else {
+    if not (physical $iface) and $iface not-in (links-in $TRUSTED_NETWORK) { return }
+    let home_gateways = macs $GATEWAYS
+    let any_gateways = $home_gateways ++ (macs $TRUSTED_GATEWAYS) | uniq
+    let trusted = if ($any_gateways | is-empty) { [] } else {
         glob /sys/class/net/* | path basename
-        | where {|link| (physical $link) and not ($action == down and $link == $iface) and (link-is-home $link $gateways) }
+        | where {|link| (physical $link) and not ($action == down and $link == $iface) and (link-gateway-in $link $any_gateways) }
     }
-    if ($home | is-empty) {
-        rm --force $HOME_NETWORK
-    } else {
-        let next = $"($HOME_NETWORK).new"
-        $home | each { $"($in)\n" } | str join | save --force $next
-        ^chmod 644 $next
-        mv --force $next $HOME_NETWORK
-    }
-    # one transaction per table so a home link never drops out in between
+    let home = $trusted | where {|link| link-gateway-in $link $home_gateways }
+    links-save $HOME_NETWORK $home
+    links-save $TRUSTED_NETWORK $trusted
+    # one transaction per table so a trusted link never drops out in between
     for table in $TABLES {
-        if (out nft list set inet $table home_ifaces) == "" { continue }
-        let add = if ($home | is-empty) { "" } else { $"add element inet ($table) home_ifaces { ($home | str join ',') }\n" }
-        $"flush set inet ($table) home_ifaces\n($add)" | do { ^nft -f - } | complete | ignore
+        if (out nft list set inet $table trusted_links) == "" { continue }
+        let add = if ($trusted | is-empty) { "" } else { $"add element inet ($table) trusted_links { ($trusted | str join ',') }\n" }
+        $"flush set inet ($table) trusted_links\n($add)" | do { ^nft -f - } | complete | ignore
     }
     if ($TOR_ROUTER | path exists) { do { ^$TOR_ROUTER home } | complete | ignore }
 }

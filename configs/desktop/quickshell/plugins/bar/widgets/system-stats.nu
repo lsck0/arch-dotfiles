@@ -62,11 +62,12 @@ def top-by-name []: table -> list {
         | sort-by pct -r | first $TOP_COUNT | update pct { math round -p 1 }
 }
 
+# The costliest part of a tick: ls over /proc, not glob (which walks the tree, 25ms of 45), and columnwise ints
 def proc-ticks []: nothing -> table {
     let self = $nu.pid | into string
-    glob /proc/[0-9]*/stat | each {|f| try { open --raw $f } } | str join "\n" | parse -r $PROC_STAT
-        | where pid != $self
-        | each {|p| {pid: $p.pid, name: $p.name, ticks: (($p.utime | into int) + ($p.stime | into int)), rss: ($p.rss | into int)} }
+    ls --short-names /proc | get name | where $it =~ '^\d+$' and $it != $self
+        | each {|pid| try { open --raw $"/proc/($pid)/stat" } } | str join "\n" | parse -r $PROC_STAT
+        | into int utime stime rss | insert ticks {|p| $p.utime + $p.stime } | select pid name ticks rss
 }
 
 # A share of one core since the last sample, like top; ps %cpu is the lifetime average.

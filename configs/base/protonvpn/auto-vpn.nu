@@ -3,7 +3,8 @@
 
 const TOGGLE = path self | path expand | path dirname | path join .. .. .. scripts toggles toggle-route.nu
     | path expand
-const HOME_NETWORK = "/run/home-network"
+# trusted, not only home: a trusted network needs no vpn either
+const TRUSTED_NETWORK = "/run/trusted-network"
 const LINK_TYPES = [ethernet wifi gsm bt]
 const MOBILE_TYPES = [gsm bt]
 # 70-home-network decides a new link in parallel with nmcli monitor (up to 1 s of arping)
@@ -29,7 +30,7 @@ def decide [state: record]: nothing -> record {
         | where type in $LINK_TYPES and state == connected
     if ($links | is-empty) { return ($state | update retry_at null) }
     if (user-tor) { return ($state | update retry_at null) }
-    let home_links = if ($HOME_NETWORK | path exists) { open --raw $HOME_NETWORK | lines } else { [] }
+    let home_links = if ($TRUSTED_NETWORK | path exists) { open --raw $TRUSTED_NETWORK | lines } else { [] }
     if ($links | all { $in.type not-in $MOBILE_TYPES and $in.dev in $home_links }) {
         if $state.last != home and (vpn-on) { try { ^$TOGGLE direct } }
         return {last: home, attempts: $state.attempts, retry_at: null}

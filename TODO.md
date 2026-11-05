@@ -2,14 +2,11 @@
 
 Open items from the luca-notebook review on 2026-11-05: each needs the PC, root, a foreign network, or a decision.
 
-## Root (`dot apply --system` on the notebook)
+## Root or Luca's YubiKey
 
-- [ ] Run `dot apply --system`. It ships the `75-connectivity-check` dispatcher fix (a false "No internet" at home)
-  and the idle-priority drop-in for `ossec-syscheckd`, whose full pre-scan takes the first 25 minutes after every boot.
-  It also enables `pacman-filesdb-refresh.timer`. That timer is declared in `base/pacman`, but it was still disabled after
-  the install: the system layer last ran on 2026-11-02, before `pacman-contrib` brought the unit. Without the files
-  db, `cause.nu` cannot name the package of a missing command, and `scripts/lib/cause.test.nu` fails `dot test lint`.
-  Find out why the stage chain did not run base/pacman again once its `inputs` file appeared.
+- [ ] Find out why the install chain left `pacman-filesdb-refresh.timer` disabled. `base/pacman` declares it, gated on
+  the unit file through its `inputs`, but the system layer did not run again once `pacman-contrib` brought the file. A
+  manual `dot apply --system` fixed it on 2026-11-05; a fresh install should not need one.
 - [ ] Enroll the TPM2 token. `rd.luks.options` asks for one and every boot logs "No valid TPM2 token data found".
   `dot status` names the `systemd-cryptenroll` command.
 - [ ] Do the recovery drill (RECOVERY.md "Test it"), then run `dot secrets audit drilled`.
@@ -37,6 +34,13 @@ Open items from the luca-notebook review on 2026-11-05: each needs the PC, root,
 
 ## Needs a foreign network
 
+- [ ] After `dot apply --system` on a trusted network (luca-phone), check the home/trusted split:
+  - `/run/trusted-network` lists `wlp2s0` and `/run/home-network` is gone.
+  - `resolvectl status wlp2s0` shows the hotspot's DNS, not 192.168.178.29.
+  - `nmcli general` shows `full`.
+  - `nft list set inet fw trusted_links` holds `wlp2s0`.
+  - Back home, both files list the link again.
+
 - [ ] eduroam: the bar's wifi panel now asks for an identity on WPA-EAP networks. It makes a PEAP/MSCHAPv2 profile that
   checks the RADIUS certificate against the system CAs and `domain-suffix-match=<realm>`. Some universities use TTLS/PAP
   or a RADIUS name outside the realm. If the connection fails, run
@@ -55,10 +59,6 @@ Open items from the luca-notebook review on 2026-11-05: each needs the PC, root,
 
 ## Decision
 
-- [ ] After `dot apply --system` and a reboot, check the relaxed kernel. `base/boot/hardening.relax_mitigations` is
-  now on for luca-notebook: `retbleed=stuff`, `init_on_alloc=0`, `init_on_free=0`, `iommu.strict=0`; PTI stays on.
-  Before the change, on battery, `perf bench syscall basic` gave 1.4 µs/op. Run it again, and check
-  `/sys/devices/system/cpu/vulnerabilities/retbleed`, which should read "Mitigation: Stuffing".
 - [ ] Encrypting only /home instead of the whole disk. On this i7-8650U, AES-XTS runs at about 2.3 GB/s
   (`cryptsetup benchmark`). That is faster than the NVMe, and the header already carries allow-discards and the
   no-workqueue flags. Full-disk encryption is not the likely cost. With only /home encrypted, /etc, the NM wifi keys,

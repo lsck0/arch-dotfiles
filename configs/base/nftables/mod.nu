@@ -37,7 +37,7 @@ export def system [cfg: record] {
     }
     # without networkmanager nothing stops it off home, as under lockdown-tor
     let policy = $cfg.deps?."base/networkmanager"?.untrusted_policy? | default lockdown-tor
-    # only on a changed ruleset, it empties the knock and portal sets; never a start, fw-egress off home cuts this run
+    # only on a changed ruleset, it empties the knock and portal sets; never a start, fw-egress off a trusted network cuts this run
     let reload = {|unit| [systemctl try-reload-or-restart $unit] }
     let inbound = {
         SSH_KNOCK_WINDOW: $cfg.ssh_knock_window, SSH_PORT: $ssh.port

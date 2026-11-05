@@ -34,7 +34,14 @@ export const options = {
     home_gateways: {
         type: list<string>
         default: []
-        doc: "Router MACs that make a network home, beside the admin's configs/secrets/keys/home-gateways"
+        doc: ("Router MACs of the home network, the one with the homelab (its dns, routes, mirror, nas, printers), "
+            + "beside the admin's configs/secrets/keys/home-gateways; home is trusted too")
+    }
+    trusted_gateways: {
+        type: list<string>
+        default: []
+        doc: ("Router MACs of trusted networks: no lockdown, direct egress, the lan's inbound services, the hardware "
+            + "MAC, but none of home's homelab wiring; toggle-trust-network adds the current one")
     }
     homelab_dns: {
         type: string?
@@ -55,7 +62,7 @@ export const options = {
 
 const NM = "/etc/NetworkManager"
 const DISPATCHERS = "/etc/NetworkManager/dispatcher.d"
-const HOME_NETWORK = "/run/home-network"
+const TRUSTED_NETWORK = "/run/trusted-network"
 const LOCKDOWN_MARKER = "/run/persona-lockdown"
 const MAC = '^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$'
 const IPV4 = '^(\d{1,3}\.){3}\d{1,3}$'
@@ -100,8 +107,10 @@ def homelab-env [cfg: record]: nothing -> any {
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
     let home_wired = $cfg.home_wired
-    let bad = $cfg.home_gateways | where not ($it =~ $MAC)
-    if ($bad | is-not-empty) { error make {msg: $"networkmanager: home_gateways has ($bad | str join ' '), not a mac"} }
+    for key in [home_gateways trusted_gateways] {
+        let bad = $cfg | get $key | where not ($it =~ $MAC)
+        if ($bad | is-not-empty) { error make {msg: $"networkmanager: ($key) has ($bad | str join ' '), not a mac"} }
+    }
     let homelab = homelab-env $cfg
     let online = $"nm-online -q --timeout=($ONLINE_TIMEOUT_S) || echo 'networkmanager: still offline' >&2"
     let restart = [sh -c $"systemctl restart NetworkManager.service && ($online)"]
@@ -124,20 +133,22 @@ export def system [cfg: record] {
         (do $dispatcher connectivity-check.nu 75-connectivity-check)
         (do $dispatcher homelab-routes.nu 80-homelab-routes)
         (do $dispatcher persona-dispatcher.nu 90-anonymous-persona)
-        (step home ($home_wired | into string) ...$cfg.home_gateways)
+        (step home ($home_wired | into string) ($cfg.trusted_gateways | str join ",") ...$cfg.home_gateways)
         (if $cfg.wifi_radio == false {
             exec "wifi radio off" [sh -c $"nmcli radio wifi off && touch ($WIFI_OFF_MARK)"] --creates $WIFI_OFF_MARK
         } else { [] })
     ]
 }
 
-# home-gateways = the secrets' list (kept while locked) + the install answer (.local) + home_gateways
-export def home [home_wired: string, ...gateways: string]: nothing -> nothing {
+# home-gateways = the secrets' list (kept while locked) + the install answer (.local) + home_gateways;
+# trusted-gateways = trusted_gateways (comma-joined: a step takes strings), home's own counted by 70-home-network
+export def home [home_wired: string, trusted: string, ...gateways: string]: nothing -> nothing {
     let secrets = $env.DOTFILES_SECRETS? | default "/nonexistent"
     let secret_gateways = $"($NM)/home-gateways.secret"
     let secret_ssids = $"($NM)/home-ssids.secret"
     let local = $"($NM)/home-gateways.local"
     let file = $"($NM)/home-gateways"
+    let trusted_file = $"($NM)/trusted-gateways"
     let macs = {|path| if ($path | path exists) { open --raw $path | lines | where $it =~ $MAC | str lowercase } else { [] } }
 
     let secret = $secrets | path join home-gateways
@@ -156,6 +167,8 @@ export def home [home_wired: string, ...gateways: string]: nothing -> nothing {
     let option = $gateways | str lowercase
     let want = (do $macs $secret_gateways) ++ (do $macs $local) ++ $option | uniq
     $want | each { $"($in)\n" } | str join | save --force $file
+    let trusted_want = $trusted | split row "," | where $it != "" | str lowercase | uniq
+    $trusted_want | each { $"($in)\n" } | str join | save --force $trusted_file
 
     let ssids = if ($secret_ssids | path exists) { open --raw $secret_ssids | lines | where $it != "" } else { [] }
     let profiles = ^nmcli -g UUID,TYPE connection show | lines | parse "{uuid}:{type}"
@@ -170,13 +183,13 @@ export def home [home_wired: string, ...gateways: string]: nothing -> nothing {
         for p in ($profiles | where type == 802-3-ethernet) { ^nmcli connection modify $p.uuid ipv6.method auto }
     }
     let connected = ^nmcli -g DEVICE,STATE device | lines | parse "{dev}:{state}" | where state == connected | get dev
-    for dev in $connected { trusted-wifi-mac $dev $want $ssids }
-    # 90 only lifts a lockdown on a link that just became home; 70 alone only refills the sets. Any other 90 up
+    for dev in $connected { trusted-wifi-mac $dev ($want ++ $trusted_want | uniq) $ssids }
+    # 90 only lifts a lockdown on a link that just became trusted; 70 alone only refills the sets. Any other 90 up
     # restarts tor and portmaster, undoing an open portal or a stop by hand.
     for link in $connected {
         ^$"($DISPATCHERS)/70-home-network" $link up
-        if not ($LOCKDOWN_MARKER | path exists) or not ($HOME_NETWORK | path exists) { continue }
-        if $link not-in (open --raw $HOME_NETWORK | lines) { continue }
+        if not ($LOCKDOWN_MARKER | path exists) or not ($TRUSTED_NETWORK | path exists) { continue }
+        if $link not-in (open --raw $TRUSTED_NETWORK | lines) { continue }
         let uuid = ^nmcli -g GENERAL.CON-UUID device show $link | str trim
         with-env {CONNECTION_UUID: $uuid} { ^$"($DISPATCHERS)/90-anonymous-persona" $link up }
     }

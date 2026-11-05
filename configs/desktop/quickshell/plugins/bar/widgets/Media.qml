@@ -117,7 +117,7 @@ BarWidget {
   readonly property string artCacheFile:
     root.artRemote && root.artCacheDir ? (root.artCacheDir + "/" + Qt.md5(root.artUrl)) : ""
   readonly property int artCacheKeep: 50
-  readonly property string artFetchCheck: "[ -e /run/home-network ]"
+  readonly property string artFetchCheck: "[ -e /run/trusted-network ]"
     + " && ! ip link show proton0 >/dev/null 2>&1 && ! ip link show wg0 >/dev/null 2>&1"
     + " && ! systemctl -q is-active tor-router.service && ! systemctl --user -q is-active anonymous-socks-tor.service"
 

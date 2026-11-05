@@ -5,7 +5,7 @@ const PERSONA_LOCKDOWN = "/run/persona-lockdown"
 const WG_INTERFACE = "wg0"
 const WG_CONFIG = "/etc/wireguard/wg0.conf"
 const PERSONA_DISPATCHER = "/etc/NetworkManager/dispatcher.d/90-anonymous-persona"
-const HOME_NETWORK = "/run/home-network"
+const TRUSTED_NETWORK = "/run/trusted-network"
 const PORTAL_UNIT = "persona-portal"
 const NFT_TABLE = "anonymous_socks"
 const PERSONA_CHAIN = "ANONSOCKS_PERSONA"
@@ -42,7 +42,7 @@ def persona-off []: nothing -> nothing {
     }
 }
 
-# Takes no link from the caller: the dispatcher's own idea of foreign, the connected physical links not home.
+# Takes no link from the caller: the dispatcher's own idea of foreign, the connected physical links not trusted.
 def portal [direction: string]: nothing -> nothing {
     if not ($PERSONA_DISPATCHER | path exists) {
         print -e "toggle-root: no persona dispatcher"
@@ -50,9 +50,9 @@ def portal [direction: string]: nothing -> nothing {
     }
     match $direction {
         on => {
-            let home = if ($HOME_NETWORK | path exists) { open --raw $HOME_NETWORK | lines } else { [] }
+            let trusted = if ($TRUSTED_NETWORK | path exists) { open --raw $TRUSTED_NETWORK | lines } else { [] }
             let links = ^nmcli -t -f DEVICE,STATE device | lines | parse --regex '^(?<dev>[^:]*):(?<state>.*)$'
-                | where {|l| $l.state == connected and $l.dev not-in $home }
+                | where {|l| $l.state == connected and $l.dev not-in $trusted }
                 | where {|l| $"/sys/class/net/($l.dev)/device" | path exists }
             if ($links | is-empty) {
                 print -e "toggle-root: no foreign link to open a portal on"

@@ -9,8 +9,8 @@ Wants=network-pre.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/bin/sh -c '{ cat /etc/nftables.d/fw-egress.nft; [ ! -s /run/home-network ] || echo "add element inet fw_egress home_ifaces { $$(paste -sd, /run/home-network) }"; u=$$(id -u tor) && echo "add element inet fw_egress tor_uid { $$u }"; u=$$(id -u alpm) && echo "add element inet fw_egress fetch_uid { $$u }"; u=$$(id -u systemd-resolve) && echo "add element inet fw_egress resolver_uid { $$u }"; } | /usr/sbin/nft -f - || exec /usr/sbin/nft -f /etc/nftables.d/fw-egress.nft'
-ExecReload=/bin/sh -c '{ cat /etc/nftables.d/fw-egress.nft; [ ! -s /run/home-network ] || echo "add element inet fw_egress home_ifaces { $$(paste -sd, /run/home-network) }"; u=$$(id -u tor) && echo "add element inet fw_egress tor_uid { $$u }"; u=$$(id -u alpm) && echo "add element inet fw_egress fetch_uid { $$u }"; u=$$(id -u systemd-resolve) && echo "add element inet fw_egress resolver_uid { $$u }"; } | /usr/sbin/nft -f - || exec /usr/sbin/nft -f /etc/nftables.d/fw-egress.nft'
+ExecStart=/bin/sh -c '{ cat /etc/nftables.d/fw-egress.nft; [ ! -s /run/trusted-network ] || echo "add element inet fw_egress trusted_links { $$(paste -sd, /run/trusted-network) }"; u=$$(id -u tor) && echo "add element inet fw_egress tor_uid { $$u }"; u=$$(id -u alpm) && echo "add element inet fw_egress fetch_uid { $$u }"; u=$$(id -u systemd-resolve) && echo "add element inet fw_egress resolver_uid { $$u }"; } | /usr/sbin/nft -f - || exec /usr/sbin/nft -f /etc/nftables.d/fw-egress.nft'
+ExecReload=/bin/sh -c '{ cat /etc/nftables.d/fw-egress.nft; [ ! -s /run/trusted-network ] || echo "add element inet fw_egress trusted_links { $$(paste -sd, /run/trusted-network) }"; u=$$(id -u tor) && echo "add element inet fw_egress tor_uid { $$u }"; u=$$(id -u alpm) && echo "add element inet fw_egress fetch_uid { $$u }"; u=$$(id -u systemd-resolve) && echo "add element inet fw_egress resolver_uid { $$u }"; } | /usr/sbin/nft -f - || exec /usr/sbin/nft -f /etc/nftables.d/fw-egress.nft'
 ExecStop=/usr/sbin/nft destroy table inet fw_egress
 
 [Install]

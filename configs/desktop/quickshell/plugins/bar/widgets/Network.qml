@@ -354,7 +354,8 @@ BarWidget {
 
               function activate() {
                 if (wifiNet.modelData.active) return
-                if (!wifiNet.modelData.secure) {
+                // open, or saved: the profile's own secret; a wrong one fails into connectError, then the field shows
+                if (!wifiNet.modelData.secure || (wifiNet.modelData.known && !netRow.pendingConnect && root.connectError === "")) {
                   root.connectTo(wifiNet.modelData.ssid, "")
                   return
                 }
@@ -529,7 +530,7 @@ BarWidget {
         value: root.firewallState
         onChanged: function(state) { if (state !== root.firewallState) root.setFirewall(state) }
       }
-      // home lifts the lockdown on this link: the gateway joins networkmanager's home_gateways
+      // trusting lifts the lockdown on this link: the gateway joins networkmanager's trusted_gateways (home stays home)
       ToggleRow { visible: root.trustAvailable; label: root.toggleLabel("trust-network", "Trusted network"); on: root.trustedNetwork; onActivated: root.toggleTrustNetwork() }
       // offered while NM reports a portal or one is open: tor and strict dot keep its login page out of reach
       ToggleRow {

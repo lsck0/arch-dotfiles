@@ -130,7 +130,8 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/networkmanager.home_wired` | `bool?` | detected | Ethernet is always the home network and keeps its hardware MAC (a desktop); null detects it from the form factor |
 | `base/networkmanager.wake_on_lan` | `bool` | `false` | Wake on a magic packet over ethernet (udev sets it on every wired link, NetworkManager leaves it) |
 | `base/networkmanager.wifi_radio` | `bool?` | detected | Wi-Fi radio on at first boot; off on a desktop wired to the network, so only the link in use is up. Later toggles (toggle-wifi) persist in NetworkManager's own state; null detects it |
-| `base/networkmanager.home_gateways` | `list<string>` | `[]` | Router MACs that make a network home, beside the admin's configs/secrets/keys/home-gateways |
+| `base/networkmanager.home_gateways` | `list<string>` | `[]` | Router MACs of the home network, the one with the homelab (its dns, routes, mirror, nas, printers), beside the admin's configs/secrets/keys/home-gateways; home is trusted too |
+| `base/networkmanager.trusted_gateways` | `list<string>` | `[]` | Router MACs of trusted networks: no lockdown, direct egress, the lan's inbound services, the hardware MAC, but none of home's homelab wiring; toggle-trust-network adds the current one |
 | `base/networkmanager.homelab_dns` | `string?` | `"192.168.178.29"` | The homelab's split-horizon resolver, asked for homelab_domain out a home link (homelab machines); default the lab's router |
 | `base/networkmanager.homelab_domain` | `string?` | `"lsck0.dev"` | The homelab's DNS zone |
 | `base/networkmanager.homelab_subnets` | `list<string>` | `["10.100.0.0/24", "10.200.0.0/24", "10.250.0.0/24"]` | The homelab's subnets, routed straight out a home link and through wg0 elsewhere; default the lab's zones |

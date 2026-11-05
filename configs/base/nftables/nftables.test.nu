@@ -19,7 +19,7 @@ def load-command [home: path]: nothing -> string {
     $start | str replace "/bin/sh -c '" "" | str substring 0..-2
     | str replace --all '$$' '$' | str replace --all '%%' '%'
     | str replace --all /etc/nftables.d/fw-egress.nft $RULESET | str replace --all /usr/sbin/nft nft
-    | str replace --all /run/home-network $home
+    | str replace --all /run/trusted-network $home
 }
 
 def uid-set [ruleset: list, name: string]: nothing -> list<int> {
@@ -38,7 +38,7 @@ def main [] {
         return
     }
     let dir = mktemp --directory --tmpdir dot-nftables-test-XXXXXX
-    let home = $dir | path join home-network
+    let home = $dir | path join trusted-network
     "eth9\n" | save $home
     let command = load-command $home
     let rules = load $command []
@@ -46,8 +46,8 @@ def main [] {
         let uid = ^id -u $e.user | str trim | into int
         if (uid-set $rules $e.set) != [$uid] { fail $"($e.set) is not ($e.user)'s uid ($uid)" }
     }
-    if ($rules | where { $in.set?.name? == home_ifaces } | get 0.set.elem? | default []) != [eth9] {
-        fail "home_ifaces did not take /run/home-network"
+    if ($rules | where { $in.set?.name? == trusted_links } | get 0.set.elem? | default []) != [eth9] {
+        fail "trusted_links did not take /run/trusted-network"
     }
 
     # a fresh install: no tor user, the switch still loads and pacman still gets out

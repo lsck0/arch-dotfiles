@@ -6,7 +6,7 @@ define game_mark = 0x6761
 add table inet fw_egress
 delete table inet fw_egress
 table inet fw_egress {
-    set home_ifaces { type ifname; }
+    set trusted_links { type ifname; }
     set portal { type ifname; flags timeout; }
     # filled by fw-egress.service from id -u, so a user not there yet leaves its set empty instead of failing the load
     set tor_uid { type uid; }
@@ -16,7 +16,7 @@ table inet fw_egress {
     chain output {
         type filter hook output priority 0; policy drop;
         oifname $inner_ifaces accept
-        oifname @home_ifaces accept
+        oifname @trusted_links accept
         # tor-router's redirects into tor's DNSPort and TransPort: the address is rewritten to loopback, but oifname
         # still names the link routed to before the redirect, so lo above misses them. Loopback never leaves the host.
         ip daddr 127.0.0.0/8 accept
@@ -26,8 +26,8 @@ table inet fw_egress {
         icmpv6 type { nd-router-solicit, nd-neighbor-solicit, nd-neighbor-advert } ip6 hoplimit 255 accept
         meta l4proto udp meta mark $tunnel_marks accept
         meta skuid @tor_uid accept
-        # Pacman's escape (DownloadUser = alpm): without it a machine missing tor could never install it, and off home
-        # updates work without tor. A foreign network sees which mirror is fetched from and roughly which packages;
+        # Pacman's escape (DownloadUser = alpm): without it a machine missing tor could never install it, and off a
+        # trusted network updates work without tor. A foreign network sees which mirror is fetched from and roughly which packages;
         # every package is signature-checked. Under tor-router these connections reach here redirected into tor.
         meta skuid @fetch_uid tcp dport { 80, 443 } accept
         # Its lookups, through resolved, over strict DoT only: the network sees TLS to quad9, never the names. This
@@ -45,7 +45,7 @@ table inet fw_egress {
     chain forward {
         type filter hook forward priority 0; policy drop;
         oifname $inner_ifaces accept
-        oifname @home_ifaces accept
+        oifname @trusted_links accept
         reject
     }
 }

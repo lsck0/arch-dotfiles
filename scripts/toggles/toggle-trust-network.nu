@@ -1,11 +1,12 @@
 #!/usr/bin/env -S nu --no-config-file
-# The default route's gateway mac joins home_gateways; dot set's system apply re-decides the link.
+# The default route's gateway mac joins trusted_gateways: no lockdown there, but none of home's homelab wiring (home
+# is home_gateways and the secrets' list). dot set's system apply re-decides the link.
 
 use lib.nu [notify switch-run]
 
 const DOT = path self ../dot.nu
-const OPTION = "base/networkmanager.home_gateways"
-const HOME_NETWORK = "/run/home-network"
+const OPTION = "base/networkmanager.trusted_gateways"
+const TRUSTED_NETWORK = "/run/trusted-network"
 const EXIT_SYSTEM_PENDING = 3
 
 # The physical link of the default route and its gateway's mac, null without one.
@@ -19,12 +20,12 @@ def uplink []: nothing -> any {
     {dev: $route.dev, mac: ($mac | str lowercase)}
 }
 
-def home-links []: nothing -> list<string> {
-    if ($HOME_NETWORK | path exists) { open --raw $HOME_NETWORK | lines } else { [] }
+def trusted-links []: nothing -> list<string> {
+    if ($TRUSTED_NETWORK | path exists) { open --raw $TRUSTED_NETWORK | lines } else { [] }
 }
 
 def listed []: nothing -> list<string> {
-    ^nu --no-config-file $DOT set $OPTION --json | from json | get modules.0.options | where key == home_gateways
+    ^nu --no-config-file $DOT set $OPTION --json | from json | get modules.0.options | where key == trusted_gateways
     | get 0.value | str lowercase
 }
 
@@ -53,7 +54,7 @@ def link []: nothing -> record {
 def main [action: string = "toggle", --json] {
     switch-run {
         label: "Trusted network"
-        is-on: {|| let link = uplink; $link != null and $link.dev in (home-links) }
+        is-on: {|| let link = uplink; $link != null and $link.dev in (trusted-links) }
         on: {||
             let gateways = listed
             let mac = (link).mac
@@ -63,7 +64,7 @@ def main [action: string = "toggle", --json] {
             let gateways = listed
             let mac = (link).mac
             if $mac not-in $gateways {
-                error make {msg: "trusted by configs/secrets/keys/home-gateways, not the option"}
+                error make {msg: "home by home_gateways or configs/secrets/keys/home-gateways, not a trusted network"}
             }
             store ($gateways | where $it != $mac)
         }

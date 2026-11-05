@@ -40,6 +40,7 @@
     "base/networkmanager": {
         untrusted_policy: lockdown-tor
         home_gateways: ["e6:28:1b:27:21:d3"]
+        trusted_gateways: ["06:34:70:91:96:b0"]
     }
     "base/pam": {
         fido_origin: "pam://lsck0"
