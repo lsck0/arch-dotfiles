@@ -1,6 +1,8 @@
 [Unit]
 Description=Check this machine against its declared state (dot status)
 After=graphical-session.target
+# 5 s of cpu an hour; on battery it waits for the next run on mains
+ConditionACPower=true
 
 [Service]
 Type=oneshot

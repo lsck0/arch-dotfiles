@@ -13,7 +13,7 @@ export const options = {
         type: bool
         default: false
         doc: ("Trade kernel hardening for speed on an old Intel cpu: retbleed=stuff for IBRS, no page zeroing on "
-            + "alloc and free, a lazy iommu; a Kaby Lake laptop paid 1.4 µs per syscall and faulted fresh memory "
+            + "alloc and free, a lazy iommu; a Kaby Lake laptop paid 1.4 us per syscall and faulted fresh memory "
             + "at 1 GB/s")
         label: "Relax mitigations"
         apply: reboot

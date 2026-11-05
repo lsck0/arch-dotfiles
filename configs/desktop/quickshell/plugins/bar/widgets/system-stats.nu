@@ -62,21 +62,22 @@ def top-by-name []: table -> list {
         | sort-by pct -r | first $TOP_COUNT | update pct { math round -p 1 }
 }
 
-# The costliest part of a tick: ls over /proc, not glob (which walks the tree, 25ms of 45), and columnwise ints
+# The costliest part of a tick: one cat reads every stat (9ms, against 45 for nu's glob and an open per file); cat
+# skips a pid gone since the shell's glob, its exit code is ignored
 def proc-ticks []: nothing -> table {
     let self = $nu.pid | into string
-    ls --short-names /proc | get name | where $it =~ '^\d+$' and $it != $self
-        | each {|pid| try { open --raw $"/proc/($pid)/stat" } } | str join "\n" | parse -r $PROC_STAT
+    ^sh -c 'exec cat /proc/[0-9]*/stat 2>/dev/null' | complete | get stdout | parse -r $PROC_STAT
+        | where pid != $self
         | into int utime stime rss | insert ticks {|p| $p.utime + $p.stime } | select pid name ticks rss
 }
 
 # A share of one core since the last sample, like top; ps %cpu is the lifetime average.
 def top-cpu [now: table, before: table, dt_ms: number, tck: int]: nothing -> list {
     if $dt_ms <= 0 { return [] }
-    $now | join --left $before pid | each {|p|
-        let ticks = [($p.ticks - ($p.ticks_? | default 0)) 0] | math max
-        {pid: $p.pid, name: $p.name, pct: ($ticks * 100_000 / $tck / $dt_ms)}
-    } | where pct > 0 | each {|p| $p | update name (proc-name-full $p.pid $p.name) } | top-by-name
+    # the idle majority is dropped before the per-row closure
+    $now | join --left $before pid | where ticks > ($it.ticks_? | default 0) | each {|p|
+        {pid: $p.pid, name: (proc-name-full $p.pid $p.name), pct: (($p.ticks - ($p.ticks_? | default 0)) * 100_000 / $tck / $dt_ms)}
+    } | top-by-name
 }
 
 # Resident memory from the same /proc/<pid>/stat walk as top-cpu, so a tick reads /proc once.

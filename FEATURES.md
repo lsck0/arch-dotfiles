@@ -114,7 +114,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | option | type | default | what it does |
 |---|---|---|---|
 | `base/boot/hardening.allow_smt` | `bool` | `false` | Keep hyperthreading despite MDS/MMIO, accepting the cross-sibling leak for the threads |
-| `base/boot/hardening.relax_mitigations` | `bool` | `false` | Trade kernel hardening for speed on an old Intel cpu: retbleed=stuff for IBRS, no page zeroing on alloc and free, a lazy iommu; a Kaby Lake laptop paid 1.4 µs per syscall and faulted fresh memory at 1 GB/s |
+| `base/boot/hardening.relax_mitigations` | `bool` | `false` | Trade kernel hardening for speed on an old Intel cpu: retbleed=stuff for IBRS, no page zeroing on alloc and free, a lazy iommu; a Kaby Lake laptop paid 1.4 us per syscall and faulted fresh memory at 1 GB/s |
 | `base/boot/remote-unlock.ssh_unlock` | `bool` | `false` | Wake-on-lan this machine, then ssh into the initramfs to unlock LUKS remotely |
 | `base/boot/remote-unlock.wifi` | `bool` | `false` | Also join the home wifis (configs/secrets/keys/wifi) in the initramfs; their keys are written into the image |
 | `base/cleanup.journal_max_use` | `string` | `"500M"` | Total disk space the systemd journal may keep, journald.conf(5) size syntax |

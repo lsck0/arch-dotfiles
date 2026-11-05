@@ -157,7 +157,10 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
         $tries += 1
         if $tries > $PUSH_TRIES { error make {msg: $"push still rejected after ($PUSH_TRIES) retries"} }
         if not ($push.stderr | str contains "! [rejected]") {
-            error make {msg: $"push failed, nothing rewound: (error-brief $push.stderr)"}
+            # git's own fatal/error line: git-lfs prints a harmless locking-api warning first, which hid the cause
+            let why = $push.stderr | lines | where $it =~ '^(fatal|error): ' | str join " " | str trim
+            let why = if $why == "" { error-brief $push.stderr } else { $why }
+            error make {msg: $"push failed, nothing rewound: ($why)"}
         }
         if $committed { ^git -C $repo reset --soft HEAD~1 }
         # move the secrets submodule first, so the stash carries no gitlink change

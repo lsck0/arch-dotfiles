@@ -1,0 +1,2 @@
+# syscheckd skips a battery boot (ConditionACPower in its drop-in); plugged in, it starts and integrity monitoring resumes
+SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="1", RUN+="/usr/bin/systemctl --no-block start ossec-syscheckd.service"

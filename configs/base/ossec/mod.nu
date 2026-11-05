@@ -14,6 +14,7 @@ export def system [cfg: record] {
         (unit-enable ossec-server.target)
         (unit-enable ossec-journal.service)
         (dropin ossec-syscheckd.service syscheckd-idle.conf --name idle.conf)
+        (file-copy 99-ossec-ac.rules /etc/udev/rules.d/99-ossec-ac.rules --then [udevadm control --reload])
         (step localfiles)
         (file-copy alerts-acl.conf $TMPFILES --then [systemd-tmpfiles --create $TMPFILES])
     ]
