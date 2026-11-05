@@ -96,13 +96,28 @@ const TARGET_DPI = {laptop: 150.0, desktop: 110.0}
 const MM_PER_INCH = 25.4
 const SCALES = [1.0 1.25 1.5 1.666667 2.0 2.5 3.0]
 
-# Whether this process's Hyprland still runs: a shell started under one keeps its signature after a logout.
-def hyprland-live []: nothing -> bool {
-    let sig = $env.HYPRLAND_INSTANCE_SIGNATURE? | default ""
-    $sig != "" and ($env.XDG_RUNTIME_DIR? | default "" | path join hypr $sig .socket.sock | path exists)
+# A Hyprland instance dir whose lock names a running pid; a dead one keeps its dir and socket file behind.
+def instance-alive [dir: path]: nothing -> bool {
+    let pid = try { open --raw ($dir | path join hyprland.lock) | lines | first | str trim } catch { "" }
+    $pid != "" and (["/proc" $pid] | path join | path exists) and ($dir | path join .socket.sock | path exists)
 }
 
-def outputs-live []: nothing -> table {
+# Whether a Hyprland runs for this process, adopting the live instance when the inherited signature is dead: a shell
+# (a herdr pane, a ssh login) keeps the signature of the Hyprland it was started under through a crash or a relogin.
+def --env hyprland-live []: nothing -> bool {
+    let hypr = $env.XDG_RUNTIME_DIR? | default "" | path join hypr
+    let sig = $env.HYPRLAND_INSTANCE_SIGNATURE? | default ""
+    if $sig != "" and (instance-alive ($hypr | path join $sig)) { return true }
+    let live = try { ls $hypr } catch { [] } | where type == dir and (instance-alive $it.name) | sort-by modified
+        | get --optional name | default [] | last
+    if $live == null { return false }
+    let display = try { open --raw ($live | path join hyprland.lock) | lines | get 1 | str trim } catch { "" }
+    $env.HYPRLAND_INSTANCE_SIGNATURE = $live | path basename
+    if $display != "" { $env.WAYLAND_DISPLAY = $display }
+    true
+}
+
+def --env outputs-live []: nothing -> table {
     if not (hyprland-live) { return [] }
     # disabled outputs too: a docked closed lid turns the panel off, and it must stay the layout's main
     try { ^hyprctl -j monitors all | from json } catch { [] } | where name !~ '^HEADLESS-' | sort-by x
@@ -243,7 +258,7 @@ export def plugins-load []: nothing -> nothing {
 export def update [cfg: record]: nothing -> nothing { plugins-build; plugins-load }
 
 # Reloads hyprland; the shader goes last, a config write or scale re-render after it drops it.
-export def reload []: nothing -> nothing {
+export def --env reload []: nothing -> nothing {
     if not (hyprland-live) { return }
     let toggles = $env.DOTFILES | path join scripts toggles
     ^hyprctl reload config-only

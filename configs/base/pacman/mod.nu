@@ -35,6 +35,8 @@ export def system [cfg: record] {
         (files-into /etc/pacman.d/hooks ...(glob hooks/*.hook))
         # pacman -F's database, which names the package of a missing command (cause.nu)
         (if ($FILESDB_TIMER_FILE | path exists) { unit-enable $FILESDB_TIMER --now } else { [] })
+        # the weekly timer's first run is up to a week out; until then a fresh install names no package
+        (exec filesdb [pacman -Fy] --creates /var/lib/pacman/sync/core.files --network)
     ]
 }
 
