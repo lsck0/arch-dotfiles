@@ -98,7 +98,6 @@ BarWidget {
   }
 
   MouseArea {
-    id: mouseArea
     anchors.fill: parent
     cursorShape: Qt.PointingHandCursor
     onClicked: root.open(root.lab.links.homepage)
@@ -116,7 +115,6 @@ BarWidget {
     id: list
     property string title: ""
     property var rows: []
-    spacing: 0
 
     Label {
       text: list.title
@@ -257,7 +255,6 @@ BarWidget {
     implicitWidth: Style.panelWidth.wide
 
     Column {
-      id: content
       width: parent.width
       spacing: Style.spacing.sm
 

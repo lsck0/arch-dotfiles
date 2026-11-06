@@ -3,8 +3,6 @@ import Quickshell
 import QtQuick
 
 QtObject {
-  id: root
-
   function clamp(value, min, max) {
     var n = Number(value)
     if (!isFinite(n)) return min

@@ -17,6 +17,11 @@ Item {
   readonly property int rowHeight: Style.space(40)
   readonly property int reminderShownMax: 3
 
+  component StripLine: Label {
+    width: parent.width
+    caption: true
+  }
+
   readonly property var filtered: {
     var list = TaskState.tasks || []
     var needle = root.filterText.trim().toLowerCase()
@@ -521,52 +526,42 @@ Item {
 
           PanelSeparator {}
 
-          Label {
-            width: parent.width
+          StripLine {
             visible: TaskState.activeTask !== null
             text: TaskState.activeTask ? ("tracking :: " + TaskState.activeTask.desc + " " + TaskState.activeElapsedText()) : ""
             color: Colors.accentText
-            caption: true
             elide: Text.ElideRight
           }
 
-          Label {
-            width: parent.width
+          StripLine {
             visible: TaskState.trackedTotalSeconds > 0
             text: "worktime today :: " + TaskState.totalTrackedText()
             dim: true
-            caption: true
           }
 
-          Label {
-            width: parent.width
+          StripLine {
             visible: TimerState.pomoRunning
             text: "pomodoro :: " + TimerState.pomoPhaseLabel + " " + Util.clock(TimerState.pomoRemainingSeconds)
               + (TimerState.pomoPaused ? " (paused)" : "")
             color: TimerState.pomo.phase === "work" ? Colors.accentText : Colors.okText
-            caption: true
           }
 
           Repeater {
             // bound the strip: an unbounded reminder set would grow upward and squeeze the task list to nothing
             model: TimerState.reminders.slice(0, root.reminderShownMax)
 
-            Label {
+            StripLine {
               required property var modelData
-              width: parent.width
               text: "reminder :: " + String(modelData.label || "") + " at " + String(modelData.atTime || "")
               color: Colors.accent2Text
-              caption: true
               elide: Text.ElideRight
             }
           }
 
-          Label {
-            width: parent.width
+          StripLine {
             visible: TimerState.reminderCount > root.reminderShownMax
             text: "+" + (TimerState.reminderCount - root.reminderShownMax) + " more reminders"
             dim: true
-            caption: true
           }
         }
       }

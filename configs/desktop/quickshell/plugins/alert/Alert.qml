@@ -12,7 +12,6 @@ Item {
 
   property var alerts: []
 
-
   function open(payload) {
     payload = payload || {}
     if (!payload.title && !payload.body) return

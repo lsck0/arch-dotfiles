@@ -146,14 +146,11 @@ Singleton {
 
   Timer { id: reloadTimer; interval: 250; onTriggered: { pomoFile.reload(); reminderFile.reload() } }
 
-  FileView {
+  WatchedFile {
     id: pomoFile
     path: root.pomoPath
-    watchChanges: true
-    printErrors: false
-    onLoaded: { root.applyPomo(text()); Util.rearmWatch(this) }
+    onLoaded: root.applyPomo(text())
     onLoadFailed: root.pomoState = ({})
-    onFileChanged: reload()
   }
 
   Process {
@@ -161,23 +158,17 @@ Singleton {
     onExited: if (!root.pomoSetNext()) pomoConfigFile.reload()
   }
 
-  FileView {
+  WatchedFile {
     id: pomoConfigFile
     path: root.pomoConfigPath
-    watchChanges: true
-    printErrors: false
-    onLoaded: { root.applyPomoConfig(text()); Util.rearmWatch(this) }
+    onLoaded: root.applyPomoConfig(text())
     onLoadFailed: root.applyPomoConfig("")
-    onFileChanged: reload()
   }
 
-  FileView {
+  WatchedFile {
     id: reminderFile
     path: root.reminderIndexPath
-    watchChanges: true
-    printErrors: false
-    onLoaded: { root.applyReminders(text()); Util.rearmWatch(this) }
+    onLoaded: root.applyReminders(text())
     onLoadFailed: root.reminderList = []
-    onFileChanged: reload()
   }
 }

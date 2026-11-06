@@ -4,8 +4,6 @@ import qs.Commons
 import qs.Ui
 
 BarIndicator {
-  id: root
-
   ToggleState {
     id: keepAwake
     script: "toggle-keep-awake.nu"
@@ -13,7 +11,6 @@ BarIndicator {
 
   active: keepAwake.state === "on"
   activeText: "\u{f0176}"
-  inactiveText: "\u{f0176}"
   activeTooltipText: "Allow idle lock"
   inactiveTooltipText: "Keep awake"
 

@@ -21,11 +21,13 @@ def main [action: string = "toggle", --json] {
         }
         off: {||
             let states = try { open --raw $previous | from nuon } catch { [] }
-            $PARTS | where {|name| ($states | where name == $name | get state.0? | default off) != on } | each {|name|
-                try { toggle-run $name off o+e> /dev/null }
-            }
+            let failed = $PARTS | where {|name| ($states | where name == $name | get state.0? | default off) != on }
+                | where {|name| try { toggle-run $name off o+e> /dev/null; false } catch { true } }
             let preset = $states | where name == color-grading | get state.0? | default off
-            try { toggle-run color-grading set $preset o+e> /dev/null }
+            let grading = try { toggle-run color-grading set $preset o+e> /dev/null; [] } catch { [color-grading] }
+            # a part that stayed on keeps focus on and its restore record, so the next off tries it again
+            let stuck = $failed ++ $grading
+            if ($stuck | is-not-empty) { error make {msg: $"focus mode: still on: ($stuck | str join ', ')"} }
             rm --force $previous
             state-set focus off
         }

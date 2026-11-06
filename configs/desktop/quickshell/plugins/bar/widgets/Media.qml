@@ -276,7 +276,6 @@ BarWidget {
   }
 
   MouseArea {
-    id: hoverArea
     anchors.fill: parent
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
     onClicked: function (mouse) {
@@ -402,7 +401,6 @@ BarWidget {
           id: seek
           width: parent.width
           step: 5
-          minimum: 0
           maximum: root.player && root.player.length > 0 ? root.player.length : 1
           value: root.player ? root.player.position : 0
           enabled: root.player !== null && root.player.canSeek
@@ -420,14 +418,14 @@ BarWidget {
             width: parent.width / 2
             text: root.player ? Util.clock(seek.dragging ? seek.liveValue : root.player.position) : "0:00"
             dim: true
-            font.family: Style.font.family; font.pixelSize: Style.font.caption
+            caption: true
           }
           Label {
             width: parent.width / 2
             horizontalAlignment: Text.AlignRight
             text: root.player ? Util.clock(root.player.length) : "0:00"
             dim: true
-            font.family: Style.font.family; font.pixelSize: Style.font.caption
+            caption: true
           }
         }
       }
@@ -441,54 +439,37 @@ BarWidget {
           anchors.horizontalCenter: parent.horizontalCenter
           spacing: Style.spacing.sm
 
-          Button {
-            focusable: true
-            variant: "icon"
+          TransportButton {
             iconText: "\u{f074}"
             tooltipText: "Shuffle"
             foreground: root.player && root.player.shuffle ? Colors.accentText : Colors.menu.text
             enabled: root.player !== null && root.player.shuffleSupported
-            fontFamily: Style.font.family
             onClicked: if (root.player) root.player.shuffle = !root.player.shuffle
           }
 
-          Button {
-            focusable: true
-            variant: "icon"
+          TransportButton {
             iconText: "\u{f048}"
             tooltipText: "Previous"
-            foreground: Colors.menu.text
             enabled: root.player !== null && root.player.canGoPrevious
-            fontFamily: Style.font.family
             onClicked: if (root.player) root.player.previous()
           }
 
-          Button {
-            focusable: true
-            variant: "icon"
+          TransportButton {
             iconText: root.playing ? "\u{f04c}" : "\u{f04b}"
             tooltipText: root.playing ? "Pause" : "Play"
-            foreground: Colors.menu.text
             enabled: root.player !== null && root.player.canTogglePlaying
-            fontFamily: Style.font.family
             fontSize: Style.font.icon + Style.space(4)
             onClicked: if (root.player) root.player.togglePlaying()
           }
 
-          Button {
-            focusable: true
-            variant: "icon"
+          TransportButton {
             iconText: "\u{f051}"
             tooltipText: "Next"
-            foreground: Colors.menu.text
             enabled: root.player !== null && root.player.canGoNext
-            fontFamily: Style.font.family
             onClicked: if (root.player) root.player.next()
           }
 
-          Button {
-            focusable: true
-            variant: "icon"
+          TransportButton {
             iconText: root.player && root.player.loopState === MprisLoopState.Track
               ? "\u{f0458}" : "\u{f0456}"
             tooltipText: {
@@ -502,7 +483,6 @@ BarWidget {
             foreground: root.player && root.player.loopState !== MprisLoopState.None
               ? Colors.accentText : Colors.menu.text
             enabled: root.player !== null && root.player.loopSupported
-            fontFamily: Style.font.family
             onClicked: {
               if (!root.player) return
               switch (root.player.loopState) {
@@ -576,6 +556,13 @@ BarWidget {
         }
       }
     }
+  }
+
+  component TransportButton: Button {
+    focusable: true
+    variant: "icon"
+    foreground: Colors.menu.text
+    fontFamily: Style.font.family
   }
 
   component CavaBars: Row {

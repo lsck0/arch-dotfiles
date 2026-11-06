@@ -58,18 +58,12 @@ ShellRoot {
     }
   }
 
-  FileView {
+  WatchedFile {
     id: widgetSettingsFile
     path: shell.widgetSettingsPath
-    watchChanges: true
     atomicWrites: true
-    printErrors: false
-    onLoaded: {
-      shell.applyWidgetSettings()
-      Util.rearmWatch(this)
-    }
+    onLoaded: shell.applyWidgetSettings()
     onLoadFailed: shell.widgetSettings = ({})
-    onFileChanged: reload()
   }
 
   readonly property string mainScreenName: {

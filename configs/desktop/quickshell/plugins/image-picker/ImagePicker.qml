@@ -11,6 +11,15 @@ import qs.Ui
 
 Item {
   id: root
+
+  component SlowMove: Behavior {
+    NumberAnimation {
+      duration: Style.motion.slow
+      easing.type: Easing.BezierSpline
+      easing.bezierCurve: Style.motion.enter
+    }
+  }
+
   readonly property string pluginDir: Paths.plugin("image-picker")
   readonly property string dot: Paths.home + "/.local/bin/dot"
   property int mode: 0
@@ -260,7 +269,6 @@ Item {
     }
 
     stdout: SplitParser {
-      splitMarker: "\n"
       onRead: function(line) {
         if (loadImagesProc.activeSerial !== root.requestSerial) return
         if (!line) return
@@ -327,7 +335,6 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         width: root.expandedWidth + root.sliceCount * (root.sliceWidth + root.sliceSpacing)
         visible: root.ready
-        clip: false
 
         Repeater {
           model: root.imageArray.length
@@ -349,11 +356,7 @@ Item {
             readonly property real bottomRight: root.skewOffset >= 0 ? width - skAbs : width
             readonly property real bottomLeft: root.skewOffset >= 0 ? 0 : skAbs
 
-            onNearbyChanged: {
-              if (nearby) {
-                sourceActivated = true
-              }
-            }
+            onNearbyChanged: if (nearby) sourceActivated = true
             visible: nearby
             x: selected ? carousel.previewX : (relativeIndex < 0 ? carousel.previewX + relativeIndex * carousel.itemStep : carousel.previewX + root.expandedWidth + root.sliceSpacing + (relativeIndex - 1) * carousel.itemStep)
             width: selected ? root.expandedWidth : root.sliceWidth
@@ -412,8 +415,6 @@ Item {
                 sourceSize.width: Math.ceil((item.selected ? root.expandedWidth : root.sliceWidth) * Screen.devicePixelRatio)
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
-                cache: true
-                smooth: true
               }
 
               Image {
@@ -423,7 +424,6 @@ Item {
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 cache: false
-                smooth: true
                 opacity: status === Image.Ready ? 1 : 0
 
                 Behavior on opacity {
@@ -491,45 +491,10 @@ Item {
               onClicked: item.selected ? root.applySelected() : root.select(item.index)
             }
 
-            Behavior on x {
-              enabled: root.layoutSettled
-
-              NumberAnimation {
-                duration: Style.motion.slow
-                easing.type: Easing.BezierSpline
-                easing.bezierCurve: Style.motion.enter
-              }
-            }
-
-            Behavior on y {
-              enabled: root.layoutSettled
-
-              NumberAnimation {
-                duration: Style.motion.slow
-                easing.type: Easing.BezierSpline
-                easing.bezierCurve: Style.motion.enter
-              }
-            }
-
-            Behavior on width {
-              enabled: root.layoutSettled
-
-              NumberAnimation {
-                duration: Style.motion.slow
-                easing.type: Easing.BezierSpline
-                easing.bezierCurve: Style.motion.enter
-              }
-            }
-
-            Behavior on height {
-              enabled: root.layoutSettled
-
-              NumberAnimation {
-                duration: Style.motion.slow
-                easing.type: Easing.BezierSpline
-                easing.bezierCurve: Style.motion.enter
-              }
-            }
+            SlowMove on x { enabled: root.layoutSettled }
+            SlowMove on y { enabled: root.layoutSettled }
+            SlowMove on width { enabled: root.layoutSettled }
+            SlowMove on height { enabled: root.layoutSettled }
           }
         }
       }
@@ -599,20 +564,13 @@ Item {
           if (event.key === Qt.Key_Escape) {
             if (text) clear()
             else root.cancel()
-            event.accepted = true
-          } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-            root.applySelected()
-            event.accepted = true
-          } else if (event.key === Qt.Key_Left || event.key === Qt.Key_Backtab || (event.key === Qt.Key_Tab && event.modifiers & Qt.ShiftModifier)) {
+          } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) root.applySelected()
+          else if (event.key === Qt.Key_Left || event.key === Qt.Key_Backtab || (event.key === Qt.Key_Tab && event.modifiers & Qt.ShiftModifier))
             root.selectAdjacent(-1)
-            event.accepted = true
-          } else if (event.key === Qt.Key_Right || event.key === Qt.Key_Tab) {
-            root.selectAdjacent(1)
-            event.accepted = true
-          } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
-            root.switchMode()
-            event.accepted = true
-          }
+          else if (event.key === Qt.Key_Right || event.key === Qt.Key_Tab) root.selectAdjacent(1)
+          else if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) root.switchMode()
+          else return
+          event.accepted = true
         }
       }
 

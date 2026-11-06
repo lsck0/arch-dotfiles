@@ -159,7 +159,7 @@
           {
             "name": "Camera",
             "source_uuid": "00000000-0000-4000-8000-000000000102",
-            "visible": true,
+            "visible": false,
             "locked": false,
             "rot": 0.0,
             "scale_ref": {
@@ -846,8 +846,8 @@
       "name": "Webcam"
     }
   ],
-  "current_scene": "Webcam",
-  "current_program_scene": "Webcam",
+  "current_scene": "Desktop",
+  "current_program_scene": "Desktop",
   "canvases": [],
   "current_transition": "Fade",
   "transition_duration": 300,
@@ -856,7 +856,7 @@
   "saved_projectors": [],
   "preview_locked": false,
   "scaling_enabled": false,
-  "scaling_level": -7,
+  "scaling_level": -15,
   "scaling_off_x": 0.0,
   "scaling_off_y": 0.0,
   "virtual-camera": {

@@ -14,6 +14,7 @@ singleton ToggleEvents 1.0 ToggleEvents.qml
 singleton Util 1.0 Util.qml
 JsonProcess 1.0 JsonProcess.qml
 ToggleState 1.0 ToggleState.qml
+WatchedFile 1.0 WatchedFile.qml
 singleton TimerState 1.0 TimerState.qml
 singleton TaskState 1.0 TaskState.qml
 ProcessQueue 1.0 ProcessQueue.qml

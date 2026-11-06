@@ -278,8 +278,6 @@ Item {
     query: root.filterText
     placeholder: root.modePlaceholders[root.mode]
     hints: root.modeHints[root.mode]
-    cardWidth: Style.space(560)
-    cardHeight: Style.space(480)
     onDismissed: root.close()
 
     Item {
@@ -292,38 +290,19 @@ Item {
         if (event.key === Qt.Key_Escape) {
           if (root.filterText) root.setFilter("")
           else root.close()
-          event.accepted = true
-        } else if (event.key === Qt.Key_Up) {
-          root.selectAt(root.selectedIndex - 1)
-          event.accepted = true
-        } else if (event.key === Qt.Key_Down) {
-          root.selectAt(root.selectedIndex + 1)
-          event.accepted = true
-        } else if (event.key === Qt.Key_PageUp) {
-          root.selectAt(root.selectedIndex - resultList.pageRows)
-          event.accepted = true
-        } else if (event.key === Qt.Key_PageDown) {
-          root.selectAt(root.selectedIndex + resultList.pageRows)
-          event.accepted = true
-        } else if (event.key === Qt.Key_Home) {
-          root.selectAt(0)
-          event.accepted = true
-        } else if (event.key === Qt.Key_End) {
-          root.selectAt(root.rows.length - 1)
-          event.accepted = true
-        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-          root.activateAt(root.selectedIndex)
-          event.accepted = true
-        } else if (Util.isWordDelete(event.key, event.modifiers)) {
-          root.setFilter(Util.wordDelete(root.filterText))
-          event.accepted = true
-        } else if (event.key === Qt.Key_Backspace) {
-          root.setFilter(root.filterText.slice(0, -1))
-          event.accepted = true
-        } else if (event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127) {
+        } else if (event.key === Qt.Key_Up) root.selectAt(root.selectedIndex - 1)
+        else if (event.key === Qt.Key_Down) root.selectAt(root.selectedIndex + 1)
+        else if (event.key === Qt.Key_PageUp) root.selectAt(root.selectedIndex - resultList.pageRows)
+        else if (event.key === Qt.Key_PageDown) root.selectAt(root.selectedIndex + resultList.pageRows)
+        else if (event.key === Qt.Key_Home) root.selectAt(0)
+        else if (event.key === Qt.Key_End) root.selectAt(root.rows.length - 1)
+        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) root.activateAt(root.selectedIndex)
+        else if (Util.isWordDelete(event.key, event.modifiers)) root.setFilter(Util.wordDelete(root.filterText))
+        else if (event.key === Qt.Key_Backspace) root.setFilter(root.filterText.slice(0, -1))
+        else if (event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127)
           root.setFilter(root.filterText + event.text)
-          event.accepted = true
-        }
+        else return
+        event.accepted = true
       }
     }
 
@@ -383,7 +362,6 @@ Item {
               sourceSize.height: Math.round(root.iconSize * Screen.devicePixelRatio)
               fillMode: Image.PreserveAspectFit
               asynchronous: true
-              smooth: true
               source: rowDelegate.modelData.icon
             }
 
@@ -401,15 +379,13 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width - root.iconSize - cursorMark.width - keysLabel.width - parent.spacing * 3
 
-            Text {
+            Label {
               width: parent.width
               textFormat: Text.StyledText
               text: rowDelegate.modelData.kind === "app"
                 ? AppSearch.highlight(rowDelegate.modelData.name, root.modeQuery, String(Colors.accent2Text))
                 : AppSearch.escapeHtml(rowDelegate.modelData.name)
               color: rowDelegate.selected ? root.selectedText : root.foreground
-              font.family: Style.font.family
-              font.pixelSize: Style.font.body
               elide: Text.ElideRight
             }
 

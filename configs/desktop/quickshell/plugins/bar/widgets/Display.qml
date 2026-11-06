@@ -177,7 +177,6 @@ BarWidget {
       Item {
         width: parent.width
         implicitHeight: Math.max(briSlider.implicitHeight, briValue.implicitHeight)
-        height: implicitHeight
 
         Slider {
           id: briSlider

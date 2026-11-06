@@ -46,9 +46,6 @@ class FakeUInput:
     def close(self):
         pass
 
-    def codes(self, etype):
-        return [c for t, c, v in self.events if t == etype]
-
     def values(self, etype, code):
         return [v for t, c, v in self.events if t == etype and c == code]
 

@@ -56,6 +56,9 @@ export def backup [cfg: record]: nothing -> nothing {
     if (which modrinth-app | is-empty) or not ($p.db | path exists) { return }
     secret-seed-guard ($p.data | path join .from-secrets) $p.seed $p.data
     mkdir ($p.saved | path dirname)
-    rm --force $p.saved
-    ^sqlite3 $p.db $".backup '($p.saved)'"
+    # into a fresh file renamed over the copy: a failed .backup leaves the last good one, not none
+    let next = $"($p.saved).new"
+    rm --force $next
+    ^sqlite3 $p.db $".backup '($next)'"
+    mv --force $next $p.saved
 }

@@ -20,6 +20,11 @@ Item {
   readonly property string reminderScript: Paths.script("reminder.nu")
   readonly property string pomodoroScript: Paths.script("pomodoro.nu")
 
+  component IconButton: Button {
+    variant: "icon"
+    foreground: Colors.menu.text
+  }
+
   readonly property string promptText: step === "name" ? "name for the " + minutes + " min reminder (optional)"
     : step === "rename" ? "new name for " + (renameTarget ? renameTarget.label : "")
     : "remind me in ... minutes, then a name"
@@ -277,24 +282,20 @@ Item {
                 dim: true
               }
             }
-            Button {
+            IconButton {
               id: rename
-              variant: "icon"
               anchors.right: cancel.left
               anchors.verticalCenter: parent.verticalCenter
               iconText: "\u{f03eb}" // md-pencil
               tooltipText: "Rename reminder"
-              foreground: Colors.menu.text
               onClicked: root.askRename(reminderRow.modelData)
             }
-            Button {
+            IconButton {
               id: cancel
-              variant: "icon"
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
               iconText: "\u{f0156}"
               tooltipText: "Cancel reminder"
-              foreground: Colors.menu.text
               onClicked: root.run([root.reminderScript, "cancel", reminderRow.modelData.unit])
             }
           }
@@ -363,27 +364,21 @@ Item {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             spacing: Style.spacing.xs
-            Button {
-              variant: "icon"
+            IconButton {
               iconText: root.pomo.paused ? "\u{f040a}" : "\u{f03e4}"
               tooltipText: root.pomo.paused ? "Resume" : "Pause"
-              foreground: Colors.menu.text
               fontSize: Style.font.heading
               onClicked: root.run([root.pomodoroScript, "toggle"])
             }
-            Button {
-              variant: "icon"
+            IconButton {
               iconText: "\u{f04ad}"
               tooltipText: "Skip to next phase"
-              foreground: Colors.menu.text
               fontSize: Style.font.heading
               onClicked: root.run([root.pomodoroScript, "skip"])
             }
-            Button {
-              variant: "icon"
+            IconButton {
               iconText: "\u{f04db}"
               tooltipText: "Stop"
-              foreground: Colors.menu.text
               fontSize: Style.font.heading
               onClicked: root.run([root.pomodoroScript, "stop"])
             }
@@ -437,14 +432,12 @@ Item {
                 width: parent.width
                 height: Math.max(less.height, amount.implicitHeight)
 
-                Button {
+                IconButton {
                   id: less
-                  variant: "icon"
                   anchors.left: parent.left
                   anchors.verticalCenter: parent.verticalCenter
                   iconText: "\u{f0374}" // md-minus
                   tooltipText: "Shorter"
-                  foreground: Colors.menu.text
                   enabled: root.pomoValue(length.modelData.key) > length.modelData.minimum
                   onClicked: root.pomoStep(length.modelData, -1)
                 }
@@ -454,13 +447,11 @@ Item {
                   text: root.pomoValue(length.modelData.key) + (length.modelData.unit ? " " + length.modelData.unit : "")
                   color: Colors.menu.text
                 }
-                Button {
-                  variant: "icon"
+                IconButton {
                   anchors.right: parent.right
                   anchors.verticalCenter: parent.verticalCenter
                   iconText: "\u{f0415}" // md-plus
                   tooltipText: "Longer"
-                  foreground: Colors.menu.text
                   enabled: root.pomoValue(length.modelData.key) < length.modelData.maximum
                   onClicked: root.pomoStep(length.modelData, 1)
                 }

@@ -78,9 +78,7 @@ BarWidget {
       Row {
         spacing: Style.spacing.xs
 
-        PanelSectionHeader {
-          text: "OUTPUT"
-        }
+        PanelSectionHeader { text: "OUTPUT" }
 
         Tag {
           anchors.verticalCenter: parent.verticalCenter
@@ -136,9 +134,7 @@ BarWidget {
             values: Audio.sinks
           }
 
-          delegate: Button {
-            variant: "chip"
-            focusable: true
+          delegate: Chip {
             required property var modelData
 
             text: Audio.deviceName(modelData)
@@ -153,9 +149,7 @@ BarWidget {
       Row {
         spacing: Style.spacing.xs
 
-        PanelSectionHeader {
-          text: "MICROPHONE"
-        }
+        PanelSectionHeader { text: "MICROPHONE" }
 
         Tag {
           anchors.verticalCenter: parent.verticalCenter
@@ -188,9 +182,7 @@ BarWidget {
             values: Audio.sources
           }
 
-          delegate: Button {
-            variant: "chip"
-            focusable: true
+          delegate: Chip {
             required property var modelData
 
             text: Audio.deviceName(modelData)
@@ -231,9 +223,7 @@ BarWidget {
 
         PanelSeparator {}
 
-        PanelSectionHeader {
-          text: "APPS"
-        }
+        PanelSectionHeader { text: "APPS" }
 
         Repeater {
           model: ScriptModel {
@@ -283,6 +273,11 @@ BarWidget {
         }
       }
     }
+  }
+
+  component Chip: Button {
+    variant: "chip"
+    focusable: true
   }
 
   component Caption: Label {
@@ -502,9 +497,7 @@ BarWidget {
         }
       }
 
-      Button {
-        variant: "chip"
-        focusable: true
+      Chip {
         id: routeChip
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
@@ -526,9 +519,7 @@ BarWidget {
       visible: stream.routing
       spacing: Style.spacing.xs
 
-      Button {
-        variant: "chip"
-        focusable: true
+      Chip {
         text: "AUTO"
         onClicked: {
           Audio.route(stream.node, null)
@@ -541,9 +532,7 @@ BarWidget {
           values: Audio.sinks
         }
 
-        delegate: Button {
-          variant: "chip"
-          focusable: true
+        delegate: Chip {
           required property var modelData
 
           text: Audio.deviceName(modelData)

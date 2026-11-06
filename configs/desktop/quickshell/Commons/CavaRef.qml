@@ -2,8 +2,6 @@ import QtQuick
 import qs.Commons
 
 QtObject {
-  id: root
-
   property bool _held: false
 
   function _sync(wanted) {

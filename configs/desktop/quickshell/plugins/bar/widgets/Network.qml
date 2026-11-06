@@ -271,7 +271,6 @@ BarWidget {
     anchorWidget: root
     onOpened: root.panelOpened()
     pinned: root.passwordFocused
-    acceptsKeyboard: true
     title: "NETWORK"
     implicitWidth: Style.panelWidth.normal
 
@@ -280,10 +279,7 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.xs
 
-      PanelSectionHeader {
-        visible: root.detailsConnected
-        text: "DETAILS"
-      }
+      PanelSectionHeader { visible: root.detailsConnected; text: "DETAILS" }
       Column {
         width: content.width
         spacing: Style.spacing.xs
@@ -301,9 +297,7 @@ BarWidget {
         StatRow { label: "IP"; value: root.detailsIp4 || "--" }
         StatRow { label: "MAC"; value: root.detailsMac || "--" }
       }
-      PanelSeparator {
-        visible: root.detailsConnected
-      }
+      PanelSeparator { visible: root.detailsConnected }
       PanelSectionHeader { visible: root.detailsConnected; text: "THROUGHPUT" }
 
       Column {
@@ -313,15 +307,13 @@ BarWidget {
 
         // one sample draws no line, only an empty box
         StatRow { label: "rx"; value: root.fmtSpeed(root.detailsRxKbps) }
-        Sparkline { width: parent.width; height: Style.space(30); values: root.rxHist; minValue: 0; maxValue: 0; color: Colors.accent }
+        Sparkline { width: parent.width; height: Style.space(30); values: root.rxHist }
 
         StatRow { label: "tx"; value: root.fmtSpeed(root.detailsTxKbps) }
-        Sparkline { width: parent.width; height: Style.space(30); values: root.txHist; minValue: 0; maxValue: 0; color: Colors.menu.text }
+        Sparkline { width: parent.width; height: Style.space(30); values: root.txHist; color: Colors.menu.text }
       }
 
-      PanelSeparator {
-        visible: root.detailsConnected && root.wifiOn
-      }
+      PanelSeparator { visible: root.detailsConnected && root.wifiOn }
       // with the radio off there is nothing to list: the RADIOS section turns it on
       PanelSectionHeader { visible: root.wifiOn; text: "WI-FI NETWORKS" }
 
@@ -558,13 +550,10 @@ BarWidget {
           onChanged: function(state) { if (state !== root.route) root.setRoute(state) }
         }
 
-        Button {
-          focusable: true
+        RadioChip {
           id: homelabChip
           visible: root.homelabAvailable
-          variant: "chip"
           text: "+ HOMELAB"
-          fontSize: Style.font.caption
           selected: root.homeVpnState === "on"
           onClicked: root.toggleHomeVpn()
         }

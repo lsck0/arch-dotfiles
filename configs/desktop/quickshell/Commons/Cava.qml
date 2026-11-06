@@ -92,7 +92,6 @@ Singleton {
     onRunningChanged: if (!running) root.reset()
 
     stdout: SplitParser {
-      splitMarker: "\n"
       onRead: function (data) {
         if (root.refCount <= 0 || !data) return
         var parts = data.split(";")

@@ -54,7 +54,7 @@ export def ledger-remove [kind: string, declared: list<string>, installed: list<
 }
 
 # Dropped units are disabled after a yes; by_hand lists units enabled outside dot.
-export def ledger-units [repo: path, dirs: list<path>, scope: string, --plan]: nothing -> record {
+export def ledger-units [repo: path, dirs: list<path>, scope: string]: nothing -> record {
     let paths = $dirs | append ($repo | path join scripts) | where ($it | path exists)
     let declared = ^grep -rhoIE $UNIT_NAME --exclude=*.log -- ...$paths | lines | uniq
     let owned_before = ledger-get unit | where ($it | str starts-with $"($scope) ") | each { str substring (($scope | str length) + 1).. }
@@ -65,14 +65,12 @@ export def ledger-units [repo: path, dirs: list<path>, scope: string, --plan]: n
     }
     let enabled = $names | zip $states | where $it.1 == "enabled" | each { $in.0 }
     let dropped = $enabled | where $it not-in $declared
-    let disable = not $plan and ($dropped | is-not-empty) and (tty-confirm $"ledger: disable ($dropped | str join ' ')?")
+    let disable = ($dropped | is-not-empty) and (tty-confirm $"ledger: disable ($dropped | str join ' ')?")
     if $disable {
         ^systemctl $"--($scope)" disable --now ...$dropped
     }
     let owned = $enabled | where $it in $declared | append (if $disable { [] } else { $dropped })
-    if not $plan {
-        ledger-set unit ($owned | each { $"($scope) ($in)" } | append (ledger-get unit | where not ($it | str starts-with $"($scope) ")))
-    }
+    ledger-set unit ($owned | each { $"($scope) ($in)" } | append (ledger-get unit | where not ($it | str starts-with $"($scope) ")))
     let by_hand = ^systemctl $"--($scope)" list-unit-files --state=enabled --no-legend | lines
         | parse --regex '^(?<unit>\S+)\s+(?<state>\S+)\s+(?<preset>\S+)' | where preset != enabled and unit not-in $owned | get unit
     {owned: $owned, dropped: (if $disable { [] } else { $dropped }), by_hand: $by_hand}

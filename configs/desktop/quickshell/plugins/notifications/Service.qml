@@ -330,7 +330,7 @@ Item {
     focusAppProc.running = true
   }
 
-  Process { id: focusAppProc; running: false }
+  Process { id: focusAppProc }
 
   property var restoredPopups: ({})
   property ProcessQueue fileJobQueue: ProcessQueue {
@@ -356,7 +356,6 @@ Item {
 
   Process {
     id: fileJobProc
-    running: false
     stdout: StdioCollector { id: fileJobOut; waitForEnd: true }
     onExited: {
       var done = service.fileJob.done

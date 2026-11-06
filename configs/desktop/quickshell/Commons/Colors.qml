@@ -119,16 +119,10 @@ QtObject {
 
   property FileView colorsFile
 
-  colorsFile: FileView {
+  colorsFile: WatchedFile {
     id: colorsFile
     path: root.colorsPath
-    watchChanges: true
-    printErrors: false
-    onLoaded: {
-      root.applyColors(text())
-      Util.rearmWatch(this)
-    }
-    onFileChanged: reload()
+    onLoaded: root.applyColors(text())
   }
 
   signal paletteSynced(var p)
@@ -240,75 +234,14 @@ QtObject {
     assign(p, true)
   }
 
-  Behavior on foreground {
-    enabled: root.animatePalette && !Power.saver
-
-    ColorAnimation {
-      duration: Theme.values.transitionMs
-      easing.type: Easing.InOutQuad
-    }
-  }
-
-  Behavior on background {
-    enabled: root.animatePalette && !Power.saver
-
-    ColorAnimation {
-      duration: Theme.values.transitionMs
-      easing.type: Easing.InOutQuad
-    }
-  }
-
-  Behavior on accent {
-    enabled: root.animatePalette && !Power.saver
-
-    ColorAnimation {
-      duration: Theme.values.transitionMs
-      easing.type: Easing.InOutQuad
-    }
-  }
-
-  Behavior on accentText {
-    enabled: root.animatePalette && !Power.saver
-
-    ColorAnimation {
-      duration: Theme.values.transitionMs
-      easing.type: Easing.InOutQuad
-    }
-  }
-
-  Behavior on textDim {
-    enabled: root.animatePalette && !Power.saver
-
-    ColorAnimation {
-      duration: Theme.values.transitionMs
-      easing.type: Easing.InOutQuad
-    }
-  }
-
-  Behavior on accent2 {
-    enabled: root.animatePalette && !Power.saver
-
-    ColorAnimation {
-      duration: Theme.values.transitionMs
-      easing.type: Easing.InOutQuad
-    }
-  }
-
-  Behavior on urgent {
-    enabled: root.animatePalette && !Power.saver
-
-    ColorAnimation {
-      duration: Theme.values.transitionMs
-      easing.type: Easing.InOutQuad
-    }
-  }
-
-  Behavior on muted {
-    enabled: root.animatePalette && !Power.saver
-
-    ColorAnimation {
-      duration: Theme.values.transitionMs
-      easing.type: Easing.InOutQuad
-    }
-  }
+  readonly property bool paletteFades: animatePalette && !Power.saver
+  component PaletteFade: ColorAnimation { duration: Theme.values.transitionMs; easing.type: Easing.InOutQuad }
+  Behavior on foreground { enabled: root.paletteFades; PaletteFade {} }
+  Behavior on background { enabled: root.paletteFades; PaletteFade {} }
+  Behavior on accent { enabled: root.paletteFades; PaletteFade {} }
+  Behavior on accentText { enabled: root.paletteFades; PaletteFade {} }
+  Behavior on textDim { enabled: root.paletteFades; PaletteFade {} }
+  Behavior on accent2 { enabled: root.paletteFades; PaletteFade {} }
+  Behavior on urgent { enabled: root.paletteFades; PaletteFade {} }
+  Behavior on muted { enabled: root.paletteFades; PaletteFade {} }
 }

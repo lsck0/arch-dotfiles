@@ -4,8 +4,6 @@ import Quickshell
 import Quickshell.Services.Pipewire
 
 Singleton {
-  id: root
-
   readonly property string eqName: "eq"
   readonly property string peakMonitorName: "quickshell"
   readonly property string loopbackPrefix: "app."

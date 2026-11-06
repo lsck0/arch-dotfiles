@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Widgets
 import qs.Commons
 import qs.Ui
@@ -84,16 +83,11 @@ BarWidget {
     root.participants = Array.isArray(d.participants) ? d.participants : []
   }
 
-  FileView {
+  WatchedFile {
     path: root.statePath
     watchChanges: root.statePath !== ""
-    printErrors: false
-    onLoaded: {
-      root.apply(text())
-      Util.rearmWatch(this)
-    }
+    onLoaded: root.apply(text())
     onLoadFailed: root.inVoice = false
-    onFileChanged: reload()
   }
 
   Row {
@@ -202,6 +196,17 @@ BarWidget {
     }
   }
 
+  component ActionButton: Button {
+    focusable: true
+    variant: "action"
+    width: (parent.width - Style.spacing.xs * 2) / 3
+  }
+
+  component StatusIcon: Label {
+    icon: true
+    caption: true
+  }
+
   HoverPanel {
     anchorWidget: root
     title: "VOICE"
@@ -258,30 +263,21 @@ BarWidget {
         width: parent.width
         spacing: Style.spacing.xs
 
-        Button {
-          focusable: true
-          variant: "action"
-          width: (parent.width - Style.spacing.xs * 2) / 3
+        ActionButton {
           iconText: root.selfMute ? "\u{f036d}" : "\u{f036c}"
           text: root.selfMute ? "Unmute" : "Mute"
           danger: root.selfMute
           foreground: root.selfMute ? Colors.urgentText : Colors.menu.text
           onClicked: DiscordControl.send("toggleSelfMute")
         }
-        Button {
-          focusable: true
-          variant: "action"
-          width: (parent.width - Style.spacing.xs * 2) / 3
+        ActionButton {
           iconText: root.selfDeaf ? "\u{f0581}" : "\u{f02cb}"
           text: root.selfDeaf ? "Undeafen" : "Deafen"
           danger: root.selfDeaf
           foreground: root.selfDeaf ? Colors.urgentText : Colors.menu.text
           onClicked: DiscordControl.send("toggleSelfDeaf")
         }
-        Button {
-          focusable: true
-          variant: "action"
-          width: (parent.width - Style.spacing.xs * 2) / 3
+        ActionButton {
           iconText: "\u{f03f5}"   // md-phone_hangup
           text: "Leave"
           danger: true
@@ -369,33 +365,25 @@ BarWidget {
             layoutDirection: Qt.RightToLeft
             spacing: Style.spacing.xs
 
-            Label {
+            StatusIcon {
               visible: participant.modelData.selfDeaf || participant.modelData.deaf
               text: "\u{f0581}"   // md-volume_off
               color: participant.modelData.deaf ? Colors.urgentText : Colors.urgent
-              icon: true
-              caption: true
             }
-            Label {
+            StatusIcon {
               visible: participant.modelData.selfMute || participant.modelData.mute
               text: "\u{f036d}"   // md-microphone_off
               color: participant.modelData.mute ? Colors.urgentText : Colors.urgent
-              icon: true
-              caption: true
             }
-            Label {
+            StatusIcon {
               visible: participant.modelData.video
               text: "\u{f0567}"   // md-video
               dim: true
-              icon: true
-              caption: true
             }
-            Label {
+            StatusIcon {
               visible: participant.modelData.streaming
               text: "\u{f1483}"   // md-monitor_share
               dim: true
-              icon: true
-              caption: true
             }
           }
         }

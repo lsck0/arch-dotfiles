@@ -38,7 +38,6 @@ BorderSurface {
     return Qt.formatDateTime(when, sameDay ? Util.timeFormat : Util.dayFormat + " " + Util.timeFormat)
   }
 
-
   readonly property bool hovered: hoverTracker.hovered
   readonly property string timeLabel: formatTime(timestamp, now)
 
@@ -132,7 +131,6 @@ BorderSurface {
           sourceSize.height: smallIconSlot.height * Screen.devicePixelRatio
           fillMode: Image.PreserveAspectFit
           asynchronous: true
-          smooth: true
           visible: !root.hasGlyph || smallIconImage.status === Image.Ready
         }
 
@@ -207,13 +205,12 @@ BorderSurface {
           maximumLineCount: 2
         }
 
-        Text {
+        Label {
           Layout.fillWidth: true
           Layout.topMargin: Style.spacing.xxs
           visible: root.sanitizedBody.length > 0
           text: root.styledBody
           textFormat: Text.StyledText
-          font.family: Style.font.family
           color: Colors.notifications.text
           linkColor: Colors.accentText
           // same https-only allowlist as a notification's default action
@@ -221,7 +218,6 @@ BorderSurface {
             var argv = NotificationLogic.parseExecArgv(JSON.stringify(["xdg-open", link]))
             if (argv) Quickshell.execDetached(["uwsm-app", "--"].concat(argv))
           }
-          font.pixelSize: Style.font.body
           wrapMode: Text.WordWrap
           elide: Text.ElideRight
           maximumLineCount: Math.max(1, root.bodyLines)

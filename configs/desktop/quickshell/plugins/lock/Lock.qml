@@ -326,19 +326,14 @@ Item {
       id: surface
       readonly property bool isPrimary: root.primaryScreenName === "" || (screen && String(screen.name) === root.primaryScreenName) // qmllint disable missing-property
 
-      color: Colors.background
-      onVisibleChanged: {
-        if (visible) {
-          Qt.callLater(function() {
-            pwField.forceActiveFocus()
-            glitch.play()
-          })
-        }
-      }
-      Component.onCompleted: Qt.callLater(function() {
+      function reveal() {
         pwField.forceActiveFocus()
         glitch.play()
-      })
+      }
+
+      color: Colors.background
+      onVisibleChanged: if (visible) Qt.callLater(function() { surface.reveal() })
+      Component.onCompleted: Qt.callLater(function() { surface.reveal() })
 
       Item {
         id: lockContent
@@ -411,27 +406,22 @@ Item {
             live: true
           }
 
-          Text {
+          Label {
             anchors.horizontalCenter: parent.horizontalCenter
-            textFormat: Text.PlainText
             text: root.dateText
             color: Colors.textOnOverlay(Colors.textDim)
-            font.family: Style.font.family
             font.pixelSize: Style.font.title
             font.letterSpacing: Style.headerTracking
           }
 
-          Text {
+          Label {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: root.mediaText !== ""
             width: Math.min(implicitWidth, Style.space(480))
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
-            textFormat: Text.PlainText
             text: root.mediaText
             color: Colors.textOnOverlay(Colors.accentText)
-            font.family: Style.font.family
-            font.pixelSize: Style.font.body
           }
 
           Rectangle {
@@ -498,15 +488,11 @@ Item {
               visible: pwField.text.length > 0
               spacing: 0
 
-              Text {
+              Label {
                 anchors.verticalCenter: parent.verticalCenter
                 width: Math.min(implicitWidth, Style.space(280))
                 elide: Text.ElideLeft
-                textFormat: Text.PlainText
                 text: "*".repeat(pwField.text.length)
-                color: Colors.foreground
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
                 font.letterSpacing: Style.labelTracking
               }
 
@@ -528,16 +514,14 @@ Item {
             }
           }
 
-          Text {
+          Label {
             id: keyStatusText
             anchors.horizontalCenter: parent.horizontalCenter
             height: keyStatusMetrics.height
-            textFormat: Text.PlainText
             text: root.keyStatus
             opacity: root.keyStatus !== "" ? 1 : 0
             color: Colors.textOnOverlay(root.keyNote !== "" ? Colors.urgent : Colors.textDim)
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
+            caption: true
 
             FontMetrics {
               id: keyStatusMetrics
@@ -572,14 +556,12 @@ Item {
             color: Colors.overlayFill
           }
 
-          Text {
+          Label {
             id: statsLine
             anchors.centerIn: parent
-            textFormat: Text.PlainText
             text: root.statsText
             color: Colors.textOnOverlay(Colors.textDim)
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
+            caption: true
           }
         }
 
@@ -610,15 +592,13 @@ Item {
             Repeater {
               model: root.notes.slice(0, root.notesShown)
 
-              Text {
+              Label {
                 required property var modelData
 
                 anchors.right: parent.right
-                textFormat: Text.PlainText
                 text: (modelData.app || "--") + " :: " + Qt.formatDateTime(new Date(modelData.timestamp), Util.timeFormat)
                 color: Colors.textOnOverlay(Colors.textDim)
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
+                caption: true
               }
             }
           }

@@ -162,7 +162,6 @@ BarWidget {
   readonly property bool allHidden: allItems.length > 0 && pinnedItems.length === 0 && drawerCount === 0
 
   visible: allItems.length > 0
-  clip: false
   implicitWidth: allHidden ? hiddenHandle.implicitWidth : trayContent.implicitWidth
   implicitHeight: Style.bar.sizeHorizontal
 
@@ -260,30 +259,27 @@ BarWidget {
       anchors.fill: parent
       spacing: Style.spacing.sm
 
-      Text {
+      Label {
         text: "Tray icons"
         color: Colors.accentText
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        caption: true
         font.bold: true
         font.capitalization: Font.AllUppercase
         font.letterSpacing: Style.headerTracking
       }
 
-      Text {
+      Label {
         text: "Pinned icons stay visible. Hidden icons never show. Shift+right-click an icon opens this."
-        color: Colors.textDim
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        dim: true
+        caption: true
         wrapMode: Text.WordWrap
         width: parent.width
       }
 
-      Text {
+      Label {
         visible: root.allItems.length === 0
         text: "No tray items"
-        color: Colors.textDim
-        font.family: Style.font.family
+        dim: true
         font.pixelSize: Style.font.bodySmall
         font.italic: true
       }
@@ -318,17 +314,13 @@ BarWidget {
             icon: rowRoot.modelData.icon
           }
 
-          Text {
-            textFormat: Text.PlainText
+          MenuText {
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: rowIcon.right
             anchors.leftMargin: Style.spacing.md
             anchors.right: rowHideBtn.left
             anchors.rightMargin: Style.spacing.sm
             text: rowRoot.displayName
-            color: Colors.bar.text
-            font.family: Style.font.family
-            font.pixelSize: Style.font.bodySmall
             elide: Text.ElideRight
           }
 
@@ -340,8 +332,6 @@ BarWidget {
             iconText: "\uf08d"
             text: rowRoot.isPinned ? "Unpin" : "Pin"
             foreground: Colors.bar.text
-            horizontalPadding: Style.spacing.controlPaddingX
-            verticalPadding: Style.spacing.controlPaddingY
             iconSize: Style.font.bodySmall
             fontSize: Style.font.bodySmall
             onClicked: root.togglePin(rowRoot.itemId)
@@ -356,8 +346,6 @@ BarWidget {
             iconText: "\uf06e"
             text: rowRoot.isHidden ? "Show" : "Hide"
             foreground: Colors.bar.text
-            horizontalPadding: Style.spacing.controlPaddingX
-            verticalPadding: Style.spacing.controlPaddingY
             iconSize: Style.font.bodySmall
             fontSize: Style.font.bodySmall
             onClicked: root.toggleHide(rowRoot.itemId)
@@ -393,13 +381,11 @@ BarWidget {
     Column {
       id: trayMenuLayout
       anchors.fill: parent
-      spacing: 0
 
       Column {
         id: menuHeader
         visible: root.submenuDepth > 0
         width: trayMenuLayout.width
-        spacing: 0
 
         Item {
           width: menuHeader.width
@@ -411,28 +397,21 @@ BarWidget {
             color: backMouse.containsMouse ? Style.hoverFillFor(Colors.bar.text, Colors.bar.text) : "transparent"
           }
 
-          Text {
+          MenuText {
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             width: Style.space(22)
             horizontalAlignment: Text.AlignHCenter
             text: "<"
-            color: Colors.bar.text
-            font.family: Style.font.family
-            font.pixelSize: Style.font.bodySmall
           }
 
-          Text {
-            textFormat: Text.PlainText
+          MenuText {
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             anchors.leftMargin: Style.space(28)
             anchors.right: parent.right
             anchors.rightMargin: Style.spacing.md
             text: root.currentTitle
-            color: Colors.bar.text
-            font.family: Style.font.family
-            font.pixelSize: Style.font.bodySmall
             elide: Text.ElideRight
           }
 
@@ -482,7 +461,6 @@ BarWidget {
         Column {
           id: trayMenuColumn
           width: trayMenuFlick.width
-          spacing: 0
 
           Repeater {
             model: root.currentChildren
@@ -544,30 +522,23 @@ BarWidget {
                 color: (rowMouse.containsMouse || menuRow.activeFocus) && menuRow.modelData.enabled ? Style.hoverFillFor(Colors.bar.text, Colors.bar.text) : "transparent"
               }
 
-              Text {
-                textFormat: Text.PlainText
+              MenuText {
                 visible: !menuRow.modelData.isSeparator && menuRow.modelData.buttonType !== QsMenuButtonType.None
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: parent.left
                 width: Style.space(22)
                 horizontalAlignment: Text.AlignHCenter
                 text: menuRow.modelData.checkState === Qt.Checked ? "\uf00c" : ""
-                color: Colors.bar.text
-                font.family: Style.font.family
-                font.pixelSize: Style.font.bodySmall
               }
 
-              Text {
+              MenuText {
                 visible: !menuRow.modelData.isSeparator && rowMouse.containsMouse && menuRow.modelData.buttonType === QsMenuButtonType.None
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: parent.left
                 width: trayMenuPopup.checkGutter
                 horizontalAlignment: Text.AlignHCenter
-                textFormat: Text.PlainText
                 text: ">"
                 color: Colors.textDim
-                font.family: Style.font.family
-                font.pixelSize: Style.font.bodySmall
               }
 
               Image {
@@ -583,8 +554,7 @@ BarWidget {
                 source: menuRow.modelData.icon
               }
 
-              Text {
-                textFormat: Text.PlainText
+              MenuText {
                 visible: !menuRow.modelData.isSeparator
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: parent.left
@@ -592,22 +562,16 @@ BarWidget {
                 anchors.right: submenuGlyph.left
                 anchors.rightMargin: Style.spacing.sm
                 text: menuRow.rowText
-                color: Colors.bar.text
-                font.family: Style.font.family
-                font.pixelSize: Style.font.bodySmall
                 elide: Text.ElideRight
               }
 
-              Text {
+              MenuText {
                 id: submenuGlyph
                 visible: !menuRow.modelData.isSeparator && menuRow.modelData.hasChildren
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.right: parent.right
                 anchors.rightMargin: Style.spacing.md
                 text: ">"
-                color: Colors.bar.text
-                font.family: Style.font.family
-                font.pixelSize: Style.font.bodySmall
               }
 
               MouseArea {
@@ -623,6 +587,11 @@ BarWidget {
         }
       }
     }
+  }
+
+  component MenuText: Label {
+    color: Colors.bar.text
+    font.pixelSize: Style.font.bodySmall
   }
 
   component TrayIcon: Item {

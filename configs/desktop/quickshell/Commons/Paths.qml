@@ -3,8 +3,6 @@ import QtQuick
 import Quickshell
 
 QtObject {
-  id: root
-
   readonly property string home: Quickshell.env("HOME")
 
   readonly property string shellDir: Quickshell.shellDir

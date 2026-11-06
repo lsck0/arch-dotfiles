@@ -258,13 +258,18 @@ BarWidget {
     }
   }
 
+  component ActionButton: Button {
+    focusable: true
+    variant: "action"
+    width: (parent.width - Style.spacing.xs * 2) / 3
+  }
+
   HoverPanel {
     anchorWidget: root
     title: "OBS"
     implicitWidth: Style.panelWidth.normal
 
     Column {
-      id: content
       width: parent.width
       spacing: Style.spacing.sm
 
@@ -350,10 +355,7 @@ BarWidget {
         spacing: Style.spacing.xs
         visible: root.connected
 
-        Button {
-          focusable: true
-          variant: "action"
-          width: (parent.width - Style.spacing.xs * 2) / 3
+        ActionButton {
           iconText: root.streaming ? "\u{f1721}" : "\u{f1720}" // md-broadcast_off / md-broadcast
           text: root.streaming ? "Stop" : "Go live"
           foreground: root.streaming ? root.liveActionText : Colors.menu.text
@@ -363,10 +365,7 @@ BarWidget {
           })
         }
 
-        Button {
-          focusable: true
-          variant: "action"
-          width: (parent.width - Style.spacing.xs * 2) / 3
+        ActionButton {
           iconText: root.recording ? "\u{f04db}" : "\u{f044a}" // md-stop / md-record
           text: root.recording ? "Stop rec" : "Record"
           foreground: root.recording ? root.liveActionText : Colors.menu.text
@@ -376,10 +375,7 @@ BarWidget {
           })
         }
 
-        Button {
-          focusable: true
-          variant: "action"
-          width: (parent.width - Style.spacing.xs * 2) / 3
+        ActionButton {
           enabled: root.recording
           iconText: root.recordPaused ? "\u{f040a}" : "\u{f03e4}" // md-play / md-pause
           text: root.recordPaused ? "Resume" : "Pause"
@@ -394,14 +390,8 @@ BarWidget {
         }
       }
 
-      PanelSeparator {
-        visible: root.connected
-      }
-
-      PanelSectionHeader {
-        text: "SCENES"
-        visible: root.connected
-      }
+      PanelSeparator { visible: root.connected }
+      PanelSectionHeader { visible: root.connected; text: "SCENES" }
 
       Flow {
         width: parent.width
@@ -438,14 +428,8 @@ BarWidget {
         caption: true
       }
 
-      PanelSeparator {
-        visible: root.connected
-      }
-
-      PanelSectionHeader {
-        text: "STATUS"
-        visible: root.connected
-      }
+      PanelSeparator { visible: root.connected }
+      PanelSectionHeader { visible: root.connected; text: "STATUS" }
 
       StatRow {
         visible: root.connected && root.active
@@ -471,14 +455,8 @@ BarWidget {
         value: root.gb(root.memMb)
       }
 
-      PanelSeparator {
-        visible: root.streaming
-      }
-
-      PanelSectionHeader {
-        text: "STREAM"
-        visible: root.streaming
-      }
+      PanelSeparator { visible: root.streaming }
+      PanelSectionHeader { visible: root.streaming; text: "STREAM" }
 
       StatRow {
         visible: root.streaming
@@ -510,14 +488,8 @@ BarWidget {
         color: Colors.semantic.warn
       }
 
-      PanelSeparator {
-        visible: root.connected
-      }
-
-      PanelSectionHeader {
-        text: "RECORDING"
-        visible: root.connected
-      }
+      PanelSeparator { visible: root.connected }
+      PanelSectionHeader { visible: root.connected; text: "RECORDING" }
 
       StatRow {
         visible: root.streaming && root.recording
@@ -550,14 +522,8 @@ BarWidget {
         valueColor: root.diskSecondsLeft < 600 ? root.liveText : (root.diskSecondsLeft < 3600 ? Colors.warnText : Colors.menu.text)
       }
 
-      PanelSeparator {
-        visible: root.connected
-      }
-
-      PanelSectionHeader {
-        text: "SKIPPED FRAMES"
-        visible: root.connected
-      }
+      PanelSeparator { visible: root.connected }
+      PanelSectionHeader { visible: root.connected; text: "SKIPPED FRAMES" }
 
       StatRow {
         visible: root.connected

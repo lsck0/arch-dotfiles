@@ -11,6 +11,12 @@ import qs.Ui
 Item {
   id: root
 
+  component Wallpaper: Image {
+    anchors.fill: parent
+    fillMode: Image.PreserveAspectCrop
+    asynchronous: true
+  }
+
   readonly property string currentBackgroundLink: Paths.wal + "/wallpaper"
 
   property string currentBackground: ""
@@ -159,12 +165,9 @@ Item {
         id: content
         anchors.fill: parent
 
-        Image {
-          anchors.fill: parent
+        Wallpaper {
           source: Util.fileUrl(root.displayedBackground)
           sourceSize: panel.decodeSize
-          fillMode: Image.PreserveAspectCrop
-          asynchronous: true
           cache: true
           onStatusChanged: {
             if (status === Image.Ready && root.finishingTransition) {
@@ -175,14 +178,10 @@ Item {
           }
         }
 
-        Image {
-          anchors.fill: parent
+        Wallpaper {
           source: Util.fileUrl(root.oldBackground)
           sourceSize: panel.decodeSize
-          fillMode: Image.PreserveAspectCrop
-          asynchronous: true
           cache: false
-          smooth: true
           visible: root.oldBackground !== "" && root.revealProgress < 1
           onStatusChanged: panel.maybeStartReveal()
         }
@@ -199,15 +198,11 @@ Item {
             maskSpreadAtMin: 0.02
           }
 
-          Image {
+          Wallpaper {
             id: incomingFrame
-            anchors.fill: parent
             source: Util.fileUrl(root.incomingBackground)
             sourceSize: panel.decodeSize
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
             cache: false
-            smooth: true
             onStatusChanged: {
               if (status === Image.Error) root.abortReveal(root.incomingBackground)
               else panel.maybeStartReveal()
@@ -287,4 +282,5 @@ Item {
       }
     }
   }
+
 }

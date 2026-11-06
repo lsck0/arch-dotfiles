@@ -226,6 +226,11 @@ BarWidget {
 
     component Stat: MetricRow { width: statGrid.cellWidth }
 
+    component TileLabel: Label {
+      width: parent.width
+      horizontalAlignment: Text.AlignHCenter
+    }
+
     Timer {
       interval: 250
       repeat: true
@@ -347,7 +352,7 @@ BarWidget {
           Label {
             text: root.current ? root.t(root.current.temp) : "--"
             color: Colors.menu.text
-            font.family: Style.font.family; font.pixelSize: Style.font.display
+            font.pixelSize: Style.font.display
             font.letterSpacing: Style.displayTracking
             layer.enabled: Style.fx.glow > 0
             layer.effect: Glow {}
@@ -357,7 +362,7 @@ BarWidget {
               ? root.labelFor(root.current.code) + " :: feels " + root.t(root.current.feelsLike)
               : (root.failNote ? "> NO DATA :: " + root.failNote + ", retrying" : "--")
             dim: true
-            font.family: Style.font.family; font.pixelSize: Style.font.caption
+            caption: true
           }
         }
       }
@@ -496,7 +501,7 @@ BarWidget {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: hourTick.modelData.h
                 dim: true
-                font.family: Style.font.family; font.pixelSize: Style.font.caption
+                caption: true
               }
             }
           }
@@ -533,41 +538,31 @@ BarWidget {
               anchors.topMargin: Style.spacing.sm
               spacing: Style.spacing.xs
 
-              Label {
-                width: parent.width
-                horizontalAlignment: Text.AlignHCenter
+              TileLabel {
                 text: dayTile.modelData.label
                 color: Colors.accentText
-                font.family: Style.font.family; font.pixelSize: Style.font.caption
+                caption: true
                 font.bold: true
                 font.capitalization: Font.AllUppercase
                 font.letterSpacing: Style.headerTracking
               }
-              Label {
-                width: parent.width
-                horizontalAlignment: Text.AlignHCenter
+              TileLabel {
                 text: dayTile.modelData.windy ? "\u{f059d}" : root.iconFor(dayTile.modelData.code, 1)
                 color: Colors.menu.text
                 font.family: Style.font.iconFamily; font.pixelSize: Style.font.heading
               }
-              Label {
-                width: parent.width
-                horizontalAlignment: Text.AlignHCenter
+              TileLabel {
                 text: dayTile.modelData.windy ? "windy" : root.labelFor(dayTile.modelData.code)
                 dim: true
-                font.family: Style.font.family; font.pixelSize: Style.font.caption
+                caption: true
                 elide: Text.ElideRight
               }
-              Label {
-                width: parent.width
-                horizontalAlignment: Text.AlignHCenter
+              TileLabel {
                 text: root.t(dayTile.modelData.hi) + "  " + root.t(dayTile.modelData.lo)
                 color: Colors.menu.text
-                font.family: Style.font.family; font.pixelSize: Style.font.caption
+                caption: true
               }
-              Label {
-                width: parent.width
-                horizontalAlignment: Text.AlignHCenter
+              TileLabel {
                 text: "\u{f0597} " + root.n0(dayTile.modelData.pop) + "%"
                 dim: true
                 font.family: Style.font.iconFamily; font.pixelSize: Style.font.caption
@@ -578,9 +573,7 @@ BarWidget {
       }
 
       PanelSeparator {}
-      PanelSectionHeader {
-        text: "RADAR" + (root.radarSpanKm > 0 ? " :: " + root.radarSpanKm + " km across" : "")
-      }
+      PanelSectionHeader { text: "RADAR" + (root.radarSpanKm > 0 ? " :: " + root.radarSpanKm + " km across" : "") }
 
       Item {
         id: radarBox

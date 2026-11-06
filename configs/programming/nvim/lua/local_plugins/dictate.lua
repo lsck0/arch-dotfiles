@@ -862,15 +862,4 @@ function M.setup()
     })
 end
 
-M._transcript = transcript
-M._rewrite_prompt = rewrite_prompt
-M._in_display_math = in_display_math
-M._unwrap_display = unwrap_display
-M._strip_env = strip_env
-M._greek_lower = greek_lower
-M._context = context
-M._split_words = split_words
-M._vad = new_vad
-M._wav = wav_bytes
-
 return M

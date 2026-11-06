@@ -151,7 +151,6 @@ BarWidget {
     implicitWidth: Style.panelWidth.normal
 
     Column {
-      id: content
       width: parent.width
       spacing: Style.spacing.sm
 

@@ -224,7 +224,6 @@ Singleton {
     command: ["timew", "export", ":day"]
     intervalMs: root.refreshMs
     onParsed: function (data) { root.tracked = root.buildTracked(data) }
-    onFailed: function (error) { }
   }
 
   Process {

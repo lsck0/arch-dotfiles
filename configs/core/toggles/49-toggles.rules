@@ -40,9 +40,8 @@ polkit.addRule(function (action, subject) {
 // the root helper has its own action (dev.lsck0.toggles.policy), so a kept approval covers it alone. it checks its
 // own arguments; the firewall switch is one call: restrictive tightens, unprompted; default and permissive can lower
 // it, so they ask once (kept a few minutes) instead of once per unit, and that approval also covers a portal for those
-// minutes. none of its other verbs opens the firewall or tor (anonsocks nft-off deletes the whole anonymous_socks
-// table, dropping the egress guard and rate cap for every uid's anonsocks slice; these machines are single-user, so
-// that slice is the caller's own)
+// minutes. anonsocks nft-off deletes the whole anonymous_socks table, the egress guard and rate cap: unprompted, an app
+// confined in that slice could drop its own guard, so it asks too. none of the other verbs opens the firewall or tor
 polkit.addRule(function (action, subject) {
     if (action.id !== "@ACTION@" || !atTheMachine(subject)) {
         return;
@@ -53,6 +52,9 @@ polkit.addRule(function (action, subject) {
     }
     // a captive portal stops tor and portmaster and opens fw_egress on the foreign link; ending it early tightens
     if (argv[1] === "portal" && argv[2] !== "off") {
+        return polkit.Result.AUTH_ADMIN_KEEP;
+    }
+    if (argv[1] === "anonsocks" && argv[2] === "nft-off") {
         return polkit.Result.AUTH_ADMIN_KEEP;
     }
     return polkit.Result.YES;

@@ -485,22 +485,32 @@ Item {
     toggleProc.running = true
   }
 
-  Process {
+  function lastLine(proc) { return String(proc.errText || proc.outText || "").trim().split("\n").pop() }
+
+  function notesOf(proc) { return Schema.notes(proc.errText).concat(Schema.notes(proc.outText)) }
+
+  component CollectedProcess: Process {
+    readonly property string outText: outCollector.text
+    readonly property string errText: errCollector.text
+
+    stdout: StdioCollector { id: outCollector; waitForEnd: true }
+    stderr: StdioCollector { id: errCollector; waitForEnd: true }
+  }
+
+  CollectedProcess {
     id: optionsProc
     command: [root.dot, "set", "--json"]
-    stdout: StdioCollector { id: optionsOut; waitForEnd: true }
-    stderr: StdioCollector { id: optionsErr; waitForEnd: true }
     onExited: function (exitCode) {
       var data = null
-      try { data = JSON.parse(optionsOut.text) } catch (e) { data = null }
+      try { data = JSON.parse(optionsProc.outText) } catch (e) { data = null }
       if (exitCode !== 0 || !data || !Array.isArray(data.modules)) {
-        root.loadError = String(optionsErr.text || "").trim().split("\n")[0] || "dot set --json exited with " + exitCode
+        root.loadError = String(optionsProc.errText || "").trim().split("\n")[0] || "dot set --json exited with " + exitCode
         return
       }
       root.loadError = ""
       root.loaded = true
-      if (optionsOut.text === root.modulesText) return
-      root.modulesText = optionsOut.text
+      if (optionsProc.outText === root.modulesText) return
+      root.modulesText = optionsProc.outText
       root.modules = data.modules.map(Schema.moduleNormalize)
       if (root.rowIndex < 0 || root.rowIndex >= root.rows.length) root.selectRow(Schema.selectable(root.rows, 0, 1))
       else root.selectRow(root.rowIndex)
@@ -510,42 +520,36 @@ Item {
     }
   }
 
-  Process {
+  CollectedProcess {
     id: setProc
     property string id: ""
     property var value
-    stdout: StdioCollector { id: setOut; waitForEnd: true }
-    stderr: StdioCollector { id: setErr; waitForEnd: true }
     onExited: function (exitCode) {
-      root.batch.notes = root.batch.notes.concat(Schema.notes(setErr.text)).concat(Schema.notes(setOut.text))
-      root.setDone(setProc.id, setProc.value, exitCode, String(setErr.text || setOut.text || "").trim().split("\n").pop())
+      root.batch.notes = root.batch.notes.concat(root.notesOf(setProc))
+      root.setDone(setProc.id, setProc.value, exitCode, root.lastLine(setProc))
       root.runNext()
     }
   }
 
-  Process {
+  CollectedProcess {
     id: systemApplyProc
     command: [root.dot, "apply", "--system"]
-    stdout: StdioCollector { id: applyOut; waitForEnd: true }
-    stderr: StdioCollector { id: applyErr; waitForEnd: true }
     onExited: function (exitCode) {
       if (exitCode === 0) root.systemPending = false
-      root.notice = exitCode === 0 ? ["system part applied"].concat(Schema.notes(applyErr.text)).concat(Schema.notes(applyOut.text)).join("; ")
-        : "apply failed: " + String(applyErr.text || applyOut.text || "").trim().split("\n").pop()
+      root.notice = exitCode === 0 ? ["system part applied"].concat(root.notesOf(systemApplyProc)).join("; ")
+        : "apply failed: " + root.lastLine(systemApplyProc)
       root.noticeIsError = exitCode !== 0
       root.load()
     }
   }
 
-  Process {
+  CollectedProcess {
     id: systemProc
     property string label: ""
-    stdout: StdioCollector { id: systemOut; waitForEnd: true }
-    stderr: StdioCollector { id: systemErr; waitForEnd: true }
     onExited: function (exitCode) {
-      var last = String(systemErr.text || systemOut.text || "").trim().split("\n").pop()
+      var last = root.lastLine(systemProc)
       root.notice = exitCode === 0 || exitCode === root.exitSystemPending
-        ? [systemProc.label + " done"].concat(Schema.notes(systemErr.text)).concat(Schema.notes(systemOut.text)).join("; ")
+        ? [systemProc.label + " done"].concat(root.notesOf(systemProc)).join("; ")
         : systemProc.label + " failed: " + last
       root.noticeIsError = !(exitCode === 0 || exitCode === root.exitSystemPending)
       root.load()
@@ -567,14 +571,12 @@ Item {
     }
   }
 
-  Process {
+  CollectedProcess {
     id: toggleProc
     property string name: ""
-    stdout: StdioCollector { id: toggleOut; waitForEnd: true }
-    stderr: StdioCollector { id: toggleErr; waitForEnd: true }
     onExited: function (exitCode) {
       if (exitCode !== 0) {
-        root.notice = toggleProc.name + " failed: " + String(toggleErr.text || toggleOut.text || "").trim().split("\n").pop()
+        root.notice = toggleProc.name + " failed: " + root.lastLine(toggleProc)
         root.noticeIsError = true
       }
       statusProc.refresh()
@@ -723,35 +725,31 @@ Item {
             color: Style.selectedMarkColor(Colors.menu.text, Colors.accent)
           }
 
-          Text {
+          Label {
             anchors.left: parent.left
             anchors.leftMargin: Style.spacing.md
             anchors.right: count.left
             anchors.rightMargin: Style.spacing.sm
             anchors.verticalCenter: sectionRow.header ? undefined : parent.verticalCenter
             anchors.bottom: sectionRow.header ? parent.bottom : undefined
-            textFormat: Text.PlainText
             text: sectionRow.header ? sectionRow.modelData.label.toUpperCase()
               : (sectionRow.hasCursor ? "> " : "") + sectionRow.modelData.label + (sectionRow.hasPending ? " *" : "")
             color: sectionRow.header ? Colors.textDim : sectionRow.current ? Colors.menu.selectedText : Colors.menu.text
-            font.family: Style.font.family
-            font.pixelSize: sectionRow.header ? Style.font.caption : Style.font.body
+            caption: sectionRow.header
             font.bold: sectionRow.current || sectionRow.header
             font.letterSpacing: sectionRow.header ? Style.space(1) : 0
             elide: Text.ElideRight
           }
 
-          Text {
+          Label {
             id: count
             visible: !sectionRow.header
             anchors.right: parent.right
             anchors.rightMargin: Style.spacing.md
             anchors.verticalCenter: parent.verticalCenter
-            textFormat: Text.PlainText
             text: String(sectionRow.modelData.count)
             color: Colors.textDim
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
+            caption: true
           }
 
           MouseArea {
@@ -787,18 +785,16 @@ Item {
         anchors.leftMargin: Style.spacing.md
         anchors.right: parent.right
 
-        Text {
+        Label {
           id: sourceLine
           anchors.top: parent.top
           anchors.left: parent.left
           anchors.right: parent.right
           bottomPadding: Style.spacing.sm
           visible: text !== ""
-          textFormat: Text.PlainText
           text: root.loadError ? "x " + root.loadError : ""
           color: Colors.urgentText
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
+          caption: true
           wrapMode: Text.Wrap
         }
 
@@ -856,17 +852,14 @@ Item {
                 radius: Style.shape.data
                 color: slot.hasCursor ? Colors.menu.selectedBackground : toggleMouse.containsMouse ? Style.hoverFill : "transparent"
 
-                Text {
+                Label {
                   anchors.left: parent.left
                   anchors.leftMargin: Style.spacing.md
                   anchors.right: toggleState.left
                   anchors.rightMargin: Style.spacing.md
                   anchors.verticalCenter: parent.verticalCenter
-                  textFormat: Text.PlainText
                   text: (slot.hasCursor ? "> " : "  ") + parent.toggle.label
                   color: slot.hasCursor ? Colors.menu.selectedText : Colors.menu.text
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.body
                   elide: Text.ElideRight
                 }
 
@@ -881,16 +874,14 @@ Item {
                   hasCursor: slot.hasCursor
                 }
 
-                Text {
+                Label {
                   visible: !parent.isSwitch || parent.busy
                   anchors.right: parent.right
                   anchors.rightMargin: Style.spacing.md
                   anchors.verticalCenter: parent.verticalCenter
-                  textFormat: Text.PlainText
                   text: parent.busy ? "..." : "[" + String(parent.toggle.text).toLowerCase() + "]"
                   color: parent.toggle.state === "error" ? Colors.urgentText : Colors.accentText
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
+                  caption: true
                   font.bold: true
                 }
 
@@ -920,22 +911,20 @@ Item {
                 radius: Style.shape.data
                 color: slot.hasCursor ? Colors.menu.selectedBackground : "transparent"
 
-                Text {
+                Label {
                   id: checkLevel
                   anchors.left: parent.left
                   anchors.leftMargin: Style.spacing.md
                   anchors.top: parent.top
                   anchors.topMargin: Style.spacing.sm
                   width: Style.space(70)
-                  textFormat: Text.PlainText
                   text: (slot.hasCursor ? "> " : "  ") + "[" + parent.check.level.toLowerCase() + "]"
                   color: parent.levelColor
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
+                  caption: true
                   font.bold: true
                 }
 
-                Text {
+                Label {
                   id: checkText
                   anchors.left: checkLevel.right
                   anchors.leftMargin: Style.spacing.sm
@@ -943,11 +932,8 @@ Item {
                   anchors.rightMargin: Style.spacing.md
                   anchors.top: parent.top
                   anchors.topMargin: Style.spacing.sm
-                  textFormat: Text.PlainText
                   text: parent.check.name + ": " + parent.check.text
                   color: slot.hasCursor ? Colors.menu.selectedText : Colors.menu.text
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.body
                   wrapMode: Text.Wrap
                 }
 
@@ -993,16 +979,13 @@ Item {
                   onClicked: { root.pane = "rows"; root.rowIndex = slot.index }
                 }
 
-                Text {
+                Label {
                   id: driftCursor
                   anchors.left: parent.left
                   anchors.leftMargin: Style.spacing.md
                   anchors.top: driftColumn.top
-                  textFormat: Text.PlainText
                   text: slot.hasCursor ? "> " : "  "
                   color: Colors.accentText
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.body
                 }
 
                 Column {
@@ -1013,31 +996,26 @@ Item {
                   anchors.verticalCenter: parent.verticalCenter
                   spacing: Style.spacing.xxs
 
-                  Text {
+                  Label {
                     width: parent.width
-                    textFormat: Text.PlainText
                     text: {
                       var t = drift.entry.target
                       var h = Paths.home
                       return (t === h || t.indexOf(h + "/") === 0) ? "~" + t.slice(h.length) : t
                     }
                     color: slot.hasCursor ? Colors.menu.selectedText : Colors.menu.text
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.body
                     elide: Text.ElideMiddle
                   }
 
-                  Text {
+                  Label {
                     width: parent.width
-                    textFormat: Text.PlainText
                     text: drift.confirming
                       ? "reset puts the repo's copy of only this file back, your edit is kept aside in dot's preserved/;"
                         + " ENTER again to reset, ESC keeps it"
                       : drift.entry.module + ", " + drift.entry.drift + ": adopt carries the edit into the repo, reset puts the repo's "
                         + "copy of this file back"
                     color: drift.confirming ? Colors.warnText : Colors.textDim
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
+                    caption: true
                     wrapMode: Text.Wrap
                   }
                 }
@@ -1102,14 +1080,11 @@ Item {
             }
           }
 
-          Text {
+          Label {
             anchors.centerIn: parent
             visible: root.rows.length === 0
-            textFormat: Text.PlainText
             text: !root.loaded && !root.loadError ? "> LOADING" : root.query ? "> NO MATCH" : "> NOTHING HERE"
             color: Colors.textDim
-            font.family: Style.font.family
-            font.pixelSize: Style.font.body
           }
         }
 
@@ -1133,17 +1108,14 @@ Item {
             height: visible ? applyButton.implicitHeight : 0
             visible: root.queued.length > 0
 
-            Text {
+            Label {
               anchors.left: parent.left
               anchors.right: buttons.left
               anchors.rightMargin: Style.spacing.md
               anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
               text: root.queued.length + (root.queued.length === 1 ? " change" : " changes") + " pending"
                 + (root.queuedNeeds ? ", needs " + root.queuedNeeds : "")
               color: Colors.accent2Text
-              font.family: Style.font.family
-              font.pixelSize: Style.font.body
               elide: Text.ElideRight
             }
 
@@ -1174,16 +1146,13 @@ Item {
             height: visible ? systemApplyButton.implicitHeight : 0
             visible: root.systemPending
 
-            Text {
+            Label {
               anchors.left: parent.left
               anchors.right: systemApplyButton.left
               anchors.rightMargin: Style.spacing.md
               anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
               text: "saved, the system part needs apply"
               color: Colors.warnText
-              font.family: Style.font.family
-              font.pixelSize: Style.font.body
               elide: Text.ElideRight
             }
 
@@ -1198,14 +1167,12 @@ Item {
             }
           }
 
-          Text {
+          Label {
             width: parent.width
             visible: root.notice !== ""
-            textFormat: Text.PlainText
             text: root.notice
             color: root.noticeIsError ? Colors.urgentText : root.updateArmed ? Colors.warnText : Colors.okText
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
+            caption: true
             wrapMode: Text.Wrap
           }
         }

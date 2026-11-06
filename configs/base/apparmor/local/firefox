@@ -1,5 +1,6 @@
 # managed by arch-dotfiles/apparmor
 @{lib}/python3.@{int}/site-packages/pywalfox/bin/main.sh rCx -> pywalfox,
+owner @{user_share_dirs}/dotfiles/pywalfox-host rCx -> pywalfox,
 owner @{user_share_dirs}/mozilla/native-messaging-hosts/{,*.json} r,
 
 include <abstractions/dotfiles/viewer-read>
@@ -30,7 +31,10 @@ profile pywalfox flags=(attach_disconnected) {
   @{python_path} rix,
   @{bin}/pywalfox rix,
 
-  @{lib}/python3.@{int}/site-packages/pywalfox/bin/main.sh r,
+  @{lib}/python3.@{int}/site-packages/pywalfox/bin/main.sh rix,
+  # pywalfox-host: skipped for a headless parent, read from its command line
+  owner @{user_share_dirs}/dotfiles/pywalfox-host r,
+  owner @{PROC}/@{pid}/cmdline r,
   deny /dev/tty rw,
 
   owner @{user_cache_dirs}/wal/colors.json r,

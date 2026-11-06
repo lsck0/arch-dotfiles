@@ -92,25 +92,16 @@ Item {
           event.accepted = true
           return
         }
-        if (event.key === Qt.Key_Escape) {
-          root.close()
-          event.accepted = true
-        } else if (event.key === Qt.Key_Left) {
-          root.selectedIndex = Math.max(0, root.selectedIndex - 1)
-          event.accepted = true
-        } else if (event.key === Qt.Key_Right) {
-          root.selectedIndex = Math.min(root.actions.length - 1, root.selectedIndex + 1)
-          event.accepted = true
-        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-          root.activate(root.selectedIndex)
-          event.accepted = true
-        } else {
+        if (event.key === Qt.Key_Escape) root.close()
+        else if (event.key === Qt.Key_Left) root.selectedIndex = Math.max(0, root.selectedIndex - 1)
+        else if (event.key === Qt.Key_Right) root.selectedIndex = Math.min(root.actions.length - 1, root.selectedIndex + 1)
+        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) root.activate(root.selectedIndex)
+        else {
           let index = root.hotkeyIndex(event.key)
-          if (index >= 0) {
-            root.activate(index)
-            event.accepted = true
-          }
+          if (index < 0) return
+          root.activate(index)
         }
+        event.accepted = true
       }
     }
 

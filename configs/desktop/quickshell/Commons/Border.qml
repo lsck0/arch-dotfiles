@@ -2,8 +2,6 @@ pragma Singleton
 import QtQuick
 
 QtObject {
-  id: root
-
   function none() {
     return flat("transparent", 0)
   }

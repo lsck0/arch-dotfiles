@@ -286,8 +286,12 @@ export def backup [cfg: record]: nothing -> nothing {
     }
     for d in $CONFIG_DIRS {
         if not (config-path $d | path exists) { continue }
+        # copied beside, then swapped in: a failed cp leaves the last good copy, not none
+        let next = $DIR | path join $"($d).new"
+        rm --recursive --force $next
+        cp --recursive (config-path $d) $next
         rm --recursive --force ($DIR | path join $d)
-        cp --recursive (config-path $d) ($DIR | path join $d)
+        mv $next ($DIR | path join $d)
     }
     strip-volatile
 }

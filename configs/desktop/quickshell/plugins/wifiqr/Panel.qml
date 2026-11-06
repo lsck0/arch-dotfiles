@@ -32,6 +32,12 @@ Item {
   readonly property color onScrimDim: Colors.textDim
   readonly property color onScrimUrgent: Colors.urgentText
 
+  component CenterNote: Label {
+    caption: true
+    Layout.fillWidth: true
+    horizontalAlignment: Text.AlignHCenter
+  }
+
   function open(payload) {
     root.ssid = payload.ssid !== undefined ? String(payload.ssid) : ""
     generate(String(payload.iface || ""))
@@ -210,46 +216,34 @@ Item {
         }
       }
 
-      Label {
+      CenterNote {
         visible: root.loading
         text: ":: GENERATING QR CODE"
         color: root.onScrimDim
-        caption: true
-        Layout.fillWidth: true
-        horizontalAlignment: Text.AlignHCenter
       }
 
-      Label {
+      CenterNote {
         visible: root.error !== ""
         text: root.error
         color: root.onScrimUrgent
-        caption: true
         wrapMode: Text.Wrap
-        Layout.fillWidth: true
         Layout.maximumWidth: Style.space(320)
-        horizontalAlignment: Text.AlignHCenter
       }
 
-      Label {
+      CenterNote {
         visible: root.showingQr
         text: ":: SCAN TO JOIN THIS NETWORK"
         color: root.onScrimDim
-        caption: true
-        Layout.fillWidth: true
-        horizontalAlignment: Text.AlignHCenter
       }
 
-      Label {
+      CenterNote {
         visible: root.showingQr && root.secured
         text: root.passwordError !== "" ? root.passwordError
           : root.passwordVisible ? root.password
           : ":: SHOW PASSWORD"
         color: root.passwordError !== "" ? root.onScrimUrgent : root.passwordVisible ? root.onScrim : root.onScrimDim
-        caption: true
         wrapMode: Text.WrapAnywhere
-        Layout.fillWidth: true
         Layout.maximumWidth: Style.space(320)
-        horizontalAlignment: Text.AlignHCenter
 
         MouseArea {
           anchors.fill: parent

@@ -157,9 +157,7 @@ BarWidget {
       width: Style.space(40)
       height: Style.space(14)
       values: root.cpuHist
-      minValue: 0
       maxValue: Math.max(root.cpuSparkFloor, ...root.cpuHist)
-      color: Colors.accent
     }
 
     Stat {
@@ -277,9 +275,7 @@ BarWidget {
         width: parent.width
         spacing: Style.spacing.sm
 
-        PanelSectionHeader {
-          text: "HISTORY"
-        }
+        PanelSectionHeader { text: "HISTORY" }
 
         Row {
           width: parent.width
@@ -340,35 +336,21 @@ BarWidget {
 
       PanelSeparator {}
 
-      PanelSectionHeader {
-        text: "HARDWARE"
-      }
+      PanelSectionHeader { text: "HARDWARE" }
 
-      Label {
-        width: parent.width
+      HardwareLine {
         visible: root.stats.cpuName.length > 0
         text: root.stats.cpuName + (root.stats.cpuCores > 0 ? " (" + root.stats.cpuCores + " threads)" : "")
-        color: Colors.menu.text
-        caption: true
-        wrapMode: Text.WordWrap
       }
 
-      Label {
-        width: parent.width
+      HardwareLine {
         visible: root.stats.gpuName.length > 0
         text: root.stats.gpuName + (root.stats.gpuVendor === "intel" ? " (shared memory)" : "")
-        color: Colors.menu.text
-        caption: true
-        wrapMode: Text.WordWrap
       }
 
-      Label {
-        width: parent.width
+      HardwareLine {
         visible: root.memSpec.length > 0
         text: root.memSpec
-        color: Colors.menu.text
-        caption: true
-        wrapMode: Text.WordWrap
       }
 
       Grid {
@@ -431,9 +413,7 @@ BarWidget {
 
         PanelSeparator {}
 
-        PanelSectionHeader {
-          text: "TOP PROCESSES"
-        }
+        PanelSectionHeader { text: "TOP PROCESSES" }
 
         Row {
           id: procSplit
@@ -506,9 +486,7 @@ BarWidget {
 
         PanelSeparator {}
 
-        PanelSectionHeader {
-          text: "ALERTS"
-        }
+        PanelSectionHeader { text: "ALERTS" }
 
         Meter {
           label: "24H"
@@ -573,9 +551,7 @@ BarWidget {
 
       PanelSeparator {}
 
-      PanelSectionHeader {
-        text: "POWER MODE"
-      }
+      PanelSectionHeader { text: "POWER MODE" }
 
       PowerModeSelector {
         width: parent.width
@@ -584,9 +560,7 @@ BarWidget {
 
       PanelSeparator {}
 
-      PanelSectionHeader {
-        text: "TOOLS"
-      }
+      PanelSectionHeader { text: "TOOLS" }
 
       PanelRow {
         width: parent.width
@@ -622,7 +596,6 @@ BarWidget {
       id: slotText
       anchors.verticalCenter: parent.verticalCenter
       width: Math.ceil(sizer.implicitWidth)
-      horizontalAlignment: Text.AlignLeft
       text: parent.value
       color: Colors.textFor(parent.tint)
       font.letterSpacing: Style.displayTracking
@@ -636,6 +609,13 @@ BarWidget {
         font.pixelSize: slotText.font.pixelSize
       }
     }
+  }
+
+  component HardwareLine: Label {
+    width: parent.width
+    color: Colors.menu.text
+    caption: true
+    wrapMode: Text.WordWrap
   }
 
   component HudStat: MetricRow {

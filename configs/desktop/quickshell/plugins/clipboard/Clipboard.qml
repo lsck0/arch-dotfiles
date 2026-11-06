@@ -48,7 +48,6 @@ Item {
   property color scrim: Colors.menu.scrim
   property color selectedBackground: Colors.menu.selectedBackground
   property color selectedText: Colors.menu.selectedText
-  readonly property int cornerRadius: Style.shape.surface
   property int contentMargin: Style.spacing.panelPadding
   property int rowHeight: Style.space(44)
 
@@ -442,7 +441,6 @@ Item {
   }
 
   Timer {
-    id: gpgHideTimer
     interval: 600
     running: gpgEncryptProc.running || gpgDecryptProc.running
     onTriggered: {
@@ -459,7 +457,6 @@ Item {
   Timer {
     id: imageSweepTimer
     interval: root.imageSweepDelayMs
-    repeat: false
     onTriggered: root.sweepImageFiles()
   }
 
@@ -470,19 +467,15 @@ Item {
     referenceItem: panel.card
   }
 
-  FileView {
+  WatchedFile {
     id: historyFile
     path: root.historyPath
-    watchChanges: true
     atomicWrites: true
-    printErrors: false
     onLoaded: {
       root.loadHistory(text())
       if (!root.imagesSwept) { root.imagesSwept = true; imageSweepTimer.start() }
-      Util.rearmWatch(this)
     }
     onLoadFailed: root.loadHistory("[]")
-    onFileChanged: reload()
   }
 
   Process {
@@ -521,7 +514,6 @@ Item {
   Timer {
     id: watchRestartTimer
     interval: 1000
-    repeat: false
     onTriggered: {
       if (!textWatchProc.running) textWatchProc.running = true
       if (!imageWatchProc.running) imageWatchProc.running = true
@@ -550,7 +542,6 @@ Item {
       : [["ENTER", "copy"], ["ALT+ENTER", "open"], ["DEL", "forget"], ["SHIFT+DEL", "clear"], ["CTRL+E", "encrypt"], ["CTRL+D", "decrypt"], ["ESC", "close"]]
     keyboard: !root.gpgBusy
     cardWidth: Style.space(700)
-    cardHeight: Style.space(480)
     onDismissed: root.close()
 
     Item {
@@ -579,40 +570,23 @@ Item {
         if (event.key === Qt.Key_Escape) {
           if (root.filterText) root.setFilter("")
           else root.close()
-          event.accepted = true
         } else if (event.key === Qt.Key_Delete) {
           if (event.modifiers & Qt.ShiftModifier) root.requestClearHistory()
           else root.removeDisplayIndex(root.selectedIndex)
-          event.accepted = true
-        } else if (event.key === Qt.Key_Up) {
-          root.select(-1)
-          event.accepted = true
-        } else if (event.key === Qt.Key_Down) {
-          root.select(1)
-          event.accepted = true
-        } else if (event.key === Qt.Key_PageUp) {
-          root.select(-6)
-          event.accepted = true
-        } else if (event.key === Qt.Key_PageDown) {
-          root.select(6)
-          event.accepted = true
-        } else if (event.key === Qt.Key_Home) {
-          root.selectAbsolute(0)
-          event.accepted = true
-        } else if (event.key === Qt.Key_End) {
-          root.selectAbsolute(displayModel.count - 1)
-          event.accepted = true
-        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+        } else if (event.key === Qt.Key_Up) root.select(-1)
+        else if (event.key === Qt.Key_Down) root.select(1)
+        else if (event.key === Qt.Key_PageUp) root.select(-6)
+        else if (event.key === Qt.Key_PageDown) root.select(6)
+        else if (event.key === Qt.Key_Home) root.selectAbsolute(0)
+        else if (event.key === Qt.Key_End) root.selectAbsolute(displayModel.count - 1)
+        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
           if (event.modifiers & Qt.AltModifier) root.openIndex(root.selectedIndex)
           else root.activateIndex(root.selectedIndex)
-          event.accepted = true
-        } else if (event.key === Qt.Key_Backspace) {
-          root.setFilter(root.filterText.slice(0, -1))
-          event.accepted = true
-        } else if (event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127) {
+        } else if (event.key === Qt.Key_Backspace) root.setFilter(root.filterText.slice(0, -1))
+        else if (event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127)
           root.setFilter(root.filterText + event.text)
-          event.accepted = true
-        }
+        else return
+        event.accepted = true
       }
 
       ConfirmDialog {
@@ -627,8 +601,6 @@ Item {
         foreground: root.foreground
         scrim: root.scrim
         selectedBackground: root.selectedBackground
-        selectedText: root.selectedText
-        cornerRadius: root.cornerRadius
         onCanceled: root.cancelClearHistory()
         onConfirmed: root.confirmClearHistory()
       }
@@ -639,7 +611,6 @@ Item {
 
       Row {
         anchors.fill: parent
-        spacing: 0
 
         Item {
           width: parent.width / 2
@@ -699,7 +670,6 @@ Item {
                   sourceSize.height: Math.ceil(parent.height * Screen.devicePixelRatio)
                   fillMode: Image.PreserveAspectFit
                   asynchronous: true
-                  smooth: true
                 }
 
                 Label {
@@ -709,7 +679,6 @@ Item {
                   color: rowDelegate.hasCursor ? root.selectedText
                     : rowDelegate.entryType === "image" || rowDelegate.entryType === "file" ? Colors.textDim : root.foreground
                   elide: Text.ElideRight
-                  wrapMode: Text.NoWrap
                   verticalAlignment: Text.AlignVCenter
                   layer.enabled: rowDelegate.hasCursor && Style.fx.glow > 0
                   layer.effect: Glow {}
@@ -806,7 +775,6 @@ Item {
             fillMode: Image.PreserveAspectFit
             verticalAlignment: Image.AlignTop
             asynchronous: true
-            smooth: true
           }
 
           Column {

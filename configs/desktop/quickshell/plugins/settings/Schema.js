@@ -237,13 +237,13 @@ function selectable(list, index, direction) {
 }
 
 function decimals(option) {
-  var step = Number(option.step) || (option.type === "int" ? 1 : 0.01)
-  return step >= 1 ? 0 : Math.min(6, Math.ceil(-Math.log10(step) - 1e-9))
+  var size = step(option)
+  return size >= 1 ? 0 : Math.min(6, Math.ceil(-Math.log10(size) - 1e-9))
 }
 
 function snap(option, n) {
-  if (option.min !== undefined && option.min !== null) n = Math.max(Number(option.min), n)
-  if (option.max !== undefined && option.max !== null) n = Math.min(Number(option.max), n)
+  if (bounded(option.min)) n = Math.max(Number(option.min), n)
+  if (bounded(option.max)) n = Math.min(Number(option.max), n)
   return option.type === "int" ? Math.round(n) : Number(n.toFixed(decimals(option)))
 }
 

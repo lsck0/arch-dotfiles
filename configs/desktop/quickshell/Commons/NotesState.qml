@@ -1,7 +1,6 @@
 pragma Singleton
 import QtQuick
 import Quickshell
-import Quickshell.Io
 
 // The notes file behind the tasks overlay and the desktop card: one buffer, saved a moment after typing stops. A disk
 // change while the buffer has unsaved edits is a conflict, kept unsaved until ctrl+s overwrites the file or ctrl+r
@@ -67,17 +66,11 @@ Singleton {
     if (!root.edited) root.takeDisk()
   }
 
-  FileView {
+  WatchedFile {
     id: file
     path: Paths.notes
-    watchChanges: true
-    printErrors: false
-    onLoaded: {
-      root.loadDisk(String(text() || ""))
-      Util.rearmWatch(this)
-    }
+    onLoaded: root.loadDisk(String(text() || ""))
     onLoadFailed: root.loadDisk("")
-    onFileChanged: reload()
   }
 
   Timer {

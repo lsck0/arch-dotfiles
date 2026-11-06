@@ -113,7 +113,6 @@ QtObject {
     readonly property int md: root.space(12)
     readonly property int lg: root.space(16)
     readonly property int xl: root.space(24)
-    readonly property int xxl: root.space(32)
 
     readonly property int controlGap: sm
     readonly property int controlPaddingX: md

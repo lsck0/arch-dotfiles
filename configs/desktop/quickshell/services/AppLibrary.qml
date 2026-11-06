@@ -202,15 +202,9 @@ Item {
     onTriggered: if (!hiddenEntryScan.running) hiddenEntryScan.running = true
   }
 
-  FileView {
+  WatchedFile {
     path: Paths.state + "/launcher.hides"
-    watchChanges: true
-    printErrors: false
-    onLoaded: {
-      root.loadConfiguredHides(text())
-      Util.rearmWatch(this)
-    }
-    onFileChanged: reload()
+    onLoaded: root.loadConfiguredHides(text())
     onLoadFailed: root.loadConfiguredHides("")
   }
 

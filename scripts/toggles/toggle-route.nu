@@ -61,15 +61,20 @@ def offline-enter []: nothing -> nothing {
     proton-disconnect
     # offline cuts every link below tor anyway: a declined password prompt must not leave the switch half done
     try { tor-stop } catch { print -e "offline: tor keeps running, its links go down anyway" }
-    radios | where soft == unblocked | get id | str join "\n" | save --force (state-file offline-rfkill --volatile)
-    state-set offline-vpn (if $vpn { "on" } else { "off" }) --volatile
+    # a second press while already offline would record the radios it blocked itself, and leaving would unblock none
+    let saved = state-file offline-rfkill --volatile
+    if not ($saved | path exists) {
+        radios | where soft == unblocked | get id | str join "\n" | save --force $saved
+        state-set offline-vpn (if $vpn { "on" } else { "off" }) --volatile
+    }
     ^nmcli networking off
     ^rfkill block all
 }
 
 def offline-leave []: nothing -> nothing {
     let saved = state-file offline-rfkill --volatile
-    let ids = if ($saved | path exists) { open --raw $saved | lines } else { [all] }
+    # no record: leave every radio as it is, rather than lifting a block set outside this switch
+    let ids = if ($saved | path exists) { open --raw $saved | lines | where $it != "" } else { [] }
     if ($ids | is-not-empty) { ^rfkill unblock ...$ids }
     ^nmcli networking on
     if (state-get offline-vpn --volatile) == on and (try { toggle-run vpn on o> /dev/null; false } catch { true }) {
