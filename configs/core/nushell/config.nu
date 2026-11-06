@@ -119,8 +119,6 @@ def --wrapped pacman [...rest] {
 # a tool's aliases and defs are its module's, dropped into the autoload dir (shell-aliases); an alias
 # resolves its command where it is declared, so these follow the defs they call
 alias cp = cp -v
-alias downgrade = sudo-at-terminal downgrade
-alias ldocker = sudo-at-terminal lazydocker
 alias mkdir = mkdir -v
 alias mv = mv -v
 

@@ -2,6 +2,10 @@ use module.nu *
 
 export const meta = {packages: {pacman: [ctop docker docker-buildx docker-compose lazydocker trivy]}}
 
+export def link [cfg: record] {
+    shell-aliases docker
+}
+
 export def system [cfg: record] {
     [
         # forwarding policy lives in inet fw: docker's own FORWARD drop would also cut libvirt and lxc bridges

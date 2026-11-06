@@ -22,7 +22,10 @@ export def link [cfg: record] {
 
 export def tmux-reload []: nothing -> nothing {
     let colors = xdg cache wal colors-tmux.conf
-    for s in (glob ($env.TMUX_TMPDIR? | default /tmp | path join $"tmux-(^id -u | str trim)" "*")) {
+    # the dir also holds each server's autoreload lock files
+    let dir = $env.TMUX_TMPDIR? | default /tmp | path join $"tmux-(^id -u | str trim)"
+    let sockets = if ($dir | path exists) { ls $dir | where type == socket | get name } else { [] }
+    for s in $sockets {
         try { ^tmux -S $s source-file $colors o+e>| ignore }
     }
 }

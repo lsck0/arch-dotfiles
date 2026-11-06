@@ -65,7 +65,13 @@ return {
             vim.g.VM_show_warnings = 0
         end,
     },
-    { "smart-splits-nvim/smart-splits.nvim", lazy = true },
+    {
+        "smart-splits-nvim/smart-splits.nvim",
+        -- not lazy: the backend marks the tmux pane as vim (@pane-is-vim) only once loaded
+        lazy = false,
+        dependencies = { { "smart-splits-nvim/backend-tmux", main = "smart-splits-backend-tmux" } },
+        opts = { mux = { backend = "smart-splits-backend-tmux" } },
+    },
     {
         "nacro90/numb.nvim",
         opts = {},

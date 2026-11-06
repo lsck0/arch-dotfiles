@@ -375,6 +375,13 @@ return {
                 command = "fmt",
                 args = { "--split-only", "--width=120", "--goal=120" },
             }
+            -- .nya goes through the engine's own serde (`./build format`), so only a nyangine checkout with a built
+            -- ./build has it; it rewrites in place, and a file with comments is only parse-checked, never rewritten
+            require("conform").formatters.nya_format = {
+                command = vim.fn.expand("~/projects/nyangine/build"),
+                args = { "format", "$FILENAME" },
+                stdin = false,
+            }
             require("conform").formatters.php_cs_fixer = {
                 prepend_args = function(_, ctx)
                     local configs = { ".php-cs-fixer.php", ".php-cs-fixer.dist.php" }
@@ -414,6 +421,7 @@ return {
                 pkgbuild = { "shfmt" },
                 go = { "goimports", "gofumpt" },
                 nix = { "nixfmt" },
+                nya = { "nya_format" },
                 ruby = { "rubocop" },
                 php = { "php_cs_fixer" },
                 cs = { "csharpier" },

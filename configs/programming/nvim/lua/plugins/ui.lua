@@ -116,7 +116,8 @@ return {
                         },
                     },
                 },
-                math = { enabled = false },
+                -- $...$ and $$...$$ in markdown and typst render through tectonic or pdflatex
+                math = { enabled = true },
             },
             notifier = { enabled = true },
             indent = { enabled = true },

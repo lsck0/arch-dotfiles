@@ -20,9 +20,18 @@ return {
             {
                 "3rd/image.nvim",
                 cond = terminal_graphics,
+                -- molten's image provider only: Snacks.image draws the images in docs
+                lazy = true,
                 opts = {
                     backend = "kitty",
                     processor = "magick_cli",
+                    integrations = {
+                        markdown = { enabled = false },
+                        asciidoc = { enabled = false },
+                        typst = { enabled = false },
+                        neorg = { enabled = false },
+                        syslang = { enabled = false },
+                    },
                 },
             },
         },

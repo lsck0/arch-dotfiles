@@ -1,6 +1,7 @@
 vim.keymap.set("n", "<C-s>", "<cmd>w<CR>", { desc = "Save file" })
 vim.keymap.set("i", "<C-c>", "<ESC>", { desc = "Escape insert mode" })
-vim.keymap.set("t", "<C-e>", [[<C-\><C-n>]], { desc = "Exit terminal mode" })
+-- a double Esc, not C-e: zsh, lazygit and Claude Code need C-e, and a single Esc still reaches the program
+vim.keymap.set("t", "<Esc><Esc>", [[<C-\><C-n>]], { desc = "Exit terminal mode" })
 
 vim.keymap.set("n", "<M-x>", "@", { desc = "Apply macro (@)" })
 
@@ -48,6 +49,10 @@ for key, dir in pairs({ h = "left", j = "down", k = "up", l = "right" }) do
     vim.keymap.set("n", "<C-" .. key .. ">", function()
         require("smart-splits")["resize_" .. dir]()
     end, { desc = "Resize split " .. dir })
+    -- tmux's pane keys: past the last split they move on to the next tmux pane
+    vim.keymap.set("n", "<M-" .. key:upper() .. ">", function()
+        require("smart-splits")["move_cursor_" .. dir]()
+    end, { desc = "Move to split " .. dir })
 end
 vim.keymap.set("n", "<leader>w", "<cmd>WinShift<CR>", { desc = "Move window (WinShift)" })
 
@@ -261,5 +266,6 @@ end, { nargs = "+", complete = "shellcmd", desc = "perf record -g a command -> p
 vim.keymap.set("n", "<leader>pc", "<cmd>CargoFlamegraph<CR>", { desc = "cargo flamegraph" })
 vim.keymap.set("n", "<leader>pr", ":PerfRecord ", { desc = "perf record a command" })
 
-vim.keymap.set("n", "<Tab>", "<cmd>BufferNext<CR>", { desc = "Next buffer" })
-vim.keymap.set("n", "<S-Tab>", "<cmd>BufferPrevious<CR>", { desc = "Prev buffer" })
+-- not Tab: where the terminal sends Tab and C-i alike it would take jump-forward
+vim.keymap.set("n", "]b", "<cmd>BufferNext<CR>", { desc = "Next buffer" })
+vim.keymap.set("n", "[b", "<cmd>BufferPrevious<CR>", { desc = "Prev buffer" })

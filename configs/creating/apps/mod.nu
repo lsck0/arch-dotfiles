@@ -38,7 +38,24 @@ export def link [cfg: record] {
         })
         (if (which lmms | is-empty) { [] } else {
             let workdir = ^xdg-user-dir DOCUMENTS | str trim | path join lmms
-            exec lmms-workdir [mkdir -p $workdir] --creates $workdir
+            [(exec lmms-workdir [mkdir -p $workdir] --creates $workdir) (step lmms-paths $workdir)]
         })
     ]
+}
+
+# lmms writes its whole rc on exit, so only the working dir is set, kept when lmms already has one; without it lmms
+# falls back to ~/lmms.
+export def lmms-paths [workdir: string]: nothing -> nothing {
+    let rc = xdg config lmms lmmsrc.xml
+    let doc = if ($rc | path exists) { open --raw $rc | from xml --allow-dtd } else { {tag: lmms, attributes: {}, content: []} }
+    let has = $doc.content | any {|e| $e.tag? == paths and ($e.attributes?.workingdir? | default "") != "" }
+    if $has { return }
+    let dir = $"($workdir)/"
+    let content = if ($doc.content | any {|e| $e.tag? == paths }) {
+        $doc.content | each {|e| if $e.tag? == paths { $e | upsert attributes.workingdir $dir } else { $e } }
+    } else {
+        $doc.content | append {tag: paths, attributes: {workingdir: $dir}, content: []}
+    }
+    mkdir ($rc | path dirname)
+    $"<?xml version=\"1.0\"?>\n<!DOCTYPE lmms-config-file>\n($doc | update content $content | to xml)\n" | save --force $rc
 }

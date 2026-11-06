@@ -41,31 +41,9 @@ return {
                 end,
                 desc = "Open kulala",
             },
-            {
-                "<leader>rs",
-                function()
-                    require("kulala").run()
-                end,
-                mode = { "n", "v" },
-                desc = "Send request",
-            },
-            {
-                "<leader>ra",
-                function()
-                    require("kulala").run_all()
-                end,
-                mode = { "n", "v" },
-                desc = "Send all requests",
-            },
-            {
-                "<leader>rr",
-                function()
-                    require("kulala").replay()
-                end,
-                desc = "Replay the last request",
-            },
         },
         opts = {
+            -- the rest of <leader>r; the two keys above only load kulala outside http buffers
             global_keymaps = true,
             global_keymaps_prefix = "<leader>r",
             kulala_keymaps_prefix = "",
