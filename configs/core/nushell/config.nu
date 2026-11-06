@@ -90,6 +90,9 @@ $env.config.buffer_editor = "nvim"
 
 const AGENT_MARKERS = [CLAUDECODE AI_AGENT GEMINI_CLI COPILOT_CLI_BINARY_VERSION]
 
+# an agent's rm deletes: its build trees would fill the trash, a person's rm keeps going there
+if ($AGENT_MARKERS | any {|name| $env | get --optional $name | is-not-empty }) { $env.config.rm.always_trash = false }
+
 # Root for this shell's defs and aliases, only at a person's terminal: an agent (its marker variable) or a process
 # without one is refused instead of raising a YubiKey request nobody sees. Lint keeps every rc escalation behind it.
 def --wrapped sudo-at-terminal [...rest] {
