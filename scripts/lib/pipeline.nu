@@ -390,7 +390,8 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     let global = [
         ($stamped | get $LIB_DIR) $lib_imported ($ctx.platform.facts | to nuon) ($ctx.profile.capabilities? | default [] | to nuon)
         (secret-is-plaintext ($ctx.repo | path join $OWNER_WITNESS)) $verb ($args | to nuon)
-        (secrets-stamp $ctx.repo)
+        # sync's backup rewrites keys/ every run: a theme verb reads none, so that churn must not re-run its reloads
+        (if $verb == "theme" { "" } else { secrets-stamp $ctx.repo })
     ] | str join "\n"
     let imports = $olds | each {|o| {id: $o.m.id, files: (imports-outside $o.m.dir $importing $import_map $mapped)} }
     # a shared import (the wallust palette) is hashed once, not once per module importing it
