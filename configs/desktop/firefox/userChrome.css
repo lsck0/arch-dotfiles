@@ -82,7 +82,21 @@ panel,
     border-radius: var(--rtk-radius) !important;
 }
 
+/* raised, not sunk: pywalfox paints the selected tab with the dark background colour over the translucent toolbar,
+   so it read as the one tab behind; a tint of the tab's own text colour lifts it on dark and light themes alike */
+.tabbrowser-tab:not([selected]) .tab-background {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+}
+
+.tabbrowser-tab:not([selected]):hover .tab-background {
+    background-color: color-mix(in srgb, var(--toolbar-color, currentColor) 8%, transparent) !important;
+}
+
 .tabbrowser-tab[selected] .tab-background {
+    background-color: color-mix(in srgb, var(--toolbar-color, currentColor) 22%, transparent) !important;
+    background-image: none !important;
     border-bottom: 1px solid var(--rtk-accent) !important;
     box-shadow: 0 0 6px -1px var(--rtk-accent) !important;
 }
