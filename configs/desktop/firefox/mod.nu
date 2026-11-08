@@ -5,10 +5,15 @@ use ../../core/wallust/font.nu [font-load]
 export const meta = {
     deps: [desktop/qutebrowser]
     packages: {pacman: [espeak-ng firefox plasma-browser-integration python-pywalfox speech-dispatcher]}
-    inputs: ["~/.config/mozilla/firefox/profiles.ini"]
+    inputs: [
+        "~/.config/mozilla/firefox/profiles.ini"
+        "~/.local/share/torbrowser/tbb/x86_64/tor-browser/Browser/TorBrowser/Data/Browser/profiles.ini"
+    ]
 }
 
 const HOME_DIR = ".config/mozilla/firefox"
+# torbrowser-launcher's install; the same firefox, themed by the same userChrome.css
+const TOR_INI = ".local/share/torbrowser/tbb/x86_64/tor-browser/Browser/TorBrowser/Data/Browser/profiles.ini"
 const FIREFOX_DIR = "/usr/lib/firefox"
 const POLICIES = "/etc/firefox/policies/policies.json"
 # the owner's work sso sites, merged in where the root copy holds the secrets group
@@ -23,6 +28,11 @@ const SEARCH_OFF_HOMELAB = {
 
 def profiles [ini: path]: nothing -> list<path> {
     open --raw $ini | lines | parse "Path={path}" | get path | each {|p| $ini | path dirname | path join $p } | where ($it | path exists)
+}
+
+def tor-profiles []: nothing -> list<path> {
+    let ini = $nu.home-dir | path join $TOR_INI
+    if ($ini | path exists) { profiles $ini } else { [] }
 }
 
 def chrome-style []: nothing -> string {
@@ -68,6 +78,15 @@ export def link [cfg: record] {
             (file-render user.js ($dir | path join user.js) {HOME: $nu.home-dir})
         ]
     } | flatten)
+    | append (tor-profiles | each {|dir|
+        # no pywalfox in tor browser (an extension marks its users): dotfiles-colors.css stands in for its theme
+        let chrome = "@import url('dotfiles-colors.css');\n" + (open --raw userChrome.css)
+        [
+            (file-text ($dir | path join chrome userChrome.css) $chrome)
+            (file-text ($dir | path join chrome dotfiles-style.css) (chrome-style) --generated)
+            (file-copy user-tor.js ($dir | path join user.js))
+        ]
+    } | flatten)
     | append $pywalfox
     | append $speech
     | append (user-hook firefox-profiles hook/profile-link.nu --watch [$"%h/($HOME_DIR)/profiles.ini"])
@@ -86,11 +105,51 @@ def chrome-font []: nothing -> string {
     $":root {\n    --rtk-chrome-font: \"($font.family)\", \"JetBrainsMono Nerd Font\", monospace, sans-serif;\n    --rtk-chrome-font-size: ($font.ui_size)pt;\n}\n"
 }
 
+# pywalfox's default dark and light templates as chrome variables, for a profile without the extension.
+def chrome-colors []: nothing -> string {
+    let p = palette-load
+    if $p == null { return "" }
+    let s = if $p.light == "1" {
+        {
+            bg: $"color-mix\(in srgb, ($p.c7) 15%, #d4d4d4\)", light: "#ffffff", extra: $p.c7
+            accent: $p.c3, accent2: $p.c5, text: $"color-mix\(in srgb, ($p.c0), white 20%\)", focus: $p.c0
+        }
+    } else {
+        {
+            bg: $p.c0, light: $"color-mix\(in srgb, ($p.c0), white 6%\)"
+            extra: $"color-mix\(in srgb, ($p.c0), white 18%\)"
+            accent: $p.c10, accent2: $p.c13, text: $p.c15, focus: "#ffffff"
+        }
+    }
+    let vars = {
+        lwt-accent-color: $s.bg, lwt-accent-color-inactive: $s.bg, lwt-text-color: $s.text
+        toolbar-bgcolor: $s.light, toolbar-color: $s.focus
+        toolbar-field-background-color: $s.extra, toolbar-field-color: $s.text
+        toolbar-field-focus-background-color: $s.extra, toolbar-field-focus-color: $s.focus
+        toolbar-field-border-color: $s.light, toolbar-field-focus-border-color: $s.light
+        tab-selected-bgcolor: $s.light, tab-selected-textcolor: $s.focus, tab-loading-fill: $s.accent
+        toolbarbutton-icon-fill: $s.accent, toolbarbutton-icon-fill-attention: $s.accent2
+        lwt-tab-line-color: $s.light, lwt-toolbar-field-highlight: $s.accent, lwt-toolbar-field-highlight-text: $s.bg
+        arrowpanel-background: $s.light, arrowpanel-color: $s.text, arrowpanel-border-color: $s.light
+        sidebar-background-color: $s.light, sidebar-text-color: $s.text
+    }
+    let lines = $vars | items {|k, v| $"    --($k): ($v) !important;" } | str join "\n"
+    $":root {\n($lines)\n}\n"
+}
+
 export def theme [cfg: record, wallpaper: string] {
     let ini = $nu.home-dir | path join $HOME_DIR profiles.ini
     let fonts = if ($ini | path exists) {
         profiles $ini | each {|dir| file-text ($dir | path join chrome dotfiles-font.css) (chrome-font) --generated }
     } else { [] }
+    let colors = chrome-colors
+    let tor = tor-profiles | each {|dir|
+        [
+            (file-text ($dir | path join chrome dotfiles-font.css) (chrome-font) --generated)
+            (file-text ($dir | path join chrome dotfiles-colors.css) $colors --generated)
+        ]
+    } | flatten
+    let fonts = $fonts | append $tor
     let socket = $env.TMPDIR? | default /tmp | path join $"pywalfox_socket_(^id -u | str trim)"
     if (which pywalfox | is-empty) or not ($socket | path exists) { return $fonts }
     $fonts | append (exec pywalfox-update [pywalfox update])
