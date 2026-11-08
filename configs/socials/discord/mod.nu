@@ -82,6 +82,8 @@ export def link [cfg: record] {
             (json-set [settings blockReadReceipts] false)
             (json-set [settings blockUsageProfiling] false)
             (json-set [settings anonymiseFiles] false)
+            # on, it patches IdleStore.isIdle/isAFK to false: discord never goes idle or away when the pc is left
+            (json-set [settings disableIdle] false)
         ])
         (json-merge ($data | path join themes.json) [(json-set [(addon-name $THEME)] true)])
         (json-merge ($data | path join settings.json) [(json-set [addons checkForUpdates] false)])

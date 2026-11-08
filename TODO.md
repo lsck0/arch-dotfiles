@@ -36,9 +36,9 @@ What is left needs Luca: root, the YubiKey, the PC's live apps, or another machi
     - Then turn off Incognito's `blockProcessScanning` and DoNotTrack's process monitoring, one at a time. Both stop the
       client's process detection (OBS included), and Incognito was added on 2026-10-14. If one of them is the cause, pin
       that setting to false in `configs/socials/discord/mod.nu`, as `blockReadReceipts` is.
-    - Discord also no longer goes to Idle/Away on its own when the PC is left alone. Likely cause: Incognito's
-      `disableIdle` is `true` in `~/.config/BetterDiscord/plugins/Incognito.config.json`. If turning it off fixes it,
-      pin `disableIdle` to false in `configs/socials/discord/mod.nu` too.
+    - Idle/Away: fixed 2026-11-08. Incognito's `disableIdle` patched `IdleStore.isIdle`/`isAFK` to false; it is now
+      pinned false in `configs/socials/discord/mod.nu`. Restart Discord once, then check it goes Idle after ~10 min
+      away.
 - [ ] OBS alert sounds: `configs/desktop/pipewire/app-loopback.lua` now leaves `obs-browser-page` streams alone. The
   "... For Me" browser sources play there and were muted with every other loopback while HEAR was on. Check on the PC
   that a test alert plays both locally and on the stream. The other two, "Twitch Alerts" and "Sound Alerts", go
