@@ -39,7 +39,7 @@ Write the solution and flag to the target file, then stop. No file given
 
 ## Tools
 
-Reversing: `ghidra`, `rizin`/`rz-cutter` (disassembly/decompilation),
+Reversing: `ghidra` (or the `ghidra-mcp` server when connected), `rizin`/`cutter` (disassembly/decompilation),
 `gdb` + `pwndbg` (dynamic analysis, crash introspection), `binutils`
 (`objdump`/`strings`/`nm`), `python-frida` (dynamic instrumentation),
 `checksec` (binary hardening flags).

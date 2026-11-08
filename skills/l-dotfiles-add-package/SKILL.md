@@ -23,7 +23,8 @@ description: Adding or removing a package in a module's meta (pacman, flatpak, n
 1. Add the name, then `dot internal gen`.
 2. Check the mirror serves it (nothing is built on the machine): `pacman -Sp --print-format '%n %r' <pkg>` must say
    `<pkg> lsck0`. `target not found`: the mirror lacks it (`FAILURES.install` says `not on the mirror: <pkg>`). Own
-   pkgbuilds in `mirror/pkgbuilds/`, missing AUR deps in `mirror/overrides.conf`.
+   pkgbuilds in `mirror/pkgbuilds/`, missing AUR deps in `mirror/overrides.conf`. Without the `homelab` fact,
+   `base/pacman` leaves `[lsck0]` out of `pacman.conf` while the mirror does not answer, so its packages wait.
 3. `dot apply --packages`. Never `pacman -S` by hand.
 
 ## Removing
@@ -48,7 +49,8 @@ Every source is pinned and checked:
   dependencies floating.
 - node: committed `package-lock.json` with `npm ci` (`configs/creating/obs/mcp`); `npx -y <pkg>@<version>` floats.
 - The repo: `bootstrap.sh`, the iso stub and `system-apply.nu` refuse a HEAD not signed by
-  `SIGNING_KEY_FINGERPRINT`; `merge.verifySignatures` makes the sync pull refuse unsigned commits.
+  `SIGNING_KEY_FINGERPRINT`; `dot sync`'s pull (`sync-pull`) merges nothing unless origin's head carries that
+  signature, and `programming/projects` sets `merge.verifySignatures` on the checkout for a hand pull.
 
 Still floating, fix when touching the module:
 

@@ -105,9 +105,12 @@ def agent-db [taskrc: path]: nothing -> record {
             {id: $t.id, desc: (do $short $t), link: $link}
         })
         review: ($waiting | where { "human-review-ready" in (tags-of $in) } | each {|t|
-            let pr = do $annotations $t | where { ($in | str starts-with "pr: ") or ($in | str contains /pull/) }
-                | get --optional 0
-            {id: $t.id, desc: (do $short $t), link: (if $pr == null { null } else { $pr | split row "pr: " | last })}
+            let notes = do $annotations $t
+            let pr = $notes | where { ($in | str starts-with "pr: ") or ($in | str contains /pull/) } | get --optional 0
+            # a repo where agents never commit hands over a working tree instead (l-agent-task-db's tree: annotation)
+            let tree = $notes | where { $in | str starts-with "tree: " } | get --optional 0
+            let link = if $pr != null { $pr | split row "pr: " | last } else if $tree != null { $"working tree: ($tree | str substring 6..)" }
+            {id: $t.id, desc: (do $short $t), link: $link}
         })
         answered: ($gated | where { "human-answered" in (tags-of $in) } | length)
     }
@@ -206,8 +209,8 @@ def lines-agent-flow [projects: list]: nothing -> list {
         } | flatten)
         | append ($p.review | each {|r|
             [
-                (line $"      REVIEW PR: #($r.id) ($r.desc)" bold)
-                (line $"                 -> ($r.link | default '(no PR annotated)')" dim)
+                (line $"      REVIEW: #($r.id) ($r.desc)" bold)
+                (line $"                 -> ($r.link | default '(no PR or tree annotated)')" dim)
             ]
         } | flatten)
         | append (if $p.answered > 0 { line $"      \(($p.answered) answered, awaiting agent\)" dim })

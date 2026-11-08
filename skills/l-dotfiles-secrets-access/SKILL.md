@@ -38,12 +38,13 @@ recovery key is the deliberate exception for a lost YubiKey, not the normal path
 ## Unlock and check
 
 ```bash
-nu -c 'use scripts/lib/secrets.nu *; if (secret-is-plaintext configs/secrets/keys/pgp_privatekey.asc) { "unlocked" } else { "locked" }'
-./scripts/dot.nu secrets unlock       # pull the submodule, then unlock; one touch each
-./scripts/dot.nu secrets lock
+nu -c 'use scripts/lib/secrets.nu *; secret-is-plaintext configs/secrets/keys/pgp_privatekey.asc'   # true: unlocked
+dot secrets unlock       # Luca's: pull the submodule, then unlock; one touch each
+dot secrets lock         # Luca's
 ```
 
-- `dot apply` unlocks itself with the `secrets` profile. Without a YubiKey a pulled worktree unlocks via the PGP key;
+- `dot secrets unlock|lock` are Luca's (YubiKey), never an agent's. `dot apply` unlocks itself with the `secrets`
+  profile. Without a YubiKey a pulled worktree unlocks via the PGP key;
   `unlock --identity <file>` is the recovery path.
 - Unlock needs a person to touch the key: ask, never wait in a loop. `age-plugin-yubikey` prints no prompt; the blink
   is the only cue.
@@ -70,7 +71,8 @@ nu -c 'use scripts/lib/secrets.nu *; if (secret-is-plaintext configs/secrets/key
 
 ## Add a secret
 
-1. Unlock, put it under `configs/secrets/keys/`. Anywhere else in `configs/secrets/` it is committed in plaintext.
+1. Luca unlocks; it goes under `configs/secrets/keys/`. Anywhere else in `configs/secrets/` it is committed in
+   plaintext.
 2. A system module needs it: add its path to `SYSTEM_SECRETS`.
 3. `dot sync` commits and pushes (submodule first). Agents never do.
 4. Never write into `configs/secrets/` while locked: a script checks `secret-is-plaintext` on `pgp_privatekey.asc`

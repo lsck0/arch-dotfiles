@@ -23,7 +23,8 @@ stop. No file given -> summarize in chat.
 `docker stack` (swarm deploys), `lazydocker` (docker TUI), `act` (run
 GitHub Actions locally before pushing), `terraform` (infra as code),
 `trivy` (container vuln
-scanning), `ctop` (container resource monitor), `loki` +
-`grafana-alloy` (log aggregation/collection, alloy replaces end-of-life promtail).
+scanning), `ctop` (container resource monitor). Loki and Alloy (alloy
+replaces end-of-life promtail) are deployed by the project, not installed
+here; the homelab's grafana (`l-homelab`) for lab services.
 `kubectl`/`k9s`/`kubectx`/`kubecolor`/`helm`/`minikube`/`skaffold`
 (kubernetes) only when the project already runs kubernetes.

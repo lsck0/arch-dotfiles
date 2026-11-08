@@ -93,9 +93,9 @@ It holds:
 
 ## When to write
 
-- Starting in a repo with no `AGENTS.md`: create it, `skills/` and the `.claude/skills` symlink from what you
-  discover: the real commands (from CI and manifests, not guesses), the
-  layout, the stack.
+- Starting in a repo with no `AGENTS.md`: create it, `skills/` and the
+  `.claude/skills` symlink from what you discover: the real commands
+  (from CI and manifests, not guesses), the layout, the stack.
 - You performed a workflow that took more than one obvious command, or
   that cost you time to work out: write or update its skill and the index
   row.
@@ -103,7 +103,12 @@ It holds:
   access skill.
 - A convention or command changed: update the stale skill or line in
   the same commit as the change; never append a contradiction.
-- The user states a project rule ("we always X here"): record it. If the rule is project-specific, it goes in this repo's `AGENTS.md` or a skill; if it is a general, cross-project rule the user stated explicitly (a style, architecture or workflow habit), send it to the arch-dotfiles session to fold into the global `l-*` skills, so every project inherits it, and still note the project-specific slice here.
+- The user states a project rule ("we always X here"): record it. A
+  project-specific rule goes in this repo's `AGENTS.md` or a skill. A
+  general, cross-project rule the user stated explicitly (a style,
+  architecture or workflow habit) goes to the arch-dotfiles session, to
+  fold into the global `l-*` skills so every project inherits it; the
+  project-specific slice is still noted here.
 
 ## What stays out
 
@@ -116,9 +121,11 @@ It holds:
   tell it: an off-repo decision, a command, a thing that looks wrong but
   isn't.
 - Task state and completed-work logs.
-- Handoffs (where work stopped, open branches, pending decisions) go in the repo's `TODO.md` or the ticket's
-  `tasks/context/`, never in agent memory: the repo is the shared, versioned record. Where agents may not commit
-  (arch-dotfiles), the uncommitted `TODO.md` entry is still the place; the owner's commit picks it up.
+- Handoffs (where work stopped, open branches, pending decisions) go in
+  the repo's `TODO.md` or the ticket's `tasks/context/`, never in agent
+  memory: the repo is the shared, versioned record. Where agents may not
+  commit (arch-dotfiles), the uncommitted `TODO.md` entry is still the
+  place; the owner's commit picks it up.
 - Speculation. Only record what you verified in this repo.
 
 ## How to keep it good

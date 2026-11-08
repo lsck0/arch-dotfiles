@@ -7,7 +7,7 @@ description: "Orientation for nyangine, Luca's C engine and the stack his softwa
 
 nyangine (`~/projects/nyangine`) is the C engine that is becoming the one stack for all of Luca's
 software: games, desktop applications, server-rendered web, TUI and CLI, composing in one program. It
-is data oriented procedural C, built with clang as a unity build, rendered through SDL3's GPU API. This
+is data oriented procedural C (C2Y), built with clang as a unity build, rendered through SDL3's GPU API. This
 skill is orientation only. It names where the truth lives and the shape to expect; it does not restate
 the API, which would go stale.
 
@@ -20,8 +20,8 @@ reference implementation of that guide, so the guide explains why the code looks
 - `docs/CHEATSHEET.md`: the generated API reference, the only list of names that cannot be out of date.
   When it and any prose disagree, the header wins. Read it before calling anything; never guess a
   signature from this skill.
-- `docs/*.md`: prose per subject. The repo's own `skills/` and its `AGENTS.md` hold the how-to detail
-  (`l-auto-memory`); open the one a task needs.
+- `docs/*.md`: prose per subject (`architecture.md`, `projects.md`, `abi.md`, `getting-started.md`, ...); the
+  `AGENTS.md` holds the commands and how-to detail. Open the one a task needs.
 - `TODO.md`: the scope and the ordered plan. Its "Next, in order" list is what to build next, and its
   Findings record the lessons behind past decisions. Read it before choosing what to build.
 
@@ -53,8 +53,9 @@ Expect these primitives; the cheatsheet has their exact names.
 - Determinism is built in: every random draw is a hash of seed, step and draw index, and faults are
   weighted entries in the same table, so a failing seed replays exactly.
 - Extension is one file following the convention: a system, a plugin, an example. Adding it is the whole
-  change; nothing central edits to register it. Scripting today is Lua (signed plugins, a VM with a
-  budget each); a flat C ABI that any language binds is the planned general form, per `TODO.md`.
+  change; nothing central edits to register it. Other languages bind one flat C ABI, generated each
+  build from the declarations tagged `pp.abi` (`docs/abi.md`); Lua, for signed plugins with a VM and
+  budget each, is generated on top of it as one consumer.
 
 A feature is not finished until a real program calls it (a demo, an example, a test) and that caller
 runs; a visible change is not finished until someone has looked at it on screen.

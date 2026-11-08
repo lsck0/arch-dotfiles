@@ -28,22 +28,23 @@ A worker differs only by its name, its prompt and the persona skill it carries, 
 - Skills per persona: workers that design or write code (`l-persona-design-*`, `l-persona-programmer`,
   `l-persona-reviewer`, `l-persona-tester`) also carry the `l-style` core plus `l-style-architecture`, because those
   personas lean on its principles without restating them; a tester adds `l-style-testing`, a latex/math worker
-  `l-style-latex`. Research and audit personas run persona-only. A worker never sees a skill it was not given.
+  `l-style-latex`. A department persona writing a document deliverable carries the `l-style` core for its Writing
+  rules. Research and audit personas run persona-only. A worker never sees a skill it was not given.
 - Discover personas through `l-personas`, never from a hand-kept list.
 
 ## Model choice belongs to the task-planner
 
 The `l-persona-orchestrator-task-planner` worker checks what is reachable right now and assigns a model (and, on
-Hermes, a provider) to every worker, per `l-spec-driven-development`'s model sizing: small/cheap models for
-research, strong ones for design, spec, implementation and review. The orchestrator only reads that assignment.
+Hermes, a provider) to every worker, per `l-spec-driven-development`'s model sizing; the line format is the
+planner's own. The orchestrator only reads that assignment. The planner itself runs on the orchestrator's model.
 
 - Live mode reads it from `PLAN.md`.
-- Task mode reads the ticket's annotation (`task <id> export`, the `.annotations[]` entry starting
-  `model: <m> provider: <p>`). A ticket that skipped Intake (a human added `+agent-task` directly) gets one
-  task-planner worker scoped to it first, which annotates the model and, without a `project:`, assigns one.
-- Under Hermes the planner runs `hermes auth list`. Under Claude Code the model is the Agent call's `model` override
-  and the provider is ignored. Local models (ollama, vllm) are for chat only, never a worker: Hermes has no local
-  provider configured.
+- Task mode reads the ticket's annotation (`task <id> export`, the `.annotations[]` entry starting `model: `). A
+  ticket that skipped Intake (a human added `+agent-task` directly) gets one task-planner worker scoped to it first,
+  writing `tasks/context/design/<uuid8>-<slug>-plan.md`; the orchestrator annotates its `model:` line, and a ticket
+  without a `project:` gets the one the planner names.
+- Under Claude Code the model is the Agent call's `model` override and the provider is ignored. A `fork` always runs
+  the orchestrator's model, so fork only a worker the plan gives that model.
 
 ## Mechanics
 
@@ -59,8 +60,8 @@ and the orchestrator reads that file once the worker settles:
 |---|---|---|
 | spawn | `herdr pane split --current --direction right --cwd "$REPO_DIR" --no-focus` (read `.result.pane.pane_id`), then `herdr agent start <name> --kind hermes --pane <id> --timeout 30000 -- -m <model> --provider <prov> -s <persona>[,l-style,l-style-architecture[,l-style-testing]]` | one Agent call per worker, `subagent_type` general-purpose, `model` from the plan or annotation; the prompt names the role, the skills to load, the output file, then "stop". Live mode may use `fork` to share the orchestrator's context; task mode never does, since a worker starts from the durable files |
 | isolate parallel edits | `herdr worktree create`; the worker starts in the worktree's root pane (`.result.root_pane.pane_id`) and skips the split | `isolation: "worktree"` on the Agent call |
-| drive / follow up | `herdr agent prompt <name> "<task, ending in: write to <file>, then stop>" --wait --timeout 120000` | `SendMessage` to the worker's id or name, context intact |
-| wait | `--wait` blocks until it settles; else `herdr agent get <name>` until idle | no polling: a completion notification arrives |
+| drive / follow up | `herdr agent prompt <name> "<task, ending in: write to <file>, then stop>" --wait --timeout <stage ms>` | `SendMessage` to the worker's id or name, context intact |
+| wait | `--wait` blocks until it settles; a worker prompted without it: `herdr agent wait <name> --timeout <stage ms>` | no polling: a completion notification arrives |
 | read the result | `cat <output file>` | the same |
 | close | `herdr pane close <pane_id>`; `herdr worktree remove --workspace <id>` once its PR is open | a finished agent exits by itself; stop a stale one with `TaskStop <task_id>`; an unchanged worktree is cleaned automatically |
 
@@ -73,8 +74,11 @@ dialog. A start that times out or returns `agent_not_ready`: inspect with `herdr
 recent-unwrapped --lines 40` and `herdr agent get <name>`. Never close a pane or remove a worktree you did not
 create, and never `herdr server stop`.
 
-Parallel research: spawn every research worker of a stage at once (Hermes: spawn all panes, prompt all, then poll
-each with `herdr agent get <name>` until idle; Claude Code: all Agent calls in one turn) before synthesis.
+`<stage ms>` is the stage's timeout from Lifecycle: `1800000` for research, design and review, `3600000` for
+implement and test. A timeout or `agent_prompt_stalled` does not prove the prompt was lost: inspect before resending.
+
+Parallel research: spawn every research worker of a stage at once (Hermes: spawn all panes, prompt each without
+`--wait`, then `herdr agent wait` each in turn; Claude Code: all Agent calls in one turn) before synthesis.
 
 ## Lifecycle
 
@@ -84,7 +88,8 @@ A worker lives for one stage (in task mode: one stage of one ticket) plus the fi
   beat as the spawn: `task <id> annotate "worker: <name> pane: <pane_id>"` (Herdr) or `"worker: <name> agent:
   <task_id>"` (Claude Code); the open `worker:` annotations are the workers it owns.
 - **Finished.** Its file is read and the next stage started. Close it now unless the next stage prompts it again
-  (the programmer gets the review), and drop the record (task mode: `task <id> denotate "worker: <name> ..."`).
+  (the programmer gets the review), and drop the record (task mode: `task <id> denotate "worker: <name>"`, which
+  removes the annotation containing that text).
 - **Stale.** Every wait has a timeout: 30 minutes for research, design and review, 60 for implement and test. A
   worker is stale when it settles without writing its file after one follow-up, when it is `blocked` on a dialog
   (nobody answers it), or when it is still `working`/`unknown` at its timeout with no new output since the last

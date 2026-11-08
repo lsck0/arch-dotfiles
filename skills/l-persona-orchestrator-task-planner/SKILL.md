@@ -11,11 +11,14 @@ A worker persona spawned by the mode skills (`l-multi-agent-mode`,
 Decide what work is needed before any of it starts.
 
 - Check what models are actually reachable right now; never assume a fixed
-  set. On Hermes the check is `hermes auth list` (a model and a provider per
-  worker); local models (ollama, vllm) are never a worker. Under Claude Code there is no provider: pick the Agent
-  tool's model by strength (opus for design/spec/implementation/review,
-  a smaller model for research) and state it as the model, provider n/a.
-- What research is needed, by whom, and what model strength it warrants.
+  set. On Hermes the check is `hermes auth list` (each provider's pooled
+  credentials and their state); local models (ollama, vllm) are never a
+  worker. Under Claude Code there is no provider: pick
+  the Agent tool's `model` by strength (`opus` for design, spec,
+  implementation and review, `sonnet` or `haiku` for research) and write
+  the provider as `n/a`.
+- What research is needed, by whom, and what model strength it warrants
+  (`l-spec-driven-development`, Parallelism and model choice).
 - Size fan-out to the work, not the ambition: parallel workers buy
   parallelism and fresh eyes, not a better answer, and a multi-agent run
   costs many times the tokens. Plan parallel workers for independent
@@ -43,29 +46,36 @@ Decide what work is needed before any of it starts.
   - A claimed bug is checked in the code first; say what you checked, or
     that it wasn't reproduced.
 
-Two calling contexts, different output:
+## Output
+
+Every model assignment is one line in exactly this form, since the
+orchestrator copies it verbatim onto a ticket and later parses it:
+`model: <model> provider: <provider>` (`provider: n/a` under Claude Code).
+Persona sets are `workers: <persona skills>`, comma-separated.
+
+Two calling contexts:
 - **Live** (`l-multi-agent-mode`, no task db): pick the governing spec
   (or the next `specs/spec-<nnn>-<slug>/`, per `l-spec-driven-development`'s
   Sync stage) and write `PLAN.md` into this change's notes directory
   `specs/spec-<nnn>-<slug>/notes/<date>-<change>/`: chosen personas,
-  worker count, model/provider per worker, dependency order.
-- **Queue** (`l-multi-agent-task-mode`, decomposing a `+prompt` task): the
-  calling prompt tells you so explicitly. Same reasoning, but state the
-  plan as `project:<slug>.*` groupings (research, design, spec), the
+  worker count, a `model:` line per worker, dependency order, and whether
+  a phase needs parallel worktrees. Write nothing else under `specs/`: the
+  orchestrator finds `PLAN.md` as the one new file there.
+- **Queue** (`l-multi-agent-task-mode`, decomposing a `+prompt` task, or
+  one ticket that skipped intake): the calling prompt says so and names
+  the output file under `tasks/context/design/`. Same reasoning, but state
+  the plan as `project:<slug>.*` groupings (research, design, spec), the
   tickets within each, and `depends:` ordering between them. Don't plan
   implementation or testing tickets: once the spec PR merges, the
-  orchestrator creates one phase ticket per `SPEC.md` Roadmap row, each running
-  implement -> review -> test -> land. The orchestrator creates the actual
-  taskwarrior tickets from what you state; it does not read a `PLAN.md`
-  file in this context. State each ticket's model/provider as
-  `model: <model> provider: <provider>` (exact format: the orchestrator
-  annotates it verbatim onto the ticket for a later poll pass to read).
-  Also state one `phases: model: <model> provider: <provider>` for the
-  phase tickets the orchestrator creates after the spec merges.
+  orchestrator creates one phase ticket per `SPEC.md` Roadmap row, each
+  running implement -> review -> test -> land. Give each ticket its
+  `model:` line, and add `phases: model: <model> provider: <provider>` for
+  the phase tickets; for a document deliverable also
+  `phases: workers: <writer persona>, <reviewer personas>`.
 
 Either way: the plan states which providers/models you checked, how, and
 why you picked them, then stop. The calling orchestrator acts on what you
-stated, not on further back-and-forth.
+wrote, not on further back-and-forth.
 
 ## Tools
 

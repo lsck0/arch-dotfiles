@@ -10,26 +10,32 @@ change goes through that repo and session, since a hand change on a guest is los
 
 ## Services
 
-`https://<name>.lsck0.dev`, one wildcard certificate. `*`: behind Authelia SSO.
+`https://<name>.lsck0.dev`, one wildcard certificate. `*`: behind Authelia SSO. Every route with its host and zone
+(internal or external): lab.json's `routes`.
 
 | reach | name | what |
 |---|---|---|
 | internal | `tasks` | taskchampion sync (own client id/secret) |
 | internal | `cal` | calendar feeds and ICS upload (own token) |
 | internal | `terminal` | TRMNL feeds |
-| internal | `grafana`*, `homelab`*, `start`*, `search` | metrics; admin dashboard; dashboard; searxng (login only from outside the house and wireguard) |
+| internal | `grafana`*, `homelab`*, `start`*, `search` | metrics; admin dashboard; dashboard; searxng |
 | internal | `nas`*, `backup`*, `sync`* | filebrowser; kopia; syncthing |
 | internal | `auth`, `lldap`* | Authelia and OIDC; users |
-| internal | `registry` (basic auth), `registry-ui`*, `traefik`*, `proxmox`*, `archbuild`* | registry; ingress; hypervisor; mirror build |
-| public | `ntfy`, `mirror`, `paste`, `share`, `apps` | push; `[lsck0]` repo and iso; privatebin; files; demos |
+| internal | `git`, `wiki`, `sccache`, `hs`, `hs-ui` | forgejo; wiki; build cache; headscale and its UI |
+| internal | `registry` (basic auth), `registry-ui`*, `archbuild`* | registry; its UI; mirror build |
+| infra | `proxmox`* | hypervisor (lab.json `proxmox`, not a route) |
+| external | `ntfy`, `mirror`, `paste`, `share` | push; `[lsck0]` repo and iso; privatebin; files |
+| external | `ts`, `*.mc` | teamspeak; minecraft |
+| external | `hello`, `math`, `nyangine`; `deploy` | swarm apps (lab.json `app`); the dev guest's deploy endpoint |
 
-The media guest is parked: treat it as absent.
+`search` takes a login only from outside the house and wireguard. The media guest (jellyfin and the rest) is parked:
+treat it as absent.
 
 ## Reaching it
 
 - Names resolve through the lab DNS. Bootstrap resolver `192.168.178.29`; `base/networkmanager` routes the lab domain
   to it (options `homelab_dns`, `homelab_domain`, defaulting to `platforms/homelab.nu`).
-- Internal routes answer only on the LAN and over wireguard (`toggle-vpn`, `wg0`); public ones anywhere.
+- Internal routes answer only on the LAN and over wireguard (`toggle-vpn`, `wg0`); external ones anywhere.
 - SMB share `//10.100.0.100/homelab`, credentials `samba-homelab` (`core/nas`).
 - After a service moves: `sudo resolvectl flush-caches` (ask Luca).
 
@@ -66,8 +72,9 @@ grep -A1 '"workstation"\|"notebook"' ~/projects/homelab/src/generated/site.json
 
 A mismatched lease: `nmcli connection down/up <profile>`, or fix the router's reservation; never the dotfiles.
 
-Only the `.mount` unit's `TimeoutSec` bounds that hang (not `soft`/`echo_interval`). autofs has no negative cache, so
-every stat through the mountpoint (or `~/nas`) hangs again until the route is fixed.
+The NAS share hangs the same way: only `mnt-homelab.mount`'s `TimeoutSec` (`core/nas`) bounds it, not
+`soft`/`echo_interval`. The automount has no negative cache, so every stat through `/mnt/homelab` (or `~/nas`) hangs
+again until the route is fixed.
 
 ## Gotchas
 

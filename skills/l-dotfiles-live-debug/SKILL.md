@@ -25,13 +25,17 @@ dot module reset <file>   # back to the module's copy, the edit preserved aside
   stderr lines, the file:line); `dot status` groups them by cause. `config.log` / `install.log` the terminal output.
   The fixes come from `HINTS` in `scripts/lib/cause.nu`; a new failure class is a row there.
 - A crashed run leaves `$XDG_STATE_HOME/dotfiles/crash.json`, its `cause` the same record as the PANIC line's in
-  `dot log`; `dot log --trace` shows each span's errors under it. Root's state: `/var/lib/dotfiles`.
+  `dot log`; `dot log --trace` shows each span's errors under it. Root's state: `/var/lib/dotfiles`. `dot log` with
+  no run recorded prints a note. Cut-off state (the ledger's last line, a module's record, a run log line, the discover
+  cache) is dropped or rescanned, a warning where it matters, never a crash.
+- Login banners in `/etc/issue.d/` (`dotfiles-stage`, `-config`, `-secrets`): `l-dotfiles-install`, Check the chain.
 - Exit 3 means pending, not a failure: a system part under `DOT_SYSTEM=skip`, or modules waiting on their packages
   (`dot status` lists them; `dot apply --packages` installs them).
 - A slow run: `dot log <run> --trace` times each phase (discover, detect, resolve, graph, state, imports, inputs,
   observe, eval, packages). Any lib edit re-evaluates every module once (eval dominates); that is expected. In nushell
   0.116 each call of a closure-taking command (`each`, `where`, `items`, `reduce`) costs in proportion to all custom
-  commands the process parsed, about 0.2 ms inside `dot`, so engine code keeps them out of per-module loops.
+  commands the process parsed, about 0.2 ms inside `dot`, so engine code keeps them out of per-module loops, and
+  `dot plan|apply|status` exec `scripts/lib/pipeline-cli.nu`, which parses only the pipeline, not the whole CLI.
 
 ## systemd, AppArmor, quickshell
 
@@ -63,12 +67,15 @@ A homelab service that times out: `l-homelab`, section Debugging.
 
 ## Everything at once
 
-`collect-diagnostics [dest]` writes `dest/diag-<host>-<time>/`: hardware, boot, network, DNS, firewall, journals (this
-boot, previous, last five as zstd exports), failed units, `dot status`, `dot log`, `FAILURES*`, run logs, crash record,
-stage state, Hyprland and quickshell logs. Bash and coreutils only, so it runs from a USB stick. Asks sudo once for the
-root parts, skips them without. `dest` defaults to a mounted `LSCK0` partition (the install stick's, which carries the
-script too), else `$XDG_STATE_HOME/diagnostics` (never the checkout), from elsewhere to the script's dir. The raw-written
-iso leaves its EFI partition (answer files) nearly full; `LSCK0` is a FAT32 partition added behind it in the free space.
+`collect-diagnostics [--root <mnt>] [dest]` writes `dest/diag-<host>-<time>/`: hardware, boot, network, DNS,
+firewall, journals (this boot, previous, last five as zstd exports), failed units, `dot status`, `dot log`,
+`FAILURES*`, run logs, crash record, stage state, Hyprland and quickshell logs. Bash and coreutils only, so it runs from
+a USB stick. `--root` also reads an installed system mounted there from the stick (its LUKS root opened, `@`, `@home`
+and `@log` mounted as its fstab does): its journal, dot state, stage and install logs, boot config. Root parts go
+through sudo (Luca's run; without sudo they are skipped). `dest` defaults to a mounted `LSCK0` partition (the install
+stick's, which carries the script too), else `$XDG_STATE_HOME/diagnostics` (never the checkout), from elsewhere the
+script's dir. The raw-written iso leaves its EFI partition (answer files) nearly full; `LSCK0` is a FAT32 partition
+added behind it in the free space.
 
 ## Restart
 

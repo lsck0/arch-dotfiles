@@ -21,9 +21,9 @@ Built on apparmor.d (`aa-install`). In `configs/base/apparmor/`:
 ## Policy
 
 Everything that opens other people's content (browsers, mail, chat, media, documents, images, archives, `child-open*`)
-is `enforce`; `apparmor.test.nu` fails otherwise. Back one off on one machine with `aa complain <profile>` (writes
-`/etc/apparmor/*/manual.conf`, survives runs), never in the baseline; likewise `aa enforce`, `aa off`. `aa` shows
-loaded modes, `aa list [filter]` apparmor.d's names.
+is `enforce`; `apparmor.test.nu` fails otherwise. Luca backs one off on one machine with `aa complain <profile>`
+(sudo; writes `/etc/apparmor/{flags,include}.d/manual.conf`, survives runs), never in the baseline; likewise
+`aa enforce`, `aa off`. `aa` (sudo too) shows loaded modes; `aa list [filter]`, apparmor.d's names, needs no root.
 
 ## Fix a denial
 
@@ -35,8 +35,11 @@ loaded modes, `aa list [filter]` apparmor.d's names.
 4. Load: an agent runs `DOT_SYSTEM=skip dot apply` (pending, exit 3) and asks Luca for `dot apply --system`, which
    installs, reloads and fails if a profile is not in its mode. Does nothing on WSL; needs
    `/etc/apparmor.d/abstractions/base-strict`. Quick loop for Luca:
-   `sudo install -m644 configs/base/apparmor/local/<p> /etc/apparmor.d/local/<p> && sudo apparmor_parser -r /etc/apparmor.d/<file>`
-   where `<file>` is `<p>.dotfiles` for an own profile (in `profiles/`), else `<p>.apparmor.d` if it exists, else `<p>`.
+   ```bash
+   sudo install -m644 configs/base/apparmor/local/<p> /etc/apparmor.d/local/<p>
+   sudo apparmor_parser -r /etc/apparmor.d/<file>
+   ```
+   `<file>` is `<p>.dotfiles` for an own profile (in `profiles/`), else `<p>.apparmor.d` if it exists, else `<p>`.
    Never reload the bare `<p>` of an own profile: it is the stock unconfined stub and replaces the enforced one.
    Then still `dot apply --system`.
 5. Retry and recheck the log.

@@ -15,10 +15,9 @@ unreachable routes there. The guest sees `10.0.2.15/24`, gateway `10.0.2.2` (MAC
 home; passt skips the host's 127.0.0.53 stub) or the scenario's. It reports to a socat server on the host
 (`scripts/lib/vm/serve.sh`, the first free port from 8765, `10.0.2.2:8765` from the guest through pasta `-T`) via the
 answers' `report` url, and the chain's end also over the virtio channel `lsck0.report` (`report.log`), which no guest
-firewall stands in front of. qemu, pasta, passt, socat and the heavy host steps get nice 19 and idle io; the io class does nothing
-while luca-pc's NVMe runs the `none` scheduler (`/sys/block/nvme0n1/queue/scheduler`), so there only nice holds. socat and
-pasta keep pidfiles in the cache dir; `dot test destroy` and the next run stop them by pidfile and command line, so a
-ctrl+c leaves them only until then. Up to 12 h a run.
+firewall stands in front of. qemu, pasta, passt, socat and the heavy host steps get nice 19 and idle io, which holds
+since `base/perf` puts flash disks on `mq-deadline`. socat and pasta keep pidfiles in the cache dir; `dot test destroy`
+and the next run stop them by pidfile and command line, so a ctrl+c leaves them only until then. Up to 12 h a run.
 
 ## Before
 
@@ -50,12 +49,14 @@ that disagree (`home,off-home`) are refused. `all` runs each scenario and preset
 
 | scenario | condition |
 |---|---|
-| `home` | `home_network: true`, so the install records passt's gateway MAC; wants `home_network=yes` |
-| `off-home` | `home_network: false`; the host's lan, the lab (`homelab_subnets`) and IPv6 (passt `-4`) out of reach, dns 9.9.9.9 |
+| `home` | `home_network: true`: the install records passt's gateway (MAC, address, dhcp server); `home_network=yes` |
+| `off-home` | `home_network: false`; host lan, lab (`homelab_subnets`) and IPv6 (passt `-4`) blocked, dns 9.9.9.9 |
 | `secrets-locked` | profile `luca`, `--redirdev none`, so no YubiKey reaches the guest; wants the secrets banner |
-| `public-mirror` | the lab (`homelab_subnets` of the run's and the host's platform) unreachable, guest dns 9.9.9.9 |
-| `pkg-fail` | `extra_packages: [lsck0-vm-test-unresolvable]` in the platform file; wants install `failed`, config `ok`, `planted_dropped=yes` |
+| `public-mirror` | the lab (`homelab_subnets` of the run's and the host's platform) blocked, dns 9.9.9.9 |
+| `pkg-fail` | platform `extra_packages: [lsck0-vm-test-unresolvable]`; install `failed`, `planted_dropped` |
 | `no-tor` | `base/tor` declares `lsck0-vm-test-no-tor` in place of `tor`; as pkg-fail, plus `tor_installed=no` |
+| `lab-down` | profile `custom`, off-home plus `mirror.lsck0.dev` blocked (`lsck0`); `lsck0_dropped=yes` |
+| `config-fail` | `core/btop`'s `link` throws: config `failed`, the chain disarmed, `config_banner=yes` |
 | `notebook-2026-10-30` | preset: off-home, secrets-locked, public-mirror on `luca-notebook` |
 
 ```bash
@@ -64,7 +65,8 @@ dot test run --scenario notebook-2026-10-30
 dot test run --scenario all --dry-run
 ```
 
-Snapshot edits need the snapshot, so `pkg-fail` and `no-tor` refuse `--master`. A `replace` whose pattern no longer
+Snapshot edits (`extra_packages`, `replace`) need the snapshot, so `pkg-fail`, `no-tor` and `config-fail` refuse
+`--master`. A `replace` whose pattern no longer
 matches stops the run (and `vm.test.nu` in lint), so a refactor cannot void a scenario.
 
 ## Reports

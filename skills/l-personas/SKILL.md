@@ -33,6 +33,13 @@ orchestration mode spawns workers as:
 Everything else is a domain persona you load directly (or that a mode skill
 preloads onto a worker) before doing work in that domain.
 
+The department personas (marketing, sales, product, finance, legal,
+people, support, comms) deliver documents, not code. Under
+`l-spec-driven-development` they follow its Document deliverables path:
+the persona writes, a fresh worker of it reviews with `l-persona-legal`
+or `l-persona-finance` where law or figures apply, `l-persona-reviewer`
+checks. Sending, posting, signing, paying and filing stay Luca's steps.
+
 Spawning a worker per role multiplies token cost many times over a single
 agent, so fan-out buys parallelism and fresh eyes, not a smarter answer.
 Reserve it for independent research and review; a single coherent coding

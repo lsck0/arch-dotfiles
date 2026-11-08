@@ -26,8 +26,9 @@ task's uuid (`task _get <id>.uuid | cut -c1-8`); numeric ids are only for
 immediate commands. Actual code changes for the implementer persona
 happen in the REAL project tree at its real paths:
 `implementation/report.md` records what changed and where, it is not a
-copy of the code. Don't auto-commit: check for a skill governing this
-repo's commit convention (e.g. `l-dotfiles`) same as any other edit.
+copy of the code. Commits and PRs follow `l-spec-driven-development`
+(Repo rules first: a repo that forbids agent commits stops at a reviewed
+working tree).
 
 ## Stages per ticket
 
@@ -50,9 +51,11 @@ Phase loop: ready, merge per the project's merge policy, branch cleanup.
 
 A document phase (`l-spec-driven-development`, Document deliverables)
 keeps the same tags: `+stage-implement` is the writing,
-`+stage-code-review` the domain and legal review, `+stage-test` the
-fact and figure check, and `+stage-land` waits on the human whenever the
-document commits them outside the repo.
+`+stage-code-review` the review by a fresh worker of the writing persona
+(plus legal or finance where law or figures apply), `+stage-test` the
+fact, figure, link and render check, and `+stage-land` waits on the
+human whenever the document commits them outside the repo. The ticket's
+`workers:` annotation names those personas (`intake.md`, Phase tickets).
 
 Completion follows `l-agent-task-db` ("Completion: `task <id> done`"):
 the agent marks the ticket done itself.
@@ -64,7 +67,8 @@ clean tree (the previous phase merged), then a new branch
 `<type>/spec-<nnn>-p<k>-<slug>` off the base, never off the spec branch
 (`l-spec-driven-development`, Phase loop and Branches).
 
-Two tickets implemented at once each get their own isolated worktree (`l-spec-driven-development`, `references/worktrees.md`; the
+Two tickets implemented at once each get their own isolated worktree
+(`l-spec-driven-development`, `references/worktrees.md`; the
 mechanics table's isolate row in `../../l-multi-agent-mode/references/harness.md`), within its 2-implementer cap, and
 `tasks/context/` stays in the main checkout.
 
@@ -81,20 +85,19 @@ phase ticket:    IMPLEMENT -> draft PR -> REVIEW -> TEST -> LAND
   TEST FAIL   -> implementer gets tests/report.md -> push to PR -> REVIEW -> TEST
   TEST PASS + CI green -> LAND -> ready -> merge policy -> merged -> done
 ```
-Stage tags follow the loop, swapped in one `task modify` each time. No
-human gate inside a phase. LAND per `l-spec-driven-development`'s Phase
+Stage tags follow the loop, swapped in one `task modify` each time: a
+FAIL moves the ticket back to `+stage-implement` while the implementer
+fixes (`task <id> modify -stage-code-review +stage-implement`, or
+`-stage-test`), then forward
+again. No human gate inside a phase. LAND per `l-spec-driven-development`'s Phase
 loop: spec updated in the same PR, trace block, run and revert lines,
 `gh pr ready`, then the merge policy (`agent`: merge; `human`: wait on
 the PR), then branch cleanup and back to the base with a clean tree.
 
 A reviewer never approves its own work: the merge rests on a separate reviewer worker's PASS and the
-tester's report. A repo whose convention forbids auto-committing
-(e.g. `l-dotfiles`) -> stop at a clean, reviewed working tree and leave
-the commit to the human, same deference as the "Don't auto-commit" rule
-above. The ticket is `task <id> done` once its PR is merged (see
+tester's report. The ticket is `task <id> done` once its PR is merged (see
 `l-agent-task-db`, "Completion").
 
-Cleanup follows the lifecycle in `../../l-multi-agent-mode/references/harness.md`. Under Herdr, never close a pane or
-remove a worktree without a `worker:` record from this skill, and never
-`herdr server stop`.
+Cleanup follows the lifecycle in `../../l-multi-agent-mode/references/harness.md`: only panes and worktrees with a
+`worker:` record from this skill are closed.
 

@@ -49,9 +49,10 @@ to a markdown queue; ask first only when it is genuinely unclear that a task db 
    - `+prompt` (not `+agent-task`): run Intake (`references/intake.md`) first; it takes priority over advancing
      decomposed tickets in the same pass.
    - Unclaimed (`+agent-task`, pending, `+READY`, no `+stage-*`, no `+human-*`): claim it in one beat with
-     `task <id> start`, create `tasks/agents/<uuid8>-<slug>/`, annotate the workdir, add `+stage-queued`, then
-     decide its workers (`references/intake.md`). No `model: ... provider: ...` annotation yet: run the single-ticket
-     task-planner first (harness reference, model choice).
+     `task <id> start`, create `tasks/agents/<uuid8>-<slug>/`,
+     `task <id> annotate "workdir: tasks/agents/<uuid8>-<slug>/"`, add `+stage-queued`, then decide its workers
+     (`references/intake.md`). No `model:` annotation yet: run the single-ticket task-planner first (harness
+     reference, model choice).
    - In progress (a `+stage-*`, no `+human-*`): `task <id> start` and reconstruct state from that stage's files under
      `tasks/context/` and `tasks/agents/<uuid8>-<slug>/`, not from conversation history.
    - Waiting on a PR (`+human-review-ready`): check the PR (Human gates); unchanged, skip and list it in the summary.
@@ -73,15 +74,18 @@ The autonomous gates of `l-spec-driven-development` become tags here. Their shar
 the block tag and `+human-answered` in one `task modify`, resuming) live in `l-agent-task-db`.
 
 - **PR gate** (`+human-review-ready`). Two points stop for the human: the input (they file the `+prompt` or issue)
-  and the spec PR from the `.spec` ticket. A phase PR waits on them only under `Merge policy: human` or when branch
-  protection blocks the merge, and then they only merge, without reading code. Waiting on a PR: annotate
+  and the spec PR from the `.spec` ticket. A phase PR waits on them only when `l-spec-driven-development`'s Merge
+  policy says `human`; they merge it without reading code, except a document that commits them outside the repo,
+  which they read. Waiting on a PR: annotate
   `pr: <url>`, tag `+human-review-ready`, `task <id> stop`. Every pass checks each waiting PR itself (`gh pr view <n>
   --json state,updatedAt,reviews,comments`); the human never tags anything. Merged: clear the tag, `task <id> done`
   (the spec ticket first creates the phase tickets). New review or comment: run Feedback and wait again. Closed
-  unmerged: `+human-clarification-needed` with the reason.
+  unmerged: `+human-clarification-needed` with the reason. A `tree:` annotation in place of `pr:` (a repo without
+  agent commits) is checked per `l-agent-task-db`'s Completion instead.
 - **Clarification gate** (`+human-clarification-needed`), before the spec PR only: a decision only a human can make
   that materially changes the product, each with a recommendation, never trivia. Prefer the spec PR's
-  `QUESTIONS.md`. Otherwise write `tasks/context/questions/<uuid8>-<slug>.md` (`l-agent-task-db`'s shape), tag it,
+  `QUESTIONS.md` (the Spec gate's path under `specs/`). Otherwise write
+  `tasks/context/questions/<uuid8>-<slug>.md` (`l-agent-task-db`'s shape), tag it,
   annotate the path, `task <id> stop`; on resume fold the answer into `tasks/context/design/<uuid8>-*.md` and
   continue. After sign-off a spec gap that contradicts a signed-off requirement becomes a new spec PR on the phase
   ticket, waited on with the PR gate.
@@ -98,5 +102,5 @@ automatic.
 - A ticket never carries two `+stage-*` tags, and a claimed ticket never has none.
 - `tasks/agents/` and `tasks/context/` are durable state, not scratch. Ask whether the human wants `tasks/agents/`
   gitignored (pipeline-internal state often shouldn't ship in a PR); `tasks/context/` is normally tracked.
-- Don't auto-commit in a repo whose convention forbids it (e.g. `l-dotfiles`): stop at a clean, reviewed working
-  tree.
+- A repo whose `AGENTS.md` forbids agent commits (arch-dotfiles) gets no PRs: every gate stops at a reviewed working
+  tree (`l-spec-driven-development`, Repo rules first; completion in `l-agent-task-db`).

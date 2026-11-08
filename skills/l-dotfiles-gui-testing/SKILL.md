@@ -83,9 +83,9 @@ XDG_RUNTIME_DIR=$rt HYPRLAND_INSTANCE_SIGNATURE=$nested hyprctl clients -j | jq 
   called as in the next section.
 - The nested compositor is the `aquamarine` client in the outer `hyprctl clients -j`: check its `monitor` is your
   output's id, as for any app, kill the apps inside, then it.
-- Confined apps write only where their AppArmor profile allows: zathura's `-c` as `~/.config/zathura/<agent>`, chromium's
-  `--user-data-dir` as `/tmp/.org.chromium.Chromium.<agent>`. Remove state an app keeps across runs (zathura's
-  `~/.local/share/zathura/bookmarks.sqlite`) with the test files.
+- Confined apps write only where their AppArmor profile allows: zathura's `-c` as `~/.config/zathura/<agent>`,
+  chromium's `--user-data-dir` as `/tmp/.org.chromium.Chromium.<agent>`. Remove state an app keeps across runs
+  (zathura's `~/.local/share/zathura/bookmarks.sqlite`) with the test files.
 
 ## Test quickshell: private runtime dir
 

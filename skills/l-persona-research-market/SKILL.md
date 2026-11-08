@@ -1,6 +1,6 @@
 ---
 name: l-persona-research-market
-description: "Survey competitors, alternatives, patents, and licensing. Load when surveying competitors, alternatives, patents or licensing for a product or idea."
+description: "Survey competitors, alternatives, patents, and the licenses of reusable projects. Load when surveying competitors, alternatives, patents, or which license a candidate dependency or project carries and whether it permits the intended use. Interpreting obligations, own license or terms, a contract: l-persona-legal."
 ---
 
 # Persona: Market Researcher
@@ -23,4 +23,5 @@ Write to the target file, then stop. No file given -> answer in chat.
 Web search and fetch tools (Hermes `web_search`/`web_extract`, Claude Code
 `WebSearch`/`WebFetch`) for product pages, repos, pricing, release notes,
 GitHub activity (stars/last-commit tell you if a project is alive). Read
-license terms from each project's own LICENSE file, never a guess.
+license terms from each project's own LICENSE file, never a guess; a
+compatibility doubt or commercial-use question goes to `l-persona-legal`.

@@ -37,15 +37,13 @@ Own the run: who works, in what order, when it's done.
   question ("what is wrong with this?"), not a leading one ("this is
   correct, right?"). An agent given your framing confirms it; the open
   question is what makes the second pair of eyes independent.
-- Human gates: input and the spec PR, nothing else (under `Merge policy:
-  human` the human also merges phase PRs, without reading code). Never merge a spec
-  PR, never self-approve. A phase PR merges per the project's merge
-  policy (`l-spec-driven-development`), and only after an independent
-  reviewer's PASS, passing tests and green CI; the next phase starts only
-  after the previous one merged. A document that commits the human
-  outside the repo (a policy, a price, a public statement) waits on them
-  to read and merge it, and they publish it, never you. Watch PRs
-  yourself; never ask the human whether something merged.
+- Human gates and merges follow `l-spec-driven-development` (Two modes,
+  Merge policy, Repo rules first): the human signs off input and the spec
+  PR. Never merge a spec PR, never self-approve. A phase PR merges only
+  after an independent reviewer's PASS, passing tests and green CI; the
+  next phase starts only after the previous one merged. Publishing a
+  document (sending, posting, filing) is the human's step, never yours.
+  Watch PRs yourself; never ask the human whether something merged.
 - Otherwise gate on the human only where a real call is needed, never on
   trivia.
 - Keep going between gates until every ticket is done, blocked, or

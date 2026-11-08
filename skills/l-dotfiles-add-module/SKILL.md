@@ -24,7 +24,7 @@ export const meta = {
     reads: [base/ssh]                                 # options in cfg.deps only: no order, never waits on it
     packages: {pacman: [btop], native: [], flatpak: {}, nix: []}
     serial: false                                     # true: runs alone (rustup, a package manager)
-    inputs: [configs/secrets/state/repositories /usr/bin/cargo-kani] # more input-hash files: relative is the repo's, ~ and / as is
+    inputs: [configs/secrets/state/repositories]      # more input-hash files: relative is the repo's, ~ and / as is
     volatile: false                                   # true: always evaluated (reads machine state)
 }
 
@@ -36,7 +36,7 @@ export const options = {
         label: "Accent colour"                        # the settings UI's; group, choices, min/max/step too
         choices: [c1 c2 c3 c4 c5 c6]
         apply: live                                   # live | relink | relogin | reboot
-        scope: user                                   # default machine (the platform only); user: the profile may set it
+        scope: user                                   # default machine (platform only); user: the profile may set it
     }
 }
 
@@ -110,15 +110,16 @@ export def packages [cfg: record]: nothing -> record {
   relink), `scope` (default machine), `toggle` (set through `scripts/toggles/toggle-<name>.nu`: `on`/`off` for a
   bool, else `set <value>`; its `get` is what the settings window shows).
 - Facts: `platform-has homelab|wireguard|secure_boot_own_keys|lsck0_snapshot` (`PLATFORM_FACTS`), `$env.FORM_FACTOR`
-  (`desktop laptop server vm wsl`), `owner-unlocked` and `profile-has secrets` (link only). Settings are options:
-  `dot set <group/module>.<key> <value> [--machine]`.
+  (`desktop laptop server vm wsl`), `owner-unlocked` and `profile-has secrets` (link only); which to use:
+  `l-dotfiles-platform-facts`. Settings are options: `dot set <group/module>.<key> <value> [--machine]`.
 - A file the app later edits is drift: kept until `dot module adopt <file>` (into the module) or `dot module reset
   <file>` (module's copy back, edit preserved aside); `dot apply --force <group>/<module>` resets all.
 - One-time change on installed machines: `migrations/<NNNN>-<slug>.nu` from `0000-sample.nu` (`up` only;
   `export const layer = "system"` runs as root). Fresh installs mark all as run, so a migration never replaces a
   declaration.
-- Root gets a module's non-`.nu` files in its copy only when root runs a verb or hook of it (`system`, `packages`,
-  `detect`): a `system` verb reading another module's data file needs that module to have one of them too.
+- Root runs the `system` verb and `packages` hook of a module, and `detect` only of a module such a one names in
+  `deps` or `reads` (`modules-root-run` in `scripts/lib/modules.nu`). The root copy holds every `.nu` file but the
+  other files only of those modules: a `system` verb reading another module's data file needs that module root-run.
 - A deleted module's dir needs no unlink first: the next full `dot apply` removes what its state recorded.
 - An app that saves over its copy (OBS, save-on-exit apps) needs a `backup` verb carrying the live file back (run by
   `dot sync`). Per-machine state (resolution, devices, logins) goes to `host-file <dir> <file>`
@@ -136,5 +137,4 @@ dot test lint                      # refs, layer rules, the module's *.test.nu
 dot test check                     # formatters, linters, nu parse gate
 ```
 
-`dot log --trace` shows timing, `dot explain <path>` the writer. Agents run with `DOT_SYSTEM=skip` (or `--no-system`):
-a system part is pending (exit 3). A root prompt on Luca's side takes a YubiKey touch, a finger or the password.
+`dot log --trace` shows timing, `dot explain <path>` the writer.

@@ -11,17 +11,16 @@ through `+stage-*` tags: it's scope waiting to be broken down. Every
 poll pass, check for unclaimed `+prompt` tasks first, before touching the
 `+agent-task` queue:
 
-1. Spawn one `l-persona-orchestrator-task-planner` worker (Herdr pane,
-   `-s l-persona-orchestrator-task-planner`), prompt it with the
-   `+prompt` task's description, `--wait`. This is the SAME persona
-   `l-multi-agent-mode` uses for live decomposition: one breakdown brain
-   for both live and queue-driven intake, including model/provider
-   choice (see that persona's own reachability-check instructions). Tell
-   it explicitly: this is queue mode, so its plan must translate into
-   taskwarrior tickets, not just a `PLAN.md` narrative. It names the
-   tickets in these groupings, skipping research or design when they
-   don't apply (same research-necessity test as "Deciding which workers
-   to spawn" below):
+1. Spawn one `l-persona-orchestrator-task-planner` worker (harness
+   reference, spawn row) and wait for it. Its prompt carries the
+   `+prompt` task's description, says this is queue mode, and names its
+   output file `tasks/context/design/<uuid8>-<slug>-intake.md` (uuid8 of
+   the `+prompt` task), so the reasoning for the breakdown survives after
+   the `+prompt` task closes. This is the SAME persona
+   `l-multi-agent-mode` uses for live decomposition, model choice
+   included. It names the tickets in these groupings, skipping research
+   or design when they don't apply (same research-necessity test as
+   "Deciding which workers to spawn" below):
    - `project:<slug>.research`: one or more research tickets.
    - `project:<slug>.design`: depends on the research tickets.
    - `project:<slug>.spec`: exactly one ticket, depends on design; it
@@ -29,45 +28,42 @@ poll pass, check for unclaimed `+prompt` tasks first, before touching the
      `l-spec-driven-development`, `references/spec-format.md`), opens the spec PR and gates
      with `+human-review-ready`.
    No separate testing tickets: testing runs inside each phase ticket.
-   For every ticket it names the model/provider (small/cheap models for
-   research, strong models for design, spec, implementation and review),
-   plus one model/provider for the phase tickets to come.
-2. From the plan, create the tickets:
+   For every ticket it states a `model:` line, plus `phases:` lines for
+   the phase tickets to come (format in the planner persona).
+2. Read the intake file and create the tickets from it:
    `task add project:<slug>.research +agent-task "technical research"`
    (repeat per ticket, per grouping). Every child gets `+agent-task`,
    since these are what future poll passes work. Wire
    `depends:` as above; independent research tickets stay
-   dependency-free so they can run in parallel. Annotate each ticket with
-   the model/provider the plan assigned it:
-   `task <id> annotate "model: <model> provider: <provider>"`, and the
-   `.spec` ticket also with the phase assignment:
-   `task <id> annotate "phases: model: <model> provider: <provider>"`, so a
-   later poll pass spawning this ticket's worker reads it directly
-   instead of re-deriving it (the model rule in `../../l-multi-agent-mode/references/harness.md`).
+   dependency-free so they can run in parallel. Annotate each ticket
+   with its `model:` line verbatim
+   (`task <id> annotate "model: <model> provider: <provider>"`), the
+   `.spec` ticket also with every `phases:` line, so a later poll pass
+   spawning a worker reads it directly instead of re-deriving it (the
+   model rule in `../../l-multi-agent-mode/references/harness.md`), and
+   every ticket with `context: tasks/context/design/<uuid8>-<slug>-intake.md`.
 3. If the project tracks work in GitHub issues, open the issue for the
    ask, or use the one the human filed, assigned to the human
    (`l-spec-driven-development`, `references/trace-and-github.md`), and annotate every created
    ticket `issue: #<n>`; the spec and phase PRs link it from there.
-4. Write the plan itself to
-   `tasks/context/design/<uuid8>-<slug>-intake.md` (uuid8 of the
-   `+prompt` task) so the reasoning for the breakdown survives after the
-   `+prompt` task closes.
-5. Close the `+prompt` task immediately:
+4. Close the `+prompt` task immediately:
    `task <prompt-id> annotate "decomposed into project:<slug>.*: see tasks/context/design/<uuid8>-<slug>-intake.md"`
    then `task <prompt-id> done`. It was scope, not work; it never sits in
    the `+agent-task` queue itself.
-6. Continue this same poll pass into the newly created tickets per the
+5. Continue this same poll pass into the newly created tickets per the
    normal queue-poll procedure (SKILL.md): decomposition and the first
    claimable child(ren) can happen in the same pass.
 
 **Phase tickets.** When the spec PR is merged, the agent creates one
 phase ticket per `SPEC.md` Roadmap phase:
 `task add project:<slug>.p<k> +agent-task "p<k>: <what runs after it>"`,
-each `depends:` on the previous phase ticket, each annotated
-`model: <model> provider: <provider>` from the `.spec` ticket's
-`phases:` annotation, and `issue: #<n>` from it when one exists. If the `.spec` ticket carries none, run the
-task-planner for the phase tickets first. Then `task <id> done` the
-`.spec` ticket.
+each `depends:` on the previous phase ticket, each annotated with the
+`.spec` ticket's `phases:` lines minus the `phases: ` prefix
+(`model: ...`, and `workers: ...` for a document deliverable, whose writer and
+reviewers the stage table below cannot infer), and `issue: #<n>` from it
+when one exists. If the `.spec` ticket carries no `phases: model:` line,
+run the task-planner for the phase tickets first. Then `task <id> done`
+the `.spec` ticket.
 
 ## Deciding which workers to spawn (per task, dynamic)
 
@@ -92,7 +88,7 @@ implementation?**
   before/alongside testing regardless of other research.
 
 Annotate the chosen worker set and the one-line research-included/skipped
-reason onto the task itself (`task <id> annotate "..."`): there's no
+reason onto the task itself (`task <id> annotate "workers: <persona skills>; <reason>"`): there's no
 guarantee a human is reading a live chat at poll time, so the log has to
 live on the task.
 
@@ -120,10 +116,8 @@ live on the task.
 Cross-check this table against `l-personas`' own list before spawning: it
 drifts as personas are added/renamed; the installed skill listing
 (`l-personas`) is the source of truth, this table is only a pipeline-stage
-convenience mapping over it.
+convenience mapping over it. A ticket's `workers:` annotation overrides
+the table.
 
-Run every spawned research worker in parallel (Hermes: spawn all panes,
-prompt all, then poll each with `herdr agent get <name>` until idle; Claude
-Code: issue all Agent calls in one turn and await their completion
-notifications) before moving to synthesis.
-
+Research workers of one stage run in parallel (harness reference,
+Parallel research) before synthesis.

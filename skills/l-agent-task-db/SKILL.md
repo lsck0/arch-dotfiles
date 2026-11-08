@@ -44,8 +44,8 @@ stuff" in one project.
 <this-skill-dir>/scripts/task-dashboard.nu [project-dir]   # else $TASKRC, else ./tasks/.taskrc
 ```
 Run this skill's own `scripts/task-dashboard.nu`, not the `task-dashboard`
-command on PATH (that one is the human's curses TUI over `~/.config/task/taskrc` and
-ignores the project-dir). Taskrc resolution: `<project-dir>/tasks/.taskrc`
+command on PATH (that one is the human's full-screen TUI over `~/.config/task/taskrc` plus every
+`~/projects/*/tasks` db, and takes no project-dir). Taskrc resolution: `<project-dir>/tasks/.taskrc`
 if given, else `$TASKRC`, else `./tasks/.taskrc`. Prints and exits.
 Read-only, human-facing view (never modifies the db): `+prompt` tasks
 still awaiting decomposition, tickets blocked on `+human-clarification-needed`
@@ -73,9 +73,9 @@ without exception:
 
 - The instant a task is claimed or resumed and real work begins,
   `task <id> start`, in the same beat as claiming it, not after.
-- The instant work on it stops for this session (blocked on a human,
-  handed to a worker that hasn't finished yet, or the poll pass is
-  ending): `task <id> stop`. A task sitting `+human-clarification-needed`,
+- The instant work on it stops for this session (blocked on a human, or
+  the poll pass is ending): `task <id> stop`. A ticket whose worker is
+  still running inside the current pass stays started. A task sitting `+human-clarification-needed`,
   `+human-review-ready`, or waiting for the next poll pass is PAUSED, not
   started; never leave it counted as "started" with no active work
   happening.
@@ -90,13 +90,19 @@ ticket's deliverable exists and is verified AND its gate, if any, passed:
 
 - A ticket that opened a PR is done when that PR merged (`gh pr view <n>
   --json state` says `MERGED`): the human merges a spec PR; a phase PR
-  merges per the project's merge policy (`l-spec-driven-development`).
+  merges per `l-spec-driven-development`'s Merge policy.
+- In a repo whose `AGENTS.md` forbids agent commits
+  (`l-spec-driven-development`, Repo rules first) there is no PR: annotate
+  `tree: <changed paths>`, tag `+human-review-ready`, stop; the ticket is
+  done once the human committed those paths
+  (`git status --porcelain -- <paths>` prints nothing).
 - A research/design ticket with no PR is done once its artifact is written
   and checked (research: its research review passed; design: its design
   review passed).
 
-Stop it first and drop its current `+stage-*` tag (e.g. `task <id>
-modify -stage-land`), then `task <id> done`.
+Stop it first and drop its current `+stage-*` and `+human-review-ready`
+tags in one call (e.g. `task <id> modify -stage-land -human-review-ready`),
+then `task <id> done`.
 
 ## Parallelism
 
@@ -133,7 +139,9 @@ task project:sale-tracker.research list
 ## Tag vocabulary
 
 - `+prompt`: the human's raw ask, added by the human themselves
-  (`task add +prompt "Investigate the 500s bug"`). This is intake, not
+  (`task add +prompt "Investigate the 500s bug"`), or a ticket
+  `l-single-agent-task-mode` found too big and returned to intake
+  (`task <id> modify -agent-task +prompt`). This is intake, not
   work: it never carries `+agent-task` or a `+stage-*` tag, and no
   orchestrator picks it up to "work" in place. It exists to be
   decomposed: a task-planner worker turns it into a `project:<slug>.*`
@@ -166,9 +174,10 @@ task project:sale-tracker.research list
   There is no completion stage: a finished ticket is `task <id> done`
   (see "Completion").
 - `+human-review-ready`: a PR is open and waiting on the human: the spec
-  PR (`l-spec-driven-development`'s spec gate), or a phase PR the agent
-  may not merge itself (`Merge policy: human`, a single-mode PR, or a
-  merge blocked by branch protection). Annotate the PR link on the task
+  PR (`l-spec-driven-development`'s spec gate), a phase PR the agent may
+  not merge itself (its Merge policy), or any PR `l-single-agent-task-mode`
+  opened; in a repo without agent commits, a reviewed working tree
+  (Completion). Annotate the PR link on the task
   as `pr: <url>` (`task <id> annotate "pr: https://github.com/o/r/pull/41"`).
   Co-exists with the ticket's current `+stage-*` tag so a resuming agent
   still knows where it is. The agent checks the PR itself every pass
@@ -199,10 +208,11 @@ usually be bumped to H; routine follow-up work stays M/L.
 
 ## `tasks/context/`: the durable record
 
-`tasks/context/{research,design,questions}/<uuid8>-<slug>.md` hold why decisions were made and what was found, in
-place of the spec corpus's `notes/`; the specs themselves live in `specs/` (`l-spec-driven-development`). Annotate
-every file's path on its task the moment it exists (`task 14 annotate "context: tasks/context/research/<file>"`).
-Naming, uuid8, and the question-file template: [references/context-files.md](references/context-files.md).
+`tasks/context/{research,design,questions}/<uuid8>-<slug>.md` hold why decisions were made and what was found.
+Annotate every file's path on its task the moment it exists
+(`task 14 annotate "context: tasks/context/research/<file>"`).
+How it relates to the spec corpus, naming, uuid8, and the question-file template:
+[references/context-files.md](references/context-files.md).
 
 ## Pitfalls
 

@@ -30,4 +30,6 @@ Write to the target file, then stop. No file given -> answer in chat.
 ## Tools
 
 `contrast` (GNOME WCAG contrast checker), the browser devtools
-accessibility inspector (keyboard/focus order, screen-reader tree).
+accessibility inspector (keyboard/focus order, screen-reader tree); the
+`chrome-devtools` MCP server's snapshot and `lighthouse_audit` for the
+same on a running web UI.

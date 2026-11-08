@@ -56,9 +56,7 @@ building on either.
   every design decision, and after every stage and every phase. Nothing
   advances without them.
 - **Autonomous**: an orchestrator skill (`l-multi-agent-mode`,
-  `l-multi-agent-task-mode`) runs the stages unattended
-  (`l-single-agent-task-mode` works only directly workable tickets and
-  hands a full spec pipeline to `l-multi-agent-task-mode`). The human
+  `l-multi-agent-task-mode`) runs the stages unattended. The human
   reviews at two gates only; everything else runs on its own:
   1. **Input**: the prompt or issue.
   2. **Spec**: they sign off the spec PR or send feedback.
@@ -70,14 +68,31 @@ building on either.
   spec is the contract they signed, so the only thing that brings them
   back is a change to it (Phase loop, step 2).
 
+`l-single-agent-task-mode` is neither: it works one ticket without an
+independent reviewer, so the human reviews and merges every PR it opens,
+and a change that needs the full stages goes to `l-multi-agent-task-mode`.
+
 Both modes share the stages, the phase rules, the trace and the GitHub rules
 ([references/trace-and-github.md](references/trace-and-github.md)). The agent never merges a spec PR: that merge is the
 sign-off. In led mode the human merges every PR.
 
-**Merge policy.** The project's `AGENTS.md` states who merges phase PRs:
-`Merge policy: agent` (the agent merges once review, tests and CI pass)
-or `Merge policy: human` (the agent asks the human to merge, and waits
-for it). No line means `human`.
+**Merge policy.** The one home for who merges a phase PR. The project's
+`AGENTS.md` states it: `Merge policy: agent` (the agent merges once
+review, tests and CI pass) or `Merge policy: human` (the agent asks the
+human to merge, and waits for it). No line means `human`. It is `human`
+whatever the line says when branch protection blocks the agent's merge
+(never bypass it), and for a document that commits the human outside the
+repo (Document deliverables), which the human also reads.
+
+**Repo rules first.** These rules are generic across Luca's repos. A
+repo's `AGENTS.md` overrides them where it says otherwise: base branch,
+branch names, commit format, who commits, who merges. Where it forbids
+agents to commit or push (arch-dotfiles: Luca commits through
+`dot sync`), every step that would commit, push or open a PR (Spec gate, Phase
+loop steps 3 and 5, Feedback) stops instead at a reviewed working tree
+holding only that step's changes and reports the changed paths; the
+human's review of that tree replaces the PR, and Sync's fetch, base
+branch and clean-tree steps are waived: work on the tree as it is.
 
 ## Two build shapes
 
@@ -114,9 +129,9 @@ release (the department personas: `l-persona-marketing`, `-sales`, `-product`, `
   link resolves, the output renders.
 - **Phase rules.** Every merged state reads as finished: no placeholders, no TODOs; an unfinished section is left out,
   not stubbed. The PR names the rendered output and the command that renders it.
-- **Merge.** A document that commits the human outside the repo (a policy, a contract, a price, a public statement) is
-  `Merge policy: human` whatever the project says, and here the human reads it: the text is the product. Publishing
-  it (sending, posting, filing) is the human's step, never the agent's; the report says where it goes.
+- **Merge.** A document that commits the human outside the repo (a policy, a contract, a price, a public statement)
+  waits on the human to read and merge it (Merge policy): the text is the product. Publishing it (sending, posting,
+  filing) is the human's step, never the agent's; the report says where it goes.
 
 ## Stages (drop what a small task doesn't need, keep the order)
 
@@ -137,7 +152,9 @@ and `git log -1 --format=%h -- <implemented-in dirs>`. Stamp only after
 actually reading the code.
 
 Research and design drafts are working notes for one change: they live in
-`specs/spec-<nnn>-<slug>/notes/<date>-<change>/`. Research stays there as
+`specs/spec-<nnn>-<slug>/notes/<date>-<change>/` (`<date>` as `YYYY-MM-DD`,
+`<change>` a short slug; under a task db, `tasks/context/` holds them
+instead, `l-agent-task-db`). Research stays there as
 the record behind a decision. The design does not: Spec moves it into
 `SPEC.md` in full, so an implementer never reads the notes.
 
@@ -209,14 +226,12 @@ the same way.
    and the phase rules below hold.
 5. Merge. Mark the PR ready (`gh pr ready <n>`). Autonomous mode acts on
    the merge policy: `agent` merges (`gh pr merge <n> --rebase
-   --delete-branch`); `human` comments that the PR is ready to merge and
-   waits on it (GitHub rules, "Waiting on a PR"). A merge that branch protection blocks, for
-   example on a required human approval, falls back to `human`; never
-   bypass it. Led mode stops at the PR. After the merge the spec
-   describes the merged code; clean up the branch (GitHub rules, Branches). A repo's own
-   commit rule overrides steps 3 and 5 (e.g. `l-dotfiles`: never commit
-   or push): stop at a reviewed working tree holding only the phase's
-   changes and report instead; Sync's clean-tree check is waived there.
+   --delete-branch`; a blocked merge falls back to `human`); `human`
+   comments that the PR is ready to merge and waits on it (GitHub rules,
+   "Waiting on a PR"). Led mode stops at the PR. After the merge the spec
+   describes the merged code; clean up the branch (GitHub rules,
+   Branches). A repo that forbids agent commits skips the commit, push
+   and PR parts of steps 3 and 5 (Repo rules first).
 6. Report: phase, requirement IDs built, every link, how to run it, every
    check as passed, failed or not run. Never round "could not run" up to
    "passed". When the run leaves a process running or anything unverified
@@ -292,5 +307,6 @@ An agent acting as an orchestrator should:
 - size subagent count and model strength to the stage, small/cheap models
   for research, strong models for design, spec, implementation and review.
 - start every stage with a fresh context.
-- communicate through markdown files in the spec directory.
+- communicate through markdown files in the change's notes directory
+  (task mode: under `tasks/`), never through chat.
 

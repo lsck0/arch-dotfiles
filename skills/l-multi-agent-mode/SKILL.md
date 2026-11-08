@@ -19,20 +19,26 @@ Load first:
   table and the worker lifecycle. Live mode reads the model from `PLAN.md`, may `fork` a worker, writes outputs to
   `$SPEC_DIR`, and records workers in `$SPEC_DIR/WORKERS.md`.
 
+A repo whose `AGENTS.md` forbids agent commits (arch-dotfiles) has no spec or phase PRs: each gate stops at a
+reviewed working tree instead (`l-spec-driven-development`, Repo rules first).
+
 ## Workflow
 
 This is `l-spec-driven-development`'s autonomous mode: the human reviews at input and at the spec gate, nowhere else.
 Under `Merge policy: human` they also merge each phase PR, without reading its code.
 
 1. Sync: fetch, base branch up to date, clean tree. Spawn one task-planner worker with the human's raw ask and wait.
-   It picks the governing spec and writes `PLAN.md` into the change's notes directory (`$SPEC_DIR` from here on):
-   which personas run, how many, the model (and provider on Hermes) for each and why, dependency order, and whether a
-   phase needs parallel worktrees.
+   It picks the governing spec and writes `PLAN.md` into the change's notes directory: which personas run, how many,
+   the model (and provider on Hermes) for each and why, dependency order, and whether a phase needs parallel
+   worktrees. Find it as the one new file on the clean tree,
+   `git status --porcelain --untracked-files=all -- specs | grep '/PLAN.md$'`; its directory is `$SPEC_DIR` from
+   here on.
 2. Read `PLAN.md`, state it to the human in a line or two, then execute it: spawn each worker in the order and
    parallelism it gives. Every worker's prompt names `$SPEC_DIR` as where its output goes and the spec directory it
    amends.
 3. Drive reconcile, research, design and spec autonomously, each stage followed by a reviewer worker (FAIL goes back
-   to the author). Then open the spec PR and wait on it (`l-spec-driven-development`, `references/trace-and-github.md`): the human merges it
+   to the author). Then open the spec PR and wait on it (`l-spec-driven-development`,
+   `references/trace-and-github.md`): the human merges it
    or leaves feedback (run Feedback, wait again). Never ask in chat whether it merged; the PR says so.
 4. Phase loop, per `SPEC.md` Roadmap phase: a new branch off the updated base, implement, open the draft PR (trace
    block, run and revert lines; CI runs on it), then review and test against the PR with no human gate. Relay a FAIL

@@ -9,8 +9,10 @@ tasks/context/
   questions/<uuid8>-<slug>.md     # open questions blocking a +human-clarification-needed task
 ```
 The specs themselves live in the repo's spec corpus (`specs/`, see
-`l-spec-driven-development`); `tasks/context/` holds the notes behind a
-change, in place of the corpus's `notes/` directory. Name every
+`l-spec-driven-development`); `tasks/context/` holds the research and
+design notes behind a change, in place of the corpus's `notes/`
+directory. A spec PR's `QUESTIONS.md` still goes in that `notes/`
+directory, since it ships in the PR the human reviews. Name every
 long-lived file or dir `<uuid8>-<slug>`, where uuid8 is the first 8
 characters of the task's uuid (see Pitfalls):
 ```bash

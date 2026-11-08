@@ -44,10 +44,8 @@ headless output (`l-dotfiles-gui-testing`).
 ## Pitfalls
 
 - Never start a second quickshell in the user's session: it takes over notifications, and a test lock locks the real
-  screen. Test the lock only in `dbus-run-session` around a nested compositor.
-- A test shell runs on a private short `XDG_RUNTIME_DIR` (`l-dotfiles-gui-testing`): `Lock.qml` keeps its
-  crash-recovery marker in `$XDG_RUNTIME_DIR/quickshell/locked`, so a locked test shell killed on the real one locks the
-  user's shell on its next start. Every helper it started outlives it: teardown in `l-dotfiles-gui-testing`.
+  screen. A test shell runs only in the nested `dbus-run-session` Hyprland on a private `XDG_RUNTIME_DIR`, and its
+  helpers outlive it: start, lock marker and teardown in `l-dotfiles-gui-testing`.
 - Hot reload sometimes misses: no fresh `Configuration Loaded` means `restart.nu`. It always fails with "<Name> is not
   a type" for an inline component (`component X: ...`) or a file new to the running process; a fresh process loads the
   same tree, so after adding one, restart.
@@ -58,4 +56,3 @@ headless output (`l-dotfiles-gui-testing`).
 - Hover panels stay compact: a reading appears once per panel (no hero, row, sparkline and gauge for one metric),
   empty sections and one-point sparklines hide, long lists cap with an expand row, about 1000 logical px a panel.
 - Helper processes keep old code (cava, pomodoro until a shell restart; `obs-status.nu` until OBS restarts).
-- Never `pkill -f`: the pattern matches the agent's own shell. Kill by PID.

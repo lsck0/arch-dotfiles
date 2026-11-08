@@ -24,4 +24,5 @@ Web search and fetch tools (Hermes `web_search`/`web_extract`, Claude Code
 `WebSearch`/`WebFetch`) to discover prior art, then pull the actual
 paper/repo, don't summarize from an abstract. Load the `arxiv` skill
 (Hermes, if installed) for arXiv search; Semantic Scholar / Google Scholar
-for citation graphs and who-cites-whom.
+for citation graphs and who-cites-whom. The `zotero-mcp` server, when
+connected, for Luca's own library: search, full text, annotations.

@@ -20,7 +20,9 @@ theme name: `dot theme "$(jq -r .wallpaper themes/<t>.json)"`. It links `$XDG_CA
   It reads `palette-load` (`bg`, `fg`, `c0`..`c15`, `light`, `bg_conditioned`) or `palette.nu`, the one conditioning
   authority. Verbs run in parallel; `THEME_ORDERED` (`scripts/lib/internal.nu`) runs a few last, in order.
 - Callers write the wallpaper into `$XDG_RUNTIME_DIR/theme.request`; `dot-theme.path` starts `dot-theme.service` for
-  each waiting request; each run applies the newest one (`TimeoutStartSec=5min`). `--sync` waits for it.
+  each waiting request; each run applies the newest one (`TimeoutStartSec=5min`, 60 s a verb). `--sync` waits for it.
+- `dot internal theme apply` holds `theme.lock` in dot's state dir (`theme-locked`, `scripts/lib/cli.nu`), as do
+  `dot module unlink|remove`, the other writers of a module's theme record; `dot apply` waits on the unit instead.
 - quickshell recolours from `colors.json` through `Commons/Palette.js`, the JS port of `palette.nu`.
 
 `palette.nu` also holds `RADIUS_PX`, `BORDER_PX`, `OPACITY_WINDOW`, `OPACITY_SURFACE`, `OPACITY_BAR`; modules write them
@@ -61,5 +63,5 @@ dot theme --sync <remembered path>
 
 Output in `journalctl --user -u dot-theme.service`. Check `$XDG_CACHE_HOME/wal/<file>`, the look (headless screenshot,
 `l-dotfiles-gui-testing`) and light-theme contrast. `git status` stays clean. A full user run reruns the switch when
-`configs/core/wallust`, `themes/` or any `mod.nu` changed (stamp `$XDG_CACHE_HOME/wal/.theme-stamp`); any apply
+`configs/core/wallust` or `themes/` changed (stamp `$XDG_CACHE_HOME/wal/.theme-stamp`); any apply
 reruns the `theme` verb of each module it applied.

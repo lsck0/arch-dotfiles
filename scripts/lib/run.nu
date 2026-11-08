@@ -33,7 +33,9 @@ const FLATPAK_USER_EXPORTS = ".local/share/flatpak/exports/share"
 const DATA_DIRS_DEFAULT = "/usr/local/share:/usr/share"
 # the first root copy, before root has an entry of its own: system-unpack from this checkout, under root's lock
 const SYSTEM_SEED = 'set -e; umask 022; mkdir -p "${1%/*}"; exec flock "${1%/*}/lock" /usr/bin/nu --no-config-file --stdin -I "$2" -c "use system.nu [system-unpack]; \$in | into binary | system-unpack \"$1\" $3"'
-const THEME_STAMP_PATHS = [configs/core/wallust themes 'configs/*/*/mod.nu']
+# what the palette is made from; a module's own theme verb is re-run by link-run's theme pass when its input changes,
+# so a mod.nu edit is no reason to re-theme every module a second time
+const THEME_STAMP_PATHS = [configs/core/wallust themes]
 # a fresh install's theme: its wallpaper makes wallpaper.nu apply its palette
 const THEME_DEFAULT = path self ../../themes/shien.json
 

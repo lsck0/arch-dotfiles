@@ -16,24 +16,16 @@ routine queued work.
 For db layout, scaffolding, tag vocabulary, completion, and the
 `tasks/context/` question-file convention, load `l-agent-task-db` first:
 hard prerequisite, every time. See the description for sibling routing
-(multi-role pipeline vs. live-no-db); note the pipeline sibling
-`l-multi-agent-task-mode` needs a live Herdr session or the Claude Code
-Agent tool to spawn workers, this one needs neither.
+(multi-role pipeline vs. live-no-db).
 
 ## No harness precondition
 
 Unlike the other two modes, this one spawns no workers, so it needs neither
-`HERDR_ENV` nor the Agent tool: it runs in a plain Hermes session (including,
-unlike the other two modes, inside a `cronjob` run, since it never spawns
-panes) or directly under Claude Code. This makes it the
-natural body for the self-adjusting backoff poll cron described in
-`l-agent-task-db`: set that cron's `prompt` to invoke this skill against
-the project, and let the run's own progress/no-progress outcome drive the
-reschedule at the end per that skill's procedure. That cron job should be
-created under the `orchestrator` Hermes profile, not `default`: see
-`l-agent-task-db`, `references/unattended.md`, for why
-and how (its compression setting fits this mode's own habit of keeping
-real state in `tasks/context/` rather than conversation history).
+`HERDR_ENV` nor the Agent tool: it runs in a plain Hermes session, inside a
+Hermes cron run, or under Claude Code. That makes it the body of the
+self-adjusting backoff poll cron; its setup, the `orchestrator` profile it
+runs under, and the reschedule rule live in `l-agent-task-db`,
+`references/unattended.md`.
 
 ## Taskwarrior prerequisite
 
@@ -64,14 +56,17 @@ leave it untouched for the next live pass of `l-multi-agent-task-mode`.
 
 ## Spec-governed work
 
-A ticket that changes code under a spec's `Implemented in` follows
-`l-spec-driven-development`'s autonomous-mode gates: the change lands as
-a PR with the spec updated in it. This mode has no independent reviewer,
-so it cannot merge its own PR: annotate `pr: <url>`, tag
-`+human-review-ready`, `task <id> stop`, and move on. Never merge or
-self-approve. Work the human should not have to review belongs in
-`l-multi-agent-task-mode`. A ticket that needs a new spec plus several roadmap phases
-is a project tree, not single-ticket work (step 5).
+A ticket that changes code under a spec's `Implemented in` lands per
+`l-spec-driven-development`'s Phase loop, trace and GitHub rules: a PR
+with the spec updated in it. This mode has no independent reviewer, so
+the human reviews and merges every PR it opens, whatever the merge
+policy: annotate `pr: <url>`, tag `+human-review-ready`, `task <id>
+stop`, and move on. Never merge or self-approve. Work the human should
+not have to review belongs in `l-multi-agent-task-mode`. A repo whose
+`AGENTS.md` forbids agent commits gets no PR: stop at the reviewed
+working tree (`l-agent-task-db`, Completion). A ticket that needs a new
+spec plus several roadmap phases is a project tree, not single-ticket
+work (step 5).
 
 ## Working procedure
 
@@ -98,7 +93,9 @@ is a project tree, not single-ticket work (step 5).
      yourself (`gh pr view <n> --json state,updatedAt,reviews,comments`).
      Merged -> clear the tag, `task <id> done`. New review or comment ->
      claim it, run `l-spec-driven-development`'s Feedback on the PR, wait
-     again. Nothing new -> skip, note in the summary.
+     again. Nothing new -> skip, note in the summary. A `tree:`
+     annotation instead of `pr:`: done once the human committed its paths
+     (`l-agent-task-db`, Completion).
    - **Workable**: `+agent-task`, pending, `+READY`, no `+stage-*`, no
      `+human-clarification-needed`, no `+human-review-ready`.
 3. Pick the single highest-priority workable task (taskwarrior's own
@@ -120,8 +117,9 @@ is a project tree, not single-ticket work (step 5).
    out to need a project-tree breakdown (multiple independent
    sub-workstreams, specialist handoffs, a new spec with several phases)
    rather than being directly workable, that's out of scope here: `task <id>
-   stop`, flag it and hand off to `l-multi-agent-task-mode`'s intake
-   procedure instead of forcing it through single-task work.
+   stop`, return it to intake with `task <id> modify -agent-task +prompt`,
+   annotate why, and flag it in the summary; the next live pass of
+   `l-multi-agent-task-mode` decomposes it.
 6. Write your findings/output to `tasks/context/research/<uuid8>-<slug>.md`
    or `tasks/context/design/<uuid8>-<slug>.md` as appropriate (or both):
    this is the durable record, not just an annotation. uuid8 is the first
@@ -139,10 +137,10 @@ is a project tree, not single-ticket work (step 5).
    the human answering and setting `+human-answered` is picked up
    automatically next pass with no manual re-trigger needed; otherwise
    say so rather than implying it wakes itself up.
-8. Finish per `l-agent-task-db` ("Completion: `task <id> done`"): `task
-   <id> stop`, then `task <id> done` once the deliverable exists and is
-   verified and its gate, if any, passed. A ticket that opened a PR
-   stays pending at `+human-review-ready` until the human merged it.
+8. Finish per `l-agent-task-db` ("Completion: `task <id> done`") once the
+   deliverable exists and is verified and its gate, if any, passed. A
+   ticket that opened a PR stays pending at `+human-review-ready` until
+   the human merged it.
 9. Re-adjust `priority:` on remaining tasks if this task's outcome changed
    what's now most urgent: priorities are a live signal, not set-once.
 10. Move to the next workable task. Repeat until no workable tasks remain
@@ -152,12 +150,10 @@ is a project tree, not single-ticket work (step 5).
 11. End with a short summary: what was completed, what's now
     `+human-clarification-needed` or `+human-review-ready` and where its
     question file/PR is, what's left workable.
-12. If this run was invoked by the self-adjusting backoff poll cron
-    (`l-agent-task-db`): update `tasks/.poll-backoff` and
-    `cronjob update` its own schedule per that skill's end-of-run rule:
-    reset to 1 minute if anything advanced this pass, otherwise increment
-    linearly. Skip this step entirely when running live in chat with no
-    such cron wired up.
+12. If this run was invoked by the backoff poll cron: update
+    `tasks/.poll-backoff` and reschedule the job per "End of every run" in
+    `l-agent-task-db`, `references/unattended.md`. Skip this step when
+    running live with no such cron wired up.
 
 ## Non-goals
 

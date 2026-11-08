@@ -83,7 +83,7 @@
   "pywal": { "branch": "main", "commit": "d11b673c0e3d6eb8cbee7ea8cf4a8911f6ee24b9" },
   "rainbow-delimiters.nvim": { "branch": "master", "commit": "65734f76783705255d9ede8a6e4692e1572801a5" },
   "remote-sshfs.nvim": { "branch": "main", "commit": "7a12a1677bbe96ca98f0c713448ac1f518ba09b7" },
-  "render-markdown.nvim": { "branch": "main", "commit": "adc086861a246b66d5243757ef36593bc169c901" },
+  "render-markdown.nvim": { "branch": "main", "commit": "6a94bfa9747b8b6465d300968049c7c7f69bcd7d" },
   "showkeys": { "branch": "main", "commit": "cb0a50296f11f1e585acffba8c253b9e8afc1f84" },
   "smart-splits.nvim": { "branch": "master", "commit": "fdd0142633ae78b175ff29043953e701215a34dd" },
   "snacks.nvim": { "branch": "main", "commit": "882c996cf28183f4d63640de0b4c02ec886d01f2" },
