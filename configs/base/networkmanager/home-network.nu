@@ -1,7 +1,10 @@
 #!/usr/bin/nu --no-config-file
-# NM dispatcher: a link is trusted by the hardware mac plus a known gateway mac, never the ssid, which a foreign network
+# NM dispatcher: a link is trusted by the hardware mac plus a known gateway, never the ssid, which a foreign network
 # can copy. Home (home-gateways: the homelab's network) is trusted too; a trusted network (trusted-gateways) only lifts
 # the lockdown. /run/trusted-network feeds the firewall sets and tor-router; /run/home-network the homelab wiring.
+# A home-gateways line is `<mac> <gateway address> <dhcp server identifier>`: a router mac cannot be rotated once
+# known, so home also wants the address it answers on and the dhcp server its lease names. A mac alone is only
+# trusted, and not even that once a full line names the same mac.
 
 const GATEWAYS = "/etc/NetworkManager/home-gateways"
 const TRUSTED_GATEWAYS = "/etc/NetworkManager/trusted-gateways"
@@ -10,6 +13,9 @@ const TRUSTED_NETWORK = "/run/trusted-network"
 const TOR_ROUTER = "/usr/local/bin/tor-router"
 const TABLES = [fw_egress fw portmaster_bypass]
 const NO_MAC = "00:00:00:00:00:00"
+export const TIER_HOME = "home"
+export const TIER_TRUSTED = "trusted"
+export const TIER_NONE = "untrusted"
 # /sys/class/net/<link>/addr_assign_type of a mac the device itself carries
 const ASSIGN_PERMANENT = "0"
 
@@ -26,8 +32,41 @@ def links-in [file: path]: nothing -> list<string> {
     if ($file | path exists) { open --raw $file | lines } else { [] }
 }
 
-def macs [file: path]: nothing -> list<string> {
-    if ($file | path exists) { open --raw $file | lines | where $it != "" | str lowercase } else { [] }
+def file-read [file: path]: nothing -> string {
+    if ($file | path exists) { open --raw $file } else { "" }
+}
+
+# home-gateways' lines; a malformed one is skipped, a mac alone has no gateway and no dhcp_server.
+export def gateways-parse [text: string]: nothing -> table<mac: string, gateway: any, dhcp_server: any> {
+    $text | lines | str trim | where $it != "" and not ($it | str starts-with "#") | each {|l|
+        let f = $l | str lowercase | split row --regex '\s+'
+        match ($f | length) {
+            1 => {mac: $f.0, gateway: null, dhcp_server: null}
+            3 => {mac: $f.0, gateway: $f.1, dhcp_server: $f.2}
+            _ => null
+        }
+    } | compact
+}
+
+# `ip -4 route show default dev <link>`'s gateway.
+export def route-gateway [route: string]: nothing -> any {
+    $route | lines | get --optional 0 | default "" | parse --regex '^default via (?<gw>\S+)' | get --optional 0.gw
+}
+
+# `nmcli -t -f DHCP4.OPTION device show <link>`'s server identifier, null without a lease.
+export def dhcp-server [options: string]: nothing -> any {
+    $options | parse --regex '(?m):dhcp_server_identifier = (?<id>\S+)$' | get --optional 0.id
+}
+
+# The tier a link reaches by what it sees ({mac gateway dhcp_server} of its default route): home only when a home line
+# names all three; trusted by a trusted mac, or a home mac no full line names.
+export def link-tier [home: table, trusted: list<string>, seen: any]: nothing -> string {
+    if $seen == null or ($seen.mac | is-empty) { return $TIER_NONE }
+    let named = $home | where mac == $seen.mac
+    let full = $named | where gateway != null
+    if ($full | any {|l| $l.gateway == $seen.gateway and $l.dhcp_server == $seen.dhcp_server }) { return $TIER_HOME }
+    if $seen.mac in $trusted or (($full | is-empty) and ($named | is-not-empty)) { return $TIER_TRUSTED }
+    $TIER_NONE
 }
 
 # Writes the links one per line, atomically; none removes the file.
@@ -60,27 +99,29 @@ export def hardware-mac-in-use [address: string, ethtool: string, assign_type: s
     $address == $hardware
 }
 
-def link-gateway-in [link: string, gateways: list<string>]: nothing -> bool {
+# What a link sees of its default route, null unless it carries the hardware mac and has a gateway.
+def link-observe [link: string]: nothing -> any {
     let address = try { open --raw $"/sys/class/net/($link)/address" } catch { "" }
     let assign_type = try { open --raw $"/sys/class/net/($link)/addr_assign_type" } catch { "" }
-    if not (hardware-mac-in-use $address (out ethtool -P $link) $assign_type) { return false }
-    let gateway = out ip -4 route show default dev $link | lines | get --optional 0 | default "" | split row " "
-        | get --optional 2
-    if $gateway == null { return false }
+    if not (hardware-mac-in-use $address (out ethtool -P $link) $assign_type) { return null }
+    let gateway = route-gateway (out ip -4 route show default dev $link)
+    if $gateway == null { return null }
     let mac = gateway-mac $link $gateway | str lowercase
-    $mac != "" and $mac in $gateways
+    {mac: $mac, gateway: $gateway, dhcp_server: (dhcp-server (out nmcli -t -f DHCP4.OPTION device show $link))}
 }
 
 def main [iface: string = "", action: string = ""]: nothing -> nothing {
     if $action not-in [up down] { return }
     if not (physical $iface) and $iface not-in (links-in $TRUSTED_NETWORK) { return }
-    let home_gateways = macs $GATEWAYS
-    let any_gateways = $home_gateways ++ (macs $TRUSTED_GATEWAYS) | uniq
-    let trusted = if ($any_gateways | is-empty) { [] } else {
+    let home_gateways = gateways-parse (file-read $GATEWAYS)
+    let trusted_gateways = file-read $TRUSTED_GATEWAYS | lines | where $it != "" | str lowercase
+    let tiers = if ($home_gateways | is-empty) and ($trusted_gateways | is-empty) { [] } else {
         glob /sys/class/net/* | path basename
-        | where {|link| (physical $link) and not ($action == down and $link == $iface) and (link-gateway-in $link $any_gateways) }
+        | where {|link| (physical $link) and not ($action == down and $link == $iface) }
+        | each {|link| {link: $link, tier: (link-tier $home_gateways $trusted_gateways (link-observe $link))} }
     }
-    let home = $trusted | where {|link| link-gateway-in $link $home_gateways }
+    let trusted = $tiers | where tier != $TIER_NONE | get link
+    let home = $tiers | where tier == $TIER_HOME | get link
     links-save $HOME_NETWORK $home
     links-save $TRUSTED_NETWORK $trusted
     # one transaction per table so a trusted link never drops out in between

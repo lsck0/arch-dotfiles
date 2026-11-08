@@ -88,9 +88,10 @@ export def option-apply [target: string, set: record]: nothing -> nothing {
                 $results = unlink-run $set.module.id
                 print $"note: ($set.module.id) unlinked; dot module remove ($set.module.id) also drops its packages"
             } else {
-                # modules listing this one in meta.deps read its options through cfg.deps: they re-link with it
+                # modules listing this one in meta.deps or meta.reads read its options through cfg.deps: they re-link with it
                 let readers = pipeline-load $REPO user | get modules
-                    | where {|m| $set.module.id in $m.meta.deps and "link" in $m.verbs and $m.cfg.enable } | get id
+                    | where {|m| $set.module.id in ($m.meta.deps ++ ($m.meta.reads? | default [])) and "link" in $m.verbs and $m.cfg.enable }
+                    | get id
                 let ids = (if "link" in $set.module.verbs { [$set.module.id] } else { [] }) ++ $readers
                 if ($ids | is-not-empty) { $results = link-run $ids false }
             }

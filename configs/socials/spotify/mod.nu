@@ -1,6 +1,8 @@
 use module.nu *
 use ../../core/wallust/palette.nu *
 use ../../core/wallust/font.nu [font-load]
+use ini.nu [ini-rows]
+use hook/spicetify-apply.nu [apply-pending]
 
 export const meta = {packages: {pacman: [spicetify-cli spotify spotify-player unzip websocat]}}
 
@@ -9,6 +11,12 @@ const THEMES_COMMIT = "33a08ea009687f5a42ff678015c28797fe142a7c"
 
 const THEME_INI = "Themes/wal/color.ini"
 const THEME_CSS = "Themes/wal/user.css"
+const EXTENSIONS = [adblock.js no-music-videos.js]
+const SETTINGS = [
+    [section key value];
+    [Setting current_theme wal] [Setting color_scheme pywal] [AdditionalOptions experimental_features "0"]
+    [Setting overwrite_assets "1"] [Preprocesses remove_rtl_rule "0"]
+]
 
 def spicetify-dir []: nothing -> path {
     xdg config spicetify
@@ -23,17 +31,18 @@ export def link [cfg: record] {
     ] | decls-flatten
     if (^pacman -Q spotify | complete).exit_code != 0 { return $base }
     let prefs = xdg config spotify prefs
+    let configured = configure-done
     [
         $base
         # spicetify's first run reads spotify's prefs; an empty one stands in before spotify's first start
         (exec spotify-prefs [install -D --mode 644 /dev/null $prefs] --creates $prefs)
         (file-copy adblock.js (spicetify-dir | path join Extensions adblock.js))
         (file-copy no-music-videos.js (spicetify-dir | path join Extensions no-music-videos.js))
-        (step configure)
+        (if $configured { [] } else { step configure })
         (desktop-override spotify.desktop {
             $in | str replace --all --regex '(?m)^Exec=spotify ' $"Exec=($env.PWD)/spotify-launch.nu "
         })
-        (exec spicetify-apply [./hook/spicetify-apply.nu])
+        (if $configured and not (apply-pending) { [] } else { exec spicetify-apply [./hook/spicetify-apply.nu] })
         # --permanent also runs it on every login: an upgrade while logged out fires no path unit
         (user-hook spicetify-apply hook/spicetify-apply.nu --permanent --watch [
             "%h/.config/spotify/prefs" "/opt/spotify/Apps/xpui.spa"
@@ -41,13 +50,23 @@ export def link [cfg: record] {
     ]
 }
 
+# Whether config-xpui.ini already holds what configure sets, read from the file instead of spicetify.
+def configure-done []: nothing -> bool {
+    let ini = spicetify-dir | path join config-xpui.ini
+    if not ($ini | path exists) { return false }
+    let rows = ini-rows (open --raw $ini) | where key != null | select section key value
+    let extensions = $rows | where section == AdditionalOptions and key == extensions | get --optional 0.value | default ""
+        | split row "|"
+    ($SETTINGS | all {|s| $s in $rows }) and ($EXTENSIONS | all { $in in $extensions })
+}
+
 export def configure []: nothing -> nothing {
-    ^spicetify config current_theme wal color_scheme pywal experimental_features 0 overwrite_assets 1 | ignore
-    # on, it also strips the [dir=ltr] rules spotify's spacing lives in
-    ^spicetify config remove_rtl_rule 0 | ignore
+    let settings = $SETTINGS | each {|s| [$s.key $s.value] } | flatten
+    # remove_rtl_rule on also strips the [dir=ltr] rules spotify's spacing lives in
+    ^spicetify config ...$settings | ignore
     # `config extensions` toggles an entry, so only when absent
     let enabled = ^spicetify config extensions | lines | str trim | where $it != ""
-    for ext in [adblock.js no-music-videos.js] {
+    for ext in $EXTENSIONS {
         if $ext not-in $enabled { ^spicetify config extensions $ext | ignore }
     }
 }

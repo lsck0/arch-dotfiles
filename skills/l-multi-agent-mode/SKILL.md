@@ -38,7 +38,9 @@ Under `Merge policy: human` they also merge each phase PR, without reading its c
    block, run and revert lines; CI runs on it), then review and test against the PR with no human gate. Relay a FAIL
    straight to the programmer worker, who pushes fixes to the same PR. Once review, tests and CI pass: `gh pr ready`,
    then the merge policy (merge it, or ask the human and wait on the PR). Clean up the branch, sync the base, next
-   phase. The one exception: a spec gap that contradicts a signed-off requirement becomes a spec PR, waited on.
+   phase. The one exception: a spec gap that contradicts a signed-off requirement becomes a spec PR, waited on. A
+   document deliverable runs the same loop as write, review, check, land (`l-spec-driven-development`, Document
+   deliverables), and its PR waits on the human when it commits them outside the repo.
 5. Report COMPLETE after the last phase merged: requirement IDs built, every PR, every check as passed, failed or not
    run.
 

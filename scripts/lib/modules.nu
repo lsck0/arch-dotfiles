@@ -1,7 +1,7 @@
 # Module discovery, ordering and evaluation, each batch in one child nu.
 
 use log.nu *
-use state.nu [LIB_DIR nu-bin SYSTEM_STATE xdg]
+use state.nu [LIB_DIR nu-bin SYSTEM_STATE xdg save-atomic]
 
 const SELF = path self
 const REPO = path self ../..
@@ -10,6 +10,7 @@ const REPO = path self ../..
 export const VERBS = [link system theme apply backup restore update]
 export const HOOKS = [detect packages]
 const MARKER = "mod.nu"
+const DEPENDENCIES = "dependencies.txt"
 export const ROOT_MODULES = [scripts skills]
 export const SECRETS_GROUP = "secrets"
 export const SECRETS_DATA = ["secrets/keys/**" "secrets/state/**"]
@@ -25,6 +26,26 @@ const PROFILE_HOME_NONE = "/nonexistent"
 export def names-read [file: path]: nothing -> list<string> {
     if not ($file | path exists) { return [] }
     open --raw $file | lines | each { split row "#" | first | str trim | split row " " | first } | where $it != ""
+}
+
+# The mod.nu and dependencies.txt files under configs/, absolute. git's index and untracked list in a checkout and its
+# secrets submodule, which skip ignored trees (qmk_firmware's 40k files); a walk where either has no git (the root copy).
+export def modules-markers [repo: path]: nothing -> list<string> {
+    let configs = $repo | path join configs
+    let dirs = [$repo ($configs | path join $SECRETS_GROUP)] | where ($it | path exists)
+    let listed = $dirs | each {|d|
+        if not ($d | path join .git | path exists) { return null }
+        let within = if $d == $repo { "configs/" } else { "" }
+        let found = ^git -C $d ls-files -z --cached --others --exclude-standard --deduplicate -- $":\(glob\)($within)**/($MARKER)" $":\(glob\)($within)**/($DEPENDENCIES)" | complete
+        if $found.exit_code != 0 { return null }
+        $found.stdout | split row (char nul) | where $it != "" | each {|f| $d | path join $f }
+    }
+    # each drops a null: a dir without its list is one row short
+    if ($listed | length) != ($dirs | length) {
+        return (glob $"($configs)/**/{($MARKER),($DEPENDENCIES)}" --no-dir --exclude $SECRETS_DATA)
+    }
+    let data = $SECRETS_DATA | each { str replace "/**" "/" | $"($configs)/($in)" }
+    $listed | flatten | where {|f| ($f | path exists) and not ($data | any {|p| $f | str starts-with $p }) } | uniq
 }
 
 def native-script [mods: list<record>, body: string]: nothing -> string {
@@ -92,65 +113,136 @@ def modules-scan [repo: path, markers: list<path>]: nothing -> table {
 # Every module in the repo, cached on the markers' stat; selected says whether this platform runs it.
 export def modules-discover [repo: path, groups: list<string>]: nothing -> table {
     let configs = $repo | path join configs
-    let markers = glob $"($configs)/*/**/($MARKER)" --exclude $SECRETS_DATA
-        | append ($ROOT_MODULES | each {|r| glob $"($repo)/($r)/($MARKER)" } | flatten)
-    let inputs = $markers | append (glob $"($configs)/**/dependencies.txt" --exclude $SECRETS_DATA)
-        | append $SELF
+    let found = modules-markers $repo
+    let markers = $found | where ($it | path basename) == $MARKER and ($it | path dirname) != $configs
+        | append ($ROOT_MODULES | each {|r| $repo | path join $r $MARKER } | where ($it | path exists))
+    let inputs = $markers | append ($found | where ($it | path basename) == $DEPENDENCIES) | append $SELF
     let key = ls --full-paths ...$inputs | select name size modified | to nuon | hash sha256
     # the caller's own cache, never root's: a user plans the system layer too
     let cache = if (is-admin) { $SYSTEM_STATE | path join discover.nuon } else { xdg cache dotfiles discover.nuon }
-    let cached = try { open $cache } catch { {key: ""} }
+    # an unreadable or empty cache (a cut-off write) is a miss, rescanned and written anew
+    let cached = try { let c = open $cache; {key: $c.key, modules: $c.modules} } catch { {key: ""} }
     let found = if $cached.key == $key { $cached.modules } else {
         let scanned = modules-scan $repo $markers
         if not ($scanned | any { $in.broken }) {
             mkdir ($cache | path dirname)
-            {key: $key, modules: $scanned} | save --force $cache
+            {key: $key, modules: $scanned} | to nuon | save-atomic $cache
         }
         $scanned
     }
     $found | insert selected {|m| $m.group in ["" $SECRETS_GROUP] or $m.group in $groups or $m.id in $groups }
 }
 
-# The modules in run order, each with after (what it waits for) and level; ties break by sorted id.
+# The modules root runs a hook of: each with a system verb or a packages hook (a broken one counted, unknown), and of
+# the others those with a detect a root-run module reads through meta.deps or meta.reads. Root probes no other detect.
+export def modules-root-run [modules: table]: nothing -> list<string> {
+    let running = $modules | where {|m| $m.broken or "system" in $m.native or "packages" in $m.native }
+    let read = $running | each {|m| $m.meta.deps ++ ($m.meta.reads? | default []) } | flatten | uniq
+    let detecting = $modules | where {|m| "detect" in $m.native and $m.id in $read } | get id
+    $running.id ++ $detecting | uniq
+}
+
+# The modules in run order, each with after (what it waits for) and level; ties break by sorted id. Dependency
+# edges are reasoned at group granularity (a module waits on a dependency group as a whole, plus its own meta.deps)
+# so the Kahn sort below never walks the full module x edge product, only the small group and meta.deps graphs.
 export def modules-graph [repo: path, modules: table]: nothing -> table {
     let ids = $modules.id
     let groups = $modules.group | uniq | where $it != ""
-    let group_deps = $groups | each {|g|
-        let deps = if $g == $SECRETS_GROUP { $groups | where $it != $g } else {
-            names-read ($repo | path join configs $g dependencies.txt) | append (if $g == "base" { [] } else { [base] })
-        }
-        {group: $g, deps: $deps}
-    }
-    let known = $ids | reduce --fold {} {|i, acc| $acc | insert $i true }
-    let group_ids = $modules | group-by group | items {|g, ms| {group: $g, ids: $ms.id} } | reduce --fold {} {|r, acc| $acc | insert $r.group $r.ids }
+    let group_ids = $modules | where group != "" | group-by group | items {|g, ms| {group: $g, ids: $ms.id} }
+    let group_id_map = $group_ids | reduce --fold {} {|r, acc| $acc | insert $r.group $r.ids }
     let grouped = $modules | where group != "" | get id
-    let group_preds = $group_deps | reduce --fold {} {|g, acc|
-        $acc | insert $g.group ($g.deps | each {|d| $group_ids | get --optional $d | default [] } | flatten)
+    let root_members = $modules | where group == "" | get id
+
+    let group_info = $groups | each {|g|
+        let dep_names = (if $g == $SECRETS_GROUP { $groups | where $it != $g } else {
+            names-read ($repo | path join configs $g dependencies.txt) | append (if $g == "base" { [] } else { [base] })
+        } | uniq | where $it in $groups)
+        {group: $g, dep_groups: $dep_names, after: ($dep_names | each {|d| $group_id_map | get $d } | flatten | uniq)
+            total: ($group_id_map | get $g | length)}
     }
-    let with_preds = $modules | each {|m|
-        let by_group = if $m.group == "" { $grouped } else { $group_preds | get $m.group }
-        $m | insert after ($by_group | append $m.meta.deps | where {|a| $a != $m.id and ($known | get --optional $a | default false) } | uniq)
+    let group_info = $group_info
+        | append {group: "", dep_groups: $groups, after: $grouped, total: ($root_members | length)}
+    let group_total = $group_info | reduce --fold {} {|g, acc| $acc | insert $g.group $g.total }
+    # reverse edges at group granularity: which groups wait on group g
+    let group_dependents = $group_info
+        | each {|g| {group: $g.group, dependents: ($group_info | where ($g.group in $it.dep_groups) | get group)} }
+        | reduce --fold {} {|r, acc| $acc | insert $r.group $r.dependents }
+
+    let with_after = $modules
+        | join ($group_info | select group after) group
+        | join ($group_info | select group dep_groups) group
+
+    # meta.deps touch only the handful of modules declaring them; everyone else keeps the group-level after as is
+    let plain_rows = $with_after | where ($it.meta.deps | is-empty) | insert meta_extra []
+    let meta_rows = $with_after | where ($it.meta.deps | is-not-empty) | each {|m|
+        let extra = $m.meta.deps | where {|a| $a != $m.id and $a in $ids } | uniq
+        $m | update after ($m.after | append $extra | uniq) | insert meta_extra $extra
     }
-    let sorted = $with_preds | sort-by id
+    let sorted = ($plain_rows | append $meta_rows) | sort-by id
     let position = $sorted | enumerate | reduce --fold {} {|r, acc| $acc | insert $r.item.id $r.index }
-    let dependents = $sorted | each {|m| $m.after | each {|a| {after: $a, id: $m.id} } } | flatten | group-by after
-    mut waiting = $sorted | reduce --fold {} {|m, acc| $acc | insert $m.id ($m.after | length) }
-    mut ready = $sorted | where ($it.after | is-empty) | get id
+    let meta_dependents = $meta_rows
+        | each {|m| $m.meta_extra | each {|d| {after: $d, id: $m.id} } } | flatten | group-by after
+
+    mut group_done = {}
+    mut group_max_level = {}
+    mut pending_groups = {}
+    for g in $group_info.group {
+        $group_done = $group_done | insert $g 0
+        $pending_groups = $pending_groups | insert $g ($group_info | where group == $g | get 0.dep_groups | length)
+    }
+
+    mut pending_meta = {}
+    mut ready = []
+    for row in $sorted {
+        $pending_meta = $pending_meta | insert $row.id ($row.meta_extra | length)
+        if ($pending_groups | get $row.group) == 0 and ($row.meta_extra | is-empty) { $ready = $ready | append $row.id }
+    }
+    $ready = $ready | sort
+
     mut done = {}
     mut order = []
     while ($ready | is-not-empty) {
         let id = $ready | first
         $ready = $ready | skip 1
         let next = $sorted | get ($position | get $id)
-        let finished = $done
-        let level = $next.after | each {|a| $finished | get $a } | append (-1) | math max | $in + 1
+        mut level = -1
+        for g in $next.dep_groups {
+            let lv = ($group_max_level | get --optional $g | default (-1))
+            if $lv > $level { $level = $lv }
+        }
+        for d in $next.meta_extra {
+            let lv = ($done | get --optional $d | default (-1))
+            if $lv > $level { $level = $lv }
+        }
+        $level = $level + 1
         $done = $done | insert $id $level
-        $order = $order | append ($next | insert level $level)
+        $order = $order | append ($next | reject dep_groups meta_extra | insert level $level)
+
         mut freed = []
-        for d in ($dependents | get --optional $id | default [] | get --optional id | default []) {
-            let count = ($waiting | get $d) - 1
-            $waiting = $waiting | upsert $d $count
-            if $count == 0 { $freed = $freed | append $d }
+        let g = $next.group
+        let prior_max = $group_max_level | get --optional $g | default (-1)
+        if $prior_max < $level { $group_max_level = $group_max_level | upsert $g $level }
+        let gdone = ($group_done | get $g) + 1
+        $group_done = $group_done | upsert $g $gdone
+        if $gdone == ($group_total | get $g) {
+            for dep in ($group_dependents | get --optional $g | default []) {
+                let p = ($pending_groups | get $dep) - 1
+                $pending_groups = $pending_groups | upsert $dep $p
+                if $p == 0 {
+                    let members = if $dep == "" { $root_members } else { $group_id_map | get $dep }
+                    for mid in $members {
+                        if ($pending_meta | get $mid) == 0 { $freed = $freed | append $mid }
+                    }
+                }
+            }
+        }
+        for dependent in ($meta_dependents | get --optional $id | default [] | get --optional id | default []) {
+            let p = ($pending_meta | get $dependent) - 1
+            $pending_meta = $pending_meta | upsert $dependent $p
+            if $p == 0 {
+                let dg = ($sorted | get ($position | get $dependent)).group
+                if ($pending_groups | get $dg) == 0 { $freed = $freed | append $dependent }
+            }
         }
         if ($freed | is-not-empty) { $ready = $ready | append $freed | sort }
     }

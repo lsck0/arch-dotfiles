@@ -2,7 +2,7 @@
 # Table cases for the package gate and the hold on dependents: pure records in, reasons and pending lines out, then
 # pipeline-apply's scheduler over rows that run nothing; what is absent and which link sources are alive against fake
 # tools first on PATH.
-use pipeline.nu [packages-gate packages-absent links-alive module-held pending-lines pipeline-apply]
+use pipeline.nu [packages-gate packages-absent links-alive module-held pending-lines pipeline-apply modules-gone secrets-stamp]
 use modules.nu [modules-eval]
 use module.nu [step]
 use cause.nu [cause-hint]
@@ -10,6 +10,8 @@ use online.nu [OFFLINE_PENDING remote-pending]
 use std/assert
 
 const MISSING_HINT = "dot apply --packages"
+# any commit id: the gitlink an enclosing repo records for a submodule checkout
+const SUBMODULE_COMMIT = "0123456789abcdef0123456789abcdef01234567"
 
 def gate-cases []: nothing -> nothing {
     let declared = [
@@ -93,10 +95,10 @@ def tools-fake [dir: path, scripts: record]: nothing -> path {
     $dir
 }
 
-# pacman -T answers the names not installed, -Qqg whether a group has a member installed
+# pacman -T answers the names not installed, -Qg "<group> <member>" for each group with a member installed
 const PACMAN_FAKE = 'case "$1" in
 -T) shift; for n; do case "$n" in bash|base-devel) ;; *) echo "$n" ;; esac; done ;;
--Qqg) [ "$2" = xorg ] ;;
+-Qg) shift; for n; do [ "$n" = xorg ] && echo "xorg xorg-server" || echo "error: group $n was not found" >&2; done ;;
 *) exit 2 ;;
 esac'
 
@@ -355,6 +357,61 @@ def eval-timeout-cases [work: path]: nothing -> nothing {
     assert (not $r.ok and $r.error == $wants) $"eval timeout: ok ($r.ok) error ($r.error | to nuon), wants ($wants | to nuon)"
 }
 
+# State a deleted module left with outputs is planned for removal; a module still there, one with no outputs and one
+# whose whole group dir is absent (the secrets submodule not checked out) are not.
+def gone-cases [work: path]: nothing -> nothing {
+    let repo = $work | path join gone-repo
+    mkdir ($repo | path join configs kept)
+    let state = $work | path join gone-state
+    let modules = $state | path join dotfiles modules
+    let states = [
+        [id outputs];
+        [kept/gone [{kind: file, target: /gone}]]
+        [kept/here [{kind: file, target: /here}]]
+        [kept/empty []]
+        [absent/module [{kind: file, target: /absent}]]
+    ]
+    for s in $states {
+        mkdir ($modules | path join $s.id)
+        {input: "", run: "", time: "", outputs: $s.outputs} | save ($modules | path join $s.id link.nuon)
+    }
+    let got = with-env {XDG_STATE_HOME: $state, DOT_LAYER: user} { modules-gone {repo: $repo, modules: [{id: kept/here}]} link }
+    assert equal $got [kept/gone] $"gone: got ($got | to nuon)"
+}
+
+# The secrets stamp moves with every edit to keys/: a changed, a deleted and a new key, in a secrets checkout with its own
+# git and in one without, where the enclosing repo's git sees only the submodule's gitlink.
+def secrets-stamp-cases [work: path]: nothing -> nothing {
+    for own_git in [true false] {
+        let repo = $work | path join $"stamp-repo-($own_git)"
+        let keys = $repo | path join configs secrets keys
+        mkdir $keys
+        ^git -C $repo init --quiet
+        "a" | save ($keys | path join a)
+        "b" | save ($keys | path join b)
+        let secrets = $repo | path join configs secrets
+        if $own_git {
+            ^git -C $secrets init --quiet
+            ^git -C $secrets add --all
+            ^git -C $secrets -c user.name=t -c user.email=t@t -c core.hooksPath=/dev/null commit --quiet --message init
+        } else {
+            ^git -C $repo update-index --add --cacheinfo $"160000,($SUBMODULE_COMMIT),configs/secrets"
+        }
+        let stamp = {|| with-env {DOTFILES_SECRETS: ""} { secrets-stamp $repo } }
+        let clean = do $stamp
+        assert equal (do $stamp) $clean $"stamp own git ($own_git): unchanged keys, same stamp"
+        "a2" | save --force ($keys | path join a)
+        let edited = do $stamp
+        assert ($edited != $clean) $"stamp own git ($own_git): an edited key moves it"
+        rm ($keys | path join b)
+        let deleted = do $stamp
+        assert ($deleted != $edited) $"stamp own git ($own_git): a deleted key moves it"
+        "c" | save ($keys | path join c)
+        assert ((do $stamp) != $deleted) $"stamp own git ($own_git): a new key moves it"
+    }
+    assert equal (with-env {DOTFILES_SECRETS: ""} { secrets-stamp ($work | path join stamp-none) }) "" "stamp: no keys/, empty stamp"
+}
+
 def main [] {
     let work = mktemp --directory --tmpdir dot-pipeline-test-XXXXXX
     gate-cases
@@ -369,5 +426,7 @@ def main [] {
     requires-cases $work
     remote-cases $work
     eval-timeout-cases $work
+    gone-cases $work
+    secrets-stamp-cases $work
     rm --recursive --force $work
 }

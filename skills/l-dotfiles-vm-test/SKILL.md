@@ -15,7 +15,8 @@ unreachable routes there. The guest sees `10.0.2.15/24`, gateway `10.0.2.2` (MAC
 home; passt skips the host's 127.0.0.53 stub) or the scenario's. It reports to a socat server on the host
 (`scripts/lib/vm/serve.sh`, the first free port from 8765, `10.0.2.2:8765` from the guest through pasta `-T`) via the
 answers' `report` url, and the chain's end also over the virtio channel `lsck0.report` (`report.log`), which no guest
-firewall stands in front of. qemu, pasta, passt, socat and the heavy host steps get nice 19 and idle io. socat and
+firewall stands in front of. qemu, pasta, passt, socat and the heavy host steps get nice 19 and idle io; the io class does nothing
+while luca-pc's NVMe runs the `none` scheduler (`/sys/block/nvme0n1/queue/scheduler`), so there only nice holds. socat and
 pasta keep pidfiles in the cache dir; `dot test destroy` and the next run stop them by pidfile and command line, so a
 ctrl+c leaves them only until then. Up to 12 h a run.
 

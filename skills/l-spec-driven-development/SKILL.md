@@ -98,6 +98,26 @@ Both shapes use the same spec corpus and the same stages; they differ only in wh
 revertible phase at a time or thrown whole and then refined. Pick the shape that fits the project's stage, and say which
 one when it is not obvious.
 
+## Document deliverables
+
+Some asks deliver a document, not code: a launch plan, a privacy policy, a pricing sheet, a job description, a press
+release (the department personas: `l-persona-marketing`, `-sales`, `-product`, `-finance`, `-legal`, `-people`,
+`-support`, `-comms`). Same stages and gates, with these swaps:
+
+- **Where it lives.** A source file in the repo (`docs/<area>/<slug>.md`, or the typst or other source its output
+  needs), named in the spec's `Implemented in` like code. The spec's requirements are checkable statements about it:
+  audience, the decision or use it serves, what it must contain, its limits (law, budget, brand). A short one skips
+  Design: the spec PR carries the outline and the open questions.
+- **Phase loop.** A phase is a section or a version of the document, one PR each. Implement is *write* (the department
+  persona); review is a fresh worker of that persona plus `l-persona-legal` where law applies and `l-persona-finance`
+  where figures do; test is *check* (`l-persona-reviewer`): every fact names its source, every figure recomputes, every
+  link resolves, the output renders.
+- **Phase rules.** Every merged state reads as finished: no placeholders, no TODOs; an unfinished section is left out,
+  not stubbed. The PR names the rendered output and the command that renders it.
+- **Merge.** A document that commits the human outside the repo (a policy, a contract, a price, a public statement) is
+  `Merge policy: human` whatever the project says, and here the human reads it: the text is the product. Publishing
+  it (sending, posting, filing) is the human's step, never the agent's; the report says where it goes.
+
 ## Stages (drop what a small task doesn't need, keep the order)
 
 **Sync.** Fetch, get onto the up-to-date base branch (`master`

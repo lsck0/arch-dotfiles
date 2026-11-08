@@ -18,3 +18,5 @@
   (`owner-unlocked`: the secrets profile AND the YubiKey), not `profile-has secrets` alone. `projects` runs after
   `core/gh`.
 - Telemetry off for every agent and editor.
+- Editors in use are nvim, Doom Emacs and Zed. VSCodium (vim keys, theme, settings) and JetBrains (toolbox only) are
+  backups: no language extensions, LSPs or theme parity are owed to them.

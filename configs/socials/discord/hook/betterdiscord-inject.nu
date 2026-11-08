@@ -2,8 +2,8 @@
 # no betterdiscordctl: it assumes one discord_desktop_core suffix, which differs between hosts
 
 const REPO = path self | path dirname | path join ../../../.. | path expand
-const ASAR_URL = "https://github.com/BetterDiscord/BetterDiscord/releases/download/v1.14.1/betterdiscord.asar"
-const ASAR_SHA256 = "8595fffc8a8339f01cdf80b4a34c641cb96cf567732c5227f5c4c6779edff6f6"
+const ASAR_URL = "https://github.com/BetterDiscord/BetterDiscord/releases/download/v1.14.5/betterdiscord.asar"
+const ASAR_SHA256 = "3f9c9a1588813dd3b4ee1f573157da9b93db474286fd0a28603b0e3fafe71655"
 const FRESH_SECONDS = 60
 const EXIT_WAIT_SECONDS = 10
 

@@ -1,4 +1,6 @@
 use module.nu *
+use steam-launch-options.nu [launch-options-fingerprint launch-options-stamp]
+use hook/steam-bootstrap.nu [bootstrap-pending]
 
 export const meta = {deps: [gaming/gamemode gaming/mangohud], packages: {pacman: [millennium steam]}}
 
@@ -6,6 +8,12 @@ const MILLENNIUM_LIB = "/usr/lib/millennium"
 
 def theme-dir []: nothing -> path {
     xdg data Steam millennium themes cyberpunk
+}
+
+# A run while steam is open writes no stamp, so it stays planned until one gets through.
+def launch-options-done []: nothing -> bool {
+    let stamp = launch-options-stamp
+    ($stamp | path exists) and (open --raw $stamp) == (launch-options-fingerprint)
 }
 
 export def link [cfg: record] {
@@ -27,11 +35,11 @@ export def link [cfg: record] {
             (json-set [themes activeTheme] cyberpunk)
         ])
         (link-commands steam-launch-options.nu)
-        (exec steam-launch-options [nu --no-config-file steam-launch-options.nu])
+        (if (launch-options-done) { [] } else { exec steam-launch-options [nu --no-config-file steam-launch-options.nu] })
         (if $linked { [] } else {
             let installed = "%h/.local/share/Steam/package/steam_client_ubuntu12.installed"
             user-hook steam-bootstrap hook/steam-bootstrap.nu --no-brake --watch [$installed]
         })
-        (exec steam-bootstrap [nu --no-config-file hook/steam-bootstrap.nu])
+        (if (bootstrap-pending) { exec steam-bootstrap [nu --no-config-file hook/steam-bootstrap.nu] } else { [] })
     ]
 }

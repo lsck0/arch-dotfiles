@@ -1,5 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 # gamemode stays per game: preloaded into the client it breaks the webhelper's websocket
+# no MANGOHUD=1 on the client either: its shader-precompile helper fossilize_replay loads the layer and aborts at exit
 
 const SELF = path self
 const GROUP = "vpn-bypass"
@@ -39,7 +40,6 @@ def --wrapped main [...args: string]: nothing -> nothing {
         rm --force $stash
     }
     do { ^$nu.current-exe --no-config-file $LAUNCH_OPTIONS } | complete | ignore
-    $env.MANGOHUD = "1"
     $env.OBS_VKCAPTURE = "1"
     exec /usr/bin/steam ...$args
 }

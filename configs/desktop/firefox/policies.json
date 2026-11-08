@@ -111,18 +111,7 @@
             "Extensions": {
                 "jid1-MnnxcxisBPnSXQ@jetpack": {
                     "showIntroPage": false,
-                    "learnLocally": false,
-                    "disabledSites": [
-                        "login.microsoftonline.com",
-                        "teams.cloud.microsoft",
-                        "teams.microsoft.com",
-                        "outlook.cloud.microsoft",
-                        "outlook.office.com",
-                        "signin.capgemini.com",
-                        "arc.capgemini.com",
-                        "marcoms.capgemini.com",
-                        "capgemini.sharepoint.com"
-                    ]
+                    "learnLocally": false
                 }
             }
         },

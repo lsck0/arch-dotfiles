@@ -72,7 +72,7 @@ def main [mode: string, line: string = ""]: nothing -> nothing {
         return
     }
     let tmp = mktemp -d
-    let ranked = try { rank $mode ($tmp | path join mirrorlist) } catch {|e| rm -rf $tmp; error make {msg: $e.msg} }
+    let ranked = try { rank $mode ($tmp | path join mirrorlist) } catch {|e| rm -rf $tmp; error make $e }
     rm -rf $tmp
     let homelab = try { open --raw $HOMELAB_FILE | str trim } catch { "" }
     # sort keeps the homelab line under the user-defined header; it is prepended again below

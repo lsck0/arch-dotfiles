@@ -48,6 +48,14 @@ headless output (`l-dotfiles-gui-testing`).
 - A test shell runs on a private short `XDG_RUNTIME_DIR` (`l-dotfiles-gui-testing`): `Lock.qml` keeps its
   crash-recovery marker in `$XDG_RUNTIME_DIR/quickshell/locked`, so a locked test shell killed on the real one locks the
   user's shell on its next start. Every helper it started outlives it: teardown in `l-dotfiles-gui-testing`.
-- Hot reload sometimes misses: no fresh `Configuration Loaded` means `restart.nu`.
+- Hot reload sometimes misses: no fresh `Configuration Loaded` means `restart.nu`. It always fails with "<Name> is not
+  a type" for an inline component (`component X: ...`) or a file new to the running process; a fresh process loads the
+  same tree, so after adding one, restart.
+- Check new non-window types before restarting the live bar: a copy of the tree with a test `shell.qml` wrapping them in
+  `Component {}`, run with `QT_QPA_PLATFORM=offscreen`, a private `XDG_RUNTIME_DIR` and `dbus-run-session` in a
+  `systemd-run --user` unit with `-p OnFailure=` (the failure notifier stays quiet). Window types fail there with "No
+  PanelWindow backend loaded".
+- Hover panels stay compact: a reading appears once per panel (no hero, row, sparkline and gauge for one metric),
+  empty sections and one-point sparklines hide, long lists cap with an expand row, about 1000 logical px a panel.
 - Helper processes keep old code (cava, pomodoro until a shell restart; `obs-status.nu` until OBS restarts).
 - Never `pkill -f`: the pattern matches the agent's own shell. Kill by PID.

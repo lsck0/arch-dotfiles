@@ -21,3 +21,5 @@ mirror_public     any  vm    a=$(getent ahostsv4 @LSCK0_HOST@ | awk 'NR==1{print
 lab_reachable     any  vm    curl -s -m 5 -o /dev/null @LAB_MIRROR@ && echo yes || echo no
 tor_installed     any  vm    command -v tor >/dev/null && echo yes || echo no
 planted_dropped   any  vm    grep -qsF lsck0-vm-test- @CHECKOUT@/FAILURES.install @CHECKOUT@/install.log && echo yes || echo no
+lsck0_dropped     any  vm    grep -qx '\[lsck0\]' /etc/pacman.conf && echo no || echo yes
+config_banner     any  vm    test -s /etc/issue.d/dotfiles-config.issue && echo yes || echo no

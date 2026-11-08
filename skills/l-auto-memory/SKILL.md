@@ -116,6 +116,9 @@ It holds:
   tell it: an off-repo decision, a command, a thing that looks wrong but
   isn't.
 - Task state and completed-work logs.
+- Handoffs (where work stopped, open branches, pending decisions) go in the repo's `TODO.md` or the ticket's
+  `tasks/context/`, never in agent memory: the repo is the shared, versioned record. Where agents may not commit
+  (arch-dotfiles), the uncommitted `TODO.md` entry is still the place; the owner's commit picks it up.
 - Speculation. Only record what you verified in this repo.
 
 ## How to keep it good

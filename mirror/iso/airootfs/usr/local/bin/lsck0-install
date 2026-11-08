@@ -25,7 +25,9 @@ const PROBLEM_CHARS_MAX = 60
 const PICK_HIDDEN = "hidden"
 const PICK_RESCAN = "rescan"
 const PICK_SHELL = "shell"
-const PROBES = [https://mirror.lsck0.dev https://github.com]
+# online means the internet answers; the homelab mirror is probed apart, so a lab outage is named as one
+const PROBES = [https://archlinux.org https://github.com]
+const LAB_PROBE = "https://mirror.lsck0.dev"
 const PROBE_TIMEOUT_S = 5
 const SIGNING_KEY = "/usr/share/lsck0/signing-key.asc"
 const SOURCE_PATH_KEYS = [bundle lfs]
@@ -77,6 +79,7 @@ const TEXT = {
     no_link: "no network: plug in a cable or pick a Wi-Fi network"
     no_address: "{devices} is up but has no address yet"
     no_answer: "{host} does not answer over https"
+    lab_down: "install: the homelab mirror ({host}) does not answer: a generic install goes on without its [lsck0] repo, an owner install stops at pacstrap"
 }
 
 def text-fill [text: string, values: record]: nothing -> string {
@@ -541,6 +544,8 @@ def main [] {
 
     if not (network-step $early.wifi) { print "install: stopped; run lsck0-install to start over"; return }
     print "install: online"
+    let lab = ^curl -s -o /dev/null -m $PROBE_TIMEOUT_S -w "%{http_code}" $LAB_PROBE | complete | get stdout
+    if $lab in ["" "000"] { print (text-fill $TEXT.lab_down {host: ($LAB_PROBE | url parse | get host)}) }
     ^systemctl start pacman-init.service
     let reuse = $env.LSCK0_CHECKOUT? | default ""
     let repo = if ($reuse | is-not-empty) { $reuse } else {

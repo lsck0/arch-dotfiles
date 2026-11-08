@@ -169,7 +169,7 @@ def "main apply" [sha: string, stage: string, --unattended, --force, --yes]: not
         try { open --raw ($work | path join secrets.tar) | ^/usr/bin/nu --no-config-file $entry $stage ...$flags; 0 } catch {|e| $e.exit_code? | default 1 }
     } catch {|e|
         rm --recursive --force $work
-        error make {msg: $e.msg}
+        error make $e
     }
     rm --recursive --force $work
     exit $status
@@ -259,7 +259,7 @@ def "main config" [--unattended, --force]: nothing -> nothing {
         $results | any { $in.pending? != null }
     } catch {|e|
         rm --recursive --force $secrets
-        error make {msg: $e.msg}
+        error make $e
     }
     rm --recursive --force $secrets
     rm --force $ADDUSER_BIN
@@ -286,6 +286,8 @@ def "main packages" [--yes, --plan, --unattended]: nothing -> nothing {
     if ($found.remove | is-empty) { return }
     print $"not declared by any module: ($found.remove | str join ' ')"
     if $plan or not ($yes or (tty-confirm $"remove these ($found.remove | length)?")) { return }
+    # a declared package pulled in as a dependency first would go with -s otherwise
+    if ($found.resolved | is-not-empty) { ^pacman -D --asexplicit ...$found.resolved | ignore }
     ^pacman -D --asdeps ...$found.remove | ignore
     let orphans = ^pacman -Qdttq | complete | get stdout | lines | where $it in $found.remove
     let kept = $found.remove | where $it not-in $orphans

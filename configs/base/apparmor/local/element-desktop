@@ -1,2 +1,3 @@
 # managed by arch-dotfiles/apparmor
 include <abstractions/dotfiles/nssdb>
+deny @{sys}/fs/cgroup/**/cpu.max r,

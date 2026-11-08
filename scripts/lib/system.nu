@@ -3,6 +3,7 @@
 use log.nu *
 use state.nu [SYSTEM_REPO]
 use secrets.nu [secret-is-plaintext]
+use modules.nu [modules-discover modules-root-run]
 
 const SYSTEM_PATHS = [configs migrations platforms profiles scripts]
 const SYSTEM_SECRETS = [samba-homelab home-gateways trusted-gateways wifi protonvpn-netns.conf ssh_publickey.asc]
@@ -29,11 +30,35 @@ export def secrets-digest [dir: path, files: list<string>]: nothing -> string {
     $files | sort | each {|f| $"(open --raw ($dir | path join $f) | hash sha256)  ($f)" } | str join "\n" | hash sha256
 }
 
-# Every file the root copy holds, by git's view: --cached the tracked, --others the untracked.
+# Each module dir under configs/ (relative, the secrets group's included) and whether root runs any of its hooks.
+def module-dirs-root [checkout: path]: nothing -> record {
+    let base = $checkout | path expand
+    let modules = modules-discover $base [] | where group != ""
+    let root = modules-root-run $modules
+    $modules | reduce --fold {} {|m, acc| $acc | insert ($m.dir | path relative-to $base) ($m.id in $root) }
+}
+
+# Whether root can read f: any .nu file (a root-run module may import it), anything outside a module under configs/
+# (the root modules scripts and skills included, whole), and every file of a module root runs a hook of.
+def root-reads [f: string, modules: record]: nothing -> bool {
+    if ($f | str ends-with ".nu") { return true }
+    mut dir = $f | path dirname
+    while $dir not-in ["" "."] {
+        let root = $modules | get --optional $dir
+        if $root != null { return $root }
+        $dir = $dir | path dirname
+    }
+    true
+}
+
+# Every file the root copy holds, by git's view: --cached the tracked, --others the untracked. The non-.nu files of a
+# module root never runs stay out, so the app state backup and update write after the pack leaves the copy current.
 export def system-files [checkout: path, which: string]: nothing -> list<string> {
+    let modules = module-dirs-root $checkout
     ^git -C $checkout ls-files -z $which --exclude-standard --deduplicate -- ...$SYSTEM_PATHS
     | split row (char nul) | where {|f| $f != "" and ($checkout | path join $f | path type) == "file" }
     | append (private-files $checkout $which)
+    | where {|f| root-reads $f $modules }
 }
 
 # The secrets the system layer may read, relative to configs/secrets/keys/.

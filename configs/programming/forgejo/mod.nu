@@ -41,8 +41,26 @@ export def link [cfg: record] {
             | each {|f| file-text $f.target $f.text --mode 600 })
         (if $texts.inc == null { [] } else { file-text $inc $texts.inc })
         (file-copy known_hosts ($nu.home-dir | path join .ssh known_hosts.forgejo) --mode 600)
-        (step keys-register --network)
+        (if (secret-is-plaintext $secret) and (keys-stamp | path exists) and (open --raw (keys-stamp)) == (keys-fingerprint) {
+            []
+        } else { step keys-register --network })
     ]
+}
+
+# The owner's ssh public keys readable here.
+def keys-local []: nothing -> list<string> {
+    $env.DOTFILES | path join configs secrets keys ssh_publickey.asc
+    | append (glob ($env.DOTFILES | path join configs secrets yubikey ssh-*.pub))
+    | append (glob ($nu.home-dir | path join .ssh *.pub))
+    | where { secret-is-plaintext $in } | each { open --raw $in | str trim } | uniq
+}
+
+# Which keys went up to which account last: a new key or account registers again, the same set stays offline.
+def keys-stamp []: nothing -> path { xdg cache dotfiles forgejo-keys }
+
+def keys-fingerprint []: nothing -> string {
+    let f = env-read ($env.DOTFILES | path join $SECRET)
+    [$f.FORGEJO_URL $f.FORGEJO_USER ...(keys-local | sort)] | str join "\n" | hash sha256
 }
 
 # Adds the owner's ssh public keys to the Forgejo account; skipped away from the LAN and wireguard.
@@ -56,16 +74,17 @@ export def keys-register []: nothing -> nothing {
         print $"note: forgejo: ssh keys not registered this run: ($e.msg)"
         return
     }
-    let keys = $env.DOTFILES | path join configs secrets keys ssh_publickey.asc
-        | append (glob ($env.DOTFILES | path join configs secrets yubikey ssh-*.pub))
-        | append (glob ($nu.home-dir | path join .ssh *.pub))
-        | where { secret-is-plaintext $in } | each { open --raw $in | str trim } | uniq
-    for key in $keys {
+    let added = keys-local | each {|key|
         let parts = $key | split row ' '
-        if ($parts | length) < 2 or $parts.1 in $have { continue }
+        if ($parts | length) < 2 or $parts.1 in $have { return true }
         let title = $parts | get --optional 2 | default $parts.0
         try {
             http post --max-time 10sec --content-type application/json --headers $auth $api {title: $"($title) (sys host | get hostname)", key: $key} | ignore
-        } catch {|e| print $"note: forgejo: ssh key ($title) not added: ($e.msg)" }
+            true
+        } catch {|e| print $"note: forgejo: ssh key ($title) not added: ($e.msg)"; false }
+    }
+    if ($added | all { $in }) {
+        mkdir (keys-stamp | path dirname)
+        keys-fingerprint | save --force (keys-stamp)
     }
 }

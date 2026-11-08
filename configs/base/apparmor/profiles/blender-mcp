@@ -28,6 +28,7 @@ profile blender-mcp @{exec_path} flags=(attach_disconnected) {
   @{uv_python}/{,**} r,
   @{uv_python}/**.so{,.*} mr,
   deny @{uv_tools}/blender-mcp/**/__pycache__/{,**} w,
+  deny @{uv_python}/**/__pycache__/{,**} w,
 
   owner @{PROC}/@{pid}/cgroup r,
   @{sys}/fs/cgroup/**/cpu.max r,

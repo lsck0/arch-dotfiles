@@ -174,9 +174,9 @@ const GROUP_FILES = [AGENTS.md dependencies.txt]
 const SUBMODULE = "configs/secrets"
 
 # dot sync commits with `git add .`: a file some tool dropped in the checkout must stop it, not ride along.
-def lint-stray []: nothing -> list<string> {
-    let files = ^git -C $REPO ls-files --cached --others --exclude-standard -z | split row (char nul)
-        | where {|f| $f != "" and ($REPO | path join $f | path exists) }
+export def lint-stray [repo: path = $REPO]: nothing -> list<string> {
+    let files = ^git -C $repo ls-files --cached --others --exclude-standard -z | split row (char nul)
+        | where {|f| $f != "" and ($repo | path join $f | path exists) }
     $files | each {|f|
         let parts = $f | split row "/"
         let stray = match ($parts | length) {

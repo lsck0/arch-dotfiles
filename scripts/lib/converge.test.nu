@@ -1,6 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # Table cases for plan-module, state-write and the ledger diff: pure records in, actions and state records out.
-use converge.nu [plan-module state-write state-read ask-batch]
+use converge.nu [plan-module state-write state-read recorded-hashes ask-batch]
+use state.nu [state-dir]
 use module.nu [file-text json-merge json-set]
 use ledger.nu [ledger-diff ledger-remove ledger-get ledger-set]
 use std/assert
@@ -110,6 +111,19 @@ def state-write-cases [work: path]: nothing -> nothing {
     assert equal $mode "600" $"a written file records mode ($mode | to nuon), wants \"600\""
 }
 
+# A module's record left truncated by a crashed write mid-save must not take down every module's plan: state-read and
+# recorded-hashes treat it as an absent record rather than raising.
+def corrupted-state-cases []: nothing -> nothing {
+    let file = state-dir | path join modules $ID "link.nuon"
+    mkdir ($file | path dirname)
+    "{input: \"abc" | save --force $file
+    let read = state-read $ID link
+    assert equal $read {input: "", run: "", time: "", outputs: []} $"state-read of a truncated record: ($read | to nuon), wants empty"
+    let hashes = recorded-hashes
+    assert equal $hashes {} $"recorded-hashes with a truncated record: ($hashes | to nuon), wants {}"
+    rm --force $file
+}
+
 def ledger-diff-cases []: nothing -> nothing {
     let cases = [
         [name owned declared installed keep dropped by_hand];
@@ -182,6 +196,7 @@ def main [] {
             fold-cases $work
             then-failed-cases $work
             state-write-cases $work
+            corrupted-state-cases
             with-env {DOTFILES_UNATTENDED: "1", DOT_TEST_REMOVED: ($work | path join removed)} {
                 ledger-diff-cases
                 ledger-remove-cases
@@ -189,7 +204,7 @@ def main [] {
         }
     } catch {|e|
         rm --recursive --force $work
-        error make {msg: $e.msg}
+        error make $e
     }
     rm --recursive --force $work
 }

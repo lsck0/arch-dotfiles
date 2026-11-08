@@ -70,7 +70,7 @@
             "name": "Screen Capture",
             "source_uuid": "00000000-0000-4000-8000-000000000101",
             "visible": true,
-            "locked": false,
+            "locked": true,
             "rot": 0.0,
             "scale_ref": {
               "x": 3840.0,
@@ -856,7 +856,7 @@
   "saved_projectors": [],
   "preview_locked": false,
   "scaling_enabled": false,
-  "scaling_level": -15,
+  "scaling_level": -7,
   "scaling_off_x": 0.0,
   "scaling_off_y": 0.0,
   "virtual-camera": {

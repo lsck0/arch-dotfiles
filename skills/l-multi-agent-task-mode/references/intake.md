@@ -113,6 +113,9 @@ live on the task.
 | implementer | `l-persona-programmer` | implementer |
 | code reviewer | `l-persona-reviewer` | reviewer |
 | tester | `l-persona-tester` | tester |
+| document writer | the department persona (`l-persona-marketing`, `-legal`, `-finance`, ...) | writer-<dept> |
+| document review | a fresh worker of that persona + `l-persona-legal` / `l-persona-finance` where law or figures apply | doc-reviewer(-legal, -finance) |
+| document check | `l-persona-reviewer` (sources, figures, links, render) | doc-checker |
 
 Cross-check this table against `l-personas`' own list before spawning: it
 drifts as personas are added/renamed; the installed skill listing

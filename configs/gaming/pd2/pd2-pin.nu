@@ -16,7 +16,7 @@ def main []: nothing -> nothing {
             if $md5 != $f.md5 { error make {msg: $"($f.name): md5 ($md5), the manifest says ($f.md5)"} }
             {name: $f.name, sha256: (open --raw $dest | hash sha256), md5: $f.md5}
         }
-    } catch {|e| rm -rf $work; error make {msg: $e.msg} }
+    } catch {|e| rm -rf $work; error make $e }
     rm -rf $work
     let body = $rows | each { $"    [($in.name | to json) \"($in.sha256)\" \"($in.md5)\"]" } | str join "\n"
     [

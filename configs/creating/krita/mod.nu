@@ -29,5 +29,5 @@ export def resource-db []: nothing -> nothing {
         mkdir (data-dir)
         ^cp -an $"($built)/." (data-dir)
         rm --recursive $tmp
-    } catch {|e| rm --recursive --force $tmp; error make {msg: $e.msg} }
+    } catch {|e| rm --recursive --force $tmp; error make $e }
 }

@@ -27,8 +27,9 @@ export def option-type-ok [type: string, value: any]: nothing -> bool {
 }
 
 def spec-errors [id: string, name: string, spec: record]: nothing -> list<string> {
-    let unknown = $spec | columns | where $it not-in $SPEC_KEYS | each {|k| $"configs/($id)/mod.nu: option ($name): unknown spec key ($k)" }
-    let missing = $SPEC_REQUIRED | where $it not-in ($spec | columns) | each {|k| $"configs/($id)/mod.nu: option ($name): no ($k)" }
+    let cols = $spec | columns
+    let unknown = $cols | each {|k| if $k in $SPEC_KEYS { null } else { $"configs/($id)/mod.nu: option ($name): unknown spec key ($k)" } } | compact
+    let missing = $SPEC_REQUIRED | each {|k| if $k in $cols { null } else { $"configs/($id)/mod.nu: option ($name): no ($k)" } } | compact
     let apply = $spec.apply? | default $OPTION_APPLY_DEFAULT
     let scope = $spec.scope? | default $OPTION_SCOPE_DEFAULT
     let enums = [
@@ -54,8 +55,9 @@ export def option-value-errors [id: string, name: string, spec: record, value: a
     $low ++ $high
 }
 
-# A module's option specs with the implicit enable option and label, group, apply and scope filled in.
-export def options-schema [module: record]: nothing -> record {
+# A module's augmented option specs (name -> spec), its built-in defaults/sources and every spec error, all from one
+# pass over module.options: the enable option is never itself validated.
+def module-options-built [module: record]: nothing -> record {
     let enable = {
         type: bool
         default: $module.selected
@@ -65,13 +67,30 @@ export def options-schema [module: record]: nothing -> record {
         scope: user
     }
     $module.options | insert $OPTION_ENABLE $enable | items {|name, spec|
-        {name: $name, spec: ($spec | merge {
+        let augmented = $spec | merge {
             label: ($spec.label? | default ($name | str replace --all "_" " " | str capitalize))
             group: ($spec.group? | default $module.id)
             apply: ($spec.apply? | default $OPTION_APPLY_DEFAULT)
             scope: ($spec.scope? | default $OPTION_SCOPE_DEFAULT)
-        })}
-    } | reduce --fold {} {|o, acc| $acc | insert $o.name $o.spec }
+        }
+        {
+            name: $name
+            spec: $augmented
+            errors: (if $name == $OPTION_ENABLE { [] } else { spec-errors $module.id $name $augmented })
+        }
+    } | reduce --fold {schema: {}, values: {}, sources: {}, errors: []} {|o, acc|
+        {
+            schema: ($acc.schema | insert $o.name $o.spec)
+            values: ($acc.values | insert $o.name $o.spec.default)
+            sources: ($acc.sources | insert $o.name default)
+            errors: ($acc.errors ++ $o.errors)
+        }
+    }
+}
+
+# A module's option specs with the implicit enable option and label, group, apply and scope filled in.
+export def options-schema [module: record]: nothing -> record {
+    (module-options-built $module).schema
 }
 
 # Each module's option values and where each came from, plus every error across the layers.
@@ -86,51 +105,61 @@ export def options-resolve [modules: table, platform: record, profile: any, dete
         $layer.values | columns | where $it not-in $ids | each {|id| $"($layer.file): ($id) is no module" }
     } | flatten
     let set_ids = $layers | each { $in.values | columns } | flatten | uniq
-    let rows = $modules | each {|module|
-        if ($module.options | is-empty) and $module.id not-in $set_ids and $module.id not-in ($detected | columns) {
+    let detected_ids = $detected | columns
+    let rows = $modules | par-each --keep-order {|module|
+        if ($module.options | is-empty) and $module.id not-in $set_ids and $module.id not-in $detected_ids {
             return {id: $module.id, values: {enable: $module.selected}, sources: {enable: default}, errors: []}
         }
-        let schema = options-schema $module
-        let spec_errors = $module.options | items {|name, spec| spec-errors $module.id $name $spec } | flatten
-        let start = {values: ($schema | items {|name, spec| {name: $name, value: $spec.default} } | reduce --fold {} {|o, acc| $acc | insert $o.name $o.value }), sources: ($schema | columns | reduce --fold {} {|n, acc| $acc | insert $n default }), errors: []}
-        let returned = $detected | get --optional $module.id | default {} | items {|name, value| {name: $name, value: $value} }
-            | where value != null
-        let found = $returned | where {|d| ($schema | get --optional $d.name | get --optional default) == null }
-        # a detected value lands only on an option defaulting to null; one with a default would drop it unseen
-        let shadowed = $returned | where {|d| $d.name in ($schema | columns) and ($schema | get $d.name | get --optional default) != null }
-            | each {|d| $"configs/($module.id)/mod.nu: detect returned ($d.name), whose non-null default always wins" }
-        let start = $start | update errors { append $shadowed }
-        let start = $found | reduce --fold $start {|d, acc|
-            let bad = if $d.name in ($schema | columns) {
-                option-value-errors $module.id $d.name ($schema | get $d.name) $d.value $"configs/($module.id)/mod.nu detect"
-            } else {
-                [$"configs/($module.id)/mod.nu: detect returned ($d.name), no option of it"]
-            }
-            if ($bad | is-not-empty) {
-                $acc | update errors { append $bad }
-            } else {
-                $acc | update values { upsert $d.name $d.value } | update sources { upsert $d.name detected }
-            }
-        }
-        let resolved = $layers | reduce --fold $start {|layer, acc|
-            let set = $layer.values | get --optional $module.id | default {}
-            $set | items {|name, value| {name: $name, value: $value} } | reduce --fold $acc {|entry, inner|
-                let spec = $schema | get --optional $entry.name
-                if $spec == null {
-                    $inner | update errors { append $"($layer.file): ($module.id).($entry.name) is no option of it" }
-                } else if $layer.name == "profile" and $spec.scope == "machine" {
-                    $inner | update errors { append $"($layer.file): ($module.id).($entry.name) is a machine option, set it with dot set --machine" }
+        let built = module-options-built $module
+        let schema = $built.schema
+        let start = {values: $built.values, sources: $built.sources, errors: []}
+        let own_detected = $detected | get --optional $module.id | default {}
+        let start = if ($own_detected | is-empty) { $start } else {
+            let entries = $own_detected
+                | items {|name, value| if $value == null { null } else { {name: $name, value: $value} } }
+                | compact
+            # a detected value lands only on an option defaulting to null; one with a default would drop it unseen
+            let folded = $entries | reduce --fold {values: $start.values, sources: $start.sources, shadow: [], found: []} {|d, acc|
+                let known = $d.name in ($schema | columns)
+                let shadowed = $known and (($schema | get $d.name | get --optional default) != null)
+                if $shadowed {
+                    {values: $acc.values, sources: $acc.sources, found: $acc.found, shadow: ($acc.shadow ++ [$"configs/($module.id)/mod.nu: detect returned ($d.name), whose non-null default always wins"])}
+                } else if not $known {
+                    {values: $acc.values, sources: $acc.sources, shadow: $acc.shadow, found: ($acc.found ++ [$"configs/($module.id)/mod.nu: detect returned ($d.name), no option of it"])}
                 } else {
-                    let bad = option-value-errors $module.id $entry.name $spec $entry.value $layer.file
+                    let bad = option-value-errors $module.id $d.name ($schema | get $d.name) $d.value $"configs/($module.id)/mod.nu detect"
                     if ($bad | is-not-empty) {
-                        $inner | update errors { append $bad }
+                        {values: $acc.values, sources: $acc.sources, shadow: $acc.shadow, found: ($acc.found ++ $bad)}
                     } else {
-                        $inner | update values { upsert $entry.name $entry.value } | update sources { upsert $entry.name $layer.name }
+                        {values: ($acc.values | upsert $d.name $d.value), sources: ($acc.sources | upsert $d.name detected), shadow: $acc.shadow, found: $acc.found}
+                    }
+                }
+            }
+            {values: $folded.values, sources: $folded.sources, errors: ($start.errors ++ $folded.shadow ++ $folded.found)}
+        }
+        let resolved = if $module.id not-in $set_ids { $start } else {
+            $layers | reduce --fold $start {|layer, acc|
+                let set = $layer.values | get --optional $module.id | default {}
+                if ($set | is-empty) { $acc } else {
+                    $set | items {|name, value| {name: $name, value: $value} } | reduce --fold $acc {|entry, inner|
+                        let spec = $schema | get --optional $entry.name
+                        if $spec == null {
+                            {values: $inner.values, sources: $inner.sources, errors: ($inner.errors ++ [$"($layer.file): ($module.id).($entry.name) is no option of it"])}
+                        } else if $layer.name == "profile" and $spec.scope == "machine" {
+                            {values: $inner.values, sources: $inner.sources, errors: ($inner.errors ++ [$"($layer.file): ($module.id).($entry.name) is a machine option, set it with dot set --machine"])}
+                        } else {
+                            let bad = option-value-errors $module.id $entry.name $spec $entry.value $layer.file
+                            if ($bad | is-not-empty) {
+                                {values: $inner.values, sources: $inner.sources, errors: ($inner.errors ++ $bad)}
+                            } else {
+                                {values: ($inner.values | upsert $entry.name $entry.value), sources: ($inner.sources | upsert $entry.name $layer.name), errors: $inner.errors}
+                            }
+                        }
                     }
                 }
             }
         }
-        {id: $module.id, values: $resolved.values, sources: $resolved.sources, errors: ($spec_errors ++ $resolved.errors)}
+        {id: $module.id, values: $resolved.values, sources: $resolved.sources, errors: ($built.errors ++ $resolved.errors)}
     }
     {rows: ($rows | reject errors), errors: ($unknown_modules ++ ($rows | get errors | flatten))}
 }

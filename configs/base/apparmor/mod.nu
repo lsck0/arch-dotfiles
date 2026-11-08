@@ -23,6 +23,7 @@ export const OVERRIDES = {
     browserpass: "/usr/bin/browserpass"
     firefox: "/usr/{bin/firefox,lib/firefox/firefox}"
     libreoffice: "/usr/lib/libreoffice/program/soffice"
+    "plasma-browser-integration-host": "/usr/bin/plasma-browser-integration-host"
     thunderbird: "/usr/{bin/thunderbird,lib/thunderbird/thunderbird}"
 }
 
@@ -56,9 +57,9 @@ export def override-text [name: string, source: path]: nothing -> string {
     let upstream = glob $"($source)/**/($name)" --no-dir | where not ($it =~ '/(abstractions|tunables)/') | get --optional 0
     if $upstream == null { error make {msg: $"apparmor: apparmor.d no longer ships ($name), drop it from OVERRIDES"} }
     let text = open --raw $upstream
-    let line = '(?m)^profile ' + $name + ' \S+ flags='
-    if $text !~ $line { error make {msg: $"apparmor: ($upstream) has no 'profile ($name) <attachment> flags=' line"} }
-    $"($MARKER)\n($text | str replace --regex $line $'profile ($name) ($OVERRIDES | get $name) flags=')"
+    let line = '(?m)^profile ' + $name + ' \S+'
+    if $text !~ $line { error make {msg: $"apparmor: ($upstream) has no 'profile ($name) <attachment>' line"} }
+    $"($MARKER)\n($text | str replace --regex $line $'profile ($name) ($OVERRIDES | get $name)')"
 }
 
 def own-profile [name: string, text: string, mode: any]: nothing -> record {

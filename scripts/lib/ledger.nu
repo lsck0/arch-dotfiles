@@ -12,17 +12,30 @@ export def ledger-file []: nothing -> path {
     state-dir | path join ledger
 }
 
-# Sorted.
-export def ledger-get [kind: string]: nothing -> list<string> {
+# The ledger's lines. ledger-set ends every write in a newline, so a last line without one was cut off: it is dropped,
+# not read as a shorter name, and warned once per run; the next ledger-set writes the file whole again. Bytes that are
+# no UTF-8 read as replacement characters, a line no kind matches.
+def ledger-lines []: nothing -> list<string> {
     let file = ledger-file
     if not ($file | path exists) { return [] }
-    open --raw $file | lines | where ($it | str starts-with $"($kind) ") | each { str substring (($kind | str length) + 1).. } | sort
+    let raw = open --raw $file | into binary | decode utf-8
+    if ($raw | is-empty) or ($raw | str ends-with "\n") { return ($raw | lines) }
+    let cut = $raw | lines | last
+    let warning = $"($file): its last line '($cut)' is cut off, ignored"
+    let run = $env.DOT_RUN_FILE? | default ""
+    if $run == "" or not ($run | path exists) or not (open --raw $run | str contains ($warning | to json --raw)) { log-warn $warning }
+    $raw | lines | drop
+}
+
+# Sorted.
+export def ledger-get [kind: string]: nothing -> list<string> {
+    ledger-lines | where ($it | str starts-with $"($kind) ") | each { str substring (($kind | str length) + 1).. } | sort
 }
 
 export def ledger-set [kind: string, names: list<string>]: nothing -> nothing {
     let file = ledger-file
     mkdir ($file | path dirname)
-    let kept = if ($file | path exists) { open --raw $file | lines | where not ($it | str starts-with $"($kind) ") } else { [] }
+    let kept = ledger-lines | where not ($it | str starts-with $"($kind) ")
     $kept | append ($names | where $it != "" | each { $"($kind) ($in)" }) | uniq | sort | str join "\n" | $"($in)\n" | save-atomic $file
 }
 
@@ -77,7 +90,9 @@ export def ledger-units [repo: path, dirs: list<path>, scope: string]: nothing -
 }
 
 # Installed packages the declared names and groups resolve to.
-def packages-resolve [declared: list<string>]: nothing -> list<string> {
+export def packages-resolve [declared: list<string>]: nothing -> list<string> {
+    # pacman -Q without targets lists every installed package
+    if ($declared | is-empty) { return [] }
     ^pacman -Qq ...$declared | complete | get stdout | lines
         | append (^pacman -Qqg ...$declared | complete | get stdout | lines | each { split row " " | last })
         | uniq
@@ -87,8 +102,10 @@ def packages-resolve [declared: list<string>]: nothing -> list<string> {
 export def packages-convergence [declared: list<string>, keep: list<string>]: nothing -> record {
     let resolved = packages-resolve $declared
     let explicit = ^pacman -Qqe | lines
+    # nothing resolved is no evidence: every explicit package would read as removable (ledger-packages refuses too)
+    if ($resolved | is-empty) { return {declared: 0, explicit: ($explicit | length), remove: [], resolved: []} }
     let extra = $explicit | where $it not-in $resolved and $it not-in $keep and not ($it =~ $PACKAGES_DENY)
-    {declared: ($resolved | length), explicit: ($explicit | length), remove: $extra}
+    {declared: ($resolved | length), explicit: ($explicit | length), remove: $extra, resolved: $resolved}
 }
 
 # Removes, after a yes (yes skips the question), recorded packages no module declares; what another package still

@@ -42,8 +42,10 @@ Own the run: who works, in what order, when it's done.
   PR, never self-approve. A phase PR merges per the project's merge
   policy (`l-spec-driven-development`), and only after an independent
   reviewer's PASS, passing tests and green CI; the next phase starts only
-  after the previous one merged. Watch PRs yourself; never ask the human
-  whether something merged.
+  after the previous one merged. A document that commits the human
+  outside the repo (a policy, a price, a public statement) waits on them
+  to read and merge it, and they publish it, never you. Watch PRs
+  yourself; never ask the human whether something merged.
 - Otherwise gate on the human only where a real call is needed, never on
   trivia.
 - Keep going between gates until every ticket is done, blocked, or

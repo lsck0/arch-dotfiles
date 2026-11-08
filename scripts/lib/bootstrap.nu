@@ -4,10 +4,12 @@ use log.nu *
 use state.nu [SYSTEM_REPO path-kind]
 use system.nu [system-pack system-unpack]
 use platform.nu [platform-groups-all PLATFORM_NAME_FILE]
-use stage.nu [STAGE_STATE_DIR STAGE_KEY_FILE STAGE_ESP_MARKER STAGE_SUDOERS_DROPIN report-beacon-send stage-sudoers]
+use stage.nu [STAGE_STATE_DIR STAGE_KEY_FILE STAGE_ESP_MARKER STAGE_ESP_RUNNING STAGE_ESP_STOPPED STAGE_RESUME STAGE_SUDOERS_DROPIN report-beacon-send stage-sudoers]
 use ../../platforms/homelab.nu [HOMELAB]
+use homelab.nu [lsck0-reachable lsck0-drop LSCK0_SECTION]
 
 const MIRRORLIST = "/etc/pacman.d/mirrorlist"
+const PACMAN_CONF = "/etc/pacman.conf"
 const MIRROR_COUNTRIES = "/etc/pacman.d/mirror-countries"
 const MIRROR_CANDIDATES = 5
 const MIRROR_KEEP = 5
@@ -64,6 +66,7 @@ const LOGIN_SHELL = "/usr/bin/zsh"
 # the install's answer: base/networkmanager's own source, and the union 70-home-network reads until the first apply
 const HOME_GATEWAYS = ["/etc/NetworkManager/home-gateways.local" "/etc/NetworkManager/home-gateways"]
 const MAC_PATTERN = '^([0-9a-f]{2}:){5}[0-9a-f]{2}$'
+const NETWORKD_LEASES = "/run/systemd/netif/leases"
 const TUI_WIDTH = 72
 const TUI_BOX_ROWS = 4
 const TUI_INPUT_ROWS = 7
@@ -226,12 +229,18 @@ def default-route []: nothing -> record {
     ^ip -j -4 route show default | from json | get --optional 0 | default {}
 }
 
-def home-gateway-mac []: nothing -> any {
+# The default route's gateway as base/networkmanager's home-gateways line: its mac, address and the dhcp server
+# networkd's lease names; the mac alone (trusted, not home) without a lease.
+def home-gateway-line []: nothing -> any {
     let route = default-route
     if ($route.gateway? | is-empty) or ($route.dev? | is-empty) { return null }
     ^ping -c 1 -W $PING_TIMEOUT_S -I $route.dev $route.gateway | complete | ignore
     let mac = ^ip -j neigh show $route.gateway dev $route.dev | from json | get --optional 0.lladdr | default "" | str lowercase
-    if $mac =~ $MAC_PATTERN { $mac } else { null }
+    if not ($mac =~ $MAC_PATTERN) { return null }
+    let ifindex = try { open --raw $"/sys/class/net/($route.dev)/ifindex" | str trim } catch { "" }
+    let lease = try { open --raw ($NETWORKD_LEASES | path join $ifindex) } catch { "" }
+    let server = $lease | parse --regex '(?m)^SERVER_ADDRESS=(?<id>\S+)$' | get --optional 0.id
+    if $server == null { $mac } else { $"($mac) ($route.gateway) ($server)" }
 }
 
 def home-ssid []: nothing -> string {
@@ -292,6 +301,9 @@ def user-setup [c: record]: nothing -> nothing {
     let repo_copy = $home | path join projects arch-dotfiles
     if not (in-target-ok $root id -u $c.username) {
         in-target $root useradd -m -G wheel -s $LOGIN_SHELL $c.username
+    } else {
+        # a login the system already had (a WSL distro's) joins wheel too, or the sudoers drop-in grants it nothing
+        in-target $root usermod -aG wheel $c.username
     }
     $"($c.username):(one-line $c.user_password 'user password')\n" | in-target-input $root chpasswd
     in-target $root passwd -l root
@@ -518,7 +530,7 @@ def stage-arm [c: record, root_uuid: string]: nothing -> nothing {
     ^chmod 440 $"($stage_sudoers).new"
     if not (in-target-ok $MOUNT visudo -cqf $"($STAGE_SUDOERS_DROPIN).new") { die "the stage sudoers drop-in does not parse" }
     mv --force $"($stage_sudoers).new" $stage_sudoers
-    "a dotfiles install chain runs from this disk; the lsck0 iso will not erase it unattended\n" | save --force $"($MOUNT)($STAGE_ESP_MARKER)"
+    $"($STAGE_ESP_RUNNING)\n" | save --force $"($MOUNT)($STAGE_ESP_MARKER)"
     let checkout = $"/home/($c.username)/projects/arch-dotfiles"
     [
         "[Unit]" "Description=arch-dotfiles install chain (dot internal stage)" "Wants=network-online.target"
@@ -667,21 +679,21 @@ def answer-platform [e: record, c: record]: nothing -> record {
     bootstrap-platform-resolve $c.repo $e $picked $c.host_wsl
 }
 
-def answer-groups [e: record, c: record]: nothing -> list<string> {
+export def answer-groups [e: record, c: record]: nothing -> list<string> {
     let universe = platform-groups-all $c.repo
     let required = {required: $e.required}
+    # the desktop basics on a first walk; a review re-walk carries the prior selection so its choices survive
+    let preset = $e.default? | default [] | where $it in $universe
     let chosen = if $c.server { $c.groups } else if (env-or $e.env | is-not-empty) {
         env-or $e.env | split row --regex '\s+' | where $it != ""
-    } else if (assume) { $universe } else if (tui) {
-        # first walk defaults to all on; a review re-walk carries the prior selection so deselections survive
-        let preset = $e.default? | default []
-        let items = $universe | where $it != $e.required | each {|g| let on = if ($preset | is-empty) or ($g in $preset) { "on" } else { "off" }; [$g ($e.options | where value == $g | get --optional 0.label | default "") $on] } | flatten
+    } else if (assume) { $preset } else if (tui) {
+        let items = $universe | where $it != $e.required | each {|g| let on = if $g in $preset { "on" } else { "off" }; [$g ($e.options | where value == $g | get --optional 0.label | default "") $on] } | flatten
         dlg --title $e.title --separate-output --checklist (text-fill $e.text $required) "0" (tui-width) "0" ...$items | lines
     } else {
         print -e (text-fill $e.plain $required)
-        $universe | enumerate | each { print -e $"  ($in.index + 1)  ($in.item)" } | ignore
-        let excludes = input $e.plain_prompt | split row " " | where $it != ""
-        $universe | enumerate | where {|g| ($g.index + 1 | into string) not-in $excludes } | get item
+        $universe | enumerate | each { print -e $"  ($in.index + 1)  (if $in.item in $preset { '*' } else { ' ' }) ($in.item)" } | ignore
+        let toggled = input $e.plain_prompt | split row " " | where $it != ""
+        $universe | enumerate | where {|g| ($g.item in $preset) != (($g.index + 1 | into string) in $toggled) } | get item
     }
     let groups = [$e.required] ++ ($chosen | where $it != $e.required)
     let unknown = $groups | where {|g| ($g | path split | first) not-in $universe }
@@ -689,17 +701,34 @@ def answer-groups [e: record, c: record]: nothing -> list<string> {
     $groups
 }
 
-def stage-in-progress [disk: string]: nothing -> bool {
+# The live iso's pacman.conf as pacstrap syncs with it. Its [lsck0] is Required, so with the lab down every sync would
+# fail: off the lab the section goes, a homelab machine's install needs it and dies. reachable probes the lab, only
+# when the section is there.
+export def pacman-conf-lsck0 [conf: string, homelab: bool, reachable: closure]: nothing -> string {
+    if not ($conf | str contains $"\n($LSCK0_SECTION)") or (do $reachable) { return $conf }
+    if $homelab { die "the homelab mirror (mirror.lsck0.dev) does not answer: this machine's install needs its [lsck0] repo; retry once the lab is up" }
+    log-warn "the homelab mirror does not answer: installing without its [lsck0] repo"
+    $conf | lsck0-drop
+}
+
+# The install chain's state an ESP marker records: "" for none, "running", or "stopped" once it stopped and was disarmed.
+export def stage-marker-state [marker: path]: nothing -> string {
+    if not ($marker | path exists) { return "" }
+    if (open --raw $marker | lines | get --optional 0) == $STAGE_ESP_STOPPED { "stopped" } else { "running" }
+}
+
+# The install chain's state on the disk's ESP, as stage-marker-state.
+def stage-in-progress [disk: string]: nothing -> string {
     let esps = ^lsblk -J -lnpo NAME,TYPE,FSTYPE $disk | from json | get blockdevices | where type == part and fstype == vfat | get name
     let dir = mktemp --directory
-    let found = $esps | any {|p|
-        if (^mount -o ro $p $dir | complete).exit_code != 0 { return false }
-        let has = ($dir | path join ($STAGE_ESP_MARKER | path basename) | path exists)
+    let found = $esps | each {|p|
+        if (^mount -o ro $p $dir | complete).exit_code != 0 { return "" }
+        let state = stage-marker-state ($dir | path join ($STAGE_ESP_MARKER | path basename))
         ^umount $dir | complete | ignore
-        $has
-    }
+        $state
+    } | where $it != ""
     rm --recursive --force $dir
-    $found
+    $found | first | default ""
 }
 
 def disk-release [disk: string]: nothing -> nothing {
@@ -732,7 +761,12 @@ def answer-disk [m: record, e: record, c: record]: nothing -> record {
     }
     if (path-kind $disk) == "" or (^test -b $disk | complete).exit_code != 0 { die (text-fill $e.invalid {value: $disk}) }
     if (^lsblk -dno TYPE $disk | complete | get stdout | str trim) != "disk" { die (text-fill $e.invalid_part {value: $disk}) }
-    if (assume) and (env-or BOOTSTRAP_REINSTALL) != "1" and (stage-in-progress $disk) { die (text-fill $e.in_progress {disk: $disk}) }
+    if (assume) and (env-or BOOTSTRAP_REINSTALL) != "1" {
+        match (stage-in-progress $disk) {
+            "running" => (die (text-fill $e.in_progress {disk: $disk}))
+            "stopped" => (die (text-fill $e.in_progress_stopped {disk: $disk, resume: $STAGE_RESUME}))
+        }
+    }
     let layout = ^lsblk -o NAME,SIZE,MODEL,FSTYPE,LABEL $disk
     let erase = text-fill $e.confirm.text {disk: $disk}
     let typed = if (assume) { $disk } else if (tui) { screen $e.confirm.title inputbox $"($layout)\n\n($erase)" } else { print $layout; input $"($erase) " }
@@ -758,7 +792,7 @@ def question-ask [q: record, e: record, c: record]: nothing -> record {
 }
 
 def step-home-network [q: record, c: record]: nothing -> record {
-    let gateway = if $c.home_network { home-gateway-mac } else { null }
+    let gateway = if $c.home_network { home-gateway-line } else { null }
     if $c.home_network and $gateway == null { log-warn $q.messages.no_router }
     $c | merge {home_gateway: $gateway, home_ssid: (if $c.home_network { home-ssid } else { "" })}
 }
@@ -972,6 +1006,11 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         let base = $HOMELAB_MIRROR | split row '$' | first
         if $c.homelab and not (open --raw $MIRRORLIST | str contains $base) and (^curl -fs -m $PING_TIMEOUT_S -r 0-0 -o /dev/null $HOMELAB_MIRROR_PROBE | complete).exit_code == 0 {
             $"Server = ($HOMELAB_MIRROR)\n(open --raw $MIRRORLIST)" | save --force $MIRRORLIST
+        }
+        if ($PACMAN_CONF | path exists) {
+            let conf = open --raw $PACMAN_CONF
+            let synced = pacman-conf-lsck0 $conf $c.homelab {|| lsck0-reachable }
+            if $synced != $conf { $synced | save --force $PACMAN_CONF }
         }
         ^pacman -Sy --noconfirm --needed archlinux-keyring
         ^pacstrap -K $MOUNT ...$PACSTRAP $ucode

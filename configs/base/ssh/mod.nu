@@ -88,7 +88,7 @@ export def link [cfg: record] {
         (file-render ssh-add.service (unit-dir | path join ssh-add.service) {DOTFILES: $env.DOTFILES})
         (if $owner { unit-enable ssh-add.service } else { unit-disable ssh-add.service })
         (file-text (ssh-dir | path join config) $"Include ~/.ssh/config.d/*\n($hosts | default '')" --mode 600)
-        (if $owner { step authorize } else { [] })
+        (if $owner and not (authorize-done) { step authorize } else { [] })
         (file-render sshk.nu ($bin | path join sshk) {DOTFILES: $env.DOTFILES, PORT: $cfg.port, KNOCK: $knock}
             --mode 755)
         (if $homelab and $cfg.wake_router != null and $cfg.wake_host != null {
@@ -101,26 +101,24 @@ export def link [cfg: record] {
     ]
 }
 
-# Installs the secrets' authorized_keys; git-crypt checks it out 0644, which ssh refuses.
-export def authorize []: nothing -> nothing {
+def mode-is [file: path, mode: string]: nothing -> bool {
+    ($file | path exists) and (ls --long --directory $file | get 0.mode) == $mode
+}
+
+# The authorized_keys text authorize writes over the current one: the secrets' keys in the managed block.
+def authorized-keys-render []: nothing -> string {
     let secrets = $env.DOTFILES | path join configs secrets keys
-    let key = $secrets | path join ssh_privatekey.asc
-    if (secret-is-plaintext $key) { ^chmod 600 $key }
-    mkdir (ssh-dir)
-    ^chmod 700 (ssh-dir)
-    let file = ssh-dir | path join authorized_keys
-    if not ($file | path exists) { touch $file }
-    ^chmod 600 $file
     let pubkey = $secrets | path join ssh_publickey.asc
     let sources = [$pubkey ...(glob ../yubikey/ssh-*.pub)]
     let keys = $sources | append (ssh-dir | path join id_ed25519.pub)
         | where { secret-is-plaintext $in } | each { open --raw $in | str trim } | where $it != "" | uniq
-    let existing = open --raw $file | lines
+    let file = ssh-dir | path join authorized_keys
+    let raw = if ($file | path exists) { open --raw $file } else { "" }
+    let existing = $raw | lines
     # a locked secrets store cannot read the committed key, so only append what is readable and never prune
     if not (secret-is-plaintext $pubkey) {
         let missing = $keys | where $it not-in $existing
-        if ($missing | is-not-empty) { $"($missing | str join "\n")\n" | save --append $file }
-        return
+        return (if ($missing | is-empty) { $raw } else { $"($raw)($missing | str join "\n")\n" })
     }
     # rebuild the managed block so a key rotated out of the sources loses access; lines outside it are kept
     let begin = $existing | enumerate | where item == $MANAGED_BEGIN | get --optional 0.index
@@ -129,6 +127,25 @@ export def authorize []: nothing -> nothing {
         ($existing | first $begin) ++ ($existing | skip ($end + 1))
     } else { $existing }
     let kept = $kept | where $it not-in $keys
-    let out = ($kept ++ [$MANAGED_BEGIN] ++ $keys ++ [$MANAGED_END]) | str join "\n" | $"($in)\n"
+    ($kept ++ [$MANAGED_BEGIN] ++ $keys ++ [$MANAGED_END]) | str join "\n" | $"($in)\n"
+}
+
+def authorize-done []: nothing -> bool {
+    let key = $env.DOTFILES | path join configs secrets keys ssh_privatekey.asc
+    let file = ssh-dir | path join authorized_keys
+    let modes = (not (secret-is-plaintext $key) or (mode-is $key rw-------)) and (mode-is (ssh-dir) rwx------)
+    $modes and (mode-is $file rw-------) and (open --raw $file) == (authorized-keys-render)
+}
+
+# Installs the secrets' authorized_keys; git-crypt checks it out 0644, which ssh refuses.
+export def authorize []: nothing -> nothing {
+    let key = $env.DOTFILES | path join configs secrets keys ssh_privatekey.asc
+    if (secret-is-plaintext $key) { ^chmod 600 $key }
+    mkdir (ssh-dir)
+    ^chmod 700 (ssh-dir)
+    let file = ssh-dir | path join authorized_keys
+    let out = authorized-keys-render
+    if not ($file | path exists) { touch $file }
+    ^chmod 600 $file
     if $out != (open --raw $file) { $out | save --force $file }
 }

@@ -2,7 +2,7 @@
 
 use log.nu *
 use state.nu [state-dir state-locked path-kind nu-bin save-atomic LIB_DIR SYSTEM_STATE]
-use preserve.nu [sync-guard preserve-aside]
+use preserve.nu [sync-guard preserve-aside preserve-copies]
 use json.nu [json-edits-apply]
 use module.nu [DECL_KEYS DECL_KINDS unit-dir]
 use ini.nu [ini-apply]
@@ -22,7 +22,9 @@ export def state-path [id: string, verb: string]: nothing -> path {
 
 export def state-read [id: string, verb: string]: nothing -> record {
     let file = state-path $id $verb
-    if ($file | path exists) { open $file } else { {input: "", run: "", time: "", outputs: []} }
+    let empty = {input: "", run: "", time: "", outputs: []}
+    if not ($file | path exists) { return $empty }
+    try { open $file } catch { log-warn $"($file): unreadable record, taken as empty: its outputs are no longer tracked"; $empty }
 }
 
 def assert-shape [value: record, keys: list<string>, what: string]: nothing -> nothing {
@@ -64,12 +66,12 @@ export def ask-batch [paths: list<string>, batch: closure, each_path: closure]: 
 # What is on disk now for each target (type, hash, link, mode) and each unit's enablement state; known: an earlier
 # observation whose paths and units are taken as they are, only the rest looked at.
 export def observe [targets: list<string>, units: list<string>, scope: string, known: record = {paths: {}, units: {}}]: nothing -> record {
-    let kinds = $targets | uniq | where $it not-in $known.paths | each {|t| {target: $t, type: (path-kind $t)} }
+    let kinds = $targets | uniq | where $it not-in $known.paths | par-each --keep-order {|t| {target: $t, type: (path-kind $t)} }
     # one stat and one readlink for all, not one each: a plan observes a few thousand targets
     let files = $kinds | where type == file | get target
     let modes = ask-batch $files {|ps| ^stat --printf '%a\0' ...$ps } {|p| try { ^stat -c "%a" $p | str trim } catch { null } }
     let links = ask-batch ($kinds | where type == symlink | get target) {|ps| ^readlink -z ...$ps } {|p| ^readlink $p }
-    let paths = $kinds | each {|k|
+    let paths = $kinds | par-each --keep-order {|k|
         {
             target: $k.target
             type: $k.type
@@ -88,9 +90,10 @@ export def observe [targets: list<string>, units: list<string>, scope: string, k
     }
 }
 
-# Newest write per path across all records, so one verb's merge onto another's file is no drift.
+# Newest write per path across all records, so one verb's merge onto another's file is no drift. A record a prior
+# crash or hand edit left unparseable counts as empty, not a reason to fail every module's plan.
 export def recorded-hashes []: nothing -> record {
-    glob (state-dir | path join modules **/*.nuon) | each { open $in | get outputs } | flatten
+    glob (state-dir | path join modules **/*.nuon) | par-each --keep-order {|f| try { open $f | get outputs } catch { [] } } | flatten
     | where {|o| $o.kind in [file json ini] and ($o.hash? | default null) != null }
     | sort-by {|o| $o.at? | default 0 }
     | reduce --fold {} {|o, acc| $acc | upsert $o.target $o.hash }
@@ -356,7 +359,8 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
             match $a.kind {
                 "create" | "update" => {
                     sync-guard $a.target
-                    let aside = if ($a.decl.preserve? | default false) { preserve-aside $a.target } else { null }
+                    let inplace = ($a.decl.inplace? | default false) and (path-kind $a.target) == "file"
+                    let aside = if ($a.decl.preserve? | default false) { preserve-aside $a.target --copy=$inplace } else { null }
                     if $a.decl.kind == "link" {
                         mkdir ($a.target | path dirname)
                         if (path-kind $a.target) == file { rm --force $a.target }
@@ -405,7 +409,12 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     } else {
                         rm --force $a.target
                         prune-parents ($a.target | path dirname)
-                        if ($a.decl.aside? | default null) != null and ($a.decl.aside | path exists) { ^mv -n $a.decl.aside $a.target }
+                        if ($a.decl.aside? | default null) != null and ($a.decl.aside | path exists) {
+                            ^mv -n $a.decl.aside $a.target
+                            # the original comes back; a drift a later --force or reset set aside stays, named here
+                            let later = preserve-copies $a.target
+                            if ($later | is-not-empty) { log-note $"($a.target): the original is back, later copies kept: ($later | str join ' ')" }
+                        }
                         {}
                     }
                 }
@@ -461,7 +470,8 @@ export def state-write [id: string, verb: string, input: string, actions: list<r
                 generated: ($a.decl.generated? | default false)
                 source: (if $a.decl.kind == "exec" { $a.decl.creates } else { $a.decl.source })
                 state: $a.decl.state?
-                aside: ($o.aside? | default ($before.aside? | default null))
+                # the first aside is the pre-takeover original; a later --force or reset only preserves a drift copy
+                aside: (if ($before.aside? | default "" | path exists) { $before.aside } else { $o.aside? | default ($before.aside? | default null) })
                 at: (if $a.decl.kind != "file" { null } else { $o.at? | default ($before.at? | default 0) })
             }
         } else {

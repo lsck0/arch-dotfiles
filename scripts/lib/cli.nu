@@ -2,6 +2,7 @@
 
 use log.nu *
 use cause.nu [cause-from-error cause-text]
+use state.nu [state-dir]
 
 const REPO = path self ../..
 const CRASH_LOG_LINES = 20
@@ -10,6 +11,11 @@ const SUPERVISOR = path self interruptible.sh
 # Flattens a list of lists by one level.
 export def concat []: list -> list {
     reduce --fold [] {|part, acc| $acc ++ $part }
+}
+
+# A switch as the argv it was given: [--name] when on.
+export def flag [name: string, on: bool]: nothing -> list<string> {
+    if $on { [$"--($name)"] } else { [] }
 }
 
 # Parallel jobs: DOTFILES_JOBS, else the cpu count.
@@ -40,9 +46,15 @@ export def supervise [--lock: path, --argv: list<string>]: nothing -> nothing {
         if ($env.DOT_INTERRUPTIBLE? | default "") == (^ps -o sid= -p $nu.pid | str trim) { return }
         exec $SUPERVISOR ...$argv
     }
-    if ($env.DOT_LOCK? | default "") == $lock { return }
+    let held = locks-held
+    if $lock in $held { return }
     mkdir ($lock | path dirname)
-    exec $SUPERVISOR --lock $lock env $"DOT_LOCK=($lock)" ...$argv
+    exec $SUPERVISOR --lock $lock env $"DOT_LOCK=($held | append $lock | str join (char esep))" ...$argv
+}
+
+# The flocks this process and its parents hold, from DOT_LOCK: a run can hold several, each taken by one re-exec.
+export def locks-held []: nothing -> list<string> {
+    $env.DOT_LOCK? | default "" | split row (char esep) | where $it != ""
 }
 
 # One logged run, crash.json on error. --read-only and --background runs never replace the last apply.
@@ -88,4 +100,14 @@ export def root-runner []: nothing -> any {
     let seen_terminal = (is-terminal --stdin) and ($env.CLAUDECODE? | is-empty)
     let graphical = ($env.WAYLAND_DISPLAY? | is-not-empty) or ($env.DISPLAY? | is-not-empty)
     if $seen_terminal { "sudo" } else if $graphical and (which pkexec | is-not-empty) { "pkexec" } else { null }
+}
+
+# Held by every writer of modules/<id>/theme.nuon outside a dot apply: dot-theme.service's theme apply and an unlink's
+# theme row. Taken after run.lock, never before, and dot apply, which waits on that unit, never takes it.
+export def theme-locked []: nothing -> nothing {
+    let lock = state-dir | path join theme.lock
+    if $lock not-in (locks-held) and ($lock | path exists) and (^flock --nonblock $lock true | complete).exit_code != 0 {
+        print -e "dot: a theme switch is running, waiting for it"
+    }
+    supervise --lock $lock
 }

@@ -196,14 +196,20 @@ def answers-ask [questions: record, a: record]: nothing -> record {
     let asks = $questions.questions | where {|e| $e.kind? == "password" } | get id | uniq | where {|k| ($a | get --optional $k) == $PASSWORD_ASK }
     if ($asks | is-empty) { return $a }
     if not (is-terminal --stdin) { error make {msg: $"answers: ($asks | str join ', ') \"($PASSWORD_ASK)\" with unattended, and no console to ask on"} }
+    # the keymap the bootstrap installs, so a disk password reads the same at the LUKS prompt as typed here
+    let keymap = $a.keymap? | default $env.BOOTSTRAP_KEYMAP_DEFAULT? | default "" | if ($in | is-empty) {
+        $questions.questions | where {|e| $e.id? == keymap } | first | get default
+    } else { $in }
+    if (^loadkeys $keymap | complete).exit_code != 0 { error make {msg: $"answers: unknown keymap '($keymap)', nothing installed"} }
     $asks | reduce --fold $a {|k, acc|
         let entries = $questions.questions | where {|e| $e.id? == $k }
         let e = $entries | first
-        let title = $e.title | str replace --all "{username}" ($acc.username? | default "user")
+        let fill = {|text| $text | str replace --all "{username}" ($acc.username? | default "user") | str replace --all "{keymap}" $keymap }
+        let title = do $fill $e.title
         let empty_ok = $entries | any {|e| $e.empty_ok? | default false }
         mut typed = ""
         loop {
-            print -e $e.text
+            print -e (do $fill $e.text)
             let first = input -s $"($title): "
             print -e ""
             if ($first | is-empty) and not $empty_ok { print -e $questions.messages.password_empty; continue }

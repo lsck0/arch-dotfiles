@@ -19,6 +19,11 @@ output, uses it and removes it; several agents can do this at once.
   config, below, is the only place for `hl.monitor`).
 - Bare `grim`: it captures the headless areas too. Always `grim -o HEADLESS-N`.
 - `pkill -f <pattern>`: it matches the agent's own shell. Kill by PID.
+- A Flatpak or other xdg-desktop-portal app on a headless output of the live session: its dialogs go through the
+  user's portals, and an output removed under an open one leaves xdg-desktop-portal-kde hung, so every file dialog in
+  the session freezes. Such apps run only in a nested Hyprland with its own `dbus-run-session`; after any GUI test,
+  `busctl --user call org.freedesktop.impl.portal.desktop.kde /org/freedesktop/portal/desktop
+  org.freedesktop.DBus.Peer Ping` must answer.
 - Removing an output you did not create.
 
 ## Procedure

@@ -2,7 +2,7 @@
 
 use module.nu *
 use ../../core/wallust/palette.nu [RADIUS_PX BORDER_PX OPACITY_WINDOW OPACITY_SURFACE]
-use plugins.nu [plugins-missing]
+use plugins.nu [plugins-missing plugins-unloaded]
 
 export const meta = {
     deps: [base/essentials]
@@ -226,9 +226,17 @@ def platform-lua [cfg: record]: nothing -> string {
     $"return (lua-from $facts)\n"
 }
 
+# Whether a declared file differs from disk: hyprland's own reload on the write drops the shader, so reload follows.
+def files-changed [decls: list<record>]: nothing -> bool {
+    $decls | where kind == file | any {|d|
+        let want = if $d.content != null { $d.content } else { open --raw $d.source }
+        not ($d.target | path exists) or (open --raw $d.target) != $want
+    }
+}
+
 export def link [cfg: record] {
     let dir = $nu.home-dir | path join $CONFIG_DIR
-    [
+    let files = [
         (files-into $dir ...$CONFIG_FILES)
         (glob shaders/* | each {|f| file-copy $f ($dir | path join shaders ($f | path basename)) })
         ($COMMANDS | each {|f| file-copy $f ($dir | path join $f) --mode 755 })
@@ -240,10 +248,15 @@ export def link [cfg: record] {
         (unit-enable hypridle.service --now)
         (file-text ($dir | path join platform.lua) (platform-lua $cfg) --generated)
         (file-text ($dir | path join style.lua) $"return (lua-from {rounding: $RADIUS_PX, border: $BORDER_PX, opacity: $OPACITY_WINDOW, opacity_surface: $OPACITY_SURFACE})\n" --generated)
+    ] | decls-flatten
+    let build = plugins-missing | is-not-empty
+    let live = hyprland-live
+    [
+        $files
         # offline only the build waits: plugins built earlier still load
-        (if (plugins-missing | is-empty) { [] } else { [(step plugins-build --network)] })
-        (step plugins-load)
-        (step reload)
+        (if $build { [(step plugins-build --network)] } else { [] })
+        (if $build or ($live and (plugins-unloaded | is-not-empty)) { step plugins-load } else { [] })
+        (if $live and (files-changed $files) { step reload } else { [] })
     ]
 }
 

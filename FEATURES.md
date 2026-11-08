@@ -33,7 +33,7 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
 - Toggles (`scripts/toggles/`; `prefix+m` in tmux and herdr, the bar, the settings window on `SUPER+comma`): route
   (direct, proton, tor, offline), homelab VPN, firewall, captive portal, radios, focus, night light, shaders, color
   grading, power mode, font, theme mode and more.
-- Theming: 34 palettes or wallust from the wallpaper, applied live to every themed app (`dot theme`, `SUPER+w`).
+- Theming: 46 palettes or wallust from the wallpaper, applied live to every themed app (`dot theme`, `SUPER+w`).
 - Idle: dim, lock, screens off, suspend; guards for media, ssh and working agents. Lid closed with an external monitor
   moves the desktop there.
 - Power and disks: tlp, zram, the sched_ext lavd scheduler on laptops, smartd, the CPU package's draw in the bar.
@@ -130,7 +130,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/networkmanager.home_wired` | `bool?` | detected | Ethernet is always the home network and keeps its hardware MAC (a desktop); null detects it from the form factor |
 | `base/networkmanager.wake_on_lan` | `bool` | `false` | Wake on a magic packet over ethernet (udev sets it on every wired link, NetworkManager leaves it) |
 | `base/networkmanager.wifi_radio` | `bool?` | detected | Wi-Fi radio on at first boot; off on a desktop wired to the network, so only the link in use is up. Later toggles (toggle-wifi) persist in NetworkManager's own state; null detects it |
-| `base/networkmanager.home_gateways` | `list<string>` | `[]` | Router MACs of the home network, the one with the homelab (its dns, routes, mirror, nas, printers), beside the admin's configs/secrets/keys/home-gateways; home is trusted too |
+| `base/networkmanager.home_gateways` | `list<string>` | `[]` | The home network's routers, the one with the homelab (its dns, routes, mirror, nas, printers), each '<mac> <gateway address> <dhcp server identifier>' (a mac alone is only trusted), beside the admin's configs/secrets/keys/home-gateways; home is trusted too |
 | `base/networkmanager.trusted_gateways` | `list<string>` | `[]` | Router MACs of trusted networks: no lockdown, direct egress, the lan's inbound services, the hardware MAC, but none of home's homelab wiring; beside the admin's configs/secrets/keys/trusted-gateways, where toggle-trust-network adds the current one while unlocked |
 | `base/networkmanager.homelab_dns` | `string?` | `"192.168.178.29"` | The homelab's split-horizon resolver, asked for homelab_domain out a home link (homelab machines); default the lab's router |
 | `base/networkmanager.homelab_domain` | `string?` | `"lsck0.dev"` | The homelab's DNS zone |

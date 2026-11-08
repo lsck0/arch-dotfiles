@@ -73,7 +73,10 @@ def root-unlock [part: string]: nothing -> nothing {
         print ("note: luks: no yubikey enrolled, once the stage chain is done: "
             + $"sudo systemd-cryptenroll --fido2-device=auto /dev/($part), then rerun dot apply")
     }
-    cmdline-set $"rd.luks.options=tpm2-device=auto(if $fido { ',fido2-device=auto' } else { '' }),tpm2-measure-pcr=yes"
+    # tries=0 asks again after a wrong passphrase: the default 3, one spent on the token, drops to an emergency shell
+    # whose root is locked, so a typo at the prompt left the machine unbootable until "exit"
+    let tokens = if $fido { ',fido2-device=auto' } else { '' }
+    cmdline-set $"rd.luks.options=tpm2-device=auto($tokens),tpm2-measure-pcr=yes,tries=0"
     # never TPM-only: any signed uki would unseal it unattended
     let enroll = $"systemd-cryptenroll --tpm2-device=auto --tpm2-with-pin=yes --tpm2-pcrs=7+15:sha256=($PCR15_INITIAL)"
     if not ($header | str contains systemd-tpm2) {

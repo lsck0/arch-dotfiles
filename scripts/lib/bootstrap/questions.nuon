@@ -118,10 +118,12 @@
             env: BOOTSTRAP_GROUPS
             when: {platform: [server custom]}
             required: "base"
+            # the desktop basics: gaming, rocm (amd only), llm, pentesting and the rest are picked, not given
+            default: [core desktop fonts programming]
             title: "groups"
             text: "Package groups. Space toggles, Enter accepts. {required} is always in."
-            plain: "package groups ({required} is always in):"
-            plain_prompt: "numbers to leave out, Enter for none: "
+            plain: "package groups ({required} is always in, * marks the preselected):"
+            plain_prompt: "numbers to toggle, Enter keeps the marked: "
             options: [
                 {value: "base", label: "kernel, boot, drivers, firewall, security and system services"}
                 {value: "core", label: "shell, cli tools, diagnostics, git, gpg, theming"}
@@ -167,6 +169,7 @@
             none: "no disk found (set BOOTSTRAP_DISK)"
             several: "several disks ({choices}), set BOOTSTRAP_DISK (the answer file's disk) to the one to erase"
             in_progress: "{disk} is still in its install chain: remove the stick and reboot to let it finish, or set BOOTSTRAP_REINSTALL=1 (boot parameter lsck0.reinstall=1) to erase it"
+            in_progress_stopped: "{disk}'s install chain stopped and is disarmed: boot it and resume at the console with `{resume}`, or set BOOTSTRAP_REINSTALL=1 (boot parameter lsck0.reinstall=1) to erase it"
             invalid: "{value} is not a block device"
             invalid_part: "{value} is not a whole disk"
         }

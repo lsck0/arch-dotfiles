@@ -1,6 +1,6 @@
 # dot test run --scenario: conditions a fresh install meets, layered over home (the good path, always the base).
 # A scenario sets any of: answers (answer-file keys), network {block (cidrs, host-lan for the host's link subnets or
-# homelab for base/networkmanager's homelab_subnets, unreachable routes in the pasta namespace passt runs in), dns (the
+# homelab for base/networkmanager's homelab_subnets, lsck0 for mirror.lsck0.dev's public addresses, unreachable routes in the pasta namespace passt runs in), dns (the
 # guest's resolver; none relays to the home one, homelab_dns), ipv6 (false: passt -4)}, profile, usb_redirect,
 # extra_packages (into the platform file), replace (path, regex pattern, to; in the snapshot), expect (vm rows of
 # invariants.txt and their wanted value), stages (install or config: ok or failed, ok by default) and
@@ -52,6 +52,21 @@
             stages: {install: failed}
             failures_allowed: ['lsck0-vm-test-no-tor' '\bbase/tor\b']
             expect: {planted_dropped: "yes", tor_installed: "no"}
+        }
+        lab-down: {
+            doc: "generic install with the whole lab down: its subnets and mirror.lsck0.dev unreachable, so [lsck0] is left out"
+            network: {block: [host-lan homelab lsck0], dns: "9.9.9.9", ipv6: false}
+            profile: custom
+            answers: {home_network: false}
+            failures_allowed: ['\blsck0\b']
+            expect: {lsck0_dropped: "yes", mirror_reachable: "yes"}
+        }
+        config-fail: {
+            doc: "core/btop's link verb fails: the config stage fails, the chain ends disarmed with the config banner"
+            replace: [{path: configs/core/btop/mod.nu, pattern: '(?<head>export def link \[cfg: record\] \{)', to: '${head} error make {msg: "lsck0-vm-test-config-fail"}'}]
+            stages: {config: failed}
+            failures_allowed: ['lsck0-vm-test-config-fail' '\bcore/btop\b']
+            expect: {config_banner: "yes"}
         }
     }
     presets: {

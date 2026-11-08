@@ -81,6 +81,7 @@ export def link [cfg: record] {
         (json-merge ($plugins | path join Incognito.config.json) [
             (json-set [settings blockReadReceipts] false)
             (json-set [settings blockUsageProfiling] false)
+            (json-set [settings anonymiseFiles] false)
         ])
         (json-merge ($data | path join themes.json) [(json-set [(addon-name $THEME)] true)])
         (json-merge ($data | path join settings.json) [(json-set [addons checkForUpdates] false)])

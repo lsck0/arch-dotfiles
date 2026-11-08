@@ -32,6 +32,9 @@ Decide what work is needed before any of it starts.
   the system running, reverts on its own, and lands as its own PR. In
   queue mode the orchestrator creates those tickets after the spec PR
   merges; you plan the phases inside the spec, not as tickets.
+- A launch plan, policy, pricing sheet or other non-code ask is a
+  document deliverable (`l-spec-driven-development`): same plan, with the
+  department persona as the writer and its reviewers named.
 - Write each ticket for someone who never opens the code:
   - Title names the symptom or the want, never the fix.
   - Acceptance criteria are outcomes you could watch happen, not steps.

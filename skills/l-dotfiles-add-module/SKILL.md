@@ -89,9 +89,9 @@ export def packages [cfg: record]: nothing -> record {
     [--in-place]`, `file-render <src> <dest> {KEY: v}` (`@KEY@`), `file-link` (only where the app reads the repo
     live), `link-commands <file...>`, `json-merge <file> [(json-set [k] v) (json-delete [k])]`, `ini-merge <file>
     {section: {key: v}} [--missing-only]`, `desktop-override <id> {|text| ...}`, `mcp-servers {name: spec}`
-    (`~/.claude.json`; null drops one), `shell-aliases <name>` (the module's `aliases.nu`/`aliases.zsh` into
-    nushell's autoload dir and zsh's conf.d; a tool's aliases and defs live with the module declaring the tool, never
-    in core/nushell or core/zsh).
+    (Claude, Gemini, Copilot and Hermes, each in its format; null drops one), `shell-aliases <name>` (the module's
+    `aliases.nu`/`aliases.zsh` into nushell's autoload dir and zsh's conf.d; a tool's aliases and defs live with the
+    module declaring the tool, never in core/nushell or core/zsh).
   - units: `unit-file <src> [--enable --now]`, `unit-enable|unit-disable|unit-mask <name> [--now]`,
     `unit-restart <name> [--reload]` (a `--then` that skips a unit not installed yet), `dropin <unit> <src> [--name]`,
     `user-hook <name> <script> --watch [paths] [--permanent] [--no-brake] [--mkdir]`.
@@ -117,6 +117,9 @@ export def packages [cfg: record]: nothing -> record {
 - One-time change on installed machines: `migrations/<NNNN>-<slug>.nu` from `0000-sample.nu` (`up` only;
   `export const layer = "system"` runs as root). Fresh installs mark all as run, so a migration never replaces a
   declaration.
+- Root gets a module's non-`.nu` files in its copy only when root runs a verb or hook of it (`system`, `packages`,
+  `detect`): a `system` verb reading another module's data file needs that module to have one of them too.
+- A deleted module's dir needs no unlink first: the next full `dot apply` removes what its state recorded.
 - An app that saves over its copy (OBS, save-on-exit apps) needs a `backup` verb carrying the live file back (run by
   `dot sync`). Per-machine state (resolution, devices, logins) goes to `host-file <dir> <file>`
   (`<dir>/<host>/<file>`); restore reads `host-seed <dir> <file>` (own copy, else `<dir>/<file>`), a credential only

@@ -56,6 +56,8 @@ const SCENARIO_SEPARATOR = ","
 const HOST_LAN = "host-lan"
 # base/networkmanager's homelab_subnets on the run's platform and the host's own
 const HOMELAB = "homelab"
+# mirror.lsck0.dev's public addresses, so a run can take the whole lab down
+const LSCK0 = "lsck0"
 const NETWORK_MODULE = "base/networkmanager"
 # the guest's resolver at home when no platform names a homelab_dns
 const DNS_FALLBACK = "9.9.9.9"
@@ -128,8 +130,8 @@ def scenario-resolve [spec: record, platform: any, profile: any]: nothing -> rec
     let field = {|key| $chosen | each { get --optional $key } | compact }
     let networks = do $field network
     let block = $networks | each { $in.block? | default [] } | flatten | uniq
-    let bad = $block | where {|b| $b not-in [$HOST_LAN $HOMELAB] and not ($b =~ '^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$') }
-    if ($bad | is-not-empty) { error make {msg: $"($SCENARIOS): block ($bad | str join ' ') is no cidr, ($HOST_LAN) nor ($HOMELAB)"} }
+    let bad = $block | where {|b| $b not-in [$HOST_LAN $HOMELAB $LSCK0] and not ($b =~ '^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$') }
+    if ($bad | is-not-empty) { error make {msg: $"($SCENARIOS): block ($bad | str join ' ') is no cidr, ($HOST_LAN), ($HOMELAB) nor ($LSCK0)"} }
     let required = one-of profile (do $field profile)
     if $required != null and $profile != null and $profile != $required {
         error make {msg: $"scenario ($spec.label) needs profile ($required), not ($profile)"}
@@ -218,6 +220,16 @@ export def vm-snapshot-edits [run: record, read: closure]: nothing -> list<recor
     $extras ++ $replaced
 }
 
+# The IPv4 addresses the guest's resolver gives the [lsck0] mirror's host, as /32s: asked of that resolver, since the
+# host's own split dns answers with the lab address. The run's ipv6 is off when it blocks them.
+def lsck0-addresses [dns: string]: nothing -> list<string> {
+    let host = $homelab.HOMELAB.mirror.lsck0 | url parse | get host
+    let found = ^dig +short +time=3 +tries=2 A $host $"@($dns)" | complete | get stdout | lines
+        | where $it =~ '^(\d{1,3}\.){3}\d{1,3}$' | uniq
+    if ($found | is-empty) { error make {msg: $"($LSCK0): ($host) does not resolve at ($dns)"} }
+    $found | each { $"($in)/32" }
+}
+
 def host-lan-subnets []: nothing -> list<string> {
     let dev = ^ip -j -4 route show default | from json | get --optional 0.dev
     if $dev == null { error make {msg: $"($HOST_LAN): the host has no default route"} }
@@ -248,7 +260,7 @@ def host-platforms []: nothing -> list<string> {
 # the blocked cidrs, the guest's resolver (forward: passt relays 10.0.2.3 to it) and whether the guest gets IPv6.
 export def vm-network [run: record, host: record]: nothing -> record {
     let block = $run.network.block | each {|b|
-        if $b == $HOST_LAN { $host.lan } else if $b == $HOMELAB { $host.lab } else { [$b] }
+        if $b == $HOST_LAN { $host.lan } else if $b == $HOMELAB { $host.lab } else if $b == $LSCK0 { $host.lsck0? | default [] } else { [$b] }
     } | flatten | uniq
     {
         block: $block
@@ -262,7 +274,8 @@ export def vm-network [run: record, host: record]: nothing -> record {
 def run-network [name: string, run: record, host_port: int = $PORT]: nothing -> record {
     let dir = cache-path $name
     let lab = vm-homelab ((host-platforms) ++ [$run.platform])
-    let host = {lan: (if $HOST_LAN in $run.network.block { host-lan-subnets } else { [] }), lab: $lab.subnets, home_dns: $lab.dns}
+    let lsck0 = if $LSCK0 in $run.network.block { lsck0-addresses ($run.network.dns | default $lab.dns | default $DNS_FALLBACK) } else { [] }
+    let host = {lan: (if $HOST_LAN in $run.network.block { host-lan-subnets } else { [] }), lab: $lab.subnets, home_dns: $lab.dns, lsck0: $lsck0}
     vm-network $run $host | merge {
         host_port: $host_port
         socket: ($dir | path join passt.sock)
@@ -651,7 +664,7 @@ def vm-run [name: string, iso: path, run: record, user: string, master: bool, ke
         host-stop $name
         network-stop $name
         vm-failed-leave $name $keep
-        error make {msg: $e.msg}
+        error make $e
     }
     host-stop $name
     network-stop $name

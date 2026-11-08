@@ -3,6 +3,7 @@
 use log.nu *
 use secrets.nu [secret-is-plaintext secrets-wanted OWNER_WITNESS]
 use state.nu [state-dir]
+use gate.nu [lint-stray]
 
 const BRANCH = "master"
 const PUSH_TRIES = 3
@@ -137,6 +138,9 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
     }
 
     sync-catch-up $repo
+    # not behind --no-verify: `git add .` would put whatever a tool left in the checkout into a signed generation
+    let stray = lint-stray $repo
+    if ($stray | is-not-empty) { error make {msg: $"nothing committed:\n($stray | str join "\n")"} }
     ^git -C $repo add .
     mut committed = false
     if (^git -C $repo diff --cached --quiet | complete).exit_code == 0 {

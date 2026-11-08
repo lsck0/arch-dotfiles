@@ -25,10 +25,11 @@ boots, unattended, and retires itself and its sudo drop-in at the end, or stops 
      pick's `source` files are staged, into a dir of its own; a missing one stops the install. No answer file means
      every question is asked; the second stage does not search again, and a picked file it cannot parse stops it.
      An older stub connects with the first `lsck0.nuon`'s wifi, then switches to master's stub, which asks.
-   - `unattended: true` skips the summary, asks each `"ask"` password once up front, logs to `/tmp/lsck0-install.log`
-     (copied to `/var/log/lsck0-install.log`).
-   - Unattended, a disk whose ESP holds `/boot/dotfiles-stage-in-progress` (a chain still running) is refused unless
-     `reinstall: true` (`BOOTSTRAP_REINSTALL=1`, or the one-boot `lsck0.reinstall=1`).
+   - `unattended: true` skips the summary, asks each `"ask"` password once up front under the keymap the install sets
+     (the answer's, else the default), logs to `/tmp/lsck0-install.log` (copied to `/var/log/lsck0-install.log`).
+   - Unattended, a disk whose ESP holds `/boot/dotfiles-stage-in-progress` is refused unless `reinstall: true`
+     (`BOOTSTRAP_REINSTALL=1`, or the one-boot `lsck0.reinstall=1`): a running chain is left to finish, a stopped one
+     (the marker's first line `stopped`) is named with its resume, `dot internal stage`.
    - `efibootmgr --bootnext` points at the new ESP before the reboot; each stage reboot sets BootNext to its own entry.
    - The answer file's `source` (an unverified tree over master, the vm test's) is used only with `lsck0.insecure=1`,
      in a VM, or after a yes on the console.
@@ -95,9 +96,11 @@ into server. Each question's `env` and `default` is the reference. `dot test run
 2. `install.log`, `config.log`, `FAILURES.install`, `FAILURES.config` in the checkout; `/var/log/lsck0-install.log`.
 3. The install stage goes on by `/var/lib/dotfiles/install-pass`, not by dot's exit code (`stage-next` in
    `scripts/lib/stage.nu`). Pass written: config, even after a partial pass; modules whose packages are missing stay
-   pending (exit 3, `dot status`). No pass: a reboot retries after a backoff, 3 attempts in all.
+   pending (exit 3, `dot status`). No pass: a reboot retries after a backoff, 3 attempts in all. An attempt counts
+   before it runs, so a pass that dies with the machine counts too.
 4. Third attempt without a pass: the chain stops before config and disarms. The stage LUKS key slot, its keyfile and
-   initramfs drop-in go, then `next`, the unit and the passwordless sudoers drop-in; a `stopped` marker stays. The disk
+   initramfs drop-in go, then `next`, the unit and the passwordless sudoers drop-in; a `stopped` marker stays, and the
+   ESP marker reads `stopped` once the disk key is gone too (a kept key leaves it reading as a running chain). The disk
    asks for its passphrase again, sudo for the password, nothing retries by itself. The login banner
    (`/etc/issue.d/dotfiles-stage.issue`) names what failed, the way online on a fail-closed network
    (`dot set --machine base/networkmanager.untrusted_policy firewall-only && dot apply --system`) and the resume.

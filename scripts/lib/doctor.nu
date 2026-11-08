@@ -60,7 +60,10 @@ export def failures-reports [files: list<path>]: nothing -> list<record> {
 def hashes [dir: path, files: list<string>]: nothing -> list<string> {
     if ($files | is-empty) { return [] }
     cd $dir
-    $files | str join "\u{0}" | ^xargs -0 sha256sum | complete | get stdout | lines
+    let summed = $files | str join "\u{0}" | ^xargs -0 sha256sum | complete
+    # an unreadable file would otherwise drop out and count as differing
+    if $summed.exit_code != 0 { error make {msg: $"($dir): ($summed.stderr | lines | first 3 | str join '; ')"} }
+    $summed.stdout | lines
 }
 
 def config-pending []: nothing -> list<record> {
@@ -71,8 +74,10 @@ def config-pending []: nothing -> list<record> {
     let private = $ours | where ($it | str starts-with $SECRETS_PREFIX)
     let skip = $"./($SECRETS_PREFIX | str trim --right --char '/')"
     let theirs = cd $SYSTEM_REPO | ^find . -path $skip -prune -o -type f ! -name .source ! -name $SECRETS_DIGEST -printf '%P\n' | lines
-    let a = hashes $REPO ($ours | where $it not-in $private)
-    let b = hashes $SYSTEM_REPO $theirs
+    let both = try { {a: (hashes $REPO ($ours | where $it not-in $private)), b: (hashes $SYSTEM_REPO $theirs)} } catch {|e| {error: $e.msg} }
+    if $both.error? != null { return [(report FAIL config $"cannot compare the root copy with the checkout: ($both.error)")] }
+    let a = $both.a
+    let b = $both.b
     let changed = ($a | where $it not-in $b) ++ ($b | where $it not-in $a) | each { str substring 66.. } | uniq | length
     let digest = try { open --raw ($SYSTEM_REPO | path join $SECRETS_DIGEST) | str trim } catch { "" }
     let differing = [
@@ -172,9 +177,11 @@ def packages []: nothing -> list<record> {
     if (which pacman | is-empty) { return [] }
     let ctx = pipeline-load $REPO system
     let declared = modules-packages $REPO $ctx.modules $ctx.platform | get pacman
-    let missing = with-env {LC_ALL: C} { do { ^pacman -Qq ...$declared } | complete }
+    let unmet = with-env {LC_ALL: C} { do { ^pacman -Qq ...$declared } | complete }
         | get stderr | lines | parse "error: package '{name}' was not found" | get name
-        | where {|n| (do { ^pacman -Qqg $n } | complete).exit_code != 0 }
+    # one query for every unmet name that may be a group: -Qg lists "<group> <member>" for those installed
+    let groups = if ($unmet | is-empty) { [] } else { ^pacman -Qg ...$unmet | complete | get stdout | lines | each { split row " " | first } | uniq }
+    let missing = $unmet | where $it not-in $groups
     if ($missing | is-empty) { return [(report ok packages "every declared package installed")] }
     [(report FAIL packages $"dot apply --packages pending, declared but not installed: (shown $missing)")]
 }
@@ -244,23 +251,20 @@ def checks []: nothing -> list<closure> {
     ]
 }
 
-# Every check's records, unprinted.
+# Every check's records, unprinted, in check order; the checks are independent reads, so they run side by side.
 export def doctor-checks []: nothing -> list<record> {
-    checks | each {|c| do $c } | flatten
+    checks | par-each --keep-order {|c| do $c } | flatten
 }
 
 # Prints every check (--brief: only FAIL lines as "<check>: <text>"); true when one failed.
 export def doctor-run [--brief]: nothing -> bool {
-    mut failed = false
-    for c in (checks) {
-        for r in (do $c) {
-            if $r.level == "FAIL" { $failed = true }
-            if not $brief {
-                print $"($r.level | fill --width 4)  ($r.check | fill --width 10) ($r.text)"
-            } else if $r.level == "FAIL" {
-                print $"($r.check): ($r.text)"
-            }
+    let records = doctor-checks
+    for r in $records {
+        if not $brief {
+            print $"($r.level | fill --width 4)  ($r.check | fill --width 10) ($r.text)"
+        } else if $r.level == "FAIL" {
+            print $"($r.check): ($r.text)"
         }
     }
-    $failed
+    $records | any { $in.level == "FAIL" }
 }

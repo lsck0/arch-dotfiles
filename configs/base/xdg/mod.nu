@@ -1,5 +1,8 @@
 use module.nu *
 
+# the applications dir's mtime: an entry added or removed there re-evaluates the desktop database's staleness
+export const meta = {inputs: [~/.local/share/applications]}
+
 const PAM_ENV = "/etc/security/pam_env.conf"
 # app-dirs.conf's environment.d reaches only the graphical session; ssh and tty logins get these, or go creates ~/go
 const PAM_LINES = [
@@ -60,6 +63,9 @@ const RECLAIM = [
     [.wget-hsts .local/state/wget-hsts link-file] [.indentconfig.yaml .config/latexindent/indentconfig.yaml link-file]
 ]
 
+# update-desktop-database renames its cache into the dir, so the dir's mtime trails the cache's by under a millisecond
+const DESKTOP_CACHE_SLACK = 1sec
+
 const XBEL_NS = "http://www.freedesktop.org/standards/desktop-bookmarks"
 const XBEL_END = "</xbel>"
 
@@ -109,7 +115,7 @@ export def link [cfg: record] {
     let marks = (if $projects { [[projects Projects]] } else { [] }) ++ [[vault Vault] [sync Sync]]
     let bookmarks = $marks ++ (if $nas { [[nas NAS]] } else { [] }) | each { $"file://(home $in.0) ($in.1)" }
     [
-        (step home-dirs)
+        (if (home-dirs-done) { [] } else { step home-dirs })
         (files-into $config mimeapps.list user-dirs.conf user-dirs.dirs)
         (files-into ($config | path join environment.d) app-dirs.conf)
         (dropin xdg-document-portal.service doc-portal.conf --name 10-success-exit.conf)
@@ -135,10 +141,42 @@ export def link [cfg: record] {
         (if (which startplasma-wayland | is-not-empty) { files-into $portals kde-portals.conf } else { [] })
         (file-text ($config | path join gtk-3.0 bookmarks) ($bookmarks | str join "\n" | $"($in)\n"))
         (file-text (home .local share user-places.xbel) (places-xbel (places $nas $projects)) --generated)
-        (if (which update-desktop-database | is-not-empty) {
+        (if (which update-desktop-database | is-not-empty) and (desktop-database-stale) {
             exec "desktop database" [update-desktop-database (home .local share applications)]
         } else { [] })
     ] | decls-flatten
+}
+
+# Whether an entry under applications/ changed since update-desktop-database last wrote mimeinfo.cache.
+def desktop-database-stale []: nothing -> bool {
+    let dir = home .local share applications
+    let cache = $dir | path join mimeinfo.cache
+    if not ($cache | path exists) { return true }
+    let built = (ls --long $cache | get 0.modified) + $DESKTOP_CACHE_SLACK
+    let entries = glob ($dir | path join "**" "*") | where $it != $cache | append $dir
+    $entries | any {|e| (ls --long --directory $e | get 0.modified) > $built }
+}
+
+def reclaim-target [r: record]: nothing -> path {
+    # a cache target follows XDG_CACHE_HOME, as app-dirs.conf's npm_config_cache does
+    if ($r.target | str starts-with .cache/) {
+        xdg cache ($r.target | str replace --regex '^\.cache/' '')
+    } else {
+        home $r.target
+    }
+}
+
+# Whether home-dirs has nothing left to do; a reclaim whose target already exists waits for a manual merge.
+def home-dirs-done []: nothing -> bool {
+    let dirs = $DIRS | each { home $in } | append (home .local share applications)
+    let capitalized = $CAPITALIZED | each { home $in } | where { ($in | path type) == dir and (ls --all $in | is-empty) }
+    let reclaim = $RECLAIM | where {|r|
+        let target = reclaim-target $r
+        let movable = ((home $r.name) | path type) in [dir file] and not ($target | path exists)
+        let parent = match $r.mode { "link" => $target, "link-file" => ($target | path dirname), _ => null }
+        $movable or ($parent != null and ($parent | path type) != dir)
+    }
+    ($dirs | all { ($in | path type) == dir }) and ($capitalized | is-empty) and ($reclaim | is-empty)
 }
 
 export def home-dirs []: nothing -> nothing {
@@ -146,12 +184,7 @@ export def home-dirs []: nothing -> nothing {
     for dir in $CAPITALIZED { ^rmdir (home $dir) | complete | ignore }
     for r in $RECLAIM {
         let src = home $r.name
-        # a cache target follows XDG_CACHE_HOME, as app-dirs.conf's npm_config_cache does
-        let target = if ($r.target | str starts-with .cache/) {
-            xdg cache ($r.target | str replace --regex '^\.cache/' '')
-        } else {
-            home $r.target
-        }
+        let target = reclaim-target $r
         if ($src | path type) in [dir file] {
             if ($target | path exists) {
                 print $"note: xdg: ($r.name): ($target) exists, left ($src) for a manual merge"

@@ -75,6 +75,7 @@ Item {
   }
 
   function typedLine(i) {
+    if (i < 0 || i >= lines.length) return ""
     var before = 0
     for (let k = 0; k < i; k++) before += lines[k].length
     return lines[i].substring(0, Math.max(0, typedChars - before))

@@ -13,6 +13,8 @@ profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
   tool shell cannot raise a touch request nobody sees. `sudo`'s `05-timestamp` pins the per-terminal cache.
 - `networkmanager`: two tiers by gateway MAC. Home (`home_gateways`, secrets, the install answer) is the homelab's
   network: homelab routes and split DNS, the homelab mirror put back first, the NAS, printers, no connectivity check.
+  A home line is `<mac> <gateway address> <dhcp server identifier>` and needs all three (the MACs were public once); a
+  MAC alone only counts as trusted, and not at all once a full line names it.
   Trusted (`trusted_gateways`, secrets' `keys/trusted-gateways` where `toggle-trust-network` writes while unlocked,
   plus home) only lifts the untrusted-network persona (`untrusted_policy`): `/run/trusted-network` feeds the firewall's `trusted_links` sets, tor-router and the persona;
   `/run/home-network` the homelab wiring. The homelab mirror also comes back first on wg0. `toggle-portal` opens a captive portal window for 120 s on every foreign link (the dispatcher's `<iface>
@@ -26,7 +28,8 @@ profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
   uids are looked up at unit start, so nftables never waits on base/tor (lint: `FAIL_CLOSED` in scripts/lib/gate.nu).
 - `powercap`: `powercap-watts.service` writes the RAPL package draw as whole watts to `/run/powercap/watts` for the
   bar, `energy_uj` stays root-only; a udev rule starts it once `intel_rapl_msr` loads.
-- `xdg`: `app-dirs.conf`, `home.hidden`, `RECLAIM` keep `$HOME` clean.
+- `xdg`: `app-dirs.conf`, `home.hidden`, `RECLAIM` keep `$HOME` clean. It owns the user applications dir's
+  `mimeinfo.cache`, rebuilt when an entry there is newer.
 - Owner rollouts here gate on `profile-has secrets` alone, not `owner-unlocked` (ssh's `ssh-add.service` and
   `authorize`, protonvpn's `auto-vpn`, failure-notify's `recovery-drill`): what they need from the secrets is checked at
   run time (`ssh-add`'s `ExecCondition`, `authorize` appends only readable keys), so they work after an unlock without

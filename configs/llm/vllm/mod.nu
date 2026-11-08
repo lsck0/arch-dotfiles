@@ -120,7 +120,7 @@ export def venv []: nothing -> nothing {
             ^uv pip uninstall --python $venv -r $UV_EXCLUDES
         }
         rm --force $uv_config
-    } catch {|e| rm --force $uv_config; error make {msg: $e.msg} }
+    } catch {|e| rm --force $uv_config; error make $e }
     # torch's RUNPATH is $ORIGIN, so the libmpi_cxx stub goes beside it; the path is built, so root runs no venv code
     let platlib = $venv | path join lib $"python($PYTHON_VERSION)" site-packages
     let build = mktemp --directory
@@ -129,6 +129,6 @@ export def venv []: nothing -> nothing {
         ^cc -shared -fPIC -O2 -Wall -Werror -Wl,-soname,libmpi_cxx.so.40 -o $stub $STUB_SOURCE
         ^install -m755 $stub ($platlib | path join torch lib libmpi_cxx.so.40)
         rm --recursive $build
-    } catch {|e| rm --recursive --force $build; error make {msg: $e.msg} }
+    } catch {|e| rm --recursive --force $build; error make $e }
     $stamp | save --force $stamp_path
 }

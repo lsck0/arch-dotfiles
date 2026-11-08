@@ -166,7 +166,7 @@ export def anonymous-socks-up []: nothing -> nothing {
         anonymous-socks-down
     }
     rm --force $s.VERIFIED
-    try { start $s } catch {|e| anonymous-socks-down; error make {msg: $e.msg} }
+    try { start $s } catch {|e| anonymous-socks-down; error make $e }
     print $"anonymous-socks up: ($s.POOL_SIZE) ports, round-robin config at ($s.PC_CONF)"
 }
 

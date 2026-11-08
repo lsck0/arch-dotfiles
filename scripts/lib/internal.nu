@@ -4,7 +4,7 @@
 const REPO = path self | path expand | path dirname | path dirname | path dirname
 const LIB = $REPO | path join scripts lib
 use ($LIB | path join log.nu) *
-use ($LIB | path join cli.nu) [concat jobs guarded]
+use ($LIB | path join cli.nu) [concat jobs guarded theme-locked]
 use ($LIB | path join complete.nu) [command-table complete-run completions-run module-ids]
 use ($LIB | path join platform.nu) [platform-env]
 use ($LIB | path join options.nu) [options-events-file]
@@ -204,6 +204,7 @@ def "main theme list" []: nothing -> nothing { guarded theme --read-only { print
 
 # every module's theme verb for this wallpaper; THEME_ORDERED last and in order
 def "main theme apply" [wallpaper: path, ...mods: string@module-ids]: nothing -> nothing {
+    theme-locked
     guarded theme {
         let ctx = pipeline-load $REPO user
         let planned = pipeline-plan $ctx theme $mods true [$wallpaper]

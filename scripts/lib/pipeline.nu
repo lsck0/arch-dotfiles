@@ -5,7 +5,7 @@ use state.nu [LIB_DIR state-dir save-atomic]
 use platform.nu [platform-load platform-env]
 use profile.nu [profile-load]
 use options.nu [options-resolve]
-use modules.nu [modules-discover modules-graph modules-eval modules-packages-each]
+use modules.nu [modules-discover modules-graph modules-eval modules-packages-each modules-root-run]
 use converge.nu [state-read observe recorded-hashes decls-check plan-module apply-module state-write mode-normal]
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use cause.nu [failure-line cause-from-error cause-text]
@@ -16,7 +16,7 @@ const HASH_STAMP = '%H\t%P %s %T@\n'
 const LINK_PROBE = 'for f; do if test -e "$f"; then echo y; else echo n; fi; done'
 const EXEC_PASSES_MAX = 3
 const NOTE_PREFIX = "note:"
-const REVERT_VERBS = [link system]
+const REVERT_VERBS = [link system theme]
 # the verbs that run only once the module's packages are installed
 const GATED_VERBS = [link system]
 # per layer, in its state dir: "<id>: <why>" for each module the last run left pending
@@ -26,6 +26,9 @@ const PACKAGES_HINT = "dot apply --packages"
 const WAITS_ON = "waits on "
 # a link source can be a dead mount: bound the probe, a timeout counts as gone
 const LINK_PROBE_TIMEOUT_S = 2
+# a relative use or source of a .nu file: the line imports-outside follows, as a regex and as grep -E reads it
+const IMPORT_LINE = '\s*(?:export\s+)?(?:use|source|source-env)\s+(?<p>\.{1,2}/\S+\.nu)'
+const IMPORT_GREP = '^\s*(export\s+)?(use|source|source-env)\s+\.{1,2}/\S+\.nu'
 const GLOB_META = '[*?\[{]'
 # a hung theme verb is killed after this; the run goes on
 export const THEME_VERB_TIMEOUT = 60sec
@@ -34,8 +37,10 @@ def eval-env [ctx: record]: nothing -> record {
     platform-env $ctx.platform | merge {DOT_LAYER: $ctx.layer, DOTFILES: $ctx.repo}
 }
 
+# Each module's detected option values; the system layer probes only the modules root runs a hook of.
 def detect [ctx: record, modules: table]: nothing -> record {
-    let probing = $modules | where {|m| "detect" in $m.native }
+    let root = if $ctx.layer == "system" { modules-root-run $modules } else { null }
+    let probing = $modules | where {|m| "detect" in $m.native and ($root == null or $m.id in $root) }
     if ($probing | is-empty) { return {} }
     let cfgs = $probing | reduce --fold {} {|m, acc| $acc | insert $m.id ($m.options | items {|k, s| {k: $k, v: $s.default} } | reduce --fold {} {|o, a| $a | insert $o.k $o.v }) }
     with-env (eval-env $ctx) { modules-eval $probing detect $cfgs [] } | each {|r|
@@ -76,10 +81,13 @@ export def --env pipeline-load [repo: path, layer: string]: nothing -> record {
         error make {msg: $"options:\n($resolved.errors | str join "\n")"}
     }
     let values = $resolved.rows | reduce --fold {} {|r, acc| $acc | insert $r.id $r }
+    let known = $values | columns
     let modules = $found | each {|m|
         let row = $values | get $m.id
         # meta.reads: modules whose options it takes without running after or waiting on them
-        let deps = $m.meta.deps ++ ($m.meta.reads? | default []) | where $it in ($values | columns) | reduce --fold {} {|d, acc| $acc | insert $d ($values | get $d | get values) }
+        let named = $m.meta.deps ++ ($m.meta.reads? | default [])
+        # no inner closure for the common case: each closure command costs (l-dotfiles-live-debug)
+        let deps = if ($named | is-empty) { {} } else { $named | where $it in $known | each {|d| [$d ($values | get $d | get values)] } | into record }
         $m | insert cfg ($row.values | insert deps $deps) | insert sources $row.sources
     }
     $base | insert modules $modules
@@ -122,8 +130,10 @@ export def packages-absent [declared: table]: nothing -> record {
     let pacman = do $names pacman
     {
         pacman: (if ($pacman | is-empty) or (which pacman | is-empty) { [] } else {
-            with-env {LC_ALL: C} { ^pacman -T ...$pacman | complete } | get stdout | lines | where $it != ""
-            | where {|n| (do { ^pacman -Qqg $n } | complete).exit_code != 0 }
+            let unmet = with-env {LC_ALL: C} { ^pacman -T ...$pacman | complete } | get stdout | lines | where $it != ""
+            # one query for every unmet name that may be a group: -Qg lists "<group> <member>" for those installed
+            let groups = if ($unmet | is-empty) { [] } else { ^pacman -Qg ...$unmet | complete | get stdout | lines | each { split row " " | first } | uniq }
+            $unmet | where $it not-in $groups
         })
         flatpak: (user-kind-absent flatpak (do $names flatpak) { flatpak-installed })
         nix: (user-kind-absent nix (do $names nix) { nix-installed })
@@ -132,10 +142,11 @@ export def packages-absent [declared: table]: nothing -> record {
 
 # Why each module whose declared packages are not all installed waits: id -> reason, none for the rest.
 export def packages-gate [declared: table, absent: record]: nothing -> record {
-    $declared | each {|d|
-        let missing = [pacman flatpak nix] | each {|k| $d | get $k | where $it in ($absent | get $k) } | flatten | uniq
-        if ($missing | is-not-empty) { {id: $d.id, why: $"packages missing: ($missing | str join ' '); ($PACKAGES_HINT)"} }
-    } | compact | reduce --fold {} {|r, acc| $acc | insert $r.id $r.why }
+    let kinds = [pacman flatpak nix] | where {|k| $absent | get $k | is-not-empty }
+    if ($kinds | is-empty) { return {} }
+    # one id/name row per declared package, filtered in one pass per kind rather than per module
+    $kinds | each {|k| $declared | select id $k | flatten $k | rename id name | where name in ($absent | get $k) } | flatten
+    | uniq | group-by id | items {|id, rows| [$id $"packages missing: ($rows.name | str join ' '); ($PACKAGES_HINT)"] } | into record
 }
 
 # Why a ready module is held back, null when it may run: its own packages, or a dependency that failed or is pending.
@@ -195,16 +206,48 @@ export def links-alive [sources: list<string>]: nothing -> record {
     $sources | zip $alive | reduce --fold {} {|a, acc| $acc | upsert $a.0 $a.1 }
 }
 
-# Imports outside the module's dir, followed transitively, so a change there re-runs the module.
-def imports-outside [dir: path]: nothing -> list<string> {
+# The relative imports of every .nu file under dirs, one grep for all: file -> the absolute .nu paths it imports.
+def imports-map [dirs: list<string>]: nothing -> record {
+    if ($dirs | is-empty) { return {} }
+    ^grep -rHE --include=*.nu $IMPORT_GREP ...$dirs | complete | get stdout | lines | uniq
+    | parse --regex $"^\(?<file>[^:]+\):($IMPORT_LINE)"
+    | each {|r| {file: $r.file, import: ($r.file | path dirname | path join $r.p | path expand)} }
+    | group-by file | items {|file, rows| [$file $rows.import] } | into record
+}
+
+# The mapped dirs (dir -> true) each importing file of the map sits under, nested module dirs all of them: dir -> files.
+def imports-by-dir [map: record, mapped: record]: nothing -> record {
+    $map | columns | each {|f|
+        mut owners = []
+        mut dir = $f | path dirname
+        while $dir != "/" {
+            if ($mapped | get --optional $dir | default false) { $owners = $owners | append $dir }
+            $dir = $dir | path dirname
+        }
+        $owners | each {|d| {dir: $d, file: $f} }
+    } | flatten | group-by dir | items {|d, rows| [$d $rows.file] } | into record
+}
+
+# A file's relative imports, from the map when it covered the file's dir, else read.
+def imports-of [file: string, map: record, mapped: record]: nothing -> list<string> {
+    let listed = $map | get --optional $file
+    if $listed != null { return $listed }
+    mut dir = $file | path dirname
+    while $dir != "/" {
+        if ($mapped | get --optional $dir | default false) { return [] }
+        $dir = $dir | path dirname
+    }
+    open --raw $file | lines | parse --regex $IMPORT_LINE | get p | each {|p| $file | path dirname | path join $p | path expand }
+}
+
+# Imports outside the module's dir, followed transitively, so a change there re-runs the module. by_dir: imports-by-dir.
+def imports-outside [dir: path, by_dir: record, map: record, mapped: record]: nothing -> list<string> {
     mut seen = []
-    mut todo = glob ($dir | path join "**" "*.nu")
+    mut todo = $by_dir | get --optional $dir | default []
     while ($todo | is-not-empty) {
         let file = $todo | first
         $todo = $todo | skip 1
-        let found = open --raw $file | lines
-            | parse --regex '^\s*(?:export\s+)?(?:use|source|source-env)\s+(?<p>\.{1,2}/\S+\.nu)'
-            | get p | each {|p| $file | path dirname | path join $p | path expand }
+        let found = imports-of $file $map $mapped
             | where {|f| not ($f | str starts-with $"($dir)/") and not ($f | str starts-with $LIB_DIR) and $f not-in $seen and ($f | path exists) }
         $seen = $seen ++ $found
         $todo = $todo ++ $found
@@ -214,6 +257,7 @@ def imports-outside [dir: path]: nothing -> list<string> {
 
 # A path that cannot be read (a nas link while the nas is down) counts as missing, never a crash.
 def stat [repo: path, paths: list<string>]: nothing -> string {
+    if ($paths | is-empty) { return "" }
     # glob walks a literal dir's whole tree (~/projects) to return the one path, so only a pattern is globbed
     let found = $paths | each {|p| if ($p | str starts-with "/") or ($p | str starts-with "~") { $p | path expand } else { $repo | path join $p } }
         | each {|p| if $p =~ $GLOB_META { try { glob $p } catch { [] } } else if ($p | path exists) { [$p] } else { [] } } | flatten | uniq
@@ -261,23 +305,62 @@ def eval-plan [ctx: record, mods: table, verb: string, args: list, prev: record,
     }
 }
 
-# root's secrets arrive in a fresh dir each run: their content, not their path, decides whether a module re-runs
-# root gets the secrets as DOTFILES_SECRETS, the user layer reads the checkout's keys/ (size and mtime: 60M of keys)
-def secrets-stamp [repo: path]: nothing -> string {
-    let dir = $env.DOTFILES_SECRETS? | default ""
-    if $dir != "" and ($dir | path exists) {
-        return (glob ($dir | path join "**" "*") --no-dir | sort | each {|f| $"($f | path relative-to $dir) (open --raw $f | hash sha256)" } | str join "\n" | hash sha256)
-    }
-    let keys = $repo | path join configs secrets keys
-    if not ($keys | path exists) { return "" }
-    # an empty keys/ (a submodule half set up) matches nothing, which ls raises
-    try { ls --all ($keys | path join "**" "*" | into glob) } catch { [] } | where type == file | sort-by name
-    | each {|f| $"($f.name) ($f.size) ($f.modified)" } | str join "\n" | hash sha256
+# an empty dir (a submodule half set up) matches nothing, which glob answers with no files
+def files-stamp [dir: path]: nothing -> string {
+    glob ($dir | path join "**" "*") --no-dir | sort | each {|f| $"($f | path relative-to $dir) (open --raw $f | hash sha256)" } | str join "\n" | hash sha256
 }
 
-# Unchanged modules are skipped unevaluated; a disabled one plans its removals. A link or system verb whose module's
-# packages are not installed is planned pending (--packages-unchecked: the install pass's base/pacman, run before them).
-export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: bool, args: list = [], --packages-unchecked]: nothing -> table {
+# root's secrets arrive in a fresh dir each run: their content, not their path, decides whether a module re-runs
+# root gets the secrets as DOTFILES_SECRETS, the user layer git's index of the checkout's keys/ (60M, too much to hash)
+export def secrets-stamp [repo: path]: nothing -> string {
+    let dir = $env.DOTFILES_SECRETS? | default ""
+    if $dir != "" and ($dir | path exists) { return (files-stamp $dir) }
+    let secrets = $repo | path join configs secrets
+    let keys = $secrets | path join keys
+    if not ($keys | path exists) { return "" }
+    # without its own .git, git -C answers for the enclosing repo, where keys/ is one gitlink: the stamp never moves
+    if not ($secrets | path join .git | path exists) { return (files-stamp $keys) }
+    # git's view, not size and mtime: backup rewrites keys after every apply, mostly with the content they had
+    let index = ^git -C $secrets ls-files -s -- keys | complete
+    let changed = ^git -C $secrets status --porcelain=v1 -z --no-renames --untracked-files=all -- keys | complete
+    if $index.exit_code != 0 or $changed.exit_code != 0 { return (files-stamp $keys) }
+    let edits = $changed.stdout | split row (char nul) | where ($it | str length) > 3 | each { str substring 3.. } | sort
+        | each {|f|
+            let file = $secrets | path join $f
+            if ($file | path type) == "file" { $"($f) (open --raw $file | hash sha256)" } else { $"($f) gone" }
+        }
+    [$index.stdout] ++ $edits | str join "\n" | hash sha256
+}
+
+# Modules the repo no longer has that left outputs in verb's state, for a run over every module. A group dir that is
+# gone too (the secrets submodule not checked out) is left alone.
+export def modules-gone [ctx: record, verb: string]: nothing -> list<string> {
+    let root = state-dir | path join modules
+    if not ($root | path exists) { return [] }
+    glob ($root | path join "**" $"($verb).nuon") --no-dir | each { path dirname | path relative-to $root }
+    | where {|id|
+        let group = $ctx.repo | path join configs ($id | path split | first)
+        $id not-in $ctx.modules.id and ($group | path exists) and ((state-read $id $verb).outputs | is-not-empty)
+    }
+}
+
+# A gone module's row: its recorded outputs planned against no declarations, as unlink does. Targets another module
+# records or plans are forgotten, not removed.
+def module-gone-row [ctx: record, id: string, verb: string, force: bool, claimed: list<string>]: nothing -> record {
+    let prev = (state-read $id $verb).outputs
+    let seen = observe ($prev | where kind != unit | get target) ($prev | where kind == unit | get target) (scope-of $ctx.layer)
+    let planned = try { {actions: (plan-module $id [] $prev $seen (recorded-hashes) $ctx.repo $force $claimed), error: null} } catch {|e| {actions: [], error: $"plan: ($e.msg)"} }
+    {
+        id: $id, dir: ($ctx.repo | path join configs $id), after: [], deps: [], level: 0, serial: false, cfg: {}, options: {}
+        force: $force, pending: null, native: true, skipped: false, input: "", prev: $prev, actions: $planned.actions, error: $planned.error
+    }
+}
+
+# Unchanged modules are skipped unevaluated; a disabled one plans its removals, as does one gone from the repo. A link
+# or system verb whose module's packages are not installed is planned pending (--packages-unchecked: the install
+# pass's base/pacman, run before them). --revert-all plans the disabled and gone modules' removals even for a list of ids
+# (the theme pass of a full apply, which names only the linked modules).
+export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: bool, args: list = [], --packages-unchecked, --revert-all]: nothing -> table {
     let unknown = $ids | where $it not-in $ctx.modules.id
     if ($unknown | is-not-empty) {
         error make {msg: $"no module ($unknown | str join ', '); dot plan --modules lists them"}
@@ -288,36 +371,43 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     }
     let active = $ctx.modules | where {|m| $verb in $m.verbs and $m.cfg.enable and (($ids | is-empty) or $m.id in $ids) }
     let retired = if $verb not-in $REVERT_VERBS { [] } else {
-        $ctx.modules | where {|m| not $m.cfg.enable and not $m.broken and $verb in $m.native and (($ids | is-empty) or $m.id in $ids) and ((state-read $m.id $verb).outputs | is-not-empty) }
+        $ctx.modules | where {|m| not $m.cfg.enable and not $m.broken and $verb in $m.native and (($ids | is-empty) or $revert_all or $m.id in $ids) and ((state-read $m.id $verb).outputs | is-not-empty) }
     }
     let graph = span graph {} { modules-graph $ctx.repo ($active ++ $retired) }
-    let olds = $graph | where $verb in $it.native | each {|m|
+    let olds = span state {} { $graph | where $verb in $it.native | par-each --keep-order {|m|
         let prev = state-read $m.id $verb
         {m: $m, prev: $prev, outside: ($prev.outputs | where kind in [file link] and source != null and not ($it.source | str starts-with $m.dir))}
-    }
+    } }
     let stamped = stamps ([$LIB_DIR] ++ ($olds | each { $in.m.dir }))
     # a link depends only on its source existing; the probe is bounded, a stat() on a dead autofs mount blocks
     let alive = links-alive ($olds | each { $in.outside } | flatten | where kind == link | get --optional source | default [] | uniq)
     # the lib's own imports outside it (the wallust palette) count for every module
-    let lib_imported = imports-outside $LIB_DIR | each {|f| $"($f) (open --raw $f | hash sha256)" } | str join "\n"
+    let import_dirs = [$LIB_DIR] ++ ($olds | each { $in.m.dir })
+    let mapped = $import_dirs | each {|d| [$d true] } | into record
+    let import_map = span imports {} { imports-map $import_dirs }
+    let importing = imports-by-dir $import_map $mapped
+    let lib_imported = imports-outside $LIB_DIR $importing $import_map $mapped | each {|f| $"($f) (open --raw $f | hash sha256)" } | str join "\n"
     let global = [
         ($stamped | get $LIB_DIR) $lib_imported ($ctx.platform.facts | to nuon) ($ctx.profile.capabilities? | default [] | to nuon)
         (secret-is-plaintext ($ctx.repo | path join $OWNER_WITNESS)) $verb ($args | to nuon)
         (secrets-stamp $ctx.repo)
     ] | str join "\n"
-    let imports = $olds | each {|o| {id: $o.m.id, files: (imports-outside $o.m.dir)} }
+    let imports = $olds | each {|o| {id: $o.m.id, files: (imports-outside $o.m.dir $importing $import_map $mapped)} }
     # a shared import (the wallust palette) is hashed once, not once per module importing it
     let import_hashes = $imports | get files | flatten | uniq | reduce --fold {} {|f, acc| $acc | insert $f (open --raw $f | hash sha256) }
     let imports_by = $imports | reduce --fold {} {|i, acc| $acc | insert $i.id $i.files }
-    let natives = $olds | each {|o|
+    let natives = span inputs {} { $olds | par-each --keep-order {|o|
         let m = $o.m
         let prev = $o.prev
         let outside = $o.outside
-        let links = $outside | where kind == link | get source | each {|s| $"($s) ($alive | get $s)" } | str join "\n"
-        let imported = $imports_by | get $m.id | each {|f| $"($f) ($import_hashes | get $f)" } | str join "\n"
-        let input = [$global ($stamped | get $m.dir) $imported ($m.cfg | to nuon) (stat $ctx.repo ($m.meta.inputs? | default [])) (stat $ctx.repo ($outside | where kind == file | get source)) $links] | str join "\n" | hash sha256
+        # most modules have no outside outputs and no imports: skip their closures, each costs (l-dotfiles-live-debug)
+        let links = if ($outside | is-empty) { "" } else { $outside | where kind == link | get source | each {|s| $"($s) ($alive | get $s)" } | str join "\n" }
+        let imports = $imports_by | get $m.id
+        let imported = if ($imports | is-empty) { "" } else { $imports | each {|f| $"($f) ($import_hashes | get $f)" } | str join "\n" }
+        let sources = if ($outside | is-empty) { [] } else { $outside | where kind == file | get source }
+        let input = [$global ($stamped | get $m.dir) $imported ($m.cfg | to nuon) (stat $ctx.repo ($m.meta.inputs? | default [])) (stat $ctx.repo $sources) $links] | str join "\n" | hash sha256
         {id: $m.id, prev: $prev, input: $input, volatile: ($m.meta.volatile? | default false)}
-    }
+    } }
     let prev_targets = $natives | reduce --fold [] {|n, acc| $acc ++ $n.prev.outputs }
     let before = span observe {} { observe ($prev_targets | where kind not-in [unit exec] | get --optional target | default []) ($prev_targets | where kind == unit | get --optional target | default []) (scope-of $ctx.layer) }
     let fresh = $natives | where {|n| not $force and not $n.volatile and $n.id not-in $retired.id and $n.input == $n.prev.input and (outputs-clean $n.prev.outputs $before) } | get id
@@ -342,7 +432,11 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
             $row | merge {native: true, skipped: false, input: $native.input, prev: $native.prev.outputs, actions: $p.actions, error: $p.error, pending: ($waiting | get --optional $m.id)}
         }
     }
-    $rows ++ ($broken | where selected | each {|m|
+    let gone = if $verb not-in $REVERT_VERBS or (($ids | is-not-empty) and not $revert_all) { [] } else { modules-gone $ctx $verb }
+    let claimed = if ($gone | is-empty) { [] } else {
+        $prev_targets | get --optional target | default [] | append ($planned | get actions | flatten | get --optional target | default []) | uniq
+    }
+    $rows ++ ($gone | each {|id| module-gone-row $ctx $id $verb $force $claimed }) ++ ($broken | where selected | each {|m|
         {id: $m.id, dir: $m.dir, after: [], deps: [], level: 0, serial: false, cfg: {}, options: {}, native: true, skipped: false, input: "", prev: [], actions: [], error: "mod.nu does not parse", pending: null}
     })
 }
@@ -358,7 +452,7 @@ def native-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
         let current = $actions
         let done = with-env (platform-env $ctx.platform) { apply-module $current $m.dir (scope-of $ctx.layer) }
         $outcomes = $outcomes ++ $done
-        let ran = $done | where {|o| $o.kind == "exec" and $o.ok and $o.pending == null and $o.decl.creates? != null }
+        let ran = $done | where {|o| $o.kind == "exec" and $o.ok and $o.pending == null and $o.decl.creates? != null and ($o.decl.creates | path exists) }
         let failed = $done | where not ok
         let waiting = $done | where pending != null
         if ($ran | is-empty) or ($failed | is-not-empty) or $pass >= $EXEC_PASSES_MAX {
@@ -375,7 +469,9 @@ def native-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
         let outputs = $prev
         let again = eval-plan $ctx [$m] $verb $args {$m.id: $outputs} ($m.force? | default false) | first
         if $again.error != null { error make {msg: $again.error} }
-        $actions = $again.actions
+        # steps and plain execs plan on every pass; one that already went through this run does not run again
+        let through = $outcomes | where {|o| $o.kind in [step exec] and $o.ok and $o.pending == null } | get target
+        $actions = $again.actions | where {|a| $a.kind not-in [step exec] or $a.target not-in $through }
     }
     let failed = $outcomes | where not ok
     let waiting = $outcomes | where pending != null | get pending | uniq
@@ -426,8 +522,10 @@ def module-procs-kill [id: string]: nothing -> nothing {
 # --timeout: a module still running is killed and counts as failed. A held module (module-held) is not run: its result
 # is ok with pending set, and done records it as pending for whatever depends on it.
 # Each module waiting on id counts one predecessor fewer.
-def waiting-release [waiting: record, dependents: record, id: string]: nothing -> record {
-    $dependents | get --optional $id | default [] | get id | reduce --fold $waiting {|d, acc| $acc | update $d { $in - 1 } }
+def waiting-release [waiting: record, dependents: record, ids: list<string>]: nothing -> record {
+    let freed = $ids | each {|id| $dependents | get --optional $id | default [] | get id } | flatten
+    if ($freed | is-empty) { return $waiting }
+    $freed | uniq --count | reduce --fold $waiting {|c, acc| $acc | update $c.value { $in - $c.count } }
 }
 
 export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int, args: list = [], --timeout: duration]: nothing -> table {
@@ -455,7 +553,7 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
                 let error = $planned | where id == $h.id | get --optional 0.error
                 let result = {id: $h.id, ok: ($error == null), pending: $h.why, log: "", outcomes: [], error: $error, notes: [], ms: 0}
                 $done = $done | insert $h.id (if $result.ok { "pending" } else { "failed" })
-                $waiting = waiting-release $waiting $dependents $h.id
+                $waiting = waiting-release $waiting $dependents [$h.id]
                 $results = $results | append $result
                 if not $result.ok {
                     if ($env.FAILURES_FILE? | is-not-empty) { fail (module-failure $result $verb true) {module: $h.id, verb: $verb} }
@@ -463,6 +561,15 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
                 }
             }
             $pending = $pending | where id not-in $held.id
+            continue
+        }
+        # nothing to run (unchanged, or packages only): done here, a job each would cost more than all of them
+        let instant = $ready | where {|m| (not $m.native or $m.skipped) and $m.error == null }
+        if ($instant | is-not-empty) {
+            $done = $done | merge ($instant | each {|m| [$m.id ok] } | into record)
+            $waiting = waiting-release $waiting $dependents $instant.id
+            $results = $results ++ ($instant | each {|m| {id: $m.id, ok: true, pending: null, log: "", outcomes: [], error: null, notes: [], ms: 0} })
+            $pending = $pending | where id not-in $instant.id
             continue
         }
         let serial_wait = $ready | where serial | is-not-empty
@@ -506,7 +613,7 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
         let state = if not $result.ok { "failed" } else if $result.pending? != null { "pending" } else { "ok" }
         if $state == "pending" { log-note $"($result.id): pending, ($result.pending)" {module: $result.id} }
         $done = $done | insert $result.id $state
-        $waiting = waiting-release $waiting $dependents $result.id
+        $waiting = waiting-release $waiting $dependents [$result.id]
         $results = $results | append $result
         if not $result.ok and ($env.FAILURES_FILE? | is-not-empty) {
             let unevaluated = ($planned | where id == $result.id | get --optional 0.error) != null

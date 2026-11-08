@@ -2,8 +2,8 @@
 
 const REPO = path self ../..
 use log.nu *
-use cli.nu [concat jobs supervise root-runner]
-use state.nu [SYSTEM_REPO SYSTEM_STATE LIB_DIR state-dir EXIT_ABORTED EXIT_PENDING xdg]
+use cli.nu [concat jobs supervise root-runner locks-held]
+use state.nu [SYSTEM_REPO SYSTEM_STATE LIB_DIR state-dir EXIT_ABORTED EXIT_PENDING xdg CONFIG_ISSUE]
 use platform.nu [platform-load]
 use profile.nu [profile-has]
 use modules.nu [modules-packages]
@@ -14,13 +14,14 @@ use migrate.nu [migrations-run]
 use ../../configs/base/yubikey/yubikey.nu [yubikey-unlock]
 use system.nu [system-pack system-archive ENTRY]
 use ../../configs/core/wallust/wallpaper.nu [wallpaper-set]
-use sync.nu [sync-pull]
 use cause.nu [cause-from-error cause-text failure-line failure-is-system SYSTEM_FIX]
 use online.nu [network-online OFFLINE_PENDING]
 
 export const INTERNAL = path self internal.nu
+export const PIPELINE_CLI = path self pipeline-cli.nu
 const FAILURES = "FAILURES.config"
 const FAILURES_INSTALL = "FAILURES.install"
+const FAILURES_PUBLISHED = $REPO | path join $FAILURES
 const NIXPKGS = "github:NixOS/nixpkgs/b6c8664de9b6cc07fe5666a29f91884ba81197c4"
 const FLATHUB = "https://dl.flathub.org/repo/flathub.flatpakrepo"
 const LFS_FILTER = [
@@ -91,7 +92,7 @@ export def --env link-run [mods: list<string>, force: bool, --user-only]: nothin
     # an empty id list means every module to pipeline-plan: a run that planned no link rows themes none
     let themed = if ($wallpaper | path exists) and ($ids | is-not-empty) {
         let real_wallpaper = ^readlink -f $wallpaper | str trim
-        pipeline-plan $ctx theme $ids false [$real_wallpaper] | where native
+        pipeline-plan $ctx theme $ids false [$real_wallpaper] --revert-all=$full | where native
         | pipeline-apply $ctx $in theme (jobs) [$real_wallpaper] --timeout $THEME_VERB_TIMEOUT
     } else { [] }
     if $full {
@@ -135,13 +136,23 @@ def --env failures-open []: nothing -> nothing {
     }
 }
 
-export def failures-publish [results: table]: nothing -> bool {
+# The modules a run carried through: every result of theirs ok and none pending, so their earlier failures are over.
+def failures-cleared [results: table]: nothing -> list<string> {
+    $results | group-by id | items {|id, rows| if ($rows | all {|r| $r.ok and $r.pending? == null }) { $id } } | compact
+}
+
+# Publishes the run's failures into published (the checkout's FAILURES.config), false when the run failed.
+export def failures-publish [results: table, published: path = $FAILURES_PUBLISHED]: nothing -> bool {
     let owned = $env.DOT_FAILURES_OWNED? == true
     let failures = if $owned and ($env.FAILURES_FILE | path exists) { open --raw $env.FAILURES_FILE | str trim } else { "" }
+    let cleared = failures-cleared $results
+    # a partial run adds to what earlier runs recorded instead of replacing it, but for the modules it carried through
+    # a module's system line is over only when the system layer ran too
+    let system_ran = $env.DOT_SYSTEM_RAN? == true
+    let earlier = if ($published | path exists) {
+        open --raw $published | lines | where {|l| ($l | split row " " | first) not-in $cleared or ((failure-is-system $l) and not $system_ran) }
+    } else { [] }
     if ($failures | is-not-empty) {
-        let published = $REPO | path join $FAILURES
-        # a partial run adds to what earlier runs recorded instead of replacing it
-        let earlier = if ($published | path exists) { open --raw $published | lines } else { [] }
         let kept = if ($env.DOT_FULL_RUN? != true) { $earlier } else if ($env.DOT_SYSTEM_RAN? != true) {
             $earlier | where {|l| failure-is-system $l }
         } else { [] }
@@ -153,16 +164,40 @@ export def failures-publish [results: table]: nothing -> bool {
         return false
     }
     if ($results | any { not $in.ok }) { return false }
+    if $owned and ($env.DOT_FULL_RUN? != true) and ($published | path exists) {
+        let left = $earlier | where ($it | str trim) != ""
+        if ($left | is-empty) { rm --force $published } else if ($left | length) != (open --raw $published | lines | where ($it | str trim) != "" | length) {
+            $"($left | str join "\n")\n" | save --force $"($published).($env.DOT_RUN_ID)"
+            mv --force $"($published).($env.DOT_RUN_ID)" $published
+        }
+        return true
+    }
     # a user-only run cannot vouch for the system layer: its earlier failures stay published until it runs again
-    let published = $REPO | path join $FAILURES
     let system_stale = $env.DOT_SYSTEM_RAN? != true and ($published | path exists) and (open --raw $published | lines | any {|l| failure-is-system $l })
-    if $owned and ($env.DOT_FULL_RUN? == true) and not $system_stale { rm --force $published }
+    if $owned and ($env.DOT_FULL_RUN? == true) {
+        if not $system_stale { rm --force $published } else {
+            # the user layer passed in full: only the system lines it cannot vouch for stay
+            let system = open --raw $published | lines | where {|l| failure-is-system $l }
+            $"($system | str join "\n")\n" | save --force $"($published).($env.DOT_RUN_ID)"
+            mv --force $"($published).($env.DOT_RUN_ID)" $published
+        }
+    }
     true
 }
 
 export def finish [results: table]: nothing -> nothing {
     run-journal
     if not (failures-publish $results) { exit 1 }
+    config-banner-clear
+}
+
+# A failed config stage's login banner goes once a full apply, both layers run, left no FAILURES.config behind.
+def config-banner-clear []: nothing -> nothing {
+    if not ($CONFIG_ISSUE | path exists) or $env.DOT_FULL_RUN? != true or $env.DOT_SYSTEM_RAN? != true { return }
+    if ($FAILURES_PUBLISHED | path exists) { return }
+    let runner = system-runner
+    let r = ^$runner rm -f $CONFIG_ISSUE | complete
+    if $r.exit_code != 0 { log-note $"($CONFIG_ISSUE) left in place: ($runner) rm exited ($r.exit_code)" }
 }
 
 export def admin []: nothing -> bool {
@@ -177,7 +212,7 @@ export def --env pty-log [name: string, args: list<string>]: nothing -> nothing 
     if ($env.DOT_PTY_LOG? | is-not-empty) { return }
     if not (is-terminal --stdin) { $env.DOTFILES_UNATTENDED = "1" }
     if (is-terminal --stdout) and (which script | is-not-empty) {
-        let cmd = [nu --no-config-file ($REPO | path join scripts dot.nu) ...$args] | each {|w| $"'($w | str replace --all "'" "'\\''")'" } | str join " "
+        let cmd = [nu --no-config-file $PIPELINE_CLI ...$args] | each {|w| $"'($w | str replace --all "'" "'\\''")'" } | str join " "
         exec env DOT_PTY_LOG=1 script -qe -c $cmd ($REPO | path join $"($name).log")
     }
 }
@@ -263,11 +298,12 @@ export def --env apply-run [system: bool, user: bool, force: bool]: nothing -> t
 
 export def user-locked []: nothing -> nothing {
     let lock = state-dir | path join run.lock
-    if ($env.DOT_LOCK? | default "") != $lock and ($lock | path exists) and (^flock --nonblock $lock true | complete).exit_code != 0 {
+    if $lock not-in (locks-held) and ($lock | path exists) and (^flock --nonblock $lock true | complete).exit_code != 0 {
         print -e "dot: another dot run holds the user layer, waiting for it"
     }
     supervise --lock $lock
 }
+
 
 export def --env unlink-run [mod: string]: nothing -> table {
     let ctx = pipeline-load $REPO user
@@ -433,8 +469,8 @@ export def --env system-part [target: string]: nothing -> nothing {
     $env.DOT_SYSTEM_PENDING = true
 }
 
+# dot sync after its pull: migrations, packages, both layers, the modules' update verbs.
 export def --env update-run [yes: bool]: nothing -> record {
-    sync-pull $REPO
     migrations-run $REPO user | ignore
     let install = install-run false $yes false
     if $install == $EXIT_ABORTED { exit $EXIT_ABORTED }
@@ -450,7 +486,7 @@ export def --env update-run [yes: bool]: nothing -> record {
 export def managed-drift []: nothing -> table {
     let written = recorded-hashes
     let records = glob (state-dir | path join modules **/*.nuon) | each {|f|
-        {id: ($f | path dirname | path relative-to (state-dir | path join modules)), outs: (open $f | get outputs)}
+        {id: ($f | path dirname | path relative-to (state-dir | path join modules)), outs: (try { open $f | get outputs } catch { [] })}
     }
     # one observation for every record: one stat, one readlink and one systemctl for the lot
     let every = $records | get outs | flatten

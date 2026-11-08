@@ -4,9 +4,10 @@ use ../../core/wallust/palette.nu *
 # after caveman and rtk: the orchestrator profile is a one-time clone of ~/.hermes, which they fill with skills
 export const meta = {
     deps: [programming/caveman programming/rtk desktop/idle-guards llm/vllm llm/ollama]
-    packages: {pacman: [herdr-bin hermes-agent]}
-    # the guard appears after planning on a fresh install; as an input it re-plans the hooks
-    inputs: [~/.config/idle-guards/agent-guard.nu]
+    packages: {pacman: [herdr-bin hermes-agent hermes-agent-desktop]}
+    # the guard appears after planning on a fresh install; as an input it re-plans the hooks. The MCP servers every
+    # module's mcp-servers merged: one written after this module ran reaches hermes on its next apply
+    inputs: [~/.config/idle-guards/agent-guard.nu ~/.hermes/mcp-servers.json]
 }
 
 use ../../desktop/idle-guards/mod.nu [AGENT_GUARD]
@@ -25,8 +26,10 @@ const SETTINGS = {
     display.interface: tui
     model.default: claude-sonnet-5
     model.provider: anthropic
-    delegation.provider: nous
-    delegation.model: "meituan/longcat-2.0:free"
+    delegation.provider: anthropic
+    delegation.model: claude-sonnet-5
+    # the tui has no hold-to-talk, only a start/stop toggle key
+    voice.record_key: "ctrl+space"
     fallback_providers: [
         {provider: nous, model: "meituan/longcat-2.0:free"}
         {provider: nous, model: "poolside/laguna-s-2.1:free"}
@@ -35,6 +38,8 @@ const SETTINGS = {
 const ORCHESTRATOR_SETTINGS = {compression.threshold_tokens: 500000}
 const ANTHROPIC_KEY_SECRET = "configs/secrets/keys/hermes-anthropic.env"
 const REQUIRED_EXTRAS = [anthropic audio-io stt-whisper]
+# rewritten by every hermes-agent package update, which may need a venv sync
+const HERMES_LOCK = "/opt/hermes-agent/uv.lock"
 const GUARD_EVENTS = {
     pre_llm_call: turn-start
     post_llm_call: turn-end
@@ -48,8 +53,14 @@ def homes []: nothing -> record {
     {default: $default, orchestrator: ($default | path join $ORCHESTRATOR)}
 }
 
-# uv sync is a no-op once installed, so cheap on every apply
+# uv sync is a no-op once installed, but pm refuses to get there on a packaged install: once ~/.hermes/tools/facts.json
+# exists (its first sync writes it), it counts the package's system-store tools as not installed. So it runs only when
+# the last sync receipt lacks an extra or predates the package's uv.lock.
 export def required-extras []: nothing -> nothing {
+    let receipt = try { ^hermes pm status | from json } catch { {} }
+    let features = $receipt.feature_list? | default []
+    let fresh = try { ($receipt.finished_at | into datetime) > (ls $HERMES_LOCK | get 0.modified) } catch { false }
+    if $receipt.outcome? == ok and ($REQUIRED_EXTRAS | all {|e| $e in $features }) and $fresh { return }
     ^hermes pm install ...($REQUIRED_EXTRAS | each {|e| [--extra $e] } | flatten)
 }
 
@@ -71,15 +82,16 @@ def anthropic-key [home: path]: nothing -> list<record> {
     [(file-text ($home | path join .env) (render-env $merged) --mode 600)]
 }
 
-def configure [home: path, settings: record, remove: list<string>]: nothing -> list<record> {
+def configure [home: path, settings: record, remove: list<string>, mcp: record]: nothing -> list<record> {
     let guard = $nu.home-dir | path join $AGENT_GUARD
     let hooks = if ($guard | path exists) { $GUARD_EVENTS | items {|event, action| {$event: $"($guard) ($action)"} } | into record } else { {} }
-    let want = {settings: $settings, remove: $remove, skin: $SKIN, hooks: $hooks}
+    let want = {settings: $settings, remove: $remove, skin: $SKIN, hooks: $hooks, mcp: $mcp}
     let have = try { open ($home | path join config.yaml) } catch { {} }
     let set = $settings | items {|key, value| ($have | get --optional ($key | split row "." | into cell-path)) == $value }
     let hooked = $hooks | items {|event, command| $command in ($have.hooks? | get --optional $event | default [] | get --optional command | default []) }
     let removed = $remove | each {|key| ($have | get --optional ($key | split row "." | into cell-path)) == null }
-    let current = $set ++ $removed ++ $hooked ++ [($have.display?.skin? == $SKIN)] | all { $in }
+    let served = $mcp | items {|name, spec| ($have.mcp_servers? | get --optional $name) == $spec }
+    let current = $set ++ $removed ++ $hooked ++ $served ++ [($have.display?.skin? == $SKIN)] | all { $in }
     if $current { return [] }
     [(exec $"configure ($home)" [env $"HERMES_HOME=($home)" $PYTHON configure.py ($want | to json --raw)])]
 }
@@ -109,6 +121,7 @@ export def link [cfg: record] {
     let settings = $SETTINGS | merge $vllm | merge $ollama
     let remove = (if ($vllm | is-empty) { $VLLM_KEYS } else { [] }) ++ (if ($ollama | is-empty) { $OLLAMA_KEYS } else { [] })
     let skills = glob ($env.DOTFILES | path join skills "l-*") | where ($it | path type) == dir
+    let mcp = try { open ($h.default | path join mcp-servers.json) } catch { {} }
     [
         (step required-extras --network)
         (exec orchestrator-create [
@@ -116,8 +129,8 @@ export def link [cfg: record] {
         ] --creates $h.orchestrator)
         (exec orchestrator-alias [hermes profile alias orchestrator --name hermes-orchestrator] --creates ($nu.home-dir | path join .local bin hermes-orchestrator))
         ($skills | each {|dir| file-link $dir ($h.orchestrator | path join skills ($dir | path basename)) })
-        (configure $h.default $settings $remove)
-        (configure $h.orchestrator ($settings | merge $ORCHESTRATOR_SETTINGS) $remove)
+        (configure $h.default $settings $remove $mcp)
+        (configure $h.orchestrator ($settings | merge $ORCHESTRATOR_SETTINGS) $remove $mcp)
         (anthropic-key $h.default)
         (anthropic-key $h.orchestrator)
     ]

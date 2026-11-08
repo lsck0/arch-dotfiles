@@ -13,7 +13,7 @@ def pane-run [pane: string, ...argv: string]: nothing -> nothing {
 
 def create-line [create: path]: nothing -> string { $"(open --raw $create | hash sha256)  ($create)" }
 
-def create-allowed [create: path]: nothing -> bool {
+export def create-allowed [create: path]: nothing -> bool {
     ($TRUST | path exists) and ((create-line $create) in (open --raw $TRUST | lines))
 }
 

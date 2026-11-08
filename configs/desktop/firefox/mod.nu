@@ -11,6 +11,8 @@ export const meta = {
 const HOME_DIR = ".config/mozilla/firefox"
 const FIREFOX_DIR = "/usr/lib/firefox"
 const POLICIES = "/etc/firefox/policies/policies.json"
+# the owner's work sso sites, merged in where the root copy holds the secrets group
+const WORK_POLICIES = path self ../../secrets/capgemini/firefox-policies.json
 const PYWALFOX_HOST = ".mozilla/native-messaging-hosts/pywalfox.json"
 # the headless run is ended on purpose; profiles.ini is its result
 const HEADLESS_TIMEOUT = "20"
@@ -95,11 +97,10 @@ export def theme [cfg: record, wallpaper: string] {
 }
 
 export def system [cfg: record] {
-    let policies = if (platform-has homelab) {
-        file-copy policies.json $POLICIES
-    } else {
-        file-text $POLICIES $"(open policies.json | upsert policies.SearchEngines $SEARCH_OFF_HOMELAB | to json --indent 2)\n"
-    }
+    let work = if ($WORK_POLICIES | path exists) { open $WORK_POLICIES } else { {} }
+    let doc = open policies.json | merge deep --strategy append $work
+    let doc = if (platform-has homelab) { $doc } else { $doc | upsert policies.SearchEngines $SEARCH_OFF_HOMELAB }
+    let policies = file-text $POLICIES $"($doc | to json --indent 2)\n"
     # the new tab url is settable only from autoconfig in the install dir; mozilla.cfg reads each user's home at runtime
     let autoconfig = if ($FIREFOX_DIR | path exists) {
         [

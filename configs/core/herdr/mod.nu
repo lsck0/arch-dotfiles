@@ -31,12 +31,11 @@ def config-text []: nothing -> string {
     $source | str replace --regex $BLOCK $"${1}($block)\n${2}"
 }
 
-def config []: nothing -> list<record> {
-    [(file-text ($nu.home-dir | path join $CONFIG) (config-text) --mode 600 --generated) (step herdr-reload)]
-}
+# a server that is not running reads the new file when it starts
+const RELOAD = [sh -c "herdr server reload-config >/dev/null 2>&1 || true"]
 
-export def herdr-reload []: nothing -> nothing {
-    try { ^herdr server reload-config o+e>| ignore }
+def config []: nothing -> record {
+    file-text ($nu.home-dir | path join $CONFIG) (config-text) --mode 600 --generated --then $RELOAD
 }
 
 export def link [cfg: record] {

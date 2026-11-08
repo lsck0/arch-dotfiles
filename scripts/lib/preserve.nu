@@ -22,7 +22,8 @@ export def sync-guard [path: path]: nothing -> nothing {
 }
 
 # Kept under preserved/, never beside the original where a scanning dir would load it.
-export def preserve-aside [path: path]: nothing -> any {
+# --copy keeps path in place, for a target written in place (a bind mount or hardlink keeps its inode).
+export def preserve-aside [path: path, --copy]: nothing -> any {
     if (path-kind $path) == "" { return null }
     let base = $"(preserve-dir)(^realpath -ms $path).(date now | format date $STAMP_FORMAT)"
     mut dest = $base
@@ -32,12 +33,30 @@ export def preserve-aside [path: path]: nothing -> any {
         $dest = $"($base).($n)"
     }
     mkdir ($dest | path dirname)
+    if $copy {
+        let tmp = $"($dest).dot-new.($nu.pid)"
+        let copied = ^cp -a $path $tmp | complete
+        if $copied.exit_code != 0 {
+            rm --force --recursive $tmp
+            error make {msg: $"($path): could not preserve to ($dest): ($copied.stderr | str trim)"}
+        }
+        ^mv -n $tmp $dest
+        if (path-kind $tmp) != "" { rm --force --recursive $tmp; error make {msg: $"($path): preserve raced, ($dest) already existed"} }
+        log-info $"($path): the earlier copy kept as ($dest)"
+        return $dest
+    }
     let moved = ^mv -n $path $dest | complete
     if $moved.exit_code != 0 { error make {msg: $"($path): could not preserve to ($dest): ($moved.stderr | str trim)"} }
     # `mv -n` exits 0 and does nothing if $dest raced into existence, so an exit code alone cannot prove the move; confirm the source is gone, else the caller would overwrite an un-backed-up original
     if (path-kind $path) != "" { error make {msg: $"($path): preserve raced, ($dest) already existed"} }
     log-info $"($path): the earlier copy kept as ($dest)"
     $dest
+}
+
+# The preserved copies of path still under preserved/, oldest first.
+export def preserve-copies [path: path]: nothing -> list<string> {
+    let base = $"(preserve-dir)(^realpath -ms $path)"
+    glob $"($base).*" --no-dir | where ($it | str substring ($base | str length).. | $in =~ $"^($STAMP)") | sort
 }
 
 # Every preserved copy with its stamp, read from the name since mv keeps the original mtime.

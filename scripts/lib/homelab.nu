@@ -3,10 +3,28 @@
 # before the secrets are unlocked, read the same values.
 
 use options.nu [options-to-nuon]
+use ../../platforms/homelab.nu [HOMELAB]
 
 export const HOMELAB_FILE = "platforms/homelab.nu"
 # configs/base/pacman/pacman.conf's [lsck0] Server, filled with mirror.lsck0 by base/pacman and the iso
 export const LSCK0_SERVER_PLACEHOLDER = "@LSCK0_SERVER@"
+export const LSCK0_SECTION = "[lsck0]"
+const LSCK0_PROBE_TIMEOUT_S = 5
+
+# Whether the lab's [lsck0] repo answers from here: its x86_64 database, one byte of it.
+export def lsck0-reachable []: nothing -> bool {
+    let db = ($HOMELAB.mirror.lsck0 | str replace '$arch' x86_64) + "/lsck0.db"
+    (^curl -fs -m $LSCK0_PROBE_TIMEOUT_S -r 0-0 -o /dev/null $db | complete).exit_code == 0
+}
+
+# A pacman.conf without its [lsck0] section: a machine off the lab syncs core, extra and multilib alone, where an
+# unreachable Required repo would fail every pacman -Sy.
+export def lsck0-drop []: string -> string {
+    $in | lines | reduce --fold {out: [], inside: false} {|l, acc|
+        let inside = if ($l | str starts-with "[") { $l == $LSCK0_SECTION } else { $acc.inside }
+        {out: (if $inside { $acc.out } else { $acc.out | append $l }), inside: $inside}
+    } | get out | str join "\n" | $"($in)\n"
+}
 const LAB_RELATIVE = "src/generated/lab.json"
 const LAB_SCHEMA = 1
 const IPV4 = '^(\d{1,3}\.){3}\d{1,3}$'

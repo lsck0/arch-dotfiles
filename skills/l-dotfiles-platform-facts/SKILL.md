@@ -14,6 +14,9 @@ description: Machine facts in platforms/<name>.nuon versus user capabilities in 
 - Property of the machine (form factor, homelab, wireguard, own secure boot keys, `lsck0_snapshot`): a platform fact,
   `platform-has <fact>` / `$env.FORM_FACTOR`. The only gate a `system` verb may use.
 - Property of the person: `profile-has secrets` (the owner). User layer only.
+- `platform-has homelab` says the machine is on the lab, not who logs in: a `--profile custom` login on luca-pc has it
+  too. Personal content (accounts, employer domains, bookmarks) goes behind `profile-has secrets` or into
+  `configs/secrets/`, never behind a platform fact alone.
 - Never a username or hostname check.
 - A homelab value (domain, address, subnet, mirror): never a literal. `use platforms/homelab.nu [HOMELAB]` (generated
   from lab.json by `dot internal gen`) as the default of an option a platform may override, acted on only behind

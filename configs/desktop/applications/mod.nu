@@ -76,7 +76,4 @@ export def link [cfg: record] {
         desktop-set {Terminal: false} | str replace --regex '(?m)^Exec=wayvr$' $"Exec=($bin)/desktop-run --notify -- wayvr"
     })
     | append (if ($filezilla | path exists) { [] } else { [(step filezilla-seed $filezilla)] })
-    | append (if (which update-desktop-database | is-not-empty) {
-        [(exec desktop-database [update-desktop-database $apps])]
-    } else { [] })
 }

@@ -1,5 +1,6 @@
-"""Set and remove the hermes settings and set the agent-guard hooks the hermes module passes as JSON (argv[1]) in the
-profile at HERMES_HOME, in hermes' own venv: one interpreter instead of a hermes launch per key."""
+"""Set and remove the hermes settings, set the agent-guard hooks and the dotfiles' MCP servers (null drops one) the hermes
+module passes as JSON (argv[1]) in the profile at HERMES_HOME, in hermes' own venv: one interpreter instead of a hermes
+launch per key."""
 
 import json
 import sys
@@ -20,6 +21,13 @@ for event, command in want["hooks"].items():
     others = [h for h in hooks.get(event) or [] if "agent-guard" not in str(h.get("command", ""))]
     hooks[event] = others + [{"command": command}]
     _record_approval(event, command)
+servers = config.get("mcp_servers") or {}
+dropped = [name for name, spec in want["mcp"].items() if spec is None and servers.pop(name, None) is not None]
+servers.update({name: spec for name, spec in want["mcp"].items() if spec is not None})
+if servers:
+    config["mcp_servers"] = servers
+else:
+    config.pop("mcp_servers", None)
 for key in want["remove"]:
     *parents, leaf = key.split(".")
     parent = config
@@ -27,4 +35,4 @@ for key in want["remove"]:
         parent = parent.get(part) or {}
     parent.pop(leaf, None)
 # a merge with the file on disk would bring the removed keys back
-save_config(config, merge_existing=not want["remove"])
+save_config(config, merge_existing=not want["remove"] and not dropped)

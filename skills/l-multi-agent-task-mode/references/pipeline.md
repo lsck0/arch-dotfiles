@@ -48,6 +48,12 @@ ends with the phase's draft PR open; review and test run against it.
 `+stage-land` covers the merge step of `l-spec-driven-development`'s
 Phase loop: ready, merge per the project's merge policy, branch cleanup.
 
+A document phase (`l-spec-driven-development`, Document deliverables)
+keeps the same tags: `+stage-implement` is the writing,
+`+stage-code-review` the domain and legal review, `+stage-test` the
+fact and figure check, and `+stage-land` waits on the human whenever the
+document commits them outside the repo.
+
 Completion follows `l-agent-task-db` ("Completion: `task <id> done`"):
 the agent marks the ticket done itself.
 

@@ -9,6 +9,8 @@ const APPS_PATH = [UserLocalConfigStore Software Valve Steam apps]
 const STEAM_PROCESSES = [steam steamwebhelper]
 const BACKUP_SUFFIX = ".dotfiles-bak"
 const TOKEN = '"(?<s>(?:[^"\\]|\\.)*)"|(?<b>[{}])'
+const SELF = path self
+const STAMP = "steam-launch-options.stamp"
 
 def steam-root []: nothing -> path {
     $env.STEAM_ROOT? | default ($nu.home-dir | path join .local share Steam)
@@ -63,6 +65,17 @@ def vdf-update [pairs: list, path: list<string>, change: closure]: nothing -> li
     }
 }
 
+# Where a full run records the fingerprint it filled the launch options for.
+export def launch-options-stamp []: nothing -> path {
+    $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state) | path join $STAMP
+}
+
+# This script, the logins' localconfig.vdf files and the installed games: a new game or login changes it.
+export def launch-options-fingerprint []: nothing -> string {
+    let configs = glob (steam-root | path join userdata "*" config localconfig.vdf) | sort
+    [(open --raw $SELF | hash sha256) ...$configs ...(appids-installed | sort)] | str join "\n" | hash sha256
+}
+
 def appids-installed []: nothing -> list<string> {
     let folders = steam-root | path join steamapps libraryfolders.vdf
     let libraries = try {
@@ -111,8 +124,10 @@ def main []: nothing -> nothing {
         return
     }
     let configs = glob (steam-root | path join userdata "*" config localconfig.vdf)
-    if ($configs | is-empty) { return }
     let installed = appids-installed
-    if ($installed | is-empty) { return }
-    if not ($configs | each { localconfig-process $in $installed } | all { $in }) { exit 1 }
+    if ($configs | is-not-empty) and ($installed | is-not-empty) {
+        if not ($configs | each { localconfig-process $in $installed } | all { $in }) { exit 1 }
+    }
+    mkdir (launch-options-stamp | path dirname)
+    launch-options-fingerprint | save --force (launch-options-stamp)
 }

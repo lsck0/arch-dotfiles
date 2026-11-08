@@ -1,6 +1,6 @@
 use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
-use homelab.nu [LSCK0_SERVER_PLACEHOLDER]
+use homelab.nu [LSCK0_SERVER_PLACEHOLDER lsck0-reachable lsck0-drop]
 
 const FILESDB_TIMER = "pacman-filesdb-refresh.timer"
 # pacman-contrib's: the install pass runs this verb before and after installing it, the input re-plans it the second time
@@ -29,6 +29,12 @@ export def system [cfg: record] {
         let line = if $lsck0 { $l | str replace --regex '/\$arch$' $"($suffix)/$$arch" } else { $l }
         {out: ($acc.out | append $line), lsck0: $lsck0}
     } | get out | str join "\n"
+    # off the lab (no homelab fact) an unreachable [lsck0] would fail every sync: the machine goes on without it and
+    # takes it back once it answers; the owner's machines keep it, an outage there is a failure to see
+    let conf = if (platform-has homelab) or (lsck0-reachable) { $conf } else {
+        print "note: pacman: the homelab mirror does not answer, [lsck0] left out until it does"
+        $conf | lsck0-drop
+    }
     [
         (step trust)
         (file-text /etc/pacman.conf $conf)

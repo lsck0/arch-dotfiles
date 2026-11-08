@@ -235,6 +235,7 @@ git-filter-repo
 git-lfs
 github-cli
 github-copilot-cli
+github-desktop-bin
 gitleaks
 glfw
 glm
@@ -274,6 +275,7 @@ help2man
 herdr-bin
 heretic-llm
 hermes-agent
+hermes-agent-desktop
 heroic-games-launcher-bin
 hexchat
 hollywood
@@ -726,6 +728,7 @@ tar
 tar-scripts
 taskwarrior-tui
 tauri-cli
+tcc
 tcpdump
 tea
 teal

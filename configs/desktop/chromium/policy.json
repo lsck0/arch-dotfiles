@@ -25,21 +25,6 @@
     "HttpsOnlyMode": "force_enabled",
     "DnsOverHttpsMode": "off",
     "BlockThirdPartyCookies": true,
-    "CookiesAllowedForUrls": [
-        "[*.]microsoftonline.com",
-        "[*.]microsoft.com",
-        "[*.]cloud.microsoft",
-        "[*.]office.com",
-        "[*.]sharepoint.com",
-        "[*.]teams.skype.com",
-        "[*.]sfbassets.com",
-        "[*.]skypeforbusiness.com",
-        "signin.capgemini.com",
-        "arc.capgemini.com",
-        "[*.]ping.cloud",
-        "[*.]pingone.eu",
-        "[*.]pingone.com"
-    ],
     "ExtensionInstallForcelist": [
         "ddkjiahejlhfcafbddmgiahcphecmpfh;https://clients2.google.com/service/update2/crx",
         "naepdomgkenhinolocfifgehidddafch;https://clients2.google.com/service/update2/crx"

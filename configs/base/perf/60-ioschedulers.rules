@@ -1,4 +1,6 @@
-ACTION=="add|change", ENV{DEVTYPE}=="disk", KERNEL=="nvme[0-9]*n[0-9]*", ATTR{queue/scheduler}="none"
+# mq-deadline on every flash disk: "none" ignores io priority, so ionice and IOSchedulingClass=idle (nix-daemon,
+# vm tests, fence, the idle timers) did nothing and agent load stalled the desktop
+ACTION=="add|change", ENV{DEVTYPE}=="disk", KERNEL=="nvme[0-9]*n[0-9]*", ATTR{queue/scheduler}="mq-deadline"
 ACTION=="add|change", ENV{DEVTYPE}=="disk", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
 ACTION=="add|change", ENV{DEVTYPE}=="disk", KERNEL=="mmcblk[0-9]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
 ACTION=="add|change", ENV{DEVTYPE}=="disk", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"

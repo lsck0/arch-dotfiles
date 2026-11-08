@@ -47,7 +47,7 @@ def main [manifest: path, plugins: path]: nothing -> nothing {
         mv ($work | path join $name) ($plugins | path join $name)
     } catch {|e|
         rm --recursive --force $work
-        error make {msg: $e.msg}
+        error make $e
     }
     rm --recursive $work
 }

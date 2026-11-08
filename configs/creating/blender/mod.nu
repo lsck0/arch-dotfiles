@@ -91,7 +91,7 @@ export def addon-install []: nothing -> nothing {
             blender-run [-c extension build --source-dir $addon --output-filepath ($tmp | path join mcp.zip)]
             blender-run [-c extension install-file -r user_default ($tmp | path join mcp.zip)]
             rm --recursive $tmp
-        } catch {|e| rm --recursive --force $tmp; error make {msg: $e.msg} }
+        } catch {|e| rm --recursive --force $tmp; error make $e }
     }
     with-env {BLENDER_MCP_HOST: $MCP_HOST, BLENDER_MCP_PORT: $MCP_PORT} {
         blender-run [-b --python-exit-code 1 --python ($HERE | path join mcp-prefs.py)]

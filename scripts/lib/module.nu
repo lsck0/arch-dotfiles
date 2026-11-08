@@ -108,11 +108,41 @@ export def desktop-set [values: record]: string -> string {
     }
 }
 
-# Registers MCP servers with the agents (~/.claude.json's mcpServers), name -> server spec; null drops the name.
-export def mcp-servers [servers: record]: nothing -> record {
-    json-merge ($nu.home-dir | path join .claude.json) ($servers | items {|name, spec|
-        if $spec == null { json-delete [mcpServers $name] } else { json-set [mcpServers $name] $spec }
-    })
+# A Claude Code server spec in another agent's form; null where that agent has no counterpart.
+def mcp-form [agent: string]: any -> any {
+    let spec = $in
+    if $spec == null or $agent == claude { return $spec }
+    # a headersHelper is a command Claude Code runs for its headers
+    if $spec.headersHelper? != null { return null }
+    let stdio = $spec.type? in [null stdio]
+    match $agent {
+        gemini => (if $stdio { $spec | reject --optional type } else { $spec })
+        copilot => ($spec | upsert type (if $stdio { "local" } else { $spec.type }) | upsert tools ["*"])
+        hermes => ($spec | reject --optional type)
+    }
+}
+
+# Registers MCP servers with every coding agent, name -> spec in Claude Code's form ({type: stdio, command, args, env}
+# or {type: http, url, headers}); null drops the name. Claude Code reads ~/.claude.json, Gemini ~/.gemini/settings.json
+# and Copilot ~/.copilot/mcp-config.json, each in its own form. Hermes rewrites its YAML config itself, so its form goes
+# to ~/.hermes/mcp-servers.json, a dropped name kept as null, and programming/hermes sets that into each profile. A server
+# with a headersHelper reaches Claude Code only.
+export def mcp-servers [servers: record]: nothing -> list<record> {
+    let home = $nu.home-dir
+    [
+        [agent file key];
+        [claude ($home | path join .claude.json) [mcpServers]]
+        [gemini ($home | path join .gemini settings.json) [mcpServers]]
+        [copilot ($home | path join .copilot mcp-config.json) [mcpServers]]
+        [hermes ($home | path join .hermes mcp-servers.json) []]
+    ] | each {|t|
+        let edits = $servers | items {|name, spec|
+            let form = $spec | mcp-form $t.agent
+            if $form != null or $t.agent == hermes { json-set ($t.key | append $name) $form } else { json-delete ($t.key | append $name) }
+        }
+        # the specs may carry a token, and only Claude Code keeps its own file private
+        json-merge $t.file $edits --then (if $t.agent == claude { [] } else { [chmod "600" $t.file] })
+    }
 }
 
 # Forces only these keys ("" is the part before any section); --missing-only seeds absent keys only.

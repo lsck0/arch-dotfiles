@@ -3,6 +3,7 @@
 
 const POLL = 5sec
 const SESSION_DEFAULT = "default"
+const SHELLS = [sh bash dash zsh]
 
 def state-dir []: nothing -> path {
     let dir = $env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u | str trim)" | path join agent-busy
@@ -25,9 +26,16 @@ def session-id []: string -> string {
     if ($sid | str contains "/") { $SESSION_DEFAULT } else { $sid }
 }
 
-# The hook's caller, the agent process: its exit ends the session's claim.
+def ppid-of [pid: string]: nothing -> string {
+    open --raw $"/proc/($pid)/stat" | str replace --regex '^.*\) ' '' | split row " " | get 1
+}
+
+# The hook's caller, the agent process: its exit ends the session's claim. Agents run a hook through `bash -c`, which
+# usually execs it; a shell that stayed in between exits with the hook, so the claim goes past it.
 def parent-pid []: nothing -> string {
-    open --raw $"/proc/($nu.pid)/stat" | str replace --regex '^.*\) ' '' | split row " " | get 1
+    mut pid = ppid-of ($nu.pid | into string)
+    while $pid != "1" and (open --raw $"/proc/($pid)/comm" | str trim) in $SHELLS { $pid = ppid-of $pid }
+    $pid
 }
 
 def session-busy [dir: path, sid: string]: nothing -> bool {

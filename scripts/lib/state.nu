@@ -11,6 +11,8 @@ export const EXIT_ABORTED = 2
 export const EXIT_PENDING = 3
 # root's install writes it once its pacman pass went through; the install stage clears it first and reads it after
 export const INSTALL_PASS_FILE = $SYSTEM_STATE | path join install-pass
+# the login banner of an install chain whose config stage failed; the next clean full dot apply removes it
+export const CONFIG_ISSUE = "/etc/issue.d/dotfiles-config.issue"
 const LOCKED_SCRIPT = path self locked.nu
 
 # A path under an XDG base dir (config, data, cache, state), honoring XDG_*_HOME.

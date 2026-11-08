@@ -1,3 +1,42 @@
+local LATEX_IMAGES = [[
+(displayed_equation (#set! image.ext "math.tex")) @image.content @image
+
+((math_environment (#set! image.ext "math.tex")) @image.content @image
+  (#not-has-ancestor? @image "displayed_equation" "math_environment"))
+
+(graphics_include (_ (path) @image.src)) @image
+]]
+
+-- the density math pdfs rasterize at; snacks reads a png's size as pixels / dpi * 96 * terminal scale
+local MATH_DPI = 192
+
+-- Pads a formula to whole cells: snacks rounds width and height up to cells apart and the terminal stretches the image
+-- into that box, so a formula 1.2 rows tall came out 2 rows tall.
+local function math_args()
+    local term = Snacks.image.terminal.size()
+    local plain = { "-density", MATH_DPI, "{src}[{page}]", "-trim" }
+    -- a terminal that reports no pixel size gives 0-wide cells
+    if term.cell_width <= 0 or term.cell_height <= 0 then
+        return plain
+    end
+    local k = MATH_DPI / (96 * term.scale)
+    local w, h = term.cell_width * k, term.cell_height * k
+    local extent = ("%%[fx:floor(ceil(w/%f)*%f)]x%%[fx:floor(ceil(h/%f)*%f)]"):format(w, w, h, h)
+    return {
+        "-density",
+        MATH_DPI,
+        "{src}[{page}]",
+        "-trim",
+        "+repage",
+        "-background",
+        "none",
+        "-gravity",
+        "center",
+        "-extent",
+        extent,
+    }
+end
+
 return {
     { "nvim-tree/nvim-web-devicons" },
 
@@ -105,6 +144,7 @@ return {
                 },
                 convert = {
                     magick = {
+                        math = math_args,
                         pdf = {
                             "-density",
                             192,
@@ -116,8 +156,9 @@ return {
                         },
                     },
                 },
-                -- $...$ and $$...$$ in markdown and typst render through tectonic or pdflatex
-                math = { enabled = true },
+                -- display math ($$...$$, environments) renders through tectonic or pdflatex; LATEX_IMAGES leaves
+                -- inline math as source
+                math = { enabled = true, latex = { font_size = "normalsize" } },
             },
             notifier = { enabled = true },
             indent = { enabled = true },
@@ -181,6 +222,9 @@ return {
         },
         config = function(_, opts)
             require("snacks").setup(opts)
+            -- snacks' latex images minus inline_formula: an inline image fills whole cells, so a one-letter formula
+            -- stretches to the row height. Set, not an after/queries file: the first non-extending file in rtp wins.
+            vim.treesitter.query.set("latex", "images", LATEX_IMAGES)
             local inline = require("snacks.image.inline")
             local conceal = inline.conceal
             function inline:conceal()

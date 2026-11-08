@@ -34,19 +34,42 @@ export def link [cfg: record] {
     # without a gpu share llm/vllm installs nothing, so no instance points at its port
     let vllm = $cfg.deps."llm/vllm"
     [
-        (step seed (if $vllm.gpu_memory_utilization? == null { "" } else { $vllm.model | default "" }))
+        (seed-decl (if $vllm.gpu_memory_utilization? == null { "" } else { $vllm.model | default "" }))
         (fetch-file $WHISPER_URL $WHISPER.sha256 (db | path dirname | path join whisper $"($WHISPER.name).pt"))
         (ini-merge ($nu.home-dir | path join .var app $APP config glib-2.0 settings keyfile)
             {"com/jeffser/Alpaca": {stt-model: ($WHISPER.index | into string)}})
     ]
 }
 
-export def seed [vllm_model: string]: nothing -> nothing {
-    mkdir (db | path dirname)
-    let ollama = {
+def ollama-instance []: nothing -> record {
+    {
         name: "System Ollama", url: "http://127.0.0.1:11434", api: EMPTY, temperature: 0.7, num_ctx: $LONG_CONTEXT_TOKENS
         keep_alive: (($KEEP_ALIVE_MIN * 1min) / 1sec | into int), default_model: $LONG_CONTEXT
     }
+}
+
+# The seed step only while the database lacks a value it forces; read only, Alpaca may hold it open.
+def seed-decl [vllm_model: string]: nothing -> list<record> {
+    let query = "SELECT i.id, i.properties, l.list FROM instance i LEFT JOIN online_instance_model_list l ON l.id = i.id WHERE i.id LIKE 'dotfiles-%'"
+    let found = if not (db | path exists) { null } else {
+        try { ^sqlite3 -readonly -json (db) $query | from json | default [] } catch { null }
+    }
+    if $found == null { return [(step seed $vllm_model)] }
+    let rows = $found | each {|r| $r | update properties { from json } }
+    let ollama = $rows | where id == dotfiles-ollama | get --optional 0.properties
+    let wanted = ollama-instance | select url api num_ctx keep_alive default_model
+    let ollama_set = $ollama != null and ($ollama | select --optional url api num_ctx keep_alive default_model) == $wanted
+    let vllm = $rows | where id == dotfiles-vllm | get --optional 0
+    let vllm_set = if $vllm_model == "" { $vllm == null } else {
+        let listed = $vllm.list? | default "[]" | from json
+        $vllm != null and $vllm.properties.default_model? == $vllm_model and $vllm.properties.title_model? == $vllm_model and $vllm_model in $listed
+    }
+    if $ollama_set and $vllm_set { [] } else { [(step seed $vllm_model)] }
+}
+
+export def seed [vllm_model: string]: nothing -> nothing {
+    mkdir (db | path dirname)
+    let ollama = ollama-instance
     let vllm = {name: vLLM, url: "http://127.0.0.1:8000/v1", api: EMPTY, max_tokens: 2048, override_parameters: true, temperature: 0.7, seed: 0, default_model: $vllm_model, title_model: $vllm_model}
     let rows = [["dotfiles-ollama" ollama $ollama] ["dotfiles-vllm" "openai:generic" $vllm]]
         | where {|r| $r.0 != "dotfiles-vllm" or $vllm_model != "" }

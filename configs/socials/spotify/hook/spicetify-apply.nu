@@ -6,10 +6,40 @@ const SPOTIFY_SYSTEM = "/opt/spotify"
 const PACMAN_LOCK = "/var/lib/pacman/db.lck"
 const PACMAN_WAIT_S = 300
 
+def config-home []: nothing -> path { $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) }
+
+def patched-dir []: nothing -> path {
+    $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join spotify-patched
+}
+
+def logged-in []: nothing -> bool {
+    let prefs = config-home | path join spotify prefs
+    ($prefs | path exists) and (open --raw $prefs | lines | any { str starts-with autologin.username })
+}
+
+# What the patched copy was made from: the package, its xpui.spa and the extension list spicetify injects.
+def source-text []: nothing -> string {
+    let spa = $SPOTIFY_SYSTEM | path join Apps xpui.spa
+    let mtime = if ($spa | path exists) { ^stat -c %Y $spa | str trim } else { "" }
+    $"(^pacman -Q spotify | str trim) ($mtime) (^spicetify config extensions | str trim | lines | str join '|')"
+}
+
+def applied []: nothing -> bool {
+    let apps = patched-dir | path join Apps
+    not ($apps | path join xpui.spa | path exists) and ($apps | path join xpui | path exists)
+}
+
+# Whether a run would patch anything: logged in, and the copy stale, unapplied or not the one spicetify points at.
+export def apply-pending []: nothing -> bool {
+    if not (logged-in) { return false }
+    let stamp = patched-dir | path join .dotfiles-source
+    let ini = config-home | path join spicetify config-xpui.ini
+    let path = if ($ini | path exists) { open --raw $ini | parse --regex '(?m)^spotify_path\s*=\s*(?<v>.*?)\s*$' | get --optional 0.v }
+    not (applied) or $path != (patched-dir) or not ($stamp | path exists) or (open --raw $stamp | str trim) != (source-text)
+}
+
 def main []: nothing -> nothing {
-    let prefs = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join spotify prefs
-    let logged_in = ($prefs | path exists) and (open --raw $prefs | lines | any { str starts-with autologin.username })
-    if not $logged_in { return }
+    if not (logged-in) { return }
     # the xpui.spa trigger fires mid-transaction: wait for pacman to finish
     for _ in 1..$PACMAN_WAIT_S {
         if not ($PACMAN_LOCK | path exists) { break }
@@ -24,13 +54,11 @@ def main []: nothing -> nothing {
 }
 
 def "main locked" []: nothing -> nothing {
-    let dir = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join spotify-patched
+    let dir = patched-dir
     let apps = $dir | path join Apps
     let stamp = $dir | path join .dotfiles-source
-    let spa = $SPOTIFY_SYSTEM | path join Apps xpui.spa
-    let mtime = if ($spa | path exists) { ^stat -c %Y $spa | str trim } else { "" }
     # spicetify injects extensions only into a fresh copy: a changed list rebuilds it
-    let source = $"(^pacman -Q spotify | str trim) ($mtime) (^spicetify config extensions | str trim | lines | str join '|')"
+    let source = source-text
     if not ($stamp | path exists) or (open --raw $stamp | str trim) != $source {
         rm --recursive --force $dir
         mkdir ($dir | path dirname)
@@ -39,7 +67,7 @@ def "main locked" []: nothing -> nothing {
         $"($source)\n" | save --force $stamp
     }
     ^spicetify config spotify_path $dir | ignore
-    if not ($apps | path join xpui.spa | path exists) and ($apps | path join xpui | path exists) { return }
+    if (applied) { return }
     # -n: spicetify's restart would start the copy outside spotify-launch.nu's apparmor profile
     try { ^spicetify -n apply } catch { ^spicetify -n backup apply }
     ^spicetify -n enable-devtools

@@ -80,11 +80,20 @@ def plugins-build [hyprland: string]: nothing -> bool {
     $failed | is-empty
 }
 
+# The built plugins the running hyprland has not loaded, none when it is not the installed one.
+def plugins-unloaded-for [hyprland: string]: nothing -> list<record> {
+    if $hyprland == "" or (commit-running) != $hyprland { return [] }
+    let listed = ^hyprctl plugin list | complete | get stdout
+    $PLUGINS | where {|p| (so-path $p.name $hyprland | path exists) and not ($listed | str contains $p.name) }
+}
+
+export def plugins-unloaded []: nothing -> list<string> {
+    plugins-unloaded-for (commit-installed) | get --optional name | default []
+}
+
 # Loads the built plugins into the running hyprland when it is the installed one; local, no download.
 def plugins-load [hyprland: string]: nothing -> nothing {
-    if (commit-running) != $hyprland { return }
-    let listed = ^hyprctl plugin list | complete | get stdout
-    let results = $PLUGINS | where {|p| (so-path $p.name $hyprland | path exists) and not ($listed | str contains $p.name) }
+    let results = plugins-unloaded-for $hyprland
         | each {|p| {name: $p.name, exit_code: (^hyprctl plugin load (so-path $p.name $hyprland) | complete | get exit_code)} }
     let loaded = $results | where exit_code == 0
     let load_failed = $results | where exit_code != 0

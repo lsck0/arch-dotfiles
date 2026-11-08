@@ -125,7 +125,7 @@ export def link [cfg: record] {
         ...($VENDOR_LINKED | each {|d| file-link ($vendor | path join $d) (home-dir | path join $d) })
         ...(wine-fetch-decl)
         # chmod only: syncthing ignores permissions, so this changes no synced content
-        (step wine-bin-fixup)
+        (if (wine-bin-unexecutable | is-empty) { [] } else { step wine-bin-fixup })
         (if $own and (($seedable and not $seeded) or $game_empty) { step game-seed $base } else { [] })
         (if $own and ($seedable or $seeded) and not ($game | path join $PATCH_VERSION | path exists) {
             step mxl-install --network
@@ -270,10 +270,15 @@ export def d2gl-window [width: string, height: string]: nothing -> nothing {
 }
 
 # ~/sync ignores permissions (core/syncthing, ignorePerms), so a resync silently drops wine's execute bit
-export def wine-bin-fixup []: nothing -> nothing {
+# The files in wine's bin dir without their owner's execute bit.
+def wine-bin-unexecutable []: nothing -> list<path> {
     let dir = wine-bin | path dirname
-    if not ($dir | path exists) { return }
-    let files = ls $dir | where type == file | get name
+    if not ($dir | path exists) { return [] }
+    ls --long $dir | where type == file and ($it.mode | str substring 2..2) != "x" | get name
+}
+
+export def wine-bin-fixup []: nothing -> nothing {
+    let files = wine-bin-unexecutable
     if ($files | is-empty) { return }
     ^chmod +x ...$files
 }
@@ -361,7 +366,7 @@ export def mxl-install []: nothing -> nothing {
             mv $"($zip).part" $zip
         } catch {|e|
             rm -rf $tmp
-            error make {msg: $e.msg}
+            error make $e
         }
         rm -rf $tmp
     }

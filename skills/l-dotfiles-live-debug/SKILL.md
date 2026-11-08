@@ -28,6 +28,10 @@ dot module reset <file>   # back to the module's copy, the edit preserved aside
   `dot log`; `dot log --trace` shows each span's errors under it. Root's state: `/var/lib/dotfiles`.
 - Exit 3 means pending, not a failure: a system part under `DOT_SYSTEM=skip`, or modules waiting on their packages
   (`dot status` lists them; `dot apply --packages` installs them).
+- A slow run: `dot log <run> --trace` times each phase (discover, detect, resolve, graph, state, imports, inputs,
+  observe, eval, packages). Any lib edit re-evaluates every module once (eval dominates); that is expected. In nushell
+  0.116 each call of a closure-taking command (`each`, `where`, `items`, `reduce`) costs in proportion to all custom
+  commands the process parsed, about 0.2 ms inside `dot`, so engine code keeps them out of per-module loops.
 
 ## systemd, AppArmor, quickshell
 

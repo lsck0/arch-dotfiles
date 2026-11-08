@@ -136,6 +136,16 @@ export def run-last-changed []: nothing -> any {
     $runs.files | where $it not-in $runs.read_only | last
 }
 
+# A run file's records. A line that does not parse as one (a run cut off mid-write, a full disk) is skipped with a
+# warning, so one bad line never hides the rest of the run.
+export def run-records [file: path]: nothing -> list<record> {
+    let lines = open --raw $file | into binary | decode utf-8 | lines | where ($it | str trim) != ""
+    let records = $lines | each {|l| try { let r = $l | from json; if $r.level? != null and $r.msg? != null { $r } } catch { null } } | compact
+    let bad = ($lines | length) - ($records | length)
+    if $bad > 0 { log-warn $"($file): ($bad) unreadable lines skipped" }
+    $records
+}
+
 # Opens a run file and prunes old ones, keeping RUNS_KEEP changing and RUNS_READ_ONLY_KEEP read-only runs.
 export def --env run-begin [name: string, --read-only]: nothing -> nothing {
     $env.DOT_RUN_ID = $"(date now | format date '%Y%m%dT%H%M%S')-(random chars --length 4 | str lowercase)"
@@ -184,7 +194,7 @@ export def error-brief [rendered: string, --root: path]: nothing -> string {
 # Sends the run's records at INFO and above to the journal as SYSLOG_IDENTIFIER=dot.
 export def run-journal []: nothing -> nothing {
     if ($env.DOT_RUN_FILE? | is-empty) or not ($env.DOT_RUN_FILE | path exists) { return }
-    open --raw $env.DOT_RUN_FILE | lines | each { from json } | where {|r| (rank $r.level) >= (rank INFO) } | each {|r|
+    run-records $env.DOT_RUN_FILE | where {|r| (rank $r.level) >= (rank INFO) } | each {|r|
         [
             $"MESSAGE=($r.msg | str replace --all "\n" ' ')"
             $"PRIORITY=(match $r.level { 'WARN' => 4, 'ERROR' => 3, 'PANIC' => 2, _ => 6 })"

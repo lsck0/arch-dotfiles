@@ -4,13 +4,32 @@ set -uo pipefail
 # the bundle gets shared: only its owner may read it
 umask 077
 
-case "${1:-}" in
-    -h | --help)
-        echo "usage: collect-diagnostics [dest]: logs, journals, network and dot state into dest/diag-<host>-<time>/" \
-            "(default: a mounted LSCK0 stick)"
-        exit 0
-        ;;
-esac
+usage() {
+    echo "usage: collect-diagnostics [--root <mnt>] [dest]: logs, journals, network and dot state into" \
+        "dest/diag-<host>-<time>/ (default: a mounted LSCK0 stick)"
+    echo "  --root <mnt>: also read an installed system mounted at <mnt> (from the stick: open its LUKS root, mount @ there and @home, @log" \
+        "as its fstab does): its journal, dot state, stage and install logs, boot config"
+}
+# the installed system to read besides the running one, when this runs from the live iso
+target=
+while (($#)); do
+    case $1 in
+        -h | --help)
+            usage
+            exit 0
+            ;;
+        --root)
+            [[ -n "${2:-}" && -d "$2" ]] || {
+                usage >&2
+                echo "collect-diagnostics: --root needs a mounted directory" >&2
+                exit 2
+            }
+            target=$(realpath "$2")
+            shift 2
+            ;;
+        *) break ;;
+    esac
+done
 self=$(dirname "$(realpath "$0")")
 
 # as root through sudo, the dot state and checkout to report are the invoking user's, not root's
@@ -81,8 +100,13 @@ grab() {
 }
 # read as root into files/root/, apart from grab's: both layers keep e.g. a runs/ of their own
 root_grab() {
+    root_grab_into "$out/files/root" "$@"
+}
+root_grab_into() {
+    local into=$1
+    shift
     if ((EUID == 0)) || ((${#as_root[@]})); then
-        "${as_root[@]}" cp -rL --no-preserve=mode,ownership "$@" "$out/files/root/" 2> /dev/null
+        "${as_root[@]}" cp -rL --no-preserve=mode,ownership "$@" "$into/" 2> /dev/null
         [[ -z $owner ]] || "${as_root[@]}" chown -R "$owner" "$out/files"
     fi
 }
@@ -226,6 +250,8 @@ grab "$user_home/.local/state/dotfiles/runs" "$user_home/.local/state/dotfiles/l
 root dot cat /var/lib/dotfiles/crash.json
 root dot ls -la /etc/sudoers.d
 root_grab /var/lib/dotfiles-stage /var/lib/dotfiles/runs
+# the installer's log: in the target once the bootstrap copied it, in /tmp on the live iso that ran it
+root_grab /var/log/lsck0-install.log /tmp/lsck0-install.log /etc/issue.d
 
 run session "${as_user[@]}" wpctl status
 run session upower -d
@@ -252,6 +278,34 @@ newest() {
 }
 newest "$user_runtime/hypr" hyprland.log
 newest "$user_runtime/quickshell/by-id" log.log
+
+# the installed system under --root: what its last boots logged and what dot and the stage chain left there
+if [[ -n $target ]]; then
+    mkdir -p "$out/files/target"
+    journal=$target/var/log/journal
+    root target journalctl -D "$journal" --list-boots --no-pager
+    for boot in 0 -1 -2; do
+        root "target_journal_boot$boot" journalctl -D "$journal" -b "$boot" --no-pager -o short-monotonic
+    done
+    root target_journal_warn journalctl -D "$journal" -b 0 -p warning --no-pager
+    root target cat "$target/etc/dotfiles/platform"
+    root target ls -la "$target/var/lib/dotfiles-stage"
+    root_grab_into "$out/files/target" "$target/var/lib/dotfiles-stage" "$target/var/lib/dotfiles/runs" \
+        "$target/var/lib/dotfiles/crash.json" "$target/var/log/lsck0-install.log" "$target/var/log/pacman.log" \
+        "$target/etc/mkinitcpio.conf" "$target/etc/kernel/cmdline" "$target/etc/fstab" "$target/etc/crypttab" \
+        "$target/etc/vconsole.conf"
+    # each login's checkout (FAILURES and the chain's logs at its root) and dot state; the dot link is absolute
+    for home in "$target"/home/*; do
+        [[ -d $home ]] || continue
+        mkdir -p "$out/files/target/${home##*/}"
+        link=$("${as_root[@]}" readlink "$home/.local/bin/dot" 2> /dev/null)
+        checkout=
+        [[ $link == /* ]] && checkout=$target$(dirname "$(dirname "$link")")
+        root_grab_into "$out/files/target/${home##*/}" "$home/.local/state/dotfiles/runs" \
+            "$home/.local/state/dotfiles/crash.json" "$home/.local/state/dotfiles/ledger" \
+            ${checkout:+"$checkout"/FAILURES.* "$checkout"/install.log "$checkout"/config.log "$checkout"/stage.log}
+    done
+fi
 
 ((EUID == 0)) && [[ -n $owner ]] && chown -R "$owner" "$out"
 sync
