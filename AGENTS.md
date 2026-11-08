@@ -41,8 +41,9 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   sudo and pkexec take a YubiKey touch or fingerprint on Luca's side, the password as fallback.
 - `dot sync` (pull, migrate, install, apply, back up, signed `Generation: <n>` commit, push) is Luca's only commit
   path: agents never commit, push or run it, `--no-push` included.
-- `collect-diagnostics [dest]`: bash only, runs from a USB stick; hardware, boot, journals, dot state; `dest` defaults to
-  a mounted `LSCK0` stick partition.
+- `collect-diagnostics [--root <mnt>] [dest]`: bash only, runs from a USB stick too; hardware, boot, journals, network,
+  dot state. `--root` also reads an installed system mounted at `<mnt>`. `dest` defaults to a mounted `LSCK0` stick
+  partition, else `$XDG_STATE_HOME/diagnostics`.
 
 ## Layout
 
@@ -54,9 +55,10 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
 - `platforms/homelab.nu`: the lab's values (`HOMELAB`), rendered from the homelab's `src/generated/lab.json` by
   `dot internal gen` and committed, so root and a fresh install read them without a checkout; never edited by hand.
 - `migrations/<NNNN>-<slug>.nu`: one-time `up` changes; fresh installs mark existing ones as run.
-- `scripts/` (commands in `~/.local/bin`), `scripts/lib/` (the engine: `module.nu` API, `pipeline.nu` run,
-  `converge.nu` plan/apply, `system-apply.nu` root entry), `scripts/toggles/`. `scripts/identity/envrc`: per-repo
-  credential isolation, installed into a repo's git-ignored `.identity/` by `identity-init`.
+- `scripts/` (commands in `~/.local/bin`), `scripts/lib/` (the engine: `module.nu` API, `pipeline-cli.nu` the process
+  `dot plan|apply|status` run in, `pipeline.nu` one layer's run, `converge.nu` plan/apply, `system-apply.nu` root
+  entry), `scripts/toggles/`. `scripts/identity/envrc`: per-repo credential isolation, installed into a repo's
+  git-ignored `.identity/` by `identity-init`.
 - `configs/secrets/`: private submodule, pulled only with the `secrets` profile. `keys/` is git-crypt (credentials),
   `state/` plaintext app state, plus the owner's own modules (applied last, packages kept off the mirror).
 - `mirror/`: own pkgbuilds, `overrides.conf`, `iso/` (the install iso; only its stub `lsck0-install` is frozen on a
@@ -65,7 +67,8 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
 ## Conventions
 
 - Everything reproducible through `dot`; nothing set by hand.
-- Every test, `dot test run` included, runs as the agent's own user: no sudo, no password, no YubiKey (`l-style-testing`).
+- Every test, `dot test run` included, runs as the agent's own user: no sudo, no password, no YubiKey
+  (`l-style-testing`).
 - User layer (`link`) never uses sudo and may read user facts; system layer (`system`) runs as root from the root copy
   `/var/lib/dotfiles/repo` and never reads user facts. Lint enforces both.
 - Machine facts in the platform (`platform-has`), the one user capability in the profile (`profile-has secrets`),
@@ -78,6 +81,8 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   `configs/base/xdg/mod.nu`, forced non-dot dirs to `home.hidden`.
 - Native over bolt-on: the tool's own mechanism (Hyprland rules, systemd units, pipewire config, pacman hooks, udev),
   never a wrapper or polling script.
+- MCP servers: `mcp-servers` in the owning module registers them with Claude Code, Gemini, Copilot and Hermes; only
+  when the tool is installed, pinned when third-party, local (stdio or loopback).
 - One extension pattern: a new capability is a new file following the convention (module, option, package, migration,
   toggle, theme, profile); adding the file is the whole change.
 - `dot` manages this machine only.
@@ -94,10 +99,9 @@ One home per kind of data, no catch-all: config in git; app state in `configs/se
 - State: `$XDG_STATE_HOME/dotfiles` (root: `/var/lib/dotfiles`); `modules/<id>/<verb>.nuon` is the one record of what
   dot wrote; `ledger` holds units, packages, migrations.
 - Locked secrets start with `\0GITCRYPT` (`secret-is-plaintext`); never write into `configs/secrets/` while locked.
-- Hyprland config and dispatch are Lua: `hyprctl dispatch "hl.dsp.exec_cmd('cmd')"`.
+- Hyprland config and dispatch are Lua, X11 apps scale through `GDK_SCALE` only: `configs/desktop/hyprland/AGENTS.md`.
 - `~/.config/<app>` holds managed copies: a repo edit changes nothing until `dot apply <group>/<module>`.
   `file-text --generated` outputs are overwritten without a drift check whenever their module runs;
   `dot explain <path>` names the writer.
 - GUI testing stays on the agent's own headless output (`l-dotfiles-gui-testing`).
-- X11 apps scale through `GDK_SCALE` only; no `Xft.dpi`.
 - A module runs only when its group is in the platform's `groups` and its `enable` option is true.

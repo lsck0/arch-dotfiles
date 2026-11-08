@@ -16,9 +16,10 @@ profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
   A home line is `<mac> <gateway address> <dhcp server identifier>` and needs all three (the MACs were public once); a
   MAC alone only counts as trusted, and not at all once a full line names it.
   Trusted (`trusted_gateways`, secrets' `keys/trusted-gateways` where `toggle-trust-network` writes while unlocked,
-  plus home) only lifts the untrusted-network persona (`untrusted_policy`): `/run/trusted-network` feeds the firewall's `trusted_links` sets, tor-router and the persona;
-  `/run/home-network` the homelab wiring. The homelab mirror also comes back first on wg0. `toggle-portal` opens a captive portal window for 120 s on every foreign link (the dispatcher's `<iface>
-  portal`), off ends it early.
+  plus home) only lifts the untrusted-network persona (`untrusted_policy`): `/run/trusted-network` feeds the
+  firewall's `trusted_links` sets, tor-router and the persona; `/run/home-network` the homelab wiring. The homelab
+  mirror also comes back first on wg0. `toggle-portal` opens a captive portal window for 120 s on every foreign link
+  (the dispatcher's `<iface> portal`), off ends it early.
 - `ssh` and `nftables`: sshd listens on `base/ssh.port` behind a three-port knock (`base/ssh.knock`, held open for
   `nftables.ssh_knock_window`); `sshk` and `wake-pc` knock first, 22 is the endlessh tarpit.
 - `nftables` fw-egress: under lockdown-tor it fails closed whether tor is there or not; besides tor only pacman's
@@ -28,8 +29,8 @@ profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
   uids are looked up at unit start, so nftables never waits on base/tor (lint: `FAIL_CLOSED` in scripts/lib/gate.nu).
 - `powercap`: `powercap-watts.service` writes the RAPL package draw as whole watts to `/run/powercap/watts` for the
   bar, `energy_uj` stays root-only; a udev rule starts it once `intel_rapl_msr` loads.
-- `xdg`: `app-dirs.conf`, `home.hidden`, `RECLAIM` keep `$HOME` clean. It owns the user applications dir's
-  `mimeinfo.cache`, rebuilt when an entry there is newer.
+- `xdg`: the `$HOME` rules are the root `AGENTS.md`'s. It also owns the user applications dir's `mimeinfo.cache`,
+  rebuilt when an entry there is newer.
 - Owner rollouts here gate on `profile-has secrets` alone, not `owner-unlocked` (ssh's `ssh-add.service` and
   `authorize`, protonvpn's `auto-vpn`, failure-notify's `recovery-drill`): what they need from the secrets is checked at
   run time (`ssh-add`'s `ExecCondition`, `authorize` appends only readable keys), so they work after an unlock without

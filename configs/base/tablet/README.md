@@ -33,7 +33,7 @@ systemctl status tablet-driver
 libinput list-devices | grep '^Device.*T1161'   # exactly two virtual devices
 ```
 
-Calibrate (writes `/var/lib/tablet-driver/calibration.json`, delete it for the defaults):
+Calibrate at the pad, as root (writes `/var/lib/tablet-driver/calibration.json`, delete it for the defaults):
 
 ```bash
 sudo systemctl stop tablet-driver && sudo ./tablet-driver.py --calibrate 20 && sudo systemctl start tablet-driver
