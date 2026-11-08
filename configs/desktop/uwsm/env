@@ -1,6 +1,9 @@
 export QT_QPA_PLATFORM="wayland;xcb"
 export QT_QPA_PLATFORMTHEME=kde
 export PLASMA_INTEGRATION_USE_PORTAL=1
+# gtk3 and gtk4 apps open the portal's file picker too, so every app shows the same one
+export GTK_USE_PORTAL=1
+export GDK_DEBUG=portals
 export SDL_VIDEO_DRIVER=wayland,x11
 export PATH="$HOME/.local/bin:$PATH"
 export PATH="$PATH:$HOME/.local/share/jai/bin"

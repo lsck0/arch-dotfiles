@@ -6,13 +6,18 @@ export const meta = {deps: [desktop/oomox], packages: {pacman: [breeze-icons fla
 
 const GTK_THEME = "oomox-colors-oomox"
 const INTERFACE = "org.gnome.desktop.interface"
+# every flatpak reads the host's theme: oomox lives in ~/.themes, settings.ini and the gtk4 gtk.css in the config dir
+const FLATPAK_GLOBAL = "[Context]\nfilesystems=~/.themes:ro;xdg-config/gtk-3.0:ro;xdg-config/gtk-4.0:ro;\n"
 
 export def link [cfg: record] {
     let config = xdg config
+    let flatpak = if (which flatpak | is-empty) { [] } else {
+        [(file-text (xdg data flatpak overrides global) $FLATPAK_GLOBAL)]
+    }
     [
         # libadwaita ignores gtk-theme-name, so its gtk.css is oomox's export; dangling until the first theme switch
         (file-link ($nu.home-dir | path join .themes $GTK_THEME gtk-4.0 gtk.css) ($config | path join gtk-4.0 gtk.css))
-    ]
+    ] | append $flatpak
 }
 
 export def theme [cfg: record, wallpaper: string] {

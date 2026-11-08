@@ -1,4 +1,6 @@
 user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
+// one file picker everywhere: the xdg portal's (gtk), not the one inside the app
+user_pref("widget.use-xdg-desktop-portal.file-picker", 1);
 
 user_pref("mail.openpgp.allow_external_gnupg", true);
 user_pref("mail.openpgp.fetch_pubkeys_from_gnupg", true);

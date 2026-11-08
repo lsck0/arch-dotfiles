@@ -1,0 +1,8 @@
+# managed by arch-dotfiles/apparmor
+# the xdg portal's file picker, as every other app (user-tor.js); the portal answers on a request object
+include <abstractions/bus/session/org.freedesktop.portal.FileChooser>
+include <abstractions/bus/session/org.freedesktop.portal.Request>
+dbus send bus=session path=/org/freedesktop/portal/desktop
+     interface=org.freedesktop.DBus.Properties
+     member={Get,GetAll}
+     peer=(name="{@{busname},org.freedesktop.portal.Desktop}", label=xdg-desktop-portal),

@@ -13,6 +13,8 @@ const ENFORCED = [
     zotero localsend-app qbittorrent ouch 7z unrar unzip magick pdftoppm ffmpeg ffprobe handbrake
     blender-mcp obs-mcp child-open child-open-any child-open-browsers child-open-strict
 ]
+# profiles their own package ships and loads, not apparmor.d: a local/ drop-in extends them, their mode stays the package's
+const PACKAGE_PROFILES = [torbrowser.Browser.firefox]
 # rules other modules rely on: the discord voice plugin claims its command file by renaming it to .reading
 const REQUIRED_RULES = {
     discord: ["owner @{run}/user/@{uid}/quickshell-discord-cmd{,.reading} rw,"]
@@ -54,7 +56,7 @@ def own-check [rows: table]: nothing -> list<string> {
             })
         ]
     }
-    let locals = basenames local | where $it not-in $rows.name
+    let locals = basenames local | where $it not-in ($rows.name ++ $PACKAGE_PROFILES)
         | each { $"local/($in) extends no profile of profiles.conf" }
     $profiles | flatten | compact | append $locals
 }
