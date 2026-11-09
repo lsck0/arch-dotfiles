@@ -265,6 +265,7 @@ gtk3
 gtk4
 gum
 gup
+gvfs
 handbrake
 hashcat
 headsetcontrol

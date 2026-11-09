@@ -12,6 +12,7 @@ const REPOSITORIES = "configs/secrets/state/repositories"
 const BARE = [probe]
 const GH_HOSTS = ".config/gh/hosts.yml"
 const ICON = "folder-development"
+const GVFS_METADATA = "/usr/lib/gvfsd-metadata"
 # a first clone fetches every submodule's history and the lfs objects (hundreds of MB), past converge's 20min
 const CLONE_TIMEOUT = 90min
 # a push to github alone must not reach root here through git-sync and dot apply
@@ -83,7 +84,8 @@ export def link [cfg: record] {
     [
         (exec projects-dir [mkdir -p $root] --creates $root)
         (file-text ($root | path join .directory) $"[Desktop Entry]\nIcon=($ICON)\n")
-        (if (which gio | is-empty) or (($root | path exists) and (icon-set $root)) { [] } else {
+        # gio metadata is gvfs's store: without gvfsd-metadata every set fails as not supported
+        (if (which gio | is-empty) or not ($GVFS_METADATA | path exists) or (($root | path exists) and (icon-set $root)) { [] } else {
             [(exec projects-icon [gio set $root metadata::custom-icon-name $ICON])]
         })
         ($BARE | each {|b| exec $"bare ($b)" [git init --quiet --bare ($root | path join $b)] --creates ($root | path join $b HEAD) })

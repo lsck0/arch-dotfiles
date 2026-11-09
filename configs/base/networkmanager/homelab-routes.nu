@@ -2,6 +2,7 @@
 # NM dispatcher: on a home link the homelab subnets route out the lan from their own table, ahead of a full-tunnel vpn
 
 const LAB_ENV = "/etc/NetworkManager/homelab.env"
+const NM_CONF = "/etc/NetworkManager/NetworkManager.conf"
 const HOME_NETWORK = "/run/home-network"
 const TABLE = "178"
 # below wg-quick's suppress_prefixlength 0 rule (32764) and NM wireguard's
@@ -30,6 +31,12 @@ def lab-env []: nothing -> record {
 def mirror-place [line: string]: nothing -> nothing {
     if not ($MIRROR_UPDATE | path exists) or not ($MIRROR_LINE | path exists) { return }
     attempt systemd-run --no-block --quiet --collect $MIRROR_UPDATE homelab $line
+}
+
+def probe-host []: nothing -> string {
+    if not ($NM_CONF | path exists) { return "" }
+    open --raw $NM_CONF | lines | where $it starts-with "uri=" | get --optional 0 | default ""
+    | parse --regex '^uri=https?://(?<host>[^/:]+)' | get --optional 0.host | default ""
 }
 
 def mirror-line []: nothing -> string {
@@ -68,11 +75,15 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
         return
     }
 
+    # the link answers only its routing domains; NM's connectivity probe resolves on the link, so its host is one too
+    let domains = [($lab.HOMELAB_DOMAIN? | default '') (probe-host)] | where $it != "" | each { $"~($in)" }
     # NM re-pushes the link's resolved config on every ip change; the reapply re-enters here, so skip it
     let dns = out nmcli -g IP4.DNS,IP6.DNS device show $iface | lines | where $it != ""
-    if $dns != [$lab.HOMELAB_DNS] {
+    let current = out resolvectl domain $iface | split row ":" | get --optional 1 | default "" | split row " "
+        | where $it != ""
+    if $dns != [$lab.HOMELAB_DNS] or ($domains | any { $in not-in $current }) {
         (
-            out nmcli device modify $iface ipv4.dns $lab.HOMELAB_DNS ipv4.dns-search $"~($lab.HOMELAB_DOMAIN? | default '')"
+            out nmcli device modify $iface ipv4.dns $lab.HOMELAB_DNS ipv4.dns-search ($domains | str join ",")
                 ipv4.ignore-auto-dns yes ipv6.ignore-auto-dns yes
         ) | ignore
     }

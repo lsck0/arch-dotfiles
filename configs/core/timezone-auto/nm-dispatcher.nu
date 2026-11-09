@@ -1,7 +1,7 @@
 #!/usr/bin/nu --no-config-file
 
 const TRUSTED_NETWORK = "/run/trusted-network"
-# UNKNOWN when the connectivity check is off (75-connectivity-check, at home)
+# UNKNOWN while NM has not probed yet
 const CONNECTED = [FULL UNKNOWN]
 
 def main [iface: string = "", action: string = ""]: nothing -> nothing {

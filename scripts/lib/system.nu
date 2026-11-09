@@ -2,7 +2,7 @@
 
 use log.nu *
 use state.nu [SYSTEM_REPO]
-use secrets.nu [secret-is-plaintext]
+use secrets.nu [secret-is-plaintext SSH_HOST_KEYS]
 use modules.nu [modules-discover modules-root-run]
 
 const SYSTEM_PATHS = [configs migrations platforms profiles scripts]
@@ -63,7 +63,9 @@ export def system-files [checkout: path, which: string]: nothing -> list<string>
 
 # The secrets the system layer may read, relative to configs/secrets/keys/.
 export def system-secrets [wireguard: any]: nothing -> list<string> {
-    $SYSTEM_SECRETS | append $"initramfs-ssh/(sys host | get hostname)/sshkeydir/.ed25519.sk" | append ([$wireguard] | flatten | compact | where $it != "")
+    let host = sys host | get hostname
+    $SYSTEM_SECRETS | append $"initramfs-ssh/($host)/sshkeydir/.ed25519.sk"
+    | append ($SSH_HOST_KEYS | each { $"ssh-host/($host)/($in)" }) | append ([$wireguard] | flatten | compact | where $it != "")
 }
 
 # Refused only when HEAD is behind the copy (no rollback); a copy commit gone from history only warns.

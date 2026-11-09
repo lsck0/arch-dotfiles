@@ -1,4 +1,5 @@
 use module.nu *
+use secrets.nu [SSH_HOST_KEYS]
 use ../../../platforms/homelab.nu [HOMELAB]
 
 export const meta = {packages: {pacman: [knockd openbsd-netcat openssh]}}
@@ -52,7 +53,30 @@ export def system [cfg: record] {
     step sshd ($cfg.port | into string)
 }
 
+const HOST_KEY_DIR = "/etc/ssh"
+
+# Each pinned key from the secrets replaces its generated one; true when one changed.
+def host-keys-pin []: nothing -> bool {
+    let dir = host-file ($env.DOTFILES_SECRETS? | default "/nonexistent" | path join ssh-host)
+    let pinned = $SSH_HOST_KEYS | where {|k| ($dir | path join $k | path exists) }
+    if ($pinned | is-empty) {
+        let backup = host-file configs/secrets/keys/ssh-host
+        print ("note: ssh: no pinned host keys, a reinstall changes this host's identity; back them up: "
+            + $"mkdir -p ($backup) && sudo cp ($HOST_KEY_DIR)/ssh_host_*_key ($backup)/ && sudo chown $USER: ($backup)/*")
+        return false
+    }
+    $pinned | each {|k|
+        let src = $dir | path join $k
+        let dest = $HOST_KEY_DIR | path join $k
+        if ($dest | path exists) and (open --raw $src) == (open --raw $dest) { return false }
+        ^install -m600 $src $dest
+        ^ssh-keygen -y -f $dest | ^install -m644 /dev/stdin $"($dest).pub"
+        true
+    } | any { $in }
+}
+
 export def sshd [port: string]: nothing -> nothing {
+    let rekeyed = host-keys-pin
     # sshd -t needs host keys, absent before sshd's first start
     ^ssh-keygen -A
     let before = if ($DROPIN | path exists) { open --raw $DROPIN } else { null }
@@ -63,7 +87,7 @@ export def sshd [port: string]: nothing -> nothing {
     }
     ^systemctl enable sshd.service
     let active = (^systemctl is-active --quiet sshd.service | complete).exit_code == 0
-    if not $active or (open --raw $DROPIN) != $before { ^systemctl reload-or-restart sshd.service }
+    if not $active or $rekeyed or (open --raw $DROPIN) != $before { ^systemctl reload-or-restart sshd.service }
 }
 
 def ssh-dir []: nothing -> path {

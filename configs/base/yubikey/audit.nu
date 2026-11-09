@@ -19,8 +19,8 @@ const CLASSES = [
     [forgejo.env api] [registry.env api] [sccache.env api]
     [samba-homelab password] [wifi password] [pgp_privatekey.asc identity]
     [vorrh.private-key.asc identity] [age.txt identity] [age-recovery-key.txt identity] ["syncthing/*/key.pem" identity]
-    ["*.pub*" -] ["*_publickey.asc" -] ["*.public-key.asc" -] ["syncthing/*" -] ["initramfs-ssh/*" -]
-    ["luks-header-*" -] [rotation.txt -] [home-gateways -] [diablo2/cd-keys -]
+    ["*.pub*" -] ["*_publickey.asc" -] ["*.public-key.asc" -] ["syncthing/*" -] ["initramfs-ssh/*" -] ["ssh-host/*" -]
+    ["luks-header-*" -] [rotation.txt -] [home-gateways -] [trusted-gateways -] [diablo2/cd-keys -]
     ["claude/*" -] ["caido/*" -] ["modrinth/*" -] ["obs-*.json" -] ["proton/*" -]
 ]
 const MAX_DAYS = {wireguard: 365, api: 365, ssh: 730, password: 730, identity: 1825, recovery-drill: 365}

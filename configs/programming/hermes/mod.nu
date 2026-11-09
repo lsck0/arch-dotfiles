@@ -57,7 +57,9 @@ def homes []: nothing -> record {
 # exists (its first sync writes it), it counts the package's system-store tools as not installed. So it runs only when
 # the last sync receipt lacks an extra or predates the package's uv.lock.
 export def required-extras []: nothing -> nothing {
-    let receipt = try { ^hermes pm status | from json } catch { {} }
+    # before the first sync it prints a sentence, which the lenient `from json` reads as a string
+    let parsed = try { ^hermes pm status | from json } catch { {} }
+    let receipt = if ($parsed | describe | str starts-with record) { $parsed } else { {} }
     let features = $receipt.feature_list? | default []
     let fresh = try { ($receipt.finished_at | into datetime) > (ls $HERMES_LOCK | get 0.modified) } catch { false }
     if $receipt.outcome? == ok and ($REQUIRED_EXTRAS | all {|e| $e in $features }) and $fresh { return }
