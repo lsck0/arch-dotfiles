@@ -151,6 +151,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/ssh.wake_router` | `string?` | `"192.168.178.29"` | The always-on homelab router whose `wol-pc` wakes the desktop (wake-pc, homelab profiles only) |
 | `base/ssh.wake_router_tunnel` | `string?` | unset | The router's address inside the wireguard tunnel, which wake-pc asks away from home: its lan address is unrouted there, or shadowed by a foreign lan on the same subnet |
 | `base/ssh.wake_host` | `string?` | unset | The desktop wake-pc wakes and then ssh-es into |
+| `base/systemd.mem_sleep` | `string?` | unset | Suspend mode written to /sys/power/mem_sleep; unset, the firmware's default |
 | `base/tlp.charge_start` | `int` | `95` | Battery charge level below which charging starts (laptops whose firmware supports thresholds) |
 | `base/tlp.charge_stop` | `int` | `100` | Battery charge level at which charging stops; 80 spares an always-plugged battery |
 | `base/v4l2loopback.video_nr` | `int?` | detected | /dev/video<n> of the OBS virtual camera; null: a loaded one's, else the first free from 10, past webcams |

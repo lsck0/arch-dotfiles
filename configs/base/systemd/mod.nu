@@ -3,6 +3,18 @@ export use ../boot/boot.nu [cmdline-set]
 
 export const meta = {packages: {pacman: [nss-mdns], native: [bluez bluez-obex bluez-utils thermald]}, volatile: true}
 
+export const options = {
+    mem_sleep: {
+        type: string?
+        default: null
+        choices: [s2idle deep]
+        doc: "Suspend mode written to /sys/power/mem_sleep; unset, the firmware's default"
+        label: "Suspend mode"
+        scope: machine
+        apply: live
+    }
+}
+
 const KBD_DROPIN = "systemd-backlight@.service"
 const AVAHI_ALIAS = "/etc/systemd/system/dbus-org.freedesktop.Avahi.service"
 # unused (luks binds pcr 7+15, cryptenroll makes the srk); systemd 258 fails them on a tpm without nvpcr indices
@@ -45,6 +57,9 @@ export def system [cfg: record] {
         })
         (if $env.FORM_FACTOR? == "laptop" { dropin $KBD_DROPIN kbd-backlight.conf } else { [] })
         (file-copy user-stop-timeout.conf /etc/systemd/user.conf.d/10-stop-timeout.conf)
+        (if $cfg.mem_sleep == null { [] } else {
+            file-text /etc/systemd/sleep.conf.d/10-mem-sleep.conf $"[Sleep]\nMemorySleepMode=($cfg.mem_sleep)\n"
+        })
         # the user preset enables these but arch never applies user presets, so they are linked as --global enable would
         (if-present systemd-tmpfiles-setup.service {
             file-link /usr/lib/systemd/user/systemd-tmpfiles-setup.service /etc/systemd/user/basic.target.wants/systemd-tmpfiles-setup.service

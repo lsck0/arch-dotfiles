@@ -14,6 +14,10 @@
         sync_url: "https://tasks.lsck0.dev"
         recurrence: false
     }
+    "base/systemd": {
+        # S3 (deep) hung on the first resume after the 2026-11 reinstall (X1 Carbon 6th, kernel 7.2.14)
+        mem_sleep: s2idle
+    }
     "base/boot/hardening": {
         allow_smt: true
         relax_mitigations: true
