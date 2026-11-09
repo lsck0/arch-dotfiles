@@ -306,12 +306,31 @@ def strip-volatile []: nothing -> nothing {
     }
 }
 
+# The seed as the union of every machine's done migrations, sorted: kconf_update's ctime and mtime are this machine's
+# file times, and each machine's done lists differ, so a plain copy would flip on every machine's sync.
+def kconf-back [live: path, seed: path]: nothing -> nothing {
+    let have = if ($seed | path exists) { ini-values (open --raw $seed) } else { {} }
+    let now = ini-values (open --raw $live)
+    let sections = $have | columns | append ($now | columns) | uniq | sort
+    $sections | each {|section|
+        let keys = $have | get --optional $section | default {} | merge ($now | get --optional $section | default {})
+            | reject --optional ctime mtime
+        let keys = if "done" in ($keys | columns) {
+            let done = [$have $now] | each { get --optional $section | get --optional done | default "" | split row "," }
+                | flatten | where $it != "" | uniq | sort
+            $keys | update done ($done | str join ",")
+        } else { $keys }
+        let header = if $section == "" { [] } else { [$"[($section)]"] }
+        $header ++ ($keys | items {|k, v| $"($k)=($v)" } | sort)
+    } | each { str join "\n" } | str join "\n\n" | $"($in)\n" | save --force $seed
+}
+
 export def backup [cfg: record]: nothing -> nothing {
     let files = rc-files | append (if $cfg.kwin_outputs == true { [$OUTPUTS] } else { [] })
     for f in $files {
         if (config-path $f | path exists) { cp --force (config-path $f) ($DIR | path join $f) }
     }
-    if (config-path $KCONF_UPDATERC | path exists) { cp --force (config-path $KCONF_UPDATERC) ($DIR | path join $KCONF_SEED) }
+    if (config-path $KCONF_UPDATERC | path exists) { kconf-back (config-path $KCONF_UPDATERC) ($DIR | path join $KCONF_SEED) }
     let globals = config-path $THEMED.0
     if ($globals | path exists) {
         kdeglobals-back (open --raw $globals) (open --raw ($DIR | path join $THEMED.0)) | save --force ($DIR | path join $THEMED.0)
