@@ -13,7 +13,8 @@ hl.window_rule({
     size = "monitor_w*0.6 monitor_h*0.7",
 })
 
-hl.bind(mod .. " + grave", function()
+-- code:49 is the key under Esc on every layout: the grave keysym is ^ on a German one and never fires
+hl.bind(mod .. " + code:49", function()
     if #hl.get_windows({ class = "dev.lsck0.system-agent" }) == 0 then
         hl.exec_cmd("uwsm app -- " .. terminal)
     end
