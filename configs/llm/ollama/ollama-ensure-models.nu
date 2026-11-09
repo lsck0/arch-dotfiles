@@ -54,6 +54,26 @@ def long-context-is-current []: nothing -> bool {
     $from_base and ($parameters.stdout | lines | any { ($in | str trim | split row --regex '\s+') == $expected })
 }
 
+# a model pulled by hand or left by an older pin set is gone on the next run: the pins are the whole set
+def models-prune []: nothing -> nothing {
+    let kept = [$LARGE.model $EMBEDDING.model $CODING.model $"($LONG_CONTEXT):latest"]
+    let stale = http get $"($OLLAMA_URL)/api/tags" | get models | get name | where $it not-in $kept
+    for model in $stale {
+        print $"ollama: removing unpinned ($model)"
+        ^ollama rm $model
+    }
+}
+
+def long-context-ensure []: nothing -> nothing {
+    if (long-context-is-current) { return }
+    model-pull-pinned $SMALL
+    let modelfile = mktemp --tmpdir
+    $"FROM ($SMALL.model)\nPARAMETER num_ctx ($LONG_CONTEXT_TOKENS)\n" | save --force $modelfile
+    ^ollama create $LONG_CONTEXT -f $modelfile
+    rm $modelfile
+    ^ollama rm $SMALL.model
+}
+
 def main []: nothing -> nothing {
     if (which ollama | is-empty) { return }
     for _ in 1..$START_TRIES {
@@ -63,11 +83,6 @@ def main []: nothing -> nothing {
     model-pull-pinned $LARGE
     model-pull-pinned $EMBEDDING
     model-pull-pinned $CODING
-    if (long-context-is-current) { return }
-    model-pull-pinned $SMALL
-    let modelfile = mktemp --tmpdir
-    $"FROM ($SMALL.model)\nPARAMETER num_ctx ($LONG_CONTEXT_TOKENS)\n" | save --force $modelfile
-    ^ollama create $LONG_CONTEXT -f $modelfile
-    rm $modelfile
-    ^ollama rm $SMALL.model
+    long-context-ensure
+    models-prune
 }

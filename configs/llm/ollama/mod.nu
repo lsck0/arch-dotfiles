@@ -11,7 +11,10 @@ export const KEEP_ALIVE_MIN = 30
 const MODELS_TIMEOUT = 3hr
 
 export def link [cfg: record] {
-    let pins = [$SMALL.pin $LARGE.pin $EMBEDDING.pin $CODING.pin $LONG_CONTEXT $LONG_CONTEXT_TOKENS] | str join "\n" | hash sha256 | str substring 0..<12
+    # the script's own hash too: a changed prune or ensure rule reruns it without a pin bump
+    let script = open --raw ($env.PWD | path join ollama-ensure-models.nu) | hash sha256
+    let pins = [$SMALL.pin $LARGE.pin $EMBEDDING.pin $CODING.pin $LONG_CONTEXT $LONG_CONTEXT_TOKENS $script] | str join "\n"
+        | hash sha256 | str substring 0..<12
     let stamp = xdg state ollama-models $pins
     [
         (link-commands ollama-ensure-models.nu)

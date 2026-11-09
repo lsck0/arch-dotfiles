@@ -23,14 +23,17 @@ Item {
   property int rowHeight: Style.space(44)
   property int iconSize: Style.space(28)
 
-  readonly property var prefixes: ({ "=": "calc", ">": "run", "@": "windows", "?": "keys" })
+  readonly property var prefixes: ({ "=": "calc", ">": "run", "@": "windows", "?": "keys", "+": "task", "!": "remind", "#": "note" })
   readonly property string mode: prefixes[filterText.charAt(0)] || "apps"
   readonly property string modeQuery: mode === "apps" ? filterText : filterText.substring(1).trim()
 
-  readonly property var modeTitles: ({ apps: "applications", calc: "calculator", run: "run", windows: "windows", keys: "keybinds" })
-  readonly property var modePlaceholders: ({ apps: "search applications", calc: "enter an expression", run: "command to run", windows: "search windows", keys: "search keybinds" })
+  readonly property var modeTitles: ({ apps: "applications", calc: "calculator", run: "run", windows: "windows", keys: "keybinds", task: "new task", remind: "reminder", note: "note" })
+  readonly property var modePlaceholders: ({ apps: "search applications", calc: "enter an expression", run: "command to run", windows: "search windows", keys: "search keybinds", task: "Dino letter project:dino due:fri +uni", remind: "10m tea", note: "a thought for ~/sync/notes/inbox.md" })
   readonly property var modeHints: ({
-    apps: [["ENTER", "open"], ["=", "calc"], [">", "run"], ["@", "windows"], [":", "clipboard"], ["?", "keys"], ["ESC", "close"]],
+    apps: [["ENTER", "open"], ["=", "calc"], [">", "run"], ["@", "windows"], [":", "clipboard"], ["?", "keys"], ["+ ! #", "capture"], ["ESC", "close"]],
+    task: [["ENTER", "add"], ["ESC", "clear"]],
+    remind: [["ENTER", "set"], ["ESC", "clear"]],
+    note: [["ENTER", "save"], ["ESC", "clear"]],
     calc: [["ENTER", "copy"], ["ESC", "clear"]],
     run: [["ENTER", "run"], ["ESC", "clear"]],
     windows: [["^/v", "select"], ["ENTER", "focus"], ["ESC", "clear"]],
@@ -120,6 +123,24 @@ Item {
     return [{ kind: "run", name: root.modeQuery, sub: "sh -c", icon: "", glyph: "\u{f018d}", keys: "", payload: root.modeQuery }]
   }
 
+  // capture.nu takes the words as separate arguments, so taskwarrior's own attribute syntax goes through unchanged
+  function captureRows() {
+    var words = root.modeQuery.split(/\s+/).filter(function (w) { return w !== "" })
+    if (words.length === 0) return []
+    var script = Paths.script("capture.nu")
+    if (root.mode === "remind") {
+      const m = words[0].match(/^(?:(\d+)h)?(?:(\d+)m?)?$/)
+      const minutes = m ? (+(m[1] || 0)) * 60 + (+(m[2] || 0)) : 0
+      if (minutes <= 0) return [{ kind: "capture", name: "x a duration first: 90, 10m, 2h, 1h30m", sub: "reminder", icon: "", glyph: "\u{f0f3}", keys: "", payload: null }]
+      const at = new Date(Date.now() + minutes * 60000)
+      return [{ kind: "capture", name: words.slice(1).join(" ") || minutes + "-min reminder", sub: "at " + Qt.formatDateTime(at, "HH:mm"),
+                icon: "", glyph: "\u{f0f3}", keys: "", payload: [script, "remind"].concat(words) }]
+    }
+    if (root.mode === "task")
+      return [{ kind: "capture", name: root.modeQuery, sub: "task add", icon: "", glyph: "\u{f0ae}", keys: "", payload: [script, "task"].concat(words) }]
+    return [{ kind: "capture", name: root.modeQuery, sub: "~/sync/notes/inbox.md", icon: "", glyph: "\u{f0f6}", keys: "", payload: [script, "note"].concat(words) }]
+  }
+
   function bindKeys(bind) {
     var parts = []
     for (let i = 0; i < root.modifierBits.length; i++) {
@@ -154,6 +175,7 @@ Item {
       : root.mode === "run" ? runRows()
       : root.mode === "windows" ? windowRows()
       : root.mode === "keys" ? bindRows()
+      : (root.mode === "task" || root.mode === "remind" || root.mode === "note") ? captureRows()
       : appRows()
     if (root.selectedIndex >= root.rows.length) root.selectedIndex = Math.max(0, root.rows.length - 1)
     else if (root.selectedIndex < 0) root.selectedIndex = 0
@@ -203,6 +225,9 @@ Item {
       Quickshell.execDetached(["wl-copy", "--", row.payload])
     } else if (row.kind === "run") {
       Quickshell.execDetached(["uwsm-app", "--", "sh", "-c", row.payload])
+    } else if (row.kind === "capture") {
+      if (!row.payload) return
+      Quickshell.execDetached(row.payload)
     }
     root.close()
   }
@@ -265,6 +290,8 @@ Item {
     target: "appsearch"
     function toggle(): string { root.toggle(); return "ok" }
     function open(): string { root.open(); return "ok" }
+    // opens on a mode: "+ " for a task, "! " for a reminder, "# " for a note
+    function openWith(text: string): string { root.open(); root.setFilter(text); return "ok" }
     function close(): string { root.close(); return "ok" }
   }
 

@@ -3,6 +3,8 @@
 
 const LAB_ENV = "/etc/NetworkManager/homelab.env"
 const NM_CONF = "/etc/NetworkManager/NetworkManager.conf"
+const NM = "org.freedesktop.NetworkManager"
+const NM_PATH = "/org/freedesktop/NetworkManager"
 const HOME_NETWORK = "/run/home-network"
 const TABLE = "178"
 # below wg-quick's suppress_prefixlength 0 rule (32764) and NM wireguard's
@@ -87,7 +89,7 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
                 ipv4.ignore-auto-dns yes ipv6.ignore-auto-dns yes
         ) | ignore
         # a probe that failed before the domains were in keeps LIMITED until NM's next periodic check
-        attempt busctl call --expect-reply=false org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckConnectivity
+        attempt busctl call --expect-reply=false $NM $NM_PATH $NM CheckConnectivity
     }
     # NM's push right behind the reapply's own can still carry the router's yes
     out resolvectl default-route $iface no | ignore

@@ -36,15 +36,30 @@ def addon-pin []: nothing -> string {
     $"($MCP_COMMIT) (open --raw ($HERE | path join mcp-prefs.py) | hash sha256) ($MCP_HOST):($MCP_PORT)"
 }
 
+# the comfy_generate extension (the Generate sidebar over llm/comfyui's comfy-gen): its files are the whole input
+const GENERATE = "comfy_generate"
+const GENERATE_ADDON = "bl_ext.user_default.comfy_generate"
+
+def generate-pin-file []: nothing -> path {
+    xdg cache blender-mcp .generate-pin
+}
+
+def generate-pin []: nothing -> string {
+    glob ($HERE | path join $GENERATE "*") | where ($it | path type) == file | sort | each { open --raw $in | hash sha256 }
+    | str join " "
+}
+
 export def link [cfg: record] {
     if (which blender uv | length) < 2 { return [] }
     let installed = try { open --raw (pin-file) | str trim } catch { "" }
     let addon_installed = try { open --raw (addon-pin-file) | str trim } catch { "" }
+    let generate_installed = try { open --raw (generate-pin-file) | str trim } catch { "" }
     [
         (fetch-git $MCP_URL $MCP_COMMIT (src))
         (if $installed == (pin) { [] } else { step server-install --network })
         # builds from the fetched tree: while the fetch is pending, so is the add-on
         (if $addon_installed == (addon-pin) { [] } else { step addon-install --requires (addon-src) })
+        (if $generate_installed == (generate-pin) { [] } else { step generate-install })
         (link-commands blender-mcp-bridge.nu)
         (desktop-override blender.desktop {
             let text = $in
@@ -77,24 +92,39 @@ def addon-src []: nothing -> path {
     src | path join addon blender_mcp_addon
 }
 
-export def addon-install []: nothing -> nothing {
-    let addon = addon-src
+# Builds an extension from its source tree and installs it into the user_default repository, unless the same tree is in.
+def extension-install [source: path, id: string]: nothing -> nothing {
     let query = 'import bpy; print("EXT=" + bpy.utils.user_resource("EXTENSIONS"))'
     let probe = ^blender -b --factory-startup --python-expr $query | complete
     let extensions = $probe.stdout | lines | parse "EXT={dir}" | get --optional 0.dir
     if $extensions == null { error make {msg: "blender: no user extensions dir"} }
-    let installed = $extensions | path join user_default mcp
-    let same = (^diff -rq -x __pycache__ -x '.*' $addon $installed | complete).exit_code == 0
-    if not $same {
-        let tmp = mktemp --directory
-        try {
-            blender-run [-c extension build --source-dir $addon --output-filepath ($tmp | path join mcp.zip)]
-            blender-run [-c extension install-file -r user_default ($tmp | path join mcp.zip)]
-            rm --recursive $tmp
-        } catch {|e| rm --recursive --force $tmp; error make $e }
-    }
+    let installed = $extensions | path join user_default $id
+    let same = (^diff -rq -x __pycache__ -x '.*' $source $installed | complete).exit_code == 0
+    if $same { return }
+    let tmp = mktemp --directory
+    try {
+        blender-run [-c extension build --source-dir $source --output-filepath ($tmp | path join $"($id).zip")]
+        blender-run [-c extension install-file -r user_default ($tmp | path join $"($id).zip")]
+        rm --recursive $tmp
+    } catch {|e| rm --recursive --force $tmp; error make $e }
+}
+
+export def addon-install []: nothing -> nothing {
+    extension-install (addon-src) mcp
     with-env {BLENDER_MCP_HOST: $MCP_HOST, BLENDER_MCP_PORT: $MCP_PORT} {
         blender-run [-b --python-exit-code 1 --python ($HERE | path join mcp-prefs.py)]
     }
     addon-pin | save --force (addon-pin-file)
+}
+
+export def generate-install []: nothing -> nothing {
+    extension-install ($HERE | path join $GENERATE) $GENERATE
+    let enable = (
+        "import addon_utils, bpy\n"
+        + $"addon_utils.enable\('($GENERATE_ADDON)', default_set=True, persistent=True\)\n"
+        + $"assert addon_utils.check\('($GENERATE_ADDON)'\)[1], 'comfy_generate would not enable'\n"
+        + "bpy.context.preferences.is_dirty = True\nbpy.ops.wm.save_userpref()\n"
+    )
+    blender-run [-b --python-exit-code 1 --python-expr $enable]
+    generate-pin | save --force (generate-pin-file)
 }

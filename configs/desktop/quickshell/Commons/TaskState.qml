@@ -49,6 +49,17 @@ Singleton {
     return "in " + Math.max(1, Math.floor(diff / 60000)) + "m"
   }
 
+  // when a not-yet-ready task is scheduled: the time today, the weekday this week, else the date; empty once ready
+  function scheduledText(value) {
+    var d = twDate(value)
+    if (!d || d.getTime() <= Date.now()) return ""
+    var now = new Date()
+    var timed = d.getHours() !== 0 || d.getMinutes() !== 0
+    if (d.toDateString() === now.toDateString()) return "@" + Qt.formatDateTime(d, "HH:mm")
+    var day = d.getTime() - now.getTime() < 6 * 8.64e+07 ? Qt.formatDateTime(d, "ddd") : Qt.formatDateTime(d, "MMM d")
+    return "@" + day + (timed ? " " + Qt.formatDateTime(d, "HH:mm") : "")
+  }
+
   // timew exports tags sorted: every tag counts, the description is the join key back to a task
   function buildTracked(data) {
     var list = (data && data.length) ? Array.prototype.slice.call(data) : []
@@ -131,6 +142,7 @@ Singleton {
         dueRaw: String(t.due || ""),
         dueMs: d ? d.getTime() : Infinity,
         due: dueText(t.due),
+        scheduled: scheduledText(t.scheduled),
         overdue: !!d && d.getTime() < Date.now(),
         active: !!t.start,
         startMs: s ? s.getTime() : 0,

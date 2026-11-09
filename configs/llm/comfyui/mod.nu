@@ -45,6 +45,8 @@ export def link [cfg: record] {
         ])
         (file-render comfyui-proxy.service (unit-dir | path join comfyui-proxy.service) $values)
         (unit-file comfyui.socket --enable --now)
+        # texture, image and 3d generation from a shell, an agent or the Blender panel (creating/blender)
+        (link-commands comfy-gen.nu)
     ]
 }
 

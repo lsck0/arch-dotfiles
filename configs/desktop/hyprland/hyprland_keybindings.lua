@@ -103,6 +103,20 @@ hl.bind(
     ),
     { description = "notes pad in a floating editor" }
 )
+-- the notes are plain markdown in ~/sync/notes: nvim opens on the capture inbox with the folder as its cwd
+hl.bind(
+    mod .. " + ALT + n",
+    app(
+        "kitty --class notes sh -c "
+            .. '\'d="$HOME/sync/notes"; mkdir -p "$d"; cd "$d"; exec "${EDITOR:-nvim}" inbox.md\''
+    ),
+    { description = "notes folder in the editor, on the inbox" }
+)
+hl.bind(
+    mod .. " + i",
+    quickshell_call("appsearch", "openWith '+ '"),
+    { description = "quick capture: task (! reminder, # note)" }
+)
 hl.bind(mod .. " + o", quickshell_toggle("tasks"), { description = "tasks and notes panel" })
 hl.bind(mod .. " + comma", quickshell_toggle("settings"), { description = "settings window" })
 hl.bind(

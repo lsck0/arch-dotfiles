@@ -1,0 +1,10 @@
+schema_version = "1.0.0"
+
+id = "comfy_generate"
+version = "1.0.0"
+name = "Comfy Generate"
+tagline = "Generated PBR textures and meshes from the local ComfyUI"
+maintainer = "Luca Sandrock"
+type = "add-on"
+blender_version_min = "4.2.0"
+license = ["SPDX:GPL-3.0-or-later"]

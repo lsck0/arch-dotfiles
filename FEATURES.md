@@ -30,7 +30,8 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
   a second session.
 - quickshell: bar with clock, weather, media, OBS, Discord, agents, homelab, system, network, display, audio and
   notification panels; launcher, clipboard (with OpenPGP), settings window, tasks and notes, overview, power menu, lock,
-  OSD, reminders, pomodoro, desktop agenda.
+  OSD, reminders, pomodoro, desktop agenda (sections now, all day, meetings, to do) with the quote of the day set on
+  the wallpaper.
 - Toggles (`scripts/toggles/`; `prefix+m` in tmux and herdr, the bar, the settings window on `SUPER+comma`): route
   (direct, proton, tor, offline), homelab VPN, firewall, captive portal, radios, focus, night light, shaders, color
   grading, power mode, font, theme mode and more.
@@ -51,13 +52,32 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
 - Mail (Thunderbird), LibreOffice, zathura, Obsidian, VeraCrypt.
 - Browsers: Firefox, Chromium, qutebrowser. Chat: Signal, Telegram, Element, Discord, TeamSpeak. Spotify (spicetify).
 - Taskwarrior with the homelab sync server, timewarrior, bugwarrior; homelab calendar on the desktop agenda.
-- LLMs: ollama and vLLM (ROCm), socket activated, abliterated (uncensored) models pinned by digest; ollama splits a
-  model too big for the GPU into RAM; Alpaca as a desktop client.
+- LLMs: ollama and vLLM (ROCm), socket activated, abliterated (uncensored) models pinned by digest, and only those
+  (ollama drops any other model); ollama splits a model too big for the GPU into RAM; Alpaca as a desktop client.
+- Generation: ComfyUI (Flux schnell, Hunyuan3D 2.1) behind `comfy-gen` and Blender's Generate sidebar.
 - Gaming: Steam, Proton, gamemode, MangoHud, FFXIV with Dalamud, Lutris, Diablo II (vanilla, Median XL, PD2 S3 and
   S14), Minecraft, VR, emulators (RetroArch, melonDS, mGBA), NetHack.
 - Creating: OBS (streaming, recording, virtual cam), Blender, GIMP, Krita, Inkscape, kdenlive, Audacity, OpenSCAD;
   Godot and Unreal with MCP.
 - LaTeX, Zotero; libvirt, Waydroid; a pentesting toolkit.
+
+## Workflows
+
+- Capture: `SUPER+i` opens the launcher on a new task. In the launcher, a leading `+` adds a task (taskwarrior syntax:
+  `+ Dino letter project:dino scheduled:mon due:fri priority:H +uni`), `!` sets a reminder (`! 10m tea`, `! 1h30m
+  stretch`; the row shows when it fires), `#` appends a timestamped line to `~/sync/notes/inbox.md`. The same from a
+  shell: `capture task|remind|note <words>`.
+- Tasks: `scheduled:` is when a task can start, `due:` its deadline (`due:eod` ends the day; `due:tomorrow` is its
+  first minute), `priority:H|M|L`, `wait:` hides it until then. The agenda's to-do rows show priority in the marker
+  (`!` overdue), a pending start as `@14:00`, `@Tue` or `@Nov 20`, then the time left until due. `SUPER+o` for the full
+  panel.
+- Notes: plain markdown in `~/sync/notes`, synced. `SUPER+ALT+n` opens nvim there on the inbox; `SUPER+SHIFT+n` is the
+  scratch pad (also the desktop's notes card).
+- Textures and meshes: `comfy-gen texture <prompt>` writes a seamless set (albedo, normal, roughness, height) to
+  `~/pictures/comfyui/textures/<name>/`; `comfy-gen 3d <image|prompt> [--open]` a `.glb` mesh (shape only, no
+  texture); `comfy-gen image <prompt>`; `--json` for scripts and agents. In Blender, the N sidebar's Generate tab
+  textures the selected meshes from a prompt (box projected, no UVs needed) or imports a generated mesh. The first run
+  after idle loads the model; a texture takes under a minute, a mesh a few.
 
 ## Backups
 
@@ -70,9 +90,9 @@ Keys are SUPER plus the named key unless written as a full chord; `hyprctl binds
 description.
 
 - Apps: terminal (`Return`, kitty on `SHIFT+Return`), Firefox (`a`), qutebrowser (`SHIFT+a`), file manager (`e`),
-  editor (`n`), notes pad (`SHIFT+n`), system monitor (`SHIFT+t`), magnifier (`x`), desktop mascots (`y`, `SHIFT+y`
+  editor (`n`), notes pad (`SHIFT+n`), notes folder (`ALT+n`), system monitor (`SHIFT+t`), magnifier (`x`), desktop mascots (`y`, `SHIFT+y`
   stops them).
-- Shell: launcher (`d`, `ALT+d` runs from `$PATH`), clipboard (`v`), overview (`Tab`, a submap while open), tasks
+- Shell: launcher (`d`, `ALT+d` runs from `$PATH`), quick capture (`i`), clipboard (`v`), overview (`Tab`, a submap while open), tasks
   (`o`), settings (`comma`), timer (`t`), wallpaper picker (`CTRL+w`), theme picker (`SHIFT+w`), power menu
   (`SHIFT+e`), lock (`Escape`), restart quickshell (`SHIFT+r`), discord mute (`m`).
 - Bar panels: `b` then a letter (audio, notifications, clock, display, homelab, agents, media, network, obs, system,
