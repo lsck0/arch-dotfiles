@@ -138,6 +138,9 @@ def "main gen" [--check]: nothing -> nothing {
         # first: the modules' option defaults import it, so FEATURES.md below reads the new values
         if not $check { homelab-write $REPO $lab }
         let ctx = pipeline-load $REPO system
+        # a module that does not parse is left out of every run, and of the package list below: lint fails on it here
+        let broken = $ctx.modules | where {|m| $m.broken? == true } | get id
+        if $check and ($broken | is-not-empty) { error make {msg: $"modules that do not parse: ($broken | str join ', ')"} }
         let outputs = [[file text]; [$MIRROR_LIST (mirror-list $ctx)] [$FEATURES (features-render $ctx)]]
         if $check {
             let stale = $outputs | where {|o| not ($REPO | path join $o.file | path exists) or (open --raw ($REPO | path join $o.file)) != $o.text } | get file

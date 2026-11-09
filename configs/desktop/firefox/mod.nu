@@ -153,7 +153,11 @@ export def theme [cfg: record, wallpaper: string] {
     let fonts = $fonts | append $tor
     let socket = $env.TMPDIR? | default /tmp | path join $"pywalfox_socket_(^id -u | str trim)"
     if (which pywalfox | is-empty) or not ($socket | path exists) { return $fonts }
-    $fonts | append (exec pywalfox-update [pywalfox update])
+    # the extension keeps its own dark/light mode apart from the colors: left on light, a dark palette paints a light
+    # toolbar; set from the palette each switch
+    let palette = palette-load
+    let mode = if $palette != null and $palette.light? == "1" { "light" } else { "dark" }
+    $fonts | append (exec pywalfox-update [sh -c 'pywalfox "$0" && pywalfox update' $mode])
 }
 
 export def system [cfg: record] {
