@@ -37,8 +37,8 @@ local style = require("style")
 -- flat title bars in the tab strip's look
 plugin_config("hyprbars", {
     bar_height = style.font_size + 8,
-    bar_color = wal.color0,
-    ["col.text"] = wal.color15,
+    bar_color = style.bar_bg or wal.color0,
+    ["col.text"] = style.bar_text or wal.color15,
     bar_text_font = style.font,
     bar_text_size = style.font_size,
     bar_text_align = "left",

@@ -64,7 +64,6 @@ export const options = {
 
 const NM = "/etc/NetworkManager"
 const DISPATCHERS = "/etc/NetworkManager/dispatcher.d"
-const HOME_NETWORK = "/run/home-network"
 const TRUSTED_NETWORK = "/run/trusted-network"
 const LOCKDOWN_MARKER = "/run/persona-lockdown"
 const MAC = '^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$'
@@ -135,9 +134,7 @@ export def system [cfg: record] {
             (file-copy wake-on-lan.conf $"($NM)/conf.d/20-wake-on-lan.conf" --then $restart)
         ]} else { [] })
         (do $dispatcher home-network.nu 70-home-network)
-        (file-copy homelab-routes.nu $"($DISPATCHERS)/80-homelab-routes" --mode 755 --then [sh -c (
-            $"[ -f ($HOME_NETWORK) ] || exit 0; for i in $\(cat ($HOME_NETWORK)\); do ($DISPATCHERS)/80-homelab-routes \"$i\" up; done"
-        )])
+        (do $dispatcher homelab-routes.nu 80-homelab-routes)
         (do $dispatcher persona-dispatcher.nu 90-anonymous-persona)
         (step home ($home_wired | into string) ($cfg.trusted_gateways | str join ",") ...$cfg.home_gateways)
         (if $cfg.wifi_radio == false {
@@ -207,6 +204,8 @@ export def home [home_wired: string, trusted: string, ...gateways: string]: noth
     # restarts tor and portmaster, undoing an open portal or a stop by hand.
     for link in $connected {
         ^$"($DISPATCHERS)/70-home-network" $link up
+        # its routes and split dns follow a changed script now, not at the link's next lease
+        if ($"($DISPATCHERS)/80-homelab-routes" | path exists) { ^$"($DISPATCHERS)/80-homelab-routes" $link up }
         if not ($LOCKDOWN_MARKER | path exists) or not ($TRUSTED_NETWORK | path exists) { continue }
         if $link not-in (open --raw $TRUSTED_NETWORK | lines) { continue }
         let uuid = ^nmcli -g GENERAL.CON-UUID device show $link | str trim

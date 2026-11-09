@@ -70,7 +70,8 @@ return {
         -- not lazy: the backend marks the tmux pane as vim (@pane-is-vim) only once loaded
         lazy = false,
         dependencies = { { "smart-splits-nvim/backend-tmux", main = "smart-splits-backend-tmux" } },
-        opts = { mux = { backend = "smart-splits-backend-tmux" } },
+        -- outside tmux (plain ghostty, herdr) plain window movement is the intended fallback
+        opts = { mux = { backend = "smart-splits-backend-tmux", warn_if_unusable = false } },
     },
     {
         "nacro90/numb.nvim",

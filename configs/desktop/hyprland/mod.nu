@@ -1,7 +1,7 @@
 # hyprland's lua config, plus platform.lua generated each run from the live monitors and keyboard
 
 use module.nu *
-use ../../core/wallust/palette.nu [RADIUS_PX BORDER_PX OPACITY_WINDOW OPACITY_SURFACE]
+use ../../core/wallust/palette.nu [RADIUS_PX BORDER_PX OPACITY_WINDOW OPACITY_SURFACE wal-load readable-on shade rgb-to-hex]
 use ../../core/wallust/font.nu [font-load]
 use plugins.nu [plugins-missing plugins-unloaded]
 
@@ -235,12 +235,26 @@ def files-changed [decls: list<record>]: nothing -> bool {
     }
 }
 
+# Tab strip and title bars: the theme's background, the focused tab one shade off, text raised to TEXT_RATIO on each.
+def bar-colors []: nothing -> record {
+    let slot = wal-load "hyprland bars"
+    if $slot == null { return {} }
+    let bg = do $slot background "#1e1e2e"
+    let active = $bg | shade 0.08
+    let fg = do $slot foreground "#cdd6f4"
+    let hex = {|c| $c | rgb-to-hex | $"rgb\(($in)\)" }
+    {
+        bar_bg: (do $hex $bg), bar_text: (do $hex ($fg | readable-on $bg))
+        tab_active_bg: (do $hex $active), tab_active_text: (do $hex ($fg | readable-on $active))
+    }
+}
+
 def style-record []: nothing -> record {
     let font = font-load
     {
         rounding: $RADIUS_PX, border: $BORDER_PX, opacity: $OPACITY_WINDOW, opacity_surface: $OPACITY_SURFACE
         font: $font.family, font_size: $font.ui_size
-    }
+    } | merge (bar-colors)
 }
 
 export def link [cfg: record] {
@@ -256,7 +270,6 @@ export def link [cfg: record] {
         })
         (unit-enable hypridle.service --now)
         (file-text ($dir | path join platform.lua) (platform-lua $cfg) --generated)
-        (file-text ($dir | path join style.lua) $"return (lua-from (style-record))\n" --generated)
     ] | decls-flatten
     let build = plugins-missing | is-not-empty
     let live = hyprland-live
@@ -288,6 +301,10 @@ export def --env reload []: nothing -> nothing {
     ^($toggles | path join toggle-shader.nu) reapply
 }
 
+# style.lua carries the font and the bar colours, both theme inputs
 export def theme [cfg: record, wallpaper: string] {
-    step reload
+    [
+        (file-text ($nu.home-dir | path join $CONFIG_DIR style.lua) $"return (lua-from (style-record))\n" --generated)
+        (step reload)
+    ]
 }

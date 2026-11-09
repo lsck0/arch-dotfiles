@@ -59,9 +59,14 @@ def host-keys-pin []: nothing -> bool {
     let dir = host-file ($env.DOTFILES_SECRETS? | default "/nonexistent" | path join ssh-host)
     let pinned = $SSH_HOST_KEYS | where {|k| ($dir | path join $k | path exists) }
     if ($pinned | is-empty) {
-        let backup = host-file configs/secrets/keys/ssh-host
-        print ("note: ssh: no pinned host keys, a reinstall changes this host's identity; back them up: "
-            + $"mkdir -p ($backup) && sudo cp ($HOST_KEY_DIR)/ssh_host_*_key ($backup)/ && sudo chown $USER: ($backup)/*")
+        # only with the secrets streamed unlocked: locked, a backup would land as plaintext over the git-crypt blobs
+        let unlocked = $env.DOTFILES_SECRETS? | default "/nonexistent" | path join ssh_publickey.asc | path exists
+        if $unlocked {
+            let backup = host-file configs/secrets/keys/ssh-host
+            print ("note: ssh: no pinned host keys, a reinstall changes this host's identity; back them up from the "
+                + $"checkout: mkdir -p ($backup) && sudo cp ($HOST_KEY_DIR)/ssh_host_*_key ($backup)/ "
+                + $"&& sudo chown $USER: ($backup)/*")
+        }
         return false
     }
     $pinned | each {|k|
