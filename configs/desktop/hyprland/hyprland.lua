@@ -13,6 +13,28 @@ local MODULES = {
     "hyprland_powersave",
 }
 
+-- drop-ins: another module's own binds and rules as ~/.config/hypr/dropins/<name>.lua (programming/hermes' system
+-- agent), loaded after the rest and before the power-save overrides
+local function dropins()
+    local ok, pipe = pcall(io.popen, "ls " .. os.getenv("HOME") .. "/.config/hypr/dropins 2>/dev/null")
+    if not ok or not pipe then
+        return {}
+    end
+    local names = {}
+    for file in pipe:lines() do
+        local name = file:match("^([%w_]+)%.lua$")
+        if name then
+            table.insert(names, "dropins." .. name)
+        end
+    end
+    pipe:close()
+    table.sort(names)
+    return names
+end
+for _, name in ipairs(dropins()) do
+    table.insert(MODULES, #MODULES, name)
+end
+
 local function optional(module)
     local ok, err = pcall(require, module)
     if not ok then

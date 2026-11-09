@@ -21,6 +21,7 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
 | `l-dotfiles-gui-testing` | launching an app only to check it: the headless output |
 | `l-dotfiles-live-debug` | status, run logs, journals, changed files, denials, who wrote a file |
 | `l-dotfiles-streaming` | OBS, the bar's obs widget, Spotify and Discord inspection |
+| `l-dotfiles-desktop-control` | acting on the live desktop for Luca: urls, apps, windows, media, toggles, panels |
 | `l-homelab` | homelab services, reaching them, their secrets, requesting lab changes |
 
 `skills/mod.nu` links every `skills/l-*` into each agent's skill dir; a new one appears after
@@ -35,7 +36,8 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   `dot module adopt|reset|unlink|remove|restore`, `dot explain <path|package>`, `dot log [--trace]`,
   `dot theme [wallpaper|random]`, `dot secrets audit`; `dot secrets unlock|lock` are Luca's (YubiKey), never an agent's.
 - `dot internal <cmd>` (`scripts/lib/internal.nu`): plumbing for scripts and units; `gen` regenerates
-  `mirror/packages.txt` and FEATURES.md's module and options tables (lint fails when one is stale), `iso` builds the
+  `mirror/packages.txt`, FEATURES.md's module and options tables and `platforms/homelab.nu` (lint fails when one is
+  stale), `iso` builds the
   install iso.
 - Agents never reach root: run dot with `DOT_SYSTEM=skip` (or `--no-system`); a system part is then pending (exit 3).
   sudo and pkexec take a YubiKey touch or fingerprint on Luca's side, the password as fallback.
@@ -49,7 +51,8 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
 
 - `configs/<group>/<module>/mod.nu`: one tool or task. Read the group's `AGENTS.md` before editing there (one
   instruction file per directory, no `CLAUDE.md`; `configs/programming/claude/CLAUDE.md` is the global `~/.claude`
-  file). `dependencies.txt` names the groups a group reaches into.
+  file, which imports `MACHINE.md` from `programming/agent-rules`, the source of the machine rules for every agent
+  harness). `dependencies.txt` names the groups a group reaches into.
 - `platforms/<name>.nuon` (facts, groups) and `<name>.options.nuon`: `luca-pc`, `luca-notebook`, `server`, `vm`,
   `wsl`. `profiles/<name>.nuon`: user identity and capabilities (`luca`, or `custom` for none).
 - `platforms/homelab.nu`: the lab's values (`HOMELAB`), rendered from the homelab's `src/generated/lab.json` by
@@ -59,8 +62,9 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   `dot plan|apply|status` run in, `pipeline.nu` one layer's run, `converge.nu` plan/apply, `system-apply.nu` root
   entry), `scripts/toggles/`. `scripts/identity/envrc`: per-repo credential isolation, installed into a repo's
   git-ignored `.identity/` by `identity-init`.
-- `configs/secrets/`: private submodule, pulled only with the `secrets` profile. `keys/` is git-crypt (credentials),
+- `configs/secrets/`: private submodule, pulled only with the profile's `secrets` capability. `keys/` is git-crypt (credentials),
   `state/` plaintext app state, plus the owner's own modules (applied last, packages kept off the mirror).
+- `themes/` (palettes), `wallpapers/` (credited art), `showcase/` (README screenshots).
 - `mirror/`: own pkgbuilds, `overrides.conf`, `iso/` (the install iso; only its stub `lsck0-install` is frozen on a
   stick).
 
@@ -75,8 +79,9 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   settings in typed options. Never gate on a username.
 - Modules declare what they want (`scripts/lib/module.nu`); the engine applies the difference. Managed files are copies
   with their hash recorded; a changed copy is kept until `dot module adopt` or `reset`; files dot never wrote are taken
-  over; both preserved aside. Links only where an app reads the repo live. Nothing is written into `~/sync`
-  but `~/sync/.stignore`, where `core/syncthing` keeps its `**/.identity` line.
+  over; both preserved aside. Links only where an app reads the repo live. dot writes nothing into `~/sync`
+  but `~/sync/.stignore`, where `core/syncthing` keeps its `**/.identity` line (the capture and notes tools write
+  their notes there at runtime).
 - Keep `$HOME` clean: env var to `configs/base/xdg/app-dirs.conf`, hardcoded dirs to `RECLAIM` in
   `configs/base/xdg/mod.nu`, forced non-dot dirs to `home.hidden`.
 - Native over bolt-on: the tool's own mechanism (Hyprland rules, systemd units, pipewire config, pacman hooks, udev),

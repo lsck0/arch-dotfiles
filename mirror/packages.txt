@@ -953,6 +953,7 @@ wl-clipboard
 wl_shimeji-git
 wmctrl
 wpa_supplicant
+wtype
 xdg-desktop-portal-gtk
 xdg-desktop-portal-hyprland
 xdg-desktop-portal-kde

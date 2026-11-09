@@ -26,7 +26,7 @@ recovery key is the deliberate exception for a lost YubiKey, not the normal path
 
 - `configs/secrets/`: private submodule `github.com/lsck0/secrets`, only with the `secrets` profile capability.
 - `keys/`: every secret, the only git-crypt path. Locked, each file starts with `\0GITCRYPT`.
-- `state/`: plaintext app state that is no credential (dalamud, ffxiv, repositories); readable locked.
+- `state/`: plaintext app state that is no credential (dalamud, ffxiv, firefox, obs art, plasma's weather place, repositories, shimoji, drift); readable locked.
 - `configs/secrets/<module>/`: the owner's own modules (`yubikey`, `weblinks`, and the like), plaintext. `dot sync`
   refuses to commit any new or changed file outside `keys/`, `state/` and the module dirs.
 - `configs/base/yubikey/`: what a fresh install reads first: sealed git-crypt key `secrets.key.age`, one
@@ -64,7 +64,8 @@ dot secrets lock         # Luca's
 - `link`: read `$env.DOTFILES/configs/secrets/keys/<file>`, guard with `secret-is-plaintext`, skip with a message when
   locked (`configs/programming/projects/mod.nu`).
 - `system`: never reads `keys/`. `dot apply` streams the files in `SYSTEM_SECRETS` (`scripts/lib/system.nu`, plus this
-  host's `initramfs-ssh/<hostname>/sshkeydir/.ed25519.sk` and the platform's `wireguard`) to a tmpfs
+  host's `initramfs-ssh/<hostname>/sshkeydir/.ed25519.sk`, its `ssh-host/<hostname>/*` host keys and the platform's
+  `wireguard`) to a tmpfs
   `$DOTFILES_SECRETS`; read `$DOTFILES_SECRETS/<path relative to keys/>` (a locked file is absent).
 - State a `backup` verb carries back: guard with `secret-seed-guard <marker> <witness> <label>`
   (`configs/gaming/dalamud/mod.nu`), which fails on live state the repo never seeded.

@@ -54,8 +54,8 @@ Layout and format:
   skills natively; other harnesses reach them through the index.
   arch-dotfiles is the exception: its `l-*` skills are global, linked by
   `skills/mod.nu`, with no `.claude/skills` symlink, and its AGENTS.md
-  indexes only the repo's own operational skills (the global `l-*` skills
-  are indexed by the harness skill listing).
+  `## Skills` table indexes the `l-dotfiles-*` skills it ships (the harness
+  lists the rest).
 - One workflow per skill. A skill that grows a second workflow splits.
 
 ## AGENTS.md

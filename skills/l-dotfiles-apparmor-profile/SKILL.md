@@ -27,11 +27,11 @@ is `enforce`; `apparmor.test.nu` fails otherwise. Luca backs one off on one mach
 
 ## Fix a denial
 
-1. Reproduce (on a headless output, `l-dotfiles-gui-testing`), then read
+1. Reproduce (the way `l-dotfiles-gui-testing` allows: ask Luca first), then read
    `journalctl -k -b --no-pager -g 'apparmor="DENIED"' | tail`: `profile=`, `operation=`, `name=`, `requested_mask=`.
 2. Add the narrowest rule to `local/<profile>` or `profiles/<profile>`; prefer an abstraction
    (`include <abstractions/dotfiles/viewer-read>`).
-3. `configs/base/apparmor/apparmor.test.nu`: exit 0 is clean; "Failed to create cache" warnings are expected.
+3. `configs/base/apparmor/apparmor.test.nu`: exit 0 is clean.
 4. Load: an agent runs `DOT_SYSTEM=skip dot apply` (pending, exit 3) and asks Luca for `dot apply --system`, which
    installs, reloads and fails if a profile is not in its mode. Does nothing on WSL; needs
    `/etc/apparmor.d/abstractions/base-strict`. Quick loop for Luca:

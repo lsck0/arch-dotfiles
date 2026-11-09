@@ -1,6 +1,6 @@
 ---
 name: l-engine
-description: "Orientation for nyangine, Luca's C engine and the stack his software is built on (games, desktop apps, server-rendered web, TUI, CLI). A thin pointer: where the authoritative docs live, the dev loop, and the shape of the system. Load before working in nyangine or a project built on it; it defers every exact name to the repo's own generated reference and skills."
+description: "Orientation for nyangine, Luca's C engine and the stack his software is built on (games, desktop apps, server-rendered web, TUI, CLI). A thin pointer: where the authoritative docs live, the dev loop, and the shape of the system. Load before working in nyangine or a project built on it; it defers every exact name to the repo's own AGENTS.md and generated reference."
 ---
 
 # l-engine

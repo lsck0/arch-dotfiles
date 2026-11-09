@@ -9,6 +9,10 @@ QtObject {
   readonly property string colorsPath: Paths.wal + "/colors.json"
   property color foreground: "#bfbdb6"
   property color background: "#0b0e14"
+  // text set straight on the wallpaper (the desktop quote): light with a dark halo whatever the theme, since the
+  // wallpaper, not the palette, is what it sits on
+  readonly property color wallpaperText: "#f2efe8"
+  readonly property color wallpaperShadow: "#000000"
   property color accent: "#39bae6"
   // accent and foreground conditioned for text: readable at Theme.values.textContrast on background and surface
   property color accentText: "#39bae6"

@@ -27,8 +27,9 @@ orchestration mode spawns workers as:
 
 - `l-persona-orchestrator`: owns a multi-agent run, spawns and directs the
   other workers. Loaded by `l-multi-agent-mode` and `l-multi-agent-task-mode`.
-- `l-persona-orchestrator-task-planner`: turns a raw ask into an ordered
-  set of tickets. Spawned as a worker by those same mode skills.
+- `l-persona-orchestrator-task-planner`: turns a raw ask into a plan
+  (PLAN.md live, tickets in task mode). Spawned as a worker by those same
+  mode skills.
 
 Everything else is a domain persona you load directly (or that a mode skill
 preloads onto a worker) before doing work in that domain.
@@ -40,8 +41,5 @@ the persona writes, a fresh worker of it reviews with `l-persona-legal`
 or `l-persona-finance` where law or figures apply, `l-persona-reviewer`
 checks. Sending, posting, signing, paying and filing stay Luca's steps.
 
-Spawning a worker per role multiplies token cost many times over a single
-agent, so fan-out buys parallelism and fresh eyes, not a smarter answer.
-Reserve it for independent research and review; a single coherent coding
-change is one focused worker's job. The parallelism budget and the
-implementer cap live in `l-spec-driven-development`.
+Fan-out costs tokens, not quality: its budget, caps and model choice live in
+`l-spec-driven-development` (Parallelism and model choice).

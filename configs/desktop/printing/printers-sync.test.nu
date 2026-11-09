@@ -1,13 +1,13 @@
 #!/usr/bin/env -S nu --no-config-file
 const SYNC = path self | path dirname | path join printers-sync.nu
-const WANT_NAME = "HP_ENVY_5640_series_B8A730"
-const WANT_URI = "dnssd://HP%20ENVY%205640%20series%20%5BB8A730%5D._ipp._tcp.local/?uuid=1c852a4d-b800-1f08-abcd-b8a730000001"
+const WANT_NAME = "Example_Inkjet_0A0B0C"
+const WANT_URI = "dnssd://Example%20Inkjet%20%5B0A0B0C%5D._ipp._tcp.local/?uuid=00000000-0000-0000-0000-000000000001"
 const LPINFO = [
     $"network ($WANT_URI)"
-    "network dnssd://HP%20ENVY%205640%20series%20%5BB8A730%5D._ipps._tcp.local/?uuid=1c852a4d-b800-1f08-abcd-b8a730000001"
+    "network dnssd://Example%20Inkjet%20%5B0A0B0C%5D._ipps._tcp.local/?uuid=00000000-0000-0000-0000-000000000001"
     "network dnssd://Old%20Laser._printer._tcp.local/?uuid=00000000-0000-0000-0000-000000000002"
     "network dnssd://Old%20Laser._pdl-datastream._tcp.local/?uuid=00000000-0000-0000-0000-000000000002"
-    "network ipp://192.168.178.20/ipp/print"
+    "network ipp://192.0.2.20/ipp/print"
 ]
 const SHEBANG = "#!/usr/bin/env -S nu --no-config-file"
 const STUBS = {

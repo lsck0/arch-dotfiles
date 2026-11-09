@@ -27,7 +27,7 @@ reviewed working tree instead (`l-spec-driven-development`, Repo rules first).
 This is `l-spec-driven-development`'s autonomous mode: the human reviews at input and at the spec gate, nowhere else.
 Under `Merge policy: human` they also merge each phase PR, without reading its code.
 
-1. Sync: fetch, base branch up to date, clean tree. Spawn one task-planner worker with the human's raw ask and wait.
+1. Sync: fetch, base branch up to date, clean tree (Repo rules first limits both in arch-dotfiles). Spawn one task-planner worker with the human's raw ask and wait.
    It picks the governing spec and writes `PLAN.md` into the change's notes directory: which personas run, how many,
    the model (and provider on Hermes) for each and why, dependency order, and whether a phase needs parallel
    worktrees. Find it as the one new file on the clean tree,
@@ -63,6 +63,4 @@ Research, design and review workers only write to `$SPEC_DIR` and share the main
 
 ## Pitfalls
 
-- No live session, no run: a `cronjob` has neither `HERDR_ENV` nor the Agent tool.
 - No persistence between chat sessions: use a task-mode skill for work that must survive.
-- One harness per run: never mix Hermes panes and Agent-tool workers.

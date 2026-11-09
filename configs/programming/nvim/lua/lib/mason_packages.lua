@@ -33,7 +33,6 @@ return {
     "json-lsp",
     "ktlint",
     "latexindent",
-    "lean-language-server",
     "lemminx",
     "lua-language-server",
     "marksman",

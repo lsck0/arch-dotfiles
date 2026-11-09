@@ -26,6 +26,7 @@ export const meta = {
     serial: false                                     # true: runs alone (rustup, a package manager)
     inputs: [configs/secrets/state/repositories]      # more input-hash files: relative is the repo's, ~ and / as is
     volatile: false                                   # true: always evaluated (reads machine state)
+    backup: {secrets: true}                           # its backup verb writes into secrets: runs only unlocked
 }
 
 export const options = {

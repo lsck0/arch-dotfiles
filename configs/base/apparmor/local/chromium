@@ -1,9 +1,9 @@
 # managed by arch-dotfiles/apparmor
 owner @{HOME}/{.claude,projects/*/.identity/claude}/chrome/chrome-native-host rPUx,
-owner @{user_share_dirs}/capgemini/ rw,
-owner @{user_share_dirs}/capgemini/chromium/ rw,
-owner @{user_share_dirs}/capgemini/chromium/** rwk,
-owner @{user_share_dirs}/capgemini/chromium/WidevineCdm/*/_platform_specific/linux_*/libwidevinecdm.so mrw,
+owner @{user_share_dirs}/work/ rw,
+owner @{user_share_dirs}/work/chromium/ rw,
+owner @{user_share_dirs}/work/chromium/** rwk,
+owner @{user_share_dirs}/work/chromium/WidevineCdm/*/_platform_specific/linux_*/libwidevinecdm.so mrw,
 @{run}/udev/data/+hid:* r,
 include <abstractions/dotfiles/nssdb>
 deny @{sys}/fs/cgroup/**/cpu.max r,

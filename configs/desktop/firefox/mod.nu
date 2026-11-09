@@ -16,8 +16,9 @@ const HOME_DIR = ".config/mozilla/firefox"
 const TOR_INI = ".local/share/torbrowser/tbb/x86_64/tor-browser/Browser/TorBrowser/Data/Browser/profiles.ini"
 const FIREFOX_DIR = "/usr/lib/firefox"
 const POLICIES = "/etc/firefox/policies/policies.json"
-# the owner's work sso sites, merged in where the root copy holds the secrets group
-const WORK_POLICIES = path self ../../secrets/capgemini/firefox-policies.json
+# a secrets module's firefox-policies.json (the owner's work sso sites), merged in where the root copy holds the
+# secrets group; found by name, so the public tree names no module
+const SECRETS_DIR = path self ../../secrets
 const PYWALFOX_HOST = ".mozilla/native-messaging-hosts/pywalfox.json"
 # the headless run is ended on purpose; profiles.ini is its result
 const HEADLESS_TIMEOUT = "20"
@@ -156,8 +157,8 @@ export def theme [cfg: record, wallpaper: string] {
 }
 
 export def system [cfg: record] {
-    let work = if ($WORK_POLICIES | path exists) { open $WORK_POLICIES } else { {} }
-    let doc = open policies.json | merge deep --strategy append $work
+    let extra = glob ($SECRETS_DIR | path join * firefox-policies.json) | sort | each { open $in }
+    let doc = $extra | reduce --fold (open policies.json) {|it, acc| $acc | merge deep --strategy append $it }
     let doc = if (platform-has homelab) { $doc } else { $doc | upsert policies.SearchEngines $SEARCH_OFF_HOMELAB }
     let policies = file-text $POLICIES $"($doc | to json --indent 2)\n"
     # the new tab url is settable only from autoconfig in the install dir; mozilla.cfg reads each user's home at runtime

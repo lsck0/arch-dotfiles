@@ -1,6 +1,6 @@
 ---
 name: l-single-agent-task-mode
-description: "Poll a per-project taskwarrior db and work +agent-task tickets yourself, one at a time, no Herdr/worker spawning. Multi-role pipeline -> l-multi-agent-task-mode; live idea, no db -> l-multi-agent-mode."
+description: "Poll a per-project taskwarrior db and work +agent-task tickets yourself, one at a time, no Herdr/worker spawning. Load when told to work a project's task queue alone, or as the body of the poll cron. Multi-role pipeline: l-multi-agent-task-mode; a live idea without a db: l-multi-agent-mode."
 ---
 
 # Single-agent task mode (self-polling, no spawning)
@@ -15,8 +15,7 @@ routine queued work.
 
 For db layout, scaffolding, tag vocabulary, completion, and the
 `tasks/context/` question-file convention, load `l-agent-task-db` first:
-hard prerequisite, every time. See the description for sibling routing
-(multi-role pipeline vs. live-no-db).
+hard prerequisite, every time.
 
 ## No harness precondition
 
@@ -29,10 +28,8 @@ runs under, and the reschedule rule live in `l-agent-task-db`,
 
 ## Taskwarrior prerequisite
 
-Load `l-agent-task-db` for detection/scaffolding. If the target project
-has no `tasks/.taskrc` yet, scaffold one with `taskwarrior-init
-[project-dir]`. Only ask the user first if it's genuinely ambiguous
-whether a task db belongs in this project at all.
+Detection and scaffolding (a project without `tasks/.taskrc`) follow
+`l-agent-task-db`.
 
 ## No stage tags
 

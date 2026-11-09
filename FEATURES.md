@@ -119,7 +119,7 @@ Every module under `configs/`, the owner's own in `configs/secrets/` aside. A pl
 | `base` | `apparmor`, `boot/hardening`, `boot/luks`, `boot/remote-unlock`, `boot/sbctl`, `boot/systemd-boot`, `cleanup`, `coredump`, `dot`, `endlessh`, `essentials`, `fail2ban`, `failure-notify`, `fancontrol`, `fprintd`, `fwupd`, `ghostmirror`, `hardening`, `hardware`, `i2c`, `lact`, `networkmanager`, `nftables`, `oomd`, `ossec`, `pacman`, `pam`, `perf`, `plymouth`, `portmaster`, `powercap`, `protonvpn`, `protonvpn-netns`, `resolved`, `sandbox`, `scx`, `smartd`, `ssh`, `sudo`, `systemd`, `tablet`, `tlp`, `tor`, `v4l-utils`, `v4l2loopback`, `wireguard`, `xdg`, `yubikey`, `zram` |
 | `core` | `btop`, `cli`, `fastfetch`, `gh`, `git`, `gnupg`, `herdr`, `locale`, `nas`, `ntfy`, `nushell`, `proton/pass`, `proton/sessions`, `starship`, `syncthing`, `timezone-auto`, `tmux`, `toggles`, `trash`, `veracrypt`, `wallust`, `yazi`, `yt-dlp`, `zsh` |
 | `creating` | `apps`, `audacity`, `blender`, `gimp`, `inkscape`, `krita`, `obs`, `openscad` |
-| `desktop` | `applications`, `bookokrat`, `chromium`, `color-grading`, `feather`, `firefox`, `ghostty`, `gparted`, `gtk`, `hyprland`, `idle-guards`, `jdownloader`, `kitty`, `libreoffice`, `ly`, `mpv`, `nsxiv`, `obsidian`, `oomox`, `pipewire`, `plasma`, `printing`, `qbittorrent`, `quickshell`, `qutebrowser`, `shimoji`, `thunderbird`, `uwsm`, `zathura` |
+| `desktop` | `applications`, `bookokrat`, `chromium`, `color-grading`, `dictation`, `feather`, `firefox`, `ghostty`, `gparted`, `gtk`, `hyprland`, `idle-guards`, `jdownloader`, `kitty`, `libreoffice`, `ly`, `mpv`, `nsxiv`, `obsidian`, `oomox`, `pipewire`, `plasma`, `printing`, `qbittorrent`, `quickshell`, `qutebrowser`, `shimoji`, `thunderbird`, `uwsm`, `zathura` |
 | `fonts` | `fonts` |
 | `gaming` | `d2launcher`, `dalamud`, `emulators`, `ffxiv`, `gamemode`, `games`, `lutris`, `mangohud`, `modrinth`, `nethack`, `pd2`, `protonup`, `runtime`, `steam`, `vkbasalt`, `vpn-bypass`, `vr` |
 | `latex` | `latex`, `sioyek`, `zotero` |
@@ -202,6 +202,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/hyprland.workspaces` | `record?` | detected | Workspace to output; detected: the first ceil(10 / outputs) on the main monitor, the rest split over the others left to right |
 | `desktop/hyprland.xwayland_scale` | `int?` | detected | GDK_SCALE for X11 apps (force_zero_scaling); detected: the main monitor's scale rounded, else 1 on a laptop and 2 elsewhere |
 | `desktop/hyprland.app_workspaces` | `list<record>` | `[]` | Homes for apps by window class: {class, workspace, silent}; silent opens them without switching to their workspace or focusing them |
+| `desktop/hyprland.autostart` | `list<record>` | `[]` | Apps started once per login: {cmd, workspace?, float?, after?}; workspace and float apply to the window the command's own process opens; after names a window class whose first window starts this one (an order on a shared workspace) |
 | `desktop/hyprland.pointer_sensitivity` | `float` | `0.0` | libinput pointer acceleration, -1 to 1 |
 | `desktop/hyprland.natural_scroll` | `bool` | `false` | Touchpad content follows the fingers |
 | `desktop/hyprland.idle_dim_s` | `int` | `900` | Idle seconds until the screens dim |
@@ -243,6 +244,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `programming/cargo.sccache_redis` | `bool` | `false` | Compile through sccache with the homelab's shared redis cache (secret sccache.env); plain rustc whenever it is unreachable |
 | `programming/claude.model` | `string` | `"claude-opus-5-5"` | The model every session starts on |
 | `programming/claude.effort` | `string` | `"medium"` | Reasoning effort of that model |
+| `programming/hermes.system_agent` | `bool` | `false` | An always-on Hermes session (profile system, unit hermes-system-agent) that drives the desktop and talks: SUPER+grave shows it, SUPER+ALT+a talks to it |
 | `programming/task.sync_url` | `string?` | unset | The taskchampion server every replica syncs with as the one client of configs/secrets/keys/taskwarrior-*; none: no sync |
 | `programming/task.recurrence` | `bool` | `true` | This replica creates the instances of recurring tasks; one per sync, or each adds its own copy (task-sync(5)) |
 | `programming/trmnl-claude.poster` | `bool` | `false` | This machine posts its Claude usage to the TRMNL panel; one poster per panel, a second would overwrite it |

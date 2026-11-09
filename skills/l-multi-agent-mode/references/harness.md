@@ -22,7 +22,8 @@ plain CLI, works the same under both harnesses.
 
 A worker differs only by its name, its prompt and the persona skill it carries, never by harness.
 
-- Herdr: every worker is `--kind hermes`, never `--kind claude`/`codex`/`gemini` (not installed or verified here).
+- Herdr: every worker is `--kind hermes`, never another kind: by policy (herdr supports `claude` and others, but only
+  Hermes carries the profiles, skills and provider pool this pipeline is built on).
 - Claude Code: every worker is an Agent call whose prompt tells it to load its `l-persona-*` skill (and the l-style
   parts) with the Skill tool before working.
 - Skills per persona: workers that design or write code (`l-persona-design-*`, `l-persona-programmer`,
@@ -63,7 +64,7 @@ and the orchestrator reads that file once the worker settles:
 | drive / follow up | `herdr agent prompt <name> "<task, ending in: write to <file>, then stop>" --wait --timeout <stage ms>` | `SendMessage` to the worker's id or name, context intact |
 | wait | `--wait` blocks until it settles; a worker prompted without it: `herdr agent wait <name> --timeout <stage ms>` | no polling: a completion notification arrives |
 | read the result | `cat <output file>` | the same |
-| close | `herdr pane close <pane_id>`; `herdr worktree remove --workspace <id>` once its PR is open | a finished agent exits by itself; stop a stale one with `TaskStop <task_id>`; an unchanged worktree is cleaned automatically |
+| close | `herdr pane close <pane_id>`; `herdr worktree remove --workspace <id>` once its PR is open | a finished agent exits by itself; stop a stale one with `TaskStop <task_id>` (a deferred tool: load it through ToolSearch first); an unchanged worktree is cleaned automatically |
 
 `-s <persona>[,l-style,...]` (Hermes) or the load-these-skills line (Claude Code) is what makes a worker that role.
 A worker that launches an app only to screenshot or check it keeps it on its own headless output (skill

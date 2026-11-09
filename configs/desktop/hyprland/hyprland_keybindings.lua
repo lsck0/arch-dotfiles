@@ -118,6 +118,8 @@ hl.bind(
     { description = "quick capture: task (! reminder, # note)" }
 )
 hl.bind(mod .. " + o", quickshell_toggle("tasks"), { description = "tasks and notes panel" })
+hl.bind(mod .. " + ALT + v", helper("dictate"), { description = "dictation: speak, press again to type it" })
+
 hl.bind(mod .. " + comma", quickshell_toggle("settings"), { description = "settings window" })
 hl.bind(
     mod .. " + p",

@@ -162,8 +162,8 @@ DialogHeight=630
 DialogWidth=810
 
 [Containments][3][Applets][8][Applets][17][Configuration][WeatherStation]
-placeDisplayName=Göttingen, Germany, DE
-placeInfo=Göttingen, Germany, DE|2918632
+placeDisplayName=@WEATHER_PLACE@
+placeInfo=@WEATHER_INFO@
 provider=bbcukmet
 
 [Containments][3][Applets][8][Applets][18]

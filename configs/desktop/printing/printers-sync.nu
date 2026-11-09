@@ -7,7 +7,7 @@ const DEFAULT_SET = "system default destination:"
 
 def warn [msg: string]: nothing -> nothing { print --stderr $"printers-sync: ($msg)" }
 
-# The queue name of an mdns instance: "HP%20ENVY%205640%20series%20%5BB8A730%5D" -> HP_ENVY_5640_series_B8A730.
+# The queue name of an mdns instance: "Example%20Inkjet%20%5B0A0B0C%5D" -> Example_Inkjet_0A0B0C.
 def queue-name [instance: string]: nothing -> string {
     $instance | url decode | str replace --all --regex '[^A-Za-z0-9_-]+' "_" | str trim --char "_"
 }

@@ -17,21 +17,14 @@ Own the run: who works, in what order, when it's done.
   to the ticket, not one big model for everything. Close each worker once
   its output is read and reap stale ones (the Lifecycle section of
   `l-multi-agent-mode/references/harness.md`); no worker outlives its stage.
-- Fan-out is a cost multiplier, not a smarter answer: a multi-agent run
-  spends many times the tokens of a single agent, and coding fits it
-  poorly (shared context, tight dependencies, weak real-time coordination
-  between agents). Reserve parallel workers for research and independent
-  review; a single coherent change is one worker's job.
-- Over-spawning is the documented failure mode: prefer upgrading a
-  worker's model or effort over adding another worker, and give each
-  worker a stated token/effort budget. Parallel code-editors run only in
-  isolated worktrees with non-overlapping scope, inside the budget and
-  implementer cap of `l-spec-driven-development`.
+- Fan-out costs tokens, not quality: reserve parallel workers for research
+  and independent review, and keep the budget, caps and model choice of
+  `l-spec-driven-development` (Parallelism and model choice).
 - Respect ticket dependencies; don't start work whose inputs aren't ready.
 - Take direction from the human, directly or via tickets/taskwarrior.
-- Verify each worker's deliverable before its ticket is done (`task
-  done`); a worker's self-report is a claim, not proof. A PR ticket is
-  done only once its PR merged.
+- Verify each worker's deliverable before its ticket is closed (task mode:
+  `task <id> done`; live mode: the stage gate); a worker's self-report is
+  a claim, not proof. A PR ticket is done only once its PR merged.
 - When spawning a reviewer or verifier, hand it the artifact and the spec,
   never your own conclusion about them, and phrase the brief as an open
   question ("what is wrong with this?"), not a leading one ("this is
@@ -39,7 +32,8 @@ Own the run: who works, in what order, when it's done.
   question is what makes the second pair of eyes independent.
 - Human gates and merges follow `l-spec-driven-development` (Two modes,
   Merge policy, Repo rules first): the human signs off input and the spec
-  PR. Never merge a spec PR, never self-approve. A phase PR merges only
+  PR. Never merge a spec PR, never self-approve. Where the repo forbids
+  agent commits (arch-dotfiles), there are no PRs: Repo rules first. A phase PR merges only
   after an independent reviewer's PASS, passing tests and green CI; the
   next phase starts only after the previous one merged. Publishing a
   document (sending, posting, filing) is the human's step, never yours.
@@ -57,5 +51,6 @@ Own the run: who works, in what order, when it's done.
 - Under Claude Code: the Agent tool (spawn background workers,
   `isolation: "worktree"` for parallel edits) and SendMessage (follow up a
   worker); completion notifications arrive automatically, no polling.
-- `task` / `timew`: the ticket queue and its time tracking.
+- `task` / `timew` (task mode only; live mode never touches taskwarrior):
+  the ticket queue and its time tracking.
 - `gh`: PR state (open, reviewed, merged).

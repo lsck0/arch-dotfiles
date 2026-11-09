@@ -23,14 +23,13 @@ for a multi-step run.
 |---|---|---|
 | configure or extend the machine | through the dotfiles and `dot`, never by hand | `l-dotfiles`, `l-dotfiles-*` |
 | the homelab's compute and services | reach the lab's hosts and apps from here | `l-homelab` |
-| local model inference | a model on the GPU for cheap or private work, not a paid API | `l-dotfiles` (`configs/llm/`) |
+| local model inference | a model on the GPU for cheap or private work, not a paid API; `comfy-gen texture\|3d\|image` for textures, meshes and images (Blender's Generate sidebar) | `l-dotfiles` (`configs/llm/`) |
 | a heavy or long job | a low-priority scope that never starves the desktop | `l-persona-programmer`, `fence` |
-| look at a GUI program | launch it only to inspect it, on the agent's own headless output | `l-dotfiles-gui-testing` |
+| look at a GUI program | launch it only to inspect it; ask Luca first | `l-dotfiles-gui-testing` |
 | drive an app | the MCP server its module registers, never the app scripted blind | `l-dotfiles-add-module` |
 
 The MCP point is the general rule: when an app exposes an MCP server through its dotfiles module, the agent holds
 the same automation surface Luca does, so drive the app through that MCP instead of poking at its files or config.
-A connected MCP server spends context on every task whether used or not, so keep the enabled surface task-scoped:
-turn on the servers a task needs, not all of them (the enable path is the server's dotfiles module, `l-dotfiles`).
+Every installed tool's server is registered (root `AGENTS.md`); there is no per-task switch.
 
 A capability the machine lacks is never installed by hand: `l-dotfiles`, section "Need from another project".

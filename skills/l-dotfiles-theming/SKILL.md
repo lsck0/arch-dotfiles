@@ -54,6 +54,8 @@ theme's wallpaper has a public copy in `wallpapers/`; names resolve from `~/sync
 
 ## Test
 
+Each switch recolours Luca's live desktop: ask before running it while he works.
+
 ```bash
 dot internal theme get                                         # remember the current wallpaper
 dot theme --sync "$(jq -r .wallpaper themes/void.json)"
@@ -61,7 +63,7 @@ dot theme --sync "$(jq -r .wallpaper themes/gruvbox-light.json)"
 dot theme --sync <remembered path>
 ```
 
-Output in `journalctl --user -u dot-theme.service`. Check `$XDG_CACHE_HOME/wal/<file>`, the look (headless screenshot,
+Output in `journalctl --user -u dot-theme.service`. Check `$XDG_CACHE_HOME/wal/<file>`, the look (a screenshot,
 `l-dotfiles-gui-testing`) and light-theme contrast. `git status` stays clean. A full user run reruns the switch when
 `configs/core/wallust` or `themes/` changed (stamp `$XDG_CACHE_HOME/wal/.theme-stamp`); any apply
 reruns the `theme` verb of each module it applied.

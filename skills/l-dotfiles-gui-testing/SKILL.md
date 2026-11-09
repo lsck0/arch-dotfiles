@@ -1,12 +1,13 @@
 ---
 name: l-dotfiles-gui-testing
-description: The one procedure for launching an app, game, editor or viewer only to screenshot or check it, on a headless Hyprland output of the agent's own, with muted audio and clean teardown. Load before any agent starts a GUI program the user is not watching.
+description: The one procedure for launching an app, game, editor or viewer only to screenshot or check it, with muted audio and clean teardown; on Hyprland 0.57 a headless output can kill Luca's live apps, so ask him first. Load before any agent starts a GUI program the user is not watching.
 ---
 
 # gui-testing
 
-A program launched only to check something never shows on the user's monitors. Each agent creates its own headless
-output, uses it and removes it; several agents can do this at once.
+A program launched only to check something never shows on the user's monitors unless he says so. The default is a
+headless output of the agent's own, created only after Luca agreed (Never, first item); with his explicit permission
+(he is away, "use the pc") his real monitors are the other path (below).
 
 ## Never
 
@@ -25,6 +26,15 @@ output, uses it and removes it; several agents can do this at once.
   `busctl --user call org.freedesktop.impl.portal.desktop.kde /org/freedesktop/portal/desktop
   org.freedesktop.DBus.Peer Ping` must answer.
 - Removing an output you did not create.
+
+## Luca's monitors, with his permission
+
+- Screens off: `hyprctl dispatch "hl.dsp.dpms({ mode = 'on' })"`; turn them off again when done.
+- The desktop under the windows: move an empty workspace onto the main monitor
+  (`hl.dsp.workspace.move({ monitor = 'DP-2' })` while it is focused), then put workspace 1 back afterwards.
+- hypridle locks after `idle_lock_s` (default 1200 s) without input; IPC calls and screenshots are no input.
+  `toggle-keep-awake.nu` holds it off; `agent-guard` only blocks suspend. A lock needs Luca's login: stop there.
+- `grim -o <output>` of a real monitor captures whatever he has open: crop to what the check needs.
 
 ## Procedure
 

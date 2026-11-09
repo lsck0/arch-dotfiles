@@ -13,7 +13,12 @@ with `dot apply desktop/quickshell`, and a live edit is drift. Runs as `quickshe
 
 1. `dot apply desktop/quickshell`; the shell reloads (`Configuration Loaded` in the log), not while the lock is held.
 2. `journalctl --user -u quickshell -f -o cat` names file and line of a QML error.
-3. Still broken or crashed: `~/.config/quickshell/restart.nu` (restarts the unit, kills strays, bakes shaders).
+3. No fresh `Configuration Loaded`, still broken or crashed: `~/.config/quickshell/restart.nu` (restarts the unit,
+   kills strays, bakes shaders; Luca's `SUPER+SHIFT+r`). The restart flickers his live bar: while he works, ask.
+
+Launcher capture (`+` task, `!` reminder, `#` note) runs `scripts/capture.nu`; `appsearch openWith '<text>'` opens the
+launcher on a mode (`SUPER+i`). The desktop agenda (`plugins/desktop`) groups now, all day, meetings and to do; its
+quote sits on the wallpaper with theme-independent colours (`Colors.wallpaperText`).
 
 ## IPC
 
@@ -32,6 +37,8 @@ toggles drives the user's screen; check UI on a test shell in the nested Hyprlan
 (`XDG_RUNTIME_DIR=$rt WAYLAND_DISPLAY=wayland-<n> qs ipc -p <copy> call ...`, `l-dotfiles-gui-testing`).
 
 ## Screenshot one layer
+
+Reading the live bar's own layer is fine; anything that launches or opens UI goes to `l-dotfiles-gui-testing`.
 
 ```bash
 g=$(hyprctl layers -j | jq -r '[.[] | .levels[][] | select(.namespace == "quickshell-bar")][0] | "\(.x),\(.y) \(.w)x\(.h)"')

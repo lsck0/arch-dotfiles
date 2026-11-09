@@ -56,6 +56,15 @@ export const options = {
         group: display
         scope: user
     }
+    autostart: {
+        type: list<record>
+        default: []
+        doc: "Apps started once per login: {cmd, workspace?, float?, after?}; workspace and float apply to the window the command's own process opens; after names a window class whose first window starts this one (an order on a shared workspace)"
+        label: "Autostart"
+        group: session
+        scope: user
+        apply: relogin
+    }
     pointer_sensitivity: {
         type: float
         default: 0.0
@@ -220,6 +229,7 @@ def platform-lua [cfg: record]: nothing -> string {
         monitors: $monitors
         workspaces: ($cfg.workspaces | default (workspaces-split ($monitors | each { $in.output }) $main))
         app_workspaces: $cfg.app_workspaces
+        autostart: $cfg.autostart
         keyboard: (keyboard-read)
         pointer: {sensitivity: $cfg.pointer_sensitivity, natural_scroll: $cfg.natural_scroll}
         kbd_backlight: $backlight

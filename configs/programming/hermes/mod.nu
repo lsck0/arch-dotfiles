@@ -13,8 +13,32 @@ export const meta = {
 use ../../desktop/idle-guards/mod.nu [AGENT_GUARD]
 use ../../llm/ollama/ollama-ensure-models.nu [LONG_CONTEXT]
 
+export const options = {
+    system_agent: {
+        type: bool
+        default: false
+        doc: "An always-on Hermes session (profile system, unit hermes-system-agent) that drives the desktop and talks: SUPER+grave shows it, SUPER+ALT+a talks to it"
+        label: "System agent"
+        scope: machine
+        apply: live
+    }
+}
+
 const HOME = ".hermes"
 const ORCHESTRATOR = "profiles/orchestrator"
+const SYSTEM = "profiles/system"
+const SYSTEM_UNIT = "hermes-system-agent.service"
+# voice in both directions: the local whisper for speech in, piper's local voice reading every answer aloud; ctrl+space
+# toggles recording (the SUPER+ALT+a bind sends it to the tmux pane), barge-in stops it when Luca talks over it
+const SYSTEM_SETTINGS = {
+    voice.auto_tts: true
+    voice.record_key: "ctrl+space"
+    tts.provider: piper
+    tts.piper.voice: "en_US-lessac-medium"
+    stt.provider: local
+    stt.language: ""
+    stt.local.model: small
+}
 const PYTHON = "/opt/hermes-agent/venv/bin/python"
 const SKIN = "wallust"
 const VLLM_BASE_URL = "http://127.0.0.1:8000/v1"
@@ -37,7 +61,7 @@ const SETTINGS = {
 }
 const ORCHESTRATOR_SETTINGS = {compression.threshold_tokens: 500000}
 const ANTHROPIC_KEY_SECRET = "configs/secrets/keys/hermes-anthropic.env"
-const REQUIRED_EXTRAS = [anthropic audio-io stt-whisper]
+const REQUIRED_EXTRAS = [anthropic audio-io stt-whisper piper]
 # rewritten by every hermes-agent package update, which may need a venv sync
 const HERMES_LOCK = "/opt/hermes-agent/uv.lock"
 const GUARD_EVENTS = {
@@ -50,7 +74,29 @@ const GUARD_EVENTS = {
 
 def homes []: nothing -> record {
     let default = $nu.home-dir | path join $HOME
-    {default: $default, orchestrator: ($default | path join $ORCHESTRATOR)}
+    {default: $default, orchestrator: ($default | path join $ORCHESTRATOR), system: ($default | path join $SYSTEM)}
+}
+
+# A profile's command: hermes' own `profile alias` bakes in the venv path of the install it ran under, which the next
+# hermes update removes; this one goes through the hermes on PATH.
+def profile-command [profile: string, name: string]: nothing -> record {
+    file-text ($nu.home-dir | path join .local bin $name) $"#!/bin/sh\nexec hermes -p ($profile) \"$@\"\n" --mode "755"
+}
+
+# The system agent's profile, its skills, voice and unit, only where the option is on.
+def system-agent [h: record, settings: record, remove: list<string>, mcp: record, skills: list<path>]: nothing -> list<record> {
+    [
+        (exec system-create [
+            hermes profile create system --clone --no-alias --description "System agent: always on, drives the desktop, talks."
+        ] --creates $h.system)
+        (profile-command system hermes-system)
+        (file-link system-agent.sh ($nu.home-dir | path join .local bin hermes-system-agent))
+        ($skills | each {|dir| file-link $dir ($h.system | path join skills ($dir | path basename)) })
+        (configure $h.system ($settings | merge $SYSTEM_SETTINGS) $remove $mcp)
+        (anthropic-key $h.system)
+        (unit-file $SYSTEM_UNIT --enable --now)
+        (file-copy hypr-system-agent.lua ($nu.home-dir | path join .config hypr dropins system_agent.lua) --then [hyprctl reload])
+    ]
 }
 
 # uv sync is a no-op once installed, but pm refuses to get there on a packaged install: once ~/.hermes/tools/facts.json
@@ -129,13 +175,14 @@ export def link [cfg: record] {
         (exec orchestrator-create [
             hermes profile create orchestrator --clone --no-alias --description "Orchestrator. Not for interactive chat."
         ] --creates $h.orchestrator)
-        (exec orchestrator-alias [hermes profile alias orchestrator --name hermes-orchestrator] --creates ($nu.home-dir | path join .local bin hermes-orchestrator))
+        (profile-command orchestrator hermes-orchestrator)
         ($skills | each {|dir| file-link $dir ($h.orchestrator | path join skills ($dir | path basename)) })
         (configure $h.default $settings $remove $mcp)
         (configure $h.orchestrator ($settings | merge $ORCHESTRATOR_SETTINGS) $remove $mcp)
         (anthropic-key $h.default)
         (anthropic-key $h.orchestrator)
-    ]
+        (if $cfg.system_agent { system-agent $h $settings $remove $mcp $skills } else { [] })
+    ] | decls-flatten
 }
 
 def skin []: nothing -> any {
@@ -191,5 +238,5 @@ def skin []: nothing -> any {
 export def theme [cfg: record, wallpaper: string] {
     let skin = skin
     if $skin == null { return [] }
-    homes | values | each {|home| file-text ($home | path join skins $"($SKIN).yaml") $skin --generated }
+    homes | values | where ($it | path exists) | each {|home| file-text ($home | path join skins $"($SKIN).yaml") $skin --generated }
 }

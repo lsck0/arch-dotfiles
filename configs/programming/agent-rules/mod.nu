@@ -2,7 +2,10 @@ use module.nu *
 
 # One MACHINE.md rule in every harness's global instructions.
 # after hermes, whose orchestrator clone must not find its dir; an input so a fresh install re-plans
-export const meta = {deps: [programming/claude programming/rtk programming/hermes], inputs: [~/.hermes/profiles/orchestrator]}
+export const meta = {
+    deps: [programming/claude programming/rtk programming/hermes]
+    inputs: [~/.hermes/profiles/orchestrator ~/.hermes/profiles/system]
+}
 
 const RULES = "MACHINE.md"
 # hermes' stock identity line, kept in front of the rule since SOUL.md replaces it whole
@@ -10,7 +13,7 @@ const HERMES_SOUL = "You are Hermes Agent, built by Nous Research. Be direct: ma
 
 export def link [cfg: record] {
     let rules = open --raw $RULES
-    let orchestrator = $nu.home-dir | path join .hermes profiles orchestrator
+    let profiles = [orchestrator system] | each {|p| $nu.home-dir | path join .hermes profiles $p } | where ($it | path exists)
     [
         # claude: imported by configs/programming/claude/CLAUDE.md
         (files-into ($nu.home-dir | path join .claude) $RULES)
@@ -20,7 +23,7 @@ export def link [cfg: record] {
         # copilot's one global file, which rtk init also wrote: the rule plus the same rtk note claude reads
         (file-text ($nu.home-dir | path join .copilot copilot-instructions.md) $"($rules)\n(open --raw ../claude/RTK.md)")
         (file-text ($nu.home-dir | path join .hermes SOUL.md) $"($HERMES_SOUL)\n\n($rules)")
-        # the orchestrator profile is a clone made once, so it gets its own copy
-        (if ($orchestrator | path exists) { file-text ($orchestrator | path join SOUL.md) $"($HERMES_SOUL)\n\n($rules)" } else { [] })
+        # the orchestrator and system profiles are clones made once, so each gets its own copy
+        ($profiles | each {|dir| file-text ($dir | path join SOUL.md) $"($HERMES_SOUL)\n\n($rules)" })
     ] | decls-flatten
 }

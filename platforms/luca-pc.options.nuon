@@ -72,6 +72,18 @@
                 silent: false
             }
         ]
+        # discord and spotify land on 5 through app_workspaces; spotify waits for discord's window, so discord takes the
+        # left half. The chat apps and steam start in their trays.
+        autostart: [
+            {cmd: discord}
+            {cmd: spotify, after: discord}
+            {cmd: firefox, workspace: 6}
+            {cmd: "ghostty --gtk-single-instance=false", workspace: 1, float: true}
+            {cmd: "Telegram -startintray"}
+            {cmd: "element-desktop --hidden"}
+            {cmd: "zapzap --hideStart"}
+            {cmd: "steam -silent"}
+        ]
         pointer_sensitivity: 0.1
         natural_scroll: true
     }
@@ -91,6 +103,10 @@
     "llm/vllm": {
         gpu_memory_utilization: 0.7
         kv_cache_dtype: fp8
+    }
+    "programming/hermes": {
+        # the always-on voice agent with its SUPER+grave dropdown: the desktop only
+        system_agent: true
     }
     "programming/cargo": {
         sccache_redis: true

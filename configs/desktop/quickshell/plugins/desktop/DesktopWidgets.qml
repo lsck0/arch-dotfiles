@@ -35,8 +35,6 @@ Item {
   // narrower than this, the quote wraps a word per line: the card is left out instead
   readonly property int quoteMinWidth: Style.space(240)
   property var quote: Quotes.forDate(new Date())
-  // the quote's text sits on the wallpaper, not on a theme surface: a warm near-white whatever the theme
-  readonly property color quoteText: "#f2efe8"
 
   // the quote changes at midnight; a minute's poll is fine for a daily one and, unlike a timer aimed at midnight,
   // holds across a suspend
@@ -109,7 +107,7 @@ Item {
 
         layer.effect: MultiEffect {
           shadowEnabled: true
-          shadowColor: "black"
+          shadowColor: Colors.wallpaperShadow
           shadowOpacity: 1
           shadowBlur: 1
           shadowScale: 1.02
@@ -124,12 +122,12 @@ Item {
           font.italic: true
           font.pixelSize: Style.font.title + 4
           lineHeight: 1.15
-          color: root.quoteText
+          color: Colors.wallpaperText
         }
 
         Label {
           text: "\u2014 " + root.quote.author
-          color: root.quoteText
+          color: Colors.wallpaperText
           opacity: Style.emphasis.strong
           font.letterSpacing: 1
           font.capitalization: Font.AllUppercase

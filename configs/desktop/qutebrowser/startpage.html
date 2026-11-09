@@ -4,6 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>home</title>
+    <!-- a house in the theme's accent; the page's own colour, so it follows every theme switch -->
+    <link rel="icon" id="favicon" href="data:," />
+    <script>
+      document.getElementById("favicon").href = "data:image/svg+xml," + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
+        '<path d="M16 3 2 15h4v13h8v-8h4v8h8V15h4z" fill="@ACCENT@"/></svg>'
+      );
+    </script>
     <style>
       :root {
         --bg: @BG@;

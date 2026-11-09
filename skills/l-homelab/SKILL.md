@@ -21,12 +21,12 @@ change goes through that repo and session, since a hand change on a guest is los
 | internal | `grafana`*, `homelab`*, `start`*, `search` | metrics; admin dashboard; dashboard; searxng |
 | internal | `nas`*, `backup`*, `sync`* | filebrowser; kopia; syncthing |
 | internal | `auth`, `lldap`* | Authelia and OIDC; users |
-| internal | `git`, `wiki`, `sccache`, `hs`, `hs-ui` | forgejo; wiki; build cache; headscale and its UI |
+| internal | `git`, `wiki`, `sccache` | forgejo; wiki; build cache (headscale is parked: no route) |
 | internal | `registry` (basic auth), `registry-ui`*, `archbuild`* | registry; its UI; mirror build |
-| infra | `proxmox`* | hypervisor (lab.json `proxmox`, not a route) |
+| infra | `proxmox`*, FritzBox, Cloudflare, TRMNL | consoles outside the routes (lab.json `infra`, `proxmox`) |
 | external | `ntfy`, `mirror`, `paste`, `share` | push; `[lsck0]` repo and iso; privatebin; files |
 | external | `ts`, `*.mc` | teamspeak; minecraft |
-| external | `hello`, `math`, `nyangine`; `deploy` | swarm apps (lab.json `app`); the dev guest's deploy endpoint |
+| external | `math`; `deploy` | swarm apps (routes with an `app`); the dev guest's deploy endpoint |
 
 `search` takes a login only from outside the house and wireguard. The media guest (jellyfin and the rest) is parked:
 treat it as absent.
@@ -49,7 +49,8 @@ In `configs/secrets/keys/` (`l-dotfiles-secrets-access`), names only: `taskwarri
 ## lab.json
 
 `~/projects/homelab/src/generated/lab.json`, schema 1 (documented in `src/modules/lab-export.nix`): guests and routes,
-read by the bar's `homelab-status.nu` (guests found by `roles`, never by name) and the ntfy notifier. Use only what
+read by the bar's `homelab-status.nu` (guests found by `roles`, never by name), the ntfy notifier and
+`secrets/weblinks` (startpage links from `routes` and `infra`). Use only what
 schema 1 provides. `dot internal gen` renders its addresses, subnets and mirrors into the committed
 `platforms/homelab.nu`, the dotfiles' one source for them; `dot test lint` fails while it is stale.
 

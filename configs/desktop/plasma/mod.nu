@@ -94,15 +94,25 @@ def dolphin-view [dest: path]: nothing -> list<record> {
     if ($values | is-empty) { [] } else { [(ini-merge $dest $values --missing-only)] }
 }
 
+# The weather widget's place is the owner's location: kept in secrets' state, a placeholder in the public files. Without
+# it the widget opens unset and asks for a place.
+const WEATHER = path self ../../secrets/state/plasma/weather.nuon
+
+def weather-values []: nothing -> record {
+    let place = if ($WEATHER | path exists) { open $WEATHER } else { {display: "", info: ""} }
+    {WEATHER_PLACE: $place.display, WEATHER_INFO: $place.info}
+}
+
 export def link [cfg: record] {
     let config = $nu.home-dir | path join $CONFIG
     let values = {HOME: $nu.home-dir, DOTFILES: $env.DOTFILES}
+    let applet_values = $values | merge (weather-values)
     # kickoff ports its favorites into the activity database only while this is false; a fresh account has none yet
     let fresh = not ($nu.home-dir | path join $KACTIVITIES_DB | path exists)
     # rendered in too, else every apply would take back what theme set
     let wallpaper = wallpaper-current
     let lang = $cfg.deps?."core/locale"?.lang?
-    let applets = file-render (host-seed $DIR $APPLETSRC) ($config | path join $APPLETSRC) $values
+    let applets = file-render (host-seed $DIR $APPLETSRC) ($config | path join $APPLETSRC) $applet_values
         | update content { if $fresh { str replace $KICKOFF_FAVORITES "favoritesPortedToKAstats=false" } else { $in } }
         | update content {|d| if $wallpaper == "" { $d.content } else { $d.content | ini-apply (wallpaper-values $d.content $wallpaper) false } }
     let dirs = $CONFIG_DIRS | each {|d| glob ($DIR | path join $d "**/*") --no-dir } | flatten
@@ -282,6 +292,8 @@ export def backup [cfg: record]: nothing -> nothing {
         let dest = if $f == $APPLETSRC { host-file $DIR $f } else { $DIR | path join $f }
         mkdir ($dest | path dirname)
         open --raw (config-path $f) | str replace --all $env.DOTFILES "@DOTFILES@" | str replace --all $nu.home-dir "@HOME@"
+        | str replace --all --regex '(?m)^placeDisplayName=.*$' "placeDisplayName=@WEATHER_PLACE@"
+        | str replace --all --regex '(?m)^placeInfo=.*$' "placeInfo=@WEATHER_INFO@"
         | str replace "favoritesPortedToKAstats=false" $KICKOFF_FAVORITES | save --force $dest
     }
     for d in $CONFIG_DIRS {

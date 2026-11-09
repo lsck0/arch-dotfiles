@@ -1,3 +1,45 @@
+local platform = require("platform")
+
+-- one app of the platform's autostart list, through uwsm like every launch; its own process's first window takes the
+-- workspace and float rules
+local function autostart_launch(entry)
+    local rules = {}
+    if entry.workspace then
+        rules.workspace = tostring(entry.workspace) .. " silent"
+    end
+    if entry.float then
+        rules.float = true
+        rules.center = true
+    end
+    hl.exec_cmd("uwsm app -- " .. entry.cmd, next(rules) and rules or nil)
+end
+
+local function autostart()
+    local waiting = {}
+    for _, entry in ipairs(platform.autostart or {}) do
+        if entry.after then
+            table.insert(waiting, entry)
+        else
+            autostart_launch(entry)
+        end
+    end
+    if #waiting == 0 then
+        return
+    end
+    -- an entry with after starts once a window of that class opens, so a shared workspace fills in a fixed order
+    local subscription
+    subscription = hl.on("window.open", function(window)
+        for i = #waiting, 1, -1 do
+            if window.class == waiting[i].after then
+                autostart_launch(table.remove(waiting, i))
+            end
+        end
+        if #waiting == 0 and subscription then
+            subscription:remove()
+        end
+    end)
+end
+
 hl.on("hyprland.start", function()
     -- the hl.env scales too, so quickshell.service and every app it launches see what the compositor's children see
     hl.exec_cmd("uwsm finalize GDK_SCALE")
@@ -24,7 +66,8 @@ hl.on("hyprland.start", function()
     hl.exec_cmd(
         'f="${XDG_CACHE_HOME:-$HOME/.cache}/wal/colors-nsxiv.Xresources"; [ -f "$f" ] && xrdb -nocpp -merge "$f"'
     )
-    local backlight = require("platform").kbd_backlight
+    autostart()
+    local backlight = platform.kbd_backlight
     if backlight then
         hl.exec_cmd("brightnessctl --device=" .. backlight .. " set 2")
     end
