@@ -9,8 +9,10 @@ const TIMEOUT = 20min
 const FLUX = "flux1-schnell-fp8.safetensors"
 const HUNYUAN = "hunyuan_3d_v2.1.safetensors"
 const TEXTURE_STYLE = "seamless tileable texture, flat top-down view, even diffuse lighting, no shadows, no perspective, highly detailed surface"
-# Hunyuan3D reads a cast shadow or a floor as geometry: the reference is a cutout floating on flat white
-const OBJECT_STYLE = "single isolated object, centered, whole object in frame, product cutout floating on a pure flat white background, no shadow, no floor, no ground plane, even lighting"
+# Hunyuan3D reads a cast shadow or a floor as geometry: the reference is a cutout floating on a plain background
+# a green screen: object-prep.py cuts the object out by the background's colour, and on white or grey a white or cream
+# object vanished (flux ignores "mid-grey" and paints light grey); chroma green is a colour no object it draws is
+const OBJECT_STYLE = "single isolated object, centered, whole object in frame, on a solid flat pure chroma key green screen background, no shadow, no floor, no ground plane, even studio lighting"
 
 def base []: nothing -> path { $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join comfyui }
 
@@ -132,6 +134,8 @@ def "main 3d" [
         status $"reference image: ($text)"
         run-graph (flux-graph $"($text), ($OBJECT_STYLE)" 1024 1024 $"3d/(slug $text)-ref") | first
     }
+    # flux still loaded makes comfyui's free_memory fail loading hunyuan (IndexError in model_management): unload first
+    try { http post --content-type application/json $"($URL)/free" {unload_models: true, free_memory: true} | ignore } catch { }
     # LoadImage reads ComfyUI's input dir; the recentred copy there needs no upload
     let input = base | path join input
     mkdir $input

@@ -1,10 +1,12 @@
 -- programming/hermes' system agent in hyprland, a drop-in (desktop/hyprland loads ~/.config/hypr/dropins/*.lua): a
 -- dropdown attached to its tmux session on its own special workspace; hiding it only detaches, the agent keeps working
 local mod = "SUPER"
-local terminal = "ghostty --gtk-single-instance=false --class=system-agent -e tmux -L system-agent attach -t agent"
+-- a GTK application id needs a dot: ghostty ignores --class=system-agent and opens a plain tiled window
+local terminal =
+    "ghostty --gtk-single-instance=false --class=dev.lsck0.system-agent -e tmux -L system-agent attach -t agent"
 
 hl.window_rule({
-    match = { class = "^system-agent$" },
+    match = { class = "^dev\\.lsck0\\.system-agent$" },
     workspace = "special:agent silent",
     float = true,
     center = true,
@@ -12,7 +14,7 @@ hl.window_rule({
 })
 
 hl.bind(mod .. " + grave", function()
-    if #hl.get_windows({ class = "system-agent" }) == 0 then
+    if #hl.get_windows({ class = "dev.lsck0.system-agent" }) == 0 then
         hl.exec_cmd("uwsm app -- " .. terminal)
     end
     hl.dispatch(hl.dsp.workspace.toggle_special("agent"))

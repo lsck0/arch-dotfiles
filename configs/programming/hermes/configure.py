@@ -22,6 +22,16 @@ for event, command in want["hooks"].items():
     hooks[event] = others + [{"command": command}]
     _record_approval(event, command)
 servers = config.get("mcp_servers") or {}
+# save_config keeps keys of an entry that is still on disk, so a spec that changed shape (an http server now behind
+# mcp-gate's stdio) would keep its old url beside the new command, and hermes picks the url: such entries go first
+changed = [name for name, spec in want["mcp"].items() if spec is not None and name in servers and servers[name] != spec]
+if changed:
+    for name in changed:
+        servers.pop(name)
+    save_config(config)
+    config = load_config()
+    hooks = config.setdefault("hooks", {})
+    servers = config.get("mcp_servers") or {}
 dropped = [name for name, spec in want["mcp"].items() if spec is None and servers.pop(name, None) is not None]
 servers.update({name: spec for name, spec in want["mcp"].items() if spec is not None})
 if servers:

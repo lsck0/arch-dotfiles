@@ -82,6 +82,12 @@ local function report(kind, names, path)
 end
 report("mason", require("lib.mason_packages"), "/mason/packages/%s/mason-receipt.json")
 report("parser", require("lib.treesitter_parsers"), "/site/parser/%s.so")
+-- installed but no longer listed: a package dropped from lib.mason_packages stays until removed
+local listed = {}
+for _, name in ipairs(require("lib.mason_packages")) do listed[name] = true end
+for name, kind in vim.fs.dir(data .. "/mason/packages") do
+    if kind == "directory" and not listed[name] then io.write("unlisted ", name, "\n") end
+end
 '
 
 # before the first apply links the config there is no lib to read: nothing counts as missing yet
@@ -93,9 +99,11 @@ def tools-missing []: nothing -> table<kind: string, name: string> {
 
 def install-commands [missing: table]: nothing -> list<string> {
     let kinds = $missing | get kind | uniq
+    let unlisted = $missing | where kind == unlisted | get name
     [
         ...(if "parser" in $kinds { ["+TSInstallSync"] } else { [] })
         ...(if "mason" in $kinds { ["+MasonToolsInstallSync"] } else { [] })
+        ...(if ($unlisted | is-empty) { [] } else { [$"+MasonUninstall ($unlisted | str join ' ')"] })
     ]
 }
 
@@ -129,7 +137,7 @@ export def prefetch [...restore: string]: nothing -> nothing {
         if ($pending | is-empty) { break }
         ^env ...$QUIET_GIT nvim --headless ...(install-commands $pending) "+qa"
     }
-    let missing = tools-missing
+    let missing = tools-missing | where kind != unlisted
     if ($missing | is-not-empty) {
         let names = $missing | each { $'($in.kind)/($in.name)' } | str join ' '
         error make {msg: $"($missing | length) tools are not installed after the restore \(:checkhealth nvim-treesitter\): ($names)(mason-errors ($missing | where kind == mason | get name))"}
