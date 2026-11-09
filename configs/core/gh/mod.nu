@@ -5,7 +5,7 @@ export const meta = {backup: {secrets: true}, inputs: [~/.config/gh/hosts.yml ~/
 const TOKEN_SHAPE = '^gh[a-z]_'
 const HOSTS = ".config/gh/hosts.yml"
 
-def token-file []: nothing -> path {
+export def token-file []: nothing -> path {
     host-file ($env.DOTFILES | path join configs secrets keys gh) token
 }
 

@@ -1,6 +1,8 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [tea]}}
+# volatile: keys-register's stamp is cache state, so an unregistered key set plans the step again each run; cached, a
+# run that could not reach forgejo (no DNS yet on a fresh install) would never retry
+export const meta = {packages: {pacman: [tea]}, volatile: true}
 
 const SECRET = "configs/secrets/keys/forgejo.env"
 

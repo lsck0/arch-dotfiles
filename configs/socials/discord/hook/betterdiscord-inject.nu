@@ -3,7 +3,7 @@
 
 const REPO = path self | path dirname | path join ../../../.. | path expand
 const ASAR_URL = "https://github.com/BetterDiscord/BetterDiscord/releases/download/v1.14.5/betterdiscord.asar"
-const ASAR_SHA256 = "3f9c9a1588813dd3b4ee1f573157da9b93db474286fd0a28603b0e3fafe71655"
+const ASAR_SHA256 = "2576f2b1dcb3bf5fdc79a5ef137a077543aa9aa0ffcd8337e8c27b8260fc49f3"
 const FRESH_SECONDS = 60
 const EXIT_WAIT_SECONDS = 10
 

@@ -17,6 +17,8 @@ const INVARIANTS = path self invariants.txt
 const PROFILES_CONF = path self ../../configs/base/apparmor/profiles.conf
 const LUKS_TOKENS = [TPM2 FIDO2]
 const LUKS_TOKEN_MISSING = 'No valid (?<token>TPM2|FIDO2) token data found'
+# systemd's lines for a user-hook oneshot ending, as module.nu's user-hook describes it
+const HOOK_OUTCOME = '^(Failed to start|Finished) run the .* hook\.$'
 const WITNESS = $REPO | path join $OWNER_WITNESS
 const APPARMOR_MANUAL = "/etc/apparmor/flags.d/manual.conf"
 const SNAPSHOT_MAX_DAYS = 30
@@ -214,6 +216,22 @@ def units []: nothing -> list<record> {
     }
 }
 
+# A user-hook whose last run failed: its unit's failed state ends with the boot, the journal's record does not, so a
+# hook that failed headless during the install stays reported until a run succeeds.
+def hooks []: nothing -> list<record> {
+    let dir = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join systemd user
+    let names = glob ($dir | path join "*.path") | where { open --raw $in | str contains "Description=watch for the " }
+        | each { path parse | get stem }
+    if ($names | is-empty) { return [] }
+    let units = $names | each { [-u $"($in).service"] } | flatten
+    let failed = ^journalctl --user --quiet --output json --output-fields USER_UNIT,MESSAGE ...$units --grep $HOOK_OUTCOME
+        | complete | get stdout | lines | each { from json }
+        | group-by USER_UNIT | items {|unit, runs| {unit: $unit, ok: ($runs | last | get MESSAGE | str starts-with "Finished")} }
+        | where not ok | get unit
+    if ($failed | is-empty) { return [(report ok hooks "every user hook's last run succeeded")] }
+    [(report FAIL hooks $"last run failed: (shown $failed); journalctl --user -u <unit>, then systemctl --user start <unit>")]
+}
+
 def luks []: nothing -> list<record> {
     let options = open --raw /proc/cmdline | parse --regex 'rd\.luks\.options=(?<o>\S+)' | get --optional 0.o | default ""
     let asked = $LUKS_TOKENS | where {|t| $"($t | str lowercase)-device=auto" in ($options | split row ",") }
@@ -247,7 +265,7 @@ def preserved []: nothing -> list<record> {
 def checks []: nothing -> list<closure> {
     [
         {|| failures} {|| config-pending} {|| modules-pending} {|| reboot} {|| invariants} {|| apparmor} {|| snapshot}
-        {|| packages} {|| firewall} {|| luks} {|| units} {|| secrets} {|| preserved}
+        {|| packages} {|| firewall} {|| luks} {|| units} {|| hooks} {|| secrets} {|| preserved}
     ]
 }
 

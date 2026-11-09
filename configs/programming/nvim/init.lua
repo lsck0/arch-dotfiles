@@ -15,6 +15,17 @@ end
 if lazy_missing then
     local lazyrepo = "https://github.com/folke/lazy.nvim.git"
     local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath })
+    -- at its lazy-lock.json pin: lazy records its own commit there on the first start, so the newest stable would
+    -- move the pin on every fresh install
+    if vim.v.shell_error == 0 then
+        local ok, lock = pcall(function()
+            return vim.json.decode(table.concat(vim.fn.readfile(vim.fn.stdpath("config") .. "/lazy-lock.json"), "\n"))
+        end)
+        local pin = ok and lock["lazy.nvim"] and lock["lazy.nvim"].commit
+        if pin then
+            out = vim.fn.system({ "git", "-C", lazypath, "checkout", "--quiet", pin })
+        end
+    end
     if vim.v.shell_error ~= 0 then
         vim.api.nvim_echo({
             { "Failed to clone lazy.nvim:\n", "ErrorMsg" },

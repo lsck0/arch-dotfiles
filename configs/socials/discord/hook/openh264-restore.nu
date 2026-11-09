@@ -7,6 +7,7 @@ const URL = "https://ciscobinary.openh264.org"
 # sha256 of the .bz2 cisco serves, per library name the host asks for
 const PINS = {
     "libopenh264-2.5.1-linux64.7.so": "82e436db8606433e3f823c7fff3269c43b3ba3f12510a851ef7b156b80ad1b11"
+    "libopenh264-2.7.0-linux64.8.so": "44ad0dd2c5af2bac84d26f89f2eb4e268708b8739323d15d33837f7221ce4980"
 }
 
 def main []: nothing -> nothing {

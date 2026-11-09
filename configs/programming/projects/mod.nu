@@ -1,5 +1,6 @@
 use module.nu *
 use repository.nu [repository-url repository-name]
+use ../../core/gh/mod.nu [token-file]
 
 export const meta = {
     # core/gh logs in and core/git wires gh as github's credential helper, before any private repo is cloned
@@ -35,7 +36,10 @@ def clone [root: path, line: string]: nothing -> list<record> {
     let secret = $fields | get --optional 2
     # the repos are private: without a github login the clone would only die on a disabled password prompt
     if $secret == null and ($url | str starts-with "https://github.com/") and not ($nu.home-dir | path join $GH_HOSTS | path exists) {
-        log-warn $"projects: ($dest | path basename) skipped, no github login yet \(core/gh restores it from configs/secrets/keys/gh\)"
+        # with its token core/gh logs in later this run, and the new hosts.yml (an input) plans this module again
+        if not (secret-is-plaintext (token-file)) {
+            log-warn $"projects: ($dest | path basename) skipped, no github login yet \(core/gh restores it from configs/secrets/keys/gh\)"
+        }
         return []
     }
     let auth = if $secret == null { [] } else {

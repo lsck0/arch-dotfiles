@@ -41,6 +41,11 @@ const KACTIVITIES_DB = ".local/share/kactivitymanagerd/resources/database"
 const DOLPHIN_STATE = ".local/state/dolphinstaterc"
 const DOLPHIN_VIEW = "dolphin/view_properties/global/.directory"
 const WAL_WALLPAPER = "wal/wallpaper"
+const SHELLRC = "plasmashellrc"
+const SHELL_UPDATES = "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates"
+const KCONF_UPDATERC = "kconf_updaterc"
+# not *rc: rc-files would copy it whole
+const KCONF_SEED = "kconf_update.seed"
 const WALLPAPER_SECTION = '^\[(?<s>Containments\]\[\d+\]\[Wallpaper\]\[org\.kde\.image\]\[General)\]$'
 const DRM = "/sys/class/drm"
 const MODERNCLOCK = {id: com.github.prayag2.modernclock, url: "https://github.com/prayag2/kde_modernclock", commit: 5c86f0f23d2646be7e9872fc5e769bdce259af92}
@@ -87,11 +92,32 @@ def wallpaper-current []: nothing -> string {
     if ($link | path exists) { $link | path expand } else { "" }
 }
 
+# An ini text's keys as ini-merge values, {section: {key: value}}.
+def ini-values [text: string]: nothing -> record {
+    ini-rows $text | where key != null
+    | reduce --fold {} {|r, acc| $acc | upsert $r.section {|v| $v | get --optional $r.section | default {} | insert $r.key $r.value } }
+}
+
 # Seeds dolphin's view properties only: dolphin rewrites them on every view change.
 def dolphin-view [dest: path]: nothing -> list<record> {
-    let values = ini-rows (open --raw $DOLPHIN_VIEW) | where key != null
-        | reduce --fold {} {|r, acc| $acc | upsert $r.section {|v| $v | get --optional $r.section | default {} | insert $r.key $r.value } }
+    let values = ini-values (open --raw $DOLPHIN_VIEW)
     if ($values | is-empty) { [] } else { [(ini-merge $dest $values --missing-only)] }
+}
+
+# Plasma runs each shell update script once and records it in [Updates] performed, a key the backup strips as churn.
+# The repo's layout is already updated, so a fresh account starts with every installed script recorded, else its first
+# login rewrites plasmashellrc and leaves it changed since its apply.
+def shell-updates-done []: nothing -> record {
+    let scripts = glob ($SHELL_UPDATES | path join "*.js") | sort
+    if ($scripts | is-empty) { {} } else { {Updates: {performed: ($scripts | str join ",")}} }
+}
+
+# kconf_update's record of the KDE config migrations it ran. The repo's configs are already migrated, so a fresh
+# account seeded with it does not run them again (plasma6.0-remove-old-shortcuts would drop shortcuts the repo keeps).
+def kconf-seed [dest: path]: nothing -> list<record> {
+    let seed = $DIR | path join $KCONF_SEED
+    if not ($seed | path exists) { return [] }
+    [(ini-merge $dest (ini-values (open --raw $seed)) --missing-only)]
 }
 
 # The weather widget's place is the owner's location: kept in secrets' state, a placeholder in the public files. Without
@@ -123,7 +149,9 @@ export def link [cfg: record] {
         (files-into (xdg data dbus-1 services) dbus/org.kde.KSplash.service)
         # no kiosk key hides dolphin's dock short of shell_access=false, which also stops it running any executable
         (ini-merge ($nu.home-dir | path join $DOLPHIN_STATE) {State: {State: (open --raw dolphin/dock-state | str trim)}})
-        (rc-files | each {|f| file-copy $f ($config | path join $f) })
+        (rc-files | where $it != $SHELLRC | each {|f| file-copy $f ($config | path join $f) })
+        (file-text ($config | path join $SHELLRC) (open --raw $SHELLRC | ini-apply (shell-updates-done) true))
+        (kconf-seed ($config | path join $KCONF_UPDATERC))
         (if $cfg.locale and $lang != null { file-render $LOCALERC ($config | path join $LOCALERC) {LANG: $lang} } else { [] })
         $applets
         (file-render plasmarc ($config | path join plasmarc) $values)
@@ -283,6 +311,7 @@ export def backup [cfg: record]: nothing -> nothing {
     for f in $files {
         if (config-path $f | path exists) { cp --force (config-path $f) ($DIR | path join $f) }
     }
+    if (config-path $KCONF_UPDATERC | path exists) { cp --force (config-path $KCONF_UPDATERC) ($DIR | path join $KCONF_SEED) }
     let globals = config-path $THEMED.0
     if ($globals | path exists) {
         kdeglobals-back (open --raw $globals) (open --raw ($DIR | path join $THEMED.0)) | save --force ($DIR | path join $THEMED.0)

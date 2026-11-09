@@ -60,7 +60,7 @@ export const options = {
         type: string
         default: quickshell
         choices: [quickshell hyprlock]
-        doc: "The lock screen hypridle and every lock key start; the other is the fallback. quickshell 0.3.2 dies on Hyprland 0.57.1's session lock (wl_display: invalid object), leaving the session locked without a lock screen"
+        doc: "The lock screen hypridle and every lock key start; the other is the fallback"
         label: "Lock screen"
         group: idle
         scope: machine
