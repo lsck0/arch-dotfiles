@@ -33,3 +33,6 @@ keybind = ctrl+shift+t=unbind
 
 clipboard-write = allow
 clipboard-read = allow
+
+# hosts without the xterm-ghostty terminfo (the NixOS homelab guests) break interactive tools; ssh gets xterm-256color
+shell-integration-features = ssh-env
