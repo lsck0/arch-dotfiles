@@ -35,6 +35,8 @@ Item {
   // narrower than this, the quote wraps a word per line: the card is left out instead
   readonly property int quoteMinWidth: Style.space(240)
   property var quote: Quotes.forDate(new Date())
+  // the quote's text sits on the wallpaper, not on a theme surface: a warm near-white whatever the theme
+  readonly property color quoteText: "#f2efe8"
 
   // the quote changes at midnight; a minute's poll is fine for a daily one and, unlike a timer aimed at midnight,
   // holds across a suspend
@@ -89,8 +91,9 @@ Item {
         window: panel
       }
 
-      // no card: the quote is set on the wallpaper itself, bottom left, large and quiet; a soft shadow keeps it
-      // legible on a bright wallpaper without boxing it in
+      // no card: the quote is set on the wallpaper itself, bottom left, large and quiet. It sits on the wallpaper, not on
+      // the theme, so it is always light text in a soft dark halo (a photo caption), which reads on a light theme and a
+      // busy or bright wallpaper alike without a box around it
       Column {
         id: quoteCard
         anchors.bottom: parent.bottom
@@ -101,14 +104,15 @@ Item {
         width: Math.min(Style.space(640), panel.width - widgetColumn.width - Style.spacing.lg * 6)
         spacing: Style.spacing.sm
         visible: !screenGuard.remapping && width >= root.quoteMinWidth
-        opacity: panel.panelOverQuote ? 0 : Style.emphasis.strong
+        opacity: panel.panelOverQuote ? 0 : 1
         layer.enabled: true
 
         layer.effect: MultiEffect {
           shadowEnabled: true
-          shadowColor: Colors.background
-          shadowOpacity: 0.9
-          shadowBlur: 0.8
+          shadowColor: "black"
+          shadowOpacity: 1
+          shadowBlur: 1
+          shadowScale: 1.02
           shadowHorizontalOffset: 0
           shadowVerticalOffset: 1
         }
@@ -120,10 +124,12 @@ Item {
           font.italic: true
           font.pixelSize: Style.font.title + 4
           lineHeight: 1.15
+          color: root.quoteText
         }
 
         Label {
           text: "\u2014 " + root.quote.author
+          color: root.quoteText
           opacity: Style.emphasis.strong
           font.letterSpacing: 1
           font.capitalization: Font.AllUppercase
