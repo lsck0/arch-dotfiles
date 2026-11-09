@@ -225,6 +225,20 @@ return {
             -- snacks' latex images minus inline_formula: an inline image fills whole cells, so a one-letter formula
             -- stretches to the row height. Set, not an after/queries file: the first non-extending file in rtp wins.
             vim.treesitter.query.set("latex", "images", LATEX_IMAGES)
+            -- the explorer's close forgets only the closed folder's listing: an expanded subfolder keeps its cache and,
+            -- under a closed parent, loses its watch, so a file a tool writes there stays hidden after reopening.
+            -- Closing forgets the whole subtree, and reopening rescans it.
+            local Tree = require("snacks.explorer.tree")
+            local tree_close = Tree.close
+            function Tree:close(path)
+                tree_close(self, path)
+                local node = self:find(self:dir(path))
+                if node then
+                    self:walk(node, function(n)
+                        n.expanded = false
+                    end, { all = true })
+                end
+            end
             local inline = require("snacks.image.inline")
             local conceal = inline.conceal
             function inline:conceal()

@@ -13,7 +13,7 @@ export const options = {
 }
 
 const CONFIG_DIR = ".config/quickshell"
-const SKIP = [mod.nu AGENTS.md quickshell.service .qmllint.ini .gitignore]
+const SKIP = [mod.nu AGENTS.md quickshell.service .qmllint.ini .gitignore dotfiles-settings.desktop]
 const SKIP_PATTERN = '(__pycache__|\.log$|\.qsb$|\.test\.(nu|sh)$)'
 
 def pomodoro-config [cfg: record]: nothing -> record {
@@ -31,6 +31,8 @@ export def link [cfg: record] {
         # not enabled: hyprland_autostart.lua starts it
         (unit-file quickshell.service)
         (pomodoro-config $cfg)
+        # the settings window outside hyprland (settings-only.qml), listed in Plasma's launcher only
+        (file-render dotfiles-settings.desktop (xdg data applications dotfiles-settings.desktop) {HOME: $nu.home-dir})
     ]
 }
 

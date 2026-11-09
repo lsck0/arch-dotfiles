@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Dotfiles Settings
+Comment=The dotfiles' settings window: toggles (trust network, route, tor, vpn, firewall) and options, outside Hyprland
+Exec=quickshell -p @HOME@/.config/quickshell/settings-only.qml
+Icon=preferences-system
+Terminal=false
+Categories=Settings;System;
+OnlyShowIn=KDE;
