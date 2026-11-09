@@ -87,6 +87,12 @@ export def homelab-render [lab: record]: nothing -> string {
             lsck0: (field $lab $.mirror.lsck0 '^https://\S+\$arch$')
             isoSigner: (field $lab $.mirror.isoSigner $FINGERPRINT)
         }
+        # core/alloy's push doors: each desktop's node metrics and journal, basic auth per machine
+        push: {
+            prometheus: (field $lab $.monitoring.push.prometheus '^https://\S+$')
+            loki: (field $lab $.monitoring.push.loki '^https://\S+$')
+            desktops: ($lab.monitoring.push.desktops | each {|d| if ($d =~ '^[a-z0-9-]+$') { $d } else { error make {msg: $"homelab: desktop ($d)"} } })
+        }
     }
     $"($HEAD)\nexport const HOMELAB = ($values | options-to-nuon)\n"
 }

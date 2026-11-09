@@ -1,26 +1,19 @@
 use module.nu *
+use ../../../platforms/homelab.nu [HOMELAB]
 
-# web search and scraping for the agents: Perplexity and Firecrawl over their own APIs, each only with its key
-export const SERVERS = {
-    perplexity: {package: "@perplexity-ai/mcp-server@1.3.0", key: perplexity-api-key, env: PERPLEXITY_API_KEY}
-    firecrawl: {package: "firecrawl-mcp@3.36.0", key: firecrawl-api-key, env: FIRECRAWL_API_KEY}
-}
+# Web search for the agents through the homelab's searxng: no API key, no paid service, results from the house's own
+# engine. Only on a machine with the homelab fact; the lab passes luca-pc's and luca-notebook's addresses and the
+# wireguard subnet through its limiter.
+const SEARXNG_PACKAGE = "mcp-searxng@2.8.1"
+# the paid servers this module registered before searxng; null drops them from every agent
+const RETIRED = [perplexity firecrawl]
 
 export def link [cfg: record] {
-    let keys = $env.DOTFILES | path join configs secrets keys
-    let usable = (profile-has secrets) and (which npx | is-not-empty)
-    let wrapper = $nu.home-dir | path join .local bin web-mcp
-    [
-        (link-commands web-mcp.nu)
-        (mcp-servers ($SERVERS | items {|name, s|
-            let key = $keys | path join $s.key
-            let spec = if $usable and (secret-is-plaintext $key) {
-                {type: stdio, command: $wrapper, args: [$name]}
-            } else {
-                if $usable { log-warn $"no readable ($key), skipping ($name) \(README.md\)" }
-                null
-            }
-            {name: $name, spec: $spec}
-        } | reduce --fold {} {|r, acc| $acc | insert $r.name $r.spec }))
-    ]
+    let searxng = if (platform-has homelab) and (which npx | is-not-empty) {
+        {
+            type: stdio, command: npx, args: [-y $SEARXNG_PACKAGE]
+            env: {SEARXNG_URL: $"https://search.($HOMELAB.domain)", DO_NOT_TRACK: "1"}
+        }
+    }
+    [(mcp-servers ($RETIRED | each {|name| {$name: null} } | into record | merge {searxng: $searxng}))]
 }

@@ -56,6 +56,17 @@ export const options = {
         group: display
         scope: user
     }
+    monitor_speaker_volume: {
+        type: int?
+        default: null
+        doc: "Every DDC monitor's built-in speaker volume (VCP 0x62), set at session start; 0 silences speakers fed by DisplayPort audio, which can pop on wake"
+        label: "Monitor speaker volume"
+        group: display
+        min: 0
+        max: 100
+        scope: machine
+        apply: relogin
+    }
     autostart: {
         type: list<record>
         default: []
@@ -230,6 +241,7 @@ def platform-lua [cfg: record]: nothing -> string {
         workspaces: ($cfg.workspaces | default (workspaces-split ($monitors | each { $in.output }) $main))
         app_workspaces: $cfg.app_workspaces
         autostart: $cfg.autostart
+        monitor_speaker_volume: $cfg.monitor_speaker_volume
         keyboard: (keyboard-read)
         pointer: {sensitivity: $cfg.pointer_sensitivity, natural_scroll: $cfg.natural_scroll}
         kbd_backlight: $backlight

@@ -1,6 +1,6 @@
 ---
 name: l-homelab
-description: Using Luca's homelab from this machine: its services and hostnames (tasks, cal, grafana, ntfy, mirror, nas, auth, ...), how they are reached (lab DNS, LAN or wireguard), which dotfiles secrets hold their tokens, lab.json, and how homelab changes are requested. Load before an agent calls a *.lsck0.dev service, wires a desktop tool to the homelab, debugs a homelab-backed feature (task sync, calendar, bar's homelab widget, the mirror, the NAS share), or wants anything changed on the homelab.
+description: "Using Luca's homelab from this machine: its services and hostnames (tasks, cal, grafana, ntfy, mirror, nas, auth, ...), how they are reached (lab DNS, LAN or wireguard), which dotfiles secrets hold their tokens, lab.json, and how homelab changes are requested. Load before an agent calls a *.lsck0.dev service, wires a desktop tool to the homelab, debugs a homelab-backed feature (task sync, calendar, bar's homelab widget, the mirror, the NAS share), or wants anything changed on the homelab."
 ---
 
 # l-homelab

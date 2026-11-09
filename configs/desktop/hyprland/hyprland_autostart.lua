@@ -67,6 +67,14 @@ hl.on("hyprland.start", function()
         'f="${XDG_CACHE_HOME:-$HOME/.cache}/wal/colors-nsxiv.Xresources"; [ -f "$f" ] && xrdb -nocpp -merge "$f"'
     )
     autostart()
+    -- in the monitors' own firmware: a monitor reset or a new one would undo it
+    if platform.monitor_speaker_volume then
+        hl.exec_cmd(
+            "for d in $(ddcutil detect --terse 2>/dev/null | sed -n 's/^Display \\([0-9]*\\)$/\\1/p'); do ddcutil --display \"$d\" setvcp 62 "
+                .. platform.monitor_speaker_volume
+                .. "; done"
+        )
+    end
     local backlight = platform.kbd_backlight
     if backlight then
         hl.exec_cmd("brightnessctl --device=" .. backlight .. " set 2")

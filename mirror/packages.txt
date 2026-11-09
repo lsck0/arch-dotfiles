@@ -258,6 +258,7 @@ gparted
 gpg-tui
 gping
 gpu-screen-recorder
+grafana-alloy
 graphviz
 grex
 grim

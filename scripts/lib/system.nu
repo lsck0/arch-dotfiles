@@ -65,7 +65,7 @@ export def system-files [checkout: path, which: string]: nothing -> list<string>
 export def system-secrets [wireguard: any]: nothing -> list<string> {
     let host = sys host | get hostname
     $SYSTEM_SECRETS | append $"initramfs-ssh/($host)/sshkeydir/.ed25519.sk"
-    | append ($SSH_HOST_KEYS | each { $"ssh-host/($host)/($in)" }) | append ([$wireguard] | flatten | compact | where $it != "")
+    | append ($SSH_HOST_KEYS | each { $"ssh-host/($host)/($in)" }) | append $"alloy-($host)" | append ([$wireguard] | flatten | compact | where $it != "")
 }
 
 # Refused only when HEAD is behind the copy (no rollback); a copy commit gone from history only warns.

@@ -25,6 +25,7 @@ const LAB = {
         lsck0: "https://mirror.lab.test/$arch"
         isoSigner: "0123456789ABCDEF0123456789ABCDEF01234567"
     }
+    monitoring: {push: {prometheus: "https://push.lab.test/api/v1/write", loki: "https://push.lab.test/loki/api/v1/push", desktops: [pc]}}
     guests: {}
     routes: {}
 }
@@ -40,6 +41,7 @@ const WANT = {
         lsck0: "https://mirror.lab.test/$arch"
         isoSigner: "0123456789ABCDEF0123456789ABCDEF01234567"
     }
+    push: {prometheus: "https://push.lab.test/api/v1/write", loki: "https://push.lab.test/loki/api/v1/push", desktops: [pc]}
 }
 
 # The HOMELAB constant a rendered file exports, read back the way a module imports it.
@@ -64,6 +66,7 @@ def render-cases []: nothing -> nothing {
         [router ($LAB | update router "router.lab.test")]
         [signer ($LAB | update mirror.isoSigner "88042efb")]
         [mirror ($LAB | reject mirror)]
+        [push ($LAB | reject monitoring)]
         [subnet ($LAB | update zones.internal.subnet "10.9.0.0/20")]
     ]
     for c in $refused {

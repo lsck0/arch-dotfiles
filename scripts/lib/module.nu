@@ -108,6 +108,22 @@ export def desktop-set [values: record]: string -> string {
     }
 }
 
+const MCP_GATE = path self ../mcp-gate.py
+
+# A spec with a `gate: {probe: "host:port", app}` runs through scripts/mcp-gate.py: the server while the app listens, else
+# a server with no tools that says to start it, so an agent session never shows it failed.
+def mcp-gated [name: string]: any -> any {
+    let spec = $in
+    if $spec == null or $spec.gate? == null { return $spec }
+    let head = [$MCP_GATE --probe $spec.gate.probe --app $spec.gate.app --name $name]
+    let args = if $spec.type? == http {
+        $head ++ [--url $spec.url] ++ ($spec.headers? | default {} | items {|k, v| [--header $"($k): ($v)"] } | flatten)
+    } else {
+        $head ++ [-- $spec.command] ++ ($spec.args? | default [])
+    }
+    {type: stdio, command: python3, args: $args} | merge (if $spec.env? == null { {} } else { {env: $spec.env} })
+}
+
 # A Claude Code server spec in another agent's form; null where that agent has no counterpart.
 def mcp-form [agent: string]: any -> any {
     let spec = $in
@@ -123,7 +139,7 @@ def mcp-form [agent: string]: any -> any {
 }
 
 # Registers MCP servers with every coding agent, name -> spec in Claude Code's form ({type: stdio, command, args, env}
-# or {type: http, url, headers}); null drops the name. Claude Code reads ~/.claude.json, Gemini ~/.gemini/settings.json
+# or {type: http, url, headers}), optionally with a `gate` (mcp-gated); null drops the name. Claude Code reads ~/.claude.json, Gemini ~/.gemini/settings.json
 # and Copilot ~/.copilot/mcp-config.json, each in its own form. Hermes rewrites its YAML config itself, so its form goes
 # to ~/.hermes/mcp-servers.json, a dropped name kept as null, and programming/hermes sets that into each profile. A server
 # with a headersHelper reaches Claude Code only.
@@ -137,7 +153,7 @@ export def mcp-servers [servers: record]: nothing -> list<record> {
         [hermes ($home | path join .hermes mcp-servers.json) []]
     ] | each {|t|
         let edits = $servers | items {|name, spec|
-            let form = $spec | mcp-form $t.agent
+            let form = $spec | mcp-gated $name | mcp-form $t.agent
             if $form != null or $t.agent == hermes { json-set ($t.key | append $name) $form } else { json-delete ($t.key | append $name) }
         }
         # the specs may carry a token, and only Claude Code keeps its own file private

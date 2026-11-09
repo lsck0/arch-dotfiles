@@ -1,6 +1,6 @@
 ---
 name: l-dotfiles-desktop-control
-description: Driving Luca's live Hyprland desktop the way he does with keys and the bar: open a url or app, move and focus windows, workspaces, media and volume, notifications, toggles (trust network, route, tor, vpn, dnd, night light), quickshell panels, tasks, reminders and notes, screenshots, typing text. Load when Luca asks an agent in his session (the system agent above all) to do something on his screen.
+description: "Driving Luca's live Hyprland desktop the way he does with keys and the bar: open a url or app, move and focus windows, workspaces, media and volume, notifications, toggles (trust network, route, tor, vpn, dnd, night light), quickshell panels, tasks, reminders and notes, screenshots, typing text. Load when Luca asks an agent in his session (the system agent above all) to do something on his screen."
 ---
 
 # desktop-control

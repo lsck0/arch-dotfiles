@@ -5,7 +5,7 @@ export const meta = {
     inputs: [~/sync/vendor ~/.local/share/unreal-engine/.installed-from]
 }
 
-const MCP = {type: http, url: "http://127.0.0.1:8766/mcp"}
+const MCP = {type: http, url: "http://127.0.0.1:8766/mcp", gate: {probe: "127.0.0.1:8766", app: "the Unreal editor"}}
 
 export def link [cfg: record] {
     if $env.FORM_FACTOR? != "desktop" { return [] }

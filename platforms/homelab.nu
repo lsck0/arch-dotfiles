@@ -17,4 +17,9 @@ export const HOMELAB = {
         lsck0: "https://mirror.lsck0.dev/$arch"
         isoSigner: "88042EFBF5F141C2ACF4697ADD84D7C4053DD354"
     }
+    push: {
+        prometheus: "https://push.lsck0.dev/api/v1/write"
+        loki: "https://push.lsck0.dev/loki/api/v1/push"
+        desktops: [luca-notebook luca-pc]
+    }
 }

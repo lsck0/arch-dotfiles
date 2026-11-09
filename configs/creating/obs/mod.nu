@@ -327,7 +327,8 @@ export def link [cfg: record] {
             (file-copy $lock ($prefix | path join package-lock.json))
             (exec obs-mcp-install $npm_ci --creates $installed --network)
             (link-commands obs-mcp.nu)
-            (mcp-servers {obs-mcp: {type: stdio, command: ($nu.home-dir | path join .local bin obs-mcp), args: []}})
+            (mcp-servers {obs-mcp: {type: stdio, command: ($nu.home-dir | path join .local bin obs-mcp), args: []
+                gate: {probe: $"127.0.0.1:($WEBSOCKET_PORT)", app: OBS}}})
         ] | decls-flatten
     }
     [
