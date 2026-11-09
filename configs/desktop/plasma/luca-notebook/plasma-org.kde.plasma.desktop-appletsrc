@@ -28,13 +28,13 @@ DialogHeight=821
 DialogWidth=1128
 
 [Containments][1][General]
-changedPositions={"desktop:/image.png":["2400x1350,1920x1080","0","6"]}
+changedPositions={"desktop:/image.png":["1920x1080,2400x1350","0","6"]}
 lastResolution=1920x1080
-positions={"1920x1080":["1","17","desktop:/dinorawrhehe","0","7","desktop:/steam.desktop","0","0","desktop:/documents","0","0","desktop:/pictures","0","3","desktop:/downloads","0","1","desktop:/image.png","0","6","desktop:/videos","0","5","desktop:/projects","0","4","desktop:/music","0","2"],"2400x1350":["1","22","desktop:/downloads","0","1","desktop:/pictures","0","3","desktop:/image.png","0","6","desktop:/music","0","2","desktop:/videos","0","5","desktop:/projects","0","4","desktop:/dinorawrhehe","0","7","desktop:/documents","0","0"]}
+positions={"1920x1080":["1","17","desktop:/dinorawrhehe","0","7","desktop:/downloads","0","1","desktop:/videos","0","5","desktop:/image.png","0","6","desktop:/projects","0","4","desktop:/music","0","2","desktop:/steam.desktop","0","0","desktop:/pictures","0","3","desktop:/documents","0","0"],"2400x1350":["1","22","desktop:/downloads","0","1","desktop:/pictures","0","3","desktop:/image.png","0","6","desktop:/music","0","2","desktop:/videos","0","5","desktop:/projects","0","4","desktop:/dinorawrhehe","0","7","desktop:/documents","0","0"]}
 sortMode=-1
 
 [Containments][1][Wallpaper][org.kde.image][General]
-Image=file://@DOTFILES@/wallpapers/jordan-grimmer-palm-river-sunset.jpg
+Image=file://@HOME@/sync/wallpapers/alena-aenami-eclipse.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][2]
@@ -53,7 +53,7 @@ DialogHeight=630
 DialogWidth=810
 
 [Containments][2][Wallpaper][org.kde.image][General]
-Image=file://@DOTFILES@/wallpapers/jordan-grimmer-palm-river-sunset.jpg
+Image=file://@HOME@/sync/wallpapers/alena-aenami-eclipse.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][3]
@@ -217,5 +217,5 @@ knownItems=org.kde.plasma.vault,org.kde.plasma.bluetooth,org.kde.plasma.camerain
 AppletOrder=4;6;7;8;23;24
 
 [ScreenMapping]
-itemsOnDisabledScreens=0,230c143b-accd-470f-bc9e-bcd19408078e,8,desktop:/pictures,desktop:/downloads,desktop:/music,desktop:/documents,desktop:/image.png,desktop:/projects,desktop:/dinorawrhehe,desktop:/videos
-screenMapping=desktop:/image.png,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/downloads,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/dinorawrhehe,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/videos,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/pictures,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/music,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/projects,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/documents,0,230c143b-accd-470f-bc9e-bcd19408078e
+itemsOnDisabledScreens=0,230c143b-accd-470f-bc9e-bcd19408078e,8,desktop:/projects,desktop:/videos,desktop:/pictures,desktop:/dinorawrhehe,desktop:/downloads,desktop:/documents,desktop:/image.png,desktop:/music
+screenMapping=desktop:/videos,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/music,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/projects,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/documents,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/dinorawrhehe,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/downloads,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/pictures,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/image.png,0,230c143b-accd-470f-bc9e-bcd19408078e
