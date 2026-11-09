@@ -56,6 +56,16 @@ export const options = {
         group: display
         scope: user
     }
+    lock_screen: {
+        type: string
+        default: quickshell
+        choices: [quickshell hyprlock]
+        doc: "The lock screen hypridle and every lock key start; the other is the fallback. quickshell 0.3.2 dies on Hyprland 0.57.1's session lock (wl_display: invalid object), leaving the session locked without a lock screen"
+        label: "Lock screen"
+        group: idle
+        scope: machine
+        apply: live
+    }
     monitor_speaker_volume: {
         type: int?
         default: null
@@ -292,6 +302,8 @@ export def link [cfg: record] {
         })
         (unit-enable hypridle.service --now)
         (file-text ($dir | path join platform.lua) (platform-lua $cfg) --generated)
+        # read by quickshell-lock-launch.nu on every lock
+        (file-text ($dir | path join locker) $"($cfg.lock_screen)\n" --generated)
     ] | decls-flatten
     let build = plugins-missing | is-not-empty
     let live = hyprland-live

@@ -7,7 +7,8 @@ export const meta = {
 }
 
 export def packages [cfg: record]: nothing -> record {
-    {pacman: (if (profile-owner) { [bugwarrior] } else { [] })}
+    # -git: the 2.1.0 release needs python-lockfile, gone from the repos and the AUR; HEAD uses python-filelock
+    {pacman: (if (profile-owner) { [bugwarrior-git] } else { [] })}
 }
 
 const CONFIG_DIR = ".config/bugwarrior"
@@ -19,7 +20,7 @@ const PACMAN_LOCAL = "/var/lib/pacman/local"
 
 # `bugwarrior uda` starts python on every evaluation: its output kept by the config's hash and the installed version.
 def uda-render [config: path]: nothing -> string {
-    let version = ls --short-names $PACMAN_LOCAL | get name | where $it =~ '^bugwarrior-\d' | get --optional 0 | default ""
+    let version = ls --short-names $PACMAN_LOCAL | get name | where $it =~ '^bugwarrior(-git)?-\d' | get --optional 0 | default ""
     let key = $"(open --raw $config | hash sha256) ($version)" | hash sha256
     let dir = xdg cache $UDA_CACHE
     let cached = $dir | path join $"($key).taskrc"

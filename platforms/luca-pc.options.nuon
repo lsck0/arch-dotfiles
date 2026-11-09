@@ -28,6 +28,8 @@
         poster: true
     }
     "desktop/hyprland": {
+        # quickshell 0.3.2 dies on Hyprland 0.57.1's session lock (2026-11-09): hyprlock until it is fixed
+        lock_screen: hyprlock
         monitors: [
             {
                 output: DP-1

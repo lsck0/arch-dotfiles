@@ -67,7 +67,7 @@ bruno-bin
 bruno-cli
 btop
 bubblewrap
-bugwarrior
+bugwarrior-git
 bun
 busybox
 caido-desktop
