@@ -21,6 +21,19 @@ return {
                     if nya then
                         require("nvim-treesitter.parsers").nya = { install_info = { path = nya } }
                     end
+                    -- kulala.nvim registers kulala_http only while installing it; once installed the updater
+                    -- would fail on it ("Parser not available"), so its config lives here too
+                    local kulala = vim.fs.joinpath(vim.fn.stdpath("data"), "lazy", "kulala.nvim", "lua", "tree-sitter")
+                    if vim.uv.fs_stat(kulala) then
+                        require("nvim-treesitter.parsers").kulala_http = {
+                            install_info = {
+                                path = kulala,
+                                generate = false,
+                                generate_from_json = false,
+                                queries = "queries/kulala_http",
+                            },
+                        }
+                    end
                     require("nvim-treesitter.parsers").jai = {
                         install_info = {
                             url = "https://github.com/constantitus/tree-sitter-jai",
