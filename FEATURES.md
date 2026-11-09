@@ -17,8 +17,8 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
 - AppArmor (apparmor.d plus own profiles, content openers enforced), KSPP cmdline, sysctl hardening.
 - LUKS root: TPM2+PIN, YubiKey FIDO2 or passphrase; remote unlock over initramfs ssh; secure boot with own keys, UKIs.
 - sudo and polkit: YubiKey touch or fingerprint (fprintd), password fallback.
-- nftables lockdown by default, inbound opens on home networks, port-knocked sshd; with `untrusted_policy` lockdown-tor
-  (luca-pc, luca-notebook) an egress kill switch off home.
+- nftables lockdown by default, inbound opens on home networks, port-knocked sshd (host keys pinned across
+  reinstalls); with `untrusted_policy` lockdown-tor (luca-pc, luca-notebook) an egress kill switch off home.
 - fail2ban, an endlessh tarpit on port 22, the OSSEC HIDS with its alerts in the bar's system panel.
 - Untrusted networks: random MAC, ProtonVPN or tor; fail-closed VPN namespace for `vpn <cmd>`; Portmaster.
 - Secrets in a git-crypt submodule unlocked with the YubiKey; per-repo credential isolation (`identity-init`).
@@ -26,14 +26,16 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
 
 ## Desktop
 
-- Hyprland (Lua config), uwsm, ly; Plasma as a second session.
+- Hyprland (Lua config; plugins dynamic-cursors and hyprbars title bars, built per Hyprland commit), uwsm, ly; Plasma as
+  a second session.
 - quickshell: bar with clock, weather, media, OBS, Discord, agents, homelab, system, network, display, audio and
   notification panels; launcher, clipboard (with OpenPGP), settings window, tasks and notes, overview, power menu, lock,
   OSD, reminders, pomodoro, desktop agenda.
 - Toggles (`scripts/toggles/`; `prefix+m` in tmux and herdr, the bar, the settings window on `SUPER+comma`): route
   (direct, proton, tor, offline), homelab VPN, firewall, captive portal, radios, focus, night light, shaders, color
   grading, power mode, font, theme mode and more.
-- Theming: 46 palettes or wallust from the wallpaper, applied live to every themed app (`dot theme`, `SUPER+w`).
+- Theming: 58 palettes or wallust from the wallpaper, applied live to every themed app (`dot theme`; pickers on
+  `SUPER+CTRL+w` for wallpapers, `SUPER+SHIFT+w` for themes).
 - Idle: dim, lock, screens off, suspend; guards for media, ssh and working agents. Lid closed with an external monitor
   moves the desktop there.
 - Power and disks: tlp, zram, the sched_ext lavd scheduler on laptops, smartd, the CPU package's draw in the bar.
@@ -71,12 +73,15 @@ description.
   editor (`n`), notes pad (`SHIFT+n`), system monitor (`SHIFT+t`), magnifier (`x`), desktop mascots (`y`, `SHIFT+y`
   stops them).
 - Shell: launcher (`d`, `ALT+d` runs from `$PATH`), clipboard (`v`), overview (`Tab`, a submap while open), tasks
-  (`o`), settings (`comma`), timer (`t`), wallpaper picker (`w`), power menu (`SHIFT+e`), lock (`Escape`), restart
-  quickshell (`SHIFT+r`), discord mute (`m`).
+  (`o`), settings (`comma`), timer (`t`), wallpaper picker (`CTRL+w`), theme picker (`SHIFT+w`), power menu
+  (`SHIFT+e`), lock (`Escape`), restart quickshell (`SHIFT+r`), discord mute (`m`).
 - Bar panels: `b` then a letter (audio, notifications, clock, display, homelab, agents, media, network, obs, system,
   discord voice, weather).
-- Windows: focus and move (`hjkl` or arrows, `SHIFT`), close (`q`), float (`space`), fullscreen (`f`), previous
-  window (`s`), split (`g`), groups (`CTRL+hjkl`, `CTRL+w`, `c`), resize mode (`r`), mouse move and resize.
+- Windows: focus and move (`hjkl` or arrows, `SHIFT` moves), both walking through a tab group as in i3 (focus cycles
+  its tabs before leaving, a move enters and leaves it), close (`q`), float (`space`), fullscreen (`f`), previous
+  window (`s`), split (`g`), tabs (`w` tabs or untabs the window, `CTRL+hjkl` tabs it with that neighbour, `c` and
+  `SHIFT+c` next and previous tab, `SHIFT+h`/`l` reorder a tab before leaving the group; a titled tab bar), resize
+  mode (`r`), mouse move and resize.
 - Workspaces: `1` to `0` focus, `SHIFT` moves the window there.
 - Capture: a region (`Print` alone or `SHIFT+s`), the monitor (`SHIFT+Print` without SUPER), the window (`Print`),
   color picker (`p`), OBS replay buffer (`F9` saves, `SHIFT+F9` starts or stops), MangoHud (`SHIFT+F12` without

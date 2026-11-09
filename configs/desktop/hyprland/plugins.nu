@@ -4,7 +4,8 @@
 use ../../../scripts/lib/state.nu [xdg]
 
 const PLUGINS = [
-    {name: "dynamic-cursors", url: "https://github.com/virtcode/hypr-dynamic-cursors", commit: "2a8d0b735328d874a78ca93b2f201649f712a74a"}
+    {name: "dynamic-cursors", url: "https://github.com/virtcode/hypr-dynamic-cursors", commit: "2a8d0b735328d874a78ca93b2f201649f712a74a", dir: "", output: "out/dynamic-cursors.so"}
+    {name: "hyprbars", url: "https://github.com/hyprwm/hyprland-plugins", commit: "d2427d4d15b36df40468f5a58bbd67cdba19835d", dir: "hyprbars", output: "hyprbars/hyprbars.so"}
 ]
 const PC = "/usr/share/pkgconfig/hyprland.pc"
 
@@ -51,11 +52,12 @@ def build [plugin: record, hyprland: string]: nothing -> nothing {
     }
     let pin = $mapped | default $plugin.commit
     ^git -C $src checkout --quiet --force $pin
-    do { cd $src; ^make clean | ignore }
-    let made = do { cd $src; with-env {PKG_CONFIG_PATH: (pc-dir)} { ^make $"-j(sys cpu | length)" all } } | complete
+    let dir = $src | path join $plugin.dir
+    do { cd $dir; ^make clean } | complete | ignore
+    let made = do { cd $dir; with-env {PKG_CONFIG_PATH: (pc-dir)} { ^make $"-j(sys cpu | length)" all } } | complete
     if $made.exit_code != 0 { error make {msg: $"($plugin.name) did not build:\n($made.stderr | lines | last 20 | str join "\n")"} }
     mkdir (out-dir)
-    cp ($src | path join out $"($plugin.name).so") (so-path $plugin.name $hyprland)
+    cp ($src | path join $plugin.output) (so-path $plugin.name $hyprland)
     # builds for other hyprland commits are dead after the upgrade
     glob (out-dir | path join $"($plugin.name)-*.so") | where $it != (so-path $plugin.name $hyprland) | each { rm $in } | ignore
 }

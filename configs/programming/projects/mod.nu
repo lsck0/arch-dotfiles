@@ -84,7 +84,6 @@ export def link [cfg: record] {
     [
         (exec projects-dir [mkdir -p $root] --creates $root)
         (file-text ($root | path join .directory) $"[Desktop Entry]\nIcon=($ICON)\n")
-        # gio metadata is gvfs's store: without gvfsd-metadata every set fails as not supported
         (if (which gio | is-empty) or not ($GVFS_METADATA | path exists) or (($root | path exists) and (icon-set $root)) { [] } else {
             [(exec projects-icon [gio set $root metadata::custom-icon-name $ICON])]
         })

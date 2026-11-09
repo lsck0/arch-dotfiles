@@ -55,7 +55,6 @@ export def system [cfg: record] {
 
 const HOST_KEY_DIR = "/etc/ssh"
 
-# Each pinned key from the secrets replaces its generated one; true when one changed.
 def host-keys-pin []: nothing -> bool {
     let dir = host-file ($env.DOTFILES_SECRETS? | default "/nonexistent" | path join ssh-host)
     let pinned = $SSH_HOST_KEYS | where {|k| ($dir | path join $k | path exists) }

@@ -1,0 +1,27 @@
+{
+  "wallpaper": "david-revoy-komona-sunset.jpg",
+  "pair": "carbonfox",
+  "special": {
+    "background": "#f6f2ee",
+    "foreground": "#3d2b5a",
+    "cursor": "#3d2b5a"
+  },
+  "colors": {
+    "color0": "#352c24",
+    "color1": "#b3434e",
+    "color2": "#577f63",
+    "color3": "#b86e28",
+    "color4": "#4863b6",
+    "color5": "#8452d5",
+    "color6": "#488d93",
+    "color7": "#bfb6ae",
+    "color8": "#534c45",
+    "color9": "#a5222f",
+    "color10": "#396847",
+    "color11": "#ac5402",
+    "color12": "#2848a9",
+    "color13": "#6e33ce",
+    "color14": "#287980",
+    "color15": "#f4ece6"
+  }
+}

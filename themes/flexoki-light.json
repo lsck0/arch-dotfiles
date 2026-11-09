@@ -1,0 +1,27 @@
+{
+  "wallpaper": "thomas-cole-the-oxbow.jpg",
+  "pair": "flexoki-dark",
+  "special": {
+    "background": "#fffcf0",
+    "foreground": "#100f0f",
+    "cursor": "#100f0f"
+  },
+  "colors": {
+    "color0": "#100f0f",
+    "color1": "#d14d41",
+    "color2": "#879a39",
+    "color3": "#b28b12",
+    "color4": "#3b78ac",
+    "color5": "#ce5d97",
+    "color6": "#37a096",
+    "color7": "#6f6e69",
+    "color8": "#939083",
+    "color9": "#af3029",
+    "color10": "#66800b",
+    "color11": "#ad8301",
+    "color12": "#205ea6",
+    "color13": "#a02f6f",
+    "color14": "#24837b",
+    "color15": "#cecdc3"
+  }
+}

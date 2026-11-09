@@ -1,0 +1,27 @@
+{
+  "wallpaper": "david-revoy-only-komona.jpg",
+  "pair": "poimandres",
+  "special": {
+    "background": "#fefeff",
+    "foreground": "#6971a0",
+    "cursor": "#969cbd"
+  },
+  "colors": {
+    "color0": "#fefeff",
+    "color1": "#ff2090",
+    "color2": "#01a586",
+    "color3": "#b98c1b",
+    "color4": "#3f7b93",
+    "color5": "#e76b7f",
+    "color6": "#569bb7",
+    "color7": "#000000",
+    "color8": "#8990b5",
+    "color9": "#ff2090",
+    "color10": "#01a586",
+    "color11": "#b98c1b",
+    "color12": "#007daa",
+    "color13": "#e76b7f",
+    "color14": "#009cd5",
+    "color15": "#000000"
+  }
+}

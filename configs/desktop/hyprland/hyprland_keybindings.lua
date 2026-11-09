@@ -112,7 +112,8 @@ hl.bind(
 )
 hl.bind(mod .. " + t", quickshell_call("shell", "summon panel.reminders {}"), { description = "timer and pomodoro" })
 hl.bind(mod .. " + SHIFT + t", app("missioncenter"), { description = "system monitor (mission center)" })
-hl.bind(mod .. " + w", helper(shell_bin("wallpaper-picker")), { description = "wallpaper picker" })
+hl.bind(mod .. " + CTRL + w", helper(shell_bin("wallpaper-picker")), { description = "wallpaper picker" })
+hl.bind(mod .. " + SHIFT + w", helper(shell_bin("wallpaper-picker") .. " --themes"), { description = "theme picker" })
 hl.bind(mod .. " + y", helper("spawn-shimeji"), { description = "spawn a desktop mascot" })
 hl.bind(mod .. " + x", app("$DOTFILES/configs/desktop/hyprland/boomer.nu"), { description = "magnifier (boomer)" })
 
@@ -212,6 +213,21 @@ local DIRECTIONS = {
     { keys = { "k", "Up" }, focus = "up", move = "u" },
     { keys = { "j", "Down" }, focus = "down", move = "d" },
 }
+hl.config({ binds = { movefocus_cycles_groupfirst = true } })
+
+-- i3 tabs: left/right reorder within the group, then leave it at its edge
+local function move_through_tabs(direction)
+    local window = hl.get_active_window()
+    local group = window and window.group
+    if group and group.size > 1 then
+        if direction.move == "l" and group.current_index > 1 then
+            return hl.dsp.group.move_window({ forward = false })
+        elseif direction.move == "r" and group.current_index < group.size then
+            return hl.dsp.group.move_window({ forward = true })
+        end
+    end
+    return hl.dsp.window.move({ direction = direction.move, group_aware = true })
+end
 for _, direction in ipairs(DIRECTIONS) do
     for _, key in ipairs(direction.keys) do
         hl.bind(
@@ -219,21 +235,24 @@ for _, direction in ipairs(DIRECTIONS) do
             hl.dsp.focus({ direction = direction.focus }),
             { description = "focus the window " .. direction.focus }
         )
-        hl.bind(
-            mod .. " + SHIFT + " .. key,
-            hl.dsp.window.move({ direction = direction.move }),
-            { description = "move the window " .. direction.focus }
-        )
+        hl.bind(mod .. " + SHIFT + " .. key, function()
+            hl.dispatch(move_through_tabs(direction))
+        end, {
+            description = "move the window "
+                .. direction.focus
+                .. ((direction.move == "l" or direction.move == "r") and ", reordering its tab first" or ""),
+        })
         hl.bind(
             mod .. " + CTRL + " .. key,
             hl.dsp.window.move({ into_or_create_group = direction.move }),
-            { description = "move the window into the group " .. direction.focus }
+            { description = "tab the window with its neighbour " .. direction.focus }
         )
     end
 end
 
-hl.bind(mod .. " + CTRL + w", hl.dsp.group.toggle(), { description = "group or ungroup the window" })
-hl.bind(mod .. " + c", hl.dsp.group.next(), { description = "next window in the group" })
+hl.bind(mod .. " + w", hl.dsp.group.toggle(), { description = "tab or untab the window (i3 tabbed)" })
+hl.bind(mod .. " + c", hl.dsp.group.next(), { description = "next tab" })
+hl.bind(mod .. " + SHIFT + c", hl.dsp.group.prev(), { description = "previous tab" })
 
 for workspace = 1, 10 do
     local key = tostring(workspace % 10)

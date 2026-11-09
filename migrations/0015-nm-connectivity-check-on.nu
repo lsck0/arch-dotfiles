@@ -1,6 +1,4 @@
-# base/networkmanager's old 75-connectivity-check dispatcher switched NM's probe off at home through D-Bus, which NM
-# keeps in its intern file over NetworkManager.conf; the probe now resolves at home (80-homelab-routes), so it goes
-# back on. No NM on D-Bus (WSL): nothing was switched off.
+# The removed 75-connectivity-check left NM's probe off in its intern file; it resolves at home now.
 
 export const layer = "system"
 

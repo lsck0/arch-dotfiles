@@ -75,7 +75,7 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
         return
     }
 
-    # the link answers only its routing domains; NM's connectivity probe resolves on the link, so its host is one too
+    # NM resolves its connectivity probe on the link
     let domains = [($lab.HOMELAB_DOMAIN? | default '') (probe-host)] | where $it != "" | each { $"~($in)" }
     # NM re-pushes the link's resolved config on every ip change; the reapply re-enters here, so skip it
     let dns = out nmcli -g IP4.DNS,IP6.DNS device show $iface | lines | where $it != ""
@@ -86,6 +86,8 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
             out nmcli device modify $iface ipv4.dns $lab.HOMELAB_DNS ipv4.dns-search ($domains | str join ",")
                 ipv4.ignore-auto-dns yes ipv6.ignore-auto-dns yes
         ) | ignore
+        # a probe that failed before the domains were in keeps LIMITED until NM's next periodic check
+        attempt busctl call --expect-reply=false org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager CheckConnectivity
     }
     # NM's push right behind the reapply's own can still carry the router's yes
     out resolvectl default-route $iface no | ignore

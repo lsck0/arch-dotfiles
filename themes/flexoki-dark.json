@@ -1,0 +1,27 @@
+{
+  "wallpaper": "jmw-turner-the-fighting-temeraire.jpg",
+  "pair": "flexoki-light",
+  "special": {
+    "background": "#100f0f",
+    "foreground": "#cecdc3",
+    "cursor": "#cecdc3"
+  },
+  "colors": {
+    "color0": "#100f0f",
+    "color1": "#b3312a",
+    "color2": "#66800b",
+    "color3": "#ad8301",
+    "color4": "#2f7dd7",
+    "color5": "#a83174",
+    "color6": "#24837b",
+    "color7": "#878580",
+    "color8": "#63625e",
+    "color9": "#d14d41",
+    "color10": "#879a39",
+    "color11": "#d0a215",
+    "color12": "#4385be",
+    "color13": "#ce5d97",
+    "color14": "#3aa99f",
+    "color15": "#cecdc3"
+  }
+}

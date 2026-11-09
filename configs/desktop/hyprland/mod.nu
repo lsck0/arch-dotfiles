@@ -2,6 +2,7 @@
 
 use module.nu *
 use ../../core/wallust/palette.nu [RADIUS_PX BORDER_PX OPACITY_WINDOW OPACITY_SURFACE]
+use ../../core/wallust/font.nu [font-load]
 use plugins.nu [plugins-missing plugins-unloaded]
 
 export const meta = {
@@ -234,6 +235,14 @@ def files-changed [decls: list<record>]: nothing -> bool {
     }
 }
 
+def style-record []: nothing -> record {
+    let font = font-load
+    {
+        rounding: $RADIUS_PX, border: $BORDER_PX, opacity: $OPACITY_WINDOW, opacity_surface: $OPACITY_SURFACE
+        font: $font.family, font_size: $font.ui_size
+    }
+}
+
 export def link [cfg: record] {
     let dir = $nu.home-dir | path join $CONFIG_DIR
     let files = [
@@ -247,7 +256,7 @@ export def link [cfg: record] {
         })
         (unit-enable hypridle.service --now)
         (file-text ($dir | path join platform.lua) (platform-lua $cfg) --generated)
-        (file-text ($dir | path join style.lua) $"return (lua-from {rounding: $RADIUS_PX, border: $BORDER_PX, opacity: $OPACITY_WINDOW, opacity_surface: $OPACITY_SURFACE})\n" --generated)
+        (file-text ($dir | path join style.lua) $"return (lua-from (style-record))\n" --generated)
     ] | decls-flatten
     let build = plugins-missing | is-not-empty
     let live = hyprland-live

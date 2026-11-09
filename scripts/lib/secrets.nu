@@ -2,7 +2,7 @@
 
 use profile.nu [profile-has]
 
-# sshd's host keys under ssh-host/<host>/, pinned by base/ssh so a reinstall keeps the host's identity
+# sshd host keys under keys/ssh-host/<host>/, pinned by base/ssh
 export const SSH_HOST_KEYS = [ssh_host_ed25519_key ssh_host_mldsa44_ed25519_key ssh_host_ecdsa_key ssh_host_rsa_key]
 
 const GITCRYPT_MAGIC = 0x[00 47 49 54 43 52 59 50 54]

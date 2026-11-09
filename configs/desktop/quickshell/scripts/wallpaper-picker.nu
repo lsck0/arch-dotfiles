@@ -3,9 +3,9 @@
 
 const SUMMON_TIMEOUT = "3s"
 
-def main [] {
+def main [--themes] {
     let payload = {
-        mode: 0
+        mode: (if $themes { 1 } else { 0 })
         selectedImage: ($env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join wal wallpaper | path expand)
     }
     # summon exits 0 with "unknown" when the plugin failed to load, so only "ok" means a picker is open

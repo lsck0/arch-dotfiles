@@ -1,0 +1,27 @@
+{
+  "wallpaper": "frederic-church-twilight-in-the-wilderness.jpg",
+  "pair": "melange-light",
+  "special": {
+    "background": "#292522",
+    "foreground": "#ece1d7",
+    "cursor": "#ece1d7"
+  },
+  "colors": {
+    "color0": "#34302c",
+    "color1": "#d47766",
+    "color2": "#78997a",
+    "color3": "#e49b5d",
+    "color4": "#7f91b2",
+    "color5": "#b380b0",
+    "color6": "#7b9695",
+    "color7": "#c1a78e",
+    "color8": "#867462",
+    "color9": "#bd8183",
+    "color10": "#85b695",
+    "color11": "#ebc06d",
+    "color12": "#a3a9ce",
+    "color13": "#cf9bc2",
+    "color14": "#89b3b6",
+    "color15": "#ece1d7"
+  }
+}

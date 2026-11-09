@@ -64,6 +64,7 @@ export const options = {
 
 const NM = "/etc/NetworkManager"
 const DISPATCHERS = "/etc/NetworkManager/dispatcher.d"
+const HOME_NETWORK = "/run/home-network"
 const TRUSTED_NETWORK = "/run/trusted-network"
 const LOCKDOWN_MARKER = "/run/persona-lockdown"
 const MAC = '^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$'
@@ -134,7 +135,9 @@ export def system [cfg: record] {
             (file-copy wake-on-lan.conf $"($NM)/conf.d/20-wake-on-lan.conf" --then $restart)
         ]} else { [] })
         (do $dispatcher home-network.nu 70-home-network)
-        (do $dispatcher homelab-routes.nu 80-homelab-routes)
+        (file-copy homelab-routes.nu $"($DISPATCHERS)/80-homelab-routes" --mode 755 --then [sh -c (
+            $"[ -f ($HOME_NETWORK) ] || exit 0; for i in $\(cat ($HOME_NETWORK)\); do ($DISPATCHERS)/80-homelab-routes \"$i\" up; done"
+        )])
         (do $dispatcher persona-dispatcher.nu 90-anonymous-persona)
         (step home ($home_wired | into string) ($cfg.trusted_gateways | str join ",") ...$cfg.home_gateways)
         (if $cfg.wifi_radio == false {

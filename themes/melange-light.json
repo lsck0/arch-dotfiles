@@ -1,0 +1,27 @@
+{
+  "wallpaper": "david-revoy-autumn-run.jpg",
+  "pair": "melange-dark",
+  "special": {
+    "background": "#f1f1f1",
+    "foreground": "#54433a",
+    "cursor": "#54433a"
+  },
+  "colors": {
+    "color0": "#e9e1db",
+    "color1": "#c37283",
+    "color2": "#67956b",
+    "color3": "#a06d00",
+    "color4": "#4f6ea1",
+    "color5": "#ba70b7",
+    "color6": "#6b9090",
+    "color7": "#7d6658",
+    "color8": "#a48370",
+    "color9": "#bf0021",
+    "color10": "#3a684a",
+    "color11": "#bc5c00",
+    "color12": "#465aa4",
+    "color13": "#904180",
+    "color14": "#3d6568",
+    "color15": "#54433a"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "wallpaper": "alena-aenami-grave-angel.jpg",
+  "pair": "github-dark",
+  "special": {
+    "background": "#ffffff",
+    "foreground": "#1f2328",
+    "cursor": "#0969da"
+  },
+  "colors": {
+    "color0": "#24292f",
+    "color1": "#cf222e",
+    "color2": "#1a7f37",
+    "color3": "#633c01",
+    "color4": "#0071ed",
+    "color5": "#a475f9",
+    "color6": "#3192aa",
+    "color7": "#6e7781",
+    "color8": "#57606a",
+    "color9": "#a40e26",
+    "color10": "#116329",
+    "color11": "#4d2d00",
+    "color12": "#0969da",
+    "color13": "#8250df",
+    "color14": "#1b7c83",
+    "color15": "#8c959f"
+  }
+}

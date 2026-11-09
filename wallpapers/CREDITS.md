@@ -2,6 +2,7 @@
 
 | file | author | source URL | license |
 |---|---|---|---|
+| albert-bierstadt-among-the-sierra-nevada.jpg | Albert Bierstadt: "Among the Sierra Nevada, California" (1868) | https://commons.wikimedia.org/wiki/File:Albert_Bierstadt_-_Among_the_Sierra_Nevada,_California_-_Google_Art_Project.jpg | public domain |
 | alena-aenami-15-step.jpg | Alena Aenami: "15 Step" (2020) | https://www.artstation.com/artwork/8eoaPR | (c) artist, all rights reserved; personal desktop use; 4K copy purchased, in ~/sync/wallpapers |
 | alena-aenami-7-p-m.jpg | Alena Aenami: "7 p.m." (2016) | https://www.artstation.com/artwork/259YY | (c) artist, all rights reserved; personal desktop use; 4K copy purchased, in ~/sync/wallpapers |
 | alena-aenami-a-quiet-mind.jpg | Alena Aenami: "a Quiet Mind" (2017) | https://www.artstation.com/artwork/Y20RX | (c) artist, all rights reserved; personal desktop use; 4K copy purchased, in ~/sync/wallpapers |
@@ -138,8 +139,16 @@
 | anime-spirited-away-stone-statues-field.jpg | Studio Ghibli (Spirited Away, 2001; grass hill with moss-covered stone statues on the path to the abandoned theme park) | https://www.ghibli.jp/works/chihiro/ (wallhaven.cc/w/6dzvzw) | (c) Studio Ghibli, film still; personal desktop use |
 | bisbiswas-sky-light.jpg | BisBiswas: "Sky light" (2020) | https://www.deviantart.com/bisbiswas/art/Sky-light-852835379 | (c) artist, all rights reserved; personal desktop use |
 | camille-sule-a-short-walk.jpg | Camille Sule: "A Short Walk" (2020) | https://www.artstation.com/artwork/RY1Bkm (wallhaven.cc/w/72myve) | (c) artist, all rights reserved; personal desktop use (via wallhaven.cc) |
+| david-revoy-autumn-run.jpg | David Revoy: "Autumn Run" (2020) | https://www.peppercarrot.com/en/wallpapers/index.html | CC BY 4.0, credit David Revoy (peppercarrot.com) |
+| david-revoy-komona-sunset-dark.jpg | David Revoy: "Komona sunset (dark)" (2018) | https://www.peppercarrot.com/en/wallpapers/index.html | CC BY 4.0, credit David Revoy (peppercarrot.com) |
+| david-revoy-komona-sunset.jpg | David Revoy: "Komona sunset" (2018) | https://www.peppercarrot.com/en/wallpapers/index.html | CC BY 4.0, credit David Revoy (peppercarrot.com) |
+| david-revoy-only-komona.jpg | David Revoy: "Only Komona" (2017) | https://www.peppercarrot.com/en/wallpapers/index.html | CC BY 4.0, credit David Revoy (peppercarrot.com) |
+| david-revoy-rain-city.jpg | David Revoy: "Rain City" (2022) | https://www.peppercarrot.com/en/wallpapers/index.html | CC BY 4.0, credit David Revoy (peppercarrot.com) |
+| david-revoy-the-fairy-fir-tree.jpg | David Revoy: "The fairy fir tree" (2020) | https://www.peppercarrot.com/en/wallpapers/index.html | CC BY 4.0, credit David Revoy (peppercarrot.com) |
 | ferdinand-ladera-mountain-landscape.jpg | Ferdinand Ladera: "Mountain Landscape" (2015) | https://www.artstation.com/artwork/oJQrJ | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
 | ferdinand-ladera-rice-terraces.jpg | Ferdinand Ladera: "Rice Terraces" (2019) | https://www.artstation.com/artwork/4bgndl | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
+| frederic-church-twilight-in-the-wilderness.jpg | Frederic Edwin Church: "Twilight in the Wilderness" (1860) | https://commons.wikimedia.org/wiki/File:Twilight_in_the_Wilderness_by_Frederic_Edwin_Church_(3).jpg | public domain |
+| jmw-turner-the-fighting-temeraire.jpg | J. M. W. Turner: "The Fighting Temeraire" (1839) | https://commons.wikimedia.org/wiki/File:The_Fighting_Temeraire,_JMW_Turner,_National_Gallery.jpg | public domain; cropped to 16:9 |
 | joeyjazz-distant-garden.jpg | JoeyJazz: "Distant Garden" (2020) | https://www.deviantart.com/joeyjazz/art/Distant-Garden-858277142 (wallhaven.cc/w/6k93rq) | (c) artist, all rights reserved; personal desktop use (via wallhaven.cc) |
 | jordan-grimmer-moonlit-burning-citadel.jpg | Jordan Grimmer: "Day & Night (night version)" (2025) | https://www.artstation.com/artwork/K3PbE4 | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
 | jordan-grimmer-palm-path.jpg | Jordan Grimmer: "Daily Sketches: November '21 (palm path)" (2022) | https://www.artstation.com/artwork/d0Qnde | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
@@ -151,4 +160,5 @@
 | sparth-vestige.jpg | Sparth (Nicolas Bouvier): "Vestige" (2025) | https://www.artstation.com/artwork/XJ8wWD | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
 | starkiteckt-atlantis-nebula-7.jpg | Starkiteckt: "Atlantis Nebula #7" (2016) | https://wall.alphacoders.com/big.php?i=747001 (wallhaven.cc/w/28dqwx) | (c) artist; artist terms: free to use for your personal desktop only (via wallhaven.cc) |
 | starkiteckt-teal-nebula.jpg | Starkiteckt: title unknown | https://www.deviantart.com/starkiteckt-designs (wallhaven.cc/w/lyq5or) | (c) artist; artist terms: free to use for your personal desktop only (via wallhaven.cc) |
+| thomas-cole-the-oxbow.jpg | Thomas Cole: "The Oxbow" (1836) | https://commons.wikimedia.org/wiki/File:Cole_Thomas_The_Oxbow_(The_Connecticut_River_near_Northampton_1836).jpg | public domain |
 | yu-jing-beyond-the-clouds.jpg | 瑜璟 (Yu Jing): "云的彼方 (Beyond the Clouds)" (2022) | https://www.pixiv.net/artworks/99230581 (wallhaven.cc/w/l315vy) | (c) artist, all rights reserved; personal desktop use (via wallhaven.cc) |
