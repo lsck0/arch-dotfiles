@@ -1,6 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # Tools that read a pywal file by convention, with no reference to it anywhere in the repo, so only this list keeps the
 # template that writes it: Generation 635 dropped colors-wal.vim as unused and pywal.nvim kept the old palette for days.
+# The same cleanup dropped colors.json's wallpaper key, which pywalfox requires: Firefox lost its theme for days.
 
 const HERE = path self | path dirname
 const REPO = $HERE | path join ../../..
@@ -13,6 +14,12 @@ const READERS = [
     [reader present needle file];
     ["pywal.nvim (programming/nvim colors/wal.lua)" configs/programming/nvim/colors/wal.lua 'require("pywal")' colors-wal.vim]
     ["pywal.nvim lock" configs/programming/nvim/lazy-lock.json '"pywal"' colors-wal.vim]
+]
+
+# key: a key the reader requires in that file, checked in its template
+const KEYS = [
+    [reader present needle file key];
+    ["pywalfox (desktop/firefox), refuses colors.json without it" configs/desktop/firefox/mod.nu 'pywalfox update' colors.json '"wallpaper":']
 ]
 
 def written []: nothing -> list<string> {
@@ -31,5 +38,14 @@ def main [] {
     if ($missing | is-not-empty) {
         let lines = $missing | each { $"($in.file) for ($in.reader)" } | str join ", "
         error make {msg: $"readers.test: no wallust template writes ($lines)"}
+    }
+    let keyless = $KEYS | where {|r|
+        let path = $REPO | path join $r.present
+        let template = $TEMPLATES | path join $r.file
+        ($path | path exists) and (open --raw $path | str contains $r.needle) and not (($template | path exists) and (open --raw $template | str contains $r.key))
+    }
+    if ($keyless | is-not-empty) {
+        let lines = $keyless | each { $"($in.key) in ($in.file) for ($in.reader)" } | str join ", "
+        error make {msg: $"readers.test: a wallust template lacks ($lines)"}
     }
 }
