@@ -132,3 +132,11 @@ placessidebar.sidebar row:selected {
     background-color: alpha(@theme_selected_bg_color, 0.28);
     color: @theme_fg_color;
 }
+
+/* Hyprland ignores _GTK_FRAME_EXTENTS, so on XWayland (the portal's dialogs for an X11 parent such as Tor Browser)
+   its border wraps the client-side shadow margin; Hyprland draws its own shadow */
+decoration,
+decoration:backdrop {
+    box-shadow: none;
+    margin: 0;
+}
