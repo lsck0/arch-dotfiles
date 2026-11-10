@@ -1,8 +1,6 @@
 use module.nu *
 
-# volatile: keys-register's stamp is cache state, so an unregistered key set plans the step again each run; cached, a
-# run that could not reach forgejo (no DNS yet on a fresh install) would never retry
-export const meta = {packages: {pacman: [tea]}, volatile: true}
+export const meta = {packages: {pacman: [tea]}}
 
 const SECRET = "configs/secrets/keys/forgejo.env"
 
@@ -43,9 +41,13 @@ export def link [cfg: record] {
             | each {|f| file-text $f.target $f.text --mode 600 })
         (if $texts.inc == null { [] } else { file-text $inc $texts.inc })
         (file-copy known_hosts ($nu.home-dir | path join .ssh known_hosts.forgejo) --mode 600)
-        (if (secret-is-plaintext $secret) and (keys-stamp | path exists) and (open --raw (keys-stamp)) == (keys-fingerprint) {
-            []
-        } else { step keys-register --network })
+        # keyed by the key set and account: a new key or account registers again; away from the forge it waits
+        (if not (secret-is-plaintext $secret) { [] } else {
+            let fingerprint = keys-fingerprint
+            let stamp = xdg cache dotfiles forgejo-keys
+            (step keys-register --key $fingerprint --network
+                --done=(($stamp | path exists) and (open --raw $stamp) == $fingerprint))
+        })
     ]
 }
 
@@ -57,15 +59,12 @@ def keys-local []: nothing -> list<string> {
     | where { secret-is-plaintext $in } | each { open --raw $in | str trim } | uniq
 }
 
-# Which keys went up to which account last: a new key or account registers again, the same set stays offline.
-def keys-stamp []: nothing -> path { xdg cache dotfiles forgejo-keys }
-
 def keys-fingerprint []: nothing -> string {
     let f = env-read ($env.DOTFILES | path join $SECRET)
     [$f.FORGEJO_URL $f.FORGEJO_USER ...(keys-local | sort)] | str join "\n" | hash sha256
 }
 
-# Adds the owner's ssh public keys to the Forgejo account; skipped away from the LAN and wireguard.
+# Adds the owner's ssh public keys to the Forgejo account; away from the LAN and wireguard it exits pending.
 export def keys-register []: nothing -> nothing {
     let secret = $env.DOTFILES | path join $SECRET
     if not (secret-is-plaintext $secret) { return }
@@ -73,8 +72,8 @@ export def keys-register []: nothing -> nothing {
     let api = $"($f.FORGEJO_URL)/api/v1/user/keys"
     let auth = [Authorization $"token ($f.FORGEJO_TOKEN)"]
     let have = try { http get --max-time 10sec --headers $auth $api | get key | each { split row ' ' | get 1 } } catch {|e|
-        print $"note: forgejo: ssh keys not registered this run: ($e.msg)"
-        return
+        print $"forgejo not reachable: ($e.msg)"
+        exit $EXIT_PENDING
     }
     let added = keys-local | each {|key|
         let parts = $key | split row ' '
@@ -85,8 +84,6 @@ export def keys-register []: nothing -> nothing {
             true
         } catch {|e| print $"note: forgejo: ssh key ($title) not added: ($e.msg)"; false }
     }
-    if ($added | all { $in }) {
-        mkdir (keys-stamp | path dirname)
-        keys-fingerprint | save --force (keys-stamp)
-    }
+    if not ($added | all { $in }) { error make {msg: "forgejo: not every ssh key was added"} }
+    rm --force (xdg cache dotfiles forgejo-keys)
 }

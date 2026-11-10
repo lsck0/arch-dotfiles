@@ -20,6 +20,7 @@ def emacs-dir []: nothing -> path { xdg config emacs }
 
 def doom-bin []: nothing -> path { emacs-dir | path join bin doom }
 
+# the stamp doom sync was tracked by before it was recorded: one matching the key proves the sync already ran
 def synced-stamp []: nothing -> path { emacs-dir | path join .local dot-synced }
 
 # What doom sync installs from: the pin, the module and package lists, and the Emacs that compiles them.
@@ -29,13 +30,14 @@ def sync-key []: nothing -> string {
 }
 
 export def link [cfg: record] {
+    let key = sync-key
     let synced = try { open --raw (synced-stamp) | str trim } catch { "" }
     [
         (fetch-git $DOOM_URL $DOOM_COMMIT (emacs-dir))
         (files-into (xdg config doom) ...$DOOMDIR)
         ($FORMATTING | each {|f| file-copy ($"../formatting/($f)") (xdg config doom formatting $f) })
         (file-copy $"../formatting/($SORT_DERIVES)" (xdg config doom formatting $SORT_DERIVES) --mode 755)
-        (if $synced != (sync-key) { [(step sync --requires (doom-bin) --network --timeout $SYNC_TIMEOUT)] } else { [] })
+        (step sync --key $key --done=($synced == $key) --requires (doom-bin) --network --timeout $SYNC_TIMEOUT)
     ]
 }
 
@@ -66,5 +68,4 @@ export def theme-reload []: nothing -> nothing {
 # Installs the packages doom pins for this commit and the enabled modules; --force answers its prompts.
 export def sync []: nothing -> nothing {
     run-external (doom-bin) "--force" sync
-    sync-key | save --force (synced-stamp)
 }

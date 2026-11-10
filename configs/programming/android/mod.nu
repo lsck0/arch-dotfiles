@@ -57,7 +57,8 @@ export def link [cfg: record] {
         (if $tor { [] } else { $PACKAGES | each {|p| do $install $p } })
         (if ($cfg.avd | is-empty) { [] } else {
             # the image is sdkmanager's download: offline or failed, the avd waits for it instead of failing on it
-            exec $"avd ($cfg.avd)" [env ...(env-vars) sh -c 'echo no | "$0" create avd --name "$1" --package "$2" --device "$3"' $avdmanager $cfg.avd $SYSTEM_IMAGE $DEVICE] --creates $avd --requires ($sdk | path join $SYSTEM_IMAGE_FILE)
+            (exec $"avd ($cfg.avd)" [env ...(env-vars) sh -c 'echo no | "$0" create avd --name "$1" --package "$2" --device "$3"' $avdmanager $cfg.avd $SYSTEM_IMAGE $DEVICE] --creates $avd --requires ($sdk | path join $SYSTEM_IMAGE_FILE)
+                --undo [$avdmanager delete avd --name $cfg.avd])
         })
     ] | decls-flatten
 }

@@ -1,10 +1,10 @@
 # Plan and apply for native modules; the per-verb records are the one record of what a module wrote.
 
 use log.nu *
-use state.nu [state-dir state-locked path-kind nu-bin save-atomic LIB_DIR SYSTEM_STATE]
+use state.nu [state-dir state-locked path-kind nu-bin save-atomic LIB_DIR SYSTEM_STATE EXIT_PENDING]
 export use state.nu [recorded-hashes]
 use preserve.nu [sync-guard preserve-aside preserve-copies]
-use json.nu [json-edits-apply]
+use json.nu [json-edits-apply json-keys-restore]
 use module.nu [DECL_KEYS DECL_KINDS unit-dir]
 use ini.nu [ini-apply]
 use cause.nu [cause-from-error cause-from-output cause-text argv-text]
@@ -212,10 +212,15 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
                 }
             }
             "json" => {
+                # known: the keys dot set with what they held before; null for a record from before they were tracked
+                let last = $prev | where kind == json and target == $d.target | get --optional 0
+                let known = if $last == null { [] } else { $last.keys? }
+                let drop = $known | default [] | where path not-in $d.edits.path
+                let d = $d | insert known $known | insert drop $drop
                 let raw = merge-read $obs $d.target
                 let current = if ($raw | str trim | is-empty) { {} } else { try { $raw | from json } catch { null } }
                 if $current == null { return (action $id merge $d.target "not valid json now, read again at apply" $d $obs.hash? null) }
-                let merged = $current | json-edits-apply $d.edits
+                let merged = $current | json-keys-restore $drop | json-edits-apply $d.edits
                 if $then_failed { action $id merge $d.target "its --then failed last time" $d $obs.hash null
                 } else if $merged == $current and ($raw | is-not-empty) { action $id skip $d.target "" $d null null } else { action $id merge $d.target "keys differ" $d $obs.hash null }
             }
@@ -258,6 +263,12 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
                 "masked" => (action $id unmask $o.target "no longer declared" $o masked null)
                 _ => (action $id forget $o.target "no longer declared" $o null null)
             } })
+            "json" => {
+                let restorable = $o.keys? | default [] | where not ($it.before.unknown? | default false)
+                if $claimed or ($restorable | is-empty) { action $id forget $o.target "no longer declared" $o null null } else {
+                    action $id unmerge $o.target "no longer declared: dot's keys go back" $o null null
+                }
+            }
             "exec" | "step" => {
                 if ($o.undo? | default [] | is-empty) { action $id forget $o.target "no longer declared" $o null null } else {
                     action $id undo $o.target "no longer declared" $o null null
@@ -315,10 +326,19 @@ def action-command [a: record, dir: path, what: string, argv: list<string>, time
     $out.output
 }
 
-# nu -c ends on a failed external with its exit code alone: the step prints the error, its call and line, itself.
-def run-step [a: record, dir: path]: nothing -> string {
+# nu -c ends on a failed external with its exit code alone: the step prints the error, its call and line, itself. A
+# step that exits EXIT_PENDING waits for the next apply, its last line the reason (a remote not reachable yet).
+def run-step [a: record, dir: path]: nothing -> record {
     let call = $"use ($dir | to nuon) [($a.target)]; try { ($a.target) ($a.decl.argv | each { to nuon } | str join ' ') } catch {|e| print -e $e.rendered; exit \($e.exit_code? | default 1\) }"
-    action-command $a $dir $"step ($a.target)" [(nu-bin) --no-config-file -I $LIB_DIR -c $call] ($a.decl.timeout? | default $STEP_TIMEOUT)
+    let what = $"step ($a.target)"
+    let timeout = $a.decl.timeout? | default $STEP_TIMEOUT
+    let out = do { cd $dir; command-stream $"($a.module) ($a.target)" [(nu-bin) --no-config-file -I $LIB_DIR -c $call] $timeout }
+    if $out.timed_out { error make {msg: $"`($what)` timed out after ($timeout)"} }
+    if $out.exit_code == $EXIT_PENDING {
+        return {output: $out.output, pending: ($out.output | lines | where ($it | str trim) != "" | last | default "pending")}
+    }
+    if $out.exit_code != 0 { error make {msg: (cause-text (cause-from-output $what $out.exit_code $out.output))} }
+    {output: $out.output, pending: null}
 }
 
 # a sibling module's daemon-reload running at the same moment fails a unit verb once
@@ -407,11 +427,21 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     let out = if $a.decl.kind == "ini" {
                         state-locked $lock ini-update {file: $a.target, edits: $a.decl.edits} | complete
                     } else {
-                        state-locked $lock json-update {file: $a.target, edits: $a.decl.edits, recorded_sum: ($last | default "")} | complete
+                        let args = {file: $a.target, edits: $a.decl.edits, recorded_sum: ($last | default ""), known: ($a.decl.known? | default []), drop: ($a.decl.drop? | default [])}
+                        state-locked $lock json-update $args | complete
                     }
                     if $out.exit_code != 0 { error make {msg: $"($a.decl.kind) merge exited ($out.exit_code): (error-brief $out.stderr)"} }
-                    let owned = ($out.stdout | str contains owned) or ($a.decl.kind == "ini" and $a.before != null and $a.before == $last and ($out.stdout | str contains changed))
-                    if $owned { {hash: (open --raw $a.target | sha $in), at: (now-ns)} } else { {} }
+                    let json = if $a.decl.kind == "json" { $out.stdout | lines | last | from json } else { null }
+                    let owned = if $json != null { $json.owned } else { $a.before != null and $a.before == $last and ($out.stdout | str contains changed) }
+                    let keys = if $json != null { {keys: $json.keys} } else { {} }
+                    if $owned { {hash: (open --raw $a.target | sha $in), at: (now-ns)} | merge $keys } else { $keys }
+                }
+                "unmerge" => {
+                    sync-guard $a.target
+                    let args = {file: $a.target, edits: [], recorded_sum: "", known: $a.decl.keys, drop: $a.decl.keys}
+                    let out = state-locked $"(state-dir)/json.lock" json-update $args | complete
+                    if $out.exit_code != 0 { error make {msg: $"json unmerge exited ($out.exit_code): (error-brief $out.stderr)"} }
+                    {}
                 }
                 "disable" => {
                     systemctl-retry $scope disable $a.target
@@ -425,7 +455,7 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     {}
                 }
                 "unmask" => { systemctl-retry $scope unmask $a.target; {} }
-                "step" => { {output: (run-step $a $dir)} }
+                "step" => (run-step $a $dir)
                 "remove" => {
                     let current = if (path-kind $a.target) == file { open --raw $a.target | sha $in } else { null }
                     if $a.decl.kind == "file" and $current != $a.before {
@@ -451,7 +481,7 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     }
                 }
             }
-            | {ok: true, pending: null, error: null, aside: ($in.aside? | default null), output: ($in.output? | default ""), hash: ($in.hash? | default null), at: ($in.at? | default null)}
+            | {ok: true, pending: ($in.pending? | default null), error: null, aside: ($in.aside? | default null), output: ($in.output? | default ""), hash: ($in.hash? | default null), at: ($in.at? | default null), keys: ($in.keys? | default null)}
         } catch {|e|
             let error = cause-text (cause-from-error $e)
             let remote = if $a.kind in [exec step] and $a.decl.network? == true { remote-pending $error } else { null }
@@ -487,6 +517,7 @@ export def state-write [id: string, verb: string, input: string, actions: list<r
         let o = $done | get --optional (out-key $a.decl.kind $a.target)
         if $a.decl.kind in [json ini] {
             let output = if $o.hash? != null { {kind: $a.decl.kind, target: $a.target, hash: $o.hash, at: $o.at} } else { $before }
+                | if $o.keys? != null { default {kind: $a.decl.kind, target: $a.target, hash: null, at: null} | upsert keys $o.keys } else { $in }
             # the merge may have landed before its --then failed: plan-module merges again until the --then ran
             if $a.target in $failed and ($a.decl.then | is-not-empty) {
                 $output | default {kind: $a.decl.kind, target: $a.target, hash: null, at: null} | upsert then_failed true

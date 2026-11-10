@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {native: [wireguard-tools]}, volatile: true}
+export const meta = {packages: {native: [wireguard-tools]}, volatile: true, secrets: [protonvpn-netns.conf]}
 
 const CONF = "/etc/wireguard/protonvpn-netns.conf"
 const LIB = "/usr/local/lib/protonvpn-netns"

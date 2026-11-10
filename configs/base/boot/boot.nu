@@ -1,7 +1,5 @@
 # only archinstall's layout: uefi, the fat esp at /boot (fmask/dmask 0077, root reads it)
 
-use state.nu [SYSTEM_STATE]
-
 export const ESP = "/boot"
 export const CMDLINE = "/etc/kernel/cmdline"
 export const MKINITCPIO = "/etc/mkinitcpio.conf"
@@ -10,12 +8,15 @@ export const UKI_DIR = "/boot/EFI/Linux"
 const HOOK_DIRS = [/etc/initcpio/install /usr/lib/initcpio/install]
 const SDBOOT_EFI = "/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
 export const SDBOOT_ESP_FILES = ["/boot/EFI/systemd/systemd-bootx64.efi" "/boot/EFI/BOOT/BOOTX64.EFI"]
-const BOOT_INPUTS = [
+# What the boot chain is built from, the barrier's watch (base/boot/systemd-boot): mkinitcpio's own inputs, the
+# initramfs inputs other modules write, and sbctl's keys (signing starts once they exist).
+export const BOOT_WATCH = [
     /etc/mkinitcpio.conf /etc/mkinitcpio.conf.d /etc/mkinitcpio.d /etc/kernel/cmdline /etc/crypttab.initramfs
     /etc/modprobe.d /etc/vconsole.conf
     /etc/bootvine.toml /etc/mkinitcpio-systemd-tool /etc/tinyssh
     /etc/systemd/system/initrd-tinysshd.service.d /etc/systemd/system/initrd-network.service.d
     /etc/systemd/system/initrd-wifi.service
+    /var/lib/sbctl
 ]
 
 export def esp-supported []: nothing -> bool {
@@ -76,12 +77,6 @@ export def hooks-insert [hooks: list<string>, hook: string, at: int]: nothing ->
     ($hooks | first $at) ++ [$hook] ++ ($hooks | skip $at)
 }
 
-def boot-inputs-hash []: nothing -> string {
-    $BOOT_INPUTS | where ($it | path exists)
-    | each {|p| if ($p | path type) == dir { glob $"($p)/**/*" --no-dir --no-symlink | sort } else { [$p] } } | flatten
-    | each {|f| $"(ls --long $f | get 0.mode) ($f) (open --raw $f | hash sha256)" } | str join "\n" | hash sha256
-}
-
 export def sbctl-ready []: nothing -> bool {
     (which sbctl | is-not-empty) and (^sbctl status | str contains "Owner GUID")
 }
@@ -100,23 +95,21 @@ def sbctl-sign [...files: path]: nothing -> nothing {
     for f in ($files | where ($it | path type) == file) { sbctl-quiet sign -s $f }
 }
 
-# The boot barrier, last in a system run: one uki rebuild for the whole run, then every boot file signed.
-export def boot-commit []: nothing -> nothing {
-    if (which mkinitcpio | is-empty) { return }
-    # a hook whose package left (sd-bootvine once base/bootvine is off) fails every mkinitcpio; dropping it here
-    # changes mkinitcpio.conf, so the rebuild below runs
+# A hook whose package left (sd-bootvine once base/bootvine is off) fails every mkinitcpio, a kernel upgrade's too.
+export def hooks-sweep []: nothing -> nothing {
     let hooks = hooks-read
     let kept = $hooks | where {|h| $HOOK_DIRS | any {|d| $d | path join $h | path exists } }
     let dropped = $hooks | where $it not-in $kept
     if ($dropped | is-not-empty) { print $"boot: HOOKS dropped ($dropped | str join ' '), no install script left" }
     hooks-write $kept
-    let stamp = $SYSTEM_STATE | path join boot-inputs
-    let inputs = boot-inputs-hash
-    if $inputs != (try { open --raw $stamp } catch { "" }) {
-        ^mkinitcpio -P
-        mkdir $SYSTEM_STATE
-        $inputs | save --force $stamp
-    }
+}
+
+# The boot barrier, run by the engine once after a system run that changed what BOOT_WATCH covers: one uki rebuild,
+# then every boot file signed.
+export def boot-commit []: nothing -> nothing {
+    if (which mkinitcpio | is-empty) { return }
+    hooks-sweep
+    ^mkinitcpio -P
     if not (sbctl-ready) { return }
     # -s lists each uki in sbctl's database, so its pacman hook re-signs it after every kernel upgrade
     sbctl-sign ...(glob /etc/mkinitcpio.d/*.preset | each { uki-path ($in | path parse | get stem) })

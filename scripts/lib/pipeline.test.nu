@@ -2,7 +2,7 @@
 # Table cases for the package gate and the hold on dependents: pure records in, reasons and pending lines out, then
 # pipeline-apply's scheduler over rows that run nothing; what is absent and which link sources are alive against fake
 # tools first on PATH.
-use pipeline.nu [packages-gate packages-absent links-alive module-held pending-lines pipeline-apply modules-gone secrets-stamp]
+use pipeline.nu [packages-gate packages-absent links-alive module-held pending-lines pipeline-apply modules-gone secrets-stamp barriers-run]
 use modules.nu [modules-eval]
 use module.nu [step]
 use cause.nu [cause-hint]
@@ -412,6 +412,45 @@ def secrets-stamp-cases [work: path]: nothing -> nothing {
     assert equal (with-env {DOTFILES_SECRETS: ""} { secrets-stamp ($work | path join stamp-none) }) "" "stamp: no keys/, empty stamp"
 }
 
+# A barrier runs once when its record is missing, when a watched path changed, when an action notified it, again after
+# it failed, and never for a disabled owner or with nothing changed.
+def barrier-cases [work: path]: nothing -> nothing {
+    let dir = $work | path join barrier-module
+    mkdir $dir
+    let count = $work | path join barrier-count
+    let watched = $work | path join barrier-watched
+    let fail = $work | path join barrier-fail
+    "one" | save --force $watched
+    $"export def rebuild [] { if \(($fail | to nuon) | path exists\) { error make {msg: failing} }; \"x\\n\" | save --append ($count | to nuon) }\n"
+    | save --force ($dir | path join mod.nu)
+    let owner = {id: test/barrier, dir: $dir, broken: false, cfg: {enable: true}, meta: {barrier: {run: rebuild, watch: [$watched]}}}
+    let ctx = {modules: [$owner], platform: {facts: {dot_test: true}}, layer: user}
+    let runs = {|| if ($count | path exists) { open --raw $count | lines | length } else { 0 } }
+    let notify = {|id| [{outcomes: [{ok: true, pending: null, kind: create, decl: {notify: [$id]}}]}] }
+    with-env {XDG_STATE_HOME: ($work | path join barrier-state), DOT_RUN_ID: "", DOT_RUN_FILE: "", FAILURES_FILE: ""} {
+        barriers-run $ctx [] false | ignore
+        assert equal (do $runs) 1 "a barrier with no record did not run"
+        barriers-run $ctx [] false | ignore
+        assert equal (do $runs) 1 "a barrier ran with nothing changed"
+        "two" | save --force $watched
+        barriers-run $ctx [] false | ignore
+        assert equal (do $runs) 2 "a changed watched path did not run the barrier"
+        barriers-run $ctx (do $notify test/barrier) false | ignore
+        assert equal (do $runs) 3 "a notifying action did not run the barrier"
+        barriers-run $ctx (do $notify other/module) false | ignore
+        assert equal (do $runs) 3 "another module's notification ran this barrier"
+        touch $fail
+        let failed = barriers-run $ctx (do $notify test/barrier) false | first
+        assert (not $failed.ok) "a failing barrier reported ok"
+        rm $fail
+        barriers-run $ctx [] false | ignore
+        assert equal (do $runs) 4 "a barrier that failed last time did not run again"
+        let off = $ctx | update modules [($owner | update cfg.enable false)]
+        barriers-run $off [] true | ignore
+        assert equal (do $runs) 4 "a disabled owner's barrier ran"
+    }
+}
+
 def main [] {
     let work = mktemp --directory --tmpdir dot-pipeline-test-XXXXXX
     gate-cases
@@ -428,5 +467,6 @@ def main [] {
     eval-timeout-cases $work
     gone-cases $work
     secrets-stamp-cases $work
+    barrier-cases $work
     rm --recursive --force $work
 }

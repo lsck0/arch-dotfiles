@@ -20,7 +20,11 @@ export const options = {
     }
 }
 
-export const meta = {volatile: true, deps: [base/boot/luks]}
+export const meta = {
+    volatile: true
+    deps: [base/boot/luks]
+    secrets: [wifi ssh_publickey.asc "initramfs-ssh/{host}/sshkeydir/.ed25519.sk"]
+}
 
 const PACKAGES = [busybox mkinitcpio-systemd-tool tinyssh tinyssh-convert]
 

@@ -22,11 +22,15 @@ use module.nu *
 export const meta = {
     deps: [core/gh]                                   # modules that apply first, any group
     reads: [base/ssh]                                 # options in cfg.deps only: no order, never waits on it
-    packages: {pacman: [btop], native: [], flatpak: {}, nix: []}
+    packages: {pacman: [btop], native: [], flatpak: {}, nix: []}  # their installed versions are in the input hash
     serial: false                                     # true: runs alone (rustup, a package manager)
-    inputs: [configs/secrets/state/repositories]      # more input-hash files: relative is the repo's, ~ and / as is
+    inputs: [configs/secrets/state/repositories]      # more input-hash files (never its own package's binary)
     volatile: false                                   # true: always evaluated (reads machine state)
     backup: {secrets: true}                           # its backup verb writes into secrets: runs only unlocked
+    secrets: ["alloy-{host}"]                         # what its system verb reads of keys/ (root gets only these)
+    phase: early                                      # install stage: early (base/pacman) or install (base/yubikey)
+    barrier: {run: boot-commit, watch: [/etc/x]}      # an export run once after a layer's apply that changed a
+                                                      # watched path or a decl's --notify <this id> flagged
 }
 
 export const options = {
@@ -82,6 +86,7 @@ export def packages [cfg: record]: nothing -> record {
   dir, installed with `link-commands` or `files-into`.
 - Each verb takes the resolved options (`enable` always present) and returns declarations (nested lists fine).
 - A disabled module (option off, group gone) declares nothing on the next full run, so its files, links and units go,
+  each json key it merged goes back to what it held before dot set it (unless edited since),
   and each recorded `exec` or `step` runs its `--undo`. A plain one (no `--creates`, `--key`, `--done` or `--undo`) is
   not recorded: it runs on every evaluation and what it did stays.
 - Hooks (`HOOKS`): `detect` fills options platform and profile left null (a failure only warns); `packages` adds a
@@ -109,9 +114,11 @@ export def packages [cfg: record]: nothing -> record {
   - reactions: a `--then` runs once per module run after every action, however many declarations carry the same
     argv; it fails all of them when it fails, so they retry. `then-step <command> [args]` is the argv running one of the
     module's own exports, for a reload with its own checks (`desktop/hyprland`).
-  - other:
-    `fetch-file <url> <sha256> <dest> [--extract <member>]`, `fetch-git <url> <commit> <dir>`, `group-admins <group>`,
-    `palette-load` (for `theme`). An exec or step that downloads takes `--network`: offline (an HTTPS probe as the
+  - pending: a step that cannot go on yet (a remote not reachable) `exit $EXIT_PENDING` with its reason as the last
+    line; it is not recorded and runs on the next apply (`programming/forgejo`).
+  - other: `fetch-file <url> <sha256> <dest> [--extract <member>]`, `fetch-git <url> <commit> <dir>`,
+    `group-system <group> [members]` (a sysusers.d file), `group-admins <group>` (wheel in it), `palette-load` (for
+    `theme`). An exec or step that downloads takes `--network`: offline (an HTTPS probe as the
     user, once per run), or failing on the remote's 5xx, 429 or an unresolvable name, it is pending and runs on the
     next apply; fetch-* mark themselves. One that builds on an earlier download takes `--requires <path>` (the fetched
     tree, the image): while the path is missing it is pending instead of failing. Each is killed with its

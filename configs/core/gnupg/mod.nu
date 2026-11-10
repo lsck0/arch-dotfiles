@@ -36,11 +36,12 @@ def identity [fpr: string]: nothing -> list<record> {
     let private = $env.DOTFILES | path join $PRIVATE_KEY
     let has_secret = gpg-ok --list-secret-keys $fpr
     let trusted = ^gpg --export-ownertrust | lines | any { $in == $"($fpr):6:" }
+    let listed = gpg-ok --list-keys $fpr
     [
-        (if (gpg-ok --list-keys $fpr) { [] } else { public-key $fpr | each { exec $"gpg-import ($in | path basename)" [gpg --batch --import $in] } })
-        (if $trusted { [] } else { step gpg-trust $fpr })
-        (if $has_secret or not (secret-is-plaintext $private) { [] } else { exec gpg-import-private [gpg --batch --import $private] })
-        (if $has_secret { [] } else { step gpg-card-stubs })
+        (public-key $fpr | each { exec $"gpg-import ($in | path basename)" [gpg --batch --import $in] --done=$listed })
+        (step gpg-trust $fpr --done=$trusted)
+        (if (secret-is-plaintext $private) { exec gpg-import-private [gpg --batch --import $private] --done=$has_secret } else { [] })
+        (step gpg-card-stubs --done=$has_secret)
     ] | decls-flatten
 }
 

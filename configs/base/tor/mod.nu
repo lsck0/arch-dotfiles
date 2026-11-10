@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {native: [polkit tor]}, inputs: [/usr/bin/tor]}
+export const meta = {packages: {native: [polkit tor]}}
 
 const ROUTER = "/usr/local/bin/tor-router"
 const PERSONA = "/etc/NetworkManager/dispatcher.d/90-anonymous-persona"

@@ -316,15 +316,17 @@ export def link [cfg: record] {
     let prefix = xdg data obs-mcp
     let websocket = $obs | path join plugin_config obs-websocket config.json
     let lock = $HERE | path join mcp package-lock.json
-    # npm ci empties node_modules first, so a stamp there marks the lockfile it installed; a new lock installs again
-    let installed = $prefix | path join node_modules $".dot-lock-(open --raw $lock | hash sha256 | str substring 0..<($LOCK_STAMP_LENGTH))"
-    let npm_ci = [sh -c 'npm ci --no-audit --no-fund --prefix "$1" && touch "$2"' npm-ci $prefix $installed]
+    let lock_hash = open --raw $lock | hash sha256 | str substring 0..<($LOCK_STAMP_LENGTH)
+    let node_modules = $prefix | path join node_modules
     # the mcp only with the app it drives
     let mcp = if (which obs npm | length) < 2 { [] } else {
         [
             (file-copy ($HERE | path join mcp package.json) ($prefix | path join package.json))
             (file-copy $lock ($prefix | path join package-lock.json))
-            (exec obs-mcp-install $npm_ci --creates $installed --network)
+            # --done: the stamp it left in node_modules before it was keyed; npm ci empties the dir, stamp included
+            (exec obs-mcp-install [npm ci --no-audit --no-fund --prefix $prefix] --creates $node_modules --key $lock_hash
+                --done=($node_modules | path join $".dot-lock-($lock_hash)" | path exists) --undo [rm -rf $node_modules]
+                --network)
             (link-commands obs-mcp.nu)
             (mcp-servers {obs-mcp: {type: stdio, command: ($nu.home-dir | path join .local bin obs-mcp), args: []
                 gate: {probe: $"127.0.0.1:($WEBSOCKET_PORT)", app: OBS}}})
@@ -337,7 +339,7 @@ export def link [cfg: record] {
         } else { [] })
         (ini-merge ($obs | path join global.ini) $GLOBAL)
         (ini-merge ($obs | path join user.ini) ({Basic: $selection} | merge $USER_GENERAL) --missing-only)
-        (if ($websocket | path exists) { [] } else { step websocket-init $websocket })
+        (step websocket-init $websocket --creates $websocket)
         $mcp
         (desktop-override com.obsproject.Studio.desktop {
             $in | str replace --all --regex '(?m)^Exec=obs.*' $"Exec=obs ($LAUNCH_FLAGS)"

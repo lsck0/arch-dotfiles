@@ -24,10 +24,10 @@ export def link [cfg: record] {
     if (which modrinth-app | is-empty) { return [] }
     let p = paths
     # seeded once: modrinth rewrites app.db in place
-    let seed = if (secret-is-plaintext $p.seed) and not ($p.db | path exists) { step seed } else { [] }
+    let seed = if (secret-is-plaintext $p.seed) { [(step seed --creates $p.db)] } else { [] }
     let busy = (^pgrep -x 'java|modrinth-app' | complete).exit_code == 0
     let relocate = (profile-has secrets) and (platform-has homelab) and ($p.saves | path exists) and not $busy and (unlinked $p | is-not-empty)
-    [$seed (if $relocate { step relocate } else { [] })]
+    $seed | append (step relocate --done=(not $relocate))
 }
 
 export def seed []: nothing -> nothing {

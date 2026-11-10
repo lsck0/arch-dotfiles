@@ -75,5 +75,5 @@ export def link [cfg: record] {
     | append (desktop-override wayvr.desktop {
         desktop-set {Terminal: false} | str replace --regex '(?m)^Exec=wayvr$' $"Exec=($bin)/desktop-run --notify -- wayvr"
     })
-    | append (if ($filezilla | path exists) { [] } else { [(step filezilla-seed $filezilla)] })
+    | append (step filezilla-seed $filezilla --creates $filezilla)
 }

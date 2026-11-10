@@ -21,7 +21,7 @@ export def link [cfg: record] {
         (link-commands proton-sessions-restore.nu)
         # reenable: a changed WantedBy leaves the old target's wants link behind
         (unit-file proton-sessions-restore.service --enable --then [systemctl --user reenable proton-sessions-restore.service])
-        (if (xdg state $MARKER | path exists) { [] } else { step sessions-restore-now })
+        (step sessions-restore-now --creates (xdg state $MARKER))
     ]
 }
 

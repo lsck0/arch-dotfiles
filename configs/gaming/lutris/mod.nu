@@ -31,8 +31,8 @@ export def link [cfg: record] {
     let file = $dir | path join runners wine.yml
     let want = wine-keys $cfg.dpi
     let current = if ($file | path exists) { open $file | get --optional wine | default {} } else { {} }
-    if ($want | columns | all {|k| ($current | get --optional $k) == ($want | get $k) }) { return [] }
-    step wine-dpi $file ($cfg.dpi | into string)
+    let set = $want | columns | all {|k| ($current | get --optional $k) == ($want | get $k) }
+    step wine-dpi $file ($cfg.dpi | into string) --done=$set
 }
 
 def wine-keys [dpi: int]: nothing -> record {

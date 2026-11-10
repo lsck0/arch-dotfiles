@@ -28,7 +28,7 @@ export def link [cfg: record] {
     } else { null }
     [
         $launcher
-        (if ($p.config | path join FFXIV.cfg | path exists) { [] } else { step seed })
+        (step seed --creates ($p.config | path join FFXIV.cfg))
         (exec ffxiv-launcher [cp -n $p.seed.launcher $p.launcher] --creates $p.launcher)
         (if ($game | is-empty) { [] } else { exec ffxiv-game-path [mkdir -p $game] --creates $game })
     ]

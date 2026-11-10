@@ -19,7 +19,7 @@ export def link [cfg: record] {
         (link-commands unreal-editor.nu unreal-install-plugins.nu)
         (file-copy uproject.xml ($mime | path join packages uproject.xml) --then [update-mime-database $mime])
         (mcp-servers {unreal-mcp: (if $installed { $MCP })})
-        (if $zip == null or $current { [] } else { exec unreal-install [($env.PWD | path join hook unreal-install.nu)] --timeout 60min })
+        (exec unreal-install [($env.PWD | path join hook unreal-install.nu)] --done=($zip == null or $current) --timeout 60min)
         (if $installed { [] } else { user-hook unreal-install hook/unreal-install.nu --watch ["%h/sync/vendor"] })
     ]
 }

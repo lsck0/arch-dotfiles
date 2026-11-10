@@ -55,7 +55,7 @@ export def link [cfg: record] {
     [
         (file-copy config.py ($dir | path join config.py))
         (file-text ($dir | path join search-url) $"($cfg.search_url | default $SEARCH_DEFAULT)\n")
-    ] | append (if (lists-ready) { [] } else { [(step lists-fetch --network)] })
+    ] | append (step lists-fetch --network --done=(lists-ready))
 }
 
 # Fetches the adblock lists in a windowless instance, never beside a running one: the quit would reach it over ipc.
@@ -139,9 +139,17 @@ def chrome-colors []: nothing -> any {
     }
 }
 
+# Without a running instance the command would start one.
+export def config-source []: nothing -> nothing {
+    if not (process-running qutebrowser) { return }
+    ^qutebrowser :config-source
+}
+
 export def theme [cfg: record, wallpaper: string] {
+    # config.py reads both, and the chrome roles change with every palette, so the reload hangs off them
+    let reload = then-step config-source
     let chrome = chrome-colors
-    let chrome_file = if $chrome == null { [] } else { [(file-text (xdg cache $CHROME_COLORS) ($chrome | to json --indent 2) --generated)] }
+    let chrome_file = if $chrome == null { [] } else { [(file-text (xdg cache $CHROME_COLORS) ($chrome | to json --indent 2) --generated --then $reload)] }
     let dest = $nu.home-dir | path join $CONFIG_DIR startpage.html
     let font = font-load
     let startpage = file-render startpage.html $dest ({
@@ -152,8 +160,6 @@ export def theme [cfg: record, wallpaper: string] {
         FONT_SIZE: $font.ui_size
         SEARCH: ($cfg.search_url | default $SEARCH_DEFAULT | to json)
         METHOD: $cfg.search_method
-    } | merge (startpage-colors)) --generated
-    # without a running instance the command would start one
-    if not (process-running qutebrowser) { return ($chrome_file ++ [$startpage]) }
-    $chrome_file ++ [$startpage (exec qutebrowser-config-source [qutebrowser :config-source])]
+    } | merge (startpage-colors)) --generated --then $reload
+    $chrome_file ++ [$startpage]
 }

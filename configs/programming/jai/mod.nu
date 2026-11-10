@@ -21,5 +21,6 @@ export def link [cfg: record] {
     let zip = jai-zip
     let stamp = try { open --raw ($dir | path join .installed-from) | str trim } catch { "" }
     let newer = $zip != null and ($zip | path basename) != $stamp
-    if $newer or not ($dir | path join bin jai | path exists) { [(exec jai-install [($env.PWD | path join $HOOK)] --network)] } else { [] }
+    let current = not $newer and ($dir | path join bin jai | path exists)
+    [(exec jai-install [($env.PWD | path join $HOOK)] --done=$current --network)]
 }

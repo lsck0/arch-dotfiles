@@ -161,6 +161,14 @@ def action-cases [work: path]: nothing -> nothing {
     state-write $ID system "input" [$planned] [$ok] []
     let out = (state-read $ID system).outputs | first
     assert equal [$out.key $out.undo] [v3 [rm x]] $"a ran exec records ($out | to nuon), wants key v3 and its undo"
+    let waiting_dir = $work | path join pending-module
+    mkdir $waiting_dir
+    "export def wait [] { print \"the forge is not reachable\"; exit 3 }\n" | save --force ($waiting_dir | path join mod.nu)
+    let waiting = plan-module $ID [(step wait --key k1)] [] {paths: {}, units: {}} {} $REPO false
+    let outcome = apply-module $waiting $waiting_dir user | first
+    assert ($outcome.ok and $outcome.pending == "the forge is not reachable") $"a step exiting 3 is ($outcome | select ok pending error | to nuon), wants pending with its last line"
+    state-write $ID system "input" $waiting [$outcome] []
+    assert ((state-read $ID system).outputs | is-empty) "a pending step was recorded as done"
     let unrecorded = plan-module $ID [(exec p [echo])] [] {paths: {}, units: {}} {} $REPO false | first
     state-write $ID system "input" [$unrecorded] [($unrecorded | merge {ok: true, pending: null, error: null, aside: null, output: "", hash: null, at: null, ms: 0})] []
     assert ((state-read $ID system).outputs | is-empty) "a plain exec left a record"
@@ -181,6 +189,36 @@ def then-once-cases [work: path]: nothing -> nothing {
     let again = plan-module $ID $broken [] (observe $broken.target [] user) {} $REPO true
     let failed = apply-module $again $work user
     assert ($failed | all { not $in.ok }) "a failed shared --then left some of its actions ok, so they would not retry"
+}
+
+# A merge records what each key held before dot set it; a key no longer declared, or the whole merge retired, goes
+# back to that, but a hand edit since stays, and a record from before keys were tracked is never undone.
+def merge-keys-cases [work: path]: nothing -> nothing {
+    let file = $work | path join keys.json
+    {a: 1, c: 5} | to json | save --force $file
+    let run = {|decls, prev|
+        let seen = observe [$file] [] user
+        let actions = plan-module $ID $decls $prev $seen {} $REPO false
+        let outcomes = apply-module $actions $work user
+        state-write $ID link "input" $actions $outcomes $prev
+        (state-read $ID link).outputs
+    }
+    let first = do $run [(json-merge $file [(json-set [b] 2) (json-set [c] 6)])] []
+    assert equal (open $file) {a: 1, c: 6, b: 2} "the merge did not land"
+    let keys = $first | first | get keys
+    assert equal ($keys | where path == [c] | first | get before) {value: 5} $"c's before is ($keys | to nuon), wants 5"
+    let second = do $run [(json-merge $file [(json-set [b] 2)])] $first
+    assert equal (open $file) {a: 1, c: 5, b: 2} $"a key no longer declared did not go back: (open $file | to nuon)"
+    {a: 1, c: 5, b: 7} | to json | save --force $file
+    let third = do $run [] $second
+    assert equal (open $file) {a: 1, c: 5, b: 7} $"a hand edit was undone: (open $file | to nuon)"
+    assert ($third | is-empty) "a retired merge kept its record"
+    {a: 1, b: 2} | to json | save --force $file
+    do $run [] [{kind: json, target: $file, hash: null, at: null, keys: [{path: [b], before: {absent: true}, set: {value: 2}}]}] | ignore
+    assert equal (open $file) {a: 1} $"a retired merge left its key: (open $file | to nuon)"
+    {a: 1, b: 2} | to json | save --force $file
+    let legacy = plan-module $ID [] [{kind: json, target: $file, hash: null, at: null}] (observe [$file] [] user) {} $REPO false | first
+    assert equal $legacy.kind "forget" $"a record from before keys were tracked planned ($legacy.kind), wants forget"
 }
 
 # A module's record left truncated by a crashed write mid-save must not take down every module's plan: state-read and
@@ -270,6 +308,7 @@ def main [] {
             state-write-cases $work
             action-cases $work
             then-once-cases $work
+            merge-keys-cases $work
             corrupted-state-cases
             with-env {DOTFILES_UNATTENDED: "1", DOT_TEST_REMOVED: ($work | path join removed)} {
                 ledger-diff-cases

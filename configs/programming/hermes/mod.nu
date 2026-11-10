@@ -99,6 +99,12 @@ def system-agent [h: record, settings: record, remove: list<string>, mcp: record
     ]
 }
 
+# a package update rewrites the lock, which may need a sync; the step still checks the receipt itself
+def extras-key []: nothing -> string {
+    let lock = try { open --raw $HERMES_LOCK | hash sha256 } catch { "" }
+    [$lock ...$REQUIRED_EXTRAS] | str join " "
+}
+
 # uv sync is a no-op once installed, but pm refuses to get there on a packaged install: once ~/.hermes/tools/facts.json
 # exists (its first sync writes it), it counts the package's system-store tools as not installed. So it runs only when
 # the last sync receipt lacks an extra or predates the package's uv.lock.
@@ -143,8 +149,7 @@ def configure [home: path, settings: record, remove: list<string>, mcp: record]:
     let removed = $remove | each {|key| ($have | get --optional ($key | split row "." | into cell-path)) == null }
     let served = $mcp | items {|name, spec| ($have.mcp_servers? | get --optional $name) == $spec }
     let current = $set ++ $removed ++ $hooked ++ $served ++ [($have.display?.skin? == $SKIN) (not $stale)] | all { $in }
-    if $current { return [] }
-    [(exec $"configure ($home)" [env $"HERMES_HOME=($home)" $PYTHON configure.py ($want | to json --raw)])]
+    [(exec $"configure ($home)" [env $"HERMES_HOME=($home)" $PYTHON configure.py ($want | to json --raw)] --done=$current)]
 }
 
 # without a gpu share llm/vllm serves nothing, so hermes gets no vllm provider
@@ -174,7 +179,7 @@ export def link [cfg: record] {
     let skills = glob ($env.DOTFILES | path join skills "l-*") | where ($it | path type) == dir
     let mcp = try { open ($h.default | path join mcp-servers.json) } catch { {} }
     [
-        (step required-extras --network)
+        (step required-extras --key (extras-key) --network)
         (exec orchestrator-create [
             hermes profile create orchestrator --clone --no-alias --description "Orchestrator. Not for interactive chat."
         ] --creates $h.orchestrator)

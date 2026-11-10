@@ -137,7 +137,8 @@ def lint-exports []: nothing -> list<string> {
     $mods | each {|f|
         let text = open --raw $f
         let steps = $text | parse --regex 'step "?(?<name>[a-z0-9-]+)' | get name
-        let allowed = $VERBS ++ $HOOKS ++ $steps ++ $imported
+        let barriers = $text | parse --regex 'barrier: \{run: (?<name>[a-z0-9-]+)' | get name
+        let allowed = $VERBS ++ $HOOKS ++ $steps ++ $barriers ++ $imported
         $text | lines | enumerate | where ($it.item | str starts-with "export ") | each {|l|
             let names = if ($l.item | str starts-with "export use ") {
                 $l.item | parse --regex '\[(?<names>[^\]]*)\]' | get --optional 0.names | default "*" | split row " " | where $it != ""

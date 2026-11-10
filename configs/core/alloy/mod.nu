@@ -5,7 +5,7 @@ use ../../../platforms/homelab.nu [HOMELAB]
 # a machine the lab lists as a desktop and with its push credential (secrets keys/alloy-<host>, `user:password`).
 # grafana-alloy-bin, Grafana's own build: Arch's grafana-alloy is built without journal support, so its
 # loki.source.journal stays off. Until the mirror carries the bin package, whichever of the two is installed runs.
-export const meta = {packages: {pacman: [grafana-alloy-bin]}}
+export const meta = {packages: {pacman: [grafana-alloy-bin]}, secrets: ["alloy-{host}"]}
 
 # the two packages' layouts: the bin one is upstream's (alloy.service, /etc/alloy), Arch's is renamed
 const BUILDS = [

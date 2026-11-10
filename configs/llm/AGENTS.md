@@ -1,7 +1,7 @@
 # llm
 
 - Models arrive without a manual step: vLLM pulls its model on first start; `llm/ollama` runs `ollama-ensure-models`
-  once per pin set and script version (a stamp under `$XDG_STATE_HOME/ollama-models`), only where a GPU has VRAM, and
+  once per pin set and script version (its `--key`), only where a GPU has VRAM, and
   removes every model it does not pin: a model pulled by hand is gone on the next run; `llm/comfyui` downloads
   its image and 3D checkpoints in its `models` step, only with an AMD GPU of 12 GiB or more; `llm/alpaca` fetches
   whisper's speech model.

@@ -22,8 +22,7 @@ def version-installed []: nothing -> string {
 export def link [cfg: record] {
     let xcu = xdg config libreoffice 4 user registrymodifications.xcu
     let text = if ($xcu | path exists) { open --raw $xcu } else { "" }
-    if $text !~ $OVERRIDE and $text =~ $TIPS_KEY and $text =~ $VERSION_KEY { return [] }
-    step xcu-update $xcu
+    step xcu-update $xcu --done=($text !~ $OVERRIDE and $text =~ $TIPS_KEY and $text =~ $VERSION_KEY)
 }
 
 export def xcu-update [xcu: path] {

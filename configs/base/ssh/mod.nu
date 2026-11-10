@@ -1,8 +1,13 @@
 use module.nu *
-use secrets.nu [SSH_HOST_KEYS]
 use ../../../platforms/homelab.nu [HOMELAB]
 
-export const meta = {packages: {pacman: [knockd openbsd-netcat openssh]}}
+const SSH_HOST_KEYS = [ssh_host_ed25519_key ssh_host_mldsa44_ed25519_key ssh_host_ecdsa_key ssh_host_rsa_key]
+
+# its system verb pins the host keys from keys/ssh-host/<host>/
+export const meta = {
+    packages: {pacman: [knockd openbsd-netcat openssh]}
+    secrets: ["ssh-host/{host}/ssh_host_ed25519_key" "ssh-host/{host}/ssh_host_mldsa44_ed25519_key" "ssh-host/{host}/ssh_host_ecdsa_key" "ssh-host/{host}/ssh_host_rsa_key"]
+}
 
 export const options = {
     port: {

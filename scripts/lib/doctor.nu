@@ -12,6 +12,8 @@ use modules.nu [modules-packages]
 use cause.nu [failures-group]
 use ../../configs/base/yubikey/audit.nu [audit-findings]
 
+# the boot chain barrier's record (base/boot/systemd-boot's meta.barrier): when it last went through
+const BOOT_BARRIER = "modules/base/boot/systemd-boot/barrier.nuon"
 const REPO = path self ../..
 const INVARIANTS = path self invariants.txt
 const PROFILES_CONF = path self ../../configs/base/apparmor/profiles.conf
@@ -95,11 +97,11 @@ def config-pending []: nothing -> list<record> {
 }
 
 def reboot []: nothing -> list<record> {
-    let stamp = $SYSTEM_STATE | path join boot-inputs
-    if not ($stamp | path exists) { return [] }
+    let built = try { open ($SYSTEM_STATE | path join $BOOT_BARRIER) | get built | into datetime } catch { null }
+    if $built == null { return [] }
     let boot = open /proc/stat | lines | parse "btime {s}" | get 0.s | into int | $in * 1_000_000_000 | into datetime
-    if (mtime $stamp) > $boot {
-        let built = mtime $stamp | format date '%F %H:%M'
+    if $built > $boot {
+        let built = $built | format date '%F %H:%M'
         [(report FAIL reboot $"reboot pending: the boot chain was rebuilt ($built), after this boot")]
     } else {
         [(report ok reboot "the running boot chain is the latest built")]

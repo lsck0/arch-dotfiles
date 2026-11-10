@@ -47,7 +47,7 @@ export def link [cfg: record] {
     [
         (files-into $user_dir keybindings.json)
         (settings $user_dir)
-        (if $installed { [] } else { [(exec vim-mode [$bin --install-extension vscodevim.vim] --network)] })
+        (exec vim-mode [$bin --install-extension vscodevim.vim] --done=$installed --undo [$bin --uninstall-extension vscodevim.vim] --network)
     ]
 }
 

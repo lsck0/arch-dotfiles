@@ -41,7 +41,6 @@ hl.window_rule({
     size = "1150 750",
 })
 
--- boomer.nu moves it to the layout's top-left once mapped: no static monitor or position fits every layout
 hl.window_rule({
     match = {
         title = "^wayland-boomer$",
@@ -49,6 +48,22 @@ hl.window_rule({
     float = true,
     no_anim = true,
 })
+
+-- boomer's frozen screenshot spans every monitor: placed at the layout's top-left as it opens, before its first frame
+-- (no static monitor or position fits every layout, and a move after the map showed it offset for a frame)
+hl.on("window.open", function(window)
+    if window.title ~= "wayland-boomer" then
+        return
+    end
+    local x, y
+    for _, monitor in ipairs(hl.get_monitors()) do
+        if not monitor.name:match("^HEADLESS%-") then
+            x = math.min(x or monitor.position.x, monitor.position.x)
+            y = math.min(y or monitor.position.y, monitor.position.y)
+        end
+    end
+    hl.dispatch(hl.dsp.window.move({ x = x, y = y, window = "address:" .. window.address }))
+end)
 
 for _, class in ipairs({
     "^nemo$",

@@ -14,9 +14,12 @@ export def link [cfg: record] {
     let gemini = hooked ($home | path join .gemini settings.json) "rtk-hook-gemini"
     [
         # --auto-patch: unattended, the patch prompts default to no and hooks never register
-        (exec rtk-hermes [rtk init -g --auto-patch --agent hermes] --creates ($home | path join .hermes plugins rtk-rewrite))
-        (exec rtk-copilot [rtk init -g --auto-patch --copilot] --creates ($home | path join .copilot hooks rtk-rewrite.json))
-        (if $gemini { [] } else { [(exec rtk-gemini [rtk init -g --auto-patch --gemini])] })
-        (if $claude { [] } else { [(exec rtk-claude [rtk init -g --auto-patch --agent claude])] })
+        (exec rtk-hermes [rtk init -g --auto-patch --agent hermes] --creates ($home | path join .hermes plugins rtk-rewrite)
+            --undo [rtk init -g --agent hermes --uninstall])
+        (exec rtk-copilot [rtk init -g --auto-patch --copilot] --creates ($home | path join .copilot hooks rtk-rewrite.json)
+            --undo [rtk init -g --copilot --uninstall])
+        # no undo for these two: uninstalling removes GEMINI.md whole and programming/claude's RTK.md
+        (exec rtk-gemini [rtk init -g --auto-patch --gemini] --done=$gemini)
+        (exec rtk-claude [rtk init -g --auto-patch --agent claude] --done=$claude)
     ]
 }

@@ -98,7 +98,7 @@ def s3 [cfg: record, base: path, wine: path]: nothing -> list {
         (lod-links $base $s.lod)
         (file-link $cfg.game_dir ($s.lod | path join ProjectD2))
         (prefix-init $s $wine)
-        (if $cfg.save_dir != null and not (save-path-set $s.prefix $cfg.save_dir) { step save-path $s.prefix $cfg.save_dir } else { [] })
+        (if $cfg.save_dir == null { [] } else { step save-path $s.prefix $cfg.save_dir --done=(save-path-set $s.prefix $cfg.save_dir) })
         (file-render pd2.sh ($s.root | path join pd2.sh) {
             game: ($s.lod | path join ProjectD2), prefix: $s.prefix, wine: $wine, width: $SIZE.w, height: $SIZE.h, exe: "PlugY.exe"
         } --mode "755")

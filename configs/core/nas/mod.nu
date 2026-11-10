@@ -1,7 +1,7 @@
 use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
 
-export const meta = {packages: {pacman: [cifs-utils]}, inputs: [/etc/samba/homelab.cred]}
+export const meta = {packages: {pacman: [cifs-utils]}, inputs: [/etc/samba/homelab.cred], secrets: [samba-homelab]}
 
 export const options = {
     share: {

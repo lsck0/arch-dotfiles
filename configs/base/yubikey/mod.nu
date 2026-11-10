@@ -1,6 +1,8 @@
 use module.nu *
 
+# install: its verb runs again right after the install pass brought its packages, before config
 export const meta = {
+    phase: install
     packages: {
         pacman: [age age-plugin-yubikey ccid git-crypt libfido2 openssh pam-u2f pcsclite usbutils yubikey-manager yubikey-personalization]
     }

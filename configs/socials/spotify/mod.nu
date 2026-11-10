@@ -38,11 +38,11 @@ export def link [cfg: record] {
         (exec spotify-prefs [install -D --mode 644 /dev/null $prefs] --creates $prefs)
         (file-copy adblock.js (spicetify-dir | path join Extensions adblock.js))
         (file-copy no-music-videos.js (spicetify-dir | path join Extensions no-music-videos.js))
-        (if $configured { [] } else { step configure })
+        (step configure --done=$configured)
         (desktop-override spotify.desktop {
             $in | str replace --all --regex '(?m)^Exec=spotify ' $"Exec=($env.PWD)/spotify-launch.nu "
         })
-        (if $configured and not (apply-pending) { [] } else { exec spicetify-apply [./hook/spicetify-apply.nu] })
+        (exec spicetify-apply [./hook/spicetify-apply.nu] --done=($configured and not (apply-pending)))
         # --permanent also runs it on every login: an upgrade while logged out fires no path unit
         (user-hook spicetify-apply hook/spicetify-apply.nu --permanent --watch [
             "%h/.config/spotify/prefs" "/opt/spotify/Apps/xpui.spa"
@@ -108,8 +108,7 @@ export def theme [cfg: record, wallpaper: string] {
     let width = $colors.key | str length | math max
     let body = $colors | each { $"($in.key | fill --width $width) = ($in.hex)\n" } | str join
     [
-        (file-text $ini $"[pywal]\n($body)" --generated)
-        (file-text $css (user-css) --generated)
-        (exec spotify-reload [./spotify-reload.nu])
+        (file-text $ini $"[pywal]\n($body)" --generated --then [./spotify-reload.nu])
+        (file-text $css (user-css) --generated --then [./spotify-reload.nu])
     ]
 }

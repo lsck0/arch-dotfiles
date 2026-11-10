@@ -88,17 +88,19 @@ export def link [cfg: record] {
     [
         (exec projects-dir [mkdir -p $root] --creates $root)
         (file-text ($root | path join .directory) $"[Desktop Entry]\nIcon=($ICON)\n")
-        (if (which gio | is-empty) or not ($GVFS_METADATA | path exists) or (($root | path exists) and (icon-set $root)) { [] } else {
-            [(exec projects-icon [gio set $root metadata::custom-icon-name $ICON])]
+        (if (which gio | is-empty) or not ($GVFS_METADATA | path exists) { [] } else {
+            [(exec projects-icon [gio set $root metadata::custom-icon-name $ICON] --done=(($root | path exists) and (icon-set $root)))]
         })
         ($BARE | each {|b| exec $"bare ($b)" [git init --quiet --bare ($root | path join $b)] --creates ($root | path join $b HEAD) })
         ($lines | each {|l| clone $root $l } | flatten)
-        (if ($root | path exists) { collections $root | where $it not-in $marked | each {|d| exec $"bookmark ($d | path basename)" [tms bookmark $d] } } else { [] })
+        (if ($root | path exists) {
+            collections $root | each {|d| exec $"bookmark ($d | path basename)" [tms bookmark $d] --done=($d in $marked) }
+        } else { [] })
         (if ($dotfiles | path join .git | path exists) {
             $DOTFILES_GIT | items {|key, value|
                 let current = ^git -C $dotfiles config --get $key | complete | get stdout | str trim
-                if $current == $value { null } else { exec $"dotfiles ($key)" [git -C $dotfiles config $key $value] }
-            } | compact
+                exec $"dotfiles ($key)" [git -C $dotfiles config $key $value] --done=($current == $value)
+            }
         } else { [] })
     ]
 }

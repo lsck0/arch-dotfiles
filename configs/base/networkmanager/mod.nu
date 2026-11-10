@@ -1,7 +1,11 @@
 use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
 
-export const meta = {packages: {native: [ethtool modemmanager networkmanager wpa_supplicant]}, volatile: true}
+export const meta = {
+    packages: {native: [ethtool modemmanager networkmanager wpa_supplicant]}
+    volatile: true
+    secrets: [home-gateways trusted-gateways]
+}
 
 export const options = {
     untrusted_policy: {

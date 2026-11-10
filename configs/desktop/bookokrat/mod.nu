@@ -24,8 +24,8 @@ export def theme [cfg: record, wallpaper: string] {
     let scheme = open $scheme_file
     let config = open $file
     let current = $config.custom_themes? | default [] | where scheme == $scheme.scheme
-    if $config.theme? == $scheme.scheme and $current == [$scheme] and $config.synctex_editor? == $editor { return [] }
-    step bookokrat-config-merge $file $scheme_file $editor
+    let merged = $config.theme? == $scheme.scheme and $current == [$scheme] and $config.synctex_editor? == $editor
+    step bookokrat-config-merge $file $scheme_file $editor --done=$merged
 }
 
 export def bookokrat-config-merge [file: path, scheme_file: path, synctex_editor: string]: nothing -> nothing {

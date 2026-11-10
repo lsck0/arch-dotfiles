@@ -26,7 +26,7 @@ export def link [cfg: record] {
     let manifests = glob ($p.manifests | path join *.json)
         | where {|m| not ($delisted | path join $"($m | path parse | get stem).delisted" | path exists) }
     [
-        (if ($p.config | path exists) { [] } else { step seed })
+        (step seed --creates $p.config)
         ($manifests | each {|m|
             let name = $m | path parse | get stem
             exec $"dalamud-plugin-($name)" [./plugin-restore.nu $m $p.plugins] --creates ($p.plugins | path join $name) --network

@@ -17,9 +17,11 @@ export def link [cfg: record] {
         # set runs unless the unversioned link already resolves to this version
         let active_matches = ($bin | path join $exe | path expand | str contains $version)
         [
-            (exec $"ghcup-install-($tool)" [$GHCUP install $tool $version] --creates $installed --network)
+            # named by its version: a bump orphans the old install, whose undo removes only that pinned version
+            (exec $"ghcup-install-($tool) ($version)" [$GHCUP install $tool $version] --creates $installed
+                --undo [$GHCUP rm $tool $version] --network)
             # set reads ghcup's metadata over the network, and only after the install landed
-            (if not $active_matches { exec $"ghcup-set-($tool)" [$GHCUP set $tool $version] --requires $installed --network })
-        ] | compact
+            (exec $"ghcup-set-($tool)" [$GHCUP set $tool $version] --done=$active_matches --requires $installed --network)
+        ]
     } | flatten
 }

@@ -8,9 +8,8 @@ const VMNET = "vmnet"
 export def system [cfg: record] {
     if not ("/var/lib/portmaster" | path exists) { return [] }
     let reload = unit-restart portmaster-bypass.service --reload
-    let vmnet_exists = (^getent group $VMNET | complete).exit_code == 0
     [
-        (if not $vmnet_exists { exec $"groupadd ($VMNET)" [groupadd -r $VMNET] })
+        (group-system $VMNET)
         (dropin portmaster.service dotfiles.conf)
         (file-copy config.json /var/lib/portmaster/config.json --then [systemctl try-restart portmaster.service])
         (file-copy portmaster-bypass.nft /etc/nftables.d/portmaster-bypass.nft --then $reload)

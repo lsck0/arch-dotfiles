@@ -63,10 +63,10 @@ dot secrets lock         # Luca's
 
 - `link`: read `$env.DOTFILES/configs/secrets/keys/<file>`, guard with `secret-is-plaintext`, skip with a message when
   locked (`configs/programming/projects/mod.nu`).
-- `system`: never reads `keys/`. `dot apply` streams the files in `SYSTEM_SECRETS` (`scripts/lib/system.nu`, plus this
-  host's `initramfs-ssh/<hostname>/sshkeydir/.ed25519.sk`, its `ssh-host/<hostname>/*` host keys and the platform's
-  `wireguard`) to a tmpfs
-  `$DOTFILES_SECRETS`; read `$DOTFILES_SECRETS/<path relative to keys/>` (a locked file is absent).
+- `system`: never reads `keys/`. `dot apply` streams the files every module names in `meta.secrets` (paths relative to
+  `keys/`, `{host}` this machine's hostname; `system-secrets` in `scripts/lib/system.nu`) and the platform's
+  `wireguard` to a tmpfs `$DOTFILES_SECRETS`; read `$DOTFILES_SECRETS/<path relative to keys/>` (a locked file is
+  absent).
 - State a `backup` verb carries back: guard with `secret-seed-guard <marker> <witness> <label>`
   (`configs/gaming/dalamud/mod.nu`), which fails on live state the repo never seeded.
 
@@ -74,7 +74,7 @@ dot secrets lock         # Luca's
 
 1. Luca unlocks; it goes under `configs/secrets/keys/`. Anywhere else in `configs/secrets/` it is committed in
    plaintext.
-2. A system module needs it: add its path to `SYSTEM_SECRETS`.
+2. A system module needs it: add its path to that module's `meta.secrets`.
 3. `dot sync` commits and pushes (submodule first). Agents never do.
 4. Never write into `configs/secrets/` while locked: a script checks `secret-is-plaintext` on `pgp_privatekey.asc`
    first and stops.

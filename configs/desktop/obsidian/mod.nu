@@ -48,7 +48,7 @@ export def link [cfg: record] {
     [
         (json-merge $config ([(json-set [cli] true)] ++ (if $registered { [] } else { [(json-set [vaults $vault_id] $vault_entry)] })))
         ($REST_SHA256 | items {|file, sha256| fetch-file $"($REST_URL)/($file)" $sha256 ($plugin | path join $file) } | flatten)
-        (if $enabled { [] } else { step plugin-enable $vault })
+        (step plugin-enable $vault --done=$enabled)
         (json-merge $settings ($mint ++ $server) --then [chmod 600 $settings])
         (link-commands obsidian-launch.nu)
         (desktop-override obsidian.desktop { str replace --all --regex '(?m)^Exec=/usr/bin/obsidian' $"Exec=($nu.home-dir)/.local/bin/obsidian-launch" })

@@ -117,7 +117,7 @@ export def link [cfg: record] {
         (file-link . $config)
         (fetch-file $"https://huggingface.co/ggerganov/whisper.cpp/resolve/($WHISPER_MODEL.commit)/($WHISPER_MODEL.file)"
             $WHISPER_MODEL.sha256 (xdg data whisper-cpp $WHISPER_MODEL.file))
-        ...(if ($restore | is-not-empty) or not $linked { [(step prefetch --network --timeout $PREFETCH_TIMEOUT ...$restore)] } else { [] })
+        (step prefetch --done=(($restore | is-empty) and $linked) --network --timeout $PREFETCH_TIMEOUT ...$restore)
     ]
 }
 

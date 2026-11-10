@@ -16,7 +16,7 @@ export def link [cfg: record] {
         (file-render tmux.conf ($dir | path join tmux.conf) {CACHE: (xdg cache)})
         (file-copy popup.nu ($dir | path join popup.nu) --mode 755)
         (file-copy autoreload.nu ($dir | path join autoreload.nu) --mode 755)
-        (if $wanted in $searched { [] } else { step tms-search $projects ($PROJECTS_DEPTH | into string) })
+        (step tms-search $projects ($PROJECTS_DEPTH | into string) --done=($wanted in $searched))
     ]
 }
 

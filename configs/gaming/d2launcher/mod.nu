@@ -125,11 +125,9 @@ export def link [cfg: record] {
         ...($VENDOR_LINKED | each {|d| file-link ($vendor | path join $d) (home-dir | path join $d) })
         ...(wine-fetch-decl)
         # chmod only: syncthing ignores permissions, so this changes no synced content
-        (if (wine-bin-unexecutable | is-empty) { [] } else { step wine-bin-fixup })
-        (if $own and (($seedable and not $seeded) or $game_empty) { step game-seed $base } else { [] })
-        (if $own and ($seedable or $seeded) and not ($game | path join $PATCH_VERSION | path exists) {
-            step mxl-install --network
-        } else { [] })
+        (step wine-bin-fixup --done=(wine-bin-unexecutable | is-empty))
+        (if $own { step game-seed $base --done=(not (($seedable and not $seeded) or $game_empty)) } else { [] })
+        (if $own and ($seedable or $seeded) { step mxl-install --network --creates ($game | path join $PATCH_VERSION) } else { [] })
         (file-text (home-dir | path join d2launcher.conf) (config))
         (file-render gamescope.sh (home-dir | path join gamescope.sh) (gamescope-values $cfg))
         (if $own { d2gl-window-decl $cfg } else { [] })
@@ -155,9 +153,7 @@ def vanilla-decls [cfg: record]: nothing -> list<record> {
     [
         ...(ls $base | get name | each {|f| file-link $f ($game | path join ($f | path basename)) })
         (exec diablo2-prefix [...$env_vars ($wine | path join wineboot) --init] --creates (vanilla-prefix | path join user.reg))
-        (if ($save | path exists) and not (save-path-set (vanilla-prefix) $save) {
-            step save-path (vanilla-prefix) $save
-        } else { [] })
+        (if ($save | path exists) { step save-path (vanilla-prefix) $save --done=(save-path-set (vanilla-prefix) $save) } else { [] })
         (file-render vanilla.sh (vanilla-root | path join diablo2.sh) {game: $game, prefix: (vanilla-prefix), wine: $wine}
             --mode "755")
         (file-text (xdg data applications diablo2.desktop) (vanilla-desktop))
@@ -258,8 +254,8 @@ def d2gl-window-decl [cfg: record]: nothing -> list<record> {
     let text = if ($ini | path exists) { open --raw $ini } else { "" }
     let have = ini-rows $text | where section == Screen and key != null
         | reduce --fold {} {|r, acc| $acc | upsert ($r.key | str trim) ($r.value | str trim) }
-    if ($want.Screen | columns | all {|k| ($have | get --optional $k) == ($want.Screen | get $k) }) { return [] }
-    [(step d2gl-window ($want.Screen.window_width) ($want.Screen.window_height))]
+    let set = $want.Screen | columns | all {|k| ($have | get --optional $k) == ($want.Screen | get $k) }
+    [(step d2gl-window ($want.Screen.window_width) ($want.Screen.window_height) --done=$set)]
 }
 
 export def d2gl-window [width: string, height: string]: nothing -> nothing {
@@ -293,8 +289,8 @@ def wine-desktop-set []: nothing -> bool {
 }
 
 def wine-desktop-decl []: nothing -> list<record> {
-    if not ((wine-bin | path exists) and (wine-desktop-set)) { return [] }
-    [(step wine-desktop-remove)]
+    if not (wine-bin | path exists) { return [] }
+    [(step wine-desktop-remove --done=(not (wine-desktop-set)))]
 }
 
 # Uses the launcher's own wine: the system's would upgrade the prefix.

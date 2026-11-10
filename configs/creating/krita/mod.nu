@@ -10,8 +10,8 @@ def data-dir []: nothing -> path {
 }
 
 export def link [cfg: record] {
-    if (which kritarunner | is-empty) or (data-dir | path join resourcecache.sqlite | path exists) { return [] }
-    step resource-db
+    if (which kritarunner | is-empty) { return [] }
+    step resource-db --creates (data-dir | path join resourcecache.sqlite)
 }
 
 # Prebuilds the resource db krita's first start builds for minutes under its splash; built aside, then moved in.

@@ -34,10 +34,19 @@ export def link [cfg: record] {
         PYTHON: ($root | path join venv bin python), SRC: $src, BASE: $root
         OUTPUT: ($nu.home-dir | path join pictures comfyui), WAIT_READY: ($root | path join comfyui-wait-ready.nu)
     }
+    let venv_key = venv-key
+    # the stamps the steps wrote before they were keyed: venv.stamp, and models/.pins/<sha256> beside each model
+    let venv_stamped = (try { open --raw ($root | path join venv.stamp) | lines | str join " " }) == $venv_key
+    let models = $root | path join models
+    let models_stamped = $MODELS | all {|m|
+        [($models | path join $m.dir $m.file) ($models | path join .pins $m.sha256)] | all { path exists }
+    }
     [
         (fetch-git $COMFYUI_URL $COMFYUI_COMMIT $src)
-        (if (venv-current) { [] } else { step venv --network --timeout 60min --requires ($src | path join main.py) })
-        (if (models-missing | is-empty) { [] } else { step models --network --timeout $MODELS_TIMEOUT })
+        (step venv --network --timeout 60min --requires ($src | path join main.py) --creates $values.PYTHON
+            --key $venv_key --done=$venv_stamped)
+        (step models --network --timeout $MODELS_TIMEOUT --key ($MODELS | get sha256 | str join " ")
+            --done=$models_stamped)
         (file-copy comfyui-wait-ready.nu $values.WAIT_READY --mode 755)
         (file-render comfyui.service (unit-dir | path join comfyui.service) $values --then [
             # try-restart: a restart would start it outside the socket, holding vram with no idle exit
@@ -50,44 +59,27 @@ export def link [cfg: record] {
     ]
 }
 
-# Everything the venv is built from; a venv whose stamp matches is left alone.
-def venv-stamp []: nothing -> string {
-    [$COMFYUI_COMMIT (open --raw pyproject.toml | hash sha256) (open --raw uv.lock | hash sha256)] | str join "\n" | $"($in)\n"
-}
-
-def venv-current []: nothing -> bool {
-    let stamp = root | path join venv.stamp
-    (root | path join venv bin python | path exists) and ($stamp | path exists) and (open --raw $stamp) == (venv-stamp)
+# Everything the venv is built from.
+def venv-key []: nothing -> string {
+    [$COMFYUI_COMMIT (open --raw pyproject.toml | hash sha256) (open --raw uv.lock | hash sha256)] | str join " "
 }
 
 # The venv from uv.lock, exactly: --locked refuses a lock out of date with pyproject.toml, --exact drops strays.
 export def venv []: nothing -> nothing {
     let root = root
-    if (venv-current) { return }
-    let stamp = venv-stamp
-    let stamp_path = $root | path join venv.stamp
     with-env {UV_PROJECT_ENVIRONMENT: ($root | path join venv), UV_PYTHON_INSTALL_DIR: ($root | path join python)} {
         ^uv sync --locked --exact --no-install-project --project $env.PWD
     }
-    $stamp | save --force $stamp_path
+    rm --force ($root | path join venv.stamp)
 }
 
-# The pinned models not yet in place with their stamp.
-def models-missing []: nothing -> list<record> {
-    let dir = root | path join models
-    $MODELS | where {|m| not ($dir | path join $m.dir $m.file | path exists) or not ($dir | path join .pins $m.sha256 | path exists) }
-}
-
-# Each pinned model once: curl resumes a partial .part, and only a file matching its sha256 takes the real name.
+# Each pinned model once: curl resumes a partial .part, and only a file matching its sha256 takes the real name; one
+# already in place is hashed instead of fetched again.
 export def models []: nothing -> nothing {
     let dir = root | path join models
-    let stamps = $dir | path join .pins
-    mkdir $stamps
-    for m in (models-missing) {
+    for m in $MODELS {
         let dest = $dir | path join $m.dir $m.file
-        let stamp = $stamps | path join $m.sha256
-        # a file in place without its stamp (a wiped .pins) is hashed once instead of fetched again
-        if ($dest | path exists) and (^sha256sum $dest | split row " " | first) == $m.sha256 { touch $stamp; continue }
+        if ($dest | path exists) and (^sha256sum $dest | split row " " | first) == $m.sha256 { continue }
         mkdir ($dest | path dirname)
         # named by the pin, so a partial download of an earlier pin is never resumed into this one
         let part = $"($dest).($m.sha256).part"
@@ -99,6 +91,6 @@ export def models []: nothing -> nothing {
             error make {msg: $"comfyui: ($url) is ($got), pinned ($m.sha256); removed"}
         }
         mv --force $part $dest
-        touch $stamp
     }
+    rm --force --recursive ($dir | path join .pins)
 }

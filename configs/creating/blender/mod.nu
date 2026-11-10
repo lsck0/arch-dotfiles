@@ -49,17 +49,23 @@ def generate-pin []: nothing -> string {
     | str join " "
 }
 
+# The pin files the steps wrote before they were keyed; each step removes its own, so a reverted pin cannot match one.
+def stamped [file: path, pin: string]: nothing -> bool {
+    (try { open --raw $file | str trim }) == $pin
+}
+
 export def link [cfg: record] {
     if (which blender uv | length) < 2 { return [] }
-    let installed = try { open --raw (pin-file) | str trim } catch { "" }
-    let addon_installed = try { open --raw (addon-pin-file) | str trim } catch { "" }
-    let generate_installed = try { open --raw (generate-pin-file) | str trim } catch { "" }
+    let pin = pin
+    let addon_pin = addon-pin
+    let generate_pin = generate-pin
     [
         (fetch-git $MCP_URL $MCP_COMMIT (src))
-        (if $installed == (pin) { [] } else { step server-install --network })
+        (step server-install --network --key $pin --done=(stamped (pin-file) $pin)
+            --undo [uv tool uninstall blender-mcp])
         # builds from the fetched tree: while the fetch is pending, so is the add-on
-        (if $addon_installed == (addon-pin) { [] } else { step addon-install --requires (addon-src) })
-        (if $generate_installed == (generate-pin) { [] } else { step generate-install })
+        (step addon-install --requires (addon-src) --key $addon_pin --done=(stamped (addon-pin-file) $addon_pin))
+        (step generate-install --key $generate_pin --done=(stamped (generate-pin-file) $generate_pin))
         (link-commands blender-mcp-bridge.nu)
         (desktop-override blender.desktop {
             let text = $in
@@ -78,7 +84,7 @@ export def link [cfg: record] {
 export def server-install []: nothing -> nothing {
     let pkg = $"blender-mcp @ git+($MCP_URL)@($MCP_COMMIT)#subdirectory=mcp"
     ^uv tool install -q --force ...$INSTALL_FLAGS --constraints ($HERE | path join constraints.txt) $pkg
-    pin | save --force (pin-file)
+    rm --force (pin-file)
 }
 
 def blender-run [args: list<string>]: nothing -> nothing {
@@ -114,7 +120,7 @@ export def addon-install []: nothing -> nothing {
     with-env {BLENDER_MCP_HOST: $MCP_HOST, BLENDER_MCP_PORT: $MCP_PORT} {
         blender-run [-b --python-exit-code 1 --python ($HERE | path join mcp-prefs.py)]
     }
-    addon-pin | save --force (addon-pin-file)
+    rm --force (addon-pin-file)
 }
 
 export def generate-install []: nothing -> nothing {
@@ -126,5 +132,5 @@ export def generate-install []: nothing -> nothing {
         + "bpy.context.preferences.is_dirty = True\nbpy.ops.wm.save_userpref()\n"
     )
     blender-run [-b --python-exit-code 1 --python-expr $enable]
-    generate-pin | save --force (generate-pin-file)
+    rm --force (generate-pin-file)
 }

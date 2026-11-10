@@ -24,7 +24,6 @@ module.exports = class QuickshellVoiceStatus {
     this._commandPath = runtimeDir
       ? runtimeDir + "/quickshell-discord-cmd"
       : null;
-    this._actions = null;
     this._commandPoll = null;
     this._commandWatcher = null;
     this._publishTimer = null;
@@ -174,15 +173,12 @@ module.exports = class QuickshellVoiceStatus {
   }
 
   _runCommand(cmd) {
-    const actions = this._actions || {};
     switch (cmd) {
       case "toggleSelfMute":
-        if (typeof actions.toggleSelfMute === "function")
-          actions.toggleSelfMute();
+        this._toggle("toggleSelfMute", "AUDIO_TOGGLE_SELF_MUTE");
         break;
       case "toggleSelfDeaf":
-        if (typeof actions.toggleSelfDeaf === "function")
-          actions.toggleSelfDeaf();
+        this._toggle("toggleSelfDeaf", "AUDIO_TOGGLE_SELF_DEAF");
         break;
       case "disconnect":
         this._disconnect();
@@ -192,6 +188,31 @@ module.exports = class QuickshellVoiceStatus {
     }
     this._lastPayload = "";
     this._publish();
+  }
+
+  // Looked up per command, not once at start: Discord loads its audio actions lazily and renames their module's keys
+  // between client builds. The flux action is the fallback when no module exposes the function.
+  _toggle(name, fluxType) {
+    const W = BdApi.Webpack;
+    let actions = null;
+    try {
+      actions = W.getModule((m) => m && typeof m[name] === "function", { searchExports: true });
+    } catch (e) {}
+    if (actions) {
+      try {
+        actions[name]();
+        return;
+      } catch (e) {
+        console.error(`[QuickshellVoiceStatus] ${name}() failed`, e);
+      }
+    }
+    try {
+      const dispatcher = W.getModule((m) => m && typeof m.dispatch === "function" && typeof m.subscribe === "function",
+        { searchExports: true });
+      dispatcher.dispatch({ type: fluxType, context: "default", syncRemote: true });
+    } catch (e) {
+      console.error(`[QuickshellVoiceStatus] ${name}: no action module and no dispatcher`, e);
+    }
   }
 
   _disconnect() {
@@ -302,14 +323,6 @@ module.exports = class QuickshellVoiceStatus {
     }
 
     this._stores = this._resolveStores();
-    try {
-      this._actions = BdApi.Webpack.getByKeys(
-        "toggleSelfMute",
-        "toggleSelfDeaf",
-      );
-    } catch (e) {
-      this._actions = null;
-    }
 
     for (const key of ["voice", "speaking", "media", "selected", "rtc"])
       this._subscribe(this._stores[key]);

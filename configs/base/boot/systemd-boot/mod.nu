@@ -1,9 +1,12 @@
 use module.nu *
-use ../boot.nu [ESP CMDLINE esp-supported cmdline-set uki-path]
+use ../boot.nu [ESP CMDLINE BOOT_WATCH esp-supported cmdline-set hooks-sweep uki-path]
+export use ../boot.nu [boot-commit]
 
+# its barrier rebuilds and signs the boot chain once after a system run that changed any of BOOT_WATCH
 export const meta = {
     packages: {native: [amd-ucode intel-ucode kernel-modules-hook linux linux-headers linux-lts linux-lts-headers mkinitcpio]}
     volatile: true
+    barrier: {run: boot-commit, watch: $BOOT_WATCH}
 }
 
 const PRESETS = "/etc/mkinitcpio.d"
@@ -21,6 +24,8 @@ export def system [cfg: record] {
 }
 
 export def install []: nothing -> nothing {
+    # every run, not only the barrier's: a pacman kernel upgrade rebuilds with the HOOKS line as it stands
+    hooks-sweep
     cmdline-set
     let words = open --raw $CMDLINE | str trim | split row " "
     let subvol = (^findmnt -no FSROOT / | str trim) == "/" or ($words | any { $in =~ 'subvol=' })

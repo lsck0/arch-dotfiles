@@ -158,12 +158,17 @@ export def link [cfg: record] {
         (file-render kscreenlockerrc ($config | path join kscreenlockerrc) $values)
         (if $cfg.kwin_outputs == true { file-copy $OUTPUTS ($config | path join $OUTPUTS) } else { [] })
         $dirs
-        (if (xdg data plasma plasmoids $MODERNCLOCK.id | path exists) { [] } else {
-            let src = xdg cache dotfiles modernclock
-            let package = $src | path join package
-            (fetch-git $MODERNCLOCK.url $MODERNCLOCK.commit $src) ++ [(exec $"install ($MODERNCLOCK.id)" [kpackagetool6 -t Plasma/Applet -i $package] --requires $package)]
-        })
+        (modernclock)
     ]
+}
+
+# The checkout is fetched only while the applet is missing: once installed it is no longer read.
+def modernclock []: nothing -> list<record> {
+    let installed = xdg data plasma plasmoids $MODERNCLOCK.id
+    let src = xdg cache dotfiles modernclock
+    let package = $src | path join package
+    let fetch = if ($installed | path exists) { [] } else { fetch-git $MODERNCLOCK.url $MODERNCLOCK.commit $src }
+    $fetch | append (exec $"install ($MODERNCLOCK.id)" [kpackagetool6 -t Plasma/Applet -i $package] --creates $installed --requires $package)
 }
 
 def rgb [hex: string]: nothing -> string {
@@ -230,14 +235,22 @@ def kde-colors [p: record]: nothing -> record {
     }
 }
 
+# A running plasmashell keeps its wallpaper until told.
+export def wallpaper-apply [wallpaper: string]: nothing -> nothing {
+    if not (process-running plasmashell) { return }
+    ^plasma-apply-wallpaperimage $wallpaper
+}
+
+# Running KDE apps (dolphin's daemon) keep their palette until told, and widgets built later inherit it.
+export def palette-notify []: nothing -> nothing {
+    if ($env.DBUS_SESSION_BUS_ADDRESS? | is-empty) { return }
+    ^dbus-send --session --type=signal /KGlobalSettings org.kde.KGlobalSettings.notifyChange int32:0 int32:0
+}
+
 def wallpaper-set [wallpaper: string]: nothing -> list<record> {
     let applets = config-path $APPLETSRC
     if $wallpaper == "" or not ($applets | path exists) { return [] }
-    let running = process-running plasmashell
-    [
-        (ini-merge $applets (wallpaper-values (open --raw $applets) $wallpaper))
-        (if $running { exec plasma-wallpaper [plasma-apply-wallpaperimage $wallpaper] } else { [] })
-    ]
+    [(ini-merge $applets (wallpaper-values (open --raw $applets) $wallpaper) --then (then-step wallpaper-apply $wallpaper))]
 }
 
 # The qt font strings' family and size over the template's: the font beside the palette (core/wallust/font.nu).
@@ -270,13 +283,9 @@ export def theme [cfg: record, wallpaper: string] {
         } else {
             $colors | upsert General.Name pywal
         }
-        file-text $dest (open --raw $f | ini-apply $colors false) --generated
+        file-text $dest (open --raw $f | ini-apply $colors false) --generated --then (then-step palette-notify)
     }
-    # running KDE apps (dolphin's daemon) keep their palette until told, and widgets built later inherit it
-    let notify = if $colors == null or ($env.DBUS_SESSION_BUS_ADDRESS? | is-empty) { [] } else {
-        [(exec kde-palette [dbus-send --session --type=signal /KGlobalSettings org.kde.KGlobalSettings.notifyChange int32:0 int32:0])]
-    }
-    $themed ++ $notify ++ (wallpaper-set $wallpaper)
+    $themed ++ (wallpaper-set $wallpaper)
 }
 
 def themed-keys []: nothing -> list<string> {

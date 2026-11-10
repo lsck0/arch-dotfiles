@@ -9,7 +9,7 @@ export const meta = {deps: [socials/spotify], packages: {pacman: [discord discor
 const BOOTSTRAP = "/usr/share/discord/updater_bootstrap"
 const BOOTSTRAP_TIMEOUT = "900"
 const UPDATES_URL = "https://updates.discord.com/"
-const BOOTSTRAP_RUN = 'app=$(timeout "$1" "$2" --no-zenity "$3" stable "$4") && ln -sfn "$3/$app/Discord" "$3/Discord"'
+const BOOTSTRAP_RUN = 'app=$(timeout "$1" "$2" --no-gui "$3" stable "$4") && ln -sfn "$3/$app/Discord" "$3/Discord"'
 const THEME = "wal.theme.css"
 const VOICE_PLUGIN = "plugins/QuickshellVoiceStatus.plugin.js"
 # name: the plugin's @name, which betterdiscord keys plugins.json by; known before the fetch lands

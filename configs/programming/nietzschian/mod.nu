@@ -13,6 +13,7 @@ def pin []: nothing -> string {
     $"($COMMIT) ($FROZEN)"
 }
 
+# the stamp the install was tracked by before it was recorded: one matching the pin proves it already ran
 def pin-file []: nothing -> path {
     ^uv tool dir | str trim | path join nietzschian-debugger .dotfiles-pin
 }
@@ -20,11 +21,9 @@ def pin-file []: nothing -> path {
 export def link [cfg: record] {
     if (which uv | is-empty) { return [] }
     let installed = try { open --raw (pin-file) | str trim } catch { "" }
-    if $installed == (pin) { return [] }
-    [(step install --network)]
+    [(step install --key (pin) --done=($installed == (pin)) --undo [uv tool uninstall nietzschian-debugger] --network)]
 }
 
 export def install []: nothing -> nothing {
     ^uv tool install -q --force --exclude-newer $FROZEN $"nietzschian-debugger @ git+($URL)@($COMMIT)"
-    pin | save --force (pin-file)
 }

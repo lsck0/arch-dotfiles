@@ -13,9 +13,8 @@ def group-members [group: string]: nothing -> list<string> {
 export def system [cfg: record] {
     if (which nft | is-empty) or $env.FORM_FACTOR? == "wsl" { return [] }
     let reload = unit-restart $UNIT --reload
-    let exists = (^getent group $GROUP | complete).exit_code == 0
     [
-        (if not $exists { exec $"groupadd ($GROUP)" [groupadd -r $GROUP] })
+        (group-system $GROUP)
         # no members: newgrp would hand a member the bypass without asking; games-run asks for the key
         (group-members $GROUP | each {|m| exec $"($GROUP) drops ($m)" [gpasswd -d $m $GROUP] })
         (file-copy games-bypass.nft /etc/nftables.d/games-bypass.nft --then $reload)

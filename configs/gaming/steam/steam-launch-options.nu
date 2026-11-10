@@ -10,7 +10,6 @@ const STEAM_PROCESSES = [steam steamwebhelper]
 const BACKUP_SUFFIX = ".dotfiles-bak"
 const TOKEN = '"(?<s>(?:[^"\\]|\\.)*)"|(?<b>[{}])'
 const SELF = path self
-const STAMP = "steam-launch-options.stamp"
 
 def steam-root []: nothing -> path {
     $env.STEAM_ROOT? | default ($nu.home-dir | path join .local share Steam)
@@ -65,11 +64,6 @@ def vdf-update [pairs: list, path: list<string>, change: closure]: nothing -> li
     }
 }
 
-# Where a full run records the fingerprint it filled the launch options for.
-export def launch-options-stamp []: nothing -> path {
-    $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state) | path join $STAMP
-}
-
 # This script, the logins' localconfig.vdf files and the installed games: a new game or login changes it.
 export def launch-options-fingerprint []: nothing -> string {
     let configs = glob (steam-root | path join userdata "*" config localconfig.vdf) | sort
@@ -116,11 +110,15 @@ def localconfig-process [file: path, installed: list<string>]: nothing -> bool {
     true
 }
 
-def main []: nothing -> nothing {
+# Steam overwrites localconfig.vdf on exit, so a fill while it runs is lost.
+export def steam-open []: nothing -> bool {
     let uid = ^id -u | str trim
-    if ($STEAM_PROCESSES | any {|p| (do { ^pgrep -u $uid -x $p } | complete).exit_code == 0 }) {
-        let why = "it overwrites localconfig.vdf on exit; close Steam and rerun"
-        print --stderr $"steam-launch-options: Steam is open, skipping \(($why)\)"
+    $STEAM_PROCESSES | any {|p| (do { ^pgrep -u $uid -x $p } | complete).exit_code == 0 }
+}
+
+def main []: nothing -> nothing {
+    if (steam-open) {
+        print --stderr "steam-launch-options: Steam is open, skipping (it overwrites localconfig.vdf on exit; close Steam and rerun)"
         return
     }
     let configs = glob (steam-root | path join userdata "*" config localconfig.vdf)
@@ -128,6 +126,4 @@ def main []: nothing -> nothing {
     if ($configs | is-not-empty) and ($installed | is-not-empty) {
         if not ($configs | each { localconfig-process $in $installed } | all { $in }) { exit 1 }
     }
-    mkdir (launch-options-stamp | path dirname)
-    launch-options-fingerprint | save --force (launch-options-stamp)
 }

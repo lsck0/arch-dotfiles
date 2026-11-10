@@ -7,11 +7,11 @@ export use json.nu [json-set json-delete]
 export use secrets.nu [secret-is-plaintext secret-seed-guard owner-unlocked]
 use fetch.nu [fetch-file-done fetch-file-cached fetch-git-done]
 use state.nu [nu-bin LIB_DIR]
-# what a module may read of the engine's state: its records and the root's state paths
-export use state.nu [xdg recorded-hashes SYSTEM_STATE SYSTEM_REPO]
+# what a module may read of the engine's state: its records, the root's state paths, a step's pending exit code
+export use state.nu [xdg recorded-hashes SYSTEM_STATE SYSTEM_REPO EXIT_PENDING]
 use ../../configs/core/wallust/palette.nu [palette-slots]
 
-export const DECL_KEYS = [kind target source content mode generated inplace edits state now argv creates key done undo requires then network timeout]
+export const DECL_KEYS = [kind target source content mode generated inplace edits state now argv creates key done undo requires then notify network timeout]
 export const DECL_KINDS = [file link json ini unit exec step]
 const MODE_FILE = "644"
 const BIN_DIR = ".local/bin"
@@ -22,7 +22,7 @@ const HOOK_BRAKE = "StartLimitIntervalSec=1min\nStartLimitBurst=20\n"
 def decl [kind: string, target: string, fields: record]: nothing -> record {
     {
         kind: $kind target: $target source: null content: null mode: $MODE_FILE generated: false inplace: false edits: []
-        state: null now: false argv: [] creates: null key: null done: false undo: [] requires: null then: [] network: false timeout: null
+        state: null now: false argv: [] creates: null key: null done: false undo: [] requires: null then: [] notify: [] network: false timeout: null
     } | merge $fields
 }
 
@@ -50,20 +50,21 @@ export def unit-dir []: nothing -> path {
 }
 
 # Copies src to dest as a managed file; --then runs once dest changed (a restart, a reload); --in-place as file-text.
-export def file-copy [src: path, dest: path, --mode: string = $MODE_FILE, --in-place, --then: list<string> = []]: nothing -> record {
-    decl file $dest {source: (module-path $src), mode: $mode, inplace: $in_place, then: $then}
+# --notify: the modules whose barrier (meta.barrier) must run when this changed, as a foreign initramfs input does.
+export def file-copy [src: path, dest: path, --mode: string = $MODE_FILE, --in-place, --then: list<string> = [], --notify: list<string> = []]: nothing -> record {
+    decl file $dest {source: (module-path $src), mode: $mode, inplace: $in_place, then: $then, notify: $notify}
 }
 
 # --generated is overwritten without a drift check whenever its module runs; --in-place keeps the inode for watchers.
-export def file-text [dest: path, content: string, --mode: string = $MODE_FILE, --generated, --in-place, --then: list<string> = []]: nothing -> record {
-    decl file $dest {content: $content, mode: $mode, generated: $generated, inplace: $in_place, then: $then}
+export def file-text [dest: path, content: string, --mode: string = $MODE_FILE, --generated, --in-place, --then: list<string> = [], --notify: list<string> = []]: nothing -> record {
+    decl file $dest {content: $content, mode: $mode, generated: $generated, inplace: $in_place, then: $then, notify: $notify}
 }
 
 # Writes src to dest with each @key@ replaced by its value.
-export def file-render [src: path, dest: path, values: record, --mode: string = $MODE_FILE, --generated, --then: list<string> = []]: nothing -> record {
+export def file-render [src: path, dest: path, values: record, --mode: string = $MODE_FILE, --generated, --then: list<string> = [], --notify: list<string> = []]: nothing -> record {
     let text = $values | items {|key, value| {key: $key, value: $value} }
         | reduce --fold (open --raw $src) {|pair, acc| $acc | str replace --all $"@($pair.key)@" ($pair.value | into string) }
-    decl file $dest {content: $text, mode: $mode, generated: $generated, then: $then}
+    decl file $dest {content: $text, mode: $mode, generated: $generated, then: $then, notify: $notify}
 }
 
 # Copies each src into dir under its own name.
@@ -195,8 +196,8 @@ export def unit-mask [name: string, --now]: nothing -> record {
 }
 
 # Copies src as a drop-in into <unit>.d, named --name or its basename.
-export def dropin [unit: string, src: path, --name: string, --then: list<string> = []]: nothing -> record {
-    file-copy $src (unit-dir | path join $"($unit).d" ($name | default ($src | path basename))) --then $then
+export def dropin [unit: string, src: path, --name: string, --then: list<string> = [], --notify: list<string> = []]: nothing -> record {
+    file-copy $src (unit-dir | path join $"($unit).d" ($name | default ($src | path basename))) --then $then --notify $notify
 }
 
 # A user copy of a system .desktop entry passed through edit; nothing when the app is not installed.
@@ -217,11 +218,11 @@ export def desktop-override [id: string, edit: closure]: nothing -> list<record>
 # bound when converge's STEP_TIMEOUT is too short for it; --then: run once it went through, as a file's.
 export def exec [
     name: string, argv: list<string>, --creates: path, --key: string, --done, --undo: list<string> = [], --requires: path
-    --network, --timeout: duration, --then: list<string> = []
+    --network, --timeout: duration, --then: list<string> = [], --notify: list<string> = []
 ]: nothing -> record {
     decl exec $name {
         argv: $argv, creates: $creates, key: $key, done: $done, undo: $undo, requires: $requires, network: $network
-        timeout: $timeout, then: $then
+        timeout: $timeout, then: $then, notify: $notify
     }
 }
 
@@ -229,11 +230,11 @@ export def exec [
 # --done, --undo, --requires, --network and --timeout as exec's.
 export def step [
     command: string, ...args: string, --creates: path, --key: string, --done, --undo: list<string> = [], --requires: path
-    --network, --timeout: duration
+    --network, --timeout: duration, --notify: list<string> = []
 ]: nothing -> record {
     decl step $command {
         argv: $args, creates: $creates, key: $key, done: $done, undo: $undo, requires: $requires, network: $network
-        timeout: $timeout
+        timeout: $timeout, notify: $notify
     }
 }
 
@@ -248,12 +249,13 @@ def --wrapped internal [...args: string]: nothing -> list<string> {
     [(nu-bin) --no-config-file ($env.DOTFILES | path join scripts lib internal.nu)] ++ $args
 }
 
-# Downloads url to dest checked against sha256; --extract an archive member or . for all; --in-place as file-text.
-export def fetch-file [url: string, sha256: string, dest: path, --mode: string = $MODE_FILE, --extract: string, --in-place]: nothing -> list<record> {
+# Downloads url to dest checked against sha256; --extract an archive member or . for all; --in-place as file-text;
+# --timeout: a download too large for STEP_TIMEOUT on a slow mirror.
+export def fetch-file [url: string, sha256: string, dest: path, --mode: string = $MODE_FILE, --extract: string, --in-place, --timeout: duration]: nothing -> list<record> {
     if (fetch-file-done $sha256 $dest) { return [] }
     let extract = if $extract == null { [] } else { [--extract $extract] }
     let in_place = if $in_place { [--in-place] } else { [] }
-    [(exec $"fetch ($dest)" (internal fetch file $url $sha256 $dest --mode $mode ...$extract ...$in_place) --network=(not (fetch-file-cached $sha256)))]
+    [(exec $"fetch ($dest)" (internal fetch file $url $sha256 $dest --mode $mode ...$extract ...$in_place) --network=(not (fetch-file-cached $sha256)) --timeout $timeout)]
 }
 
 # Checks out url at a pinned commit into dir.
@@ -262,16 +264,18 @@ export def fetch-git [url: string, commit: string, dir: path]: nothing -> list<r
     [(exec $"fetch ($dir) at ($commit | str substring 0..11)" (internal fetch git $url $commit $dir) --network)]
 }
 
-# Creates a system group and puts every wheel member in it.
-export def group-admins [group: string]: nothing -> list<record> {
-    let groups = open /etc/group | lines | parse "{name}:{x}:{gid}:{members}"
-    let wheel = $groups | where name == wheel | get --optional 0.members | default "" | split row "," | where $it != ""
-    let have = $groups | where name == $group | get --optional 0
-    let missing = $wheel | where {|m| $have == null or $m not-in ($have.members | split row ",") }
-    (
-        (if $have == null { [(exec $"groupadd ($group)" [groupadd -r $group])] } else { [] })
-        ++ ($missing | each {|m| exec $"($group) gets ($m)" [gpasswd -a $m $group] })
-    )
+# A system group as a sysusers.d file, created by systemd-sysusers (native, idempotent); members: the logins put in it.
+export def group-system [group: string, ...members: string]: nothing -> record {
+    let file = $"/etc/sysusers.d/dotfiles-($group).conf"
+    let lines = [$"g ($group) -"] ++ ($members | each { $"m ($in) ($group)" })
+    file-text $file ($lines | str join "\n" | $"($in)\n") --then [systemd-sysusers $file]
+}
+
+# A system group every wheel member is in.
+export def group-admins [group: string]: nothing -> record {
+    let wheel = open /etc/group | lines | parse "{name}:{x}:{gid}:{members}" | where name == wheel
+        | get --optional 0.members | default "" | split row "," | where $it != ""
+    group-system $group ...$wheel
 }
 
 # Without --permanent it retires once undeclared.

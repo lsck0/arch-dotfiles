@@ -2,11 +2,10 @@
 
 use log.nu *
 use state.nu [SYSTEM_REPO]
-use secrets.nu [secret-is-plaintext SSH_HOST_KEYS]
+use secrets.nu [secret-is-plaintext]
 use modules.nu [modules-discover modules-root-run]
 
 const SYSTEM_PATHS = [configs migrations platforms profiles scripts]
-const SYSTEM_SECRETS = [samba-homelab home-gateways trusted-gateways wifi protonvpn-netns.conf ssh_publickey.asc]
 export const ENTRY = "scripts/lib/system-apply.nu"
 export const SECRETS_PREFIX = "configs/secrets/"
 export const SECRETS_DIGEST = ".secrets-digest"
@@ -61,11 +60,15 @@ export def system-files [checkout: path, which: string]: nothing -> list<string>
     | where {|f| root-reads $f $modules }
 }
 
-# The secrets the system layer may read, relative to configs/secrets/keys/.
-export def system-secrets [wireguard: any]: nothing -> list<string> {
+# The secrets the system layer may read, relative to configs/secrets/keys/: each module's meta.secrets ({host} this
+# machine's name) and the platform's wireguard configs. Never outside keys/.
+export def system-secrets [repo: path, wireguard: any]: nothing -> list<string> {
     let host = sys host | get hostname
-    $SYSTEM_SECRETS | append $"initramfs-ssh/($host)/sshkeydir/.ed25519.sk"
-    | append ($SSH_HOST_KEYS | each { $"ssh-host/($host)/($in)" }) | append $"alloy-($host)" | append ([$wireguard] | flatten | compact | where $it != "")
+    let declared = modules-discover $repo [] | each { $in.meta.secrets? | default [] } | flatten | str replace --all "{host}" $host
+    let names = $declared | append ([$wireguard] | flatten | compact | where $it != "") | uniq
+    let outside = $names | where {|n| ($n | str starts-with "/") or ($n | path split | any { $in == ".." }) }
+    if ($outside | is-not-empty) { error make {msg: $"secrets outside keys/: ($outside | str join ' ')"} }
+    $names
 }
 
 # Refused only when HEAD is behind the copy (no rollback); a copy commit gone from history only warns.
@@ -122,7 +125,7 @@ export def system-archive [checkout: path, wireguard: any]: nothing -> binary {
     let work = mktemp --directory
     system-pack $checkout | save --raw ($work | path join repo.tar)
     let dir = if ($checkout | path join configs secrets keys | path exists) { $checkout | path join configs secrets keys } else { $checkout }
-    let names = system-secrets $wireguard | where {|n| secret-is-plaintext ($dir | path join $n) }
+    let names = system-secrets $checkout $wireguard | where {|n| secret-is-plaintext ($dir | path join $n) }
     $names | str join (char nul) | ^tar -C $dir -c --null -T - -f - | save --raw ($work | path join secrets.tar)
     let out = ^tar -C $work -cf - repo.tar secrets.tar
     rm --recursive --force $work

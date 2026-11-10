@@ -2,6 +2,7 @@ use module.nu *
 
 export const meta = {packages: {pacman: [waydroid]}}
 
+const IMAGE_TIMEOUT = 90min
 const SYSTEM_URL = "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86_64/lineage-20.0-20260927-VANILLA-waydroid_x86_64-system.zip/download"
 const SYSTEM_SHA256 = "053552725bf4ae25e2d3f7e6f1947203294aa9d73dc17fe1f3abe646e5d3bd8a"
 const VENDOR_URL = "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_x86_64/lineage-20.0-20260927-MAINLINE-waydroid_x86_64-vendor.zip/download"
@@ -31,7 +32,8 @@ export def system [cfg: record] {
     let current = try { open --raw ($IMAGES | path join .pins) | str trim } catch { "" }
     let images = if $current == (pins) { [] } else {
         (
-            (fetch-file $SYSTEM_URL $SYSTEM_SHA256 $"($IMAGES).new/system.img" --extract system.img)
+            # about 1 GiB from sourceforge, slower than STEP_TIMEOUT allows on a throttled mirror
+            (fetch-file $SYSTEM_URL $SYSTEM_SHA256 $"($IMAGES).new/system.img" --extract system.img --timeout $IMAGE_TIMEOUT)
             ++ (fetch-file $VENDOR_URL $VENDOR_SHA256 $"($IMAGES).new/vendor.img" --extract vendor.img)
             ++ [(step images-swap)]
         )

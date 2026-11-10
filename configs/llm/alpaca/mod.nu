@@ -33,8 +33,9 @@ export def link [cfg: record] {
     if (^flatpak info $APP | complete).exit_code != 0 { return [] }
     # without a gpu share llm/vllm installs nothing, so no instance points at its port
     let vllm = $cfg.deps."llm/vllm"
+    let vllm_model = if $vllm.gpu_memory_utilization? == null { "" } else { $vllm.model | default "" }
     [
-        (seed-decl (if $vllm.gpu_memory_utilization? == null { "" } else { $vllm.model | default "" }))
+        (step seed $vllm_model --done=(seeded $vllm_model))
         (fetch-file $WHISPER_URL $WHISPER.sha256 (db | path dirname | path join whisper $"($WHISPER.name).pt"))
         (ini-merge ($nu.home-dir | path join .var app $APP config glib-2.0 settings keyfile)
             {"com/jeffser/Alpaca": {stt-model: ($WHISPER.index | into string)}})
@@ -48,13 +49,13 @@ def ollama-instance []: nothing -> record {
     }
 }
 
-# The seed step only while the database lacks a value it forces; read only, Alpaca may hold it open.
-def seed-decl [vllm_model: string]: nothing -> list<record> {
+# Whether the database holds every value the seed forces; read only, Alpaca may hold it open.
+def seeded [vllm_model: string]: nothing -> bool {
     let query = "SELECT i.id, i.properties, l.list FROM instance i LEFT JOIN online_instance_model_list l ON l.id = i.id WHERE i.id LIKE 'dotfiles-%'"
     let found = if not (db | path exists) { null } else {
         try { ^sqlite3 -readonly -json (db) $query | from json | default [] } catch { null }
     }
-    if $found == null { return [(step seed $vllm_model)] }
+    if $found == null { return false }
     let rows = $found | each {|r| $r | update properties { from json } }
     let ollama = $rows | where id == dotfiles-ollama | get --optional 0.properties
     let wanted = ollama-instance | select url api num_ctx keep_alive default_model
@@ -64,7 +65,7 @@ def seed-decl [vllm_model: string]: nothing -> list<record> {
         let listed = $vllm.list? | default "[]" | from json
         $vllm != null and $vllm.properties.default_model? == $vllm_model and $vllm.properties.title_model? == $vllm_model and $vllm_model in $listed
     }
-    if $ollama_set and $vllm_set { [] } else { [(step seed $vllm_model)] }
+    $ollama_set and $vllm_set
 }
 
 export def seed [vllm_model: string]: nothing -> nothing {

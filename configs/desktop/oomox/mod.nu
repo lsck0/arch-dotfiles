@@ -33,10 +33,7 @@ export def theme [cfg: record, wallpaper: string] {
         | merge {GTK3_GENERATE_DARK: (if ($bg | is-light) { "False" } else { "True" }), ROUNDNESS: $RADIUS_PX, SPACING: 3, GRADIENT: "0.0"}
     let order = [NAME BG FG MENU_BG MENU_FG SEL_BG SEL_FG TXT_BG TXT_FG BTN_BG BTN_FG HDR_BTN_BG HDR_BTN_FG GTK3_GENERATE_DARK ROUNDNESS SPACING GRADIENT]
     let text = $order | each {|k| $"($k)=($values | get $k)" } | str join "\n"
-    [
-        (file-text (xdg cache $COLORS) $"($text)\n" --generated)
-        (step themix-export)
-    ]
+    [(file-text (xdg cache $COLORS) $"($text)\n" --generated --then (then-step themix-export))]
 }
 
 # Exports the gtk themes from the wallust colors, always under Xvfb: themix cannot init gtk headless, and on the

@@ -27,14 +27,14 @@ export def link [cfg: record] {
     let release = ^gimp --version | parse --regex '(?<v>\d+\.\d+\.\d+)' | get 0.v
     let version = $release | split row "." | first 2 | str join "."
     let config = xdg config GIMP $version
-    if ($config | path join $".photogimp-($PHOTOGIMP_VERSION)" | path exists) {
-        return (if (welcome-seen-done $config $release) { [] } else { step welcome-seen $config $release })
-    }
+    # the seed's stamp from before it was keyed, its --done; the seed removes it
+    let stamp = $config | path join $".photogimp-($PHOTOGIMP_VERSION)"
     [
         (fetch-file $PHOTOGIMP_URL $PHOTOGIMP_SHA256 (unpacked) --extract .)
-        # the seed copies out of the download: run before it landed, it would mark gimp seeded with nothing copied
-        (step seed $config $version --requires (unpacked | path join PhotoGIMP-linux))
-        (step welcome-seen $config $release)
+        # once per PhotoGIMP release and gimp config dir; run before the download landed, it would copy nothing
+        (step seed $config $version $release --requires (unpacked | path join PhotoGIMP-linux)
+            --key $"($PHOTOGIMP_VERSION) ($version)" --done=($stamp | path exists))
+        (step welcome-seen $config $release --done=(welcome-seen-done $config $release))
     ]
 }
 
@@ -57,8 +57,9 @@ def migrate [dir: path]: nothing -> nothing {
     }
 }
 
-# only the gimp config: the release's .desktop runs the flatpak. a file of gimp's own it replaces is preserved first
-export def seed [config: path, version: string]: nothing -> nothing {
+# only the gimp config: the release's .desktop runs the flatpak. a file of gimp's own it replaces is preserved first;
+# PhotoGIMP's gimprc brings the welcome dialog back, so it is turned off again here
+export def seed [config: path, version: string, release: string]: nothing -> nothing {
     let src = unpacked | path join PhotoGIMP-linux .config GIMP "3.0"
     if $version != "3.0" { migrate $src }
     for file in (glob ($src | path join **/*) --no-dir) {
@@ -69,5 +70,6 @@ export def seed [config: path, version: string]: nothing -> nothing {
         mkdir ($dest | path dirname)
         cp --force $file $dest
     }
-    touch ($config | path join $".photogimp-($PHOTOGIMP_VERSION)")
+    welcome-seen $config $release
+    rm --force ($config | path join $".photogimp-($PHOTOGIMP_VERSION)")
 }

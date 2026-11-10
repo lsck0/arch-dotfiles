@@ -6,7 +6,7 @@ use platform.nu [platform-load platform-env]
 use profile.nu [profile-load]
 use options.nu [options-resolve]
 use modules.nu [modules-discover modules-graph modules-eval modules-packages-each modules-root-run]
-use converge.nu [state-read observe recorded-hashes decls-check plan-module apply-module state-write mode-normal]
+use converge.nu [state-read state-path observe recorded-hashes decls-check plan-module apply-module state-write mode-normal]
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use cause.nu [failure-line cause-from-error cause-text]
 
@@ -32,6 +32,8 @@ const IMPORT_GREP = '^\s*(export\s+)?(use|source|source-env)\s+\.{1,2}/\S+\.nu'
 const GLOB_META = '[*?\[{]'
 # a hung theme verb is killed after this; the run goes on
 export const THEME_VERB_TIMEOUT = 60sec
+# the outcomes that changed something a barrier watches for
+const BARRIER_KINDS = [create update record merge remove undo exec step]
 
 def eval-env [ctx: record]: nothing -> record {
     platform-env $ctx.platform | merge {DOT_LAYER: $ctx.layer, DOTFILES: $ctx.repo}
@@ -356,6 +358,12 @@ def module-gone-row [ctx: record, id: string, verb: string, force: bool, claimed
     }
 }
 
+# The installed version of each named package; a group or a package not installed has none.
+def package-versions [names: list<string>]: nothing -> record {
+    if ($names | is-empty) or (which pacman | is-empty) { return {} }
+    ^pacman -Q ...$names | complete | get stdout | lines | parse "{name} {version}" | reduce --fold {} {|p, acc| $acc | insert $p.name $p.version }
+}
+
 # Unchanged modules are skipped unevaluated; a disabled one plans its removals, as does one gone from the repo. A link
 # or system verb whose module's packages are not installed is planned pending (--packages-unchecked: the install
 # pass's base/pacman, run before them). --revert-all plans the disabled and gone modules' removals even for a list of ids
@@ -397,8 +405,11 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     # a shared import (the wallust palette) is hashed once, not once per module importing it
     let import_hashes = $imports | get files | flatten | uniq | reduce --fold {} {|f, acc| $acc | insert $f (open --raw $f | hash sha256) }
     let imports_by = $imports | reduce --fold {} {|i, acc| $acc | insert $i.id $i.files }
+    # a package upgrade re-evaluates the modules declaring it: one query for every module's own packages
+    let versions = span versions {} { package-versions ($olds | each {|o| $o.m.meta.packages.pacman ++ $o.m.meta.packages.native } | flatten | uniq) }
     let natives = span inputs {} { $olds | par-each --keep-order {|o|
         let m = $o.m
+        let packaged = $m.meta.packages.pacman ++ $m.meta.packages.native | each {|n| $"($n) ($versions | get --optional $n)" } | str join "\n"
         let prev = $o.prev
         let outside = $o.outside
         # most modules have no outside outputs and no imports: skip their closures, each costs (l-dotfiles-live-debug)
@@ -406,7 +417,7 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
         let imports = $imports_by | get $m.id
         let imported = if ($imports | is-empty) { "" } else { $imports | each {|f| $"($f) ($import_hashes | get $f)" } | str join "\n" }
         let sources = if ($outside | is-empty) { [] } else { $outside | where kind == file | get source }
-        let input = [$global ($stamped | get $m.dir) $imported ($m.cfg | to nuon) (stat $ctx.repo ($m.meta.inputs? | default [])) (stat $ctx.repo $sources) $links] | str join "\n" | hash sha256
+        let input = [$global ($stamped | get $m.dir) $imported ($m.cfg | to nuon) (stat $ctx.repo ($m.meta.inputs? | default [])) (stat $ctx.repo $sources) $links $packaged] | str join "\n" | hash sha256
         {id: $m.id, prev: $prev, input: $input, volatile: ($m.meta.volatile? | default false)}
     } }
     let prev_targets = $natives | reduce --fold [] {|n, acc| $acc ++ $n.prev.outputs }
@@ -629,4 +640,35 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
     # a killed job may still be between actions and must keep seeing its marker
     if $cancel_dir != "" and not $killed { rm --recursive --force $cancel_dir }
     $results
+}
+
+# The content of a barrier's watched paths: every file under each, unreadable ones by name only.
+def watch-hash [paths: list<string>]: nothing -> string {
+    $paths | each {|p| if $p =~ $GLOB_META { glob $p } else if ($p | path exists) { [$p] } else { [] } } | flatten
+    | each {|p| if ($p | path type) == dir { glob ($p | path join "**/*") --no-dir } else { [$p] } } | flatten | uniq | sort
+    | each {|f| $"($f) (try { open --raw $f | hash sha256 } catch { "unreadable" })" } | str join "\n" | hash sha256
+}
+
+# Each enabled module's barrier (meta.barrier: {run: <its export>, watch: [paths]}), once after a layer's apply when
+# an action of the run notified it, its watched paths changed since it last ran, its last run failed or force. The
+# record keeps the hash after the run, so what the barrier writes itself is no change, and when it last went through.
+export def barriers-run [ctx: record, results: list<record>, force: bool]: nothing -> list<record> {
+    let notified = $results | get --optional outcomes | default [] | flatten
+        | where {|o| $o.ok and $o.pending? == null and $o.kind in $BARRIER_KINDS } | each { $in.decl.notify? | default [] } | flatten | uniq
+    $ctx.modules | where {|m| $m.cfg.enable and not $m.broken and $m.meta.barrier? != null } | each {|m|
+        let file = state-path $m.id barrier
+        let last = try { open $file } catch { null }
+        let watch = $m.meta.barrier.watch? | default []
+        let dirty = $force or $last == null or not $last.ok or $last.hash != (watch-hash $watch) or $m.id in $notified
+        if not $dirty { return {id: $m.id, ran: false, ok: true, error: null} }
+        let decl = {kind: step, target: $m.meta.barrier.run, argv: [], timeout: null, requires: null, network: false, then: [], notify: []}
+        let action = {module: $m.id, kind: step, target: $m.meta.barrier.run, reason: "barrier", decl: $decl, before: null, after: null}
+        let outcome = with-env (platform-env $ctx.platform) { apply-module [$action] $m.dir (scope-of $ctx.layer) } | first
+        mkdir ($file | path dirname)
+        {
+            hash: (watch-hash $watch), ok: ($outcome.ok and $outcome.pending == null), run: ($env.DOT_RUN_ID? | default "")
+            built: (if $outcome.ok and $outcome.pending == null { date now | format date "%+" } else { $last.built? })
+        } | to nuon | save --force $file
+        {id: $m.id, ran: true, ok: ($outcome.ok and $outcome.pending == null), error: ($outcome.error | default $outcome.pending)}
+    }
 }

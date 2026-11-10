@@ -3,7 +3,7 @@
 
 use log.nu *
 use state.nu [SYSTEM_REPO SYSTEM_STATE EXIT_ABORTED EXIT_PENDING INSTALL_PASS_FILE]
-use pipeline.nu [pipeline-load pipeline-plan pipeline-apply pending-save]
+use pipeline.nu [pipeline-load pipeline-plan pipeline-apply pending-save barriers-run]
 use modules.nu [modules-packages]
 use ledger.nu [packages-convergence ledger-set ledger-packages ledger-units]
 use preserve.nu [tty-confirm preserve-prune]
@@ -24,8 +24,6 @@ const DOWNLOAD_BACKOFF_MAX = 1min
 const DOWNLOAD_ERRORS = '(?i)failed retrieving file|failed to retrieve some files|failed to synchronize|could not resolve|returned error: (403|429|5\d\d)|timed? ?out|too slow|connection (refused|reset)|could not connect|network is unreachable'
 const LSCK0_DB = "/var/lib/pacman/sync/lsck0.db"
 const PACMAN_LOCK = "/var/lib/pacman/db.lck"
-const PACMAN_MODULE = "base/pacman"
-const YUBIKEY_MODULE = "base/yubikey"
 const ADDUSER_BIN = "/usr/local/bin/adduser-dotfiles"
 const NOT_ON_MIRROR = "not on the mirror"
 
@@ -142,6 +140,12 @@ export def packages-resolve [targets: list<string>, probe: closure]: nothing -> 
 }
 
 # --packages-unchecked: runs even before the module's packages are installed (base/pacman, ahead of the install pass).
+# The modules of an install-stage role (meta.phase): early runs before the install pass with packages unchecked
+# (pacman.conf, the mirror's key) and again after it, never in config; install runs again after the pass.
+def phase-ids [ctx: record, phase: string]: nothing -> list<string> {
+    $ctx.modules | where {|m| $m.meta.phase? == $phase and $m.cfg.enable and not $m.broken } | get id
+}
+
 def module-system [ctx: record, id: string, --packages-unchecked]: nothing -> bool {
     let planned = pipeline-plan $ctx system [$id] false --packages-unchecked=$packages_unchecked
     let results = pipeline-apply $ctx $planned system 1
@@ -193,7 +197,7 @@ def "main install" [--unattended, --yes]: nothing -> nothing {
     if $offline { log-warn $"still offline after ($OFFLINE_WAIT_S)s" }
     let ctx = pipeline-load $repo system
     # pipeline-apply records the failure itself
-    if not (module-system $ctx $PACMAN_MODULE --packages-unchecked) { exit $EXIT_ABORTED }
+    for id in (phase-ids $ctx early) { if not (module-system $ctx $id --packages-unchecked) { exit $EXIT_ABORTED } }
     # a power cut mid-transaction leaves the lock, and every retry boot would fail on it
     if ($PACMAN_LOCK | path exists) and (^pgrep -x pacman | complete).exit_code != 0 { rm --force $PACMAN_LOCK }
     let declared = modules-packages $repo $ctx.modules $ctx.platform
@@ -232,8 +236,7 @@ def "main install" [--unattended, --yes]: nothing -> nothing {
     }
     # again now its packages are in: config leaves base/pacman out, so what its inputs gate (pacman-contrib's timer)
     # is planned here or not until the next install pass; unchanged inputs skip it
-    module-system $ctx $PACMAN_MODULE | ignore
-    module-system $ctx $YUBIKEY_MODULE | ignore
+    for id in ((phase-ids $ctx early) ++ (phase-ids $ctx install)) { module-system $ctx $id | ignore }
     failures-end install
 }
 
@@ -247,16 +250,16 @@ def "main config" [--unattended, --force]: nothing -> nothing {
     migrations-run $repo system | ignore
     let ctx = pipeline-load $repo system
     let secrets = mktemp --directory --tmpdir-path /run
-    let waiting = try {
+    let run = try {
         ^tar -x --no-same-owner --no-same-permissions -C $secrets -f -
-        let allowed = system-secrets $ctx.platform.facts.wireguard?
+        let allowed = system-secrets $repo $ctx.platform.facts.wireguard?
         ^find $secrets -mindepth 1 ! -type d -print0 | split row (char nul) | where $it != ""
         | where {|f| ($f | path type) != "file" or ($f | path relative-to $secrets) not-in $allowed } | each { rm --force $in } | ignore
         $env.DOTFILES_SECRETS = $secrets
-        let planned = pipeline-plan $ctx system [] $force | where id != $PACMAN_MODULE
+        let planned = pipeline-plan $ctx system [] $force | where id not-in (phase-ids $ctx early)
         let results = pipeline-apply $ctx $planned system 1
         pending-save $planned.id $results --full
-        $results | any { $in.pending? != null }
+        {results: $results, waiting: ($results | any { $in.pending? != null })}
     } catch {|e|
         rm --recursive --force $secrets
         error make $e
@@ -267,9 +270,9 @@ def "main config" [--unattended, --force]: nothing -> nothing {
     ^chmod 755 $ADDUSER_BIN
     try { ledger-units $repo ($ctx.modules | where cfg.enable | get dir) system | ignore } catch {|e| fail $"ledger: disabling dropped units: ($e.msg)" }
     # last, so every initramfs and cmdline change of this run is rebuilt once, then signed and verified
-    try { ^/usr/bin/nu --no-config-file -I ($repo | path join scripts lib) -c $"use ($repo | path join configs base boot boot.nu) [boot-commit]; boot-commit" } catch { fail "boot barrier (configs/base/boot/boot.nu boot-commit)" }
+    for b in (barriers-run $ctx $run.results $force | where not ok) { fail $"barrier of ($b.id): ($b.error)" }
     failures-end config
-    if $waiting { exit $EXIT_PENDING }
+    if $run.waiting { exit $EXIT_PENDING }
 }
 
 # remove explicit packages no module declares, after a yes

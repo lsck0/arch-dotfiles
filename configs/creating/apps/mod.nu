@@ -38,8 +38,10 @@ export def link [cfg: record] {
         })
         (if (which lmms | is-empty) { [] } else {
             let workdir = ^xdg-user-dir DOCUMENTS | str trim | path join lmms
-            [(exec lmms-workdir [mkdir -p $workdir] --creates $workdir)]
-            | append (if (lmms-rc | lmms-has-workdir) { [] } else { [(step lmms-paths $workdir)] })
+            [
+                (exec lmms-workdir [mkdir -p $workdir] --creates $workdir)
+                (step lmms-paths $workdir --done=(lmms-rc | lmms-has-workdir))
+            ]
         })
     ]
 }
@@ -58,7 +60,6 @@ def lmms-has-workdir []: record -> bool {
 export def lmms-paths [workdir: string]: nothing -> nothing {
     let rc = xdg config lmms lmmsrc.xml
     let doc = lmms-rc
-    if ($doc | lmms-has-workdir) { return }
     let dir = $"($workdir)/"
     let content = if ($doc.content | any {|e| $e.tag? == paths }) {
         $doc.content | each {|e| if $e.tag? == paths { $e | upsert attributes.workingdir $dir } else { $e } }

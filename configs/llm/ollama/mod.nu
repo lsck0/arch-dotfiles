@@ -15,12 +15,12 @@ export def link [cfg: record] {
     let script = open --raw ($env.PWD | path join ollama-ensure-models.nu) | hash sha256
     let pins = [$SMALL.pin $LARGE.pin $EMBEDDING.pin $CODING.pin $LONG_CONTEXT $LONG_CONTEXT_TOKENS $script] | str join "\n"
         | hash sha256 | str substring 0..<12
-    let stamp = xdg state ollama-models $pins
     [
         (link-commands ollama-ensure-models.nu)
         (if (gpu-list | where vram > 0b | is-empty) { [] } else {
-            exec ollama-models [sh -c 'nu --no-config-file "$1" && mkdir -p "${0%/*}" && touch "$0"' $stamp
-                ($env.PWD | path join ollama-ensure-models.nu)] --creates $stamp --network --timeout $MODELS_TIMEOUT
+            # --done: the stamp it touched under $XDG_STATE_HOME/ollama-models before it was keyed
+            (exec ollama-models [nu --no-config-file ($env.PWD | path join ollama-ensure-models.nu)] --key $pins
+                --done=(xdg state ollama-models $pins | path exists) --network --timeout $MODELS_TIMEOUT)
         })
     ]
 }
