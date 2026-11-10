@@ -46,7 +46,9 @@ const LUKS_OPEN = [--allow-discards --perf-no_read_workqueue --perf-no_write_wor
 const PACSTRAP = [base linux linux-firmware kernel-modules-hook mkinitcpio btrfs-progs cryptsetup binutils networkmanager sudo git zsh zram-generator libfido2 nushell]
 const HOOKS = [base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck]
 const CMDLINE_TAIL = "rw zswap.enabled=0 nmi_watchdog=0 slab_nomerge init_on_alloc=1 init_on_free=1 randomize_kstack_offset=on vsyscall=none page_alloc.shuffle=1"
-const SECRETS_TOOLS = [age age-plugin-yubikey git-crypt pcsclite ccid libfido2 yubikey-manager]
+# openssl, openssl-3 and openssh ride along: -Sy on an older iso pulls a libfido2 built against libcrypto.so.4, so
+# ssh-sk-helper fails to load until openssl is current, and openssl-3 keeps the iso's own libcrypto.so.3 users working.
+const SECRETS_TOOLS = [age age-plugin-yubikey git-crypt pcsclite ccid libfido2 yubikey-manager openssl openssl-3 openssh]
 const STAGE_KEY_BYTES = 64
 const ISO_LOG_TARGET = "/var/log/lsck0-install.log"
 const SETUP_MODE_VAR = "/sys/firmware/efi/efivars/SetupMode-8be4df61-93ca-11d2-aa0d-00e098032b8c"
