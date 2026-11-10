@@ -1,4 +1,5 @@
 use module.nu *
+use ../../base/xdg/mod.nu [user-dir]
 use ini.nu [ini-rows]
 
 export const meta = {
@@ -125,7 +126,7 @@ def obs-dir []: nothing -> path {
 }
 
 def videos-dir []: nothing -> path {
-    try { ^xdg-user-dir VIDEOS | str trim } catch { $nu.home-dir | path join videos }
+    user-dir VIDEOS
 }
 
 def canvas-size [cfg: record]: nothing -> record {

@@ -26,6 +26,16 @@ export def pam-env []: nothing -> nothing {
 }
 
 const DIRS = [desktop documents downloads music pictures videos sync vault]
+const USER_DIRS = path self user-dirs.dirs
+
+# A dir user-dirs.dirs names (DOCUMENTS, VIDEOS, ...), read from the repo: xdg-user-dir answers $HOME until this
+# module's copy lands, and a fresh install's first run plans every module before it applies any.
+export def user-dir [name: string]: nothing -> path {
+    let pattern = '^XDG_' + $name + '_DIR="\$HOME/(?<dir>.*)"$'
+    let dir = open --raw $USER_DIRS | lines | parse --regex $pattern | get --optional 0.dir
+    if $dir == null { error make {msg: $"xdg: user-dirs.dirs names no XDG_($name)_DIR under $HOME"} }
+    $nu.home-dir | path join $dir
+}
 const CAPITALIZED = [Desktop Documents Downloads Music Pictures Projects Public Templates Videos]
 
 const RECLAIM = [
