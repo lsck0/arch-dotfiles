@@ -186,7 +186,11 @@ autocmd("FileType", {
 local function no_secret_history()
     vim.opt_local.undofile = false
     vim.opt_local.swapfile = false
-    vim.opt.shada:prepend("<0")
+    -- gpg.nvim empties shada after a .gpg read, and a lone "<0" is invalid (E528); "<0" also must not stack
+    local shada = vim.o.shada
+    if shada ~= "" and not shada:match("^<0,") then
+        vim.opt.shada:prepend("<0")
+    end
 end
 local secret_history = group("no-secret-history", { clear = true })
 autocmd({ "BufReadPre", "BufNewFile" }, {
