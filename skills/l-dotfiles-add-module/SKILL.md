@@ -81,8 +81,9 @@ export def packages [cfg: record]: nothing -> record {
   everything else is a plain `def` (lint checks). A helper a unit, toggle or keybind runs is a script in the module
   dir, installed with `link-commands` or `files-into`.
 - Each verb takes the resolved options (`enable` always present) and returns declarations (nested lists fine).
-- A disabled module (option off, group gone) declares nothing on the next full run, so its files, links and units go.
-  What a `step` or `exec` did is not recorded and stays: declare anything that must go with the module.
+- A disabled module (option off, group gone) declares nothing on the next full run, so its files, links and units go,
+  and each recorded `exec` or `step` runs its `--undo`. A plain one (no `--creates`, `--key`, `--done` or `--undo`) is
+  not recorded: it runs on every evaluation and what it did stays.
 - Hooks (`HOOKS`): `detect` fills options platform and profile left null (a failure only warns); `packages` adds a
   `{pacman, native, flatpak, nix}` part.
 - Declarations (`scripts/lib/module.nu`):
@@ -96,7 +97,19 @@ export def packages [cfg: record]: nothing -> record {
   - units: `unit-file <src> [--enable --now]`, `unit-enable|unit-disable|unit-mask <name> [--now]`,
     `unit-restart <name> [--reload]` (a `--then` that skips a unit not installed yet), `dropin <unit> <src> [--name]`,
     `user-hook <name> <script> --watch [paths] [--permanent] [--no-brake] [--mkdir]`.
-  - other: `exec <name> [argv] [--creates path]`, `step <command> [args]` (an own export, run at apply time),
+  - actions: `exec <name> [argv]`, `step <command> [args]` (an own export, run at apply time). Either is recorded
+    with any of `--creates <path>`, `--key <string>` (it runs again when the key differs from the one it last ran
+    with: a version, a hash the module already computes), `--done` (an eval-time "already so", e.g.
+    `--done=($ref == $COMMIT)`) or `--undo [argv]` (run from the state dir, before the module's other actions, once
+    the verb no longer returns it: the module off or gone, but also a verb that returns `[]` on a passing condition,
+    so an action with an undo is never left out on secrets locked; an undo whose command is gone counts as done).
+    Never a stamp file of its own. Name an action by its version
+    (`exec $"flux-toolchain ($channel)" ... --undo [rustup toolchain uninstall $channel]`) and a bump replaces it: the
+    old name's undo runs first. `exec --then [argv]` runs after it went through.
+  - reactions: a `--then` runs once per module run after every action, however many declarations carry the same
+    argv; it fails all of them when it fails, so they retry. `then-step <command> [args]` is the argv running one of the
+    module's own exports, for a reload with its own checks (`desktop/hyprland`).
+  - other:
     `fetch-file <url> <sha256> <dest> [--extract <member>]`, `fetch-git <url> <commit> <dir>`, `group-admins <group>`,
     `palette-load` (for `theme`). An exec or step that downloads takes `--network`: offline (an HTTPS probe as the
     user, once per run), or failing on the remote's 5xx, 429 or an unresolvable name, it is pending and runs on the
@@ -104,6 +117,9 @@ export def packages [cfg: record]: nothing -> record {
     tree, the image): while the path is missing it is pending instead of failing. Each is killed with its
     whole tree after 20min (`--timeout <duration>` for longer), a `--then` after 5min, a verb's evaluation after 2min.
 - Evaluation never touches the network: a verb or hook only reads local state; downloads go in a step or exec.
+- A mod.nu takes the engine from module.nu only (lint: `ENGINE_INTERNAL` in `scripts/lib/gate.nu`); it also exports
+  `recorded-hashes` (what dot last wrote per path) and the root's `SYSTEM_STATE`/`SYSTEM_REPO`. A module reading
+  another's options names it in `meta.reads` (no ordering) or `meta.deps` (runs after it, theme pass included).
 - Helpers: `xdg config|data|cache|state ...parts`, `unit-dir`, `process-running <name>` (gate a reload in `theme`),
   `desktop-set {Key: v}` (in a `desktop-override` closure). The user layer already has `configs/base/xdg/app-dirs.conf`
   loaded; don't copy those variables into a module.

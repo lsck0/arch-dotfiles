@@ -259,14 +259,6 @@ def platform-lua [cfg: record]: nothing -> string {
     $"return (lua-from $facts)\n"
 }
 
-# Whether a declared file differs from disk: hyprland's own reload on the write drops the shader, so reload follows.
-def files-changed [decls: list<record>]: nothing -> bool {
-    $decls | where kind == file | any {|d|
-        let want = if $d.content != null { $d.content } else { open --raw $d.source }
-        not ($d.target | path exists) or (open --raw $d.target) != $want
-    }
-}
-
 # Tab strip and title bars: the theme's background, the focused tab one shade off, text raised to TEXT_RATIO on each.
 def bar-colors []: nothing -> record {
     let slot = wal-load "hyprland bars"
@@ -305,6 +297,9 @@ export def link [cfg: record] {
         # read by quickshell-lock-launch.nu on every lock
         (file-text ($dir | path join locker) $"($cfg.lock_screen)\n" --generated)
     ] | decls-flatten
+    # hyprland's own reload on a write drops the shader: one reload after every changed file restores it
+    let reload = then-step reload
+    let files = $files | each {|d| if $d.kind == file { $d | merge {then: $reload} } else { $d } }
     let build = plugins-missing | is-not-empty
     let live = hyprland-live
     [
@@ -312,7 +307,6 @@ export def link [cfg: record] {
         # offline only the build waits: plugins built earlier still load
         (if $build { [(step plugins-build --network)] } else { [] })
         (if $build or ($live and (plugins-unloaded | is-not-empty)) { step plugins-load } else { [] })
-        (if $live and (files-changed $files) { step reload } else { [] })
     ]
 }
 

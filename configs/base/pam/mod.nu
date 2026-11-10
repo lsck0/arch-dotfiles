@@ -1,5 +1,4 @@
 use module.nu *
-use state.nu [SYSTEM_REPO]
 use system.nu [ENTRY]
 use ../fprintd/mod.nu [validity-sensor-ids]
 

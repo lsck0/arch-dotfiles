@@ -1,5 +1,4 @@
 use module.nu *
-use converge.nu [state-read]
 
 # openvpn is kept for manual client use (connecting out over third-party ovpn configs); no module wires it
 export const meta = {packages: {pacman: [openvpn wireguard-tools]}, volatile: true}
@@ -24,6 +23,6 @@ export def system [cfg: record] {
 
 def placed-unchanged []: nothing -> bool {
     if not ($CONF | path exists) { return false }
-    let recorded = state-read base/wireguard system | get outputs | where target == $CONF | get --optional 0.hash
+    let recorded = recorded-hashes | get --optional $CONF
     $recorded != null and $recorded == (open --raw $CONF | hash sha256)
 }

@@ -2,6 +2,7 @@
 
 use log.nu *
 use state.nu [state-dir state-locked path-kind nu-bin save-atomic LIB_DIR SYSTEM_STATE]
+export use state.nu [recorded-hashes]
 use preserve.nu [sync-guard preserve-aside preserve-copies]
 use json.nu [json-edits-apply]
 use module.nu [DECL_KEYS DECL_KINDS unit-dir]
@@ -90,15 +91,6 @@ export def observe [targets: list<string>, units: list<string>, scope: string, k
     }
 }
 
-# Newest write per path across all records, so one verb's merge onto another's file is no drift. A record a prior
-# crash or hand edit left unparseable counts as empty, not a reason to fail every module's plan.
-export def recorded-hashes []: nothing -> record {
-    glob (state-dir | path join modules **/*.nuon) | par-each --keep-order {|f| try { open $f | get outputs } catch { [] } } | flatten
-    | where {|o| $o.kind in [file json ini] and ($o.hash? | default null) != null }
-    | sort-by {|o| $o.at? | default 0 }
-    | reduce --fold {} {|o, acc| $acc | upsert $o.target $o.hash }
-}
-
 def now-ns []: nothing -> int { date now | into int }
 
 def out-key [kind: string, target: string]: nothing -> string { $"($kind)\t($target)" }
@@ -170,7 +162,22 @@ def merge-read [obs: record, target: string]: nothing -> string {
     try { open --raw $target } catch { "" }
 }
 
-# Declarations against disk, then orphans (removals and disables first).
+def action-recorded [d: record]: nothing -> bool {
+    $d.creates? != null or $d.key? != null or ($d.done? | default false) or ($d.undo? | default [] | is-not-empty)
+}
+
+# A recorded exec or step is done once --done holds, or once each of --creates and --key it gives holds; last: its
+# record from the previous apply.
+def action-done [d: record, last: any]: nothing -> bool {
+    if ($d.done? | default false) { return true }
+    let evidence = [
+        (if $d.creates? != null { $d.creates | path exists })
+        (if $d.key? != null { $last.key? == $d.key })
+    ] | compact
+    ($evidence | is-not-empty) and ($evidence | all { $in })
+}
+
+# Undos of orphaned actions, declarations against disk, then the other orphans (disables and unmasks first).
 export def plan-module [id: string, decls: list<record>, prev: list<record>, seen: record, recorded: record, repo: string, force: bool, all_targets: list<string> = []]: nothing -> list<record> {
     let wanted = (fold-merges $decls) | each {|d|
         let obs = $seen.paths | get --optional $d.target
@@ -225,10 +232,10 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
                 let done = match $d.state { "disabled" => ($state != "enabled"), _ => ($state == $d.state) }
                 if $done { action $id skip $d.target "" $d $state $state } else { action $id $verb $d.target $state $d $state $d.state }
             }
-            "exec" => {
-                if $d.creates != null and ($d.creates | path exists) { action $id skip $d.target "" $d null null } else { action $id exec $d.target "" $d null null }
+            "exec" | "step" => {
+                let last = $prev | where kind == $d.kind and target == $d.target | get --optional 0
+                if (action-done $d $last) { action $id skip $d.target "" $d null null } else { action $id $d.kind $d.target "" $d null null }
             }
-            "step" => (action $id step $d.target "" $d null null)
         }
     }
     let targets = $decls.target
@@ -251,10 +258,16 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
                 "masked" => (action $id unmask $o.target "no longer declared" $o masked null)
                 _ => (action $id forget $o.target "no longer declared" $o null null)
             } })
+            "exec" | "step" => {
+                if ($o.undo? | default [] | is-empty) { action $id forget $o.target "no longer declared" $o null null } else {
+                    action $id undo $o.target "no longer declared" $o null null
+                }
+            }
             _ => null
         }
     } | compact
-    $wanted ++ ($orphans | sort-by {|a| if $a.kind in [disable unmask] { 0 } else { 1 } })
+    # an undo goes first: a versioned action's new name orphans the old one, and its undo frees what the new one takes
+    ($orphans | where kind == undo) ++ $wanted ++ ($orphans | where kind != undo | sort-by {|a| if $a.kind in [disable unmask] { 0 } else { 1 } })
 }
 
 # Removes emptied parent dirs; stops at a non-empty dir, a link, home or a dir a package owns.
@@ -316,10 +329,22 @@ def systemctl-retry [scope: string, ...args: string]: nothing -> nothing {
     }
 }
 
-# A failed --then keeps the old hash, so the next apply runs it again; a merge's record carries then_failed instead.
-def run-then [a: record, dir: path]: nothing -> string {
-    if ($a.decl.then | is-empty) { return "" }
-    action-command $a $dir (argv-text $a.decl.then) $a.decl.then $THEN_TIMEOUT
+# Each distinct --then once per module run, after every action, for the actions that went through: a reload for
+# three changed files runs once. A failed one fails each of its actions, so a file keeps its old hash and a merge
+# its then_failed, and the next apply runs it again.
+def then-run [outcomes: list<record>, dir: path]: nothing -> list<record> {
+    let hooked = $outcomes | where {|o| $o.ok and $o.pending? == null and ($o.decl.then? | default [] | is-not-empty) and $o.kind in [create update record merge exec] }
+    let thens = $hooked | get decl.then | uniq
+    $thens | reduce --fold $outcomes {|then, acc|
+        let a = $hooked | where decl.then == $then | last
+        let result = try { {output: (action-command $a $dir (argv-text $then) $then $THEN_TIMEOUT), error: null} } catch {|e| {output: "", error: (cause-text (cause-from-error $e))} }
+        log-record (if $result.error == null { "DEBUG" } else { "ERROR" }) $"then (argv-text $then)" {module: $a.module, kind: then, target: (argv-text $then), ms: 0, outcome: ($result.error | default ok)}
+        $acc | each {|o|
+            if $o not-in $hooked or $o.decl.then != $then { $o } else if $result.error != null {
+                $o | merge {ok: false, error: $"its --then failed: ($result.error)"}
+            } else if $o.target == $a.target and $o.kind == $a.kind { $o | update output {|x| [$x.output $result.output] | where { is-not-empty } | str join "\n" } } else { $o }
+        }
+    }
 }
 
 def run-exec [a: record, dir: path]: nothing -> string {
@@ -371,9 +396,9 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     let at = now-ns
                     # a --then (a restart) and every later step must see the new unit file or drop-in
                     if ($a.target | str starts-with (unit-dir)) { systemctl-retry $scope daemon-reload }
-                    {aside: $aside, output: (run-then $a $dir), hash: (if $a.decl.kind == "link" { null } else { $a.after }), at: $at}
+                    {aside: $aside, hash: (if $a.decl.kind == "link" { null } else { $a.after }), at: $at}
                 }
-                "record" => { {output: (run-then $a $dir), hash: $a.after, at: (now-ns)} }
+                "record" => { {hash: $a.after, at: (now-ns)} }
                 "merge" => {
                     sync-guard $a.target
                     mkdir ($a.target | path dirname)
@@ -386,8 +411,7 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     }
                     if $out.exit_code != 0 { error make {msg: $"($a.decl.kind) merge exited ($out.exit_code): (error-brief $out.stderr)"} }
                     let owned = ($out.stdout | str contains owned) or ($a.decl.kind == "ini" and $a.before != null and $a.before == $last and ($out.stdout | str contains changed))
-                    let output = run-then $a $dir
-                    if $owned { {output: $output, hash: (open --raw $a.target | sha $in), at: (now-ns)} } else { {output: $output} }
+                    if $owned { {hash: (open --raw $a.target | sha $in), at: (now-ns)} } else { {} }
                 }
                 "disable" => {
                     systemctl-retry $scope disable $a.target
@@ -420,6 +444,12 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                 }
                 "forget" => { {} }
                 "exec" => { {output: (run-exec $a $dir)} }
+                # from the state dir: the module's own dir may be gone; with its tool gone too there is nothing to undo
+                "undo" => {
+                    if (which ($a.decl.undo | first) | is-empty) { {output: $"($a.decl.undo | first) is gone, nothing to undo"} } else {
+                        {output: (action-command $a (state-dir) (argv-text $a.decl.undo) $a.decl.undo $STEP_TIMEOUT)}
+                    }
+                }
             }
             | {ok: true, pending: null, error: null, aside: ($in.aside? | default null), output: ($in.output? | default ""), hash: ($in.hash? | default null), at: ($in.at? | default null)}
         } catch {|e|
@@ -437,7 +467,7 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
             outcomes: ($acc.outcomes | append ($a | merge $result | insert ms $ms))
         }
     }
-    let outcomes = $run.outcomes
+    let outcomes = then-run $run.outcomes $dir
     let unit_root = unit-dir
     # a create or update under unit_root already reloaded right after its write
     if ($outcomes | any {|o| $o.ok and $o.kind not-in [create update] and ($o.target | str starts-with $unit_root) }) {
@@ -451,7 +481,7 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
 export def state-write [id: string, verb: string, input: string, actions: list<record>, outcomes: list<record>, prev: list<record>]: nothing -> nothing {
     let done = $outcomes | where {|o| $o.ok and $o.pending? == null } | reduce --fold {} {|o, acc| $acc | upsert (out-key $o.decl.kind $o.target) $o }
     let failed = $outcomes | where not ok | get target
-    let kept = {|a| ($a.decl.kind == "exec" and $a.decl.creates? != null and $a.kind in [skip exec]) or ($a.decl.kind in [file link unit] and $a.kind not-in [remove forget unmask] and not ($a.kind == "disable" and $a.decl.state? != "disabled")) or ($a.decl.kind in [json ini] and $a.kind in [merge skip]) }
+    let kept = {|a| ($a.decl.kind in [exec step] and (action-recorded $a.decl) and $a.kind in [skip exec step]) or ($a.decl.kind in [file link unit] and $a.kind not-in [remove forget unmask] and not ($a.kind == "disable" and $a.decl.state? != "disabled")) or ($a.decl.kind in [json ini] and $a.kind in [merge skip]) }
     let owned = $actions | where {|a| do $kept $a } | each {|a|
         let before = $prev | where kind == $a.decl.kind and target == $a.target | get --optional 0
         let o = $done | get --optional (out-key $a.decl.kind $a.target)
@@ -468,12 +498,12 @@ export def state-write [id: string, verb: string, input: string, actions: list<r
                 hash: (if $a.decl.kind == "file" { $a.after } else { null })
                 mode: (if $a.decl.kind == "file" { $a.decl.mode? } else { null })
                 generated: ($a.decl.generated? | default false)
-                source: (if $a.decl.kind == "exec" { $a.decl.creates } else { $a.decl.source })
+                source: (if $a.decl.kind in [exec step] { $a.decl.creates } else { $a.decl.source })
                 state: $a.decl.state?
                 # the first aside is the pre-takeover original; a later --force or reset only preserves a drift copy
                 aside: (if ($before.aside? | default "" | path exists) { $before.aside } else { $o.aside? | default ($before.aside? | default null) })
                 at: (if $a.decl.kind != "file" { null } else { $o.at? | default ($before.at? | default 0) })
-            }
+            } | if $a.decl.kind in [exec step] { merge {key: $a.decl.key, undo: $a.decl.undo} } else { $in }
         } else {
             $before
         }

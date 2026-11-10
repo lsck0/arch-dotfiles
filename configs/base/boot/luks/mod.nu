@@ -1,6 +1,5 @@
 use module.nu *
 use ../boot.nu [cmdline-set hooks-read hooks-write hooks-insert]
-use state.nu [SYSTEM_STATE]
 
 export const meta = {packages: {native: [cryptsetup]}, volatile: true}
 

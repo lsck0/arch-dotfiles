@@ -109,6 +109,24 @@ def lint-layers []: nothing -> list<string> {
     $verbs ++ $personal
 }
 
+# The engine's internals a mod.nu never imports: its records and plans come through module.nu's exports.
+const ENGINE_INTERNAL = [
+    converge.nu fetch.nu internal.nu ledger.nu migrate.nu modules.nu options.nu pipeline.nu pipeline-cli.nu run.nu
+    state.nu system-apply.nu
+]
+
+def lint-engine-imports []: nothing -> list<string> {
+    let lib = $ENGINE_INTERNAL
+    glob $"($REPO)/configs/**/mod.nu" --exclude $SECRETS_DATA | each {|f|
+        open --raw $f | lines | enumerate | each {|l|
+            let used = $l.item | parse --regex '^\s*(?:export )?use (?<file>[a-z0-9-]+\.nu)\b' | get --optional 0.file
+            if $used != null and $used != "module.nu" and $used in $lib {
+                $"(rel $f):($l.index + 1): use ($used) reaches into the engine; take it from module.nu's exports"
+            }
+        } | compact
+    } | flatten
+}
+
 # A mod.nu exports only verbs, hooks, its own steps and names other modules import.
 def lint-exports []: nothing -> list<string> {
     let mods = glob $"($REPO)/configs/**/mod.nu" --exclude $SECRETS_DATA
@@ -381,7 +399,7 @@ export def gate-lint []: nothing -> list<string> {
     let lints = [
         {|| lint-modules } {|| lint-layers } {|| lint-exports } {|| lint-sync } {|| lint-stray } {|| lint-platform-facts }
         {|| lint-nu-pitfalls } {|| lint-exec-bits } {|| lint-ascii } {|| lint-loaded } {|| lint-generated } {|| lint-fail-closed }
-        {|| lint-rc-escalation }
+        {|| lint-rc-escalation } {|| lint-engine-imports }
     ]
     ($lints | par-each --keep-order {|lint| do $lint } | flatten) ++ (unit-tests)
 }

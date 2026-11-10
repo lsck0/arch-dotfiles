@@ -1,7 +1,7 @@
 use module.nu *
+use ini.nu [ini-rows]
 use ../../core/wallust/palette.nu *
 use ../../core/wallust/font.nu [font-load]
-use ini.nu [ini-rows]
 use hook/spicetify-apply.nu [apply-pending]
 
 export const meta = {packages: {pacman: [spicetify-cli spotify spotify-player unzip websocat]}}

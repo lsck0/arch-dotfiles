@@ -1,8 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
 # Table cases for plan-module, state-write and the ledger diff: pure records in, actions and state records out.
-use converge.nu [plan-module state-write state-read recorded-hashes ask-batch]
+use converge.nu [plan-module state-write state-read recorded-hashes ask-batch apply-module observe]
 use state.nu [state-dir]
-use module.nu [file-text json-merge json-set]
+use module.nu [file-text json-merge json-set exec step]
 use ledger.nu [ledger-diff ledger-remove ledger-get ledger-set]
 use std/assert
 
@@ -111,6 +111,78 @@ def state-write-cases [work: path]: nothing -> nothing {
     assert equal $mode "600" $"a written file records mode ($mode | to nuon), wants \"600\""
 }
 
+# Recorded execs and steps: skipped once their evidence holds, recorded, undone when no longer declared.
+def action-cases [work: path]: nothing -> nothing {
+    let made = $work | path join made
+    touch $made
+    let absent = $work | path join absent
+    let ran = {|d| [{kind: $d.kind, target: $d.target, key: "v1", source: $d.creates, undo: $d.undo}] }
+    let cases = [
+        [name decl prev kind];
+        ["plain exec runs every time" (exec e [echo]) [] exec]
+        ["creates present" (exec e [echo] --creates $made) [] skip]
+        ["creates absent" (exec e [echo] --creates $absent) [] exec]
+        ["key never run" (exec e [echo] --key v1) [] exec]
+        ["key unchanged" (exec e [echo] --key v1) (do $ran (exec e [echo] --key v1)) skip]
+        ["key changed" (exec e [echo] --key v2) (do $ran (exec e [echo] --key v2)) exec]
+        ["key unchanged, creates gone" (exec e [echo] --key v1 --creates $absent) (do $ran (exec e [echo] --creates $absent)) exec]
+        ["done" (exec e [echo] --done) [] skip]
+        ["undo alone runs every time" (exec e [echo] --undo [echo]) [] exec]
+        ["step key unchanged" (step s --key v1) (do $ran (step s --key v1)) skip]
+        ["step creates present" (step s --creates $made) [] skip]
+        ["plain step runs every time" (step s) [] step]
+    ]
+    for c in $cases {
+        let a = plan-module $ID [$c.decl] $c.prev {paths: {}, units: {}} {} $REPO false | first
+        assert equal $a.kind $c.kind $"action ($c.name): planned ($a.kind), wants ($c.kind)"
+    }
+    let undo_marker = $work | path join undone
+    let recorded = [{kind: exec, target: e, key: v1, source: null, undo: [touch $undo_marker]}]
+    let orphan = plan-module $ID [] $recorded {paths: {}, units: {}} {} $REPO false | first
+    assert equal $orphan.kind "undo" $"orphan exec with --undo: planned ($orphan.kind), wants undo"
+    let forgotten = plan-module $ID [] [($recorded.0 | update undo [])] {paths: {}, units: {}} {} $REPO false | first
+    assert equal $forgotten.kind "forget" $"orphan exec without --undo: planned ($forgotten.kind), wants forget"
+
+    let undone = apply-module [$orphan] ($work | path join gone-module) user | first
+    assert $undone.ok $"undo failed: ($undone.error)"
+    assert ($undo_marker | path exists) "undo did not run its argv"
+    state-write $ID system "input" [$orphan] [$undone] $recorded
+    assert ((state-read $ID system).outputs | is-empty) "a ran undo kept its record"
+    let failed = $undone | merge {ok: false, error: "exited 1"}
+    state-write $ID system "input" [$orphan] [$failed] $recorded
+    assert equal (state-read $ID system).outputs $recorded "a failed undo dropped its record, so it would never retry"
+    let toolless = $orphan | update decl.undo [dot-test-no-such-tool uninstall]
+    let skipped = apply-module [$toolless] ($work | path join gone-module) user | first
+    assert $skipped.ok $"an undo whose tool is gone failed: ($skipped.error)"
+
+    let decl = exec e [echo] --key v3 --undo [rm x]
+    let planned = plan-module $ID [$decl] [] {paths: {}, units: {}} {} $REPO false | first
+    let ok = $planned | merge {ok: true, pending: null, error: null, aside: null, output: "", hash: null, at: null, ms: 0}
+    state-write $ID system "input" [$planned] [$ok] []
+    let out = (state-read $ID system).outputs | first
+    assert equal [$out.key $out.undo] [v3 [rm x]] $"a ran exec records ($out | to nuon), wants key v3 and its undo"
+    let unrecorded = plan-module $ID [(exec p [echo])] [] {paths: {}, units: {}} {} $REPO false | first
+    state-write $ID system "input" [$unrecorded] [($unrecorded | merge {ok: true, pending: null, error: null, aside: null, output: "", hash: null, at: null, ms: 0})] []
+    assert ((state-read $ID system).outputs | is-empty) "a plain exec left a record"
+}
+
+# Three files and an exec sharing one --then run it once; a failed --then fails each of them.
+def then-once-cases [work: path]: nothing -> nothing {
+    let count = $work | path join then-count
+    let then = [sh -c $"echo x >> ($count)"]
+    let files = [a b c] | each {|n| file-text ($work | path join $"then-($n)") $n --then $then }
+    let decls = $files ++ [(exec e ["true"] --then $then)]
+    let seen = {paths: ($files | reduce --fold {} {|f, acc| $acc | insert $f.target {target: $f.target, type: "", hash: null, link: null, mode: null} }), units: {}}
+    let actions = plan-module $ID $decls [] $seen {} $REPO false
+    let outcomes = apply-module $actions $work user
+    assert ($outcomes | all { $in.ok }) $"a shared --then failed: ($outcomes | where not ok | get error | to nuon)"
+    assert equal (open --raw $count | lines | length) 1 $"a --then shared by four actions ran (open --raw $count | lines | length) times, wants 1"
+    let broken = $files | each { update then ["false"] | update content "changed" }
+    let again = plan-module $ID $broken [] (observe $broken.target [] user) {} $REPO true
+    let failed = apply-module $again $work user
+    assert ($failed | all { not $in.ok }) "a failed shared --then left some of its actions ok, so they would not retry"
+}
+
 # A module's record left truncated by a crashed write mid-save must not take down every module's plan: state-read and
 # recorded-hashes treat it as an absent record rather than raising.
 def corrupted-state-cases []: nothing -> nothing {
@@ -196,6 +268,8 @@ def main [] {
             fold-cases $work
             then-failed-cases $work
             state-write-cases $work
+            action-cases $work
+            then-once-cases $work
             corrupted-state-cases
             with-env {DOTFILES_UNATTENDED: "1", DOT_TEST_REMOVED: ($work | path join removed)} {
                 ledger-diff-cases

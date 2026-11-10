@@ -3,7 +3,8 @@ use ../spotify/mod.nu [spicetify-colors]
 use ../../core/wallust/palette.nu [RADIUS_PX]
 use ../../core/wallust/font.nu [font-load]
 
-export const meta = {packages: {pacman: [discord discordo-git]}}
+# its theme reads spotify's spicetify colours, so it runs after spotify's
+export const meta = {deps: [socials/spotify], packages: {pacman: [discord discordo-git]}}
 
 const BOOTSTRAP = "/usr/share/discord/updater_bootstrap"
 const BOOTSTRAP_TIMEOUT = "900"

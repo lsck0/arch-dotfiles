@@ -271,7 +271,7 @@ def outputs-clean [outputs: list<record>, seen: record]: nothing -> bool {
         match $o.kind {
             "file" => ($obs.hash? == $o.hash and (mode-normal $obs.mode?) == (mode-normal $o.mode))
             "link" => ($obs.link? == $o.source)
-            "exec" => ($o.source | path exists)
+            "exec" | "step" => ($o.source == null or ($o.source | path exists))
             "unit" => (match ($o.state? | default enabled) { "disabled" => (($seen.units | get --optional $o.target) != "enabled"), $s => (($seen.units | get --optional $o.target) == $s) })
             # an owned merge is no output of its own: the module's inputs decide whether it merges again
             _ => true
@@ -293,7 +293,7 @@ def eval-plan [ctx: record, mods: table, verb: string, args: list, prev: record,
     let decls = $evaluated | reduce --fold [] {|e, acc| $acc ++ $e.decls }
     let all_targets = $decls | get --optional target | default [] | uniq
     let olds = $prev | values | reduce --fold [] {|p, acc| $acc ++ $p }
-    let paths = $decls | where kind not-in [unit exec step] | get --optional target | default [] | append ($olds | where kind not-in [unit exec] | get --optional target | default [])
+    let paths = $decls | where kind not-in [unit exec step] | get --optional target | default [] | append ($olds | where kind not-in [unit exec step] | get --optional target | default [])
     let units = $decls | where kind == unit | get --optional target | default [] | append ($olds | where kind == unit | get --optional target | default [])
     let seen = span observe {} { observe $paths $units (scope-of $ctx.layer) $known }
     let recorded = recorded-hashes
@@ -348,7 +348,7 @@ export def modules-gone [ctx: record, verb: string]: nothing -> list<string> {
 # records or plans are forgotten, not removed.
 def module-gone-row [ctx: record, id: string, verb: string, force: bool, claimed: list<string>]: nothing -> record {
     let prev = (state-read $id $verb).outputs
-    let seen = observe ($prev | where kind != unit | get target) ($prev | where kind == unit | get target) (scope-of $ctx.layer)
+    let seen = observe ($prev | where kind not-in [unit exec step] | get target) ($prev | where kind == unit | get target) (scope-of $ctx.layer)
     let planned = try { {actions: (plan-module $id [] $prev $seen (recorded-hashes) $ctx.repo $force $claimed), error: null} } catch {|e| {actions: [], error: $"plan: ($e.msg)"} }
     {
         id: $id, dir: ($ctx.repo | path join configs $id), after: [], deps: [], level: 0, serial: false, cfg: {}, options: {}
@@ -410,7 +410,7 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
         {id: $m.id, prev: $prev, input: $input, volatile: ($m.meta.volatile? | default false)}
     } }
     let prev_targets = $natives | reduce --fold [] {|n, acc| $acc ++ $n.prev.outputs }
-    let before = span observe {} { observe ($prev_targets | where kind not-in [unit exec] | get --optional target | default []) ($prev_targets | where kind == unit | get --optional target | default []) (scope-of $ctx.layer) }
+    let before = span observe {} { observe ($prev_targets | where kind not-in [unit exec step] | get --optional target | default []) ($prev_targets | where kind == unit | get --optional target | default []) (scope-of $ctx.layer) }
     let fresh = $natives | where {|n| not $force and not $n.volatile and $n.id not-in $retired.id and $n.input == $n.prev.input and (outputs-clean $n.prev.outputs $before) } | get id
     let to_eval = $graph | where {|m| $verb in $m.native and $m.id not-in $fresh }
     let prev = $natives | reduce --fold {} {|n, acc| $acc | insert $n.id $n.prev.outputs }
@@ -453,7 +453,7 @@ def native-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
         let current = $actions
         let done = with-env (platform-env $ctx.platform) { apply-module $current $m.dir (scope-of $ctx.layer) }
         $outcomes = $outcomes ++ $done
-        let ran = $done | where {|o| $o.kind == "exec" and $o.ok and $o.pending == null and $o.decl.creates? != null and ($o.decl.creates | path exists) }
+        let ran = $done | where {|o| $o.kind in [exec step] and $o.ok and $o.pending == null and $o.decl.creates? != null and ($o.decl.creates | path exists) }
         let failed = $done | where not ok
         let waiting = $done | where pending != null
         if ($ran | is-empty) or ($failed | is-not-empty) or $pass >= $EXEC_PASSES_MAX {

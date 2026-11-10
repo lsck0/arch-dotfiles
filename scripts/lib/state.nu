@@ -60,3 +60,12 @@ export def save-atomic [file: path]: string -> nothing {
 export def path-kind [path: path]: nothing -> string {
     try { $path | path type | default "" } catch { "" }
 }
+
+# Newest write per path across all records, so one verb's merge onto another's file is no drift. A record a prior
+# crash or hand edit left unparseable counts as empty, not a reason to fail every module's plan.
+export def recorded-hashes []: nothing -> record {
+    glob (state-dir | path join modules **/*.nuon) | par-each --keep-order {|f| try { open $f | get outputs } catch { [] } } | flatten
+    | where {|o| $o.kind in [file json ini] and ($o.hash? | default null) != null }
+    | sort-by {|o| $o.at? | default 0 }
+    | reduce --fold {} {|o, acc| $acc | upsert $o.target $o.hash }
+}

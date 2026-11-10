@@ -6,11 +6,12 @@ export use platform.nu [platform-has display-xwayland-scale gpu-list]
 export use json.nu [json-set json-delete]
 export use secrets.nu [secret-is-plaintext secret-seed-guard owner-unlocked]
 use fetch.nu [fetch-file-done fetch-file-cached fetch-git-done]
-use state.nu [nu-bin]
-export use state.nu [xdg]
+use state.nu [nu-bin LIB_DIR]
+# what a module may read of the engine's state: its records and the root's state paths
+export use state.nu [xdg recorded-hashes SYSTEM_STATE SYSTEM_REPO]
 use ../../configs/core/wallust/palette.nu [palette-slots]
 
-export const DECL_KEYS = [kind target source content mode generated inplace edits state now argv creates requires then network timeout]
+export const DECL_KEYS = [kind target source content mode generated inplace edits state now argv creates key done undo requires then network timeout]
 export const DECL_KINDS = [file link json ini unit exec step]
 const MODE_FILE = "644"
 const BIN_DIR = ".local/bin"
@@ -21,13 +22,14 @@ const HOOK_BRAKE = "StartLimitIntervalSec=1min\nStartLimitBurst=20\n"
 def decl [kind: string, target: string, fields: record]: nothing -> record {
     {
         kind: $kind target: $target source: null content: null mode: $MODE_FILE generated: false inplace: false edits: []
-        state: null now: false argv: [] creates: null requires: null then: [] network: false timeout: null
+        state: null now: false argv: [] creates: null key: null done: false undo: [] requires: null then: [] network: false timeout: null
     } | merge $fields
 }
 
-# Falls back to the detected value for an app without an option of its own.
+# The xwayland_scale option of a module this one reads (meta.reads: the compositor's), else the detected value.
 export def xwayland-scale-for [cfg: record]: nothing -> int {
-    $cfg.deps?."desktop/hyprland"?.xwayland_scale? | default (display-xwayland-scale ($env.FORM_FACTOR? | default ""))
+    $cfg.deps? | default {} | values | get --optional xwayland_scale | compact | get --optional 0
+    | default (display-xwayland-scale ($env.FORM_FACTOR? | default ""))
 }
 
 def module-path [file: path]: nothing -> path {
@@ -207,18 +209,39 @@ export def desktop-override [id: string, edit: closure]: nothing -> list<record>
     [(file-text $dest (open --raw $system | do $edit))]
 }
 
-# An imperative command, skipped once --creates exists. --requires: a path an earlier action lands (a fetch, a
-# download), checked when it would run, so without it this waits as pending; --network: it downloads, so offline or
-# on a remote's outage it waits as pending for the next apply; --timeout: its bound when converge's STEP_TIMEOUT is too
-# short for it.
-export def exec [name: string, argv: list<string>, --creates: path, --requires: path, --network, --timeout: duration]: nothing -> record {
-    decl exec $name {argv: $argv, creates: $creates, requires: $requires, network: $network, timeout: $timeout}
+# An imperative command. Given any of --creates, --key, --done or --undo it is recorded: it is skipped once --done
+# holds, or once --creates exists and --key equals the key it last ran with (each where given), and when it is no
+# longer declared its --undo argv runs (from the state dir, so it outlives the module's dir). --requires: a path an
+# earlier action lands (a fetch, a download), checked when it would run, so without it this waits as pending;
+# --network: it downloads, so offline or on a remote's outage it waits as pending for the next apply; --timeout: its
+# bound when converge's STEP_TIMEOUT is too short for it; --then: run once it went through, as a file's.
+export def exec [
+    name: string, argv: list<string>, --creates: path, --key: string, --done, --undo: list<string> = [], --requires: path
+    --network, --timeout: duration, --then: list<string> = []
+]: nothing -> record {
+    decl exec $name {
+        argv: $argv, creates: $creates, key: $key, done: $done, undo: $undo, requires: $requires, network: $network
+        timeout: $timeout, then: $then
+    }
 }
 
-# Runs one of the module's own exported commands at apply time, for logic that edits live state; --requires,
-# --network and --timeout as exec's.
-export def step [command: string, ...args: string, --requires: path, --network, --timeout: duration]: nothing -> record {
-    decl step $command {argv: $args, requires: $requires, network: $network, timeout: $timeout}
+# Runs one of the module's own exported commands at apply time, for logic that edits live state; --creates, --key,
+# --done, --undo, --requires, --network and --timeout as exec's.
+export def step [
+    command: string, ...args: string, --creates: path, --key: string, --done, --undo: list<string> = [], --requires: path
+    --network, --timeout: duration
+]: nothing -> record {
+    decl step $command {
+        argv: $args, creates: $creates, key: $key, done: $done, undo: $undo, requires: $requires, network: $network
+        timeout: $timeout
+    }
+}
+
+# A --then argv running one of the module's own exported commands, so a reaction (a reload with its own checks) is
+# module code that runs only when a declaration changed; identical ones run once per module run.
+export def then-step [command: string, ...args: string]: nothing -> list<string> {
+    let call = [$command ...($args | each { to nuon })] | str join " "
+    [(nu-bin) --no-config-file -I $LIB_DIR -c $"use ($env.PWD | to nuon) [($command)]; ($call)"]
 }
 
 def --wrapped internal [...args: string]: nothing -> list<string> {

@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {deps: [desktop/hyprland], packages: {pacman: [jdownloader2]}}
+export const meta = {reads: [desktop/hyprland], packages: {pacman: [jdownloader2]}}
 
 const SETTINGS = {
     "org.jdownloader.updatev2.UpdateSettings.json": {autoupdatecheckenabled: false, installupdatesonexitenabled: false}

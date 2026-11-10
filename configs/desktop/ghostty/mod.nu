@@ -2,7 +2,7 @@ use module.nu *
 use ../../core/wallust/palette.nu [OPACITY_SURFACE]
 use ../../core/wallust/font.nu [font-load]
 
-export const meta = {deps: [desktop/hyprland desktop/kitty], packages: {pacman: [ghostty xdg-terminal-exec]}}
+export const meta = {deps: [desktop/kitty], reads: [desktop/hyprland], packages: {pacman: [ghostty xdg-terminal-exec]}}
 
 const SERVICE = "app-com.mitchellh.ghostty.service"
 
