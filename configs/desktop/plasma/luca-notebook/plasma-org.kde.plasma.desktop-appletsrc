@@ -34,7 +34,7 @@ positions={"1920x1080":["1","17","desktop:/dinorawrhehe","0","7","desktop:/downl
 sortMode=-1
 
 [Containments][1][Wallpaper][org.kde.image][General]
-Image=file://@HOME@/sync/wallpapers/alena-aenami-eclipse.jpg
+Image=file://@HOME@/sync/wallpapers/alena-aenami-lost-in-between.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][2]
@@ -53,7 +53,7 @@ DialogHeight=630
 DialogWidth=810
 
 [Containments][2][Wallpaper][org.kde.image][General]
-Image=file://@HOME@/sync/wallpapers/alena-aenami-eclipse.jpg
+Image=file://@HOME@/sync/wallpapers/alena-aenami-lost-in-between.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][3]
