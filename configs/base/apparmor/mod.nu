@@ -1,5 +1,6 @@
 use module.nu *
 export use ../boot/boot.nu [cmdline-set]
+use profile-flags.nu [profile-mode]
 
 export const meta = {packages: {native: [apparmor apparmor.d]}, volatile: true}
 
@@ -64,9 +65,7 @@ export def override-text [name: string, source: path]: nothing -> string {
 
 def own-profile [name: string, text: string, mode: any]: nothing -> record {
     let text = $text | lines | each {|l|
-        if $mode in [complain unconfined] and ($l | str starts-with "profile ") {
-            $l | str replace "flags=(" $"flags=\(($mode),"
-        } else { $l }
+        if $mode in [complain unconfined] and ($l | str starts-with "profile ") { $l | profile-mode $mode } else { $l }
     } | str join "\n"
     file-text ($ETC | path join $"($name)($OWN_SUFFIX)") $"($text)\n"
 }

@@ -57,6 +57,7 @@ bluez
 bluez-obex
 bluez-utils
 bookokrat-bin
+bootvine
 bpftop
 bpftrace
 breeze-icons
@@ -563,7 +564,6 @@ plasma-vault
 plasma5-integration
 playerctl
 playwright-mcp
-plymouth
 podman
 polkit
 polkit-kde-agent

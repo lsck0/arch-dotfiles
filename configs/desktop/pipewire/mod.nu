@@ -82,7 +82,8 @@ def eq-link [cfg: record]: nothing -> list<record> {
     let preset = $conf | path join $PRESET_FILE
     [
         (unit-file pipewire-chain@.service)
-        (file-copy $cfg.eq_preset $preset)
+        # the chain reads the preset only at start, and its own conf does not change with the preset
+        (file-copy $cfg.eq_preset $preset --then [systemctl --user try-restart pipewire-chain@eq.service])
         (chain-file $conf eq (eq-render $preset $cfg.eq_target))
         (unit-enable pipewire-chain@eq.service --now)
     ]

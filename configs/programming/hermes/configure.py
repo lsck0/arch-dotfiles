@@ -17,10 +17,18 @@ _use(want["skin"])
 
 config = load_config()
 hooks = config.setdefault("hooks", {})
-for event, command in want["hooks"].items():
+# every event loses its guard hooks first, so a guard that is gone (idle-guards off) leaves none behind
+for event in list(hooks):
     others = [h for h in hooks.get(event) or [] if "agent-guard" not in str(h.get("command", ""))]
-    hooks[event] = others + [{"command": command}]
+    if others:
+        hooks[event] = others
+    else:
+        hooks.pop(event)
+for event, command in want["hooks"].items():
+    hooks[event] = hooks.get(event, []) + [{"command": command}]
     _record_approval(event, command)
+if not hooks:
+    config.pop("hooks")
 servers = config.get("mcp_servers") or {}
 # save_config keeps keys of an entry that is still on disk, so a spec that changed shape (an http server now behind
 # mcp-gate's stdio) would keep its old url beside the new command, and hermes picks the url: such entries go first

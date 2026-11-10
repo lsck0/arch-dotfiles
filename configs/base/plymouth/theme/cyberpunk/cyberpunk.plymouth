@@ -1,9 +1,0 @@
-[Plymouth Theme]
-Name=Cyberpunk
-Description=Dark terminal boot splash in the quickshell style
-ModuleName=script
-
-[script]
-ImageDir=/usr/share/plymouth/themes/cyberpunk
-ScriptFile=/usr/share/plymouth/themes/cyberpunk/cyberpunk.script
-ConsoleLogBackgroundColor=0x0B0E14

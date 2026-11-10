@@ -1,5 +1,6 @@
 -- programming/hermes' system agent in hyprland, a drop-in (desktop/hyprland loads ~/.config/hypr/dropins/*.lua): a
--- dropdown attached to its tmux session on its own special workspace; hiding it only detaches, the agent keeps working
+-- dropdown attached to its tmux session on its own special workspace; hiding it closes the window and only detaches,
+-- the agent keeps working
 local mod = "SUPER"
 -- a GTK application id needs a dot: ghostty ignores --class=system-agent and opens a plain tiled window
 local terminal =
@@ -14,11 +15,23 @@ hl.window_rule({
 })
 
 -- code:49 is the key under Esc on every layout: the grave keysym is ^ on a German one and never fires
+-- Hiding closes the window, which only detaches tmux: a window left on the hidden special workspace got focus back
+-- whenever a quickshell panel closed, and that pulled the workspace into view.
 hl.bind(mod .. " + code:49", function()
-    if #hl.get_windows({ class = "dev.lsck0.system-agent" }) == 0 then
+    local window = hl.get_windows({ class = "dev.lsck0.system-agent" })[1]
+    if window == nil then
         hl.exec_cmd("uwsm app -- " .. terminal)
+        hl.dispatch(hl.dsp.workspace.toggle_special("agent"))
+        return
     end
-    hl.dispatch(hl.dsp.workspace.toggle_special("agent"))
+    local shown = hl.get_active_special_workspace()
+    if shown == nil or shown.name:gsub("^special:", "") ~= "agent" then
+        hl.dispatch(hl.dsp.workspace.toggle_special("agent"))
+        return
+    end
+    -- focused first, so the close cannot hit another window
+    hl.dispatch(hl.dsp.focus({ window = "address:" .. window.address }))
+    hl.dispatch(hl.dsp.window.close())
 end, { description = "system agent: show or hide its window" })
 
 -- ctrl+space is its record key: sent to the pane it works with the window hidden; it answers aloud

@@ -24,6 +24,9 @@ export const options = {
 const NVIDIA_TURING = 0x1e00
 const NVIDIA_MAXWELL = 0x1340
 const NVIDIA_KEPLER = 0x0fc0
+# device ids rise with the generation except these Fermi and Tesla blocks above the Kepler cutoff (GF110/GF119/GT218,
+# GF117, GF114/GF116): no packaged branch drives them, nouveau does; nvidia_driver overrides a wrong guess
+const NVIDIA_PRE_KEPLER = [[from to]; [0x1040 0x10ff] [0x1140 0x117f] [0x1200 0x127f]]
 const NVIDIA_PACKAGES = {
     open: [nvidia-open-dkms nvidia-utils lib32-nvidia-utils]
     580xx: [nvidia-580xx-dkms nvidia-580xx-utils lib32-nvidia-580xx-utils]
@@ -35,13 +38,17 @@ export def detect [cfg: record]: nothing -> record {
     let id = if $gpu == null { 0 } else {
         open --raw $"/sys/class/drm/card($gpu.index)/device/device" | str trim | into int
     }
-    let driver = match $id {
+    {nvidia_driver: (nvidia-driver-for $id)}
+}
+
+export def nvidia-driver-for [id: int]: nothing -> string {
+    match $id {
+        _ if ($NVIDIA_PRE_KEPLER | any { $id >= $in.from and $id <= $in.to }) => "none"
         _ if $id >= $NVIDIA_TURING => "open"
         _ if $id >= $NVIDIA_MAXWELL => "580xx"
         _ if $id >= $NVIDIA_KEPLER => "470xx"
         _ => "none"
     }
-    {nvidia_driver: $driver}
 }
 
 export def packages [cfg: record]: nothing -> record {
@@ -61,7 +68,7 @@ export def kms-drop []: nothing -> nothing {
     hooks-write (hooks-read | where $it != kms)
 }
 
-# Restores kms (inverse of kms-drop) so a box moved off nvidia gets early KMS back for plymouth.
+# Restores kms (inverse of kms-drop) so a box moved off nvidia gets early KMS back for the boot console.
 export def kms-restore []: nothing -> nothing {
     let hooks = hooks-read
     if kms in $hooks { return }

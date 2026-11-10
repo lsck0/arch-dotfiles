@@ -3,6 +3,7 @@
 
 const REPO = path self | path expand | path dirname | path join ../../.. | path expand
 use ($REPO | path join scripts lib usage.nu) [die]
+use ($REPO | path join configs base apparmor profile-flags.nu) [profile-mode]
 
 const INCLUDE = "/etc/apparmor/include.d/manual.conf"
 const FLAGS = "/etc/apparmor/flags.d/manual.conf"
@@ -42,13 +43,8 @@ def mode-set [profile: string, mode: string]: nothing -> nothing {
     | str join "\n" | $"($in)\n" | sudo-save $FLAGS
     let file = $ETC | path join $"($profile)($OWN_SUFFIX)"
     if ($file | path exists) and (open --raw $file | lines | any { $in == $OWN_MARKER }) {
-        let flag = if $mode == "enforce" { "" } else { $"($mode)," }
-        open --raw $file | lines | each {|l|
-            if ($l | str starts-with "profile ") {
-                $l | str replace --regex 'flags=\((complain|unconfined),' 'flags=('
-                | str replace 'flags=(' $"flags=\(($flag)"
-            } else { $l }
-        } | str join "\n" | $"($in)\n" | sudo-save $file
+        open --raw $file | lines | each {|l| if ($l | str starts-with "profile ") { $l | profile-mode $mode } else { $l } }
+        | str join "\n" | $"($in)\n" | sudo-save $file
         ^sudo apparmor_parser --replace --write-cache $file
     } else {
         if $profile not-in (open --raw $INCLUDE | lines) { $"($profile)\n" | sudo-save $INCLUDE --append }

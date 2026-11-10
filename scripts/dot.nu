@@ -114,11 +114,11 @@ def "main module remove" [mod: string@module-ids, --machine, --yes]: nothing -> 
         if ($declared.incomplete | is-not-empty) {
             error make {msg: $"not offering packages for removal, these modules declare none right now: ($declared.incomplete | str join ' ')"}
         }
-        let others = $declared.pacman
-        let installed = ^pacman -Qq | lines
-        let own = $m.meta.packages.pacman ++ (if $ctx.platform.form_factor == "wsl" { [] } else { $m.meta.packages.native })
+        # installed packages on both sides, so a declared group counts as its members
+        let others = packages-resolve $declared.pacman
+        let own = packages-resolve ($m.meta.packages.pacman ++ (if $ctx.platform.form_factor == "wsl" { [] } else { $m.meta.packages.native }))
         # the same spares as the ledger's removal: dot itself, the shell and the boot chain never go
-        let only = $own | where {|p| $p not-in $others and $p in $installed and not ($p =~ $PACKAGES_DENY) }
+        let only = $own | where {|p| $p not-in $others and not ($p =~ $PACKAGES_DENY) }
         if not $machine and ($only | is-not-empty) {
             print $"($mod) stays on for the system layer, its packages too; --machine turns it off machine-wide and offers them for removal"
         } else if ($only | is-not-empty) {
@@ -128,8 +128,7 @@ def "main module remove" [mod: string@module-ids, --machine, --yes]: nothing -> 
                 if (admin) { system-skipped $"packages of ($mod)" false }
             } else if $yes or (tty-confirm "remove them?") {
                 # what other modules declare stays out of -s, even when it was first pulled in as a dependency
-                let kept = packages-resolve $others
-                if ($kept | is-not-empty) { ^sudo pacman -D --asexplicit ...$kept | ignore }
+                if ($others | is-not-empty) { ^sudo pacman -D --asexplicit ...$others | ignore }
                 ^sudo pacman -Rns ...$only
             }
         }

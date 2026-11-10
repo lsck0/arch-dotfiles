@@ -90,7 +90,9 @@ export def --env link-run [mods: list<string>, force: bool, --user-only]: nothin
     if ($results | any { $in.pending? != null }) { $env.DOT_SYSTEM_PENDING = true }
     let wallpaper = xdg cache wal wallpaper
     let waiting = $results | where pending? != null | get id
-    let ids = $planned | where native and id not-in ($ctx.modules | where broken | get id) and id not-in $waiting | get id
+    # a gone module's revert row has no module left to theme, and pipeline-plan rejects its id
+    let broken = $ctx.modules | where broken | get id
+    let ids = $planned | where native and id in $ctx.modules.id and id not-in $broken and id not-in $waiting | get id
     # an empty id list means every module to pipeline-plan: a run that planned no link rows themes none
     let themed = if ($wallpaper | path exists) and ($ids | is-not-empty) {
         let real_wallpaper = ^readlink -f $wallpaper | str trim

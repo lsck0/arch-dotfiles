@@ -39,7 +39,8 @@ def step-cases [dir: path]: nothing -> nothing {
     let exited = apply-module [(action step probe-exit [])] $dir user | first
     wants "step exiting" $exited.error ["`sh -c 'echo again >&2; exit 5'`" "exited 5" "again" "mod.nu:1"]
     let tail = apply-module [(action step probe-tail [])] $dir user | first
-    wants "step ending on a failing command" $tail.error ["`step probe-tail` exited 6" "last words"]
+    # nushell 0.117 raises on a failing last external too, so the cause names it like a mid-step one
+    wants "step ending on a failing command" $tail.error ["`sh -c 'echo last words >&2; exit 6'`" "exited 6" "last words" "mod.nu:4"]
     let absent = apply-module [(action step probe-absent [])] $dir user | first
     wants "step absent" $absent.error [$"($ABSENT) not installed" "mod.nu:2"]
     let made = apply-module [(action step probe-made [])] $dir user | first

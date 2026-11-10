@@ -43,6 +43,12 @@ const FOREIGN = '(?<![a-z])(?:gpt|qwen|llama|gemini|mistral|deepseek|grok|kimi|g
 # a minor is one or two digits, so a date suffix is not one ("opus-5-20260101")
 const FAMILY_VERSION = '(?<family>fable|opus|sonnet|haiku)(?:-?(?<major>\d{1,2})(?!\d)(?:[.-](?<minor>\d{1,2})\b)?)?'
 
+# A day with any activity gets at least the lowest block, so only an idle day reads blank.
+def spark-index [value: number, max: number]: nothing -> int {
+    if $value <= 0 { return 0 }
+    [1 ([8 ($value / $max * 8 | math ceil)] | math min)] | math max
+}
+
 def sum []: list<number> -> number { reduce --fold 0 {|x, acc| $acc + $x } }
 
 def claude-dir []: nothing -> path {
@@ -251,8 +257,7 @@ def payload-build [include_other: bool, strict_activity: bool, scrape: bool]: no
         t_sessions: ($today_rows.session | uniq | length), t_messages: ($today_rows | length), trend: $trend
         w_tokens: (tokens-format ($week_rows.total | sum)), w_cost: (cost-format ($week_rows.cost | sum | into float))
         w_sessions: ($week_rows.session | uniq | length), w_messages: ($week_rows | length)
-        spark: ($spark_values | each {|v| $SPARK_BLOCKS | get ([8 ($v / $spark_max * 8 | into int)] | math min) }
-            | str join)
+        spark: ($spark_values | each {|v| $SPARK_BLOCKS | get (spark-index $v $spark_max) } | str join)
         streak: $streak
         top_project: (if ($projects | is-empty) { $NONE } else {
             $projects | sort-by tokens --reverse | first | get name

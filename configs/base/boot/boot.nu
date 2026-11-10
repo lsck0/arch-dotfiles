@@ -7,12 +7,13 @@ export const CMDLINE = "/etc/kernel/cmdline"
 export const MKINITCPIO = "/etc/mkinitcpio.conf"
 const BACKUP = ".arch-dotfiles-backup"
 export const UKI_DIR = "/boot/EFI/Linux"
+const HOOK_DIRS = [/etc/initcpio/install /usr/lib/initcpio/install]
 const SDBOOT_EFI = "/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
 export const SDBOOT_ESP_FILES = ["/boot/EFI/systemd/systemd-bootx64.efi" "/boot/EFI/BOOT/BOOTX64.EFI"]
 const BOOT_INPUTS = [
     /etc/mkinitcpio.conf /etc/mkinitcpio.conf.d /etc/mkinitcpio.d /etc/kernel/cmdline /etc/crypttab.initramfs
     /etc/modprobe.d /etc/vconsole.conf
-    /etc/plymouth /usr/share/plymouth/themes /etc/mkinitcpio-systemd-tool /etc/tinyssh
+    /etc/bootvine.toml /etc/mkinitcpio-systemd-tool /etc/tinyssh
     /etc/systemd/system/initrd-tinysshd.service.d /etc/systemd/system/initrd-network.service.d
     /etc/systemd/system/initrd-wifi.service
 ]
@@ -102,6 +103,13 @@ def sbctl-sign [...files: path]: nothing -> nothing {
 # The boot barrier, last in a system run: one uki rebuild for the whole run, then every boot file signed.
 export def boot-commit []: nothing -> nothing {
     if (which mkinitcpio | is-empty) { return }
+    # a hook whose package left (sd-bootvine once base/bootvine is off) fails every mkinitcpio; dropping it here
+    # changes mkinitcpio.conf, so the rebuild below runs
+    let hooks = hooks-read
+    let kept = $hooks | where {|h| $HOOK_DIRS | any {|d| $d | path join $h | path exists } }
+    let dropped = $hooks | where $it not-in $kept
+    if ($dropped | is-not-empty) { print $"boot: HOOKS dropped ($dropped | str join ' '), no install script left" }
+    hooks-write $kept
     let stamp = $SYSTEM_STATE | path join boot-inputs
     let inputs = boot-inputs-hash
     if $inputs != (try { open --raw $stamp } catch { "" }) {

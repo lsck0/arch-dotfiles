@@ -107,11 +107,16 @@ function decodeFileUri(uri) {
 function filePaths(entry) {
   if (!entry || entry.type !== "text") return []
 
+  // a file entry is a uri-list: every line a file URI, blank lines and # comments aside; one URI inside other text
+  // keeps the entry text, so picking it pastes the whole text back
   var lines = String(entry.text || "").split(/\r?\n/)
   var paths = []
   for (var i = 0; i < lines.length; i++) {
-    var path = decodeFileUri(lines[i])
-    if (path) paths.push(path)
+    var line = lines[i].trim()
+    if (line === "" || line.charAt(0) === "#") continue
+    var path = decodeFileUri(line)
+    if (!path) return []
+    paths.push(path)
   }
   return paths
 }

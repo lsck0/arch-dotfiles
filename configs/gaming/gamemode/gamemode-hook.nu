@@ -66,7 +66,8 @@ def "main end" []: nothing -> nothing {
     }
     let vllm = units-recorded (vllm-mark)
     if ($vllm | is-not-empty) and (succeeds systemctl is-enabled -q $VLLM_SOCKET) {
-        succeeds systemctl --no-ask-password start ...$vllm | ignore
+        # --no-block: the proxy's start waits minutes for the model, gamemoded kills a hook after 10s
+        succeeds systemctl --no-ask-password --no-block start ...$vllm | ignore
     }
     # split lock last: a denied pkexec must not skip the restores above
     if (admin) { succeeds pkexec $SPLIT_LOCK_MITIGATE on | ignore }

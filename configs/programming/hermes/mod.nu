@@ -137,9 +137,12 @@ def configure [home: path, settings: record, remove: list<string>, mcp: record]:
     let have = try { open ($home | path join config.yaml) } catch { {} }
     let set = $settings | items {|key, value| ($have | get --optional ($key | split row "." | into cell-path)) == $value }
     let hooked = $hooks | items {|event, command| $command in ($have.hooks? | get --optional $event | default [] | get --optional command | default []) }
+    # a guard hook left from when the guard existed keeps hermes calling a deleted script
+    let stale = $have.hooks? | default {} | values | compact | flatten | each { $in.command? | default "" }
+        | any {|c| ($c | str contains agent-guard) and $c not-in ($hooks | values) }
     let removed = $remove | each {|key| ($have | get --optional ($key | split row "." | into cell-path)) == null }
     let served = $mcp | items {|name, spec| ($have.mcp_servers? | get --optional $name) == $spec }
-    let current = $set ++ $removed ++ $hooked ++ $served ++ [($have.display?.skin? == $SKIN)] | all { $in }
+    let current = $set ++ $removed ++ $hooked ++ $served ++ [($have.display?.skin? == $SKIN) (not $stale)] | all { $in }
     if $current { return [] }
     [(exec $"configure ($home)" [env $"HERMES_HOME=($home)" $PYTHON configure.py ($want | to json --raw)])]
 }

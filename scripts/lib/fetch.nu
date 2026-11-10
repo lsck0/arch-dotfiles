@@ -23,8 +23,12 @@ export def fetch-file-cached [sha256: string]: nothing -> bool {
     fetch-cache | path join $sha256 | path exists
 }
 
+# Done once HEAD is the commit and every submodule is checked out at its recorded commit: the submodule update runs
+# after the checkout, so an interrupted one shows as - (missing), + (other commit) or U (conflict).
 export def fetch-git-done [commit: string, dir: path]: nothing -> bool {
-    (^git -C $dir rev-parse HEAD | complete | get stdout | str trim) == $commit
+    if (^git -C $dir rev-parse HEAD | complete | get stdout | str trim) != $commit { return false }
+    let subs = ^git -C $dir submodule status --recursive | complete
+    $subs.exit_code == 0 and ($subs.stdout | lines | all {|l| ($l | str substring 0..<1) not-in ["-" "+" "U"] })
 }
 
 def extract [archive: path, into: path]: nothing -> nothing {

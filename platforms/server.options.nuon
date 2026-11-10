@@ -1,8 +1,8 @@
 {
+    "base/bootvine": {enable: false}
     "base/fprintd": {enable: false}
     "base/i2c": {enable: false}
     "base/lact": {enable: false}
-    "base/plymouth": {enable: false}
     "base/portmaster": {enable: false}
     "base/protonvpn": {enable: false}
     "base/protonvpn-netns": {enable: false}
