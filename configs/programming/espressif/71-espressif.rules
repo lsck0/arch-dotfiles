@@ -1,0 +1,4 @@
+# Espressif's built-in USB JTAG/serial unit (ESP32-C3, -C6, -S3, -H2): the seat user flashes it with esptool through
+# the tty and debugs it with openocd through the usb node. 71- puts the uaccess tag in place before 73-seat-late.rules
+SUBSYSTEM=="tty", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="303a", ATTR{idProduct}=="1001", TAG+="uaccess"
