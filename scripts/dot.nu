@@ -322,7 +322,8 @@ def "main explain" [thing: string]: nothing -> nothing {
             let root = $dir | path join modules
             glob ($root | path join **/*.nuon) | each {|f|
                 let st = try { open $f } catch { {outputs: []} }
-                $st.outputs | where target == $target | each { {module: ($f | path dirname | path relative-to $root), verb: ($f | path parse | get stem), output: $in, run: $st.run?, time: $st.time?} }
+                # a barrier's record carries no outputs
+                $st.outputs? | default [] | where target == $target | each { {module: ($f | path dirname | path relative-to $root), verb: ($f | path parse | get stem), output: $in, run: $st.run?, time: $st.time?} }
             } | flatten
         } | flatten
         let declares = if ($thing | str contains "/") { [] } else {

@@ -1,4 +1,5 @@
 use module.nu *
+use ../../base/bootvine/mod.nu [CONSOLE_PALETTE]
 
 export const meta = {packages: {pacman: [ly]}}
 
@@ -14,11 +15,6 @@ const NO_LOGIN = '(nologin|false)$'
 # ly puts one space between key hints; no-break spaces widen the gap, the ini parser trims plain ones
 const HINT_GAP = "\u{a0}\u{a0}\u{a0}"
 const HINT_KEYS = '^(shutdown|restart|sleep|hibernate|toggle_password|brightness_down|brightness_up) = '
-# config.ini's exact hex; the console maps ly's 24-bit colours to these 16 slots
-const PALETTE = [
-    "0b0e14" f07178 aad94c e6b450 "39bae6" d2a6ff "1c6e8c" bfbdb6
-    "565b66" f07178 aad94c e6b450 "39bae6" d2a6ff "39bae6" bfbdb6
-]
 
 # The stock en lang with F4's hint renamed to reboot-to-firmware, so a ly update keeps the rest in step.
 def lang-render []: nothing -> string {
@@ -29,7 +25,7 @@ def lang-render []: nothing -> string {
 }
 
 def vtrgb-render []: nothing -> string {
-    [0 2 4] | each {|at| $PALETTE | each { $"0x($in | str substring $at..($at + 1))" | into int } | str join "," } | str join "\n" | $"($in)\n"
+    [0 2 4] | each {|at| $CONSOLE_PALETTE | each { $"0x($in | str substring $at..($at + 1))" | into int } | str join "," } | str join "\n" | $"($in)\n"
 }
 
 export def system [cfg: record] {
@@ -46,6 +42,7 @@ export def system [cfg: record] {
         (dropin ly@.service palette.conf)
         (dropin ly@.service cursor.conf)
         (dropin ly@.service stage.conf)
+        (dropin ly@.service log-filter.conf)
         (unit-enable $"ly@($TTY).service")
         (unit-disable $"getty@($TTY).service")
     ]

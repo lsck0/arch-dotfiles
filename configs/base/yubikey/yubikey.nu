@@ -16,6 +16,7 @@ const TOUCH_WAIT = 30min
 const TOUCH_ATTEMPT_S = "900"
 const TOUCH_RETRY = 2sec
 const INIT_STEPS = [pins pgp ssh u2f age]
+const PCSC_REFUSED = "PC/SC not available"
 const SECRETS_ISSUE = "/etc/issue.d/dotfiles-secrets.issue"
 
 # Clears the install chain's "still locked" login banner once secrets actually unlock.
@@ -32,12 +33,16 @@ def unwanted []: nothing -> bool {
 
 def heading [text: string]: nothing -> nothing { print $"\n== ($text)" }
 
-def present []: nothing -> bool {
-    (which ykman | is-not-empty) and (do { ^ykman info } | complete).exit_code == 0
-}
-
-def serial []: nothing -> string {
-    ^ykman info | lines | parse "Serial number: {sn}" | get 0.sn | str trim
+# ykman reads the serial over FIDO HID without pcscd. pcscd refuses a session without a seat (the install chain's
+# service, ssh), ykman then warns on stderr and only the PIV applet age unlocks with is out of reach (ccid false).
+def card []: nothing -> record<present: bool, serial: string, ccid: bool> {
+    let info = if (which ykman | is-empty) { {exit_code: 1} } else { do { ^ykman info } | complete }
+    if $info.exit_code != 0 { return {present: false, serial: "", ccid: false} }
+    {
+        present: true
+        serial: ($info.stdout | lines | parse "Serial number: {sn}" | get 0.sn | str trim)
+        ccid: ($info.stderr | str contains $PCSC_REFUSED | not $in)
+    }
 }
 
 def recipient [identity: path]: nothing -> string {
@@ -193,9 +198,11 @@ def init-step [step: string, sn: string]: nothing -> nothing {
 
 # Enrolls the plugged-in key, the given steps or all of pins, pgp, ssh, u2f and age.
 export def yubikey-init [...steps: string]: nothing -> nothing {
-    if not (present) { error make {msg: "yubikey: no YubiKey detected"} }
+    let card = card
+    if not $card.present { error make {msg: "yubikey: no YubiKey detected"} }
+    if not $card.ccid { error make {msg: "yubikey: pcscd refuses this session, enroll from a local login"} }
     if not (secret-is-plaintext $WITNESS) { error make {msg: "yubikey: secrets are locked, unlock them first"} }
-    let sn = serial
+    let sn = $card.serial
     for step in (if ($steps | is-empty) { $INIT_STEPS } else { $steps }) { init-step $step $sn }
     let identity = $KEY_DIR | path join $"age-($sn).identity"
     let r = if ($identity | path exists) { recipient $identity } else { "" }
@@ -238,7 +245,8 @@ export def yubikey-unlock [--identity: path]: nothing -> nothing {
     if (unwanted) { return }
     if $identity != null { return (unlock-identity $identity) }
     let pulled = $SECRETS | path join .git | path exists
-    if not (present) {
+    let card = card
+    if not $card.present {
         if (which lsusb | is-not-empty) and (do { ^lsusb -d 1050: } | complete).exit_code == 0 {
             print "yubikey: plugged in but ykman can not reach it, check pcscd and its polkit rule"
         }
@@ -254,7 +262,7 @@ export def yubikey-unlock [--identity: path]: nothing -> nothing {
         }
         return
     }
-    let sn = serial
+    let sn = $card.serial
     let stub = $KEY_DIR | path join $"ssh-($sn)"
     let identity = $KEY_DIR | path join $"age-($sn).identity"
     if not ([$stub $identity $SEALED_KEY] | all { path exists }) {
@@ -280,6 +288,10 @@ export def yubikey-unlock [--identity: path]: nothing -> nothing {
         if not ($SECRETS | path join .git | path exists) { return }
     }
     if (secret-is-plaintext $WITNESS) { return }
+    if not $card.ccid {
+        print "yubikey: pcscd refuses this session, secrets stay locked; unlock from a local login: dot secrets unlock"
+        return
+    }
     print ">>> touch the YubiKey to unlock the secrets"
     with-key-file {|key|
         if not (with-touch [age -d -i $identity -o $key $SEALED_KEY]) {

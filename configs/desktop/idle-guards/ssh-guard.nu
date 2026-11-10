@@ -8,7 +8,10 @@ const TIMEOUT = "timeout"
 # Logind sessions, not sockets on the port: a preauth connection is no session, a closing one no longer counts.
 def ssh-session-open []: nothing -> bool {
     ^loginctl list-sessions --no-legend | lines | each { str trim | split row --regex '\s+' | first } | any {|id|
-        let props = ^loginctl show-session $id -p Service -p State | lines | parse "{key}={value}" | transpose -r -d
+        # a short login is often gone again before its show-session, which loginctl logs as an error
+        let shown = ^loginctl show-session $id -p Service -p State | complete
+        if $shown.exit_code != 0 { return false }
+        let props = $shown.stdout | lines | parse "{key}={value}" | transpose -r -d
         $props.Service? == sshd and $props.State? != closing
     }
 }

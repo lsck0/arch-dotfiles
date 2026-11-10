@@ -3,6 +3,12 @@ use ../boot/boot.nu [cmdline-set cmdline-unset hooks-read hooks-write hooks-inse
 
 const INSTALL_HOOK = "/usr/lib/initcpio/install/sd-bootvine"
 const UNITS = [bootvine.service bootvine-shutdown.service]
+# The console's 16 colours from the first frame on, so bootvine, the passphrase popup and ly share one palette; ly's
+# config.ini picks its exact hex from these, since the console maps 24-bit colours onto the nearest slot.
+export const CONSOLE_PALETTE = [
+    "0b0e14" f07178 aad94c e6b450 "39bae6" d2a6ff "1c6e8c" bfbdb6
+    "565b66" f07178 aad94c e6b450 "39bae6" d2a6ff "39bae6" bfbdb6
+]
 
 # bootvine draws the systemd job tree on tty12 from the initrd on and answers ask-password requests (the LUKS
 # passphrase, the TPM2 pin) in a popup there; systemd's console agent stays as the fallback on tty1.
@@ -23,6 +29,14 @@ export def hooks-placed [hooks: list<string>, installed: bool]: nothing -> list<
     hooks-insert $kept sd-bootvine (($kept | enumerate | where item == systemd | get 0.index) + 1)
 }
 
+# vt.default_red, _grn and _blu: the palette as the kernel's default, so a VT reset keeps it too.
+export def palette-cmdline [palette: list<string>]: nothing -> list<string> {
+    [[red 0] [grn 2] [blu 4]] | each {|c|
+        let values = $palette | each { $"0x($in | str substring $c.1..($c.1 + 1))" | into int | into string } | str join ","
+        $"vt.default_($c.0)=($values)"
+    }
+}
+
 export def hooks []: nothing -> nothing {
     let hooks = hooks-read
     if "systemd" not-in $hooks {
@@ -33,5 +47,5 @@ export def hooks []: nothing -> nothing {
     # console=tty1 keeps /dev/console off the VT bootvine holds in front, so the console agent and an emergency
     # shell open on tty1
     cmdline-unset splash
-    cmdline-set quiet loglevel=3 rd.udev.log_level=3 systemd.show_status=auto console=tty1
+    cmdline-set quiet loglevel=3 rd.udev.log_level=3 systemd.show_status=auto console=tty1 ...(palette-cmdline $CONSOLE_PALETTE)
 }

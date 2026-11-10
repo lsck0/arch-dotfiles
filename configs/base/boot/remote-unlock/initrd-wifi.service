@@ -19,6 +19,8 @@ InitrdBinary=/usr/bin/wpa_supplicant
 InitrdCall=add_module iwlmvm?
 InitrdCall=add_module iwldvm?
 InitrdCall=add_module iwlmld?
+# mac80211 requests its ciphers at runtime (ccmp, gcmp, bip); sd-encrypt's CRYPTO_MODULES (base/boot/luks) leaves them out
+InitrdCall=map add_module ccm? gcm? cmac?
 
 InitrdPath=/etc/wpa_supplicant/initrd.conf source=/etc/mkinitcpio-systemd-tool/config/initrd-wifi.conf
 

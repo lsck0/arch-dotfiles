@@ -1,8 +1,20 @@
-// pcscd only serves the active seat; dot apply runs unattended outside one. local, not active: the unattended chain
-// has a session but no seat, an ssh login (remote) falls back to pcsc's default of no
+// pcscd only serves the active seat; this adds a wheel user's inactive seated sessions. polkit's local means a seat,
+// so a seatless session (an ssh login) keeps pcsc's default of no, except while the install chain is armed: its
+// service has no seat and unlocks the secrets with age over CCID. The chain's next file goes when it disarms.
+var STAGE_NEXT = "/var/lib/dotfiles-stage/next";
+
+function stageArmed() {
+    try {
+        polkit.spawn(["/usr/bin/test", "-e", STAGE_NEXT]);
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
 polkit.addRule(function (action, subject) {
     if ((action.id == "org.debian.pcsc-lite.access_pcsc" || action.id == "org.debian.pcsc-lite.access_card") &&
-        subject.local && subject.isInGroup("wheel")) {
+        subject.isInGroup("wheel") && (subject.local || stageArmed())) {
         return polkit.Result.YES;
     }
 });

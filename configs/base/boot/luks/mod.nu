@@ -9,6 +9,7 @@ const ENTRY_OPTIONS = "luks,nofail,discard,perf-no-read-workqueue,perf-no-write-
 # PCR 15 before any volume key is measured into it
 const PCR15_INITIAL = "0000000000000000000000000000000000000000000000000000000000000000"
 const HEADER_STAMP = "luks-header"
+const CRYPTO_CONF = "/etc/mkinitcpio.conf.d/luks-crypto-modules.conf"
 
 def luks-parts []: nothing -> table {
     ^lsblk -J -l -o NAME,UUID,FSTYPE,TYPE | from json | get blockdevices | where fstype == crypto_LUKS and type == part
@@ -16,7 +17,7 @@ def luks-parts []: nothing -> table {
 
 export def system [cfg: record] {
     if (luks-parts | is-empty) { return [] }
-    step configure
+    [(file-copy crypto-modules.conf $CRYPTO_CONF) (step configure)]
 }
 
 def root-backing []: nothing -> any {
@@ -74,13 +75,15 @@ def root-unlock [part: string]: nothing -> nothing {
     }
     # tries=0 asks again after a wrong passphrase: the default 3, one spent on the token, drops to an emergency shell
     # whose root is locked, so a typo at the prompt left the machine unbootable until "exit"
-    let tokens = if $fido { ',fido2-device=auto' } else { '' }
-    cmdline-set $"rd.luks.options=tpm2-device=auto($tokens),tpm2-measure-pcr=yes,tries=0"
+    # tpm2-device=auto without a tpm2 token logs "No valid TPM2 token data found" on every boot
+    let tpm2 = $header | str contains systemd-tpm2
+    let tokens = [(if $tpm2 { 'tpm2-device=auto' }) (if $fido { 'fido2-device=auto' })] | compact
+    cmdline-set $"rd.luks.options=($tokens | append [tpm2-measure-pcr=yes tries=0] | str join ',')"
     # never TPM-only: any signed uki would unseal it unattended
     let enroll = $"systemd-cryptenroll --tpm2-device=auto --tpm2-with-pin=yes --tpm2-pcrs=7+15:sha256=($PCR15_INITIAL)"
-    if not ($header | str contains systemd-tpm2) {
+    if not $tpm2 {
         if $header_changed {
-            print $"note: luks: no TPM2 seal enrolled, for a measured-boot pin unlock: sudo ($enroll) /dev/($part)"
+            print $"note: luks: no TPM2 seal enrolled, for a measured-boot pin unlock: sudo ($enroll) /dev/($part), then rerun dot apply"
         }
     } else if ($header =~ 'tpm2-pin:\s+false') {
         print ("note: luks: a TPM2 seal without a pin unlocks any boot, replace it: "

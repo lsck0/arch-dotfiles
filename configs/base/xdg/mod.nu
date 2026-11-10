@@ -122,11 +122,6 @@ export def link [cfg: record] {
         ($RECLAIM | where mode != move and ((home $it.name | path type) not-in [dir file]) | each {|r|
             file-link (home $r.target) (home $r.name)
         })
-        # nemo also claims FileManager1 and sorts first; the user dir wins, so only where dolphin exists
-        (if (which dolphin | is-not-empty) {
-            let service = home .local share dbus-1 services org.freedesktop.FileManager1.service
-            file-copy dolphin.FileManager1.service $service
-        } else { [] })
         (file-copy home.hidden (home .hidden))
         (autostart-hidden | each {|id|
             let entry = $"[Desktop Entry]\nType=Application\nName=($id)\nHidden=true\n"
