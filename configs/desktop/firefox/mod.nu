@@ -1,5 +1,5 @@
 use module.nu *
-use ../../core/wallust/palette.nu [RADIUS_PX OPACITY_BAR]
+use ../../core/wallust/palette.nu [RADIUS_PX OPACITY_BAR TEXT_RATIO ACCENT2_RATIO hex-to-rgb rgb-to-hex is-light passes quantize readable-on]
 use ../../core/wallust/font.nu [font-load]
 
 export const meta = {
@@ -50,7 +50,7 @@ def pywalfox-host []: nothing -> list<record> {
         path: $host, type: stdio, allowed_extensions: [pywalfox@frewacom.org]
     }
     [
-        (file-render pywalfox-host.sh $host {MAIN: $main} --mode 755)
+        (file-render pywalfox-host.sh $host {MAIN: $main, CACHE: (xdg cache wal pywalfox)} --mode 755)
         (file-text ($nu.home-dir | path join $PYWALFOX_HOST) $"($manifest | to json --indent 2)\n")
     ]
 }
@@ -106,6 +106,61 @@ def chrome-font []: nothing -> string {
     $":root {\n    --rtk-chrome-font: \"($font.family)\", \"JetBrainsMono Nerd Font\", monospace, sans-serif;\n    --rtk-chrome-font-size: ($font.ui_size)pt;\n}\n"
 }
 
+# pywalfox derives its chrome from fixed slots and multiplies (`v + v * f` per channel, clamped): dark takes color0 as
+# the frame, color0 x2.25 for the toolbar and popups, x2.85 for the url bar, color15 as text, color10 as the highlight;
+# light takes white for the toolbar, popups and url bar, color7 x1.1 held in 205..220 as the frame, color0 x2.25 as text
+# and color3 as the highlight under white text. A theme's slots read none of that way (catppuccin's color0 is a surface,
+# so its popups came out pale lavender under pale text, and every light theme's text came out white), so these slots
+# are solved backwards from the theme's background, foreground and accents until each surface holds its contrast.
+const PYWALFOX_POPUP = 1.25
+const PYWALFOX_FIELD = 1.85
+const PYWALFOX_FRAME_LIGHT = [0.1 205 220]
+const PYWALFOX_SCALE_STEP = 0.95
+const PYWALFOX_SCALE_COUNT_MAX = 60
+
+# pywalfox's brighten: each channel v + v * f, clamped to lo..hi out of 255.
+export def pywalfox-brighten [f: float, lo: int = 0, hi: int = 255]: list<float> -> list<float> {
+    $in | each {|v| ([($v * 255 * (1 + $f)) $lo] | math max | [$in $hi] | math min | math round) / 255 }
+}
+
+# The slots pywalfox reads, as hex, from a palette's background, foreground and two accents.
+export def pywalfox-slots [bg: string, fg: string, accent: string, accent2: string]: nothing -> record {
+    let bg = $bg | hex-to-rgb
+    let fg = $fg | hex-to-rgb
+    let white = [1.0 1.0 1.0]
+    if ($bg | is-light) {
+        # the frame is the darker of the text's two grounds, white the other
+        let frame = $bg | pywalfox-brighten $PYWALFOX_FRAME_LIGHT.0 $PYWALFOX_FRAME_LIGHT.1 $PYWALFOX_FRAME_LIGHT.2
+        let text = $fg | readable-on $frame
+        # color0 x2.25 is the text; color0 itself, darker still, is the focused text
+        let c0 = $text | each { $in / (1 + $PYWALFOX_POPUP) }
+        {
+            color0: ($c0 | rgb-to-hex --prefix "#"), color7: ($bg | rgb-to-hex --prefix "#")
+            color3: ($accent | hex-to-rgb | readable-on $white --ratio $ACCENT2_RATIO | rgb-to-hex --prefix "#")
+            color5: ($accent2 | hex-to-rgb | readable-on $white --ratio $ACCENT2_RATIO | rgb-to-hex --prefix "#")
+        }
+    } else {
+        # darkened until the url bar, the brightest surface, still carries the text
+        mut frame = $bg | quantize
+        for _ in 1..$PYWALFOX_SCALE_COUNT_MAX {
+            if (passes $fg ($frame | pywalfox-brighten $PYWALFOX_FIELD) $TEXT_RATIO) { break }
+            $frame = $frame | each { $in * $PYWALFOX_SCALE_STEP } | quantize
+        }
+        let field = $frame | pywalfox-brighten $PYWALFOX_FIELD
+        {
+            color0: ($frame | rgb-to-hex --prefix "#"), color15: ($fg | readable-on $field | rgb-to-hex --prefix "#")
+            color10: ($accent | hex-to-rgb | readable-on $frame --ratio $ACCENT2_RATIO | rgb-to-hex --prefix "#")
+            color13: ($accent2 | hex-to-rgb | readable-on $frame --ratio $ACCENT2_RATIO | rgb-to-hex --prefix "#")
+        }
+    }
+}
+
+def pywalfox-colors []: nothing -> string {
+    let colors = open (xdg cache wal colors.json)
+    let slots = pywalfox-slots $colors.special.background $colors.special.foreground $colors.colors.color4 $colors.colors.color5
+    $"($colors | upsert colors ($colors.colors | merge $slots) | to json --indent 2)\n"
+}
+
 # pywalfox's default dark and light templates as chrome variables, for a profile without the extension.
 def chrome-colors []: nothing -> string {
     let p = palette-load
@@ -117,8 +172,8 @@ def chrome-colors []: nothing -> string {
         }
     } else {
         {
-            bg: $p.c0, light: $"color-mix\(in srgb, ($p.c0), white 6%\)"
-            extra: $"color-mix\(in srgb, ($p.c0), white 18%\)"
+            bg: $p.bg, light: $"color-mix\(in srgb, ($p.bg), white 6%\)"
+            extra: $"color-mix\(in srgb, ($p.bg), white 18%\)"
             accent: $p.c10, accent2: $p.c13, text: $p.c15, focus: "#ffffff"
         }
     }
@@ -151,6 +206,9 @@ export def theme [cfg: record, wallpaper: string] {
         ]
     } | flatten
     let fonts = $fonts | append $tor
+    let fonts = if (xdg cache wal colors.json | path exists) {
+        $fonts | append (file-text (xdg cache wal pywalfox wal colors.json) (pywalfox-colors) --generated)
+    } else { $fonts }
     let socket = $env.TMPDIR? | default /tmp | path join $"pywalfox_socket_(^id -u | str trim)"
     if (which pywalfox | is-empty) or not ($socket | path exists) { return $fonts }
     # the extension keeps its own dark/light mode apart from the colors: left on light, a dark palette paints a light

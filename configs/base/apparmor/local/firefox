@@ -43,8 +43,9 @@ profile pywalfox flags=(attach_disconnected) {
   owner @{PROC}/@{pid}/cmdline r,
   deny /dev/tty rw,
 
-  owner @{user_cache_dirs}/wal/colors.json r,
-  owner @{user_cache_dirs}/pywalfox.log{,.1} rw,
+  # XDG_CACHE_HOME is wal/pywalfox for the host: the firefox module's colors.json, with color0 the background
+  owner @{user_cache_dirs}/wal/{,pywalfox/wal/}colors.json r,
+  owner @{user_cache_dirs}/{,wal/pywalfox/}pywalfox.log{,.1} rw,
   owner @{user_config_dirs}/pywalfox/{,config.json} rw,
   owner @{tmp}/pywalfox_socket_@{uid} rw,
   owner @{tmp}/* rw,
