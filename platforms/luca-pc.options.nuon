@@ -73,10 +73,11 @@
             }
         ]
         # discord and spotify land on 5 through app_workspaces; spotify waits for discord's window, so discord takes the
-        # left half. The chat apps and steam start in their trays.
+        # left half. spotify starts through its desktop entry, so spotify-launch.nu runs (patched copy, wayland, CDP).
+        # The chat apps and steam start in their trays.
         autostart: [
             {cmd: discord}
-            {cmd: spotify, after: discord}
+            {cmd: "gtk-launch spotify", after: discord}
             {cmd: firefox, workspace: 6}
             {cmd: "ghostty --gtk-single-instance=false", workspace: 1, float: true}
             {cmd: "Telegram -startintray"}
