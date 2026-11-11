@@ -75,5 +75,10 @@ export def link [cfg: record] {
     | append (desktop-override wayvr.desktop {
         desktop-set {Terminal: false} | str replace --regex '(?m)^Exec=wayvr$' $"Exec=($bin)/desktop-run --notify -- wayvr"
     })
+    # its import's file input sends a *.json filter with an empty name, which the portal refuses ("invalid filter: name
+    # is empty") and the button does nothing: gtk's own chooser takes it
+    | append (desktop-override "Proton Authenticator.desktop" {
+        str replace --regex '(?m)^Exec=env ' 'Exec=env GTK_USE_PORTAL=0 '
+    })
     | append (step filezilla-seed $filezilla --creates $filezilla)
 }
