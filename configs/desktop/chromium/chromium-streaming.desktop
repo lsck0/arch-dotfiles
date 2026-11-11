@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Chromium Streaming
+Comment=Chromium in the streaming profile, away from the private logins
+Exec=chromium --profile-directory=Streaming %U
+Icon=chromium
+Terminal=false
+Categories=Network;WebBrowser;
+StartupWMClass=chromium

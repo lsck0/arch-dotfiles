@@ -9,6 +9,8 @@ Singleton {
   property bool running: false
   property bool probed: false
   property bool connected: false
+  // streaming or recording: what is on screen may be on the stream (the desktop widgets censor themselves)
+  property bool live: false
   readonly property bool listening: listenState.state === "on"
   readonly property string listenScript: listenState.path
   property var inputVolumes: ({})

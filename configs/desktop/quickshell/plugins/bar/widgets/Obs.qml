@@ -85,6 +85,7 @@ BarWidget {
     scenes = []
     mutes = ({})
     ObsProcess.connected = false
+    ObsProcess.live = false
     ObsProcess.inputVolumes = ({})
     ObsProcess.inputMutes = ({})
   }
@@ -102,6 +103,7 @@ BarWidget {
     streamReconnecting = payload.streamReconnecting === true
     recording = payload.recording === true
     recordPaused = payload.recordPaused === true
+    ObsProcess.live = streaming || recording
     streamSeconds = Number(payload.streamSeconds) || 0
     recordSeconds = Number(payload.recordSeconds) || 0
     recordBytes = Number(payload.recordBytes) || 0

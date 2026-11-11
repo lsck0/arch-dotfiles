@@ -202,6 +202,7 @@ Item {
           id: agendaCard
           heading: "Agenda"
           visible: !root.agendaEmpty
+          censored: ObsProcess.live
           onHeadingClicked: TaskState.panelOpen = true
 
           // one section per kind, each capped on its own and naming what the cap hid
@@ -305,6 +306,7 @@ Item {
           id: notesCard
           heading: "Notes"
           visible: NotesState.disk.trim().length > 0 || notesEdit.text.length > 0
+          censored: ObsProcess.live
 
           Label {
             width: parent.width
@@ -322,6 +324,7 @@ Item {
             color: Colors.foreground
             opacity: (text.length > 0 || activeFocus) ? Style.emphasis.strong : Style.emphasis.faint
             wrapMode: TextEdit.Wrap
+            readOnly: ObsProcess.live
             selectByMouse: true
             persistentSelection: true
             font.family: Style.font.family
@@ -363,6 +366,8 @@ Item {
   component Card: Rectangle {
     id: card
     property string heading: ""
+    // while streaming or recording: the body blurs past reading, the heading stays, so the card still shows it is there
+    property bool censored: false
     default property alias body: bodyCol.data
     readonly property alias headingItem: headingText
 
@@ -397,6 +402,13 @@ Item {
         id: bodyCol
         width: parent.width
         spacing: Style.spacing.xs
+        layer.enabled: card.censored
+
+        layer.effect: MultiEffect {
+          blurEnabled: true
+          blur: 1
+          blurMax: 64
+        }
       }
     }
   }

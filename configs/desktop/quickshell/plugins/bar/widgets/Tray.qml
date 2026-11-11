@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
 import Quickshell.Services.SystemTray
+import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
@@ -102,6 +103,20 @@ BarWidget {
   function iconIsSymbolic(icon) {
     var name = String(icon || "").split("?")[0]
     return name.slice(-9) === "-symbolic"
+  }
+
+  // An app's own activate only raises its window, which hyprland marks urgent on another workspace (focus_on_activate
+  // is off); the click asked for it, so its window is focused through the toplevel, which switches there.
+  // Electron names its item <app>_status_icon_<n>; the window's app id may carry a reverse-dns prefix.
+  function focusApp(item) {
+    const keys = [String(item.id || "").replace(/_status_icon_\d+$/, ""), String(item.title || "")]
+      .map(k => k.toLowerCase()).filter(k => k !== "")
+    if (keys.length === 0) return
+    const windows = ToplevelManager.toplevels.values.filter(t => {
+      const app = String(t.appId).toLowerCase()
+      return keys.some(k => app === k || app.endsWith("." + k))
+    })
+    if (windows.length > 0) windows[0].activate()
   }
 
   function trayTooltip(item) {
@@ -663,6 +678,7 @@ BarWidget {
           trayItemRoot.displayMenu(mouse)
         } else {
           trayItemRoot.modelData.activate()
+          root.focusApp(trayItemRoot.modelData)
         }
       }
       onWheel: function(wheel) {
