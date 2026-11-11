@@ -1,4 +1,8 @@
 local function terminal_graphics()
+    -- dot's headless runs see no terminal, yet they fetch and build image.nvim so a first start downloads nothing
+    if vim.g.dot_probe or vim.g.dot_prefetch then
+        return true
+    end
     if vim.g.neovide then
         return false
     end

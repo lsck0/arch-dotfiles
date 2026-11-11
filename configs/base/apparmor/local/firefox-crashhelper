@@ -1,0 +1,3 @@
+# managed by arch-dotfiles/apparmor
+# firefox names its crash helper log per channel now; apparmor.d allows only the old crash_helper_server.log
+owner "@{config_dirs}/firefox{,-esr}/Crash Reports/crash_helper_server-*.log" rw,

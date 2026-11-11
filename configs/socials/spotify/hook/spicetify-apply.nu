@@ -5,6 +5,7 @@ const RELOAD = path self | path expand | path dirname --num-levels 2 | path join
 const SPOTIFY_SYSTEM = "/opt/spotify"
 const PACMAN_LOCK = "/var/lib/pacman/db.lck"
 const PACMAN_WAIT_S = 300
+const EXIT_WAIT_S = 10
 
 def config-home []: nothing -> path { $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) }
 
@@ -72,5 +73,24 @@ def "main locked" []: nothing -> nothing {
     try { ^spicetify -n apply } catch { ^spicetify -n backup apply }
     ^spicetify -n enable-devtools
     ^$UNMAP ($apps | path join xpui)
-    ^$RELOAD --page
+    if (stock-running) { restart } else { ^$RELOAD --page }
+}
+
+# A spotify started before the first patch (a fresh install logs in only after autostart) runs the stock binary, which
+# a page reload cannot patch.
+def stock-running []: nothing -> bool {
+    ^pgrep -x spotify | lines | any {|pid|
+        (try { ^readlink $"/proc/($pid)/exe" | str trim } catch { "" }) | str starts-with $"($SPOTIFY_SYSTEM)/"
+    }
+}
+
+# Restarts it through its desktop entry, so spotify-launch.nu runs the patched copy; a service, not a scope, so uwsm
+# returns and spotify outlives this hook's unit.
+def restart []: nothing -> nothing {
+    ^pkill -x spotify
+    for _ in 1..$EXIT_WAIT_S {
+        if (^pgrep -x spotify | complete).exit_code != 0 { break }
+        sleep 1sec
+    }
+    ^uwsm app -t service -S both -- spotify.desktop
 }

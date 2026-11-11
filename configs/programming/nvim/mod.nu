@@ -1,6 +1,8 @@
 use module.nu *
 
 const QUIET_GIT = [GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=advice.detachedHead GIT_CONFIG_VALUE_0=false]
+# a cond that reads the terminal (image.nvim) holds in these runs, so their plugins are cloned and built here
+const PREFETCH = [--cmd "lua vim.g.dot_prefetch = true"]
 
 export const meta = {
     packages: {
@@ -23,7 +25,7 @@ const WHISPER_MODEL = {
     commit: "5359861c739e955e79d9a303bcbc70fb988958b1"
     sha256: "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2"
 }
-# lazy skips a plugin whose cond is false (image.nvim outside kitty): its pin is never cloned headless
+# lazy skips a plugin whose cond is false (a probe or prefetch makes the terminal ones true): its pin is never cloned
 const COND_LUA = '
 local found, cfg = pcall(require, "lazy.core.config")
 if not found then return end
@@ -123,9 +125,9 @@ export def link [cfg: record] {
 
 # Restore the plugins; nvim exits 0 even when every fetch failed, so the pins tell.
 export def prefetch [...restore: string]: nothing -> nothing {
-    if ($restore | is-not-empty) { ^env ...$QUIET_GIT nvim --headless ...$restore "+qa" }
+    if ($restore | is-not-empty) { ^env ...$QUIET_GIT nvim --headless ...$PREFETCH ...$restore "+qa" }
     # on a fresh install the plan ran before the config link existed, so the restore was never asked for
-    if (plugins-stale | is-not-empty) { ^env ...$QUIET_GIT nvim --headless "+Lazy! restore" "+qa" }
+    if (plugins-stale | is-not-empty) { ^env ...$QUIET_GIT nvim --headless ...$PREFETCH "+Lazy! restore" "+qa" }
     let stale = plugins-stale
     if ($stale | is-not-empty) {
         error make {msg: $"($stale | length) plugins are not at their lazy-lock.json pin after the restore: ($stale | str join ' ')"}
@@ -135,7 +137,7 @@ export def prefetch [...restore: string]: nothing -> nothing {
     for _ in 1..$INSTALL_PASSES {
         let pending = tools-missing
         if ($pending | is-empty) { break }
-        ^env ...$QUIET_GIT nvim --headless ...(install-commands $pending) "+qa"
+        ^env ...$QUIET_GIT nvim --headless ...$PREFETCH ...(install-commands $pending) "+qa"
     }
     let missing = tools-missing | where kind != unlisted
     if ($missing | is-not-empty) {
