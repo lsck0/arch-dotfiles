@@ -11,7 +11,6 @@ Item {
   id: root
   property string mainScreenName: ""
   property var shellHost: null
-  readonly property var notifications: shellHost ? shellHost.plugin("service.notifications") : null
   readonly property int taskMax: 12
   readonly property int reminderMax: 4
   readonly property int cardWidth: Style.space(520)
@@ -57,9 +56,9 @@ Item {
       readonly property var bar: root.shellHost ? root.shellHost.barFor(modelData) : null
       readonly property bool panelOverWidgets: panelOver(widgetColumn)
       readonly property bool panelOverQuote: panelOver(quoteCard)
-      // the toasts stack down the same top-right corner
-      readonly property bool toastsOverWidgets: !!root.notifications && root.notifications.toastsShown && root.notifications.popupScreen === modelData
-      readonly property bool widgetsHidden: panelOverWidgets || toastsOverWidgets
+      // toasts stack down the same top-right corner but draw above (overlay layer): the widgets stay, as hiding them on
+      // every notification was more disruptive than the overlap
+      readonly property bool widgetsHidden: panelOverWidgets
 
       // the bar's open panel drops from the top, so it covers an item it overlaps sideways and reaches down to
       function panelOver(item) {

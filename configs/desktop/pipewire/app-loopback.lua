@@ -326,6 +326,21 @@ function stream_attach(id, retries, reclaim)
     end
 end
 
+-- A recording stream never captures from an app's loopback: wireplumber saved one as the target of an alsa client's mic
+-- (python's, audacity's), which then recorded that app's silent loopback monitor instead of the microphone. Dropping
+-- the target relinks it to the default source and wireplumber saves it without one.
+function input_unloop(id)
+    local metadata = metadata_om:lookup()
+    if not metadata then
+        return
+    end
+    local target = target_node(metadata:find(id, "target.object"))
+    local name = target and target.properties["node.name"] or ""
+    if name:sub(1, #PREFIX) == PREFIX then
+        metadata:set(id, "target.object", nil, nil)
+    end
+end
+
 function listen_active()
     local metadata = metadata_om:lookup()
     return metadata ~= nil and metadata:find(0, LISTEN_KEY) ~= nil and clients_om:lookup() ~= nil
@@ -439,6 +454,10 @@ metadata_om:connect("object-added", function(_, metadata)
             return
         end
         local node = node_get(subject)
+        if node and node.properties["media.class"] == "Stream/Input/Audio" then
+            input_unloop(subject)
+            return
+        end
         if node and node.properties["media.class"] == "Stream/Output/Audio" and stream_key(node.properties) then
             stream_attach(subject, 0, false)
         end
@@ -451,6 +470,14 @@ clients_om:connect("object-removed", listen_apply)
 nodes_om:connect("object-added", function(_, node)
     if out_key(node) then
         listen_apply()
+        return
+    end
+    if node.properties["media.class"] == "Stream/Input/Audio" then
+        local id = node["bound-id"]
+        Core.timeout_add(SETTLE_MS, function()
+            input_unloop(id)
+            return false
+        end)
         return
     end
     if node.properties["media.class"] ~= "Stream/Output/Audio" then
