@@ -196,7 +196,7 @@ export def finish [results: table]: nothing -> nothing {
 }
 
 # A failed config stage's login banner goes once a full apply, both layers run, left no FAILURES.config behind.
-def config-banner-clear []: nothing -> nothing {
+export def config-banner-clear []: nothing -> nothing {
     if not ($CONFIG_ISSUE | path exists) or $env.DOT_FULL_RUN? != true or $env.DOT_SYSTEM_RAN? != true { return }
     if ($FAILURES_PUBLISHED | path exists) { return }
     let runner = system-runner

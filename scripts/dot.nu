@@ -18,7 +18,7 @@ use ($REPO | path join configs base yubikey yubikey.nu) [yubikey-init yubikey-se
 use ($REPO | path join configs base yubikey audit.nu) [audit-run audit-rotated audit-drilled]
 use ($REPO | path join configs core wallust wallpaper.nu) [wallpaper-set wallpaper-random wallpaper-pick]
 use ($LIB | path join sync.nu) [sync-commit sync-can-sign sync-pull]
-use ($LIB | path join run.nu) [failures-publish finish admin system-allowed system-skipped pending-exit user-locked unlink-run system-part update-run INTERNAL PIPELINE_CLI]
+use ($LIB | path join run.nu) [failures-publish finish config-banner-clear admin system-allowed system-skipped pending-exit user-locked unlink-run system-part update-run INTERNAL PIPELINE_CLI]
 use ($LIB | path join set.nu) [options-list option-target option-write option-apply]
 
 const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo prescribes and records it
@@ -260,6 +260,7 @@ def "main sync" [
         sync-pull $REPO
         let run = update-run $yes
         let clean = failures-publish $run.results
+        if $clean { config-banner-clear }
         if $no_push {
         } else if (sync-can-sign $REPO) {
             sync-commit $REPO --no-verify=$no_verify
