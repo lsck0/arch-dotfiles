@@ -1,5 +1,7 @@
 # managed by arch-dotfiles/apparmor
 include <abstractions/dotfiles/nssdb>
+# apparmor.d allows inet6 dgram only: its tcp over ipv6 (Chrome_ChildIOT) is denied, so it falls back or stalls
+network inet6 stream,
 @{PROC}/uptime r,
 @{sys}/fs/cgroup/user.slice/user-@{uid}.slice/user@@{uid}.service/**/{memory.max,memory.high,cpu.max} r,
 # xdg-mime registering itself as the mail handler: mimeapps.list is the dotfiles' own
