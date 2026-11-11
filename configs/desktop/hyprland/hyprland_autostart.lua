@@ -14,31 +14,100 @@ local function autostart_launch(entry)
     hl.exec_cmd("uwsm app -- " .. entry.cmd, next(rules) and rules or nil)
 end
 
-local function autostart()
-    local waiting = {}
-    for _, entry in ipairs(platform.autostart or {}) do
-        if entry.after then
-            table.insert(waiting, entry)
-        else
-            autostart_launch(entry)
+-- The entries still waiting on their after window, as indexes into platform.autostart, one per line. A file under this
+-- instance's runtime dir, since plugins.nu's `hyprctl reload` at login rebuilds the lua state and with it any
+-- subscription made in hyprland.start; each load picks the list up again.
+local function pending_path()
+    local runtime, instance = os.getenv("XDG_RUNTIME_DIR"), os.getenv("HYPRLAND_INSTANCE_SIGNATURE")
+    if not runtime or not instance then
+        return nil
+    end
+    return runtime .. "/hypr/" .. instance .. "/autostart-pending"
+end
+
+local function pending_read()
+    local path, out = pending_path(), {}
+    local f = path and io.open(path, "r")
+    if not f then
+        return out
+    end
+    for line in f:lines() do
+        local i = tonumber(line)
+        if i and platform.autostart and platform.autostart[i] then
+            table.insert(out, i)
         end
+    end
+    f:close()
+    return out
+end
+
+local function pending_write(indexes)
+    local path = pending_path()
+    if not path then
+        return
+    end
+    if #indexes == 0 then
+        os.remove(path)
+        return
+    end
+    local f = io.open(path, "w")
+    if f then
+        f:write(table.concat(indexes, "\n"), "\n")
+        f:close()
+    end
+end
+
+-- an entry with after starts once a window of that class is open, so a shared workspace fills in a fixed order; one
+-- already open (it mapped during a reload) counts
+local function pending_watch()
+    local waiting = pending_read()
+    if #waiting == 0 then
+        return
+    end
+    -- read again each time: should a reload keep the old state, a second subscription finds the entry gone
+    local function release(class)
+        local kept = {}
+        waiting = pending_read()
+        for _, i in ipairs(waiting) do
+            if platform.autostart[i].after == class then
+                autostart_launch(platform.autostart[i])
+            else
+                table.insert(kept, i)
+            end
+        end
+        waiting = kept
+        pending_write(waiting)
+    end
+    for _, window in ipairs(hl.get_windows()) do
+        release(window.class)
     end
     if #waiting == 0 then
         return
     end
-    -- an entry with after starts once a window of that class opens, so a shared workspace fills in a fixed order
     local subscription
     subscription = hl.on("window.open", function(window)
-        for i = #waiting, 1, -1 do
-            if window.class == waiting[i].after then
-                autostart_launch(table.remove(waiting, i))
-            end
-        end
+        release(window.class)
         if #waiting == 0 and subscription then
             subscription:remove()
         end
     end)
 end
+
+local function autostart()
+    local waiting = {}
+    for i, entry in ipairs(platform.autostart or {}) do
+        if entry.after then
+            table.insert(waiting, i)
+        else
+            autostart_launch(entry)
+        end
+    end
+    pending_write(waiting)
+    pending_watch()
+end
+
+-- a reload after start (plugins.nu at login) resumes what still waits
+pending_watch()
 
 hl.on("hyprland.start", function()
     -- the hl.env scales too, so quickshell.service and every app it launches see what the compositor's children see

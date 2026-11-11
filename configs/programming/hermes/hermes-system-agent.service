@@ -8,7 +8,8 @@ PartOf=graphical-session.target
 # continues the profile's last session. The unit carries the session's wayland and hyprland environment, so the agent
 # drives the desktop as Luca does.
 Type=forking
-ExecStart=/usr/bin/tmux -L system-agent -f /dev/null new-session -d -s agent -x 160 -y 48 -c %h "%h/.local/bin/hermes-system-agent"
+# Luca's tmux.conf: his prefix and keys, and the wallust colours core/tmux re-sources into every server on a theme switch
+ExecStart=/usr/bin/tmux -L system-agent new-session -d -s agent -x 160 -y 48 -c %h "%h/.local/bin/hermes-system-agent"
 # voice mode is per session in hermes, not config: switched on once the prompt is up (at most a minute)
 ExecStartPost=/bin/sh -c 'for i in $(seq 60); do /usr/bin/tmux -L system-agent capture-pane -p -t agent 2>/dev/null | grep -q "^ system [^ ]" && exec /usr/bin/tmux -L system-agent send-keys -t agent "/voice on" Enter; sleep 1; done'
 ExecStop=/usr/bin/tmux -L system-agent kill-server

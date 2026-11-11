@@ -8,7 +8,8 @@ local terminal =
 
 hl.window_rule({
     match = { class = "^dev\\.lsck0\\.system-agent$" },
-    workspace = "special:agent silent",
+    -- not silent: the window opening there shows the workspace, so the first press opens it in view
+    workspace = "special:agent",
     float = true,
     center = true,
     size = "monitor_w*0.6 monitor_h*0.7",
@@ -19,9 +20,9 @@ hl.window_rule({
 -- whenever a quickshell panel closed, and that pulled the workspace into view.
 hl.bind(mod .. " + code:49", function()
     local window = hl.get_windows({ class = "dev.lsck0.system-agent" })[1]
+    -- no toggle here: the empty special workspace it showed closed at once, and the window then opened hidden
     if window == nil then
         hl.exec_cmd("uwsm app -- " .. terminal)
-        hl.dispatch(hl.dsp.workspace.toggle_special("agent"))
         return
     end
     local shown = hl.get_active_special_workspace()
