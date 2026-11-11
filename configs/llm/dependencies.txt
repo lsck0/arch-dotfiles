@@ -1,0 +1,1 @@
+rocm                              # rocm/compute before vllm, so its rocminfo decides

@@ -113,6 +113,10 @@ Both shapes use the same spec corpus and the same stages; they differ only in wh
 revertible phase at a time or thrown whole and then refined. Pick the shape that fits the project's stage, and say which
 one when it is not obvious.
 
+Without a spec, the same two shapes are their own ways of working: `l-pottery-development` (throw, center, refine) and
+`l-incremental-development` (one task at a time, as the developer). Spec-driven is for real features and changes that
+need a design; the other two are for when Luca says to skip the spec.
+
 ## Document deliverables
 
 Some asks deliver a document, not code: a launch plan, a privacy policy, a pricing sheet, a job description, a press
@@ -296,6 +300,23 @@ the parallelism by the machine's memory, not just this count: heavy
 building or compiling agents each hold a real footprint, so on a large
 build run at most two at once however much the budget would otherwise
 allow.
+
+**Machine limits.** Luca works and games on the same machine while
+agents run, so the machine bounds every budget:
+
+- Read-only agents are not free: each is a whole process. A fan-out of
+  scouts stays near four at once, and while anything builds, one agent
+  runs at a time.
+- An agent that builds checks free memory first and waits while less
+  than about 12 GB is available; build jobs are capped, heavy commands
+  run under `nice -n 19 ionice -c3`.
+- At most one offscreen GPU run (a game, a capture, a render) at a time
+  across all sessions; an emulator or VM is stopped by PID once its
+  check is done, never left beside builds.
+- Builds never run in the main checkout: an app Luca runs from it can
+  hot reload the half-built output and crash. Use a worktree.
+- Stop processes by PID, never `pkill -f`: the pattern matches the
+  agent's own shell.
 
 **Implementer cap.** At most 2 workstreams implemented concurrently, each
 in its own worktree ([references/worktrees.md](references/worktrees.md)). They count inside the budget of 3, not on

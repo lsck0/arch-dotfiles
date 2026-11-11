@@ -1,6 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # the lock_screen option's locker (quickshell or hyprlock), the other as the fallback; a locker not holding the compositor's lock is no lock
 
+const DPMS = path self dpms.nu
 const LOCK_POLL_TRIES = 30
 const LOCK_POLL_INTERVAL = 100ms
 
@@ -41,6 +42,6 @@ def main [] {
     }
     if (hyprlock-take) { return }
     ^notify-send -u critical "Screen not locked" "quickshell and hyprlock both failed to take the lock" | complete | ignore
-    ^hyprctl dispatch "hl.dsp.dpms({ mode = 'off' })" | complete | ignore
+    ^$DPMS off | complete | ignore
     exit 1
 }

@@ -7,6 +7,14 @@ const KEPT = [
     DownloadLinkUpdate DownloadCount LastUpdate TestingAssemblyVersion TestingDalamudApiLevel
 ]
 const INDEX_MAX_AGE = 10min
+# scripts/lib/state.nu's EXIT_PENDING: the apply retries the plugin next time instead of failing
+const EXIT_PENDING = 3
+
+# A plugin left out for good: its repo or its entry is gone.
+def delist [cache: path, name: string, why: string]: nothing -> nothing {
+    print $"note: dalamud: ($name) ($why), skipped; drop its manifest from configs/secrets/state/dalamud/manifests"
+    touch ($cache | path dirname | path join $"($name).delisted")
+}
 
 def main [manifest: path, plugins: path]: nothing -> nothing {
     let old = open $manifest
@@ -16,13 +24,23 @@ def main [manifest: path, plugins: path]: nothing -> nothing {
     let cache = $caches | path join $"($url | hash md5).json"
     if not ($cache | path exists) or ((date now) - (ls $cache | get 0.modified)) > $INDEX_MAX_AGE {
         mkdir ($cache | path dirname)
-        http get --raw --max-time 60sec $url | save --force $"($cache).tmp"
+        let got = do { ^curl -fsSL --max-time 60 -o $"($cache).tmp" $url } | complete
+        if $got.exit_code != 0 {
+            # 4xx: the repo is gone; anything else (timeout, 5xx, no route) is the remote's state for now
+            if ($got.stderr =~ 'returned error: 4\d\d') { delist $cache $name $"has no repo at ($url) any more"; return }
+            print $"dalamud: ($url) not reachable: ($got.stderr | str trim)"
+            exit $EXIT_PENDING
+        }
         mv --force $"($cache).tmp" $cache
     }
-    let entry = open $cache | where InternalName == $name | get --optional 0
+    let index = try { open $cache } catch { null }
+    if ($index | describe) !~ '^(table|list<record)' {
+        delist $cache $name $"gets no plugin index from ($url)"
+        return
+    }
+    let entry = $index | where InternalName == $name | get --optional 0
     if $entry == null {
-        print $"note: dalamud: ($name) is gone from ($url), skipped; drop its manifest from configs/secrets/state/dalamud/manifests"
-        touch ($cache | path dirname | path join $"($name).delisted")
+        delist $cache $name $"is gone from ($url)"
         return
     }
     let testing = $old.Testing and ($entry.TestingAssemblyVersion? | is-not-empty)

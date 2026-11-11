@@ -51,6 +51,11 @@ TypeScript: fast-check).
 - A failure explains itself. Comparisons report what each side held, not just that they differ. A failing test or
   simulation run prints its seed, the build metadata, the last log lines and the trace of its own run, so the first
   failure is enough to find the cause without a rerun. A test that can only say "false" is half a test.
+- A generated config is tested by the program that reads it: build the file and run that program's own check (`nginx
+  -t -c <conf>`, a daemon's check mode, the parser's dry run). A match in the generator's language proves the intent,
+  never that the daemon accepts the file.
+- A regression test is seen failing: revert the fix (or mutate the line) once and watch the test go red before trusting
+  it. Mandatory for anything guarding data (backups, sync, migrations), where a test that passes either way hides a loss.
 - Tests are granular: one behaviour per test, named for the requirement it proves (`spec003_r004_...` under a spec), so
   a failure names what broke before anyone reads the body. One test program per unit under test is the file-level
   packaging; inside it, each behaviour is its own named case, not one monolithic assert.

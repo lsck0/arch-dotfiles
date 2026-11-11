@@ -8,7 +8,7 @@ export const meta = {packages: {pacman: [ollama]}}
 const RESTART = [systemctl stop ollama-proxy.service ollama.service]
 export const KEEP_ALIVE_MIN = 30
 # the pinned models are tens of GB: pulled once per pin set, and only where a gpu runs them (not the vm test)
-const MODELS_TIMEOUT = 3hr
+const MODELS_TIMEOUT = 6hr
 
 export def link [cfg: record] {
     # the script's own hash too: a changed prune or ensure rule reruns it without a pin bump

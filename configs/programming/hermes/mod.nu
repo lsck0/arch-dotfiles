@@ -11,6 +11,7 @@ export const meta = {
 }
 
 use ../../desktop/idle-guards/mod.nu [AGENT_GUARD]
+use ../../desktop/hyprland/mod.nu [reload]
 use ../../llm/ollama/ollama-ensure-models.nu [LONG_CONTEXT]
 
 export const options = {
@@ -95,7 +96,7 @@ def system-agent [h: record, settings: record, remove: list<string>, mcp: record
         (configure $h.system ($settings | merge $SYSTEM_SETTINGS) $remove $mcp)
         (anthropic-key $h.system)
         (unit-file $SYSTEM_UNIT --enable --now)
-        (file-copy hypr-system-agent.lua ($nu.home-dir | path join .config hypr dropins system_agent.lua) --then [hyprctl reload])
+        (file-copy hypr-system-agent.lua ($nu.home-dir | path join .config hypr dropins system_agent.lua) --then (then-step hypr-reload))
     ]
 }
 
@@ -248,3 +249,6 @@ export def theme [cfg: record, wallpaper: string] {
     if $skin == null { return [] }
     homes | values | where ($it | path exists) | each {|home| file-text ($home | path join skins $"($SKIN).yaml") $skin --generated }
 }
+
+# desktop/hyprland's reload: skipped without a session (the install's config stage), and keeps the shader
+export def hypr-reload []: nothing -> nothing { reload }

@@ -17,6 +17,13 @@ not interrupt him for trivia it can settle from the code, the conventions or a s
 and autonomous-mode gates (`l-persona-orchestrator`, `l-spec-driven-development`) are the specialization of this
 for a multi-step run.
 
+Luca's "stop" halts at once: no further tool calls, only a report of what is running, what changed and what is
+unverified; work resumes on "continue". A gap in code another session owns (the engine, the homelab, the dotfiles) goes
+to that session with the exact need; stub that piece and continue, never a workaround in the caller.
+
+How to work on a project, by the ask: `l-spec-driven-development` (a spec, then phases), `l-pottery-development`
+(throw everything on, then refine) or `l-incremental-development` (one task at a time).
+
 ## Powers and the skill that drives each
 
 | power | how | skill |

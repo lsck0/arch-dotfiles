@@ -34,8 +34,8 @@ export def system [cfg: record] {
         (
             # about 1 GiB from sourceforge, slower than STEP_TIMEOUT allows on a throttled mirror
             (fetch-file $SYSTEM_URL $SYSTEM_SHA256 $"($IMAGES).new/system.img" --extract system.img --timeout $IMAGE_TIMEOUT)
-            ++ (fetch-file $VENDOR_URL $VENDOR_SHA256 $"($IMAGES).new/vendor.img" --extract vendor.img)
-            ++ [(step images-swap)]
+            ++ (fetch-file $VENDOR_URL $VENDOR_SHA256 $"($IMAGES).new/vendor.img" --extract vendor.img --timeout $IMAGE_TIMEOUT)
+            ++ [(step images-swap --requires $"($IMAGES).new/vendor.img")]
         )
     }
     let up = session-up
@@ -43,7 +43,7 @@ export def system [cfg: record] {
     [
         $images
         (if (status | str contains "not initialized") {
-            exec waydroid-init [waydroid init] --creates $CONFIG --network
+            exec waydroid-init [waydroid init] --creates $CONFIG --network --requires ($IMAGES | path join .pins)
         } else { [] })
         # a merge planned before init would overwrite init's [waydroid] section with sectionless content
         (if ($CONFIG | path exists) {
@@ -58,6 +58,9 @@ export def system [cfg: record] {
 
 # Swaps the fetched images in whole, so init never sees a system.img without its vendor.img.
 export def images-swap []: nothing -> nothing {
+    for img in [system.img vendor.img] {
+        if not ($"($IMAGES).new" | path join $img | path exists) { error make {msg: $"waydroid: ($img) missing, not swapping"} }
+    }
     pins | save --force $"($IMAGES).new/.pins"
     rm --recursive --force $IMAGES
     mv $"($IMAGES).new" $IMAGES

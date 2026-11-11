@@ -1,6 +1,7 @@
 use module.nu *
 
-export const meta = {deps: [base/essentials], packages: {pacman: [uv]}}
+# rocminfo decides whether vllm is set up: an input, so ROCm arriving later re-plans it
+export const meta = {deps: [base/essentials rocm/compute], packages: {pacman: [uv]}, inputs: [/opt/rocm/bin/rocminfo]}
 
 export const options = {
     model: {
@@ -85,6 +86,9 @@ export def system [cfg: record] {
     }
     [
         (step venv --network --timeout 60min)
+        # the weights at install, not on the first request, whose ready timeout a cold download would miss
+        (step model-fetch $cfg.model $cfg.model_revision --key $"($cfg.model)@($cfg.model_revision)" --network
+            --timeout 90min --requires ($PREFIX | path join venv bin hf))
         (file-copy vllm-wait-ready.nu /usr/local/bin/vllm-wait-ready --mode 755)
         (unit-file vllm-proxy.service)
         (file-render vllm.service (unit-dir | path join vllm.service) $values --then [
@@ -92,6 +96,15 @@ export def system [cfg: record] {
         ])
         (unit-file vllm.socket --enable --now)
     ]
+}
+
+# Downloads the pinned model into vllm.service's own cache, as its dynamic user, so the service owns the files.
+export def model-fetch [model: string, revision: string]: nothing -> nothing {
+    (^systemd-run --wait --pipe --collect --quiet --unit vllm-model-fetch
+        -p DynamicUser=yes -p User=vllm -p StateDirectory=vllm -p CacheDirectory=vllm
+        -p Environment=HOME=/var/lib/vllm -p Environment=XDG_CACHE_HOME=/var/cache/vllm
+        -p Environment=HF_HUB_DISABLE_TELEMETRY=1
+        ($PREFIX | path join venv bin hf) download $model --revision $revision)
 }
 
 # Everything the venv is built from; a venv whose stamp matches is left alone.

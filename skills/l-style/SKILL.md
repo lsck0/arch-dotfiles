@@ -184,6 +184,9 @@ API: `user_get_display_name`, `user_find_by_email`, `user_from_row`, `user_admin
   - Scope-based cleanup (`defer`, `Drop`, `with`) sits on top of the pair, not in place of it.
 - Casing, module system and visibility keywords are the language's. Ordering and vocabulary are mine, and in my own code
   no framework convention overrides them.
+- One concept in two layers is named as a mirrored pair, qualifier first, then the shared noun, then the same suffixes:
+  `NYA_EngineInventory`/`NYA_EngineInventorySlot` beside `NYA_EntityInventory`/`NYA_EntityInventorySlot`, never one bare
+  `inventory` for both. Before naming a new type or verb family, find its sibling in another layer and mirror it.
 - No magic numbers, no magic strings; the rule is in Code Style.
 
 ## Code Style
@@ -220,7 +223,7 @@ that follows.
     so the phase label becomes runtime debug information instead of dead text. A one or two line step gets nothing; a
     twenty-line step is its own function, or earns one phase marker.
 - Never a comment that restates the code, narrates a step (`// get user data`), tells the story of the change (that is
-  the commit message), or stacks several lines. When a reason expires, delete the comment with the code.
+  the PR body), or stacks several lines. When a reason expires, delete the comment with the code.
 - Use only ASCII symbols in code. No Unicode box-drawing, block, or geometric glyphs as decoration
   (`# _ | [ ] < > / \ + - = : . * o x` instead of box-drawing lines, shade blocks, filled squares, circles, crosses and
   triangles). Real content (a UI's own icon font glyphs, a language's operators, test data that must contain the

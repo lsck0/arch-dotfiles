@@ -14,9 +14,13 @@ def home-dir []: nothing -> path { $nu.home-dir | path join .d2launcher }
 
 def synced-vendor []: nothing -> path { $nu.home-dir | path join sync vendor d2launcher }
 
+# The owner's machines get the vendor dir from syncthing; on a fresh one it can arrive after the first apply, and a
+# fallback built meanwhile (wine, a copied game, Median XL) would be left behind once it does.
+def synced-expected []: nothing -> bool { profile-has secrets }
+
 def vendor-dir []: nothing -> path {
     let synced = synced-vendor
-    if ($synced | path exists) {
+    if ($synced | path exists) or (synced-expected) {
         $synced
     } else {
         xdg data d2launcher-vendor
@@ -30,7 +34,7 @@ const WINE_TOP = "wine-7.0-5-proton-amd64"
 
 # Fetched into the fallback vendor dir only: a synced vendor dir brings its own copy, and dot never writes into ~/sync.
 def wine-fetch-decl []: nothing -> list<record> {
-    if (synced-vendor | path exists) { return [] }
+    if (synced-vendor | path exists) or (synced-expected) { return [] }
     fetch-file $WINE_URL $WINE_SHA256 (vendor-dir | path join bin wine) --extract $WINE_TOP
 }
 
@@ -108,8 +112,10 @@ export def link [cfg: record] {
     let seeded = $game | path join $BASE_MARKER | path exists
     let game_empty = ($game | path type) == dir and (ls $game | is-empty)
     # a synced vendor dir is read-only to dot (nothing lands in ~/sync); the fallback one is dot's
-    let own = not (synced-vendor | path exists)
-    if not $own and not ($game | path join $PATCH_VERSION | path exists) {
+    let own = not (synced-vendor | path exists) and not (synced-expected)
+    if not (synced-vendor | path exists) and (synced-expected) {
+        log-note "d2launcher: waiting for syncthing to bring ~/sync/vendor/d2launcher; apply again once it is there"
+    } else if not $own and not ($game | path join $PATCH_VERSION | path exists) {
         log-note $"d2launcher: ($game) is not set up in the synced vendor dir; set it up on the machine that owns it"
     }
     [
@@ -152,8 +158,9 @@ def vanilla-decls [cfg: record]: nothing -> list<record> {
     let env_vars = [env $"WINEPREFIX=(vanilla-prefix)" WINEDEBUG=-all DISPLAY= WAYLAND_DISPLAY=]
     [
         ...(ls $base | get name | each {|f| file-link $f ($game | path join ($f | path basename)) })
-        (exec diablo2-prefix [...$env_vars ($wine | path join wineboot) --init] --creates (vanilla-prefix | path join user.reg))
-        (if ($save | path exists) { step save-path (vanilla-prefix) $save --done=(save-path-set (vanilla-prefix) $save) } else { [] })
+        (exec diablo2-prefix [...$env_vars ($wine | path join wineboot) --init] --creates (vanilla-prefix | path join user.reg)
+            --requires (wine-bin))
+        (if ($save | path exists) { step save-path (vanilla-prefix) $save --done=(save-path-set (vanilla-prefix) $save) --requires (wine-bin) } else { [] })
         (file-render vanilla.sh (vanilla-root | path join diablo2.sh) {game: $game, prefix: (vanilla-prefix), wine: $wine}
             --mode "755")
         (file-text (xdg data applications diablo2.desktop) (vanilla-desktop))
@@ -350,7 +357,7 @@ export def mxl-install []: nothing -> nothing {
         try {
             for file in $manifest.files {
                 let out = $tmp | path join $file.name
-                (^curl -fLs --get $manifest.location --data-urlencode $"type=($manifest.channel)"
+                (^curl -fsSL --get $manifest.location --data-urlencode $"type=($manifest.channel)"
                     --data-urlencode $"tag=($manifest.tag)" --data-urlencode $"file=($file.name)" -o $out)
                 # the manifest carries a sha1 per file: catches a truncated or swapped download, not a hostile server
                 let sum = ^sha1sum $out | split row " " | first

@@ -23,9 +23,9 @@ export def link [cfg: record] {
     let unlocked = secret-is-plaintext $p.seed.launcher
     if (which xivlauncher-core | is-empty) or not $unlocked { return $launcher }
     # the launcher's free-space check throws DriveNotFoundException while GamePath is missing (before an install)
-    let game = if ($p.launcher | path exists) {
-        open --raw $p.launcher | lines | parse "GamePath={path}" | get --optional 0.path
-    } else { null }
+    # the seed until the first apply copied it in, so the path exists before the launcher's first start
+    let ini = if ($p.launcher | path exists) { $p.launcher } else { $p.seed.launcher }
+    let game = open --raw $ini | lines | parse "GamePath={path}" | get --optional 0.path
     [
         $launcher
         (step seed --creates ($p.config | path join FFXIV.cfg))

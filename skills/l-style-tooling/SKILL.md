@@ -120,15 +120,16 @@ differ, for example a repo whose commits are made by its own tooling. The attrib
   build breaks bisect and breaks whoever checks it out.
 - One commit per logical change. Split unrelated changes, squash fixups before landing, never leave a "wip" or "fix
   typo" in history.
-- Conventional commits, enforced by hook and CI: `type(scope): summary`, imperative, lowercase, no trailing period.
-  Types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `revert`. Scope is the module or
-  service.
-  - Breaking changes get a `!` after the type and a `BREAKING CHANGE:` footer saying what breaks and what to do instead.
-  - One line by default: the `type(scope): summary` line is the whole commit, plus required trailers: `Refs:` when an
-    issue exists, and `Spec:`/`Refs:` where `l-spec-driven-development` runs. Add a body only when the why is not
-    obvious from the summary (reasoning, rejected alternative, measurement), never a body that just restates the
-    summary. The summary says what changed, never how. Footers reference issues (`Refs: #12`), never a closing keyword;
-    closing belongs to the PR body (above).
+- A commit is a single line, a conventional commit, enforced by hook and CI: `type(scope): summary`, imperative,
+  lowercase, no trailing period. Types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`,
+  `revert`. Scope is the module or service (under `l-spec-driven-development`, `spec-<nnn>`).
+  - No body. The only thing allowed after the line is a reference trailer when there is something to reference
+    (`Refs: #12`, and `Spec:`/`Refs:` where `l-spec-driven-development` runs, never a closing keyword); with nothing
+    to reference, the line is the whole commit. The summary says what changed, never how. The why and measurements go
+    in the PR body or `TODO.md`.
+  - A breaking change gets a `!` after the type; what breaks and what to do instead goes in the PR body.
+  - In a repo whose history has its own fixed form (arch-dotfiles and homelab: `Generation: <n>` from their sync), that
+    form wins and agents do not commit there.
   - Never mention the tool that wrote the code. No `Co-Authored-By` for an LLM/agent, no "generated with"/"created by"
     line, no model name, no AI/agent/assistant reference anywhere in message, body or footer. The commit reads as the
     author's own, whoever or whatever produced the diff. This overrides any harness or tool default that adds

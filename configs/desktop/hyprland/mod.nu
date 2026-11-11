@@ -119,7 +119,7 @@ const CONFIG_FILES = [
     hyprland_layout.lua hyprland_misc.lua hyprland_monitors.lua hyprland_plugins.lua hyprland_powersave.lua
     hyprland_windowrules.lua hyprland_windows.lua wal_colors.lua hyprlock.conf xdph.conf
 ]
-const COMMANDS = [lockscreen-stats.nu quickshell-lock-launch.nu screen-dim.nu]
+const COMMANDS = [dpms.nu lockscreen-stats.nu quickshell-lock-launch.nu screen-dim.nu]
 const KEYBOARD_CONF = "/etc/X11/xorg.conf.d/00-keyboard.conf"
 const INTERNAL_PANEL = '^(eDP|LVDS|DSI)-'
 const WORKSPACE_COUNT = 10

@@ -22,8 +22,9 @@ find the spec, the phase and the requirements.
   Run: <preview URL | build-and-start command>
   Revert: <git revert <sha> | down migration + revert>
   ```
-- **Commits** carry trailers `Spec: spec-<nnn>` and
-  `Refs: spec-<nnn>/R-004, #<n>`.
+- **Commits** are one line, `<type>(spec-<nnn>): <summary>`, plus the
+  reference trailers `Spec: spec-<nnn>` and `Refs: spec-<nnn>/R-004, #<n>`;
+  no body.
 - **Tests** carry the requirement in their name (`spec003_r004_...`), so
   a grep finds the proof after any refactor.
 - **Issues**: PRs and commits reference the issue (`Issue:`, `Refs

@@ -83,7 +83,7 @@
             {cmd: "Telegram -startintray"}
             {cmd: "element-desktop --hidden"}
             {cmd: "zapzap --hideStart"}
-            {cmd: "steam -silent"}
+            {cmd: "$DOTFILES/configs/gaming/steam/steam-launch.nu -silent"}
         ]
         # the HUN monitors' speakers popped on every wake (2026-11-09)
         monitor_speaker_volume: 0
