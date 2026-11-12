@@ -36,13 +36,12 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   `dot module adopt|reset|unlink|remove|restore`, `dot explain <path|package>`, `dot log [--trace]`,
   `dot theme [wallpaper|random]`, `dot secrets audit`; `dot secrets unlock|lock` are Luca's (YubiKey), never an agent's.
 - `dot internal <cmd>` (`scripts/lib/internal.nu`): plumbing for scripts and units; `gen` regenerates
-  `mirror/packages.txt`, FEATURES.md's module and options tables and `platforms/homelab.nu` (lint fails when one is
-  stale), `iso` builds the
-  install iso.
+  `mirror/packages.txt`, FEATURES.md's module and options tables and `platforms/homelab.nu` (`dot sync` runs it
+  before committing, lint fails when one is stale), `iso` builds the install iso.
 - Agents never reach root: run dot with `DOT_SYSTEM=skip` (or `--no-system`); a system part is then pending (exit 3).
   sudo and pkexec take a YubiKey touch or fingerprint on Luca's side, the password as fallback.
-- `dot sync` (pull, migrate, install, apply, back up, signed `Generation: <n>` commit, push) is Luca's only commit
-  path: agents never commit, push or run it, `--no-push` included.
+- `dot sync` (pull, migrate, install, apply, back up, `internal gen`, signed `Generation: <n>` commit, push) is
+  Luca's only commit path: agents never commit, push or run it, `--no-push` included.
 - `collect-diagnostics [--root <mnt>] [dest]`: bash only, runs from a USB stick too; hardware, boot, journals, network,
   dot state. `--root` also reads an installed system mounted at `<mnt>`. `dest` defaults to a mounted `LSCK0` stick
   partition, else `$XDG_STATE_HOME/diagnostics`.
@@ -85,9 +84,9 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   settings in typed options. Never gate on a username.
 - Modules declare what they want (`scripts/lib/module.nu`); the engine applies the difference. Managed files are copies
   with their hash recorded; a changed copy is kept until `dot module adopt` or `reset`; files dot never wrote are taken
-  over; both preserved aside. Links only where an app reads the repo live. dot writes nothing into `~/sync`
-  but `~/sync/.stignore`, where `core/syncthing` keeps its `**/.identity` line (the capture and notes tools write
-  their notes there at runtime).
+  over; both preserved aside. Links only where an app reads the repo live. dot writes nothing into `~/sync` but
+  `~/sync/.stignore`, where `core/syncthing` keeps its `**/.identity` line (the capture and notes tools write their
+  notes there at runtime).
 - Keep `$HOME` clean: env var to `configs/base/xdg/app-dirs.conf`, hardcoded dirs to `RECLAIM` in
   `configs/base/xdg/mod.nu`, forced non-dot dirs to `home.hidden`.
 - Native over bolt-on: the tool's own mechanism (Hyprland rules, systemd units, pipewire config, pacman hooks, udev),

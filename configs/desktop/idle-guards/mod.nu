@@ -3,8 +3,7 @@ use module.nu *
 export const meta = {packages: {pacman: [playerctl]}}
 
 const SCRIPTS = [agent-guard.nu media-guard.nu ssh-guard.nu]
-# each unit runs <guard>-guard.nu; the agent guard runs from the agents' hooks instead. Unit names stay literal: the
-# ledger finds declared units by grepping the module text.
+# each unit runs <guard>-guard.nu; the agent guard runs from the agents' hooks instead
 const UNITS = [
     [guard unit while];
     [media idle-guard-media.service "media plays"]
@@ -20,7 +19,7 @@ export def guard-hook []: record -> bool {
 }
 
 export def system [cfg: record] {
-    [(file-copy 49-idle-guards.rules /etc/polkit-1/rules.d/49-idle-guards.rules)]
+    file-copy 49-idle-guards.rules /etc/polkit-1/rules.d/49-idle-guards.rules
 }
 
 export def link [cfg: record] {

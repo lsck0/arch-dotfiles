@@ -1,22 +1,18 @@
 use module.nu *
-use ../../core/wallust/palette.nu [wal-load is-light]
-use ../firefox/mod.nu [mozilla-profiles mozilla-chrome-font]
+use ../firefox/mod.nu [HEADLESS_TIMEOUT mozilla-profiles mozilla-chrome-font]
 
 export const meta = {
     packages: {pacman: [thunderbird]}
     inputs: ["~/.config/thunderbird/profiles.ini"]
 }
 
-const HEADLESS_TIMEOUT = "20"
-
 # thunderbird keeps its profiles under the XDG config dir (since 156)
 def profiles-ini []: nothing -> path { xdg config thunderbird profiles.ini }
 
 # ui.systemUsesDarkTheme tracks the palette: content under a light wallust theme is not told the system is dark.
 def dark-pref []: nothing -> int {
-    let slot = wal-load "thunderbird"
-    if $slot == null { return 1 }
-    if (do $slot background "#000000" | is-light) { 0 } else { 1 }
+    let p = palette-load
+    if $p != null and $p.light == "1" { 0 } else { 1 }
 }
 
 export def link [cfg: record] {

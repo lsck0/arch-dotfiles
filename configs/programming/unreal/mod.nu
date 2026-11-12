@@ -7,7 +7,9 @@ export const meta = {
 }
 
 const HOOK = "hook/unreal-install.nu"
-const MCP = {type: http, url: "http://127.0.0.1:8766/mcp", gate: {probe: "127.0.0.1:8766", app: "the Unreal editor"}}
+# the editor's MCP server, on unreal-editor.nu's MCP_PORT
+const MCP_ADDRESS = "127.0.0.1:8766"
+const MCP = {type: http, url: $"http://($MCP_ADDRESS)/mcp", gate: {probe: $MCP_ADDRESS, app: "the Unreal editor"}}
 
 export def link [cfg: record] {
     if $env.FORM_FACTOR? != "desktop" { return [] }

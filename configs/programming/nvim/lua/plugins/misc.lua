@@ -8,36 +8,13 @@ return {
         event = "VeryLazy",
         opts = {},
         keys = {
-            {
-                "s",
-                mode = { "n", "x", "o" },
-                function()
-                    require("flash").jump()
-                end,
-                desc = "Flash jump",
-            },
-            {
-                "S",
-                mode = { "n", "x", "o" },
-                function()
-                    require("flash").treesitter()
-                end,
-                desc = "Flash treesitter",
-            },
-            {
-                "r",
-                mode = "o",
-                function()
-                    require("flash").remote()
-                end,
-                desc = "Remote flash",
-            },
+            { "s", "<cmd>lua require('flash').jump()<cr>", mode = { "n", "x", "o" }, desc = "Flash jump" },
+            { "S", "<cmd>lua require('flash').treesitter()<cr>", mode = { "n", "x", "o" }, desc = "Flash treesitter" },
+            { "r", "<cmd>lua require('flash').remote()<cr>", mode = "o", desc = "Remote flash" },
             {
                 "R",
+                "<cmd>lua require('flash').treesitter_search()<cr>",
                 mode = { "o", "x" },
-                function()
-                    require("flash").treesitter_search()
-                end,
                 desc = "Treesitter search",
             },
         },

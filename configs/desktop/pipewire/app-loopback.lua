@@ -2,6 +2,8 @@
 
 PREFIX = "app."
 OUT_SUFFIX = ".out"
+-- every loopback's .out, as a node.name glob
+OUT_PATTERN = PREFIX .. "*" .. OUT_SUFFIX
 STATE_NAME = "app-loopback"
 STATE_LISTEN = "listen."
 STATE_OWN = "own."
@@ -268,9 +270,13 @@ function level_reclaim(stream_id, sink_id, out_id, retries)
     if not (stream and out) then
         return
     end
-    local mark = own_mark(stream.properties, stream_key(stream.properties) or "")
+    local key = stream_key(stream.properties)
+    if not key then
+        return
+    end
+    local mark = own_mark(stream.properties, key)
     local record = own_parse(known[mark])
-    if not record or record.key ~= stream_key(stream.properties) then
+    if not record or record.key ~= key then
         return
     end
     if not link_contains(stream_id, sink_id) then
@@ -348,7 +354,7 @@ end
 -- Mutes every loopback while obs listens; only the ones muted here are recorded, so a user's own mute stays.
 function listen_apply()
     local active = listen_active()
-    for node in nodes_om:iterate({ Constraint({ "node.name", "matches", PREFIX .. "*" .. OUT_SUFFIX }) }) do
+    for node in nodes_om:iterate({ Constraint({ "node.name", "matches", OUT_PATTERN }) }) do
         local mark = STATE_LISTEN .. out_key(node)
         if not active and known[mark] then
             mute_set(node, false)
@@ -379,7 +385,7 @@ function release_all()
         end
     end
     pending = 1
-    for out in nodes_om:iterate({ Constraint({ "node.name", "matches", PREFIX .. "*" .. OUT_SUFFIX }) }) do
+    for out in nodes_om:iterate({ Constraint({ "node.name", "matches", OUT_PATTERN }) }) do
         local key = out_key(out)
         local sink = node_find(PREFIX .. key)
         if sink then

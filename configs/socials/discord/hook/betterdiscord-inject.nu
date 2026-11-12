@@ -3,7 +3,7 @@
 
 use ../../../../scripts/lib/state.nu [xdg]
 
-const REPO = path self | path dirname | path join ../../../.. | path expand
+const REPO = path self ../../../..
 const ASAR_URL = "https://github.com/BetterDiscord/BetterDiscord/releases/download/v1.14.5/betterdiscord.asar"
 const ASAR_SHA256 = "2576f2b1dcb3bf5fdc79a5ef137a077543aa9aa0ffcd8337e8c27b8260fc49f3"
 const FRESH_SECONDS = 60

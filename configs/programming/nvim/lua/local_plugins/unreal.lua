@@ -1,6 +1,9 @@
 local M = {}
 
-local done = {}
+-- the tail of a failed GenerateClangDatabase run that the notification shows
+local FAILURE_TAIL_CHARS = 2000
+-- the project roots whose compile_commands.json was checked this session
+local checked_roots = {}
 
 local function is_uproject(name)
     return name:match("%.uproject$") ~= nil
@@ -131,7 +134,10 @@ function M.clangdb(root)
     vim.notify("unreal: generating compile_commands.json")
     ubt(root, { "-mode=GenerateClangDatabase", "-OutputDir=" .. root }, function(res)
         if res.code ~= 0 then
-            vim.notify("unreal: GenerateClangDatabase failed\n" .. (res.stdout or ""):sub(-2000), vim.log.levels.ERROR)
+            vim.notify(
+                "unreal: GenerateClangDatabase failed\n" .. (res.stdout or ""):sub(-FAILURE_TAIL_CHARS),
+                vim.log.levels.ERROR
+            )
             return
         end
         git_exclude(root)
@@ -167,8 +173,8 @@ local function attach(path, buf)
     if not root then
         return
     end
-    if not done[root] then
-        done[root] = true
+    if not checked_roots[root] then
+        checked_roots[root] = true
         if stale(root) then
             M.clangdb(root)
         end

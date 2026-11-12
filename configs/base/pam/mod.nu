@@ -25,6 +25,8 @@ const FPRINT_LINE = "auth       sufficient pam_fprintd.so"
 # agent's tool shell) can neither raise a key or finger request nobody sees nor pipe a password in
 const TTY_LINE = "auth       requisite  pam_succeed_if.so quiet_success tty =~ ?*"
 const HUMAN_UIDS = 1000..59999
+const SYSTEM_AUTH_INCLUDE = '^auth\s.*include.*system-auth'
+const AUTH_ANY = '^-?auth\s'
 
 # u2f against /etc/u2f_mappings, touch only; no nouserok: a user without a key falls through to the password.
 def u2f-line [origin: string]: nothing -> string {
@@ -32,11 +34,9 @@ def u2f-line [origin: string]: nothing -> string {
     $"auth       sufficient pam_u2f.so ($options)"
 }
 
-# Inserts line before the first system-auth include.
-def auth-insert [lines: list<string>, line: string]: nothing -> list<string> {
-    let at = $lines | enumerate
-        | where {|l| $l.item =~ '^auth\s.*include.*system-auth' }
-        | get --optional 0.index
+# Inserts line before the first line matching before, by default the first system-auth include.
+def auth-insert [lines: list<string>, line: string, before: string = $SYSTEM_AUTH_INCLUDE]: nothing -> list<string> {
+    let at = $lines | enumerate | where {|l| $l.item =~ $before } | get --optional 0.index
     if $at == null { $lines } else { ($lines | first $at) ++ [$line] ++ ($lines | skip $at) }
 }
 
@@ -71,13 +71,6 @@ def has-fprint []: nothing -> bool {
     | any {|u| ^fprintd-list $u.name | complete | get stdout | str contains "Fingerprints for user" }
 }
 
-# Inserts line before the first auth line, dropping an older copy of it.
-def auth-first [lines: list<string>, line: string]: nothing -> list<string> {
-    let rest = $lines | where $it != $line
-    let at = $rest | enumerate | where {|l| $l.item =~ '^-?auth\s' } | get --optional 0.index
-    if $at == null { $rest } else { ($rest | first $at) ++ [$line] ++ ($rest | skip $at) }
-}
-
 # The terminal gate first, then the yubikey line, so a changed one also drops the fprintd line, reinserted under it.
 export def sudo-stack [u2f: string, line: string]: nothing -> nothing {
     if not ($SUDO | path exists) { return }
@@ -91,7 +84,7 @@ export def sudo-stack [u2f: string, line: string]: nothing -> nothing {
     } else if not $fprint {
         $with_u2f | where not ($it =~ '^auth\s+sufficient\s+pam_fprintd\.so')
     } else { $with_u2f }
-    let after = auth-first $after $TTY_LINE
+    let after = auth-insert ($after | where $it != $TTY_LINE) $TTY_LINE $AUTH_ANY
     if $after == $before or not ($after | any { $in =~ system-auth }) { return }
     if not ($"($SUDO).pre-auth.bak" | path exists) { ^cp -a $SUDO $"($SUDO).pre-auth.bak" }
     $after | str join "\n" | $"($in)\n" | save --force $SUDO

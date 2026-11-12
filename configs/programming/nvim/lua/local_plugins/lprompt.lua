@@ -64,7 +64,7 @@ end
 local function lookup_hermes()
     local decoded, err = herdr_json({ "herdr", "agent", "list" })
     if not decoded then
-        return nil, "herdr agent list failed: " .. (err or "")
+        return nil, "herdr agent list failed: " .. err
     end
 
     local agents = decoded.result and decoded.result.agents or {}
@@ -73,7 +73,6 @@ local function lookup_hermes()
             return agent.pane_id
         end
     end
-    return nil
 end
 
 local function find_or_start_hermes_target()

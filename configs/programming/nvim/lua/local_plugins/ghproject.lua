@@ -8,6 +8,8 @@ local LEFT = "  " -- left margin on grid lines
 local SEP = " \u{2502} " -- between board columns
 local GAP = "  " -- between table columns
 local NS = vim.api.nvim_create_namespace("ghproject")
+-- GhProjectHeader1 to 7, one per accent in after/ftplugin/ghproject.lua
+local HEADER_GROUPS = 7
 local LEGEND =
     "hjkl move \u{b7} H/L status \u{b7} J/K reorder \u{b7} \u{21e5} view \u{b7} v layout \u{b7} p/P project \u{b7} / search \u{b7} e edit \u{b7} \u{23ce} open \u{b7} r refresh \u{b7} q quit"
 
@@ -30,9 +32,10 @@ local CACHE_DIR = vim.fn.stdpath("cache") .. "/ghproject"
 local CACHE_VERSION = 3 -- bump when the disk format changes
 local TTL = 300 -- seconds; a cache younger than this skips the background refresh
 local ITEM_LIMIT = "5000" -- gh pages 100 per request; views filter client-side, so every item must be loaded
+local FIELD_LIMIT = "50" -- GitHub caps a project at 50 fields; gh lists 30 unless told
 
 local function cache_path(key)
-    return CACHE_DIR .. "/" .. key:gsub("[^%w]", "_") .. ".json"
+    return CACHE_DIR .. "/" .. key:gsub("%W", "_") .. ".json"
 end
 
 local function disk_read(key)
@@ -80,12 +83,9 @@ local function gh_json(args, cb)
     end)
 end
 
-local function grp(name, fallback)
-    return vim.fn.hlexists(name) == 1 and name or fallback
-end
-
+-- the filetype is set before the first render, so after/ftplugin/ghproject.lua has defined every group used here
 local function header_group(i)
-    return grp("GhProjectHeader" .. ((i - 1) % 7 + 1), "Title")
+    return "GhProjectHeader" .. ((i - 1) % HEADER_GROUPS + 1)
 end
 
 local function truncate(s, n)
@@ -722,7 +722,7 @@ local function render_header(lines, marks)
         h = h .. "  \u{b7} ignored: " .. table.concat(ignored, " ")
     end
     lines[#lines + 1] = h
-    marks[#marks + 1] = { grp("GhProjectTitle", "Title"), #lines - 1, 0, -1 }
+    marks[#marks + 1] = { "GhProjectTitle", #lines - 1, 0, -1 }
 
     local line, tabs = LEFT, {}
     for i, v in ipairs(state.cviews) do
@@ -732,12 +732,12 @@ local function render_header(lines, marks)
     end
     lines[#lines + 1] = line
     for i, r in ipairs(tabs) do
-        local g = i == state.view_idx and grp("GhProjectSel", "Visual") or grp("GhProjectHint", "Comment")
+        local g = i == state.view_idx and "GhProjectSel" or "GhProjectHint"
         marks[#marks + 1] = { g, #lines - 1, r[1], r[2] }
     end
 
     lines[#lines + 1] = "  " .. LEGEND
-    marks[#marks + 1] = { grp("GhProjectHint", "Comment"), #lines - 1, 0, -1 }
+    marks[#marks + 1] = { "GhProjectHint", #lines - 1, 0, -1 }
 end
 
 local function render_board(lines, marks)
@@ -750,11 +750,11 @@ local function render_board(lines, marks)
         marks[#marks + 1] = { header_group(i), hln, hr[i][1], hr[i][2] }
     end
     for i = 1, #vc - 1 do
-        marks[#marks + 1] = { grp("GhProjectSep", "Comment"), hln, hr[i][2], hr[i + 1][1] }
+        marks[#marks + 1] = { "GhProjectSep", hln, hr[i][2], hr[i + 1][1] }
     end
 
     lines[#lines + 1] = LEFT .. rule_line(vc)
-    marks[#marks + 1] = { grp("GhProjectSep", "Comment"), #lines - 1, 0, -1 }
+    marks[#marks + 1] = { "GhProjectSep", #lines - 1, 0, -1 }
 
     local first = #lines -- 0-based line index preceding the first card row
     local maxr = 1
@@ -770,14 +770,14 @@ local function render_board(lines, marks)
             local card = vc[col].cards[row]
             if card then
                 if col == state.cur.col and row == state.cur.row then
-                    marks[#marks + 1] = { grp("GhProjectSel", "Visual"), ln, cr[col][1], cr[col][2] }
+                    marks[#marks + 1] = { "GhProjectSel", ln, cr[col][1], cr[col][2] }
                 elseif col ~= state.cur.col then
-                    marks[#marks + 1] = { grp("GhProjectDim", "Comment"), ln, cr[col][1], cr[col][2] }
+                    marks[#marks + 1] = { "GhProjectDim", ln, cr[col][1], cr[col][2] }
                 end
             end
         end
         for col = 1, #vc - 1 do
-            marks[#marks + 1] = { grp("GhProjectSep", "Comment"), ln, cr[col][2], cr[col + 1][1] }
+            marks[#marks + 1] = { "GhProjectSep", ln, cr[col][2], cr[col + 1][1] }
         end
     end
 
@@ -805,7 +805,7 @@ local function render_table(lines, marks)
         total = total + tc.w
     end
     lines[#lines + 1] = LEFT .. string.rep("\u{2500}", total)
-    marks[#marks + 1] = { grp("GhProjectSep", "Comment"), #lines - 1, 0, -1 }
+    marks[#marks + 1] = { "GhProjectSep", #lines - 1, 0, -1 }
 
     local idx, cursor = 0, nil
     for gi, g in ipairs(row_groups()) do
@@ -821,7 +821,7 @@ local function render_table(lines, marks)
             end
             lines[#lines + 1] = LEFT .. table.concat(cells, GAP)
             if idx == state.frow then
-                marks[#marks + 1] = { grp("GhProjectSel", "Visual"), #lines - 1, 0, -1 }
+                marks[#marks + 1] = { "GhProjectSel", #lines - 1, 0, -1 }
                 cursor = { #lines, #LEFT }
             end
         end
@@ -845,7 +845,7 @@ local function render_list(lines, marks)
                 idx = idx + 1
                 lines[#lines + 1] = string.format("    #%s  %s", card.number or "-", truncate(card.title, LIST_WIDTH))
                 if idx == state.frow then
-                    marks[#marks + 1] = { grp("GhProjectSel", "Visual"), #lines - 1, 0, -1 }
+                    marks[#marks + 1] = { "GhProjectSel", #lines - 1, 0, -1 }
                     cursor = { #lines, 0 }
                 end
             end
@@ -1357,7 +1357,7 @@ local function fetch(org, num, buf, key, title, idx)
         end)
     end
     one("view", { "project", "view", num, "--owner", org, "--format", "json" })
-    one("fields", { "project", "field-list", num, "--owner", org, "--format", "json", "-L", "50" })
+    one("fields", { "project", "field-list", num, "--owner", org, "--format", "json", "-L", FIELD_LIMIT })
     one("items", { "project", "item-list", num, "--owner", org, "--format", "json", "-L", ITEM_LIMIT })
     one("views", views_args(org, num), true)
 end

@@ -2,15 +2,15 @@
 use lib.nu [switch-run]
 
 def main [action: string = "toggle", --json] {
-    let device = {||
-        (^nmcli -t -f DEVICE,TYPE device | complete).stdout | lines | parse "{device}:{type}" | where type == ethernet
-        | get --optional 0.device
+    let link = {||
+        (^nmcli -t -f DEVICE,TYPE,STATE device | complete).stdout | lines | parse "{device}:{type}:{state}"
+        | where type == ethernet | get --optional 0
     }
     switch-run {
         label: Ethernet
-        available: {|| do $device | is-not-empty }
-        is-on: {|| (^nmcli -t -f DEVICE,STATE device | lines | parse "{device}:{state}" | where device == (do $device) | get --optional 0.state) == connected }
-        on: {|| ^nmcli device connect (do $device) }
-        off: {|| ^nmcli device disconnect (do $device) }
+        available: {|| do $link | is-not-empty }
+        is-on: {|| (do $link).state? == connected }
+        on: {|| ^nmcli device connect (do $link).device }
+        off: {|| ^nmcli device disconnect (do $link).device }
     } $action --json=$json
 }

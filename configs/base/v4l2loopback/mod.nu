@@ -36,7 +36,7 @@ export def system [cfg: record] {
 
 export def link [cfg: record] {
     if (which pipewire | is-empty) or $env.FORM_FACTOR? == "wsl" { return [] }
-    let config = (xdg config)
+    let config = xdg config
     [
         # read at pipewire and wireplumber start only; restarting either would drop live audio and video
         (file-render virtcam-pipewire.conf ($config | path join pipewire pipewire.conf.d virtcam.conf)

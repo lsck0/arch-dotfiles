@@ -4,7 +4,7 @@
 
 use ../../../../scripts/lib/state.nu [xdg]
 
-const REPO = path self | path dirname | path join ../../../.. | path expand
+const REPO = path self ../../../..
 const URL = "https://ciscobinary.openh264.org"
 # sha256 of the .bz2 cisco serves, per library name the host asks for
 const PINS = {

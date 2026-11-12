@@ -19,8 +19,6 @@ import threading
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# the driver's os.read size per report
-HIDRAW_READ_BYTES = 64
 
 spec = importlib.util.spec_from_file_location("td", os.path.join(HERE, "tablet-driver.py"))
 td = importlib.util.module_from_spec(spec)
@@ -76,7 +74,7 @@ def drive(pen_frames, button_frames=(), calib=None):
 
     orig_find, orig_unlock = td.find_hidraw, td.unlock
     orig_make, orig_make_keys = td.make_uinput, td.make_keys_uinput
-    td.find_hidraw = lambda iface: btn_path if iface == "02" else pen_path
+    td.find_hidraw = lambda iface: btn_path if iface == td.BUTTON_INTERFACE else pen_path
     td.unlock = lambda node: (unlocks.append(node), True)[1]
     td.make_uinput = lambda c: pen_ui
     td.make_keys_uinput = lambda: keys_ui
@@ -85,7 +83,7 @@ def drive(pen_frames, button_frames=(), calib=None):
         with open(path, "wb", buffering=0) as handle:
             for frame in frames:
                 # a fifo is a byte stream; one full read per frame keeps hidraw's one report per read
-                handle.write(frame.ljust(HIDRAW_READ_BYTES, b"\0"))
+                handle.write(frame.ljust(td.HIDRAW_READ_BYTES, b"\0"))
                 time.sleep(0.0005)
             time.sleep(1.0)
             if path == pen_path:

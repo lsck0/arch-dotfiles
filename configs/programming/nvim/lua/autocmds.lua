@@ -59,7 +59,7 @@ autocmd({ "FocusGained", "TermClose", "TermLeave" }, {
     end,
 })
 
-local numbertoggle_active = { BufEnter = true, FocusGained = true, InsertLeave = true, WinEnter = true }
+local NUMBERTOGGLE_ACTIVE = { BufEnter = true, FocusGained = true, InsertLeave = true, WinEnter = true }
 autocmd({ "BufEnter", "FocusGained", "InsertLeave", "WinEnter", "BufLeave", "FocusLost", "InsertEnter", "WinLeave" }, {
     desc = "Relative line numbers when active, absolute when inactive",
     group = group("numbertoggle", { clear = true }),
@@ -67,7 +67,7 @@ autocmd({ "BufEnter", "FocusGained", "InsertLeave", "WinEnter", "BufLeave", "Foc
         if not vim.wo.number then
             return
         end
-        if numbertoggle_active[args.event] then
+        if NUMBERTOGGLE_ACTIVE[args.event] then
             if vim.fn.mode() ~= "i" then
                 vim.wo.relativenumber = true
             end

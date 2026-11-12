@@ -62,16 +62,20 @@ def build [plugin: record, hyprland: string]: nothing -> nothing {
     glob (out-dir | path join $"($plugin.name)-*.so") | where $it != (so-path $plugin.name $hyprland) | each { rm $in } | ignore
 }
 
+def plugins-missing-for [hyprland: string]: nothing -> list<record> {
+    $PLUGINS | where {|p| not (so-path $p.name $hyprland | path exists) }
+}
+
 # The plugins the installed hyprland has no build of; building them downloads.
 export def plugins-missing []: nothing -> list<string> {
     let hyprland = commit-installed
     if $hyprland == "" { return [] }
-    $PLUGINS | where {|p| not (so-path $p.name $hyprland | path exists) } | get name
+    plugins-missing-for $hyprland | get name
 }
 
 # Builds what the installed hyprland lacks; false when a build failed.
 def plugins-build [hyprland: string]: nothing -> bool {
-    let builds = $PLUGINS | where {|p| not (so-path $p.name $hyprland | path exists) } | each {|p|
+    let builds = plugins-missing-for $hyprland | each {|p|
         let status = try { build $p $hyprland; "built" } catch {|e| print --stderr $e.msg; "failed" }
         {name: $p.name, status: $status}
     }

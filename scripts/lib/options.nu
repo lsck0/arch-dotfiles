@@ -1,5 +1,7 @@
 # Option resolution: default < detected < platform < profile; root never sees the profile.
 
+use state.nu [xdg]
+
 const SPEC_KEYS = [type default doc label group choices min max step apply scope toggle]
 const SPEC_REQUIRED = [type default doc]
 export const OPTION_APPLY = [live relink relogin reboot]
@@ -28,7 +30,8 @@ export def option-type-ok [type: string, value: any]: nothing -> bool {
     }
 }
 
-def spec-errors [id: string, name: string, spec: record]: nothing -> list<string> {
+def spec-errors [module: record, name: string, spec: record]: nothing -> list<string> {
+    let id = $module.id
     let cols = $spec | columns
     let unknown = $cols | each {|k| if $k in $SPEC_KEYS { null } else { $"configs/($id)/mod.nu: option ($name): unknown spec key ($k)" } } | compact
     let missing = $SPEC_REQUIRED | each {|k| if $k in $cols { null } else { $"configs/($id)/mod.nu: option ($name): no ($k)" } } | compact
@@ -37,6 +40,8 @@ def spec-errors [id: string, name: string, spec: record]: nothing -> list<string
     let enums = [
         (if $apply in $OPTION_APPLY { null } else { $"configs/($id)/mod.nu: option ($name): apply ($apply) is not one of ($OPTION_APPLY | str join ', ')" })
         (if $scope in $OPTION_SCOPE { null } else { $"configs/($id)/mod.nu: option ($name): scope ($scope) is not one of ($OPTION_SCOPE | str join ', ')" })
+        # dot set applies a live option through the apply verb or the toggle; with neither it changes nothing
+        (if $apply != "live" or "apply" in $module.native or $spec.toggle? != null { null } else { $"configs/($id)/mod.nu: option ($name): apply live needs an apply verb or a toggle" })
     ] | compact
     let default_bad = if ($missing | is-empty) { option-value-errors $id $name $spec $spec.default $"configs/($id)/mod.nu" } else { [] }
     $unknown ++ $missing ++ $enums ++ $default_bad
@@ -75,7 +80,7 @@ def module-options-built [module: record]: nothing -> record {
             apply: ($spec.apply? | default $OPTION_APPLY_DEFAULT)
             scope: ($spec.scope? | default $OPTION_SCOPE_DEFAULT)
         }
-        {name: $name, spec: $augmented, errors: (if $name == $OPTION_ENABLE { [] } else { spec-errors $module.id $name $augmented })}
+        {name: $name, spec: $augmented, errors: (if $name == $OPTION_ENABLE { [] } else { spec-errors $module $name $augmented })}
     }
     {
         schema: ($built | each {|o| [$o.name $o.spec] } | into record)
@@ -143,7 +148,7 @@ export def options-resolve [modules: table, platform: record, profile: any, dete
 }
 
 export def options-events-file []: nothing -> path {
-    $env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u | str trim)" | path join $EVENTS_FILE
+    xdg runtime $EVENTS_FILE
 }
 
 # Appends a changed option to the events file dot internal watch follows; --error: stored, but applying it failed.

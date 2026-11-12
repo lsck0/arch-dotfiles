@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const REPO = path self | path expand | path dirname | path join .. .. .. | path expand
+const REPO = path self | path expand | path dirname --num-levels 4
 const TOGGLES = $REPO | path join scripts toggles
 use ($REPO | path join scripts lib state.nu) [xdg]
 # not ipapi.co: it 429ed about every second keyless request
@@ -53,17 +53,13 @@ def tz-detect []: nothing -> any {
     $tz
 }
 
-def in-wheel []: nothing -> bool {
-    "wheel" in (^id -nG | str trim | split row " ")
-}
-
 # Why detection is skipped, null when it may run: nothing reaches ipinfo.io unless the answer could be used.
 def suppressed []: nothing -> any {
     if (disabled-flag | path exists) { return "disabled" }
     if (off-trusted) { return "off a trusted network" }
     let tunnel = tunnel-up
     if $tunnel != null { return $"tunnel ($tunnel)" }
-    if not (in-wheel) { return "not in wheel" }
+    if "wheel" not-in (^id -nG | str trim | split row " ") { return "not in wheel" }
     null
 }
 
@@ -89,7 +85,7 @@ def "main status" []: nothing -> nothing {
         try { tz-detect | default "(unavailable)" } catch { "(unavailable)" }
     }
     print $"current:  (tz-current)"
-    print (if (disabled-flag | path exists) { "auto:     disabled" } else { "auto:     enabled" })
+    print $"auto:     (if (disabled-flag | path exists) { 'disabled' } else { 'enabled' })"
     print $"detected: ($detected)"
 }
 

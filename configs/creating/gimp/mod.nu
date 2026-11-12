@@ -6,6 +6,8 @@ export const meta = {packages: {pacman: [gimp]}}
 const PHOTOGIMP_VERSION = "3.1"
 const PHOTOGIMP_SHA256 = "bf0e1279870d40152beb3e702cf3e4e01a6892031a1ace5bc4a9b858894b584e"
 const PHOTOGIMP_URL = $"https://github.com/Diolinux/PhotoGIMP/releases/download/($PHOTOGIMP_VERSION)/PhotoGIMP-linux.zip"
+# the gimp config version PhotoGIMP's release ships
+const PHOTOGIMP_GIMP = "3.0"
 # gimp 3.2 renamed vectors to paths and rejects a whole toolrc over one unknown tool name
 const RENAMES = {gimp-vector-tool: gimp-path-tool, tools-vector: tools-path, gimp-vectors-list: gimp-path-list}
 const RENAMED_FILES = [toolrc shortcutsrc sessionrc]
@@ -58,8 +60,8 @@ def migrate [dir: path]: nothing -> nothing {
 # only the gimp config: the release's .desktop runs the flatpak. a file of gimp's own it replaces is preserved first;
 # PhotoGIMP's gimprc brings the welcome dialog back, so it is turned off again here
 export def seed [config: path, version: string, release: string]: nothing -> nothing {
-    let src = unpacked | path join PhotoGIMP-linux .config GIMP "3.0"
-    if $version != "3.0" { migrate $src }
+    let src = unpacked | path join PhotoGIMP-linux .config GIMP $PHOTOGIMP_GIMP
+    if $version != $PHOTOGIMP_GIMP { migrate $src }
     for file in (glob ($src | path join **/*) --no-dir) {
         let dest = $config | path join ($file | path relative-to $src)
         if ($dest | path exists) and (open --raw $dest | hash sha256) != (open --raw $file | hash sha256) {

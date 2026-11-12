@@ -111,9 +111,9 @@ BarWidget {
           color: "transparent"
           antialiasing: true
           border.width: root.ringWidth
-          border.color: chip.modelData.speaking && !parent.silenced
+          border.color: chip.modelData.speaking && !chip.silenced
             ? Colors.semantic.speaking
-            : Util.alpha(Colors.menu.text, parent.silenced ? 0.12 : 0.22)
+            : Util.alpha(Colors.menu.text, chip.silenced ? 0.12 : 0.22)
           Behavior on border.color { ColorAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
           layer.enabled: Style.fx.glow > 0 && chip.modelData.speaking && !chip.silenced
           layer.effect: Glow { shadowColor: Colors.semantic.speaking }
@@ -152,7 +152,7 @@ BarWidget {
         }
 
         Rectangle {
-          visible: parent.silenced
+          visible: chip.silenced
           anchors.right: parent.right
           anchors.bottom: parent.bottom
           anchors.rightMargin: -root.ringWidth

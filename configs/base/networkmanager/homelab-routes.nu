@@ -94,8 +94,8 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
     # NM's push right behind the reapply's own can still carry the router's yes
     out resolvectl default-route $iface no | ignore
 
-    let gateway = out ip -4 route show default dev $iface | lines | get --optional 0 | default "" | split row " "
-        | get --optional 2
+    let gateway = out ip -4 route show default dev $iface | lines | get --optional 0 | default ""
+        | parse --regex '^default via (?<gw>\S+)' | get --optional 0.gw
     if $gateway == null { return }
     for net in $nets {
         attempt ip route replace $net via $gateway dev $iface table $TABLE

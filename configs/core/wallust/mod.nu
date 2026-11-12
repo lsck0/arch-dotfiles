@@ -1,5 +1,5 @@
 use module.nu *
-use palette.nu [style-json]
+use palette.nu [style-json wal-colors-file]
 
 export const meta = {
     deps: [base/essentials core/cli]
@@ -22,7 +22,7 @@ export def link [cfg: record] {
         (unit-file dot-theme.path --enable --now)
         # theme verbs of later modules read colors.json now, before a fresh home's first theme switch
         (if (which wallust | is-not-empty) {
-            exec palette-stand-in [wallust cs -q -s ($dir | path join colorschemes $"($STAND_IN).json")] --creates (xdg cache wal colors.json)
+            exec palette-stand-in [wallust cs -q -s ($dir | path join colorschemes $"($STAND_IN).json")] --creates (wal-colors-file)
         })
     ]
 }

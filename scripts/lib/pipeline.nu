@@ -661,11 +661,12 @@ export def barriers-run [ctx: record, results: list<record>, force: bool]: nothi
         let decl = {kind: step, target: $m.meta.barrier.run, argv: [], timeout: null, requires: null, network: false, then: [], notify: []}
         let action = {module: $m.id, kind: step, target: $m.meta.barrier.run, reason: "barrier", decl: $decl, before: null, after: null}
         let outcome = with-env (platform-env $ctx.platform) { apply-module [$action] $m.dir $ctx.layer } | first
+        let ok = $outcome.ok and $outcome.pending == null
         mkdir ($file | path dirname)
         {
-            hash: (watch-hash $watch), ok: ($outcome.ok and $outcome.pending == null), run: ($env.DOT_RUN_ID? | default "")
-            built: (if $outcome.ok and $outcome.pending == null { date now | format date "%+" } else { $last.built? })
-        } | to nuon | save --force $file
-        {id: $m.id, ran: true, ok: ($outcome.ok and $outcome.pending == null), error: ($outcome.error | default $outcome.pending)}
+            hash: (watch-hash $watch), ok: $ok, run: ($env.DOT_RUN_ID? | default "")
+            built: (if $ok { date now | format date "%+" } else { $last.built? })
+        } | to nuon | save-atomic $file
+        {id: $m.id, ran: true, ok: $ok, error: ($outcome.error | default $outcome.pending)}
     }
 }

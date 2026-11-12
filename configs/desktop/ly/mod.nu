@@ -8,7 +8,6 @@ const SESSIONS = "/etc/ly/sessions"
 const SAVE = "/etc/ly/save.txt"
 const LANG_STOCK = "/etc/ly/lang/en.ini"
 const HYPRLAND = "Hyprland"
-const TTY = "tty1"
 const UID_MIN = 1000
 const UID_MAX = 59999
 const NO_LOGIN = '(nologin|false)$'
@@ -36,8 +35,8 @@ export def system [cfg: record] {
         (step save-defaults)
         (file-text ($ETC | path join vtrgb) (palette-channels $CONSOLE_PALETTE | str join "\n" | $"($in)\n"))
         ([palette.conf cursor.conf stage.conf log-filter.conf] | each { dropin ly@.service $in })
-        (unit-enable $"ly@($TTY).service")
-        (unit-disable $"getty@($TTY).service")
+        (unit-enable ly@tty1.service)
+        (unit-disable getty@tty1.service)
     ]
 }
 

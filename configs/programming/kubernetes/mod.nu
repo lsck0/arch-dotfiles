@@ -8,6 +8,6 @@ export def link [cfg: record] {
     let kubeconfig = $env.KUBECONFIG? | default ($nu.home-dir | path join .kube config) | split row ":" | first
     [
         (shell-aliases kubernetes)
-        (mcp-servers {kubernetes: (if ($kubeconfig | path exists) { $MCP })})
+        (mcp-servers {kubernetes: (if ($kubeconfig | path exists) and (which npx | is-not-empty) { $MCP })})
     ]
 }

@@ -1,28 +1,27 @@
 #!/usr/bin/env -S nu --no-config-file
 # `dot internal`: what scripts, units and completion run, kept out of dot --help.
 
-const REPO = path self | path expand | path dirname | path dirname | path dirname
-const LIB = $REPO | path join scripts lib
-use ($LIB | path join log.nu) *
-use ($LIB | path join cli.nu) [jobs guarded theme-locked]
-use ($LIB | path join complete.nu) [command-table complete-run completions-run module-ids]
-use ($LIB | path join platform.nu) [platform-env]
-use ($LIB | path join options.nu) [options-events-file]
-use ($LIB | path join modules.nu) [modules-packages modules-eval module-packages-every packages-every-context SECRETS_GROUP VERB_WORK_TIMEOUT]
-use ($LIB | path join online.nu) [network-online]
-use ($LIB | path join pipeline.nu) [pipeline-load pipeline-plan pipeline-apply THEME_VERB_TIMEOUT]
-use ($LIB | path join secrets.nu) [secret-is-plaintext secrets-wanted OWNER_WITNESS]
-use ($LIB | path join preserve.nu) [preserve-prune]
-use ($LIB | path join migrate.nu) [migrations-run]
-use ($LIB | path join fetch.nu) [fetch-file-run fetch-git-run]
-use ($LIB | path join state.nu) [EXIT_PENDING]
-use ($LIB | path join bootstrap.nu) [bootstrap-run]
-use ($LIB | path join stage.nu) [stage-run]
-use ($REPO | path join configs base yubikey audit.nu) [audit-remind]
-use ($REPO | path join configs core wallust wallpaper.nu) [theme-serve wallpaper-get wallpaper-list]
-use ($LIB | path join iso.nu) [iso-build]
-use ($LIB | path join iso-install.nu) [iso-install-run]
-use ($LIB | path join homelab.nu) [homelab-lab-path homelab-stale homelab-write HOMELAB_FILE]
+const REPO = path self ../..
+use log.nu *
+use cli.nu [jobs guarded theme-locked]
+use complete.nu [command-table complete-run completions-run module-ids]
+use platform.nu [platform-env]
+use options.nu [options-events-file]
+use modules.nu [modules-packages modules-eval module-packages-every packages-every-context SECRETS_GROUP VERB_WORK_TIMEOUT]
+use online.nu [network-online]
+use pipeline.nu [pipeline-load pipeline-plan pipeline-apply THEME_VERB_TIMEOUT]
+use secrets.nu [secret-is-plaintext secrets-wanted OWNER_WITNESS]
+use preserve.nu [preserve-prune]
+use migrate.nu [migrations-run]
+use fetch.nu [fetch-file-run fetch-git-run]
+use state.nu [EXIT_PENDING]
+use bootstrap.nu [bootstrap-run]
+use stage.nu [stage-run]
+use ../../configs/base/yubikey/audit.nu [audit-remind]
+use ../../configs/core/wallust/wallpaper.nu [theme-serve wallpaper-get wallpaper-list]
+use iso.nu [iso-build]
+use iso-install.nu [iso-install-run]
+use homelab.nu [homelab-lab-path homelab-stale homelab-write HOMELAB_FILE]
 
 const DOT = $REPO | path join scripts dot.nu
 const MIRROR_LIST = "mirror/packages.txt"

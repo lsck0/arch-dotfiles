@@ -82,7 +82,7 @@ def main []: nothing -> nothing {
     if ($env.HERDR_SESSION? | default "") + ($env.HERDR_ENV? | default "") != "" {
         ^herdr-open $wt $label
     } else if ($env.TMUX? | default "") != "" {
-        if not ((do { ^tmux has-session -t $"=($label)" } | complete).exit_code == 0) {
+        if (do { ^tmux has-session -t $"=($label)" } | complete).exit_code != 0 {
             ^tmux new-session -d -s $label -c $wt
         }
         ^tmux switch-client -t $"=($label)"

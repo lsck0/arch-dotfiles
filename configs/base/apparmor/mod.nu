@@ -12,6 +12,8 @@ const PARSER_LINES = [write-cache $"cache-loc ($EARLY_POLICY)/" Optimize=compres
 # the kernel's CONFIG_LSM default with apparmor before bpf
 const LSM = "lsm=landlock,lockdown,yama,integrity,apparmor,bpf"
 const USER_DIRS = "../xdg/user-dirs.dirs"
+# under the xdg-user-dirs.d chain that tunables/global includes, so every profile sees it before its abstractions
+export const TUNABLES = "tunables/xdg-user-dirs.d/apparmor.d.d/dotfiles"
 # apparmor.d profiles whose /{{,usr/}...} attachment apparmor 4.1.8 loads but never attaches, so they ran unconfined:
 # installed as own profiles with a plain /usr attachment (usr is merged)
 export const OVERRIDES = {
@@ -38,10 +40,12 @@ def modes []: nothing -> record {
     | reduce --fold {} {|r, acc| $acc | upsert $r.name ($r.flags | split row "," | first) }
 }
 
-# apparmor.d assumes capitalized xdg dirs, ours are lowercase.
-def xdg-tunables []: nothing -> string {
+# apparmor.d assumes capitalized xdg dirs, ours are lowercase; @{DOTFILES} is the repo checkout the rules name,
+# the same literal for every user, so the system layer reads no user facts.
+export def tunables []: nothing -> string {
     open --raw $USER_DIRS | lines | parse --regex '^(?<var>XDG_[A-Z]+_DIR)="\$HOME/(?<dir>.*)"$'
-    | each { $'@{($in.var)}+="($in.dir)"' } | append '@{XDG_SYNC_DIR}+="sync"' | str join "\n" | $"($in)\n"
+    | each { $'@{($in.var)}+="($in.dir)"' }
+    | append ['@{XDG_SYNC_DIR}+="sync"' '@{DOTFILES}=@{HOME}/projects/arch-dotfiles'] | str join "\n" | $"($in)\n"
 }
 
 # apparmor.d's profile with only its attachment replaced.
@@ -71,7 +75,7 @@ export def system [cfg: record] {
         (file-text /etc/apparmor/include.d/dotfiles.conf (do $lines $upstream.name))
         # an own profile replaces apparmor.d's of the same name: aa-install must not build its own
         (file-text /etc/apparmor/ignore.d/dotfiles.conf (do $lines (own)))
-        (file-text $"($ETC)/tunables/xdg-user-dirs.d/apparmor.d.d/dotfiles" (xdg-tunables))
+        (file-text ($ETC | path join $TUNABLES) (tunables))
         (step build)
     # base-strict is aa-install's output: gating on it alone would leave a fresh machine's first run without ours
     ] ++ (if not ($"($ETC)/abstractions/base-strict" | path exists) and (which aa-install | is-empty) {

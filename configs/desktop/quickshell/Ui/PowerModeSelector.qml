@@ -14,9 +14,6 @@ Item {
 
   property bool active: false
 
-  property color foreground: Colors.menu.text
-  property real fontSize: Style.font.caption
-
   implicitWidth: group.implicitWidth
   implicitHeight: group.implicitHeight
 
@@ -33,8 +30,6 @@ Item {
     spacing: Style.spacing.xs
     options: root.modeOptions
     value: powerMode.state === "" ? "auto" : powerMode.state
-    foreground: root.foreground
-    fontSize: root.fontSize
     onChanged: function(value) { Quickshell.execDetached([powerMode.path, String(value)]) }
   }
 }

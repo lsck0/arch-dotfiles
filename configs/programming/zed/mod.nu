@@ -1,6 +1,6 @@
 use module.nu *
 use ../../core/wallust/font.nu [font-load]
-use ../../core/wallust/palette.nu [hex-to-rgb readable-on rgb-to-hex shade]
+use ../../core/wallust/palette.nu [SHADE_CHROME SHADE_HOVER SHADE_CURRENT hex-to-rgb readable-on rgb-to-hex shade]
 
 export const meta = {packages: {pacman: [zed]}}
 
@@ -23,9 +23,9 @@ export def theme [cfg: record, wallpaper: string] {
         [[$"terminal.ansi.($c.item)" ($p | get $"c($c.index)")] [$"terminal.ansi.bright_($c.item)" ($p | get $"c($c.index + 8)")]]
     } | flatten | into record
     let bg = $p.bg_conditioned | hex-to-rgb
-    let chrome = $bg | shade 0.045 | rgb-to-hex --prefix "#"
-    let hover = $bg | shade 0.08 | rgb-to-hex --prefix "#"
-    let current = $bg | shade 0.11
+    let chrome = $bg | shade $SHADE_CHROME | rgb-to-hex --prefix "#"
+    let hover = $bg | shade $SHADE_HOVER | rgb-to-hex --prefix "#"
+    let current = $bg | shade $SHADE_CURRENT
     let current_hex = $current | rgb-to-hex --prefix "#"
     let readable = {|slot| $p | get $slot | hex-to-rgb | readable-on $bg | rgb-to-hex --prefix "#" }
     let style = {

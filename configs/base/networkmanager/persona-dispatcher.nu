@@ -173,7 +173,7 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
         ok systemctl start fw-egress.service | ignore
     }
     # off treats every network as trusted; a down decides over the links still up, 70-home-network dropped the gone one
-    if $policy == off or (($TRUSTED_NETWORK | path exists) and not (foreign $policy)) {
+    if not (foreign $policy) {
         if ($MARKER | path exists) {
             rm --force $MARKER
             # the conflict drops lockdown before the load, so a failed load would leave no table at all

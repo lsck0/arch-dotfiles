@@ -5,6 +5,11 @@ export const meta = {packages: {pacman: [archiso dnsmasq gnome-boxes libvirt qem
 const NESTED = {AuthenticAMD: kvm_amd, GenuineIntel: kvm_intel}
 const DEFAULT_SUBNET = "192.168.122.0/24"
 const DEFAULT_BRIDGE = "virbr0"
+const SYSTEM_URI = "qemu:///system"
+
+def --wrapped virsh-system [...args: string]: nothing -> any {
+    ^virsh -q -c $SYSTEM_URI ...$args
+}
 
 export def system [cfg: record] {
     if (which virsh | is-empty) or $env.FORM_FACTOR? in [vm wsl] { return [] }
@@ -24,11 +29,11 @@ export def system [cfg: record] {
 export def network []: nothing -> nothing {
     let taken = ^ip -j -4 route | from json | where dst == $DEFAULT_SUBNET and dev != $DEFAULT_BRIDGE | get --optional 0.dev
     if $taken != null {
-        ^virsh -q -c qemu:///system net-autostart --disable default | ignore
+        virsh-system net-autostart --disable default | ignore
         log-note $"libvirt: ($DEFAULT_SUBNET) is already this machine's network on ($taken), the default network stays off"
         return
     }
-    ^virsh -q -c qemu:///system net-autostart default | ignore
-    if (^virsh -q -c qemu:///system net-info default | lines | any { $in =~ '^Active:.*yes' }) { return }
-    ^virsh -q -c qemu:///system net-start default
+    virsh-system net-autostart default | ignore
+    if (virsh-system net-info default | lines | any { $in =~ '^Active:.*yes' }) { return }
+    virsh-system net-start default
 }

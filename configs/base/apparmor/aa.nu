@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # aa: per-machine apparmor modes (flags.d/include.d manual.conf), layered over the dotfiles baseline
 
-const REPO = path self | path expand | path dirname | path join ../../.. | path expand
+const REPO = path self | path expand | path dirname --num-levels 4
 use ($REPO | path join scripts lib usage.nu) [die]
 use ($REPO | path join configs base apparmor profile-flags.nu) [ETC MARKER OWN_SUFFIX text-mode upstream-files]
 

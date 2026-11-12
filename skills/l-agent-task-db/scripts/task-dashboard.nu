@@ -4,6 +4,10 @@ const DESC_MAX_CHARS = 50
 const WIDTH_FALLBACK = 100
 const ELLIPSIS = "..."
 const QUESTIONS = "tasks/context/questions/"
+const NOTE_CONTEXT = "context: "
+const NOTE_PR = "pr: "
+const STAGE_PREFIX = "stage-"
+const UUID_SHORT_CHARS = 8
 
 def die [message: string]: nothing -> any {
     print -e $message
@@ -34,7 +38,7 @@ def one-line []: string -> string {
 def tags []: record -> list<string> { $in.tags? | default [] }
 
 def stage-of []: record -> string {
-    tags | where { str starts-with stage- } | get --optional 0 | default "stage--" | str substring 6..
+    tags | where { str starts-with $STAGE_PREFIX } | get --optional 0 | default "-" | str replace $STAGE_PREFIX ""
 }
 
 def fmt []: record -> string {
@@ -52,14 +56,14 @@ def annotations []: record -> list<string> {
 def question-file [root: path]: record -> any {
     let task = $in
     let noted = $task | annotations | where { str contains $QUESTIONS } | get --optional 0
-    if $noted != null { return ($noted | split row "context: " | last) }
-    glob ($root | path join tasks context questions $"($task.uuid | str substring ..<8)-*.md") | sort
+    if $noted != null { return ($noted | split row $NOTE_CONTEXT | last) }
+    glob ($root | path join $QUESTIONS $"($task.uuid | str substring ..<$UUID_SHORT_CHARS)-*.md") | sort
         | get --optional 0 | if $in == null { null } else { $in | path relative-to $root }
 }
 
 def pr-link []: record -> any {
-    $in | annotations | where { ($in | str starts-with "pr: ") or ($in | str contains /pull/) } | get --optional 0
-        | if $in == null { null } else { $in | split row "pr: " | last }
+    $in | annotations | where { ($in | str starts-with $NOTE_PR) or ($in | str contains /pull/) } | get --optional 0
+        | if $in == null { null } else { $in | split row $NOTE_PR | last }
 }
 
 def blocked-by [by_uuid: record]: record -> list<record> {

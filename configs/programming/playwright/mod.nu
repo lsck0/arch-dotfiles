@@ -1,10 +1,10 @@
 use module.nu *
 
-# the browsers come from desktop/chromium and desktop/firefox: a server is only registered when its browser exists
-export const meta = {packages: {pacman: [chrome-devtools-mcp playwright-mcp]}, inputs: [/usr/bin/chromium /usr/bin/firefox]}
-
 const CHROMIUM = "/usr/bin/chromium"
 const FIREFOX = "/usr/bin/firefox"
+
+# the browsers come from desktop/chromium and desktop/firefox: a server is only registered when its browser exists
+export const meta = {packages: {pacman: [chrome-devtools-mcp playwright-mcp]}, inputs: [$CHROMIUM $FIREFOX]}
 
 def playwright [browser: string, exe: string, out: path]: nothing -> record {
     {

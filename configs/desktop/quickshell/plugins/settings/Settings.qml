@@ -42,8 +42,9 @@ Item {
   property string notice: ""
   property bool noticeIsError: false
   property bool updateArmed: false
+  readonly property string updateArmedNotice: "press CTRL+U again to sync"
 
-  readonly property string dot: Paths.home + "/.local/bin/dot"
+  readonly property string dot: Paths.bin("dot")
   readonly property var sections: Schema.sections(modules, toggles, query, dotStatus)
   // room beside each list for its scroll bar, kept when the list fits so the rows never jump
   readonly property int barGutter: Style.spacing.xs + Style.spacing.xxs * 3
@@ -162,28 +163,27 @@ Item {
 
   function update() { root.runSystem(Object.assign({ kind: "action" }, Schema.systemActions[0]), "") }
 
+
   // Ctrl+U runs a full sync; arm on the first press and run on the second, so one stray keystroke never starts one
   function armOrUpdate() {
     if (root.updateArmed) {
-      root.updateArmed = false;
-      updateDisarm.stop();
-      root.update();
-      return;
+      root.updateArmed = false
+      updateDisarm.stop()
+      root.update()
+      return
     }
-    root.updateArmed = true;
-    root.notice = "press CTRL+U again to sync";
-    root.noticeIsError = false;
-    updateDisarm.restart();
+    root.updateArmed = true
+    root.notice = root.updateArmedNotice
+    root.noticeIsError = false
+    updateDisarm.restart()
   }
 
   Timer {
     id: updateDisarm
-
     interval: 3000
     onTriggered: {
-      root.updateArmed = false;
-      if (root.notice === "press CTRL+U again to sync")
-        root.notice = "";
+      root.updateArmed = false
+      if (root.notice === root.updateArmedNotice) root.notice = ""
     }
   }
 

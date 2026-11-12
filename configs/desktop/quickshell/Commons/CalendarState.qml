@@ -47,7 +47,7 @@ Singleton {
 
   JsonProcess {
     id: calendarProc
-    command: [Paths.home + "/.local/bin/task-calendar", "events"]
+    command: [Paths.bin("task-calendar"), "events"]
     intervalMs: root.refreshMs
     minAgeMs: root.retryMs
     onParsed: function (data) {

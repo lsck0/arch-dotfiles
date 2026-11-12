@@ -13,15 +13,18 @@ export const EXIT_PENDING = 3
 export const INSTALL_PASS_FILE = $SYSTEM_STATE | path join install-pass
 # the login banner of an install chain whose config stage failed; the next clean full dot apply removes it
 export const CONFIG_ISSUE = "/etc/issue.d/dotfiles-config.issue"
+# the login banner of an install chain that reached config with secrets still locked; base/yubikey removes it once they unlock
+export const SECRETS_ISSUE = "/etc/issue.d/dotfiles-secrets.issue"
 const LOCKED_SCRIPT = path self locked.nu
 
-# A path under an XDG base dir (config, data, cache, state), honoring XDG_*_HOME.
+# A path under an XDG base dir (config, data, cache, state, runtime), honoring XDG_*_HOME and XDG_RUNTIME_DIR.
 export def xdg [kind: string, ...parts: string]: nothing -> path {
     let base = match $kind {
         config => ($env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config))
         data => ($env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share))
         cache => ($env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache))
         state => ($env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state))
+        runtime => ($env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u | str trim)")
         _ => (error make {msg: $"xdg: no base dir '($kind)'"})
     }
     $base | path join ...$parts
@@ -68,11 +71,17 @@ export def path-kind [path: path]: nothing -> string {
     try { $path | path type | default "" } catch { "" }
 }
 
-# Newest write per path across all records, so one verb's merge onto another's file is no drift. A record a prior
-# crash or hand edit left unparseable counts as empty, not a reason to fail every module's plan.
+# Every output of every record of the running layer, or only of the module ids given. A record a prior crash or hand edit left unparseable counts as
+# empty, not a reason to fail every module's plan.
+export def recorded-outputs [ids?: list<string>]: nothing -> list<record> {
+    let dir = state-dir | path join modules
+    let files = if $ids == null { glob ($dir | path join **/*.nuon) } else { $ids | each {|id| glob ($dir | path join $id *.nuon) } | flatten }
+    $files | par-each --keep-order {|f| try { open $f | get outputs } catch { [] } } | flatten
+}
+
+# Newest write per path across all records, so one verb's merge onto another's file is no drift.
 export def recorded-hashes []: nothing -> record {
-    glob (state-dir | path join modules **/*.nuon) | par-each --keep-order {|f| try { open $f | get outputs } catch { [] } } | flatten
-    | where {|o| $o.kind in [file json ini] and ($o.hash? | default null) != null }
+    recorded-outputs | where {|o| $o.kind in [file json ini] and ($o.hash? | default null) != null }
     | sort-by {|o| $o.at? | default 0 }
     | each {|o| [$o.target $o.hash] } | into record
 }

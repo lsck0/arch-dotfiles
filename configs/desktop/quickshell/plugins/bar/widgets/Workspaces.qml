@@ -10,6 +10,9 @@ BarWidget {
   moduleName: "workspaces"
   barPriority: 100
 
+  // hyprland_keybindings.lua WORKSPACE_COUNT: workspaces 1 to 10 on the keys 1 to 0
+  readonly property int workspaceCount: 10
+
   function workspaceById(id) { return Hyprland.workspaces.values.find(w => w.id === id) || null }
 
   function scrollWorkspace(direction) {
@@ -37,7 +40,7 @@ BarWidget {
 
     for (let i = 0; i < values.length; i++) {
       let id = values[i].id
-      if (id <= 0 || id > 10) continue
+      if (id <= 0 || id > root.workspaceCount) continue
       if (root.myMonitor && values[i].monitor !== root.myMonitor) continue
       if (values[i].toplevels.values.length === 0 && id !== monitorActiveId) continue
       if (ids.indexOf(id) === -1) ids.push(id)
@@ -150,7 +153,7 @@ BarWidget {
         WidgetButton {
           id: btn
           bar: root.bar
-          text: cell.modelData === 10 ? "0" : String(cell.modelData)
+          text: String(cell.modelData % root.workspaceCount)
           active: cell.focused
           activeColor: Colors.textOnFill(Colors.accent, Style.selectedFill)
           foreground: cell.urgent ? Colors.urgentText
@@ -159,7 +162,6 @@ BarWidget {
           fixedWidth: Style.space(20)
           onPressed: function() { root.focusWorkspace(cell.modelData) }
         }
-
       }
     }
   }

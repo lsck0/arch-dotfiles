@@ -13,12 +13,6 @@ const XCU_HEAD = [
 ]
 const XCU_TAIL = "</oor:items>"
 
-def version-installed []: nothing -> string {
-    let installed = ^pacman -Q libreoffice-fresh | complete
-    if $installed.exit_code != 0 { return "" }
-    $installed.stdout | str trim | split row " " | last | split row "." | first 2 | str join "."
-}
-
 export def link [cfg: record] {
     let xcu = xdg config libreoffice 4 user registrymodifications.xcu
     let text = if ($xcu | path exists) { open --raw $xcu } else { "" }
@@ -32,7 +26,7 @@ export def xcu-update [xcu: path] {
     }
     let lines = if ($xcu | path exists) { open --raw $xcu | lines } else { $XCU_HEAD ++ [$XCU_TAIL] }
     let kept = $lines | where $it !~ $OVERRIDE
-    let version = version-installed
+    let version = package-version libreoffice-fresh | default "" | split row "." | first 2 | str join "."
     let seeds = [
         (if ($kept | any { $in =~ $TIPS_KEY }) { null } else { $TIPS })
         (if ($kept | any { $in =~ $VERSION_KEY }) or ($version | is-empty) { null } else {

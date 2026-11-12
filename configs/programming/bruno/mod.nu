@@ -5,7 +5,7 @@ export const meta = {packages: {pacman: [bruno-bin bruno-cli]}}
 export def link [cfg: record] {
     let file = xdg config bruno preferences.json
     let current = try { open $file } catch { {} }
-    let installed = ^pacman -Q bruno-bin | complete | get stdout | parse --regex ' (?<v>\d+\.\d+\.\d+)' | get --optional 0.v
+    let installed = package-version bruno-bin
     let seen = if $installed == null or $current.preferences?.onboarding?.lastSeenVersion? != null { [] } else {
         [(json-set [preferences onboarding lastSeenVersion] $installed)]
     }

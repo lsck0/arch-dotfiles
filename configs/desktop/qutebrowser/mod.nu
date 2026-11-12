@@ -33,11 +33,13 @@ const FETCH_QUIT_MS = "60000"
 const FETCH_TIMEOUT = "90"
 # the bar's palette knobs, so the startpage's hues match it
 const BAR_THEME = path self ../quickshell/theme.json
+# the startpage before the first theme; accent2 also when every pool colour sits on the urgent hue
 const FALLBACK = {
-    bg: "#0d1117" surface: "#161b22" fg: "#c9d1d9" muted: "#8b949e" accent: "#58a6ff" accent2: "#d2a8ff" urgent: "#ff7b72"
+    bg: "#0d1117" surface: "#161b22" fg: "#c9d1d9" muted: "#8b949e" accent: "#58a6ff" accent2: "#d2a8ff"
 }
 const CHROME_COLORS = "wal/qutebrowser-colors.json"
 const CHROME_ALT_SHADE = 0.03
+const STARTPAGE_SURFACE_SHADE = 0.06
 # a match or a muted label keeps some of its hue: a distinct mark beside the text, not body text
 const MARK_RATIO = 3.0
 
@@ -76,62 +78,61 @@ def bar-knobs []: nothing -> record {
     $defaults | merge (open $BAR_THEME | get --optional palette | default {})
 }
 
-def accent-from [slot: closure, knobs: record]: nothing -> list<float> {
-    do $slot color4 $FALLBACK.accent | vivify $knobs.accentMinSaturation $knobs.accentMinValue
+def accent-from [p: record, knobs: record]: nothing -> list<float> {
+    $p.c4 | vivify $knobs.accentMinSaturation $knobs.accentMinValue
 }
 
 # the bar's accent2 pool (Commons/Palette.js conditionPalette): colors 2, 3, 5, 6 away from the urgent hue
-def accent2-from [slot: closure, knobs: record, accent: list<float>, bg: list<float>]: nothing -> list<float> {
-    let urgent = do $slot color1 $FALLBACK.urgent
-    let pool = [color2 color3 color5 color6]
-        | each {|name| do $slot $name $FALLBACK.accent2 | vivify $knobs.accentMinSaturation $knobs.accentMinValue }
-        | where {|c| (hue-apart $urgent $c) >= $URGENT_APART_MIN_DEG }
+def accent2-from [p: record, knobs: record, accent: list<float>, bg: list<float>]: nothing -> list<float> {
+    let pool = [$p.c2 $p.c3 $p.c5 $p.c6]
+        | each { vivify $knobs.accentMinSaturation $knobs.accentMinValue }
+        | where {|c| (hue-apart $p.c1 $c) >= $URGENT_APART_MIN_DEG }
     if ($pool | is-empty) { $FALLBACK.accent2 | hex-to-rgb } else { accent2-pick $pool $accent $bg $ACCENT2_RATIO }
 }
 
 # the bar's roles from the wal palette (Commons/Palette.js conditionPalette), every one used as text raised to its textContrast
 def startpage-colors []: nothing -> record {
-    let slot = wal-load "qutebrowser startpage"
-    if $slot == null { return ($FALLBACK | reject urgent | rename --block { str uppercase }) }
+    let p = palette-rgb "qutebrowser startpage"
+    if $p == null { return ($FALLBACK | rename --block { str uppercase }) }
     let knobs = bar-knobs
-    let bg = do $slot background $FALLBACK.bg | condition-bg
+    let bg = $p.bg | condition-bg
     # text sits on the panel, a mix of surface and bg: readable on surface is readable on any mix of the two
-    let surface = $bg | shade 0.06
-    let accent = accent-from $slot $knobs
+    let surface = $bg | shade $STARTPAGE_SURFACE_SHADE
+    let accent = accent-from $p $knobs
     let hex = {|c| $c | rgb-to-hex --prefix "#" }
     {
         BG: (do $hex $bg)
         SURFACE: (do $hex $surface)
-        FG: (do $hex (do $slot foreground $FALLBACK.fg | readable-on $surface --ratio $knobs.foregroundContrast))
-        MUTED: (do $hex (do $slot color8 $FALLBACK.muted | readable-on $surface --ratio $knobs.textContrast))
+        FG: (do $hex ($p.fg | readable-on $surface --ratio $knobs.foregroundContrast))
+        MUTED: (do $hex ($p.c8 | readable-on $surface --ratio $knobs.textContrast))
         ACCENT: (do $hex ($accent | readable-on $surface --ratio $knobs.textContrast))
-        ACCENT2: (do $hex (accent2-from $slot $knobs $accent $bg | readable-on $surface --ratio $knobs.textContrast))
+        ACCENT2: (do $hex (accent2-from $p $knobs $accent $bg | readable-on $surface --ratio $knobs.textContrast))
     }
 }
 
 # config.py's chrome roles, conditioned like the startpage; config.py falls back to the raw slots without it.
 def chrome-colors []: nothing -> any {
-    let slot = wal-load "qutebrowser chrome"
-    if $slot == null { return null }
-    let bg = do $slot background $FALLBACK.bg | condition-bg
+    let p = palette-rgb "qutebrowser chrome"
+    if $p == null { return null }
+    let bg = $p.bg | condition-bg
     # alt rows and tabs are the lower-contrast surface: text readable on it is readable on bg too
     let alt = $bg | shade $CHROME_ALT_SHADE
-    let fg = do $slot foreground $FALLBACK.fg | readable-on $alt
-    let accent = accent-from $slot (bar-knobs)
-    let selection = do $slot color8 $FALLBACK.muted | selection-pair $fg
+    let fg = $p.fg | readable-on $alt
+    let accent = accent-from $p (bar-knobs)
+    let selection = $p.c8 | selection-pair $fg
     let hex = {|c| $c | rgb-to-hex --prefix "#" }
     {
         bg: (do $hex $bg)
         bg_alt: (do $hex $alt)
         fg: (do $hex $fg)
-        muted: (do $hex (do $slot color8 $FALLBACK.muted | readable-on $alt --ratio $MARK_RATIO))
+        muted: (do $hex ($p.c8 | readable-on $alt --ratio $MARK_RATIO))
         accent: (do $hex ($accent | readable-on $alt))
         selection_bg: (do $hex $selection.0)
         selection_fg: (do $hex $selection.1)
         selection_match: (do $hex ($accent | readable-on $selection.0 --ratio $MARK_RATIO))
         hint_bg: (do $hex $accent)
         hint_fg: (do $hex ($bg | readable-on $accent))
-        hint_match: (do $hex (do $slot color1 $FALLBACK.urgent | readable-on $accent --ratio $MARK_RATIO))
+        hint_match: (do $hex ($p.c1 | readable-on $accent --ratio $MARK_RATIO))
     }
 }
 

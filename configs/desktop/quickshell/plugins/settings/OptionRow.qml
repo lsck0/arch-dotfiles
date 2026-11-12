@@ -168,7 +168,6 @@ Item {
             options: row.choices
             value: String(row.value)
             focusable: false
-            fontSize: Style.font.caption
             onChanged: function (picked) { row.changeRequested(row.option.choices.find(function (c) { return String(c) === picked })) }
           }
         }

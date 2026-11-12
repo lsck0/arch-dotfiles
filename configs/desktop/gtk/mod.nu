@@ -1,11 +1,11 @@
 use module.nu *
 use ../../core/wallust/font.nu [font-load]
 use ../../core/wallust/palette.nu [ICON_THEMES]
+use ../oomox/mod.nu [INTERFACE]
 
 export const meta = {deps: [desktop/oomox], packages: {pacman: [breeze-icons flat-remix-gtk gtk3 gtk4 nwg-look xdg-user-dirs-gtk]}}
 
 const GTK_THEME = "oomox-colors-oomox"
-const INTERFACE = "org.gnome.desktop.interface"
 # every flatpak reads the host's theme: oomox lives in ~/.themes, settings.ini and the gtk4 gtk.css in the config dir
 const FLATPAK_GLOBAL = "[Context]\nfilesystems=~/.themes:ro;xdg-config/gtk-3.0:ro;xdg-config/gtk-4.0:ro;\n"
 

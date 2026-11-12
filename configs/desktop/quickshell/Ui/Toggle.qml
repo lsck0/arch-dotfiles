@@ -10,8 +10,6 @@ Item {
 
   property bool hasCursor: false
 
-  property bool cursorRing: interactive
-  property int cursorPad: Style.spacing.xs
   property color foreground: Colors.foreground
   property color accent: Colors.accent
 
@@ -24,7 +22,7 @@ Item {
   Keys.onReturnPressed: root.toggled(!root.checked)
   Keys.onEnterPressed: root.toggled(!root.checked)
 
-  readonly property int _pad: cursorRing ? cursorPad : 0
+  readonly property int _pad: interactive ? Style.spacing.xs : 0
 
   implicitWidth: widest.advanceWidth + _pad * 2
   implicitHeight: label.implicitHeight + _pad * 2
@@ -37,7 +35,7 @@ Item {
 
   BorderSurface {
     anchors.fill: parent
-    visible: root.cursorRing && root.hot
+    visible: root.interactive && root.hot
     color: "transparent"
     radius: Style.shape.data
     borderSpec: Border.controlSpec("hover-cursor", root.foreground, root.accent)

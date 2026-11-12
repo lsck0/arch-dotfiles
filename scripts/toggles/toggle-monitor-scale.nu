@@ -29,7 +29,7 @@ def mode-of [monitor: record]: nothing -> string {
 }
 
 def monitors-persisted []: nothing -> list<record> {
-    ^$DOT set $HYPRLAND --json | from json | get modules.0.options | where key == monitors | get 0.value | default []
+    ^nu --no-config-file $DOT set $HYPRLAND --json | from json | get modules.0.options | where key == monitors | get 0.value | default []
 }
 
 def persisted-get [name: string, key: string, fallback: string]: nothing -> string {
@@ -42,7 +42,7 @@ def persisted-scale-set [name: string, scale: string]: nothing -> nothing {
     let entry = $monitors | where output == $name | get --optional 0
         | default {output: $name, mode: (mode-of $current), position: $"($current.x)x($current.y)"}
     let updated = $monitors | where output != $name | append ($entry | upsert scale ($scale | into float)) | sort-by output
-    ^$DOT set --machine $"($HYPRLAND).monitors" ($updated | to json --raw)
+    ^nu --no-config-file $DOT set --machine $"($HYPRLAND).monitors" ($updated | to json --raw)
 }
 
 def expr-save [name: string, kind: string, expr: string]: nothing -> nothing {
@@ -123,7 +123,7 @@ def scale-check [scale: string]: nothing -> nothing {
 def "main get" [monitor?: string, --json] {
     let monitor = $monitor | default (monitor-default)
     let scale = scale-get $monitor
-    let shown = try { $scale | into float | math round --precision 2 } catch { $scale }
+    let shown = $scale | into float | math round --precision 2
     status-print (status-record "Monitor scale" $scale --text $"($monitor) ($shown)x" --states $SCALES) $json
 }
 

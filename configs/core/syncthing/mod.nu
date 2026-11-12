@@ -1,6 +1,5 @@
 use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
-use profile.nu [profile-owner]
 
 export const meta = {
     inputs: [~/.local/state/syncthing/cert.pem ~/.local/state/syncthing/key.pem ~/sync/.stignore]
@@ -21,11 +20,11 @@ export def packages [cfg: record]: nothing -> record {
 
 const IDENTITY = [[file mode]; [config.xml 600] [cert.pem 644] [key.pem 600]]
 const GUI_SECRET = "configs/secrets/keys/syncthing-gui-password"
-const API_WAIT_SECONDS = 30
+const API_WAIT_S = 30
 const GUI_TRIES = 3
 const PASSWORD_SHAPE = '^[A-Za-z0-9+/=._~-]+$'
 const STIGNORE_LINE = "**/.identity"
-const VERSIONS_MAX_AGE = 2592000
+const VERSIONS_MAX_AGE_S = 30 * 24 * 60 * 60
 const NAS_NAME = '(^|-)nas$'
 
 def secret-dir []: nothing -> path {
@@ -37,10 +36,10 @@ def st [...args: string]: nothing -> string {
 }
 
 def api-wait []: nothing -> nothing {
-    let up = 1..$API_WAIT_SECONDS | each { $in } | any {|_|
+    let up = 1..$API_WAIT_S | each { $in } | any {|_|
         if (^syncthing cli show system | complete).exit_code == 0 { true } else { sleep 1sec; false }
     }
-    if not $up { error make {msg: $"syncthing: the api did not answer in ($API_WAIT_SECONDS)s, settings not applied"} }
+    if not $up { error make {msg: $"syncthing: the api did not answer in ($API_WAIT_S)s, settings not applied"} }
 }
 
 def stignore-file []: nothing -> path {
@@ -123,7 +122,7 @@ export def api-config [paired: string, nas: string = ""]: nothing -> nothing {
     }
     if "sync" in (st config folders list | lines) {
         ^syncthing cli config folders sync versioning type set staggered
-        ^syncthing cli config folders sync versioning params set maxAge ($VERSIONS_MAX_AGE | into string)
+        ^syncthing cli config folders sync versioning params set maxAge ($VERSIONS_MAX_AGE_S | into string)
         if (st config folders sync versioning type get) != "staggered" {
             error make {msg: "syncthing: staggered versioning on sync did not stick"}
         }
@@ -140,7 +139,7 @@ export def link [cfg: record] {
     let nas = $cfg.nas_address | default ""
     # a new identity replaces config.xml, so its secrets are part of what api-config last set
     let identity = if $paired { [cert.pem key.pem config.xml] | each {|f| open --raw ($secrets | path join $f) | hash sha256 } } else { [] }
-    let api_key = [(gui-version) $nas ($paired | into string) ($VERSIONS_MAX_AGE | into string) ...$identity] | str join "\n" | hash sha256
+    let api_key = [(gui-version) $nas ($paired | into string) ($VERSIONS_MAX_AGE_S | into string) ...$identity] | str join "\n" | hash sha256
     [
         (step stignore --done=($STIGNORE_LINE in (stignore-lines)))
         (step identity-install --done=(not $changed))

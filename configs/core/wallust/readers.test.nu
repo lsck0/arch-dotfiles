@@ -2,10 +2,9 @@
 # Tools that read a pywal file or key by convention, with no reference to it anywhere in the repo: only this list keeps
 # the template that writes it from looking unused.
 
-const HERE = path self | path dirname
-const REPO = $HERE | path join ../../..
-const TEMPLATES = $HERE | path join templates wal
-const WALLUST = $HERE | path join wallust.toml
+const REPO = path self ../../..
+const TEMPLATES = path self templates/wal
+const WALLUST = path self wallust.toml
 
 # reader: who reads it; present: a repo file and a string in it that says the reader is set up; file: what it reads
 # from ~/.cache/wal

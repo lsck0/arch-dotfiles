@@ -110,7 +110,6 @@ BarWidget {
           id: hearGroup
           anchors.right: parent.right
           spacing: Style.spacing.xs
-          fontSize: Style.font.caption
           options: [{
             "value": "me",
             "label": "System"

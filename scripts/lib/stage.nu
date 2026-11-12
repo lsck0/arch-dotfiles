@@ -1,7 +1,7 @@
 # One install stage per boot: install, then config, which disarms the chain and reboots.
 
 use log.nu *
-use state.nu [EXIT_PENDING INSTALL_PASS_FILE SYSTEM_REPO CONFIG_ISSUE]
+use state.nu [EXIT_PENDING INSTALL_PASS_FILE SYSTEM_REPO CONFIG_ISSUE SECRETS_ISSUE]
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use system.nu [ENTRY]
 use profile.nu [profile-has]
@@ -25,7 +25,6 @@ export const STAGE_STOPPED = $STAGE_STATE_DIR | path join stopped
 const ATTEMPTS = $STAGE_STATE_DIR | path join install-attempts
 export const STAGE_RESUME = "dot internal stage"
 const STAGE_STOP = "stop"
-const SECRETS_ISSUE = "/etc/issue.d/dotfiles-secrets.issue"
 const DISARM_TRIES = 3
 const DISARM_BACKOFF = 5sec
 const EFIVARS = "/sys/firmware/efi/efivars"

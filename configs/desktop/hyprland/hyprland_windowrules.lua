@@ -85,8 +85,8 @@ hl.window_rule({
 hl.window_rule({ match = { class = "^UnrealEditor$", title = "^Message Log$" }, size = "1200 700", center = true })
 
 -- unanimated: grim captures right after slurp's overlay exits, a fade-out would still show the region border
-for name, namespace in pairs({ slurp = "^selection$", ["quickshell-notifications"] = "^quickshell-notifications$" }) do
-    hl.layer_rule({ name = name .. "-no-anim", match = { namespace = namespace }, no_anim = true })
+for _, layer in ipairs({ { "slurp", "^selection$" }, { "quickshell-notifications", "^quickshell-notifications$" } }) do
+    hl.layer_rule({ name = layer[1] .. "-no-anim", match = { namespace = layer[2] }, no_anim = true })
 end
 
 hl.layer_rule({

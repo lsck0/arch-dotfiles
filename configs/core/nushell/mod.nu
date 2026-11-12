@@ -9,7 +9,7 @@ export def link [cfg: record] {
     [
         (files-into (xdg config nushell) env.nu config.nu)
         ($INITS | items {|file, argv|
-            if (which $argv.0 | is-empty) { [] } else { file-text ($vendor | path join $file) $"(^$argv.0 ...($argv | skip 1))\n" --generated }
+            if (which $argv.0 | is-not-empty) { file-text ($vendor | path join $file) $"(^$argv.0 ...($argv | skip 1))\n" --generated }
         })
     ]
 }

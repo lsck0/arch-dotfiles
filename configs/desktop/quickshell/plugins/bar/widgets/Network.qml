@@ -35,8 +35,9 @@ BarWidget {
 
   readonly property string homeVpnState: toggleState("vpn", "off")
   readonly property string route: toggleState("route", "direct")
-  readonly property string protonVpnState: route === "proton" ? "on" : "off"
-  readonly property string torState: route === "tor" ? "on" : "off"
+  readonly property bool vpnOn: homeVpnState === "on" || route === "proton"
+  // traffic leaves through a tunnel: the bar glyph takes the accent
+  readonly property bool tunnelled: vpnOn || route === "tor"
   readonly property bool anonymousSocksOn: toggleOn("anonymous-socks")
   readonly property bool btPowered: toggleOn("bluetooth")
   readonly property bool wifiOn: toggleState("wifi", "on") === "on"
@@ -95,9 +96,7 @@ BarWidget {
   function refreshWifiList(rescan) {
     if (wifiScanProc.running) return
     if (rescan) lastScanMs = Date.now()
-    wifiScanProc.command = rescan
-      ? [Paths.barWidget("network-wifi-scan.nu"), "rescan"]
-      : [Paths.barWidget("network-wifi-scan.nu")]
+    wifiScanProc.command = [Paths.barWidget("network-wifi-scan.nu")].concat(rescan ? ["rescan"] : [])
     wifiScanProc.running = true
   }
 
@@ -225,7 +224,7 @@ BarWidget {
   readonly property bool onEthernet: detailsDevice.indexOf("en") === 0 || detailsDevice.indexOf("eth") === 0
   readonly property string statusIcon: {
     if (offlineModeOn) return "\u{f072}"
-    if (homeVpnState === "on" || protonVpnState === "on") return "\u{f023}"
+    if (vpnOn) return "\u{f023}"
     if (!detailsConnected || connectivity === "none") return "\u{f0319}"
     if (connectivity === "limited" || connectivity === "portal") return "\u{f071}"
     return onEthernet ? "\u{f0318}" : "\u{f1eb}"
@@ -248,12 +247,10 @@ BarWidget {
     Label {
       anchors.verticalCenter: parent.verticalCenter
       text: root.statusIcon
-      color: (root.homeVpnState === "on" || root.protonVpnState === "on" || root.torState === "on")
-        ? Colors.accentText
-        : Colors.bar.text
+      color: root.tunnelled ? Colors.accentText : Colors.bar.text
       icon: true
       font.pixelSize: Style.font.icon
-      layer.enabled: Style.fx.glow > 0 && (root.homeVpnState === "on" || root.protonVpnState === "on" || root.torState === "on")
+      layer.enabled: Style.fx.glow > 0 && root.tunnelled
       layer.effect: Glow {}
     }
   }
@@ -509,7 +506,6 @@ BarWidget {
         width: content.width
         fill: true
         spacing: Style.spacing.xs
-        fontSize: Style.font.caption
         options: root.firewallModes
         value: root.firewallState
         onChanged: function(state) { if (state !== root.firewallState) root.runToggle("firewall", "set", state) }
@@ -536,7 +532,6 @@ BarWidget {
           width: parent.width - (homelabChip.visible ? homelabChip.width + parent.spacing : 0)
           fill: true
           spacing: Style.spacing.xs
-          fontSize: Style.font.caption
           options: root.routeModes
           value: root.route
           onChanged: function(state) { if (state !== root.route) root.runToggle("route", "set", state) }

@@ -1,25 +1,26 @@
 # The module API: each declaration returns a record a mod.nu verb emits; converge.nu applies the difference.
 
 export use log.nu [log-info log-note log-warn log-err log-debug]
-export use profile.nu [profile-has profile-load]
+export use profile.nu [profile-has profile-load profile-owner]
 export use platform.nu [platform-has display-xwayland-scale gpu-list monitors-live]
 export use json.nu [json-set json-delete]
 export use secrets.nu [secret-is-plaintext secret-seed-guard owner-unlocked system-secret]
 use fetch.nu [fetch-file-done fetch-file-cached fetch-git-done]
 use state.nu [nu-bin LIB_DIR]
-# what a module may read of the engine's state: its records, the root's state paths, a step's pending exit code
-export use state.nu [xdg env-file-load recorded-hashes SYSTEM_STATE SYSTEM_REPO EXIT_PENDING]
-use ../../configs/core/wallust/palette.nu [palette-slots]
+# what a module may read of the engine's state: its records, the root's state paths, the install chain's secrets
+# banner, a step's pending exit code
+export use state.nu [xdg env-file-load recorded-hashes SYSTEM_STATE SYSTEM_REPO EXIT_PENDING SECRETS_ISSUE]
+export use ../../configs/core/wallust/palette.nu [palette-load]
 
 export const DECL_KEYS = [kind target source content mode generated inplace edits state now argv creates key done undo requires then notify network timeout]
 export const DECL_KINDS = [file link json ini unit exec step]
 const MODE_FILE = "644"
 const BIN_DIR = ".local/bin"
 const DESKTOP_SYSTEM_DIR = "/usr/share/applications"
+const DESKTOP_ENTRY = "[Desktop Entry]"
 # an app rewriting a watched path in bursts would retrigger its hook in a loop
 const HOOK_BRAKE = "StartLimitIntervalSec=1min\nStartLimitBurst=20\n"
 const MCP_GATE = path self ../mcp-gate.py
-const PALETTE_SLOTS = [bg fg c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 c15 light bg_conditioned]
 
 def decl [kind: string, target: string, fields: record]: nothing -> record {
     {
@@ -102,15 +103,24 @@ export def process-running [name: string]: nothing -> bool {
     (^pgrep -x $name | complete).exit_code == 0
 }
 
-# Sets whole keys in a desktop entry's text (the first Key= line each), for desktop-override's edit.
+# An installed package's upstream version, epoch and pkgrel stripped (`1:3.7.9-1` is `3.7.9`); null when not installed.
+export def package-version [name: string]: nothing -> oneof<string, nothing> {
+    let installed = ^pacman -Q $name | complete
+    if $installed.exit_code != 0 { return null }
+    $installed.stdout | str trim | split row " " | last | str replace --regex '^\d+:' '' | str replace --regex '-[^-]+$' ''
+}
+
+# Sets whole keys in a desktop entry's [Desktop Entry] group, for desktop-override's edit: a key the group has is
+# replaced in place, one it lacks goes right under the header, never into a [Desktop Action] group.
 export def desktop-set [values: record]: string -> string {
-    let text = $in
-    $values | items {|key, value| {key: $key, value: $value} }
-    | reduce --fold $text {|kv, t|
-        let pattern = $kv.key | str replace --all --regex '[.^$*+?()\[\]{}|\\]' '\${0}'
-        # a $ in the value is literal, not a capture reference
-        $t | str replace --regex $"\(?m\)^($pattern)=.*$" $"($kv.key)=($kv.value | into string | str replace --all '$' '$$')"
-    }
+    let lines = $in | lines
+    let start = ($lines | enumerate | where item == $DESKTOP_ENTRY | first).index + 1
+    let group = $lines | skip $start | take while { $in !~ '^\[' }
+    let set = $values | items {|key, value| {prefix: $"($key)=", line: $"($key)=($value)"} }
+    let edited = $group | each {|line| $set | where {|s| $line | str starts-with $s.prefix } | get -o 0.line | default $line }
+    let added = $set | where {|s| not ($group | any { str starts-with $s.prefix }) } | get line
+    $lines | take $start | append $added | append $edited | append ($lines | skip ($start + ($group | length)))
+    | str join "\n" | $"($in)\n"
 }
 
 # A spec with a `gate: {probe: "host:port", app}` runs through scripts/mcp-gate.py: the server while the app listens,
@@ -164,6 +174,20 @@ export def mcp-servers [servers: record]: nothing -> list<record> {
     }
 }
 
+# A uvx MCP server: <argv> from <pkg> (name==version), its dependencies frozen at the <frozen> date, plus a prefetch
+# that imports <module>, else an agent's first start times out while uv downloads it. Nothing without uvx.
+export def mcp-uvx [
+    name: string, pkg: string, frozen: string, argv: list<string>, module: string
+    --python: string, --env-vars: record = {}
+]: nothing -> list<record> {
+    if (which uvx | is-empty) { return [] }
+    let source = (if $python == null { [] } else { [--python $python] }) ++ [--exclude-newer $frozen --from $pkg]
+    let key = $"($pkg)@($frozen)" + (if $python == null { "" } else { $"-py($python)" })
+    let spec = {type: stdio, command: uvx, args: ($source ++ $argv)}
+    mcp-servers {$name: ($spec | merge (if ($env_vars | is-empty) { {} } else { {env: $env_vars} }))}
+    | append (exec $"($name) cache" [uvx ...$source python -c $"import ($module)"] --key $key --network)
+}
+
 const MCP_COMPAT_RELEASED = "2026-09-01"
 
 # Arch's python-mcp is 2.x, whose FastMCP rename broke the ghidra and semgrep servers, and misses extras like structlog:
@@ -173,12 +197,12 @@ export def mcp-compat [name: string, pins: list<string>]: nothing -> record {
     let py = ^python3 -c "import sys; print(f'{sys.version_info[0]}.{sys.version_info[1]}')" | str trim
     let dir = xdg data mcp-compat $name
     let version = $"($MCP_COMPAT_RELEASED)-py($py)-($pins | str join '_' | hash sha256 | str substring 0..<8)"
-    let script = 'rm -rf "$0" && uv venv --quiet --system-site-packages --python /usr/bin/python3 "$0" && uv pip install --quiet --python "$0/bin/python" --exclude-newer "$1" "$@"'
+    # $0 the venv, $1 the cutoff date, the rest the pins
+    let script = 'rm -rf "$0" && uv venv --quiet --system-site-packages --python /usr/bin/python3 "$0" && cutoff=$1 && shift && uv pip install --quiet --python "$0/bin/python" --exclude-newer "$cutoff" "$@"'
     let python = $dir | path join bin python
     {
         python: $python
-        decl: (exec $"mcp-compat ($name)" [sh -c ($script | str replace '"$@"' ($pins | each { $"'($in)'" } | str join " ")) $dir $MCP_COMPAT_RELEASED]
-            --creates $python --key $version --undo [rm -rf $dir] --network)
+        decl: (exec $"mcp-compat ($name)" [sh -c $script $dir $MCP_COMPAT_RELEASED ...$pins] --creates $python --key $version --undo [rm -rf $dir] --network)
     }
 }
 
@@ -321,14 +345,6 @@ export def user-hook [name: string, script: path, --watch: list<string>, --perma
         (file-text ($dir | path join $"($name).service") $service --then [systemctl --user start --no-block $"($name).service"])
         (unit-enable $"($name).path" --now)
     ] ++ (if $permanent { [(unit-enable $"($name).service")] } else { [] })
-}
-
-# The current wallust palette as a record of slots, or null before the first theme.
-export def palette-load []: nothing -> any {
-    if not (xdg cache wal colors.json | path exists) {
-        return null
-    }
-    $PALETTE_SLOTS | zip (palette-slots) | into record
 }
 
 # <dir>/<host>/<file>, so machines backing up into one repo never overwrite each other.

@@ -38,7 +38,6 @@ if changed:
         servers.pop(name)
     save_config(config)
     config = load_config()
-    hooks = config.setdefault("hooks", {})
     servers = config.get("mcp_servers") or {}
 dropped = [name for name, spec in want["mcp"].items() if spec is None and servers.pop(name, None) is not None]
 servers.update({name: spec for name, spec in want["mcp"].items() if spec is not None})

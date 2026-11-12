@@ -1,6 +1,6 @@
 use module.nu *
 use ini.nu [ini-rows]
-use ../../core/wallust/palette.nu *
+use ../../core/wallust/palette.nu [RADIUS_PX SHADE_CHROME SHADE_CURRENT condition-bg dim-toward lift readable-on rgb-to-hex selection-pair palette-rgb semantic shade vivify]
 use ../../core/wallust/font.nu [font-load]
 use hook/spicetify-apply.nu [apply-pending]
 
@@ -71,17 +71,17 @@ export def configure []: nothing -> nothing {
 }
 
 export def spicetify-colors []: nothing -> any {
-    let slot = wal-load "spotify theme"
-    if $slot == null { return null }
-    let bg = do $slot background "#0b1019" | condition-bg
-    let fg = do $slot foreground "#c2c3c5" | readable-on $bg --ratio 7.0
-    let accent = do $slot color4 "#B68B74" | vivify 0.45 0.55 | readable-on $bg --ratio 3.0
-    let muted = do $slot color8 "#5a616e" | readable-on $bg --ratio 1.9
+    let p = palette-rgb "spotify theme"
+    if $p == null { return null }
+    let bg = $p.bg | condition-bg
+    let fg = $p.fg | readable-on $bg --ratio 7.0
+    let accent = $p.c4 | vivify 0.45 0.55 | readable-on $bg --ratio 3.0
+    let muted = $p.c8 | readable-on $bg --ratio 1.9
     let card = $bg | shade 0.03
     let highlight = $bg | shade 0.075
-    let highlight_elevated = $bg | shade 0.11
+    let highlight_elevated = $bg | shade $SHADE_CURRENT
     [
-        [text $fg] [subtext ($fg | dim-toward $bg --ratio 4.6)] [main $bg] [main-elevated ($bg | shade 0.045)]
+        [text $fg] [subtext ($fg | dim-toward $bg --ratio 4.6)] [main $bg] [main-elevated ($bg | shade $SHADE_CHROME)]
         [highlight $highlight] [highlight-elevated $highlight_elevated] [sidebar $bg] [player $bg] [card $card]
         [shadow [0.0 0.0 0.0]] [selected-row $fg] [button $accent] [button-active ($accent | lift 0.08)]
         [button-disabled $muted] [tab-active $highlight_elevated] [notification ($accent | selection-pair $fg | first)]

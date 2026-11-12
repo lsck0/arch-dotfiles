@@ -1,5 +1,5 @@
 use module.nu *
-use ../../core/wallust/palette.nu [RADIUS_PX OPACITY_BAR TEXT_RATIO ACCENT2_RATIO hex-to-rgb rgb-to-hex is-light passes quantize readable-on]
+use ../../core/wallust/palette.nu [RADIUS_PX OPACITY_BAR TEXT_RATIO ACCENT2_RATIO hex-to-rgb rgb-to-hex is-light passes quantize readable-on wal-colors-file]
 use ../../core/wallust/font.nu [font-load]
 
 export const meta = {
@@ -21,7 +21,7 @@ const POLICIES = "/etc/firefox/policies/policies.json"
 const SECRETS_DIR = path self ../../secrets
 const PYWALFOX_HOST = ".mozilla/native-messaging-hosts/pywalfox.json"
 # the headless run is ended on purpose; profiles.ini is its result
-const HEADLESS_TIMEOUT = "20"
+export const HEADLESS_TIMEOUT = "20"
 const SEARCH_OFF_HOMELAB = {
     Add: [{Name: DuckDuckGo, URLTemplate: "https://duckduckgo.com/?q={searchTerms}", Method: GET, Alias: ddg}]
     Default: DuckDuckGo
@@ -157,14 +157,13 @@ export def pywalfox-slots [bg: string, fg: string, accent: string, accent2: stri
 }
 
 def pywalfox-colors []: nothing -> string {
-    let colors = open (xdg cache wal colors.json)
+    let colors = open (wal-colors-file)
     let slots = pywalfox-slots $colors.special.background $colors.special.foreground $colors.colors.color4 $colors.colors.color5
     $"($colors | upsert colors ($colors.colors | merge $slots) | to json --indent 2)\n"
 }
 
 # pywalfox's default dark and light templates as chrome variables, for a profile without the extension.
-def chrome-colors []: nothing -> string {
-    let p = palette-load
+def chrome-colors [p: any]: nothing -> string {
     if $p == null { return "" }
     let s = if $p.light == "1" {
         {
@@ -196,8 +195,8 @@ def chrome-colors []: nothing -> string {
 
 export def theme [cfg: record, wallpaper: string] {
     let font = mozilla-chrome-font
-    let colors = chrome-colors
     let palette = palette-load
+    let colors = chrome-colors $palette
     let files = [
         (mozilla-profiles ($nu.home-dir | path join $HOME_DIR profiles.ini)
             | each {|dir| file-text ($dir | path join chrome dotfiles-font.css) $font --generated })

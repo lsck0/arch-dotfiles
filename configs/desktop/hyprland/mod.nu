@@ -1,7 +1,7 @@
 # hyprland's lua config, plus platform.lua generated each run from the live monitors and keyboard
 
 use module.nu *
-use ../../core/wallust/palette.nu [RADIUS_PX BORDER_PX OPACITY_SURFACE wal-load readable-on shade rgb-to-hex]
+use ../../core/wallust/palette.nu [RADIUS_PX BORDER_PX OPACITY_SURFACE SHADE_HOVER palette-rgb readable-on shade rgb-to-hex]
 use ../../core/wallust/font.nu [font-load]
 use plugins.nu [plugins-missing plugins-unloaded]
 use lid.nu [INTERNAL_PANEL]
@@ -65,7 +65,6 @@ export const options = {
         label: "Lock screen"
         group: idle
         scope: machine
-        apply: live
     }
     monitor_speaker_volume: {
         type: int?
@@ -126,6 +125,8 @@ const WORKSPACE_COUNT = 10
 const TARGET_DPI = {laptop: 150.0, desktop: 110.0}
 const MM_PER_INCH = 25.4
 const SCALES = [1.0 1.25 1.5 1.666667 2.0 2.5 3.0]
+# the width of an output listing no modes
+const WIDTH_FALLBACK_PX = 1920
 const PLUGINS = path self plugins.nu
 
 # A Hyprland instance dir whose lock names a running pid; a dead one keeps its dir and socket file behind.
@@ -137,7 +138,7 @@ def instance-alive [dir: path]: nothing -> bool {
 # Whether a Hyprland runs for this process, adopting the live instance when the inherited signature is dead: a shell
 # (a herdr pane, a ssh login) keeps the signature of the Hyprland it was started under through a crash or a relogin.
 def --env hyprland-live []: nothing -> bool {
-    let hypr = $env.XDG_RUNTIME_DIR? | default "" | path join hypr
+    let hypr = xdg runtime hypr
     let sig = $env.HYPRLAND_INSTANCE_SIGNATURE? | default ""
     if $sig != "" and (instance-alive ($hypr | path join $sig)) { return true }
     let live = try { ls $hypr } catch { [] } | where type == dir and (instance-alive $it.name) | sort-by modified
@@ -171,7 +172,7 @@ def scale-for [output: record, width: int]: nothing -> float {
 def monitors-detect []: nothing -> list<record> {
     outputs-live | reduce --fold {x: 0, rows: []} {|o, acc|
         let mode = mode-best $o.availableModes
-        let width = if $mode == "preferred" { $o.width? | default 1920 } else { $mode | split row x | first | into int }
+        let width = if $mode == "preferred" { $o.width? | default $WIDTH_FALLBACK_PX } else { $mode | split row x | first | into int }
         let scale = scale-for $o $width
         {
             x: ($acc.x + ($width / $scale | math round))
@@ -264,11 +265,11 @@ def platform-lua [cfg: record]: nothing -> string {
 
 # Tab strip and title bars: the theme's background, the focused tab one shade off, text raised to TEXT_RATIO on each.
 def bar-colors []: nothing -> record {
-    let slot = wal-load "hyprland bars"
-    if $slot == null { return {} }
-    let bg = do $slot background "#1e1e2e"
-    let active = $bg | shade 0.08
-    let fg = do $slot foreground "#cdd6f4"
+    let p = palette-rgb "hyprland bars"
+    if $p == null { return {} }
+    let bg = $p.bg
+    let active = $bg | shade $SHADE_HOVER
+    let fg = $p.fg
     let hex = {|c| $c | rgb-to-hex | $"rgb\(($in)\)" }
     {
         bar_bg: (do $hex $bg), bar_text: (do $hex ($fg | readable-on $bg))

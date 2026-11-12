@@ -71,7 +71,6 @@ context.modules = [
 }
 
 def eq-link [cfg: record]: nothing -> list<record> {
-    if $cfg.eq_target == null { return [] }
     let conf = $nu.home-dir | path join $CONF_DIR
     let preset = $conf | path join $PRESET_FILE
     # the chain reads the preset only at start, and its own conf does not change with the preset
@@ -85,7 +84,6 @@ def eq-link [cfg: record]: nothing -> list<record> {
 }
 
 def loopback-link [cfg: record]: nothing -> list<record> {
-    if not $cfg.app_loopbacks { return [] }
     let restart = unit-restart $LOOPBACK_UNIT
     [
         (file-copy $LOOPBACK_SCRIPT ($nu.home-dir | path join $SCRIPT_DIR $LOOPBACK_SCRIPT) --then $restart)
@@ -96,5 +94,9 @@ def loopback-link [cfg: record]: nothing -> list<record> {
 export def link [cfg: record] {
     # pipewire also arrives under wsl, as a dependency of the portals, where wslg owns the audio
     if (which pipewire | is-empty) or $env.FORM_FACTOR? == "wsl" { return [] }
-    [(unit-enable wireplumber.service)] ++ (eq-link $cfg) ++ (loopback-link $cfg)
+    [
+        (unit-enable wireplumber.service)
+        (if $cfg.eq_target != null { eq-link $cfg })
+        (if $cfg.app_loopbacks { loopback-link $cfg })
+    ]
 }

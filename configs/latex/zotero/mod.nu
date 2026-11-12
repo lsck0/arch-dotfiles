@@ -3,12 +3,9 @@ use module.nu *
 export const meta = {packages: {pacman: [zotero-bin uv]}}
 
 const ZOTERO_HOME = ".zotero/zotero"
-const MCP = {
-    type: stdio
-    command: uvx
-    args: [--from zotero-mcp-server==0.14.1 zotero-mcp serve]
-    env: {ZOTERO_LOCAL: "true", ZOTERO_MCP_SCHEMA_REFRESH: "0", ZOTERO_NO_CLAUDE: "true"}
-}
+# MCP_FROZEN cuts off its deps (mcp-uvx); bump both together
+const MCP_VERSION = "0.14.1"
+const MCP_FROZEN = "2026-10-08"
 const BBT_VERSION = "9.0.71"
 const BBT_URL = $"https://github.com/retorquere/zotero-better-bibtex/releases/download/v($BBT_VERSION)/zotero-better-bibtex-($BBT_VERSION).xpi"
 const BBT_SHA256 = "bf61a1690dc8a2b7ab09be9de2c89986f4fb6d495c82407d89b102b26fbaa9d5"
@@ -21,6 +18,7 @@ const BBT_EXPORT = $"($ZOTERO_SERVER)/better-bibtex/export/library?/($ZOTERO_USE
 const EXPORT_TIMEOUT = 120sec
 const READY_TIMEOUT = 90sec
 const READY_POLL_INTERVAL = 1sec
+const READY_PROBE_TIMEOUT = 2sec
 
 # Better BibTeX's pref key for an auto-export to file: encodeURIComponent, then .!'()* as lowercase %xx.
 def autoexport-key [file: path]: nothing -> string {
@@ -58,12 +56,13 @@ export def link [cfg: record] {
         (if ($profiles | is-not-empty) and not ($bib | path exists) {
             step library-export $bib --requires ($profiles | first | path join $xpi)
         })
-        (mcp-servers {zotero-mcp: $MCP})
+        (mcp-uvx zotero-mcp $"zotero-mcp-server==($MCP_VERSION)" $MCP_FROZEN [zotero-mcp serve] zotero_mcp.server
+            --env-vars {ZOTERO_LOCAL: "true", ZOTERO_MCP_SCHEMA_REFRESH: "0", ZOTERO_NO_CLAUDE: "true"})
     ]
 }
 
 def bbt-ready []: nothing -> bool {
-    (try { http get --max-time 2sec $BBT_READY } catch { "" }) == "ready"
+    (try { http get --max-time $READY_PROBE_TIMEOUT $BBT_READY } catch { "" }) == "ready"
 }
 
 # Exports the library to <bib> from a running zotero, else from a headless one started for it and stopped after.

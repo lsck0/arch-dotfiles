@@ -43,7 +43,7 @@ export def theme [cfg: record, wallpaper: string] {
     let font = font-load
     # emacs renders at the raw point size and, unlike the gtk apps, gets no desktop scale; fold it in so it matches
     let size = ($font.size * $font.scale | math round)
-    let reload = if (process-running emacs) { [(step theme-reload)] } else { [] }
+    let reload = if (process-running emacs) { step theme-reload }
     let font_el = file-text (xdg cache $FONT) $"($LEXICAL)\n\(setq doom-font \(font-spec :family ($font.mono | to json) :size ($size).0\)\)\n" --generated
     let p = palette-load
     if $p == null { return [$font_el $reload] }

@@ -6,7 +6,7 @@ use ($REPO | path join scripts lib state.nu) [xdg]
 
 def grafana-url []: nothing -> string {
     let lab = homelab-lab-load
-    let url = $lab | get --optional monitoring?.grafana?
+    let url = $lab | get --optional monitoring.grafana
     if ($url | describe) != "string" {
         error make --unspanned {msg: "grafana-mcp: the homelab's lab.json is missing, of another schema or names no monitoring.grafana"}
     }

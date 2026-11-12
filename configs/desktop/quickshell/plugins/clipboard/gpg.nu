@@ -7,17 +7,26 @@ def status-of [stderr: string]: nothing -> list<string> {
     $stderr | lines | where { $in starts-with "[GNUPG:] " }
 }
 
+def status-has [status: list<string>, pattern: string]: nothing -> bool {
+    $status | any { $in =~ $'^\[GNUPG:\] ($pattern)' }
+}
+
 # good, untrusted, bad, expired, revoked, unverified or none.
 def signature [status: list<string>]: nothing -> record {
-    let has = {|pattern| $status | any { $in =~ $'^\[GNUPG:\] ($pattern)' } }
     let signer = $status | parse --regex '^\[GNUPG:\] (?:GOOD|EXP|EXPKEY|REVKEY|BAD)SIG [0-9A-F]* (?<who>.*)$'
         | get --optional 0.who | default ""
     let fpr = $status | each { split row --regex '\s+' } | where { $in.1? in [VALIDSIG ERRSIG] } | get --optional 0
         | if $in == null { "" } else if $in.1 == ERRSIG or ($in.11? | default "") == "" { $in.2 } else { $in.11 }
-    let state = if (do $has BADSIG) { "bad" } else if (do $has ERRSIG) { "unverified" } else if (do $has REVKEYSIG) {
+    let state = if (status-has $status BADSIG) {
+        "bad"
+    } else if (status-has $status ERRSIG) {
+        "unverified"
+    } else if (status-has $status REVKEYSIG) {
         "revoked"
-    } else if (do $has '(EXPKEYSIG|EXPSIG)') { "expired" } else if (do $has GOODSIG) {
-        if (do $has VALIDSIG) and (do $has 'TRUST_(FULLY|ULTIMATE)') { "good" } else { "untrusted" }
+    } else if (status-has $status '(EXPKEYSIG|EXPSIG)') {
+        "expired"
+    } else if (status-has $status GOODSIG) {
+        if (status-has $status VALIDSIG) and (status-has $status 'TRUST_(FULLY|ULTIMATE)') { "good" } else { "untrusted" }
     } else { "none" }
     {state: $state, signer: $signer, fpr: $fpr}
 }
@@ -79,10 +88,9 @@ def "main encrypt" [...recipients: string, --trust-unverified]: string -> nothin
 def "main decrypt" []: string -> nothing {
     let run = $in | do { ^gpg --batch --status-fd 2 --decrypt } | complete
     let status = status-of $run.stderr
-    let has = {|pattern| $status | any { $in =~ $'^\[GNUPG:\] ($pattern)' } }
     let sig = signature $status
-    if (do $has 'BEGIN_DECRYPTION') {
-        if (do $has '(DECRYPTION_FAILED|BADMDC)') or not (do $has 'DECRYPTION_OKAY') {
+    if (status-has $status 'BEGIN_DECRYPTION') {
+        if (status-has $status '(DECRYPTION_FAILED|BADMDC)') or not (status-has $status 'DECRYPTION_OKAY') {
             return (emit {ok: false, error: "decryption failed: no key for it, or the message was altered or cut short"})
         }
     } else if $sig.state == "none" {

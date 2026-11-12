@@ -7,10 +7,6 @@ Row {
 
   property var options: []
   property string value: ""
-  property color foreground: Colors.foreground
-  property color accent: Colors.accent
-  property string fontFamily: Style.font.family
-  property real fontSize: Style.font.body
   property bool focusable: true
   property bool fill: false
 
@@ -47,9 +43,7 @@ Row {
   }
 
   function activateFocused() {
-    if (_focusedIndex < 0 || _focusedIndex >= options.length) return
-    var v = optionValue(options[_focusedIndex])
-    root.changed(v)
+    if (_focusedIndex >= 0 && _focusedIndex < options.length) root.changed(optionValue(options[_focusedIndex]))
   }
 
   onActiveFocusChanged: {
@@ -63,15 +57,11 @@ Row {
 
   Keys.priority: Keys.BeforeItem
   Keys.onPressed: function(event) {
-    if (event.key === Qt.Key_Left || event.key === Qt.Key_H
-        || event.text === "h") {
+    if (event.key === Qt.Key_Left || event.text === "h") {
       _focusedIndex = Math.max(0, (_focusedIndex < 0 ? 0 : _focusedIndex) - 1)
       event.accepted = true
-    } else if (event.key === Qt.Key_Right || event.key === Qt.Key_L
-        || event.text === "l") {
-      let max = options.length - 1
-      let next = (_focusedIndex < 0 ? 0 : _focusedIndex) + 1
-      _focusedIndex = Math.min(max, next)
+    } else if (event.key === Qt.Key_Right || event.text === "l") {
+      _focusedIndex = Math.min(options.length - 1, (_focusedIndex < 0 ? 0 : _focusedIndex) + 1)
       event.accepted = true
     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
         || event.key === Qt.Key_Space) {
@@ -94,8 +84,6 @@ Row {
       selected: root.optionValue(modelData) === root.value
       hasCursor: focused
       focused: root.activeFocus && root._focusedIndex === index
-      fontFamily: root.fontFamily
-      fontSize: root.fontSize
       onClicked: root.changed(root.optionValue(modelData))
     }
   }

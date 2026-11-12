@@ -2,7 +2,7 @@ local M = {}
 
 local WAL = (vim.env.XDG_CACHE_HOME or vim.env.HOME .. "/.cache") .. "/wal/"
 local MARKER = WAL .. "nvim_theme"
-local STYLE_JSON = (vim.env.XDG_CONFIG_HOME or vim.env.HOME .. "/.config") .. "/dotfiles/style.json"
+local STYLE_JSON = (vim.env.XDG_CONFIG_HOME or (vim.env.HOME .. "/.config")) .. "/dotfiles/style.json"
 
 local COLORSCHEMES = {
     ["ayu-dark"] = "ayu-dark",
@@ -199,7 +199,7 @@ function M.apply(name)
     if not ok then
         vim.schedule(function()
             vim.notify(
-                "theme: failed to apply '" .. name .. "', falling back to wal\n" .. tostring(err),
+                "theme: failed to apply '" .. name .. "', falling back to " .. FALLBACK .. "\n" .. tostring(err),
                 vim.log.levels.WARN
             )
         end)

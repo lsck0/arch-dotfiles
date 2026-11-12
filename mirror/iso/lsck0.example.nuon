@@ -16,7 +16,7 @@
 
     # a server or custom platform also takes (defaults shown):
     # hostname: "archlinux"            # letters, digits and dashes; a server defaults to "server"
-    # groups: [base core desktop]      # default: every group (custom), platforms/server.nuon (server); base always in
+    # groups: [core desktop fonts programming]  # base always in; a server defaults to platforms/server.nuon's
     # timezone: "Europe/Berlin"
     # locale: "en_US.UTF-8"
     # ssh_key: ""                      # one ssh public key line; empty leaves just the console

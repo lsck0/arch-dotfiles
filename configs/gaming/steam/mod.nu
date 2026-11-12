@@ -1,10 +1,8 @@
 use module.nu *
 use steam-launch-options.nu [launch-options-fingerprint steam-open]
-use hook/steam-bootstrap.nu [bootstrap-pending]
+use hook/steam-bootstrap.nu [MILLENNIUM_LIB bootstrap-pending]
 
 export const meta = {deps: [gaming/gamemode gaming/mangohud], packages: {pacman: [millennium steam]}}
-
-const MILLENNIUM_LIB = "/usr/lib/millennium"
 
 # Pending while steam is open, so the key is recorded only once a fill got through.
 export def launch-options []: nothing -> nothing {

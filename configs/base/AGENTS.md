@@ -21,14 +21,14 @@ profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
   mirror also comes back first on wg0. `toggle-portal` opens a captive portal window for 120 s on every foreign link
   (the dispatcher's `<iface> portal`), off ends it early.
 - `ssh` and `nftables`: sshd listens on `base/ssh.port` behind a three-port knock (`base/ssh.knock`, held open for
-  `base/nftables.ssh_knock_window`); `sshk` and `wake-pc` knock first, 22 is the endlessh tarpit.
-  Host keys are pinned from `keys/ssh-host/<host>/` (`SSH_HOST_KEYS`), so a reinstall keeps the identity; without
-  them sshd generates its own and the apply prints the backup command.
+  `base/nftables.ssh_knock_window`); `sshk` and `wake-pc` knock first, 22 is the endlessh tarpit. Host keys are pinned
+  from `keys/ssh-host/<host>/` (`SSH_HOST_KEYS`), so a reinstall keeps the identity; without them sshd generates its
+  own and the apply prints the backup command.
 - `nftables` fw-egress: under lockdown-tor it fails closed whether tor is there or not; besides tor only pacman's
   download user (tcp 80/443) and resolved (DoT on 853) get out, so a machine without tor can still install it. Once
   tor-router is up everything, those two included, reaches it redirected to loopback with oifname still the uplink,
-  so fw-egress accepts loopback by address (`base/tor/tor-router.test.nu` runs both rulesets). The
-  uids are looked up at unit start, so nftables never waits on base/tor (lint: `FAIL_CLOSED` in scripts/lib/gate.nu).
+  so fw-egress accepts loopback by address (`base/tor/tor-router.test.nu` runs both rulesets). The uids are looked up
+  at unit start, so nftables never waits on base/tor (lint: `FAIL_CLOSED` in `scripts/lib/gate.nu`).
 - `powercap`: `powercap-watts.service` writes the RAPL package draw as whole watts to `/run/powercap/watts` for the
   bar, `energy_uj` stays root-only; a udev rule starts it once `intel_rapl_msr` loads.
 - `xdg`: the `$HOME` rules are the root `AGENTS.md`'s. It also owns the user applications dir's `mimeinfo.cache`,

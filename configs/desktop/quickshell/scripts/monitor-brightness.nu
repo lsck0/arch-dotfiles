@@ -97,7 +97,7 @@ def "main get" [connector: string] {
 }
 
 def "main set" [connector: string, percent: int] {
-    let percent = [0 ([$percent 100] | math min)] | math max
+    let percent = [0 ([$percent $PERCENT_MAX] | math min)] | math max
     if (backlight $connector) {
         ^brightnessctl -q -c backlight set $"($percent)%" o+e> /dev/null
         return

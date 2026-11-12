@@ -1,14 +1,19 @@
 pragma ComponentBehavior: Bound
-import "BatteryModel.js" as BatteryModel
 import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.UPower
 import qs.Commons
 import qs.Ui
+import "BatteryModel.js" as BatteryModel
 
 BarWidget {
   id: root
+  moduleName: "system"
+  barPriority: 90
+  hoverPanel: true
+  hoverFill: true
+
   // one system-stats.nu line; a key it leaves out or null takes the value here
   readonly property var statsEmpty: ({
     "cpuName": "", "cpuCores": 0, "gpuName": "", "gpuVendor": "", "cpu": 0, "freqMhz": 0, "tempC": 0,
@@ -79,12 +84,6 @@ BarWidget {
     return Util.level(level, ossecThresholds)
   }
 
-  moduleName: "system"
-  barPriority: 90
-
-  hoverPanel: true
-
-  hoverFill: true
   implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: Style.bar.sizeHorizontal
   onStatsIntervalSChanged: {
@@ -116,7 +115,7 @@ BarWidget {
         } catch (e) {
           return
         }
-        for (const key in root.statsEmpty) s[key] = s[key] ?? root.statsEmpty[key];
+        for (const key in root.statsEmpty) s[key] = s[key] ?? root.statsEmpty[key]
         root.stats = s
         root.cpuHist = Util.historyPush(root.cpuHist, s.cpu)
         root.gpuHist = Util.historyPush(root.gpuHist, s.gpuPct || 0)

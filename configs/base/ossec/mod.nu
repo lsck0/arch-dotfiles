@@ -3,7 +3,6 @@ use module.nu *
 export const meta = {packages: {native: [czmq-git ossec-hids-local]}}
 
 const OSSEC_CONF = "/var/lib/ossec-hids/etc/ossec.conf"
-const MARKER = "<!-- appended by the dotfiles (configs/base/ossec)"
 const TMPFILES = "/etc/tmpfiles.d/ossec-alerts.conf"
 
 export def system [cfg: record] {
@@ -25,14 +24,15 @@ export def localfiles []: nothing -> nothing {
         ^systemctl start ossec-journal.service
     }
     let lines = open --raw $OSSEC_CONF | lines
-    let ours = $lines | enumerate | where {|l| $l.item | str starts-with $MARKER } | get --optional 0.index
-        | default ($lines | length)
-    let shipped = $lines | first $ours | reduce --fold {out: [], skip: false} {|l, acc|
+    # localfile.xml opens with its marker comment: everything from there on is the last run's copy
+    let ours = open --raw localfile.xml | lines
+    let at = $lines | enumerate | where item == $ours.0 | get --optional 0.index | default ($lines | length)
+    let shipped = $lines | first $at | reduce --fold {out: [], skip: false} {|l, acc|
         if $l == "  <localfile>" { $acc | update skip true } else if $l == "  </localfile>" and $acc.skip {
             $acc | update skip false
         } else if $acc.skip { $acc } else { $acc | update out { append $l } }
     } | get out
-    let want = $shipped | append (open --raw localfile.xml | lines) | str join "\n" | $"($in)\n"
+    let want = $shipped | append $ours | str join "\n" | $"($in)\n"
     if $want != (open --raw $OSSEC_CONF) {
         $want | save --force $OSSEC_CONF
         ^systemctl try-restart ossec-logcollector.service

@@ -35,8 +35,8 @@ const VULNS = [/sys/devices/system/cpu/vulnerabilities/mds /sys/devices/system/c
 def smt-leaks []: nothing -> bool {
     let control = try { open --raw /sys/devices/system/cpu/smt/control | str trim } catch { "notsupported" }
     (
-        ($env.FORM_FACTOR? != "vm" and $control != "notsupported"
-            and (open --raw /proc/cpuinfo | str contains GenuineIntel))
+        $env.FORM_FACTOR? != "vm" and $control != "notsupported"
+        and (open --raw /proc/cpuinfo | str contains GenuineIntel)
         and ($VULNS | any {|f| ($f | path exists) and not (open --raw $f | str contains "Not affected") })
     )
 }

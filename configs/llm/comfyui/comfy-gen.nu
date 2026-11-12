@@ -8,6 +8,9 @@ use ($REPO | path join scripts lib state.nu) [xdg]
 const HERE = path self | path expand | path dirname
 const URL = "http://127.0.0.1:8188"
 const POLL = 1sec
+const SIZE_DEFAULT_PX = 1024
+const SEED_MAX = 2147483647
+const STAMP_FORMAT = "%Y%m%d-%H%M%S"
 # the first request socket-starts ComfyUI and loads the checkpoint; a 3D run then takes minutes on a 16 GB card
 const TIMEOUT = 20min
 const FLUX = "flux1-schnell-fp8.safetensors"
@@ -26,7 +29,7 @@ def slug [text: string]: nothing -> string {
     $text | str lowercase | str replace --all --regex '[^a-z0-9]+' "-" | str trim --char "-" | str substring 0..<40
 }
 
-def seed []: nothing -> int { random int 0..2147483647 }
+def seed []: nothing -> int { random int 0..$SEED_MAX }
 
 def flux-graph [prompt: string, width: int, height: int, prefix: string]: nothing -> record {
     {
@@ -97,8 +100,8 @@ def emit [result: record, json: bool]: nothing -> nothing {
 # An image from a prompt.
 def "main image" [
     ...prompt: string
-    --size: int = 1024  # square edge in pixels, a multiple of 16
-    --json              # print the result as json
+    --size: int = $SIZE_DEFAULT_PX  # square edge in pixels, a multiple of 16
+    --json                          # print the result as json
 ]: nothing -> nothing {
     let text = $prompt | str join " "
     status $"image: ($text)"
@@ -109,12 +112,12 @@ def "main image" [
 # A seamless PBR set (albedo, normal, roughness, height) from a prompt, in its own folder.
 def "main texture" [
     ...prompt: string
-    --size: int = 1024  # square edge in pixels, a multiple of 16
-    --json              # print the result as json
+    --size: int = $SIZE_DEFAULT_PX  # square edge in pixels, a multiple of 16
+    --json                          # print the result as json
 ]: nothing -> nothing {
     let text = $prompt | str join " "
     status $"texture: ($text)"
-    let name = $"(slug $text)-(date now | format date '%Y%m%d-%H%M%S')"
+    let name = $"(slug $text)-(date now | format date $STAMP_FORMAT)"
     let raw = run-graph (flux-graph $"($text), ($TEXTURE_STYLE)" $size $size $"textures/($name)/raw") | first
     let dir = $raw | path dirname
     ^(python) ($HERE | path join pbr-maps.py) $raw $dir
@@ -135,14 +138,14 @@ def "main 3d" [
     let given = ($source | length) == 1 and ($text | path expand | path exists)
     let image = if $given { $text | path expand } else {
         status $"reference image: ($text)"
-        run-graph (flux-graph $"($text), ($OBJECT_STYLE)" 1024 1024 $"3d/(slug $text)-ref") | first
+        run-graph (flux-graph $"($text), ($OBJECT_STYLE)" $SIZE_DEFAULT_PX $SIZE_DEFAULT_PX $"3d/(slug $text)-ref") | first
     }
     # flux still loaded makes comfyui's free_memory fail loading hunyuan (IndexError in model_management): unload first
     try { http post --content-type application/json $"($URL)/free" {unload_models: true, free_memory: true} | ignore } catch { }
     # LoadImage reads ComfyUI's input dir; the recentred copy there needs no upload
     let input = xdg data comfyui input
     mkdir $input
-    let staged = $"comfy-gen-(date now | format date '%Y%m%d-%H%M%S')-($image | path parse | get stem).png"
+    let staged = $"comfy-gen-(date now | format date $STAMP_FORMAT)-($image | path parse | get stem).png"
     ^(python) ($HERE | path join object-prep.py) $image ($input | path join $staged)
     status "mesh: Hunyuan3D 2.1"
     let label = if $given { $image | path parse | get stem | slug $in } else { slug $text }

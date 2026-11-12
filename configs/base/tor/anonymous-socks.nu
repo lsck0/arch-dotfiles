@@ -1,6 +1,7 @@
 # Pool of isolated tor SOCKS ports on lo for toggle-anonymous-socks.
 
-const CONFIG = ".config/anonymous-socks/config"
+use ../../../scripts/lib/state.nu [xdg]
+
 const DEFAULTS = {
     PORT: 9061, RATE: 0, TOR_BIN: tor, POOL_SIZE: 10, CONTROL_PORT: 9161, MAX_CIRCUIT_DIRTINESS: 600, PERSONA: 1
     PERSONA_OS: windows, TOR_CHECK_URL: "https://check.torproject.org/api/ip"
@@ -17,12 +18,8 @@ const CONTROL_TIMEOUT_S = "5"
 const BOOTSTRAP_TIMEOUT = 60sec
 const BOOTSTRAP_POLL = 2sec
 
-def runtime [name: string]: nothing -> path {
-    $env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u | str trim)" | path join $name
-}
-
 def settings []: nothing -> record {
-    let file = $env.ANONYMOUS_SOCKS_CONF? | default ($nu.home-dir | path join $CONFIG)
+    let file = $env.ANONYMOUS_SOCKS_CONF? | default (xdg config anonymous-socks config)
     let from_env = $DEFAULTS | columns | reduce --fold {} {|k, acc|
         let v = $env | get --optional $"ANONYMOUS_SOCKS_($k)"
         if $v == null { $acc } else { $acc | insert $k $v }
@@ -33,12 +30,12 @@ def settings []: nothing -> record {
         | reduce --fold {} {|r, acc| $acc | upsert $r.k ($r.v | str trim --char '"') }
     } else { {} }
     let s = $DEFAULTS | merge $from_env | merge $from_file
-    let datadir = $env.ANONYMOUS_SOCKS_TOR_DATADIR? | default (runtime anonymous-socks-tor)
+    let datadir = $env.ANONYMOUS_SOCKS_TOR_DATADIR? | default (xdg runtime anonymous-socks-tor)
     $s | merge {
         PORT: ($s.PORT | into int), RATE: ($s.RATE | into int), POOL_SIZE: ($s.POOL_SIZE | into int)
         PERSONA: ($s.PERSONA | into string), DATADIR: $datadir
-        PC_CONF: ($env.ANONYMOUS_SOCKS_PROXYCHAINS_CONF? | default (runtime anonymous-socks-proxychains.conf))
-        VERIFIED: (runtime anonymous-socks.verified)
+        PC_CONF: ($env.ANONYMOUS_SOCKS_PROXYCHAINS_CONF? | default (xdg runtime anonymous-socks-proxychains.conf))
+        VERIFIED: (xdg runtime anonymous-socks.verified)
     }
 }
 

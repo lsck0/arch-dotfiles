@@ -1,4 +1,4 @@
-local installed = require("lib.treesitter_parsers")
+local ensure_installed = require("lib.treesitter_parsers")
 
 return {
     {
@@ -46,18 +46,18 @@ return {
             treesitter.setup()
 
             vim.api.nvim_create_user_command("TSInstallSync", function()
-                treesitter.install(installed):wait()
+                treesitter.install(ensure_installed):wait()
             end, { desc = "Install configured parsers and wait" })
 
             -- lazy-loaded on a later buffer, VimEnter has already fired then
             if vim.v.vim_did_enter == 1 then
-                treesitter.install(installed)
+                treesitter.install(ensure_installed)
             else
                 vim.api.nvim_create_autocmd("VimEnter", {
                     group = vim.api.nvim_create_augroup("TreesitterAutoInstall", { clear = true }),
                     once = true,
                     callback = function()
-                        treesitter.install(installed)
+                        treesitter.install(ensure_installed)
                     end,
                 })
             end

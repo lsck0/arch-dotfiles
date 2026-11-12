@@ -6,7 +6,12 @@
  * @source https://github.com/lsck0/arch-dotfiles
  */
 
+const STATE_FILE = "quickshell-discord-voice.json";
 const COMMAND_FILE = "quickshell-discord-cmd";
+const COMMAND_POLL_MS = 250;
+const PUBLISH_DEBOUNCE_MS = 150;
+// below the bar widget's staleAfterMs (Discord.qml), which drops a state not refreshed in time
+const HEARTBEAT_MS = 15000;
 
 module.exports = class QuickshellVoiceStatus {
   constructor() {
@@ -17,7 +22,7 @@ module.exports = class QuickshellVoiceStatus {
     this._fs = null;
     this._runtimeDir = (typeof process !== "undefined" && process.env && process.env.XDG_RUNTIME_DIR) || null;
     // used only once start() found the runtime dir
-    this._statePath = this._runtimeDir + "/quickshell-discord-voice.json";
+    this._statePath = this._runtimeDir + "/" + STATE_FILE;
     this._commandPath = this._runtimeDir + "/" + COMMAND_FILE;
     this._commandPoll = null;
     this._commandWatcher = null;
@@ -194,7 +199,7 @@ module.exports = class QuickshellVoiceStatus {
       } catch (e) {}
       this._commandWatcher = null;
     }
-    if (!this._commandPoll) this._commandPoll = setInterval(() => this._pollCommands(), 250);
+    if (!this._commandPoll) this._commandPoll = setInterval(() => this._pollCommands(), COMMAND_POLL_MS);
   }
 
   _publish() {
@@ -210,7 +215,7 @@ module.exports = class QuickshellVoiceStatus {
     this._publishTimer = setTimeout(() => {
       this._publishTimer = null;
       this._publish();
-    }, 150);
+    }, PUBLISH_DEBOUNCE_MS);
   }
 
   _subscribe(store) {
@@ -262,7 +267,7 @@ module.exports = class QuickshellVoiceStatus {
         this._lastPayload = ""; // force a write so updatedAt advances
         this._publish();
       }
-    }, 15000);
+    }, HEARTBEAT_MS);
 
     this._publish();
   }

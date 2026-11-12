@@ -30,13 +30,15 @@ export const options = {
 
 const DIR = path self .
 const CONFIG = ".config"
-const TEMPLATES = [plasma-org.kde.plasma.desktop-appletsrc plasmarc kscreenlockerrc]
+const APPLETSRC = "plasma-org.kde.plasma.desktop-appletsrc"
+const TEMPLATES = [$APPLETSRC plasmarc kscreenlockerrc]
 const OUTPUTS = "kwinoutputconfig.json"
 const LOCALERC = "plasma-localerc"
-const THEMED = ["kdeglobals" "color-schemes/pywal.colors"]
+const KDEGLOBALS = "kdeglobals"
+const THEMED = [$KDEGLOBALS "color-schemes/pywal.colors"]
 const CONFIG_DIRS = [KDE kdedefaults plasma-workspace]
-const APPLETSRC = "plasma-org.kde.plasma.desktop-appletsrc"
 const KICKOFF_FAVORITES = "favoritesPortedToKAstats=true"
+const KICKOFF_FAVORITES_UNPORTED = "favoritesPortedToKAstats=false"
 const KACTIVITIES_DB = ".local/share/kactivitymanagerd/resources/database"
 const DOLPHIN_STATE = ".local/state/dolphinstaterc"
 const DOLPHIN_VIEW = "dolphin/view_properties/global/.directory"
@@ -138,7 +140,7 @@ export def link [cfg: record] {
     let wallpaper = wallpaper-current
     let lang = $cfg.deps?."core/locale"?.lang?
     let applets = file-render (host-seed $DIR $APPLETSRC) (config-path $APPLETSRC) $applet_values
-        | update content { if $fresh { str replace $KICKOFF_FAVORITES "favoritesPortedToKAstats=false" } else { $in } }
+        | update content { if $fresh { str replace $KICKOFF_FAVORITES $KICKOFF_FAVORITES_UNPORTED } else { $in } }
         | update content {|d| if $wallpaper == "" { $d.content } else { $d.content | ini-apply (wallpaper-values $d.content $wallpaper) false } }
     let dirs = $CONFIG_DIRS | each {|d| glob ($DIR | path join $d "**/*") --no-dir } | flatten
         | each {|f| file-copy $f (config-path ($f | path relative-to $DIR)) }
@@ -175,21 +177,21 @@ def selection [p: record]: nothing -> list<string> {
 }
 
 def kde-colors [p: record]: nothing -> record {
-    let rgb = {|hex| $hex | hex-rgb255 | str join "," }
-    let accent = do $rgb $p.c4
-    let sel = selection $p | each { do $rgb $in }
-    let hex = {|color| do $rgb ($color | rgb-to-hex) }
-    let sel_inactive = do $hex ($p.fg | hex-to-rgb | readable-on ($p.c4 | hex-to-rgb) --ratio $KDE_INACTIVE_RATIO)
+    let kde_from_hex = {|hex| $hex | hex-rgb255 | str join "," }
+    let accent = do $kde_from_hex $p.c4
+    let sel = selection $p | each { do $kde_from_hex $in }
+    let kde_from_rgb = {|color| do $kde_from_hex ($color | rgb-to-hex) }
+    let sel_inactive = do $kde_from_rgb ($p.fg | hex-to-rgb | readable-on ($p.c4 | hex-to-rgb) --ratio $KDE_INACTIVE_RATIO)
     let bg = $p.bg_conditioned | hex-to-rgb
     let surface = $KDE_SURFACE_SHADES | update cells {|amount| $bg | shade $amount } | insert base $bg
     let text = {|on|
         # semantic's hue walk is bounded, so readable-on holds the status colors to the text ratio
-        let status = {|role| do $hex ($p.c4 | hex-to-rgb | semantic $role $on | readable-on $on) }
+        let status = {|role| do $kde_from_rgb ($p.c4 | hex-to-rgb | semantic $role $on | readable-on $on) }
         {
-            fg: (do $hex ($p.fg | hex-to-rgb | readable-on $on))
-            inactive: (do $hex ($p.c8 | hex-to-rgb | readable-on $on --ratio $KDE_INACTIVE_RATIO))
-            link: (do $hex ($p.c6 | hex-to-rgb | readable-on $on))
-            visited: (do $hex ($p.c5 | hex-to-rgb | readable-on $on))
+            fg: (do $kde_from_rgb ($p.fg | hex-to-rgb | readable-on $on))
+            inactive: (do $kde_from_rgb ($p.c8 | hex-to-rgb | readable-on $on --ratio $KDE_INACTIVE_RATIO))
+            link: (do $kde_from_rgb ($p.c6 | hex-to-rgb | readable-on $on))
+            visited: (do $kde_from_rgb ($p.c5 | hex-to-rgb | readable-on $on))
             negative: (do $status error)
             neutral: (do $status warn)
             positive: (do $status ok)
@@ -205,7 +207,7 @@ def kde-colors [p: record]: nothing -> record {
     }
     let on = {|bg, alt, title|
         let t = do $text $bg
-        do $set (do $hex $bg) (do $hex $alt) ($t | get $title) $accent $t
+        do $set (do $kde_from_rgb $bg) (do $kde_from_rgb $alt) ($t | get $title) $accent $t
     }
     let sel_text = do $text ($p.c4 | hex-to-rgb) | merge {inactive: $sel_inactive, link: $sel.1, visited: $sel.2}
     let plain = do $on $surface.base $surface.alt fg
@@ -221,8 +223,8 @@ def kde-colors [p: record]: nothing -> record {
         "Colors:Complementary": $plain
         "Colors:Selection": (do $set $accent $accent $sel.0 $sel.0 $sel_text)
         WM: {
-            activeBackground: (do $hex $surface.base) activeBlend: (do $hex $surface.base) activeForeground: $title.fg
-            inactiveBackground: (do $hex $surface.alt) inactiveBlend: (do $hex $surface.alt) inactiveForeground: $title_inactive.inactive
+            activeBackground: (do $kde_from_rgb $surface.base) activeBlend: (do $kde_from_rgb $surface.base) activeForeground: $title.fg
+            inactiveBackground: (do $kde_from_rgb $surface.alt) inactiveBlend: (do $kde_from_rgb $surface.alt) inactiveForeground: $title_inactive.inactive
         }
         General: {ColorScheme: pywal, AccentColor: $accent}
     }
@@ -265,9 +267,9 @@ export def theme [cfg: record, wallpaper: string] {
     let p = palette-load
     let colors = if $p == null { null } else { kde-colors $p }
     let themed = $THEMED | each {|f|
-        let dest = if $f == "kdeglobals" { config-path $f } else { xdg data $f }
+        let dest = if $f == $KDEGLOBALS { config-path $f } else { xdg data $f }
         if $colors == null { return (file-copy $f $dest) }
-        let colors = if $f == "kdeglobals" {
+        let colors = if $f == $KDEGLOBALS {
             let icons = if $p.light == "1" { $ICON_THEMES.light } else { $ICON_THEMES.dark }
             $colors | merge deep (kde-fonts (open --raw $f)) | merge deep {Icons: {Theme: $icons}}
         } else {
@@ -330,9 +332,9 @@ export def backup [cfg: record]: nothing -> nothing {
         if (config-path $f | path exists) { cp --force (config-path $f) ($DIR | path join $f) }
     }
     if (config-path $KCONF_UPDATERC | path exists) { kconf-back (config-path $KCONF_UPDATERC) ($DIR | path join $KCONF_SEED) }
-    let globals = config-path $THEMED.0
+    let globals = config-path $KDEGLOBALS
     if ($globals | path exists) {
-        kdeglobals-back (open --raw $globals) (open --raw ($DIR | path join $THEMED.0)) | save --force ($DIR | path join $THEMED.0)
+        kdeglobals-back (open --raw $globals) (open --raw ($DIR | path join $KDEGLOBALS)) | save --force ($DIR | path join $KDEGLOBALS)
     }
     for f in $TEMPLATES {
         if not (config-path $f | path exists) { continue }
@@ -341,7 +343,7 @@ export def backup [cfg: record]: nothing -> nothing {
         open --raw (config-path $f) | str replace --all $env.DOTFILES "@DOTFILES@" | str replace --all $nu.home-dir "@HOME@"
         | str replace --all --regex '(?m)^placeDisplayName=.*$' "placeDisplayName=@WEATHER_PLACE@"
         | str replace --all --regex '(?m)^placeInfo=.*$' "placeInfo=@WEATHER_INFO@"
-        | str replace "favoritesPortedToKAstats=false" $KICKOFF_FAVORITES | save --force $dest
+        | str replace $KICKOFF_FAVORITES_UNPORTED $KICKOFF_FAVORITES | save --force $dest
     }
     for d in $CONFIG_DIRS {
         if not (config-path $d | path exists) { continue }

@@ -1,3 +1,3 @@
 core                              # wallust palette.nu and font.nu (theme verbs), core/gh core/git core/tmux (projects)
-desktop                           # idle-guards AGENT_GUARD (claude, hermes)
+desktop                           # idle-guards (claude, copilot, gemini-cli, hermes), hyprland reload (hermes)
 llm                               # vllm model option and ollama LONG_CONTEXT (hermes)

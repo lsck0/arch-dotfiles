@@ -51,15 +51,6 @@ def keyring-ready []: nothing -> bool {
     not (busctl-json get-property $BUS $collection org.freedesktop.Secret.Collection Locked)
 }
 
-# The items matching attributes, each {label, attributes, content_type, secret} with the secret base64.
-export def keyring-items-load [attributes: record]: nothing -> list<record> {
-    ^python3 -I $ITEMS_HELPER load ($attributes | to json --raw) | from json
-}
-
-export def keyring-items-save [items: list<record>]: nothing -> nothing {
-    $items | to json --raw | ^python3 -I $ITEMS_HELPER save
-}
-
 # Whether an item matches attributes, unlocked or locked (SearchItems answers both lists).
 def keyring-items-exist [attributes: record]: nothing -> bool {
     let count = $attributes | columns | length | into string
@@ -92,7 +83,7 @@ def tree-copy [src: path, dest: path]: nothing -> nothing {
 
 # Runs body on a fresh private dir, removed afterwards even when body fails: it holds session copies.
 def stage-with [body: closure]: nothing -> any {
-    let stage = mktemp --directory --tmpdir-path ($env.XDG_RUNTIME_DIR? | default "/tmp")
+    let stage = mktemp --directory --tmpdir-path (xdg runtime)
     let outcome = try { {value: (do $body $stage)} } catch {|error| {error: $error} }
     ^rm -rf $stage
     if "error" in $outcome { error make $outcome.error.raw }
@@ -111,7 +102,7 @@ def session-live [app: record]: nothing -> bool {
 export def session-backup [app: record, archive: path]: nothing -> bool {
     let dir = app-dir $app
     let files = if $dir == null { [] } else { $app.files | where {|f| $dir | path join $f | path exists } }
-    let items = if $app.items == null { [] } else { keyring-items-load $app.items }
+    let items = if $app.items == null { [] } else { ^python3 -I $ITEMS_HELPER load ($app.items | to json --raw) | from json }
     if ($files | is-empty) and ($items | is-empty) { return false }
     let built = $"($archive).new"
     mkdir ($archive | path dirname)
@@ -136,7 +127,7 @@ export def session-restore [app: record, archive: path]: nothing -> string {
     stage-with {|stage|
         ^tar --extract --file $archive --directory $stage --no-same-owner
         let items = $stage | path join $ITEMS_FILE
-        if ($items | path exists) { keyring-items-save (open $items) }
+        if ($items | path exists) { open --raw $items | ^python3 -I $ITEMS_HELPER save }
         let files = $stage | path join $FILES_DIR
         let dir = app-dir $app
         if $dir != null and ($files | path exists) {
@@ -147,6 +138,11 @@ export def session-restore [app: record, archive: path]: nothing -> string {
         }
     }
     "restored"
+}
+
+# This machine's archives in the repo's secrets, one <app>.tar each.
+export def sessions-archives [repo: path]: nothing -> path {
+    $repo | path join configs secrets keys proton (sys host | get hostname)
 }
 
 export def sessions-restore [archives: path]: nothing -> table {

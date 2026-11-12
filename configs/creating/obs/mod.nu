@@ -68,6 +68,8 @@ const CANVAS_FALLBACK = "1920x1080"
 const VIRTUALCAM_HEIGHT = 720
 const STREAM_HEIGHT = 1080
 const PORTAL_TOKEN = "RestoreToken"
+const SECRET_SCENES = "obs-Streaming.json"
+const SECRET_SERVICE = "obs-service.json"
 # scene item keys obs derives from pos, scale and bounds on load
 const ITEM_RELATIVE_KEYS = [pos_rel scale_rel scale_ref bounds_rel]
 const GLOBAL = {General: {AutomaticSearch: "true", SafeMode: "false", ConfirmOnExit: "true"}}
@@ -254,6 +256,10 @@ def repo-scenes []: nothing -> list<path> {
     glob ($HERE | path join scenes *.json) | sort
 }
 
+def repo-profiles []: nothing -> list<path> {
+    glob ($HERE | path join profiles * *)
+}
+
 def scene-seed [seed: path]: nothing -> path {
     host-seed ($seed | path dirname) ($seed | path basename)
 }
@@ -265,8 +271,8 @@ def secret [name: string]: nothing -> path {
 export def link [cfg: record] {
     let obs = obs-dir
     let basic = $obs | path join basic
-    let streaming = secret obs-Streaming.json
-    let service = secret obs-service.json
+    let streaming = secret $SECRET_SCENES
+    let service = secret $SECRET_SERVICE
     let scene = {|live, text, mode|
         [(scene-file $live $text $mode) (file-text (applied-file $live) ($text | scene-hash))]
     }
@@ -279,7 +285,7 @@ export def link [cfg: record] {
     let scenes = $secret_scene ++ (repo-scenes | each {|seed|
         do $scene ($basic | path join scenes ($seed | path basename)) (scene-render $cfg (scene-seed $seed) --machine) "644"
     })
-    let profiles = glob ($HERE | path join profiles * *) | each {|src|
+    let profiles = repo-profiles | each {|src|
         let dest = $basic | path join ($src | path relative-to $HERE)
         if ($src | path basename) == "basic.ini" {
             file-render $src $dest (profile-values $cfg)
@@ -362,13 +368,13 @@ def scene-back [cfg: record, live: path, src: path, dest: path, --machine, --see
 
 # Writes a live profile back to the repo: placeholders stay, paths under this user's dirs become placeholders again.
 def profile-back [live: path, repo: path]: nothing -> nothing {
+    # videos first, it is under home
     let dirs = [[path placeholder]; [(user-dir VIDEOS) "@XDG_VIDEOS@"] [$nu.home-dir "@HOME@"]]
     let placeholders = ini-rows (open --raw $repo) | where {|r| $r.value != null and $r.value =~ '^@[A-Z_]+@$' }
     ini-rows (open --raw $live) | each {|l|
         let kept = $placeholders | where section == $l.section and key == $l.key | get --optional 0.value
         if $kept != null { return $"($l.key)=($kept)" }
         if $l.key == null or not ($l.key | str ends-with "Path") { return $l.line }
-        # videos first, it is under home
         let dir = $dirs | where {|d| $l.value == $d.path or ($l.value | str starts-with $"($d.path)/") } | get --optional 0
         $"($l.key)=(if $dir == null { $l.value } else { $l.value | str replace $dir.path $dir.placeholder })"
     } | str join "\n" | $"($in)\n" | save --force $repo
@@ -377,7 +383,7 @@ def profile-back [live: path, repo: path]: nothing -> nothing {
 export def backup [cfg: record]: nothing -> nothing {
     let basic = obs-dir | path join basic
     let streaming = $basic | path join scenes Streaming.json
-    let streaming_secret = secret obs-Streaming.json
+    let streaming_secret = secret $SECRET_SCENES
     if ($streaming | path exists) {
         secret-seed-guard ($basic | path join scenes .from-secrets) $streaming_secret $streaming
     }
@@ -387,9 +393,9 @@ export def backup [cfg: record]: nothing -> nothing {
         scene-back $cfg ($basic | path join scenes ($seed | path basename)) (scene-seed $seed) $own --machine --seed $seed
     }
     let service = $basic | path join profiles Streaming service.json
-    if ($service | path exists) { cp --force $service (secret obs-service.json) }
+    if ($service | path exists) { cp --force $service (secret $SECRET_SERVICE) }
     let recorded = recorded-hashes
-    for repo in (glob ($HERE | path join profiles * *)) {
+    for repo in (repo-profiles) {
         let live = $basic | path join ($repo | path relative-to $HERE)
         let saved = ($live | path exists) and (open --raw $live | hash sha256) != ($recorded | get --optional $live)
         if not $saved { continue }

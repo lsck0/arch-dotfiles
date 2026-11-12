@@ -10,6 +10,8 @@ const GROUP = "vmnet"
 const PATH_SAFE = '^/[A-Za-z0-9_./-]+$'
 const ADDRESS = '^[0-9A-Fa-f.:]+$'
 const CIDR = '^[0-9A-Fa-f.:]+/[0-9]{1,3}$'
+const PORT_UNPRIVILEGED_MIN = 1024
+const PORT_MAX = 65535
 
 def checked [value: string, pattern: string, what: string]: nothing -> string {
     if $value !~ $pattern { error make {msg: $"vm-net: bad ($what): ($value)"} }
@@ -22,7 +24,9 @@ def main [
 ]: nothing -> nothing {
     let uid = $env.PKEXEC_UID? | default ""
     if $uid !~ '^[0-9]+$' { error make {msg: "vm-net: run it through pkexec"} }
-    if $host_port < 1024 or $host_port > 65535 { error make {msg: $"vm-net: bad port: ($host_port)"} }
+    if $host_port < $PORT_UNPRIVILEGED_MIN or $host_port > $PORT_MAX {
+        error make {msg: $"vm-net: bad port: ($host_port)"}
+    }
     let net = {
         socket: (checked $socket $PATH_SAFE socket)
         pidfile: (checked $pidfile $PATH_SAFE pidfile)

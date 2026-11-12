@@ -2,16 +2,18 @@ use module.nu *
 use repository.nu [repository-url repository-name]
 use ../../core/gh/mod.nu [token-file]
 
+const PROJECTS = "projects"
+const REPOSITORIES = "configs/secrets/state/repositories"
+const GH_HOSTS = ".config/gh/hosts.yml"
+const TMS_CONFIG = ".config/tms/config.toml"
+
 export const meta = {
     # core/gh logs in and core/git wires gh as github's credential helper, before any private repo is cloned
     deps: [core/gh core/git core/tmux]
-    inputs: [~/projects ~/.config/tms/config.toml configs/secrets/state/repositories ~/.config/gh/hosts.yml]
+    inputs: [$"~/($PROJECTS)" $"~/($TMS_CONFIG)" $REPOSITORIES $"~/($GH_HOSTS)"]
 }
 
-const PROJECTS = "projects"
-const REPOSITORIES = "configs/secrets/state/repositories"
 const BARE = [probe]
-const GH_HOSTS = ".config/gh/hosts.yml"
 const ICON = "folder-development"
 const GVFS_METADATA = "/usr/lib/gvfsd-metadata"
 # a first clone fetches every submodule's history and the lfs objects (hundreds of MB), past converge's 20min
@@ -66,7 +68,7 @@ def collections [root: path]: nothing -> list<path> {
 }
 
 def bookmarks []: nothing -> list<string> {
-    try { open (xdg config tms config.toml) | get bookmarks } catch { [] }
+    try { open ($nu.home-dir | path join $TMS_CONFIG) | get bookmarks } catch { [] }
 }
 
 def icon-set [root: path]: nothing -> bool {

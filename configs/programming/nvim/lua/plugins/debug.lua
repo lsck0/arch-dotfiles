@@ -1,3 +1,6 @@
+-- a java-debug command (main class, classpath) can take this long on a cold jdtls workspace
+local JDTLS_TIMEOUT_MS = 30000
+
 return {
     {
         "mfussenegger/nvim-dap",
@@ -112,9 +115,10 @@ return {
                     return tonumber(vim.fn.input("Port: ", default))
                 end
             end
-            local function input_path(prompt, default)
+            -- the cwd at launch, not at load: a project switch tcds
+            local function input_path(prompt)
                 return function()
-                    return vim.fn.input(prompt, default, "file")
+                    return vim.fn.input(prompt, vim.fn.getcwd() .. "/", "file")
                 end
             end
 
@@ -148,7 +152,7 @@ return {
                     target = function()
                         return "127.0.0.1:" .. vim.fn.input("Port: ", "2345")
                     end,
-                    program = input_path("Local binary (symbols): ", vim.fn.getcwd() .. "/"),
+                    program = input_path("Local binary (symbols): "),
                     cwd = "${workspaceFolder}",
                 },
             }
@@ -158,7 +162,7 @@ return {
                     name = "Launch (gdb)",
                     type = "gdb",
                     request = "launch",
-                    program = input_path("Path to executable: ", vim.fn.getcwd() .. "/"),
+                    program = input_path("Path to executable: "),
                     cwd = "${workspaceFolder}",
                     stopAtBeginningOfMainSubprogram = true,
                 },
@@ -251,8 +255,8 @@ return {
             local function jdtls_command(command, arguments)
                 local client = vim.lsp.get_clients({ name = "jdtls" })[1]
                 assert(client, "jdtls not running, open a .java file first")
-                local res =
-                    client:request_sync("workspace/executeCommand", { command = command, arguments = arguments }, 30000)
+                local request = { command = command, arguments = arguments }
+                local res = client:request_sync("workspace/executeCommand", request, JDTLS_TIMEOUT_MS)
                 assert(res and not res.err, command .. " failed: " .. vim.inspect(res and res.err))
                 return res.result
             end

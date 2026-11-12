@@ -11,6 +11,9 @@ Singleton {
   readonly property var taskArgv: ["task", "rc.verbose=nothing", "rc.confirmation=off", "rc.recurrence.confirmation=off"]
   readonly property string notifiedPath: Paths.state + "/task-due-notified.json"
   readonly property string glyph: "\u{f0756}" // md-format-list-checks
+  readonly property int msPerMinute: 60 * 1000
+  readonly property int msPerHour: 60 * msPerMinute
+  readonly property int msPerDay: 24 * msPerHour
 
   property bool panelOpen: false
 
@@ -42,11 +45,11 @@ Singleton {
     if (!d) return ""
     var diff = d.getTime() - Date.now()
     if (diff < 0) return "overdue"
-    var days = Math.floor(diff / 8.64e+07)
+    var days = Math.floor(diff / root.msPerDay)
     if (days >= 1) return "in " + days + "d"
-    var hours = Math.floor(diff / 3.6e+06)
+    var hours = Math.floor(diff / root.msPerHour)
     if (hours >= 1) return "in " + hours + "h"
-    return "in " + Math.max(1, Math.floor(diff / 60000)) + "m"
+    return "in " + Math.max(1, Math.floor(diff / root.msPerMinute)) + "m"
   }
 
   // when a not-yet-ready task is scheduled: the time today, the weekday this week, else the date; empty once ready
@@ -56,7 +59,7 @@ Singleton {
     var now = new Date()
     var timed = d.getHours() !== 0 || d.getMinutes() !== 0
     if (d.toDateString() === now.toDateString()) return "@" + Qt.formatDateTime(d, "HH:mm")
-    var day = d.getTime() - now.getTime() < 6 * 8.64e+07 ? Qt.formatDateTime(d, "ddd") : Qt.formatDateTime(d, "MMM d")
+    var day = d.getTime() - now.getTime() < 6 * root.msPerDay ? Qt.formatDateTime(d, "ddd") : Qt.formatDateTime(d, "MMM d")
     return "@" + day + (timed ? " " + Qt.formatDateTime(d, "HH:mm") : "")
   }
 

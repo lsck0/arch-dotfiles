@@ -1,10 +1,8 @@
 use module.nu *
-
-const BOARD = "X870E AORUS ELITE WIFI7"
+use gen-fancontrol.nu [BOARD BOARD_NAME_FILE sysfs-read]
 
 export def system [cfg: record] {
-    let board = try { open --raw /sys/class/dmi/id/board_name | str trim } catch { "" }
-    if $env.FORM_FACTOR? != "desktop" or $board != $BOARD { return [] }
+    if $env.FORM_FACTOR? != "desktop" or (sysfs-read $BOARD_NAME_FILE) != $BOARD { return [] }
     [
         # both sensors before fancontrol-gen (After=systemd-modules-load): k10temp's udev coldplug may come later
         (file-copy modules-load.conf /etc/modules-load.d/fancontrol.conf)

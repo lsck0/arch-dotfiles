@@ -102,9 +102,6 @@ export def backup [cfg: record]: nothing -> nothing {
     if not ($creds | path exists) {
         error make {msg: $"no ($creds), run claude and log in first"}
     }
-    if not (secret-is-plaintext ($env.DOTFILES | path join configs secrets keys pgp_privatekey.asc)) {
-        error make {msg: "secrets is locked, unlock it first"}
-    }
     let dir = backup-dir
     mkdir $dir
     ^install -m600 $creds ($dir | path join credentials.json)

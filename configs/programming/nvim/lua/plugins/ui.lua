@@ -7,19 +7,19 @@ local LATEX_IMAGES = [[
 (graphics_include (_ (path) @image.src)) @image
 ]]
 
--- the density math pdfs rasterize at; snacks reads a png's size as pixels / dpi * 96 * terminal scale
-local MATH_DPI = 192
+-- the density pdfs (documents and math) rasterize at; snacks reads a png's size as pixels / dpi * 96 * terminal scale
+local PDF_DPI = 192
 
 -- Pads a formula to whole cells: snacks rounds width and height up to cells apart and the terminal stretches the image
 -- into that box, so a formula 1.2 rows tall came out 2 rows tall.
 local function math_args()
     local term = Snacks.image.terminal.size()
-    local plain = { "-density", MATH_DPI, "{src}[{page}]", "-trim" }
+    local plain = { "-density", PDF_DPI, "{src}[{page}]", "-trim" }
     -- a terminal that reports no pixel size gives 0-wide cells
     if term.cell_width <= 0 or term.cell_height <= 0 then
         return plain
     end
-    local k = MATH_DPI / (96 * term.scale)
+    local k = PDF_DPI / (96 * term.scale)
     local w, h = term.cell_width * k, term.cell_height * k
     local extent = ("%%[fx:floor(ceil(w/%f)*%f)]x%%[fx:floor(ceil(h/%f)*%f)]"):format(w, w, h, h)
     return vim.list_extend(plain, { "+repage", "-background", "none", "-gravity", "center", "-extent", extent })
@@ -131,7 +131,7 @@ return {
                         math = math_args,
                         pdf = {
                             "-density",
-                            192,
+                            PDF_DPI,
                             "{src}[0]",
                             "-background",
                             "white",

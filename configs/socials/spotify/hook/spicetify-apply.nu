@@ -2,12 +2,12 @@
 
 use ../../../../scripts/lib/state.nu [xdg]
 
-const UNMAP = path self | path expand | path dirname --num-levels 2 | path join spicetify-unmap-classes.nu
-const RELOAD = path self | path expand | path dirname --num-levels 2 | path join spotify-reload.nu
+const UNMAP = path self ../spicetify-unmap-classes.nu
+const RELOAD = path self ../spotify-reload.nu
 const SPOTIFY_SYSTEM = "/opt/spotify"
 const PACMAN_LOCK = "/var/lib/pacman/db.lck"
-const PACMAN_WAIT_S = 300
-const EXIT_WAIT_S = 10
+const PACMAN_WAIT_SECONDS = 300
+const EXIT_WAIT_SECONDS = 10
 
 def patched-dir []: nothing -> path { xdg data spotify-patched }
 
@@ -40,15 +40,15 @@ export def apply-pending []: nothing -> bool {
 def main []: nothing -> nothing {
     if not (logged-in) { return }
     # the xpui.spa trigger fires mid-transaction: wait for pacman to finish
-    for _ in 1..$PACMAN_WAIT_S {
+    for _ in 1..$PACMAN_WAIT_SECONDS {
         if not ($PACMAN_LOCK | path exists) { break }
         sleep 1sec
     }
     if ($PACMAN_LOCK | path exists) {
-        print -e $"spicetify-apply: pacman still busy after ($PACMAN_WAIT_S)s"
+        print --stderr $"spicetify-apply: pacman still busy after ($PACMAN_WAIT_SECONDS)s"
         exit 1
     }
-    let lock = $env.XDG_RUNTIME_DIR? | default /tmp | path join spicetify-apply.lock
+    let lock = xdg runtime spicetify-apply.lock
     ^flock $lock $nu.current-exe --no-config-file $env.CURRENT_FILE locked
 }
 
@@ -86,7 +86,7 @@ def stock-running []: nothing -> bool {
 # returns and spotify outlives this hook's unit.
 def restart []: nothing -> nothing {
     ^pkill -x spotify
-    for _ in 1..$EXIT_WAIT_S {
+    for _ in 1..$EXIT_WAIT_SECONDS {
         if (^pgrep -x spotify | complete).exit_code != 0 { break }
         sleep 1sec
     }

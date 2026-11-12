@@ -1,7 +1,7 @@
 use module.nu *
 use ../boot/boot.nu [cmdline-set cmdline-unset hooks-read hooks-write hooks-insert]
 
-const INSTALL_HOOK = "/usr/lib/initcpio/install/sd-bootvine"
+const HOOK_INSTALL = "/usr/lib/initcpio/install/sd-bootvine"
 const UNITS = [bootvine.service bootvine-shutdown.service]
 # The console's 16 colours from the first frame on, so bootvine, the passphrase popup and ly share one palette; ly's
 # config.ini picks its exact hex from these, since the console maps 24-bit colours onto the nearest slot.
@@ -12,12 +12,11 @@ export const CONSOLE_PALETTE = [
 
 # bootvine draws the systemd job tree on tty12 from the initrd on and answers ask-password requests (the LUKS
 # passphrase, the TPM2 pin) in a popup there; systemd's console agent stays as the fallback on tty1.
-export const meta = {packages: {native: [bootvine]}, inputs: [$INSTALL_HOOK]}
+export const meta = {packages: {native: [bootvine]}, inputs: [$HOOK_INSTALL]}
 
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
-    let units = if ($INSTALL_HOOK | path exists) { $UNITS | each { unit-enable $in } } else { [] }
-    [(step hooks) ...$units]
+    [(step hooks) (if ($HOOK_INSTALL | path exists) { $UNITS | each { unit-enable $in } })]
 }
 
 # A hook without its install script fails every mkinitcpio: plymouth's left with its package (migration 0016 drops it
@@ -44,7 +43,7 @@ export def hooks []: nothing -> nothing {
     if "systemd" not-in $hooks {
         print "note: bootvine: HOOKS has no systemd hook, so bootvine starts after the initrd"
     }
-    hooks-write (hooks-placed $hooks ($INSTALL_HOOK | path exists))
+    hooks-write (hooks-placed $hooks ($HOOK_INSTALL | path exists))
     # splash was plymouth's; auto still prints systemd's status lines for a slow or failed unit when bootvine is gone;
     # console=tty1 keeps /dev/console off the VT bootvine holds in front, so the console agent and an emergency
     # shell open on tty1

@@ -14,13 +14,13 @@ const IPC_TIMEOUT_S = "3"
 
 def wal [...parts: string]: nothing -> path { xdg cache $WAL ...$parts }
 
-def request-file []: nothing -> path { $env.XDG_RUNTIME_DIR? | default /tmp | path join $REQUEST }
+def request-file []: nothing -> path { xdg runtime $REQUEST }
 
 def request-pending []: nothing -> bool { request-file | path exists }
 
 # The newest request, moved aside so the path unit only sees what arrives after it; "" when none waits.
 def request-take []: nothing -> string {
-    let taken = $env.XDG_RUNTIME_DIR? | default /tmp | path join $TAKEN
+    let taken = xdg runtime $TAKEN
     if (do { ^mv -f (request-file) $taken } | complete).exit_code != 0 { return "" }
     try { open --raw $taken | str trim } catch { "" }
 }

@@ -34,7 +34,7 @@ export def link [cfg: record] {
     let settings = $plugin | path join data.json
     let vaults = json-read $config | get --optional vaults | default {}
     let registered = $vaults | values | any { $in.path? == $vault }
-    let vault_id = $vault | hash sha256 | str substring 0..($VAULT_ID_LENGTH - 1)
+    let vault_id = $vault | hash sha256 | str substring 0..<$VAULT_ID_LENGTH
     let vault_entry = {path: $vault, ts: (date now | into int | $in // 1_000_000), open: ($vaults | is-empty)}
     let enabled = json-read ($vault | path join .obsidian community-plugins.json) | default [] | any { $in == $REST_ID }
     let key = json-read $settings | get --optional apiKey | default ""

@@ -3,17 +3,16 @@ const HOOK_SRC = "/usr/share/doc/timew/ext/on-modify.timewarrior"
 const MARKER_BEGIN = "    # >>> l-agent-task-db taskwarrior env (managed block) >>>"
 const MARKER_END = "    # <<< l-agent-task-db taskwarrior env (managed block) <<<"
 const ENTER_SHELL = "enterShell = ''"
-const ENTER_BLOCK = r#'    # >>> l-agent-task-db taskwarrior env (managed block) >>>
-    mkdir -p "$DEVENV_ROOT/tasks/.task/hooks" "$DEVENV_ROOT/tasks/.timewarrior"
+const ENTER_BODY = r#'    mkdir -p "$DEVENV_ROOT/tasks/.task/hooks" "$DEVENV_ROOT/tasks/.timewarrior"
     printf 'data.location=%s\nhooks.location=%s\n' \
       "$DEVENV_ROOT/tasks/.task" "$DEVENV_ROOT/tasks/.task/hooks" > "$DEVENV_ROOT/tasks/.taskrc"
     if [ ! -e "$DEVENV_ROOT/tasks/.task/hooks/on-modify.timewarrior" ] \
-      && [ -f /usr/share/doc/timew/ext/on-modify.timewarrior ]; then
-      install -m 755 /usr/share/doc/timew/ext/on-modify.timewarrior "$DEVENV_ROOT/tasks/.task/hooks/"
+      && [ -f @HOOK_SRC@ ]; then
+      install -m 755 @HOOK_SRC@ "$DEVENV_ROOT/tasks/.task/hooks/"
     fi
     export TASKRC="$DEVENV_ROOT/tasks/.taskrc"
-    export TIMEWARRIORDB="$DEVENV_ROOT/tasks/.timewarrior"
-    # <<< l-agent-task-db taskwarrior env (managed block) <<<'#
+    export TIMEWARRIORDB="$DEVENV_ROOT/tasks/.timewarrior"'# | str replace --all "@HOOK_SRC@" $HOOK_SRC
+const ENTER_BLOCK = [$MARKER_BEGIN $ENTER_BODY $MARKER_END] | str join "\n"
 const IGNORED = [tasks/.taskrc tasks/.task/ tasks/.timewarrior/ tasks/.poll-backoff]
 const CONTEXT_DIRS = [research design questions]
 
@@ -84,8 +83,11 @@ def main [target: path = "."]: nothing -> nothing {
 
     let gitignore = $target | path join .gitignore
     touch $gitignore
-    let missing = $IGNORED | where $it not-in (open --raw $gitignore | lines)
-    if ($missing | is-not-empty) { $missing | str join "\n" | $"($in)\n" | save --append $gitignore }
+    let ignores = open --raw $gitignore
+    let missing = $IGNORED | where $it not-in ($ignores | lines)
+    # an unterminated last line would swallow the first appended entry
+    let lead = if ($ignores | is-empty) or ($ignores | str ends-with "\n") { "" } else { "\n" }
+    if ($missing | is-not-empty) { $missing | str join "\n" | $"($lead)($in)\n" | save --append $gitignore }
     if (^git -C $target ls-files --error-unmatch tasks/.taskrc | complete).exit_code == 0 {
         print -e "note: tasks/.taskrc is tracked but now generated; untrack it: git rm --cached tasks/.taskrc"
     }

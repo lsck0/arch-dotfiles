@@ -1,14 +1,17 @@
 use module.nu *
 use ../../core/wallust/font.nu [font-load]
-use ../../core/wallust/palette.nu [hex-to-rgb rgb-to-hex shade]
+use ../../core/wallust/palette.nu [SHADE_CHROME hex-to-rgb rgb-to-hex shade]
 
 export const meta = {packages: {pacman: [vscodium-bin]}}
 
+# codium and code read different config and extension roots, so the settings follow the binary that is present
+const EDITIONS = [[bin config extensions]; [codium VSCodium ".vscode-oss"] [code Code ".vscode"]]
+
 # Merged, not rendered: VSCodium rewrites settings.json from its settings UI and keeps its own keys there.
-def settings [user_dir: path] {
+def settings [user_dir: path]: nothing -> record {
     let p = palette-load
     let theme = if $p == null { {} } else {
-        let chrome = $p.bg_conditioned | hex-to-rgb | shade 0.045 | rgb-to-hex --prefix "#"
+        let chrome = $p.bg_conditioned | hex-to-rgb | shade $SHADE_CHROME | rgb-to-hex --prefix "#"
         {
             # the base theme carries every token not overridden here, so its luminance must match
             "workbench.colorTheme": (if $p.light == "1" { "Default Light Modern" } else { "Default Dark Modern" })
@@ -33,17 +36,14 @@ def settings [user_dir: path] {
     json-merge ($user_dir | path join settings.json) $edits
 }
 
-def code-bin []: nothing -> any { [codium code] | where {|b| which $b | is-not-empty } | get --optional 0 }
-
-# codium and code read different config roots, so the settings follow the binary that is actually present
-def code-user-dir [bin: string]: nothing -> path { xdg config (if $bin == codium { "VSCodium" } else { "Code" }) User }
+def edition []: nothing -> any { $EDITIONS | where {|e| which $e.bin | is-not-empty } | get --optional 0 }
 
 export def link [cfg: record] {
-    let bin = code-bin
-    if $bin == null { return [] }
-    let user_dir = code-user-dir $bin
-    let extensions = $nu.home-dir | path join (if $bin == codium { ".vscode-oss" } else { ".vscode" }) extensions
-    let installed = glob ($extensions | path join "vscodevim.vim-*") | is-not-empty
+    let edition = edition
+    if $edition == null { return [] }
+    let bin = $edition.bin
+    let user_dir = xdg config $edition.config User
+    let installed = glob ($nu.home-dir | path join $edition.extensions extensions "vscodevim.vim-*") | is-not-empty
     [
         (files-into $user_dir keybindings.json)
         (settings $user_dir)
@@ -52,7 +52,7 @@ export def link [cfg: record] {
 }
 
 export def theme [cfg: record, wallpaper: string] {
-    let bin = code-bin
-    if $bin == null { return [] }
-    settings (code-user-dir $bin)
+    let edition = edition
+    if $edition == null { return [] }
+    settings (xdg config $edition.config User)
 }

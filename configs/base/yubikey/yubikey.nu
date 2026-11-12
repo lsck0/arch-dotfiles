@@ -2,6 +2,7 @@
 
 use ../../../scripts/lib/profile.nu [profile-load]
 use ../../../scripts/lib/secrets.nu [secret-is-plaintext secrets-wanted]
+use ../../../scripts/lib/state.nu [SECRETS_ISSUE]
 
 const REPO = path self ../../..
 const KEY_DIR = path self .
@@ -17,7 +18,6 @@ const TOUCH_ATTEMPT_S = "900"
 const TOUCH_RETRY = 2sec
 const INIT_STEPS = [pins pgp ssh u2f age]
 const PCSC_REFUSED = "PC/SC not available"
-const SECRETS_ISSUE = "/etc/issue.d/dotfiles-secrets.issue"
 const GITHUB_OVER_SSH = "url.git@github.com:lsck0/.insteadOf=https://github.com/lsck0/"
 const SECRETS_PULL = [submodule update --init configs/secrets]
 

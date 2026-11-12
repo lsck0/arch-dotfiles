@@ -20,7 +20,6 @@ export const options = {
         doc: "An always-on Hermes session (profile system, unit hermes-system-agent) that drives the desktop and talks: SUPER+grave shows it, SUPER+ALT+a talks to it"
         label: "System agent"
         scope: machine
-        apply: live
     }
 }
 
@@ -78,7 +77,9 @@ def homes []: nothing -> record {
 
 # A profile cloned from ~/.hermes with the skills, settings and key. Its command goes through the hermes on PATH:
 # hermes' own `profile alias` bakes in the venv path of the install it ran under, which the next hermes update removes.
-def profile [name: string, description: string, settings: record, remove: list<string>, mcp: record, skills: list<path>]: nothing -> list<record> {
+def profile [
+    name: string, description: string, settings: record, remove: list<string>, mcp: record, skills: list<path>
+]: nothing -> list<record> {
     let home = homes | get $name
     [
         (exec $"($name)-create" [hermes profile create $name --clone --no-alias --description $description] --creates $home)
@@ -118,16 +119,13 @@ export def required-extras []: nothing -> nothing {
     ^hermes pm install ...($REQUIRED_EXTRAS | each {|e| [--extra $e] } | flatten)
 }
 
-def render-env [vars: record]: nothing -> string {
-    $vars | items {|k, v| $"($k)=($v)" } | str join "\n" | $"($in)\n"
-}
-
 # merges the anthropic key secret into each home's own .env, never clobbering a key it does not own
 def anthropic-key [home: path]: nothing -> list<record> {
     let secret = $env.DOTFILES | path join $ANTHROPIC_KEY_SECRET
     if not (secret-is-plaintext $secret) { return [] }
-    let merged = env-file-load ($home | path join .env) | merge (env-file-load $secret)
-    [(file-text ($home | path join .env) (render-env $merged) --mode 600)]
+    let file = $home | path join .env
+    let merged = env-file-load $file | merge (env-file-load $secret) | items {|k, v| $"($k)=($v)" } | str join "\n"
+    [(file-text $file $"($merged)\n" --mode 600)]
 }
 
 def configure [home: path, settings: record, remove: list<string>, mcp: record]: nothing -> list<record> {
@@ -182,15 +180,15 @@ export def link [cfg: record] {
 }
 
 def skin []: nothing -> any {
-    let slot = wal-load "hermes skin"
-    if $slot == null { return null }
-    let bg = do $slot background "#0b1019" | condition-bg
-    let raw_fg = do $slot foreground "#c2c3c5"
-    let accent = do $slot color4 "#B68B74" | vivify 0.45 0.55
-    let alt = do $slot color5 "#A76495" | vivify 0.35 0.55
-    let cool = do $slot color6 "#7dcfff" | vivify 0.35 0.55
-    let status = $bg | shade 0.045
-    let current = $bg | shade 0.11
+    let p = palette-rgb "hermes skin"
+    if $p == null { return null }
+    let bg = $p.bg | condition-bg
+    let raw_fg = $p.fg
+    let accent = $p.c4 | vivify 0.45 0.55
+    let alt = $p.c5 | vivify 0.35 0.55
+    let cool = $p.c6 | vivify 0.35 0.55
+    let status = $bg | shade $SHADE_CHROME
+    let current = $bg | shade $SHADE_CURRENT
     let fg = $raw_fg | readable-on $bg --ratio 7.0
     let dim = $fg | dim-toward $bg --ratio 2.6
     let urgent = $accent | semantic error $bg

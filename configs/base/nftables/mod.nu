@@ -35,7 +35,7 @@ export def system [cfg: record] {
             msg: $"nftables: base/ssh knock ($knock | to nuon) is not ($KNOCK_LENGTH) distinct ports other than sshd's"
         }
     }
-    # without networkmanager nothing stops it off home, as under lockdown-tor
+    # without networkmanager no link is ever trusted: fail closed
     let policy = $cfg.deps?."base/networkmanager"?.untrusted_policy? | default lockdown-tor
     # only on a changed ruleset, it empties the knock and portal sets; never a start, fw-egress off a trusted network cuts this run
     let reload = {|unit| [systemctl try-reload-or-restart $unit] }
@@ -47,7 +47,7 @@ export def system [cfg: record] {
         # units first, so a fresh install's ruleset reload finds them
         ($UNITS | each {|u| unit-file $u --then (do $reload $u) })
         (file-render fw-inbound.nft $"($DIR)/fw-inbound.nft" $inbound --then (do $reload fw-inbound.service))
-        # the inbound lockdown holds from the first run, unless a home link already loaded fw-inbound
+        # the inbound lockdown holds from the first run, unless a trusted link already loaded fw-inbound
         (file-copy fw-lockdown.nft $"($DIR)/fw-lockdown.nft" --then [sh -c $LOCKDOWN_START])
         # the escape uids are filled in by the unit at start, so it never waits on tor being installed
         (file-copy fw-egress.nft $"($DIR)/fw-egress.nft" --then (do $reload fw-egress.service))

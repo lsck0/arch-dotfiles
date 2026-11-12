@@ -6,6 +6,9 @@ const UNIT = "dictation-record"
 const MODEL = ".local/share/whisper-cpp/ggml-large-v3-turbo-q5_0.bin"
 const TAG = "string:x-canonical-private-synchronous:dictation"
 const GLYPH = "\u{f036c}"
+# whisper takes 16 kHz mono
+const RATE_HZ = "16000"
+const RECORD_MAX_SEC = "600"
 
 def notify [title: string, body: string = ""]: nothing -> nothing {
     ^notify-send -a dictation -u low -h $TAG -h $"string:lsck0-glyph:($GLYPH)" -- $title $body | complete | ignore
@@ -20,7 +23,7 @@ def recording []: nothing -> bool {
 def start []: nothing -> nothing {
     rm --force (wav)
     # its own unit: the recorder outlives this script, and a SIGINT stop lets pw-record finish the wav header
-    ^systemd-run --user --quiet --collect $"--unit=($UNIT)" -p KillSignal=SIGINT -p RuntimeMaxSec=600 pw-record --rate 16000 --channels 1 --format s16 (wav)
+    ^systemd-run --user --quiet --collect $"--unit=($UNIT)" -p KillSignal=SIGINT -p $"RuntimeMaxSec=($RECORD_MAX_SEC)" pw-record --rate $RATE_HZ --channels 1 --format s16 (wav)
     notify "Dictation" "listening, SUPER+ALT+v again to type it"
 }
 

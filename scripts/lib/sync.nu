@@ -1,4 +1,4 @@
-# The git half of dot sync: verified pull, signed generation commit, push with retry.
+# The git half of dot sync: verified pull, regenerated files, signed generation commit, push with retry.
 
 use log.nu *
 use secrets.nu [secret-is-plaintext secrets-wanted OWNER_WITNESS]
@@ -138,6 +138,7 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
     }
 
     sync-catch-up $repo
+    generated-refresh $repo
     # not behind --no-verify: `git add .` would put whatever a tool left in the checkout into a signed generation
     let stray = lint-stray $repo
     if ($stray | is-not-empty) { error make {msg: $"nothing committed:\n($stray | str join "\n")"} }
@@ -181,10 +182,22 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
         if (^git -C $repo stash pop --quiet | complete).exit_code != 0 {
             error make {msg: $"the stashed changes conflict with origin's generation; they stay in `git -C ($repo) stash list`, resolve them, then dot sync again"}
         }
+        generated-refresh $repo
         ^git -C $repo add .
         if $committed { generation-commit $repo $fpr }
         $push = ^git -C $repo push --no-recurse-submodules | complete
     }
+}
+
+# dot internal gen on the tree about to be staged (after a catch-up merged origin's), so no generation carries a stale
+# generated file; lint's gen --check still catches one between syncs.
+def generated-refresh [repo: path]: nothing -> nothing {
+    let internal = $repo | path join scripts lib internal.nu
+    let run = ^nu --no-config-file $internal gen | complete
+    if $run.exit_code != 0 { error make {msg: $"dot internal gen failed, nothing committed: ($run.stdout + $run.stderr | str trim)"} }
+    # gen leaves a module that does not parse out of mirror/packages.txt without failing; only --check refuses it
+    let check = ^nu --no-config-file $internal gen --check | complete
+    if $check.exit_code != 0 { error make {msg: $"dot internal gen --check failed, nothing committed: ($check.stdout + $check.stderr | str trim)"} }
 }
 
 def generation-commit [repo: path, fpr: string]: nothing -> nothing {

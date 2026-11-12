@@ -79,13 +79,14 @@ export def system [cfg: record] {
     # WSL skips the install's locale question and its image may ship no LANG at all
     let lang = $cfg.lang | default (if $env.FORM_FACTOR? == "wsl" { $LOCALE_BASE } else { null })
     let locales = [$lang $cfg.formats $LOCALE_BASE] | compact | uniq
+    let locale_gen = $locales | each { $"($in) ($in | split row '.' | get --optional 1 | default 'UTF-8')\n" } | str join
     let formats = if $cfg.formats == null { [] } else { $FORMAT_CATEGORIES | each {|c| [$c $cfg.formats] } }
     let conf = [[LANG $lang]] ++ $formats | where $it.1 != null | each { $"($in.0)=($in.1)" }
     let console = env-file-load $VCONSOLE
     let keyboard = [$cfg.keyboard_layout ($cfg.keyboard_variant | default "") ($cfg.keyboard_options | default [] | str join ",")]
     let current = [$console.XKBLAYOUT? ($console.XKBVARIANT? | default "") ($console.XKBOPTIONS? | default "")]
     [
-        (file-text /etc/locale.gen ($locales | each { $"($in) ($in | split row '.' | get --optional 1 | default 'UTF-8')\n" } | str join) --generated --then [locale-gen])
+        (file-text /etc/locale.gen $locale_gen --generated --then [locale-gen])
         (if ($conf | is-not-empty) { file-text $LOCALE_CONF ($conf | str join "\n" | $"($in)\n") --generated })
         (if $cfg.keyboard_layout != null and $env.FORM_FACTOR? != "wsl" and $keyboard != $current {
             exec keymap ([localectl set-x11-keymap $cfg.keyboard_layout $XKB_MODEL] ++ ($keyboard | skip 1))

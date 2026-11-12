@@ -1,5 +1,5 @@
 use module.nu *
-use ../../core/wallust/palette.nu [wal-load condition-bg vivify shade selection-pair readable-on is-light rgb-to-hex RADIUS_PX]
+use ../../core/wallust/palette.nu [palette-rgb condition-bg vivify shade selection-pair readable-on is-light rgb-to-hex RADIUS_PX SHADE_CHROME]
 
 export const meta = {packages: {pacman: [themix-gui-git themix-plugin-base16-git xorg-server-xvfb]}}
 
@@ -8,27 +8,25 @@ const EXPORT_CONFIG = "multi_export_oodwaita.json"
 const COLORS = "wal/colors-oomox"
 # themix-multi-export can hang forever on an oomox gtk-loop bug sigterm cannot reap
 const THEMIX_TIMEOUT = [timeout -k 5 20]
-const INTERFACE = "org.gnome.desktop.interface"
+export const INTERFACE = "org.gnome.desktop.interface"
 
 export def link [cfg: record] {
     [
         (files-into ($nu.home-dir | path join $EXPORT_DIR) $EXPORT_CONFIG)
-        (desktop-override com.github.themix_project.Oomox.desktop {
-            str replace --regex '(?m)^\[Desktop Entry\]$' "[Desktop Entry]\nNoDisplay=true"
-        })
+        (desktop-override com.github.themix_project.Oomox.desktop { desktop-set {NoDisplay: true} })
     ]
 }
 
 export def theme [cfg: record, wallpaper: string] {
-    let slot = wal-load "oomox theme"
-    if $slot == null { return [] }
-    let bg = do $slot background "#0b1019" | condition-bg
-    let fg = do $slot foreground "#c2c3c5"
-    let accent = do $slot color4 "#B68B74" | vivify 0.45 0.55
+    let p = palette-rgb "oomox theme"
+    if $p == null { return [] }
+    let bg = $p.bg | condition-bg
+    let fg = $p.fg
+    let accent = $p.c4 | vivify 0.45 0.55
     let selection = $accent | selection-pair $fg
     let hex = {|c| $c | rgb-to-hex }
     let on = {|c| $fg | readable-on $c | rgb-to-hex }
-    let menu = $bg | shade 0.045
+    let menu = $bg | shade $SHADE_CHROME
     let txt = $bg | shade 0.02
     let btn = $bg | shade 0.075
     let hdr_btn = $bg | shade 0.03

@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # after steam's first run: millennium patches libXtst in steam's runtime dirs
 
-const LIB = "/usr/lib/millennium"
+export const MILLENNIUM_LIB = "/usr/lib/millennium"
 const LINKS = [
     [lib target];
     [libmillennium_bootstrap_x86.so ubuntu12_32/libXtst.so.6]
@@ -15,8 +15,8 @@ const SHORTCUT_SOURCE = "/usr/lib/steam/steam.desktop"
 def links-missing []: nothing -> list<record> {
     let steam = $nu.home-dir | path join .local share Steam
     let runtime = [ubuntu12_32 ubuntu12_64] | all {|d| $steam | path join $d | path exists }
-    if not $runtime or not ($LIB | path exists) { return [] }
-    $LINKS | each {|l| {source: ($LIB | path join $l.lib), target: ($steam | path join $l.target)} }
+    if not $runtime or not ($MILLENNIUM_LIB | path exists) { return [] }
+    $LINKS | each {|l| {source: ($MILLENNIUM_LIB | path join $l.lib), target: ($steam | path join $l.target)} }
     | where {|l| ($l.target | path type) != symlink or (^readlink $l.target | str trim) != $l.source }
 }
 

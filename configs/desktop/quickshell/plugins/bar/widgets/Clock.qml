@@ -22,7 +22,8 @@ BarWidget {
   implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: Style.bar.sizeHorizontal
 
-  readonly property real travelMs: travelHours * 3600000
+  readonly property int msPerMinute: 60 * 1000
+  readonly property real travelMs: travelHours * 60 * msPerMinute
   readonly property date travelledNow: new Date(now.getTime() + travelMs)
   readonly property date travelledPrecise: new Date(nowPrecise.getTime() + travelMs)
 
@@ -78,7 +79,7 @@ BarWidget {
     return Qt.formatTime(new Date(2000, 0, 1, wall.getUTCHours(), wall.getUTCMinutes()), Util.timeFormat)
   }
 
-  function dayLabel() {
+  function travelLabel() {
     if (root.travelHours === 0) return ""
     var sign = root.travelHours > 0 ? "+" : "-"
     var hours = Math.abs(root.travelHours)
@@ -93,11 +94,12 @@ BarWidget {
   }
 
   Timer {
-    interval: 60000 - (Date.now() % 60000) + 50
+    // fires just past each minute boundary
+    interval: root.msPerMinute - (Date.now() % root.msPerMinute) + 50
     running: true
     repeat: true
     triggeredOnStart: true
-    onTriggered: { root.now = new Date(); interval = 60000 - (Date.now() % 60000) + 50 }
+    onTriggered: { root.now = new Date(); interval = root.msPerMinute - (Date.now() % root.msPerMinute) + 50 }
   }
 
   Timer {
@@ -253,7 +255,7 @@ BarWidget {
       }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "TIMETRAVEL" + root.dayLabel() }
+      PanelSectionHeader { text: "TIMETRAVEL" + root.travelLabel() }
 
       Slider {
         width: parent.width

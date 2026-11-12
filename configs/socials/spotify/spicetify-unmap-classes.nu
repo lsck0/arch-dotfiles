@@ -26,7 +26,7 @@ def main [xpui?: path]: nothing -> nothing {
     let backup = xdg state spicetify Backup xpui.spa
     let missing = [$xpui $CSS_MAP $backup] | where not ($it | path exists)
     if ($missing | is-not-empty) {
-        print -e $"spicetify-unmap-classes: ($missing.0) missing, nothing to do"
+        print --stderr $"spicetify-unmap-classes: ($missing.0) missing, nothing to do"
         return
     }
     let map = open --raw $CSS_MAP | from json

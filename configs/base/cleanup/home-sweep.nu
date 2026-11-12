@@ -3,6 +3,7 @@
 # spotify_player hardcodes ~/.cache, ignoring XDG_CACHE_HOME
 const SPOTIFY_DIR = ".cache/spotify-player"
 const SPOTIFY_KEEP = 3
+const SPOTIFY_EXTENSIONS = [log backtrace]
 const LOG_AGE_MAX = 14day
 const LOG_EXTENSIONS = [log backtrace txt]
 const APP_LOGS = [
@@ -24,7 +25,7 @@ def logs-in [dir: path, extensions: list<string>]: nothing -> table {
 
 def main []: nothing -> nothing {
     if not (app-running spotify_player) {
-        for ext in [log backtrace] {
+        for ext in $SPOTIFY_EXTENSIONS {
             logs-in $SPOTIFY_DIR [$ext] | sort-by modified --reverse | skip $SPOTIFY_KEEP
             | each { rm $in.name } | ignore
         }

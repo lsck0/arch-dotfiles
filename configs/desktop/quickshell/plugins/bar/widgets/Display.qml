@@ -306,7 +306,6 @@ BarWidget {
           width: parent.width
           fill: true
           spacing: Style.spacing.xs
-          fontSize: Style.font.caption
           options: (root.grading.presets || []).map(function(p) { return { value: p.name, label: String(p.label).toUpperCase() } })
           value: root.grading.preset
           onChanged: function(v) { if (v !== root.grading.preset) root.colorRun([Paths.toggle("toggle-color-grading.nu"), "set", v]) }
@@ -353,7 +352,6 @@ BarWidget {
               width: parent.width
               fill: true
               spacing: Style.spacing.xs
-              fontSize: Style.font.caption
               options: shaderItem.modelData.variants.map(function(v) { return { value: v, label: v.toUpperCase() } })
               value: shaderItem.active ? root.shaderVariant(root.shaders.current) : ""
               onChanged: function(v) { root.colorRun([root.shaderScript, "set", shaderItem.modelData.name + ":" + v]) }

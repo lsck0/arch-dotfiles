@@ -6,24 +6,24 @@ export const meta = {packages: {pacman: [gh-dash gh-enhance-bin]}}
 const SELECTED_MIX = 0.12
 
 # The theme verb and link render the same file, so neither sees the other's write as drift.
-def config [] {
-    let p = palette-load
+def config-render []: nothing -> record {
     let base = open config.yml
+    let p = palette-load
     let merged = if $p == null { $base } else {
-        let accent = $p.c4 | str lowercase
+        let c = $p | update cells { str lowercase }
         $base | upsert theme.colors {
-            text: {primary: ($p.fg | str lowercase), secondary: $accent, inverted: ($p.bg | str lowercase), faint: ($p.c8 | str lowercase), warning: ($p.c3 | str lowercase), success: ($p.c2 | str lowercase)}
-            background: {selected: (mix ($p.bg | hex-to-rgb) ($accent | hex-to-rgb) $SELECTED_MIX | rgb-to-hex --prefix '#')}
-            border: {primary: $accent, secondary: ($p.c8 | str lowercase), faint: ($p.c0 | str lowercase)}
+            text: {primary: $c.fg, secondary: $c.c4, inverted: $c.bg, faint: $c.c8, warning: $c.c3, success: $c.c2}
+            background: {selected: (mix ($c.bg | hex-to-rgb) ($c.c4 | hex-to-rgb) $SELECTED_MIX | rgb-to-hex --prefix '#')}
+            border: {primary: $c.c4, secondary: $c.c8, faint: $c.c0}
         }
     }
     file-text (xdg config gh-dash config.yml) ($merged | to yaml)
 }
 
 export def link [cfg: record] {
-    [(shell-aliases gh-dash) (config)]
+    [(shell-aliases gh-dash) (config-render)]
 }
 
 export def theme [cfg: record, wallpaper: string] {
-    config
+    config-render
 }

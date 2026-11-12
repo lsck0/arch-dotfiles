@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const REPO = path self | path expand | path dirname | path dirname
+const REPO = path self | path expand | path dirname --num-levels 2
 const LIB = $REPO | path join scripts lib
 use ($LIB | path join log.nu) *
 use ($LIB | path join cli.nu) [guarded theme-locked flag]
@@ -285,7 +285,8 @@ def "main status" [
 
 # a run's records (default the last) by module and level; --trace the span tree with timings
 def "main log" [run?: string@run-ids, --module: string@module-ids, --level: string@$LOG_LEVELS = "INFO", --trace]: nothing -> any {
-    if ($level | str uppercase) not-in $LOG_LEVELS { die --misuse $"log: --level ($level), one of ($LOG_LEVELS | str join ' ')" }
+    let level = $level | str uppercase
+    if $level not-in $LOG_LEVELS { die --misuse $"log: --level ($level), one of ($LOG_LEVELS | str join ' ')" }
     let file = if $run == null { run-last-changed } else { runs-dir | path join $"($run).jsonl" }
     if $file == null {
         log-note $"no run recorded yet in (runs-dir)"
@@ -311,7 +312,7 @@ def "main log" [run?: string@run-ids, --module: string@module-ids, --level: stri
             [$"($indent)($b.target) ($end.ms? | default '?')ms ($end.outcome? | default 'open')"] ++ $failed
         } | flatten | append ($errors | reject --optional ...($spans | get span | uniq) | values | flatten | each { $"! ($in.msg)" }) | str join "\n")
     }
-    let shown = $LOG_LEVELS | skip until { $in == ($level | str uppercase) }
+    let shown = $LOG_LEVELS | skip until { $in == $level }
     $records | where {|r| $r.level in $shown and ($module == null or $r.module == $module) } | select time level module msg
 }
 

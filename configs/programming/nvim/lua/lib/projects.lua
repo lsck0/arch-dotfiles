@@ -1,6 +1,8 @@
 local M = {}
 
-local DEFAULT_DIRS = { { path = vim.fs.normalize("~/projects"), depth = 10 } }
+-- the depth of a tms search dir that sets none, and of the fallback ~/projects
+local DEFAULT_DEPTH = 10
+local DEFAULT_DIRS = { { path = vim.fs.normalize("~/projects"), depth = DEFAULT_DEPTH } }
 
 -- vendored repos are not projects; mirrors FD_EXCLUDES in scripts/hms.nu
 local EXCLUDE = { "elpa", "node_modules", ".cargo", "vendor", "target" }
@@ -17,7 +19,7 @@ local function tms_config()
     local dirs, bookmarks, current, in_bookmarks = {}, {}, nil, false
     for line in fd:lines() do
         if line:match("^%s*%[%[search_dirs%]%]") then
-            current, in_bookmarks = { depth = 10 }, false
+            current, in_bookmarks = { depth = DEFAULT_DEPTH }, false
             table.insert(dirs, current)
         elseif line:match("^%s*bookmarks%s*=") then
             current, in_bookmarks = nil, true

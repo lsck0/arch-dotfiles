@@ -1,3 +1,5 @@
+# before module.nu: its exec would shadow the builtin exec the script parses with
+use mirrorlist-update.nu [HOMELAB_FILE MIRRORLIST mirrorlist-swap]
 use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
 
@@ -12,8 +14,6 @@ export const options = {
     }
 }
 
-const MIRRORLIST = "/etc/pacman.d/mirrorlist"
-const HOMELAB_FILE = "/etc/pacman.d/homelab-mirror"
 const UPDATE_TIMEOUT_S = 600
 
 export def system [cfg: record] {
@@ -29,7 +29,7 @@ export def system [cfg: record] {
     ]
 }
 
-def update [mode: string, ...args: string]: nothing -> bool {
+def mirrorlist-run [mode: string, ...args: string]: nothing -> bool {
     (^timeout $UPDATE_TIMEOUT_S /usr/local/bin/mirrorlist-update $mode ...$args | complete).exit_code == 0
 }
 
@@ -38,12 +38,11 @@ def update [mode: string, ...args: string]: nothing -> bool {
 export def place [homelab: string]: nothing -> nothing {
     let linked = ($MIRRORLIST | path type) == "symlink"
     if $linked or not (open --raw $MIRRORLIST | lines | any { str starts-with "# lastsync" }) {
-        if (update rebuild) {
-            update sort | ignore
+        if (mirrorlist-run rebuild) {
+            mirrorlist-run sort | ignore
         } else if $linked or not (open --raw $MIRRORLIST | lines | any { str starts-with "Server" }) {
-            ^install -m644 mirrorlist $"($MIRRORLIST).new"
-            ^mv -f $"($MIRRORLIST).new" $MIRRORLIST
+            mirrorlist-swap (open --raw mirrorlist | lines)
         }
     }
-    update homelab $homelab | ignore
+    mirrorlist-run homelab $homelab | ignore
 }

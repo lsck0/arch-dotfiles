@@ -25,9 +25,8 @@ const FILEZILLA_XML = "filezilla/filezilla.xml"
 
 export def filezilla-seed [file: path]: nothing -> nothing {
     if ($file | path exists) { return }
-    let installed = ^pacman -Q filezilla | complete
-    if $installed.exit_code != 0 { return }
-    let version = $installed.stdout | str trim | split row " " | last | str replace --regex '-[0-9.]+$' ''
+    let version = package-version filezilla
+    if $version == null { return }
     mkdir ($file | path dirname)
     [
         '<?xml version="1.0" encoding="UTF-8"?>'
@@ -65,20 +64,20 @@ export def link [cfg: record] {
     let bin = $nu.home-dir | path join .local bin
     let filezilla = xdg config $FILEZILLA_XML
     let values = {HOME: $nu.home-dir, BIN: $bin, DOTFILES: $env.DOTFILES, STIRLING_PORT: $STIRLING_PORT}
-    [(link-commands desktop-run.nu hollywood-run.nu)]
-    | append (open $APPS | each {|app| file-text ($apps | path join $"($app.id).desktop") (app-entry $app $values) })
-    | append ($SHOWN | each {|id| desktop-override $"($id).desktop" { line-drop '^NoDisplay=true$' } })
-    | append ($KDE_ONLY | each {|id| desktop-override $"($id).desktop" { line-drop '^OnlyShowIn=KDE;$' } })
-    | append ($HIDDEN | each {|id|
-        desktop-override $"($id).desktop" { str replace --regex '(?m)^\[Desktop Entry\]$' "[Desktop Entry]\nNoDisplay=true" }
-    })
-    | append (desktop-override wayvr.desktop {
-        desktop-set {Terminal: false} | str replace --regex '(?m)^Exec=wayvr$' $"Exec=($bin)/desktop-run --notify -- wayvr"
-    })
-    # its import's file input sends a *.json filter with an empty name, which the portal refuses ("invalid filter: name
-    # is empty") and the button does nothing: gtk's own chooser takes it
-    | append (desktop-override "Proton Authenticator.desktop" {
-        str replace --regex '(?m)^Exec=env ' 'Exec=env GTK_USE_PORTAL=0 '
-    })
-    | append (step filezilla-seed $filezilla --creates $filezilla)
+    [
+        (link-commands desktop-run.nu hollywood-run.nu)
+        (open $APPS | each {|app| file-text ($apps | path join $"($app.id).desktop") (app-entry $app $values) })
+        ($SHOWN | each {|id| desktop-override $"($id).desktop" { desktop-set {NoDisplay: false} } })
+        ($KDE_ONLY | each {|id| desktop-override $"($id).desktop" { line-drop '^OnlyShowIn=KDE;$' } })
+        ($HIDDEN | each {|id| desktop-override $"($id).desktop" { desktop-set {NoDisplay: true} } })
+        (desktop-override wayvr.desktop {
+            desktop-set {Terminal: false} | str replace --regex '(?m)^Exec=wayvr$' $"Exec=($bin)/desktop-run --notify -- wayvr"
+        })
+        # its import's file input sends a *.json filter with an empty name, which the portal refuses ("invalid filter: name
+        # is empty") and the button does nothing: gtk's own chooser takes it
+        (desktop-override "Proton Authenticator.desktop" {
+            str replace --regex '(?m)^Exec=env ' 'Exec=env GTK_USE_PORTAL=0 '
+        })
+        (step filezilla-seed $filezilla --creates $filezilla)
+    ]
 }

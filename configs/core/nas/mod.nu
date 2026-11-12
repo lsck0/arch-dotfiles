@@ -1,7 +1,11 @@
 use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
 
-export const meta = {packages: {pacman: [cifs-utils]}, inputs: [/etc/samba/homelab.cred], secrets: [samba-homelab]}
+const MOUNT = "/mnt/homelab"
+const CRED = "/etc/samba/homelab.cred"
+const CRED_KEYS = '^(username|password|domain)='
+
+export const meta = {packages: {pacman: [cifs-utils]}, inputs: [$CRED], secrets: [samba-homelab]}
 
 export const options = {
     share: {
@@ -10,10 +14,6 @@ export const options = {
         doc: "The homelab NAS's smb share mounted at /mnt/homelab (//host/share)"
     }
 }
-
-const MOUNT = "/mnt/homelab"
-const CRED = "/etc/samba/homelab.cred"
-const CRED_KEYS = '^(username|password|domain)='
 
 export def system [cfg: record] {
     if not (platform-has homelab) { return [] }
@@ -39,5 +39,5 @@ export def system [cfg: record] {
 }
 
 export def link [cfg: record] {
-    if (owner-unlocked) and (platform-has homelab) { file-link $MOUNT ($nu.home-dir | path join nas) } else { [] }
+    if (owner-unlocked) and (platform-has homelab) { file-link $MOUNT ($nu.home-dir | path join nas) }
 }

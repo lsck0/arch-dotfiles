@@ -21,7 +21,7 @@ Item {
   }
 
   readonly property string pluginDir: Paths.plugin("image-picker")
-  readonly property string dot: Paths.home + "/.local/bin/dot"
+  readonly property string dot: Paths.bin("dot")
   property int mode: 0
   property var modeNames: ["Wallpapers", "Themes"]
   property string selectedImage: ""

@@ -17,16 +17,18 @@ theme name: `dot theme "$(jq -r .wallpaper themes/<t>.json)"`. It links `$XDG_CA
   `{color0}`..). Other `[templates]` in `wallust.toml`: jinja at `templates/` (`{{color4}}`, `blend`),
   `colors-steam.css` for millennium, `omarchy-colors.toml` to `~/.local/state/omarchy/current/theme/`.
 - Then every enabled module's `theme [cfg, wallpaper]` verb runs (`dot internal theme apply`), returning declarations.
-  It reads `palette-load` (`bg`, `fg`, `c0`..`c15`, `light`, `bg_conditioned`) or `palette.nu`, the one conditioning
-  authority. Verbs run in parallel, in `meta.deps` order.
+  It reads `palette-load` (hex `bg`, `fg`, `c0`..`c15`, `light`, `bg_conditioned`) or `palette-rgb` (the 18 colours as
+  rgb, for `palette.nu`'s conditioning, the one authority). Verbs run in parallel, in `meta.deps` order.
 - Callers write the wallpaper into `$XDG_RUNTIME_DIR/theme.request`; `dot-theme.path` starts `dot-theme.service` for
   each waiting request; each run applies the newest one (`TimeoutStartSec=5min`, 60 s a verb). `--sync` waits for it.
 - `dot internal theme apply` holds `theme.lock` in dot's state dir (`theme-locked`, `scripts/lib/cli.nu`), as do
   `dot module unlink|remove`, the other writers of a module's theme record; `dot apply` waits on the unit instead.
 - quickshell recolours from `colors.json` through `Commons/Palette.js`, the JS port of `palette.nu`.
 
-`palette.nu` also holds `RADIUS_PX`, `BORDER_PX`, `OPACITY_WINDOW`, `OPACITY_SURFACE`, `OPACITY_BAR`; modules write them
-into configs, live readers (qutebrowser, nvim) use `~/.config/dotfiles/style.json`.
+`palette.nu` also holds `RADIUS_PX`, `BORDER_PX`, `OPACITY_SURFACE`, `OPACITY_BAR`, `OPACITY_PANEL`; modules write them
+into configs, quickshell gets them in `Palette.js`. Live readers (qutebrowser, nvim) read
+`~/.config/dotfiles/style.json` (`style-json`), which holds only the keys they use: `radius_px`, `text_ratio`,
+`light_luminance`, `white_text_luminance_max`.
 
 Each theme names its other-mode partner in `"pair"` (`toggle-theme-mode.nu` flips to it). `themes.test.nu` checks the
 pair and contrast floors: fg, color4, color12 4.5:1 (dark also color7, color15), other accents and color8 3:1. Every

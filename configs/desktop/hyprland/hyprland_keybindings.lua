@@ -1,4 +1,6 @@
 local mod = "SUPER"
+-- workspaces 1 to 10 on keys 1 to 0, the WORKSPACE_COUNT that mod.nu splits over the outputs
+local WORKSPACE_COUNT = 10
 
 local function shell_bin(name)
     return "~/.local/bin/" .. name
@@ -126,7 +128,7 @@ hl.bind(
     { description = "quick capture: task (! reminder, # note)" }
 )
 hl.bind(mod .. " + o", quickshell_toggle("tasks"), { description = "tasks and notes panel" })
-hl.bind(mod .. " + ALT + v", helper("dictate"), { description = "dictation: speak, press again to type it" })
+hl.bind(mod .. " + ALT + v", helper(shell_bin("dictate")), { description = "dictation: speak, press again to type it" })
 
 hl.bind(mod .. " + comma", quickshell_toggle("settings"), { description = "settings window" })
 hl.bind(
@@ -138,7 +140,7 @@ hl.bind(mod .. " + t", quickshell_call("shell", "summon panel.reminders {}"), { 
 hl.bind(mod .. " + SHIFT + t", app("missioncenter"), { description = "system monitor (mission center)" })
 hl.bind(mod .. " + CTRL + w", helper(shell_bin("wallpaper-picker")), { description = "wallpaper picker" })
 hl.bind(mod .. " + SHIFT + w", helper(shell_bin("wallpaper-picker") .. " --themes"), { description = "theme picker" })
-hl.bind(mod .. " + y", helper("spawn-shimeji"), { description = "spawn a desktop mascot" })
+hl.bind(mod .. " + y", helper(shell_bin("spawn-shimeji")), { description = "spawn a desktop mascot" })
 hl.bind(mod .. " + x", app(hypr_script("boomer.nu")), { description = "magnifier (boomer)" })
 
 hl.bind(mod .. " + q", hl.dsp.exec_cmd(hypr_script("window-close.nu")), {
@@ -252,7 +254,7 @@ hl.bind(mod .. " + w", hl.dsp.group.toggle(), { description = "tab or untab the 
 hl.bind(mod .. " + c", hl.dsp.group.next(), { description = "next tab" })
 hl.bind(mod .. " + SHIFT + c", hl.dsp.group.prev(), { description = "previous tab" })
 
-for workspace = 1, 10 do
+for workspace = 1, WORKSPACE_COUNT do
     local key = tostring(workspace % 10)
     hl.bind(
         mod .. " + " .. key,

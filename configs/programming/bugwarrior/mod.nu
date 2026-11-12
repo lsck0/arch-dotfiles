@@ -1,5 +1,4 @@
 use module.nu *
-use profile.nu [profile-owner]
 
 export const meta = {
     deps: [programming/task]

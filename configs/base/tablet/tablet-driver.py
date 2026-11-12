@@ -22,7 +22,16 @@ import time
 
 VENDOR = 0x08F2
 PRODUCT = 0x6811
-HID_ID = f"0003:{VENDOR:08X}:{PRODUCT:08X}"
+BUS_USB = 0x03
+HID_ID = f"{BUS_USB:04X}:{VENDOR:08X}:{PRODUCT:08X}"
+DEVICE_NAME = "SDD Tablet T1161"
+DEVICE_VERSION = 2
+
+PEN_INTERFACE = "01"
+BUTTON_INTERFACE = "02"
+HIDRAW_READ_BYTES = 64
+HIDRAW_POLL_S = 0.25
+UNLOCK_SETTLE_S = 0.3
 
 PEN_REPORT_ID = 9
 PEN_REPORT_LEN = 10
@@ -61,6 +70,8 @@ OUT_MAX = 32767
 
 DEFAULT_CALIB = {"x_min": 16384, "x_max": 32767, "y_min": 0, "y_max": 32767}
 CALIB_PATH = "/var/lib/tablet-driver/calibration.json"
+CALIB_SAMPLES_MIN = 200
+CALIB_SPAN_MIN = 4096
 
 UNLOCK_COMMANDS = [
     bytes([0x08, 0x03, 0xFC, 0x03, 0x87, 0x00, 0xFF, 0xF0]),
@@ -98,7 +109,7 @@ def wait_for_hidraw(interface: str, timeout: float) -> str | None:
         node = find_hidraw(interface)
         if node:
             return node
-        time.sleep(0.25)
+        time.sleep(HIDRAW_POLL_S)
     return None
 
 
@@ -143,8 +154,18 @@ def unlock(node: str) -> bool:
     return True
 
 
+def uinput_create(caps: dict, name: str, **extra):
+    """A uinput device under the tablet's own ids, BUS_USB so udev classifies it like a real tablet."""
+    from evdev import UInput
+
+    ui = UInput(caps, name=name, vendor=VENDOR, product=PRODUCT, version=DEVICE_VERSION, bustype=BUS_USB, **extra)
+    node = getattr(getattr(ui, "device", None), "path", None) or "pending"
+    log(f"uinput: created {ui.name} at {node}")
+    return ui
+
+
 def make_uinput(calib: dict):
-    from evdev import AbsInfo, UInput
+    from evdev import AbsInfo
     from evdev import ecodes as e
 
     res_x = round(OUT_MAX / AREA_W_MM)
@@ -166,17 +187,7 @@ def make_uinput(calib: dict):
             (e.ABS_TILT_Y, AbsInfo(0, -127, 127, 0, 0, 0)),
         ],
     }
-    ui = UInput(
-        caps,
-        name="SDD Tablet T1161",
-        vendor=VENDOR,
-        product=PRODUCT,
-        version=2,
-        bustype=0x03,  # BUS_USB, so udev classifies it like a real tablet
-        input_props=[e.INPUT_PROP_DIRECT],
-    )
-    node = getattr(getattr(ui, "device", None), "path", None) or "pending"
-    log(f"uinput: created {ui.name} at {node}")
+    ui = uinput_create(caps, DEVICE_NAME, input_props=[e.INPUT_PROP_DIRECT])
     log("uinput: X raw {x_min}..{x_max} -> 0..{m}, Y raw {y_min}..{y_max} -> 0..{m}".format(m=OUT_MAX, **calib))
     return ui
 
@@ -189,21 +200,9 @@ def make_keys_uinput():
     an application that has grabbed the pad. As a plain keyboard the keys go
     through the compositor's normal keybinding path instead.
     """
-    from evdev import UInput
     from evdev import ecodes as e
 
-    caps = {e.EV_KEY: [getattr(e, name) for name in EXPRESS_KEY_NAMES]}
-    ui = UInput(
-        caps,
-        name="SDD Tablet T1161 Keys",
-        vendor=VENDOR,
-        product=PRODUCT,
-        version=2,
-        bustype=0x03,
-    )
-    node = getattr(getattr(ui, "device", None), "path", None) or "pending"
-    log(f"uinput: created {ui.name} at {node} ({len(EXPRESS_KEY_NAMES)} keys)")
-    return ui
+    return uinput_create({e.EV_KEY: [getattr(e, name) for name in EXPRESS_KEY_NAMES]}, f"{DEVICE_NAME} Keys")
 
 
 def scale(value: int, lo: int, hi: int) -> int:
@@ -253,25 +252,21 @@ def save_calibration(path: str, calib: dict) -> None:
 
 
 def read_pen_reports(fd: int, duration: float):
-    """Yield (status, x, y, pressure, tilt_x, tilt_y) for `duration` seconds."""
+    """Yield (status, x, y) of every full pen report for `duration` seconds."""
     deadline = time.time() + duration
     while time.time() < deadline:
         ready, _, _ = select.select([fd], [], [], 0.2)
         if not ready:
             continue
         try:
-            data = os.read(fd, 64)
+            data = os.read(fd, HIDRAW_READ_BYTES)
         except OSError as exc:
             if exc.errno in (errno.EAGAIN, errno.EINTR):
                 continue
             raise
-        if not data or data[0] != PEN_REPORT_ID or len(data) < 8:
+        if len(data) < PEN_REPORT_LEN or data[0] != PEN_REPORT_ID:
             continue
-        status = data[1]
-        x, y, pressure = struct.unpack_from("<HHH", data, 2)
-        tilt_x = struct.unpack_from("b", data, 8)[0] if len(data) > 8 else 0
-        tilt_y = struct.unpack_from("b", data, 9)[0] if len(data) > 9 else 0
-        yield status, x, y, pressure, tilt_x, tilt_y
+        yield (data[1], *struct.unpack_from("<HH", data, 2))
 
 
 def calibrate(node: str, duration: float, path: str) -> int:
@@ -280,14 +275,14 @@ def calibrate(node: str, duration: float, path: str) -> int:
     xs: list[int] = []
     ys: list[int] = []
     try:
-        for status, x, y, _p, _tx, _ty in read_pen_reports(fd, duration):
+        for status, x, y in read_pen_reports(fd, duration):
             if not status & IN_RANGE_BIT:
                 continue
             xs.append(x)
             ys.append(y)
     finally:
         os.close(fd)
-    if len(xs) < 200:
+    if len(xs) < CALIB_SAMPLES_MIN:
         log(f"calibration: only {len(xs)} samples, refusing to guess")
         return 1
     calib = {"x_min": min(xs), "x_max": max(xs), "y_min": min(ys), "y_max": max(ys)}
@@ -297,7 +292,7 @@ def calibrate(node: str, duration: float, path: str) -> int:
         f"calibration: {len(xs)} samples, X {calib['x_min']}..{calib['x_max']} "
         f"(span {span_x}), Y {calib['y_min']}..{calib['y_max']} (span {span_y})"
     )
-    if span_x < 4096 or span_y < 4096:
+    if span_x < CALIB_SPAN_MIN or span_y < CALIB_SPAN_MIN:
         log("calibration: span too small, the pad was not swept fully")
         return 1
     save_calibration(path, calib)
@@ -312,7 +307,7 @@ def run(node: str, calib: dict) -> int:
     fd = os.open(node, os.O_RDONLY | os.O_NONBLOCK)
     log(f"driver: reading pen on {node}")
 
-    btn_node = find_hidraw("02")
+    btn_node = find_hidraw(BUTTON_INTERFACE)
     btn_fd = -1
     if btn_node:
         try:
@@ -397,7 +392,7 @@ def run(node: str, calib: dict) -> int:
 
             if btn_fd in ready:
                 try:
-                    data = os.read(btn_fd, 64)
+                    data = os.read(btn_fd, HIDRAW_READ_BYTES)
                     if not data:
                         close_buttons("button node reached end of file")
                     elif data[0] == BUTTON_REPORT_ID and len(data) >= BUTTON_REPORT_LEN:
@@ -418,7 +413,7 @@ def run(node: str, calib: dict) -> int:
                 continue
 
             try:
-                data = os.read(fd, 64)
+                data = os.read(fd, HIDRAW_READ_BYTES)
             except OSError as exc:
                 if exc.errno in (errno.EAGAIN, errno.EINTR):
                     continue
@@ -491,14 +486,14 @@ def main() -> int:
     args = ap.parse_args()
 
     if not args.no_unlock:
-        iface2 = wait_for_hidraw("02", args.wait)
+        iface2 = wait_for_hidraw(BUTTON_INTERFACE, args.wait)
         if not iface2:
             log("no tablet on USB interface 2; is it plugged in?")
             return 1
         unlock(iface2)
-        time.sleep(0.3)
+        time.sleep(UNLOCK_SETTLE_S)
 
-    iface1 = wait_for_hidraw("01", args.wait)
+    iface1 = wait_for_hidraw(PEN_INTERFACE, args.wait)
     if not iface1:
         log("no tablet on USB interface 1 after unlock")
         return 1

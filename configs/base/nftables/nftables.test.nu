@@ -22,7 +22,7 @@ def load-command [trusted_network: path]: nothing -> string {
     | str replace --all /run/trusted-network $trusted_network
 }
 
-def uid-set [ruleset: list, name: string]: nothing -> list<int> {
+def set-elements [ruleset: list, name: string]: nothing -> list {
     $ruleset | where { $in.set?.name? == $name } | get 0.set.elem? | default []
 }
 
@@ -44,9 +44,9 @@ def main [] {
     let rules = load $command []
     for e in ($ESCAPES | transpose set user) {
         let uid = ^id -u $e.user | str trim | into int
-        if (uid-set $rules $e.set) != [$uid] { fail $"($e.set) is not ($e.user)'s uid ($uid)" }
+        if (set-elements $rules $e.set) != [$uid] { fail $"($e.set) is not ($e.user)'s uid ($uid)" }
     }
-    if ($rules | where { $in.set?.name? == trusted_links } | get 0.set.elem? | default []) != [eth9] {
+    if (set-elements $rules trusted_links) != [eth9] {
         fail "trusted_links did not take /run/trusted-network"
     }
 
@@ -57,6 +57,6 @@ def main [] {
     chmod +x ($shim | path join id)
     let fresh = load $command [$shim]
     rm --recursive --force $dir
-    if (uid-set $fresh tor_uid | is-not-empty) { fail "tor_uid filled without a tor user" }
-    if (uid-set $fresh fetch_uid | is-empty) { fail "no fetch_uid without a tor user" }
+    if (set-elements $fresh tor_uid | is-not-empty) { fail "tor_uid filled without a tor user" }
+    if (set-elements $fresh fetch_uid | is-empty) { fail "no fetch_uid without a tor user" }
 }

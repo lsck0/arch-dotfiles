@@ -9,9 +9,10 @@ export const options = {
     }
 }
 
+const SECRET = "configs/secrets/keys/trmnl-claude.env"
+
 export def link [cfg: record] {
-    let secret = $env.DOTFILES | path join configs secrets keys trmnl-claude.env
-    if not $cfg.poster or not (secret-is-plaintext $secret) { return [] }
+    if not $cfg.poster or not (secret-is-plaintext ($env.DOTFILES | path join $SECRET)) { return [] }
     [
         (file-render trmnl-claude.service (unit-dir | path join trmnl-claude.service) {DIR: $env.PWD})
         (unit-file trmnl-claude.timer --enable --now)

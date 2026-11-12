@@ -16,7 +16,7 @@ def main []: nothing -> nothing {
         exit 1
     }
     let ws = open $ws_config
-    $env.OBS_WEBSOCKET_PASSWORD = $ws.server_password? | default ""
+    $env.OBS_WEBSOCKET_PASSWORD = $ws.server_password
     $env.OBS_WEBSOCKET_URL = $"ws://127.0.0.1:($ws.server_port)"
     exec $bin
 }

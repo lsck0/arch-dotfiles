@@ -1,5 +1,8 @@
 local M = {}
 
+-- the keystroke blocks on the hover, so a slow clangd types a plain dot instead
+local HOVER_TIMEOUT_MS = 40
+
 local function is_pointer_type(hover)
     if not hover or not hover.contents then
         return false
@@ -52,7 +55,7 @@ function M.dot()
     end
     -- clangd's own encoding (utf-16), else columns are off
     local params = vim.lsp.util.make_position_params(0, clients[1].offset_encoding)
-    for _, resp in pairs(vim.lsp.buf_request_sync(0, "textDocument/hover", params, 40) or {}) do
+    for _, resp in pairs(vim.lsp.buf_request_sync(0, "textDocument/hover", params, HOVER_TIMEOUT_MS) or {}) do
         if is_pointer_type(resp.result) then
             return "->"
         end

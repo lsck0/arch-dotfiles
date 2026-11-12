@@ -33,40 +33,16 @@ function M.toggle()
     end
 end
 
-function M.reveal(file)
-    local picker = explorer()
-    if not picker then
-        return
-    end
-    if picker:is_focused() or not picker:on_current_tab() then
-        return
-    end
-
-    file = vim.fs.normalize(file)
-    if not require("snacks.explorer.tree"):in_cwd(picker:cwd(), file) then
-        return
-    end
-
-    local item = picker:current()
-    if item and item.file == file then
-        return
-    end
-
-    require("snacks.explorer.actions").update(picker, { target = file })
-end
-
+-- Selects the current window's file in an open explorer on this tab, without re-rooting it.
 function M.reveal_current()
-    if not explorer() then
+    local picker = explorer()
+    if not picker or picker:is_focused() or not picker:on_current_tab() then
         return
     end
 
     local win = vim.api.nvim_get_current_win()
-    if vim.api.nvim_win_get_config(win).relative ~= "" then
-        return
-    end
-
     local buf = vim.api.nvim_win_get_buf(win)
-    if vim.bo[buf].buftype ~= "" then
+    if vim.api.nvim_win_get_config(win).relative ~= "" or vim.bo[buf].buftype ~= "" then
         return
     end
 
@@ -74,8 +50,15 @@ function M.reveal_current()
     if file == "" or vim.uv.fs_stat(file) == nil then
         return
     end
+    file = vim.fs.normalize(file)
+    if not require("snacks.explorer.tree"):in_cwd(picker:cwd(), file) then
+        return
+    end
 
-    M.reveal(file)
+    local item = picker:current()
+    if not (item and item.file == file) then
+        require("snacks.explorer.actions").update(picker, { target = file })
+    end
 end
 
 return M

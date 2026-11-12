@@ -156,6 +156,8 @@ def lines-of [file: path, shape: string]: nothing -> list<string> {
     if ($file | path exists) { open --raw $file | lines | where $it =~ $shape | each { gateway-line } } else { [] }
 }
 
+def lines-save [file: path]: list<string> -> nothing { each { $"($in)\n" } | str join | save --force $file }
+
 # Copies the secrets' list name into dest; a line of another shape (or none, --nonempty) fails and keeps the last copy.
 def secret-import [name: string, shape: string, dest: path, what: string, --nonempty]: nothing -> nothing {
     let secret = system-secret $name
@@ -165,7 +167,7 @@ def secret-import [name: string, shape: string, dest: path, what: string, --none
     if ($lines | any {|l| not ($l =~ $shape or $l =~ '^(#.*)?$') }) or ($nonempty and ($good | is-empty)) {
         error make {msg: $"networkmanager: ($name) is not ($what) per line, keeping ($dest)"}
     }
-    $good | each { $"($in | gateway-line)\n" } | str join | save --force $dest
+    $good | each { gateway-line } | lines-save $dest
 }
 
 # home-gateways = the secrets' lines (kept while locked) + the install answer (.local) + home_gateways;
@@ -181,22 +183,22 @@ export def home [home_wired: string, trusted: string, ...gateways: string]: noth
     secret-import trusted-gateways $MAC $secret_trusted "one mac address"
     let wifi = system-secret wifi
     if ($wifi | path exists) {
-        open --raw $wifi | lines | each { split row "\t" | first } | where $it != "" | each { $"($in)\n" } | str join
-        | save --force $secret_ssids
+        open --raw $wifi | lines | each { split row "\t" | first } | where $it != "" | lines-save $secret_ssids
     }
     let local = lines-of $"($NM)/home-gateways.local" $HOME_LINE
     let want = (lines-of $secret_gateways $HOME_LINE) ++ $local ++ ($gateways | each { gateway-line }) | uniq
-    $want | each { $"($in)\n" } | str join | save --force $"($NM)/home-gateways"
+    $want | lines-save $"($NM)/home-gateways"
     let trusted_want = (lines-of $secret_trusted $MAC) ++ ($trusted | split row "," | where $it != "" | str lowercase) | uniq
-    $trusted_want | each { $"($in)\n" } | str join | save --force $"($NM)/trusted-gateways"
+    $trusted_want | lines-save $"($NM)/trusted-gateways"
 
     let ssids = if ($secret_ssids | path exists) { open --raw $secret_ssids | lines | where $it != "" } else { [] }
     let profiles = ^nmcli -g UUID,TYPE connection show | lines | parse "{uuid}:{type}"
+    let active = ^nmcli -g UUID connection show --active | lines
     for p in ($profiles | where type == 802-11-wireless) {
         let mac = ^nmcli -g 802-11-wireless.cloned-mac-address connection show $p.uuid | str trim
         if (^nmcli -g 802-11-wireless.ssid connection show $p.uuid | str trim) in $ssids and $mac != "permanent" {
             ^nmcli connection modify $p.uuid 802-11-wireless.cloned-mac-address permanent ipv6.method auto
-            if $p.uuid in (^nmcli -g UUID connection show --active | lines) { ^nmcli connection up $p.uuid | ignore }
+            if $p.uuid in $active { ^nmcli connection up $p.uuid | ignore }
         }
     }
     if $home_wired == "true" {

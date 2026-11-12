@@ -133,7 +133,7 @@ export def link [cfg: record] {
         (files-into ($config | path join environment.d) app-dirs.conf)
         (dropin xdg-document-portal.service doc-portal.conf --name 10-success-exit.conf)
         ($RECLAIM | where mode != move and ((home $it.name | path type) not-in [dir file]) | each {|r|
-            file-link (home $r.target) (home $r.name)
+            file-link (reclaim-target $r) (home $r.name)
         })
         (file-copy home.hidden (home .hidden))
         (autostart-hidden | each {|id|

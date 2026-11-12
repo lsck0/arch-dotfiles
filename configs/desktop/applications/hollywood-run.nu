@@ -3,7 +3,7 @@
 
 const SERVER = "hollywood"
 # hollywood calls tmux and byobu by name, so both resolve to the private server
-const SHIM = "#!/bin/sh\nexec /usr/bin/tmux -L hollywood -f /dev/null \"$@\"\n"
+const SHIM = $"#!/bin/sh\nexec /usr/bin/tmux -L ($SERVER) -f /dev/null \"$@\"\n"
 
 def --wrapped main [...args: string]: nothing -> nothing {
     if ($args | get --optional 0) in ["-h" "--help"] { print "usage: hollywood-run [args...]: hollywood on a private tmux server"; return }

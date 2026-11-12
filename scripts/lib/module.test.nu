@@ -1,16 +1,22 @@
 #!/usr/bin/env -S nu --no-config-file
-# Table cases for desktop-set (whole keys replaced, regex characters taken literally) and decls-flatten (any depth).
+# Table cases for desktop-set (whole keys replaced or added in the [Desktop Entry] group only) and decls-flatten (any
+# depth).
 use module.nu [desktop-set decls-flatten]
 use std/assert
 
 def main [] {
-    let entry = "[Desktop Entry]\nName=App\nExec=app %U\nX-Key.a=1\n[Desktop Action new]\nExec=app --new\n"
+    let action = "\n[Desktop Action new]\nExec=app --new\nIcon=new\n"
+    let entry = $"[Desktop Entry]\nName=App\nExec=app %U\nX-Key.a=1\nName[de]=Anw\n($action)"
     let cases = [
         [name values wants];
-        ["plain value" {Exec: "app --flag %U"} "[Desktop Entry]\nName=App\nExec=app --flag %U\nX-Key.a=1\n[Desktop Action new]\nExec=app --new\n"]
-        ["dollar in the value" {Exec: "env A=$HOME app $1"} "[Desktop Entry]\nName=App\nExec=env A=$HOME app $1\nX-Key.a=1\n[Desktop Action new]\nExec=app --new\n"]
-        ["regex in the key" {"X-Key.a": 2} "[Desktop Entry]\nName=App\nExec=app %U\nX-Key.a=2\n[Desktop Action new]\nExec=app --new\n"]
-        ["absent key" {Icon: "app"} $entry]
+        ["plain value" {Exec: "app --flag %U"} ($entry | str replace "Exec=app %U" "Exec=app --flag %U")]
+        ["dollar in the value" {Exec: "env A=$HOME app $1"} ($entry | str replace "Exec=app %U" "Exec=env A=$HOME app $1")]
+        ["regex in the key" {"X-Key.a": 2} ($entry | str replace "X-Key.a=1" "X-Key.a=2")]
+        ["localized key kept" {Name: "Tool"} ($entry | str replace "Name=App" "Name=Tool")]
+        ["absent key, present in an action" {Icon: "app"} ($entry | str replace "]\nName=App" "]\nIcon=app\nName=App")]
+        ["absent key with a dollar" {NoDisplay: true, X-Run: "a $1"} ($entry | str replace "]\nName" "]\nNoDisplay=true\nX-Run=a $1\nName")]
+        ["present and absent" {NoDisplay: false, Name: "Tool"} ($entry | str replace "]\nName=App" "]\nNoDisplay=false\nName=Tool")]
+        ["no values" {} $entry]
     ]
     for c in $cases {
         let got = $entry | desktop-set $c.values

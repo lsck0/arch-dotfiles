@@ -1,9 +1,12 @@
 #!/usr/bin/env -S nu --no-config-file
 
+const REPO = path self | path expand | path dirname --num-levels 4
+use ($REPO | path join scripts lib state.nu) [xdg]
+
 const PROMPT = '(λ|❯|[$%#])[[:space:]]*$'
 const PROMPT_TIMEOUT_MS = 600000
 # "<sha256>  <path>" per allowed .herdr-create: a cloned repo's script never runs until allowed, like direnv allow
-const TRUST = ($nu.home-dir | path join .local state herdr create-allowed)
+def trust-file []: nothing -> path { xdg state herdr create-allowed }
 
 # Runs argv once the pane shows a prompt: herdr pane run drops keystrokes typed before direnv/devenv is ready.
 def pane-run [pane: string, ...argv: string]: nothing -> nothing {
@@ -14,16 +17,18 @@ def pane-run [pane: string, ...argv: string]: nothing -> nothing {
 def create-line [create: path]: nothing -> string { $"(open --raw $create | hash sha256)  ($create)" }
 
 export def create-allowed [create: path]: nothing -> bool {
-    ($TRUST | path exists) and ((create-line $create) in (open --raw $TRUST | lines))
+    let trust = trust-file
+    ($trust | path exists) and ((create-line $create) in (open --raw $trust | lines))
 }
 
 # Allow <dir>'s current .herdr-create; editing it afterwards needs a new allow.
 def "main allow" [dir: path]: nothing -> nothing {
     let create = $dir | path join .herdr-create | path expand
     if not ($create | path exists) { error make {msg: $"no ($create)"} }
-    let kept = if ($TRUST | path exists) { open --raw $TRUST | lines | where { not ($in | str ends-with $"  ($create)") } } else { [] }
-    mkdir ($TRUST | path dirname)
-    $kept | append (create-line $create) | str join "\n" | $"($in)\n" | save --force $TRUST
+    let trust = trust-file
+    let kept = if ($trust | path exists) { open --raw $trust | lines | where { not ($in | str ends-with $"  ($create)") } } else { [] }
+    mkdir ($trust | path dirname)
+    $kept | append (create-line $create) | str join "\n" | $"($in)\n" | save --force $trust
 }
 
 # Focus the herdr workspace for <dir>, or create it with nvim, claude and zsh tabs (or run its allowed .herdr-create).

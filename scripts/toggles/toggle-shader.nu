@@ -2,12 +2,13 @@
 # Each .frag carries @label/@variants/@animated/@themed headers; any shader costs direct scanout.
 
 use lib.nu [status-record status-print notify state-get state-set quickshell-call hyprland-instance]
+use ../lib/state.nu [xdg]
 
 const DAMAGE_FULL = 2
 const DAMAGE_NONE = 0
 
-def shader-dir []: nothing -> path { $nu.home-dir | path join .config hypr shaders }
-def render-dir []: nothing -> path { $env.XDG_RUNTIME_DIR | path join shaders }
+def shader-dir []: nothing -> path { xdg config hypr shaders }
+def render-dir []: nothing -> path { xdg runtime shaders }
 
 def shaders []: nothing -> table {
     glob (shader-dir | path join *.frag) | sort | each {|file|

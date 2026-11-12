@@ -13,7 +13,6 @@ export const meta = {
     }
 }
 
-const PLUGIN_DIR = ".local/share/nvim/lazy"
 const TREESITTER_TIMEOUT_MS = 600000
 # every plugin clone, then the mason tools and the parsers compiled one by one
 const PREFETCH_TIMEOUT = 45min
@@ -64,7 +63,7 @@ def plugins-stale []: nothing -> list<string> {
     let enabled = plugins-enabled
     open lazy-lock.json | items {|name, pin|
         if $name not-in $enabled { return null }
-        let git = $nu.home-dir | path join $PLUGIN_DIR $name .git
+        let git = xdg data nvim lazy $name .git
         if not ($git | path exists) or (head-commit $git) != $pin.commit { $name }
     } | compact
 }
@@ -160,7 +159,7 @@ export def theme-push []: nothing -> nothing {
     let name = xdg cache $THEME_MARKER
     if not ($name | path exists) { return }
     let expr = $"luaeval\('require\(\"theme\"\).apply\(\"(open --raw $name | str trim)\"\)'\)"
-    for server in (glob ($env.XDG_RUNTIME_DIR? | default "/tmp" | path join "nvim.*")) {
+    for server in (glob (xdg runtime "nvim.*")) {
         try { ^timeout 5 nvim --server $server --remote-expr $expr o+e>| ignore }
     }
 }

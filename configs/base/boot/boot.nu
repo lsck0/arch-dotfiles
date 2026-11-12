@@ -1,6 +1,7 @@
 # only archinstall's layout: uefi, the fat esp at /boot (fmask/dmask 0077, root reads it)
 
 export const ESP = "/boot"
+export const EFI_SYSFS = "/sys/firmware/efi"
 export const CMDLINE = "/etc/kernel/cmdline"
 export const MKINITCPIO = "/etc/mkinitcpio.conf"
 export const PRESETS = "/etc/mkinitcpio.d"
@@ -21,7 +22,7 @@ export const BOOT_WATCH = [
 ]
 
 export def esp-supported []: nothing -> bool {
-    ("/sys/firmware/efi" | path exists) and (^stat -f -c %T $ESP | str trim) == "msdos"
+    ($EFI_SYSFS | path exists) and (^stat -f -c %T $ESP | str trim) == "msdos"
 }
 
 export def backup-once [file: path]: nothing -> nothing {

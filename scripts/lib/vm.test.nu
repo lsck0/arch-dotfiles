@@ -5,10 +5,10 @@
 use vm.nu [vm-scenario-plan vm-snapshot-edits vm-verify vm-homelab vm-network vm-network-command vm-processes vm-plan-lines]
 use ../../platforms/homelab.nu [HOMELAB]
 use state.nu [xdg]
+use invariants.nu [invariants-load]
 use std/assert
 
 const REPO = path self ../..
-const INVARIANTS = path self invariants.txt
 const HOST = {lan: ["192.168.178.0/24"], lab: $HOMELAB.subnets, home_dns: $HOMELAB.router}
 const STAGES_OK = "install: ok\nconfig: ok\n"
 const STAGES_PLANTED = "install: failed, see install.log\nconfig: ok\n"
@@ -23,8 +23,7 @@ def plan [spec: string, platform: any, profile: any]: nothing -> any {
 def logs-write [dir: path, facts: record, failures: record, stage: string, errors: int]: nothing -> nothing {
     rm --recursive --force $dir
     mkdir $dir
-    let fixed = open --raw $INVARIANTS | lines | where {|l| $l != "" and not ($l | str starts-with "#") }
-        | parse --regex '^(?<key>\S+)\s+(?<want>\S+)\s+' | where want != "any"
+    let fixed = invariants-load | where want != "any"
         | reduce --fold {backup_roundtrip: ok, chain_stopped: no} {|i, acc| $acc | insert $i.key $i.want }
         | merge $facts
     $fixed | items {|k, v| $"($k)=($v)" } | str join "\n" | save ($dir | path join verify.log)

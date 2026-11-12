@@ -3,7 +3,7 @@
 const REPO = path self | path expand | path dirname --num-levels 4
 use ($REPO | path join scripts lib state.nu) [xdg]
 
-const DOT = path self | path expand | path dirname | path join ../../../scripts/dot.nu | path expand
+const DOT = $REPO | path join scripts dot.nu
 const SHOWN_LINES = 5
 const SHOWN_WIDTH = 160
 
@@ -14,7 +14,7 @@ def main []: nothing -> nothing {
     print --stderr --no-newline $run.stderr
     # 1 means findings, but guarded also exits 1 on a crash: findings always print a line, a crash prints none
     if $run.exit_code > 1 or ($run.exit_code == 1 and ($run.stdout | str trim | is-empty)) {
-        exit ([$run.exit_code 1] | math max)
+        exit $run.exit_code
     }
     let findings = $run.stdout | lines
     let digest = $findings | str replace --all --regex '[0-9]+' N | str join "\n" | hash sha256

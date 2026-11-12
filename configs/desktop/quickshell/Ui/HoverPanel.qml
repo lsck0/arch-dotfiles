@@ -97,7 +97,6 @@ PanelWindow {
 
   WlrLayershell.namespace: "quickshell-panel-" + (moduleName || "panel")
   WlrLayershell.layer: WlrLayer.Overlay
-  property bool acceptsKeyboard: true
   property bool pinned: false
   readonly property bool textFocused: {
     var f = keys.Window.activeFocusItem
@@ -105,7 +104,7 @@ PanelWindow {
   }
   readonly property bool held: pinned || barPinned || textFocused
   onHeldChanged: if (!held && !hover.hovered && bar) bar.hoverPanelExit(moduleName)
-  WlrLayershell.keyboardFocus: !root.acceptsKeyboard || !root.shown ? WlrKeyboardFocus.None
+  WlrLayershell.keyboardFocus: !root.shown ? WlrKeyboardFocus.None
     : root.keyboardOpened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
 
   property bool clicked: false

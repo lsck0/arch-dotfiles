@@ -1,6 +1,4 @@
-# What the apply (mod.nu) and aa share about own profiles and apparmor.d's source, and a profile line's mode flag:
-# the old complain or unconfined flag goes, the new one joins the flags or, on a line without flags, gets its own
-# flags=().
+# What the apply (mod.nu) and aa share: where own profiles and apparmor.d's sources live, a profile line's mode.
 
 export const MARKER = "# managed by arch-dotfiles/apparmor"
 # an own profile's file: never the bare name, which the apparmor package owns and aa-install's overwrite.d disables
@@ -15,6 +13,8 @@ export def upstream-files [source: path = $SOURCE]: nothing -> list<path> {
     glob $"($source)/**/*" --no-dir | where not ($it =~ '/(abstractions|tunables)/')
 }
 
+# The old complain or unconfined flag goes, the new one joins the flags or, on a line without flags, gets its own
+# flags=(); enforce is the absence of both.
 export def profile-mode [mode: string]: string -> string {
     let bare = $in
         | str replace --regex '\s*flags=\((complain|unconfined)\)' ''

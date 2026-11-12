@@ -7,10 +7,9 @@ Label {
 
   property bool loading: false
   property string error: ""
-  property bool detailed: false
   property real updatedMs: 0
   property real staleAfterMs: 0
-  readonly property int minuteMs: 60000
+  readonly property int msPerMinute: 60 * 1000
 
   property real nowMs: Date.now()
   readonly property bool hasData: updatedMs > 0
@@ -23,7 +22,7 @@ Label {
   readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true) // qmllint disable missing-property
 
   Timer {
-    interval: root.minuteMs
+    interval: root.msPerMinute
     repeat: true
     running: root.onScreen && root.hasData && root.staleAfterMs > 0
     onTriggered: root.nowMs = Date.now()
@@ -31,8 +30,8 @@ Label {
   onUpdatedMsChanged: nowMs = Date.now()
 
   text: freshness === "loading" ? "--"
-    : freshness === "error" ? "x ERR" + (detailed ? " " + error : "")
-    : freshness === "stale" ? " ~" + Util.span((nowMs - updatedMs) / minuteMs)
+    : freshness === "error" ? "x ERR"
+    : freshness === "stale" ? " ~" + Util.span((nowMs - updatedMs) / msPerMinute)
     : ""
   color: freshness === "error" ? Colors.urgentText : Colors.textDim
   caption: true

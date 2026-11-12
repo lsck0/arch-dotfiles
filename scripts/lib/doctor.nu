@@ -10,12 +10,12 @@ use preserve.nu [preserve-report]
 use pipeline.nu [pipeline-load PENDING_FILE]
 use modules.nu [modules-packages]
 use cause.nu [failures-group]
+use invariants.nu [invariants-load]
 use ../../configs/base/yubikey/audit.nu [audit-findings]
 
 # the boot chain barrier's record (base/boot/systemd-boot's meta.barrier): when it last went through
 const BOOT_BARRIER = "modules/base/boot/systemd-boot/barrier.nuon"
 const REPO = path self ../..
-const INVARIANTS = path self invariants.txt
 const PROFILES_CONF = path self ../../configs/base/apparmor/profiles.conf
 const LUKS_TOKENS = [TPM2 FIDO2]
 const LUKS_TOKEN_MISSING = 'No valid (?<token>TPM2|FIDO2) token data found'
@@ -109,9 +109,7 @@ def reboot []: nothing -> list<record> {
 }
 
 def invariants []: nothing -> list<record> {
-    open --raw $INVARIANTS | lines | where $it != "" and not ($it | str starts-with "#")
-    | parse --regex '^(?<key>\S+)\s+(?<want>\S+)\s+(?<where>\S+)\s+(?<probe>.*)$' | where where == live
-    | each {|i|
+    invariants-load | where where == live | each {|i|
         let value = do { ^bash -c $i.probe } | complete | get stdout | str trim
         if $value == "n/a" { return null }
         if $value == $INVARIANT_PENDING {

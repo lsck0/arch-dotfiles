@@ -176,11 +176,11 @@ QtObject {
     return Qt.color(Palette.rgbToHex(Palette.shade([bg.r, bg.g, bg.b], amount, Theme.values.lightLuminance), "#"))
   }
 
-  function conditionPalette(raw, fallback) {
+  // raw is colors.json text or its parsed object; a role it lacks keeps the current colour
+  function conditionPalette(raw) {
     var parsed = typeof raw === "string" ? JSON.parse(raw || "{}") : (raw || {})
-    var f = fallback || root
     var hex = {}
-    for (const role of ["background", "foreground", "accent", "accent2", "urgent", "muted"]) hex[role] = Palette.rgbToHex([f[role].r, f[role].g, f[role].b], "#")
+    for (const role of ["background", "foreground", "accent", "accent2", "urgent", "muted"]) hex[role] = Palette.rgbToHex([root[role].r, root[role].g, root[role].b], "#")
     var p = Palette.conditionPalette(parsed, hex, Object.assign({}, Theme.values, {
       "urgentRed": Palette.rgbToHex([root.semantic.live.r, root.semantic.live.g, root.semantic.live.b], "#"),
       "accent2Contrast": root.accent2Contrast,

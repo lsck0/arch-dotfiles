@@ -2,9 +2,9 @@ use module.nu *
 
 export const meta = {packages: {pacman: [fig2dev inkscape optipng uv]}}
 
-# MCP_RELEASED freezes its deps at the release date; bump both together
+# MCP_FROZEN cuts off its deps (mcp-uvx); bump both together
 const MCP_VERSION = "1.3.1"
-const MCP_RELEASED = "2026-09-01"
+const MCP_FROZEN = "2026-09-01"
 # inkex pins lxml 5.4.0, which has no wheel for and fails to build on python 3.14
 const MCP_PYTHON = "3.12"
 # inkscape merges its preferences over the built-in ones by group id, so this group alone is a complete file
@@ -15,20 +15,12 @@ def start-screen-set [file: path]: nothing -> bool {
 }
 
 export def link [cfg: record] {
-    if (which inkscape uvx | length) < 2 { return [] }
-    let pkg = $"inkscape-mcp==($MCP_VERSION)"
+    if (which inkscape | is-empty) { return [] }
     let preferences = xdg config inkscape preferences.xml
     [
         (step start-screen-off $preferences --done=(start-screen-set $preferences))
-        (mcp-servers {inkscape-mcp: {
-            type: stdio
-            command: uvx
-            args: [--python $MCP_PYTHON --exclude-newer $MCP_RELEASED --from $pkg inkscape-mcp --mode stdio]
-            env: {FASTMCP_CHECK_FOR_UPDATES: "off"}
-        }})
-        (exec "inkscape-mcp cache" [
-            uvx --python $MCP_PYTHON --exclude-newer $MCP_RELEASED --from $pkg python -c "import inkscape_mcp"
-        ] --key $"($pkg)@($MCP_RELEASED)-py($MCP_PYTHON)" --network)
+        (mcp-uvx inkscape-mcp $"inkscape-mcp==($MCP_VERSION)" $MCP_FROZEN [inkscape-mcp --mode stdio] inkscape_mcp
+            --python $MCP_PYTHON --env-vars {FASTMCP_CHECK_FOR_UPDATES: "off"})
     ]
 }
 

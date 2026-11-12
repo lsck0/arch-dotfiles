@@ -104,9 +104,10 @@ class COMFY_OT_texture(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        busy = _job["thread"] is not None
         return (
-            not busy and context.scene.comfy_prompt.strip() and any(o.type == "MESH" for o in context.selected_objects)
+            _job["thread"] is None
+            and context.scene.comfy_prompt.strip()
+            and any(o.type == "MESH" for o in context.selected_objects)
         )
 
     def execute(self, context):

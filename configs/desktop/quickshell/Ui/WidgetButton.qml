@@ -17,7 +17,6 @@ Item {
   property bool dimmed: false
   property bool concealed: false
   property bool interactive: true
-  property bool pressable: true
   property bool useActiveColor: true
   property bool labelVisible: true
   // tints the button while hovered or pressed; off where the parent BarWidget already tints on hover
@@ -57,7 +56,7 @@ Item {
   Rectangle {
     anchors.fill: parent
     z: -1
-    visible: root.hoverFill && root.interactive && root.pressable
+    visible: root.hoverFill && root.interactive
     radius: Style.shape.data
     color: mouseArea.pressed ? Style.pressedFill : mouseArea.containsMouse ? Style.hoverFill : "transparent"
     Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
@@ -89,10 +88,10 @@ Item {
     acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
     enabled: root.interactive
     hoverEnabled: true
-    cursorShape: root.pressable ? Qt.PointingHandCursor : Qt.ArrowCursor
+    cursorShape: Qt.PointingHandCursor
     onEntered: { if (root.bar) root.bar.showTooltip(root, root.tooltipText); root.entered() }
     onExited: { if (root.bar) root.bar.hideTooltip(root); root.exited() }
-    onClicked: function(mouse) { if (root.pressable) root.triggerPress(mouse.button) }
+    onClicked: function(mouse) { root.triggerPress(mouse.button) }
     onWheel: function(wheel) { root.wheelMoved(wheel.angleDelta.y) }
   }
 }

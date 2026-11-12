@@ -4,7 +4,7 @@ use log.nu *
 use state.nu [xdg]
 use cli.nu [root-runner]
 use sync.nu [bootstrap-const FINGERPRINT_VALUE]
-use homelab.nu [LSCK0_SECTION LSCK0_SERVER_PLACEHOLDER]
+use homelab.nu [LSCK0_SERVER_PLACEHOLDER lsck0-section]
 use ../../platforms/homelab.nu [HOMELAB]
 
 const REPO = path self ../..
@@ -46,10 +46,7 @@ def keyring-write [dir: path]: nothing -> nothing {
 }
 
 def pacman-live [releng_conf: path]: nothing -> string {
-    let section = open --raw ($REPO | path join $PACMAN_CONF) | lines | reduce --fold {inside: false, out: []} {|l, acc|
-        let inside = if ($l | str starts-with "[") { $l == $LSCK0_SECTION } else { $acc.inside }
-        {inside: $inside, out: (if $inside { $acc.out | append $l } else { $acc.out })}
-    } | get out | str join "\n" | str replace $LSCK0_SERVER_PLACEHOLDER $HOMELAB.mirror.lsck0
+    let section = open --raw ($REPO | path join $PACMAN_CONF) | lsck0-section | str replace $LSCK0_SERVER_PLACEHOLDER $HOMELAB.mirror.lsck0
     $"(open --raw $releng_conf | str trim --right)\n\n($section | str trim --right)\n"
 }
 

@@ -44,6 +44,7 @@ local PROMPT_TAIL_CHARS = 400
 local SERVER_POLL_MS = 250
 local SERVER_START_TIMEOUT_MS = 60000
 local REQUEST_TIMEOUT_S = "60"
+local SERVER_PROBE_TIMEOUT_S = "1"
 -- whisper's initial prompt biases it toward the words a coder says
 local WHISPER_PROMPT = "LaTeX, Neovim, Lua, Rust, Python, Nushell, function, variable, integral, theorem, lemma, "
     .. "omega, epsilon, delta, dx wedge dy, d omega, partial, manifold, tensor, sum, product."
@@ -52,7 +53,7 @@ local NS = vim.api.nvim_create_namespace("dictate")
 local session = nil
 
 local function model_path()
-    local data = os.getenv("XDG_DATA_HOME") or (vim.env.HOME .. "/.local/share")
+    local data = vim.env.XDG_DATA_HOME or (vim.env.HOME .. "/.local/share")
     return data .. "/whisper-cpp/" .. MODEL_FILE
 end
 
@@ -385,7 +386,7 @@ local function words(text)
 end
 
 local function word_key(w)
-    return (w or ""):lower():gsub("[%p]", "")
+    return ((w or ""):lower():gsub("%p", ""))
 end
 
 -- The window's new text, split where the older piece ends: near its old word count, preferring the cut after the
@@ -482,7 +483,10 @@ end
 local function finalize(s, piece)
     s.final_tail = (s.final_tail .. " " .. piece.text):sub(-PROMPT_TAIL_CHARS)
     if not s.rewrite or piece.text == "" then
-        vim.api.nvim_buf_del_extmark(s.buf, NS, piece.id)
+        -- the buffer may have been wiped while dictating
+        if vim.api.nvim_buf_is_valid(s.buf) then
+            vim.api.nvim_buf_del_extmark(s.buf, NS, piece.id)
+        end
         return
     end
     table.insert(s.held, piece)
@@ -497,9 +501,9 @@ local function flush_rewrite(s)
     end
     local row, col = mark_range(s, pieces[1].id)
     local _, _, end_row, end_col = mark_range(s, pieces[#pieces].id)
-    local words = {}
+    local texts = {}
     for _, piece in ipairs(pieces) do
-        table.insert(words, piece.text)
+        table.insert(texts, piece.text)
         vim.api.nvim_buf_del_extmark(s.buf, NS, piece.id)
     end
     local span = {
@@ -512,10 +516,8 @@ local function flush_rewrite(s)
     }
     local before = context(s.buf, row, col)
     local _, after = context(s.buf, end_row, end_col)
-    s.rewrites = s.rewrites + 1
-    rewrite(s.ft, before, after, table.concat(words, " "), function(text)
+    rewrite(s.ft, before, after, table.concat(texts, " "), function(text)
         vim.schedule(function()
-            s.rewrites = s.rewrites - 1
             if text and vim.api.nvim_buf_is_valid(s.buf) then
                 set_piece(s, span, text)
             end
@@ -575,7 +577,6 @@ local function transcribe_piece(s, pcm, done)
                 older, fresh = split_words(text, prev.text)
                 -- an empty window (silence, noise) is no correction: it would erase words already dictated
                 if older ~= "" and older ~= prev.text then
-                    s.revisions = s.revisions + 1
                     set_piece(s, prev, older)
                 end
             end
@@ -649,7 +650,8 @@ process_next = function(s)
 end
 
 local function wait_ready(s, started)
-    vim.system({ "curl", "-sf", "-o", "/dev/null", "-m", "1", ("http://127.0.0.1:%d/"):format(s.port) }, {}, function(r)
+    local url = ("http://127.0.0.1:%d/"):format(s.port)
+    vim.system({ "curl", "-sf", "-o", "/dev/null", "-m", SERVER_PROBE_TIMEOUT_S, url }, {}, function(r)
         vim.schedule(function()
             if s.server_exited then
                 return
@@ -704,8 +706,6 @@ function M.enable(rewrite_speech)
         open = {},
         held = {},
         final_tail = "",
-        rewrites = 0,
-        revisions = 0,
     }
     session = s
     s.server = vim.system({
@@ -763,7 +763,6 @@ function M.enable(rewrite_speech)
             end
         end)
     end)
-    vim.g.dictate_active = rewrite_speech and "rewrite" or "plain"
     notify(rewrite_speech and "on, rewriting each piece; <M-V> turns it off" or "on; <M-v> turns it off")
 end
 
@@ -774,7 +773,6 @@ function M.disable()
         return
     end
     s.stopping = true
-    vim.g.dictate_active = nil
     s.recorder:kill(SIGTERM)
     s.vad.flush()
     notify("finishing")
@@ -811,11 +809,6 @@ function M.toggle(rewrite_speech)
     else
         M.enable(rewrite_speech)
     end
-end
-
--- The running session, for tests and statuslines.
-function M.state()
-    return session
 end
 
 function M.setup()

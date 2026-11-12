@@ -1,4 +1,4 @@
-local installed = require("lib.mason_packages")
+local mason_packages = require("lib.mason_packages")
 
 return {
     {
@@ -23,6 +23,7 @@ return {
             "MasonToolsInstall",
             "MasonToolsInstallSync",
             "MasonToolsUpdate",
+            "MasonToolsUpdateSync",
         },
         dependencies = {
             { "neovim/nvim-lspconfig" },
@@ -82,7 +83,7 @@ return {
             registry:on("package:install:success", install_end)
             registry:on("package:install:failed", install_end)
             require("mason-tool-installer").setup({
-                ensure_installed = installed,
+                ensure_installed = mason_packages,
                 run_on_start = true,
             })
             -- lazy-loaded on a later buffer, VimEnter has already fired then
@@ -169,7 +170,9 @@ return {
             -- root at the typos config, else its allowlist is ignored
             vim.lsp.config("typos_lsp", {
                 root_markers = { ".typos.toml", "_typos.toml", "typos.toml", ".git" },
-                init_options = { config = vim.fn.expand("~/.config/typos/typos.toml") },
+                init_options = {
+                    config = (vim.env.XDG_CONFIG_HOME or (vim.env.HOME .. "/.config")) .. "/typos/typos.toml",
+                },
             })
 
             local vue_plugin = vim.fn.stdpath("data")
@@ -383,14 +386,26 @@ return {
             }
 
             local formatters_by_ft = {
+                bash = { "shfmt" },
                 bib = { "bibtex-tidy" },
                 c = { "clang-format" },
+                clojure = { "cljfmt" },
                 cpp = { "clang-format" },
+                cs = { "csharpier" },
+                elixir = { "mix" },
+                go = { "goimports", "gofumpt" },
                 haskell = { "ormolu" },
                 http = { "kulala-fmt" },
+                kotlin = { "ktlint" },
+                lua = { "stylua" },
+                nix = { "nixfmt" },
+                nya = { "nya_format" },
+                php = { "php_cs_fixer" },
+                pkgbuild = { "shfmt" },
                 plaintex = { "latexindent" },
                 python = { "ruff_organize_imports", "ruff_format" },
                 rest = { "kulala-fmt" },
+                ruby = { "rubocop" },
                 rust = function(bufnr)
                     local fmts = { "rustfmt", "sortderives" }
                     local root = vim.fs.root(bufnr, { "Cargo.toml" })
@@ -403,26 +418,15 @@ return {
                     end
                     return fmts
                 end,
-                tex = { "latexindent" },
-                typst = { "typstyle" },
-                lua = { "stylua" },
                 sh = { "shfmt" },
-                bash = { "shfmt" },
-                pkgbuild = { "shfmt" },
-                go = { "goimports", "gofumpt" },
-                nix = { "nixfmt" },
-                nya = { "nya_format" },
-                ruby = { "rubocop" },
-                php = { "php_cs_fixer" },
-                cs = { "csharpier" },
-                kotlin = { "ktlint" },
-                clojure = { "cljfmt" },
-                elixir = { "mix" },
                 sql = { "sql_formatter" },
+                tex = { "latexindent" },
                 text = { "fmt_text" },
+                typst = { "typstyle" },
             }
             for _, ft in ipairs({
                 "css",
+                "graphql",
                 "html",
                 "javascript",
                 "javascriptreact",
@@ -435,7 +439,6 @@ return {
                 "typescriptreact",
                 "vue",
                 "yaml",
-                "graphql",
             }) do
                 formatters_by_ft[ft] = { "prettier" }
             end

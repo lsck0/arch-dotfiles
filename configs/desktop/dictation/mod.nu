@@ -5,5 +5,5 @@ use module.nu *
 export const meta = {packages: {pacman: [wtype]}}
 
 export def link [cfg: record] {
-    [(link-commands dictate.nu)]
+    link-commands dictate.nu
 }

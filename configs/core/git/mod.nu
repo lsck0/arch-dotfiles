@@ -29,7 +29,7 @@ export def link [cfg: record] {
     let identity = if (owner-unlocked) { profile-load | select name email } else { null }
     let template = $dir | path join template
     let sections = [
-        (if $identity == null { null } else { [user $identity] })
+        (if $identity != null { [user $identity] })
         [init {defaultBranch: master, templateDir: $template}]
         [pull {rebase: true}]
         [push {autoSetupRemote: true}]
@@ -37,10 +37,10 @@ export def link [cfg: record] {
         [interactive {diffFilter: "delta --color-only"}]
         [delta {syntax-theme: ansi, line-numbers: true, navigate: true, side-by-side: true}]
         [merge {conflictStyle: zdiff3}]
-        (if (has mergiraf) { ['merge "mergiraf"' {name: mergiraf, driver: $MERGIRAF_DRIVER}] } else { null })
+        (if (has mergiraf) { ['merge "mergiraf"' {name: mergiraf, driver: $MERGIRAF_DRIVER}] })
         (if (has git-lfs) {
             ['filter "lfs"' {clean: "git-lfs clean -- %f", smudge: "git-lfs smudge -- %f", process: "git-lfs filter-process", required: true}]
-        } else { null })
+        })
         [include {path: [(xdg cache $DELTA_THEME) ($dir | path join forgejo.inc)]}]
         # the empty helper clears any inherited one, then gh answers
         ...(if (has gh) { $GH_HOSTS | each {|host| [$'credential "https://($host)"' {helper: ["" $GH_HELPER]}] } } else { [] })

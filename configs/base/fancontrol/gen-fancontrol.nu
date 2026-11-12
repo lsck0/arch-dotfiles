@@ -3,9 +3,9 @@
 
 const SYS = "/sys"
 const HWMON = $"($SYS)/class/hwmon"
-const BOARD_NAME_FILE = $"($SYS)/class/dmi/id/board_name"
+export const BOARD_NAME_FILE = $"($SYS)/class/dmi/id/board_name"
 const CONFIG = "/etc/fancontrol"
-const BOARD = "X870E AORUS ELITE WIFI7"
+export const BOARD = "X870E AORUS ELITE WIFI7"
 const INTERVAL_S = 5
 # Tctl jumps 15C within seconds on any burst; averaging 4 readings (20 s) keeps the fans from chasing it
 const AVERAGE = 4
@@ -17,12 +17,12 @@ const PWM_FLOOR = 40
 const PWM_START = 90
 const PWM_MAX = 255
 
-def read [file: path]: nothing -> string {
+export def sysfs-read [file: path]: nothing -> string {
     try { open --raw $file | str trim } catch { "" }
 }
 
 def hwmon-find [pattern: string]: nothing -> any {
-    ls $HWMON | get name | where { (read $"($in)/name") =~ $pattern } | path basename | get --optional 0
+    ls $HWMON | get name | where { (sysfs-read $"($in)/name") =~ $pattern } | path basename | get --optional 0
 }
 
 def bios [why: string]: nothing -> nothing {
@@ -30,14 +30,14 @@ def bios [why: string]: nothing -> nothing {
 }
 
 def main []: nothing -> nothing {
-    if (read $BOARD_NAME_FILE) != $BOARD { return (bios $"not the ($BOARD)") }
+    if (sysfs-read $BOARD_NAME_FILE) != $BOARD { return (bios $"not the ($BOARD)") }
     # its force_id and ignore_resource_conflict come from /etc/modprobe.d/it87.conf
     ^modprobe -q it87 | complete | ignore
     let it87 = hwmon-find '^it8'
     if $it87 == null { return (bios "it87 did not load (check dmesg for the force_id)") }
     let k10 = hwmon-find '^k10temp$'
     if $k10 == null { return (bios "no k10temp sensor") }
-    let tctl = glob $"($HWMON)/($k10)/temp*_label" | where { (read $in) == "Tctl" }
+    let tctl = glob $"($HWMON)/($k10)/temp*_label" | where { (sysfs-read $in) == "Tctl" }
         | each { path basename | str replace "_label" "_input" } | get --optional 0 | default temp1_input
     let pwms = glob $"($HWMON)/($it87)/pwm[0-9]" | path basename | sort
     if ($pwms | is-empty) { return (bios "it87 exposes no pwm channels") }
@@ -46,10 +46,10 @@ def main []: nothing -> nothing {
     let original = $"($CONFIG).pre-dotfiles"
     if ($CONFIG | path exists) and not ($original | path exists) { ^cp -a $CONFIG $original }
     [
-        "# managed by arch-dotfiles/configs/base/fancontrol; regenerated each boot by fancontrol-gen.service"
+        "# managed by arch-dotfiles/fancontrol; regenerated each boot by fancontrol-gen.service"
         $"INTERVAL=($INTERVAL_S)"
         $"DEVPATH=($it87)=(do $devpath $it87) ($k10)=(do $devpath $k10)"
-        $"DEVNAME=($it87)=(read $'($HWMON)/($it87)/name') ($k10)=(read $'($HWMON)/($k10)/name')"
+        $"DEVNAME=($it87)=(sysfs-read $'($HWMON)/($it87)/name') ($k10)=(sysfs-read $'($HWMON)/($k10)/name')"
         $"FCTEMPS=(do $every $'($k10)/($tctl)')"
         # no FCFANS: the forced it87 reads 0 or 10000 rpm at random, and fancontrol kicks a 0 rpm fan to MINSTART
         $"MINTEMP=(do $every $TEMP_MIN_C)"

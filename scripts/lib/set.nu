@@ -34,7 +34,7 @@ export def options-list [mod: any, json: bool]: nothing -> any {
         return ({modules: $modules} | to json --raw)
     }
     $mods | each {|m| options-schema $m | items {|key, spec| {module: $m.id, option: $key, value: ($m.cfg | get $key), source: ($m.sources | get $key)} } }
-    | flatten | where {|r| $mod != null or $r.option != "enable" or not $r.value }
+    | flatten | where {|r| $mod != null or $r.option != $OPTION_ENABLE or not $r.value }
 }
 
 export def option-target [target: string]: nothing -> record {

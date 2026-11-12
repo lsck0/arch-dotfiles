@@ -133,7 +133,8 @@ c.url.start_pages = [_startpage]
 c.url.default_page = _startpage
 config.set("content.local_content_can_access_remote_urls", True, _startpage)
 
-_search = "https://duckduckgo.com/?q={}"
+_ddg = "https://duckduckgo.com/?q={}"
+_search = _ddg
 try:
     with open(os.path.expanduser("~/.config/qutebrowser/search-url")) as _f:
         _search = _f.read().strip()
@@ -141,7 +142,7 @@ except OSError:
     pass
 c.url.searchengines = {
     "DEFAULT": _search,
-    "ddg": "https://duckduckgo.com/?q={}",
+    "ddg": _ddg,
     "g": "https://www.google.com/search?q={}",
     "ap": "https://archlinux.org/packages/?q={}",
     "aur": "https://aur.archlinux.org/packages?K={}",

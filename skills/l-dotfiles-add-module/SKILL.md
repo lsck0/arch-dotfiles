@@ -40,7 +40,7 @@ export const options = {
         doc: "Palette slot for titles and the selection"
         label: "Accent colour"                        # the settings UI's; group, choices, min/max/step too
         choices: [c1 c2 c3 c4 c5 c6]
-        apply: live                                   # live | relink | relogin | reboot
+        apply: live                                   # live (needs an apply verb or toggle) | relink | relogin | reboot
         scope: user                                   # default machine (platform only); user: the profile may set it
     }
 }
@@ -83,7 +83,10 @@ export def packages [cfg: record]: nothing -> record {
 - Verbs (`VERBS` in `scripts/lib/modules.nu`): `link`, `system`, `theme`, `apply`, `backup`, `restore`, `update` (what
   floats outside pacman, run by `dot sync`). Any other export is a `step` target or a name another module imports;
   everything else is a plain `def` (lint checks). A helper a unit, toggle or keybind runs is a script in the module
-  dir, installed with `link-commands` or `files-into`.
+  dir, installed with `link-commands` or `files-into`. A linked one finds the repo with `const REPO = path self |
+  path expand | path dirname --num-levels <depth>` (expanded first, or `path self` resolves against the `~/.local/bin`
+  link); a file that only runs from the repo (tests, `scripts/lib`) writes `path self` with one `..` per level,
+  `path self ../..` in `scripts/lib`.
 - Each verb takes the resolved options (`enable` always present) and returns declarations, nested to any depth (null
   and `[]` add nothing). An optional one in the returned list is `(if <cond> { decl })`, never `else { [] }` or a
   trailing `| compact`; a value other code consumes (`++`, `append`, a spread) still needs its `else`.
@@ -98,9 +101,9 @@ export def packages [cfg: record]: nothing -> record {
     [--in-place]`, `file-render <src> <dest> {KEY: v}` (`@KEY@`), `file-link` (only where the app reads the repo
     live), `link-commands <file...>`, `json-merge <file> [(json-set [k] v) (json-delete [k])]`, `ini-merge <file>
     {section: {key: v}} [--missing-only]`, `desktop-override <id> {|text| ...}`, `mcp-servers {name: spec}`
-    (Claude, Gemini, Copilot and Hermes, each in its format; null drops one), `shell-aliases <name>` (the module's
-    `aliases.nu`/`aliases.zsh` into nushell's autoload dir and zsh's conf.d; a tool's aliases and defs live with the
-    module declaring the tool, never in core/nushell or core/zsh).
+    (Claude, Gemini, Copilot and Hermes, each in its format; null drops one), `mcp-uvx` (a pinned uvx server and its
+    prefetch), `shell-aliases <name>` (the module's `aliases.nu`/`aliases.zsh` into nushell's autoload dir and zsh's
+    conf.d; a tool's aliases and defs live with the module declaring the tool, never in core/nushell or core/zsh).
   - units: `unit-file <src> [--enable --now]`, `unit-enable|unit-disable|unit-mask <name> [--now]`,
     `unit-restart <name> [--reload]` (a `--then` that skips a unit not installed yet), `dropin <unit> <src> [--name]`,
     `user-hook <name> <script> --watch [paths] [--permanent] [--no-brake] [--mkdir]`.
@@ -129,9 +132,10 @@ export def packages [cfg: record]: nothing -> record {
 - A mod.nu takes the engine from module.nu only (lint: `ENGINE_INTERNAL` in `scripts/lib/gate.nu`); it also exports
   `recorded-hashes` (what dot last wrote per path) and the root's `SYSTEM_STATE`/`SYSTEM_REPO`. A module reading
   another's options names it in `meta.reads` (no ordering) or `meta.deps` (runs after it, theme pass included).
-- Helpers: `xdg config|data|cache|state ...parts`, `unit-dir`, `process-running <name>` (gate a reload in `theme`),
-  `desktop-set {Key: v}` (in a `desktop-override` closure). The user layer already has `configs/base/xdg/app-dirs.conf`
-  loaded; don't copy those variables into a module.
+- Helpers: `xdg config|data|cache|state|runtime ...parts`, `unit-dir`, `process-running <name>` (gate a reload in
+  `theme`), `package-version <pkg>` (upstream version without epoch and pkgrel, null when not installed),
+  `desktop-set {Key: v}` (in a `desktop-override` closure; sets or adds the key in `[Desktop Entry]`). The user layer
+  already has `configs/base/xdg/app-dirs.conf` loaded; don't copy those variables into a module.
 - Option keys: `type`, `default`, `doc` required; `label`, `group`, `choices`, `min`/`max`/`step`, `apply` (default
   relink), `scope` (default machine), `toggle` (set through `scripts/toggles/toggle-<name>.nu`: `on`/`off` for a
   bool, else `set <value>`; its `get` is what the settings window shows).

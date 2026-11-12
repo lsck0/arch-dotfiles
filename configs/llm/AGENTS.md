@@ -1,10 +1,10 @@
 # llm
 
-- Models arrive without a manual step: vLLM pulls its model on first start; `llm/ollama` runs `ollama-ensure-models`
-  once per pin set and script version (its `--key`), only where a GPU has VRAM, and
-  removes every model it does not pin: a model pulled by hand is gone on the next run; `llm/comfyui` downloads
-  its image and 3D checkpoints in its `models` step, only with an AMD GPU of 12 GiB or more; `llm/alpaca` fetches
-  whisper's speech model.
+- Models arrive without a manual step: vLLM's `model-fetch` step downloads its pinned model into the service's cache
+  at apply, as the cold download would miss the first request's ready timeout; `llm/ollama` runs `ollama-ensure-models`
+  once per pin set and script version (its `--key`), only where a GPU has VRAM, and removes every model it does not
+  pin: a model pulled by hand is gone on the next run; `llm/comfyui` downloads its image and 3D checkpoints in its
+  `models` step, only with an AMD GPU of 12 GiB or more (`VRAM_MIN`); `llm/alpaca` fetches whisper's speech model.
 - Models are pinned: vLLM by hub commit (`model_revision`), ollama by manifest sha256 in `ollama-ensure-models.nu`,
   ComfyUI by hub commit and file sha256 (`MODELS`). ComfyUI's venv is `uv.lock`'s, torch from the ROCm index.
 - `llm/comfyui` is a user service: the editor at http://127.0.0.1:8188 (socket-activated, stops 10 minutes after the

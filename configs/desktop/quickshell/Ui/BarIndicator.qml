@@ -5,13 +5,12 @@ BarIconButton {
   id: root
 
   property string activeText: ""
-  property string inactiveText: activeText
   property string activeTooltipText: ""
   property string inactiveTooltipText: activeTooltipText
 
   opacity: active ? 1 : 0
   visible: !concealed && (text !== "" || keepSpace)
-  text: active ? activeText : inactiveText
+  text: activeText
   tooltipText: active ? activeTooltipText : inactiveTooltipText
   keepSpace: true
   dimmed: !active

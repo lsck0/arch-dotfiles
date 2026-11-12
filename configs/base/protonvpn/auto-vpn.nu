@@ -5,10 +5,11 @@ const TOGGLE = path self | path expand | path dirname | path join .. .. .. scrip
     | path expand
 # trusted, not only home: a trusted network needs no vpn either
 const TRUSTED_NETWORK = "/run/trusted-network"
+const LAST_TRUSTED = "trusted"
 const LINK_TYPES = [ethernet wifi gsm bt]
 const MOBILE_TYPES = [gsm bt]
 # 70-home-network decides a new link in parallel with nmcli monitor (up to 1 s of arping)
-const HOME_WAIT = 3sec
+const TRUST_WAIT = 3sec
 const RETRY_FIRST = 15sec
 const RETRY_MAX = 5min
 const RETRY_ATTEMPTS = 6
@@ -20,7 +21,7 @@ def route []: nothing -> string { do { ^$TOGGLE get } | complete | get stdout | 
 
 def vpn-on []: nothing -> bool { (route) == "proton" }
 
-# a tor route the user picked stays: auto-vpn neither adds proton beside it nor ends it at home
+# a tor route the user picked stays: auto-vpn neither adds proton beside it nor ends it on a trusted network
 def user-tor []: nothing -> bool { (route) == "tor" and not ($DISPATCHER_TOR | path exists) }
 
 def decide [state: record]: nothing -> record {
@@ -28,15 +29,14 @@ def decide [state: record]: nothing -> record {
     let links = do { ^nmcli -t -f TYPE,STATE,CON-PATH,DEVICE device } | complete | get stdout | lines
         | parse --regex '^(?<type>[^:]*):(?<state>[^:]*):(?<path>[^:]*):(?<dev>.*)$'
         | where type in $LINK_TYPES and state == connected
-    if ($links | is-empty) { return ($state | update retry_at null) }
-    if (user-tor) { return ($state | update retry_at null) }
+    if ($links | is-empty) or (user-tor) { return ($state | update retry_at null) }
     let trusted_links = if ($TRUSTED_NETWORK | path exists) { open --raw $TRUSTED_NETWORK | lines } else { [] }
     if ($links | all { $in.type not-in $MOBILE_TYPES and $in.dev in $trusted_links }) {
-        if $state.last != home and (vpn-on) { try { ^$TOGGLE direct } }
-        return {last: home, attempts: $state.attempts, retry_at: null}
+        if $state.last != $LAST_TRUSTED and (vpn-on) { try { ^$TOGGLE direct } }
+        return ($state | merge {last: $LAST_TRUSTED, retry_at: null})
     }
     let net = $links.path | str join " "
-    let state = if $state.last != $net { {last: $net, attempts: 0, retry_at: ((date now) + $HOME_WAIT)} } else { $state }
+    let state = if $state.last != $net { {last: $net, attempts: 0, retry_at: ((date now) + $TRUST_WAIT)} } else { $state }
     let due = $state.retry_at == null or (date now) >= $state.retry_at
     if $state.attempts >= $RETRY_ATTEMPTS or not $due { return $state }
     if (vpn-on) or (try { ^$TOGGLE proton --keep-tor; true } catch { false }) {

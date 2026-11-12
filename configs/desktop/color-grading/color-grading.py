@@ -163,6 +163,8 @@ RUNTIME_DIR = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.
 PRESET_PATH = os.path.join(STATE_DIR, "preset")
 NIGHTLIGHT_PATH = os.path.join(RUNTIME_DIR, "nightlight")
 BRIGHTNESS_PATH = os.path.join(RUNTIME_DIR, "brightness")
+# each setting's state file, keyed by the command line's name
+SETTING_PATHS = {"preset": PRESET_PATH, "nightlight": NIGHTLIGHT_PATH, "brightness": BRIGHTNESS_PATH}
 UNIT = "color-grading.service"
 
 RAMP_VALUE_MAX = 0xFFFF
@@ -370,7 +372,7 @@ def settings_load() -> Settings:
 
 
 def settings_texts(settings: Settings) -> dict[str, str]:
-    """Each setting as its state file and `get` hold it, keyed by the command line's name."""
+    """Each setting as its state file and `get` hold it, keyed like SETTING_PATHS."""
     return {
         "preset": settings.preset.name,
         "nightlight": "on" if settings.nightlight else "off",
@@ -379,9 +381,8 @@ def settings_texts(settings: Settings) -> dict[str, str]:
 
 
 def settings_save(settings: Settings) -> None:
-    texts = settings_texts(settings)
-    for key, path in (("preset", PRESET_PATH), ("nightlight", NIGHTLIGHT_PATH), ("brightness", BRIGHTNESS_PATH)):
-        file_write(path, texts[key])
+    for key, text in settings_texts(settings).items():
+        file_write(SETTING_PATHS[key], text)
 
 
 def output_attach(client: Client, global_name: int, version: int) -> None:
@@ -450,8 +451,8 @@ def client_apply(client: Client) -> None:
         if output.gamma_size is not None:
             output_lut_upload(client, output)
     ctm_commit(client)
-    s = client.settings
-    log(f"preset {s.preset.name}, nightlight {'on' if s.nightlight else 'off'}, brightness {s.brightness_percent}%")
+    texts = settings_texts(client.settings)
+    log(f"preset {texts['preset']}, nightlight {texts['nightlight']}, brightness {texts['brightness']}%")
 
 
 def client_synced(client: Client) -> None:
@@ -643,9 +644,9 @@ def main() -> int:
     commands.add_parser("list", help="preset names in cycle order")
     commands.add_parser("status", help="settings and the preset table as json")
     get = commands.add_parser("get", help="print one setting")
-    get.add_argument("key", choices=("preset", "nightlight", "brightness"))
+    get.add_argument("key", choices=tuple(SETTING_PATHS))
     set_ = commands.add_parser("set", help="change one setting and reload the daemon")
-    set_.add_argument("key", choices=("preset", "nightlight", "brightness"))
+    set_.add_argument("key", choices=tuple(SETTING_PATHS))
     set_.add_argument("value", help="preset name, on|off, or brightness N|+N|-N percent")
     args = parser.parse_args()
     if args.command == "run":

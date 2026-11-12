@@ -2,7 +2,7 @@
 
   abi <abi/4.0>,
 
-  @{HOME}/projects/arch-dotfiles/configs/latex/sioyek/synctex-edit.nu rCx -> synctex-edit,
+  @{DOTFILES}/configs/latex/sioyek/synctex-edit.nu rCx -> synctex-edit,
 
   profile synctex-edit flags=(attach_disconnected) {
     include <abstractions/base-strict>
@@ -17,7 +17,7 @@
     @{bin}/{id,timeout} rix,
     @{bin}/{emacsclient,notify-send,nvim} rix,
 
-    @{HOME}/projects/arch-dotfiles/configs/latex/sioyek/synctex-edit.nu r,
+    @{DOTFILES}/configs/latex/sioyek/synctex-edit.nu r,
     owner @{user_config_dirs}/nushell/ r,
     owner @{PROC}/@{pid}/maps r,
 

@@ -29,7 +29,7 @@ def repos-in [root: string, depth: int]: nothing -> list<record> {
             (($entry | path type) == file and ($dir | path join objects | path type) == dir
                 and ($dir | path join refs | path type) == dir and $entry !~ '/\.(git|bare)/')
         } else {
-            ($entry | path type) == dir or (open --raw $entry | lines | first) =~ '^gitdir: .*/worktrees/[^/]+/?$'
+            ($entry | path type) == dir or (open --raw $entry | lines | get 0? | default "") =~ '^gitdir: .*/worktrees/[^/]+/?$'
         }
     }
     | each {|git| $git | path dirname | {display: ($in | path relative-to $root), full: $in} }

@@ -39,7 +39,7 @@
   deny @{HOME}/.nix-profile w,
   deny @{user_state_dirs}/nix/{,**} w,
   deny @{user_share_dirs}/vscode-oss/{,**} w,
-  deny @{HOME}/projects/arch-dotfiles/{,**} w,
+  deny @{DOTFILES}/{,**} w,
   deny @{user_projects_dirs}/*/.identity/{,**} w,
   # git runs hooks and config's core.* commands; ** reaches nested repos and .git/modules/* of submodules
   deny @{user_projects_dirs}/**/.git/{hooks/{,**},config} w,

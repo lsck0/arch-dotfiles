@@ -7,8 +7,8 @@ export const meta = {
 }
 
 export def link [cfg: record] {
-    if (which cargo-kani | is-empty) { return [] }
     # cargo-kani would run its whole first-time setup just to print its version
-    let version = ^pacman -Q kani | split row " " | get 1 | split row "-" | first
+    let version = package-version kani
+    if $version == null { return [] }
     exec kani-setup [cargo kani setup] --creates ($nu.home-dir | path join .kani $"kani-($version)") --network
 }

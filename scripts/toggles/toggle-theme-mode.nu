@@ -1,17 +1,14 @@
 #!/usr/bin/env -S nu --no-config-file
 use lib.nu [status-record status-print notify state-file]
 use ../lib/log.nu [log-err]
-use ../lib/state.nu [xdg]
 use ../../configs/core/wallust/wallpaper-list.nu [wallpaper-resolve]
-use ../../configs/core/wallust/palette.nu [hex-to-rgb is-light]
+use ../../configs/core/wallust/wallpaper.nu [wallpaper-get]
+use ../../configs/core/wallust/palette.nu [hex-to-rgb is-light wal-colors-file]
 
 const THEMES = path self ../../themes
 const DOT = path self ../dot.nu
-const WAL = "wal"
 const LAST_FLIP = "theme-mode.nuon"
 const MODES = [dark light]
-
-def wal [...parts: string]: nothing -> path { xdg cache $WAL ...$parts }
 
 def mode-of [hex: string]: nothing -> string { if ($hex | hex-to-rgb | is-light) { "light" } else { "dark" } }
 
@@ -28,11 +25,9 @@ def themes []: nothing -> table {
     }
 }
 
-def background []: nothing -> any { try { open (wal colors.json) | get special.background } }
+def background []: nothing -> any { try { open (wal-colors-file) | get special.background } }
 
 def current-mode []: nothing -> string { background | if $in == null { "dark" } else { mode-of $in } }
-
-def current-wallpaper []: nothing -> string { try { ^readlink -f (wal wallpaper) | str trim } catch { "" } }
 
 def distance [a: string, b: string]: nothing -> float {
     $a | hex-to-rgb | zip ($b | hex-to-rgb) | each { ($in.0 - $in.1) ** 2 } | math sum
@@ -48,7 +43,7 @@ def current-theme [themes: table, wallpaper: string]: nothing -> record {
 
 def target []: nothing -> record {
     let themes = themes
-    let from = current-wallpaper
+    let from = wallpaper-get
     let mode = $MODES | where $it != (current-mode) | first
     let last = try { open (state-file $LAST_FLIP) }
     if $last != null and $last.to == $from and ($last.from | path exists) {
@@ -67,7 +62,7 @@ def flip []: nothing -> nothing {
     try {
         let to = target
         ^nu --no-config-file $DOT theme --sync $to.wallpaper
-        if (current-wallpaper) != ($to.wallpaper | path expand) { error make {msg: "a newer switch replaced this one"} }
+        if (wallpaper-get) != ($to.wallpaper | path expand) { error make {msg: "a newer switch replaced this one"} }
         {from: $to.from, to: ($to.wallpaper | path expand)} | to nuon | save --force (state-file $LAST_FLIP)
         notify "Theme" $"($to.mode | str capitalize)(if $to.theme != '' { $': ($to.theme)' })"
     } catch {|err|

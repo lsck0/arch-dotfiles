@@ -2,7 +2,7 @@ use module.nu *
 
 export const meta = {packages: {pacman: [audacity uv]}}
 
-# MCP_FROZEN freezes its deps at that date; bump both together
+# MCP_FROZEN cuts off its deps (mcp-uvx); bump both together
 const MCP_VERSION = "0.1.23"
 const MCP_FROZEN = "2026-10-14"
 const SCRIPT_PIPE = "/usr/lib/audacity/modules/mod-script-pipe.so"
@@ -10,11 +10,10 @@ const SCRIPT_PIPE = "/usr/lib/audacity/modules/mod-script-pipe.so"
 const PREFS_VERSION = "1.1.1r1"
 
 export def link [cfg: record] {
-    if (which audacity uvx | length) < 2 or not ($SCRIPT_PIPE | path exists) { return [] }
-    let pkg = $"audacity-mcp-server==($MCP_VERSION)"
+    if (which audacity | is-empty) or not ($SCRIPT_PIPE | path exists) { return [] }
     let built = ls $SCRIPT_PIPE | get 0.modified | format date "%Y-%m-%dT%H:%M:%S"
     let cfg_file = xdg config audacity audacity.cfg
-    let version = ^pacman -Q audacity | parse --regex '(?<Major>\d+)\.(?<Minor>\d+)\.(?<Micro>\d+)' | first
+    let version = package-version audacity | parse --regex '(?<Major>\d+)\.(?<Minor>\d+)\.(?<Micro>\d+)' | first
     [
         (ini-merge $cfg_file {"": {PrefsVersion: $PREFS_VERSION}, Version: $version} --missing-only)
         (ini-merge $cfg_file {
@@ -24,12 +23,7 @@ export def link [cfg: record] {
             # the .so's mtime, so an upgrade re-enables the module
             ModuleDateTime: {mod-script-pipe: $built}
         })
-        (mcp-servers {audacity: {
-            type: stdio, command: uvx, args: [--exclude-newer $MCP_FROZEN --from $pkg audacity-mcp]
-            env: {HF_HUB_DISABLE_TELEMETRY: "1"}
-        }})
-        (exec "audacity-mcp cache" [
-            uvx --exclude-newer $MCP_FROZEN --from $pkg python -c "import audacity_mcp.tool_registry"
-        ] --key $"($pkg)@($MCP_FROZEN)" --network)
+        (mcp-uvx audacity $"audacity-mcp-server==($MCP_VERSION)" $MCP_FROZEN [audacity-mcp] audacity_mcp.tool_registry
+            --env-vars {HF_HUB_DISABLE_TELEMETRY: "1"})
     ]
 }

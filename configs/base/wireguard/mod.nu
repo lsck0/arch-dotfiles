@@ -18,7 +18,7 @@ export def system [cfg: record] {
     if not ($text =~ '(?m)^\[Interface\]') or ($text =~ '(?im)^\s*(PreUp|PostUp|PreDown|PostDown|SaveConfig)\s*=') {
         error make {msg: $"wireguard: ($name) is no [Interface] config or carries hooks/SaveConfig, keeping ($CONF)"}
     }
-    [(file-text $CONF $text --mode "600")]
+    [(file-text $CONF $text --mode 600)]
 }
 
 def placed-unchanged []: nothing -> bool {

@@ -9,11 +9,7 @@ const TRUSTED_NETWORK = "/run/trusted-network"
 
 # The state file of a toggle; --volatile puts it on tmpfs, for state whose tool resets on boot (tlp, rfkill ids).
 export def state-file [name: string, --volatile]: nothing -> path {
-    let dir = if $volatile {
-        $env.XDG_RUNTIME_DIR | path join toggles
-    } else {
-        xdg state toggles
-    }
+    let dir = if $volatile { xdg runtime toggles } else { xdg state toggles }
     mkdir $dir
     $dir | path join $name
 }
@@ -44,9 +40,7 @@ export def systemctl-guarded [verb: string, ...units: string]: nothing -> nothin
 
 # Runs the root helper through pkexec; a non-admin is turned away before its password dialog.
 export def root-run [...args: string]: nothing -> nothing {
-    if not (user-is-admin) {
-        error make {msg: $"($args.0) needs an admin"}
-    }
+    if not (user-is-admin) { error make {msg: $"($args.0) needs an admin"} }
     ^pkexec $ROOT_HELPER ...$args
 }
 
@@ -59,8 +53,9 @@ export def unit-exists [unit: string]: nothing -> bool {
     (^systemctl cat $unit | complete).exit_code == 0
 }
 
-export def unit-active [unit: string]: nothing -> bool {
-    (^systemctl is-active --quiet $unit | complete).exit_code == 0
+export def unit-active [unit: string, --user]: nothing -> bool {
+    let scope = if $user { [--user] } else { [] }
+    (^systemctl ...$scope is-active --quiet $unit | complete).exit_code == 0
 }
 
 # The links home-network.nu marked trusted, written by the system layer.
@@ -73,7 +68,7 @@ export def hyprland-instance []: nothing -> string { $env.HYPRLAND_INSTANCE_SIGN
 
 # Bounded by a timeout, so a shell that is down or hung never blocks a toggle.
 export def quickshell-call [target: string, ...args: string]: nothing -> string {
-    ^timeout $IPC_TIMEOUT_S quickshell ipc -p ($nu.home-dir | path join .config quickshell) call $target ...$args
+    ^timeout $IPC_TIMEOUT_S quickshell ipc -p (xdg config quickshell) call $target ...$args
 }
 
 # Also pings the bar, which refreshes every reader of toggle state, so nothing polls.

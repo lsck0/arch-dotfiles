@@ -2,20 +2,16 @@ use module.nu *
 
 export const meta = {packages: {pacman: [openscad uv]}}
 
-# MCP_FROZEN keeps a later fastmcp from slipping in under the pin; bump both together
+# MCP_FROZEN cuts off its deps (mcp-uvx); bump both together
 const MCP_VERSION = "0.6.1"
 const MCP_FROZEN = "2026-09-30"
 
 export def link [cfg: record] {
-    if (which openscad uvx | length) < 2 { return [] }
-    let pkg = $"openscad-mcp==($MCP_VERSION)"
+    if (which openscad | is-empty) { return [] }
     [
         (ini-merge (xdg config OpenSCAD OpenSCAD.conf) {launcher: {showOnStartup: "false"}})
-        (mcp-servers {openscad: {
-            type: stdio, command: uvx, args: [--exclude-newer $MCP_FROZEN $pkg]
-            env: {FASTMCP_CHECK_FOR_UPDATES: "off", FASTMCP_SHOW_SERVER_BANNER: "false", FASTMCP_TELEMETRY_MODE: "off"}
-        }})
-        (exec "openscad-mcp cache" [uvx --exclude-newer $MCP_FROZEN --from $pkg python -c "import openscad_mcp"]
-            --key $"($pkg)@($MCP_FROZEN)" --network)
+        (mcp-uvx openscad $"openscad-mcp==($MCP_VERSION)" $MCP_FROZEN [openscad-mcp] openscad_mcp --env-vars {
+            FASTMCP_CHECK_FOR_UPDATES: "off", FASTMCP_SHOW_SERVER_BANNER: "false", FASTMCP_TELEMETRY_MODE: "off"
+        })
     ]
 }

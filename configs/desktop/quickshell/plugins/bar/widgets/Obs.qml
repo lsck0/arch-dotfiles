@@ -64,11 +64,15 @@ BarWidget {
     return v >= 1024 ? (v / 1024).toFixed(1) + " GB" : Math.round(v) + " MB"
   }
 
+  readonly property real bytesPerKb: 1024
+  readonly property real bytesPerMb: bytesPerKb * 1024
+  readonly property real bytesPerGb: bytesPerMb * 1024
+
   function bytesText(bytes) {
     var v = Number(bytes) || 0
-    if (v >= 1.07374e+09) return (v / 1.07374e+09).toFixed(2) + " GB"
-    if (v >= 1.04858e+06) return (v / 1.04858e+06).toFixed(0) + " MB"
-    return Math.round(v / 1024) + " KB"
+    if (v >= bytesPerGb) return (v / bytesPerGb).toFixed(2) + " GB"
+    if (v >= bytesPerMb) return (v / bytesPerMb).toFixed(0) + " MB"
+    return Math.round(v / bytesPerKb) + " KB"
   }
 
   function clearSession() {

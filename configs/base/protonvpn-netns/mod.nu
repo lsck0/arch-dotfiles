@@ -14,9 +14,9 @@ const HOOKS = '(?im)^\s*(PreUp|PostUp|PreDown|PostDown|SaveConfig)\s*='
 
 export def system [cfg: record] {
     # only the machine fact removes it: a run without secrets never undoes one that had them
-    if $env.FORM_FACTOR? == "wsl" or not ((system-secret protonvpn-netns.conf | path exists) or ($CONF | path exists)) { return [] }
+    let configured = (system-secret protonvpn-netns.conf | path exists) or ($CONF | path exists)
     # netns up brings the tunnel up with wg and wg-quick
-    if (which wg-quick | is-empty) { return [] }
+    if $env.FORM_FACTOR? == "wsl" or not $configured or (which wg-quick | is-empty) { return [] }
     let restart = unit-restart $UNIT
     let shims = $SHIMS ++ ($VPN_FORCED | where { $"/usr/bin/($in)" | path exists })
     # validated first, a broken drop-in would lock every admin out

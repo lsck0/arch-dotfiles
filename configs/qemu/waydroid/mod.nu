@@ -15,6 +15,7 @@ const FREEFORM = [
 ]
 const DEVPERM_RULES = "/etc/udev/rules.d/70-waydroid-devperm.rules"
 const PINS = $"($SYSTEM_SHA256) ($VENDOR_SHA256)"
+const PINS_FILE = ".pins"
 const STAGED = $"($IMAGES).new"
 
 def status []: nothing -> string {
@@ -23,13 +24,13 @@ def status []: nothing -> string {
 
 export def system [cfg: record] {
     if (which waydroid | is-empty) or $env.FORM_FACTOR? == "wsl" { return [] }
-    let current = try { open --raw ($IMAGES | path join .pins) | str trim } catch { "" }
+    let current = try { open --raw ($IMAGES | path join $PINS_FILE) | str trim } catch { "" }
     let images = if $current != $PINS {
         [
             # about 1 GiB from sourceforge, slower than STEP_TIMEOUT allows on a throttled mirror
-            (fetch-file $SYSTEM_URL $SYSTEM_SHA256 $"($STAGED)/system.img" --extract system.img --timeout $IMAGE_TIMEOUT)
-            (fetch-file $VENDOR_URL $VENDOR_SHA256 $"($STAGED)/vendor.img" --extract vendor.img --timeout $IMAGE_TIMEOUT)
-            (step images-swap --requires $"($STAGED)/vendor.img")
+            (fetch-file $SYSTEM_URL $SYSTEM_SHA256 ($STAGED | path join system.img) --extract system.img --timeout $IMAGE_TIMEOUT)
+            (fetch-file $VENDOR_URL $VENDOR_SHA256 ($STAGED | path join vendor.img) --extract vendor.img --timeout $IMAGE_TIMEOUT)
+            (step images-swap --requires ($STAGED | path join vendor.img))
         ]
     }
     let status = status
@@ -38,7 +39,7 @@ export def system [cfg: record] {
     [
         $images
         (if ($status | str contains "not initialized") {
-            exec waydroid-init [waydroid init] --creates $CONFIG --network --requires ($IMAGES | path join .pins)
+            exec waydroid-init [waydroid init] --creates $CONFIG --network --requires ($IMAGES | path join $PINS_FILE)
         })
         # a merge planned before init would overwrite init's [waydroid] section with sectionless content
         (if ($CONFIG | path exists) {
@@ -51,12 +52,16 @@ export def system [cfg: record] {
     ]
 }
 
-# Swaps the fetched images in whole, so init never sees a system.img without its vendor.img.
+# Swaps the fetched images in whole, so init never sees a system.img without its vendor.img; one still downloading
+# leaves the swap pending.
 export def images-swap []: nothing -> nothing {
     for img in [system.img vendor.img] {
-        if not ($STAGED | path join $img | path exists) { error make {msg: $"waydroid: ($img) missing, not swapping"} }
+        if not ($STAGED | path join $img | path exists) {
+            print $"waydroid: ($img) not fetched yet, not swapping"
+            exit $EXIT_PENDING
+        }
     }
-    $PINS | save --force $"($STAGED)/.pins"
+    $PINS | save --force ($STAGED | path join $PINS_FILE)
     rm --recursive --force $IMAGES
     mv $STAGED $IMAGES
     if not (status | str contains "not initialized") { ^waydroid upgrade --offline }

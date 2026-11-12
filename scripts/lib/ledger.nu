@@ -1,7 +1,7 @@
 # dot's ledger: one '<kind> <name>' line per unit, package, migration or marker it recorded.
 
 use log.nu *
-use state.nu [state-dir save-atomic]
+use state.nu [state-dir save-atomic recorded-outputs]
 use preserve.nu [tty-confirm]
 use converge.nu [unit-states]
 
@@ -66,10 +66,16 @@ export def ledger-remove [kind: string, declared: list<string>, installed: list<
     ledger-set $kind ($declared | where $it in $installed | append ($diff.dropped | where {|n| not $removed or $n not-in $removing }))
 }
 
-# Dropped units are disabled after a yes; by_hand lists units enabled outside dot.
+# Dropped units are disabled after a yes; by_hand lists units enabled outside dot. Declared: every unit name spelled
+# in dirs or scripts/, and every unit the records of those modules hold enabled, so a name built at eval (a user-hook's)
+# needs no literal spelling while a disabled module's units still drop.
 export def ledger-units [repo: path, dirs: list<path>, scope: string]: nothing -> record {
     let paths = $dirs | append ($repo | path join scripts) | where ($it | path exists)
-    let declared = ^grep -rhoIE $UNIT_NAME --exclude=*.log -- ...$paths | lines | uniq
+    let spelled = ^grep -rhoIE $UNIT_NAME --exclude=*.log -- ...$paths | lines
+    # module ids as modules-scan names them: relative to configs/, or to the repo for a root module (skills/)
+    let ids = $dirs | each { path relative-to $repo | str replace --regex '^configs/' '' }
+    let recorded = recorded-outputs $ids | where kind == unit and state? == enabled | get target
+    let declared = $spelled | append $recorded | uniq
     let owned_before = ledger-get unit | where ($it | str starts-with $"($scope) ") | each { str substring (($scope | str length) + 1).. }
     let names = $declared | append $owned_before | uniq | sort
     let states = unit-states $scope $names

@@ -27,20 +27,21 @@ export const meta = {
 }
 
 const PACKAGES = [busybox mkinitcpio-systemd-tool tinyssh tinyssh-convert]
-
-export def packages [cfg: record]: nothing -> record {
-    {native: (if $cfg.ssh_unlock { $PACKAGES } else { [] })}
-}
-
 const HOOK = "systemd-tool"
 const TOOL_DIR = "/etc/mkinitcpio-systemd-tool"
 const AUTHORIZED_KEYS = $"($TOOL_DIR)/config/authorized_keys"
 const KEYDIR = "/etc/tinyssh/sshkeydir"
 const UNITS = [initrd-network.service initrd-tinysshd.service]
 const HOOK_INSTALL = $"/usr/lib/initcpio/install/($HOOK)"
+# tinyssh's secret key is the 32-byte seed, then the public key
+const ED25519_SEED_BYTES = 32
 const ED25519_SK_BYTES = 64
 const WIFI_UNIT = "initrd-wifi.service"
 const WIFI_CONF = $"($TOOL_DIR)/config/initrd-wifi.conf"
+
+export def packages [cfg: record]: nothing -> record {
+    {native: (if $cfg.ssh_unlock { $PACKAGES } else { [] })}
+}
 
 export def system [cfg: record] {
     if not $cfg.ssh_unlock {
@@ -102,8 +103,7 @@ export def keys []: nothing -> nothing {
     if ($secret_key | path exists) and (ls $secret_key | get 0.size | into int) == $ED25519_SK_BYTES {
         ^install -dm700 $KEYDIR
         ^install -m600 $secret_key $"($KEYDIR)/.ed25519.sk"
-        # tinyssh's secret key is the seed then the public key
-        open --raw $secret_key | into binary | bytes at 32.. | save --force $"($KEYDIR)/ed25519.pk"
+        open --raw $secret_key | into binary | bytes at $ED25519_SEED_BYTES.. | save --force $"($KEYDIR)/ed25519.pk"
     } else if not ($"($KEYDIR)/.ed25519.sk" | path exists) {
         ^install -dm700 ($KEYDIR | path dirname)
         ^tinysshd-makekey $KEYDIR

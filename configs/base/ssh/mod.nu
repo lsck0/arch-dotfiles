@@ -52,6 +52,8 @@ const DROPIN = "/etc/ssh/sshd_config.d/10-hardening.conf"
 const MANAGED_BEGIN = "# arch-dotfiles managed keys (rebuilt from sources; edits outside this block are kept)"
 const MANAGED_END = "# end arch-dotfiles managed keys"
 const HOST_KEY_DIR = "/etc/ssh"
+const PRIVATE_KEY = "configs/secrets/keys/ssh_privatekey.asc"
+const PUBLIC_KEY = "configs/secrets/keys/ssh_publickey.asc"
 
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
@@ -95,9 +97,6 @@ export def sshd [port: string]: nothing -> nothing {
     let active = (^systemctl is-active --quiet sshd.service | complete).exit_code == 0
     if not $active or $rekeyed or (open --raw $DROPIN) != $before { ^systemctl reload-or-restart sshd.service }
 }
-
-const PRIVATE_KEY = "configs/secrets/keys/ssh_privatekey.asc"
-const PUBLIC_KEY = "configs/secrets/keys/ssh_publickey.asc"
 
 def ssh-dir [...file: string]: nothing -> path {
     $nu.home-dir | path join .ssh ...$file

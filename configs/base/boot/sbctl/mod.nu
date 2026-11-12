@@ -1,14 +1,15 @@
 use module.nu *
-use ../boot.nu [SDBOOT_ESP_FILES UKI_DIR sbctl-quiet sbctl-ready sbctl-unsigned]
+use ../boot.nu [EFI_SYSFS SDBOOT_ESP_FILES UKI_DIR sbctl-quiet sbctl-ready sbctl-unsigned]
 
 export const meta = {packages: {native: [sbctl]}, volatile: true}
 
-const PK_VAR = "/sys/firmware/efi/efivars/PK-8be4df61-93ca-11d2-aa0d-00e098032b8c"
+const EFIVARS = $"($EFI_SYSFS)/efivars"
+const PK_VAR = $"($EFIVARS)/PK-8be4df61-93ca-11d2-aa0d-00e098032b8c"
 const PK_CERT = "/var/lib/sbctl/keys/PK/PK.pem"
 const EVENT_LOG = "/sys/kernel/security/tpm0/binary_bios_measurements"
 
 export def system [cfg: record] {
-    if not ("/sys/firmware/efi" | path exists) { return [] }
+    if not ($EFI_SYSFS | path exists) { return [] }
     step secure-boot (if (platform-has secure_boot_own_keys) { "own" } else { "microsoft" })
 }
 
@@ -65,7 +66,7 @@ export def secure-boot [keys: string]: nothing -> nothing {
     if not (sbctl-ready) { ^sbctl create-keys }
     sign-unsigned
     # efivarfs marks them immutable and enroll-keys then never writes PK; the firmware still guards them
-    for var in (glob /sys/firmware/efi/efivars/{PK,KEK,db,dbx}-*) { ^chattr -i $var }
+    for var in (glob $"($EFIVARS)/{PK,KEK,db,dbx}-*") { ^chattr -i $var }
     enroll $keys
     if not (pk-enrolled) {
         error make {

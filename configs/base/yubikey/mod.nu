@@ -8,8 +8,6 @@ export const meta = {
     }
 }
 
-const SECRETS_ISSUE = "/etc/issue.d/dotfiles-secrets.issue"
-
 def secrets-arrived []: nothing -> bool { glob (system-secret "**" "*") --no-dir | is-not-empty }
 
 export def secrets-issue-clear []: nothing -> nothing { rm --force $SECRETS_ISSUE }

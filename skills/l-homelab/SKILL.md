@@ -42,9 +42,8 @@ treat it as absent.
 ## Credentials
 
 In `configs/secrets/keys/` (`l-dotfiles-secrets-access`), names only: `taskwarrior-client-id`,
-`taskwarrior-encryption-secret` (`programming/task`), `calendar.env` with `CALENDAR_FEED`, `CALENDAR_UPLOAD`
-(`task-calendar`), `ntfy-desktop-token` (`core/ntfy`), `samba-homelab` (`core/nas`). Users and groups in lldap
-(`admins`, `app-<route>`).
+`taskwarrior-encryption-secret` (`programming/task`), `calendar.env` with `CALENDAR_FEED` (`task-calendar`),
+`ntfy-desktop-token` (`core/ntfy`), `samba-homelab` (`core/nas`). Users and groups in lldap (`admins`, `app-<route>`).
 
 ## lab.json
 

@@ -117,9 +117,9 @@ into server. Each question's `env` and `default` is the reference. `dot test run
 
 Every login runs `dot sync` (agents never do): pull `origin/master` (`sync-pull`; the submodule only with `secrets`),
 migrate, install, apply, every module's `update` verb (`update-run`). Only the machine holding the
-`SIGNING_KEY_FINGERPRINT` secret key backs up, commits and pushes; elsewhere it stops after the apply. A non-wheel login
-converges its user layer only. An origin head without that signature merges nothing; local edits are autostashed; a
-conflict stops the run; a checkout off `master` refuses.
+`SIGNING_KEY_FINGERPRINT` secret key backs up, regenerates the generated files (`dot internal gen`), commits and
+pushes; elsewhere it stops after the apply. A non-wheel login converges its user layer only. An origin head without
+that signature merges nothing; local edits are autostashed; a conflict stops the run; a checkout off `master` refuses.
 
 ## Another login
 

@@ -3,10 +3,10 @@
 # http to the watcher and, when the vm has one, the virtio channel, which no guest firewall stands in front of.
 
 use stage.nu [STAGE_STATE_DIR STAGE_STOPPED REPORT_CHANNEL report-beacon-send]
+use invariants.nu [invariants-load]
 use homelab.nu [homelab-subnet-glob]
 use ../../platforms/homelab.nu [HOMELAB]
 
-const INVARIANTS = path self invariants.txt
 const OUT = "/tmp/dotfiles-report"
 const REPORT_ARCHIVE = $OUT + ".tgz"
 # who decides whether the guest gets out: tor's bootstrap, the router table, portmaster's verdicts, the resolver, the
@@ -39,10 +39,8 @@ def report [user: string, checkout: path, url: string, stopped: bool]: nothing -
     let lsck0 = $HOMELAB.mirror.lsck0 | url parse
     let lsck0_mirror = $lsck0 | select scheme host port | insert path "/" | url join
     let lab_glob = $HOMELAB.subnets | each { homelab-subnet-glob $in } | str join "|"
-    let probes = open --raw $INVARIANTS | lines | where {|l| ($l | str trim | is-not-empty) and not ($l | str starts-with "#") }
-        | parse --regex '^(?<key>\S+)\s+(?<want>\S+)\s+(?<where>\S+)\s+(?<probe>.*)$'
     # before portmaster goes: the mirror probe sees what the machine's own firewall lets out
-    let facts = $probes | each {|i|
+    let facts = invariants-load | each {|i|
         let probe = $i.probe | str replace --all "@USER@" $user | str replace --all "@LUKS@" $luks | str replace --all "@CHECKOUT@" $checkout
             | str replace --all "@LAB_MIRROR@" $lab_mirror | str replace --all "@LSCK0_MIRROR@" $lsck0_mirror
             | str replace --all "@LSCK0_HOST@" $lsck0.host | str replace --all "@LAB_GLOB@" $lab_glob

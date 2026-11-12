@@ -1,9 +1,9 @@
 #!/usr/bin/nu --no-config-file
 
 const SELF = path self
-const TARGET = "/etc/pacman.d/mirrorlist"
+export const MIRRORLIST = "/etc/pacman.d/mirrorlist"
 const LOCK = "/etc/pacman.d"
-const HOMELAB_FILE = "/etc/pacman.d/homelab-mirror"
+export const HOMELAB_FILE = "/etc/pacman.d/homelab-mirror"
 const COUNTRIES_FILE = "/etc/pacman.d/mirror-countries"
 const COUNTRIES = "Germany,France,Switzerland,Austria,Poland,Denmark,Netherlands"
 const MIRRORS_MAX = 30
@@ -16,7 +16,7 @@ const HOMELAB_COMMENT = (
 
 def rank [mode: string, out: path]: nothing -> list<string> {
     if $mode == "sort" {
-        ^ghostmirror -uml $TARGET $out -s light -S state,outofdate,morerecent,estimated,speed
+        ^ghostmirror -uml $MIRRORLIST $out -s light -S state,outofdate,morerecent,estimated,speed
     } else {
         let countries = try { open --raw $COUNTRIES_FILE | str trim } catch { "" }
             | if $in == "" { $COUNTRIES } else { $in }
@@ -26,9 +26,9 @@ def rank [mode: string, out: path]: nothing -> list<string> {
     open --raw $out | lines | where {|l| not ($l | str starts-with "Server=http://") }
 }
 
-def swap [lines: list<string>]: nothing -> nothing {
-    $lines | str join "\n" | $"($in)\n" | save --force $"($TARGET).new"
-    mv --force $"($TARGET).new" $TARGET
+export def mirrorlist-swap [lines: list<string>]: nothing -> nothing {
+    $lines | str join "\n" | $"($in)\n" | save --force $"($MIRRORLIST).new"
+    mv --force $"($MIRRORLIST).new" $MIRRORLIST
 }
 
 # Whether the mirror of a Server line serves core.db.
@@ -52,11 +52,11 @@ def homelab-drop [lines: list<string>, keep: string]: nothing -> list<string> {
 
 # Puts line first when its mirror answers and drops every other homelab entry; an empty line drops them all.
 def homelab-place [line: string]: nothing -> nothing {
-    let current = open --raw $TARGET | lines
+    let current = open --raw $MIRRORLIST | lines
     let kept = homelab-drop $current $line
     let missing = $line != "" and $line not-in $kept and (answers $line)
     let placed = if $missing { [$HOMELAB_COMMENT $line ""] ++ $kept } else { $kept }
-    if $placed != $current { swap $placed }
+    if $placed != $current { mirrorlist-swap $placed }
 }
 
 def main [mode: string, line: string = ""]: nothing -> nothing {
@@ -86,7 +86,7 @@ def main [mode: string, line: string = ""]: nothing -> nothing {
     }
     # the homelab line is plain http, exempt from rank's filter as it is reached only over the home LAN or wireguard;
     # re-probed, so a network change since it was placed (away, wg0 down) does not leave pacman waiting on it
-    let kept = $homelab != "" and $homelab in (open --raw $TARGET | lines) and (answers $homelab)
+    let kept = $homelab != "" and $homelab in (open --raw $MIRRORLIST | lines) and (answers $homelab)
     let first = if $kept { [$HOMELAB_COMMENT $homelab ""] } else { [] }
-    swap ($first ++ $public)
+    mirrorlist-swap ($first ++ $public)
 }

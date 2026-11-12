@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
-use mod.nu [OVERRIDES override-text]
+use mod.nu [OVERRIDES TUNABLES override-text tunables]
 use profile-flags.nu [ETC MARKER OWN_SUFFIX SOURCE upstream-files]
 
 const HERE = path self | path dirname
@@ -18,6 +18,8 @@ const PACKAGE_PROFILES = [torbrowser.Browser.firefox]
 const REQUIRED_RULES = {
     discord: ["owner @{run}/user/@{uid}/quickshell-discord-cmd{,.reading} rw,"]
 }
+# the checkout is @{DOTFILES}, defined once in the tunables
+const REPO_PATH = "projects/arch-dotfiles"
 
 def basenames [dir: string]: nothing -> list<string> {
     ls $dir | get name | path basename
@@ -44,10 +46,11 @@ def rows-check [rows: table]: nothing -> list<string> {
 }
 
 def own-check [rows: table]: nothing -> list<string> {
+    let unlisted = basenames profiles | append ($OVERRIDES | columns) | where $it not-in $rows.name
+        | each { $"($in) is an own profile but not in profiles.conf" }
     let profiles = basenames profiles | each {|name|
         let lines = open --raw $"profiles/($name)" | lines
         [
-            (if $name not-in $rows.name { $"profiles/($name) is not in profiles.conf" })
             (if ($lines | first) != $MARKER { $"profiles/($name) lacks the marker line" })
             # any attachment: 7z spells its paths out, apparmor 4.1.8 never attaches its @{bin}/@{lib} expansion
             (if not ($lines | any {|l| ($l | str starts-with $"profile ($name) ") and ($l | str contains " flags=(") }) {
@@ -57,12 +60,13 @@ def own-check [rows: table]: nothing -> list<string> {
     }
     let locals = basenames local | where $it not-in ($rows.name ++ $PACKAGE_PROFILES)
         | each { $"local/($in) extends no profile of profiles.conf" }
-    $profiles | flatten | compact | append $locals
+    $unlisted ++ ($profiles | flatten | compact) ++ $locals
 }
 
 def parse-ok [file: path, work: path, etc: path]: nothing -> bool {
+    # no parser.conf: its write-cache outranks --skip-cache and warns on every profile without root
     let run = do {
-        (^apparmor_parser --skip-kernel-load --skip-cache --base $etc -I $work -I $etc
+        (^apparmor_parser --config-file /dev/null --skip-kernel-load --skip-cache --base $etc -I $work -I $etc
             --features-file ($etc | path join abi 4.0) $file)
     } | complete
     print --stderr --no-newline $run.stderr
@@ -80,6 +84,9 @@ def compile-check [rows: table, source: path, etc: path]: nothing -> list<string
     } | compact
     let work = mktemp -d
     mkdir ($work | path join abstractions dotfiles) ($work | path join local)
+    # the repo's tunables, not the installed ones: -I $work shadows the whole tunables tree
+    cp -r ($etc | path join tunables) $work
+    tunables | save --force ($work | path join $TUNABLES)
     glob abstractions/* | each { cp $in ($work | path join abstractions dotfiles) } | ignore
     glob local/* | each { cp $in ($work | path join local) } | ignore
     let overrides = $OVERRIDES | columns
@@ -115,6 +122,14 @@ def required-check []: nothing -> list<string> {
     } | flatten
 }
 
+def repo-path-check []: nothing -> list<string> {
+    glob "{abstractions,local,profiles}/*" | each {|f|
+        if (open --raw $f | str contains $REPO_PATH) {
+            $"($f | path relative-to $HERE) spells ($REPO_PATH), use @{DOTFILES}"
+        }
+    } | compact
+}
+
 def main []: nothing -> nothing {
     cd $HERE
     let source = $env.APPARMOR_D_SRC? | default $SOURCE
@@ -130,7 +145,7 @@ def main []: nothing -> nothing {
         print --stderr $"apparmor.test: skipped compiling: needs ($needs)"
         []
     }
-    let failures = (rows-check $rows) ++ (own-check $rows) ++ (required-check) ++ $compiled
+    let failures = (rows-check $rows) ++ (own-check $rows) ++ (required-check) ++ (repo-path-check) ++ $compiled
     for f in $failures { print --stderr $"apparmor.test: ($f)" }
     if ($failures | is-not-empty) { exit 1 }
 }

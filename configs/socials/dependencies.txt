@@ -1,1 +1,1 @@
-core                              # wallust palette.nu and font.nu (discord, spotify), herdr-open.nu (socials/desktop)
+core                              # wallust (telegram), palette.nu, font.nu (discord, spotify), herdr-open.nu (desktop)

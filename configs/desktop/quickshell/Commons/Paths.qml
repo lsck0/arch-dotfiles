@@ -31,6 +31,9 @@ QtObject {
 
   function script(name) { return shellDir + "/scripts/" + name }
 
+  // a command the dotfiles link into ~/.local/bin (dot, task-calendar, ...)
+  function bin(name) { return home + "/.local/bin/" + name }
+
   function ipcCall(target, method) {
     var argv = ["quickshell", "ipc", "-p", shellDir, "call", String(target), String(method)]
     for (let i = 2; i < arguments.length; i++) {

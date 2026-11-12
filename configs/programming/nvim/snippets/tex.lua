@@ -99,7 +99,7 @@ local function proved(trigger, env)
     }, { condition = line_begin })
 end
 
--- \begin{ENV}, the body lines indented one level, \end{ENV}
+-- \begin{ENV}, the body lines indented one level, \end{ENV}; ENV may itself be a <> node
 local function environment(context, env, body, nodes, opts)
     local text = "\\begin{" .. env .. "}\n    " .. table.concat(body, "\n    ") .. "\n\\end{" .. env .. "}"
     return s(context, fmta(text, nodes), opts)
@@ -126,17 +126,7 @@ vim.list_extend(snippets, {
     s({ trig = "cref", desc = "cleveref" }, fmta("\\cref{<>}", { i(1) })),
     s({ trig = "Cref", desc = "cleveref, sentence start" }, fmta("\\Cref{<>}", { i(1) })),
 
-    s(
-        "beg",
-        fmta(
-            [[
-        \begin{<>}
-            <>
-        \end{<>}
-    ]],
-            { i(1), i(2), rep(1) }
-        )
-    ),
+    environment("beg", "<>", { "<>" }, { i(1), i(2), rep(1) }),
     environment("item", "itemize", { "\\item <>" }, { i(1) }),
     environment("enum", "enumerate", { "\\item <>" }, { i(1) }),
     s(

@@ -5,6 +5,7 @@ use state.nu [xdg]
 use platform.nu [PLATFORM_NAME_FILE]
 use iso.nu [iso-signer-verify]
 use log.nu [log-warn]
+use invariants.nu [invariants-load]
 use ../../platforms/homelab.nu
 
 const REPO = path self ../..
@@ -512,7 +513,7 @@ def virt-install-args [name: string, run: record, net: record]: nothing -> list<
 }
 
 def vm-renice [name: string]: nothing -> nothing {
-    let pid = open --raw ($env.XDG_RUNTIME_DIR | path join libvirt qemu run $"($name).pid") | str trim
+    let pid = open --raw (xdg runtime libvirt qemu run $"($name).pid") | str trim
     for task in (ls $"/proc/($pid)/task" | get name | path basename) {
         ^renice -n $NICENESS -p $task | complete | ignore
         ^ionice -c3 -p $task | complete | ignore
@@ -586,11 +587,6 @@ def await-chain [name: string, host: record, logs: path]: nothing -> path {
     $logs
 }
 
-def invariants []: nothing -> table {
-    open --raw ($REPO | path join scripts lib invariants.txt) | lines | where {|l| ($l | str trim | is-not-empty) and not ($l | str starts-with "#") }
-    | parse --regex '^(?<key>\S+)\s+(?<want>\S+)\s+(?<where>\S+)\s+(?<probe>.*)$'
-}
-
 # Every problem in the reported logs, and notes that do not fail the run. A chain stopped before config (stage-report's
 # chain_stopped, install-stop's marker) passes with a banner naming the way back online, every disarm row at its value
 # and the rows of `stopped` at theirs; otherwise each stage ends as the scenario's stages say (ok by default), no FAILURES.* line but the
@@ -598,7 +594,7 @@ def invariants []: nothing -> table {
 export def vm-verify [logs: path, run: record]: nothing -> record {
     let state = open --raw ($logs | path join verify.log) | lines | where ($it | str contains "=") | parse "{key}={value}" | each {|r| [$r.key $r.value] } | into record
     let stopped = $state.chain_stopped? == "yes"
-    let wanted = invariants | where want != "any" | reduce --fold {backup_roundtrip: ok} {|i, acc| $acc | insert $i.key $i.want }
+    let wanted = invariants-load | where want != "any" | reduce --fold {backup_roundtrip: ok} {|i, acc| $acc | insert $i.key $i.want }
         | merge $run.expect | merge (if $stopped { $run.stopped } else { {} })
     let facts = $wanted | items {|key, want|
         let got = $state | get --optional $key
