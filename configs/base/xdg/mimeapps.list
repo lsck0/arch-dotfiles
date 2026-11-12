@@ -129,7 +129,7 @@ font/woff2=com.github.FontManager.FontViewer.desktop;
 # torrents, mail, calendar, contacts
 application/x-bittorrent=org.qbittorrent.qBittorrent.desktop;
 x-scheme-handler/magnet=org.qbittorrent.qBittorrent.desktop;
-x-scheme-handler/mailto=org.mozilla.Thunderbird.desktop;
+x-scheme-handler/mailto=proton-mail.desktop;
 message/rfc822=org.mozilla.Thunderbird.desktop;
 text/vcard=org.mozilla.Thunderbird.desktop;
 text/calendar=org.gnome.Calendar.desktop;

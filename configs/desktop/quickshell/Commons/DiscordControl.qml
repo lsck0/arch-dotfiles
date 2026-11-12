@@ -16,7 +16,9 @@ Singleton {
       console.warn("discord: rejected command", cmd)
       return false
     }
-    commandFile.setText(JSON.stringify({ cmd: cmd }) + "\n")
+    // FileView skips a setText equal to its last one, even after the plugin consumed the file: the stamp keeps each
+    // command distinct
+    commandFile.setText(JSON.stringify({ cmd: cmd, at: Date.now() }) + "\n")
     return true
   }
 
