@@ -21,7 +21,7 @@ export def link [cfg: record] {
     let guard = $nu.home-dir | path join $AGENT_GUARD
     let hooks = $GUARD_EVENTS | items {|event, action| {$event: [{type: command, command: $"($guard) ($action)", timeout: 10}]} }
     [
-        (json-merge ($home | path join settings.json) [(json-set [model] "claude-sonnet-5")])
+        (json-merge ($home | path join settings.json) [(json-set [model] "claude-sonnet-5") (json-set [theme] "default")])
         # its own file in copilot's hook dir, next to rtk's
         (if ($guard | path exists) {
             file-text ($home | path join hooks agent-guard.json) ({version: 1, hooks: ($hooks | into record)} | to json --indent 2)
