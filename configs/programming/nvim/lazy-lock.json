@@ -9,7 +9,7 @@
   "blink.compat": { "branch": "main", "commit": "2ed6d9a28b07fa6f3bface818470605f8896408c" },
   "catppuccin": { "branch": "main", "commit": "edefef779ab08ce1a4a404713e3012b0d202bd35" },
   "checkmate.nvim": { "branch": "main", "commit": "e57c8b502ab3e77e478e16460fcc2d2a16082f73" },
-  "claudecode.nvim": { "branch": "main", "commit": "a9f8d0e7a1fcd7639729f24c71de544aef853eb5" },
+  "claudecode.nvim": { "branch": "main", "commit": "523ee20001cfe6ae5be776aee1746b5cd0a53bf3" },
   "cloak.nvim": { "branch": "main", "commit": "648aca6d33ec011dc3166e7af3b38820d01a71e4" },
   "cmp-calc": { "branch": "main", "commit": "5947b412da67306c5b68698a02a846760059be2e" },
   "cmp-commit": { "branch": "main", "commit": "5f7d19957012ba114da59f06c7e6a3adafb1751d" },

@@ -3,6 +3,9 @@ owner @{HOME}/{.claude,projects/*/.identity/claude}/chrome/chrome-native-host rP
 owner @{user_share_dirs}/work/ rw,
 owner @{user_share_dirs}/work/chromium/ rw,
 owner @{user_share_dirs}/work/chromium/** rwk,
+owner @{user_projects_dirs}/*/.identity/chromium/ rw,
+owner @{user_projects_dirs}/*/.identity/chromium/** rwk,
+owner @{user_projects_dirs}/*/.identity/chromium/WidevineCdm/*/_platform_specific/linux_*/libwidevinecdm.so mrw,
 owner @{user_share_dirs}/work/chromium/WidevineCdm/*/_platform_specific/linux_*/libwidevinecdm.so mrw,
 @{run}/udev/data/+hid:* r,
 include <abstractions/dotfiles/nssdb>
