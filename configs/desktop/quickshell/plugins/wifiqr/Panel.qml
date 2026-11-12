@@ -94,9 +94,7 @@ Item {
       pwExpectedStop = true
       pwProc.running = false
     }
-    qrProc.command = requestedIface
-      ? [Paths.script("network-qr.nu"), "--meta", requestedIface]
-      : [Paths.script("network-qr.nu"), "--meta"]
+    qrProc.command = [Paths.script("network-qr.nu"), "--meta"].concat(requestedIface ? [requestedIface] : [])
     qrProc.running = true
   }
 
@@ -116,7 +114,7 @@ Item {
     if (pwProc.running || !iface) return
     passwordError = ""
     pwExpectedStop = false
-    pwProc.command = [Paths.script("network-password.nu"), iface]
+    pwProc.command = [Paths.script("network-qr.nu"), "--password", iface]
     pwProc.running = true
   }
 

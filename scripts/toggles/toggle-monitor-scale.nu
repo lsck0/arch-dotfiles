@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [status-record status-print notify state-set state-file]
+use lib.nu [status-record status-print notify state-set state-file hyprland-instance]
 
 const DOT = path self ../dot.nu
 const HYPRLAND = "desktop/hyprland"
@@ -7,8 +7,6 @@ const SCALES = ["1" "1.25" "1.5" "2"]
 const SCALE_TOLERANCE = 0.01
 const SCALE_SETTLE = 400ms
 const REFRESH_DECIMALS = 5
-
-def instance []: nothing -> string { $env.HYPRLAND_INSTANCE_SIGNATURE? | default "" }
 
 def monitors []: nothing -> table { ^hyprctl -j monitors all | from json }
 
@@ -47,14 +45,14 @@ def persisted-scale-set [name: string, scale: string]: nothing -> nothing {
     ^$DOT set --machine $"($HYPRLAND).monitors" ($updated | to json --raw)
 }
 
-def record [name: string, kind: string, expr: string]: nothing -> nothing {
-    state-set $"monitor-($name)-($kind)" $"(instance) ($expr)" --volatile
+def expr-save [name: string, kind: string, expr: string]: nothing -> nothing {
+    state-set $"monitor-($name)-($kind)" $"(hyprland-instance) ($expr)" --volatile
 }
 
 def reapply []: nothing -> nothing {
     let saved = [layout scale] | each {|kind|
         glob (state-file $"monitor-*-($kind)" --volatile) | each { open --raw $in | split row --number 2 " " }
-    } | flatten | where { $in.0 == (instance) } | each { $in.1 }
+    } | flatten | where { $in.0 == (hyprland-instance) } | each { $in.1 }
     # a scale expression re-enables its output: a monitor turned off (lid closed) goes off again last
     for expr in ($saved ++ ($saved | where { $in =~ 'disabled = true' })) { ^hyprctl eval $expr o> /dev/null }
 }
@@ -72,7 +70,7 @@ def scale-apply [name: string, scale: string]: nothing -> nothing {
     let position = $"($monitor.x)x($monitor.y)"
     let expr = lua-monitor {output: $name, mode: (mode-of $monitor), position: $position, scale: ($scale | into float)}
     eval-checked $expr scale
-    record $name scale $expr
+    expr-save $name scale $expr
 }
 
 def scale-set [name: string, scale: string]: nothing -> nothing {
@@ -115,7 +113,7 @@ def layout-set [name: string, action: string, source: string]: nothing -> nothin
     }
     let expr = lua-monitor ({output: $name} | merge $fields)
     eval-checked $expr layout
-    record $name layout $expr
+    expr-save $name layout $expr
 }
 
 def scale-check [scale: string]: nothing -> nothing {

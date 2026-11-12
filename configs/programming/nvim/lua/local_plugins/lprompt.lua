@@ -2,6 +2,11 @@ local M = {}
 
 local HERMES_AGENT_NAME = "lprompt-hermes"
 
+-- stderr, else stdout when a command reports its failure there
+local function failure_text(res)
+    return vim.trim((res.stderr ~= "" and res.stderr) or res.stdout or "")
+end
+
 local function find_taskrc(start_dir)
     for dir in vim.fs.parents(start_dir .. "/.") do
         local candidate = dir .. "/tasks/.taskrc"
@@ -9,7 +14,6 @@ local function find_taskrc(start_dir)
             return candidate
         end
     end
-    return nil
 end
 
 local function add_prompt(text)
@@ -30,7 +34,7 @@ local function add_prompt(text)
         vim.notify(
             "LPrompt: no tasks/.taskrc found above "
                 .. start_dir
-                .. " -- scaffold one first (l-agent-task-db's taskwarrior-init)",
+                .. ": scaffold one first (l-agent-task-db's taskwarrior-init)",
             vim.log.levels.ERROR
         )
         return
@@ -39,10 +43,7 @@ local function add_prompt(text)
     local result = vim.system({ "task", "rc:" .. taskrc, "add", "+prompt", "--", text }, { text = true }):wait()
 
     if result.code ~= 0 then
-        vim.notify(
-            "LPrompt: task add failed (" .. result.code .. "): " .. vim.trim(result.stderr or ""),
-            vim.log.levels.ERROR
-        )
+        vim.notify("LPrompt: task add failed (" .. result.code .. "): " .. failure_text(result), vim.log.levels.ERROR)
         return
     end
     vim.notify("LPrompt: " .. vim.trim(result.stdout or "added"), vim.log.levels.INFO)
@@ -51,7 +52,7 @@ end
 local function herdr_json(args)
     local out = vim.system(args, { text = true }):wait()
     if out.code ~= 0 then
-        return nil, vim.trim((out.stderr ~= "" and out.stderr) or out.stdout or "")
+        return nil, failure_text(out)
     end
     local ok, decoded = pcall(vim.json.decode, out.stdout)
     if not ok then
@@ -103,8 +104,7 @@ local function find_or_start_hermes_target()
         if raced then
             return raced
         end
-        return nil,
-            "herdr agent start failed: " .. vim.trim((start.stderr ~= "" and start.stderr) or start.stdout or "")
+        return nil, "herdr agent start failed: " .. failure_text(start)
     end
 
     return new_pane_id
@@ -123,11 +123,7 @@ local function send_to_hermes(text)
     end
     local prompt = vim.system({ "herdr", "agent", "prompt", target, text }, { text = true }):wait()
     if prompt.code ~= 0 then
-        vim.notify(
-            "LPrompt: herdr agent prompt failed: "
-                .. vim.trim((prompt.stderr ~= "" and prompt.stderr) or prompt.stdout or ""),
-            vim.log.levels.WARN
-        )
+        vim.notify("LPrompt: herdr agent prompt failed: " .. failure_text(prompt), vim.log.levels.WARN)
     end
 end
 

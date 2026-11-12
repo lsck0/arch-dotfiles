@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import Quickshell
 import Quickshell.Services.Mpris
 import Quickshell.Services.Pipewire
 import Quickshell.Io
@@ -22,34 +21,22 @@ BarWidget {
       + (p.trackArtUrl ? 4 : 0) + (p.lengthSupported && p.length > 0 ? 2 : 0) + (p.trackTitle ? 1 : 0)
   }
 
+  // one player per bus, then per identity (a browser's tabs), the richest one kept; playerctld only proxies the others
   readonly property var players: {
-    var unique = []
-    var seen = ({})
     var values = Mpris.players ? Mpris.players.values : [] // qmllint disable missing-property
-    for (let i = 0; i < values.length; i++) {
-      let bus = String(values[i].dbusName || "")
-      if (bus.indexOf("playerctld") !== -1) continue
-      let key = bus || String(values[i].identity || i)
-      if (seen[key] === true) continue
-      seen[key] = true
-      unique.push(values[i])
-    }
-
+    var seen = ({})
     var byIdentity = ({})
-    var order = []
-    for (let j = 0; j < unique.length; j++) {
-      let p = unique[j]
+    for (let i = 0; i < values.length; i++) {
+      let p = values[i]
+      let bus = String(p.dbusName || "")
+      let key = bus || String(p.identity || i)
+      if (bus.indexOf("playerctld") !== -1 || seen[key]) continue
+      seen[key] = true
       let idKey = String(p.identity || p.dbusName).toLowerCase().trim()
-      if (byIdentity[idKey] === undefined) {
-        byIdentity[idKey] = p
-        order.push(idKey)
-      } else {
-        if (duplicateScore(p) > duplicateScore(byIdentity[idKey])) byIdentity[idKey] = p
-      }
+      let held = byIdentity[idKey]
+      if (!held || duplicateScore(p) > duplicateScore(held)) byIdentity[idKey] = p
     }
-    var deduped = []
-    for (let k = 0; k < order.length; k++) deduped.push(byIdentity[order[k]])
-    return deduped
+    return Object.values(byIdentity)
   }
 
   property string lastShownPlayer: ""
@@ -57,18 +44,9 @@ BarWidget {
   property var player: null
 
   function pickPlayer() {
-    var list = players
-    if (pinnedPlayer) {
-      for (let i = 0; i < list.length; i++)
-        if (list[i].dbusName === pinnedPlayer) return list[i]
-    }
-    for (let j = 0; j < list.length; j++)
-      if (list[j].playbackState === MprisPlaybackState.Playing) return list[j]
-    if (lastShownPlayer) {
-      for (let k = 0; k < list.length; k++)
-        if (list[k].dbusName === lastShownPlayer) return list[k]
-    }
-    return list.length > 0 ? list[0] : null
+    var byBus = name => name ? players.find(p => p.dbusName === name) : undefined
+    return byBus(pinnedPlayer) || players.find(p => p.playbackState === MprisPlaybackState.Playing)
+      || byBus(lastShownPlayer) || players[0] || null
   }
 
   function updatePlayer() {
@@ -77,24 +55,14 @@ BarWidget {
     lastShownPlayer = player ? player.dbusName : ""
   }
 
-  readonly property string playbackKey: {
-    var values = Mpris.players ? Mpris.players.values : [] // qmllint disable missing-property
-    var key = ""
-    for (let i = 0; i < values.length; i++)
-      key += values[i].dbusName + ":" + values[i].playbackState + ";"
-    return key
-  }
+  readonly property string playbackKey: Array.from(Mpris.players ? Mpris.players.values : []) // qmllint disable missing-property
+    .map(p => p.dbusName + ":" + p.playbackState).join(";")
 
   onPlaybackKeyChanged: updatePlayer()
   onPinnedPlayerChanged: updatePlayer()
 
   onPlayersChanged: {
-    if (pinnedPlayer) {
-      let stillThere = false
-      for (let i = 0; i < players.length; i++)
-        if (players[i].dbusName === pinnedPlayer) stillThere = true
-      if (!stillThere) pinnedPlayer = ""
-    }
+    if (pinnedPlayer && !players.some(p => p.dbusName === pinnedPlayer)) pinnedPlayer = ""
     updatePlayer()
   }
 
@@ -113,10 +81,9 @@ BarWidget {
   }
 
   readonly property bool artRemote: /^https?:\/\//i.test(root.artUrl)
-  readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || ""
-  readonly property string artCacheDir: runtimeDir ? runtimeDir + "/quickshell-mediaart" : ""
+  readonly property string artCacheDir: Paths.runtimeDir + "/quickshell-mediaart"
   readonly property string artCacheFile:
-    root.artRemote && root.artCacheDir ? (root.artCacheDir + "/" + Qt.md5(root.artUrl)) : ""
+    root.artRemote ? (root.artCacheDir + "/" + Qt.md5(root.artUrl)) : ""
   readonly property int artCacheKeep: 50
   readonly property string artFetchCheck: "[ -e /run/trusted-network ]"
     + " && ! ip link show proton0 >/dev/null 2>&1 && ! ip link show wg0 >/dev/null 2>&1"

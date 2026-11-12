@@ -8,18 +8,14 @@ const OLLAMA = "ollama.service"
 const OLLAMA_SOCKET = "ollama.socket"
 const SPLIT_LOCK_MITIGATE = "/usr/local/bin/split-lock-mitigate"
 
-# Tmpfs like the toggles' volatile state, so a crash mid-game never restores ollama after a reboot.
-def ollama-mark []: nothing -> path {
-    $env.XDG_RUNTIME_DIR | path join toggles gamemode-ollama
-}
-
-# vllm.service's stop leaves the gpu level to gamemode while this exists
-def vllm-mark []: nothing -> path {
-    $env.XDG_RUNTIME_DIR | path join toggles gamemode-vllm
+# Tmpfs like the toggles' volatile state, so a crash mid-game never restores the units after a reboot; vllm.service's
+# stop leaves the gpu level to gamemode while gamemode-vllm exists.
+def mark [name: string]: nothing -> path {
+    $env.XDG_RUNTIME_DIR | path join toggles $"gamemode-($name)"
 }
 
 def --wrapped succeeds [...argv: string]: nothing -> bool {
-    (do { ^$argv.0 ...($argv | skip 1) } | complete).exit_code == 0
+    (do { run-external ...$argv } | complete).exit_code == 0
 }
 
 def admin []: nothing -> bool {
@@ -51,20 +47,20 @@ def main []: nothing -> nothing {
 def "main start" []: nothing -> nothing {
     if (succeeds systemctl --user is-enabled -q $TRMNL_TIMER) { succeeds systemctl --user stop $TRMNL_TIMER | ignore }
     # an idle socket's next request would load the weights onto the gpu mid-game
-    units-stop (vllm-mark) [$VLLM_SOCKET $VLLM_PROXY]
-    units-stop (ollama-mark) [$OLLAMA_SOCKET $OLLAMA]
+    units-stop (mark vllm) [$VLLM_SOCKET $VLLM_PROXY]
+    units-stop (mark ollama) [$OLLAMA_SOCKET $OLLAMA]
     if (admin) { succeeds pkexec $SPLIT_LOCK_MITIGATE off | ignore }
 }
 
 def "main end" []: nothing -> nothing {
     if (succeeds systemctl --user is-enabled -q $TRMNL_TIMER) { succeeds systemctl --user start $TRMNL_TIMER | ignore }
     # a socket disabled mid-game (the vllm toggle) stays down
-    let ollama = units-recorded (ollama-mark)
+    let ollama = units-recorded (mark ollama)
     if ($ollama | is-not-empty) and (succeeds systemctl is-enabled -q $OLLAMA_SOCKET) {
         # socket activation only; the next request brings ollama.service back on demand
         succeeds systemctl --no-ask-password start $OLLAMA_SOCKET | ignore
     }
-    let vllm = units-recorded (vllm-mark)
+    let vllm = units-recorded (mark vllm)
     if ($vllm | is-not-empty) and (succeeds systemctl is-enabled -q $VLLM_SOCKET) {
         # --no-block: the proxy's start waits minutes for the model, gamemoded kills a hook after 10s
         succeeds systemctl --no-ask-password --no-block start ...$vllm | ignore

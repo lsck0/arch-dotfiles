@@ -1,5 +1,5 @@
 use module.nu *
-use ../boot.nu [cmdline-set hooks-read hooks-write hooks-insert]
+use ../boot.nu [backup-once cmdline-set hooks-read hooks-write hooks-insert MKINITCPIO]
 
 export const meta = {packages: {native: [cryptsetup]}, volatile: true}
 
@@ -27,14 +27,9 @@ def root-backing []: nothing -> any {
 }
 
 def crypttab-write [root: any]: nothing -> nothing {
-    if ($CRYPTTAB | path exists) {
-        if not (open --raw $CRYPTTAB | str contains $MARKER) {
-            ^install -m644 $CRYPTTAB $"($CRYPTTAB).arch-dotfiles-backup"
-        }
-    } else {
-        ^install -Dm644 crypttab $CRYPTTAB
-    }
-    let kept = open --raw $CRYPTTAB | lines | take until {|l| $l == $MARKER }
+    let current = try { open --raw $CRYPTTAB } catch { $MARKER }
+    if not ($current | str contains $MARKER) { backup-once $CRYPTTAB }
+    let kept = $current | lines | take until {|l| $l == $MARKER }
     let named = $kept | each { split row --regex '\s+' | first }
     let entries = luks-parts | where name != $root and $"luks-($it.uuid)" not-in $named | where {|p|
         let disk = ^lsblk -dno PKNAME $"/dev/($p.name)" | str trim
@@ -57,7 +52,7 @@ def hook-place []: nothing -> nothing {
     for need in [filesystems block keyboard] {
         if $need not-in $hooks { error make {msg: $"luks: HOOKS has no `($need)` hook, refusing to place `($hook)`"} }
     }
-    hooks-write (hooks-insert $hooks $hook ($hooks | enumerate | where item == filesystems | get 0.index))
+    hooks-write (hooks-insert $hooks $hook filesystems)
 }
 
 # Sets the root's unlock options on the cmdline. The TPM2 enrol note and the header backup reminder print only when
@@ -99,6 +94,6 @@ def root-unlock [part: string]: nothing -> nothing {
 export def configure []: nothing -> nothing {
     let root = root-backing
     crypttab-write $root
-    if ("/etc/mkinitcpio.conf" | path exists) { hook-place }
+    if ($MKINITCPIO | path exists) { hook-place }
     if $root != null { root-unlock $root }
 }

@@ -100,22 +100,10 @@ return {
                     markdown = { inherit_defaults = true, "citations" },
                 },
                 providers = {
-                    citations = {
-                        name = "Cite",
-                        module = "lib.citation_source",
-                    },
-                    commits = {
-                        name = "commit",
-                        module = "blink.compat.source",
-                    },
-                    conventionalcommits = {
-                        name = "conventionalcommits",
-                        module = "blink.compat.source",
-                    },
-                    calc = {
-                        name = "calc",
-                        module = "blink.compat.source",
-                    },
+                    citations = { name = "Cite", module = "lib.citation_source" },
+                    commits = { name = "commit", module = "blink.compat.source" },
+                    conventionalcommits = { name = "conventionalcommits", module = "blink.compat.source" },
+                    calc = { name = "calc", module = "blink.compat.source" },
                 },
             },
         },

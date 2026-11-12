@@ -2,8 +2,6 @@
 
 use profile.nu [profile-has]
 
-# sshd host keys under keys/ssh-host/<host>/, pinned by base/ssh
-
 const GITCRYPT_MAGIC = 0x[00 47 49 54 43 52 59 50 54]
 export const OWNER_WITNESS = "configs/secrets/keys/pgp_privatekey.asc"
 
@@ -22,6 +20,11 @@ export def secrets-wanted []: nothing -> bool {
 # credentials roll out only when both hold; the profile alone leaves a generic desktop.
 export def owner-unlocked []: nothing -> bool {
     (profile-has secrets) and (secret-is-plaintext ($env.DOTFILES | path join $OWNER_WITNESS))
+}
+
+# The streamed root secret, or a path that never exists without the secrets.
+export def system-secret [...parts: string]: nothing -> path {
+    $env.DOTFILES_SECRETS? | default --empty "/nonexistent" | path join ...$parts
 }
 
 # Before a backup: live state at witness that the repo never seeded (no marker) would overwrite the repo's, so fail.

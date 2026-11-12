@@ -43,7 +43,7 @@ export def link [cfg: record] {
         (file-render session-protect.slice.conf (unit-dir | path join session.slice.d 10-protect.conf)
             {MEMORY_LOW: (systemd-size $cfg.session_memory_low)})
         # a server has no notification daemon to tell
-        (if (which notify-send | is-empty) { [] } else {
+        (if (which notify-send | is-not-empty) {
             [
                 (file-render oom-notify.service (unit-dir | path join oom-notify.service) {DOTFILES: $env.DOTFILES})
                 (unit-enable oom-notify.service --now)

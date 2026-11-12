@@ -1,9 +1,12 @@
 #!/usr/bin/env -S nu --no-config-file
 
+const REPO = path self | path expand | path dirname --num-levels 4
+use ($REPO | path join scripts lib state.nu) [xdg]
+
 const EXIT_NO_UPDATES = 2
 
 def main []: nothing -> nothing {
-    let state = $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state) | path join update-check
+    let state = xdg state update-check
     mkdir $state
     let check = ^checkupdates --nocolor | complete
     if $check.exit_code not-in [0 $EXIT_NO_UPDATES] {

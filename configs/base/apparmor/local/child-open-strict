@@ -1,3 +1,2 @@
 # managed by arch-dotfiles/apparmor
-@{bin}/{feh,nsxiv,okular,zathura,sioyek,onlyoffice-desktopeditors,desktopeditors} Px,
 include <abstractions/dotfiles/xdg-open>

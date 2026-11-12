@@ -2,6 +2,7 @@
 # spotify's CEF ignores --ozone-platform-hint=auto and lands on XWayland at 1x, so the platform is named outright
 
 use spotify-reload.nu [DEVTOOLS_PORT]
+use ../../../scripts/lib/state.nu [xdg]
 
 const STOCK = "/usr/bin/spotify"
 const APPARMOR_ENABLED = "/sys/module/apparmor/parameters/enabled"
@@ -12,7 +13,7 @@ const LOUDNESS = {audio.normalize_v2: "true", audio.loudness.environment: "1"}
 
 def loudness-merge []: nothing -> nothing {
     if (^pgrep -x spotify | complete).exit_code == 0 { return }
-    let users = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join spotify Users
+    let users = xdg config spotify Users
     for prefs in (glob ($users | path join * prefs)) {
         let lines = open --raw $prefs | lines
         let missing = $LOUDNESS | transpose key value | where {|kv| not ($lines | any { str starts-with $"($kv.key)=" }) }
@@ -25,7 +26,7 @@ def loudness-merge []: nothing -> nothing {
 def --wrapped main [...args: string]: nothing -> nothing {
     loudness-merge
     let flags = [$"--remote-debugging-port=($DEVTOOLS_PORT)"] ++ (if ($env.WAYLAND_DISPLAY? | is-not-empty) { $WAYLAND_FLAGS } else { [] })
-    let copy = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join spotify-patched spotify
+    let copy = xdg data spotify-patched spotify
     if ($copy | path exists) {
         if (which aa-exec | is-not-empty) and (^aa-exec -p spotify -- true | complete).exit_code == 0 {
             exec aa-exec -p spotify -- $copy ...$flags ...$args

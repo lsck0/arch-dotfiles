@@ -1,13 +1,12 @@
 use module.nu *
+use ../../desktop/idle-guards/mod.nu [AGENT_GUARD AGENT_GUARD_INPUT]
 
 # after idle-guards: the guard hooks go in only once its agent-guard exists; as an input the guard appearing re-plans them
 export const meta = {
     deps: [desktop/idle-guards]
     packages: {pacman: [github-copilot-cli]}
-    inputs: [~/.config/idle-guards/agent-guard.nu]
+    inputs: [$AGENT_GUARD_INPUT]
 }
-
-use ../../desktop/idle-guards/mod.nu [AGENT_GUARD]
 
 # PascalCase events get the snake_case payload with the session_id the guard keys on. A permission prompt or the agent
 # finishing notifies; a tool approved there resumes the turn with no new prompt, so every tool call re-arms it.
@@ -25,6 +24,6 @@ export def link [cfg: record] {
         # its own file in copilot's hook dir, next to rtk's
         (if ($guard | path exists) {
             file-text ($home | path join hooks agent-guard.json) ({version: 1, hooks: ($hooks | into record)} | to json --indent 2)
-        } else { [] })
+        })
     ]
 }

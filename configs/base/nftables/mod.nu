@@ -45,7 +45,7 @@ export def system [cfg: record] {
     }
     [
         # units first, so a fresh install's ruleset reload finds them
-        ($UNITS | each {|u| unit-file $u --then (do $reload $u) } | decls-flatten)
+        ($UNITS | each {|u| unit-file $u --then (do $reload $u) })
         (file-render fw-inbound.nft $"($DIR)/fw-inbound.nft" $inbound --then (do $reload fw-inbound.service))
         # the inbound lockdown holds from the first run, unless a home link already loaded fw-inbound
         (file-copy fw-lockdown.nft $"($DIR)/fw-lockdown.nft" --then [sh -c $LOCKDOWN_START])

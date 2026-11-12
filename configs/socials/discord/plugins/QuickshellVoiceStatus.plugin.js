@@ -6,6 +6,8 @@
  * @source https://github.com/lsck0/arch-dotfiles
  */
 
+const COMMAND_FILE = "quickshell-discord-cmd";
+
 module.exports = class QuickshellVoiceStatus {
   constructor() {
     this._stores = null;
@@ -13,33 +15,13 @@ module.exports = class QuickshellVoiceStatus {
     this._heartbeat = null;
     this._lastPayload = "";
     this._fs = null;
-    const runtimeDir =
-      typeof process !== "undefined" && process.env
-        ? process.env.XDG_RUNTIME_DIR
-        : null;
-    this._runtimeDir = runtimeDir || null;
-    this._statePath = runtimeDir
-      ? runtimeDir + "/quickshell-discord-voice.json"
-      : null;
-    this._commandPath = runtimeDir
-      ? runtimeDir + "/quickshell-discord-cmd"
-      : null;
+    this._runtimeDir = (typeof process !== "undefined" && process.env && process.env.XDG_RUNTIME_DIR) || null;
+    // used only once start() found the runtime dir
+    this._statePath = this._runtimeDir + "/quickshell-discord-voice.json";
+    this._commandPath = this._runtimeDir + "/" + COMMAND_FILE;
     this._commandPoll = null;
     this._commandWatcher = null;
     this._publishTimer = null;
-  }
-
-  getName() {
-    return "QuickshellVoiceStatus";
-  }
-  getVersion() {
-    return "1.1.0";
-  }
-  getAuthor() {
-    return "Luca";
-  }
-  getDescription() {
-    return "Publish the current VC to quickshell and take its mute, deafen and disconnect commands.";
   }
 
   _resolveStores() {
@@ -66,17 +48,15 @@ module.exports = class QuickshellVoiceStatus {
   // to the RTC connection, which tracks both
   _voiceChannelId() {
     const s = this._stores;
-    if (!s) return null;
-    const guild = s.selected && s.selected.getVoiceChannelId ? s.selected.getVoiceChannelId() : null;
-    return guild || (s.rtc && s.rtc.getChannelId ? s.rtc.getChannelId() : null);
+    return s?.selected?.getVoiceChannelId?.() || s?.rtc?.getChannelId?.() || null;
   }
 
   _avatarUrl(userId, user) {
-    if (user && user.avatar) {
+    if (user?.avatar) {
       const ext = String(user.avatar).startsWith("a_") ? "gif" : "png";
       return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${ext}?size=64`;
     }
-    const id = String((user && user.id) || userId || "");
+    const id = String(user?.id || userId || "");
     if (!/^\d+$/.test(id)) return "";
     try {
       const index = Number((BigInt(id) >> 22n) % 6n);
@@ -88,31 +68,19 @@ module.exports = class QuickshellVoiceStatus {
 
   _snapshot() {
     const s = this._stores;
-    if (!s || !s.voice || !s.users) return { inVoice: false };
+    if (!s?.voice || !s.users) return { inVoice: false };
 
     const channelId = this._voiceChannelId();
     if (!channelId) return { inVoice: false };
 
-    const states = s.voice.getVoiceStatesForChannel
-      ? s.voice.getVoiceStatesForChannel(channelId) || {}
-      : {};
-
-    const ownId = s.users.getCurrentUser
-      ? (s.users.getCurrentUser() || {}).id
-      : null;
-
-    const participants = [];
-    for (const userId of Object.keys(states)) {
+    const states = s.voice.getVoiceStatesForChannel?.(channelId) || {};
+    const ownId = s.users.getCurrentUser?.()?.id;
+    const participants = Object.keys(states).map((userId) => {
       const state = states[userId] || {};
-      const user = s.users.getUser ? s.users.getUser(userId) : null;
-      participants.push({
+      const user = s.users.getUser?.(userId);
+      return {
         id: String(userId),
-        name: String(
-          (user && (user.globalName || user.username)) ||
-            state.nick ||
-            state.username ||
-            userId,
-        ),
+        name: String(user?.globalName || user?.username || state.nick || state.username || userId),
         avatar: this._avatarUrl(userId, user),
         self: ownId != null && String(userId) === String(ownId),
         mute: !!state.mute,
@@ -121,40 +89,26 @@ module.exports = class QuickshellVoiceStatus {
         selfDeaf: !!state.selfDeaf,
         video: !!state.selfVideo,
         streaming: !!state.selfStream,
-        speaking:
-          s.speaking && s.speaking.isSpeaking
-            ? !!s.speaking.isSpeaking(userId)
-            : false,
-      });
-    }
-
-    participants.sort((a, b) => {
-      if (a.self !== b.self) return a.self ? -1 : 1;
-      return a.name.localeCompare(b.name);
+        speaking: !!s.speaking?.isSpeaking?.(userId),
+      };
     });
+    participants.sort((a, b) => (a.self !== b.self ? (a.self ? -1 : 1) : a.name.localeCompare(b.name)));
 
-    const channel =
-      s.channels && s.channels.getChannel
-        ? s.channels.getChannel(channelId)
-        : null;
-    const guild =
-      channel && channel.guild_id && s.guilds && s.guilds.getGuild
-        ? s.guilds.getGuild(channel.guild_id)
-        : null;
-
+    const channel = s.channels?.getChannel?.(channelId);
+    const guild = channel?.guild_id ? s.guilds?.getGuild?.(channel.guild_id) : null;
     return {
       inVoice: true,
       updatedAt: Date.now(),
-      channel: channel ? String(channel.name || "") : "",
-      guild: guild ? String(guild.name || "") : "",
-      selfMute: s.media && s.media.isSelfMute ? !!s.media.isSelfMute() : false,
-      selfDeaf: s.media && s.media.isSelfDeaf ? !!s.media.isSelfDeaf() : false,
-      participants: participants,
+      channel: String(channel?.name || ""),
+      guild: String(guild?.name || ""),
+      selfMute: !!s.media?.isSelfMute?.(),
+      selfDeaf: !!s.media?.isSelfDeaf?.(),
+      participants,
     };
   }
 
   _write(payload) {
-    if (!this._fs || !this._statePath) return;
+    if (!this._fs) return;
     const text = JSON.stringify(payload);
     if (text === this._lastPayload) return;
     this._lastPayload = text;
@@ -165,88 +119,45 @@ module.exports = class QuickshellVoiceStatus {
     } catch (e) {}
   }
 
-  _writeSync(payload) {
-    if (!this._fs || !this._statePath) return;
-    try {
-      this._fs.writeFileSync(this._statePath, JSON.stringify(payload));
-    } catch (e) {}
-  }
-
   _runCommand(cmd) {
-    switch (cmd) {
-      case "toggleSelfMute":
-        this._toggle("toggleSelfMute", "AUDIO_TOGGLE_SELF_MUTE");
-        break;
-      case "toggleSelfDeaf":
-        this._toggle("toggleSelfDeaf", "AUDIO_TOGGLE_SELF_DEAF");
-        break;
-      case "disconnect":
-        this._disconnect();
-        break;
-      default:
-        return;
-    }
-    this._lastPayload = "";
-    this._publish();
-  }
-
-  // Looked up per command, not once at start: Discord loads its audio actions lazily and renames their module's keys
-  // between client builds. The flux action is the fallback when no module exposes the function.
-  _toggle(name, fluxType) {
-    const W = BdApi.Webpack;
-    let actions = null;
-    try {
-      actions = W.getModule((m) => m && typeof m[name] === "function", { searchExports: true });
-    } catch (e) {}
-    if (actions) {
-      try {
-        actions[name]();
-        return;
-      } catch (e) {
-        console.error(`[QuickshellVoiceStatus] ${name}() failed`, e);
-      }
-    }
-    try {
-      const dispatcher = W.getModule((m) => m && typeof m.dispatch === "function" && typeof m.subscribe === "function",
-        { searchExports: true });
-      dispatcher.dispatch({ type: fluxType, context: "default", syncRemote: true });
-    } catch (e) {
-      console.error(`[QuickshellVoiceStatus] ${name}: no action module and no dispatcher`, e);
-    }
-  }
-
-  _disconnect() {
-    const W = BdApi.Webpack;
-    const isActions = (m) =>
-      m && typeof m.selectVoiceChannel === "function" && typeof m.disconnect === "function";
-    let actions = null;
-    try {
-      actions = W.getModule(isActions, { searchExports: true });
-    } catch (e) {}
-    if (actions) {
-      try {
-        actions.disconnect();
-        return;
-      } catch (e) {
-        console.error("[QuickshellVoiceStatus] disconnect() failed", e);
-      }
-    }
-    try {
-      const dispatcher = W.getModule((m) => m && typeof m.dispatch === "function" && typeof m.subscribe === "function",
-        { searchExports: true });
-      dispatcher.dispatch({
+    const has = (...fns) => (m) => m && fns.every((f) => typeof m[f] === "function");
+    if (cmd === "toggleSelfMute" || cmd === "toggleSelfDeaf") {
+      const type = cmd === "toggleSelfMute" ? "AUDIO_TOGGLE_SELF_MUTE" : "AUDIO_TOGGLE_SELF_DEAF";
+      this._invoke(cmd, has(cmd), { type, context: "default", syncRemote: true });
+    } else if (cmd === "disconnect") {
+      this._invoke(cmd, has("selectVoiceChannel", "disconnect"), {
         type: "VOICE_CHANNEL_SELECT",
         guildId: null,
         channelId: null,
         currentVoiceChannelId: this._voiceChannelId(),
       });
+    } else {
+      return;
+    }
+    this._lastPayload = "";
+    this._publish();
+  }
+
+  // Looked up per command, not once at start: Discord loads its audio and voice actions lazily and renames their
+  // module's keys between client builds. The flux action is the fallback when no module exposes the function.
+  _invoke(name, isActions, fluxAction) {
+    const W = BdApi.Webpack;
+    try {
+      const actions = W.getModule(isActions, { searchExports: true });
+      if (actions) return actions[name]();
     } catch (e) {
-      console.error("[QuickshellVoiceStatus] no way to disconnect found", e);
+      console.error(`[QuickshellVoiceStatus] ${name}() failed`, e);
+    }
+    try {
+      W.getModule((m) => m && typeof m.dispatch === "function" && typeof m.subscribe === "function",
+        { searchExports: true }).dispatch(fluxAction);
+    } catch (e) {
+      console.error(`[QuickshellVoiceStatus] ${name}: no action module and no dispatcher`, e);
     }
   }
 
   _pollCommands() {
-    if (!this._fs || !this._commandPath) return;
+    if (!this._fs) return;
     if (!this._fs.existsSync(this._commandPath)) return;
     // claim the file by renaming first, so a line appended between read and delete is not lost
     const pending = this._commandPath + ".reading";
@@ -328,12 +239,12 @@ module.exports = class QuickshellVoiceStatus {
       this._subscribe(this._stores[key]);
 
     try {
-      if (this._commandPath && this._fs.existsSync(this._commandPath)) this._fs.unlinkSync(this._commandPath);
+      if (this._fs.existsSync(this._commandPath)) this._fs.unlinkSync(this._commandPath);
     } catch (e) {}
 
     try {
       this._commandWatcher = this._fs.watch(this._runtimeDir, (event, name) => {
-        if (name === "quickshell-discord-cmd") this._pollCommands();
+        if (name === COMMAND_FILE) this._pollCommands();
       });
       // a watcher that errors stops firing for good: fall back to polling instead of going deaf
       this._commandWatcher.on("error", (e) => {
@@ -368,6 +279,6 @@ module.exports = class QuickshellVoiceStatus {
     if (this._publishTimer) clearTimeout(this._publishTimer);
     this._publishTimer = null;
     this._lastPayload = "";
-    this._writeSync({ inVoice: false });
+    this._write({ inVoice: false });
   }
 };

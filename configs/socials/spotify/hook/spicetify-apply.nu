@@ -1,5 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 
+use ../../../../scripts/lib/state.nu [xdg]
+
 const UNMAP = path self | path expand | path dirname --num-levels 2 | path join spicetify-unmap-classes.nu
 const RELOAD = path self | path expand | path dirname --num-levels 2 | path join spotify-reload.nu
 const SPOTIFY_SYSTEM = "/opt/spotify"
@@ -7,14 +9,10 @@ const PACMAN_LOCK = "/var/lib/pacman/db.lck"
 const PACMAN_WAIT_S = 300
 const EXIT_WAIT_S = 10
 
-def config-home []: nothing -> path { $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) }
-
-def patched-dir []: nothing -> path {
-    $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join spotify-patched
-}
+def patched-dir []: nothing -> path { xdg data spotify-patched }
 
 def logged-in []: nothing -> bool {
-    let prefs = config-home | path join spotify prefs
+    let prefs = xdg config spotify prefs
     ($prefs | path exists) and (open --raw $prefs | lines | any { str starts-with autologin.username })
 }
 
@@ -34,7 +32,7 @@ def applied []: nothing -> bool {
 export def apply-pending []: nothing -> bool {
     if not (logged-in) { return false }
     let stamp = patched-dir | path join .dotfiles-source
-    let ini = config-home | path join spicetify config-xpui.ini
+    let ini = xdg config spicetify config-xpui.ini
     let path = if ($ini | path exists) { open --raw $ini | parse --regex '(?m)^spotify_path\s*=\s*(?<v>.*?)\s*$' | get --optional 0.v }
     not (applied) or $path != (patched-dir) or not ($stamp | path exists) or (open --raw $stamp | str trim) != (source-text)
 }

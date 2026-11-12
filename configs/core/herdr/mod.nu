@@ -3,14 +3,14 @@ use ../wallust/palette.nu [hex-to-rgb rgb-to-hex tone-map mix]
 
 export const meta = {deps: [core/cli core/wallust], packages: {pacman: [herdr-bin]}}
 
-const CONFIG = ".config/herdr/config.toml"
 const BLOCK = '(?s)(# BEGIN PYWAL THEME\n).*?(# END PYWAL THEME)'
 const DARK_FLOOR = 0.16
 const BLENDS = {
     active_row_bg: 0.06, selection_bg: 0.11, surface_dim: 0.0, surface0: 0.08, surface1: 0.14, overlay0: 0.22
     overlay1: 0.34, subtext0: 0.65
 }
-const TMPFILES = ".config/user-tmpfiles.d/herdr.conf"
+# a server that is not running reads the new file when it starts
+const RELOAD = [sh -c "herdr server reload-config >/dev/null 2>&1 || true"]
 
 def config-text []: nothing -> string {
     let source = open --raw config.toml
@@ -31,18 +31,15 @@ def config-text []: nothing -> string {
     $source | str replace --regex $BLOCK $"${1}($block)\n${2}"
 }
 
-# a server that is not running reads the new file when it starts
-const RELOAD = [sh -c "herdr server reload-config >/dev/null 2>&1 || true"]
-
 def config []: nothing -> record {
-    file-text ($nu.home-dir | path join $CONFIG) (config-text) --mode 600 --generated --then $RELOAD
+    file-text (xdg config herdr config.toml) (config-text) --mode 600 --generated --then $RELOAD
 }
 
 export def link [cfg: record] {
     [
         (config)
         (link-commands herdr-open.nu herdr-fingers.nu)
-        (file-copy herdr.tmpfiles.conf ($nu.home-dir | path join $TMPFILES))
+        (file-copy herdr.tmpfiles.conf (xdg config user-tmpfiles.d herdr.conf))
     ]
 }
 

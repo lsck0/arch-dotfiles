@@ -1,15 +1,11 @@
 #!/usr/bin/env -S nu --no-config-file
-
 # Docked lid closed: internal panel off so workspace 1 and the bar move to a visible screen.
 
-const INTERNAL_PANEL = '^(eDP|LVDS|DSI)-'
-const HEADLESS = '^HEADLESS-'
+use ../../../scripts/lib/platform.nu [monitors-live]
+
+export const INTERNAL_PANEL = '^(eDP|LVDS|DSI)-'
 const LAYOUT = path self ../../../scripts/toggles/toggle-monitor-scale.nu
 const SELF = path self
-
-def lid-closed []: nothing -> bool {
-    glob /proc/acpi/button/lid/*/state | any { open --raw $in | str contains "closed" }
-}
 
 def main [state?: string] {
     # a quick close and reopen starts two runs: one at a time, each reading the lid as it is now
@@ -19,8 +15,8 @@ def main [state?: string] {
         return
     }
     let proc = glob /proc/acpi/button/lid/*/state
-    let closed = if ($proc | is-not-empty) { lid-closed } else { $state == "closed" }
-    let monitors = ^hyprctl -j monitors all | from json | where name !~ $HEADLESS
+    let closed = if ($proc | is-empty) { $state == "closed" } else { $proc | any { open --raw $in | str contains "closed" } }
+    let monitors = monitors-live --all
     let internal = $monitors | where name =~ $INTERNAL_PANEL
     let external = $monitors | where name !~ $INTERNAL_PANEL and not $it.disabled
     for panel in $internal {

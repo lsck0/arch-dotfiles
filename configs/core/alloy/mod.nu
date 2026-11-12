@@ -15,7 +15,7 @@ const BUILDS = [
 
 export def system [cfg: record] {
     let host = sys host | get hostname
-    let credential = $env.DOTFILES_SECRETS? | default "/nonexistent" | path join $"alloy-($host)"
+    let credential = system-secret $"alloy-($host)"
     let build = $BUILDS | where { $in.probe | path exists } | get --optional 0
     if $build == null or $host not-in $HOMELAB.push.desktops or not ($credential | path exists) { return [] }
     let password = open --raw $credential | str trim | split row ":" | skip 1 | str join ":"

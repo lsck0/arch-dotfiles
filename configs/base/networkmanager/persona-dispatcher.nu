@@ -37,8 +37,6 @@ def links-in [file: path]: nothing -> list<string> {
     if ($file | path exists) { open --raw $file | lines } else { [] }
 }
 
-def trusted-links []: nothing -> list<string> { links-in $TRUSTED_NETWORK }
-
 def policy []: nothing -> string {
     let policy = if ($POLICY_FILE | path exists) { open --raw $POLICY_FILE | str trim } else { "" }
     let policy = if $policy in [firewall-only off] { $policy } else { "lockdown-tor" }
@@ -66,7 +64,7 @@ def foreign [policy: string]: nothing -> bool {
     if ($links | any { $in.type in [gsm bt] }) { return true }
     let physical = $links | where { $"/sys/class/net/($in.dev)/device" | path exists } | get dev
     # fail closed
-    let trusted = trusted-links
+    let trusted = links-in $TRUSTED_NETWORK
     ($physical | is-empty) or ($physical | any { $in not-in $trusted })
 }
 
@@ -76,8 +74,7 @@ def tor-missing []: nothing -> bool {
 
 # Switches to tor; gone names the tunnel going down, whose link may linger until NM deletes it.
 def tor-on [policy: string, gone: string = ""]: nothing -> nothing {
-    if $policy != lockdown-tor or (tor-missing) { return }
-    if ($VM_GUEST | path exists) { return }
+    if $policy != lockdown-tor or (tor-missing) or ($VM_GUEST | path exists) { return }
     if ([$VPN_IFACE $WG_IFACE] | any {|t| $t != $gone and (ok ip link show $t) }) { return }
     if (ok systemctl is-active -q tor-router.service) { return }
     touch $TOR_MARKER
@@ -135,7 +132,7 @@ def wg-event [policy: string, action: string]: nothing -> nothing {
 
 # Captive portal mode: its pages live on the foreign network, out of reach of tor and strict dot.
 def portal [iface: string]: nothing -> nothing {
-    if $iface in (trusted-links) or (ok systemctl is-active -q $"($PORTAL_UNIT)-($iface).timer") { return }
+    if $iface in (links-in $TRUSTED_NETWORK) or (ok systemctl is-active -q $"($PORTAL_UNIT)-($iface).timer") { return }
     # fw_egress is loaded only under lockdown-tor; strict dot still hides the portal's names without it
     let egress = ok nft list table inet fw_egress
     if $egress and not (ok nft add element inet fw_egress portal $"{ ($iface) timeout ($PORTAL_S)s }") {
@@ -200,10 +197,10 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
         ok systemctl mask --runtime --now avahi-daemon.service | ignore
         if $action == up and $policy == lockdown-tor {
             ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=1" | ignore
-            if $iface not-in (trusted-links) { ok nmcli connection modify $uuid ipv6.method disabled | ignore }
+            if $iface not-in (links-in $TRUSTED_NETWORK) { ok nmcli connection modify $uuid ipv6.method disabled | ignore }
         } else if $policy != lockdown-tor {
             ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=0" | ignore
-            if $iface not-in (trusted-links) { ok nmcli connection modify $uuid ipv6.method auto | ignore }
+            if $iface not-in (links-in $TRUSTED_NETWORK) { ok nmcli connection modify $uuid ipv6.method auto | ignore }
         }
     }
     # the nas answers only on home's lan or through wg0; a trusted network is neither

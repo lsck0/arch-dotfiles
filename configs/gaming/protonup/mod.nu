@@ -6,13 +6,9 @@ const OVERLAY_URL = "https://github.com/thaylorz/proton-ge-custom/releases/downl
 const OVERLAY_SHA256 = "ba515bf1fa6e7f9634cb894640f21f0359dc7435c3a5ce458a37087ed6c3a4d7"
 const OVERLAY_DIR = "Proton-LayeredOverlay"
 
-def steam-data []: nothing -> path {
-    xdg data Steam
-}
-
 # Not ~/.steam/root, a link steam.sh makes on first launch: a real dir there blocks it, so the tools go to the data dir.
 export def link [cfg: record] {
-    let compat = steam-data | path join compatibilitytools.d
+    let compat = xdg data Steam compatibilitytools.d
     let ge = $"($PROTON_GE_VERSION)-x86_64"
     let ge_url = $"https://github.com/GloriousEggroll/proton-ge-custom/releases/download/($PROTON_GE_VERSION)/($ge).tar.gz"
     [

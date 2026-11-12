@@ -7,8 +7,7 @@ import Quickshell.Services.UPower
 Singleton {
   id: root
 
-  readonly property string path:
-    (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/toggles/powersaver"
+  readonly property string path: Paths.runtimeDir + "/toggles/powersaver"
 
   property bool saver: false
 

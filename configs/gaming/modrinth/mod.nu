@@ -25,7 +25,7 @@ export def link [cfg: record] {
     let p = paths
     # seeded once: modrinth rewrites app.db in place
     let seed = if (secret-is-plaintext $p.seed) { [(step seed --creates $p.db)] } else { [] }
-    let busy = (^pgrep -x 'java|modrinth-app' | complete).exit_code == 0
+    let busy = process-running 'java|modrinth-app'
     let relocate = (profile-has secrets) and (platform-has homelab) and ($p.saves | path exists) and not $busy and (unlinked $p | is-not-empty)
     $seed | append (step relocate --done=(not $relocate))
 }

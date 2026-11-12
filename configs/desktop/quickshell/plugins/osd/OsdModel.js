@@ -1,23 +1,21 @@
 .pragma library
 
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value))
-}
-
 var widestIcon = "\u{f028}"
 
+var ICONS = {
+  "volume-muted": "\u{f026}",
+  "volume": "\u{f028}",
+  "microphone-muted": "\u{f131}",
+  "microphone": "\u{f130}",
+  "brightness": "\u{f042}",
+  "keyboard-backlight-off": "\u{f0310}",
+  "keyboard-backlight": "\u{f030c}",
+  "launch": "\u{f14de}"
+}
+
+// a known name maps to its glyph, any other text is the glyph itself
 function iconFor(name) {
-  var n = String(name || "").toLowerCase()
-  if (n === "volume-muted") return "\u{f026}"
-  if (n === "volume") return "\u{f028}"
-  if (n === "microphone-muted") return "\u{f131}"
-  if (n === "microphone") return "\u{f130}"
-  if (n === "brightness") return "\u{f042}"
-  if (n === "keyboard-backlight-off") return "\u{f0310}"
-  if (n === "keyboard-backlight") return "\u{f030c}"
-  if (n === "launch") return "\u{f14de}"
-  if (n.length > 0) return name
-  return "\u{f0e7}"
+  return ICONS[String(name || "").toLowerCase()] || name || "\u{f0e7}"
 }
 
 function stateForShow(iconName, rawMessage, rawValue, rawMax, rawProgressText, rawDuration) {
@@ -25,7 +23,7 @@ function stateForShow(iconName, rawMessage, rawValue, rawMax, rawProgressText, r
   var maxValue = isNaN(parsedMax) ? 100 : Math.max(1, parsedMax)
   var parsedValue = parseInt(rawValue || "0", 10)
   var hasProgress = rawValue !== "" && !isNaN(parsedValue) && rawMessage === ""
-  var value = hasProgress ? clamp(parsedValue, 0, maxValue) : 0
+  var value = hasProgress ? Math.max(0, Math.min(maxValue, parsedValue)) : 0
   var percent = hasProgress ? Math.round(value * 100 / maxValue) : -1
   var parsedDuration = parseInt(rawDuration || "1200", 10)
 

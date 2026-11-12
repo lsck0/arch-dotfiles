@@ -5,11 +5,6 @@ const UNIT = "games-bypass.service"
 const GROUP = "vpn-bypass"
 const POLICY = "dev.lsck0.vpn-bypass.policy"
 
-def group-members [group: string]: nothing -> list<string> {
-    open /etc/group | lines | parse "{name}:{x}:{gid}:{members}" | where name == $group | get --optional 0.members
-    | default "" | split row "," | where $it != ""
-}
-
 export def system [cfg: record] {
     if (which nft | is-empty) or $env.FORM_FACTOR? == "wsl" { return [] }
     let reload = unit-restart $UNIT --reload
@@ -24,8 +19,8 @@ export def system [cfg: record] {
         # in name order after home-network and homelab-routes
         (if ("/etc/NetworkManager/dispatcher.d" | path exists) {
             [(file-copy games-route.nu $DISPATCHER --mode 755) (step nudge)]
-        } else { [] })
-    ] | compact
+        })
+    ]
 }
 
 export def nudge []: nothing -> nothing {

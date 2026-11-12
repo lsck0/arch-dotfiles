@@ -6,9 +6,8 @@ import Quickshell.Io
 Singleton {
   id: root
 
-  readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"
-  readonly property string pomoPath: runtimeDir + "/quickshell-pomodoro/state.json"
-  readonly property string reminderIndexPath: runtimeDir + "/quickshell-reminders/index.json"
+  readonly property string pomoPath: Paths.runtimeDir + "/quickshell-pomodoro/state.json"
+  readonly property string reminderIndexPath: Paths.runtimeDir + "/quickshell-reminders/index.json"
   readonly property string pomoConfigPath: Paths.home + "/.config/quickshell/pomodoro.json"
 
   readonly property string pomoScript: Paths.script("pomodoro.nu")
@@ -44,38 +43,27 @@ Singleton {
   }
 
   function applyPomoConfig(txt) {
-    var read = {}
-    try { read = JSON.parse(txt || "{}") || {} } catch (e) {}
-    root.pomoConfig = Object.assign({}, root.pomoConfigDefault, read)
+    root.pomoConfig = Object.assign({}, root.pomoConfigDefault, Util.parseObject(txt))
   }
 
   function applyPomo(txt) {
-    try { root.pomoState = JSON.parse(txt || "{}") || ({}) } catch (e) { root.pomoState = ({}) }
+    root.pomoState = Util.parseObject(txt)
     root.nowSec = Math.floor(Date.now() / 1000)
   }
 
   function applyReminders(txt) {
-    try { root.reminderList = JSON.parse(txt || "{}").reminders || [] } catch (e) { root.reminderList = [] }
+    root.reminderList = Util.parseObject(txt).reminders || []
     root.nowSec = Math.floor(Date.now() / 1000)
   }
 
   function remainingText(seconds) {
     var s = Math.max(0, Math.floor(seconds))
-    if (s >= 86400) {
-      let d = Math.floor(s / 86400)
-      let dh = Math.floor((s % 86400) / 3600)
-      return dh > 0 ? d + "d " + dh + "h" : d + "d"
-    }
-    if (s >= 3600) {
-      let h = Math.floor(s / 3600)
-      let hm = Math.floor((s % 3600) / 60)
-      return hm > 0 ? h + "h " + hm + "m" : h + "h"
-    }
-    var m = Math.floor(s / 60)
-    var r = s % 60
-    if (m > 0 && r > 0) return m + "m " + r + "s"
-    if (m > 0) return m + "m"
-    return r + "s"
+    var units = [[86400, "d"], [3600, "h"], [60, "m"], [1, "s"]]
+    var i = units.findIndex(function (u) { return s >= u[0] })
+    if (i < 0 || i === units.length - 1) return s + "s"
+    var big = Math.floor(s / units[i][0]) + units[i][1]
+    var rest = Math.floor(s % units[i][0] / units[i + 1][0])
+    return rest > 0 ? big + " " + rest + units[i + 1][1] : big
   }
 
   readonly property bool pomoRunning: !!pomoState.running

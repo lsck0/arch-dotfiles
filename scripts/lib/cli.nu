@@ -8,11 +8,6 @@ const REPO = path self ../..
 const CRASH_LOG_LINES = 20
 const SUPERVISOR = path self interruptible.sh
 
-# Flattens a list of lists by one level.
-export def concat []: list -> list {
-    reduce --fold [] {|part, acc| $acc ++ $part }
-}
-
 # A switch as the argv it was given: [--name] when on.
 export def flag [name: string, on: bool]: nothing -> list<string> {
     if $on { [$"--($name)"] } else { [] }
@@ -21,7 +16,7 @@ export def flag [name: string, on: bool]: nothing -> list<string> {
 # Parallel jobs: DOTFILES_JOBS, else the cpu count.
 export def jobs []: nothing -> int {
     let raw = $env.DOTFILES_JOBS? | default (sys cpu | length)
-    let jobs = try { $raw | into int } catch { error make {msg: $"DOTFILES_JOBS=($raw) is not a positive number"} }
+    let jobs = try { $raw | into int } catch { 0 }
     if $jobs < 1 { error make {msg: $"DOTFILES_JOBS=($raw) is not a positive number"} }
     $jobs
 }
@@ -93,21 +88,33 @@ export def guarded [name: string, body: closure, --read-only, --background]: not
     }
 }
 
+# The variables an agent harness sets in its shells (Claude Code, generic, Gemini, Copilot); the shell rcs spell them too.
+const AGENT_MARKERS = [CLAUDECODE AI_AGENT GEMINI_CLI COPILOT_CLI_BINARY_VERSION]
+
+def agent-session []: nothing -> bool {
+    $AGENT_MARKERS | any {|name| $env | get --optional $name | is-not-empty }
+}
+
 # How this process reaches root: sudo at a terminal a person sees, pkexec's dialog in a graphical session otherwise,
-# null with neither. Claude Code's shells (the agent's and the user's ! commands, CLAUDECODE set) hold a terminal that
-# nobody sees, so sudo's touch cue and password prompt land there unread; its dialog is visible and asks the same key.
+# null with neither. An agent's shell (Luca's ! commands in Claude Code too) holds a terminal nobody sees, so sudo's
+# touch cue and password prompt would land there unread; its dialog is visible and asks the same key.
 export def root-runner []: nothing -> any {
-    let seen_terminal = (is-terminal --stdin) and ($env.CLAUDECODE? | is-empty)
+    let seen_terminal = (is-terminal --stdin) and not (agent-session)
     let graphical = ($env.WAYLAND_DISPLAY? | is-not-empty) or ($env.DISPLAY? | is-not-empty)
     if $seen_terminal { "sudo" } else if $graphical and (which pkexec | is-not-empty) { "pkexec" } else { null }
+}
+
+# Holds <state dir>/name for the rest of the run; while another run holds it, says "dot: <busy>, waiting for it".
+export def state-lock-hold [name: string, busy: string]: nothing -> nothing {
+    let lock = state-dir | path join $name
+    if $lock not-in (locks-held) and ($lock | path exists) and (^flock --nonblock $lock true | complete).exit_code != 0 {
+        print -e $"dot: ($busy), waiting for it"
+    }
+    supervise --lock $lock
 }
 
 # Held by every writer of modules/<id>/theme.nuon outside a dot apply: dot-theme.service's theme apply and an unlink's
 # theme row. Taken after run.lock, never before, and dot apply, which waits on that unit, never takes it.
 export def theme-locked []: nothing -> nothing {
-    let lock = state-dir | path join theme.lock
-    if $lock not-in (locks-held) and ($lock | path exists) and (^flock --nonblock $lock true | complete).exit_code != 0 {
-        print -e "dot: a theme switch is running, waiting for it"
-    }
-    supervise --lock $lock
+    state-lock-hold theme.lock "a theme switch is running"
 }

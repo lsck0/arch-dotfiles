@@ -13,7 +13,7 @@ export def system [cfg: record] {
     if not ($name =~ $SECRET_NAME) {
         error make {msg: $"wireguard: '($name)' is not a secrets file name"}
     }
-    let secret = $env.DOTFILES_SECRETS? | default "/nonexistent" | path join $name
+    let secret = system-secret $name
     let text = if ($secret | path exists) { open --raw $secret } else if (placed-unchanged) { open --raw $CONF } else { return [] }
     if not ($text =~ '(?m)^\[Interface\]') or ($text =~ '(?im)^\s*(PreUp|PostUp|PreDown|PostDown|SaveConfig)\s*=') {
         error make {msg: $"wireguard: ($name) is no [Interface] config or carries hooks/SaveConfig, keeping ($CONF)"}
@@ -23,6 +23,5 @@ export def system [cfg: record] {
 
 def placed-unchanged []: nothing -> bool {
     if not ($CONF | path exists) { return false }
-    let recorded = recorded-hashes | get --optional $CONF
-    $recorded != null and $recorded == (open --raw $CONF | hash sha256)
+    (recorded-hashes | get --optional $CONF) == (open --raw $CONF | hash sha256)
 }

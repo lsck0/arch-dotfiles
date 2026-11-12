@@ -47,34 +47,21 @@ function M.dot()
     end
 
     local clients = vim.lsp.get_clients({ bufnr = 0, name = "clangd" })
-    if #clients == 0 then
-        return "."
-    end
-
-    if not should_query_hover() then
+    if #clients == 0 or not should_query_hover() then
         return "."
     end
     -- clangd's own encoding (utf-16), else columns are off
     local params = vim.lsp.util.make_position_params(0, clients[1].offset_encoding)
-    local responses = vim.lsp.buf_request_sync(0, "textDocument/hover", params, 40)
-
-    if not responses then
-        return "."
-    end
-
-    for _, resp in pairs(responses) do
+    for _, resp in pairs(vim.lsp.buf_request_sync(0, "textDocument/hover", params, 40) or {}) do
         if is_pointer_type(resp.result) then
             return "->"
         end
     end
-
     return "."
 end
 
 function M.setup()
-    vim.keymap.set("i", ".", function()
-        return require("local_plugins.arrowdot").dot()
-    end, { expr = true, silent = true })
+    vim.keymap.set("i", ".", M.dot, { expr = true, silent = true })
 end
 
 return M

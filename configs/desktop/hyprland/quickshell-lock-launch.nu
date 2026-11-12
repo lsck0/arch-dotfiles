@@ -18,10 +18,11 @@ def granted []: nothing -> bool {
     1..$LOCK_POLL_TRIES | each { $in } | any {|_| if (locked) { true } else { sleep $LOCK_POLL_INTERVAL; false } }
 }
 
+def config-dir []: nothing -> path { $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) }
+
 # desktop/hyprland's lock_screen option, written beside this script's config
 def preferred []: nothing -> string {
-    let file = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join hypr locker
-    try { open --raw $file | str trim } catch { "quickshell" }
+    try { open --raw (config-dir | path join hypr locker) | str trim } catch { "quickshell" }
 }
 
 def hyprlock-take []: nothing -> bool {
@@ -36,8 +37,7 @@ def main [] {
     if (locked) { return }
     if (preferred) == "hyprlock" and (hyprlock-take) { return }
     if (which quickshell | is-not-empty) and (running quickshell) {
-        let config = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join quickshell
-        let asked = ^timeout 5s quickshell ipc -p $config call lock lock | complete | get stdout | str trim
+        let asked = ^timeout 5s quickshell ipc -p (config-dir | path join quickshell) call lock lock | complete | get stdout | str trim
         if $asked == "ok" and (granted) { return }
     }
     if (hyprlock-take) { return }

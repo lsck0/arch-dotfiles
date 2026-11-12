@@ -2,7 +2,6 @@ use module.nu *
 
 export const meta = {deps: [core/cli core/tmux core/wallust], packages: {pacman: [git git-delta]}, inputs: [/usr/bin/mergiraf /usr/bin/jj /usr/bin/git-lfs /usr/bin/gh]}
 
-const CONFIG_DIR = ".config/git"
 const DELTA_THEME = "wal/delta.gitconfig"
 const MERGIRAF_DRIVER = "mergiraf merge --git %O %A %B -s %S -x %X -y %Y -p %P -l %L"
 const GH_HELPER = "!/usr/bin/gh auth git-credential"
@@ -25,7 +24,7 @@ def jj-config [identity: oneof<record, nothing>]: nothing -> string {
 }
 
 export def link [cfg: record] {
-    let dir = $nu.home-dir | path join $CONFIG_DIR
+    let dir = xdg config git
     # identity rolls out only when the owner is actually unlocked (profile AND the YubiKey), never on profile selection alone
     let identity = if (owner-unlocked) { profile-load | select name email } else { null }
     let template = $dir | path join template
@@ -49,8 +48,8 @@ export def link [cfg: record] {
     [
         (file-text ($dir | path join config) (ini $sections))
         (file-copy template/hooks/pre-commit ($template | path join hooks pre-commit) --mode 755)
-        (if (has mergiraf) { file-text ($dir | path join attributes) $"(^mergiraf languages --gitattributes)\n" } else { [] })
-        (if (has jj) { file-text (xdg config jj config.toml) (jj-config $identity) } else { [] })
+        (if (has mergiraf) { file-text ($dir | path join attributes) $"(^mergiraf languages --gitattributes)\n" })
+        (if (has jj) { file-text (xdg config jj config.toml) (jj-config $identity) })
         (link-commands wtree.nu)
         (shell-aliases git)
     ]

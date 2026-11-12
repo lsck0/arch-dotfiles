@@ -4,18 +4,16 @@ use ../../core/wallust/palette.nu [hex-to-rgb readable-on rgb-to-hex shade]
 
 export const meta = {packages: {pacman: [zed]}}
 
-const CONFIG_DIR = ".config/zed"
-
-export def link [cfg: record] {
-    [(files-into ($nu.home-dir | path join $CONFIG_DIR) keymap.json) (settings)]
-}
-
 # Merged: zed's UI edits survive, the repo's keys and the font win.
 def settings []: nothing -> record {
     let font = font-load
     let edits = open settings.json | merge {buffer_font_family: $font.mono, buffer_font_size: $font.size}
         | items {|k, v| json-set [$k] $v }
-    json-merge ($nu.home-dir | path join $CONFIG_DIR settings.json) $edits
+    json-merge (xdg config zed settings.json) $edits
+}
+
+export def link [cfg: record] {
+    [(files-into (xdg config zed) keymap.json) (settings)]
 }
 
 export def theme [cfg: record, wallpaper: string] {
@@ -75,7 +73,7 @@ export def theme [cfg: record, wallpaper: string] {
         themes: [{name: Wallust, appearance: (if $p.light == "1" { "light" } else { "dark" }), style: $style}]
     }
     [
-        (file-text ($nu.home-dir | path join $CONFIG_DIR themes wallust.json) $"($theme | to json --indent 2)\n" --generated)
+        (file-text (xdg config zed themes wallust.json) $"($theme | to json --indent 2)\n" --generated)
         (settings)
     ]
 }

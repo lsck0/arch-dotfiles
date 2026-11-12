@@ -10,9 +10,8 @@ export def system [cfg: record] {
     if not ("/var/lib/ossec-hids" | path exists) { return [] }
     [
         (group-admins ossec-alerts)
-        (unit-file ossec-journal.service)
+        (unit-file ossec-journal.service --enable)
         (unit-enable ossec-server.target)
-        (unit-enable ossec-journal.service)
         (dropin ossec-syscheckd.service syscheckd-idle.conf --name idle.conf)
         (file-copy 99-ossec-ac.rules /etc/udev/rules.d/99-ossec-ac.rules --then [udevadm control --reload])
         (step localfiles)

@@ -7,7 +7,7 @@ const PERSONA = "/etc/NetworkManager/dispatcher.d/90-anonymous-persona"
 
 # toron and toroff switch the route tor-router sets up, so they come with tor as the router does
 export def link [cfg: record] {
-    if (which tor | is-empty) { [] } else { shell-aliases tor }
+    if (which tor | is-not-empty) { shell-aliases tor }
 }
 
 export def system [cfg: record] {

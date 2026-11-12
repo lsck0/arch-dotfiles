@@ -15,32 +15,19 @@ Item {
   Keys.priority: Keys.BeforeItem
   Keys.onPressed: function(event) {
     if (blocked) return
-
-    if (event.key === Qt.Key_Escape) {
-      closeRequested(); event.accepted = true; return
-    }
-    if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
-      tabRequested((event.modifiers & Qt.ShiftModifier) || event.key === Qt.Key_Backtab ? -1 : 1)
-      event.accepted = true
+    var key = event.key, text = event.text
+    if (key === Qt.Key_Escape) closeRequested()
+    else if (key === Qt.Key_Tab || key === Qt.Key_Backtab)
+      tabRequested((event.modifiers & Qt.ShiftModifier) || key === Qt.Key_Backtab ? -1 : 1)
+    else if (key === Qt.Key_PageDown || key === Qt.Key_PageUp) pageRequested(key === Qt.Key_PageDown ? 1 : -1)
+    else if (key === Qt.Key_Down || text === "j") moveRequested(0, 1)
+    else if (key === Qt.Key_Up || text === "k") moveRequested(0, -1)
+    else if (key === Qt.Key_Right || text === "l") moveRequested(1, 0)
+    else if (key === Qt.Key_Left || text === "h") moveRequested(-1, 0)
+    else {
+      if (text && text.length === 1) textKey(text)
       return
     }
-    if (event.key === Qt.Key_PageDown || event.key === Qt.Key_PageUp) {
-      pageRequested(event.key === Qt.Key_PageDown ? 1 : -1); event.accepted = true; return
-    }
-    if (event.key === Qt.Key_Down || event.text === "j") {
-      moveRequested(0, 1); event.accepted = true; return
-    }
-    if (event.key === Qt.Key_Up || event.text === "k") {
-      moveRequested(0, -1); event.accepted = true; return
-    }
-    if (event.key === Qt.Key_Right || event.text === "l") {
-      moveRequested(1, 0); event.accepted = true; return
-    }
-    if (event.key === Qt.Key_Left || event.text === "h") {
-      moveRequested(-1, 0); event.accepted = true; return
-    }
-    if (event.text && event.text.length === 1) {
-      textKey(event.text)
-    }
+    event.accepted = true
   }
 }

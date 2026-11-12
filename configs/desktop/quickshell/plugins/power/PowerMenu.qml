@@ -34,10 +34,7 @@ Item {
     root.pendingIndex = -1
   }
 
-  function toggle() {
-    if (root.opened) root.close()
-    else root.open()
-  }
+  function toggle() { root.opened ? root.close() : root.open() }
 
   function activate(index) {
     var action = root.actions[index]

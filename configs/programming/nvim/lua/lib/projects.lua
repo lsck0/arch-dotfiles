@@ -71,8 +71,8 @@ local function is_bare(head)
     return vim.fn.isdirectory(dir .. "/objects") == 1 and vim.fn.isdirectory(dir .. "/refs") == 1
 end
 
----@return { display: string, path: string }[]
-function M.list()
+---@return { display: string, value: string }[]
+local function list()
     if vim.fn.executable("fd") ~= 1 then
         vim.notify("projects: fd is not installed", vim.log.levels.ERROR)
         return {}
@@ -83,7 +83,7 @@ function M.list()
     local function add(path, display)
         if not seen[path] then
             seen[path] = true
-            table.insert(out, { display = display, path = path })
+            table.insert(out, { display = display, value = path })
         end
     end
     for _, dir in ipairs(dirs) do
@@ -100,13 +100,7 @@ function M.list()
                 -- fd prints dirs with a trailing slash, which dirname would keep
                 local entry = vim.fs.normalize(line)
                 local path = vim.fs.dirname(entry)
-                local project
-                if vim.fs.basename(entry) == "HEAD" then
-                    project = is_bare(entry)
-                else
-                    project = is_checkout(entry)
-                end
-                if project then
+                if (vim.fs.basename(entry) == "HEAD" and is_bare or is_checkout)(entry) then
                     local display = path:sub(1, #dir.path) == dir.path and path:sub(#dir.path + 2) or path
                     add(path, display)
                 end
@@ -127,16 +121,12 @@ end
 
 ---@param dir string
 function M.open(dir)
-    pcall(vim.cmd.tcd, vim.fn.fnameescape(dir))
     vim.cmd.enew()
     require("lib.explorer").open(dir)
 end
 
 function M.pick()
-    local items = {}
-    for _, item in ipairs(M.list()) do
-        table.insert(items, { display = item.display, value = item.path })
-    end
+    local items = list()
     if #items == 0 then
         vim.notify("projects: no git repos under the tms search dirs", vim.log.levels.WARN)
         return

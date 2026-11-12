@@ -22,7 +22,7 @@ export def link [cfg: record] {
         (unit-file tldr-update.service)
         (unit-file tldr-update.timer --enable --now)
         # the first fetch here, so the pages are there before the timer's first run
-        (if (^pacman -Q tealdeer | complete).exit_code != 0 { [] } else {
+        (if (which tldr | is-not-empty) {
             exec tldr-pages [tldr --update] --creates (tldr-dir | path join tldr-pages) --network
         })
     ]

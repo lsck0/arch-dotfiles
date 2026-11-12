@@ -19,6 +19,8 @@ const PASSWORD_ASK = "ask"
 const PASSWORD_HASH = '^\$(1|2[aby]|5|6|y|gy|7)\$'
 const LOG = "/tmp/lsck0-install.log"
 const PLATFORM_DEFAULT = "custom"
+# read by the stub alone (accepting an unsigned answers source), no answer
+const STUB_PARAMS = [insecure]
 const KIND_TYPES = {
     text: string password: string flag: bool menu: string keymap: string profile: string platform: string
     groups: "list<string>" disk: string
@@ -30,7 +32,7 @@ export def answers-spec [questions: record]: nothing -> record {
         {id: $e.id, type: ($KIND_TYPES | get $e.kind), env: $e.env, keys: null, password: ($e.kind == "password")}
     }
     let own = $questions.answers | each {|a| {id: $a.id, type: $a.type, env: ($a.env? | default ""), keys: $a.keys?, password: false} }
-    $asked ++ $own | uniq-by id | reduce --fold {} {|k, acc| $acc | insert $k.id ($k | reject id) }
+    $asked ++ $own | uniq-by id | each {|k| [$k.id ($k | reject id)] } | into record
 }
 
 def type-of [value: any]: nothing -> string {
@@ -55,7 +57,7 @@ def record-problems [r: record, spec: record, prefix: string]: nothing -> list<s
 
 # Type errors in answers a against spec, plus missing wifi ssids and source bundles and crypt-hashed passwords.
 export def answers-problems [spec: record, a: record]: nothing -> list<string> {
-    let top = record-problems $a ($spec | items {|k, v| {k: $k, type: $v.type} } | reduce --fold {} {|it, acc| $acc | insert $it.k $it.type }) ""
+    let top = record-problems $a ($spec | items {|k, v| [$k $v.type] } | into record) ""
     if ($top | is-not-empty) { return $top }
     let wifi = $a.wifi? | default [] | enumerate | each {|w|
         let p = record-problems $w.item $spec.wifi.keys $"wifi.($w.index)."
@@ -80,14 +82,11 @@ def cmdline-value [spec: record, key: string, raw: string]: nothing -> any {
     }
 }
 
-const STUB_PARAMS = [insecure]
-
 # The lsck0.* kernel parameters: lsck0.answers=<url or path> and overrides, wifi.* setting the first network.
 export def answers-cmdline [spec: record, cmdline: string]: nothing -> record {
     $cmdline | parse --regex $CMDLINE_PARAM | reduce --fold {answers: null, overrides: {}} {|p, acc|
         let raw = if ($p.quoted | is-not-empty) { $p.quoted } else { $p.plain }
         if $p.key == "answers" { return ($acc | update answers $raw) }
-        # read by the stub alone (accepting an unsigned answers source), no answer
         if $p.key in $STUB_PARAMS { return $acc }
         let path = if ($p.key | str starts-with "wifi.") { $p.key | str replace "wifi." "wifi.0." } else { $p.key }
         let cells = $path | split row "." | each {|c| if $c =~ '^\d+$' { $c | into int } else { $c } } | into cell-path
@@ -169,8 +168,8 @@ export def answers-env [spec: record, a: record]: nothing -> record {
         let key = $spec | get --optional $k | default {env: "", password: false}
         if $key.env == "" or ($key.password and $v == $PASSWORD_ASK) { return null }
         let text = match (type-of $v) { "bool" => (if $v { "1" } else { "0" }), "list<string>" => ($v | str join " "), _ => $v }
-        {$key.env: $text}
-    } | compact | reduce --fold {} {|it, acc| $acc | merge $it }
+        [$key.env $text]
+    } | compact | into record
 }
 
 def when-holds [when: any, c: record]: nothing -> bool {

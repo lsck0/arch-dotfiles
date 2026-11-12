@@ -16,11 +16,10 @@ export def system [cfg: record] {
         (unit-file portmaster-bypass.service --enable --then $reload)
         (file-copy vm-net.nu /usr/local/bin/vm-net --mode 755)
         (file-copy 49-vm-net.rules /etc/polkit-1/rules.d/49-vm-net.rules)
-    ] | compact
+    ]
 }
 
 export def link [cfg: record] {
     if not ("/etc/xdg/autostart/portmaster-autostart.desktop" | path exists) { return [] }
-    let autostart = xdg config autostart
-    files-into $autostart portmaster-autostart.desktop
+    files-into (xdg config autostart) portmaster-autostart.desktop
 }

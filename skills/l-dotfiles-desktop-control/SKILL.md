@@ -39,8 +39,8 @@ hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = "maximized", action = "toggl
 hyprctl dispatch 'hl.dsp.window.float({ action = "toggle" })'
 ```
 
-Workspaces 1 to 4 are on DP-2 (main), 5 to 10 on DP-1. Closing a window: `$DOTFILES/configs/desktop/hyprland/window-close.nu`
-acts on the focused one; focus it first, and only when he asked.
+Workspaces 1 to 4 are on DP-2 (main), 5 to 10 on DP-1. Closing a window:
+`$DOTFILES/configs/desktop/hyprland/window-close.nu` acts on the focused one; focus it first, and only when he asked.
 
 ## Media, sound, screen
 

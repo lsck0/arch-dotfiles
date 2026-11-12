@@ -8,11 +8,10 @@ Singleton {
 
   readonly property var commands: ["toggleSelfMute", "toggleSelfDeaf", "disconnect"]
 
-  readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || ""
-  readonly property string commandPath: runtimeDir ? runtimeDir + "/quickshell-discord-cmd" : ""
+  readonly property string commandPath: Paths.runtimeDir + "/quickshell-discord-cmd"
 
   function send(cmd: string): bool {
-    if (!root.commandPath || root.commands.indexOf(cmd) < 0) {
+    if (root.commands.indexOf(cmd) < 0) {
       console.warn("discord: rejected command", cmd)
       return false
     }

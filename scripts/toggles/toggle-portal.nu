@@ -1,14 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
 # The persona dispatcher's captive portal window on the untrusted links: on opens it, off ends it early.
-use lib.nu [switch-run root-run]
+use lib.nu [switch-run root-run trusted-links]
 
 const DISPATCHER = "/etc/NetworkManager/dispatcher.d/90-anonymous-persona"
-const TRUSTED_NETWORK = "/run/trusted-network"
 const PORTAL_TIMERS = "persona-portal-*.timer"
-
-def trusted-links []: nothing -> list<string> {
-    if ($TRUSTED_NETWORK | path exists) { open --raw $TRUSTED_NETWORK | lines } else { [] }
-}
 
 # The connected physical links the dispatcher treats as foreign; toggle-root decides the same on its own.
 def foreign-links []: nothing -> list<string> {

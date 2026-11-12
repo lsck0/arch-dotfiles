@@ -37,12 +37,11 @@ const FONTS = [KodeMono.ttf Tektur.ttf Vollkorn.ttf Vollkorn-Italic.ttf]
 const LICENSES = [KodeMono.OFL.txt Tektur.OFL.txt Vollkorn.OFL.txt]
 
 export def link [cfg: record] {
-    let config = (xdg config)
     let fonts = xdg data fonts
     [
         ($FONTS | each {|f| file-copy $f ($fonts | path join $f) --then [fc-cache -f $fonts] })
         ($LICENSES | each {|f| file-copy $f ($fonts | path join $f) })
         # a drop-in, not fonts.conf: plasma's font settings rewrite that one
-        (file-copy fonts.conf ($config | path join fontconfig conf.d 50-dotfiles.conf))
+        (file-copy fonts.conf (xdg config fontconfig conf.d 50-dotfiles.conf))
     ]
 }

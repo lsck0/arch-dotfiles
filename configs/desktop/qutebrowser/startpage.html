@@ -93,7 +93,7 @@
       const METHOD = "@METHOD@";
       // a group with more links than this spans the whole row in columns
       const WIDE_GROUP = 10;
-      // split the "<base>?<param>={}" template into a real form target, so Enter submits natively (honours POST)
+      // the "<base>?<param>={}" template as a form target and field
       const sm = SEARCH.match(/^([^?]*)\?([^=&]+)=\{\}$/);
       const SEARCH_ACTION = sm ? sm[1] : SEARCH;
       const SEARCH_PARAM = sm ? sm[2] : "q";

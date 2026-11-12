@@ -1,10 +1,10 @@
 [Unit]
-Description=Sleep inhibitor while media plays
+Description=Sleep inhibitor while @WHILE@
 PartOf=graphical-session.target
 After=graphical-session.target
 
 [Service]
-ExecStart=%h/.config/idle-guards/media-guard.nu
+ExecStart=%h/.config/idle-guards/@GUARD@-guard.nu
 Restart=on-failure
 
 [Install]

@@ -27,13 +27,11 @@ export def link [cfg: record] {
     let release = ^gimp --version | parse --regex '(?<v>\d+\.\d+\.\d+)' | get 0.v
     let version = $release | split row "." | first 2 | str join "."
     let config = xdg config GIMP $version
-    # the seed's stamp from before it was keyed, its --done; the seed removes it
-    let stamp = $config | path join $".photogimp-($PHOTOGIMP_VERSION)"
     [
         (fetch-file $PHOTOGIMP_URL $PHOTOGIMP_SHA256 (unpacked) --extract .)
         # once per PhotoGIMP release and gimp config dir; run before the download landed, it would copy nothing
         (step seed $config $version $release --requires (unpacked | path join PhotoGIMP-linux)
-            --key $"($PHOTOGIMP_VERSION) ($version)" --done=($stamp | path exists))
+            --key $"($PHOTOGIMP_VERSION) ($version)")
         (step welcome-seen $config $release --done=(welcome-seen-done $config $release))
     ]
 }
@@ -71,5 +69,4 @@ export def seed [config: path, version: string, release: string]: nothing -> not
         cp --force $file $dest
     }
     welcome-seen $config $release
-    rm --force ($config | path join $".photogimp-($PHOTOGIMP_VERSION)")
 }

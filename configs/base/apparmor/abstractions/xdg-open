@@ -2,6 +2,7 @@
 
   abi <abi/4.0>,
 
+  @{bin}/{feh,nsxiv,okular,zathura,sioyek,onlyoffice-desktopeditors,desktopeditors} Px,
   @{bin}/xdg-mime rix,
   @{bin}/{awk,gawk,basename,cat,cut,dirname,grep,head,hostname,printf,readlink,realpath,sed,tr,uname} rix,
   @{bin}/file rix,

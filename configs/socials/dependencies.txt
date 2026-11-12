@@ -1,1 +1,1 @@
-core                              # wallust palette.nu (the theme verbs of discord and spotify)
+core                              # wallust palette.nu and font.nu (discord, spotify), herdr-open.nu (socials/desktop)

@@ -28,12 +28,11 @@ def repos-under [base: path]: nothing -> list<path> {
     }
 }
 
+# through direnv where the repo has its own identity, so its credentials push and pull
 def --wrapped remote-git [dir: path, ...args: string]: nothing -> record {
-    if ($dir | path join .identity envrc | path exists) {
-        do { ^direnv exec $dir git -C $dir ...$args } | complete
-    } else {
-        do { ^git -C $dir ...$args } | complete
-    }
+    let prefix = if ($dir | path join .identity envrc | path exists) { [direnv exec $dir] } else { [] }
+    let argv = $prefix ++ [git -C $dir ...$args]
+    do { run-external ...$argv } | complete
 }
 
 def sync-one [dir: path, bare: bool]: nothing -> list<string> {

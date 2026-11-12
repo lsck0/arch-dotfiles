@@ -1,13 +1,12 @@
 use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
 
-const SSH_HOST_KEYS = [ssh_host_ed25519_key ssh_host_mldsa44_ed25519_key ssh_host_ecdsa_key ssh_host_rsa_key]
-
 # its system verb pins the host keys from keys/ssh-host/<host>/
 export const meta = {
     packages: {pacman: [knockd openbsd-netcat openssh]}
     secrets: ["ssh-host/{host}/ssh_host_ed25519_key" "ssh-host/{host}/ssh_host_mldsa44_ed25519_key" "ssh-host/{host}/ssh_host_ecdsa_key" "ssh-host/{host}/ssh_host_rsa_key"]
 }
+const SSH_HOST_KEYS = $meta.secrets | path basename
 
 export const options = {
     port: {
@@ -52,21 +51,19 @@ export const options = {
 const DROPIN = "/etc/ssh/sshd_config.d/10-hardening.conf"
 const MANAGED_BEGIN = "# arch-dotfiles managed keys (rebuilt from sources; edits outside this block are kept)"
 const MANAGED_END = "# end arch-dotfiles managed keys"
+const HOST_KEY_DIR = "/etc/ssh"
 
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
     step sshd ($cfg.port | into string)
 }
 
-const HOST_KEY_DIR = "/etc/ssh"
-
 def host-keys-pin []: nothing -> bool {
-    let dir = host-file ($env.DOTFILES_SECRETS? | default "/nonexistent" | path join ssh-host)
+    let dir = host-file (system-secret ssh-host)
     let pinned = $SSH_HOST_KEYS | where {|k| ($dir | path join $k | path exists) }
     if ($pinned | is-empty) {
         # only with the secrets streamed unlocked: locked, a backup would land as plaintext over the git-crypt blobs
-        let unlocked = $env.DOTFILES_SECRETS? | default "/nonexistent" | path join ssh_publickey.asc | path exists
-        if $unlocked {
+        if (system-secret ssh_publickey.asc | path exists) {
             let backup = host-file configs/secrets/keys/ssh-host
             print ("note: ssh: no pinned host keys, a reinstall changes this host's identity; back them up from the "
                 + $"checkout: mkdir -p ($backup) && sudo cp ($HOST_KEY_DIR)/ssh_host_*_key ($backup)/ "
@@ -99,8 +96,11 @@ export def sshd [port: string]: nothing -> nothing {
     if not $active or $rekeyed or (open --raw $DROPIN) != $before { ^systemctl reload-or-restart sshd.service }
 }
 
-def ssh-dir []: nothing -> path {
-    $nu.home-dir | path join .ssh
+const PRIVATE_KEY = "configs/secrets/keys/ssh_privatekey.asc"
+const PUBLIC_KEY = "configs/secrets/keys/ssh_publickey.asc"
+
+def ssh-dir [...file: string]: nothing -> path {
+    $nu.home-dir | path join .ssh ...$file
 }
 
 export def link [cfg: record] {
@@ -111,17 +111,17 @@ export def link [cfg: record] {
     let hosts = if $homelab and ($cfg.homelab_hosts | is-not-empty) {
         [
             $"Host ($cfg.homelab_hosts | str join ' ')" "    User root"
-            "    UserKnownHostsFile ~/.ssh/known_hosts.homelab" "    StrictHostKeyChecking accept-new"
-        ] | each { $"($in)\n" } | str join
-    }
+            "    UserKnownHostsFile ~/.ssh/known_hosts.homelab" "    StrictHostKeyChecking accept-new" ""
+        ] | str join "\n"
+    } else { "" }
     [
         # claimed disabled: an orphan disable of the vendor unit would take ssh-agent.socket along (Also=)
         (unit-disable ssh-agent.service --now)
         (unit-enable ssh-agent.socket --now)
         (file-render ssh-add.service (unit-dir | path join ssh-add.service) {DOTFILES: $env.DOTFILES})
         (if $owner { unit-enable ssh-add.service } else { unit-disable ssh-add.service })
-        (file-text (ssh-dir | path join config) $"Include ~/.ssh/config.d/*\n($hosts | default '')" --mode 600)
-        (if $owner and not (authorize-done) { step authorize } else { [] })
+        (file-text (ssh-dir config) $"Include ~/.ssh/config.d/*\n($hosts)" --mode 600)
+        (if $owner and not (authorize-done) { step authorize })
         (file-render sshk.nu ($bin | path join sshk) {DOTFILES: $env.DOTFILES, PORT: $cfg.port, KNOCK: $knock}
             --mode 755)
         (if $homelab and $cfg.wake_router != null and $cfg.wake_host != null {
@@ -130,7 +130,7 @@ export def link [cfg: record] {
                 HOST: $cfg.wake_host, PORT: $cfg.port, KNOCK: $knock
             }
             file-render wake-pc.nu ($bin | path join wake-pc) $values --mode 755
-        } else { [] })
+        })
     ]
 }
 
@@ -140,12 +140,10 @@ def mode-is [file: path, mode: string]: nothing -> bool {
 
 # The authorized_keys text authorize writes over the current one: the secrets' keys in the managed block.
 def authorized-keys-render []: nothing -> string {
-    let secrets = $env.DOTFILES | path join configs secrets keys
-    let pubkey = $secrets | path join ssh_publickey.asc
-    let sources = [$pubkey ...(glob ../yubikey/ssh-*.pub)]
-    let keys = $sources | append (ssh-dir | path join id_ed25519.pub)
+    let pubkey = $env.DOTFILES | path join $PUBLIC_KEY
+    let keys = [$pubkey ...(glob ../yubikey/ssh-*.pub) (ssh-dir id_ed25519.pub)]
         | where { secret-is-plaintext $in } | each { open --raw $in | str trim } | where $it != "" | uniq
-    let file = ssh-dir | path join authorized_keys
+    let file = ssh-dir authorized_keys
     let raw = if ($file | path exists) { open --raw $file } else { "" }
     let existing = $raw | lines
     # a locked secrets store cannot read the committed key, so only append what is readable and never prune
@@ -164,19 +162,19 @@ def authorized-keys-render []: nothing -> string {
 }
 
 def authorize-done []: nothing -> bool {
-    let key = $env.DOTFILES | path join configs secrets keys ssh_privatekey.asc
-    let file = ssh-dir | path join authorized_keys
+    let key = $env.DOTFILES | path join $PRIVATE_KEY
+    let file = ssh-dir authorized_keys
     let modes = (not (secret-is-plaintext $key) or (mode-is $key rw-------)) and (mode-is (ssh-dir) rwx------)
     $modes and (mode-is $file rw-------) and (open --raw $file) == (authorized-keys-render)
 }
 
 # Installs the secrets' authorized_keys; git-crypt checks it out 0644, which ssh refuses.
 export def authorize []: nothing -> nothing {
-    let key = $env.DOTFILES | path join configs secrets keys ssh_privatekey.asc
+    let key = $env.DOTFILES | path join $PRIVATE_KEY
     if (secret-is-plaintext $key) { ^chmod 600 $key }
     mkdir (ssh-dir)
     ^chmod 700 (ssh-dir)
-    let file = ssh-dir | path join authorized_keys
+    let file = ssh-dir authorized_keys
     let out = authorized-keys-render
     if not ($file | path exists) { touch $file }
     ^chmod 600 $file

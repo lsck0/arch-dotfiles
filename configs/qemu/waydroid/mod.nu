@@ -14,56 +14,51 @@ const FREEFORM = [
     development_settings_enabled enable_freeform_support force_resizable_activities enable_sizecompat_freeform
 ]
 const DEVPERM_RULES = "/etc/udev/rules.d/70-waydroid-devperm.rules"
-
-def pins []: nothing -> string {
-    $"($SYSTEM_SHA256) ($VENDOR_SHA256)"
-}
+const PINS = $"($SYSTEM_SHA256) ($VENDOR_SHA256)"
+const STAGED = $"($IMAGES).new"
 
 def status []: nothing -> string {
     ^waydroid status | complete | get stdout
 }
 
-def session-up []: nothing -> bool {
-    status | lines | any { $in =~ '^Session:.*RUNNING' }
-}
-
 export def system [cfg: record] {
     if (which waydroid | is-empty) or $env.FORM_FACTOR? == "wsl" { return [] }
     let current = try { open --raw ($IMAGES | path join .pins) | str trim } catch { "" }
-    let images = if $current == (pins) { [] } else {
-        (
+    let images = if $current != $PINS {
+        [
             # about 1 GiB from sourceforge, slower than STEP_TIMEOUT allows on a throttled mirror
-            (fetch-file $SYSTEM_URL $SYSTEM_SHA256 $"($IMAGES).new/system.img" --extract system.img --timeout $IMAGE_TIMEOUT)
-            ++ (fetch-file $VENDOR_URL $VENDOR_SHA256 $"($IMAGES).new/vendor.img" --extract vendor.img --timeout $IMAGE_TIMEOUT)
-            ++ [(step images-swap --requires $"($IMAGES).new/vendor.img")]
-        )
+            (fetch-file $SYSTEM_URL $SYSTEM_SHA256 $"($STAGED)/system.img" --extract system.img --timeout $IMAGE_TIMEOUT)
+            (fetch-file $VENDOR_URL $VENDOR_SHA256 $"($STAGED)/vendor.img" --extract vendor.img --timeout $IMAGE_TIMEOUT)
+            (step images-swap --requires $"($STAGED)/vendor.img")
+        ]
     }
-    let up = session-up
+    let status = status
+    let up = $status | lines | any { $in =~ '^Session:.*RUNNING' }
     if not $up { log-note "waydroid: for freeform windows, apply again while a session runs (waydroid session start)" }
     [
         $images
-        (if (status | str contains "not initialized") {
+        (if ($status | str contains "not initialized") {
             exec waydroid-init [waydroid init] --creates $CONFIG --network --requires ($IMAGES | path join .pins)
-        } else { [] })
+        })
         # a merge planned before init would overwrite init's [waydroid] section with sectionless content
         (if ($CONFIG | path exists) {
-            [(ini-merge $CONFIG $PROPS --then [waydroid upgrade --offline])]
-        } else { [] })
+            ini-merge $CONFIG $PROPS --then [waydroid upgrade --offline]
+        })
         (file-copy 70-waydroid-devperm.rules $DEVPERM_RULES --then [sh -c "udevadm control --reload-rules && udevadm trigger --subsystem-match=drm --subsystem-match=video4linux"])
-        (if $up { [] } else { step devperm-tighten })
+        (if not $up { step devperm-tighten })
         (unit-enable waydroid-container.service --now)
-        (if $up { step freeform } else { [] })
+        (if $up { step freeform })
     ]
 }
 
 # Swaps the fetched images in whole, so init never sees a system.img without its vendor.img.
 export def images-swap []: nothing -> nothing {
     for img in [system.img vendor.img] {
-        if not ($"($IMAGES).new" | path join $img | path exists) { error make {msg: $"waydroid: ($img) missing, not swapping"} }
+        if not ($STAGED | path join $img | path exists) { error make {msg: $"waydroid: ($img) missing, not swapping"} }
     }
-    pins | save --force $"($IMAGES).new/.pins"
+    $PINS | save --force $"($STAGED)/.pins"
     rm --recursive --force $IMAGES
-    mv $"($IMAGES).new" $IMAGES
+    mv $STAGED $IMAGES
     if not (status | str contains "not initialized") { ^waydroid upgrade --offline }
 }
 

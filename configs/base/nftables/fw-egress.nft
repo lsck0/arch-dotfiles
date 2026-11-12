@@ -27,8 +27,9 @@ table inet fw_egress {
         meta l4proto udp meta mark $tunnel_marks accept
         meta skuid @tor_uid accept
         # Pacman's escape (DownloadUser = alpm): without it a machine missing tor could never install it, and off a
-        # trusted network updates work without tor. A foreign network sees which mirror is fetched from and roughly which packages;
-        # every package is signature-checked. Under tor-router these connections reach here redirected into tor.
+        # trusted network updates work without tor. A foreign network sees which mirror is fetched from and roughly
+        # which packages; every package is signature-checked. Under tor-router these connections reach here redirected
+        # into tor.
         meta skuid @fetch_uid tcp dport { 80, 443 } accept
         # Its lookups, through resolved, over strict DoT only: the network sees TLS to quad9, never the names. This
         # lets any local app's lookups reach quad9 while tor-router is not up; the apps' own traffic stays dropped.

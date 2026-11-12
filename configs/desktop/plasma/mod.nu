@@ -1,6 +1,6 @@
 use module.nu *
 use ini.nu [ini-apply ini-rows]
-use ../../core/wallust/palette.nu [ICON_THEMES hex-to-rgb readable-on rgb-to-hex semantic shade]
+use ../../core/wallust/palette.nu [ICON_THEMES hex-rgb255 hex-to-rgb readable-on rgb-to-hex semantic shade]
 use ../../core/wallust/font.nu [font-load]
 
 export const meta = {
@@ -40,6 +40,7 @@ const KICKOFF_FAVORITES = "favoritesPortedToKAstats=true"
 const KACTIVITIES_DB = ".local/share/kactivitymanagerd/resources/database"
 const DOLPHIN_STATE = ".local/state/dolphinstaterc"
 const DOLPHIN_VIEW = "dolphin/view_properties/global/.directory"
+const DOLPHIN_DOCK = "dolphin/dock-state"
 const WAL_WALLPAPER = "wal/wallpaper"
 const SHELLRC = "plasmashellrc"
 const SHELL_UPDATES = "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates"
@@ -48,6 +49,8 @@ const KCONF_UPDATERC = "kconf_updaterc"
 const KCONF_SEED = "kconf_update.seed"
 const WALLPAPER_SECTION = '^\[(?<s>Containments\]\[\d+\]\[Wallpaper\]\[org\.kde\.image\]\[General)\]$'
 const DRM = "/sys/class/drm"
+# The weather widget's place is the owner's location: kept in secrets' state, a placeholder in the public files.
+const WEATHER = path self ../../secrets/state/plasma/weather.nuon
 const MODERNCLOCK = {id: com.github.prayag2.modernclock, url: "https://github.com/prayag2/kde_modernclock", commit: 5c86f0f23d2646be7e9872fc5e769bdce259af92}
 const KDE_FONT_KEYS = [
     [group key];
@@ -120,17 +123,13 @@ def kconf-seed [dest: path]: nothing -> list<record> {
     [(ini-merge $dest (ini-values (open --raw $seed)) --missing-only)]
 }
 
-# The weather widget's place is the owner's location: kept in secrets' state, a placeholder in the public files. Without
-# it the widget opens unset and asks for a place.
-const WEATHER = path self ../../secrets/state/plasma/weather.nuon
-
+# The place from WEATHER, else blanks: the widget then opens unset and asks for a place.
 def weather-values []: nothing -> record {
     let place = if ($WEATHER | path exists) { open $WEATHER } else { {display: "", info: ""} }
     {WEATHER_PLACE: $place.display, WEATHER_INFO: $place.info}
 }
 
 export def link [cfg: record] {
-    let config = $nu.home-dir | path join $CONFIG
     let values = {HOME: $nu.home-dir, DOTFILES: $env.DOTFILES}
     let applet_values = $values | merge (weather-values)
     # kickoff ports its favorites into the activity database only while this is false; a fresh account has none yet
@@ -138,24 +137,23 @@ export def link [cfg: record] {
     # rendered in too, else every apply would take back what theme set
     let wallpaper = wallpaper-current
     let lang = $cfg.deps?."core/locale"?.lang?
-    let applets = file-render (host-seed $DIR $APPLETSRC) ($config | path join $APPLETSRC) $applet_values
+    let applets = file-render (host-seed $DIR $APPLETSRC) (config-path $APPLETSRC) $applet_values
         | update content { if $fresh { str replace $KICKOFF_FAVORITES "favoritesPortedToKAstats=false" } else { $in } }
         | update content {|d| if $wallpaper == "" { $d.content } else { $d.content | ini-apply (wallpaper-values $d.content $wallpaper) false } }
     let dirs = $CONFIG_DIRS | each {|d| glob ($DIR | path join $d "**/*") --no-dir } | flatten
-        | each {|f| file-copy $f ($config | path join ($f | path relative-to $DIR)) }
+        | each {|f| file-copy $f (config-path ($f | path relative-to $DIR)) }
     [
         (files-into (xdg data applications) ...(glob ($DIR | path join applications "*.desktop")))
         (dolphin-view (xdg data $DOLPHIN_VIEW))
         # no kiosk key hides dolphin's dock short of shell_access=false, which also stops it running any executable
-        (ini-merge ($nu.home-dir | path join $DOLPHIN_STATE) {State: {State: (open --raw dolphin/dock-state | str trim)}})
-        (rc-files | where $it != $SHELLRC | each {|f| file-copy $f ($config | path join $f) })
-        (file-text ($config | path join $SHELLRC) (open --raw $SHELLRC | ini-apply (shell-updates-done) true))
-        (kconf-seed ($config | path join $KCONF_UPDATERC))
-        (if $cfg.locale and $lang != null { file-render $LOCALERC ($config | path join $LOCALERC) {LANG: $lang} } else { [] })
+        (ini-merge ($nu.home-dir | path join $DOLPHIN_STATE) {State: {State: (open --raw $DOLPHIN_DOCK | str trim)}})
+        (rc-files | where $it != $SHELLRC | each {|f| file-copy $f (config-path $f) })
+        (file-text (config-path $SHELLRC) (open --raw $SHELLRC | ini-apply (shell-updates-done) true))
+        (kconf-seed (config-path $KCONF_UPDATERC))
+        (if $cfg.locale and $lang != null { file-render $LOCALERC (config-path $LOCALERC) {LANG: $lang} })
         $applets
-        (file-render plasmarc ($config | path join plasmarc) $values)
-        (file-render kscreenlockerrc ($config | path join kscreenlockerrc) $values)
-        (if $cfg.kwin_outputs == true { file-copy $OUTPUTS ($config | path join $OUTPUTS) } else { [] })
+        ($TEMPLATES | where $it != $APPLETSRC | each {|f| file-render $f (config-path $f) $values })
+        (if $cfg.kwin_outputs == true { file-copy $OUTPUTS (config-path $OUTPUTS) })
         $dirs
         (modernclock)
     ]
@@ -170,10 +168,6 @@ def modernclock []: nothing -> list<record> {
     $fetch | append (exec $"install ($MODERNCLOCK.id)" [kpackagetool6 -t Plasma/Applet -i $package] --creates $installed --requires $package)
 }
 
-def rgb [hex: string]: nothing -> string {
-    $hex | str trim --left --char "#" | split chars | chunks 2 | each { str join | into int --radix 16 } | str join ","
-}
-
 # c6/c5 links nearly vanish on the selection accent, so readable-on walks them toward black or white.
 def selection [p: record]: nothing -> list<string> {
     let accent = $p.c4 | hex-to-rgb
@@ -181,13 +175,13 @@ def selection [p: record]: nothing -> list<string> {
 }
 
 def kde-colors [p: record]: nothing -> record {
-    let accent = rgb $p.c4
-    let sel = selection $p | each { rgb $in }
-    let sel_inactive = rgb ($p.fg | hex-to-rgb | readable-on ($p.c4 | hex-to-rgb) --ratio $KDE_INACTIVE_RATIO | rgb-to-hex)
-    let hex = {|color| rgb ($color | rgb-to-hex) }
+    let rgb = {|hex| $hex | hex-rgb255 | str join "," }
+    let accent = do $rgb $p.c4
+    let sel = selection $p | each { do $rgb $in }
+    let hex = {|color| do $rgb ($color | rgb-to-hex) }
+    let sel_inactive = do $hex ($p.fg | hex-to-rgb | readable-on ($p.c4 | hex-to-rgb) --ratio $KDE_INACTIVE_RATIO)
     let bg = $p.bg_conditioned | hex-to-rgb
-    let surface = $KDE_SURFACE_SHADES | items {|name, amount| {$name: ($bg | shade $amount)} }
-        | reduce --fold {base: $bg} {|it, acc| $acc | merge $it }
+    let surface = $KDE_SURFACE_SHADES | update cells {|amount| $bg | shade $amount } | insert base $bg
     let text = {|on|
         # semantic's hue walk is bounded, so readable-on holds the status colors to the text ratio
         let status = {|role| do $hex ($p.c4 | hex-to-rgb | semantic $role $on | readable-on $on) }
@@ -267,10 +261,6 @@ def kde-fonts [template: string]: nothing -> record {
     }
 }
 
-def kde-icons [p: record]: nothing -> record {
-    {Icons: {Theme: (if $p.light == "1" { $ICON_THEMES.light } else { $ICON_THEMES.dark })}}
-}
-
 export def theme [cfg: record, wallpaper: string] {
     let p = palette-load
     let colors = if $p == null { null } else { kde-colors $p }
@@ -278,7 +268,8 @@ export def theme [cfg: record, wallpaper: string] {
         let dest = if $f == "kdeglobals" { config-path $f } else { xdg data $f }
         if $colors == null { return (file-copy $f $dest) }
         let colors = if $f == "kdeglobals" {
-            $colors | merge deep (kde-fonts (open --raw $f)) | merge deep (kde-icons $p)
+            let icons = if $p.light == "1" { $ICON_THEMES.light } else { $ICON_THEMES.dark }
+            $colors | merge deep (kde-fonts (open --raw $f)) | merge deep {Icons: {Theme: $icons}}
         } else {
             $colors | upsert General.Name pywal
         }

@@ -1,6 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const HUMAN_TASKRC = "task/taskrc"
+const SCRIPTS = path self | path expand | path dirname
+use ($SCRIPTS | path join lib state.nu) [xdg]
+
+const HUMAN_TASKRC = [task taskrc]
 const AGENT_DB_GLOB = "projects/*/tasks/.taskrc"
 const READY_LIMIT = 10
 const AGING_LIMIT = 10
@@ -11,8 +14,14 @@ const ACTIVE_TAG_LIMIT = 3
 const BUGWARRIOR_TAG = "github"
 const BUGWARRIOR_UDA = "githuburl"
 const HUMAN_INPUT_TAGS = [human-clarification-needed human-review-ready]
-const REVIEW_TAG_WORDS = [review approval]
-const CLARIFY_TAG_WORDS = [needs-human clarification]
+# the two tabs of work waiting on a human: tag words on own tasks, the agent tickets' kind, the headings
+const HUMAN_TABS = {
+    Review: {words: [review approval], kind: review, tasks: "TASKS NEEDING REVIEW", agents: "AGENT PRS AWAITING REVIEW"}
+    Clarify: {
+        words: [needs-human clarification], kind: clarify
+        tasks: "TASKS NEEDING CLARIFICATION (needs human input)", agents: "AGENT TICKETS NEEDING YOU"
+    }
+}
 const SECONDS_PER_DAY = 86400
 const SECONDS_PER_HOUR = 3600
 const SECONDS_PER_MINUTE = 60
@@ -84,11 +93,7 @@ def agent-db [taskrc: path]: nothing -> record {
     if ($open | is-empty) { return {name: $name, note: "(no open agent tickets)"} }
     let gated = $open | where {|t| tags-of $t | any { $in in $HUMAN_INPUT_TAGS } }
     let waiting = $gated | where { "human-answered" not-in (tags-of $in) }
-    let short = {|t|
-        let text = one-line $t.description
-        if ($text | str length) <= $AGENT_DESC_MAX { return $text }
-        $"($text | str substring 0..<($AGENT_DESC_MAX - 3) | str trim --right)..."
-    }
+    let short = {|t| truncate (one-line $t.description) $AGENT_DESC_MAX }
     let annotations = {|t| $t.annotations? | default [] | get description }
     {
         name: $name
@@ -236,8 +241,7 @@ def page []: nothing -> string {
     let issues = lines-github (github-issues (tasks-fetch)) $GITHUB_LIMIT | get s | str join "\n"
     [
         $banner
-        (heading "ACTIVE (being worked now)")
-        (if ($active | str trim) == "" { "  (none)" } else { $active })
+        ...(section "ACTIVE (being worked now)" $active)
         ...(section OVERDUE (report +OVERDUE))
         ...(section "DUE TODAY" (report due:today))
         ...(section "UPCOMING (ready)" (report $"limit:($READY_LIMIT)" ready))
@@ -440,14 +444,18 @@ def pending-with [state: record, words: list<string>]: nothing -> list {
     $state.tasks | where { $in.status? == pending and (has-tag-word $in $words) }
 }
 
+def human-items [state: record, tab: string]: nothing -> record {
+    let spec = $HUMAN_TABS | get $tab
+    {spec: $spec, tasks: (pending-with $state $spec.words), agents: (agent-items $state $spec.kind)}
+}
+
 def tab-lines [state: record, tab: string]: nothing -> list {
     match $tab {
-        Review => ([(line "TASKS NEEDING REVIEW" bold)]
-            ++ (lines-task-table (pending-with $state $REVIEW_TAG_WORDS))
-            ++ [(line "") (line "AGENT PRS AWAITING REVIEW" bold)] ++ (lines-agent-items (agent-items $state review)))
-        Clarify => ([(line "TASKS NEEDING CLARIFICATION (needs human input)" bold)]
-            ++ (lines-task-table (pending-with $state $CLARIFY_TAG_WORDS))
-            ++ [(line "") (line "AGENT TICKETS NEEDING YOU" bold)] ++ (lines-agent-items (agent-items $state clarify)))
+        Review | Clarify => {
+            let items = human-items $state $tab
+            ([(line $items.spec.tasks bold)] ++ (lines-task-table $items.tasks)
+                ++ [(line "") (line $items.spec.agents bold)] ++ (lines-agent-items $items.agents))
+        }
         Due => ((lines-due (by-due-day $state.tasks {|due, day| $due < $day }) OVERDUE {|t| due-relative $t })
             ++ (lines-due (by-due-day $state.tasks {|due, day| $due == $day }) "DUE TODAY" {|t| due-relative $t })
             ++ (lines-due (aging $state.tasks) "AGING (oldest pending)" {|t| age $t }))
@@ -462,8 +470,7 @@ def tab-lines [state: record, tab: string]: nothing -> list {
 
 def tab-count [state: record, tab: string]: nothing -> any {
     match $tab {
-        Review => ((pending-with $state $REVIEW_TAG_WORDS | length) + (agent-items $state review | length))
-        Clarify => ((pending-with $state $CLARIFY_TAG_WORDS | length) + (agent-items $state clarify | length))
+        Review | Clarify => { let items = human-items $state $tab; ($items.tasks | length) + ($items.agents | length) }
         Due => (by-due-day $state.tasks {|due, day| $due <= $day } | length)
         GitHub => (github-issues $state.tasks | length)
         Agents => ($state.agents | get --optional open | compact | append 0 | math sum)
@@ -484,17 +491,16 @@ def frame [state: record, tab: int, scroll: int, cols: int, rows: int]: nothing 
         paint [(put 0 0 "terminal too small" bold)] $cols $rows
         return {scroll: $scroll}
     }
-    let full = $TABS | enumerate | each {|t|
+    let labels = $TABS | enumerate | each {|t|
+        let bare = $" ($t.index + 1):($t.item)"
         let count = tab-count $state $t.item | if $in == null { " " } else { $" \(($in)\) " }
-        {text: $" ($t.index + 1):($t.item)($count)", style: (if $t.index == $tab { "reverse" } else { "dim" })}
+        {full: $"($bare)($count)", bare: $bare, style: (if $t.index == $tab { "reverse" } else { "dim" })}
     }
-    let full_width = $full | reduce --fold 1 {|l, acc| $acc + ($l.text | str length) + 1 }
     # drop the counts and the per-tab gap when the full bar would overflow, so every tab fits a narrow tty
-    let labels = if $full_width <= ($cols - 1) { $full } else {
-        $TABS | enumerate | each {|t| {text: $" ($t.index + 1):($t.item)", style: (if $t.index == $tab { "reverse" } else { "dim" })} }
-    }
+    let fits = ($labels.full | each { ($in | str length) + 1 } | math sum) + 1 <= $cols - 1
     let tab_ops = $labels | reduce --fold {x: 1, ops: []} {|l, acc|
-        {x: ($acc.x + ($l.text | str length) + 1), ops: ($acc.ops | append (put 0 $acc.x $l.text $l.style))}
+        let text = if $fits { $l.full } else { $l.bare }
+        {x: ($acc.x + ($text | str length) + 1), ops: ($acc.ops | append (put 0 $acc.x $text $l.style))}
     } | get ops
     let body = if $tab == 0 { {ops: (render-dashboard $state $cols $rows), scroll: $scroll} } else {
         let all = tab-lines $state ($TABS | get $tab)
@@ -551,7 +557,7 @@ def main [
     --print # print one page instead of the TUI (default off a tty)
     --page (-p) # print one page through less
 ]: nothing -> nothing {
-    $env.TASKRC = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join $HUMAN_TASKRC
+    $env.TASKRC = xdg config ...$HUMAN_TASKRC
     hide-env --ignore-errors TASKDATA TIMEWARRIORDB
     let tty = (is-terminal --stdout)
     if $print or $page or not $tty {

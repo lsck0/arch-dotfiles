@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-# Table cases for desktop-set: whole keys replaced, regex characters in keys and values taken literally.
-use module.nu [desktop-set]
+# Table cases for desktop-set (whole keys replaced, regex characters taken literally) and decls-flatten (any depth).
+use module.nu [desktop-set decls-flatten]
 use std/assert
 
 def main [] {
@@ -14,6 +14,19 @@ def main [] {
     ]
     for c in $cases {
         let got = $entry | desktop-set $c.values
+        assert equal $got $c.wants $"($c.name): got ($got | to nuon), wants ($c.wants | to nuon)"
+    }
+    let a = {kind: file, dest: a, meta: {nested: {kept: true}}}
+    let b = {kind: unit, name: b}
+    let flat = [
+        [name value wants];
+        ["null" null []]
+        ["single" $a [$a]]
+        ["empty" [] []]
+        ["three deep" [$a [[$b null] []] [[[$a]]]] [$a $b $a]]
+    ]
+    for c in $flat {
+        let got = $c.value | decls-flatten
         assert equal $got $c.wants $"($c.name): got ($got | to nuon), wants ($c.wants | to nuon)"
     }
 }

@@ -1,5 +1,5 @@
 use module.nu *
-use sessions.nu [sessions-backup sessions-restore sessions-settled MARKER]
+use sessions.nu [sessions-backup sessions-restore sessions-settle MARKER]
 
 export const meta = {packages: {pacman: [python-secretstorage sqlite]}, backup: {secrets: true}, volatile: true}
 
@@ -30,10 +30,7 @@ export def sessions-restore-now []: nothing -> nothing {
     for row in ($statuses | where status in [restored locked waiting]) {
         log-info $"proton-sessions: ($row.app) ($row.status)"
     }
-    if (sessions-settled $statuses) {
-        mkdir (xdg state $MARKER | path dirname)
-        touch (xdg state $MARKER)
-    }
+    sessions-settle $statuses
 }
 
 export def backup [cfg: record]: nothing -> nothing {

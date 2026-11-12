@@ -1,22 +1,22 @@
 #!/usr/bin/env -S nu --no-config-file
 
+use ../../../../scripts/lib/state.nu [xdg]
+
 const PLUGINS_INSTALL = path self | path expand | path dirname --num-levels 2 | path join unreal-install-plugins.nu
 const ZIP_GLOB = "Linux_Unreal_Engine_*.zip"
 const EDITOR = "Engine/Binaries/Linux/UnrealEditor"
 const ICON = "Engine/Source/Runtime/Launch/Resources/Linux/UnrealEngine.png"
 const CANARY = '^[^\]\[*?]*/Private/[^\]\[*?/]+$'
 
-def data-dir []: nothing -> path { $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) }
+def engine-dir []: nothing -> path { xdg data unreal-engine }
 
-def engine-dir []: nothing -> path { data-dir | path join unreal-engine }
-
-def zip-newest []: nothing -> any {
+export def zip-newest []: nothing -> any {
     glob ($nu.home-dir | path join sync vendor $ZIP_GLOB) | sort --natural | last
 }
 
 # Rewritten on every run, not only on an install, so a fix here reaches an installed engine.
 def desktop-write [version: string]: nothing -> nothing {
-    let file = data-dir | path join applications unreal-engine.desktop
+    let file = xdg data applications unreal-engine.desktop
     let icon = engine-dir | path join $ICON
     mkdir ($file | path dirname)
     [
@@ -38,7 +38,7 @@ def fail [message: string]: nothing -> nothing {
 
 def main []: nothing -> nothing {
     if (zip-newest) == null { return }
-    mkdir (data-dir)
+    mkdir (xdg data)
     # dot apply and the path unit both run this: the second waits, then finds the first's stamp
     ^flock $"(engine-dir).lock" $nu.current-exe --no-config-file $env.CURRENT_FILE locked
 }

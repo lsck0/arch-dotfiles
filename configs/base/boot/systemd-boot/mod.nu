@@ -1,5 +1,5 @@
 use module.nu *
-use ../boot.nu [ESP CMDLINE BOOT_WATCH esp-supported cmdline-set hooks-sweep uki-path]
+use ../boot.nu [ESP CMDLINE BOOT_WATCH PRESETS backup-once cmdline-words esp-supported hooks-sweep uki-path]
 export use ../boot.nu [boot-commit]
 
 # its barrier rebuilds and signs the boot chain once after a system run that changed any of BOOT_WATCH
@@ -8,8 +8,6 @@ export const meta = {
     volatile: true
     barrier: {run: boot-commit, watch: $BOOT_WATCH}
 }
-
-const PRESETS = "/etc/mkinitcpio.d"
 
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" or not (esp-supported) { return [] }
@@ -26,8 +24,7 @@ export def system [cfg: record] {
 export def install []: nothing -> nothing {
     # every run, not only the barrier's: a pacman kernel upgrade rebuilds with the HOOKS line as it stands
     hooks-sweep
-    cmdline-set
-    let words = open --raw $CMDLINE | str trim | split row " "
+    let words = cmdline-words
     let subvol = (^findmnt -no FSROOT / | str trim) == "/" or ($words | any { $in =~ 'subvol=' })
     if not ($words | any { $in =~ '^root=' }) or not $subvol {
         error make {msg: $"($CMDLINE) lacks root= or the root subvol, not switching to ukis"}
@@ -40,8 +37,7 @@ export def install []: nothing -> nothing {
             | append [$'default_uki="(uki-path $pkgbase)"' $'default_cmdline="($CMDLINE)"']
             | str join "\n" | $"($in)\n"
         if $want == (open --raw $preset) { continue }
-        let backup = $"($preset).arch-dotfiles-backup"
-        if not ($backup | path exists) { ^install -m644 $preset $backup }
+        backup-once $preset
         $want | save --force $preset
         # a kernel installed during the stage chain built a plain image with the stage keyfile in it
         rm --force $"($ESP)/initramfs-($pkgbase).img" $"($ESP)/initramfs-($pkgbase)-fallback.img"

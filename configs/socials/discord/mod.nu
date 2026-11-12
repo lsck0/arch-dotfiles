@@ -1,6 +1,6 @@
 use module.nu *
 use ../spotify/mod.nu [spicetify-colors]
-use ../../core/wallust/palette.nu [RADIUS_PX]
+use ../../core/wallust/palette.nu [RADIUS_PX hex-rgb255]
 use ../../core/wallust/font.nu [font-load]
 
 # its theme reads spotify's spicetify colours, so it runs after spotify's
@@ -71,13 +71,13 @@ export def link [cfg: record] {
         (json-merge ($config | path join settings.json) ($SETTINGS | items {|k, v| json-set [$k] $v }))
         (file-copy discordo.toml (xdg config discordo config.toml))
         # never beside a running bootstrap: they share one download dir
-        (if $bootstrapping or not ($BOOTSTRAP | path exists) { [] } else {
+        (if not $bootstrapping and ($BOOTSTRAP | path exists) {
             let download = [sh -c $BOOTSTRAP_RUN discord-app $BOOTSTRAP_TIMEOUT $BOOTSTRAP $config $UPDATES_URL]
             exec discord-app $download --creates ($config | path join Discord) --network
         })
         # in place: betterdiscord disables an addon whose file is renamed over, and misses changes through a symlink
         (file-copy $VOICE_PLUGIN ($plugins | path join ($VOICE_PLUGIN | path basename)) --in-place)
-        ($fetched | each {|p| fetch-file $p.url $p.sha256 $p.dest --in-place } | flatten)
+        ($fetched | each {|p| fetch-file $p.url $p.sha256 $p.dest --in-place })
         (json-merge $plugin_states ($managed | each {|name| json-set [$name] true }))
         (json-merge ($plugins | path join Incognito.config.json) [
             (json-set [settings blockReadReceipts] false)
@@ -99,15 +99,11 @@ export def link [cfg: record] {
     ]
 }
 
-def rgb [hex: string]: nothing -> string {
-    $hex | str trim --left --char "#" | split chars | chunks 2 | each { str join | into int --radix 16 } | str join ", "
-}
-
 export def theme [cfg: record, wallpaper: string] {
     let palette = spicetify-colors | default [] | reduce --fold {} {|c, acc| $acc | insert $c.key $c.hex }
     let font = font-load
     let colours = $THEME_SLOTS | items {|var, key| {var: $var, hex: ($palette | get --optional $key)} }
-        | where hex != null | each {|c| {var: $c.var, value: (rgb $c.hex)} }
+        | where hex != null | each {|c| {var: $c.var, value: ($c.hex | hex-rgb255 | str join ", ")} }
     let values = $colours ++ [
         {var: radius, value: $"($RADIUS_PX)px"} {var: font, value: $'"($font.family)"'} {var: font-scale, value: $font.scale}
     ]

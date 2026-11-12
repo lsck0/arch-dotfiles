@@ -4,6 +4,7 @@ const STEP_DELAY = 40ms
 const STEPS = 12
 const USER_MOVE_PX = 30
 const PAUSE_MIN_MS = 200
+const FULL_TURN_RAD = 6.283185
 
 def cursor []: nothing -> record {
     ^hyprctl cursorpos | split row "," | each { str trim | into int } | {x: $in.0, y: $in.1}
@@ -41,7 +42,7 @@ def main [
             if (($now.x - $last.x) | math abs) > $USER_MOVE_PX or (($now.y - $last.y) | math abs) > $USER_MOVE_PX {
                 $centre = $now
             }
-            let angle = random float 0..6.283
+            let angle = random float 0..$FULL_TURN_RAD
             let dist = random float 0..($radius | into float)
             let target = {
                 x: ($centre.x + ($angle | math cos) * $dist | math round)

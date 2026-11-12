@@ -14,13 +14,7 @@ return {
         "danymat/neogen",
         cmd = "Neogen",
         keys = {
-            {
-                "<leader>Cn",
-                function()
-                    require("neogen").generate()
-                end,
-                desc = "Generate doc comment",
-            },
+            { "<leader>Cn", "<cmd>lua require('neogen').generate()<cr>", desc = "Generate doc comment" },
         },
         opts = {
             snippet_engine = "luasnip",

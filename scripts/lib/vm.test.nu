@@ -4,6 +4,7 @@
 # vm-verify on reported logs (finished, stopped after its disarm, planted failures, no way online).
 use vm.nu [vm-scenario-plan vm-snapshot-edits vm-verify vm-homelab vm-network vm-network-command vm-processes vm-plan-lines]
 use ../../platforms/homelab.nu [HOMELAB]
+use state.nu [xdg]
 use std/assert
 
 const REPO = path self ../..
@@ -113,7 +114,7 @@ def network-cases []: nothing -> nothing {
 # Every process a run starts outside libvirt has a way to be stopped by name, under the vm's own cache dir.
 def processes-cases []: nothing -> nothing {
     let name = "vm-test-unit"
-    let dir = $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join vm-test $name
+    let dir = xdg cache vm-test $name
     let procs = vm-processes $name
     assert equal ($procs | get what | sort) [passt pasta socat] $"vm-processes: ($procs | get what | to nuon)"
     for p in $procs {
@@ -126,7 +127,7 @@ def processes-cases []: nothing -> nothing {
 # A dry run plans every run and writes nothing, not even the vm's cache dir.
 def dry-cases []: nothing -> nothing {
     let name = $"vm-test-dry-(random chars --length 8)"
-    let dir = $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join vm-test $name
+    let dir = xdg cache vm-test $name
     let lines = vm-scenario-plan "home,pkg-fail" null null | each { vm-plan-lines $in $name } | flatten
     assert ($lines | any { str contains "snapshot edits platforms/vm.nuon" }) $"dry run: ($lines | to nuon)"
     if ($dir | path exists) { rm --recursive --force $dir; error make {msg: $"dry run wrote ($dir)"} }

@@ -58,7 +58,7 @@ def walk []: nothing -> list<path> {
 def lint-modules []: nothing -> list<string> {
     let configs = $REPO | path join configs
     let groups = ls $configs | where type == dir | get name | path basename
-    let deps = $groups | where {|g| $configs | path join $g dependencies.txt | path exists } | reduce --fold {} {|g, acc| $acc | insert $g (names-read ($configs | path join $g dependencies.txt)) }
+    let deps = $groups | where {|g| $configs | path join $g dependencies.txt | path exists } | each {|g| [$g (names-read ($configs | path join $g dependencies.txt))] } | into record
     let bad_deps = $deps | items {|g, ds| $ds | where $it not-in $groups | each { $"configs/($g)/dependencies.txt: '($in)' is not a group" } } | flatten
     let platforms = glob ($REPO | path join platforms '*.nuon') | where not ($it | str ends-with ".options.nuon") | each {|f|
         open $f | get --optional groups | default [] | where {|g| $g not-in $groups and not ($configs | path join $g mod.nu | path exists) }
@@ -330,7 +330,7 @@ def fail-closed-gated [file: record, unit: string, gate: string]: nothing -> lis
     let lists = $code | parse --regex $FAIL_CLOSED_LIST
         | each {|c| {name: $c.name, values: ($c.values | split row --regex '\s+' | where $it != "" | str trim --char '"')} }
     let consts = $scalars ++ $lists
-    let lets = $code | parse --regex $FAIL_CLOSED_LET | reduce --fold {} {|l, acc| $acc | upsert $l.name $l.value }
+    let lets = $code | parse --regex $FAIL_CLOSED_LET | each {|l| [$l.name $l.value] } | into record
     let names = $consts | where $unit in $it.values | each { $"\\$($in.name)\\b" }
     let unit_re = [($unit | str replace --all "." '\.')] ++ $names | str join "|"
     let gate_re = $"\(which\\s+['\"]?|/usr/bin/|/bin/|id -u\\s+\)($gate)\\b"

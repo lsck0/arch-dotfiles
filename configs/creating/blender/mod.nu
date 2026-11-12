@@ -13,6 +13,9 @@ const MCP_HOST = "127.0.0.1"
 const INSTALL_FLAGS = ["--compile-bytecode"]
 const HERE = path self | path dirname
 const OPENAL_NOISE = "[ALSOFT]"
+# the comfy_generate extension (the Generate sidebar over llm/comfyui's comfy-gen): its files are the whole input
+const GENERATE = "comfy_generate"
+const GENERATE_ADDON = "bl_ext.user_default.comfy_generate"
 
 def src []: nothing -> path {
     xdg cache blender-mcp src
@@ -22,26 +25,10 @@ def pin []: nothing -> string {
     $"($MCP_COMMIT) (open --raw ($HERE | path join constraints.txt) | hash sha256) ($INSTALL_FLAGS | str join ' ')"
 }
 
-def pin-file []: nothing -> path {
-    ^uv tool dir | str trim | path join blender-mcp .dotfiles-pin
-}
-
-def addon-pin-file []: nothing -> path {
-    xdg cache blender-mcp .addon-pin
-}
-
 # the add-on tree is fixed by MCP_COMMIT (what fetch-git lands); the prefs script writes MCP_HOST and MCP_PORT into
 # blender's prefs, so those four are the whole input
 def addon-pin []: nothing -> string {
     $"($MCP_COMMIT) (open --raw ($HERE | path join mcp-prefs.py) | hash sha256) ($MCP_HOST):($MCP_PORT)"
-}
-
-# the comfy_generate extension (the Generate sidebar over llm/comfyui's comfy-gen): its files are the whole input
-const GENERATE = "comfy_generate"
-const GENERATE_ADDON = "bl_ext.user_default.comfy_generate"
-
-def generate-pin-file []: nothing -> path {
-    xdg cache blender-mcp .generate-pin
 }
 
 def generate-pin []: nothing -> string {
@@ -49,23 +36,14 @@ def generate-pin []: nothing -> string {
     | str join " "
 }
 
-# The pin files the steps wrote before they were keyed; each step removes its own, so a reverted pin cannot match one.
-def stamped [file: path, pin: string]: nothing -> bool {
-    (try { open --raw $file | str trim }) == $pin
-}
-
 export def link [cfg: record] {
     if (which blender uv | length) < 2 { return [] }
-    let pin = pin
-    let addon_pin = addon-pin
-    let generate_pin = generate-pin
     [
         (fetch-git $MCP_URL $MCP_COMMIT (src))
-        (step server-install --network --key $pin --done=(stamped (pin-file) $pin)
-            --undo [uv tool uninstall blender-mcp])
+        (step server-install --network --key (pin) --undo [uv tool uninstall blender-mcp])
         # builds from the fetched tree: while the fetch is pending, so is the add-on
-        (step addon-install --requires (addon-src) --key $addon_pin --done=(stamped (addon-pin-file) $addon_pin))
-        (step generate-install --key $generate_pin --done=(stamped (generate-pin-file) $generate_pin))
+        (step addon-install --requires (addon-src) --key (addon-pin))
+        (step generate-install --key (generate-pin))
         (link-commands blender-mcp-bridge.nu)
         (desktop-override blender.desktop {
             let text = $in
@@ -84,7 +62,6 @@ export def link [cfg: record] {
 export def server-install []: nothing -> nothing {
     let pkg = $"blender-mcp @ git+($MCP_URL)@($MCP_COMMIT)#subdirectory=mcp"
     ^uv tool install -q --force ...$INSTALL_FLAGS --constraints ($HERE | path join constraints.txt) $pkg
-    rm --force (pin-file)
 }
 
 def blender-run [args: list<string>]: nothing -> nothing {
@@ -120,7 +97,6 @@ export def addon-install []: nothing -> nothing {
     with-env {BLENDER_MCP_HOST: $MCP_HOST, BLENDER_MCP_PORT: $MCP_PORT} {
         blender-run [-b --python-exit-code 1 --python ($HERE | path join mcp-prefs.py)]
     }
-    rm --force (addon-pin-file)
 }
 
 export def generate-install []: nothing -> nothing {
@@ -132,5 +108,4 @@ export def generate-install []: nothing -> nothing {
         + "bpy.context.preferences.is_dirty = True\nbpy.ops.wm.save_userpref()\n"
     )
     blender-run [-b --python-exit-code 1 --python-expr $enable]
-    rm --force (generate-pin-file)
 }

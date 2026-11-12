@@ -8,10 +8,7 @@ const URL = "https://github.com/DilawarShafiq/nietzschian-debugger"
 # v0.1.0; the commit pins the tool, --exclude-newer freezes its floating deps (anthropic, click, rich)
 const COMMIT = "94e452d3fc83acb6360ac2918562961766c9753a"
 const FROZEN = "2026-10-27"
-
-def pin []: nothing -> string {
-    $"($COMMIT) ($FROZEN)"
-}
+const PIN = $"($COMMIT) ($FROZEN)"
 
 # the stamp the install was tracked by before it was recorded: one matching the pin proves it already ran
 def pin-file []: nothing -> path {
@@ -21,7 +18,7 @@ def pin-file []: nothing -> path {
 export def link [cfg: record] {
     if (which uv | is-empty) { return [] }
     let installed = try { open --raw (pin-file) | str trim } catch { "" }
-    [(step install --key (pin) --done=($installed == (pin)) --undo [uv tool uninstall nietzschian-debugger] --network)]
+    [(step install --key $PIN --done=($installed == $PIN) --undo [uv tool uninstall nietzschian-debugger] --network)]
 }
 
 export def install []: nothing -> nothing {

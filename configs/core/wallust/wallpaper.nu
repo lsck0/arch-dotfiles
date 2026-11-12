@@ -31,7 +31,7 @@ def recolor [file: path]: nothing -> bool {
     let switched = (wallpaper-get) != ($file | path expand)
     ^ln -sfn $file (wal wallpaper)
     $"($file)\n" | save --force (wal wallpaper_path)
-    let shell = $nu.home-dir | path join .config quickshell
+    let shell = xdg config quickshell
     if (which quickshell | is-not-empty) { do { ^timeout $IPC_TIMEOUT_S quickshell ipc -p $shell call background set $file } | complete | ignore }
     let theme = glob ($THEMES | path join "*.json") | sort
         | each {|f| {name: ($f | path parse | get stem), path: $f, spec: (open $f)} }

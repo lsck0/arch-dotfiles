@@ -15,5 +15,5 @@ export def link [cfg: record] {
             env: {SEARXNG_URL: $"https://search.($HOMELAB.domain)", DO_NOT_TRACK: "1"}
         }
     }
-    [(mcp-servers ($RETIRED | each {|name| {$name: null} } | into record | merge {searxng: $searxng}))]
+    mcp-servers ($RETIRED | each {|name| {$name: null} } | into record | merge {searxng: $searxng})
 }

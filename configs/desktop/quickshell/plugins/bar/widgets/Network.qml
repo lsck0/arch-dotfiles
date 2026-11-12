@@ -121,17 +121,10 @@ BarWidget {
     connectProc.stdinEnabled = false
   }
 
-  function runToggle(script) { Quickshell.execDetached([Paths.toggle(script), "toggle"]) }
-  function toggleHomeVpn() { runToggle("toggle-vpn.nu") }
-  function toggleAnonymousSocks() { runToggle("toggle-anonymous-socks.nu") }
-  function toggleBluetooth() { runToggle("toggle-bluetooth.nu") }
-  function toggleWifi() { runToggle("toggle-wifi.nu") }
-  function toggleEthernet() { runToggle("toggle-ethernet.nu") }
-  function toggleMobile() { runToggle("toggle-mobile.nu") }
-  function toggleTrustNetwork() { runToggle("toggle-trust-network.nu") }
-  function togglePortal() { runToggle("toggle-portal.nu") }
-  function setRoute(state) { Quickshell.execDetached([Paths.toggle("toggle-route.nu"), "set", state]) }
-  function setFirewall(state) { Quickshell.execDetached([Paths.toggle("toggle-firewall.nu"), "set", state]) }
+  // scripts/toggles/toggle-<name>.nu, "toggle" unless a verb and value are given
+  function runToggle(name, ...args) {
+    Quickshell.execDetached([Paths.toggle("toggle-" + name + ".nu")].concat(args.length ? args : ["toggle"]))
+  }
 
   readonly property var routeModes: [
     { value: "direct", label: "DIRECT" },
@@ -199,7 +192,6 @@ BarWidget {
     command: ["setpriv", "--pdeathsig", "TERM", "nmcli", "monitor"]
     Component.onDestruction: running = false
     stdout: SplitParser {
-      splitMarker: "\n"
       onRead: nmDebounce.restart()
     }
     onExited: nmRestartTimer.restart()
@@ -520,16 +512,16 @@ BarWidget {
         fontSize: Style.font.caption
         options: root.firewallModes
         value: root.firewallState
-        onChanged: function(state) { if (state !== root.firewallState) root.setFirewall(state) }
+        onChanged: function(state) { if (state !== root.firewallState) root.runToggle("firewall", "set", state) }
       }
       // trusting lifts the lockdown on this link: the gateway joins networkmanager's trusted_gateways (home stays home)
-      ToggleRow { visible: root.trustAvailable; label: root.toggleLabel("trust-network", "Trusted network"); on: root.trustedNetwork; onActivated: root.toggleTrustNetwork() }
+      ToggleRow { visible: root.trustAvailable; label: root.toggleLabel("trust-network", "Trusted network"); on: root.trustedNetwork; onActivated: root.runToggle("trust-network") }
       // offered while NM reports a portal or one is open: tor and strict dot keep its login page out of reach
       ToggleRow {
         visible: root.portalAvailable && (root.connectivity === "portal" || root.portalOpen)
         label: root.toggleLabel("portal", "Captive portal")
         on: root.portalOpen
-        onActivated: root.togglePortal()
+        onActivated: root.runToggle("portal")
       }
 
       PanelSeparator {}
@@ -547,7 +539,7 @@ BarWidget {
           fontSize: Style.font.caption
           options: root.routeModes
           value: root.route
-          onChanged: function(state) { if (state !== root.route) root.setRoute(state) }
+          onChanged: function(state) { if (state !== root.route) root.runToggle("route", "set", state) }
         }
 
         RadioChip {
@@ -555,11 +547,11 @@ BarWidget {
           visible: root.homelabAvailable
           text: "+ HOMELAB"
           selected: root.homeVpnState === "on"
-          onClicked: root.toggleHomeVpn()
+          onClicked: root.runToggle("vpn")
         }
       }
       // the SOCKS pool listens on lo, beside any route
-      ToggleRow { label: "Anonymous SOCKS"; on: root.anonymousSocksOn; onActivated: root.toggleAnonymousSocks() }
+      ToggleRow { label: "Anonymous SOCKS"; on: root.anonymousSocksOn; onActivated: root.runToggle("anonymous-socks") }
 
       PanelSeparator {}
       PanelSectionHeader { text: "RADIOS" }
@@ -568,10 +560,10 @@ BarWidget {
         width: content.width
         spacing: Style.spacing.xs
 
-        RadioChip { text: "WI-FI"; selected: root.wifiOn; onClicked: root.toggleWifi() }
-        RadioChip { text: "ETHERNET"; selected: root.ethernetOn; onClicked: root.toggleEthernet() }
-        RadioChip { visible: root.hasMobile; text: "MOBILE"; selected: root.mobileOn; onClicked: root.toggleMobile() }
-        RadioChip { text: "BLUETOOTH"; selected: root.btPowered; onClicked: root.toggleBluetooth() }
+        RadioChip { text: "WI-FI"; selected: root.wifiOn; onClicked: root.runToggle("wifi") }
+        RadioChip { text: "ETHERNET"; selected: root.ethernetOn; onClicked: root.runToggle("ethernet") }
+        RadioChip { visible: root.hasMobile; text: "MOBILE"; selected: root.mobileOn; onClicked: root.runToggle("mobile") }
+        RadioChip { text: "BLUETOOTH"; selected: root.btPowered; onClicked: root.runToggle("bluetooth") }
       }
 
       PanelSeparator {}

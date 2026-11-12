@@ -11,8 +11,8 @@ Secrets:
 
 - `configs/secrets/keys/wifi`: the home wifi keys, only with `wifi: true` (in the module's `meta.secrets`).
 - `configs/secrets/keys/ssh_publickey.asc`: the only key allowed to log in (in the module's `meta.secrets`).
-- `configs/secrets/keys/initramfs-ssh/<host>/sshkeydir/`: the initramfs host key, carried separately from
-  the module's `meta.secrets`. If absent, the first apply generates one and prints the backup command (copy, then `chown` to your
+- `configs/secrets/keys/initramfs-ssh/<host>/sshkeydir/`: the initramfs host key (its `.ed25519.sk` in the module's
+  `meta.secrets`). If absent, the first apply generates one and prints the backup command (copy, then `chown` to your
   user so `dot sync` can commit it).
 
 Use:

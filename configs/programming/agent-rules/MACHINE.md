@@ -15,8 +15,8 @@ on it is changed by hand.
 # Commits
 
 A commit is one line, a conventional commit: `type(scope): summary`, imperative, lowercase, no trailing period. No
-body; a reference trailer (`Refs: #12`) only when there is something to reference. A repo with its own fixed form (`Generation: <n>` in arch-dotfiles and homelab) keeps
-it. Full rules: skill `l-style-tooling`, Git.
+body; a reference trailer (`Refs: #12`) only when there is something to reference. A repo with its own fixed form
+(`Generation: <n>` in arch-dotfiles and homelab) keeps it. Full rules: skill `l-style-tooling`, Git.
 
 # No AI attribution, ever
 

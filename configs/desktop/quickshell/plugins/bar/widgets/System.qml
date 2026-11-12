@@ -109,7 +109,6 @@ BarWidget {
     }
 
     stdout: SplitParser {
-      splitMarker: "\n"
       onRead: function(line) {
         let s
         try {

@@ -60,6 +60,14 @@ Singleton {
     return true
   }
 
+  // an editor bound to the buffer takes a change made elsewhere, keeping its cursor
+  function syncInto(editor) {
+    if (editor.text === root.text) return
+    var cursor = editor.cursorPosition
+    editor.text = root.text
+    editor.cursorPosition = Math.min(cursor, editor.length)
+  }
+
   function loadDisk(value) {
     root.disk = value
     root.loaded = true

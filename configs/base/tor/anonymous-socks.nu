@@ -185,10 +185,9 @@ export def anonymous-socks-newnym []: nothing -> nothing {
     let replies = $"AUTHENTICATE ($hex)\r\nSIGNAL NEWNYM\r\nQUIT\r\n"
         | do { ^curl -sS --max-time $CONTROL_TIMEOUT_S $"telnet://127.0.0.1:($s.CONTROL_PORT)" } | complete
     if $replies.exit_code != 0 { error make {msg: $"no control port on :($s.CONTROL_PORT)"} }
-    let lines = $replies.stdout | lines
-    if ($lines | first 2 | length) == 2 and ($lines | first 2 | all { str starts-with "250" }) {
-        print "newnym: fresh circuits requested"
-    } else {
-        error make {msg: $"newnym: control refused \(($lines | first 2 | str join ' ')\)"}
+    let head = $replies.stdout | lines | first 2
+    if ($head | length) != 2 or not ($head | all { str starts-with "250" }) {
+        error make {msg: $"newnym: control refused \(($head | str join ' ')\)"}
     }
+    print "newnym: fresh circuits requested"
 }

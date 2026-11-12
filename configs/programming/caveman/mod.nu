@@ -14,37 +14,36 @@ def has [cmd: string]: nothing -> bool {
     which $cmd | is-not-empty
 }
 
-def json-or [file: path, fallback: any]: nothing -> any {
-    if ($file | path exists) { open $file } else { $fallback }
+def json-load [file: path]: nothing -> record {
+    if ($file | path exists) { open $file } else { {} }
 }
 
 def same-file [a: path, b: path]: nothing -> bool {
     ($a | path exists) and ($b | path exists) and (open --raw $a | hash sha256) == (open --raw $b | hash sha256)
 }
 
-def claude-steps [dir: path, probe: path]: nothing -> list<record> {
+def claude-steps [dir: path, probe: path]: nothing -> list<any> {
     # the marketplace is the fetched checkout: before the fetch landed these wait instead of failing
     let plugins = $nu.home-dir | path join .claude plugins
-    let installed = json-or ($plugins | path join installed_plugins.json) {} | get --optional plugins."caveman@caveman"
+    let installed = json-load ($plugins | path join installed_plugins.json) | get --optional plugins."caveman@caveman"
         | default [] | any { $in.gitCommitSha? == $COMMIT }
-    let market = json-or ($plugins | path join known_marketplaces.json) {} | get --optional caveman
+    let market = json-load ($plugins | path join known_marketplaces.json) | get --optional caveman
     let added = $market.installLocation? == $dir
-    let stale = $market != null and not $added
-    (if $stale { [(exec "caveman marketplace drop" [...$CLAUDE plugin marketplace remove caveman])] } else { [] })
-    | append (exec "caveman marketplace" [...$CLAUDE plugin marketplace add $dir] --done=$added --requires $probe)
-    # named by its commit as the gemini install; the undo calls claude bare, so with claude gone it counts as done
-    | append (exec $"caveman claude plugin ($COMMIT | str substring 0..11)" [...$CLAUDE plugin install caveman@caveman]
-        --done=$installed --undo [claude plugin uninstall caveman@caveman] --requires $probe)
+    [
+        (if $market != null and not $added { exec "caveman marketplace drop" [...$CLAUDE plugin marketplace remove caveman] })
+        (exec "caveman marketplace" [...$CLAUDE plugin marketplace add $dir] --done=$added --requires $probe)
+        # named by its commit as the gemini install; the undo calls claude bare, so with claude gone it counts as done
+        (exec $"caveman claude plugin ($COMMIT | str substring 0..11)" [...$CLAUDE plugin install caveman@caveman]
+            --done=$installed --undo [claude plugin uninstall caveman@caveman] --requires $probe)
+    ]
 }
 
 # Named by its commit: a bump orphans the old install, whose undo uninstalls it before the new one goes in.
-def gemini-steps []: nothing -> list<record> {
+def gemini-step []: nothing -> record {
     let ext = $nu.home-dir | path join .gemini extensions caveman
-    let ref = json-or ($ext | path join .gemini-extension-install.json) {} | get --optional ref
-    [(
-        exec $"caveman gemini ($COMMIT | str substring 0..11)" [gemini extensions install $URL --ref $COMMIT --consent]
-            --done=($ref == $COMMIT) --undo [gemini extensions uninstall caveman] --network
-    )]
+    let ref = json-load ($ext | path join .gemini-extension-install.json) | get --optional ref
+    (exec $"caveman gemini ($COMMIT | str substring 0..11)" [gemini extensions install $URL --ref $COMMIT --consent]
+        --done=($ref == $COMMIT) --undo [gemini extensions uninstall caveman] --network)
 }
 
 export def link [cfg: record] {
@@ -54,15 +53,15 @@ export def link [cfg: record] {
     let copilot = $nu.home-dir | path join .agents skills caveman SKILL.md
     [
         (fetch-git $URL $COMMIT $dir)
-        (if (has claude) { claude-steps $dir $probe } else { [] })
-        (if (has gemini) { gemini-steps } else { [] })
+        (if (has claude) { claude-steps $dir $probe })
+        (if (has gemini) { gemini-step })
         (if (has node) and (has hermes) {
-            [(exec "caveman hermes" [node ($dir | path join bin install.js) --only hermes --non-interactive]
-                --done=(same-file $probe $hermes) --requires $probe)]
-        } else { [] })
+            (exec "caveman hermes" [node ($dir | path join bin install.js) --only hermes --non-interactive]
+                --done=(same-file $probe $hermes) --requires $probe)
+        })
         (if (has copilot) and (has npx) {
-            [(exec "caveman copilot" [npx -y $SKILLS_CLI add $dir --skill "*" -a github-copilot -g --yes]
-                --done=(same-file $probe $copilot) --network --requires $probe)]
-        } else { [] })
+            (exec "caveman copilot" [npx -y $SKILLS_CLI add $dir --skill "*" -a github-copilot -g --yes]
+                --done=(same-file $probe $copilot) --network --requires $probe)
+        })
     ]
 }

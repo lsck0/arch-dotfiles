@@ -26,15 +26,17 @@ export def system [cfg: record] {
 export def hooks-placed [hooks: list<string>, installed: bool]: nothing -> list<string> {
     let kept = $hooks | where $it != plymouth and ($installed or $it != sd-bootvine)
     if not $installed or "sd-bootvine" in $kept or "systemd" not-in $kept { return $kept }
-    hooks-insert $kept sd-bootvine (($kept | enumerate | where item == systemd | get 0.index) + 1)
+    hooks-insert $kept sd-bootvine systemd --after
+}
+
+# The red, green and blue lines: each comma-joined channel of every palette slot, in slot order.
+export def palette-channels [palette: list<string>]: nothing -> list<string> {
+    [0 2 4] | each {|at| $palette | each { $"0x($in | str substring $at..($at + 1))" | into int } | str join "," }
 }
 
 # vt.default_red, _grn and _blu: the palette as the kernel's default, so a VT reset keeps it too.
 export def palette-cmdline [palette: list<string>]: nothing -> list<string> {
-    [[red 0] [grn 2] [blu 4]] | each {|c|
-        let values = $palette | each { $"0x($in | str substring $c.1..($c.1 + 1))" | into int | into string } | str join ","
-        $"vt.default_($c.0)=($values)"
-    }
+    [red grn blu] | zip (palette-channels $palette) | each { $"vt.default_($in.0)=($in.1)" }
 }
 
 export def hooks []: nothing -> nothing {

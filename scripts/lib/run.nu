@@ -2,13 +2,13 @@
 
 const REPO = path self ../..
 use log.nu *
-use cli.nu [concat jobs supervise root-runner locks-held]
-use state.nu [SYSTEM_REPO SYSTEM_STATE LIB_DIR state-dir EXIT_ABORTED EXIT_PENDING xdg CONFIG_ISSUE]
+use cli.nu [flag jobs root-runner state-lock-hold]
+use state.nu [SYSTEM_REPO SYSTEM_STATE LIB_DIR state-dir save-atomic EXIT_ABORTED EXIT_PENDING xdg CONFIG_ISSUE]
 use platform.nu [platform-load]
 use profile.nu [profile-has]
 use modules.nu [modules-packages]
 use pipeline.nu [pipeline-load pipeline-plan pipeline-apply pending-save flatpak-installed nix-installed THEME_VERB_TIMEOUT NIX_FLAGS]
-use converge.nu [state-read observe plan-module recorded-hashes apply-module state-write output-file-state]
+use converge.nu [state-read observe-outputs plan-module recorded-hashes apply-module state-write output-file-state unit-state-holds]
 use ledger.nu [ledger-units ledger-get ledger-set ledger-diff ledger-remove]
 use migrate.nu [migrations-run]
 use ../../configs/base/yubikey/yubikey.nu [yubikey-unlock]
@@ -40,7 +40,7 @@ const THEME_STAMP_PATHS = [configs/core/wallust themes]
 const THEME_DEFAULT = path self ../../themes/shien.json
 
 def summary [results: table]: nothing -> nothing {
-    let outcomes = $results | get outcomes | concat
+    let outcomes = $results | get outcomes | flatten
     let counts = $outcomes | group-by kind | items {|k, v| $"($v | length) ($k)" } | str join ", "
     let busy = $results | where {|r| ($r.outcomes | is-not-empty) or ($r.log | str trim | is-not-empty) } | get id | uniq
     let waiting = $results | where pending? != null | get id | uniq
@@ -157,12 +157,11 @@ export def failures-publish [results: table, published: path = $FAILURES_PUBLISH
         open --raw $published | lines | where {|l| ($l | split row " " | first) not-in $cleared or ((failure-is-system $l) and not $system_ran) }
     } else { [] }
     if ($failures | is-not-empty) {
-        let kept = if ($env.DOT_FULL_RUN? != true) { $earlier } else if ($env.DOT_SYSTEM_RAN? != true) {
+        let kept = if ($env.DOT_FULL_RUN? != true) { $earlier } else if not $system_ran {
             $earlier | where {|l| failure-is-system $l }
         } else { [] }
         let failures = $kept | append ($failures | lines) | where ($it | str trim) != "" | uniq | str join "\n"
-        $"($failures)\n" | save --force $"($published).($env.DOT_RUN_ID)"
-        mv --force $"($published).($env.DOT_RUN_ID)" $published
+        $"($failures)\n" | save-atomic $published
         print "=== FAILED ==="
         print $failures
         return false
@@ -171,19 +170,17 @@ export def failures-publish [results: table, published: path = $FAILURES_PUBLISH
     if $owned and ($env.DOT_FULL_RUN? != true) and ($published | path exists) {
         let left = $earlier | where ($it | str trim) != ""
         if ($left | is-empty) { rm --force $published } else if ($left | length) != (open --raw $published | lines | where ($it | str trim) != "" | length) {
-            $"($left | str join "\n")\n" | save --force $"($published).($env.DOT_RUN_ID)"
-            mv --force $"($published).($env.DOT_RUN_ID)" $published
+            $"($left | str join "\n")\n" | save-atomic $published
         }
         return true
     }
     # a user-only run cannot vouch for the system layer: its earlier failures stay published until it runs again
-    let system_stale = $env.DOT_SYSTEM_RAN? != true and ($published | path exists) and (open --raw $published | lines | any {|l| failure-is-system $l })
+    let system_stale = not $system_ran and ($published | path exists) and (open --raw $published | lines | any {|l| failure-is-system $l })
     if $owned and ($env.DOT_FULL_RUN? == true) {
         if not $system_stale { rm --force $published } else {
             # the user layer passed in full: only the system lines it cannot vouch for stay
             let system = open --raw $published | lines | where {|l| failure-is-system $l }
-            $"($system | str join "\n")\n" | save --force $"($published).($env.DOT_RUN_ID)"
-            mv --force $"($published).($env.DOT_RUN_ID)" $published
+            $"($system | str join "\n")\n" | save-atomic $published
         }
     }
     true
@@ -234,9 +231,7 @@ def system-run [stage: string, --force, --yes]: nothing -> int {
         if $runner != "sudo" { error make {msg: $"($SYSTEM_REPO) has no ($ENTRY) yet, run dot apply at a terminal once"} }
         system-pack $REPO | ^sudo sh -c $SYSTEM_SEED sh $SYSTEM_REPO $LIB_DIR $head
     }
-    let forced = if $force { [--force] } else { [] }
-    let asked = if $yes { [--yes] } else { [] }
-    let flags = [--unattended=($env.DOTFILES_UNATTENDED? == "1")] ++ $forced ++ $asked
+    let flags = [--unattended=($env.DOTFILES_UNATTENDED? == "1")] ++ (flag force $force) ++ (flag yes $yes)
     let archive = system-archive $REPO (platform-load $REPO).facts.wireguard?
     let code = try { $archive | ^$runner $entry apply $head $stage ...$flags; 0 } catch {|e| $e.exit_code? | default 1 }
     interrupted-exit $code
@@ -301,13 +296,8 @@ export def --env apply-run [system: bool, user: bool, force: bool]: nothing -> t
 }
 
 export def user-locked []: nothing -> nothing {
-    let lock = state-dir | path join run.lock
-    if $lock not-in (locks-held) and ($lock | path exists) and (^flock --nonblock $lock true | complete).exit_code != 0 {
-        print -e "dot: another dot run holds the user layer, waiting for it"
-    }
-    supervise --lock $lock
+    state-lock-hold run.lock "another dot run holds the user layer"
 }
-
 
 export def --env unlink-run [mod: string]: nothing -> table {
     let ctx = pipeline-load $REPO user
@@ -317,7 +307,7 @@ export def --env unlink-run [mod: string]: nothing -> table {
     failures-open
     let rows = [link theme] | each {|verb|
         let prev = (state-read $mod $verb).outputs
-        let seen = observe ($prev | where kind != unit | get target) ($prev | where kind == unit | get target) user
+        let seen = observe-outputs $prev user
         let actions = plan-module $mod [] $prev $seen (recorded-hashes) $REPO false
         {verb: $verb, prev: $prev, actions: $actions}
     }
@@ -326,8 +316,8 @@ export def --env unlink-run [mod: string]: nothing -> table {
         let done = apply-module $r.actions $m.dir user
         state-write $mod $r.verb "" $r.actions $done $r.prev
         $done
-    } | concat
-    let kept = $rows | get actions | concat | where kind == drift
+    } | flatten
+    let kept = $rows | get actions | flatten | where kind == drift
     if ($kept | is-not-empty) { log-warn $"left in place, changed since the last apply: ($kept.target | str join ' ')" }
     [{id: $mod, ok: ($outcomes | all { $in.ok }), outcomes: $outcomes, ms: 0, log: "", error: null}]
 }
@@ -451,7 +441,7 @@ export def --env install-run [user: bool, yes: bool, offer_by_hand: bool]: nothi
     }
     if $system {
         let runner = system-runner
-        try { ^$runner ($SYSTEM_REPO | path join $ENTRY) packages --unattended=($env.DOTFILES_UNATTENDED? == "1") ...(if $yes { [--yes] } else { [] }) } catch {|e| interrupted-exit ($e.exit_code? | default 1); fail "system layer: removing undeclared packages" }
+        try { ^$runner ($SYSTEM_REPO | path join $ENTRY) packages --unattended=($env.DOTFILES_UNATTENDED? == "1") ...(flag yes $yes) } catch {|e| interrupted-exit ($e.exit_code? | default 1); fail "system layer: removing undeclared packages" }
     }
     let failed = failures-take
     if ($failed | is-empty) { rm --force ($REPO | path join $FAILURES_INSTALL); return 0 }
@@ -494,7 +484,7 @@ export def managed-drift []: nothing -> table {
     }
     # one observation for every record: one stat, one readlink and one systemctl for the lot
     let every = $records | get outs | flatten
-    let seen = observe ($every | where kind != unit | get --optional target | default []) ($every | where kind == unit | get --optional target | default []) user
+    let seen = observe-outputs $every user
     $records | each {|r|
         let id = $r.id
         $r.outs | each {|o|
@@ -504,8 +494,7 @@ export def managed-drift []: nothing -> table {
                 "link" => (if ($obs.type? | default "") == "" { "missing" } else if $obs.link != $o.source { "relinked" } else { null })
                 "unit" => {
                     let now = $seen.units | get --optional $o.target
-                    let held = match ($o.state? | default enabled) { "disabled" => ($now != "enabled"), $want => ($now == $want) }
-                    if $held { null } else { $now | default missing }
+                    if (unit-state-holds ($o.state? | default enabled) $now) { null } else { $now | default missing }
                 }
                 _ => null
             }

@@ -1,9 +1,10 @@
 # hyprland's lua config, plus platform.lua generated each run from the live monitors and keyboard
 
 use module.nu *
-use ../../core/wallust/palette.nu [RADIUS_PX BORDER_PX OPACITY_WINDOW OPACITY_SURFACE wal-load readable-on shade rgb-to-hex]
+use ../../core/wallust/palette.nu [RADIUS_PX BORDER_PX OPACITY_SURFACE wal-load readable-on shade rgb-to-hex]
 use ../../core/wallust/font.nu [font-load]
 use plugins.nu [plugins-missing plugins-unloaded]
+use lid.nu [INTERNAL_PANEL]
 
 export const meta = {
     deps: [base/essentials]
@@ -121,11 +122,11 @@ const CONFIG_FILES = [
 ]
 const COMMANDS = [dpms.nu lockscreen-stats.nu quickshell-lock-launch.nu screen-dim.nu]
 const KEYBOARD_CONF = "/etc/X11/xorg.conf.d/00-keyboard.conf"
-const INTERNAL_PANEL = '^(eDP|LVDS|DSI)-'
 const WORKSPACE_COUNT = 10
 const TARGET_DPI = {laptop: 150.0, desktop: 110.0}
 const MM_PER_INCH = 25.4
 const SCALES = [1.0 1.25 1.5 1.666667 2.0 2.5 3.0]
+const PLUGINS = path self plugins.nu
 
 # A Hyprland instance dir whose lock names a running pid; a dead one keeps its dir and socket file behind.
 def instance-alive [dir: path]: nothing -> bool {
@@ -151,7 +152,7 @@ def --env hyprland-live []: nothing -> bool {
 def --env outputs-live []: nothing -> table {
     if not (hyprland-live) { return [] }
     # disabled outputs too: a docked closed lid turns the panel off, and it must stay the layout's main
-    try { ^hyprctl -j monitors all | from json } catch { [] } | where name !~ '^HEADLESS-' | sort-by x
+    monitors-live --all | sort-by x
 }
 
 def mode-best [modes: list<string>]: nothing -> string {
@@ -226,29 +227,31 @@ def xwayland-scale [scale: any]: nothing -> int {
     if $scale == null { display-xwayland-scale $env.FORM_FACTOR } else { [1 ($scale | math round | into int)] | math max }
 }
 
-export def detect [cfg: record]: nothing -> record {
-    let monitors = monitors-detect
-    let main = main-pick $monitors
+# The workspace split and X11 scale a monitor layout implies.
+def layout-derive [monitors: list<record>, main: any]: nothing -> record {
     {
-        monitors: $monitors
-        main_monitor: $main
         workspaces: (workspaces-split ($monitors | each { $in.output }) $main)
         xwayland_scale: (xwayland-scale ($monitors | where output == $main | get --optional 0.scale))
     }
 }
 
+export def detect [cfg: record]: nothing -> record {
+    let monitors = monitors-detect
+    let main = main-pick $monitors
+    {monitors: $monitors, main_monitor: $main} | merge (layout-derive $monitors $main)
+}
+
 # Detect sees no output outside hyprland: picks over the platform's monitors keep platform.lua stable.
 def platform-lua [cfg: record]: nothing -> string {
-    let backlight = glob /sys/class/leds/*kbd_backlight* | get --optional 0 | if $in == null { null } else { $in | path basename }
+    let backlight = glob /sys/class/leds/*kbd_backlight* | path basename | get --optional 0
     let monitors = $cfg.monitors | default []
     let main = $cfg.main_monitor | default (main-pick $monitors)
+    let derived = layout-derive $monitors $main
     let facts = {
-        form_factor: $env.FORM_FACTOR
-        laptop: ($env.FORM_FACTOR == laptop)
-        xwayland_scale: ($cfg.xwayland_scale | default (xwayland-scale ($monitors | where output == $main | get --optional 0.scale)) | into string)
+        xwayland_scale: ($cfg.xwayland_scale | default $derived.xwayland_scale | into string)
         main_monitor: $main
         monitors: $monitors
-        workspaces: ($cfg.workspaces | default (workspaces-split ($monitors | each { $in.output }) $main))
+        workspaces: ($cfg.workspaces | default $derived.workspaces)
         app_workspaces: $cfg.app_workspaces
         autostart: $cfg.autostart
         monitor_speaker_volume: $cfg.monitor_speaker_volume
@@ -276,7 +279,7 @@ def bar-colors []: nothing -> record {
 def style-record []: nothing -> record {
     let font = font-load
     {
-        rounding: $RADIUS_PX, border: $BORDER_PX, opacity: $OPACITY_WINDOW, opacity_surface: $OPACITY_SURFACE
+        rounding: $RADIUS_PX, border: $BORDER_PX, opacity_surface: $OPACITY_SURFACE
         font: $font.family, font_size: $font.ui_size
     } | merge (bar-colors)
 }
@@ -305,18 +308,14 @@ export def link [cfg: record] {
     [
         $files
         # offline only the build waits: plugins built earlier still load
-        (if $build { [(step plugins-build --network)] } else { [] })
-        (if $build or ($live and (plugins-unloaded | is-not-empty)) { step plugins-load } else { [] })
+        (if $build { step plugins-build --network })
+        (if $build or ($live and (plugins-unloaded | is-not-empty)) { step plugins-load })
     ]
 }
 
-export def plugins-build []: nothing -> nothing {
-    ^($env.DOTFILES | path join configs desktop hyprland plugins.nu) build
-}
+export def plugins-build []: nothing -> nothing { ^$PLUGINS build }
 
-export def plugins-load []: nothing -> nothing {
-    ^($env.DOTFILES | path join configs desktop hyprland plugins.nu) load
-}
+export def plugins-load []: nothing -> nothing { ^$PLUGINS load }
 
 export def update [cfg: record]: nothing -> nothing { plugins-build; plugins-load }
 

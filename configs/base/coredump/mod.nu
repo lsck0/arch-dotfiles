@@ -29,7 +29,8 @@ export def system [cfg: record] {
         })
         # sorts before systemd.conf, so its age wins
         (file-copy coredump-tmpfiles.conf /etc/tmpfiles.d/coredump.conf)
-    ] ++ (if $env.FORM_FACTOR? == "wsl" { [] } else {
-        [(step cmdline-set efi_pstore.pstore_disable=0) (unit-enable systemd-pstore.service)]
-    })
+        (if $env.FORM_FACTOR? != "wsl" {
+            [(step cmdline-set efi_pstore.pstore_disable=0) (unit-enable systemd-pstore.service)]
+        })
+    ]
 }

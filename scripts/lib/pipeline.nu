@@ -6,7 +6,7 @@ use platform.nu [platform-load platform-env]
 use profile.nu [profile-load]
 use options.nu [options-resolve]
 use modules.nu [modules-discover modules-graph modules-eval modules-packages-each modules-root-run]
-use converge.nu [state-read state-path observe recorded-hashes decls-check plan-module apply-module state-write mode-normal]
+use converge.nu [state-read state-path observe-outputs recorded-hashes decls-check plan-module apply-module state-write mode-normal unit-state-holds]
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use cause.nu [failure-line cause-from-error cause-text]
 
@@ -34,6 +34,13 @@ const GLOB_META = '[*?\[{]'
 export const THEME_VERB_TIMEOUT = 60sec
 # the outcomes that changed something a barrier watches for
 const BARRIER_KINDS = [create update record merge remove undo exec step]
+# a module's run result before it ran anything
+const RESULT_NONE = {ok: true, pending: null, log: "", outcomes: [], error: null}
+# a planned row of a module outside the graph: one gone from the repo, or one whose mod.nu does not parse
+const ROW_OUTSIDE = {
+    after: [], deps: [], level: 0, serial: false, cfg: {}, options: {}, force: false, pending: null, native: true, skipped: false
+    input: "", prev: [], actions: [], error: null
+}
 
 def eval-env [ctx: record]: nothing -> record {
     platform-env $ctx.platform | merge {DOT_LAYER: $ctx.layer, DOTFILES: $ctx.repo}
@@ -44,11 +51,11 @@ def detect [ctx: record, modules: table]: nothing -> record {
     let root = if $ctx.layer == "system" { modules-root-run $modules } else { null }
     let probing = $modules | where {|m| "detect" in $m.native and ($root == null or $m.id in $root) }
     if ($probing | is-empty) { return {} }
-    let cfgs = $probing | reduce --fold {} {|m, acc| $acc | insert $m.id ($m.options | items {|k, s| {k: $k, v: $s.default} } | reduce --fold {} {|o, a| $a | insert $o.k $o.v }) }
+    let cfgs = $probing | each {|m| [$m.id ($m.options | items {|k, s| [$k $s.default] } | into record)] } | into record
     with-env (eval-env $ctx) { modules-eval $probing detect $cfgs [] } | each {|r|
         if not $r.ok { log-warn $"($r.id): detect failed, its options stay unset: ($r.error)" }
-        {id: $r.id, values: ($r.decls | get --optional 0 | default {})}
-    } | reduce --fold {} {|r, acc| $acc | insert $r.id $r.values }
+        [$r.id ($r.decls | get --optional 0 | default {})]
+    } | into record
 }
 
 # Expands an app-dirs.conf value as environment.d does: ${HOME}, then ${VAR:-default} from the env.
@@ -64,8 +71,7 @@ def --env app-dirs-load [repo: path]: nothing -> nothing {
     if not ($file | path exists) { return }
     open --raw $file | lines | parse --regex '^(?<k>[A-Za-z_][A-Za-z0-9_]*)=(?<v>.*)$'
     | where {|e| ($env | get --optional $e.k) == null }
-    | each {|e| {($e.k): ($e.v | app-dirs-expand)} }
-    | reduce --fold {} {|e, acc| $acc | merge $e }
+    | each {|e| [$e.k ($e.v | app-dirs-expand)] } | into record
     | load-env
 }
 
@@ -82,7 +88,7 @@ export def --env pipeline-load [repo: path, layer: string]: nothing -> record {
     if ($resolved.errors | is-not-empty) {
         error make {msg: $"options:\n($resolved.errors | str join "\n")"}
     }
-    let values = $resolved.rows | reduce --fold {} {|r, acc| $acc | insert $r.id $r }
+    let values = $resolved.rows | each {|r| [$r.id $r] } | into record
     let known = $values | columns
     let modules = $found | each {|m|
         let row = $values | get $m.id
@@ -193,7 +199,7 @@ export def pending-save [planned: list<string>, results: table, --full]: nothing
 def stamps [dirs: list<string>]: nothing -> record {
     let found = ^find ...$dirs -type f -not -name '*.log' -not -name '*.test.nu' -not -name '*.test.sh' -printf $HASH_STAMP | lines
         | split column "\t" dir entry | group-by dir
-    $dirs | reduce --fold {} {|d, acc| $acc | upsert $d ($found | get --optional $d | default [] | get --optional entry | default [] | sort | str join "\n") }
+    $dirs | each {|d| [$d ($found | get --optional $d | default [] | get --optional entry | default [] | sort | str join "\n")] } | into record
 }
 
 # Whether each link source exists, all in one bounded probe; one that runs out of time (a dead mount) probes each,
@@ -205,7 +211,7 @@ export def links-alive [sources: list<string>]: nothing -> record {
     let alive = if $batch.exit_code == 0 and ($answers | length) == ($sources | length) { $answers | each { $in == "y" } } else {
         $sources | each {|s| (do { ^timeout $LINK_PROBE_TIMEOUT_S test -e $s } | complete).exit_code == 0 }
     }
-    $sources | zip $alive | reduce --fold {} {|a, acc| $acc | upsert $a.0 $a.1 }
+    $sources | zip $alive | into record
 }
 
 # The relative imports of every .nu file under dirs, one grep for all: file -> the absolute .nu paths it imports.
@@ -217,28 +223,28 @@ def imports-map [dirs: list<string>]: nothing -> record {
     | group-by file | items {|file, rows| [$file $rows.import] } | into record
 }
 
-# The mapped dirs (dir -> true) each importing file of the map sits under, nested module dirs all of them: dir -> files.
+# The mapped dirs (dir -> true) a file sits under, nearest first.
+def dirs-mapped-over [file: string, mapped: record]: nothing -> list<string> {
+    mut owners = []
+    mut dir = $file | path dirname
+    while $dir != "/" {
+        if ($mapped | get --optional $dir | default false) { $owners = $owners | append $dir }
+        $dir = $dir | path dirname
+    }
+    $owners
+}
+
+# The mapped dirs each importing file of the map sits under, nested module dirs all of them: dir -> files.
 def imports-by-dir [map: record, mapped: record]: nothing -> record {
-    $map | columns | each {|f|
-        mut owners = []
-        mut dir = $f | path dirname
-        while $dir != "/" {
-            if ($mapped | get --optional $dir | default false) { $owners = $owners | append $dir }
-            $dir = $dir | path dirname
-        }
-        $owners | each {|d| {dir: $d, file: $f} }
-    } | flatten | group-by dir | items {|d, rows| [$d $rows.file] } | into record
+    $map | columns | each {|f| dirs-mapped-over $f $mapped | each {|d| {dir: $d, file: $f} } }
+    | flatten | group-by dir | items {|d, rows| [$d $rows.file] } | into record
 }
 
 # A file's relative imports, from the map when it covered the file's dir, else read.
 def imports-of [file: string, map: record, mapped: record]: nothing -> list<string> {
     let listed = $map | get --optional $file
     if $listed != null { return $listed }
-    mut dir = $file | path dirname
-    while $dir != "/" {
-        if ($mapped | get --optional $dir | default false) { return [] }
-        $dir = $dir | path dirname
-    }
+    if (dirs-mapped-over $file $mapped | is-not-empty) { return [] }
     open --raw $file | lines | parse --regex $IMPORT_LINE | get p | each {|p| $file | path dirname | path join $p | path expand }
 }
 
@@ -274,30 +280,24 @@ def outputs-clean [outputs: list<record>, seen: record]: nothing -> bool {
             "file" => ($obs.hash? == $o.hash and (mode-normal $obs.mode?) == (mode-normal $o.mode))
             "link" => ($obs.link? == $o.source)
             "exec" | "step" => ($o.source == null or ($o.source | path exists))
-            "unit" => (match ($o.state? | default enabled) { "disabled" => (($seen.units | get --optional $o.target) != "enabled"), $s => (($seen.units | get --optional $o.target) == $s) })
+            "unit" => (unit-state-holds ($o.state? | default enabled) ($seen.units | get --optional $o.target))
             # an owned merge is no output of its own: the module's inputs decide whether it merges again
             _ => true
         }
     }
 }
 
-def scope-of [layer: string]: nothing -> string {
-    if $layer == "system" { "system" } else { "user" }
-}
-
 # known: what pipeline-plan already observed of the previous outputs, nothing changed it since
 def eval-plan [ctx: record, mods: table, verb: string, args: list, prev: record, force: bool, known: record = {paths: {}, units: {}}]: nothing -> table {
     let on = $mods | where cfg.enable
     let off = $mods | where not $it.cfg.enable | each {|m| {id: $m.id, ok: true, decls: [], error: null} }
-    let evaluated = if ($on | is-empty) { [] } else { span eval {verb: $verb} { with-env (eval-env $ctx) { modules-eval $on $verb ($on | reduce --fold {} {|m, acc| $acc | insert $m.id $m.cfg }) $args } } }
+    let evaluated = if ($on | is-empty) { [] } else { span eval {verb: $verb} { with-env (eval-env $ctx) { modules-eval $on $verb ($on | each {|m| [$m.id $m.cfg] } | into record) $args } } }
         | append $off
         | each {|e| if not $e.ok { $e } else { try { decls-check $e.id $e.decls; $e } catch {|err| $e | merge {ok: false, decls: [], error: $err.msg} } } }
-    let decls = $evaluated | reduce --fold [] {|e, acc| $acc ++ $e.decls }
+    let decls = $evaluated | get decls | flatten
     let all_targets = $decls | get --optional target | default [] | uniq
-    let olds = $prev | values | reduce --fold [] {|p, acc| $acc ++ $p }
-    let paths = $decls | where kind not-in [unit exec step] | get --optional target | default [] | append ($olds | where kind not-in [unit exec step] | get --optional target | default [])
-    let units = $decls | where kind == unit | get --optional target | default [] | append ($olds | where kind == unit | get --optional target | default [])
-    let seen = span observe {} { observe $paths $units (scope-of $ctx.layer) $known }
+    let olds = $prev | values | flatten
+    let seen = span observe {} { observe-outputs ($decls ++ $olds) $ctx.layer $known }
     let recorded = recorded-hashes
     $evaluated | each {|r|
         if not $r.ok { return {id: $r.id, actions: [], error: $r.error} }
@@ -350,18 +350,15 @@ export def modules-gone [ctx: record, verb: string]: nothing -> list<string> {
 # records or plans are forgotten, not removed.
 def module-gone-row [ctx: record, id: string, verb: string, force: bool, claimed: list<string>]: nothing -> record {
     let prev = (state-read $id $verb).outputs
-    let seen = observe ($prev | where kind not-in [unit exec step] | get target) ($prev | where kind == unit | get target) (scope-of $ctx.layer)
+    let seen = observe-outputs $prev $ctx.layer
     let planned = try { {actions: (plan-module $id [] $prev $seen (recorded-hashes) $ctx.repo $force $claimed), error: null} } catch {|e| {actions: [], error: $"plan: ($e.msg)"} }
-    {
-        id: $id, dir: ($ctx.repo | path join configs $id), after: [], deps: [], level: 0, serial: false, cfg: {}, options: {}
-        force: $force, pending: null, native: true, skipped: false, input: "", prev: $prev, actions: $planned.actions, error: $planned.error
-    }
+    $ROW_OUTSIDE | merge {id: $id, dir: ($ctx.repo | path join configs $id), force: $force, prev: $prev, actions: $planned.actions, error: $planned.error}
 }
 
 # The installed version of each named package; a group or a package not installed has none.
 def package-versions [names: list<string>]: nothing -> record {
     if ($names | is-empty) or (which pacman | is-empty) { return {} }
-    ^pacman -Q ...$names | complete | get stdout | lines | parse "{name} {version}" | reduce --fold {} {|p, acc| $acc | insert $p.name $p.version }
+    ^pacman -Q ...$names | complete | get stdout | lines | parse "{name} {version}" | each {|p| [$p.name $p.version] } | into record
 }
 
 # Unchanged modules are skipped unevaluated; a disabled one plans its removals, as does one gone from the repo. A link
@@ -403,8 +400,8 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     ] | str join "\n"
     let imports = $olds | each {|o| {id: $o.m.id, files: (imports-outside $o.m.dir $importing $import_map $mapped)} }
     # a shared import (the wallust palette) is hashed once, not once per module importing it
-    let import_hashes = $imports | get files | flatten | uniq | reduce --fold {} {|f, acc| $acc | insert $f (open --raw $f | hash sha256) }
-    let imports_by = $imports | reduce --fold {} {|i, acc| $acc | insert $i.id $i.files }
+    let import_hashes = $imports | get files | flatten | uniq | each {|f| [$f (open --raw $f | hash sha256)] } | into record
+    let imports_by = $imports | each {|i| [$i.id $i.files] } | into record
     # a package upgrade re-evaluates the modules declaring it: one query for every module's own packages
     let versions = span versions {} { package-versions ($olds | each {|o| $o.m.meta.packages.pacman ++ $o.m.meta.packages.native } | flatten | uniq) }
     let natives = span inputs {} { $olds | par-each --keep-order {|o|
@@ -420,18 +417,18 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
         let input = [$global ($stamped | get $m.dir) $imported ($m.cfg | to nuon) (stat $ctx.repo ($m.meta.inputs? | default [])) (stat $ctx.repo $sources) $links $packaged] | str join "\n" | hash sha256
         {id: $m.id, prev: $prev, input: $input, volatile: ($m.meta.volatile? | default false)}
     } }
-    let prev_targets = $natives | reduce --fold [] {|n, acc| $acc ++ $n.prev.outputs }
-    let before = span observe {} { observe ($prev_targets | where kind not-in [unit exec step] | get --optional target | default []) ($prev_targets | where kind == unit | get --optional target | default []) (scope-of $ctx.layer) }
+    let prev_targets = $natives | get prev.outputs | flatten
+    let before = span observe {} { observe-outputs $prev_targets $ctx.layer }
     let fresh = $natives | where {|n| not $force and not $n.volatile and $n.id not-in $retired.id and $n.input == $n.prev.input and (outputs-clean $n.prev.outputs $before) } | get id
     let to_eval = $graph | where {|m| $verb in $m.native and $m.id not-in $fresh }
-    let prev = $natives | reduce --fold {} {|n, acc| $acc | insert $n.id $n.prev.outputs }
+    let prev = $natives | each {|n| [$n.id $n.prev.outputs] } | into record
     let planned = eval-plan $ctx $to_eval $verb $args $prev $force $before
     let gated = $to_eval | where id not-in $retired.id
     let waiting = if $verb not-in $GATED_VERBS or $packages_unchecked or ($gated | is-empty) { {} } else {
         span packages {} { let declared = packages-declared $ctx $gated; packages-gate $declared (packages-absent $declared) }
     }
-    let natives_by = $natives | reduce --fold {} {|n, acc| $acc | insert $n.id $n }
-    let planned_by = $planned | reduce --fold {} {|p, acc| $acc | insert $p.id $p }
+    let natives_by = $natives | each {|n| [$n.id $n] } | into record
+    let planned_by = $planned | each {|p| [$p.id $p] } | into record
     let rows = $graph | each {|m|
         let native = $natives_by | get --optional $m.id
         let row = {id: $m.id, dir: $m.dir, after: $m.after, deps: $m.meta.deps, level: $m.level, serial: $m.meta.serial, cfg: $m.cfg, options: $m.options, force: $force, pending: null}
@@ -449,7 +446,7 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
         $prev_targets | get --optional target | default [] | append ($planned | get actions | flatten | get --optional target | default []) | uniq
     }
     $rows ++ ($gone | each {|id| module-gone-row $ctx $id $verb $force $claimed }) ++ ($broken | where selected | each {|m|
-        {id: $m.id, dir: $m.dir, after: [], deps: [], level: 0, serial: false, cfg: {}, options: {}, native: true, skipped: false, input: "", prev: [], actions: [], error: "mod.nu does not parse", pending: null}
+        $ROW_OUTSIDE | merge {id: $m.id, dir: $m.dir, error: "mod.nu does not parse"}
     })
 }
 
@@ -462,7 +459,7 @@ def native-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
     mut converged = false
     loop {
         let current = $actions
-        let done = with-env (platform-env $ctx.platform) { apply-module $current $m.dir (scope-of $ctx.layer) }
+        let done = with-env (platform-env $ctx.platform) { apply-module $current $m.dir $ctx.layer }
         $outcomes = $outcomes ++ $done
         let ran = $done | where {|o| $o.kind in [exec step] and $o.ok and $o.pending == null and $o.decl.creates? != null and ($o.decl.creates | path exists) }
         let failed = $done | where not ok
@@ -504,11 +501,11 @@ def module-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
     let result = with-env {DOTFILES_MODULE: $m.id, DOT_VERB: $verb} {
         span $m.id {module: $m.id, verb: $verb} {
             if not $m.native or $m.skipped {
-                {ok: true, pending: null, log: "", outcomes: [], error: null}
+                $RESULT_NONE
             } else if $m.error != null {
-                {ok: false, pending: null, log: "", outcomes: [], error: $m.error}
+                $RESULT_NONE | merge {ok: false, error: $m.error}
             } else {
-                try { native-run $ctx $m $verb $args } catch {|e| {ok: false, pending: null, log: "", outcomes: [], error: (cause-text (cause-from-error $e))} }
+                try { native-run $ctx $m $verb $args } catch {|e| $RESULT_NONE | merge {ok: false, error: (cause-text (cause-from-error $e))} }
             }
         }
     }
@@ -531,24 +528,24 @@ def module-procs-kill [id: string]: nothing -> nothing {
     procs-kill [$"DOTFILES_MODULE=($id)" $"DOT_RUN_FILE=($env.DOT_RUN_FILE? | default '')"]
 }
 
-# --timeout: a module still running is killed and counts as failed. A held module (module-held) is not run: its result
-# is ok with pending set, and done records it as pending for whatever depends on it.
-# Each module waiting on id counts one predecessor fewer.
+# Each module waiting on ids counts one predecessor fewer per id.
 def waiting-release [waiting: record, dependents: record, ids: list<string>]: nothing -> record {
     let freed = $ids | each {|id| $dependents | get --optional $id | default [] | get id } | flatten
     if ($freed | is-empty) { return $waiting }
     $freed | uniq --count | reduce --fold $waiting {|c, acc| $acc | update $c.value { $in - $c.count } }
 }
 
+# --timeout: a module still running is killed and counts as failed. A held module (module-held) is not run: its result
+# is ok with pending set, and done records it as pending for whatever depends on it.
 export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int, args: list = [], --timeout: duration]: nothing -> table {
     mut done = {}
     mut running = {}
     mut started = {}
     mut results = []
-    let planned_ids = $planned | reduce --fold {} {|m, acc| $acc | insert $m.id true }
+    let planned_ids = $planned | each {|m| [$m.id true] } | into record
     mut pending = $planned | update after {|m| $m.after | where {|a| $planned_ids | get --optional $a | default false } | uniq }
     let dependents = $pending | each {|m| $m.after | each {|a| {after: $a, id: $m.id} } } | flatten | group-by after
-    mut waiting = $pending | reduce --fold {} {|m, acc| $acc | insert $m.id ($m.after | length) }
+    mut waiting = $pending | each {|m| [$m.id ($m.after | length)] } | into record
     # a timed-out module's marker: apply-module stops at its next action and the job sends nothing
     let cancel_dir = if $timeout == null { "" } else { mktemp --directory --tmpdir dot-cancel-XXXXXX }
     mut killed = false
@@ -563,7 +560,7 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
                 log-note $"($h.id): pending, ($h.why)" {module: $h.id}
                 # a held module that did not evaluate either: its error is a failure too, not hidden behind the hold
                 let error = $planned | where id == $h.id | get --optional 0.error
-                let result = {id: $h.id, ok: ($error == null), pending: $h.why, log: "", outcomes: [], error: $error, notes: [], ms: 0}
+                let result = $RESULT_NONE | merge {id: $h.id, ok: ($error == null), pending: $h.why, error: $error, notes: [], ms: 0}
                 $done = $done | insert $h.id (if $result.ok { "pending" } else { "failed" })
                 $waiting = waiting-release $waiting $dependents [$h.id]
                 $results = $results | append $result
@@ -580,7 +577,7 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
         if ($instant | is-not-empty) {
             $done = $done | merge ($instant | each {|m| [$m.id ok] } | into record)
             $waiting = waiting-release $waiting $dependents $instant.id
-            $results = $results ++ ($instant | each {|m| {id: $m.id, ok: true, pending: null, log: "", outcomes: [], error: null, notes: [], ms: 0} })
+            $results = $results ++ ($instant | each {|m| $RESULT_NONE | merge {id: $m.id, notes: [], ms: 0} })
             $pending = $pending | where id not-in $instant.id
             continue
         }
@@ -594,7 +591,7 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
             let id = job spawn {
                 # a job that dies without sending would leave job recv waiting forever
                 let result = try { with-env {DOT_CANCEL_FILE: $cancel} { module-run $ctx $m $verb $args } } catch {|e|
-                    {id: $m.id, ok: false, pending: null, log: "", outcomes: [], error: (cause-text (cause-from-error $e)), notes: [], ms: 0}
+                    $RESULT_NONE | merge {id: $m.id, ok: false, error: (cause-text (cause-from-error $e)), notes: [], ms: 0}
                 }
                 if $cancel == "" or not ($cancel | path exists) { $result | job send 0 }
             }
@@ -614,7 +611,7 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
                 try { job kill ($running | get $late) }
                 module-procs-kill $late
                 log-warn $"($late): ($verb) still running after ($timeout), killed" {module: $late}
-                {id: $late, ok: false, pending: null, log: "", outcomes: [], error: $"timed out after ($timeout)", notes: [], ms: ($timeout / 1ms)}
+                $RESULT_NONE | merge {id: $late, ok: false, error: $"timed out after ($timeout)", notes: [], ms: ($timeout / 1ms)}
             } else {
                 try { job recv --timeout 1sec } catch { null }
             }
@@ -663,7 +660,7 @@ export def barriers-run [ctx: record, results: list<record>, force: bool]: nothi
         if not $dirty { return {id: $m.id, ran: false, ok: true, error: null} }
         let decl = {kind: step, target: $m.meta.barrier.run, argv: [], timeout: null, requires: null, network: false, then: [], notify: []}
         let action = {module: $m.id, kind: step, target: $m.meta.barrier.run, reason: "barrier", decl: $decl, before: null, after: null}
-        let outcome = with-env (platform-env $ctx.platform) { apply-module [$action] $m.dir (scope-of $ctx.layer) } | first
+        let outcome = with-env (platform-env $ctx.platform) { apply-module [$action] $m.dir $ctx.layer } | first
         mkdir ($file | path dirname)
         {
             hash: (watch-hash $watch), ok: ($outcome.ok and $outcome.pending == null), run: ($env.DOT_RUN_ID? | default "")

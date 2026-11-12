@@ -32,33 +32,33 @@ const PACKAGES = [
     [$SYSTEM_IMAGE $SYSTEM_IMAGE_FILE]
 ]
 
-# the sdk tools want a jdk; the android dirs come from app-dirs.conf, which the user layer loads
-def env-vars []: nothing -> list<string> {
-    if ($JAVA_HOME | path exists) { [$"JAVA_HOME=($JAVA_HOME)"] } else { [] }
-}
-
-def sdk []: nothing -> path { xdg data android-sdk }
-
 export def link [cfg: record] {
-    let sdk = sdk
-    let sdkmanager = $sdk | path join cmdline-tools latest bin sdkmanager
-    let install = {|p| exec $"sdkmanager ($p.package)" [env ...(env-vars) sh -c $'yes | "$0" --licenses >/dev/null; "$0" --install "$1"' $sdkmanager $p.package] --creates ($sdk | path join $p.created) --requires $sdkmanager --network }
+    let sdk = xdg data android-sdk
+    let bin = $sdk | path join cmdline-tools latest bin
+    let sdkmanager = $bin | path join sdkmanager
+    let avdmanager = $bin | path join avdmanager
+    # the sdk tools want a jdk; the android dirs come from app-dirs.conf, which the user layer loads
+    let env_vars = if ($JAVA_HOME | path exists) { [$"JAVA_HOME=($JAVA_HOME)"] } else { [] }
     let avd = xdg data android avd $"($cfg.avd).avd"
-    let avdmanager = $sdk | path join cmdline-tools latest bin avdmanager
     # adb and the emulator on PATH for the session (systemd's environment.d) and zsh (zshenv sources the same dir)
     let path = $"PATH=${PATH}:($sdk)/platform-tools:($sdk)/emulator\n"
     let tor = (^systemctl is-active --quiet $TOR_ROUTER | complete).exit_code == 0
     if $tor { log-note "android: the sdk downloads wait for a network off tor, dl.google.com refuses tor exits" }
     [
         (file-text (xdg config environment.d android.conf) $path)
-        (if $tor { [] } else {
-            fetch-file $CMDLINE_TOOLS_URL $CMDLINE_TOOLS_SHA256 ($sdk | path join cmdline-tools latest) --extract cmdline-tools
+        (if not $tor {
+            [
+                (fetch-file $CMDLINE_TOOLS_URL $CMDLINE_TOOLS_SHA256 ($sdk | path join cmdline-tools latest) --extract cmdline-tools)
+                ($PACKAGES | each {|p|
+                    (exec $"sdkmanager ($p.package)" [env ...$env_vars sh -c $'yes | "$0" --licenses >/dev/null; "$0" --install "$1"' $sdkmanager $p.package]
+                        --creates ($sdk | path join $p.created) --requires $sdkmanager --network)
+                })
+            ]
         })
-        (if $tor { [] } else { $PACKAGES | each {|p| do $install $p } })
-        (if ($cfg.avd | is-empty) { [] } else {
+        (if ($cfg.avd | is-not-empty) {
             # the image is sdkmanager's download: offline or failed, the avd waits for it instead of failing on it
-            (exec $"avd ($cfg.avd)" [env ...(env-vars) sh -c 'echo no | "$0" create avd --name "$1" --package "$2" --device "$3"' $avdmanager $cfg.avd $SYSTEM_IMAGE $DEVICE] --creates $avd --requires ($sdk | path join $SYSTEM_IMAGE_FILE)
+            (exec $"avd ($cfg.avd)" [env ...$env_vars sh -c 'echo no | "$0" create avd --name "$1" --package "$2" --device "$3"' $avdmanager $cfg.avd $SYSTEM_IMAGE $DEVICE] --creates $avd --requires ($sdk | path join $SYSTEM_IMAGE_FILE)
                 --undo [$avdmanager delete avd --name $cfg.avd])
         })
-    ] | decls-flatten
+    ]
 }

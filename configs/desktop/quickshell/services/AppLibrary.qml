@@ -23,14 +23,6 @@ Item {
 
   signal appsChanged()
 
-  function entryName(entry) {
-    return AppSearch.entryName(entry)
-  }
-
-  function entrySubtext(entry) {
-    return AppSearch.entrySubtext(entry)
-  }
-
   function isHiddenEntry(entry) {
     var id = String((entry && entry.id) || "")
     return root.configuredHiddenEntryIds[id] === true || root.desktopHiddenEntryIds[id] === true
@@ -56,14 +48,7 @@ Item {
     path: Paths.state + "/launcher-frecency.json"
     atomicWrites: true
     printErrors: false
-    onLoaded: {
-      try {
-        let parsed = JSON.parse(text() || "{}")
-        root.frecency = Util.isPlainObject(parsed) ? parsed : ({})
-      } catch (e) {
-        root.frecency = ({})
-      }
-    }
+    onLoaded: root.frecency = Util.parseObject(text())
     onLoadFailed: root.frecency = ({})
   }
 
@@ -85,30 +70,13 @@ Item {
     Quickshell.execDetached(["uwsm-app", "--", "gtk-launch", id + ".desktop"])
   }
 
-  function normalizeDesktopId(id) {
-    var value = String(id || "").trim()
-    if (value.slice(-8) === ".desktop") value = value.slice(0, -8)
-    return value
-  }
-
   function parseIdSet(rawText) {
     var next = ({})
-    var lines = String(rawText || "").split(/\n/)
-    for (let i = 0; i < lines.length; i++) {
-      let id = root.normalizeDesktopId(lines[i])
+    for (const line of String(rawText || "").split("\n")) {
+      const id = line.trim().replace(/\.desktop$/, "")
       if (id.length > 0) next[id] = true
     }
     return next
-  }
-
-  function loadConfiguredHides(rawText) {
-    root.configuredHiddenEntryIds = root.parseIdSet(rawText)
-    root.appsChanged()
-  }
-
-  function loadDesktopHiddenEntries(rawText) {
-    root.desktopHiddenEntryIds = root.parseIdSet(rawText)
-    root.appsChanged()
   }
 
   function iconIndexScanCommand() {
@@ -178,7 +146,10 @@ Item {
     command: [Paths.shellDir + "/services/hidden-entries.nu", root.sessionDesktops]
     stdout: StdioCollector {
       waitForEnd: true
-      onStreamFinished: root.loadDesktopHiddenEntries(text)
+      onStreamFinished: {
+        root.desktopHiddenEntryIds = root.parseIdSet(text)
+        root.appsChanged()
+      }
     }
   }
 
@@ -191,21 +162,24 @@ Item {
   }
 
   Timer {
-    id: iconIndexDebounce
+    id: rescanDebounce
     interval: 750
-    onTriggered: if (!iconIndexScan.running) iconIndexScan.running = true
-  }
-
-  Timer {
-    id: hiddenEntryDebounce
-    interval: 750
-    onTriggered: if (!hiddenEntryScan.running) hiddenEntryScan.running = true
+    onTriggered: {
+      root.refreshIcons()
+      if (!hiddenEntryScan.running) hiddenEntryScan.running = true
+    }
   }
 
   WatchedFile {
     path: Paths.state + "/launcher.hides"
-    onLoaded: root.loadConfiguredHides(text())
-    onLoadFailed: root.loadConfiguredHides("")
+    onLoaded: {
+      root.configuredHiddenEntryIds = root.parseIdSet(text())
+      root.appsChanged()
+    }
+    onLoadFailed: {
+      root.configuredHiddenEntryIds = ({})
+      root.appsChanged()
+    }
   }
 
   Connections {
@@ -241,8 +215,7 @@ Item {
   Connections {
     target: DesktopEntries.applications
     function onValuesChanged() {
-      hiddenEntryDebounce.restart()
-      iconIndexDebounce.restart()
+      rescanDebounce.restart()
       root.appsChanged()
     }
   }

@@ -1,5 +1,5 @@
 use module.nu *
-use ../../base/bootvine/mod.nu [CONSOLE_PALETTE]
+use ../../base/bootvine/mod.nu [CONSOLE_PALETTE palette-channels]
 
 export const meta = {packages: {pacman: [ly]}}
 
@@ -24,25 +24,18 @@ def lang-render []: nothing -> string {
     } | str join "\n" | $"($in)\n"
 }
 
-def vtrgb-render []: nothing -> string {
-    [0 2 4] | each {|at| $CONSOLE_PALETTE | each { $"0x($in | str substring $at..($at + 1))" | into int } | str join "," } | str join "\n" | $"($in)\n"
-}
-
 export def system [cfg: record] {
     let sessions = [sessions/hyprland.desktop sessions/plasma.desktop]
     let foreign = if ($SESSIONS | path exists) { ls $SESSIONS | get name | where ($it | path basename) not-in ($sessions | path basename) } else { [] }
     [
         # ly starts before /home is mounted, so every file is a real one in /etc
         (file-copy config.ini ($ETC | path join config.ini))
-        (if ($LANG_STOCK | path exists) { file-text ($ETC | path join lang lsck0.ini) (lang-render) } else { [] })
-        (if ($foreign | is-empty) { [] } else { exec "foreign sessions" [rm --force ...$foreign] })
+        (if ($LANG_STOCK | path exists) { file-text ($ETC | path join lang lsck0.ini) (lang-render) })
+        (if ($foreign | is-not-empty) { exec "foreign sessions" [rm --force ...$foreign] })
         (files-into $SESSIONS ...$sessions)
         (step save-defaults)
-        (file-text ($ETC | path join vtrgb) (vtrgb-render))
-        (dropin ly@.service palette.conf)
-        (dropin ly@.service cursor.conf)
-        (dropin ly@.service stage.conf)
-        (dropin ly@.service log-filter.conf)
+        (file-text ($ETC | path join vtrgb) (palette-channels $CONSOLE_PALETTE | str join "\n" | $"($in)\n"))
+        ([palette.conf cursor.conf stage.conf log-filter.conf] | each { dropin ly@.service $in })
         (unit-enable $"ly@($TTY).service")
         (unit-disable $"getty@($TTY).service")
     ]

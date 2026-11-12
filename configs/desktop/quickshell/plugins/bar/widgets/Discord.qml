@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import Quickshell
 import Quickshell.Widgets
 import qs.Commons
 import qs.Ui
@@ -12,9 +11,7 @@ BarWidget {
   hoverPanel: true
   hoverFill: true
 
-  readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || ""
-  readonly property string statePath:
-    runtimeDir ? runtimeDir + "/quickshell-discord-voice.json" : ""
+  readonly property string statePath: Paths.runtimeDir + "/quickshell-discord-voice.json"
 
   readonly property int avatarSize: Style.space(22)
   readonly property int ringWidth: Math.max(1, Style.space(2))
@@ -63,13 +60,7 @@ BarWidget {
   }
 
   function apply(text) {
-    var d
-    try {
-      d = JSON.parse(text || "{}")
-    } catch (e) {
-      root.inVoice = false
-      return
-    }
+    var d = Util.parseObject(text)
     root.inVoice = d.inVoice === true
     root.armStale(Number(d.updatedAt) || 0)
     if (!root.inVoice) {
@@ -85,7 +76,6 @@ BarWidget {
 
   WatchedFile {
     path: root.statePath
-    watchChanges: root.statePath !== ""
     onLoaded: root.apply(text())
     onLoadFailed: root.inVoice = false
   }

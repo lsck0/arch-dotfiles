@@ -4,6 +4,7 @@
 const REPO = path self | path expand | path dirname | path join .. .. ..
 use ($REPO | path join scripts lib secrets.nu) [secret-is-plaintext]
 use ($REPO | path join scripts lib homelab.nu) [homelab-lab-load]
+use ($REPO | path join scripts lib state.nu) [xdg]
 
 const MAX_REPLAY = 1hr
 # keepalive is 45s: under a byte a second over 90s is a dead connection
@@ -29,7 +30,7 @@ def token-file []: nothing -> path {
 }
 
 def state-dir []: nothing -> path {
-    $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state) | path join ntfy-notify
+    xdg state ntfy-notify
 }
 
 def subscription []: nothing -> any {

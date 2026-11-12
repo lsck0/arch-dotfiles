@@ -4,7 +4,7 @@ use log.nu *
 use state.nu [xdg]
 use cli.nu [root-runner]
 use sync.nu [bootstrap-const FINGERPRINT_VALUE]
-use homelab.nu [LSCK0_SERVER_PLACEHOLDER]
+use homelab.nu [LSCK0_SECTION LSCK0_SERVER_PLACEHOLDER]
 use ../../platforms/homelab.nu [HOMELAB]
 
 const REPO = path self ../..
@@ -13,7 +13,6 @@ const OVERLAY = "mirror/iso"
 const APPEND_SUFFIX = ".append"
 const PACMAN_CONF = "configs/base/pacman/pacman.conf"
 const LSCK0_KEY = "configs/base/pacman/archrepo.asc"
-const LSCK0_SECTION = "[lsck0]"
 const KEYRING_DIR = "usr/share/pacman/keyrings"
 const TRUST_DIR = "usr/share/lsck0"
 const ISO_NAME = "archlinux-lsck0"

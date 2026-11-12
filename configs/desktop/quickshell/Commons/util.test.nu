@@ -27,6 +27,20 @@ TestCase {
     verify(!Util.isWordDelete(Qt.Key_W, Qt.NoModifier))
   }
 
+  function test_map_copies() {
+    var base = { a: 1, b: 2 }
+    compare(Util.mapSet(base, "c", 3).c, 3)
+    verify(!("b" in Util.mapWithout(base, "b")))
+    compare(base.b, 2)
+  }
+
+  function test_parse_object() {
+    compare(Util.parseObject("{\"a\": 1}").a, 1)
+    compare(Object.keys(Util.parseObject("")).length, 0)
+    compare(Object.keys(Util.parseObject("[1]")).length, 0)
+    compare(Object.keys(Util.parseObject("{broken")).length, 0)
+  }
+
   function test_completion() {
     compare(Util.completion("wo", ["work", "workout", "home"]), "work")
     compare(Util.completion("ho", ["work", "home"]), "home")
@@ -90,7 +104,7 @@ def main [] {
     # remove the temp dir whether the run succeeds or a step throws
     let outcome = try {
         mkdir ($dir | path join utiltest)
-        open --raw $UTIL | str replace --regex '(?m)^import Quickshell\n' '' | save ($dir | path join utiltest Util.qml)
+        open --raw $UTIL | str replace --all --regex '(?m)^import Quickshell.*\n' '' | save ($dir | path join utiltest Util.qml)
         "module utiltest\nsingleton Util 1.0 Util.qml\n" | save ($dir | path join utiltest qmldir)
         cp $PALETTE ($dir | path join utiltest Palette.js)
         $TEST | save ($dir | path join tst_util.qml)

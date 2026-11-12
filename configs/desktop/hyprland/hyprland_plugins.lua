@@ -10,19 +10,14 @@ plugin_config("dynamic_cursors", {
 
     shake = {
         enabled = true,
-
         threshold = 4,
-
         base = 4.0,
         speed = 4.0,
         limit = 0.0, -- no ceiling
-
         timeout = 500,
-
         -- no-op while mode is "none", explicit for a later mode switch
         effects = true,
     },
-
     hyprcursor = {
         enabled = true,
         nearest = true,
@@ -33,6 +28,8 @@ plugin_config("dynamic_cursors", {
 
 local wal = require("wal_colors")
 local style = require("style")
+
+local MAXIMIZE = [[hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" })']]
 
 -- flat title bars in the tab strip's look
 plugin_config("hyprbars", {
@@ -49,7 +46,7 @@ plugin_config("hyprbars", {
     bar_part_of_window = true,
     bar_precedence_over_border = true,
     buttons_on_hover = true,
-    on_double_click = [[hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" })']],
+    on_double_click = MAXIMIZE,
 })
 
 if hl.plugin.hyprbars ~= nil then
@@ -60,6 +57,6 @@ if hl.plugin.hyprbars ~= nil then
     end
     -- rightmost first
     button(wal.color1, "$DOTFILES/configs/desktop/hyprland/window-close.nu")
-    button(wal.color3, [[hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" })']])
+    button(wal.color3, MAXIMIZE)
     button(wal.color2, [[hyprctl dispatch 'hl.dsp.window.float({ action = "toggle" })']])
 end

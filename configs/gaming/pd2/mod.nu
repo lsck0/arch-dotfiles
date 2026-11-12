@@ -1,5 +1,5 @@
 use module.nu *
-use ../d2launcher/mod.nu [save-path-set wine-bin z-path]
+use ../d2launcher/mod.nu [game-launcher save-path-set wine-bin wine-tree wine-tree-decls z-path]
 # re-exported: the save-path step runs in this module
 export use ../d2launcher/mod.nu [save-path]
 
@@ -49,73 +49,43 @@ export def detect [cfg: record]: nothing -> record {
     }
 }
 
-# Each season's own tree: its prefix, its lord of destruction dir with ProjectD2 inside, its launcher.
-def season [name: string]: nothing -> record {
-    let root = xdg data $name
-    {root: $root, prefix: ($root | path join prefix), lod: ($root | path join "Diablo II")}
-}
-
-def lod-links [base: path, lod: path]: nothing -> list<record> {
-    ls $base | get name | each {|f| file-link $f ($lod | path join ($f | path basename)) }
-}
-
-def prefix-init [s: record, wine: path]: nothing -> record {
-    exec $"($s.root | path basename)-prefix" [env $"WINEPREFIX=($s.prefix)" WINEDEBUG=-all DISPLAY= WAYLAND_DISPLAY= ($wine | path join wineboot) --init] --creates ($s.prefix | path join user.reg)
-}
-
 export def link [cfg: record] {
     let base = $cfg.deps?."gaming/d2launcher"?.base_dir?
     if $base == null or not (wine-bin | path exists) { return [] }
-    let wine = wine-bin | path dirname
-    (s14 $cfg $base $wine) ++ (s3 $cfg $base $wine) | decls-flatten
+    [(s14 $cfg $base) (s3 $cfg $base)]
 }
 
-def s14 [cfg: record, base: path, wine: path]: nothing -> list {
-    let s = season pd2-s14
+# project diablo 2's dll checks that its own dir sits inside a lord of destruction install, hence ProjectD2 in the tree
+def season-launcher [s: record, exe: string, id: string, title: string, comment: string]: nothing -> list<record> {
+    game-launcher ($s.root | path join pd2.sh) $id $title $comment {
+        game: ($s.lod | path join ProjectD2), prefix: $s.prefix, exe: $exe, width: $SIZE.w, height: $SIZE.h
+        name: "Project Diablo II", dll_overrides: "ddraw=n,b"
+    }
+}
+
+def s14 [cfg: record, base: path]: nothing -> list {
+    let s = wine-tree pd2-s14
     let game = $s.lod | path join ProjectD2
     [
-        (lod-links $base $s.lod)
+        (wine-tree-decls $s $base)
         (open ($HERE | path join s14-client.nuon) | each {|f|
             fetch-file $"($S14_URL)/($f.name | url encode)" $f.sha256 ($game | path join $f.name)
         })
-        (prefix-init $s $wine)
         # season 14 reads its save dir from its own settings, not the registry; the game fills in every other key
-        (if $cfg.s14_save_dir == null { [] } else {
+        (if $cfg.s14_save_dir != null {
             json-merge ($game | path join ProjectDiablo.json) [(json-set [classic_game_settings other save_path] (z-path $cfg.s14_save_dir))]
         })
-        (file-render pd2.sh ($s.root | path join pd2.sh) {
-            game: $game, prefix: $s.prefix, wine: $wine, width: $SIZE.w, height: $SIZE.h, exe: "Game.exe"
-        } --mode "755")
-        (file-text (xdg data applications pd2.desktop) (desktop "Project Diablo II"
-            "Diablo II single player, Project Diablo 2 season 14" ($s.root | path join pd2.sh)))
+        (season-launcher $s Game.exe pd2 "Project Diablo II" "Diablo II single player, Project Diablo 2 season 14")
     ]
 }
 
-def s3 [cfg: record, base: path, wine: path]: nothing -> list {
+def s3 [cfg: record, base: path]: nothing -> list {
     if $cfg.game_dir == null { return [] }
-    let s = season pd2
+    let s = wine-tree pd2
     [
-        (lod-links $base $s.lod)
+        (wine-tree-decls $s $base)
         (file-link $cfg.game_dir ($s.lod | path join ProjectD2))
-        (prefix-init $s $wine)
-        (if $cfg.save_dir == null { [] } else { step save-path $s.prefix $cfg.save_dir --done=(save-path-set $s.prefix $cfg.save_dir) })
-        (file-render pd2.sh ($s.root | path join pd2.sh) {
-            game: ($s.lod | path join ProjectD2), prefix: $s.prefix, wine: $wine, width: $SIZE.w, height: $SIZE.h, exe: "PlugY.exe"
-        } --mode "755")
-        (file-text (xdg data applications pd2-s3.desktop) (desktop "Project Diablo II S3"
-            "Diablo II single player, Project Diablo 2 season 3 with PlugY" ($s.root | path join pd2.sh)))
+        (if $cfg.save_dir != null { step save-path $s.prefix $cfg.save_dir --done=(save-path-set $s.prefix $cfg.save_dir) })
+        (season-launcher $s PlugY.exe pd2-s3 "Project Diablo II S3" "Diablo II single player, Project Diablo 2 season 3 with PlugY")
     ]
-}
-
-def desktop [name: string, comment: string, exec: path]: nothing -> string {
-    [
-        "[Desktop Entry]"
-        $"Name=($name)"
-        $"Comment=($comment)"
-        $"Exec=($exec)"
-        "Icon=applications-games"
-        "Type=Application"
-        "Terminal=false"
-        "Categories=Game;"
-    ] | str join "\n" | $"($in)\n"
 }

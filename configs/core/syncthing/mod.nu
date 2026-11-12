@@ -19,7 +19,6 @@ export def packages [cfg: record]: nothing -> record {
     {pacman: (if (profile-owner) { [syncthing] } else { [] })}
 }
 
-const STATE = ".local/state/syncthing"
 const IDENTITY = [[file mode]; [config.xml 600] [cert.pem 644] [key.pem 600]]
 const GUI_SECRET = "configs/secrets/keys/syncthing-gui-password"
 const API_WAIT_SECONDS = 30
@@ -60,7 +59,7 @@ export def stignore []: nothing -> nothing {
 
 # Installs the device identity before the daemon starts, so it comes up paired.
 export def identity-install []: nothing -> nothing {
-    let state = $nu.home-dir | path join $STATE
+    let state = xdg state syncthing
     ^systemctl --user stop syncthing.service
     for f in $IDENTITY { ^install -D -m $f.mode (secret-dir | path join $f.file) ($state | path join $f.file) }
 }
@@ -68,7 +67,7 @@ export def identity-install []: nothing -> nothing {
 # The file the gui password comes from: the secret when readable, else one generated on this machine.
 def gui-password-file []: nothing -> path {
     let secret = $env.DOTFILES | path join $GUI_SECRET
-    if (secret-is-plaintext $secret) { $secret } else { $nu.home-dir | path join $STATE gui-password }
+    if (secret-is-plaintext $secret) { $secret } else { xdg state syncthing gui-password }
 }
 
 # Which password file api-config sets and its mtime: a rotated secret or a regenerated password differs.
@@ -79,14 +78,12 @@ def gui-version []: nothing -> string {
 }
 
 def gui-password []: nothing -> string {
-    let secret = $env.DOTFILES | path join $GUI_SECRET
-    if (secret-is-plaintext $secret) { return (open --raw $secret | str trim) }
-    let generated = gui-password-file
-    if not ($generated | path exists) or (open --raw $generated | str trim | is-empty) {
-        ^bash -c 'umask 077 && head -c 24 /dev/urandom | base64 > "$1"' gui $generated
-        log-warn $"syncthing: no ($GUI_SECRET), generated the gui password into ($generated)"
+    let file = gui-password-file
+    if $file != ($env.DOTFILES | path join $GUI_SECRET) and (not ($file | path exists) or (open --raw $file | str trim | is-empty)) {
+        ^bash -c 'umask 077 && head -c 24 /dev/urandom | base64 > "$1"' gui $file
+        log-warn $"syncthing: no ($GUI_SECRET), generated the gui password into ($file)"
     }
-    open --raw $generated | str trim
+    open --raw $file | str trim
 }
 
 # Locks the gui, from which any local login could read the api key; the password goes over stdin.
@@ -135,7 +132,7 @@ export def api-config [paired: string, nas: string = ""]: nothing -> nothing {
 
 export def link [cfg: record] {
     if not (owner-unlocked) or not (platform-has homelab) { return [] }
-    let state = $nu.home-dir | path join $STATE
+    let state = xdg state syncthing
     let secrets = secret-dir
     let paired = ["config.xml" "key.pem"] | all {|f| secret-is-plaintext ($secrets | path join $f) }
     let differs = {|f| not ($state | path join $f | path exists) or (open --raw ($secrets | path join $f)) != (open --raw ($state | path join $f)) }

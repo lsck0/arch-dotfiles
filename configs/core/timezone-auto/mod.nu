@@ -13,6 +13,6 @@ export def system [cfg: record] {
         (file-copy 49-timezone-auto.rules /etc/polkit-1/rules.d/49-timezone-auto.rules)
         (if ($dispatcher | path exists) {
             file-copy nm-dispatcher.nu ($dispatcher | path join 85-timezone-auto) --mode 755
-        } else { [] })
+        })
     ]
 }

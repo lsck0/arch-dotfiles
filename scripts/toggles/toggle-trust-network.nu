@@ -4,15 +4,14 @@
 # public, and a mac is all a rogue access point needs), else the trusted_gateways option; the system apply that
 # follows re-decides the link.
 
-use lib.nu [notify switch-run]
-use ../lib/secrets.nu [secret-is-plaintext]
+use lib.nu [notify switch-run trusted-links]
+use ../lib/secrets.nu [secret-is-plaintext OWNER_WITNESS]
+use ../lib/state.nu [EXIT_PENDING]
 
 const DOT = path self ../dot.nu
 const SECRET = path self ../../configs/secrets/keys/trusted-gateways
-const WITNESS = path self ../../configs/secrets/keys/pgp_privatekey.asc
+const WITNESS = path self ../.. | path join $OWNER_WITNESS
 const OPTION = "base/networkmanager.trusted_gateways"
-const TRUSTED_NETWORK = "/run/trusted-network"
-const EXIT_SYSTEM_PENDING = 3
 
 # The physical link of the default route and its gateway's mac, null without one.
 def uplink []: nothing -> any {
@@ -23,10 +22,6 @@ def uplink []: nothing -> any {
     let mac = ^ip -j neigh show $route.gateway dev $route.dev | from json | get --optional 0.lladdr
     if $mac == null { return null }
     {dev: $route.dev, mac: ($mac | str lowercase)}
-}
-
-def trusted-links []: nothing -> list<string> {
-    if ($TRUSTED_NETWORK | path exists) { open --raw $TRUSTED_NETWORK | lines } else { [] }
 }
 
 def option-listed []: nothing -> list<string> {
@@ -46,7 +41,7 @@ def listed []: nothing -> list<string> { (secret-listed) ++ (option-listed) | un
 
 # A pending system part is no failure: the option is written, the network follows on the next system apply.
 def settled [run: record]: nothing -> nothing {
-    if $run.exit_code == $EXIT_SYSTEM_PENDING {
+    if $run.exit_code == $EXIT_PENDING {
         notify "Trusted network" "Saved; the network changes with the next dot apply --system"
     } else if $run.exit_code != 0 {
         error make {msg: ($run.stderr | str trim | lines | last 1 | str join "")}
@@ -61,7 +56,7 @@ def store [gateways: list<string>]: nothing -> nothing {
     }
     # emptied, never deleted: root keeps its last copy of a secret it is not sent, as for a locked one; renamed into
     # place, so a concurrent system apply packs the old list or the new one, never half of it
-    $gateways | uniq | each { $"($in)\n" } | str join | save --force $"($SECRET).new"
+    $gateways | each { $"($in)\n" } | str join | save --force $"($SECRET).new"
     mv --force $"($SECRET).new" $SECRET
     if (option-listed | is-not-empty) {
         settled (^nu --no-config-file $DOT set --machine $OPTION "[]" | complete)
@@ -69,9 +64,6 @@ def store [gateways: list<string>]: nothing -> nothing {
         settled (^nu --no-config-file $DOT apply --system | complete)
     }
 }
-
-# A rejoined wifi has a random mac: storing the list again reruns the home step.
-def reconverge [gateways: list<string>]: nothing -> nothing { store $gateways }
 
 def link []: nothing -> record {
     let link = uplink
@@ -84,18 +76,18 @@ def main [action: string = "toggle", --json] {
         label: "Trusted network"
         is-on: {|| let link = uplink; $link != null and $link.dev in (trusted-links) }
         on: {||
-            let gateways = listed
-            let mac = (link).mac
-            if $mac not-in $gateways { store ($gateways | append $mac) } else { reconverge $gateways }
+            # a rejoined wifi has a random mac: storing a listed one again reruns the home step
+            store (listed | append (link).mac | uniq)
         }
         off: {||
             let gateways = listed
             let mac = (link).mac
-            if $mac not-in $gateways and not (unlocked) {
-                error make {msg: "configs/secrets is locked: unlock it to change the trusted list"}
-            }
             if $mac not-in $gateways {
-                error make {msg: "home by home_gateways or configs/secrets/keys/home-gateways, not a trusted network"}
+                error make {msg: (if (unlocked) {
+                    "home by home_gateways or configs/secrets/keys/home-gateways, not a trusted network"
+                } else {
+                    "configs/secrets is locked: unlock it to change the trusted list"
+                })}
             }
             store ($gateways | where $it != $mac)
         }
@@ -103,4 +95,3 @@ def main [action: string = "toggle", --json] {
         available: {|| uplink | is-not-empty }
     } $action --json=$json
 }
-

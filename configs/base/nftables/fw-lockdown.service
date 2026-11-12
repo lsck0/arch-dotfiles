@@ -1,5 +1,5 @@
 [Unit]
-Description=Inbound lockdown firewall, the resting state until a home network or toggle-firewall.nu lifts it
+Description=Inbound lockdown firewall, the resting state until a trusted network or toggle-firewall lifts it
 Conflicts=fw-inbound.service
 After=fw-inbound.service
 Before=network-pre.target

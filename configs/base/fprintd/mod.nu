@@ -16,13 +16,14 @@ export def validity-sensor-ids []: nothing -> list<string> {
 }
 
 export def system [cfg: record] {
-    let validity = ^systemctl list-unit-files --no-legend python3-validity.service | complete | get stdout | str trim
-    if ($validity | is-empty) { return [] }
+    if not (unit-installed python3-validity.service) { return [] }
     if (validity-sensor-ids | is-empty) {
         # only while masked: each unmask reloads systemd, which warns about the bus name open-fprintd shares with it
         let masked = (^systemctl is-enabled fprintd.service | complete | get stdout | str trim) == "masked"
-        let unmask = if $masked { [(exec "unmask fprintd" [systemctl unmask fprintd.service])] } else { [] }
-        return ($VALIDITY_UNITS | each { unit-disable $in --now } | append $unmask)
+        return [
+            ($VALIDITY_UNITS | each { unit-disable $in --now })
+            (if $masked { exec "unmask fprintd" [systemctl unmask fprintd.service] })
+        ]
     }
     [
         (dropin python3-validity.service override.conf --then [systemctl try-restart python3-validity.service])

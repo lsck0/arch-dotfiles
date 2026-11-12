@@ -27,13 +27,14 @@ const SEARCH_OFF_HOMELAB = {
     Default: DuckDuckGo
 }
 
-def profiles [ini: path]: nothing -> list<path> {
+# The profile dirs a firefox or thunderbird profiles.ini lists; none before the app's first start.
+export def mozilla-profiles [ini: path]: nothing -> list<path> {
+    if not ($ini | path exists) { return [] }
     open --raw $ini | lines | parse "Path={path}" | get path | each {|p| $ini | path dirname | path join $p } | where ($it | path exists)
 }
 
 def tor-profiles []: nothing -> list<path> {
-    let ini = $nu.home-dir | path join $TOR_INI
-    if ($ini | path exists) { profiles $ini } else { [] }
+    mozilla-profiles ($nu.home-dir | path join $TOR_INI)
 }
 
 def chrome-style []: nothing -> string {
@@ -61,36 +62,36 @@ export def link [cfg: record] {
     if not ($ini | path exists) {
         return [(step profile-create)]
     }
-    let pywalfox = pywalfox-host
-    let speech = if (which speech-dispatcher | is-empty) { [] } else {
-        [
-            (unit-enable speech-dispatcher.socket --now)
-            (file-text (xdg config speech-dispatcher speechd.conf)
-                "AddModule \"espeak-ng\" \"sd_espeak-ng\" \"espeak-ng.conf\"\nDefaultModule espeak-ng\n")
-            (dropin speech-dispatcher.service speech-dispatcher-timeout.conf --then [systemctl --user daemon-reload])
-        ]
-    }
-    # pywalfox looks in ~/.config/firefox
-    [(file-link $root (xdg config firefox))]
-    | append (profiles $ini | each {|dir|
-        [
-            (file-copy userChrome.css ($dir | path join chrome userChrome.css))
-            (file-text ($dir | path join chrome dotfiles-style.css) (chrome-style) --generated)
-            (file-render user.js ($dir | path join user.js) {HOME: $nu.home-dir})
-        ]
-    } | flatten)
-    | append (tor-profiles | each {|dir|
-        # no pywalfox in tor browser (an extension marks its users): dotfiles-colors.css stands in for its theme
-        let chrome = "@import url('dotfiles-colors.css');\n" + (open --raw userChrome.css)
-        [
-            (file-text ($dir | path join chrome userChrome.css) $chrome)
-            (file-text ($dir | path join chrome dotfiles-style.css) (chrome-style) --generated)
-            (file-copy user-tor.js ($dir | path join user.js))
-        ]
-    } | flatten)
-    | append $pywalfox
-    | append $speech
-    | append (user-hook firefox-profiles hook/profile-link.nu --watch [$"%h/($HOME_DIR)/profiles.ini"])
+    [
+        # pywalfox looks in ~/.config/firefox
+        (file-link $root (xdg config firefox))
+        (mozilla-profiles $ini | each {|dir|
+            [
+                (file-copy userChrome.css ($dir | path join chrome userChrome.css))
+                (file-text ($dir | path join chrome dotfiles-style.css) (chrome-style) --generated)
+                (file-render user.js ($dir | path join user.js) {HOME: $nu.home-dir})
+            ]
+        })
+        (tor-profiles | each {|dir|
+            # no pywalfox in tor browser (an extension marks its users): dotfiles-colors.css stands in for its theme
+            let chrome = "@import url('dotfiles-colors.css');\n" + (open --raw userChrome.css)
+            [
+                (file-text ($dir | path join chrome userChrome.css) $chrome)
+                (file-text ($dir | path join chrome dotfiles-style.css) (chrome-style) --generated)
+                (file-copy user-tor.js ($dir | path join user.js))
+            ]
+        })
+        (pywalfox-host)
+        (if (which speech-dispatcher | is-not-empty) {
+            [
+                (unit-enable speech-dispatcher.socket --now)
+                (file-text (xdg config speech-dispatcher speechd.conf)
+                    "AddModule \"espeak-ng\" \"sd_espeak-ng\" \"espeak-ng.conf\"\nDefaultModule espeak-ng\n")
+                (dropin speech-dispatcher.service speech-dispatcher-timeout.conf --then [systemctl --user daemon-reload])
+            ]
+        })
+        (user-hook firefox-profiles hook/profile-link.nu --watch [$"%h/($HOME_DIR)/profiles.ini"])
+    ]
 }
 
 export def profile-create [] {
@@ -100,8 +101,8 @@ export def profile-create [] {
     }
 }
 
-# The chrome's font, imported by userChrome.css; firefox reads it at its next start.
-def chrome-font []: nothing -> string {
+# The chrome's font, imported by userChrome.css; firefox and thunderbird read it at their next start.
+export def mozilla-chrome-font []: nothing -> string {
     let font = font-load
     $":root {\n    --rtk-chrome-font: \"($font.family)\", \"JetBrainsMono Nerd Font\", monospace, sans-serif;\n    --rtk-chrome-font-size: ($font.ui_size)pt;\n}\n"
 }
@@ -194,41 +195,40 @@ def chrome-colors []: nothing -> string {
 }
 
 export def theme [cfg: record, wallpaper: string] {
-    let ini = $nu.home-dir | path join $HOME_DIR profiles.ini
-    let fonts = if ($ini | path exists) {
-        profiles $ini | each {|dir| file-text ($dir | path join chrome dotfiles-font.css) (chrome-font) --generated }
-    } else { [] }
+    let font = mozilla-chrome-font
     let colors = chrome-colors
-    let tor = tor-profiles | each {|dir|
-        [
-            (file-text ($dir | path join chrome dotfiles-font.css) (chrome-font) --generated)
-            (file-text ($dir | path join chrome dotfiles-colors.css) $colors --generated)
-        ]
-    } | flatten
-    let fonts = $fonts | append $tor
-    let fonts = if (xdg cache wal colors.json | path exists) {
-        $fonts | append (file-text (xdg cache wal pywalfox wal colors.json) (pywalfox-colors) --generated)
-    } else { $fonts }
+    let palette = palette-load
+    let files = [
+        (mozilla-profiles ($nu.home-dir | path join $HOME_DIR profiles.ini)
+            | each {|dir| file-text ($dir | path join chrome dotfiles-font.css) $font --generated })
+        (tor-profiles | each {|dir|
+            [
+                (file-text ($dir | path join chrome dotfiles-font.css) $font --generated)
+                (file-text ($dir | path join chrome dotfiles-colors.css) $colors --generated)
+            ]
+        })
+        (if $palette != null { file-text (xdg cache wal pywalfox wal colors.json) (pywalfox-colors) --generated })
+    ]
     let socket = $env.TMPDIR? | default /tmp | path join $"pywalfox_socket_(^id -u | str trim)"
-    if (which pywalfox | is-empty) or not ($socket | path exists) { return $fonts }
+    if (which pywalfox | is-empty) or not ($socket | path exists) { return $files }
     # the extension keeps its own dark/light mode apart from the colors: left on light, a dark palette paints a light
     # toolbar; set from the palette each switch
-    let palette = palette-load
-    let mode = if $palette != null and $palette.light? == "1" { "light" } else { "dark" }
-    $fonts | append (exec pywalfox-update [sh -c 'pywalfox "$0" && pywalfox update' $mode])
+    let mode = if $palette != null and $palette.light == "1" { "light" } else { "dark" }
+    $files | append (exec pywalfox-update [sh -c 'pywalfox "$0" && pywalfox update' $mode])
 }
 
 export def system [cfg: record] {
     let extra = glob ($SECRETS_DIR | path join * firefox-policies.json) | sort | each { open $in }
     let doc = $extra | reduce --fold (open policies.json) {|it, acc| $acc | merge deep --strategy append $it }
     let doc = if (platform-has homelab) { $doc } else { $doc | upsert policies.SearchEngines $SEARCH_OFF_HOMELAB }
-    let policies = file-text $POLICIES $"($doc | to json --indent 2)\n"
-    # the new tab url is settable only from autoconfig in the install dir; mozilla.cfg reads each user's home at runtime
-    let autoconfig = if ($FIREFOX_DIR | path exists) {
-        [
-            (file-copy autoconfig.js ($FIREFOX_DIR | path join defaults pref autoconfig.js))
-            (file-copy mozilla.cfg ($FIREFOX_DIR | path join mozilla.cfg))
-        ]
-    } else { [] }
-    [$policies] | append $autoconfig
+    [
+        (file-text $POLICIES $"($doc | to json --indent 2)\n")
+        # the new tab url is settable only from autoconfig in the install dir; mozilla.cfg reads each user's home at runtime
+        (if ($FIREFOX_DIR | path exists) {
+            [
+                (file-copy autoconfig.js ($FIREFOX_DIR | path join defaults pref autoconfig.js))
+                (file-copy mozilla.cfg ($FIREFOX_DIR | path join mozilla.cfg))
+            ]
+        })
+    ]
 }

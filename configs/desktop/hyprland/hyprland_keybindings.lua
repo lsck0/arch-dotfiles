@@ -4,8 +4,16 @@ local function shell_bin(name)
     return "~/.local/bin/" .. name
 end
 
+local function hypr_script(name)
+    return "$DOTFILES/configs/desktop/hyprland/" .. name
+end
+
+local function quickshell_cmd(target, fn)
+    return "quickshell ipc -p ~/.config/quickshell call " .. target .. " " .. fn
+end
+
 local function quickshell_call(target, fn)
-    return hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell call " .. target .. " " .. fn)
+    return hl.dsp.exec_cmd(quickshell_cmd(target, fn))
 end
 
 local function quickshell_toggle(target)
@@ -41,7 +49,7 @@ hl.bind(mod .. " + SHIFT + e", quickshell_toggle("powermenu"), { description = "
 for _, keys in ipairs({ "Print", mod .. " + SHIFT + s" }) do
     hl.bind(
         keys,
-        hl.dsp.exec_cmd("$DOTFILES/configs/desktop/hyprland/screenshot-region.nu"),
+        hl.dsp.exec_cmd(hypr_script("screenshot-region.nu")),
         { description = "screenshot a region to the clipboard" }
     )
 end
@@ -81,7 +89,7 @@ hl.bind(mod .. " + d", quickshell_toggle("appsearch"), { description = "app laun
 hl.bind(
     mod .. " + ALT + d",
     hl.dsp.exec_cmd(
-        "cmd=$(bash -c 'compgen -c' | sort -u | $DOTFILES/configs/desktop/hyprland/picker.nu -p run) && uwsm-app -- sh -c \"$cmd\""
+        "cmd=$(bash -c 'compgen -c' | sort -u | " .. hypr_script("picker.nu") .. ' -p run) && uwsm-app -- sh -c "$cmd"'
     ),
     { description = "run a command from $PATH (the launcher while quickshell is down)" }
 )
@@ -131,9 +139,9 @@ hl.bind(mod .. " + SHIFT + t", app("missioncenter"), { description = "system mon
 hl.bind(mod .. " + CTRL + w", helper(shell_bin("wallpaper-picker")), { description = "wallpaper picker" })
 hl.bind(mod .. " + SHIFT + w", helper(shell_bin("wallpaper-picker") .. " --themes"), { description = "theme picker" })
 hl.bind(mod .. " + y", helper("spawn-shimeji"), { description = "spawn a desktop mascot" })
-hl.bind(mod .. " + x", app("$DOTFILES/configs/desktop/hyprland/boomer.nu"), { description = "magnifier (boomer)" })
+hl.bind(mod .. " + x", app(hypr_script("boomer.nu")), { description = "magnifier (boomer)" })
 
-hl.bind(mod .. " + q", hl.dsp.exec_cmd("$DOTFILES/configs/desktop/hyprland/window-close.nu"), {
+hl.bind(mod .. " + q", hl.dsp.exec_cmd(hypr_script("window-close.nu")), {
     description = "close the window (a gamescope game is killed)",
 })
 hl.bind(mod .. " + space", hl.dsp.window.float({ action = "toggle" }), { description = "float or tile the window" })
@@ -147,79 +155,53 @@ hl.bind(mod .. " + v", quickshell_toggle("clipboard"), { description = "clipboar
 
 hl.bind(mod .. " + g", hl.dsp.layout("togglesplit"), { description = "toggle the split direction" })
 
-hl.bind(
-    "XF86AudioPlay",
-    hl.dsp.exec_cmd("playerctl play-pause"),
-    { locked = true, description = "play or pause media" }
-)
-hl.bind("XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"), { locked = true, description = "previous track" })
-hl.bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"), { locked = true, description = "next track" })
-hl.bind(
-    "XF86AudioMedia",
-    hl.dsp.exec_cmd("playerctl play-pause"),
-    { locked = true, description = "play or pause media" }
-)
-hl.bind("XF86AudioStop", hl.dsp.exec_cmd("playerctl stop"), { locked = true, description = "stop media" })
-hl.bind("XF86AudioRaiseVolume", media_key("volume-up"), { locked = true, repeating = true, description = "volume up" })
-hl.bind(
-    "XF86AudioLowerVolume",
-    media_key("volume-down"),
-    { locked = true, repeating = true, description = "volume down" }
-)
-hl.bind("XF86AudioMute", media_key("volume-mute"), { locked = true, description = "mute the output" })
-hl.bind("XF86AudioMicMute", media_key("mic-mute"), { locked = true, description = "mute the microphone" })
-
-hl.bind(
-    "XF86MonBrightnessUp",
-    media_key("brightness-up"),
-    { locked = true, repeating = true, description = "brightness up" }
-)
-hl.bind(
-    "XF86MonBrightnessDown",
-    media_key("brightness-down"),
-    { locked = true, repeating = true, description = "brightness down" }
-)
-hl.bind(
-    "SHIFT + XF86MonBrightnessUp",
-    hl.dsp.exec_cmd(color_grading .. " set brightness +5"),
-    { locked = true, repeating = true, description = "software brightness up (color grading)" }
-)
-hl.bind(
-    "SHIFT + XF86MonBrightnessDown",
-    hl.dsp.exec_cmd(color_grading .. " set brightness -5"),
-    { locked = true, repeating = true, description = "software brightness down (color grading)" }
-)
-
-hl.bind("XF86KbdBrightnessUp", media_key("kbd-backlight-up"), { locked = true, description = "keyboard backlight up" })
-hl.bind(
-    "XF86KbdBrightnessDown",
-    media_key("kbd-backlight-down"),
-    { locked = true, description = "keyboard backlight down" }
-)
-hl.bind(
-    "XF86KbdLightOnOff",
-    media_key("kbd-backlight-toggle"),
-    { locked = true, description = "keyboard backlight on or off" }
-)
-hl.bind(
-    mod .. " + SHIFT + b",
-    media_key("kbd-backlight-toggle"),
-    { locked = true, description = "keyboard backlight on or off" }
-)
+-- locked: they work on the lock screen too
+local LOCKED_KEYS = {
+    { "XF86AudioPlay", hl.dsp.exec_cmd("playerctl play-pause"), "play or pause media" },
+    { "XF86AudioMedia", hl.dsp.exec_cmd("playerctl play-pause"), "play or pause media" },
+    { "XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"), "previous track" },
+    { "XF86AudioNext", hl.dsp.exec_cmd("playerctl next"), "next track" },
+    { "XF86AudioStop", hl.dsp.exec_cmd("playerctl stop"), "stop media" },
+    { "XF86AudioRaiseVolume", media_key("volume-up"), "volume up", true },
+    { "XF86AudioLowerVolume", media_key("volume-down"), "volume down", true },
+    { "XF86AudioMute", media_key("volume-mute"), "mute the output" },
+    { "XF86AudioMicMute", media_key("mic-mute"), "mute the microphone" },
+    { "XF86MonBrightnessUp", media_key("brightness-up"), "brightness up", true },
+    { "XF86MonBrightnessDown", media_key("brightness-down"), "brightness down", true },
+    {
+        "SHIFT + XF86MonBrightnessUp",
+        hl.dsp.exec_cmd(color_grading .. " set brightness +5"),
+        "software brightness up (color grading)",
+        true,
+    },
+    {
+        "SHIFT + XF86MonBrightnessDown",
+        hl.dsp.exec_cmd(color_grading .. " set brightness -5"),
+        "software brightness down (color grading)",
+        true,
+    },
+    { "XF86KbdBrightnessUp", media_key("kbd-backlight-up"), "keyboard backlight up" },
+    { "XF86KbdBrightnessDown", media_key("kbd-backlight-down"), "keyboard backlight down" },
+    { "XF86KbdLightOnOff", media_key("kbd-backlight-toggle"), "keyboard backlight on or off" },
+    { mod .. " + SHIFT + b", media_key("kbd-backlight-toggle"), "keyboard backlight on or off" },
+}
+for _, key in ipairs(LOCKED_KEYS) do
+    hl.bind(key[1], key[2], { locked = true, repeating = key[4], description = key[3] })
+end
 
 -- agent-guard can inhibit the lid switch; then an undocked close locks instead of suspending
 hl.bind(
     "switch:on:Lid Switch",
     hl.dsp.exec_cmd(
-        "$DOTFILES/configs/desktop/hyprland/lid.nu closed;"
-            .. " loginctl show-session -p BlockInhibited --value | grep -qw handle-lid-switch"
+        hypr_script("lid.nu")
+            .. " closed; loginctl show-session -p BlockInhibited --value | grep -qw handle-lid-switch"
             .. " && loginctl show-session -p Docked --value | grep -qx no && loginctl lock-session"
     ),
     { locked = true, description = "lid closed: internal panel off when docked, lock when inhibited and undocked" }
 )
 hl.bind(
     "switch:off:Lid Switch",
-    hl.dsp.exec_cmd("$DOTFILES/configs/desktop/hyprland/lid.nu open"),
+    hl.dsp.exec_cmd(hypr_script("lid.nu") .. " open"),
     { locked = true, description = "lid opened: internal panel back on" }
 )
 
@@ -352,10 +334,7 @@ hl.define_submap("overview", function()
     hl.bind(mod .. " + Return", quickshell_call("overview", "commit"), { description = "go to the selected window" })
     hl.bind(
         "Escape",
-        hl.dsp.exec_cmd(
-            "quickshell ipc -p ~/.config/quickshell call overview close; "
-                .. "hyprctl dispatch 'hl.dsp.submap(\"reset\")'"
-        ),
+        hl.dsp.exec_cmd(quickshell_cmd("overview", "close") .. "; hyprctl dispatch 'hl.dsp.submap(\"reset\")'"),
         { description = "close the overview" }
     )
 end)

@@ -11,7 +11,7 @@ def fail [msg: string] { error make {msg: $"nftables.test: ($msg)"} }
 
 # ExecStart's shell command with systemd's escapes undone and the installed paths pointed at the repo; ExecReload
 # must be the same load, as only ExecStart's runs here.
-def load-command [home: path]: nothing -> string {
+def load-command [trusted_network: path]: nothing -> string {
     let lines = open --raw $UNIT | lines
     let start = $lines | where ($it | str starts-with "ExecStart=") | get 0 | str replace "ExecStart=" ""
     let reload = $lines | where ($it | str starts-with "ExecReload=") | get 0 | str replace "ExecReload=" ""
@@ -19,7 +19,7 @@ def load-command [home: path]: nothing -> string {
     $start | str replace "/bin/sh -c '" "" | str substring 0..-2
     | str replace --all '$$' '$' | str replace --all '%%' '%'
     | str replace --all /etc/nftables.d/fw-egress.nft $RULESET | str replace --all /usr/sbin/nft nft
-    | str replace --all /run/trusted-network $home
+    | str replace --all /run/trusted-network $trusted_network
 }
 
 def uid-set [ruleset: list, name: string]: nothing -> list<int> {
@@ -38,9 +38,9 @@ def main [] {
         return
     }
     let dir = mktemp --directory --tmpdir dot-nftables-test-XXXXXX
-    let home = $dir | path join trusted-network
-    "eth9\n" | save $home
-    let command = load-command $home
+    let trusted_network = $dir | path join trusted-network
+    "eth9\n" | save $trusted_network
+    let command = load-command $trusted_network
     let rules = load $command []
     for e in ($ESCAPES | transpose set user) {
         let uid = ^id -u $e.user | str trim | into int

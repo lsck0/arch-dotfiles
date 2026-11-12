@@ -14,10 +14,8 @@ export const options = {
     }
 }
 
-const CONFIG_DIR = ".config/btop"
-
 export def link [cfg: record] {
-    files-into ($nu.home-dir | path join $CONFIG_DIR) btop.conf
+    files-into (xdg config btop) btop.conf
 }
 
 export def apply [cfg: record] {
@@ -43,5 +41,5 @@ export def theme [cfg: record, wallpaper: string] {
         process_start: $p.c4 process_mid: $p.c6 process_end: $p.c2
     }
     let text = $slots | items {|key, value| $'theme[($key)]="($value)"' } | str join "\n"
-    file-text ($nu.home-dir | path join $CONFIG_DIR themes pywal.theme) $"($text)\n" --generated
+    file-text (xdg config btop themes pywal.theme) $"($text)\n" --generated
 }

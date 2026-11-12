@@ -14,7 +14,7 @@ def send [socket: string]: nothing -> nothing {
     $COMMAND_HUD | ^timeout 2 socat -u - $"ABSTRACT-CONNECT:($socket | str substring 1..)" | complete | ignore
 }
 
-# the focused window's pid, when a compositor is up to ask (hyprctl absent or no answer -> no pid)
+# the focused window's control socket name; empty without hyprctl or an answer from it
 def focused-socket []: nothing -> string {
     if (which hyprctl | is-empty) { return "" }
     let pid = try { ^hyprctl activewindow -j | from json | get pid } catch { return "" }

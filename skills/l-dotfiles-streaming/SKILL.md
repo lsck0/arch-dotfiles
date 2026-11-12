@@ -23,7 +23,8 @@ Three collections, each with its profile (OBS doesn't pair them; pick both):
 - Profiles in `profiles/`, `basic.ini` with `@KEY@` placeholders. VirtualCam capped at 720p (`VIRTUALCAM_HEIGHT`; 4k
   YUYV is ~500 MB/s). Streaming outputs the full canvas (recording stays 4k) and scales only the stream to `STREAM_RES`
   (at most 1080 high, lanczos `RescaleFilter=4`): 1080p60, 6000 kbps CBR, keyint 2 (`streamEncoder.json`). Recording:
-  `record_encoder` option (AV1 on vaapi, else h264 via vaapi, nvenc or x264), CQP 18, hybrid mp4; replay buffer 60 s in the Recording profile, 20 s in Streaming (`RecRBTime`).
+  `record_encoder` option (AV1 on vaapi, else h264 via vaapi, nvenc or x264), CQP 18, hybrid mp4; a 60 s replay buffer
+  in the Recording profile only (`RecRB`, `RecRBTime`).
 - Tracks (`mixers` bitmask): 1 full mix, 2 mic, 3 apps without mic, 4 Twitch VOD (all but Spotify). Recordings take
   1 to 3 (`RecTracks=7`).
 - Private parts live in secrets: the Streaming collection in `keys/obs-Streaming.json` (its widget urls carry

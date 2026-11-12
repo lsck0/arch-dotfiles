@@ -17,7 +17,6 @@ def start-screen-set [file: path]: nothing -> bool {
 export def link [cfg: record] {
     if (which inkscape uvx | length) < 2 { return [] }
     let pkg = $"inkscape-mcp==($MCP_VERSION)"
-    let cache = $"($pkg)@($MCP_RELEASED)-py($MCP_PYTHON)"
     let preferences = xdg config inkscape preferences.xml
     [
         (step start-screen-off $preferences --done=(start-screen-set $preferences))
@@ -27,10 +26,9 @@ export def link [cfg: record] {
             args: [--python $MCP_PYTHON --exclude-newer $MCP_RELEASED --from $pkg inkscape-mcp --mode stdio]
             env: {FASTMCP_CHECK_FOR_UPDATES: "off"}
         }})
-        # --done: the stamp it touched under $XDG_CACHE_HOME/dotfiles/uvx before it was keyed
         (exec "inkscape-mcp cache" [
             uvx --python $MCP_PYTHON --exclude-newer $MCP_RELEASED --from $pkg python -c "import inkscape_mcp"
-        ] --key $cache --done=(xdg cache dotfiles uvx $cache | path exists) --network)
+        ] --key $"($pkg)@($MCP_RELEASED)-py($MCP_PYTHON)" --network)
     ]
 }
 

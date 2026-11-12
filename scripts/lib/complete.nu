@@ -5,7 +5,6 @@ use platform.nu [platform-load]
 use modules.nu [modules-discover]
 use options.nu [options-schema]
 use ../../configs/core/wallust/wallpaper.nu [wallpaper-list]
-use cli.nu [concat]
 
 const REPO = path self ../..
 const COMPLETE_FILES = "<files>"
@@ -41,7 +40,7 @@ export def module-ids [words: list<string>]: nothing -> list<record> {
 export def option-keys [words: list<string>]: nothing -> list<record> {
     complete-modules | each {|m|
         options-schema $m | items {|key, spec| {value: $"($m.id).($key)", description: ($spec.doc? | default "")} }
-    } | concat
+    } | flatten
 }
 
 export def option-values [words: list<string>]: nothing -> list<record> {

@@ -3,9 +3,7 @@ return {
         "ej-shafran/compile-mode.nvim",
         branch = "latest",
         cmd = { "Compile", "Recompile" },
-        dependencies = {
-            "m00qek/baleia.nvim",
-        },
+        dependencies = { "m00qek/baleia.nvim" },
         config = function()
             vim.g.compile_mode = {
                 ansi_color = { kind = "render" },
@@ -27,20 +25,8 @@ return {
         submodules = false,
         ft = { "http", "rest" },
         keys = {
-            {
-                "<leader>rb",
-                function()
-                    require("kulala").scratchpad()
-                end,
-                desc = "Open scratchpad",
-            },
-            {
-                "<leader>ro",
-                function()
-                    require("kulala").open()
-                end,
-                desc = "Open kulala",
-            },
+            { "<leader>rb", "<cmd>lua require('kulala').scratchpad()<cr>", desc = "Open scratchpad" },
+            { "<leader>ro", "<cmd>lua require('kulala').open()<cr>", desc = "Open kulala" },
         },
         opts = {
             -- the rest of <leader>r; the two keys above only load kulala outside http buffers
@@ -55,23 +41,15 @@ return {
         dependencies = "nvim-lua/plenary.nvim",
         config = true,
         keys = {
-            { "<leader>u", "<cmd>lua require('undotree').toggle()<cr>" },
+            { "<leader>u", "<cmd>lua require('undotree').toggle()<cr>", desc = "Undotree" },
         },
     },
 
     {
         "piersolenski/import.nvim",
-        opts = {
-            picker = "telescope",
-        },
+        opts = { picker = "telescope" },
         keys = {
-            {
-                "<leader>i",
-                function()
-                    require("import").pick()
-                end,
-                desc = "Import",
-            },
+            { "<leader>i", "<cmd>lua require('import').pick()<cr>", desc = "Import" },
         },
     },
 

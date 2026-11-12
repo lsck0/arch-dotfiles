@@ -96,7 +96,7 @@ def modules-scan [repo: path, markers: list<path>]: nothing -> table {
         let group = if $root { "" } else { $id | path split | first }
         let native = $natives | where dir == $dir | get --optional 0 | default {consts: {}, commands: []}
         let meta = $META_DEFAULT | merge deep --strategy=append ($native.consts.meta? | default {})
-        let sibling_deps = if $root { [] } else { names-read ($dir | path join dependencies.txt) | each {|d| $"($group)/($d)" } }
+        let sibling_deps = if $root { [] } else { names-read ($dir | path join $DEPENDENCIES) | each {|d| $"($group)/($d)" } }
         {
             id: $id
             group: $group
@@ -148,25 +148,23 @@ export def modules-root-run [modules: table]: nothing -> list<string> {
 export def modules-graph [repo: path, modules: table]: nothing -> table {
     let ids = $modules.id
     let groups = $modules.group | uniq | where $it != ""
-    let group_ids = $modules | where group != "" | group-by group | items {|g, ms| {group: $g, ids: $ms.id} }
-    let group_id_map = $group_ids | reduce --fold {} {|r, acc| $acc | insert $r.group $r.ids }
+    let group_id_map = $modules | where group != "" | group-by group | items {|g, ms| [$g $ms.id] } | into record
     let grouped = $modules | where group != "" | get id
     let root_members = $modules | where group == "" | get id
 
     let group_info = $groups | each {|g|
         let dep_names = (if $g == $SECRETS_GROUP { $groups | where $it != $g } else {
-            names-read ($repo | path join configs $g dependencies.txt) | append (if $g == "base" { [] } else { [base] })
+            names-read ($repo | path join configs $g $DEPENDENCIES) | append (if $g == "base" { [] } else { [base] })
         } | uniq | where $it in $groups)
         {group: $g, dep_groups: $dep_names, after: ($dep_names | each {|d| $group_id_map | get $d } | flatten | uniq)
             total: ($group_id_map | get $g | length)}
     }
     let group_info = $group_info
         | append {group: "", dep_groups: $groups, after: $grouped, total: ($root_members | length)}
-    let group_total = $group_info | reduce --fold {} {|g, acc| $acc | insert $g.group $g.total }
+    let group_total = $group_info | each {|g| [$g.group $g.total] } | into record
     # reverse edges at group granularity: which groups wait on group g
     let group_dependents = $group_info
-        | each {|g| {group: $g.group, dependents: ($group_info | where ($g.group in $it.dep_groups) | get group)} }
-        | reduce --fold {} {|r, acc| $acc | insert $r.group $r.dependents }
+        | each {|g| [$g.group ($group_info | where ($g.group in $it.dep_groups) | get group)] } | into record
 
     let with_after = $modules
         | join ($group_info | select group after) group
@@ -179,25 +177,16 @@ export def modules-graph [repo: path, modules: table]: nothing -> table {
         $m | update after ($m.after | append $extra | uniq) | insert meta_extra $extra
     }
     let sorted = ($plain_rows | append $meta_rows) | sort-by id
-    let position = $sorted | enumerate | reduce --fold {} {|r, acc| $acc | insert $r.item.id $r.index }
+    let position = $sorted | enumerate | each {|r| [$r.item.id $r.index] } | into record
     let meta_dependents = $meta_rows
         | each {|m| $m.meta_extra | each {|d| {after: $d, id: $m.id} } } | flatten | group-by after
 
-    mut group_done = {}
+    let groups_waiting = $group_info | each {|g| [$g.group ($g.dep_groups | length)] } | into record
+    mut group_done = $group_info | each {|g| [$g.group 0] } | into record
     mut group_max_level = {}
-    mut pending_groups = {}
-    for g in $group_info.group {
-        $group_done = $group_done | insert $g 0
-        $pending_groups = $pending_groups | insert $g ($group_info | where group == $g | get 0.dep_groups | length)
-    }
-
-    mut pending_meta = {}
-    mut ready = []
-    for row in $sorted {
-        $pending_meta = $pending_meta | insert $row.id ($row.meta_extra | length)
-        if ($pending_groups | get $row.group) == 0 and ($row.meta_extra | is-empty) { $ready = $ready | append $row.id }
-    }
-    $ready = $ready | sort
+    mut pending_groups = $groups_waiting
+    mut pending_meta = $sorted | each {|r| [$r.id ($r.meta_extra | length)] } | into record
+    mut ready = $sorted | where {|r| ($groups_waiting | get $r.group) == 0 and ($r.meta_extra | is-empty) } | get id | sort
 
     mut done = {}
     mut order = []
@@ -205,16 +194,10 @@ export def modules-graph [repo: path, modules: table]: nothing -> table {
         let id = $ready | first
         $ready = $ready | skip 1
         let next = $sorted | get ($position | get $id)
-        mut level = -1
-        for g in $next.dep_groups {
-            let lv = ($group_max_level | get --optional $g | default (-1))
-            if $lv > $level { $level = $lv }
-        }
-        for d in $next.meta_extra {
-            let lv = ($done | get --optional $d | default (-1))
-            if $lv > $level { $level = $lv }
-        }
-        $level = $level + 1
+        let group_levels = $group_max_level
+        let levels = $done
+        let level = 1 + ([-1] ++ ($next.dep_groups | each {|g| $group_levels | get --optional $g | default (-1) })
+            ++ ($next.meta_extra | each {|d| $levels | get --optional $d | default (-1) }) | math max)
         $done = $done | insert $id $level
         $order = $order | append ($next | reject dep_groups meta_extra | insert level $level)
 
@@ -296,9 +279,9 @@ export def modules-eval [modules: table, verb: string, cfgs: record, args: list,
 export def modules-packages-each [modules: table, platform: record]: nothing -> table {
     let wsl = $platform.form_factor == "wsl"
     let computing = $modules | where {|m| "packages" in $m.native }
-    let results = modules-eval $computing packages ($computing | reduce --fold {} {|m, acc| $acc | insert $m.id $m.cfg }) []
+    let results = modules-eval $computing packages ($computing | each {|m| [$m.id $m.cfg] } | into record) []
     $results | where not ok | each { log-warn $"($in.id): packages failed, checking its meta alone: ($in.error)" } | ignore
-    let computed = $results | reduce --fold {} {|r, acc| $acc | insert $r.id {ok: $r.ok, decls: ($r.decls | get --optional 0 | default {})} }
+    let computed = $results | each {|r| [$r.id {ok: $r.ok, decls: ($r.decls | get --optional 0 | default {})}] } | into record
     $modules | each {|m|
         let hook = $computed | get --optional $m.id | default {ok: true, decls: {}}
         let p = $m.meta.packages | merge deep --strategy=append $hook.decls
@@ -336,9 +319,7 @@ export def module-packages-every [m: record, every: record]: nothing -> list<str
     let managers = [[name wanted]; [flatpak ($m.meta.packages.flatpak | is-not-empty)] [nix ($m.meta.packages.nix | is-not-empty)]]
     let own = $m.meta.packages.pacman ++ $m.meta.packages.native ++ ($managers | where wanted | get name)
     if "packages" not-in $m.native { return $own }
-    let defaults = $m.options | items {|name, spec| {name: $name, value: $spec.default} } | reduce --fold ($m.cfg | upsert enable true) {|o, acc|
-        $acc | upsert $o.name $o.value
-    }
+    let defaults = $m.cfg | upsert enable true | merge ($m.options | items {|name, spec| [$name $spec.default] } | into record)
     let variants = $m.options | items {|name, spec|
         let set = $every.values | where id == $m.id and name == $name | get value
         let type = $spec.type | str trim --right --char "?"

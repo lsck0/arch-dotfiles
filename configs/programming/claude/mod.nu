@@ -1,4 +1,5 @@
 use module.nu *
+use ../../desktop/idle-guards/mod.nu [AGENT_GUARD AGENT_GUARD_INPUT guard-hook]
 
 # after idle-guards: the guard hooks go in only once its agent-guard exists (a dep outside the platform's groups is dropped)
 export const meta = {
@@ -6,7 +7,7 @@ export const meta = {
     packages: {pacman: [claude-code claude-desktop-extra]}
     backup: {secrets: true}
     # planned before idle-guards runs on a fresh install: the guard appearing re-plans the hooks
-    inputs: [~/.config/idle-guards/agent-guard.nu]
+    inputs: [$AGENT_GUARD_INPUT]
 }
 
 export const options = {
@@ -21,8 +22,6 @@ export const options = {
     }
 }
 
-use ../../desktop/idle-guards/mod.nu [AGENT_GUARD]
-
 const ACCOUNT_KEYS = [oauthAccount userID hasCompletedOnboarding lastOnboardingVersion]
 
 def home [...parts: string]: nothing -> path {
@@ -35,30 +34,35 @@ def backup-dir []: nothing -> path {
 }
 
 # A granted permission prompt resumes the turn without a new prompt, so every tool call re-arms the guard.
+const GUARD_EVENTS = {
+    UserPromptSubmit: turn-start PreToolUse: turn-start PostToolUse: turn-start Stop: turn-end StopFailure: turn-end
+    SessionEnd: turn-end Notification: turn-end SubagentStart: subagent-start SubagentStop: subagent-stop
+}
+const NOTIFICATION_MATCHER = "idle_prompt|permission_prompt|agent_needs_input|elicitation_dialog"
+
 def guard-hooks [guard: path]: nothing -> record {
-    let hook = {|action| [{hooks: [{type: command, command: $"($guard) ($action)"}]}] }
-    let start = do $hook turn-start
-    let end = do $hook turn-end
-    {
-        UserPromptSubmit: $start PreToolUse: $start PostToolUse: $start Stop: $end StopFailure: $end SessionEnd: $end
-        Notification: [{matcher: "idle_prompt|permission_prompt|agent_needs_input|elicitation_dialog", hooks: $end.0.hooks}]
-        SubagentStart: (do $hook subagent-start) SubagentStop: (do $hook subagent-stop)
-    }
+    $GUARD_EVENTS | items {|event, action|
+        let entry = {hooks: [{type: command, command: $"($guard) ($action)"}]}
+        {$event: [(if $event == Notification { {matcher: $NOTIFICATION_MATCHER} | merge $entry } else { $entry })]}
+    } | into record
 }
 
+# Every event's entries others put there, then the guard's while it exists; an event left empty is dropped.
 def hooks-merge [current: record, guard: path]: nothing -> record {
-    let own = {|entry| $entry.hooks? | default [] | any {|h| $h.command? | default "" | str contains agent-guard } }
-    let kept = $current | items {|event, entries| {event: $event, entries: ($entries | where {|e| not (do $own $e) })} }
-        | where ($it.entries | is-not-empty) | reduce --fold {} {|e, acc| $acc | insert $e.event $e.entries }
     let wanted = if ($guard | path exists) { guard-hooks $guard } else { {} }
-    $wanted | items {|event, entries| {event: $event, entries: $entries} }
-        | reduce --fold $kept {|e, acc| $acc | upsert $e.event (($acc | get --optional $e.event | default []) ++ $e.entries) }
+    $current | columns | append ($wanted | columns) | uniq | each {|event|
+        let entries = $current | get --optional $event | default []
+            | where { not ($in | guard-hook) }
+            | append ($wanted | get --optional $event | default [])
+        if ($entries | is-empty) { null } else { {$event: $entries} }
+    } | into record
 }
 
 export def link [cfg: record] {
     let settings = home .claude settings.json
-    let current = if ($settings | path exists) { open $settings | get --optional hooks | default {} } else { {} }
+    let current = try { open $settings | get --optional hooks | default {} } catch { {} }
     let creds = home .claude .credentials.json
+    let backup = backup-dir
     [
         (shell-aliases claude)
         (files-into (home .claude) CLAUDE.md RTK.md keybindings.json)
@@ -76,12 +80,12 @@ export def link [cfg: record] {
             # login via credentials.json only: settings.json is shared into every identity
             (json-delete [env CLAUDE_CODE_OAUTH_TOKEN])
         ])
-        (if (secret-is-plaintext (backup-dir | path join credentials.json)) and not ($creds | path exists) {
+        (if (secret-is-plaintext ($backup | path join credentials.json)) and not ($creds | path exists) {
             [
-                (exec claude-login [install -Dm600 (backup-dir | path join credentials.json) $creds] --creates $creds)
-                (json-merge (home .claude.json) (open (backup-dir | path join account.json) | items {|k, v| json-set [$k] $v }))
+                (exec claude-login [install -Dm600 ($backup | path join credentials.json) $creds] --creates $creds)
+                (json-merge (home .claude.json) (open ($backup | path join account.json) | items {|k, v| json-set [$k] $v }))
             ]
-        } else { [] })
+        })
     ]
 }
 
@@ -101,7 +105,8 @@ export def backup [cfg: record]: nothing -> nothing {
     if not (secret-is-plaintext ($env.DOTFILES | path join configs secrets keys pgp_privatekey.asc)) {
         error make {msg: "secrets is locked, unlock it first"}
     }
-    mkdir (backup-dir)
-    ^install -m600 $creds (backup-dir | path join credentials.json)
-    open (home .claude.json) | select --optional ...$ACCOUNT_KEYS | to json --indent 2 | $"($in)\n" | save --force (backup-dir | path join account.json)
+    let dir = backup-dir
+    mkdir $dir
+    ^install -m600 $creds ($dir | path join credentials.json)
+    open (home .claude.json) | select --optional ...$ACCOUNT_KEYS | to json --indent 2 | $"($in)\n" | save --force ($dir | path join account.json)
 }

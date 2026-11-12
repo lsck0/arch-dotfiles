@@ -10,6 +10,6 @@ export def link [cfg: record] {
     [
         (fetch-git $URL $COMMIT (xdg data godot-mcp))
         (link-commands godot-mcp.nu godot-mcp-addon.nu)
-        (mcp-servers {godot-mcp: {type: stdio, command: ($nu.home-dir | path join .local bin godot-mcp), args: [], env: {}}})
+        (mcp-servers {godot-mcp: {type: stdio, command: ($nu.home-dir | path join .local bin godot-mcp), args: []}})
     ]
 }

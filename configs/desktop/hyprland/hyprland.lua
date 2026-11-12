@@ -43,9 +43,9 @@ local function optional(module)
 end
 
 -- package.loaded survives a config reload, so drop everything before requiring
-package.loaded["platform"] = nil
-package.loaded["wal_colors"] = nil
-package.loaded["style"] = nil
+for _, module in ipairs({ "platform", "wal_colors", "style" }) do
+    package.loaded[module] = nil
+end
 for _, module in ipairs(MODULES) do
     package.loaded[module] = nil
 end
@@ -53,8 +53,4 @@ for _, module in ipairs(MODULES) do
     optional(module)
 end
 
-hl.config({
-    ecosystem = {
-        no_update_news = true,
-    },
-})
+hl.config({ ecosystem = { no_update_news = true } })

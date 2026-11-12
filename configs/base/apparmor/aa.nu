@@ -3,51 +3,40 @@
 
 const REPO = path self | path expand | path dirname | path join ../../.. | path expand
 use ($REPO | path join scripts lib usage.nu) [die]
-use ($REPO | path join configs base apparmor profile-flags.nu) [profile-mode]
+use ($REPO | path join configs base apparmor profile-flags.nu) [ETC MARKER OWN_SUFFIX text-mode upstream-files]
 
 const INCLUDE = "/etc/apparmor/include.d/manual.conf"
 const FLAGS = "/etc/apparmor/flags.d/manual.conf"
 const BASELINE_FLAGS = "/etc/apparmor/flags.d/dotfiles.conf"
-const ETC = "/etc/apparmor.d"
-const SOURCE = "/usr/share/apparmor.d"
-const OWN_MARKER = "# managed by arch-dotfiles/apparmor"
-const OWN_SUFFIX = ".dotfiles"
 
 def available []: nothing -> list<string> {
     if (which aa-install | is-empty) { die "apparmor.d (aa-install) is not installed" }
-    let upstream = if ($SOURCE | path exists) {
-        glob $"($SOURCE)/**/*" --no-dir | where not ($it =~ '/(abstractions|tunables)/')
-    } else { [] }
     let etc = if ($ETC | path exists) { ls $ETC | where type == file | get name } else { [] }
-    $upstream ++ $etc | path basename
-    | each {|n| if ($n | str ends-with $OWN_SUFFIX) { $n | str substring 0..<(($n | str length) - ($OWN_SUFFIX | str length)) } else { $n } }
+    # an own profile's <name>.dotfiles and the <name>.apparmor.d that replaces a stock profile are both <name>
+    (upstream-files) ++ $etc | path basename | str replace --regex $'($OWN_SUFFIX)$|\.apparmor\.d$' ''
     | uniq | sort
 }
 
-def first-word [line: string]: nothing -> string {
-    $line | split row --regex '\s+' | first
-}
-
-def sudo-save [file: path, --append]: string -> nothing {
-    $in | ^sudo tee ...(if $append { [--append] } else { [] }) $file | ignore
+def sudo-save [file: path]: string -> nothing {
+    $in | ^sudo tee $file | ignore
 }
 
 def mode-set [profile: string, mode: string]: nothing -> nothing {
     if $profile not-in (available) { die $"no apparmor.d profile named '($profile)' \(try: aa list ($profile)\)" }
     ^sudo touch $INCLUDE $FLAGS
+    # the baseline's extra flags (attach_disconnected, ...) stay with the new mode
     let extra = if ($BASELINE_FLAGS | path exists) {
-        open --raw $BASELINE_FLAGS | lines | where (first-word $it) == $profile
-        | each { split row --regex '\s+' | get 1 | parse --regex '^[^,]*(?<rest>.*)' | get 0.rest } | str join
+        open --raw $BASELINE_FLAGS | parse --regex '(?m)^(?<name>\S+)[ \t]+[^,\s]*(?<rest>\S*)' | where name == $profile
+        | get rest | str join
     } else { "" }
-    open --raw $FLAGS | lines | where (first-word $it) != $profile | append $"($profile) ($mode)($extra)"
-    | str join "\n" | $"($in)\n" | sudo-save $FLAGS
+    open --raw $FLAGS | lines | where ($it | split row --regex '\s+' | first) != $profile
+    | append $"($profile) ($mode)($extra)" | str join "\n" | $"($in)\n" | sudo-save $FLAGS
     let file = $ETC | path join $"($profile)($OWN_SUFFIX)"
-    if ($file | path exists) and (open --raw $file | lines | any { $in == $OWN_MARKER }) {
-        open --raw $file | lines | each {|l| if ($l | str starts-with "profile ") { $l | profile-mode $mode } else { $l } }
-        | str join "\n" | $"($in)\n" | sudo-save $file
+    if ($file | path exists) and (open --raw $file | lines | any { $in == $MARKER }) {
+        open --raw $file | text-mode $mode | sudo-save $file
         ^sudo apparmor_parser --replace --write-cache $file
     } else {
-        if $profile not-in (open --raw $INCLUDE | lines) { $"($profile)\n" | sudo-save $INCLUDE --append }
+        if $profile not-in (open --raw $INCLUDE | lines) { $"($profile)\n" | ^sudo tee --append $INCLUDE | ignore }
         ^sudo aa-install --install
     }
     print $"aa: ($profile) -> ($mode) \(reboot-safe\)"

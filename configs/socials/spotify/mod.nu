@@ -28,7 +28,7 @@ export def link [cfg: record] {
         (fetch-git $THEMES_URL $THEMES_COMMIT $themes)
         # spotify's slider is its stream's channel volume; a restored stream volume under it caps max volume
         (file-copy wireplumber.conf (xdg config wireplumber wireplumber.conf.d spotify.conf))
-    ] | decls-flatten
+    ]
     if (^pacman -Q spotify | complete).exit_code != 0 { return $base }
     let prefs = xdg config spotify prefs
     let configured = configure-done
@@ -36,8 +36,7 @@ export def link [cfg: record] {
         $base
         # spicetify's first run reads spotify's prefs; an empty one stands in before spotify's first start
         (exec spotify-prefs [install -D --mode 644 /dev/null $prefs] --creates $prefs)
-        (file-copy adblock.js (spicetify-dir | path join Extensions adblock.js))
-        (file-copy no-music-videos.js (spicetify-dir | path join Extensions no-music-videos.js))
+        (files-into (spicetify-dir | path join Extensions) ...$EXTENSIONS)
         (step configure --done=$configured)
         (desktop-override spotify.desktop {
             $in | str replace --all --regex '(?m)^Exec=spotify ' $"Exec=($env.PWD)/spotify-launch.nu "

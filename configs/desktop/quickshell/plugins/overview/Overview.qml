@@ -17,17 +17,10 @@ Item {
   readonly property real screenShare: 0.9
 
   function workspacesAll() {
-    var values = Hyprland.workspaces.values
-    var out = []
-    for (let i = 0; i < values.length; i++) if (values[i].id > 0 && values[i].monitor) out.push(values[i])
-    out.sort(function (a, b) { return a.id - b.id })
-    return out
+    return Hyprland.workspaces.values.filter(w => w.id > 0 && w.monitor).sort((a, b) => a.id - b.id)
   }
 
-  function screenFor(monitor) {
-    var name = monitor ? String(monitor.name) : ""
-    return Array.from(Quickshell.screens).find(function (s) { return String(s.name) === name }) || null
-  }
+  function screenFor(monitor) { return Util.screenNamed(monitor ? monitor.name : "") }
 
   property var workspaces: []
   Binding { target: root; property: "workspaces"; value: root.workspacesAll(); when: root.opened; restoreMode: Binding.RestoreNone }
@@ -36,8 +29,7 @@ Item {
 
   function open() {
     Hyprland.refreshToplevels()
-    var focused = Hyprland.focusedMonitor
-    panel.screen = root.screenFor(focused)
+    panel.screen = Util.focusedScreen()
     var list = root.workspacesAll()
     var active = Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : -1
     root.selectedIndex = Math.max(0, list.findIndex(function (w) { return w.id === active }))

@@ -1,9 +1,6 @@
 use module.nu *
 
-export const meta = {
-    packages: {pacman: [taskwarrior-tui timew]}
-    inputs: [/usr/share/doc/timew/ext/on-modify.timewarrior]
-}
+export const meta = {packages: {pacman: [taskwarrior-tui timew]}}
 
 export const options = {
     sync_url: {
@@ -35,8 +32,8 @@ def secret-read [file: path]: nothing -> string {
 
 # Taskwarrior refuses a missing include: locked secrets keep the file as it is, else empty.
 def sync-text [cfg: record]: nothing -> string {
-    let rc = $nu.home-dir | path join $SYNC_RC
     if $cfg.sync_url == null { return "" }
+    let rc = $nu.home-dir | path join $SYNC_RC
     let id = $env.DOTFILES | path join $CLIENT_ID
     let secret = $env.DOTFILES | path join $SECRET
     if (secret-is-plaintext $id) and (secret-is-plaintext $secret) {
@@ -65,12 +62,11 @@ export def link [cfg: record] {
     let calendar = calendar-text
     # taskrc includes ~/.config/bugwarrior/uda.taskrc; the bugwarrior module owns that file (empty or generated), so it is not written here
     [
-        (file-copy taskrc (xdg config task taskrc))
-        (file-copy wal.theme (xdg config task wal.theme))
-        (if ($HOOK | path exists) { file-copy $HOOK ($nu.home-dir | path join .task hooks on-modify.timewarrior) --mode 755 } else { [] })
+        (files-into (xdg config task) taskrc wal.theme)
+        (if ($HOOK | path exists) { file-copy $HOOK ($nu.home-dir | path join .task hooks on-modify.timewarrior) --mode 755 })
         (file-text ($nu.home-dir | path join $SYNC_RC) $sync --mode 600)
-        (if ($calendar | is-empty) { [] } else { file-text ($nu.home-dir | path join $CALENDAR_ENV) $calendar --mode 600 })
+        (if ($calendar | is-not-empty) { file-text ($nu.home-dir | path join $CALENDAR_ENV) $calendar --mode 600 })
         (link-commands task-calendar.nu)
-        (if ($sync | is-empty) { [] } else { (unit-file task-sync.service) ++ (unit-file task-sync.timer --enable --now) })
+        (if ($sync | is-not-empty) { (unit-file task-sync.service) ++ (unit-file task-sync.timer --enable --now) })
     ]
 }

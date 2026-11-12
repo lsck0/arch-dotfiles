@@ -21,7 +21,8 @@ export def link [cfg: record] {
         (link-commands home-sweep.nu)
         (unit-file home-sweep.service)
         (unit-file home-sweep.timer --enable --now)
-    ] ++ (if (which nix-collect-garbage | is-empty) { [] } else {
-        [(unit-file nix-gc.service) (unit-file nix-gc.timer --enable --now)]
-    })
+        (if (which nix-collect-garbage | is-not-empty) {
+            [(unit-file nix-gc.service) (unit-file nix-gc.timer --enable --now)]
+        })
+    ]
 }

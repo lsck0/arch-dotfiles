@@ -516,7 +516,8 @@ Item {
   function clearHistory() {
     service.history = []
     clearPopups()
-    enqueueFileJob(["bash", "-c", "dir=\"$1\" keep=0 imgs=\"$2\"\n" + trimScript, "--", historyDir, imagesDir])
+    // the history also reads popup files no shown popup owns, so they go too
+    enqueueFileJob(["bash", "-c", "rm -f \"$1\"/*.json \"$2\"/*.json \"$3\"/*", "--", popupStateDir, historyDir, imagesDir])
   }
 
   function removeEntry(originalId, timestamp) {
@@ -598,13 +599,9 @@ Item {
   }
 
   readonly property var focusedScreen: {
-    var screens = Quickshell.screens
     var focused = Hyprland.focusedMonitor
-    var name = focused ? String(focused.name) : ""
-    if (!name && service.shell) name = String(service.shell.mainScreenName || "")
-    for (let i = 0; i < screens.length; i++)
-      if (String(screens[i].name) === name) return screens[i]
-    return screens.length > 0 ? screens[0] : null
+    var name = focused ? focused.name : service.shell ? service.shell.mainScreenName : ""
+    return Util.screenNamed(name) || Quickshell.screens[0] || null
   }
 
   property var popupScreen: null
@@ -617,7 +614,6 @@ Item {
     if (!panel || !panel.visible) return false
     return panel.screenRect.x + panel.screenRect.width > popupBar.width - Style.gapsOut - toastWidth
   }
-  readonly property bool toastsShown: popupScreen !== null && popupModel.count > 0 && !panelOverToasts
   property int popupRevision: 0
   // a toast's delegate is rebuilt with its window, so its countdown lives here
   property var toastClocks: ({})

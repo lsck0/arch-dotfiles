@@ -28,7 +28,7 @@ def _run(kind, args):
             _job["error"] = (out.stderr.strip().splitlines() or ["comfy-gen failed"])[-1]
         else:
             _job["result"] = json.loads(out.stdout.strip().splitlines()[-1])
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, IndexError) as e:
         _job["error"] = str(e)
 
 

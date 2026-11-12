@@ -1,10 +1,13 @@
 #!/usr/bin/env -S nu --no-config-file
 
+const REPO = path self | path expand | path dirname --num-levels 4
+use ($REPO | path join scripts lib state.nu) [xdg]
+
 const PLUGINS = [Bridge Fab]
 
 def main []: nothing -> nothing {
-    let engine = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join unreal-engine
-    let stamps = $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state) | path join unreal-plugins
+    let engine = xdg data unreal-engine
+    let stamps = xdg state unreal-plugins
     if not ($engine | path exists) { return }
     mkdir $stamps
     for plugin in $PLUGINS {

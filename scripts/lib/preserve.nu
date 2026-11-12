@@ -47,7 +47,7 @@ export def preserve-aside [path: path, --copy]: nothing -> any {
     }
     let moved = ^mv -n $path $dest | complete
     if $moved.exit_code != 0 { error make {msg: $"($path): could not preserve to ($dest): ($moved.stderr | str trim)"} }
-    # `mv -n` exits 0 and does nothing if $dest raced into existence, so an exit code alone cannot prove the move; confirm the source is gone, else the caller would overwrite an un-backed-up original
+    # `mv -n` exits 0 and moves nothing when dest raced into existence: only a gone source proves the move
     if (path-kind $path) != "" { error make {msg: $"($path): preserve raced, ($dest) already existed"} }
     log-info $"($path): the earlier copy kept as ($dest)"
     $dest

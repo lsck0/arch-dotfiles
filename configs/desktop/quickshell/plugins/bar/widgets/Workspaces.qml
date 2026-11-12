@@ -10,22 +10,14 @@ BarWidget {
   moduleName: "workspaces"
   barPriority: 100
 
-  function workspaceById(id) {
-    var values = Hyprland.workspaces.values
-    for (let i = 0; i < values.length; i++) {
-      if (values[i].id === id) return values[i]
-    }
-    return null
-  }
+  function workspaceById(id) { return Hyprland.workspaces.values.find(w => w.id === id) || null }
 
   function scrollWorkspace(direction) {
     var ids = root.workspaceIds
     if (ids.length === 0) return
     var currentId = root.activeWorkspaceId !== -1 ? root.activeWorkspaceId : ids[0]
-    var index = ids.indexOf(currentId)
-    if (index === -1) index = 0
-    var nextIndex = (index + direction + ids.length) % ids.length
-    root.focusWorkspace(ids[nextIndex])
+    var index = Math.max(0, ids.indexOf(currentId))
+    root.focusWorkspace(ids[(index + direction + ids.length) % ids.length])
   }
 
   readonly property var myMonitor: root.bar && root.bar.modelData

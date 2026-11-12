@@ -18,7 +18,7 @@ theme name: `dot theme "$(jq -r .wallpaper themes/<t>.json)"`. It links `$XDG_CA
   `colors-steam.css` for millennium, `omarchy-colors.toml` to `~/.local/state/omarchy/current/theme/`.
 - Then every enabled module's `theme [cfg, wallpaper]` verb runs (`dot internal theme apply`), returning declarations.
   It reads `palette-load` (`bg`, `fg`, `c0`..`c15`, `light`, `bg_conditioned`) or `palette.nu`, the one conditioning
-  authority. Verbs run in parallel; `THEME_ORDERED` (`scripts/lib/internal.nu`) runs a few last, in order.
+  authority. Verbs run in parallel, in `meta.deps` order.
 - Callers write the wallpaper into `$XDG_RUNTIME_DIR/theme.request`; `dot-theme.path` starts `dot-theme.service` for
   each waiting request; each run applies the newest one (`TimeoutStartSec=5min`, 60 s a verb). `--sync` waits for it.
 - `dot internal theme apply` holds `theme.lock` in dot's state dir (`theme-locked`, `scripts/lib/cli.nu`), as do
@@ -48,7 +48,7 @@ theme's wallpaper has a public copy in `wallpapers/`; names resolve from `~/sync
 1. A `theme` verb in the program's `mod.nu` (`configs/core/btop/mod.nu`); dot discovers it.
 2. Write under `$XDG_CACHE_HOME/wal/` or render the whole config with `file-text --generated`
    (`configs/core/herdr/mod.nu`); never into a file linked from the repo.
-3. Must run after another verb: add it to `THEME_ORDERED`.
+3. Must run after another module's verb: name that module in `meta.deps`.
 4. Conditioning changes go into `palette.nu` and `Palette.js` (`palette.nu js --write`); `dot test check` compares
    both on a dark and a light palette.
 

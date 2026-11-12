@@ -17,9 +17,9 @@ export def theme [cfg: record, wallpaper: string] {
 }
 
 export def config-source []: nothing -> nothing {
-    let names = do { ^gdbus call --session --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus --method org.freedesktop.DBus.ListNames } | complete
+    let names = ^gdbus call --session --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus --method org.freedesktop.DBus.ListNames | complete
     if $names.exit_code != 0 { return }
     $names.stdout | parse --regex "'(?<name>org\\.pwmt\\.zathura\\.PID-[0-9]+)'" | get name | each {|name|
-        do { ^timeout 5 gdbus call --session --dest $name --object-path /org/pwmt/zathura --method org.pwmt.zathura.SourceConfig } | complete
+        ^timeout 5 gdbus call --session --dest $name --object-path /org/pwmt/zathura --method org.pwmt.zathura.SourceConfig | complete
     } | ignore
 }

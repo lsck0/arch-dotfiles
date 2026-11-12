@@ -196,7 +196,6 @@ BarWidget {
     command: [Paths.barWidget("obs-status.nu")]
 
     stdout: SplitParser {
-      splitMarker: "\n"
       onRead: function(line) {
         if (!line) return
         try {
@@ -206,7 +205,6 @@ BarWidget {
     }
 
     stderr: SplitParser {
-      splitMarker: "\n"
       onRead: function(line) {
         if (line) console.warn(line)
       }

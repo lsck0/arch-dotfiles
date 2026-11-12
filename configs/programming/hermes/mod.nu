@@ -1,5 +1,8 @@
 use module.nu *
 use ../../core/wallust/palette.nu *
+use ../../desktop/idle-guards/mod.nu [AGENT_GUARD AGENT_GUARD_INPUT guard-hook]
+use ../../desktop/hyprland/mod.nu [reload]
+use ../../llm/ollama/ollama-ensure-models.nu [LONG_CONTEXT]
 
 # after caveman and rtk: the orchestrator profile is a one-time clone of ~/.hermes, which they fill with skills
 export const meta = {
@@ -7,12 +10,8 @@ export const meta = {
     packages: {pacman: [herdr-bin hermes-agent hermes-agent-desktop]}
     # the guard appears after planning on a fresh install; as an input it re-plans the hooks. The MCP servers every
     # module's mcp-servers merged: one written after this module ran reaches hermes on its next apply
-    inputs: [~/.config/idle-guards/agent-guard.nu ~/.hermes/mcp-servers.json]
+    inputs: [$AGENT_GUARD_INPUT ~/.hermes/mcp-servers.json]
 }
-
-use ../../desktop/idle-guards/mod.nu [AGENT_GUARD]
-use ../../desktop/hyprland/mod.nu [reload]
-use ../../llm/ollama/ollama-ensure-models.nu [LONG_CONTEXT]
 
 export const options = {
     system_agent: {
@@ -33,7 +32,6 @@ const SYSTEM_UNIT = "hermes-system-agent.service"
 # toggles recording (the SUPER+ALT+a bind sends it to the tmux pane), barge-in stops it when Luca talks over it
 const SYSTEM_SETTINGS = {
     voice.auto_tts: true
-    voice.record_key: "ctrl+space"
     tts.provider: piper
     tts.piper.voice: "en_US-lessac-medium"
     stt.provider: local
@@ -78,23 +76,24 @@ def homes []: nothing -> record {
     {default: $default, orchestrator: ($default | path join $ORCHESTRATOR), system: ($default | path join $SYSTEM)}
 }
 
-# A profile's command: hermes' own `profile alias` bakes in the venv path of the install it ran under, which the next
-# hermes update removes; this one goes through the hermes on PATH.
-def profile-command [profile: string, name: string]: nothing -> record {
-    file-text ($nu.home-dir | path join .local bin $name) $"#!/bin/sh\nexec hermes -p ($profile) \"$@\"\n" --mode "755"
+# A profile cloned from ~/.hermes with the skills, settings and key. Its command goes through the hermes on PATH:
+# hermes' own `profile alias` bakes in the venv path of the install it ran under, which the next hermes update removes.
+def profile [name: string, description: string, settings: record, remove: list<string>, mcp: record, skills: list<path>]: nothing -> list<record> {
+    let home = homes | get $name
+    [
+        (exec $"($name)-create" [hermes profile create $name --clone --no-alias --description $description] --creates $home)
+        (file-text ($nu.home-dir | path join .local bin $"hermes-($name)") $"#!/bin/sh\nexec hermes -p ($name) \"$@\"\n" --mode "755")
+        ($skills | each {|dir| file-link $dir ($home | path join skills ($dir | path basename)) })
+        (configure $home $settings $remove $mcp)
+        (anthropic-key $home)
+    ]
 }
 
-# The system agent's profile, its skills, voice and unit, only where the option is on.
-def system-agent [h: record, settings: record, remove: list<string>, mcp: record, skills: list<path>]: nothing -> list<record> {
+# The system agent's profile, voice, unit and hyprland binds, only where the option is on.
+def system-agent [settings: record, remove: list<string>, mcp: record, skills: list<path>]: nothing -> list<record> {
     [
-        (exec system-create [
-            hermes profile create system --clone --no-alias --description "System agent: always on, drives the desktop, talks."
-        ] --creates $h.system)
-        (profile-command system hermes-system)
+        (profile system "System agent: always on, drives the desktop, talks." ($settings | merge $SYSTEM_SETTINGS) $remove $mcp $skills)
         (file-link system-agent.sh ($nu.home-dir | path join .local bin hermes-system-agent))
-        ($skills | each {|dir| file-link $dir ($h.system | path join skills ($dir | path basename)) })
-        (configure $h.system ($settings | merge $SYSTEM_SETTINGS) $remove $mcp)
-        (anthropic-key $h.system)
         (unit-file $SYSTEM_UNIT --enable --now)
         (file-copy hypr-system-agent.lua ($nu.home-dir | path join .config hypr dropins system_agent.lua) --then (then-step hypr-reload))
     ]
@@ -119,12 +118,6 @@ export def required-extras []: nothing -> nothing {
     ^hermes pm install ...($REQUIRED_EXTRAS | each {|e| [--extra $e] } | flatten)
 }
 
-def parse-env [path: path]: nothing -> record {
-    if not ($path | path exists) { return {} }
-    open --raw $path | lines | where ($it | str contains "=")
-    | parse "{key}={value}" | reduce --fold {} {|row, acc| $acc | upsert ($row.key) $row.value }
-}
-
 def render-env [vars: record]: nothing -> string {
     $vars | items {|k, v| $"($k)=($v)" } | str join "\n" | $"($in)\n"
 }
@@ -133,7 +126,7 @@ def render-env [vars: record]: nothing -> string {
 def anthropic-key [home: path]: nothing -> list<record> {
     let secret = $env.DOTFILES | path join $ANTHROPIC_KEY_SECRET
     if not (secret-is-plaintext $secret) { return [] }
-    let merged = (parse-env ($home | path join .env)) | merge (parse-env $secret)
+    let merged = env-file-load ($home | path join .env) | merge (env-file-load $secret)
     [(file-text ($home | path join .env) (render-env $merged) --mode 600)]
 }
 
@@ -145,8 +138,8 @@ def configure [home: path, settings: record, remove: list<string>, mcp: record]:
     let set = $settings | items {|key, value| ($have | get --optional ($key | split row "." | into cell-path)) == $value }
     let hooked = $hooks | items {|event, command| $command in ($have.hooks? | get --optional $event | default [] | get --optional command | default []) }
     # a guard hook left from when the guard existed keeps hermes calling a deleted script
-    let stale = $have.hooks? | default {} | values | compact | flatten | each { $in.command? | default "" }
-        | any {|c| ($c | str contains agent-guard) and $c not-in ($hooks | values) }
+    let stale = $have.hooks? | default {} | values | compact | flatten
+        | any {|h| ($h | guard-hook) and $h.command? not-in ($hooks | values) }
     let removed = $remove | each {|key| ($have | get --optional ($key | split row "." | into cell-path)) == null }
     let served = $mcp | items {|name, spec| ($have.mcp_servers? | get --optional $name) == $spec }
     let current = $set ++ $removed ++ $hooked ++ $served ++ [($have.display?.skin? == $SKIN) (not $stale)] | all { $in }
@@ -172,26 +165,20 @@ def ollama-settings [ollama: any]: nothing -> record {
 }
 
 export def link [cfg: record] {
-    let h = homes
     let vllm = vllm-settings $cfg.deps?."llm/vllm"?
     let ollama = ollama-settings $cfg.deps?."llm/ollama"?
     let settings = $SETTINGS | merge $vllm | merge $ollama
     let remove = (if ($vllm | is-empty) { $VLLM_KEYS } else { [] }) ++ (if ($ollama | is-empty) { $OLLAMA_KEYS } else { [] })
     let skills = glob ($env.DOTFILES | path join skills "l-*") | where ($it | path type) == dir
-    let mcp = try { open ($h.default | path join mcp-servers.json) } catch { {} }
+    let home = homes | get default
+    let mcp = try { open ($home | path join mcp-servers.json) } catch { {} }
     [
         (step required-extras --key (extras-key) --network)
-        (exec orchestrator-create [
-            hermes profile create orchestrator --clone --no-alias --description "Orchestrator. Not for interactive chat."
-        ] --creates $h.orchestrator)
-        (profile-command orchestrator hermes-orchestrator)
-        ($skills | each {|dir| file-link $dir ($h.orchestrator | path join skills ($dir | path basename)) })
-        (configure $h.default $settings $remove $mcp)
-        (configure $h.orchestrator ($settings | merge $ORCHESTRATOR_SETTINGS) $remove $mcp)
-        (anthropic-key $h.default)
-        (anthropic-key $h.orchestrator)
-        (if $cfg.system_agent { system-agent $h $settings $remove $mcp $skills } else { [] })
-    ] | decls-flatten
+        (profile orchestrator "Orchestrator. Not for interactive chat." ($settings | merge $ORCHESTRATOR_SETTINGS) $remove $mcp $skills)
+        (configure $home $settings $remove $mcp)
+        (anthropic-key $home)
+        (if $cfg.system_agent { system-agent $settings $remove $mcp $skills })
+    ]
 }
 
 def skin []: nothing -> any {

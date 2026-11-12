@@ -1,5 +1,5 @@
 use module.nu *
-use hook/jai-install.nu [jai-zip]
+use hook/jai-install.nu [zip-newest]
 
 export const meta = {
     packages: {pacman: [unzip]}
@@ -18,7 +18,7 @@ export def link [cfg: record] {
         # no --mkdir: a dir made in ~/sync before syncthing delivers its own can collide
         return (user-hook jai-install $HOOK --watch ["%h/sync/vendor"])
     }
-    let zip = jai-zip
+    let zip = zip-newest
     let stamp = try { open --raw ($dir | path join .installed-from) | str trim } catch { "" }
     let newer = $zip != null and ($zip | path basename) != $stamp
     let current = not $newer and ($dir | path join bin jai | path exists)

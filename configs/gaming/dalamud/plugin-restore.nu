@@ -1,14 +1,14 @@
 #!/usr/bin/env -S nu --no-config-file
 # installed as dalamud's installer would: dalamud never installs a collection's plugins by itself
 
+use ../../../scripts/lib/state.nu [EXIT_PENDING xdg]
+
 const MAIN_REPO_URL = "https://kamori.goats.dev/Plugin/PluginMaster"
 const KEPT = [
     Disabled Testing InstalledFromUrl WorkingPluginId IsThirdParty IsHide DownloadLinkInstall DownloadLinkTesting
     DownloadLinkUpdate DownloadCount LastUpdate TestingAssemblyVersion TestingDalamudApiLevel
 ]
 const INDEX_MAX_AGE = 10min
-# scripts/lib/state.nu's EXIT_PENDING: the apply retries the plugin next time instead of failing
-const EXIT_PENDING = 3
 
 # A plugin left out for good: its repo or its entry is gone.
 def delist [cache: path, name: string, why: string]: nothing -> nothing {
@@ -20,8 +20,7 @@ def main [manifest: path, plugins: path]: nothing -> nothing {
     let old = open $manifest
     let name = $old.InternalName
     let url = if $old.InstalledFromUrl == "OFFICIAL" { $MAIN_REPO_URL } else { $old.InstalledFromUrl }
-    let caches = $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join dalamud-restore
-    let cache = $caches | path join $"($url | hash md5).json"
+    let cache = xdg cache dalamud-restore $"($url | hash md5).json"
     if not ($cache | path exists) or ((date now) - (ls $cache | get 0.modified)) > $INDEX_MAX_AGE {
         mkdir ($cache | path dirname)
         let got = do { ^curl -fsSL --max-time 60 -o $"($cache).tmp" $url } | complete

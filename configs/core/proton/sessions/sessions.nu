@@ -39,13 +39,9 @@ def app-dir [app: record]: nothing -> any {
     if $app.dir == null { null } else { xdg $app.dir.0 $app.dir.1 }
 }
 
-def attributes-args [attributes: record]: nothing -> list<string> {
-    $attributes | items {|key, value| [$key $value] } | flatten
-}
-
 # A running Secret Service with its default collection unlocked; never starts one, which outside a login would make
 # a keyring the login password does not open.
-export def keyring-ready []: nothing -> bool {
+def keyring-ready []: nothing -> bool {
     let owned = try {
         busctl-json call org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus NameHasOwner s $BUS | first
     } catch { false }
@@ -53,12 +49,6 @@ export def keyring-ready []: nothing -> bool {
     let collection = busctl-json call $BUS $SERVICE_PATH $SERVICE_IFACE ReadAlias s default | first
     if $collection == $NO_OBJECT { return false }
     not (busctl-json get-property $BUS $collection org.freedesktop.Secret.Collection Locked)
-}
-
-# The item paths matching attributes: [unlocked locked].
-def keyring-search [attributes: record]: nothing -> list<list<string>> {
-    let count = $attributes | columns | length | into string
-    busctl-json call $BUS $SERVICE_PATH $SERVICE_IFACE SearchItems "a{ss}" $count ...(attributes-args $attributes)
 }
 
 # The items matching attributes, each {label, attributes, content_type, secret} with the secret base64.
@@ -70,9 +60,11 @@ export def keyring-items-save [items: list<record>]: nothing -> nothing {
     $items | to json --raw | ^python3 -I $ITEMS_HELPER save
 }
 
+# Whether an item matches attributes, unlocked or locked (SearchItems answers both lists).
 def keyring-items-exist [attributes: record]: nothing -> bool {
-    let found = keyring-search $attributes
-    ($found.0 | is-not-empty) or ($found.1 | is-not-empty)
+    let count = $attributes | columns | length | into string
+    let args = $attributes | items {|key, value| [$key $value] } | flatten
+    busctl-json call $BUS $SERVICE_PATH $SERVICE_IFACE SearchItems "a{ss}" $count ...$args | flatten | is-not-empty
 }
 
 # Copies a file or tree, each SQLite database through .backup so a live one arrives whole.
@@ -108,7 +100,7 @@ def stage-with [body: closure]: nothing -> any {
 }
 
 # Whether any part of the app's session is on this machine: one of its files or one of its items.
-export def session-live [app: record]: nothing -> bool {
+def session-live [app: record]: nothing -> bool {
     let dir = app-dir $app
     let file_live = $dir != null and ($app.files | any {|f| $dir | path join $f | path exists })
     $file_live or ($app.items != null and (keyring-items-exist $app.items))
@@ -171,7 +163,10 @@ export def sessions-backup [archives: path]: nothing -> table {
     }
 }
 
-# Done once every app is restored, live or without an archive; a locked or waiting one keeps the login unit armed.
-export def sessions-settled [statuses: table]: nothing -> bool {
-    $statuses | all {|s| $s.status not-in [locked waiting] }
+# Marks the restore done once every app is restored, live or without an archive; a locked or waiting one keeps the
+# login unit armed.
+export def sessions-settle [statuses: table]: nothing -> nothing {
+    if ($statuses | any {|s| $s.status in [locked waiting] }) { return }
+    mkdir (xdg state $MARKER | path dirname)
+    touch (xdg state $MARKER)
 }

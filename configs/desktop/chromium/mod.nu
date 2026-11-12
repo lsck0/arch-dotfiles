@@ -11,20 +11,20 @@ const PROFILES = {Default: Private, Streaming: Streaming}
 
 # Forces system_theme and the profile's name; chromium creates Preferences on a profile's first start and rewrites it on
 # exit, so an edit made while it runs re-applies on the next apply.
-def profile-style [dir: path]: nothing -> list<record> {
+def profile-style [dir: path]: nothing -> list<any> {
     $PROFILES | items {|profile, name|
         let prefs = $dir | path join $profile Preferences
-        if not ($prefs | path exists) { return [] }
-        [(json-merge $prefs [(json-set [extensions theme system_theme] 1) (json-set [profile name] $name)])]
-    } | flatten
+        if ($prefs | path exists) { json-merge $prefs [(json-set [extensions theme system_theme] 1) (json-set [profile name] $name)] }
+    }
 }
 
 export def link [cfg: record] {
-    let config = (xdg config)
-    profile-style ($config | path join chromium)
-    | append (file-text ($config | path join chromium-flags.conf) "--no-first-run\n--ozone-platform-hint=auto\n")
-    | append (files-into (xdg data applications) chromium-streaming.desktop)
-    | append (desktop-override chromium.desktop { desktop-set {Name: "Chromium Private"} })
+    [
+        (profile-style (xdg config chromium))
+        (file-text (xdg config chromium-flags.conf) "--no-first-run\n--ozone-platform-hint=auto\n")
+        (files-into (xdg data applications) chromium-streaming.desktop)
+        (desktop-override chromium.desktop { desktop-set {Name: "Chromium Private"} })
+    ]
 }
 
 export def system [cfg: record] {
@@ -36,5 +36,8 @@ export def system [cfg: record] {
             | to json --indent 2
         file-text $POLICY $"($text)\n"
     }
-    [$policy] | append (if ($CHROMIUM_LIB | path exists) { [(file-copy initial_preferences ($CHROMIUM_LIB | path join initial_preferences))] } else { [] })
+    [
+        $policy
+        (if ($CHROMIUM_LIB | path exists) { file-copy initial_preferences ($CHROMIUM_LIB | path join initial_preferences) })
+    ]
 }

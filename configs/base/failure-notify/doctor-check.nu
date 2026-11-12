@@ -1,11 +1,14 @@
 #!/usr/bin/env -S nu --no-config-file
 
+const REPO = path self | path expand | path dirname --num-levels 4
+use ($REPO | path join scripts lib state.nu) [xdg]
+
 const DOT = path self | path expand | path dirname | path join ../../../scripts/dot.nu | path expand
 const SHOWN_LINES = 5
 const SHOWN_WIDTH = 160
 
 def main []: nothing -> nothing {
-    let state = $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state) | path join doctor
+    let state = xdg state doctor
     mkdir $state
     let run = ^nu --no-config-file $DOT status --brief | complete
     print --stderr --no-newline $run.stderr

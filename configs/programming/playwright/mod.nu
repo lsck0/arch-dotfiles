@@ -8,7 +8,7 @@ const FIREFOX = "/usr/bin/firefox"
 
 def playwright [browser: string, exe: string, out: path]: nothing -> record {
     {
-        type: stdio command: playwright-mcp env: {}
+        type: stdio command: playwright-mcp
         args: [--browser $browser --executable-path $exe --headless --isolated --output-dir $out --file-paths absolute]
     }
 }

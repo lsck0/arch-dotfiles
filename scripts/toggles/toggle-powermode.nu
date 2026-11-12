@@ -2,15 +2,12 @@
 use lib.nu [status-record status-print notify root-run state-get state-set state-clear state-file quickshell-call cycle-next toggle-run]
 use ../lib/platform.nu [platform-load]
 
-const MODES = {
-    balanced: {label: "Balanced"}
-    performance: {label: "Performance"}
-    power-saver: {label: "Power saver"}
-}
+# auto is no forced mode: tlp picks by the power source
+const MODES = {auto: Auto, balanced: Balanced, performance: Performance, power-saver: "Power saver"}
 const REPO = path self ../..
 const GHOSTTY_TIMEOUT_S = 3
 
-def current []: nothing -> any { state-get powermode --volatile | if $in in $MODES { $in } }
+def current []: nothing -> string { state-get powermode --volatile | if $in in $MODES { $in } else { "auto" } }
 
 def on-battery []: nothing -> bool {
     (platform-load $REPO).form_factor == laptop and (
@@ -20,7 +17,7 @@ def on-battery []: nothing -> bool {
 
 # The one saver rule: forced power-saver, or auto on a laptop's battery; a forced balanced or performance wins.
 def saver []: nothing -> bool {
-    match (current) { power-saver => true, null => (on-battery), _ => false }
+    match (current) { power-saver => true, auto => (on-battery), _ => false }
 }
 
 # Reloads ghostty, hyprland, the shader, the monitor layout and the bar, only when the saver state flips.
@@ -39,43 +36,31 @@ def saver-sync []: nothing -> nothing {
 }
 
 def apply [mode: string]: nothing -> nothing {
-    root-run tlp $mode
-    state-set powermode $mode --volatile
+    if $mode not-in $MODES { error make {msg: $"power mode is one of ($MODES | columns | str join ', ')"} }
+    if $mode == auto {
+        root-run tlp start
+        state-clear powermode --volatile
+    } else {
+        root-run tlp $mode
+        state-set powermode $mode --volatile
+    }
     saver-sync
-    notify "Power mode" ($MODES | get $mode | get label)
+    notify "Power mode" ($MODES | get $mode)
 }
 
-# empty means no forced mode; the record calls it auto
+# auto prints empty
 def "main get" [--json] {
     let mode = current
-    if not $json { return ($mode | default "") }
-    let text = if $mode == null { "Auto" } else { $MODES | get $mode | get label }
-    status-print (status-record "Power mode" ($mode | default auto) --text $text --states ([auto] | append ($MODES | columns))) true
+    if not $json { return (if $mode == auto { "" } else { $mode }) }
+    status-print (status-record "Power mode" $mode --text ($MODES | get $mode) --states ($MODES | columns)) true
 }
 
 # auto is a stop of its own: else the first press leaves it for good
-def "main toggle" [] {
-    let next = [auto] | append ($MODES | columns) | cycle-next (current | default auto)
-    if $next == auto { auto } else { apply $next }
-}
-def "main performance" [] { apply performance }
+def "main toggle" [] { apply ($MODES | columns | cycle-next (current)) }
+def "main set" [mode: string] { apply $mode }
+def "main auto" [] { apply auto }
 def "main balanced" [] { apply balanced }
+def "main performance" [] { apply performance }
 def "main power-saver" [] { apply power-saver }
-
-def auto []: nothing -> nothing {
-    root-run tlp start
-    state-clear powermode --volatile
-    saver-sync
-    notify "Power mode" "Auto"
-}
-
-def "main set" [mode: string] {
-    if $mode == auto { return (auto) }
-    if $mode not-in $MODES { error make {msg: $"power mode is one of auto, ($MODES | columns | str join ', ')"} }
-    apply $mode
-}
-
-def "main auto" [] { auto }
-
 def "main sync" [] { saver-sync }
 def main [] { main toggle }

@@ -65,8 +65,6 @@ Still floating, fix when touching the module:
   installs `badldap` and `kerbad` plus their transitive deps), `bruno-cli` and `kulala-fmt` (`npm install -g` of the
   registry tarball; `kulala-fmt` also runs tree-sitter install scripts), `lean-tui` (`rustup toolchain install
   nightly`, whatever nightly is current at build time).
-- Emacs packages (`configs/programming/emacs`): ELPA and MELPA installs at their latest version, and the `:vc` packages
-  `jai-mode` and `claude-code` at `:rev :newest`.
 - Game content that must track upstream: d2launcher's `mxl-install` (the current Median XL release from its live
   manifest; host, file names and the manifest's sha1s are checked) and dalamud's `plugin-restore.nu` (the version the
   plugin index lists, as Dalamud itself updates; name and version are checked).

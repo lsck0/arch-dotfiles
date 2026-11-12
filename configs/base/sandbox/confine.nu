@@ -1,5 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
+const USAGE = "usage: confine [--] <command...>"
 const SLICE = "confined.slice"
 # no NoNewPrivileges (it denies apparmor cx/px transitions) or namespace, /tmp and home limits: electron needs them
 const PROPERTIES = [
@@ -9,10 +10,10 @@ const PROPERTIES = [
 
 # Run a GUI app hardened, e.g. `confine -- discord`.
 def --wrapped main [...command: string]: nothing -> nothing {
-    if ($command | get --optional 0) in ["-h" "--help"] { print "usage: confine [--] <command...>: run a GUI app hardened"; return }
+    if $command.0? in ["-h" "--help"] { print $"($USAGE): run a GUI app hardened"; return }
     let command = if $command.0? == "--" { $command | skip 1 } else { $command }
     if ($command | is-empty) {
-        print --stderr "usage: confine [--] <command...>"
+        print --stderr $USAGE
         exit 2
     }
     let unit = $"confine-($command.0 | path basename)-($nu.pid)"

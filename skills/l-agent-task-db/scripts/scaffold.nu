@@ -17,10 +17,6 @@ const ENTER_BLOCK = r#'    # >>> l-agent-task-db taskwarrior env (managed block)
 const IGNORED = [tasks/.taskrc tasks/.task/ tasks/.timewarrior/ tasks/.poll-backoff]
 const CONTEXT_DIRS = [research design questions]
 
-def in-repo [target: path]: nothing -> bool {
-    (^git -C $target rev-parse --is-inside-work-tree | complete).exit_code == 0
-}
-
 def devenv-patch [file: path]: nothing -> nothing {
     if not ($file | path exists) {
         $"{ pkgs, lib, config, inputs, ... }:\n\n{\n  ($ENTER_SHELL)\n($ENTER_BLOCK)\n  '';\n}\n" | save $file
@@ -60,7 +56,7 @@ def main [target: path = "."]: nothing -> nothing {
     let envrc = $target | path join .envrc
 
     if ($task_data | path exists) { print $"note: ($task_data) already exists; reusing it." }
-    let repo_new = not (in-repo $target)
+    let repo_new = (^git -C $target rev-parse --is-inside-work-tree | complete).exit_code != 0
     if $repo_new {
         ^git init -q $target
         print $"initialized a new git repo at ($target)"
@@ -86,15 +82,12 @@ def main [target: path = "."]: nothing -> nothing {
     let rest = if ($envrc | path exists) { open --raw $envrc | lines } else { [] }
     if "use devenv" not-in $rest { ["use devenv"] ++ $rest | str join "\n" | $"($in)\n" | save --force $envrc }
 
-    if (in-repo $target) {
-        let gitignore = $target | path join .gitignore
-        touch $gitignore
-        let have = open --raw $gitignore | lines
-        let missing = $IGNORED | where $it not-in $have
-        if ($missing | is-not-empty) { $missing | str join "\n" | $"($in)\n" | save --append $gitignore }
-        if (^git -C $target ls-files --error-unmatch tasks/.taskrc | complete).exit_code == 0 {
-            print -e "note: tasks/.taskrc is tracked but now generated; untrack it: git rm --cached tasks/.taskrc"
-        }
+    let gitignore = $target | path join .gitignore
+    touch $gitignore
+    let missing = $IGNORED | where $it not-in (open --raw $gitignore | lines)
+    if ($missing | is-not-empty) { $missing | str join "\n" | $"($in)\n" | save --append $gitignore }
+    if (^git -C $target ls-files --error-unmatch tasks/.taskrc | complete).exit_code == 0 {
+        print -e "note: tasks/.taskrc is tracked but now generated; untrack it: git rm --cached tasks/.taskrc"
     }
 
     if $repo_new {
@@ -102,7 +95,7 @@ def main [target: path = "."]: nothing -> nothing {
         let identity = [user.email user.name] | all {|k| (^git -C $target config $k | complete).exit_code == 0 }
         let staged = (^git -C $target diff --cached --quiet | complete).exit_code != 0
         if $staged and $identity {
-            ^git -C $target commit -q -m "Scaffold tasks/ taskwarrior db (l-agent-task-db)"
+            ^git -C $target commit -q -m "chore(tasks): scaffold the taskwarrior db"
             print "committed initial scaffold to the new git repo"
         } else if $staged {
             print -e "note: no git user.name/user.email configured; scaffold staged but not committed."
@@ -111,6 +104,5 @@ def main [target: path = "."]: nothing -> nothing {
 
     print $"wrote ($taskrc), ($task_data)/, ($timew_data)/, ($context)/"
     print $"use directly with: TASKRC=\"($taskrc)\" TIMEWARRIORDB=\"($timew_data)\" task ..."
-    let direnv = "(requires direnv hooked into your shell rc)."
-    print $"or 'direnv allow' in ($target) to auto-export both on every cd ($direnv)"
+    print $"or 'direnv allow' in ($target) to export both on every cd \(direnv hooked into the shell rc\)."
 }

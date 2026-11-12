@@ -33,7 +33,7 @@ local function pending_read()
     end
     for line in f:lines() do
         local i = tonumber(line)
-        if i and platform.autostart and platform.autostart[i] then
+        if i and platform.autostart[i] then
             table.insert(out, i)
         end
     end
@@ -67,8 +67,7 @@ local function pending_watch()
     -- read again each time: should a reload keep the old state, a second subscription finds the entry gone
     local function release(class)
         local kept = {}
-        waiting = pending_read()
-        for _, i in ipairs(waiting) do
+        for _, i in ipairs(pending_read()) do
             if platform.autostart[i].after == class then
                 autostart_launch(platform.autostart[i])
             else
@@ -95,7 +94,7 @@ end
 
 local function autostart()
     local waiting = {}
-    for i, entry in ipairs(platform.autostart or {}) do
+    for i, entry in ipairs(platform.autostart) do
         if entry.after then
             table.insert(waiting, i)
         else
@@ -144,8 +143,7 @@ hl.on("hyprland.start", function()
                 .. "; done"
         )
     end
-    local backlight = platform.kbd_backlight
-    if backlight then
-        hl.exec_cmd("brightnessctl --device=" .. backlight .. " set 2")
+    if platform.kbd_backlight then
+        hl.exec_cmd("brightnessctl --device=" .. platform.kbd_backlight .. " set 2")
     end
 end)

@@ -9,69 +9,19 @@ return {
             "rouge8/neotest-rust",
         },
         keys = {
-            {
-                "<leader>nr",
-                function()
-                    require("neotest").run.run()
-                end,
-                desc = "Test nearest",
-            },
-            {
-                "<leader>nf",
-                function()
-                    require("neotest").run.run(vim.fn.expand("%"))
-                end,
-                desc = "Test file",
-            },
-            {
-                "<leader>na",
-                function()
-                    require("neotest").run.run(vim.fn.getcwd())
-                end,
-                desc = "Test all",
-            },
-            {
-                "<leader>nl",
-                function()
-                    require("neotest").run.run_last()
-                end,
-                desc = "Test last",
-            },
+            { "<leader>nr", "<cmd>lua require('neotest').run.run()<cr>", desc = "Test nearest" },
+            { "<leader>nf", "<cmd>lua require('neotest').run.run(vim.fn.expand('%'))<cr>", desc = "Test file" },
+            { "<leader>na", "<cmd>lua require('neotest').run.run(vim.fn.getcwd())<cr>", desc = "Test all" },
+            { "<leader>nl", "<cmd>lua require('neotest').run.run_last()<cr>", desc = "Test last" },
             {
                 "<leader>nd",
-                function()
-                    require("neotest").run.run({ strategy = "dap" })
-                end,
+                "<cmd>lua require('neotest').run.run({ strategy = 'dap' })<cr>",
                 desc = "Debug nearest test",
             },
-            {
-                "<leader>ns",
-                function()
-                    require("neotest").summary.toggle()
-                end,
-                desc = "Test summary",
-            },
-            {
-                "<leader>no",
-                function()
-                    require("neotest").output.open({ enter = true })
-                end,
-                desc = "Test output",
-            },
-            {
-                "<leader>nw",
-                function()
-                    require("neotest").watch.toggle()
-                end,
-                desc = "Test watch (file)",
-            },
-            {
-                "<leader>nx",
-                function()
-                    require("neotest").run.stop()
-                end,
-                desc = "Test stop",
-            },
+            { "<leader>ns", "<cmd>lua require('neotest').summary.toggle()<cr>", desc = "Test summary" },
+            { "<leader>no", "<cmd>lua require('neotest').output.open({ enter = true })<cr>", desc = "Test output" },
+            { "<leader>nw", "<cmd>lua require('neotest').watch.toggle()<cr>", desc = "Test watch (file)" },
+            { "<leader>nx", "<cmd>lua require('neotest').run.stop()<cr>", desc = "Test stop" },
         },
         config = function()
             require("neotest").setup({

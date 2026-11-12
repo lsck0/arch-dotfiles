@@ -2,11 +2,7 @@ local platform = require("platform")
 local style = require("style")
 
 -- steam drops its toasts on whatever monitor it thinks is primary
-hl.window_rule({
-    match = { title = "^notificationtoasts" },
-    float = true,
-    monitor = platform.main_monitor,
-})
+hl.window_rule({ match = { title = "^notificationtoasts" }, float = true, monitor = platform.main_monitor })
 
 for _, class in ipairs({ "^[Ss]potify$", "^discord$", "^neovide$", "^nemo$", "^(org.kde.)?dolphin$", "^steam$" }) do
     hl.window_rule({ match = { class = class }, opacity = style.opacity_surface })
@@ -16,38 +12,19 @@ end
 -- window pulls focus by asking
 hl.window_rule({ match = { class = "^(firefox|chromium)$" }, focus_on_activate = true })
 
-hl.window_rule({
-    match = {
-        initial_title = "^Discord Popout$",
-    },
-    opacity = 1,
-})
+hl.window_rule({ match = { initial_title = "^Discord Popout$" }, opacity = 1 })
 
 hl.window_rule({
-    match = {
-        class = "xdg-desktop-portal-gtk",
-        title = "^(Open.*Files?|Save.*Files?|All Files|Save)",
-    },
+    match = { class = "xdg-desktop-portal-gtk", title = "^(Open.*Files?|Save.*Files?|All Files|Save)" },
     float = true,
     center = true,
 })
 
 hl.window_rule({ match = { class = "^notes-scratch$" }, float = true, center = true, size = "900 600" })
 
-hl.window_rule({
-    match = { class = "^omarchy-share-picker$" },
-    float = true,
-    center = true,
-    size = "1150 750",
-})
+hl.window_rule({ match = { class = "^omarchy-share-picker$" }, float = true, center = true, size = "1150 750" })
 
-hl.window_rule({
-    match = {
-        title = "^wayland-boomer$",
-    },
-    float = true,
-    no_anim = true,
-})
+hl.window_rule({ match = { title = "^wayland-boomer$" }, float = true, no_anim = true })
 
 -- boomer's frozen screenshot spans every monitor: placed at the layout's top-left as it opens, before its first frame
 -- (no static monitor or position fits every layout, and a move after the map showed it offset for a frame)
@@ -80,95 +57,37 @@ for _, class in ipairs({
 end
 
 -- an xwayland dialog with no parent: maps at the global origin, which is another output's corner when scaled
-hl.window_rule({
-    match = {
-        class = "^Hexchat$",
-        title = "^Network List - HexChat$",
-    },
-    center = true,
-})
+hl.window_rule({ match = { class = "^Hexchat$", title = "^Network List - HexChat$" }, center = true })
+
+for _, match in ipairs({ { class = "^steam$" }, { title = "^gnyame$" }, { class = "^[Ww]aydroid.*$" } }) do
+    hl.window_rule({ match = match, float = true })
+end
+-- steam's main window tiles, its dialogs float
+hl.window_rule({ match = { title = "^Steam$" }, float = false })
 
 hl.window_rule({
-    match = {
-        class = "^steam$",
-    },
-    float = true,
-})
-
-hl.window_rule({
-    match = {
-        title = "^Steam$",
-    },
-    float = false,
-})
-
-hl.window_rule({
-    match = {
-        title = "^gnyame$",
-    },
-    float = true,
-})
-
-hl.window_rule({
-    match = {
-        class = "^[Ww]aydroid.*$",
-    },
-    float = true,
-})
-
-hl.window_rule({
-    match = {
-        class = "^gamescope$",
-        title = "^Diablo II$",
-    },
+    match = { class = "^gamescope$", title = "^Diablo II$" },
     float = true,
     center = true,
     size = "monitor_h*1.0667 monitor_h*0.8",
 })
 
 -- unreal's slate child windows (menus, drag previews) tile tiny and mispositioned
-hl.window_rule({
-    match = {
-        class = "^UnrealEditor$",
-    },
-    float = true,
-})
+hl.window_rule({ match = { class = "^UnrealEditor$" }, float = true })
 
 -- floating, they map before the output scale is known and render scaled up and clipped
 hl.window_rule({
-    match = {
-        class = "^UnrealEditor$",
-        title = "^(.* - Unreal Editor|Unreal Engine [0-9.]+)$",
-    },
+    match = { class = "^UnrealEditor$", title = "^(.* - Unreal Editor|Unreal Engine [0-9.]+)$" },
     float = false,
 })
 
 -- the message log it opens after a load with warnings maps at 60x30 under the float rule above; give it a real size
-hl.window_rule({
-    match = {
-        class = "^UnrealEditor$",
-        title = "^Message Log$",
-    },
-    size = "1200 700",
-    center = true,
-})
+hl.window_rule({ match = { class = "^UnrealEditor$", title = "^Message Log$" }, size = "1200 700", center = true })
 
--- slurp's overlay, unanimated: grim captures right after it exits, a fade-out would still show the region border
-hl.layer_rule({
-    name = "slurp-no-anim",
-    match = {
-        namespace = "^selection$",
-    },
-    no_anim = true,
-})
-
-hl.layer_rule({
-    name = "quickshell-notifications-no-anim",
-    match = {
-        namespace = "^quickshell-notifications$",
-    },
-    no_anim = true,
-})
+-- unanimated: grim captures right after slurp's overlay exits, a fade-out would still show the region border
+for name, namespace in pairs({ slurp = "^selection$", ["quickshell-notifications"] = "^quickshell-notifications$" }) do
+    hl.layer_rule({ name = name .. "-no-anim", match = { namespace = namespace }, no_anim = true })
+end
 
 hl.layer_rule({
     name = "quickshell-blur",

@@ -99,6 +99,12 @@ local function proved(trigger, env)
     }, { condition = line_begin })
 end
 
+-- \begin{ENV}, the body lines indented one level, \end{ENV}
+local function environment(context, env, body, nodes, opts)
+    local text = "\\begin{" .. env .. "}\n    " .. table.concat(body, "\n    ") .. "\n\\end{" .. env .. "}"
+    return s(context, fmta(text, nodes), opts)
+end
+
 local snippets = require("lib.snippet_banner").create("%", "%", "% ", "%")
 
 vim.list_extend(snippets, {
@@ -116,18 +122,7 @@ vim.list_extend(snippets, {
     statement("ex", "example"),
     statement("ax", "axiom"),
     statement("conj", "conjecture"),
-    s(
-        { trig = "prf", desc = "proof" },
-        fmta(
-            [[
-        \begin{proof}
-            <>
-        \end{proof}
-    ]],
-            { i(0) }
-        ),
-        { condition = line_begin }
-    ),
+    environment({ trig = "prf", desc = "proof" }, "proof", { "<>" }, { i(0) }, { condition = line_begin }),
     s({ trig = "cref", desc = "cleveref" }, fmta("\\cref{<>}", { i(1) })),
     s({ trig = "Cref", desc = "cleveref, sentence start" }, fmta("\\Cref{<>}", { i(1) })),
 
@@ -142,28 +137,8 @@ vim.list_extend(snippets, {
             { i(1), i(2), rep(1) }
         )
     ),
-    s(
-        "item",
-        fmta(
-            [[
-        \begin{itemize}
-            \item <>
-        \end{itemize}
-    ]],
-            { i(1) }
-        )
-    ),
-    s(
-        "enum",
-        fmta(
-            [[
-        \begin{enumerate}
-            \item <>
-        \end{enumerate}
-    ]],
-            { i(1) }
-        )
-    ),
+    environment("item", "itemize", { "\\item <>" }, { i(1) }),
+    environment("enum", "enumerate", { "\\item <>" }, { i(1) }),
     s(
         "fig",
         fmta(
@@ -208,29 +183,13 @@ vim.list_extend(snippets, {
         ),
         { condition = not_math }
     ),
-    s(
+    environment(
         { trig = "eq", desc = "numbered equation" },
-        fmta(
-            [[
-        \begin{equation}
-            \label{equation:<>}
-            <>
-        \end{equation}
-    ]],
-            { i(1), i(2) }
-        )
+        "equation",
+        { "\\label{equation:<>}", "<>" },
+        { i(1), i(2) }
     ),
-    s(
-        { trig = "ali", desc = "align*" },
-        fmta(
-            [[
-        \begin{align*}
-            <>
-        \end{align*}
-    ]],
-            { i(1) }
-        )
-    ),
+    environment({ trig = "ali", desc = "align*" }, "align*", { "<>" }, { i(1) }),
 })
 
 local autosnippets = {

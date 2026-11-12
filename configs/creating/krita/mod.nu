@@ -3,7 +3,7 @@ use module.nu *
 export const meta = {packages: {pacman: [krita kseexpr]}}
 
 const HERE = path self | path dirname
-const BUILD_TIMEOUT = "900"
+const BUILD_TIMEOUT_S = "900"
 
 def data-dir []: nothing -> path {
     xdg data krita
@@ -20,7 +20,7 @@ export def resource-db []: nothing -> nothing {
     let scratch = {XDG_DATA_HOME: ($tmp | path join data), XDG_CONFIG_HOME: ($tmp | path join config)}
     try {
         with-env ($scratch | merge {QT_QPA_PLATFORM: offscreen, PYTHONPATH: $HERE}) {
-            ^timeout $BUILD_TIMEOUT kritarunner -s warm | ignore
+            ^timeout $BUILD_TIMEOUT_S kritarunner -s warm | ignore
         }
         let built = $tmp | path join data kritarunner
         if not ($built | path join resourcecache.sqlite | path exists) {

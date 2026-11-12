@@ -247,7 +247,7 @@ export def failures-group [lines: list<string>]: nothing -> list<string> {
     let parsed = $lines | where ($it | str trim) != "" | uniq | enumerate | each {|l|
         let p = failure-parse $l.item
         let hint = cause-hint $p.text
-        # modules group with modules, a phase (the secrets unlock) stands alone; a line without a cause with nothing
+        # modules group with modules, a phase (the secrets unlock) with its own kind, a line with no text with itself
         let kind = if $p.where != null { "modules" } else { $p.subject }
         let key = if $hint != null { $"class ($hint.class) ($kind)" } else if ($p.text | is-empty) { $"line ($l.item)" } else { $"text ($p.text)($p.fix) ($kind)" }
         $p | merge {index: $l.index, line: $l.item, key: $key, hint: $hint, wrapper: ($p.subject | str starts-with $SYSTEM_SUBJECT)}

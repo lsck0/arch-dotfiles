@@ -3,7 +3,6 @@ import QtQuick
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
-import Quickshell.Hyprland
 import qs.Commons
 import qs.Ui
 import "Schema.js" as Schema
@@ -73,8 +72,7 @@ Item {
   onRowIndexChanged: root.confirmId = ""
 
   function open() {
-    var name = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
-    panel.screen = Array.from(Quickshell.screens).find(function (s) { return s.name === name }) || null
+    panel.screen = Util.focusedScreen()
     root.opened = true
     root.expandedId = ""
     root.editingId = ""
@@ -94,10 +92,7 @@ Item {
     root.opened = false
   }
 
-  function toggle() {
-    if (root.opened) root.close()
-    else root.open()
-  }
+  function toggle() { root.opened ? root.close() : root.open() }
 
   function load() {
     if (!optionsProc.running) optionsProc.running = true
@@ -303,12 +298,6 @@ Item {
 
   function valueOf(row) { return row.id in root.pending ? root.pending[row.id].value : row.option.value }
 
-  function without(map, id) {
-    var next = {}
-    for (let k in map) if (k !== id) next[k] = map[k]
-    return next
-  }
-
   function adjust(row, direction) {
     if (row.kind === "drift") {
       let at = Schema.driftChoices.indexOf(root.choiceOf(row))
@@ -377,9 +366,9 @@ Item {
     var option = row.option
     if (root.expandedId === row.id) root.expandedId = ""
     if (Schema.equal(value, root.valueOf(row)) && !(row.id in root.errors)) return
-    root.errors = root.without(root.errors, row.id)
+    root.errors = Util.mapWithout(root.errors, row.id)
     if (option.apply !== "live" && Schema.equal(value, option.value)) {
-      root.pending = root.without(root.pending, row.id)
+      root.pending = Util.mapWithout(root.pending, row.id)
       return
     }
     root.pending = Util.mapSet(root.pending, row.id, { value: value, option: option })
@@ -388,7 +377,7 @@ Item {
 
   function reset(row) {
     if (!Schema.resettable(row.option)) return
-    root.errors = root.without(root.errors, row.id)
+    root.errors = Util.mapWithout(root.errors, row.id)
     root.pending = Util.mapSet(root.pending, row.id, { value: row.option.default, option: row.option, reset: true })
     if (row.option.apply === "live") root.enqueue([row.id])
   }
@@ -403,7 +392,7 @@ Item {
   }
 
   function revertQueued() {
-    for (let i = 0; i < root.queued.length; i++) root.errors = root.without(root.errors, root.queued[i])
+    for (let i = 0; i < root.queued.length; i++) root.errors = Util.mapWithout(root.errors, root.queued[i])
     var kept = {}
     for (let id in root.pending) if (root.pending[id].option.apply === "live") kept[id] = root.pending[id]
     root.pending = kept
@@ -450,12 +439,12 @@ Item {
     if (exitCode === root.exitSystemPending) root.systemPending = true
     if (exitCode === 0 || exitCode === root.exitSystemPending) {
       entry.option.value = value
-      if (current) root.pending = root.without(root.pending, id)
+      if (current) root.pending = Util.mapWithout(root.pending, id)
       if (entry.option.apply !== "live") root.batch.applied.push(entry.option)
     } else {
       root.errors = Util.mapSet(root.errors, id, message || "set exited with " + exitCode)
       root.batch.failed += 1
-      if (entry.option.apply === "live" && current) root.pending = root.without(root.pending, id)
+      if (entry.option.apply === "live" && current) root.pending = Util.mapWithout(root.pending, id)
     }
   }
 

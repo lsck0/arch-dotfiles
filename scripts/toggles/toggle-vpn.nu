@@ -15,4 +15,3 @@ def main [action: string = "toggle", --json] {
         available: {|| (profile-has secrets) and ((platform-load $REPO).facts.wireguard | is-not-empty) }
     } $action --json=$json
 }
-

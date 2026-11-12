@@ -8,10 +8,6 @@ function entrySubtext(entry) {
   return String((entry && entry.genericName) || "")
 }
 
-function entrySortKey(entry) {
-  return entryName(entry).toLowerCase()
-}
-
 function keywordText(entry) {
   try {
     if (entry && entry.keywords && typeof entry.keywords.join === "function") return entry.keywords.join(" ")
@@ -32,36 +28,17 @@ function wordText(value) {
     .toLowerCase()
 }
 
-function words(value) {
-  var values = wordText(value).split(/[^a-z0-9]+/)
-  var result = []
-  for (var i = 0; i < values.length; i++) {
-    if (values[i]) result.push(values[i])
-  }
-  return result
-}
-
 function entryAcronym(entry) {
-  var values = words([entry && entry.name, entry && entry.genericName, keywordText(entry), entry && entry.id].join(" "))
-  var result = ""
-  for (var i = 0; i < values.length; i++) result += values[i].charAt(0)
-  return result
+  return wordText([entry && entry.name, entry && entry.genericName, keywordText(entry), entry && entry.id].join(" "))
+    .split(/[^a-z0-9]+/).filter(Boolean).map(function(w) { return w.charAt(0) }).join("")
 }
 
 function termMatches(entry, term) {
-  if (!term) return true
-
-  if (entrySearchText(entry).indexOf(term) >= 0) return true
-
-  return term.length <= 5 && entryAcronym(entry).indexOf(term) >= 0
+  return !term || entrySearchText(entry).indexOf(term) >= 0 || (term.length <= 5 && entryAcronym(entry).indexOf(term) >= 0)
 }
 
 function allTermsMatch(entry, query) {
-  var terms = String(query || "").toLowerCase().trim().split(/\s+/)
-  for (var i = 0; i < terms.length; i++) {
-    if (terms[i] && !termMatches(entry, terms[i])) return false
-  }
-  return true
+  return String(query || "").toLowerCase().trim().split(/\s+/).every(function(t) { return termMatches(entry, t) })
 }
 
 function fuzzyScore(entry, query) {
@@ -102,7 +79,7 @@ function sortedEntries(values, query, hiddenCallback, rankCallback) {
     if (!name) continue
     var score = fuzzyScore(entry, q)
     if (score < 0) continue
-    rows.push({ entry: entry, score: score, rank: rankCallback ? rankCallback(entry) : 0, key: entrySortKey(entry) })
+    rows.push({ entry: entry, score: score, rank: rankCallback ? rankCallback(entry) : 0, key: name.toLowerCase() })
   }
 
   rows.sort(function(a, b) {
@@ -113,9 +90,7 @@ function sortedEntries(values, query, hiddenCallback, rankCallback) {
     return 0
   })
 
-  var out = []
-  for (var r = 0; r < rows.length; r++) out.push(rows[r].entry)
-  return out
+  return rows.map(function(r) { return r.entry })
 }
 
 var FRECENCY_BUCKETS = [[86400000, 4], [604800000, 2], [2592000000, 1]]
@@ -131,8 +106,7 @@ function frecencyRank(record, now) {
 }
 
 function frecencyBump(map, id, now) {
-  var next = {}
-  for (var k in map) next[k] = map[k]
+  var next = Object.assign({}, map)
   var prev = next[id]
   next[id] = { n: (prev && prev.n > 0 ? prev.n : 0) + 1, t: now }
   var keys = Object.keys(next)

@@ -431,7 +431,7 @@ def answers-iso [name: string, bundle: any, run: record, user: string, report: s
         [BOOTSTRAP_HOSTNAME hostname (do $given BOOTSTRAP_HOSTNAME)]
         [BOOTSTRAP_GROUPS groups (do $given BOOTSTRAP_GROUPS | split row --regex '\s+' | where $it != "")]
         [BOOTSTRAP_SSH_KEY ssh_key (do $given BOOTSTRAP_SSH_KEY)]
-    ] | where {|r| (do $given $r.var) != "" } | reduce --fold {} {|r, acc| $acc | insert $r.key $r.value }
+    ] | where {|r| (do $given $r.var) != "" } | each {|r| [$r.key $r.value] } | into record
     let source = if $bundle == null { {} } else {
         cp $bundle ($dir | path join snapshot.bundle)
         let lfs = snapshot-lfs $name
@@ -596,7 +596,7 @@ def invariants []: nothing -> table {
 # and the rows of `stopped` at theirs; otherwise each stage ends as the scenario's stages say (ok by default), no FAILURES.* line but the
 # failures_allowed ones, and no error in dot status unless every failure line was allowed.
 export def vm-verify [logs: path, run: record]: nothing -> record {
-    let state = open --raw ($logs | path join verify.log) | lines | where ($it | str contains "=") | parse "{key}={value}" | reduce --fold {} {|r, acc| $acc | upsert $r.key $r.value }
+    let state = open --raw ($logs | path join verify.log) | lines | where ($it | str contains "=") | parse "{key}={value}" | each {|r| [$r.key $r.value] } | into record
     let stopped = $state.chain_stopped? == "yes"
     let wanted = invariants | where want != "any" | reduce --fold {backup_roundtrip: ok} {|i, acc| $acc | insert $i.key $i.want }
         | merge $run.expect | merge (if $stopped { $run.stopped } else { {} })

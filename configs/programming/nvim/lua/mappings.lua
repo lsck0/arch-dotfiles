@@ -9,12 +9,11 @@ if vim.g.neovide then
     local function scale(factor)
         vim.g.neovide_scale_factor = vim.g.neovide_scale_factor * factor
     end
-    vim.keymap.set("n", "<C-=>", function()
-        scale(1.1)
-    end, { desc = "Neovide zoom in" })
-    vim.keymap.set("n", "<C-+>", function()
-        scale(1.1)
-    end, { desc = "Neovide zoom in" })
+    for _, lhs in ipairs({ "<C-=>", "<C-+>" }) do
+        vim.keymap.set("n", lhs, function()
+            scale(1.1)
+        end, { desc = "Neovide zoom in" })
+    end
     vim.keymap.set("n", "<C-->", function()
         scale(1 / 1.1)
     end, { desc = "Neovide zoom out" })
@@ -33,12 +32,8 @@ vim.keymap.set("n", "<C-u>", "<C-u>zz", { desc = "Half page up (centered)" })
 vim.keymap.set("n", "n", "nzzzv", { desc = "Next search match (centered)" })
 vim.keymap.set("n", "N", "Nzzzv", { desc = "Prev search match (centered)" })
 
-vim.keymap.set("n", "<M-t>", function()
-    Snacks.terminal.toggle()
-end, { desc = "Toggle terminal (float)" })
-vim.keymap.set("n", "<M-w>", function()
-    Snacks.bufdelete()
-end, { desc = "Close buffer (keep layout)" })
+vim.keymap.set("n", "<M-t>", "<cmd>lua Snacks.terminal.toggle()<CR>", { desc = "Toggle terminal (float)" })
+vim.keymap.set("n", "<M-w>", "<cmd>lua Snacks.bufdelete()<CR>", { desc = "Close buffer (keep layout)" })
 vim.keymap.set("n", "<M-q>", "<cmd>tabclose <CR>", { desc = "Close tab" })
 vim.keymap.set("n", "<M-c>", "<cmd>tabnew <CR>", { desc = "New tab" })
 for i = 1, 5 do
@@ -99,22 +94,15 @@ end
 vim.keymap.set(
     "n",
     "<leader>fc",
-    tb(
-        "find_files",
-        { cwd = vim.env.DOTFILES or (vim.fs.dirname(vim.uv.fs_realpath(vim.fn.stdpath("config"))) .. "/../..") }
-    ),
+    tb("find_files", { cwd = require("lib.dotfiles") }),
     { desc = "Find files (dotfiles)" }
 )
 vim.keymap.set("n", "<leader>ff", tb("find_files"), { desc = "Find files" })
 vim.keymap.set("n", "<leader>fw", tb("live_grep"), { desc = "Live grep" })
 vim.keymap.set("n", "<leader>fb", tb("buffers"), { desc = "Buffers" })
 vim.keymap.set("n", "<leader>f*", tb("grep_string"), { desc = "Grep word under cursor" })
-vim.keymap.set("n", "<leader>fC", function()
-    require("lib.citation").pick()
-end, { desc = "Citations (insert key)" })
-vim.keymap.set("n", "<leader>fp", function()
-    require("lib.projects").pick()
-end, { desc = "Projects" })
+vim.keymap.set("n", "<leader>fC", "<cmd>lua require('lib.citation').pick()<CR>", { desc = "Citations (insert key)" })
+vim.keymap.set("n", "<leader>fp", "<cmd>lua require('lib.projects').pick()<CR>", { desc = "Projects" })
 vim.keymap.set("n", "<leader>le", tb("diagnostics"), { desc = "Diagnostics (telescope)" })
 vim.keymap.set("n", "<leader>lf", tb("lsp_references"), { desc = "LSP references" })
 vim.keymap.set("n", "<leader>ls", tb("lsp_dynamic_workspace_symbols"), { desc = "Workspace symbols" })
@@ -136,9 +124,8 @@ vim.api.nvim_create_autocmd("LspAttach", {
     group = vim.api.nvim_create_augroup("lsp-keymaps", { clear = true }),
     callback = function(ev)
         pcall(vim.lsp.inlay_hint.enable, true, { bufnr = ev.buf })
-        local o = { buffer = ev.buf, remap = false }
         local function map(lhs, rhs, desc)
-            vim.keymap.set("n", lhs, rhs, vim.tbl_extend("force", o, { desc = desc }))
+            vim.keymap.set("n", lhs, rhs, { buffer = ev.buf, desc = desc })
         end
         map("<leader>ld", vim.lsp.buf.definition, "Go to definition")
         map("<leader>li", vim.lsp.buf.hover, "Hover info")
@@ -161,7 +148,7 @@ local function toggle_venn()
         end
         vim.keymap.set("v", "f", ":VBox<CR>", { buffer = 0 })
     else
-        vim.cmd("setlocal ve=none")
+        vim.cmd("setlocal ve=")
         for arrow in pairs(boxes) do
             vim.keymap.del("n", "<S-" .. arrow .. ">", { buffer = 0 })
         end
@@ -188,28 +175,17 @@ vim.keymap.set("n", "<F10>", "<cmd>DapStepOver<CR>", { desc = "Debug: step over"
 vim.keymap.set("n", "<F11>", "<cmd>DapStepInto<CR>", { desc = "Debug: step into" })
 vim.keymap.set("n", "<F12>", "<cmd>DapStepOut<CR>", { desc = "Debug: step out" })
 
-vim.keymap.set("n", "<leader>e", function()
-    -- get() also returns closed pickers, so a stale one must not block reopening
-    local picker = require("snacks.picker").get({ source = "explorer" })[1]
-    if picker and not picker.closed then
-        picker:close()
-    else
-        require("lib.explorer").open()
-    end
-end, { desc = "File explorer (snacks)" })
+vim.keymap.set("n", "<leader>e", "<cmd>lua require('lib.explorer').toggle()<CR>", { desc = "File explorer (snacks)" })
 vim.keymap.set("n", "<leader>gs", "<cmd>G<CR>", { desc = "Git (fugitive)" })
-vim.keymap.set("n", "<leader>gg", function()
-    Snacks.lazygit()
-end, { desc = "Lazygit" })
-vim.keymap.set("n", "<leader>gy", function()
-    Snacks.gitbrowse()
-end, { desc = "Open line on GitHub" })
-vim.keymap.set("n", "<leader>gf", function()
-    require("lib.worktree").pick()
-end, { desc = "Git worktrees" })
-vim.keymap.set("n", "<leader>gc", function()
-    require("lib.worktree").pick_branch()
-end, { desc = "Git worktree for branch (switch or create)" })
+vim.keymap.set("n", "<leader>gg", "<cmd>lua Snacks.lazygit()<CR>", { desc = "Lazygit" })
+vim.keymap.set("n", "<leader>gy", "<cmd>lua Snacks.gitbrowse()<CR>", { desc = "Open line on GitHub" })
+vim.keymap.set("n", "<leader>gf", "<cmd>lua require('lib.worktree').pick()<CR>", { desc = "Git worktrees" })
+vim.keymap.set(
+    "n",
+    "<leader>gc",
+    "<cmd>lua require('lib.worktree').pick_branch()<CR>",
+    { desc = "Git worktree for branch (switch or create)" }
+)
 vim.api.nvim_create_user_command("Worktree", function(o)
     require("lib.worktree").add(o.args)
 end, { nargs = 1, desc = "Switch to or create the worktree for a branch" })
@@ -237,7 +213,7 @@ vim.api.nvim_create_user_command("Perf", function(o)
     local esc = vim.fn.shellescape(file)
     local collapser = vim.fn.executable("stackcollapse-perf.pl") == 1 and "stackcollapse-perf.pl"
         or (vim.fn.executable("inferno-collapse-perf") == 1 and "inferno-collapse-perf" or nil)
-    if file:match("%.data$") or file == "perf.data" then
+    if file:match("%.data$") then
         if collapser then
             term("perf script -i " .. esc .. " | " .. collapser .. " | flamelens")
         else

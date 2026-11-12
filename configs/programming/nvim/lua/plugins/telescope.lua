@@ -1,14 +1,4 @@
-local ignore_filetypes_list = {
-    "%.xlsx",
-    "%.jpg",
-    "%.png",
-    "%.webp",
-    "%.pdf",
-    "%.odt",
-    "%.ico",
-    "^vendor/",
-    "/vendor/",
-}
+local FILE_IGNORE_PATTERNS = { "%.xlsx", "%.jpg", "%.png", "%.webp", "%.pdf", "%.odt", "%.ico", "^vendor/", "/vendor/" }
 
 return {
     {
@@ -17,30 +7,16 @@ return {
         -- full specs so which-key labels them before harpoon loads
         keys = function()
             local keys = {
-                {
-                    "<leader>a",
-                    function()
-                        require("harpoon"):list():add()
-                    end,
-                    desc = "Harpoon: add file",
-                },
+                { "<leader>a", "<cmd>lua require('harpoon'):list():add()<cr>", desc = "Harpoon: add file" },
                 {
                     "<leader>h",
-                    function()
-                        local harpoon = require("harpoon")
-                        harpoon.ui:toggle_quick_menu(harpoon:list())
-                    end,
+                    "<cmd>lua require('harpoon').ui:toggle_quick_menu(require('harpoon'):list())<cr>",
                     desc = "Harpoon: quick menu",
                 },
             }
             for i = 1, 5 do
-                table.insert(keys, {
-                    "<leader>" .. i,
-                    function()
-                        require("harpoon"):list():select(i)
-                    end,
-                    desc = "Harpoon: file " .. i,
-                })
+                local select = ("<cmd>lua require('harpoon'):list():select(%d)<cr>"):format(i)
+                table.insert(keys, { "<leader>" .. i, select, desc = "Harpoon: file " .. i })
             end
             return keys
         end,
@@ -61,7 +37,7 @@ return {
             local actions = require("telescope.actions")
             require("telescope").setup({
                 defaults = {
-                    file_ignore_patterns = ignore_filetypes_list,
+                    file_ignore_patterns = FILE_IGNORE_PATTERNS,
                     layout_strategy = "bottom_pane",
                     layout_config = { height = 25 },
                     sorting_strategy = "ascending",

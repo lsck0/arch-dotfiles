@@ -44,10 +44,6 @@ export def decls-check [id: string, decls: list]: nothing -> nothing {
     }
 }
 
-def sha [text: any]: nothing -> string {
-    $text | hash sha256
-}
-
 export def unit-states [scope: string, units: list<string>]: nothing -> list<string> {
     # a unit systemd does not know answers on stderr only, so the batch falls back to asking each
     let batch = ^systemctl $"--($scope)" is-enabled ...$units | complete | get stdout | lines
@@ -61,7 +57,7 @@ export def ask-batch [paths: list<string>, batch: closure, each_path: closure]: 
     let run = do $batch $paths | complete
     let answers = $run.stdout | split row (char nul) | drop
     let got = if $run.exit_code == 0 and ($answers | length) == ($paths | length) { $answers } else { $paths | each {|p| do $each_path $p } }
-    $paths | zip $got | reduce --fold {} {|a, acc| $acc | upsert $a.0 $a.1 }
+    $paths | zip $got | into record
 }
 
 # What is on disk now for each target (type, hash, link, mode) and each unit's enablement state; known: an earlier
@@ -76,7 +72,7 @@ export def observe [targets: list<string>, units: list<string>, scope: string, k
         {
             target: $k.target
             type: $k.type
-            hash: (if $k.type == file { try { open --raw $k.target | sha $in } catch { "unreadable" } } else { null })
+            hash: (if $k.type == file { try { open --raw $k.target | hash sha256 } catch { "unreadable" } } else { null })
             link: ($links | get --optional $k.target)
             mode: ($modes | get --optional $k.target)
         }
@@ -86,9 +82,15 @@ export def observe [targets: list<string>, units: list<string>, scope: string, k
         unit-states $scope $unit_names
     }
     {
-        paths: ($paths | reduce --fold $known.paths {|p, acc| $acc | insert $p.target $p })
-        units: ($unit_names | zip $states | reduce --fold $known.units {|u, acc| $acc | insert $u.0 $u.1 })
+        paths: ($known.paths | merge ($paths | each {|p| [$p.target $p] } | into record))
+        units: ($known.units | merge ($unit_names | zip $states | into record))
     }
+}
+
+# observe for declarations or recorded outputs: their files and links as paths, their units as units.
+export def observe-outputs [items: list, scope: string, known: record = {paths: {}, units: {}}]: nothing -> record {
+    let paths = $items | where kind not-in [unit exec step] | get --optional target | default []
+    observe $paths ($items | where kind == unit | get --optional target | default []) $scope $known
 }
 
 def now-ns []: nothing -> int { date now | into int }
@@ -118,6 +120,11 @@ def fold-merges [decls: list<record>]: nothing -> list<record> {
         if ($thens | length) > 1 { error make {msg: $"($d.target): merges with different --then, one file runs one: ($thens | to nuon)"} }
         $d | update edits ($g | each { $in.edits } | flatten) | update then ($thens | get --optional 0 | default [])
     } | compact
+}
+
+# Whether a unit's enablement state now satisfies want: disabled is any state but enabled.
+export def unit-state-holds [want: string, now: any]: nothing -> bool {
+    if $want == "disabled" { $now != "enabled" } else { $now == $want }
 }
 
 export def mode-normal [mode: any]: nothing -> any {
@@ -185,7 +192,7 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
         let then_failed = ($d.then | is-not-empty) and ($prev | where kind == $d.kind and target == $d.target | get --optional 0.then_failed | default false)
         match $d.kind {
             "file" => {
-                let want = if $d.content != null { sha $d.content } else { open --raw $d.source | sha $in }
+                let want = if $d.content != null { $d.content | hash sha256 } else { open --raw $d.source | hash sha256 }
                 let written = $recorded | get --optional $d.target
                 let rec = if $written != null and $obs.hash? == $written { $written } else {
                     $prev | where kind == file and target == $d.target | get --optional 0.hash | default $written
@@ -199,7 +206,7 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
                     action $id skip $d.target "" $d $obs.link $d.source
                 } else if $obs.type == "" or (link-stale $obs $d.target $repo) {
                     action $id create $d.target "missing" $d $obs.link $d.source
-                } else if $obs.type == file and ($d.source | path exists) and $obs.hash == (open --raw $d.source | sha $in) {
+                } else if $obs.type == file and ($d.source | path exists) and $obs.hash == (open --raw $d.source | hash sha256) {
                     action $id update $d.target "a copy of the source" $d $obs.hash $d.source
                 } else if $obs.type == file and ($prev | where kind == file and target == $d.target | get --optional 0.hash) == $obs.hash {
                     action $id update $d.target "a copy the dotfiles wrote" ($d | insert preserve true) $obs.hash $d.source
@@ -234,8 +241,7 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
             "unit" => {
                 let state = $seen.units | get --optional $d.target | default "not-found"
                 let verb = match $d.state { "enabled" => "enable", "disabled" => "disable", "masked" => "mask" }
-                let done = match $d.state { "disabled" => ($state != "enabled"), _ => ($state == $d.state) }
-                if $done { action $id skip $d.target "" $d $state $state } else { action $id $verb $d.target $state $d $state $d.state }
+                if (unit-state-holds $d.state $state) { action $id skip $d.target "" $d $state $state } else { action $id $verb $d.target $state $d $state $d.state }
             }
             "exec" | "step" => {
                 let last = $prev | where kind == $d.kind and target == $d.target | get --optional 0
@@ -367,15 +373,16 @@ def then-run [outcomes: list<record>, dir: path]: nothing -> list<record> {
     }
 }
 
-def run-exec [a: record, dir: path]: nothing -> string {
-    action-command $a $dir (argv-text $a.decl.argv) $a.decl.argv ($a.decl.timeout? | default $STEP_TIMEOUT)
+# An action's result: a plain success with fields over it.
+def outcome [fields: record]: nothing -> record {
+    {ok: true, pending: null, error: null, aside: null, output: "", hash: null, at: null, keys: null} | merge $fields
 }
 
 # One outcome per action; a failure stays with its action.
 export def apply-module [actions: list<record>, dir: path, scope: string]: nothing -> list<record> {
     let unreadable = $actions | where kind == unreadable | each {|a|
         log-record "ERROR" $"unreadable ($a.target)" {module: $a.module, kind: $a.kind, target: $a.target, ms: 0, outcome: $a.reason}
-        $a | merge {ok: false, pending: null, error: $a.reason, aside: null, output: "", hash: null, at: null} | insert ms 0
+        $a | merge (outcome {ok: false, error: $a.reason}) | insert ms 0
     }
     # new files before changed ones: a live reader never sees a reference to a missing file
     let file_write = {|a| $a.kind in [create update] and $a.decl.kind? != "link" }
@@ -395,11 +402,11 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
     let run = $ordered | reduce --fold {written: $recorded, outcomes: []} {|a, acc|
         let start = date now
         let result = if $cancel != "" and ($cancel | path exists) {
-            {ok: false, pending: null, error: "cancelled, the module timed out", aside: null, output: "", hash: null, at: null}
+            outcome {ok: false, error: "cancelled, the module timed out"}
         } else if $a.kind in [exec step] and $a.decl.requires? != null and not ($a.decl.requires | path exists) {
-            {ok: true, pending: $"waits on ($a.decl.requires | home-short), not there yet", error: null, aside: null, output: "", hash: null, at: null}
+            outcome {pending: $"waits on ($a.decl.requires | home-short), not there yet"}
         } else if $a.kind in [exec step] and $a.decl.network? == true and not (network-online) {
-            {ok: true, pending: $OFFLINE_PENDING, error: null, aside: null, output: "", hash: null, at: null}
+            outcome {pending: $OFFLINE_PENDING}
         } else { try {
             match $a.kind {
                 "create" | "update" => {
@@ -434,7 +441,7 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     let json = if $a.decl.kind == "json" { $out.stdout | lines | last | from json } else { null }
                     let owned = if $json != null { $json.owned } else { $a.before != null and $a.before == $last and ($out.stdout | str contains changed) }
                     let keys = if $json != null { {keys: $json.keys} } else { {} }
-                    if $owned { {hash: (open --raw $a.target | sha $in), at: (now-ns)} | merge $keys } else { $keys }
+                    if $owned { {hash: (open --raw $a.target | hash sha256), at: (now-ns)} | merge $keys } else { $keys }
                 }
                 "unmerge" => {
                     sync-guard $a.target
@@ -457,7 +464,7 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                 "unmask" => { systemctl-retry $scope unmask $a.target; {} }
                 "step" => (run-step $a $dir)
                 "remove" => {
-                    let current = if (path-kind $a.target) == file { open --raw $a.target | sha $in } else { null }
+                    let current = if (path-kind $a.target) == file { open --raw $a.target | hash sha256 } else { null }
                     if $a.decl.kind == "file" and $current != $a.before {
                         {}
                     } else {
@@ -473,7 +480,7 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     }
                 }
                 "forget" => { {} }
-                "exec" => { {output: (run-exec $a $dir)} }
+                "exec" => { {output: (action-command $a $dir (argv-text $a.decl.argv) $a.decl.argv ($a.decl.timeout? | default $STEP_TIMEOUT))} }
                 # from the state dir: the module's own dir may be gone; with its tool gone too there is nothing to undo
                 "undo" => {
                     if (which ($a.decl.undo | first) | is-empty) { {output: $"($a.decl.undo | first) is gone, nothing to undo"} } else {
@@ -481,13 +488,11 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     }
                 }
             }
-            | {ok: true, pending: ($in.pending? | default null), error: null, aside: ($in.aside? | default null), output: ($in.output? | default ""), hash: ($in.hash? | default null), at: ($in.at? | default null), keys: ($in.keys? | default null)}
+            | outcome $in
         } catch {|e|
             let error = cause-text (cause-from-error $e)
             let remote = if $a.kind in [exec step] and $a.decl.network? == true { remote-pending $error } else { null }
-            if $remote != null { {ok: true, pending: $remote, error: null, aside: null, output: "", hash: null, at: null} } else {
-                {ok: false, pending: null, error: $error, aside: null, output: "", hash: null, at: null}
-            }
+            if $remote != null { outcome {pending: $remote} } else { outcome {ok: false, error: $error} }
         } }
         let ms = since-ms $start
         let outcome = if not $result.ok { $result.error } else if $result.pending != null { $"pending, ($result.pending)" } else { "ok" }
@@ -509,7 +514,7 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
 # A failed action keeps its previous output and clears the input hash, so it is planned again; a pending one (offline)
 # did not run, so it is no output either.
 export def state-write [id: string, verb: string, input: string, actions: list<record>, outcomes: list<record>, prev: list<record>]: nothing -> nothing {
-    let done = $outcomes | where {|o| $o.ok and $o.pending? == null } | reduce --fold {} {|o, acc| $acc | upsert (out-key $o.decl.kind $o.target) $o }
+    let done = $outcomes | where {|o| $o.ok and $o.pending? == null } | each {|o| [(out-key $o.decl.kind $o.target) $o] } | into record
     let failed = $outcomes | where not ok | get target
     let kept = {|a| ($a.decl.kind in [exec step] and (action-recorded $a.decl) and $a.kind in [skip exec step]) or ($a.decl.kind in [file link unit] and $a.kind not-in [remove forget unmask] and not ($a.kind == "disable" and $a.decl.state? != "disabled")) or ($a.decl.kind in [json ini] and $a.kind in [merge skip]) }
     let owned = $actions | where {|a| do $kept $a } | each {|a|

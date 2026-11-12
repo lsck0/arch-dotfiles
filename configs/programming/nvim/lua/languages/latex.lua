@@ -3,20 +3,8 @@ return {
         "jbyuki/nabla.nvim",
         ft = { "tex", "plaintex", "markdown" },
         keys = {
-            {
-                "<leader>lp",
-                function()
-                    require("nabla").popup()
-                end,
-                desc = "Math preview (popup)",
-            },
-            {
-                "<leader>lP",
-                function()
-                    require("nabla").toggle_virt()
-                end,
-                desc = "Math inline preview toggle",
-            },
+            { "<leader>lp", "<cmd>lua require('nabla').popup()<cr>", desc = "Math preview (popup)" },
+            { "<leader>lP", "<cmd>lua require('nabla').toggle_virt()<cr>", desc = "Math inline preview toggle" },
         },
     },
     {

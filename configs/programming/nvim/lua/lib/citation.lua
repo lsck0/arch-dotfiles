@@ -197,15 +197,9 @@ local MARKDOWN_CITE_PATTERN = "()%[[^%[%]]-@[^%[%]]-%]()"
 ---@param markdown boolean
 ---@return integer? close the column of the closing brace or bracket
 local function cite_find(line, col, markdown)
-    if markdown then
-        for start, finish in line:gmatch(MARKDOWN_CITE_PATTERN) do
-            if col >= start and col < finish then
-                return finish - 1
-            end
-        end
-        return nil
-    end
-    for start, _, finish in line:gmatch(TEX_CITE_PATTERN) do
+    -- the markdown pattern captures (start, finish), the tex one (start, brace, finish)
+    for start, second, third in line:gmatch(markdown and MARKDOWN_CITE_PATTERN or TEX_CITE_PATTERN) do
+        local finish = third or second
         if col >= start and col < finish then
             return finish - 1
         end

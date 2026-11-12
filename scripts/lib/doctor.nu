@@ -1,6 +1,6 @@
 # The health checks of `dot status`.
 
-use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir]
+use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir xdg]
 use ledger.nu [ledger-get]
 use platform.nu [platform-load]
 use profile.nu [profile-has]
@@ -221,7 +221,7 @@ def units []: nothing -> list<record> {
 # A user-hook whose last run failed: its unit's failed state ends with the boot, the journal's record does not, so a
 # hook that failed headless during the install stays reported until a run succeeds.
 def hooks []: nothing -> list<record> {
-    let dir = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join systemd user
+    let dir = xdg config systemd user
     let names = glob ($dir | path join "*.path") | where { open --raw $in | str contains "Description=watch for the " }
         | each { path parse | get stem }
     if ($names | is-empty) { return [] }

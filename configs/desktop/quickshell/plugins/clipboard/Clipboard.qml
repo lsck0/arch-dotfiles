@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import Quickshell
 import Quickshell.Io
-import Quickshell.Hyprland
 import QtQuick
 import qs.Commons
 import qs.Ui
@@ -52,8 +51,7 @@ Item {
   property int rowHeight: Style.space(44)
 
   function open() {
-    var focused = Hyprland.focusedMonitor
-    panel.screen = Array.from(Quickshell.screens).find(function (s) { return focused && s.name === focused.name }) || null
+    panel.screen = Util.focusedScreen()
     root.gpgReset()
     root.opened = true
     root.filterText = ""
@@ -185,10 +183,7 @@ Item {
     return Colors.urgentText
   }
 
-  function toggle() {
-    if (root.opened) root.close()
-    else root.open()
-  }
+  function toggle() { root.opened ? root.close() : root.open() }
 
   function loadHistory(raw) {
     root.history = ClipboardHistory.parseHistory(raw)

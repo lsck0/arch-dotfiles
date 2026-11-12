@@ -28,10 +28,6 @@ def physical [link: string]: nothing -> bool {
     $"/sys/class/net/($link)/device" | path exists
 }
 
-def links-in [file: path]: nothing -> list<string> {
-    if ($file | path exists) { open --raw $file | lines } else { [] }
-}
-
 def file-read [file: path]: nothing -> string {
     if ($file | path exists) { open --raw $file } else { "" }
 }
@@ -112,7 +108,7 @@ def link-observe [link: string]: nothing -> any {
 
 def main [iface: string = "", action: string = ""]: nothing -> nothing {
     if $action not-in [up down] { return }
-    if not (physical $iface) and $iface not-in (links-in $TRUSTED_NETWORK) { return }
+    if not (physical $iface) and $iface not-in (file-read $TRUSTED_NETWORK | lines) { return }
     let home_gateways = gateways-parse (file-read $GATEWAYS)
     let trusted_gateways = file-read $TRUSTED_GATEWAYS | lines | where $it != "" | str lowercase
     let tiers = if ($home_gateways | is-empty) and ($trusted_gateways | is-empty) { [] } else {

@@ -27,7 +27,7 @@ export def system [cfg: record] {
     [
         (if ($MGLRU | path exists) {
             file-copy mglru-tmpfiles.conf $MGLRU_TMPFILES --then [systemd-tmpfiles --create $MGLRU_TMPFILES]
-        } else { [] })
+        })
         (if ("/usr/lib/systemd/system-generators/zram-generator" | path exists) {
             [
                 (file-render sysctl-zram.conf /etc/sysctl.d/99-zram.conf {SWAPPINESS: $cfg.swappiness}
@@ -35,6 +35,6 @@ export def system [cfg: record] {
                 (file-render zram-generator.conf /etc/systemd/zram-generator.conf {COMPRESSION_ALGORITHM: $cfg.compression_algorithm}
                     --then [systemctl daemon-reload])
             ]
-        } else { [] })
-    ] | decls-flatten
+        })
+    ]
 }

@@ -1,6 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
 # no betterdiscordctl: it assumes one discord_desktop_core suffix, which differs between hosts
 
+use ../../../../scripts/lib/state.nu [xdg]
+
 const REPO = path self | path dirname | path join ../../../.. | path expand
 const ASAR_URL = "https://github.com/BetterDiscord/BetterDiscord/releases/download/v1.14.5/betterdiscord.asar"
 const ASAR_SHA256 = "2576f2b1dcb3bf5fdc79a5ef137a077543aa9aa0ffcd8337e8c27b8260fc49f3"
@@ -8,11 +10,9 @@ const FRESH_SECONDS = 60
 const EXIT_WAIT_SECONDS = 10
 
 def main []: nothing -> nothing {
-    let config = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config)
-    let state = $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state)
-    let asar = $config | path join BetterDiscord data betterdiscord.asar
-    let host = $config | path join discord Discord
-    let modules_link = $state | path join betterdiscord-modules
+    let asar = xdg config BetterDiscord data betterdiscord.asar
+    let host = xdg config discord Discord
+    let modules_link = xdg state betterdiscord-modules
     if not ($host | path exists) { return }
     let modules = $host | path expand | path dirname | path join modules
     mkdir ($modules_link | path dirname)

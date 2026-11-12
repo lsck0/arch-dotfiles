@@ -54,11 +54,6 @@ const XKB_MODEL = "pc105"
 const LOCALE_BASE = "en_US.UTF-8"
 const FORMAT_CATEGORIES = [LC_TIME LC_NUMERIC LC_MONETARY LC_PAPER LC_MEASUREMENT LC_ADDRESS LC_TELEPHONE LC_NAME]
 
-def env-file [file: path]: nothing -> record {
-    if not ($file | path exists) { return {} }
-    open --raw $file | lines | parse --regex '^(?<k>[A-Z_]+)="?(?<v>[^"]*)"?$' | reduce --fold {} {|e, acc| $acc | upsert $e.k $e.v }
-}
-
 def zone-country []: nothing -> any {
     let zone = try { ^readlink /etc/localtime | str replace --regex '^.*zoneinfo/' '' } catch { return null }
     if not ($ZONES | path exists) { return null }
@@ -67,9 +62,9 @@ def zone-country []: nothing -> any {
 }
 
 export def detect [cfg: record]: nothing -> record {
-    let locale = env-file $LOCALE_CONF
-    let console = env-file $VCONSOLE
-    let regdom = env-file $REGDOM
+    let locale = env-file-load $LOCALE_CONF
+    let console = env-file-load $VCONSOLE
+    let regdom = env-file-load $REGDOM
     {
         lang: ($locale.LANG? | default null)
         formats: ($locale.LC_TIME? | default null)
@@ -80,26 +75,22 @@ export def detect [cfg: record]: nothing -> record {
     }
 }
 
-def charmap [locale: string]: nothing -> string {
-    $locale | split row "." | get --optional 1 | default "UTF-8"
-}
-
 export def system [cfg: record] {
     # WSL skips the install's locale question and its image may ship no LANG at all
     let lang = $cfg.lang | default (if $env.FORM_FACTOR? == "wsl" { $LOCALE_BASE } else { null })
     let locales = [$lang $cfg.formats $LOCALE_BASE] | compact | uniq
     let formats = if $cfg.formats == null { [] } else { $FORMAT_CATEGORIES | each {|c| [$c $cfg.formats] } }
     let conf = [[LANG $lang]] ++ $formats | where $it.1 != null | each { $"($in.0)=($in.1)" }
-    let console = env-file $VCONSOLE
+    let console = env-file-load $VCONSOLE
     let keyboard = [$cfg.keyboard_layout ($cfg.keyboard_variant | default "") ($cfg.keyboard_options | default [] | str join ",")]
     let current = [$console.XKBLAYOUT? ($console.XKBVARIANT? | default "") ($console.XKBOPTIONS? | default "")]
     [
-        (file-text /etc/locale.gen ($locales | each { $"($in) (charmap $in)\n" } | str join) --generated --then [locale-gen])
-        (if ($conf | is-empty) { [] } else { file-text $LOCALE_CONF ($conf | str join "\n" | $"($in)\n") --generated })
-        (if $cfg.keyboard_layout == null or $env.FORM_FACTOR? == "wsl" or $keyboard == $current { [] } else {
+        (file-text /etc/locale.gen ($locales | each { $"($in) ($in | split row '.' | get --optional 1 | default 'UTF-8')\n" } | str join) --generated --then [locale-gen])
+        (if ($conf | is-not-empty) { file-text $LOCALE_CONF ($conf | str join "\n" | $"($in)\n") --generated })
+        (if $cfg.keyboard_layout != null and $env.FORM_FACTOR? != "wsl" and $keyboard != $current {
             exec keymap ([localectl set-x11-keymap $cfg.keyboard_layout $XKB_MODEL] ++ ($keyboard | skip 1))
         })
-        (if $cfg.wifi_country == null or not ($REGDOM | path exists) { [] } else {
+        (if $cfg.wifi_country != null and ($REGDOM | path exists) {
             file-text $REGDOM $"WIRELESS_REGDOM=\"($cfg.wifi_country)\"\n" --generated
         })
     ]

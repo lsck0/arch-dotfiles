@@ -1,10 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
 
 use mod.nu [OVERRIDES override-text]
+use profile-flags.nu [ETC MARKER OWN_SUFFIX SOURCE upstream-files]
 
 const HERE = path self | path dirname
-const MARKER = "# managed by arch-dotfiles/apparmor"
-const OWN_SUFFIX = ".dotfiles"
 # each profile parses from its own file: a few at a time, the parser is cpu bound and the desktop stays usable
 const PARSE_THREADS = 8
 const ENFORCED = [
@@ -46,7 +45,7 @@ def rows-check [rows: table]: nothing -> list<string> {
 
 def own-check [rows: table]: nothing -> list<string> {
     let profiles = basenames profiles | each {|name|
-        let lines = open --raw ($"profiles/($name)") | lines
+        let lines = open --raw $"profiles/($name)" | lines
         [
             (if $name not-in $rows.name { $"profiles/($name) is not in profiles.conf" })
             (if ($lines | first) != $MARKER { $"profiles/($name) lacks the marker line" })
@@ -72,7 +71,7 @@ def parse-ok [file: path, work: path, etc: path]: nothing -> bool {
 }
 
 def compile-check [rows: table, source: path, etc: path]: nothing -> list<string> {
-    let upstream = glob $"($source)/**/*" --no-dir | where not ($it =~ '/(abstractions|tunables)/') | path basename
+    let upstream = upstream-files $source | path basename
     let own = basenames profiles
     let names = $rows | get name | each {|n|
         if $n in $own {
@@ -118,8 +117,8 @@ def required-check []: nothing -> list<string> {
 
 def main []: nothing -> nothing {
     cd $HERE
-    let source = $env.APPARMOR_D_SRC? | default /usr/share/apparmor.d
-    let etc = $env.APPARMOR_ETC? | default /etc/apparmor.d
+    let source = $env.APPARMOR_D_SRC? | default $SOURCE
+    let etc = $env.APPARMOR_ETC? | default $ETC
     let rows = open --raw profiles.conf | lines | where { $in =~ '^[^#]' and ($in | str trim) != "" }
         | parse --regex '^(?<name>\S+)\s*(?<mode>\S*)\s*(?<extra>.*)$'
     let compilable = (

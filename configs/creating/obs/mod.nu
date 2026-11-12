@@ -62,9 +62,8 @@ export const options = {
 
 const HERE = path self | path dirname
 const WEBSOCKET_PORT = 4455
-const LOCK_STAMP_LENGTH = 16
+const LOCK_KEY_LENGTH = 16
 const CANVAS_FALLBACK = "1920x1080"
-const HEADLESS_OUTPUT = '^HEADLESS-'
 # the virtual camera sends raw YUYV: 4k at 30 fps is ~500 MB/s that every consumer scales per frame
 const VIRTUALCAM_HEIGHT = 720
 const STREAM_HEIGHT = 1080
@@ -100,12 +99,7 @@ def audio-device [kind: string]: nothing -> oneof<string, nothing> {
 
 export def detect [cfg: record]: nothing -> record {
     let gpu = gpu-list | get --optional 0
-    let monitor = if (which hyprctl | is-not-empty) {
-        try {
-            ^hyprctl -j monitors | from json | where name !~ $HEADLESS_OUTPUT
-            | sort-by {|m| -1 * $m.width * $m.height } name | first
-        } catch { null }
-    }
+    let monitor = monitors-live | sort-by {|m| -1 * $m.width * $m.height } name | get --optional 0
     let node = $cfg.vaapi_render_node | default $gpu.by_path?
     let nvidia = $gpu.vendor? == "nvidia"
     let vaapi = {|profile| $node != null and not $nvidia and (vaapi-encodes $node $profile) }
@@ -125,10 +119,6 @@ def obs-dir []: nothing -> path {
     xdg config obs-studio
 }
 
-def videos-dir []: nothing -> path {
-    user-dir VIDEOS
-}
-
 def canvas-size [cfg: record]: nothing -> record {
     $cfg.canvas | default $CANVAS_FALLBACK | parse "{w}x{h}" | get 0 | {w: ($in.w | into int), h: ($in.h | into int)}
 }
@@ -145,7 +135,7 @@ def profile-values [cfg: record]: nothing -> record {
     let stream = do $fit $STREAM_HEIGHT
     {
         HOME: $nu.home-dir
-        XDG_VIDEOS: (videos-dir)
+        XDG_VIDEOS: (user-dir VIDEOS)
         CANVAS_W: $size.w
         CANVAS_H: $size.h
         VIRTUALCAM_W: $virtualcam.w
@@ -167,32 +157,24 @@ def strip-token []: record -> record {
     }
 }
 
-# Rescales a collection laid out at another resolution to the canvas; the relative copies go, obs derives them anew.
+# Passes every scene item through edit with its relative copies dropped: obs derives them anew on load.
+def scene-items [edit: closure]: record -> record {
+    update sources {
+        each {|src|
+            if $src.id != "scene" { return $src }
+            $src | update settings.items { each { do $edit $in | reject --optional ...$ITEM_RELATIVE_KEYS } }
+        }
+    }
+}
+
+# Rescales a collection laid out at another resolution to the canvas.
 def scene-fit [size: record]: record -> record {
     let scene = $in
     let from = $scene.resolution
     if $from.x == $size.w and $from.y == $size.h { return $scene }
     let scale = {|v| {x: ($v.x * $size.w / $from.x), y: ($v.y * $size.h / $from.y)} }
-    $scene | update resolution {x: $size.w, y: $size.h} | update sources {
-        each {|src|
-            if $src.id != "scene" { return $src }
-            $src | update settings.items {
-                each {|item|
-                    $item | update pos (do $scale $item.pos) | update bounds (do $scale $item.bounds)
-                    | reject --optional ...$ITEM_RELATIVE_KEYS
-                }
-            }
-        }
-    }
-}
-
-def scene-relative-drop []: record -> record {
-    update sources {
-        each {|src|
-            if $src.id != "scene" { return $src }
-            $src | update settings.items { each { reject --optional ...$ITEM_RELATIVE_KEYS } }
-        }
-    }
+    $scene | update resolution {x: $size.w, y: $size.h}
+    | scene-items {|item| $item | update pos (do $scale $item.pos) | update bounds (do $scale $item.bounds) }
 }
 
 def scene-mic [mic: oneof<string, nothing>]: record -> record {
@@ -204,9 +186,9 @@ def scene-mic [mic: oneof<string, nothing>]: record -> record {
 def scene-render [cfg: record, src: path, --machine]: nothing -> string {
     let scene = open $src | scene-mic $cfg.mic
     if not $machine { return $"($scene | to json --indent 2)\n" }
-    let miked = $scene | scene-fit (canvas-size $cfg)
-    let cammed = if $cfg.webcam == null { $miked } else {
-        $miked | update sources {
+    let fitted = $scene | scene-fit (canvas-size $cfg)
+    let cammed = if $cfg.webcam == null { $fitted } else {
+        $fitted | update sources {
             each {|src| if $src.id == "v4l2_input" { $src | upsert settings.device_id $cfg.webcam } else { $src } }
         }
     }
@@ -222,8 +204,7 @@ def scene-file [dest: path, text: string, mode: string]: nothing -> record {
 
 # Which repo collection a live one was last installed from, so backup can tell an edit obs has not loaded.
 def applied-file [live: path]: nothing -> path {
-    let state = (xdg state)
-    $state | path join dotfiles obs $"($live | path basename).applied"
+    xdg state dotfiles obs $"($live | path basename).applied"
 }
 
 def scene-hash []: string -> string {
@@ -277,10 +258,6 @@ def scene-seed [seed: path]: nothing -> path {
     host-seed ($seed | path dirname) ($seed | path basename)
 }
 
-def scene-own [seed: path]: nothing -> path {
-    host-file ($seed | path dirname) ($seed | path basename)
-}
-
 def secret [name: string]: nothing -> path {
     $env.DOTFILES | path join configs secrets keys $name
 }
@@ -304,9 +281,10 @@ export def link [cfg: record] {
     })
     let profiles = glob ($HERE | path join profiles * *) | each {|src|
         let dest = $basic | path join ($src | path relative-to $HERE)
-        match ($src | path basename) {
-            "basic.ini" => (file-render $src $dest (profile-values $cfg))
-            _ => (file-text $dest (encoder-json $cfg $src))
+        if ($src | path basename) == "basic.ini" {
+            file-render $src $dest (profile-values $cfg)
+        } else {
+            file-text $dest (encoder-json $cfg $src)
         }
     }
     let state = $scenes ++ $profiles | decls-flatten
@@ -317,27 +295,25 @@ export def link [cfg: record] {
     let prefix = xdg data obs-mcp
     let websocket = $obs | path join plugin_config obs-websocket config.json
     let lock = $HERE | path join mcp package-lock.json
-    let lock_hash = open --raw $lock | hash sha256 | str substring 0..<($LOCK_STAMP_LENGTH)
+    let lock_hash = open --raw $lock | hash sha256 | str substring 0..<($LOCK_KEY_LENGTH)
     let node_modules = $prefix | path join node_modules
     # the mcp only with the app it drives
-    let mcp = if (which obs npm | length) < 2 { [] } else {
+    let mcp = if (which obs npm | length) == 2 {
         [
             (file-copy ($HERE | path join mcp package.json) ($prefix | path join package.json))
             (file-copy $lock ($prefix | path join package-lock.json))
-            # --done: the stamp it left in node_modules before it was keyed; npm ci empties the dir, stamp included
             (exec obs-mcp-install [npm ci --no-audit --no-fund --prefix $prefix] --creates $node_modules --key $lock_hash
-                --done=($node_modules | path join $".dot-lock-($lock_hash)" | path exists) --undo [rm -rf $node_modules]
-                --network)
+                --undo [rm -rf $node_modules] --network)
             (link-commands obs-mcp.nu)
             (mcp-servers {obs-mcp: {type: stdio, command: ($nu.home-dir | path join .local bin obs-mcp), args: []
                 gate: {probe: $"127.0.0.1:($WEBSOCKET_PORT)", app: OBS}}})
-        ] | decls-flatten
+        ]
     }
     [
         $state
         (if (secret-is-plaintext $service) {
             file-copy $service ($basic | path join profiles Streaming service.json) --mode 600
-        } else { [] })
+        })
         (ini-merge ($obs | path join global.ini) $GLOBAL)
         (ini-merge ($obs | path join user.ini) ({Basic: $selection} | merge $USER_GENERAL) --missing-only)
         (step websocket-init $websocket --creates $websocket)
@@ -372,8 +348,8 @@ def scene-back [cfg: record, live: path, src: path, dest: path, --machine, --see
     let saved = if $machine or $saved.AuxAudioDevice1?.settings?.device_id? != $cfg.mic { $saved } else {
         $saved | scene-mic (open $src | get --optional AuxAudioDevice1.settings.device_id)
     }
-    let unchanged = $seed != null and (
-        ($saved | scene-relative-drop) == (scene-render $cfg $seed --machine | from json | strip-token | scene-relative-drop)
+    let unchanged = $seed != null and ($saved | scene-items {|item| $item }) == (
+        scene-render $cfg $seed --machine | from json | strip-token | scene-items {|item| $item }
     )
     let next = if $unchanged { rm --force $dest; $seed } else {
         mkdir ($dest | path dirname)
@@ -386,31 +362,29 @@ def scene-back [cfg: record, live: path, src: path, dest: path, --machine, --see
 
 # Writes a live profile back to the repo: placeholders stay, paths under this user's dirs become placeholders again.
 def profile-back [live: path, repo: path]: nothing -> nothing {
+    let dirs = [[path placeholder]; [(user-dir VIDEOS) "@XDG_VIDEOS@"] [$nu.home-dir "@HOME@"]]
     let placeholders = ini-rows (open --raw $repo) | where {|r| $r.value != null and $r.value =~ '^@[A-Z_]+@$' }
-    let videos = videos-dir
     ini-rows (open --raw $live) | each {|l|
         let kept = $placeholders | where section == $l.section and key == $l.key | get --optional 0.value
         if $kept != null { return $"($l.key)=($kept)" }
         if $l.key == null or not ($l.key | str ends-with "Path") { return $l.line }
         # videos first, it is under home
-        let path = if $l.value == $videos or ($l.value | str starts-with $"($videos)/") {
-            $l.value | str replace $videos "@XDG_VIDEOS@"
-        } else if $l.value == $nu.home-dir or ($l.value | str starts-with $"($nu.home-dir)/") {
-            $l.value | str replace $nu.home-dir "@HOME@"
-        } else { $l.value }
-        $"($l.key)=($path)"
+        let dir = $dirs | where {|d| $l.value == $d.path or ($l.value | str starts-with $"($d.path)/") } | get --optional 0
+        $"($l.key)=(if $dir == null { $l.value } else { $l.value | str replace $dir.path $dir.placeholder })"
     } | str join "\n" | $"($in)\n" | save --force $repo
 }
 
 export def backup [cfg: record]: nothing -> nothing {
     let basic = obs-dir | path join basic
     let streaming = $basic | path join scenes Streaming.json
+    let streaming_secret = secret obs-Streaming.json
     if ($streaming | path exists) {
-        secret-seed-guard ($basic | path join scenes .from-secrets) (secret obs-Streaming.json) $streaming
+        secret-seed-guard ($basic | path join scenes .from-secrets) $streaming_secret $streaming
     }
-    scene-back $cfg $streaming (secret obs-Streaming.json) (secret obs-Streaming.json)
+    scene-back $cfg $streaming $streaming_secret $streaming_secret
     for seed in (repo-scenes) {
-        scene-back $cfg ($basic | path join scenes ($seed | path basename)) (scene-seed $seed) (scene-own $seed) --machine --seed $seed
+        let own = host-file ($seed | path dirname) ($seed | path basename)
+        scene-back $cfg ($basic | path join scenes ($seed | path basename)) (scene-seed $seed) $own --machine --seed $seed
     }
     let service = $basic | path join profiles Streaming service.json
     if ($service | path exists) { cp --force $service (secret obs-service.json) }

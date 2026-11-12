@@ -1,5 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
 
+const REPO = path self | path expand | path dirname --num-levels 4
+use ($REPO | path join scripts lib state.nu) [xdg]
+
 # not 8765 (dot test's beacon) nor 8000 (vllm's socket)
 const MCP_PORT = 8766
 const EDITOR = "Engine/Binaries/Linux/UnrealEditor"
@@ -10,8 +13,7 @@ const TOOLSETS_SKIPPED = [GameFeaturesToolset ConversationToolset]
 def --wrapped main [...args: string]: nothing -> nothing {
     # 5.8's sdl3 wayland driver renders at 1x and the compositor stretches it (blurry)
     $env.SDL_VIDEO_WAYLAND_SCALE_TO_DISPLAY = "1"
-    let data = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share)
-    let engine = [$env.UE_ROOT? ($data | path join unreal-engine) /opt/unreal-engine] | compact --empty
+    let engine = [$env.UE_ROOT? (xdg data unreal-engine) /opt/unreal-engine] | compact --empty
         | where { $in | path join $EDITOR | path exists } | get --optional 0
     if $engine == null { print -e "unreal-editor: no engine (set UE_ROOT)"; exit 1 }
     let toolsets = try {

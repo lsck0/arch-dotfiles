@@ -7,7 +7,7 @@ def main [action: string = "toggle", --json] {
         available: {|| unit-exists vllm.socket }
         is-on: {|| unit-active vllm.socket }
         on: {||
-            if (^systemctl cat vllm.socket | complete).exit_code != 0 {
+            if not (unit-exists vllm.socket) {
                 error make {msg: "vllm is not installed (configs/llm/vllm)"}
             }
             root-run vllm on

@@ -27,6 +27,13 @@ export def xdg [kind: string, ...parts: string]: nothing -> path {
     $base | path join ...$parts
 }
 
+# A KEY=value file as a record; one pair of surrounding double quotes is dropped, a later key wins, a missing file is {}.
+export def env-file-load [file: path]: nothing -> record {
+    if not ($file | path exists) { return {} }
+    open --raw $file | lines | parse --regex '^(?<key>[A-Za-z_][A-Za-z0-9_]*)=(?<value>.*)$'
+    | reduce --fold {} {|e, acc| $acc | upsert $e.key ($e.value | str trim | str replace --regex '^"(.*)"$' '$1') }
+}
+
 # The running layer's state dir; the system layer's is root's even when a user plans it.
 export def state-dir []: nothing -> path {
     if (is-admin) or ($env.DOT_LAYER? == "system") {
@@ -67,5 +74,5 @@ export def recorded-hashes []: nothing -> record {
     glob (state-dir | path join modules **/*.nuon) | par-each --keep-order {|f| try { open $f | get outputs } catch { [] } } | flatten
     | where {|o| $o.kind in [file json ini] and ($o.hash? | default null) != null }
     | sort-by {|o| $o.at? | default 0 }
-    | reduce --fold {} {|o, acc| $acc | upsert $o.target $o.hash }
+    | each {|o| [$o.target $o.hash] } | into record
 }

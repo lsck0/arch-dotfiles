@@ -3,15 +3,16 @@
 export const ESP = "/boot"
 export const CMDLINE = "/etc/kernel/cmdline"
 export const MKINITCPIO = "/etc/mkinitcpio.conf"
+export const PRESETS = "/etc/mkinitcpio.d"
 const BACKUP = ".arch-dotfiles-backup"
-export const UKI_DIR = "/boot/EFI/Linux"
+export const UKI_DIR = $"($ESP)/EFI/Linux"
 const HOOK_DIRS = [/etc/initcpio/install /usr/lib/initcpio/install]
 const SDBOOT_EFI = "/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
-export const SDBOOT_ESP_FILES = ["/boot/EFI/systemd/systemd-bootx64.efi" "/boot/EFI/BOOT/BOOTX64.EFI"]
+export const SDBOOT_ESP_FILES = [$"($ESP)/EFI/systemd/systemd-bootx64.efi" $"($ESP)/EFI/BOOT/BOOTX64.EFI"]
 # What the boot chain is built from, the barrier's watch (base/boot/systemd-boot): mkinitcpio's own inputs, the
 # initramfs inputs other modules write, and sbctl's keys (signing starts once they exist).
 export const BOOT_WATCH = [
-    /etc/mkinitcpio.conf /etc/mkinitcpio.conf.d /etc/mkinitcpio.d /etc/kernel/cmdline /etc/crypttab.initramfs
+    $MKINITCPIO /etc/mkinitcpio.conf.d $PRESETS $CMDLINE /etc/crypttab.initramfs
     /etc/modprobe.d /etc/vconsole.conf
     /etc/bootvine.toml /etc/mkinitcpio-systemd-tool /etc/tinyssh
     /etc/systemd/system/initrd-tinysshd.service.d /etc/systemd/system/initrd-network.service.d
@@ -23,11 +24,11 @@ export def esp-supported []: nothing -> bool {
     ("/sys/firmware/efi" | path exists) and (^stat -f -c %T $ESP | str trim) == "msdos"
 }
 
-def backup-once [file: path]: nothing -> nothing {
+export def backup-once [file: path]: nothing -> nothing {
     if not ($"($file)($BACKUP)" | path exists) { ^install -m644 $file $"($file)($BACKUP)" }
 }
 
-def cmdline-words []: nothing -> list<string> {
+export def cmdline-words []: nothing -> list<string> {
     if not ($CMDLINE | path exists) {
         mkdir ($CMDLINE | path dirname)
         open --raw /proc/cmdline | str trim | split row " " | where {|w| not ($w =~ '^(BOOT_IMAGE|initrd)=') }
@@ -42,7 +43,7 @@ def cmdline-save [words: list<string>]: nothing -> nothing {
     if $text != (open --raw $CMDLINE | str trim) { $"($text)\n" | save --force $CMDLINE }
 }
 
-def key-of [token: string]: nothing -> string {
+export def key-of [token: string]: nothing -> string {
     $token | split row "=" | first
 }
 
@@ -73,7 +74,9 @@ export def hooks-write [hooks: list<string>]: nothing -> nothing {
     | str join "\n" | $"($in)\n" | save --force $MKINITCPIO
 }
 
-export def hooks-insert [hooks: list<string>, hook: string, at: int]: nothing -> list<string> {
+# hook placed right before anchor, or right after it with --after.
+export def hooks-insert [hooks: list<string>, hook: string, anchor: string, --after]: nothing -> list<string> {
+    let at = ($hooks | enumerate | where item == $anchor | get 0.index) + (if $after { 1 } else { 0 })
     ($hooks | first $at) ++ [$hook] ++ ($hooks | skip $at)
 }
 
@@ -95,6 +98,13 @@ def sbctl-sign [...files: path]: nothing -> nothing {
     for f in ($files | where ($it | path type) == file) { sbctl-quiet sign -s $f }
 }
 
+# What sbctl verify reports unsigned, but the plain kernels: a type #1 entry on the unverified esp could boot one with
+# any cmdline, so they stay unsigned.
+export def sbctl-unsigned []: nothing -> list<path> {
+    ^sbctl verify | lines | parse --regex '^[^/]*(?<path>/.*) is not signed$' | get path
+    | where {|p| not ($p | str starts-with $"($ESP)/vmlinuz-") }
+}
+
 # A hook whose package left (sd-bootvine once base/bootvine is off) fails every mkinitcpio, a kernel upgrade's too.
 export def hooks-sweep []: nothing -> nothing {
     let hooks = hooks-read
@@ -112,13 +122,11 @@ export def boot-commit []: nothing -> nothing {
     ^mkinitcpio -P
     if not (sbctl-ready) { return }
     # -s lists each uki in sbctl's database, so its pacman hook re-signs it after every kernel upgrade
-    sbctl-sign ...(glob /etc/mkinitcpio.d/*.preset | each { uki-path ($in | path parse | get stem) })
+    sbctl-sign ...(glob $"($PRESETS)/*.preset" | each { uki-path ($in | path parse | get stem) })
     sbctl-quiet sign -s -o $"($SDBOOT_EFI).signed" $SDBOOT_EFI
     sbctl-sign ...$SDBOOT_ESP_FILES
     sbctl-quiet sign-all
-    # plain kernels stay unsigned: a type #1 entry on the unverified esp could boot one with any cmdline
-    let unsigned = ^sbctl verify | lines
-        | where ($it =~ 'is not signed') and not ($it | str contains $"($ESP)/vmlinuz-") | str join " "
+    let unsigned = sbctl-unsigned | str join " "
     if $unsigned != "" {
         error make {msg: $"boot: unsigned with secure boot keys enrolled, the next boot may fail: ($unsigned)"}
     }

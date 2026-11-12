@@ -17,7 +17,7 @@ export def link [cfg: record] {
         | hash sha256 | str substring 0..<12
     [
         (link-commands ollama-ensure-models.nu)
-        (if (gpu-list | where vram > 0b | is-empty) { [] } else {
+        (if (gpu-list | where vram > 0b | is-not-empty) {
             # --done: the stamp it touched under $XDG_STATE_HOME/ollama-models before it was keyed
             (exec ollama-models [nu --no-config-file ($env.PWD | path join ollama-ensure-models.nu)] --key $pins
                 --done=(xdg state ollama-models $pins | path exists) --network --timeout $MODELS_TIMEOUT)
@@ -29,11 +29,8 @@ export def system [cfg: record] {
     [
         (unit-file ollama-proxy.service)
         (unit-file ollama.socket --enable --now)
-        (dropin ollama.service listen.conf --then $RESTART)
+        ([listen.conf hardening.conf gpu.conf perf.conf] | each { dropin ollama.service $in --then $RESTART })
         (file-render keep-alive.conf (unit-dir | path join ollama.service.d keep-alive.conf)
             {KEEP_ALIVE_MIN: $KEEP_ALIVE_MIN} --then $RESTART)
-        (dropin ollama.service hardening.conf --then $RESTART)
-        (dropin ollama.service gpu.conf --then $RESTART)
-        (dropin ollama.service perf.conf --then $RESTART)
     ]
 }

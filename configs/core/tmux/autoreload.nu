@@ -1,5 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 const SELF = path self
+# installed beside the tmux.conf it watches
+const CONF = path self tmux.conf
 
 # Re-source tmux.conf on change for the lifetime of this tmux server; the lock keeps one watcher per server.
 def main [--watch]: nothing -> nothing {
@@ -9,9 +11,8 @@ def main [--watch]: nothing -> nothing {
         "" | ^setsid -f flock -n $"($socket).autoreload.lock" $SELF --watch o+e> /dev/null
         return
     }
-    let conf = $nu.home-dir | path join .config tmux tmux.conf | path expand
     let entr = job spawn {
-        $conf | ^entr -np tmux -S $socket source-file $conf ";" display-message "tmux.conf reloaded"
+        $CONF | ^entr -np tmux -S $socket source-file $CONF ";" display-message "tmux.conf reloaded"
     }
     try { ^waitpid ($env.TMUX | split row "," | get 1) }
     job kill $entr

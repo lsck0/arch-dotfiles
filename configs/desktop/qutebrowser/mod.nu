@@ -55,7 +55,8 @@ export def link [cfg: record] {
     [
         (file-copy config.py ($dir | path join config.py))
         (file-text ($dir | path join search-url) $"($cfg.search_url | default $SEARCH_DEFAULT)\n")
-    ] | append (step lists-fetch --network --done=(lists-ready))
+        (step lists-fetch --network --done=(lists-ready))
+    ]
 }
 
 # Fetches the adblock lists in a windowless instance, never beside a running one: the quit would reach it over ipc.
@@ -91,12 +92,7 @@ def accent2-from [slot: closure, knobs: record, accent: list<float>, bg: list<fl
 # the bar's roles from the wal palette (Commons/Palette.js conditionPalette), every one used as text raised to its textContrast
 def startpage-colors []: nothing -> record {
     let slot = wal-load "qutebrowser startpage"
-    if $slot == null {
-        return {
-            BG: $FALLBACK.bg SURFACE: $FALLBACK.surface FG: $FALLBACK.fg MUTED: $FALLBACK.muted ACCENT: $FALLBACK.accent
-            ACCENT2: $FALLBACK.accent2
-        }
-    }
+    if $slot == null { return ($FALLBACK | reject urgent | rename --block { str uppercase }) }
     let knobs = bar-knobs
     let bg = do $slot background $FALLBACK.bg | condition-bg
     # text sits on the panel, a mix of surface and bg: readable on surface is readable on any mix of the two
@@ -149,7 +145,6 @@ export def theme [cfg: record, wallpaper: string] {
     # config.py reads both, and the chrome roles change with every palette, so the reload hangs off them
     let reload = then-step config-source
     let chrome = chrome-colors
-    let chrome_file = if $chrome == null { [] } else { [(file-text (xdg cache $CHROME_COLORS) ($chrome | to json --indent 2) --generated --then $reload)] }
     let dest = $nu.home-dir | path join $CONFIG_DIR startpage.html
     let font = font-load
     let startpage = file-render startpage.html $dest ({
@@ -161,5 +156,8 @@ export def theme [cfg: record, wallpaper: string] {
         SEARCH: ($cfg.search_url | default $SEARCH_DEFAULT | to json)
         METHOD: $cfg.search_method
     } | merge (startpage-colors)) --generated --then $reload
-    $chrome_file ++ [$startpage]
+    [
+        (if $chrome != null { file-text (xdg cache $CHROME_COLORS) ($chrome | to json --indent 2) --generated --then $reload })
+        $startpage
+    ]
 }

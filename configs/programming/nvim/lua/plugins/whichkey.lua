@@ -6,11 +6,7 @@ return {
             preset = "modern",
             delay = 200,
             icons = { mappings = false },
-        },
-        config = function(_, opts)
-            local wk = require("which-key")
-            wk.setup(opts)
-            wk.add({
+            spec = {
                 { "<leader>f", group = "find" },
                 { "<leader>l", group = "lsp" },
                 { "<leader>d", group = "debug" },
@@ -28,8 +24,7 @@ return {
                 { "<leader>o", group = "github" },
                 { "<leader>m", group = "orgmode" },
                 { "<leader>r", group = "rest" },
-                { "<leader>u", desc = "Undotree" }, -- its keymap sets no desc of its own
-            })
-        end,
+            },
+        },
     },
 }

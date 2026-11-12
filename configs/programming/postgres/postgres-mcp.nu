@@ -1,6 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
 # the server takes no socket path for a host: scram over 127.0.0.1 with a per-machine password in PGPASSFILE
 
+const REPO = path self | path expand | path dirname --num-levels 4
+use ($REPO | path join scripts lib state.nu) [xdg]
+
 const HOST = "127.0.0.1"
 const PORT = 5432
 const SOCKET = "/run/postgresql"
@@ -30,8 +33,7 @@ def main []: nothing -> nothing {
         let sql = $"ALTER ROLE CURRENT_USER PASSWORD '($password)';"
         with-env {PGHOST: $SOCKET} { $sql | ^psql -Xqw -v ON_ERROR_STOP=1 | ignore }
     }
-    let data = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share)
-    let servers = glob ($data | path join pgedge-postgres-mcp * pgedge-postgres-mcp)
+    let servers = glob (xdg data pgedge-postgres-mcp * pgedge-postgres-mcp)
         | sort-by {|p| $p | path dirname | path basename | split row . | each { into int } }
     if ($servers | is-empty) { print -e "postgres-mcp: no server installed, run dot apply"; exit 1 }
     exec ($servers | last) -config /dev/null

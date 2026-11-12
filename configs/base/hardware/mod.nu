@@ -74,5 +74,5 @@ export def kms-restore []: nothing -> nothing {
     if kms in $hooks { return }
     let anchor = [modconf udev base] | where $it in $hooks | get --optional 0
     if $anchor == null { error make {msg: "hardware: HOOKS has no modconf/udev/base to insert kms after"} }
-    hooks-write (hooks-insert $hooks kms (($hooks | enumerate | where item == $anchor | get 0.index) + 1))
+    hooks-write (hooks-insert $hooks kms $anchor --after)
 }

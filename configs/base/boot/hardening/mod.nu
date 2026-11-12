@@ -1,5 +1,5 @@
 use module.nu *
-use ../boot.nu [cmdline-set cmdline-unset]
+use ../boot.nu [cmdline-set cmdline-unset key-of]
 
 export const options = {
     allow_smt: {
@@ -51,8 +51,8 @@ export def system [cfg: record] {
 export def harden [...extra: string]: nothing -> nothing {
     # one token per key, an extra over the default: passing both makes cmdline-set move the token to the end each run,
     # a cmdline change that rebuilds the boot chain for nothing
-    let keys = $extra | each { split row "=" | first }
-    cmdline-set ...($TOKENS | where {|t| ($t | split row "=" | first) not-in $keys }) ...$extra
+    let keys = $extra | each { key-of $in }
+    cmdline-set ...($TOKENS | where {|t| (key-of $t) not-in $keys }) ...$extra
     if "nosmt" not-in $extra { cmdline-unset nosmt }
     if "retbleed=stuff" not-in $extra { cmdline-unset retbleed }
 }

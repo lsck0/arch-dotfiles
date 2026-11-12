@@ -6,41 +6,26 @@ config.load_autoconfig()
 
 _wal_dir = os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"), "wal")
 
+
+def _json_load(path, default):
+    try:
+        with open(path) as f:
+            return default | json.load(f)
+    except OSError, ValueError, TypeError:
+        return default
+
+
 _fb = {
     "special": {"background": "#1f2430", "foreground": "#cbccc6"},
     "colors": {"color0": "#232834", "color1": "#ff3333", "color2": "#bae67e", "color4": "#73d0ff", "color8": "#5c6773"},
 }
-_wal = _fb
-try:
-    with open(os.path.join(_wal_dir, "colors.json")) as _f:
-        _wal = json.load(_f)
-except OSError, ValueError:
-    pass
-
+_wal = _json_load(os.path.join(_wal_dir, "colors.json"), _fb)
 # the metrics a theme set (configs/core/wallust), its defaults when the file is missing or invalid
-_style = {"light_luminance": 0.4, "radius_px": 2}
-try:
-    with open(os.path.expanduser("~/.config/dotfiles/style.json")) as _f:
-        _style.update(json.load(_f))
-except OSError, ValueError:
-    pass
-
+_style = _json_load(os.path.expanduser("~/.config/dotfiles/style.json"), {"light_luminance": 0.4, "radius_px": 2})
 # the font a theme or toggle-font set (configs/core/wallust/font.nu), its defaults when unset
-_font = {"family": "Kode Mono", "ui_size": 11}
-try:
-    with open(os.path.join(_wal_dir, "font.json")) as _f:
-        _font.update(json.load(_f))
-except OSError, ValueError:
-    pass
-
-
+_font = _json_load(os.path.join(_wal_dir, "font.json"), {"family": "Kode Mono", "ui_size": 11})
 # the chrome roles the theme verb conditioned from the palette (mod.nu chrome-colors), the raw slots without it
-_chrome = {}
-try:
-    with open(os.path.join(_wal_dir, "qutebrowser-colors.json")) as _f:
-        _chrome = json.load(_f)
-except OSError, ValueError:
-    pass
+_chrome = _json_load(os.path.join(_wal_dir, "qutebrowser-colors.json"), {})
 
 
 def _c(section, key):

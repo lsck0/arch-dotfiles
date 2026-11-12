@@ -12,6 +12,11 @@ const CLONE_DIR = "/tmp/arch-dotfiles"
 # dialog exits -1 (255) on an error, like esc: the env moves error and timeout to codes of their own
 const DLG_EXIT = {ok: 0, cancel: 1, timeout: 5, error: 6, esc: 255}
 const DLG_RETRIES = 3
+const EAP_CHOICES = {
+    peap: {eap: peap, phase2: mschapv2, label: "PEAP / MSCHAPv2"}
+    ttls-pap: {eap: ttls, phase2: pap, label: "TTLS / PAP"}
+    ttls-mschapv2: {eap: ttls, phase2: mschapv2, label: "TTLS / MSCHAPv2"}
+}
 const CMDLINE_PARAM = '(?:^|\s)lsck0\.(?<key>keymap|wifi\.ssid|wifi\.psk)=(?:"(?<quoted>[^"]*)"|(?<plain>\S*))'
 const INSECURE_PARAM = '(?:^|\s)lsck0\.insecure=1(?:\s|$)'
 const ISO_GLOB = "archlinux-lsck0*.iso"
@@ -300,13 +305,16 @@ def answers-early [file: any]: nothing -> record {
     {keymap: $keymap, wifi: $wifi, source: $source, report: $report}
 }
 
+def url-answers [url: string]: nothing -> bool {
+    (^curl -s -o /dev/null -m $PROBE_TIMEOUT_S -w "%{http_code}" $url | complete | get stdout) not-in ["" "000"]
+}
+
 def network-missing []: nothing -> string {
     let up = ls /sys/class/net | get name | path basename | where $it != "lo" | where {|i| (open --raw $"/sys/class/net/($i)/operstate" | str trim) == "up" }
     if ($up | is-empty) { return $TEXT.no_link }
     if (^ip -j route show default | from json | is-empty) { return (text-fill $TEXT.no_address {devices: ($up | str join ' ')}) }
     for url in $PROBES {
-        let code = ^curl -s -o /dev/null -m $PROBE_TIMEOUT_S -w "%{http_code}" $url | complete | get stdout
-        if $code in ["" "000"] { return (text-fill $TEXT.no_answer {host: ($url | url parse | get host)}) }
+        if not (url-answers $url) { return (text-fill $TEXT.no_answer {host: ($url | url parse | get host)}) }
     }
     ""
 }
@@ -369,21 +377,20 @@ def wifi-provision [network: record]: nothing -> nothing {
 }
 
 def wifi-connect [device: string, network: record]: nothing -> string {
-    if ($network.eap? | is-not-empty) {
+    let r = if ($network.eap? | is-not-empty) {
         if ($network.domain? | default "" | is-empty) { return (text-fill $TEXT.wifi.no_domain {ssid: $network.ssid}) }
         # an unattended answer file can omit these; wifi-provision reads them non-optionally
         if ($network.identity? | default "" | is-empty) or ($network.password? | default "" | is-empty) {
             return (text-fill $TEXT.wifi.no_creds {ssid: $network.ssid})
         }
         wifi-provision $network
-        let r = ^iwctl station $device connect $network.ssid | complete
-        if $r.exit_code != 0 { return $"($network.ssid): ($r.stdout | ansi strip | str trim | default --empty $TEXT.wifi.failed)" }
-        return (network-wait $ONLINE_WAIT)
+        ^iwctl station $device connect $network.ssid | complete
+    } else {
+        let verb = if ($network.hidden? | default false) == true { "connect-hidden" } else { "connect" }
+        let psk = $network.psk? | default "" | into string
+        let secret = if ($psk | is-empty) { [] } else { [--passphrase $psk] }
+        ^iwctl ...$secret station $device $verb $network.ssid | complete
     }
-    let verb = if ($network.hidden? | default false) == true { "connect-hidden" } else { "connect" }
-    let psk = $network.psk? | default "" | into string
-    let secret = if ($psk | is-empty) { [] } else { [--passphrase $psk] }
-    let r = ^iwctl ...$secret station $device $verb $network.ssid | complete
     if $r.exit_code != 0 { return $"($network.ssid): ($r.stdout | ansi strip | str trim | default --empty $TEXT.wifi.failed)" }
     network-wait $ONLINE_WAIT
 }
@@ -469,23 +476,20 @@ def --env network-step [networks: list]: nothing -> bool {
         let ssid = $name.out
         let security = if $hidden { "" } else { $found | where ssid == $ssid | get --optional 0.security | default "" }
         if $security != "open" { keymap-ensure }
-        if $security == "8021x" {
-            let method = dlg --title $TEXT.wifi.title --menu (text-fill $TEXT.wifi.eap_method {ssid: $ssid}) "0" $width "3" peap "PEAP / MSCHAPv2" ttls-pap "TTLS / PAP" ttls-mschapv2 "TTLS / MSCHAPv2"
+        let enterprise = $security == "8021x"
+        let network = if $enterprise {
+            let methods = $EAP_CHOICES | items {|tag, m| [$tag $m.label] } | flatten
+            let method = dlg --title $TEXT.wifi.title --menu (text-fill $TEXT.wifi.eap_method {ssid: $ssid}) "0" $width ($EAP_CHOICES | columns | length | into string) ...$methods
             if $method.kind != ok { continue }
-            let eap = if $method.out == peap { {eap: peap, phase2: mschapv2} } else if $method.out == "ttls-pap" { {eap: ttls, phase2: pap} } else { {eap: ttls, phase2: mschapv2} }
             let id = dlg --title $TEXT.wifi.title --inputbox (text-fill $TEXT.wifi.identity {ssid: $ssid}) $TUI_BOX_ROWS $width
             if $id.kind != ok or ($id.out | is-empty) { continue }
             let dom = dlg --title $TEXT.wifi.title --inputbox (text-fill $TEXT.wifi.domain {ssid: $ssid}) $TUI_BOX_ROWS $width
             if $dom.kind != ok or ($dom.out | is-empty) { print $"install: (text-fill $TEXT.wifi.no_domain {ssid: $ssid})"; continue }
-            let pw = dlg --title $TEXT.wifi.title --insecure --passwordbox (text-fill $TEXT.wifi.password {ssid: $ssid}) $TUI_BOX_ROWS $width
-            if $pw.kind != ok { continue }
-            $missing = wifi-connect $device {ssid: $ssid, eap: $eap.eap, phase2: $eap.phase2, identity: $id.out, domain: $dom.out, password: $pw.out}
-        } else {
-            let open = $security == "open"
-            let pw = if $open { {kind: ok, out: ""} } else { dlg --title $TEXT.wifi.title --insecure --passwordbox (text-fill $TEXT.wifi.password {ssid: $ssid}) $TUI_BOX_ROWS $width }
-            if $pw.kind != ok { continue }
-            $missing = wifi-connect $device {ssid: $ssid, psk: $pw.out, hidden: $hidden}
-        }
+            $EAP_CHOICES | get $method.out | reject label | merge {ssid: $ssid, identity: $id.out, domain: $dom.out}
+        } else { {ssid: $ssid, hidden: $hidden} }
+        let pw = if $security == "open" { {kind: ok, out: ""} } else { dlg --title $TEXT.wifi.title --insecure --passwordbox (text-fill $TEXT.wifi.password {ssid: $ssid}) $TUI_BOX_ROWS $width }
+        if $pw.kind != ok { continue }
+        $missing = wifi-connect $device ($network | insert (if $enterprise { "password" } else { "psk" }) $pw.out)
     }
     true
 }
@@ -512,7 +516,7 @@ def source-allowed [origin: string]: nothing -> bool {
     if (open --raw /proc/cmdline) =~ $INSECURE_PARAM { return true }
     if (^systemd-detect-virt --vm --quiet | complete).exit_code == 0 { return true }
     let text = text-fill $TEXT.source.text {origin: $origin}
-    (^dialog --backtitle $TUI_BACKTITLE --stdout --defaultno --title $TEXT.source.title --yesno $text "10" (tui-width) | complete).exit_code == 0
+    (dlg --defaultno --title $TEXT.source.title --yesno $text "10" (tui-width)).kind == ok
 }
 
 # The answers' tree over master: its bundle and lfs are urls or the files staged beside the answer file.
@@ -544,8 +548,7 @@ def main [] {
 
     if not (network-step $early.wifi) { print "install: stopped; run lsck0-install to start over"; return }
     print "install: online"
-    let lab = ^curl -s -o /dev/null -m $PROBE_TIMEOUT_S -w "%{http_code}" $LAB_PROBE | complete | get stdout
-    if $lab in ["" "000"] { print (text-fill $TEXT.lab_down {host: ($LAB_PROBE | url parse | get host)}) }
+    if not (url-answers $LAB_PROBE) { print (text-fill $TEXT.lab_down {host: ($LAB_PROBE | url parse | get host)}) }
     ^systemctl start pacman-init.service
     let reuse = $env.LSCK0_CHECKOUT? | default ""
     let repo = if ($reuse | is-not-empty) { $reuse } else {
@@ -557,16 +560,15 @@ def main [] {
             $repo
         } catch {|e| print $"install: ($e.msg)"; null }
     }
+    # none tells the next stage not to search the media again for the file the user turned down
+    let handed = if $found == null { {LSCK0_ANSWERS: $ANSWERS_NONE} } else { {LSCK0_ANSWERS: $found.file, LSCK0_ANSWERS_ORIGIN: $found.origin} }
     let newer = if $repo == null { "" } else { $repo | path join $STUB_IN_REPO }
     if ($env.LSCK0_STUB_UPDATED? | is-empty) and ($newer | path exists) and (open --raw $newer) != (open --raw $env.CURRENT_FILE) {
         print "install: master has a newer installer, switching to it"
-        let pick = if $found == null { {LSCK0_ANSWERS: $ANSWERS_NONE} } else { {LSCK0_ANSWERS: $found.file, LSCK0_ANSWERS_ORIGIN: $found.origin} }
-        with-env ({LSCK0_STUB_UPDATED: "1", LSCK0_CHECKOUT: $repo} | merge $pick) { exec nu --no-config-file $newer }
+        with-env ({LSCK0_STUB_UPDATED: "1", LSCK0_CHECKOUT: $repo} | merge $handed) { exec nu --no-config-file $newer }
     }
-    # none tells the second stage not to search the media again for the file the user turned down
-    let handover = {LSCK0_INSTALL: "1"} | merge (if $found == null { {LSCK0_ANSWERS: $ANSWERS_NONE} } else { {LSCK0_ANSWERS: $found.file, LSCK0_ANSWERS_ORIGIN: $found.origin} })
     let status = if $repo == null { 1 } else {
-        with-env $handover { try { ^bash ($repo | path join bootstrap.sh); 0 } catch { $env.LAST_EXIT_CODE } }
+        with-env ({LSCK0_INSTALL: "1"} | merge $handed) { try { ^bash ($repo | path join bootstrap.sh); 0 } catch { $env.LAST_EXIT_CODE } }
     }
     if $status != 0 {
         print $"install: failed \(exit ($status)\); run lsck0-install to start over"

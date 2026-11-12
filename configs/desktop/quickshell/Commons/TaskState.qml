@@ -255,12 +255,7 @@ Singleton {
     atomicWrites: true
     printErrors: false
     onLoaded: {
-      try {
-        let parsed = JSON.parse(text() || "{}")
-        root.notified = Util.isPlainObject(parsed) ? parsed : ({})
-      } catch (e) {
-        root.notified = ({})
-      }
+      root.notified = Util.parseObject(text())
       root.notifiedReady = true
       root.checkDue()
     }

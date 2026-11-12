@@ -32,7 +32,7 @@ def public-key [fpr: string]: nothing -> list<path> {
     glob ($env.PWD | path join *.pub.asc) | where {|f| ^gpg --show-keys --with-colons $f | lines | any { $in == $"fpr:::::::::($fpr):" } }
 }
 
-def identity [fpr: string]: nothing -> list<record> {
+def identity [fpr: string]: nothing -> list {
     let private = $env.DOTFILES | path join $PRIVATE_KEY
     let has_secret = gpg-ok --list-secret-keys $fpr
     let trusted = ^gpg --export-ownertrust | lines | any { $in == $"($fpr):6:" }
@@ -40,9 +40,9 @@ def identity [fpr: string]: nothing -> list<record> {
     [
         (public-key $fpr | each { exec $"gpg-import ($in | path basename)" [gpg --batch --import $in] --done=$listed })
         (step gpg-trust $fpr --done=$trusted)
-        (if (secret-is-plaintext $private) { exec gpg-import-private [gpg --batch --import $private] --done=$has_secret } else { [] })
+        (if (secret-is-plaintext $private) { exec gpg-import-private [gpg --batch --import $private] --done=$has_secret })
         (step gpg-card-stubs --done=$has_secret)
-    ] | decls-flatten
+    ]
 }
 
 export def gpg-trust [fpr: string]: nothing -> nothing {
@@ -69,6 +69,6 @@ export def link [cfg: record] {
             --then [gpgconf --reload gpg-agent])
         (file-copy scdaemon.conf ($dir | path join scdaemon.conf) --then [gpgconf --kill scdaemon])
         (file-text ($dir | path join gpg.conf) $"(open --raw gpg.conf)($default_key)" --mode 600)
-        (if $fpr == "" { [] } else { identity $fpr })
+        (if $fpr != "" { identity $fpr })
     ]
 }

@@ -1,17 +1,14 @@
 #!/usr/bin/env -S nu --no-config-file
 # Agenda events from the homelab calendar; no-op without ~/.config/task/calendar.env.
 
+const REPO = path self | path expand | path dirname --num-levels 4
+use ($REPO | path join scripts lib state.nu) [env-file-load xdg]
+
 const ENV_FILE = ($nu.home-dir | path join .config task calendar.env)
 # the last good answer, served while the feed is unreachable so the agenda keeps its events
 const CACHE_FILE = "task-calendar/events.json"
 # the feed's one-day views, today first; the agenda shows this many days
 const VIEWS = ["day.json" "day-next.json" "day-after-next.json"]
-
-def endpoints []: nothing -> record {
-    if not ($ENV_FILE | path exists) { return {} }
-    open --raw $ENV_FILE | lines | where ($it =~ '^[A-Z_]+=') | parse "{key}={value}"
-        | reduce --fold {} {|row, acc| $acc | insert $row.key ($row.value | str trim) }
-}
 
 # The cached events still on one of the VIEWS' days, their day and today flag taken from the date, not from the fetch:
 # a cache from an earlier day would otherwise show that day's events as today's.
@@ -33,7 +30,7 @@ def cached-events [cache: path]: nothing -> list<record> {
 
 # One list over the VIEWS' days, each event tagged with its day.
 def "main events" [] {
-    let feed = endpoints | get -o CALENDAR_FEED
+    let feed = env-file-load $ENV_FILE | get --optional CALENDAR_FEED
     if $feed == null { print '{"events":[]}'; return }
     # a view the feed does not publish (yet) drops out alone; only no view at all falls back to the cache
     let views = $VIEWS | each {|name|
@@ -43,7 +40,7 @@ def "main events" [] {
         $views | each {|view| $view.day.events | each {|event| $event | insert day $view.weekday | insert today $view.is_today } }
         | flatten
     }
-    let cache = $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join $CACHE_FILE
+    let cache = xdg cache $CACHE_FILE
     if $fetched == null { {events: (cached-events $cache)} | to json --raw | print; return }
     let out = {events: $fetched} | to json --raw
     mkdir ($cache | path dirname)

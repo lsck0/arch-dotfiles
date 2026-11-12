@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Color grading in the display hardware: one owner for every output's KMS CTM and gamma LUT.
 
-Grading used to be a full-screen compositor shader, which kept the gpu rendering every frame,
-blocked direct scanout and added latency. The display engine applies the 3x3 color transform
-matrix (CTM) and then the per-channel gamma LUT to every scanned-out pixel for free, so the daemon
-uploads both once per output and sleeps in select until an output, or a setting, changes.
+A full-screen compositor shader keeps the gpu rendering every frame, blocks direct scanout and adds
+latency. The display engine applies the 3x3 color transform matrix (CTM) and then the per-channel
+gamma LUT to every scanned-out pixel for free, so the daemon uploads both once per output and
+sleeps in select until an output, or a setting, changes.
 
 Presets (PRESETS below, the single list; toggles and the bar read it through `list` / `status`):
     off        identity everywhere
@@ -25,7 +25,7 @@ Overview:
     matrix_for_kelvin(kelvin)          hyprsunset's blackbody whitepoint, so night light looks the same
     settings_load() / settings_save()  parse the state files into Settings, write them atomically
     ctm_compose(settings)              the matrix sent for every output
-    daemon_run(client)                 dispatch wayland events and reloads forever
+    daemon_run(client, wake)           dispatch wayland events and reloads forever
 
 Example:
     color-grading.py run                     # the daemon, what color-grading.service runs
@@ -369,10 +369,19 @@ def settings_load() -> Settings:
     return Settings(**values)
 
 
+def settings_texts(settings: Settings) -> dict[str, str]:
+    """Each setting as its state file and `get` hold it, keyed by the command line's name."""
+    return {
+        "preset": settings.preset.name,
+        "nightlight": "on" if settings.nightlight else "off",
+        "brightness": str(settings.brightness_percent),
+    }
+
+
 def settings_save(settings: Settings) -> None:
-    file_write(PRESET_PATH, settings.preset.name)
-    file_write(NIGHTLIGHT_PATH, "on" if settings.nightlight else "off")
-    file_write(BRIGHTNESS_PATH, str(settings.brightness_percent))
+    texts = settings_texts(settings)
+    for key, path in (("preset", PRESET_PATH), ("nightlight", NIGHTLIGHT_PATH), ("brightness", BRIGHTNESS_PATH)):
+        file_write(path, texts[key])
 
 
 def output_attach(client: Client, global_name: int, version: int) -> None:
@@ -612,18 +621,6 @@ def command_set(key: str, value: str) -> int:
     return 0
 
 
-def command_get(key: str) -> int:
-    settings = settings_load()
-    if key == "preset":
-        print(settings.preset.name)
-    elif key == "nightlight":
-        print("on" if settings.nightlight else "off")
-    else:
-        assert key == "brightness"
-        print(settings.brightness_percent)
-    return 0
-
-
 def command_status() -> int:
     settings = settings_load()
     print(
@@ -659,7 +656,8 @@ def main() -> int:
     if args.command == "status":
         return command_status()
     if args.command == "get":
-        return command_get(args.key)
+        print(settings_texts(settings_load())[args.key])
+        return 0
     assert args.command == "set"
     return command_set(args.key, args.value)
 

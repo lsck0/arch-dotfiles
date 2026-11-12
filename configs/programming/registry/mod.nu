@@ -10,8 +10,7 @@ export def link [cfg: record] {
     let secret = $env.DOTFILES | path join $SECRET
     let target = xdg config containers auth.json
     let text = if (secret-is-plaintext $secret) {
-        let r = open --raw $secret | lines | parse --regex '^(?<k>[A-Z_]+)=(?<v>.*)$'
-            | reduce --fold {} {|e, acc| $acc | insert $e.k ($e.v | str trim) }
+        let r = env-file-load $secret
         let auth = $"($r.REGISTRY_USER):($r.REGISTRY_PASSWORD)" | encode base64
         {auths: {$r.REGISTRY_URL: {auth: $auth}}} | to json
     } else if ($target | path exists) { open --raw $target } else { null }

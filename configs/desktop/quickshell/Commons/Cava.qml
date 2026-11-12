@@ -22,8 +22,7 @@ Singleton {
 
   property int refCount: 0
 
-  readonly property string confPath:
-    Quickshell.env("XDG_RUNTIME_DIR") ? Quickshell.env("XDG_RUNTIME_DIR") + "/quickshell-cava.conf" : ""
+  readonly property string confPath: Paths.runtimeDir + "/quickshell-cava.conf"
 
   property string source: ""
 
@@ -32,7 +31,7 @@ Singleton {
   function restart() {
     if (!cavaProc.running) return
     cavaProc.running = false
-    cavaProc.running = Qt.binding(function() { return root.available && root.confPath !== "" && root.refCount > 0 && !Power.saver })
+    cavaProc.running = Qt.binding(function() { return root.available && root.refCount > 0 && !Power.saver })
   }
 
   readonly property string configText:
@@ -83,7 +82,7 @@ Singleton {
 
   Process {
     id: cavaProc
-    running: root.available && root.confPath !== "" && root.refCount > 0 && !Power.saver
+    running: root.available && root.refCount > 0 && !Power.saver
 
     command: ["sh", "-c",
       "printf '%s' \"$1\" > \"$2\" && exec cava -p \"$2\"",

@@ -13,12 +13,15 @@ const SEND_TIMEOUT = "2"
 
 def fail [msg: string] { error make {msg: $"tor-router.test: ($msg)"} }
 
+def router-consts []: nothing -> table<k: string, v: string> {
+    open --raw $ROUTER | parse --regex '(?m)^const (?<k>[A-Z_]+) = "?(?<v>[^"\n]*)"?$'
+}
+
 # tor-router.nu's RULESET with its own constants filled in; tor is a uid other than the test's, no homelab
 def ruleset []: nothing -> string {
     let code = open --raw $ROUTER
     let text = $code | parse --regex "(?s)const RULESET = r#'(?<r>.*?)'#" | get 0.r
-    let consts = $code | parse --regex '(?m)^const (?<k>[A-Z_]+) = "?(?<v>[^"\n]*)"?$'
-    let values = $consts | append [
+    let values = router-consts | append [
         {k: TOR_UID, v: ((^id -u | into int) + 1 | into string)} {k: HOMELAB4, v: ""} {k: LAB_DNS, v: ""}
     ]
     $values | reduce --fold $text {|p, acc| $acc | str replace --all $"@($p.k)@" $p.v }
@@ -46,10 +49,10 @@ timeout @T@ bash -c "echo q > /dev/udp/@REMOTE@/53" 2>/dev/null
 nft -j list table inet probe'
 
 def probe [rules: path]: nothing -> record {
+    let consts = router-consts
     let script = [
         [UPLINK $UPLINK] [ADDRESS $UPLINK_ADDRESS] [GATEWAY $UPLINK_GATEWAY] [EGRESS $EGRESS] [RULES $rules]
-        [TRANS (open --raw $ROUTER | parse --regex 'const TRANS_PORT = (?<p>\d+)' | get 0.p)]
-        [DNS (open --raw $ROUTER | parse --regex 'const DNS_PORT = (?<p>\d+)' | get 0.p)]
+        [TRANS ($consts | where k == TRANS_PORT | get 0.v)] [DNS ($consts | where k == DNS_PORT | get 0.v)]
         [REMOTE $REMOTE] [T $SEND_TIMEOUT]
     ] | reduce --fold $PROBE {|p, acc| $acc | str replace --all $"@($p.0)@" $p.1 }
     let r = ^unshare -rn bash -c $script | complete

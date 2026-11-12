@@ -8,16 +8,12 @@ export const meta = {
 
 const NAMES_DB = "luatex-cache/generic/names/luaotfload-names.lua.gz"
 
-def texmf-var []: nothing -> path {
-    $env.TEXMFVAR? | default (xdg cache texlive texmf-var)
-}
-
 export def link [cfg: record] {
-    let var = texmf-var
+    let names = $env.TEXMFVAR? | default (xdg cache texlive texmf-var) | path join $NAMES_DB
     [
         (file-copy latexmkrc (xdg config latexmk latexmkrc))
-        (if (which luaotfload-tool | is-empty) { [] } else {
-            exec luaotfload-names [luaotfload-tool --update] --creates ($var | path join $NAMES_DB)
+        (if (which luaotfload-tool | is-not-empty) {
+            exec luaotfload-names [luaotfload-tool --update] --creates $names
         })
     ]
 }

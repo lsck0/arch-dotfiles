@@ -7,7 +7,8 @@ export def system [cfg: record] {
     [
         (file-copy config /etc/endlessh/config)
         (dropin endlessh.service override.conf)
-    ] ++ (if (^sshd -T o+e>| complete | get stdout | lines | any { ($in | str lowercase) == "port 22" }) {
-        []
-    } else { [(unit-enable endlessh.service --now)] })
+        (if not (^sshd -T o+e>| complete | get stdout | lines | any { ($in | str lowercase) == "port 22" }) {
+            unit-enable endlessh.service --now
+        })
+    ]
 }

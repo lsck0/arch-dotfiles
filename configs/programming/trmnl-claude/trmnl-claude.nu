@@ -1,5 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
+use ../../../scripts/lib/state.nu [env-file-load xdg]
 use ../../../scripts/lib/usage.nu [die]
 
 const ENV_FILE = path self | path dirname | path join ../../secrets/keys/trmnl-claude.env | path expand
@@ -58,7 +59,7 @@ def claude-dir []: nothing -> path {
 
 # push stamp under XDG state; only its mtime is read, to tell whether usage changed since the last post
 def push-stamp []: nothing -> path {
-    ($env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state)) | path join trmnl-claude last-push
+    xdg state trmnl-claude last-push
 }
 
 def tokens-format [n: int]: nothing -> string {
@@ -113,22 +114,6 @@ def project-name [encoded: string]: nothing -> string {
     if $marker != null { $segments | skip ($marker + 1) | str join "-" } else { $segments | last 2 | str join "-" }
 }
 
-# Rows deduped by message and request id: every content block repeats its reply's usage, resumed sessions copy history.
-def usage-rows [since: datetime]: nothing -> table {
-    let bases = [(claude-dir | path join projects) ($nu.home-dir | path join .config claude projects)] | uniq
-        | where ($it | path exists)
-    let files = $bases | each {|b| glob ($b | path join "*" "*.jsonl") } | flatten
-    if ($files | is-empty) { return [] }
-    ls ...$files | where modified >= ($since - 1hr) | get name
-    | each {|file|
-        let project = project-name ($file | path dirname | path basename)
-        open --raw $file | lines | where ($it | str contains '"assistant"')
-        | each {|line| try { $line | from json } catch { null } }
-        | where {|e| $e.type? == assistant and $e.timestamp? != null and $e.message?.usage? != null }
-        | each {|e| usage-row $e ($file | path parse | get stem) $project $since }
-    } | flatten | uniq-by id | where model != null
-}
-
 def usage-row [e: record, session: string, project: string, since: datetime]: nothing -> any {
     let ts = try { $e.timestamp | into datetime } catch { return null }
     if $ts < $since { return null }
@@ -152,6 +137,22 @@ def usage-row [e: record, session: string, project: string, since: datetime]: no
         input: $input, output: $output, cache_read: $read, cache_write: $write
         total: ($input + $output + $read + $write), cost: ($cost / 1_000_000)
     }
+}
+
+# Rows deduped by message and request id: every content block repeats its reply's usage, resumed sessions copy history.
+def usage-rows [since: datetime]: nothing -> table {
+    let bases = [(claude-dir | path join projects) ($nu.home-dir | path join .config claude projects)] | uniq
+        | where ($it | path exists)
+    let files = $bases | each {|b| glob ($b | path join "*" "*.jsonl") } | flatten
+    if ($files | is-empty) { return [] }
+    ls ...$files | where modified >= ($since - 1hr) | get name
+    | each {|file|
+        let project = project-name ($file | path dirname | path basename)
+        open --raw $file | lines | where ($it | str contains '"assistant"')
+        | each {|line| try { $line | from json } catch { null } }
+        | where {|e| $e.type? == assistant and $e.timestamp? != null and $e.message?.usage? != null }
+        | each {|e| usage-row $e ($file | path parse | get stem) $project $since }
+    } | flatten | uniq-by id | where model != null
 }
 
 def credentials-read [claude: path]: nothing -> record {
@@ -282,8 +283,7 @@ def payload-sample []: nothing -> record {
 
 # The uuid is the plugin's write credential: it stays in this process, never in an argv.
 def plugin-post [payload: record]: nothing -> nothing {
-    let from_file = if ($ENV_FILE | path exists) { open --raw $ENV_FILE | lines | parse "{key}={value}" } else { [] }
-    let uuid = $env.TRMNL_PLUGIN_UUID? | default ($from_file | where key == TRMNL_PLUGIN_UUID | get 0?.value)
+    let uuid = $env.TRMNL_PLUGIN_UUID? | default (env-file-load $ENV_FILE | get --optional TRMNL_PLUGIN_UUID)
     if $uuid == null { error make {msg: $"missing ($ENV_FILE) \(TRMNL_PLUGIN_UUID=...\)"} }
     let body = {merge_variables: $payload} | to json --raw
     let reply = http post --full --allow-errors --raw --max-time $POST_TIMEOUT --content-type application/json (

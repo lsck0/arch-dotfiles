@@ -11,6 +11,8 @@ const STREAM_TAIL_LINES = 5
 # a bounded process past its deadline gets TERM, and KILL this much later
 const BOUND_GRACE = 5sec
 const BOUND_MARK_LENGTH = 16
+const ERROR_AT = '\[(?<file>[^\]\s]+):(?<line>\d+):\d+\]'
+const ERROR_MARK = '^(x|\x{d7}) '
 
 # An unrecognized DOT_LOG ranks as LEVEL_DEFAULT rather than crashing every log call.
 def rank [level: string]: nothing -> int {
@@ -101,14 +103,8 @@ export def command-stream [tag: string, argv: list, timeout: duration]: nothing 
 # Falls back to the run's own failures file: a crash here must not take down the run.
 export def fail [message: string, fields: record = {}]: nothing -> nothing {
     log-err $message ($fields | merge {kind: failure})
-    let target = if ($env.FAILURES_FILE? | is-not-empty) {
-        $env.FAILURES_FILE
-    } else if ($env.DOT_RUN_FILE? | is-not-empty) {
-        $env.DOT_RUN_FILE | str replace ".jsonl" ".failures"
-    } else {
-        null
-    }
-    if $target != null { $"($message)\n" | save --append $target }
+    let target = if ($env.FAILURES_FILE? | is-not-empty) { $env.FAILURES_FILE } else { $env.DOT_RUN_FILE? | default "" | str replace ".jsonl" ".failures" }
+    if $target != "" { $"($message)\n" | save --append $target }
 }
 
 # Collects every fail of this phase into file, empty at the start.
@@ -177,9 +173,6 @@ export def span [name: string, fields: record, body: closure]: nothing -> any {
         $result.value
     }
 }
-
-const ERROR_AT = '\[(?<file>[^\]\s]+):(?<line>\d+):\d+\]'
-const ERROR_MARK = '^(x|\x{d7}) '
 
 # One line from a rendered nushell error: the first file:line it points at, then its message.
 export def error-brief [rendered: string, --root: path]: nothing -> string {

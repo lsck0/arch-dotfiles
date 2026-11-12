@@ -2,7 +2,6 @@
 
 const REPO = path self ../..
 use log.nu *
-use cli.nu [concat]
 use state.nu [save-atomic]
 use options.nu [OPTION_ENABLE options-schema option-value-errors options-notify options-to-nuon]
 use pipeline.nu [pipeline-load pipeline-plan pipeline-apply]
@@ -35,7 +34,7 @@ export def options-list [mod: any, json: bool]: nothing -> any {
         return ({modules: $modules} | to json --raw)
     }
     $mods | each {|m| options-schema $m | items {|key, spec| {module: $m.id, option: $key, value: ($m.cfg | get $key), source: ($m.sources | get $key)} } }
-    | concat | where {|r| $mod != null or $r.option != "enable" or not $r.value }
+    | flatten | where {|r| $mod != null or $r.option != "enable" or not $r.value }
 }
 
 export def option-target [target: string]: nothing -> record {
@@ -58,7 +57,7 @@ export def option-write [mod: string, key: string, value: any, machine: bool]: n
     let current = if ($file | path exists) { open $file } else { {} }
     let cell = [$mod $key] | into cell-path
     let updated = if $value == null { $current | reject --optional $cell } else { $current | upsert $cell $value }
-    $updated | items {|id, opts| {id: $id, opts: $opts} } | where ($it.opts | is-not-empty) | reduce --fold {} {|e, acc| $acc | insert $e.id $e.opts }
+    $updated | items {|id, opts| if ($opts | is-not-empty) { [$id $opts] } } | compact | into record
     | options-to-nuon | $"($in)\n" | save-atomic $file
     let resolved = pipeline-load $REPO user | get modules | where id == $mod | first
     {module: $m, spec: $spec, value: ($resolved.cfg | get $key), source: ($resolved.sources | get $key), machine: $machine}

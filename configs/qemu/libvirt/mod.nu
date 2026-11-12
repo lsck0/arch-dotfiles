@@ -16,7 +16,7 @@ export def system [cfg: record] {
         # no libvirt group: its polkit rule is a silent root for every member's process
         (file-copy 49-libvirt.rules /etc/polkit-1/rules.d/49-libvirt.rules)
         (group-admins kvm)
-        (if $module == null { [] } else { file-text /etc/modprobe.d/kvm-nested.conf $"options ($module) nested=1\n" })
+        (if $module != null { file-text /etc/modprobe.d/kvm-nested.conf $"options ($module) nested=1\n" })
     ]
 }
 

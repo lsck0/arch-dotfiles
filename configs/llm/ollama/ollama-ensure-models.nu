@@ -26,8 +26,7 @@ def manifest-get-pinned [entry: record]: nothing -> record {
     let manifest = http get --raw --headers [Accept $MANIFEST_TYPE] $"($REGISTRY)/($repo)/manifests/($name.1)"
     let served = $manifest | hash sha256
     if $served != $entry.pin {
-        let why = $"the registry serves ($entry.model) as ($served), pinned ($entry.pin)"
-        error make {msg: $"ollama: ($why); not pulling, bump the pin"}
+        error make {msg: $"ollama: the registry serves ($entry.model) as ($served), pinned ($entry.pin); not pulling, bump the pin"}
     }
     $manifest | from json
 }
@@ -80,9 +79,7 @@ def main []: nothing -> nothing {
         if (do { ^ollama list } | complete).exit_code == 0 { break }
         sleep 1sec
     }
-    model-pull-pinned $LARGE
-    model-pull-pinned $EMBEDDING
-    model-pull-pinned $CODING
+    for entry in [$LARGE $EMBEDDING $CODING] { model-pull-pinned $entry }
     long-context-ensure
     models-prune
 }

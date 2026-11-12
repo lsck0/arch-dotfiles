@@ -34,22 +34,20 @@ export def packages [cfg: record]: nothing -> record {
 
 const HOOK = "systemd-tool"
 const TOOL_DIR = "/etc/mkinitcpio-systemd-tool"
-const AUTHORIZED_KEYS = "/etc/mkinitcpio-systemd-tool/config/authorized_keys"
+const AUTHORIZED_KEYS = $"($TOOL_DIR)/config/authorized_keys"
 const KEYDIR = "/etc/tinyssh/sshkeydir"
 const UNITS = [initrd-network.service initrd-tinysshd.service]
-const HOOK_INSTALL = "/usr/lib/initcpio/install/systemd-tool"
+const HOOK_INSTALL = $"/usr/lib/initcpio/install/($HOOK)"
 const ED25519_SK_BYTES = 64
 const WIFI_UNIT = "initrd-wifi.service"
-const WIFI_CONF = "/etc/mkinitcpio-systemd-tool/config/initrd-wifi.conf"
+const WIFI_CONF = $"($TOOL_DIR)/config/initrd-wifi.conf"
 
 export def system [cfg: record] {
     if not $cfg.ssh_unlock {
         if not ($HOOK_INSTALL | path exists) { return [] }
         return ($UNITS | append $WIFI_UNIT | each { unit-disable $in } | append (step teardown))
     }
-    if (which tinysshd | is-empty) or not ($HOOK_INSTALL | path exists) {
-        return []
-    }
+    if (which tinysshd | is-empty) or not ($HOOK_INSTALL | path exists) { return [] }
     [
         (step keys)
         (file-copy mkinitcpio-systemd-tool.conf $"($TOOL_DIR)/mkinitcpio-systemd-tool.conf")
@@ -59,29 +57,24 @@ export def system [cfg: record] {
         (dropin initrd-network.service initrd-network.conf)
         # the systemd-tool hook puts enabled units in the image, ConditionPathExists keeps them off the real system
         ...($UNITS | each { unit-enable $in })
-        ...(wifi $cfg.wifi)
+        (wifi $cfg.wifi)
         (step wire)
     ]
 }
 
-def wifi [enabled: bool]: nothing -> list<record> {
-    if not $enabled {
-        return [(unit-disable $WIFI_UNIT) (step wifi-teardown)]
-    }
+def wifi [enabled: bool]: nothing -> list {
+    if not $enabled { return [(unit-disable $WIFI_UNIT) (step wifi-teardown)] }
     [
         (step wifi-conf)
-    ] ++ (if ($WIFI_CONF | path exists) or (wifi-secret | path exists) {
-        [(file-copy $WIFI_UNIT $"/etc/systemd/system/($WIFI_UNIT)") (unit-enable $WIFI_UNIT)]
-    } else { [(unit-disable $WIFI_UNIT)] })
+        (if ($WIFI_CONF | path exists) or (system-secret wifi | path exists) {
+            unit-file $WIFI_UNIT --enable
+        } else { unit-disable $WIFI_UNIT })
+    ]
 }
 
 # The initrd wifi config from configs/secrets/keys/wifi (ssid, tab, passphrase); without secrets, what is there stays.
-def wifi-secret []: nothing -> path {
-    $env.DOTFILES_SECRETS? | default "/nonexistent" | path join wifi
-}
-
 export def wifi-conf []: nothing -> nothing {
-    let wifi = wifi-secret
+    let wifi = system-secret wifi
     if not ($wifi | path exists) {
         if not ($WIFI_CONF | path exists) {
             print "note: remote-unlock: configs/secrets/keys/wifi not readable, unlock the secrets and rerun; the initramfs stays wired only"
@@ -105,8 +98,7 @@ export def wifi-teardown []: nothing -> nothing {
 }
 
 export def keys []: nothing -> nothing {
-    let secrets = $env.DOTFILES_SECRETS? | default "/nonexistent"
-    let secret_key = host-file ($secrets | path join initramfs-ssh) sshkeydir .ed25519.sk
+    let secret_key = host-file (system-secret initramfs-ssh) sshkeydir .ed25519.sk
     if ($secret_key | path exists) and (ls $secret_key | get 0.size | into int) == $ED25519_SK_BYTES {
         ^install -dm700 $KEYDIR
         ^install -m600 $secret_key $"($KEYDIR)/.ed25519.sk"
@@ -119,7 +111,7 @@ export def keys []: nothing -> nothing {
         print ("note: remote-unlock: generated a new initramfs host key; back it up: "
             + $"mkdir -p ($backup) && sudo cp -r ($KEYDIR) ($backup)/sshkeydir && sudo chown -R $USER: ($backup)")
     }
-    let pubkey = $secrets | path join ssh_publickey.asc
+    let pubkey = system-secret ssh_publickey.asc
     if ($pubkey | path exists) and (open --raw $pubkey | str starts-with "ssh-") {
         ^install -Dm600 $pubkey $AUTHORIZED_KEYS
     } else {
@@ -140,9 +132,7 @@ export def wire []: nothing -> nothing {
         if $anchor == null {
             error make {msg: "remote-unlock: no sd-encrypt or filesystems hook to anchor systemd-tool"}
         }
-        let after = if $anchor == "sd-encrypt" { 1 } else { 0 }
-        let at = ($hooks | enumerate | where item == $anchor | get 0.index) + $after
-        hooks-write (hooks-insert $hooks $HOOK $at)
+        hooks-write (hooks-insert $hooks $HOOK $anchor --after=($anchor == sd-encrypt))
     }
     cmdline-set rd.neednet=1
 }

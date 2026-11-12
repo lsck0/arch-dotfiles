@@ -4,7 +4,6 @@ hl.config({
         animate_manual_resizes = true,
         disable_hyprland_logo = true,
         disable_splash_rendering = true,
-        enable_swallow = false,
         focus_on_activate = false,
         force_default_wallpaper = 0,
         key_press_enables_dpms = true,

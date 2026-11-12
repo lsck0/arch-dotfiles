@@ -4,11 +4,6 @@ export const meta = {packages: {pacman: [tea]}}
 
 const SECRET = "configs/secrets/keys/forgejo.env"
 
-def env-read [file: path]: nothing -> record {
-    open --raw $file | lines | parse --regex '^(?<k>[A-Z_]+)=(?<v>.*)$'
-    | reduce --fold {} {|r, acc| $acc | insert $r.k ($r.v | str trim) }
-}
-
 # locked secrets keep the live file instead of dropping it
 def kept [target: path]: nothing -> any {
     if ($target | path exists) { open --raw $target } else { null }
@@ -21,8 +16,9 @@ export def link [cfg: record] {
     let inc = xdg config git forgejo.inc
     let tea = xdg config tea config.yml
     let ssh = $nu.home-dir | path join .ssh config.d forgejo
-    let texts = if (secret-is-plaintext $secret) {
-        let f = env-read $secret
+    let unlocked = secret-is-plaintext $secret
+    let texts = if $unlocked {
+        let f = env-file-load $secret
         let host = $f.FORGEJO_URL | url parse | get host
         let ssh_url = $f.FORGEJO_SSH | url parse
         {
@@ -39,10 +35,10 @@ export def link [cfg: record] {
     [
         ([[target text]; [$store $texts.store] [$tea $texts.tea] [$ssh $texts.ssh]] | where text != null
             | each {|f| file-text $f.target $f.text --mode 600 })
-        (if $texts.inc == null { [] } else { file-text $inc $texts.inc })
+        (if $texts.inc != null { file-text $inc $texts.inc })
         (file-copy known_hosts ($nu.home-dir | path join .ssh known_hosts.forgejo) --mode 600)
         # keyed by the key set and account: a new key or account registers again; away from the forge it waits
-        (if not (secret-is-plaintext $secret) { [] } else {
+        (if $unlocked {
             let fingerprint = keys-fingerprint
             let stamp = xdg cache dotfiles forgejo-keys
             (step keys-register --key $fingerprint --network
@@ -60,7 +56,7 @@ def keys-local []: nothing -> list<string> {
 }
 
 def keys-fingerprint []: nothing -> string {
-    let f = env-read ($env.DOTFILES | path join $SECRET)
+    let f = env-file-load ($env.DOTFILES | path join $SECRET)
     [$f.FORGEJO_URL $f.FORGEJO_USER ...(keys-local | sort)] | str join "\n" | hash sha256
 }
 
@@ -68,7 +64,7 @@ def keys-fingerprint []: nothing -> string {
 export def keys-register []: nothing -> nothing {
     let secret = $env.DOTFILES | path join $SECRET
     if not (secret-is-plaintext $secret) { return }
-    let f = env-read $secret
+    let f = env-file-load $secret
     let api = $"($f.FORGEJO_URL)/api/v1/user/keys"
     let auth = [Authorization $"token ($f.FORGEJO_TOKEN)"]
     let have = try { http get --max-time 10sec --headers $auth $api | get key | each { split row ' ' | get 1 } } catch {|e|

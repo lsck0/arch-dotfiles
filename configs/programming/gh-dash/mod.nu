@@ -9,7 +9,7 @@ const SELECTED_MIX = 0.12
 def config [] {
     let p = palette-load
     let base = open config.yml
-    let text = if $p == null { $base } else {
+    let merged = if $p == null { $base } else {
         let accent = $p.c4 | str lowercase
         $base | upsert theme.colors {
             text: {primary: ($p.fg | str lowercase), secondary: $accent, inverted: ($p.bg | str lowercase), faint: ($p.c8 | str lowercase), warning: ($p.c3 | str lowercase), success: ($p.c2 | str lowercase)}
@@ -17,7 +17,7 @@ def config [] {
             border: {primary: $accent, secondary: ($p.c8 | str lowercase), faint: ($p.c0 | str lowercase)}
         }
     }
-    file-text (xdg config gh-dash config.yml) ($text | to yaml)
+    file-text (xdg config gh-dash config.yml) ($merged | to yaml)
 }
 
 export def link [cfg: record] {

@@ -30,7 +30,7 @@ def main []: nothing -> nothing {
             ^tmux new-session -d -s $session -c $dest
         }
         ^tmux switch-client -t $"=($session)"
-    } else if ($"($env.HERDR_SESSION? | default '')($env.HERDR_ENV? | default '')" | is-not-empty) {
+    } else if ($env.HERDR_SESSION? | is-not-empty) or ($env.HERDR_ENV? | is-not-empty) {
         ^herdr-open $dest $name
     } else {
         print $">>> cloned to ($dest)"

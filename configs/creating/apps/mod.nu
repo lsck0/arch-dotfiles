@@ -16,32 +16,31 @@ const FAMISTUDIO_SETTINGS_VERSION = 11
 export def link [cfg: record] {
     let config = xdg config
     [
-        (if (which kdenlive | is-empty) { [] } else {
+        (if (which kdenlive | is-not-empty) {
             ini-merge ($config | path join kdenliverc) {startup: {showWelcome: "false"}}
         })
-        (if (which famistudio | is-empty) { [] } else {
+        (if (which famistudio | is-not-empty) {
             let ini = $config | path join FamiStudio FamiStudio.ini
             [
                 (ini-merge $ini {General: {Version: $FAMISTUDIO_SETTINGS_VERSION}} --missing-only)
                 (ini-merge $ini {General: {ShowTutorial: "False"}})
-            ] ++ (
-                desktop-override famistudio.desktop {
+                (desktop-override famistudio.desktop {
                     desktop-set {Version: "1.5", Categories: "AudioVideo;Audio;"}
-                }
-            )
+                })
+            ]
         })
-        (if (which rawtherapee-cli | is-empty) { [] } else {
+        (if (which rawtherapee-cli | is-not-empty) {
             # -v exits 255
             let version = ^rawtherapee-cli -v | complete | get stdout | parse --regex 'version (?<v>[^,]+),' | get --optional 0.v
-            if $version == null { [] } else {
+            if $version != null {
                 ini-merge ($config | path join RawTherapee options) {General: {Version: $version}}
             }
         })
-        (if (which lmms | is-empty) { [] } else {
+        (if (which lmms | is-not-empty) {
             let workdir = user-dir DOCUMENTS | path join lmms
             [
                 (exec lmms-workdir [mkdir -p $workdir] --creates $workdir)
-                (step lmms-paths $workdir --done=(lmms-rc | lmms-has-workdir (lmms-fallback)))
+                (step lmms-paths $workdir --done=(lmms-rc | lmms-has-workdir))
             ]
         })
     ]
@@ -60,9 +59,9 @@ def lmms-workdir []: record -> string {
     get content | where {|e| $e.tag? == paths } | get --optional 0.attributes.workingdir | default ""
 }
 
-def lmms-has-workdir [fallback: string]: record -> bool {
+def lmms-has-workdir []: record -> bool {
     let dir = $in | lmms-workdir
-    $dir != "" and $dir != $fallback
+    $dir != "" and $dir != (lmms-fallback)
 }
 
 export def lmms-paths [workdir: string]: nothing -> nothing {

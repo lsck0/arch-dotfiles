@@ -4,7 +4,6 @@ export const meta = {
     packages: {pacman: [kani]}
     # two rustup runs at once race on its download and settings files
     serial: true
-    inputs: [/usr/bin/cargo-kani]
 }
 
 export def link [cfg: record] {

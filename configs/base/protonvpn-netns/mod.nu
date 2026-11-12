@@ -12,13 +12,9 @@ const DNS_DEFAULT = "10.2.0.1"
 const PRIVATE_KEY = '^\s*PrivateKey\s*=\s*[A-Za-z0-9+/]{43}=\s*$'
 const HOOKS = '(?im)^\s*(PreUp|PostUp|PreDown|PostDown|SaveConfig)\s*='
 
-def secret []: nothing -> path {
-    $env.DOTFILES_SECRETS? | default "/nonexistent" | path join protonvpn-netns.conf
-}
-
 export def system [cfg: record] {
     # only the machine fact removes it: a run without secrets never undoes one that had them
-    if $env.FORM_FACTOR? == "wsl" or not ((secret | path exists) or ($CONF | path exists)) { return [] }
+    if $env.FORM_FACTOR? == "wsl" or not ((system-secret protonvpn-netns.conf | path exists) or ($CONF | path exists)) { return [] }
     # netns up brings the tunnel up with wg and wg-quick
     if (which wg-quick | is-empty) { return [] }
     let restart = unit-restart $UNIT
@@ -41,8 +37,9 @@ export def system [cfg: record] {
 
 # Writes the tunnel config as data only: hooks would run as root, and a key masked on download (*****) never connects.
 export def tunnel []: nothing -> nothing {
-    if not (secret | path exists) { return }
-    let text = open --raw (secret)
+    let secret = system-secret protonvpn-netns.conf
+    if not ($secret | path exists) { return }
+    let text = open --raw $secret
     if not ($text =~ '(?m)^\[Interface\]') or ($text =~ $HOOKS) or not ($text | lines | any { $in =~ $PRIVATE_KEY }) {
         let why = "is no wireguard config with a real PrivateKey (hooks are refused)"
         error make {msg: $"protonvpn-netns: configs/secrets/keys/protonvpn-netns.conf ($why)"}
@@ -56,7 +53,7 @@ export def tunnel []: nothing -> nothing {
     let resolv_file = $"($NS_ETC)/resolv.conf"
     if not ($resolv_file | path exists) or (open --raw $resolv_file) != $resolv { $resolv | save --force $resolv_file }
     if $changed {
-        ^install -Dm600 -o root -g root (secret) $CONF
+        ^install -Dm600 -o root -g root $secret $CONF
         if (^systemctl cat $UNIT | complete).exit_code == 0 { ^systemctl restart $UNIT }
     }
 }

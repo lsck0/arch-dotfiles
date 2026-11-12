@@ -1,6 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const TOGGLES = path self | path expand | path dirname | path join .. .. .. scripts toggles | path expand
+const REPO = path self | path expand | path dirname | path join .. .. .. | path expand
+const TOGGLES = $REPO | path join scripts toggles
+use ($REPO | path join scripts lib state.nu) [xdg]
 # not ipapi.co: it 429ed about every second keyless request
 const LOOKUP_URL = "https://ipinfo.io/json"
 const LOOKUP_TIMEOUT = 8sec
@@ -11,7 +13,7 @@ const ZONEINFO = "/usr/share/zoneinfo"
 const TZ_SHAPE = '^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){1,2}$'
 
 def disabled-flag []: nothing -> path {
-    $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state) | path join toggles timezone-auto-disabled
+    xdg state toggles timezone-auto-disabled
 }
 
 def tz-current []: nothing -> string {
@@ -92,7 +94,6 @@ def "main status" []: nothing -> nothing {
 }
 
 def "main enable" []: nothing -> nothing {
-    mkdir (disabled-flag | path dirname)
     rm --force (disabled-flag)
     print "timezone auto-detection enabled"
 }

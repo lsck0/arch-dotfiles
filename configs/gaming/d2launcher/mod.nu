@@ -6,6 +6,7 @@ export const meta = {packages: {pacman: [curl gamescope jq libnotify unzip wmctr
 
 const URL = "https://github.com/murkl/d2launcher.git"
 const COMMIT = "73d6d145f1b8fd228fe7ac1263c4f4230d37ebea" # 4.1.3
+const HERE = path self | path dirname
 
 def install-dir []: nothing -> path { xdg data d2launcher }
 
@@ -14,27 +15,21 @@ def home-dir []: nothing -> path { $nu.home-dir | path join .d2launcher }
 
 def synced-vendor []: nothing -> path { $nu.home-dir | path join sync vendor d2launcher }
 
-# The owner's machines get the vendor dir from syncthing; on a fresh one it can arrive after the first apply, and a
-# fallback built meanwhile (wine, a copied game, Median XL) would be left behind once it does.
-def synced-expected []: nothing -> bool { profile-has secrets }
+# The fallback vendor dir is dot's; a synced one is read-only to it (nothing lands in ~/sync). The owner's machines get
+# the vendor dir from syncthing; on a fresh one it can arrive after the first apply, and a fallback built meanwhile
+# (wine, a copied game, Median XL) would be left behind once it does.
+def vendor-own []: nothing -> bool { not (synced-vendor | path exists) and not (profile-has secrets) }
 
-def vendor-dir []: nothing -> path {
-    let synced = synced-vendor
-    if ($synced | path exists) or (synced-expected) {
-        $synced
-    } else {
-        xdg data d2launcher-vendor
-    }
-}
+def vendor-dir []: nothing -> path { if (vendor-own) { xdg data d2launcher-vendor } else { synced-vendor } }
 
 # d2launcher's own wine (its wine_native_url at COMMIT); valve's tree reports itself as wine-5.12-15359-g492470267af
 const WINE_URL = "https://github.com/Kron4ek/Wine-Builds/releases/download/7.0-5-proton/wine-7.0-5-proton-amd64.tar.xz"
 const WINE_SHA256 = "fbfddbab42be0f3c6d9f6f0b9b899a8503e50358bde659621a83fbe7ca83bbca"
 const WINE_TOP = "wine-7.0-5-proton-amd64"
 
-# Fetched into the fallback vendor dir only: a synced vendor dir brings its own copy, and dot never writes into ~/sync.
+# Fetched into the fallback vendor dir only: a synced vendor dir brings its own copy.
 def wine-fetch-decl []: nothing -> list<record> {
-    if (synced-vendor | path exists) or (synced-expected) { return [] }
+    if not (vendor-own) { return [] }
     fetch-file $WINE_URL $WINE_SHA256 (vendor-dir | path join bin wine) --extract $WINE_TOP
 }
 
@@ -50,7 +45,6 @@ const MXL_MANIFEST = "https://launcher.median-xl.com/mxl/release/public/manifest
 const MXL_FILES = "https://get.median-xl.com/"
 const OLD_DESKTOP_NAME = "Diablo II"
 const RESOLUTION_FALLBACK = {desktop: "3840x2160", laptop: "1920x1080"}
-const HEADLESS_MONITORS = '^HEADLESS-'
 const SAVE_KEY = 'HKCU\Software\Blizzard Entertainment\Diablo II'
 # plain lord of destruction keeps its characters here once the dir exists; dot never creates dirs in ~/sync
 const VANILLA_SAVE = "sync/games/d2/Save-LoD"
@@ -92,11 +86,7 @@ export def wine-bin []: nothing -> path { home-dir | path join bin wine bin wine
 
 export def detect [cfg: record]: nothing -> record {
     let base = lod-detect
-    let monitor = if (which hyprctl | is-not-empty) {
-        try {
-            ^hyprctl -j monitors | from json | where name !~ $HEADLESS_MONITORS | sort-by focused --reverse | first
-        } catch { null }
-    }
+    let monitor = monitors-live | sort-by focused --reverse | get --optional 0
     {base_dir: $base, resolution: (if $monitor == null { null } else { $"($monitor.width)x($monitor.height)" })}
 }
 
@@ -111,9 +101,8 @@ export def link [cfg: record] {
     let seedable = $base != "" and ($base | path join $BASE_MARKER | path exists)
     let seeded = $game | path join $BASE_MARKER | path exists
     let game_empty = ($game | path type) == dir and (ls $game | is-empty)
-    # a synced vendor dir is read-only to dot (nothing lands in ~/sync); the fallback one is dot's
-    let own = not (synced-vendor | path exists) and not (synced-expected)
-    if not (synced-vendor | path exists) and (synced-expected) {
+    let own = vendor-own
+    if not (synced-vendor | path exists) and (profile-has secrets) {
         log-note "d2launcher: waiting for syncthing to bring ~/sync/vendor/d2launcher; apply again once it is there"
     } else if not $own and not ($game | path join $PATCH_VERSION | path exists) {
         log-note $"d2launcher: ($game) is not set up in the synced vendor dir; set it up on the machine that owns it"
@@ -122,48 +111,89 @@ export def link [cfg: record] {
         (fetch-git $URL $COMMIT $dir)
         (file-link $script ($nu.home-dir | path join .local bin d2launcher))
         # the script mkdir -p's bin and backup on every run, which fails on a dangling symlink, so seed them first
-        ...(if $own {
+        (if $own {
             $VENDOR_LINKED ++ [wineprefix] | each {|d|
                 let path = $vendor | path join $d
                 exec $"d2launcher-vendor-($d)" [mkdir -p $path] --creates $path
             }
-        } else { [] })
+        })
         ...($VENDOR_LINKED | each {|d| file-link ($vendor | path join $d) (home-dir | path join $d) })
         ...(wine-fetch-decl)
         # chmod only: syncthing ignores permissions, so this changes no synced content
         (step wine-bin-fixup --done=(wine-bin-unexecutable | is-empty))
-        (if $own { step game-seed $base --done=(not (($seedable and not $seeded) or $game_empty)) } else { [] })
-        (if $own and ($seedable or $seeded) { step mxl-install --network --creates ($game | path join $PATCH_VERSION) } else { [] })
+        (if $own { step game-seed $base --done=(not (($seedable and not $seeded) or $game_empty)) })
+        (if $own and ($seedable or $seeded) { step mxl-install --network --creates ($game | path join $PATCH_VERSION) })
         (file-text (home-dir | path join d2launcher.conf) (config))
-        (file-render gamescope.sh (home-dir | path join gamescope.sh) (gamescope-values $cfg))
-        (if $own { d2gl-window-decl $cfg } else { [] })
+        (game-script (home-dir | path join gamescope.sh) (gamescope-values $cfg))
+        (if $own { d2gl-window-decl $cfg })
         (wine-desktop-decl)
-        # the script forces a migration prompt over a plain d2launcher.desktop
-        (file-text (xdg data applications d2launcher.local.desktop) (desktop $dir))
+        # the script forces a migration prompt over a plain d2launcher.desktop; StartupWMClass is zenity: the launcher
+        # is a zenity dialog, not a window of its own
+        (desktop-entry d2launcher.local {
+            Name: "Median XL", Icon: ($dir | path join res icon.svg), Exec: $'"($script)"', Type: Application
+            Terminal: false, StartupWMClass: zenity
+        })
         ...(vanilla-decls $cfg)
     ]
 }
 
-# Plain LoD beside median xl, linked into its own dir so its logs land there.
-def vanilla-root []: nothing -> path { xdg data diablo2 }
+# The environment every wine call of this module and pd2 runs under: no window system, no debug output.
+def wine-env [prefix: path]: nothing -> record {
+    {WINEPREFIX: $prefix, WINEDEBUG: "-all", DISPLAY: "", WAYLAND_DISPLAY: ""}
+}
 
-def vanilla-prefix []: nothing -> path { vanilla-root | path join prefix }
+# A game's own tree on this wine (plain LoD here, each pd2 season): its prefix, its lord of destruction dir.
+export def wine-tree [name: string]: nothing -> record {
+    let root = xdg data $name
+    {root: $root, prefix: ($root | path join prefix), lod: ($root | path join "Diablo II")}
+}
+
+# The lord of destruction base linked into a tree, so the game's logs land there, and the tree's prefix.
+export def wine-tree-decls [tree: record, base: path]: nothing -> list<record> {
+    let env_vars = wine-env $tree.prefix | items {|k, v| $"($k)=($v)" }
+    [
+        ...(ls $base | get name | each {|f| file-link $f ($tree.lod | path join ($f | path basename)) })
+        (exec $"($tree.root | path basename)-prefix" [env ...$env_vars (wine-bin | path dirname | path join wineboot) --init]
+            --creates ($tree.prefix | path join user.reg) --requires (wine-bin))
+    ]
+}
+
+# A gamescope launcher from gamescope.sh: game, prefix, exe, width, height and name given, args and dll_overrides
+# optional.
+def game-script [dest: path, values: record]: nothing -> record {
+    let all = {wine: (wine-bin | path dirname), args: "", dll_overrides: ""} | merge $values
+    file-render ($HERE | path join gamescope.sh) $dest $all --mode "755"
+}
+
+def desktop-entry [id: string, keys: record]: nothing -> record {
+    let lines = $keys | items {|k, v| $"($k)=($v)" } | prepend "[Desktop Entry]"
+    file-text (xdg data applications $"($id).desktop") $"($lines | str join "\n")\n"
+}
+
+# A game's launcher script with its desktop entry <id>.desktop, titled title.
+export def game-launcher [script: path, id: string, title: string, comment: string, values: record]: nothing -> list<record> {
+    [
+        (game-script $script $values)
+        (desktop-entry $id {
+            Name: $title, Comment: $comment, Exec: $script, Icon: applications-games, Type: Application, Terminal: false
+            Categories: "Game;"
+        })
+    ]
+}
 
 def vanilla-decls [cfg: record]: nothing -> list<record> {
     let base = $cfg.base_dir
     if $base == null or not (wine-ready) { return [] }
-    let game = vanilla-root | path join "Diablo II"
-    let wine = wine-bin | path dirname
+    let tree = wine-tree diablo2
     let save = $nu.home-dir | path join $VANILLA_SAVE
-    let env_vars = [env $"WINEPREFIX=(vanilla-prefix)" WINEDEBUG=-all DISPLAY= WAYLAND_DISPLAY=]
+    let title = "Diablo II: Lord of Destruction"
     [
-        ...(ls $base | get name | each {|f| file-link $f ($game | path join ($f | path basename)) })
-        (exec diablo2-prefix [...$env_vars ($wine | path join wineboot) --init] --creates (vanilla-prefix | path join user.reg)
-            --requires (wine-bin))
-        (if ($save | path exists) { step save-path (vanilla-prefix) $save --done=(save-path-set (vanilla-prefix) $save) --requires (wine-bin) } else { [] })
-        (file-render vanilla.sh (vanilla-root | path join diablo2.sh) {game: $game, prefix: (vanilla-prefix), wine: $wine}
-            --mode "755")
-        (file-text (xdg data applications diablo2.desktop) (vanilla-desktop))
+        ...(wine-tree-decls $tree $base)
+        (if ($save | path exists) { step save-path $tree.prefix $save --done=(save-path-set $tree.prefix $save) --requires (wine-bin) })
+        # windowed: its direct3d fullscreen mode fails under wine at most sizes
+        ...(game-launcher ($tree.root | path join diablo2.sh) diablo2 $title "Plain Diablo II with Lord of Destruction 1.14d" {
+            game: $tree.lod, prefix: $tree.prefix, exe: Game.exe, args: "-w", width: 800, height: 600, name: $title
+        })
     ]
 }
 
@@ -181,23 +211,10 @@ export def save-path-set [prefix: path, save: path]: nothing -> bool {
 }
 
 export def save-path [prefix: string, save: string]: nothing -> nothing {
-    with-env {WINEPREFIX: $prefix, WINEDEBUG: "-all", DISPLAY: "", WAYLAND_DISPLAY: ""} {
+    with-env (wine-env $prefix) {
         ^(wine-bin) reg add $SAVE_KEY /v "Save Path" /t REG_SZ /d (z-path $save) /f | ignore
         ^(wine-bin | path dirname | path join wineserver) -w
     }
-}
-
-def vanilla-desktop []: nothing -> string {
-    [
-        "[Desktop Entry]"
-        "Name=Diablo II: Lord of Destruction"
-        "Comment=Plain Diablo II with Lord of Destruction 1.14d"
-        $"Exec=(vanilla-root | path join diablo2.sh)"
-        "Icon=applications-games"
-        "Type=Application"
-        "Terminal=false"
-        "Categories=Game;"
-    ] | str join "\n" | $"($in)\n"
 }
 
 # Every key, or the script appends the missing ones.
@@ -240,7 +257,7 @@ def gamescope-values [cfg: record]: nothing -> record {
     let size = render-size $cfg
     {
         game: (game-dir), prefix: (prefix-dir), width: $size.w, height: $size.h, args: $D2_ARGS
-        wine: (wine-bin | path dirname), exe: (game-dir | path join $D2_EXE)
+        exe: (game-dir | path join $D2_EXE), name: "Diablo II"
     }
 }
 
@@ -249,15 +266,11 @@ def d2gl-screen-keys [width: string, height: string]: nothing -> record {
     {Screen: {window_width: $width, window_height: $height, centered_window: "true", vsync: "false"}}
 }
 
-def d2gl-window-keys [cfg: record]: nothing -> record {
-    let size = render-size $cfg
-    d2gl-screen-keys ($size.w | into string) ($size.h | into string)
-}
-
 def d2gl-window-decl [cfg: record]: nothing -> list<record> {
     let ini = game-dir | path join d2gl.ini
     if not (game-dir | path join $PATCH_VERSION | path exists) { return [] }
-    let want = d2gl-window-keys $cfg
+    let size = render-size $cfg
+    let want = d2gl-screen-keys ($size.w | into string) ($size.h | into string)
     let text = if ($ini | path exists) { open --raw $ini } else { "" }
     let have = ini-rows $text | where section == Screen and key != null
         | reduce --fold {} {|r, acc| $acc | upsert ($r.key | str trim) ($r.value | str trim) }
@@ -273,7 +286,6 @@ export def d2gl-window [width: string, height: string]: nothing -> nothing {
 }
 
 # ~/sync ignores permissions (core/syncthing, ignorePerms), so a resync silently drops wine's execute bit
-# The files in wine's bin dir without their owner's execute bit.
 def wine-bin-unexecutable []: nothing -> list<path> {
     let dir = wine-bin | path dirname
     if not ($dir | path exists) { return [] }
@@ -281,9 +293,7 @@ def wine-bin-unexecutable []: nothing -> list<path> {
 }
 
 export def wine-bin-fixup []: nothing -> nothing {
-    let files = wine-bin-unexecutable
-    if ($files | is-empty) { return }
-    ^chmod +x ...$files
+    ^chmod +x ...(wine-bin-unexecutable)
 }
 
 def prefix-dir []: nothing -> path { vendor-dir | path join wineprefix }
@@ -302,26 +312,12 @@ def wine-desktop-decl []: nothing -> list<record> {
 
 # Uses the launcher's own wine: the system's would upgrade the prefix.
 export def wine-desktop-remove []: nothing -> nothing {
-    let env_vars = {WINEPREFIX: (prefix-dir), DISPLAY: "", WAYLAND_DISPLAY: "", WINEDEBUG: "-all"}
-    with-env $env_vars {
+    with-env (wine-env (prefix-dir)) {
         # user.reg lags a running wineserver, so a value may already be gone
         try { ^(wine-bin) reg delete 'HKCU\Software\Wine\Explorer' /v Desktop /f }
         try { ^(wine-bin) reg delete 'HKCU\Software\Wine\Explorer\Desktops' /v $OLD_DESKTOP_NAME /f }
         try { ^(wine-bin) reg delete 'HKCU\Software\Wine\X11 Driver' /v Decorated /f }
     }
-}
-
-def desktop [dir: path]: nothing -> string {
-    # StartupWMClass is zenity: the launcher is a zenity dialog, not a window of its own
-    [
-        "[Desktop Entry]"
-        "Name=Median XL"
-        $"Icon=($dir | path join res icon.svg)"
-        $"Exec=\"($dir | path join d2launcher)\""
-        "Type=Application"
-        "Terminal=false"
-        "StartupWMClass=zenity"
-    ] | str join "\n" | $"($in)\n"
 }
 
 # The launcher asks for the game dir only while bin/diablo2 is missing, so an empty one cannot start.

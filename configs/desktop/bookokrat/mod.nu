@@ -12,7 +12,7 @@ def scheme-file []: nothing -> path { xdg cache wal colors-bookokrat.yaml }
 export def link [cfg: record] {
     let dest = config-file
     # seeded once: bookokrat rewrites config.yaml at runtime, so a repo edit only reaches a fresh install
-    exec bookokrat-seed [install -Dm644 config.yaml $dest] --creates $dest
+    exec bookokrat-seed [install -Dm644 $SEED $dest] --creates $dest
 }
 
 # Merged, not rendered: only the selected theme, its scheme and the synctex editor are forced.

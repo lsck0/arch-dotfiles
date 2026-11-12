@@ -2,6 +2,8 @@
 # wayland-boomer over every monitor: one window, which hyprland_windowrules.lua places at the layout's top-left as it
 # opens; no_warps while it maps, else focusing it yanks the cursor
 
+use ../../../scripts/lib/platform.nu [monitors-live]
+
 const MAP_TRIES = 60
 const MAP_POLL = 50ms
 const FOCUS_SETTLE = 100ms
@@ -19,8 +21,8 @@ def main [] {
     let warps_off = ^hyprctl -j getoption cursor:no_warps | from json | get bool
     warps-set true
     # every real monitor, not an agent's headless output: grim alone spans those too and renders at its higher scale
-    let monitors = ^hyprctl -j monitors | from json | where name !~ '^HEADLESS-'
-    let scale = $monitors | where focused | get -o 0.scale | default ($monitors | get 0.scale)
+    let monitors = monitors-live
+    let scale = $monitors | where focused | get --optional 0.scale | default ($monitors | get 0.scale)
     let x = $monitors | get x | math min
     let y = $monitors | get y | math min
     let w = $monitors | each { $in.x + $in.width / $in.scale } | math max | $in - $x | math round

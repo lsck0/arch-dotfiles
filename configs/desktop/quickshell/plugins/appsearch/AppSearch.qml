@@ -56,8 +56,7 @@ Item {
   readonly property int calcTimeoutS: 5
 
   function open() {
-    var focused = Hyprland.focusedMonitor
-    panel.screen = Array.from(Quickshell.screens).find(function (s) { return focused && s.name === focused.name }) || null
+    panel.screen = Util.focusedScreen()
     root.opened = true
     root.filterText = ""
     root.selectedIndex = 0
@@ -74,10 +73,7 @@ Item {
     bindsProc.running = false
   }
 
-  function toggle() {
-    if (root.opened) root.close()
-    else root.open()
-  }
+  function toggle() { root.opened ? root.close() : root.open() }
 
   function appRows() {
     if (!root.appLibrary) return []
@@ -85,8 +81,8 @@ Item {
     var out = []
     for (let i = 0; i < entries.length; i++) {
       const e = entries[i]
-      const name = root.appLibrary.entryName(e)
-      const sub = root.appLibrary.entrySubtext(e)
+      const name = AppSearch.entryName(e)
+      const sub = AppSearch.entrySubtext(e)
       out.push({ kind: "app", name: name, sub: sub.toLowerCase() === name.toLowerCase() ? "" : sub,
                  icon: root.appLibrary.iconSource(e.icon), glyph: "", keys: "", payload: e })
     }

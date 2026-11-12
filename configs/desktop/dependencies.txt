@@ -1,2 +1,2 @@
-core                              # wallust palette.nu and font.nu, trash
+core                              # wallust palette.nu and font.nu, trash, locale (plasma)
 latex                             # sioyek's synctex-edit

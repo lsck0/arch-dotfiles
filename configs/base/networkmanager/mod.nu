@@ -1,10 +1,11 @@
 use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
+use home-network.nu [route-gateway]
 
 export const meta = {
     packages: {native: [ethtool modemmanager networkmanager wpa_supplicant]}
     volatile: true
-    secrets: [home-gateways trusted-gateways]
+    secrets: [home-gateways trusted-gateways wifi]
 }
 
 export const options = {
@@ -124,28 +125,47 @@ export def system [cfg: record] {
     let restart = [sh -c $"systemctl restart NetworkManager.service && ($online)"]
     let dispatcher = {|src, name| file-copy $src $"($DISPATCHERS)/($name)" --mode 755 }
     [
-        (if (which ModemManager | is-not-empty) and (has-modem) { unit-enable ModemManager.service --now } else { [] })
+        (if (which ModemManager | is-not-empty) and (has-modem) { unit-enable ModemManager.service --now })
         # before the dispatchers: a missing policy means lockdown-tor, cutting this run's egress
         (file-text $"($NM)/untrusted-policy" $"($cfg.untrusted_policy)\n")
-        (if $env.FORM_FACTOR? == "vm" { file-text $"($NM)/vm-guest" "" } else { [] })
-        (if $homelab != null { file-text $"($NM)/homelab.env" $homelab } else { [] })
+        (if $env.FORM_FACTOR? == "vm" { file-text $"($NM)/vm-guest" "" })
+        (if $homelab != null { file-text $"($NM)/homelab.env" $homelab })
         (file-copy NetworkManager.conf $"($NM)/NetworkManager.conf" --then $restart)
         (dropin wpa_supplicant.service wpa-log-filter.conf)
         # NM's one auto wired profile serves every wired network, so a laptop's ethernet is never home (fail closed)
-        (if $home_wired { file-copy home-wired.conf $"($NM)/conf.d/10-home-wired.conf" --then $restart } else { [] })
+        (if $home_wired { file-copy home-wired.conf $"($NM)/conf.d/10-home-wired.conf" --then $restart })
         (if $cfg.wake_on_lan {[
             (file-copy wake-on-lan.link /etc/systemd/network/90-wake-on-lan.link
                 --then [sh -c "udevadm control --reload && udevadm trigger --action=add --subsystem-match=net"])
             (file-copy wake-on-lan.conf $"($NM)/conf.d/20-wake-on-lan.conf" --then $restart)
-        ]} else { [] })
+        ]})
         (do $dispatcher home-network.nu 70-home-network)
         (do $dispatcher homelab-routes.nu 80-homelab-routes)
         (do $dispatcher persona-dispatcher.nu 90-anonymous-persona)
         (step home ($home_wired | into string) ($cfg.trusted_gateways | str join ",") ...$cfg.home_gateways)
         (if $cfg.wifi_radio == false {
             exec "wifi radio off" [sh -c $"nmcli radio wifi off && touch ($WIFI_OFF_MARK)"] --creates $WIFI_OFF_MARK
-        } else { [] })
+        })
     ]
+}
+
+# One home-gateways line as the dispatcher reads it: lower case, single spaces.
+def gateway-line []: string -> string { str trim | str lowercase | split row --regex '\s+' | str join " " }
+
+def lines-of [file: path, shape: string]: nothing -> list<string> {
+    if ($file | path exists) { open --raw $file | lines | where $it =~ $shape | each { gateway-line } } else { [] }
+}
+
+# Copies the secrets' list name into dest; a line of another shape (or none, --nonempty) fails and keeps the last copy.
+def secret-import [name: string, shape: string, dest: path, what: string, --nonempty]: nothing -> nothing {
+    let secret = system-secret $name
+    if not ($secret | path exists) { return }
+    let lines = open --raw $secret | lines
+    let good = $lines | where $it =~ $shape
+    if ($lines | any {|l| not ($l =~ $shape or $l =~ '^(#.*)?$') }) or ($nonempty and ($good | is-empty)) {
+        error make {msg: $"networkmanager: ($name) is not ($what) per line, keeping ($dest)"}
+    }
+    $good | each { $"($in | gateway-line)\n" } | str join | save --force $dest
 }
 
 # home-gateways = the secrets' lines (kept while locked) + the install answer (.local) + home_gateways;
@@ -153,42 +173,22 @@ export def system [cfg: record] {
 # strings), home's own counted by 70-home-network. The owner's macs live in secrets: the repo is public, and a mac is
 # all a rogue access point needs to pass as trusted
 export def home [home_wired: string, trusted: string, ...gateways: string]: nothing -> nothing {
-    let secrets = $env.DOTFILES_SECRETS? | default "/nonexistent"
     let secret_gateways = $"($NM)/home-gateways.secret"
     let secret_trusted = $"($NM)/trusted-gateways.secret"
     let secret_ssids = $"($NM)/home-ssids.secret"
-    let local = $"($NM)/home-gateways.local"
-    let file = $"($NM)/home-gateways"
-    let trusted_file = $"($NM)/trusted-gateways"
-    let valid = {|path, shape| if ($path | path exists) { open --raw $path | lines | where $it =~ $shape | each { gateway-line } } else { [] } }
-
-    let secret = $secrets | path join home-gateways
-    if ($secret | path exists) {
-        let lines = open --raw $secret | lines
-        if ($lines | any {|l| not ($l =~ $HOME_LINE or $l =~ '^(#.*)?$') }) or not ($lines | any { $in =~ $HOME_LINE }) {
-            error make {msg: $"networkmanager: home-gateways is not one '<mac> <gateway> <dhcp server>' per line, keeping ($file)"}
-        }
-        $lines | where $it =~ $HOME_LINE | each { $"($in | gateway-line)\n" } | str join | save --force $secret_gateways
-    }
+    secret-import home-gateways $HOME_LINE $secret_gateways "one '<mac> <gateway> <dhcp server>'" --nonempty
     # may be empty: every trusted network can be dropped again
-    let secret = $secrets | path join trusted-gateways
-    if ($secret | path exists) {
-        let lines = open --raw $secret | lines
-        if ($lines | any {|l| not ($l =~ $MAC or $l =~ '^(#.*)?$') }) {
-            error make {msg: $"networkmanager: trusted-gateways is not one mac address per line, keeping ($trusted_file)"}
-        }
-        $lines | where $it =~ $MAC | each { $"($in)\n" } | str join | save --force $secret_trusted
-    }
-    let wifi = $secrets | path join wifi
+    secret-import trusted-gateways $MAC $secret_trusted "one mac address"
+    let wifi = system-secret wifi
     if ($wifi | path exists) {
         open --raw $wifi | lines | each { split row "\t" | first } | where $it != "" | each { $"($in)\n" } | str join
         | save --force $secret_ssids
     }
-    let option = $gateways | each { gateway-line }
-    let want = (do $valid $secret_gateways $HOME_LINE) ++ (do $valid $local $HOME_LINE) ++ $option | uniq
-    $want | each { $"($in)\n" } | str join | save --force $file
-    let trusted_want = (do $valid $secret_trusted $MAC) ++ ($trusted | split row "," | where $it != "" | str lowercase) | uniq
-    $trusted_want | each { $"($in)\n" } | str join | save --force $trusted_file
+    let local = lines-of $"($NM)/home-gateways.local" $HOME_LINE
+    let want = (lines-of $secret_gateways $HOME_LINE) ++ $local ++ ($gateways | each { gateway-line }) | uniq
+    $want | each { $"($in)\n" } | str join | save --force $"($NM)/home-gateways"
+    let trusted_want = (lines-of $secret_trusted $MAC) ++ ($trusted | split row "," | where $it != "" | str lowercase) | uniq
+    $trusted_want | each { $"($in)\n" } | str join | save --force $"($NM)/trusted-gateways"
 
     let ssids = if ($secret_ssids | path exists) { open --raw $secret_ssids | lines | where $it != "" } else { [] }
     let profiles = ^nmcli -g UUID,TYPE connection show | lines | parse "{uuid}:{type}"
@@ -218,14 +218,11 @@ export def home [home_wired: string, trusted: string, ...gateways: string]: noth
     }
 }
 
-# One home-gateways line as the dispatcher reads it: lower case, single spaces.
-def gateway-line []: string -> string { str trim | str lowercase | split row --regex '\s+' | str join " " }
-
 # A trusted gateway's wifi keeps the hardware mac (70-home-network needs it); untrusted gets random back.
 def trusted-wifi-mac [dev: string, gateways: list<string>, ssids: list<string>]: nothing -> nothing {
     let uuid = ^nmcli -g GENERAL.CON-UUID device show $dev | str trim
     if $uuid == "" or (^nmcli -g connection.type connection show $uuid | str trim) != "802-11-wireless" { return }
-    let gateway = ^ip -4 route show default dev $dev | lines | get --optional 0 | default "" | split row " " | get --optional 2
+    let gateway = route-gateway (^ip -4 route show default dev $dev)
     if $gateway == null { return }
     let mac = ^ip neigh show $gateway dev $dev | parse --regex 'lladdr (?<mac>\S+)' | get --optional 0.mac | default ""
     let trusted = ($mac | str lowercase) in $gateways

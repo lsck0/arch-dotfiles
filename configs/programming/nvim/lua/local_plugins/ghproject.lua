@@ -85,11 +85,7 @@ local function grp(name, fallback)
 end
 
 local function header_group(i)
-    local g = "GhProjectHeader" .. ((i - 1) % 7 + 1)
-    if vim.fn.hlexists(g) == 1 then
-        return g
-    end
-    return grp("GhProjectHeader", "Title")
+    return grp("GhProjectHeader" .. ((i - 1) % 7 + 1), "Title")
 end
 
 local function truncate(s, n)
@@ -362,9 +358,10 @@ local function compile_token(s, token)
             local types = {}
             for _, v in ipairs(values) do
                 local t = IS_TYPES[v.text:lower()]
+                -- open/closed/merged: gh item-list carries no state
                 if not t then
                     return nil
-                end -- open/closed/merged: gh item-list carries no state
+                end
                 types[t] = true
             end
             pred = function(card)
@@ -517,17 +514,18 @@ local function invalidate()
     state.vis, state.vc, state.rows = nil, nil, nil
 end
 
-local function sort_key(card, field)
-    local v = card_values(card, field.name)[1]
-    if v == nil then
-        return nil
-    end
+-- The position of a lowercased value among a single-select field's options.
+local function option_index(field, v)
     for i, o in ipairs(field.options) do
         if o.name:lower() == v then
             return i
         end
     end
-    return tonumber(v) or v
+end
+
+local function sort_key(card, field)
+    local v = card_values(card, field.name)[1]
+    return v and (option_index(field, v) or tonumber(v) or v)
 end
 
 local function visible()
@@ -944,13 +942,7 @@ local function move_status(dir)
         return
     end
     local field = cur_view().col_field
-    local v, at = card_values(card, field.name)[1], 0
-    for i, o in ipairs(field.options) do
-        if o.name:lower() == v then
-            at = i
-        end
-    end
-    local opt = field.options[at + dir]
+    local opt = field.options[(option_index(field, card_values(card, field.name)[1]) or 0) + dir]
     if opt then
         set_field(card, field, opt)
     end
@@ -1107,13 +1099,7 @@ local function switch_project(dir)
     if not projects or #projects <= 1 then
         return
     end
-    local i = proj_idx + dir
-    if i < 1 then
-        i = #projects
-    elseif i > #projects then
-        i = 1
-    end
-    load_board(i)
+    load_board((proj_idx - 1 + dir) % #projects + 1)
 end
 
 local function refresh()
@@ -1133,12 +1119,11 @@ local function set_keys_base(buf)
         switch_project(-1)
     end)
     key_map(buf, "r", refresh)
-    key_map(buf, "q", function()
-        vim.api.nvim_buf_delete(buf, { force = true })
-    end)
-    key_map(buf, "<Esc>", function()
-        vim.api.nvim_buf_delete(buf, { force = true })
-    end)
+    for _, lhs in ipairs({ "q", "<Esc>" }) do
+        key_map(buf, lhs, function()
+            vim.api.nvim_buf_delete(buf, { force = true })
+        end)
+    end
 end
 
 local function set_keys_failed(buf)
@@ -1149,68 +1134,36 @@ local function set_keys_failed(buf)
 end
 
 local function set_keys(buf)
-    local function map(lhs, fn)
-        key_map(buf, lhs, fn)
+    local steps = {
+        l = { nav_horiz, 1 },
+        ["<Right>"] = { nav_horiz, 1 },
+        h = { nav_horiz, -1 },
+        ["<Left>"] = { nav_horiz, -1 },
+        j = { nav_vert, 1 },
+        ["<Down>"] = { nav_vert, 1 },
+        k = { nav_vert, -1 },
+        ["<Up>"] = { nav_vert, -1 },
+        L = { move_status, 1 },
+        ["<S-Right>"] = { move_status, 1 },
+        H = { move_status, -1 },
+        ["<S-Left>"] = { move_status, -1 },
+        J = { reorder_selected, 1 },
+        ["<S-Down>"] = { reorder_selected, 1 },
+        K = { reorder_selected, -1 },
+        ["<S-Up>"] = { reorder_selected, -1 },
+        ["<Tab>"] = { switch_view, 1 },
+        ["<S-Tab>"] = { switch_view, -1 },
+    }
+    for lhs, step in pairs(steps) do
+        key_map(buf, lhs, function()
+            step[1](step[2])
+        end)
     end
-    map("l", function()
-        nav_horiz(1)
-    end)
-    map("<Right>", function()
-        nav_horiz(1)
-    end)
-    map("h", function()
-        nav_horiz(-1)
-    end)
-    map("<Left>", function()
-        nav_horiz(-1)
-    end)
-    map("j", function()
-        nav_vert(1)
-    end)
-    map("<Down>", function()
-        nav_vert(1)
-    end)
-    map("k", function()
-        nav_vert(-1)
-    end)
-    map("<Up>", function()
-        nav_vert(-1)
-    end)
-    map("L", function()
-        move_status(1)
-    end)
-    map("H", function()
-        move_status(-1)
-    end)
-    map("<S-Right>", function()
-        move_status(1)
-    end)
-    map("<S-Left>", function()
-        move_status(-1)
-    end)
-    map("J", function()
-        reorder_selected(1)
-    end)
-    map("K", function()
-        reorder_selected(-1)
-    end)
-    map("<S-Down>", function()
-        reorder_selected(1)
-    end)
-    map("<S-Up>", function()
-        reorder_selected(-1)
-    end)
-    map("<Tab>", function()
-        switch_view(1)
-    end)
-    map("<S-Tab>", function()
-        switch_view(-1)
-    end)
-    map("v", cycle_layout)
-    map("/", search)
-    map("e", edit_field)
-    map("<CR>", open_selected)
-    map("o", open_selected)
+    key_map(buf, "v", cycle_layout)
+    key_map(buf, "/", search)
+    key_map(buf, "e", edit_field)
+    key_map(buf, "<CR>", open_selected)
+    key_map(buf, "o", open_selected)
     set_keys_base(buf)
 end
 
@@ -1245,13 +1198,9 @@ local function build_fields(raw)
 end
 
 local function select_fields(fields)
-    local out = {}
-    for _, f in ipairs(fields) do
-        if f.type == "ProjectV2SingleSelectField" then
-            out[#out + 1] = f
-        end
-    end
-    return out
+    return vim.tbl_filter(function(f)
+        return f.type == "ProjectV2SingleSelectField"
+    end, fields)
 end
 
 local VIEW_NODE = "number name layout filter"
@@ -1509,8 +1458,8 @@ function M.open_board()
 
     local fresh = not (board_buf and vim.api.nvim_buf_is_valid(board_buf))
     if fresh then
+        -- scratch is already nofile and bufhidden=hide: hide, not wipe, keeps the board reachable after a card opens
         board_buf = vim.api.nvim_create_buf(true, true)
-        -- a scratch buffer is already buftype=nofile and bufhidden=hide; hide, not wipe, leaves the board reachable after a card opens
     end
     vim.api.nvim_win_set_buf(0, board_buf)
     if fresh then

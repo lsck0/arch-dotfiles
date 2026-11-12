@@ -1,14 +1,13 @@
 #!/usr/bin/env -S nu --no-config-file
 # Each .frag carries @label/@variants/@animated/@themed headers; any shader costs direct scanout.
 
-use lib.nu [status-record status-print notify state-get state-set quickshell-call]
+use lib.nu [status-record status-print notify state-get state-set quickshell-call hyprland-instance]
 
 const DAMAGE_FULL = 2
 const DAMAGE_NONE = 0
 
 def shader-dir []: nothing -> path { $nu.home-dir | path join .config hypr shaders }
 def render-dir []: nothing -> path { $env.XDG_RUNTIME_DIR | path join shaders }
-def instance []: nothing -> string { $env.HYPRLAND_INSTANCE_SIGNATURE? | default "" }
 
 def shaders []: nothing -> table {
     glob (shader-dir | path join *.frag) | sort | each {|file|
@@ -109,7 +108,7 @@ def apply [entry: string, shaders: table]: nothing -> nothing {
         return
     }
     entry-load $entry $shaders
-    state-set shader $"(instance) ($entry)" --volatile
+    state-set shader $"(hyprland-instance) ($entry)" --volatile
     state-set shader-last $entry
     notify Shader (entry-label $entry $shaders)
 }
@@ -128,7 +127,7 @@ def "main off" [] { apply off (shaders) }
 
 def "main reapply" [] {
     let saved = state-get shader --volatile | split row " "
-    if $saved.0 != (instance) or ($saved | length) < 2 or (state-get powersaver --volatile) == on {
+    if $saved.0 != (hyprland-instance) or ($saved | length) < 2 or (state-get powersaver --volatile) == on {
         return
     }
     let shaders = shaders

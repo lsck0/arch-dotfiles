@@ -54,17 +54,23 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   file, which imports `MACHINE.md` from `programming/agent-rules`, the source of the machine rules for every agent
   harness). `dependencies.txt` names the groups a group reaches into.
 - `platforms/<name>.nuon` (facts, groups) and `<name>.options.nuon`: `luca-pc`, `luca-notebook`, `server`, `vm`,
-  `wsl`. `profiles/<name>.nuon`: user identity and capabilities (`luca`, or `custom` for none).
+  `wsl`; the machine's choice is `/etc/dotfiles/platform`, server or custom answers
+  `/etc/dotfiles/platform{,.options}.nuon`. `profiles/<name>.nuon`: user identity and capabilities (`luca`, or
+  `custom` for none).
 - `platforms/homelab.nu`: the lab's values (`HOMELAB`), rendered from the homelab's `src/generated/lab.json` by
   `dot internal gen` and committed, so root and a fresh install read them without a checkout; never edited by hand.
+- Install: `bootstrap.sh`, `dot internal bootstrap`, then `dot internal stage` runs `dot apply --packages` and
+  `dot apply` across boots (`l-dotfiles-install`).
 - `migrations/<NNNN>-<slug>.nu`: one-time `up` changes; fresh installs mark existing ones as run.
 - `scripts/` (commands in `~/.local/bin`), `scripts/lib/` (the engine: `module.nu` API, `pipeline-cli.nu` the process
   `dot plan|apply|status` run in, `pipeline.nu` one layer's run, `converge.nu` plan/apply, `system-apply.nu` root
   entry), `scripts/toggles/`. `scripts/identity/envrc`: per-repo credential isolation, installed into a repo's
   git-ignored `.identity/` by `identity-init`.
-- `configs/secrets/`: private submodule, pulled only with the profile's `secrets` capability. `keys/` is git-crypt (credentials),
-  `state/` plaintext app state, plus the owner's own modules (applied last, packages kept off the mirror).
-- `themes/` (palettes), `wallpapers/` (credited art), `showcase/` (README screenshots).
+- `configs/secrets/`: private submodule, pulled only with the profile's `secrets` capability. `keys/` is git-crypt
+  (credentials), `state/` plaintext app state, plus the owner's own modules (applied last, packages kept off the
+  mirror). Anything else there makes sync refuse.
+- `themes/` (palettes), `wallpapers/` (credited art; bought ones in `~/sync/wallpapers`), `showcase/` (README
+  screenshots).
 - `mirror/`: own pkgbuilds, `overrides.conf`, `iso/` (the install iso; only its stub `lsck0-install` is frozen on a
   stick).
 

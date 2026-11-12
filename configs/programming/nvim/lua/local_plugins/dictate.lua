@@ -217,31 +217,10 @@ local function strip_env(text, before)
     return text
 end
 
-local GREEK = {
-    "alpha",
-    "beta",
-    "gamma",
-    "delta",
-    "epsilon",
-    "zeta",
-    "eta",
-    "theta",
-    "iota",
-    "kappa",
-    "lambda",
-    "mu",
-    "nu",
-    "xi",
-    "pi",
-    "rho",
-    "sigma",
-    "tau",
-    "upsilon",
-    "phi",
-    "chi",
-    "psi",
-    "omega",
-}
+local GREEK = vim.split(
+    "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi pi rho sigma tau upsilon phi chi psi omega",
+    " "
+)
 
 -- Whisper capitalizes a sentence's first word, which the rewrite reads as \Omega; a Greek letter stays lowercase
 -- unless "capital" comes right before it.
@@ -315,14 +294,18 @@ local function new_vad(on_piece)
         vad.speech, vad.voiced, vad.silent = nil, 0, 0
     end
 
+    local function preroll_push(frame)
+        table.insert(vad.preroll, frame)
+        if #vad.preroll > PREROLL_FRAMES then
+            table.remove(vad.preroll, 1)
+        end
+    end
+
     local function frame_in(frame)
         local level = frame_level(frame)
         if not vad.level then
             table.insert(vad.calibration, level)
-            table.insert(vad.preroll, frame)
-            if #vad.preroll > PREROLL_FRAMES then
-                table.remove(vad.preroll, 1)
-            end
+            preroll_push(frame)
             if #vad.calibration >= CALIBRATION_FRAMES then
                 local sum = 0
                 for _, l in ipairs(vad.calibration) do
@@ -334,10 +317,7 @@ local function new_vad(on_piece)
         end
         local loud = level > vad.level
         if not vad.speech then
-            table.insert(vad.preroll, frame)
-            if #vad.preroll > PREROLL_FRAMES then
-                table.remove(vad.preroll, 1)
-            end
+            preroll_push(frame)
             if loud then
                 vad.speech, vad.preroll, vad.voiced, vad.silent = vad.preroll, {}, 1, 0
             end
@@ -546,6 +526,14 @@ local function flush_rewrite(s)
     end)
 end
 
+local function finalize_open(s)
+    for _, piece in ipairs(s.open) do
+        finalize(s, piece)
+    end
+    s.open = {}
+    flush_rewrite(s)
+end
+
 local process_next
 
 -- The window re-transcribed with the new piece: the older piece is corrected in place, the new one appended.
@@ -573,16 +561,10 @@ local function transcribe_piece(s, pcm, done)
     }, { text = true }, function(r)
         os.remove(wav)
         vim.schedule(function()
-            if s.finished then
-                done()
-                return
-            end
-            if r.code ~= 0 then
+            if not s.finished and r.code ~= 0 then
                 notify("whisper-server request failed (" .. r.code .. ")", vim.log.levels.ERROR)
-                done()
-                return
             end
-            if not vim.api.nvim_buf_is_valid(s.buf) then
+            if s.finished or r.code ~= 0 or not vim.api.nvim_buf_is_valid(s.buf) then
                 done()
                 return
             end
@@ -613,11 +595,7 @@ local function arm_idle(s)
         if session ~= s or s.idle_gen ~= gen or s.busy or #s.queue > 0 or (s.vad and s.vad.speech) then
             return
         end
-        for _, piece in ipairs(s.open) do
-            finalize(s, piece)
-        end
-        s.open = {}
-        flush_rewrite(s)
+        finalize_open(s)
     end, REWRITE_IDLE_MS)
 end
 
@@ -632,11 +610,7 @@ local function finish_stop(s)
         return
     end
     s.finished = true
-    for _, piece in ipairs(s.open) do
-        finalize(s, piece)
-    end
-    s.open = {}
-    flush_rewrite(s)
+    finalize_open(s)
     stop_server(s)
     if vim.api.nvim_buf_is_valid(s.buf) then
         vim.api.nvim_buf_del_extmark(s.buf, NS, s.tail)

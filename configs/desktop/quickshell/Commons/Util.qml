@@ -1,5 +1,6 @@
 pragma Singleton
 import Quickshell
+import Quickshell.Hyprland
 import QtQuick
 
 QtObject {
@@ -33,6 +34,13 @@ QtObject {
     return value !== null && typeof value === "object" && !Array.isArray(value)
   }
 
+  // a JSON object from text, {} for empty, invalid or non-object text
+  function parseObject(text) {
+    var parsed
+    try { parsed = JSON.parse(String(text || "").trim() || "{}") } catch (e) { return ({}) }
+    return isPlainObject(parsed) ? parsed : ({})
+  }
+
   function rearmWatch(view) {
     if (!view) return
     Qt.callLater(function () {
@@ -42,9 +50,14 @@ QtObject {
   }
 
   function mapSet(map, key, value) {
-    var next = ({})
-    for (let k in map) next[k] = map[k]
+    var next = Object.assign({}, map)
     next[String(key)] = value
+    return next
+  }
+
+  function mapWithout(map, key) {
+    var next = Object.assign({}, map)
+    delete next[String(key)]
     return next
   }
 
@@ -74,6 +87,14 @@ QtObject {
     if (value >= thresholds[1]) return Colors.ramp(stops[2])
     if (value >= thresholds[0]) return Colors.ramp(stops[1])
     return Colors.ramp(stops[0])
+  }
+
+  function screenNamed(name) {
+    return Array.from(Quickshell.screens).find(function (s) { return String(s.name) === String(name) }) || null
+  }
+
+  function focusedScreen() {
+    return screenNamed(Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : "")
   }
 
   function iconSource(icon) {

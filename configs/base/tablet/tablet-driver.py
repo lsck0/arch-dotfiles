@@ -37,20 +37,7 @@ PEN_BUTTON_BITS = {
     (5, 0x10): "BTN_STYLUS2",  # upper
 }
 
-EXPRESS_KEY_BITS = [
-    (4, 0x01),
-    (4, 0x02),
-    (4, 0x04),
-    (4, 0x08),
-    (4, 0x10),
-    (4, 0x20),
-    (4, 0x40),
-    (4, 0x80),
-    (5, 0x01),
-    (5, 0x02),
-    (5, 0x04),
-    (5, 0x08),
-]
+EXPRESS_KEY_BITS = [(4, 1 << bit) for bit in range(8)] + [(5, 1 << bit) for bit in range(4)]
 EXPRESS_KEY_NAMES = [f"KEY_F{n}" for n in range(13, 25)]
 
 TIP_BIT = 0x01
@@ -346,31 +333,39 @@ def run(node: str, calib: dict) -> int:
     wrong_mode = 0
     retoggles = 0
 
-    def emit(code_type, code, value):
+    def emit(code_type, code, value) -> bool:
         if last.get((code_type, code)) == value:
-            return
+            return False
         last[(code_type, code)] = value
         ui.write(code_type, code, value)
+        return True
 
     def leave_proximity():
         """Put the tool down cleanly. Also used when the pad just goes quiet."""
         emit(e.EV_KEY, e.BTN_TOUCH, 0)
         emit(e.EV_ABS, e.ABS_PRESSURE, 0)
-        emit(e.EV_KEY, e.BTN_STYLUS, 0)
-        emit(e.EV_KEY, e.BTN_STYLUS2, 0)
-        emit(e.EV_KEY, e.BTN_TOOL_PEN, 0)
-        emit(e.EV_KEY, e.BTN_TOOL_RUBBER, 0)
+        for code in (e.BTN_STYLUS, e.BTN_STYLUS2, e.BTN_TOOL_PEN, e.BTN_TOOL_RUBBER):
+            emit(e.EV_KEY, code, 0)
         ui.syn()
 
-    def release_keys():
+    def keys_set(mask: int) -> None:
+        """Press and release the pad keys so exactly those in mask are held."""
         nonlocal key_mask
-        if not key_mask:
+        changed = mask ^ key_mask
+        if not changed:
             return
         for index, code in enumerate(express_codes):
-            if key_mask & (1 << index):
-                ui_keys.write(e.EV_KEY, code, 0)
+            if changed & (1 << index):
+                ui_keys.write(e.EV_KEY, code, 1 if mask & (1 << index) else 0)
         ui_keys.syn()
-        key_mask = 0
+        key_mask = mask
+
+    def close_buttons(why: str) -> None:
+        nonlocal btn_fd
+        log(f"driver: {why}; buttons disabled")
+        keys_set(0)
+        os.close(btn_fd)
+        btn_fd = -1
 
     def retoggle(why: str) -> None:
         """Count a report that says the pad left report-9 mode; past WRONG_MODE_LIMIT, handshake again."""
@@ -387,29 +382,12 @@ def run(node: str, calib: dict) -> int:
 
     def handle_buttons(data):
         """Decode report id 1 into stylus buttons and pad keys."""
-        nonlocal key_mask
-
-        pen_changed = False
-        for (offset, bit), code in pen_button_codes.items():
-            value = 1 if data[offset] & bit else 0
-            if last.get((e.EV_KEY, code)) != value:
-                emit(e.EV_KEY, code, value)
-                pen_changed = True
-        if pen_changed:
+        pen_changed = [
+            emit(e.EV_KEY, code, 1 if data[offset] & bit else 0) for (offset, bit), code in pen_button_codes.items()
+        ]
+        if any(pen_changed):
             ui.syn()
-
-        mask = 0
-        for index, (offset, bit) in enumerate(EXPRESS_KEY_BITS):
-            if data[offset] & bit:
-                mask |= 1 << index
-        if mask == key_mask:
-            return
-        for index, code in enumerate(express_codes):
-            was, now = key_mask & (1 << index), mask & (1 << index)
-            if bool(was) != bool(now):
-                ui_keys.write(e.EV_KEY, code, 1 if now else 0)
-        ui_keys.syn()
-        key_mask = mask
+        keys_set(sum(1 << index for index, (offset, bit) in enumerate(EXPRESS_KEY_BITS) if data[offset] & bit))
 
     try:
         while True:
@@ -421,20 +399,14 @@ def run(node: str, calib: dict) -> int:
                 try:
                     data = os.read(btn_fd, 64)
                     if not data:
-                        log("driver: button node reached end of file; buttons disabled")
-                        release_keys()
-                        os.close(btn_fd)
-                        btn_fd = -1
+                        close_buttons("button node reached end of file")
                     elif data[0] == BUTTON_REPORT_ID and len(data) >= BUTTON_REPORT_LEN:
                         handle_buttons(data)
                     elif data[0] == SLEEP_PEN_REPORT_ID:
                         retoggle("interface 2 is sending the sleep-mode pen")
                 except OSError as exc:
                     if exc.errno not in (errno.EAGAIN, errno.EINTR):
-                        log(f"driver: button read failed ({exc}); buttons disabled")
-                        release_keys()
-                        os.close(btn_fd)
-                        btn_fd = -1
+                        close_buttons(f"button read failed ({exc})")
 
             if fd not in ready:
                 if in_proximity and time.monotonic() - last_report > PROXIMITY_TIMEOUT_S:
@@ -465,9 +437,7 @@ def run(node: str, calib: dict) -> int:
                 retoggle(f"interface 1 is sending report id {data[0]}, not {PEN_REPORT_ID}")
                 continue
 
-            if wrong_mode or retoggles:
-                wrong_mode = 0
-                retoggles = 0
+            wrong_mode = retoggles = 0
             last_report = time.monotonic()
             status = data[1]
             raw_x, raw_y, raw_pressure = struct.unpack_from("<HHH", data, 2)
@@ -497,7 +467,7 @@ def run(node: str, calib: dict) -> int:
     except KeyboardInterrupt:
         return 0
     finally:
-        release_keys()
+        keys_set(0)
         if btn_fd >= 0:
             os.close(btn_fd)
         os.close(fd)

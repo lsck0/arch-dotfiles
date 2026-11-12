@@ -31,13 +31,10 @@ local found, cfg = pcall(require, "lazy.core.config")
 if not found then return end
 local names = {}
 for name, p in pairs(cfg.plugins) do
-    local c = p.cond
-    local ok = true
-    if type(c) == "function" then
-        local success, result = pcall(c, p)
-        ok = (not success) or (result and true or false)
-    elseif c ~= nil then
-        ok = c and true or false
+    local ok = p.cond == nil or p.cond
+    if type(p.cond) == "function" then
+        local success, result = pcall(p.cond, p)
+        ok = not success or result
     end
     if ok then table.insert(names, name) end
 end

@@ -1,7 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-# Tools that read a pywal file by convention, with no reference to it anywhere in the repo, so only this list keeps the
-# template that writes it: Generation 635 dropped colors-wal.vim as unused and pywal.nvim kept the old palette for days.
-# The same cleanup dropped colors.json's wallpaper key, which pywalfox requires: Firefox lost its theme for days.
+# Tools that read a pywal file or key by convention, with no reference to it anywhere in the repo: only this list keeps
+# the template that writes it from looking unused.
 
 const HERE = path self | path dirname
 const REPO = $HERE | path join ../../..

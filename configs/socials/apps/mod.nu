@@ -9,6 +9,5 @@ const ZAPZAP_SEEN = {
 }
 
 export def link [cfg: record] {
-    let config = (xdg config)
-    ini-merge ($config | path join ZapZap ZapZap.conf) $ZAPZAP_SEEN
+    ini-merge (xdg config ZapZap ZapZap.conf) $ZAPZAP_SEEN
 }

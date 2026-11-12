@@ -22,10 +22,6 @@ const EXPORT_TIMEOUT = 120sec
 const READY_TIMEOUT = 90sec
 const READY_POLL_INTERVAL = 1sec
 
-def library-bib-path []: nothing -> path {
-    xdg data zotero library.bib
-}
-
 # Better BibTeX's pref key for an auto-export to file: encodeURIComponent, then .!'()* as lowercase %xx.
 def autoexport-key [file: path]: nothing -> string {
     $file | url encode --all
@@ -48,17 +44,19 @@ export def link [cfg: record] {
         open --raw $ini | lines | parse "Path={path}" | get path | each {|p| $home | path join $p }
         | where ($it | path exists)
     } else { [] }
-    let bib = library-bib-path
+    let bib = xdg data zotero library.bib
+    let xpi = $"extensions/($BBT_ID).xpi"
     let prefs = {EXPORT_KEY: (autoexport-key $bib), EXPORT_JOB: (autoexport-job $bib)}
     [
         # the timeout ends the headless first run on purpose: the profile it creates is the result
         (exec zotero-profile [sh -c 'timeout 20 zotero --headless > /dev/null 2>&1; true'] --creates $ini)
-        ($profiles | each {|dir| file-render user.js ($dir | path join user.js) $prefs })
-        ($profiles | each {|dir| fetch-file $BBT_URL $BBT_SHA256 ($dir | path join extensions $"($BBT_ID).xpi") } | flatten)
+        ($profiles | each {|dir|
+            [(file-render user.js ($dir | path join user.js) $prefs) (fetch-file $BBT_URL $BBT_SHA256 ($dir | path join $xpi))]
+        })
         # the auto-export runs only on a library change, so an unchanged library never gets its file
         # better bibtex answers the export; its download may still be pending (offline), then the export waits too
-        (if ($profiles | is-empty) or ($bib | path exists) { [] } else {
-            step library-export $bib --requires ($profiles | first | path join extensions $"($BBT_ID).xpi")
+        (if ($profiles | is-not-empty) and not ($bib | path exists) {
+            step library-export $bib --requires ($profiles | first | path join $xpi)
         })
         (mcp-servers {zotero-mcp: $MCP})
     ]

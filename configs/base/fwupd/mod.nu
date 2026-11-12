@@ -11,7 +11,8 @@ export def system [cfg: record] {
     [
         (file-copy fwupd.conf /etc/fwupd/fwupd.conf --mode 640 --then [systemctl try-restart fwupd.service])
         (unit-enable fwupd-refresh.timer --now)
-    ] ++ (if ($EFI | path exists) { [(step sign)] } else { [] })
+        (if ($EFI | path exists) { step sign })
+    ]
 }
 
 # Signs the fwupd efi binary into sbctl's list, so sbctl's pacman hook re-signs it on every fwupd upgrade.

@@ -6,12 +6,11 @@ export const meta = {
     packages: {pacman: [imagemagick wallust-git]}
 }
 
-const CONFIG_SUBDIR = "wallust"
 const STAND_IN = "void"
 const STYLE_JSON = "dotfiles/style.json"
 
 export def link [cfg: record] {
-    let dir = xdg config $CONFIG_SUBDIR
+    let dir = xdg config wallust
     let templates = glob templates/**/* --no-dir | each { path relative-to $env.PWD }
     [
         (shell-aliases wallust)
@@ -22,7 +21,7 @@ export def link [cfg: record] {
         (unit-file dot-theme.service)
         (unit-file dot-theme.path --enable --now)
         # theme verbs of later modules read colors.json now, before a fresh home's first theme switch
-        (if (which wallust | is-empty) { [] } else {
+        (if (which wallust | is-not-empty) {
             exec palette-stand-in [wallust cs -q -s ($dir | path join colorschemes $"($STAND_IN).json")] --creates (xdg cache wal colors.json)
         })
     ]

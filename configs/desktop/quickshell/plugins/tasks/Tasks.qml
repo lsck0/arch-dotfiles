@@ -619,12 +619,7 @@ Item {
 
           Connections {
             target: NotesState
-            function onTextChanged() {
-              if (notesEdit.text === NotesState.text) return
-              let cursor = notesEdit.cursorPosition
-              notesEdit.text = NotesState.text
-              notesEdit.cursorPosition = Math.min(cursor, notesEdit.length)
-            }
+            function onTextChanged() { NotesState.syncInto(notesEdit) }
           }
 
           Label {

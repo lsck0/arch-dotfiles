@@ -1,5 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
+const USAGE = "usage: sandbox-build [-w writable-dir] [--] <command...>"
 const PROPERTIES = [
     PrivateNetwork=yes NoNewPrivileges=yes ProtectSystem=strict ProtectHome=read-only PrivateTmp=yes
     ProtectKernelTunables=yes ProtectKernelModules=yes ProtectControlGroups=yes RestrictSUIDSGID=yes LockPersonality=yes
@@ -35,10 +36,10 @@ def --wrapped main [
     --work (-w): path  # the writable dir, $PWD without it
     ...command: string
 ]: nothing -> nothing {
-    if ($command | get --optional 0) in ["-h" "--help"] { print "usage: sandbox-build [-w writable-dir] [--] <command...>: run it offline in the work dir"; return }
+    if $command.0? in ["-h" "--help"] { print $"($USAGE): run it offline in the work dir"; return }
     let command = if $command.0? == "--" { $command | skip 1 } else { $command }
     if ($command | is-empty) {
-        print --stderr "usage: sandbox-build [-w writable-dir] [--] <command...>"
+        print --stderr $USAGE
         exit 2
     }
     let work = $work | default $env.PWD | path expand

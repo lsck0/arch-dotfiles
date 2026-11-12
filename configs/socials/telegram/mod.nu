@@ -6,6 +6,7 @@ const PALETTE_RENDERED = "colors-telegram.tdesktop-palette"
 # a stable path in Telegram's own data dir for the manual import in README.md
 const PALETTE_IMPORT = "wallust.tdesktop-palette"
 
+# the theme pass of an apply runs only the modules its link pass planned
 export def link [cfg: record] { [] }
 
 export def theme [cfg: record, wallpaper: string] {

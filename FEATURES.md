@@ -199,8 +199,8 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `creating/obs.stream_encoder` | `string?` | detected | The streaming encoder; h264 is what every ingest takes |
 | `desktop/hyprland.monitors` | `list<record>?` | detected | One hl.monitor per output: output, mode, position, scale; detected from the connected outputs, any other output gets its preferred mode and an auto scale |
 | `desktop/hyprland.main_monitor` | `string?` | detected | The output holding workspace 1, the bar's notifications, steam's toasts and the tablet; detected: the internal panel, else the largest, leftmost on a tie |
-| `desktop/hyprland.workspaces` | `record?` | detected | Workspace to output; detected: the first ceil(10 / outputs) on the main monitor, the rest split over the others left to right |
-| `desktop/hyprland.xwayland_scale` | `int?` | detected | GDK_SCALE for X11 apps (force_zero_scaling); detected: the main monitor's scale rounded, else 1 on a laptop and 2 elsewhere |
+| `desktop/hyprland.workspaces` | `record?` | unset | Workspace to output; detected: the first ceil(10 / outputs) on the main monitor, the rest split over the others left to right |
+| `desktop/hyprland.xwayland_scale` | `int?` | unset | GDK_SCALE for X11 apps (force_zero_scaling); detected: the main monitor's scale rounded, else 1 on a laptop and 2 elsewhere |
 | `desktop/hyprland.app_workspaces` | `list<record>` | `[]` | Homes for apps by window class: {class, workspace, silent}; silent opens them without switching to their workspace or focusing them |
 | `desktop/hyprland.lock_screen` | `string` | `"quickshell"` | The lock screen hypridle and every lock key start; the other is the fallback |
 | `desktop/hyprland.monitor_speaker_volume` | `int?` | unset | Every DDC monitor's built-in speaker volume (VCP 0x62), set at session start; 0 silences speakers fed by DisplayPort audio, which can pop on wake |

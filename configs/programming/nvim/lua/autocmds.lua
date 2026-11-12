@@ -10,6 +10,7 @@ autocmd("TextYankPost", {
 })
 
 local PROSE = { "markdown", "text", "gitcommit", "tex", "plaintex", "rst", "org", "typst" }
+local SPELLED = { markdown = true, gitcommit = true, text = true, tex = true, plaintex = true, org = true }
 
 autocmd("FileType", {
     desc = "Prose: hard-wrap at textwidth, spell-check the natural-language filetypes",
@@ -18,8 +19,7 @@ autocmd("FileType", {
     callback = function(args)
         vim.opt_local.textwidth = 120
         vim.opt_local.formatoptions:append("tn")
-        local spell = { markdown = true, gitcommit = true, text = true, tex = true, plaintex = true, org = true }
-        if spell[vim.bo[args.buf].filetype] then
+        if SPELLED[vim.bo[args.buf].filetype] then
             vim.opt_local.spell = true
             vim.opt_local.spelllang = "en"
         end
@@ -127,20 +127,10 @@ autocmd("VimEnter", {
             open_explorer_keep_focus()
             return
         end
-        if vim.g.started_by_firenvim then
+        if vim.g.started_by_firenvim or vim.env.NVIM_TMS ~= "1" or vim.fn.argc() > 1 or vim.bo.buftype ~= "" then
             return
         end
-        if vim.env.NVIM_TMS ~= "1" then
-            return
-        end
-        if vim.fn.argc() > 1 then
-            return
-        end
-        local ft = vim.bo.filetype
-        if ft == "gitcommit" or ft == "gitrebase" then
-            return
-        end
-        if vim.bo.buftype ~= "" then
+        if vim.bo.filetype == "gitcommit" or vim.bo.filetype == "gitrebase" then
             return
         end
         for _, w in ipairs(vim.api.nvim_list_wins()) do

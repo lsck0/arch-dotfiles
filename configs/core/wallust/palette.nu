@@ -82,10 +82,12 @@ def round-even []: float -> int {
     if (cmp ($x mod 1) 0.5) == 0 { 2 * ($x / 2 | math round) } else { $x | math round }
 }
 
-export def hex-to-rgb []: string -> list<float> {
+export def hex-rgb255 []: string -> list<int> {
     let v = $in | str trim --left --char "#"
-    [0 2 4] | each {|i| ($"0x($v | str substring $i..($i + 1))" | into int) / 255 }
+    [0 2 4] | each {|i| $"0x($v | str substring $i..($i + 1))" | into int }
 }
+
+export def hex-to-rgb []: string -> list<float> { hex-rgb255 | each { $in / 255 } }
 
 export def rgb-to-hex [--prefix: string = ""]: list<float> -> string {
     $prefix + ($in | each { $in * 255 | round-even | max2 0 (min2 255 $in) | format number | get upperhex | str substring 2.. | fill --alignment right --character "0" --width 2 } | str join)

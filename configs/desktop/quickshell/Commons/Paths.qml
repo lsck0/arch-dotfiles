@@ -7,45 +7,29 @@ QtObject {
 
   readonly property string shellDir: Quickshell.shellDir
 
-  readonly property string dotfiles: {
-    var configured = String(Quickshell.env("DOTFILES") || "").trim()
-    var base = configured || (home + "/projects/arch-dotfiles")
-    return base.replace(/\/+$/, "")
-  }
-
-  readonly property string plugins: shellDir + "/plugins"
-  readonly property string barWidgets: plugins + "/bar/widgets"
-  readonly property string shellScripts: shellDir + "/scripts"
-
-  readonly property string state: {
-    var base = String(Quickshell.env("XDG_STATE_HOME") || "").trim() || (home + "/.local/state")
-    return base.replace(/\/+$/, "") + "/quickshell"
-  }
-
-  readonly property string wal: {
-    var base = String(Quickshell.env("XDG_CACHE_HOME") || "").trim() || (home + "/.cache")
-    return base.replace(/\/+$/, "") + "/wal"
-  }
-
-  readonly property string runtime: {
-    return String(Quickshell.env("XDG_RUNTIME_DIR") || "").trim().replace(/\/+$/, "") + "/quickshell"
-  }
+  readonly property string dotfiles: envDir("DOTFILES", home + "/projects/arch-dotfiles")
+  readonly property string state: envDir("XDG_STATE_HOME", home + "/.local/state") + "/quickshell"
+  readonly property string wal: envDir("XDG_CACHE_HOME", home + "/.cache") + "/wal"
+  // the bare runtime dir holds files shared with the nu helpers (quickshell-pomodoro, toggles/, ...)
+  readonly property string runtimeDir: envDir("XDG_RUNTIME_DIR", "/tmp")
+  readonly property string runtime: runtimeDir + "/quickshell"
 
   readonly property string notes: home + "/sync/notes/notes.md"
 
-  readonly property string toggles: dotfiles + "/scripts/toggles"
   readonly property string wallpaperList: dotfiles + "/configs/core/wallust/wallpaper-list.nu"
   readonly property string themes: dotfiles + "/themes"
 
-  function toggle(name) { return toggles + "/" + name }
-
-  function barWidget(name) { return barWidgets + "/" + name }
-
-  function plugin(pluginDir, name) {
-    return plugins + "/" + pluginDir + (name ? "/" + name : "")
+  function envDir(name, fallback) {
+    return (String(Quickshell.env(name) || "").trim() || fallback).replace(/\/+$/, "")
   }
 
-  function script(name) { return shellScripts + "/" + name }
+  function toggle(name) { return dotfiles + "/scripts/toggles/" + name }
+
+  function plugin(name) { return shellDir + "/plugins/" + name }
+
+  function barWidget(name) { return plugin("bar/widgets/" + name) }
+
+  function script(name) { return shellDir + "/scripts/" + name }
 
   function ipcCall(target, method) {
     var argv = ["quickshell", "ipc", "-p", shellDir, "call", String(target), String(method)]

@@ -10,7 +10,9 @@
 ---@field resize fun(opts?: table): HlDispatcher
 
 ---@class HlGroupDispatchers
+---@field move_window fun(opts: table): HlDispatcher
 ---@field next fun(): HlDispatcher
+---@field prev fun(): HlDispatcher
 ---@field toggle fun(): HlDispatcher
 
 ---@class HlDispatchers
@@ -22,6 +24,9 @@
 ---@field submap fun(name: string): HlDispatcher
 ---@field window HlWindowDispatchers
 
+---@class HlSubscription
+---@field remove fun(self: HlSubscription)
+
 ---@class Hl
 ---@field dsp HlDispatchers
 ---@field plugin table<string, any>
@@ -30,11 +35,15 @@
 ---@field config fun(cfg: table)
 ---@field curve fun(name: string, spec: table)
 ---@field define_submap fun(name: string, reset_or_binds: string|fun(), binds?: fun())
+---@field dispatch fun(action: HlDispatcher)
 ---@field env fun(name: string, value: string)
----@field exec_cmd fun(cmd: string): any
+---@field exec_cmd fun(cmd: string, rules?: table): any
+---@field get_active_window fun(): table?
+---@field get_monitors fun(): table[]
+---@field get_windows fun(): table[]
 ---@field layer_rule fun(rule: table)
 ---@field monitor fun(spec: table)
----@field on fun(event: string, handler: fun(...): any)
+---@field on fun(event: string, handler: fun(...): any): HlSubscription
 ---@field window_rule fun(rule: table)
 ---@field workspace_rule fun(rule: table)
 hl = {}

@@ -34,7 +34,7 @@ def module-dirs-root [checkout: path]: nothing -> record {
     let base = $checkout | path expand
     let modules = modules-discover $base [] | where group != ""
     let root = modules-root-run $modules
-    $modules | reduce --fold {} {|m, acc| $acc | insert ($m.dir | path relative-to $base) ($m.id in $root) }
+    $modules | each {|m| [($m.dir | path relative-to $base) ($m.id in $root)] } | into record
 }
 
 # Whether root can read f: any .nu file (a root-run module may import it), anything outside a module under configs/

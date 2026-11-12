@@ -2,6 +2,7 @@
 
 local M = {}
 
+-- get() also returns closed pickers, so a stale one must not count as open
 ---@return snacks.Picker|nil
 local function explorer()
     local picker = require("snacks.picker").get({ source = "explorer" })[1]
@@ -20,6 +21,15 @@ function M.open(dir)
         picker:find()
     else
         require("snacks").explorer()
+    end
+end
+
+function M.toggle()
+    local picker = explorer()
+    if picker then
+        picker:close()
+    else
+        M.open()
     end
 end
 

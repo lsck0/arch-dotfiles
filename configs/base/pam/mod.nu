@@ -35,7 +35,7 @@ def u2f-line [origin: string]: nothing -> string {
 # Inserts line before the first system-auth include.
 def auth-insert [lines: list<string>, line: string]: nothing -> list<string> {
     let at = $lines | enumerate
-        | where {|l| $l.item =~ '^auth\s' and $l.item =~ 'include' and $l.item =~ 'system-auth' }
+        | where {|l| $l.item =~ '^auth\s.*include.*system-auth' }
         | get --optional 0.index
     if $at == null { $lines } else { ($lines | first $at) ++ [$line] ++ ($lines | skip $at) }
 }
@@ -56,16 +56,16 @@ export def system [cfg: record] {
         # pkexec takes the same factors as sudo: the key, then an enrolled finger, then the password
         (if $u2f and ($POLKIT_VENDOR | path exists) {
             let with_u2f = auth-insert (open --raw $POLKIT_VENDOR | lines) $line
-            let lines = if (has-fprint) and ($FPRINT_MODULE | path exists) { auth-insert $with_u2f $FPRINT_LINE } else { $with_u2f }
+            let lines = if (has-fprint) { auth-insert $with_u2f $FPRINT_LINE } else { $with_u2f }
             file-text /etc/pam.d/polkit-1 ($lines | str join "\n" | $"($in)\n")
-        } else { [] })
+        })
     ]
 }
 
+# Whether pam_fprintd can take a finger: a validity sensor, or a login with one enrolled.
 def has-fprint []: nothing -> bool {
-    let unit = ^systemctl list-unit-files --no-legend python3-validity.service | complete | get stdout | str trim
-    let validity = ($unit | is-not-empty) and (validity-sensor-ids | is-not-empty)
-    if $validity { return true }
+    if not ($FPRINT_MODULE | path exists) { return false }
+    if (unit-installed python3-validity.service) and (validity-sensor-ids | is-not-empty) { return true }
     if (which fprintd-list | is-empty) { return false }
     open --raw /etc/passwd | lines | parse "{name}:{x}:{uid}:{rest}" | where ($it.uid | into int) in $HUMAN_UIDS
     | any {|u| ^fprintd-list $u.name | complete | get stdout | str contains "Fingerprints for user" }
@@ -85,7 +85,7 @@ export def sudo-stack [u2f: string, line: string]: nothing -> nothing {
     let with_u2f = if $u2f != "true" or $line in $before { $before } else {
         auth-insert ($before | where not ($it =~ 'pam_(u2f|fprintd)[.]so')) $line
     }
-    let fprint = (has-fprint) and ($FPRINT_MODULE | path exists)
+    let fprint = has-fprint
     let after = if $fprint and $FPRINT_LINE not-in $with_u2f {
         auth-insert ($with_u2f | where not ($it =~ 'pam_fprintd[.]so')) $FPRINT_LINE
     } else if not $fprint {

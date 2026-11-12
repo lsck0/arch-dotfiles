@@ -21,9 +21,9 @@ const PLAN_OTHER_TAG = 1
 def main []: nothing -> nothing { help main }
 
 def "main plan" [...mods: string, --system, --force, --order, --modules, --json]: nothing -> any {
+    let layer = if $system { "system" } else { "user" }
     if $order or $modules {
         return (guarded plan --read-only {
-            let layer = if $system { "system" } else { "user" }
             let ctx = pipeline-load $REPO $layer
             let rows = if $order {
                 let verb = if $system { "system" } else { "link" }
@@ -45,7 +45,7 @@ def "main plan" [...mods: string, --system, --force, --order, --modules, --json]
         job spawn {
             try { {ctx: (pipeline-load $REPO $other)} } catch {|e| {error: $e.msg} } | job send 0 --tag $PLAN_OTHER_TAG
         } | ignore
-        let planned_ctx = if $system { pipeline-load $REPO system } else { pipeline-load $REPO user }
+        let planned_ctx = pipeline-load $REPO $layer
         let other_ctx = {||
             let got = job recv --tag $PLAN_OTHER_TAG
             if $got.error? != null { error make {msg: $got.error} }
@@ -57,7 +57,7 @@ def "main plan" [...mods: string, --system, --force, --order, --modules, --json]
             let planned = link-plan $planned_ctx $mods $force
             plan-print $planned link $planned_ctx.modules $mods
         }
-        let pending = migrations-pending $REPO (if $system { "system" } else { "user" })
+        let pending = migrations-pending $REPO $layer
         if ($pending | is-not-empty) { print $"migrations pending: ($pending.id | str join ' ')" }
         if ($waiting | is-not-empty) { print $"system part pending for: ($waiting | str join ' '); dot apply runs it" }
         let ctx = if $system { $planned_ctx } else { do $other_ctx }

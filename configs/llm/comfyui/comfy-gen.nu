@@ -2,6 +2,10 @@
 # Generation through the local ComfyUI's API, no editor needed: a tileable PBR texture set, an image, or a 3D mesh.
 # Results land under ~/pictures/comfyui; --json prints the paths for scripts and the Blender panel.
 
+const REPO = path self | path expand | path dirname --num-levels 4
+use ($REPO | path join scripts lib state.nu) [xdg]
+
+const HERE = path self | path expand | path dirname
 const URL = "http://127.0.0.1:8188"
 const POLL = 1sec
 # the first request socket-starts ComfyUI and loads the checkpoint; a 3D run then takes minutes on a 16 GB card
@@ -9,12 +13,12 @@ const TIMEOUT = 20min
 const FLUX = "flux1-schnell-fp8.safetensors"
 const HUNYUAN = "hunyuan_3d_v2.1.safetensors"
 const TEXTURE_STYLE = "seamless tileable texture, flat top-down view, even diffuse lighting, no shadows, no perspective, highly detailed surface"
-# Hunyuan3D reads a cast shadow or a floor as geometry: the reference is a cutout floating on a plain background
-# a green screen: object-prep.py cuts the object out by the background's colour, and on white or grey a white or cream
-# object vanished (flux ignores "mid-grey" and paints light grey); chroma green is a colour no object it draws is
+# Hunyuan3D reads a cast shadow or a floor as geometry, so the reference is a cutout; object-prep.py keys it out by the
+# background's colour, on chroma green since no drawn object has it (on white or grey, flux's light grey for "mid-grey",
+# a white or cream object vanished)
 const OBJECT_STYLE = "single isolated object, centered, whole object in frame, on a solid flat pure chroma key green screen background, no shadow, no floor, no ground plane, even studio lighting"
 
-def base []: nothing -> path { $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join comfyui }
+def python []: nothing -> path { xdg data comfyui venv bin python }
 
 def output-dir []: nothing -> path { $nu.home-dir | path join pictures comfyui }
 
@@ -113,8 +117,7 @@ def "main texture" [
     let name = $"(slug $text)-(date now | format date '%Y%m%d-%H%M%S')"
     let raw = run-graph (flux-graph $"($text), ($TEXTURE_STYLE)" $size $size $"textures/($name)/raw") | first
     let dir = $raw | path dirname
-    let python = base | path join venv bin python
-    ^$python ($env.CURRENT_FILE | path expand | path dirname | path join pbr-maps.py) $raw $dir
+    ^(python) ($HERE | path join pbr-maps.py) $raw $dir
     rm $raw
     emit {
         dir: $dir, albedo: ($dir | path join albedo.png), normal: ($dir | path join normal.png)
@@ -137,11 +140,10 @@ def "main 3d" [
     # flux still loaded makes comfyui's free_memory fail loading hunyuan (IndexError in model_management): unload first
     try { http post --content-type application/json $"($URL)/free" {unload_models: true, free_memory: true} | ignore } catch { }
     # LoadImage reads ComfyUI's input dir; the recentred copy there needs no upload
-    let input = base | path join input
+    let input = xdg data comfyui input
     mkdir $input
     let staged = $"comfy-gen-(date now | format date '%Y%m%d-%H%M%S')-($image | path parse | get stem).png"
-    let here = $env.CURRENT_FILE | path expand | path dirname
-    ^(base | path join venv bin python) ($here | path join object-prep.py) $image ($input | path join $staged)
+    ^(python) ($HERE | path join object-prep.py) $image ($input | path join $staged)
     status "mesh: Hunyuan3D 2.1"
     let label = if $given { $image | path parse | get stem | slug $in } else { slug $text }
     let mesh = run-graph (hunyuan-graph $staged $"3d/($label)") | where ($it | str ends-with ".glb") | first

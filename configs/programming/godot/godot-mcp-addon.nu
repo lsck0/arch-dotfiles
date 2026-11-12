@@ -1,6 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
 # close the editor on the project first: it rewrites project.godot on save
 
+const REPO = path self | path expand | path dirname --num-levels 4
+use ($REPO | path join scripts lib state.nu) [xdg]
+
 const PLUGIN = "res://addons/godot_mcp/plugin.cfg"
 const RUNTIME = 'MCPRuntime="*res://addons/godot_mcp/runtime/mcp_runtime.gd"'
 const ENABLED = "enabled=PackedStringArray("
@@ -18,8 +21,7 @@ def ini-add [lines: list<string>, section: string, line: string]: nothing -> lis
 def main [project: path = "."]: nothing -> nothing {
     let project = $project | path expand
     let conf = $project | path join project.godot
-    let data = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share)
-    let addon = $data | path join godot-mcp addons godot_mcp
+    let addon = xdg data godot-mcp addons godot_mcp
     if not ($conf | path exists) { print -e $"godot-mcp-addon: no project.godot in ($project)"; exit 1 }
     if not ($addon | path join plugin.cfg | path exists) {
         print -e $"godot-mcp-addon: no addon at ($addon) \(dot apply --user programming/godot\)"

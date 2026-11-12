@@ -9,8 +9,7 @@ const BINARY = "pgedge-postgres-mcp"
 const DATA = "/var/lib/postgres/data"
 
 export def system [cfg: record] {
-    let admins = open /etc/group | lines | parse "{name}:{x}:{gid}:{members}" | where name == wheel
-        | get --optional 0.members | default "" | split row "," | where $it =~ '^[a-z_][a-z0-9_-]*$'
+    let admins = group-members wheel | where $it =~ '^[a-z_][a-z0-9_-]*$'
     let init = $"cd / && install -d -o postgres -g postgres -m 700 ($DATA) && runuser -u postgres -- initdb -D ($DATA) --encoding=UTF8 --locale=C.UTF-8 --auth-local=peer --auth-host=scram-sha-256 > /dev/null"
     [
         (exec initdb [sh -c $init] --creates ($DATA | path join PG_VERSION))
@@ -46,7 +45,7 @@ export def link [cfg: record] {
         (fetch-file $URL $SHA256 ($root | path join $VERSION $BINARY) --mode 755 --extract $BINARY)
         ($old | each {|dir| exec $"drop ($dir)" [rm -rf $dir] })
         (link-commands postgres-mcp.nu)
-        (mcp-servers {postgres-mcp: {type: stdio, command: ($nu.home-dir | path join .local bin postgres-mcp), args: [], env: {}}})
+        (mcp-servers {postgres-mcp: {type: stdio, command: ($nu.home-dir | path join .local bin postgres-mcp), args: []}})
         (shell-aliases postgres)
     ]
 }

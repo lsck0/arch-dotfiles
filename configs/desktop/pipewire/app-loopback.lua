@@ -39,22 +39,21 @@ clients_om = ObjectManager({
 
 -- The loopback key of a stream, nil for one that keeps its route: its own target, a notification, a filter or loopback.
 function stream_key(props)
-    if props["node.link-group"] or props["stream.monitor"] == "true" then
-        return nil
-    end
-    if props["target.object"] or props["node.target"] then
-        return nil
-    end
-    if props["media.role"] == "Notification" then
-        return nil
-    end
     -- obs's monitoring is the listen path itself, which the muted loopbacks must not silence; its browser sources'
     -- own playback is meant for the streamer's ears the same way
     local binary = props["application.process.binary"]
-    if binary == OBS_BINARY or binary == OBS_BROWSER_BINARY then
+    if
+        props["node.link-group"]
+        or props["stream.monitor"] == "true"
+        or props["target.object"]
+        or props["node.target"]
+        or props["media.role"] == "Notification"
+        or binary == OBS_BINARY
+        or binary == OBS_BROWSER_BINARY
+    then
         return nil
     end
-    local name = props["application.name"] or props["application.process.binary"] or props["node.name"]
+    local name = props["application.name"] or binary or props["node.name"]
     if not name then
         return nil
     end
@@ -189,21 +188,21 @@ function level_scale(levels, factor)
     return scaled
 end
 
-function level_full(levels)
-    local ones = {}
+function level_fill(levels, value)
+    local filled = {}
     for i in ipairs(levels) do
-        ones[i] = VOLUME_FULL
+        filled[i] = value
     end
-    return ones
+    return filled
 end
 
 function mute_set(node, mute)
     node:set_param("Props", Pod.Object({ "Spa:Pod:Object:Param:Props", "Props", mute = mute }))
 end
 
--- "<key> <epoch> <loopback level> <own level>..." per app key and node name. Not media.name: for a player like
--- Spotify it is the track title and changes every song, so keying on it broke the stop->start reclaim and left the
--- .out (the system volume) stranded at full. The owns list already holds one level per concurrent stream of the key.
+-- "<key> <epoch> <loopback level> <own level>..." per app key and node name. Not media.name: a player like Spotify
+-- sets it to the track title, so the stop->start reclaim would miss and leave the .out (the system volume) at full.
+-- The owns list holds one level per concurrent stream of the key.
 function own_mark(props, key)
     return STATE_OWN .. key .. "." .. (props["node.name"] or "")
 end
@@ -286,8 +285,8 @@ function level_reclaim(stream_id, sink_id, out_id, retries)
     state:save_after_timeout(known)
     level_get(stream, function(handed)
         level_get(out, function(loop)
-            level_set(out, level_scale(level_full(loop.levels), record.loop), handed.mute)
-            level_set(stream, level_scale(level_full(handed.levels), own), false)
+            level_set(out, level_fill(loop.levels, record.loop), handed.mute)
+            level_set(stream, level_fill(handed.levels, own), false)
             Log.info("gave the level of " .. stream.properties["node.name"] .. " back to its loopback")
         end)
     end)
@@ -416,7 +415,7 @@ function release_all()
                     end
                 end
                 if handed then
-                    level_set(out, level_full(loop.levels), false)
+                    level_set(out, level_fill(loop.levels, VOLUME_FULL), false)
                 elseif listened then
                     mute_set(out, false)
                 end

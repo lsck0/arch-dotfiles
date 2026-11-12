@@ -12,7 +12,6 @@ const PREFS_VERSION = "1.1.1r1"
 export def link [cfg: record] {
     if (which audacity uvx | length) < 2 or not ($SCRIPT_PIPE | path exists) { return [] }
     let pkg = $"audacity-mcp-server==($MCP_VERSION)"
-    let cache = $"($pkg)@($MCP_FROZEN)"
     let built = ls $SCRIPT_PIPE | get 0.modified | format date "%Y-%m-%dT%H:%M:%S"
     let cfg_file = xdg config audacity audacity.cfg
     let version = ^pacman -Q audacity | parse --regex '(?<Major>\d+)\.(?<Minor>\d+)\.(?<Micro>\d+)' | first
@@ -29,9 +28,8 @@ export def link [cfg: record] {
             type: stdio, command: uvx, args: [--exclude-newer $MCP_FROZEN --from $pkg audacity-mcp]
             env: {HF_HUB_DISABLE_TELEMETRY: "1"}
         }})
-        # --done: the stamp it touched under $XDG_CACHE_HOME/dotfiles/uvx before it was keyed
         (exec "audacity-mcp cache" [
             uvx --exclude-newer $MCP_FROZEN --from $pkg python -c "import audacity_mcp.tool_registry"
-        ] --key $cache --done=(xdg cache dotfiles uvx $cache | path exists) --network)
+        ] --key $"($pkg)@($MCP_FROZEN)" --network)
     ]
 }

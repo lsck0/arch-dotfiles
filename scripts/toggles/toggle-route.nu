@@ -1,6 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # direct, proton, tor or offline; wg0 and the SOCKS pool are not routes. Offline also cycles wg0.
 use lib.nu [notify cycle-next status-record status-print toggle-run state-get state-set state-file systemctl-guarded unit-active]
+use ../lib/state.nu [xdg]
 
 const ROUTES = {direct: Direct, proton: ProtonVPN, tor: Tor, offline: Offline}
 const COUNTRY = "CH"
@@ -23,12 +24,12 @@ def current []: nothing -> string {
 
 def portmaster-restore []: nothing -> nothing {
     # portmaster's connmark restore breaks the protonvpn netns tunnel's fwmark, as in the dispatcher's portmaster-on
-    if (^systemctl is-active --quiet protonvpn-netns.service | complete).exit_code == 0 { return }
+    if (unit-active protonvpn-netns.service) { return }
     if (toggle-run firewall get | str trim) != permissive { ^systemctl --no-ask-password start portmaster.service }
 }
 
 def proton-connect []: nothing -> nothing {
-    let settings = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join Proton VPN settings.json
+    let settings = xdg config "Proton VPN" settings.json
     # the app writes every default into settings.json, killswitch 0 included: the value counts, not the key
     if (try { (open $settings).killswitch? | default 0 } catch { 0 }) == 0 {
         ^protonvpn config set kill-switch standard | complete

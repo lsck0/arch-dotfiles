@@ -1,6 +1,4 @@
 {
-    "editor.fontFamily": "'Kode Mono', 'monospace'",
-    "editor.fontSize": 13,
     "editor.formatOnSave": true,
     "editor.lineNumbers": "relative",
     "files.insertFinalNewline": true,

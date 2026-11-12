@@ -20,18 +20,13 @@ export def system [cfg: record] {
     let homelab = if (platform-has homelab) and $cfg.homelab_mirror != null { $"Server=($cfg.homelab_mirror)" }
     [
         (file-copy mirrorlist-update.nu /usr/local/bin/mirrorlist-update --mode 755)
-        (if $homelab != null { file-text $HOMELAB_FILE $"($homelab)\n" } else { [] })
+        (if $homelab != null { file-text $HOMELAB_FILE $"($homelab)\n" })
         (step place ($homelab | default ""))
         (unit-file ghostmirror.service)
         (unit-file ghostmirror.timer --enable --now)
         (unit-file ghostmirror-refresh.service)
         (unit-file ghostmirror-refresh.timer --enable --now)
     ]
-}
-
-def mirrorlist-swap [lines: list<string>]: nothing -> nothing {
-    $lines | str join "\n" | $"($in)\n" | save --force $"($MIRRORLIST).new"
-    ^mv -f $"($MIRRORLIST).new" $MIRRORLIST
 }
 
 def update [mode: string, ...args: string]: nothing -> bool {
@@ -46,7 +41,8 @@ export def place [homelab: string]: nothing -> nothing {
         if (update rebuild) {
             update sort | ignore
         } else if $linked or not (open --raw $MIRRORLIST | lines | any { str starts-with "Server" }) {
-            mirrorlist-swap (open --raw mirrorlist | lines)
+            ^install -m644 mirrorlist $"($MIRRORLIST).new"
+            ^mv -f $"($MIRRORLIST).new" $MIRRORLIST
         }
     }
     update homelab $homelab | ignore

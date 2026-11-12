@@ -29,8 +29,7 @@ export def link [cfg: record] {
     let secret = $env.DOTFILES | path join $SECRET
     let shared = $cfg.sccache_redis and (profile-has secrets) and (secret-is-plaintext $secret)
     if not $shared { return (files-into $cargo config.toml) }
-    let s = open --raw $secret | lines | parse --regex '^(?<k>[A-Z_]+)=(?<v>.*)$'
-        | reduce --fold {} {|e, acc| $acc | insert $e.k ($e.v | str trim) }
+    let s = env-file-load $secret
     let url = $s.SCCACHE_REDIS_ENDPOINT | url parse
     let port = $url.port | default --empty (if $url.scheme == rediss { $REDIS_TLS_PORT } else { $REDIS_PORT })
     let wrapper = $nu.home-dir | path join .local bin rustc-wrapper

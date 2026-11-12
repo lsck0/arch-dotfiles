@@ -25,14 +25,20 @@ export def theme [cfg: record, wallpaper: string] {
     let bg = do $slot background "#0b1019" | condition-bg
     let fg = do $slot foreground "#c2c3c5"
     let accent = do $slot color4 "#B68B74" | vivify 0.45 0.55
-    let surfaces = {MENU: ($bg | shade 0.045), TXT: ($bg | shade 0.02), BTN: ($bg | shade 0.075), HDR_BTN: ($bg | shade 0.03)}
     let selection = $accent | selection-pair $fg
-    let values = {NAME: wal, BG: ($bg | rgb-to-hex), FG: ($fg | readable-on $bg | rgb-to-hex)}
-        | merge ($surfaces | items {|name, c| {$"($name)_BG": ($c | rgb-to-hex), $"($name)_FG": ($fg | readable-on $c | rgb-to-hex)} } | reduce {|it, acc| $acc | merge $it })
-        | merge {SEL_BG: ($selection.0 | rgb-to-hex), SEL_FG: ($selection.1 | rgb-to-hex)}
-        | merge {GTK3_GENERATE_DARK: (if ($bg | is-light) { "False" } else { "True" }), ROUNDNESS: $RADIUS_PX, SPACING: 3, GRADIENT: "0.0"}
-    let order = [NAME BG FG MENU_BG MENU_FG SEL_BG SEL_FG TXT_BG TXT_FG BTN_BG BTN_FG HDR_BTN_BG HDR_BTN_FG GTK3_GENERATE_DARK ROUNDNESS SPACING GRADIENT]
-    let text = $order | each {|k| $"($k)=($values | get $k)" } | str join "\n"
+    let hex = {|c| $c | rgb-to-hex }
+    let on = {|c| $fg | readable-on $c | rgb-to-hex }
+    let menu = $bg | shade 0.045
+    let txt = $bg | shade 0.02
+    let btn = $bg | shade 0.075
+    let hdr_btn = $bg | shade 0.03
+    let values = {
+        NAME: wal, BG: (do $hex $bg), FG: (do $on $bg), MENU_BG: (do $hex $menu), MENU_FG: (do $on $menu)
+        SEL_BG: (do $hex $selection.0), SEL_FG: (do $hex $selection.1), TXT_BG: (do $hex $txt), TXT_FG: (do $on $txt)
+        BTN_BG: (do $hex $btn), BTN_FG: (do $on $btn), HDR_BTN_BG: (do $hex $hdr_btn), HDR_BTN_FG: (do $on $hdr_btn)
+        GTK3_GENERATE_DARK: (if ($bg | is-light) { "False" } else { "True" }), ROUNDNESS: $RADIUS_PX, SPACING: 3, GRADIENT: "0.0"
+    }
+    let text = $values | items {|k, v| $"($k)=($v)" } | str join "\n"
     [(file-text (xdg cache $COLORS) $"($text)\n" --generated --then (then-step themix-export))]
 }
 

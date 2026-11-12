@@ -847,7 +847,7 @@ def questions-walk [q: record, c: record]: nothing -> record {
 
 def question-defaults [q: record]: nothing -> record {
     $q.questions | where {|e| $e.id? != null and $e.default? != null and not ($e.default | describe | str starts-with "record") }
-    | reduce --fold {} {|e, acc| $acc | upsert $e.id $e.default }
+    | each {|e| [$e.id $e.default] } | into record
 }
 
 # For the review re-walk: each id'd question's current answer becomes its default, so a second pass prefills what was

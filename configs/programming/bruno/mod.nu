@@ -2,10 +2,8 @@ use module.nu *
 
 export const meta = {packages: {pacman: [bruno-bin bruno-cli]}}
 
-const PREFERENCES = ".config/bruno/preferences.json"
-
 export def link [cfg: record] {
-    let file = $nu.home-dir | path join $PREFERENCES
+    let file = xdg config bruno preferences.json
     let current = try { open $file } catch { {} }
     let installed = ^pacman -Q bruno-bin | complete | get stdout | parse --regex ' (?<v>\d+\.\d+\.\d+)' | get --optional 0.v
     let seen = if $installed == null or $current.preferences?.onboarding?.lastSeenVersion? != null { [] } else {

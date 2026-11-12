@@ -22,7 +22,7 @@
   deny @{user_config_dirs}/{mimeapps.list,user-dirs.dirs} w,
   deny @{user_bin_dirs}/{,**} w,
   deny @{user_share_dirs}/{opam/*,jai,cargo,go,ghcup,caveman,flatpak/exports,android-sdk/*}/bin/{,**} w,
-  # the real dirs where base/xdg has not linked them into the share dir (cargo, ghcup, jai) or migration 0008 left ~/.go
+  # the real dirs base/xdg has not linked into the share dir (cargo, ghcup, jai), and a ~/.go from before GOPATH moved
   deny @{HOME}/.{cargo,go,ghcup,jai}/bin/{,**} w,
   deny @{user_share_dirs}/{applications,dbus-1,systemd}/{,**} w,
   # all of nvim's data dir but mason/staging, where mason runs unzip to unpack every LSP it installs

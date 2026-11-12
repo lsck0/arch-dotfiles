@@ -1,6 +1,7 @@
 # `dot secrets audit`: credential ages against their last rotation, plus the recovery drill.
 
 use ../../../scripts/lib/secrets.nu [secret-is-plaintext secrets-wanted]
+use ../../../scripts/lib/state.nu [xdg]
 
 const SECRETS = path self ../../secrets/keys
 const KEY_DIR = path self .
@@ -8,6 +9,7 @@ const OWNER_DIR = path self ../../secrets/yubikey
 const ROTATION = path self ../../secrets/keys/rotation.txt
 const WITNESS = path self ../../secrets/keys/pgp_privatekey.asc
 const DRILL = "recovery-drill"
+const DRILL_HOW = 'RECOVERY.md "Test it", then dot secrets audit drilled'
 const REMIND_STATE = "secrets-audit/reminded"
 const REMIND_EVERY = 28day
 const SEALED_HEADER_BYTES = 4096
@@ -96,10 +98,9 @@ def recovery []: nothing -> list<record> {
             finding fail $"no configs/secrets/keys/luks-header-($host).img, run configs/base/boot/luks/header-backup.nu"
         })
         (if $drilled == "" {
-            finding note 'recovery drill never recorded: RECOVERY.md "Test it", then dot secrets audit drilled'
+            finding note $"recovery drill never recorded: ($DRILL_HOW)"
         } else if (days-since $drilled) > $MAX_DAYS.recovery-drill {
-            let how = 'RECOVERY.md "Test it", then dot secrets audit drilled'
-            finding note $"recovery drill last done ($drilled), (days-since $drilled) days ago: ($how)"
+            finding note $"recovery drill last done ($drilled), (days-since $drilled) days ago: ($DRILL_HOW)"
         } else {
             finding ok $"recovery drill ($drilled), (days-since $drilled) of ($MAX_DAYS.recovery-drill) days"
         })
@@ -146,7 +147,7 @@ export def audit-remind []: nothing -> nothing {
     if not (secret-is-plaintext $WITNESS) { return }
     let drilled = rotation-recorded $DRILL
     if $drilled != "" and (days-since $drilled) <= $MAX_DAYS.recovery-drill { return }
-    let state = $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state) | path join $REMIND_STATE
+    let state = xdg state $REMIND_STATE
     if ($state | path exists) and (ls $state | get 0.modified) > ((date now) - $REMIND_EVERY) { return }
     let how = 'RECOVERY.md "Test it": unlock a scratch clone with the paper key, then dot secrets audit drilled'
     let body = $"last: ($drilled | default --empty never). ($how)"

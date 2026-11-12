@@ -16,7 +16,7 @@ const VAULT_ID_LENGTH = 16
 const API_KEY_BYTES = 32
 
 def json-read [file: path]: nothing -> any {
-    if ($file | path exists) { try { open $file } catch { null } } else { null }
+    try { open $file } catch { null }
 }
 
 # Enables the plugin in the vault's community-plugins.json, a json array json-merge cannot address.
@@ -47,7 +47,7 @@ export def link [cfg: record] {
     let header = $"jq -c '{Authorization: \(\"Bearer \" + .apiKey\)}' '($settings)'"
     [
         (json-merge $config ([(json-set [cli] true)] ++ (if $registered { [] } else { [(json-set [vaults $vault_id] $vault_entry)] })))
-        ($REST_SHA256 | items {|file, sha256| fetch-file $"($REST_URL)/($file)" $sha256 ($plugin | path join $file) } | flatten)
+        ($REST_SHA256 | items {|file, sha256| fetch-file $"($REST_URL)/($file)" $sha256 ($plugin | path join $file) })
         (step plugin-enable $vault --done=$enabled)
         (json-merge $settings ($mint ++ $server) --then [chmod 600 $settings])
         (link-commands obsidian-launch.nu)

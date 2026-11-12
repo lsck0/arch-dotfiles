@@ -22,9 +22,7 @@ return {
         "Bekaboo/dropbar.nvim",
         event = "VeryLazy",
         dependencies = { "nvim-telescope/telescope-fzf-native.nvim" },
-        config = function()
-            require("dropbar").setup({ bar = { enable = false } })
-        end,
+        opts = { bar = { enable = false } },
     },
 
     {
@@ -32,20 +30,8 @@ return {
         dependencies = { "kevinhwang91/promise-async" },
         event = { "BufReadPost", "BufNewFile" },
         keys = {
-            {
-                "zR",
-                function()
-                    require("ufo").openAllFolds()
-                end,
-                desc = "Open all folds",
-            },
-            {
-                "zM",
-                function()
-                    require("ufo").closeAllFolds()
-                end,
-                desc = "Close all folds",
-            },
+            { "zR", "<cmd>lua require('ufo').openAllFolds()<cr>", desc = "Open all folds" },
+            { "zM", "<cmd>lua require('ufo').closeAllFolds()<cr>", desc = "Close all folds" },
         },
         init = function()
             vim.o.foldcolumn = "0"
@@ -53,13 +39,11 @@ return {
             vim.o.foldlevelstart = 99
             vim.o.foldenable = true
         end,
-        config = function()
-            require("ufo").setup({
-                provider_selector = function()
-                    return { "treesitter", "indent" }
-                end,
-            })
-        end,
+        opts = {
+            provider_selector = function()
+                return { "treesitter", "indent" }
+            end,
+        },
     },
 
     {
@@ -67,27 +51,13 @@ return {
         event = "BufReadPre",
         opts = {},
         keys = {
-            {
-                "<leader>qs",
-                function()
-                    require("persistence").load()
-                end,
-                desc = "Restore session (cwd)",
-            },
+            { "<leader>qs", "<cmd>lua require('persistence').load()<cr>", desc = "Restore session (cwd)" },
             {
                 "<leader>ql",
-                function()
-                    require("persistence").load({ last = true })
-                end,
+                "<cmd>lua require('persistence').load({ last = true })<cr>",
                 desc = "Restore last session",
             },
-            {
-                "<leader>qd",
-                function()
-                    require("persistence").stop()
-                end,
-                desc = "Stop saving session",
-            },
+            { "<leader>qd", "<cmd>lua require('persistence').stop()<cr>", desc = "Stop saving session" },
         },
     },
 

@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -34,8 +35,7 @@ ShellRoot {
 
   function setWidgetSettings(widgetId, settings) {
     var key = String(widgetId)
-    var next = {}
-    for (let k in settings) if (k !== "id") next[k] = settings[k]
+    var next = Util.mapWithout(settings, "id")
     var current = widgetSettings[key]
     if (current && JSON.stringify(current) === JSON.stringify(next)) return false
     widgetSettings = Util.mapSet(widgetSettings, key, next)
@@ -43,42 +43,21 @@ ShellRoot {
     return true
   }
 
-  function applyWidgetSettings() {
-    var text = widgetSettingsFile.text() || ""
-    if (!text.trim()) {
-      widgetSettings = ({})
-      return
-    }
-    try {
-      let parsed = JSON.parse(text)
-      widgetSettings = Util.isPlainObject(parsed) ? parsed : ({})
-    } catch (e) {
-      console.warn("widget-settings.json parse failed, ignoring it:", e)
-      widgetSettings = ({})
-    }
-  }
-
   WatchedFile {
     id: widgetSettingsFile
     path: shell.widgetSettingsPath
     atomicWrites: true
-    onLoaded: shell.applyWidgetSettings()
+    onLoaded: shell.widgetSettings = Util.parseObject(text())
     onLoadFailed: shell.widgetSettings = ({})
   }
 
   readonly property string mainScreenName: {
-    var screens = Quickshell.screens
-    function connected(name) {
-      for (let s = 0; s < screens.length; s++) if (String(screens[s].name) === name) return true
-      return false
-    }
-    var workspaces = Hyprland.workspaces.values
-    for (let w = 0; w < workspaces.length; w++)
-      if (workspaces[w].id === 1 && workspaces[w].monitor) return String(workspaces[w].monitor.name)
-    if (workspaceOneRuleMonitor && connected(workspaceOneRuleMonitor)) return workspaceOneRuleMonitor
-    for (let i = 0; i < screens.length; i++)
-      if (screens[i].x === 0 && screens[i].y === 0) return String(screens[i].name)
-    return screens.length > 0 ? String(screens[0].name) : ""
+    var one = Hyprland.workspaces.values.find(w => w.id === 1 && w.monitor)
+    if (one) return String(one.monitor.name)
+    if (workspaceOneRuleMonitor && Util.screenNamed(workspaceOneRuleMonitor)) return workspaceOneRuleMonitor
+    var screens = Array.from(Quickshell.screens)
+    var origin = screens.find(s => s.x === 0 && s.y === 0) || screens[0]
+    return origin ? String(origin.name) : ""
   }
 
   property string workspaceOneRuleMonitor: ""
@@ -125,21 +104,15 @@ ShellRoot {
       required property string modelData
       active: true
       source: Qt.resolvedUrl("plugins/" + Plugins.shell[modelData])
-      onItemChanged: if (item && "shell" in item) item.shell = shell
+      onItemChanged: if (item && "shell" in item) item.shell = shell // qmllint disable missing-property
     }
   }
 
-  function barFor(screen) {
-    var instances = bars.instances
-    for (let i = 0; i < instances.length; i++) if (instances[i].screen === screen) return instances[i]
-    return null
-  }
+  function barFor(screen) { return Array.from(bars.instances).find(b => b.screen === screen) || null }
 
   function plugin(id) {
-    var loaders = plugins.instances
-    for (let i = 0; i < loaders.length; i++)
-      if (loaders[i].modelData === id) return loaders[i].item
-    return null
+    var loader = Array.from(plugins.instances).find(l => l.modelData === id)
+    return loader ? loader.item : null
   }
 
   function summon(id, payloadJson) {

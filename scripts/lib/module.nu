@@ -2,13 +2,13 @@
 
 export use log.nu [log-info log-note log-warn log-err log-debug]
 export use profile.nu [profile-has profile-load]
-export use platform.nu [platform-has display-xwayland-scale gpu-list]
+export use platform.nu [platform-has display-xwayland-scale gpu-list monitors-live]
 export use json.nu [json-set json-delete]
-export use secrets.nu [secret-is-plaintext secret-seed-guard owner-unlocked]
+export use secrets.nu [secret-is-plaintext secret-seed-guard owner-unlocked system-secret]
 use fetch.nu [fetch-file-done fetch-file-cached fetch-git-done]
 use state.nu [nu-bin LIB_DIR]
 # what a module may read of the engine's state: its records, the root's state paths, a step's pending exit code
-export use state.nu [xdg recorded-hashes SYSTEM_STATE SYSTEM_REPO EXIT_PENDING]
+export use state.nu [xdg env-file-load recorded-hashes SYSTEM_STATE SYSTEM_REPO EXIT_PENDING]
 use ../../configs/core/wallust/palette.nu [palette-slots]
 
 export const DECL_KEYS = [kind target source content mode generated inplace edits state now argv creates key done undo requires then notify network timeout]
@@ -18,6 +18,8 @@ const BIN_DIR = ".local/bin"
 const DESKTOP_SYSTEM_DIR = "/usr/share/applications"
 # an app rewriting a watched path in bursts would retrigger its hook in a loop
 const HOOK_BRAKE = "StartLimitIntervalSec=1min\nStartLimitBurst=20\n"
+const MCP_GATE = path self ../mcp-gate.py
+const PALETTE_SLOTS = [bg fg c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 c15 light bg_conditioned]
 
 def decl [kind: string, target: string, fields: record]: nothing -> record {
     {
@@ -111,10 +113,8 @@ export def desktop-set [values: record]: string -> string {
     }
 }
 
-const MCP_GATE = path self ../mcp-gate.py
-
-# A spec with a `gate: {probe: "host:port", app}` runs through scripts/mcp-gate.py: the server while the app listens, else
-# a server with no tools that says to start it, so an agent session never shows it failed.
+# A spec with a `gate: {probe: "host:port", app}` runs through scripts/mcp-gate.py: the server while the app listens,
+# else a server with no tools that says to start it, so an agent session never shows it failed.
 def mcp-gated [name: string]: any -> any {
     let spec = $in
     if $spec == null or $spec.gate? == null { return $spec }
@@ -142,10 +142,10 @@ def mcp-form [agent: string]: any -> any {
 }
 
 # Registers MCP servers with every coding agent, name -> spec in Claude Code's form ({type: stdio, command, args, env}
-# or {type: http, url, headers}), optionally with a `gate` (mcp-gated); null drops the name. Claude Code reads ~/.claude.json, Gemini ~/.gemini/settings.json
-# and Copilot ~/.copilot/mcp-config.json, each in its own form. Hermes rewrites its YAML config itself, so its form goes
-# to ~/.hermes/mcp-servers.json, a dropped name kept as null, and programming/hermes sets that into each profile. A server
-# with a headersHelper reaches Claude Code only.
+# or {type: http, url, headers}), optionally with a `gate` (mcp-gated); null drops the name. Claude Code reads
+# ~/.claude.json, Gemini ~/.gemini/settings.json and Copilot ~/.copilot/mcp-config.json, each in its own form. Hermes
+# rewrites its YAML config itself, so its form goes to ~/.hermes/mcp-servers.json, a dropped name kept as null, and
+# programming/hermes sets that into each profile. A server with a headersHelper reaches Claude Code only.
 export def mcp-servers [servers: record]: nothing -> list<record> {
     let home = $nu.home-dir
     [
@@ -164,6 +164,24 @@ export def mcp-servers [servers: record]: nothing -> list<record> {
     }
 }
 
+const MCP_COMPAT_RELEASED = "2026-09-01"
+
+# Arch's python-mcp is 2.x, whose FastMCP rename broke the ghidra and semgrep servers, and misses extras like structlog:
+# a venv over the system site-packages holds these pip specs, frozen at MCP_COMPAT_RELEASED, and runs the system
+# script. Returns {python, decl}: the venv's python and the exec declaration that builds it.
+export def mcp-compat [name: string, pins: list<string>]: nothing -> record {
+    let py = ^python3 -c "import sys; print(f'{sys.version_info[0]}.{sys.version_info[1]}')" | str trim
+    let dir = xdg data mcp-compat $name
+    let version = $"($MCP_COMPAT_RELEASED)-py($py)-($pins | str join '_' | hash sha256 | str substring 0..<8)"
+    let script = 'rm -rf "$0" && uv venv --quiet --system-site-packages --python /usr/bin/python3 "$0" && uv pip install --quiet --python "$0/bin/python" --exclude-newer "$1" "$@"'
+    let python = $dir | path join bin python
+    {
+        python: $python
+        decl: (exec $"mcp-compat ($name)" [sh -c ($script | str replace '"$@"' ($pins | each { $"'($in)'" } | str join " ")) $dir $MCP_COMPAT_RELEASED]
+            --creates $python --key $version --undo [rm -rf $dir] --network)
+    }
+}
+
 # Forces only these keys ("" is the part before any section); --missing-only seeds absent keys only.
 export def ini-merge [file: path, values: record, --missing-only, --then: list<string> = []]: nothing -> record {
     decl ini $file {edits: [{values: $values, missing_only: $missing_only}], then: $then}
@@ -173,6 +191,13 @@ export def ini-merge [file: path, values: record, --missing-only, --then: list<s
 export def unit-file [src: path, --enable, --now, --then: list<string> = []]: nothing -> list<record> {
     let name = $src | path basename
     [(file-copy $src (unit-dir | path join $name) --then $then)] ++ (if $enable { [(unit-enable $name --now=$now)] } else { [] })
+}
+
+# Whether the layer's systemd knows unit; a template instance (foo@bar.service) checks its template.
+export def unit-installed [unit: string]: nothing -> bool {
+    let scope = if (layer-is-system) { "--system" } else { "--user" }
+    let name = $unit | str replace --regex '^([^@]+@).*(\.[a-z]+)$' '$1$2'
+    ^systemctl $scope list-unit-files --no-legend $name | complete | get stdout | str trim | is-not-empty
 }
 
 # A --then command restarting a unit, skipped while the unit is not installed yet (a fresh install).
@@ -271,11 +296,15 @@ export def group-system [group: string, ...members: string]: nothing -> record {
     file-text $file ($lines | str join "\n" | $"($in)\n") --then [systemd-sysusers $file]
 }
 
+# The logins /etc/group lists in a group.
+export def group-members [group: string]: nothing -> list<string> {
+    open /etc/group | lines | parse "{name}:{x}:{gid}:{members}" | where name == $group | get --optional 0.members
+    | default "" | split row "," | where $it != ""
+}
+
 # A system group every wheel member is in.
 export def group-admins [group: string]: nothing -> record {
-    let wheel = open /etc/group | lines | parse "{name}:{x}:{gid}:{members}" | where name == wheel
-        | get --optional 0.members | default "" | split row "," | where $it != ""
-    group-system $group ...$wheel
+    group-system $group ...(group-members wheel)
 }
 
 # Without --permanent it retires once undeclared.
@@ -294,14 +323,12 @@ export def user-hook [name: string, script: path, --watch: list<string>, --perma
     ] ++ (if $permanent { [(unit-enable $"($name).service")] } else { [] })
 }
 
-const PALETTE_SLOTS = [bg fg c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 c15 light bg_conditioned]
-
 # The current wallust palette as a record of slots, or null before the first theme.
 export def palette-load []: nothing -> any {
     if not (xdg cache wal colors.json | path exists) {
         return null
     }
-    $PALETTE_SLOTS | zip (palette-slots) | reduce --fold {} {|p, acc| $acc | insert $p.0 $p.1 }
+    $PALETTE_SLOTS | zip (palette-slots) | into record
 }
 
 # <dir>/<host>/<file>, so machines backing up into one repo never overwrite each other.
@@ -315,11 +342,10 @@ export def host-seed [dir: path, ...file: string]: nothing -> path {
     if ($own | path exists) { $own } else { $dir | path join ...$file }
 }
 
-# Flattens a verb's output, nested lists of declarations or a single one, into one list.
+# Flattens a verb's output, declarations nested to any depth, a single one or null, into one list.
 export def decls-flatten []: any -> list<record> {
     let value = $in
-    let nested = {|v| ($v | describe) =~ '^(list|table)' }
     if $value == null { return [] }
-    if not (do $nested $value) { return [$value] }
-    $value | reduce --fold [] {|d, acc| $acc ++ (if (do $nested $d) { $d } else { [$d] }) }
+    if not (($value | describe) =~ '^(list|table)') { return [$value] }
+    $value | each { decls-flatten } | flatten
 }

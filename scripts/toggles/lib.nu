@@ -5,6 +5,7 @@ export const TOGGLES_DIR = path self .
 const ROOT_HELPER = "/usr/local/bin/toggle-root"
 const ADMIN_GROUP = "wheel"
 const IPC_TIMEOUT_S = 3
+const TRUSTED_NETWORK = "/run/trusted-network"
 
 # The state file of a toggle; --volatile puts it on tmpfs, for state whose tool resets on boot (tlp, rfkill ids).
 export def state-file [name: string, --volatile]: nothing -> path {
@@ -61,6 +62,14 @@ export def unit-exists [unit: string]: nothing -> bool {
 export def unit-active [unit: string]: nothing -> bool {
     (^systemctl is-active --quiet $unit | complete).exit_code == 0
 }
+
+# The links home-network.nu marked trusted, written by the system layer.
+export def trusted-links []: nothing -> list<string> {
+    if ($TRUSTED_NETWORK | path exists) { open --raw $TRUSTED_NETWORK | lines } else { [] }
+}
+
+# Saved hyprland state is tagged with it, so a restarted compositor never replays the last one's.
+export def hyprland-instance []: nothing -> string { $env.HYPRLAND_INSTANCE_SIGNATURE? | default "" }
 
 # Bounded by a timeout, so a shell that is down or hung never blocks a toggle.
 export def quickshell-call [target: string, ...args: string]: nothing -> string {

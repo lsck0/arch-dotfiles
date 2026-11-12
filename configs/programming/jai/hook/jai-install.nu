@@ -4,10 +4,8 @@ const DOT = path self | path dirname | path join .. .. .. .. scripts dot.nu
 const JAILS_URL = "https://github.com/SogoCZE/Jails.git"
 const JAILS_COMMIT = "42fa76c816ad34c9f24a4bde586d145c992dc860"
 
-export def jai-zip []: nothing -> any {
-    let zips = glob ($nu.home-dir | path join sync vendor "jai-*.zip")
-    if ($zips | is-empty) { return null }
-    $zips | str join "\n" | ^sort -V | lines | last
+export def zip-newest []: nothing -> any {
+    glob ($nu.home-dir | path join sync vendor "jai-*.zip") | sort --natural | last
 }
 
 # The plain names on PATH: `jai` as the compiler's docs and jails call it (the beta ships only jai-linux).
@@ -17,7 +15,7 @@ def bins-link [dir: path]: nothing -> nothing {
 }
 
 def main []: nothing -> nothing {
-    let zip = jai-zip
+    let zip = zip-newest
     if $zip == null { return }
     # ~/.jai links into the data dir (base/xdg): work in its target, never replace the link
     let dir = $nu.home-dir | path join .jai | path expand

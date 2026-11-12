@@ -9,9 +9,7 @@ return {
         "bngarren/checkmate.nvim",
         ft = "markdown",
         opts = {
-            files = {
-                "*.md",
-            },
+            files = { "*.md" },
             keys = {
                 ["<C-Space>"] = {
                     rhs = "<cmd>Checkmate cycle_next<CR>",
@@ -30,20 +28,12 @@ return {
         "MeanderingProgrammer/render-markdown.nvim",
         ft = "markdown",
         dependencies = { "nvim-treesitter/nvim-treesitter", "echasnovski/mini.nvim" },
-        config = function()
-            require("render-markdown").setup({
-                completions = { lsp = { enabled = true } },
-                -- not "hide": mermaid images anchor to the fence and would vanish
-                code = { border = "thin" },
-                anti_conceal = {
-                    ignore = {
-                        code_background = true,
-                        code_border = true,
-                        code_language = true,
-                    },
-                },
-            })
-        end,
+        opts = {
+            completions = { lsp = { enabled = true } },
+            -- not "hide": mermaid images anchor to the fence and would vanish
+            code = { border = "thin" },
+            anti_conceal = { ignore = { code_background = true, code_border = true, code_language = true } },
+        },
     },
 
     {

@@ -18,10 +18,12 @@ const TOUCH_RETRY = 2sec
 const INIT_STEPS = [pins pgp ssh u2f age]
 const PCSC_REFUSED = "PC/SC not available"
 const SECRETS_ISSUE = "/etc/issue.d/dotfiles-secrets.issue"
+const GITHUB_OVER_SSH = "url.git@github.com:lsck0/.insteadOf=https://github.com/lsck0/"
+const SECRETS_PULL = [submodule update --init configs/secrets]
 
-# Clears the install chain's "still locked" login banner once secrets actually unlock.
-# best effort without a prompt: the system layer's base/yubikey clears it on the next system apply
-def clear-secrets-issue []: nothing -> nothing {
+# Clears the install chain's "still locked" login banner once secrets unlock, best effort without a prompt:
+# otherwise base/yubikey's system verb clears it on the next system apply.
+def secrets-issue-try-clear []: nothing -> nothing {
     if ($SECRETS_ISSUE | path exists) { do { ^sudo -n rm -f $SECRETS_ISSUE } | complete | ignore }
 }
 
@@ -86,10 +88,15 @@ def with-key-file [body: closure]: nothing -> nothing {
     if $failed != null { error make {msg: $failed} }
 }
 
-def crypt-unlock [key: path]: nothing -> bool {
-    let ok = (do { ^git -C $SECRETS crypt unlock $key } | complete).exit_code == 0
-    if $ok { secrets-lock-0600 }
+# Without a key, git-crypt unlocks with gpg.
+def crypt-unlock [key?: path]: nothing -> bool {
+    let ok = (do { ^git -C $SECRETS crypt unlock ...([$key] | compact) } | complete).exit_code == 0
+    if $ok { secrets-lock-0600; secrets-issue-try-clear }
     $ok
+}
+
+def secrets-pulled []: nothing -> bool {
+    $SECRETS | path join .git | path exists
 }
 
 def fingerprint []: nothing -> string {
@@ -212,13 +219,13 @@ export def yubikey-init [...steps: string]: nothing -> nothing {
 # Without a YubiKey (WSL): gh credentials, else the account's ssh key; never an https prompt.
 def secrets-pull-with-account []: nothing -> nothing {
     let pull = {|config: list<string>|
-        (do { with-env {GIT_TERMINAL_PROMPT: "0"} { ^git -C $REPO ...$config submodule update --init configs/secrets } }
+        (do { with-env {GIT_TERMINAL_PROMPT: "0"} { ^git -C $REPO ...$config ...$SECRETS_PULL } }
             | complete).exit_code == 0
     }
     let gh = (which gh | is-not-empty) and ((do { ^gh auth status } | complete).exit_code == 0)
     if $gh and (do $pull [-c "credential.helper=" -c "credential.helper=!gh auth git-credential"]) { return }
     let ssh = "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
-    if not (do $pull [-c $"core.sshCommand=($ssh)" -c "url.git@github.com:lsck0/.insteadOf=https://github.com/lsck0/"]) {
+    if not (do $pull [-c $"core.sshCommand=($ssh)" -c $GITHUB_OVER_SSH]) {
         error make {msg: "yubikey: cannot fetch the private secrets submodule: log in with `gh auth login`, or add an ssh key with access to github.com/lsck0/secrets, then rerun"}
     }
 }
@@ -226,7 +233,7 @@ def secrets-pull-with-account []: nothing -> nothing {
 def unlock-identity [identity: path]: nothing -> nothing {
     if not ($identity | path exists) { error make {msg: $"yubikey: no identity file '($identity)'"} }
     if not ($SEALED_KEY | path exists) { error make {msg: $"yubikey: no sealed key ($SEALED_KEY)"} }
-    if not ($SECRETS | path join .git | path exists) { secrets-pull-with-account }
+    if not (secrets-pulled) { secrets-pull-with-account }
     if (secret-is-plaintext $WITNESS) {
         print "yubikey: secrets already unlocked"
         return
@@ -237,26 +244,20 @@ def unlock-identity [identity: path]: nothing -> nothing {
         }
         if not (crypt-unlock $key) { error make {msg: "yubikey: git-crypt unlock failed"} }
     }
-    clear-secrets-issue
 }
 
 # Unlocks configs/secrets/ with a yubikey touch (gpg when no key is present), or with the age identity --identity.
 export def yubikey-unlock [--identity: path]: nothing -> nothing {
     if (unwanted) { return }
     if $identity != null { return (unlock-identity $identity) }
-    let pulled = $SECRETS | path join .git | path exists
+    let pulled = secrets-pulled
     let card = card
     if not $card.present {
         if (which lsusb | is-not-empty) and (do { ^lsusb -d 1050: } | complete).exit_code == 0 {
             print "yubikey: plugged in but ykman can not reach it, check pcscd and its polkit rule"
         }
         if $pulled and not (secret-is-plaintext $WITNESS) {
-            if (do { ^git -C $SECRETS crypt unlock } | complete).exit_code == 0 {
-                secrets-lock-0600
-                clear-secrets-issue
-            } else {
-                print "yubikey: no key present and pgp git-crypt unlock failed"
-            }
+            if not (crypt-unlock) { print "yubikey: no key present and pgp git-crypt unlock failed" }
         } else {
             print "yubikey: none plugged in, secrets stay as they are"
         }
@@ -279,13 +280,10 @@ export def yubikey-unlock [--identity: path]: nothing -> nothing {
         }
         print ">>> touch the YubiKey to pull the secrets (the clone takes a while after the touch)"
         let ssh = $"ssh -i ($key_file) -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
-        let ok = with-touch [
-            git -C $REPO -c $"core.sshCommand=($ssh)" -c "url.git@github.com:lsck0/.insteadOf=https://github.com/lsck0/"
-            submodule update --init configs/secrets
-        ]
+        let ok = with-touch [git -C $REPO -c $"core.sshCommand=($ssh)" -c $GITHUB_OVER_SSH ...$SECRETS_PULL]
         rm --force $key_file
         if not $ok { print "yubikey: pull failed or no touch" }
-        if not ($SECRETS | path join .git | path exists) { return }
+        if not (secrets-pulled) { return }
     }
     if (secret-is-plaintext $WITNESS) { return }
     if not $card.ccid {
@@ -298,8 +296,6 @@ export def yubikey-unlock [--identity: path]: nothing -> nothing {
             print "yubikey: unlock failed or no touch"
         } else if not (crypt-unlock $key) {
             print "yubikey: git-crypt unlock failed"
-        } else {
-            clear-secrets-issue
         }
     }
 }

@@ -2,6 +2,7 @@
 
 const REPO = path self | path expand | path dirname --num-levels 4
 use ($REPO | path join scripts lib homelab.nu) [homelab-lab-load]
+use ($REPO | path join scripts lib state.nu) [xdg]
 
 def grafana-url []: nothing -> string {
     let lab = homelab-lab-load
@@ -13,13 +14,12 @@ def grafana-url []: nothing -> string {
 }
 
 def --wrapped main [...args: string]: nothing -> nothing {
-    let data = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share)
     load-env {
         GRAFANA_URL: (grafana-url)
         GRAFANA_SERVICE_ACCOUNT_TOKEN_FILE: ($REPO | path join configs secrets keys grafana-mcp-token)
         GRAFANA_USAGE_STATS: disabled
         DO_NOT_TRACK: "1"
     }
-    (exec ($data | path join mcp-grafana mcp-grafana) -t stdio --usage-stats disabled
+    (exec (xdg data mcp-grafana mcp-grafana) -t stdio --usage-stats disabled
         --disable-write --disable-admin --disable-docs ...$args)
 }

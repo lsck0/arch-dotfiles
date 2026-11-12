@@ -6,7 +6,6 @@ const HWMON = $"($SYS)/class/hwmon"
 const BOARD_NAME_FILE = $"($SYS)/class/dmi/id/board_name"
 const CONFIG = "/etc/fancontrol"
 const BOARD = "X870E AORUS ELITE WIFI7"
-const FORCE_ID = "0x8622"
 const INTERVAL_S = 5
 # Tctl jumps 15C within seconds on any burst; averaging 4 readings (20 s) keeps the fans from chasing it
 const AVERAGE = 4
@@ -32,7 +31,8 @@ def bios [why: string]: nothing -> nothing {
 
 def main []: nothing -> nothing {
     if (read $BOARD_NAME_FILE) != $BOARD { return (bios $"not the ($BOARD)") }
-    ^modprobe -q it87 $"force_id=($FORCE_ID)" ignore_resource_conflict=1 | complete | ignore
+    # its force_id and ignore_resource_conflict come from /etc/modprobe.d/it87.conf
+    ^modprobe -q it87 | complete | ignore
     let it87 = hwmon-find '^it8'
     if $it87 == null { return (bios "it87 did not load (check dmesg for the force_id)") }
     let k10 = hwmon-find '^k10temp$'

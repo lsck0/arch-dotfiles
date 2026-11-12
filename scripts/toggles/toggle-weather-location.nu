@@ -50,7 +50,8 @@ def ipgeo-coords []: nothing -> any {
 }
 
 def resolve []: nothing -> string {
-    if (manual-coords) != null { return $"manual (manual-coords)" }
+    let manual = manual-coords
+    if $manual != null { return $"manual ($manual)" }
     let cache = state-file weather-location.auto --volatile
     if ($cache | path exists) and ((date now) - (ls $cache | get 0.modified)) < $AUTO_CACHE_MAX_AGE {
         return (open --raw $cache | str trim)

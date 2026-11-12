@@ -7,6 +7,8 @@ export const OPTION_SCOPE = [machine user]
 const OPTION_APPLY_DEFAULT = "relink"
 const OPTION_SCOPE_DEFAULT = "machine"
 export const OPTION_ENABLE = "enable"
+const EVENTS_FILE = "dot/events.jsonl"
+const EVENTS_MAX_BYTES = 1048576
 
 # Whether value fits a spec type; a trailing ? admits null, an int passes as float, a string as path.
 export def option-type-ok [type: string, value: any]: nothing -> bool {
@@ -66,31 +68,32 @@ def module-options-built [module: record]: nothing -> record {
         apply: relink
         scope: user
     }
-    $module.options | insert $OPTION_ENABLE $enable | items {|name, spec|
+    let built = $module.options | insert $OPTION_ENABLE $enable | items {|name, spec|
         let augmented = $spec | merge {
             label: ($spec.label? | default ($name | str replace --all "_" " " | str capitalize))
             group: ($spec.group? | default $module.id)
             apply: ($spec.apply? | default $OPTION_APPLY_DEFAULT)
             scope: ($spec.scope? | default $OPTION_SCOPE_DEFAULT)
         }
-        {
-            name: $name
-            spec: $augmented
-            errors: (if $name == $OPTION_ENABLE { [] } else { spec-errors $module.id $name $augmented })
-        }
-    } | reduce --fold {schema: {}, values: {}, sources: {}, errors: []} {|o, acc|
-        {
-            schema: ($acc.schema | insert $o.name $o.spec)
-            values: ($acc.values | insert $o.name $o.spec.default)
-            sources: ($acc.sources | insert $o.name default)
-            errors: ($acc.errors ++ $o.errors)
-        }
+        {name: $name, spec: $augmented, errors: (if $name == $OPTION_ENABLE { [] } else { spec-errors $module.id $name $augmented })}
+    }
+    {
+        schema: ($built | each {|o| [$o.name $o.spec] } | into record)
+        values: ($built | each {|o| [$o.name $o.spec.default] } | into record)
+        sources: ($built | each {|o| [$o.name default] } | into record)
+        errors: ($built | get errors | flatten)
     }
 }
 
 # A module's option specs with the implicit enable option and label, group, apply and scope filled in.
 export def options-schema [module: record]: nothing -> record {
     (module-options-built $module).schema
+}
+
+# Lands value on option name with its source, or adds the errors that kept it out.
+def option-land [acc: record, name: string, value: any, source: string, errors: list<string>]: nothing -> record {
+    if ($errors | is-not-empty) { return ($acc | update errors { append $errors }) }
+    $acc | update values { upsert $name $value } | update sources { upsert $name $source }
 }
 
 # Each module's option values and where each came from, plus every error across the layers.
@@ -112,60 +115,32 @@ export def options-resolve [modules: table, platform: record, profile: any, dete
         }
         let built = module-options-built $module
         let schema = $built.schema
-        let start = {values: $built.values, sources: $built.sources, errors: []}
-        let own_detected = $detected | get --optional $module.id | default {}
-        let start = if ($own_detected | is-empty) { $start } else {
-            let entries = $own_detected
-                | items {|name, value| if $value == null { null } else { {name: $name, value: $value} } }
-                | compact
-            # a detected value lands only on an option defaulting to null; one with a default would drop it unseen
-            let folded = $entries | reduce --fold {values: $start.values, sources: $start.sources, shadow: [], found: []} {|d, acc|
-                let known = $d.name in ($schema | columns)
-                let shadowed = $known and (($schema | get $d.name | get --optional default) != null)
-                if $shadowed {
-                    {values: $acc.values, sources: $acc.sources, found: $acc.found, shadow: ($acc.shadow ++ [$"configs/($module.id)/mod.nu: detect returned ($d.name), whose non-null default always wins"])}
-                } else if not $known {
-                    {values: $acc.values, sources: $acc.sources, shadow: $acc.shadow, found: ($acc.found ++ [$"configs/($module.id)/mod.nu: detect returned ($d.name), no option of it"])}
-                } else {
-                    let bad = option-value-errors $module.id $d.name ($schema | get $d.name) $d.value $"configs/($module.id)/mod.nu detect"
-                    if ($bad | is-not-empty) {
-                        {values: $acc.values, sources: $acc.sources, shadow: $acc.shadow, found: ($acc.found ++ $bad)}
-                    } else {
-                        {values: ($acc.values | upsert $d.name $d.value), sources: ($acc.sources | upsert $d.name detected), shadow: $acc.shadow, found: $acc.found}
-                    }
-                }
-            }
-            {values: $folded.values, sources: $folded.sources, errors: ($start.errors ++ $folded.shadow ++ $folded.found)}
+        let entries = $detected | get --optional $module.id | default {} | items {|name, value| {name: $name, value: $value} } | where value != null
+        # a detected value lands only on an option defaulting to null; one with a default would drop it unseen
+        let shadowed = $entries | where {|d| ($schema | get --optional $d.name).default? != null }
+        let start = {
+            values: $built.values, sources: $built.sources
+            errors: ($shadowed | each { $"configs/($module.id)/mod.nu: detect returned ($in.name), whose non-null default always wins" })
         }
-        let resolved = if $module.id not-in $set_ids { $start } else {
-            $layers | reduce --fold $start {|layer, acc|
-                let set = $layer.values | get --optional $module.id | default {}
-                if ($set | is-empty) { $acc } else {
-                    $set | items {|name, value| {name: $name, value: $value} } | reduce --fold $acc {|entry, inner|
-                        let spec = $schema | get --optional $entry.name
-                        if $spec == null {
-                            {values: $inner.values, sources: $inner.sources, errors: ($inner.errors ++ [$"($layer.file): ($module.id).($entry.name) is no option of it"])}
-                        } else if $layer.name == "profile" and $spec.scope == "machine" {
-                            {values: $inner.values, sources: $inner.sources, errors: ($inner.errors ++ [$"($layer.file): ($module.id).($entry.name) is a machine option, set it with dot set --machine"])}
-                        } else {
-                            let bad = option-value-errors $module.id $entry.name $spec $entry.value $layer.file
-                            if ($bad | is-not-empty) {
-                                {values: $inner.values, sources: $inner.sources, errors: ($inner.errors ++ $bad)}
-                            } else {
-                                {values: ($inner.values | upsert $entry.name $entry.value), sources: ($inner.sources | upsert $entry.name $layer.name), errors: $inner.errors}
-                            }
-                        }
-                    }
-                }
+        let detected_in = $entries | where name not-in $shadowed.name | reduce --fold $start {|d, acc|
+            let spec = $schema | get --optional $d.name
+            let bad = if $spec == null { [$"configs/($module.id)/mod.nu: detect returned ($d.name), no option of it"] } else {
+                option-value-errors $module.id $d.name $spec $d.value $"configs/($module.id)/mod.nu detect"
             }
+            option-land $acc $d.name $d.value detected $bad
+        }
+        let set = $layers | each {|layer| $layer.values | get --optional $module.id | default {} | items {|name, value| {layer: $layer, name: $name, value: $value} } }
+        let resolved = $set | flatten | reduce --fold $detected_in {|e, acc|
+            let spec = $schema | get --optional $e.name
+            let bad = if $spec == null { [$"($e.layer.file): ($module.id).($e.name) is no option of it"] } else if $e.layer.name == "profile" and $spec.scope == "machine" {
+                [$"($e.layer.file): ($module.id).($e.name) is a machine option, set it with dot set --machine"]
+            } else { option-value-errors $module.id $e.name $spec $e.value $e.layer.file }
+            option-land $acc $e.name $e.value $e.layer.name $bad
         }
         {id: $module.id, values: $resolved.values, sources: $resolved.sources, errors: ($built.errors ++ $resolved.errors)}
     }
     {rows: ($rows | reject errors), errors: ($unknown_modules ++ ($rows | get errors | flatten))}
 }
-
-const EVENTS_FILE = "dot/events.jsonl"
-const EVENTS_MAX_BYTES = 1048576
 
 export def options-events-file []: nothing -> path {
     $env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u | str trim)" | path join $EVENTS_FILE
@@ -206,7 +181,7 @@ export def options-to-nuon [--indent: int = 0]: any -> string {
 
 # A string bare where nuon reads it back as the same string, quoted otherwise.
 def nuon-word [text: string]: nothing -> string {
-    # bare only when nuon reads it back as this string: true, null, inf and nan would come back as other types
+    # true, null, inf and nan would come back as other types
     let bare = $text =~ '^[A-Za-z_][A-Za-z0-9_.-]*$' and (try {
         let back = $"{x: ($text)}" | from nuon | get x
         ($back | describe) == "string" and $back == $text

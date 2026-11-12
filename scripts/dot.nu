@@ -3,7 +3,7 @@
 const REPO = path self | path expand | path dirname | path dirname
 const LIB = $REPO | path join scripts lib
 use ($LIB | path join log.nu) *
-use ($LIB | path join cli.nu) [concat guarded theme-locked flag]
+use ($LIB | path join cli.nu) [guarded theme-locked flag]
 use ($LIB | path join usage.nu) [die]
 use ($LIB | path join complete.nu) [command-table module-ids option-keys option-values theme-names run-ids]
 use ($LIB | path join state.nu) [state-dir SYSTEM_STATE]
@@ -41,6 +41,7 @@ const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo 
   dot <command> --help for its flags"
 
 const LOG_LEVELS = [TRACE DEBUG INFO WARN ERROR PANIC]
+
 # plan, apply and status run in pipeline-cli.nu, a process that parses only what they need
 def pipeline-cli [...args: string]: nothing -> nothing {
     exec $nu.current-exe --no-config-file $PIPELINE_CLI ...$args
@@ -142,7 +143,7 @@ def "main module adopt" [file: path]: nothing -> nothing {
         let target = $file | path expand
         let ctx = pipeline-load $REPO user
         let planned = pipeline-plan $ctx link [] true
-        let matches = $planned | get actions | concat | where target == $target and decl.kind == file
+        let matches = $planned | get actions | flatten | where target == $target and decl.kind == file
         let found = $matches | where {|a| $a.kind not-in [remove forget] and not ($a.reason | str starts-with "no longer declared") } | get --optional 0
         if $found == null and ($matches | is-not-empty) {
             error make {msg: $"($target) is no longer declared by ($matches.0.module), there is nothing to adopt it into; delete or keep it by hand"}
@@ -261,11 +262,12 @@ def "main sync" [
         let run = update-run $yes
         let clean = failures-publish $run.results
         if $clean { config-banner-clear }
-        if $no_push {
-        } else if (sync-can-sign $REPO) {
-            sync-commit $REPO --no-verify=$no_verify
-        } else {
-            log-note "this machine does not sign: applied, no backup, commit or push"
+        if not $no_push {
+            if (sync-can-sign $REPO) {
+                sync-commit $REPO --no-verify=$no_verify
+            } else {
+                log-note "this machine does not sign: applied, no backup, commit or push"
+            }
         }
         run-journal
         if not $clean or $run.install != 0 { exit 1 }
@@ -309,9 +311,8 @@ def "main log" [run?: string@run-ids, --module: string@module-ids, --level: stri
             [$"($indent)($b.target) ($end.ms? | default '?')ms ($end.outcome? | default 'open')"] ++ $failed
         } | flatten | append ($errors | reject --optional ...($spans | get span | uniq) | values | flatten | each { $"! ($in.msg)" }) | str join "\n")
     }
-    let rank = $LOG_LEVELS | enumerate | where item == ($level | str uppercase) | get 0.index
-    $records | where {|r| ($LOG_LEVELS | enumerate | where item == $r.level | get 0.index) >= $rank }
-    | where {|r| $module == null or $r.module == $module } | select time level module msg
+    let shown = $LOG_LEVELS | skip until { $in == ($level | str uppercase) }
+    $records | where {|r| $r.level in $shown and ($module == null or $r.module == $module) } | select time level module msg
 }
 
 # which module and run wrote a path, or which module declares a package
@@ -361,6 +362,15 @@ def "main test check" []: nothing -> nothing {
     gate-report check ($tools.findings ++ $palette.findings) ($tools.notes ++ $palette.notes)
 }
 
+# every formatter applied, then what is left
+def "main test fmt" []: nothing -> nothing {
+    let tools = gate-tools true
+    $tools.notes | each { print $"dot test: ($in)" } | ignore
+    if ($tools.findings | is-empty) { print "dot test: formatted, no findings"; return }
+    print ($tools.findings | str join "\n")
+    print $"dot test: formatted; ($tools.findings | length) finding\(s\) remain \(run after installing any missing tool\)"
+}
+
 const VM_NAME = "archlinux-test"
 
 # end-to-end vm test from the lsck0 iso, hours a run; --master tests github master; logs in $XDG_CACHE_HOME/vm-test/<name>/logs/<scenario>
@@ -405,15 +415,6 @@ def "main secrets audit" [--brief]: nothing -> nothing { guarded audit --read-on
 def "main secrets audit rotated" [...paths: path]: nothing -> nothing { guarded audit { audit-rotated ...$paths } }
 # record the recovery drill as done today
 def "main secrets audit drilled" []: nothing -> nothing { guarded audit { audit-drilled } }
-
-# every formatter applied, then what is left
-def "main test fmt" []: nothing -> nothing {
-    let tools = gate-tools true
-    $tools.notes | each { print $"dot test: ($in)" } | ignore
-    if ($tools.findings | is-empty) { print "dot test: formatted, no findings"; return }
-    print ($tools.findings | str join "\n")
-    print $"dot test: formatted; ($tools.findings | length) finding\(s\) remain \(run after installing any missing tool\)"
-}
 
 # plumbing for scripts, units and completion; dot internal --help
 def --wrapped "main internal" [...args: string]: nothing -> nothing {

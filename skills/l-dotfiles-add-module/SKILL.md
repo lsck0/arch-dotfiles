@@ -84,7 +84,9 @@ export def packages [cfg: record]: nothing -> record {
   floats outside pacman, run by `dot sync`). Any other export is a `step` target or a name another module imports;
   everything else is a plain `def` (lint checks). A helper a unit, toggle or keybind runs is a script in the module
   dir, installed with `link-commands` or `files-into`.
-- Each verb takes the resolved options (`enable` always present) and returns declarations (nested lists fine).
+- Each verb takes the resolved options (`enable` always present) and returns declarations, nested to any depth (null
+  and `[]` add nothing). An optional one in the returned list is `(if <cond> { decl })`, never `else { [] }` or a
+  trailing `| compact`; a value other code consumes (`++`, `append`, a spread) still needs its `else`.
 - A disabled module (option off, group gone) declares nothing on the next full run, so its files, links and units go,
   each json key it merged goes back to what it held before dot set it (unless edited since),
   and each recorded `exec` or `step` runs its `--undo`. A plain one (no `--creates`, `--key`, `--done` or `--undo`) is

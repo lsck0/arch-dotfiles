@@ -1,13 +1,10 @@
 use module.nu *
 export use ../boot/boot.nu [cmdline-set]
-use profile-flags.nu [profile-mode]
+use profile-flags.nu [ETC MARKER OWN_SUFFIX SOURCE text-mode upstream-files]
 
 export const meta = {packages: {native: [apparmor apparmor.d]}, volatile: true}
 
 const MANUAL = "/etc/apparmor/flags.d/manual.conf"
-const ETC = "/etc/apparmor.d"
-# an own profile's file: never the bare name, which the apparmor package owns and aa-install's overwrite.d disables
-const OWN_SUFFIX = ".dotfiles"
 const PARSER_CONF = "/etc/apparmor/parser.conf"
 const SYSCTL = "/etc/sysctl.d/99-apparmor.conf"
 const EARLY_POLICY = "/etc/apparmor/earlypolicy"
@@ -15,8 +12,6 @@ const PARSER_LINES = [write-cache $"cache-loc ($EARLY_POLICY)/" Optimize=compres
 # the kernel's CONFIG_LSM default with apparmor before bpf
 const LSM = "lsm=landlock,lockdown,yama,integrity,apparmor,bpf"
 const USER_DIRS = "../xdg/user-dirs.dirs"
-const SOURCE = "/usr/share/apparmor.d"
-const MARKER = "# managed by arch-dotfiles/apparmor"
 # apparmor.d profiles whose /{{,usr/}...} attachment apparmor 4.1.8 loads but never attaches, so they ran unconfined:
 # installed as own profiles with a plain /usr attachment (usr is merged)
 export const OVERRIDES = {
@@ -49,13 +44,9 @@ def xdg-tunables []: nothing -> string {
     | each { $'@{($in.var)}+="($in.dir)"' } | append '@{XDG_SYNC_DIR}+="sync"' | str join "\n" | $"($in)\n"
 }
 
-def include [abstraction: string]: nothing -> string {
-    $"  include <abstractions/dotfiles/($abstraction)>\n"
-}
-
 # apparmor.d's profile with only its attachment replaced.
 export def override-text [name: string, source: path]: nothing -> string {
-    let upstream = glob $"($source)/**/($name)" --no-dir | where not ($it =~ '/(abstractions|tunables)/') | get --optional 0
+    let upstream = upstream-files $source | where ($it | path basename) == $name | get --optional 0
     if $upstream == null { error make {msg: $"apparmor: apparmor.d no longer ships ($name), drop it from OVERRIDES"} }
     let text = open --raw $upstream
     let line = '(?m)^profile ' + $name + ' \S+'
@@ -64,10 +55,7 @@ export def override-text [name: string, source: path]: nothing -> string {
 }
 
 def own-profile [name: string, text: string, mode: any]: nothing -> record {
-    let text = $text | lines | each {|l|
-        if $mode in [complain unconfined] and ($l | str starts-with "profile ") { $l | profile-mode $mode } else { $l }
-    } | str join "\n"
-    file-text ($ETC | path join $"($name)($OWN_SUFFIX)") $"($text)\n"
+    file-text ($ETC | path join $"($name)($OWN_SUFFIX)") ($text | text-mode ($mode | default enforce))
 }
 
 export def system [cfg: record] {
@@ -93,13 +81,14 @@ export def system [cfg: record] {
         [
             (files-into $"($ETC)/abstractions/dotfiles" ...(glob abstractions/*))
             (files-into $"($ETC)/local" ...(glob local/*))
-            (file-text $"($ETC)/abstractions/common/chromium.d/dotfiles-qtwebengine" (include qtwebengine))
+            (file-text $"($ETC)/abstractions/common/chromium.d/dotfiles-qtwebengine"
+                "  include <abstractions/dotfiles/qtwebengine>\n")
             (glob profiles/* | each {|p|
                 let name = $p | path basename
                 own-profile $name (open --raw $p) ($modes | get --optional $name)
             })
             ($OVERRIDES | columns | each {|n| own-profile $n (override-text $n $SOURCE) ($modes | get --optional $n) })
-        ] | decls-flatten
+        ]
     }) ++ [(step load)]
 }
 

@@ -1,5 +1,5 @@
 use module.nu *
-use ../boot.nu [SDBOOT_ESP_FILES UKI_DIR sbctl-quiet sbctl-ready]
+use ../boot.nu [SDBOOT_ESP_FILES UKI_DIR sbctl-quiet sbctl-ready sbctl-unsigned]
 
 export const meta = {packages: {native: [sbctl]}, volatile: true}
 
@@ -17,8 +17,7 @@ def enabled [field: string]: nothing -> bool {
 }
 
 def sign-unsigned []: nothing -> nothing {
-    let listed = ^sbctl verify | lines | parse --regex '^[^/]*(?<path>/.*) is not signed$' | get path
-        | where {|p| not ($p | str starts-with /boot/vmlinuz-) }
+    let listed = sbctl-unsigned
     let extra = $SDBOOT_ESP_FILES | append (glob $"($UKI_DIR)/*.efi") | where {|f|
         ($f | path exists) and $f not-in $listed and not (^sbctl verify $f | str contains "is signed")
     }

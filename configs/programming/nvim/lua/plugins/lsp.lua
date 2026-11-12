@@ -89,15 +89,9 @@ return {
             if vim.v.vim_did_enter == 1 then
                 require("mason-tool-installer").run_on_start()
             end
-            -- same engine candidates as unreal.lua's engine_root, so a driver found via $UE_ROOT or $XDG_DATA_HOME
-            -- also gets its system includes extracted
-            local ue_data = vim.env.XDG_DATA_HOME or (vim.env.HOME .. "/.local/share")
-            local ue_dirs = { ue_data .. "/unreal-engine", "/opt/unreal-engine" }
-            if vim.env.UE_ROOT then
-                table.insert(ue_dirs, 1, vim.env.UE_ROOT)
-            end
+            -- an unreal engine's own clang++, so its system includes are extracted
             local query_drivers = {}
-            for _, dir in ipairs(ue_dirs) do
+            for _, dir in ipairs(require("local_plugins.unreal").engine_dirs()) do
                 query_drivers[#query_drivers + 1] = dir .. "/**/bin/clang++"
             end
             vim.lsp.config("clangd", {
@@ -121,9 +115,7 @@ return {
                     "nu",
                     "--no-config-file",
                     "-I",
-                    -- $DOTFILES is unset in a non-uwsm session (tty, ssh); the config link resolves into the repo
-                    (os.getenv("DOTFILES") or (vim.uv.fs_realpath(vim.fn.stdpath("config")) .. "/../../.."))
-                        .. "/scripts/lib",
+                    require("lib.dotfiles") .. "/scripts/lib",
                     "--lsp",
                 },
             })
@@ -308,15 +300,13 @@ return {
     {
         "stevearc/conform.nvim",
         config = function()
-            require("conform").formatters.sortderives = {
-                inherit = false,
-                command = vim.uv.fs_realpath(vim.fn.stdpath("config")) .. "/../formatting/sort-derives-stdout.nu",
-                stdin = true,
-            }
-            require("conform").formatters["kulala-fmt"] = { command = "kulala-fmt" }
-            require("conform").formatters.latexindent = { prepend_args = { "-m", "-g", "/dev/null" } }
+            local conform = require("conform")
+            local formatters = conform.formatters
+            local formatting = require("lib.dotfiles") .. "/configs/programming/formatting/"
+            formatters.sortderives = { inherit = false, command = formatting .. "sort-derives-stdout.nu", stdin = true }
+            formatters["kulala-fmt"] = { command = "kulala-fmt" }
+            formatters.latexindent = { prepend_args = { "-m", "-g", "/dev/null" } }
 
-            local formatting = vim.fs.dirname(vim.uv.fs_realpath(vim.fn.stdpath("config"))) .. "/formatting/"
             local function personal(names, flag, file)
                 return function(_, ctx)
                     if vim.fs.find(names, { path = ctx.dirname, upward = true })[1] then
@@ -325,13 +315,13 @@ return {
                     return { flag .. formatting .. file }
                 end
             end
-            require("conform").formatters["clang-format"] = {
+            formatters["clang-format"] = {
                 prepend_args = personal({ ".clang-format", "_clang-format" }, "--style=file:", "clang-format"),
             }
-            require("conform").formatters.stylua = {
+            formatters.stylua = {
                 prepend_args = personal({ "stylua.toml", ".stylua.toml" }, "--config-path=", "stylua.toml"),
             }
-            require("conform").formatters.prettier = {
+            formatters.prettier = {
                 prepend_args = personal({
                     ".prettierrc",
                     ".prettierrc.json",
@@ -351,7 +341,7 @@ return {
             }
             -- the personal rustfmt.toml is nightly-only; a project's own config runs on its toolchain
             local rustfmt = personal({ "rustfmt.toml", ".rustfmt.toml" }, "--config-path=", "rustfmt.toml")
-            require("conform").formatters.rustfmt = {
+            formatters.rustfmt = {
                 prepend_args = function(self, ctx)
                     local args = rustfmt(self, ctx)
                     if args[1] then
@@ -367,22 +357,22 @@ return {
                 return name == "pyproject.toml"
                     and vim.fn.readblob(path .. "/" .. name):find("[tool.ruff", 1, true) ~= nil
             end, "--config=", "ruff.toml")
-            require("conform").formatters.ruff_format = { prepend_args = ruff }
-            require("conform").formatters.ruff_organize_imports = { prepend_args = ruff }
+            formatters.ruff_format = { prepend_args = ruff }
+            formatters.ruff_organize_imports = { prepend_args = ruff }
             -- plain text has no formatter of its own: fmt rewraps lines past 120 and never joins short ones, so lists,
             -- tables and hand-broken lines survive
-            require("conform").formatters.fmt_text = {
+            formatters.fmt_text = {
                 command = "fmt",
                 args = { "--split-only", "--width=120", "--goal=120" },
             }
             -- .nya goes through the engine's own serde (`./build format`), so only a nyangine checkout with a built
             -- ./build has it; it rewrites in place, and a file with comments is only parse-checked, never rewritten
-            require("conform").formatters.nya_format = {
+            formatters.nya_format = {
                 command = vim.fn.expand("~/projects/nyangine/build"),
                 args = { "format", "$FILENAME" },
                 stdin = false,
             }
-            require("conform").formatters.php_cs_fixer = {
+            formatters.php_cs_fixer = {
                 prepend_args = function(_, ctx)
                     local configs = { ".php-cs-fixer.php", ".php-cs-fixer.dist.php" }
                     if vim.fs.find(configs, { path = ctx.dirname, upward = true })[1] then
@@ -450,7 +440,7 @@ return {
                 formatters_by_ft[ft] = { "prettier" }
             end
 
-            require("conform").setup({
+            conform.setup({
                 formatters_by_ft = formatters_by_ft,
                 format_on_save = function(bufnr)
                     if vim.g.disable_autoformat or vim.b[bufnr].disable_autoformat then

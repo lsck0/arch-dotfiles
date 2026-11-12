@@ -1,5 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
 
+const REPO = path self | path expand | path dirname --num-levels 4
+use ($REPO | path join scripts lib state.nu) [xdg]
+
 const ASK_TIMEOUT_S = "2"
 const OPEN_TIMEOUT_S = "5"
 const NOTIFY_APP = "quickshell-action"
@@ -10,7 +13,7 @@ def --wrapped ask [...argv: string]: nothing -> record {
 
 def nvim-try [file: string, line: int, column: int]: nothing -> bool {
     if (which nvim | is-empty) { return false }
-    let log = $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join vimtex nvim_servernames.log
+    let log = xdg cache vimtex nvim_servernames.log
     let runtime = $env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u | str trim)"
     let listed = if ($log | path exists) { open --raw $log | lines } else { [] }
     let sockets = $listed ++ (glob ($runtime | path join "nvim.*"))

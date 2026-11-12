@@ -79,7 +79,7 @@ def flip []: nothing -> nothing {
 
 def "main get" [--json] {
     let mode = current-mode
-    status-print (status-record Theme $mode --text ($mode | str capitalize) --states [dark light]) $json
+    status-print (status-record Theme $mode --text ($mode | str capitalize) --states $MODES) $json
 }
 
 # what toggle would switch to, without switching

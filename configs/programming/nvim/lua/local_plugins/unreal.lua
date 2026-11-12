@@ -15,14 +15,19 @@ local function project_root(path)
     return file and vim.fs.dirname(file)
 end
 
-local function engine_root()
+-- the engine checkouts in search order, shared with clangd's --query-driver (plugins/lsp.lua)
+function M.engine_dirs()
     local data = vim.env.XDG_DATA_HOME or (vim.env.HOME .. "/.local/share")
     -- no nil slot: an unset $UE_ROOT first would end ipairs before it looks at any dir
     local dirs = { data .. "/unreal-engine", "/opt/unreal-engine" }
     if vim.env.UE_ROOT then
         table.insert(dirs, 1, vim.env.UE_ROOT)
     end
-    for _, dir in ipairs(dirs) do
+    return dirs
+end
+
+local function engine_root()
+    for _, dir in ipairs(M.engine_dirs()) do
         if vim.uv.fs_stat(dir .. "/Engine/Build/BatchFiles/Linux/Build.sh") then
             return dir
         end

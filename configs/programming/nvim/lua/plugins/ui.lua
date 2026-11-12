@@ -22,19 +22,7 @@ local function math_args()
     local k = MATH_DPI / (96 * term.scale)
     local w, h = term.cell_width * k, term.cell_height * k
     local extent = ("%%[fx:floor(ceil(w/%f)*%f)]x%%[fx:floor(ceil(h/%f)*%f)]"):format(w, w, h, h)
-    return {
-        "-density",
-        MATH_DPI,
-        "{src}[{page}]",
-        "-trim",
-        "+repage",
-        "-background",
-        "none",
-        "-gravity",
-        "center",
-        "-extent",
-        extent,
-    }
+    return vim.list_extend(plain, { "+repage", "-background", "none", "-gravity", "center", "-extent", extent })
 end
 
 return {
@@ -65,32 +53,30 @@ return {
     {
         "nvim-lualine/lualine.nvim",
         event = "VeryLazy",
-        config = function()
-            require("lualine").setup({
-                options = {
-                    theme = vim.g.neovide and "auto" or "glass",
-                    globalstatus = true,
-                    refresh = { refresh_time = 250 },
+        opts = {
+            options = {
+                theme = vim.g.neovide and "auto" or "glass",
+                globalstatus = true,
+                refresh = { refresh_time = 250 },
 
-                    section_separators = { left = "", right = "" },
-                    component_separators = { left = "", right = "" },
-                },
-                sections = {
-                    lualine_a = { "mode" },
-                    lualine_b = { "branch", "diff", "diagnostics" },
-                    lualine_c = {
-                        {
-                            function()
-                                return "%{%v:lua.dropbar()%}"
-                            end,
-                        },
+                section_separators = { left = "", right = "" },
+                component_separators = { left = "", right = "" },
+            },
+            sections = {
+                lualine_a = { "mode" },
+                lualine_b = { "branch", "diff", "diagnostics" },
+                lualine_c = {
+                    {
+                        function()
+                            return "%{%v:lua.dropbar()%}"
+                        end,
                     },
-                    lualine_x = { "filetype" },
-                    lualine_y = {},
-                    lualine_z = { "location" },
                 },
-            })
-        end,
+                lualine_x = { "filetype" },
+                lualine_y = {},
+                lualine_z = { "location" },
+            },
+        },
     },
 
     {
@@ -106,28 +92,26 @@ return {
     {
         "NvChad/nvim-colorizer.lua",
         event = "VeryLazy",
-        config = function()
-            require("colorizer").setup({
-                user_default_options = {
-                    mode = "virtualtext",
-                    virtualtext_inline = true,
-                    names = false,
-                    tailwind = false,
-                    always_update = true,
-                    suppress_deprecation = true,
-                },
-                filetypes = {
-                    "*",
-                    css = { names = true, tailwind = true },
-                    scss = { names = true, tailwind = true },
-                    sass = { names = true, tailwind = true },
-                    less = { names = true, tailwind = true },
-                    html = { names = true, tailwind = true },
-                    javascriptreact = { tailwind = true },
-                    typescriptreact = { tailwind = true },
-                },
-            })
-        end,
+        opts = {
+            user_default_options = {
+                mode = "virtualtext",
+                virtualtext_inline = true,
+                names = false,
+                tailwind = false,
+                always_update = true,
+                suppress_deprecation = true,
+            },
+            filetypes = {
+                "*",
+                css = { names = true, tailwind = true },
+                scss = { names = true, tailwind = true },
+                sass = { names = true, tailwind = true },
+                less = { names = true, tailwind = true },
+                html = { names = true, tailwind = true },
+                javascriptreact = { tailwind = true },
+                typescriptreact = { tailwind = true },
+            },
+        },
     },
 
     {

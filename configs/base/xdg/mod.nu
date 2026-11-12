@@ -25,7 +25,8 @@ export def pam-env []: nothing -> nothing {
     $kept ++ $missing | str join "\n" | $"($in)\n" | save --force $PAM_ENV
 }
 
-const DIRS = [desktop documents downloads music pictures videos sync vault]
+const DIRS = [desktop documents downloads music pictures videos sync vault .local/share/applications]
+const CAPITALIZED = [Desktop Documents Downloads Music Pictures Projects Public Templates Videos]
 const USER_DIRS = path self user-dirs.dirs
 
 # A dir user-dirs.dirs names (DOCUMENTS, VIDEOS, ...), read from the repo: xdg-user-dir answers $HOME until this
@@ -36,7 +37,6 @@ export def user-dir [name: string]: nothing -> path {
     if $dir == null { error make {msg: $"xdg: user-dirs.dirs names no XDG_($name)_DIR under $HOME"} }
     $nu.home-dir | path join $dir
 }
-const CAPITALIZED = [Desktop Documents Downloads Music Pictures Projects Public Templates Videos]
 
 const RECLAIM = [
     [name target mode];
@@ -83,19 +83,22 @@ def home [...parts: string]: nothing -> path {
     $nu.home-dir | path join ...$parts
 }
 
+# The places panel's marks; gtk: also a gtk-3.0 sidebar bookmark.
 def places [nas: bool, projects: bool]: nothing -> list<record> {
     let h = $"file://($nu.home-dir)"
     let rows = [
-        [$h Home user-home] [$"($h)/desktop" Desktop user-desktop] [$"($h)/documents" Documents folder-documents]
-        [$"($h)/downloads" Downloads folder-downloads] [$"($h)/music" Music folder-music]
-        [$"($h)/pictures" Pictures folder-pictures] [$"($h)/videos" Videos folder-videos]
-    ] ++ (if $projects { [[$"($h)/projects" Projects folder-development]] } else { [] }) ++ [
-        [$"($h)/vault" Vault folder-locked] [$"($h)/sync" Sync folder-sync]
-    ] ++ (if $nas { [[$"($h)/nas" NAS folder-network]] } else { [] }) ++ [[trash:/ Trash user-trash]]
-    $rows | each {|r|
-        let icon = $'<metadata owner="http://freedesktop.org"><bookmark:icon name="($r.2)" /></metadata>'
+        [href title icon gtk shown];
+        [$h Home user-home false true] [$"($h)/desktop" Desktop user-desktop false true]
+        [$"($h)/documents" Documents folder-documents false true] [$"($h)/downloads" Downloads folder-downloads false true]
+        [$"($h)/music" Music folder-music false true] [$"($h)/pictures" Pictures folder-pictures false true]
+        [$"($h)/videos" Videos folder-videos false true] [$"($h)/projects" Projects folder-development true $projects]
+        [$"($h)/vault" Vault folder-locked true true] [$"($h)/sync" Sync folder-sync true true]
+        [$"($h)/nas" NAS folder-network true $nas] [trash:/ Trash user-trash false true]
+    ]
+    $rows | where shown | each {|r|
+        let icon = $'<metadata owner="http://freedesktop.org"><bookmark:icon name="($r.icon)" /></metadata>'
         let system = '<metadata owner="http://www.kde.org"><isSystemItem>true</isSystemItem></metadata>'
-        {href: $r.0, xml: $'<bookmark href="($r.0)"><title>($r.1)</title><info>($icon)($system)</info></bookmark>'}
+        $r | insert xml $'<bookmark href="($r.href)"><title>($r.title)</title><info>($icon)($system)</info></bookmark>'
     }
 }
 
@@ -122,10 +125,10 @@ export def link [cfg: record] {
     let nas = (owner-unlocked) and (platform-has homelab)
     let projects = home projects | path exists
     let portals = $config | path join xdg-desktop-portal
-    let marks = (if $projects { [[projects Projects]] } else { [] }) ++ [[vault Vault] [sync Sync]]
-    let bookmarks = $marks ++ (if $nas { [[nas NAS]] } else { [] }) | each { $"file://(home $in.0) ($in.1)" }
+    let places = places $nas $projects
+    let bookmarks = $places | where gtk | each { $"($in.href) ($in.title)" }
     [
-        (if (home-dirs-done) { [] } else { step home-dirs })
+        (if not (home-dirs-done) { step home-dirs })
         (files-into $config mimeapps.list user-dirs.conf user-dirs.dirs)
         (files-into ($config | path join environment.d) app-dirs.conf)
         (dropin xdg-document-portal.service doc-portal.conf --name 10-success-exit.conf)
@@ -137,19 +140,19 @@ export def link [cfg: record] {
             let entry = $"[Desktop Entry]\nType=Application\nName=($id)\nHidden=true\n"
             file-text ($config | path join autostart $"($id).desktop") $entry
         })
-        # a user kde-portals.conf replaces plasma's whole file, so it repeats plasma's lines
         # the portal reads its routing only at start
         (if (which Hyprland | is-not-empty) {
             (file-copy hyprland-portals.conf ($portals | path join hyprland-portals.conf)
                 --then [systemctl --user try-restart xdg-desktop-portal.service])
-        } else { [] })
-        (if (which startplasma-wayland | is-not-empty) { files-into $portals kde-portals.conf } else { [] })
+        })
+        # a user kde-portals.conf replaces plasma's whole file, so it repeats plasma's lines
+        (if (which startplasma-wayland | is-not-empty) { files-into $portals kde-portals.conf })
         (file-text ($config | path join gtk-3.0 bookmarks) ($bookmarks | str join "\n" | $"($in)\n"))
-        (file-text (home .local share user-places.xbel) (places-xbel (places $nas $projects)) --generated)
+        (file-text (home .local share user-places.xbel) (places-xbel $places) --generated)
         (if (which update-desktop-database | is-not-empty) and (desktop-database-stale) {
             exec "desktop database" [update-desktop-database (home .local share applications)]
-        } else { [] })
-    ] | decls-flatten
+        })
+    ]
 }
 
 # Whether an entry under applications/ changed since update-desktop-database last wrote mimeinfo.cache.
@@ -171,21 +174,27 @@ def reclaim-target [r: record]: nothing -> path {
     }
 }
 
+# The dir a link reclaim needs in place: a link to nothing fails every mkdir through it, a tool's own and that of a
+# file a module writes there.
+def reclaim-parent [r: record]: nothing -> any {
+    let target = reclaim-target $r
+    match $r.mode { "link" => $target, "link-file" => ($target | path dirname), _ => null }
+}
+
 # Whether home-dirs has nothing left to do; a reclaim whose target already exists waits for a manual merge.
 def home-dirs-done []: nothing -> bool {
-    let dirs = $DIRS | each { home $in } | append (home .local share applications)
     let capitalized = $CAPITALIZED | each { home $in } | where { ($in | path type) == dir and (ls --all $in | is-empty) }
     let reclaim = $RECLAIM | where {|r|
         let target = reclaim-target $r
         let movable = ((home $r.name) | path type) in [dir file] and not ($target | path exists)
-        let parent = match $r.mode { "link" => $target, "link-file" => ($target | path dirname), _ => null }
+        let parent = reclaim-parent $r
         $movable or ($parent != null and ($parent | path type) != dir)
     }
-    ($dirs | all { ($in | path type) == dir }) and ($capitalized | is-empty) and ($reclaim | is-empty)
+    ($DIRS | all { (home $in | path type) == dir }) and ($capitalized | is-empty) and ($reclaim | is-empty)
 }
 
 export def home-dirs []: nothing -> nothing {
-    mkdir ...($DIRS | each { home $in }) (home .local share applications)
+    mkdir ...($DIRS | each { home $in })
     for dir in $CAPITALIZED { ^rmdir (home $dir) | complete | ignore }
     for r in $RECLAIM {
         let src = home $r.name
@@ -200,7 +209,7 @@ export def home-dirs []: nothing -> nothing {
             if $r.mode != move { ^ln -s $target $src }
             print $"xdg: moved ($src) -> ($target)"
         }
-        # a link to nothing fails every mkdir through it: a tool's own, and that of a file a module writes there
-        match $r.mode { "link" => { mkdir $target }, "link-file" => { mkdir ($target | path dirname) }, _ => {} }
+        let parent = reclaim-parent $r
+        if $parent != null { mkdir $parent }
     }
 }

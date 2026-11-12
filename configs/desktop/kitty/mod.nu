@@ -16,6 +16,6 @@ export def theme [cfg: record, wallpaper: string] {
     let font = font-load
     [
         (file-text (xdg config kitty dotfiles-font.conf) $"font_family ($font.mono)\nfont_size ($font.size)\n" --generated)
-        (if (process-running kitty) { exec kitty-reload [pkill -USR1 -x kitty] } else { [] })
+        (if (process-running kitty) { exec kitty-reload [pkill -USR1 -x kitty] })
     ]
 }

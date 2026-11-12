@@ -1,12 +1,11 @@
 # Machine facts, exported to modules as uppercase env vars (platform-has).
 
-use log.nu *
-
 const PLATFORM_LOCAL_DIR = "/etc/dotfiles"
 export const PLATFORM_NAME_FILE = "/etc/dotfiles/platform"
 const FORM_FACTORS = [desktop laptop server vm wsl]
 export const PLATFORM_FACTS = [form_factor homelab wireguard secure_boot_own_keys lsck0_snapshot]
 const PLATFORM_KEYS = [hostname label form_factor groups extra_packages facts packages_keep flatpak_keep nix_keep]
+const GPU_VENDORS = {"0x1002": amd, "0x8086": intel, "0x10de": nvidia}
 
 # Every group under configs/ but secrets, which is on wherever the submodule is pulled.
 export def platform-groups-all [repo: path]: nothing -> list<string> {
@@ -76,7 +75,7 @@ export def platform-load [repo: path]: nothing -> record {
         form_factor: $form_factor
         groups: $groups
         extra_packages: ($raw.extra_packages? | default [])
-        facts: ($PLATFORM_FACTS | reduce --fold {} {|name, acc| $acc | insert $name ($facts | get --optional $name) } | upsert form_factor $form_factor)
+        facts: ($PLATFORM_FACTS | each {|name| [$name ($facts | get --optional $name)] } | into record | upsert form_factor $form_factor)
         packages_keep: ($raw.packages_keep? | default [])
         flatpak_keep: ($raw.flatpak_keep? | default [])
         nix_keep: ($raw.nix_keep? | default [])
@@ -107,8 +106,6 @@ export def display-xwayland-scale [form_factor: string]: nothing -> int {
     if $form_factor == "laptop" { 1 } else { 2 }
 }
 
-const GPU_VENDORS = {"0x1002": amd, "0x8086": intel, "0x10de": nvidia}
-
 # The DRM cards, best first: most vram, then the one the firmware booted on.
 export def gpu-list []: nothing -> table {
     glob /sys/class/drm/card[0-9]* | where ($it | path basename) =~ '^card\d+$' | each {|card|
@@ -125,4 +122,10 @@ export def gpu-list []: nothing -> table {
             by_path: $"/dev/dri/by-path/pci-($pci)-render"
         }
     } | sort-by vram boot_vga --reverse
+}
+
+# Hyprland's monitors without an agent's headless outputs; --all keeps disabled ones. Empty outside Hyprland.
+export def monitors-live [--all]: nothing -> table {
+    if (which hyprctl | is-empty) { return [] }
+    try { ^hyprctl -j monitors ...(if $all { [all] } else { [] }) | from json } catch { [] } | where name !~ '^HEADLESS-'
 }

@@ -3,7 +3,7 @@ use module.nu *
 export const meta = {backup: {secrets: true}, inputs: [~/.config/gh/hosts.yml ~/.gitconfig /usr/bin/gh]}
 
 const TOKEN_SHAPE = '^gh[a-z]_'
-const HOSTS = ".config/gh/hosts.yml"
+const HOSTS = "gh/hosts.yml"
 
 export def token-file []: nothing -> path {
     host-file ($env.DOTFILES | path join configs secrets keys gh) token
@@ -12,9 +12,7 @@ export def token-file []: nothing -> path {
 export def link [cfg: record] {
     let token = token-file
     if (which gh | is-empty) or not (secret-is-plaintext $token) or (open --raw $token) !~ $TOKEN_SHAPE { return [] }
-    [
-        (step gh-login --network --creates ($nu.home-dir | path join $HOSTS))
-    ]
+    step gh-login --network --creates (xdg config $HOSTS)
 }
 
 export def gh-login []: nothing -> nothing {

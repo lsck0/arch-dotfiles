@@ -32,7 +32,7 @@ export def theme [cfg: record, wallpaper: string] {
     let fragment = $"font-family = ($font.mono)\nfont-family = Symbols Nerd Font Mono\nfont-size = ($font.size)\n"
     [
         (file-text ($config | path join dotfiles ghostty-font.conf) $fragment --generated)
-        (if not (process-running ghostty) { [] } else {
+        (if (process-running ghostty) {
             exec ghostty-reload [
                 timeout 5 gdbus call --session --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty
                 --method org.gtk.Actions.Activate reload-config "[]" "{}"
