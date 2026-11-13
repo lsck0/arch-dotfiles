@@ -6,6 +6,8 @@ use ($HERE | path join lib shell.nu) [SHELL_CONFIG shell-call]
 const VOLUME_STEP_PERCENT = 5
 const VOLUME_MAX_PERCENT = 100
 const BRIGHTNESS_STEP_PERCENT = 5
+# color-grading.py's BRIGHTNESS_PERCENT_MAX: the matrix scale goes past full
+const SOFTWARE_BRIGHTNESS_MAX_PERCENT = 150
 const MONITOR_BRIGHTNESS = ($SHELL_CONFIG | path join scripts monitor-brightness.nu)
 
 def osd [icon: string, field: string, value: any]: nothing -> nothing {
@@ -38,6 +40,31 @@ def brightness-step [delta: int]: nothing -> nothing {
     brightnessctl -q -c backlight set $"($delta | math abs)%($sign)"
     if (backlight-percent) < 1 { brightnessctl -q -c backlight set 1% }
     osd brightness value (backlight-percent)
+}
+
+# The bar's player through the shell's media target; playerctl's first player while the shell is down or has none.
+def media-step [ipc_function: string, playerctl_verb: string, icon: string]: nothing -> nothing {
+    let call = shell-call media $ipc_function | complete
+    # anything but the handler's json (an older shell without the media target) falls back too
+    let shown = if $call.exit_code == 0 { try { $call.stdout | from json | select icon title } catch { null } }
+    if $shown != null {
+        osd $shown.icon message $shown.title
+        return
+    }
+    let fallback = ^playerctl $playerctl_verb | complete
+    if $fallback.exit_code != 0 { osd $icon message "No player"; return }
+    osd $icon message (^playerctl metadata title | complete | get stdout | str trim)
+}
+
+# The color-grading matrix scale, for outputs ddc and the backlight cannot reach.
+def software-brightness-step [delta: int]: nothing -> nothing {
+    let grading = $env.DOTFILES | path join configs desktop color-grading color-grading.py
+    let sign = if $delta > 0 { "+" } else { "-" }
+    let set = ^$grading set brightness $"($sign)($delta | math abs)" | complete
+    if $set.exit_code != 0 { osd brightness message "No color grading"; return }
+    let percent = ^$grading get brightness | str trim | into int
+    let shown = {icon: brightness, value: $percent, max: $SOFTWARE_BRIGHTNESS_MAX_PERCENT, progressText: $"($percent)%"}
+    shell-call osd present ($shown | to json -r) | complete | ignore
 }
 
 def kbd-step [next_from: closure]: nothing -> nothing {
@@ -77,9 +104,21 @@ def "main mic-mute" []: nothing -> nothing {
     if (pactl get-source-mute @DEFAULT_SOURCE@) =~ yes { osd microphone-muted message "Mic muted" } else { osd microphone message "Mic live" }
 }
 
+def "main play-pause" []: nothing -> nothing { media-step playPause play-pause media-play }
+
+def "main next" []: nothing -> nothing { media-step next next media-next }
+
+def "main previous" []: nothing -> nothing { media-step previous previous media-previous }
+
+def "main stop" []: nothing -> nothing { media-step stop stop media-stop }
+
 def "main brightness-up" []: nothing -> nothing { brightness-step $BRIGHTNESS_STEP_PERCENT }
 
 def "main brightness-down" []: nothing -> nothing { brightness-step (0 - $BRIGHTNESS_STEP_PERCENT) }
+
+def "main software-brightness-up" []: nothing -> nothing { software-brightness-step $BRIGHTNESS_STEP_PERCENT }
+
+def "main software-brightness-down" []: nothing -> nothing { software-brightness-step (0 - $BRIGHTNESS_STEP_PERCENT) }
 
 def "main kbd-backlight-up" []: nothing -> nothing { kbd-step {|current, max| [($current + 1) $max] | math min } }
 

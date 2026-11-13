@@ -35,14 +35,27 @@ function summaryStartsWithGlyph(summary) {
 }
 
 var ACTION_APP = "quickshell-action"
+// alert.nu's fallback when the alert card cannot be summoned: kept in history, through dnd like the card itself
+var ALERT_APP = "alert"
+// scripts/toggles/lib.nu's toasts: a failure passes dnd and stays in history, a success is dropped under dnd and
+// leaves no history entry once shown (the bar shows the state)
+var TOGGLES_APP = "toggles"
 
 function shouldBypassDnd(notification) {
   var appName = String((notification && notification.appName) || "")
-  return appName === ACTION_APP || (appName === "notify-send" && notification.urgency === URGENCY_CRITICAL)
+  return appName === ACTION_APP
+    || ((appName === "notify-send" || appName === ALERT_APP || appName === TOGGLES_APP)
+      && notification.urgency === URGENCY_CRITICAL)
 }
 
 function isEphemeralApp(appName) {
-  return appName === "notify-send" || appName === ACTION_APP
+  return appName === "notify-send" || appName === ACTION_APP || appName === TOGGLES_APP
+}
+
+// whether a shown toast's file moves to history when it closes, rather than being deleted
+function archivesOnClose(row) {
+  var r = row || {}
+  return !(r.app === TOGGLES_APP && r.urgency !== URGENCY_CRITICAL)
 }
 
 function stringHint(hints, name) {

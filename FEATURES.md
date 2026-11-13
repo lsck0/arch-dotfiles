@@ -63,16 +63,21 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
 
 ## Workflows
 
-- Capture: `SUPER+i` opens the launcher on a new task. In the launcher, a leading `+` adds a task (taskwarrior syntax:
-  `+ Dino letter project:dino scheduled:mon due:fri priority:H +uni`), `!` sets a reminder (`! 10m tea`, `! 1h30m
-  stretch`; the row shows when it fires), `#` appends a timestamped line to `~/sync/notes/inbox.md`. The same from a
-  shell: `capture task|remind|note <words>`.
+- Capture: `SUPER+i` opens the launcher on a new task, `SUPER+SHIFT+i` on a reminder. In the launcher, a leading `+`
+  adds a task (taskwarrior syntax: `+ Dino letter project:dino scheduled:mon due:fri priority:H +uni`), `!` sets a
+  reminder (`! 10m tea`, `! 1h30m stretch`, `! 15:00 dentist`; the row shows when it fires, the pending ones below it,
+  `DEL` cancels one), `#` appends a timestamped line to `~/sync/notes/inbox.md`. The same from a shell: `capture
+  task|remind|note <words>`. A rejected task reopens the launcher on the typed line. `>` runs a shell
+  command (`SHIFT+ENTER` in kitty), notifies when it fails and lists recent commands; `CTRL+V` pastes.
 - Tasks: `scheduled:` is when a task can start, `due:` its deadline (`due:eod` ends the day; `due:tomorrow` is its
   first minute), `priority:H|M|L`, `wait:` hides it until then. The agenda's to-do rows show priority in the marker
   (`!` overdue), a pending start as `@14:00`, `@Tue` or `@Nov 20`, then the time left until due. `SUPER+o` for the full
-  panel.
+  panel, sorted overdue first, then by urgency like `task next`: `e` edits a task, `u` undoes the last done, delete,
+  start or stop, and a rejected add or edit stays in the line with its error. An outside change (capture, sync, the
+  CLI) shows within a second.
 - Notes: plain markdown in `~/sync/notes`, synced. `SUPER+ALT+n` opens nvim there on the inbox; `SUPER+SHIFT+n` is the
-  scratch pad (also the desktop's notes card).
+  scratch pad (also the desktop's notes card, and the panel's notes tab; its inbox tab shows the `#` notes). A
+  scratch-pad edit that clashes with a change on disk is kept as `notes.conflict-<time>.md` when the panel closes.
 - Textures and meshes: `comfy-gen texture <prompt>` writes a seamless set (albedo, normal, roughness, height) to
   `~/pictures/comfyui/textures/<name>/`; `comfy-gen 3d <image|prompt> [--open]` a `.glb` mesh (shape only, no
   texture); `comfy-gen image <prompt>`; `--json` for scripts and agents. In Blender, the N sidebar's Generate tab
@@ -104,10 +109,11 @@ description.
   mode (`r`), mouse move and resize.
 - Workspaces: `1` to `0` focus, `SHIFT` moves the window there.
 - Capture: a region (`Print` alone or `SHIFT+s`), the monitor (`SHIFT+Print` without SUPER), the window (`Print`),
-  color picker (`p`), OBS replay buffer (`F9` saves, `SHIFT+F9` starts or stops), MangoHud (`SHIFT+F12` without
-  SUPER).
-- Media and hardware keys, also on the lock screen: playback, volume, mic mute, brightness (`SHIFT` for software
-  brightness), keyboard backlight (`SHIFT+b`), lid switch.
+  each saved to `~/pictures/screenshots` and copied; screen recording (`ALT+Print` starts and stops, into
+  `~/videos/recordings`), color picker (`p`), OBS replay buffer (`F9` saves, `SHIFT+F9` starts or stops), MangoHud
+  (`SHIFT+F12` without SUPER).
+- Media and hardware keys, also on the lock screen: playback (the bar's player), volume, mic mute, brightness (`SHIFT`
+  for software brightness), keyboard backlight (`SHIFT+b`), lid switch.
 
 ## Modules
 
@@ -236,6 +242,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `gaming/pd2.game_dir` | `string?` | detected | The season 3 ProjectD2 dir; detected under ~/sync/games/d2 |
 | `gaming/pd2.save_dir` | `string?` | detected | Season 3's single player saves (.d2s, plugy's .d2x and .sss); detected as Save beside the install |
 | `gaming/pd2.s14_save_dir` | `string?` | detected | Season 14's single player saves and shared stash; detected as ~/sync/games/d2/Save-S14 when it exists |
+| `llm/ollama.vram_percent` | `int` | `80` | Share of the largest gpu's vram ollama may fill; the rest stays free for the desktop, and a model that does not fit runs partly on the cpu |
 | `llm/vllm.model` | `string` | `"RogerS-01/Josiefied-Qwen3-8B-abliterated-v1-AWQ"` | The hugging face repo vllm serves; an uncensored 4-bit AWQ build of Josiefied-Qwen3-8B-abliterated-v1 |
 | `llm/vllm.model_revision` | `string` | `"0244c2514cc272a603368c0440ff3002143b2336"` | The model repo's commit, weights and tokenizer alike; bump from https://huggingface.co/api/models/<model>/revision/main |
 | `llm/vllm.tool_call_parser` | `string` | `"hermes"` | vllm's tool call parser for the model's chat format (hermes for qwen3, gemma4 for gemma 4) |

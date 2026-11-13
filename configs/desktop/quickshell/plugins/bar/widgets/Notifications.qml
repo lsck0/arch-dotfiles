@@ -120,26 +120,23 @@ BarWidget {
 
       Item {
         width: parent.width
-        implicitHeight: Math.max(notifHeader.implicitHeight, clearLabel.implicitHeight)
+        implicitHeight: Math.max(notifHeader.implicitHeight, clearButton.implicitHeight)
         PanelSectionHeader {
           id: notifHeader
           anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
           text: "HISTORY" + (root.history.length > 0 ? " :: " + root.history.length : "")
         }
-        Label {
-          id: clearLabel
+        // a control in the panel's focus chain, so the keyboard reaches it too
+        Button {
+          id: clearButton
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
           visible: root.history.length > 0
+          variant: "chip"
+          focusable: true
           text: "clear"
-          color: Colors.accentText
-          caption: true
-          MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: { root.clearHistory(); if (root.bar) root.bar.closePanel(root.moduleName) }
-          }
+          onClicked: { root.clearHistory(); if (root.bar) root.bar.closePanel(root.moduleName) }
         }
       }
 

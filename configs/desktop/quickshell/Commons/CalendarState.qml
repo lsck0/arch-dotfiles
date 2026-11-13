@@ -14,6 +14,8 @@ Singleton {
   // local date the events in `all` were fetched for; a rollover past it re-fetches so day labels and all-day events follow the new day
   property string fetchedDate: ""
   property bool fetchFailed: false
+  // today's events are a cached or outdated answer (lab unreachable, calendar-sync stopped); the agenda says so
+  property bool stale: false
 
   // ended events drop out between two fetches
   readonly property var events: {
@@ -23,9 +25,18 @@ Singleton {
       // never time-drop an all-day event: its date-only start parses as UTC midnight and would vanish mid-day (and west of UTC); the next fetch retires it when the day rolls over
       let end = e.all_day ? NaN : Date.parse(e.end || e.start || "")
       if (!isNaN(end) && end <= root.nowMs) continue
-      out.push({ summary: String(e.summary || ""), when: root.whenText(e), allDay: !!e.all_day })
+      out.push({ summary: String(e.summary || ""), when: root.whenText(e), allDay: !!e.all_day, today: !!e.today,
+                 marker: root.sourceMarker(e), markerColor: root.sourceColors[e.source] || Colors.textDim })
     }
     return out
+  }
+
+  // a source's colour in the agenda's marker column, none of the task markers' (urgent, warn, accent); one the map lacks stays dim
+  readonly property var sourceColors: ({ uni: Colors.okText, work: Colors.foreground, proton: Colors.accent2Text })
+
+  // the source label's initial (University, Work, Private), so the row says where it comes from without a legend
+  function sourceMarker(e) {
+    return String(e.source_label || e.source || ">").charAt(0).toUpperCase()
   }
 
   function whenText(e) {
@@ -52,6 +63,7 @@ Singleton {
     minAgeMs: root.retryMs
     onParsed: function (data) {
       root.all = (data && data.events) ? Array.prototype.slice.call(data.events) : []
+      root.stale = !!(data && data.stale)
       root.fetchedDate = new Date().toDateString()
       root.fetchFailed = false
     }

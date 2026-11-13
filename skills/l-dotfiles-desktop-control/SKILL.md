@@ -44,12 +44,14 @@ Workspaces 1 to 4 are on DP-2 (main), 5 to 10 on DP-1. Closing a window:
 
 ## Media, sound, screen
 
-- Playback: `media-key play-pause|next|previous` (the bar's player); `playerctl -l` lists players.
+- Playback: `media-key play-pause|next|previous|stop` (the bar's player, with the OSD; playerctl's first player while
+  the shell is down); `playerctl -l` lists players.
 - Volume: `wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+` (or `-`, or `0.4`), mute `wpctl set-mute @DEFAULT_AUDIO_SINK@
   toggle`; the mic is `@DEFAULT_AUDIO_SOURCE@`.
 - Brightness: `monitor-brightness` (ddc on the desktop monitors).
 - Screenshot to look at the screen: `grim -o DP-2 /tmp/shot.png` (main) or `-o DP-1`; crop to what you need, it
-  shows whatever he has open.
+  shows whatever he has open. His own (Print, SHIFT+Print, SUPER+Print) land in `~/pictures/screenshots` and the
+  clipboard.
 
 ## The shell (quickshell)
 
@@ -68,7 +70,9 @@ with a root half asks for Luca's touch and fails without him: report that, never
 
 - Task: `capture task <words>` (taskwarrior syntax: `project:`, `due:`, `scheduled:`, `priority:H`, `+tag`); query
   with `task next`.
-- Reminder: `capture remind <90|10m|2h|1h30m> <message>`.
+- Reminder: `capture remind <90|10m|2h|1h30m|15:00> <message>`; `reminder.nu list --json` and `cancel <unit>` for
+  the pending ones. They survive suspend and reboot (records in `$XDG_STATE_HOME/quickshell/reminders`). A fired
+  one's card: `qs ipc -p ~/.config/quickshell call alert dismiss` or `call alert snooze <minutes>` (the newest card).
 - Note: `capture note <words>` appends to `~/sync/notes/inbox.md`.
 - His agenda's calendar: `task-calendar events`.
 

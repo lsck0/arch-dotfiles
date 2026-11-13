@@ -120,9 +120,25 @@ BarWidget {
     connectProc.stdinEnabled = false
   }
 
+  // a toggle started here that has not reported back (ToggleEvents) yet: dimmed, and a press on it ignored rather than
+  // flipping it the same way twice; one that dies without reporting is freed after busyMaxMs
+  property var busyToggles: ({})
+  readonly property int busyMaxMs: 5 * 60 * 1000
+  function toggleBusy(name) { return busyToggles[name] === true }
+  function busyOpacity(name) { return toggleBusy(name) ? Style.emphasis.disabled : 1 }
+
   // scripts/toggles/toggle-<name>.nu, "toggle" unless a verb and value are given
   function runToggle(name, ...args) {
+    if (toggleBusy(name)) return
+    busyToggles = Util.mapSet(busyToggles, name, true)
+    busyExpiry.restart()
     Quickshell.execDetached([Paths.toggle("toggle-" + name + ".nu")].concat(args.length ? args : ["toggle"]))
+  }
+
+  Timer {
+    id: busyExpiry
+    interval: root.busyMaxMs
+    onTriggered: root.busyToggles = ({})
   }
 
   readonly property var routeModes: [
@@ -210,7 +226,11 @@ BarWidget {
 
   Connections {
     target: ToggleEvents
-    function onChanged(script) { if (root.toggleNames.indexOf(script.replace(/^toggle-(.*)\.nu$/, "$1")) >= 0) nmDebounce.restart() }
+    function onChanged(script) {
+      var name = script.replace(/^toggle-(.*)\.nu$/, "$1")
+      if (root.toggleBusy(name)) root.busyToggles = Util.mapWithout(root.busyToggles, name)
+      if (root.toggleNames.indexOf(name) >= 0) nmDebounce.restart()
+    }
   }
 
   // rxKbps/txKbps need continuous sampling; nmcli monitor only emits on connectivity changes, not throughput
@@ -508,15 +528,23 @@ BarWidget {
         spacing: Style.spacing.xs
         options: root.firewallModes
         value: root.firewallState
+        opacity: root.busyOpacity("firewall")
         onChanged: function(state) { if (state !== root.firewallState) root.runToggle("firewall", "set", state) }
       }
       // trusting lifts the lockdown on this link: the gateway joins networkmanager's trusted_gateways (home stays home)
-      ToggleRow { visible: root.trustAvailable; label: root.toggleLabel("trust-network", "Trusted network"); on: root.trustedNetwork; onActivated: root.runToggle("trust-network") }
+      ToggleRow {
+        visible: root.trustAvailable
+        label: root.toggleLabel("trust-network", "Trusted network")
+        on: root.trustedNetwork
+        opacity: root.busyOpacity("trust-network")
+        onActivated: root.runToggle("trust-network")
+      }
       // offered while NM reports a portal or one is open: tor and strict dot keep its login page out of reach
       ToggleRow {
         visible: root.portalAvailable && (root.connectivity === "portal" || root.portalOpen)
         label: root.toggleLabel("portal", "Captive portal")
         on: root.portalOpen
+        opacity: root.busyOpacity("portal")
         onActivated: root.runToggle("portal")
       }
 
@@ -534,6 +562,7 @@ BarWidget {
           spacing: Style.spacing.xs
           options: root.routeModes
           value: root.route
+          opacity: root.busyOpacity("route")
           onChanged: function(state) { if (state !== root.route) root.runToggle("route", "set", state) }
         }
 
@@ -542,11 +571,17 @@ BarWidget {
           visible: root.homelabAvailable
           text: "+ HOMELAB"
           selected: root.homeVpnState === "on"
+          opacity: root.busyOpacity("vpn")
           onClicked: root.runToggle("vpn")
         }
       }
       // the SOCKS pool listens on lo, beside any route
-      ToggleRow { label: "Anonymous SOCKS"; on: root.anonymousSocksOn; onActivated: root.runToggle("anonymous-socks") }
+      ToggleRow {
+        label: "Anonymous SOCKS"
+        on: root.anonymousSocksOn
+        opacity: root.busyOpacity("anonymous-socks")
+        onActivated: root.runToggle("anonymous-socks")
+      }
 
       PanelSeparator {}
       PanelSectionHeader { text: "RADIOS" }
@@ -555,10 +590,10 @@ BarWidget {
         width: content.width
         spacing: Style.spacing.xs
 
-        RadioChip { text: "WI-FI"; selected: root.wifiOn; onClicked: root.runToggle("wifi") }
-        RadioChip { text: "ETHERNET"; selected: root.ethernetOn; onClicked: root.runToggle("ethernet") }
-        RadioChip { visible: root.hasMobile; text: "MOBILE"; selected: root.mobileOn; onClicked: root.runToggle("mobile") }
-        RadioChip { text: "BLUETOOTH"; selected: root.btPowered; onClicked: root.runToggle("bluetooth") }
+        RadioChip { text: "WI-FI"; selected: root.wifiOn; opacity: root.busyOpacity("wifi"); onClicked: root.runToggle("wifi") }
+        RadioChip { text: "ETHERNET"; selected: root.ethernetOn; opacity: root.busyOpacity("ethernet"); onClicked: root.runToggle("ethernet") }
+        RadioChip { visible: root.hasMobile; text: "MOBILE"; selected: root.mobileOn; opacity: root.busyOpacity("mobile"); onClicked: root.runToggle("mobile") }
+        RadioChip { text: "BLUETOOTH"; selected: root.btPowered; opacity: root.busyOpacity("bluetooth"); onClicked: root.runToggle("bluetooth") }
       }
 
       PanelSeparator {}

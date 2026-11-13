@@ -3,6 +3,8 @@ include ~/.config/bugwarrior/uda.taskrc
 include ~/.config/task/sync.taskrc
 
 default.command=next
+# two letters made "re:" in a description the recur attribute and dropped it; pro: and prio: still work
+abbreviation.minimum=3
 report.next.columns=id,start.age,entry.age,depends.indicator,priority,project,tags,recur.indicator,scheduled.countdown,due.relative,until.remaining,description.count,urgency
 report.next.labels=ID,Active,Age,D,P,Project,Tag,R,S,Due,Until,Description,Urg
 

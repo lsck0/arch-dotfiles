@@ -35,9 +35,6 @@ local function media_key(action)
     return hl.dsp.exec_cmd(shell_bin("media-key") .. " " .. action)
 end
 
-local color_grading = "$DOTFILES/configs/desktop/color-grading/color-grading.py"
-local SOFTWARE_BRIGHTNESS_STEP_PCT = 5
-
 -- Obs hotkeys only fire while obs is focused on wayland; timeout covers obs closed.
 local function obs_command(cmd)
     return hl.dsp.exec_cmd(
@@ -52,21 +49,24 @@ hl.bind(mod .. " + SHIFT + e", quickshell_toggle("powermenu"), { description = "
 for _, keys in ipairs({ "Print", mod .. " + SHIFT + s" }) do
     hl.bind(
         keys,
-        hl.dsp.exec_cmd(hypr_script("screenshot-region.nu")),
-        { description = "screenshot a region to the clipboard" }
+        hl.dsp.exec_cmd(hypr_script("screenshot.nu") .. " region"),
+        { description = "screenshot a region to ~/pictures/screenshots and the clipboard" }
     )
 end
 hl.bind(
     "SHIFT + Print",
-    hl.dsp.exec_cmd("grim -o \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .name')\" - | wl-copy"),
-    { description = "screenshot the focused monitor to the clipboard" }
+    hl.dsp.exec_cmd(hypr_script("screenshot.nu") .. " output"),
+    { description = "screenshot the focused monitor to ~/pictures/screenshots and the clipboard" }
 )
 hl.bind(
     mod .. " + Print",
-    hl.dsp.exec_cmd(
-        'grim -g "$(hyprctl -j activewindow | jq -r \'select(.at and .size) | "\\(.at[0]),\\(.at[1]) \\(.size[0])x\\(.size[1])"\')" - | wl-copy'
-    ),
-    { description = "screenshot the active window to the clipboard" }
+    hl.dsp.exec_cmd(hypr_script("screenshot.nu") .. " window"),
+    { description = "screenshot the active window to ~/pictures/screenshots and the clipboard" }
+)
+hl.bind(
+    mod .. " + ALT + Print",
+    hl.dsp.exec_cmd(hypr_script("record.nu")),
+    { description = "start or stop a screen recording into ~/videos/recordings" }
 )
 hl.bind(mod .. " + SHIFT + y", hl.dsp.exec_cmd("shimejictl stop"), { description = "stop the desktop mascots" })
 hl.bind(mod .. " + F9", obs_command("saveReplay"), { description = "obs: save the replay buffer" })
@@ -128,15 +128,12 @@ hl.bind(
     quickshell_call("appsearch", "openWith '+ '"),
     { description = "quick capture: task (! reminder, # note)" }
 )
+hl.bind(mod .. " + SHIFT + i", quickshell_call("appsearch", "openWith '! '"), { description = "quick reminder" })
 hl.bind(mod .. " + o", quickshell_toggle("tasks"), { description = "tasks and notes panel" })
 hl.bind(mod .. " + ALT + v", helper(shell_bin("dictate")), { description = "dictation: speak, press again to type it" })
 
 hl.bind(mod .. " + comma", quickshell_toggle("settings"), { description = "settings window" })
-hl.bind(
-    mod .. " + p",
-    hl.dsp.exec_cmd("hyprpicker | tr -d '\\n' | wl-copy"),
-    { description = "pick a screen color to the clipboard" }
-)
+hl.bind(mod .. " + p", hl.dsp.exec_cmd("hyprpicker -a -n"), { description = "pick a screen color to the clipboard" })
 hl.bind(mod .. " + t", quickshell_call("shell", "summon panel.reminders {}"), { description = "timer and pomodoro" })
 hl.bind(mod .. " + SHIFT + t", app("missioncenter"), { description = "system monitor (mission center)" })
 hl.bind(mod .. " + CTRL + w", helper(shell_bin("wallpaper-picker")), { description = "wallpaper picker" })
@@ -160,11 +157,11 @@ hl.bind(mod .. " + g", hl.dsp.layout("togglesplit"), { description = "toggle the
 
 -- locked: they work on the lock screen too
 local LOCKED_KEYS = {
-    { "XF86AudioPlay", hl.dsp.exec_cmd("playerctl play-pause"), "play or pause media" },
-    { "XF86AudioMedia", hl.dsp.exec_cmd("playerctl play-pause"), "play or pause media" },
-    { "XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"), "previous track" },
-    { "XF86AudioNext", hl.dsp.exec_cmd("playerctl next"), "next track" },
-    { "XF86AudioStop", hl.dsp.exec_cmd("playerctl stop"), "stop media" },
+    { "XF86AudioPlay", media_key("play-pause"), "play or pause media" },
+    { "XF86AudioMedia", media_key("play-pause"), "play or pause media" },
+    { "XF86AudioPrev", media_key("previous"), "previous track" },
+    { "XF86AudioNext", media_key("next"), "next track" },
+    { "XF86AudioStop", media_key("stop"), "stop media" },
     { "XF86AudioRaiseVolume", media_key("volume-up"), "volume up", true },
     { "XF86AudioLowerVolume", media_key("volume-down"), "volume down", true },
     { "XF86AudioMute", media_key("volume-mute"), "mute the output" },
@@ -173,13 +170,13 @@ local LOCKED_KEYS = {
     { "XF86MonBrightnessDown", media_key("brightness-down"), "brightness down", true },
     {
         "SHIFT + XF86MonBrightnessUp",
-        hl.dsp.exec_cmd(color_grading .. " set brightness +" .. SOFTWARE_BRIGHTNESS_STEP_PCT),
+        media_key("software-brightness-up"),
         "software brightness up (color grading)",
         true,
     },
     {
         "SHIFT + XF86MonBrightnessDown",
-        hl.dsp.exec_cmd(color_grading .. " set brightness -" .. SOFTWARE_BRIGHTNESS_STEP_PCT),
+        media_key("software-brightness-down"),
         "software brightness down (color grading)",
         true,
     },

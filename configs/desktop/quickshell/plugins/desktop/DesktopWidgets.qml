@@ -235,7 +235,7 @@ Item {
           More { hidden: (TimerState.reminders ? TimerState.reminders.length : 0) - root.reminderMax }
 
           SectionTitle {
-            text: "All day"
+            text: "All day" + (CalendarState.stale ? " (offline)" : "")
             visible: root.allDay.length > 0
             first: !root.nowShown
           }
@@ -246,6 +246,8 @@ Item {
             delegate: Line {
               required property var modelData
 
+              marker: modelData.marker
+              markerColor: modelData.markerColor
               label: modelData.summary
               // "all day" is the section's name; only another day's date is left to say
               trailing: modelData.when.replace(/ ?all day$/, "")
@@ -256,7 +258,7 @@ Item {
           More { hidden: root.allDayAll.length - root.eventMax }
 
           SectionTitle {
-            text: "Meetings"
+            text: "Meetings" + (CalendarState.stale ? " (offline)" : "")
             visible: root.meetings.length > 0
             first: !root.nowShown && root.allDay.length === 0
           }
@@ -267,6 +269,8 @@ Item {
             delegate: Line {
               required property var modelData
 
+              marker: modelData.marker
+              markerColor: modelData.markerColor
               label: modelData.summary
               trailing: modelData.when
               trailingColor: Colors.accentText

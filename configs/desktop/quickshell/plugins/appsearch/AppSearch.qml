@@ -7,6 +7,7 @@ import qs.Commons
 import qs.Ui
 import "../../services"
 import "../../services/AppSearch.js" as AppSearch
+import "../reminders/ReminderFlowModel.js" as ReminderFlowModel
 
 Item {
   id: root
@@ -28,14 +29,14 @@ Item {
   readonly property string modeQuery: mode === "apps" ? filterText : filterText.substring(1).trim()
 
   readonly property var modeTitles: ({ apps: "applications", calc: "calculator", run: "run", windows: "windows", keys: "keybinds", task: "new task", remind: "reminder", note: "note" })
-  readonly property var modePlaceholders: ({ apps: "search applications", calc: "enter an expression", run: "command to run", windows: "search windows", keys: "search keybinds", task: "Dino letter project:dino due:fri +uni", remind: "10m tea", note: "a thought for ~/sync/notes/inbox.md" })
+  readonly property var modePlaceholders: ({ apps: "search applications", calc: "enter an expression", run: "command to run", windows: "search windows", keys: "search keybinds", task: "Dino letter project:dino due:fri +uni", remind: "10m tea, 15:00 dentist", note: "a thought for ~/sync/notes/inbox.md" })
   readonly property var modeHints: ({
     apps: [["ENTER", "open"], ["=", "calc"], [">", "run"], ["@", "windows"], [":", "clipboard"], ["?", "keys"], ["+ ! #", "capture"], ["ESC", "close"]],
     task: [["ENTER", "add"], ["ESC", "clear"]],
-    remind: [["ENTER", "set"], ["ESC", "clear"]],
+    remind: [["ENTER", "set"], ["DEL", "cancel pending"], ["ESC", "clear"]],
     note: [["ENTER", "save"], ["ESC", "clear"]],
     calc: [["ENTER", "copy"], ["ESC", "clear"]],
-    run: [["ENTER", "run"], ["ESC", "clear"]],
+    run: [["ENTER", "run"], ["SHIFT+ENTER", "in terminal"], ["ESC", "clear"]],
     windows: [["^/v", "select"], ["ENTER", "focus"], ["ESC", "clear"]],
     keys: [["^/v", "select"], ["ENTER", "close"], ["ESC", "clear"]]
   })
@@ -55,12 +56,18 @@ Item {
   readonly property int exitNotFound: 127
   readonly property int calcTimeoutS: 5
 
+  // > run commands, newest first; shown when the run query is empty
+  property var runHistory: []
+  readonly property int runHistoryMax: 20
+  readonly property string terminal: "kitty"
+
   function open() {
     panel.screen = Util.focusedScreen()
     root.opened = true
     root.filterText = ""
     root.selectedIndex = 0
-    if (root.appLibrary) root.appLibrary.refreshIcons()
+    // focusHistoryID for the @ order; lands before a typed @ is read
+    Hyprland.refreshToplevels()
     root.rebuild()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
@@ -89,16 +96,24 @@ Item {
     return out
   }
 
+  function focusOrder(toplevel) {
+    const id = (toplevel.lastIpcObject || {}).focusHistoryID
+    return typeof id === "number" && id >= 0 ? id : Number.MAX_SAFE_INTEGER
+  }
+
+  // most recently focused first, every word matched like apps and keys
   function windowRows() {
-    var q = root.modeQuery.toLowerCase()
-    var values = Hyprland.toplevels.values
+    var words = root.modeQuery.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 0 })
+    var values = Array.from(Hyprland.toplevels.values)
+    values.sort(function(a, b) { return root.focusOrder(a) - root.focusOrder(b) })
     var out = []
     for (let i = 0; i < values.length; i++) {
       const t = values[i]
       const cls = t.wayland ? String(t.wayland.appId || "") : ""
       const title = String(t.title || "")
-      if (q && (title + " " + cls).toLowerCase().indexOf(q) < 0) continue
       const ws = t.workspace ? String(t.workspace.id) : "--"
+      const haystack = (title + " " + cls + " " + ws).toLowerCase()
+      if (!words.every(function(w) { return haystack.indexOf(w) >= 0 })) continue
       out.push({ kind: "window", name: title || cls || "--", sub: "[" + ws + "] " + cls,
                  icon: cls ? Util.iconSource(cls.toLowerCase()) : "", glyph: "\u{f2d0}", keys: "", payload: String(t.address || "") })
     }
@@ -115,25 +130,68 @@ Item {
   }
 
   function runRows() {
-    if (!root.modeQuery) return []
-    return [{ kind: "run", name: root.modeQuery, sub: "sh -c", icon: "", glyph: "\u{f018d}", keys: "", payload: root.modeQuery }]
+    var q = root.modeQuery
+    var out = q ? [{ kind: "run", name: q, sub: "sh -c", icon: "", glyph: "\u{f018d}", keys: "", payload: q }] : []
+    for (let i = 0; i < root.runHistory.length; i++) {
+      const cmd = root.runHistory[i]
+      if (cmd === q || cmd.indexOf(q) < 0) continue
+      out.push({ kind: "run", name: cmd, sub: "recent", icon: "", glyph: "\u{f02da}", keys: "", payload: cmd })
+    }
+    return out
+  }
+
+  function runRecord(cmd) {
+    var next = [cmd].concat(root.runHistory.filter(function(c) { return c !== cmd })).slice(0, root.runHistoryMax)
+    root.runHistory = next
+    runHistoryFile.setText(JSON.stringify(next) + "\n")
+  }
+
+  // what taskwarrior will take from the words: project, tags, priority and dates
+  function taskPreview(words) {
+    var parts = []
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i]
+      const project = w.match(/^pro(?:ject)?:(.+)$/)
+      if (project) parts.push(project[1])
+      else if (/^(?:prio(?:rity)?|due|sch(?:eduled)?|wait|recur):./.test(w) || /^\+\S/.test(w)) parts.push(w)
+    }
+    return parts.length > 0 ? parts.join(", ") : "task add"
+  }
+
+  // the duration grammar and the clock time are ReminderFlowModel's, so the overlay and capture.nu read the same words
+  function reminderPreviewRows(words, script) {
+    if (words.length === 0) return []
+    const now = new Date()
+    const clock = ReminderFlowModel.clockNext(words[0], now)
+    const minutes = ReminderFlowModel.minutesOf(words[0])
+    if (!clock && minutes <= 0)
+      return [{ kind: "capture", name: "x a duration or time first: 90, 10m, 2h, 1h30m, 15:00", sub: "reminder", icon: "", glyph: "\u{f0f3}", keys: "", payload: null }]
+    const at = clock || new Date(now.getTime() + minutes * 60000)
+    const name = words.slice(1).join(" ") || (clock ? "reminder at " + Qt.formatDateTime(at, "HH:mm") : minutes + "-min reminder")
+    const sub = "at " + Qt.formatDateTime(at, "HH:mm") + (clock ? " (in " + TimerState.remainingText((at.getTime() - now.getTime()) / 1000) + ")" : "")
+    return [{ kind: "capture", name: name, sub: sub, icon: "", glyph: "\u{f0f3}", keys: "", payload: [script, "remind"].concat(words) }]
+  }
+
+  // what is already set, so a duplicate is seen and cancelled (DEL) without the overlay
+  function reminderPendingRows() {
+    return TimerState.reminders.map(function(r) {
+      return { kind: "reminder", name: r.label, sub: "pending, at " + r.atTime, icon: "", glyph: "\u{f009c}", keys: "", payload: r.unit }
+    })
+  }
+
+  function reminderCancelAt(index) {
+    const row = root.rows[index]
+    if (row && row.kind === "reminder") Quickshell.execDetached([Paths.script("reminder.nu"), "cancel", row.payload])
   }
 
   // capture.nu takes the words as separate arguments, so taskwarrior's own attribute syntax goes through unchanged
   function captureRows() {
     var words = root.modeQuery.split(/\s+/).filter(function (w) { return w !== "" })
-    if (words.length === 0) return []
     var script = Paths.script("capture.nu")
-    if (root.mode === "remind") {
-      const m = words[0].match(/^(?:(\d+)h)?(?:(\d+)m?)?$/)
-      const minutes = m ? (+(m[1] || 0)) * 60 + (+(m[2] || 0)) : 0
-      if (minutes <= 0) return [{ kind: "capture", name: "x a duration first: 90, 10m, 2h, 1h30m", sub: "reminder", icon: "", glyph: "\u{f0f3}", keys: "", payload: null }]
-      const at = new Date(Date.now() + minutes * 60000)
-      return [{ kind: "capture", name: words.slice(1).join(" ") || minutes + "-min reminder", sub: "at " + Qt.formatDateTime(at, "HH:mm"),
-                icon: "", glyph: "\u{f0f3}", keys: "", payload: [script, "remind"].concat(words) }]
-    }
+    if (root.mode === "remind") return reminderPreviewRows(words, script).concat(reminderPendingRows())
+    if (words.length === 0) return []
     if (root.mode === "task")
-      return [{ kind: "capture", name: root.modeQuery, sub: "task add", icon: "", glyph: "\u{f0ae}", keys: "", payload: [script, "task"].concat(words) }]
+      return [{ kind: "capture", name: root.modeQuery, sub: root.taskPreview(words), icon: "", glyph: "\u{f0ae}", keys: "", payload: [script, "task"].concat(words) }]
     return [{ kind: "capture", name: root.modeQuery, sub: "~/sync/notes/inbox.md", icon: "", glyph: "\u{f0f6}", keys: "", payload: [script, "note"].concat(words) }]
   }
 
@@ -198,6 +256,16 @@ Item {
       else calcDebounce.stop()
     }
     root.rebuild()
+    // with nothing typed, ENTER goes back to the previously focused window, like alt-tab
+    if (root.mode === "windows" && !root.modeQuery && root.rows.length > 1) root.selectedIndex = 1
+  }
+
+  // one line, so a pasted multi-line selection stays one capture or command
+  function paste() {
+    const text = String(Quickshell.clipboardText || "").replace(/\s*\n\s*/g, " ")
+    // ":" alone opens the clipboard plugin, never by a paste
+    if (!text || root.filterText + text === ":") return
+    root.setFilter(root.filterText + text)
   }
 
   function selectAt(index) {
@@ -205,9 +273,12 @@ Item {
     resultList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
   }
 
-  function activateAt(index) {
+  // inTerminal: SHIFT+ENTER, a > run command in a terminal window instead of in the background
+  function activateAt(index, inTerminal) {
     if (index < 0 || index >= root.rows.length) return
     var row = root.rows[index]
+    // a pending reminder only takes DEL; ENTER on it must not close the launcher on nothing
+    if (row.kind === "reminder") return
     if (row.kind === "app") {
       if (!root.appLibrary) return
       root.appLibrary.launch(row.payload.id, row.name)
@@ -220,10 +291,13 @@ Item {
       if (root.calcState !== "" || !row.payload) return
       Quickshell.execDetached(["wl-copy", "--", row.payload])
     } else if (row.kind === "run") {
-      Quickshell.execDetached(["uwsm-app", "--", "sh", "-c", row.payload])
+      root.runRecord(row.payload)
+      Quickshell.execDetached(inTerminal ? ["uwsm-app", "--", root.terminal, "-e", "sh", "-c", "--", row.payload]
+        : ["uwsm-app", "--", Paths.script("run.nu"), row.payload])
     } else if (row.kind === "capture") {
       if (!row.payload) return
-      Quickshell.execDetached(row.payload)
+      // capture.nu reopens the launcher on the typed line when taskwarrior rejects it
+      Quickshell.execDetached({ command: row.payload, environment: { CAPTURE_FROM_LAUNCHER: "1" } })
     }
     root.close()
   }
@@ -233,8 +307,9 @@ Item {
     interval: root.calcDebounceMs
     onTriggered: {
       calcProc.running = false
-      calcProc.command = ["sh", "-c", "command -v qalc >/dev/null 2>&1 || exit " + root.exitNotFound + "; exec timeout " + root.calcTimeoutS + " qalc -t \" $1\"",
-                          "qalc", root.modeQuery]
+      // unicode off: a copied minus or exponent pastes as ASCII; command[4] stays the query calcProc checks against
+      calcProc.command = ["sh", "-c", "command -v qalc >/dev/null 2>&1 || exit " + root.exitNotFound + "; exec timeout " + root.calcTimeoutS
+                          + " qalc -t -s 'unicode off' \" $1\"", "qalc", root.modeQuery]
       calcProc.running = true
     }
   }
@@ -269,6 +344,29 @@ Item {
       }
       if (root.mode === "keys") root.rebuild()
     }
+  }
+
+  FileView {
+    id: runHistoryFile
+    path: Paths.state + "/launcher-run.json"
+    atomicWrites: true
+    printErrors: false
+    onLoaded: {
+      try {
+        const list = JSON.parse(text())
+        root.runHistory = Array.isArray(list) ? list.filter(function(c) { return typeof c === "string" && c }) : []
+      } catch (e) {
+        root.runHistory = []
+      }
+      if (root.opened && root.mode === "run") root.rebuild()
+    }
+    onLoadFailed: root.runHistory = []
+  }
+
+  Connections {
+    target: TimerState
+    enabled: root.opened && root.mode === "remind"
+    function onReminderListChanged() { root.rebuild() }
   }
 
   Connections {
@@ -319,7 +417,11 @@ Item {
         else if (event.key === Qt.Key_PageDown) root.selectAt(root.selectedIndex + resultList.pageRows)
         else if (event.key === Qt.Key_Home) root.selectAt(0)
         else if (event.key === Qt.Key_End) root.selectAt(root.rows.length - 1)
-        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) root.activateAt(root.selectedIndex)
+        else if (event.key === Qt.Key_Delete && root.mode === "remind") root.reminderCancelAt(root.selectedIndex)
+        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+          root.activateAt(root.selectedIndex, (event.modifiers & Qt.ShiftModifier) !== 0)
+        else if ((event.key === Qt.Key_V && (event.modifiers & Qt.ControlModifier))
+                 || (event.key === Qt.Key_Insert && (event.modifiers & Qt.ShiftModifier))) root.paste()
         else if (Util.isWordDelete(event.key, event.modifiers)) root.setFilter(Util.wordDelete(root.filterText))
         else if (event.key === Qt.Key_Backspace) root.setFilter(root.filterText.slice(0, -1))
         else if (event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127)

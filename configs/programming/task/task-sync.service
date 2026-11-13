@@ -6,3 +6,5 @@ Type=oneshot
 # unreachable server: skipped, not failed; a refused sync still fails
 ExecCondition=/bin/sh -c 'curl -sfo /dev/null --max-time 10 "$$(task _get rc.sync.server.url)"'
 ExecStart=/usr/bin/task sync
+# the bar and agenda pick up synced tasks now, not at their next poll; no shell running is not a failure
+ExecStartPost=-/usr/bin/timeout 3s /usr/bin/quickshell ipc -p %h/.config/quickshell call tasks refresh

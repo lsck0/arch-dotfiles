@@ -104,13 +104,13 @@ export const options = {
         group: input
         scope: user
     }
-    idle_dim_s: {type: int, default: 900, doc: "Idle seconds until the screens dim", label: "Dim after", group: idle, min: 60, apply: relogin, scope: user}
-    idle_lock_s: {type: int, default: 1200, doc: "Idle seconds until the session locks", label: "Lock after", group: idle, min: 60, apply: relogin, scope: user}
-    idle_dpms_s: {type: int, default: 2100, doc: "Idle seconds until the screens go off", label: "Screens off after", group: idle, min: 60, apply: relogin, scope: user}
-    idle_suspend_s: {type: int, default: 2400, doc: "Idle seconds until suspend, unless an agent works or an inhibitor holds", label: "Suspend after", group: idle, min: 60, apply: relogin, scope: user}
-    idle_dim_saver_s: {type: int, default: 300, doc: "Idle seconds until the screens dim in power saver (a laptop on battery)", label: "Dim in power saver after", group: idle, min: 60, apply: relogin, scope: user}
-    idle_lock_saver_s: {type: int, default: 600, doc: "Idle seconds until the session locks in power saver", label: "Lock in power saver after", group: idle, min: 60, apply: relogin, scope: user}
-    idle_suspend_saver_s: {type: int, default: 1800, doc: "Idle seconds until suspend in power saver", label: "Suspend in power saver after", group: idle, min: 60, apply: relogin, scope: user}
+    idle_dim_s: {type: int, default: 900, doc: "Idle seconds until the screens dim", label: "Dim after", group: idle, min: 60, scope: user}
+    idle_lock_s: {type: int, default: 1200, doc: "Idle seconds until the session locks", label: "Lock after", group: idle, min: 60, scope: user}
+    idle_dpms_s: {type: int, default: 2100, doc: "Idle seconds until the screens go off", label: "Screens off after", group: idle, min: 60, scope: user}
+    idle_suspend_s: {type: int, default: 2400, doc: "Idle seconds until suspend, unless an agent works or an inhibitor holds", label: "Suspend after", group: idle, min: 60, scope: user}
+    idle_dim_saver_s: {type: int, default: 300, doc: "Idle seconds until the screens dim in power saver (a laptop on battery)", label: "Dim in power saver after", group: idle, min: 60, scope: user}
+    idle_lock_saver_s: {type: int, default: 600, doc: "Idle seconds until the session locks in power saver", label: "Lock in power saver after", group: idle, min: 60, scope: user}
+    idle_suspend_saver_s: {type: int, default: 1800, doc: "Idle seconds until suspend in power saver", label: "Suspend in power saver after", group: idle, min: 60, scope: user}
 }
 
 const CONFIG_DIR = ".config/hypr"
@@ -289,11 +289,6 @@ export def link [cfg: record] {
         (files-into $dir ...$CONFIG_FILES)
         (glob shaders/* | each {|f| file-copy $f ($dir | path join shaders ($f | path basename)) })
         ($COMMANDS | each {|f| file-copy $f ($dir | path join $f) --mode 755 })
-        (file-render hypridle.conf ($dir | path join hypridle.conf) {
-            DIM_S: $cfg.idle_dim_s LOCK_S: $cfg.idle_lock_s DPMS_S: $cfg.idle_dpms_s
-            SUSPEND_S: $cfg.idle_suspend_s DIM_SAVER_S: $cfg.idle_dim_saver_s LOCK_SAVER_S: $cfg.idle_lock_saver_s
-            SUSPEND_SAVER_S: $cfg.idle_suspend_saver_s
-        })
         (unit-enable hypridle.service --now)
         (file-text ($dir | path join platform.lua) (platform-lua $cfg) --generated)
         # read by quickshell-lock-launch.nu on every lock
@@ -302,10 +297,17 @@ export def link [cfg: record] {
     # hyprland's own reload on a write drops the shader: one reload after every changed file restores it
     let reload = then-step reload
     let files = $files | each {|d| if $d.kind == file { $d | merge {then: $reload} } else { $d } }
+    # hypridle never rereads its config: a restart applies new idle times, no hyprland reload needed
+    let idle = file-render hypridle.conf ($dir | path join hypridle.conf) {
+        DIM_S: $cfg.idle_dim_s LOCK_S: $cfg.idle_lock_s DPMS_S: $cfg.idle_dpms_s
+        SUSPEND_S: $cfg.idle_suspend_s DIM_SAVER_S: $cfg.idle_dim_saver_s LOCK_SAVER_S: $cfg.idle_lock_saver_s
+        SUSPEND_SAVER_S: $cfg.idle_suspend_saver_s
+    } --then (unit-restart hypridle.service --if-running)
     let build = plugins-missing | is-not-empty
     let live = hyprland-live
     [
         $files
+        $idle
         # offline only the build waits: plugins built earlier still load
         (if $build { step plugins-build --network })
         (if $build or ($live and (plugins-unloaded | is-not-empty)) { step plugins-load })

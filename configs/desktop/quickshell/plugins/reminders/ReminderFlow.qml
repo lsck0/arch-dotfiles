@@ -13,9 +13,14 @@ Item {
   property string minutes: ""
   property string filterText: ""
   property var renameTarget: null
+  // the Pending row DEL cancels and R renames, moved with the arrows on an empty prompt
+  property int selectedIndex: 0
 
   readonly property var pomo: TimerState.pomo
   readonly property var reminders: TimerState.reminders
+  // clamped, so a fired or cancelled last row leaves the new last one selected
+  readonly property int selectedRow: Math.min(selectedIndex, reminders.length - 1)
+  readonly property var selectedReminder: selectedRow >= 0 ? reminders[selectedRow] : null
 
   readonly property string reminderScript: Paths.script("reminder.nu")
   readonly property string pomodoroScript: Paths.script("pomodoro.nu")
@@ -39,6 +44,7 @@ Item {
   function open() {
     root.opened = true
     root.reset()
+    root.selectedIndex = 0
     root.pomoDraft = ({})
     TimerState.reload()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
@@ -88,7 +94,7 @@ Item {
       return
     }
     if (root.step === "rename") {
-      if (root.renameTarget) run([root.reminderScript, "rename", root.renameTarget.unit, root.filterText.trim()])
+      if (root.renameTarget) run([root.reminderScript, "rename", root.renameTarget.unit, "--", root.filterText.trim()])
       root.reset()
       return
     }
@@ -130,12 +136,19 @@ Item {
     function onPomoConfigChanged() { if (!pomoCommit.running && !TimerState.pomoSaving) root.pomoDraft = ({}) }
   }
 
-  // an empty minutes prompt has no use for letters, so they drive the pomodoro and the next reminder
+  function selectMove(step) {
+    root.selectedIndex = Math.max(0, Math.min(root.reminders.length - 1, root.selectedRow + step))
+  }
+
+  // an empty minutes prompt has no use for letters, so they drive the pomodoro and the selected reminder
   function pomoKey(event) {
     if (event.text === " ") root.run([root.pomodoroScript, root.pomo.running ? "toggle" : "start"])
     else if (event.text === "n" && root.pomo.running) root.run([root.pomodoroScript, "skip"])
     else if (event.text === "S" && root.pomo.running) root.run([root.pomodoroScript, "stop"])
-    else if (event.key === Qt.Key_Delete && root.reminders.length > 0) root.run([root.reminderScript, "cancel", root.reminders[0].unit])
+    else if ((event.key === Qt.Key_Down || event.text === "j") && root.reminders.length > 0) root.selectMove(1)
+    else if ((event.key === Qt.Key_Up || event.text === "k") && root.reminders.length > 0) root.selectMove(-1)
+    else if (event.key === Qt.Key_Delete && root.selectedReminder) root.run([root.reminderScript, "cancel", root.selectedReminder.unit])
+    else if (event.text === "r" && root.selectedReminder) root.askRename(root.selectedReminder)
     else return false
     return true
   }
@@ -159,7 +172,8 @@ Item {
       : root.filterText !== "" ? [["0-9", "minutes"], ["ENTER", "next"], ["ESC", "clear"]]
       : [["0-9", "minutes"], ["SPACE", !root.pomo.running ? "pomodoro" : root.pomo.paused ? "resume" : "pause"]]
         .concat(root.pomo.running ? [["N", "skip"], ["SHIFT+S", "stop"]] : [])
-        .concat(root.reminders.length > 0 ? [["DEL", "cancel next"]] : [])
+        .concat(root.reminders.length > 1 ? [["^/v", "select"]] : [])
+        .concat(root.reminders.length > 0 ? [["DEL", "cancel"], ["R", "rename"]] : [])
         .concat([["ESC", "close"]])
     cardWidth: Style.space(560)
     cardHeight: flowContent.implicitHeight + chromeHeight
@@ -236,6 +250,7 @@ Item {
           delegate: Item {
             id: reminderRow
             required property var modelData
+            required property int index
             width: parent.width
             height: Style.row.list
 
@@ -244,7 +259,7 @@ Item {
               anchors.leftMargin: -Style.spacing.xs
               anchors.rightMargin: -Style.spacing.xs
               radius: Style.shape.data
-              color: rowHover.hovered ? Style.hoverFill : "transparent"
+              color: rowHover.hovered || reminderRow.index === root.selectedRow ? Style.hoverFill : "transparent"
             }
             HoverHandler { id: rowHover }
 

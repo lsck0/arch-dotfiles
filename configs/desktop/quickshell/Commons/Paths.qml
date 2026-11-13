@@ -15,6 +15,8 @@ QtObject {
   readonly property string runtime: runtimeDir + "/quickshell"
 
   readonly property string notes: home + "/sync/notes/notes.md"
+  // capture.nu's # notes, shown read-only beside notes.md
+  readonly property string inbox: home + "/sync/notes/inbox.md"
 
   readonly property string wallpaperList: dotfiles + "/configs/core/wallust/wallpaper-list.nu"
   readonly property string themes: dotfiles + "/themes"

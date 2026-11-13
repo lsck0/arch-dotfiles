@@ -69,7 +69,23 @@ BarWidget {
       if (root.absent) return
       statusProc.running = false
       statusProc.running = true
+      if (panel.visible) vpnProc.run()
     }
+  }
+
+  // toggle-vpn.nu's record: "Connect homelab VPN" only where the vpn exists and is down, read while the panel shows
+  property var vpn: ({ available: false, state: "off" })
+  readonly property bool vpnUp: vpn.available === true && vpn.state === "on"
+  readonly property bool vpnOffered: vpn.available === true && vpn.state === "off"
+  JsonProcess {
+    id: vpnProc
+    command: [Paths.toggle("toggle-vpn.nu"), "get", "--json"]
+    onParsed: function(data) { if (data) root.vpn = data }
+  }
+
+  Connections {
+    target: ToggleEvents
+    function onChanged(script) { if (script === "toggle-vpn.nu" && panel.visible) vpnProc.run() }
   }
 
   Row {
@@ -260,14 +276,16 @@ BarWidget {
       LinkStat {
         visible: !root.ok
         label: "Status"
-        value: !root.received ? "Connecting..." : root.error === "source" ? "No homelab checkout" : "Unreachable"
+        value: !root.received ? "Connecting..." : root.error === "source" ? "No homelab checkout"
+          : root.vpnUp ? "VPN up, lab unreachable" : "Unreachable"
         alert: root.received
       }
-      PanelSeparator { visible: root.received && !root.ok && root.error !== "source" }
-      PanelSectionHeader { text: "Tools"; visible: root.received && !root.ok && root.error !== "source" }
+      PanelSeparator { visible: vpnRow.visible }
+      PanelSectionHeader { text: "Tools"; visible: vpnRow.visible }
       PanelRow {
+        id: vpnRow
         width: parent.width
-        visible: root.received && !root.ok && root.error !== "source"
+        visible: root.received && !root.ok && root.error !== "source" && root.vpnOffered
         glyph: "\u{f0582}"   // md-vpn
         label: "Connect homelab VPN"
         onActivated: {

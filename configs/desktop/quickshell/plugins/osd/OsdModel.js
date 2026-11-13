@@ -10,7 +10,12 @@ var ICONS = {
   "brightness": "\u{f042}",
   "keyboard-backlight-off": "\u{f0310}",
   "keyboard-backlight": "\u{f030c}",
-  "launch": "\u{f14de}"
+  "launch": "\u{f14de}",
+  "media-play": "\u{f04b}",
+  "media-pause": "\u{f04c}",
+  "media-next": "\u{f051}",
+  "media-previous": "\u{f048}",
+  "media-stop": "\u{f04d}"
 }
 
 // a known name maps to its glyph, any other text is the glyph itself

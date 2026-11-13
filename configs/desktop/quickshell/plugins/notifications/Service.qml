@@ -52,6 +52,8 @@ Item {
   }
 
   readonly property alias doNotDisturb: settings.dnd
+  // the bar, OBS and a share change it here, not through toggle-dnd.nu: its readers (settings) still hear of it
+  onDoNotDisturbChanged: ToggleEvents.changed("toggle-dnd.nu")
 
   function setDoNotDisturb(value) {
     settings.dndByObs = false // qmllint disable unqualified
@@ -175,7 +177,7 @@ Item {
     watchForUpdates(notification, snapshot)
     Qt.callLater(function() {
       if (service.liveRefs[originalId] !== notification) {
-        service.archivePopupFileFor(snapshot)
+        service.retirePopupFileFor(snapshot)
         return
       }
       removePopupsByOriginalId(originalId, NotificationLogic.popupFileName(snapshot))
@@ -269,7 +271,7 @@ Item {
     for (let i = popupModel.count - 1; i >= 0; i--) {
       let row = popupModel.get(i)
       if (!row || row.originalId !== originalId || isRestoredRow(row)) continue
-      archivePopupFileFor(row)
+      retirePopupFileFor(row)
       popupModel.remove(i)
     }
   }
@@ -279,7 +281,7 @@ Item {
     var entry = popupModel.get(index)
     var restored = isRestoredRow(entry)
     var ref = !restored && entry.originalId >= 0 ? liveRefs[entry.originalId] : null
-    archivePopupFileFor(entry)
+    retirePopupFileFor(entry)
     if (restored) delete restoredPopups[NotificationLogic.popupFileName(entry)]
     popupModel.remove(index)
     try {
@@ -513,6 +515,11 @@ Item {
       imagesDir])
   }
 
+  function retirePopupFileFor(row) {
+    if (NotificationLogic.archivesOnClose(row)) archivePopupFileFor(row)
+    else deletePopupFileFor(row)
+  }
+
   function clearHistory() {
     service.history = []
     clearPopups()
@@ -546,7 +553,7 @@ Item {
     NotificationLogic.parsePopupFiles(raw).forEach(function(entry) {
       var duration = service.durationFor(entry.urgency, entry.expireTimeout)
       if (NotificationLogic.popupExpired(entry, duration, now)) {
-        service.archivePopupFileFor(entry)
+        service.retirePopupFileFor(entry)
         return
       }
       if (duration > 0) {
@@ -582,6 +589,12 @@ Item {
 
     function isDnd(): string {
       return service.doNotDisturb ? "on" : "off"
+    }
+
+    // closes every toast on screen, a critical one included, into history
+    function dismissAll(): string {
+      service.clearPopups()
+      return "ok"
     }
   }
 

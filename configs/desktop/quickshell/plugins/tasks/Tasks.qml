@@ -12,6 +12,7 @@ Item {
   property string filterText: ""
   property int selectedIndex: 0
   property string selectedUuid: ""
+  property var modifyTask: null
 
   readonly property bool opened: TaskState.panelOpen
   readonly property int rowHeight: Style.space(40)
@@ -41,12 +42,14 @@ Item {
     ? filtered[selectedIndex] : null
 
   readonly property var hints: view === "notes" && NotesState.conflict
-    ? [["CTRL+S", "overwrite disk"], ["CTRL+R", "take disk"], ["TAB", "tasks"], ["ESC", "close"]]
-    : view === "notes" ? [["TAB", "tasks"], ["ESC", "close"]]
-    : inputMode === "add" ? [["ENTER", "add"], ["TAB", "complete +tag project: due: priority:"], ["ESC", "back"]]
+    ? [["CTRL+S", "overwrite disk"], ["CTRL+R", "take disk"], ["TAB", "inbox"], ["ESC", "close"]]
+    : view === "notes" ? [["TAB", "inbox"], ["ESC", "close"]]
+    : view === "inbox" ? [["^/v", "scroll"], ["TAB", "tasks"], ["ESC", "close"]]
+    : inputMode === "add" ? [["ENTER", "add"], ["TAB", "complete +tag project: due: scheduled: priority:"], ["ESC", "back"]]
+    : inputMode === "modify" ? [["ENTER", "modify"], ["TAB", "complete +tag -tag project: due: priority:"], ["ESC", "back"]]
     : inputMode === "filter" ? [["ENTER", "keep"], ["TAB", "notes"], ["ESC", "clear"]]
-    : [["^/v", "move"], ["ENTER/D", "done"], ["S", "start/stop"], ["X", "delete"], ["A", "add"], ["/", "filter"],
-       ["TAB", "notes"], ["ESC", "close"]]
+    : [["^/v", "move"], ["ENTER/D", "done"], ["S", "start/stop"], ["X", "delete"], ["E", "edit"], ["U", "undo"],
+       ["A", "add"], ["/", "filter"], ["TAB", "notes"], ["ESC", "close"]]
 
   function open() {
     TaskState.panelOpen = true
@@ -68,7 +71,7 @@ Item {
       TaskState.refresh()
       root.focusView()
     } else {
-      NotesState.save()
+      NotesState.flush()
       keyCatcher.forceActiveFocus()
     }
   }
@@ -76,6 +79,7 @@ Item {
   function focusView() {
     Qt.callLater(function () {
       if (root.view === "notes") notesEdit.forceActiveFocus()
+      else if (root.view === "inbox") inboxEdit.forceActiveFocus()
       else if (root.inputMode !== "") input.forceActiveFocus()
       else keyCatcher.forceActiveFocus()
     })
@@ -84,6 +88,7 @@ Item {
   function setView(name) {
     if (root.view === "notes") NotesState.save()
     root.view = name
+    if (name === "inbox") inboxFlick.contentY = Math.max(0, inboxFlick.contentHeight - inboxFlick.height)
     root.focusView()
   }
 
@@ -105,6 +110,7 @@ Item {
   }
 
   function startInput(mode) {
+    root.modifyTask = mode === "modify" ? root.selectedTask : null
     root.inputMode = mode
     input.text = mode === "filter" ? root.filterText : ""
     input.forceActiveFocus()
@@ -139,6 +145,10 @@ Item {
       root.toggleActive(root.selectedTask)
     } else if (key === Qt.Key_Delete || text === "x") {
       root.remove(root.selectedTask)
+    } else if (text === "e") {
+      if (root.selectedTask) root.startInput("modify")
+    } else if (text === "u") {
+      TaskState.undoLast()
     } else if (text === "a" || text === "i") {
       root.startInput("add")
     } else if (text === "/") {
@@ -161,11 +171,17 @@ Item {
       if (root.inputMode === "add") {
         TaskState.add(input.text)
         input.text = ""
+      } else if (root.inputMode === "modify") {
+        TaskState.modify(root.modifyTask, input.text)
+        input.text = ""
+        root.endInput()
       } else {
         root.endInput()
       }
     } else if (key === Qt.Key_Tab || key === Qt.Key_Backtab) {
-      if (key === Qt.Key_Backtab || root.inputMode !== "add" || !root.completeInput()) root.setView("notes")
+      // in add and modify mode TAB only completes: a word with nothing to complete must not leave the line
+      if (key === Qt.Key_Tab && (root.inputMode === "add" || root.inputMode === "modify")) root.completeInput()
+      else root.setView("notes")
     } else if (root.inputMode === "filter" && (key === Qt.Key_Down || key === Qt.Key_Up)) {
       root.endInput()
       root.select(key === Qt.Key_Down ? 0 : root.filtered.length - 1)
@@ -185,7 +201,8 @@ Item {
     return Object.keys(seen).sort()
   }
 
-  readonly property var fieldKeywords: ["project:", "due:", "priority:"]
+  readonly property var fieldKeywords: ["project:", "due:", "scheduled:", "wait:", "priority:", "recur:"]
+  readonly property var freeformKeywords: ["due:", "sch:", "scheduled:", "wait:", "recur:"]
   readonly property var priorities: ["H", "M", "L"]
 
   // after a keyword's colon complete its value, else complete the bare word into the keyword
@@ -193,7 +210,7 @@ Item {
     var head = input.text.slice(0, input.cursorPosition)
     var start = head.search(/\S*$/)
     var word = head.slice(start)
-    var value = word.match(/^([+-]|pro(?:ject)?:|due:|prio(?:rity)?:)(.*)$/)
+    var value = word.match(/^([+-]|pro(?:ject)?:|due:|sch(?:eduled)?:|wait:|recur:|prio(?:rity)?:)(.*)$/)
     if (value) return root.completeValue(start, value[1], value[2])
     if (!word) return false
     var field = Util.completion(word, root.fieldKeywords)
@@ -203,9 +220,10 @@ Item {
     return true
   }
 
-  // due: takes a freeform date (tomorrow, eod, 3days): nothing to complete against, stay in add mode.
+  // due:, scheduled:, wait: and recur: take a freeform date or period (tomorrow, eod, 3days, weekly): nothing to
+  // complete against, stay in add mode.
   function completeValue(start, keyword, partial) {
-    if (keyword === "due:") return true
+    if (root.freeformKeywords.indexOf(keyword) >= 0) return true
     var pool = keyword.length === 1 ? root.known("tags")
       : keyword === "priority:" || keyword === "prio:" ? root.priorities
       : root.known("project")
@@ -216,9 +234,27 @@ Item {
     return true
   }
 
-  function markDone(task) { if (task) TaskState.markDone(task.uuid) }
-  function toggleActive(task) { if (task) TaskState.toggleActive(task.uuid, task.active) }
-  function remove(task) { if (task) TaskState.remove(task.uuid) }
+  function markDone(task) { TaskState.markDone(task) }
+  function toggleActive(task) { TaskState.toggleActive(task) }
+  function remove(task) { TaskState.remove(task) }
+
+  // a rejected add or modify comes back into the line, unless something new is typed there already
+  Connections {
+    target: TaskState
+    function onInputFailed(op, uuid, text) {
+      if (!root.opened || root.view !== "tasks" || (root.inputMode !== "" && input.text !== "")) return
+      if (op === "modify") {
+        let i = root.filtered.findIndex(function (t) { return t.uuid === uuid })
+        if (i < 0) return
+        root.select(i)
+      }
+      root.startInput(op)
+      input.text = text
+    }
+  }
+
+  readonly property string lastActionText: TaskState.lastAction
+    ? TaskState.lastAction.op + " :: " + TaskState.lastAction.desc + " :: u to undo" : ""
 
   function metaText(task) {
     var parts = []
@@ -235,6 +271,8 @@ Item {
     function toggle(): string { root.toggle(); return "ok" }
     function open(): string { root.open(null); return "ok" }
     function close(): string { root.close(); return "ok" }
+    // capture.nu and task-sync.service call it after an add from outside the shell
+    function refresh(): string { TaskState.refresh(); return "ok" }
   }
 
   OverlayCard {
@@ -268,7 +306,8 @@ Item {
         Repeater {
           model: [
             { name: "tasks", label: "tasks :: " + TaskState.pendingCount + (TaskState.overdueCount > 0 ? " :: " + TaskState.overdueCount + " overdue" : "") },
-            { name: "notes", label: "notes" + (NotesState.conflict ? " :: changed on disk" : "") }
+            { name: "notes", label: "notes" + (NotesState.conflict ? " :: changed on disk" : "") },
+            { name: "inbox", label: "inbox" }
           ]
 
           PanelSectionHeader {
@@ -307,7 +346,8 @@ Item {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             width: Style.space(18)
-            text: root.inputMode === "add" ? "+" : (root.inputMode === "filter" || root.filterText ? "/" : ">")
+            text: root.inputMode === "add" ? "+" : root.inputMode === "modify" ? "~"
+              : (root.inputMode === "filter" || root.filterText ? "/" : ">")
             color: Colors.accentText
             font.pixelSize: Style.font.heading
             font.bold: true
@@ -338,6 +378,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: root.inputMode === "" || input.text === ""
             text: root.inputMode === "add" ? "description project:x due:tomorrow priority:H +tag"
+              : root.inputMode === "modify" && root.modifyTask ? "new description or due:fri priority:H -tag :: " + root.modifyTask.desc
               : root.inputMode === "filter" ? "filter"
               : root.filterText ? root.filterText : "a to add, / to filter"
             color: root.inputMode === "" && root.filterText ? Colors.menu.text : Colors.textDim
@@ -367,17 +408,17 @@ Item {
           anchors.topMargin: visible ? Style.spacing.xs : 0
           anchors.left: parent.left
           anchors.right: parent.right
-          height: visible ? implicitHeight : 0
-          visible: TaskState.errorText !== ""
-          text: "x ERR " + TaskState.errorText
-          color: Colors.urgentText
+          visible: text !== ""
+          text: TaskState.errorText !== "" ? "x ERR " + TaskState.errorText : root.lastActionText
+          color: TaskState.errorText !== "" ? Colors.urgentText : Colors.textDim
           caption: true
           elide: Text.ElideRight
         }
 
         ListView {
           id: taskList
-          anchors.top: errorLine.bottom
+          // the error line's own height binding loops with its elide, so the list skips it while it is hidden
+          anchors.top: errorLine.visible ? errorLine.bottom : inputLine.bottom
           anchors.topMargin: Style.spacing.sm
           anchors.left: parent.left
           anchors.right: parent.right
@@ -497,6 +538,14 @@ Item {
 
               Label {
                 anchors.verticalCenter: parent.verticalCenter
+                visible: row.modelData.scheduled !== ""
+                text: row.modelData.scheduled
+                color: Colors.textDim
+                caption: true
+              }
+
+              Label {
+                anchors.verticalCenter: parent.verticalCenter
                 visible: row.modelData.due !== ""
                 text: row.modelData.due
                 color: row.modelData.overdue ? Colors.urgentText : Colors.textDim
@@ -612,7 +661,7 @@ Item {
             } else if (NotesState.conflictKey(event.key, event.modifiers)) {
               event.accepted = true
             } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
-              root.setView("tasks")
+              root.setView("inbox")
               event.accepted = true
             }
           }
@@ -636,6 +685,70 @@ Item {
           z: -1
           cursorShape: Qt.IBeamCursor
           onClicked: notesEdit.forceActiveFocus()
+        }
+      }
+
+      // read-only: nvim (SUPER+ALT+N) edits it, the launcher appends to it
+      Flickable {
+        id: inboxFlick
+        anchors.top: viewTabs.bottom
+        anchors.topMargin: Style.spacing.sm
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        visible: root.view === "inbox"
+        contentWidth: width
+        contentHeight: Math.max(height, inboxEdit.implicitHeight)
+        flickableDirection: Flickable.VerticalFlick
+        boundsBehavior: Flickable.StopAtBounds
+        clip: true
+
+        function scrollBy(dy) { contentY = Math.max(0, Math.min(contentHeight - height, contentY + dy)) }
+
+        TextEdit {
+          id: inboxEdit
+          width: inboxFlick.width
+          height: Math.max(inboxFlick.height, implicitHeight)
+          textFormat: TextEdit.PlainText
+          readOnly: true
+          color: Colors.menu.text
+          selectionColor: Style.selectionFillFor(Colors.foreground, Colors.accent)
+          selectedTextColor: Colors.menu.text
+          wrapMode: TextEdit.Wrap
+          selectByMouse: true
+          font.family: Style.font.family
+          font.pixelSize: Style.font.body
+          text: inboxFile.content
+
+          Keys.priority: Keys.BeforeItem
+          Keys.onPressed: function (event) {
+            if (event.key === Qt.Key_Escape) root.close()
+            else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) root.setView("tasks")
+            else if (event.key === Qt.Key_Down || event.text === "j") inboxFlick.scrollBy(root.rowHeight)
+            else if (event.key === Qt.Key_Up || event.text === "k") inboxFlick.scrollBy(-root.rowHeight)
+            else if (event.key === Qt.Key_PageDown) inboxFlick.scrollBy(inboxFlick.height)
+            else if (event.key === Qt.Key_PageUp) inboxFlick.scrollBy(-inboxFlick.height)
+            else if (event.text === "g") inboxFlick.contentY = 0
+            else if (event.text === "G") inboxFlick.scrollBy(inboxFlick.contentHeight)
+            else return
+            event.accepted = true
+          }
+
+          Label {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            visible: inboxEdit.text.length === 0
+            text: "no # notes yet"
+            dim: true
+          }
+        }
+
+        WatchedFile {
+          id: inboxFile
+          property string content: ""
+          path: Paths.inbox
+          onLoaded: content = String(text() || "")
+          onLoadFailed: content = ""
         }
       }
     }

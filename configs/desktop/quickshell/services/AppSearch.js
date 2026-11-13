@@ -41,32 +41,40 @@ function allTermsMatch(entry, query) {
   return String(query || "").toLowerCase().trim().split(/\s+/).every(function(t) { return termMatches(entry, t) })
 }
 
-function fuzzyScore(entry, query) {
+var TIER_NAME_PREFIX = 6
+var TIER_ID_PREFIX = 5
+var TIER_NAME_OR_ID = 4
+var TIER_HAYSTACK = 3
+var TIER_ACRONYM = 2
+var TIER_TERMS = 1
+
+// tier: how the query matched, ranked above frecency; score: the finer order inside a tier. null when it does not match
+function entryMatch(entry, query) {
   var q = String(query || "").trim().toLowerCase()
-  if (!q) return 0
-  if (!allTermsMatch(entry, q)) return -1
+  if (!q) return { tier: 0, score: 0 }
+  if (!allTermsMatch(entry, q)) return null
 
   var name = entryName(entry).toLowerCase()
   var id = String((entry && entry.id) || "").toLowerCase()
   var haystack = entrySearchText(entry)
   var directName = name.indexOf(q)
   var directId = id.indexOf(q)
-  if (directName === 0) return 10000 - name.length
-  if (directId === 0) return 9500 - id.length
-  if (directName > 0) return 8000 - directName * 10 - name.length
-  if (directId > 0) return 7600 - directId * 10 - id.length
+  if (directName === 0) return { tier: TIER_NAME_PREFIX, score: -name.length }
+  if (directId === 0) return { tier: TIER_ID_PREFIX, score: -id.length }
+  if (directName > 0) return { tier: TIER_NAME_OR_ID, score: -directName * 10 - name.length }
+  if (directId > 0) return { tier: TIER_NAME_OR_ID, score: -directId * 10 - id.length }
 
   var hayIndex = haystack.indexOf(q)
-  if (hayIndex >= 0) return 6000 - hayIndex
+  if (hayIndex >= 0) return { tier: TIER_HAYSTACK, score: -hayIndex }
 
   var acronym = entryAcronym(entry)
   var acronymIndex = acronym.indexOf(q)
-  if (acronymIndex === 0) return 5000 - acronym.length
-  if (acronymIndex > 0) return 4600 - acronymIndex * 10 - acronym.length
+  if (acronymIndex >= 0) return { tier: TIER_ACRONYM, score: -acronymIndex * 10 - acronym.length }
 
-  return 4000 - name.length
+  return { tier: TIER_TERMS, score: -name.length }
 }
 
+// match tier first, then frecency, then the fine score, then the name
 function sortedEntries(values, query, hiddenCallback, rankCallback) {
   var q = String(query || "").trim()
   var rows = []
@@ -77,14 +85,15 @@ function sortedEntries(values, query, hiddenCallback, rankCallback) {
     if (hiddenCallback && hiddenCallback(entry)) continue
     var name = entryName(entry)
     if (!name) continue
-    var score = fuzzyScore(entry, q)
-    if (score < 0) continue
-    rows.push({ entry: entry, score: score, rank: rankCallback ? rankCallback(entry) : 0, key: name.toLowerCase() })
+    var match = entryMatch(entry, q)
+    if (!match) continue
+    rows.push({ entry: entry, tier: match.tier, score: match.score, rank: rankCallback ? rankCallback(entry) : 0, key: name.toLowerCase() })
   }
 
   rows.sort(function(a, b) {
-    if (q && a.score !== b.score) return b.score - a.score
+    if (a.tier !== b.tier) return b.tier - a.tier
     if (a.rank !== b.rank) return b.rank - a.rank
+    if (a.score !== b.score) return b.score - a.score
     if (a.key < b.key) return -1
     if (a.key > b.key) return 1
     return 0

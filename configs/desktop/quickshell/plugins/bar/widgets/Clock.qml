@@ -16,6 +16,10 @@ BarWidget {
   property var zoneOffsets: []
   property real travelHours: 0
 
+  // today's calendar events, the agenda's own rows: the desktop agenda sits behind every window
+  readonly property int todayMax: 6
+  readonly property var todayEvents: CalendarState.events.filter(e => e.today)
+
   readonly property var pomo: TimerState.pomo
   readonly property var reminders: TimerState.reminders
 
@@ -204,6 +208,54 @@ BarWidget {
           }
         }
         HudFrame {}
+      }
+
+      PanelSeparator { visible: root.todayEvents.length > 0 }
+      PanelSectionHeader {
+        text: "TODAY" + (CalendarState.stale ? " (offline)" : "")
+        visible: root.todayEvents.length > 0
+      }
+
+      Repeater {
+        model: root.todayEvents.slice(0, root.todayMax)
+        Item {
+          id: todayRow
+          required property var modelData
+          width: content.width
+          implicitHeight: todayWhen.implicitHeight
+          height: implicitHeight
+          Label {
+            id: todayMark
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            text: todayRow.modelData.marker
+            color: todayRow.modelData.markerColor
+          }
+          Label {
+            anchors.left: todayMark.right
+            anchors.leftMargin: Style.spacing.xs
+            anchors.right: todayWhen.left
+            anchors.rightMargin: Style.spacing.xs
+            anchors.verticalCenter: parent.verticalCenter
+            text: todayRow.modelData.summary
+            color: Colors.menu.text
+            elide: Text.ElideRight
+          }
+          Label {
+            id: todayWhen
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            text: todayRow.modelData.when
+            color: todayRow.modelData.allDay ? Colors.accent2Text : Colors.accentText
+          }
+        }
+      }
+
+      Label {
+        visible: root.todayEvents.length > root.todayMax
+        text: "+" + (root.todayEvents.length - root.todayMax) + " more"
+        dim: true
+        caption: true
       }
 
       PanelSeparator { visible: root.zoneOffsets.length > 0 }

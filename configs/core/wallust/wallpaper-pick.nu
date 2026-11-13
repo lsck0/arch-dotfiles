@@ -5,6 +5,7 @@ use ../../../scripts/lib/state.nu [xdg]
 const THUMB_DIR = "wal/wallpaper-thumbs"
 const THUMB_SIZE_PX = "480"
 const RANDOM = "random"
+const FZF_ERROR = 2
 
 # Cached thumbnail keyed by mtime and size; chafa on the full image would decode megapixels per cursor move.
 def thumb-of [file: path]: nothing -> path {
@@ -33,7 +34,12 @@ def main []: string -> nothing {
         | (^fzf --prompt "wallpaper> " --delimiter / --with-nth=-1
             --preview-window "right:60%" --preview $"'($self)' preview {}")
         | str trim
-    } catch { return }
+    } catch {|e|
+        # 1 no match, 130 esc: a cancel; 2 fzf itself failed, as without a terminal
+        if $e.exit_code? != $FZF_ERROR { return }
+        print -e "wallpaper: fzf failed, it needs a terminal"
+        exit $FZF_ERROR
+    }
     print (if $picked == $RANDOM { $wallpapers | shuffle | first } else { $picked })
 }
 

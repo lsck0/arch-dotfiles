@@ -34,6 +34,7 @@ Item {
   property bool gpgHidden: false
   readonly property bool gpgBusy: gpgKeysProc.running || gpgEncryptProc.running || gpgDecryptProc.running
   readonly property string gpgHelper: root.pluginDir + "/gpg.nu"
+  readonly property string pasteHelper: root.pluginDir + "/paste.nu"
 
   readonly property string historyPath: Paths.runtime + "/clipboard-history.json"
   readonly property string imagesDir: Paths.runtime + "/clipboard-images"
@@ -355,6 +356,12 @@ Item {
     root.copyRow(displayModel.get(index))
   }
 
+  function pasteIndex(index) {
+    if (index < 0 || index >= displayModel.count) return
+    root.copyRow(displayModel.get(index))
+    Quickshell.execDetached([root.pasteHelper])
+  }
+
   function openIndex(index) {
     if (index < 0 || index >= displayModel.count) return
     root.openRow(displayModel.get(index))
@@ -534,7 +541,7 @@ Item {
     placeholder: "search clipboard"
     hints: root.gpgMode === "encrypt" ? [["^/v", "key"], ["SPACE", "pick"], ["ENTER", "encrypt"], ["ESC", "back"]]
       : root.gpgMode === "decrypt" ? [["^/v", "scroll"], ["ESC", "back"]]
-      : [["ENTER", "copy"], ["ALT+ENTER", "open"], ["DEL", "forget"], ["SHIFT+DEL", "clear"], ["CTRL+E", "encrypt"], ["CTRL+D", "decrypt"], ["ESC", "close"]]
+      : [["ENTER", "copy"], ["SHIFT+ENTER", "paste"], ["ALT+ENTER", "open"], ["DEL", "forget"], ["SHIFT+DEL", "clear"], ["CTRL+E", "encrypt"], ["CTRL+D", "decrypt"], ["ESC", "close"]]
     keyboard: !root.gpgBusy
     cardWidth: Style.space(700)
     onDismissed: root.close()
@@ -576,6 +583,7 @@ Item {
         else if (event.key === Qt.Key_End) root.selectAbsolute(displayModel.count - 1)
         else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
           if (event.modifiers & Qt.AltModifier) root.openIndex(root.selectedIndex)
+          else if (event.modifiers & Qt.ShiftModifier) root.pasteIndex(root.selectedIndex)
           else root.activateIndex(root.selectedIndex)
         } else if (event.key === Qt.Key_Backspace) root.setFilter(root.filterText.slice(0, -1))
         else if (event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127)

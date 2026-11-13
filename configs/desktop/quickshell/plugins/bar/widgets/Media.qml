@@ -14,57 +14,8 @@ BarWidget {
   hoverFill: true
   panelPinOnClick: false
 
-  property string pinnedPlayer: ""
-
-  function duplicateScore(p) {
-    return (p.playbackState === MprisPlaybackState.Playing ? 8 : 0)
-      + (p.trackArtUrl ? 4 : 0) + (p.lengthSupported && p.length > 0 ? 2 : 0) + (p.trackTitle ? 1 : 0)
-  }
-
-  // one player per bus, then per identity (a browser's tabs), the richest one kept; playerctld only proxies the others
-  readonly property var players: {
-    var values = Mpris.players ? Mpris.players.values : [] // qmllint disable missing-property
-    var seen = ({})
-    var byIdentity = ({})
-    for (let i = 0; i < values.length; i++) {
-      let p = values[i]
-      let bus = String(p.dbusName || "")
-      let key = bus || String(p.identity || i)
-      if (bus.indexOf("playerctld") !== -1 || seen[key]) continue
-      seen[key] = true
-      let idKey = String(p.identity || p.dbusName).toLowerCase().trim()
-      let held = byIdentity[idKey]
-      if (!held || duplicateScore(p) > duplicateScore(held)) byIdentity[idKey] = p
-    }
-    return Object.values(byIdentity)
-  }
-
-  property string lastShownPlayer: ""
-
-  property var player: null
-
-  function pickPlayer() {
-    var byBus = name => name ? players.find(p => p.dbusName === name) : undefined
-    return byBus(pinnedPlayer) || players.find(p => p.playbackState === MprisPlaybackState.Playing)
-      || byBus(lastShownPlayer) || players[0] || null
-  }
-
-  function updatePlayer() {
-    var next = pickPlayer()
-    if (next !== player) player = next
-    lastShownPlayer = player ? player.dbusName : ""
-  }
-
-  readonly property string playbackKey: Array.from(Mpris.players ? Mpris.players.values : []) // qmllint disable missing-property
-    .map(p => p.dbusName + ":" + p.playbackState).join(";")
-
-  onPlaybackKeyChanged: updatePlayer()
-  onPinnedPlayerChanged: updatePlayer()
-
-  onPlayersChanged: {
-    if (pinnedPlayer && !players.some(p => p.dbusName === pinnedPlayer)) pinnedPlayer = ""
-    updatePlayer()
-  }
+  readonly property var players: MediaState.players
+  readonly property var player: MediaState.player
 
   readonly property string title: player ? (player.trackTitle || "") : ""
   readonly property string artist: player ? (player.trackArtist || "") : ""
@@ -193,7 +144,6 @@ BarWidget {
   }
 
   Component.onCompleted: {
-    updatePlayer()
     Cava.source = spectrumSource
     refreshArt()
   }
@@ -518,8 +468,8 @@ BarWidget {
             glyph: modelData.playbackState === MprisPlaybackState.Playing ? "\u{f04b}" : ""
             label: modelData.identity || modelData.dbusName
             upper: false
-            onActivated: root.pinnedPlayer =
-              (root.pinnedPlayer === modelData.dbusName) ? "" : modelData.dbusName
+            onActivated: MediaState.pinnedPlayer =
+              (MediaState.pinnedPlayer === modelData.dbusName) ? "" : modelData.dbusName
           }
         }
       }

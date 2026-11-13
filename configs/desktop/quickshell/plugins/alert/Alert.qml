@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 import qs.Commons
@@ -40,9 +41,33 @@ Item {
   function snoozeAt(index, minutes) {
     var alert = root.alerts[index]
     var argv = [Paths.script("reminder.nu"), String(minutes)]
-    if (alert && alert.message) argv.push(alert.message)
+    // end of flags: a message such as "--call mom" stays the message
+    if (alert && alert.message) argv.push("--", alert.message)
     Quickshell.execDetached(argv)
     dismissAt(index)
+  }
+
+  readonly property int snoozeShortMin: 5
+  readonly property int snoozeLongMin: 15
+
+  // the keys and IPC act on the newest card, so one Esc after a burst drops one alert, not all of them
+  function snoozeNewest(minutes) {
+    var last = root.alerts.length - 1
+    if (last < 0 || root.alerts[last].kind !== "reminder") return false
+    root.snoozeAt(last, minutes)
+    return true
+  }
+
+  function dismissNewest() {
+    if (root.alerts.length === 0) return false
+    root.dismissAt(root.alerts.length - 1)
+    return true
+  }
+
+  IpcHandler {
+    target: "alert"
+    function dismiss(): string { return root.dismissNewest() ? "ok" : "none" }
+    function snooze(minutes: int): string { return root.snoozeNewest(minutes) ? "ok" : "none" }
   }
 
   readonly property var mainScreen: {
@@ -85,7 +110,11 @@ Item {
 
     PanelKeyCatcher {
       anchors.fill: parent
-      onCloseRequested: root.close()
+      onCloseRequested: root.dismissNewest()
+      onTextKey: function(text) {
+        if (text === "5") root.snoozeNewest(root.snoozeShortMin)
+        else if (text === "1") root.snoozeNewest(root.snoozeLongMin)
+      }
 
       // a burst of alerts (after a suspend) outgrows the screen, so the stack scrolls below the bar
       Flickable {
@@ -214,18 +243,21 @@ Item {
                   Button {
                     variant: "chip"
                     visible: card.modelData.kind === "reminder"
-                    text: "Snooze 5 min"
-                    onClicked: root.snoozeAt(card.index, 5)
+                    text: "Snooze " + root.snoozeShortMin + " min"
+                    tooltipText: "5"
+                    onClicked: root.snoozeAt(card.index, root.snoozeShortMin)
                   }
                   Button {
                     variant: "chip"
                     visible: card.modelData.kind === "reminder"
-                    text: "Snooze 15 min"
-                    onClicked: root.snoozeAt(card.index, 15)
+                    text: "Snooze " + root.snoozeLongMin + " min"
+                    tooltipText: "1"
+                    onClicked: root.snoozeAt(card.index, root.snoozeLongMin)
                   }
                   Button {
                     variant: "chip"
                     text: "Dismiss"
+                    tooltipText: "Esc"
                     selected: true
                     onClicked: root.dismissAt(card.index)
                   }

@@ -2,7 +2,7 @@ use module.nu *
 
 export const meta = {
     deps: [desktop/hyprland]
-    packages: {pacman: [cava libqalculate pipewire-audio qrencode qt6-shadertools quickshell websocat zenity]}
+    packages: {pacman: [cava libqalculate pipewire-audio qrencode qt6-shadertools quickshell websocat wtype zenity]}
 }
 
 export const options = {
@@ -13,7 +13,7 @@ export const options = {
 }
 
 const CONFIG_DIR = ".config/quickshell"
-const SKIP = [mod.nu AGENTS.md quickshell.service .qmllint.ini .gitignore dotfiles-settings.desktop]
+const SKIP = [mod.nu AGENTS.md quickshell.service quickshell-reminders-rearm.service .qmllint.ini .gitignore dotfiles-settings.desktop]
 const SKIP_PATTERN = '(__pycache__|\.log$|\.qsb$|\.test\.(nu|sh)$)'
 
 def pomodoro-config [cfg: record]: nothing -> record {
@@ -27,9 +27,10 @@ export def link [cfg: record] {
         | where {|f| ($f.name | path basename) not-in $SKIP and $f.name !~ $SKIP_PATTERN }
     [
         ($files | each {|f| file-copy $f.name ($dir | path join $f.name) --mode (if ($f.mode | str substring 2..2) == "x" { "755" } else { "644" }) })
-        (link-commands ...(glob 'scripts/*.{nu,sh}'))
+        (link-commands ...(glob 'scripts/*.{nu,sh}' | where $it !~ $SKIP_PATTERN))
         # not enabled: hyprland_autostart.lua starts it
         (unit-file quickshell.service)
+        (unit-file quickshell-reminders-rearm.service --enable)
         (pomodoro-config $cfg)
         # the settings window outside hyprland (settings-only.qml), listed in Plasma's launcher only
         (file-render dotfiles-settings.desktop (xdg data applications dotfiles-settings.desktop) {HOME: $nu.home-dir})

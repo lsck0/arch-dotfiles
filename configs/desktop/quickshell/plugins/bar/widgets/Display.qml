@@ -50,8 +50,13 @@ BarWidget {
     shaderProc.run()
   }
 
+  // a press while one runs waits its turn rather than being dropped
+  property var colorQueue: []
   function colorRun(argv) {
-    if (colorActionProc.running) return
+    if (colorActionProc.running) {
+      colorQueue = colorQueue.concat([argv])
+      return
+    }
     colorActionProc.command = argv
     colorActionProc.running = true
   }
@@ -73,7 +78,25 @@ BarWidget {
 
   Process {
     id: colorActionProc
-    onExited: root.refreshColor()
+    onExited: {
+      if (root.colorQueue.length > 0) {
+        const next = root.colorQueue[0]
+        root.colorQueue = root.colorQueue.slice(1)
+        root.colorRun(next)
+        return
+      }
+      root.refreshColor()
+    }
+  }
+
+  // focus mode, settings and the menu change them too: re-read now while shown, else on the next open
+  Connections {
+    target: ToggleEvents
+    function onChanged(script) {
+      if (["toggle-nightlight.nu", "toggle-color-grading.nu", "toggle-shader.nu"].indexOf(script) < 0) return
+      if (panel.visible) root.refreshColor()
+      else root.colorReadMs = 0
+    }
   }
 
   function setMonitorLayout(name, action) {
@@ -141,6 +164,7 @@ BarWidget {
   }
 
   HoverPanel {
+    id: panel
     anchorWidget: root
     implicitWidth: Style.panelWidth.normal
 

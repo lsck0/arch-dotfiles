@@ -40,7 +40,11 @@ Examples: `toggle-focus.nu` (combines toggles via `toggle-run`), `toggle-theme-m
 2. Root work: one `root-run <verb>` per flip (one prompt at most), running `toggle-root`
    (`configs/core/toggles/toggle-root.nu`) via pkexec; add the verb there and a rule in `49-toggles.rules` if needed.
    Lowering a guard uses `systemctl-guarded`.
-3. `switch-run` notifies quickshell (`toggles changed <script>`); an n-state toggle calls `notify` itself.
+3. `switch-run` notifies quickshell (`toggles changed <script>`); an n-state toggle calls `notify` itself. It runs one
+   flip at a time (a press meanwhile says "Still switching"), skips an `on`/`off` already in that state, puts a
+   failure's `err.msg` in the toast (`root-run`, `systemctl-guarded` raise the last stderr line), and takes
+   `{said: <body>}` from on/off in place of "Turned on". `TOGGLES_QUIET=1` (a combined toggle's parts) keeps
+   the ping and failures, not the success toast.
 
 Quickshell control (only for a dedicated one): run `Quickshell.execDetached([Paths.toggle("toggle-<name>.nu"),
 "toggle"])`, refresh on `ToggleEvents.changed(script)`.

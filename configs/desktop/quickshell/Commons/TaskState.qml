@@ -14,12 +14,26 @@ Singleton {
   readonly property int msPerMinute: 60 * 1000
   readonly property int msPerHour: 60 * msPerMinute
   readonly property int msPerDay: 24 * msPerHour
+  // a sync or another task process holds the db: one retry after this
+  readonly property int lockRetryMs: 2000
+  // a change from outside the shell (launcher capture, sync, the CLI) lands in the db file; its burst of writes is one refresh
+  readonly property int dbSettleMs: 500
+  readonly property string dbPath: Paths.envDir("TASKDATA", Paths.home + "/.task") + "/taskchampion.sqlite3"
 
   property bool panelOpen: false
 
   property var tasks: []
   property bool loaded: false
-  property string errorText: ""
+  // a failed change stays shown until the next change succeeds or the panel closes; an export error clears on the next export
+  property string actionError: ""
+  property string exportError: ""
+  readonly property string errorText: actionError || exportError
+  // the last change undo can revert: {uuid, desc, op}
+  property var lastAction: null
+  property var mutateItem: null
+
+  // add and modify hand their text back, so the panel can put it into the input again
+  signal inputFailed(string op, string uuid, string text)
   readonly property int pendingCount: tasks.length
   readonly property int overdueCount: {
     var n = 0
@@ -30,7 +44,7 @@ Singleton {
   property var notified: ({})
   property bool notifiedReady: false
   property ProcessQueue mutateQueue: ProcessQueue {
-    onRunItem: function (item) { mutateProc.command = item; mutateProc.running = true }
+    onRunItem: function (item) { root.mutateItem = item; mutateProc.command = item.argv; mutateProc.running = true }
   }
   property var tracked: ({})
 
@@ -152,8 +166,9 @@ Singleton {
         urgency: Number(t.urgency) || 0
       })
     }
+    // overdue first, then urgency: it already weighs due proximity, priority and the tag coefficients, like task next
     out.sort(function (a, b) {
-      if (a.dueMs !== b.dueMs) return a.dueMs < b.dueMs ? -1 : 1
+      if (a.overdue !== b.overdue) return a.overdue ? -1 : 1
       return b.urgency - a.urgency
     })
     return out
@@ -172,25 +187,63 @@ Singleton {
     exportProc.run()
   }
 
-  function run(args) {
-    root.mutateQueue.enqueue(root.taskArgv.concat(args))
+  // item: {op, uuid, desc, text}; op is the task verb, except "undo"
+  function run(args, item) {
+    root.mutateQueue.enqueue(Object.assign({ op: "", uuid: "", desc: "", text: "", retried: false }, item || {},
+      { argv: root.taskArgv.concat(args) }))
+  }
+
+  function words(text) {
+    return String(text || "").trim().split(/\s+/).filter(function (w) { return w.length > 0 })
   }
 
   function add(text) {
-    var words = String(text || "").trim().split(/\s+/).filter(function (w) { return w.length > 0 })
-    if (words.length === 0) return
-    run(["add"].concat(words))
+    var list = root.words(text)
+    if (list.length === 0) return
+    run(["add"].concat(list), { op: "add", text: text })
   }
 
-  function markDone(uuid) { if (uuid) run([uuid, "done"]) }
-  function remove(uuid) { if (uuid) run([uuid, "delete"]) }
-  // One task tracks at a time: timew start closes the running interval, so the task that owned it stops too.
-  function toggleActive(uuid, active) {
-    if (!uuid) return
-    if (active) { run([uuid, "stop"]); return }
-    for (let i = 0; i < root.tasks.length; i++) if (root.tasks[i].active && root.tasks[i].uuid !== uuid) run([root.tasks[i].uuid, "stop"])
-    run([uuid, "start"])
+  // bare words replace the description, attributes (due:, priority:, project:, +tag, -tag) change only themselves
+  function modify(task, text) {
+    var list = root.words(text)
+    if (!task || list.length === 0) return
+    run([task.uuid, "modify"].concat(list), { op: "modify", uuid: task.uuid, desc: task.desc, text: text })
   }
+
+  function markDone(task) { if (task) run([task.uuid, "done"], { op: "done", uuid: task.uuid, desc: task.desc }) }
+  function remove(task) { if (task) run([task.uuid, "delete"], { op: "delete", uuid: task.uuid, desc: task.desc }) }
+  // One task tracks at a time: timew start closes the running interval, so the task that owned it stops too.
+  function toggleActive(task) {
+    if (!task) return
+    if (task.active) { run([task.uuid, "stop"], { op: "stop", uuid: task.uuid, desc: task.desc }); return }
+    for (let i = 0; i < root.tasks.length; i++) if (root.tasks[i].active && root.tasks[i].uuid !== task.uuid) run([root.tasks[i].uuid, "stop"])
+    run([task.uuid, "start"], { op: "start", uuid: task.uuid, desc: task.desc })
+  }
+
+  // done and delete go back to pending by uuid, which a sync in between does not break, unlike task undo
+  function undoLast() {
+    var last = root.lastAction
+    if (!last) return
+    // restarting a stopped task keeps one task tracking, as toggleActive does
+    if (last.op === "stop") for (let i = 0; i < root.tasks.length; i++) if (root.tasks[i].active && root.tasks[i].uuid !== last.uuid) run([root.tasks[i].uuid, "stop"])
+    var args = last.op === "start" ? [last.uuid, "stop"]
+      : last.op === "stop" ? [last.uuid, "start"]
+      : [last.uuid, "modify", "status:pending"]
+    run(args, { op: "undo", uuid: last.uuid, desc: last.desc })
+  }
+
+  function mutateFinish(item, exitCode, stderr) {
+    if (exitCode !== 0) {
+      root.actionError = String(stderr || "").trim().split("\n")[0] || "task exited " + exitCode
+      if (item.op === "add" || item.op === "modify") root.inputFailed(item.op, item.uuid, item.text)
+      return
+    }
+    root.actionError = ""
+    if (item.op === "undo") root.lastAction = null
+    else if (["done", "delete", "start", "stop"].indexOf(item.op) >= 0) root.lastAction = { uuid: item.uuid, desc: item.desc, op: item.op }
+  }
+
+  onPanelOpenChanged: if (!panelOpen) root.actionError = ""
 
   function checkDue() {
     if (!root.notifiedReady || !root.loaded) return
@@ -222,14 +275,14 @@ Singleton {
     onParsed: function (data) {
       root.tasks = root.buildTasks(data)
       root.loaded = true
-      root.errorText = ""
+      root.exportError = ""
       root.checkDue()
       root.exportDone()
     }
     onFailed: function (error) {
       // keep the last-good list: a transient export failure (a db lock from an overlapping poll) must not blank the widget
       root.loaded = true
-      root.errorText = "task export failed"
+      root.exportError = "task export failed"
       root.exportDone()
     }
   }
@@ -245,11 +298,41 @@ Singleton {
     id: mutateProc
     stderr: StdioCollector { id: mutateErr; waitForEnd: true }
     onExited: function (exitCode) {
-      root.errorText = exitCode === 0 ? "" : (String(mutateErr.text || "").trim().split("\n")[0] || "task exited " + exitCode)
+      var item = root.mutateItem
+      if (exitCode !== 0 && !item.retried && /database is locked/.test(String(mutateErr.text || ""))) {
+        item.retried = true
+        lockRetry.start()
+        return
+      }
+      root.mutateFinish(item, exitCode, mutateErr.text)
       timewProc.refresh()
       root.mutateQueue.done()
       if (!root.mutateQueue.running) root.refresh()
     }
+  }
+
+  Timer {
+    id: lockRetry
+    interval: root.lockRetryMs
+    onTriggered: mutateProc.running = true
+  }
+
+  // watched, never read: the db is binary, only its change matters
+  FileView {
+    path: root.dbPath
+    preload: false
+    watchChanges: true
+    printErrors: false
+    onFileChanged: {
+      dbSettle.restart()
+      Util.rearmWatch(this)
+    }
+  }
+
+  Timer {
+    id: dbSettle
+    interval: root.dbSettleMs
+    onTriggered: root.refresh()
   }
 
   FileView {

@@ -20,3 +20,4 @@ singleton TaskState 1.0 TaskState.qml
 ProcessQueue 1.0 ProcessQueue.qml
 singleton CalendarState 1.0 CalendarState.qml
 singleton NotesState 1.0 NotesState.qml
+singleton MediaState 1.0 MediaState.qml

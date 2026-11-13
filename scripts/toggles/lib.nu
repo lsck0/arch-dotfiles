@@ -35,13 +35,31 @@ def user-is-admin []: nothing -> bool {
 # One unit per call: EnqueueUnitJobMany is refused before polkit can ask.
 export def systemctl-guarded [verb: string, ...units: string]: nothing -> nothing {
     let ask = if (user-is-admin) { [] } else { [--no-ask-password] }
-    for unit in $units { ^systemctl ...$ask $verb $unit }
+    for unit in $units { ^systemctl ...$ask $verb $unit | complete | raise-failed $"systemctl ($verb) ($unit)" }
+}
+
+# Passes a completed external's output on and, when it failed, raises its last stderr line, which the failure toast
+# shows: nushell's own error for a failed external names no cause.
+export def raise-failed [what: string]: record -> nothing {
+    let run = $in
+    if $run.stdout != "" { print --no-newline $run.stdout }
+    if $run.stderr != "" { print --stderr --no-newline $run.stderr }
+    if $run.exit_code != 0 {
+        let cause = $run.stderr | str trim | lines | last 1 | str join ""
+        error make {msg: (if $cause != "" { $cause } else { $"($what) exited ($run.exit_code)" })}
+    }
 }
 
 # Runs the root helper through pkexec; a non-admin is turned away before its password dialog.
 export def root-run [...args: string]: nothing -> nothing {
     if not (user-is-admin) { error make {msg: $"($args.0) needs an admin"} }
-    ^pkexec $ROOT_HELPER ...$args
+    let run = ^pkexec $ROOT_HELPER ...$args | complete
+    # 126: the dialog was dismissed; pkexec's own refusals (127) name themselves on stderr
+    if $run.exit_code == 126 {
+        if $run.stderr != "" { print --stderr --no-newline $run.stderr }
+        error make {msg: "authorization cancelled"}
+    }
+    $run | raise-failed $"toggle-root ($args | str join ' ')"
 }
 
 export def toggle-run [name: string, ...args: string]: nothing -> any {
@@ -77,8 +95,10 @@ export def quickshell-call [target: string, ...args: string]: nothing -> string 
 }
 
 # Also pings the bar, which refreshes every reader of toggle state, so nothing polls.
+# TOGGLES_QUIET=1 (a combined toggle running its parts) keeps the ping and a failure, not the part's own success toast.
 export def notify [summary: string, body: string, --critical]: nothing -> nothing {
     quickshell-call toggles changed ($env.PROCESS_PATH | path basename) | complete | ignore
+    if not $critical and $env.TOGGLES_QUIET? == "1" { return }
     let urgency = if $critical { [-u critical] } else { [] }
     ^timeout $IPC_TIMEOUT_S notify-send -a toggles ...$urgency $summary $body | complete | ignore
 }
@@ -110,16 +130,24 @@ export def status-print [status: record, json: bool]: nothing -> any {
     if $json { $status | to json --raw } else { $status.state }
 }
 
-# get/on/off/toggle for a switch; a failure exits 1, except a `get` that cannot read the state, which reports `error`
-# under the switch's own label.
+# A flip killed mid-run leaves its lock behind; a system apply (trust network) can run this long.
+const LOCK_STALE = 5min
+
+# Taken by creating the dir, which fails when it exists (nushell's own mkdir does not); a stale one is taken over.
+def lock-take [lock: path]: nothing -> bool {
+    if ($lock | path exists) and ((date now) - (ls --directory $lock | get 0.modified) > $LOCK_STALE) {
+        rm --force --recursive $lock
+    }
+    (^mkdir $lock | complete).exit_code == 0
+}
+
+# get/on/off/toggle for a switch; a failure exits 1 with its cause in the toast, except a `get` that cannot read the
+# state, which reports `error` under the switch's own label. One flip runs at a time: a press while one runs is
+# reported, not run again; `on`/`off` in that state already do nothing. An on/off closure may return {said: <body>}
+# to replace the "Turned on/off" toast (a change saved but not yet in effect).
 export def switch-run [switch: record, action: string, --json]: nothing -> any {
     let available_get = {|| if "available" in $switch { do $switch.available } else { true } }
     let state_get = {|available| if $available and (do $switch.is-on) { "on" } else { "off" } }
-    let fail = {|message, err|
-        notify $switch.label $message --critical
-        with-env {LOG_TAG: ($env.PROCESS_PATH | path basename)} { log-err $err.msg }
-        exit 1
-    }
     match $action {
         get => {
             let status = try {
@@ -131,11 +159,36 @@ export def switch-run [switch: record, action: string, --json]: nothing -> any {
             status-print $status $json
         }
         on | off | toggle => {
-            let action = if $action != toggle { $action } else {
-                try { if (do $state_get (do $available_get)) == on { "off" } else { "on" } } catch {|err| do $fail "Failed to read its state" $err }
+            let lock = state-file $"($env.PROCESS_PATH | path basename).lock" --volatile
+            if not (lock-take $lock) {
+                notify $switch.label "Still switching"
+                return
             }
-            try { do ($switch | get $action) } catch {|err| do $fail $"Failed to turn ($action)" $err }
-            notify $switch.label $"Turned ($action)"
+            let fail = {|message, err|
+                rm --force --recursive $lock
+                notify $switch.label $"($message): ($err.msg)" --critical
+                with-env {LOG_TAG: ($env.PROCESS_PATH | path basename)} { log-err $err.msg }
+                exit 1
+            }
+            # an explicit on/off whose state cannot be read runs anyway
+            let current = try { do $state_get (do $available_get) } catch {|err|
+                if $action == toggle { do $fail "Failed to read its state" $err }
+                null
+            }
+            if $action == $current {
+                rm --force --recursive $lock
+                notify $switch.label $"Already ($action)"
+                return
+            }
+            let action = if $action != toggle { $action } else if $current == on { "off" } else { "on" }
+            let result = try { do ($switch | get $action) } catch {|err| do $fail $"Failed to turn ($action)" $err }
+            rm --force --recursive $lock
+            # anything else it returned is an external's captured stdout, passed on as it would have streamed
+            let said = if ($result | describe) =~ '^record' { $result.said? } else {
+                if ($result | is-not-empty) { print $result }
+                null
+            }
+            notify $switch.label ($said | default $"Turned ($action)")
         }
         _ => {
             print -e $"usage: ($env.PROCESS_PATH | path basename) {get [--json]|on|off|toggle}"
@@ -149,7 +202,7 @@ export def service-switch [label: string, unit: string]: nothing -> record {
         label: $label
         available: {|| unit-exists $unit }
         is-on: {|| unit-active $unit }
-        on: {|| ^systemctl --no-ask-password start $unit }
+        on: {|| ^systemctl --no-ask-password start $unit | complete | raise-failed $"systemctl start ($unit)" }
         off: {|| systemctl-guarded stop $unit }
     }
 }

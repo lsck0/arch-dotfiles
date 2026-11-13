@@ -208,8 +208,13 @@ def "main theme apply" [wallpaper: path, ...mods: string@module-ids]: nothing ->
     guarded theme {
         let ctx = pipeline-load $REPO user
         let planned = pipeline-plan $ctx theme $mods true [$wallpaper]
-        pipeline-apply $ctx $planned theme (jobs) [$wallpaper] --timeout $THEME_VERB_TIMEOUT
-        | where not ok | each { log-err $"theme: ($in.id) failed" } | ignore
+        let failed = pipeline-apply $ctx $planned theme (jobs) [$wallpaper] --timeout $THEME_VERB_TIMEOUT
+            | where not ok | get id
+        $failed | each { log-err $"theme: ($in) failed" } | ignore
+        # the switch itself succeeds on purpose, so no unit failure reports a module left in the old colors
+        if ($failed | is-not-empty) and (which notify-send | is-not-empty) {
+            ^notify-send -a dotfiles -u low "Theme partly applied" $"($failed | str join ', '): dot log" | complete | ignore
+        }
     }
 }
 

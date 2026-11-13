@@ -107,7 +107,7 @@ export def wallpaper-random [--sync]: nothing -> nothing {
 
 export def wallpaper-pick []: nothing -> nothing {
     let picked = do { wallpaper-list | str join "\n" | ^$PICK } | complete
-    if $picked.exit_code != 0 { error make {msg: "no eligible wallpaper"} }
+    if $picked.exit_code != 0 { error make {msg: ($picked.stderr | str trim | default --empty "no eligible wallpaper")} }
     let file = $picked.stdout | str trim
     if $file == "" {
         print "wallpaper: none picked"

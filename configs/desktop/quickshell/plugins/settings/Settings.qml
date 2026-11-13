@@ -465,11 +465,22 @@ Item {
     root.noticeIsError = failed > 0
   }
 
+  // one toggle process at a time: a press while one runs waits its turn, marked busy; the running one's own press is
+  // ignored, its script would only report it still switching
+  property var toggleQueue: []
   function runToggle(toggle) {
-    if (toggleProc.running) return
     root.busyToggles = Util.mapSet(root.busyToggles, toggle.name, true)
-    toggleProc.name = toggle.name
-    toggleProc.command = ["uwsm-app", "-s", "b", "--", Paths.toggle("toggle-" + toggle.name + ".nu"), "toggle"]
+    if (toggleProc.running) {
+      if (toggle.name !== toggleProc.name && root.toggleQueue.indexOf(toggle.name) < 0)
+        root.toggleQueue = root.toggleQueue.concat([toggle.name])
+      return
+    }
+    startToggle(toggle.name)
+  }
+
+  function startToggle(name) {
+    toggleProc.name = name
+    toggleProc.command = ["uwsm-app", "-s", "b", "--", Paths.toggle("toggle-" + name + ".nu"), "toggle"]
     toggleProc.running = true
   }
 
@@ -567,6 +578,11 @@ Item {
         root.notice = toggleProc.name + " failed: " + root.lastLine(toggleProc)
         root.noticeIsError = true
       }
+      if (root.toggleQueue.length > 0) {
+        const next = root.toggleQueue[0]
+        root.toggleQueue = root.toggleQueue.slice(1)
+        root.startToggle(next)
+      }
       statusProc.refresh()
     }
   }
@@ -587,7 +603,11 @@ Item {
     id: statusProc
     command: [Paths.toggle("status.nu"), "--options"]
     onParsed: function (data) {
-      root.busyToggles = ({})
+      // still busy: the one running and the ones waiting
+      var busy = {}
+      if (toggleProc.running) busy[toggleProc.name] = true
+      root.toggleQueue.forEach(function (name) { busy[name] = true })
+      root.busyToggles = busy
       var next = Array.from(data || [])
       if (!Schema.equal(next, root.toggles)) root.toggles = next
     }

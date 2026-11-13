@@ -61,11 +61,19 @@ BorderSurface {
   implicitWidth: root.isRow ? Style.panelWidth.normal : Style.space(420)
   implicitHeight: mainColumn.implicitHeight + edge * 2
   radius: Style.shape.data
-  color: isRow && hovered ? Style.hoverFill : "transparent"
+  color: isRow && activeFocus ? Style.focusFillFor(Colors.foreground, Colors.accent)
+    : isRow && hovered ? Style.hoverFill
+    : "transparent"
   Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
   clip: true
 
   HoverHandler { id: hoverTracker }
+
+  // a history row is in the panel's focus chain: Return opens it as a click does, Delete removes it as a right click
+  activeFocusOnTab: root.isRow
+  Keys.onReturnPressed: if (root.isRow) root.cardClicked()
+  Keys.onEnterPressed: if (root.isRow) root.cardClicked()
+  Keys.onDeletePressed: if (root.isRow) root.closeRequested()
 
   DockShape {
     id: toastShape

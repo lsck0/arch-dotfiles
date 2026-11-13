@@ -4,7 +4,7 @@
 export const SHELL_CONFIG = ($nu.home-dir | path join .config quickshell)
 const IPC_TIMEOUT = "3s"
 
-# Sent as the app the shell shows through dnd and keeps out of history (NotificationLogic.js ACTION_APP).
+# Sent as the app the shell shows through dnd (NotificationLogic.js ACTION_APP); a shown one still goes to history.
 export def action-notify [glyph: string, title: string, body: string = ""]: nothing -> nothing {
     ^notify-send -a quickshell-action -u low -h $"string:lsck0-glyph:($glyph)" -- $title $body
 }

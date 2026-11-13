@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 # NotificationLogic.js under qmltestrunner: the toast's action filter, the sender name of a snapshot, the history list,
-# the exec argv allowlist and the img tag stripping
+# the exec argv allowlist, the img tag stripping, who passes dnd and which closed toast goes to history
 
 const LOGIC = path self NotificationLogic.js
 const RUNNER = "/usr/lib/qt6/bin/qmltestrunner"
@@ -53,6 +53,27 @@ TestCase {
     compare(NotificationLogic.stripImageTags("<img src=x>hello"), "hello")
     compare(NotificationLogic.stripImageTags("<i<img>mg src=x>hello"), "hello")
     compare(NotificationLogic.stripImageTags("plain text"), "plain text")
+  }
+
+  function test_bypass_dnd() {
+    verify(NotificationLogic.shouldBypassDnd({ appName: "quickshell-action", urgency: 0 }))
+    verify(NotificationLogic.shouldBypassDnd({ appName: "alert", urgency: NotificationLogic.URGENCY_CRITICAL }))
+    verify(NotificationLogic.shouldBypassDnd({ appName: "notify-send", urgency: NotificationLogic.URGENCY_CRITICAL }))
+    verify(!NotificationLogic.shouldBypassDnd({ appName: "alert", urgency: 1 }))
+    verify(!NotificationLogic.shouldBypassDnd({ appName: "Telegram", urgency: NotificationLogic.URGENCY_CRITICAL }))
+    verify(!NotificationLogic.isEphemeralApp("alert"))
+    verify(NotificationLogic.shouldBypassDnd({ appName: "toggles", urgency: NotificationLogic.URGENCY_CRITICAL }))
+    verify(!NotificationLogic.shouldBypassDnd({ appName: "toggles", urgency: 1 }))
+    verify(NotificationLogic.isEphemeralApp("toggles"))
+  }
+
+  function test_archives_on_close() {
+    verify(!NotificationLogic.archivesOnClose({ app: "toggles", urgency: 1 }))
+    verify(NotificationLogic.archivesOnClose({ app: "toggles", urgency: NotificationLogic.URGENCY_CRITICAL }))
+    verify(NotificationLogic.archivesOnClose({ app: "quickshell-action", urgency: 0 }))
+    verify(NotificationLogic.archivesOnClose({ app: "notify-send", urgency: 1 }))
+    verify(NotificationLogic.archivesOnClose({ app: "Telegram", urgency: 1 }))
+    verify(NotificationLogic.archivesOnClose(null))
   }
 }
 '

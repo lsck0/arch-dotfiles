@@ -11,5 +11,8 @@ Editing, reload, logs, screenshots: `l-dotfiles-quickshell-dev`.
   `quickshell ipc call shell summon <id> [json]` or `quickshell ipc call bar open <panel>`.
 - Colors come from `Colors.qml`/`Theme.qml` tokens, never hardcoded.
 - Launcher prefixes: `=` calc, `>` run, `@` windows, `?` keys, `:` clipboard, and the capture modes `+` task, `!`
-  reminder, `#` note (through `scripts/capture.nu`); `appsearch openWith '<text>'` opens it on a mode (SUPER+i).
+  reminder, `#` note (through `scripts/capture.nu`); `appsearch openWith '<text>'` opens it on a mode (SUPER+i,
+  SUPER+SHIFT+i for `!`).
+- Reminders (`scripts/reminder.nu`): transient wall-clock timers plus one record each in
+  `$XDG_STATE_HOME/quickshell/reminders`, which `quickshell-reminders-rearm.service` re-arms after a reboot or logout.
 - The tree is a managed copy: edit the repo, `dot apply desktop/quickshell`; `restart.nu` restarts the unit.

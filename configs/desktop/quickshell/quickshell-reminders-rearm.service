@@ -1,0 +1,11 @@
+[Unit]
+Description=Re-arm the reminders a reboot or logout took, from their records in the state dir
+# a reminder already past fires shortly after, so the shell is up to show its card; no ordering needed
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/quickshell/scripts/reminder.nu rearm
+
+[Install]
+WantedBy=graphical-session.target

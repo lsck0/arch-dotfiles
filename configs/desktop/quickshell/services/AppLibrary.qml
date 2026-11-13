@@ -20,6 +20,8 @@ Item {
   property var lastActiveToplevel: null
   property bool launchOsdOpen: false
   property string launchOsdMessage: ""
+  property string launchName: ""
+  readonly property int launchNoticeMs: 3000
 
   signal appsChanged()
 
@@ -67,7 +69,15 @@ Item {
     if (!id) return
     root.recordLaunch(id)
     root.beginLaunchFeedback(name)
-    Quickshell.execDetached(["uwsm-app", "--", "gtk-launch", id + ".desktop"])
+    var argv = ["uwsm-app", "--", "gtk-launch", id + ".desktop"]
+    // gtk-launch returns once the app is spawned; a second launch inside that moment goes without the exit check
+    if (launchProc.running) {
+      Quickshell.execDetached(argv)
+      return
+    }
+    launchProc.serial = root.launchSerial
+    launchProc.command = argv
+    launchProc.running = true
   }
 
   function parseIdSet(rawText) {
@@ -115,7 +125,8 @@ Item {
     root.launchSerial++
     root.launchToplevelCount = root.toplevelCount()
     root.launchActiveToplevel = root.lastActiveToplevel
-    root.launchOsdMessage = "Launching " + String(name || "application") + "..."
+    root.launchName = String(name || "application")
+    root.launchOsdMessage = "Launching " + root.launchName + "..."
     launchDelay.restart()
     launchTimeout.restart()
   }
@@ -128,6 +139,16 @@ Item {
       Quickshell.execDetached(Paths.ipcCall("osd", "close"))
       root.launchOsdOpen = false
     }
+  }
+
+  // replaces the launching OSD in place: a close followed by a present could land in either order
+  function failLaunchFeedback(serial, message) {
+    if (serial !== root.launchSerial) return
+    launchDelay.stop()
+    launchTimeout.stop()
+    root.launchOsdOpen = false
+    Quickshell.execDetached(Paths.ipcCall("osd", "present",
+      JSON.stringify({ icon: "launch", message: message, duration: root.launchNoticeMs })))
   }
 
   function launchSettled() {
@@ -158,7 +179,18 @@ Item {
     command: ["bash", "-c", root.iconIndexScanCommand()]
     stdout: SplitParser { onRead: function(line) { root.indexIconLine(line) } }
     onStarted: root.pendingIconIndex = ({})
-    onExited: root.iconIndex = root.pendingIconIndex
+    onExited: {
+      root.iconIndex = root.pendingIconIndex
+      root.appsChanged()
+    }
+  }
+
+  Process {
+    id: launchProc
+    property int serial: 0
+    onExited: function(code) {
+      if (code !== 0) root.failLaunchFeedback(launchProc.serial, root.launchName + " failed to start")
+    }
   }
 
   Timer {
@@ -209,7 +241,11 @@ Item {
   Timer {
     id: launchTimeout
     interval: 15000
-    onTriggered: root.closeLaunchFeedback(root.launchSerial)
+    // a tray-only app opens no window either, so the wording stays neutral
+    onTriggered: {
+      if (root.launchSettled()) root.closeLaunchFeedback(root.launchSerial)
+      else root.failLaunchFeedback(root.launchSerial, "No window from " + root.launchName)
+    }
   }
 
   Connections {
