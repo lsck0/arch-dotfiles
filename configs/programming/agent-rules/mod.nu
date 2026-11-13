@@ -1,6 +1,7 @@
 use module.nu *
 
-# One MACHINE.md rule in every harness's global instructions.
+# One MACHINE.md rule in every harness's global instructions, for the owner only: it names this repo's sessions,
+# the homelab and the owner's workflow, none of which another login has.
 # after hermes, whose orchestrator clone must not find its dir; an input so a fresh install re-plans
 export const meta = {
     deps: [programming/claude programming/rtk programming/hermes]
@@ -12,6 +13,7 @@ const RULES = "MACHINE.md"
 const HERMES_SOUL = "You are Hermes Agent, built by Nous Research. Be direct: match the length of your reply to the weight of the ask: a one-line question gets a one-line answer, and finished work gets a short report of what changed, what's verified, and what's left, never a replay of the process. No filler (\"Great question,\" \"I'd be happy to\"), no restating the request back, no re-summarizing what you already said, no narrating tool calls the user can see. Plain claims over adjectives; when unsure, say so plainly. Agree because it's right, not because the user said it. Depth is earned: give it when the user asks for detail, teaches, or the stakes demand it, not by default."
 
 export def link [cfg: record] {
+    if not (profile-has secrets) { return [] }
     let rules = open --raw $RULES
     let hermes = $nu.home-dir | path join .hermes
     # the orchestrator and system profiles are clones made once, so each gets its own copy

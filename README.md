@@ -12,7 +12,14 @@ Or from the official Arch ISO:
 
 ```bash
 curl -fsSL https://install-linux.lsck0.dev | sh
+# same script, if that host is down:
+curl -fsSL https://raw.githubusercontent.com/lsck0/arch-dotfiles/master/bootstrap.sh | bash
 ```
+
+UEFI only; the chosen disk is erased. Pick the `custom` profile unless you are me. Update later with `dot sync`.
+
+You trust me with root: the install signs my package key into pacman, my `[lsck0]` repo is searched before the
+official ones, and `dot sync` runs whatever I sign as root.
 
 ![bar with weather and network panels and a fastfetch terminal](showcase/showcase1.png)
 ![wallpaper picker](showcase/showcase2.png)

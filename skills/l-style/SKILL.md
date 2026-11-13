@@ -224,6 +224,29 @@ that follows.
     twenty-line step is its own function, or earns one phase marker.
 - Never a comment that restates the code, narrates a step (`// get user data`), tells the story of the change (that is
   the PR body), or stacks several lines. When a reason expires, delete the comment with the code.
+- Never document every field, variant, constant or parameter because it is public or because a lint asks. A comment
+  per member is spam: it repeats the name, glosses the obvious, and hides the one comment that matters. Default is
+  zero member comments. This is spam, every line of it:
+
+  ```rust
+  pub struct Service {
+      /// `service.name`: what Grafana groups by.
+      pub name: &'static str,
+      /// `service.version`.
+      pub version: &'static str,
+  }
+  /// How log lines are written to stdout.
+  pub enum LogFormat {
+      /// Multi-line, colored output for a terminal.
+      Pretty,
+      /// One JSON object per line, for a log shipper.
+      Json,
+  }
+  ```
+
+  `Service { name, version }` and `LogFormat { Pretty, Json }` say all of it. Lints that demand a doc on every public
+  item (`missing_docs`, `clippy::missing_docs_in_private_items`, doxygen `WARN_IF_UNDOCUMENTED`, pydocstyle's `D1xx`,
+  eslint `jsdoc/require-jsdoc`) stay off.
 - Use only ASCII symbols in code. No Unicode box-drawing, block, or geometric glyphs as decoration
   (`# _ | [ ] < > / \ + - = : . * o x` instead of box-drawing lines, shade blocks, filled squares, circles, crosses and
   triangles). Real content (a UI's own icon font glyphs, a language's operators, test data that must contain the

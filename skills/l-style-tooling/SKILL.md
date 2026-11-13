@@ -177,9 +177,10 @@ A check that isn't automated isn't happening.
 - Real documentation lives in the code, as described in `l-style-architecture` (API Design). Nothing that belongs above
   a declaration goes into a separate file.
 - Every project has a generated API reference: doxygen for C, rustdoc for Rust, typedoc for TypeScript, pdoc for Python.
-  Config committed, built from the same entry point, run in CI so a broken link or missing doc comment fails the build
-  like a lint. Warnings on, undocumented public items reported, doc examples compiled and run as tests where the
-  language supports it. The output is a build artifact, not a commit.
+  Config committed, built from the same entry point, run in CI so a broken link or a malformed doc comment fails the
+  build like a lint. Warnings on, doc examples compiled and run as tests where the language supports it. Undocumented
+  items are not reported: the reference is the module headers plus the signatures, and a doc comment exists only where
+  `l-style` (Code Style) allows one, never to satisfy a coverage lint. The output is a build artifact, not a commit.
 - Everything else is generated from source too: OpenAPI schema and browsable UI from handler annotations and DTO types,
   served by the app itself; client types generated from the server types; CLI help and completions from the command
   table. If a document can go stale against the code, it should have been generated from it.

@@ -19,9 +19,9 @@ export def system [cfg: record] {
     [(step hooks) (if ($HOOK_INSTALL | path exists) { $UNITS | each { unit-enable $in } })]
 }
 
-# A hook without its install script fails every mkinitcpio: plymouth's left with its package (migration 0016 drops it
-# first), and sd-bootvine waits for its own (hooks-sweep drops it once the package leaves). It goes right after
-# systemd; a busybox initrd has no systemd to hook into, so bootvine then starts in stage 2 only.
+# A hook without its install script fails every mkinitcpio: plymouth's left with its package, and sd-bootvine waits
+# for its own (hooks-sweep drops it once the package leaves). It goes right after systemd; a busybox initrd has no
+# systemd to hook into, so bootvine then starts in stage 2 only.
 export def hooks-placed [hooks: list<string>, installed: bool]: nothing -> list<string> {
     let kept = $hooks | where $it != plymouth and ($installed or $it != sd-bootvine)
     if not $installed or "sd-bootvine" in $kept or "systemd" not-in $kept { return $kept }

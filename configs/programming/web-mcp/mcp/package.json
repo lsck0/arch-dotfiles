@@ -1,0 +1,9 @@
+{
+  "name": "web-mcp-local",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Repo-pinned local install of mcp-searxng for the agents' searxng MCP server (arch-dotfiles/configs/programming/web-mcp).",
+  "dependencies": {
+    "mcp-searxng": "2.8.1"
+  }
+}
