@@ -207,10 +207,13 @@ that follows.
     Use only the dividers a file needs; a short file needs none.
   - The banner is one line: an ASCII rule carrying the section name, in the file's established style. Never narrative,
     never a label on a single declaration, never a phase of the code.
+- Every comment must be meaningful: it tells the reader something the path, the name, the signature and the code do
+  not. If deleting it loses nothing, it was never written. When in doubt, no comment.
 - Comments, fewer always better, in order of preference:
-  - A file or module header doc comment: what this is, its purpose, and the core of how to use it. Length scales to
-    need, one line to a short paragraph, and no further. No essays. A public library header carries the fuller manual
-    block of `l-style-architecture` (API Design).
+  - A file or module header doc comment, only when the file needs one: its purpose, and the core of how to use it,
+    beyond what its path says. `src/main.rs` gets no `//! Executable entry point.`, `config.rs` no `//! Configuration.`;
+    a label that restates the file name is spam. Length scales to need, one line to a short paragraph, and no further.
+    No essays. A public library header carries the fuller manual block of `l-style-architecture` (API Design).
   - A doc comment on a public declaration only when its name and full signature do not already say what it does, what it
     needs, what it returns and how it fails. A self-explaining signature gets none; one that repeats the name is
     deleted. Written in the language's own doc format (Doxygen `/** */` in C and C++, `///` and `//!` rustdoc in Rust,

@@ -24,8 +24,8 @@ Turn a ticket into working code, to the project's own conventions.
   postconditions and invariants, bounds written down and asserted, and
   the spec's Observability section built in the same commit (log events,
   trace spans, perf scopes, capacity gauges).
-- Comments only as `l-style` (Code Style) allows: a file or module header,
-  a doc comment on a declaration whose signature does not already say it, a
+- Comments only as `l-style` (Code Style) allows: a file or module header that says more than
+  the path, a doc comment on a declaration whose signature does not already say it, a
   rare reason-why line, and an inline phase marker in a long function
   (preferring a profiling scope). Structural banner dividers are the one
   permitted label; nothing restates or narrates the code. In my own repos source goes

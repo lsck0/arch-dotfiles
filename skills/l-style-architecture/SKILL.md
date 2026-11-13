@@ -240,9 +240,9 @@ verb becomes part of the contract.
 - Handles over pointers for anything in a table. Options structs and designated initializers over long positional
   parameter lists.
 - C: tunables are `#define`s so a consumer can override them from the command line.
-- The API file is the manual. Every public header opens with a block: what the module is for, a flat overview of every
-  function in it, a copy-pasteable example of the common path, and the reasoning including what was tried and why it
-  lost. Non-obvious functions get their own example.
+- The API file is the manual. Every public header of a library (the surface a consumer reads) opens with a block:
+  what the module is for, a flat overview of every function in it, a copy-pasteable example of the common path, and
+  the reasoning including what was tried and why it lost. Non-obvious functions get their own example.
 - Every header compiles on its own: it includes what it uses and a consumer includes it alone without a prelude. A
   header that only builds after another one is an undeclared dependency.
 - Container verbs follow the semantics, not taste: `push`/`pop` for ordered stack or sequence ends (so `array_push_back`
