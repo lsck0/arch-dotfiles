@@ -208,13 +208,7 @@ return {
             end
 
             local function project_python()
-                for _, venv in ipairs({ "venv", ".venv" }) do
-                    local python = vim.fn.getcwd() .. "/" .. venv .. "/bin/python"
-                    if vim.fn.executable(python) == 1 then
-                        return python
-                    end
-                end
-                return vim.fn.exepath("python3")
+                return require("lib.python").find(vim.fn.getcwd()) or vim.fn.exepath("python3")
             end
 
             dap.configurations.python = {

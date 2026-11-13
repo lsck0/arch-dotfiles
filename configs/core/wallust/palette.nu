@@ -258,10 +258,18 @@ def wal-slots []: record -> list<string> {
     $slots
 }
 
-# The wal palette as hex {bg fg c0..c15}, then light (1/0) and the conditioned bg; null before the first theme.
+# colors.json's 18 slots, or null (said on stderr, as program) when it is unreadable or lacks a #rrggbb slot.
+def wal-slots-read [program: string]: nothing -> any {
+    let file = wal-colors-file
+    try { open $file | wal-slots } catch {|e| print --stderr $"($program): cannot read ($file): ($e.msg)"; null }
+}
+
+# The wal palette as hex {bg fg c0..c15}, then light (1/0) and the conditioned bg; null before the first theme, and
+# null (said on stderr) when colors.json is unreadable or lacks a #rrggbb slot.
 export def palette-load []: nothing -> any {
     if not (wal-colors-file | path exists) { return null }
-    let slots = open (wal-colors-file) | wal-slots
+    let slots = wal-slots-read palette-load
+    if $slots == null { return null }
     let bg = $slots.0 | hex-to-rgb
     let derived = [(if ($bg | is-light) { "1" } else { "0" }) ($bg | condition-bg | rgb-to-hex --prefix "#")]
     $PALETTE_SLOTS | zip ($slots ++ $derived) | into record
@@ -270,8 +278,7 @@ export def palette-load []: nothing -> any {
 # The wal palette as rgb {bg fg c0..c15}, or null (said on stderr, as program) when colors.json is unreadable or lacks
 # a #rrggbb slot.
 export def palette-rgb [program: string]: nothing -> any {
-    let file = wal-colors-file
-    let slots = try { open $file | wal-slots } catch {|e| print --stderr $"($program): cannot read ($file): ($e.msg)"; null }
+    let slots = wal-slots-read $program
     if $slots == null { return null }
     $WAL_SLOTS | zip ($slots | each { hex-to-rgb }) | into record
 }

@@ -95,25 +95,6 @@ sudo-at-terminal() {
   command sudo "$@"
 }
 
-function pacman {
-  local arg ops=
-  for arg; do
-    case $arg in
-      --) break ;;
-      --query) ops+=Q ;; --deptest) ops+=T ;; --version) ops+=V ;; --help) ops+=h ;;
-      --sync) ops+=S ;; --files) ops+=F ;; --search) ops+=s ;; --info) ops+=i ;; --groups) ops+=g ;; --list) ops+=l ;;
-      --print) ops+=p ;; --refresh) ops+=y ;; --sysupgrade) ops+=u ;; --clean) ops+=c ;; --downloadonly) ops+=w ;;
-      --*) ;;
-      -?*) ops+=${arg#-} ;;
-    esac
-  done
-  if [[ $ops == *[QTVh]* || ( $ops == *F* && $ops != *y* ) || ( $ops == *S* && $ops == *[siglp]* && $ops != *[yucw]* ) ]]; then
-    command pacman "$@"
-  else
-    sudo-at-terminal pacman "$@"
-  fi
-}
-
 # not in every tmux pane or nvim terminal
 [[ -t 1 && $TERM != dumb && -z $TMUX$NVIM ]] && fastfetch
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# the lock_screen option's locker (quickshell or hyprlock), the other as the fallback; a locker not holding the compositor's lock is no lock
+# hyprlock if lock_screen=hyprlock, then quickshell, then hyprlock (a second try in that case); a locker not holding the compositor's lock is no lock
 
 const DPMS = path self dpms.nu
 const LOCK_POLL_TRIES = 30

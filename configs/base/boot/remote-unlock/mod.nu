@@ -1,7 +1,7 @@
 # Remote LUKS unlock: tinyssh in a mkinitcpio-systemd-tool initramfs, reached over ethernet or the home wifi.
 
 use module.nu *
-use ../boot.nu [cmdline-set cmdline-unset hooks-read hooks-write hooks-insert MKINITCPIO]
+use ../boot.nu [cmdline-set cmdline-unset hooks-read hooks-write hooks-insert CMDLINE MKINITCPIO]
 
 export const options = {
     ssh_unlock: {
@@ -38,6 +38,7 @@ const ED25519_SEED_BYTES = 32
 const ED25519_SK_BYTES = 64
 const WIFI_UNIT = "initrd-wifi.service"
 const WIFI_CONF = $"($TOOL_DIR)/config/initrd-wifi.conf"
+const NEEDNET = "rd.neednet=1"
 
 export def packages [cfg: record]: nothing -> record {
     {native: (if $cfg.ssh_unlock { $PACKAGES } else { [] })}
@@ -45,7 +46,8 @@ export def packages [cfg: record]: nothing -> record {
 
 export def system [cfg: record] {
     if not $cfg.ssh_unlock {
-        if not ($HOOK_INSTALL | path exists) { return [] }
+        # the package may be gone first; its leftovers (wifi psks, authorized_keys, rd.neednet) still go
+        if not (teardown-needed [$HOOK_INSTALL $WIFI_CONF $AUTHORIZED_KEYS] $CMDLINE) { return [] }
         return ($UNITS | append $WIFI_UNIT | each { unit-disable $in } | append (step teardown))
     }
     if (which tinysshd | is-empty) or not ($HOOK_INSTALL | path exists) { return [] }
@@ -61,6 +63,12 @@ export def system [cfg: record] {
         (wifi $cfg.wifi)
         (step wire)
     ]
+}
+
+# Whether any of the files exists or the kernel cmdline file still carries rd.neednet=1.
+export def teardown-needed [files: list<path>, cmdline: path]: nothing -> bool {
+    ($files | any { path exists }) or (
+        ($cmdline | path exists) and $NEEDNET in (open --raw $cmdline | str trim | split row " "))
 }
 
 def wifi [enabled: bool]: nothing -> list {
@@ -134,7 +142,7 @@ export def wire []: nothing -> nothing {
         }
         hooks-write (hooks-insert $hooks $HOOK $anchor --after=($anchor == sd-encrypt))
     }
-    cmdline-set rd.neednet=1
+    cmdline-set $NEEDNET
 }
 
 def unwire []: nothing -> nothing {

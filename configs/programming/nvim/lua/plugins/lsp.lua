@@ -213,26 +213,6 @@ return {
                 exit = true,
                 quit = true,
             }
-            local function project_python(root)
-                -- a json-null rootPath is vim.NIL, which is truthy
-                if type(root) ~= "string" or root == "" then
-                    return nil
-                end
-                local venv = vim.env.VIRTUAL_ENV
-                if venv and vim.fn.executable(venv .. "/bin/python") == 1 then
-                    return venv .. "/bin/python"
-                end
-                if vim.fn.executable(root .. "/.venv/bin/python") == 1 then
-                    return root .. "/.venv/bin/python"
-                end
-                if vim.fn.filereadable(root .. "/pyproject.toml") == 1 and vim.fn.executable("poetry") == 1 then
-                    local out = vim.trim(vim.fn.system({ "timeout", "2", "poetry", "-C", root, "env", "info", "-e" }))
-                    if vim.v.shell_error == 0 and out ~= "" then
-                        return out
-                    end
-                end
-            end
-
             local function drop_ipython_noise(buf, diagnostics)
                 if not vim.b[buf].is_jupytext then
                     return diagnostics
@@ -248,7 +228,7 @@ return {
             vim.lsp.config("pyright", {
                 before_init = function(params, config)
                     local root = params.rootPath or (params.rootUri and vim.uri_to_fname(params.rootUri))
-                    local py = project_python(root)
+                    local py = require("lib.python").find(root)
                     if py then
                         config.settings = config.settings or {}
                         config.settings.python = config.settings.python or {}

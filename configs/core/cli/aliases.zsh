@@ -1,4 +1,5 @@
-(( $+commands[zoxide] )) && alias cd="z"
+(( $+commands[zoxide] )) && alias cd="z" cdi="zi"
+alias e="eza"
 alias l="eza -lh"
 alias la="eza -lah"
 alias ll="eza -lh"

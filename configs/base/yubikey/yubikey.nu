@@ -81,10 +81,14 @@ def stub-decrypt [key_file: path]: nothing -> bool {
     false
 }
 
+def key-file-shred [key: path]: nothing -> nothing {
+    if ($key | path exists) { ^shred -u $key }
+}
+
 def with-key-file [body: closure]: nothing -> nothing {
     let key = mktemp --tmpdir
     let failed = try { do $body $key; null } catch {|e| $e.msg }
-    if ($key | path exists) { ^shred -u $key }
+    key-file-shred $key
     if $failed != null { error make {msg: $failed} }
 }
 
@@ -274,14 +278,14 @@ export def yubikey-unlock [--identity: path]: nothing -> nothing {
         let key_file = mktemp --tmpdir
         ^install -m600 $stub $key_file
         if not (stub-decrypt $key_file) {
-            rm --force $key_file
+            key-file-shred $key_file
             print "yubikey: the ssh stub stays locked without its passphrase, secrets are not pulled"
             return
         }
         print ">>> touch the YubiKey to pull the secrets (the clone takes a while after the touch)"
         let ssh = $"ssh -i ($key_file) -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
         let ok = with-touch [git -C $REPO -c $"core.sshCommand=($ssh)" -c $GITHUB_OVER_SSH ...$SECRETS_PULL]
-        rm --force $key_file
+        key-file-shred $key_file
         if not $ok { print "yubikey: pull failed or no touch" }
         if not (secrets-pulled) { return }
     }

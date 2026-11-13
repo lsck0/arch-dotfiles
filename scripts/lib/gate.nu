@@ -428,8 +428,13 @@ def lint-generated []: nothing -> list<string> {
 
 def unit-tests []: nothing -> list<string> {
     glob $"($REPO)/{configs,themes,scripts}/**/*.test.{sh,nu}" --exclude ($SECRETS_DATA | each { $"configs/($in)" }) | sort | each {|t|
+        # null in: an external in each would otherwise read the test's own path as stdin
         let run = with-env {DOT_RUN_FILE: "", FAILURES_FILE: ""} {
-            if ($t | str ends-with ".nu") { ^nu --no-config-file -I ($REPO | path join scripts lib) $t | complete } else { ^bash $t | complete }
+            if ($t | str ends-with ".nu") {
+                null | ^nu --no-config-file -I ($REPO | path join scripts lib) $t | complete
+            } else {
+                null | ^bash $t | complete
+            }
         }
         if $run.exit_code != 0 { $"(rel $t): failed\n($run.stdout + $run.stderr | str trim --right)" }
     } | compact

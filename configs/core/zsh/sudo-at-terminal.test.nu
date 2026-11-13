@@ -12,6 +12,7 @@ const REFUSED = "needs root"
 const MARKERS_NU = "const AGENT_MARKERS"
 const MARKERS_ZSH = "agent-session()"
 const WRONG_SUDO_EXIT = 99
+const ZSH_DROPINS = '/zsh/conf\.d/\*\.zsh'
 
 def line-starting [file: path, head: string]: nothing -> string {
     open --raw $file | lines | where ($it | str starts-with $head) | first
@@ -45,13 +46,20 @@ def nu-script [fake: path]: nothing -> string {
     [$markers $session ...$guard $"if \(which sudo | get 0.path\) != '($fake)' { exit ($WRONG_SUDO_EXIT) }"] | str join "\n"
 }
 
-# An alias resolves its command where it is declared, so one ahead of the def runs a missing external.
+# An alias resolves its command where it is declared, so one ahead of the def runs a missing external. Nushell's
+# autoload drop-ins (shell-aliases' aliases.nu) load after config.nu; zshrc sources its conf.d drop-ins itself, which
+# must come after the guard so a drop-in's top-level use of it finds it.
 def alias-order-check []: nothing -> list<string> {
     let lines = open --raw $CONFIG_NU | lines | enumerate
     let def = $lines | where ($it.item | str starts-with "def --wrapped sudo-at-terminal") | get 0.index
+    let zshrc = open --raw $ZSHRC | lines | enumerate
+    let guard = $zshrc | where ($it.item | str starts-with "sudo-at-terminal()") | get 0.index
+    let dropins = $zshrc | where ($it.item =~ $ZSH_DROPINS) | get --optional 0.index
     $lines | where ($it.item =~ '^alias .*= sudo-at-terminal ') and $it.index < $def | each {|l|
         $"config.nu line ($l.index + 1) runs sudo-at-terminal before its def: ($l.item)"
-    }
+    } | append (if $dropins == null { "zshrc sources no conf.d drop-ins" } else if $dropins < $guard {
+        $"zshrc line ($dropins + 1) sources the conf.d drop-ins before sudo-at-terminal, line ($guard + 1)"
+    }) | compact
 }
 
 def marker-parity-check [markers: list<string>]: nothing -> list<string> {

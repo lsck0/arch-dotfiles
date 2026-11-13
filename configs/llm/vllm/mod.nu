@@ -84,8 +84,13 @@ export def system [cfg: record] {
         TOOL_CALL_PARSER: $cfg.tool_call_parser, REASONING_PARSER: $cfg.reasoning_parser, PERF_LEVEL_PATH: $perf_path
         KV_CACHE_DTYPE: $cfg.kv_cache_dtype
     }
+    let stamp = venv-stamp
+    let python = $PREFIX | path join venv bin python
+    # the stamp venv wrote before it was keyed
+    let stamped = ($python | path exists) and (try { open --raw ($PREFIX | path join venv.stamp) }) == $stamp
     [
-        (step venv --network --timeout 60min)
+        (step prefix-own --done=(prefix-root-owned $PREFIX))
+        (step venv --network --timeout 60min --creates $python --key ($stamp | hash sha256) --done=$stamped)
         # the weights at install, not on the first request, whose ready timeout a cold download would miss
         (step model-fetch $cfg.model $cfg.model_revision --key $"($cfg.model)@($cfg.model_revision)" --network
             --timeout 90min --requires ($PREFIX | path join venv bin hf))
@@ -107,20 +112,27 @@ export def model-fetch [model: string, revision: string]: nothing -> nothing {
         ($PREFIX | path join venv bin hf) download $model --revision $revision)
 }
 
-# Everything the venv is built from; a venv whose stamp matches is left alone.
+# Whether root:root owns dir and everything below it.
+export def prefix-root-owned [dir: path]: nothing -> bool {
+    if not ($dir | path exists) { return false }
+    let found = ^find $dir "(" ! -user root -o ! -group root ")" -print -quit | complete
+    $found.exit_code == 0 and ($found.stdout | str trim | is-empty)
+}
+
+# Hands the prefix back to root:root, so neither vllm.service's dynamic user nor anyone else rewrites the code it runs.
+export def prefix-own []: nothing -> nothing {
+    mkdir $PREFIX
+    ^chown -R root:root $PREFIX
+}
+
+# Everything the venv is built from.
 def venv-stamp []: nothing -> string {
     [$VERSION $OMNI_VERSION $WHEELS_URL $EXCLUDE_NEWER $PYTHON_VERSION (open --raw $STUB_SOURCE | hash sha256)
         (open --raw $UV_EXCLUDES | hash sha256)] | to text
 }
 
 export def venv []: nothing -> nothing {
-    mkdir $PREFIX
-    if (^find $PREFIX ! -user root -print -quit | str trim | is-not-empty) { ^chown -R root:root $PREFIX }
     let venv = $PREFIX | path join venv
-    let stamp_path = $PREFIX | path join venv.stamp
-    let stamp = venv-stamp
-    let python = $venv | path join bin python
-    if ($python | path exists) and ($stamp_path | path exists) and (open --raw $stamp_path) == $stamp { return }
     # the rocm index has no upload times, so --exclude-newer is pinned off for it alone
     let uv_config = mktemp --tmpdir --suffix .toml
     try {
@@ -143,5 +155,5 @@ export def venv []: nothing -> nothing {
         ^install -m755 $stub ($platlib | path join torch lib libmpi_cxx.so.40)
         rm --recursive $build
     } catch {|e| rm --recursive --force $build; error make $e }
-    $stamp | save --force $stamp_path
+    rm --force ($PREFIX | path join venv.stamp)
 }

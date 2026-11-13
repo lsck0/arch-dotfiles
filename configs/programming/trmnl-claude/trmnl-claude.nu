@@ -199,7 +199,9 @@ def usage-limits [claude: path]: nothing -> record {
     [[key prefix]; [session 5h] [week_all 7d]] | reduce --fold {} {|w, acc|
         let header = {|field| $found | get --optional $"anthropic-ratelimit-unified-($w.prefix)-($field)" }
         let pct = try { do $header utilization | into float | $in * 100 | math round | into int } catch { null }
-        if $pct == null { $acc } else { $acc | insert $w.key {pct: $pct, resets: (reset-format (do $header reset))} }
+        let reset = do $header reset
+        let at = try { $reset | default 0 | into int } catch { 0 }
+        if $pct == null { $acc } else { $acc | insert $w.key {pct: $pct, resets: (reset-format $reset), at: $at} }
     }
 }
 
@@ -265,6 +267,8 @@ def payload-build [include_other: bool, strict_activity: bool, scrape: bool]: no
         })
         u_session: ($limits.session?.pct? | default $NONE), u_week: ($limits.week_all?.pct? | default $NONE)
         u_reset: (if "session" in $limits { $limits.session.resets } else { "" })
+        # epoch seconds: the bar formats the reset in the shell's own clock format
+        u_reset_at: ($limits.session?.at? | default 0)
         updated: ($now | format date "%b %-d, %H:%M")
     } | merge ($slots | reduce --fold {} {|s, acc| $acc | merge $s })
 }

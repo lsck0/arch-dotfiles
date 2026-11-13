@@ -11,7 +11,7 @@ local function autostart_launch(entry)
         rules.float = true
         rules.center = true
     end
-    hl.exec_cmd("uwsm app -- " .. entry.cmd, next(rules) and rules or nil)
+    hl.exec_cmd("uwsm-app -- " .. entry.cmd, next(rules) and rules or nil)
 end
 
 -- The entries still waiting on their after window, as indexes into platform.autostart, one per line. A file under this
@@ -118,12 +118,12 @@ hl.on("hyprland.start", function()
     -- needs every offered type to match, so it lists the vendor prefixes too (chromium/ from every Electron app,
     -- x-special/ from file managers)
     hl.exec_cmd(
-        "uwsm app -s b -- wl-clip-persist --clipboard regular -f '^((text|application|chromium|x-special)/.*|[^/]*|image/(png|jpeg|gif|webp|bmp|tiff|avif|svg\\+xml))$'"
+        "uwsm-app -s b -- wl-clip-persist --clipboard regular -f '^((text|application|chromium|x-special)/.*|[^/]*|image/(png|jpeg|gif|webp|bmp|tiff|avif|svg\\+xml))$'"
     )
 
     -- the shell expands $DOTFILES (an unset getenv would abort this hook); plugins.nu builds and loads the plugins
-    hl.exec_cmd("uwsm app -s b -- $DOTFILES/configs/desktop/hyprland/plugins.nu")
-    hl.exec_cmd("uwsm app -s b -- $DOTFILES/configs/desktop/shimoji/packs.nu")
+    hl.exec_cmd("uwsm-app -s b -- $DOTFILES/configs/desktop/hyprland/plugins.nu")
+    hl.exec_cmd("uwsm-app -s b -- $DOTFILES/configs/desktop/shimoji/packs.nu")
     -- a session started docked with the lid already closed
     hl.exec_cmd("$DOTFILES/configs/desktop/hyprland/lid.nu")
 
