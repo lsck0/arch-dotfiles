@@ -1,0 +1,5 @@
+# Arduboy FX (Arduino Leonardo / Pro Micro, ATmega32U4) and its SparkFun clones: the seat user flashes the board and
+# its FX flashcart with avrdude through the tty, in sketch mode and in the bootloader it resets into. 71- puts the
+# uaccess tag in place before 73-seat-late.rules
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2341", ATTRS{idProduct}=="0036|8036", TAG+="uaccess"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1b4f", ATTRS{idProduct}=="9205|9206", TAG+="uaccess"

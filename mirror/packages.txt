@@ -32,6 +32,7 @@ avr-binutils
 avr-gcc
 avr-gdb
 avr-libc
+avrdude
 aws-cli-v2
 bacon
 base

@@ -52,9 +52,13 @@ def cargo-config [cfg: record] {
 }
 
 # cargo afl's runtime is built per rustc version, under afl.rs/rustc-<release>-<short hash>/afl.rs-<version>: one
-# build for every installed rustup toolchain, so a rust-toolchain.toml bump only needs an apply.
+# build for every installed rustup toolchain, so a rust-toolchain.toml bump only needs an apply. AFL++ builds with the
+# system llvm: one newer than the shipped AFL++ supports skips them all until a cargo-afl release brings a newer one.
 def afl-runtimes []: nothing -> list<record> {
-    if not ($AFL_SOURCES | path exists) or (which rustup | is-empty) { return [] }
+    if not ($AFL_SOURCES | path exists) or (which rustup llvm-config | length) < 2 { return [] }
+    let llvm_max = open --raw ($AFL_SOURCES | path join GNUmakefile.llvm)
+        | parse --regex 'LLVM_TOO_NEW_DEFAULT := (?<major>\d+)' | get 0.major | into int
+    if (^llvm-config --version | split row "." | first | into int) > $llvm_max { return [] }
     let version = ^cargo afl --version | str trim | split row " " | last
     ^rustup toolchain list | lines | each { split row " " | first } | where $it != "" | each {|toolchain|
         let meta = ^rustc $"+($toolchain)" -vV | lines | parse "{key}: {value}" | transpose --header-row --as-record
