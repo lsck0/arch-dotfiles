@@ -98,7 +98,6 @@ def main [action: string = "toggle", --json] {
         label: "Weather location (manual)"
         is-on: {|| manual-coords | is-not-empty }
         on: {||
-            if (manual-coords) != null { return }
             let coords = resolve | split row " " | get 1?
             if $coords == null {
                 error make {msg: "no location could be resolved to pin; use: toggle-weather-location.nu set <lat> <lon>"}

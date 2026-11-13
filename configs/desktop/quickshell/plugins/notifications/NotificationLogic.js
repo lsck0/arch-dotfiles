@@ -54,8 +54,7 @@ function isEphemeralApp(appName) {
 
 // whether a shown toast's file moves to history when it closes, rather than being deleted
 function archivesOnClose(row) {
-  var r = row || {}
-  return !(r.app === TOGGLES_APP && r.urgency !== URGENCY_CRITICAL)
+  return !(row && row.app === TOGGLES_APP && row.urgency !== URGENCY_CRITICAL)
 }
 
 function stringHint(hints, name) {

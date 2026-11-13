@@ -13,7 +13,7 @@ export def link [cfg: record] {
         let r = env-file-load $secret
         let auth = $"($r.REGISTRY_USER):($r.REGISTRY_PASSWORD)" | encode base64
         {auths: {$r.REGISTRY_URL: {auth: $auth}}} | to json
-    } else if ($target | path exists) { open --raw $target } else { null }
+    } else { file-trim $target null }
     if $text == null { return [] }
     file-text $target $"($text)\n" --mode 600
 }

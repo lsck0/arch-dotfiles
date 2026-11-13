@@ -5,11 +5,9 @@ const GRADING = path self ../../configs/desktop/color-grading/color-grading.py
 
 def grading []: nothing -> record { ^$GRADING status | from json }
 
-def preset-label [preset: string]: nothing -> string { grading | get presets | where name == $preset | get label.0 }
-
 def apply [preset: string]: nothing -> nothing {
     ^$GRADING set preset $preset
-    notify "Color grading" (preset-label $preset)
+    notify "Color grading" (grading | get presets | where name == $preset | get label.0)
 }
 
 def "main get" [--json] {

@@ -5,7 +5,7 @@ use log.nu *
 use state.nu [SYSTEM_REPO SYSTEM_STATE EXIT_ABORTED EXIT_PENDING INSTALL_PASS_FILE process-running]
 use pipeline.nu [pipeline-load pipeline-plan pipeline-apply pending-save barriers-run]
 use modules.nu [modules-packages]
-use ledger.nu [packages-convergence ledger-set ledger-packages ledger-units]
+use ledger.nu [packages-convergence packages-orphans-remove ledger-set ledger-packages ledger-units]
 use preserve.nu [tty-confirm preserve-prune]
 use migrate.nu [migrations-run]
 use system.nu [system-unpack system-secrets ENTRY]
@@ -292,14 +292,8 @@ def "main packages" [--yes, --plan, --unattended]: nothing -> nothing {
     if ($found.remove | is-empty) { return }
     print $"not declared by any module: ($found.remove | str join ' ')"
     if $plan or not ($yes or (tty-confirm $"remove these ($found.remove | length)?")) { return }
-    # a declared package pulled in as a dependency first would go with -s otherwise
-    if ($found.resolved | is-not-empty) { ^pacman -D --asexplicit ...$found.resolved | ignore }
-    ^pacman -D --asdeps ...$found.remove | ignore
-    let orphans = ^pacman -Qdttq | complete | get stdout | lines | where $it in $found.remove
-    let kept = $found.remove | where $it not-in $orphans
+    let kept = packages-orphans-remove $found.resolved $found.remove
     if ($kept | is-not-empty) { log-info $"still needed by another package, kept as a dependency: ($kept | str join ' ')" }
-    if ($orphans | is-empty) { return }
-    ^pacman -Rns --noconfirm ...$orphans
 }
 
 # module <id>: that module's system verb alone, for running it by hand; the system verb is the only one root runs

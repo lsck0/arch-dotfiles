@@ -10,7 +10,6 @@ def main [action: string = "toggle", --json] {
         label: "Focus mode"
         is-on: {|| (state-get focus) == on }
         on: {||
-            if (state-get focus) == on { return }
             let states = $PARTS | append color-grading | each {|name|
                 {name: $name, state: (try { toggle-run $name get | str trim } catch { "off" })}
             }

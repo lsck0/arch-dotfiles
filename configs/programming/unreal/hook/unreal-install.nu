@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
-use ../../../../scripts/lib/state.nu [xdg]
+use ../../../../scripts/lib/state.nu [file-trim xdg]
 
 const PLUGINS_INSTALL = path self ../unreal-install-plugins.nu
 const ZIP_GLOB = "Linux_Unreal_Engine_*.zip"
@@ -50,7 +50,7 @@ def "main locked" []: nothing -> nothing {
     let engine = engine-dir
     let stamp = $engine | path join .installed-from
     let installed = $stamp | path exists
-    if $installed and (open --raw $stamp | str trim) == $name {
+    if (file-trim $stamp) == $name {
         desktop-write $version
         return
     }

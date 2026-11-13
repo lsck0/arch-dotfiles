@@ -41,12 +41,11 @@ def task-summary [id: string]: nothing -> string {
 def --wrapped "main task" [...words]: nothing -> nothing {
     let words = $words | each { into string }
     if ($words | is-empty) { error make {msg: "nothing to add"} }
-    let line = $"+ ($words | str join ' ')"
+    let typed = $words | str join " "
     let r = ^task rc.confirmation=no rc.verbose=new-id add ...$words | complete
-    if $r.exit_code != 0 { capture-fail $TASK_GLYPH "Task not added" ($r.stderr | str trim) $line }
+    if $r.exit_code != 0 { capture-fail $TASK_GLYPH "Task not added" ($r.stderr | str trim) $"+ ($typed)" }
     let id = $r.stdout | parse --regex 'Created task (?<id>\d+)' | get --optional 0.id
-    let summary = if $id == null { "" } else { try { task-summary $id } catch { "" } }
-    action-notify $TASK_GLYPH "Task added" (if $summary != "" { $summary } else { $words | str join " " })
+    action-notify $TASK_GLYPH "Task added" (if $id == null { $typed } else { try { task-summary $id } catch { $typed } })
     try { shell-call tasks refresh | ignore }
     try { ^systemctl --user start --no-block $TASK_SYNC_UNIT o+e>| ignore }
 }
@@ -57,7 +56,6 @@ export def minutes-of [text: string]: nothing -> any {
     # an unmatched optional group reads as null or empty depending on the nu version
     let h = $m.h? | default ""
     let mm = $m.m? | default ""
-    if $h == "" and $mm == "" { return null }
     let hours = if $h == "" { 0 } else { $h | into int }
     let minutes = if $mm == "" { 0 } else { $mm | into int }
     let total = $hours * 60 + $minutes

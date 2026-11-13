@@ -78,9 +78,7 @@ export def observe [targets: list<string>, units: list<string>, scope: string, k
         }
     }
     let unit_names = $units | uniq | where $it not-in $known.units
-    let states = if ($unit_names | is-empty) { [] } else {
-        unit-states $scope $unit_names
-    }
+    let states = if ($unit_names | is-empty) { [] } else { unit-states $scope $unit_names }
     {
         paths: ($known.paths | merge ($paths | each {|p| [$p.target $p] } | into record))
         units: ($known.units | merge ($unit_names | zip $states | into record))
@@ -253,22 +251,21 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
     let orphans = $prev | where target not-in $targets | each {|o|
         let obs = $seen.paths | get --optional $o.target | default {type: "", hash: null, link: null}
         let claimed = $o.target in $all_targets
+        if $claimed and $o.kind in [file link unit] { return (action $id forget $o.target "now declared by another module" $o null null) }
         match $o.kind {
             "file" => {
-                if $claimed { action $id forget $o.target "now declared by another module" $o null null
-                } else if $obs.type == "" { action $id forget $o.target "already gone" $o null null
+                if $obs.type == "" { action $id forget $o.target "already gone" $o null null
                 } else if $obs.hash == $o.hash { action $id remove $o.target "no longer declared" $o $o.hash null
                 } else { action $id drift $o.target "no longer declared, changed since: left in place" $o $obs.hash null }
             }
             "link" => {
-                if $claimed { action $id forget $o.target "now declared by another module" $o null null
-                } else if $obs.type == symlink and $obs.link == $o.source { action $id remove $o.target "no longer declared" $o $o.source null } else { action $id forget $o.target "not the link it was" $o null null }
+                if $obs.type == symlink and $obs.link == $o.source { action $id remove $o.target "no longer declared" $o $o.source null } else { action $id forget $o.target "not the link it was" $o null null }
             }
-            "unit" => (if $claimed { action $id forget $o.target "now declared by another module" $o null null } else { match ($o.state? | default enabled) {
+            "unit" => (match ($o.state? | default enabled) {
                 "enabled" => (action $id disable $o.target "no longer declared" ($o | insert now true) enabled null)
                 "masked" => (action $id unmask $o.target "no longer declared" $o masked null)
                 _ => (action $id forget $o.target "no longer declared" $o null null)
-            } })
+            })
             "json" => {
                 let restorable = $o.keys? | default [] | where not ($it.before.unknown? | default false)
                 if $claimed or ($restorable | is-empty) { action $id forget $o.target "no longer declared" $o null null } else {
@@ -373,6 +370,13 @@ def then-run [outcomes: list<record>, dir: path]: nothing -> list<record> {
     }
 }
 
+# locked.nu's <kind>-update under the merge lock, its output; verb names the action in the error.
+def locked-update [kind: string, verb: string, args: record]: nothing -> record {
+    let out = state-locked $"(state-dir)/json.lock" $"($kind)-update" $args | complete
+    if $out.exit_code != 0 { error make {msg: $"($kind) ($verb) exited ($out.exit_code): (error-brief $out.stderr)"} }
+    $out
+}
+
 # An action's result: a plain success with fields over it.
 def outcome [fields: record]: nothing -> record {
     {ok: true, pending: null, error: null, aside: null, output: "", hash: null, at: null, keys: null} | merge $fields
@@ -430,14 +434,10 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     sync-guard $a.target
                     mkdir ($a.target | path dirname)
                     let last = $acc.written | get --optional $a.target
-                    let lock = $"(state-dir)/json.lock"
-                    let out = if $a.decl.kind == "ini" {
-                        state-locked $lock ini-update {file: $a.target, edits: $a.decl.edits} | complete
-                    } else {
-                        let args = {file: $a.target, edits: $a.decl.edits, recorded_sum: ($last | default ""), known: ($a.decl.known? | default []), drop: ($a.decl.drop? | default [])}
-                        state-locked $lock json-update $args | complete
+                    let args = if $a.decl.kind == "ini" { {file: $a.target, edits: $a.decl.edits} } else {
+                        {file: $a.target, edits: $a.decl.edits, recorded_sum: ($last | default ""), known: ($a.decl.known? | default []), drop: ($a.decl.drop? | default [])}
                     }
-                    if $out.exit_code != 0 { error make {msg: $"($a.decl.kind) merge exited ($out.exit_code): (error-brief $out.stderr)"} }
+                    let out = locked-update $a.decl.kind merge $args
                     let json = if $a.decl.kind == "json" { $out.stdout | lines | last | from json } else { null }
                     let owned = if $json != null { $json.owned } else { $a.before != null and $a.before == $last and ($out.stdout | str contains changed) }
                     let keys = if $json != null { {keys: $json.keys} } else { {} }
@@ -445,9 +445,7 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                 }
                 "unmerge" => {
                     sync-guard $a.target
-                    let args = {file: $a.target, edits: [], recorded_sum: "", known: $a.decl.keys, drop: $a.decl.keys}
-                    let out = state-locked $"(state-dir)/json.lock" json-update $args | complete
-                    if $out.exit_code != 0 { error make {msg: $"json unmerge exited ($out.exit_code): (error-brief $out.stderr)"} }
+                    locked-update json unmerge {file: $a.target, edits: [], recorded_sum: "", known: $a.decl.keys, drop: $a.decl.keys} | ignore
                     {}
                 }
                 "disable" => {

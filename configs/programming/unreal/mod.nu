@@ -20,7 +20,7 @@ export def link [cfg: record] {
     let installed = $stamp | path exists
     let zip = zip-newest
     let desktop = xdg data applications unreal-engine.desktop
-    let current = $installed and ($desktop | path exists) and (open --raw $stamp | str trim) == ($zip | default "" | path basename)
+    let current = $installed and ($desktop | path exists) and (file-trim $stamp) == ($zip | default "" | path basename)
     [
         (link-commands unreal-editor.nu unreal-install-plugins.nu)
         (file-copy uproject.xml ($mime | path join packages uproject.xml) --then [update-mime-database $mime])

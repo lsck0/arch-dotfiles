@@ -17,12 +17,8 @@ export def option-type-ok [type: string, value: any]: nothing -> bool {
     let actual = $value | describe
     let wanted = $type | str trim --right --char "?"
     let base = $actual | split row "<" | first
-    if $type == "any" or $actual == $wanted or $base == $wanted {
-        return true
-    }
-    if ($type | str ends-with "?") and $actual == "nothing" {
-        return true
-    }
+    if $type == "any" or $actual == $wanted or $base == $wanted { return true }
+    if ($type | str ends-with "?") and $actual == "nothing" { return true }
     match [$wanted $base] {
         ["float" "int"] | ["path" "string"] => true
         [$w "table"] if ($w == "list" or ($w | str starts-with "list<record") or ($w | str starts-with "table")) => true
@@ -155,9 +151,7 @@ export def options-events-file []: nothing -> path {
 export def options-notify [key: string, value: any, source: string, runtime?: any, --error: any]: nothing -> nothing {
     let file = options-events-file
     mkdir ($file | path dirname)
-    if ($file | path exists) and (ls $file | get 0.size | into int) > $EVENTS_MAX_BYTES {
-        "" | save --force $file
-    }
+    if ($file | path exists) and (ls $file | get 0.size | into int) > $EVENTS_MAX_BYTES { "" | save --force $file }
     $"({key: $key, value: $value, source: $source, runtime: $runtime, error: $error} | to json --raw)\n" | save --append $file
 }
 

@@ -210,22 +210,26 @@ Singleton {
     run([task.uuid, "modify"].concat(list), { op: "modify", uuid: task.uuid, desc: task.desc, text: text })
   }
 
-  function markDone(task) { if (task) run([task.uuid, "done"], { op: "done", uuid: task.uuid, desc: task.desc }) }
-  function remove(task) { if (task) run([task.uuid, "delete"], { op: "delete", uuid: task.uuid, desc: task.desc }) }
+  function runVerb(task, op) { run([task.uuid, op], { op: op, uuid: task.uuid, desc: task.desc }) }
+
   // One task tracks at a time: timew start closes the running interval, so the task that owned it stops too.
+  function stopOthers(uuid) {
+    for (let i = 0; i < root.tasks.length; i++) if (root.tasks[i].active && root.tasks[i].uuid !== uuid) run([root.tasks[i].uuid, "stop"])
+  }
+
+  function markDone(task) { if (task) runVerb(task, "done") }
+  function remove(task) { if (task) runVerb(task, "delete") }
   function toggleActive(task) {
     if (!task) return
-    if (task.active) { run([task.uuid, "stop"], { op: "stop", uuid: task.uuid, desc: task.desc }); return }
-    for (let i = 0; i < root.tasks.length; i++) if (root.tasks[i].active && root.tasks[i].uuid !== task.uuid) run([root.tasks[i].uuid, "stop"])
-    run([task.uuid, "start"], { op: "start", uuid: task.uuid, desc: task.desc })
+    if (!task.active) root.stopOthers(task.uuid)
+    runVerb(task, task.active ? "stop" : "start")
   }
 
   // done and delete go back to pending by uuid, which a sync in between does not break, unlike task undo
   function undoLast() {
     var last = root.lastAction
     if (!last) return
-    // restarting a stopped task keeps one task tracking, as toggleActive does
-    if (last.op === "stop") for (let i = 0; i < root.tasks.length; i++) if (root.tasks[i].active && root.tasks[i].uuid !== last.uuid) run([root.tasks[i].uuid, "stop"])
+    if (last.op === "stop") root.stopOthers(last.uuid)
     var args = last.op === "start" ? [last.uuid, "stop"]
       : last.op === "stop" ? [last.uuid, "start"]
       : [last.uuid, "modify", "status:pending"]

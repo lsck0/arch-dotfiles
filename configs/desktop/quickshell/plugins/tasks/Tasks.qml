@@ -140,11 +140,11 @@ Item {
     } else if (key === Qt.Key_End || text === "G") {
       root.select(root.filtered.length - 1)
     } else if (key === Qt.Key_Return || key === Qt.Key_Enter || text === "d") {
-      root.markDone(root.selectedTask)
+      TaskState.markDone(root.selectedTask)
     } else if (text === "s") {
-      root.toggleActive(root.selectedTask)
+      TaskState.toggleActive(root.selectedTask)
     } else if (key === Qt.Key_Delete || text === "x") {
-      root.remove(root.selectedTask)
+      TaskState.remove(root.selectedTask)
     } else if (text === "e") {
       if (root.selectedTask) root.startInput("modify")
     } else if (text === "u") {
@@ -233,10 +233,6 @@ Item {
     input.insert(start, keyword + done + (unique ? " " : ""))
     return true
   }
-
-  function markDone(task) { TaskState.markDone(task) }
-  function toggleActive(task) { TaskState.toggleActive(task) }
-  function remove(task) { TaskState.remove(task) }
 
   // a rejected add or modify comes back into the line, unless something new is typed there already
   Connections {
@@ -453,7 +449,7 @@ Item {
                 if (root.inputMode !== "") root.endInput()
                 root.select(row.index)
               }
-              onDoubleClicked: root.markDone(row.modelData)
+              onDoubleClicked: TaskState.markDone(row.modelData)
             }
 
             Label {
@@ -513,9 +509,9 @@ Item {
               // always laid out, only shown on the hot row, so hovering never re-elides the description
               Repeater {
                 model: [
-                  { label: "done", act: function () { root.markDone(row.modelData) } },
-                  { label: row.modelData.active ? "stop" : "start", act: function () { root.toggleActive(row.modelData) } },
-                  { label: "del", act: function () { root.remove(row.modelData) } }
+                  { label: "done", act: function () { TaskState.markDone(row.modelData) } },
+                  { label: row.modelData.active ? "stop" : "start", act: function () { TaskState.toggleActive(row.modelData) } },
+                  { label: "del", act: function () { TaskState.remove(row.modelData) } }
                 ]
 
                 Label {

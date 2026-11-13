@@ -34,6 +34,15 @@ def record-save [record: record]: nothing -> nothing {
     mv -f $"($path).tmp" $path
 }
 
+# the minutes in the unit name, for the "<n>-min reminder" label
+def unit-minutes [unit: string]: nothing -> int { $unit | parse $"($UNIT_PREFIX){minutes}m-{set_at}" | get 0.minutes | into int }
+
+def unit-from-target [target: string, verb: string]: nothing -> string {
+    let unit = $target | str replace -r '\.(timer|service)$' ''
+    if not ($unit starts-with $UNIT_PREFIX) { error make {msg: $"refusing to ($verb) non-reminder unit '($target)'"} }
+    $unit
+}
+
 def epoch-now []: nothing -> int { date now | into int | $in // 1_000_000_000 }
 
 def epoch-to-date [epoch: int]: nothing -> datetime { $epoch * 1_000_000_000 | into datetime | date to-timezone local }
@@ -67,7 +76,7 @@ def reminder-list []: nothing -> table {
     | where at > $now
     | each {|timer|
         let unit = $timer.timer | str replace -r '\.timer$' ''
-        let minutes = $unit | parse $"($UNIT_PREFIX){minutes}m-{set_at}" | get 0.minutes | into int
+        let minutes = unit-minutes $unit
         let record = record-load $unit
         let at_time = epoch-to-date $timer.at | format date "%-H:%M"
         let label = if $record.message != "" { $record.message } else if $record.clock { $"reminder at ($at_time)" } else {
@@ -81,14 +90,10 @@ def reminder-list []: nothing -> table {
     }
 }
 
-def reminder-json []: nothing -> record {
-    {reminders: (reminder-list)}
-}
-
 def index-write []: nothing -> nothing {
     mkdir (reminder-dir)
     let index = reminder-dir | path join index.json
-    reminder-json | to json -r | save -f $"($index).tmp"
+    {reminders: (reminder-list)} | to json -r | save -f $"($index).tmp"
     mv -f $"($index).tmp" $index
 }
 
@@ -145,7 +150,7 @@ def "main at" [epoch: int, ...message: string]: nothing -> nothing {
 }
 
 def "main show" [--json (-j)]: nothing -> nothing {
-    if $json { print (reminder-json | to json -r); return }
+    if $json { print ({reminders: (reminder-list)} | to json -r); return }
     let lines = reminder-list | each { $"($in.label) in ($in.remaining) \(($in.atTime)\)" }
     action-notify $LIST_GLYPH "Upcoming reminders" (if ($lines | is-empty) { "None" } else { $lines | str join "\n" })
 }
@@ -153,8 +158,7 @@ def "main show" [--json (-j)]: nothing -> nothing {
 def "main list" [--json (-j)]: nothing -> nothing { main show --json=$json }
 
 def "main cancel" [target: string]: nothing -> nothing {
-    let unit = $target | str replace -r '\.(timer|service)$' ''
-    if not ($unit starts-with $UNIT_PREFIX) { error make {msg: $"refusing to cancel non-reminder unit '($target)'"} }
+    let unit = unit-from-target $target cancel
     if $unit not-in (reminder-list | get unit) { error make {msg: $"no pending reminder ($unit)"} }
     systemctl --user stop $"($unit).timer" $"($unit).service" | complete | ignore
     rm -f (record-path $unit)
@@ -165,8 +169,7 @@ def "main delete" [target: string]: nothing -> nothing { main cancel $target }
 
 # name a pending reminder, or with no name drop it back to "<n>-min reminder"
 def "main rename" [target: string, ...name: string]: nothing -> nothing {
-    let unit = $target | str replace -r '\.(timer|service)$' ''
-    if not ($unit starts-with $UNIT_PREFIX) { error make {msg: $"refusing to rename non-reminder unit '($target)'"} }
+    let unit = unit-from-target $target rename
     let pending = reminder-list | where unit == $unit | get --optional 0
     if $pending == null { error make {msg: $"no pending reminder ($unit)"} }
     record-save (record-load $unit | merge {at: $pending.at, message: ($name | str join " " | str trim)})
@@ -184,11 +187,10 @@ def "main clear" []: nothing -> nothing {
 # the timer's own command: alert.nu so an elapsed reminder does not auto-expire, then drop it from the index
 def "main _fire" [unit: string]: nothing -> nothing {
     let record = record-load $unit
-    let minutes = $unit | parse $"($UNIT_PREFIX){minutes}m-{set_at}" | get 0.minutes
     let title = if $record.message != "" { $record.message } else { "Time's up" }
     let body = if ($record.missed? | default false) { $"missed at (epoch-format-time $record.at)" } else if $record.clock {
         $"reminder for (epoch-format-time $record.at)"
-    } else { $"($minutes) minute reminder" }
+    } else { $"(unit-minutes $unit) minute reminder" }
     ^$ALERT $title $body $BELL_GLYPH reminder $record.message
     rm -f (record-path $unit)
     index-write

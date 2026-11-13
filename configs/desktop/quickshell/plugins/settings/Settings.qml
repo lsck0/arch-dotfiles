@@ -467,21 +467,17 @@ Item {
 
   // one toggle process at a time: a press while one runs waits its turn, marked busy; the running one's own press is
   // ignored, its script would only report it still switching
-  property var toggleQueue: []
+  property ProcessQueue toggleQueue: ProcessQueue {
+    onRunItem: function (name) {
+      toggleProc.name = name
+      toggleProc.command = ["uwsm-app", "-s", "b", "--", Paths.toggle("toggle-" + name + ".nu"), "toggle"]
+      toggleProc.running = true
+    }
+  }
   function runToggle(toggle) {
     root.busyToggles = Util.mapSet(root.busyToggles, toggle.name, true)
-    if (toggleProc.running) {
-      if (toggle.name !== toggleProc.name && root.toggleQueue.indexOf(toggle.name) < 0)
-        root.toggleQueue = root.toggleQueue.concat([toggle.name])
-      return
-    }
-    startToggle(toggle.name)
-  }
-
-  function startToggle(name) {
-    toggleProc.name = name
-    toggleProc.command = ["uwsm-app", "-s", "b", "--", Paths.toggle("toggle-" + name + ".nu"), "toggle"]
-    toggleProc.running = true
+    if ((toggleProc.running && toggle.name === toggleProc.name) || root.toggleQueue.items.indexOf(toggle.name) >= 0) return
+    root.toggleQueue.enqueue(toggle.name)
   }
 
   function lastLine(proc) { return String(proc.errText || proc.outText || "").trim().split("\n").pop() }
@@ -578,11 +574,7 @@ Item {
         root.notice = toggleProc.name + " failed: " + root.lastLine(toggleProc)
         root.noticeIsError = true
       }
-      if (root.toggleQueue.length > 0) {
-        const next = root.toggleQueue[0]
-        root.toggleQueue = root.toggleQueue.slice(1)
-        root.startToggle(next)
-      }
+      root.toggleQueue.done()
       statusProc.refresh()
     }
   }
@@ -606,7 +598,7 @@ Item {
       // still busy: the one running and the ones waiting
       var busy = {}
       if (toggleProc.running) busy[toggleProc.name] = true
-      root.toggleQueue.forEach(function (name) { busy[name] = true })
+      root.toggleQueue.items.forEach(function (name) { busy[name] = true })
       root.busyToggles = busy
       var next = Array.from(data || [])
       if (!Schema.equal(next, root.toggles)) root.toggles = next

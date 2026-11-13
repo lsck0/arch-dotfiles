@@ -51,15 +51,10 @@ BarWidget {
   }
 
   // a press while one runs waits its turn rather than being dropped
-  property var colorQueue: []
-  function colorRun(argv) {
-    if (colorActionProc.running) {
-      colorQueue = colorQueue.concat([argv])
-      return
-    }
-    colorActionProc.command = argv
-    colorActionProc.running = true
+  property ProcessQueue colorQueue: ProcessQueue {
+    onRunItem: function (argv) { colorActionProc.command = argv; colorActionProc.running = true }
   }
+  function colorRun(argv) { root.colorQueue.enqueue(argv) }
 
   function shaderName(entry) { return String(entry).split(":")[0] }
   function shaderVariant(entry) { var i = String(entry).indexOf(":"); return i < 0 ? "" : String(entry).substring(i + 1) }
@@ -79,13 +74,8 @@ BarWidget {
   Process {
     id: colorActionProc
     onExited: {
-      if (root.colorQueue.length > 0) {
-        const next = root.colorQueue[0]
-        root.colorQueue = root.colorQueue.slice(1)
-        root.colorRun(next)
-        return
-      }
-      root.refreshColor()
+      root.colorQueue.done()
+      if (!root.colorQueue.running) root.refreshColor()
     }
   }
 

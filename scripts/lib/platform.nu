@@ -35,15 +35,9 @@ export def platform-options-file [file: path]: nothing -> path {
 
 def platform-probe-form-factor []: nothing -> string {
     let virt = try { ^systemd-detect-virt | str trim } catch { "none" }
-    if $virt == "wsl" {
-        "wsl"
-    } else if $virt != "none" {
-        "vm"
-    } else if (glob /sys/class/power_supply/BAT* | is-not-empty) {
-        "laptop"
-    } else {
-        "desktop"
-    }
+    if $virt == "wsl" { return "wsl" }
+    if $virt != "none" { return "vm" }
+    if (glob /sys/class/power_supply/BAT* | is-not-empty) { "laptop" } else { "desktop" }
 }
 
 # The validated platform; no groups means all, form_factor falls back to FORM_FACTOR, then a probe.
@@ -57,14 +51,10 @@ export def platform-load [repo: path]: nothing -> record {
     let all = platform-groups-all $repo
     let groups = $raw.groups? | default [] | if ($in | is-empty) { $all } else { $in }
     let bad = $groups | where {|g| $g not-in $all and not ($repo | path join configs $g mod.nu | path exists) }
-    if ($bad | is-not-empty) {
-        error make {msg: $"($file): groups has ($bad | str join ', '), not a group or module in configs/"}
-    }
+    if ($bad | is-not-empty) { error make {msg: $"($file): groups has ($bad | str join ', '), not a group or module in configs/"} }
     let form_factor = $env.FORM_FACTOR? | default ($raw.form_factor? | default "")
         | if ($in | is-empty) { platform-probe-form-factor } else { $in }
-    if $form_factor not-in $FORM_FACTORS {
-        error make {msg: $"($file): form_factor '($form_factor)' is not one of ($FORM_FACTORS | str join ', ')"}
-    }
+    if $form_factor not-in $FORM_FACTORS { error make {msg: $"($file): form_factor '($form_factor)' is not one of ($FORM_FACTORS | str join ', ')"} }
     let facts = $raw.facts? | default {}
     let unknown_facts = $facts | columns | where $it not-in $PLATFORM_FACTS
     if ($unknown_facts | is-not-empty) {

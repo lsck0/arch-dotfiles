@@ -45,11 +45,7 @@ def layer-is-system []: nothing -> bool {
 
 # The systemd unit dir of the running layer: /etc/systemd/system for the system layer, else the user's.
 export def unit-dir []: nothing -> path {
-    if (layer-is-system) {
-        "/etc/systemd/system"
-    } else {
-        xdg config systemd user
-    }
+    if (layer-is-system) { "/etc/systemd/system" } else { xdg config systemd user }
 }
 
 # Copies src to dest as a managed file; --then runs once dest changed (a restart, a reload); --in-place as file-text.
@@ -267,11 +263,8 @@ export def dropin [unit: string, src: path, --name: string, --then: list<string>
 # A user copy of a system .desktop entry passed through edit; nothing when the app is not installed.
 export def desktop-override [id: string, edit: closure]: nothing -> list<record> {
     let system = $DESKTOP_SYSTEM_DIR | path join $id
-    if not ($system | path exists) {
-        return []
-    }
-    let dest = xdg data applications $id
-    [(file-text $dest (open --raw $system | do $edit))]
+    if not ($system | path exists) { return [] }
+    [(file-text (xdg data applications $id) (open --raw $system | do $edit))]
 }
 
 # An imperative command. Given any of --creates, --key, --done or --undo it is recorded: it is skipped once --done

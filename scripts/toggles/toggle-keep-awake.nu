@@ -8,7 +8,7 @@ def main [action: string = "toggle", --json] {
     switch-run {
         label: "Keep awake"
         is-on: {|| unit-active $UNIT --user }
-        on: {|| if not (unit-active $UNIT --user) { ^systemd-run --user --quiet --collect $"--unit=($UNIT)" ...$INHIBIT } }
+        on: {|| ^systemd-run --user --quiet --collect $"--unit=($UNIT)" ...$INHIBIT }
         off: {|| ^systemctl --user stop $UNIT | complete | ignore }
     } $action --json=$json
 }

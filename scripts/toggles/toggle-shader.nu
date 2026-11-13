@@ -29,6 +29,7 @@ def entries [shaders: table]: nothing -> list<string> {
 }
 
 def entry-parse [entry: string, shaders: table]: nothing -> string {
+    if $entry == off { return "off" }
     let first = $shaders | where name == $entry | get variants.0?.0?
     let entry = if $first == null { $entry } else { $"($entry):($first)" }
     if $entry not-in (entries $shaders) {

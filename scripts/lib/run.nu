@@ -123,11 +123,8 @@ def theme-init []: nothing -> nothing {
         | each {|f| $REPO | path join $f } | where ($it | path exists) | uniq
     let stamp = ^sha1sum ...$files | ^sha1sum | str trim
     let cache = xdg cache wal
-    let current = file-trim ($cache | path join .theme-stamp)
-    if ($cache | path join wallpaper | path exists) and $current == $stamp {
-        return
-    }
     let link = $cache | path join wallpaper
+    if ($link | path exists) and (file-trim ($cache | path join .theme-stamp)) == $stamp { return }
     let wallpaper = if ($link | path exists) { ^readlink -f $link | str trim } else { open $THEME_DEFAULT | get wallpaper }
     wallpaper-set $wallpaper --sync
     $"($stamp)\n" | save --force ($cache | path join .theme-stamp)
@@ -486,7 +483,6 @@ export def managed-drift []: nothing -> table {
     let every = $records | get outs | flatten
     let seen = observe-outputs $every user
     $records | each {|r|
-        let id = $r.id
         $r.outs | each {|o|
             let obs = $seen.paths | get --optional $o.target
             let state = match $o.kind {
@@ -498,7 +494,7 @@ export def managed-drift []: nothing -> table {
                 }
                 _ => null
             }
-            if $state == null { null } else { {module: $id, target: $o.target, drift: $state, pending: ($o.kind == "unit" or $state == "missing")} }
+            if $state == null { null } else { {module: $r.id, target: $o.target, drift: $state, pending: ($o.kind == "unit" or $state == "missing")} }
         } | compact
     } | flatten
 }

@@ -103,9 +103,9 @@ def ini-values [text: string]: nothing -> record {
     | reduce --fold {} {|r, acc| $acc | upsert $r.section {|v| $v | get --optional $r.section | default {} | insert $r.key $r.value } }
 }
 
-# Seeds dolphin's view properties only: dolphin rewrites them on every view change.
-def dolphin-view [dest: path]: nothing -> record {
-    ini-merge $dest (ini-values (open --raw $DOLPHIN_VIEW)) --missing-only
+# A repo ini's keys merged into dest only where dest lacks them.
+def ini-seed [src: path, dest: path]: nothing -> record {
+    ini-merge $dest (ini-values (open --raw $src)) --missing-only
 }
 
 # Plasma runs each shell update script once and records it in [Updates] performed, a key the backup strips as churn.
@@ -114,12 +114,6 @@ def dolphin-view [dest: path]: nothing -> record {
 def shell-updates-done []: nothing -> record {
     let scripts = glob ($SHELL_UPDATES | path join "*.js") | sort
     if ($scripts | is-empty) { {} } else { {Updates: {performed: ($scripts | str join ",")}} }
-}
-
-# kconf_update's record of the KDE config migrations it ran. The repo's configs are already migrated, so a fresh
-# account seeded with it does not run them again (plasma6.0-remove-old-shortcuts would drop shortcuts the repo keeps).
-def kconf-seed [dest: path]: nothing -> record {
-    ini-merge $dest (ini-values (open --raw $KCONF_SEED)) --missing-only
 }
 
 # The place from WEATHER, else blanks: the widget then opens unset and asks for a place.
@@ -143,12 +137,15 @@ export def link [cfg: record] {
         | each {|f| file-copy $f (config-path ($f | path relative-to $DIR)) }
     [
         (files-into (xdg data applications) ...(glob ($DIR | path join applications "*.desktop")))
-        (dolphin-view (xdg data $DOLPHIN_VIEW))
+        # only seeded: dolphin rewrites its view properties on every view change
+        (ini-seed $DOLPHIN_VIEW (xdg data $DOLPHIN_VIEW))
         # no kiosk key hides dolphin's dock short of shell_access=false, which also stops it running any executable
         (ini-merge ($nu.home-dir | path join $DOLPHIN_STATE) {State: {State: (open --raw $DOLPHIN_DOCK | str trim)}})
         (rc-files | where $it != $SHELLRC | each {|f| file-copy $f (config-path $f) })
         (file-text (config-path $SHELLRC) (open --raw $SHELLRC | ini-apply (shell-updates-done) true))
-        (kconf-seed (config-path $KCONF_UPDATERC))
+        # kconf_update's record of the migrations it ran: the repo's configs are already migrated, so a fresh account
+        # does not run them again (plasma6.0-remove-old-shortcuts would drop shortcuts the repo keeps)
+        (ini-seed $KCONF_SEED (config-path $KCONF_UPDATERC))
         (if $cfg.locale and $lang != null { file-render $LOCALERC (config-path $LOCALERC) {LANG: $lang} })
         $applets
         ($TEMPLATES | where $it != $APPLETSRC | each {|f| file-render $f (config-path $f) $values })

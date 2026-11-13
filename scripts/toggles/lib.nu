@@ -40,7 +40,7 @@ export def systemctl-guarded [verb: string, ...units: string]: nothing -> nothin
 
 # Passes a completed external's output on and, when it failed, raises its last stderr line, which the failure toast
 # shows: nushell's own error for a failed external names no cause.
-export def raise-failed [what: string]: record -> nothing {
+def raise-failed [what: string]: record -> nothing {
     let run = $in
     if $run.stdout != "" { print --no-newline $run.stdout }
     if $run.stderr != "" { print --stderr --no-newline $run.stderr }

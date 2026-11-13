@@ -83,9 +83,7 @@ export def ledger-units [repo: path, modules: table, scope: string]: nothing -> 
     let enabled = $names | zip $states | where $it.1 == "enabled" | each { $in.0 }
     let dropped = $enabled | where $it not-in $declared
     let disable = ($dropped | is-not-empty) and (tty-confirm $"ledger: disable ($dropped | str join ' ')?")
-    if $disable {
-        ^systemctl $"--($scope)" disable --now ...$dropped
-    }
+    if $disable { ^systemctl $"--($scope)" disable --now ...$dropped }
     let owned = $enabled | where $it in $declared | append (if $disable { [] } else { $dropped })
     ledger-set unit ($owned | each { $"($scope) ($in)" } | append (ledger-get unit | where not ($it | str starts-with $"($scope) ")))
     let by_hand = ^systemctl $"--($scope)" list-unit-files --state=enabled --no-legend | lines
@@ -112,6 +110,16 @@ export def packages-convergence [declared: list<string>, keep: list<string>]: no
     {declared: ($resolved | length), explicit: ($explicit | length), remove: $extra, resolved: $resolved}
 }
 
+# Removes the packages of remove nothing needs once resolved are marked explicit (so -s never takes one along) and
+# remove as dependencies; the rest of remove stays as dependencies and is returned.
+export def packages-orphans-remove [resolved: list<string>, remove: list<string>]: nothing -> list<string> {
+    if ($resolved | is-not-empty) { ^pacman -D --asexplicit ...$resolved | ignore }
+    ^pacman -D --asdeps ...$remove | ignore
+    let orphans = ^pacman -Qdttq | complete | get stdout | lines | where $it in $remove
+    if ($orphans | is-not-empty) { ^pacman -Rns --noconfirm ...$orphans }
+    $remove | where $it not-in $orphans
+}
+
 # Removes, after a yes (yes skips the question), recorded packages no module declares; what another package still
 # needs stays as a dependency.
 export def ledger-packages [declared: list<string>, yes: bool]: nothing -> nothing {
@@ -120,12 +128,7 @@ export def ledger-packages [declared: list<string>, yes: bool]: nothing -> nothi
     let installed = ^pacman -Qq | lines
     let dropped = (ledger-diff (ledger-get pkg) $resolved $installed).dropped | where not ($it =~ $PACKAGES_DENY)
     let removing = ($dropped | is-not-empty) and ($yes or (tty-confirm $"ledger: remove ($dropped | str join ' ')?"))
-    if $removing {
-        ^pacman -D --asexplicit ...$resolved | ignore
-        ^pacman -D --asdeps ...$dropped | ignore
-        let orphans = ^pacman -Qdttq | complete | get stdout | lines | where $it in $dropped
-        if ($orphans | is-not-empty) { ^pacman -Rns --noconfirm ...$orphans }
-    }
+    if $removing { packages-orphans-remove $resolved $dropped | ignore }
     ledger-set pkg ($resolved ++ (if $removing { [] } else { $dropped }))
     let by_hand = ^pacman -Qqe | lines | where $it not-in (ledger-get pkg)
     if ($by_hand | is-not-empty) { log-info $"installed by hand, not managed: ($by_hand | str join ' ')" }

@@ -64,10 +64,11 @@ Singleton {
   Component.onCompleted: updatePlayer()
 
   // each returns {icon, title} as json for the OSD, empty when no player can take the action, so the caller falls back
-  function act(can: bool, icon: string, action: var): string {
-    if (!root.player || !can) return ""
-    var title = root.player.trackTitle || root.player.identity || ""
-    action()
+  function act(can: string, icon: string, action: var): string {
+    var p = root.player
+    if (!p || !p[can]) return ""
+    var title = p.trackTitle || p.identity || ""
+    action(p)
     return JSON.stringify({ icon: icon, title: title })
   }
 
@@ -75,14 +76,11 @@ Singleton {
     target: "media"
 
     function playPause(): string {
-      var p = root.player
-      var icon = p && p.playbackState === MprisPlaybackState.Playing ? "media-pause" : "media-play"
-      return root.act(p !== null && p.canTogglePlaying, icon, () => p.togglePlaying())
+      var playing = root.player && root.player.playbackState === MprisPlaybackState.Playing
+      return root.act("canTogglePlaying", playing ? "media-pause" : "media-play", p => p.togglePlaying())
     }
-    function next(): string { return root.act(root.player !== null && root.player.canGoNext, "media-next", () => root.player.next()) }
-    function previous(): string {
-      return root.act(root.player !== null && root.player.canGoPrevious, "media-previous", () => root.player.previous())
-    }
-    function stop(): string { return root.act(root.player !== null && root.player.canControl, "media-stop", () => root.player.stop()) }
+    function next(): string { return root.act("canGoNext", "media-next", p => p.next()) }
+    function previous(): string { return root.act("canGoPrevious", "media-previous", p => p.previous()) }
+    function stop(): string { return root.act("canControl", "media-stop", p => p.stop()) }
   }
 }

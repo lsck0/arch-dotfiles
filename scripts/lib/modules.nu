@@ -158,17 +158,13 @@ export def modules-graph [repo: path, modules: table]: nothing -> table {
         } | uniq | where $it in $groups)
         {group: $g, dep_groups: $dep_names, after: ($dep_names | each {|d| $group_id_map | get $d } | flatten | uniq)
             total: ($group_id_map | get $g | length)}
-    }
-    let group_info = $group_info
-        | append {group: "", dep_groups: $groups, after: $grouped, total: ($root_members | length)}
+    } | append {group: "", dep_groups: $groups, after: $grouped, total: ($root_members | length)}
     let group_total = $group_info | each {|g| [$g.group $g.total] } | into record
     # reverse edges at group granularity: which groups wait on group g
     let group_dependents = $group_info
         | each {|g| [$g.group ($group_info | where ($g.group in $it.dep_groups) | get group)] } | into record
 
-    let with_after = $modules
-        | join ($group_info | select group after) group
-        | join ($group_info | select group dep_groups) group
+    let with_after = $modules | join ($group_info | select group after dep_groups) group
 
     # meta.deps touch only the handful of modules declaring them; everyone else keeps the group-level after as is
     let plain_rows = $with_after | where ($it.meta.deps | is-empty) | insert meta_extra []

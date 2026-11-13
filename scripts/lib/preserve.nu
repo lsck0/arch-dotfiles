@@ -42,13 +42,12 @@ export def preserve-aside [path: path, --copy]: nothing -> any {
         }
         ^mv -n $tmp $dest
         if (path-kind $tmp) != "" { rm --force --recursive $tmp; error make {msg: $"($path): preserve raced, ($dest) already existed"} }
-        log-info $"($path): the earlier copy kept as ($dest)"
-        return $dest
+    } else {
+        let moved = ^mv -n $path $dest | complete
+        if $moved.exit_code != 0 { error make {msg: $"($path): could not preserve to ($dest): ($moved.stderr | str trim)"} }
+        # `mv -n` exits 0 and moves nothing when dest raced into existence: only a gone source proves the move
+        if (path-kind $path) != "" { error make {msg: $"($path): preserve raced, ($dest) already existed"} }
     }
-    let moved = ^mv -n $path $dest | complete
-    if $moved.exit_code != 0 { error make {msg: $"($path): could not preserve to ($dest): ($moved.stderr | str trim)"} }
-    # `mv -n` exits 0 and moves nothing when dest raced into existence: only a gone source proves the move
-    if (path-kind $path) != "" { error make {msg: $"($path): preserve raced, ($dest) already existed"} }
     log-info $"($path): the earlier copy kept as ($dest)"
     $dest
 }
@@ -78,10 +77,7 @@ export def preserve-report []: nothing -> string {
 export def preserve-prune [days: int]: nothing -> nothing {
     let cutoff = (date now) - ($days * 1day) | format date $STAMP_FORMAT
     let old = preserve-entries | where stamp < $cutoff
-    if ($old | is-empty) {
-        log-info $"nothing in (preserve-dir) is older than ($days) days"
-        return
-    }
+    if ($old | is-empty) { log-info $"nothing in (preserve-dir) is older than ($days) days"; return }
     log-warn $"preserved more than ($days) days ago, to delete:\n  ($old.path | str join "\n  ")"
     if not (tty-confirm $"preserve: delete these ($old | length)?") { return }
     $old.path | each { rm --recursive --force $in } | ignore

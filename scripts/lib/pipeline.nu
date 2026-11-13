@@ -456,7 +456,6 @@ def native-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
     mut prev = $m.prev
     mut outcomes = []
     mut pass = 1
-    mut converged = false
     loop {
         let current = $actions
         let done = with-env (platform-env $ctx.platform) { apply-module $current $m.dir $ctx.layer }
@@ -466,7 +465,7 @@ def native-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
         let waiting = $done | where pending != null
         if ($ran | is-empty) or ($failed | is-not-empty) or $pass >= $EXEC_PASSES_MAX {
             # a pending action did not run: the next apply plans the module again
-            $converged = ($ran | is-empty) and ($failed | is-empty) and ($waiting | is-empty)
+            let converged = ($ran | is-empty) and ($failed | is-empty) and ($waiting | is-empty)
             if ($ran | is-not-empty) and ($failed | is-empty) { log-warn $"($m.id): still running ($ran.target | str join ', ') after ($pass) passes, evaluated again next run" }
             state-write $m.id $verb (if $converged { $m.input } else { "" }) $actions $done $prev
             break
@@ -475,8 +474,7 @@ def native-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
         $prev = (state-read $m.id $verb).outputs
         $pass += 1
         log-info $"($m.id): pass ($pass) after ($ran.target | str join ', ')" {kind: pass}
-        let outputs = $prev
-        let again = eval-plan $ctx [$m] $verb $args {$m.id: $outputs} ($m.force? | default false) | first
+        let again = eval-plan $ctx [$m] $verb $args {$m.id: $prev} ($m.force? | default false) | first
         if $again.error != null { error make {msg: $again.error} }
         # steps and plain execs plan on every pass; one that already went through this run does not run again
         let through = $outcomes | where {|o| $o.kind in [step exec] and $o.ok and $o.pending == null } | get target

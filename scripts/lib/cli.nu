@@ -61,20 +61,19 @@ export def guarded [name: string, body: closure, --read-only, --background]: not
     try {
         span $name {} $body
     } catch {|err|
-        if ($err.debug | str starts-with "LabeledError") {
+        let code = if ($err.debug | str starts-with "LabeledError") {
             log-err $err.msg
-            run-journal
-            exit 1
+            1
+        } else if ($err.debug | str contains "BrokenPipe") {
+            # the reader went away (`dot status | head`): nothing failed, so no crash record; 141 is a SIGPIPE exit
+            141
+        } else if ($err.debug | str contains "Interrupted") {
+            # ctrl+c is no crash: the supervisor logs the interrupt, nothing goes to crash.json
+            130
         }
-        # the reader went away (`dot status | head`): nothing failed, so no crash record; 141 is a SIGPIPE exit
-        if ($err.debug | str contains "BrokenPipe") {
+        if $code != null {
             run-journal
-            exit 141
-        }
-        # ctrl+c is no crash: the supervisor logs the interrupt, nothing goes to crash.json
-        if ($err.debug | str contains "Interrupted") {
-            run-journal
-            exit 130
+            exit $code
         }
         let run = $env.DOT_RUN_FILE
         let file = $run | path dirname | path dirname | path join crash.json
