@@ -192,7 +192,7 @@ export def pending-save [planned: list<string>, results: table, --full]: nothing
     let file = state-dir | path join $PENDING_FILE
     let earlier = try { open --raw $file | lines } catch { [] }
     let now = pending-lines $earlier $planned $results $full
-    if ($now | is-empty) { rm --force $file } else { $now | str join "\n" | $"($in)\n" | save-atomic $file }
+    if ($now | is-empty) { rm --force $file } else { $now | to text | save-atomic $file }
 }
 
 # Each dir's files with size and mtime, sorted, from one find.

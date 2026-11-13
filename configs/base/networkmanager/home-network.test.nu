@@ -5,7 +5,8 @@
 # the dispatcher's inputs: the two gateway files, `ip route`, the gateway's mac and NM's dhcp options.
 
 const HOME_NETWORK = path self home-network.nu
-use $HOME_NETWORK [hardware-mac-in-use gateways-parse route-gateway dhcp-server link-tier TIER_HOME TIER_TRUSTED TIER_NONE]
+use $HOME_NETWORK [hardware-mac-in-use gateways-parse dhcp-server link-tier TIER_HOME TIER_TRUSTED TIER_NONE]
+use lib/dispatch.nu [route-gateway]
 
 def fail [msg: string] { error make {msg: $"home-network.test: ($msg)"} }
 
@@ -58,6 +59,6 @@ for c in $TIERS {
     let gateway = route-gateway $c.route
     let seen = if $gateway == null { null } else { {mac: $c.gateway_mac, gateway: $gateway, dhcp_server: (dhcp-server $c.dhcp4)} }
     let trusted = $c.trusted | lines | where $it != "" | str lowercase
-    let got = link-tier (gateways-parse $c.home) $trusted $seen
+    let got = link-tier (gateways-parse ($c.home | lines)) $trusted $seen
     if $got != $c.tier { fail $"($c.name): ($got), want ($c.tier)" }
 }

@@ -36,7 +36,7 @@ BarWidget {
   onCalendarKeyChanged: calendarModel = calendarWeeks()
   Component.onCompleted: {
     calendarModel = calendarWeeks()
-    refreshOffsets()
+    offsetsProc.run()
   }
 
   function calendarWeeks() {
@@ -62,10 +62,6 @@ BarWidget {
     var weeks = []
     for (let w = 0; w < cells.length; w += 7) weeks.push(cells.slice(w, w + 7))
     return weeks
-  }
-
-  function refreshOffsets() {
-    if (!offsetsProc.running) offsetsProc.running = true
   }
 
   function timeInZone(spans) {
@@ -120,7 +116,7 @@ BarWidget {
   HoverPanel {
     anchorWidget: root
     title: "CLOCK"
-    onOpened: { root.refreshOffsets(); TimerState.reload() }
+    onOpened: { offsetsProc.run(); TimerState.reload() }
     implicitWidth: Style.panelWidth.normal
 
     Column {

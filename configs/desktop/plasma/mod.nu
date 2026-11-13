@@ -104,9 +104,8 @@ def ini-values [text: string]: nothing -> record {
 }
 
 # Seeds dolphin's view properties only: dolphin rewrites them on every view change.
-def dolphin-view [dest: path]: nothing -> list<record> {
-    let values = ini-values (open --raw $DOLPHIN_VIEW)
-    if ($values | is-empty) { [] } else { [(ini-merge $dest $values --missing-only)] }
+def dolphin-view [dest: path]: nothing -> record {
+    ini-merge $dest (ini-values (open --raw $DOLPHIN_VIEW)) --missing-only
 }
 
 # Plasma runs each shell update script once and records it in [Updates] performed, a key the backup strips as churn.
@@ -119,10 +118,8 @@ def shell-updates-done []: nothing -> record {
 
 # kconf_update's record of the KDE config migrations it ran. The repo's configs are already migrated, so a fresh
 # account seeded with it does not run them again (plasma6.0-remove-old-shortcuts would drop shortcuts the repo keeps).
-def kconf-seed [dest: path]: nothing -> list<record> {
-    let seed = $DIR | path join $KCONF_SEED
-    if not ($seed | path exists) { return [] }
-    [(ini-merge $dest (ini-values (open --raw $seed)) --missing-only)]
+def kconf-seed [dest: path]: nothing -> record {
+    ini-merge $dest (ini-values (open --raw $KCONF_SEED)) --missing-only
 }
 
 # The place from WEATHER, else blanks: the widget then opens unset and asks for a place.
@@ -294,7 +291,7 @@ def kdeglobals-back [live: string, template: string]: nothing -> string {
     ini-rows $live | each {|r|
         if not (do $own $r) { return $r.line }
         $kept | where section == $r.section and key == $r.key | get --optional 0.line
-    } | compact | str join "\n" | $"($in)\n"
+    } | compact | to text
 }
 
 # Drops the VOLATILE_KEYS lines from the backed-up copies so KDE's own runtime churn stays out of the repo.
@@ -303,14 +300,14 @@ def strip-volatile []: nothing -> nothing {
         let dest = $DIR | path join $v.file
         if not ($dest | path exists) { continue }
         ini-rows (open --raw $dest) | where {|r| not ($r.section == $v.section and $r.key == $v.key) }
-        | get line | str join "\n" | $"($in)\n" | save --force $dest
+        | get line | to text | save --force $dest
     }
 }
 
 # The seed as the union of every machine's done migrations, sorted: kconf_update's ctime and mtime are this machine's
 # file times, and each machine's done lists differ, so a plain copy would flip on every machine's sync.
 def kconf-back [live: path, seed: path]: nothing -> nothing {
-    let have = if ($seed | path exists) { ini-values (open --raw $seed) } else { {} }
+    let have = ini-values (open --raw $seed)
     let now = ini-values (open --raw $live)
     let sections = $have | columns | append ($now | columns) | uniq | sort
     $sections | each {|section|

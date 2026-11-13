@@ -1,5 +1,7 @@
 # Machine facts, exported to modules as uppercase env vars (platform-has).
 
+use state.nu [file-trim]
+
 const PLATFORM_LOCAL_DIR = "/etc/dotfiles"
 export const PLATFORM_NAME_FILE = "/etc/dotfiles/platform"
 const FORM_FACTORS = [desktop laptop server vm wsl]
@@ -14,7 +16,7 @@ export def platform-groups-all [repo: path]: nothing -> list<string> {
 
 # A name with no platform file is an error, never a fallback to every group.
 export def platform-file [repo: path]: nothing -> any {
-    let name = try { open --raw $PLATFORM_NAME_FILE | str trim } catch { "" }
+    let name = file-trim $PLATFORM_NAME_FILE
     let named = if $name != "" { $repo | path join platforms $"($name).nuon" }
     let found = [($PLATFORM_LOCAL_DIR | path join platform.nuon) ($repo | path join platforms local.nuon) $named]
         | compact | where ($it | path exists) | get --optional 0
@@ -110,7 +112,7 @@ export def display-xwayland-scale [form_factor: string]: nothing -> int {
 export def gpu-list []: nothing -> table {
     glob /sys/class/drm/card[0-9]* | where ($it | path basename) =~ '^card\d+$' | each {|card|
         let dev = $card | path join device
-        let read = {|f| try { open --raw ($dev | path join $f) | str trim } catch { "" } }
+        let read = {|f| file-trim ($dev | path join $f) }
         let pci = ^readlink -f $dev | path basename
         let render = ls ($dev | path join drm) | get name | path basename | where ($it | str starts-with renderD) | get --optional 0
         {

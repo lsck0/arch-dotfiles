@@ -19,7 +19,7 @@ export def system [cfg: record] {
         (unit-enable libvirtd.service --now)
         (step network)
         # no libvirt group: its polkit rule is a silent root for every member's process
-        (file-copy 49-libvirt.rules /etc/polkit-1/rules.d/49-libvirt.rules)
+        (polkit-rules 49-libvirt.rules)
         (group-admins kvm)
         (if $module != null { file-text /etc/modprobe.d/kvm-nested.conf $"options ($module) nested=1\n" })
     ]

@@ -2,7 +2,7 @@
 # Root's one entry: re-execs under one flock and interruptible.sh, only from the root-owned copy.
 
 use log.nu *
-use state.nu [SYSTEM_REPO SYSTEM_STATE EXIT_ABORTED EXIT_PENDING INSTALL_PASS_FILE]
+use state.nu [SYSTEM_REPO SYSTEM_STATE EXIT_ABORTED EXIT_PENDING INSTALL_PASS_FILE process-running]
 use pipeline.nu [pipeline-load pipeline-plan pipeline-apply pending-save barriers-run]
 use modules.nu [modules-packages]
 use ledger.nu [packages-convergence ledger-set ledger-packages ledger-units]
@@ -12,7 +12,7 @@ use system.nu [system-unpack system-secrets ENTRY]
 use cli.nu [supervise self-argv]
 use sync.nu [bootstrap-const FINGERPRINT_VALUE]
 use cause.nu [cause-from-output cause-text failure-line argv-text]
-use profile.nu [PROFILE_OWNERS_FILE]
+use profile.nu [profile-owner-add]
 
 const EXIT_FAILURES = 1
 const OFFLINE_WAIT_S = 120
@@ -139,13 +139,13 @@ export def packages-resolve [targets: list<string>, probe: closure]: nothing -> 
     {kept: $kept, dropped: $dropped}
 }
 
-# --packages-unchecked: runs even before the module's packages are installed (base/pacman, ahead of the install pass).
 # The modules of an install-stage role (meta.phase): early runs before the install pass with packages unchecked
 # (pacman.conf, the mirror's key) and again after it, never in config; install runs again after the pass.
 def phase-ids [ctx: record, phase: string]: nothing -> list<string> {
     $ctx.modules | where {|m| $m.meta.phase? == $phase and $m.cfg.enable and not $m.broken } | get id
 }
 
+# --packages-unchecked: runs even before the module's packages are installed (base/pacman, ahead of the install pass).
 def module-system [ctx: record, id: string, --packages-unchecked]: nothing -> bool {
     let planned = pipeline-plan $ctx system [$id] false --packages-unchecked=$packages_unchecked
     let results = pipeline-apply $ctx $planned system 1
@@ -199,7 +199,7 @@ def "main install" [--unattended, --yes]: nothing -> nothing {
     # pipeline-apply records the failure itself
     for id in (phase-ids $ctx early) { if not (module-system $ctx $id --packages-unchecked) { exit $EXIT_ABORTED } }
     # a power cut mid-transaction leaves the lock, and every retry boot would fail on it
-    if ($PACMAN_LOCK | path exists) and (^pgrep -x pacman | complete).exit_code != 0 { rm --force $PACMAN_LOCK }
+    if ($PACMAN_LOCK | path exists) and not (process-running pacman) { rm --force $PACMAN_LOCK }
     let declared = modules-packages $repo $ctx.modules $ctx.platform
     pacman-retry "the database sync" (if $offline { $OFFLINE_TRIES } else { $DOWNLOAD_TRIES }) -Syy --noconfirm
     # one package the mirror cannot resolve drops only itself and what needs it, never the whole pass
@@ -222,8 +222,11 @@ def "main install" [--unattended, --yes]: nothing -> nothing {
     let upgrade = if $unattended or ($ctx.platform.facts.lsck0_snapshot | is-not-empty) { "-Suu" } else { "-Su" }
     pacman-retry "the install pass" $DOWNLOAD_TRIES $upgrade --needed --noconfirm --ask 4 ...$wanted
     date now | format date '%+' | save --force $INSTALL_PASS_FILE
-    let snapshot = $"($ctx.platform.facts.lsck0_snapshot | default latest) (ls $LSCK0_DB | get 0.modified | date to-timezone UTC | format date '%FT%TZ') (open --raw $LSCK0_DB | hash sha256)"
-    ledger-set snapshot [$snapshot]
+    # a machine off the lab syncs without [lsck0] (base/pacman's lsck0-drop), so it has no database to record
+    if ($LSCK0_DB | path exists) {
+        let synced = ls $LSCK0_DB | get 0.modified | date to-timezone UTC | format date '%FT%TZ'
+        ledger-set snapshot [$"($ctx.platform.facts.lsck0_snapshot | default latest) ($synced) (open --raw $LSCK0_DB | hash sha256)"]
+    }
     if ($declared.incomplete | is-not-empty) {
         fail $"ledger: not removing dropped packages, these modules declare none: ($declared.incomplete | str join ' ')"
     } else {
@@ -268,7 +271,7 @@ def "main config" [--unattended, --force]: nothing -> nothing {
     rm --force $ADDUSER_BIN
     $"#!/bin/sh\n[ \"$\(id -u\)\" = 0 ] || exec sudo \"$0\" \"$@\"\nexec /usr/bin/nu --no-config-file ($SYSTEM_REPO | path join $ENTRY) adduser \"$@\"\n" | save $ADDUSER_BIN
     ^chmod 755 $ADDUSER_BIN
-    try { ledger-units $repo ($ctx.modules | where cfg.enable | get dir) system | ignore } catch {|e| fail $"ledger: disabling dropped units: ($e.msg)" }
+    try { ledger-units $repo ($ctx.modules | where cfg.enable) system | ignore } catch {|e| fail $"ledger: disabling dropped units: ($e.msg)" }
     # last, so every initramfs and cmdline change of this run is rebuilt once, then signed and verified
     for b in (barriers-run $ctx $run.results $force | where not ok) { fail $"barrier of ($b.id): ($b.error)" }
     failures-end config
@@ -362,9 +365,7 @@ def "main adduser" [name: string, --profile: string]: nothing -> nothing {
     # root's copy: the login can write its own checkout
     let picked_file = $repo | path join profiles $"($picked).nuon"
     if $picked != $PROFILE_CUSTOM and ("secrets" in (open $picked_file | get --optional capabilities | default [])) {
-        let owners = $PROFILE_OWNERS_FILE
-        let have = if ($owners | path exists) { open --raw $owners | lines } else { [] }
-        if $name not-in $have { $"($name)\n" | save --append $owners }
+        profile-owner-add $name
     }
     ^systemd-run --quiet --wait --pipe --collect $"--uid=($name)" -p PAMName=login -p $"WorkingDirectory=($checkout)" nu --no-config-file scripts/dot.nu apply --packages --user
 }

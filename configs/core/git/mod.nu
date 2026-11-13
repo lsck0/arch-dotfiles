@@ -15,7 +15,7 @@ def has [tool: string]: nothing -> bool {
 def ini [sections: list<list>]: nothing -> string {
     $sections | each {|s|
         $s.1 | items {|k, v| [$v] | flatten | each {|one| $"\t($k) = ($one)" } } | flatten | prepend $"[($s.0)]" | str join "\n"
-    } | str join "\n" | $"($in)\n"
+    } | to text
 }
 
 def jj-config [identity: oneof<record, nothing>]: nothing -> string {

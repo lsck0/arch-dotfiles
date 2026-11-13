@@ -21,9 +21,9 @@ def portal-open []: nothing -> bool {
 def main [action: string = "toggle", --json] {
     switch-run {
         label: "Captive portal"
+        available: {|| ($DISPATCHER | path exists) and ((portal-open) or (foreign-links | is-not-empty)) }
         is-on: {|| portal-open }
         on: {|| root-run portal on }
         off: {|| root-run portal off }
-        available: {|| ($DISPATCHER | path exists) and ((portal-open) or (foreign-links | is-not-empty)) }
     } $action --json=$json
 }

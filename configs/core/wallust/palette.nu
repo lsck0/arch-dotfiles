@@ -258,17 +258,13 @@ def wal-slots []: record -> list<string> {
     $slots
 }
 
-# The wal palette as hex: bg fg c0..c15, then light (1/0) and the conditioned bg.
-export def palette-slots []: nothing -> list<string> {
-    let slots = open (wal-colors-file) | wal-slots
-    let bg = $slots.0 | hex-to-rgb
-    $slots ++ [(if ($bg | is-light) { "1" } else { "0" }) ($bg | condition-bg | rgb-to-hex --prefix "#")]
-}
-
-# The palette-slots record (bg fg c0..c15 light bg_conditioned), or null before the first theme.
+# The wal palette as hex {bg fg c0..c15}, then light (1/0) and the conditioned bg; null before the first theme.
 export def palette-load []: nothing -> any {
     if not (wal-colors-file | path exists) { return null }
-    $PALETTE_SLOTS | zip (palette-slots) | into record
+    let slots = open (wal-colors-file) | wal-slots
+    let bg = $slots.0 | hex-to-rgb
+    let derived = [(if ($bg | is-light) { "1" } else { "0" }) ($bg | condition-bg | rgb-to-hex --prefix "#")]
+    $PALETTE_SLOTS | zip ($slots ++ $derived) | into record
 }
 
 # The wal palette as rgb {bg fg c0..c15}, or null (said on stderr, as program) when colors.json is unreadable or lacks
@@ -302,7 +298,7 @@ export def palette-js-sync [--write]: nothing -> bool {
 }
 
 # Print the slot line: bg fg c0..c15 light bg_conditioned.
-def "main shell" []: nothing -> nothing { print (palette-slots | str join " ") }
+def "main shell" []: nothing -> nothing { print (palette-load | values | str join " ") }
 
 # Check (or with --write regenerate) Palette.js's constants block.
 def "main js" [--write]: nothing -> nothing {

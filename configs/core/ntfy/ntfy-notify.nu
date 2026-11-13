@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # forwards the homelab's ntfy topics to desktop notifications; lab.json names the topics
 
-const REPO = path self | path expand | path dirname --num-levels 4
+const REPO = path self ../../..
 use ($REPO | path join scripts lib secrets.nu) [secret-is-plaintext]
 use ($REPO | path join scripts lib homelab.nu) [homelab-lab-load]
 use ($REPO | path join scripts lib state.nu) [xdg]

@@ -15,12 +15,10 @@ const LOG_DIR = ".local/state/bugwarrior"
 const TASKRC = ($nu.home-dir | path join .config task taskrc)
 const UDA = ($nu.home-dir | path join $CONFIG_DIR uda.taskrc)
 const UDA_CACHE = "bugwarrior-uda"
-const PACMAN_LOCAL = "/var/lib/pacman/local"
 
 # `bugwarrior uda` starts python on every evaluation: its output kept by the config's hash and the installed version.
 def uda-render [config: path]: nothing -> string {
-    let version = ls --short-names $PACMAN_LOCAL | get name | where $it =~ '^bugwarrior(-git)?-\d' | get --optional 0 | default ""
-    let key = $"(open --raw $config | hash sha256) ($version)" | hash sha256
+    let key = $"(open --raw $config | hash sha256) (package-version bugwarrior-git)" | hash sha256
     let dir = xdg cache $UDA_CACHE
     let cached = $dir | path join $"($key).taskrc"
     if ($cached | path exists) { return (open --raw $cached) }

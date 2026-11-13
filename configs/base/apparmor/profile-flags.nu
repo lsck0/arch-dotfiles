@@ -1,10 +1,14 @@
-# What the apply (mod.nu) and aa share: where own profiles and apparmor.d's sources live, a profile line's mode.
+# What the apply (mod.nu) and aa share: where own profiles, apparmor.d's sources and the mode tables live, a profile
+# line's mode.
 
 export const MARKER = "# managed by arch-dotfiles/apparmor"
 # an own profile's file: never the bare name, which the apparmor package owns and aa-install's overwrite.d disables
 export const OWN_SUFFIX = ".dotfiles"
 export const ETC = "/etc/apparmor.d"
 export const SOURCE = "/usr/share/apparmor.d"
+# aa-install's mode tables: the baseline the apply writes, and the per-machine choices aa writes over it
+export const BASELINE_FLAGS = "/etc/apparmor/flags.d/dotfiles.conf"
+export const MANUAL_FLAGS = "/etc/apparmor/flags.d/manual.conf"
 # the brace opening a profile's body, at the end of its line
 const BODY_OPEN = '\s*\{\s*$'
 
@@ -30,5 +34,5 @@ export def profile-mode [mode: string]: string -> string {
 # A whole profile file with every profile line in this mode.
 export def text-mode [mode: string]: string -> string {
     lines | each {|l| if ($l | str starts-with "profile ") { $l | profile-mode $mode } else { $l } }
-    | str join "\n" | $"($in)\n"
+    | to text
 }

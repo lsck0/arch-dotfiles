@@ -16,8 +16,8 @@ BarWidget {
   component RadioChip: Button {
     variant: "chip"
     focusable: true
-    fontSize: Style.font.caption
   }
+
   moduleName: "network"
   barPriority: 75
   hoverPanel: true
@@ -90,7 +90,7 @@ BarWidget {
   function refreshAll() {
     lastRefreshMs = Date.now()
     togglesProc.run()
-    if (!detailsProc.running) detailsProc.running = true
+    detailsProc.run()
   }
 
   function refreshWifiList(rescan) {
@@ -104,7 +104,7 @@ BarWidget {
     var now = Date.now()
     wifiShowAll = false
     if (now - lastRefreshMs >= refreshMinAgeMs) refreshAll()
-    else if (!detailsProc.running) detailsProc.running = true
+    else detailsProc.run()
     refreshWifiList(now - lastScanMs >= refreshMinAgeMs)
   }
 
@@ -218,7 +218,7 @@ BarWidget {
     interval: 2000
     running: panel.visible
     repeat: true
-    onTriggered: if (!detailsProc.running) detailsProc.running = true
+    onTriggered: detailsProc.run()
   }
 
   readonly property bool onEthernet: detailsDevice.indexOf("en") === 0 || detailsDevice.indexOf("eth") === 0

@@ -1,10 +1,9 @@
 use module.nu *
 export use ../boot/boot.nu [cmdline-set]
-use profile-flags.nu [ETC MARKER OWN_SUFFIX SOURCE text-mode upstream-files]
+use profile-flags.nu [BASELINE_FLAGS ETC MANUAL_FLAGS MARKER OWN_SUFFIX SOURCE text-mode upstream-files]
 
 export const meta = {packages: {native: [apparmor apparmor.d]}, volatile: true}
 
-const MANUAL = "/etc/apparmor/flags.d/manual.conf"
 const PARSER_CONF = "/etc/apparmor/parser.conf"
 const SYSCTL = "/etc/sysctl.d/99-apparmor.conf"
 const EARLY_POLICY = "/etc/apparmor/earlypolicy"
@@ -36,7 +35,7 @@ def own []: nothing -> list<string> {
 }
 
 def modes []: nothing -> record {
-    rows profiles.conf | append (rows $MANUAL)
+    rows profiles.conf | append (rows $MANUAL_FLAGS)
     | reduce --fold {} {|r, acc| $acc | upsert $r.name ($r.flags | split row "," | first) }
 }
 
@@ -45,7 +44,7 @@ def modes []: nothing -> record {
 export def tunables []: nothing -> string {
     open --raw $USER_DIRS | lines | parse --regex '^(?<var>XDG_[A-Z]+_DIR)="\$HOME/(?<dir>.*)"$'
     | each { $'@{($in.var)}+="($in.dir)"' }
-    | append ['@{XDG_SYNC_DIR}+="sync"' '@{DOTFILES}=@{HOME}/projects/arch-dotfiles'] | str join "\n" | $"($in)\n"
+    | append ['@{XDG_SYNC_DIR}+="sync"' '@{DOTFILES}=@{HOME}/projects/arch-dotfiles'] | to text
 }
 
 # apparmor.d's profile with only its attachment replaced.
@@ -65,16 +64,15 @@ def own-profile [name: string, text: string, mode: any]: nothing -> record {
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
     let upstream = rows profiles.conf | where name not-in (own)
-    let lines = {|list| $list | str join "\n" | $"($in)\n" }
     [
         (step cmdline-set $LSM)
         (unit-enable apparmor.service)
         (file-copy sysctl-apparmor.conf $SYSCTL --then [/usr/lib/systemd/systemd-sysctl $SYSCTL])
         (file-copy modes /etc/apparmor/modes)
-        (file-text /etc/apparmor/flags.d/dotfiles.conf (do $lines ($upstream | each { $"($in.name) ($in.flags)" })))
-        (file-text /etc/apparmor/include.d/dotfiles.conf (do $lines $upstream.name))
+        (file-text $BASELINE_FLAGS ($upstream | each { $"($in.name) ($in.flags)" } | to text))
+        (file-text /etc/apparmor/include.d/dotfiles.conf ($upstream.name | to text))
         # an own profile replaces apparmor.d's of the same name: aa-install must not build its own
-        (file-text /etc/apparmor/ignore.d/dotfiles.conf (do $lines (own)))
+        (file-text /etc/apparmor/ignore.d/dotfiles.conf (own | to text))
         (file-text ($ETC | path join $TUNABLES) (tunables))
         (step build)
     # base-strict is aa-install's output: gating on it alone would leave a fresh machine's first run without ours
@@ -101,7 +99,7 @@ export def build []: nothing -> nothing {
     mkdir $EARLY_POLICY
     let have = open --raw $PARSER_CONF | lines
     let missing = $PARSER_LINES | where $it not-in $have
-    if ($missing | is-not-empty) { $"($missing | str join "\n")\n" | save --append $PARSER_CONF }
+    $missing | to text | save --append $PARSER_CONF
     if (which aa-install | is-not-empty) and (^aa-install --install --no-reload | complete).exit_code != 0 {
         print "note: apparmor: aa-install failed, the profiles keep their last build"
     }
@@ -119,7 +117,7 @@ export def build []: nothing -> nothing {
 }
 
 export def load []: nothing -> nothing {
-    if (try { open --raw /sys/module/apparmor/parameters/enabled | str trim } catch { "" }) != "Y" {
+    if (file-trim /sys/module/apparmor/parameters/enabled) != "Y" {
         print "apparmor: not active in this kernel yet, the profiles load on the next boot"
         return
     }

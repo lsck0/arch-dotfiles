@@ -7,8 +7,6 @@ const SEED = path self config.yaml
 
 def config-file []: nothing -> path { xdg config bookokrat config.yaml }
 
-def scheme-file []: nothing -> path { xdg cache wal colors-bookokrat.yaml }
-
 export def link [cfg: record] {
     let dest = config-file
     # seeded once: bookokrat rewrites config.yaml at runtime, so a repo edit only reaches a fresh install
@@ -18,7 +16,7 @@ export def link [cfg: record] {
 # Merged, not rendered: only the selected theme, its scheme and the synctex editor are forced.
 export def theme [cfg: record, wallpaper: string] {
     let file = config-file
-    let scheme_file = scheme-file
+    let scheme_file = xdg cache wal colors-bookokrat.yaml
     if not ($file | path exists) or not ($scheme_file | path exists) { return [] }
     let editor = open $SEED | get synctex_editor
     let scheme = open $scheme_file

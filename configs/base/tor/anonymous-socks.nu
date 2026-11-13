@@ -102,7 +102,7 @@ export def anonymous-socks-check []: nothing -> nothing {
 }
 
 export def anonymous-socks-proxylist []: nothing -> string {
-    ["[ProxyList]"] ++ (pool-ports (settings) | each { $"socks5 127.0.0.1 ($in)" }) | str join "\n" | $"($in)\n"
+    ["[ProxyList]"] ++ (pool-ports (settings) | each { $"socks5 127.0.0.1 ($in)" }) | to text
 }
 
 # The proxychains config for the pool: round_robin with chain_len 1, so each connection exits on the next port.

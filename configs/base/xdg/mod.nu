@@ -22,7 +22,7 @@ export def pam-env []: nothing -> nothing {
     let kept = $have | where {|l| $l in $PAM_LINES or ($l | split row --regex '\s+' | first) not-in $names }
     let missing = $PAM_LINES | where $it not-in $kept
     if ($missing | is-empty) and ($kept | length) == ($have | length) { return }
-    $kept ++ $missing | str join "\n" | $"($in)\n" | save --force $PAM_ENV
+    $kept ++ $missing | to text | save --force $PAM_ENV
 }
 
 const DIRS = [desktop documents downloads music pictures videos sync vault .local/share/applications]
@@ -103,8 +103,7 @@ def places [nas: bool, projects: bool]: nothing -> list<record> {
 }
 
 # The live places file (kio rewrites it on every change) plus any missing mark, so an apply writes only if one is gone.
-def places-xbel [marks: list<record>]: nothing -> string {
-    let file = home .local share user-places.xbel
+def places-xbel [file: path, marks: list<record>]: nothing -> string {
     let live = if ($file | path exists) { open --raw $file } else { "" }
     if not ($live | str contains $XBEL_END) {
         let head = $"<?xml version='1.0' encoding='UTF-8'?>\n<xbel xmlns:bookmark=\"($XBEL_NS)\">"
@@ -120,13 +119,14 @@ def autostart-hidden []: nothing -> list<string> {
 }
 
 export def link [cfg: record] {
-    let config = home .config
+    let config = xdg config
     # core/nas makes ~/nas only for an unlocked owner, so the bookmark follows the same gate
     let nas = (owner-unlocked) and (platform-has homelab)
     let projects = home projects | path exists
     let portals = $config | path join xdg-desktop-portal
     let places = places $nas $projects
     let bookmarks = $places | where gtk | each { $"($in.href) ($in.title)" }
+    let xbel = xdg data user-places.xbel
     [
         (if not (home-dirs-done) { step home-dirs })
         (files-into $config mimeapps.list user-dirs.conf user-dirs.dirs)
@@ -143,21 +143,21 @@ export def link [cfg: record] {
         # the portal reads its routing only at start
         (if (which Hyprland | is-not-empty) {
             (file-copy hyprland-portals.conf ($portals | path join hyprland-portals.conf)
-                --then [systemctl --user try-restart xdg-desktop-portal.service])
+                --then (unit-restart xdg-desktop-portal.service --if-running))
         })
         # a user kde-portals.conf replaces plasma's whole file, so it repeats plasma's lines
         (if (which startplasma-wayland | is-not-empty) { files-into $portals kde-portals.conf })
-        (file-text ($config | path join gtk-3.0 bookmarks) ($bookmarks | str join "\n" | $"($in)\n"))
-        (file-text (home .local share user-places.xbel) (places-xbel $places) --generated)
+        (file-text ($config | path join gtk-3.0 bookmarks) ($bookmarks | to text))
+        (file-text $xbel (places-xbel $xbel $places) --generated)
         (if (which update-desktop-database | is-not-empty) and (desktop-database-stale) {
-            exec "desktop database" [update-desktop-database (home .local share applications)]
+            exec "desktop database" [update-desktop-database (xdg data applications)]
         })
     ]
 }
 
 # Whether an entry under applications/ changed since update-desktop-database last wrote mimeinfo.cache.
 def desktop-database-stale []: nothing -> bool {
-    let dir = home .local share applications
+    let dir = xdg data applications
     let cache = $dir | path join mimeinfo.cache
     if not ($cache | path exists) { return true }
     let built = (ls --long $cache | get 0.modified) + $DESKTOP_CACHE_SLACK

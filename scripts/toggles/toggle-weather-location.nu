@@ -7,6 +7,8 @@ const AUTO_CACHE_MAX_AGE = 30min
 const GEOCLUE_DEMO = "/usr/lib/geoclue-2.0/demos/where-am-i"
 const GEOCLUE_AGENT = "/usr/lib/geoclue-2.0/demos/agent"
 const GEOCLUE_TIMEOUT_S = 8
+const GEOCLUE_ACCURACY_CITY = 4
+const GEOCLUE_FIX_TIMEOUT_S = 6
 const ZONE_TABS = ["/usr/share/zoneinfo/zone1970.tab" "/usr/share/zoneinfo/zone.tab"]
 const IPGEO_URL = "https://ipapi.co/json/"
 const IPGEO_TIMEOUT = 6sec
@@ -23,7 +25,7 @@ def coords-format [lat: float, lon: float]: nothing -> string {
 def geoclue-coords []: nothing -> any {
     if not ($GEOCLUE_DEMO | path exists) or not ($GEOCLUE_AGENT | path exists) { return null }
     let agent = job spawn { ^$GEOCLUE_AGENT o+e> /dev/null }
-    let output = ^timeout $GEOCLUE_TIMEOUT_S $GEOCLUE_DEMO -a 4 -t 6 | complete | get stdout
+    let output = ^timeout $GEOCLUE_TIMEOUT_S $GEOCLUE_DEMO -a $GEOCLUE_ACCURACY_CITY -t $GEOCLUE_FIX_TIMEOUT_S | complete | get stdout
     job kill $agent
     let found = $output | parse --regex 'Latitude:\s*(?<lat>-?[0-9.]+)[\s\S]*?Longitude:\s*(?<lon>-?[0-9.]+)' | get 0?
     if $found != null { coords-format ($found.lat | into float) ($found.lon | into float) }

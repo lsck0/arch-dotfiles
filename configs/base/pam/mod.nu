@@ -57,7 +57,7 @@ export def system [cfg: record] {
         (if $u2f and ($POLKIT_VENDOR | path exists) {
             let with_u2f = auth-insert (open --raw $POLKIT_VENDOR | lines) $line
             let lines = if (has-fprint) { auth-insert $with_u2f $FPRINT_LINE } else { $with_u2f }
-            file-text /etc/pam.d/polkit-1 ($lines | str join "\n" | $"($in)\n")
+            file-text /etc/pam.d/polkit-1 ($lines | to text)
         })
     ]
 }
@@ -87,5 +87,5 @@ export def sudo-stack [u2f: string, line: string]: nothing -> nothing {
     let after = auth-insert ($after | where $it != $TTY_LINE) $TTY_LINE $AUTH_ANY
     if $after == $before or not ($after | any { $in =~ system-auth }) { return }
     if not ($"($SUDO).pre-auth.bak" | path exists) { ^cp -a $SUDO $"($SUDO).pre-auth.bak" }
-    $after | str join "\n" | $"($in)\n" | save --force $SUDO
+    $after | to text | save --force $SUDO
 }

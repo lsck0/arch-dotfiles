@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # no connectivity check before a connect: until proton0 is up the system layer keeps the link on tor
 
-const TOGGLE = path self | path expand | path dirname | path join .. .. .. scripts toggles toggle-route.nu
+const TOGGLE = path self | path expand | path dirname --num-levels 4 | path join scripts toggles toggle-route.nu
     | path expand
 # trusted, not only home: a trusted network needs no vpn either
 const TRUSTED_NETWORK = "/run/trusted-network"

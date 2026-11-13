@@ -3,7 +3,8 @@ use module.nu *
 export const meta = {packages: {pacman: [playerctl]}}
 
 const SCRIPTS = [agent-guard.nu media-guard.nu ssh-guard.nu]
-# each unit runs <guard>-guard.nu; the agent guard runs from the agents' hooks instead
+# each unit runs <guard>-guard.nu (the agent guard runs from the agents' hooks instead); unit names stay literal for
+# the ledger
 const UNITS = [
     [guard unit while];
     [media idle-guard-media.service "media plays"]
@@ -18,10 +19,6 @@ export def guard-hook []: record -> bool {
     [$in] ++ ($in.hooks? | default []) | any { $in.command? | default "" | str contains agent-guard }
 }
 
-export def system [cfg: record] {
-    file-copy 49-idle-guards.rules /etc/polkit-1/rules.d/49-idle-guards.rules
-}
-
 export def link [cfg: record] {
     let dir = xdg config idle-guards
     [
@@ -33,4 +30,8 @@ export def link [cfg: record] {
             ]
         })
     ]
+}
+
+export def system [cfg: record] {
+    polkit-rules 49-idle-guards.rules
 }

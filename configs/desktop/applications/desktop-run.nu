@@ -85,7 +85,7 @@ def main [
         # stderr goes on to the journal line by line; its last lines are saved, since a failing command's error drops the
         # pipeline's value
         let exit_code = try {
-            ^($command | first) ...($command | skip 1) e>| lines | each {|line| print --stderr $line; $line }
+            run-external ...$command e>| lines | each {|line| print --stderr $line; $line }
             | last $NOTIFY_LINES | save --force $tailfile
             0
         } catch {|err| $err.exit_code? | default 1 }
@@ -97,7 +97,7 @@ def main [
         }
         exit $exit_code
     }
-    let status = try { ^($command | first) ...($command | skip 1); 0 } catch { $env.LAST_EXIT_CODE }
+    let status = try { run-external ...$command; 0 } catch { $env.LAST_EXIT_CODE }
     if (is-terminal --stdin) and ($hold or ($status != 0 and $status != $EXIT_INTERRUPTED)) {
         print $"\n[($title) exited with ($status), any key closes]"
         try { input listen --types [key] | ignore }

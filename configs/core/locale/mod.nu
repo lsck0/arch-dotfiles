@@ -87,7 +87,7 @@ export def system [cfg: record] {
     let current = [$console.XKBLAYOUT? ($console.XKBVARIANT? | default "") ($console.XKBOPTIONS? | default "")]
     [
         (file-text /etc/locale.gen $locale_gen --generated --then [locale-gen])
-        (if ($conf | is-not-empty) { file-text $LOCALE_CONF ($conf | str join "\n" | $"($in)\n") --generated })
+        (if ($conf | is-not-empty) { file-text $LOCALE_CONF ($conf | to text) --generated })
         (if $cfg.keyboard_layout != null and $env.FORM_FACTOR? != "wsl" and $keyboard != $current {
             exec keymap ([localectl set-x11-keymap $cfg.keyboard_layout $XKB_MODEL] ++ ($keyboard | skip 1))
         })

@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # every translucent quickshell surface must be in the namespace list of hyprland_windowrules.lua's quickshell-blur rule
 
-const HERE = path self | path dirname
+const HERE = path self .
 const RULES = $HERE | path join ../hyprland/hyprland_windowrules.lua
 const UNBLURRED = [background notification-image-grab]
 

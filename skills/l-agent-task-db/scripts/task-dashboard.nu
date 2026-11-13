@@ -131,9 +131,7 @@ def main [project?: path]: nothing -> nothing {
     }
 
     do $hdr "READY (queued, unblocked)" ($ready | length)
-    for t in ($ready | insert proj { $in.project? | default "(no project)" } | sort-by proj) {
-        do $out $"  ($t | fmt)  [($t.proj)] [($t | stage-of)]"
-    }
+    for t in ($ready | sort-by { $in.project? | default "" }) { do $out ($t | where-line) }
 
     do $hdr "BLOCKED (dependency not done)" ($blocked | length)
     for t in $blocked {

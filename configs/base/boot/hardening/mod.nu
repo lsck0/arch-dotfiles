@@ -33,7 +33,7 @@ const VULNS = [/sys/devices/system/cpu/vulnerabilities/mds /sys/devices/system/c
 
 # Whether the cpu leaks across smt siblings, by hardware, not the smt state that nosmt itself turns off.
 def smt-leaks []: nothing -> bool {
-    let control = try { open --raw /sys/devices/system/cpu/smt/control | str trim } catch { "notsupported" }
+    let control = file-trim /sys/devices/system/cpu/smt/control notsupported
     (
         $env.FORM_FACTOR? != "vm" and $control != "notsupported"
         and (open --raw /proc/cpuinfo | str contains GenuineIntel)

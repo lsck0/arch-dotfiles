@@ -1,7 +1,8 @@
 use ../lib/log.nu [log-err]
-use ../lib/state.nu [xdg]
+use ../lib/state.nu [xdg file-trim]
 
 export const TOGGLES_DIR = path self .
+export const DOT = path self ../dot.nu
 const ROOT_HELPER = "/usr/local/bin/toggle-root"
 const ADMIN_GROUP = "wheel"
 const IPC_TIMEOUT_S = 3
@@ -16,8 +17,7 @@ export def state-file [name: string, --volatile]: nothing -> path {
 
 # The stored state, "off" when none.
 export def state-get [name: string, --volatile]: nothing -> string {
-    let file = state-file $name --volatile=$volatile
-    if ($file | path exists) { open --raw $file | str trim --right } else { "off" }
+    file-trim (state-file $name --volatile=$volatile) off
 }
 
 export def state-set [name: string, value: string, --volatile]: nothing -> nothing {
@@ -56,6 +56,11 @@ export def unit-exists [unit: string]: nothing -> bool {
 export def unit-active [unit: string, --user]: nothing -> bool {
     let scope = if $user { [--user] } else { [] }
     (^systemctl ...$scope is-active --quiet $unit | complete).exit_code == 0
+}
+
+# An option's current value, as `dot set --json` reports it.
+export def option-value [module: string, key: string]: nothing -> any {
+    ^nu --no-config-file $DOT set $module --json | from json | get modules.0.options | where key == $key | get 0.value
 }
 
 # The links home-network.nu marked trusted, written by the system layer.

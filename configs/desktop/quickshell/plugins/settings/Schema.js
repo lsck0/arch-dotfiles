@@ -48,9 +48,7 @@ function moduleLabel(module) { return module.label || module.name }
 function segmented(option) { return option.type === "enum" && (option.choices || []).length <= segmentedMax }
 
 function contains(needle, fields) {
-  for (let i = 0; i < fields.length; i++)
-    if (String(fields[i] || "").toLowerCase().indexOf(needle) >= 0) return true
-  return false
+  return fields.some(function (f) { return String(f || "").toLowerCase().indexOf(needle) >= 0 })
 }
 
 function optionMatches(needle, module, option) {
@@ -161,8 +159,8 @@ function systemEntries(status, needle) {
   })
   var match = function (r) { return !needle || contains(needle, [r.name, r.text, r.detail, r.module, r.target, r.level, systemLabel]) }
   var out = []
-  var failing = function (c) { return c.level === "ok" ? 1 : 0 }
-  checks.sort(function (a, b) { return failing(a) - failing(b) })
+  var passed = function (c) { return c.level === "ok" ? 1 : 0 }
+  checks.sort(function (a, b) { return passed(a) - passed(b) })
   var groups = [["actions", actions], ["edited since apply", drift],
     ["status", [{ kind: "check", id: systemId + ".generation", level: "info", name: "generation", text: status.generation || "" }]
       .concat(pending, checks)]]
@@ -174,8 +172,6 @@ function systemEntries(status, needle) {
   }
   return out
 }
-
-function checkFailed(row) { return row.level === "FAIL" }
 
 // an adopt is followed by an apply, which records the file as the module's output again
 function systemCommand(dot, row, choice) {

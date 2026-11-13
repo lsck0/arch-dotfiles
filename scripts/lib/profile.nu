@@ -61,3 +61,11 @@ export def profile-owner []: nothing -> bool {
     if not (is-admin) and $env.DOT_LAYER? != "system" { return (profile-has secrets) }
     (try { open --raw $PROFILE_OWNERS_FILE } catch { "" } | str trim) != ""
 }
+
+# Records login as an owner in the owners file under root ("" for this system, the target's mount while installing).
+export def profile-owner-add [login: string, root: string = ""]: nothing -> nothing {
+    let owners = $"($root)($PROFILE_OWNERS_FILE)"
+    mkdir ($owners | path dirname)
+    let have = if ($owners | path exists) { open --raw $owners | lines } else { [] }
+    if $login not-in $have { $"($login)\n" | save --append $owners }
+}

@@ -70,8 +70,8 @@ def stage-fill [archive: path, stage: path]: nothing -> nothing {
 
 # Extract an archive into a same-named directory and print its path; links, paths leaving it and bombs are refused.
 def main [archive: path, destination?: path]: nothing -> nothing {
-    if ($archive | path expand | path type) != file { die --misuse $"not a regular file: ($archive)" }
     let archive = $archive | path expand
+    if ($archive | path type) != file { die --misuse $"not a regular file: ($archive)" }
     let base = $archive | path basename | str replace --regex '(\.tar\.(gz|bz2|xz|zst)|\.[^.]*)$' ''
     let root = $destination | default $env.PWD | path expand
     let dest = $root | path join $base

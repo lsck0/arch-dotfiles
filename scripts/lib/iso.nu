@@ -17,8 +17,8 @@ const KEYRING_DIR = "usr/share/pacman/keyrings"
 const TRUST_DIR = "usr/share/lsck0"
 const ISO_NAME = "archlinux-lsck0"
 const ISO_ARCH = "x86_64"
-const ISO_LATEST = $"($ISO_NAME)-latest-($ISO_ARCH).iso"
-const ISO_PATTERN = '^archlinux-lsck0-\d{4}\.\d{2}\.\d{2}-x86_64\.iso$'
+export const ISO_LATEST = $"($ISO_NAME)-latest-($ISO_ARCH).iso"
+const ISO_PATTERN = $'^($ISO_NAME)-\d{4}\.\d{2}\.\d{2}-($ISO_ARCH)\.iso$'
 const WORK_DEFAULT = "dotfiles-iso"
 
 def --wrapped as-root [...argv: string]: nothing -> nothing {
@@ -58,7 +58,7 @@ def profile-write [profile: path, mirror: any]: nothing -> nothing {
     cp ($overlay | path join profiledef.sh) ($profile | path join profiledef.sh)
     let packages = open --raw ($profile | path join packages.x86_64) | lines | append (open --raw ($overlay | path join packages.x86_64) | lines)
         | where {|l| $l != "" and not ($l | str starts-with "#") } | uniq | sort
-    $"($packages | str join "\n")\n" | save --force ($profile | path join packages.x86_64)
+    $packages | to text | save --force ($profile | path join packages.x86_64)
     let root = $profile | path join airootfs
     for f in (glob ($overlay | path join airootfs "**" "*") --no-dir) {
         let rel = $f | path relative-to ($overlay | path join airootfs)

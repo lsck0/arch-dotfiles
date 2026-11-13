@@ -1,5 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 use lib.nu [notify root-run unit-active cycle-next status-record status-print]
+use ../lib/state.nu [xdg]
 
 const STATES = {permissive: Permissive, default: Default, restrictive: Restrictive}
 
@@ -32,7 +33,7 @@ def "main get" [--json] {
 
 # a press while a switch waits on its authentication is dropped, not queued behind it
 def "main toggle" [] {
-    let lock = $env.XDG_RUNTIME_DIR | path join toggle-firewall.lock
+    let lock = xdg runtime toggle-firewall.lock
     let run = ^flock --nonblock --conflict-exit-code 75 $lock nu --no-config-file $env.CURRENT_FILE _toggle | complete
     if $run.exit_code not-in [0 75] { exit $run.exit_code }
 }

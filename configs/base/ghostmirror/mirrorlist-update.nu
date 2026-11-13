@@ -1,10 +1,10 @@
 #!/usr/bin/nu --no-config-file
 
 const SELF = path self
-export const MIRRORLIST = "/etc/pacman.d/mirrorlist"
-const LOCK = "/etc/pacman.d"
-export const HOMELAB_FILE = "/etc/pacman.d/homelab-mirror"
-const COUNTRIES_FILE = "/etc/pacman.d/mirror-countries"
+const PACMAN_DIR = "/etc/pacman.d"
+export const MIRRORLIST = $"($PACMAN_DIR)/mirrorlist"
+export const HOMELAB_FILE = $"($PACMAN_DIR)/homelab-mirror"
+const COUNTRIES_FILE = $"($PACMAN_DIR)/mirror-countries"
 const COUNTRIES = "Germany,France,Switzerland,Austria,Poland,Denmark,Netherlands"
 const MIRRORS_MAX = 30
 const MIRRORS_MIN = 10
@@ -27,7 +27,7 @@ def rank [mode: string, out: path]: nothing -> list<string> {
 }
 
 export def mirrorlist-swap [lines: list<string>]: nothing -> nothing {
-    $lines | str join "\n" | $"($in)\n" | save --force $"($MIRRORLIST).new"
+    $lines | to text | save --force $"($MIRRORLIST).new"
     mv --force $"($MIRRORLIST).new" $MIRRORLIST
 }
 
@@ -65,7 +65,7 @@ def main [mode: string, line: string = ""]: nothing -> nothing {
         exit 2
     }
     if $env.MIRRORLIST_LOCKED? == null {
-        with-env {MIRRORLIST_LOCKED: 1} { exec flock $LOCK $SELF $mode $line }
+        with-env {MIRRORLIST_LOCKED: 1} { exec flock $PACMAN_DIR $SELF $mode $line }
     }
     if $mode == "homelab" {
         homelab-place $line

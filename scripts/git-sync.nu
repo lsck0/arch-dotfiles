@@ -90,7 +90,7 @@ def sync-one [dir: path, bare: bool]: nothing -> list<string> {
 # Fetch, pull and push every git repo under a dir (default: here) in parallel, GIT_SYNC_JOBS at a time.
 def main [dir?: path]: nothing -> nothing {
     let base = $dir | default "." | path expand
-    if ($base | path type) != dir { die --misuse $"not a directory: ($dir)" }
+    if ($base | path type) != dir { die --misuse $"not a directory: ($base)" }
     let repos = repos-under $base
     let names = $repos | each {|r| if $r == $base { $r } else { $r | path relative-to $base } }
     let pad = $names | each { str length } | append 0 | math max

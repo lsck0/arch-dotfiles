@@ -226,7 +226,7 @@ def skin []: nothing -> any {
         'description: "Generated from the current wallpaper (wallust), do not hand-edit"'
         "colors:"
         ...($colors | each { $'  ($in.0): "($in.1)"' })
-    ] | str join "\n" | $"($in)\n"
+    ] | to text
 }
 
 export def theme [cfg: record, wallpaper: string] {

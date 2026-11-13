@@ -19,7 +19,7 @@ export def ini-apply [values: record, missing_only: bool]: string -> string {
                 {lines: ($acc.lines | update $at $"($kv.key)=($kv.value)"), end: $acc.end}
             }
         } | get lines
-    } | str join "\n" | $"($in)\n"
+    } | to text
 }
 
 # One row per line: its section ("" before the first), key and value (null for a header, comment or blank).

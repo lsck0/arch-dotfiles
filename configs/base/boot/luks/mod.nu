@@ -35,7 +35,7 @@ def crypttab-write [root: any]: nothing -> nothing {
         let disk = ^lsblk -dno PKNAME $"/dev/($p.name)" | str trim
         (^lsblk -dno RM,HOTPLUG $"/dev/($disk)" | str replace --all " " "" | str trim) == "00"
     } | each {|p| $"luks-($p.uuid)\tUUID=($p.uuid)\tnone\t($ENTRY_OPTIONS)" }
-    $kept | append $MARKER | append $entries | str join "\n" | $"($in)\n" | save --force $CRYPTTAB
+    $kept | append $MARKER | append $entries | to text | save --force $CRYPTTAB
     print $"luks: crypttab configured, ($entries | length) non-root LUKS volume\(s\)"
 }
 
@@ -61,7 +61,7 @@ def root-unlock [part: string]: nothing -> nothing {
     let header = ^cryptsetup luksDump $"/dev/($part)"
     let stamp = $SYSTEM_STATE | path join $HEADER_STAMP
     let header_hash = $header | hash sha256
-    let header_changed = $header_hash != (try { open --raw $stamp | str trim } catch { "" })
+    let header_changed = $header_hash != (file-trim $stamp)
     # with tpm2-measure-pcr, fido2-device=auto and no enrolled token fail the unlock without asking the passphrase
     let fido = $header | str contains systemd-fido2
     if not $fido {

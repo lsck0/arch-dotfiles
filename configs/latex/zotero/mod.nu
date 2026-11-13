@@ -15,6 +15,7 @@ const ZOTERO_USER_LIBRARY_ID = 1
 const ZOTERO_SERVER = "http://127.0.0.1:23119"
 const BBT_READY = $"($ZOTERO_SERVER)/better-bibtex/cayw?probe=true"
 const BBT_EXPORT = $"($ZOTERO_SERVER)/better-bibtex/export/library?/($ZOTERO_USER_LIBRARY_ID)/library.bibtex"
+const PROFILE_TIMEOUT_S = 20
 const EXPORT_TIMEOUT = 120sec
 const READY_TIMEOUT = 90sec
 const READY_POLL_INTERVAL = 1sec
@@ -47,7 +48,7 @@ export def link [cfg: record] {
     let prefs = {EXPORT_KEY: (autoexport-key $bib), EXPORT_JOB: (autoexport-job $bib)}
     [
         # the timeout ends the headless first run on purpose: the profile it creates is the result
-        (exec zotero-profile [sh -c 'timeout 20 zotero --headless > /dev/null 2>&1; true'] --creates $ini)
+        (exec zotero-profile [sh -c $"timeout ($PROFILE_TIMEOUT_S) zotero --headless > /dev/null 2>&1; true"] --creates $ini)
         ($profiles | each {|dir|
             [(file-render user.js ($dir | path join user.js) $prefs) (fetch-file $BBT_URL $BBT_SHA256 ($dir | path join $xpi))]
         })

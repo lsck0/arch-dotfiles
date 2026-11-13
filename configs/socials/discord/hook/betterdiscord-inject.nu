@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # no betterdiscordctl: it assumes one discord_desktop_core suffix, which differs between hosts
 
-use ../../../../scripts/lib/state.nu [xdg]
+use ../../../../scripts/lib/state.nu [xdg process-running]
 
 const REPO = path self ../../../..
 const ASAR_URL = "https://github.com/BetterDiscord/BetterDiscord/releases/download/v1.14.5/betterdiscord.asar"
@@ -40,7 +40,7 @@ def relaunch-fresh []: nothing -> nothing {
     if (which uwsm-app | is-empty) { return }
     ^pkill -x Discord | complete | ignore
     for _ in 1..$EXIT_WAIT_SECONDS {
-        if (^pgrep -x Discord | complete).exit_code != 0 { break }
+        if not (process-running Discord) { break }
         sleep 1sec
     }
     # a transient service: uwsm-app returns at once, so this oneshot does not hold discord as its child

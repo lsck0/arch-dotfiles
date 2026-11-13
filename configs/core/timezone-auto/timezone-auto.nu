@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const REPO = path self | path expand | path dirname --num-levels 4
+const REPO = path self ../../..
 const TOGGLES = $REPO | path join scripts toggles
 use ($REPO | path join scripts lib state.nu) [xdg]
 # not ipapi.co: it 429ed about every second keyless request

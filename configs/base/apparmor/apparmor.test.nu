@@ -3,7 +3,7 @@
 use mod.nu [OVERRIDES TUNABLES override-text tunables]
 use profile-flags.nu [ETC MARKER OWN_SUFFIX SOURCE upstream-files]
 
-const HERE = path self | path dirname
+const HERE = path self .
 # each profile parses from its own file: a few at a time, the parser is cpu bound and the desktop stays usable
 const PARSE_THREADS = 8
 const ENFORCED = [

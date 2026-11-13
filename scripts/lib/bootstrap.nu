@@ -4,7 +4,11 @@ use log.nu *
 use state.nu [SYSTEM_REPO path-kind]
 use system.nu [system-pack system-unpack]
 use platform.nu [platform-groups-all PLATFORM_NAME_FILE]
-use stage.nu [STAGE_STATE_DIR STAGE_KEY_FILE STAGE_ESP_MARKER STAGE_ESP_RUNNING STAGE_ESP_STOPPED STAGE_RESUME STAGE_SUDOERS_DROPIN report-beacon-send stage-sudoers]
+use profile.nu [profile-owner-add]
+use stage.nu [
+    STAGE_KEY_FILE STAGE_ESP_MARKER STAGE_ESP_RUNNING STAGE_ESP_STOPPED STAGE_RESUME STAGE_SUDOERS_DROPIN STAGE_NEXT STAGE_REPORT
+    STAGE_LUKS_DEVICE STAGE_UNIT STAGE_MKINITCPIO_DROPIN report-beacon-send stage-sudoers
+]
 use ../../platforms/homelab.nu [HOMELAB]
 use homelab.nu [lsck0-reachable lsck0-drop LSCK0_SECTION]
 
@@ -284,7 +288,7 @@ def mirrors-rank []: nothing -> nothing {
     let fallback = open --raw $MIRRORLIST | lines | where ($it | str starts-with "Server") and $it not-in $ranked.servers.server
     [$"# ranked by dot internal bootstrap (date now | format date '%F'): the fastest https mirrors \(($ranked.scope)\) by download rate"]
     | append $ranked.servers.server | append ["" "# the list before ranking, the fallback"] | append $fallback
-    | str join "\n" | $"($in)\n" | save --force $MIRRORLIST
+    | to text | save --force $MIRRORLIST
     let urls = $ranked.servers.server | each { split row " " | last }
     let info = ^reflector --info --protocol https | complete | get stdout | split row "\n\n" | each {|block|
         let url = $block | lines | where ($it | str starts-with "https:") | get --optional 0
@@ -340,10 +344,7 @@ def user-setup [c: record]: nothing -> nothing {
     let profile = $home | path join .config dotfiles profile.nuon
     if ($c.profile_file | is-not-empty) and not ($profile | path exists) { ^install -Dm644 $c.profile_file $profile }
     if ($c.profile_file | is-not-empty) and ("secrets" in (open $c.profile_file | get --optional capabilities | default [])) {
-        let owners = $"($root)/var/lib/dotfiles/owners"
-        mkdir ($owners | path dirname)
-        let have = if ($owners | path exists) { open --raw $owners | lines } else { [] }
-        if $c.username not-in $have { $"($c.username)\n" | save --append $owners }
+        profile-owner-add $c.username $root
     }
     if ($c.ssh_key | is-not-empty) {
         let keys = $home | path join .ssh authorized_keys
@@ -460,7 +461,7 @@ def wifi-carry [c: record]: nothing -> nothing {
         mkdir ($file | path dirname)
         (["[connection]" $"id=(keyfile-escape $ssid)" "type=wifi" "" "[wifi]" $"ssid=($bytes)"] ++ $mac ++ $hidden ++ $security
             ++ ["" "[ipv4]" "method=auto" "" "[ipv6]" "method=auto"])
-        | str join "\n" | $"($in)\n" | save --force $file
+        | to text | save --force $file
         ^chmod 600 $file
     }
 }
@@ -482,7 +483,7 @@ def target-system [c: record, root_uuid: string]: nothing -> nothing {
     open --raw (do $t /etc/locale.gen) | str replace --regex --multiline $"^#\(($locale_rx) \)" '$1' | save --force (do $t /etc/locale.gen)
     in-target $MOUNT locale-gen
     $"LANG=($c.locale)\n" | save --force (do $t /etc/locale.conf)
-    [$"KEYMAP=($c.keymap)"] ++ (xkb-vars $c.keymap) | str join "\n" | $"($in)\n" | save --force (do $t /etc/vconsole.conf)
+    [$"KEYMAP=($c.keymap)"] ++ (xkb-vars $c.keymap) | to text | save --force (do $t /etc/vconsole.conf)
     $"($c.hostname)\n" | save --force (do $t /etc/hostname)
     $"127.0.0.1 localhost\n::1 localhost\n127.0.1.1 ($c.hostname)\n" | save --force (do $t /etc/hosts)
     mkdir (do $t /etc/kernel)
@@ -493,7 +494,7 @@ def target-system [c: record, root_uuid: string]: nothing -> nothing {
     for preset in (glob (do $t /etc/mkinitcpio.d/*.preset)) {
         let pkgbase = $preset | path parse | get stem
         open --raw $preset | lines | where not ($it =~ '^#?default_(image|uki|cmdline)=') | each { str replace --regex '^PRESETS=.*' "PRESETS=('default')" }
-        | append [$"default_uki=\"/boot/EFI/Linux/arch-($pkgbase).efi\"" 'default_cmdline="/etc/kernel/cmdline"'] | str join "\n" | $"($in)\n" | save --force $preset
+        | append [$"default_uki=\"/boot/EFI/Linux/arch-($pkgbase).efi\"" 'default_cmdline="/etc/kernel/cmdline"'] | to text | save --force $preset
         rm --force (do $t $"/boot/initramfs-($pkgbase).img") (do $t $"/boot/initramfs-($pkgbase)-fallback.img")
     }
     mkdir (do $t /boot/EFI/Linux)
@@ -521,12 +522,11 @@ def report-bootstrap-ok []: nothing -> nothing {
 }
 
 def stage-arm [c: record, root_uuid: string]: nothing -> nothing {
-    let state = $"($MOUNT)($STAGE_STATE_DIR)"
-    mkdir $state
-    "install\n" | save --force ($state | path join next)
-    if $c.encrypt { $"/dev/disk/by-uuid/($root_uuid)\n" | save --force ($state | path join luks-device) }
+    mkdir ($"($MOUNT)($STAGE_NEXT)" | path dirname)
+    "install\n" | save --force $"($MOUNT)($STAGE_NEXT)"
+    if $c.encrypt { $"/dev/disk/by-uuid/($root_uuid)\n" | save --force $"($MOUNT)($STAGE_LUKS_DEVICE)" }
     let report = env-or BOOTSTRAP_REPORT
-    if $report != "" { $"($report)\n" | save --force ($state | path join report) }
+    if $report != "" { $"($report)\n" | save --force $"($MOUNT)($STAGE_REPORT)" }
     let stage_sudoers = $"($MOUNT)($STAGE_SUDOERS_DROPIN)"
     stage-sudoers $c.username | save --force $"($stage_sudoers).new"
     ^chmod 440 $"($stage_sudoers).new"
@@ -536,11 +536,11 @@ def stage-arm [c: record, root_uuid: string]: nothing -> nothing {
     let checkout = $"/home/($c.username)/projects/arch-dotfiles"
     [
         "[Unit]" "Description=arch-dotfiles install chain (dot internal stage)" "Wants=network-online.target"
-        "After=network-online.target" $"ConditionPathExists=($STAGE_STATE_DIR)/next" "" "[Service]" "Type=exec"
+        "After=network-online.target" $"ConditionPathExists=($STAGE_NEXT)" "" "[Service]" "Type=exec"
         $"User=($c.username)" "PAMName=login" $"WorkingDirectory=($checkout)" "ExecStartPre=-/usr/bin/nm-online -q -t 120"
         $"ExecStart=/usr/bin/nu --no-config-file ($checkout)/scripts/dot.nu internal stage" "StandardOutput=tty"
         "TimeoutStartSec=infinity" "" "[Install]" "WantedBy=multi-user.target"
-    ] | str join "\n" | $"($in)\n" | save --force $"($MOUNT)/etc/systemd/system/dotfiles-stage.service"
+    ] | to text | save --force $"($MOUNT)($STAGE_UNIT)"
     in-target $MOUNT systemctl enable dotfiles-stage.service
 }
 
@@ -561,7 +561,7 @@ def platform-items [e: record, c: record]: nothing -> list<string> {
         let raw = open ($c.repo | path join platforms $"($p).nuon")
         {name: $p, form_factor: ($raw.form_factor? | default ""), label: ($raw.label? | default "")}
     } | where {|p| ($p.form_factor == "wsl") == $c.host_wsl } | each {|p|
-        [$p.name ($p.label | default -e ($e.form_factors | get --optional $p.form_factor | default $p.form_factor))]
+        [$p.name ($p.label | default --empty ($e.form_factors | get --optional $p.form_factor | default $p.form_factor))]
     } | flatten
     # the generic choices first: a named platform is one person's machine
     (options-items $e $c) ++ $fixed
@@ -955,10 +955,9 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
     if ($c.user_password | is-empty) { $c.user_password = if $c.encrypt { $luks } else { $password } }
     if ($c.user_password | is-empty) { die (text-fill $m.password_missing $c) }
 
-    let disk = $c.disk
-    let capabilities = $c.capabilities
-    let luks_pw = $luks
+    # a closure captures no mut
     let c = $c
+    let disk = $c.disk
     let parts = span partition {} {
         ^umount -R $MOUNT | complete | ignore
         ^cryptsetup close $LUKS_NAME | complete | ignore
@@ -979,8 +978,8 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         let parts = ^lsblk -J -lnpo NAME,TYPE $disk | from json | get blockdevices | where type == part | get name
         if ($parts | length) != 2 { die $"expected 2 partitions on ($disk) after partitioning, got ($parts | length)" }
         if $c.encrypt {
-            $luks_pw | ^cryptsetup --batch-mode luksFormat ...$LUKS_FORMAT --key-file - $parts.1
-            $luks_pw | ^cryptsetup open ...$LUKS_OPEN --key-file - $parts.1 $LUKS_NAME
+            $luks | ^cryptsetup --batch-mode luksFormat ...$LUKS_FORMAT --key-file - $parts.1
+            $luks | ^cryptsetup open ...$LUKS_OPEN --key-file - $parts.1 $LUKS_NAME
         }
         let root = if $c.encrypt { $"/dev/mapper/($LUKS_NAME)" } else { $parts.1 }
         ^mkfs.fat -F 32 -n ESP $parts.0
@@ -1024,8 +1023,8 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
             ^chmod 700 ($key | path dirname)
             ^head -c $STAGE_KEY_BYTES /dev/urandom | save --force --raw $key
             ^chmod 600 $key
-            $luks_pw | ^cryptsetup luksAddKey --key-file - --pbkdf pbkdf2 --pbkdf-force-iterations 1000 $parts.root $key
-            $"FILES+=\(($STAGE_KEY_FILE)\)\n" | save --force $"($MOUNT)/etc/mkinitcpio.conf.d/dotfiles-stage.conf"
+            $luks | ^cryptsetup luksAddKey --key-file - --pbkdf pbkdf2 --pbkdf-force-iterations 1000 $parts.root $key
+            $"FILES+=\(($STAGE_KEY_FILE)\)\n" | save --force $"($MOUNT)($STAGE_MKINITCPIO_DROPIN)"
         }
         target-system $c $parts.uuid
     }
@@ -1033,7 +1032,7 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
     wifi-carry $c
     if $c.home_gateway != null { for f in $HOME_GATEWAYS { $"($c.home_gateway)\n" | save --force $"($MOUNT)($f)" } }
 
-    if "secrets" in $capabilities {
+    if "secrets" in $c.capabilities {
         if not (try { ^pacman -Sy --noconfirm --needed ...$SECRETS_TOOLS; true } catch { false }) { log-warn "secrets tools did not install, the config stage unlocks instead" }
         ^systemctl start pcscd.socket | complete | ignore
         let unlocked = try { with-env {DOTFILES: $repo, PROFILE_FILE: $c.profile_file} { ^nu --no-config-file ($repo | path join scripts dot.nu) secrets unlock }; true } catch { false }

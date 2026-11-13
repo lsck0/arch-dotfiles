@@ -135,7 +135,7 @@ export def audit-rotated [...paths: string]: nothing -> nothing {
     let kept = if ($ROTATION | path exists) {
         open --raw $ROTATION | lines | where ($it | split row " " | first) not-in $paths
     } else { [] }
-    $kept ++ ($paths | each { $"($in) ($today)" }) | sort | str join "\n" | $"($in)\n" | save --force $"($ROTATION).new"
+    $kept ++ ($paths | each { $"($in) ($today)" }) | sort | to text | save --force $"($ROTATION).new"
     mv --force $"($ROTATION).new" $ROTATION
     print $"audit: recorded ($paths | str join ' ') on ($today) in configs/secrets/keys/rotation.txt, dot sync commits it"
 }

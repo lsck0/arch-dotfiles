@@ -2,7 +2,7 @@
 # fw-egress.service's own load, run in an unprivileged network namespace: the kill switch loads with pacman's escape
 # filled in, also on a fresh install where the tor user does not exist yet.
 
-const HERE = path self | path dirname
+const HERE = path self .
 const UNIT = $HERE | path join fw-egress.service
 const RULESET = $HERE | path join fw-egress.nft
 const ESCAPES = {fetch_uid: alpm, resolver_uid: systemd-resolve}

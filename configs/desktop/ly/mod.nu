@@ -4,9 +4,9 @@ use ../../base/bootvine/mod.nu [CONSOLE_PALETTE palette-channels]
 export const meta = {packages: {pacman: [ly]}}
 
 const ETC = "/etc/ly"
-const SESSIONS = "/etc/ly/sessions"
-const SAVE = "/etc/ly/save.txt"
-const LANG_STOCK = "/etc/ly/lang/en.ini"
+const SESSIONS = $ETC | path join sessions
+const SAVE = $ETC | path join save.txt
+const LANG_STOCK = $ETC | path join lang en.ini
 const HYPRLAND = "Hyprland"
 const UID_MIN = 1000
 const UID_MAX = 59999
@@ -20,7 +20,7 @@ def lang-render []: nothing -> string {
     open --raw $LANG_STOCK | lines | each {|line|
         let line = if ($line | str starts-with "hibernate = ") { "hibernate = reboot to firmware" } else { $line }
         if $line =~ $HINT_KEYS { $"($line)($HINT_GAP)" } else { $line }
-    } | str join "\n" | $"($in)\n"
+    } | to text
 }
 
 export def system [cfg: record] {
@@ -33,7 +33,7 @@ export def system [cfg: record] {
         (if ($foreign | is-not-empty) { exec "foreign sessions" [rm --force ...$foreign] })
         (files-into $SESSIONS ...$sessions)
         (step save-defaults)
-        (file-text ($ETC | path join vtrgb) (palette-channels $CONSOLE_PALETTE | str join "\n" | $"($in)\n"))
+        (file-text ($ETC | path join vtrgb) (palette-channels $CONSOLE_PALETTE | to text))
         ([palette.conf cursor.conf stage.conf log-filter.conf] | each { dropin ly@.service $in })
         (unit-enable ly@tty1.service)
         (unit-disable getty@tty1.service)
@@ -51,6 +51,6 @@ export def save-defaults []: nothing -> nothing {
     let users = open /etc/passwd | lines | split column ":" name x uid gid gecos home shell
         | where {|u| ($u.uid | into int) in $UID_MIN..$UID_MAX and $u.shell !~ $NO_LOGIN } | get name
     let added = ["root"] ++ $users | where $it not-in $known | each { $"($in):($index)" }
-    $rows ++ $added | str join "\n" | $"($in)\n" | save --force $SAVE
+    $rows ++ $added | to text | save --force $SAVE
     ^chmod 644 $SAVE
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const HERE = path self | path expand | path dirname
+const HERE = path self .
 const QMK = "qmk_firmware"
 const KEYBOARD = "sofle_choc"
 const KEYMAP = "luca_sofle_choc"

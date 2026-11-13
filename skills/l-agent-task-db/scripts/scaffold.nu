@@ -13,12 +13,13 @@ const ENTER_BODY = r#'    mkdir -p "$DEVENV_ROOT/tasks/.task/hooks" "$DEVENV_ROO
     export TASKRC="$DEVENV_ROOT/tasks/.taskrc"
     export TIMEWARRIORDB="$DEVENV_ROOT/tasks/.timewarrior"'# | str replace --all "@HOOK_SRC@" $HOOK_SRC
 const ENTER_BLOCK = [$MARKER_BEGIN $ENTER_BODY $MARKER_END] | str join "\n"
+const ENTER_SNIPPET = ["" $"  ($ENTER_SHELL)" $ENTER_BLOCK "  '';" ""] | str join "\n"
 const IGNORED = [tasks/.taskrc tasks/.task/ tasks/.timewarrior/ tasks/.poll-backoff]
 const CONTEXT_DIRS = [research design questions]
 
 def devenv-patch [file: path]: nothing -> nothing {
     if not ($file | path exists) {
-        $"{ pkgs, lib, config, inputs, ... }:\n\n{\n  ($ENTER_SHELL)\n($ENTER_BLOCK)\n  '';\n}\n" | save $file
+        $"{ pkgs, lib, config, inputs, ... }:\n\n{($ENTER_SNIPPET)}\n" | save $file
         print $"wrote ($file)"
         return
     }
@@ -37,8 +38,7 @@ def devenv-patch [file: path]: nothing -> nothing {
     } else {
         let at = $text | str index-of "}" --end
         if $at == -1 { error make {msg: $"no closing '}' found in ($file); patch it by hand"} }
-        let snippet = $"\n  ($ENTER_SHELL)\n($ENTER_BLOCK)\n  '';\n"
-        ($text | str substring ..<$at) + $snippet + ($text | str substring $at..) | save --force $file
+        ($text | str substring ..<$at) + $ENTER_SNIPPET + ($text | str substring $at..) | save --force $file
         print $"patched existing ($file) \(added a new enterShell block\)"
     }
 }
@@ -79,7 +79,7 @@ def main [target: path = "."]: nothing -> nothing {
     devenv-patch $devenv
 
     let rest = if ($envrc | path exists) { open --raw $envrc | lines } else { [] }
-    if "use devenv" not-in $rest { ["use devenv"] ++ $rest | str join "\n" | $"($in)\n" | save --force $envrc }
+    if "use devenv" not-in $rest { ["use devenv"] ++ $rest | to text | save --force $envrc }
 
     let gitignore = $target | path join .gitignore
     touch $gitignore

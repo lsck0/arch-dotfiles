@@ -115,7 +115,7 @@ def "main start" []: nothing -> nothing {
     $values | items {|k, v| {k: $k, v: $v} }
     | reduce --fold $RULESET {|p, text| $text | str replace --all $"@($p.k)@" ($p.v | into string) }
     | ^nft -f -
-    try { home-fill } catch { print --stderr "tor-router: home links not filled in, the lan goes through tor" }
+    try { home-fill } catch { print --stderr "tor-router: trusted links not filled in, the lan goes through tor" }
 }
 
 def "main home" []: nothing -> nothing {
@@ -132,7 +132,7 @@ def "main restart" []: nothing -> nothing {
     main start
 }
 
-# Transparent tor routing: start, stop, restart, or home (refill the lan bypass for the current home links).
+# Transparent tor routing: start, stop, restart, or home (refill the lan bypass for the current trusted links).
 def main []: nothing -> nothing {
     print "usage: tor-router {start|stop|restart|home}"
 }

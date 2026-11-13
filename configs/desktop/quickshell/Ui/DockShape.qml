@@ -22,8 +22,7 @@ Item {
   readonly property real _r: width - neck - _h
   readonly property real _t: _h
   readonly property real _b: height - _h
-  readonly property real _c: Math.max(0, Math.min(chamfer, (_r - _l) / 2, (_b - _t) / 2))
-  readonly property real cut: _c
+  readonly property real cut: Math.max(0, Math.min(chamfer, (_r - _l) / 2, (_b - _t) / 2))
   readonly property int cutCorner: docked ? Qt.BottomRightCorner : Qt.TopRightCorner
   readonly property real _n: neck + _h
 
@@ -42,8 +41,8 @@ Item {
       strokeWidth: root.docked ? 0 : root.strokeWidth
       joinStyle: ShapePath.MiterJoin
       startX: root._l; startY: root._t
-      PathLine { x: root._r - root._c; y: root._t }
-      PathLine { x: root._r; y: root._t + root._c }
+      PathLine { x: root._r - root.cut; y: root._t }
+      PathLine { x: root._r; y: root._t + root.cut }
       PathLine { x: root._r; y: root._b }
       PathLine { x: root._l; y: root._b }
       PathLine { x: root._l; y: root._t }
@@ -56,8 +55,8 @@ Item {
       startX: 0; startY: 0
       PathLine { x: root.width; y: 0 }
       PathQuad { x: root._r; y: root._n; controlX: root._r; controlY: 0 }
-      PathLine { x: root._r; y: root._b - root._c }
-      PathLine { x: root._r - root._c; y: root._b }
+      PathLine { x: root._r; y: root._b - root.cut }
+      PathLine { x: root._r - root.cut; y: root._b }
       PathLine { x: root._l; y: root._b }
       PathLine { x: root._l; y: root._n }
       PathQuad { x: 0; y: 0; controlX: root._l; controlY: 0 }
@@ -71,8 +70,8 @@ Item {
       capStyle: ShapePath.FlatCap
       startX: root.width; startY: root._t
       PathQuad { x: root._r; y: root._n; controlX: root._r; controlY: root._t }
-      PathLine { x: root._r; y: root._b - root._c }
-      PathLine { x: root._r - root._c; y: root._b }
+      PathLine { x: root._r; y: root._b - root.cut }
+      PathLine { x: root._r - root.cut; y: root._b }
       PathLine { x: root._l; y: root._b }
       PathLine { x: root._l; y: root._n }
       PathQuad { x: 0; y: root._t; controlX: root._l; controlY: root._t }

@@ -105,7 +105,7 @@ QtObject {
     } catch (e) {
       return
     }
-    if (!font || typeof font !== "object" || Array.isArray(font)) return
+    if (!Util.isPlainObject(font)) return
     fontFamily = (typeof font.family === "string" && font.family.trim().length > 0) ? font.family.trim() : fontFamilyDefault
     fontSize = Math.round(_num(font.size, fontSizeDefault, 6, 32))
     revision++
@@ -120,7 +120,7 @@ QtObject {
       console.warn("theme.json parse failed, keeping previous theme:", e)
       return
     }
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    if (!Util.isPlainObject(parsed)) {
       console.warn("theme.json is not an object, keeping previous theme")
       return
     }

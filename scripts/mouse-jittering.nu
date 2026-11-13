@@ -1,5 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
 
+const SCRIPTS = path self | path expand | path dirname
+use ($SCRIPTS | path join toggles lib.nu) [unit-active]
+
 const STEP_DELAY = 40ms
 const STEPS = 12
 const USER_MOVE_PX = 30
@@ -32,7 +35,7 @@ def main [
     --pause: duration = 1500ms  # longest rest between moves
 ]: nothing -> nothing {
     # stopped on exit only when this run started it
-    let started = (^systemctl --user is-active ydotool | complete).exit_code != 0
+    let started = not (unit-active --user ydotool)
     if $started { ^systemctl --user start ydotool }
     try {
         mut centre = cursor

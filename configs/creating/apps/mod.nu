@@ -55,12 +55,12 @@ def lmms-rc []: nothing -> record {
 
 def lmms-fallback []: nothing -> string { $"($nu.home-dir | path join lmms)/" }
 
-def lmms-workdir []: record -> string {
+def lmms-rc-workdir []: record -> string {
     get content | where {|e| $e.tag? == paths } | get --optional 0.attributes.workingdir | default ""
 }
 
 def lmms-has-workdir []: record -> bool {
-    let dir = $in | lmms-workdir
+    let dir = $in | lmms-rc-workdir
     $dir != "" and $dir != (lmms-fallback)
 }
 
@@ -75,7 +75,7 @@ export def lmms-paths [workdir: string]: nothing -> nothing {
     }
     # the fallback lmms made, or an earlier run did before user-dirs.dirs landed, goes once empty
     let fallback = lmms-fallback | str trim --right --char "/"
-    if ($doc | lmms-workdir) == (lmms-fallback) and ($fallback | path exists) and (ls --all $fallback | is-empty) {
+    if ($doc | lmms-rc-workdir) == (lmms-fallback) and ($fallback | path exists) and (ls --all $fallback | is-empty) {
         rm $fallback
     }
     mkdir ($rc | path dirname)

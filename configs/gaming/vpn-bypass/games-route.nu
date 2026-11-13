@@ -89,6 +89,13 @@ def routes-sync [family: string]: nothing -> nothing {
     }
 }
 
+# The connected ethernet and wifi links with a device node, the ones whose gateway the table may point at.
+export def links-physical []: nothing -> list<string> {
+    out nmcli -t -f DEVICE,TYPE,STATE device | lines | split column ":" dev type state
+    | where state == connected and type in [ethernet wifi] and ($"/sys/class/net/($it.dev)/device" | path exists)
+    | get dev
+}
+
 def defaults-empty []: nothing -> bool {
     $FAMILIES | all {|f| routes $f $TABLE | where $it.dst == "default" | is-empty }
 }
@@ -104,10 +111,7 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
         }
         # another physical link still up takes the table over
         if (defaults-empty) {
-            out nmcli -t -f DEVICE,TYPE,STATE device | lines | split column ":" dev type state
-            | where dev != $iface and state == connected and type in [ethernet wifi]
-            | where ($"/sys/class/net/($it.dev)/device" | path exists)
-            | each {|l| route-up $l.dev } | ignore
+            for link in (links-physical | where $it != $iface) { route-up $link }
         }
     } else if $physical {
         route-up $iface

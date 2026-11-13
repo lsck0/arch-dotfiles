@@ -163,7 +163,6 @@ Item {
 
   function update() { root.runSystem(Object.assign({ kind: "action" }, Schema.systemActions[0]), "") }
 
-
   // Ctrl+U runs a full sync; arm on the first press and run on the second, so one stray keystroke never starts one
   function armOrUpdate() {
     if (root.updateArmed) {

@@ -16,12 +16,16 @@ export def up []: nothing -> nothing {
     if not ($dir | path exists) { return }
     let doom = $dir | path join $DOOM_BIN | path exists
     if not $doom {
-        glob ($dir | path join $CONFIG_LISP) | append ($CONFIG_OTHER | each {|name| $dir | path join $name }) | each {|path| preserve-aside $path } | ignore
+        for path in (glob ($dir | path join $CONFIG_LISP) | append ($CONFIG_OTHER | each {|name| $dir | path join $name })) {
+            preserve-aside $path
+        }
     }
-    $CACHES | each {|name| rm --recursive --force ($dir | path join $name) } | ignore
+    for name in $CACHES { rm --recursive --force ($dir | path join $name) }
     let sources = $dir | path join $SOURCES
     if not ($sources | path exists) { return }
     # sources/doom+ is Doom's own submodule
     let tracked = if $doom { ^git -C $dir ls-files $SOURCES | lines | each {|path| $path | path split | first 2 | path join } } else { [] }
-    ls --all $sources | get name | where ($it | path relative-to $dir) not-in $tracked | each {|path| rm --recursive --force $path } | ignore
+    for path in (ls --all $sources | get name | where ($it | path relative-to $dir) not-in $tracked) {
+        rm --recursive --force $path
+    }
 }

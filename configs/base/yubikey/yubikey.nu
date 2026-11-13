@@ -183,7 +183,7 @@ def init-step [step: string, sn: string]: nothing -> nothing {
                 if ($lines | is-empty) { $"($line)\n" | save --force $file } else {
                     # the owner's keys sit on line 0 whatever login made them (secrets/yubikey maps them to the owners)
                     $lines | enumerate | each {|l| if $l.index == 0 { $"($l.item):($added)" } else { $l.item } }
-                    | str join "\n" | $"($in)\n" | save --force $file
+                    | to text | save --force $file
                 }
             } else {
                 $"($line)\n" | save $file

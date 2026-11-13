@@ -11,11 +11,11 @@ export def system [cfg: record] {
     [
         (group-system $VMNET)
         (dropin portmaster.service dotfiles.conf)
-        (file-copy config.json /var/lib/portmaster/config.json --then [systemctl try-restart portmaster.service])
+        (file-copy config.json /var/lib/portmaster/config.json --then (unit-restart portmaster.service --if-running))
         (file-copy portmaster-bypass.nft /etc/nftables.d/portmaster-bypass.nft --then $reload)
         (unit-file portmaster-bypass.service --enable --then $reload)
         (file-copy vm-net.nu /usr/local/bin/vm-net --mode 755)
-        (file-copy 49-vm-net.rules /etc/polkit-1/rules.d/49-vm-net.rules)
+        (polkit-rules 49-vm-net.rules)
     ]
 }
 

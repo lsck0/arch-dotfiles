@@ -247,7 +247,7 @@ export def iso-install-run []: nothing -> nothing {
         try {
             if $unattended { ^bash -o pipefail -c $'"$@" 2>&1 | tee ($LOG)' iso-install ...$argv } else { run-external ...$argv }
             0
-        } catch { $env.LAST_EXIT_CODE }
+        } catch {|e| $e.exit_code? | default 1 }
     }
     if $status != 0 { error make {msg: $"the bootstrap failed \(exit ($status)\)(if $unattended { $', log in ($LOG)' } else { '' })"} }
 }

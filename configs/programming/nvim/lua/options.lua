@@ -31,7 +31,7 @@ set.fillchars = { eob = " " }
 do
     -- the font beside the palette (configs/core/wallust/font.nu), for neovide
     set.guifont = "Kode Mono:h16"
-    local f = io.open((vim.env.XDG_CACHE_HOME or vim.env.HOME .. "/.cache") .. "/wal/font.json")
+    local f = io.open((vim.env.XDG_CACHE_HOME or (vim.env.HOME .. "/.cache")) .. "/wal/font.json")
     if f then
         local ok, font = pcall(vim.json.decode, f:read("*a"))
         f:close()

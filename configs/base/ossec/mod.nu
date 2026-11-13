@@ -12,7 +12,7 @@ export def system [cfg: record] {
         (unit-file ossec-journal.service --enable)
         (unit-enable ossec-server.target)
         (dropin ossec-syscheckd.service syscheckd-idle.conf --name idle.conf)
-        (file-copy 99-ossec-ac.rules /etc/udev/rules.d/99-ossec-ac.rules --then [udevadm control --reload])
+        (udev-rules 99-ossec-ac.rules)
         (step localfiles)
         (file-copy alerts-acl.conf $TMPFILES --then [systemd-tmpfiles --create $TMPFILES])
     ]
@@ -32,7 +32,7 @@ export def localfiles []: nothing -> nothing {
             $acc | update skip false
         } else if $acc.skip { $acc } else { $acc | update out { append $l } }
     } | get out
-    let want = $shipped | append $ours | str join "\n" | $"($in)\n"
+    let want = $shipped | append $ours | to text
     if $want != (open --raw $OSSEC_CONF) {
         $want | save --force $OSSEC_CONF
         ^systemctl try-restart ossec-logcollector.service

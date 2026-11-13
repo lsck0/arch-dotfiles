@@ -1,7 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [status-record status-print notify state-set state-file hyprland-instance]
+use lib.nu [DOT status-record status-print notify state-set state-file hyprland-instance option-value]
 
-const DOT = path self ../dot.nu
 const HYPRLAND = "desktop/hyprland"
 const SCALES = ["1" "1.25" "1.5" "2"]
 const SCALE_TOLERANCE = 0.01
@@ -28,12 +27,12 @@ def mode-of [monitor: record]: nothing -> string {
     $"($monitor.width)x($monitor.height)@($monitor.refreshRate | into string --decimals $REFRESH_DECIMALS)"
 }
 
-def monitors-persisted []: nothing -> list<record> {
-    ^nu --no-config-file $DOT set $HYPRLAND --json | from json | get modules.0.options | where key == monitors | get 0.value | default []
-}
+def monitors-persisted []: nothing -> list<record> { option-value $HYPRLAND monitors | default [] }
 
-def persisted-get [name: string, key: string, fallback: string]: nothing -> string {
-    monitors-persisted | where output == $name | get --optional 0 | get --optional $key | default $fallback | into string
+# The saved mode and position of a monitor, highrr and auto where none is saved.
+def persisted-of [name: string]: nothing -> record {
+    let saved = monitors-persisted | where output == $name | get --optional 0
+    {mode: ($saved.mode? | default highrr), position: ($saved.position? | default auto)}
 }
 
 def persisted-scale-set [name: string, scale: string]: nothing -> nothing {
@@ -94,10 +93,7 @@ def layout-set [name: string, action: string, source: string]: nothing -> nothin
     let scale = if $monitor.scale > 0 { $monitor.scale | into string } else { "auto" }
     let active = $all | where (not $it.disabled) and $it.mirrorOf == "none"
     let fields = match $action {
-        extend => {
-            let position = persisted-get $name position auto
-            {mode: (persisted-get $name mode highrr), position: $position, scale: $scale, disabled: false, mirror: ""}
-        }
+        extend => (persisted-of $name | merge {scale: $scale, disabled: false, mirror: ""})
         off => {
             if ($active | where name != $name | is-empty) { error make {msg: "refusing to disable the last active monitor"} }
             {disabled: true}
@@ -107,7 +103,7 @@ def layout-set [name: string, action: string, source: string]: nothing -> nothin
             if $source not-in $active.name {
                 error make {msg: $"mirror source ($source) is not an active, unmirrored monitor"}
             }
-            {mode: (persisted-get $name mode highrr), position: auto, scale: $scale, disabled: false, mirror: $source}
+            {mode: (persisted-of $name).mode, position: auto, scale: $scale, disabled: false, mirror: $source}
         }
         _ => { error make {msg: "layout action is one of extend, off, mirror"} }
     }

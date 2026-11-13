@@ -7,6 +7,8 @@ export const meta = {
 }
 
 const HOOK = "hook/unreal-install.nu"
+# the engine zip unpacks to ~60 GB
+const INSTALL_TIMEOUT = 60min
 # the editor's MCP server, on unreal-editor.nu's MCP_PORT
 const MCP_ADDRESS = "127.0.0.1:8766"
 const MCP = {type: http, url: $"http://($MCP_ADDRESS)/mcp", gate: {probe: $MCP_ADDRESS, app: "the Unreal editor"}}
@@ -23,7 +25,7 @@ export def link [cfg: record] {
         (link-commands unreal-editor.nu unreal-install-plugins.nu)
         (file-copy uproject.xml ($mime | path join packages uproject.xml) --then [update-mime-database $mime])
         (mcp-servers {unreal-mcp: (if $installed { $MCP })})
-        (exec unreal-install [($env.PWD | path join $HOOK)] --done=($zip == null or $current) --timeout 60min)
+        (exec unreal-install [($env.PWD | path join $HOOK)] --done=($zip == null or $current) --timeout $INSTALL_TIMEOUT)
         (if not $installed { user-hook unreal-install $HOOK --watch ["%h/sync/vendor"] })
     ]
 }

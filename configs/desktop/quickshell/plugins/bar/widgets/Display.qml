@@ -22,31 +22,19 @@ BarWidget {
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
 
-  function refreshBrightnessFor(name) {
-    const proc = brightnessGetComponent.createObject(root, { monitorName: name }) as Process
-    proc.running = true
-  }
-
   function refreshAllBrightness() {
-    for (let i = 0; i < root.activeMonitors.length; i++)
-      root.refreshBrightnessFor(root.activeMonitors[i].name)
-  }
-
-  function setBrightnessFor(name, pct) {
-    pct = Math.max(1, Math.min(100, Math.round(pct)))
-    Quickshell.execDetached([Paths.script("monitor-brightness.nu"), "set", name, String(pct)])
+    for (const monitor of root.activeMonitors) {
+      const proc = brightnessGetComponent.createObject(root, { monitorName: monitor.name }) as Process
+      proc.running = true
+    }
   }
 
   function applyBrightnessAll(pct) {
     pct = Math.max(1, Math.min(100, Math.round(pct)))
     root.brightnessPct = pct
     root.brightnessKnown = true
-    for (let i = 0; i < root.activeMonitors.length; i++)
-      root.setBrightnessFor(root.activeMonitors[i].name, pct)
-  }
-
-  function refreshMonitors() {
-    if (!monitorsProc.running) monitorsProc.running = true
+    for (const monitor of root.activeMonitors)
+      Quickshell.execDetached([Paths.script("monitor-brightness.nu"), "set", monitor.name, String(pct)])
   }
 
   readonly property string gradingCli: Paths.dotfiles + "/configs/desktop/color-grading/color-grading.py"
@@ -58,8 +46,8 @@ BarWidget {
 
   function refreshColor() {
     root.colorReadMs = Date.now()
-    if (!gradingProc.running) gradingProc.running = true
-    if (!shaderProc.running) shaderProc.running = true
+    gradingProc.run()
+    shaderProc.run()
   }
 
   function colorRun(argv) {
@@ -99,7 +87,7 @@ BarWidget {
   Timer {
     id: monitorsSettle
     interval: 800
-    onTriggered: root.refreshMonitors()
+    onTriggered: monitorsProc.run()
   }
 
   function setMonitorScale(name, scale) {
@@ -139,13 +127,11 @@ BarWidget {
   Connections {
     target: Hyprland
     function onRawEvent(event) {
-      if (event.name === "monitoradded" || event.name === "monitorremoved") root.refreshMonitors()
+      if (event.name === "monitoradded" || event.name === "monitorremoved") monitorsProc.run()
     }
   }
 
-  Component.onCompleted: {
-    root.refreshMonitors()
-  }
+  Component.onCompleted: monitorsProc.run()
 
   BarIconButton {
     id: button
@@ -159,7 +145,7 @@ BarWidget {
     implicitWidth: Style.panelWidth.normal
 
     onOpened: {
-      root.refreshMonitors()
+      monitorsProc.run()
       if (Date.now() - root.colorReadMs >= root.colorMinAgeMs) root.refreshColor()
       root.refreshAllBrightness()
     }

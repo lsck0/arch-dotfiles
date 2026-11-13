@@ -9,7 +9,7 @@ const FWUPD_EFI = "/usr/lib/fwupd/efi/fwupdx64.efi"
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
     [
-        (file-copy fwupd.conf /etc/fwupd/fwupd.conf --mode 640 --then [systemctl try-restart fwupd.service])
+        (file-copy fwupd.conf /etc/fwupd/fwupd.conf --mode 640 --then (unit-restart fwupd.service --if-running))
         (unit-enable fwupd-refresh.timer --now)
         (if ($FWUPD_EFI | path exists) { step sign })
     ]

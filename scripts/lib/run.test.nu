@@ -27,7 +27,7 @@ def publish-cases []: nothing -> nothing {
         ["full clean run removes the file" true true $PASSED [] null]
     ]
     for c in $cases {
-        $"($earlier | str join "\n")\n" | save --force $published
+        $earlier | to text | save --force $published
         $c.new | each { $"($in)\n" } | str join | save --force $own
         let env_run = {DOT_FAILURES_OWNED: true, FAILURES_FILE: $own, DOT_FULL_RUN: $c.full, DOT_SYSTEM_RAN: $c.system_ran, DOT_RUN_ID: test}
         let ok = with-env $env_run { failures-publish $c.results $published }

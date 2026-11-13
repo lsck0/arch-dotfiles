@@ -40,8 +40,6 @@ const FALLBACK = {
 const CHROME_COLORS = "wal/qutebrowser-colors.json"
 const CHROME_ALT_SHADE = 0.03
 const STARTPAGE_SURFACE_SHADE = 0.06
-# a match or a muted label keeps some of its hue: a distinct mark beside the text, not body text
-const MARK_RATIO = 3.0
 
 export def detect [cfg: record]: nothing -> record {
     {search_url: (if (platform-has homelab) { $SEARCH_HOMELAB } else { $SEARCH_DEFAULT })}
@@ -125,14 +123,14 @@ def chrome-colors []: nothing -> any {
         bg: (do $hex $bg)
         bg_alt: (do $hex $alt)
         fg: (do $hex $fg)
-        muted: (do $hex ($p.c8 | readable-on $alt --ratio $MARK_RATIO))
+        muted: (do $hex ($p.c8 | readable-on $alt --ratio $ACCENT2_RATIO))
         accent: (do $hex ($accent | readable-on $alt))
         selection_bg: (do $hex $selection.0)
         selection_fg: (do $hex $selection.1)
-        selection_match: (do $hex ($accent | readable-on $selection.0 --ratio $MARK_RATIO))
+        selection_match: (do $hex ($accent | readable-on $selection.0 --ratio $ACCENT2_RATIO))
         hint_bg: (do $hex $accent)
         hint_fg: (do $hex ($bg | readable-on $accent))
-        hint_match: (do $hex ($p.c1 | readable-on $accent --ratio $MARK_RATIO))
+        hint_match: (do $hex ($p.c1 | readable-on $accent --ratio $ACCENT2_RATIO))
     }
 }
 

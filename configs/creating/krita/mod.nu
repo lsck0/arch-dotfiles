@@ -2,7 +2,7 @@ use module.nu *
 
 export const meta = {packages: {pacman: [krita kseexpr]}}
 
-const HERE = path self | path dirname
+const HERE = path self .
 const BUILD_TIMEOUT_S = "900"
 
 def data-dir []: nothing -> path {

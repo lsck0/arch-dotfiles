@@ -57,7 +57,7 @@ export def system [cfg: record] {
         (dropin initrd-tinysshd.service tinysshd.conf)
         (dropin initrd-network.service initrd-network.conf)
         # the systemd-tool hook puts enabled units in the image, ConditionPathExists keeps them off the real system
-        ...($UNITS | each { unit-enable $in })
+        ($UNITS | each { unit-enable $in })
         (wifi $cfg.wifi)
         (step wire)
     ]

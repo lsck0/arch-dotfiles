@@ -56,11 +56,7 @@ Singleton {
     "waves=0\n" +
     (source ? "\n[input]\nmethod=pipewire\nsource=" + source + "\n" : "")
 
-  function zeroed() {
-    var out = []
-    for (let i = 0; i < barCount; i++) out.push(0)
-    return out
-  }
+  function zeroed() { return new Array(barCount).fill(0) }
 
   function reset() {
     values = zeroed()

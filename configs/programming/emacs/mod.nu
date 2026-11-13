@@ -29,7 +29,7 @@ def sync-key []: nothing -> string {
 export def link [cfg: record] {
     let key = sync-key
     # the stamp doom sync was tracked by before it was recorded: one matching the key proves the sync already ran
-    let synced = try { open --raw (emacs-dir | path join .local dot-synced) | str trim } catch { "" }
+    let synced = file-trim (emacs-dir | path join .local dot-synced)
     [
         (fetch-git $DOOM_URL $DOOM_COMMIT (emacs-dir))
         (files-into (xdg config doom) ...$DOOMDIR)

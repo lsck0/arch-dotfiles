@@ -238,7 +238,7 @@ return {
                     type = "python",
                     request = "attach",
                     connect = function()
-                        return { host = "127.0.0.1", port = tonumber(vim.fn.input("Port: ", "5678")) }
+                        return { host = "127.0.0.1", port = input_port("5678")() }
                     end,
                     pathMappings = function()
                         return {

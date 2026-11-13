@@ -9,6 +9,7 @@ const ENV_FILE = ($nu.home-dir | path join .config task calendar.env)
 const CACHE_FILE = "task-calendar/events.json"
 # the feed's one-day views, today first; the agenda shows this many days
 const VIEWS = ["day.json" "day-next.json" "day-after-next.json"]
+const FETCH_TIMEOUT_S = 10
 
 # The cached events still on one of the VIEWS' days, their day and today flag taken from the date, not from the fetch:
 # a cache from an earlier day would otherwise show that day's events as today's.
@@ -34,7 +35,7 @@ def "main events" [] {
     if $feed == null { print '{"events":[]}'; return }
     # a view the feed does not publish (yet) drops out alone; only no view at all falls back to the cache
     let views = $VIEWS | each {|name|
-        try { ^curl -sSf --max-time 10 $"($feed | str trim --right --char '/')/($name)" | from json } catch { null }
+        try { ^curl -sSf --max-time $FETCH_TIMEOUT_S $"($feed | str trim --right --char '/')/($name)" | from json } catch { null }
     } | compact
     let fetched = if ($views | is-empty) { null } else {
         $views | each {|view| $view.day.events | each {|event| $event | insert day $view.weekday | insert today $view.is_today } }

@@ -88,16 +88,17 @@ $env.config = {
 
 $env.config.buffer_editor = "nvim"
 
+# the variables an agent harness sets, as cli.nu's AGENT_MARKERS
 const AGENT_MARKERS = [CLAUDECODE AI_AGENT GEMINI_CLI COPILOT_CLI_BINARY_VERSION]
+let agent_session = $AGENT_MARKERS | any {|name| $env | get --optional $name | is-not-empty }
 
 # an agent's rm deletes: its build trees would fill the trash, a person's rm keeps going there
-if ($AGENT_MARKERS | any {|name| $env | get --optional $name | is-not-empty }) { $env.config.rm.always_trash = false }
+if $agent_session { $env.config.rm.always_trash = false }
 
-# Root for this shell's defs and aliases, only at a person's terminal: an agent (its marker variable) or a process
-# without one is refused instead of raising a YubiKey request nobody sees. Lint keeps every rc escalation behind it.
+# Root for this shell's defs and aliases, only at a person's terminal: an agent or a process without one is refused
+# instead of raising a YubiKey request nobody sees. Lint keeps every rc escalation behind it.
 def --wrapped sudo-at-terminal [...rest] {
-    let agent = $AGENT_MARKERS | any {|name| $env | get --optional $name | is-not-empty }
-    if $agent or not (is-terminal --stdin) or not (is-terminal --stderr) {
+    if $agent_session or not (is-terminal --stdin) or not (is-terminal --stderr) {
         error make --unspanned {msg: $"($rest | get --optional 0 | default sudo): needs root, run it at your own terminal"}
     }
     ^sudo ...$rest

@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
-use ../../../../scripts/lib/state.nu [xdg]
+use ../../../../scripts/lib/state.nu [xdg process-running]
 
 const UNMAP = path self ../spicetify-unmap-classes.nu
 const RELOAD = path self ../spotify-reload.nu
@@ -87,7 +87,7 @@ def stock-running []: nothing -> bool {
 def restart []: nothing -> nothing {
     ^pkill -x spotify
     for _ in 1..$EXIT_WAIT_SECONDS {
-        if (^pgrep -x spotify | complete).exit_code != 0 { break }
+        if not (process-running spotify) { break }
         sleep 1sec
     }
     ^uwsm app -t service -S both -- spotify.desktop

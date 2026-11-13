@@ -6,16 +6,17 @@ vim.keymap.set("t", "<Esc><Esc>", [[<C-\><C-n>]], { desc = "Exit terminal mode" 
 vim.keymap.set("n", "<M-x>", "@", { desc = "Apply macro (@)" })
 
 if vim.g.neovide then
+    local ZOOM_STEP = 1.1
     local function scale(factor)
         vim.g.neovide_scale_factor = vim.g.neovide_scale_factor * factor
     end
     for _, lhs in ipairs({ "<C-=>", "<C-+>" }) do
         vim.keymap.set("n", lhs, function()
-            scale(1.1)
+            scale(ZOOM_STEP)
         end, { desc = "Neovide zoom in" })
     end
     vim.keymap.set("n", "<C-->", function()
-        scale(1 / 1.1)
+        scale(1 / ZOOM_STEP)
     end, { desc = "Neovide zoom out" })
     vim.keymap.set("n", "<C-0>", function()
         vim.g.neovide_scale_factor = 1.0

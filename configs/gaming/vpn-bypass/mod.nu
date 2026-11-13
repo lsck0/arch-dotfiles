@@ -1,4 +1,5 @@
 use module.nu *
+use games-route.nu [links-physical]
 
 const DISPATCHER = "/etc/NetworkManager/dispatcher.d/86-games-route"
 const UNIT = "games-bypass.service"
@@ -25,7 +26,5 @@ export def system [cfg: record] {
 
 export def nudge []: nothing -> nothing {
     if (do { ^systemctl is-active -q NetworkManager.service } | complete).exit_code != 0 { return }
-    let links = ^nmcli -t -f DEVICE,TYPE,STATE device | lines | split column ":" dev type state
-        | where state == connected and type in [ethernet wifi] and ($"/sys/class/net/($it.dev)/device" | path exists)
-    for l in $links { ^$DISPATCHER $l.dev up }
+    for link in (links-physical) { ^$DISPATCHER $link up }
 }

@@ -14,9 +14,8 @@ export def secrets-issue-clear []: nothing -> nothing { rm --force $SECRETS_ISSU
 
 export def system [cfg: record] {
     [
-        (file-copy pcsc.rules /etc/polkit-1/rules.d/50-pcsc-wheel.rules)
-        (file-copy 70-yubikey-hidraw.rules /etc/udev/rules.d/70-yubikey-hidraw.rules
-            --then [sh -c "udevadm control --reload && udevadm trigger --action=change --subsystem-match=hidraw"])
+        (polkit-rules pcsc.rules --name 50-pcsc-wheel.rules)
+        (udev-rules 70-yubikey-hidraw.rules --action=change --subsystem-match=hidraw)
         (unit-enable pcscd.socket --now)
         (if (secrets-arrived) and ($SECRETS_ISSUE | path exists) { step secrets-issue-clear })
     ]

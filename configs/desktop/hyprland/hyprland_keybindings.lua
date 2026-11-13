@@ -36,6 +36,7 @@ local function media_key(action)
 end
 
 local color_grading = "$DOTFILES/configs/desktop/color-grading/color-grading.py"
+local SOFTWARE_BRIGHTNESS_STEP_PCT = 5
 
 -- Obs hotkeys only fire while obs is focused on wayland; timeout covers obs closed.
 local function obs_command(cmd)
@@ -172,13 +173,13 @@ local LOCKED_KEYS = {
     { "XF86MonBrightnessDown", media_key("brightness-down"), "brightness down", true },
     {
         "SHIFT + XF86MonBrightnessUp",
-        hl.dsp.exec_cmd(color_grading .. " set brightness +5"),
+        hl.dsp.exec_cmd(color_grading .. " set brightness +" .. SOFTWARE_BRIGHTNESS_STEP_PCT),
         "software brightness up (color grading)",
         true,
     },
     {
         "SHIFT + XF86MonBrightnessDown",
-        hl.dsp.exec_cmd(color_grading .. " set brightness -5"),
+        hl.dsp.exec_cmd(color_grading .. " set brightness -" .. SOFTWARE_BRIGHTNESS_STEP_PCT),
         "software brightness down (color grading)",
         true,
     },

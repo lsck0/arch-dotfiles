@@ -1,6 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const CONFIG_PATH = ($nu.home-dir | path join .config quickshell pomodoro.json)
+const HERE = path self | path expand | path dirname
+use ($HERE | path join lib shell.nu) [SHELL_CONFIG action-notify]
+
+const CONFIG_PATH = ($SHELL_CONFIG | path join pomodoro.json)
 const CONFIG_DEFAULT = {focus: 25, break: 5, long: 15, cycles: 4}
 const OPTION_NAMES = {
     focus: pomodoro_focus_min, break: pomodoro_break_min, long: pomodoro_long_break_min, cycles: pomodoro_cycles
@@ -9,7 +12,7 @@ const DOT = ($nu.home-dir | path join .local bin dot)
 const UNIT_PREFIX = "quickshell-pomodoro"
 const GLYPH = "\u{f051f}"
 const PHASE_LABELS = {work: "Focus", break: "Break", long: "Long break"}
-const CHIME = ($nu.home-dir | path join .config quickshell sounds pomodoro.oga)
+const CHIME = ($SHELL_CONFIG | path join sounds pomodoro.oga)
 const CHIME_VOLUME = 0.3
 const CHIME_TIMEOUT = "3s"
 
@@ -34,11 +37,6 @@ def state-load []: nothing -> record {
 def state-save [state: record]: nothing -> nothing {
     mkdir (state-path | path dirname)
     $state | select --optional running paused phase endsAt cycle remaining work break long cycles | to json -r | save -f (state-path)
-}
-
-# Sent as the app the shell shows through dnd and keeps out of history (NotificationLogic.js ACTION_APP).
-def notify [title: string, body: string = ""]: nothing -> nothing {
-    ^notify-send -a quickshell-action -u low -h $"string:lsck0-glyph:($GLYPH)" -- $title $body
 }
 
 # Plays in the foreground: the timer's unit kills background children on exit.
@@ -77,11 +75,11 @@ def phase-advance [--chime]: nothing -> nothing {
         let next = if $state.cycle mod $config.cycles == 0 { "long" } else { "break" }
         let minutes = $lengths | get $next
         phase-start ($state | merge $lengths) $next ($minutes * 60)
-        notify "Focus block done" $"($PHASE_LABELS | get $next) for ($minutes) min"
+        action-notify $GLYPH "Focus block done" $"($PHASE_LABELS | get $next) for ($minutes) min"
     } else {
         let cycle = $state.cycle + 1
         phase-start ($state | merge $lengths | merge {cycle: $cycle}) work ($config.focus * 60)
-        notify "Break over" $"Focus for ($config.focus) min, pomodoro ($cycle)"
+        action-notify $GLYPH "Break over" $"Focus for ($config.focus) min, pomodoro ($cycle)"
     }
     if $chime { chime-play }
 }
@@ -121,7 +119,7 @@ def "main set" [...pairs: string]: nothing -> nothing {
         if $option == null { error make {msg: $"($pair.0): want one of ($OPTION_NAMES | columns | str join ', ')"} }
         let saved = ^$DOT set $"desktop/quickshell.($option)" $pair.1 --no-system | complete
         if $saved.exit_code != 0 {
-            notify "Pomodoro" $"Could not save ($pair.0): ($saved.stderr | str trim | lines | last 1 | str join)"
+            action-notify $GLYPH "Pomodoro" $"Could not save ($pair.0): ($saved.stderr | str trim | lines | last 1 | str join)"
             exit 1
         }
     }
@@ -160,13 +158,13 @@ def main []: nothing -> nothing { main status }
 def "main locked start" []: nothing -> nothing {
     let config = config-load
     phase-start {cycle: 1, work: $config.focus, break: $config.break, long: $config.long, cycles: $config.cycles} work ($config.focus * 60)
-    notify $"Focus for ($config.focus) min" "Pomodoro 1 started"
+    action-notify $GLYPH $"Focus for ($config.focus) min" "Pomodoro 1 started"
 }
 
 def "main locked stop" []: nothing -> nothing {
     timer-cancel
     rm -f (state-path)
-    notify "Pomodoro stopped"
+    action-notify $GLYPH "Pomodoro stopped"
 }
 
 def "main locked pause" []: nothing -> nothing {
@@ -175,7 +173,7 @@ def "main locked pause" []: nothing -> nothing {
     let remaining = [($state.endsAt - (now)) 0] | math max
     timer-cancel
     state-save ($state | merge {paused: true, endsAt: 0, remaining: $remaining})
-    notify "Pomodoro paused" $"(clock $remaining) left"
+    action-notify $GLYPH "Pomodoro paused" $"(clock $remaining) left"
 }
 
 def "main locked resume" []: nothing -> nothing {
@@ -183,7 +181,7 @@ def "main locked resume" []: nothing -> nothing {
     if not $state.paused { return }
     let remaining = if $state.remaining > 0 { $state.remaining } else { 60 }
     phase-start $state $state.phase $remaining
-    notify "Pomodoro resumed" $"(clock $remaining) left"
+    action-notify $GLYPH "Pomodoro resumed" $"(clock $remaining) left"
 }
 
 def "main locked toggle" []: nothing -> nothing {

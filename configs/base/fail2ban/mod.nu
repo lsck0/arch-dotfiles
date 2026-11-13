@@ -30,7 +30,7 @@ export def system [cfg: record] {
     }
     [
         # a restart, not a reload: 1.1.1's reload drops a changed banaction
-        (file-render jail.local /etc/fail2ban/jail.local $values --then [systemctl restart fail2ban.service])
+        (file-render jail.local /etc/fail2ban/jail.local $values --then (unit-restart fail2ban.service))
         (unit-enable fail2ban.service --now)
     ]
 }

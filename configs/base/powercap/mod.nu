@@ -8,6 +8,6 @@ export def system [cfg: record] {
         (unit-file powercap-watts.service --enable --now --then $restart)
         # intel_rapl_msr can load after multi-user.target starts the unit, whose condition then skips it: its device
         # pulls the unit in once it appears
-        (file-copy 99-powercap-watts.rules /etc/udev/rules.d/99-powercap-watts.rules --then [udevadm control --reload-rules])
+        (udev-rules 99-powercap-watts.rules)
     ]
 }

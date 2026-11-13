@@ -2,8 +2,9 @@
 # End of a watched install chain: probes, dot status, backup roundtrip, logs uploaded, then the verdict beacon. Over
 # http to the watcher and, when the vm has one, the virtio channel, which no guest firewall stands in front of.
 
-use stage.nu [STAGE_STATE_DIR STAGE_STOPPED REPORT_CHANNEL report-beacon-send]
+use stage.nu [STAGE_STATE_DIR STAGE_STOPPED STAGE_REPORT STAGE_LUKS_DEVICE REPORT_CHANNEL report-beacon-send]
 use invariants.nu [invariants-load]
+use state.nu [file-trim]
 use homelab.nu [homelab-subnet-glob]
 use ../../platforms/homelab.nu [HOMELAB]
 
@@ -16,7 +17,7 @@ const NETWORK_UNITS = [tor tor-router portmaster portmaster-bypass fw-egress sys
 # --stopped: the chain stopped before config, so the verdict is chain-fail however the report itself went; the probes
 # run after install-stop's disarm, so they prove it, and chain_stopped is yes only beside its marker
 def main [user: string, checkout: path, --stopped]: nothing -> nothing {
-    let url = open --raw ($STAGE_STATE_DIR | path join report) | str trim
+    let url = open --raw $STAGE_REPORT | str trim
     let ok = try { report $user $checkout $url $stopped; true } catch {|e| print --stderr $"stage-report: ($e.msg)"; false }
     let verdict = if $ok and not $stopped { 'chain-done' } else { 'chain-fail' }
     channel-archive-send
@@ -31,7 +32,7 @@ def channel-archive-send []: nothing -> nothing {
 }
 
 def report [user: string, checkout: path, url: string, stopped: bool]: nothing -> nothing {
-    let luks = try { open --raw ($STAGE_STATE_DIR | path join luks-device) | str trim } catch { "" }
+    let luks = file-trim $STAGE_LUKS_DEVICE
     rm --recursive --force $OUT
     mkdir $OUT
     # the lab's arch mirror's root, which answers only from the lab
@@ -60,8 +61,8 @@ def report [user: string, checkout: path, url: string, stopped: bool]: nothing -
     let roundtrip = do $as_user "nu --no-config-file scripts/dot.nu internal backup --roundtrip"
     $roundtrip.stdout + $roundtrip.stderr | save --force ($OUT | path join backup-roundtrip.log)
     $facts | append $"backup_roundtrip=(if $roundtrip.exit_code == 0 { 'ok' } else { 'fail' })"
-        | append $"chain_stopped=(if $stopped and ($STAGE_STOPPED | path exists) { 'yes' } else { 'no' })" | str join "\n"
-        | $"($in)\n" | save --force ($OUT | path join verify.log)
+        | append $"chain_stopped=(if $stopped and ($STAGE_STOPPED | path exists) { 'yes' } else { 'no' })" | to text
+        | save --force ($OUT | path join verify.log)
     cp ($STAGE_STATE_DIR | path join log) ($OUT | path join stage.log)
     ^journalctl -u dotfiles-stage.service --no-pager -o short-iso | save --force ($OUT | path join stage-journal.log)
     ^journalctl -b -p warning --no-pager -o short-iso | save --force ($OUT | path join config-boot-warnings.log)

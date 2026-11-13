@@ -2,7 +2,7 @@
 
 use ../../../../scripts/lib/state.nu [xdg]
 
-const PLUGINS_INSTALL = path self | path expand | path dirname --num-levels 2 | path join unreal-install-plugins.nu
+const PLUGINS_INSTALL = path self ../unreal-install-plugins.nu
 const ZIP_GLOB = "Linux_Unreal_Engine_*.zip"
 const EDITOR = "Engine/Binaries/Linux/UnrealEditor"
 const ICON = "Engine/Source/Runtime/Launch/Resources/Linux/UnrealEngine.png"
@@ -25,7 +25,7 @@ def desktop-write [version: string]: nothing -> nothing {
         $"Exec=($nu.home-dir | path join .local bin unreal-editor) %U"
         (if ($icon | path exists) { $"Icon=($icon)" })
         "Terminal=false" "Categories=Development;IDE;" "MimeType=application/x-uproject;" "StartupWMClass=UnrealEditor"
-    ] | compact | str join "\n" | $"($in)\n" | save --force $file
+    ] | compact | to text | save --force $file
     if (which update-desktop-database | is-not-empty) {
         ^update-desktop-database ($file | path dirname) | complete | ignore
     }

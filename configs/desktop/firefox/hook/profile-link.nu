@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # links a profile firefox made itself; the unit has no DOTFILES outside a uwsm session
 
-const DOT = path self | path dirname | path join .. .. .. .. scripts dot.nu
+const DOT = path self ../../../../scripts/dot.nu
 
 def main []: nothing -> nothing {
     # mirrors mod.nu HOME_DIR and its profiles parsing; a standalone hook cannot import the module

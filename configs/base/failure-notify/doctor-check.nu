@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 
 const REPO = path self | path expand | path dirname --num-levels 4
-use ($REPO | path join scripts lib state.nu) [xdg]
+use ($REPO | path join scripts lib state.nu) [xdg file-trim]
 
 const DOT = $REPO | path join scripts dot.nu
 const SHOWN_LINES = 5
@@ -19,7 +19,7 @@ def main []: nothing -> nothing {
     let findings = $run.stdout | lines
     let digest = $findings | str replace --all --regex '[0-9]+' N | str join "\n" | hash sha256
     let notified = $state | path join notified
-    if $digest == (try { open --raw $notified | str trim } catch { "" }) { return }
+    if $digest == (file-trim $notified) { return }
     if ($findings | is-not-empty) {
         let body = $findings | first $SHOWN_LINES | str substring 0..<$SHOWN_WIDTH | append "dot status shows them all"
         # no notification daemon yet: unrecorded, so the next run tries again

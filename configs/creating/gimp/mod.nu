@@ -46,7 +46,9 @@ export def welcome-seen [config: path, release: string]: nothing -> nothing {
     } else {
         $"($raw)\(config-version \"($release)\"\)\n"
     }
-    let text = if ($versioned | str contains $WELCOME_OFF) { $versioned } else { $versioned | str replace --regex '\(show-welcome-dialog [a-z]+\)\n?' "" | $"($in)($WELCOME_OFF)\n" }
+    let text = if ($versioned | str contains $WELCOME_OFF) { $versioned } else {
+        $versioned | str replace --regex '\(show-welcome-dialog [a-z]+\)\n?' "" | $"($in)($WELCOME_OFF)\n"
+    }
     $text | save --force $gimprc
 }
 

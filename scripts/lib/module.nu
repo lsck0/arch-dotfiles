@@ -6,10 +6,10 @@ export use platform.nu [platform-has display-xwayland-scale gpu-list monitors-li
 export use json.nu [json-set json-delete]
 export use secrets.nu [secret-is-plaintext secret-seed-guard owner-unlocked system-secret]
 use fetch.nu [fetch-file-done fetch-file-cached fetch-git-done]
-use state.nu [nu-bin LIB_DIR]
+use state.nu [nu-bin LIB_DIR HOOK_WATCH_PREFIX HOOK_RUN_PREFIX]
 # what a module may read of the engine's state: its records, the root's state paths, the install chain's secrets
-# banner, a step's pending exit code
-export use state.nu [xdg env-file-load recorded-hashes SYSTEM_STATE SYSTEM_REPO EXIT_PENDING SECRETS_ISSUE]
+# banner, a step's pending exit code, a running process, an existing group
+export use state.nu [xdg env-file-load file-trim process-running group-exists recorded-hashes SYSTEM_STATE SYSTEM_REPO EXIT_PENDING SECRETS_ISSUE]
 export use ../../configs/core/wallust/palette.nu [palette-load]
 
 export const DECL_KEYS = [kind target source content mode generated inplace edits state now argv creates key done undo requires then notify network timeout]
@@ -75,6 +75,25 @@ export def files-into [dir: path, ...srcs: path]: nothing -> list<record> {
     $srcs | each {|src| file-copy $src ($dir | path join ($src | path basename)) }
 }
 
+# The --then reloading udev's rules and triggering the devices matching trigger (none: the reload alone), then and.
+export def --wrapped udev-reload [...trigger: string, --and: string]: nothing -> list<string> {
+    if ($trigger | is-empty) and $and == null { return [udevadm control --reload] }
+    let triggered = if ($trigger | is-not-empty) { $"udevadm trigger ($trigger | str join ' ')" }
+    [sh -c (["udevadm control --reload" $triggered $and] | compact | str join " && ")]
+}
+
+# Installs src into /etc/udev/rules.d under its own name, reloading and triggering through udev-reload; --then
+# replaces that reload, for one shared with another declaration.
+export def --wrapped udev-rules [src: path, ...trigger: string, --then: list<string>]: nothing -> record {
+    file-copy $src $"/etc/udev/rules.d/($src | path basename)" --then ($then | default (udev-reload ...$trigger))
+}
+
+# Installs src into /etc/polkit-1/rules.d as name (default its own), rendered with values when given (file-render).
+export def polkit-rules [src: path, --name: string, --values: record]: nothing -> record {
+    let dest = $"/etc/polkit-1/rules.d/($name | default ($src | path basename))"
+    if $values == null { file-copy $src $dest } else { file-render $src $dest $values }
+}
+
 # Symlinks dest to src in the repo, for an app that must read the repo live.
 export def file-link [src: path, dest: path]: nothing -> record {
     decl link $dest {source: (module-path $src)}
@@ -98,11 +117,6 @@ export def json-merge [file: path, edits: list<record>, --then: list<string> = [
     decl json $file {edits: $edits, then: $then}
 }
 
-# Whether a process of this exact name runs: a theme or reload step only acts on a running app.
-export def process-running [name: string]: nothing -> bool {
-    (^pgrep -x $name | complete).exit_code == 0
-}
-
 # An installed package's upstream version, epoch and pkgrel stripped (`1:3.7.9-1` is `3.7.9`); null when not installed.
 export def package-version [name: string]: nothing -> oneof<string, nothing> {
     let installed = ^pacman -Q $name | complete
@@ -117,10 +131,10 @@ export def desktop-set [values: record]: string -> string {
     let start = ($lines | enumerate | where item == $DESKTOP_ENTRY | first).index + 1
     let group = $lines | skip $start | take while { $in !~ '^\[' }
     let set = $values | items {|key, value| {prefix: $"($key)=", line: $"($key)=($value)"} }
-    let edited = $group | each {|line| $set | where {|s| $line | str starts-with $s.prefix } | get -o 0.line | default $line }
+    let edited = $group | each {|line| $set | where {|s| $line | str starts-with $s.prefix } | get --optional 0.line | default $line }
     let added = $set | where {|s| not ($group | any { str starts-with $s.prefix }) } | get line
     $lines | take $start | append $added | append $edited | append ($lines | skip ($start + ($group | length)))
-    | str join "\n" | $"($in)\n"
+    | to text
 }
 
 # A spec with a `gate: {probe: "host:port", app}` runs through scripts/mcp-gate.py: the server while the app listens,
@@ -224,10 +238,11 @@ export def unit-installed [unit: string]: nothing -> bool {
     ^systemctl $scope list-unit-files --no-legend $name | complete | get stdout | str trim | is-not-empty
 }
 
-# A --then command restarting a unit, skipped while the unit is not installed yet (a fresh install).
-export def unit-restart [name: string, --reload]: nothing -> list<string> {
+# A --then command restarting a unit, skipped while the unit is not installed yet (a fresh install); --reload reloads
+# one that supports it, --if-running leaves a stopped one stopped (systemd's try- verbs still fail on a missing unit).
+export def unit-restart [name: string, --reload, --if-running]: nothing -> list<string> {
     let scope = if (layer-is-system) { "--system" } else { "--user" }
-    let verb = if $reload { "reload-or-restart" } else { "restart" }
+    let verb = $"(if $if_running { 'try-' })(if $reload { 'reload-or-' })restart"
     [sh -c $"! systemctl ($scope) cat ($name) >/dev/null 2>&1 || systemctl ($scope) ($verb) ($name)"]
 }
 
@@ -317,7 +332,7 @@ export def fetch-git [url: string, commit: string, dir: path]: nothing -> list<r
 export def group-system [group: string, ...members: string]: nothing -> record {
     let file = $"/etc/sysusers.d/dotfiles-($group).conf"
     let lines = [$"g ($group) -"] ++ ($members | each { $"m ($in) ($group)" })
-    file-text $file ($lines | str join "\n" | $"($in)\n") --then [systemd-sysusers $file]
+    file-text $file ($lines | to text) --then [systemd-sysusers $file]
 }
 
 # The logins /etc/group lists in a group.
@@ -336,12 +351,12 @@ export def user-hook [name: string, script: path, --watch: list<string>, --perma
     if (layer-is-system) { error make {msg: $"user-hook ($name): a user-layer helper, its --then starts a user unit"} }
     let dir = unit-dir
     let path_unit = [
-        "[Unit]" $"Description=watch for the ($name) hook" "" "[Path]"
+        "[Unit]" $"Description=($HOOK_WATCH_PREFIX) ($name) hook" "" "[Path]"
     ] ++ ($watch | each { $"PathChanged=($in)" }) ++ (if $mkdir { ["MakeDirectory=yes"] } else { [] }) ++ ["" "[Install]" "WantedBy=default.target"]
     let install = if $permanent { "\n[Install]\nWantedBy=default.target\n" } else { "" }
-    let service = $"[Unit]\nDescription=run the ($name) hook\n(if $no_brake { '' } else { $HOOK_BRAKE })\n[Service]\nType=oneshot\nExecStart=(module-path $script)\n($install)"
+    let service = $"[Unit]\nDescription=($HOOK_RUN_PREFIX) ($name) hook\n(if $no_brake { '' } else { $HOOK_BRAKE })\n[Service]\nType=oneshot\nExecStart=(module-path $script)\n($install)"
     [
-        (file-text ($dir | path join $"($name).path") $"($path_unit | str join "\n")\n")
+        (file-text ($dir | path join $"($name).path") ($path_unit | to text))
         (file-text ($dir | path join $"($name).service") $service --then [systemctl --user start --no-block $"($name).service"])
         (unit-enable $"($name).path" --now)
     ] ++ (if $permanent { [(unit-enable $"($name).service")] } else { [] })

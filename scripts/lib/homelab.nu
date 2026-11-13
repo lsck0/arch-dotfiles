@@ -38,7 +38,7 @@ def lsck0-split []: string -> record {
 # A pacman.conf without its [lsck0] section: a machine off the lab syncs core, extra and multilib alone, where an
 # unreachable Required repo would fail every pacman -Sy.
 export def lsck0-drop []: string -> string {
-    lsck0-split | get outside | str join "\n" | $"($in)\n"
+    lsck0-split | get outside | to text
 }
 
 # A pacman.conf's [lsck0] section alone, for the iso's live pacman.conf.

@@ -1,5 +1,6 @@
 use font.nu [font-save]
-use ../../../scripts/lib/state.nu [xdg]
+use ../../../scripts/lib/state.nu [xdg file-trim]
+use ../../../scripts/toggles/lib.nu [quickshell-call]
 
 const INTERNAL = path self ../../../scripts/lib/internal.nu
 const LIST = path self wallpaper-list.nu
@@ -10,7 +11,6 @@ const WAL = "wal"
 const REQUEST = "theme.request"
 const TAKEN = "theme.taken"
 const UNIT = "dot-theme.service"
-const IPC_TIMEOUT_S = "3"
 
 def wal [...parts: string]: nothing -> path { xdg cache $WAL ...$parts }
 
@@ -22,7 +22,7 @@ def request-pending []: nothing -> bool { request-file | path exists }
 def request-take []: nothing -> string {
     let taken = xdg runtime $TAKEN
     if (do { ^mv -f (request-file) $taken } | complete).exit_code != 0 { return "" }
-    try { open --raw $taken | str trim } catch { "" }
+    file-trim $taken
 }
 
 # False when a newer request arrived. A theme's font applies only when the wallpaper changes.
@@ -31,8 +31,7 @@ def recolor [file: path]: nothing -> bool {
     let switched = (wallpaper-get) != ($file | path expand)
     ^ln -sfn $file (wal wallpaper)
     $"($file)\n" | save --force (wal wallpaper_path)
-    let shell = xdg config quickshell
-    if (which quickshell | is-not-empty) { do { ^timeout $IPC_TIMEOUT_S quickshell ipc -p $shell call background set $file } | complete | ignore }
+    if (which quickshell | is-not-empty) { quickshell-call background set $file | complete | ignore }
     let theme = glob ($THEMES | path join "*.json") | sort
         | each {|f| {name: ($f | path parse | get stem), path: $f, spec: (open $f)} }
         | where spec.wallpaper? == ($file | path basename) | get --optional 0

@@ -162,8 +162,7 @@ module.exports = class QuickshellVoiceStatus {
   }
 
   _pollCommands() {
-    if (!this._fs) return;
-    if (!this._fs.existsSync(this._commandPath)) return;
+    if (!this._fs?.existsSync(this._commandPath)) return;
     // claim the file by renaming first, so a line appended between read and delete is not lost
     const pending = this._commandPath + ".reading";
     try {
@@ -192,13 +191,15 @@ module.exports = class QuickshellVoiceStatus {
     }
   }
 
+  _closeWatcher() {
+    try {
+      this._commandWatcher?.close();
+    } catch (e) {}
+    this._commandWatcher = null;
+  }
+
   _fallbackToPoll() {
-    if (this._commandWatcher) {
-      try {
-        this._commandWatcher.close();
-      } catch (e) {}
-      this._commandWatcher = null;
-    }
+    this._closeWatcher();
     if (!this._commandPoll) this._commandPoll = setInterval(() => this._pollCommands(), COMMAND_POLL_MS);
   }
 
@@ -279,8 +280,7 @@ module.exports = class QuickshellVoiceStatus {
     this._heartbeat = null;
     if (this._commandPoll) clearInterval(this._commandPoll);
     this._commandPoll = null;
-    if (this._commandWatcher) this._commandWatcher.close();
-    this._commandWatcher = null;
+    this._closeWatcher();
     if (this._publishTimer) clearTimeout(this._publishTimer);
     this._publishTimer = null;
     this._lastPayload = "";

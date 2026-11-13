@@ -36,7 +36,7 @@ const EXEC_MISSING = 'failed to execute (?<name>\S+): No such file or directory'
 const CALL = r#'^(?<call>(?:"(?:[^"\\]|\\.)*"|'[^']*'|`[^`]*`|[^"'`|})\];#])*)'#
 const SOURCES_UNNAMED = [source "<commandline>"]
 const FIX_SEP = "; fix: "
-const LINE_FORM = '^(?<head>.*?)(?:: (?<text>.*?))?(?:; fix: (?<fix>.*))?$'
+const LINE_FORM = '^(?<head>.*?)(?:: (?<text>.*?))?(?:' + $FIX_SEP + '(?<fix>.*))?$'
 const MODULE_HEAD = '^(?<subject>[\w.-]+/[\w./-]+) (?<where>\w+/.+)$'
 const SYSTEM_SUBJECT = "system layer"
 export const PACKAGES_FIX = "dot apply --packages"
@@ -236,7 +236,8 @@ export def failure-is-system [line: string]: nothing -> bool {
     ($p.where | default "" | str starts-with "system/") or ($p.subject | str starts-with $SYSTEM_SUBJECT)
 }
 
-def shown [names: list<string>, count_max: int]: nothing -> string {
+# The first count_max names, then how many more there are.
+export def names-shown [names: list<string>, count_max: int]: nothing -> string {
     let more = if ($names | length) > $count_max { $" +(($names | length) - $count_max) more" } else { "" }
     $"($names | first $count_max | str join ' ')($more)"
 }
@@ -264,6 +265,6 @@ export def failures-group [lines: list<string>]: nothing -> list<string> {
         }
         let fixes = $g.fix | compact | uniq
         let fix = if ($fixes | length) == 1 { $fixes.0 } else if $hint != null { $hint.fix_each } else { null }
-        $"($g | length) ($noun) \((shown $subjects $GROUP_SUBJECTS_SHOWN)\): ($text)(if $fix == null { '' } else { $'($FIX_SEP)($fix)' })"
+        $"($g | length) ($noun) \((names-shown $subjects $GROUP_SUBJECTS_SHOWN)\): ($text)(if $fix == null { '' } else { $'($FIX_SEP)($fix)' })"
     }
 }

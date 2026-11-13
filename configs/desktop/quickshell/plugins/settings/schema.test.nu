@@ -2,7 +2,7 @@
 # Schema.js under qmltestrunner, and each `dot set` argument it builds read back through nu's argument coercion and
 # READER's copy of the value parse in scripts/dot.nu's `main set`; a change to that parse is mirrored here by hand
 
-const SCHEMA = path self | path dirname | path join Schema.js
+const SCHEMA = path self Schema.js
 const RUNNER = "/usr/lib/qt6/bin/qmltestrunner"
 const CASES = [
     [type nu value want];
@@ -75,7 +75,7 @@ TestCase {
     var rows = Schema.systemEntries\(status, \"\"\)
     var kinds = rows.map\(function \(r\) { return r.kind }\).join\(\",\"\)
     compare\(kinds, \"header,action,action,action,action,header,drift,header,check,check,check\"\)
-    verify\(Schema.checkFailed\(rows[10]\)\)
+    compare\(rows[10].level, \"FAIL\"\)
     var drift = rows[6]
     var adopt = Schema.systemCommand\(\"dot\", drift, \"adopt\"\)
     compare\(adopt.slice\(0, 2\).join\(\" \"\), \"sh -c\"\)

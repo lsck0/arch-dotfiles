@@ -1,6 +1,6 @@
 # Pinned downloads: files by sha256, git trees by commit.
 
-use state.nu [state-dir path-kind xdg]
+use state.nu [state-dir path-kind xdg file-trim]
 use online.nu [remote-pending]
 
 # git has no retry of its own: a remote's 5xx or 429 gets these waits before the fetch fails (curl retries files itself)
@@ -15,7 +15,7 @@ def stamp [dest: path]: nothing -> path {
 }
 
 export def fetch-file-done [sha256: string, dest: path]: nothing -> bool {
-    ($dest | path exists) and (try { open --raw (stamp $dest) | str trim } catch { "" }) == $sha256
+    ($dest | path exists) and (file-trim (stamp $dest)) == $sha256
 }
 
 # A download already in the cache needs no network to land.

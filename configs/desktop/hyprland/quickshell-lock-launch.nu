@@ -15,7 +15,11 @@ def locked []: nothing -> bool {
 
 # As a before_sleep_cmd barrier: keeps the freeze from racing the lock handshake, which aborts quickshell.
 def granted []: nothing -> bool {
-    1..$LOCK_POLL_TRIES | each { $in } | any {|_| if (locked) { true } else { sleep $LOCK_POLL_INTERVAL; false } }
+    for _ in 1..$LOCK_POLL_TRIES {
+        if (locked) { return true }
+        sleep $LOCK_POLL_INTERVAL
+    }
+    false
 }
 
 def config-dir []: nothing -> path { $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) }

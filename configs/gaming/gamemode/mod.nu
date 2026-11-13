@@ -42,7 +42,7 @@ export def link [cfg: record] {
 export def system [cfg: record] {
     [
         (file-copy split-lock-mitigate.nu /usr/local/bin/split-lock-mitigate --mode 755)
-        (file-copy 49-gamemode-services.rules /etc/polkit-1/rules.d/49-gamemode-services.rules)
+        (polkit-rules 49-gamemode-services.rules)
         (group-admins gamemode)
     ]
 }

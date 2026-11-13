@@ -74,29 +74,20 @@ local function label(kind)
     end
 end
 
-local function statement(trigger, env)
-    return s({ trig = trigger, desc = env }, {
-        t("\\begin{" .. env .. "}["),
-        i(1, "title"),
-        t({ "]", "    " }),
-        d(2, label(env), { 1 }),
-        i(0),
-        t({ "", "\\end{" .. env .. "}" }),
-    }, { condition = line_begin })
-end
-
--- The statement with its proof as the last block inside it.
-local function proved(trigger, env)
-    return s({ trig = trigger, desc = env .. " with proof" }, {
-        t("\\begin{" .. env .. "}["),
-        i(1, "title"),
-        t({ "]", "    " }),
-        d(2, label(env), { 1 }),
-        i(3),
-        t({ "", "", "    \\begin{proof}", "        " }),
-        i(0),
-        t({ "", "    \\end{proof}", "\\end{" .. env .. "}" }),
-    }, { condition = line_begin })
+-- A titled statement; with_proof puts its proof as the last block inside it.
+local function statement(trigger, env, with_proof)
+    local nodes = { t("\\begin{" .. env .. "}["), i(1, "title"), t({ "]", "    " }), d(2, label(env), { 1 }) }
+    if with_proof then
+        vim.list_extend(nodes, {
+            i(3),
+            t({ "", "", "    \\begin{proof}", "        " }),
+            i(0),
+            t({ "", "    \\end{proof}", "\\end{" .. env .. "}" }),
+        })
+    else
+        vim.list_extend(nodes, { i(0), t({ "", "\\end{" .. env .. "}" }) })
+    end
+    return s({ trig = trigger, desc = env .. (with_proof and " with proof" or "") }, nodes, { condition = line_begin })
 end
 
 -- \begin{ENV}, the body lines indented one level, \end{ENV}; ENV may itself be a <> node
@@ -114,10 +105,10 @@ vim.list_extend(snippets, {
     s("par", fmta("\\paragraph{<>}<>", { i(1), i(0) })),
 
     statement("def", "definition"),
-    proved("thm", "theorem"),
-    proved("lem", "lemma"),
-    proved("prop", "proposition"),
-    proved("cor", "corollary"),
+    statement("thm", "theorem", true),
+    statement("lem", "lemma", true),
+    statement("prop", "proposition", true),
+    statement("cor", "corollary", true),
     statement("rem", "remark"),
     statement("ex", "example"),
     statement("ax", "axiom"),

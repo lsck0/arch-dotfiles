@@ -1,6 +1,6 @@
 use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
-use home-network.nu [route-gateway]
+use lib/dispatch.nu [route-gateway]
 
 export const meta = {
     packages: {native: [ethtool modemmanager networkmanager wpa_supplicant]}
@@ -12,15 +12,16 @@ export const options = {
     untrusted_policy: {
         type: string
         default: firewall-only
-        doc: ("Off the home network: lockdown-tor closes inbound and lets out only tor, dhcp and tunnels until a VPN "
-            + "is up; firewall-only closes inbound and leaves egress open; off treats every network as home")
+        doc: ("On an untrusted network: lockdown-tor closes inbound and lets out only tor, dhcp and tunnels until a "
+            + "VPN is up; firewall-only closes inbound and leaves egress open; off treats every network as trusted")
         label: "Untrusted networks"
         choices: [lockdown-tor firewall-only off]
     }
     home_wired: {
         type: bool?
         default: null
-        doc: "Ethernet is always the home network and keeps its hardware MAC (a desktop); null detects it from the form factor"
+        doc: ("Ethernet keeps its hardware MAC and IPv6, so a home gateway can vouch for it (a desktop); null detects "
+            + "it from the form factor")
         label: "Wired is home"
     }
     wake_on_lan: {
@@ -85,8 +86,8 @@ const WIFI_OFF_MARK = "/var/lib/NetworkManager/dotfiles-wifi-off"
 
 def ethernet-up []: nothing -> bool {
     ls /sys/class/net | get name | where {|n| ($n | path join device | path exists) and not ($n | path join wireless | path exists) }
-        | where {|n| (try { open --raw ($n | path join type) | str trim } catch { "" }) == $ARPHRD_ETHER }
-        | any {|n| (try { open --raw ($n | path join carrier) | str trim } catch { "0" }) == "1" }
+        | where {|n| (file-trim ($n | path join type)) == $ARPHRD_ETHER }
+        | any {|n| (file-trim ($n | path join carrier) "0") == "1" }
 }
 
 export def detect [cfg: record]: nothing -> record {
@@ -136,9 +137,11 @@ export def system [cfg: record] {
         (if $home_wired { file-copy home-wired.conf $"($NM)/conf.d/10-home-wired.conf" --then $restart })
         (if $cfg.wake_on_lan {[
             (file-copy wake-on-lan.link /etc/systemd/network/90-wake-on-lan.link
-                --then [sh -c "udevadm control --reload && udevadm trigger --action=add --subsystem-match=net"])
+                --then (udev-reload --action=add --subsystem-match=net))
             (file-copy wake-on-lan.conf $"($NM)/conf.d/20-wake-on-lan.conf" --then $restart)
         ]})
+        # a directory, which NM runs nothing in: the dispatchers' `use lib/dispatch.nu`
+        (file-copy lib/dispatch.nu $"($DISPATCHERS)/lib/dispatch.nu")
         (do $dispatcher home-network.nu 70-home-network)
         (do $dispatcher homelab-routes.nu 80-homelab-routes)
         (do $dispatcher persona-dispatcher.nu 90-anonymous-persona)

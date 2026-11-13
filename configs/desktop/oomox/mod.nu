@@ -46,7 +46,7 @@ export def themix-export []: nothing -> nothing {
     # xvfb-run sleeps a fixed 3s for Xvfb to come up; it is listening in well under one
     let argv = $THEMIX_TIMEOUT ++ [xvfb-run -a -w 1 -e /dev/stderr themix-multi-export]
     let out = with-env {GDK_BACKEND: x11, WAYLAND_DISPLAY: null} {
-        ^($argv | first) ...($argv | skip 1) ($nu.home-dir | path join $EXPORT_DIR $EXPORT_CONFIG) (xdg cache $COLORS) o+e>| complete
+        run-external ...$argv ($nu.home-dir | path join $EXPORT_DIR $EXPORT_CONFIG) (xdg cache $COLORS) o+e>| complete
     }
     if $out.exit_code != 0 {
         error make {msg: $"themix export ($EXPORT_CONFIG) exited ($out.exit_code): ($out.stdout | lines | last 6 | str join ' ')"}

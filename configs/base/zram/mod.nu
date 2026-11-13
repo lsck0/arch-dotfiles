@@ -22,16 +22,17 @@ export const options = {
 
 const MGLRU = "/sys/kernel/mm/lru_gen/min_ttl_ms"
 const MGLRU_TMPFILES = "/etc/tmpfiles.d/mglru.conf"
+const ZRAM_GENERATOR = "/usr/lib/systemd/system-generators/zram-generator"
+const SYSCTL = "/etc/sysctl.d/99-zram.conf"
 
 export def system [cfg: record] {
     [
         (if ($MGLRU | path exists) {
             file-copy mglru-tmpfiles.conf $MGLRU_TMPFILES --then [systemd-tmpfiles --create $MGLRU_TMPFILES]
         })
-        (if ("/usr/lib/systemd/system-generators/zram-generator" | path exists) {
+        (if ($ZRAM_GENERATOR | path exists) {
             [
-                (file-render sysctl-zram.conf /etc/sysctl.d/99-zram.conf {SWAPPINESS: $cfg.swappiness}
-                    --then [/usr/lib/systemd/systemd-sysctl /etc/sysctl.d/99-zram.conf])
+                (file-render sysctl-zram.conf $SYSCTL {SWAPPINESS: $cfg.swappiness} --then [/usr/lib/systemd/systemd-sysctl $SYSCTL])
                 (file-render zram-generator.conf /etc/systemd/zram-generator.conf {COMPRESSION_ALGORITHM: $cfg.compression_algorithm}
                     --then [systemctl daemon-reload])
             ]

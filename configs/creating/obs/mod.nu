@@ -60,7 +60,7 @@ export const options = {
     }
 }
 
-const HERE = path self | path dirname
+const HERE = path self .
 const WEBSOCKET_PORT = 4455
 const LOCK_KEY_LENGTH = 16
 const CANVAS_FALLBACK = "1920x1080"
@@ -108,7 +108,7 @@ export def detect [cfg: record]: nothing -> record {
     let h264 = if (do $vaapi H264) { "ffmpeg_vaapi_tex" } else if $nvidia { "obs_nvenc_h264_tex" } else { "obs_x264" }
     {
         vaapi_render_node: $gpu.by_path?
-        canvas: (if $monitor == null { null } else { $"($monitor.width)x($monitor.height)" })
+        canvas: (if $monitor != null { $"($monitor.width)x($monitor.height)" })
         mic: (audio-device sources)
         webcam: (glob /dev/v4l/by-id/*-video-index0 | sort | get --optional 0)
         monitor_device: (audio-device sinks)
@@ -151,8 +151,8 @@ def profile-values [cfg: record]: nothing -> record {
 }
 
 def strip-token []: record -> record {
-    update sources {|s|
-        $s.sources | each {|src|
+    update sources {
+        each {|src|
             if ($src.settings? | describe) !~ "^record" { return $src }
             $src | update settings { reject --optional $PORTAL_TOKEN }
         }
@@ -377,7 +377,7 @@ def profile-back [live: path, repo: path]: nothing -> nothing {
         if $l.key == null or not ($l.key | str ends-with "Path") { return $l.line }
         let dir = $dirs | where {|d| $l.value == $d.path or ($l.value | str starts-with $"($d.path)/") } | get --optional 0
         $"($l.key)=(if $dir == null { $l.value } else { $l.value | str replace $dir.path $dir.placeholder })"
-    } | str join "\n" | $"($in)\n" | save --force $repo
+    } | to text | save --force $repo
 }
 
 export def backup [cfg: record]: nothing -> nothing {

@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-const EXTRACT = path self | path dirname | path join extract.nu
+const EXTRACT = path self extract.nu
 const OVERSIZE = "3G"
 const CORRUPT_OFFSET = 34
 

@@ -12,7 +12,7 @@ const MODELS_TIMEOUT = 6hr
 
 export def link [cfg: record] {
     # the script's own hash too: a changed prune or ensure rule reruns it without a pin bump
-    let script = open --raw ($env.PWD | path join ollama-ensure-models.nu) | hash sha256
+    let script = open --raw ollama-ensure-models.nu | hash sha256
     let pins = [$SMALL.pin $LARGE.pin $EMBEDDING.pin $CODING.pin $LONG_CONTEXT $LONG_CONTEXT_TOKENS $script] | str join "\n"
         | hash sha256 | str substring 0..<12
     [

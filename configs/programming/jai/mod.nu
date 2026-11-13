@@ -19,7 +19,7 @@ export def link [cfg: record] {
         return (user-hook jai-install $HOOK --watch ["%h/sync/vendor"])
     }
     let zip = zip-newest
-    let stamp = try { open --raw ($dir | path join .installed-from) | str trim } catch { "" }
+    let stamp = file-trim ($dir | path join .installed-from)
     let newer = $zip != null and ($zip | path basename) != $stamp
     let current = not $newer and ($dir | path join bin jai | path exists)
     [(exec jai-install [($env.PWD | path join $HOOK)] --done=$current --network)]

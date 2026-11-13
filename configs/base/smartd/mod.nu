@@ -16,6 +16,6 @@ export def system [cfg: record] {
     if (^smartctl --scan | str trim | is-empty) { return (unit-disable smartd.service --now) }
     [
         (unit-enable smartd.service --now)
-        (file-render smartd.conf /etc/smartd.conf {TEST_SCHEDULE: $cfg.test_schedule} --then [systemctl restart smartd.service])
+        (file-render smartd.conf /etc/smartd.conf {TEST_SCHEDULE: $cfg.test_schedule} --then (unit-restart smartd.service))
     ]
 }

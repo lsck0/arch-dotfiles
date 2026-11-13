@@ -204,7 +204,6 @@ local function cite_find(line, col, markdown)
             return finish - 1
         end
     end
-    return nil
 end
 
 --- Insert KEY at the cursor: into the cite under the cursor, else as a new one.

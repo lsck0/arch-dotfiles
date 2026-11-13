@@ -35,7 +35,7 @@ export def install []: nothing -> nothing {
             | where {|l| not ($l =~ '^#?default_(image|uki|cmdline)=') }
             | each {|l| if ($l =~ '^PRESETS=') { "PRESETS=('default')" } else { $l } }
             | append [$'default_uki="(uki-path $pkgbase)"' $'default_cmdline="($CMDLINE)"']
-            | str join "\n" | $"($in)\n"
+            | to text
         if $want == (open --raw $preset) { continue }
         backup-once $preset
         $want | save --force $preset

@@ -17,6 +17,7 @@ profile obsidian @{exec_path} flags=(attach_disconnected,attach_disconnected.pat
   include <abstractions/attached/base>
   include <abstractions/common/electron>
   include <abstractions/dotfiles/deny-sensitive-home>
+  include <abstractions/dotfiles/nssdb>
   include <abstractions/user-read-strict>
 
   network inet dgram,

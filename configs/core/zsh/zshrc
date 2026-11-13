@@ -82,10 +82,13 @@ alias cp="cp -v"
 alias mkdir="mkdir -pv"
 alias mv="mv -v"
 
-# Root for this shell's functions and aliases, only at a person's terminal: an agent (its marker variable) or a process
-# without one is refused instead of raising a YubiKey request nobody sees. Lint keeps every rc escalation behind it.
+# an agent harness's shell, by the marker variables cli.nu's AGENT_MARKERS names
+agent-session() { [[ -n ${CLAUDECODE-}${AI_AGENT-}${GEMINI_CLI-}${COPILOT_CLI_BINARY_VERSION-} ]] }
+
+# Root for this shell's functions and aliases, only at a person's terminal: an agent or a process without one is
+# refused instead of raising a YubiKey request nobody sees. Lint keeps every rc escalation behind it.
 sudo-at-terminal() {
-  if [[ ! -t 0 || ! -t 2 || -n ${CLAUDECODE-}${AI_AGENT-}${GEMINI_CLI-}${COPILOT_CLI_BINARY_VERSION-} ]]; then
+  if [[ ! -t 0 || ! -t 2 ]] || agent-session; then
     print -u2 "$1: needs root, run it at your own terminal"
     return 1
   fi

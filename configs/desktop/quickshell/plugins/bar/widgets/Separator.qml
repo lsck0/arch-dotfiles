@@ -15,27 +15,17 @@ BarWidget {
   readonly property Item ownLoader: parent
   readonly property Item section: ownLoader ? ownLoader.parent : null
 
+  // a visible, non-empty widget on both sides of this one in its section
   function contentBeside() {
     if (!section) return false
-    var siblings = section.children
-    var index = -1
-    for (let i = 0; i < siblings.length; i++)
-      if (siblings[i] === ownLoader) { index = i; break }
+    var siblings = Array.from(section.children)
+    var index = siblings.indexOf(ownLoader)
     if (index < 0) return false
-
     function solid(loader) {
-      if (!loader || loader === ownLoader) return false
-      var item = loader.item
-      if (!item || !item.visible || loader.dropped) return false
-      if (item.moduleName === "separator") return false
-      return item.implicitWidth > 0
+      var item = loader ? loader.item : null
+      return !!item && item.visible && !loader.dropped && item.moduleName !== "separator" && item.implicitWidth > 0
     }
-
-    var before = false
-    for (let b = index - 1; b >= 0; b--) if (solid(siblings[b])) { before = true; break }
-    var after = false
-    for (let a = index + 1; a < siblings.length; a++) if (solid(siblings[a])) { after = true; break }
-    return before && after
+    return siblings.slice(0, index).some(solid) && siblings.slice(index + 1).some(solid)
   }
 
   Timer {

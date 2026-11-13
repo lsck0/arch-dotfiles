@@ -87,10 +87,14 @@ def lint-modules []: nothing -> list<string> {
     $bad_deps ++ $platforms ++ $siblings ++ $undeclared
 }
 
+# Every module's mod.nu, the root modules' included.
+def mod-files []: nothing -> list<path> {
+    glob $"($REPO)/configs/**/mod.nu" --exclude $SECRETS_DATA
+    | append ($ROOT_MODULES | each {|r| $REPO | path join $r mod.nu } | where ($it | path exists))
+}
+
 def lint-layers []: nothing -> list<string> {
-    let configs = $REPO | path join configs
-    let mods = glob $"($configs)/**/mod.nu" --exclude $SECRETS_DATA
-        | append ($ROOT_MODULES | each {|r| $REPO | path join $r mod.nu } | where ($it | path exists))
+    let mods = mod-files
     let verb_body = $"\(?ms\)^export def \(?:--\\S+ \)*\(?<verb>($VERBS | str join '|')\) \\[.*?^\\}"
     let verbs = $mods | each {|f|
         let text = open --raw $f
@@ -116,11 +120,10 @@ const ENGINE_INTERNAL = [
 ]
 
 def lint-engine-imports []: nothing -> list<string> {
-    let lib = $ENGINE_INTERNAL
     glob $"($REPO)/configs/**/mod.nu" --exclude $SECRETS_DATA | each {|f|
         open --raw $f | lines | enumerate | each {|l|
             let used = $l.item | parse --regex '^\s*(?:export )?use (?<file>[a-z0-9-]+\.nu)\b' | get --optional 0.file
-            if $used != null and $used != "module.nu" and $used in $lib {
+            if $used != null and $used in $ENGINE_INTERNAL {
                 $"(rel $f):($l.index + 1): use ($used) reaches into the engine; take it from module.nu's exports"
             }
         } | compact
@@ -129,8 +132,7 @@ def lint-engine-imports []: nothing -> list<string> {
 
 # A mod.nu exports only verbs, hooks, its own steps and names other modules import.
 def lint-exports []: nothing -> list<string> {
-    let mods = glob $"($REPO)/configs/**/mod.nu" --exclude $SECRETS_DATA
-        | append ($ROOT_MODULES | each {|r| $REPO | path join $r mod.nu } | where ($it | path exists))
+    let mods = mod-files
     let imported = glob $"($REPO)/{configs,scripts}/**/*.nu" --exclude ($SECRETS_DATA | each { $"configs/($in)" }) | each {|f|
         open --raw $f | parse --regex 'use \S*mod\.nu \[(?<names>[^\]]*)\]' | get names | split row " " | where $it != ""
     } | flatten | uniq
@@ -263,6 +265,45 @@ def lint-exec-bits []: nothing -> list<string> {
     | where {|f| let p = $REPO | path join $f; ($p | path type) == file and (open --raw $p | into binary | bytes at 0..1) == 0x[2321] }
     | where {|f| (^test -x ($REPO | path join $f) | complete).exit_code != 0 }
     | each { $"($in): has a shebang but is not executable, chmod +x it" }
+}
+
+# A link-commands script runs through its ~/.local/bin link, where a relative `use` and `path self` resolve against the
+# link's dir: it reaches its own files only after `path self | path expand`, which follows the link.
+const LINKED_RELATIVE = [
+    [pattern why];
+    [`^\s*(?:export )?(?:use|source|source-env|overlay use) ['"]?(?:\.|[^\s$('"]*\.nu\b)` "a relative use resolves against the ~/.local/bin link; join it to `path self | path expand | path dirname`"]
+    ['\bpath self +[^\s|)]' "`path self <rel>` resolves against the ~/.local/bin link; use `path self | path expand | path dirname --num-levels <n>`"]
+    ['\bpath self *\| *path dirname\b' "`path self | path dirname` is the ~/.local/bin link's dir; put `path expand` before it"]
+]
+
+# Every file a mod.nu passes to link-commands: the literal names and globs on the call, and the globs of the lets it
+# spreads (scripts/mod.nu). A mod.nu and a test are never linked.
+export def linked-scripts []: nothing -> list<path> {
+    mod-files | each {|f|
+        let dir = $f | path dirname
+        let text = open --raw $f
+        code-lines $f | where ($it.line =~ '\blink-commands\b') | each {|l|
+            let args = $l.line | split row "link-commands" | last
+            let literals = $args | parse --regex '(?:^|[\s(])(?<f>[\w./-]+\.(?:nu|sh))\b' | get f | each {|n| $dir | path join $n }
+            let vars = $args | parse --regex '\$(?<v>[a-z_][a-z0-9_]*)' | get v
+            let lets = $vars | each {|v| $text | parse --regex $"\(?m\)^\\s*let ($v) = glob '?\(?<g>[^'\\s\)]+\)" | get g } | flatten
+            let globs = $args | parse --regex "glob '?(?<g>[^'\\s)]+)" | get g | append $lets | each {|g| glob ($dir | path join $g) } | flatten
+            $literals ++ $globs
+        } | flatten
+    } | flatten | where {|p| ($p | path exists) and ($p | path basename) != "mod.nu" and not ($p =~ '\.test\.(nu|sh)$') } | uniq | sort
+}
+
+# The lines of a linked script's text that reach its own dir through the link, by line.
+export def linked-relative-find [text: string]: nothing -> table<n: int, why: string> {
+    $text | lines | enumerate | where not ($it.item | str trim --left | str starts-with "#") | each {|l|
+        $LINKED_RELATIVE | where {|p| $l.item =~ $p.pattern } | each {|p| {n: ($l.index + 1), why: $p.why} }
+    } | flatten
+}
+
+def lint-linked-relative []: nothing -> list<string> {
+    linked-scripts | where ($it | str ends-with ".nu") | each {|f|
+        linked-relative-find (open --raw $f) | each {|h| $"(rel $f):($h.n): ($h.why)" }
+    } | flatten
 }
 
 # ASCII only, except where the bytes are content: a keyboard legend, prompt glyphs, KDE's own rc text, accent tables,
@@ -400,7 +441,7 @@ export def gate-lint []: nothing -> list<string> {
     let lints = [
         {|| lint-modules } {|| lint-layers } {|| lint-exports } {|| lint-sync } {|| lint-stray } {|| lint-platform-facts }
         {|| lint-nu-pitfalls } {|| lint-exec-bits } {|| lint-ascii } {|| lint-loaded } {|| lint-generated } {|| lint-fail-closed }
-        {|| lint-rc-escalation } {|| lint-engine-imports }
+        {|| lint-rc-escalation } {|| lint-engine-imports } {|| lint-linked-relative }
     ]
     ($lints | par-each --keep-order {|lint| do $lint } | flatten) ++ (unit-tests)
 }

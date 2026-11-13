@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # Table cases for the nushell pitfalls lint (what each pattern flags, and the lines it must leave alone) and the
 # fail-closed lint.
-use gate.nu [nu-pitfalls-find shebang fail-closed-find FAIL_CLOSED]
+use gate.nu [nu-pitfalls-find shebang fail-closed-find FAIL_CLOSED linked-scripts linked-relative-find]
 use std/assert
 
 const REPO = path self ../..
@@ -64,8 +64,38 @@ def fail-closed-check [] {
     assert equal $lost ($FAIL_CLOSED | length) $"fail closed, no escape files: ($lost) findings, wants ($FAIL_CLOSED | length)"
 }
 
+# What a linked script may not write, and the forms that follow the link.
+def linked-relative-check [] {
+    let cases = [
+        [name text wants];
+        ["relative use" "use lib/shell.nu *" [1]]
+        ["parent use" "export use ../common.nu [x]" [1]]
+        ["dot source" "source ./env.nu" [1]]
+        ["std use" "use std/assert" []]
+        ["use joined to an expanded dir" "use ($HERE | path join lib/shell.nu) *" []]
+        ["relative const" "const REPO = path self ../../.." [1]]
+        ["dirname without expand" "const HERE = path self | path dirname" [1]]
+        ["expanded dirname" "const REPO = path self | path expand | path dirname --num-levels 4" []]
+        ["bare self" "const SELF = path self" []]
+        ["own name" "const NAME = path self | path basename" []]
+        ["in a comment" "# use lib/shell.nu" []]
+    ]
+    for c in $cases {
+        let got = linked-relative-find $c.text | get --optional n | default []
+        assert equal $got $c.wants $"linked, ($c.name): got lines ($got | to nuon), wants ($c.wants | to nuon)"
+    }
+    let linked = linked-scripts | each { path relative-to $REPO }
+    for f in [configs/base/apparmor/aa.nu configs/desktop/quickshell/scripts/alert.nu scripts/dot.nu] {
+        assert ($f in $linked) $"linked scripts miss ($f)"
+    }
+    for f in [scripts/mod.nu scripts/extract.test.nu configs/base/apparmor/mod.nu] {
+        assert ($f not-in $linked) $"linked scripts take ($f)"
+    }
+}
+
 def main [] {
     pitfalls-check
     shebang-check
     fail-closed-check
+    linked-relative-check
 }

@@ -41,6 +41,6 @@ def main [project: path = "."]: nothing -> nothing {
         }
     }
     if not ($lines | any { str starts-with "MCPRuntime=" }) { $lines = ini-add $lines autoload $RUNTIME }
-    $lines | str join "\n" | $"($in)\n" | save --force $conf
+    $lines | to text | save --force $conf
     print $"godot-mcp-addon: enabled in ($project)"
 }

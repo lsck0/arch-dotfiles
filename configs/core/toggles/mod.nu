@@ -12,6 +12,6 @@ export def system [cfg: record] {
     [
         (file-copy toggle-root.nu $HELPER --mode 755)
         (file-render $POLICY ("/usr/share/polkit-1/actions" | path join $POLICY) $names)
-        (file-render $RULES ("/etc/polkit-1/rules.d" | path join $RULES) $names)
+        (polkit-rules $RULES --values $names)
     ]
 }

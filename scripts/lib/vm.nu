@@ -1,9 +1,9 @@
 # The VM test: a libvirt guest from the lsck0 iso with an answer file, watched through beacons, under the conditions
 # of vm/scenarios.nuon.
 
-use state.nu [xdg]
+use state.nu [xdg file-trim]
 use platform.nu [PLATFORM_NAME_FILE]
-use iso.nu [iso-signer-verify]
+use iso.nu [iso-signer-verify ISO_LATEST]
 use log.nu [log-warn]
 use invariants.nu [invariants-load]
 use ../../platforms/homelab.nu
@@ -14,7 +14,7 @@ const SCENARIOS = path self vm/scenarios.nuon
 const CONNECT = "qemu:///session"
 const CACHE_NAME = "vm-test"
 # next to the lsck0 repo's $arch dirs on the lab's public mirror
-const ISO_URL = $homelab.HOMELAB.mirror.lsck0 | str replace '$arch' "iso/archlinux-lsck0-latest-x86_64.iso"
+const ISO_URL = $homelab.HOMELAB.mirror.lsck0 | str replace '$arch' $"iso/($ISO_LATEST)"
 const ANSWERS_LABEL = "LSCK0"
 const ANSWERS_NAME = "lsck0.nuon"
 export const USER = "luca"
@@ -77,7 +77,7 @@ def --wrapped virsh [...args: string]: nothing -> string {
 }
 
 def --wrapped low [...args: string]: any -> any {
-    $in | ^nice -n $NICENESS ionice -c3 ...$args
+    $in | run-external ...($LOW_PRIORITY | split row " ") ...$args
 }
 
 def cache-base []: nothing -> path {
@@ -122,6 +122,7 @@ def one-of [what: string, values: list<any>]: nothing -> any {
 # One run's whole setup: the selected scenarios over the base one, and the platform and profile they need.
 def scenario-resolve [spec: record, platform: any, profile: any]: nothing -> record {
     let all = scenarios-load
+    let platform = $platform | default $spec.platform | default $PLATFORM
     let base = $all.scenarios | get $all.base
     let chosen = $spec.names | uniq | each {|n|
         let s = $all.scenarios | get --optional $n
@@ -146,10 +147,10 @@ def scenario-resolve [spec: record, platform: any, profile: any]: nothing -> rec
     {
         label: $spec.label
         scenarios: ($spec.names | uniq)
-        platform: ($platform | default $spec.platform | default $PLATFORM)
+        platform: $platform
         profile: ($profile | default $required | default $PROFILE)
         answers: (($base.answers? | default {}) | merge (do $combine answers))
-        expect: (($base.expect? | default {}) | merge (do $combine expect) | home-expect ($platform | default $spec.platform | default $PLATFORM))
+        expect: (($base.expect? | default {}) | merge (do $combine expect) | home-expect $platform)
         network: {
             block: $block
             dns: (one-of dns ($networks | each { $in.dns? } | compact))
@@ -254,7 +255,7 @@ export def vm-homelab [platforms: list<string>]: nothing -> record {
 }
 
 def host-platforms []: nothing -> list<string> {
-    try { [(open --raw $PLATFORM_NAME_FILE | str trim)] | where $it != "" } catch { [] }
+    [(file-trim $PLATFORM_NAME_FILE)] | where $it != ""
 }
 
 # One run's network from the host's facts (lan: its link subnets, lab: homelab subnets, home_dns: the home resolver):
@@ -345,7 +346,7 @@ def processes-stop [name: string, what: list<string>]: nothing -> nothing {
         if $p.pidfile != null and ($p.pidfile | path exists) {
             let pid = open --raw $p.pidfile | str trim
             # a stale pidfile's pid may belong to anything by now
-            let comm = try { open --raw $"/proc/($pid)/comm" | str trim } catch { "" }
+            let comm = file-trim $"/proc/($pid)/comm"
             if $comm == $p.what { ^kill $pid | complete | ignore }
             rm --force $p.pidfile
         }
@@ -589,8 +590,8 @@ def await-chain [name: string, host: record, logs: path]: nothing -> path {
 
 # Every problem in the reported logs, and notes that do not fail the run. A chain stopped before config (stage-report's
 # chain_stopped, install-stop's marker) passes with a banner naming the way back online, every disarm row at its value
-# and the rows of `stopped` at theirs; otherwise each stage ends as the scenario's stages say (ok by default), no FAILURES.* line but the
-# failures_allowed ones, and no error in dot status unless every failure line was allowed.
+# and the rows of `stopped` at theirs; otherwise each stage ends as the scenario's stages say (ok by default), no
+# FAILURES.* line but the failures_allowed ones, and no error in dot status unless every failure line was allowed.
 export def vm-verify [logs: path, run: record]: nothing -> record {
     let state = open --raw ($logs | path join verify.log) | lines | where ($it | str contains "=") | parse "{key}={value}" | each {|r| [$r.key $r.value] } | into record
     let stopped = $state.chain_stopped? == "yes"

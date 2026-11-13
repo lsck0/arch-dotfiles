@@ -2,6 +2,8 @@
 # decided over every physical link on each event: a link stays locked down until 70-home-network decided it trusted
 # (home or a trusted network); only the homelab's share follows home itself
 
+use lib/dispatch.nu [file-lines lab-env lab-nets link-physical ok out]
+
 const SELF = path self
 const HOME_NETWORK = "/run/home-network"
 const TRUSTED_NETWORK = "/run/trusted-network"
@@ -14,7 +16,6 @@ const VM_GUEST = "/etc/NetworkManager/vm-guest"
 const POLICY_FILE = "/etc/NetworkManager/untrusted-policy"
 # the install chain's unit: while it exists the chain downloads directly; its last step removes it and reboots
 const STAGE_UNIT = "/etc/systemd/system/dotfiles-stage.service"
-const HOMELAB_ENV = "/etc/NetworkManager/homelab.env"
 const VPN_IFACE = "proton0"
 const WG_IFACE = "wg0"
 # protonvpn-netns' tunnel: its link lives in the namespace, its udp socket in ours with the fwmark
@@ -24,34 +25,11 @@ const PORTAL_S = 120
 const PORTAL_UNIT = "persona-portal"
 const IFNAME = '^[A-Za-z0-9_.-]{1,15}$'
 
-# a missing binary reads as a failed command, not a crash that leaves the links undecided
-def --wrapped out [...argv: string]: nothing -> string {
-    try { do { run-external ...$argv } | complete | get stdout } catch { "" }
-}
-
-def --wrapped ok [...argv: string]: nothing -> bool {
-    try { (do { run-external ...$argv } | complete).exit_code == 0 } catch { false }
-}
-
-def links-in [file: path]: nothing -> list<string> {
-    if ($file | path exists) { open --raw $file | lines } else { [] }
-}
-
 def policy []: nothing -> string {
     let policy = if ($POLICY_FILE | path exists) { open --raw $POLICY_FILE | str trim } else { "" }
     let policy = if $policy in [firewall-only off] { $policy } else { "lockdown-tor" }
     # tor would carry every download of the install through a few slow exits that some hosts refuse; inbound stays shut
     if $policy == lockdown-tor and ($STAGE_UNIT | path exists) { "firewall-only" } else { $policy }
-}
-
-def lab-value [key: string]: nothing -> string {
-    if not ($HOMELAB_ENV | path exists) { return "" }
-    open --raw $HOMELAB_ENV | lines | parse "{key}={value}" | where key == $key | get --optional 0.value
-    | default "" | str trim --char '"'
-}
-
-def lab-nets []: nothing -> list<string> {
-    lab-value HOMELAB_NETS | split row " " | where $it != ""
 }
 
 # Whether any link is not trusted, by NM's state (not operstate: a cable without a profile is up, a modem reads unknown).
@@ -62,9 +40,9 @@ def foreign [policy: string]: nothing -> bool {
         | parse --regex '^(?<type>[^:]*):(?<state>[^:]*):(?<dev>.*)$' | where state == connected
     # a modem's or a phone's DEVICE is not its interface; mobile data is never trusted
     if ($links | any { $in.type in [gsm bt] }) { return true }
-    let physical = $links | where { $"/sys/class/net/($in.dev)/device" | path exists } | get dev
+    let physical = $links | where { link-physical $in.dev } | get dev
     # fail closed
-    let trusted = links-in $TRUSTED_NETWORK
+    let trusted = file-lines $TRUSTED_NETWORK
     ($physical | is-empty) or ($physical | any { $in not-in $trusted })
 }
 
@@ -116,23 +94,24 @@ def vpn-event [policy: string, action: string]: nothing -> nothing {
 }
 
 def wg-event [policy: string, action: string]: nothing -> nothing {
-    let metric = lab-value HOMELAB_UNREACHABLE_METRIC
+    let lab = lab-env
+    let metric = $lab.HOMELAB_UNREACHABLE_METRIC? | default ""
     match $action {
         "up" => {
             tor-off
             # the fallback sits above wg-quick's suppress_prefixlength rule and would shadow the tunnel
-            for net in (lab-nets) { ok ip route del unreachable $net metric $metric | ignore }
+            for net in (lab-nets $lab) { ok ip route del unreachable $net metric $metric | ignore }
         }
         "down" => {
             if (foreign $policy) { tor-on $policy $WG_IFACE }
-            for net in (lab-nets) { ok ip route replace unreachable $net metric $metric | ignore }
+            for net in (lab-nets $lab) { ok ip route replace unreachable $net metric $metric | ignore }
         }
     }
 }
 
 # Captive portal mode: its pages live on the foreign network, out of reach of tor and strict dot.
 def portal [iface: string]: nothing -> nothing {
-    if $iface in (links-in $TRUSTED_NETWORK) or (ok systemctl is-active -q $"($PORTAL_UNIT)-($iface).timer") { return }
+    if $iface in (file-lines $TRUSTED_NETWORK) or (ok systemctl is-active -q $"($PORTAL_UNIT)-($iface).timer") { return }
     # fw_egress is loaded only under lockdown-tor; strict dot still hides the portal's names without it
     let egress = ok nft list table inet fw_egress
     if $egress and not (ok nft add element inet fw_egress portal $"{ ($iface) timeout ($PORTAL_S)s }") {
@@ -173,7 +152,8 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
         ok systemctl start fw-egress.service | ignore
     }
     # off treats every network as trusted; a down decides over the links still up, 70-home-network dropped the gone one
-    if not (foreign $policy) {
+    let foreign = foreign $policy
+    if not $foreign {
         if ($MARKER | path exists) {
             rm --force $MARKER
             # the conflict drops lockdown before the load, so a failed load would leave no table at all
@@ -197,17 +177,17 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
         ok systemctl mask --runtime --now avahi-daemon.service | ignore
         if $action == up and $policy == lockdown-tor {
             ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=1" | ignore
-            if $iface not-in (links-in $TRUSTED_NETWORK) { ok nmcli connection modify $uuid ipv6.method disabled | ignore }
+            if $iface not-in (file-lines $TRUSTED_NETWORK) { ok nmcli connection modify $uuid ipv6.method disabled | ignore }
         } else if $policy != lockdown-tor {
             ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=0" | ignore
-            if $iface not-in (links-in $TRUSTED_NETWORK) { ok nmcli connection modify $uuid ipv6.method auto | ignore }
+            if $iface not-in (file-lines $TRUSTED_NETWORK) { ok nmcli connection modify $uuid ipv6.method auto | ignore }
         }
     }
     # the nas answers only on home's lan or through wg0; a trusted network is neither
-    if (links-in $HOME_NETWORK | is-empty) and not ($"/sys/class/net/($WG_IFACE)" | path exists) {
+    if (file-lines $HOME_NETWORK | is-empty) and not ($"/sys/class/net/($WG_IFACE)" | path exists) {
         ok systemctl stop --no-block mnt-homelab.mount | ignore
     }
-    if (foreign $policy) { tor-on $policy } else { tor-off }
+    if $foreign { tor-on $policy } else { tor-off }
     portmaster-on $policy
 }
 
@@ -231,6 +211,6 @@ def main [iface: string = "", action: string = "", ...domains: string]: nothing 
     if $action not-in [up down portal] or not ($iface =~ $IFNAME) { return }
     # an unplugged link's node is gone by its down, which under lockdown still re-decides over the links left
     let unplugged = $action == down and ($MARKER | path exists)
-    if not ($"/sys/class/net/($iface)/device" | path exists) and not $unplugged { return }
+    if not (link-physical $iface) and not $unplugged { return }
     if $action == portal { portal $iface } else { link-event $policy $iface $action }
 }

@@ -194,9 +194,7 @@ end
 local function open_env(before)
     local env, at = nil, 0
     for pos, name in before:gmatch("()\\begin{([^}]+)}") do
-        if pos > at then
-            env, at = name, pos
-        end
+        env, at = name, pos
     end
     if env and not before:find("\\end{" .. env .. "}", at, true) then
         return env
@@ -694,7 +692,11 @@ function M.enable(rewrite_speech)
     local row = cursor[1] - 1
     -- in insert mode the cursor sits before the column; in normal mode text goes after the character under it
     local line = vim.api.nvim_buf_get_lines(buf, row, row + 1, false)[1] or ""
-    local col = vim.fn.mode():sub(1, 1) == "i" and cursor[2] or math.min(cursor[2] + 1, #line)
+    local col = cursor[2]
+    if vim.fn.mode():sub(1, 1) ~= "i" and col < #line then
+        -- past the whole character: one byte on would split a multibyte one
+        col = col + 1 + vim.str_utf_end(line, col + 1)
+    end
     local s = {
         buf = buf,
         win = win,

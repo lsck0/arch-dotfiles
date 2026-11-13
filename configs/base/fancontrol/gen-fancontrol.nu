@@ -17,7 +17,7 @@ const PWM_FLOOR = 40
 const PWM_START = 90
 const PWM_MAX = 255
 
-export def sysfs-read [file: path]: nothing -> string {
+def sysfs-read [file: path]: nothing -> string {
     try { open --raw $file | str trim } catch { "" }
 }
 
@@ -59,7 +59,7 @@ def main []: nothing -> nothing {
         $"MINPWM=(do $every $PWM_FLOOR)"
         $"MAXPWM=(do $every $PWM_MAX)"
         $"AVERAGE=(do $every $AVERAGE)"
-    ] | str join "\n" | $"($in)\n" | save --force $CONFIG
+    ] | to text | save --force $CONFIG
     # no systemctl here: fancontrol.service must not be touched while it starts
     let curve = $"($PWM_FLOOR)/($PWM_MAX) floor to ($TEMP_MIN_C)C, full by ($TEMP_MAX_C)C"
     print --stderr $"fancontrol: ($pwms | length) fan channel\(s\) on ($it87) now follow Tctl \(($curve)\)"

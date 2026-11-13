@@ -74,7 +74,7 @@ def eq-link [cfg: record]: nothing -> list<record> {
     let conf = $nu.home-dir | path join $CONF_DIR
     let preset = $conf | path join $PRESET_FILE
     # the chain reads the preset only at start, and its own conf does not change with the preset
-    let restart = [systemctl --user try-restart $EQ_UNIT]
+    let restart = unit-restart $EQ_UNIT --if-running
     [
         (unit-file pipewire-chain@.service)
         (file-copy $cfg.eq_preset $preset --then $restart)
@@ -83,7 +83,7 @@ def eq-link [cfg: record]: nothing -> list<record> {
     ]
 }
 
-def loopback-link [cfg: record]: nothing -> list<record> {
+def loopback-link []: nothing -> list<record> {
     let restart = unit-restart $LOOPBACK_UNIT
     [
         (file-copy $LOOPBACK_SCRIPT ($nu.home-dir | path join $SCRIPT_DIR $LOOPBACK_SCRIPT) --then $restart)
@@ -97,6 +97,6 @@ export def link [cfg: record] {
     [
         (unit-enable wireplumber.service)
         (if $cfg.eq_target != null { eq-link $cfg })
-        (if $cfg.app_loopbacks { loopback-link $cfg })
+        (if $cfg.app_loopbacks { loopback-link })
     ]
 }

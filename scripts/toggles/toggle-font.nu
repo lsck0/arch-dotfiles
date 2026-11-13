@@ -1,10 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
 # Saves font.json and reruns the current theme; nothing in the repo is rewritten.
-use lib.nu [status-record status-print notify cycle-next]
+use lib.nu [DOT status-record status-print notify cycle-next]
 use ../../configs/core/wallust/font.nu [font-load font-save]
 use ../../configs/core/wallust/wallpaper.nu [wallpaper-get]
 
-const DOT = path self ../dot.nu
 const UI_SIZE_MIN = 6
 const SIZE_MIN = 1
 const SIZE_MAX = 48

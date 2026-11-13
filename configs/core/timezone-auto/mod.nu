@@ -11,7 +11,7 @@ export def link [cfg: record] {
 
 export def system [cfg: record] {
     [
-        (file-copy 49-timezone-auto.rules /etc/polkit-1/rules.d/49-timezone-auto.rules)
+        (polkit-rules 49-timezone-auto.rules)
         (if ($NM_DISPATCHER_DIR | path exists) {
             file-copy nm-dispatcher.nu ($NM_DISPATCHER_DIR | path join 85-timezone-auto) --mode 755
         })

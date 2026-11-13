@@ -28,7 +28,7 @@ def "main allow" [dir: path]: nothing -> nothing {
     let trust = trust-file
     let kept = if ($trust | path exists) { open --raw $trust | lines | where { not ($in | str ends-with $"  ($create)") } } else { [] }
     mkdir ($trust | path dirname)
-    $kept | append (create-line $create) | str join "\n" | $"($in)\n" | save --force $trust
+    $kept | append (create-line $create) | to text | save --force $trust
 }
 
 # Focus the herdr workspace for <dir>, or create it with nvim, claude and zsh tabs (or run its allowed .herdr-create).

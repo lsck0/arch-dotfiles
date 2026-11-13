@@ -4,23 +4,14 @@ import Quickshell.Hyprland
 import QtQuick
 
 QtObject {
-  function clamp(value, min, max) {
-    var n = Number(value)
-    if (!isFinite(n)) return min
-    return Math.max(min, Math.min(max, n))
-  }
-
-  function clampAlpha(value) {
-    return clamp(value, 0, 1)
-  }
-
   function fileUrl(path) {
     if (!path) return ""
     return "file://" + String(path).split("/").map(encodeURIComponent).join("/")
   }
 
+  // a non-numeric opacity reads as 0
   function alpha(c, opacity) {
-    var a = clampAlpha(opacity)
+    var a = isFinite(Number(opacity)) ? Math.max(0, Math.min(1, Number(opacity))) : 0
     if (!c) return Qt.rgba(0, 0, 0, a)
     if (typeof c === "string") c = Qt.color(c)
     return Qt.rgba(c.r, c.g, c.b, a)

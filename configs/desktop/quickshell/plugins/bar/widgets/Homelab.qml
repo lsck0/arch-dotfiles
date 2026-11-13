@@ -22,7 +22,6 @@ BarWidget {
     services: [], alerts: [], host: {}, storage: {}, traffic: {}, clients: {}
   })
 
-
   readonly property var monitored: lab.services.filter(function(s) { return s.up === true || s.up === false })
   readonly property var downServices: monitored.filter(function(s) { return !s.up && !s.onDemand })
   readonly property int upCount: monitored.filter(function(s) { return s.up }).length

@@ -23,12 +23,12 @@ export const options = {
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
     if $cfg.charge_start >= $cfg.charge_stop { error make {msg: "tlp: charge_start must be below charge_stop"} }
+    let restart = unit-restart tlp.service
     let conf = if $env.FORM_FACTOR? == "laptop" {
-        let denylist = validity-sensor-ids | str join ' '
-        let values = {START: $cfg.charge_start, STOP: $cfg.charge_stop, USB_DENYLIST: $denylist}
-        file-render bat.tlp.conf /etc/tlp.conf $values --then [systemctl restart tlp.service]
+        let values = {START: $cfg.charge_start, STOP: $cfg.charge_stop, USB_DENYLIST: (validity-sensor-ids | str join ' ')}
+        file-render bat.tlp.conf /etc/tlp.conf $values --then $restart
     } else {
-        file-copy ac-only.tlp.conf /etc/tlp.conf --then [systemctl restart tlp.service]
+        file-copy ac-only.tlp.conf /etc/tlp.conf --then $restart
     }
     [(unit-enable tlp.service --now) $conf]
 }

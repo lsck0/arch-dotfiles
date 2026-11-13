@@ -6,7 +6,7 @@ export const meta = {packages: {pacman: [curl gamescope jq libnotify unzip wmctr
 
 const URL = "https://github.com/murkl/d2launcher.git"
 const COMMIT = "73d6d145f1b8fd228fe7ac1263c4f4230d37ebea" # 4.1.3
-const HERE = path self | path dirname
+const HERE = path self .
 
 def install-dir []: nothing -> path { xdg data d2launcher }
 
@@ -167,7 +167,7 @@ def game-script [dest: path, values: record]: nothing -> record {
 
 def desktop-entry [id: string, keys: record]: nothing -> record {
     let lines = $keys | items {|k, v| $"($k)=($v)" } | prepend "[Desktop Entry]"
-    file-text (xdg data applications $"($id).desktop") $"($lines | str join "\n")\n"
+    file-text (xdg data applications $"($id).desktop") ($lines | to text)
 }
 
 # A game's launcher script with its desktop entry <id>.desktop, titled title.
@@ -231,7 +231,7 @@ def config []: nothing -> string {
         'gui_font="JetBrainsMono Nerd Font"'
         $'wineprefix="(prefix-dir)"'
         $"custom_command=\"bash '(home-dir | path join gamescope.sh)'\""
-    ] | str join "\n" | $"($in)\n"
+    ] | to text
 }
 
 def parse-wxh [text: string]: nothing -> record {
@@ -266,23 +266,23 @@ def d2gl-screen-keys [width: string, height: string]: nothing -> record {
     {Screen: {window_width: $width, window_height: $height, centered_window: "true", vsync: "false"}}
 }
 
-def d2gl-window-decl [cfg: record]: nothing -> list<record> {
+def d2gl-ini-text []: nothing -> string {
     let ini = game-dir | path join d2gl.ini
+    if ($ini | path exists) { open --raw $ini } else { "" }
+}
+
+def d2gl-window-decl [cfg: record]: nothing -> list<record> {
     if not (game-dir | path join $PATCH_VERSION | path exists) { return [] }
-    let size = render-size $cfg
-    let want = d2gl-screen-keys ($size.w | into string) ($size.h | into string)
-    let text = if ($ini | path exists) { open --raw $ini } else { "" }
-    let have = ini-rows $text | where section == Screen and key != null
+    let size = render-size $cfg | update cells { into string }
+    let want = (d2gl-screen-keys $size.w $size.h).Screen
+    let have = ini-rows (d2gl-ini-text) | where section == Screen and key != null
         | reduce --fold {} {|r, acc| $acc | upsert ($r.key | str trim) ($r.value | str trim) }
-    let set = $want.Screen | columns | all {|k| ($have | get --optional $k) == ($want.Screen | get $k) }
-    [(step d2gl-window ($want.Screen.window_width) ($want.Screen.window_height) --done=$set)]
+    let set = $want | columns | all {|k| ($have | get --optional $k) == ($want | get $k) }
+    [(step d2gl-window $size.w $size.h --done=$set)]
 }
 
 export def d2gl-window [width: string, height: string]: nothing -> nothing {
-    let ini = game-dir | path join d2gl.ini
-    let keys = d2gl-screen-keys $width $height
-    let text = if ($ini | path exists) { open --raw $ini } else { "" }
-    $text | ini-apply $keys false | save -f $ini
+    d2gl-ini-text | ini-apply (d2gl-screen-keys $width $height) false | save --force (game-dir | path join d2gl.ini)
 }
 
 # ~/sync ignores permissions (core/syncthing, ignorePerms), so a resync silently drops wine's execute bit

@@ -31,8 +31,9 @@ def main []: nothing -> nothing {
     mut shown = {}
     for line in (^journalctl --no-pager -f -n 0 -o json ...$MATCHES | lines) {
         let c = card ($line | from json)
-        let prev = if $c == null { null } else { $shown | get --optional $c.key }
-        if $c == null or ($prev != null and (date now) - $prev.at < $COOLDOWN) { continue }
+        if $c == null { continue }
+        let prev = $shown | get --optional $c.key
+        if $prev != null and (date now) - $prev.at < $COOLDOWN { continue }
         let replace = if $prev.id? == null { [] } else { [-r $prev.id] }
         let sent = ^notify-send -p -a system -u $c.urgency ...$replace $c.title $c.body | complete
         let id = if $sent.exit_code == 0 { $sent.stdout | str trim } else { $prev.id? }

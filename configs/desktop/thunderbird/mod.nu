@@ -9,12 +9,6 @@ export const meta = {
 # thunderbird keeps its profiles under the XDG config dir (since 156)
 def profiles-ini []: nothing -> path { xdg config thunderbird profiles.ini }
 
-# ui.systemUsesDarkTheme tracks the palette: content under a light wallust theme is not told the system is dark.
-def dark-pref []: nothing -> int {
-    let p = palette-load
-    if $p != null and $p.light == "1" { 0 } else { 1 }
-}
-
 export def link [cfg: record] {
     if (which thunderbird | is-empty) { return [] }
     let ini = profiles-ini
@@ -32,15 +26,16 @@ export def profile-create [] {
     ^timeout $HEADLESS_TIMEOUT thunderbird --headless | complete | ignore
 }
 
-# user.js follows the palette's light flag
+# user.js's ui.systemUsesDarkTheme tracks the palette: content under a light wallust theme is not told it is dark
 export def theme [cfg: record, wallpaper: string] {
     if (which thunderbird | is-empty) { return [] }
     let font = mozilla-chrome-font
-    let dark = dark-pref
+    let p = palette-load
+    let dark = if $p != null and $p.light == "1" { 0 } else { 1 }
     mozilla-profiles (profiles-ini) | each {|dir|
         [
             (file-text ($dir | path join chrome dotfiles-font.css) $font --generated)
-            (file-render user.js ($dir | path join user.js) {DARK: ($dark | into string)} --generated)
+            (file-render user.js ($dir | path join user.js) {DARK: $dark} --generated)
         ]
     }
 }

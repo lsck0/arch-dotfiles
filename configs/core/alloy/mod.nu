@@ -21,14 +21,14 @@ export def system [cfg: record] {
     let password = open --raw $credential | str trim | split row ":" | skip 1 | str join ":"
     # root-only; systemd hands it to the service as a credential, so the alloy user never reads a file of its own
     let secret = $build.dir | path join push-password
-    let restart = [systemctl try-restart $build.unit]
+    let restart = unit-restart $build.unit --if-running
     [
         (file-text $secret $password --mode "600" --then $restart)
         # the journal group: Arch's sysusers adds it, upstream's does not
         (file-text $"/etc/systemd/system/($build.unit).d/10-dotfiles.conf"
             $"[Service]\nLoadCredential=push:($secret)\nSupplementaryGroups=systemd-journal\n" --then [systemctl daemon-reload])
         (file-render config.alloy ($build.dir | path join config.alloy)
-            {HOST: $host, PROMETHEUS: $HOMELAB.push.prometheus, LOKI: $HOMELAB.push.loki} --then [systemctl reload-or-restart $build.unit])
+            {HOST: $host, PROMETHEUS: $HOMELAB.push.prometheus, LOKI: $HOMELAB.push.loki} --then (unit-restart $build.unit --reload))
         (unit-enable $build.unit --now)
     ]
 }

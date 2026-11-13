@@ -2,7 +2,7 @@
 # The link verb evaluates with the network denied (a fresh net namespace) and no lazy.nvim installed, as on a fresh
 # install off the network: its probes never bootstrap lazy, so it returns within seconds and asks for the prefetch step.
 
-const HERE = path self | path dirname
+const HERE = path self .
 const LIB = path self ../../../scripts/lib
 const EVAL_WAIT_MAX = 20sec
 

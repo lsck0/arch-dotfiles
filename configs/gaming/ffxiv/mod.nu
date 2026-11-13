@@ -2,7 +2,7 @@ use module.nu *
 
 export const meta = {packages: {pacman: [rsync xivlauncher-bin]}, backup: {secrets: true}}
 
-const XLCORE = ".xlcore"
+export const XLCORE = ".xlcore"
 
 def paths []: nothing -> record {
     let xl = $nu.home-dir | path join $XLCORE
@@ -48,6 +48,6 @@ export def backup [cfg: record]: nothing -> nothing {
     mkdir $p.saved
     (^rsync -a --delete --prune-empty-dirs --include 'FFXIV*.cfg' --include 'FFXIV_CHR*/' --include 'FFXIV_CHR*/*.DAT'
         --exclude '*' $"($p.config)/" ($p.saved | path join ffxivConfig))
-    open --raw $p.launcher | lines | where not ($it | str starts-with "CurrentAccountId=") | str join "\n" | $"($in)\n"
+    open --raw $p.launcher | lines | where not ($it | str starts-with "CurrentAccountId=") | to text
     | save --force ($p.saved | path join launcher.ini)
 }

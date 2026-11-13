@@ -42,7 +42,7 @@ def sync-text [cfg: record]: nothing -> string {
             $"sync.server.client_id=(secret-read $id)"
             $"sync.encryption_secret=(secret-read $secret)"
             ...(if $cfg.recurrence { [] } else { [recurrence=off] })
-        ] | str join "\n" | $"($in)\n"
+        ] | to text
     } else {
         if (profile-has secrets) { log-warn $"task: no readable ($CLIENT_ID) or ($SECRET), keeping the sync config as it is" }
         if ($rc | path exists) { open --raw $rc } else { "" }

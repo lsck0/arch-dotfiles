@@ -2,7 +2,7 @@
 # spotify's CEF ignores --ozone-platform-hint=auto and lands on XWayland at 1x, so the platform is named outright
 
 use spotify-reload.nu [DEVTOOLS_PORT]
-use ../../../scripts/lib/state.nu [xdg]
+use ../../../scripts/lib/state.nu [xdg file-trim process-running]
 
 const STOCK = "/usr/bin/spotify"
 const APPARMOR_ENABLED = "/sys/module/apparmor/parameters/enabled"
@@ -12,13 +12,13 @@ const WAYLAND_FLAGS = [--enable-features=UseOzonePlatform --ozone-platform=wayla
 const LOUDNESS = {audio.normalize_v2: "true", audio.loudness.environment: "1"}
 
 def loudness-merge []: nothing -> nothing {
-    if (^pgrep -x spotify | complete).exit_code == 0 { return }
+    if (process-running spotify) { return }
     let users = xdg config spotify Users
     for prefs in (glob ($users | path join * prefs)) {
         let lines = open --raw $prefs | lines
         let missing = $LOUDNESS | transpose key value | where {|kv| not ($lines | any { str starts-with $"($kv.key)=" }) }
         if ($missing | is-not-empty) {
-            $lines ++ ($missing | each { $"($in.key)=($in.value)" }) | str join "\n" | $"($in)\n" | save --force $prefs
+            $lines ++ ($missing | each { $"($in.key)=($in.value)" }) | to text | save --force $prefs
         }
     }
 }
@@ -31,7 +31,7 @@ def --wrapped main [...args: string]: nothing -> nothing {
         if (which aa-exec | is-not-empty) and (^aa-exec -p spotify -- true | complete).exit_code == 0 {
             exec aa-exec -p spotify -- $copy ...$flags ...$args
         }
-        let apparmor = try { open --raw $APPARMOR_ENABLED | str trim } catch { "" }
+        let apparmor = file-trim $APPARMOR_ENABLED
         if $apparmor != "Y" { exec $copy ...$flags ...$args }
     }
     exec $STOCK ...$flags ...$args

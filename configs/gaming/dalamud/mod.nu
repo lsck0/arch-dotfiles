@@ -1,11 +1,12 @@
 use module.nu *
+use ../ffxiv/mod.nu [XLCORE]
 
 export const meta = {deps: [gaming/ffxiv], backup: {secrets: true}}
 
 const BACKUP_EXCLUDES = [vnavmesh/meshcache/ BossMod/replays/ Questionable/PathData/ '*.bak']
 
 def paths []: nothing -> record {
-    let xl = $nu.home-dir | path join .xlcore
+    let xl = $nu.home-dir | path join $XLCORE
     let shared = $env.DOTFILES | path join configs secrets state dalamud
     {
         xl: $xl, config: ($xl | path join dalamudConfig.json), plugins: ($xl | path join installedPlugins)

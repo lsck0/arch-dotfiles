@@ -13,7 +13,6 @@ const PROPS = {properties: {persist.waydroid.multi_windows: "true", persist.wayd
 const FREEFORM = [
     development_settings_enabled enable_freeform_support force_resizable_activities enable_sizecompat_freeform
 ]
-const DEVPERM_RULES = "/etc/udev/rules.d/70-waydroid-devperm.rules"
 const PINS = $"($SYSTEM_SHA256) ($VENDOR_SHA256)"
 const PINS_FILE = ".pins"
 const STAGED = $"($IMAGES).new"
@@ -24,7 +23,7 @@ def status []: nothing -> string {
 
 export def system [cfg: record] {
     if (which waydroid | is-empty) or $env.FORM_FACTOR? == "wsl" { return [] }
-    let current = try { open --raw ($IMAGES | path join $PINS_FILE) | str trim } catch { "" }
+    let current = file-trim ($IMAGES | path join $PINS_FILE)
     let images = if $current != $PINS {
         [
             # about 1 GiB from sourceforge, slower than STEP_TIMEOUT allows on a throttled mirror
@@ -45,7 +44,7 @@ export def system [cfg: record] {
         (if ($CONFIG | path exists) {
             ini-merge $CONFIG $PROPS --then [waydroid upgrade --offline]
         })
-        (file-copy 70-waydroid-devperm.rules $DEVPERM_RULES --then [sh -c "udevadm control --reload-rules && udevadm trigger --subsystem-match=drm --subsystem-match=video4linux"])
+        (udev-rules 70-waydroid-devperm.rules --subsystem-match=drm --subsystem-match=video4linux)
         (if not $up { step devperm-tighten })
         (unit-enable waydroid-container.service --now)
         (if $up { step freeform })

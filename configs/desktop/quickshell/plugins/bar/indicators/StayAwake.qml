@@ -10,9 +10,8 @@ BarIndicator {
   }
 
   active: keepAwake.state === "on"
-  activeText: "\u{f0176}"
-  activeTooltipText: "Allow idle lock"
-  inactiveTooltipText: "Keep awake"
+  text: "\u{f0176}"
+  tooltipText: "Allow idle lock"
 
   onPressed: function() { Quickshell.execDetached(["uwsm-app", "-s", "b", "--", keepAwake.path, "toggle"]) }
 }

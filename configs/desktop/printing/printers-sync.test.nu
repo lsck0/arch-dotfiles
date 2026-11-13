@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-const SYNC = path self | path dirname | path join printers-sync.nu
+const SYNC = path self printers-sync.nu
 const WANT_NAME = "Example_Inkjet_0A0B0C"
 const WANT_URI = "dnssd://Example%20Inkjet%20%5B0A0B0C%5D._ipp._tcp.local/?uuid=00000000-0000-0000-0000-000000000001"
 const LPINFO = [
@@ -49,7 +49,7 @@ def main [] {
             $"($SHEBANG)\n($body)\n" | save $file
             ^chmod +x $file
         } | ignore
-        $LPINFO | str join "\n" | $"($in)\n" | save ($work | path join lpinfo.out)
+        $LPINFO | to text | save ($work | path join lpinfo.out)
         "" | save ($work | path join queues)
         "" | save ($work | path join calls)
         let file = {|name| open --raw ($work | path join $name) | str trim }

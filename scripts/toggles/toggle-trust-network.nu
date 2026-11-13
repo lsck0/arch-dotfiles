@@ -4,14 +4,15 @@
 # public, and a mac is all a rogue access point needs), else the trusted_gateways option; the system apply that
 # follows re-decides the link.
 
-use lib.nu [notify switch-run trusted-links]
+use lib.nu [DOT notify switch-run trusted-links option-value]
 use ../lib/secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use ../lib/state.nu [EXIT_PENDING]
 
-const DOT = path self ../dot.nu
 const SECRET = path self ../../configs/secrets/keys/trusted-gateways
 const WITNESS = path self ../.. | path join $OWNER_WITNESS
-const OPTION = "base/networkmanager.trusted_gateways"
+const MODULE = "base/networkmanager"
+const KEY = "trusted_gateways"
+const OPTION = $"($MODULE).($KEY)"
 
 # The physical link of the default route and its gateway's mac, null without one.
 def uplink []: nothing -> any {
@@ -24,10 +25,7 @@ def uplink []: nothing -> any {
     {dev: $route.dev, mac: ($mac | str lowercase)}
 }
 
-def option-listed []: nothing -> list<string> {
-    ^nu --no-config-file $DOT set $OPTION --json | from json | get modules.0.options | where key == trusted_gateways
-    | get 0.value | str lowercase
-}
+def option-listed []: nothing -> list<string> { option-value $MODULE $KEY | str lowercase }
 
 # Locked, the file is git-crypt's blob: nothing readable.
 def secret-listed []: nothing -> list<string> {
@@ -74,6 +72,7 @@ def link []: nothing -> record {
 def main [action: string = "toggle", --json] {
     switch-run {
         label: "Trusted network"
+        available: {|| uplink | is-not-empty }
         is-on: {|| let link = uplink; $link != null and $link.dev in (trusted-links) }
         on: {||
             # a rejoined wifi has a random mac: storing a listed one again reruns the home step
@@ -91,7 +90,5 @@ def main [action: string = "toggle", --json] {
             }
             store ($gateways | where $it != $mac)
         }
-        # only while a link has a gateway
-        available: {|| uplink | is-not-empty }
     } $action --json=$json
 }

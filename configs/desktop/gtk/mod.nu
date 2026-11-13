@@ -31,7 +31,7 @@ export def theme [cfg: record, wallpaper: string] {
     let set = {|name, key, value| exec $name [gsettings set $INTERFACE $key $value] }
     [
         $css
-        ([gtk-3.0 gtk-4.0] | each {|dir| file-text (xdg config $dir settings.ini) ($ini | str join "\n" | $"($in)\n") --generated })
+        ([gtk-3.0 gtk-4.0] | each {|dir| file-text (xdg config $dir settings.ini) ($ini | to text) --generated })
         (do $set gtk-scheme color-scheme $scheme)
         (do $set gtk-font font-name $ui)
         (do $set gtk-mono-font monospace-font-name $mono)

@@ -38,7 +38,7 @@ def module-dirs-root [checkout: path]: nothing -> record {
 }
 
 # Whether root can read f: any .nu file (a root-run module may import it), anything outside a module under configs/
-# (the root modules scripts and skills included, whole), and every file of a module root runs a hook of.
+# (the root module scripts/ included, whole), and every file of a module root runs a hook of.
 def root-reads [f: string, modules: record]: nothing -> bool {
     if ($f | str ends-with ".nu") { return true }
     mut dir = $f | path dirname

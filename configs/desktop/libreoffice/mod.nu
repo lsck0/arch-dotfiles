@@ -35,5 +35,5 @@ export def xcu-update [xcu: path] {
     ] | compact
     let seeded = $kept | each {|line| if $line == $XCU_TAIL { $seeds | append $line } else { [$line] } } | flatten
     mkdir ($xcu | path dirname)
-    $seeded | str join "\n" | $"($in)\n" | save --force $xcu
+    $seeded | to text | save --force $xcu
 }

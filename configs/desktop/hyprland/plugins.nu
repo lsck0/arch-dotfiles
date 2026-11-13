@@ -94,7 +94,7 @@ def plugins-unloaded-for [hyprland: string]: nothing -> list<record> {
 }
 
 export def plugins-unloaded []: nothing -> list<string> {
-    plugins-unloaded-for (commit-installed) | get --optional name | default []
+    plugins-unloaded-for (commit-installed) | get name
 }
 
 # Loads the built plugins into the running hyprland when it is the installed one; local, no download.

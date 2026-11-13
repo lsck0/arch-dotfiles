@@ -10,6 +10,7 @@ include <tunables/global>
 profile bookokrat @{exec_path} flags=(attach_disconnected) {
   include <abstractions/base-strict>
   include <abstractions/consoles>
+  include <abstractions/dotfiles/synctex-edit>
   include <abstractions/dotfiles/viewer-read>
   include <abstractions/fontconfig-cache-read>
   include <abstractions/nameservice-strict>
@@ -20,6 +21,7 @@ profile bookokrat @{exec_path} flags=(attach_disconnected) {
 
   @{open_path} rPx -> child-open-strict,
   @{bin}/wl-copy rix,
+  @{sh_path} rix,
   deny @{bin}/tmux x,
 
   owner @{user_config_dirs}/bookokrat/{,**} rw,

@@ -11,16 +11,18 @@ const REPO = path self ../..
 const WITNESS = $REPO | path join $OWNER_WITNESS
 export const STAGE_STATE_DIR = "/var/lib/dotfiles-stage"
 export const STAGE_KEY_FILE = "/etc/cryptsetup-keys.d/root.key"
-const MKINITCPIO_DROPIN = "/etc/mkinitcpio.conf.d/dotfiles-stage.conf"
+export const STAGE_MKINITCPIO_DROPIN = "/etc/mkinitcpio.conf.d/dotfiles-stage.conf"
 export const STAGE_SUDOERS_DROPIN = "/etc/sudoers.d/zz-dotfiles-stage"
-const UNIT = "/etc/systemd/system/dotfiles-stage.service"
+export const STAGE_UNIT = "/etc/systemd/system/dotfiles-stage.service"
 export const STAGE_ESP_MARKER = "/boot/dotfiles-stage-in-progress"
 # the marker's text while the chain runs, and its first line once the chain stopped and was disarmed
 export const STAGE_ESP_RUNNING = "a dotfiles install chain runs from this disk; the lsck0 iso will not erase it unattended"
 export const STAGE_ESP_STOPPED = "stopped"
 const ISSUE = "/etc/issue.d/dotfiles-stage.issue"
 # a chain stopped before config and disarmed: what the console resumes it with
-const NEXT = $STAGE_STATE_DIR | path join next
+export const STAGE_NEXT = $STAGE_STATE_DIR | path join next
+# the encrypted root the stage key opens, absent for an unencrypted install
+export const STAGE_LUKS_DEVICE = $STAGE_STATE_DIR | path join luks-device
 export const STAGE_STOPPED = $STAGE_STATE_DIR | path join stopped
 const ATTEMPTS = $STAGE_STATE_DIR | path join install-attempts
 export const STAGE_RESUME = "dot internal stage"
@@ -38,14 +40,14 @@ const FAILURES_INSTALL = "FAILURES.install"
 const FAILURES_CONFIG = "FAILURES.config"
 const CRYPTSETUP_NO_KEY = 2
 # a watcher's url (dot test, BOOTSTRAP_REPORT): the stages beacon to it, the chain's end reports to it
-const REPORT = ($STAGE_STATE_DIR | path join report)
+export const STAGE_REPORT = $STAGE_STATE_DIR | path join report
 # the vm's virtio channel to the watcher, past any guest firewall (tor lockdown); stage-report.nu sends its logs there
 export const REPORT_CHANNEL = "/dev/virtio-ports/lsck0.report"
 # as root, from the root copy: sh -c's $1 the copy, $2 the user, $3 the checkout, $4 set when the chain stopped
 const REPORT_RUN = 'nu --no-config-file "$1/scripts/lib/stage-report.nu" "$2" "$3" ${4:+--stopped}; '
 # as root: no stage left to run, no unit to start one, sudo asking for the password again; the attempts go with it, so
 # a resume (stage-rearm) starts counting from zero
-const STOP_DISARM = $"rm -f ($NEXT) ($ATTEMPTS); echo install > ($STAGE_STOPPED); systemctl disable dotfiles-stage.service; rm -f ($STAGE_SUDOERS_DROPIN); "
+const STOP_DISARM = $"rm -f ($STAGE_NEXT) ($ATTEMPTS); echo install > ($STAGE_STOPPED); systemctl disable dotfiles-stage.service; rm -f ($STAGE_SUDOERS_DROPIN); "
 # as root: the ESP marker of a chain disarmed for good, the disk key gone too
 const STOP_MARK = $"echo ($STAGE_ESP_STOPPED) > ($STAGE_ESP_MARKER); "
 # as root: sh -c's $1 the sudoers rule, $2 the drop-in, $3 the next stage's file, $4 the stopped marker, $5 its banner,
@@ -59,7 +61,7 @@ def note [message: string]: nothing -> nothing {
 
 # portmaster blocks the watcher; only a test install has a report url
 def watcher-unblock []: nothing -> nothing {
-    if ($REPORT | path exists) { do { ^sudo systemctl stop portmaster.service } | complete | ignore }
+    if ($STAGE_REPORT | path exists) { do { ^sudo systemctl stop portmaster.service } | complete | ignore }
 }
 
 # A beacon to the watcher at url, and over the vm's channel when there is one; --sudo when the channel is root's.
@@ -71,14 +73,13 @@ export def report-beacon-send [url: string, tag: string, --sudo]: nothing -> not
 }
 
 def report-beacon [tag: string]: nothing -> nothing {
-    if not ($REPORT | path exists) { return }
+    if not ($STAGE_REPORT | path exists) { return }
     watcher-unblock
-    report-beacon-send (open --raw $REPORT | str trim) $tag --sudo
+    report-beacon-send (open --raw $STAGE_REPORT | str trim) $tag --sudo
 }
 
 def luks-device []: nothing -> string {
-    let file = $STAGE_STATE_DIR | path join luks-device
-    if ($file | path exists) { open --raw $file | str trim } else { "" }
+    if ($STAGE_LUKS_DEVICE | path exists) { open --raw $STAGE_LUKS_DEVICE | str trim } else { "" }
 }
 
 def disarm []: nothing -> bool {
@@ -86,7 +87,7 @@ def disarm []: nothing -> bool {
     let armed = (^sudo test -f $STAGE_KEY_FILE | complete).exit_code == 0
     if $device == "" {
         if $armed { return false }
-        ^sudo rm -f $MKINITCPIO_DROPIN
+        ^sudo rm -f $STAGE_MKINITCPIO_DROPIN
         return true
     }
     if $armed {
@@ -98,7 +99,7 @@ def disarm []: nothing -> bool {
         }
         ^sudo rm -f $STAGE_KEY_FILE
     }
-    ^sudo rm -f $MKINITCPIO_DROPIN
+    ^sudo rm -f $STAGE_MKINITCPIO_DROPIN
     true
 }
 
@@ -170,7 +171,7 @@ def install-stop [repo: path, attempts: int]: nothing -> nothing {
     $"\n(install-banner $attempts $failures --key-kept=$key_kept)\n\n" | ^sudo tee $ISSUE | ignore
     # a stopped chain uploads its logs too, the banner among them, and the report sends the verdict; the root copy
     # exists once the install ran as root
-    let report = if ($REPORT | path exists) and ($SYSTEM_REPO | path join scripts lib stage-report.nu | path exists) { $REPORT_RUN } else {
+    let report = if ($STAGE_REPORT | path exists) and ($SYSTEM_REPO | path join scripts lib stage-report.nu | path exists) { $REPORT_RUN } else {
         report-beacon chain-fail
         ""
     }
@@ -184,7 +185,7 @@ def install-stop [repo: path, attempts: int]: nothing -> nothing {
 # The disk key is not, so each boot left in the chain asks for the passphrase.
 def stage-rearm []: nothing -> nothing {
     if not (is-terminal --stdin) { error make {msg: $"the install chain stopped and is disarmed; resume it at the console: ($STAGE_RESUME)"} }
-    ^sudo sh -c $STAGE_REARM sh (stage-sudoers $env.USER) $STAGE_SUDOERS_DROPIN $NEXT $STAGE_STOPPED $ISSUE $STAGE_ESP_MARKER $STAGE_ESP_RUNNING
+    ^sudo sh -c $STAGE_REARM sh (stage-sudoers $env.USER) $STAGE_SUDOERS_DROPIN $STAGE_NEXT $STAGE_STOPPED $ISSUE $STAGE_ESP_MARKER $STAGE_ESP_RUNNING
     note "install: resumed at the console, the chain armed again without its disk key"
 }
 
@@ -206,10 +207,10 @@ def stage-reboot []: nothing -> nothing {
 
 # Runs the stage named in the state dir's `next`, then arms the following one or disarms the chain.
 export def stage-run [repo: path]: nothing -> nothing {
-    if not ($NEXT | path exists) and ($STAGE_STOPPED | path exists) { stage-rearm }
-    if not ($NEXT | path exists) { error make {msg: "the install chain already finished, no stage left to run"} }
-    let stage = open --raw $NEXT | str trim
-    if $stage not-in [install config] { error make {msg: $"unknown stage '($stage)' in ($NEXT)"} }
+    if not ($STAGE_NEXT | path exists) and ($STAGE_STOPPED | path exists) { stage-rearm }
+    if not ($STAGE_NEXT | path exists) { error make {msg: "the install chain already finished, no stage left to run"} }
+    let stage = open --raw $STAGE_NEXT | str trim
+    if $stage not-in [install config] { error make {msg: $"unknown stage '($stage)' in ($STAGE_NEXT)"} }
     if $stage == "config" {
         if not (disarm-retried) {
             let message = $"dotfiles install chain stopped: the temporary disk key is still in place, see ($STAGE_STATE_DIR)/log"
@@ -258,7 +259,7 @@ export def stage-run [repo: path]: nothing -> nothing {
     note "rebooting"
     let next = $decided.next
     if ($next | is-not-empty) {
-        $"($next)\n" | ^sudo tee $NEXT | ignore
+        $"($next)\n" | ^sudo tee $STAGE_NEXT | ignore
         stage-reboot
         return
     }
@@ -280,7 +281,7 @@ export def stage-run [repo: path]: nothing -> nothing {
     }
     boot-next-here
     # the report runs as root from the root copy, after the chain is disarmed, so it sees the finished system
-    let report = if ($REPORT | path exists) { $REPORT_RUN } else { "" }
-    let disarm = $"rm -f ($STAGE_SUDOERS_DROPIN); systemctl disable dotfiles-stage.service; rm -f ($UNIT) ($NEXT) ($STAGE_ESP_MARKER); "
+    let report = if ($STAGE_REPORT | path exists) { $REPORT_RUN } else { "" }
+    let disarm = $"rm -f ($STAGE_SUDOERS_DROPIN); systemctl disable dotfiles-stage.service; rm -f ($STAGE_UNIT) ($STAGE_NEXT) ($STAGE_ESP_MARKER); "
     ^sudo sh -c $"($disarm)($report)systemctl reboot" sh $SYSTEM_REPO $env.USER $repo
 }

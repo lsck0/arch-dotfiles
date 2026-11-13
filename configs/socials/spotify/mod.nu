@@ -1,6 +1,6 @@
 use module.nu *
 use ini.nu [ini-rows]
-use ../../core/wallust/palette.nu [RADIUS_PX SHADE_CHROME SHADE_CURRENT condition-bg dim-toward lift readable-on rgb-to-hex selection-pair palette-rgb semantic shade vivify]
+use ../../core/wallust/palette.nu [RADIUS_PX SHADE_CHROME SHADE_CURRENT condition-bg dim-toward lift palette-rgb readable-on rgb-to-hex selection-pair semantic shade vivify]
 use ../../core/wallust/font.nu [font-load]
 use hook/spicetify-apply.nu [apply-pending]
 
@@ -29,7 +29,7 @@ export def link [cfg: record] {
         # spotify's slider is its stream's channel volume; a restored stream volume under it caps max volume
         (file-copy wireplumber.conf (xdg config wireplumber wireplumber.conf.d spotify.conf))
     ]
-    if (^pacman -Q spotify | complete).exit_code != 0 { return $base }
+    if (package-version spotify) == null { return $base }
     let prefs = xdg config spotify prefs
     let configured = configure-done
     [

@@ -3,7 +3,7 @@
 const REPO = path self ../..
 use log.nu *
 use cli.nu [flag jobs root-runner state-lock-hold]
-use state.nu [SYSTEM_REPO SYSTEM_STATE LIB_DIR state-dir save-atomic EXIT_ABORTED EXIT_PENDING xdg CONFIG_ISSUE]
+use state.nu [SYSTEM_REPO SYSTEM_STATE LIB_DIR state-dir save-atomic EXIT_ABORTED EXIT_PENDING xdg CONFIG_ISSUE file-trim]
 use platform.nu [platform-load]
 use profile.nu [profile-has]
 use modules.nu [modules-packages]
@@ -103,7 +103,7 @@ export def --env link-run [mods: list<string>, force: bool, --user-only]: nothin
         for dir in [$nu.home-dir ($nu.home-dir | path join .local bin)] {
             ls -a $dir | where type == symlink | where {|l| not ($l.name | path exists) and ((^readlink $l.name) | str starts-with $"($REPO)/") } | each { rm $in.name } | ignore
         }
-        let units = ledger-units $REPO ($ctx.modules | where cfg.enable | get dir) user
+        let units = ledger-units $REPO ($ctx.modules | where cfg.enable) user
         $units.by_hand | each { log-info $"enabled by hand, not managed: ($in)" } | ignore
         theme-init
     } else if "core/wallust" in $mods {
@@ -123,7 +123,7 @@ def theme-init []: nothing -> nothing {
         | each {|f| $REPO | path join $f } | where ($it | path exists) | uniq
     let stamp = ^sha1sum ...$files | ^sha1sum | str trim
     let cache = xdg cache wal
-    let current = try { open --raw ($cache | path join .theme-stamp) | str trim } catch { "" }
+    let current = file-trim ($cache | path join .theme-stamp)
     if ($cache | path join wallpaper | path exists) and $current == $stamp {
         return
     }
@@ -148,7 +148,7 @@ def failures-cleared [results: table]: nothing -> list<string> {
 # Publishes the run's failures into published (the checkout's FAILURES.config), false when the run failed.
 export def failures-publish [results: table, published: path = $FAILURES_PUBLISHED]: nothing -> bool {
     let owned = $env.DOT_FAILURES_OWNED? == true
-    let failures = if $owned and ($env.FAILURES_FILE | path exists) { open --raw $env.FAILURES_FILE | str trim } else { "" }
+    let failures = if $owned { file-trim $env.FAILURES_FILE } else { "" }
     let cleared = failures-cleared $results
     # a partial run adds to what earlier runs recorded instead of replacing it, but for the modules it carried through
     # a module's system line is over only when the system layer ran too
@@ -170,7 +170,7 @@ export def failures-publish [results: table, published: path = $FAILURES_PUBLISH
     if $owned and ($env.DOT_FULL_RUN? != true) and ($published | path exists) {
         let left = $earlier | where ($it | str trim) != ""
         if ($left | is-empty) { rm --force $published } else if ($left | length) != (open --raw $published | lines | where ($it | str trim) != "" | length) {
-            $"($left | str join "\n")\n" | save-atomic $published
+            $left | to text | save-atomic $published
         }
         return true
     }
@@ -180,7 +180,7 @@ export def failures-publish [results: table, published: path = $FAILURES_PUBLISH
         if not $system_stale { rm --force $published } else {
             # the user layer passed in full: only the system lines it cannot vouch for stay
             let system = open --raw $published | lines | where {|l| failure-is-system $l }
-            $"($system | str join "\n")\n" | save-atomic $published
+            $system | to text | save-atomic $published
         }
     }
     true

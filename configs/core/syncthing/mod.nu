@@ -53,7 +53,7 @@ def stignore-lines []: nothing -> list<string> {
 # Adds the line to ~/sync/.stignore, keeping edits: the one file in ~/sync the dotfiles touch (it never syncs).
 export def stignore []: nothing -> nothing {
     let lines = stignore-lines
-    if $STIGNORE_LINE not-in $lines { $lines | append $STIGNORE_LINE | str join "\n" | $"($in)\n" | save --force (stignore-file) }
+    if $STIGNORE_LINE not-in $lines { $lines | append $STIGNORE_LINE | to text | save --force (stignore-file) }
 }
 
 # Installs the device identity before the daemon starts, so it comes up paired.
@@ -133,7 +133,7 @@ export def link [cfg: record] {
     if not (owner-unlocked) or not (platform-has homelab) { return [] }
     let state = xdg state syncthing
     let secrets = secret-dir
-    let paired = ["config.xml" "key.pem"] | all {|f| secret-is-plaintext ($secrets | path join $f) }
+    let paired = [config.xml key.pem] | all {|f| secret-is-plaintext ($secrets | path join $f) }
     let differs = {|f| not ($state | path join $f | path exists) or (open --raw ($secrets | path join $f)) != (open --raw ($state | path join $f)) }
     let changed = $paired and (not ($state | path join config.xml | path exists) or ([cert.pem key.pem] | any $differs))
     let nas = $cfg.nas_address | default ""
@@ -143,7 +143,7 @@ export def link [cfg: record] {
     [
         (step stignore --done=($STIGNORE_LINE in (stignore-lines)))
         (step identity-install --done=(not $changed))
-        (dropin syncthing.service 10-background.conf --then [systemctl --user try-restart syncthing.service])
+        (dropin syncthing.service 10-background.conf --then (unit-restart syncthing.service --if-running))
         (unit-enable syncthing.service --now)
         (step api-config ($paired | into string) $nas --key $api_key)
     ]

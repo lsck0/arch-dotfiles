@@ -28,6 +28,7 @@ EV_FMT = "llHHi"
 EV_SIZE = struct.calcsize(EV_FMT)
 EV_ABS, ABS_X, ABS_Y = 3, 0, 1
 EVIOCGNAME = 0x81004506
+EVIOCGABS = 0x80184540
 BINS = 16
 EVENT_PREFIX = "/dev/input/event"
 DRIVER_NAME = "SDD Tablet T1161"
@@ -43,7 +44,7 @@ def ioctl_name(fd):
 
 def abs_range(fd, axis):
     buf = bytearray(24)
-    fcntl.ioctl(fd, 0x80184540 + axis, buf)
+    fcntl.ioctl(fd, EVIOCGABS + axis, buf)
     _, mn, mx, _, _, res = struct.unpack("iiiiii", buf)
     return mn, mx, res
 

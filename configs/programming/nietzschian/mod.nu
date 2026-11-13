@@ -17,7 +17,7 @@ def pin-file []: nothing -> path {
 
 export def link [cfg: record] {
     if (which uv | is-empty) { return [] }
-    let installed = try { open --raw (pin-file) | str trim } catch { "" }
+    let installed = file-trim (pin-file)
     [(step install --key $PIN --done=($installed == $PIN) --undo [uv tool uninstall nietzschian-debugger] --network)]
 }
 

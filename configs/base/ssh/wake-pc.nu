@@ -25,14 +25,13 @@ def at-home []: nothing -> bool {
 # lan on the same subnet (every fritzbox hands out 192.168.178.0/24) answers it instead.
 def router-address []: nothing -> any {
     if (at-home) { return $ROUTER }
-    let wg = $"/sys/class/net/($WG_IFACE)" | path exists
-    if not $wg {
-        print --stderr "wake-pc: away from home and wg0 is down; bring the home vpn up first (bar: network, Home VPN)"
+    if not ($"/sys/class/net/($WG_IFACE)" | path exists) {
+        print --stderr $"wake-pc: away from home and ($WG_IFACE) is down; bring the home vpn up first \(bar: network, Home VPN\)"
         exit 1
     }
     if $ROUTER_TUNNEL != "" { return $ROUTER_TUNNEL }
     if (route-dev $ROUTER) == $WG_IFACE { return $ROUTER }
-    print --stderr $"wake-pc: ($ROUTER) routes out (route-dev $ROUTER), not wg0, and no tunnel address is set \(base/ssh.wake_router_tunnel\)"
+    print --stderr $"wake-pc: ($ROUTER) routes out (route-dev $ROUTER), not ($WG_IFACE), and no tunnel address is set \(base/ssh.wake_router_tunnel\)"
     exit 1
 }
 

@@ -2,7 +2,7 @@
 # Every skill's frontmatter is strict YAML with its directory's name and a description: Copilot and Gemini drop a skill
 # whose frontmatter does not parse (an unquoted ": " in a description), Claude Code loads it anyway.
 
-const SKILLS = path self | path dirname
+const SKILLS = path self .
 
 def main []: nothing -> nothing {
     let bad = glob ($SKILLS | path join "l-*" SKILL.md) | sort | each {|file|

@@ -148,7 +148,7 @@ def authorized-keys-render []: nothing -> string {
     # a locked secrets store cannot read the committed key, so only append what is readable and never prune
     if not (secret-is-plaintext $pubkey) {
         let missing = $keys | where $it not-in $existing
-        return (if ($missing | is-empty) { $raw } else { $"($raw)($missing | str join "\n")\n" })
+        return ($raw + ($missing | to text))
     }
     # rebuild the managed block so a key rotated out of the sources loses access; lines outside it are kept
     let begin = $existing | enumerate | where item == $MANAGED_BEGIN | get --optional 0.index
@@ -157,7 +157,7 @@ def authorized-keys-render []: nothing -> string {
         ($existing | first $begin) ++ ($existing | skip ($end + 1))
     } else { $existing }
     let kept = $kept | where $it not-in $keys
-    ($kept ++ [$MANAGED_BEGIN] ++ $keys ++ [$MANAGED_END]) | str join "\n" | $"($in)\n"
+    ($kept ++ [$MANAGED_BEGIN] ++ $keys ++ [$MANAGED_END]) | to text
 }
 
 def authorize-done []: nothing -> bool {

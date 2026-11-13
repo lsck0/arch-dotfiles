@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # a backup keeps opening with whatever passphrase it held: after removing a leaked one, overwrite every older copy
 
-const REPO = path self | path expand | path dirname --num-levels 5
+const REPO = path self ../../../..
 use ($REPO | path join scripts lib usage.nu) [die]
 use ($REPO | path join scripts lib secrets.nu) [secret-is-plaintext]
 

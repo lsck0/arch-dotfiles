@@ -42,7 +42,7 @@ def main [repo_dir?: path]: nothing -> nothing {
             "GIT_SIGNING_KEY="
             ""
             "# TF_TOKEN_app_terraform_io="
-        ] | str join "\n" | $"($in)\n" | save --force $env_file
+        ] | to text | save --force $env_file
         print $"set GIT_EMAIL in ($env_file)"
     }
     envrc-line-add ($repo | path join .envrc)

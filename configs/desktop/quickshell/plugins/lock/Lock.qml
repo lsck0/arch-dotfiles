@@ -292,7 +292,7 @@ Item {
     triggeredOnStart: true
     onTriggered: {
       if (!statsProc.running) statsProc.running = true
-      if (!notesProc.running) notesProc.running = true
+      notesProc.run()
     }
   }
 

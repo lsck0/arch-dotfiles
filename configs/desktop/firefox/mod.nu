@@ -113,9 +113,9 @@ export def mozilla-chrome-font []: nothing -> string {
 # and color3 as the highlight under white text. A theme's slots read none of that way (catppuccin's color0 is a surface,
 # so its popups came out pale lavender under pale text, and every light theme's text came out white), so these slots
 # are solved backwards from the theme's background, foreground and accents until each surface holds its contrast.
-const PYWALFOX_POPUP = 1.25
-const PYWALFOX_FIELD = 1.85
-const PYWALFOX_FRAME_LIGHT = [0.1 205 220]
+export const PYWALFOX_POPUP = 1.25
+export const PYWALFOX_FIELD = 1.85
+export const PYWALFOX_FRAME_LIGHT = [0.1 205 220]
 const PYWALFOX_SCALE_STEP = 0.95
 const PYWALFOX_SCALE_COUNT_MAX = 60
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 
 const REPO = path self | path expand | path dirname --num-levels 4
-use ($REPO | path join scripts lib state.nu) [xdg]
+use ($REPO | path join scripts lib state.nu) [xdg file-trim]
 
 const EXIT_NO_UPDATES = 2
 
@@ -21,7 +21,7 @@ def main []: nothing -> nothing {
     let advisories = if $audit.exit_code == 0 { $audit.stdout | lines | where $it != "" } else { [] }
     let digest = $updates ++ ["--"] ++ $advisories | str join "\n" | hash sha256
     let last = $state | path join last
-    if $digest == (try { open --raw $last | str trim } catch { "" }) { return }
+    if $digest == (file-trim $last) { return }
     if ($updates | is-not-empty) {
         let security = if ($advisories | is-empty) { "" } else { $"\nsecurity fixes for: ($advisories | str join ' ')" }
         let urgency = if ($advisories | is-empty) { "low" } else { "normal" }

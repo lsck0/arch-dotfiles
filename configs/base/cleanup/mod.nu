@@ -12,7 +12,7 @@ export const options = {
 export def system [cfg: record] {
     (
         file-render journald-size.conf /etc/systemd/journald.conf.d/00-size.conf {MAX_USE: $cfg.journal_max_use}
-            --then [systemctl restart systemd-journald.service]
+            --then (unit-restart systemd-journald.service)
     )
 }
 

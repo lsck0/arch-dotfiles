@@ -1,14 +1,15 @@
 #!/usr/bin/env -S nu --no-config-file
 
+const HERE = path self | path expand | path dirname
+use ($HERE | path join lib shell.nu) [SHELL_CONFIG shell-call]
+
 const VOLUME_STEP_PERCENT = 5
 const VOLUME_MAX_PERCENT = 100
 const BRIGHTNESS_STEP_PERCENT = 5
-const SHELL_CONFIG = ($nu.home-dir | path join .config quickshell)
 const MONITOR_BRIGHTNESS = ($SHELL_CONFIG | path join scripts monitor-brightness.nu)
 
 def osd [icon: string, field: string, value: any]: nothing -> nothing {
-    ^timeout 2 quickshell ipc -p $SHELL_CONFIG call osd present ({icon: $icon, $field: $value} | to json -r)
-    | complete | ignore
+    shell-call osd present ({icon: $icon, $field: $value} | to json -r) | complete | ignore
 }
 
 def sink-volume []: nothing -> int {

@@ -130,7 +130,7 @@ export def complete-run [table: table, words: list<string>]: nothing -> nothing 
         let values = if $param == null { [] } else { complete-values $param.completion $param.syntax_shape $positionals }
         if ($values | any { $in.value == $COMPLETE_FILES }) and ($subs | is-empty) { $values } else { $subs ++ ($values | where value != $COMPLETE_FILES) }
     }
-    $candidates | each { $"($in.value)\t($in.description | str replace --all "\n" ' ')" } | each { $"($in)\n" } | str join | print --no-newline
+    $candidates | each { $"($in.value)\t($in.description | str replace --all "\n" ' ')\n" } | str join | print --no-newline
 }
 
 def completions-nu-param [p: record]: nothing -> string {

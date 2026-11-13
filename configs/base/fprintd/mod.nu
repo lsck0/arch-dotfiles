@@ -26,9 +26,9 @@ export def system [cfg: record] {
         ]
     }
     [
-        (dropin python3-validity.service override.conf --then [systemctl try-restart python3-validity.service])
+        (dropin python3-validity.service override.conf --then (unit-restart python3-validity.service --if-running))
         (dropin open-fprintd-resume.service open-fprintd-resume.conf)
-        ...($VALIDITY_UNITS | each { unit-enable $in })
+        ($VALIDITY_UNITS | each { unit-enable $in })
         (unit-mask fprintd.service --now)
     ]
 }

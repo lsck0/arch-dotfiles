@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const DOT = path self | path dirname | path join .. .. .. .. scripts dot.nu
+const DOT = path self ../../../../scripts/dot.nu
 const JAILS_URL = "https://github.com/SogoCZE/Jails.git"
 const JAILS_COMMIT = "42fa76c816ad34c9f24a4bde586d145c992dc860"
 

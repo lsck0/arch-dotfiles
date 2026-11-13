@@ -8,12 +8,12 @@ if (is-terminal --stdin) { $env.GPG_TTY = (^tty | str trim) }
 $env.PATH = (
     $env.PATH
     | split row (char esep)
-    | prepend $"($env.HOME)/.local/bin"
+    | prepend ($nu.home-dir | path join .local bin)
     | append [
-        $"($env.HOME)/.cargo/bin"
-        $"($env.HOME)/.ghcup/bin"
-        ($env.GOPATH? | default $"($env.HOME)/.local/share/go" | path join bin)
-        $"($env.HOME)/.jai/bin"
+        ($nu.home-dir | path join .cargo bin)
+        ($nu.home-dir | path join .ghcup bin)
+        ($env.GOPATH? | default ($nu.home-dir | path join .local share go) | path join bin)
+        ($nu.home-dir | path join .jai bin)
     ]
     | uniq
     | where { |p| $p != "" }

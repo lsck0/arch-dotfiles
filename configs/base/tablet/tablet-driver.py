@@ -68,7 +68,7 @@ AREA_H_MM = 137.0
 
 OUT_MAX = 32767
 
-DEFAULT_CALIB = {"x_min": 16384, "x_max": 32767, "y_min": 0, "y_max": 32767}
+DEFAULT_CALIB = {"x_min": (RAW_MAX + 1) // 2, "x_max": RAW_MAX, "y_min": 0, "y_max": RAW_MAX}
 CALIB_PATH = "/var/lib/tablet-driver/calibration.json"
 CALIB_SAMPLES_MIN = 200
 CALIB_SPAN_MIN = 4096

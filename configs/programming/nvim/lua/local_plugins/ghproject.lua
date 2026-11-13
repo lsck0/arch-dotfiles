@@ -736,7 +736,7 @@ local function render_header(lines, marks)
         marks[#marks + 1] = { g, #lines - 1, r[1], r[2] }
     end
 
-    lines[#lines + 1] = "  " .. LEGEND
+    lines[#lines + 1] = LEFT .. LEGEND
     marks[#marks + 1] = { "GhProjectHint", #lines - 1, 0, -1 }
 end
 
@@ -810,7 +810,7 @@ local function render_table(lines, marks)
     local idx, cursor = 0, nil
     for gi, g in ipairs(row_groups()) do
         if g.name and #g.cards > 0 then
-            lines[#lines + 1] = string.format("  %s  (%d)", g.name, #g.cards)
+            lines[#lines + 1] = LEFT .. string.format("%s  (%d)", g.name, #g.cards)
             marks[#marks + 1] = { header_group(gi), #lines - 1, 0, -1 }
         end
         for _, card in ipairs(g.cards) do
@@ -838,7 +838,7 @@ local function render_list(lines, marks)
             end
             first = false
             if g.name then
-                lines[#lines + 1] = string.format("  %s  (%d)", g.name, #g.cards)
+                lines[#lines + 1] = LEFT .. string.format("%s  (%d)", g.name, #g.cards)
                 marks[#marks + 1] = { header_group(gi), #lines - 1, 0, -1 }
             end
             for _, card in ipairs(g.cards) do

@@ -18,12 +18,13 @@ _use(want["skin"])
 config = load_config()
 hooks = config.setdefault("hooks", {})
 # every event loses its guard hooks first, so a guard that is gone (idle-guards off) leaves none behind
+popped = []
 for event in list(hooks):
     others = [h for h in hooks.get(event) or [] if "agent-guard" not in str(h.get("command", ""))]
     if others:
         hooks[event] = others
     else:
-        hooks.pop(event)
+        popped.append(hooks.pop(event))
 for event, command in want["hooks"].items():
     hooks[event] = hooks.get(event, []) + [{"command": command}]
     _record_approval(event, command)
@@ -51,5 +52,5 @@ for key in want["remove"]:
     for part in parents:
         parent = parent.get(part) or {}
     parent.pop(leaf, None)
-# a merge with the file on disk would bring the removed keys back
-save_config(config, merge_existing=not want["remove"] and not dropped)
+# a merge with the file on disk would bring the removed keys, servers and hook events back
+save_config(config, merge_existing=not (want["remove"] or dropped or popped))

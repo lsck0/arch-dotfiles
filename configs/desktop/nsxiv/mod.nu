@@ -1,12 +1,11 @@
 use module.nu *
-use ../../core/wallust/palette.nu [hex-to-rgb readable-on rgb-to-hex shade]
+use ../../core/wallust/palette.nu [ACCENT2_RATIO hex-to-rgb readable-on rgb-to-hex shade]
 use ../../core/wallust/font.nu [font-load]
 
 export const meta = {deps: [core/trash core/wallust], packages: {pacman: [nsxiv xorg-xrdb]}}
 
 const RESOURCES = "wal/colors-nsxiv.Xresources"
 const BAR_SHADE = 0.075
-const MARK_RATIO = 3.0
 
 export def link [cfg: record] {
     file-copy exec/key-handler (xdg config nsxiv exec key-handler) --mode 755
@@ -25,7 +24,7 @@ export def theme [cfg: record, wallpaper: string] {
         "window.foreground": ($fg | readable-on $bg)
         "bar.background": $bar
         "bar.foreground": ($fg | readable-on $bar)
-        "mark.foreground": ($p.c4 | hex-to-rgb | readable-on $bg --ratio $MARK_RATIO)
+        "mark.foreground": ($p.c4 | hex-to-rgb | readable-on $bg --ratio $ACCENT2_RATIO)
     } | items {|key, color| $"Nsxiv.($key): ($color | rgb-to-hex --prefix '#')" }
     let file = xdg cache $RESOURCES
     let text = $resources | append $"Nsxiv.bar.font: ($font.mono)-($font.ui_size)" | str join "\n"

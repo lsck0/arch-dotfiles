@@ -15,6 +15,9 @@ export const INSTALL_PASS_FILE = $SYSTEM_STATE | path join install-pass
 export const CONFIG_ISSUE = "/etc/issue.d/dotfiles-config.issue"
 # the login banner of an install chain that reached config with secrets still locked; base/yubikey removes it once they unlock
 export const SECRETS_ISSUE = "/etc/issue.d/dotfiles-secrets.issue"
+# the Description= of a user-hook's path and service unit (module.nu user-hook) before "<name> hook"; doctor finds hooks by them
+export const HOOK_WATCH_PREFIX = "watch for the"
+export const HOOK_RUN_PREFIX = "run the"
 const LOCKED_SCRIPT = path self locked.nu
 
 # A path under an XDG base dir (config, data, cache, state, runtime), honoring XDG_*_HOME and XDG_RUNTIME_DIR.
@@ -35,6 +38,21 @@ export def env-file-load [file: path]: nothing -> record {
     if not ($file | path exists) { return {} }
     open --raw $file | lines | parse --regex '^(?<key>[A-Za-z_][A-Za-z0-9_]*)=(?<value>.*)$'
     | reduce --fold {} {|e, acc| $acc | upsert $e.key ($e.value | str trim | str replace --regex '^"(.*)"$' '$1') }
+}
+
+# A file's text, trimmed; fallback when it is missing or unreadable.
+export def file-trim [file: path, fallback: any = ""]: nothing -> any {
+    try { open --raw $file | str trim } catch { $fallback }
+}
+
+# Whether a process of this exact name runs: a theme or reload step only acts on a running app.
+export def process-running [name: string]: nothing -> bool {
+    (^pgrep -x $name | complete).exit_code == 0
+}
+
+# Whether the system has this group.
+export def group-exists [name: string]: nothing -> bool {
+    (^getent group $name | complete).exit_code == 0
 }
 
 # The running layer's state dir; the system layer's is root's even when a user plans it.
@@ -71,8 +89,8 @@ export def path-kind [path: path]: nothing -> string {
     try { $path | path type | default "" } catch { "" }
 }
 
-# Every output of every record of the running layer, or only of the module ids given. A record a prior crash or hand edit left unparseable counts as
-# empty, not a reason to fail every module's plan.
+# Every output of every record of the running layer, or only of the module ids given. A record a prior crash or hand
+# edit left unparseable counts as empty, not a reason to fail every module's plan.
 export def recorded-outputs [ids?: list<string>]: nothing -> list<record> {
     let dir = state-dir | path join modules
     let files = if $ids == null { glob ($dir | path join **/*.nuon) } else { $ids | each {|id| glob ($dir | path join $id *.nuon) } | flatten }

@@ -1,17 +1,14 @@
 #!/usr/bin/env -S nu --no-config-file
 
+const HERE = path self | path expand | path dirname
+use ($HERE | path join lib shell.nu) [SHELL_CONFIG action-notify shell-call]
+
 const UNIT_PREFIX = "quickshell-reminder-"
 const BELL_GLYPH = "\u{f009e}"
 const LIST_GLYPH = "\u{f088c}"
-const SHELL_CONFIG = ($nu.home-dir | path join .config quickshell)
 const ALERT = ($SHELL_CONFIG | path join scripts alert.nu)
 
 def reminder-dir []: nothing -> path { $env.XDG_RUNTIME_DIR | path join quickshell-reminders }
-
-# Sent as the app the shell shows through dnd and keeps out of history (NotificationLogic.js ACTION_APP).
-def notify [glyph: string, title: string, body: string = ""]: nothing -> nothing {
-    ^notify-send -a quickshell-action -u low -h $"string:lsck0-glyph:($glyph)" -- $title $body
-}
 
 # TimerState.qml's remainingText mirrors it: keep the two in sync.
 def remaining-format [seconds: int]: nothing -> string {
@@ -66,7 +63,7 @@ def main [
     ...message: string
 ]: nothing -> nothing {
     if $interactive {
-        ^timeout 3 quickshell ipc -p $SHELL_CONFIG call shell summon panel.reminders "{}"
+        shell-call shell summon panel.reminders "{}"
         return
     }
     if $minutes == null or $minutes <= 0 { error make {msg: "minutes must be a positive integer, see --help"} }
@@ -79,13 +76,13 @@ def main [
     systemd-run --user --quiet --collect $"--on-active=($minutes)m" $"--unit=($unit)" ($env.CURRENT_FILE | path expand) _fire $unit
     index-write
     let title = if $message != "" { $"($message) in ($unit_label)" } else { $"Reminder set for ($unit_label)" }
-    notify $BELL_GLYPH $title $"Due at (date now | $in + ($minutes * 1min) | format date '%-H:%M')"
+    action-notify $BELL_GLYPH $title $"Due at (date now | $in + ($minutes * 1min) | format date '%-H:%M')"
 }
 
 def "main show" [--json (-j)]: nothing -> nothing {
     if $json { print (reminder-json | to json -r); return }
     let lines = reminder-list | each { $"($in.label) in ($in.remaining) \(($in.atTime)\)" }
-    notify $LIST_GLYPH "Upcoming reminders" (if ($lines | is-empty) { "None" } else { $lines | str join "\n" })
+    action-notify $LIST_GLYPH "Upcoming reminders" (if ($lines | is-empty) { "None" } else { $lines | str join "\n" })
 }
 
 def "main list" [--json (-j)]: nothing -> nothing { main show --json=$json }
@@ -116,7 +113,7 @@ def "main clear" []: nothing -> nothing {
     if ($units | is-not-empty) { systemctl --user stop ...($units | each { [$in.unit $in.activates] } | flatten) }
     rm -f ...(glob (reminder-dir | path join $"($UNIT_PREFIX)*.message"))
     index-write
-    notify $LIST_GLYPH "Reminders cleared"
+    action-notify $LIST_GLYPH "Reminders cleared"
 }
 
 # the timer's own command: alert.nu so an elapsed reminder does not auto-expire, then drop it from the index

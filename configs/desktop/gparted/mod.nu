@@ -7,5 +7,5 @@ export def link [cfg: record] {
 }
 
 export def system [cfg: record] {
-    file-copy 49-gparted.rules /etc/polkit-1/rules.d/49-gparted.rules
+    polkit-rules 49-gparted.rules
 }

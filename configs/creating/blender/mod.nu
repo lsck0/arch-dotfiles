@@ -11,7 +11,7 @@ const MCP_PORT = "9876"
 const MCP_HOST = "127.0.0.1"
 # apparmor's blender-mcp profile keeps the venv read-only, so python cannot write __pycache__ at runtime
 const INSTALL_FLAGS = ["--compile-bytecode"]
-const HERE = path self | path dirname
+const HERE = path self .
 const CONSTRAINTS = $HERE | path join constraints.txt
 const PREFS_SCRIPT = $HERE | path join mcp-prefs.py
 const OPENAL_NOISE = "[ALSOFT]"
@@ -83,12 +83,12 @@ def extension-install [source: path, id: string]: nothing -> nothing {
     let extensions = $probe.stdout | lines | parse "EXT={dir}" | get --optional 0.dir
     if $extensions == null { error make {msg: "blender: no user extensions dir"} }
     let installed = $extensions | path join user_default $id
-    let same = (^diff -rq -x __pycache__ -x '.*' $source $installed | complete).exit_code == 0
-    if $same { return }
+    if (^diff -rq -x __pycache__ -x '.*' $source $installed | complete).exit_code == 0 { return }
     let tmp = mktemp --directory
+    let zip = $tmp | path join $"($id).zip"
     try {
-        blender-run [-c extension build --source-dir $source --output-filepath ($tmp | path join $"($id).zip")]
-        blender-run [-c extension install-file -r user_default ($tmp | path join $"($id).zip")]
+        blender-run [-c extension build --source-dir $source --output-filepath $zip]
+        blender-run [-c extension install-file -r user_default $zip]
         rm --recursive $tmp
     } catch {|e| rm --recursive --force $tmp; error make $e }
 }

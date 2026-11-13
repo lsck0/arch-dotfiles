@@ -85,7 +85,7 @@ def mirror-list [ctx: record]: nothing -> string {
     let platform = $ctx.platform | update form_factor desktop | update extra_packages ($extras ++ $candidates)
     # the hooks ran above for every profile and option; run again here they would add only this caller's answer
     let fixed = $all | update native { where $it != "packages" }
-    modules-packages $REPO $fixed $platform | get pacman | str join "\n" | $"($in)\n"
+    modules-packages $REPO $fixed $platform | get pacman | to text
 }
 
 # One row per typed option but enable, public modules only; a null default a detect hook names reads "detected".
@@ -255,24 +255,26 @@ def "main backup" [--roundtrip]: nothing -> nothing {
             if $wanted and ($skipped | is-not-empty) { log-warn $"backup: secrets is locked, skipped ($skipped.id | str join ' ')" }
             return
         }
-        for m in ($mods | where {|m| not (do $secret $m) }) {
-            backup-native $m | ignore
-            let before = module-hash $m.dir
-            let home = mktemp --directory
-            # its failures stay in the scratch home, out of the checkout's FAILURES.config
-            let env_home = {
-                HOME: $home, XDG_CONFIG_HOME: $"($home)/.config", XDG_DATA_HOME: $"($home)/.local/share", XDG_STATE_HOME: $"($home)/.local/state"
-                XDG_CACHE_HOME: $"($home)/.cache", FAILURES_FILE: $"($home)/failures"
+        with-env (platform-env $ctx.platform) {
+            for m in ($mods | where {|m| not (do $secret $m) }) {
+                backup-native $m | ignore
+                let before = module-hash $m.dir
+                let home = mktemp --directory
+                # its failures stay in the scratch home, out of the checkout's FAILURES.config
+                let env_home = {
+                    HOME: $home, XDG_CONFIG_HOME: $"($home)/.config", XDG_DATA_HOME: $"($home)/.local/share", XDG_STATE_HOME: $"($home)/.local/state"
+                    XDG_CACHE_HOME: $"($home)/.cache", FAILURES_FILE: $"($home)/failures"
+                }
+                let restored = with-env $env_home {
+                    let step = if "restore" in $m.native { [module restore $m.id] } else { [apply --user $m.id] }
+                    # pending (a download offline) is no part of the backed-up state
+                    (^nu --no-config-file $DOT ...$step | complete).exit_code in [0 $EXIT_PENDING]
+                }
+                let again = with-env $env_home { backup-native $m }
+                rm --recursive --force $home
+                if not ($restored and $again.ok and (module-hash $m.dir) == $before) { error make {msg: $"backup: ($m.id) round trip changed the module or failed"} }
+                log-info $"backup: ($m.id) round trip ok"
             }
-            let restored = with-env $env_home {
-                let step = if "restore" in $m.native { [module restore $m.id] } else { [apply --user $m.id] }
-                # pending (a download offline) is no part of the backed-up state
-                (^nu --no-config-file $DOT ...$step | complete).exit_code in [0 $EXIT_PENDING]
-            }
-            let again = with-env $env_home { backup-native $m }
-            rm --recursive --force $home
-            if not ($restored and $again.ok and (module-hash $m.dir) == $before) { error make {msg: $"backup: ($m.id) round trip changed the module or failed"} }
-            log-info $"backup: ($m.id) round trip ok"
         }
     }
 }

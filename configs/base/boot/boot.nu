@@ -33,7 +33,7 @@ export def cmdline-words []: nothing -> list<string> {
     if not ($CMDLINE | path exists) {
         mkdir ($CMDLINE | path dirname)
         open --raw /proc/cmdline | str trim | split row " " | where {|w| not ($w =~ '^(BOOT_IMAGE|initrd)=') }
-        | str join " " | save $CMDLINE
+        | str join " " | $"($in)\n" | save $CMDLINE
     }
     backup-once $CMDLINE
     open --raw $CMDLINE | str trim | split row " " | where $it != ""
@@ -72,7 +72,7 @@ export def hooks-write [hooks: list<string>]: nothing -> nothing {
     backup-once $MKINITCPIO
     open --raw $MKINITCPIO | lines
     | each {|l| if ($l =~ '^HOOKS=\(') { $"HOOKS=\(($hooks | str join ' ')\)" } else { $l } }
-    | str join "\n" | $"($in)\n" | save --force $MKINITCPIO
+    | to text | save --force $MKINITCPIO
 }
 
 # hook placed right before anchor, or right after it with --after.

@@ -19,8 +19,9 @@ def config-text []: nothing -> string {
     let bg = if $p.light == "1" { $p.bg_conditioned } else {
         $p.bg_conditioned | hex-to-rgb | tone-map --lo $DARK_FLOOR --hi 1.0 | rgb-to-hex --prefix "#"
     }
-    let blend = {|t| mix ($bg | hex-to-rgb) ($p.fg | hex-to-rgb) $t | rgb-to-hex --prefix "#" | str lowercase }
-    let s = $BLENDS | items {|k, t| {k: $k, v: (do $blend $t)} } | transpose -r -d
+    let bg_rgb = $bg | hex-to-rgb
+    let fg_rgb = $p.fg | hex-to-rgb
+    let s = $BLENDS | update cells { mix $bg_rgb $fg_rgb $in | rgb-to-hex --prefix "#" | str lowercase }
     let theme = [
         [sidebar_bg reset] [panel_bg reset] [active_row_bg $s.active_row_bg] [selection_bg $s.selection_bg]
         [accent $p.c4] [red $p.c1] [green $p.c2] [surface_dim $s.surface_dim] [surface0 $s.surface0]

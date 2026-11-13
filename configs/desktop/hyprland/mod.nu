@@ -267,13 +267,11 @@ def platform-lua [cfg: record]: nothing -> string {
 def bar-colors []: nothing -> record {
     let p = palette-rgb "hyprland bars"
     if $p == null { return {} }
-    let bg = $p.bg
-    let active = $bg | shade $SHADE_HOVER
-    let fg = $p.fg
+    let active = $p.bg | shade $SHADE_HOVER
     let hex = {|c| $c | rgb-to-hex | $"rgb\(($in)\)" }
     {
-        bar_bg: (do $hex $bg), bar_text: (do $hex ($fg | readable-on $bg))
-        tab_active_bg: (do $hex $active), tab_active_text: (do $hex ($fg | readable-on $active))
+        bar_bg: (do $hex $p.bg), bar_text: (do $hex ($p.fg | readable-on $p.bg))
+        tab_active_bg: (do $hex $active), tab_active_text: (do $hex ($p.fg | readable-on $active))
     }
 }
 

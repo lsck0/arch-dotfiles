@@ -57,7 +57,7 @@ export def packages [cfg: record]: nothing -> record {
 
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
-    if ($cfg.nvidia_driver | default "none") == "none" {
+    if ($cfg.nvidia_driver | default none) == none {
         return [(step cmdline-unset nvidia_drm.modeset) (step kms-restore)]
     }
     [(step cmdline-set nvidia_drm.modeset=1) (step kms-drop)]

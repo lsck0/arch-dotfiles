@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 
 # expanded first: called through its ~/.local/bin link, path self alone is the link's dir
-const PICKER = path self | path expand | path dirname | path join .. configs desktop hyprland picker.nu | path expand
+const PICKER = path self | path expand | path dirname --num-levels 2 | path join configs desktop hyprland picker.nu
 
 # Pick a shimeji from `shimejictl list` and summon it.
 def main []: nothing -> nothing {

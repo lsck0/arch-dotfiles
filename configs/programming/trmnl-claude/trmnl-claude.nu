@@ -3,7 +3,7 @@
 use ../../../scripts/lib/state.nu [env-file-load xdg]
 use ../../../scripts/lib/usage.nu [die]
 
-const ENV_FILE = path self | path dirname | path join ../../secrets/keys/trmnl-claude.env | path expand
+const ENV_FILE = path self ../../secrets/keys/trmnl-claude.env
 const PLUGIN_URL = "https://usetrmnl.com/api/custom_plugins"
 const MESSAGES_URL = "https://api.anthropic.com/v1/messages"
 const HTTP_TIMEOUT = 15sec

@@ -1,2 +1,0 @@
-# managed by arch-dotfiles/apparmor
-include <abstractions/dotfiles/nssdb>

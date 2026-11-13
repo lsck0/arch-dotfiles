@@ -2,8 +2,8 @@
 # Util.qml's text helpers and Palette.js's derived palette under qmltestrunner, Util alone in a module so the service
 # singletons stay unloaded
 
-const UTIL = path self | path dirname | path join Util.qml
-const PALETTE = path self | path dirname | path join Palette.js
+const UTIL = path self Util.qml
+const PALETTE = path self Palette.js
 const RUNNER = "/usr/lib/qt6/bin/qmltestrunner"
 const TEST = '
 import QtQuick
@@ -39,6 +39,15 @@ TestCase {
     compare(Object.keys(Util.parseObject("")).length, 0)
     compare(Object.keys(Util.parseObject("[1]")).length, 0)
     compare(Object.keys(Util.parseObject("{broken")).length, 0)
+  }
+
+  function test_alpha() {
+    compare(Util.alpha("#ff0000", 0.5).a, 0.5)
+    compare(Util.alpha("#ff0000", 0.5).r, 1)
+    compare(Util.alpha("#ff0000", 2).a, 1)
+    compare(Util.alpha("#ff0000", -1).a, 0)
+    compare(Util.alpha("#ff0000", undefined).a, 0)
+    compare(Util.alpha(null, 1).r, 0)
   }
 
   function test_completion() {

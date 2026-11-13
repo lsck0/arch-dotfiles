@@ -28,7 +28,7 @@ export def system [cfg: record] {
     if not ($OOMD | path exists) { return [] }
     [
         (unit-enable systemd-oomd.service --now)
-        (file-copy oomd.conf /etc/systemd/oomd.conf.d/10-oomd.conf --then [systemctl try-restart systemd-oomd.service])
+        (file-copy oomd.conf /etc/systemd/oomd.conf.d/10-oomd.conf --then (unit-restart systemd-oomd.service --if-running))
         # protection reaches session.slice only through every ancestor slice
         (dropin user.slice user-protect.slice.conf --name 10-protect.conf)
         (dropin user-.slice user-protect.slice.conf --name 10-protect.conf)

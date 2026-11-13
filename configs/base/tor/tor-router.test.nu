@@ -2,7 +2,7 @@
 # tor-router's ruleset under fw-egress's kill switch, in an unprivileged network namespace with a dummy uplink: a
 # lookup and a connection out the uplink must land on tor's DNSPort and TransPort, and nothing may leave by the uplink.
 
-const HERE = path self | path dirname
+const HERE = path self .
 const ROUTER = $HERE | path join tor-router.nu
 const EGRESS = $HERE | path join .. nftables fw-egress.nft
 const UPLINK = "d0"

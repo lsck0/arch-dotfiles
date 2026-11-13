@@ -54,10 +54,7 @@ def restore []: nothing -> nothing {
 
 # one run at a time: a resume during the slow ddc dim waits, so restore never reads a half-written state
 def main [action: string] {
-    if $action not-in [dim restore] {
-        print -e "usage: screen-dim.nu {dim|restore}"
-        exit 1
-    }
+    if $action not-in [dim restore] { error make {msg: $"screen-dim: action is dim or restore, not ($action)"} }
     ^flock (runtime-dir | path join ddc-i2c.lock) nu --no-config-file $SELF $"locked-($action)"
 }
 

@@ -1,6 +1,6 @@
 # The health checks of `dot status`.
 
-use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir xdg]
+use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir xdg file-trim HOOK_WATCH_PREFIX HOOK_RUN_PREFIX]
 use ledger.nu [ledger-get]
 use platform.nu [platform-load]
 use profile.nu [profile-has]
@@ -9,7 +9,7 @@ use system.nu [system-files secrets-digest SECRETS_PREFIX SECRETS_DIGEST]
 use preserve.nu [preserve-report]
 use pipeline.nu [pipeline-load PENDING_FILE]
 use modules.nu [modules-packages]
-use cause.nu [failures-group]
+use cause.nu [failures-group names-shown]
 use invariants.nu [invariants-load]
 use ../../configs/base/yubikey/audit.nu [audit-findings]
 
@@ -20,7 +20,7 @@ const PROFILES_CONF = path self ../../configs/base/apparmor/profiles.conf
 const LUKS_TOKENS = [TPM2 FIDO2]
 const LUKS_TOKEN_MISSING = 'No valid (?<token>TPM2|FIDO2) token data found'
 # systemd's lines for a user-hook oneshot ending, as module.nu's user-hook describes it
-const HOOK_OUTCOME = '^(Failed to start|Finished) run the .* hook\.$'
+const HOOK_OUTCOME = ['^(Failed to start|Finished) ' $HOOK_RUN_PREFIX ' .* hook\.$'] | str join
 const WITNESS = $REPO | path join $OWNER_WITNESS
 const APPARMOR_MANUAL = "/etc/apparmor/flags.d/manual.conf"
 const SNAPSHOT_MAX_DAYS = 30
@@ -32,11 +32,6 @@ const INVARIANT_PENDING = "pending"
 
 def report [level: string, check: string, text: string]: nothing -> record {
     {level: $level, check: $check, text: $text}
-}
-
-def shown [names: list<string>]: nothing -> string {
-    let more = if ($names | length) > $SHOWN_MAX { $" \(+(($names | length) - $SHOWN_MAX) more\)" } else { "" }
-    $"($names | first $SHOWN_MAX | str join ' ')($more)"
 }
 
 def days-since [time: datetime]: nothing -> int { (date now) - $time | $in / 1day | math floor }
@@ -73,7 +68,7 @@ def hashes [dir: path, files: list<string>]: nothing -> list<string> {
 def config-pending []: nothing -> list<record> {
     if not ($SYSTEM_REPO | path exists) { return [] }
     let head = ^git -C $REPO rev-parse HEAD | str trim
-    let source = try { open --raw ($SYSTEM_REPO | path join .source) | str trim } catch { "" }
+    let source = file-trim ($SYSTEM_REPO | path join .source)
     let ours = system-files $REPO "--cached" | append (system-files $REPO "--others") | uniq
     let private = $ours | where ($it | str starts-with $SECRETS_PREFIX)
     let skip = $"./($SECRETS_PREFIX | str trim --right --char '/')"
@@ -83,7 +78,7 @@ def config-pending []: nothing -> list<record> {
     let a = $both.a
     let b = $both.b
     let changed = ($a | where $it not-in $b) ++ ($b | where $it not-in $a) | each { str substring 66.. } | uniq | length
-    let digest = try { open --raw ($SYSTEM_REPO | path join $SECRETS_DIGEST) | str trim } catch { "" }
+    let digest = file-trim ($SYSTEM_REPO | path join $SECRETS_DIGEST)
     let differing = [
         (if $changed > 0 { $"($changed) files" })
         (if (secrets-digest $REPO $private) != $digest { $SECRETS_PREFIX })
@@ -133,7 +128,7 @@ def modules-pending []: nothing -> list<record> {
 }
 
 def apparmor []: nothing -> list<record> {
-    if (try { open --raw /sys/module/apparmor/parameters/enabled | str trim } catch { "" }) != "Y" {
+    if (file-trim /sys/module/apparmor/parameters/enabled) != "Y" {
         return [(report FAIL apparmor "apparmor is not enabled in the kernel")]
     }
     let rows = {|file|
@@ -143,7 +138,7 @@ def apparmor []: nothing -> list<record> {
     let backed = if ($APPARMOR_MANUAL | path exists) { do $rows $APPARMOR_MANUAL } else { [] }
         | where {|r| not ($r.mode | str starts-with enforce) and $r.name in $enforced }
         | each { $"($in.name):($in.mode)" }
-    let live = glob /proc/[0-9]*/attr/apparmor/current | each {|f| try { open --raw $f | str trim } catch { "" } }
+    let live = glob /proc/[0-9]*/attr/apparmor/current | each {|f| file-trim $f }
         | where ($it | str ends-with " (complain)") | each { str replace " (complain)" "" } | uniq | sort
         | where $it in $enforced | each { $"($in):complain \(running\)" }
     let disabled = if ("/etc/apparmor.d/disable" | path exists) {
@@ -153,7 +148,7 @@ def apparmor []: nothing -> list<record> {
             | each { $"($in):disabled" }
     } else { [] }
     if ($backed ++ $live ++ $disabled | is-not-empty) {
-        [(report FAIL apparmor $"backed off from enforce: (shown ($backed ++ $live ++ $disabled)); aa enforce <profile>")]
+        [(report FAIL apparmor $"backed off from enforce: (names-shown ($backed ++ $live ++ $disabled) $SHOWN_MAX); aa enforce <profile>")]
     } else {
         [(report ok apparmor "every profiles.conf profile is in its baseline mode")]
     }
@@ -185,7 +180,7 @@ def packages []: nothing -> list<record> {
     let groups = if ($unmet | is-empty) { [] } else { ^pacman -Qg ...$unmet | complete | get stdout | lines | each { split row " " | first } | uniq }
     let missing = $unmet | where $it not-in $groups
     if ($missing | is-empty) { return [(report ok packages "every declared package installed")] }
-    [(report FAIL packages $"dot apply --packages pending, declared but not installed: (shown $missing)")]
+    [(report FAIL packages $"dot apply --packages pending, declared but not installed: (names-shown $missing $SHOWN_MAX)")]
 }
 
 def succeeds [argv: list<string>]: nothing -> bool { (do { ^$argv.0 ...($argv | skip 1) } | complete).exit_code == 0 }
@@ -209,7 +204,7 @@ def units []: nothing -> list<record> {
             | each { split row " " | first }
         let journal = if $scope == "user" { "journalctl --user -xeu <unit>" } else { "journalctl -xeu <unit>" }
         if ($failed | is-not-empty) {
-            report FAIL units $"failed ($scope) units: (shown $failed); ($journal)"
+            report FAIL units $"failed ($scope) units: (names-shown $failed $SHOWN_MAX); ($journal)"
         } else {
             report ok units $"no failed ($scope) unit"
         }
@@ -220,7 +215,7 @@ def units []: nothing -> list<record> {
 # hook that failed headless during the install stays reported until a run succeeds.
 def hooks []: nothing -> list<record> {
     let dir = xdg config systemd user
-    let names = glob ($dir | path join "*.path") | where { open --raw $in | str contains "Description=watch for the " }
+    let names = glob ($dir | path join "*.path") | where { open --raw $in | str contains $"Description=($HOOK_WATCH_PREFIX) " }
         | each { path parse | get stem }
     if ($names | is-empty) { return [] }
     let units = $names | each { [-u $"($in).service"] } | flatten
@@ -229,7 +224,7 @@ def hooks []: nothing -> list<record> {
         | group-by USER_UNIT | items {|unit, runs| {unit: $unit, ok: ($runs | last | get MESSAGE | str starts-with "Finished")} }
         | where not ok | get unit
     if ($failed | is-empty) { return [(report ok hooks "every user hook's last run succeeded")] }
-    [(report FAIL hooks $"last run failed: (shown $failed); journalctl --user -u <unit>, then systemctl --user start <unit>")]
+    [(report FAIL hooks $"last run failed: (names-shown $failed $SHOWN_MAX); journalctl --user -u <unit>, then systemctl --user start <unit>")]
 }
 
 def luks []: nothing -> list<record> {

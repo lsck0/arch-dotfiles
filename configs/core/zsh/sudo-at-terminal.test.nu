@@ -1,14 +1,29 @@
 #!/usr/bin/env -S nu --no-config-file
 # zshrc's and config.nu's sudo-at-terminal refuse an agent and a caller without a terminal, and let a person through. A
-# fake sudo stands in for the real one; each script refuses to run unless the guard would reach the fake.
+# fake sudo stands in for the real one; each script refuses to run unless the guard would reach the fake. Both shells
+# name the same agent markers as cli.nu.
 
-const HERE = path self | path dirname
+const HERE = path self .
 const ZSHRC = $HERE | path join zshrc
 const CONFIG_NU = $HERE | path join .. nushell config.nu
+const CLI_NU = $HERE | path join .. .. .. scripts lib cli.nu
 const RAN = "fake sudo ran"
 const REFUSED = "needs root"
-const AGENT_MARKERS = [CLAUDECODE AI_AGENT GEMINI_CLI COPILOT_CLI_BINARY_VERSION]
+const MARKERS_NU = "const AGENT_MARKERS"
+const MARKERS_ZSH = "agent-session()"
 const WRONG_SUDO_EXIT = 99
+
+def line-starting [file: path, head: string]: nothing -> string {
+    open --raw $file | lines | where ($it | str starts-with $head) | first
+}
+
+def markers-nu [file: path]: nothing -> list<string> {
+    line-starting $file $MARKERS_NU | parse --regex '\[(?<names>[^\]]*)\]' | get 0.names | split row " "
+}
+
+def markers-zsh []: nothing -> list<string> {
+    line-starting $ZSHRC $MARKERS_ZSH | parse --regex '\$\{(?<name>\w+)-\}' | get name
+}
 
 # The lines from the one starting with head through the next closing brace.
 def block [lines: list<string>, head: string]: nothing -> list<string> {
@@ -19,14 +34,15 @@ def block [lines: list<string>, head: string]: nothing -> list<string> {
 
 def zsh-script [fake: path]: nothing -> string {
     let guard = block (open --raw $ZSHRC | lines) "sudo-at-terminal()"
-    [...$guard $"hash sudo=($fake)" $"[[ ${commands[sudo]} == ($fake) ]] || exit ($WRONG_SUDO_EXIT)"] | str join "\n"
+    [(line-starting $ZSHRC $MARKERS_ZSH) ...$guard $"hash sudo=($fake)" $"[[ ${commands[sudo]} == ($fake) ]] || exit ($WRONG_SUDO_EXIT)"] | str join "\n"
 }
 
 def nu-script [fake: path]: nothing -> string {
     let lines = open --raw $CONFIG_NU | lines
-    let markers = $lines | where ($it | str starts-with "const AGENT_MARKERS") | first
+    let markers = line-starting $CONFIG_NU $MARKERS_NU
+    let session = line-starting $CONFIG_NU "let agent_session"
     let guard = block $lines "def --wrapped sudo-at-terminal"
-    [$markers ...$guard $"if \(which sudo | get 0.path\) != '($fake)' { exit ($WRONG_SUDO_EXIT) }"] | str join "\n"
+    [$markers $session ...$guard $"if \(which sudo | get 0.path\) != '($fake)' { exit ($WRONG_SUDO_EXIT) }"] | str join "\n"
 }
 
 # An alias resolves its command where it is declared, so one ahead of the def runs a missing external.
@@ -38,10 +54,16 @@ def alias-order-check []: nothing -> list<string> {
     }
 }
 
-def guard-run [dir: path, shell: record, markers: list<string>, --tty]: nothing -> record {
+def marker-parity-check [markers: list<string>]: nothing -> list<string> {
+    [[name names]; [zshrc (markers-zsh)] [config.nu (markers-nu $CONFIG_NU)]]
+    | where $it.names != $markers
+    | each {|s| $"($s.name) names agent markers ($s.names | str join ' '), cli.nu ($markers | str join ' ')" }
+}
+
+def guard-run [dir: path, shell: record, markers: list<string>, all: list<string>, --tty]: nothing -> record {
     let script = $dir | path join $"guard.($shell.name)"
     $"(do $shell.script ($dir | path join sudo))\nsudo-at-terminal true\n" | save --force $script
-    let unset = $AGENT_MARKERS | each {|m| [-u $m] } | flatten
+    let unset = $all | each {|m| [-u $m] } | flatten
     let set = $markers | each {|m| $"($m)=1" }
     let argv = [env ...$unset ...$set $"PATH=($dir):/usr/bin" ...$shell.argv $script]
     if $tty {
@@ -52,6 +74,7 @@ def guard-run [dir: path, shell: record, markers: list<string>, --tty]: nothing 
 }
 
 def main [] {
+    let all = markers-nu $CLI_NU
     let dir = mktemp -d
     "#!/bin/sh\necho 'fake sudo ran'\n" | save ($dir | path join sudo)
     ^chmod +x ($dir | path join sudo)
@@ -68,7 +91,7 @@ def main [] {
     ]
     let failures = $shells | each {|shell|
         $cases | each {|c|
-            let r = guard-run $dir $shell $c.markers --tty=$c.tty
+            let r = guard-run $dir $shell $c.markers $all --tty=$c.tty
             let out = $r.stdout + $r.stderr
             let name = $"($shell.name), ($c.name)"
             if $r.exit_code == $WRONG_SUDO_EXIT {
@@ -79,7 +102,7 @@ def main [] {
                 $"($name): no refusal message: ($out | str trim)"
             }
         }
-    } | flatten | compact | append (alias-order-check)
+    } | flatten | compact | append (alias-order-check) | append (marker-parity-check $all)
     rm -rf $dir
     if ($failures | is-not-empty) {
         print --stderr ($failures | str join "\n")

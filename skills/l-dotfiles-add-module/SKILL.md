@@ -55,7 +55,7 @@ export def link [cfg: record] {
 
 # root, from the root-owned copy; never a user fact
 export def system [cfg: record] {
-    file-copy smartd.conf /etc/smartd.conf --then [systemctl try-restart smartd.service]
+    file-copy smartd.conf /etc/smartd.conf --then (unit-restart smartd.service --if-running)
 }
 
 export def theme [cfg: record, wallpaper: string] {
@@ -84,9 +84,9 @@ export def packages [cfg: record]: nothing -> record {
   floats outside pacman, run by `dot sync`). Any other export is a `step` target or a name another module imports;
   everything else is a plain `def` (lint checks). A helper a unit, toggle or keybind runs is a script in the module
   dir, installed with `link-commands` or `files-into`. A linked one finds the repo with `const REPO = path self |
-  path expand | path dirname --num-levels <depth>` (expanded first, or `path self` resolves against the `~/.local/bin`
-  link); a file that only runs from the repo (tests, `scripts/lib`) writes `path self` with one `..` per level,
-  `path self ../..` in `scripts/lib`.
+  path expand | path dirname --num-levels <depth>` (expanded first: `path self` and a relative `use` resolve against
+  the `~/.local/bin` link; lint: `LINKED_RELATIVE` in `scripts/lib/gate.nu`); every other file writes `path self`
+  with a relative path, one `..` per level (`path self ../../..` in a module dir, `path self .` for its own dir).
 - Each verb takes the resolved options (`enable` always present) and returns declarations, nested to any depth (null
   and `[]` add nothing). An optional one in the returned list is `(if <cond> { decl })`, never `else { [] }` or a
   trailing `| compact`; a value other code consumes (`++`, `append`, a spread) still needs its `else`.
@@ -104,8 +104,12 @@ export def packages [cfg: record]: nothing -> record {
     (Claude, Gemini, Copilot and Hermes, each in its format; null drops one), `mcp-uvx` (a pinned uvx server and its
     prefetch), `shell-aliases <name>` (the module's `aliases.nu`/`aliases.zsh` into nushell's autoload dir and zsh's
     conf.d; a tool's aliases and defs live with the module declaring the tool, never in core/nushell or core/zsh).
+  - rules: `udev-rules <src> [trigger args...] [--then]` (into `/etc/udev/rules.d`, reloaded and triggered by
+    `udev-reload [trigger args...] [--and <cmd>]`, also the `--then` of any other file udev reads), `polkit-rules
+    <src> [--name] [--values {KEY: v}]` (into `/etc/polkit-1/rules.d`, rendered when given values).
   - units: `unit-file <src> [--enable --now]`, `unit-enable|unit-disable|unit-mask <name> [--now]`,
-    `unit-restart <name> [--reload]` (a `--then` that skips a unit not installed yet), `dropin <unit> <src> [--name]`,
+    `unit-restart <name> [--reload] [--if-running]` (the one `--then` for a unit: skips a unit not installed yet;
+    `--if-running` leaves a stopped one stopped), `dropin <unit> <src> [--name]`,
     `user-hook <name> <script> --watch [paths] [--permanent] [--no-brake] [--mkdir]`.
   - actions: `exec <name> [argv]`, `step <command> [args]` (an own export, run at apply time). Either is recorded
     with any of `--creates <path>`, `--key <string>` (it runs again when the key differs from the one it last ran
@@ -133,9 +137,9 @@ export def packages [cfg: record]: nothing -> record {
   `recorded-hashes` (what dot last wrote per path) and the root's `SYSTEM_STATE`/`SYSTEM_REPO`. A module reading
   another's options names it in `meta.reads` (no ordering) or `meta.deps` (runs after it, theme pass included).
 - Helpers: `xdg config|data|cache|state|runtime ...parts`, `unit-dir`, `process-running <name>` (gate a reload in
-  `theme`), `package-version <pkg>` (upstream version without epoch and pkgrel, null when not installed),
-  `desktop-set {Key: v}` (in a `desktop-override` closure; sets or adds the key in `[Desktop Entry]`). The user layer
-  already has `configs/base/xdg/app-dirs.conf` loaded; don't copy those variables into a module.
+  `theme`), `group-exists <name>`, `package-version <pkg>` (upstream version without epoch and pkgrel, null when not
+  installed), `desktop-set {Key: v}` (in a `desktop-override` closure; sets or adds the key in `[Desktop Entry]`). The
+  user layer already has `configs/base/xdg/app-dirs.conf` loaded; don't copy those variables into a module.
 - Option keys: `type`, `default`, `doc` required; `label`, `group`, `choices`, `min`/`max`/`step`, `apply` (default
   relink), `scope` (default machine), `toggle` (set through `scripts/toggles/toggle-<name>.nu`: `on`/`off` for a
   bool, else `set <value>`; its `get` is what the settings window shows).

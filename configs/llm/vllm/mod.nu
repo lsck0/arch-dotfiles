@@ -110,7 +110,7 @@ export def model-fetch [model: string, revision: string]: nothing -> nothing {
 # Everything the venv is built from; a venv whose stamp matches is left alone.
 def venv-stamp []: nothing -> string {
     [$VERSION $OMNI_VERSION $WHEELS_URL $EXCLUDE_NEWER $PYTHON_VERSION (open --raw $STUB_SOURCE | hash sha256)
-        (open --raw $UV_EXCLUDES | hash sha256)] | str join "\n" | $"($in)\n"
+        (open --raw $UV_EXCLUDES | hash sha256)] | to text
 }
 
 export def venv []: nothing -> nothing {

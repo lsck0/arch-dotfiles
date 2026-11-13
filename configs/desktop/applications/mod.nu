@@ -35,11 +35,11 @@ export def filezilla-seed [file: path]: nothing -> nothing {
         $'    <Setting name="Greeting version">($version)</Setting>'
         '  </Settings>'
         '</FileZilla3>'
-    ] | str join "\n" | $"($in)\n" | save $file
+    ] | to text | save $file
 }
 
 def line-drop [pattern: string]: string -> string {
-    lines | where $it !~ $pattern | str join "\n" | $"($in)\n"
+    lines | where $it !~ $pattern | to text
 }
 
 # An apps.nuon row as a launcher entry with each @key@ replaced by its value; a ConsoleOnly app runs in a terminal.
@@ -54,7 +54,7 @@ def app-entry [app: record, values: record]: nothing -> string {
         $"Icon=($app.icon)"
         $"Terminal=("ConsoleOnly" in $app.categories)"
         $"Categories=($app.categories | str join ';');"
-    ] | str join "\n" | $"($in)\n"
+    ] | to text
     $values | transpose key value | reduce --fold $text {|pair, acc| $acc | str replace --all $"@($pair.key)@" ($pair.value | into string) }
 }
 

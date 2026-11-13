@@ -41,13 +41,12 @@ def edition []: nothing -> any { $EDITIONS | where {|e| which $e.bin | is-not-em
 export def link [cfg: record] {
     let edition = edition
     if $edition == null { return [] }
-    let bin = $edition.bin
     let user_dir = xdg config $edition.config User
     let installed = glob ($nu.home-dir | path join $edition.extensions extensions "vscodevim.vim-*") | is-not-empty
     [
         (files-into $user_dir keybindings.json)
         (settings $user_dir)
-        (exec vim-mode [$bin --install-extension vscodevim.vim] --done=$installed --undo [$bin --uninstall-extension vscodevim.vim] --network)
+        (exec vim-mode [$edition.bin --install-extension vscodevim.vim] --done=$installed --undo [$edition.bin --uninstall-extension vscodevim.vim] --network)
     ]
 }
 

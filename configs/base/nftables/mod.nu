@@ -37,20 +37,21 @@ export def system [cfg: record] {
     }
     # without networkmanager no link is ever trusted: fail closed
     let policy = $cfg.deps?."base/networkmanager"?.untrusted_policy? | default lockdown-tor
-    # only on a changed ruleset, it empties the knock and portal sets; never a start, fw-egress off a trusted network cuts this run
-    let reload = {|unit| [systemctl try-reload-or-restart $unit] }
     let inbound = {
         SSH_KNOCK_WINDOW: $cfg.ssh_knock_window, SSH_PORT: $ssh.port
         KNOCK_1: $knock.0, KNOCK_2: $knock.1, KNOCK_3: $knock.2
     }
+    # only on a changed ruleset, it empties the knock and portal sets; never a start, fw-egress off a trusted network cuts this run
     [
         # units first, so a fresh install's ruleset reload finds them
-        ($UNITS | each {|u| unit-file $u --then (do $reload $u) })
-        (file-render fw-inbound.nft $"($DIR)/fw-inbound.nft" $inbound --then (do $reload fw-inbound.service))
+        ($UNITS | each {|u| unit-file $u --then (unit-restart $u --reload --if-running) })
+        (file-render fw-inbound.nft $"($DIR)/fw-inbound.nft" $inbound
+            --then (unit-restart fw-inbound.service --reload --if-running))
         # the inbound lockdown holds from the first run, unless a trusted link already loaded fw-inbound
         (file-copy fw-lockdown.nft $"($DIR)/fw-lockdown.nft" --then [sh -c $LOCKDOWN_START])
         # the escape uids are filled in by the unit at start, so it never waits on tor being installed
-        (file-copy fw-egress.nft $"($DIR)/fw-egress.nft" --then (do $reload fw-egress.service))
+        (file-copy fw-egress.nft $"($DIR)/fw-egress.nft"
+            --then (unit-restart fw-egress.service --reload --if-running))
         (file-copy fw-egress-uids.hook $HOOK)
         (unit-disable fw-inbound.service)
         (unit-enable fw-lockdown.service)

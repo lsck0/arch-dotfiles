@@ -3,7 +3,7 @@ Description=RAPL package power as whole watts in /run/powercap/watts
 ConditionPathExists=/sys/class/powercap/intel-rapl:0/energy_uj
 
 [Service]
-ExecStart=/usr/local/bin/powercap-watts 10
+ExecStart=/usr/local/bin/powercap-watts
 Restart=on-failure
 RuntimeDirectory=powercap
 RuntimeDirectoryMode=0755

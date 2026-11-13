@@ -6,6 +6,8 @@
 # known, so home also wants the address it answers on and the dhcp server its lease names. A mac alone is only
 # trusted, and not even that once a full line names the same mac.
 
+use lib/dispatch.nu [file-lines link-physical ok out route-gateway]
+
 const GATEWAYS = "/etc/NetworkManager/home-gateways"
 const TRUSTED_GATEWAYS = "/etc/NetworkManager/trusted-gateways"
 const HOME_NETWORK = "/run/home-network"
@@ -19,22 +21,9 @@ export const TIER_NONE = "untrusted"
 # /sys/class/net/<link>/addr_assign_type of a mac the device itself carries
 const ASSIGN_PERMANENT = "0"
 
-# a missing binary reads as a failed command, not a crash of the dispatcher
-def --wrapped out [...argv: string]: nothing -> string {
-    try { do { run-external ...$argv } | complete | get stdout } catch { "" }
-}
-
-def physical [link: string]: nothing -> bool {
-    $"/sys/class/net/($link)/device" | path exists
-}
-
-def file-read [file: path]: nothing -> string {
-    if ($file | path exists) { open --raw $file } else { "" }
-}
-
 # home-gateways' lines; a malformed one is skipped, a mac alone has no gateway and no dhcp_server.
-export def gateways-parse [text: string]: nothing -> table<mac: string, gateway: any, dhcp_server: any> {
-    $text | lines | str trim | where $it != "" and not ($it | str starts-with "#") | each {|l|
+export def gateways-parse [lines: list<string>]: nothing -> table<mac: string, gateway: any, dhcp_server: any> {
+    $lines | str trim | where $it != "" and not ($it | str starts-with "#") | each {|l|
         let f = $l | str lowercase | split row --regex '\s+'
         match ($f | length) {
             1 => {mac: $f.0, gateway: null, dhcp_server: null}
@@ -42,11 +31,6 @@ export def gateways-parse [text: string]: nothing -> table<mac: string, gateway:
             _ => null
         }
     } | compact
-}
-
-# `ip -4 route show default dev <link>`'s gateway.
-export def route-gateway [route: string]: nothing -> any {
-    $route | lines | get --optional 0 | default "" | parse --regex '^default via (?<gw>\S+)' | get --optional 0.gw
 }
 
 # `nmcli -t -f DHCP4.OPTION device show <link>`'s server identifier, null without a lease.
@@ -108,12 +92,12 @@ def link-observe [link: string]: nothing -> any {
 
 def main [iface: string = "", action: string = ""]: nothing -> nothing {
     if $action not-in [up down] { return }
-    if not (physical $iface) and $iface not-in (file-read $TRUSTED_NETWORK | lines) { return }
-    let home_gateways = gateways-parse (file-read $GATEWAYS)
-    let trusted_gateways = file-read $TRUSTED_GATEWAYS | lines | where $it != "" | str lowercase
+    if not (link-physical $iface) and $iface not-in (file-lines $TRUSTED_NETWORK) { return }
+    let home_gateways = gateways-parse (file-lines $GATEWAYS)
+    let trusted_gateways = file-lines $TRUSTED_GATEWAYS | where $it != "" | str lowercase
     let tiers = if ($home_gateways | is-empty) and ($trusted_gateways | is-empty) { [] } else {
         glob /sys/class/net/* | path basename
-        | where {|link| (physical $link) and not ($action == down and $link == $iface) }
+        | where {|link| (link-physical $link) and not ($action == down and $link == $iface) }
         | each {|link| {link: $link, tier: (link-tier $home_gateways $trusted_gateways (link-observe $link))} }
     }
     let trusted = $tiers | where tier != $TIER_NONE | get link
@@ -126,5 +110,5 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
         let add = if ($trusted | is-empty) { "" } else { $"add element inet ($table) trusted_links { ($trusted | str join ',') }\n" }
         $"flush set inet ($table) trusted_links\n($add)" | do { ^nft -f - } | complete | ignore
     }
-    if ($TOR_ROUTER | path exists) { do { ^$TOR_ROUTER home } | complete | ignore }
+    ok $TOR_ROUTER home | ignore
 }
