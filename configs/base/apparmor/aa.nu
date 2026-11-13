@@ -30,7 +30,7 @@ def mode-set [profile: string, mode: string]: nothing -> nothing {
         | get rest | str join
     } else { "" }
     open --raw $MANUAL_FLAGS | lines | where ($it | split row --regex '\s+' | first) != $profile
-    | append $"($profile) ($mode)($extra)" | to text | sudo-save $MANUAL_FLAGS
+    | append $"($profile) ($mode)($extra)" | collect | to text | sudo-save $MANUAL_FLAGS
     let file = $ETC | path join $"($profile)($OWN_SUFFIX)"
     if ($file | path exists) and (open --raw $file | lines | any { $in == $MARKER }) {
         open --raw $file | text-mode $mode | sudo-save $file

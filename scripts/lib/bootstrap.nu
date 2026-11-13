@@ -494,11 +494,13 @@ def target-system [c: record, root_uuid: string]: nothing -> nothing {
     for preset in (glob (do $t /etc/mkinitcpio.d/*.preset)) {
         let pkgbase = $preset | path parse | get stem
         open --raw $preset | lines | where not ($it =~ '^#?default_(image|uki|cmdline)=') | each { str replace --regex '^PRESETS=.*' "PRESETS=('default')" }
-        | append [$"default_uki=\"/boot/EFI/Linux/arch-($pkgbase).efi\"" 'default_cmdline="/etc/kernel/cmdline"'] | to text | save --force $preset
+        | append [$"default_uki=\"/boot/EFI/Linux/arch-($pkgbase).efi\"" 'default_cmdline="/etc/kernel/cmdline"'] | collect | to text | save --force $preset
         rm --force (do $t $"/boot/initramfs-($pkgbase).img") (do $t $"/boot/initramfs-($pkgbase)-fallback.img")
     }
     mkdir (do $t /boot/EFI/Linux)
     in-target $MOUNT mkinitcpio -P
+    # mkinitcpio exits 0 on a preset it cannot read, and systemd-boot then offers nothing to boot
+    if (glob (do $t /boot/EFI/Linux/*.efi) | is-empty) { die "mkinitcpio built no UKI in /boot/EFI/Linux" }
     in-target $MOUNT systemctl enable NetworkManager.service NetworkManager-wait-online.service systemd-timesyncd.service
     in-target $MOUNT bootctl install --esp-path=/boot --variables=yes
     ^install -Dm644 ($c.repo | path join configs base zram zram-generator.conf) (do $t /etc/systemd/zram-generator.conf)

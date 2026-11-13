@@ -72,7 +72,7 @@ export def hooks-write [hooks: list<string>]: nothing -> nothing {
     backup-once $MKINITCPIO
     open --raw $MKINITCPIO | lines
     | each {|l| if ($l =~ '^HOOKS=\(') { $"HOOKS=\(($hooks | str join ' ')\)" } else { $l } }
-    | to text | save --force $MKINITCPIO
+    | collect | to text | save --force $MKINITCPIO
 }
 
 # hook placed right before anchor, or right after it with --after.
