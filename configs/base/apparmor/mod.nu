@@ -20,7 +20,6 @@ export const OVERRIDES = {
     browserpass: "/usr/bin/browserpass"
     firefox: "/usr/{bin/firefox,lib/firefox/firefox}"
     libreoffice: "/usr/lib/libreoffice/program/soffice"
-    "plasma-browser-integration-host": "/usr/bin/plasma-browser-integration-host"
     thunderbird: "/usr/{bin/thunderbird,lib/thunderbird/thunderbird}"
 }
 

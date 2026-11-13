@@ -10,8 +10,8 @@ Built on apparmor.d (`aa-install`). In `configs/base/apparmor/`:
 - `profiles.conf`: every deployed profile, `<name> <mode>[,flags]`. `,flags` only for apparmor.d's; an own profile keeps
   flags in its `profile` line and `mod.nu` writes the mode into it.
 - `profiles/<name>`: own profiles. First line `# managed by arch-dotfiles/apparmor`, then `profile <name> <attachment>
-  flags=(...)`. apparmor.d profiles with a brace attachment (firefox, thunderbird, libreoffice, browserpass,
-  plasma-browser-integration-host) become own profiles too: `OVERRIDES` in `mod.nu` generates them from the installed
+  flags=(...)`. apparmor.d profiles with a brace attachment (firefox, thunderbird, libreoffice, browserpass)
+  become own profiles too: `OVERRIDES` in `mod.nu` generates them from the installed
   apparmor.d profile, swapping only the attachment in its `profile` line, and errors (apply and test) once apparmor.d
   no longer ships one. A `profile transition not found` denial into an apparmor.d program is this case.
 - `local/<name>`: extra rules for an apparmor.d profile (`/etc/apparmor.d/local/<name>`); the name must be in

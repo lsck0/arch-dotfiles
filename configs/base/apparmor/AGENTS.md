@@ -4,7 +4,7 @@ Writing or adjusting profiles, reading denials: `l-dotfiles-apparmor-profile`.
 
 - `profiles.conf`: the mode table for every profile, apparmor.d's and our own.
 - `profiles/`: own profiles (installed as `<name>.dotfiles`), for apps apparmor.d lacks. `OVERRIDES` in `mod.nu`
-  installs apparmor.d's `firefox`, `thunderbird`, `libreoffice`, `browserpass`, `plasma-browser-integration-host` the
+  installs apparmor.d's `firefox`, `thunderbird`, `libreoffice`, `browserpass` the
   same way, generated from the installed profile with a `/usr/...` attachment in place of the nested optional-usr
   `/{{,usr/}...}` one (apparmor 4.1.8 can't attach that form).
 - `local/`: drop-ins on apparmor.d profiles and the `child-open*` openers; `abstractions/`: shared fragments.

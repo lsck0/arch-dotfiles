@@ -1,9 +1,11 @@
 # Maintainer: Luca Sandrock <luca.sandrock@proton.me>
-# Reason for custom package: aur version stuck at 0.17.1; the afl crate wants a matching cargo-afl
+# Reason for custom package: aur version stuck at 0.17.1; the afl crate wants a matching cargo-afl. `cargo afl config
+# --build` copies the AFLplusplus sources from cargo-afl-common's compile-time crate dir, so they ship in
+# /usr/share/cargo-afl and the binary points there instead of the build host's cargo registry.
 
 pkgname=cargo-afl
 pkgver=0.18.2
-pkgrel=1
+pkgrel=2
 pkgdesc="Fuzzing Rust code with AFLplusplus"
 arch=(x86_64)
 url="https://github.com/rust-fuzz/afl.rs"
@@ -14,16 +16,39 @@ options=(!debug !lto)
 source=("$pkgname-$pkgver.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate")
 sha256sums=(fd3af80f712419acbfa91a599dfeb7930ac43feac7d3be3da993ab3304030a15)
 
+_afl_share=/usr/share/cargo-afl
+
+_common_dir() {
+    local dirs=("$CARGO_HOME"/registry/src/*/cargo-afl-common-*)
+    [[ ${#dirs[@]} -eq 1 && -d ${dirs[0]}/AFLplusplus ]] || {
+        echo "cargo-afl-common: want one crate dir, got ${dirs[*]}" >&2
+        return 1
+    }
+    echo "${dirs[0]}"
+}
+
 prepare() {
     cd "$pkgname-$pkgver"
+    export CARGO_HOME="$srcdir/cargo"
     cargo fetch --locked --target "$(rustc --print host-tuple)"
+    local config
+    config="$(_common_dir)/src/config.rs"
+    sed -i "s|Path::new(env!(\"CARGO_MANIFEST_DIR\"))|Path::new(\"$_afl_share\")|" "$config"
+    grep -q "Path::new(\"$_afl_share\")" "$config" || {
+        echo "config.rs: AFLplusplus path not patched" >&2
+        return 1
+    }
 }
 
 build() {
     cd "$pkgname-$pkgver"
+    export CARGO_HOME="$srcdir/cargo"
     cargo build --frozen --release
 }
 
 package() {
+    export CARGO_HOME="$srcdir/cargo"
     install -Dm755 "$pkgname-$pkgver/target/release/$pkgname" "$pkgdir/usr/bin/$pkgname"
+    install -d "$pkgdir$_afl_share"
+    cp -r --no-preserve=ownership "$(_common_dir)/AFLplusplus" "$pkgdir$_afl_share/"
 }

@@ -23,8 +23,16 @@ export const options = {
 const SECRET = "configs/secrets/keys/sccache.env"
 const REDIS_PORT = "6379"
 const REDIS_TLS_PORT = "6380"
+# the pkgbuild ships cargo-afl's AFL++ sources here; the old package without them cannot build a runtime
+const AFL_SOURCES = "/usr/share/cargo-afl/AFLplusplus"
+const AFL_RUNTIME = "afl-compiler-rt.o"
+const SHORT_HASH_LEN = 7
 
 export def link [cfg: record] {
+    [(cargo-config $cfg) (afl-runtimes)]
+}
+
+def cargo-config [cfg: record] {
     let cargo = $nu.home-dir | path join .cargo
     let secret = $env.DOTFILES | path join $SECRET
     let shared = $cfg.sccache_redis and (profile-has secrets) and (secret-is-plaintext $secret)
@@ -41,4 +49,18 @@ export def link [cfg: record] {
         (file-render rustc-wrapper.sh $wrapper {HOST: $url.host, PORT: $port} --mode 755)
         (file-text ($cargo | path join config.toml) $"(open --raw config.toml)\n[build]\nrustc-wrapper = \"($wrapper)\"\n")
     ]
+}
+
+# cargo afl's runtime is built per rustc version, under afl.rs/rustc-<release>-<short hash>/afl.rs-<version>: one
+# build for every installed rustup toolchain, so a rust-toolchain.toml bump only needs an apply.
+def afl-runtimes []: nothing -> list<record> {
+    if not ($AFL_SOURCES | path exists) or (which rustup | is-empty) { return [] }
+    let version = ^cargo afl --version | str trim | split row " " | last
+    ^rustup toolchain list | lines | each { split row " " | first } | where $it != "" | each {|toolchain|
+        let meta = ^rustc $"+($toolchain)" -vV | lines | parse "{key}: {value}" | transpose --header-row --as-record
+        let hash = $meta."commit-hash"? | default "" | str substring 0..<($SHORT_HASH_LEN)
+        let rustc = [$"rustc-($meta.release)" $hash] | where $it != "" | str join "-"
+        let runtime = xdg data afl.rs $rustc $"afl.rs-($version)" afl-llvm $AFL_RUNTIME
+        exec $"afl-runtime ($toolchain)" [cargo $"+($toolchain)" afl config --build] --creates $runtime --timeout 30min
+    }
 }
