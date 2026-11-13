@@ -14,6 +14,12 @@ export const EMBEDDING = {model: "qwen3-embedding:8b", pin: "64b933495768fbd3b87
 export const CODING = {model: "qwen3-coder:30b", pin: "06c1097efce0431c2045fe7b2e5108366e43bee1b4603a7aded8f21689e90bca"}
 export const LONG_CONTEXT = "qwen3-abliterated-64k"
 export const LONG_CONTEXT_TOKENS = 65536
+# a small context for many short parallel requests: ollama gives every parallel slot the full num_ctx, and the openai
+# endpoint ignores a per-request num_ctx
+export const SHORT_CONTEXT = "qwen3-abliterated-8k"
+const SHORT_CONTEXT_TOKENS = 8192
+# SMALL with its context fixed, under their own names; SMALL itself is removed once they exist
+const CONTEXT_VARIANTS = [[name tokens]; [$LONG_CONTEXT $LONG_CONTEXT_TOKENS] [$SHORT_CONTEXT $SHORT_CONTEXT_TOKENS]]
 const START_TRIES = 30
 
 def model-digest [model: string]: nothing -> string {
@@ -43,19 +49,17 @@ def model-pull-pinned [entry: record]: nothing -> nothing {
 
 # ollama show prints one `<name> <value>` line per parameter and the base as a `FROM <blob dir>/sha256-<hex>` line,
 # and fails for a missing model
-def long-context-is-current []: nothing -> bool {
-    let parameters = do { ^ollama show $LONG_CONTEXT --parameters } | complete
+def variant-is-current [variant: record, base: string]: nothing -> bool {
+    let parameters = do { ^ollama show $variant.name --parameters } | complete
     if $parameters.exit_code != 0 { return false }
-    let expected = [num_ctx ($LONG_CONTEXT_TOKENS | into string)]
-    let layer = manifest-get-pinned $SMALL | get layers | where mediaType == $MODEL_LAYER_TYPE | get 0.digest
-    let base = $"/(($layer | str replace ':' '-'))"
-    let from_base = ^ollama show $LONG_CONTEXT --modelfile | lines | any { $in starts-with "FROM " and $in ends-with $base }
+    let expected = [num_ctx ($variant.tokens | into string)]
+    let from_base = ^ollama show $variant.name --modelfile | lines | any { $in starts-with "FROM " and $in ends-with $base }
     $from_base and ($parameters.stdout | lines | any { ($in | str trim | split row --regex '\s+') == $expected })
 }
 
 # a model pulled by hand or left by an older pin set is gone on the next run: the pins are the whole set
 def models-prune []: nothing -> nothing {
-    let kept = [$LARGE.model $EMBEDDING.model $CODING.model $"($LONG_CONTEXT):latest"]
+    let kept = [$LARGE.model $EMBEDDING.model $CODING.model] | append ($CONTEXT_VARIANTS.name | each { $"($in):latest" })
     let stale = http get $"($OLLAMA_URL)/api/tags" | get models | get name | where $it not-in $kept
     for model in $stale {
         print $"ollama: removing unpinned ($model)"
@@ -63,13 +67,18 @@ def models-prune []: nothing -> nothing {
     }
 }
 
-def long-context-ensure []: nothing -> nothing {
-    if (long-context-is-current) { return }
+def context-variants-ensure []: nothing -> nothing {
+    let layer = manifest-get-pinned $SMALL | get layers | where mediaType == $MODEL_LAYER_TYPE | get 0.digest
+    let base = $"/(($layer | str replace ':' '-'))"
+    let missing = $CONTEXT_VARIANTS | where {|v| not (variant-is-current $v $base) }
+    if ($missing | is-empty) { return }
     model-pull-pinned $SMALL
-    let modelfile = mktemp --tmpdir
-    $"FROM ($SMALL.model)\nPARAMETER num_ctx ($LONG_CONTEXT_TOKENS)\n" | save --force $modelfile
-    ^ollama create $LONG_CONTEXT -f $modelfile
-    rm $modelfile
+    for variant in $missing {
+        let modelfile = mktemp --tmpdir
+        $"FROM ($SMALL.model)\nPARAMETER num_ctx ($variant.tokens)\n" | save --force $modelfile
+        ^ollama create $variant.name -f $modelfile
+        rm $modelfile
+    }
     ^ollama rm $SMALL.model
 }
 
@@ -80,6 +89,6 @@ def main []: nothing -> nothing {
         sleep 1sec
     }
     for entry in [$LARGE $EMBEDDING $CODING] { model-pull-pinned $entry }
-    long-context-ensure
+    context-variants-ensure
     models-prune
 }

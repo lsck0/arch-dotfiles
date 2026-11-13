@@ -17,6 +17,12 @@ export const options = {
         doc: "Share of the largest gpu's vram ollama may fill; the rest stays free for the desktop, and a model that does not fit runs partly on the cpu"
         label: "VRAM share (%)"
     }
+    parallel: {
+        type: int
+        default: 4
+        doc: "Requests one loaded model answers at once; each slot holds its own context in vram"
+        label: "Parallel requests"
+    }
 }
 # the pinned models are tens of GB: pulled once per pin set, and only where a gpu runs them (not the vm test)
 const MODELS_TIMEOUT = 6hr
@@ -41,8 +47,8 @@ export def system [cfg: record] {
         (unit-file ollama-proxy.service)
         (unit-file ollama.socket --enable --now)
         ([listen.conf hardening.conf gpu.conf] | each { dropin ollama.service $in --then $RESTART })
-        (file-render perf.conf (unit-dir | path join ollama.service.d perf.conf) {GPU_OVERHEAD: (gpu-overhead $cfg)}
-            --then $RESTART)
+        (file-render perf.conf (unit-dir | path join ollama.service.d perf.conf)
+            {GPU_OVERHEAD: (gpu-overhead $cfg), PARALLEL: $cfg.parallel} --then $RESTART)
         (file-render keep-alive.conf (unit-dir | path join ollama.service.d keep-alive.conf)
             {KEEP_ALIVE_MIN: $KEEP_ALIVE_MIN} --then $RESTART)
     ]

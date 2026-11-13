@@ -243,6 +243,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `gaming/pd2.save_dir` | `string?` | detected | Season 3's single player saves (.d2s, plugy's .d2x and .sss); detected as Save beside the install |
 | `gaming/pd2.s14_save_dir` | `string?` | detected | Season 14's single player saves and shared stash; detected as ~/sync/games/d2/Save-S14 when it exists |
 | `llm/ollama.vram_percent` | `int` | `80` | Share of the largest gpu's vram ollama may fill; the rest stays free for the desktop, and a model that does not fit runs partly on the cpu |
+| `llm/ollama.parallel` | `int` | `4` | Requests one loaded model answers at once; each slot holds its own context in vram |
 | `llm/vllm.model` | `string` | `"RogerS-01/Josiefied-Qwen3-8B-abliterated-v1-AWQ"` | The hugging face repo vllm serves; an uncensored 4-bit AWQ build of Josiefied-Qwen3-8B-abliterated-v1 |
 | `llm/vllm.model_revision` | `string` | `"0244c2514cc272a603368c0440ff3002143b2336"` | The model repo's commit, weights and tokenizer alike; bump from https://huggingface.co/api/models/<model>/revision/main |
 | `llm/vllm.tool_call_parser` | `string` | `"hermes"` | vllm's tool call parser for the model's chat format (hermes for qwen3, gemma4 for gemma 4) |
