@@ -1,0 +1,30 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# Reason for custom package: not on the AUR
+
+pkgname=samloader-rs
+pkgver=2.2.0
+pkgrel=1
+pkgdesc="Download and flash firmware for Samsung devices over Download mode"
+arch=(x86_64)
+url="https://github.com/topjohnwu/samloader-rs"
+license=(Apache-2.0)
+depends=(gcc-libs glibc)
+makedepends=(cargo)
+# aws-lc-sys C objects built with gcc lto are unreadable to rust-lld
+options=(!lto)
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/$pkgver.tar.gz")
+sha256sums=(88df5f94091d26f138fe027b04edc194015eb01d6e5d08e3736574862b60203f)
+
+prepare() {
+    cd "$pkgname-$pkgver"
+    cargo fetch --locked --target "$(rustc --print host-tuple)"
+}
+
+build() {
+    cd "$pkgname-$pkgver"
+    cargo build --frozen --release --package samloader
+}
+
+package() {
+    install -Dm755 "$pkgname-$pkgver/target/release/samloader" "$pkgdir/usr/bin/samloader"
+}

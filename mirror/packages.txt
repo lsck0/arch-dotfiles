@@ -664,6 +664,7 @@ rustup
 rz-cutter
 s-tui
 sagemath
+samloader-rs
 samply
 sane
 sane-airscan

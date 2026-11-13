@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [android-ndk jdk21-openjdk]}}
+export const meta = {packages: {pacman: [android-ndk jdk21-openjdk samloader-rs]}}
 
 export const options = {
     avd: {
@@ -60,4 +60,10 @@ export def link [cfg: record] {
                 --undo [$avdmanager delete avd --name $cfg.avd])
         })
     ]
+}
+
+# Seat access to Samsung phones for samloader in Download mode and adb when booted, without root or a group.
+export def system [cfg: record] {
+    # a phone already plugged in gets no add event
+    udev-rules 71-samsung.rules --then (udev-reload --action=change --attr-match=idVendor=04e8)
 }

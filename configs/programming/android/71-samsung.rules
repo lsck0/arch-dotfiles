@@ -1,0 +1,3 @@
+# Samsung phones, in Download mode (samloader flashes them) and booted (adb, MTP): the seat user reaches them without
+# root. 71- puts the uaccess tag in place before 73-seat-late.rules
+SUBSYSTEM=="usb", ATTR{idVendor}=="04e8", TAG+="uaccess"
