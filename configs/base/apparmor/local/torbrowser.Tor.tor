@@ -1,0 +1,5 @@
+# managed by arch-dotfiles/apparmor
+# Tor Browser 15 keeps tor's geoip files, its torrc-defaults (bridges, pluggable transports) and a bundled libstdc++
+# next to the binary, where torbrowser-launcher 0.3.9's profile only maps the binary and *.so
+owner @{torbrowser_home_dir}/TorBrowser/Tor/{geoip,geoip6,torrc-defaults} r,
+owner @{torbrowser_home_dir}/TorBrowser/Tor/libstdc++/*.so* mr,

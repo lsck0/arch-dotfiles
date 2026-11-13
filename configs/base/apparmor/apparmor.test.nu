@@ -13,7 +13,7 @@ const ENFORCED = [
     blender-mcp obs-mcp child-open child-open-any child-open-browsers child-open-strict
 ]
 # profiles their own package ships and loads, not apparmor.d: a local/ drop-in extends them, their mode stays the package's
-const PACKAGE_PROFILES = [torbrowser.Browser.firefox]
+const PACKAGE_PROFILES = [torbrowser.Browser.firefox torbrowser.Tor.tor]
 # rules other modules rely on: the discord voice plugin claims its command file by renaming it to .reading
 const REQUIRED_RULES = {
     discord: ["owner @{run}/user/@{uid}/quickshell-discord-cmd{,.reading} rw,"]
