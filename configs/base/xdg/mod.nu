@@ -83,15 +83,16 @@ def home [...parts: string]: nothing -> path {
     $nu.home-dir | path join ...$parts
 }
 
-# The places panel's marks; gtk: also a gtk-3.0 sidebar bookmark.
+# The places panel's marks; gtk: also a gtk-3.0 sidebar bookmark, which for an xdg dir is only its label: gtk names
+# those by their (lowercase) directory otherwise
 def places [nas: bool, projects: bool]: nothing -> list<record> {
     let h = $"file://($nu.home-dir)"
     let rows = [
         [href title icon gtk shown];
-        [$h Home user-home false true] [$"($h)/desktop" Desktop user-desktop false true]
-        [$"($h)/documents" Documents folder-documents false true] [$"($h)/downloads" Downloads folder-downloads false true]
-        [$"($h)/music" Music folder-music false true] [$"($h)/pictures" Pictures folder-pictures false true]
-        [$"($h)/videos" Videos folder-videos false true] [$"($h)/projects" Projects folder-development true $projects]
+        [$h Home user-home false true] [$"($h)/desktop" Desktop user-desktop true true]
+        [$"($h)/documents" Documents folder-documents true true] [$"($h)/downloads" Downloads folder-downloads true true]
+        [$"($h)/music" Music folder-music true true] [$"($h)/pictures" Pictures folder-pictures true true]
+        [$"($h)/videos" Videos folder-videos true true] [$"($h)/projects" Projects folder-development true $projects]
         [$"($h)/vault" Vault folder-locked true true] [$"($h)/sync" Sync folder-sync true true]
         [$"($h)/nas" NAS folder-network true $nas] [trash:/ Trash user-trash false true]
     ]
