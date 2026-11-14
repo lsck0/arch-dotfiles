@@ -11,6 +11,11 @@ owner @{user_download_dirs}/{,**} rwl,
 owner @{user_sync_dirs}/coms/{,**} rwl,
 # "Save image" anywhere in home, as firefox; hidden top-level paths (shell rc, ~/.config autostart) and secrets stay closed
 owner @{HOME}/[^.]*{,/**} rw,
+# but nothing that runs later unconfined, as file-tool: git hooks and config, identity wrappers, the dotfiles' scripts
+deny @{user_projects_dirs}/*/.identity/{,**} w,
+deny @{user_projects_dirs}/**/.git/{hooks/{,**},config} w,
+deny @{user_projects_dirs}/**/.git/modules/**/{hooks/{,**},config} w,
+deny @{DOTFILES}/{,**} w,
 include <abstractions/dotfiles/deny-sensitive-home>
 include <abstractions/dotfiles/nssdb>
 include <abstractions/devices-u2f>

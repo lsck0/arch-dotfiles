@@ -83,13 +83,13 @@ def home [...parts: string]: nothing -> path {
     $nu.home-dir | path join ...$parts
 }
 
-# The places panel's marks; gtk: also a gtk-3.0 sidebar bookmark, which for an xdg dir is only its label: gtk names
-# those by their (lowercase) directory otherwise
+# The places panel's marks; gtk: also a gtk-3.0 sidebar bookmark, which for gtk's built-in xdg dirs is only their label:
+# it names those by their (lowercase) directory otherwise. Desktop is no built-in there, so a bookmark would double it
 def places [nas: bool, projects: bool]: nothing -> list<record> {
     let h = $"file://($nu.home-dir)"
     let rows = [
         [href title icon gtk shown];
-        [$h Home user-home false true] [$"($h)/desktop" Desktop user-desktop true true]
+        [$h Home user-home false true] [$"($h)/desktop" Desktop user-desktop false true]
         [$"($h)/documents" Documents folder-documents true true] [$"($h)/downloads" Downloads folder-downloads true true]
         [$"($h)/music" Music folder-music true true] [$"($h)/pictures" Pictures folder-pictures true true]
         [$"($h)/videos" Videos folder-videos true true] [$"($h)/projects" Projects folder-development true $projects]
