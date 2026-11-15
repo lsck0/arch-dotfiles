@@ -9,7 +9,7 @@ const KEY_DIR = path self .
 const OWNER_DIR = path self ../../secrets/yubikey
 const SECRETS = path self ../../secrets
 const SEALED_KEY = path self secrets.key.age
-const WITNESS = path self ../../secrets/keys/pgp_privatekey.asc
+const WITNESS = path self ../../secrets/keys/pgp/private.asc
 const PAM_ORIGIN = "pam://lsck0"
 const SSH_APPLICATION = "ssh:lsck0"
 const AGE_SLOT = "1"
@@ -132,7 +132,7 @@ def pgp-to-card []: nothing -> nothing {
     let home = mktemp --directory
     "disable-ccid\npcsc-shared\n" | save ($home | path join scdaemon.conf)
     try {
-        ^gpg --homedir $home --import ($SECRETS | path join keys pgp_privatekey.asc)
+        ^gpg --homedir $home --import ($SECRETS | path join keys pgp/private.asc)
         print "gpg prompt: keytocard -> 1 (signature), key 1, keytocard -> 2 (encryption), save"
         # gpg exits non-zero after a quit without save although keytocard already wrote the card
         do { ^gpg --homedir $home --edit-key (fingerprint) } | complete | ignore

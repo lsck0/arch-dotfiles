@@ -39,11 +39,13 @@
   deny @{HOME}/.nix-profile w,
   deny @{user_state_dirs}/nix/{,**} w,
   deny @{user_share_dirs}/vscode-oss/{,**} w,
-  deny @{DOTFILES}/{,**} w,
   deny @{user_projects_dirs}/*/.identity/{,**} w,
-  # git runs hooks and config's core.* commands; ** reaches nested repos and .git/modules/* of submodules
-  deny @{user_projects_dirs}/**/.git/{hooks/{,**},config} w,
-  deny @{user_projects_dirs}/**/.git/modules/**/{hooks/{,**},config} w,
+  include <abstractions/dotfiles/deny-exec-later>
+  # agent hooks, direnv's own rc and the MCP servers' installs, all started unconfined
+  deny @{user_config_dirs}/{idle-guards,direnv}/{,**} w,
+  deny @{user_share_dirs}/{web-mcp,mcp-grafana,mcp-compat,obs-mcp,pgedge-postgres-mcp,uv}/{,**} w,
+  deny @{user_cache_dirs}/uv/{,**} w,
+  deny @{HOME}/.ZAP/plugin/{,**} w,
   deny @{user_state_dirs}/pki/{,**} mrwkl,
 
   include if exists <abstractions/dotfiles/file-tool.d>

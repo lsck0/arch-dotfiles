@@ -1,3 +1,5 @@
 # managed by arch-dotfiles/apparmor
 @{sys}/fs/cgroup/user.slice/user-@{uid}.slice/user@@{uid}.service/**/{memory.max,memory.high,cpu.max} r,
 include <abstractions/dotfiles/nssdb>
+# apparmor.d allows only the download dir: attaching from or saving to anywhere else failed silently
+include <abstractions/dotfiles/save-anywhere>

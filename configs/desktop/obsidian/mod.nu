@@ -33,9 +33,11 @@ export def link [cfg: record] {
     let plugin = $vault | path join .obsidian plugins $REST_ID
     let settings = $plugin | path join data.json
     let vaults = json-read $config | get --optional vaults | default {}
-    let registered = $vaults | values | any { $in.path? == $vault }
-    let vault_id = $vault | hash sha256 | str substring 0..<$VAULT_ID_LENGTH
-    let vault_entry = {path: $vault, ts: (date now | into int | $in // 1_000_000), open: ($vaults | is-empty)}
+    # declared on every run with the value already there: a key declared only while missing is dropped, and so
+    # deleted, by the next run, which sees it present
+    let registered = $vaults | transpose id entry | where entry.path? == $vault | get --optional 0
+    let vault_id = $registered.id? | default ($vault | hash sha256 | str substring 0..<$VAULT_ID_LENGTH)
+    let vault_entry = $registered.entry? | default {path: $vault, ts: (date now | into int | $in // 1_000_000), open: ($vaults | is-empty)}
     let enabled = json-read ($vault | path join .obsidian community-plugins.json) | default [] | any { $in == $REST_ID }
     let key = json-read $settings | get --optional apiKey | default ""
     # plain http on loopback only: nothing here trusts its self-signed ca
@@ -43,15 +45,18 @@ export def link [cfg: record] {
         (json-set [bindingHost] "127.0.0.1") (json-set [enableInsecureServer] true) (json-set [insecurePort] $REST_PORT)
         (json-set [enableSecureServer] false)
     ]
-    let mint = if ($key | is-empty) { [(json-set [apiKey] (random binary $API_KEY_BYTES | encode hex --lower))] } else { [] }
-    let header = $"jq -c '{Authorization: \(\"Bearer \" + .apiKey\)}' '($settings)'"
+    let api_key = if ($key | is-empty) { random binary $API_KEY_BYTES | encode hex --lower } else { $key }
     [
-        (json-merge $config ([(json-set [cli] true)] ++ (if $registered { [] } else { [(json-set [vaults $vault_id] $vault_entry)] })))
+        (json-merge $config [(json-set [cli] true) (json-set [vaults $vault_id] $vault_entry)])
         ($REST_SHA256 | items {|file, sha256| fetch-file $"($REST_URL)/($file)" $sha256 ($plugin | path join $file) })
         (step plugin-enable $vault --done=$enabled)
-        (json-merge $settings ($mint ++ $server) --then [chmod 600 $settings])
+        (json-merge $settings ([(json-set [apiKey] $api_key)] ++ $server) --then [chmod 600 $settings])
         (link-commands obsidian-launch.nu)
         (desktop-override obsidian.desktop { str replace --all --regex '(?m)^Exec=/usr/bin/obsidian' $"Exec=($nu.home-dir)/.local/bin/obsidian-launch" })
-        (mcp-servers {obsidian-mcp: {type: http, url: $"http://127.0.0.1:($REST_PORT)/mcp/", headersHelper: $header}})
+        # gated: while Obsidian is closed a session shows a server with no tools, not a failed one
+        (mcp-servers {obsidian-mcp: {
+            type: http, url: $"http://127.0.0.1:($REST_PORT)/mcp/", headers: {Authorization: $"Bearer ($api_key)"}
+            gate: {probe: $"127.0.0.1:($REST_PORT)", app: Obsidian}
+        }})
     ]
 }

@@ -9,7 +9,7 @@ description: The OBS setup in configs/creating/obs (the Streaming, VirtualCam an
 
 Three collections, each with its profile (OBS doesn't pair them; pick both):
 
-- `Streaming` (profile Streaming): `configs/secrets/keys/obs-Streaming.json` (alert tokens), as is except the mic, which
+- `Streaming` (profile Streaming): `configs/secrets/keys/obs/Streaming.json` (alert tokens), as is except the mic, which
   takes the detected `mic` option (the backup restores the secret's own device).
 - `VirtualCam` (profile VirtualCam): `scenes/VirtualCam.json`. `Desktop` is the screen, `Webcam` the `Camera` (v4l2,
   option `webcam`, MJPG 1080p30) full frame; `Cam top left|top right|bottom left|bottom right` nest both, the cam a
@@ -27,7 +27,7 @@ Three collections, each with its profile (OBS doesn't pair them; pick both):
   in the Recording profile only (`RecRB`, `RecRBTime`).
 - Tracks (`mixers` bitmask): 1 full mix, 2 mic, 3 apps without mic, 4 Twitch VOD (all but Spotify). Recordings take
   1 to 3 (`RecTracks=7`).
-- Private parts live in secrets: the Streaming collection in `keys/obs-Streaming.json` (its widget urls carry
+- Private parts live in secrets: the Streaming collection in `keys/obs/Streaming.json` (its widget urls carry
   tokens), the stream art (overlays, PNGTuber gifs, badges, `.kra` sources) in `state/obs/`, referenced by absolute
   path from the collection; the public module holds only the generic Bare and VirtualCam collections and profiles.
 - OBS saves collection and profile over the live copies on exit: `dot apply --user creating/obs` refuses while OBS runs

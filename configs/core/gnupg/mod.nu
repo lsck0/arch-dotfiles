@@ -26,7 +26,7 @@ export const options = {
     }
 }
 
-const PRIVATE_KEY = "configs/secrets/keys/pgp_privatekey.asc"
+const PRIVATE_KEY = "configs/secrets/keys/pgp/private.asc"
 
 def --wrapped gpg-ok [...args: string]: nothing -> bool {
     (^gpg --batch ...$args | complete).exit_code == 0

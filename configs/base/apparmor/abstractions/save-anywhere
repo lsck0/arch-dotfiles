@@ -1,0 +1,20 @@
+# managed by arch-dotfiles/apparmor
+
+# An app whose file dialog saves or uploads the user's files (browsers, chat, mail, file sharing) reaches all of home,
+# mounted drives and the NAS. Hidden top-level paths (shell rc, ~/.config autostart, ~/.local/bin) stay closed, as do
+# the secrets and whatever runs later unconfined. l: Qt saves through an O_TMPFILE it links into place.
+
+  abi <abi/4.0>,
+
+  include <abstractions/dotfiles/deny-sensitive-home>
+  include <abstractions/dotfiles/deny-exec-later>
+
+  owner @{HOME}/ r,
+  owner @{HOME}/[^.]*{,/**} rwkl,
+  owner @{MOUNTS}/ r,
+  owner @{MOUNTS}/** rwkl,
+  # the NAS mount forces uid 0 on every file, so no owner rule matches it
+  /mnt/homelab/ r,
+  /mnt/homelab/** rwkl,
+
+  include if exists <abstractions/dotfiles/save-anywhere.d>

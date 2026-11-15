@@ -7,6 +7,4 @@ dbus send bus=session path=/org/freedesktop/portal/desktop
      member={Get,GetAll}
      peer=(name="{@{busname},org.freedesktop.portal.Desktop}", label=xdg-desktop-portal),
 
-# downloads saved anywhere in home, as firefox; hidden top-level paths (shell rc, ~/.config autostart) and secrets stay closed
-owner @{HOME}/[^.]*{,/**} rw,
-include <abstractions/dotfiles/deny-sensitive-home>
+include <abstractions/dotfiles/save-anywhere>

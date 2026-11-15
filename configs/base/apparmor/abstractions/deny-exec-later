@@ -1,0 +1,20 @@
+# managed by arch-dotfiles/apparmor
+
+# What runs later unconfined, so no confined app may write or link it: the dotfiles (applied as root), the identity
+# wrappers and credentials (.identity/chromium stays open: the identity browser's profile), git hooks and config
+# anywhere in home (core.hooksPath dirs too), direnv and devenv inputs (direnv's allow hash covers .envrc only) and the
+# agents' settings, which start hooks and MCP servers.
+
+  abi <abi/4.0>,
+
+  deny @{DOTFILES}/{,**} wl,
+  deny @{user_projects_dirs}/*/.identity/{.gitignore,envrc,env,bin,zsh_history,claude-token,npmrc,claude,copilot,hermes,gh,ssh,gnupg,aws,kube,docker,helm,jj,rtk,stackit,state,terraform}{,/**} wl,
+  deny @{HOME}/**/.git/{hooks/{,**},config} wl,
+  deny @{HOME}/**/.git/modules/**/{hooks/{,**},config} wl,
+  deny @{HOME}/**/{.githooks,.husky}/{,**} wl,
+  deny @{HOME}/**/{.envrc,devenv.nix,devenv.yaml,devenv.lock,devenv.local.nix,devenv.local.yaml} wl,
+  deny @{HOME}/**/.claude/{,**} wl,
+  deny @{HOME}/**/.mcp.json wl,
+  deny @{MOUNTS}/**/.git/{hooks/{,**},config} wl,
+
+  include if exists <abstractions/dotfiles/deny-exec-later.d>

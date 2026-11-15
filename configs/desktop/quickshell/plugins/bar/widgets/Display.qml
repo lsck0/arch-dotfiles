@@ -29,12 +29,32 @@ BarWidget {
     }
   }
 
+  // A wheel spin or held key asks for many levels; one process sets every monitor in turn, and the newest asked
+  // level follows once it exits. Detached sets per notch landed in any order, leaving an older level last.
+  property int brightnessPending: -1
+  property int brightnessApplying: -1
+
   function applyBrightnessAll(pct) {
     pct = Math.max(1, Math.min(100, Math.round(pct)))
     root.brightnessPct = pct
     root.brightnessKnown = true
-    for (const monitor of root.activeMonitors)
-      Quickshell.execDetached([Paths.script("monitor-brightness.nu"), "set", monitor.name, String(pct)])
+    root.brightnessPending = pct
+    root.brightnessFlush()
+  }
+
+  function brightnessFlush() {
+    if (brightnessSet.running || root.brightnessPending === root.brightnessApplying)
+      return
+    root.brightnessApplying = root.brightnessPending
+    const names = root.activeMonitors.map(function (m) { return m.name })
+    brightnessSet.command = ["sh", "-c", 'pct="$1"; script="$2"; shift 2; for m; do "$script" set "$m" "$pct"; done',
+      "sh", String(root.brightnessApplying), Paths.script("monitor-brightness.nu")].concat(names)
+    brightnessSet.running = true
+  }
+
+  Process {
+    id: brightnessSet
+    onExited: root.brightnessFlush()
   }
 
   readonly property string gradingCli: Paths.dotfiles + "/configs/desktop/color-grading/color-grading.py"

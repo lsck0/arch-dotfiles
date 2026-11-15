@@ -24,8 +24,9 @@ BarWidget {
 
   readonly property string artUrl: {
     if (!player) return ""
-    // some players report a bare directory (file:///) when a track has no cover
-    if (player.trackArtUrl && !String(player.trackArtUrl).endsWith("/")) return player.trackArtUrl
+    // only a remote image or a local file: some players report a bare directory (file:///, file://) for no cover
+    var art = String(player.trackArtUrl || "")
+    if (/^https?:\/\/./i.test(art) || /^file:\/\/\/.*[^\/]$/.test(art)) return art
     var url = String((player.metadata && player.metadata["xesam:url"]) || "")
     var m = url.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/)|youtu\.be\/)([\w-]{11})/)
     return m ? "https://i.ytimg.com/vi/" + m[1] + "/mqdefault.jpg" : ""

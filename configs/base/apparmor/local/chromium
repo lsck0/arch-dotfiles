@@ -21,3 +21,5 @@ owner @{user_cache_dirs}/chrome-devtools-mcp/** rwk,
 owner @{run}/user/@{uid}/speech-dispatcher/speechd.sock rw,
 deny @{user_config_dirs}/mimeapps.list* w,
 deny @{user_share_dirs}/applications/{,**} w,
+# apparmor.d writes only the download dir: "Save as" elsewhere failed, as firefox's no longer does
+include <abstractions/dotfiles/save-anywhere>

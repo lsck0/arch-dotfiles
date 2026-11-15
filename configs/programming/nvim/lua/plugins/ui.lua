@@ -28,12 +28,6 @@ end
 return {
     { "nvim-tree/nvim-web-devicons" },
 
-    {
-        url = "https://github.com/AlphaTechnolog/pywal.nvim.git",
-        name = "pywal",
-        lazy = true, -- loaded by colors/wal.lua
-    },
-
     { "folke/tokyonight.nvim", lazy = true },
     { "Shatur/neovim-ayu", lazy = true },
     {

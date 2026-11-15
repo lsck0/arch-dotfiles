@@ -23,7 +23,7 @@ export const options = {
 export const meta = {
     volatile: true
     deps: [base/boot/luks]
-    secrets: [wifi ssh_publickey.asc "initramfs-ssh/{host}/sshkeydir/.ed25519.sk"]
+    secrets: [wifi ssh/public.asc "initramfs-ssh/{host}/sshkeydir/.ed25519.sk"]
 }
 
 const PACKAGES = [busybox mkinitcpio-systemd-tool tinyssh tinyssh-convert]
@@ -119,11 +119,11 @@ export def keys []: nothing -> nothing {
         print ("note: remote-unlock: generated a new initramfs host key; back it up: "
             + $"mkdir -p ($backup) && sudo cp -r ($KEYDIR) ($backup)/sshkeydir && sudo chown -R $USER: ($backup)")
     }
-    let pubkey = system-secret ssh_publickey.asc
+    let pubkey = system-secret ssh/public.asc
     if ($pubkey | path exists) and (open --raw $pubkey | str starts-with "ssh-") {
         ^install -Dm600 $pubkey $AUTHORIZED_KEYS
     } else {
-        print ("note: remote-unlock: configs/secrets/keys/ssh_publickey.asc not readable, unlock the secrets and rerun; "
+        print ("note: remote-unlock: configs/secrets/keys/ssh/public.asc not readable, unlock the secrets and rerun; "
             + "no authorized_keys installed")
     }
 }

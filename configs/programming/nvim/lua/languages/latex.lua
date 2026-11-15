@@ -47,7 +47,7 @@ return {
                 "Token not allowed in a PDF string",
             }
 
-            -- pywal maps Todo near the background, so \todo would render invisible
+            -- some colorschemes map Todo near the background, so \todo would render invisible
             local function draft_markers()
                 vim.api.nvim_set_hl(0, "texCmdTodo", { link = "DiagnosticWarn", bold = true })
             end

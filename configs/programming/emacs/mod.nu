@@ -1,5 +1,6 @@
 use module.nu *
-use ../../core/wallust/palette.nu [hex-to-rgb readable-on rgb-to-hex]
+use ../../core/wallust/editor.nu [editor-roles]
+use ../../core/wallust/palette.nu [hex-to-rgb palette-rgb readable-on rgb-to-hex]
 use ../../core/wallust/font.nu [font-load]
 
 export const meta = {packages: {pacman: [emacs]}}
@@ -50,9 +51,10 @@ export def theme [cfg: record, wallpaper: string] {
     let bg = $p.bg_conditioned | hex-to-rgb
     let accents = 1..6 | each {|i| [$"c($i)" ($p | get $"c($i)" | hex-to-rgb | readable-on $bg | rgb-to-hex --prefix "#")] }
         | into record
+    let roles = palette-rgb emacs | editor-roles $bg | reject light | rename --block { $"r_($in)" }
     let shade = if $p.light == "1" { {mode: light, darken: lighten, lighten: darken} } else { {mode: dark, darken: darken, lighten: lighten} }
     [
-        (file-render doom-pywal-theme.el.in (xdg cache $THEME) ($p | merge $accents | merge $shade | rename --block { str uppercase }) --generated)
+        (file-render doom-pywal-theme.el.in (xdg cache $THEME) ($p | merge $accents | merge $roles | merge $shade | rename --block { str uppercase }) --generated)
         $font_el
         $reload
     ]

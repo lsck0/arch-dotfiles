@@ -82,15 +82,23 @@ def main []: nothing -> nothing {
     exit 1
 }
 
+# A dial spun fast starts several of these at once. Each step reads the level and sets the next one, so unserialized
+# a step that read an older level undid the others: the volume jumped down while turned up, or steps got lost. The
+# lock queues them, and the step is relative, capped by wireplumber.
+def volume-step [step: string]: nothing -> nothing {
+    let lock = $env.XDG_RUNTIME_DIR | path join media-key-volume.lock
+    let limit = $VOLUME_MAX_PERCENT / 100
+    ^flock $lock wpctl set-volume --limit $limit @DEFAULT_AUDIO_SINK@ $step
+}
+
 def "main volume-up" []: nothing -> nothing {
-    let target = [$VOLUME_MAX_PERCENT ((sink-volume) + $VOLUME_STEP_PERCENT)] | math min
-    pactl set-sink-volume @DEFAULT_SINK@ $"($target)%"
-    pactl set-sink-mute @DEFAULT_SINK@ 0
+    volume-step $"($VOLUME_STEP_PERCENT)%+"
+    wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
     volume-osd
 }
 
 def "main volume-down" []: nothing -> nothing {
-    pactl set-sink-volume @DEFAULT_SINK@ $"-($VOLUME_STEP_PERCENT)%"
+    volume-step $"($VOLUME_STEP_PERCENT)%-"
     volume-osd
 }
 

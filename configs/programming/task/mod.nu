@@ -23,7 +23,7 @@ const CLIENT_ID = "configs/secrets/keys/taskwarrior-client-id"
 const SECRET = "configs/secrets/keys/taskwarrior-encryption-secret"
 const SYNC_RC = ".config/task/sync.taskrc"
 # CALENDAR_FEED (the homelab calendar feed dir), read by task-calendar.nu
-const CALENDAR = "configs/secrets/keys/calendar.env"
+const CALENDAR = "configs/secrets/keys/calendar/desktop.env"
 const CALENDAR_ENV = ".config/task/calendar.env"
 
 def secret-read [file: path]: nothing -> string {

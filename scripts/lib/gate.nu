@@ -429,7 +429,7 @@ def lint-generated []: nothing -> list<string> {
 def unit-tests []: nothing -> list<string> {
     glob $"($REPO)/{configs,themes,scripts}/**/*.test.{sh,nu}" --exclude ($SECRETS_DATA | each { $"configs/($in)" }) | sort | each {|t|
         # null in: an external in each would otherwise read the test's own path as stdin
-        let run = with-env {DOT_RUN_FILE: "", FAILURES_FILE: ""} {
+        let run = with-env {DOT_RUN_FILE: "", FAILURES_FILE: "", DOT_NO_JOURNAL: 1} {
             if ($t | str ends-with ".nu") {
                 null | ^nu --no-config-file -I ($REPO | path join scripts lib) $t | complete
             } else {

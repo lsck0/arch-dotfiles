@@ -22,7 +22,7 @@ def --wrapped main [target: string, ...args: string]: nothing -> nothing {
         ^knock $host ...($KNOCK | each { into string })
         if (do { ^nc -z -w $PROBE_TIMEOUT_S $host $port } | complete).exit_code == 0 { break }
     }
-    let keys = [($REPO | path join configs secrets keys ssh_privatekey.asc) ($nu.home-dir | path join .ssh id_ed25519_sk)]
+    let keys = [($REPO | path join configs secrets keys ssh/private.asc) ($nu.home-dir | path join .ssh id_ed25519_sk)]
         | where { secret-is-plaintext $in }
     let ids = $keys | each { [-i $in] } | flatten
     let only = if ($keys | is-empty) { [] } else { [-o IdentitiesOnly=yes] }

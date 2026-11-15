@@ -9,3 +9,5 @@ deny @{bin}/xprop rx,
 deny @{bin}/dbus-send rx,
 deny @{user_config_dirs}/mimeapps.list* w,
 deny /etc/ r,
+# apparmor.d's electron profile reaches no user file at all: attachments could neither be added nor saved
+include <abstractions/dotfiles/save-anywhere>

@@ -49,7 +49,7 @@ export def link [cfg: record] {
 
 # The owner's ssh public keys readable here.
 def keys-local []: nothing -> list<string> {
-    $env.DOTFILES | path join configs secrets keys ssh_publickey.asc
+    $env.DOTFILES | path join configs secrets keys ssh/public.asc
     | append (glob ($env.DOTFILES | path join configs secrets yubikey ssh-*.pub))
     | append (glob ($nu.home-dir | path join .ssh *.pub))
     | where { secret-is-plaintext $in } | each { open --raw $in | str trim } | uniq

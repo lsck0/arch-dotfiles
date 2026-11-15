@@ -187,6 +187,8 @@ export def error-brief [rendered: string, --root: path]: nothing -> string {
 # Sends the run's records at INFO and above to the journal as SYSLOG_IDENTIFIER=dot.
 export def run-journal []: nothing -> nothing {
     if ($env.DOT_RUN_FILE? | is-empty) or not ($env.DOT_RUN_FILE | path exists) { return }
+    # a test's runs stay out of the machine's journal
+    if ($env.DOT_NO_JOURNAL? | is-not-empty) { return }
     run-records $env.DOT_RUN_FILE | where {|r| (rank $r.level) >= (rank INFO) } | each {|r|
         [
             $"MESSAGE=($r.msg | str replace --all "\n" ' ')"

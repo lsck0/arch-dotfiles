@@ -28,7 +28,8 @@ def units-stop [mark: path, units: list<string>]: nothing -> nothing {
     if ($active | is-empty) { return }
     mkdir ($mark | path dirname)
     $active | str join "\n" | save --force $mark
-    succeeds systemctl --no-ask-password stop ...$units | ignore
+    # one unit per call: for several, systemctl asks EnqueueUnitJobMany, which systemd's bus policy denies a user
+    for u in $units { succeeds systemctl --no-ask-password stop $u | ignore }
 }
 
 # The units units-stop recorded, consuming the mark.
@@ -63,7 +64,7 @@ def "main end" []: nothing -> nothing {
     let vllm = units-recorded (mark vllm)
     if ($vllm | is-not-empty) and (succeeds systemctl is-enabled -q $VLLM_SOCKET) {
         # --no-block: the proxy's start waits minutes for the model, gamemoded kills a hook after 10s
-        succeeds systemctl --no-ask-password --no-block start ...$vllm | ignore
+        for u in $vllm { succeeds systemctl --no-ask-password --no-block start $u | ignore }
     }
     # split lock last: a denied pkexec must not skip the restores above
     if (admin) { succeeds pkexec $SPLIT_LOCK_MITIGATE on | ignore }

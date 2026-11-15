@@ -1,4 +1,6 @@
 use module.nu *
+use ../wallust/editor.nu [editor-roles]
+use ../wallust/palette.nu [palette-rgb]
 
 export const meta = {deps: [core/cli core/tmux core/wallust], packages: {pacman: [git git-delta]}, inputs: [/usr/bin/mergiraf /usr/bin/jj /usr/bin/git-lfs /usr/bin/gh]}
 
@@ -55,8 +57,33 @@ export def link [cfg: record] {
     ]
 }
 
+# On the raw background: delta draws in the terminal.
 export def theme [cfg: record, wallpaper: string] {
-    let p = palette-load
+    let p = palette-rgb git
     if $p == null { return [] }
-    file-text (xdg cache $DELTA_THEME) $"[delta]\n    light = ($p.light == '1')\n" --generated
+    let r = $p | editor-roles $p.bg
+    let keys = {
+        light: $r.light
+        plus-style: $"syntax ($r.diff_add)"
+        plus-emph-style: $"syntax ($r.diff_add_text)"
+        minus-style: $"syntax ($r.diff_delete)"
+        minus-emph-style: $"syntax ($r.diff_delete_text)"
+        line-numbers-plus-style: $r.added
+        line-numbers-minus-style: $r.removed
+        line-numbers-zero-style: $r.line_number
+        line-numbers-left-style: $r.border
+        line-numbers-right-style: $r.border
+        file-style: $"($r.function) bold"
+        file-decoration-style: $"($r.border) ul"
+        hunk-header-style: "file line-number syntax"
+        hunk-header-decoration-style: $"($r.border) box"
+        hunk-header-file-style: $r.function
+        hunk-header-line-number-style: $r.line_number
+        commit-decoration-style: $"($r.keyword) box"
+        blame-palette: $"($r.bg) ($r.surface)"
+        merge-conflict-ours-diff-header-style: $"($r.added) bold"
+        merge-conflict-theirs-diff-header-style: $"($r.changed) bold"
+    }
+    let body = $keys | items {|k, v| $"    ($k) = ($v | to json)" } | str join "\n"
+    file-text (xdg cache $DELTA_THEME) $"[delta]\n($body)\n" --generated
 }

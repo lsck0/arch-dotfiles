@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """An MCP server that bridges to an app only while the app runs (scripts/lib/module.nu mcp-servers, a spec's `gate`).
 
-mcp-gate.py --probe HOST:PORT --app NAME [--url URL [--header 'K: V']...] [-- COMMAND ARGS...]
+mcp-gate.py --probe HOST:PORT --app NAME [--url URL] [-- COMMAND ARGS...]
+
+A url's headers come as a json object in MCP_GATE_HEADERS, never argv: any local user reads a process's argv, only its
+owner its environment.
 
 At start it probes the app's port. Up: a command is exec'd in place (a stdio server), a url is relayed (stdio to
 streamable http). Down: it answers the handshake itself with no tools and an instruction to start the app, so an agent
@@ -66,11 +69,8 @@ def offline(app: str, name: str) -> None:
             send({"jsonrpc": "2.0", "id": request["id"], "error": {"code": METHOD_NOT_FOUND, "message": note}})
 
 
-def relay(url: str, headers: list[str]) -> None:
-    base = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream"}
-    for header in headers:
-        key, _, value = header.partition(":")
-        base[key.strip()] = value.strip()
+def relay(url: str, headers: dict[str, str]) -> None:
+    base = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream"} | headers
     session = None
     for line in sys.stdin:
         if not line.strip():
@@ -107,14 +107,13 @@ def main() -> None:
     parser.add_argument("--app", required=True)
     parser.add_argument("--name", default="gated")
     parser.add_argument("--url")
-    parser.add_argument("--header", action="append", default=[])
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
     if not up(args.probe):
         offline(args.app, args.name)
     elif args.url:
-        relay(args.url, args.header)
+        relay(args.url, json.loads(os.environ.pop("MCP_GATE_HEADERS", "{}")))
     elif command:
         os.execvp(command[0], command)
     else:

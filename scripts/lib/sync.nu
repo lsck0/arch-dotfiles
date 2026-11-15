@@ -206,7 +206,7 @@ def generation-commit [repo: path, fpr: string]: nothing -> nothing {
 }
 
 def luks-header-path [repo: path]: nothing -> path {
-    $repo | path join configs secrets keys $"luks-header-(open --raw /etc/hostname | str trim).img"
+    $repo | path join configs secrets keys $"luks-headers/(open --raw /etc/hostname | str trim).img"
 }
 
 def luks-root []: nothing -> bool {

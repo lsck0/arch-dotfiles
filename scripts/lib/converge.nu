@@ -467,12 +467,14 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                         {}
                     } else {
                         rm --force $a.target
-                        prune-parents ($a.target | path dirname)
+                        # the original comes back into its dir; only a dir left empty is pruned
                         if ($a.decl.aside? | default null) != null and ($a.decl.aside | path exists) {
                             ^mv -n $a.decl.aside $a.target
-                            # the original comes back; a drift a later --force or reset set aside stays, named here
+                            # a drift a later --force or reset set aside stays, named here
                             let later = preserve-copies $a.target
                             if ($later | is-not-empty) { log-note $"($a.target): the original is back, later copies kept: ($later | str join ' ')" }
+                        } else {
+                            prune-parents ($a.target | path dirname)
                         }
                         {}
                     }

@@ -3,7 +3,7 @@
 use profile.nu [profile-has]
 
 const GITCRYPT_MAGIC = 0x[00 47 49 54 43 52 59 50 54]
-export const OWNER_WITNESS = "configs/secrets/keys/pgp_privatekey.asc"
+export const OWNER_WITNESS = "configs/secrets/keys/pgp/private.asc"
 
 # True when the file exists and is not a locked git-crypt blob (those start with "\0GITCRYPT").
 export def secret-is-plaintext [file: path]: nothing -> bool {

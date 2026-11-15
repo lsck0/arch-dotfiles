@@ -23,7 +23,7 @@ Overview:
     curve_apply(x, curve)              tone curve on one encoded channel value in [0, 1]
     ramp_create(size, curve)           red, green and blue ramps as one wire-ready table
     matrix_for_kelvin(kelvin)          hyprsunset's blackbody whitepoint, so night light looks the same
-    settings_load() / settings_save()  parse the state files into Settings, write them atomically
+    settings_load() / command_set()    parse the state files into Settings; set one under a lock, atomically
     ctm_compose(settings)              the matrix sent for every output
     daemon_run(client, wake)           dispatch wayland events and reloads forever
 
@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import fcntl
 import itertools
 import json
 import math
@@ -165,6 +166,8 @@ NIGHTLIGHT_PATH = os.path.join(RUNTIME_DIR, "nightlight")
 BRIGHTNESS_PATH = os.path.join(RUNTIME_DIR, "brightness")
 # each setting's state file, keyed by the command line's name
 SETTING_PATHS = {"preset": PRESET_PATH, "nightlight": NIGHTLIGHT_PATH, "brightness": BRIGHTNESS_PATH}
+# held across a set's read and write: a held key runs several at once, and one that read an older level lost the others
+SET_LOCK_PATH = os.path.join(RUNTIME_DIR, "set.lock")
 UNIT = "color-grading.service"
 
 RAMP_VALUE_MAX = 0xFFFF
@@ -378,11 +381,6 @@ def settings_texts(settings: Settings) -> dict[str, str]:
         "nightlight": "on" if settings.nightlight else "off",
         "brightness": str(settings.brightness_percent),
     }
-
-
-def settings_save(settings: Settings) -> None:
-    for key, text in settings_texts(settings).items():
-        file_write(SETTING_PATHS[key], text)
 
 
 def output_attach(client: Client, global_name: int, version: int) -> None:
@@ -603,21 +601,25 @@ def command_run() -> int:
 
 
 def command_set(key: str, value: str) -> int:
-    settings = settings_load()
-    try:
-        if key == "preset":
-            settings = dataclasses.replace(settings, preset=preset_parse(value))
-        elif key == "nightlight":
-            settings = dataclasses.replace(settings, nightlight=nightlight_parse(value))
-        else:
-            assert key == "brightness"
-            settings = dataclasses.replace(
-                settings, brightness_percent=brightness_parse(value, settings.brightness_percent)
-            )
-    except ValueError as error:
-        log(str(error))
-        return 2
-    settings_save(settings)
+    os.makedirs(RUNTIME_DIR, exist_ok=True)
+    with open(SET_LOCK_PATH, "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        settings = settings_load()
+        try:
+            if key == "preset":
+                settings = dataclasses.replace(settings, preset=preset_parse(value))
+            elif key == "nightlight":
+                settings = dataclasses.replace(settings, nightlight=nightlight_parse(value))
+            else:
+                assert key == "brightness"
+                settings = dataclasses.replace(
+                    settings, brightness_percent=brightness_parse(value, settings.brightness_percent)
+                )
+        except ValueError as error:
+            log(str(error))
+            return 2
+        # only the key set: rewriting the others from this snapshot would undo a concurrent set of theirs
+        file_write(SETTING_PATHS[key], settings_texts(settings)[key])
     subprocess.run(["systemctl", "--user", "--quiet", "try-reload-or-restart", UNIT], check=False)
     return 0
 

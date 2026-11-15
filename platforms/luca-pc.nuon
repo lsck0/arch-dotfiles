@@ -6,7 +6,7 @@
     extra_packages: [it87-dkms-git]
     facts: {
         homelab: true
-        wireguard: wg0.pc.conf
+        wireguard: wireguard/pc.conf
         secure_boot_own_keys: true
     }
 }

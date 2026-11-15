@@ -7,12 +7,8 @@ const TEMPLATES = path self templates/wal
 const WALLUST = path self wallust.toml
 
 # reader: who reads it; present: a repo file and a string in it that says the reader is set up; file: what it reads
-# from ~/.cache/wal
-const READERS = [
-    [reader present needle file];
-    ["pywal.nvim (programming/nvim colors/wal.lua)" configs/programming/nvim/colors/wal.lua 'require("pywal")' colors-wal.vim]
-    ["pywal.nvim lock" configs/programming/nvim/lazy-lock.json '"pywal"' colors-wal.vim]
-]
+# from ~/.cache/wal; none today
+const READERS = []
 
 # key: a key the reader requires in that file, checked in its template
 const KEYS = [

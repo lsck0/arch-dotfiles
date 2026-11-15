@@ -9,13 +9,13 @@ const STAGE_KEY_FILE = "/etc/cryptsetup-keys.d/root.key"
 
 def main []: nothing -> nothing {
     let secrets = $REPO | path join configs secrets keys
-    if not (secret-is-plaintext ($secrets | path join pgp_privatekey.asc)) { die "secrets is locked, unlock it first" }
+    if not (secret-is-plaintext ($secrets | path join pgp/private.asc)) { die "secrets is locked, unlock it first" }
     let root = ^findmnt -n -o SOURCE / | str trim | split row "[" | first
     if not ($root | str starts-with /dev/mapper/) { die "/ is not on a LUKS mapping" }
     let part = ^lsblk -lnso NAME,TYPE $root | lines | split column --regex '\s+' name type | where type == part
     if ($part | is-empty) { die $"no partition under ($root)" }
     let device = $"/dev/($part.0.name)"
-    let name = $"luks-header-(open --raw /etc/hostname | str trim).img"
+    let name = $"luks-headers/(open --raw /etc/hostname | str trim).img"
     let dest = $secrets | path join $name
     if not (^git -C $secrets check-attr filter -- $name | str trim | str ends-with ": filter: git-crypt") {
         die $"configs/secrets/.gitattributes does not git-crypt ($name)"
@@ -27,7 +27,7 @@ def main []: nothing -> nothing {
     let tmp = ^sudo mktemp -d | str trim
     let failed = try {
         ^sudo cryptsetup luksHeaderBackup $device --header-backup-file $"($tmp)/header.img"
-        ^sudo cat $"($tmp)/header.img" | ^install -m600 /dev/stdin $dest
+        ^sudo cat $"($tmp)/header.img" | ^install -D -m600 /dev/stdin $dest
         null
     } catch {|e| $e.msg }
     ^sudo rm -rf $tmp

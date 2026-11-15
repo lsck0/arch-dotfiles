@@ -6,7 +6,7 @@
     extra_packages: [python-validity-git]
     facts: {
         homelab: true
-        wireguard: wg0.laptop.conf
+        wireguard: wireguard/laptop.conf
         secure_boot_own_keys: true
     }
 }

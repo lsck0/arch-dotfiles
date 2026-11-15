@@ -40,8 +40,8 @@ theme's wallpaper has a public copy in `wallpapers/`; names resolve from `~/sync
 1. `configs/core/wallust/templates/wal/colors-<tool>.<ext>` with the placeholders.
 2. Point the program at `$XDG_CACHE_HOME/wal/colors-<tool>.<ext>` in its module's `link`.
 3. Needs a reload: a `theme` verb that pokes it (`configs/desktop/kitty/mod.nu`).
-4. A tool that reads its file by pywal convention, with no path in the repo (pywal.nvim's `colors-wal.vim`): a row
-   in `READERS` of `configs/core/wallust/readers.test.nu`, or a cleanup will drop the template as unused.
+4. A tool that reads its file by pywal convention, with no path in the repo: a row in `READERS` of
+   `configs/core/wallust/readers.test.nu`, or a cleanup will drop the template as unused.
 
 `dot apply core/wallust` renders a changed template at once (`theme-init`), so one apply shows the change.
 
@@ -51,7 +51,9 @@ theme's wallpaper has a public copy in `wallpapers/`; names resolve from `~/sync
 2. Write under `$XDG_CACHE_HOME/wal/` or render the whole config with `file-text --generated`
    (`configs/core/herdr/mod.nu`); never into a file linked from the repo.
 3. Must run after another module's verb: name that module in `meta.deps`.
-4. Conditioning changes go into `palette.nu` and `Palette.js` (`palette.nu js --write`); `dot test check` compares
+4. An editor or diff viewer takes its syntax, diagnostic, diff and surface colours from `editor-roles`
+   (`configs/core/wallust/editor.nu`), given the background it draws on, as nvim, zed, emacs and delta do.
+5. Conditioning changes go into `palette.nu` and `Palette.js` (`palette.nu js --write`); `dot test check` compares
    both on a dark and a light palette.
 
 ## Test

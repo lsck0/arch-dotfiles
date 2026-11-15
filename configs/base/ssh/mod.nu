@@ -52,8 +52,8 @@ const DROPIN = "/etc/ssh/sshd_config.d/10-hardening.conf"
 const MANAGED_BEGIN = "# arch-dotfiles managed keys (rebuilt from sources; edits outside this block are kept)"
 const MANAGED_END = "# end arch-dotfiles managed keys"
 const HOST_KEY_DIR = "/etc/ssh"
-const PRIVATE_KEY = "configs/secrets/keys/ssh_privatekey.asc"
-const PUBLIC_KEY = "configs/secrets/keys/ssh_publickey.asc"
+const PRIVATE_KEY = "configs/secrets/keys/ssh/private.asc"
+const PUBLIC_KEY = "configs/secrets/keys/ssh/public.asc"
 
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
@@ -65,7 +65,7 @@ def host-keys-pin []: nothing -> bool {
     let pinned = $SSH_HOST_KEYS | where {|k| ($dir | path join $k | path exists) }
     if ($pinned | is-empty) {
         # only with the secrets streamed unlocked: locked, a backup would land as plaintext over the git-crypt blobs
-        if (system-secret ssh_publickey.asc | path exists) {
+        if (system-secret ssh/public.asc | path exists) {
             let backup = host-file configs/secrets/keys/ssh-host
             print ("note: ssh: no pinned host keys, a reinstall changes this host's identity; back them up from the "
                 + $"checkout: mkdir -p ($backup) && sudo cp ($HOST_KEY_DIR)/ssh_host_*_key ($backup)/ "

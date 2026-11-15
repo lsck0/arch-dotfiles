@@ -11,3 +11,5 @@ priority=1 @{bin}/gpgsm   rCx -> gpg,
 profile gpg flags=(attach_disconnected) {
   include <abstractions/dotfiles/gpg-client>
 }
+# apparmor.d writes only the download dir: saving an attachment elsewhere failed
+include <abstractions/dotfiles/save-anywhere>

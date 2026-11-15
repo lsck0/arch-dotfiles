@@ -17,7 +17,8 @@ profile localsend-app @{exec_path} flags=(attach_disconnected) {
   include <abstractions/network-manager-observe>
   include <abstractions/ssl_certs>
   include <abstractions/user-download-strict>
-  include <abstractions/dotfiles/deny-sensitive-home>
+  # files sent come from anywhere in home, received ones land where the user picks
+  include <abstractions/dotfiles/save-anywhere>
 
   network inet dgram,
   network inet stream,

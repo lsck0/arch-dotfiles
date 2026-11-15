@@ -68,8 +68,8 @@ const CANVAS_FALLBACK = "1920x1080"
 const VIRTUALCAM_HEIGHT = 720
 const STREAM_HEIGHT = 1080
 const PORTAL_TOKEN = "RestoreToken"
-const SECRET_SCENES = "obs-Streaming.json"
-const SECRET_SERVICE = "obs-service.json"
+const SECRET_SCENES = "obs/Streaming.json"
+const SECRET_SERVICE = "obs/service.json"
 # scene item keys obs derives from pos, scale and bounds on load
 const ITEM_RELATIVE_KEYS = [pos_rel scale_rel scale_ref bounds_rel]
 const GLOBAL = {General: {AutomaticSearch: "true", SafeMode: "false", ConfirmOnExit: "true"}}

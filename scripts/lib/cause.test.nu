@@ -175,13 +175,13 @@ def crash-cases [dir: path]: nothing -> nothing {
     let file = $dir | path join crashing.nu
     "export def crash [] {\n    ^sh -c 'echo the crash reason >&2; exit 4'\n    print unreachable\n}\n" | save --force $file
     let call = $"use ($file | to nuon) [crash]; use cli.nu [guarded]; guarded probe --read-only { crash }"
-    with-env {XDG_STATE_HOME: $state} { ^$nu.current-exe --no-config-file -I ($env.FILE_PWD) -c $call | complete } | ignore
+    with-env {XDG_STATE_HOME: $state, DOT_NO_JOURNAL: 1} { ^$nu.current-exe --no-config-file -I ($env.FILE_PWD) -c $call | complete } | ignore
     let crash = open ($state | path join dotfiles crash.json)
     assert ($crash.cause.exit_code == 4 and $crash.cause.command == "sh -c 'echo the crash reason >&2; exit 4'") $"crash cause: ($crash.cause | to nuon)"
     let panic = open --raw (glob ($state | path join dotfiles runs *.jsonl) | first) | lines | each { from json } | where level == PANIC | first
     assert equal $panic.cause $crash.cause $"the PANIC record's cause differs from crash.json's: ($panic.cause | to nuon)"
     wants "panic line" $panic.msg ["`sh -c 'echo the crash reason >&2; exit 4'` exited 4" "crashing.nu:2"]
-    let trace = with-env {XDG_STATE_HOME: $state} { ^$nu.current-exe --no-config-file ($env.FILE_PWD | path join .. dot.nu) log $crash.run --trace }
+    let trace = with-env {XDG_STATE_HOME: $state, DOT_NO_JOURNAL: 1} { ^$nu.current-exe --no-config-file ($env.FILE_PWD | path join .. dot.nu) log $crash.run --trace }
     wants "trace" $trace ["probe" "! `sh -c 'echo the crash reason >&2; exit 4'` exited 4"]
 }
 

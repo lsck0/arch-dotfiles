@@ -15,7 +15,7 @@ sshd_installed    yes  vm    test -x /usr/bin/sshd && echo yes || echo no
 mirror_reachable  any  vm    for u in https://archlinux.org @LSCK0_MIRROR@; do curl -fs -m 20 -o /dev/null "$u" && { echo yes; exit 0; }; done; echo no
 issue_escape      any  vm    grep -qE '(^[[:space:]]+|`)dot [a-z]' /etc/issue.d/dotfiles-stage.issue 2>/dev/null && echo yes || echo no
 home_network      any  vm    test -s /run/home-network && echo yes || echo no
-secrets_locked    any  vm    f=@CHECKOUT@/configs/secrets/keys/pgp_privatekey.asc; test -s "$f" && ! head -c 9 "$f" | grep -qa GITCRYPT && echo no || echo yes
+secrets_locked    any  vm    f=@CHECKOUT@/configs/secrets/keys/pgp/private.asc; test -s "$f" && ! head -c 9 "$f" | grep -qa GITCRYPT && echo no || echo yes
 secrets_banner    any  vm    test -s /etc/issue.d/dotfiles-secrets.issue && echo yes || echo no
 mirror_public     any  vm    a=$(getent ahostsv4 @LSCK0_HOST@ | awk 'NR==1{print $1}'); case "$a" in "") echo none;; @LAB_GLOB@) echo no;; *) echo yes;; esac
 lab_reachable     any  vm    curl -s -m 5 -o /dev/null @LAB_MIRROR@ && echo yes || echo no

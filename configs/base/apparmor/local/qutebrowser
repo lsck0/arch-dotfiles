@@ -20,3 +20,5 @@ owner @{user_config_dirs}/dotfiles/style.json r,
 include <abstractions/audio-client>
 owner @{user_cache_dirs}/event-sound-cache.tdb.* rwk,
 deny /dev/tty r,
+# apparmor.d writes only the download dir; uploads read only it as well
+include <abstractions/dotfiles/save-anywhere>

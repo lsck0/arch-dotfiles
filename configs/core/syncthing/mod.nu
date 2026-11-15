@@ -19,7 +19,7 @@ export def packages [cfg: record]: nothing -> record {
 }
 
 const IDENTITY = [[file mode]; [config.xml 600] [cert.pem 644] [key.pem 600]]
-const GUI_SECRET = "configs/secrets/keys/syncthing-gui-password"
+const GUI_SECRET = "configs/secrets/keys/syncthing/gui-password"
 const API_WAIT_S = 30
 const GUI_TRIES = 3
 const PASSWORD_SHAPE = '^[A-Za-z0-9+/=._~-]+$'

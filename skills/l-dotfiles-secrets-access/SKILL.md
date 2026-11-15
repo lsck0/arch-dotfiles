@@ -39,7 +39,7 @@ recovery key is the deliberate exception for a lost YubiKey, not the normal path
 ## Unlock and check
 
 ```bash
-nu -c 'use scripts/lib/secrets.nu *; secret-is-plaintext configs/secrets/keys/pgp_privatekey.asc'   # true: unlocked
+nu -c 'use scripts/lib/secrets.nu *; secret-is-plaintext configs/secrets/keys/pgp/private.asc'   # true: unlocked
 dot secrets unlock       # Luca's: pull the submodule, then unlock; one touch each
 dot secrets lock         # Luca's
 ```
@@ -77,5 +77,5 @@ dot secrets lock         # Luca's
    plaintext.
 2. A system module needs it: add its path to that module's `meta.secrets`.
 3. `dot sync` commits and pushes (submodule first). Agents never do.
-4. Never write into `configs/secrets/` while locked: a script checks `secret-is-plaintext` on `pgp_privatekey.asc`
+4. Never write into `configs/secrets/` while locked: a script checks `secret-is-plaintext` on `pgp/private.asc`
    first and stops.

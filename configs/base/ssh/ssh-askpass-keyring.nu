@@ -4,7 +4,7 @@
 const REPO = path self ../../..
 use ($REPO | path join scripts lib secrets.nu) [secret-is-plaintext]
 
-const PASSPHRASE = "configs/secrets/keys/ssh_passphrase"
+const PASSPHRASE = "configs/secrets/keys/ssh/passphrase"
 
 def main [...prompt: string]: nothing -> nothing {
     let keyring = do { ^secret-tool lookup ssh-key ssh_privatekey } | complete

@@ -8,6 +8,8 @@
   deny @{user_sync_dirs}/password-store/{,**}  mrwkl,
   deny @{user_sync_dirs}/monero/{,**}          mrwkl,
   deny @{user_sync_dirs}/vault.hc              mrwkl,
+  # veracrypt-vault's mount point: the container's plaintext while it is open
+  deny @{HOME}/vault/{,**}                     mrwkl,
   deny @{user_sync_dirs}/scripts/{,**}         mrwkl,
   deny @{user_config_dirs}/age/{,**}      mrwkl,
   deny @{HOME}/.age{,/{,**}}              mrwkl,
@@ -27,6 +29,8 @@
   deny @{user_config_dirs}/containers/auth.json mrwkl,
   deny @{user_config_dirs}/gh/{,**}       mrwkl,
   deny @{HOME}/.pgpass                    mrwkl,
+  # the per-repo copies identity-init keeps; .identity/chromium is the identity browser's own profile
+  deny @{user_projects_dirs}/*/.identity/{env,zsh_history,claude-token,npmrc,ssh,gnupg,aws,gh,kube,docker,helm,stackit,terraform,claude,copilot,hermes,jj,rtk,state}{,/**} mrwkl,
   deny @{user_share_dirs}/pgpass          mrwkl,
 
   deny @{run}/user/@{uid}/keyring**       mrwkl,

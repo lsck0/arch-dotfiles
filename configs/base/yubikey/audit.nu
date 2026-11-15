@@ -7,7 +7,7 @@ const SECRETS = path self ../../secrets/keys
 const KEY_DIR = path self .
 const OWNER_DIR = path self ../../secrets/yubikey
 const ROTATION = path self ../../secrets/keys/rotation.txt
-const WITNESS = path self ../../secrets/keys/pgp_privatekey.asc
+const WITNESS = path self ../../secrets/keys/pgp/private.asc
 const DRILL = "recovery-drill"
 const DRILL_HOW = 'RECOVERY.md "Test it", then dot secrets audit drilled'
 const REMIND_STATE = "secrets-audit/reminded"
@@ -15,15 +15,15 @@ const REMIND_EVERY = 28day
 const SEALED_HEADER_BYTES = 4096
 const CLASSES = [
     [glob class];
-    ["wg0.*.conf" wireguard] ["wg0.*.png" -] [ssh_privatekey.asc ssh] [ssh_passphrase ssh]
+    ["wireguard/*.conf" wireguard] ["wireguard/*.png" -] [ssh/private.asc ssh] [ssh/passphrase ssh]
     ["initramfs-ssh/*/sshkeydir/.ed25519.sk" ssh] ["yubikey/ssh-*" ssh] ["gh/*/token" api] [googleapi api] [sdd_github api] [de-arrow-key api]
-    [ntfy-desktop-token api] [trmnl-claude.env api] [calendar.env api] [hermes-anthropic.env api] [protonvpn-netns.conf api] ["taskwarrior-*" api]
-    [forgejo.env api] [registry.env api] [sccache.env api] ["alloy-*" api] [grafana-mcp-token api]
-    [samba-homelab password] [wifi password] [syncthing-gui-password password] [pgp_privatekey.asc identity]
-    [vorrh.private-key.asc identity] [age.txt identity] [age-recovery-key.txt identity] ["syncthing/*/key.pem" identity]
-    ["*.pub*" -] ["*_publickey.asc" -] ["*.public-key.asc" -] ["syncthing/*" -] ["initramfs-ssh/*" -] ["ssh-host/*" -]
-    ["luks-header-*" -] [rotation.txt -] [home-gateways -] [trusted-gateways -] [diablo2/cd-keys -]
-    ["claude/*" -] ["caido/*" -] ["modrinth/*" -] ["obs-*.json" -] ["proton/*" -]
+    [ntfy-desktop-token api] [ntfy-phone-token api] [trmnl-claude.env api] ["calendar/*" api] [hermes-anthropic.env api] [protonvpn-netns.conf api] ["taskwarrior-*" api]
+    [forgejo.env api] [registry.env api] [sccache.env api] ["alloy/*" api] [grafana-mcp-token api]
+    [samba-homelab password] [wifi password] [syncthing/gui-password password] [pgp/private.asc identity]
+    [pgp/vorrh-private.asc identity] [age.txt identity] [age-recovery-key.txt identity] ["syncthing/*/key.pem" identity]
+    ["*.pub*" -] ["*/public.asc" -] ["pgp/*-public.asc" -] ["syncthing/*" -] ["initramfs-ssh/*" -] ["ssh-host/*" -]
+    ["luks-headers/*" -] [rotation.txt -] [home-gateways -] [trusted-gateways -] [diablo2/cd-keys -]
+    ["claude/*" -] ["caido/*" -] ["modrinth/*" -] ["obs/*" -] ["proton/*" -]
 ]
 const MAX_DAYS = {wireguard: 365, api: 365, ssh: 730, password: 730, identity: 1825, recovery-drill: 365}
 
@@ -94,8 +94,8 @@ def recovery []: nothing -> list<record> {
             let sealed = $"sealed to ($stanzas) of ($recipients) recipients.txt keys"
             finding fail $"secrets.key.age is ($sealed), reseal: dot secrets seal"
         })
-        (if $luks and not ($SECRETS | path join $"luks-header-($host).img" | path exists) {
-            finding fail $"no configs/secrets/keys/luks-header-($host).img, run configs/base/boot/luks/header-backup.nu"
+        (if $luks and not ($SECRETS | path join $"luks-headers/($host).img" | path exists) {
+            finding fail $"no configs/secrets/keys/luks-headers/($host).img, run configs/base/boot/luks/header-backup.nu"
         })
         (if $drilled == "" {
             finding note $"recovery drill never recorded: ($DRILL_HOW)"

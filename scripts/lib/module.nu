@@ -139,12 +139,11 @@ def mcp-gated [name: string]: any -> any {
     let spec = $in
     if $spec == null or $spec.gate? == null { return $spec }
     let head = [$MCP_GATE --probe $spec.gate.probe --app $spec.gate.app --name $name]
-    let args = if $spec.type? == http {
-        $head ++ [--url $spec.url] ++ ($spec.headers? | default {} | items {|k, v| [--header $"($k): ($v)"] } | flatten)
-    } else {
-        $head ++ [-- $spec.command] ++ ($spec.args? | default [])
-    }
-    {type: stdio, command: python3, args: $args} | merge (if $spec.env? == null { {} } else { {env: $spec.env} })
+    let args = if $spec.type? == http { $head ++ [--url $spec.url] } else { $head ++ [-- $spec.command] ++ ($spec.args? | default []) }
+    # headers through the environment, which only the owner reads, not argv, which every local user does
+    let headers = $spec.headers? | default {}
+    let environment = $spec.env? | default {} | merge (if ($headers | is-empty) { {} } else { {MCP_GATE_HEADERS: ($headers | to json -r)} })
+    {type: stdio, command: python3, args: $args} | merge (if ($environment | is-empty) { {} } else { {env: $environment} })
 }
 
 # A Claude Code server spec in another agent's form; null where that agent has no counterpart.
