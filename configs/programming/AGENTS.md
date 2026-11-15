@@ -14,6 +14,12 @@
   the font into the wal cache and reloads a running emacs over emacsclient.
 - Owner-only modules (`bugwarrior`, `jai`, `projects`) gate on `owner-unlocked` (`l-dotfiles-secrets-access`).
   `projects` runs after `core/gh`.
-- Telemetry off for every agent and editor.
+- Telemetry off for every agent and editor. One exception, opt-in per machine: `programming/claude`'s
+  `remote_control` option, since remote control needs the feature flags that `DO_NOT_TRACK` and `DISABLE_TELEMETRY`
+  switch off; on, both are lifted for claude alone. An agent that asks for consent at its first prompt gets the
+  answer declared (`programming/hermes` `SETTINGS`), or its unattended sessions hang on the dialog.
+- `programming/claude` denies the agent's file tools the credentials (`SECRET_READS_*`: `configs/secrets/keys`, the
+  git-crypt key, ssh and gpg keys, tool tokens). A module still reads its secret in its own code; an agent works with
+  the names (`l-dotfiles-secrets-access`).
 - Editors in use are nvim, Doom Emacs and Zed. VSCodium (vim keys, theme, settings) and JetBrains (toolbox only) are
   backups: no language extensions, LSPs or theme parity are owed to them.

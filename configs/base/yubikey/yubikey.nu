@@ -255,6 +255,8 @@ export def yubikey-unlock [--identity: path]: nothing -> nothing {
     if (unwanted) { return }
     if $identity != null { return (unlock-identity $identity) }
     let pulled = secrets-pulled
+    # every dot apply comes through here: unlocked, there is nothing to ask the key
+    if $pulled and (secret-is-plaintext $WITNESS) { return }
     let card = card
     if not $card.present {
         if (which lsusb | is-not-empty) and (do { ^lsusb -d 1050: } | complete).exit_code == 0 {
@@ -272,6 +274,12 @@ export def yubikey-unlock [--identity: path]: nothing -> nothing {
     let identity = $KEY_DIR | path join $"age-($sn).identity"
     if not ([$stub $identity $SEALED_KEY] | all { path exists }) {
         print $"yubikey: ($sn) is not enrolled \(dot secrets init\), skipping"
+        return
+    }
+    # a dot apply without a terminal (an agent's, the settings panel's): nobody sees the touch cue, and the wait would
+    # hold the run for TOUCH_WAIT
+    if ($env.DOTFILES_UNATTENDED? | is-not-empty) {
+        print "yubikey: no terminal for the touch cue, secrets stay locked: dot secrets unlock"
         return
     }
     if not $pulled {

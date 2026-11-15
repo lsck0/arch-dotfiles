@@ -1,5 +1,6 @@
 #!/usr/sbin/nft -f
 define trusted_ifaces = { "docker*", "br-*", "veth*", "virbr*", "waydroid*", "lxc*", "wg0" }
+define pentest_ports = { 4444-4454, 4456-4460, 8000-8099, 9001, 9443 }
 
 add table inet fw
 delete table inet fw
@@ -7,6 +8,7 @@ table inet fw {
     set knock1 { type ipv4_addr; flags timeout; timeout 10s; }
     set knock2 { type ipv4_addr; flags timeout; timeout 10s; }
     set ssh_allowed { type ipv4_addr; flags timeout; timeout @SSH_KNOCK_WINDOW@; }
+    set ssh_flood { type ipv4_addr; flags dynamic, timeout; timeout 10m; }
     set trusted_links { type ifname; }
 
     chain input {
@@ -26,9 +28,11 @@ table inet fw {
         ip6 saddr fe80::/10 udp sport 547 udp dport 546 accept
 
         iifname $trusted_ifaces accept
-        iifname "tun0" tcp dport { 4444-4454, 4456-4460, 8000-8099, 9001, 9443 } accept
+        @PENTEST_INPUT@
 
         # the knock is in a public repo, so it only keeps scanners out of sshd's log; publickey-only auth guards sshd
+        # per source, in place of a log-reading daemon: nothing to guess with publickey-only, this only bounds the noise
+        tcp dport @SSH_PORT@ ct state new update @ssh_flood { ip saddr limit rate over @SSH_RATE@ } drop
         ip saddr @ssh_allowed tcp dport @SSH_PORT@ ct state new accept
         tcp dport @KNOCK_3@ ip saddr @knock2 update @ssh_allowed { ip saddr }
         tcp dport @KNOCK_2@ ip saddr @knock1 update @knock2 { ip saddr }
@@ -45,6 +49,6 @@ table inet fw {
         ct state invalid drop
         iifname $trusted_ifaces accept
         iifname @trusted_links ct status dnat accept
-        iifname "tun0" meta l4proto tcp ct original proto-dst { 4444-4454, 4456-4460, 8000-8099, 9001, 9443 } ct status dnat accept
+        @PENTEST_FORWARD@
     }
 }

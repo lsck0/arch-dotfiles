@@ -55,7 +55,8 @@ def is-up [s: record]: nothing -> bool {
     }
 }
 
-# Refuses a non-admin before pkexec reaches polkit, so the bar never shows a password prompt.
+# Refuses a non-admin before pkexec reaches polkit, so the bar never shows a password prompt; for an admin at the
+# machine none of these verbs asks (49-toggles.rules).
 def root-netfilter [...args: string]: nothing -> nothing {
     if not (^id -nG | split row " " | any { $in == wheel }) { error make {msg: "the netfilter guard needs an admin"} }
     ^pkexec $TOGGLE_ROOT anonsocks ...$args
@@ -115,11 +116,12 @@ export def anonymous-socks-proxyconf []: nothing -> string {
     ] | str join "\n" | $"($in)\n(anonymous-socks-proxylist)"
 }
 
-# Stops the slice before the guard goes, so nothing in it continues unguarded.
+# Stops the slice before the guard goes, so nothing in it continues unguarded; toggle-root keeps the guard of a slice
+# that still runs something.
 export def anonymous-socks-down []: nothing -> nothing {
     let s = settings
     do { ^systemctl --user stop $SLICE } | complete | ignore
-    try { root-netfilter nft-off } catch { }
+    try { root-netfilter nft-off } catch { err "the netfilter guard stays in place" }
     try { root-netfilter persona-off } catch { }
     rm --force $s.PC_CONF $s.VERIFIED
     do { ^systemctl --user stop $TOR_UNIT } | complete | ignore

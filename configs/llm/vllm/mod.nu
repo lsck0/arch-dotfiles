@@ -57,6 +57,9 @@ const DESKTOP_VRAM = 4.5GiB
 const SHARE_STEP = 0.05
 const STUB_SOURCE = "mpi-cxx-stub.c"
 const UV_EXCLUDES = "uv-excludes.txt"
+# root runs a build backend for this one dependency, which ships no wheel; every other one installs from a wheel, so a
+# new sdist-only dependency fails the step by name instead of building as root
+const SDIST_ONLY = "openai-whisper"
 
 export def detect [cfg: record]: nothing -> record {
     let gpu = gpu-list | where vendor == amd | get --optional 0
@@ -139,9 +142,9 @@ export def venv []: nothing -> nothing {
         $"[[index]]\nname = \"vllm-rocm\"\nurl = \"($WHEELS_URL)\"\nexclude-newer = false\n" | save --force $uv_config
         with-env {UV_PYTHON_INSTALL_DIR: ($PREFIX | path join python)} {
             ^uv venv --allow-existing --python $PYTHON_VERSION $venv
-            # mooncake's bundled glog clashes with the system's and aborts the import
-            (^uv pip install --python $venv --config-file $uv_config --exclude-newer $EXCLUDE_NEWER
-                --excludes $UV_EXCLUDES $"vllm==($VERSION)" $"vllm-omni==($OMNI_VERSION)")
+            # --excludes: mooncake's bundled glog clashes with the system's and aborts the import
+            (^uv pip install --only-binary ":all:" --no-binary $SDIST_ONLY --python $venv --config-file $uv_config
+                --exclude-newer $EXCLUDE_NEWER --excludes $UV_EXCLUDES $"vllm==($VERSION)" $"vllm-omni==($OMNI_VERSION)")
             ^uv pip uninstall --python $venv -r $UV_EXCLUDES
         }
         rm --force $uv_config

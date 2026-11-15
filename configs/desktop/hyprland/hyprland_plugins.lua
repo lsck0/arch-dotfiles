@@ -33,7 +33,7 @@ local MAXIMIZE = [[hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = "maximize
 
 -- flat title bars in the tab strip's look
 plugin_config("hyprbars", {
-    -- off for now; the styling below stays for when it comes back
+    -- off and not built (no row in plugins.nu's PLUGINS); the styling below stays for when it comes back
     enabled = false,
     bar_height = style.font_size + 8,
     bar_color = style.bar_bg or wal.color0,

@@ -20,7 +20,22 @@ export const options = {
         choices: [low medium high xhigh max]
         scope: user
     }
+    remote_control: {
+        type: bool
+        default: false
+        doc: "Every session registers with the remote-control relay at start. It needs Claude's feature flags, so on, DO_NOT_TRACK is lifted for claude and usage telemetry is sent; off, telemetry is off"
+        label: "Remote control"
+    }
 }
+
+# Credentials no agent tool reads (the Read, Grep and Glob tools; a module's own code and `secret-is-plaintext` in a
+# shell still do). Paths only where the value is the whole file: ~/.claude, ~/.hermes and ~/sync stay readable.
+const SECRET_READS_REPO = ["configs/secrets/keys/**" ".git/git-crypt/**" ".git/modules/**/git-crypt/**"]
+const SECRET_READS_HOME = [
+    ".ssh/id_*" ".gnupg/**" ".config/sops/age/**" ".config/gh/**" ".config/rclone/**" ".config/containers/auth.json"
+    ".docker/config.json" ".config/git/forgejo-credentials" ".netrc" ".pgpass" ".local/share/pgpass"
+    ".claude/.credentials.json" ".hermes/.env" ".hermes/**/.env"
+]
 
 const ACCOUNT_KEYS = [oauthAccount userID hasCompletedOnboarding lastOnboardingVersion]
 
@@ -31,6 +46,12 @@ def home [...parts: string]: nothing -> path {
 # Per machine: it holds credentials, so a new machine logs in itself instead of being seeded.
 def backup-dir []: nothing -> path {
     host-file ($env.DOTFILES | path join configs secrets keys claude)
+}
+
+# `//` is an absolute path in a permission rule, `~/` the home dir.
+def secret-reads-deny []: nothing -> list<string> {
+    let repo = $SECRET_READS_REPO | each {|glob| $"Read\(/($env.DOTFILES | path join $glob)\)" }
+    $repo ++ ($SECRET_READS_HOME | each {|glob| $"Read\(~/($glob)\)" })
 }
 
 # A granted permission prompt resumes the turn without a new prompt, so every tool call re-arms the guard.
@@ -64,14 +85,20 @@ export def link [cfg: record] {
     let creds = home .claude .credentials.json
     let backup = backup-dir
     [
-        (shell-aliases claude)
+        # the wrapper that drops the session's DO_NOT_TRACK, only where remote control wants the feature flags
+        (if $cfg.remote_control { shell-aliases claude })
         (files-into (home .claude) CLAUDE.md RTK.md keybindings.json)
         (json-merge $settings [
-            (json-set [remoteControlAtStartup] true)
+            (json-set [remoteControlAtStartup] $cfg.remote_control)
             (json-set [model] $cfg.model)
             (json-set [voice] {enabled: true, mode: hold})
-            # remote control needs feature flags, which the session-wide DO_NOT_TRACK switches off
-            (json-set [env DO_NOT_TRACK] "0")
+            ...(if $cfg.remote_control {
+                # remote control needs feature flags, which the session-wide DO_NOT_TRACK and DISABLE_TELEMETRY switch off
+                [(json-set [env DO_NOT_TRACK] "0") (json-delete [env DISABLE_TELEMETRY])]
+            } else {
+                [(json-delete [env DO_NOT_TRACK]) (json-set [env DISABLE_TELEMETRY] "1")]
+            })
+            (json-set [permissions deny] (secret-reads-deny))
             (json-set [env DISABLE_ERROR_REPORTING] "1")
             (json-set [env CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY] "1")
             (json-set [attribution] {commit: "", pr: ""})

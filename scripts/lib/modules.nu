@@ -11,6 +11,8 @@ export const VERBS = [link system theme apply backup restore update]
 export const HOOKS = [detect packages]
 const MARKER = "mod.nu"
 const DEPENDENCIES = "dependencies.txt"
+# owner only: the cache names the private secrets group's modules and their options
+const DISCOVER_MODE = "600"
 export const ROOT_MODULES = [scripts skills]
 export const SECRETS_GROUP = "secrets"
 export const SECRETS_DATA = ["secrets/keys/**" "secrets/state/**"]
@@ -126,7 +128,7 @@ export def modules-discover [repo: path, groups: list<string>]: nothing -> table
         let scanned = modules-scan $repo $markers
         if not ($scanned | any { $in.broken }) {
             mkdir ($cache | path dirname)
-            {key: $key, modules: $scanned} | to nuon | save-atomic $cache
+            {key: $key, modules: $scanned} | to nuon | save-atomic $cache --mode $DISCOVER_MODE
         }
         $scanned
     }

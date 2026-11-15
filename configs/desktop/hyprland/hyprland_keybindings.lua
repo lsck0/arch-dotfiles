@@ -189,7 +189,7 @@ for _, key in ipairs(LOCKED_KEYS) do
     hl.bind(key[1], key[2], { locked = true, repeating = key[4], description = key[3] })
 end
 
--- agent-guard can inhibit the lid switch; then an undocked close locks instead of suspending
+-- agent-guard inhibits the lid switch on mains; then an undocked close locks instead of suspending
 hl.bind(
     "switch:on:Lid Switch",
     hl.dsp.exec_cmd(

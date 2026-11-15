@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 # direct, proton, tor or offline; wg0 and the SOCKS pool are not routes. Offline also cycles wg0.
-use lib.nu [notify cycle-next status-record status-print toggle-run state-get state-set state-file systemctl-guarded unit-active]
+use lib.nu [notify cycle-next status-record status-print toggle-run state-get state-set state-file root-run unit-active exclusive-run]
 use ../lib/state.nu [xdg]
 
 const ROUTES = {direct: Direct, proton: ProtonVPN, tor: Tor, offline: Offline}
@@ -9,6 +9,9 @@ const TOR_UNIT = "tor-router.service"
 const NM_ONLINE_TIMEOUT_S = 30
 # the persona dispatcher's mark on a tor it started (lockdown-tor on a foreign network); vpn-up stops that one itself
 const DISPATCHER_TOR = "/run/persona-tor"
+const PORTMASTER_UNIT = "portmaster.service"
+# with the persona dispatcher as a pre-up hook, root stops portmaster before proton0 activates and nothing asks here
+const DISPATCHER_PRE_UP = "/etc/NetworkManager/dispatcher.d/pre-up.d/90-anonymous-persona"
 
 def radios []: nothing -> table { ^rfkill -rno ID,SOFT | lines | parse "{id} {soft}" }
 
@@ -22,10 +25,16 @@ def current []: nothing -> string {
     if (offline) { "offline" } else if (proton-up) { "proton" } else if (unit-active $TOR_UNIT) { "tor" } else { "direct" }
 }
 
+# Stopping a guard lowers, so it is one helper call for all of them: one prompt at most (49-toggles.rules).
+def guards-stop [...units: string]: nothing -> nothing {
+    let active = $units | where { unit-active $in }
+    if ($active | is-not-empty) { root-run guard-stop ...$active }
+}
+
+# The persona dispatcher's own decision (its portmaster-on), through the helper: back on behind a raised firewall,
+# off where the protonvpn netns tunnel's mark is read. A proton0 going down gets the same from the dispatcher itself.
 def portmaster-restore []: nothing -> nothing {
-    # portmaster's connmark restore breaks the protonvpn netns tunnel's fwmark, as in the dispatcher's portmaster-on
-    if (unit-active protonvpn-netns.service) { return }
-    if (toggle-run firewall get | str trim) != permissive { ^systemctl --no-ask-password start portmaster.service }
+    try { root-run portmaster-restore } catch {|err| print -e $"portmaster left as it is: ($err.msg)" }
 }
 
 def proton-connect []: nothing -> nothing {
@@ -34,7 +43,7 @@ def proton-connect []: nothing -> nothing {
     if (try { (open $settings).killswitch? | default 0 } catch { 0 }) == 0 {
         ^protonvpn config set kill-switch standard | complete
     }
-    if (unit-active portmaster.service) { systemctl-guarded stop portmaster.service }
+    if not ($DISPATCHER_PRE_UP | path exists) { guards-stop $PORTMASTER_UNIT }
     let connect = ^protonvpn connect --country $COUNTRY | complete
     let output = $connect.stdout + $connect.stderr
     if $output =~ '(?i)authentication required' {
@@ -53,7 +62,7 @@ def proton-disconnect []: nothing -> nothing {
 }
 
 def tor-start []: nothing -> nothing { ^systemctl --no-ask-password start $TOR_UNIT }
-def tor-stop []: nothing -> nothing { if (unit-active $TOR_UNIT) { systemctl-guarded stop $TOR_UNIT } }
+def tor-stop []: nothing -> nothing { guards-stop $TOR_UNIT }
 
 # remembers the radios and whether wg0 was up, so leaving offline restores both
 def offline-enter []: nothing -> nothing {
@@ -116,11 +125,15 @@ def "main get" [--json] {
     let route = current
     status-print (status-record Route $route --text ($ROUTES | get $route) --states ($ROUTES | columns)) $json
 }
-def "main set" [route: string] { apply $route }
-def "main direct" [] { apply direct }
-def "main proton" [--keep-tor] { apply proton --keep-tor=$keep_tor }
-def "main tor" [] { apply tor }
-def "main offline" [] { apply offline }
+def "main _apply" [route: string, --keep-tor] { apply $route --keep-tor=$keep_tor }
+def "main set" [route: string, --keep-tor] {
+    if $route not-in $ROUTES { error make {msg: $"route must be one of ($ROUTES | columns | str join ', ')"} }
+    exclusive-run Route _apply $route ...(if $keep_tor { [--keep-tor] } else { [] })
+}
+def "main direct" [] { main set direct }
+def "main proton" [--keep-tor] { main set proton --keep-tor=$keep_tor }
+def "main tor" [] { main set tor }
+def "main offline" [] { main set offline }
 # offline is no stop of the cycle: a press too many must not cut the machine off
-def "main toggle" [] { apply ($ROUTES | columns | where $it != offline | cycle-next (current)) }
+def "main toggle" [] { main set ($ROUTES | columns | where $it != offline | cycle-next (current)) }
 def main [] { main toggle }

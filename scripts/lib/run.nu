@@ -4,15 +4,16 @@ const REPO = path self ../..
 use log.nu *
 use cli.nu [flag jobs root-runner state-lock-hold]
 use state.nu [SYSTEM_REPO SYSTEM_STATE LIB_DIR state-dir save-atomic EXIT_ABORTED EXIT_PENDING xdg CONFIG_ISSUE file-trim]
+use doctor.nu [doctor-checks]
 use platform.nu [platform-load]
 use profile.nu [profile-has]
 use modules.nu [modules-packages]
 use pipeline.nu [pipeline-load pipeline-plan pipeline-apply pending-save flatpak-installed nix-installed THEME_VERB_TIMEOUT NIX_FLAGS]
 use converge.nu [state-read observe-outputs plan-module recorded-hashes apply-module state-write output-file-state unit-state-holds]
-use ledger.nu [ledger-units ledger-get ledger-set ledger-diff ledger-remove]
-use migrate.nu [migrations-run]
+use ledger.nu [ledger-units ledger-get ledger-set ledger-diff ledger-remove packages-convergence]
+use migrate.nu [migrations-run migrations-pending]
 use ../../configs/base/yubikey/yubikey.nu [yubikey-unlock]
-use system.nu [system-pack system-archive ENTRY]
+use system.nu [system-pack system-archive system-secrets-digest entry-parses entry-takes-run ENTRY SYSTEM_STAGES SYSTEM_SECRETS_DIGEST RUN_ID]
 use ../../configs/core/wallust/wallpaper.nu [wallpaper-set]
 use cause.nu [cause-from-error cause-text failure-line failure-is-system SYSTEM_FIX]
 use online.nu [network-online OFFLINE_PENDING]
@@ -33,6 +34,24 @@ const FLATPAK_USER_EXPORTS = ".local/share/flatpak/exports/share"
 const DATA_DIRS_DEFAULT = "/usr/local/share:/usr/share"
 # the first root copy, before root has an entry of its own: system-unpack from this checkout, under root's lock
 const SYSTEM_SEED = 'set -e; umask 022; mkdir -p "${1%/*}"; exec flock "${1%/*}/lock" /usr/bin/nu --no-config-file --stdin -I "$2" -c "use system.nu [system-unpack]; \$in | into binary | system-unpack \"$1\" $3"'
+# bash, $0 the log and "$@" the command: its output goes to the terminal and the log alike, its exit code is the
+# command's. No pty of its own: the command keeps the caller's terminal and session, where sudo finds its ticket.
+const LOG_TEE = 'printf "%s: %s\n" "$(date --iso-8601=seconds)" "$*" > "$0"; "$@" 2>&1 | tee --append --ignore-interrupts -- "$0"; exit "${PIPESTATUS[0]}"'
+# the doctor checks that must each report ok before a sync leaves root out
+const IDLE_CHECKS = [failures config pending snapshot packages]
+# the plan's reasons a sync names before it counts the rest
+const PLAN_DUE_SHOWN = 5
+# what a root copy older than `apply --run` is replaced through: its `apply` knows install and config only, takes the
+# argv without --run, unpacks, and runs the stage from the copy it unpacked. A sync goes through install, its own first
+# step, so no config runs ahead of the upgrade.
+const BRIDGE_STAGES = {install: install, config: config, sync: install}
+# sudo's pty can take the interrupt alone; the exit code (130, or -2) carries it
+const EXIT_INTERRUPTED = [130 -2]
+# pkexec's own codes: the prompt was dismissed, the caller is not authorized
+const PKEXEC_DECLINED = [126 127]
+const CHECKUPDATES_TIMEOUT_S = 30
+# checkupdates' exit code with nothing to upgrade
+const CHECKUPDATES_NONE = 2
 # what the palette is made from; a module's own theme verb is re-run by link-run's theme pass when its input changes,
 # so a mod.nu edit is no reason to re-theme every module a second time
 const THEME_STAMP_PATHS = [configs/core/wallust themes]
@@ -206,13 +225,24 @@ export def system-allowed []: nothing -> bool {
     $env.DOT_SYSTEM? != "skip" and (admin)
 }
 
-export def --env pty-log [name: string, args: list<string>]: nothing -> nothing {
-    if ($env.DOT_PTY_LOG? | is-not-empty) { return }
-    if not (is-terminal --stdin) { $env.DOTFILES_UNATTENDED = "1" }
-    if (is-terminal --stdout) and (which script | is-not-empty) {
-        let cmd = [nu --no-config-file $PIPELINE_CLI ...$args] | each {|w| $"'($w | str replace --all "'" "'\\''")'" } | str join " "
-        exec env DOT_PTY_LOG=1 script -qe -c $cmd ($REPO | path join $"($name).log")
+# The argv that runs argv with its output teed into log, marked so the command does not wrap itself again.
+export def log-tee-argv [log: path, argv: list<string>]: nothing -> list<string> {
+    [env DOT_PTY_LOG=1 bash -c $LOG_TEE $log ...$argv]
+}
+
+# At a terminal, re-execs argv (this command) with its output also in <checkout>/<name>.log. The command then writes to
+# a pipe, so its own colour is forced.
+export def --env log-tee [name: string, argv: list<string>]: nothing -> nothing {
+    if ($env.DOT_PTY_LOG? | is-not-empty) {
+        $env.config.use_ansi_coloring = true
+        return
     }
+    if (is-terminal --stdout) { exec ...(log-tee-argv ($REPO | path join $"($name).log") $argv) }
+}
+
+export def --env pty-log [name: string, args: list<string>]: nothing -> nothing {
+    if not (is-terminal --stdin) { $env.DOTFILES_UNATTENDED = "1" }
+    log-tee $name [$nu.current-exe --no-config-file $PIPELINE_CLI ...$args]
 }
 
 # What runs the system layer: the caller's DOTFILES_ROOT_RUNNER, else root-runner's pick, else sudo.
@@ -220,33 +250,87 @@ def system-runner []: nothing -> string {
     $env.DOTFILES_ROOT_RUNNER? | default (root-runner) | default sudo
 }
 
-def system-run [stage: string, --force, --yes]: nothing -> int {
+# Root's copy from this checkout, without an entry of root's to unpack it: only sudo at a terminal does that.
+def system-seed [runner: string, head: string, why: string]: nothing -> nothing {
+    if $runner != "sudo" { error make {msg: $"($SYSTEM_REPO) ($why), run dot apply at a terminal once"} }
+    system-pack $REPO | ^sudo sh -c $SYSTEM_SEED sh $SYSTEM_REPO $LIB_DIR $head
+}
+
+# What root left in SYSTEM_STAGES for this run, null when it is another run's or unreadable.
+def stages-read [run: string]: nothing -> any {
+    let report = try { open $SYSTEM_STAGES } catch { null }
+    if $report != null and $report.run? == $run and $run != "" { $report } else { null }
+}
+
+# Enters copy's `apply` for stage through runner, archive on its stdin: the entry's exit code. A copy whose entry does
+# not take --run yet is first handed the argv it knows (BRIDGE_STAGES), which unpacks this checkout over it, and then
+# entered as usual; an interrupted or aborted bridge, or one that left the old copy, is the result as it is.
+export def entry-enter [runner: string, copy: path, head: string, stage: string, run: string, flags: list<string>, archive: binary]: nothing -> int {
+    let entry = $copy | path join $ENTRY
+    let enter = {|argv| try { $archive | ^$runner $entry apply $head ...$argv; 0 } catch {|e| $e.exit_code? | default 1 } }
+    if not (entry-takes-run $copy) {
+        let carrier = $BRIDGE_STAGES | get $stage
+        log-note $"($copy) predates this entry protocol: replacing it through its own ($carrier) stage, then entering it again"
+        let code = do $enter [$carrier ...$flags]
+        if not (entry-takes-run $copy) { return (if $code == 0 { 1 } else { $code }) }
+        if $code in ($EXIT_INTERRUPTED ++ [$EXIT_ABORTED]) { return $code }
+    }
+    do $enter [$stage ...(if $run == "" { [] } else { [--run $run] }) ...$flags]
+}
+
+# One root entry for a stage of system-apply.nu's `apply` (install, config, or sync for all of it): its exit code,
+# what each step ended with ({stage, code, failures}, empty when root reported nothing) and root's run id.
+def system-run [stage: string, --force, --yes]: nothing -> record {
     let runner = system-runner
     let head = ^git -C $REPO rev-parse HEAD | str trim
     let entry = $SYSTEM_REPO | path join $ENTRY
-    if not ($entry | path exists) {
-        if $runner != "sudo" { error make {msg: $"($SYSTEM_REPO) has no ($ENTRY) yet, run dot apply at a terminal once"} }
-        system-pack $REPO | ^sudo sh -c $SYSTEM_SEED sh $SYSTEM_REPO $LIB_DIR $head
-    }
+    if not ($entry | path exists) { system-seed $runner $head $"has no ($ENTRY) yet" }
+    let run = $env.DOT_RUN_ID? | default "" | if $in =~ $RUN_ID { $in } else { "" }
     let flags = [--unattended=($env.DOTFILES_UNATTENDED? == "1")] ++ (flag force $force) ++ (flag yes $yes)
     let archive = system-archive $REPO (platform-load $REPO).facts.wireguard?
-    let code = try { $archive | ^$runner $entry apply $head $stage ...$flags; 0 } catch {|e| $e.exit_code? | default 1 }
+    let enter = {|| entry-enter $runner $SYSTEM_REPO $head $stage $run $flags $archive }
+    mut code = do $enter
+    # an entry that stopped parsing (a nushell upgrade, a broken tree shipped earlier) cannot unpack its own replacement
+    if $code != 0 and (stages-read $run) == null and not (entry-parses $SYSTEM_REPO) {
+        log-warn $"($entry) does not parse any more, replacing the root copy from this checkout"
+        system-seed $runner $head $"holds an ($ENTRY) that does not parse"
+        $code = do $enter
+    }
     interrupted-exit $code
-    $code
+    let report = stages-read $run
+    if $report != null { log-debug $"system ($stage): root's run ($report.root_run)" {kind: system-run, target: $report.root_run} }
+    {code: $code, stages: ($report.stages? | default []), run: $report.root_run?}
 }
 
-# sudo's pty can take the interrupt alone; the exit code (130, or -2) carries it.
+# What a step of a root entry ended with: its own code, the entry's when root reported nothing, null when the entry
+# never reached it.
+export def stage-code [ran: record, stage: string]: nothing -> any {
+    if ($ran.stages | is-empty) { return $ran.code }
+    $ran.stages | where stage == $stage | get --optional 0.code
+}
+
 def interrupted-exit [code: int]: nothing -> nothing {
-    if $code in [130 -2] {
+    if $code in $EXIT_INTERRUPTED {
         log-err "interrupted (ctrl+c) in the system layer: the run stopped, its later phases did not run"
         exit 130
     }
 }
 
-export def --env system-skipped [what: string, pending: bool]: nothing -> nothing {
+export def --env system-skipped [what: string, pending: bool, --why: string = "DOT_SYSTEM=skip"]: nothing -> nothing {
     if $pending { $"($what)\n" | save --append (pending-file) }
-    log-note $"system part pending \(DOT_SYSTEM=skip\): ($what)"
+    log-note $"system part pending \(($why)\): ($what)"
     $env.DOT_SYSTEM_PENDING = true
+}
+
+# Whether a root entry never started: pkexec's prompt was dismissed or refused, so root reported nothing.
+export def entry-declined [ran: record, runner: string]: nothing -> bool {
+    $runner == "pkexec" and ($ran.stages | is-empty) and $ran.code in $PKEXEC_DECLINED
+}
+
+# A declined entry left the system layer as it was: pending, not failed, and this run cannot vouch for it.
+def --env system-declined [what: string, pending: bool]: nothing -> nothing {
+    system-skipped $what $pending --why "the pkexec prompt was dismissed or refused, root was not entered"
+    $env.DOT_SYSTEM_RAN = false
 }
 
 export def --env pending-exit []: nothing -> nothing {
@@ -260,32 +344,42 @@ export def --env apply-finish [results: table]: nothing -> nothing {
     pending-exit
 }
 
-# Root's own lines carry the causes; this run's, by their time. A root line naming no system module gets the layer as
-# its subject, so a later user-only run still knows it for root's. Without one, the layer's exit is the line.
-def system-failed [stage: string, code: int, since: datetime]: nothing -> nothing {
-    let root = $SYSTEM_STATE | path join FAILURES
-    let fresh = ($root | path exists) and (ls $root | get 0.modified) >= $since
-    let lines = if $fresh { open --raw $root | lines | where ($it | str trim) != "" } else { [] }
-    for l in $lines { fail (if (failure-is-system $l) { $l } else { $"system layer ($l)" }) }
-    if ($lines | is-empty) {
-        let runner = system-runner
-        let fix = $"($SYSTEM_FIX) at a terminal; root's run log: ($SYSTEM_STATE | path join runs)"
-        fail (failure-line $"system layer ($stage)" null $"($runner) ($ENTRY) exited ($code), root recorded no failure" --fix $fix)
+# The FAILURES lines of a failed step of a root entry: root's own carry the causes. A root line naming no system module
+# gets the layer as its subject, so a later user-only run still knows it for root's. Without one, the exit is the line.
+export def stage-failures [ran: record, stage: string, runner: string]: nothing -> list<string> {
+    let lines = $ran.stages | where stage == $stage | get --optional 0.failures | default []
+    if ($lines | is-not-empty) { return ($lines | each {|l| if (failure-is-system $l) { $l } else { $"system layer ($l)" } }) }
+    let log = if $ran.run == null { $SYSTEM_STATE | path join runs } else { $SYSTEM_STATE | path join runs $"($ran.run).jsonl" }
+    let fix = $"($SYSTEM_FIX) at a terminal; root's run log: ($log)"
+    [(failure-line $"system layer ($stage)" null $"($runner) ($ENTRY) exited (stage-code $ran $stage), root recorded no failure" --fix $fix)]
+}
+
+def system-failed [ran: record, stage: string]: nothing -> nothing {
+    for l in (stage-failures $ran $stage (system-runner)) { fail $l }
+}
+
+# The config step of a root entry, into this run's failures and pending state.
+def --env config-report [ran: record]: nothing -> nothing {
+    if (entry-declined $ran (system-runner)) { system-declined "system layer" true; return }
+    let code = stage-code $ran config
+    if $code in [0 $EXIT_PENDING] { rm --force (pending-file) } else if $code != null { system-failed $ran config }
+    if $code == $EXIT_PENDING { $env.DOT_SYSTEM_PENDING = true }
+}
+
+# What root's config stage needs from the user first: the unlocked secrets and the lfs objects.
+def secrets-ready []: nothing -> nothing {
+    if (profile-has secrets) { try { yubikey-unlock } catch {|e| fail (failure-line "dot secrets unlock" null (cause-text (cause-from-error $e))) } }
+    if (which git-lfs | is-not-empty) {
+        try { ^git -C $REPO ...$LFS_FILTER lfs pull } catch {|e| fail (failure-line "git lfs pull" null (cause-text (cause-from-error $e))) }
     }
 }
 
 export def --env apply-run [system: bool, user: bool, force: bool]: nothing -> table {
     failures-open
-    if (profile-has secrets) { try { yubikey-unlock } catch {|e| fail (failure-line "dot secrets unlock" null (cause-text (cause-from-error $e))) } }
-    if (which git-lfs | is-not-empty) {
-        try { ^git -C $REPO ...$LFS_FILTER lfs pull } catch {|e| fail (failure-line "git lfs pull" null (cause-text (cause-from-error $e))) }
-    }
+    secrets-ready
     if $system and (system-allowed) {
         $env.DOT_SYSTEM_RAN = true
-        let since = date now
-        let code = system-run config --force=$force
-        if $code in [0 $EXIT_PENDING] { rm --force (pending-file) } else { system-failed config $code $since }
-        if $code == $EXIT_PENDING { $env.DOT_SYSTEM_PENDING = true }
+        config-report (system-run config --force=$force)
     } else if $system and (admin) {
         system-skipped "system layer" true
     }
@@ -417,34 +511,48 @@ def install-user [declared: record, platform: record, yes: bool, offer_by_hand: 
     $waiting
 }
 
-export def --env install-run [user: bool, yes: bool, offer_by_hand: bool]: nothing -> int {
-    let system = not $user and (system-allowed)
-    if not $user and not $system and (admin) { system-skipped "packages" false }
+def --env install-begin []: nothing -> nothing {
     failures-begin ($env.DOT_RUN_FILE | str replace ".jsonl" ".install-failures")
-    if $system {
-        let since = date now
-        let status = system-run install --yes=$yes
-        if $status != 0 { system-failed install $status $since }
-        if $status == $EXIT_ABORTED {
-            $"(failures-take)\n" | save --force ($REPO | path join $FAILURES_INSTALL)
-            return $EXIT_ABORTED
-        }
-    }
+}
+
+# The install and packages steps of a root entry, into the install failures; the install step's code.
+def --env install-report [ran: record]: nothing -> int {
+    if (entry-declined $ran (system-runner)) { system-declined "packages" false; return $EXIT_PENDING }
+    let install = stage-code $ran install
+    if $install not-in [0 $EXIT_PENDING] { system-failed $ran install }
+    if $install == $EXIT_PENDING { $env.DOT_SYSTEM_PENDING = true }
+    if ($ran.stages | where stage == packages and code != 0 | is-not-empty) { system-failed $ran packages }
+    $install
+}
+
+# Rustup, flatpak and nix as the user: after root's entry, so nothing slow sits between two of them.
+def --env install-user-run [yes: bool, offer_by_hand: bool]: nothing -> nothing {
     let ctx = pipeline-load $REPO user
     let waiting = install-user (modules-packages $REPO $ctx.modules $ctx.platform) $ctx.platform $yes $offer_by_hand (network-online)
     if ($waiting | is-not-empty) {
         log-note $"packages pending, ($OFFLINE_PENDING) --packages: ($waiting | str join ', ')"
         $env.DOT_SYSTEM_PENDING = true
     }
-    if $system {
-        let runner = system-runner
-        try { ^$runner ($SYSTEM_REPO | path join $ENTRY) packages --unattended=($env.DOTFILES_UNATTENDED? == "1") ...(flag yes $yes) } catch {|e| interrupted-exit ($e.exit_code? | default 1); fail "system layer: removing undeclared packages" }
-    }
+}
+
+# Ends the install failures into FAILURES.install: 0 when there are none, EXIT_ABORTED kept as it is.
+def --env install-end [status: int = 0]: nothing -> int {
     let failed = failures-take
-    if ($failed | is-empty) { rm --force ($REPO | path join $FAILURES_INSTALL); return 0 }
-    $"($failed)\n" | save --force ($REPO | path join $FAILURES_INSTALL)
+    let published = $REPO | path join $FAILURES_INSTALL
+    if ($failed | is-empty) and $status != $EXIT_ABORTED { rm --force $published; return 0 }
+    $"($failed)\n" | save --force $published
+    if $status == $EXIT_ABORTED { return $EXIT_ABORTED }
     print $"=== FAILED ===\n($failed)"
     1
+}
+
+export def --env install-run [user: bool, yes: bool, offer_by_hand: bool]: nothing -> int {
+    let system = not $user and (system-allowed)
+    if not $user and not $system and (admin) { system-skipped "packages" false }
+    install-begin
+    if $system and (install-report (system-run install --yes=$yes)) == $EXIT_ABORTED { return (install-end $EXIT_ABORTED) }
+    install-user-run $yes $offer_by_hand
+    install-end
 }
 
 export def pending-file []: nothing -> path {
@@ -453,23 +561,132 @@ export def pending-file []: nothing -> path {
 
 export def --env system-part [target: string]: nothing -> nothing {
     let runner = if $env.DOT_SYSTEM? == "skip" { null } else { root-runner }
-    let ok = $runner != null and (with-env {DOTFILES_ROOT_RUNNER: $runner} { system-run config }) in [0 $EXIT_PENDING]
+    let ok = $runner != null and (with-env {DOTFILES_ROOT_RUNNER: $runner} { system-run config }).code in [0 $EXIT_PENDING]
     if $ok { return }
     $"($target)\n" | save --append (pending-file)
     log-note $"($target): system part pending, runs on the next dot apply"
     $env.DOT_SYSTEM_PENDING = true
 }
 
-# dot sync after its pull: migrations, packages, both layers, the modules' update verbs.
-export def --env update-run [yes: bool]: nothing -> record {
+# Why root's last `apply` does not vouch for the system layer, null when its config step ended 0 and no step of it ended
+# otherwise. report: SYSTEM_STAGES, null when there is none: `apply` removes it before it unpacks and writes it after
+# its last step, so an entry cut short left none. Pending (EXIT_PENDING) is no 0.
+export def stages-due [report: any]: nothing -> any {
+    let stages = try { $report.stages | select stage code } catch { return "root's last entry left no report, it did not finish" }
+    let unsettled = $stages | where code != 0
+    if ($unsettled | is-not-empty) { return $"root's last entry ended ($unsettled | each { $'($in.stage) with ($in.code)' } | str join ', ')" }
+    if "config" not-in $stages.stage { return $"root's last entry ran no config step \(($stages.stage | str join ', ')\)" }
+}
+
+# Whether this user can tell if file exists: its nearest existing parent can be searched.
+def path-knowable [file: path]: nothing -> bool {
+    mut dir = $file | path dirname
+    while not ($dir | path exists) and $dir != "/" { $dir = $dir | path dirname }
+    (^test -x $dir | complete).exit_code == 0
+}
+
+# What an unprivileged system plan (pipeline-plan's rows) shows root has to do, as "<module>: <kind> <target>": a
+# module's error and every action but the ones that say nothing here. Those are a skip, a target this user cannot read,
+# a step or exec with no record (it runs on every apply), and one whose --creates this user cannot look for.
+export def plan-due [planned: table]: nothing -> list<string> {
+    let errors = $planned | where error != null | each { $"($in.id): ($in.error)" }
+    let actions = $planned | each {|m| $m.actions | each {|a|
+        let d = $a.decl
+        let silent = $a.kind in [skip unreadable] or ($a.kind in [exec step] and (
+            ($d.creates? == null and $d.key? == null and ($d.undo? | default [] | is-empty))
+            or ($d.creates? != null and not (path-knowable $d.creates))
+        ))
+        if not $silent { $"($m.id): ($a.kind) ($a.target)" }
+    } } | flatten
+    $errors ++ $actions
+}
+
+# Why a sync has to enter root, from what an unprivileged process can read; empty when all of it shows the system
+# layer converged. checks: doctor's records. facts: {waiting, migrations, undeclared, incomplete: lists that must be
+# empty; secrets: the keys/ digest equals root's; banner: a config failure banner is up; stages: SYSTEM_STAGES or null;
+# plan: plan-due's lines}. Anything unknown is a reason.
+export def system-due [checks: list<record>, facts: record]: nothing -> list<string> {
+    let unsettled = $IDLE_CHECKS | each {|name|
+        let rows = $checks | where check == $name
+        if ($rows | is-empty) { $"($name): not checked" } else { $rows | where level != ok | get --optional 0 | if $in != null { $"($name): ($in.text)" } }
+    } | compact
+    $unsettled ++ ([
+        (if ($facts.waiting | is-not-empty) { $"system part pending: ($facts.waiting | str join ' ')" })
+        (if ($facts.migrations | is-not-empty) { $"migrations pending: ($facts.migrations | str join ' ')" })
+        (if ($facts.undeclared | is-not-empty) { $"undeclared packages: ($facts.undeclared | str join ' ')" })
+        (if ($facts.incomplete | is-not-empty) { $"modules declaring no packages: ($facts.incomplete | str join ' ')" })
+        (if not $facts.secrets { "the system secrets differ from what root was last handed" })
+        (if $facts.banner { $"($CONFIG_ISSUE) is up" })
+        (stages-due $facts.stages)
+        (if ($facts.plan | is-not-empty) {
+            let more = ($facts.plan | length) - $PLAN_DUE_SHOWN
+            $"the system plan: ($facts.plan | first $PLAN_DUE_SHOWN | str join ', ')(if $more > 0 { $' and ($more) more' } else { '' })"
+        })
+    ] | compact)
+}
+
+# Why an upgrade pass is due by checkupdates' exit code, null when it found nothing to upgrade; no answer is a reason.
+export def upgrades-due [exit_code: any]: nothing -> any {
+    if $exit_code == $CHECKUPDATES_NONE { return null }
+    if $exit_code == null { return "checkupdates is not installed" }
+    if $exit_code == 0 { "package upgrades are available" } else { $"checkupdates exited ($exit_code), the mirrors' state is unknown" }
+}
+
+# A plain def: pipeline-load's DOT_LAYER stays in here.
+def system-facts []: nothing -> record {
+    let ctx = pipeline-load $REPO system
+    let declared = modules-packages $REPO $ctx.modules $ctx.platform
+    {
+        waiting: (try { open --raw (with-env {DOT_LAYER: user} { pending-file }) | lines | where $it != "" } catch { [] })
+        migrations: (migrations-pending $REPO system | get id)
+        undeclared: (packages-convergence $declared.pacman $ctx.platform.packages_keep).remove
+        incomplete: $declared.incomplete
+        secrets: ((file-trim $SYSTEM_SECRETS_DIGEST null) == (system-secrets-digest $REPO $ctx.platform.facts.wireguard?))
+        banner: ($CONFIG_ISSUE | path exists)
+        stages: (try { open $SYSTEM_STAGES } catch { null })
+        plan: (plan-due (pipeline-plan $ctx system [] false))
+    }
+}
+
+# system-due on this machine, then, only when nothing else is due, whether the mirrors hold an upgrade.
+def system-due-now []: nothing -> list<string> {
+    let due = try { system-due (doctor-checks) (system-facts) } catch {|e| [$"the system layer's state could not be read: ($e.msg)"] }
+    if ($due | is-not-empty) { return $due }
+    let code = if (which checkupdates | is-empty) { null } else { (^timeout $CHECKUPDATES_TIMEOUT_S checkupdates | complete).exit_code }
+    [(upgrades-due $code)] | compact
+}
+
+# dot sync after its pull: migrations, one root entry for packages and the system layer, the user's packages, the user
+# layer, the modules' update verbs. Root is left out when system-due-now finds nothing for it; system forces it.
+export def --env update-run [yes: bool, system: bool]: nothing -> record {
     migrations-run $REPO user | ignore
-    let install = install-run false $yes false
-    if $install == $EXIT_ABORTED { exit $EXIT_ABORTED }
+    failures-open
+    secrets-ready
+    let config_failures = $env.FAILURES_FILE
+    install-begin
     if (system-allowed) {
-        let runner = system-runner
-        try { ^$runner ($SYSTEM_REPO | path join $ENTRY) migrate } catch {|e| interrupted-exit ($e.exit_code? | default 1); fail "system layer: migrations" }
-    } else if (admin) { system-skipped "system migrations" false }
-    let results = apply-run true true false
+        let due = if $system { ["dot sync --system"] } else { system-due-now }
+        if ($due | is-empty) {
+            log-info "system layer: nothing to do, root not entered; dot sync --system enters it anyway"
+        } else {
+            log-debug $"system layer due: ($due | str join '; ')"
+            $env.DOT_SYSTEM_RAN = true
+            let ran = system-run sync --yes=$yes
+            if (install-report $ran) == $EXIT_ABORTED { exit (install-end $EXIT_ABORTED) }
+            # now, not after the user's installs: an interrupt in those must not lose a failed config step
+            let installing = $env.FAILURES_FILE
+            $env.FAILURES_FILE = $config_failures
+            config-report $ran
+            $env.FAILURES_FILE = $installing
+        }
+    } else if (admin) {
+        system-skipped "packages" false
+        system-skipped "system layer" true
+    }
+    install-user-run $yes false
+    let install = install-end
+    failures-open
+    let results = link-run [] false
     try { ^nu --no-config-file $INTERNAL update } catch { log-warn "update: a module's update verb failed, see dot log" }
     {install: $install, results: $results}
 }

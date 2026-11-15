@@ -7,6 +7,8 @@ Item {
   property Image image: null
   property bool active: false
   property bool animate: true
+  // holds the frame timer while nobody can see the field (screens off); the picture stays as it is
+  property bool paused: false
 
   readonly property string ramp: " .:-=+*#%@"
   readonly property int maxCols: 240
@@ -53,6 +55,10 @@ Item {
   onRowsChanged: if (active) project()
   onFontFamilyChanged: if (active) project()
   onAnimateChanged: if (active) project()
+  onPausedChanged: {
+    if (paused) timer.stop()
+    else if (active && animate && glyphs) timer.start()
+  }
 
   Connections {
     target: root.image
@@ -144,7 +150,7 @@ Item {
         if (!isImageLoaded(root.image.source)) { loadImage(root.image.source); return }
         sample(ctx)
         root.frames = 0
-        if (root.animate) timer.start()
+        if (root.animate && !root.paused) timer.start()
         else for (let h = 0; h < root.heads.length; h++) root.heads[h].y = root.rows
       }
       ctx.font = Math.floor(root.cellH) + "px '" + root.fontFamily + "'"

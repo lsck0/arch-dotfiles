@@ -1,5 +1,7 @@
 [Unit]
 Description=Weekly ghostmirror sorting
+# mains only: 99-ghostmirror-ac.rules stops it on battery and starts it at the plug-in, where Persistent= catches up
+ConditionACPower=true
 
 [Timer]
 OnCalendar=weekly

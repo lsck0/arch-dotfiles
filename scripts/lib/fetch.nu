@@ -44,11 +44,14 @@ export def fetch-file-run [url: string, sha256: string, dest: path, --mode: stri
         # --retry-all-errors: mirrors drop mid-transfer outside curl's default set; -C - resumes
         let got = ^curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors -C - -o $"($cached).part" $url | complete
         if $got.exit_code != 0 { error make {msg: $"download of ($url) failed: ($got.stderr | str trim | lines | last)"} }
-        if (open --raw $"($cached).part" | hash sha256) != $sha256 {
+        if (^sha256sum $"($cached).part" | split row " " | first) != $sha256 {
             rm --force $"($cached).part"
             error make {msg: $"($url) does not match its pinned sha256 ($sha256)"}
         }
         mv --force $"($cached).part" $cached
+    } else {
+        # base/cleanup's tmpfiles rule ages the cache by its newest timestamp: a blob still in use stays
+        ^touch --no-create $cached
     }
     mkdir ($dest | path dirname)
     let next = $"($dest).dot-new"

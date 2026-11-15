@@ -21,7 +21,9 @@ const WG_IFACE = "wg0"
 # protonvpn-netns' tunnel: its link lives in the namespace, its udp socket in ours with the fwmark
 const NETNS = "protonvpn"
 const NETNS_IFACE = "wg-protonvpn"
-const PORTAL_S = 120
+# base/networkmanager's portal_window_s; the fallback is its default
+const PORTAL_FILE = "/etc/NetworkManager/portal-seconds"
+const PORTAL_S = 300
 const PORTAL_UNIT = "persona-portal"
 const IFNAME = '^[A-Za-z0-9_.-]{1,15}$'
 
@@ -46,6 +48,10 @@ def foreign [policy: string]: nothing -> bool {
     ($physical | is-empty) or ($physical | any { $in not-in $trusted })
 }
 
+def portal-seconds []: nothing -> int {
+    file-lines $PORTAL_FILE | get --optional 0 | default "" | if $in =~ '^[1-9]\d*$' { $in | into int } else { $PORTAL_S }
+}
+
 def tor-missing []: nothing -> bool {
     not ($TOR | path exists) or not ($TOR_ROUTER | path exists)
 }
@@ -65,20 +71,35 @@ def tor-off []: nothing -> nothing {
     ok systemctl stop --no-block tor-router.service | ignore
 }
 
-# Never over a live proton tunnel: its connmark restore clobbers the wg fwmark. Kept off on a foreign link under
-# lockdown-tor without tor: its own resolver (root) cannot pass fw-egress, while resolved's strict DoT, back once it
-# stops, is the escape route's way to look up pacman's mirrors.
+# Never over a live proton tunnel: its connmark restore clobbers the wg fwmark. The netns tunnel's mark is read only
+# by fw-egress on a foreign link and by tor-router, so portmaster stops beside it there and comes back on a trusted
+# link. Kept off on a foreign link under lockdown-tor without tor: its own resolver (root) cannot pass fw-egress,
+# while resolved's strict DoT, back once it stops, is the escape route's way to look up pacman's mirrors.
 def portmaster-on [policy: string, gone: string = ""]: nothing -> nothing {
-    if $policy == lockdown-tor and (tor-missing) and (foreign $policy) {
+    let locked = $policy == lockdown-tor and (foreign $policy)
+    let mark_read = $locked or (ok systemctl is-active -q tor-router.service)
+    if ($locked and (tor-missing)) or ($mark_read and (ok ip -n $NETNS link show $NETNS_IFACE)) {
         ok systemctl stop portmaster.service | ignore
         return
     }
-    if ($VPN_IFACE != $gone and (ok ip link show $VPN_IFACE)) or (ok ip -n $NETNS link show $NETNS_IFACE) { return }
+    if $VPN_IFACE != $gone and (ok ip link show $VPN_IFACE) { return }
     if (ok systemctl is-active -q fw-inbound.service fw-lockdown.service) { ok systemctl start portmaster.service | ignore }
+}
+
+# A foreign link's dhcp search domains would route those names to its resolver, ahead of the global ~.
+def foreign-dns [iface: string]: nothing -> nothing {
+    ok resolvectl domain $iface "" | ignore
+    ok resolvectl default-route $iface no | ignore
+}
+
+def portal-open [iface: string]: nothing -> bool {
+    ok systemctl is-active -q $"($PORTAL_UNIT)-($iface).timer"
 }
 
 def vpn-event [policy: string, action: string]: nothing -> nothing {
     match $action {
+        # as root before the tunnel activates, so toggle-route asks for no portmaster stop of its own
+        "pre-up" => { ok systemctl stop portmaster.service | ignore }
         "up" | "vpn-up" => {
             ok systemctl stop portmaster.service | ignore
             tor-off
@@ -111,16 +132,17 @@ def wg-event [policy: string, action: string]: nothing -> nothing {
 
 # Captive portal mode: its pages live on the foreign network, out of reach of tor and strict dot.
 def portal [iface: string]: nothing -> nothing {
-    if $iface in (file-lines $TRUSTED_NETWORK) or (ok systemctl is-active -q $"($PORTAL_UNIT)-($iface).timer") { return }
+    if $iface in (file-lines $TRUSTED_NETWORK) or (portal-open $iface) { return }
+    let seconds = portal-seconds
     # fw_egress is loaded only under lockdown-tor; strict dot still hides the portal's names without it
     let egress = ok nft list table inet fw_egress
-    if $egress and not (ok nft add element inet fw_egress portal $"{ ($iface) timeout ($PORTAL_S)s }") {
+    if $egress and not (ok nft add element inet fw_egress portal $"{ ($iface) timeout ($seconds)s }") {
         print --stderr $"portal: could not open fw_egress for ($iface)"
         exit 1
     }
     let domains = out resolvectl domain $iface | split row ":" | skip 1 | str join ":" | split row --regex '\s+'
         | where $it != ""
-    let back = [--quiet --collect $"--unit=($PORTAL_UNIT)-($iface)" $"--on-active=($PORTAL_S)s" $SELF $iface portal-end]
+    let back = [--quiet --collect $"--unit=($PORTAL_UNIT)-($iface)" $"--on-active=($seconds)s" $SELF $iface portal-end]
     if not (ok systemd-run ...$back ...$domains) {
         if $egress { ok nft delete element inet fw_egress portal $"{ ($iface) }" | ignore }
         print --stderr $"portal: could not schedule its end for ($iface)"
@@ -137,10 +159,16 @@ def portal [iface: string]: nothing -> nothing {
 def portal-end [policy: string, iface: string, domains: list<string>]: nothing -> nothing {
     # gone by its own timeout unless toggle-portal ended the window early
     ok nft delete element inet fw_egress portal $"{ ($iface) }" | ignore
-    ok resolvectl domain $iface ...(if ($domains | is-empty) { [""] } else { $domains }) | ignore
+    # the window may have seen the network become trusted: only then are its own domains and resolver wanted back
+    let trusted = $iface in (file-lines $TRUSTED_NETWORK)
+    if $trusted {
+        ok resolvectl domain $iface ...(if ($domains | is-empty) { [""] } else { $domains }) | ignore
+    } else {
+        foreign-dns $iface
+    }
     if (foreign $policy) { tor-on $policy }
     portmaster-on $policy
-    let tls = if (ok systemctl is-active -q portmaster.service) { "no" } else { "opportunistic" }
+    let tls = if (ok systemctl is-active -q portmaster.service) { "no" } else if $trusted { "opportunistic" } else { "yes" }
     ok resolvectl dnsovertls $iface $tls | ignore
 }
 
@@ -175,6 +203,7 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
         # mask the daemon, a stop is undone by activation; the unix socket stays enabled for base/systemd
         ok systemctl stop avahi-daemon.socket | ignore
         ok systemctl mask --runtime --now avahi-daemon.service | ignore
+        if $action == up and $iface not-in (file-lines $TRUSTED_NETWORK) { foreign-dns $iface }
         if $action == up and $policy == lockdown-tor {
             ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=1" | ignore
             if $iface not-in (file-lines $TRUSTED_NETWORK) { ok nmcli connection modify $uuid ipv6.method disabled | ignore }
@@ -208,9 +237,14 @@ def main [iface: string = "", action: string = "", ...domains: string]: nothing 
     if $action == tor-arrived { return (tor-arrived $policy) }
     # toggle-firewall's way back to portmaster, decided here like on every link event
     if $action == portmaster { return (portmaster-on $policy) }
-    if $action not-in [up down portal] or not ($iface =~ $IFNAME) { return }
+    if $action not-in [up down portal dhcp4-change dhcp6-change] or not ($iface =~ $IFNAME) { return }
     # an unplugged link's node is gone by its down, which under lockdown still re-decides over the links left
     let unplugged = $action == down and ($MARKER | path exists)
     if not (link-physical $iface) and not $unplugged { return }
+    if $action in [dhcp4-change dhcp6-change] {
+        # NM pushes the link's resolved config again with every lease; an open portal keeps its own
+        if $policy != off and $iface not-in (file-lines $TRUSTED_NETWORK) and not (portal-open $iface) { foreign-dns $iface }
+        return
+    }
     if $action == portal { portal $iface } else { link-event $policy $iface $action }
 }

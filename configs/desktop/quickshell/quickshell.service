@@ -9,6 +9,7 @@ StartLimitBurst=5
 Type=exec
 Slice=session.slice
 ExecStartPre=%h/.config/quickshell/restart.nu prepare
-ExecStart=/usr/bin/quickshell -p %h/.config/quickshell
+# a tray item that fails its IconName Get (Discord) is warned about on every icon change, thousands of lines a day
+ExecStart=/usr/bin/quickshell --log-rules=quickshell.dbus.properties.warning=false -p %h/.config/quickshell
 Restart=on-failure
 RestartSec=2

@@ -2,6 +2,8 @@
 # a cause: the command line, its exit code or that it is not installed and the package bringing it, the last stderr
 # lines, where it ran. HINTS names the fix of each known failure class; FAILURES lines render, parse and group from it.
 
+use state.nu [xdg]
+
 const REPO = path self ../..
 const STDERR_LINES = 3
 # usrmerge: every bin dir is /usr/bin, which is where the files database lists them
@@ -11,6 +13,7 @@ const PACMAN = "/usr/bin/pacman"
 const PACMAN_SYNC_DIR = "/var/lib/pacman/sync"
 const FILES_DB_GLOB = "*.files"
 const OWNER_NONE = "-"
+const OWNERS_CACHE = "command-owners"
 const PACKAGE_UNKNOWN = "no package known"
 # pacman-filesdb-refresh.timer (base/pacman) downloads it; until then pacman -F finds nothing
 export const FILES_DB_MISSING = "files db missing"
@@ -25,7 +28,8 @@ const ERROR_AT = '\[(?<file>[^\]\s]+):(?<line>\d+):(?<col>\d+)\]'
 const ERROR_MESSAGE = '^\s*(?:x|\x{d7}) (?<message>.*)$'
 # a message wrapped at the renderer's width goes on in gutter lines without a line number
 const ERROR_MESSAGE_MORE = '^\s*[|\x{2502}] (?<more>.*)$'
-# the plain renderer's `-- and the fancy one's box drawing, which a tty gets (dot apply under script, pty-log)
+# the plain renderer's `-- and the fancy one's box drawing, which a run at a terminal gets: its output is teed into a
+# log with colour forced (run.nu log-tee: sync.log and its kind; root's run files under /var/lib/dotfiles/runs)
 const ERROR_LABEL = '(?:`--|\x{2570}\x{2500}\x{2500}) (?<label>.*)$'
 const ERROR_GUTTER = '[|\x{2502}]'
 const NOT_FOUND = 'Command `(?<name>[^`]+)` not found'
@@ -109,22 +113,33 @@ def rendered-parse [colored: string]: nothing -> record {
     }
 }
 
-# The repo package that brings a command, asked of pacman's files database once per run (the run's owners file keeps
-# each answer, none as OWNER_NONE); null when no package has it, FILES_DB_MISSING (never kept) when the sync dir holds
-# no files database to ask.
+# The answers command-package keeps, each as "<command> <package>", emptied once a files database is newer than it.
+def owners-cache [sync_dir: path]: nothing -> path {
+    let cache = if (is-admin) { "/var/cache/dotfiles" } else { xdg cache dotfiles } | path join $OWNERS_CACHE
+    let refreshed = ls ...(glob ($sync_dir | path join $FILES_DB_GLOB)) | get modified | math max
+    if not ($cache | path exists) or (ls $cache | get 0.modified) < $refreshed {
+        mkdir ($cache | path dirname)
+        "" | save --force $cache
+    }
+    $cache
+}
+
+# The repo package that brings a command, asked of pacman's files database once per refresh of it (a query reads every
+# files database, about a second; owners-cache keeps each answer, none as OWNER_NONE); null when no package has it,
+# FILES_DB_MISSING (never kept) when the sync dir holds no files database to ask.
 export def command-package [name: string, --sync-dir: path = $PACMAN_SYNC_DIR]: nothing -> any {
     if (glob ($sync_dir | path join $FILES_DB_GLOB) | is-empty) { return $FILES_DB_MISSING }
     let command = $name | path basename
-    let run = $env.DOT_RUN_FILE? | default ""
-    let cache = if ($run | str ends-with ".jsonl") { $run | str replace --regex '\.jsonl$' ".owners" } else { "" }
-    let cached = if $cache != "" and ($cache | path exists) {
+    # a cache that cannot be written (a read-only home, a full disk) costs the query, never the cause
+    let cache = try { owners-cache $sync_dir } catch { null }
+    let cached = if $cache != null {
         open --raw $cache | lines | parse "{command} {package}" | where command == $command | get --optional 0.package
     }
     let package = if $cached != null { $cached } else {
         let found = try { ^$PACMAN -Fq $"($PACKAGE_BIN_DIR)($command)" | complete } catch { {stdout: ""} }
         $found.stdout | lines | get --optional 0 | default $OWNER_NONE | split row "/" | last
     }
-    if $cache != "" and $cached == null { $"($command) ($package)\n" | save --append $cache }
+    if $cache != null and $cached == null { try { $"($command) ($package)\n" | save --append $cache } }
     if $package == $OWNER_NONE { null } else { $package }
 }
 

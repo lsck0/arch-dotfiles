@@ -44,6 +44,15 @@
     "base/networkmanager": {
         untrusted_policy: lockdown-tor
     }
+    "base/nftables": {
+        pentest_listeners: true
+    }
+    "base/fail2ban": {enable: false}
+    "base/tlp": {
+        # spares a docked battery; `tlp fullcharge` (root) before a day away
+        charge_start: 75
+        charge_stop: 80
+    }
     "base/pam": {
         fido_origin: "pam://lsck0"
     }
@@ -53,5 +62,12 @@
     }
     "base/v4l2loopback": {
         video_nr: 2
+    }
+    # file and CLI servers nothing gates on an app: off where the memory per agent session counts
+    "creating/inkscape": {mcp: false}
+    "creating/openscad": {mcp: false}
+    "pentesting/wireshark": {mcp: false}
+    "programming/claude": {
+        remote_control: true
     }
 }

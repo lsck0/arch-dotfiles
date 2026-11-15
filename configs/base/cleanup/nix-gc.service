@@ -1,5 +1,7 @@
 [Unit]
 Description=Collect nix store garbage older than 30 days
+# on battery the week's run is skipped: the store only grows until the next one
+ConditionACPower=true
 
 [Service]
 Type=oneshot

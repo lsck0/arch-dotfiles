@@ -45,9 +45,11 @@ Every source is pinned and checked:
   signature proves the builder, not the recipe: read the PKGBUILD and maintainer first.
 - Downloads: `fetch-file <url> <sha256> <dest>`, never bare curl or `curl | sh`. Git: `fetch-git <url> <commit>
   <dir>`, a commit, not a branch or tag (`configs/programming/caveman`).
-- `uvx`: `mcp-uvx <name> <pkg>==<version> <date> [argv] <module>` (`scripts/lib/module.nu`): `--from` the pin,
-  `--exclude-newer` the date (the pin's PyPI upload date or later), since a bare pin leaves dependencies floating.
-- node: committed `package-lock.json` with `npm ci` (`configs/creating/obs/mcp`); `npx -y <pkg>@<version>` floats.
+- PyPI: `mcp-uvx <name> <pkg>==<version> <date> [argv] <module>` (`scripts/lib/module.nu`) builds a venv per server
+  at apply time, `--exclude-newer` the date (the pin's PyPI upload date or later), since a bare pin leaves
+  dependencies floating; a session starts the venv's entry point, no `uvx`.
+- node: committed `package-lock.json` with `npm ci` (`configs/creating/obs/mcp`, `configs/programming/godot/mcp`);
+  `npx -y <pkg>@<version>` floats.
 - The repo: `bootstrap.sh`, the iso stub and `system-apply.nu` refuse a HEAD not signed by
   `SIGNING_KEY_FINGERPRINT`; `dot sync`'s pull (`sync-pull`) merges nothing unless origin's head carries that
   signature, and `programming/projects` sets `merge.verifySignatures` on the checkout for a hand pull.
@@ -55,7 +57,7 @@ Every source is pinned and checked:
 Still floating, fix when touching the module:
 
 - `npx` without lockfile: `configs/programming/kubernetes` (`kubernetes-mcp-server@0.0.67`),
-  `configs/programming/godot/godot-mcp.nu` (`godot-mcp-server@0.6.0`), `configs/programming/caveman` (`skills@1.7.0`).
+  `configs/programming/caveman` (`skills@1.7.0`).
 - Latest-version installs: mason (`configs/programming/nvim/lua/lib/mason_packages.lua`), the VSCodium vim extension,
   Firefox and Chromium store extensions (`policies.json`, `policy.json`), rustup toolchains, Claude Code plugins other
   than caveman.

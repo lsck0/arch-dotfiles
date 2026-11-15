@@ -1,0 +1,4 @@
+# alloy skips a battery boot (ConditionACPower in its drop-in) and stops when mains goes; plugged in, it starts and
+# the journal cursor lets loki catch up
+SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="0", RUN+="/usr/bin/systemctl --no-block stop @UNIT@"
+SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="1", RUN+="/usr/bin/systemctl --no-block start @UNIT@"

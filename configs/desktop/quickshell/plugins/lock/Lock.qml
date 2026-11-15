@@ -28,11 +28,21 @@ Item {
   property string keyCue: ""
   property string keyNote: ""
   readonly property int keyProbeSettleMs: 250
+  // base/pam installs the service only on a machine with a usable fingerprint sensor
+  readonly property string fprintService: "/etc/pam.d/quickshell-lock-fprint"
+  property bool fprintAvailable: false
+  property string fprintCue: ""
+  property int fprintRounds: 0
+  // each round is the service's three tries; past these the finger is off until the next lock
+  readonly property int fprintRoundsMax: 5
+  // desktop/hyprland's dpms.nu reports the outputs through the lock IPC target
+  property bool screensOn: true
   readonly property string keyStatus: {
     if (pamU2f.active) return root.keyCue !== "" ? root.keyCue : "waiting for security key"
     if (pamPw.active) return "verifying"
     var retries = root.pinRetries >= 0 ? root.pinRetries + " PIN attempts left" : ""
     if (root.keyNote !== "") return retries !== "" ? root.keyNote + ", " + retries : root.keyNote
+    if (pamFprint.active) return root.fprintCue !== "" ? root.fprintCue : "fingerprint ready"
     if (root.keyMode) return retries !== "" ? "security key PIN, " + retries : "security key PIN"
     return ""
   }
@@ -80,6 +90,7 @@ Item {
     root._pw = ""
     root.clearFields()
     pamPw.active = false
+    root.fprintDisarm()
     root.glitchOut()
     unlockDelay.restart()
   }
@@ -88,6 +99,7 @@ Item {
     if (!root.locked || !root.activeField || root.activeField.text.length === 0 || pamPw.active) return
     root._pw = root.activeField.text
     root.authError = false
+    root.keyNote = ""
     pamPw.start()
   }
 
@@ -97,8 +109,22 @@ Item {
     root.clearFields()
   }
 
+  function fprintArm() {
+    if (!root.locked || !root.fprintAvailable || !root.screensOn || root.fprintRounds >= root.fprintRoundsMax) return
+    if (pamFprint.active || pamPw.active || root.keyMode || unlockDelay.running) return
+    root.fprintRounds++
+    root.fprintCue = ""
+    pamFprint.start()
+  }
+
+  function fprintDisarm() {
+    root.fprintCue = ""
+    if (pamFprint.active) pamFprint.abort()
+  }
+
   function keyModeEnter() {
     if (!root.locked || root.keyMode || root.keyDevice === "" || pamPw.active) return
+    root.fprintDisarm()
     root._pw = ""
     root.clearFields()
     root.authError = false
@@ -145,7 +171,13 @@ Item {
     root._pin = ""
     root.keyCue = ""
     root.keyNote = ""
-    if (root.locked) keyProbe.running = true
+    root.fprintRounds = 0
+    root.fprintDisarm()
+    if (root.locked) {
+      root.screensOn = true
+      keyProbe.running = true
+      fprintProbe.running = true
+    }
     Quickshell.execDetached(root.locked ? ["install", "-D", "-m", "600", "/dev/null", root.lockMarker] : ["rm", "-f", root.lockMarker])
   }
   Component.onCompleted: markerProbe.running = true
@@ -180,6 +212,13 @@ Item {
       return sessionLock.secure && !unlockDelay.running ? "true" : "false"
     }
 
+    function screens(state: string) : string {
+      root.screensOn = state !== "off"
+      if (root.screensOn) root.fprintArm()
+      else root.fprintDisarm()
+      return "ok"
+    }
+
     target: "lock"
   }
 
@@ -190,6 +229,12 @@ Item {
       if (responseRequired) {
         respond(root._pw)
       }
+    }
+    // pam_faillock says why a right password is refused (locked, minutes left), as info and in two messages
+    onPamMessage: {
+      if (responseRequired || message === "") return
+      var line = String(message).replace(/\s+/g, " ").trim()
+      root.keyNote = root.keyNote !== "" ? root.keyNote + " " + line : line
     }
     onCompleted: function(result) {
       if (result === PamResult.Success) root.unlock()
@@ -226,6 +271,32 @@ Item {
     onError: function(err) {
       if (root.keyMode) root.keyFail("security key failed")
       active = false
+    }
+  }
+
+  PamContext {
+    id: pamFprint
+    config: "quickshell-lock-fprint"
+    onPamMessage: {
+      if (!responseRequired) root.fprintCue = message
+    }
+    onCompleted: function(result) {
+      root.fprintCue = ""
+      active = false
+      if (result === PamResult.Success) root.unlock()
+    }
+    onError: function(err) {
+      root.fprintCue = ""
+      active = false
+    }
+  }
+
+  Process {
+    id: fprintProbe
+    command: ["test", "-e", root.fprintService]
+    onExited: function(exitCode) {
+      root.fprintAvailable = exitCode === 0
+      root.fprintArm()
     }
   }
 
@@ -287,7 +358,7 @@ Item {
 
   Timer {
     interval: root.ambientMs
-    running: root.locked
+    running: root.locked && root.screensOn
     repeat: true
     triggeredOnStart: true
     onTriggered: {
@@ -308,7 +379,7 @@ Item {
 
   Timer {
     interval: 1000
-    running: root.locked
+    running: root.locked && root.screensOn
     repeat: true
     triggeredOnStart: true
     onTriggered: {
@@ -381,6 +452,16 @@ Item {
           image: wallpaper
           active: root.locked && surface.visible
           animate: Style.fx.matrixRain > 0 && Style.motion.enabled
+          paused: !root.screensOn
+        }
+
+        // whoever comes back to a locked screen moves the pointer or touches a key first; input also means the
+        // outputs are on, should dpms.nu's report have been lost
+        HoverHandler {
+          onPointChanged: {
+            root.screensOn = true
+            root.fprintArm()
+          }
         }
 
         // a shade keeps the date and hints readable where the ASCII field runs through the clock block; blurred
@@ -455,6 +536,7 @@ Item {
               onTextEdited: {
                 root.authError = false
                 if (!root.keyMode) root.keyNote = ""
+                root.fprintDisarm()
               }
               onAccepted: {
                 root.activeField = pwField
@@ -464,8 +546,10 @@ Item {
               Keys.onEscapePressed: {
                 if (root.keyMode) root.keyModeLeave()
                 else text = ""
+                root.fprintArm()
               }
               Keys.onPressed: function(event) {
+                root.screensOn = true
                 if (event.key === Qt.Key_K && (event.modifiers & Qt.ControlModifier)) {
                   root.keyModeEnter()
                   event.accepted = true

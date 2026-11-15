@@ -1,7 +1,10 @@
 #!/usr/bin/env -S nu --no-config-file
 # a sleep inhibitor while an ssh login session is open; locking still happens
 
+# logind signals no session going to closing (its login gone, a process left behind), so an open one is re-read
 const RECHECK = 60sec
+# a session coming or going, and gdbus's line once it listens, which starts the first check
+const SESSION_EVENT = 'SessionNew|SessionRemoved|is owned by'
 const ENDED = "ended"
 const TIMEOUT = "timeout"
 
@@ -18,12 +21,12 @@ def ssh-session-open []: nothing -> bool {
 
 def main [] {
     job spawn {
-        # gdbus's startup lines trigger the initial check
-        ^gdbus monitor --system --dest org.freedesktop.login1 | lines | each { job send 0 } | ignore
+        ^gdbus monitor --system --dest org.freedesktop.login1 | lines | where $it =~ $SESSION_EVENT | each { job send 0 } | ignore
         $ENDED | job send 0
     }
     mut holder: any = null
-    while (try { job recv --timeout $RECHECK } catch { $TIMEOUT }) != $ENDED {
+    # no session, no wakeup: the recheck runs only while the inhibitor is held
+    while (if $holder == null { job recv } else { try { job recv --timeout $RECHECK } catch { $TIMEOUT } }) != $ENDED {
         if (ssh-session-open) {
             if $holder == null {
                 $holder = job spawn { ^systemd-inhibit --what=sleep --mode=block --who=sshd --why="ssh session" sleep infinity }

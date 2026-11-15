@@ -22,11 +22,14 @@ dot module reset <file>   # back to the module's copy, the edit preserved aside
 
 - `FAILURES.config` / `FAILURES.install` at the repo root: the last run's failures, system included, one line each as
   `<module> <verb>/<step>: <cause>; fix: <hint>` (the command, its exit code or `not installed (<package>)`, the last
-  stderr lines, the file:line); `dot status` groups them by cause. `config.log` / `install.log` the terminal output.
-  The fixes come from `HINTS` in `scripts/lib/cause.nu`; a new failure class is a row there.
+  stderr lines, the file:line); `dot status` groups them by cause. `config.log` / `install.log` / `sync.log` hold the
+  terminal output of `dot apply`, `dot apply --packages` and `dot sync`, teed on the caller's terminal (no pty of its
+  own). The fixes come from `HINTS` in `scripts/lib/cause.nu`; a new failure class is a row there.
 - A crashed run leaves `$XDG_STATE_HOME/dotfiles/crash.json`, its `cause` the same record as the PANIC line's in
-  `dot log`; `dot log --trace` shows each span's errors under it. Root's state: `/var/lib/dotfiles`. `dot log` with
-  no run recorded prints a note. Cut-off state (the ledger's last line, a module's record, a run log line, the discover
+  `dot log`; `dot log --trace` shows each span's errors under it. The command's next run that goes through removes
+  it; until then `dot status` notes it (`crash`). Root's state: `/var/lib/dotfiles`; each root entry writes a run file
+  under `runs/` there, which `dot log` merges into the run that asked for it. `dot log` with no run recorded prints a
+  note. Cut-off state (the ledger's last line, a module's record, a run log line, the discover
   cache) is dropped or rescanned, a warning where it matters, never a crash.
 - Login banners in `/etc/issue.d/` (`dotfiles-stage`, `-config`, `-secrets`): `l-dotfiles-install`, Check the chain.
 - Exit 3 means pending, not a failure: a system part under `DOT_SYSTEM=skip`, or modules waiting on their packages

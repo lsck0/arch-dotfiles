@@ -10,6 +10,7 @@ export const options = {
     pomodoro_break_min: {type: int, default: 5, doc: "Minutes of the short break after a focus block", label: "Break", group: pomodoro, min: 1, max: 60, apply: live, scope: user}
     pomodoro_long_break_min: {type: int, default: 15, doc: "Minutes of the long break after the last focus block of a round", label: "Long break", group: pomodoro, min: 1, max: 120, apply: live, scope: user}
     pomodoro_cycles: {type: int, default: 4, doc: "Focus blocks before a long break", label: "Cycles", group: pomodoro, min: 1, max: 12, apply: live, scope: user}
+    clipboard_history_max_age_h: {type: int, default: 12, doc: "Hours a copied text or image stays in the clipboard history", label: "Keep history for", group: clipboard, min: 1, max: 168, apply: live, scope: user}
 }
 
 const CONFIG_DIR = ".config/quickshell"
@@ -19,6 +20,10 @@ const SKIP_PATTERN = '(__pycache__|\.log$|\.qsb$|\.test\.(nu|sh)$)'
 def pomodoro-config [cfg: record]: nothing -> record {
     let config = {focus: $cfg.pomodoro_focus_min, break: $cfg.pomodoro_break_min, long: $cfg.pomodoro_long_break_min, cycles: $cfg.pomodoro_cycles}
     file-text ($nu.home-dir | path join $CONFIG_DIR pomodoro.json) $"($config | to json --raw)\n" --generated
+}
+
+def clipboard-config [cfg: record]: nothing -> record {
+    file-text ($nu.home-dir | path join $CONFIG_DIR clipboard.json) $"({max_age_h: $cfg.clipboard_history_max_age_h} | to json --raw)\n" --generated
 }
 
 export def link [cfg: record] {
@@ -32,11 +37,12 @@ export def link [cfg: record] {
         (unit-file quickshell.service)
         (unit-file quickshell-reminders-rearm.service --enable)
         (pomodoro-config $cfg)
+        (clipboard-config $cfg)
         # the settings window outside hyprland (settings-only.qml), listed in Plasma's launcher only
         (file-render dotfiles-settings.desktop (xdg data applications dotfiles-settings.desktop) {HOME: $nu.home-dir})
     ]
 }
 
 export def apply [cfg: record] {
-    pomodoro-config $cfg
+    [(pomodoro-config $cfg) (clipboard-config $cfg)]
 }

@@ -4,6 +4,7 @@ use ../../configs/core/wallust/palette.nu
 use platform.nu [PLATFORM_FACTS]
 use modules.nu [VERBS HOOKS names-read modules-graph ROOT_MODULES SECRETS_DATA SECRETS_GROUP]
 use pipeline.nu [pipeline-load]
+use cli.nu [jobs]
 
 const REPO = path self ../..
 const SUDO = '\bsudo\b'
@@ -426,10 +427,14 @@ def lint-generated []: nothing -> list<string> {
     if $run.exit_code == 0 { [] } else { [$"dot internal gen --check: ($run.stdout + $run.stderr | str trim)"] }
 }
 
+# Each test works in a temp dir of its own, so they run side by side; the cache dir is one of the run's own, so no
+# test reads or writes the user's (command-package's answers, the discover cache).
 def unit-tests []: nothing -> list<string> {
-    glob $"($REPO)/{configs,themes,scripts}/**/*.test.{sh,nu}" --exclude ($SECRETS_DATA | each { $"configs/($in)" }) | sort | each {|t|
+    let cache = mktemp --directory --tmpdir dot-test-cache-XXXXXX
+    let failed = glob $"($REPO)/{configs,themes,scripts,skills}/**/*.test.{sh,nu}" --exclude ($SECRETS_DATA | each { $"configs/($in)" }) | sort
+    | par-each --keep-order --threads (jobs) {|t|
         # null in: an external in each would otherwise read the test's own path as stdin
-        let run = with-env {DOT_RUN_FILE: "", FAILURES_FILE: "", DOT_NO_JOURNAL: 1} {
+        let run = with-env {DOT_RUN_FILE: "", FAILURES_FILE: "", DOT_NO_JOURNAL: 1, XDG_CACHE_HOME: $cache} {
             if ($t | str ends-with ".nu") {
                 null | ^nu --no-config-file -I ($REPO | path join scripts lib) $t | complete
             } else {
@@ -438,10 +443,12 @@ def unit-tests []: nothing -> list<string> {
         }
         if $run.exit_code != 0 { $"(rel $t): failed\n($run.stdout + $run.stderr | str trim --right)" }
     } | compact
+    rm --recursive --force $cache
+    $failed
 }
 
 # Every lint finding, one line each; empty when the repo passes. The lints only read, so they run side by side; the
-# unit tests run after them, one at a time.
+# unit tests run after them.
 export def gate-lint []: nothing -> list<string> {
     let lints = [
         {|| lint-modules } {|| lint-layers } {|| lint-exports } {|| lint-sync } {|| lint-stray } {|| lint-platform-facts }

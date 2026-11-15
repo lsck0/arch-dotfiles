@@ -14,7 +14,7 @@ prometheus.exporter.unix "node" {
 prometheus.scrape "node" {
   targets         = prometheus.exporter.unix.node.targets
   forward_to      = [prometheus.remote_write.lab.receiver]
-  scrape_interval = "30s"
+  scrape_interval = "60s"
 }
 
 prometheus.remote_write "lab" {

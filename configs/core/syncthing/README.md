@@ -4,6 +4,6 @@ Syncs `~/sync` with the homelab NAS (`nas.syncthing` in `platforms/homelab.nu`, 
 versioning.
 
 Identity from `configs/secrets/keys/syncthing/<hostname>/` (`cert.pem`, `key.pem`, `config.xml`); without it a new
-device ID to pair at http://127.0.0.1:8384. Never share a device ID between machines. Discovery, relays, NAT and
-reporting are off; the GUI password comes from `configs/secrets/keys/syncthing/gui-password` or is generated into
-`~/.local/state/syncthing/gui-password`.
+device ID to pair at http://127.0.0.1:8384. Never share a device ID between machines. `dot sync` carries `config.xml`
+back when its devices, addresses or folders changed. Discovery, relays, NAT and reporting are off; the GUI password
+comes from `configs/secrets/keys/syncthing/gui-password` or is generated into `~/.local/state/syncthing/gui-password`.

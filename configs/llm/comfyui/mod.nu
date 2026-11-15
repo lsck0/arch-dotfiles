@@ -48,6 +48,8 @@ export def link [cfg: record] {
         (step models --network --timeout $MODELS_TIMEOUT --key ($MODELS | get sha256 | str join " ")
             --done=$models_stamped)
         (file-copy comfyui-wait-ready.nu $values.WAIT_READY --mode 755)
+        # the unit sees none of $HOME but its own tree and this dir, so it cannot make it itself
+        (exec comfyui-output [mkdir -p $values.OUTPUT] --creates $values.OUTPUT)
         (file-render comfyui.service (unit-dir | path join comfyui.service) $values --then [
             # try-restart: a restart would start it outside the socket, holding vram with no idle exit
             systemctl --user try-restart comfyui.service

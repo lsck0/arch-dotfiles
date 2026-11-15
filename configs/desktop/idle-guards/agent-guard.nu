@@ -4,6 +4,11 @@
 const POLL = 5sec
 const SESSION_DEFAULT = "default"
 const SHELLS = [sh bash dash zsh]
+const INHIBIT_SLEEP = "sleep"
+const INHIBIT_LID = "handle-lid-switch"
+const BATTERY_DISCHARGING = "Discharging"
+# logind drops an inhibitor when its process is gone, a moment after the kill
+const RELEASE_SETTLE = 500ms
 
 def state-dir []: nothing -> path {
     let dir = $env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u | str trim)" | path join agent-busy
@@ -47,11 +52,46 @@ def any-busy [dir: path]: nothing -> bool {
     glob ($dir | path join "*.pid") | any {|f| session-busy $dir ($f | path parse | get stem) }
 }
 
-# One sleep inhibitor for all agents; it exits by itself once nothing is busy, so a crash never leaks it.
+def on-battery []: nothing -> bool {
+    glob /sys/class/power_supply/BAT*/status | any { (open --raw $in | str trim) == $BATTERY_DISCHARGING }
+}
+
+def lid-closed []: nothing -> bool {
+    glob /proc/acpi/button/lid/*/state | any { open --raw $in | str contains closed }
+}
+
+def docked []: nothing -> bool {
+    (^busctl get-property org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager Docked | complete).stdout
+        | str contains "true"
+}
+
+def power-read []: nothing -> record<on_battery: bool, lid_closed: bool, docked: bool> {
+    let on_battery = on-battery
+    let lid_closed = $on_battery and (lid-closed)
+    {on_battery: $on_battery, lid_closed: $lid_closed, docked: ($lid_closed and (docked))}
+}
+
+# The inhibitors a working agent holds: on mains the machine stays up through an idle timeout and a closed lid; on
+# battery only through the idle timeout, and a closed, undocked notebook holds nothing, so it suspends.
+export def inhibits-wanted [power: record<on_battery: bool, lid_closed: bool, docked: bool>]: nothing -> list<string> {
+    if not $power.on_battery { return [$INHIBIT_SLEEP $INHIBIT_LID] }
+    if $power.lid_closed and not $power.docked { return [] }
+    [$INHIBIT_SLEEP]
+}
+
+# An inhibitor that ends with the holder, so a killed holder never leaks it.
+def inhibit-spawn [what: string]: nothing -> int {
+    let holder = $nu.pid
+    job spawn {
+        (^systemd-inhibit $"--what=($what)" --who="coding agent" --why="agent working" --mode=block
+            tail $"--pid=($holder)" --follow /dev/null)
+    }
+}
+
+# One holder for all agents; it exits by itself once nothing is busy.
 def holder-ensure [dir: path]: nothing -> nothing {
     if (alive (read-or ($dir | path join .holder) "")) { return }
-    (^setsid --fork systemd-inhibit --what=sleep:handle-lid-switch --who="coding agent" --why="agent working" --mode=block
-        $env.CURRENT_FILE hold) out+err> /dev/null
+    ^setsid --fork $env.CURRENT_FILE hold out+err> /dev/null
 }
 
 # Parallel subagent hooks would lose counts in an unlocked read-modify-write.
@@ -79,8 +119,10 @@ def "main subagent-stop" []: string -> nothing {
     agents-add (state-dir) $sid (-1)
 }
 
-# Exits 0 while any agent works (hypridle's condition).
-def "main busy" []: nothing -> nothing { if not (any-busy (state-dir)) { exit 1 } }
+# Exits 0 while an agent works and may keep the machine up (hypridle's condition).
+def "main busy" []: nothing -> nothing {
+    if not (any-busy (state-dir)) or (inhibits-wanted (power-read) | is-empty) { exit 1 }
+}
 
 def "main agents-add-locked" [sid: string, delta: int]: nothing -> nothing {
     let file = state-dir | path join $"($sid).agents"
@@ -90,7 +132,22 @@ def "main agents-add-locked" [sid: string, delta: int]: nothing -> nothing {
 def "main hold" []: nothing -> nothing {
     let dir = state-dir
     $nu.pid | into string | save --force ($dir | path join .holder)
-    while (any-busy $dir) { sleep $POLL }
+    mut held = {}
+    while (any-busy $dir) {
+        let wanted = inhibits-wanted (power-read)
+        let before = $held
+        for what in ($before | columns | where $it not-in $wanted) {
+            job kill ($before | get $what)
+            $held = $held | reject $what
+        }
+        for what in ($wanted | where $it not-in ($before | columns)) { $held = $held | insert $what (inhibit-spawn $what) }
+        # the lid closed on mains and the charger then pulled: logind acted on the lid long ago, so the suspend is asked here
+        if $INHIBIT_LID in $before and ($wanted | is-empty) {
+            sleep $RELEASE_SETTLE
+            ^systemctl suspend | complete | ignore
+        }
+        sleep $POLL
+    }
 }
 
 def main []: nothing -> nothing {

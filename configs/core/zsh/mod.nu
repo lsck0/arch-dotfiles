@@ -8,7 +8,7 @@ export def link [cfg: record] {
     [
         (file-copy zshrc ($nu.home-dir | path join .zshrc))
         (file-copy zshenv ($nu.home-dir | path join .zshenv))
-        (link-commands fence.nu)
+        (link-commands fence.sh)
         (files-into (xdg config environment.d) no-telemetry.conf)
     ]
 }

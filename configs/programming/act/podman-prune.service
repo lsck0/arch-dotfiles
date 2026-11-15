@@ -1,0 +1,12 @@
+[Unit]
+Description=Prune rootless podman images no container uses
+ConditionACPower=true
+
+[Service]
+Type=oneshot
+Nice=19
+IOSchedulingClass=idle
+# dangling layers at once; a tagged image only when no container (a stopped distrobox counts) uses it and it was built
+# over 30 days ago. Never containers or volumes
+ExecStart=/usr/bin/podman image prune --force
+ExecStart=/usr/bin/podman image prune --all --force --filter until=720h

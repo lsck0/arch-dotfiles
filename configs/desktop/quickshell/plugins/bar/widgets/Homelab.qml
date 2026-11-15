@@ -46,11 +46,21 @@ BarWidget {
   implicitWidth: root.absent ? 0 : trigger.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: Style.bar.sizeHorizontal
 
+  // the closed panel only feeds the bar's problem count
+  readonly property int hiddenIntervalS: Power.onBattery ? 900 : 300
+
+  function restartStatus() {
+    statusProc.running = false
+    statusProc.running = true
+  }
+
+  onHiddenIntervalSChanged: if (!root.absent && !panel.visible) restartStatus()
+
   JsonProcess {
     id: statusProc
     running: true
     streaming: true
-    command: [Paths.barWidget("homelab-status.nu"), panel.visible ? "30" : "300"]
+    command: [Paths.barWidget("homelab-status.nu")].concat(panel.visible ? ["30", "--clients"] : [String(root.hiddenIntervalS)])
     onParsed: function(s) {
       root.received = true
       root.ok = s.ok === true
@@ -59,6 +69,8 @@ BarWidget {
       // returns once it reappears
       root.absent = root.error === "source"
       if (!root.ok) return
+      // the closed panel's poll carries no clients: the last ones stay for the next open
+      if (s.clients === undefined) s.clients = root.lab.clients
       root.lab = s
     }
   }
@@ -67,8 +79,7 @@ BarWidget {
     target: panel
     function onVisibleChanged() {
       if (root.absent) return
-      statusProc.running = false
-      statusProc.running = true
+      root.restartStatus()
       if (panel.visible) vpnProc.run()
     }
   }
@@ -85,7 +96,12 @@ BarWidget {
 
   Connections {
     target: ToggleEvents
-    function onChanged(script) { if (script === "toggle-vpn.nu" && panel.visible) vpnProc.run() }
+    function onChanged(script) {
+      if (script !== "toggle-vpn.nu") return
+      // wg0 came or went: the closed panel's next poll may be minutes off
+      if (!root.absent) root.restartStatus()
+      if (panel.visible) vpnProc.run()
+    }
   }
 
   Row {

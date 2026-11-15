@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [status-record status-print notify root-run state-get state-set state-clear state-file quickshell-call cycle-next toggle-run]
+use lib.nu [status-record status-print notify root-run state-get state-set state-clear state-file quickshell-call cycle-next toggle-run exclusive-run]
 use ../lib/platform.nu [platform-load]
 
 # auto is no forced mode: tlp picks by the power source
@@ -36,7 +36,6 @@ def saver-sync []: nothing -> nothing {
 }
 
 def apply [mode: string]: nothing -> nothing {
-    if $mode not-in $MODES { error make {msg: $"power mode is one of ($MODES | columns | str join ', ')"} }
     if $mode == auto {
         root-run tlp start
         state-clear powermode --volatile
@@ -56,11 +55,15 @@ def "main get" [--json] {
 }
 
 # auto is a stop of its own: else the first press leaves it for good
-def "main toggle" [] { apply ($MODES | columns | cycle-next (current)) }
-def "main set" [mode: string] { apply $mode }
-def "main auto" [] { apply auto }
-def "main balanced" [] { apply balanced }
-def "main performance" [] { apply performance }
-def "main power-saver" [] { apply power-saver }
+def "main toggle" [] { main set ($MODES | columns | cycle-next (current)) }
+def "main _apply" [mode: string] { apply $mode }
+def "main set" [mode: string] {
+    if $mode not-in $MODES { error make {msg: $"power mode is one of ($MODES | columns | str join ', ')"} }
+    exclusive-run "Power mode" _apply $mode
+}
+def "main auto" [] { main set auto }
+def "main balanced" [] { main set balanced }
+def "main performance" [] { main set performance }
+def "main power-saver" [] { main set power-saver }
 def "main sync" [] { saver-sync }
 def main [] { main toggle }

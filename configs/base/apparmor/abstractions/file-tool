@@ -47,5 +47,11 @@
   deny @{user_cache_dirs}/uv/{,**} w,
   deny @{HOME}/.ZAP/plugin/{,**} w,
   deny @{user_state_dirs}/pki/{,**} mrwkl,
+  # not in deny-sensitive-home: the browsers, mail and chat profiles include it and a deny would outrank their own rules
+  deny @{user_config_dirs}/{mozilla,thunderbird,chromium,BraveSoftware,google-chrome,Element,Signal,discord,Proton}/{,**} mrwkl,
+  deny @{user_share_dirs}/{mozilla,librewolf,zen,qutebrowser,TelegramDesktop}/{,**} mrwkl,
+  deny @{user_config_dirs}/task/{sync.taskrc,calendar.env} mrwkl,
+  deny @{user_config_dirs}/nushell/history.txt mrwkl,
+  deny @{user_state_dirs}/zsh/{,**} mrwkl,
 
   include if exists <abstractions/dotfiles/file-tool.d>

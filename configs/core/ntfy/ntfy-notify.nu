@@ -3,7 +3,7 @@
 
 const REPO = path self ../../..
 use ($REPO | path join scripts lib secrets.nu) [secret-is-plaintext]
-use ($REPO | path join scripts lib homelab.nu) [homelab-lab-load]
+use ($REPO | path join scripts lib homelab.nu) [homelab-lab-load homelab-lab-path]
 use ($REPO | path join scripts lib state.nu) [xdg]
 
 const MAX_REPLAY = 1hr
@@ -11,7 +11,10 @@ const MAX_REPLAY = 1hr
 const IDLE_S = 90
 const NO_TOPICS_WAIT = 5min
 const BACKOFF_MIN_S = 2
-const BACKOFF_MAX_S = 60
+# off the lab every attempt is a resolve and a connect that wake the radio
+const BACKOFF_MAX_S = 300
+# last-id only has to stay younger than MAX_REPLAY
+const LAST_ID_REFRESH = 10min
 const HEALTHY = 2min
 const ALERT_LINES_MAX = 5
 const GLYPH_HOMELAB = "\u{f048d}"
@@ -37,6 +40,10 @@ def subscription []: nothing -> any {
     let lab = homelab-lab-load
     if $lab == null or ($lab.ntfy.desktop | is-empty) { return null }
     {server: $lab.ntfy.url, topics: $lab.ntfy.desktop}
+}
+
+def modified [file: any]: nothing -> any {
+    if $file != null and ($file | path exists) { ls --directory $file | get 0.modified }
 }
 
 def token-read []: nothing -> string {
@@ -125,7 +132,8 @@ def notify [msg: record]: nothing -> nothing {
 
 def last-id-read []: nothing -> string {
     let file = state-dir | path join last-id
-    if not ($file | path exists) or (ls $file | get 0.modified) < ((date now) - $MAX_REPLAY) { return "" }
+    let written = modified $file
+    if $written == null or $written < (date now) - $MAX_REPLAY { return "" }
     open --raw $file | str trim
 }
 
@@ -133,6 +141,7 @@ def subscribe [sub: record, since: string, token: string]: nothing -> nothing {
     let query = if $since == "" { "" } else { $"?({since: $since} | url build-query)" }
     let url = $"($sub.server)/($sub.topics | each { url encode } | str join ',')/json($query)"
     let last_id = state-dir | path join last-id
+    mut lab_modified = modified (homelab-lab-path)
     # the token goes to curl on stdin: on the command line every local user could read it with ps
     # iterate the stream directly: a `let` would collect the whole response first, so nothing shows until curl exits
     for line in ($"Authorization: Bearer ($token)\n" | ^curl --silent --show-error --fail --no-buffer --speed-limit 1
@@ -140,8 +149,13 @@ def subscribe [sub: record, since: string, token: string]: nothing -> nothing {
         let msg = try { $line | from json } catch { null }
         if ($msg | describe) !~ '^record' { continue }
         if $msg.event? != "message" {
-            if ($last_id | path exists) { touch $last_id }
-            if (subscription) != $sub { return }
+            let written = modified $last_id
+            if $written != null and (date now) - $written > $LAST_ID_REFRESH { touch $last_id }
+            let lab_now = modified (homelab-lab-path)
+            if $lab_now != $lab_modified {
+                if (subscription) != $sub { return }
+                $lab_modified = $lab_now
+            }
             continue
         }
         if (date now) - (($msg.time? | default 0) * 1_000_000_000 | into datetime) < $MAX_REPLAY { notify $msg }

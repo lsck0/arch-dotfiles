@@ -1,16 +1,19 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [notify root-run unit-active cycle-next status-record status-print]
-use ../lib/state.nu [xdg]
+use lib.nu [notify root-run unit-active cycle-next status-record status-print exclusive-run]
 
 const STATES = {permissive: Permissive, default: Default, restrictive: Restrictive}
+# one step down per press, so default is never reached through permissive
+const CYCLE = [restrictive default permissive]
 
 def current []: nothing -> string {
     if (unit-active fw-lockdown.service) { "restrictive" } else if (unit-active fw-inbound.service) { "default" } else { "permissive" }
 }
 
-# one root call, so one password prompt at most (49-toggles.rules)
+# one root call, so one prompt at most; from permissive, default only tightens and has its own unprompted verb
+# (49-toggles.rules)
 def apply [state: string]: nothing -> nothing {
-    try { root-run firewall $state } catch {
+    let verb = if $state == default and (current) == permissive { "raise-default" } else { $state }
+    try { root-run firewall $verb } catch {
         notify Firewall $"Switch failed, now ($STATES | get (current))" --critical
         exit 1
     }
@@ -31,20 +34,14 @@ def "main get" [--json] {
     status-print (status-record Firewall $state --text $"($STATES | get $state)($suffix)" --states ($STATES | columns)) $json
 }
 
-# a press while a switch waits on its authentication is dropped, not queued behind it
-def "main toggle" [] {
-    let lock = xdg runtime toggle-firewall.lock
-    let run = ^flock --nonblock --conflict-exit-code 75 $lock nu --no-config-file $env.CURRENT_FILE _toggle | complete
-    if $run.exit_code not-in [0 75] { exit $run.exit_code }
-}
-
-def "main _toggle" [] { apply ($STATES | columns | cycle-next (current)) }
+def "main _apply" [state: string] { apply $state }
+def "main toggle" [] { exclusive-run Firewall _apply ($CYCLE | cycle-next (current)) }
 def "main set" [state: string] {
     if $state not-in $STATES { error make {msg: $"firewall state is one of ($STATES | columns | str join ', ')"} }
-    apply $state
+    exclusive-run Firewall _apply $state
 }
 
-def "main permissive" [] { apply permissive }
-def "main default" [] { apply default }
-def "main restrictive" [] { apply restrictive }
+def "main permissive" [] { main set permissive }
+def "main default" [] { main set default }
+def "main restrictive" [] { main set restrictive }
 def main [] { main toggle }

@@ -11,6 +11,7 @@ use pipeline.nu [pipeline-load PENDING_FILE]
 use modules.nu [modules-packages]
 use cause.nu [failures-group names-shown]
 use invariants.nu [invariants-load]
+use cli.nu [crash-file crash-read]
 use ../../configs/base/yubikey/audit.nu [audit-findings]
 
 # the boot chain barrier's record (base/boot/systemd-boot's meta.barrier): when it last went through
@@ -18,12 +19,16 @@ const BOOT_BARRIER = "modules/base/boot/systemd-boot/barrier.nuon"
 const REPO = path self ../..
 const PROFILES_CONF = path self ../../configs/base/apparmor/profiles.conf
 const LUKS_TOKENS = [TPM2 FIDO2]
+const LUKS_ROOT = 'rd\.luks\.(?:name|uuid)=(?<uuid>[0-9a-fA-F-]+)'
 const LUKS_TOKEN_MISSING = 'No valid (?<token>TPM2|FIDO2) token data found'
 # systemd's lines for a user-hook oneshot ending, as module.nu's user-hook describes it
 const HOOK_OUTCOME = ['^(Failed to start|Finished) ' $HOOK_RUN_PREFIX ' .* hook\.$'] | str join
 const WITNESS = $REPO | path join $OWNER_WITNESS
 const APPARMOR_MANUAL = "/etc/apparmor/flags.d/manual.conf"
 const SNAPSHOT_MAX_DAYS = 30
+# system-apply.nu's: the ledger kind of the names [lsck0] lacked, and the database whose age tells awaited from failed
+const LEDGER_AWAITED = "awaited"
+const LSCK0_DB = "/var/lib/pacman/sync/lsck0.db"
 const SHOWN_MAX = 8
 # failure groups dot status shows per FAILURES file, one line each
 const GROUPS_SHOWN = 5
@@ -169,6 +174,19 @@ def snapshot []: nothing -> list<record> {
     }
 }
 
+# missing: declared names not installed; recorded: root's "name first-asked" lines of names [lsck0] lacked; built: its
+# database's time. A name asked for after the mirror's last build only waits for the next one (system-apply.nu
+# mirror-awaited), so it is a note; any other missing name is a pending or failed install.
+export def packages-reports [missing: list<string>, recorded: list<string>, built: any]: nothing -> list<record> {
+    if ($missing | is-empty) { return [(report ok packages "every declared package installed")] }
+    let awaited = $recorded | parse "{name} {asked}" | where {|r| $r.name in $missing and $built != null and $built < ($r.asked | into datetime) } | get name
+    let pending = $missing | where $it not-in $awaited
+    [
+        (if ($pending | is-not-empty) { report FAIL packages $"dot apply --packages pending, declared but not installed: (names-shown $pending $SHOWN_MAX)" })
+        (if ($awaited | is-not-empty) { report note packages $"not on the mirror yet, its next build brings them, then dot sync: (names-shown $awaited $SHOWN_MAX)" })
+    ] | compact
+}
+
 # A package group counts as installed.
 def packages []: nothing -> list<record> {
     if (which pacman | is-empty) { return [] }
@@ -178,9 +196,8 @@ def packages []: nothing -> list<record> {
         | get stderr | lines | parse "error: package '{name}' was not found" | get name
     # one query for every unmet name that may be a group: -Qg lists "<group> <member>" for those installed
     let groups = if ($unmet | is-empty) { [] } else { ^pacman -Qg ...$unmet | complete | get stdout | lines | each { split row " " | first } | uniq }
-    let missing = $unmet | where $it not-in $groups
-    if ($missing | is-empty) { return [(report ok packages "every declared package installed")] }
-    [(report FAIL packages $"dot apply --packages pending, declared but not installed: (names-shown $missing $SHOWN_MAX)")]
+    let built = if ($LSCK0_DB | path exists) { ls $LSCK0_DB | get 0.modified } else { null }
+    packages-reports ($unmet | where $it not-in $groups) (with-env {DOT_LAYER: system} { ledger-get $LEDGER_AWAITED }) $built
 }
 
 def succeeds [argv: list<string>]: nothing -> bool { (do { ^$argv.0 ...($argv | skip 1) } | complete).exit_code == 0 }
@@ -227,16 +244,45 @@ def hooks []: nothing -> list<record> {
     [(report FAIL hooks $"last run failed: (names-shown $failed $SHOWN_MAX); journalctl --user -u <unit>, then systemctl --user start <unit>")]
 }
 
-def luks []: nothing -> list<record> {
-    let options = open --raw /proc/cmdline | parse --regex 'rd\.luks\.options=(?<o>\S+)' | get --optional 0.o | default ""
-    let asked = $LUKS_TOKENS | where {|t| $"($t | str lowercase)-device=auto" in ($options | split row ",") }
-    if ($asked | is-empty) { return [] }
-    let unlock = ^journalctl --boot --quiet --identifier systemd-cryptsetup --output cat --grep $LUKS_TOKEN_MISSING
-        | complete | get stdout | parse --regex $LUKS_TOKEN_MISSING | get token | uniq
-    $unlock | where $it in $asked | each {|t|
+# cmdline: the kernel's; missing: the token kinds this boot's systemd-cryptsetup found no token data for. A LUKS root
+# whose rd.luks.options asks for no token unlocks by passphrase alone, which only an apply's output said so far.
+export def luks-reports [cmdline: string, missing: list<string>]: nothing -> list<record> {
+    let root = $cmdline | parse --regex $LUKS_ROOT | get --optional 0.uuid
+    let options = $cmdline | parse --regex 'rd\.luks\.options=(?<o>\S+)' | get --optional 0.o | default "" | split row ","
+    let asked = $LUKS_TOKENS | where {|t| $"($t | str lowercase)-device=auto" in $options }
+    if $root != null and ($asked | is-empty) {
+        return [(report note luks ($"the LUKS root unlocks by passphrase alone, no ($LUKS_TOKENS | str join ' or ') token enrolled: "
+            + $"sudo systemd-cryptenroll --fido2-device=auto /dev/disk/by-uuid/($root) \(a touch\), or the TPM2 pin form "
+            + "the system apply of base/boot/luks notes, then dot apply --system"))]
+    }
+    $missing | where $it in $asked | each {|t|
         report note luks ($"the LUKS root has no ($t) token, rd.luks.options asks for one: "
             + "the system apply of base/boot/luks notes the systemd-cryptenroll command")
     }
+}
+
+def luks []: nothing -> list<record> {
+    let cmdline = open --raw /proc/cmdline
+    let missing = if ($cmdline | str contains "-device=auto") {
+        ^journalctl --boot --quiet --identifier systemd-cryptsetup --output cat --grep $LUKS_TOKEN_MISSING
+        | complete | get stdout | parse --regex $LUKS_TOKEN_MISSING | get token | uniq
+    } else { [] }
+    luks-reports $cmdline $missing
+}
+
+# A crash record is retired by its command's next run that goes through (cli.nu guarded): one still there is unresolved.
+export def crash-reports [files: list<path>]: nothing -> list<record> {
+    let found = $files | each {|file|
+        let crash = crash-read $file
+        if $crash != null {
+            report note crash $"dot ($crash.command) crashed in run ($crash.run) and has not gone through since: ($crash.error | lines | get --optional 0 | default ''); dot log ($crash.run) --trace, the whole error in ($file)"
+        }
+    } | compact
+    if ($found | is-empty) { [(report ok crash "no crash record left by a dot command")] } else { $found }
+}
+
+def crashes []: nothing -> list<record> {
+    crash-reports ([(with-env {DOT_LAYER: user} { state-dir }) $SYSTEM_STATE] | uniq | each { crash-file ($in | path join runs) })
 }
 
 def secrets []: nothing -> list<record> {
@@ -259,7 +305,7 @@ def preserved []: nothing -> list<record> {
 # the health checks, in order; one closure each so this list is their single source
 def checks []: nothing -> list<closure> {
     [
-        {|| failures} {|| config-pending} {|| modules-pending} {|| reboot} {|| invariants} {|| apparmor} {|| snapshot}
+        {|| failures} {|| crashes} {|| config-pending} {|| modules-pending} {|| reboot} {|| invariants} {|| apparmor} {|| snapshot}
         {|| packages} {|| firewall} {|| luks} {|| units} {|| hooks} {|| secrets} {|| preserved}
     ]
 }

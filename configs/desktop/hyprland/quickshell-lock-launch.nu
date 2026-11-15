@@ -2,8 +2,12 @@
 # hyprlock if lock_screen=hyprlock, then quickshell, then hyprlock (a second try in that case); a locker not holding the compositor's lock is no lock
 
 const DPMS = path self dpms.nu
-const LOCK_POLL_TRIES = 30
+# As before_sleep_cmd the whole run has to fit logind's InhibitDelayMaxSec (15 s, base/systemd logind.conf), else the
+# machine suspends unlocked: at worst three grant waits, the quickshell call and the gpg flush, about 6 s.
+const LOCK_POLL_TRIES = 10
 const LOCK_POLL_INTERVAL = 100ms
+const IPC_TIMEOUT = "1s"
+const GPG_TIMEOUT = "1s"
 
 def running [name: string]: nothing -> bool {
     (^pgrep -x $name -u $env.USER | complete).exit_code == 0
@@ -37,14 +41,26 @@ def hyprlock-take []: nothing -> bool {
     granted
 }
 
+def lock-take []: nothing -> bool {
+    if (preferred) == "hyprlock" and (hyprlock-take) { return true }
+    if (which quickshell | is-not-empty) and (running quickshell) {
+        let asked = ^timeout $IPC_TIMEOUT quickshell ipc -p (config-dir | path join quickshell) call lock lock | complete | get stdout | str trim
+        if $asked == "ok" and (granted) { return true }
+    }
+    hyprlock-take
+}
+
+# core/gnupg caches a passphrase for a working day; every lock and suspend ends that here.
+def gpg-cache-flush []: nothing -> nothing {
+    if (which gpg-connect-agent | is-empty) { return }
+    ^timeout $GPG_TIMEOUT gpg-connect-agent --no-autostart reloadagent /bye | complete | ignore
+}
+
 def main [] {
     if (locked) { return }
-    if (preferred) == "hyprlock" and (hyprlock-take) { return }
-    if (which quickshell | is-not-empty) and (running quickshell) {
-        let asked = ^timeout 5s quickshell ipc -p (config-dir | path join quickshell) call lock lock | complete | get stdout | str trim
-        if $asked == "ok" and (granted) { return }
-    }
-    if (hyprlock-take) { return }
+    let taken = lock-take
+    gpg-cache-flush
+    if $taken { return }
     ^notify-send -u critical "Screen not locked" "quickshell and hyprlock both failed to take the lock" | complete | ignore
     ^$DPMS off | complete | ignore
     exit 1

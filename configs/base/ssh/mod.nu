@@ -12,7 +12,7 @@ export const options = {
     port: {
         type: int
         default: 2222
-        doc: "The port sshd listens on, reached through the port-knock (sshk, wake-pc, nftables, fail2ban)"
+        doc: "The port sshd listens on, reached through the port-knock (sshk, wake-pc, nftables)"
         label: "sshd port"
         min: 1
         max: 65535

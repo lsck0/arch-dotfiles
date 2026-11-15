@@ -84,6 +84,7 @@ def discover-cache-cases [] {
         let found = with-env {XDG_CACHE_HOME: ($work | path join cache)} { modules-discover $repo [g] }
         assert equal $found.id [g/m] $"discover cache ($c.name): found ($found.id | to nuon)"
         assert equal (open $cache | get modules.id) [g/m] $"discover cache ($c.name): not written anew"
+        assert equal (^stat -c "%a" $cache | str trim) "600" $"discover cache ($c.name): readable by others"
     }
     rm --recursive --force $work
 }

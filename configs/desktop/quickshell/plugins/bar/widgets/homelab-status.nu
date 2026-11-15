@@ -5,6 +5,8 @@ const LAB_SCHEMA = 1
 const SEEN = "6h"
 const CLIENT_WINDOW = "24h"
 const CLIENT_ROWS = 8
+# a day of access logs moves little in five minutes, and each refresh has loki parse it five times
+const CLIENT_REFRESH = 5min
 const UNKNOWN_VM_ID = 100000
 const ORDER_UNLISTED = 1000
 const WEB_PORTS = [80 443]
@@ -12,6 +14,9 @@ const STATUS_CLASSES = [2xx 3xx 4xx 5xx]
 const FETCH_TIMEOUT = 5sec
 const PROBE_TIMEOUT = 3sec
 const GIB = 1073741824
+# the lab answers only on a home link (base/networkmanager's 70-home-network lists them here) or through wg0
+const HOME_NETWORK = "/run/home-network"
+const WG_LINK = "/sys/class/net/wg0"
 # the panel's links: the guest holding the lab-wide role (lab.json guests.roles), then its route of that name
 const LINK_ROLES = {homepage: {role: dashboard, route: homepage}, nas: {role: nas, route: nas}}
 const AGENT_FAMILY = (
@@ -149,6 +154,8 @@ def clients [src: record]: nothing -> record {
 
 def sample [src: record]: nothing -> record {
     if ($src.by_ip | is-empty) or ($src.prometheus | is-empty) { return {ok: false, error: source} }
+    # away without the tunnel every fetch would only run into its timeout
+    if not ($HOME_NETWORK | path exists) and not ($WG_LINK | path exists) { return {ok: false, error: away} }
     let query = {|expr| fetch $src.prometheus /api/v1/query $expr | get -o data.result | default [] | each {|r| {metric: $r.metric, value: ($r.value.1 | into float)} } }
     let scalar = {|expr| do $query $expr | get 0?.value }
     let now_s = (date now | into int) / 1_000_000_000
@@ -228,14 +235,16 @@ def sample [src: record]: nothing -> record {
             externalRps: (if external in $src.subnets { do $rps external })
             errorRps: (do $rounded (do $scalar 'sum(rate(traefik_entrypoint_requests_total{code=~"5.."}[5m]))' | default 0) 2)
         }
-        clients: (try { clients $src } catch { {} })
     }
 }
 
-def main [interval_s: int = 30] {
+# --clients adds the access-log breakdown, which only the open panel shows
+def main [interval_s: int = 30, --clients] {
     let lab_path = $env.HOMELAB_DIR? | default ($nu.home-dir | path join projects homelab) | path join $LAB_RELATIVE
     mut modified: any = null
     mut src = {by_ip: {}, prometheus: ""}
+    mut breakdown = {}
+    mut breakdown_at: any = null
     loop {
         let stamp = try { ls -l $lab_path | get 0.modified } catch { null }
         if $stamp == null or $stamp != $modified {
@@ -244,6 +253,13 @@ def main [interval_s: int = 30] {
             $modified = $stamp
         }
         let line = try { sample $src } catch {|error| {ok: false, error: $error.msg} }
+        let line = if $clients and $line.ok {
+            if $breakdown_at == null or (date now) - $breakdown_at >= $CLIENT_REFRESH {
+                $breakdown = try { clients $src } catch { {} }
+                $breakdown_at = date now
+            }
+            $line | insert clients $breakdown
+        } else { $line }
         print ($line | to json -r)
         sleep ($interval_s * 1sec)
     }

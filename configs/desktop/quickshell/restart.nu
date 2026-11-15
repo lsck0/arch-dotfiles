@@ -35,5 +35,6 @@ def "main prepare" [] {
         }
     }
 
-    sleep $SETTLE
+    # only a killed instance needs time to drop its layers
+    if ($pids | is-not-empty) { sleep $SETTLE }
 }

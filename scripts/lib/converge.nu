@@ -11,6 +11,8 @@ use cause.nu [cause-from-error cause-from-output cause-text argv-text]
 use online.nu [network-online remote-pending OFFLINE_PENDING]
 
 const OWN_LINK_PREFIXES = [$"($SYSTEM_STATE)/"]
+const UNREADABLE = "unreadable"
+const UNREADABLE_REASON = "unreadable as this user, checked at apply"
 # a step or exec past this is killed with its whole tree; a declaration's --timeout overrides it
 export const STEP_TIMEOUT = 20min
 # a --then is a restart or a reload
@@ -60,10 +62,20 @@ export def ask-batch [paths: list<string>, batch: closure, each_path: closure]: 
     $paths | zip $got | into record
 }
 
-# What is on disk now for each target (type, hash, link, mode) and each unit's enablement state; known: an earlier
+# Whether what is in dir cannot be looked up: its nearest existing ancestor is not searchable by this user.
+def dir-hidden [dir: path]: nothing -> bool {
+    if (path-kind $dir) == "" and ($dir | path dirname) != $dir { return (dir-hidden ($dir | path dirname)) }
+    (^test -e $dir -a ! -x $dir | complete).exit_code == 0
+}
+
+# What is on disk now for each target (type, hash, link, mode; a target that cannot be looked at has UNREADABLE as type
+# and hash) and each unit's enablement state; known: an earlier
 # observation whose paths and units are taken as they are, only the rest looked at.
 export def observe [targets: list<string>, units: list<string>, scope: string, known: record = {paths: {}, units: {}}]: nothing -> record {
-    let kinds = $targets | uniq | where $it not-in $known.paths | par-each --keep-order {|t| {target: $t, type: (path-kind $t)} }
+    let found = $targets | uniq | where $it not-in $known.paths | par-each --keep-order {|t| {target: $t, type: (path-kind $t)} }
+    # root searches every directory; a user planning the system layer does not, and what it cannot see is not missing
+    let hidden = if (is-admin) { [] } else { $found | where type == "" | each { $in.target | path dirname } | uniq | where { dir-hidden $in } }
+    let kinds = $found | each {|k| if $k.type == "" and ($k.target | path dirname) in $hidden { $k | update type $UNREADABLE } else { $k } }
     # one stat and one readlink for all, not one each: a plan observes a few thousand targets
     let files = $kinds | where type == file | get target
     let modes = ask-batch $files {|ps| ^stat --printf '%a\0' ...$ps } {|p| try { ^stat -c "%a" $p | str trim } catch { null } }
@@ -72,7 +84,7 @@ export def observe [targets: list<string>, units: list<string>, scope: string, k
         {
             target: $k.target
             type: $k.type
-            hash: (if $k.type == file { try { open --raw $k.target | hash sha256 } catch { "unreadable" } } else { null })
+            hash: (if $k.type == file { try { open --raw $k.target | hash sha256 } catch { $UNREADABLE } } else if $k.type == $UNREADABLE { $UNREADABLE } else { null })
             link: ($links | get --optional $k.target)
             mode: ($modes | get --optional $k.target)
         }
@@ -158,6 +170,7 @@ def file-classify [obs: record, want: string, recorded: any, generated: bool, st
 # A recorded output's state without evaluating its module: changed, missing or null.
 export def output-file-state [output: record, obs: record, repo: string, written: any = null]: nothing -> any {
     if $written != null and $obs.hash? == $written { return null }
+    if $obs.hash? == $UNREADABLE { return null }
     let c = file-classify $obs $output.hash $output.hash ($output.generated? | default false) (link-stale $obs $output.target $repo) false
     match $c.kind { "drift" => "changed", "create" => "missing", _ => null }
 }
@@ -186,7 +199,7 @@ def action-done [d: record, last: any]: nothing -> bool {
 export def plan-module [id: string, decls: list<record>, prev: list<record>, seen: record, recorded: record, repo: string, force: bool, all_targets: list<string> = []]: nothing -> list<record> {
     let wanted = (fold-merges $decls) | each {|d|
         let obs = $seen.paths | get --optional $d.target
-        if $obs.hash? == "unreadable" { return (action $id unreadable $d.target "unreadable as this user, checked at apply" $d null null) }
+        if $obs.hash? == $UNREADABLE { return (action $id unreadable $d.target $UNREADABLE_REASON $d null null) }
         let then_failed = ($d.then | is-not-empty) and ($prev | where kind == $d.kind and target == $d.target | get --optional 0.then_failed | default false)
         match $d.kind {
             "file" => {
@@ -252,6 +265,7 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
         let obs = $seen.paths | get --optional $o.target | default {type: "", hash: null, link: null}
         let claimed = $o.target in $all_targets
         if $claimed and $o.kind in [file link unit] { return (action $id forget $o.target "now declared by another module" $o null null) }
+        if $obs.hash? == $UNREADABLE { return (action $id unreadable $o.target $UNREADABLE_REASON $o null null) }
         match $o.kind {
             "file" => {
                 if $obs.type == "" { action $id forget $o.target "already gone" $o null null

@@ -110,6 +110,7 @@ export const options = {
     idle_suspend_s: {type: int, default: 2400, doc: "Idle seconds until suspend, unless an agent works or an inhibitor holds", label: "Suspend after", group: idle, min: 60, scope: user}
     idle_dim_saver_s: {type: int, default: 300, doc: "Idle seconds until the screens dim in power saver (a laptop on battery)", label: "Dim in power saver after", group: idle, min: 60, scope: user}
     idle_lock_saver_s: {type: int, default: 600, doc: "Idle seconds until the session locks in power saver", label: "Lock in power saver after", group: idle, min: 60, scope: user}
+    idle_dpms_saver_s: {type: int, default: 660, doc: "Idle seconds until the screens go off in power saver", label: "Screens off in power saver after", group: idle, min: 60, scope: user}
     idle_suspend_saver_s: {type: int, default: 1800, doc: "Idle seconds until suspend in power saver", label: "Suspend in power saver after", group: idle, min: 60, scope: user}
 }
 
@@ -301,7 +302,7 @@ export def link [cfg: record] {
     let idle = file-render hypridle.conf ($dir | path join hypridle.conf) {
         DIM_S: $cfg.idle_dim_s LOCK_S: $cfg.idle_lock_s DPMS_S: $cfg.idle_dpms_s
         SUSPEND_S: $cfg.idle_suspend_s DIM_SAVER_S: $cfg.idle_dim_saver_s LOCK_SAVER_S: $cfg.idle_lock_saver_s
-        SUSPEND_SAVER_S: $cfg.idle_suspend_saver_s
+        DPMS_SAVER_S: $cfg.idle_dpms_saver_s SUSPEND_SAVER_S: $cfg.idle_suspend_saver_s
     } --then (unit-restart hypridle.service --if-running)
     let build = plugins-missing | is-not-empty
     let live = hyprland-live

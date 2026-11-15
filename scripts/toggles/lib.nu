@@ -7,6 +7,7 @@ const ROOT_HELPER = "/usr/local/bin/toggle-root"
 const ADMIN_GROUP = "wheel"
 const IPC_TIMEOUT_S = 3
 const TRUSTED_NETWORK = "/run/trusted-network"
+const LOCK_BUSY_EXIT = 75
 
 # The state file of a toggle; --volatile puts it on tmpfs, for state whose tool resets on boot (tlp, rfkill ids).
 export def state-file [name: string, --volatile]: nothing -> path {
@@ -60,6 +61,19 @@ export def root-run [...args: string]: nothing -> nothing {
         error make {msg: "authorization cancelled"}
     }
     $run | raise-failed $"toggle-root ($args | str join ' ')"
+}
+
+# Runs the calling script again with `args` under its lock, for an n-state toggle (switch-run has its own). The kernel
+# drops the lock with the process. A press while a switch runs, or waits on its authentication, is reported and
+# dropped with exit 75, never queued behind it.
+export def exclusive-run [label: string, ...args: string]: nothing -> nothing {
+    let lock = state-file $"($env.CURRENT_FILE | path basename).flock" --volatile
+    let code = try {
+        ^flock --nonblock --conflict-exit-code $LOCK_BUSY_EXIT $lock nu --no-config-file $env.CURRENT_FILE ...$args
+        0
+    } catch {|err| $err.exit_code? | default 1 }
+    if $code == $LOCK_BUSY_EXIT { notify $label "Still switching" }
+    if $code != 0 { exit $code }
 }
 
 export def toggle-run [name: string, ...args: string]: nothing -> any {

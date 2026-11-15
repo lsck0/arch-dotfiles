@@ -22,7 +22,8 @@ const SYSTEM_POLICY = "dev.lsck0.dotfiles.system.policy"
 const POLKIT_ACTIONS = "/usr/share/polkit-1/actions"
 const FPRINT_LINE = "auth       sufficient pam_fprintd.so"
 # sudo sets PAM_TTY to its terminal or to "": without one, no factor is tried, so a process with no terminal (an
-# agent's tool shell) can neither raise a key or finger request nobody sees nor pipe a password in
+# agent's tool shell) can neither raise a key or finger request nobody sees nor pipe a password in. Any pty passes: a
+# process that allocates one (script, a multiplexer pane) is not held back here
 const TTY_LINE = "auth       requisite  pam_succeed_if.so quiet_success tty =~ ?*"
 const HUMAN_UIDS = 1000..59999
 const SYSTEM_AUTH_INCLUDE = '^auth\s.*include.*system-auth'
@@ -52,6 +53,9 @@ export def system [cfg: record] {
         # copies, pam follows no symlinks
         (file-copy quickshell-lock /etc/pam.d/quickshell-lock)
         (file-render quickshell-lock-u2f /etc/pam.d/quickshell-lock-u2f {ORIGIN: $cfg.fido_origin})
+        # the lock screen offers the finger only where this service exists
+        (if (has-fprint) { file-copy quickshell-lock-fprint /etc/pam.d/quickshell-lock-fprint })
+        (file-copy faillock.conf /etc/security/faillock.conf)
         (step sudo-stack ($u2f | into string) $line)
         # pkexec takes the same factors as sudo: the key, then an enrolled finger, then the password
         (if $u2f and ($POLKIT_VENDOR | path exists) {

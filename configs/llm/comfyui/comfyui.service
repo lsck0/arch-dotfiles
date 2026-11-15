@@ -5,14 +5,32 @@ StartLimitBurst=3
 
 [Service]
 Type=simple
+# the unauthenticated workflow API drives python and torch: of $HOME it sees only its own tree (source, venv, models)
+# and the outputs. No PrivateDevices and no ProtectClock (it implies a device allow-list): the gpu is /dev/dri and
+# /dev/kfd
+ProtectSystem=strict
+ProtectHome=tmpfs
+# - : a missing dir would fail the start in the namespace setup; llm/comfyui creates the output dir at apply
+BindPaths=@BASE@ -@OUTPUT@
+# torch, MIOpen and the hub keep caches and config under $HOME otherwise, which is an empty tmpfs here
+Environment=XDG_CACHE_HOME=@BASE@/cache
+Environment=XDG_CONFIG_HOME=@BASE@/config
+PrivateTmp=yes
 NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
 Nice=10
 CPUWeight=20
 Environment=HF_HUB_DISABLE_TELEMETRY=1
 Environment=DO_NOT_TRACK=1
 Environment=TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
 # main.py lists custom_nodes before it creates any dir; no custom node is installed
-ExecStartPre=/usr/bin/mkdir -p @OUTPUT@ @BASE@/custom_nodes
+ExecStartPre=/usr/bin/mkdir -p @BASE@/custom_nodes
 ExecStart=@PYTHON@ @SRC@/main.py \
     --listen 127.0.0.1 \
     --port 8189 \

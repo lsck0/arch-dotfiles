@@ -30,7 +30,7 @@ fi
 
 repo=$(dirname "$(readlink -f "${BASH_SOURCE[0]:-/}")")
 if [[ ! -f "$repo/scripts/dot.nu" ]]; then
-    rm -rf "$CLONE_DIR" && git clone "$DOTFILES_URL" "$CLONE_DIR" && repo=$CLONE_DIR
+    rm -rf "$CLONE_DIR" && git clone --filter=blob:none "$DOTFILES_URL" "$CLONE_DIR" && repo=$CLONE_DIR
     if [[ "${BOOTSTRAP_INSECURE:-0}" != 1 ]]; then
         gnupg=$(mktemp -d)
         trap 'gpgconf --homedir "$gnupg" --kill all 2> /dev/null || true; rm -rf "$gnupg"' EXIT

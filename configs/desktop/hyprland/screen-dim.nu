@@ -1,9 +1,11 @@
 #!/usr/bin/env -S nu --no-config-file
-# idle dim and restore of the backlight and ddc/ci monitors, the pre-dim level per device saved for resume
+# idle dim and restore of the backlight, the keyboard light and ddc/ci monitors, the pre-dim level per device saved for
+# resume
 
 const DDC_LOW = 10
 const BACKLIGHT_LOW_PCT = 10
 const VCP_BRIGHTNESS = "10"
+const KBD_LINE = "kbd"
 const SELF = path self
 
 def runtime-dir []: nothing -> path { $env.XDG_RUNTIME_DIR? | default /tmp }
@@ -18,7 +20,9 @@ def buses []: nothing -> list<string> {
     ^ddcutil detect --terse | complete | get stdout | parse --regex '/dev/i2c-(?<bus>\d+)' | get bus
 }
 
-# State file: a `backlight` line, then `<bus> <level>` per ddc/ci monitor.
+def kbd-lights []: nothing -> list<string> { glob /sys/class/leds/*kbd_backlight* | path basename }
+
+# State file: a `backlight` line, `kbd <device> <level>` per lit keyboard light, then `<bus> <level>` per ddc/ci monitor.
 def dim []: nothing -> nothing {
     if (state-file | path exists) { return }
     let panel = if (backlight) {
@@ -29,6 +33,12 @@ def dim []: nothing -> nothing {
             ["backlight"]
         } else { [] }
     } else { [] }
+    let keyboards = kbd-lights | each {|device|
+        let current = ^brightnessctl --device $device get | complete | get stdout | str trim
+        if $current !~ '^[1-9]\d*$' { return null }
+        ^brightnessctl --quiet --device $device set 0 | complete | ignore
+        $"($KBD_LINE) ($device) ($current)"
+    } | compact
     let monitors = if (which ddcutil | is-empty) { [] } else {
         buses | par-each {|bus|
             let current = ^ddcutil --bus $bus getvcp $VCP_BRIGHTNESS --terse | complete | get stdout | split row " " | get --optional 3
@@ -37,7 +47,7 @@ def dim []: nothing -> nothing {
             $"($bus) ($current)"
         } | compact
     }
-    $panel ++ $monitors | str join "\n" | save --force $"(state-file).new"
+    $panel ++ $keyboards ++ $monitors | str join "\n" | save --force $"(state-file).new"
     mv --force $"(state-file).new" (state-file)
 }
 
@@ -45,6 +55,9 @@ def restore []: nothing -> nothing {
     if not (state-file | path exists) { return }
     let lines = open --raw (state-file) | lines
     if "backlight" in $lines { ^brightnessctl -r | ignore }
+    for saved in ($lines | parse $"($KBD_LINE) {device} {level}") {
+        ^brightnessctl --quiet --device $saved.device set $saved.level | complete | ignore
+    }
     $lines | where $it =~ '^\d+ \d+$' | par-each {|line|
         let saved = $line | split row " "
         ^ddcutil --bus $saved.0 setvcp $VCP_BRIGHTNESS $saved.1 --noverify | complete | ignore

@@ -2,17 +2,18 @@
 # Root's one entry: re-execs under one flock and interruptible.sh, only from the root-owned copy.
 
 use log.nu *
-use state.nu [SYSTEM_REPO SYSTEM_STATE EXIT_ABORTED EXIT_PENDING INSTALL_PASS_FILE process-running]
+use state.nu [SYSTEM_REPO SYSTEM_STATE NU_ROOT EXIT_ABORTED EXIT_PENDING INSTALL_PASS_FILE process-running group-exists save-atomic]
 use pipeline.nu [pipeline-load pipeline-plan pipeline-apply pending-save barriers-run]
 use modules.nu [modules-packages]
-use ledger.nu [packages-convergence packages-orphans-remove ledger-set ledger-packages ledger-units]
+use ledger.nu [packages-convergence packages-orphans-remove ledger-get ledger-set ledger-packages ledger-units]
 use preserve.nu [tty-confirm preserve-prune]
 use migrate.nu [migrations-run]
-use system.nu [system-unpack system-secrets ENTRY]
+use system.nu [system-unpack system-secrets secrets-digest ENTRY SYSTEM_STAGES SYSTEM_SECRETS_DIGEST RUN_ID]
 use cli.nu [supervise self-argv]
 use sync.nu [bootstrap-const FINGERPRINT_VALUE]
 use cause.nu [cause-from-output cause-text failure-line argv-text]
 use profile.nu [profile-owner-add]
+use ../../platforms/homelab.nu [HOMELAB]
 
 const EXIT_FAILURES = 1
 const OFFLINE_WAIT_S = 120
@@ -26,6 +27,15 @@ const LSCK0_DB = "/var/lib/pacman/sync/lsck0.db"
 const PACMAN_LOCK = "/var/lib/pacman/db.lck"
 const ADDUSER_BIN = "/usr/local/bin/adduser-dotfiles"
 const NOT_ON_MIRROR = "not on the mirror"
+const MIRROR_PROBE_TIMEOUT_S = 5
+# curl's %{http_code} when no http answer came at all
+const HTTP_NO_ANSWER = "000"
+# ledger kind: a declared name [lsck0] lacked, with when this machine first asked for it
+const LEDGER_AWAITED = "awaited"
+const ADMIN_GROUP = "wheel"
+# what one root entry runs for `apply <sha> <stage>`, in order, each from the unpacked copy
+const STAGES = {install: [install packages], config: [config], sync: [install packages config]}
+const PACKAGES_FAILED = "removing undeclared packages"
 
 def repo-guard []: nothing -> path {
     let repo = $env.FILE_PWD | path dirname | path dirname
@@ -39,7 +49,16 @@ def repo-guard []: nothing -> path {
 # Verbatim argv, always through /usr/bin/nu and the root copy.
 def locked []: nothing -> nothing {
     let args = self-argv | skip until { $in | str ends-with $ENTRY } | skip 1
-    supervise --lock ($SYSTEM_STATE | path join lock) --argv [/usr/bin/nu --no-config-file ($SYSTEM_REPO | path join $ENTRY) ...$args]
+    supervise --lock ($SYSTEM_STATE | path join lock) --argv [$NU_ROOT --no-config-file ($SYSTEM_REPO | path join $ENTRY) ...$args]
+}
+
+# Root's run file, one per root entry: a stage `apply` starts inherits it, and only one inside root's own runs dir, so
+# no environment handed to root names the file it appends to.
+def --env run-open [name: string]: nothing -> nothing {
+    let inherited = $env.DOT_RUN_FILE? | default ""
+    let id = $env.DOT_RUN_ID? | default ""
+    if $id =~ $RUN_ID and $inherited == (runs-dir | path join $"($id).jsonl") and ($inherited | path exists) { return }
+    run-begin $name
 }
 
 def --env failures-end [what: string]: nothing -> nothing {
@@ -92,6 +111,59 @@ def --wrapped pacman-retry [what: string, tries: int, ...args: string]: nothing 
         sleep $wait
         $try += 1
     }
+}
+
+# Whether the lab's mirror gave no http answer at all; a 403 or 429 is an answer, which pacman-retry waits out.
+def mirror-silent []: nothing -> bool {
+    let db = ($HOMELAB.mirror.lsck0 | str replace '$arch' x86_64) + "/lsck0.db"
+    let probe = ^curl -s -m $MIRROR_PROBE_TIMEOUT_S -r 0-0 -o /dev/null -w "%{http_code}" $db | complete
+    ($probe.stdout | str trim) == $HTTP_NO_ANSWER
+}
+
+# The names [lsck0] lacks, by whether its build could know them yet. recorded: "name first-asked" lines; a name is
+# awaited while the mirror's database (built) is older than its first ask, and failed once a build after it still lacks
+# it (a typo, a build that broke). No database: nothing to wait for. record: the lines to keep.
+export def mirror-awaited [names: list<string>, recorded: list<string>, built: any, now: datetime]: nothing -> record {
+    let known = $recorded | parse "{name} {asked}" | where name in $names
+    let rows = $names | each {|n|
+        let asked = $known | where name == $n | get --optional 0.asked | default ($now | format date '%+')
+        {name: $n, asked: $asked, awaited: ($built != null and $built < ($asked | into datetime))}
+    }
+    {
+        awaited: ($rows | where awaited | get name)
+        failed: ($rows | where not awaited | get name)
+        record: ($rows | each { $"($in.name) ($in.asked)" })
+    }
+}
+
+# What `apply` exits with for its stages' codes: an aborted install first, then a failure, then pending.
+export def stages-exit [codes: list<int>]: nothing -> int {
+    if $EXIT_ABORTED in $codes { return $EXIT_ABORTED }
+    if ($codes | any { $in not-in [0 $EXIT_PENDING] }) { return $EXIT_FAILURES }
+    if $EXIT_PENDING in $codes { $EXIT_PENDING } else { 0 }
+}
+
+# Runs stage's steps from the unpacked copy, each a process of its own under the lock this one holds; an aborted
+# install ends them. secrets: the tar the config step reads.
+def stages-run [stage: string, secrets: path, unattended: bool, force: bool, yes: bool]: nothing -> table {
+    let entry = $SYSTEM_REPO | path join $ENTRY
+    let failures = $SYSTEM_STATE | path join FAILURES
+    mut rows = []
+    for step in ($STAGES | get $stage) {
+        if ($rows | any { $in.code == $EXIT_ABORTED }) { break }
+        "" | save --force $failures
+        let flags = [--unattended=($unattended)] ++ (if $step == "config" { [--force=($force)] } else { [--yes=($yes)] })
+        let code = span $"stage ($step)" {} {
+            try {
+                if $step == "config" { open --raw $secrets | ^$NU_ROOT --no-config-file $entry $step ...$flags } else { ^$NU_ROOT --no-config-file $entry $step ...$flags }
+                0
+            } catch {|e| $e.exit_code? | default 1 }
+        }
+        let lines = open --raw $failures | lines | where ($it | str trim) != ""
+        let lines = if $step == "packages" and $code != 0 and ($lines | is-empty) { [$"($PACKAGES_FAILED): exited ($code)"] } else { $lines }
+        $rows = $rows | append {stage: $step, code: $code, failures: $lines}
+    }
+    $rows
 }
 
 # pacman -Sp's complaints over stdout and stderr: targets no repo has, and dependencies none satisfies with who needs
@@ -153,30 +225,39 @@ def module-system [ctx: record, id: string, --packages-unchecked]: nothing -> bo
     $results | all { $in.ok }
 }
 
+# Never --wrapped: nu evaluates a wrapped main's `--flag=(expr)` arguments before its body runs, as root here.
 def main [] {
     error make {msg: $"system-apply.nu <apply|install|config|packages|module|migrate|preserve-prune>"}
 }
 
-# apply <sha> <install|config>: unpack the repo and secrets archive on stdin, run the stage from the new copy. The
+# apply <sha> <install|config|sync>: unpack the repo and secrets archive on stdin, run the stage's steps from the new
+# copy in this one root entry (sync: the install pass, undeclared packages, config), and leave what each ended with in
+# SYSTEM_STAGES for the run that asked (--run, its id). The report is gone from before the unpack until every step
+# ended, so a copy that equals the checkout never vouches for steps an interrupt or a power cut kept from running. The
 # archive is the user's working tree, uncommitted edits included, on purpose: the YubiKey or fingerprint prompt that
 # started this as root is the gate, not a commit.
-def "main apply" [sha: string, stage: string, --unattended, --force, --yes]: nothing -> nothing {
+def "main apply" [sha: string, stage: string, --run: string = "", --unattended, --force, --yes]: nothing -> nothing {
     repo-guard | ignore
-    if $stage not-in [install config] { error make {msg: $"apply: ($stage) is neither install nor config"} }
+    if $stage not-in ($STAGES | columns) { error make {msg: $"apply: ($stage) is none of ($STAGES | columns | str join ', ')"} }
+    if $run != "" and not ($run =~ $RUN_ID) { error make {msg: "apply: --run is not a run id"} }
     locked
+    run-open $"system ($stage)"
+    log-debug $"system ($stage) for the run ($run)" {kind: run, target: $stage, user_run: $run}
+    rm --force $SYSTEM_STAGES
     let work = mktemp --directory --tmpdir-path /run
-    let status = try {
+    let rows = try {
         ^tar -x --no-same-owner --no-same-permissions -C $work -f - repo.tar secrets.tar
         open --raw ($work | path join repo.tar) | system-unpack $SYSTEM_REPO $sha
-        let entry = $SYSTEM_REPO | path join $ENTRY
-        let flags = if $stage == "install" { [--unattended=($unattended) --yes=($yes)] } else { [--unattended=($unattended) --force=($force)] }
-        try { open --raw ($work | path join secrets.tar) | ^/usr/bin/nu --no-config-file $entry $stage ...$flags; 0 } catch {|e| $e.exit_code? | default 1 }
+        stages-run $stage ($work | path join secrets.tar) $unattended $force $yes
     } catch {|e|
         rm --recursive --force $work
+        run-journal
         error make $e
     }
     rm --recursive --force $work
-    exit $status
+    {run: $run, root_run: $env.DOT_RUN_ID, stages: $rows} | to nuon | save-atomic $SYSTEM_STAGES
+    run-journal
+    exit (stages-exit $rows.code)
 }
 
 def --env unattended [on: bool]: nothing -> nothing {
@@ -188,6 +269,7 @@ def "main install" [--unattended, --yes]: nothing -> nothing {
     let repo = repo-guard
     locked
     unattended $unattended
+    run-open install
     failures-begin ($SYSTEM_STATE | path join FAILURES)
     # the install stage runs base/pacman's verb, so root's state is migrated before it, as config does
     migrations-run $repo system | ignore
@@ -201,6 +283,11 @@ def "main install" [--unattended, --yes]: nothing -> nothing {
     # a power cut mid-transaction leaves the lock, and every retry boot would fail on it
     if ($PACMAN_LOCK | path exists) and not (process-running pacman) { rm --force $PACMAN_LOCK }
     let declared = modules-packages $repo $ctx.modules $ctx.platform
+    # at a terminal a lab outage ends the pass now, not after DOWNLOAD_TRIES warnings; the unattended chain waits it out
+    if not $unattended and not $offline and $ctx.platform.facts.homelab? == true and (mirror-silent) {
+        fail (failure-line pacman "the database sync" $"the homelab mirror ($HOMELAB.mirror.lsck0) does not answer; nothing installed, dot sync again once it does")
+        exit $EXIT_ABORTED
+    }
     pacman-retry "the database sync" (if $offline { $OFFLINE_TRIES } else { $DOWNLOAD_TRIES }) -Syy --noconfirm
     # one package the mirror cannot resolve drops only itself and what needs it, never the whole pass
     let probe = {|targets|
@@ -208,12 +295,15 @@ def "main install" [--unattended, --yes]: nothing -> nothing {
         {ok: ($r.exit_code == 0), output: ($r.stdout + $r.stderr | lines)}
     }
     let resolved = packages-resolve $declared.pacman $probe
-    for d in $resolved.dropped {
-        if $d.why == $NOT_ON_MIRROR {
-            fail $"($NOT_ON_MIRROR): ($d.name) \(a name new since the last nightly build arrives with the next one\)"
-        } else {
-            fail $"($d.name): ($d.why), left out of this pass; what needs it stays pending"
-        }
+    for d in ($resolved.dropped | where why != $NOT_ON_MIRROR) {
+        fail $"($d.name): ($d.why), left out of this pass; what needs it stays pending"
+    }
+    let built = if ($LSCK0_DB | path exists) { ls $LSCK0_DB | get 0.modified } else { null }
+    let absent = mirror-awaited ($resolved.dropped | where why == $NOT_ON_MIRROR | get name) (ledger-get $LEDGER_AWAITED) $built (date now)
+    ledger-set $LEDGER_AWAITED $absent.record
+    for name in $absent.failed { fail $"($NOT_ON_MIRROR): ($name) \(no build since it was first asked for carries it: a typo, or its build failed\)" }
+    if ($absent.awaited | is-not-empty) {
+        log-note $"($NOT_ON_MIRROR) yet, newer than its last build: ($absent.awaited | str join ' '); the next nightly build brings them, then dot sync"
     }
     let available = $resolved.kept
     let wanted = packages-wanted $available
@@ -241,6 +331,21 @@ def "main install" [--unattended, --yes]: nothing -> nothing {
     # is planned here or not until the next install pass; unchanged inputs skip it
     for id in ((phase-ids $ctx early) ++ (phase-ids $ctx install)) { module-system $ctx $id | ignore }
     failures-end install
+    if ($absent.awaited | is-not-empty) { exit $EXIT_PENDING }
+}
+
+# What of the handed secrets tar root deletes unread: every entry that is no regular file (a link could point anywhere)
+# or that no module's meta.secrets and no wireguard fact names. handed: {name, type} relative to the tar's root.
+export def secrets-refused [handed: list<record>, allowed: list<string>]: nothing -> list<string> {
+    $handed | where {|f| $f.type != "file" or $f.name not-in $allowed } | get name
+}
+
+# Records which secrets this config stage was handed, so a later sync can tell unprivileged that root has the same.
+def secrets-record [secrets: path]: nothing -> nothing {
+    let held = ^find $secrets -type f -print0 | split row (char nul) | where $it != "" | path relative-to $secrets
+    let group = if (group-exists $ADMIN_GROUP) { [-g $ADMIN_GROUP -m 640] } else { [-m 600] }
+    ^install ...$group /dev/null $SYSTEM_SECRETS_DIGEST
+    $"(secrets-digest $secrets $held)\n" | save --force --raw $SYSTEM_SECRETS_DIGEST
 }
 
 # every system verb; the secrets arrive as a tar on stdin into a tmpfs gone at exit
@@ -248,6 +353,7 @@ def "main config" [--unattended, --force]: nothing -> nothing {
     let repo = repo-guard
     locked
     unattended $unattended
+    run-open config
     failures-begin ($SYSTEM_STATE | path join FAILURES)
     # a pending migration converts root's state before any verb reads it, also without a sync
     migrations-run $repo system | ignore
@@ -256,8 +362,10 @@ def "main config" [--unattended, --force]: nothing -> nothing {
     let run = try {
         ^tar -x --no-same-owner --no-same-permissions -C $secrets -f -
         let allowed = system-secrets $repo $ctx.platform.facts.wireguard?
-        ^find $secrets -mindepth 1 ! -type d -print0 | split row (char nul) | where $it != ""
-        | where {|f| ($f | path type) != "file" or ($f | path relative-to $secrets) not-in $allowed } | each { rm --force $in } | ignore
+        let handed = ^find $secrets -mindepth 1 ! -type d -print0 | split row (char nul) | where $it != ""
+            | each {|f| {name: ($f | path relative-to $secrets), type: ($f | path type)} }
+        secrets-refused $handed $allowed | each { rm --force ($secrets | path join $in) } | ignore
+        secrets-record $secrets
         $env.DOTFILES_SECRETS = $secrets
         let planned = pipeline-plan $ctx system [] $force | where id not-in (phase-ids $ctx early)
         let results = pipeline-apply $ctx $planned system 1
@@ -283,6 +391,7 @@ def "main packages" [--yes, --plan, --unattended]: nothing -> nothing {
     let repo = repo-guard
     unattended $unattended
     locked
+    run-open packages
     let ctx = pipeline-load $repo system
     let declared = modules-packages $repo $ctx.modules $ctx.platform
     if ($declared.incomplete | is-not-empty) {
@@ -300,6 +409,7 @@ def "main packages" [--yes, --plan, --unattended]: nothing -> nothing {
 def "main module" [id: string]: nothing -> nothing {
     let repo = repo-guard
     locked
+    run-open module
     let ctx = pipeline-load $repo system
     if "system" not-in ($ctx.modules | where id == $id | get --optional 0.native | default []) { error make {msg: $"($id) has no native system verb"} }
     if not (module-system $ctx $id) { exit 1 }
@@ -308,6 +418,7 @@ def "main module" [id: string]: nothing -> nothing {
 def "main migrate" [--baseline]: nothing -> nothing {
     let repo = repo-guard
     locked
+    run-open migrate
     migrations-run $repo system --baseline=$baseline | ignore
 }
 
@@ -342,7 +453,7 @@ def "main adduser" [name: string, --profile: string]: nothing -> nothing {
         let dotfiles_url = bootstrap-const $repo DOTFILES_URL
         let key_file = bootstrap-const $repo SIGNING_KEY_FILE
         let fingerprint = bootstrap-const $repo SIGNING_KEY_FINGERPRINT $FINGERPRINT_VALUE
-        ^runuser -u $name -- git clone $dotfiles_url $checkout
+        ^runuser -u $name -- git clone --filter=blob:none $dotfiles_url $checkout
         let gnupg = ^runuser -u $name -- mktemp -d | str trim
         ^runuser -u $name -- env $"GNUPGHOME=($gnupg)" gpg --batch --quiet --import ($repo | path join $key_file)
         let status = ^runuser -u $name -- env $"GNUPGHOME=($gnupg)" git -C $checkout verify-commit --raw HEAD | complete

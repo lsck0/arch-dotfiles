@@ -6,7 +6,10 @@ import Quickshell.Io
 Singleton {
   id: root
 
+  // the open panel polls; closed, the db watch below brings every change, the due texts are re-derived from the last
+  // export, and a rare export catches what changes without a db write (a wait: date passing, a recurrence)
   readonly property int refreshMs: 3 * 60 * 1000
+  readonly property int refreshClosedMs: 30 * 60 * 1000
   readonly property int dueSoonMs: 15 * 60 * 1000
   readonly property var taskArgv: ["task", "rc.verbose=nothing", "rc.confirmation=off", "rc.recurrence.confirmation=off"]
   readonly property string notifiedPath: Paths.state + "/task-due-notified.json"
@@ -23,6 +26,7 @@ Singleton {
   property bool panelOpen: false
 
   property var tasks: []
+  property var exported: []
   property bool loaded: false
   // a failed change stays shown until the next change succeeds or the panel closes; an export error clears on the next export
   property string actionError: ""
@@ -275,8 +279,9 @@ Singleton {
   JsonProcess {
     id: exportProc
     command: root.taskArgv.concat(["rc.json.array=on", "status:pending", "export"])
-    intervalMs: root.refreshMs
+    intervalMs: root.panelOpen ? root.refreshMs : root.refreshClosedMs
     onParsed: function (data) {
+      root.exported = data
       root.tasks = root.buildTasks(data)
       root.loaded = true
       root.exportError = ""
@@ -294,7 +299,8 @@ Singleton {
   JsonProcess {
     id: timewProc
     command: ["timew", "export", ":day"]
-    intervalMs: root.refreshMs
+    // tracked time shows in the panel only
+    intervalMs: root.panelOpen ? root.refreshMs : 0
     onParsed: function (data) { root.tracked = root.buildTracked(data) }
   }
 
@@ -312,6 +318,16 @@ Singleton {
       timewProc.refresh()
       root.mutateQueue.done()
       if (!root.mutateQueue.running) root.refresh()
+    }
+  }
+
+  Timer {
+    interval: root.refreshMs
+    running: !root.panelOpen && root.loaded
+    repeat: true
+    onTriggered: {
+      root.tasks = root.buildTasks(root.exported)
+      root.checkDue()
     }
   }
 

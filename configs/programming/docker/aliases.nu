@@ -1,1 +1,1 @@
-alias ldocker = sudo-at-terminal lazydocker
+alias ldocker = lazydocker

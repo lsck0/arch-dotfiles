@@ -77,8 +77,9 @@ def caught-cases [dir: path]: nothing -> nothing {
     wants "caught exit" (do $run code) ["`sh -c 'exit 7'`" "exited 7" "caught.nu:5"]
 }
 
-# dot apply at a terminal re-execs under script (pty-log): its errors render for a tty, in colour and box drawing, and
-# still name their cause.
+# dot apply at a terminal tees its output into a log with colour forced (run.nu log-tee: sync.log, root's run files
+# under /var/lib/dotfiles/runs): its errors render as for a tty, in colour and box drawing, and still name their cause.
+# script gives the probe that rendering.
 def tty-cases [dir: path]: nothing -> nothing {
     let file = $dir | path join tty.nu
     $"export def code [] {\n    ^sh -c 'exit 7'\n    print unreachable\n}\nexport def absent [] {\n    ^($ABSENT) -d 1050:\n}\n" | save --force $file
@@ -169,20 +170,29 @@ def group-cases []: nothing -> nothing {
     for s in $systems { assert equal (failure-is-system $s.0) $s.1 $"failure-is-system ($s.0)" }
 }
 
-# A crash in a guarded run: crash.json, the run's PANIC record and dot log --trace name the same cause.
+# A crash in a guarded run: crash.json, the run's PANIC record and dot log --trace name the same cause. The record is
+# strict JSON (no raw escape of the rendered error), and the command's next run that goes through retires it.
 def crash-cases [dir: path]: nothing -> nothing {
     let state = $dir | path join state
     let file = $dir | path join crashing.nu
     "export def crash [] {\n    ^sh -c 'echo the crash reason >&2; exit 4'\n    print unreachable\n}\n" | save --force $file
     let call = $"use ($file | to nuon) [crash]; use cli.nu [guarded]; guarded probe --read-only { crash }"
-    with-env {XDG_STATE_HOME: $state, DOT_NO_JOURNAL: 1} { ^$nu.current-exe --no-config-file -I ($env.FILE_PWD) -c $call | complete } | ignore
-    let crash = open ($state | path join dotfiles crash.json)
+    # FORCE_COLOR: the rendered error as a terminal run gets it
+    with-env {XDG_STATE_HOME: $state, DOT_NO_JOURNAL: 1, FORCE_COLOR: 1} { ^$nu.current-exe --no-config-file -I ($env.FILE_PWD) -c $call | complete } | ignore
+    let record = $state | path join dotfiles crash.json
+    assert not (open --raw $record | str contains (ansi escape)) "crash.json carries raw terminal escapes, which no JSON reader takes"
+    let crash = open $record
     assert ($crash.cause.exit_code == 4 and $crash.cause.command == "sh -c 'echo the crash reason >&2; exit 4'") $"crash cause: ($crash.cause | to nuon)"
     let panic = open --raw (glob ($state | path join dotfiles runs *.jsonl) | first) | lines | each { from json } | where level == PANIC | first
     assert equal $panic.cause $crash.cause $"the PANIC record's cause differs from crash.json's: ($panic.cause | to nuon)"
     wants "panic line" $panic.msg ["`sh -c 'echo the crash reason >&2; exit 4'` exited 4" "crashing.nu:2"]
     let trace = with-env {XDG_STATE_HOME: $state, DOT_NO_JOURNAL: 1} { ^$nu.current-exe --no-config-file ($env.FILE_PWD | path join .. dot.nu) log $crash.run --trace }
     wants "trace" $trace ["probe" "! `sh -c 'echo the crash reason >&2; exit 4'` exited 4"]
+    let guarded = {|command: string| with-env {XDG_STATE_HOME: $state, DOT_NO_JOURNAL: 1} { ^$nu.current-exe --no-config-file -I ($env.FILE_PWD) -c $"use cli.nu [guarded]; guarded ($command) --read-only { null }" | complete } }
+    do $guarded other | ignore
+    assert ($record | path exists) "another command's clean run retired the probe's crash record"
+    do $guarded probe | ignore
+    assert not ($record | path exists) "the probe's clean run left its crash record"
 }
 
 # The reinstall's two failures: what dot status --brief said, and what the same failures say now.
@@ -225,6 +235,8 @@ def reinstall-cases [dir: path]: nothing -> nothing {
 
 def main [--show] {
     let dir = mktemp --directory --tmpdir dot-cause-test-XXXXXX
+    # command-package keeps its answers under the cache dir: the test's own, never the user's
+    $env.XDG_CACHE_HOME = $dir | path join cache
     if $show {
         print (reinstall-fixture $dir | to yaml)
         rm --recursive --force $dir

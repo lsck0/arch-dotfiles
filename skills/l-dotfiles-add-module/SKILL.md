@@ -83,7 +83,10 @@ export def packages [cfg: record]: nothing -> record {
 - Verbs (`VERBS` in `scripts/lib/modules.nu`): `link`, `system`, `theme`, `apply`, `backup`, `restore`, `update` (what
   floats outside pacman, run by `dot sync`). Any other export is a `step` target or a name another module imports;
   everything else is a plain `def` (lint checks). A helper a unit, toggle or keybind runs is a script in the module
-  dir, installed with `link-commands` or `files-into`. A linked one finds the repo with `const REPO = path self |
+  dir, installed with `link-commands` or `files-into`. One that runs as root on arguments its caller chose (a
+  NOPASSWD sudo target, a pkexec helper) takes neither `def --wrapped main` nor a value-taking flag: nu evaluates a
+  `--flag=(expr)` argument before main runs (`core/toggles/toggle-root.nu`); one that passes a command through is
+  POSIX sh (`base/protonvpn-netns/run.sh`). A linked one finds the repo with `const REPO = path self |
   path expand | path dirname --num-levels <depth>` (expanded first: `path self` and a relative `use` resolve against
   the `~/.local/bin` link; lint: `LINKED_RELATIVE` in `scripts/lib/gate.nu`); every other file writes `path self`
   with a relative path, one `..` per level (`path self ../../..` in a module dir, `path self .` for its own dir).
@@ -101,9 +104,10 @@ export def packages [cfg: record]: nothing -> record {
     [--in-place]`, `file-render <src> <dest> {KEY: v}` (`@KEY@`), `file-link` (only where the app reads the repo
     live), `link-commands <file...>`, `json-merge <file> [(json-set [k] v) (json-delete [k])]`, `ini-merge <file>
     {section: {key: v}} [--missing-only]`, `desktop-override <id> {|text| ...}`, `mcp-servers {name: spec}`
-    (Claude, Gemini, Copilot and Hermes, each in its format; null drops one), `mcp-uvx` (a pinned uvx server and its
-    prefetch), `shell-aliases <name>` (the module's `aliases.nu`/`aliases.zsh` into nushell's autoload dir and zsh's
-    conf.d; a tool's aliases and defs live with the module declaring the tool, never in core/nushell or core/zsh).
+    (Claude, Gemini, Copilot and Hermes, each in its format; null drops one), `mcp-uvx` (a pinned PyPI server in a
+    venv of its own, built at apply), `shell-aliases <name>` (the module's `aliases.nu`/`aliases.zsh` into nushell's
+    autoload dir and zsh's conf.d; a tool's aliases and defs live with the module declaring the tool, never in
+    core/nushell or core/zsh).
   - rules: `udev-rules <src> [trigger args...] [--then]` (into `/etc/udev/rules.d`, reloaded and triggered by
     `udev-reload [trigger args...] [--and <cmd>]`, also the `--then` of any other file udev reads), `polkit-rules
     <src> [--name] [--values {KEY: v}]` (into `/etc/polkit-1/rules.d`, rendered when given values).

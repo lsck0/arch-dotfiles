@@ -14,6 +14,8 @@ const RETRY_FIRST = 15sec
 const RETRY_MAX = 5min
 const RETRY_ATTEMPTS = 6
 const MONITOR_END = "eof"
+# nmcli monitor's line once a captive portal is passed: a network given up on behind its portal gets its tries back
+const CONNECTIVITY_FULL = "Connectivity is now 'full'"
 # the persona dispatcher's mark on a tor it started; a tor route without it is the user's choice
 const DISPATCHER_TOR = "/run/persona-tor"
 
@@ -50,7 +52,8 @@ def decide [state: record]: nothing -> record {
 # nmcli's end ends this, the unit restarts it
 def main []: nothing -> nothing {
     job spawn {
-        for line in (^nmcli monitor err> /dev/null | lines) { $line | job send 0 }
+        # CONNECTIVITY_FULL is matched in nmcli's untranslated wording
+        for line in (with-env {LC_ALL: C} { ^nmcli monitor err> /dev/null } | lines) { $line | job send 0 }
         $MONITOR_END | job send 0
     } | ignore
     mut state = decide {last: "", attempts: 0, retry_at: null}
@@ -60,6 +63,7 @@ def main []: nothing -> nothing {
             try { job recv --timeout $wait } catch { null }
         }
         if $message == $MONITOR_END { return }
+        if $message == $CONNECTIVITY_FULL { $state = $state | merge {attempts: 0, retry_at: (date now)} }
         $state = decide $state
     }
 }

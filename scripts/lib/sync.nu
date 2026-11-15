@@ -95,14 +95,21 @@ export def sync-can-sign [repo: path]: nothing -> bool {
     (^gpg --batch --list-secret-keys (fingerprint $repo) | complete).exit_code == 0
 }
 
+# The changed files of the secrets checkout a commit would store unencrypted: all but keys/ and state/ (git-crypt's),
+# its own .git-crypt and .gitattributes, and the files inside a module dir (modules: the top dirs holding a mod.nu).
+export def secrets-stray [changed: list<string>, modules: list<string>]: nothing -> list<string> {
+    $changed | where {|f|
+        let parts = $f | path split
+        let module = ($parts | length) > 1 and $parts.0 in $modules
+        $parts.0 not-in [keys state .git-crypt] and $f != .gitattributes and not $module
+    }
+}
+
 def secrets-plaintext-guard [secrets: path]: nothing -> nothing {
-    let stray = ^git -C $secrets ls-files -z --others --modified --exclude-standard | split row (char nul)
+    let changed = ^git -C $secrets ls-files -z --others --modified --exclude-standard | split row (char nul)
         | where {|f| $f != "" and ($secrets | path join $f | path exists) }
-        | where {|f|
-            let parts = $f | path split
-            let module = ($parts | length) > 1 and ($secrets | path join $parts.0 mod.nu | path exists)
-            $parts.0 not-in [keys state .git-crypt] and $f != .gitattributes and not $module
-        }
+    let modules = $changed | each { path split | first } | uniq | where {|d| $secrets | path join $d mod.nu | path exists }
+    let stray = secrets-stray $changed $modules
     if ($stray | is-not-empty) {
         error make {msg: $"secrets: ($stray | str join ' ') would be committed unencrypted: move it under configs/secrets/keys/ (a credential) or state/"}
     }

@@ -26,8 +26,8 @@ export def system [cfg: record] {
     [
         (step tunnel)
         (file-copy netns.nu $"($LIB)/netns" --mode 755 --then $restart)
-        (file-copy run.nu $"($LIB)/run" --mode 755)
-        ($shims | each { file-copy shim.nu $"/usr/local/bin/($in)" --mode 755 })
+        (file-copy run.sh $"($LIB)/run" --mode 755)
+        ($shims | each { file-copy shim.sh $"/usr/local/bin/($in)" --mode 755 })
         # glibc in the namespace asks the tunnel's resolver directly, never resolved over its unix socket (a leak)
         (file-text $"($NS_ETC)/nsswitch.conf" $nsswitch)
         (file-copy sudoers /etc/sudoers.d/20-protonvpn-netns --mode 440)

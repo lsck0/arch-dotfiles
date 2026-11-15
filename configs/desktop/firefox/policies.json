@@ -15,6 +15,7 @@
         "DisableFirefoxStudies": true,
         "DisablePocket": true,
         "DisableProfileImport": true,
+        "OfferToSaveLogins": false,
         "FirefoxHome": {
             "SponsoredTopSites": false,
             "SponsoredPocket": false,
@@ -60,7 +61,7 @@
             ]
         },
         "Cookies": {
-            "Behavior": "reject-tracker",
+            "Behavior": "reject-tracker-and-partition-foreign",
             "BehaviorPrivateBrowsing": "reject-tracker-and-partition-foreign"
         },
         "ExtensionSettings": {
@@ -113,7 +114,10 @@
             },
             "jobcentertycoon@gmail.com": {
                 "installation_mode": "force_installed",
-                "install_url": "https://addons.mozilla.org/firefox/downloads/latest/cookie-auto-decline/latest.xpi"
+                "install_url": "https://addons.mozilla.org/firefox/downloads/latest/cookie-auto-decline/latest.xpi",
+                "runtime_blocked_hosts": [
+                    "*://accounts.google.com"
+                ]
             },
             "seventv-next@7tv.app": {
                 "installation_mode": "force_installed",

@@ -18,7 +18,8 @@ use ($REPO | path join configs base yubikey yubikey.nu) [yubikey-init yubikey-se
 use ($REPO | path join configs base yubikey audit.nu) [audit-run audit-rotated audit-drilled]
 use ($REPO | path join configs core wallust wallpaper.nu) [wallpaper-set wallpaper-random wallpaper-pick]
 use ($LIB | path join sync.nu) [sync-commit sync-can-sign sync-pull]
-use ($LIB | path join run.nu) [failures-publish finish config-banner-clear admin system-allowed system-skipped pending-exit user-locked unlink-run system-part update-run INTERNAL PIPELINE_CLI]
+use ($LIB | path join run.nu) [failures-publish finish config-banner-clear admin system-allowed system-skipped pending-exit user-locked unlink-run system-part update-run log-tee INTERNAL PIPELINE_CLI]
+use ($LIB | path join system.nu) [RUN_ID]
 use ($LIB | path join set.nu) [options-list option-target option-write option-apply]
 
 const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo prescribes and records it
@@ -38,6 +39,7 @@ const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo 
   test lint|check|fmt|run|...     the gates and the vm test
 
   --no-system on sync, apply, set: only the user part, same as DOT_SYSTEM=skip
+  sync --system: enter root even when nothing shows the system layer has work
   dot <command> --help for its flags"
 
 const LOG_LEVELS = [TRACE DEBUG INFO WARN ERROR PANIC]
@@ -253,13 +255,17 @@ def "main sync" [
     --no-push    # stop after the apply: no backup, commit or push; a machine that does not sign always stops there
     --yes        # remove undeclared packages without asking; flatpak and nix installed by hand only apply --packages offers
     --no-system  # only the user part, same as DOT_SYSTEM=skip
+    --system     # enter root even when nothing shows the system layer has work
     --no-verify  # commit without the formatter, linter and gitleaks gates
 ]: nothing -> nothing {
+    if $no_system and $system { die --misuse "sync: --system and --no-system contradict" }
     if $no_system { $env.DOT_SYSTEM = "skip" }
     user-locked
+    let flags = (flag no-push $no_push) ++ (flag yes $yes) ++ (flag no-system $no_system) ++ (flag system $system) ++ (flag no-verify $no_verify)
+    log-tee sync [$nu.current-exe --no-config-file ($REPO | path join scripts dot.nu) sync ...$flags]
     guarded sync {
         sync-pull $REPO
-        let run = update-run $yes
+        let run = update-run $yes $system
         let clean = failures-publish $run.results
         if $clean { config-banner-clear }
         if not $no_push {
@@ -293,7 +299,11 @@ def "main log" [run?: string@run-ids, --module: string@module-ids, --level: stri
         return
     }
     if not ($file | path exists) { error make --unspanned {msg: "dot log: no such run"} }
-    let records = run-records $file
+    let own = run-records $file
+    # root's side of the run: its entries' own files, world-readable, named by the records system-run left
+    let roots = $own | where kind? == system-run | get target | where $it =~ $RUN_ID | uniq
+        | each { $SYSTEM_STATE | path join runs $"($in).jsonl" } | where ($it | path exists)
+    let records = if ($roots | is-empty) { $own } else { $own ++ ($roots | each { run-records $in } | flatten) | sort-by time }
     if $trace {
         let spans = $records | where kind? == span
         let ends = $spans | where phase == end | reduce --fold {} {|e, acc| $acc | upsert $e.span $e }

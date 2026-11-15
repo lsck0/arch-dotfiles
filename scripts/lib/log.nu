@@ -67,8 +67,9 @@ export def procs-kill [marks: list<string>, signal: string = "KILL"]: nothing ->
 # and a pipe it held closes. timed_out: the deadline came first, value is then null.
 export def bounded [timeout: duration, body: closure]: nothing -> record {
     let mark = $"DOT_BOUND_(random chars --length $BOUND_MARK_LENGTH)"
-    let fired = mktemp --tmpdir dot-bound-XXXXXX
-    rm $fired
+    # a directory of its own (700): nobody else can make the marker appear
+    let private = mktemp --directory --tmpdir dot-bound-XXXXXX
+    let fired = $private | path join fired
     let watchdog = job spawn {
         sleep $timeout
         touch $fired
@@ -79,7 +80,7 @@ export def bounded [timeout: duration, body: closure]: nothing -> record {
     let run = try { {value: (with-env {$mark: "1"} { do $body }), error: null} } catch {|e| {value: null, error: $e.msg} }
     try { job kill $watchdog }
     let timed_out = $fired | path exists
-    rm --force $fired
+    rm --recursive --force $private
     if $timed_out { return {value: null, timed_out: true} }
     if $run.error != null { error make {msg: $run.error} }
     {value: $run.value, timed_out: false}
@@ -153,7 +154,7 @@ export def --env run-begin [name: string, --read-only]: nothing -> nothing {
     let runs = runs-list
     let changing = $runs.files | where $it not-in $runs.read_only
     ($changing | drop $RUNS_KEEP) ++ ($runs.read_only | drop $RUNS_READ_ONLY_KEEP) | each { rm --force $in } | ignore
-    # a run's side files (.failures, .install-failures, cause.nu's .owners) go with its log
+    # a run's side files (.failures, .install-failures, an older dot's .owners) go with its log
     glob (runs-dir | path join "*.{owners,*failures}") | where {|f| not ($f | str replace --regex '\.(?:owners|[a-z-]*failures)$' '.jsonl' | path exists) }
         | each { rm --force $in } | ignore
     log-debug $"run ($name)" {kind: run, target: $name, read_only: $read_only}

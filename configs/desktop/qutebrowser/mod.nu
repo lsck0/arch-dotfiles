@@ -29,6 +29,8 @@ export const options = {
 
 const CONFIG_DIR = ".config/qutebrowser"
 const LISTS = [adblock-cache.dat blocked-hosts]
+# qutebrowser never updates them itself
+const LISTS_AGE_MAX = 7day
 const FETCH_QUIT_MS = "60000"
 const FETCH_TIMEOUT = "90"
 # the bar's palette knobs, so the startpage's hues match it
@@ -47,7 +49,9 @@ export def detect [cfg: record]: nothing -> record {
 
 def lists-ready []: nothing -> bool {
     let data = xdg data qutebrowser
-    $LISTS | all {|f| ($data | path join $f | path exists) and (ls ($data | path join $f) | get 0.size | into int) > 0 }
+    $LISTS | each {|f| $data | path join $f } | all {|f|
+        ($f | path exists) and (ls $f | first | ($in.size | into int) > 0 and (date now) - $in.modified < $LISTS_AGE_MAX)
+    }
 }
 
 export def link [cfg: record] {

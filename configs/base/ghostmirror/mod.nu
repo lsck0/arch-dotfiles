@@ -26,6 +26,7 @@ export def system [cfg: record] {
         (unit-file ghostmirror.timer --enable --now)
         (unit-file ghostmirror-refresh.service)
         (unit-file ghostmirror-refresh.timer --enable --now)
+        (udev-rules 99-ghostmirror-ac.rules)
     ]
 }
 

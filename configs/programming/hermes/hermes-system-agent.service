@@ -10,8 +10,9 @@ PartOf=graphical-session.target
 Type=forking
 # Luca's tmux.conf: his prefix and keys, and the wallust colours core/tmux re-sources into every server on a theme switch
 ExecStart=/usr/bin/tmux -L system-agent new-session -d -s agent -x 160 -y 48 -c %h "%h/.local/bin/hermes-system-agent"
-# voice mode is per session in hermes, not config: switched on once the prompt is up (at most a minute)
-ExecStartPost=/bin/sh -c 'for i in $(seq 60); do /usr/bin/tmux -L system-agent capture-pane -p -t agent 2>/dev/null | grep -q "^ system [^ ]" && exec /usr/bin/tmux -L system-agent send-keys -t agent "/voice on" Enter; sleep 1; done'
+# voice mode is per session in hermes, not config: switched on once the prompt is up (at most a minute). A prompt that
+# never comes is logged, not failed: a failed start would kill the pane a dialog is waiting in and restart it forever
+ExecStartPost=/bin/sh -c 'for i in $(seq 60); do /usr/bin/tmux -L system-agent capture-pane -p -t agent 2>/dev/null | grep -q "^ system [^ ]" && exec /usr/bin/tmux -L system-agent send-keys -t agent "/voice on" Enter; sleep 1; done; echo "<4>no hermes prompt after 60 s, voice stays off: a dialog blocks the pane (tmux -L system-agent attach)"'
 ExecStop=/usr/bin/tmux -L system-agent kill-server
 Restart=always
 RestartSec=5

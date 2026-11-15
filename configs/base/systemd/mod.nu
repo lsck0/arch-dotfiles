@@ -42,6 +42,8 @@ export def system [cfg: record] {
         (if $env.FORM_FACTOR? != "wsl" { step cmdline-set rd.systemd.mask=systemd-tpm2-setup-early.service })
         (if $env.FORM_FACTOR? == "laptop" { dropin $KBD_DROPIN kbd-backlight.conf })
         (file-copy user-stop-timeout.conf /etc/systemd/user.conf.d/10-stop-timeout.conf)
+        (file-copy logind.conf /etc/systemd/logind.conf.d/10-keys.conf
+            --then (unit-restart systemd-logind.service --reload --if-running))
         (if $cfg.mem_sleep != null {
             file-text /etc/systemd/sleep.conf.d/10-mem-sleep.conf $"[Sleep]\nMemorySleepMode=($cfg.mem_sleep)\n"
         })

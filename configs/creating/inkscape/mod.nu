@@ -2,6 +2,15 @@ use module.nu *
 
 export const meta = {packages: {pacman: [fig2dev inkscape optipng uv]}}
 
+export const options = {
+    mcp: {
+        type: bool
+        default: true
+        doc: "Register inkscape-mcp with the coding agents; off, no agent session starts its server"
+        label: "MCP server"
+    }
+}
+
 # MCP_FROZEN cuts off its deps (mcp-uvx); bump both together
 const MCP_VERSION = "1.3.1"
 const MCP_FROZEN = "2026-09-01"
@@ -22,8 +31,10 @@ export def link [cfg: record] {
     let preferences = xdg config inkscape preferences.xml
     [
         (step start-screen-off $preferences --done=(start-screen-set $preferences))
-        (mcp-uvx inkscape-mcp $"inkscape-mcp==($MCP_VERSION)" $MCP_FROZEN [inkscape-mcp --mode stdio] inkscape_mcp
-            --python $MCP_PYTHON --env-vars {FASTMCP_CHECK_FOR_UPDATES: "off"})
+        (if $cfg.mcp {
+            (mcp-uvx inkscape-mcp $"inkscape-mcp==($MCP_VERSION)" $MCP_FROZEN [inkscape-mcp --mode stdio] inkscape_mcp
+                --python $MCP_PYTHON --env-vars {FASTMCP_CHECK_FOR_UPDATES: "off"})
+        })
     ]
 }
 

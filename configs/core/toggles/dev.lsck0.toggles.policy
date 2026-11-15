@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
-<!-- the root helper's own action, so 49-toggles.rules' kept approval covers only the helper, never another pkexec
-     program; the defaults are pkexec's own for a remote or inactive session -->
+<!-- the root helper's own action, so 49-toggles.rules decides for the helper alone, never another pkexec program; the
+     defaults are pkexec's own for a remote or inactive session -->
 <policyconfig>
   <action id="@ACTION@">
     <description>Switch a network or system toggle</description>

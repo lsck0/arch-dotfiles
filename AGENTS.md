@@ -41,7 +41,8 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
 - Agents never reach root: run dot with `DOT_SYSTEM=skip` (or `--no-system`); a system part is then pending (exit 3).
   sudo and pkexec take a YubiKey touch or fingerprint on Luca's side, the password as fallback.
 - `dot sync` (pull, migrate, install, apply, back up, `internal gen`, signed `Generation: <n>` commit, push) is
-  Luca's only commit path: agents never commit, push or run it, `--no-push` included.
+  Luca's only commit path: agents never commit, push or run it, `--no-push` included. It enters root once, and not
+  at all when nothing is due for the system layer; `dot sync --system` forces it.
 - `collect-diagnostics [--root <mnt>] [dest]`: bash only, runs from a USB stick too; hardware, boot, journals, network,
   dot state. `--root` also reads an installed system mounted at `<mnt>`. `dest` defaults to a mounted `LSCK0` stick
   partition, else `$XDG_STATE_HOME/diagnostics`.
@@ -91,6 +92,8 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   `configs/base/xdg/mod.nu`, forced non-dot dirs to `home.hidden`.
 - Native over bolt-on: the tool's own mechanism (Hyprland rules, systemd units, pipewire config, pacman hooks, udev),
   never a wrapper or polling script.
+- A nushell script that runs as root on arguments its caller chose takes neither `def --wrapped main` nor a
+  value-taking flag: nu evaluates `--flag=(expr)` in argv before main runs. Pass-through helpers are POSIX sh.
 - MCP servers: `mcp-servers` in the owning module registers them with Claude Code, Gemini, Copilot and Hermes; only
   when the tool is installed, pinned when third-party, local (stdio or loopback).
 - One extension pattern: a new capability is a new file following the convention (module, option, package, migration,
@@ -104,8 +107,10 @@ One home per kind of data, no catch-all: config in git; app state in `configs/se
 
 ## Gotchas
 
-- `FAILURES.*` at the root: what failed in the last run. `dot log [run] [--trace]`; a crash leaves
-  `<state>/crash.json`.
+- `FAILURES.*` at the root: what failed in the last run; `config.log`, `install.log` and `sync.log` beside them hold
+  the terminal output. `dot log [run] [--trace]` merges root's run files (`/var/lib/dotfiles/runs`); a crash leaves
+  `<state>/crash.json`, which `dot status` notes (`crash`) until that command goes through again. `dot status` also
+  notes a LUKS root without a TPM2 or FIDO2 token (`luks`).
 - State: `$XDG_STATE_HOME/dotfiles` (root: `/var/lib/dotfiles`); `modules/<id>/<verb>.nuon` is the one record of what
   dot wrote; `ledger` holds units, packages, migrations.
 - Locked secrets start with `\0GITCRYPT` (`secret-is-plaintext`); never write into `configs/secrets/` while locked.

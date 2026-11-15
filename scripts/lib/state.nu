@@ -74,13 +74,19 @@ export def state-locked [lock: path, op: string, args: record]: nothing -> any {
     $args | to json --raw | ^flock $lock (nu-bin) --no-config-file --stdin -I $LIB_DIR $LOCKED_SCRIPT $op
 }
 
-# Saves through a temp of this process and a rename, so no reader sees half a file; a link stays a link.
-export def save-atomic [file: path]: string -> nothing {
+# Saves through a temp of this process and a rename, so no reader sees half a file; a link stays a link. --mode: the
+# file's mode, set on the temp before a byte is in it.
+export def save-atomic [file: path, --mode: string]: string -> nothing {
+    let text = $in
     let file = if (path-kind $file) == "symlink" { ^readlink -f $file | str trim } else { $file }
     let tmp = $"($file).($nu.pid)-(random chars --length 6).new"
-    $in | save --force --raw $tmp
+    if $mode != null {
+        "" | save --raw $tmp
+        ^chmod $mode $tmp
+    }
+    $text | save --force --raw $tmp
     # the old mode carries over, but never world-writable: a stray one would stick to every later write
-    if ($file | path exists) { ^chmod --reference $file $tmp; ^chmod o-w $tmp }
+    if $mode == null and ($file | path exists) { ^chmod --reference $file $tmp; ^chmod o-w $tmp }
     mv --force $tmp $file
 }
 

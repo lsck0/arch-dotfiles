@@ -1,7 +1,6 @@
 use module.nu *
 
-# cuda only for libcudart.so.13: arch's usd and opensubdiv link it undeclared
-export const meta = {packages: {pacman: [blender cuda uv]}}
+export const meta = {packages: {pacman: [blender uv]}}
 
 # the add-on runs any python the server sends, unsandboxed, so the bridge never auto-starts
 const MCP_URL = "https://projects.blender.org/lab/blender_mcp.git"
@@ -51,7 +50,7 @@ export def link [cfg: record] {
         # builds from the fetched tree: while the fetch is pending, so is the add-on
         (step addon-install --requires (addon-src) --key (addon-pin))
         (step generate-install --key (generate-pin))
-        (link-commands blender-mcp-bridge.nu)
+        (link-commands blender-mcp-bridge.sh)
         (desktop-override blender.desktop {
             let entry = desktop-set {Actions: "mcp-bridge;"}
             let bridge = $nu.home-dir | path join .local bin blender-mcp-bridge
@@ -60,6 +59,7 @@ export def link [cfg: record] {
         (mcp-servers {blender-mcp: {
             type: stdio, command: (^uv tool dir --bin | str trim | path expand | path join blender-mcp), args: []
             env: {BLENDER_MCP_HOST: $MCP_HOST, BLENDER_MCP_PORT: $MCP_PORT}
+            gate: {probe: $"($MCP_HOST):($MCP_PORT)", app: "Blender with its MCP bridge (blender-mcp-bridge)"}
         }})
     ]
 }

@@ -1,8 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
 # Table cases for desktop-set (whole keys replaced or added in the [Desktop Entry] group only), decls-flatten (any
 # depth), unit-restart's argv per layer and flags, and the udev and polkit rule declarations (target, source or
-# rendered content, --then).
-use module.nu [desktop-set decls-flatten polkit-rules udev-reload udev-rules unit-restart]
+# rendered content, --then), and mcp-uvx (the venv built before the registration, which names the venv's entry point).
+use module.nu [desktop-set decls-flatten polkit-rules udev-reload udev-rules unit-restart mcp-uvx]
 use std/assert
 
 def main [] {
@@ -80,6 +80,24 @@ def main [] {
     for c in $rules {
         let got = $c.decl | select ...($c.wants | columns)
         assert equal $got $c.wants $"($c.name): got ($got | to nuon), wants ($c.wants | to nuon)"
+    }
+    if (which uv | is-not-empty) {
+        let venv = $dir | path join data mcp tool
+        let decls = with-env {XDG_DATA_HOME: ($dir | path join data)} { mcp-uvx tool "tool-mcp==1.2" "2026-01-01" [tool-mcp serve] tool_mcp --python "3.12" --env-vars {A: b} }
+        let build = $decls | first
+        assert equal ($build | select kind creates key network undo) {kind: exec, creates: ($venv | path join bin python), key: "tool-mcp==1.2@2026-01-01-py3.12", network: true, undo: [rm -rf $venv]} $"mcp-uvx build: ($build | to nuon)"
+        assert equal ($build.argv | skip 3) [$venv "2026-01-01" "tool-mcp==1.2" tool_mcp tool-mcp --python "3.12"] $"mcp-uvx build argv: ($build.argv | to nuon)"
+        # a build that fails leaves the live venv, and so the registered command, as it was
+        mkdir ($venv | path join bin)
+        "live\n" | save ($venv | path join bin tool-mcp)
+        let failed = with-env {UV_OFFLINE: 1, UV_CACHE_DIR: ($dir | path join uv-cache)} { ^$build.argv.0 ...($build.argv | skip 1 | update 4 "mcp-uvx-test-absent==0") | complete }
+        assert ($failed.exit_code != 0) "mcp-uvx build: installing a package no index has went through"
+        assert equal (open --raw ($venv | path join bin tool-mcp)) "live\n" "mcp-uvx build: a failed build replaced the live venv"
+        # the done check follows bin/python, so a venv whose interpreter is gone counts as not built
+        ^ln -s ($dir | path join gone-python) ($venv | path join bin python)
+        assert not ($build.creates | path exists) "mcp-uvx build: a venv with a dead python counts as built"
+        let claude = $decls | skip 1 | first | get edits.0.value
+        assert equal $claude {type: stdio, command: ($venv | path join bin tool-mcp), args: [serve], env: {A: b}} $"mcp-uvx registration: ($claude | to nuon)"
     }
     cd ($dir | path dirname)
     rm --recursive $dir

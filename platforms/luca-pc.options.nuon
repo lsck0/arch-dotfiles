@@ -95,6 +95,14 @@
         wake_on_lan: true
         untrusted_policy: lockdown-tor
     }
+    "base/nftables": {
+        pentest_listeners: true
+    }
+    "base/fail2ban": {enable: false}
+    "base/boot/sata": {
+        # nvme only; two AHCI controllers with eight empty ports cost 2.2 s of kernel time per boot (2026-11)
+        probe: false
+    }
     "base/v4l2loopback": {
         video_nr: 2
     }
@@ -114,5 +122,8 @@
     }
     "programming/cargo": {
         sccache_redis: true
+    }
+    "programming/claude": {
+        remote_control: true
     }
 }

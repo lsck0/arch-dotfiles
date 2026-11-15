@@ -1,5 +1,7 @@
 #!/usr/bin/nu --no-config-file
-# root half of scripts/toggles via pkexec: the unprompted polkit rule grants only this, so it checks every argument
+# root half of scripts/toggles via pkexec: 49-toggles.rules grants only the verbs listed there, and this checks every
+# argument again. main takes no flag and is not --wrapped: nu evaluates a --flag=(expr) argument of a script before
+# main runs wherever the signature accepts that flag, here as root (toggle-root.test.nu)
 
 const PERSONA_LOCKDOWN = "/run/persona-lockdown"
 const WG_INTERFACE = "wg0"
@@ -13,10 +15,19 @@ const TLP_MODES = [balanced performance power-saver]
 const FIREWALL_STATES = [permissive default restrictive]
 const PERSONA_TTLS = ["64" "128"]
 const PORT_MAX = 65535
+const NFT_LISTING_FRAME = '^(table .*\{|chain .*\{|type .*|\}|)$'
+const RATE_CAP_RULE = '^oif "lo" tcp dport (?<first>\d+)(?:-(?<last>\d+))? ct state new limit rate over (?<rate>\d+)/second(?: burst \d+ packets)? drop$'
 const POOL_SIZE_MAX = 999
+const GUARD_STOP_UNITS = [portmaster.service tor-router.service]
+const CGROUP_ROOT = "/sys/fs/cgroup"
+const APPROVAL_DIR = "@APPROVAL_DIR@"
+const APPROVAL_MINUTES = "@APPROVAL_MINUTES@"
+# ps reports the process age in whole seconds
+const APPROVAL_MARGIN = 5sec
 
 def usage []: nothing -> nothing {
-    print -e "usage: toggle-root {tlp MODE|start|wg up|down|vllm on|off|firewall STATE|portal on|off|anonsocks VERB...}"
+    print -e ("usage: toggle-root {tlp MODE|start|wg up|down|vllm on|off|firewall STATE|raise-default|"
+        + "portmaster-restore|portal on|off|guard-stop UNIT...|anonsocks VERB...}")
     exit 1
 }
 
@@ -27,6 +38,41 @@ def caller-uid []: nothing -> string {
         exit 1
     }
     $uid
+}
+
+# The stamp 49-toggles.rules reads: while it is younger than the window, a lowering verb passes unasked. Written only
+# when it had run out before this process (pkexec, then this script) started, so only a call that was authenticated
+# starts a window, and one the stamp let through never extends it.
+def approval-record []: nothing -> nothing {
+    let uid = $env.PKEXEC_UID? | default ""
+    if $uid !~ '^[0-9]+$' { return }
+    let stamp = $APPROVAL_DIR | path join (^id -un $uid | str trim)
+    let started = (date now) - ((^ps -o etimes= -p $nu.pid | str trim | into int) * 1sec)
+    let window = ($APPROVAL_MINUTES | into int) * 1min
+    if ($stamp | path exists) and (ls --directory $stamp | get 0.modified) + $window + $APPROVAL_MARGIN >= $started {
+        return
+    }
+    ^install -d -m 755 $APPROVAL_DIR
+    ^install -m 644 /dev/null $stamp
+}
+
+def anonsocks-slice []: nothing -> string {
+    let uid = caller-uid
+    $"user.slice/user-($uid).slice/user@($uid).service/anonsocks.slice"
+}
+
+# Nothing runs in the caller's slice: cgroup.events counts its unit cgroups too, its own cgroup.procs is always empty.
+def anonsocks-slice-empty []: nothing -> bool {
+    let events = [$CGROUP_ROOT (anonsocks-slice) cgroup.events] | path join
+    not ($events | path exists) or "populated 0" in (open --raw $events | lines)
+}
+
+# The guard of a slice that still runs something stays: a process confined there must not drop or weaken its own.
+def anonsocks-guard-release [what: string]: nothing -> nothing {
+    if not (anonsocks-slice-empty) {
+        print -e $"toggle-root: anonsocks.slice still runs something, ($what)"
+        exit 1
+    }
 }
 
 def persona-off []: nothing -> nothing {
@@ -73,6 +119,17 @@ def portal [direction: string]: nothing -> nothing {
     }
 }
 
+# Whether a listing of the `out` chain holds the cap for these numbers and no other rule; nft prints a range of one
+# port as the port and adds its default burst.
+export def anonsocks-rate-cap-loaded [listing: string, port: int, last: int, rate: int]: nothing -> bool {
+    let rules = $listing | lines | str trim | where { $in !~ $NFT_LISTING_FRAME }
+    if ($rules | length) != 1 { return false }
+    let cap = $rules.0 | parse --regex $RATE_CAP_RULE | get --optional 0
+    if $cap == null { return false }
+    let cap_last = if ($cap.last | is-empty) { $cap.first } else { $cap.last }
+    [$cap.first $cap_last $cap.rate] == ([$port $last $rate] | into string)
+}
+
 def anonsocks [args: list<string>]: nothing -> nothing {
     match [($args | length) ($args.0? | default "")] {
         [4, "rate-on"] => {
@@ -82,6 +139,13 @@ def anonsocks [args: list<string>]: nothing -> nothing {
             let rate = $args.3 | into int
             let last = $port + $pool - 1
             if not ($port >= 1 and $pool in 1..$POOL_SIZE_MAX and $last <= $PORT_MAX and $rate >= 1) { usage }
+            # the numbers are the caller's, so they set a cap but never replace one over a running slice
+            let loaded = ^nft list chain inet $NFT_TABLE out | complete
+            if $loaded.exit_code == 0 {
+                # the same cap again is no change: a refusal here makes anonymous-socks-up tear the slice down
+                if (anonsocks-rate-cap-loaded $loaded.stdout $port $last $rate) { return }
+                anonsocks-guard-release "its rate cap stays as it is"
+            }
             $"add table inet ($NFT_TABLE)
 add chain inet ($NFT_TABLE) out { type filter hook output priority 0 ; policy accept ; }
 flush chain inet ($NFT_TABLE) out
@@ -94,8 +158,7 @@ table inet ($NFT_TABLE) {
 " | ^nft -f -
         }
         [1, "egress-on"] => {
-            let uid = caller-uid
-            let slice = $"user.slice/user-($uid).slice/user@($uid).service/anonsocks.slice"
+            let slice = anonsocks-slice
             $"add table inet ($NFT_TABLE)
 add chain inet ($NFT_TABLE) egress { type filter hook output priority 0 ; policy accept ; }
 flush chain inet ($NFT_TABLE) egress
@@ -109,7 +172,10 @@ table inet ($NFT_TABLE) {
 }
 " | ^nft -f -
         }
-        [1, "nft-off"] => { ^nft delete table inet $NFT_TABLE | complete | ignore }
+        [1, "nft-off"] => {
+            anonsocks-guard-release "its netfilter guard stays"
+            ^nft delete table inet $NFT_TABLE | complete | ignore
+        }
         [3, "persona-on"] => {
             let ttl = $args.1
             let cgroup = $args.2
@@ -133,7 +199,22 @@ table inet ($NFT_TABLE) {
     }
 }
 
-def --wrapped main [...args: string] {
+# The dispatcher's own decision, as on every link event: on behind a raised firewall, but not over a proton tunnel,
+# beside the netns tunnel where its mark is read, or on a foreign link with no tor to route into.
+def portmaster-decide []: nothing -> nothing {
+    if ($PERSONA_DISPATCHER | path exists) {
+        ^$PERSONA_DISPATCHER "" portmaster
+    } else {
+        print -e "toggle-root: no persona dispatcher, portmaster left as it is"
+    }
+}
+
+def firewall-raise [state: string]: nothing -> nothing {
+    ^systemctl start (if $state == default { "fw-inbound.service" } else { "fw-lockdown.service" })
+    portmaster-decide
+}
+
+def main [...args: string] {
     match [($args | length) ($args.0? | default "")] {
         [2, "tlp"] => {
             let mode = $args.1
@@ -170,26 +251,39 @@ def --wrapped main [...args: string] {
                 _ => { usage }
             }
         }
+        # permissive to default only tightens, so the rule never asks for it: from restrictive it would lower
+        [2, "firewall"] if $args.1 == raise-default => {
+            if (^systemctl is-active --quiet fw-lockdown.service | complete).exit_code == 0 {
+                print -e "toggle-root: restrictive is active, default would lower it"
+                exit 1
+            }
+            firewall-raise default
+        }
         # one call per switch, so 49-toggles.rules asks once; portmaster stays off under a live protonvpn tunnel
         [2, "firewall"] => {
             let state = $args.1
             if $state not-in $FIREWALL_STATES { usage }
-            match $state {
-                permissive => { ^systemctl stop fw-inbound.service fw-lockdown.service portmaster.service }
-                _ => {
-                    ^systemctl start (if $state == default { "fw-inbound.service" } else { "fw-lockdown.service" })
-                    # the dispatcher's own decision: not over a tunnel, and off on a foreign link with no tor to route into
-                    if ($PERSONA_DISPATCHER | path exists) {
-                        ^$PERSONA_DISPATCHER "" portmaster
-                    } else {
-                        print -e "toggle-root: no persona dispatcher, portmaster left as it is"
-                    }
-                }
+            if $state == permissive {
+                ^systemctl stop fw-inbound.service fw-lockdown.service portmaster.service
+            } else {
+                firewall-raise $state
             }
             # the admin chose, so the dispatcher's lockdown marker no longer holds the link
             rm --force $PERSONA_LOCKDOWN
+            if $state != restrictive { approval-record }
         }
-        [2, "portal"] => { portal $args.1 }
+        [1, "portmaster-restore"] => { portmaster-decide }
+        [2, "portal"] => {
+            portal $args.1
+            if $args.1 == on { approval-record }
+        }
+        # what a route change lowers, in one call
+        [_, "guard-stop"] => {
+            let units = $args | skip 1
+            if ($units | is-empty) or ($units | any { $in not-in $GUARD_STOP_UNITS }) { usage }
+            ^systemctl stop ...$units
+            approval-record
+        }
         [_, "anonsocks"] => { anonsocks ($args | skip 1) }
         _ => { usage }
     }

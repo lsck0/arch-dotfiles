@@ -1,8 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
 # The default route's gateway mac joins the trusted list: no lockdown there, but none of home's homelab wiring (home
 # is home_gateways and the secrets' list). Unlocked, the list is configs/secrets/keys/trusted-gateways (the repo is
-# public, and a mac is all a rogue access point needs), else the trusted_gateways option; the system apply that
-# follows re-decides the link.
+# public, and a mac is all a rogue access point needs), else the trusted_gateways option; the system apply of
+# base/networkmanager that follows re-decides the link.
 
 use lib.nu [DOT switch-run trusted-links option-value]
 use ../lib/secrets.nu [secret-is-plaintext OWNER_WITNESS]
@@ -59,7 +59,7 @@ def store [gateways: list<string>]: nothing -> any {
     if (option-listed | is-not-empty) {
         settled (^nu --no-config-file $DOT set --machine $OPTION "[]" | complete)
     } else {
-        settled (^nu --no-config-file $DOT apply --system | complete)
+        settled (^nu --no-config-file $DOT apply $MODULE --system | complete)
     }
 }
 

@@ -1,5 +1,12 @@
 .pragma library
 
+// addedMs is the wall-clock time an entry entered the history; expireEntries drops by it
+function stamped(entry, value) {
+  var addedMs = Number(value.addedMs)
+  if (addedMs > 0) entry.addedMs = addedMs
+  return entry
+}
+
 function normalizeEntry(value) {
   if (typeof value === "string")
     return value.trim().length > 0 ? { type: "text", text: value } : null
@@ -9,7 +16,7 @@ function normalizeEntry(value) {
   var type = String(value.type || value.kind || "")
   if (type === "text") {
     var text = String(value.text || "")
-    return text.trim().length > 0 ? { type: "text", text: text } : null
+    return text.trim().length > 0 ? stamped({ type: "text", text: text }, value) : null
   }
 
   if (type === "image") {
@@ -22,7 +29,7 @@ function normalizeEntry(value) {
     }
     if (value.capturedAt !== undefined && value.capturedAt !== null)
       entry.capturedAt = String(value.capturedAt)
-    return entry
+    return stamped(entry, value)
   }
 
   return null
@@ -50,8 +57,27 @@ function parseHistory(raw) {
   }
 }
 
-function addEntry(history, entry, limit) {
+// An entry saved without a stamp counts from nowMs, so it expires too; true when one was stamped.
+function stampUnstamped(history, nowMs) {
+  var unstamped = history.filter(function (entry) { return entry.addedMs === undefined })
+  unstamped.forEach(function (entry) { entry.addedMs = nowMs })
+  return unstamped.length > 0
+}
+
+function expireEntries(history, nowMs, maxAgeMs) {
+  return history.filter(function (entry) { return nowMs - entry.addedMs < maxAgeMs })
+}
+
+// Milliseconds until the oldest entry expires, -1 for an empty history.
+function expiryDueMs(history, nowMs, maxAgeMs) {
+  if (history.length === 0) return -1
+  var oldestMs = history.reduce(function (min, entry) { return Math.min(min, entry.addedMs) }, Infinity)
+  return Math.max(0, oldestMs + maxAgeMs - nowMs)
+}
+
+function addEntry(history, entry, limit, nowMs) {
   var normalized = normalizeEntry(entry)
+  if (normalized) normalized.addedMs = nowMs
   var max = limit === undefined || limit === null ? 100 : Number(limit)
   if (isNaN(max)) max = 100
   max = Math.max(0, max)

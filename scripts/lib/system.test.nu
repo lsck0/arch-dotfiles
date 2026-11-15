@@ -1,8 +1,10 @@
 #!/usr/bin/env -S nu --no-config-file
 # A packed and unpacked checkout keeps configs/secrets root-only, and its digest matches the checkout's; a module root
 # never runs a hook of ships only its .nu files, so the copy stays current when its state changes after the pack; one
-# with a root verb in any of its .nu files ships whole, as does one whose detect a root-run module reads.
-use system.nu [system-pack system-unpack system-files secrets-digest SECRETS_PREFIX SECRETS_DIGEST ENTRY]
+# with a root verb in any of its .nu files ships whole, as does one whose detect a root-run module reads. An archive
+# whose entry does not parse never replaces the copy; the digest of the secrets handed to root is the one root derives
+# from what it unpacked.
+use system.nu [system-pack system-unpack system-files system-archive system-secrets-digest entry-parses secrets-digest SECRETS_PREFIX SECRETS_DIGEST ENTRY]
 use std/assert
 
 const SHA = "0123456789abcdef0123456789abcdef01234567"
@@ -69,6 +71,36 @@ def check [work: path]: nothing -> nothing {
     assert equal $theirs $ours "the copy holds other files than the checkout packs"
     let differing = $ours | where {|f| (open --raw ($checkout | path join $f) | hash sha256) != (open --raw ($copy | path join $f) | hash sha256) }
     assert equal $differing [] "the copy differs from the checkout after a user-only module's backup"
+
+    # root records the digest of the secrets tar it extracted; the user derives the same from the checkout
+    let keys = $secrets | path join keys
+    mkdir ($keys | path join wg)
+    "key-a\n" | save ($keys | path join wg lab.conf)
+    "export const meta = {secrets: [token]}\nexport def system [cfg: record] { [] }\n" | save --force ($reader | path join mod.nu)
+    "token-b\n" | save ($keys | path join token)
+    let handed = $work | path join handed
+    mkdir $handed
+    system-archive $checkout "wg/lab.conf" | ^tar -x -C $handed -f - secrets.tar
+    let extracted = $work | path join extracted
+    mkdir $extracted
+    ^tar -x -C $extracted -f ($handed | path join secrets.tar)
+    let held = ^find $extracted -type f -printf '%P\n' | lines
+    assert equal ($held | sort) [token wg/lab.conf] $"the secrets tar holds ($held | to nuon)"
+    assert equal (secrets-digest $extracted $held) (system-secrets-digest $checkout "wg/lab.conf") "root's digest of the handed secrets differs from the checkout's"
+    "token-c\n" | save --force ($keys | path join token)
+    assert ((secrets-digest $extracted $held) != (system-secrets-digest $checkout "wg/lab.conf")) "a changed secret keeps the digest"
+
+    # an entry that does not parse stays out: the copy that could still unpack a fixed one is kept
+    assert (entry-parses $copy) "the unpacked copy's entry does not parse"
+    let source = open --raw ($copy | path join .source)
+    "def main [] { let broken = \n" | save --force ($checkout | path join $ENTRY)
+    let refused = try { system-pack $checkout $copy | system-unpack $copy $SHA; "" } catch {|e| $e.msg }
+    assert ($refused | str contains "does not parse") $"an archive with a broken entry was unpacked: ($refused)"
+    assert (entry-parses $copy) "the copy took the broken entry"
+    assert equal (open --raw ($copy | path join .source)) $source "the refused archive changed the copy"
+    assert not ($"($copy).new" | path exists) "the refused archive was left beside the copy"
+    "use absent-module.nu [x]\n" | save --force ($checkout | path join $ENTRY)
+    assert ((try { system-pack $checkout $copy | system-unpack $copy $SHA; "" } catch {|e| $e.msg }) | str contains "does not parse") "an entry with a missing import was unpacked"
 }
 
 def main [] {

@@ -7,21 +7,32 @@ A url's headers come as a json object in MCP_GATE_HEADERS, never argv: any local
 owner its environment.
 
 At start it probes the app's port. Up: a command is exec'd in place (a stdio server), a url is relayed (stdio to
-streamable http). Down: it answers the handshake itself with no tools and an instruction to start the app, so an agent
+streamable http, each request on its own thread so a long tool call holds up nothing behind it; a session the app
+dropped, as on its restart, is opened again with the client's own handshake). Down: it answers the handshake itself with no tools and an instruction to start the app, so an agent
 session shows no failed server; reconnecting the server (/mcp) after starting the app picks the bridge up.
 """
 
 import argparse
+import http.client
 import json
 import os
 import socket
 import sys
+import threading
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 PROBE_TIMEOUT_S = 0.5
 HTTP_TIMEOUT_S = 600
+REQUESTS_PARALLEL_MAX = 8
 METHOD_NOT_FOUND = -32601
+RELAY_FAILED = -32000
+# streamable http: 404 is a session the server no longer knows, 400 one it does not accept
+SESSION_GONE = (400, 404)
+HANDSHAKE = ("initialize", "notifications/initialized")
+
+stdout_lock = threading.Lock()
 
 
 def up(probe: str) -> bool:
@@ -33,9 +44,22 @@ def up(probe: str) -> bool:
         return False
 
 
+def emit(text: str) -> None:
+    with stdout_lock:
+        sys.stdout.write(text + "\n")
+        sys.stdout.flush()
+
+
 def send(message: dict) -> None:
-    sys.stdout.write(json.dumps(message) + "\n")
-    sys.stdout.flush()
+    emit(json.dumps(message))
+
+
+def parse(line: str) -> dict:
+    try:
+        message = json.loads(line)
+    except ValueError:
+        return {}
+    return message if isinstance(message, dict) else {}
 
 
 def offline(app: str, name: str) -> None:
@@ -71,34 +95,74 @@ def offline(app: str, name: str) -> None:
 
 def relay(url: str, headers: dict[str, str]) -> None:
     base = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream"} | headers
-    session = None
-    for line in sys.stdin:
-        if not line.strip():
-            continue
+    state = {"session": None}
+    handshake = []
+    renewing = threading.Lock()
+
+    def post(line: str, quiet: bool = False) -> None:
+        session = state["session"]
         request = urllib.request.Request(
             url, data=line.encode(), method="POST", headers=base | ({"Mcp-Session-Id": session} if session else {})
         )
+        with urllib.request.urlopen(request, timeout=HTTP_TIMEOUT_S) as response:
+            state["session"] = response.headers.get("Mcp-Session-Id", state["session"])
+            if response.status == 202:
+                return
+            if response.headers.get("Content-Type", "").startswith("text/event-stream"):
+                for raw in response:
+                    text = raw.decode().rstrip("\r\n")
+                    if text.startswith("data:") and text[5:].strip() and not quiet:
+                        emit(text[5:].strip())
+            else:
+                body = response.read().decode().strip()
+                if body and not quiet:
+                    emit(body)
+
+    def renew(stale: str) -> None:
+        with renewing:
+            # another request already opened the new session
+            if state["session"] != stale:
+                return
+            state["session"] = None
+            try:
+                for line in handshake:
+                    post(line, quiet=True)
+            except Exception:
+                # keep the stale id, so the next request finds the session gone again and retries the handshake
+                state["session"] = stale
+                raise
+
+    def forward(line: str) -> None:
+        stale = state["session"]
         try:
-            with urllib.request.urlopen(request, timeout=HTTP_TIMEOUT_S) as response:
-                session = response.headers.get("Mcp-Session-Id", session)
-                kind = response.headers.get("Content-Type", "")
-                if response.status == 202:
-                    continue
-                if kind.startswith("text/event-stream"):
-                    for raw in response:
-                        text = raw.decode().rstrip("\r\n")
-                        if text.startswith("data:") and text[5:].strip():
-                            sys.stdout.write(text[5:].strip() + "\n")
-                            sys.stdout.flush()
-                else:
-                    body = response.read().decode().strip()
-                    if body:
-                        sys.stdout.write(body + "\n")
-                        sys.stdout.flush()
-        except (urllib.error.URLError, OSError) as error:
-            message = json.loads(line)
+            try:
+                post(line)
+            except urllib.error.HTTPError as error:
+                if stale is None or error.code not in SESSION_GONE:
+                    raise
+                renew(stale)
+                post(line)
+        except (urllib.error.URLError, OSError, http.client.HTTPException, ValueError) as error:
+            message = parse(line)
             if "id" in message:
-                send({"jsonrpc": "2.0", "id": message["id"], "error": {"code": -32000, "message": f"relay: {error}"}})
+                send(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": message["id"],
+                        "error": {"code": RELAY_FAILED, "message": f"relay: {error}"},
+                    }
+                )
+
+    with ThreadPoolExecutor(REQUESTS_PARALLEL_MAX) as pool:
+        for line in sys.stdin:
+            if not line.strip():
+                continue
+            if parse(line).get("method") in HANDSHAKE:
+                # in order and before anything else: every later request carries the session it opens
+                handshake.append(line)
+                forward(line)
+            else:
+                pool.submit(forward, line)
 
 
 def main() -> None:

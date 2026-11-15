@@ -39,6 +39,12 @@ Item {
   readonly property string historyPath: Paths.runtime + "/clipboard-history.json"
   readonly property string imagesDir: Paths.runtime + "/clipboard-images"
   readonly property int historyLimit: 500
+  readonly property string configPath: Paths.home + "/.config/quickshell/clipboard.json"
+  readonly property int msPerHour: 3600000
+  // fallback only; link always writes clipboard.json from clipboard_history_max_age_h in mod.nu
+  readonly property int maxAgeHoursDefault: 12
+  property int maxAgeMs: maxAgeHoursDefault * msPerHour
+  onMaxAgeMsChanged: root.expireHistory()
   // the startup sweep waits so the current-clipboard capture can land in history first
   readonly property int imageSweepDelayMs: 3000
   property bool imagesSwept: false
@@ -54,6 +60,7 @@ Item {
   function open() {
     panel.screen = Util.focusedScreen()
     root.gpgReset()
+    root.expireHistory()
     root.opened = true
     root.filterText = ""
     root.selectedIndex = 0
@@ -187,8 +194,31 @@ Item {
   function toggle() { root.opened ? root.close() : root.open() }
 
   function loadHistory(raw) {
-    root.history = ClipboardHistory.parseHistory(raw)
+    const loaded = ClipboardHistory.parseHistory(raw)
+    const stamped = ClipboardHistory.stampUnstamped(loaded, Date.now())
+    root.history = loaded
+    if (stamped) root.saveHistory()
     if (root.opened) root.rebuildDisplay()
+    root.expireHistory()
+  }
+
+  // drops entries past the age limit and arms the timer for the next one, so a copied secret leaves the list and
+  // its tmpfs file without anyone opening the panel
+  function expireHistory() {
+    const now = Date.now()
+    const kept = ClipboardHistory.expireEntries(root.history, now, root.maxAgeMs)
+    if (kept.length !== root.history.length) {
+      const before = root.imagePaths()
+      root.history = kept
+      root.saveHistory()
+      for (let i = 0; i < before.length; i++) root.dropImageFile(before[i])
+      if (root.opened) root.rebuildDisplay()
+    }
+    const due = ClipboardHistory.expiryDueMs(root.history, now, root.maxAgeMs)
+    if (due < 0) { expiryTimer.stop(); return }
+    // the timer's clock stops in suspend, the stamps are wall clock: look again within ten minutes
+    expiryTimer.interval = Math.max(expiryTimer.intervalMinMs, Math.min(due, 600000))
+    expiryTimer.restart()
   }
 
   function saveHistory() {
@@ -200,10 +230,11 @@ Item {
     if (!normalized) return
     // the history limit can push an image out
     const before = root.imagePaths()
-    root.history = ClipboardHistory.addEntry(root.history, normalized, root.historyLimit)
+    root.history = ClipboardHistory.addEntry(root.history, normalized, root.historyLimit, Date.now())
     root.saveHistory()
     for (let i = 0; i < before.length; i++) root.dropImageFile(before[i])
     if (root.opened) root.rebuildDisplay()
+    root.expireHistory()
   }
 
   function requestClearHistory() {
@@ -460,6 +491,21 @@ Item {
     id: imageSweepTimer
     interval: root.imageSweepDelayMs
     onTriggered: root.sweepImageFiles()
+  }
+
+  Timer {
+    id: expiryTimer
+    readonly property int intervalMinMs: 1000
+    onTriggered: root.expireHistory()
+  }
+
+  WatchedFile {
+    path: root.configPath
+    onLoaded: {
+      var hours = 0
+      try { hours = Number(JSON.parse(text()).max_age_h) } catch (e) {}
+      root.maxAgeMs = (hours > 0 ? hours : root.maxAgeHoursDefault) * root.msPerHour
+    }
   }
 
   ListModel { id: displayModel }

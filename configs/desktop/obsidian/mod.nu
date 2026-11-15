@@ -12,6 +12,9 @@ const REST_SHA256 = {
 const REST_ID = "obsidian-local-rest-api"
 const REST_PORT = 27123
 const VAULT = "documents/notes"
+# the vault's .obsidian is dot's and this machine's (the api key), so it stays out of ~/sync and the notes are linked in
+const NOTES = "sync/notes"
+const NOTES_LINK = "sync"
 const VAULT_ID_LENGTH = 16
 const API_KEY_BYTES = 32
 
@@ -50,6 +53,11 @@ export def link [cfg: record] {
         (json-merge $config [(json-set [cli] true) (json-set [vaults $vault_id] $vault_entry)])
         ($REST_SHA256 | items {|file, sha256| fetch-file $"($REST_URL)/($file)" $sha256 ($plugin | path join $file) })
         (step plugin-enable $vault --done=$enabled)
+        (file-link ($nu.home-dir | path join $NOTES) ($vault | path join $NOTES_LINK))
+        # new notes and their attachments land beside the capture tools' notes, not in the unsynced vault root
+        (json-merge ($vault | path join .obsidian app.json) [
+            (json-set [newFileLocation] folder) (json-set [newFileFolderPath] $NOTES_LINK) (json-set [attachmentFolderPath] "./")
+        ])
         (json-merge $settings ([(json-set [apiKey] $api_key)] ++ $server) --then [chmod 600 $settings])
         (link-commands obsidian-launch.nu)
         (desktop-override obsidian.desktop { str replace --all --regex '(?m)^Exec=/usr/bin/obsidian' $"Exec=($nu.home-dir)/.local/bin/obsidian-launch" })

@@ -10,6 +10,9 @@ const MIRRORS_MAX = 30
 const MIRRORS_MIN = 10
 const USER_DEFINED = "## Used Defined"
 const PROBE_TIMEOUT_S = 2
+# base/networkmanager's home links (70-home-network) and the homelab tunnel
+const HOME_NETWORK = "/run/home-network"
+const WG_LINK = "/sys/class/net/wg0"
 const HOMELAB_COMMENT = (
     "# homelab mirror: lan-direct at home and over wireguard, the public mirrors below are the away fallback"
 )
@@ -38,6 +41,13 @@ def answers [line: string]: nothing -> bool {
     (^curl -fs -m $PROBE_TIMEOUT_S -r 0-0 -o /dev/null $probe | complete).exit_code == 0
 }
 
+# The lab mirror is plain http and an RFC1918 address: it counts only on a home link or through wg0, never because some
+# host on a foreign network answers at its address.
+def homelab-reachable [line: string]: nothing -> bool {
+    let home = ($HOME_NETWORK | path exists) and (open --raw $HOME_NETWORK | str trim) != ""
+    ($home or ($WG_LINK | path exists)) and (answers $line)
+}
+
 # Drops every homelab entry (comment, Server line, blank separator) whose Server line is not keep.
 def homelab-drop [lines: list<string>, keep: string]: nothing -> list<string> {
     let drop = $lines | enumerate
@@ -50,11 +60,11 @@ def homelab-drop [lines: list<string>, keep: string]: nothing -> list<string> {
     $lines | enumerate | where index not-in $drop | get item
 }
 
-# Puts line first when its mirror answers and drops every other homelab entry; an empty line drops them all.
+# Puts line first when its mirror is reachable and drops every other homelab entry; an empty line drops them all.
 def homelab-place [line: string]: nothing -> nothing {
     let current = open --raw $MIRRORLIST | lines
     let kept = homelab-drop $current $line
-    let missing = $line != "" and $line not-in $kept and (answers $line)
+    let missing = $line != "" and $line not-in $kept and (homelab-reachable $line)
     let placed = if $missing { [$HOMELAB_COMMENT $line ""] ++ $kept } else { $kept }
     if $placed != $current { mirrorlist-swap $placed }
 }
@@ -84,9 +94,9 @@ def main [mode: string, line: string = ""]: nothing -> nothing {
         print --stderr $"mirrorlist-update: only ($count) servers, keeping the current list"
         exit 1
     }
-    # the homelab line is plain http, exempt from rank's filter as it is reached only over the home LAN or wireguard;
+    # the homelab line is plain http, exempt from rank's filter as it is kept only on the home LAN or wireguard;
     # re-probed, so a network change since it was placed (away, wg0 down) does not leave pacman waiting on it
-    let kept = $homelab != "" and $homelab in (open --raw $MIRRORLIST | lines) and (answers $homelab)
+    let kept = $homelab != "" and $homelab in (open --raw $MIRRORLIST | lines) and (homelab-reachable $homelab)
     let first = if $kept { [$HOMELAB_COMMENT $homelab ""] } else { [] }
     mirrorlist-swap ($first ++ $public)
 }

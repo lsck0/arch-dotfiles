@@ -52,6 +52,11 @@ const SETTINGS = {
     delegation.model: claude-sonnet-5
     # the tui has no hold-to-talk, only a start/stop toggle key
     voice.record_key: "ctrl+space"
+    # the "Help improve Hermes?" dialog answered no; unanswered it blocks every profile's first prompt.
+    # offer_version is OFFER_VERSION in hermes_cli/observability/shared_metrics_consent.py: bump with it, or it asks again
+    telemetry.shared_metrics.enabled: false
+    telemetry.shared_metrics.send: false
+    telemetry.shared_metrics.offer_version: 2
     fallback_providers: [
         {provider: nous, model: "meituan/longcat-2.0:free"}
         {provider: nous, model: "poolside/laguna-s-2.1:free"}

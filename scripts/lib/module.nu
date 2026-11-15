@@ -183,18 +183,29 @@ export def mcp-servers [servers: record]: nothing -> list<record> {
     }
 }
 
-# A uvx MCP server: <argv> from <pkg> (name==version), its dependencies frozen at the <frozen> date, plus a prefetch
-# that imports <module>, else an agent's first start times out while uv downloads it. Nothing without uvx.
+# $0 the venv, $1 the cutoff date, $2 the package, $3 the module, $4 the entry point, the rest uv venv's flags
+const MCP_VENV_BUILD = 'venv=$0 cutoff=$1 pkg=$2 module=$3 entry=$4 && shift 4 && rm -rf "$venv.new" && uv venv --quiet --relocatable "$@" "$venv.new" && uv pip install --quiet --python "$venv.new/bin/python" --exclude-newer "$cutoff" "$pkg" && "$venv.new/bin/python" -c "import $module" && test -x "$venv.new/bin/$entry" && rm -rf "$venv" && mv "$venv.new" "$venv"'
+
+# A PyPI MCP server: <pkg> (name==version) in a venv of its own under the data dir, its dependencies frozen at the
+# <frozen> date, built at apply time (the build ends importing <module>) and registered as the venv's <argv.0> entry
+# point, so an agent session starts the server itself, with no uv parent kept beside it. Built again once the venv's
+# python is gone: bin/python links to an interpreter a python upgrade removes. The build is a relocatable venv beside
+# the live one that replaces it only when whole, so a failed build leaves the registered command as it was. Nothing
+# without uv.
 export def mcp-uvx [
     name: string, pkg: string, frozen: string, argv: list<string>, module: string
-    --python: string, --env-vars: record = {}
+    --python: string, --env-vars: record = {}, --gate: record = {}
 ]: nothing -> list<record> {
-    if (which uvx | is-empty) { return [] }
-    let source = (if $python == null { [] } else { [--python $python] }) ++ [--exclude-newer $frozen --from $pkg]
+    if (which uv | is-empty) { return [] }
+    let dir = xdg data mcp $name
+    let entry = $dir | path join bin $argv.0
     let key = $"($pkg)@($frozen)" + (if $python == null { "" } else { $"-py($python)" })
-    let spec = {type: stdio, command: uvx, args: ($source ++ $argv)}
-    mcp-servers {$name: ($spec | merge (if ($env_vars | is-empty) { {} } else { {env: $env_vars} }))}
-    | append (exec $"($name) cache" [uvx ...$source python -c $"import ($module)"] --key $key --network)
+    let flags = if $python == null { [] } else { [--python $python] }
+    let extra = (if ($env_vars | is-empty) { {} } else { {env: $env_vars} })
+        | merge (if ($gate | is-empty) { {} } else { {gate: $gate} })
+    let spec = {type: stdio, command: $entry, args: ($argv | skip 1)} | merge $extra
+    [(exec $"($name) venv" [sh -c $MCP_VENV_BUILD $dir $frozen $pkg $module $argv.0 ...$flags] --creates ($dir | path join bin python) --key $key --undo [rm -rf $dir] --network)]
+    | append (mcp-servers {$name: $spec})
 }
 
 const MCP_COMPAT_RELEASED = "2026-09-01"

@@ -1,0 +1,3 @@
+# the audit timer runs only on mains (its ConditionACPower): a run missed on battery is caught up at the plug-in
+SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="0", RUN+="/usr/bin/systemctl --no-block stop lynis-audit.timer"
+SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="1", RUN+="/usr/bin/systemctl --no-block start lynis-audit.timer"

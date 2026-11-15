@@ -5,7 +5,6 @@ use ../../../scripts/lib/state.nu [xdg]
 
 const PLUGINS = [
     {name: "dynamic-cursors", url: "https://github.com/virtcode/hypr-dynamic-cursors", commit: "2a8d0b735328d874a78ca93b2f201649f712a74a", dir: "", output: "out/dynamic-cursors.so"}
-    {name: "hyprbars", url: "https://github.com/hyprwm/hyprland-plugins", commit: "d2427d4d15b36df40468f5a58bbd67cdba19835d", dir: "hyprbars", output: "hyprbars/hyprbars.so"}
 ]
 const PC = "/usr/share/pkgconfig/hyprland.pc"
 

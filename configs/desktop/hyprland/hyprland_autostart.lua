@@ -137,13 +137,20 @@ hl.on("hyprland.start", function()
     autostart()
     -- in the monitors' own firmware: a monitor reset or a new one would undo it
     if platform.monitor_speaker_volume then
+        -- under the lock every ddcutil caller shares (monitor-brightness.nu): ddcutil's own i2c flock does not wait, and
+        -- a bus lost to the bar's brightness read drops that monitor from the scan
         hl.exec_cmd(
-            "for d in $(ddcutil detect --terse 2>/dev/null | sed -n 's/^Display \\([0-9]*\\)$/\\1/p'); do ddcutil --display \"$d\" setvcp 62 "
+            [[flock "$XDG_RUNTIME_DIR/ddc-i2c.lock" sh -c 'for d in $(ddcutil detect --terse 2>/dev/null | sed -n "s/^Display \([0-9]*\)$/\1/p"); do ddcutil --display "$d" setvcp 62 "$0"; done' ]]
                 .. platform.monitor_speaker_volume
-                .. "; done"
         )
     end
     if platform.kbd_backlight then
-        hl.exec_cmd("brightnessctl --device=" .. platform.kbd_backlight .. " set 2")
+        -- boot only restores the last level (kbd-backlight.conf); the session sets its own: off on battery, where the
+        -- key brings it back, else lit
+        hl.exec_cmd(
+            "grep -qsx Discharging /sys/class/power_supply/BAT*/status && level=0 || level=2; brightnessctl --device="
+                .. platform.kbd_backlight
+                .. " set $level"
+        )
     end
 end)

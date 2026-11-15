@@ -323,6 +323,23 @@ def ask-batch-cases []: nothing -> nothing {
     assert equal (ask-batch [] {|ps| ^false } $each_path) {} "ask-batch: no paths answers something"
 }
 
+# A target under a directory this user cannot search is not missing: the plan says unreadable for a declaration and
+# for an orphan, where a target under a directory that is not there is a create.
+def hidden-cases [work: path]: nothing -> nothing {
+    let closed = $work | path join closed
+    mkdir ($closed | path join sub)
+    let hidden = $closed | path join sub file
+    let absent = $work | path join absent sub file
+    chmod 000 $closed
+    let seen = observe [$hidden $absent] [] user
+    chmod 700 $closed
+    assert equal ($seen.paths | values | select type hash) [[type hash]; [unreadable unreadable] ["" null]] $"observe hidden: ($seen.paths | to nuon)"
+    let planned = plan-module $ID [(file-text $hidden $CONTENT) (file-text $absent $CONTENT)] [] $seen {} $REPO false | get kind
+    assert equal $planned [unreadable create] $"plan of a hidden and an absent target: ($planned | to nuon)"
+    let orphan = plan-module $ID [] [{kind: file, target: $hidden, hash: (sha $CONTENT), source: null}] $seen {} $REPO false | first
+    assert equal $orphan.kind unreadable $"orphan under a closed directory: ($orphan.kind) ($orphan.reason)"
+}
+
 def main [] {
     ask-batch-cases
     let work = mktemp --directory
@@ -337,6 +354,7 @@ def main [] {
             action-cases $work
             then-once-cases $work
             merge-keys-cases $work
+            hidden-cases $work
             corrupted-state-cases
             with-env {DOTFILES_UNATTENDED: "1", DOT_TEST_REMOVED: ($work | path join removed)} {
                 ledger-diff-cases

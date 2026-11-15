@@ -10,12 +10,29 @@ export const options = {
         doc: "How long a successful SSH port-knock keeps that IP allowed through to base/ssh.port, nft timeout syntax"
         label: "SSH knock access window"
     }
+    ssh_rate: {
+        type: string
+        default: "30/minute burst 30 packets"
+        doc: "New connections to base/ssh.port one address may open before the rest are dropped, nft limit syntax"
+        label: "SSH connection rate"
+    }
+    pentest_listeners: {
+        type: bool
+        default: false
+        doc: ("Let tun0 (a lab vpn) reach the pentest listener ports (handlers, payload servers) while a trusted "
+            + "link has the inbound ruleset loaded; for machines with the pentesting group")
+        label: "Pentest listeners on tun0"
+    }
 }
 
 const DIR = "/etc/nftables.d"
 const HOOK = "/etc/pacman.d/hooks/fw-egress-uids.hook"
 const UNITS = [fw-inbound.service fw-lockdown.service fw-egress.service]
 const NFT_DURATION = '^(\d+(ms|[dhms]))+$'
+const NFT_RATE = '^\d+/(second|minute|hour|day)( burst \d+ packets)?$'
+# fw-inbound.nft's two tun0 rules, rendered only with pentest_listeners
+const PENTEST_INPUT = 'iifname "tun0" tcp dport $pentest_ports accept'
+const PENTEST_FORWARD = 'iifname "tun0" meta l4proto tcp ct original proto-dst $pentest_ports ct status dnat accept'
 const KNOCK_LENGTH = 3
 const PORT_MAX = 65535
 const LOCKDOWN_START = "systemctl try-reload-or-restart fw-lockdown.service
@@ -26,6 +43,9 @@ export def system [cfg: record] {
     if (which nft | is-empty) or $env.FORM_FACTOR? == "wsl" { return [] }
     if not ($cfg.ssh_knock_window =~ $NFT_DURATION) {
         error make {msg: $"nftables: ssh_knock_window ($cfg.ssh_knock_window) is not an nft duration"}
+    }
+    if not ($cfg.ssh_rate =~ $NFT_RATE) {
+        error make {msg: $"nftables: ssh_rate ($cfg.ssh_rate) is not an nft limit rate"}
     }
     let ssh = $cfg.deps."base/ssh"
     let knock = $ssh.knock
@@ -39,7 +59,9 @@ export def system [cfg: record] {
     let policy = $cfg.deps?."base/networkmanager"?.untrusted_policy? | default lockdown-tor
     let inbound = {
         SSH_KNOCK_WINDOW: $cfg.ssh_knock_window, SSH_PORT: $ssh.port
-        KNOCK_1: $knock.0, KNOCK_2: $knock.1, KNOCK_3: $knock.2
+        KNOCK_1: $knock.0, KNOCK_2: $knock.1, KNOCK_3: $knock.2, SSH_RATE: $cfg.ssh_rate
+        PENTEST_INPUT: (if $cfg.pentest_listeners { $PENTEST_INPUT } else { "" })
+        PENTEST_FORWARD: (if $cfg.pentest_listeners { $PENTEST_FORWARD } else { "" })
     }
     # only on a changed ruleset, it empties the knock and portal sets; never a start, fw-egress off a trusted network cuts this run
     [

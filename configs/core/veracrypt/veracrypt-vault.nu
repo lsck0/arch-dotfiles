@@ -27,7 +27,8 @@ def "main create" [size?: string]: nothing -> nothing {
 
 def "main mount" []: nothing -> nothing {
     mkdir (mountpoint)
-    ^veracrypt --text --mount (container) (mountpoint) --pim=0 --keyfiles= --protect-hidden=no
+    # timestamp: the container's mtime moves with a write, the only change syncthing sees on a fixed-size file
+    ^veracrypt --text --mount (container) (mountpoint) --pim=0 --keyfiles= --protect-hidden=no --mount-options=timestamp
     print --stderr $"mounted at (mountpoint)"
 }
 

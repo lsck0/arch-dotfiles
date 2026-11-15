@@ -35,7 +35,7 @@ Item {
   property var pending: ({})
   property var errors: ({})
   property var queue: []
-  property var batch: ({ applied: [], failed: 0, notes: [] })
+  property var batch: ({ applied: [], failed: 0, notes: [], system: false })
   property bool systemPending: false
   readonly property int exitSystemPending: 3
   readonly property bool busy: setProc.running || systemApplyProc.running || toggleProc.running || systemProc.running
@@ -424,7 +424,8 @@ Item {
     setProc.id = id
     setProc.value = entry.value
     var option = entry.option
-    var machine = option.scope === "machine" ? ["--machine"] : []
+    // a machine option's system part waits (exit 3): finishBatch runs it once for the whole batch, behind one prompt
+    var machine = option.scope === "machine" ? ["--machine", "--no-system"] : []
     setProc.command = option.toggle ? [Paths.toggle("toggle-" + option.toggle + ".nu"), option.set, Schema.toggleArgument(option, entry.value)]
       : entry.reset ? [root.dot, "set", "--default"].concat(machine, ["--", id])
       : [root.dot, "set"].concat(machine, ["--", id, Schema.encode(option, entry.value)])
@@ -435,7 +436,11 @@ Item {
     var entry = root.pending[id]
     if (!entry) return
     var current = entry.reset === true || Schema.equal(entry.value, value)
-    if (exitCode === root.exitSystemPending) root.systemPending = true
+    // a user option's module waiting on its packages ends 3 as well, and no system apply settles that
+    if (exitCode === root.exitSystemPending && entry.option.scope === "machine") {
+      root.systemPending = true
+      root.batch.system = true
+    }
     if (exitCode === 0 || exitCode === root.exitSystemPending) {
       entry.option.value = value
       if (current) root.pending = Util.mapWithout(root.pending, id)
@@ -451,8 +456,10 @@ Item {
     var applied = root.batch.applied
     var failed = root.batch.failed
     var notes = root.batch.notes
-    root.batch = { applied: [], failed: 0, notes: [] }
+    var system = root.batch.system
+    root.batch = { applied: [], failed: 0, notes: [], system: false }
     root.load()
+    if (system) root.applySystem()
     if (applied.length === 0 && failed === 0 && notes.length === 0) return
     var parts = []
     if (applied.length > 0) {
@@ -530,10 +537,13 @@ Item {
     id: systemApplyProc
     command: [root.dot, "apply", "--system"]
     onExited: function (exitCode) {
+      // 3: what could run did, the rest waits (a module on its packages, or the prompt was dismissed); the notes say which
+      var pending = exitCode === root.exitSystemPending
       if (exitCode === 0) root.systemPending = false
-      root.notice = exitCode === 0 ? ["system part applied"].concat(root.notesOf(systemApplyProc)).join("; ")
+      root.notice = exitCode === 0 || pending
+        ? [pending ? "system part not fully applied, the rest is pending" : "system part applied"].concat(root.notesOf(systemApplyProc)).join("; ")
         : "apply failed: " + root.lastLine(systemApplyProc)
-      root.noticeIsError = exitCode !== 0
+      root.noticeIsError = !(exitCode === 0 || pending)
       root.load()
     }
   }

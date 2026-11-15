@@ -1,6 +1,7 @@
 // the bar and the toggle menu switch these for an admin at the machine; a remote (ssh) or inactive session still has to
 // authenticate. any process of the session passes this check, not only the bar, so only what tightens is unprompted:
-// lowering the firewall or leaving tor asks for the admin password (kept a few minutes), never silently
+// lowering the firewall or leaving tor asks for the admin's key or password, never silently. polkit keeps an approval
+// for the asking process alone, and every press is a new one, so AUTH_ADMIN_KEEP would keep nothing here
 function atTheMachine(subject) {
     return subject.local && subject.active && subject.isInGroup("wheel");
 }
@@ -30,32 +31,62 @@ polkit.addRule(function (action, subject) {
         return polkit.Result.YES;
     }
     // fw-lockdown's Conflicts= makes fw-inbound's start stop it, so from restrictive it lowers like every stop here.
-    // kept a few minutes: the approval holds for the whole manage-units action, so it also covers other guard stops
-    // in that window, right after one was approved at the machine
+    // by hand only, asked each time: the toggles lower through the helper below
     if (GUARD_UNITS.indexOf(unit) >= 0 || unit === "fw-inbound.service") {
-        return polkit.Result.AUTH_ADMIN_KEEP;
+        return polkit.Result.AUTH_ADMIN;
     }
 });
 
-// the root helper has its own action (dev.lsck0.toggles.policy), so a kept approval covers it alone. it checks its
-// own arguments; the firewall switch is one call: restrictive tightens, unprompted; default and permissive can lower
-// it, so they ask once (kept a few minutes) instead of once per unit, and that approval also covers a portal for those
-// minutes. anonsocks nft-off deletes the whole anonymous_socks table, the egress guard and rate cap: unprompted, an app
-// confined in that slice could drop its own guard, so it asks too. none of the other verbs opens the firewall or tor
+// the root helper has its own action (dev.lsck0.toggles.policy) and runs nothing but these verbs, matched as the whole
+// command line: any other argument is refused here, before the helper's interpreter reads it as root.
+// unprompted: what tightens or guards nothing. where that depends on state the rule cannot see, the helper refuses:
+// firewall raise-default from restrictive, anonsocks nft-off and a changed rate cap while the slice runs something
+var VERBS_UNPROMPTED = new RegExp("^(" + [
+    "tlp (balanced|performance|power-saver|start)",
+    "wg (up|down)",
+    "vllm (on|off)",
+    "firewall (restrictive|raise-default)",
+    "portal off",
+    "portmaster-restore",
+    "anonsocks (egress-on|nft-off|persona-off)",
+    "anonsocks rate-on [0-9]{1,6} [0-9]{1,6} [0-9]{1,6}",
+    "anonsocks persona-on (64|128) user\\.slice/[A-Za-z0-9@._/-]+"
+].join("|") + ")$");
+
+// these lower the firewall, stop portmaster or tor, or open a captive portal window on a foreign link
+var VERBS_LOWERING = new RegExp("^(" + [
+    "firewall (default|permissive)",
+    "portal on",
+    "guard-stop( (portmaster|tor-router)\\.service){1,2}"
+].join("|") + ")$");
+
+// the helper stamps an authenticated lowering (root-owned, per user): for @APPROVAL_MINUTES@ minutes the next one passes
+// without asking again, for any process of that admin's session at the machine, as one press may need two calls and
+// a firewall change is often followed by a portal. the stamp starts with an authentication and is never extended
+function approvedLately(subject) {
+    if (!/^[a-z_][a-z0-9_-]*$/.test(subject.user)) {
+        return false;
+    }
+    try {
+        return polkit.spawn(["/usr/bin/find", "@APPROVAL_DIR@/" + subject.user, "-maxdepth", "0", "-mmin",
+            "-@APPROVAL_MINUTES@"]) !== "";
+    } catch (error) {
+        return false;
+    }
+}
+
 polkit.addRule(function (action, subject) {
-    if (action.id !== "@ACTION@" || !atTheMachine(subject)) {
+    if (action.id !== "@ACTION@") {
         return;
     }
-    var argv = String(action.lookup("command_line") || "").split(" ");
-    if (argv[1] === "firewall" && argv[2] !== "restrictive") {
-        return polkit.Result.AUTH_ADMIN_KEEP;
+    var command = String(action.lookup("command_line") || "");
+    var verb = command.indexOf("@HELPER@ ") === 0 ? command.substring("@HELPER@ ".length) : "";
+    var present = atTheMachine(subject);
+    if (VERBS_UNPROMPTED.test(verb)) {
+        return present ? polkit.Result.YES : polkit.Result.AUTH_ADMIN;
     }
-    // a captive portal stops tor and portmaster and opens fw_egress on the foreign link; ending it early tightens
-    if (argv[1] === "portal" && argv[2] !== "off") {
-        return polkit.Result.AUTH_ADMIN_KEEP;
+    if (VERBS_LOWERING.test(verb)) {
+        return present && approvedLately(subject) ? polkit.Result.YES : polkit.Result.AUTH_ADMIN;
     }
-    if (argv[1] === "anonsocks" && argv[2] === "nft-off") {
-        return polkit.Result.AUTH_ADMIN_KEEP;
-    }
-    return polkit.Result.YES;
+    return polkit.Result.NO;
 });

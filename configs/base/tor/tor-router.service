@@ -2,6 +2,8 @@
 Description=Transparent tor routing
 Wants=tor.service
 After=tor.service
+# tor runs only for the router: it stops with it, while a tor restart still leaves the table up
+PropagatesStopTo=tor.service
 
 [Service]
 Type=oneshot

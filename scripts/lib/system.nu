@@ -1,7 +1,7 @@
 # Root never runs user-writable files: the user packs repo and secrets, the root copy unpacks them.
 
 use log.nu *
-use state.nu [SYSTEM_REPO]
+use state.nu [SYSTEM_REPO SYSTEM_STATE nu-bin]
 use secrets.nu [secret-is-plaintext]
 use modules.nu [modules-discover modules-root-run]
 
@@ -9,6 +9,14 @@ const SYSTEM_PATHS = [configs migrations platforms profiles scripts]
 export const ENTRY = "scripts/lib/system-apply.nu"
 export const SECRETS_PREFIX = "configs/secrets/"
 export const SECRETS_DIGEST = ".secrets-digest"
+# root's record of the keys/ secrets its last config stage was handed, as secrets-digest: wheel reads it, nobody else
+export const SYSTEM_SECRETS_DIGEST = $SYSTEM_STATE | path join secrets-digest
+# what root's last `apply` ran for which run: {run, root_run, stages: [{stage, code, failures}]}
+export const SYSTEM_STAGES = $SYSTEM_STATE | path join stages.nuon
+export const RUN_ID = '^\d{8}T\d{6}-[a-z0-9]{4}$'
+const PARSE_CHECK_LIMIT = 50
+# in the signature of an `apply` that takes the asking run's id; an entry without it rejects the flag before its body
+const ENTRY_RUN_FLAG = "--run: string"
 
 # The secrets group's module files (never keys/), which ride in the root copy like configs/.
 def private-files [checkout: path, which: string]: nothing -> list<string> {
@@ -95,6 +103,18 @@ export def system-pack [checkout: path, copy: path = $SYSTEM_REPO]: nothing -> b
     $out
 }
 
+# Whether repo's entry parses with this nu, its imports included; nothing of it runs. A root copy whose entry does not
+# parse could never unpack its own replacement.
+export def entry-parses [repo: path]: nothing -> bool {
+    let run = ^(nu-bin) --no-config-file --ide-check $PARSE_CHECK_LIMIT ($repo | path join $ENTRY) | complete
+    $run.exit_code == 0 and not ($run.stdout | lines | any {|l| (try { $l | from json | get --optional severity } catch { null }) == "Error" })
+}
+
+# Whether repo's entry takes `apply ... --run <id>`, read from its text: the root copy is world-readable.
+export def entry-takes-run [repo: path]: nothing -> bool {
+    try { open --raw ($repo | path join $ENTRY) | str contains $ENTRY_RUN_FLAG } catch { false }
+}
+
 # Extracts the tar beside copy and swaps it in only when complete, so a run never sees a half-written copy.
 export def system-unpack [copy: path, sha: string]: binary -> nothing {
     if not ($sha =~ '^[0-9a-f]{40}$') { error make {msg: $"($sha) is not a commit sha"} }
@@ -104,6 +124,10 @@ export def system-unpack [copy: path, sha: string]: binary -> nothing {
     ^chmod 700 $next
     $in | ^tar -x --no-same-owner --no-same-permissions -C $next -f -
     if not ($next | path join $ENTRY | path exists) { error make {msg: $"the archive holds no ($ENTRY)"} }
+    if not (entry-parses $next) {
+        rm --recursive --force $next
+        error make {msg: $"the archive's ($ENTRY) does not parse, ($copy) stays as it was: nu --ide-check ($PARSE_CHECK_LIMIT) ($ENTRY) names the error"}
+    }
     $"($sha)\n" | save ($next | path join .source)
     let secrets = $next | path join $SECRETS_PREFIX
     let private = if ($secrets | path exists) { ^find $secrets -type f -print0 | split row (char nul) | where $it != "" | path relative-to $next } else { [] }
@@ -120,13 +144,24 @@ export def system-unpack [copy: path, sha: string]: binary -> nothing {
     }
 }
 
+# The system secrets this checkout holds in plaintext: their dir and their names in it.
+def secrets-plain [checkout: path, wireguard: any]: nothing -> record {
+    let dir = if ($checkout | path join configs secrets keys | path exists) { $checkout | path join configs secrets keys } else { $checkout }
+    {dir: $dir, names: (system-secrets $checkout $wireguard | where {|n| secret-is-plaintext ($dir | path join $n) })}
+}
+
+# The digest root records of the secrets system-archive would hand it now.
+export def system-secrets-digest [checkout: path, wireguard: any]: nothing -> string {
+    let plain = secrets-plain $checkout $wireguard
+    secrets-digest $plain.dir $plain.names
+}
+
 # The repo tar and the plaintext system secrets, flat as DOTFILES_SECRETS/<file>, in one tar for system-apply.
 export def system-archive [checkout: path, wireguard: any]: nothing -> binary {
     let work = mktemp --directory
     system-pack $checkout | save --raw ($work | path join repo.tar)
-    let dir = if ($checkout | path join configs secrets keys | path exists) { $checkout | path join configs secrets keys } else { $checkout }
-    let names = system-secrets $checkout $wireguard | where {|n| secret-is-plaintext ($dir | path join $n) }
-    $names | str join (char nul) | ^tar -C $dir -c --null -T - -f - | save --raw ($work | path join secrets.tar)
+    let plain = secrets-plain $checkout $wireguard
+    $plain.names | str join (char nul) | ^tar -C $plain.dir -c --null -T - -f - | save --raw ($work | path join secrets.tar)
     let out = ^tar -C $work -cf - repo.tar secrets.tar
     rm --recursive --force $work
     $out

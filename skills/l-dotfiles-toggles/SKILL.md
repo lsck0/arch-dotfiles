@@ -8,9 +8,9 @@ description: Adding an on/off or n-state switch as scripts/toggles/toggle-<name>
 Every `scripts/toggles/toggle-*.nu` answers `get` (the state) and `get --json` (the record from `status-record` in
 `lib.nu`: `{name, label, state, text, states, on, available}`; `states` lists the resting state first). On/off ones go
 through `switch-run` (`on|off|toggle`); n-state ones take `set <value>` and `toggle` (`cycle-next`): route, firewall
-and powermode keep their states in a const record, color-grading cycles the presets `color-grading.py` reports, font
-sets any installed family and cycles its shortlist; shader toggles between off and the last shader, monitor-scale
-steps through its own `SCALES` list. `status.nu [name...]` lists the records, `menu.nu` (`prefix+m` in tmux and
+and powermode keep their states in a const record and switch under `exclusive-run`, color-grading cycles the presets
+`color-grading.py` reports, font sets any installed family and cycles its shortlist; shader toggles between off and
+the last shader, monitor-scale steps through its own `SCALES` list. `status.nu [name...]` lists the records, `menu.nu` (`prefix+m` in tmux and
 herdr) shows them; a new script appears in both without registration. `get` stays cheap and side-effect free: `dot
 set` and the settings window call it. A script answering `options` (rows shaped like `dot set --json`, see
 `toggle-font.nu`) shows those rows in the settings window instead.
@@ -38,10 +38,13 @@ Examples: `toggle-focus.nu` (combines toggles via `toggle-run`), `toggle-theme-m
    Shortcuts: `service-switch <label> <unit>`, `radio-switch <label> wifi|wwan`; state without a probe:
    `state-get`/`state-set`/`state-clear` (`--volatile` resets on boot).
 2. Root work: one `root-run <verb>` per flip (one prompt at most), running `toggle-root`
-   (`configs/core/toggles/toggle-root.nu`) via pkexec; add the verb there and a rule in `49-toggles.rules` if needed.
-   Lowering a guard uses `systemctl-guarded`.
-3. `switch-run` notifies quickshell (`toggles changed <script>`); an n-state toggle calls `notify` itself. It runs one
-   flip at a time (a press meanwhile says "Still switching"), skips an `on`/`off` already in that state, puts a
+   (`configs/core/toggles/toggle-root.nu`) via pkexec. The helper takes no flags and `49-toggles.rules` allowlists
+   whole command lines, so a new verb goes into both: `VERBS_UNPROMPTED` when it tightens or guards nothing,
+   `VERBS_LOWERING` when it lowers a guard (asked, then the helper's `approval-record` stamp lets the next lowering
+   pass for 5 minutes, `APPROVAL_MINUTES` in `mod.nu`).
+3. `switch-run` notifies quickshell (`toggles changed <script>`); an n-state toggle calls `notify` itself and runs its
+   switch through `exclusive-run <label> _apply <state>` (the script again under its lock). Either runs one flip at
+   a time (a press meanwhile says "Still switching"); `switch-run` skips an `on`/`off` already in that state, puts a
    failure's `err.msg` in the toast (`root-run`, `systemctl-guarded` raise the last stderr line), and takes
    `{said: <body>}` from on/off in place of "Turned on". `TOGGLES_QUIET=1` (a combined toggle's parts) keeps
    the ping and failures, not the success toast.

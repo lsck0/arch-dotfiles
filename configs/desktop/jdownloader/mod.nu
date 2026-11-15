@@ -3,7 +3,8 @@ use module.nu *
 export const meta = {reads: [desktop/hyprland], packages: {pacman: [jdownloader2]}}
 
 const SETTINGS = {
-    "org.jdownloader.updatev2.UpdateSettings.json": {autoupdatecheckenabled: false, installupdatesonexitenabled: false}
+    # the package is a bootstrap: core and hoster plugins come only from JD's updater, so it checks and offers
+    "org.jdownloader.updatev2.UpdateSettings.json": {autoupdatecheckenabled: true, installupdatesonexitenabled: false}
     "org.jdownloader.jdserv.stats.StatsManagerConfigV2.json": {enabled: false}
     "org.jdownloader.settings.GraphicalUserInterfaceSettings.json": {bannerenabled: false, specialdealsenabled: false}
     # awt SystemTray needs an xembed tray hyprland lacks; freshinstall false keeps JD from re-applying defaults

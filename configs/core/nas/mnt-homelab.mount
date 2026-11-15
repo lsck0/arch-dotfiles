@@ -15,4 +15,4 @@ What=@SHARE@
 Where=/mnt/homelab
 Type=cifs
 Options=credentials=/etc/samba/homelab.cred,seal,uid=0,gid=wheel,vers=3.1.1,_netdev,nofail,file_mode=0660,dir_mode=0770,soft,echo_interval=10
-TimeoutSec=15s
+TimeoutSec=5s

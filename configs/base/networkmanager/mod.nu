@@ -17,6 +17,14 @@ export const options = {
         label: "Untrusted networks"
         choices: [lockdown-tor firewall-only off]
     }
+    portal_window_s: {
+        type: int
+        default: 300
+        doc: "Seconds toggle-portal leaves a foreign link open for a captive portal's sign-in before the lockdown is back"
+        label: "Captive portal window (s)"
+        min: 30
+        max: 900
+    }
     home_wired: {
         type: bool?
         default: null
@@ -83,6 +91,13 @@ const ONLINE_TIMEOUT_S = 60
 const HOMELAB_UNREACHABLE_METRIC = 4000
 const ARPHRD_ETHER = "1"
 const WIFI_OFF_MARK = "/var/lib/NetworkManager/dotfiles-wifi-off"
+const VPN_IFACE = "proton0"
+# NM's blocking hook before a link activates. A link to the script would not find its lib/, and only the tunnel has
+# work here, so no other link's activation waits on nu
+const PRE_UP = "#!/bin/sh
+[ \"$1\" = @IFACE@ ] || exit 0
+exec @SCRIPT@ \"$@\"
+"
 
 def ethernet-up []: nothing -> bool {
     ls /sys/class/net | get name | where {|n| ($n | path join device | path exists) and not ($n | path join wireless | path exists) }
@@ -129,6 +144,7 @@ export def system [cfg: record] {
         (if (which ModemManager | is-not-empty) and (has-modem) { unit-enable ModemManager.service --now })
         # before the dispatchers: a missing policy means lockdown-tor, cutting this run's egress
         (file-text $"($NM)/untrusted-policy" $"($cfg.untrusted_policy)\n")
+        (file-text $"($NM)/portal-seconds" $"($cfg.portal_window_s)\n")
         (if $env.FORM_FACTOR? == "vm" { file-text $"($NM)/vm-guest" "" })
         (if $homelab != null { file-text $"($NM)/homelab.env" $homelab })
         (file-copy NetworkManager.conf $"($NM)/NetworkManager.conf" --then $restart)
@@ -145,6 +161,9 @@ export def system [cfg: record] {
         (do $dispatcher home-network.nu 70-home-network)
         (do $dispatcher homelab-routes.nu 80-homelab-routes)
         (do $dispatcher persona-dispatcher.nu 90-anonymous-persona)
+        (file-text $"($DISPATCHERS)/pre-up.d/90-anonymous-persona" --mode 755 (
+            $PRE_UP | str replace @IFACE@ $VPN_IFACE | str replace @SCRIPT@ $"($DISPATCHERS)/90-anonymous-persona"
+        ))
         (step home ($home_wired | into string) ($cfg.trusted_gateways | str join ",") ...$cfg.home_gateways)
         (if $cfg.wifi_radio == false {
             exec "wifi radio off" [sh -c $"nmcli radio wifi off && touch ($WIFI_OFF_MARK)"] --creates $WIFI_OFF_MARK

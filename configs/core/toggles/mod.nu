@@ -6,11 +6,14 @@ const HELPER = "/usr/local/bin/toggle-root"
 const ACTION = "dev.lsck0.toggles.root"
 const POLICY = "dev.lsck0.toggles.policy"
 const RULES = "49-toggles.rules"
+# the helper's stamp of an authenticated lowering, and how long the rule lets the next one pass on it
+const APPROVAL_DIR = "/run/toggle-auth"
+const APPROVAL_MINUTES = 5
 
 export def system [cfg: record] {
-    let names = {ACTION: $ACTION, HELPER: $HELPER}
+    let names = {ACTION: $ACTION, HELPER: $HELPER, APPROVAL_DIR: $APPROVAL_DIR, APPROVAL_MINUTES: $APPROVAL_MINUTES}
     [
-        (file-copy toggle-root.nu $HELPER --mode 755)
+        (file-render toggle-root.nu $HELPER $names --mode 755)
         (file-render $POLICY ("/usr/share/polkit-1/actions" | path join $POLICY) $names)
         (polkit-rules $RULES --values $names)
     ]

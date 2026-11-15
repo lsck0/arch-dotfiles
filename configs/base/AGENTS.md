@@ -10,7 +10,9 @@ profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
 - `pam`: YubiKey and fingerprint on sudo and polkit, additive to the password; `/etc/u2f_mappings` comes from the
   owner's `configs/secrets/yubikey` module, mapped to the logins in `/var/lib/dotfiles/owners`, never by name. sudo's
   stack opens with a terminal gate (`TTY_LINE`): a process without a terminal gets no factor at all, so an agent's
-  tool shell cannot raise a touch request nobody sees. `sudo`'s `05-timestamp` pins the per-terminal cache.
+  tool shell cannot raise a touch request nobody sees; one that allocates a pty (`script`, a multiplexer pane) passes.
+  `sudo`'s `05-timestamp` pins the per-terminal cache (15 min). `faillock.conf` (6 failures, 120 s) is one tally for
+  sudo, polkit, the lock screen and ly; the lock screen's fingerprint service exists only where `has-fprint`.
 - `networkmanager`: two tiers by gateway MAC. Home (`home_gateways`, secrets, the install answer) is the homelab's
   network: homelab routes and split DNS, the homelab mirror put back first, the NAS, printers; NM's connectivity
   probe resolves through the lab DNS. A home line is `<mac> <gateway address> <dhcp server identifier>` and needs all
@@ -18,10 +20,14 @@ profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
   Trusted (`trusted_gateways`, secrets' `keys/trusted-gateways` where `toggle-trust-network` writes while unlocked,
   plus home) only lifts the untrusted-network persona (`untrusted_policy`): `/run/trusted-network` feeds the
   firewall's `trusted_links` sets, tor-router and the persona; `/run/home-network` the homelab wiring. The homelab
-  mirror also comes back first on wg0. `toggle-portal` opens a captive portal window for 120 s on every foreign link
-  (the dispatcher's `<iface> portal`), off ends it early.
+  mirror also comes back first on wg0. `toggle-portal` opens a captive portal window for `portal_window_s`
+  (default 300) on every foreign link (the dispatcher's `<iface> portal`), off ends it early. The MAC is one per
+  network and boot (`connection.stable-id`), never the hardware one.
 - `ssh` and `nftables`: sshd listens on `base/ssh.port` behind a three-port knock (`base/ssh.knock`, held open for
-  `base/nftables.ssh_knock_window`); `sshk` and `wake-pc` knock first, 22 is the endlessh tarpit. Host keys are pinned
+  `base/nftables.ssh_knock_window`); `sshk` and `wake-pc` knock first, 22 is the endlessh tarpit. New
+  connections to the port are rate-limited per source (`base/nftables.ssh_rate`), which replaces `fail2ban` on luca-pc
+  and luca-notebook (off there). tun0 reaches the pentest listener ports only with `base/nftables.pentest_listeners`.
+  Host keys are pinned
   from `keys/ssh-host/<host>/` (`SSH_HOST_KEYS`), so a reinstall keeps the identity; without them sshd generates its
   own and the apply prints the backup command.
 - `nftables` fw-egress: under lockdown-tor it fails closed whether tor is there or not; besides tor only pacman's

@@ -58,7 +58,8 @@ export def link [cfg: record] {
             step library-export $bib --requires ($profiles | first | path join $xpi)
         })
         (mcp-uvx zotero-mcp $"zotero-mcp-server==($MCP_VERSION)" $MCP_FROZEN [zotero-mcp serve] zotero_mcp.server
-            --env-vars {ZOTERO_LOCAL: "true", ZOTERO_MCP_SCHEMA_REFRESH: "0", ZOTERO_NO_CLAUDE: "true"})
+            --env-vars {ZOTERO_LOCAL: "true", ZOTERO_MCP_SCHEMA_REFRESH: "0", ZOTERO_NO_CLAUDE: "true"}
+            --gate {probe: ($ZOTERO_SERVER | str replace "http://" ""), app: Zotero})
     ]
 }
 
