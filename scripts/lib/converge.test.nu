@@ -63,6 +63,33 @@ def orphan-cases []: nothing -> nothing {
     assert equal $claimed.kind "forget" $"orphan claimed: planned ($claimed.kind), wants forget"
 }
 
+# A removed file whose preserved original goes back: the original lands even when the file was its dir's only one,
+# and a dir left empty with no original to restore is pruned.
+def restore-cases [work: path]: nothing -> nothing {
+    let want = sha $CONTENT
+    let target = $work | path join restore nested file
+    let aside = $work | path join aside-original
+    mkdir ($target | path dirname)
+    $CONTENT | save --force $target
+    "original\n" | save --force $aside
+    let seen = {paths: {$target: {target: $target, type: file, hash: $want, link: null, mode: "644"}}, units: {}}
+    let prev = [{kind: file, target: $target, hash: $want, source: null, aside: $aside}]
+    let removed = plan-module $ID [] $prev $seen {} $REPO false | first
+    assert equal $removed.kind "remove" $"restore: planned ($removed.kind), wants remove"
+    let done = apply-module [$removed] ($work | path join restore-module) user | first
+    assert $done.ok $"restore: remove failed: ($done.error)"
+    assert equal (open --raw $target) "original\n" "restore: the original did not come back into its emptied dir"
+
+    let lone = $work | path join prune nested file
+    mkdir ($lone | path dirname)
+    $CONTENT | save --force $lone
+    let seen = {paths: {$lone: {target: $lone, type: file, hash: $want, link: null, mode: "644"}}, units: {}}
+    let removed = plan-module $ID [] [{kind: file, target: $lone, hash: $want, source: null}] $seen {} $REPO false | first
+    let done = apply-module [$removed] ($work | path join restore-module) user | first
+    assert $done.ok $"prune: remove failed: ($done.error)"
+    assert not (($lone | path dirname) | path exists) "prune: a dir left empty was kept"
+}
+
 def fold-cases [work: path]: nothing -> nothing {
     let file = $work | path join fold.json
     let seen = {paths: {$file: {target: $file, type: "", hash: null, link: null, mode: null}}, units: {}}
@@ -303,6 +330,7 @@ def main [] {
         with-env {XDG_STATE_HOME: ($work | path join state), DOT_LAYER: user, DOT_RUN_ID: "", DOT_RUN_FILE: "", FAILURES_FILE: ""} {
             file-cases
             orphan-cases
+            restore-cases $work
             fold-cases $work
             then-failed-cases $work
             state-write-cases $work

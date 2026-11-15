@@ -7,7 +7,7 @@ export const meta = {
             gnome-calendar gnome-maps gnome-text-editor hollywood josm kleopatra linecast localsend
             logseq-desktop-bin lynx metadata-cleaner minder mov-cli mpg123 nemo gvfs okular onlyoffice-bin piper
             proton-authenticator-bin proton-pass-bin proton-vpn-qt-app snapshot sowon-git stirling-pdf-bin tlpui
-            torbrowser-launcher waypipe wev wine-staging xorg-xeyes yubico-authenticator-bin zenity
+            torbrowser-launcher waypipe wev wine-gecko wine-mono wine-staging xorg-xeyes yubico-authenticator-bin zenity
         ]
         flatpak: {org.remmina.Remmina: d40938f656ca5f3699f63fb3a926d321d24e36c63edb97cca8a3d14108a5c65c}
     }

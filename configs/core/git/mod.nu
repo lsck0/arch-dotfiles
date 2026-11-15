@@ -37,7 +37,7 @@ export def link [cfg: record] {
         [push {autoSetupRemote: true}]
         [core {pager: delta}]
         [interactive {diffFilter: "delta --color-only"}]
-        [delta {syntax-theme: ansi, line-numbers: true, navigate: true, side-by-side: true}]
+        [delta {syntax-theme: wal, line-numbers: true, navigate: true, side-by-side: true}]
         [merge {conflictStyle: zdiff3}]
         (if (has mergiraf) { ['merge "mergiraf"' {name: mergiraf, driver: $MERGIRAF_DRIVER}] })
         (if (has git-lfs) {

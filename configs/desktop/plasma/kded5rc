@@ -3,3 +3,6 @@ autoload=false
 
 [Module-device_automounter]
 autoload=false
+
+[Module-oom_notifier]
+autoload=false

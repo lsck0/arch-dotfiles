@@ -1,6 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
-# Screenshots a region, the focused output or the active window into ~/pictures/screenshots, copies the png and
-# notifies with it. A cancel or a failed capture leaves the clipboard as it was; slurp draws in the wallust palette.
+# Screenshots a region, the focused output or the active window into ~/pictures/screenshots and copies the png. A
+# success shows no toast, which the next screenshot would catch; a failure does. A cancel or a failed capture leaves
+# the clipboard as it was; slurp draws in the wallust palette.
 
 use ../../core/wallust/palette.nu [wal-colors-file]
 
@@ -8,9 +9,8 @@ const FALLBACK = {bg: "#0b0e14", accent: "#39bae6"}
 const NOTIFY_APP = "quickshell-action"
 const TITLE = "Screenshot"
 
-def notify [body: string, --icon: path]: nothing -> nothing {
-    let icon_args = if $icon == null { [] } else { [-i $icon] }
-    ^notify-send -a $NOTIFY_APP -u low ...$icon_args -- $TITLE $body
+def notify [body: string]: nothing -> nothing {
+    ^notify-send -a $NOTIFY_APP -u low -- $TITLE $body
 }
 
 # grim into a file first: piping into wl-copy would set an empty clipboard when grim fails.
@@ -25,7 +25,6 @@ def screenshot-save [grim_args: list<string>]: nothing -> nothing {
         return
     }
     open --raw $file | ^wl-copy --type image/png
-    notify $file --icon $file
 }
 
 def main []: nothing -> nothing {

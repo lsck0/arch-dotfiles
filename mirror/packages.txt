@@ -943,6 +943,8 @@ wget
 whisper-cpp
 whois
 wiki-tui
+wine-gecko
+wine-mono
 wine-staging
 wireguard-tools
 wireless-regdb
