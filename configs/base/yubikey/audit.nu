@@ -1,8 +1,11 @@
 # `dot secrets audit`: credential ages against their last rotation, plus the recovery drill.
 
+use ../../../scripts/lib/modules.nu [modules-discover]
 use ../../../scripts/lib/secrets.nu [secret-is-plaintext secrets-wanted]
 use ../../../scripts/lib/state.nu [xdg]
 
+const REPO = path self ../../..
+const PLATFORMS = path self ../../../platforms
 const SECRETS = path self ../../secrets/keys
 const KEY_DIR = path self .
 const OWNER_DIR = path self ../../secrets/yubikey
@@ -13,7 +16,16 @@ const DRILL_HOW = 'RECOVERY.md "Test it", then dot secrets audit drilled'
 const REMIND_STATE = "secrets-audit/reminded"
 const REMIND_EVERY = 28day
 const SEALED_HEADER_BYTES = 4096
-const CLASSES = [
+const HOST = "{host}"
+# what a module's meta.secrets names and keys/ does not hold yet, as globs over the path with its host filled in
+const UNBACKED = [
+    # sshd's host keys: no machine has run the backup command base/ssh prints, so a reinstall changes its identity
+    "ssh-host/*"
+    # the notebook's initramfs host key, generated there: the backup command remote-unlock printed was never run
+    "initramfs-ssh/luca-notebook/*"
+]
+# the first matching glob decides, so a narrower one stands before the wider one that would swallow it
+export const CLASSES = [
     [glob class];
     ["wireguard/*.conf" wireguard] ["wireguard/*.png" -] [ssh/private.asc ssh] [ssh/passphrase ssh]
     ["initramfs-ssh/*/sshkeydir/.ed25519.sk" ssh] ["yubikey/ssh-*" ssh] ["gh/*/token" api] [googleapi api] [sdd_github api] [de-arrow-key api]
@@ -29,10 +41,13 @@ const MAX_DAYS = {wireguard: 365, api: 365, ssh: 730, password: 730, identity: 1
 
 def finding [level: string, text: string]: nothing -> record { {level: $level, text: $text} }
 
-def secret-class [path: string]: nothing -> string {
-    $CLASSES
-    | where {|row| $path =~ ('^' + ($row.glob | str replace --all '.' '\.' | str replace --all '*' '.*') + '$') }
-    | get --optional 0.class | default ""
+def glob-matches [glob: string, path: string]: nothing -> bool {
+    $path =~ ('^' + ($glob | str replace --all '.' '\.' | str replace --all '*' '.*') + '$')
+}
+
+# The class of a path under keys/: "-" for none to rotate, "" for a path CLASSES does not know.
+export def secret-class [path: string]: nothing -> string {
+    $CLASSES | where {|row| glob-matches $row.glob $path } | get --optional 0.class | default ""
 }
 
 def rotation-recorded [path: string]: nothing -> string {
@@ -53,8 +68,38 @@ def days-since [day: string]: nothing -> int {
     ((date now) - ($day | into datetime --timezone local)) / 1day | math floor
 }
 
-def credentials []: nothing -> list<record> {
-    let paths = ^git -C $SECRETS ls-files -z --cached --others --exclude-standard | split row "\u{0}" | where $it != ""
+def held []: nothing -> list<string> {
+    ^git -C $SECRETS ls-files -z --cached --others --exclude-standard | split row "\u{0}" | where $it != ""
+}
+
+# The hostnames {host} stands for: the platforms on the homelab, the machines that hold credentials of their own.
+def secret-hosts []: nothing -> list<string> {
+    glob ($PLATFORMS | path join "*.nuon") --exclude ["**/*.options.nuon"] | each { open $in }
+    | where {|p| $p.hostname? != null and $p.facts?.homelab? == true } | get hostname | sort
+}
+
+# What the modules' meta.secrets name (declared: {module, entry}, {host} filled in with every host) that held lacks:
+# root is handed only what exists, so a renamed file silently never arrives. A fail each, or one note per UNBACKED glob.
+export def declared-findings [declared: list<record>, hosts: list<string>, held: list<string>]: nothing -> list<record> {
+    let missing = $declared | each {|d|
+        if ($d.entry | str contains $HOST) { $hosts | each {|h| $d.entry | str replace --all $HOST $h } } else { [$d.entry] }
+        | where $it not-in $held
+        | each {|path| {module: $d.module, path: $path, unbacked: ($UNBACKED | where {|glob| glob-matches $glob $path } | get --optional 0)} }
+    } | flatten
+    let fails = $missing | where unbacked == null | each {|m|
+        finding fail $"no configs/secrets/keys/($m.path), which ($m.module) names in meta.secrets: root is never handed it"
+    }
+    let notes = $missing | where unbacked != null | group-by unbacked --to-table | each {|g|
+        finding note $"configs/secrets/keys/($g.unbacked) \(($g.items.module | uniq | str join ' ') meta.secrets\) not backed up yet: ($g.items | length) files"
+    }
+    $fails ++ $notes
+}
+
+def declared []: nothing -> list<record> {
+    modules-discover $REPO [] | each {|m| $m.meta.secrets? | default [] | each {|entry| {module: $m.id, entry: $entry} } } | flatten
+}
+
+def credentials [paths: list<string>]: nothing -> list<record> {
     $paths | each {|path|
         let class = secret-class $path
         if $class == "-" { return null }
@@ -113,7 +158,8 @@ export def audit-findings []: nothing -> list<record<level: string, text: string
     if not (secret-is-plaintext $WITNESS) {
         return [(finding note "configs/secrets/ is locked, nothing audited: dot secrets unlock")]
     }
-    (credentials) ++ (recovery)
+    let held = held
+    (credentials $held) ++ (declared-findings (declared) (secret-hosts) $held) ++ (recovery)
 }
 
 # Prints the findings (--brief: only "fail|note <text>"); exits 1 on a fail.

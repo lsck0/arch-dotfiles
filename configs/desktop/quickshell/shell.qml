@@ -142,21 +142,12 @@ ShellRoot {
     target: "shell"
 
     function palette(): string {
-      function rgb(c) { return [c.r, c.g, c.b] }
-      return JSON.stringify({
-        background: rgb(Colors.background),
-        surface: rgb(Colors.surface),
-        foreground: rgb(Colors.foreground),
-        muted: rgb(Colors.muted),
-        accent: rgb(Colors.accent),
-        accent2: rgb(Colors.accent2),
-        urgent: rgb(Colors.urgent),
-        warn: rgb(Colors.warn),
-        ok: rgb(Colors.ok),
-        glowStrength: Style.fx.glow,
-        scanlineOpacity: Style.fx.scanlineOpacity,
-        scanlineSpacing: Style.fx.scanlineSpacing
-      })
+      var out = {}
+      for (const name of ["background", "surface", "foreground", "muted", "accent", "accent2", "urgent", "warn", "ok"])
+        out[name] = [Colors[name].r, Colors[name].g, Colors[name].b]
+      return JSON.stringify(Object.assign(out, {
+        glowStrength: Style.fx.glow, scanlineOpacity: Style.fx.scanlineOpacity, scanlineSpacing: Style.fx.scanlineSpacing
+      }))
     }
 
     function reloadPowerMode(): void {

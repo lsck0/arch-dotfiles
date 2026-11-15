@@ -46,23 +46,16 @@ local function obs_command(cmd)
 end
 
 hl.bind(mod .. " + SHIFT + e", quickshell_toggle("powermenu"), { description = "power menu" })
-for _, keys in ipairs({ "Print", mod .. " + SHIFT + s" }) do
-    hl.bind(
-        keys,
-        hl.dsp.exec_cmd(hypr_script("screenshot.nu") .. " region"),
-        { description = "screenshot a region to ~/pictures/screenshots and the clipboard" }
-    )
+for _, shot in ipairs({
+    { "Print", "region", "a region" },
+    { mod .. " + SHIFT + s", "region", "a region" },
+    { "SHIFT + Print", "output", "the focused monitor" },
+    { mod .. " + Print", "window", "the active window" },
+}) do
+    hl.bind(shot[1], hl.dsp.exec_cmd(hypr_script("screenshot.nu") .. " " .. shot[2]), {
+        description = "screenshot " .. shot[3] .. " to ~/pictures/screenshots and the clipboard",
+    })
 end
-hl.bind(
-    "SHIFT + Print",
-    hl.dsp.exec_cmd(hypr_script("screenshot.nu") .. " output"),
-    { description = "screenshot the focused monitor to ~/pictures/screenshots and the clipboard" }
-)
-hl.bind(
-    mod .. " + Print",
-    hl.dsp.exec_cmd(hypr_script("screenshot.nu") .. " window"),
-    { description = "screenshot the active window to ~/pictures/screenshots and the clipboard" }
-)
 hl.bind(
     mod .. " + ALT + Print",
     hl.dsp.exec_cmd(hypr_script("record.nu")),
@@ -206,10 +199,10 @@ hl.bind(
 )
 
 local DIRECTIONS = {
-    { keys = { "h", "Left" }, focus = "left", move = "l" },
-    { keys = { "l", "Right" }, focus = "right", move = "r" },
-    { keys = { "k", "Up" }, focus = "up", move = "u" },
-    { keys = { "j", "Down" }, focus = "down", move = "d" },
+    { keys = { "h", "Left" }, focus = "left", move = "l", x = -1, y = 0 },
+    { keys = { "l", "Right" }, focus = "right", move = "r", x = 1, y = 0 },
+    { keys = { "k", "Up" }, focus = "up", move = "u", x = 0, y = -1 },
+    { keys = { "j", "Down" }, focus = "down", move = "d", x = 0, y = 1 },
 }
 hl.config({ binds = { movefocus_cycles_groupfirst = true } })
 
@@ -274,19 +267,13 @@ hl.bind(
 )
 
 local RESIZE_STEP = 30
-local RESIZE = {
-    { keys = { "l", "Right" }, x = RESIZE_STEP, y = 0 },
-    { keys = { "h", "Left" }, x = -RESIZE_STEP, y = 0 },
-    { keys = { "k", "Up" }, x = 0, y = -RESIZE_STEP },
-    { keys = { "j", "Down" }, x = 0, y = RESIZE_STEP },
-}
 hl.bind(mod .. " + r", hl.dsp.submap("resize"), { description = "resize mode" })
 hl.define_submap("resize", function()
-    for _, step in ipairs(RESIZE) do
-        for _, key in ipairs(step.keys) do
+    for _, direction in ipairs(DIRECTIONS) do
+        for _, key in ipairs(direction.keys) do
             hl.bind(
                 key,
-                hl.dsp.window.resize({ x = step.x, y = step.y, relative = true }),
+                hl.dsp.window.resize({ x = direction.x * RESIZE_STEP, y = direction.y * RESIZE_STEP, relative = true }),
                 { repeating = true, description = "resize the window by " .. RESIZE_STEP .. " px" }
             )
         end

@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 # direct, proton, tor or offline; wg0 and the SOCKS pool are not routes. Offline also cycles wg0.
-use lib.nu [notify cycle-next status-record status-print toggle-run state-get state-set state-file root-run unit-active exclusive-run]
+use lib.nu [notify cycle-next status-record status-print toggle-run state-get state-set state-file root-run unit-active exclusive-run state-check]
 use ../lib/state.nu [xdg]
 
 const ROUTES = {direct: Direct, proton: ProtonVPN, tor: Tor, offline: Offline}
@@ -95,7 +95,6 @@ def offline-leave []: nothing -> nothing {
 
 # only a user-chosen tor stops, after proton0 is up; the dispatcher stops its own
 def "main _apply" [route: string, --keep-tor]: nothing -> nothing {
-    if $route not-in $ROUTES { error make {msg: $"route must be one of ($ROUTES | columns | str join ', ')"} }
     let from = current
     if $route == $from { return }
     let dispatcher_tor = $DISPATCHER_TOR | path exists
@@ -126,7 +125,7 @@ def "main get" [--json] {
     status-print (status-record Route $route --text ($ROUTES | get $route) --states ($ROUTES | columns)) $json
 }
 def "main set" [route: string, --keep-tor] {
-    if $route not-in $ROUTES { error make {msg: $"route must be one of ($ROUTES | columns | str join ', ')"} }
+    state-check route $route ($ROUTES | columns)
     exclusive-run Route _apply $route ...(if $keep_tor { [--keep-tor] } else { [] })
 }
 def "main direct" [] { main set direct }

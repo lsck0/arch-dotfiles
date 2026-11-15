@@ -35,7 +35,7 @@ BarWidget {
   function open(url) {
     if (!url) return
     Quickshell.execDetached(["uwsm-app", "--", "xdg-open", url])
-    if (root.bar) root.bar.closePanel(root.moduleName)
+    root.closePanel()
   }
 
   function num(value, suffix) {
@@ -306,7 +306,7 @@ BarWidget {
         label: "Connect homelab VPN"
         onActivated: {
           Quickshell.execDetached([Paths.toggle("toggle-vpn.nu"), "on"])
-          if (root.bar) root.bar.closePanel(root.moduleName)
+          root.closePanel()
         }
       }
 

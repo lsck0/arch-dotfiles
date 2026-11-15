@@ -1,0 +1,11 @@
+{
+  "wallpaper": "frederic-church-the-icebergs.jpg",
+  "pair": "kanso-zen",
+  "special": { "background": "#f2f1ef", "foreground": "#22262d", "cursor": "#22262d" },
+  "colors": {
+    "color0": "#22262d", "color1": "#c84053", "color2": "#6f894e", "color3": "#77713f",
+    "color4": "#4d699b", "color5": "#b35b79", "color6": "#597b75", "color7": "#9f9f99",
+    "color8": "#5c6066", "color9": "#d7474b", "color10": "#6e915f", "color11": "#836f4a",
+    "color12": "#4f7193", "color13": "#624c83", "color14": "#5e857a", "color15": "#f2f1ef"
+  }
+}

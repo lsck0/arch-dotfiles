@@ -94,20 +94,8 @@ Item {
     return index >= 0 && index < filterMatches.length ? filterMatches[index] : false
   }
 
-  function firstMatchingIndex() {
-    for (let i = 0; i < filterMatches.length; i++) {
-      if (filterMatches[i]) return i
-    }
-    return -1
-  }
-
   function filteredPosition(index) {
     return index >= 0 && index < filterPositions.length ? filterPositions[index] : -1
-  }
-
-  function selectedFilteredPosition() {
-    var position = filteredPosition(selectedIndex)
-    return position >= 0 ? position : 0
   }
 
   function select(index) {
@@ -194,7 +182,7 @@ Item {
   onFilterTextChanged: {
     rebuildFilterCache()
     if (!itemMatches(selectedIndex)) {
-      const first = firstMatchingIndex()
+      const first = filterMatches.indexOf(true)
       if (first >= 0) selectedIndex = first
     }
   }
@@ -346,7 +334,7 @@ Item {
             readonly property string filePath: imageData ? imageData.filePath : ""
             readonly property string thumbnailPath: imageData ? imageData.thumbnailPath : ""
             readonly property bool matched: root.itemMatches(index)
-            readonly property int relativeIndex: root.filteredPosition(index) - root.selectedFilteredPosition()
+            readonly property int relativeIndex: root.filteredPosition(index) - Math.max(0, root.filteredPosition(root.selectedIndex))
             readonly property bool selected: matched && index === root.selectedIndex
             readonly property bool nearby: matched && Math.abs(relativeIndex) <= root.nearbyRange
             property bool sourceActivated: nearby

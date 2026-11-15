@@ -14,7 +14,8 @@ local OLLAMA_URL = "http://127.0.0.1:11434"
 -- under a second, where the 30b moe took 15 GB; greedy decoding keeps the same speech giving the same latex
 local OLLAMA_MODEL = "qwen3-abliterated-64k"
 local OLLAMA_OPTIONS = { num_ctx = 4096, temperature = 0 }
-local OLLAMA_PROBE_TIMEOUT_S = "1"
+-- the socket answers at once and starts ollama on demand, so only the connect is short
+local OLLAMA_CONNECT_TIMEOUT_S = "1"
 local OLLAMA_TIMEOUT_S = "120"
 -- it leaves the vram soon after the last dictation instead of ollama's 30 min
 local OLLAMA_KEEP_ALIVE = "2m"
@@ -24,7 +25,8 @@ local SIGTERM = 15
 -- 30 ms frames of s16 mono
 local FRAME_SAMPLES = 480
 local FRAME_BYTES = FRAME_SAMPLES * 2
--- the first half second sets the noise floor; speech is a frame NOISE_FACTOR times louder, and at least MIN_LEVEL
+-- the median frame of the first half second is the noise floor, so a word or a starting stream's zeros in it do not
+-- move it; speech is a frame NOISE_FACTOR times louder, and at least MIN_LEVEL
 local CALIBRATION_FRAMES = 17
 local NOISE_FACTOR = 3
 local MIN_LEVEL = 400
@@ -235,7 +237,7 @@ local function greek_lower(speech)
     return out
 end
 
--- The rewrite, or nil when ollama is not there; ollama answers on its socket, which starts it on demand.
+-- The rewrite, or nil and curl's exit code when ollama gave none.
 local function rewrite(ft, before, after, speech, done)
     local body = vim.json.encode({
         model = OLLAMA_MODEL,
@@ -245,26 +247,17 @@ local function rewrite(ft, before, after, speech, done)
         options = OLLAMA_OPTIONS,
         messages = { { role = "user", content = rewrite_prompt(ft, before, after, greek_lower(speech)) } },
     })
-    vim.system({ "curl", "-sf", "-m", OLLAMA_PROBE_TIMEOUT_S, OLLAMA_URL .. "/api/version" }, {}, function(probe)
-        if probe.code ~= 0 then
-            done(nil)
-            return
-        end
-        vim.system(
-            { "curl", "-sf", "-m", OLLAMA_TIMEOUT_S, OLLAMA_URL .. "/api/chat", "-d", "@-" },
-            { stdin = body, text = true },
-            function(r)
-                local ok, reply = pcall(vim.json.decode, r.stdout or "")
-                local content = ok and reply.message and reply.message.content or nil
-                if content and LATEX_FILETYPES[ft] then
-                    content = strip_env(content, before)
-                    if in_display_math(before) then
-                        content = unwrap_display(content)
-                    end
-                end
-                done(content and vim.trim(content) ~= "" and content or nil)
+    local curl = { "curl", "-sf", "--connect-timeout", OLLAMA_CONNECT_TIMEOUT_S, "-m", OLLAMA_TIMEOUT_S }
+    vim.system(vim.list_extend(curl, { OLLAMA_URL .. "/api/chat", "-d", "@-" }), { stdin = body }, function(r)
+        local ok, reply = pcall(vim.json.decode, r.stdout or "")
+        local content = ok and reply.message and reply.message.content or nil
+        if content and LATEX_FILETYPES[ft] then
+            content = strip_env(content, before)
+            if in_display_math(before) then
+                content = unwrap_display(content)
             end
-        )
+        end
+        done(content and vim.trim(content) ~= "" and content or nil, r.code)
     end)
 end
 
@@ -306,11 +299,8 @@ local function new_vad(on_piece)
             table.insert(vad.calibration, level)
             preroll_push(frame)
             if #vad.calibration >= CALIBRATION_FRAMES then
-                local sum = 0
-                for _, l in ipairs(vad.calibration) do
-                    sum = sum + l
-                end
-                vad.level = math.max(MIN_LEVEL, sum / #vad.calibration * NOISE_FACTOR)
+                table.sort(vad.calibration)
+                vad.level = math.max(MIN_LEVEL, vad.calibration[math.ceil(CALIBRATION_FRAMES / 2)] * NOISE_FACTOR)
             end
             return
         end
@@ -343,9 +333,7 @@ local function new_vad(on_piece)
         vad.pending = vad.pending:sub(at)
     end
 
-    function vad.flush()
-        emit()
-    end
+    vad.flush = emit
 
     return vad
 end
@@ -481,10 +469,7 @@ end
 local function finalize(s, piece)
     s.final_tail = (s.final_tail .. " " .. piece.text):sub(-PROMPT_TAIL_CHARS)
     if not s.rewrite or piece.text == "" then
-        -- the buffer may have been wiped while dictating
-        if vim.api.nvim_buf_is_valid(s.buf) then
-            vim.api.nvim_buf_del_extmark(s.buf, NS, piece.id)
-        end
+        vim.api.nvim_buf_del_extmark(s.buf, NS, piece.id)
         return
     end
     table.insert(s.held, piece)
@@ -494,7 +479,7 @@ end
 local function flush_rewrite(s)
     local pieces = s.held
     s.held = {}
-    if #pieces == 0 or not vim.api.nvim_buf_is_valid(s.buf) then
+    if #pieces == 0 then
         return
     end
     local row, col = mark_range(s, pieces[1].id)
@@ -509,19 +494,25 @@ local function flush_rewrite(s)
             end_row = end_row,
             end_col = end_col,
             right_gravity = false,
-            end_right_gravity = true,
+            end_right_gravity = false,
         }),
     }
     local before = context(s.buf, row, col)
     local _, after = context(s.buf, end_row, end_col)
-    rewrite(s.ft, before, after, table.concat(texts, " "), function(text)
+    rewrite(s.ft, before, after, table.concat(texts, " "), function(text, code)
         vim.schedule(function()
-            if text and vim.api.nvim_buf_is_valid(s.buf) then
+            if not text and not s.rewrite_failed then
+                s.rewrite_failed = true
+                local msg = "ollama gave no rewrite (curl %d, %s): the transcript stays"
+                notify(msg:format(code, OLLAMA_MODEL), vim.log.levels.WARN)
+            end
+            if s.unloaded or not vim.api.nvim_buf_is_loaded(s.buf) then
+                return
+            end
+            if text then
                 set_piece(s, span, text)
             end
-            if vim.api.nvim_buf_is_valid(s.buf) then
-                vim.api.nvim_buf_del_extmark(s.buf, NS, span.id)
-            end
+            vim.api.nvim_buf_del_extmark(s.buf, NS, span.id)
         end)
     end)
 end
@@ -542,29 +533,24 @@ local function transcribe_piece(s, pcm, done)
         finalize(s, table.remove(s.open, 1))
     end
     local prev = s.open[#s.open]
-    local wav = vim.fn.tempname() .. ".wav"
-    local file = io.open(wav, "wb")
-    file:write(wav_bytes((prev and prev.pcm or "") .. pcm))
-    file:close()
     vim.system({
         "curl",
         "-sf",
         "-m",
         REQUEST_TIMEOUT_S,
         "-F",
-        "file=@" .. wav,
+        "file=@-;filename=piece.wav",
         "-F",
         "response_format=text",
         "-F",
         "prompt=" .. vim.trim(WHISPER_PROMPT .. " " .. s.final_tail),
         ("http://127.0.0.1:%d/inference"):format(s.port),
-    }, { text = true }, function(r)
-        os.remove(wav)
+    }, { stdin = wav_bytes((prev and prev.pcm or "") .. pcm), text = true }, function(r)
         vim.schedule(function()
             if not s.finished and r.code ~= 0 then
                 notify("whisper-server request failed (" .. r.code .. ")", vim.log.levels.ERROR)
             end
-            if s.finished or r.code ~= 0 or not vim.api.nvim_buf_is_valid(s.buf) then
+            if s.finished or r.code ~= 0 then
                 done()
                 return
             end
@@ -611,7 +597,7 @@ local function finish_stop(s)
     s.finished = true
     finalize_open(s)
     stop_server(s)
-    if vim.api.nvim_buf_is_valid(s.buf) then
+    if not s.unloaded then
         vim.api.nvim_buf_del_extmark(s.buf, NS, s.tail)
     end
     if session == s then
@@ -621,24 +607,25 @@ local function finish_stop(s)
 end
 
 process_next = function(s)
-    -- no server to finish with (it died or never came up): what is queued is lost, the session still ends
-    if s.stopping and (s.server_exited or not s.ready) and not s.busy then
+    if s.busy then
+        return
+    end
+    -- the server died: what is queued is lost, the session still ends
+    if s.server_exited then
         s.queue = {}
-        finish_stop(s)
-        return
     end
-    if s.busy or not s.ready then
-        return
-    end
-    local pcm = table.remove(s.queue, 1)
-    if not pcm then
+    if #s.queue == 0 then
         if s.stopping then
             finish_stop(s)
         end
         return
     end
+    -- a stop waits for a server still loading its model, so what was said meanwhile is kept
+    if not s.ready then
+        return
+    end
     s.busy = true
-    transcribe_piece(s, pcm, function()
+    transcribe_piece(s, table.remove(s.queue, 1), function()
         s.busy = false
         if s.rewrite and not s.stopping then
             arm_idle(s)
@@ -651,7 +638,7 @@ local function wait_ready(s, started)
     local url = ("http://127.0.0.1:%d/"):format(s.port)
     vim.system({ "curl", "-sf", "-o", "/dev/null", "-m", SERVER_PROBE_TIMEOUT_S, url }, {}, function(r)
         vim.schedule(function()
-            if s.server_exited then
+            if s.server_exited or s.finished then
                 return
             end
             if r.code == 0 then
@@ -659,9 +646,7 @@ local function wait_ready(s, started)
                 process_next(s)
             elseif vim.uv.now() - started > SERVER_START_TIMEOUT_MS then
                 notify("whisper-server did not come up", vim.log.levels.ERROR)
-                s.queue = {}
-                s.ready = true
-                M.disable()
+                M.abort()
             else
                 vim.defer_fn(function()
                     wait_ready(s, started)
@@ -669,6 +654,21 @@ local function wait_ready(s, started)
             end
         end)
     end)
+end
+
+-- The server or the recorder is gone: unless a stop asked for it, say why (its last stderr line) and stop.
+local function process_exited(s, name)
+    return function(r)
+        s.server_exited = s.server_exited or name == "whisper-server"
+        vim.schedule(function()
+            if session == s and not s.stopping then
+                local reason = vim.trim(r.stderr or ""):match("[^\n]*$")
+                notify(("%s exited (%d): %s"):format(name, r.code, reason), vim.log.levels.ERROR)
+                M.disable()
+            end
+            process_next(s)
+        end)
+    end
 end
 
 -- Starts continuous dictation at the cursor; rewrite_speech rewrites each final piece for the buffer.
@@ -688,6 +688,10 @@ function M.enable(rewrite_speech)
     end
     local win = vim.api.nvim_get_current_win()
     local buf = vim.api.nvim_get_current_buf()
+    if not vim.bo[buf].modifiable then
+        notify("this buffer is not modifiable", vim.log.levels.ERROR)
+        return
+    end
     local cursor = vim.api.nvim_win_get_cursor(win)
     local row = cursor[1] - 1
     -- in insert mode the cursor sits before the column; in normal mode text goes after the character under it
@@ -723,24 +727,14 @@ function M.enable(rewrite_speech)
         "-nt",
         "--prompt",
         WHISPER_PROMPT,
-    }, {}, function(r)
-        s.server_exited = true
-        vim.schedule(function()
-            if session == s and not s.stopping then
-                notify("whisper-server exited (" .. r.code .. ")", vim.log.levels.ERROR)
-                s.queue = {}
-                M.disable()
-            end
-        end)
-    end)
+    }, {}, process_exited(s, "whisper-server"))
     wait_ready(s, vim.uv.now())
-    local vad = new_vad(function(pcm)
+    s.vad = new_vad(function(pcm)
         vim.schedule(function()
             table.insert(s.queue, pcm)
             process_next(s)
         end)
     end)
-    s.vad = vad
     s.recorder = vim.system({
         "pw-record",
         "-a",
@@ -754,17 +748,10 @@ function M.enable(rewrite_speech)
     }, {
         stdout = function(_, data)
             if data then
-                vad.feed(data)
+                s.vad.feed(data)
             end
         end,
-    }, function(r)
-        vim.schedule(function()
-            if session == s and not s.stopping then
-                notify("pw-record exited (" .. r.code .. ")", vim.log.levels.ERROR)
-                M.disable()
-            end
-        end)
-    end)
+    }, process_exited(s, "pw-record"))
     notify(rewrite_speech and "on, rewriting each piece; <M-V> turns it off" or "on; <M-v> turns it off")
 end
 
@@ -820,8 +807,19 @@ function M.setup()
     vim.keymap.set({ "n", "i" }, "<M-V>", function()
         M.toggle(true)
     end, { desc = "Dictate: continuous dictation on/off, rewriting into the buffer's language" })
+    local group = vim.api.nvim_create_augroup("dictate", { clear = true })
+    -- an unloaded buffer takes its text along: nothing is left to finalize, and a rewrite still out has no place
+    vim.api.nvim_create_autocmd("BufUnload", {
+        group = group,
+        callback = function(event)
+            if session and session.buf == event.buf then
+                session.open, session.held, session.unloaded = {}, {}, true
+                M.abort()
+            end
+        end,
+    })
     vim.api.nvim_create_autocmd("VimLeavePre", {
-        group = vim.api.nvim_create_augroup("dictate", { clear = true }),
+        group = group,
         callback = function()
             if session then
                 session.recorder:kill(SIGTERM)

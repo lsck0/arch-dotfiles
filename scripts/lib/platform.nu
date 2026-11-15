@@ -14,6 +14,11 @@ export def platform-groups-all [repo: path]: nothing -> list<string> {
     ls ($repo | path join configs) | where type == dir | get name | path basename | where $it != secrets | sort
 }
 
+# Every named platform's file, the options files left out.
+export def platform-files [repo: path]: nothing -> list<path> {
+    glob ($repo | path join platforms *.nuon) | where not ($it | str ends-with ".options.nuon") | sort
+}
+
 # A name with no platform file is an error, never a fallback to every group.
 export def platform-file [repo: path]: nothing -> any {
     let name = file-trim $PLATFORM_NAME_FILE
@@ -21,8 +26,7 @@ export def platform-file [repo: path]: nothing -> any {
     let found = [($PLATFORM_LOCAL_DIR | path join platform.nuon) ($repo | path join platforms local.nuon) $named]
         | compact | where ($it | path exists) | get --optional 0
     if $found == null and $named != null {
-        let known = glob ($repo | path join platforms *.nuon) | path basename | where $it !~ '\.options\.nuon$'
-            | each { str replace '.nuon' '' } | str join ', '
+        let known = platform-files $repo | each { path parse | get stem } | str join ', '
         error make {msg: $"($PLATFORM_NAME_FILE) names '($name)', but there is no ($named) \(platforms: ($known)\); fix it with: echo <platform> | sudo tee ($PLATFORM_NAME_FILE)"}
     }
     $found

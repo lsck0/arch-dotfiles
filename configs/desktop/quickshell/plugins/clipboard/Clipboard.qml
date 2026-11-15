@@ -34,7 +34,6 @@ Item {
   property bool gpgHidden: false
   readonly property bool gpgBusy: gpgKeysProc.running || gpgEncryptProc.running || gpgDecryptProc.running
   readonly property string gpgHelper: root.pluginDir + "/gpg.nu"
-  readonly property string pasteHelper: root.pluginDir + "/paste.nu"
 
   readonly property string historyPath: Paths.runtime + "/clipboard-history.json"
   readonly property string imagesDir: Paths.runtime + "/clipboard-images"
@@ -49,13 +48,8 @@ Item {
   readonly property int imageSweepDelayMs: 3000
   property bool imagesSwept: false
 
-  property color background: Colors.menu.background
-  property color foreground: Colors.menu.text
-  property color scrim: Colors.menu.scrim
-  property color selectedBackground: Colors.menu.selectedBackground
-  property color selectedText: Colors.menu.selectedText
-  property int contentMargin: Style.spacing.panelPadding
-  property int rowHeight: Style.space(44)
+  readonly property int contentMargin: Style.spacing.panelPadding
+  readonly property int rowHeight: Style.space(44)
 
   function open() {
     panel.screen = Util.focusedScreen()
@@ -65,7 +59,7 @@ Item {
     root.filterText = ""
     root.selectedIndex = 0
     root.cursorActive = false
-    root.disarmPointer()
+    pointerGate.reset()
     root.rebuildDisplay()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
@@ -91,8 +85,10 @@ Item {
     root.gpgUnverifiedArmed = false
   }
 
+  function rowAt(index) { return index >= 0 && index < displayModel.count ? displayModel.get(index) : null }
+
   function selectedEntryText() {
-    var row = displayModel.count > 0 ? displayModel.get(root.selectedIndex) : null
+    var row = root.rowAt(root.selectedIndex)
     return row && row.entryType === "text" ? row.fullText : ""
   }
 
@@ -184,10 +180,10 @@ Item {
   }
 
   function signatureColor(sig) {
-    if (!sig) return root.foreground
+    if (!sig) return Colors.menu.text
     if (sig.state === "good") return Colors.okText
     if (sig.state === "untrusted" || sig.state === "expired") return Colors.warnText
-    if (sig.state === "none") return root.foreground
+    if (sig.state === "none") return Colors.menu.text
     return Colors.urgentText
   }
 
@@ -243,7 +239,7 @@ Item {
 
   function cancelClearHistory() {
     root.clearConfirmOpen = false
-    root.disarmPointer()
+    pointerGate.reset()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
 
@@ -273,16 +269,9 @@ Item {
   }
 
   function confirmClearHistory() {
-    const images = root.imagePaths()
-    root.history = []
-    root.saveHistory()
-    for (let i = 0; i < images.length; i++) Quickshell.execDetached(["rm", "-f", "--", images[i]])
-    root.selectedIndex = 0
+    root.replaceHistory([])
     root.cursorActive = false
-    root.disarmPointer()
-    root.clearConfirmOpen = false
-    root.rebuildDisplay()
-    Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+    root.cancelClearHistory()
   }
 
   function removeDisplayIndex(index) {
@@ -301,16 +290,13 @@ Item {
       root.selectedIndex = displayModel.count - 2
     }
 
-    root.disarmPointer()
+    pointerGate.reset()
     root.rebuildDisplay()
   }
 
   function forgetTextHash(hash) {
     var next = root.history.filter(function(entry) { return entry.type !== "text" || Qt.md5(entry.text) !== hash })
-    if (next.length === root.history.length) return
-    root.history = next
-    root.saveHistory()
-    if (root.opened) root.rebuildDisplay()
+    if (next.length !== root.history.length) root.replaceHistory(next)
   }
 
   function rebuildDisplay() {
@@ -343,7 +329,7 @@ Item {
 
   function select(delta) {
     if (displayModel.count === 0) return
-    root.disarmPointer()
+    pointerGate.reset()
     if (!cursorActive) {
       cursorActive = true
       selectedIndex = delta < 0 ? displayModel.count - 1 : 0
@@ -356,7 +342,7 @@ Item {
 
   function selectAbsolute(index) {
     if (displayModel.count === 0) return
-    root.disarmPointer()
+    pointerGate.reset()
     root.cursorActive = true
     root.selectedIndex = Math.max(0, Math.min(index, displayModel.count - 1))
     resultList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
@@ -366,34 +352,14 @@ Item {
     root.filterText = text
     root.selectedIndex = 0
     root.cursorActive = true
-    root.disarmPointer()
-    root.rebuildDisplay()
-  }
-
-  function disarmPointer() {
     pointerGate.reset()
+    root.rebuildDisplay()
   }
 
   function selectFromPointer(index, item, mouse) {
     if (!pointerGate.moved(item, mouse)) return
     root.cursorActive = true
     root.selectedIndex = index
-  }
-
-  function activateIndex(index) {
-    if (index < 0 || index >= displayModel.count) return
-    root.copyRow(displayModel.get(index))
-  }
-
-  function pasteIndex(index) {
-    if (index < 0 || index >= displayModel.count) return
-    root.copyRow(displayModel.get(index))
-    Quickshell.execDetached([root.pasteHelper])
-  }
-
-  function openIndex(index) {
-    if (index < 0 || index >= displayModel.count) return
-    root.openRow(displayModel.get(index))
   }
 
   function copyText(text, mime) {
@@ -405,7 +371,7 @@ Item {
     copyTextProc.stdinEnabled = false
   }
 
-  function copyRow(row) {
+  function copyRow(row, paste) {
     if (!row) return
     root.close()
     if (row.entryType === "image") {
@@ -413,6 +379,7 @@ Item {
     } else if (row.copyText) {
       root.copyText(row.copyText, row.entryType === "file" ? row.mime : "")
     }
+    if (paste) Quickshell.execDetached([root.pluginDir + "/paste.nu"])
   }
 
   Process {
@@ -626,11 +593,12 @@ Item {
         else if (event.key === Qt.Key_Home) root.selectAbsolute(0)
         else if (event.key === Qt.Key_End) root.selectAbsolute(displayModel.count - 1)
         else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-          if (event.modifiers & Qt.AltModifier) root.openIndex(root.selectedIndex)
-          else if (event.modifiers & Qt.ShiftModifier) root.pasteIndex(root.selectedIndex)
-          else root.activateIndex(root.selectedIndex)
-        } else if (event.key === Qt.Key_Backspace) root.setFilter(root.filterText.slice(0, -1))
-        else if (event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127)
+          const row = root.rowAt(root.selectedIndex)
+          if (event.modifiers & Qt.AltModifier) root.openRow(row)
+          else root.copyRow(row, (event.modifiers & Qt.ShiftModifier) !== 0)
+        } else if (Util.isWordDelete(event.key, event.modifiers)) root.setFilter(Util.wordDelete(root.filterText))
+        else if (event.key === Qt.Key_Backspace) root.setFilter(root.filterText.slice(0, -1))
+        else if (Util.printable(event.text))
           root.setFilter(root.filterText + event.text)
         else return
         event.accepted = true
@@ -644,10 +612,6 @@ Item {
         z: 10
         message: "Delete entire clipboard history?"
         confirmText: "Delete"
-        background: root.background
-        foreground: root.foreground
-        scrim: root.scrim
-        selectedBackground: root.selectedBackground
         onCanceled: root.cancelClearHistory()
         onConfirmed: root.confirmClearHistory()
       }
@@ -687,7 +651,7 @@ Item {
               height: root.rowHeight
               radius: Style.shape.data
               opacity: panel.boot.rowOpacity(index)
-              color: hasCursor ? root.selectedBackground
+              color: hasCursor ? Colors.menu.selectedBackground
                 : index === root.selectedIndex ? Style.hoverFill : "transparent"
 
               Row {
@@ -723,8 +687,8 @@ Item {
                   width: parent.width - reticle.width - parent.spacing - (rowDelegate.previewImage.length > 0 ? parent.height + parent.spacing : 0)
                   height: parent.height
                   text: rowDelegate.previewText
-                  color: rowDelegate.hasCursor ? root.selectedText
-                    : rowDelegate.entryType === "image" || rowDelegate.entryType === "file" ? Colors.textDim : root.foreground
+                  color: rowDelegate.hasCursor ? Colors.menu.selectedText
+                    : rowDelegate.entryType === "image" || rowDelegate.entryType === "file" ? Colors.textDim : Colors.menu.text
                   elide: Text.ElideRight
                   verticalAlignment: Text.AlignVCenter
                   layer.enabled: rowDelegate.hasCursor && Style.fx.glow > 0
@@ -744,35 +708,16 @@ Item {
                 onClicked: {
                   root.cursorActive = true
                   root.selectedIndex = rowDelegate.index
-                  root.activateIndex(rowDelegate.index)
+                  root.copyRow(root.rowAt(rowDelegate.index))
                 }
               }
             }
 
-            Column {
-              anchors.centerIn: parent
-              spacing: Style.spacing.sm
-              opacity: displayModel.count === 0 ? 1 : 0
-              visible: opacity > 0
-              Behavior on opacity { NumberAnimation { duration: Style.motion.base; easing.type: Style.motion.fastEasing } }
-              width: parent.width * 0.8
-
-              Label {
-                text: "\u{f014c}"
-                color: Colors.accentText
-                opacity: Style.emphasis.dim
-                icon: true
-                font.pixelSize: Style.font.displayLarge
-                horizontalAlignment: Text.AlignHCenter
-                width: parent.width
-              }
-
-              Label {
-                text: "> NOTHING HERE"
-                dim: true
-                horizontalAlignment: Text.AlignHCenter
-                width: parent.width
-              }
+            EmptyState {
+              shown: displayModel.count === 0
+              glyph: "\u{f014c}"
+              glyphSize: Style.font.displayLarge
+              text: root.filterText ? "> NO MATCH" : "> NOTHING HERE"
             }
           }
         }
@@ -782,7 +727,7 @@ Item {
           height: parent.height
           clip: true
 
-          property var activeRow: displayModel.count > 0 && root.selectedIndex >= 0 && root.selectedIndex < displayModel.count ? displayModel.get(root.selectedIndex) : null
+          property var activeRow: root.rowAt(root.selectedIndex)
 
           Rectangle {
             anchors.left: parent.left
@@ -806,7 +751,7 @@ Item {
             anchors.leftMargin: root.contentMargin
             anchors.topMargin: previewLabel.height + Style.spacing.xs
             text: parent.activeRow ? parent.activeRow.paneText : ""
-            color: root.foreground
+            color: Colors.menu.text
             wrapMode: Text.WrapAnywhere
             elide: Text.ElideRight
             verticalAlignment: Text.AlignTop
@@ -835,7 +780,7 @@ Item {
               width: parent.width
               visible: text !== ""
               text: root.gpgBusy ? "> waiting for gpg (pinentry or a key touch may ask)" : root.gpgError
-              color: root.gpgBusy ? root.foreground : Colors.urgentText
+              color: root.gpgBusy ? Colors.menu.text : Colors.urgentText
               wrapMode: Text.Wrap
             }
 
@@ -843,7 +788,7 @@ Item {
               width: parent.width
               visible: root.gpgMode === "decrypt" && root.gpgResult !== null
               text: root.gpgResult ? root.signatureLine(root.gpgResult.signature) : ""
-              color: root.gpgResult ? root.signatureColor(root.gpgResult.signature) : root.foreground
+              color: root.gpgResult ? root.signatureColor(root.gpgResult.signature) : Colors.menu.text
               font.bold: true
               wrapMode: Text.Wrap
             }
@@ -861,7 +806,7 @@ Item {
                 id: plainText
                 width: plainFlick.width
                 text: root.gpgResult ? root.gpgResult.plaintext : ""
-                color: root.foreground
+                color: Colors.menu.text
                 wrapMode: Text.WrapAnywhere
                 onTextChanged: plainFlick.contentY = 0
               }
@@ -887,7 +832,7 @@ Item {
                 width: ListView.view.width
                 height: keyText.implicitHeight + Style.spacing.sm * 2
                 radius: Style.shape.data
-                color: hasCursor ? root.selectedBackground : "transparent"
+                color: hasCursor ? Colors.menu.selectedBackground : "transparent"
 
                 Label {
                   id: keyText
@@ -896,7 +841,7 @@ Item {
                   text: (keyRow.picked ? "[x] " : "[ ] ") + keyRow.modelData.uid + (keyRow.modelData.own ? "  (own)"
                     : keyRow.modelData.valid ? "" : "  (not certified)")
                     + "\n    " + keyRow.modelData.fpr
-                  color: keyRow.hasCursor ? root.selectedText : root.foreground
+                  color: keyRow.hasCursor ? Colors.menu.selectedText : Colors.menu.text
                   caption: true
                   elide: Text.ElideRight
                 }

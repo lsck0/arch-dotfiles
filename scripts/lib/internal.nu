@@ -4,8 +4,9 @@
 const REPO = path self ../..
 use log.nu *
 use cli.nu [jobs guarded theme-locked]
+use usage.nu [die]
 use complete.nu [command-table complete-run completions-run module-ids]
-use platform.nu [platform-env]
+use platform.nu [platform-env platform-files]
 use options.nu [options-events-file]
 use modules.nu [modules-packages modules-eval module-packages-every packages-every-context SECRETS_GROUP VERB_WORK_TIMEOUT]
 use online.nu [network-online]
@@ -46,6 +47,7 @@ def --wrapped "main complete" [...words: string]: nothing -> nothing {
 
 # the shell side of `dot internal complete`: zsh's _dot, or nushell externs generated from the command table
 def "main completions" [shell: string@[zsh nu]]: nothing -> nothing {
+    if $shell not-in [zsh nu] { die --misuse $"completions: no shell ($shell), one of zsh nu" }
     completions-run (commands-all) $shell
 }
 
@@ -79,7 +81,7 @@ def "main stage" []: nothing -> nothing {
 
 def mirror-list [ctx: record]: nothing -> string {
     let all = $ctx.modules | where group != $SECRETS_GROUP | update selected true | update cfg { upsert enable true }
-    let extras = glob ($REPO | path join platforms *.nuon) | where not ($it | str ends-with ".options.nuon") | each { open $in | get --optional extra_packages | default [] } | flatten
+    let extras = platform-files $REPO | each { open $in | get --optional extra_packages | default [] } | flatten
     let every = packages-every-context $REPO
     let candidates = $all | where {|m| "packages" in $m.native } | each { module-packages-every $in $every } | flatten
     let platform = $ctx.platform | update form_factor desktop | update extra_packages ($extras ++ $candidates)

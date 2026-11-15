@@ -1,6 +1,6 @@
 ---
 name: l-dotfiles-install
-description: Installing a machine from this repo (owner, generic, WSL), how the unattended boot chain runs, and adding another login on an installed machine. Load when setting up or reinstalling a machine or user, or when an install chain stopped or left a login banner.
+description: Installing a machine from this repo (owner, generic, WSL), how the unattended boot chain runs, what dot sync does on an installed machine, and adding another login. Load when setting up or reinstalling a machine or user, when an install chain stopped or left a login banner, or to know what a sync will do.
 ---
 
 # install
@@ -22,8 +22,9 @@ boots, unattended, and retires itself and its sudo drop-in at the end, or stops 
    - Answer file: `lsck0.nuon` or `lsck0.<name>.nuon` on a FAT32 partition labelled `LSCK0` (and other places), keys
      in `mirror/iso/lsck0.example.nuon`; `lsck0.*` boot parameters map to `BOOTSTRAP_*`. An answered key is not asked.
    - One answer file found: a 10 s yes/no, then it is used (an unattended boot goes on by itself); several: a menu of
-     them plus "no answer file", which takes the first after 10 s only when that one says `unattended: true`. Each
-     file is found once (by path and content); one that does not parse is listed as ignored, never offered. Only the
+     them plus "no answer file", which takes the first after 10 s only when that is the one file saying
+     `unattended: true`. Each file is found once (by path and content); one that does not parse is listed as ignored,
+     never offered. Only the
      pick's `source` files are staged, into a dir of its own; a missing one stops the install. No answer file means
      every question is asked; the second stage does not search again, and a picked file it cannot parse stops it.
      An older stub connects with the first `lsck0.nuon`'s wifi, then switches to master's stub, which asks.
@@ -115,13 +116,14 @@ into server. Each question's `env` and `default` is the reference. `dot test run
 
 ## Updating
 
-Every login runs `dot sync` (agents never do): pull `origin/master` (`sync-pull`; the submodule only with `secrets`),
-migrate, install, apply, every module's `update` verb (`update-run`), its output also in `sync.log`. Root is entered
-once for packages and the system layer, and not at all when nothing is due (`system-due`; `dot sync --system` forces
-it). Only the machine holding the `SIGNING_KEY_FINGERPRINT` secret key backs up, regenerates the generated files
-(`dot internal gen`), commits and pushes; elsewhere it stops after the apply. A non-wheel login converges its user
-layer only. An origin head without that signature merges nothing; local edits are autostashed; a conflict stops the
-run; a checkout off `master` refuses.
+Each login updates with `dot sync` (agents never run it): pull `origin/master` (`sync-pull`; the submodule only with
+`secrets`), migrate, install, apply, every module's `update` verb (`update-run`), its output also in `sync.log`. Root
+is entered once for packages and the system layer, and not at all when nothing is due (`system-due` in
+`scripts/lib/run.nu`: a failed or pending check, work in the system plan, undeclared packages, pending migrations,
+changed system secrets, else a package upgrade; `dot sync --system` forces it). Only the machine holding the
+`SIGNING_KEY_FINGERPRINT` secret key backs up, regenerates the generated files (`dot internal gen`), commits and
+pushes; elsewhere it stops after the apply. A non-wheel login converges its user layer only. An origin head without
+that signature merges nothing; local edits are autostashed; a conflict stops the run; a checkout off `master` refuses.
 
 ## Another login
 

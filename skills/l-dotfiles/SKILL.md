@@ -14,6 +14,18 @@ follow `MACHINE.md`: message the `arch-dotfiles-*` session with the exact need.
 1. `dot explain <path|package>` names the owning module.
 2. Edit that module (`configs/<group>/<module>/`, or an option in `platforms/<name>.options.nuon`), or add one:
    `l-dotfiles-add-module`, `l-dotfiles-add-package`.
-3. `DOT_SYSTEM=skip dot apply <group>/<module>`. The system layer needs root: it is recorded as pending (exit 3) and
-   Luca runs `dot apply --system`.
+3. `DOT_SYSTEM=skip dot apply <group>/<module>` converges that module's user layer. Its `system` verb needs root:
+   `dot plan --system <group>/<module>` shows what root would do, then Luca runs `dot apply --system` (his next
+   `dot sync` enters root for it too). A full `DOT_SYSTEM=skip dot apply` records the system layer as pending (exit 3).
 4. `dot test lint` before reporting.
+
+## In the checkout
+
+- Never edit a file while a `dot sync` runs: it evaluates the checkout live and then commits it. Wait for Luca's with
+  `pgrep -f '^/usr/bin/nu --no-config-file .*/scripts/dot[.]nu sync'`; a loose `pgrep -f 'dot.nu sync'` matches the
+  waiting shell itself and never ends.
+- A renamed or deleted file that `~/.local/bin` or a unit links into the repo leaves the command dangling until its
+  module's user layer is applied (step 3; `scripts/` is the module `scripts`). `find ~/.local/bin -xtype l` lists
+  what dangles.
+- A comment-only edit of a file the system layer deploys still changes its hash: the next sync enters root and runs
+  the file's `--then` (a restart). No cosmetic edits to deployed files.

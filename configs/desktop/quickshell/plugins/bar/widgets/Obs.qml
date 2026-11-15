@@ -52,6 +52,15 @@ BarWidget {
   readonly property bool degraded: streamReconnecting || dropPct >= 1 || congestion >= 0.3
   readonly property bool faulted: obsSeen && !connected && errorText !== ""
   readonly property bool obsSeen: ObsProcess.running
+  // obs-status.nu's numbers, each the property of its name
+  readonly property var numberKeys: ["streamSeconds", "recordSeconds", "recordBytes", "congestion", "droppedFrames",
+    "dropPct", "fps", "cpu", "memMb", "freeDiskMb", "frameTimeMs", "renderSkipped", "renderTotal", "encoderSkipped",
+    "encoderTotal"]
+  // the running session, empty while idle
+  readonly property string sessionLabel: streamReconnecting ? "RECONNECTING"
+    : streaming && recording ? "LIVE+REC"
+    : streaming ? "LIVE"
+    : recording ? (recordPaused ? "REC PAUSED" : "REC") : ""
 
   // the timers keep a padded minute (05:03), so the pill does not widen at 10:00
   function clock(seconds) {
@@ -108,28 +117,14 @@ BarWidget {
     recording = payload.recording === true
     recordPaused = payload.recordPaused === true
     ObsProcess.live = streaming || recording
-    streamSeconds = Number(payload.streamSeconds) || 0
-    recordSeconds = Number(payload.recordSeconds) || 0
-    recordBytes = Number(payload.recordBytes) || 0
-    congestion = Number(payload.congestion) || 0
-    droppedFrames = Number(payload.droppedFrames) || 0
-    dropPct = Number(payload.dropPct) || 0
-    fps = Number(payload.fps) || 0
-    cpu = Number(payload.cpu) || 0
-    memMb = Number(payload.memMb) || 0
-    freeDiskMb = Number(payload.freeDiskMb) || 0
-    frameTimeMs = Number(payload.frameTimeMs) || 0
-    renderSkipped = Number(payload.renderSkipped) || 0
-    renderTotal = Number(payload.renderTotal) || 0
-    encoderSkipped = Number(payload.encoderSkipped) || 0
-    encoderTotal = Number(payload.encoderTotal) || 0
+    for (const key of numberKeys) root[key] = Number(payload[key]) || 0
     scene = String(payload.scene || "")
     if (Array.isArray(payload.scenes)) scenes = payload.scenes
     if (payload.mutes && typeof payload.mutes === "object") mutes = payload.mutes
     ObsProcess.inputMutes = mutes
     ObsProcess.inputVolumes = (payload.volumes && typeof payload.volumes === "object") ? payload.volumes : ({})
     var sBytes = Number(payload.streamBytes) || 0
-    var rBytes = Number(payload.recordBytes) || 0
+    var rBytes = recordBytes
     var nowMs = Date.now()
     var deltaS = prevSampleMs > 0 ? (nowMs - prevSampleMs) / 1000 : 0
     function rate(now, prev) {
@@ -179,11 +174,8 @@ BarWidget {
   }
 
   Connections {
-    function onCommandRequested(command) {
-      root.send(command)
-    }
-
     target: ObsProcess
+    function onCommandRequested(command) { root.send(command) }
   }
 
   Timer {
@@ -235,14 +227,7 @@ BarWidget {
 
     Label {
       anchors.verticalCenter: parent.verticalCenter
-      text: {
-        if (root.faulted) return "OBS !"
-        if (root.streamReconnecting) return "RECONNECTING"
-        if (root.streaming && root.recording) return "LIVE+REC"
-        if (root.streaming) return "LIVE"
-        if (root.recording) return root.recordPaused ? "REC PAUSED" : "REC"
-        return "OBS"
-      }
+      text: root.faulted ? "OBS !" : root.sessionLabel || "OBS"
       color: root.active || root.faulted ? root.stateText : Colors.textDim
       caption: true
       font.bold: root.active
@@ -303,7 +288,7 @@ BarWidget {
           Label {
             width: parent.width
             horizontalAlignment: Text.AlignRight
-            text: root.streamReconnecting ? "RECONNECTING" : (root.streaming && root.recording ? "LIVE + REC" : (root.streaming ? "LIVE" : (root.recording ? (root.recordPaused ? "REC PAUSED" : "REC") : "IDLE")))
+            text: root.sessionLabel || "IDLE"
             color: root.active ? root.stateText : Colors.textDim
             caption: true
             font.bold: true
@@ -364,9 +349,7 @@ BarWidget {
           text: root.streaming ? "Stop" : "Go live"
           foreground: root.streaming ? root.liveActionText : Colors.menu.text
           danger: root.streaming
-          onClicked: root.send({
-            "cmd": "toggleStream"
-          })
+          onClicked: root.send({ "cmd": "toggleStream" })
         }
 
         ActionButton {
@@ -374,9 +357,7 @@ BarWidget {
           text: root.recording ? "Stop rec" : "Record"
           foreground: root.recording ? root.liveActionText : Colors.menu.text
           danger: root.recording
-          onClicked: root.send({
-            "cmd": "toggleRecord"
-          })
+          onClicked: root.send({ "cmd": "toggleRecord" })
         }
 
         ActionButton {
@@ -384,13 +365,7 @@ BarWidget {
           iconText: root.recordPaused ? "\u{f040a}" : "\u{f03e4}" // md-play / md-pause
           text: root.recordPaused ? "Resume" : "Pause"
           foreground: root.recordPaused ? root.recordingActionText : Colors.menu.text
-          onClicked: {
-            if (root.recording) {
-              root.send({
-              "cmd": "toggleRecordPause"
-            })
-            }
-          }
+          onClicked: if (root.recording) root.send({ "cmd": "toggleRecordPause" })
         }
       }
 
@@ -412,14 +387,7 @@ BarWidget {
 
             text: modelData
             selected: modelData === root.scene
-            onClicked: {
-              if (!selected) {
-                root.send({
-                "cmd": "setScene",
-                "scene": modelData
-              })
-              }
-            }
+            onClicked: if (!selected) root.send({ "cmd": "setScene", "scene": modelData })
           }
         }
       }
@@ -427,7 +395,7 @@ BarWidget {
       Label {
         width: parent.width
         visible: root.connected && root.scenes.length === 0
-        text: "No scenes reported"
+        text: "> NO SCENES"
         dim: true
         caption: true
       }

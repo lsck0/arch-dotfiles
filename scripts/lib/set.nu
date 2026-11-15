@@ -4,7 +4,7 @@ const REPO = path self ../..
 use log.nu *
 use state.nu [save-atomic]
 use options.nu [OPTION_ENABLE options-schema option-value-errors options-notify options-to-nuon]
-use pipeline.nu [pipeline-load pipeline-plan pipeline-apply]
+use pipeline.nu [module-get pipeline-load pipeline-plan pipeline-apply]
 use run.nu [link-run unlink-run admin system-part pending-exit]
 
 def toggle-script [name: string]: nothing -> path {
@@ -45,8 +45,7 @@ export def option-target [target: string]: nothing -> record {
 
 export def option-write [mod: string, key: string, value: any, machine: bool]: nothing -> record {
     let ctx = pipeline-load $REPO user
-    let m = $ctx.modules | where id == $mod | get --optional 0
-    if $m == null { error make {msg: $"no module ($mod); dot plan --modules lists them"} }
+    let m = module-get $ctx $mod
     let spec = options-schema $m | get --optional $key
     if $spec == null { error make {msg: $"($mod) has no option ($key); dot set ($mod) lists them"} }
     let bad = if $value == null { [] } else { option-value-errors $mod $key $spec $value "dot set" }

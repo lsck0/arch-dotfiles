@@ -1,7 +1,7 @@
 # Static gates behind dot test lint, check and fmt.
 
 use ../../configs/core/wallust/palette.nu
-use platform.nu [PLATFORM_FACTS]
+use platform.nu [PLATFORM_FACTS platform-files]
 use modules.nu [VERBS HOOKS names-read modules-graph ROOT_MODULES SECRETS_DATA SECRETS_GROUP]
 use pipeline.nu [pipeline-load]
 use cli.nu [jobs]
@@ -61,7 +61,7 @@ def lint-modules []: nothing -> list<string> {
     let groups = ls $configs | where type == dir | get name | path basename
     let deps = $groups | where {|g| $configs | path join $g dependencies.txt | path exists } | each {|g| [$g (names-read ($configs | path join $g dependencies.txt))] } | into record
     let bad_deps = $deps | items {|g, ds| $ds | where $it not-in $groups | each { $"configs/($g)/dependencies.txt: '($in)' is not a group" } } | flatten
-    let platforms = glob ($REPO | path join platforms '*.nuon') | where not ($it | str ends-with ".options.nuon") | each {|f|
+    let platforms = platform-files $REPO | each {|f|
         open $f | get --optional groups | default [] | where {|g| $g not-in $groups and not ($configs | path join $g mod.nu | path exists) }
         | each { $"(rel $f): groups has '($in)', not a group or module" }
     } | flatten
@@ -210,13 +210,13 @@ export def lint-stray [repo: path = $REPO]: nothing -> list<string> {
 }
 
 def lint-platform-facts []: nothing -> list<string> {
-    glob ($REPO | path join platforms '*.nuon') | where not ($it | str ends-with ".options.nuon") | sort | each {|f|
+    platform-files $REPO | each {|f|
         open $f | get --optional facts | default {} | columns | where $it not-in $PLATFORM_FACTS
         | each { $"(rel $f): fact '($in)' is not in PLATFORM_FACTS; add it there so modules see it, or it is set for nothing" }
     } | flatten
 }
 
-const NU_PITFALLS = [
+export const NU_PITFALLS = [
     [pattern why];
     ['\bexec \^' "exec takes the bare name, the caret becomes part of it"]
     ["\\$'[^']*\\\\\\(" "\\( is no escape inside $'...'"]
@@ -246,17 +246,18 @@ def nu-script [path: path]: nothing -> bool {
     $ext == "nu" or ($ext == "" and (file-shebang $path) =~ '^#!.*\bnu\b')
 }
 
-# The pitfalls in one script's text, by line; the whole text is matched first, so a clean file costs one match a pattern.
-export def nu-pitfalls-find [text: string]: nothing -> table<n: int, why: string> {
-    let hits = $NU_PITFALLS | where {|p| $text =~ $"\(?m\)($p.pattern)" }
+# The code lines of a script's text that match a row of patterns ({pattern, why}), by line; the whole text is matched
+# first, so a clean file costs one match a pattern.
+export def patterns-find [text: string, patterns: table<pattern: string, why: string>]: nothing -> table<n: int, why: string> {
+    let hits = $patterns | where {|p| $text =~ $"\(?m\)($p.pattern)" }
     if ($hits | is-empty) { return [] }
     $text | lines | enumerate | where not ($it.item | str trim --left | str starts-with "#") | each {|l|
         $hits | where {|p| $l.item =~ $p.pattern } | each {|p| {n: ($l.index + 1), why: $p.why} }
     } | flatten
 }
 
-def lint-nu-pitfalls []: nothing -> list<string> {
-    walk | where { nu-script $in } | each {|f| nu-pitfalls-find (open --raw $f) | each {|h| $"(rel $f):($h.n): ($h.why)" } } | flatten
+def lint-patterns [files: list<path>, patterns: table]: nothing -> list<string> {
+    $files | each {|f| patterns-find (open --raw $f) $patterns | each {|h| $"(rel $f):($h.n): ($h.why)" } } | flatten
 }
 
 # A script with a shebang is run directly (link-commands, unit Exec=), so it needs its executable bit in git. The
@@ -270,7 +271,7 @@ def lint-exec-bits []: nothing -> list<string> {
 
 # A link-commands script runs through its ~/.local/bin link, where a relative `use` and `path self` resolve against the
 # link's dir: it reaches its own files only after `path self | path expand`, which follows the link.
-const LINKED_RELATIVE = [
+export const LINKED_RELATIVE = [
     [pattern why];
     [`^\s*(?:export )?(?:use|source|source-env|overlay use) ['"]?(?:\.|[^\s$('"]*\.nu\b)` "a relative use resolves against the ~/.local/bin link; join it to `path self | path expand | path dirname`"]
     ['\bpath self +[^\s|)]' "`path self <rel>` resolves against the ~/.local/bin link; use `path self | path expand | path dirname --num-levels <n>`"]
@@ -294,26 +295,13 @@ export def linked-scripts []: nothing -> list<path> {
     } | flatten | where {|p| ($p | path exists) and ($p | path basename) != "mod.nu" and not ($p =~ '\.test\.(nu|sh)$') } | uniq | sort
 }
 
-# The lines of a linked script's text that reach its own dir through the link, by line.
-export def linked-relative-find [text: string]: nothing -> table<n: int, why: string> {
-    $text | lines | enumerate | where not ($it.item | str trim --left | str starts-with "#") | each {|l|
-        $LINKED_RELATIVE | where {|p| $l.item =~ $p.pattern } | each {|p| {n: ($l.index + 1), why: $p.why} }
-    } | flatten
-}
-
-def lint-linked-relative []: nothing -> list<string> {
-    linked-scripts | where ($it | str ends-with ".nu") | each {|f|
-        linked-relative-find (open --raw $f) | each {|h| $"(rel $f):($h.n): ($h.why)" }
-    } | flatten
-}
-
 # ASCII only, except where the bytes are content: a keyboard legend, prompt glyphs, KDE's own rc text, accent tables,
 # a feed's placeholder, real names.
 const ASCII_ALLOW = [
     '^configs/base/keyboard/sofle_choc/keymap\.c$' '\.age$' '^configs/core/herdr/herdr-open\.nu$'
     '^configs/socials/desktop/\.herdr-create$' '^configs/core/starship/starship\.toml$' '^configs/desktop/plasma/.*rc$'
     '^configs/programming/nvim/snippets/tex\.lua$' '^configs/programming/trmnl-claude/template-.*\.html$'
-    '^skills/l-style/SKILL\.md$' '^wallpapers/CREDITS\.md$'
+    '^wallpapers/CREDITS\.md$'
 ]
 
 def lint-ascii []: nothing -> list<string> {
@@ -452,8 +440,9 @@ def unit-tests []: nothing -> list<string> {
 export def gate-lint []: nothing -> list<string> {
     let lints = [
         {|| lint-modules } {|| lint-layers } {|| lint-exports } {|| lint-sync } {|| lint-stray } {|| lint-platform-facts }
-        {|| lint-nu-pitfalls } {|| lint-exec-bits } {|| lint-ascii } {|| lint-loaded } {|| lint-generated } {|| lint-fail-closed }
-        {|| lint-rc-escalation } {|| lint-engine-imports } {|| lint-linked-relative }
+        {|| lint-patterns (walk | where { nu-script $in }) $NU_PITFALLS } {|| lint-exec-bits } {|| lint-ascii } {|| lint-loaded }
+        {|| lint-generated } {|| lint-fail-closed } {|| lint-rc-escalation } {|| lint-engine-imports }
+        {|| lint-patterns (linked-scripts | where ($it | str ends-with ".nu")) $LINKED_RELATIVE }
     ]
     ($lints | par-each --keep-order {|lint| do $lint } | flatten) ++ (unit-tests)
 }

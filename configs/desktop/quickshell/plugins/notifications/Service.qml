@@ -297,18 +297,19 @@ Item {
     while (popupModel.count > 0) removePopup(0)
   }
 
-  function invokeDefaultAction(entry) {
+  // true when the live notification behind the row has the action and it was invoked
+  function invokeLiveAction(entry, identifier) {
     var ref = !isRestoredRow(entry) ? liveRefs[entry.originalId] : null
     try {
       for (let i = 0; ref && ref.actions && i < ref.actions.length; i++) {
         let action = ref.actions[i]
-        if (action && action.identifier === "default") {
+        if (action && String(action.identifier) === identifier) {
           action.invoke()
           return true
         }
       }
     } catch (e) {
-      console.warn("invoke default failed:", e)
+      console.warn("invoke " + identifier + " failed:", e)
     }
     return false
   }
@@ -318,7 +319,7 @@ Item {
     var entry = popupModel.get(index)
     var argv = NotificationLogic.parseExecArgv(entry.execArgv)
     if (argv) Quickshell.execDetached(["uwsm-app", "--"].concat(argv))
-    else if (!invokeDefaultAction(entry)) focusApp(entry)
+    else if (!invokeLiveAction(entry, "default")) focusApp(entry)
     removePopup(index)
   }
 
@@ -684,18 +685,7 @@ Item {
 
   function invokeAction(index, identifier) {
     if (index < 0 || index >= popupModel.count) return
-    var entry = popupModel.get(index)
-    var ref = !isRestoredRow(entry) ? liveRefs[entry.originalId] : null
-    try {
-      for (let i = 0; ref && ref.actions && i < ref.actions.length; i++) {
-        if (ref.actions[i] && String(ref.actions[i].identifier) === identifier) {
-          ref.actions[i].invoke()
-          break
-        }
-      }
-    } catch (e) {
-      console.warn("invoke action failed:", e)
-    }
+    invokeLiveAction(popupModel.get(index), identifier)
     removePopup(index)
   }
 

@@ -27,19 +27,18 @@ export def option-type-ok [type: string, value: any]: nothing -> bool {
 }
 
 def spec-errors [module: record, name: string, spec: record]: nothing -> list<string> {
-    let id = $module.id
+    let file = $"configs/($module.id)/mod.nu"
+    let where = $"($file): option ($name)"
     let cols = $spec | columns
-    let unknown = $cols | each {|k| if $k in $SPEC_KEYS { null } else { $"configs/($id)/mod.nu: option ($name): unknown spec key ($k)" } } | compact
-    let missing = $SPEC_REQUIRED | each {|k| if $k in $cols { null } else { $"configs/($id)/mod.nu: option ($name): no ($k)" } } | compact
-    let apply = $spec.apply? | default $OPTION_APPLY_DEFAULT
-    let scope = $spec.scope? | default $OPTION_SCOPE_DEFAULT
+    let unknown = $cols | where $it not-in $SPEC_KEYS | each { $"($where): unknown spec key ($in)" }
+    let missing = $SPEC_REQUIRED | where $it not-in $cols | each { $"($where): no ($in)" }
     let enums = [
-        (if $apply in $OPTION_APPLY { null } else { $"configs/($id)/mod.nu: option ($name): apply ($apply) is not one of ($OPTION_APPLY | str join ', ')" })
-        (if $scope in $OPTION_SCOPE { null } else { $"configs/($id)/mod.nu: option ($name): scope ($scope) is not one of ($OPTION_SCOPE | str join ', ')" })
+        (if $spec.apply not-in $OPTION_APPLY { $"($where): apply ($spec.apply) is not one of ($OPTION_APPLY | str join ', ')" })
+        (if $spec.scope not-in $OPTION_SCOPE { $"($where): scope ($spec.scope) is not one of ($OPTION_SCOPE | str join ', ')" })
         # dot set applies a live option through the apply verb or the toggle; with neither it changes nothing
-        (if $apply != "live" or "apply" in $module.native or $spec.toggle? != null { null } else { $"configs/($id)/mod.nu: option ($name): apply live needs an apply verb or a toggle" })
+        (if $spec.apply == "live" and "apply" not-in $module.native and $spec.toggle? == null { $"($where): apply live needs an apply verb or a toggle" })
     ] | compact
-    let default_bad = if ($missing | is-empty) { option-value-errors $id $name $spec $spec.default $"configs/($id)/mod.nu" } else { [] }
+    let default_bad = if ($missing | is-empty) { option-value-errors $module.id $name $spec $spec.default $file } else { [] }
     $unknown ++ $missing ++ $enums ++ $default_bad
 }
 
@@ -80,7 +79,7 @@ def module-options-built [module: record]: nothing -> record {
     }
     {
         schema: ($built | each {|o| [$o.name $o.spec] } | into record)
-        values: ($built | each {|o| [$o.name $o.spec.default] } | into record)
+        values: ($built | each {|o| [$o.name $o.spec.default?] } | into record)
         sources: ($built | each {|o| [$o.name default] } | into record)
         errors: ($built | get errors | flatten)
     }

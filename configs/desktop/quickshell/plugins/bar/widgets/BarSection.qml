@@ -72,15 +72,15 @@ Repeater {
 
     readonly property var settings: root.bar && root.bar.shellHost
       ? root.bar.shellHost.settingsForWidget(modelData) : ({})
-    onSettingsChanged: if (widget && "settings" in widget) widget.settings = settings
-    onDroppedChanged: if (widget && "dropped" in widget) widget.dropped = dropped
+    onSettingsChanged: if (widget) widget.settings = settings
+    onDroppedChanged: if (widget) widget.dropped = dropped
 
     onLoaded: {
       root.loadedRevision++
       if (!widget) return
-      if ("bar" in widget) widget.bar = root.bar
-      if ("settings" in widget) widget.settings = widgetLoader.settings
-      if ("dropped" in widget) widget.dropped = widgetLoader.dropped
+      widget.bar = root.bar
+      widget.settings = widgetLoader.settings
+      widget.dropped = widgetLoader.dropped
     }
   }
 }

@@ -14,15 +14,8 @@ Item {
   readonly property int taskMax: 12
   readonly property int reminderMax: 4
   readonly property int cardWidth: Style.space(520)
-  readonly property var reminderRows: {
-    var out = []
-    var list = TimerState.reminders || []
-    for (let i = 0; i < list.length && i < root.reminderMax; i++) out.push({
-      "label": String(list[i].label || ""),
-      "remaining": String(list[i].remaining || "")
-    })
-    return out
-  }
+  readonly property var reminderRows: (TimerState.reminders || []).slice(0, root.reminderMax)
+    .map(r => ({ label: String(r.label || ""), remaining: String(r.remaining || "") }))
   readonly property var tasks: Array.prototype.slice.call(TaskState.tasks, 0, root.taskMax)
   readonly property int eventMax: 8
   readonly property var allDayAll: CalendarState.events.filter(e => e.allDay)

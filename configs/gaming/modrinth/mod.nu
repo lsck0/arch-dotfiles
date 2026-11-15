@@ -3,6 +3,8 @@ use module.nu *
 # links into ~/sync depend on what syncthing and the launcher created since, not on any input
 export const meta = {packages: {pacman: [modrinth-app sqlite]}, backup: {secrets: true}, volatile: true}
 
+const LOGIN_TABLES = [minecraft_users modrinth_users minecraft_device_tokens]
+
 def paths []: nothing -> record {
     let data = xdg data ModrinthApp
     let saved = $env.DOTFILES | path join configs secrets keys modrinth
@@ -53,10 +55,19 @@ export def relocate []: nothing -> nothing {
     }
 }
 
+# The login alone decides a new copy: the launcher rewrites the other tables (caches, instances) on every start, and
+# each copy is the whole database in the secrets repo's history. Immutable for the saved copy: a plain open of a wal
+# database leaves -shm and -wal files beside it.
+def logins [db: string]: nothing -> record {
+    ^sqlite3 $db ...($LOGIN_TABLES | each { $"select * from ($in) order by 1" }) | complete | select exit_code stdout
+}
+
 export def backup [cfg: record]: nothing -> nothing {
     let p = paths
     if (which modrinth-app | is-empty) or not ($p.db | path exists) { return }
     secret-seed-guard ($p.data | path join .from-secrets) $p.seed $p.data
+    let live = logins $"file:($p.db)?mode=ro"
+    if $live.exit_code == 0 and $live == (logins $"file:($p.saved)?immutable=1") { return }
     mkdir ($p.saved | path dirname)
     # into a fresh file renamed over the copy: a failed .backup leaves the last good one, not none
     let next = $"($p.saved).new"

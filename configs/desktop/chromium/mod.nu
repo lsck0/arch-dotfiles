@@ -5,8 +5,8 @@ export const meta = {packages: {pacman: [chromium browserpass browserpass-chromi
 const POLICY = "/etc/chromium/policies/managed/policy.json"
 const CHROMIUM_LIB = "/usr/lib/chromium"
 const SEARCH_OFF_HOMELAB = {name: DuckDuckGo, url: "https://duckduckgo.com/?q={searchTerms}"}
-# Chromium Private is the Default profile, Chromium Streaming keeps stream logins and history off it; Chromium Work
-# (secrets/capgemini) has a data dir of its own. Each name shows in the launcher and chromium's profile menu.
+# Chromium Private is the Default profile, Chromium Streaming keeps stream logins and history off it; the owner's work
+# profile (a secrets module) has a data dir of its own. Each name shows in the launcher and chromium's profile menu.
 const PROFILES = {Default: Private, Streaming: Streaming}
 
 # Forces system_theme and the profile's name; chromium creates Preferences on a profile's first start and rewrites it on

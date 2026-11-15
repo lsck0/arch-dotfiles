@@ -274,7 +274,7 @@ BarWidget {
           foreground: Colors.urgentText
           onClicked: {
             DiscordControl.send("disconnect")
-            if (root.bar) root.bar.closePanel(root.moduleName)
+            root.closePanel()
           }
         }
       }

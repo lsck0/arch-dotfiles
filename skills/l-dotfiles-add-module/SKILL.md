@@ -1,6 +1,6 @@
 ---
 name: l-dotfiles-add-module
-description: Writing a configs/<group>/<module>/mod.nu (meta with deps and packages, typed options, the fixed verbs, declarations and helpers), how dot picks it up, and running it alone. Load when adding, porting or restructuring a module, or when a new program, service or setting needs a home in the dotfiles.
+description: Writing a configs/<group>/<module>/mod.nu (meta with deps and packages, typed options, the fixed verbs, declarations and helpers), how dot picks it up, and running it alone. Load when adding, porting or restructuring a module, or when a new program, service or setting needs a module of its own. Only a package for an existing module is l-dotfiles-add-package.
 ---
 
 # add-module
@@ -27,7 +27,7 @@ export const meta = {
     inputs: [configs/secrets/state/repositories]      # more input-hash files (never its own package's binary)
     volatile: false                                   # true: always evaluated (reads machine state)
     backup: {secrets: true}                           # its backup verb writes into secrets: runs only unlocked
-    secrets: ["alloy-{host}"]                         # what its system verb reads of keys/ (root gets only these)
+    secrets: ["alloy/{host}"]                         # what its system verb reads of keys/ (root gets only these)
     phase: early                                      # install stage: early (base/pacman) or install (base/yubikey)
     barrier: {run: boot-commit, watch: [/etc/x]}      # an export run once after a layer's apply that changed a
                                                       # watched path or a decl's --notify <this id> flagged

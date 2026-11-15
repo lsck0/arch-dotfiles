@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import Quickshell
 import qs.Commons
 import qs.Ui
 
@@ -338,10 +337,7 @@ BarWidget {
           if (root.reminders.length) parts.push(root.reminders.length + (root.reminders.length === 1 ? " reminder" : " reminders"))
           return parts.join(" :: ")
         }
-        onActivated: {
-          if (root.bar) root.bar.closePanel(root.moduleName)
-          Quickshell.execDetached(Paths.ipcCall("shell", "summon", "panel.reminders", "{}"))
-        }
+        onActivated: root.summon("panel.reminders", "{}")
       }
     }
   }

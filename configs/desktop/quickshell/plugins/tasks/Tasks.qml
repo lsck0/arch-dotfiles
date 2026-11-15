@@ -24,18 +24,10 @@ Item {
   }
 
   readonly property var filtered: {
-    var list = TaskState.tasks || []
     var needle = root.filterText.trim().toLowerCase()
-    var out = []
-    for (let i = 0; i < list.length; i++) {
-      let t = list[i]
-      if (needle) {
-        let hay = (t.desc + " " + t.project + " " + t.tags.join(" ")).toLowerCase()
-        if (hay.indexOf(needle) < 0) continue
-      }
-      out.push(t)
-    }
-    return out
+    return (TaskState.tasks || []).filter(function (t) {
+      return !needle || (t.desc + " " + t.project + " " + t.tags.join(" ")).toLowerCase().indexOf(needle) >= 0
+    })
   }
 
   readonly property var selectedTask: filtered.length > 0 && selectedIndex >= 0 && selectedIndex < filtered.length

@@ -249,6 +249,9 @@ return {
                 },
             })
 
+            -- fetches missing flake inputs itself, in place of a prompt on every open
+            vim.lsp.config("nil_ls", { settings = { ["nil"] = { nix = { flake = { autoArchive = true } } } } })
+
             vim.lsp.config("texlab", {
                 settings = {
                     texlab = {

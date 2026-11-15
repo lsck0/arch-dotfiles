@@ -70,13 +70,7 @@ Item {
     function snooze(minutes: int): string { return root.snoozeNewest(minutes) ? "ok" : "none" }
   }
 
-  readonly property var mainScreen: {
-    var screens = Quickshell.screens
-    var name = root.shell ? root.shell.mainScreenName : ""
-    for (let i = 0; i < screens.length; i++)
-      if (String(screens[i].name) === name) return screens[i]
-    return screens.length > 0 ? screens[0] : null
-  }
+  readonly property var mainScreen: Util.screenNamed(root.shell ? root.shell.mainScreenName : "") || Quickshell.screens[0] || null
 
   property bool closing: false
 
@@ -240,19 +234,16 @@ Item {
                   anchors.right: parent.right
                   spacing: Style.spacing.xs
 
-                  Button {
-                    variant: "chip"
-                    visible: card.modelData.kind === "reminder"
-                    text: "Snooze " + root.snoozeShortMin + " min"
-                    tooltipText: "5"
-                    onClicked: root.snoozeAt(card.index, root.snoozeShortMin)
-                  }
-                  Button {
-                    variant: "chip"
-                    visible: card.modelData.kind === "reminder"
-                    text: "Snooze " + root.snoozeLongMin + " min"
-                    tooltipText: "1"
-                    onClicked: root.snoozeAt(card.index, root.snoozeLongMin)
+                  Repeater {
+                    model: card.modelData.kind === "reminder" ? [[root.snoozeShortMin, "5"], [root.snoozeLongMin, "1"]] : []
+
+                    Button {
+                      required property var modelData
+                      variant: "chip"
+                      text: "Snooze " + modelData[0] + " min"
+                      tooltipText: modelData[1]
+                      onClicked: root.snoozeAt(card.index, modelData[0])
+                    }
                   }
                   Button {
                     variant: "chip"

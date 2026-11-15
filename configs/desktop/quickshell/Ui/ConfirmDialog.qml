@@ -10,10 +10,10 @@ Item {
   property string cancelText: "Cancel"
   property string confirmText: "Confirm"
   property int selectedIndex: 0
-  property color background: Colors.background
-  property color foreground: Colors.foreground
-  property color scrim: Colors.scrim
-  property color selectedBackground: Util.alpha(Colors.foreground, 0.08)
+  property color background: Colors.menu.background
+  property color foreground: Colors.menu.text
+  property color scrim: Colors.menu.scrim
+  property color selectedBackground: Colors.menu.selectedBackground
   property color selectedText: Colors.menu.selectedText
   property color accent: Colors.accent
   property string fontFamily: Style.font.family

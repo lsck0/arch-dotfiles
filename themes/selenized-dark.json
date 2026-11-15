@@ -1,0 +1,11 @@
+{
+  "wallpaper": "claude-monet-impression-sunrise.jpg",
+  "pair": "selenized-light",
+  "special": { "background": "#103c48", "foreground": "#adbcbc", "cursor": "#adbcbc" },
+  "colors": {
+    "color0": "#184956", "color1": "#fa5750", "color2": "#75b938", "color3": "#dbb32d",
+    "color4": "#5ca2f8", "color5": "#f275be", "color6": "#41c7b9", "color7": "#91a3a8",
+    "color8": "#648690", "color9": "#ff665c", "color10": "#84c747", "color11": "#ebc13d",
+    "color12": "#58a3ff", "color13": "#ff84cd", "color14": "#53d6c7", "color15": "#cad8d9"
+  }
+}

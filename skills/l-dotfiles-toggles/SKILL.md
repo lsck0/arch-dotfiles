@@ -1,6 +1,6 @@
 ---
 name: l-dotfiles-toggles
-description: Adding an on/off or n-state switch as scripts/toggles/toggle-<name>.nu with lib.nu, its root half, and wiring it into quickshell and the menu. Load when adding or changing a toggle.
+description: Adding an on/off or n-state switch as scripts/toggles/toggle-<name>.nu with lib.nu, its root half, and wiring it into quickshell and the menu. Load when adding or changing a toggle. Flipping one for Luca is l-dotfiles-desktop-control.
 ---
 
 # toggles

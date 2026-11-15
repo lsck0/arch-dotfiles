@@ -77,8 +77,7 @@ Item {
     root.opened = true
     root.expandedId = ""
     root.editingId = ""
-    root.notice = ""
-    root.noticeIsError = false
+    root.say("", false)
     root.updateArmed = false
     root.load()
     statusProc.refresh()
@@ -141,6 +140,16 @@ Item {
     if (over > 0) list.contentY = Math.min(list.contentY + over, list.originY + list.contentHeight - list.height)
   }
 
+  function focusRow(index) {
+    root.pane = "rows"
+    root.rowIndex = index
+  }
+
+  function say(text, isError) {
+    root.notice = text
+    root.noticeIsError = isError
+  }
+
   function moveRow(delta) {
     var direction = delta > 0 ? 1 : -1
     var start = Math.max(0, Math.min(root.rows.length - 1, root.rowIndex + delta))
@@ -159,8 +168,6 @@ Item {
     root.choiceCursor = Math.max(0, root.choiceList.indexOf(root.valueOf(root.cursorRow)))
   }
 
-  function printable(text) { return text && text.length === 1 && text.charCodeAt(0) >= 32 && text.charCodeAt(0) !== 127 }
-
   function update() { root.runSystem(Object.assign({ kind: "action" }, Schema.systemActions[0]), "") }
 
   // Ctrl+U runs a full sync; arm on the first press and run on the second, so one stray keystroke never starts one
@@ -172,8 +179,7 @@ Item {
       return
     }
     root.updateArmed = true
-    root.notice = root.updateArmedNotice
-    root.noticeIsError = false
+    root.say(root.updateArmedNotice, false)
     updateDisarm.restart()
   }
 
@@ -260,7 +266,7 @@ Item {
       if (vertical !== 0 || horizontal !== 0) root.moveChoice(vertical !== 0 ? vertical : horizontal)
       else if ((key === Qt.Key_Return || key === Qt.Key_Enter) && root.choiceList.length > 0) root.change(row, root.choiceList[root.choiceCursor])
       else if (key === Qt.Key_Backspace) root.filterChoices(root.choiceQuery.slice(0, -1))
-      else if (root.printable(text)) root.filterChoices(root.choiceQuery + text)
+      else if (Util.printable(text)) root.filterChoices(root.choiceQuery + text)
       else return false
       return true
     }
@@ -288,7 +294,7 @@ Item {
       if (root.query) root.setQuery(root.query.slice(0, -1))
       return true
     }
-    if (root.printable(text)) {
+    if (Util.printable(text)) {
       root.setQuery(root.query + text)
       return true
     }
@@ -332,8 +338,7 @@ Item {
 
   function beginEdit(row) {
     root.expandedId = ""
-    root.rowIndex = root.rows.indexOf(row)
-    root.pane = "rows"
+    root.focusRow(root.rows.indexOf(row))
     root.draft = Schema.toText(row.option, root.valueOf(row))
     root.editingId = row.id
   }
@@ -395,8 +400,7 @@ Item {
     var kept = {}
     for (let id in root.pending) if (root.pending[id].option.apply === "live") kept[id] = root.pending[id]
     root.pending = kept
-    root.notice = ""
-    root.noticeIsError = false
+    root.say("", false)
   }
 
   function browse(row) {
@@ -468,8 +472,7 @@ Item {
         + (needs === "relogin" ? ", log out and back in to finish" : needs === "reboot" ? ", reboot to finish" : ""))
     }
     if (failed > 0) parts.push(failed + " failed, see the marked options")
-    root.notice = parts.concat(notes).join("; ")
-    root.noticeIsError = failed > 0
+    root.say(parts.concat(notes).join("; "), failed > 0)
   }
 
   // one toggle process at a time: a press while one runs waits its turn, marked busy; the running one's own press is
@@ -540,10 +543,9 @@ Item {
       // 3: what could run did, the rest waits (a module on its packages, or the prompt was dismissed); the notes say which
       var pending = exitCode === root.exitSystemPending
       if (exitCode === 0) root.systemPending = false
-      root.notice = exitCode === 0 || pending
-        ? [pending ? "system part not fully applied, the rest is pending" : "system part applied"].concat(root.notesOf(systemApplyProc)).join("; ")
-        : "apply failed: " + root.lastLine(systemApplyProc)
-      root.noticeIsError = !(exitCode === 0 || pending)
+      if (exitCode === 0 || pending)
+        root.say([pending ? "system part not fully applied, the rest is pending" : "system part applied"].concat(root.notesOf(systemApplyProc)).join("; "), false)
+      else root.say("apply failed: " + root.lastLine(systemApplyProc), true)
       root.load()
     }
   }
@@ -552,11 +554,9 @@ Item {
     id: systemProc
     property string label: ""
     onExited: function (exitCode) {
-      var last = root.lastLine(systemProc)
-      root.notice = exitCode === 0 || exitCode === root.exitSystemPending
-        ? [systemProc.label + " done"].concat(root.notesOf(systemProc)).join("; ")
-        : systemProc.label + " failed: " + last
-      root.noticeIsError = !(exitCode === 0 || exitCode === root.exitSystemPending)
+      if (exitCode === 0 || exitCode === root.exitSystemPending)
+        root.say([systemProc.label + " done"].concat(root.notesOf(systemProc)).join("; "), false)
+      else root.say(systemProc.label + " failed: " + root.lastLine(systemProc), true)
       root.load()
       dotStatusProc.run()
     }
@@ -580,10 +580,7 @@ Item {
     id: toggleProc
     property string name: ""
     onExited: function (exitCode) {
-      if (exitCode !== 0) {
-        root.notice = toggleProc.name + " failed: " + root.lastLine(toggleProc)
-        root.noticeIsError = true
-      }
+      if (exitCode !== 0) root.say(toggleProc.name + " failed: " + root.lastLine(toggleProc), true)
       root.toggleQueue.done()
       statusProc.refresh()
     }
@@ -901,8 +898,7 @@ Item {
                   hoverEnabled: true
                   cursorShape: Qt.PointingHandCursor
                   onClicked: {
-                    root.pane = "rows"
-                    root.rowIndex = slot.index
+                    root.focusRow(slot.index)
                     root.runToggle(parent.toggle)
                   }
                 }
@@ -949,7 +945,7 @@ Item {
 
                 MouseArea {
                   anchors.fill: parent
-                  onClicked: { root.pane = "rows"; root.rowIndex = slot.index }
+                  onClicked: root.focusRow(slot.index)
                 }
               }
             }
@@ -963,8 +959,7 @@ Item {
                 on: slot.hasCursor
                 enabled: !systemProc.running
                 onActivated: {
-                  root.pane = "rows"
-                  root.rowIndex = slot.index
+                  root.focusRow(slot.index)
                   root.runSystem(slot.modelData, "")
                 }
               }
@@ -986,7 +981,7 @@ Item {
                   id: driftMouse
                   anchors.fill: parent
                   hoverEnabled: true
-                  onClicked: { root.pane = "rows"; root.rowIndex = slot.index }
+                  onClicked: root.focusRow(slot.index)
                 }
 
                 Label {
@@ -1047,8 +1042,7 @@ Item {
                       danger: modelData === "reset" && drift.confirming
                       enabled: !systemProc.running
                       onClicked: {
-                        root.pane = "rows"
-                        root.rowIndex = slot.index
+                        root.focusRow(slot.index)
                         root.driftChoice = Util.mapSet(root.driftChoice, drift.entry.id, modelData)
                         root.runSystem(drift.entry, modelData)
                       }
@@ -1073,15 +1067,14 @@ Item {
                 editing: root.editingId === slot.modelData.id
                 draft: root.draft
 
-                onSelectRequested: { root.pane = "rows"; root.rowIndex = slot.index }
+                onSelectRequested: root.focusRow(slot.index)
                 onChangeRequested: function (picked) { root.change(slot.modelData, picked) }
                 onResetRequested: root.reset(slot.modelData)
                 onEditRequested: root.beginEdit(slot.modelData)
                 onDraftEdited: function (text) { root.draft = text }
                 onSubmitted: root.submitEdit()
                 onExpandRequested: {
-                  root.pane = "rows"
-                  root.rowIndex = slot.index
+                  root.focusRow(slot.index)
                   if (root.expandedId === slot.modelData.id) root.expandedId = ""
                   else root.activate(slot.modelData)
                 }

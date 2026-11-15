@@ -3,9 +3,10 @@
 # whose frontmatter does not parse (an unquoted ": " in a description), Claude Code loads it anyway.
 
 const SKILLS = path self .
+const OWNER_SKILLS = path self ../configs/secrets/skills
 
 def main []: nothing -> nothing {
-    let bad = glob ($SKILLS | path join "l-*" SKILL.md) | sort | each {|file|
+    let bad = [$SKILLS $OWNER_SKILLS] | each { glob ($in | path join "l-*" SKILL.md) } | flatten | sort | each {|file|
         let dir = $file | path dirname | path basename
         let parts = open --raw $file | split row --regex '(?m)^---\s*$'
         let front = try { $parts | get 1 | from yaml } catch { null }

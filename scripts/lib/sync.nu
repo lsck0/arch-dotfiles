@@ -1,12 +1,14 @@
 # The git half of dot sync: verified pull, regenerated files, signed generation commit, push with retry.
 
 use log.nu *
-use secrets.nu [secret-is-plaintext secrets-wanted OWNER_WITNESS]
+use secrets.nu [secret-is-plaintext secret-bytes-locked secrets-keys-chmod secrets-wanted OWNER_WITNESS]
 use state.nu [state-dir]
 use gate.nu [lint-stray]
 
 const BRANCH = "master"
 const PUSH_TRIES = 3
+const PUSH_REJECTED = "! [rejected]"
+const SECRETS_GITLINK = "configs/secrets"
 const BOOTSTRAP = "bootstrap.sh"
 export const FINGERPRINT_VALUE = '[0-9A-F]{40}'
 const LUKS_HEADER_MAX_AGE_DAYS = 90
@@ -54,10 +56,20 @@ export def sync-pull [repo: path]: nothing -> nothing {
     secrets-follow $repo
 }
 
+# The secrets revision rev's tree records, null without one.
+def secrets-recorded [repo: path, rev: string]: nothing -> any {
+    ^git -C $repo ls-tree $rev $SECRETS_GITLINK | parse --regex '^\S+ commit (?<sha>[0-9a-f]+)' | get --optional 0.sha
+}
+
 def secrets-follow [repo: path]: nothing -> nothing {
     let secrets = $repo | path join configs secrets
     if not (secrets-wanted) or not ($secrets | path join .git | path exists) { return }
-    let recorded = ^git -C $repo ls-tree HEAD configs/secrets | parse --regex '^\S+ commit (?<sha>[0-9a-f]+)' | get --optional 0.sha
+    secrets-follow-recorded $repo $secrets
+    secrets-keys-chmod $secrets
+}
+
+def secrets-follow-recorded [repo: path, secrets: path]: nothing -> nothing {
+    let recorded = secrets-recorded $repo HEAD
     let current = ^git -C $secrets rev-parse HEAD | str trim
     if $recorded == null or $recorded == $current { return }
     if (^git -C $secrets cat-file -e $"($recorded)^{commit}" | complete).exit_code != 0 {
@@ -95,8 +107,9 @@ export def sync-can-sign [repo: path]: nothing -> bool {
     (^gpg --batch --list-secret-keys (fingerprint $repo) | complete).exit_code == 0
 }
 
-# The changed files of the secrets checkout a commit would store unencrypted: all but keys/ and state/ (git-crypt's),
-# its own .git-crypt and .gitattributes, and the files inside a module dir (modules: the top dirs holding a mod.nu).
+# The changed files of the secrets checkout a commit would store unencrypted: all but keys/ (git-crypt's), state/
+# (plaintext app state), its own .git-crypt and .gitattributes, and the files inside a module dir (modules: the top dirs
+# holding a mod.nu).
 export def secrets-stray [changed: list<string>, modules: list<string>]: nothing -> list<string> {
     $changed | where {|f|
         let parts = $f | path split
@@ -105,13 +118,88 @@ export def secrets-stray [changed: list<string>, modules: list<string>]: nothing
     }
 }
 
+# The files a commit of the secrets checkout would add or change: staged, unstaged and untracked, deletions left out.
+export def secrets-changed [secrets: path]: nothing -> list<string> {
+    ^git -C $secrets status --porcelain -z --untracked-files=all --no-renames | split row (char nul)
+    | where ($it | str length) > 3 | each { str substring 3.. }
+    | where {|f| $secrets | path join $f | path exists }
+}
+
+# The staged files under keys/ whose blob git-crypt did not encrypt: with a .gitattributes that lost its filter line
+# the commit would store them in clear.
+export def secrets-staged-clear [secrets: path]: nothing -> list<string> {
+    ^git -C $secrets diff --cached --name-only -z --no-renames --diff-filter=d -- keys | split row (char nul)
+    | where {|f| $f != "" and not (^git -C $secrets cat-file blob $":($f)" | into binary | secret-bytes-locked) }
+}
+
 def secrets-plaintext-guard [secrets: path]: nothing -> nothing {
-    let changed = ^git -C $secrets ls-files -z --others --modified --exclude-standard | split row (char nul)
-        | where {|f| $f != "" and ($secrets | path join $f | path exists) }
+    let changed = secrets-changed $secrets
     let modules = $changed | each { path split | first } | uniq | where {|d| $secrets | path join $d mod.nu | path exists }
     let stray = secrets-stray $changed $modules
     if ($stray | is-not-empty) {
         error make {msg: $"secrets: ($stray | str join ' ') would be committed unencrypted: move it under configs/secrets/keys/ (a credential) or state/"}
+    }
+}
+
+def secrets-commit [secrets: path]: nothing -> nothing {
+    if (^git -C $secrets status --porcelain | str trim | is-empty) { return }
+    secrets-plaintext-guard $secrets
+    ^git -C $secrets add -A
+    let clear = secrets-staged-clear $secrets
+    if ($clear | is-not-empty) {
+        ^git -C $secrets reset --quiet
+        error make {msg: $"secrets: ($clear | str join ' ') would be committed in clear, nothing committed: check ($secrets)/.gitattributes and git -C ($secrets) crypt status"}
+    }
+    ^git -C $secrets commit -m "chore(sync): back up live app state"
+}
+
+# The secrets revision origin's head names, checked to be a signed generation each time it is read, and fetched into
+# the secrets checkout. Secrets commits are unsigned and the module dirs there reach root, so this is the only commit
+# of the secrets origin the checkout ever moves onto: never that origin's own head.
+def secrets-named [repo: path, secrets: path]: nothing -> string {
+    origin-verified $repo
+    let named = secrets-recorded $repo $"origin/($BRANCH)"
+    if $named == null { error make {msg: $"secrets: origin/($BRANCH) records no ($SECRETS_GITLINK)"} }
+    let fetched = ^git -C $secrets fetch --quiet origin | complete
+    if (^git -C $secrets cat-file -e $"($named)^{commit}" | complete).exit_code != 0 {
+        error make {msg: $"secrets: origin's generation names ($named), which the secrets origin does not hold: (error-brief $fetched.stderr)"}
+    }
+    $named
+}
+
+# git's own fatal/error line: git-lfs prints a harmless locking-api warning first, which hid the cause
+def push-error [stderr: string]: nothing -> string {
+    let why = $stderr | lines | where $it =~ '^(fatal|error): ' | str join " " | str trim
+    if $why == "" { error-brief $stderr } else { $why }
+}
+
+# Pushes the secrets checkout; a rejected push rebases it onto the revision origin's signed generation names (another
+# machine's sync) and fails when the secrets origin holds more than that.
+export def secrets-push [repo: path, secrets: path]: nothing -> nothing {
+    mut tries = 0
+    mut push = ^git -C $secrets push origin $"HEAD:($BRANCH)" | complete
+    while $push.exit_code != 0 {
+        if not ($push.stderr | str contains $PUSH_REJECTED) { error make {msg: $"secrets: push failed: (push-error $push.stderr)"} }
+        $tries += 1
+        if $tries > $PUSH_TRIES { error make {msg: $"secrets: push still rejected after ($PUSH_TRIES) rebases"} }
+        origin-fetch $repo
+        let named = secrets-named $repo $secrets
+        if (^git -C $secrets merge-base --is-ancestor $named HEAD | complete).exit_code == 0 {
+            error make {msg: $"secrets origin holds commits no signed generation names, nothing adopted: finish the dot sync that pushed them, or inspect git -C ($secrets) log origin/($BRANCH)"}
+        }
+        if (^git -C $secrets rebase $named | complete).exit_code != 0 {
+            ^git -C $secrets rebase --abort
+            error make {msg: $"secrets: this machine's backup and origin's ($named) changed the same file, resolve it in ($secrets)"}
+        }
+        $push = ^git -C $secrets push origin $"HEAD:($BRANCH)" | complete
+    }
+}
+
+# Fast-forwards the secrets checkout to the revision origin's signed generation names; origin-fetch ran before.
+export def secrets-fast-forward [repo: path, secrets: path]: nothing -> nothing {
+    let named = secrets-named $repo $secrets
+    if (^git -C $secrets merge --ff-only --quiet $named | complete).exit_code != 0 {
+        error make {msg: $"secrets: ($secrets) and origin's ($named) diverged after pushing, nothing committed; reconcile it, then dot sync again"}
     }
 }
 
@@ -127,21 +215,8 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
     luks-header-sync $repo
     let secrets = $repo | path join configs secrets
     if (secrets-wanted) and (secret-is-plaintext ($repo | path join $OWNER_WITNESS)) {
-        if (^git -C $secrets status --porcelain | str trim | is-not-empty) {
-            secrets-plaintext-guard $secrets
-            ^git -C $secrets add -A
-            ^git -C $secrets commit -m "chore(sync): back up live app state"
-        }
-        mut tries = 0
-        while (^git -C $secrets push origin $"HEAD:($BRANCH)" | complete).exit_code != 0 {
-            $tries += 1
-            if $tries > $PUSH_TRIES { error make {msg: $"secrets: push still rejected after ($PUSH_TRIES) rebases"} }
-            ^git -C $secrets fetch --quiet origin
-            if (^git -C $secrets rebase $"origin/($BRANCH)" | complete).exit_code != 0 {
-                ^git -C $secrets rebase --abort
-                error make {msg: $"secrets: this machine's backup and origin/($BRANCH) changed the same file, resolve it in ($secrets)"}
-            }
-        }
+        secrets-commit $secrets
+        secrets-push $repo $secrets
     }
 
     sync-catch-up $repo
@@ -168,22 +243,13 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
     while $push.exit_code != 0 {
         $tries += 1
         if $tries > $PUSH_TRIES { error make {msg: $"push still rejected after ($PUSH_TRIES) retries"} }
-        if not ($push.stderr | str contains "! [rejected]") {
-            # git's own fatal/error line: git-lfs prints a harmless locking-api warning first, which hid the cause
-            let why = $push.stderr | lines | where $it =~ '^(fatal|error): ' | str join " " | str trim
-            let why = if $why == "" { error-brief $push.stderr } else { $why }
-            error make {msg: $"push failed, nothing rewound: ($why)"}
-        }
+        if not ($push.stderr | str contains $PUSH_REJECTED) { error make {msg: $"push failed, nothing rewound: (push-error $push.stderr)"} }
         if $committed { ^git -C $repo reset --soft HEAD~1 }
+        origin-fetch $repo
         # move the secrets submodule first, so the stash carries no gitlink change
-        if (secrets-wanted) and ($secrets | path join .git | path exists) {
-            ^git -C $secrets fetch --quiet origin
-            if (^git -C $secrets merge --ff-only --quiet $"origin/($BRANCH)" | complete).exit_code != 0 {
-                error make {msg: $"secrets: ($secrets) and origin/($BRANCH) diverged after pushing, nothing committed; reconcile it, then dot sync again"}
-            }
-        }
+        if (secrets-wanted) and ($secrets | path join .git | path exists) { secrets-fast-forward $repo $secrets }
         ^git -C $repo stash push --quiet --include-untracked
-        try { sync-catch-up $repo } catch {|e|
+        try { origin-merge $repo } catch {|e|
             error make {msg: $"($e.msg)\nthis machine's changes are stashed, not lost: git -C ($repo) stash pop, then dot sync again"}
         }
         if (^git -C $repo stash pop --quiet | complete).exit_code != 0 {
@@ -249,9 +315,17 @@ export def luks-header-sync [repo: path]: nothing -> nothing {
     } catch {|e| log-warn $"luks header backup: ($e.msg)" }
 }
 
-def sync-catch-up [repo: path]: nothing -> nothing {
+def origin-fetch [repo: path]: nothing -> nothing {
     ^git -C $repo fetch --quiet --no-recurse-submodules origin
     origin-verified $repo
+}
+
+def sync-catch-up [repo: path]: nothing -> nothing {
+    origin-fetch $repo
+    origin-merge $repo
+}
+
+def origin-merge [repo: path]: nothing -> nothing {
     if (^git -C $repo merge --ff-only --autostash $"origin/($BRANCH)" | complete).exit_code != 0 {
         error make {msg: $"($BRANCH) diverged from origin while syncing, nothing committed: git -C ($repo) pull --rebase"}
     }

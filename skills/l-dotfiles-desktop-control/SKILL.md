@@ -1,6 +1,6 @@
 ---
 name: l-dotfiles-desktop-control
-description: "Driving Luca's live Hyprland desktop the way he does with keys and the bar: open a url or app, move and focus windows, workspaces, media and volume, notifications, toggles (trust network, route, tor, vpn, dnd, night light), quickshell panels, tasks, reminders and notes, screenshots, typing text. Load when Luca asks an agent in his session (the system agent above all) to do something on his screen."
+description: "Driving Luca's live Hyprland desktop the way he does with keys and the bar: open a url or app, move and focus windows, workspaces, media and volume, notifications, toggles (trust network, route, tor, vpn, dnd, night light), quickshell panels, tasks, reminders and notes, screenshots, typing text, acting inside a browser page. Load when Luca asks an agent in his session (the system agent above all) to do something on his screen. Launching a program only to check it is l-dotfiles-gui-testing; changing the shell itself is l-dotfiles-quickshell-dev."
 ---
 
 # desktop-control
@@ -39,7 +39,7 @@ hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = "maximized", action = "toggl
 hyprctl dispatch 'hl.dsp.window.float({ action = "toggle" })'
 ```
 
-Workspaces 1 to 4 are on DP-2 (main), 5 to 10 on DP-1. Closing a window:
+On luca-pc workspaces 1 to 4 are on DP-2 (main), 5 to 10 on DP-1. Closing a window:
 `$DOTFILES/configs/desktop/hyprland/window-close.nu` acts on the focused one; focus it first, and only when he asked.
 
 ## Media, sound, screen
@@ -47,8 +47,10 @@ Workspaces 1 to 4 are on DP-2 (main), 5 to 10 on DP-1. Closing a window:
 - Playback: `media-key play-pause|next|previous|stop` (the bar's player, with the OSD; playerctl's first player while
   the shell is down); `playerctl -l` lists players.
 - Volume: `wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+` (or `-`, or `0.4`), mute `wpctl set-mute @DEFAULT_AUDIO_SINK@
-  toggle`; the mic is `@DEFAULT_AUDIO_SOURCE@`.
-- Brightness: `monitor-brightness` (ddc on the desktop monitors).
+  toggle`; the mic is `@DEFAULT_AUDIO_SOURCE@`. With the OSD, as his keys: `media-key volume-up|volume-down|
+  volume-mute|mic-mute`.
+- Brightness: `media-key brightness-up|brightness-down`, or `monitor-brightness get <output>` and `set <output>
+  <percent>` (ddc on the desktop monitors).
 - Screenshot to look at the screen: `grim -o DP-2 /tmp/shot.png` (main) or `-o DP-1`; crop to what you need, it
   shows whatever he has open. His own (Print, SHIFT+Print, SUPER+Print) land in `~/pictures/screenshots` and the
   clipboard.
@@ -56,8 +58,9 @@ Workspaces 1 to 4 are on DP-2 (main), 5 to 10 on DP-1. Closing a window:
 ## The shell (quickshell)
 
 - `qs ipc -p ~/.config/quickshell show` lists the targets. Panels: `qs ipc -p ~/.config/quickshell call bar toggle
-  <panel>` (audio, notifications, clock, display, homelab, agents, media, network, obs, system, weather); the
-  launcher on a mode: `call appsearch openWith '+ '`.
+  <panel>`; `call bar list` prints the panels there are now (clock, weather, media, homelab, system, network,
+  display, audio-io, notifications, agents; a widget adds its own while it shows). The launcher on a mode: `call
+  appsearch openWith '+ '`.
 - Notify him: `notify-send -a system-agent '<title>' '<body>'` (shown in the bar; dnd holds it).
 
 ## Toggles
@@ -70,13 +73,23 @@ with a root half asks for Luca's touch and fails without him: report that, never
 
 - Task: `capture task <words>` (taskwarrior syntax: `project:`, `due:`, `scheduled:`, `priority:H`, `+tag`); query
   with `task next`.
-- Reminder: `capture remind <90|10m|2h|1h30m|15:00> <message>`; `reminder.nu list --json` and `cancel <unit>` for
-  the pending ones. They survive suspend and reboot (records in `$XDG_STATE_HOME/quickshell/reminders`). A fired
+- Reminder: `capture remind <90|10m|2h|1h30m|15:00> <message>`; `reminder list --json` and `reminder cancel <unit>`
+  for the pending ones. They survive suspend and reboot (records in `$XDG_STATE_HOME/quickshell/reminders`). A fired
   one's card: `qs ipc -p ~/.config/quickshell call alert dismiss` or `call alert snooze <minutes>` (the newest card).
 - Note: `capture note <words>` appends to `~/sync/notes/inbox.md`.
 - His agenda's calendar: `task-calendar events`.
 
-## Typing into the focused window
+## Typing and acting inside a window
 
-`wtype '<text>'` types into whatever has focus (a chat box, a form). Check the focused window first
-(`hyprctl activewindow -j`), and never into a terminal or a password field.
+`wtype '<text>'` types into whatever has focus (a chat box, a form); `wtype -k Return` sends a key, `wtype -M ctrl l
+-m ctrl` a chord. Check the focused window first (`hyprctl activewindow -j`), and never into a terminal or a password
+field. There is no pointer automation (no ydotoold).
+
+Acting inside an app or a page, in this order, and say which before you start:
+
+1. The app's HTTP API where it has one (ComfyUI).
+2. In Firefox, the web console: focus the address bar (ctrl+l), ctrl+shift+k, type one short line, Enter, F12 closes
+   it.
+
+What does not work: keys typed at a page land on the page's own shortcuts unless a text field has focus; Firefox
+blocks `javascript:` in the address bar; a GTK portal file dialog did not take Enter from `wtype`.

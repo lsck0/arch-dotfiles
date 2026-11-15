@@ -21,6 +21,7 @@ const DESKTOP_ENTRY = "[Desktop Entry]"
 # an app rewriting a watched path in bursts would retrigger its hook in a loop
 const HOOK_BRAKE = "StartLimitIntervalSec=1min\nStartLimitBurst=20\n"
 const MCP_GATE = path self ../mcp-gate.py
+const MCP_LOCK_KEY_LENGTH = 16
 
 def decl [kind: string, target: string, fields: record]: nothing -> record {
     {
@@ -183,6 +184,31 @@ export def mcp-servers [servers: record]: nothing -> list<record> {
     }
 }
 
+def mcp-stdio [command: path, args: list<string>, env_vars: record, gate: record]: nothing -> record {
+    {type: stdio, command: $command, args: $args} | merge (if ($env_vars | is-empty) { {} } else { {env: $env_vars} })
+    | merge (if ($gate | is-empty) { {} } else { {gate: $gate} })
+}
+
+# A script of the module as the MCP server name: linked into ~/.local/bin (link-commands) and registered from there.
+export def mcp-command [name: string, script: path, --env-vars: record = {}, --gate: record = {}]: nothing -> list<record> {
+    let command = $nu.home-dir | path join $BIN_DIR ($script | path parse | get stem)
+    (link-commands $script) ++ (mcp-servers {$name: (mcp-stdio $command [] $env_vars $gate)})
+}
+
+# An npm MCP server's dependencies: dir's package.json and lock copied into prefix and installed there by `npm ci`
+# (the exec <name>-install), again whenever the lock changes.
+export def mcp-npm [name: string, dir: path, prefix: path, --ignore-scripts]: nothing -> list<record> {
+    let lock = $dir | path join package-lock.json
+    let node_modules = $prefix | path join node_modules
+    let flags = if $ignore_scripts { [--ignore-scripts] } else { [] }
+    [
+        (file-copy ($dir | path join package.json) ($prefix | path join package.json))
+        (file-copy $lock ($prefix | path join package-lock.json))
+        (exec $"($name)-install" [npm ci ...$flags --no-audit --no-fund --prefix $prefix] --creates $node_modules
+            --key (open --raw $lock | hash sha256 | str substring 0..<$MCP_LOCK_KEY_LENGTH) --undo [rm -rf $node_modules] --network)
+    ]
+}
+
 # $0 the venv, $1 the cutoff date, $2 the package, $3 the module, $4 the entry point, the rest uv venv's flags
 const MCP_VENV_BUILD = 'venv=$0 cutoff=$1 pkg=$2 module=$3 entry=$4 && shift 4 && rm -rf "$venv.new" && uv venv --quiet --relocatable "$@" "$venv.new" && uv pip install --quiet --python "$venv.new/bin/python" --exclude-newer "$cutoff" "$pkg" && "$venv.new/bin/python" -c "import $module" && test -x "$venv.new/bin/$entry" && rm -rf "$venv" && mv "$venv.new" "$venv"'
 
@@ -201,9 +227,7 @@ export def mcp-uvx [
     let entry = $dir | path join bin $argv.0
     let key = $"($pkg)@($frozen)" + (if $python == null { "" } else { $"-py($python)" })
     let flags = if $python == null { [] } else { [--python $python] }
-    let extra = (if ($env_vars | is-empty) { {} } else { {env: $env_vars} })
-        | merge (if ($gate | is-empty) { {} } else { {gate: $gate} })
-    let spec = {type: stdio, command: $entry, args: ($argv | skip 1)} | merge $extra
+    let spec = mcp-stdio $entry ($argv | skip 1) $env_vars $gate
     [(exec $"($name) venv" [sh -c $MCP_VENV_BUILD $dir $frozen $pkg $module $argv.0 ...$flags] --creates ($dir | path join bin python) --key $key --undo [rm -rf $dir] --network)]
     | append (mcp-servers {$name: $spec})
 }

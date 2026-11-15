@@ -276,7 +276,7 @@ Item {
             styleColor: Util.alpha(Colors.accent, 0.35)
           }
           BlinkCaret {
-            visible: !root.hasProgress && root.duration === 0 && root.message !== ""
+            visible: root.launching
             anchors.verticalCenter: parent.verticalCenter
             prompt: true
             size: Style.font.title

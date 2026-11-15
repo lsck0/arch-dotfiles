@@ -1,4 +1,5 @@
 use module.nu *
+use secrets.nu [owner-system-unlocked]
 use ../../core/wallust/palette.nu [RADIUS_PX OPACITY_BAR TEXT_RATIO ACCENT2_RATIO hex-to-rgb rgb-to-hex is-light passes quantize readable-on wal-colors-file]
 use ../../core/wallust/font.nu [font-load]
 
@@ -217,7 +218,7 @@ export def theme [cfg: record, wallpaper: string] {
 }
 
 export def system [cfg: record] {
-    let extra = glob ($SECRETS_DIR | path join * firefox-policies.json) | sort | each { open $in }
+    let extra = if (owner-system-unlocked) { glob ($SECRETS_DIR | path join * firefox-policies.json) | sort | each { open $in } } else { [] }
     let doc = $extra | reduce --fold (open policies.json) {|it, acc| $acc | merge deep --strategy append $it }
     let doc = if (platform-has homelab) { $doc } else { $doc | upsert policies.SearchEngines $SEARCH_OFF_HOMELAB }
     [

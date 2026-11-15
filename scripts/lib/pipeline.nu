@@ -101,6 +101,13 @@ export def --env pipeline-load [repo: path, layer: string]: nothing -> record {
     $base | insert modules $modules
 }
 
+# The module id of a loaded context; an unknown id names the command that lists them.
+export def module-get [ctx: record, id: string]: nothing -> record {
+    let m = $ctx.modules | where id == $id | get --optional 0
+    if $m == null { error make {msg: $"no module ($id); dot plan --modules lists them"} }
+    $m
+}
+
 export def flatpak-installed []: nothing -> list<string> {
     let listed = ^flatpak list --user --app --columns=application | complete
     if $listed.exit_code != 0 { error make {msg: $"flatpak list exited ($listed.exit_code): ($listed.stderr | str trim)"} }
@@ -366,10 +373,7 @@ def package-versions [names: list<string>]: nothing -> record {
 # pass's base/pacman, run before them). --revert-all plans the disabled and gone modules' removals even for a list of ids
 # (the theme pass of a full apply, which names only the linked modules).
 export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: bool, args: list = [], --packages-unchecked, --revert-all]: nothing -> table {
-    let unknown = $ids | where $it not-in $ctx.modules.id
-    if ($unknown | is-not-empty) {
-        error make {msg: $"no module ($unknown | str join ', '); dot plan --modules lists them"}
-    }
+    for id in $ids { module-get $ctx $id | ignore }
     let broken = $ctx.modules | where {|m| $m.broken and (($ids | is-empty) or $m.id in $ids) }
     if ($ids | is-not-empty) and ($broken | is-not-empty) {
         error make {msg: $"($broken.id | str join ', '): mod.nu does not parse"}

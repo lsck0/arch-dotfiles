@@ -2,9 +2,9 @@ use module.nu *
 
 export const meta = {packages: {pacman: [playerctl]}}
 
-const SCRIPTS = [agent-guard.nu media-guard.nu ssh-guard.nu]
-# each unit runs <guard>-guard.nu (the agent guard runs from the agents' hooks instead); unit names stay literal for
-# the ledger
+const SCRIPTS = [agent-guard.nu sleep-guard.nu]
+# each unit runs sleep-guard.nu <guard> (the agent guard runs from the agents' hooks instead); unit names stay literal
+# for the ledger
 const UNITS = [
     [guard unit while];
     [media idle-guard-media.service "media plays"]

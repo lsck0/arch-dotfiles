@@ -2,7 +2,8 @@ use module.nu *
 
 const TOOLS = {claude: ".claude", copilot: ".copilot", gemini: ".gemini", hermes: ".hermes"}
 
-# The l-* skills are the owner's style, workflow and machine; another login gets none.
+# The skills for this repo. They name the owner's machine, so another login gets none; the owner's style, personas and
+# workflows are configs/secrets/skills.
 export def link [cfg: record] {
     if not (profile-has secrets) { return [] }
     let dirs = glob l-* | where ($it | path type) == dir

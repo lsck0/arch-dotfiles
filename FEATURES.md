@@ -37,7 +37,7 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
 - Toggles (`scripts/toggles/`; `prefix+m` in tmux and herdr, the bar, the settings window on `SUPER+comma`): route
   (direct, proton, tor, offline), homelab VPN, firewall, captive portal, radios, focus, night light, shaders, color
   grading, power mode, font, theme mode and more.
-- Theming: 58 palettes or wallust from the wallpaper, applied live to every themed app (`dot theme`; pickers on
+- Theming: 74 palettes or wallust from the wallpaper, applied live to every themed app (`dot theme`; pickers on
   `SUPER+CTRL+w` for wallpapers, `SUPER+SHIFT+w` for themes).
 - Idle: dim, lock, screens off, suspend; guards for media, ssh and working agents. Lid closed with an external monitor
   moves the desktop there.

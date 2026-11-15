@@ -11,6 +11,8 @@ on it is changed by hand.
   one named `arch-dotfiles-*`) with the exact need, e.g. "adb on PATH", and continue once it confirms.
 - Project-local dependencies stay yours: venvs, `node_modules`, devenv, files inside the project.
 - Homelab changes go through the homelab repo's session (`homelab-*`), never ad hoc on a guest: skill `l-homelab`.
+- The arch-dotfiles, homelab, nyangine and university sessions are one team (system configuration, hosting, software,
+  knowledge): what each owns and how to ask it is skill `l-project-agents`.
 
 # Commits
 

@@ -1,7 +1,7 @@
 # `dot secrets unlock|lock|seal` and yubikey enrollment.
 
 use ../../../scripts/lib/profile.nu [profile-load]
-use ../../../scripts/lib/secrets.nu [secret-is-plaintext secrets-wanted]
+use ../../../scripts/lib/secrets.nu [secret-is-plaintext secrets-wanted secrets-keys-chmod]
 use ../../../scripts/lib/state.nu [SECRETS_ISSUE]
 
 const REPO = path self ../../..
@@ -51,10 +51,6 @@ def recipient [identity: path]: nothing -> string {
     open --raw $identity | lines | parse --regex '^#\s*Recipient: (?<r>.*)$' | get 0.r
 }
 
-def secrets-lock-0600 []: nothing -> nothing {
-    ^find ($SECRETS | path join keys) -type f ! -name '.*' ! -name '*.pub' ! -name '*public*' -exec chmod 600 '{}' +
-}
-
 # --foreground: a background group stops on the tty read; the cap only guards a stalled network.
 def with-touch [argv: list<string>]: nothing -> bool {
     let deadline = (date now) + $TOUCH_WAIT
@@ -85,8 +81,14 @@ def key-file-shred [key: path]: nothing -> nothing {
     if ($key | path exists) { ^shred -u $key }
 }
 
+# An empty 600 file for a raw key on the session's tmpfs, which a logout or reboot clears if a run is cut off;
+# /tmp where there is no session (root on the ISO).
+def key-file-create []: nothing -> path {
+    mktemp --tmpdir-path ($env.XDG_RUNTIME_DIR? | default --empty /tmp)
+}
+
 def with-key-file [body: closure]: nothing -> nothing {
-    let key = mktemp --tmpdir
+    let key = key-file-create
     let failed = try { do $body $key; null } catch {|e| $e.msg }
     key-file-shred $key
     if $failed != null { error make {msg: $failed} }
@@ -95,7 +97,7 @@ def with-key-file [body: closure]: nothing -> nothing {
 # Without a key, git-crypt unlocks with gpg.
 def crypt-unlock [key?: path]: nothing -> bool {
     let ok = (do { ^git -C $SECRETS crypt unlock ...([$key] | compact) } | complete).exit_code == 0
-    if $ok { secrets-lock-0600; secrets-issue-try-clear }
+    if $ok { secrets-keys-chmod $SECRETS; secrets-issue-try-clear }
     $ok
 }
 
@@ -283,7 +285,7 @@ export def yubikey-unlock [--identity: path]: nothing -> nothing {
         return
     }
     if not $pulled {
-        let key_file = mktemp --tmpdir
+        let key_file = key-file-create
         ^install -m600 $stub $key_file
         if not (stub-decrypt $key_file) {
             key-file-shred $key_file

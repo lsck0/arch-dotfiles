@@ -29,11 +29,6 @@ Item {
   signal entered()
   signal exited()
 
-  function triggerPress(button) {
-    if (root.bar) root.bar.hideTooltip(root)
-    root.pressed(button)
-  }
-
   function hideOwnTooltip() {
     if (root.bar) root.bar.hideTooltip(root)
   }
@@ -90,8 +85,8 @@ Item {
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
     onEntered: { if (root.bar) root.bar.showTooltip(root, root.tooltipText); root.entered() }
-    onExited: { if (root.bar) root.bar.hideTooltip(root); root.exited() }
-    onClicked: function(mouse) { root.triggerPress(mouse.button) }
+    onExited: { root.hideOwnTooltip(); root.exited() }
+    onClicked: function(mouse) { root.hideOwnTooltip(); root.pressed(mouse.button) }
     onWheel: function(wheel) { root.wheelMoved(wheel.angleDelta.y) }
   }
 }

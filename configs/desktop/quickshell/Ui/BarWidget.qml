@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs.Commons
 
 Item {
@@ -15,6 +16,14 @@ Item {
   function setting(name, fallback) {
     var value = settings ? settings[name] : undefined
     return value === undefined || value === null ? fallback : value
+  }
+
+  function closePanel() { if (bar) bar.closePanel(moduleName) }
+
+  // leaves the widget's panel for one of the shell's own: `shell summon <id> <json>`
+  function summon(id, json) {
+    closePanel()
+    Quickshell.execDetached(Paths.ipcCall("shell", "summon", id, json))
   }
 
   property bool panelPinOnClick: true

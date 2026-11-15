@@ -14,7 +14,6 @@ export def link [cfg: record] {
     let dest = xdg data mcp-grafana mcp-grafana
     [
         (fetch-file $URL $SHA256 $dest --mode 755 --extract mcp-grafana)
-        (link-commands grafana-mcp.nu)
-        (mcp-servers {grafana: {type: stdio, command: ($nu.home-dir | path join .local bin grafana-mcp), args: []}})
+        (mcp-command grafana grafana-mcp.nu)
     ]
 }

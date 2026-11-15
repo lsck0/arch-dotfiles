@@ -22,20 +22,24 @@ description: Adding or removing a package in a module's meta (pacman, flatpak, n
 
 1. Add the name, then `dot internal gen`.
 2. Check the mirror serves it (nothing is built on the machine): `pacman -Sp --print-format '%n %r' <pkg>` must say
-   `<pkg> lsck0`. `target not found`: the mirror lacks it (`FAILURES.install` says `not on the mirror: <pkg>`). Own
-   pkgbuilds in `mirror/pkgbuilds/`, missing AUR deps in `mirror/overrides.conf`. Without the `homelab` fact,
-   `base/pacman` leaves `[lsck0]` out of `pacman.conf` while the mirror does not answer, so its packages wait.
-3. `dot apply --packages`. Never `pacman -S` by hand.
+   `<pkg> lsck0`. `target not found`: the mirror lacks it (`FAILURES.install` says `not on the mirror: <pkg>`); a
+   name new to `mirror/packages.txt` arrives with the mirror's next nightly build. Own pkgbuilds in
+   `mirror/pkgbuilds/`, missing AUR deps in `mirror/overrides.conf`. Without the `homelab` fact, `base/pacman` leaves
+   `[lsck0]` out of `pacman.conf` while the mirror does not answer, so its packages wait.
+3. `dot apply --packages`, never `pacman -S` by hand. pacman is root's, so Luca runs it (or his `dot sync`); an
+   agent's `DOT_SYSTEM=skip dot apply --packages` does the user side only (flatpak, nix, the user layer) and leaves
+   pacman pending (exit 3).
 
 ## Removing
 
 Delete the name. `dot apply --packages` removes what the ledger owns and nothing declares, then every explicit package
 no module declares (minus the platform's `packages_keep` and `PACKAGES_DENY` in `scripts/lib/ledger.nu`), each after a
-yes (`--yes` skips both). Flatpak and nix take the same two steps: recorded and no longer declared, then installed by
-hand (flatpak: apps only, `flatpak list --user --app`) minus the platform's `flatpak_keep` or `nix_keep`, the second
-always asked. Flatpaks are unmasked first and unused runtimes go after; a removed nix package stays in the store until
-`base/cleanup`'s weekly `nix-gc.timer` collects generations older than 30 days. Nothing is removed while a module fails
-to declare its packages. `dot plan` lists them.
+yes asked on `/dev/tty` (`--yes` skips both; a run waiting there: `l-dotfiles-live-debug`). Flatpak and nix take the
+same two steps: recorded and no longer declared, then installed by hand (flatpak: apps only, `flatpak list --user
+--app`) minus the platform's `flatpak_keep` or `nix_keep`, the second always asked. Flatpaks are unmasked first and
+unused runtimes go after; a removed nix package stays in the store until `base/cleanup`'s weekly `nix-gc.timer`
+collects generations older than 30 days. Nothing is removed while a module fails to declare its packages. `dot plan`
+lists them.
 
 ## Supply chain
 

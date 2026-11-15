@@ -1,0 +1,11 @@
+{
+  "wallpaper": "albert-bierstadt-the-rocky-mountains-landers-peak.jpg",
+  "pair": "bamboo",
+  "special": { "background": "#fafae0", "foreground": "#3a4238", "cursor": "#0f0800" },
+  "colors": {
+    "color0": "#dadac2", "color1": "#c72a3c", "color2": "#27850b", "color3": "#a77b00",
+    "color4": "#1745d5", "color5": "#8a4adf", "color6": "#188a9e", "color7": "#3a4238",
+    "color8": "#919180", "color9": "#c72a3c", "color10": "#27850b", "color11": "#a77b00",
+    "color12": "#1745d5", "color13": "#8a4adf", "color14": "#188a9e", "color15": "#252623"
+  }
+}

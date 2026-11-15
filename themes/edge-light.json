@@ -1,0 +1,11 @@
+{
+  "wallpaper": "katsushika-hokusai-fine-wind-clear-morning.jpg",
+  "pair": "edge-dark",
+  "special": { "background": "#fafafa", "foreground": "#4b505b", "cursor": "#4b505b" },
+  "colors": {
+    "color0": "#4b505b", "color1": "#d05858", "color2": "#608e32", "color3": "#be7e05",
+    "color4": "#4c73b4", "color5": "#b05ccc", "color6": "#3a8b84", "color7": "#e8ebf0",
+    "color8": "#4b505b", "color9": "#d05858", "color10": "#608e32", "color11": "#be7e05",
+    "color12": "#4c73b4", "color13": "#b05ccc", "color14": "#3a8b84", "color15": "#e8ebf0"
+  }
+}

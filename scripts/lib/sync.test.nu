@@ -1,13 +1,17 @@
 #!/usr/bin/env -S nu --no-config-file
-# What the secrets checkout's backup commit refuses: a changed file outside git-crypt's keys/ and state/ and outside a
-# module dir would be stored unencrypted. And sync-pull's signature gate: origin's head is merged only when the key
-# bootstrap.sh pins signed it; a head nobody signed, one another key signed, and one whose signer is the key in the
-# pinned file but not the pinned fingerprint are refused with the checkout left where it was. Root runs what a pull
-# brings in, so this is the check that decides it.
-use sync.nu [secrets-stray sync-pull]
+# What the secrets checkout's backup commit refuses: a changed file outside git-crypt's keys/, the plaintext state/ and
+# a module dir would be stored unencrypted, and so would a staged file under keys/ that git-crypt did not encrypt. And
+# sync-pull's signature gate: origin's head is merged only when the key bootstrap.sh pins signed it; a head nobody
+# signed, one another key signed, and one whose signer is the key in the pinned file but not the pinned fingerprint
+# are refused with the checkout left where it was. Root runs what a pull brings in, so this is the check that decides
+# it, for the secrets checkout too: it moves only onto a revision a signed generation names.
+use sync.nu [secrets-stray secrets-changed secrets-staged-clear secrets-push secrets-fast-forward sync-pull]
 use std/assert
 
 const KEY_FILE = "signing.pub.asc"
+const GITLINK = "configs/secrets"
+const GITCRYPT_BLOB = 0x[00 47 49 54 43 52 59 50 54 00 01 02]
+const UNNAMED = "secrets origin holds commits no signed generation names"
 
 def stray-cases []: nothing -> nothing {
     let modules = [shell work]
@@ -51,19 +55,24 @@ def refused [checkout: path]: nothing -> string {
     try { sync-pull $checkout; "" } catch {|e| $e.msg }
 }
 
-def signature-cases [work: path]: nothing -> nothing {
-    let owner = key-create owner
-    let other = key-create other
-    let origin = $work | path join origin.git
-    let author = $work | path join author
-    let checkout = $work | path join checkout
+# A bare origin whose first generation the owner signed and pins, and the clone that authors its next ones.
+def origin-create [work: path, name: string, owner: string]: nothing -> record<origin: path, author: path> {
+    let origin = $work | path join $"($name).git"
+    let author = $work | path join $"($name)-author"
     ^git init --quiet --bare --initial-branch master $origin
     ^git clone --quiet $origin $author err> /dev/null
     git $author checkout --quiet -B master
     ^gpg --batch --armor --export $owner | save ($author | path join $KEY_FILE)
     $"SIGNING_KEY_FINGERPRINT=($owner)\nSIGNING_KEY_FILE=($KEY_FILE)\n" | save ($author | path join bootstrap.sh)
     origin-commit $author first $owner | ignore
-    ^git clone --quiet $origin $checkout
+    {origin: $origin, author: $author}
+}
+
+def signature-cases [work: path, owner: string, other: string]: nothing -> nothing {
+    let made = origin-create $work origin $owner
+    let author = $made.author
+    let checkout = $work | path join checkout
+    ^git clone --quiet $made.origin $checkout
 
     let signed = origin-commit $author signed $owner
     sync-pull $checkout
@@ -92,6 +101,100 @@ def signature-cases [work: path]: nothing -> nothing {
     assert (refused $checkout | str contains "HEAD is not on master") "a detached HEAD pulled"
 }
 
+# A commit in a secrets clone, pushed to its origin unless local.
+def secrets-commit [clone: path, name: string, --local]: nothing -> string {
+    $"($name)\n" | save ($clone | path join $name)
+    git $clone add --all
+    git $clone commit --quiet --message $name
+    if not $local { git $clone push --quiet origin HEAD:master }
+    head $clone
+}
+
+# A generation on the dotfiles origin that names the secrets revision, signed by signer (null: unsigned).
+def generation [author: path, secrets_sha: string, signer: any]: nothing -> nothing {
+    git $author update-index --add --cacheinfo $"160000,($secrets_sha),($GITLINK)"
+    let sign = if $signer == null { [--no-gpg-sign] } else { [$"--gpg-sign=($signer)"] }
+    git $author commit --quiet ...$sign --message $"names ($secrets_sha)"
+    git $author push --quiet origin master | ignore
+}
+
+def contains [clone: path, sha: string]: nothing -> bool {
+    (git $clone merge-base --is-ancestor $sha HEAD | complete).exit_code == 0
+}
+
+def push-refused [checkout: path, secrets: path]: nothing -> string {
+    try { secrets-push $checkout $secrets; "" } catch {|e| $e.msg }
+}
+
+# Machine a syncs, then machine b: b adopts a's secrets commit because a's signed generation names it. A commit that
+# only reached the secrets origin, and one an unsigned generation names, are never adopted.
+def secrets-cases [work: path, owner: string]: nothing -> nothing {
+    let made = origin-create $work dotfiles $owner
+    let secrets_origin = $work | path join secrets.git
+    ^git init --quiet --bare --initial-branch master $secrets_origin
+    let a = $work | path join secrets-a
+    ^git clone --quiet $secrets_origin $a err> /dev/null
+    git $a checkout --quiet -B master
+    generation $made.author (secrets-commit $a base) $owner
+    let checkout = $work | path join machine-b
+    ^git clone --quiet $made.origin $checkout
+    let b = $checkout | path join $GITLINK
+    ^git clone --quiet $secrets_origin $b
+    let intruder = $work | path join secrets-intruder
+    ^git clone --quiet $secrets_origin $intruder
+
+    let from_a = secrets-commit $a from-a
+    generation $made.author $from_a $owner
+    secrets-commit $b from-b --local | ignore
+    secrets-push $checkout $b
+    assert (contains $b $from_a) "a secrets commit a signed generation names was not adopted"
+    assert equal (git $secrets_origin rev-parse master | str trim) (head $b) "the rebased backup was not pushed"
+
+    git $a pull --quiet --rebase origin master
+    let next_a = secrets-commit $a next-a
+    generation $made.author $next_a $owner
+    git $intruder pull --quiet --rebase origin master
+    let unnamed = secrets-commit $intruder unnamed
+    ^git -C $checkout fetch --quiet --no-recurse-submodules origin
+    secrets-fast-forward $checkout $b
+    assert equal (head $b) $next_a "the fast-forward did not stop at the revision the signed generation names"
+
+    let backup = secrets-commit $b backup --local
+    let message = push-refused $checkout $b
+    assert ($message | str contains $UNNAMED) $"an unnamed secrets commit: ($message | to nuon)"
+    assert equal (head $b) $backup "an unnamed secrets commit: the checkout moved"
+
+    generation $made.author $unnamed null
+    let message = push-refused $checkout $b
+    assert ($message | str contains $"is not signed by ($owner)") $"an unsigned generation: ($message | to nuon)"
+    assert equal (head $b) $backup "an unsigned generation: the checkout moved"
+    assert (not (contains $b $unnamed)) "a secrets commit no signed generation names was adopted"
+}
+
+# A new file that is already staged counts as changed, a deletion does not; of the staged files under keys/ only the
+# ones without git-crypt's header are reported.
+def backup-cases [work: path]: nothing -> nothing {
+    let repo = $work | path join backup
+    ^git init --quiet --initial-branch master $repo
+    mkdir ($repo | path join keys) ($repo | path join state)
+    "old\n" | save ($repo | path join state gone)
+    "old\n" | save ($repo | path join state kept)
+    git $repo add --all
+    git $repo commit --quiet --message first
+    rm ($repo | path join state gone)
+    "new\n" | save --force ($repo | path join state kept)
+    "token\n" | save ($repo | path join staged.env)
+    git $repo add staged.env
+    "note\n" | save ($repo | path join untracked.txt)
+    assert equal (secrets-changed $repo | sort) [staged.env state/kept untracked.txt] "changed files"
+
+    $GITCRYPT_BLOB | save --raw ($repo | path join keys locked)
+    "token\n" | save ($repo | path join keys clear)
+    "" | save ($repo | path join keys empty)
+    git $repo add --all
+    assert equal (secrets-staged-clear $repo | sort) [keys/clear keys/empty] "staged files under keys/ in clear"
+}
+
 def main []: nothing -> nothing {
     stray-cases
     # short: gpg-agent's socket path has to fit sun_path
@@ -100,8 +203,16 @@ def main []: nothing -> nothing {
     mkdir $gnupg
     chmod 700 $gnupg
     let outcome = try {
-        with-env {GNUPGHOME: $gnupg, GIT_CONFIG_GLOBAL: /dev/null, GIT_CONFIG_SYSTEM: /dev/null, DOT_RUN_FILE: "", FAILURES_FILE: ""} {
-            let checked = try { signature-cases $work; null } catch {|e| $e }
+        # sync.nu's own git calls carry no -c: a rebase needs a committer
+        let identity = {GIT_AUTHOR_NAME: test, GIT_AUTHOR_EMAIL: test@localhost, GIT_COMMITTER_NAME: test, GIT_COMMITTER_EMAIL: test@localhost}
+        with-env ({GNUPGHOME: $gnupg, GIT_CONFIG_GLOBAL: /dev/null, GIT_CONFIG_SYSTEM: /dev/null, DOT_RUN_FILE: "", FAILURES_FILE: ""} | merge $identity) {
+            let checked = try {
+                backup-cases $work
+                let owner = key-create owner
+                signature-cases $work $owner (key-create other)
+                secrets-cases $work $owner
+                null
+            } catch {|e| $e }
             ^gpgconf --kill all | complete | ignore
             if $checked != null { error make $checked }
         }

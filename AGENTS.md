@@ -7,8 +7,8 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
 
 | skill | for |
 |---|---|
-| `l-dotfiles` | the repo layout, the `dot` command, and the rule that every machine change goes through it |
-| `l-dotfiles-install` | installing a machine (owner, generic, WSL), the boot chain, another login |
+| `l-dotfiles` | the rule that every machine change goes through `dot`, making one, working in the checkout |
+| `l-dotfiles-install` | installing a machine (owner, generic, WSL), the boot chain, `dot sync`, another login |
 | `l-dotfiles-add-module` | a new `configs/<group>/<module>/mod.nu`, verbs, options, running one module |
 | `l-dotfiles-add-package` | packages in a module's meta, the mirror, removal, supply-chain pins |
 | `l-dotfiles-apparmor-profile` | profiles, `local/` rules, denials, enforce policy |
@@ -19,13 +19,14 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
 | `l-dotfiles-secrets-access` | secrets, YubiKey unlock, adding a secret |
 | `l-dotfiles-platform-facts` | `platforms/` facts vs `profiles/` capabilities vs options |
 | `l-dotfiles-gui-testing` | launching an app only to check it: the headless output |
-| `l-dotfiles-live-debug` | status, run logs, journals, changed files, denials, who wrote a file |
+| `l-dotfiles-live-debug` | status, run logs, a hung run, journals, changed files, denials, who wrote a file |
 | `l-dotfiles-streaming` | OBS, the bar's obs widget, Spotify and Discord inspection |
-| `l-dotfiles-desktop-control` | acting on the live desktop for Luca: urls, apps, windows, media, toggles, panels |
+| `l-dotfiles-desktop-control` | acting on the live desktop for Luca: urls, apps, windows, media, toggles, typing |
 | `l-homelab` | homelab services, reaching them, their secrets, requesting lab changes |
 
 `skills/mod.nu` links every `skills/l-*` into each agent's skill dir; a new one appears after
-`dot apply skills programming/hermes`.
+`dot apply skills programming/hermes`. The owner's other skills (style, personas, workflows, `l-homelab`) are the module
+`secrets/skills` (`configs/secrets/skills/`).
 
 ## Commands
 

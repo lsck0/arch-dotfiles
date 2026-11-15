@@ -1,5 +1,6 @@
 use ../lib/log.nu [log-err]
 use ../lib/state.nu [xdg file-trim]
+use ../lib/usage.nu [die]
 
 export const TOGGLES_DIR = path self .
 export const DOT = path self ../dot.nu
@@ -122,6 +123,11 @@ export def cycle-next [current: any]: list -> any {
     let list = $in
     let index = $list | enumerate | where item == $current | get index.0? | default (-1)
     $list | get (($index + 1) mod ($list | length))
+}
+
+# One line and exit 2 for a state an n-state toggle does not have.
+export def state-check [what: string, state: string, states: list<string>]: nothing -> nothing {
+    if $state not-in $states { die --misuse $"($what) is one of ($states | str join ', ')" }
 }
 
 # The record status.nu, the menu, the bar and settings read; `states` lists the resting value first.

@@ -62,7 +62,6 @@ export const options = {
 
 const HERE = path self .
 const WEBSOCKET_PORT = 4455
-const LOCK_KEY_LENGTH = 16
 const CANVAS_FALLBACK = "1920x1080"
 # the virtual camera sends raw YUYV: 4k at 30 fps is ~500 MB/s that every consumer scales per frame
 const VIRTUALCAM_HEIGHT = 720
@@ -184,17 +183,17 @@ def scene-mic [mic: oneof<string, nothing>]: record -> record {
     $in | update AuxAudioDevice1.settings.device_id $mic
 }
 
+def json-text []: record -> string { $"($in | to json --indent 2)\n" }
+
 # A collection for this machine: its mic, with --machine also its canvas and webcam (the shared Streaming layout stays).
 def scene-render [cfg: record, src: path, --machine]: nothing -> string {
     let scene = open $src | scene-mic $cfg.mic
-    if not $machine { return $"($scene | to json --indent 2)\n" }
-    let fitted = $scene | scene-fit (canvas-size $cfg)
-    let cammed = if $cfg.webcam == null { $fitted } else {
-        $fitted | update sources {
+    if not $machine { return ($scene | json-text) }
+    $scene | scene-fit (canvas-size $cfg) | if $cfg.webcam == null { $in } else {
+        update sources {
             each {|src| if $src.id == "v4l2_input" { $src | upsert settings.device_id $cfg.webcam } else { $src } }
         }
-    }
-    $"($cammed | to json --indent 2)\n"
+    } | json-text
 }
 
 # Keeps the live collection when it differs only in its portal token.
@@ -249,7 +248,7 @@ def encoder-repo [encoder: oneof<string, nothing>]: record -> record {
 def encoder-json [cfg: record, src: path]: nothing -> string {
     let json = open $src | encoder-native (json-encoder $cfg $src)
     let json = if $cfg.vaapi_render_node == null { $json } else { $json | upsert vaapi_device $cfg.vaapi_render_node }
-    $"($json | to json --indent 2)\n"
+    $json | json-text
 }
 
 def repo-scenes []: nothing -> list<path> {
@@ -298,21 +297,12 @@ export def link [cfg: record] {
     if (process-running obs) and ($state | any {|d| not ($d.target | path exists) or (open --raw $d.target) != $d.content }) {
         error make {msg: "obs runs, close it so its collections and profiles can be updated"}
     }
-    let prefix = xdg data obs-mcp
     let websocket = $obs | path join plugin_config obs-websocket config.json
-    let lock = $HERE | path join mcp package-lock.json
-    let lock_hash = open --raw $lock | hash sha256 | str substring 0..<($LOCK_KEY_LENGTH)
-    let node_modules = $prefix | path join node_modules
     # the mcp only with the app it drives
     let mcp = if (which obs npm | length) == 2 {
         [
-            (file-copy ($HERE | path join mcp package.json) ($prefix | path join package.json))
-            (file-copy $lock ($prefix | path join package-lock.json))
-            (exec obs-mcp-install [npm ci --no-audit --no-fund --prefix $prefix] --creates $node_modules --key $lock_hash
-                --undo [rm -rf $node_modules] --network)
-            (link-commands obs-mcp.nu)
-            (mcp-servers {obs-mcp: {type: stdio, command: ($nu.home-dir | path join .local bin obs-mcp), args: []
-                gate: {probe: $"127.0.0.1:($WEBSOCKET_PORT)", app: OBS}}})
+            (mcp-npm obs-mcp ($HERE | path join mcp) (xdg data obs-mcp))
+            (mcp-command obs-mcp obs-mcp.nu --gate {probe: $"127.0.0.1:($WEBSOCKET_PORT)", app: OBS})
         ]
     }
     [
@@ -359,7 +349,7 @@ def scene-back [cfg: record, live: path, src: path, dest: path, --machine, --see
     )
     let next = if $unchanged { rm --force $dest; $seed } else {
         mkdir ($dest | path dirname)
-        $"($saved | to json --indent 2)\n" | save --force $dest
+        $saved | json-text | save --force $dest
         $dest
     }
     # next is the next link's source: record it as loaded, or the next backup takes its own write for a repo edit
@@ -402,7 +392,7 @@ export def backup [cfg: record]: nothing -> nothing {
         if ($repo | path basename) == "basic.ini" {
             profile-back $live $repo
         } else {
-            $"(open $live | encoder-repo (json-encoder $cfg $repo) | to json --indent 2)\n" | save --force $repo
+            open $live | encoder-repo (json-encoder $cfg $repo) | json-text | save --force $repo
         }
     }
 }

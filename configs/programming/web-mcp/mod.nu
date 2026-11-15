@@ -5,13 +5,11 @@ use ../../../platforms/homelab.nu [HOMELAB]
 # engine. Only on a machine with the homelab fact; the lab passes luca-pc's and luca-notebook's addresses and the
 # wireguard subnet through its limiter. mcp-searxng and its dependencies are pinned by mcp/package-lock.json.
 const HERE = path self .
-const LOCK_KEY_LENGTH = 16
 # the paid servers this module registered before searxng; null drops them from every agent
 const RETIRED = [perplexity firecrawl]
 
 export def link [cfg: record] {
     let prefix = xdg data web-mcp
-    let lock = $HERE | path join mcp package-lock.json
     let node_modules = $prefix | path join node_modules
     let wanted = (platform-has homelab) and (which npm | is-not-empty)
     let searxng = if $wanted {
@@ -21,15 +19,7 @@ export def link [cfg: record] {
         }
     }
     [
-        (if $wanted {
-            [
-                (file-copy ($HERE | path join mcp package.json) ($prefix | path join package.json))
-                (file-copy $lock ($prefix | path join package-lock.json))
-                (exec web-mcp-install [npm ci --no-audit --no-fund --prefix $prefix] --creates $node_modules
-                    --key (open --raw $lock | hash sha256 | str substring 0..<($LOCK_KEY_LENGTH))
-                    --undo [rm -rf $node_modules] --network)
-            ]
-        })
+        (if $wanted { mcp-npm web-mcp ($HERE | path join mcp) $prefix })
         (mcp-servers ($RETIRED | each {|name| {$name: null} } | into record | merge {searxng: $searxng}))
     ]
 }

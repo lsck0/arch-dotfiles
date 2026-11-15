@@ -13,9 +13,14 @@ BarWidget {
     stateMarker: glyph === ""
   }
 
+  // one toggle as a chip, lit while it is on
   component RadioChip: Button {
+    property string toggle: ""
     variant: "chip"
     focusable: true
+    selected: root.toggleOn(toggle)
+    opacity: root.busyOpacity(toggle)
+    onClicked: root.runToggle(toggle)
   }
 
   moduleName: "network"
@@ -38,19 +43,10 @@ BarWidget {
   readonly property bool vpnOn: homeVpnState === "on" || route === "proton"
   // traffic leaves through a tunnel: the bar glyph takes the accent
   readonly property bool tunnelled: vpnOn || route === "tor"
-  readonly property bool anonymousSocksOn: toggleOn("anonymous-socks")
-  readonly property bool btPowered: toggleOn("bluetooth")
   readonly property bool wifiOn: toggleState("wifi", "on") === "on"
-  readonly property bool ethernetOn: toggleOn("ethernet")
-  readonly property bool mobileOn: toggleOn("mobile")
-  readonly property bool hasMobile: toggleAvailable("mobile")
   readonly property bool offlineModeOn: route === "offline"
   readonly property string firewallState: toggleState("firewall", "")
-  readonly property bool homelabAvailable: toggleAvailable("vpn")
-  readonly property bool trustedNetwork: toggleOn("trust-network")
-  readonly property bool trustAvailable: toggleAvailable("trust-network")
   readonly property bool portalOpen: toggleOn("portal")
-  readonly property bool portalAvailable: toggleAvailable("portal")
 
   property bool detailsConnected: false
   property string connectivity: "unknown"
@@ -533,15 +529,15 @@ BarWidget {
       }
       // trusting lifts the lockdown on this link: the gateway joins networkmanager's trusted_gateways (home stays home)
       ToggleRow {
-        visible: root.trustAvailable
+        visible: root.toggleAvailable("trust-network")
         label: root.toggleLabel("trust-network", "Trusted network")
-        on: root.trustedNetwork
+        on: root.toggleOn("trust-network")
         opacity: root.busyOpacity("trust-network")
         onActivated: root.runToggle("trust-network")
       }
       // offered while NM reports a portal or one is open: tor and strict dot keep its login page out of reach
       ToggleRow {
-        visible: root.portalAvailable && (root.connectivity === "portal" || root.portalOpen)
+        visible: root.toggleAvailable("portal") && (root.connectivity === "portal" || root.portalOpen)
         label: root.toggleLabel("portal", "Captive portal")
         on: root.portalOpen
         opacity: root.busyOpacity("portal")
@@ -568,17 +564,15 @@ BarWidget {
 
         RadioChip {
           id: homelabChip
-          visible: root.homelabAvailable
+          visible: root.toggleAvailable("vpn")
           text: "+ HOMELAB"
-          selected: root.homeVpnState === "on"
-          opacity: root.busyOpacity("vpn")
-          onClicked: root.runToggle("vpn")
+          toggle: "vpn"
         }
       }
       // the SOCKS pool listens on lo, beside any route
       ToggleRow {
         label: "Anonymous SOCKS"
-        on: root.anonymousSocksOn
+        on: root.toggleOn("anonymous-socks")
         opacity: root.busyOpacity("anonymous-socks")
         onActivated: root.runToggle("anonymous-socks")
       }
@@ -590,10 +584,10 @@ BarWidget {
         width: content.width
         spacing: Style.spacing.xs
 
-        RadioChip { text: "WI-FI"; selected: root.wifiOn; opacity: root.busyOpacity("wifi"); onClicked: root.runToggle("wifi") }
-        RadioChip { text: "ETHERNET"; selected: root.ethernetOn; opacity: root.busyOpacity("ethernet"); onClicked: root.runToggle("ethernet") }
-        RadioChip { visible: root.hasMobile; text: "MOBILE"; selected: root.mobileOn; opacity: root.busyOpacity("mobile"); onClicked: root.runToggle("mobile") }
-        RadioChip { text: "BLUETOOTH"; selected: root.btPowered; opacity: root.busyOpacity("bluetooth"); onClicked: root.runToggle("bluetooth") }
+        RadioChip { text: "WI-FI"; toggle: "wifi"; selected: root.wifiOn }
+        RadioChip { text: "ETHERNET"; toggle: "ethernet" }
+        RadioChip { visible: root.toggleAvailable("mobile"); text: "MOBILE"; toggle: "mobile" }
+        RadioChip { text: "BLUETOOTH"; toggle: "bluetooth" }
       }
 
       PanelSeparator {}
@@ -601,21 +595,14 @@ BarWidget {
       ToggleRow {
         label: "Internet speed test"
         glyph: "\u{f04c5}"
-        onActivated: {
-          if (root.bar) root.bar.closePanel(root.moduleName)
-          Quickshell.execDetached(Paths.ipcCall("shell", "summon", "panel.speedtest", "{}"))
-        }
+        onActivated: root.summon("panel.speedtest", "{}")
       }
 
       ToggleRow {
         visible: root.detailsConnected && !root.onEthernet
         label: "Share Wi-Fi (QR)"
         glyph: "\u{f0432}"
-        onActivated: {
-          if (root.bar) root.bar.closePanel(root.moduleName)
-          Quickshell.execDetached(Paths.ipcCall("shell", "summon", "panel.wifiqr",
-            JSON.stringify({ iface: root.detailsDevice })))
-        }
+        onActivated: root.summon("panel.wifiqr", JSON.stringify({ iface: root.detailsDevice }))
       }
     }
   }

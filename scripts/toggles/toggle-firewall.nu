@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [notify root-run unit-active cycle-next status-record status-print exclusive-run]
+use lib.nu [notify root-run unit-active cycle-next status-record status-print exclusive-run state-check]
 
 const STATES = {permissive: Permissive, default: Default, restrictive: Restrictive}
 # one step down per press, so default is never reached through permissive
@@ -36,7 +36,7 @@ def "main get" [--json] {
 
 def "main toggle" [] { exclusive-run Firewall _apply ($CYCLE | cycle-next (current)) }
 def "main set" [state: string] {
-    if $state not-in $STATES { error make {msg: $"firewall state is one of ($STATES | columns | str join ', ')"} }
+    state-check "firewall state" $state ($STATES | columns)
     exclusive-run Firewall _apply $state
 }
 

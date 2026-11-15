@@ -54,6 +54,13 @@ Item {
       root.expectedStop = true
       qrProc.running = false
     }
+    root.reset()
+    root.loading = false
+    root.ssid = ""
+  }
+
+  // drops the shown code and password; a running password read is stopped, its answer ignored
+  function reset() {
     if (pwProc.running) {
       root.pwExpectedStop = true
       pwProc.running = false
@@ -61,9 +68,7 @@ Item {
     root.qrSize = 0
     root.qrRows = []
     root.error = ""
-    root.loading = false
     root.iface = ""
-    root.ssid = ""
     root.secured = false
     root.password = ""
     root.passwordVisible = false
@@ -80,20 +85,9 @@ Item {
       }
       return
     }
-    qrSize = 0
-    qrRows = []
-    error = ""
+    reset()
     loading = true
     expectedStop = false
-    iface = ""
-    secured = false
-    password = ""
-    passwordVisible = false
-    passwordError = ""
-    if (pwProc.running) {
-      pwExpectedStop = true
-      pwProc.running = false
-    }
     qrProc.command = [Paths.script("network-qr.nu"), "--meta"].concat(requestedIface ? [requestedIface] : [])
     qrProc.running = true
   }

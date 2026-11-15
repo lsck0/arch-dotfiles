@@ -2,10 +2,10 @@ use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
 
 # Ships this desktop's node metrics and journal to the homelab (Grafana: Prometheus desktops, Loki desktops), only on
-# a machine the lab lists as a desktop and with its push credential (secrets keys/alloy-<host>, `user:password`).
+# a machine the lab lists as a desktop and with its push credential (secrets keys/alloy/<host>, `user:password`).
 # grafana-alloy-bin, Grafana's own build: Arch's grafana-alloy is built without journal support, so its
 # loki.source.journal stays off. Until the mirror carries the bin package, whichever of the two is installed runs.
-export const meta = {packages: {pacman: [grafana-alloy-bin]}, secrets: ["alloy-{host}"]}
+export const meta = {packages: {pacman: [grafana-alloy-bin]}, secrets: ["alloy/{host}"]}
 
 const AC_RULES = "/etc/udev/rules.d/99-alloy-ac.rules"
 # both packages' units pass $CUSTOM_ARGS to `alloy run`; this file is read after the package's own, which sets it empty
@@ -19,7 +19,7 @@ const BUILDS = [
 
 export def system [cfg: record] {
     let host = sys host | get hostname
-    let credential = system-secret $"alloy-($host)"
+    let credential = system-secret alloy $host
     let build = $BUILDS | where { $in.probe | path exists } | get --optional 0
     if $build == null or $host not-in $HOMELAB.push.desktops or not ($credential | path exists) { return [] }
     let password = open --raw $credential | str trim | split row ":" | skip 1 | str join ":"

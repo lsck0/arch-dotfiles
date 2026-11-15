@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [DOT status-record status-print notify state-file]
+use lib.nu [DOT status-record status-print notify state-file state-check]
 use ../lib/log.nu [log-err]
 use ../../configs/core/wallust/wallpaper-list.nu [wallpaper-resolve]
 use ../../configs/core/wallust/wallpaper.nu [wallpaper-get]
@@ -80,7 +80,7 @@ def "main get" [--json] {
 def "main target" [] { target | to json --raw }
 
 def "main set" [mode: string] {
-    if $mode not-in $MODES { error make {msg: $"theme mode is one of ($MODES | str join ', ')"} }
+    state-check "theme mode" $mode $MODES
     if $mode != (current-mode) { flip }
 }
 

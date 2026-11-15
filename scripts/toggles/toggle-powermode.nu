@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [status-record status-print notify root-run state-get state-set state-clear state-file quickshell-call cycle-next toggle-run exclusive-run]
+use lib.nu [status-record status-print notify root-run state-get state-set state-clear state-file quickshell-call cycle-next toggle-run exclusive-run state-check]
 use ../lib/platform.nu [platform-load]
 
 # auto is no forced mode: tlp picks by the power source
@@ -57,7 +57,7 @@ def "main get" [--json] {
 # auto is a stop of its own: else the first press leaves it for good
 def "main toggle" [] { main set ($MODES | columns | cycle-next (current)) }
 def "main set" [mode: string] {
-    if $mode not-in $MODES { error make {msg: $"power mode is one of ($MODES | columns | str join ', ')"} }
+    state-check "power mode" $mode ($MODES | columns)
     exclusive-run "Power mode" _apply $mode
 }
 def "main auto" [] { main set auto }

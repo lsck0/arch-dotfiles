@@ -77,19 +77,14 @@ function expiryDueMs(history, nowMs, maxAgeMs) {
 
 function addEntry(history, entry, limit, nowMs) {
   var normalized = normalizeEntry(entry)
-  if (normalized) normalized.addedMs = nowMs
-  var max = limit === undefined || limit === null ? 100 : Number(limit)
-  if (isNaN(max)) max = 100
-  max = Math.max(0, max)
-  if (!normalized) return Array.isArray(history) ? history.slice(0, max) : []
-  if (max === 0) return []
+  if (!normalized) return history.slice(0, limit)
+  normalized.addedMs = nowMs
 
   var key = entryKey(normalized)
   var next = [normalized]
-  var values = Array.isArray(history) ? history : []
 
-  for (var i = 0; i < values.length && next.length < max; i++) {
-    var existing = normalizeEntry(values[i])
+  for (var i = 0; i < history.length && next.length < limit; i++) {
+    var existing = normalizeEntry(history[i])
     if (!existing || entryKey(existing) === key) continue
     next.push(existing)
   }
@@ -98,12 +93,8 @@ function addEntry(history, entry, limit, nowMs) {
 }
 
 function removeEntryAt(history, index) {
-  var values = Array.isArray(history) ? history : []
-  var target = Number(index)
-  if (isNaN(target) || target < 0 || target >= values.length) return values.slice()
-
-  var next = values.slice()
-  next.splice(target, 1)
+  var next = history.slice()
+  if (index >= 0 && index < next.length) next.splice(index, 1)
   return next
 }
 
@@ -148,8 +139,7 @@ function filePaths(entry) {
 }
 
 function fileName(path) {
-  var parts = String(path || "").split("/")
-  return parts.length > 0 ? parts[parts.length - 1] : String(path || "")
+  return String(path || "").split("/").pop()
 }
 
 function isImagePath(path) {
@@ -163,16 +153,9 @@ function fileEntryText(entry) {
   return paths.length + " files"
 }
 
-function imagePreviewText(entry) {
-  var timestamp = String(entry && entry.capturedAt || "")
-  if (!timestamp) return "Image"
-
-  return "Image from " + timestamp
-}
-
 function previewText(entry) {
   if (!entry) return ""
-  if (entry.type === "image") return imagePreviewText(entry)
+  if (entry.type === "image") return entry.capturedAt ? "Image from " + entry.capturedAt : "Image"
   var fileText = fileEntryText(entry)
   if (fileText) return fileText
   return String(entry.text || "").replace(/\s+/g, " ")
@@ -205,17 +188,11 @@ function cappedEntry(entry) {
 }
 
 function displayRows(history, query, limit) {
-  var values = Array.isArray(history) ? history : []
   var needle = String(query || "").trim().toLowerCase()
-  var max = limit === undefined || limit === null ? 50 : Number(limit)
-  if (isNaN(max)) max = 50
-  max = Math.max(0, max)
-  if (max === 0) return []
-
   var rows = []
 
-  for (var i = 0; i < values.length; i++) {
-    var whole = normalizeEntry(values[i])
+  for (var i = 0; i < history.length; i++) {
+    var whole = normalizeEntry(history[i])
     if (!whole) continue
     if (needle && searchableText(whole).toLowerCase().indexOf(needle) < 0) continue
     var entry = cappedEntry(whole)
@@ -235,7 +212,7 @@ function displayRows(history, query, limit) {
       mime: isImage ? String(entry.mime || "image/png") : (isFile ? "text/uri-list" : "text/plain"),
       index: i
     })
-    if (rows.length >= max) break
+    if (rows.length >= limit) break
   }
 
   return rows

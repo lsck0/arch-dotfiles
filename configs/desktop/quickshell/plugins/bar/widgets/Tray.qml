@@ -25,7 +25,6 @@ BarWidget {
   readonly property int drawerCount: drawerItems.length
   readonly property int trayItemExtent: Style.bar.iconSlot
   readonly property int trayItemGap: Style.bar.itemGap
-  readonly property int trayJoinGap: Style.bar.groupGap
   readonly property int drawerExtent: drawerCount > 0 ? drawerCount * trayItemExtent + (drawerCount - 1) * trayItemGap : 0
 
   property var submenuStack: []
@@ -131,18 +130,8 @@ BarWidget {
   }
 
   function bucket(category) {
-    var values = SystemTray.items.values // qmllint disable missing-property
-    var result = []
-    for (let i = 0; i < values.length; i++) {
-      const item = values[i]
-      if (item.status === Status.Passive) continue
-      if (category === "all") {
-        result.push(item)
-        continue
-      }
-      if (classifyItem(item) === category) result.push(item)
-    }
-    return result
+    return SystemTray.items.values // qmllint disable missing-property
+      .filter(item => item.status !== Status.Passive && (category === "all" || classifyItem(item) === category))
   }
 
   function persistTrayState(pinned, hidden) {
@@ -150,28 +139,20 @@ BarWidget {
     root.bar.shellHost.setWidgetSettings("Tray", { pinned: pinned, hidden: hidden })
   }
 
+  // an id pinned or hidden leaves the other list
+  function toggleIn(own, other, iid) {
+    const without = list => list.filter(id => id !== iid)
+    return own.indexOf(iid) !== -1 ? [without(own), other] : [own.concat([iid]), without(other)]
+  }
+
   function togglePin(iid) {
-    var p = pinnedIds.slice(), h = hiddenIds.slice()
-    var idx = p.indexOf(iid)
-    if (idx !== -1) p.splice(idx, 1)
-    else {
-      p.push(iid)
-      const hi = h.indexOf(iid)
-      if (hi !== -1) h.splice(hi, 1)
-    }
-    persistTrayState(p, h)
+    const [pinned, hidden] = toggleIn(pinnedIds, hiddenIds, iid)
+    persistTrayState(pinned, hidden)
   }
 
   function toggleHide(iid) {
-    var p = pinnedIds.slice(), h = hiddenIds.slice()
-    var idx = h.indexOf(iid)
-    if (idx !== -1) h.splice(idx, 1)
-    else {
-      h.push(iid)
-      const pi = p.indexOf(iid)
-      if (pi !== -1) p.splice(pi, 1)
-    }
-    persistTrayState(p, h)
+    const [hidden, pinned] = toggleIn(hiddenIds, pinnedIds, iid)
+    persistTrayState(pinned, hidden)
   }
 
   readonly property bool allHidden: allItems.length > 0 && pinnedItems.length === 0 && drawerCount === 0
@@ -251,7 +232,7 @@ BarWidget {
         x: root.drawerExtent
         anchors.verticalCenter: parent.verticalCenter
         spacing: root.trayItemGap
-        leftPadding: root.pinnedItems.length > 0 && root.drawerCount > 0 ? root.trayJoinGap : 0
+        leftPadding: root.pinnedItems.length > 0 && root.drawerCount > 0 ? Style.bar.groupGap : 0
         Repeater {
           model: root.pinnedItems
           TrayItem {}

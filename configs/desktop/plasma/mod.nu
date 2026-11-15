@@ -116,9 +116,9 @@ def shell-updates-done []: nothing -> record {
     if ($scripts | is-empty) { {} } else { {Updates: {performed: ($scripts | str join ",")}} }
 }
 
-# The place from WEATHER, else blanks: the widget then opens unset and asks for a place.
+# The owner's place from WEATHER, else blanks: the widget then opens unset and asks for a place.
 def weather-values []: nothing -> record {
-    let place = if ($WEATHER | path exists) { open $WEATHER } else { {display: "", info: ""} }
+    let place = if (owner-unlocked) and ($WEATHER | path exists) { open $WEATHER } else { {display: "", info: ""} }
     {WEATHER_PLACE: $place.display, WEATHER_INFO: $place.info}
 }
 

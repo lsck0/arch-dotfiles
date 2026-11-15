@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import Quickshell
 import Quickshell.Io
 import Quickshell.Services.UPower
 import qs.Commons
@@ -110,11 +109,7 @@ BarWidget {
     stdout: SplitParser {
       onRead: function(line) {
         let s
-        try {
-          s = JSON.parse(line)
-        } catch (e) {
-          return
-        }
+        try { s = JSON.parse(line) } catch (e) { return }
         for (const key in root.statsEmpty) s[key] = s[key] ?? root.statsEmpty[key]
         root.stats = s
         root.cpuHist = Util.historyPush(root.cpuHist, s.cpu)
@@ -139,9 +134,7 @@ BarWidget {
     // restart the stream when it exits: the script returns at once while ossec-server.target is down, so a long
     // retry keeps a machine without ossec from spawning nu every few seconds
     intervalMs: root.ossecRetryMs
-    onParsed: function(data) {
-      root.ossec = data
-    }
+    onParsed: function(data) { root.ossec = data }
   }
 
   Row {
@@ -419,13 +412,7 @@ BarWidget {
           spacing: Style.spacing.sm
 
           Repeater {
-            model: [{
-              "head": "CPU",
-              "items": root.stats.top ? root.stats.top.cpu : []
-            }, {
-              "head": "MEM",
-              "items": root.stats.top ? root.stats.top.mem : []
-            }]
+            model: root.stats.top ? [{ head: "CPU", items: root.stats.top.cpu }, { head: "MEM", items: root.stats.top.mem }] : []
 
             Column {
               required property var modelData
@@ -466,9 +453,7 @@ BarWidget {
                     horizontalAlignment: Text.AlignRight
                     dim: true
                     caption: true
-                    font.features: {
-                      "tnum": 1
-                    }
+                    font.features: { "tnum": 1 }
                   }
                 }
               }
@@ -523,9 +508,7 @@ BarWidget {
                 font.bold: true
                 layer.enabled: Style.fx.glow > 0
 
-                layer.effect: Glow {
-                  shadowColor: alertLevel.color
-                }
+                layer.effect: Glow { shadowColor: alertLevel.color }
               }
 
               Label {
@@ -564,10 +547,7 @@ BarWidget {
         width: parent.width
         glyph: "\u{f02ca}"
         label: "Disk speed test"
-        onActivated: {
-          if (root.bar) root.bar.closePanel(root.moduleName)
-          Quickshell.execDetached(Paths.ipcCall("shell", "summon", "panel.speedtest", "{\"mode\":\"disk\"}"))
-        }
+        onActivated: root.summon("panel.speedtest", "{\"mode\":\"disk\"}")
       }
     }
   }

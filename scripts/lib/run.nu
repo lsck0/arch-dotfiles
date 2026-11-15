@@ -8,7 +8,7 @@ use doctor.nu [doctor-checks]
 use platform.nu [platform-load]
 use profile.nu [profile-has]
 use modules.nu [modules-packages]
-use pipeline.nu [pipeline-load pipeline-plan pipeline-apply pending-save flatpak-installed nix-installed THEME_VERB_TIMEOUT NIX_FLAGS]
+use pipeline.nu [module-get pipeline-load pipeline-plan pipeline-apply pending-save flatpak-installed nix-installed THEME_VERB_TIMEOUT NIX_FLAGS]
 use converge.nu [state-read observe-outputs plan-module recorded-hashes apply-module state-write output-file-state unit-state-holds action-recorded dir-hidden]
 use ledger.nu [ledger-units ledger-get ledger-set ledger-diff ledger-remove packages-convergence]
 use migrate.nu [migrations-run migrations-pending]
@@ -391,8 +391,7 @@ export def user-locked []: nothing -> nothing {
 
 export def --env unlink-run [mod: string]: nothing -> table {
     let ctx = pipeline-load $REPO user
-    let m = $ctx.modules | where id == $mod | get --optional 0
-    if $m == null { error make {msg: $"no module ($mod); dot plan --modules lists them"} }
+    let m = module-get $ctx $mod
     if ($m.native | is-empty) { error make {msg: $"($mod) only declares packages, there is nothing to unlink"} }
     failures-open
     let rows = [link theme] | each {|verb|
@@ -554,8 +553,13 @@ export def --env install-run [user: bool, yes: bool, offer_by_hand: bool]: nothi
     install-end
 }
 
-export def pending-file []: nothing -> path {
+def pending-file []: nothing -> path {
     state-dir | path join system-pending
+}
+
+# What earlier runs left of the system layer for the next apply, each named once.
+export def pending-read []: nothing -> list<string> {
+    try { open --raw (pending-file) | lines | where $it != "" | uniq } catch { [] }
 }
 
 export def --env system-part [target: string]: nothing -> nothing {
@@ -617,7 +621,7 @@ def system-facts []: nothing -> record {
     let ctx = pipeline-load $REPO system
     let declared = modules-packages $REPO $ctx.modules $ctx.platform
     {
-        "system part pending": (try { open --raw (with-env {DOT_LAYER: user} { pending-file }) | lines | where $it != "" } catch { [] })
+        "system part pending": (with-env {DOT_LAYER: user} { pending-read })
         "migrations pending": (migrations-pending $REPO system | get id)
         "undeclared packages": (packages-convergence $declared.pacman $ctx.platform.packages_keep).remove
         "modules declaring no packages": $declared.incomplete

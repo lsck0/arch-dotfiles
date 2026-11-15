@@ -5,6 +5,9 @@ description: How a wallpaper or theme switch recolors the system (wallust templa
 
 # theming
 
+`dot theme` recolours Luca's live desktop at once: ask before running it while he works, and put his wallpaper back
+(Test).
+
 ## Flow
 
 `dot theme <wallpaper|path|random>` (`configs/core/wallust/wallpaper.nu`; no argument: picker) takes a wallpaper, not a
@@ -58,7 +61,7 @@ theme's wallpaper has a public copy in `wallpapers/`; names resolve from `~/sync
 
 ## Test
 
-Each switch recolours Luca's live desktop: ask before running it while he works.
+After his yes:
 
 ```bash
 dot internal theme get                                         # remember the current wallpaper

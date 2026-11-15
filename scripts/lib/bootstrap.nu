@@ -3,7 +3,7 @@
 use log.nu *
 use state.nu [SYSTEM_REPO path-kind]
 use system.nu [system-pack system-unpack]
-use platform.nu [platform-groups-all PLATFORM_NAME_FILE]
+use platform.nu [platform-groups-all platform-files PLATFORM_NAME_FILE]
 use profile.nu [profile-owner-add]
 use stage.nu [
     STAGE_KEY_FILE STAGE_ESP_MARKER STAGE_ESP_RUNNING STAGE_ESP_STOPPED STAGE_RESUME STAGE_SUDOERS_DROPIN STAGE_NEXT STAGE_REPORT
@@ -555,7 +555,7 @@ def on-wsl []: nothing -> bool {
 }
 
 def platform-names [repo: path]: nothing -> list<string> {
-    glob ($repo | path join platforms *.nuon) | where not ($it | str ends-with ".options.nuon") | each { path parse | get stem } | sort
+    platform-files $repo | each { path parse | get stem }
 }
 
 def platform-items [e: record, c: record]: nothing -> list<string> {

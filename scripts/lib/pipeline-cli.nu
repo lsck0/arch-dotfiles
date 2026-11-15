@@ -13,7 +13,7 @@ use ledger.nu [packages-convergence]
 use migrate.nu [migrations-pending]
 use preserve.nu [preserve-report]
 use doctor.nu [doctor-run doctor-checks]
-use run.nu [plan-print link-plan tee-log admin apply-finish apply-run user-locked install-run link-run user-packages-undeclared pending-file managed-drift]
+use run.nu [plan-print link-plan tee-log admin apply-finish apply-run user-locked install-run link-run user-packages-undeclared pending-read managed-drift]
 
 # the message tag of the layer context dot plan loads in a job while it plans the other
 const PLAN_OTHER_TAG = 1
@@ -39,7 +39,7 @@ def "main plan" [...mods: string, --system, --force, --order, --modules, --json]
     }
     guarded plan --read-only {
         # read before pipeline-load switches DOT_LAYER: the pending list lives in the user's state
-        let waiting = try { open --raw (pending-file) | lines | uniq } catch { [] }
+        let waiting = pending-read
         # each layer loads once: the plan's context is reused for the packages below, the other one loads alongside
         let other = if $system { "user" } else { "system" }
         job spawn {
@@ -126,7 +126,7 @@ def status-head []: nothing -> record {
         last_run: (if $last == null { "none" } else { $last | path basename | str replace ".jsonl" "" })
         errors: ($records | where level in [ERROR PANIC] | length)
         migrations_pending: (migrations-pending $REPO user | get id)
-        system_pending: (try { open --raw (pending-file) | lines | uniq } catch { [] })
+        system_pending: (pending-read)
         preserved: (preserve-report)
     }
 }

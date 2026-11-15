@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # Table cases for the nushell pitfalls lint (what each pattern flags, and the lines it must leave alone) and the
 # fail-closed lint.
-use gate.nu [nu-pitfalls-find shebang fail-closed-find FAIL_CLOSED linked-scripts linked-relative-find]
+use gate.nu [patterns-find NU_PITFALLS LINKED_RELATIVE shebang fail-closed-find FAIL_CLOSED linked-scripts]
 use std/assert
 
 const REPO = path self ../..
@@ -19,7 +19,7 @@ def pitfalls-check [] {
         ["clean" "let x = 1\nprint $x" []]
     ]
     for c in $cases {
-        let got = nu-pitfalls-find $c.text | get --optional n | default []
+        let got = patterns-find $c.text $NU_PITFALLS | get --optional n | default []
         assert equal $got $c.wants $"($c.name): got lines ($got | to nuon), wants ($c.wants | to nuon)"
     }
 }
@@ -81,7 +81,7 @@ def linked-relative-check [] {
         ["in a comment" "# use lib/shell.nu" []]
     ]
     for c in $cases {
-        let got = linked-relative-find $c.text | get --optional n | default []
+        let got = patterns-find $c.text $LINKED_RELATIVE | get --optional n | default []
         assert equal $got $c.wants $"linked, ($c.name): got lines ($got | to nuon), wants ($c.wants | to nuon)"
     }
     let linked = linked-scripts | each { path relative-to $REPO }

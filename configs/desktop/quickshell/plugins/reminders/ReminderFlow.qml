@@ -190,19 +190,14 @@ Item {
           if (root.filterText) root.filterText = ""
           else if (root.step !== "minutes") root.reset()
           else root.close()
-          event.accepted = true
-        } else if (event.key === Qt.Key_Backspace) {
-          root.filterText = root.filterText.slice(0, -1)
-          event.accepted = true
-        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-          root.submit()
-          event.accepted = true
-        } else if (root.step === "minutes" && root.filterText === "" && root.pomoKey(event)) {
-          event.accepted = true
-        } else if (event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127) {
+        } else if (Util.isWordDelete(event.key, event.modifiers)) root.filterText = Util.wordDelete(root.filterText)
+        else if (event.key === Qt.Key_Backspace) root.filterText = root.filterText.slice(0, -1)
+        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) root.submit()
+        else if (root.step === "minutes" && root.filterText === "" && root.pomoKey(event)) {}
+        else if (Util.printable(event.text)) {
           if (root.step !== "minutes" || /[0-9]/.test(event.text) || /^[0-9]/.test(root.filterText)) root.filterText += event.text
-          event.accepted = true
-        }
+        } else return
+        event.accepted = true
       }
     }
 

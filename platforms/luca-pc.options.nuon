@@ -106,15 +106,11 @@
     "base/v4l2loopback": {
         video_nr: 2
     }
-    "base/pam": {
-        fido_origin: "pam://lsck0"
-    }
     "base/ssh": {
         wake_host: "192.168.178.138"
     }
     "llm/vllm": {
         gpu_memory_utilization: 0.7
-        kv_cache_dtype: fp8
     }
     "programming/hermes": {
         # the always-on voice agent with its SUPER+grave dropdown: the desktop only

@@ -96,6 +96,9 @@ QtObject {
     return Quickshell.iconPath(value, true)
   }
 
+  // a key event's text that types one visible character
+  function printable(text) { return !!text && text.length === 1 && text.charCodeAt(0) >= 32 && text.charCodeAt(0) !== 127 }
+
   function isWordDelete(key, modifiers) {
     return (modifiers & Qt.ControlModifier) !== 0 && (key === Qt.Key_W || key === Qt.Key_Backspace)
   }

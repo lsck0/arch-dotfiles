@@ -40,9 +40,8 @@ BarWidget {
   implicitHeight: button.implicitHeight
 
   PwObjectTracker {
-    objects: [root.sink, root.source].filter((n) => {
-      return !!n
-    }).concat(root.live ? Audio.appStreams.concat(Audio.loopbackOuts, Audio.micListeners, Audio.sinks) : [])
+    objects: [root.sink, root.source].filter(n => !!n)
+      .concat(root.live ? Audio.appStreams.concat(Audio.loopbackOuts, Audio.micListeners, Audio.sinks) : [])
   }
 
   BarIconButton {
@@ -51,12 +50,8 @@ BarWidget {
     bar: root.bar
     text: Audio.volumeIcon(root.volume, root.muted)
     tooltipText: root.muted ? "Muted" : Math.round(root.volume * 100) + "%  " + Audio.dbText(root.volume) + " dB"
-    onPressed: function(b) {
-      if (b === Qt.MiddleButton) root.toggleMute()
-    }
-    onWheelMoved: function(delta) {
-      Audio.nudge(root.sink, delta)
-    }
+    onPressed: function(b) { if (b === Qt.MiddleButton) root.toggleMute() }
+    onWheelMoved: function(delta) { Audio.nudge(root.sink, delta) }
   }
 
   HoverPanel {
@@ -64,11 +59,7 @@ BarWidget {
     anchorWidget: root
     title: "AUDIO"
     implicitWidth: Style.panelWidth.wide
-    onShownChanged: {
-      if (!shown) {
-        root.routingStreamId = -1
-      }
-    }
+    onShownChanged: if (!shown) root.routingStreamId = -1
 
     Column {
       id: content
@@ -110,17 +101,9 @@ BarWidget {
           id: hearGroup
           anchors.right: parent.right
           spacing: Style.spacing.xs
-          options: [{
-            "value": "me",
-            "label": "System"
-          }, {
-            "value": "obs",
-            "label": "OBS output"
-          }]
+          options: [{ value: "me", label: "System" }, { value: "obs", label: "OBS output" }]
           value: ObsProcess.listening ? "obs" : "me"
-          onChanged: function(v) {
-            ObsProcess.listenSet(v === "obs")
-          }
+          onChanged: function(v) { ObsProcess.listenSet(v === "obs") }
         }
       }
 
@@ -267,7 +250,7 @@ BarWidget {
         glyph: "\u{f1049}"
         label: "Patchbay (qpwgraph)"
         onActivated: {
-          if (root.bar) root.bar.closePanel(root.moduleName)
+          root.closePanel()
           Quickshell.execDetached(["uwsm-app", "--", "qpwgraph"])
         }
       }
@@ -345,23 +328,13 @@ BarWidget {
     readonly property string readoutText: muted ? "MUTE" : external ? (obsMul > 0 ? (20 * Math.log(obsMul) / Math.LN10).toFixed(1) + " dB" : "-inf") : Audio.dbText(volume) + " dB"
 
     function toggleMute() {
-      if (external) {
-        ObsProcess.send({
-          "cmd": "toggleMute",
-          "source": fader.obsLabel
-        })
-        return
-      }
-      if (node && node.audio) node.audio.muted = !node.audio.muted
+      if (external) ObsProcess.send({ "cmd": "toggleMute", "source": fader.obsLabel })
+      else if (node && node.audio) node.audio.muted = !node.audio.muted
     }
 
     function setExternal(value) {
       ObsProcess.inputVolumes = Util.mapSet(ObsProcess.inputVolumes, fader.obsLabel, value)
-      ObsProcess.send({
-        "cmd": "setInputVolume",
-        "source": fader.obsLabel,
-        "volume": value
-      })
+      ObsProcess.send({ "cmd": "setInputVolume", "source": fader.obsLabel, "volume": value })
     }
 
     implicitHeight: slider.implicitHeight

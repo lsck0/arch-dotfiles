@@ -9,7 +9,7 @@ use ($LIB | path join complete.nu) [command-table module-ids option-keys option-
 use ($LIB | path join state.nu) [state-dir SYSTEM_STATE]
 use ($LIB | path join platform.nu) [platform-env]
 use ($LIB | path join modules.nu) [modules-packages modules-eval VERB_WORK_TIMEOUT]
-use ($LIB | path join pipeline.nu) [pipeline-load pipeline-plan pipeline-apply]
+use ($LIB | path join pipeline.nu) [pipeline-load pipeline-plan pipeline-apply module-get]
 use ($LIB | path join preserve.nu) [tty-confirm]
 use ($LIB | path join ledger.nu) [packages-resolve PACKAGES_DENY]
 use ($LIB | path join gate.nu) [gate-lint gate-tools gate-palette]
@@ -101,8 +101,7 @@ def "main module remove" [mod: string@module-ids, --machine, --yes]: nothing -> 
     theme-locked
     guarded remove {
         let ctx = pipeline-load $REPO user
-        let m = $ctx.modules | where id == $mod | get --optional 0
-        if $m == null { error make {msg: $"no module ($mod); dot plan --modules lists them"} }
+        let m = module-get $ctx $mod
         let dependents = $ctx.modules | where {|d| $d.cfg.enable and $mod in $d.meta.deps } | get id
         if ($dependents | is-not-empty) { error make {msg: $"($dependents | str join ', ') depend on ($mod), remove those first"} }
         if ($m.native | is-not-empty) {
@@ -292,7 +291,12 @@ def "main status" [
 }
 
 # a run's records (default the last) by module and level; --trace the span tree with timings
-def "main log" [run?: string@run-ids, --module: string@module-ids, --level: string@$LOG_LEVELS = "INFO", --trace]: nothing -> any {
+def "main log" [
+    run?: string@run-ids
+    --module: string@module-ids      # only this module's records
+    --level: string@$LOG_LEVELS = "INFO"  # the lowest level shown
+    --trace                          # the span tree with timings and each span's errors
+]: nothing -> any {
     let level = $level | str uppercase
     if $level not-in $LOG_LEVELS { die --misuse $"log: --level ($level), one of ($LOG_LEVELS | str join ' ')" }
     let file = if $run == null { run-last-changed } else { runs-dir | path join $"($run).jsonl" }
@@ -300,7 +304,7 @@ def "main log" [run?: string@run-ids, --module: string@module-ids, --level: stri
         log-note $"no run recorded yet in (runs-dir)"
         return
     }
-    if not ($file | path exists) { error make --unspanned {msg: "dot log: no such run"} }
+    if not ($file | path exists) { die $"log: no run ($run) in (runs-dir); the newest: (ls (runs-dir) | where name ends-with '.jsonl' | sort-by name | last 3 | get name | path parse | get stem | str join ' ')" }
     let own = run-records $file
     # root's side of the run: its entries' own files, world-readable, named by the records system-run left
     let roots = $own | where kind? == system-run | get target | where $it =~ $RUN_ID | uniq

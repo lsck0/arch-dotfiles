@@ -40,22 +40,16 @@ BarWidget {
   function openEntry(entry) {
     if (!entry) return
     var argv = NotificationLogic.parseExecArgv(entry.execArgv)
-    if (argv) {
-      Quickshell.execDetached(["uwsm-app", "--"].concat(argv))
-      if (root.bar) root.bar.closePanel(root.moduleName)
-      return
-    }
     var candidates = [entry.appIcon, entry.app]
-    for (let i = 0; i < candidates.length; i++) {
+    for (let i = 0; !argv && i < candidates.length; i++) {
       let id = String(candidates[i] || "").trim()
       if (!id) continue
       let de = DesktopEntries.byId(id) || DesktopEntries.heuristicLookup(id) || root.findEntry(id)
-      if (de) {
-        Quickshell.execDetached(["uwsm-app", "--", "gtk-launch", de.id + ".desktop"])
-        if (root.bar) root.bar.closePanel(root.moduleName)
-        return
-      }
+      if (de) argv = ["gtk-launch", de.id + ".desktop"]
     }
+    if (!argv) return
+    Quickshell.execDetached(["uwsm-app", "--"].concat(argv))
+    root.closePanel()
   }
 
   function toggleDnd() {
@@ -136,7 +130,7 @@ BarWidget {
           variant: "chip"
           focusable: true
           text: "clear"
-          onClicked: { root.clearHistory(); if (root.bar) root.bar.closePanel(root.moduleName) }
+          onClicked: { root.clearHistory(); root.closePanel() }
         }
       }
 

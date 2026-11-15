@@ -18,11 +18,8 @@ Item {
   property int selectedIndex: 0
   property var rows: []
 
-  property color foreground: Colors.menu.text
-  property color selectedBackground: Colors.menu.selectedBackground
-  property color selectedText: Colors.menu.selectedText
-  property int rowHeight: Style.space(44)
-  property int iconSize: Style.space(28)
+  readonly property int rowHeight: Style.space(44)
+  readonly property int iconSize: Style.space(28)
 
   readonly property var prefixes: ({ "=": "calc", ">": "run", "@": "windows", "?": "keys", "+": "task", "!": "remind", "#": "note" })
   readonly property string mode: prefixes[filterText.charAt(0)] || "apps"
@@ -40,6 +37,8 @@ Item {
     windows: [["^/v", "select"], ["ENTER", "focus"], ["ESC", "clear"]],
     keys: [["^/v", "select"], ["ENTER", "close"], ["ESC", "clear"]]
   })
+  // what an empty list says while nothing is typed
+  readonly property var modeEmpty: ({ apps: "> NOTHING HERE", calc: "> TYPE AN EXPRESSION", run: "> TYPE A COMMAND", windows: "> NO WINDOWS", keys: "> NO KEYBINDS", task: "> TYPE A TASK", remind: "> TYPE A DURATION OR TIME, THEN A NAME", note: "> TYPE A NOTE" })
 
   readonly property var modifierBits: [[64, "SUPER"], [4, "CTRL"], [8, "ALT"], [1, "SHIFT"]]
   // hyprctl names that the hint grammar spells differently; every other key name is shown upper case
@@ -231,8 +230,7 @@ Item {
       : root.mode === "keys" ? bindRows()
       : (root.mode === "task" || root.mode === "remind" || root.mode === "note") ? captureRows()
       : appRows()
-    if (root.selectedIndex >= root.rows.length) root.selectedIndex = Math.max(0, root.rows.length - 1)
-    else if (root.selectedIndex < 0) root.selectedIndex = 0
+    root.selectedIndex = Math.max(0, Math.min(root.selectedIndex, root.rows.length - 1))
   }
 
   function setFilter(text) {
@@ -335,13 +333,10 @@ Item {
     command: ["hyprctl", "binds", "-j"]
     stdout: StdioCollector { id: bindsOut; waitForEnd: true }
     onExited: function(code) {
-      try {
-        root.binds = code === 0 ? JSON.parse(bindsOut.text) : []
-        root.bindsState = code === 0 ? "" : "error"
-      } catch (e) {
-        root.binds = []
-        root.bindsState = "error"
-      }
+      var binds = null
+      try { if (code === 0) binds = JSON.parse(bindsOut.text) } catch (e) {}
+      root.binds = Array.isArray(binds) ? binds : []
+      root.bindsState = Array.isArray(binds) ? "" : "error"
       if (root.mode === "keys") root.rebuild()
     }
   }
@@ -424,7 +419,7 @@ Item {
                  || (event.key === Qt.Key_Insert && (event.modifiers & Qt.ShiftModifier))) root.paste()
         else if (Util.isWordDelete(event.key, event.modifiers)) root.setFilter(Util.wordDelete(root.filterText))
         else if (event.key === Qt.Key_Backspace) root.setFilter(root.filterText.slice(0, -1))
-        else if (event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127)
+        else if (Util.printable(event.text))
           root.setFilter(root.filterText + event.text)
         else return
         event.accepted = true
@@ -454,7 +449,7 @@ Item {
         height: root.rowHeight
         radius: Style.shape.data
         opacity: panel.boot.rowOpacity(index)
-        color: selected ? root.selectedBackground
+        color: selected ? Colors.menu.selectedBackground
           : rowMouse.containsMouse ? Style.hoverFill : "transparent"
 
         Row {
@@ -494,7 +489,7 @@ Item {
               anchors.centerIn: parent
               visible: !rowIcon.visible
               text: rowDelegate.modelData.glyph
-              color: rowDelegate.selected ? root.selectedText : root.foreground
+              color: rowDelegate.selected ? Colors.menu.selectedText : Colors.menu.text
               icon: true
               font.pixelSize: Style.font.heading
             }
@@ -510,7 +505,7 @@ Item {
               text: rowDelegate.modelData.kind === "app"
                 ? AppSearch.highlight(rowDelegate.modelData.name, root.modeQuery, String(Colors.accent2Text))
                 : AppSearch.escapeHtml(rowDelegate.modelData.name)
-              color: rowDelegate.selected ? root.selectedText : root.foreground
+              color: rowDelegate.selected ? Colors.menu.selectedText : Colors.menu.text
               elide: Text.ElideRight
             }
 
@@ -518,7 +513,7 @@ Item {
               width: parent.width
               visible: text.length > 0
               text: rowDelegate.modelData.sub
-              color: rowDelegate.selected ? root.selectedText : Colors.textDim
+              color: rowDelegate.selected ? Colors.menu.selectedText : Colors.textDim
               caption: true
               elide: Text.ElideRight
             }
@@ -529,7 +524,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             width: text ? implicitWidth : 0
             text: rowDelegate.modelData.keys
-            color: rowDelegate.selected ? root.selectedText : Colors.accentText
+            color: rowDelegate.selected ? Colors.menu.selectedText : Colors.accentText
             caption: true
             font.bold: true
           }
@@ -546,37 +541,12 @@ Item {
         }
       }
 
-      Column {
-        anchors.centerIn: parent
-        spacing: Style.spacing.sm
-        opacity: root.rows.length === 0 ? 1 : 0
-        visible: opacity > 0
-        Behavior on opacity { NumberAnimation { duration: Style.motion.base; easing.type: Style.motion.fastEasing } }
-        width: parent.width * 0.8
-
-        Label {
-          text: "\u{f003b}"
-          color: Colors.accentText
-          opacity: Style.emphasis.dim
-          icon: true
-          font.pixelSize: Style.font.display
-          horizontalAlignment: Text.AlignHCenter
-          width: parent.width
-        }
-
-        Label {
-          text: root.mode === "keys" && root.bindsState === "loading" ? "> LOADING"
-            : root.mode === "keys" && root.bindsState === "error" ? "> HYPRCTL BINDS FAILED"
-            : root.modeQuery ? "> NO MATCH"
-            : root.mode === "apps" ? "> NOTHING HERE"
-            : root.mode === "calc" ? "> TYPE AN EXPRESSION"
-            : root.mode === "run" ? "> TYPE A COMMAND"
-            : root.mode === "windows" ? "> NO WINDOWS"
-            : "> NO KEYBINDS"
-          dim: true
-          horizontalAlignment: Text.AlignHCenter
-          width: parent.width
-        }
+      EmptyState {
+        shown: root.rows.length === 0
+        glyph: "\u{f003b}"
+        text: root.mode === "keys" && root.bindsState === "loading" ? "> LOADING"
+          : root.mode === "keys" && root.bindsState === "error" ? "> HYPRCTL BINDS FAILED"
+          : root.modeQuery ? "> NO MATCH" : root.modeEmpty[root.mode]
       }
     }
   }
