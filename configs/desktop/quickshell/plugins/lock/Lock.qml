@@ -118,7 +118,6 @@ Item {
   }
 
   function fprintDisarm() {
-    root.fprintCue = ""
     if (pamFprint.active) pamFprint.abort()
   }
 
@@ -281,14 +280,10 @@ Item {
       if (!responseRequired) root.fprintCue = message
     }
     onCompleted: function(result) {
-      root.fprintCue = ""
       active = false
       if (result === PamResult.Success) root.unlock()
     }
-    onError: function(err) {
-      root.fprintCue = ""
-      active = false
-    }
+    onError: active = false
   }
 
   Process {

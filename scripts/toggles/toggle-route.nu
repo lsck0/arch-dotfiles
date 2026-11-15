@@ -94,7 +94,7 @@ def offline-leave []: nothing -> nothing {
 }
 
 # only a user-chosen tor stops, after proton0 is up; the dispatcher stops its own
-def apply [route: string, --keep-tor]: nothing -> nothing {
+def "main _apply" [route: string, --keep-tor]: nothing -> nothing {
     if $route not-in $ROUTES { error make {msg: $"route must be one of ($ROUTES | columns | str join ', ')"} }
     let from = current
     if $route == $from { return }
@@ -125,7 +125,6 @@ def "main get" [--json] {
     let route = current
     status-print (status-record Route $route --text ($ROUTES | get $route) --states ($ROUTES | columns)) $json
 }
-def "main _apply" [route: string, --keep-tor] { apply $route --keep-tor=$keep_tor }
 def "main set" [route: string, --keep-tor] {
     if $route not-in $ROUTES { error make {msg: $"route must be one of ($ROUTES | columns | str join ', ')"} }
     exclusive-run Route _apply $route ...(if $keep_tor { [--keep-tor] } else { [] })

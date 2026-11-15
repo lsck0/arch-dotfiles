@@ -5,7 +5,7 @@ use log.nu *
 use state.nu [SYSTEM_REPO SYSTEM_STATE NU_ROOT EXIT_ABORTED EXIT_PENDING INSTALL_PASS_FILE process-running group-exists save-atomic]
 use pipeline.nu [pipeline-load pipeline-plan pipeline-apply pending-save barriers-run]
 use modules.nu [modules-packages]
-use ledger.nu [packages-convergence packages-orphans-remove ledger-get ledger-set ledger-packages ledger-units]
+use ledger.nu [packages-convergence packages-orphans-remove ledger-get ledger-set ledger-packages ledger-units awaited-names LEDGER_AWAITED LSCK0_DB]
 use preserve.nu [tty-confirm preserve-prune]
 use migrate.nu [migrations-run]
 use system.nu [system-unpack system-secrets secrets-digest ENTRY SYSTEM_STAGES SYSTEM_SECRETS_DIGEST RUN_ID]
@@ -23,15 +23,12 @@ const OFFLINE_TRIES = 3
 const DOWNLOAD_BACKOFF_STEP = 5sec
 const DOWNLOAD_BACKOFF_MAX = 1min
 const DOWNLOAD_ERRORS = '(?i)failed retrieving file|failed to retrieve some files|failed to synchronize|could not resolve|returned error: (403|429|5\d\d)|timed? ?out|too slow|connection (refused|reset)|could not connect|network is unreachable'
-const LSCK0_DB = "/var/lib/pacman/sync/lsck0.db"
 const PACMAN_LOCK = "/var/lib/pacman/db.lck"
 const ADDUSER_BIN = "/usr/local/bin/adduser-dotfiles"
 const NOT_ON_MIRROR = "not on the mirror"
 const MIRROR_PROBE_TIMEOUT_S = 5
 # curl's %{http_code} when no http answer came at all
 const HTTP_NO_ANSWER = "000"
-# ledger kind: a declared name [lsck0] lacked, with when this machine first asked for it
-const LEDGER_AWAITED = "awaited"
 const ADMIN_GROUP = "wheel"
 # what one root entry runs for `apply <sha> <stage>`, in order, each from the unpacked copy
 const STAGES = {install: [install packages], config: [config], sync: [install packages config]}
@@ -122,18 +119,12 @@ def mirror-silent []: nothing -> bool {
 
 # The names [lsck0] lacks, by whether its build could know them yet. recorded: "name first-asked" lines; a name is
 # awaited while the mirror's database (built) is older than its first ask, and failed once a build after it still lacks
-# it (a typo, a build that broke). No database: nothing to wait for. record: the lines to keep.
+# it (a typo, a build that broke). record: the lines to keep.
 export def mirror-awaited [names: list<string>, recorded: list<string>, built: any, now: datetime]: nothing -> record {
-    let known = $recorded | parse "{name} {asked}" | where name in $names
-    let rows = $names | each {|n|
-        let asked = $known | where name == $n | get --optional 0.asked | default ($now | format date '%+')
-        {name: $n, asked: $asked, awaited: ($built != null and $built < ($asked | into datetime))}
-    }
-    {
-        awaited: ($rows | where awaited | get name)
-        failed: ($rows | where not awaited | get name)
-        record: ($rows | each { $"($in.name) ($in.asked)" })
-    }
+    let known = $recorded | parse "{name} {asked}"
+    let record = $names | each {|n| $"($n) ($known | where name == $n | get --optional 0.asked | default ($now | format date '%+'))" }
+    let awaited = awaited-names $record $built
+    {awaited: $awaited, failed: ($names | where $it not-in $awaited), record: $record}
 }
 
 # What `apply` exits with for its stages' codes: an aborted install first, then a failure, then pending.

@@ -35,7 +35,7 @@ def saver-sync []: nothing -> nothing {
     quickshell-call shell reloadPowerMode | complete | ignore
 }
 
-def apply [mode: string]: nothing -> nothing {
+def "main _apply" [mode: string]: nothing -> nothing {
     if $mode == auto {
         root-run tlp start
         state-clear powermode --volatile
@@ -56,7 +56,6 @@ def "main get" [--json] {
 
 # auto is a stop of its own: else the first press leaves it for good
 def "main toggle" [] { main set ($MODES | columns | cycle-next (current)) }
-def "main _apply" [mode: string] { apply $mode }
 def "main set" [mode: string] {
     if $mode not-in $MODES { error make {msg: $"power mode is one of ($MODES | columns | str join ', ')"} }
     exclusive-run "Power mode" _apply $mode

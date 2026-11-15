@@ -1,7 +1,7 @@
 # The health checks of `dot status`.
 
 use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir xdg file-trim HOOK_WATCH_PREFIX HOOK_RUN_PREFIX]
-use ledger.nu [ledger-get]
+use ledger.nu [ledger-get awaited-names LEDGER_AWAITED LSCK0_DB]
 use platform.nu [platform-load]
 use profile.nu [profile-has]
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
@@ -26,9 +26,6 @@ const HOOK_OUTCOME = ['^(Failed to start|Finished) ' $HOOK_RUN_PREFIX ' .* hook\
 const WITNESS = $REPO | path join $OWNER_WITNESS
 const APPARMOR_MANUAL = "/etc/apparmor/flags.d/manual.conf"
 const SNAPSHOT_MAX_DAYS = 30
-# system-apply.nu's: the ledger kind of the names [lsck0] lacked, and the database whose age tells awaited from failed
-const LEDGER_AWAITED = "awaited"
-const LSCK0_DB = "/var/lib/pacman/sync/lsck0.db"
 const SHOWN_MAX = 8
 # failure groups dot status shows per FAILURES file, one line each
 const GROUPS_SHOWN = 5
@@ -179,7 +176,7 @@ def snapshot []: nothing -> list<record> {
 # mirror-awaited), so it is a note; any other missing name is a pending or failed install.
 export def packages-reports [missing: list<string>, recorded: list<string>, built: any]: nothing -> list<record> {
     if ($missing | is-empty) { return [(report ok packages "every declared package installed")] }
-    let awaited = $recorded | parse "{name} {asked}" | where {|r| $r.name in $missing and $built != null and $built < ($r.asked | into datetime) } | get name
+    let awaited = awaited-names $recorded $built | where $it in $missing
     let pending = $missing | where $it not-in $awaited
     [
         (if ($pending | is-not-empty) { report FAIL packages $"dot apply --packages pending, declared but not installed: (names-shown $pending $SHOWN_MAX)" })
@@ -245,7 +242,7 @@ def hooks []: nothing -> list<record> {
 }
 
 # cmdline: the kernel's; missing: the token kinds this boot's systemd-cryptsetup found no token data for. A LUKS root
-# whose rd.luks.options asks for no token unlocks by passphrase alone, which only an apply's output said so far.
+# whose rd.luks.options asks for no token unlocks by passphrase alone: a note with the enrol command.
 export def luks-reports [cmdline: string, missing: list<string>]: nothing -> list<record> {
     let root = $cmdline | parse --regex $LUKS_ROOT | get --optional 0.uuid
     let options = $cmdline | parse --regex 'rd\.luks\.options=(?<o>\S+)' | get --optional 0.o | default "" | split row ","

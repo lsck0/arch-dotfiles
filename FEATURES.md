@@ -21,7 +21,8 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
   reinstalls); with `untrusted_policy` lockdown-tor (luca-pc, luca-notebook) an egress kill switch off home.
 - A per-source rate limit on the ssh port (fail2ban where a platform keeps it on), an endlessh tarpit on port 22, the
   OSSEC HIDS with its alerts in the bar's system panel.
-- Untrusted networks: a MAC per network and boot, ProtonVPN or tor; fail-closed VPN namespace for `vpn <cmd>`; Portmaster.
+- Untrusted networks: a MAC per network and boot, ProtonVPN or tor; fail-closed VPN namespace for `vpn <cmd>`;
+  Portmaster.
 - Secrets in a git-crypt submodule unlocked with the YubiKey; per-repo credential isolation (`identity-init`).
 - Telemetry off everywhere but Claude Code where `remote_control` is on; browser policies; sandboxed builds
   (`sandbox-build`), confined GUI apps (`confine`).
@@ -152,7 +153,6 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/boot/sata.probe` | `bool` | `true` | Probe the SATA ports at boot; false on a machine without SATA disks keeps the built-in AHCI driver from loading (0.3 s per empty port with staggered spin-up), and a SATA disk added later stays invisible until this is true again |
 | `base/cleanup.journal_max_use` | `string` | `"1G"` | Total disk space the systemd journal may keep, journald.conf(5) size syntax |
 | `base/cleanup.journal_retention` | `string` | `"3month"` | Age past which journal entries are dropped even with space left, journald.conf(5) MaxRetentionSec |
-| `base/cleanup.container_log_max_mb` | `int` | `50` | Largest log file podman keeps per container, in MiB; container output stays out of the journal |
 | `base/coredump.max_use` | `string` | `"256M"` | Total disk space systemd-coredump may keep across every stored core, systemd.coredump(5) size syntax |
 | `base/coredump.process_size_max` | `string` | `"1G"` | Largest process core systemd-coredump will process at all, above it the core is skipped entirely |
 | `base/coredump.external_size_max` | `string` | `"1G"` | Largest core systemd-coredump will write to storage, independent of the process size limit |
@@ -190,7 +190,6 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/v4l2loopback.video_nr` | `int?` | detected | /dev/video<n> of the OBS virtual camera; null: a loaded one's, else the first free from 10, past webcams |
 | `base/zram.compression_algorithm` | `string` | `"zstd"` | Compression used for the zram swap device, zram-generator.conf(5) compression-algorithm (a weaker CPU may prefer lz4) |
 | `base/zram.swappiness` | `int` | `150` | How aggressively the kernel swaps to zram versus reclaiming page cache, sysctl(8) vm.swappiness (a zram swap favors higher than disk swap's usual 60) |
-| `core/alloy.battery` | `bool` | `false` | Keep shipping metrics and the journal on battery; off, alloy stops while unplugged and the lab sees a gap in metrics (the journal is sent later) |
 | `core/btop.accent` | `string` | `"c4"` | Palette slot for titles, highlights and the selection |
 | `core/gnupg.cache_ttl` | `int` | `28800` | Seconds gpg-agent caches a passphrase after use before re-asking, gpg-agent.conf(5) default-cache-ttl; a screen lock or suspend empties the cache |
 | `core/gnupg.cache_ttl_max` | `int` | `86400` | Seconds gpg-agent caches a passphrase at most, however often it is used, gpg-agent.conf(5) max-cache-ttl |
@@ -231,7 +230,6 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/hyprland.idle_lock_saver_s` | `int` | `600` | Idle seconds until the session locks in power saver |
 | `desktop/hyprland.idle_dpms_saver_s` | `int` | `660` | Idle seconds until the screens go off in power saver |
 | `desktop/hyprland.idle_suspend_saver_s` | `int` | `1800` | Idle seconds until suspend in power saver |
-| `desktop/ly.autologin_after_unlock` | `bool` | `false` | Start the machine's one login without asking, once per boot: the LUKS passphrase just typed stands in for the login password and unlocks the keyring, so the two have to be equal. Whoever unlocks the disk, over remote-unlock's ssh too, leaves an open session at the console |
 | `desktop/mpv.ytdl_max_height` | `int` | `2160` | Max video height yt-dlp fetches for a stream (ytdl-format height filter, pixels); applies to mpv-stream, plain mpv runs no yt-dlp |
 | `desktop/pipewire.app_loopbacks` | `bool` | `true` | Every app plays through a loopback of its own that carries its system volume, so a capture of the app (obs) stays at full level |
 | `desktop/pipewire.eq_target` | `string?` | unset | The node.name of the headset sink the eq attaches to as a smart filter; unset, no eq chain |

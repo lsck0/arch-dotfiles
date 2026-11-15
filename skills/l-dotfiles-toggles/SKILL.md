@@ -10,10 +10,10 @@ Every `scripts/toggles/toggle-*.nu` answers `get` (the state) and `get --json` (
 through `switch-run` (`on|off|toggle`); n-state ones take `set <value>` and `toggle` (`cycle-next`): route, firewall
 and powermode keep their states in a const record and switch under `exclusive-run`, color-grading cycles the presets
 `color-grading.py` reports, font sets any installed family and cycles its shortlist; shader toggles between off and
-the last shader, monitor-scale steps through its own `SCALES` list. `status.nu [name...]` lists the records, `menu.nu` (`prefix+m` in tmux and
-herdr) shows them; a new script appears in both without registration. `get` stays cheap and side-effect free: `dot
-set` and the settings window call it. A script answering `options` (rows shaped like `dot set --json`, see
-`toggle-font.nu`) shows those rows in the settings window instead.
+the last shader, monitor-scale steps through its own `SCALES` list. `status.nu [name...]` lists the records,
+`menu.nu` (`prefix+m` in tmux and herdr) shows them; a new script appears in both without registration. `get` stays
+cheap and side-effect free: `dot set` and the settings window call it. A script answering `options` (rows shaped like
+`dot set --json`, see `toggle-font.nu`) shows those rows in the settings window instead.
 
 Examples: `toggle-focus.nu` (combines toggles via `toggle-run`), `toggle-theme-mode.nu` (own `get`/`set`),
 `toggle-obs-listen.nu` (live app state), `toggle-route.nu` (exclusive states over several tools).

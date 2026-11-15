@@ -93,7 +93,7 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
 - Native over bolt-on: the tool's own mechanism (Hyprland rules, systemd units, pipewire config, pacman hooks, udev),
   never a wrapper or polling script.
 - A nushell script that runs as root on arguments its caller chose takes neither `def --wrapped main` nor a
-  value-taking flag: nu evaluates `--flag=(expr)` in argv before main runs. Pass-through helpers are POSIX sh.
+  value-taking flag: nu evaluates `--flag=(expr)` in argv before main runs. Pass-through helpers are sh or bash.
 - MCP servers: `mcp-servers` in the owning module registers them with Claude Code, Gemini, Copilot and Hermes; only
   when the tool is installed, pinned when third-party, local (stdio or loopback).
 - One extension pattern: a new capability is a new file following the convention (module, option, package, migration,

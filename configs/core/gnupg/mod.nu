@@ -12,8 +12,8 @@ export const meta = {
 export const options = {
     cache_ttl: {
         type: int
-        # a working day: the lock and suspend hook (desktop/hyprland's quickshell-lock-launch.nu) empties the cache, so it
-        # lasts only as long as the session stays unlocked
+        # a working day: the lock and suspend hook (desktop/hyprland's quickshell-lock-launch.nu) empties the cache, so
+        # it lasts only as long as the session stays unlocked
         default: 28800
         doc: "Seconds gpg-agent caches a passphrase after use before re-asking, gpg-agent.conf(5) default-cache-ttl; a screen lock or suspend empties the cache"
         label: "Passphrase cache (s)"
@@ -29,11 +29,6 @@ export const options = {
 }
 
 const PRIVATE_KEY = "configs/secrets/keys/pgp/private.asc"
-const PASSPHRASE = "configs/secrets/keys/pgp/passphrase"
-# what pinentry stores under when "save in password manager" is ticked, and looks up before it asks
-const KEYRING_SCHEMA = "org.gnupg.Passphrase"
-const KEYRING_STORED_BY = "GnuPG Pinentry"
-const KEYRING_TIMEOUT = "2s"
 
 def --wrapped gpg-ok [...args: string]: nothing -> bool {
     (^gpg --batch ...$args | complete).exit_code == 0
@@ -41,31 +36,6 @@ def --wrapped gpg-ok [...args: string]: nothing -> bool {
 
 def public-key [fpr: string]: nothing -> list<path> {
     glob ($env.PWD | path join *.pub.asc) | where {|f| ^gpg --show-keys --with-colons $f | lines | any { $in == $"fpr:::::::::($fpr):" } }
-}
-
-# The keygrips of the key and its subkeys; pinentry files a passphrase under each one it asked for.
-def keygrips [fpr: string]: nothing -> list<string> {
-    ^gpg --batch --with-colons --with-keygrip --list-keys $fpr | complete | get stdout | lines
-    | parse --regex '^grp:+(?<grip>[0-9A-F]+):' | get grip
-}
-
-# Whether the login keyring holds a pinentry passphrase for every keygrip; search never asks to unlock a keyring.
-def keyring-seeded [fpr: string]: nothing -> bool {
-    let grips = keygrips $fpr
-    if ($grips | is-empty) or (which secret-tool | is-empty) { return false }
-    let found = ^timeout $KEYRING_TIMEOUT secret-tool search --all xdg:schema $KEYRING_SCHEMA | complete
-    let listed = $"($found.stdout)\n($found.stderr)" | lines
-    $grips | all {|grip| $"attribute.keygrip = n/($grip)" in $listed }
-}
-
-# Silent signing is the keyring's entry: seeded from the secrets copy where the owner keeps one, else pinentry's
-# "save in password manager" box, ticked once per machine. An unattended run has no session keyring to store into.
-def keyring-passphrase [fpr: string]: nothing -> any {
-    if (keyring-seeded $fpr) { return null }
-    if (secret-is-plaintext ($env.DOTFILES | path join $PASSPHRASE)) {
-        return (if ($env.DOTFILES_UNATTENDED? | is-empty) { step gpg-keyring-seed $fpr })
-    }
-    step gpg-keyring-note --key $fpr
 }
 
 def identity [fpr: string]: nothing -> list {
@@ -78,21 +48,14 @@ def identity [fpr: string]: nothing -> list {
         (step gpg-trust $fpr --done=$trusted)
         (if (secret-is-plaintext $private) { exec gpg-import-private [gpg --batch --import $private] --done=$has_secret })
         (step gpg-card-stubs --done=$has_secret)
-        (keyring-passphrase $fpr)
+        (step gpg-keyring-note --key $fpr)
     ]
 }
 
-export def gpg-keyring-seed [fpr: string]: nothing -> nothing {
-    let passphrase = open --raw ($env.DOTFILES | path join $PASSPHRASE) | lines | first
-    for grip in (keygrips $fpr) {
-        let key = $"n/($grip)"
-        $passphrase | ^timeout $KEYRING_TIMEOUT secret-tool store --label $"GnuPG: ($key)" xdg:schema $KEYRING_SCHEMA stored-by $KEYRING_STORED_BY keygrip $key
-    }
-}
-
+# once per key: after a screen lock emptied gpg-agent's cache, only a passphrase in the login keyring signs unasked
 export def gpg-keyring-note []: nothing -> nothing {
-    print ("note: gnupg: the login keyring has no passphrase for the signing key, so gpg asks again after every screen "
-        + $"lock: tick \"save in password manager\" in the next pinentry dialog, or keep the passphrase in ($PASSPHRASE)")
+    print ("note: gnupg: gpg asks for the signing key's passphrase again after every screen lock until \"save in "
+        + "password manager\" is ticked once in its pinentry dialog")
 }
 
 export def gpg-trust [fpr: string]: nothing -> nothing {

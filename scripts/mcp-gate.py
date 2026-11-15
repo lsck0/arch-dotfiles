@@ -145,13 +145,8 @@ def relay(url: str, headers: dict[str, str]) -> None:
         except (urllib.error.URLError, OSError, http.client.HTTPException, ValueError) as error:
             message = parse(line)
             if "id" in message:
-                send(
-                    {
-                        "jsonrpc": "2.0",
-                        "id": message["id"],
-                        "error": {"code": RELAY_FAILED, "message": f"relay: {error}"},
-                    }
-                )
+                failure = {"code": RELAY_FAILED, "message": f"relay: {error}"}
+                send({"jsonrpc": "2.0", "id": message["id"], "error": failure})
 
     with ThreadPoolExecutor(REQUESTS_PARALLEL_MAX) as pool:
         for line in sys.stdin:

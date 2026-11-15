@@ -3,7 +3,7 @@
 const REPO = path self | path expand | path dirname --num-levels 2
 const LIB = $REPO | path join scripts lib
 use ($LIB | path join log.nu) *
-use ($LIB | path join cli.nu) [guarded theme-locked flag]
+use ($LIB | path join cli.nu) [guarded crash-retire theme-locked flag]
 use ($LIB | path join usage.nu) [die]
 use ($LIB | path join complete.nu) [command-table module-ids option-keys option-values theme-names run-ids]
 use ($LIB | path join state.nu) [state-dir SYSTEM_STATE]
@@ -277,6 +277,8 @@ def "main sync" [
         }
         run-journal
         if not $clean or $run.install != 0 { exit 1 }
+        # pending-exit leaves from inside the guarded body
+        crash-retire sync
         pending-exit
     }
 }

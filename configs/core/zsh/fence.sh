@@ -1,6 +1,5 @@
 #!/bin/sh
-# Run a command at the lowest cpu and oom priority, pinned to the non-v-cache ccd where there is one. sh, not nu: a nu
-# script evaluates and requotes its --flag=value arguments, "$@" passes them on untouched.
+# Run a command at the lowest cpu and oom priority, pinned to the non-v-cache ccd where there is one.
 set -eu
 
 OOM_SCORE_ADJ=1000
@@ -8,28 +7,12 @@ NICENESS=19
 CPU_WEIGHT=10
 CPU_DIR=/sys/devices/system/cpu
 
-l3_kb() {
-    read -r size < "$1"
-    printf %s "${size%%[!0-9]*}"
-}
-
-# The cpus whose l3 is smaller than the largest: the non-v-cache ccd on an x3d part, none on a uniform cpu.
+# The cpus whose l3 is smaller than the largest: the non-v-cache ccd on an x3d part, none on a uniform cpu. A line is
+# .../cpu<n>/cache/index3/size:<kb>K, so the numbers in it are n, 3 and kb.
 cpus_build() {
-    kb_max=0
-    for cache in "$CPU_DIR"/cpu[0-9]*/cache/index3/size; do
-        [ -r "$cache" ] || continue
-        kb=$(l3_kb "$cache")
-        if [ "$kb" -gt "$kb_max" ]; then kb_max=$kb; fi
-    done
-    cpus=
-    for cache in "$CPU_DIR"/cpu[0-9]*/cache/index3/size; do
-        [ -r "$cache" ] || continue
-        if [ "$(l3_kb "$cache")" -lt "$kb_max" ]; then
-            cpu=${cache#"$CPU_DIR"/cpu}
-            cpus=${cpus:+$cpus,}${cpu%%/*}
-        fi
-    done
-    printf %s "$cpus"
+    grep -H . "$CPU_DIR"/cpu[0-9]*/cache/index3/size 2> /dev/null |
+        awk -F '[^0-9]+' '{ kb[$2] = $4; if ($4 > kb_max) kb_max = $4 }
+            END { for (cpu in kb) if (kb[cpu] < kb_max) cpus = cpus (cpus == "" ? "" : ",") cpu; printf "%s", cpus }'
 }
 
 if [ $# -eq 0 ]; then

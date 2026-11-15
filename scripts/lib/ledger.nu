@@ -7,6 +7,9 @@ use converge.nu [unit-states]
 
 export const PACKAGES_DENY = '^(base|base-devel|linux.*|.*-firmware|.*-ucode|binutils|sbctl|cryptsetup|btrfs-progs|mkinitcpio|systemd.*|networkmanager|sudo|pacman|git|gnupg|yay|nix|nushell|libfido2|openssh|age|age-plugin-yubikey|git-crypt|pcsclite|zsh)$'
 const UNIT_NAME = '[A-Za-z0-9][A-Za-z0-9:_.-]*(@[A-Za-z0-9:_.-]*)?\.(service|socket|timer|path|mount|automount|target)'
+# ledger kind: a declared name [lsck0] lacked, as "<name> <when this machine first asked for it>"
+export const LEDGER_AWAITED = "awaited"
+export const LSCK0_DB = "/var/lib/pacman/sync/lsck0.db"
 
 export def ledger-file []: nothing -> path {
     state-dir | path join ledger
@@ -132,4 +135,10 @@ export def ledger-packages [declared: list<string>, yes: bool]: nothing -> nothi
     ledger-set pkg ($resolved ++ (if $removing { [] } else { $dropped }))
     let by_hand = ^pacman -Qqe | lines | where $it not-in (ledger-get pkg)
     if ($by_hand | is-not-empty) { log-info $"installed by hand, not managed: ($by_hand | str join ' ')" }
+}
+
+# The names of recorded (LEDGER_AWAITED's lines) first asked for after [lsck0]'s database was built, so only its next
+# build can carry them; built null: no database, nothing to wait for.
+export def awaited-names [recorded: list<string>, built: any]: nothing -> list<string> {
+    $recorded | parse "{name} {asked}" | where {|r| $built != null and $built < ($r.asked | into datetime) } | get name
 }

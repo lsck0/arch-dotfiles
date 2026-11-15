@@ -30,9 +30,7 @@ const HOOK = "/etc/pacman.d/hooks/fw-egress-uids.hook"
 const UNITS = [fw-inbound.service fw-lockdown.service fw-egress.service]
 const NFT_DURATION = '^(\d+(ms|[dhms]))+$'
 const NFT_RATE = '^\d+/(second|minute|hour|day)( burst \d+ packets)?$'
-# fw-inbound.nft's two tun0 rules, rendered only with pentest_listeners
-const PENTEST_INPUT = 'iifname "tun0" tcp dport $pentest_ports accept'
-const PENTEST_FORWARD = 'iifname "tun0" meta l4proto tcp ct original proto-dst $pentest_ports ct status dnat accept'
+const PENTEST_LINKS = 'elements = { "tun0" }'
 const KNOCK_LENGTH = 3
 const PORT_MAX = 65535
 const LOCKDOWN_START = "systemctl try-reload-or-restart fw-lockdown.service
@@ -60,8 +58,7 @@ export def system [cfg: record] {
     let inbound = {
         SSH_KNOCK_WINDOW: $cfg.ssh_knock_window, SSH_PORT: $ssh.port
         KNOCK_1: $knock.0, KNOCK_2: $knock.1, KNOCK_3: $knock.2, SSH_RATE: $cfg.ssh_rate
-        PENTEST_INPUT: (if $cfg.pentest_listeners { $PENTEST_INPUT } else { "" })
-        PENTEST_FORWARD: (if $cfg.pentest_listeners { $PENTEST_FORWARD } else { "" })
+        PENTEST_LINKS: (if $cfg.pentest_listeners { $PENTEST_LINKS } else { "" })
     }
     # only on a changed ruleset, it empties the knock and portal sets; never a start, fw-egress off a trusted network cuts this run
     [

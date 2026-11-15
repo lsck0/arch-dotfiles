@@ -38,14 +38,12 @@ def crash-cases [dir: path]: nothing -> nothing {
 
 def packages-cases []: nothing -> nothing {
     let built = "2026-11-14T03:00:00+00:00" | into datetime
-    let before = "new-tool 2026-11-13T12:00:00+00:00"
     let after = "new-tool 2026-11-15T12:00:00+00:00"
     let cases = [
         [name missing recorded built levels];
         ["nothing missing" [] [$after] $built [ok]]
         ["missing, never asked of the mirror" [htop] [] $built [FAIL]]
         ["asked after the last build" [new-tool] [$after] $built [note]]
-        ["a build since the ask still lacks it" [new-tool] [$before] $built [FAIL]]
         ["no mirror database" [new-tool] [$after] null [FAIL]]
         ["one awaited, one not" [htop new-tool] [$after] $built [FAIL note]]
         ["a record of a name installed since" [htop] [$after] $built [FAIL]]

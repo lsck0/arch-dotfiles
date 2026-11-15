@@ -63,7 +63,14 @@ export def crash-read [file: path]: nothing -> any {
     try { open --raw $file | from json } catch { null }
 }
 
-# One logged run, crash.json on error, which the command's next run that goes through retires. --read-only and --background runs never replace the last apply.
+# Drops the crash record of <name>: its run went through.
+export def crash-retire [name: string]: nothing -> nothing {
+    let crash = crash-file ($env.DOT_RUN_FILE | path dirname)
+    if (crash-read $crash | get --optional command) == $name { rm --force $crash }
+}
+
+# One logged run, crash.json on error, which the command's next run that goes through retires. --read-only and
+# --background runs never replace the last apply.
 export def guarded [name: string, body: closure, --read-only, --background]: nothing -> any {
     if not $read_only { supervise }
     run-begin $name --read-only=($read_only or $background) | ignore
@@ -72,7 +79,7 @@ export def guarded [name: string, body: closure, --read-only, --background]: not
     let crash = crash-file ($env.DOT_RUN_FILE | path dirname)
     try {
         let value = span $name {} $body
-        if (crash-read $crash | get --optional command) == $name { rm --force $crash }
+        crash-retire $name
         $value
     } catch {|err|
         let code = if ($err.debug | str starts-with "LabeledError") {
@@ -90,12 +97,11 @@ export def guarded [name: string, body: closure, --read-only, --background]: not
             exit $code
         }
         let run = $env.DOT_RUN_FILE
-        let file = $crash
         let tail = if ($run | path exists) { open --raw $run | lines | last $CRASH_LOG_LINES } else { [] }
         let cause = cause-from-error $err
         let brief = if $cause.command != null or $cause.at != null or $cause.exit_code != null { cause-text $cause } else { error-brief $err.rendered --root $REPO }
-        {run: $env.DOT_RUN_ID, command: $name, error: $err.msg, cause: $cause, debug: ($err.debug | ansi strip), rendered: ($err.rendered | ansi strip), build: (build), log: $tail} | save --force $file
-        log-record PANIC $"($brief); the full error is in ($file)" {msg_detail: $err.msg, cause: $cause}
+        {run: $env.DOT_RUN_ID, command: $name, error: $err.msg, cause: $cause, debug: ($err.debug | ansi strip), rendered: ($err.rendered | ansi strip), build: (build), log: $tail} | save --force $crash
+        log-record PANIC $"($brief); the full error is in ($crash)" {msg_detail: $err.msg, cause: $cause}
         run-journal
         exit 1
     }

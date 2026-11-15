@@ -16,7 +16,6 @@ const FIREWALL_STATES = [permissive default restrictive]
 const PERSONA_TTLS = ["64" "128"]
 const PORT_MAX = 65535
 const NFT_LISTING_FRAME = '^(table .*\{|chain .*\{|type .*|\}|)$'
-const RATE_CAP_RULE = '^oif "lo" tcp dport (?<first>\d+)(?:-(?<last>\d+))? ct state new limit rate over (?<rate>\d+)/second(?: burst \d+ packets)? drop$'
 const POOL_SIZE_MAX = 999
 const GUARD_STOP_UNITS = [portmaster.service tor-router.service]
 const CGROUP_ROOT = "/sys/fs/cgroup"
@@ -61,15 +60,11 @@ def anonsocks-slice []: nothing -> string {
     $"user.slice/user-($uid).slice/user@($uid).service/anonsocks.slice"
 }
 
-# Nothing runs in the caller's slice: cgroup.events counts its unit cgroups too, its own cgroup.procs is always empty.
-def anonsocks-slice-empty []: nothing -> bool {
-    let events = [$CGROUP_ROOT (anonsocks-slice) cgroup.events] | path join
-    not ($events | path exists) or "populated 0" in (open --raw $events | lines)
-}
-
 # The guard of a slice that still runs something stays: a process confined there must not drop or weaken its own.
+# cgroup.events counts the slice's unit cgroups too, its own cgroup.procs is always empty.
 def anonsocks-guard-release [what: string]: nothing -> nothing {
-    if not (anonsocks-slice-empty) {
+    let events = [$CGROUP_ROOT (anonsocks-slice) cgroup.events] | path join
+    if ($events | path exists) and "populated 0" not-in (open --raw $events | lines) {
         print -e $"toggle-root: anonsocks.slice still runs something, ($what)"
         exit 1
     }
@@ -122,12 +117,9 @@ def portal [direction: string]: nothing -> nothing {
 # Whether a listing of the `out` chain holds the cap for these numbers and no other rule; nft prints a range of one
 # port as the port and adds its default burst.
 export def anonsocks-rate-cap-loaded [listing: string, port: int, last: int, rate: int]: nothing -> bool {
-    let rules = $listing | lines | str trim | where { $in !~ $NFT_LISTING_FRAME }
-    if ($rules | length) != 1 { return false }
-    let cap = $rules.0 | parse --regex $RATE_CAP_RULE | get --optional 0
-    if $cap == null { return false }
-    let cap_last = if ($cap.last | is-empty) { $cap.first } else { $cap.last }
-    [$cap.first $cap_last $cap.rate] == ([$port $last $rate] | into string)
+    let rules = $listing | lines | str trim | where { $in !~ $NFT_LISTING_FRAME } | str replace --regex ' burst \d+ packets' ""
+    let dport = if $last == $port { $port } else { $"($port)-($last)" }
+    $rules == [$"oif \"lo\" tcp dport ($dport) ct state new limit rate over ($rate)/second drop"]
 }
 
 def anonsocks [args: list<string>]: nothing -> nothing {

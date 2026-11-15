@@ -1,6 +1,5 @@
 #!/bin/sh
-# Run a GUI app hardened, e.g. `confine -- discord`. sh, not nu: a nu script evaluates and requotes its --flag=value
-# arguments, "$@" passes them on untouched.
+# Run a GUI app hardened, e.g. `confine -- discord`.
 set -eu
 
 USAGE="usage: confine [--] <command...>"

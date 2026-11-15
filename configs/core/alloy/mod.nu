@@ -7,15 +7,6 @@ use ../../../platforms/homelab.nu [HOMELAB]
 # loki.source.journal stays off. Until the mirror carries the bin package, whichever of the two is installed runs.
 export const meta = {packages: {pacman: [grafana-alloy-bin]}, secrets: ["alloy-{host}"]}
 
-export const options = {
-    battery: {
-        type: bool
-        default: false
-        doc: "Keep shipping metrics and the journal on battery; off, alloy stops while unplugged and the lab sees a gap in metrics (the journal is sent later)"
-        label: "Ship on battery"
-    }
-}
-
 const AC_RULES = "/etc/udev/rules.d/99-alloy-ac.rules"
 # both packages' units pass $CUSTOM_ARGS to `alloy run`; this file is read after the package's own, which sets it empty
 const ARGS = "CUSTOM_ARGS=\"--disable-reporting\"\n"
@@ -37,7 +28,7 @@ export def system [cfg: record] {
     let args = $build.dir | path join dotfiles.env
     let restart = unit-restart $build.unit --if-running
     let dropin = [
-        ...(if $cfg.battery { [] } else { ["[Unit]" "ConditionACPower=true" ""] })
+        "[Unit]\nConditionACPower=true\n"
         "[Service]"
         $"LoadCredential=push:($secret)"
         # the journal group: Arch's sysusers adds it, upstream's does not
@@ -50,7 +41,7 @@ export def system [cfg: record] {
         (file-text $args $ARGS --then $restart)
         (file-text $"/etc/systemd/system/($build.unit).d/10-dotfiles.conf" $dropin
             --then [sh -c $"systemctl daemon-reload && systemctl try-restart ($build.unit)"])
-        (if not $cfg.battery { file-render 99-alloy-ac.rules $AC_RULES {UNIT: $build.unit} --then (udev-reload) })
+        (file-render 99-alloy-ac.rules $AC_RULES {UNIT: $build.unit} --then (udev-reload))
         (file-render config.alloy ($build.dir | path join config.alloy)
             {HOST: $host, PROMETHEUS: $HOMELAB.push.prometheus, LOKI: $HOMELAB.push.loki} --then (unit-restart $build.unit --reload))
         (unit-enable $build.unit --now)

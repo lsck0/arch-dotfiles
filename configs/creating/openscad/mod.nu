@@ -3,12 +3,7 @@ use module.nu *
 export const meta = {packages: {pacman: [openscad uv]}}
 
 export const options = {
-    mcp: {
-        type: bool
-        default: true
-        doc: "Register openscad-mcp with the coding agents; off, no agent session starts its server"
-        label: "MCP server"
-    }
+    mcp: {type: bool, default: true, doc: "Register openscad-mcp with the coding agents; off, no agent session starts its server", label: "MCP server"}
 }
 
 # MCP_FROZEN cuts off its deps (mcp-uvx); bump both together

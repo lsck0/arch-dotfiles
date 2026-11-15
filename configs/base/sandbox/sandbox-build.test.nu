@@ -9,6 +9,7 @@ const FILE_TOOL_RULES = [deny-sensitive-home file-tool]
 const DENY_ALL = "mrwkl,"
 # apparmor.d's tunables as home-relative paths
 const TUNABLES = {
+    "@{HOME}/": ""
     "@{user_config_dirs}": ".config"
     "@{user_share_dirs}": ".local/share"
     "@{user_state_dirs}": ".local/state"
@@ -17,7 +18,6 @@ const TUNABLES = {
     "@{user_passwordstore_dirs}": ".password-store"
     "@{user_sync_dirs}": "sync"
 }
-const HOME_PREFIX = "@{HOME}/"
 # a file tool works on these: archives and media in ~/sync, an agent's transcripts, dot's own state
 const FILE_TOOL_READS = [sync .claude .config/dotfiles]
 # denied by a glob, which str expand does not resolve
@@ -29,8 +29,7 @@ def denied-paths []: nothing -> list<string> {
     | str trim | where { ($in | str starts-with "deny ") and ($in | str ends-with $DENY_ALL) }
     | each {|rule|
         let pattern = $rule | split row --regex '\s+' | get 1
-        let relative = $TUNABLES | transpose k v | reduce --fold $pattern {|t, acc| $acc | str replace $t.k $t.v }
-        if ($relative | str starts-with $HOME_PREFIX) { $relative | str replace $HOME_PREFIX "" } else { $relative }
+        $TUNABLES | transpose k v | reduce --fold $pattern {|t, acc| $acc | str replace $t.k $t.v }
     }
     | where { not ($in | str starts-with "@{") }
     | each { if ($in | str contains "{") { $in | str expand } else { [$in] } } | flatten

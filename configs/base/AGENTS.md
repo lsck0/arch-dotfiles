@@ -25,11 +25,10 @@ profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
   network and boot (`connection.stable-id`), never the hardware one.
 - `ssh` and `nftables`: sshd listens on `base/ssh.port` behind a three-port knock (`base/ssh.knock`, held open for
   `base/nftables.ssh_knock_window`); `sshk` and `wake-pc` knock first, 22 is the endlessh tarpit. New
-  connections to the port are rate-limited per source (`base/nftables.ssh_rate`), which replaces `fail2ban` on luca-pc
-  and luca-notebook (off there). tun0 reaches the pentest listener ports only with `base/nftables.pentest_listeners`.
-  Host keys are pinned
-  from `keys/ssh-host/<host>/` (`SSH_HOST_KEYS`), so a reinstall keeps the identity; without them sshd generates its
-  own and the apply prints the backup command.
+  connections to the port are rate-limited per source (`base/nftables.ssh_rate`); `fail2ban` is off on luca-pc and
+  luca-notebook, where that limit stands in for it. tun0 reaches the pentest listener ports only with
+  `base/nftables.pentest_listeners`. Host keys are pinned from `keys/ssh-host/<host>/` (`SSH_HOST_KEYS`), so a
+  reinstall keeps the identity; without them sshd generates its own and the apply prints the backup command.
 - `nftables` fw-egress: under lockdown-tor it fails closed whether tor is there or not; besides tor only pacman's
   download user (tcp 80/443) and resolved (DoT on 853) get out, so a machine without tor can still install it. Once
   tor-router is up everything, those two included, reaches it redirected to loopback with oifname still the uplink,

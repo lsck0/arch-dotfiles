@@ -86,7 +86,7 @@ export def packages [cfg: record]: nothing -> record {
   dir, installed with `link-commands` or `files-into`. One that runs as root on arguments its caller chose (a
   NOPASSWD sudo target, a pkexec helper) takes neither `def --wrapped main` nor a value-taking flag: nu evaluates a
   `--flag=(expr)` argument before main runs (`core/toggles/toggle-root.nu`); one that passes a command through is
-  POSIX sh (`base/protonvpn-netns/run.sh`). A linked one finds the repo with `const REPO = path self |
+  sh or bash (`base/protonvpn-netns/run.sh`). A linked one finds the repo with `const REPO = path self |
   path expand | path dirname --num-levels <depth>` (expanded first: `path self` and a relative `use` resolve against
   the `~/.local/bin` link; lint: `LINKED_RELATIVE` in `scripts/lib/gate.nu`); every other file writes `path self`
   with a relative path, one `..` per level (`path self ../../..` in a module dir, `path self .` for its own dir).

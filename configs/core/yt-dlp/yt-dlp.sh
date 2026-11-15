@@ -1,6 +1,5 @@
 #!/bin/sh
-# yt-dlp through base/protonvpn-netns' shim only, never the bare route. sh, not nu: a nu script evaluates and requotes
-# its --flag=value arguments, "$@" passes them on untouched.
+# yt-dlp through base/protonvpn-netns' shim only, never the bare route.
 set -eu
 
 SHIM=/usr/local/bin/yt-dlp

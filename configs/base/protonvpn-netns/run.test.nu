@@ -3,6 +3,8 @@
 # hand a command on: every argument must arrive as typed, with nothing in it evaluated on the way, and run.sh must
 # pass on only plain environment values. ip, setpriv, sudo and id are stubs, so nothing here needs the namespace.
 
+use ../../../scripts/launchers.test.nu [hostile]
+
 const HERE = path self .
 const RUN = $HERE | path join run.sh
 const SHIM = $HERE | path join shim.sh
@@ -27,13 +29,6 @@ case "$1" in -nG) echo "users wheel" ;; *) exec /usr/bin/id "$@" ;; esac'
 
 def fail [msg: string] { error make {msg: $"protonvpn-netns run.test: ($msg)"} }
 
-def arguments [marker: path]: nothing -> list<string> {
-    [
-        $"--x=\(touch ($marker)\)" $"--x=$\(touch ($marker)\)" $"--x \(touch ($marker)\)" $"`touch ($marker)`"
-        "--name=$env.HOME" "--user=$HOME" "-s" "--data={\"k\": [1, 2]}" "two words" "*" "true" "--"
-    ]
-}
-
 def passed-check [what: string, run: record, want: list<string>, marker: path]: nothing -> nothing {
     if ($marker | path exists) { fail $"($what) evaluated an argument" }
     if $run.exit_code != 0 { fail $"($what) exited ($run.exit_code): ($run.stderr | str trim)" }
@@ -51,7 +46,7 @@ def main [] {
         chmod +x ($bin | path join $stub.name)
     }
     for name in [yt-dlp mpv-stream] { cp $SHIM ($bin | path join $name) }
-    let args = arguments $marker
+    let args = hostile $marker
     let print_args = [/usr/bin/printf '%s\n']
     let stubbed = {PATH: $"($bin):/usr/bin", SUDO_USER: (^id -un | str trim)}
     try {

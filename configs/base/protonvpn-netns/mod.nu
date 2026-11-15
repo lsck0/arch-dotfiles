@@ -13,8 +13,9 @@ const PRIVATE_KEY = '^\s*PrivateKey\s*=\s*[A-Za-z0-9+/]{43}=\s*$'
 const HOOKS = '(?im)^\s*(PreUp|PostUp|PreDown|PostDown|SaveConfig)\s*='
 
 export def system [cfg: record] {
-    # only the machine fact removes it: a run without secrets never undoes one that had them
-    let configured = (system-secret protonvpn-netns.conf | path exists) or ($CONF | path exists)
+    # only the machine fact removes it: a run without secrets never undoes one that had them. The unit stands in for the
+    # config where that is unreadable (the unprivileged plan of dot sync)
+    let configured = [(system-secret protonvpn-netns.conf) $CONF $"/etc/systemd/system/($UNIT)"] | any { path exists }
     # netns up brings the tunnel up with wg and wg-quick
     if $env.FORM_FACTOR? == "wsl" or not $configured or (which wg-quick | is-empty) { return [] }
     let restart = unit-restart $UNIT

@@ -1,6 +1,5 @@
 #!/bin/sh
-# a hung ghostty still answers d-bus pings while actions time out (25s), so kitty takes over. sh, not nu: a nu script
-# evaluates and requotes its --flag=value arguments, "$@" passes them on untouched.
+# a hung ghostty still answers d-bus pings while actions time out (25s), so kitty takes over.
 set -eu
 
 if timeout 3 gdbus call --session --timeout 2 --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty \

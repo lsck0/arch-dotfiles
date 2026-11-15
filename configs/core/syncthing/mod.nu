@@ -154,8 +154,8 @@ export def link [cfg: record] {
     ]
 }
 
-# Carries a pairing made in the gui back: config.xml only when its devices or folders changed, since syncthing
-# rewrites the file on its own, and the identity only where secrets has none yet.
+# Carries a pairing made in the gui back: config.xml only when its devices, addresses or folders changed, since
+# syncthing rewrites the file on its own, and the identity only where secrets has none yet.
 export def backup [cfg: record]: nothing -> nothing {
     if not (owner-unlocked) or not (platform-has homelab) { return }
     let state = xdg state syncthing

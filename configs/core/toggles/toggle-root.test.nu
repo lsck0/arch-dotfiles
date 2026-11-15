@@ -5,6 +5,7 @@
 # second layer: its verb lists must take the helper's verbs and nothing with a flag or an expression in it.
 
 use toggle-root.nu [anonsocks-rate-cap-loaded]
+use ../../../scripts/launchers.test.nu [hostile]
 
 const HERE = path self .
 const HELPER = $HERE | path join toggle-root.nu
@@ -15,12 +16,7 @@ def fail [msg: string] { error make {msg: $"toggle-root.test: ($msg)"} }
 
 # Every argv ends in usage or a parse error, so none reaches a verb's commands.
 def injections [marker: path]: nothing -> list<list<string>> {
-    let forms = [
-        $"--x=\(touch ($marker)\)" $"--x=$\(touch ($marker)\)" $"--x=a\(touch ($marker)\)" $"--x \(touch ($marker)\)"
-        $"--help=\(touch ($marker)\)" $"--help \(touch ($marker)\)" $"-x=\(touch ($marker)\)" $"\(touch ($marker)\)"
-        $"$\(touch ($marker)\)" $"a; touch ($marker)"
-    ]
-    $forms | each {|form| [[$form] [tlp $form] [$form tlp balanced] [anonsocks persona-on "64" $form] [guard-stop $form]] }
+    hostile $marker | where { $in | str contains $marker } | each {|form| [[$form] [tlp $form] [$form tlp balanced] [anonsocks persona-on "64" $form] [guard-stop $form]] }
     | flatten
 }
 

@@ -63,14 +63,14 @@ export def ask-batch [paths: list<string>, batch: closure, each_path: closure]: 
 }
 
 # Whether what is in dir cannot be looked up: its nearest existing ancestor is not searchable by this user.
-def dir-hidden [dir: path]: nothing -> bool {
+export def dir-hidden [dir: path]: nothing -> bool {
     if (path-kind $dir) == "" and ($dir | path dirname) != $dir { return (dir-hidden ($dir | path dirname)) }
     (^test -e $dir -a ! -x $dir | complete).exit_code == 0
 }
 
 # What is on disk now for each target (type, hash, link, mode; a target that cannot be looked at has UNREADABLE as type
-# and hash) and each unit's enablement state; known: an earlier
-# observation whose paths and units are taken as they are, only the rest looked at.
+# and hash) and each unit's enablement state; known: an earlier observation whose paths and units are taken as they
+# are, only the rest looked at.
 export def observe [targets: list<string>, units: list<string>, scope: string, known: record = {paths: {}, units: {}}]: nothing -> record {
     let found = $targets | uniq | where $it not-in $known.paths | par-each --keep-order {|t| {target: $t, type: (path-kind $t)} }
     # root searches every directory; a user planning the system layer does not, and what it cannot see is not missing
@@ -180,7 +180,7 @@ def merge-read [obs: record, target: string]: nothing -> string {
     try { open --raw $target } catch { "" }
 }
 
-def action-recorded [d: record]: nothing -> bool {
+export def action-recorded [d: record]: nothing -> bool {
     $d.creates? != null or $d.key? != null or ($d.done? | default false) or ($d.undo? | default [] | is-not-empty)
 }
 

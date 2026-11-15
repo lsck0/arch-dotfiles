@@ -9,13 +9,13 @@ use platform.nu [platform-load]
 use profile.nu [profile-has]
 use modules.nu [modules-packages]
 use pipeline.nu [pipeline-load pipeline-plan pipeline-apply pending-save flatpak-installed nix-installed THEME_VERB_TIMEOUT NIX_FLAGS]
-use converge.nu [state-read observe-outputs plan-module recorded-hashes apply-module state-write output-file-state unit-state-holds]
+use converge.nu [state-read observe-outputs plan-module recorded-hashes apply-module state-write output-file-state unit-state-holds action-recorded dir-hidden]
 use ledger.nu [ledger-units ledger-get ledger-set ledger-diff ledger-remove packages-convergence]
 use migrate.nu [migrations-run migrations-pending]
 use ../../configs/base/yubikey/yubikey.nu [yubikey-unlock]
 use system.nu [system-pack system-archive system-secrets-digest entry-parses entry-takes-run ENTRY SYSTEM_STAGES SYSTEM_SECRETS_DIGEST RUN_ID]
 use ../../configs/core/wallust/wallpaper.nu [wallpaper-set]
-use cause.nu [cause-from-error cause-text failure-line failure-is-system SYSTEM_FIX]
+use cause.nu [cause-from-error cause-text failure-line failure-is-system names-shown SYSTEM_FIX]
 use online.nu [network-online OFFLINE_PENDING]
 
 export const INTERNAL = path self internal.nu
@@ -39,11 +39,10 @@ const SYSTEM_SEED = 'set -e; umask 022; mkdir -p "${1%/*}"; exec flock "${1%/*}/
 const LOG_TEE = 'printf "%s: %s\n" "$(date --iso-8601=seconds)" "$*" > "$0"; "$@" 2>&1 | tee --append --ignore-interrupts -- "$0"; exit "${PIPESTATUS[0]}"'
 # the doctor checks that must each report ok before a sync leaves root out
 const IDLE_CHECKS = [failures config pending snapshot packages]
-# the plan's reasons a sync names before it counts the rest
-const PLAN_DUE_SHOWN = 5
-# what a root copy older than `apply --run` is replaced through: its `apply` knows install and config only, takes the
-# argv without --run, unpacks, and runs the stage from the copy it unpacked. A sync goes through install, its own first
-# step, so no config runs ahead of the upgrade.
+# what a sync names of one reason to enter root before it counts the rest
+const DUE_SHOWN = 5
+# the stage a root copy older than `apply --run` is replaced through: its `apply` knows install and config only. A sync
+# goes through install, its own first step, so no config runs ahead of the upgrade.
 const BRIDGE_STAGES = {install: install, config: config, sync: install}
 # sudo's pty can take the interrupt alone; the exit code (130, or -2) carries it
 const EXIT_INTERRUPTED = [130 -2]
@@ -240,7 +239,7 @@ export def --env log-tee [name: string, argv: list<string>]: nothing -> nothing 
     if (is-terminal --stdout) { exec ...(log-tee-argv ($REPO | path join $"($name).log") $argv) }
 }
 
-export def --env pty-log [name: string, args: list<string>]: nothing -> nothing {
+export def --env tee-log [name: string, args: list<string>]: nothing -> nothing {
     if not (is-terminal --stdin) { $env.DOTFILES_UNATTENDED = "1" }
     log-tee $name [$nu.current-exe --no-config-file $PIPELINE_CLI ...$args]
 }
@@ -572,17 +571,10 @@ export def --env system-part [target: string]: nothing -> nothing {
 # otherwise. report: SYSTEM_STAGES, null when there is none: `apply` removes it before it unpacks and writes it after
 # its last step, so an entry cut short left none. Pending (EXIT_PENDING) is no 0.
 export def stages-due [report: any]: nothing -> any {
-    let stages = try { $report.stages | select stage code } catch { return "root's last entry left no report, it did not finish" }
+    let stages = try { $report.stages | select stage code } catch { return "left no report, it did not finish" }
     let unsettled = $stages | where code != 0
-    if ($unsettled | is-not-empty) { return $"root's last entry ended ($unsettled | each { $'($in.stage) with ($in.code)' } | str join ', ')" }
-    if "config" not-in $stages.stage { return $"root's last entry ran no config step \(($stages.stage | str join ', ')\)" }
-}
-
-# Whether this user can tell if file exists: its nearest existing parent can be searched.
-def path-knowable [file: path]: nothing -> bool {
-    mut dir = $file | path dirname
-    while not ($dir | path exists) and $dir != "/" { $dir = $dir | path dirname }
-    (^test -x $dir | complete).exit_code == 0
+    if ($unsettled | is-not-empty) { return $"ended ($unsettled | each { $'($in.stage) with ($in.code)' } | str join ', ')" }
+    if "config" not-in $stages.stage { return $"ran no config step \(($stages.stage | str join ', ')\)" }
 }
 
 # What an unprivileged system plan (pipeline-plan's rows) shows root has to do, as "<module>: <kind> <target>": a
@@ -593,8 +585,7 @@ export def plan-due [planned: table]: nothing -> list<string> {
     let actions = $planned | each {|m| $m.actions | each {|a|
         let d = $a.decl
         let silent = $a.kind in [skip unreadable] or ($a.kind in [exec step] and (
-            ($d.creates? == null and $d.key? == null and ($d.undo? | default [] | is-empty))
-            or ($d.creates? != null and not (path-knowable $d.creates))
+            not (action-recorded $d) or ($d.creates? != null and (dir-hidden ($d.creates | path dirname)))
         ))
         if not $silent { $"($m.id): ($a.kind) ($a.target)" }
     } } | flatten
@@ -602,27 +593,16 @@ export def plan-due [planned: table]: nothing -> list<string> {
 }
 
 # Why a sync has to enter root, from what an unprivileged process can read; empty when all of it shows the system
-# layer converged. checks: doctor's records. facts: {waiting, migrations, undeclared, incomplete: lists that must be
-# empty; secrets: the keys/ digest equals root's; banner: a config failure banner is up; stages: SYSTEM_STAGES or null;
-# plan: plan-due's lines}. Anything unknown is a reason.
+# layer converged. checks: doctor's records. facts: per reason what was found of it, a reason when that is true, a text
+# or a list that is not empty. Anything unknown is a reason.
 export def system-due [checks: list<record>, facts: record]: nothing -> list<string> {
     let unsettled = $IDLE_CHECKS | each {|name|
         let rows = $checks | where check == $name
         if ($rows | is-empty) { $"($name): not checked" } else { $rows | where level != ok | get --optional 0 | if $in != null { $"($name): ($in.text)" } }
     } | compact
-    $unsettled ++ ([
-        (if ($facts.waiting | is-not-empty) { $"system part pending: ($facts.waiting | str join ' ')" })
-        (if ($facts.migrations | is-not-empty) { $"migrations pending: ($facts.migrations | str join ' ')" })
-        (if ($facts.undeclared | is-not-empty) { $"undeclared packages: ($facts.undeclared | str join ' ')" })
-        (if ($facts.incomplete | is-not-empty) { $"modules declaring no packages: ($facts.incomplete | str join ' ')" })
-        (if not $facts.secrets { "the system secrets differ from what root was last handed" })
-        (if $facts.banner { $"($CONFIG_ISSUE) is up" })
-        (stages-due $facts.stages)
-        (if ($facts.plan | is-not-empty) {
-            let more = ($facts.plan | length) - $PLAN_DUE_SHOWN
-            $"the system plan: ($facts.plan | first $PLAN_DUE_SHOWN | str join ', ')(if $more > 0 { $' and ($more) more' } else { '' })"
-        })
-    ] | compact)
+    $unsettled ++ ($facts | items {|reason, found|
+        if $found == true { $reason } else if $found not-in [false null []] { $"($reason): (names-shown ([$found] | flatten) $DUE_SHOWN)" }
+    } | compact)
 }
 
 # Why an upgrade pass is due by checkupdates' exit code, null when it found nothing to upgrade; no answer is a reason.
@@ -637,14 +617,14 @@ def system-facts []: nothing -> record {
     let ctx = pipeline-load $REPO system
     let declared = modules-packages $REPO $ctx.modules $ctx.platform
     {
-        waiting: (try { open --raw (with-env {DOT_LAYER: user} { pending-file }) | lines | where $it != "" } catch { [] })
-        migrations: (migrations-pending $REPO system | get id)
-        undeclared: (packages-convergence $declared.pacman $ctx.platform.packages_keep).remove
-        incomplete: $declared.incomplete
-        secrets: ((file-trim $SYSTEM_SECRETS_DIGEST null) == (system-secrets-digest $REPO $ctx.platform.facts.wireguard?))
-        banner: ($CONFIG_ISSUE | path exists)
-        stages: (try { open $SYSTEM_STAGES } catch { null })
-        plan: (plan-due (pipeline-plan $ctx system [] false))
+        "system part pending": (try { open --raw (with-env {DOT_LAYER: user} { pending-file }) | lines | where $it != "" } catch { [] })
+        "migrations pending": (migrations-pending $REPO system | get id)
+        "undeclared packages": (packages-convergence $declared.pacman $ctx.platform.packages_keep).remove
+        "modules declaring no packages": $declared.incomplete
+        "the system secrets differ from what root was last handed": ((file-trim $SYSTEM_SECRETS_DIGEST null) != (system-secrets-digest $REPO $ctx.platform.facts.wireguard?))
+        "the config failure banner is up": ($CONFIG_ISSUE | path exists)
+        "root's last entry": (stages-due (try { open $SYSTEM_STAGES } catch { null }))
+        "the system plan": (plan-due (pipeline-plan $ctx system [] false))
     }
 }
 

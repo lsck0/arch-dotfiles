@@ -2,8 +2,9 @@
 <!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
 <!-- dot's system layer through pkexec (a session without a terminal it can show, scripts/lib/cli.nu root-runner): its
-     own action. polkit keeps an approval per asking process, so each dot run asks once. One run enters root once (scripts/lib/run.nu update-run: packages, migrations and the system layer in
-     one call). Every other pkexec program still asks each time -->
+     own action. polkit keeps an approval per asking process, and a dot run enters root once (scripts/lib/run.nu
+     update-run: packages, migrations and the system layer in one call), so each run asks once. Every other pkexec
+     program still asks each time -->
 <policyconfig>
   <action id="dev.lsck0.dotfiles.system-apply">
     <description>Apply the system layer of the dotfiles</description>

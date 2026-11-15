@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Run a command in the fail-closed protonvpn netns: with the tunnel down it refuses, never the real link. sh, not nu:
-# a nu script evaluates and requotes its --flag=value arguments, "$@" passes the command on untouched.
+# Run a command in the fail-closed protonvpn netns: with the tunnel down it refuses, never the real link.
 set -euo pipefail
 
 NS=protonvpn

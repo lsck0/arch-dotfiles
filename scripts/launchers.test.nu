@@ -17,9 +17,13 @@ const COMMAND_FORMAT = '%s\n'
 
 def fail [msg: string] { error make {msg: $"launchers.test: ($msg)"} }
 
-def hostile [marker: path]: nothing -> list<string> {
+# Arguments nothing may evaluate or requote; the root helpers' tests share them, and each one naming marker creates it
+# when evaluated.
+export def hostile [marker: path]: nothing -> list<string> {
     [
-        $"--x=\(touch ($marker)\)" $"--x=$\(touch ($marker)\)" $"--x \(touch ($marker)\)" $"`touch ($marker)`"
+        $"--x=\(touch ($marker)\)" $"--x=$\(touch ($marker)\)" $"--x=a\(touch ($marker)\)" $"--x \(touch ($marker)\)"
+        $"--help=\(touch ($marker)\)" $"--help \(touch ($marker)\)" $"-x=\(touch ($marker)\)" $"\(touch ($marker)\)"
+        $"$\(touch ($marker)\)" $"a; touch ($marker)" $"`touch ($marker)`"
         "--name=$env.HOME" "--user=$HOME" "-s" "--data={\"k\": [1, 2]}" "--title two" "two words" "*" "true" "--"
     ]
 }

@@ -1,7 +1,6 @@
 #!/bin/sh
 # sudo target (NOPASSWD for wheel): run <command> [args...] in the protonvpn namespace as the sudo caller, never as
-# root. sh, not nu: nu evaluates a --flag=(expr) argument of a script before its main runs, here as root, and requotes
-# flag values; "$@" reaches the command untouched (run.test.nu).
+# root.
 set -eu
 
 NS=protonvpn

@@ -10,6 +10,7 @@ table inet fw {
     set ssh_allowed { type ipv4_addr; flags timeout; timeout @SSH_KNOCK_WINDOW@; }
     set ssh_flood { type ipv4_addr; flags dynamic, timeout; timeout 10m; }
     set trusted_links { type ifname; }
+    set pentest_links { type ifname; @PENTEST_LINKS@ }
 
     chain input {
         type filter hook input priority 0; policy drop;
@@ -28,7 +29,7 @@ table inet fw {
         ip6 saddr fe80::/10 udp sport 547 udp dport 546 accept
 
         iifname $trusted_ifaces accept
-        @PENTEST_INPUT@
+        iifname @pentest_links tcp dport $pentest_ports accept
 
         # the knock is in a public repo, so it only keeps scanners out of sshd's log; publickey-only auth guards sshd
         # per source, in place of a log-reading daemon: nothing to guess with publickey-only, this only bounds the noise
@@ -49,6 +50,6 @@ table inet fw {
         ct state invalid drop
         iifname $trusted_ifaces accept
         iifname @trusted_links ct status dnat accept
-        @PENTEST_FORWARD@
+        iifname @pentest_links meta l4proto tcp ct original proto-dst $pentest_ports ct status dnat accept
     }
 }

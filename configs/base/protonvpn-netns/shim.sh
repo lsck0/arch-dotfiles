@@ -1,6 +1,5 @@
 #!/bin/sh
-# managed by arch-dotfiles/protonvpn-netns: shadows /usr/bin/<name> so it only runs inside the vpn namespace. sh, not
-# nu: a nu script evaluates and requotes its --flag=value arguments, "$@" passes them on untouched.
+# managed by arch-dotfiles/protonvpn-netns: shadows /usr/bin/<name> so it only runs inside the vpn namespace.
 set -eu
 
 NS=protonvpn

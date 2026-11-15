@@ -3,8 +3,10 @@
 # never runs a hook of ships only its .nu files, so the copy stays current when its state changes after the pack; one
 # with a root verb in any of its .nu files ships whole, as does one whose detect a root-run module reads. An archive
 # whose entry does not parse never replaces the copy; the digest of the secrets handed to root is the one root derives
-# from what it unpacked.
-use system.nu [system-pack system-unpack system-files system-archive system-secrets-digest entry-parses secrets-digest SECRETS_PREFIX SECRETS_DIGEST ENTRY]
+# from what it unpacked. The secrets root may be handed are what the modules' meta.secrets and the platform's wireguard
+# configs name, relative to configs/secrets/keys/ ({host} this machine's name), and nothing that leaves keys/ by an
+# absolute path or a `..`.
+use system.nu [system-pack system-unpack system-files system-archive system-secrets system-secrets-digest entry-parses secrets-digest SECRETS_PREFIX SECRETS_DIGEST ENTRY]
 use std/assert
 
 const SHA = "0123456789abcdef0123456789abcdef01234567"
@@ -103,9 +105,29 @@ def check [work: path]: nothing -> nothing {
     assert ((try { system-pack $checkout $copy | system-unpack $copy $SHA; "" } catch {|e| $e.msg }) | str contains "does not parse") "an entry with a missing import was unpacked"
 }
 
+def secrets-cases [repo: path]: nothing -> nothing {
+    let host = sys host | get hostname
+    let declare = {|id: string, secrets: list<string>|
+        mkdir ($repo | path join configs $id)
+        $"export const meta = {secrets: ($secrets | to nuon)}\nexport def system [cfg: record] { [] }\n" | save --force ($repo | path join configs $id mod.nu)
+    }
+    let refused = {|wireguard: any| try { system-secrets $repo $wireguard | ignore; "" } catch {|e| $e.msg } }
+    do $declare base/ssh ["ssh-host/{host}/ssh_host_ed25519_key" "shared/token"]
+    do $declare base/plain []
+    do $declare other/again ["shared/token"]
+    let got = system-secrets $repo ["wireguard/pc.conf" ""] | sort
+    assert equal $got ["shared/token" $"ssh-host/($host)/ssh_host_ed25519_key" "wireguard/pc.conf"] $"declared secrets: ($got | to nuon)"
+    assert equal (system-secrets $repo null | sort) ["shared/token" $"ssh-host/($host)/ssh_host_ed25519_key"] "no wireguard config"
+    for outside in ["/etc/shadow" "../state/app/token" "wireguard/../../../.git/config"] {
+        assert (do $refused $outside | str contains $"secrets outside keys/: ($outside)") $"wireguard ($outside) was not refused"
+    }
+    do $declare base/escapes ["ssh-host/{host}/../../../yubikey/u2f_keys"]
+    assert (do $refused null | str contains "secrets outside keys/") "a module's meta.secrets left keys/"
+}
+
 def main [] {
     let work = mktemp --directory --tmpdir system-test.XXXXXX
     $env.XDG_CACHE_HOME = $work | path join cache
-    try { check $work } catch {|e| rm --recursive --force $work; error make $e }
+    try { check $work; secrets-cases ($work | path join declared) } catch {|e| rm --recursive --force $work; error make $e }
     rm --recursive --force $work
 }

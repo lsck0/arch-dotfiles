@@ -11,7 +11,7 @@ def current []: nothing -> string {
 
 # one root call, so one prompt at most; from permissive, default only tightens and has its own unprompted verb
 # (49-toggles.rules)
-def apply [state: string]: nothing -> nothing {
+def "main _apply" [state: string]: nothing -> nothing {
     let verb = if $state == default and (current) == permissive { "raise-default" } else { $state }
     try { root-run firewall $verb } catch {
         notify Firewall $"Switch failed, now ($STATES | get (current))" --critical
@@ -34,7 +34,6 @@ def "main get" [--json] {
     status-print (status-record Firewall $state --text $"($STATES | get $state)($suffix)" --states ($STATES | columns)) $json
 }
 
-def "main _apply" [state: string] { apply $state }
 def "main toggle" [] { exclusive-run Firewall _apply ($CYCLE | cycle-next (current)) }
 def "main set" [state: string] {
     if $state not-in $STATES { error make {msg: $"firewall state is one of ($STATES | columns | str join ', ')"} }

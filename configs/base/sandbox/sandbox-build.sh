@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Run a command offline in the work dir, e.g. `sandbox-build -- cargo test` or `sandbox-build -w ./crate -- make`.
-# sh, not nu: a nu script evaluates and requotes its --flag=value arguments, "$@" passes the command on untouched.
 set -euo pipefail
 
 USAGE="usage: sandbox-build [-w writable-dir] [--] <command...>"
@@ -29,9 +28,7 @@ case ${1:-} in
         shift
         ;;
 esac
-if [ "${1:-}" = -- ]; then
-    shift
-fi
+[ "${1:-}" != -- ] || shift
 [ $# -gt 0 ] || usage_fail
 work=$(realpath --canonicalize-missing -- "$work")
 # by path: systemd-run -p does not expand %t
@@ -58,9 +55,5 @@ properties+=(
 if [ -e "$work/.git" ]; then
     properties+=("ReadOnlyPaths=$work/.git")
 fi
-arguments=()
-for property in "${properties[@]}"; do
-    arguments+=(-p "$property")
-done
 exec systemd-run --user --pty --wait --collect --quiet "--unit=sandbox-build-$$" "--working-directory=$work" \
-    "${arguments[@]}" -- "$@"
+    "${properties[@]/#/--property=}" -- "$@"

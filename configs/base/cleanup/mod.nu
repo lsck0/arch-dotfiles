@@ -13,16 +13,8 @@ export const options = {
         doc: "Age past which journal entries are dropped even with space left, journald.conf(5) MaxRetentionSec"
         label: "Journal retention"
     }
-    container_log_max_mb: {
-        type: int
-        default: 50
-        doc: "Largest log file podman keeps per container, in MiB; container output stays out of the journal"
-        label: "Max container log (MiB)"
-        min: 1
-    }
 }
 
-const BYTES_PER_MIB = 1048576
 # scripts/lib/fetch.nu's pinned downloads, as root and as the user; it touches a blob on reuse, so the age counts
 # from the last apply that needed it
 const FETCH_CACHE_AGE = "60d"
@@ -37,9 +29,7 @@ export def system [cfg: record] {
         (file-render journald-size.conf /etc/systemd/journald.conf.d/00-size.conf $journal
             --then (unit-restart systemd-journald.service))
         # read by rootless podman too; a container already created keeps the driver it was made with
-        (file-render containers-log.conf /etc/containers/containers.conf.d/10-log.conf {
-            LOG_SIZE_MAX_BYTES: ($cfg.container_log_max_mb * $BYTES_PER_MIB)
-        })
+        (file-copy containers-log.conf /etc/containers/containers.conf.d/10-log.conf)
         (file-text /etc/tmpfiles.d/dotfiles-fetch.conf (fetch-cache-rule $FETCH_CACHE_ROOT))
     ]
 }

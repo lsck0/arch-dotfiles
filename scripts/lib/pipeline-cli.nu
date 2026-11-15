@@ -13,7 +13,7 @@ use ledger.nu [packages-convergence]
 use migrate.nu [migrations-pending]
 use preserve.nu [preserve-report]
 use doctor.nu [doctor-run doctor-checks]
-use run.nu [plan-print link-plan pty-log admin apply-finish apply-run user-locked install-run link-run user-packages-undeclared pending-file managed-drift]
+use run.nu [plan-print link-plan tee-log admin apply-finish apply-run user-locked install-run link-run user-packages-undeclared pending-file managed-drift]
 
 # the message tag of the layer context dot plan loads in a job while it plans the other
 const PLAN_OTHER_TAG = 1
@@ -91,7 +91,7 @@ def "main apply" [...mods: string, --user, --system, --packages, --force, --yes,
     if $packages {
         if ($mods | is-not-empty) { die --misuse "apply --packages takes no modules" }
         if $one == "system" { die --misuse "apply --packages: both layers, or --user alone" }
-        pty-log install ([apply --packages] ++ (flag user ($one == "user")) ++ (flag yes $yes) ++ (flag force $force))
+        tee-log install ([apply --packages] ++ (flag user ($one == "user")) ++ (flag yes $yes) ++ (flag force $force))
         let pending = guarded apply {
             let status = install-run ($one == "user") $yes true
             if $status != 0 { exit $status }
@@ -104,14 +104,14 @@ def "main apply" [...mods: string, --user, --system, --packages, --force, --yes,
             guarded apply { link-run $mods $force --user-only | apply-finish $in }
         }
         "system" => {
-            pty-log config ([apply --system] ++ (flag force $force))
+            tee-log config ([apply --system] ++ (flag force $force))
             guarded apply {
                 if not (admin) { error make {msg: "apply --system: the system layer is root's, and this login is not in wheel"} }
                 apply-run true false $force | apply-finish $in
             }
         }
         _ => {
-            pty-log config ([apply] ++ (flag force $force))
+            tee-log config ([apply] ++ (flag force $force))
             guarded apply { apply-run true true $force | apply-finish $in }
         }
     }

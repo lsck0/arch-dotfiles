@@ -207,13 +207,7 @@ Item {
   function expireHistory() {
     const now = Date.now()
     const kept = ClipboardHistory.expireEntries(root.history, now, root.maxAgeMs)
-    if (kept.length !== root.history.length) {
-      const before = root.imagePaths()
-      root.history = kept
-      root.saveHistory()
-      for (let i = 0; i < before.length; i++) root.dropImageFile(before[i])
-      if (root.opened) root.rebuildDisplay()
-    }
+    if (kept.length !== root.history.length) root.replaceHistory(kept)
     const due = ClipboardHistory.expiryDueMs(root.history, now, root.maxAgeMs)
     if (due < 0) { expiryTimer.stop(); return }
     // the timer's clock stops in suspend, the stamps are wall clock: look again within ten minutes
@@ -225,15 +219,19 @@ Item {
     historyFile.setText(JSON.stringify(root.history.slice(0, root.historyLimit), null, 2) + "\n")
   }
 
-  function addClipboardJson(line) {
-    var normalized = ClipboardHistory.parseEntryJson(line)
-    if (!normalized) return
-    // the history limit can push an image out
+  // the history limit and the age limit can push an image out
+  function replaceHistory(next) {
     const before = root.imagePaths()
-    root.history = ClipboardHistory.addEntry(root.history, normalized, root.historyLimit, Date.now())
+    root.history = next
     root.saveHistory()
     for (let i = 0; i < before.length; i++) root.dropImageFile(before[i])
     if (root.opened) root.rebuildDisplay()
+  }
+
+  function addClipboardJson(line) {
+    var normalized = ClipboardHistory.parseEntryJson(line)
+    if (!normalized) return
+    root.replaceHistory(ClipboardHistory.addEntry(root.history, normalized, root.historyLimit, Date.now()))
     root.expireHistory()
   }
 

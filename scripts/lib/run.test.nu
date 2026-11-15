@@ -70,29 +70,22 @@ def tee-cases []: nothing -> nothing {
 
 def due-cases []: nothing -> nothing {
     let settled = [failures config pending snapshot packages] | each { {level: ok, check: $in, text: fine} }
-    let done = {run: $RUN, root_run: $RUN, stages: [{stage: install, code: 0, failures: []} {stage: packages, code: 0, failures: []} {stage: config, code: 0, failures: []}]}
-    let facts = {waiting: [], migrations: [], undeclared: [], incomplete: [], secrets: true, banner: false, stages: $done, plan: []}
+    let facts = {waiting: [], differs: false, entry: null}
     let cases = [
         [name checks facts wants];
         ["everything settled" $settled $facts []]
         ["the root copy differs" ($settled | update level {|r| if $r.check == config { "FAIL" } else { "ok" } }) $facts ["config: fine"]]
         ["a module waits" ($settled | update level {|r| if $r.check == pending { "note" } else { "ok" } }) $facts ["pending: fine"]]
-        ["a check that did not report" ($settled | where check != packages) $facts ["packages: not checked"]]
-        ["no root copy yet" ($settled | where check != config) $facts ["config: not checked"]]
-        ["a system part waits" $settled ($facts | update waiting [a/mod.key]) ["system part pending: a/mod.key"]]
-        ["a migration" $settled ($facts | update migrations [0007-x]) ["migrations pending: 0007-x"]]
-        ["an undeclared package" $settled ($facts | update undeclared [htop]) ["undeclared packages: htop"]]
-        ["a module that declares none" $settled ($facts | update incomplete [a/mod]) ["modules declaring no packages: a/mod"]]
-        ["other secrets" $settled ($facts | update secrets false) ["the system secrets differ from what root was last handed"]]
-        ["an entry cut short after its unpack" $settled ($facts | update stages null) ["root's last entry left no report, it did not finish"]]
-        ["a plan with work for root" $settled ($facts | update plan ["a/mod: update /etc/x"]) ["the system plan: a/mod: update /etc/x"]]
-        ["a long plan" $settled ($facts | update plan (1..7 | each { $"a/mod: update /etc/($in)" })) ["the system plan: a/mod: update /etc/1, a/mod: update /etc/2, a/mod: update /etc/3, a/mod: update /etc/4, a/mod: update /etc/5 and 2 more"]]
+        ["a check that did not report, as with no root copy yet" ($settled | where check != config) $facts ["config: not checked"]]
+        ["a list that is not empty" $settled ($facts | update waiting [a/mod.key b/mod]) ["waiting: a/mod.key b/mod"]]
+        ["a long list" $settled ($facts | update waiting (1..7 | into string)) ["waiting: 1 2 3 4 5 +2 more"]]
+        ["a fact that holds" $settled ($facts | update differs true) ["differs"]]
+        ["a text, as of an entry cut short after its unpack" $settled ($facts | update entry (stages-due null)) ["entry: left no report, it did not finish"]]
     ]
     for c in $cases {
         let got = system-due $c.checks $c.facts
         assert equal $got $c.wants $"due ($c.name): ($got | to nuon)"
     }
-    assert ((system-due $settled ($facts | update banner true)) | is-not-empty) "due: a config banner does not enter root"
     assert equal (upgrades-due 2) null "upgrades: checkupdates' 2 is not 'nothing to upgrade'"
     for code in [0 1 124 null] {
         assert ((upgrades-due $code) != null) $"upgrades: checkupdates ($code | to nuon) leaves root out"

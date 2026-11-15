@@ -7,13 +7,12 @@ const UNIT = $HERE | path join fw-egress.service
 const RULESET = $HERE | path join fw-egress.nft
 const ESCAPES = {fetch_uid: alpm, resolver_uid: systemd-resolve}
 const INBOUND = $HERE | path join fw-inbound.nft
-const MODULE = $HERE | path join mod.nu
 const INBOUND_VALUES = {
     SSH_KNOCK_WINDOW: "1h", SSH_PORT: "2222", SSH_RATE: "10/minute burst 10 packets"
     KNOCK_1: "7001", KNOCK_2: "7002", KNOCK_3: "7003"
 }
-const PENTEST_KEYS = [PENTEST_INPUT PENTEST_FORWARD]
 const PENTEST_IFACE = "tun0"
+const PENTEST_LINKS = 'elements = { "tun0" }'
 
 def fail [msg: string] { error make {msg: $"nftables.test: ($msg)"} }
 
@@ -40,21 +39,15 @@ def load [command: string, path_dirs: list<path>]: nothing -> list {
     $r.stdout | from json | get nftables
 }
 
-# fw-inbound.nft as the module renders it, loaded: the tun0 rules are there only with pentest_listeners.
-def inbound-rules [pentest: bool]: nothing -> string {
-    let consts = open --raw $MODULE | parse --regex "(?m)^const (?<k>[A-Z_]+) = '(?<v>[^'\n]*)'$"
-    let pentest_values = $PENTEST_KEYS | each {|k|
-        let rule = $consts | where k == $k | get --optional 0.v
-        if $rule == null { fail $"mod.nu has no ($k)" }
-        {k: $k, v: (if $pentest { $rule } else { "" })}
-    }
-    let text = $INBOUND_VALUES | transpose k v | append $pentest_values
+# fw-inbound.nft as the module renders it, loaded: tun0 is in its set only with pentest_listeners.
+def inbound-rules [pentest_links: string]: nothing -> string {
+    let text = $INBOUND_VALUES | merge {PENTEST_LINKS: $pentest_links} | transpose k v
         | reduce --fold (open --raw $INBOUND) {|p, acc| $acc | str replace --all $"@($p.k)@" $p.v }
     let file = mktemp --tmpdir dot-nftables-test-XXXXXX.nft
     $text | save --force $file
     let r = ^unshare -rn sh -c $"nft -f ($file) && nft list table inet fw" | complete
     rm --force $file
-    if $r.exit_code != 0 { fail $"fw-inbound does not load \(pentest ($pentest)\): ($r.stderr)" }
+    if $r.exit_code != 0 { fail $"fw-inbound does not load \(pentest '($pentest_links)'\): ($r.stderr)" }
     $r.stdout
 }
 
@@ -86,7 +79,6 @@ def main [] {
     if (set-elements $fresh tor_uid | is-not-empty) { fail "tor_uid filled without a tor user" }
     if (set-elements $fresh fetch_uid | is-empty) { fail "no fetch_uid without a tor user" }
 
-    if (inbound-rules false | str contains $PENTEST_IFACE) { fail "fw-inbound opens tun0 without pentest_listeners" }
-    let open_rules = inbound-rules true | lines | where ($it | str contains $PENTEST_IFACE) | length
-    if $open_rules != ($PENTEST_KEYS | length) { fail "fw-inbound lacks a tun0 rule with pentest_listeners" }
+    if (inbound-rules "" | str contains $PENTEST_IFACE) { fail "fw-inbound opens tun0 without pentest_listeners" }
+    if not (inbound-rules $PENTEST_LINKS | str contains $PENTEST_IFACE) { fail "fw-inbound leaves tun0 out with pentest_listeners" }
 }
