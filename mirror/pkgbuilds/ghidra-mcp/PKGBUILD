@@ -1,0 +1,64 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# Reason for custom package: the AUR's ghidra-mcp pins ghidra=12.1.2 against extra's newer ghidra, which held back the
+# mirror. This builds the extension against whatever ghidra the build runs with and depends on exactly that version:
+# a ghidra update leaves it unresolvable, so the mirror rebuilds it rather than holding the snapshot back.
+
+pkgname=ghidra-mcp
+pkgver=7.0.0
+pkgrel=1
+pkgdesc="Model Context Protocol server and Ghidra extension for reverse engineering"
+arch=(any)
+url="https://github.com/bethington/ghidra-mcp"
+license=(Apache-2.0)
+depends=(ghidra python python-pydantic)
+makedepends=(maven 'java-environment>=25' python-build python-installer python-hatchling python-wheel)
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=(7d5446d8b89e83f85ee6f3767288eef3d5bf098e0920da15df6fe1dc2b5eeaa0)
+
+_ghidra_home=/opt/ghidra
+
+# A key of the ghidra this builds against: application.version (the extension's must match it, or ghidra refuses to
+# load it) and application.java.compiler (the class version its jars carry, newer than upstream's release=21).
+_ghidra_prop() {
+    sed -n "s/^application\.$1=//p" "$_ghidra_home/Ghidra/application.properties"
+}
+
+# Upstream targets ghidra 12.1.4; 12.2 renamed what it calls: DataTypeManager.remove takes no monitor, and
+# SleighLanguageDescription moved to the sleigh processor package, its .sla now getSpecFile. A no-op once upstream follows.
+prepare() {
+    cd "$pkgname-$pkgver/src/main/java/com/xebyte/core"
+    sed -i -E 's/dtm\.remove\(([A-Za-z]+), null\)/dtm.remove(\1)/' DataTypeService.java
+    sed -i -e 's/ghidra\.program\.model\.lang\.SleighLanguageDescription/ghidra.app.plugin.processors.sleigh.SleighLanguageDescription/' \
+        -e 's/sld\.getSlaFile()/sld.getSpecFile()/' ServiceUtils.java
+}
+
+build() {
+    cd "$pkgname-$pkgver"
+    export JAVA_HOME=/usr/lib/jvm/default
+    local version release jar file
+    version=$(_ghidra_prop version)
+    release=$(_ghidra_prop java.compiler)
+    # every ghidra jar the pom names, into a build-local repo at the installed version
+    while read -r jar; do
+        file=$(find "$_ghidra_home/Ghidra" -name "$jar.jar" -print -quit)
+        if [[ -z $file ]]; then
+            error "$jar.jar not in $_ghidra_home"
+            return 1
+        fi
+        mvn -q install:install-file -Dfile="$file" -DgroupId=ghidra -DartifactId="$jar" -Dversion="$version" \
+            -Dpackaging=jar -DgeneratePom=true -Dmaven.repo.local="$srcdir/.m2"
+    done < <(awk '/<groupId>ghidra<\/groupId>/ { getline; gsub(/.*<artifactId>|<\/artifactId>.*/, ""); print }' pom.xml | sort -u)
+    mvn -q clean package assembly:single -DskipTests -Dghidra.version="$version" -Dmaven.compiler.release="$release" \
+        -Dmaven.repo.local="$srcdir/.m2"
+    python -m build --wheel --no-isolation
+}
+
+package() {
+    depends+=("ghidra=$(pacman -Q ghidra | cut -d' ' -f2)")
+    cd "$pkgname-$pkgver"
+    # the bridge needs mcp<2 (it imports mcp.server.fastmcp, gone in 2.x); configs/pentesting/ghidra runs it from its
+    # own mcp-compat python, so the system's python-mcp 2.x stays untouched
+    python -m installer --destdir="$pkgdir" dist/ghidra_mcp_bridge-*.whl
+    install -Dm644 -t "$pkgdir$_ghidra_home/Extensions/Ghidra" target/GhidraMCP-*.zip
+    install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

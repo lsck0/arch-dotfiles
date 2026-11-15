@@ -222,6 +222,7 @@ gh-dash
 gh-enhance-bin
 ghcup-hs-bin
 ghidra
+ghidra-mcp
 ghostmirror
 ghostty
 giflib
