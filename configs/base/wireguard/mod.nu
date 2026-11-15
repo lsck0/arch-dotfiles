@@ -4,7 +4,8 @@ use module.nu *
 export const meta = {packages: {pacman: [openvpn wireguard-tools]}, volatile: true}
 
 const CONF = "/etc/wireguard/wg0.conf"
-const SECRET_NAME = '^[A-Za-z0-9._-]+$'
+# a file in keys/ or one dir below it (wireguard/pc.conf); no part starts with a dot, so neither .. nor a hidden name
+const SECRET_NAME = '^([A-Za-z0-9_-][A-Za-z0-9._-]*/)?[A-Za-z0-9_-][A-Za-z0-9._-]*$'
 
 # Locked secrets: redeclare dot's own unchanged wg0.conf; never take over a hand-made one.
 export def system [cfg: record] {
