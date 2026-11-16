@@ -81,10 +81,7 @@ Item {
   property var filterOrder: []
   readonly property int filteredCount: filterOrder.length
   property var imageArray: []
-  property color dimColor: Colors.background
-  property color foreground: Colors.foreground
-  property color selectedBorder: Util.alpha(Colors.accent, 1)
-  property color unselectedBorder: Util.alpha(Colors.foreground, 0.28)
+  readonly property color unselectedBorder: Util.alpha(Colors.foreground, 0.28)
   property int expandedWidth: Style.space(768)
   property int expandedHeight: Style.space(475)
   property int sliceWidth: Style.space(108)
@@ -540,7 +537,7 @@ Item {
 
               Rectangle {
                 anchors.fill: parent
-                color: Util.alpha(root.dimColor, item.selected ? 0 : 0.42)
+                color: Util.alpha(Colors.background, item.selected ? 0 : 0.42)
               }
 
               layer.effect: MultiEffect {
@@ -560,7 +557,7 @@ Item {
 
               ShapePath {
                 fillColor: "transparent"
-                strokeColor: item.selected ? root.selectedBorder : root.unselectedBorder
+                strokeColor: item.selected ? Colors.accent : root.unselectedBorder
                 strokeWidth: item.selected ? Style.focusBorderWidth : Style.normalBorderWidth
                 PathPolyline { path: item.outline }
               }
@@ -619,7 +616,7 @@ Item {
 
         Label {
           text: root.preview ? ":: " + root.preview.verdict : ":: --"
-          color: !root.preview ? root.foreground : root.preview.verdict === "OK" ? Colors.okText : Colors.warnText
+          color: !root.preview ? Colors.foreground : root.preview.verdict === "OK" ? Colors.okText : Colors.warnText
           font.bold: true
         }
       }
@@ -665,7 +662,7 @@ Item {
                 color: "transparent"
                 antialiasing: true
                 border.width: tile.marked ? Style.focusBorderWidth : Style.normalBorderWidth
-                border.color: tile.marked ? root.selectedBorder : root.unselectedBorder
+                border.color: tile.marked ? Colors.accent : root.unselectedBorder
               }
             }
 
@@ -757,8 +754,6 @@ Item {
         height: text !== "" ? implicitHeight : 0
         opacity: text !== "" ? 1 : 0
         anchors.topMargin: text !== "" ? Style.spacing.md : 0
-        foreground: root.foreground
-        accent: root.selectedBorder
         placeholderText: "filter"
         Keys.onPressed: function(event) {
           const key = event.key
@@ -802,9 +797,9 @@ Item {
         anchors.horizontalCenter: carousel.horizontalCenter
         width: root.expandedWidth
         text: root.currentLabel()
-        color: root.foreground
+        color: Colors.foreground
         style: Text.Outline
-        styleColor: Util.alpha(root.dimColor, 0.7)
+        styleColor: Util.alpha(Colors.background, 0.7)
         font.pixelSize: Style.font.display
         font.weight: Font.DemiBold
         horizontalAlignment: Text.AlignHCenter

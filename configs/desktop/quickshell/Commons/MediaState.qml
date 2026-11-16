@@ -12,8 +12,9 @@ Singleton {
   property string pinnedPlayer: ""
 
   function duplicateScore(p) {
-    return (p.playbackState === MprisPlaybackState.Playing ? 8 : 0)
-      + (p.trackArtUrl ? 4 : 0) + (p.lengthSupported && p.length > 0 ? 2 : 0) + (p.trackTitle ? 1 : 0)
+    // an artist marks real track metadata: plasma-browser-integration's twin of a tab can carry only the page title
+    return (p.playbackState === MprisPlaybackState.Playing ? 8 : 0) + (p.trackArtUrl ? 4 : 0)
+      + (p.trackArtist ? 4 : 0) + (p.lengthSupported && p.length > 0 ? 2 : 0) + (p.trackTitle ? 1 : 0)
   }
 
   // one player per bus, then per identity (a browser's tabs), the richest one kept; playerctld only proxies the others

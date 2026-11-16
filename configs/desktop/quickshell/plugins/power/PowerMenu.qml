@@ -86,7 +86,7 @@ Item {
         if (root.pendingAction) {
           if (event.key === Qt.Key_Y)
             root.activate(root.pendingIndex)
-          else
+          else if (!event.isAutoRepeat && event.key !== Qt.Key_Shift)
             root.pendingIndex = -1
           event.accepted = true
           return

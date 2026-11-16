@@ -39,7 +39,7 @@ Item {
     anchors.rightMargin: -Style.spacing.xs
     visible: root.clickable
     radius: Style.shape.data
-    color: root.activeFocus ? Style.focusFillFor(Colors.foreground, Colors.accent) : mouse.containsMouse ? Style.hoverFill : "transparent"
+    color: root.activeFocus ? Style.focusFill : mouse.containsMouse ? Style.hoverFill : "transparent"
     Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
   }
 

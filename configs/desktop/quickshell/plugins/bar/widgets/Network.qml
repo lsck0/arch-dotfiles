@@ -345,7 +345,7 @@ BarWidget {
               height: Style.row.list
               radius: Style.shape.data
               color: wifiNet.modelData.active ? Colors.menu.selectedBackground
-                : activeFocus ? Style.focusFillFor(Colors.foreground, Colors.accent)
+                : activeFocus ? Style.focusFill
                 : netMouse.containsMouse ? Style.hoverFill : "transparent"
 
               activeFocusOnTab: !wifiNet.modelData.active

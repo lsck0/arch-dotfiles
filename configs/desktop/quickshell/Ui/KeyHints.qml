@@ -26,6 +26,8 @@ Flow {
         text: parent.modelData[1]
         dim: true
         caption: true
+        font.capitalization: Font.AllUppercase
+        font.letterSpacing: Style.labelTracking
       }
     }
   }

@@ -244,7 +244,7 @@ BarWidget {
             anchors.fill: parent
             anchors.leftMargin: -Style.spacing.xs
             radius: Style.shape.data
-            color: tile.activeFocus ? Style.focusFillFor(Colors.foreground, Colors.accent)
+            color: tile.activeFocus ? Style.focusFill
               : tileMouse.containsMouse && tile.modelData.url ? Style.hoverFill : "transparent"
             Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
           }

@@ -80,6 +80,7 @@ QtObject {
   readonly property color hoverFill: hoverFillFor(Colors.foreground, Colors.accent)
   readonly property color selectedFill: selectedFillFor(Colors.foreground, Colors.accent)
   readonly property color pressedFill: pressedFillFor(Colors.foreground, Colors.accent)
+  readonly property color focusFill: focusFillFor(Colors.foreground, Colors.accent)
   readonly property color normalBorderColor: normalBorderFor(Colors.foreground, Colors.accent)
   readonly property color hoverBorderColor: hoverBorderFor(Colors.foreground, Colors.accent)
 

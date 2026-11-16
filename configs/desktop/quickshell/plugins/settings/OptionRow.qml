@@ -271,8 +271,9 @@ Item {
       Label {
         width: parent.width
         visible: row.expanded && (row.choiceFilter !== "" || row.listed.length > Schema.choicePageSize)
-        text: (row.choiceFilter ? row.choiceFilter + " :: " : "") + (row.listed.length === 0 ? "> NO MATCH"
-          : (row.pageStart + 1) + "-" + (row.pageStart + row.page.length) + " of " + row.listed.length)
+        text: (row.listed.length === 0 ? "> NO MATCH"
+          : (row.pageStart + 1) + "-" + (row.pageStart + row.page.length) + " OF " + row.listed.length)
+          + (row.choiceFilter ? " :: " + row.choiceFilter : "")
         color: Colors.accentText
         caption: true
       }

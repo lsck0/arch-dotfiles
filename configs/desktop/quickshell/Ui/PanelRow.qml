@@ -34,7 +34,7 @@ Rectangle {
 
   color: mouse.pressed && enabled ? Style.pressedFillFor(Colors.foreground, Colors.accent)
     : on ? Colors.menu.selectedBackground
-    : activeFocus ? Style.focusFillFor(Colors.foreground, Colors.accent)
+    : activeFocus ? Style.focusFill
     : mouse.containsMouse && enabled ? Style.hoverFill
     : filled ? Style.normalFill
     : "transparent"

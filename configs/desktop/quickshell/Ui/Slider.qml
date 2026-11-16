@@ -54,7 +54,7 @@ Item {
     anchors.leftMargin: -Style.spacing.xs
     anchors.rightMargin: -Style.spacing.xs
     radius: Style.shape.data
-    color: root.activeFocus ? Style.focusFillFor(Colors.foreground, Colors.accent) : "transparent"
+    color: root.activeFocus ? Style.focusFill : "transparent"
     Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
   }
 

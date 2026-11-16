@@ -551,7 +551,7 @@ Item {
       var pending = exitCode === root.exitSystemPending
       if (exitCode === 0) root.systemPending = false
       if (exitCode === 0 || pending)
-        root.say([pending ? "system part not fully applied, the rest is pending" : "system part applied"].concat(root.notesOf(systemApplyProc)).join("; "), false)
+        root.say([pending ? "system part pending" :"system part applied"].concat(root.notesOf(systemApplyProc)).join("; "), false)
       else root.say("apply failed: " + root.lastLine(systemApplyProc), true)
       root.load()
     }
@@ -1023,7 +1023,7 @@ Item {
 
                   Label {
                     width: parent.width
-                    text: drift.confirming ? "> RESET? [ENTER] reset [ESC] keep" : drift.entry.module + " :: " + drift.entry.drift
+                    text: drift.confirming ? "> RESET? [ENTER] RESET [ESC] KEEP" : drift.entry.module + " :: " + drift.entry.drift
                     color: drift.confirming ? Colors.warnText : Colors.textDim
                     caption: true
                     elide: Text.ElideRight

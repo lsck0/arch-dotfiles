@@ -64,7 +64,7 @@ BorderSurface {
   implicitWidth: root.isRow ? Style.panelWidth.normal : Style.space(420)
   implicitHeight: mainColumn.implicitHeight + edge * 2
   radius: Style.shape.data
-  color: isRow && activeFocus ? Style.focusFillFor(Colors.foreground, Colors.accent)
+  color: isRow && activeFocus ? Style.focusFill
     : isRow && hovered ? Style.hoverFill
     : "transparent"
   Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }

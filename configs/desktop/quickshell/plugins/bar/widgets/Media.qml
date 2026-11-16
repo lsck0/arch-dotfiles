@@ -159,7 +159,9 @@ BarWidget {
   readonly property bool spectrumLive: barSpectrum && visible && Cava.available && playing
     && !(root.bar && root.bar.quiet)
 
-  readonly property string spectrumSource: volumeStream ? String(volumeStream.name || "") : ""
+  // cava captures devices and sink monitors, not a stream: the player's loopback sink (desktop/pipewire), else all output
+  readonly property var spectrumSink: volumeStream ? Audio.targetsOf(volumeStream).find(t => Audio.isLoopbackSink(t)) : null
+  readonly property string spectrumSource: spectrumSink ? spectrumSink.name + ".monitor" : ""
   onSpectrumSourceChanged: Cava.source = spectrumSource
 
   Loader {
