@@ -31,7 +31,8 @@ export def link [cfg: record] {
     let files = ls --long ...(glob --no-dir **/*) | update name { path relative-to $env.PWD }
         | where {|f| ($f.name | path basename) not-in $SKIP and $f.name !~ $SKIP_PATTERN }
     [
-        ($files | each {|f| file-copy $f.name ($dir | path join $f.name) --mode (if ($f.mode | str substring 2..2) == "x" { "755" } else { "644" }) })
+        # in place: quickshell's file watcher follows the inode, so a replaced copy can go unseen and never reload
+        ($files | each {|f| file-copy $f.name ($dir | path join $f.name) --in-place --mode (if ($f.mode | str substring 2..2) == "x" { "755" } else { "644" }) })
         (link-commands ...(glob 'scripts/*.{nu,sh}' | where $it !~ $SKIP_PATTERN))
         # not enabled: hyprland_autostart.lua starts it
         (unit-file quickshell.service)

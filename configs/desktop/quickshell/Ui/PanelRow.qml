@@ -32,7 +32,7 @@ Rectangle {
   // the row carries a fill: selected, focused or under the pointer
   readonly property bool highlighted: on || activeFocus || (mouse.containsMouse && enabled)
 
-  color: mouse.pressed && enabled ? Style.pressedFillFor(Colors.foreground, Colors.accent)
+  color: mouse.pressed && enabled ? Style.pressedFill
     : on ? Colors.menu.selectedBackground
     : activeFocus ? Style.focusFill
     : mouse.containsMouse && enabled ? Style.hoverFill

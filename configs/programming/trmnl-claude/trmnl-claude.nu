@@ -63,7 +63,9 @@ def push-stamp []: nothing -> path {
 }
 
 def tokens-format [n: int]: nothing -> string {
-    if $n >= 1_000_000 { $"($n / 1_000_000 | into string --decimals 1)M" } else if $n >= 1_000 {
+    if $n >= 1_000_000_000 { $"($n / 1_000_000_000 | into string --decimals 1)B" } else if $n >= 1_000_000 {
+        $"($n / 1_000_000 | into string --decimals 1)M"
+    } else if $n >= 1_000 {
         $"($n / 1_000 | into string --decimals 0)K"
     } else { $n | into string }
 }

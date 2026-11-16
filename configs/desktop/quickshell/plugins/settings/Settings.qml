@@ -551,7 +551,7 @@ Item {
       var pending = exitCode === root.exitSystemPending
       if (exitCode === 0) root.systemPending = false
       if (exitCode === 0 || pending)
-        root.say([pending ? "system part pending" :"system part applied"].concat(root.notesOf(systemApplyProc)).join("; "), false)
+        root.say([pending ? "system part pending" : "system part applied"].concat(root.notesOf(systemApplyProc)).join("; "), false)
       else root.say("apply failed: " + root.lastLine(systemApplyProc), true)
       root.load()
     }

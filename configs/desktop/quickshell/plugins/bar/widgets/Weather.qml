@@ -874,6 +874,7 @@ BarWidget {
         spacing: Style.spacing.xs
 
         Button {
+          id: radarPlay
           focusable: true
           variant: "icon"
           iconText: root.radarPlaying ? "\u{f04c}" : "\u{f04b}"
@@ -885,7 +886,7 @@ BarWidget {
 
         Slider {
           anchors.verticalCenter: parent.verticalCenter
-          width: parent.width - Style.space(150)
+          width: parent.width - radarPlay.width - radarWhen.width - parent.spacing * 2
           minimum: 0
           maximum: Math.max(0, root.radarFrames.length - 1)
           step: 1
@@ -897,6 +898,7 @@ BarWidget {
         }
 
         Label {
+          id: radarWhen
           anchors.verticalCenter: parent.verticalCenter
           width: Style.space(92)
           horizontalAlignment: Text.AlignRight
@@ -919,22 +921,32 @@ BarWidget {
         caption: true
       }
 
-      // the radar source's licence requires its attribution next to the image
-      Label {
+      Item {
         width: parent.width
-        visible: root.radarFrames.length > 0 && !!root.radar.attribution
-        text: "SOURCE :: " + String(root.radar.attribution || "")
-        dim: true
-        caption: true
-      }
+        readonly property bool sourceShown: root.radarFrames.length > 0 && !!root.radar.attribution
+        visible: sourceShown || radarPressure.text !== ""
+        implicitHeight: radarSource.implicitHeight
 
-      Label {
-        width: parent.width
-        visible: root.field.pressureMax > 0
-        horizontalAlignment: Text.AlignRight
-        text: Number(root.field.pressureMin).toFixed(0) + " .. " + Number(root.field.pressureMax).toFixed(0) + " " + root.field.pressureUnits
-        dim: true
-        caption: true
+        // the radar source's licence requires its attribution next to the image
+        Label {
+          id: radarSource
+          width: parent.width - radarPressure.implicitWidth - Style.spacing.sm
+          visible: parent.sourceShown
+          text: "SOURCE :: " + String(root.radar.attribution || "")
+          elide: Text.ElideRight
+          dim: true
+          caption: true
+        }
+
+        Label {
+          id: radarPressure
+          anchors.right: parent.right
+          text: root.field.pressureMax > 0
+            ? Number(root.field.pressureMin).toFixed(0) + " .. " + Number(root.field.pressureMax).toFixed(0) + " " + root.field.pressureUnits
+            : ""
+          dim: true
+          caption: true
+        }
       }
     }
   }
