@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Effects
+import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
@@ -149,6 +150,17 @@ BarWidget {
       alertsProc.retryStop()
       root.alerts = d.alerts || []
       root.countryOthers = d.countryOthers || 0
+    }
+  }
+
+  // the last published frames show at once, after a shell reload too; a fetch takes up to a minute, then replaces them
+  FileView {
+    path: Paths.cache + "/radar/frames.json"
+    onLoaded: {
+      try {
+        const d = JSON.parse(text())
+        if (d.ok && root.radarFrames.length === 0) root.radar = d
+      } catch (e) {}
     }
   }
 

@@ -9,6 +9,7 @@ QtObject {
 
   readonly property string dotfiles: envDir("DOTFILES", home + "/projects/arch-dotfiles")
   readonly property string state: envDir("XDG_STATE_HOME", home + "/.local/state") + "/quickshell"
+  readonly property string cache: envDir("XDG_CACHE_HOME", home + "/.cache") + "/quickshell"
   readonly property string wal: envDir("XDG_CACHE_HOME", home + "/.cache") + "/wal"
   // the bare runtime dir holds files shared with the nu helpers (quickshell-pomodoro, toggles/, ...)
   readonly property string runtimeDir: envDir("XDG_RUNTIME_DIR", "/tmp")
