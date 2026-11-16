@@ -329,6 +329,7 @@ k9s
 kani
 katana-bin
 kcachegrind
+kdeconnect
 kdenlive
 kdeplasma-addons
 kerbrute-bin

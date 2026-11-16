@@ -147,7 +147,8 @@ export def packages [cfg: record]: nothing -> record {
 - Option keys: `type`, `default`, `doc` required; `label`, `group`, `choices`, `min`/`max`/`step`, `apply` (default
   relink), `scope` (default machine), `toggle` (set through `scripts/toggles/toggle-<name>.nu`: `on`/`off` for a
   bool, else `set <value>`; its `get` is what the settings window shows).
-- Facts: `platform-has homelab|wireguard|secure_boot_own_keys|lsck0_snapshot` (`PLATFORM_FACTS`), `$env.FORM_FACTOR`
+- Facts: `platform-has homelab|wireguard|secure_boot_own_keys|lsck0_snapshot` and `offload` (`target`/`client`)
+  (`PLATFORM_FACTS`), `$env.FORM_FACTOR`
   (`desktop laptop server vm wsl`), `owner-unlocked` and `profile-has secrets` (link only); which to use:
   `l-dotfiles-platform-facts`. Settings are options: `dot set <group/module>.<key> <value> [--machine]`.
 - A file the app later edits is drift: kept until `dot module adopt <file>` (into the module) or `dot module reset

@@ -725,6 +725,7 @@ Item {
               text: recentGroup.modelData[1]
               dim: true
               caption: true
+              font.capitalization: Font.AllUppercase
             }
 
             Row {

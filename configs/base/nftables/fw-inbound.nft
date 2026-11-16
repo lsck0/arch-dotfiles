@@ -39,8 +39,8 @@ table inet fw {
         tcp dport @KNOCK_2@ ip saddr @knock1 update @knock2 { ip saddr }
         tcp dport @KNOCK_1@ update @knock1 { ip saddr }
 
-        iifname @trusted_links tcp dport { 22, 9757, 22000, 53317 } accept
-        iifname @trusted_links udp dport { 5353, 9757, 22000, 53317 } accept
+        iifname @trusted_links tcp dport { 22, 1714-1764, 9757, 22000, 53317 } accept
+        iifname @trusted_links udp dport { 1714-1764, 5353, 9757, 22000, 53317 } accept
     }
 
     chain forward {

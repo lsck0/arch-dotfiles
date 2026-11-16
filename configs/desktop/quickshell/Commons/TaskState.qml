@@ -84,20 +84,23 @@ Singleton {
     return "@" + day + (timed ? " " + Qt.formatDateTime(d, "HH:mm") : "")
   }
 
-  // timew exports tags sorted: every tag counts, the description is the join key back to a task
+  // timew exports tags sorted: every tag counts, the description is the join key back to a task. `:day` returns every
+  // interval touching today whole, so each counts from midnight on: one left open for days is not days of work today
   function buildTracked(data) {
     var list = (data && data.length) ? Array.prototype.slice.call(data) : []
     var byTag = {}
     var closed = 0
     var openMs = 0
+    var dayStartMs = new Date().setHours(0, 0, 0, 0)
     for (let i = 0; i < list.length; i++) {
       let iv = list[i]
       let start = twDate(iv.start)
       if (!start) continue
-      if (!iv.end) { openMs = start.getTime(); continue }
+      let startMs = Math.max(start.getTime(), dayStartMs)
+      if (!iv.end) { openMs = startMs; continue }
       let end = twDate(iv.end)
       if (!end) continue
-      let secs = Math.max(0, (end.getTime() - start.getTime()) / 1000)
+      let secs = Math.max(0, (end.getTime() - startMs) / 1000)
       closed += secs
       let tags = iv.tags || []
       for (let j = 0; j < tags.length; j++) byTag[tags[j]] = (byTag[tags[j]] || 0) + secs

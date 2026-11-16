@@ -5,7 +5,7 @@ use state.nu [file-trim]
 const PLATFORM_LOCAL_DIR = "/etc/dotfiles"
 export const PLATFORM_NAME_FILE = "/etc/dotfiles/platform"
 const FORM_FACTORS = [desktop laptop server vm wsl]
-export const PLATFORM_FACTS = [form_factor homelab wireguard secure_boot_own_keys lsck0_snapshot]
+export const PLATFORM_FACTS = [form_factor homelab wireguard secure_boot_own_keys lsck0_snapshot offload]
 const PLATFORM_KEYS = [hostname label form_factor groups extra_packages facts packages_keep flatpak_keep nix_keep]
 const GPU_VENDORS = {"0x1002": amd, "0x8086": intel, "0x10de": nvidia}
 

@@ -117,7 +117,7 @@ BarWidget {
       PanelRow {
         width: parent.width
         label: "Do not disturb"
-        trailing: root.dndOn && root.dndSource !== "" ? "on :: " + root.dndSource : "silence popups"
+        trailing: root.dndOn && root.dndSource !== "" ? "on :: " + root.dndSource : ""
         stateMarker: true
         on: root.dndOn
         onActivated: root.toggleDnd()

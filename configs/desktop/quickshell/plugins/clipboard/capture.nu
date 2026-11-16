@@ -44,7 +44,7 @@ def image-emit [mime: string, dir: string]: binary -> nothing {
     if ($raw | bytes length) == 0 { return }
     let path = [$dir $"($raw | hash sha256).($mime | str replace image/ '' | str replace jpeg jpg)"] | path join
     if not ($path | path exists) { $raw | save $path }
-    {type: image, mime: $mime, path: $path, capturedAt: (date now | format date "%A %H:%M")} | to json -r | print
+    {type: image, mime: $mime, path: $path, capturedAt: (date now | format date "%Y-%m-%d %H:%M")} | to json -r | print
 }
 
 def main [mime?: string] {

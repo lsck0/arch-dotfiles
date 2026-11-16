@@ -8,5 +8,6 @@
         homelab: true
         wireguard: wireguard/pc.conf
         secure_boot_own_keys: true
+        offload: target
     }
 }

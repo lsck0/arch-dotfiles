@@ -11,8 +11,9 @@ description: Machine facts in platforms/<name>.nuon versus user capabilities in 
   `~/.config/dotfiles/options.nuon` (`dot set`). Options default to machine scope; `scope: user` for per-user ones.
   A server or custom machine's values are root's `/etc/dotfiles/platform.options.nuon` (`dot set` refuses it). Prefer
   this.
-- Property of the machine (form factor, homelab, wireguard, own secure boot keys, `lsck0_snapshot`): a platform fact,
-  `platform-has <fact>` / `$env.FORM_FACTOR`. The only gate a `system` verb may use.
+- Property of the machine (form factor, homelab, wireguard, own secure boot keys, `lsck0_snapshot`, the `offload` role
+  `target` or `client`): a platform fact, `platform-has <fact>` / `$env.FORM_FACTOR`. The only gate a `system` verb
+  may use.
 - Property of the person: `profile-has secrets` (the owner). User layer only.
 - `platform-has homelab` says the machine is on the lab, not who logs in: a `--profile custom` login on luca-pc has it
   too. Personal content (accounts, employer domains, bookmarks) goes behind `profile-has secrets` or into

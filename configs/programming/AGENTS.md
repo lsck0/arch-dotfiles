@@ -23,3 +23,7 @@
   the names (`l-dotfiles-secrets-access`).
 - Editors in use are nvim, Doom Emacs and Zed. VSCodium (vim keys, theme, settings) and JetBrains (toolbox only) are
   backups: no language extensions, LSPs or theme parity are owed to them.
+- `offload` (platform fact `offload`: `target` luca-pc, `client` luca-notebook) sends the repo's HEAD and working
+  changes as a git ref to a per-client bare repo on the target and runs the command there in a transient unit under a
+  sleep inhibitor, so the target sleeps again after; `offload host` is its ssh-called half; the target's address is
+  `base/ssh.wake_host`.

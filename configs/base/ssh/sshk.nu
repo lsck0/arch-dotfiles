@@ -11,7 +11,7 @@ const PROBE_TIMEOUT_S = 2
 const KNOCK_TRIES = 5
 
 # Knock, then ssh to [user@]<host> on the hidden port; the remaining arguments go to ssh.
-def --wrapped main [target: string, ...args: string]: nothing -> nothing {
+def --wrapped main [target: string, ...args]: nothing -> nothing {
     if $target in ["-h" "--help"] { print $"usage: sshk [user@]<host> [ssh args...]: knock, then ssh to the hidden port ($PORT)"; return }
     let config = ^ssh -G $target | lines | split column --number 2 " " key value
     let host = $config | where key == hostname | get 0.value

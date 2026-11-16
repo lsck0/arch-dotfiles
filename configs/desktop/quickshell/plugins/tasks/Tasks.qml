@@ -376,7 +376,7 @@ Item {
             text: root.inputMode === "add" ? "description project:x due:tomorrow priority:H +tag"
               : root.inputMode === "modify" && root.modifyTask ? "new description or due:fri priority:H -tag :: " + root.modifyTask.desc
               : root.inputMode === "filter" ? "filter"
-              : root.filterText ? root.filterText : "a to add, / to filter"
+              : root.filterText ? root.filterText : "add or filter"
             color: root.inputMode === "" && root.filterText ? Colors.menu.text : Colors.textDim
             font.pixelSize: Style.font.heading
             elide: Text.ElideRight

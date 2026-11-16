@@ -150,6 +150,16 @@ hl.bind(
     { description = "fullscreen the window" }
 )
 hl.bind(mod .. " + v", quickshell_toggle("clipboard"), { description = "clipboard history" })
+hl.bind(
+    mod .. " + u",
+    helper(shell_bin("phone") .. " clipboard --notify"),
+    { description = "clipboard to the phone's clipboard" }
+)
+hl.bind(
+    mod .. " + SHIFT + u",
+    helper(shell_bin("phone") .. " share --notify"),
+    { description = "share the clipboard's files, link or text with the phone" }
+)
 
 hl.bind(mod .. " + g", hl.dsp.layout("togglesplit"), { description = "toggle the split direction" })
 
