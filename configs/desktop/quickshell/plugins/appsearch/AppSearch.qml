@@ -40,7 +40,7 @@ Item {
     keys: [["^/v", "select"], ["ENTER", "close"], ["ESC", "clear"]]
   })
   // what an empty list says while nothing is typed
-  readonly property var modeEmpty: ({ apps: "> NOTHING HERE", calc: "> TYPE AN EXPRESSION", run: "> TYPE A COMMAND", windows: "> NO WINDOWS", keys: "> NO KEYBINDS", task: "> TYPE A TASK", remind: "> TYPE A DURATION OR TIME, THEN A NAME", note: "> TYPE A NOTE" })
+  readonly property var modeEmpty: ({ apps: "> NO APPS", calc: "> TYPE AN EXPRESSION", run: "> TYPE A COMMAND", windows: "> NO WINDOWS", keys: "> NO KEYBINDS", task: "> TYPE A TASK", remind: "> 10M|15:00 \u00b7 NAME", note: "> TYPE A NOTE" })
 
   readonly property var modifierBits: [[64, "SUPER"], [4, "CTRL"], [8, "ALT"], [1, "SHIFT"]]
   // hyprctl names that the hint grammar spells differently; every other key name is shown upper case

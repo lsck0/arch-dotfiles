@@ -1091,7 +1091,7 @@ Item {
           Label {
             anchors.centerIn: parent
             visible: root.rows.length === 0
-            text: !root.loaded && !root.loadError ? "> LOADING" : root.query ? "> NO MATCH" : "> NOTHING HERE"
+            text: !root.loaded && !root.loadError ? "> LOADING" : root.query ? "> NO MATCH" : "> NO OPTIONS"
             dim: true
           }
         }

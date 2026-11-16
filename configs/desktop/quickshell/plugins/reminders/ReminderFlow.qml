@@ -241,7 +241,7 @@ Item {
 
         Label {
           visible: root.reminders.length === 0
-          text: "> NOTHING HERE"
+          text: "> NO REMINDERS"
           dim: true
         }
 

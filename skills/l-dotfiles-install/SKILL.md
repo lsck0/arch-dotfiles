@@ -117,15 +117,20 @@ into server. Each question's `env` and `default` is the reference. `dot test run
 ## Updating
 
 Each login updates with `dot sync` (agents never run it): pull `origin/master` (`sync-pull`; the submodule only with
-`secrets`), migrate, install, apply, every module's `update` verb (`update-run`), its output also in `sync.log`. Root
-is entered once for packages and the system layer, and not at all when nothing is due (`system-due` in
+`secrets`), migrate, install, apply, every module's `update` verb (`update-run`), its output also in `sync.log`. Root is
+entered once for packages and the system layer, and not at all when nothing is due (`system-due` in
 `scripts/lib/run.nu`: a failed or pending check, work in the system plan, undeclared packages, pending migrations,
-changed system secrets, else a package upgrade; `dot sync --system` forces it). The user side's system plan skips a
+changed system secrets, else a package upgrade; `dot sync --system` forces it). Not due: a root copy that differs only
+in files root never acts on (`root-acts-on` in `scripts/lib/system.nu`), packages and modules that wait only on the
+mirror's next build, and a module with `meta.secrets` undoing outputs (the user side plans without its secrets). A wait
+on the mirror ends when the database checkupdates syncs lists an awaited package (`awaited-arrived`), and an edit to
+`/etc/dotfiles/platform*` since the last clean entry is due (`platform-edited`). The user side's system plan skips a
 module whose input and root record both match `~/.local/state/dotfiles/system-inputs.nuon`, saved after a clean root
-entry; any other root run re-records it and ends the skip. Only the machine holding the `SIGNING_KEY_FINGERPRINT`
-secret key backs up, regenerates the generated files (`dot internal gen`), commits and pushes; elsewhere it stops
-after the apply. A non-wheel login converges its user layer only. An origin head without
-that signature merges nothing; local edits are autostashed; a conflict stops the run; a checkout off `master` refuses.
+entry (an install pending only on the mirror counts as clean); any other root run re-records it and ends the skip. Only
+the machine holding the `SIGNING_KEY_FINGERPRINT` secret key backs up, regenerates the generated files (`dot internal
+gen`), commits and pushes; elsewhere it stops after the apply. A non-wheel login converges its user layer only. An
+origin head without that signature merges nothing; local edits are autostashed; a conflict stops the run; a checkout off
+`master` refuses.
 
 ## Another login
 

@@ -5,12 +5,12 @@ use log.nu *
 use cli.nu [flag jobs root-runner state-lock-hold]
 use state.nu [SYSTEM_REPO SYSTEM_STATE LIB_DIR state-dir save-atomic EXIT_ABORTED EXIT_PENDING xdg CONFIG_ISSUE file-trim]
 use doctor.nu [doctor-checks]
-use platform.nu [platform-load]
+use platform.nu [platform-load PLATFORM_NAME_FILE]
 use profile.nu [profile-has]
-use modules.nu [modules-packages]
-use pipeline.nu [module-get pipeline-load pipeline-plan pipeline-apply pending-save pipeline-progress flatpak-installed nix-installed THEME_VERB_TIMEOUT NIX_FLAGS]
+use modules.nu [modules-packages modules-packages-each]
+use pipeline.nu [module-get pipeline-load pipeline-plan pipeline-apply pending-save pipeline-progress flatpak-installed nix-installed packages-absent THEME_VERB_TIMEOUT NIX_FLAGS PENDING_FILE]
 use converge.nu [state-read observe-outputs plan-module recorded-hashes apply-module state-write output-file-state unit-state-holds action-recorded dir-hidden]
-use ledger.nu [ledger-units ledger-get ledger-set ledger-diff ledger-remove packages-convergence]
+use ledger.nu [ledger-units ledger-get ledger-set ledger-diff ledger-remove packages-convergence awaited-names LEDGER_AWAITED LSCK0_DB]
 use migrate.nu [migrations-run migrations-pending]
 use ../../configs/base/yubikey/yubikey.nu [yubikey-unlock]
 use system.nu [system-pack system-archive system-secrets-digest entry-parses entry-takes-run ENTRY SYSTEM_STAGES SYSTEM_SECRETS_DIGEST RUN_ID]
@@ -38,6 +38,9 @@ const SYSTEM_SEED = 'set -e; umask 022; mkdir -p "${1%/*}"; exec flock "${1%/*}/
 # bash, $0 the log and "$@" the command: its output goes to the terminal and the log alike, its exit code is the
 # command's. No pty of its own: the command keeps the caller's terminal and session, where sudo finds its ticket.
 const LOG_TEE = 'printf "%s: %s\n" "$(date --iso-8601=seconds)" "$*" > "$0"; "$@" 2>&1 | tee --append --ignore-interrupts -- "$0"; exit "${PIPESTATUS[0]}"'
+# the actions that undo an output a module no longer declares (converge.nu plan-module's orphans), with disable, which
+# is one unless its decl declares the unit disabled; drift, a hand edit, is not one
+const UNDO_KINDS = [remove unmask unmerge undo forget]
 # the doctor checks that must each report ok before a sync leaves root out
 const IDLE_CHECKS = [failures config pending snapshot packages]
 # what a sync names of one reason to enter root before it counts the rest
@@ -576,24 +579,33 @@ export def --env system-part [target: string]: nothing -> nothing {
 
 # Why root's last `apply` does not vouch for the system layer, null when its config step ended 0 and no step of it ended
 # otherwise. report: SYSTEM_STAGES, null when there is none: `apply` removes it before it unpacks and writes it after
-# its last step, so an entry cut short left none. Pending (EXIT_PENDING) is no 0.
-export def stages-due [report: any]: nothing -> any {
+# its last step, so an entry cut short left none. Pending (EXIT_PENDING) is no 0, but for an install step that failed
+# nothing while awaited holds: [lsck0] still lacks packages its next build brings (mirror-awaits), and install ends
+# pending for that alone. What waits on them is never vouched for: a system verb that does ends config pending.
+export def stages-due [report: any, awaited: bool = false]: nothing -> any {
     let stages = try { $report.stages | select stage code } catch { return "left no report, it did not finish" }
-    let unsettled = $stages | where code != 0
+        | merge ($report.stages | each {|s| {failures: ($s.failures? | default [])} })
+    let unsettled = $stages | where {|s|
+        $s.code != 0 and not ($awaited and $s.stage == install and $s.code == $EXIT_PENDING and ($s.failures | is-empty))
+    }
     if ($unsettled | is-not-empty) { return $"ended ($unsettled | each { $'($in.stage) with ($in.code)' } | str join ', ')" }
     if "config" not-in $stages.stage { return $"ran no config step \(($stages.stage | str join ', ')\)" }
 }
 
 # What an unprivileged system plan (pipeline-plan's rows) shows root has to do, as "<module>: <kind> <target>": a
 # module's error and every action but the ones that say nothing here. Those are a skip, a target this user cannot read,
-# a step or exec with no record (it runs on every apply), and one whose --creates this user cannot look for.
-export def plan-due [planned: table]: nothing -> list<string> {
+# a step or exec with no record (it runs on every apply), one whose --creates this user cannot look for, and of a
+# module in secreted (its meta.secrets names some) the undoing of what it no longer declares: its verb runs here without
+# the secrets root is handed, and one gated on a secret declares less. What makes root undo it for real shows apart:
+# its mod.nu or options in the root copy, the secrets in their digest, a machine's own options under /etc in
+# platform-edited.
+export def plan-due [planned: table, secreted: list<string> = []]: nothing -> list<string> {
     let errors = $planned | where error != null | each { $"($in.id): ($in.error)" }
     let actions = $planned | each {|m| $m.actions | each {|a|
         let d = $a.decl
         let silent = $a.kind in [skip unreadable] or ($a.kind in [exec step] and (
             not (action-recorded $d) or ($d.creates? != null and (dir-hidden ($d.creates | path dirname)))
-        ))
+        )) or ($m.id in $secreted and ($a.kind in $UNDO_KINDS or ($a.kind == disable and $d.state? != disabled)))
         if not $silent { $"($m.id): ($a.kind) ($a.target)" }
     } } | flatten
     $errors ++ $actions
@@ -602,14 +614,49 @@ export def plan-due [planned: table]: nothing -> list<string> {
 # Why a sync has to enter root, from what an unprivileged process can read; empty when all of it shows the system
 # layer converged. checks: doctor's records. facts: per reason what was found of it, a reason when that is true, a text
 # or a list that is not empty. Anything unknown is a reason.
-export def system-due [checks: list<record>, facts: record]: nothing -> list<string> {
+# awaited: the modules a pending line names that wait only on packages [lsck0]'s next build brings (pending-awaited), so
+# their pending line is no reason, nor is the packages note on those names (packages-reports' note level holds them
+# alone): root can install nothing of them yet.
+export def system-due [checks: list<record>, facts: record, awaited: list<string> = []]: nothing -> list<string> {
     let unsettled = $IDLE_CHECKS | each {|name|
         let rows = $checks | where check == $name
-        if ($rows | is-empty) { $"($name): not checked" } else { $rows | where level != ok | get --optional 0 | if $in != null { $"($name): ($in.text)" } }
+        if ($rows | is-empty) { return $"($name): not checked" }
+        let open = $rows | where {|r|
+            $r.level != ok and not ($name == packages and $r.level == note) and not ($name == pending and (pending-id $r.text) in $awaited)
+        }
+        $open | get --optional 0 | if $in != null { $"($name): ($in.text)" }
     } | compact
     $unsettled ++ ($facts | items {|reason, found|
         if $found == true { $reason } else if $found not-in [false null []] { $"($reason): (names-shown ([$found] | flatten) $DUE_SHOWN)" }
     } | compact)
+}
+
+# The module id of a pending line, "<id>: <why>" as pending-save writes it.
+def pending-id [line: string]: nothing -> string { $line | split row ": " | first }
+
+# Whether root's last install pass found packages [lsck0] lacks that only its next build can bring: the names it
+# recorded asked for after the mirror's database was built.
+def mirror-awaits []: nothing -> list<string> {
+    let built = if ($LSCK0_DB | path exists) { ls $LSCK0_DB | get 0.modified } else { null }
+    awaited-names (with-env {DOT_LAYER: system} { ledger-get $LEDGER_AWAITED }) $built
+}
+
+# Of the modules either layer's last run left pending, those whose packages are all declared pacman ones and whose
+# missing ones are all in awaited: nothing root installs now lets them run. ctx: the system layer.
+def pending-awaited [ctx: record, awaited: list<string>]: nothing -> list<string> {
+    if ($awaited | is-empty) { return [] }
+    let ids = [(with-env {DOT_LAYER: user} { state-dir }) $SYSTEM_STATE] | uniq
+        | each {|dir| try { open --raw ($dir | path join $PENDING_FILE) | lines | where $it != "" } catch { [] } }
+        | flatten | each {|l| pending-id $l } | uniq
+    let modules = $ctx.modules | where id in $ids
+    if ($modules | is-empty) { return [] }
+    let declared = with-env {DOT_LAYER: system} { modules-packages-each $modules $ctx.platform }
+        | where {|p| $p.ok and ($p.flatpak | is-empty) and ($p.nix | is-empty) }
+    let absent = (packages-absent ($declared | select id pacman | insert flatpak [] | insert nix [])).pacman
+    $declared | where {|p|
+        let missing = $p.pacman | where $it in $absent
+        ($missing | is-not-empty) and ($missing | all { $in in $awaited })
+    } | get id
 }
 
 # Why an upgrade pass is due by checkupdates' exit code, null when it found nothing to upgrade; no answer is a reason.
@@ -648,6 +695,7 @@ def system-ctx []: nothing -> record { pipeline-load $REPO system }
 # layer. A plain def: the DOT_LAYER its plan reads root's records under stays in here.
 def system-facts [ctx: record]: nothing -> record {
     $env.DOT_LAYER = "system"
+    let awaited = mirror-awaits
     let declared = modules-packages $REPO $ctx.modules $ctx.platform
     let planned = pipeline-plan $ctx system [] false --converged (system-inputs-read)
     let facts = {
@@ -657,10 +705,16 @@ def system-facts [ctx: record]: nothing -> record {
         "modules declaring no packages": $declared.incomplete
         "the system secrets differ from what root was last handed": ((file-trim $SYSTEM_SECRETS_DIGEST null) != (system-secrets-digest $REPO $ctx.platform.facts.wireguard?))
         "the config failure banner is up": ($CONFIG_ISSUE | path exists)
-        "root's last entry": (stages-due (try { open $SYSTEM_STAGES } catch { null }))
-        "the system plan": (plan-due $planned)
+        "root's last entry": (stages-due (try { open $SYSTEM_STAGES } catch { null }) ($awaited | is-not-empty))
+        "the system plan": (plan-due $planned ($ctx.modules | where {|m| $m.meta.secrets? | default [] | is-not-empty } | get id))
+        "the machine's platform files changed since root's last clean entry": (platform-edited (
+            [$PLATFORM_NAME_FILE $ctx.platform.file? $ctx.platform.options_file?] | compact | where ($it | str starts-with "/etc/")
+        ) (try { ls (system-inputs-file) | get 0.modified } catch { null }))
     }
-    {facts: $facts, inputs: ($planned | where native and error == null and input != "" | each {|r| [$r.id $r.input] } | into record)}
+    {
+        facts: $facts, awaited: (pending-awaited $ctx $awaited), awaiting: $awaited
+        inputs: ($planned | where native and error == null and input != "" | each {|r| [$r.id $r.input] } | into record)
+    }
 }
 
 # system-due on this machine, then, only when nothing else is due, whether the mirrors hold an upgrade: due, and the
@@ -669,11 +723,36 @@ def system-due-now []: nothing -> record {
     let read = try {
         let ctx = system-ctx
         let both = [{|| doctor-checks --system-ctx $ctx } {|| system-facts $ctx }] | par-each --keep-order {|c| do $c }
-        {due: (system-due $both.0 $both.1.facts), inputs: $both.1.inputs}
-    } catch {|e| {due: [$"the system layer's state could not be read: ($e.msg)"], inputs: null} }
-    if ($read.due | is-not-empty) { return $read }
+        {due: (system-due $both.0 $both.1.facts $both.1.awaited), inputs: $both.1.inputs, awaiting: $both.1.awaiting}
+    } catch {|e| {due: [$"the system layer's state could not be read: ($e.msg)"], inputs: null, awaiting: []} }
+    if ($read.due | is-not-empty) { return ($read | reject awaiting) }
     let code = if (which checkupdates | is-empty) { null } else { (^timeout $CHECKUPDATES_TIMEOUT_S checkupdates | complete).exit_code }
-    $read | update due ([(upgrades-due $code)] | compact)
+    let upgrade = upgrades-due $code
+    # root's own database is as old as its last entry: only the copy checkupdates just synced shows a newer build
+    let arrived = if $upgrade != null or ($read.awaiting | is-empty) { null } else {
+        let db = $env.CHECKUPDATES_DB? | default --empty $"($env.TMPDIR? | default --empty /tmp)/checkup-db-(^id -u)/"
+        let listed = do { ^pacman -Slq --dbpath $db } | complete
+        awaited-arrived $read.awaiting (if $listed.exit_code == 0 { $listed.stdout | lines } else { null })
+    }
+    $read | reject awaiting | update due ([$upgrade $arrived] | compact)
+}
+
+# Why the packages a pending module awaits make root due, null while the mirror still lacks them all: one of them in
+# listed (every package name the freshly synced databases carry), or no listing, which is no answer.
+export def awaited-arrived [awaiting: list<string>, listed: any]: nothing -> any {
+    if ($awaiting | is-empty) { return null }
+    if $listed == null { return "the mirror's database could not be read for the awaited packages" }
+    let arrived = $awaiting | where $it in $listed
+    if ($arrived | is-not-empty) { $"the mirror carries awaited packages now: (names-shown $arrived $DUE_SHOWN)" }
+}
+
+# The files of files edited after since (the last clean root entry's record, null without one), all of them then:
+# root reads the machine's platform files under /etc, which no root copy compare sees.
+export def platform-edited [files: list<string>, since: any]: nothing -> list<string> {
+    $files | where {|f|
+        let modified = try { ls $f | get 0.modified } catch { null }
+        $modified != null and ($since == null or $modified > $since)
+    }
 }
 
 # The line before a root entry: why root is entered, the first reason and how many more.
@@ -710,7 +789,10 @@ export def --env update-run [yes: bool, system: bool]: nothing -> record {
             $env.FAILURES_FILE = $config_failures
             config-report $ran
             $env.FAILURES_FILE = $installing
-            if $ran.code == 0 and (stages-due {stages: $ran.stages}) == null { system-inputs-save $due.inputs }
+            # pending for packages the mirror's next build brings alone is settled; config ended 0, so no system verb waits
+            if $ran.code in [0 $EXIT_PENDING] and (stages-due {stages: $ran.stages} (mirror-awaits | is-not-empty)) == null {
+                system-inputs-save $due.inputs
+            }
         }
     } else if (admin) {
         system-skipped "packages" false

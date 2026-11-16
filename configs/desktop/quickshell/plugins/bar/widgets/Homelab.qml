@@ -31,6 +31,13 @@ BarWidget {
   readonly property int problemCount: lab.alerts.length + downServices.length
   readonly property real memFraction: (Number(lab.host.memTotalGb) || 0) > 0
     ? (Number(lab.host.memUsedGb) || 0) / Number(lab.host.memTotalGb) : 0
+  // alerts and client lists past this many rows wait behind an expand row
+  readonly property int rowsShownMax: 3
+  property bool alertsShowAll: false
+  property bool clientsShowAll: false
+  readonly property var alertsShown: alertsShowAll ? lab.alerts : lab.alerts.slice(0, rowsShownMax)
+  readonly property int clientRowsMax: Math.max((lab.clients.countries || []).length, (lab.clients.agents || []).length,
+    (lab.clients.hosts || []).length, (lab.clients.traffic || []).length)
   readonly property bool backupStale: lab.storage.backupAgeMin === null || lab.storage.backupAgeMin === undefined
     || lab.storage.backupAgeMin > 26 * 60
 
@@ -85,6 +92,8 @@ BarWidget {
   Connections {
     target: panel
     function onVisibleChanged() {
+      root.alertsShowAll = false
+      root.clientsShowAll = false
       if (root.absent) return
       root.restartStatus()
       if (panel.visible) vpnProc.run()
@@ -166,7 +175,7 @@ BarWidget {
     }
 
     Repeater {
-      model: list.rows
+      model: root.clientsShowAll ? list.rows : list.rows.slice(0, root.rowsShownMax)
       delegate: Item {
         id: entry
         required property var modelData
@@ -338,7 +347,7 @@ BarWidget {
 
           PanelSectionHeader { text: "Alerts"; foreground: Colors.urgent }
           Repeater {
-            model: root.lab.alerts
+            model: root.alertsShown
             delegate: LinkStat {
               required property var modelData
               label: modelData.target || modelData.name
@@ -348,11 +357,24 @@ BarWidget {
               alert: true
             }
           }
+          PanelRow {
+            visible: root.alertsShown.length < root.lab.alerts.length
+            width: parent.width
+            label: "All alerts"
+            trailing: "+" + (root.lab.alerts.length - root.alertsShown.length)
+            onActivated: root.alertsShowAll = true
+          }
           PanelSeparator {}
         }
 
-        PanelSectionHeader { text: "Host" }
-        GaugeRow { label: "CPU"; value: root.num(root.lab.host.cpuPct, "%"); fraction: (Number(root.lab.host.cpuPct) || 0) / 100; url: root.lab.links.proxmox }
+        PanelSectionHeader { text: root.lab.host.uptimeH === null || root.lab.host.uptimeH === undefined ? "Host" : "Host :: up " + root.lab.host.uptimeH + " h" }
+        GaugeRow {
+          label: "CPU"
+          value: root.num(root.lab.host.cpuPct, "%")
+          note: root.num(root.lab.host.tempC, "\u00b0C")
+          fraction: (Number(root.lab.host.cpuPct) || 0) / 100
+          url: root.lab.links.proxmox
+        }
         GaugeRow {
           label: "Memory"
           value: Math.round(root.memFraction * 100) + "%"
@@ -360,8 +382,6 @@ BarWidget {
           fraction: root.memFraction
           url: root.lab.links.proxmox
         }
-        LinkStat { label: "Temperature"; value: root.num(root.lab.host.tempC, "\u00b0C"); url: root.lab.links.proxmox }
-        LinkStat { label: "Uptime"; value: root.num(root.lab.host.uptimeH, " h"); url: root.lab.links.proxmox }
 
         PanelSeparator {}
         PanelSectionHeader { text: "Storage" }
@@ -375,14 +395,9 @@ BarWidget {
           label: "Disks OK"
           value: root.num(root.lab.storage.disksHealthy) + " / " + root.num(root.lab.storage.disksTotal)
           fraction: (Number(root.lab.storage.disksTotal) || 0) > 0 ? (Number(root.lab.storage.disksHealthy) || 0) / Number(root.lab.storage.disksTotal) : 0
+          note: root.lab.storage.nvmeWearPct === null || root.lab.storage.nvmeWearPct === undefined
+            ? "" : "NVMe wear " + root.lab.storage.nvmeWearPct + "%"
           alert: root.lab.storage.disksHealthy < root.lab.storage.disksTotal
-          url: root.lab.links.dashboard
-        }
-        GaugeRow {
-          visible: root.lab.storage.nvmeWearPct !== null && root.lab.storage.nvmeWearPct !== undefined
-          label: "NVMe wear"
-          value: root.num(root.lab.storage.nvmeWearPct, "%")
-          fraction: (Number(root.lab.storage.nvmeWearPct) || 0) / 100
           url: root.lab.links.dashboard
         }
         LinkStat {
@@ -395,8 +410,11 @@ BarWidget {
 
         PanelSeparator {}
         PanelSectionHeader { text: "Traffic" }
-        LinkStat { label: "Internal"; value: root.num(root.lab.traffic.internalRps, " req/s"); url: root.lab.links.dashboard }
-        LinkStat { label: "Public"; value: root.num(root.lab.traffic.externalRps, " req/s"); url: root.lab.links.dashboard }
+        LinkStat {
+          label: "Internal / public"
+          value: root.num(root.lab.traffic.internalRps) + " / " + root.num(root.lab.traffic.externalRps, " req/s")
+          url: root.lab.links.dashboard
+        }
         LinkStat {
           label: "Server errors"
           value: root.num(root.lab.traffic.errorRps, " req/s")
@@ -409,9 +427,6 @@ BarWidget {
           visible: (root.lab.clients.countries || []).length > 0
           spacing: Style.spacing.sm
 
-          PanelSeparator {}
-          PanelSectionHeader { text: root.lab.clients.window ? "Incoming :: " + root.lab.clients.window : "Incoming" }
-
           Grid {
             id: clientGrid
             width: parent.width
@@ -420,20 +435,24 @@ BarWidget {
             readonly property real cellWidth:
               (width - columnSpacing * (columns - 1)) / columns
 
-            ClientList { width: clientGrid.cellWidth; title: "From"; rows: root.lab.clients.countries || [] }
+            ClientList { width: clientGrid.cellWidth; title: root.lab.clients.window ? "From :: " + root.lab.clients.window : "From"; rows: root.lab.clients.countries || [] }
             ClientList { width: clientGrid.cellWidth; title: "Clients"; rows: root.lab.clients.agents || [] }
             ClientList { width: clientGrid.cellWidth; title: "Asking for"; rows: root.lab.clients.hosts || [] }
             ClientList { width: clientGrid.cellWidth; title: "How it went"; rows: root.lab.clients.traffic || [] }
           }
+          PanelRow {
+            visible: !root.clientsShowAll && root.clientRowsMax > root.rowsShownMax
+            width: parent.width
+            label: "All clients"
+            trailing: "+" + (root.clientRowsMax - root.rowsShownMax)
+            onActivated: root.clientsShowAll = true
+          }
         }
 
         PanelSeparator {}
-        PanelSectionHeader { text: "Services" }
-        LinkStat {
-          label: "Up"
-          value: root.upCount + " / " + root.monitored.length
-          note: root.asleepCount > 0 ? root.asleepCount + " asleep" : ""
-          url: root.lab.links.homepage
+        PanelSectionHeader {
+          text: "Services :: " + root.upCount + " / " + root.monitored.length + " up"
+            + (root.asleepCount > 0 ? ", " + root.asleepCount + " asleep" : "")
         }
         LinkStat {
           visible: root.downServices.length > 0
@@ -446,6 +465,7 @@ BarWidget {
         ServiceGroup { title: "Infra"; group: "infra" }
         ServiceGroup { title: "Internal"; group: "internal" }
         ServiceGroup { title: "External"; group: "external" }
+        ServiceGroup { title: "Apps"; group: "apps" }
       }
     }
   }

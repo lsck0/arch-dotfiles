@@ -470,7 +470,7 @@ BarWidget {
 
         Label {
           visible: root.wifiNetworks.length === 0 || wifiScanProc.running
-          text: wifiScanProc.running ? "> SCANNING" : "> NOTHING HERE"
+          text: wifiScanProc.running ? "> SCANNING" : "> NO NETWORKS"
           dim: true
           caption: true
         }

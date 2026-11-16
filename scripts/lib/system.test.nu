@@ -5,8 +5,9 @@
 # whose entry does not parse never replaces the copy; the digest of the secrets handed to root is the one root derives
 # from what it unpacked. The secrets root may be handed are what the modules' meta.secrets and the platform's wireguard
 # configs name, relative to configs/secrets/keys/ ({host} this machine's name), and nothing that leaves keys/ by an
-# absolute path or a `..`.
-use system.nu [system-pack system-unpack system-files system-archive system-secrets system-secrets-digest entry-parses secrets-digest SECRETS_PREFIX SECRETS_DIGEST ENTRY]
+# absolute path or a `..`. Of the paths that differ from root's copy, root acts on all but a user-only module's files and
+# .nu files nothing root runs imports; a module root keeps a record of counts as root-run after its system verb is gone.
+use system.nu [system-pack system-unpack system-files root-acts-on system-archive system-secrets system-secrets-digest entry-parses secrets-digest SECRETS_PREFIX SECRETS_DIGEST ENTRY]
 use std/assert
 
 const SHA = "0123456789abcdef0123456789abcdef01234567"
@@ -125,12 +126,44 @@ def secrets-cases [repo: path]: nothing -> nothing {
     assert (do $refused null | str contains "secrets outside keys/") "a module's meta.secrets left keys/"
 }
 
+def acts-on-cases [repo: path]: nothing -> nothing {
+    let write = {|file: string, text: string| mkdir ($repo | path join $file | path dirname); $text | save --force ($repo | path join $file) }
+    do $write "configs/desktop/shell/mod.nu" "use ./widget.nu\nexport def link [cfg: record] { [] }\n"
+    do $write "configs/desktop/shell/widget.nu" "export def w [] { 1 }\n"
+    do $write "configs/desktop/shell/Bar.qml" "Item {}\n"
+    do $write "configs/desktop/shared/mod.nu" "export def link [cfg: record] { [] }\n"
+    do $write "configs/desktop/shared/lib.nu" "export def l [] { 1 }\n"
+    do $write "configs/desktop/shared/deep.nu" "export def d [] { 1 }\n"
+    do $write "configs/desktop/shared/via.nu" "use ./deep.nu\n"
+    do $write "configs/base/svc/mod.nu" "use ../../desktop/shared/lib.nu\nexport def system [cfg: record] { [] }\n"
+    do $write "configs/base/svc/unit.conf" "x\n"
+    do $write "configs/base/gone/mod.nu" "export def link [cfg: record] { [] }\n"
+    do $write "scripts/lib/helper.nu" "use ../../configs/desktop/shared/via.nu\n"
+    let cases = [
+        [name paths acted];
+        ["a quickshell-like module's files" [configs/desktop/shell/Bar.qml configs/desktop/shell/mod.nu configs/desktop/shell/widget.nu] []]
+        ["a root-run module's files" [configs/base/svc/mod.nu configs/base/svc/unit.conf] [configs/base/svc/mod.nu configs/base/svc/unit.conf]]
+        ["root's entry" [scripts/lib/system-apply.nu] [scripts/lib/system-apply.nu]]
+        ["a migration" [migrations/0001-x.nu] [migrations/0001-x.nu]]
+        ["a platform" [platforms/pc.nuon] [platforms/pc.nuon]]
+        ["outside the copy" [FEATURES.md mirror/packages.txt] []]
+        ["a user-only .nu a root-run module imports" [configs/desktop/shared/lib.nu configs/desktop/shared/mod.nu] [configs/desktop/shared/lib.nu]]
+        ["a user-only .nu root's lib imports, transitively" [configs/desktop/shared/deep.nu] [configs/desktop/shared/deep.nu]]
+        ["a module root keeps a record of" [configs/base/gone/mod.nu] [configs/base/gone/mod.nu]]
+        ["a module gone from the checkout" [configs/old/thing/mod.nu] [configs/old/thing/mod.nu]]
+    ]
+    for c in $cases {
+        let got = root-acts-on $repo [base/gone] $c.paths
+        assert equal ($got | sort) ($c.acted | sort) $"acts on, ($c.name): ($got | to nuon)"
+    }
+}
+
 def main [] {
     let work = mktemp --directory --tmpdir system-test.XXXXXX
     $env.XDG_CACHE_HOME = $work | path join cache
     # the user's git config (commit.gpgsign, a template dir) stays out of the scratch repos
     $env.GIT_CONFIG_GLOBAL = "/dev/null"
     $env.GIT_CONFIG_SYSTEM = "/dev/null"
-    try { check $work; secrets-cases ($work | path join declared) } catch {|e| rm --recursive --force $work; error make $e }
+    try { check $work; secrets-cases ($work | path join declared); acts-on-cases ($work | path join acts) } catch {|e| rm --recursive --force $work; error make $e }
     rm --recursive --force $work
 }

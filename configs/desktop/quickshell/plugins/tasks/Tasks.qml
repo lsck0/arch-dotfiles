@@ -559,7 +559,7 @@ Item {
           Label {
             anchors.centerIn: parent
             visible: root.filtered.length === 0
-            text: TaskState.errorText ? "> FAILED" : !TaskState.loaded ? "> LOADING" : root.filterText ? "> NO MATCH" : "> NOTHING PENDING"
+            text: TaskState.errorText ? "> FAILED" : !TaskState.loaded ? "> LOADING" : root.filterText ? "> NO MATCH" : "> NO TASKS"
             dim: true
           }
         }

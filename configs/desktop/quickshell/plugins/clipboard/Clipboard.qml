@@ -708,7 +708,7 @@ Item {
               shown: displayModel.count === 0
               glyph: "\u{f014c}"
               glyphSize: Style.font.displayLarge
-              text: root.filterText ? "> NO MATCH" : "> NOTHING HERE"
+              text: root.filterText ? "> NO MATCH" : "> NO CLIPBOARD ENTRIES"
             }
           }
         }

@@ -4,11 +4,13 @@
 # failures-publish leaves of earlier FAILURES lines after a partial, a full and a clean run. The log tee keeps the
 # command's exit code and session; a sync leaves root out only when every unprivileged reading says converged; a root
 # entry's report becomes each step's code and FAILURES lines. Root's last report vouches only when its config step ended
-# 0 and nothing else ended otherwise; an unprivileged system plan names what is left for root. A root copy from before
+# 0 and nothing else ended otherwise, an install pending only on packages the mirror's next build brings included; an
+# unprivileged system plan names what is left for root, but not a secreted module's undoing of what it no longer
+# declares. A pending module or packages note that waits on the mirror alone is no reason to enter root. A root copy from before
 # `apply --run` is replaced through the argv it knows and then entered again; a dismissed pkexec prompt is no failure.
 use state.nu [EXIT_PENDING EXIT_ABORTED]
 use system.nu [ENTRY entry-takes-run]
-use run.nu [failures-publish log-tee-argv system-due system-due-line upgrades-due stage-code stage-failures stages-due plan-due entry-enter entry-declined]
+use run.nu [failures-publish log-tee-argv system-due system-due-line upgrades-due awaited-arrived platform-edited stage-code stage-failures stages-due plan-due entry-enter entry-declined]
 use std/assert
 
 const REPO = path self ../..
@@ -86,10 +88,43 @@ def due-cases []: nothing -> nothing {
         let got = system-due $c.checks $c.facts
         assert equal $got $c.wants $"due ($c.name): ($got | to nuon)"
     }
+    let row = {|check, level, text| $settled | where check != $check | append {level: $level, check: $check, text: $text} }
+    let awaiting = [
+        [name checks awaited wants];
+        ["packages the mirror's next build brings" (do $row packages note "not on the mirror yet: f") [] []]
+        ["packages root installs" (do $row packages todo "dot apply --packages pending: g") [] ["packages: dot apply --packages pending: g"]]
+        ["a module waiting on the mirror alone" (do $row pending note "fonts/fonts: packages missing: f") [fonts/fonts] []]
+        ["a module waiting on packages root installs" (do $row pending note "a/mod: packages missing: g") [fonts/fonts] ["pending: a/mod: packages missing: g"]]
+        ["one of two waiting on the mirror" ((do $row pending note "fonts/fonts: packages missing: f") | append {level: note, check: pending, text: "a/mod: waits on b (failed)"}) [fonts/fonts] ["pending: a/mod: waits on b (failed)"]]
+    ]
+    for c in $awaiting {
+        let got = system-due $c.checks $facts $c.awaited
+        assert equal $got $c.wants $"due ($c.name): ($got | to nuon)"
+    }
     assert equal (upgrades-due 2) null "upgrades: checkupdates' 2 is not 'nothing to upgrade'"
     for code in [0 1 124 null] {
         assert ((upgrades-due $code) != null) $"upgrades: checkupdates ($code | to nuon) leaves root out"
     }
+    # a wait on the mirror ends once a build carries the package, which no upgrade of an installed one need show
+    assert equal (awaited-arrived [] null) null "arrived: nothing awaited"
+    assert equal (awaited-arrived [f] [a b]) null "arrived: the mirror still lacks f"
+    assert ((awaited-arrived [f g] [a g]) | str contains "g") "arrived: g on the mirror leaves root out"
+    assert ((awaited-arrived [f] null) != null) "arrived: an unreadable database leaves root out"
+    let dir = mktemp --directory --tmpdir dot-run-platform-XXXXXX
+    let file = $dir | path join platform.options.nuon
+    "{}\n" | save $file
+    let at = ls $file | get 0.modified
+    let edited = [
+        [name since wants];
+        ["no clean entry yet" null [$file]]
+        ["edited after the last clean entry" ($at - 1sec) [$file]]
+        ["entered since" ($at + 1sec) []]
+    ]
+    for c in $edited {
+        let got = platform-edited [$file ($dir | path join absent.nuon)] $c.since
+        assert equal $got $c.wants $"platform ($c.name): ($got | to nuon)"
+    }
+    rm --recursive --force $dir
 }
 
 def report-cases []: nothing -> nothing {
@@ -110,6 +145,21 @@ def report-cases []: nothing -> nothing {
     for c in $cases {
         let got = stages-due $c.report
         assert equal ($got == null) $c.vouches $"report ($c.name): ($got | to nuon)"
+    }
+    # awaited: root's ledger names packages only the mirror's next build brings, the one pending an install may end with
+    let failed = {stage: install, code: $EXIT_PENDING, failures: ["x: broke"]}
+    let awaited = [
+        [name report vouches];
+        ["an install pending on the mirror" {stages: [(do $step install $EXIT_PENDING) (do $step packages 0) (do $step config 0)]} true]
+        ["an install pending with a failure" {stages: [$failed (do $step packages 0) (do $step config 0)]} false]
+        ["a pending config" {stages: [(do $step install $EXIT_PENDING) (do $step config $EXIT_PENDING)]} false]
+        ["a failed install" {stages: [(do $step install 1) (do $step config 0)]} false]
+        ["an install pending, no config" {stages: [(do $step install $EXIT_PENDING)]} false]
+        ["a report without failures" {stages: [{stage: install, code: $EXIT_PENDING} {stage: config, code: 0}]} true]
+    ]
+    for c in $awaited {
+        let got = stages-due $c.report true
+        assert equal ($got == null) $c.vouches $"report, awaited, ($c.name): ($got | to nuon)"
     }
 }
 
@@ -135,9 +185,22 @@ def plan-cases []: nothing -> nothing {
         {id: c/fresh, error: null, actions: []}
     ]
     let got = plan-due $planned
+    # a secreted module: what it no longer declares says nothing, what it declares still does
+    let secreted = [{id: s/mod, error: null, actions: [
+        (do $act remove /etc/s/gone {kind: file})
+        (do $act disable s.service {kind: unit, state: enabled, now: true})
+        (do $act forget /etc/s/already {kind: file})
+        (do $act disable declared.service {kind: unit, state: disabled})
+        (do $act update /etc/s/changed {kind: file})
+        (do $act drift /etc/s/edited {kind: file})
+    ]}]
+    let shown = plan-due $secreted [s/mod]
+    let plain = plan-due $secreted
     ^chmod 700 $closed
     rm --recursive --force $dir
     assert equal $got ["b/broken: mod.nu does not parse" "a/mod: update /etc/changed" "a/mod: drift /etc/edited" "a/mod: exec missing" "a/mod: exec rekeyed" "a/mod: disable old.service"] $"plan: ($got | to nuon)"
+    assert equal $shown ["s/mod: disable declared.service" "s/mod: update /etc/s/changed" "s/mod: drift /etc/s/edited"] $"plan, secreted: ($shown | to nuon)"
+    assert equal ($plain | length) 6 $"plan, not secreted: ($plain | to nuon)"
 }
 
 # A stand-in root copy: its entry logs each call it accepts into <copy>/calls. The old one takes no --run and, as its

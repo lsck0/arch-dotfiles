@@ -12,6 +12,9 @@ export const VERBS = [link system theme apply backup restore update]
 export const HOOKS = [detect packages]
 const MARKER = "mod.nu"
 const DEPENDENCIES = "dependencies.txt"
+# a relative use or source of a .nu file, as a regex (the path in p) and as grep -E reads it
+export const IMPORT_LINE = '\s*(?:export\s+)?(?:use|source|source-env)\s+(?<p>\.{1,2}/\S+\.nu)'
+export const IMPORT_GREP = '^\s*(export\s+)?(use|source|source-env)\s+\.{1,2}/\S+\.nu'
 # owner only: the cache names the private secrets group's modules and their options
 const DISCOVER_MODE = "600"
 export const ROOT_MODULES = [scripts skills]

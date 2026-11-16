@@ -132,7 +132,7 @@ BarWidget {
         }
         MetricRow {
           valueBeside: true
-          label: "Week"
+          label: "7D"
           value: root.weekPct + "%"
           fraction: Math.min(1, root.weekPct / 100)
           tint: root.weekPct >= 80 ? Colors.urgent : Colors.accent

@@ -148,7 +148,7 @@ BarWidget {
 
       Label {
         visible: root.history.length === 0
-        text: "> NOTHING RECENT"
+        text: "> NO NOTIFICATIONS"
         dim: true
         caption: true
       }

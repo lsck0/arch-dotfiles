@@ -5,7 +5,7 @@ use ledger.nu [ledger-get awaited-names LEDGER_AWAITED LSCK0_DB]
 use platform.nu [platform-load]
 use profile.nu [profile-has]
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
-use system.nu [system-files secrets-digest SECRETS_PREFIX SECRETS_DIGEST]
+use system.nu [system-files root-acts-on system-recorded secrets-digest SECRETS_PREFIX SECRETS_DIGEST]
 use preserve.nu [preserve-report]
 use pipeline.nu [pipeline-load PENDING_FILE]
 use modules.nu [modules-packages]
@@ -82,15 +82,20 @@ def config-pending []: nothing -> list<record> {
     if $both.error? != null { return [(report FAIL config $"cannot compare the root copy with the checkout: ($both.error)")] }
     let a = $both.a
     let b = $both.b
-    let changed = ($a | where $it not-in $b) ++ ($b | where $it not-in $a) | each { str substring 66.. } | uniq | length
+    let paths = ($a | where $it not-in $b) ++ ($b | where $it not-in $a) | each { str substring 66.. } | uniq
+    # only what root acts on makes an apply due; a user-only module's file rides along with the next root entry
+    let acted = try { root-acts-on $REPO (system-recorded) $paths | length } catch { $paths | length }
     let digest = file-trim ($SYSTEM_REPO | path join $SECRETS_DIGEST)
     let differing = [
-        (if $changed > 0 { counted $changed file })
+        (if $acted > 0 { counted $acted file })
         (if (secrets-digest $REPO $private) != $digest { $SECRETS_PREFIX })
     ] | compact
+    let waiting = ($paths | length) - $acted
     if ($differing | is-not-empty) {
         let at = $"the root copy is at ($source | str substring 0..6), the checkout at ($head | str substring 0..6)"
         [(report $TODO config $"dot apply pending: ($at) with ($differing | str join ' and ') differing")]
+    } else if $waiting > 0 {
+        [(report ok config $"the root copy matches the checkout in what root acts on; (counted $waiting 'user-only file') left for its next entry")]
     } else {
         [(report ok config "the root copy matches the checkout")]
     }

@@ -5,7 +5,7 @@ use state.nu [LIB_DIR state-dir save-atomic]
 use platform.nu [platform-load platform-env]
 use profile.nu [profile-load]
 use options.nu [options-resolve]
-use modules.nu [modules-discover modules-graph modules-eval modules-packages-each modules-root-run]
+use modules.nu [modules-discover modules-graph modules-eval modules-packages-each modules-root-run IMPORT_LINE IMPORT_GREP]
 use converge.nu [state-read state-path observe-outputs recorded-hashes decls-check plan-module apply-module state-write mode-normal unit-state-holds]
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use cause.nu [failure-line cause-from-error cause-text]
@@ -27,9 +27,6 @@ const PACKAGES_HINT = "dot apply --packages"
 const WAITS_ON = "waits on "
 # a link source can be a dead mount: bound the probe, a timeout counts as gone
 const LINK_PROBE_TIMEOUT_S = 2
-# a relative use or source of a .nu file: the line imports-outside follows, as a regex and as grep -E reads it
-const IMPORT_LINE = '\s*(?:export\s+)?(?:use|source|source-env)\s+(?<p>\.{1,2}/\S+\.nu)'
-const IMPORT_GREP = '^\s*(export\s+)?(use|source|source-env)\s+\.{1,2}/\S+\.nu'
 const GLOB_META = '[*?\[{]'
 # a hung theme verb is killed after this; the run goes on
 export const THEME_VERB_TIMEOUT = 60sec

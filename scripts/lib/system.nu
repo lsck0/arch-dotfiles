@@ -3,7 +3,7 @@
 use log.nu *
 use state.nu [SYSTEM_REPO SYSTEM_STATE nu-bin]
 use secrets.nu [secret-is-plaintext]
-use modules.nu [modules-discover modules-root-run]
+use modules.nu [modules-discover modules-root-run IMPORT_LINE IMPORT_GREP]
 
 const SYSTEM_PATHS = [configs migrations platforms profiles scripts]
 export const ENTRY = "scripts/lib/system-apply.nu"
@@ -37,25 +37,78 @@ export def secrets-digest [dir: path, files: list<string>]: nothing -> string {
     $files | sort | each {|f| $"(open --raw ($dir | path join $f) | hash sha256)  ($f)" } | str join "\n" | hash sha256
 }
 
-# Each module dir under configs/ (relative, the secrets group's included) and whether root runs any of its hooks.
-def module-dirs-root [checkout: path]: nothing -> record {
+# Each module dir under configs/ (relative, the secrets group's included) and whether root runs any of its hooks, or,
+# for the ids in also, counts as if it did.
+def module-dirs-root [checkout: path, also: list<string> = []]: nothing -> record {
     let base = $checkout | path expand
     let modules = modules-discover $base [] | where group != ""
-    let root = modules-root-run $modules
+    let root = modules-root-run $modules | append $also
     $modules | each {|m| [($m.dir | path relative-to $base) ($m.id in $root)] } | into record
 }
 
-# Whether root can read f: any .nu file (a root-run module may import it), anything outside a module under configs/
-# (the root module scripts/ included, whole), and every file of a module root runs a hook of.
-def root-reads [f: string, modules: record]: nothing -> bool {
-    if ($f | str ends-with ".nu") { return true }
+# The nearest module dir (module-dirs-root's key) f sits in, null outside every module under configs/.
+def module-dir [f: string, modules: record]: nothing -> any {
     mut dir = $f | path dirname
     while $dir not-in ["" "."] {
-        let root = $modules | get --optional $dir
-        if $root != null { return $root }
+        if ($modules | get --optional $dir) != null { return $dir }
         $dir = $dir | path dirname
     }
-    true
+    null
+}
+
+# Whether root runs f of its own accord: anything outside a module under configs/ (the root module scripts/ included,
+# whole), and every file of a module root runs a hook of.
+def root-runs [f: string, modules: record]: nothing -> bool {
+    let dir = module-dir $f $modules
+    $dir == null or ($modules | get $dir)
+}
+
+# Whether root can read f: what it runs, and any .nu file (a root-run module may import it).
+def root-reads [f: string, modules: record]: nothing -> bool {
+    ($f | str ends-with ".nu") or (root-runs $f $modules)
+}
+
+# The .nu files (relative) that what root runs imports, followed transitively, as the engine reads a relative use or
+# source. One grep over the root copy's paths.
+def imports-reached [checkout: path, modules: record]: nothing -> list<string> {
+    let prefix = $"($checkout)/"
+    let dirs = $SYSTEM_PATHS | each {|p| $checkout | path join $p } | where ($it | path exists)
+    let map = ^grep -rHE --include=*.nu $IMPORT_GREP ...$dirs | complete | get stdout | lines
+        | parse --regex $"^\(?<file>[^:]+\):($IMPORT_LINE)"
+        | each {|r| {file: $r.file, import: ($r.file | path dirname | path join $r.p | path expand)} }
+        | group-by file | items {|file, rows| [$file $rows.import] } | into record
+    mut todo = $map | columns | where {|f| root-runs ($f | str replace $prefix "") $modules }
+    mut seen = $todo
+    while ($todo | is-not-empty) {
+        let found = $map | get --optional ($todo | first) | default [] | where $it not-in $seen
+        $seen = $seen ++ $found
+        $todo = ($todo | skip 1) ++ $found
+    }
+    $seen | where ($it | str starts-with $prefix) | each { str replace $prefix "" }
+}
+
+# Of the paths (relative) that differ between the checkout and root's copy, those root's next entry acts on: what
+# root runs (root-runs; recorded: the ids root holds a system record of, so a module whose system verb is gone still
+# counts) and the .nu files that imports. The rest, a user-only module's files, root reads only through discovery,
+# whose outcome (the system plan, packages, secrets) the user side reads from the checkout; it rides along with the
+# next entry something else makes due.
+export def root-acts-on [checkout: path, recorded: list<string>, paths: list<string>]: nothing -> list<string> {
+    # what lies outside SYSTEM_PATHS is never in the copy
+    let paths = $paths | where {|f| ($f | path split | first) in $SYSTEM_PATHS }
+    if ($paths | is-empty) { return [] }
+    let base = $checkout | path expand
+    let modules = module-dirs-root $base $recorded
+    let run = $paths | where {|f| root-runs $f $modules }
+    let rest = $paths | where {|f| $f not-in $run and ($f | str ends-with ".nu") }
+    if ($rest | is-empty) { return $run }
+    let reached = imports-reached $base $modules
+    $run ++ ($rest | where $it in $reached)
+}
+
+# The ids of the modules root holds a system record of.
+export def system-recorded []: nothing -> list<string> {
+    let dir = $SYSTEM_STATE | path join modules
+    glob ($dir | path join "**" system.nuon) | each { path dirname | path relative-to $dir }
 }
 
 # Every file the root copy holds, by git's view: --cached the tracked, --others the untracked. The non-.nu files of a
