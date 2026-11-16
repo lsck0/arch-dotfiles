@@ -7,7 +7,7 @@ use hook/spicetify-apply.nu [apply-pending]
 export const meta = {packages: {pacman: [spicetify-cli spotify spotify-player unzip websocat]}}
 
 const THEMES_URL = "https://github.com/spicetify/spicetify-themes.git"
-const THEMES_COMMIT = "33a08ea009687f5a42ff678015c28797fe142a7c"
+const THEMES_COMMIT = "176fdc7b334c3579475edc3f17452bf87f53d51b" # committed 2026-11-09
 
 const THEME_INI = "Themes/wal/color.ini"
 const THEME_CSS = "Themes/wal/user.css"

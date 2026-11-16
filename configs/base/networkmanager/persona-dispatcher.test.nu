@@ -1,0 +1,102 @@
+#!/usr/bin/env -S nu --no-config-file
+# The persona a link event leaves: persona-dispatcher.nu run on a copy whose /run, /etc and /sys paths point into a
+# scratch dir, with systemctl, sysctl, nmcli, resolvectl, ip, nft and systemd-run stubbed to log their argv. Per
+# untrusted_policy and whether the link is trusted, the units started and stopped; a missing or unknown policy file is
+# lockdown-tor, fail closed.
+
+const HERE = path self .
+const DISPATCHER = $HERE | path join persona-dispatcher.nu
+const LIB = $HERE | path join lib
+const IFACE = "eth9"
+const STUBS = [systemctl sysctl nmcli resolvectl ip nft systemd-run]
+# the dispatcher's own paths, each moved under the scratch dir; one gone from the source fails the test
+const MOVED = [
+    /run/home-network /run/trusted-network /run/persona-lockdown /run/persona-tor /usr/local/bin/tor-router
+    /usr/bin/tor /etc/NetworkManager/vm-guest /etc/NetworkManager/untrusted-policy
+    /etc/systemd/system/dotfiles-stage.service /etc/NetworkManager/portal-seconds
+]
+const LOCKDOWN = [fw-egress.service fw-lockdown.service tor-router.service]
+
+def fail [msg: string] { error make {msg: $"persona-dispatcher.test: ($msg)"} }
+
+# The dispatcher and its lib copied into dir with every MOVED path and /sys/class/net under dir.
+def stage [dir: path]: nothing -> path {
+    let root = $dir | path join root
+    let text = $MOVED | reduce --fold (open --raw $DISPATCHER) {|p, acc|
+        if not ($acc | str contains $"\"($p)\"") { fail $"($p) is no longer a path of the dispatcher" }
+        $acc | str replace --all $"\"($p)\"" $"\"($root)($p)\""
+    }
+    let copy = $dir | path join dispatcher
+    mkdir ($copy | path join lib)
+    $text | str replace --all "/sys/class/net/" $"($root)/sys/class/net/" | save ($copy | path join persona-dispatcher.nu)
+    open --raw ($LIB | path join dispatch.nu) | str replace --all "/sys/class/net/" $"($root)/sys/class/net/"
+    | save ($copy | path join lib dispatch.nu)
+    mkdir ($root | path join sys class net $IFACE device) ($root | path join run) ($root | path join etc NetworkManager)
+    mkdir ($root | path join usr bin) ($root | path join usr local bin)
+    touch ($root | path join usr bin tor) ($root | path join usr local bin tor-router)
+    # systemctl is-active and ip link show find nothing up; nmcli has the one link connected
+    let bin = $dir | path join bin
+    mkdir $bin
+    for s in $STUBS {
+        let body = match $s {
+            systemctl => 'case "$1" in is-active|list-units) exit 3;; esac'
+            ip => 'exit 1'
+            nmcli => '[ "$1" = -t ] && echo "ethernet:connected:@IFACE@"; exit 0'
+            _ => 'exit 0'
+        }
+        let script = $"#!/bin/sh\necho \"($s) $*\" >> \"($dir)/calls\"\n($body | str replace '@IFACE@' $IFACE)\n"
+        $script | save ($bin | path join $s)
+        chmod +x ($bin | path join $s)
+    }
+    $copy | path join persona-dispatcher.nu
+}
+
+# The calls one `up` of IFACE made, from a lockdown marker as at boot.
+def event [dir: path, script: path, policy: any, trusted: bool]: nothing -> list<string> {
+    let root = $dir | path join root
+    rm --force ($dir | path join calls) ($root | path join run persona-tor) ($root | path join etc NetworkManager untrusted-policy)
+    touch ($root | path join run persona-lockdown)
+    if $policy != null { $"($policy)\n" | save --force ($root | path join etc NetworkManager untrusted-policy) }
+    (if $trusted { $"($IFACE)\n" } else { "" }) | save --force ($root | path join run trusted-network)
+    let r = with-env {PATH: ([($dir | path join bin)] ++ $env.PATH), CONNECTION_UUID: "test-uuid"} {
+        ^nu --no-config-file $script $IFACE up | complete
+    }
+    if $r.exit_code != 0 { fail $"dispatcher failed \(policy ($policy), trusted ($trusted)\): ($r.stderr)" }
+    let calls = $dir | path join calls
+    if ($calls | path exists) { open --raw $calls | lines } else { [] }
+}
+
+# The units a verb named, flags dropped, sorted.
+def units [calls: list<string>, verb: string]: nothing -> list<string> {
+    $calls | where ($it | str starts-with $"systemctl ($verb) ") | each { split row " " | skip 2 } | flatten
+    | where not ($it | str starts-with "-") | sort
+}
+
+def main [] {
+    let dir = mktemp --directory --tmpdir dot-persona-test-XXXXXX
+    let script = stage $dir
+    let cases = [
+        [what policy trusted started stopped];
+        ["no policy file, foreign" null false $LOCKDOWN [avahi-daemon.socket]]
+        ["an unknown policy, foreign" bogus false $LOCKDOWN [avahi-daemon.socket]]
+        ["lockdown-tor, foreign" lockdown-tor false $LOCKDOWN [avahi-daemon.socket]]
+        ["lockdown-tor, trusted" lockdown-tor true [avahi-daemon.socket fw-egress.service fw-inbound.service] []]
+        ["no policy file, trusted" null true [avahi-daemon.socket fw-egress.service fw-inbound.service] []]
+        ["firewall-only, foreign" firewall-only false [fw-lockdown.service] [avahi-daemon.socket fw-egress.service]]
+        ["firewall-only, trusted" firewall-only true [avahi-daemon.socket fw-inbound.service] [fw-egress.service]]
+        ["off, foreign" off false [avahi-daemon.socket fw-inbound.service] [fw-egress.service]]
+    ]
+    for c in $cases {
+        let calls = event $dir $script $c.policy $c.trusted
+        let started = units $calls start
+        # the nas mount follows home, which no case is
+        let stopped = units $calls stop | where $it != mnt-homelab.mount
+        if $started != ($c.started | sort) { fail $"($c.what): started ($started | to nuon), wants ($c.started | to nuon)" }
+        if $stopped != ($c.stopped | sort) { fail $"($c.what): stopped ($stopped | to nuon), wants ($c.stopped | to nuon)" }
+        let v6 = $calls | where ($it | str contains $"net.ipv6.conf.($IFACE).disable_ipv6=") | get --optional 0
+        let v6_off = ($v6 | default "" | str ends-with "=1")
+        let wants_off = not $c.trusted and $c.policy not-in [firewall-only off]
+        if $v6_off != $wants_off { fail $"($c.what): ipv6 on the link ($v6)" }
+    }
+    rm --recursive --force $dir
+}

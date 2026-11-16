@@ -12,7 +12,8 @@ BarWidget {
   readonly property bool muted: sink && sink.audio ? sink.audio.muted : true
   readonly property real volume: sink && sink.audio ? sink.audio.volume : 0
   readonly property var source: Pipewire.defaultAudioSource
-  readonly property bool micMuted: source && source.audio ? source.audio.muted : true
+  readonly property bool hasMic: !!source && !!source.audio
+  readonly property bool micMuted: hasMic ? source.audio.muted : true
   readonly property bool live: panel.shown
   property int routingStreamId: -1
   readonly property bool deafened: muted && micMuted
@@ -49,7 +50,7 @@ BarWidget {
     anchors.fill: parent
     bar: root.bar
     text: Audio.volumeIcon(root.volume, root.muted)
-    tooltipText: root.muted ? "Muted" : Math.round(root.volume * 100) + "%  " + Audio.dbText(root.volume) + " dB"
+    tooltipText: (root.muted ? "Muted" : Audio.levelText(root.volume)) + " :: MMB mute"
     onPressed: function(b) { if (b === Qt.MiddleButton) root.toggleMute() }
     onWheelMoved: function(delta) { Audio.nudge(root.sink, delta) }
   }
@@ -101,7 +102,7 @@ BarWidget {
           id: hearGroup
           anchors.right: parent.right
           spacing: Style.spacing.xs
-          options: [{ value: "me", label: "System" }, { value: "obs", label: "OBS output" }]
+          options: [{ value: "me", label: "SYSTEM" }, { value: "obs", label: "OBS OUTPUT" }]
           value: ObsProcess.listening ? "obs" : "me"
           onChanged: function(v) { ObsProcess.listenSet(v === "obs") }
         }
@@ -141,7 +142,15 @@ BarWidget {
         }
       }
 
+      Label {
+        visible: !root.hasMic
+        text: "> NO MICROPHONE"
+        dim: true
+        caption: true
+      }
+
       ObsPair {
+        visible: root.hasMic
         width: content.width
         node: root.source
         glyph: "\u{f036c}"
@@ -150,6 +159,7 @@ BarWidget {
       }
 
       Meter {
+        visible: root.hasMic
         width: content.width
         node: root.source
         active: root.live
@@ -227,9 +237,10 @@ BarWidget {
         PanelRow {
           width: (parent.width - parent.spacing) / 2
           centered: true
+          enabled: root.hasMic
           glyph: root.micMuted ? "\u{f036d}" : "\u{f036c}"
-          label: root.micMuted ? "Mic muted" : "Mute mic"
-          on: root.micMuted
+          label: !root.hasMic ? "No mic" : root.micMuted ? "Mic muted" : "Mute mic"
+          on: root.hasMic && root.micMuted
           onActivated: root.toggleMicMute()
         }
 
@@ -325,7 +336,10 @@ BarWidget {
     readonly property real obsMul: external ? (Number(ObsProcess.inputVolumes[obsLabel]) || 0) : 0
     readonly property bool muted: external ? (ObsProcess.inputMutes[obsLabel] === true) : (node && node.audio ? node.audio.muted : false)
     readonly property real volume: external ? Math.min(1, obsMul) : (node && node.audio ? node.audio.volume : 0)
-    readonly property string readoutText: muted ? "MUTE" : external ? (obsMul > 0 ? (20 * Math.log(obsMul) / Math.LN10).toFixed(1) + " dB" : "-inf") : Audio.dbText(volume) + " dB"
+    // OBS reports an amplitude multiplier, pipewire a cubic volume: both read as percent and dB
+    readonly property string readoutText: muted ? "MUTED"
+      : external ? Math.round(obsMul * 100) + "% " + (obsMul > 0 ? (20 * Math.log(obsMul) / Math.LN10).toFixed(1) : "-inf") + " dB"
+      : Audio.levelText(volume)
 
     function toggleMute() {
       if (external) ObsProcess.send({ "cmd": "toggleMute", "source": fader.obsLabel })
@@ -381,12 +395,16 @@ BarWidget {
 
     Caption {
       id: readout
-      width: Style.space(58)
+      width: readoutWidest.implicitWidth
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
       horizontalAlignment: Text.AlignRight
       text: fader.readoutText
       color: fader.muted ? Colors.urgentText : Colors.menu.text
+      font.features: { "tnum": 1 }
+
+      // the widest reading: a boost above 0 dB carries a sign as well, and + is no narrower than -
+      Caption { id: readoutWidest; visible: false; text: "100% +00.0 dB" }
     }
   }
 
@@ -406,7 +424,7 @@ BarWidget {
       node: pair.node
       glyph: pair.glyph
       mutedGlyph: pair.mutedGlyph
-      caption: pair.obsHas ? "system" : ""
+      caption: pair.obsHas ? "SYSTEM" : ""
     }
 
     Fader {

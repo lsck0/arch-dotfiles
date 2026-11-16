@@ -49,10 +49,14 @@ export def system [cfg: record] {
 }
 
 export def harden [...extra: string]: nothing -> nothing {
-    # one token per key, an extra over the default: passing both makes cmdline-set move the token to the end each run,
-    # a cmdline change that rebuilds the boot chain for nothing
-    let keys = $extra | each { key-of $in }
-    cmdline-set ...($TOKENS | where {|t| (key-of $t) not-in $keys }) ...$extra
+    cmdline-set ...(harden-tokens $extra)
     if "nosmt" not-in $extra { cmdline-unset nosmt }
     if "retbleed=stuff" not-in $extra { cmdline-unset retbleed }
+}
+
+# The tokens harden sets: one per key, an extra over the default. Passing both makes cmdline-set move the token to the
+# end each run, a cmdline change that rebuilds the boot chain for nothing.
+export def harden-tokens [extra: list<string>]: nothing -> list<string> {
+    let keys = $extra | each { key-of $in }
+    ($TOKENS | where {|t| (key-of $t) not-in $keys }) ++ $extra
 }

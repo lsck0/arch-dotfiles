@@ -5,9 +5,9 @@ use module.nu *
 export const meta = {packages: {pacman: [uv]}}
 
 const URL = "https://github.com/DilawarShafiq/nietzschian-debugger"
-# v0.1.0; the commit pins the tool, --exclude-newer freezes its floating deps (anthropic, click, rich)
-const COMMIT = "94e452d3fc83acb6360ac2918562961766c9753a"
-const FROZEN = "2026-10-27"
+# v0.5.2, 2026-10-28; the commit pins the tool, --exclude-newer freezes its floating deps (anthropic, click, rich)
+const COMMIT = "b71b3c7f00652159d689fdcaa2ebc06bb6aeca55"
+const FROZEN = "2026-10-28"
 const PIN = $"($COMMIT) ($FROZEN)"
 
 # the stamp the install was tracked by before it was recorded: one matching the pin proves it already ran

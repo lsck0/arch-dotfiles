@@ -52,8 +52,8 @@ On luca-pc workspaces 1 to 4 are on DP-2 (main), 5 to 10 on DP-1. Closing a wind
 - Brightness: `media-key brightness-up|brightness-down`, or `monitor-brightness get <output>` and `set <output>
   <percent>` (ddc on the desktop monitors).
 - Screenshot to look at the screen: `grim -o DP-2 /tmp/shot.png` (main) or `-o DP-1`; crop to what you need, it
-  shows whatever he has open. His own (Print, SHIFT+Print, SUPER+Print) land in `~/pictures/screenshots` and the
-  clipboard.
+  shows whatever he has open. His own (Print or SUPER+SHIFT+s, SHIFT+Print, SUPER+Print) land in
+  `~/pictures/screenshots` and the clipboard.
 
 ## The shell (quickshell)
 
@@ -61,7 +61,8 @@ On luca-pc workspaces 1 to 4 are on DP-2 (main), 5 to 10 on DP-1. Closing a wind
   <panel>`; `call bar list` prints the panels there are now (clock, weather, media, homelab, system, network,
   display, audio-io, notifications, agents; a widget adds its own while it shows). The launcher on a mode: `call
   appsearch openWith '+ '`.
-- Notify him: `notify-send -a system-agent '<title>' '<body>'` (shown in the bar; dnd holds it).
+- Notify him: `notify-send -a system-agent '<title>' '<body>'` (shown in the bar; dnd holds it). Close every toast
+  on screen into history: `call notifications dismissAll` (his `SUPER+SHIFT+d`).
 
 ## Toggles
 
@@ -83,7 +84,8 @@ with a root half asks for Luca's touch and fails without him: report that, never
 
 `wtype '<text>'` types into whatever has focus (a chat box, a form); `wtype -k Return` sends a key, `wtype -M ctrl l
 -m ctrl` a chord. Check the focused window first (`hyprctl activewindow -j`), and never into a terminal or a password
-field. There is no pointer automation (no ydotoold).
+field. There is no pointer automation (no ydotoold). His dictation (`dictate`, `SUPER+ALT+v`) records on the first
+press and types the transcript on the second: his voice, not an agent's tool.
 
 Acting inside an app or a page, in this order, and say which before you start:
 

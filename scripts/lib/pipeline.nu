@@ -525,11 +525,6 @@ export def module-failure [result: record, verb: string, unevaluated: bool]: not
     failure-line $result.id $"($verb)/($step)" $text
 }
 
-# Its processes carry DOT_RUN_FILE and DOTFILES_MODULE, setsid'd ones included.
-def module-procs-kill [id: string]: nothing -> nothing {
-    procs-kill [$"DOTFILES_MODULE=($id)" $"DOT_RUN_FILE=($env.DOT_RUN_FILE? | default '')"]
-}
-
 # Each module waiting on ids counts one predecessor fewer per id.
 def waiting-release [waiting: record, dependents: record, ids: list<string>]: nothing -> record {
     let freed = $ids | each {|id| $dependents | get --optional $id | default [] | get id } | flatten
@@ -611,7 +606,8 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
                 touch ($cancel_dir | path join ($late | str replace --all "/" "+"))
                 $killed = true
                 try { job kill ($running | get $late) }
-                module-procs-kill $late
+                # its processes carry DOT_RUN_FILE and DOTFILES_MODULE, setsid'd ones included
+                procs-kill [$"DOTFILES_MODULE=($late)" $"DOT_RUN_FILE=($env.DOT_RUN_FILE? | default '')"]
                 log-warn $"($late): ($verb) still running after ($timeout), killed" {module: $late}
                 $RESULT_NONE | merge {id: $late, ok: false, error: $"timed out after ($timeout)", notes: [], ms: ($timeout / 1ms)}
             } else {

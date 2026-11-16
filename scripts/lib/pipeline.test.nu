@@ -453,6 +453,9 @@ def barrier-cases [work: path]: nothing -> nothing {
 
 def main [] {
     let work = mktemp --directory --tmpdir dot-pipeline-test-XXXXXX
+    # the user's git config (commit.gpgsign, a template dir) stays out of the scratch repos
+    $env.GIT_CONFIG_GLOBAL = "/dev/null"
+    $env.GIT_CONFIG_SYSTEM = "/dev/null"
     gate-cases
     held-cases
     pending-lines-cases

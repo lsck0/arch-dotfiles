@@ -1,6 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 use lib.nu [switch-run]
 
+# Ethernet: get [--json] prints the state, on, off or toggle switches it, a bare call toggles.
 def main [action: string = "toggle", --json] {
     let link = {||
         (^nmcli -t -f DEVICE,TYPE,STATE device | complete).stdout | lines | parse "{device}:{type}:{state}"

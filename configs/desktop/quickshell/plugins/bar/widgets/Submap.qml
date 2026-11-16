@@ -15,12 +15,14 @@ BarWidget {
 
   function keysOf(binds) {
     var letters = []
+    var exit = false
     for (const bind of binds || []) {
       if (bind.submap !== root.submap || bind.modmask !== 0 || bind.catch_all) continue
       const key = String(bind.key)
       if (key.length === 1 && letters.indexOf(key) === -1) letters.push(key)
+      else if (key.toLowerCase() === "escape") exit = true
     }
-    return letters.sort().join(" ")
+    return letters.sort().concat(exit ? ["esc"] : []).join(" ")
   }
 
   function enter(name) {

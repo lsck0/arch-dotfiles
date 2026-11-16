@@ -38,11 +38,13 @@ Item {
   property var batch: ({ applied: [], failed: 0, notes: [], system: false })
   property bool systemPending: false
   readonly property int exitSystemPending: 3
-  readonly property bool busy: setProc.running || systemApplyProc.running || toggleProc.running || systemProc.running
+  // what can raise a password prompt: the panel lets go of the keyboard for these only, a plain dot set keeps it
+  readonly property bool promptPossible: (setProc.running && setProc.prompts) || systemApplyProc.running || toggleProc.running
+    || systemProc.running
   property string notice: ""
   property bool noticeIsError: false
   property bool updateArmed: false
-  readonly property string updateArmedNotice: "press CTRL+U again to sync"
+  readonly property string updateArmedNotice: "press CTRL+SHIFT+U again to sync"
 
   readonly property string dot: Paths.bin("dot")
   readonly property var sections: Schema.sections(modules, toggles, query, dotStatus)
@@ -62,9 +64,8 @@ Item {
     if (cursorRow && cursorRow.kind === "option" && cursorRow.option.type === "path") out.push(["CTRL+O", "browse"])
     if (queued.length > 0) out.push(["CTRL+S", "apply"], ["CTRL+Z", "revert"])
     else if (root.systemPending) out.push(["CTRL+S", "apply system"])
-    // a dot set, toggle or apply can raise a password prompt, so the panel lets go of the keyboard meanwhile
-    if (root.busy) out.push(["--", "keyboard released"])
-    out.push(["CTRL+U", root.updateArmed ? "confirm sync" : "update"])
+    if (root.promptPossible) out.push(["--", "keyboard released"])
+    out.push(["CTRL+SHIFT+U", root.updateArmed ? "confirm sync" : "update"])
     out.push(["ESC", root.editingId || root.expandedId ? "back" : root.query ? "clear" : "close"])
     return out
   }
@@ -170,7 +171,7 @@ Item {
 
   function update() { root.runSystem(Object.assign({ kind: "action" }, Schema.systemActions[0]), "") }
 
-  // Ctrl+U runs a full sync; arm on the first press and run on the second, so one stray keystroke never starts one
+  // Ctrl+Shift+U runs a full sync; arm on the first press and run on the second, so one stray keystroke never starts one
   function armOrUpdate() {
     if (root.updateArmed) {
       root.updateArmed = false
@@ -238,7 +239,9 @@ Item {
     if (ctrl) {
       if (key === Qt.Key_S) root.applyQueued()
       else if (key === Qt.Key_Z) root.revertQueued()
-      else if (key === Qt.Key_U) root.armOrUpdate()
+      else if (key === Qt.Key_U && (modifiers & Qt.ShiftModifier)) root.armOrUpdate()
+      else if (key === Qt.Key_U && root.expandedId) root.filterChoices("")
+      else if (key === Qt.Key_U) { if (root.query) root.setQuery("") }
       else if (key === Qt.Key_R && row && row.kind === "option") root.reset(row)
       else if (key === Qt.Key_O && row && row.kind === "option" && row.option.type === "path") root.browse(row)
       else return false
@@ -350,6 +353,7 @@ Item {
     if (commit && row && row.option.type !== "list") {
       let value = Schema.fromText(row.option, root.draft)
       if (value !== undefined) root.change(row, value)
+      else root.errors = Util.mapSet(root.errors, row.id, "not a valid " + row.option.type + ": " + root.draft)
     }
     keyCatcher.forceActiveFocus()
   }
@@ -428,6 +432,7 @@ Item {
     setProc.id = id
     setProc.value = entry.value
     var option = entry.option
+    setProc.prompts = !!option.toggle
     // a machine option's system part waits (exit 3): finishBatch runs it once for the whole batch, behind one prompt
     var machine = option.scope === "machine" ? ["--machine", "--no-system"] : []
     setProc.command = option.toggle ? [Paths.toggle("toggle-" + option.toggle + ".nu"), option.set, Schema.toggleArgument(option, entry.value)]
@@ -448,7 +453,7 @@ Item {
     if (exitCode === 0 || exitCode === root.exitSystemPending) {
       entry.option.value = value
       if (current) root.pending = Util.mapWithout(root.pending, id)
-      if (entry.option.apply !== "live") root.batch.applied.push(entry.option)
+      root.batch.applied.push(entry.option)
     } else {
       root.errors = Util.mapSet(root.errors, id, message || "set exited with " + exitCode)
       root.batch.failed += 1
@@ -529,6 +534,8 @@ Item {
     id: setProc
     property string id: ""
     property var value
+    // a toggle-backed option runs its toggle script, which may ask for root
+    property bool prompts: false
     onExited: function (exitCode) {
       root.batch.notes = root.batch.notes.concat(root.notesOf(setProc))
       root.setDone(setProc.id, setProc.value, exitCode, root.lastLine(setProc))
@@ -680,7 +687,7 @@ Item {
     query: root.query
     placeholder: "search settings"
     hints: root.hints
-    keyboard: !root.busy
+    keyboard: !root.promptPossible
     cardWidth: Style.space(960)
     cardHeight: Style.space(640)
     onDismissed: root.close()
@@ -755,7 +762,8 @@ Item {
             anchors.rightMargin: Style.spacing.md
             anchors.verticalCenter: parent.verticalCenter
             text: String(sectionRow.modelData.count)
-            color: Colors.textDim
+            dim: true
+            highlighted: sectionRow.current || sectionMouse.containsMouse
             caption: true
           }
 
@@ -782,7 +790,7 @@ Item {
         anchors.left: sectionList.right
         anchors.leftMargin: root.barGutter + Style.spacing.md
         width: Style.normalBorderWidth
-        color: Util.alpha(Colors.menu.border, 0.28)
+        color: Colors.edge
       }
 
       Item {
@@ -1087,7 +1095,7 @@ Item {
             anchors.centerIn: parent
             visible: root.rows.length === 0
             text: !root.loaded && !root.loadError ? "> LOADING" : root.query ? "> NO MATCH" : "> NOTHING HERE"
-            color: Colors.textDim
+            dim: true
           }
         }
 

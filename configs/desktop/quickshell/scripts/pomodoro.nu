@@ -75,11 +75,11 @@ def phase-advance [--chime]: nothing -> nothing {
         let next = if $state.cycle mod $config.cycles == 0 { "long" } else { "break" }
         let minutes = $lengths | get $next
         phase-start ($state | merge $lengths) $next ($minutes * 60)
-        action-notify $GLYPH "Focus block done" $"($PHASE_LABELS | get $next) for ($minutes) min"
+        action-notify $GLYPH "Focus block done" $"($PHASE_LABELS | get $next) for ($minutes) min" --urgency normal
     } else {
         let cycle = $state.cycle + 1
         phase-start ($state | merge $lengths | merge {cycle: $cycle}) work ($config.focus * 60)
-        action-notify $GLYPH "Break over" $"Focus for ($config.focus) min, pomodoro ($cycle)"
+        action-notify $GLYPH "Break over" $"Focus for ($config.focus) min, pomodoro ($cycle)" --urgency normal
     }
     if $chime { chime-play }
 }

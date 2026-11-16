@@ -1,12 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
-use ../configs/core/wallust/palette.nu [hex-to-rgb is-light passes TEXT_RATIO]
+use ../configs/core/wallust/palette.nu [contrast-floors hex-to-rgb is-light passes]
 
 const THEMES = path self .
 const WALLPAPERS = path self ../wallpapers
-const ACCENT_RATIO = 3.0
-const TEXT_SLOTS = [color4 color12]
-const ACCENT_SLOTS = [color1 color2 color3 color5 color6 color8 color9 color10 color11 color13 color14]
-const DARK_TEXT_SLOTS = [color7 color15]
 const SPECIAL_SLOTS = [background foreground cursor]
 const COLOR_SLOTS = [
     color0 color1 color2 color3 color4 color5 color6 color7
@@ -33,16 +29,14 @@ def schema-problems [name: string, spec: record]: nothing -> list<string> {
 
 def contrast-problems [name: string, spec: record]: nothing -> list<string> {
     let bg = $spec.special.background | hex-to-rgb
-    let text_rules = [foreground ...$TEXT_SLOTS ...(if ($bg | is-light) { [] } else { $DARK_TEXT_SLOTS })]
-        | each {|s| {slot: $s, ratio: $TEXT_RATIO} }
-    let rules = $text_rules | append ($ACCENT_SLOTS | each {|s| {slot: $s, ratio: $ACCENT_RATIO} })
-    $rules | each {|r|
+    contrast-floors ($bg | is-light) | each {|r|
         let hex = if $r.slot == foreground { $spec.special.foreground } else { $spec.colors | get $r.slot }
         if not (passes ($hex | hex-to-rgb) $bg $r.ratio) { $"($name): ($r.slot) ($hex) below ($r.ratio):1 on ($spec.special.background)" }
     } | compact
 }
 
-# Each theme's wallpaper has a public copy in wallpapers/, and no two themes share one (wallpaper.nu picks the first).
+# Each theme's wallpaper has a public copy in wallpapers/, and no two themes share one: a home without a record of the
+# theme in effect takes the one naming its wallpaper (wallpaper.nu, `palette-kept`).
 def wallpaper-problems [themes: list<record>]: nothing -> list<string> {
     let missing = $themes | each {|t|
         let w = $t.spec.wallpaper?

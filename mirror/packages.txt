@@ -1,4 +1,6 @@
 act
+adobe-source-sans-fonts
+adobe-source-serif-fonts
 afl++
 age
 age-plugin-yubikey
@@ -163,6 +165,7 @@ drgn
 dua-cli
 dwarfs
 dysk
+ebgaramond-otf
 ecgen
 elan-lean
 element-desktop
@@ -303,6 +306,7 @@ inkscape
 innoextract
 intel-media-driver
 intel-ucode
+inter-font
 ipp-usb
 ipython
 irust
@@ -745,6 +749,7 @@ tesseract
 tesseract-data-deu
 tesseract-data-eng
 testssl.sh
+tex-gyre-fonts
 texlab
 texlive
 texlive-lang
@@ -792,13 +797,16 @@ ttf-arimo-nerd
 ttf-arphic-ukai
 ttf-arphic-uming
 ttf-atkinson-hyperlegible
+ttf-atkinson-hyperlegible-next-variable
 ttf-baekmuk
 ttf-bigblueterminal-nerd
 ttf-bitstream-vera-mono-nerd
+ttf-bodoni-variable
 ttf-caladea
 ttf-cascadia-code
 ttf-cascadia-code-nerd
 ttf-cascadia-mono-nerd
+ttf-charis
 ttf-comic-mono-git
 ttf-cormorant
 ttf-cousine-nerd
@@ -819,6 +827,8 @@ ttf-fira-code
 ttf-fira-mono
 ttf-fira-sans
 ttf-firacode-nerd
+ttf-fraunces-variable
+ttf-geist-variable
 ttf-gentium
 ttf-gentium-book
 ttf-gentium-plus
@@ -833,6 +843,7 @@ ttf-heavydata-nerd
 ttf-iawriter-nerd
 ttf-ibm-plex
 ttf-ibmplex-mono-nerd
+ttf-impallari-libre-baskerville
 ttf-inconsolata
 ttf-inconsolata-go-nerd
 ttf-inconsolata-lgc-nerd
@@ -840,6 +851,7 @@ ttf-inconsolata-nerd
 ttf-indic-otf
 ttf-input
 ttf-input-nerd
+ttf-instrument-serif
 ttf-intone-nerd
 ttf-iosevka-nerd
 ttf-iosevkaterm-nerd
@@ -847,6 +859,8 @@ ttf-iosevkatermslab-nerd
 ttf-jetbrains-mono
 ttf-jetbrains-mono-nerd
 ttf-jigmo
+ttf-jost-variable
+ttf-juliamono
 ttf-junicode
 ttf-junicode-variable
 ttf-khmer
@@ -857,6 +871,7 @@ ttf-libertinus
 ttf-lilex-nerd
 ttf-linux-libertine
 ttf-linux-libertine-g
+ttf-literata
 ttf-martian-mono-nerd
 ttf-material-icons
 ttf-material-symbols-variable
@@ -875,10 +890,12 @@ ttf-mplus-nerd
 ttf-ms-fonts
 ttf-nerd-fonts-symbols
 ttf-nerd-fonts-symbols-mono
+ttf-newsreader
 ttf-noto-nerd
 ttf-nunito
 ttf-opensans
 ttf-overpass
+ttf-playfair-variable
 ttf-profont-nerd
 ttf-proggyclean-nerd
 ttf-recursive-nerd
@@ -891,6 +908,8 @@ ttf-scheherazade-new
 ttf-sharetech-mono-nerd
 ttf-sourcecodepro-nerd
 ttf-space-mono-nerd
+ttf-spectral
+ttf-stix-variable
 ttf-terminus-nerd
 ttf-tibetan-machine
 ttf-tinos-nerd
@@ -899,6 +918,7 @@ ttf-ubuntu-mono-nerd
 ttf-ubuntu-nerd
 ttf-victor-mono-nerd
 ttf-vlgothic
+ttf-work-sans-variable
 ttf-zed-mono-nerd
 typos
 typst

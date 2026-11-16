@@ -6,6 +6,10 @@ use state.nu [save-atomic]
 use options.nu [OPTION_ENABLE options-schema option-value-errors options-notify options-to-nuon]
 use pipeline.nu [module-get pipeline-load pipeline-plan pipeline-apply]
 use run.nu [link-run unlink-run admin system-part pending-exit]
+use modules.nu [modules-discover]
+use usage.nu [die]
+
+const OPTION_TARGET = '^(?<mod>.+)\.(?<key>[a-z][a-z0-9_]*)$'
 
 def toggle-script [name: string]: nothing -> path {
     $REPO | path join scripts toggles $"toggle-($name).nu"
@@ -37,10 +41,23 @@ export def options-list [mod: any, json: bool]: nothing -> any {
     | flatten | where {|r| $mod != null or $r.option != $OPTION_ENABLE or not $r.value }
 }
 
+# Exits 2 on a target that names no module, or no option of its module. Called before a run is opened, so a typo is
+# misuse and never the last run.
+export def option-target-check [target: string]: nothing -> nothing {
+    let modules = modules-discover $REPO []
+    if $target in $modules.id { return }
+    let parts = $target | parse --regex $OPTION_TARGET | get --optional 0
+    let id = $parts.mod? | default $target
+    let m = $modules | where id == $id | get --optional 0
+    if $m == null { die --misuse $"no module ($id); dot plan --modules lists them" }
+    if $parts.key not-in (options-schema $m | columns) {
+        die --misuse $"($id) has no option ($parts.key); dot set ($id) lists them"
+    }
+}
+
+# A checked target that is no module id, as its module and option.
 export def option-target [target: string]: nothing -> record {
-    let parts = $target | parse --regex '^(?<mod>.+)\.(?<key>[a-z][a-z0-9_]*)$' | get --optional 0
-    if $parts == null { error make {msg: $"($target): want <group/module>.<option>"} }
-    $parts
+    $target | parse --regex $OPTION_TARGET | first
 }
 
 export def option-write [mod: string, key: string, value: any, machine: bool]: nothing -> record {

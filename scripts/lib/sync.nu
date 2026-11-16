@@ -31,6 +31,11 @@ def origin-verified [repo: path]: nothing -> nothing {
             ^git -C $repo verify-commit --raw $rev | complete
         }
     } catch {|e| {failed: $e.msg} }
+    # the agent gpg started keeps a socket dir under /run/user/<uid>/gnupg per keyring: stop it and remove that too
+    with-env {GNUPGHOME: $gnupg} {
+        ^gpgconf --kill all | complete | ignore
+        ^gpgconf --remove-socketdir | complete | ignore
+    }
     rm --recursive --force $gnupg
     if ($outcome | get --optional failed) != null { error make {msg: $outcome.failed} }
     let signer = $outcome.stderr | lines | where ($it | str contains "VALIDSIG") | get --optional 0 | default "" | split row " " | last

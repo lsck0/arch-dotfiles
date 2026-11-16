@@ -18,8 +18,12 @@ def sink-volume []: nothing -> int {
     pactl get-sink-volume @DEFAULT_SINK@ | parse -r '(?<percent>\d+)%' | get 0.percent | into int
 }
 
+# The level it reached, a muted sink's too: its bar moves under the muted icon.
 def volume-osd []: nothing -> nothing {
-    if (pactl get-sink-mute @DEFAULT_SINK@) =~ yes { osd volume-muted message Muted } else { osd volume value (sink-volume) }
+    let percent = sink-volume
+    if (pactl get-sink-mute @DEFAULT_SINK@) !~ yes { osd volume value $percent; return }
+    let shown = {icon: volume-muted, value: $percent, progressText: $"Muted ($percent)%"}
+    shell-call osd present ($shown | to json -r) | complete | ignore
 }
 
 # Uses -c backlight: without a backlight brightnessctl falls back to the first led (numlock on a desktop).

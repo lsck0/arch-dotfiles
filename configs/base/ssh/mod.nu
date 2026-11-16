@@ -61,26 +61,34 @@ export def system [cfg: record] {
 }
 
 def host-keys-pin []: nothing -> bool {
-    let dir = host-file (system-secret ssh-host)
+    # only with the secrets streamed unlocked: locked, a backup would land as plaintext over the git-crypt blobs
+    let backup = if (system-secret ssh/public.asc | path exists) { host-file configs/secrets/keys/ssh-host }
+    let pin = host-keys-install (host-file (system-secret ssh-host)) $HOST_KEY_DIR $backup
+    if $pin.note != null { print $pin.note }
+    $pin.rekeyed
+}
+
+# Copies the pinned host keys in dir over dest's where they differ (mode 600, the public half 644 beside): rekeyed when
+# one changed. Without any pinned key the note names the backup command, when there is a backup dir to name.
+export def host-keys-install [dir: path, dest_dir: path, backup: any]: nothing -> record<rekeyed: bool, note: any> {
     let pinned = $SSH_HOST_KEYS | where {|k| ($dir | path join $k | path exists) }
     if ($pinned | is-empty) {
-        # only with the secrets streamed unlocked: locked, a backup would land as plaintext over the git-crypt blobs
-        if (system-secret ssh/public.asc | path exists) {
-            let backup = host-file configs/secrets/keys/ssh-host
-            print ("note: ssh: no pinned host keys, a reinstall changes this host's identity; back them up from the "
-                + $"checkout: mkdir -p ($backup) && sudo cp ($HOST_KEY_DIR)/ssh_host_*_key ($backup)/ "
+        let note = if $backup != null {
+            ("note: ssh: no pinned host keys, a reinstall changes this host's identity; back them up from the "
+                + $"checkout: mkdir -p ($backup) && sudo cp ($dest_dir)/ssh_host_*_key ($backup)/ "
                 + $"&& sudo chown $USER: ($backup)/*")
         }
-        return false
+        return {rekeyed: false, note: $note}
     }
-    $pinned | each {|k|
+    let rekeyed = $pinned | each {|k|
         let src = $dir | path join $k
-        let dest = $HOST_KEY_DIR | path join $k
+        let dest = $dest_dir | path join $k
         if ($dest | path exists) and (open --raw $src) == (open --raw $dest) { return false }
         ^install -m600 $src $dest
         ^ssh-keygen -y -f $dest | ^install -m644 /dev/stdin $"($dest).pub"
         true
-    } | any { $in }
+    } | collect | any { $in }
+    {rekeyed: $rekeyed, note: null}
 }
 
 export def sshd [port: string]: nothing -> nothing {

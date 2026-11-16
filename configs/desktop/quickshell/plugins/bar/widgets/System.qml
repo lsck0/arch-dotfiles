@@ -21,6 +21,8 @@ BarWidget {
     "vramUsedMb": null, "vramTotalMb": null, "top": null
   })
   property var stats: statsEmpty
+  // no sample yet: the readings show "--", not the zeros of statsEmpty
+  property bool statsReceived: false
   readonly property real memPct: stats.memTotalGb > 0 ? stats.memUsedGb / stats.memTotalGb * 100 : 0
   readonly property bool hasGpuPct: stats.gpuPct !== null
   readonly property bool hasVram: stats.gpuVendor !== "intel" && stats.vramTotalMb > 0
@@ -36,7 +38,7 @@ BarWidget {
   readonly property var loadThresholds: [60, 80, 92]
   readonly property var tempThresholds: [60, 75, 85]
   readonly property var ossecThresholds: [7, 10, 12]
-  readonly property int ossecRetryMs: 60000
+  readonly property int ossecRetryMs: 600000
   // "clear alerts" writes the unix time here; ossec-alerts.nu watches it and hides every alert up to it
   readonly property string ossecClearedPath: Paths.state + "/ossec-cleared"
   readonly property var batteryDevice: UPower.displayDevice
@@ -55,6 +57,15 @@ BarWidget {
     return BatteryModel.formatDuration(onBattery ? batteryDevice.timeToEmpty : batteryDevice.timeToFull)
   }
   readonly property int statsIntervalS: onBattery ? 15 : 10
+  // the top lists show in the panel only: system-stats.nu walks /proc for them while the panel is open and for
+  // topLingerMs after, so hovering in and out does not respawn it each time
+  readonly property int topLingerMs: 30000
+  property bool topWanted: false
+  // with the new arguments at once: quickshell starts a Process again when its old one has exited
+  onTopWantedChanged: {
+    statsProc.running = false
+    statsProc.running = true
+  }
   // the board's memory as one line: size, type, speed and channels
   readonly property string memSpec: stats.memTotalGb > 0 ? [stats.memTotalGb.toFixed(0) + "G", stats.memType,
     stats.memSpeedMts > 0 ? stats.memSpeedMts + " MT/s" : "", stats.memChannels > 0 ? stats.memChannels + "-CH" : ""]
@@ -66,9 +77,21 @@ BarWidget {
     { label: "MEM", values: memHist, max: 100, tint: critLoad(memPct) }
   ].concat(hasGpuPct ? [{ label: "GPU", values: gpuHist, max: 100, tint: critLoad(stats.gpuPct) }] : [])
 
-  // one used/total form for memory and vram, in GiB like system-stats.nu and the lock screen
-  function gib(usedGib, totalGib) {
-    return usedGib.toFixed(1) + "/" + totalGib.toFixed(0) + "G"
+  function reading(value, unit) { return statsReceived ? value + unit : "--" }
+
+  function memText(usedGib, totalGib) {
+    return statsReceived ? Util.bytesOf(usedGib * Util.bytesPerGib, totalGib * Util.bytesPerGib) : "--"
+  }
+
+  function ghz(mhz) { return (mhz / 1000).toFixed(1) + " GHz" }
+
+  // what the battery is doing, not which way the cable points: full or held at a charge threshold is "on AC"
+  readonly property string batteryNote: {
+    if (!batteryPresent) return ""
+    if (onBattery) return "discharging"
+    if (BatteryModel.chargeThresholdActive(batteryDevice, onBattery, upowerStates)) return "on AC"
+    if (batteryDevice.state === UPowerDeviceState.FullyCharged) return "full"
+    return batteryDevice.state === UPowerDeviceState.Charging ? "charging" : "on AC"
   }
 
   function critLoad(pct) {
@@ -93,13 +116,19 @@ BarWidget {
   Timer {
     id: statsRestart
     interval: 1000
-    onTriggered: statsProc.running = true
+    onTriggered: if (!statsProc.running) statsProc.running = true
+  }
+
+  Timer {
+    id: topLinger
+    interval: root.topLingerMs
+    onTriggered: root.topWanted = false
   }
 
   Process {
     id: statsProc
     running: true
-    command: [Paths.barWidget("system-stats.nu"), String(root.statsIntervalS)]
+    command: [Paths.barWidget("system-stats.nu"), String(root.statsIntervalS)].concat(root.topWanted ? ["--top"] : [])
     onExited: statsRestart.restart()
     Component.onDestruction: {
       statsRestart.stop()
@@ -112,6 +141,7 @@ BarWidget {
         try { s = JSON.parse(line) } catch (e) { return }
         for (const key in root.statsEmpty) s[key] = s[key] ?? root.statsEmpty[key]
         root.stats = s
+        root.statsReceived = true
         root.cpuHist = Util.historyPush(root.cpuHist, s.cpu)
         root.gpuHist = Util.historyPush(root.gpuHist, s.gpuPct || 0)
         root.memHist = Util.historyPush(root.memHist, root.memPct)
@@ -154,19 +184,21 @@ BarWidget {
     Stat {
       glyph: "\u{f035b}"
       widest: "100%"
-      value: root.stats.cpu + "%"
+      value: root.reading(root.stats.cpu, "%")
     }
 
+    // the one reading whose state the panel colours: the bar carries the same tint
     Stat {
       glyph: "\u{f050f}"
       widest: "100\u00b0C"
-      value: root.stats.tempC + "\u00b0C"
+      value: root.reading(root.stats.tempC, "\u00b0C")
+      tint: root.statsReceived ? root.critTemp(root.stats.tempC) : Colors.bar.text
     }
 
     Stat {
       glyph: "\u{efc5}"
-      widest: root.gib(root.stats.memTotalGb, root.stats.memTotalGb)
-      value: root.gib(root.stats.memUsedGb, root.stats.memTotalGb)
+      widest: root.memText(root.stats.memTotalGb, root.stats.memTotalGb)
+      value: root.memText(root.stats.memUsedGb, root.stats.memTotalGb)
     }
 
     Stat {
@@ -179,8 +211,8 @@ BarWidget {
     Stat {
       visible: root.hasVram
       glyph: "\u{f061a}"
-      widest: root.gib(root.stats.vramTotalMb / 1024, root.stats.vramTotalMb / 1024)
-      value: root.gib(root.stats.vramUsedMb / 1024, root.stats.vramTotalMb / 1024)
+      widest: Util.bytesOf(root.stats.vramTotalMb * Util.bytesPerMib, root.stats.vramTotalMb * Util.bytesPerMib)
+      value: Util.bytesOf(root.stats.vramUsedMb * Util.bytesPerMib, root.stats.vramTotalMb * Util.bytesPerMib)
     }
 
     Stat {
@@ -205,6 +237,11 @@ BarWidget {
     anchorWidget: root
     title: "SYSTEM"
     implicitWidth: Style.panelWidth.normal
+    onVisibleChanged: {
+      if (!visible) return topLinger.restart()
+      topLinger.stop()
+      root.topWanted = true
+    }
 
     Column {
       id: content
@@ -219,23 +256,23 @@ BarWidget {
           label: "CPU"
           fraction: root.stats.cpu / 100
           tint: root.critLoad(root.stats.cpu)
-          value: root.stats.cpu + "%"
-          note: (root.stats.freqMhz / 1000).toFixed(1) + "GHz"
+          value: root.reading(root.stats.cpu, "%")
+          note: root.statsReceived ? root.ghz(root.stats.freqMhz) : ""
         }
 
         Meter {
           label: "TMP"
           fraction: root.stats.tempC / 100
           tint: root.critTemp(root.stats.tempC)
-          value: root.stats.tempC + "\u00b0C"
+          value: root.reading(root.stats.tempC, "\u00b0C")
         }
 
         Meter {
           label: "MEM"
           fraction: root.memPct / 100
           tint: root.critLoad(root.memPct)
-          value: Math.round(root.memPct) + "%"
-          note: root.gib(root.stats.memUsedGb, root.stats.memTotalGb)
+          value: root.reading(Math.round(root.memPct), "%")
+          note: root.statsReceived ? root.memText(root.stats.memUsedGb, root.stats.memTotalGb) : ""
         }
 
         Meter {
@@ -244,7 +281,7 @@ BarWidget {
           fraction: root.stats.gpuPct / 100
           tint: root.critLoad(root.stats.gpuPct)
           value: root.stats.gpuPct + "%"
-          note: (root.stats.gpuFreqMhz / 1000).toFixed(1) + "GHz"
+          note: root.ghz(root.stats.gpuFreqMhz)
         }
 
         Meter {
@@ -253,7 +290,7 @@ BarWidget {
           fraction: root.vramPct / 100
           tint: root.critLoad(root.vramPct)
           value: Math.round(root.vramPct) + "%"
-          note: root.gib(root.stats.vramUsedMb / 1024, root.stats.vramTotalMb / 1024)
+          note: Util.bytesOf(root.stats.vramUsedMb * Util.bytesPerMib, root.stats.vramTotalMb * Util.bytesPerMib)
         }
       }
 
@@ -317,7 +354,7 @@ BarWidget {
           Label {
             width: parent.width / 2
             horizontalAlignment: Text.AlignRight
-            text: "LIVE"
+            text: "NOW"
             color: Colors.accentText
             caption: true
             font.letterSpacing: Style.labelTracking
@@ -393,7 +430,7 @@ BarWidget {
           visible: root.batteryPresent
           label: "BATTERY"
           value: Math.round(root.batteryFraction * 100) + "%" + (root.batteryTime ? " :: " + root.batteryTime : "")
-          note: root.onBattery ? "DISCHARGE" : "CHARGE"
+          note: root.batteryNote
         }
       }
 
@@ -540,8 +577,6 @@ BarWidget {
       }
 
       PanelSeparator {}
-
-      PanelSectionHeader { text: "TOOLS" }
 
       PanelRow {
         width: parent.width

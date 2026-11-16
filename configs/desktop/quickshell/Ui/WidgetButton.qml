@@ -14,7 +14,6 @@ Item {
   property real horizontalMargin: 8.5
   property real fixedWidth: -1
   property bool keepSpace: false
-  property bool dimmed: false
   property bool concealed: false
   property bool interactive: true
   property bool useActiveColor: true
@@ -40,8 +39,8 @@ Item {
   readonly property real scaledHorizontalMargin: Style.spaceReal(horizontalMargin)
 
   visible: hasVisualContent || keepSpace
-  opacity: !hasVisualContent || concealed ? 0 : (dimmed ? 0.45 : 1)
-  implicitWidth: fixedWidth > 0 ? fixedWidth : Math.max(12, label.implicitWidth + scaledHorizontalMargin * 2)
+  opacity: !hasVisualContent || concealed ? 0 : 1
+  implicitWidth: fixedWidth > 0 ? fixedWidth : Math.max(Style.bar.statusSlot, label.implicitWidth + scaledHorizontalMargin * 2)
   implicitHeight: Style.bar.sizeHorizontal
 
   Behavior on opacity {

@@ -22,6 +22,8 @@ BorderSurface {
   readonly property bool isRow: variant === "row"
 
   property int bodyLines: 3
+  // the body is longer than bodyLines shows
+  readonly property alias truncated: bodyText.truncated
 
   property double now: 0
 
@@ -56,7 +58,7 @@ BorderSurface {
 
   readonly property real edge: isRow ? 0 : Style.surface.borderWidth
   readonly property bool critical: urgency === NotificationLogic.URGENCY_CRITICAL
-  readonly property color strokeColor: critical ? Colors.urgent : Util.alpha(Colors.notifications.border, Style.surface.ruleAlpha)
+  readonly property color strokeColor: critical ? Colors.urgent : Colors.edge
 
   implicitWidth: root.isRow ? Style.panelWidth.normal : Style.space(420)
   implicitHeight: mainColumn.implicitHeight + edge * 2
@@ -75,11 +77,10 @@ BorderSurface {
   Keys.onEnterPressed: if (root.isRow) root.cardClicked()
   Keys.onDeletePressed: if (root.isRow) root.closeRequested()
 
-  DockShape {
-    id: toastShape
+  GlassCard {
     visible: !root.isRow
     anchors.fill: parent
-    fillColor: Colors.notifications.background
+    z: -1
     strokeColor: root.strokeColor
   }
 
@@ -166,7 +167,8 @@ BorderSurface {
       ColumnLayout {
         Layout.fillWidth: true
         Layout.alignment: Qt.AlignVCenter
-        Layout.rightMargin: Style.spacing.md
+        // a toast's text stops short of its close mark
+        Layout.rightMargin: root.isRow ? Style.spacing.md : closeMark.width + Style.shape.chamfer - Style.spacing.md
         spacing: Style.spacing.xxs
 
         Row {
@@ -214,6 +216,7 @@ BorderSurface {
         }
 
         Label {
+          id: bodyText
           Layout.fillWidth: true
           Layout.topMargin: Style.spacing.xxs
           visible: root.sanitizedBody.length > 0
@@ -276,7 +279,9 @@ BorderSurface {
     }
   }
 
+  // always on a toast, where a plain click runs the default action instead; on hover in a history row
   Item {
+    id: closeMark
     anchors.top: parent.top
     anchors.right: parent.right
     anchors.topMargin: root.edge + Style.spacing.xs
@@ -284,7 +289,7 @@ BorderSurface {
     width: Style.row.control
     height: Style.row.control
     visible: opacity > 0
-    opacity: root.hovered ? 1 : 0
+    opacity: root.hovered || !root.isRow ? 1 : 0
 
     Behavior on opacity { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
@@ -309,6 +314,4 @@ BorderSurface {
     caption: true
   }
 
-  HudFrame { shown: !root.isRow; chamfer: toastShape.cut; chamferCorner: toastShape.cutCorner }
-  Scanlines { shown: !root.isRow }
 }

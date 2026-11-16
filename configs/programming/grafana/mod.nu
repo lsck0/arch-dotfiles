@@ -1,7 +1,7 @@
 use module.nu *
 
-const VERSION = "2.0.2"
-const SHA256 = "624e997b78bcadf236f82f8086827890ba77b6dfdc6fd6446f7c48dfd9e586f0"
+const VERSION = "2.2.0"
+const SHA256 = "f93bfbd94cde68cc2e43cf5ba55da4f8e28b1a36b14fb14dadd566fc36b1312b" # released 2026-11-02
 const URL = $"https://github.com/grafana/mcp-grafana/releases/download/v($VERSION)/mcp-grafana_Linux_x86_64.tar.gz"
 
 export def link [cfg: record] {

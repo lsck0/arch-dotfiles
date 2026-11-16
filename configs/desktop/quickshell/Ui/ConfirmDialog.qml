@@ -10,14 +10,6 @@ Item {
   property string cancelText: "Cancel"
   property string confirmText: "Confirm"
   property int selectedIndex: 0
-  property color background: Colors.menu.background
-  property color foreground: Colors.menu.text
-  property color scrim: Colors.menu.scrim
-  property color selectedBackground: Colors.menu.selectedBackground
-  property color selectedText: Colors.menu.selectedText
-  property color accent: Colors.accent
-  property string fontFamily: Style.font.family
-  property int cornerRadius: Style.shape.surface
 
   signal canceled()
   signal confirmed()
@@ -35,6 +27,12 @@ Item {
       if (root.selectedIndex === 0) root.canceled()
       else root.confirmed()
       return true
+    } else if (event.key === Qt.Key_Y) {
+      root.confirmed()
+      return true
+    } else if (event.key === Qt.Key_N) {
+      root.canceled()
+      return true
     }
 
     return false
@@ -44,42 +42,35 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    color: root.scrim
+    color: Colors.menu.scrim
 
     MouseArea { anchors.fill: parent; onClicked: root.canceled() }
 
-    BorderSurface {
+    GlassCard {
       id: card
+      readonly property real inset: shape.strokeWidth + Style.spacing.lg
       width: Math.min(parent.width - Style.space(32), Style.space(370))
-      height: card.contentTopInset + card.contentBottomInset + messageText.implicitHeight + Style.space(20) + Style.space(34)
+      height: card.inset * 2 + messageText.implicitHeight + Style.space(20) + Style.space(34)
       anchors.centerIn: parent
       opacity: root.opened ? 1 : 0
       scale: root.opened ? 1 : 0.96
       transformOrigin: Item.Center
       Behavior on opacity { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
       Behavior on scale { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
-      color: root.background
-      borderSpec: Border.flat(root.accent, Style.normalBorderWidth)
-      padding: Style.spacing.lg
-      radius: root.cornerRadius
 
       MouseArea { anchors.fill: parent; onClicked: {} }
 
       Item {
         anchors.fill: parent
-        anchors.topMargin: card.contentTopInset
-        anchors.rightMargin: card.contentRightInset
-        anchors.bottomMargin: card.contentBottomInset
-        anchors.leftMargin: card.contentLeftInset
+        anchors.margins: card.inset
 
         Label {
           id: prompt
           anchors.left: parent.left
           anchors.top: parent.top
           text: ">"
-          color: Colors.textFor(root.accent)
+          color: Colors.textFor(Colors.accent)
           opacity: Style.emphasis.dim
-          font.family: root.fontFamily
           font.pixelSize: Style.font.title
         }
 
@@ -90,8 +81,6 @@ Item {
           anchors.right: parent.right
           anchors.top: parent.top
           text: root.message
-          color: root.foreground
-          font.family: root.fontFamily
           font.pixelSize: Style.font.title
           wrapMode: Text.WordWrap
         }
@@ -115,18 +104,17 @@ Item {
               width: Style.space(104)
               height: Style.space(34)
               color: selected
-                ? (destructive ? Util.alpha(Colors.urgent, 0.22) : root.selectedBackground)
+                ? (destructive ? Util.alpha(Colors.urgent, 0.22) : Colors.menu.selectedBackground)
                 : "transparent"
               borderSpec: Border.flat(destructive
                 ? (selected ? Colors.urgent : Util.alpha(Colors.urgent, 0.56))
-                : (selected ? root.accent : Util.alpha(root.foreground, 0.38)), Style.normalBorderWidth)
+                : (selected ? Colors.accent : Util.alpha(Colors.menu.text, 0.38)), Style.normalBorderWidth)
               radius: 0
 
               Label {
                 anchors.centerIn: parent
                 text: "[ " + choice.modelData + " ]"
-                color: choice.selected ? root.selectedText : root.foreground
-                font.family: root.fontFamily
+                color: choice.selected ? Colors.menu.selectedText : Colors.menu.text
                 caption: true
                 font.capitalization: Font.AllUppercase
                 font.letterSpacing: Style.labelTracking
@@ -146,8 +134,6 @@ Item {
           }
         }
       }
-
-      HudFrame { }
     }
   }
 }

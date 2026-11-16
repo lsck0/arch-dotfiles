@@ -11,7 +11,7 @@ export const options = {
     }
     model_revision: {
         type: string
-        default: 0244c2514cc272a603368c0440ff3002143b2336
+        default: 0244c2514cc272a603368c0440ff3002143b2336 # committed 2025-08-25
         doc: "The model repo's commit, weights and tokenizer alike; bump from https://huggingface.co/api/models/<model>/revision/main"
     }
     tool_call_parser: {
@@ -42,14 +42,14 @@ export const options = {
 }
 
 const PREFIX = "/opt/vllm"
-const RELEASE = "0.30.0"
+const RELEASE = "0.32.0"
 const ROCM_TAG = "rocm723"
 const VERSION = $"($RELEASE)+($ROCM_TAG)"
-const OMNI_VERSION = "0.30.0"
+const OMNI_VERSION = "0.32.0"
 # the bare rocm/ index keeps only the newest release; rocm/<release>/<rocm tag>/ keeps the pin resolvable
 const WHEELS_URL = $"https://wheels.vllm.ai/rocm/($RELEASE)/($ROCM_TAG)/"
 # pins the resolver's view of every transitive dep (torch, transformers, ...) as of this date; bump with VERSION
-const EXCLUDE_NEWER = "2026-10-22"
+const EXCLUDE_NEWER = "2026-11-01"
 # rocm wheels are cp312 only
 const PYTHON_VERSION = "3.12"
 const ROCM_BIN = "/opt/rocm/bin"

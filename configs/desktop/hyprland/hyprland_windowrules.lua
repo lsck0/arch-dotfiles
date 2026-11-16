@@ -4,8 +4,8 @@ local style = require("style")
 -- steam drops its toasts on whatever monitor it thinks is primary
 hl.window_rule({ match = { title = "^notificationtoasts" }, float = true, monitor = platform.main_monitor })
 
-for _, class in ipairs({ "^[Ss]potify$", "^discord$", "^neovide$", "^nemo$", "^(org.kde.)?dolphin$", "^steam$" }) do
-    hl.window_rule({ match = { class = class }, opacity = style.opacity_surface })
+for _, class in ipairs({ "^[Ss]potify$", "^discord$", "^nemo$", "^(org.kde.)?dolphin$", "^steam$" }) do
+    hl.window_rule({ match = { class = class }, opacity = style.opacity_window })
 end
 
 -- a link opened from another app takes you to the browser's workspace; misc.focus_on_activate stays off so no other
@@ -14,20 +14,28 @@ hl.window_rule({ match = { class = "^(firefox|chromium)$" }, focus_on_activate =
 
 hl.window_rule({ match = { initial_title = "^Discord Popout$" }, opacity = 1 })
 
+-- every window of the gtk portal is a dialog (file chooser, app chooser, access prompt), whatever its language
+hl.window_rule({ match = { class = "^xdg-desktop-portal-gtk$" }, float = true, center = true })
+
+-- firefox, chromium and firefox in German
 hl.window_rule({
-    match = { class = "xdg-desktop-portal-gtk", title = "^(Open.*Files?|Save.*Files?|All Files|Save)" },
+    match = { title = "^(Picture[- ]in[- ][Pp]icture|Bild-im-Bild)$" },
     float = true,
-    center = true,
+    pin = true,
+    keep_aspect_ratio = true,
 })
 
 hl.window_rule({ match = { class = "^notes-scratch$" }, float = true, center = true, size = "900 600" })
 
 hl.window_rule({ match = { class = "^omarchy-share-picker$" }, float = true, center = true, size = "1150 750" })
 
-hl.window_rule({ match = { title = "^wayland-boomer$" }, float = true, no_anim = true })
+-- boomer's frozen screenshot spans every monitor. Its first frame comes up where and as large as a new float does,
+-- before any move reaches it, which flashed a shifted picture: it maps invisible, is placed at the layout's top-left,
+-- and shows once that has landed (no static position fits every layout)
+local BOOMER_SHOW_MS = 60
 
--- boomer's frozen screenshot spans every monitor: placed at the layout's top-left as it opens, before its first frame
--- (no static monitor or position fits every layout, and a move after the map showed it offset for a frame)
+hl.window_rule({ match = { title = "^wayland-boomer$" }, float = true, no_anim = true, opacity = 0 })
+
 hl.on("window.open", function(window)
     if window.title ~= "wayland-boomer" then
         return
@@ -39,7 +47,11 @@ hl.on("window.open", function(window)
             y = math.min(y or monitor.position.y, monitor.position.y)
         end
     end
-    hl.dispatch(hl.dsp.window.move({ x = x, y = y, window = "address:" .. window.address }))
+    local target = "address:" .. window.address
+    hl.dispatch(hl.dsp.window.move({ x = x, y = y, window = target }))
+    hl.timer(function()
+        hl.dispatch(hl.dsp.window.set_prop({ window = target, prop = "opacity", value = 1 }))
+    end, { timeout = BOOMER_SHOW_MS, type = "oneshot" })
 end)
 
 for _, class in ipairs({
@@ -92,8 +104,15 @@ end
 hl.layer_rule({
     name = "quickshell-blur",
     match = {
-        namespace = "^quickshell-(bar|panel-.+|osd|notifications|alert|appsearch|clipboard|powermenu|overview|image-picker|reminders|wifiqr|speedtest|settings|tasks|desktop-widgets|polkit)$",
+        namespace = "^quickshell-(bar|panel-.+|osd|notifications|alert|appsearch|clipboard|powermenu|overview|image-picker|reminders|wifiqr|speedtest|settings|tasks|desktop-widgets|polkit|scrim)$",
     },
     blur = true,
+    blur_popups = true,
     ignore_alpha = 0.3,
+    -- every shell surface takes the cached wallpaper blur, whatever is open behind it: one glass, and the backdrop the
+    -- opacities are computed for
+    xray = true,
 })
+
+-- the scrim under an overlay card dims and blurs the live screen; it lies under the card's own surface
+hl.layer_rule({ name = "quickshell-scrim", match = { namespace = "^quickshell-scrim$" }, xray = false, order = 1 })

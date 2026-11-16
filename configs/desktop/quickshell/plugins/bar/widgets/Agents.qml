@@ -155,9 +155,11 @@ BarWidget {
       spacing: Style.spacing.sm
 
       BarRow {
-        visible: !root.received || (root.errorText !== "" && !root.hasUsage)
+        // a failed refresh shows over older data too: the figures below are then the last good ones
+        visible: !root.received || root.errorText !== ""
         label: "Status"
         value: root.errorText ? "x ERR " + root.errorText : "--"
+        alert: root.errorText !== ""
       }
 
       Column {
@@ -197,7 +199,7 @@ BarWidget {
         BarRow {
           label: "Messages"
           value: String(root.usage.t_messages === undefined ? "--" : root.usage.t_messages)
-          note: (root.usage.t_sessions || 0) + " sessions"
+          note: Util.count(root.usage.t_sessions || 0, "session")
         }
         BarRow {
           visible: (root.usage.active || 0) > 0
@@ -211,7 +213,7 @@ BarWidget {
         BarRow {
           label: "Messages"
           value: String(root.usage.w_messages === undefined ? "--" : root.usage.w_messages)
-          note: (root.usage.w_sessions || 0) + " sessions"
+          note: Util.count(root.usage.w_sessions || 0, "session")
         }
         BarRow {
           label: "Daily"

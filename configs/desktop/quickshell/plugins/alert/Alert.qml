@@ -92,8 +92,9 @@ Item {
     id: win
     visible: root.alerts.length > 0
     screen: root.mainScreen
-    anchors { top: true; right: true }
-    margins { top: Style.bar.sizeHorizontal + Style.spacing.sm; right: Style.spacing.sm } // qmllint disable missing-property
+    // top centre: the top right corner is the toast column's
+    anchors { top: true }
+    margins { top: Style.bar.sizeHorizontal + Style.spacing.sm } // qmllint disable missing-property
     implicitWidth: Style.space(440)
     implicitHeight: Math.min(stack.implicitHeight, (screen ? screen.height : stack.implicitHeight) - Style.bar.sizeHorizontal - Style.spacing.sm * 2) // qmllint disable missing-property
     color: "transparent"
@@ -128,17 +129,18 @@ Item {
           Repeater {
             model: root.alerts
 
-            delegate: BorderSurface {
+            delegate: GlassCard {
               id: card
               required property var modelData
               required property int index
+              // the keys act on the newest card, so only it shows them
+              readonly property bool newest: index === root.alerts.length - 1
 
               width: stack.width
-              implicitHeight: inner.implicitHeight + card.contentTopInset + card.contentBottomInset
-              color: Colors.overlayFill
-              borderSpec: Border.flat(Colors.accent, Style.selectedBorderWidth)
-              radius: Style.shape.surface
-              padding: Style.surface.padding
+              readonly property real inset: shape.strokeWidth + Style.surface.padding
+              implicitHeight: inner.implicitHeight + inset * 2
+              // an alert asks for an answer: its edge is the accent
+              strokeColor: Colors.accent
 
               opacity: 0
               transform: Translate { id: slide; x: Style.space(24) }
@@ -154,14 +156,15 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                anchors.topMargin: card.contentTopInset
-                anchors.leftMargin: card.contentLeftInset
-                anchors.rightMargin: card.contentRightInset
+                anchors.topMargin: card.inset
+                anchors.leftMargin: card.inset
+                anchors.rightMargin: card.inset
                 spacing: Style.spacing.sm
 
                 HudTitle {
                   width: parent.width
                   text: card.modelData.kind || "alert"
+                  size: Style.font.title
                   rule: true
                   blinking: win.visible
                 }
@@ -240,23 +243,18 @@ Item {
                     Button {
                       required property var modelData
                       variant: "chip"
-                      text: "Snooze " + modelData[0] + " min"
-                      tooltipText: modelData[1]
+                      text: (card.newest ? "[" + modelData[1] + "] " : "") + "Snooze " + modelData[0] + " min"
                       onClicked: root.snoozeAt(card.index, modelData[0])
                     }
                   }
                   Button {
                     variant: "chip"
-                    text: "Dismiss"
-                    tooltipText: "Esc"
+                    text: (card.newest ? "[ESC] " : "") + "Dismiss"
                     selected: true
                     onClicked: root.dismissAt(card.index)
                   }
                 }
               }
-
-              HudFrame {}
-              Scanlines {}
             }
           }
         }

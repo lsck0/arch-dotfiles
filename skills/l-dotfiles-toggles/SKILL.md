@@ -44,10 +44,12 @@ Examples: `toggle-focus.nu` (combines toggles via `toggle-run`), `toggle-theme-m
    pass for 5 minutes, `APPROVAL_MINUTES` in `mod.nu`).
 3. `switch-run` notifies quickshell (`toggles changed <script>`); an n-state toggle calls `notify` itself and runs its
    switch through `exclusive-run <label> _apply <state>` (the script again under its lock). Either runs one flip at
-   a time (a press meanwhile says "Still switching"); `switch-run` skips an `on`/`off` already in that state, puts a
-   failure's `err.msg` in the toast (`root-run`, `systemctl-guarded` raise the last stderr line), and takes
-   `{said: <body>}` from on/off in place of "Turned on". `TOGGLES_QUIET=1` (a combined toggle's parts) keeps
-   the ping and failures, not the success toast.
+   a time (a press meanwhile says "Still switching"); `switch-run` skips an `on`/`off` already in that state and
+   takes `{said: <body>}` from on/off in place of "Turned on". A failure is the one critical toast of `notify-failed
+   <label> <cause> --to <state> --now <state>` ("Switch to X failed, now Y: <cause>"): `switch-run` sends it with the
+   closure's `err.msg`, an n-state `_apply` calls it itself; `root-run` and `service-switch` raise the last stderr
+   line as that cause. `TOGGLES_QUIET=1` (a combined toggle's parts) keeps the ping and failures, not the success
+   toast.
 
 Quickshell control (only for a dedicated one): run `Quickshell.execDetached([Paths.toggle("toggle-<name>.nu"),
 "toggle"])`, refresh on `ToggleEvents.changed(script)`.

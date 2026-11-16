@@ -12,6 +12,7 @@ use modules.nu [modules-packages]
 use cause.nu [failures-group names-shown]
 use invariants.nu [invariants-load]
 use cli.nu [crash-file crash-read]
+use usage.nu [counted]
 use ../../configs/base/yubikey/audit.nu [audit-findings]
 
 # the boot chain barrier's record (base/boot/systemd-boot's meta.barrier): when it last went through
@@ -31,14 +32,14 @@ const SHOWN_MAX = 8
 const GROUPS_SHOWN = 5
 # an invariant probe's answer while the module behind it waits on its packages
 const INVARIANT_PENDING = "pending"
+# pending work, no fault: `dot status` prints it under this word; --brief, --json and the exit code count it as FAIL
+const TODO = "todo"
+# `dot status` lists the checks in this order: what needs action first
+const LEVELS = [FAIL $TODO note ok]
 
 def report [level: string, check: string, text: string]: nothing -> record {
     {level: $level, check: $check, text: $text}
 }
-
-def days-since [time: datetime]: nothing -> int { (date now) - $time | $in / 1day | math floor }
-
-def mtime [file: path]: nothing -> datetime { ls $file | get 0.modified }
 
 def failures []: nothing -> list<record> {
     let files = glob ($REPO | path join "FAILURES.*") | where { (ls $in | get 0.size) > 0B }
@@ -52,7 +53,7 @@ export def failures-reports [files: list<path>]: nothing -> list<record> {
         let entries = open --raw $f | lines | where ($it | str trim) != "" | each { str replace --all $"($REPO)/" "" }
         let groups = failures-group $entries
         let more = if ($groups | length) > $GROUPS_SHOWN { [$"  +(($groups | length) - $GROUPS_SHOWN) more in ($f | path basename)"] } else { [] }
-        let from = $"($f | path basename) from (mtime $f | format date '%F %H:%M')"
+        let from = $"($f | path basename) from (ls $f | get 0.modified | format date '%F %H:%M')"
         [$"($from), ($entries | length) failed; the detail: dot log --trace"] ++ ($groups | first $GROUPS_SHOWN | each { $"  ($in)" }) ++ $more
         | each { report FAIL failures $in }
     } | flatten
@@ -82,12 +83,12 @@ def config-pending []: nothing -> list<record> {
     let changed = ($a | where $it not-in $b) ++ ($b | where $it not-in $a) | each { str substring 66.. } | uniq | length
     let digest = file-trim ($SYSTEM_REPO | path join $SECRETS_DIGEST)
     let differing = [
-        (if $changed > 0 { $"($changed) files" })
+        (if $changed > 0 { counted $changed file })
         (if (secrets-digest $REPO $private) != $digest { $SECRETS_PREFIX })
     ] | compact
     if ($differing | is-not-empty) {
         let at = $"the root copy is at ($source | str substring 0..6), the checkout at ($head | str substring 0..6)"
-        [(report FAIL config $"dot apply pending: ($at) with ($differing | str join ' and ') differing")]
+        [(report $TODO config $"dot apply pending: ($at) with ($differing | str join ' and ') differing")]
     } else {
         [(report ok config "the root copy matches the checkout")]
     }
@@ -99,7 +100,7 @@ def reboot []: nothing -> list<record> {
     let boot = open /proc/stat | lines | parse "btime {s}" | get 0.s | into int | $in * 1_000_000_000 | into datetime
     if $built > $boot {
         let built = $built | format date '%F %H:%M'
-        [(report FAIL reboot $"reboot pending: the boot chain was rebuilt ($built), after this boot")]
+        [(report $TODO reboot $"reboot pending: the boot chain was rebuilt ($built), after this boot")]
     } else {
         [(report ok reboot "the running boot chain is the latest built")]
     }
@@ -163,12 +164,9 @@ def snapshot []: nothing -> list<record> {
     }
     let pin = $entry.0
     let day = $entry.1 | split row T | first
-    let age = days-since ($entry.1 | into datetime)
-    if $age > $SNAPSHOT_MAX_DAYS {
-        [(report FAIL snapshot $"lsck0 snapshot ($pin) from ($day), ($age) days old: dot sync")]
-    } else {
-        [(report ok snapshot $"lsck0 snapshot ($pin) from ($day), ($age) days old")]
-    }
+    let age = (date now) - ($entry.1 | into datetime) | $in / 1day | math floor
+    let stale = $age > $SNAPSHOT_MAX_DAYS
+    [(report (if $stale { "FAIL" } else { "ok" }) snapshot $"lsck0 snapshot ($pin) from ($day), ($age) days old(if $stale { ': dot sync' })")]
 }
 
 # missing: declared names not installed; recorded: root's "name first-asked" lines of names [lsck0] lacked; built: its
@@ -179,7 +177,7 @@ export def packages-reports [missing: list<string>, recorded: list<string>, buil
     let awaited = awaited-names $recorded $built | where $it in $missing
     let pending = $missing | where $it not-in $awaited
     [
-        (if ($pending | is-not-empty) { report FAIL packages $"dot apply --packages pending, declared but not installed: (names-shown $pending $SHOWN_MAX)" })
+        (if ($pending | is-not-empty) { report $TODO packages $"dot apply --packages pending, declared but not installed: (names-shown $pending $SHOWN_MAX)" })
         (if ($awaited | is-not-empty) { report note packages $"not on the mirror yet, its next build brings them, then dot sync: (names-shown $awaited $SHOWN_MAX)" })
     ] | compact
 }
@@ -307,20 +305,27 @@ def checks []: nothing -> list<closure> {
     ]
 }
 
-# Every check's records, unprinted, in check order; the checks are independent reads, so they run side by side.
-export def doctor-checks []: nothing -> list<record> {
+# The checks run side by side, they are independent reads; their records in check order.
+def checks-run []: nothing -> list<record> {
     checks | par-each --keep-order {|c| do $c } | flatten
 }
 
-# Prints every check (--brief: only FAIL lines as "<check>: <text>"); true when one failed.
+# Every check's records, unprinted, in check order; pending work reads FAIL here, as every reader of the level expects.
+export def doctor-checks []: nothing -> list<record> {
+    checks-run | update level {|r| if $r.level == $TODO { "FAIL" } else { $r.level } }
+}
+
+# The lines of `dot status`: the checks by level, what needs action first, then the count of each level.
+export def doctor-lines [records: list<record>]: nothing -> list<string> {
+    let by_level = $LEVELS | each {|level| {level: $level, records: ($records | where level == $level)} }
+    let lines = $by_level | get records | flatten | each {|r| $"($r.level | fill --width 4)  ($r.check | fill --width 10) ($r.text)" }
+    $lines ++ ["" ($by_level | each { $"($in.records | length) ($in.level)" } | str join ", ")]
+}
+
+# Prints every check (--brief: only the FAIL and pending lines as "<check>: <text>"); true when one failed or is pending.
 export def doctor-run [--brief]: nothing -> bool {
-    let records = doctor-checks
-    for r in $records {
-        if not $brief {
-            print $"($r.level | fill --width 4)  ($r.check | fill --width 10) ($r.text)"
-        } else if $r.level == "FAIL" {
-            print $"($r.check): ($r.text)"
-        }
-    }
-    $records | any { $in.level == "FAIL" }
+    let records = checks-run
+    let failed = $records | where level in ["FAIL" $TODO]
+    if $brief { $failed | each { print $"($in.check): ($in.text)" } | ignore } else { print (doctor-lines $records | str join "\n") }
+    $failed | is-not-empty
 }

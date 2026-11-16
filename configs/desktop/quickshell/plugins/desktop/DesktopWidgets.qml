@@ -24,9 +24,23 @@ Item {
   readonly property var meetings: root.meetingsAll.slice(0, root.eventMax)
   readonly property bool nowShown: TaskState.activeTask !== null || reminderRows.length > 0
   readonly property bool agendaEmpty: !nowShown && tasks.length === 0 && allDay.length === 0 && meetings.length === 0
-  // narrower than this, the quote wraps a word per line: the card is left out instead
+  // narrower than this, the quote wraps a word per line: it is left out instead
   readonly property int quoteMinWidth: Style.space(240)
+  readonly property int quoteWidth: Style.space(560)
+  readonly property int quoteMargin: Style.spacing.lg * 3
   property var quote: Quotes.forDate(new Date())
+
+  // the wallpaper Background shows, and whether it is on its way to another. A wallpaper may carry a quote of its own
+  // (wallpapers/quotes.json, read from the repo so an edit shows at once), which then stands in for the daily one.
+  property string wallpaper: ""
+  property bool wallpaperChanging: false
+  property var wallpaperQuotes: ({})
+  readonly property var quoteShown: wallpaperQuotes[wallpaper.slice(wallpaper.lastIndexOf("/") + 1)] || quote
+
+  WatchedFile {
+    path: Paths.dotfiles + "/wallpapers/quotes.json"
+    onLoaded: root.wallpaperQuotes = Util.parseObject(text())
+  }
 
   // the quote changes at midnight; a minute's poll is fine for a daily one and, unlike a timer aimed at midnight,
   // holds across a suspend
@@ -81,20 +95,22 @@ Item {
         window: panel
       }
 
-      // no card: the quote is set on the wallpaper itself, bottom left, large and quiet. It sits on the wallpaper, not on
-      // the theme, so it is always light text in a soft dark halo (a photo caption), which reads on a light theme and a
-      // busy or bright wallpaper alike without a box around it
+      // no card: the quote is set on the wallpaper itself, bottom right, in the shell's own face. It sits on the
+      // wallpaper, not on the theme, so it is always light text in a soft dark halo (a photo caption), which reads on a
+      // light theme and a busy or bright wallpaper alike without a box around it. It gives way to a bar panel, to the
+      // agenda column growing down into it, and to a wallpaper change.
       Column {
         id: quoteCard
+        readonly property int measure: Math.min(root.quoteWidth, panel.width - root.quoteMargin * 2)
+
         anchors.bottom: parent.bottom
-        anchors.left: parent.left
-        anchors.bottomMargin: Style.spacing.lg * 3
-        anchors.leftMargin: Style.spacing.lg * 3
-        // never under the agenda column on a narrow screen
-        width: Math.min(Style.space(640), panel.width - widgetColumn.width - Style.spacing.lg * 6)
+        anchors.right: parent.right
+        anchors.bottomMargin: root.quoteMargin
+        anchors.rightMargin: root.quoteMargin
+        width: measure
         spacing: Style.spacing.sm
-        visible: !screenGuard.remapping && width >= root.quoteMinWidth
-        opacity: panel.panelOverQuote ? 0 : 1
+        visible: !screenGuard.remapping && measure >= root.quoteMinWidth && widgetColumn.y + widgetColumn.height < y
+        opacity: panel.panelOverQuote || root.wallpaperChanging ? 0 : 1
         layer.enabled: true
 
         layer.effect: MultiEffect {
@@ -107,23 +123,34 @@ Item {
           shadowVerticalOffset: 1
         }
 
+        TextMetrics {
+          id: quoteMetrics
+          font: quoteText.font
+          text: quoteText.text
+        }
+
         Label {
-          width: parent.width
-          text: "\u201c" + root.quote.text + "\u201d"
+          id: quoteText
+          readonly property int lines: Math.max(1, Math.ceil(quoteMetrics.advanceWidth / quoteCard.measure))
+
+          anchors.right: parent.right
+          // even lines: each takes its share of the text plus room to break, so the last line is never one word
+          width: Math.min(quoteCard.measure, Math.ceil(quoteMetrics.advanceWidth / lines) + font.pixelSize * 3)
+          text: "\u201c" + root.quoteShown.text + "\u201d"
           wrapMode: Text.WordWrap
-          font.italic: true
+          horizontalAlignment: Text.AlignRight
           font.pixelSize: Style.font.title + 4
           lineHeight: 1.15
           color: Colors.wallpaperText
         }
 
-        Label {
-          text: "\u2014 " + root.quote.author
+        SectionTitle {
+          width: quoteCard.measure
+          first: true
+          text: root.quoteShown.author + (root.quoteShown.cite ? " \u00b7 " + root.quoteShown.cite : "")
           color: Colors.wallpaperText
-          opacity: Style.emphasis.strong
-          font.letterSpacing: 1
-          font.capitalization: Font.AllUppercase
-          caption: true
+          wrapMode: Text.WordWrap
+          horizontalAlignment: Text.AlignRight
         }
 
         Behavior on opacity {
@@ -353,7 +380,7 @@ Item {
     }
   }
 
-  component Card: Rectangle {
+  component Card: GlassCard {
     id: card
     property string heading: ""
     // while streaming or recording: the body blurs past reading, the heading stays, so the card still shows it is there
@@ -365,10 +392,6 @@ Item {
 
     width: root.cardWidth
     implicitHeight: inner.implicitHeight + Style.spacing.lg * 2
-    radius: Style.shape.surface
-    color: Colors.panelFill
-    border.width: Style.normalBorderWidth
-    border.color: Util.alpha(Colors.accent, Style.surface.ruleAlpha)
 
     Column {
       id: inner

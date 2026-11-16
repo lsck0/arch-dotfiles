@@ -10,13 +10,12 @@ use ini.nu [ini-apply]
 use cause.nu [cause-from-error cause-from-output cause-text argv-text]
 use online.nu [network-online remote-pending OFFLINE_PENDING]
 
-const OWN_LINK_PREFIXES = [$"($SYSTEM_STATE)/"]
 const UNREADABLE = "unreadable"
 const UNREADABLE_REASON = "unreadable as this user, checked at apply"
 # a step or exec past this is killed with its whole tree; a declaration's --timeout overrides it
 export const STEP_TIMEOUT = 20min
 # a --then is a restart or a reload
-export const THEN_TIMEOUT = 5min
+const THEN_TIMEOUT = 5min
 
 # The record of what a module's verb owns: <state>/modules/<id>/<verb>.nuon.
 export def state-path [id: string, verb: string]: nothing -> path {
@@ -30,17 +29,13 @@ export def state-read [id: string, verb: string]: nothing -> record {
     try { open $file } catch { log-warn $"($file): unreadable record, taken as empty: its outputs are no longer tracked"; $empty }
 }
 
-def assert-shape [value: record, keys: list<string>, what: string]: nothing -> nothing {
-    if ($value | columns | sort) != ($keys | sort) {
-        error make {msg: $"($what) has keys ($value | columns | str join ' '), wants ($keys | str join ' '): ($value | to nuon)"}
-    }
-}
-
 # Rejects non-declarations before observing, so a bad one fails only its module.
 export def decls-check [id: string, decls: list]: nothing -> nothing {
     for decl in $decls {
         if ($decl | describe) !~ '^record' { error make {msg: $"($id) declares ($decl | to nuon), not one declaration"} }
-        assert-shape $decl $DECL_KEYS $"declaration of ($id)"
+        if ($decl | columns | sort) != ($DECL_KEYS | sort) {
+            error make {msg: $"declaration of ($id) has keys ($decl | columns | str join ' '), wants ($DECL_KEYS | str join ' '): ($decl | to nuon)"}
+        }
         if $decl.kind not-in $DECL_KINDS { error make {msg: $"($id) declares a ($decl.kind), not one of ($DECL_KINDS | str join ' ')"} }
         if ($decl.target | describe) != "string" { error make {msg: $"($id) declares a ($decl.kind) with target ($decl.target | to nuon), not a path"} }
     }
@@ -107,10 +102,6 @@ def now-ns []: nothing -> int { date now | into int }
 
 def out-key [kind: string, target: string]: nothing -> string { $"($kind)\t($target)" }
 
-def own-link [link: string, repo: string]: nothing -> bool {
-    ($link | str starts-with $"($repo)/") or ($OWN_LINK_PREFIXES | any {|p| $link | str starts-with $p })
-}
-
 def action [module: string, kind: string, target: string, reason: string, decl: any, before: any, after: any]: nothing -> record {
     {module: $module, kind: $kind, target: $target, reason: $reason, decl: $decl, before: $before, after: $after}
 }
@@ -142,7 +133,9 @@ export def mode-normal [mode: any]: nothing -> any {
 }
 
 def link-stale [obs: record, target: string, repo: string]: nothing -> bool {
-    $obs.type == symlink and ((own-link $obs.link $repo) or not ($target | path exists))
+    $obs.type == symlink and (
+        ([$repo $SYSTEM_STATE] | any {|dir| $obs.link | str starts-with $"($dir)/" }) or not ($target | path exists)
+    )
 }
 
 # What an apply does to a declared file: obs on disk, want the content's hash, recorded the hash it last wrote.

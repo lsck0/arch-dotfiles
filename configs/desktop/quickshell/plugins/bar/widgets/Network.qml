@@ -66,15 +66,14 @@ BarWidget {
   readonly property int wifiShownCountMax: 6
   property bool wifiShowAll: false
   readonly property var wifiShown: wifiShowAll ? wifiNetworks : wifiNetworks.slice(0, wifiShownCountMax)
-  property string connectingSsid: ""
+  // the network last asked for; connectError is that attempt's failure and belongs to no other row
+  property string connectSsid: ""
+  readonly property string connectingSsid: connectProc.running ? connectSsid : ""
   property string connectError: ""
   property bool passwordFocused: false
 
-  function fmtSpeed(kbps) {
-    if (kbps >= 1024)
-      return (Math.round(kbps / 1024 * 10) / 10) + " MB/s"
-    return kbps + " KB/s"
-  }
+  // network-details.nu counts KiB a second
+  function speedText(kibPerSecond) { return Util.bytes(kibPerSecond * 1024) + "/s" }
 
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: Style.bar.sizeHorizontal
@@ -107,7 +106,7 @@ BarWidget {
   // identity (user@realm) only for a wpa-eap network: the script's second stdin line
   function connectTo(ssid, password, identity) {
     if (connectProc.running) return
-    root.connectingSsid = ssid
+    root.connectSsid = ssid
     root.connectError = ""
     connectProc.command = [Paths.barWidget("network-wifi-connect.nu"), ssid]
     connectProc.stdinEnabled = true
@@ -116,12 +115,13 @@ BarWidget {
     connectProc.stdinEnabled = false
   }
 
-  // a toggle started here that has not reported back (ToggleEvents) yet: dimmed, and a press on it ignored rather than
-  // flipping it the same way twice; one that dies without reporting is freed after busyMaxMs
+  // a toggle started here that has not reported back (ToggleEvents) yet: dimmed but still readable (it is busy, not
+  // disabled), and a press on it ignored rather than flipping it the same way twice; one that dies without reporting
+  // is freed after busyMaxMs
   property var busyToggles: ({})
   readonly property int busyMaxMs: 5 * 60 * 1000
   function toggleBusy(name) { return busyToggles[name] === true }
-  function busyOpacity(name) { return toggleBusy(name) ? Style.emphasis.disabled : 1 }
+  function busyOpacity(name) { return toggleBusy(name) ? Style.emphasis.dim : 1 }
 
   // scripts/toggles/toggle-<name>.nu, "toggle" unless a verb and value are given
   function runToggle(name, ...args) {
@@ -189,7 +189,6 @@ BarWidget {
       }
     }
     onExited: function(exitCode) {
-      root.connectingSsid = ""
       if (exitCode === 0) {
         root.connectError = ""
         Qt.callLater(function() { root.refreshWifiList(false); root.refreshAll() })
@@ -240,6 +239,8 @@ BarWidget {
   readonly property bool onEthernet: detailsDevice.indexOf("en") === 0 || detailsDevice.indexOf("eth") === 0
   readonly property string statusIcon: {
     if (offlineModeOn) return "\u{f072}"
+    // tor has its own glyph (md-incognito): the accent alone does not tell it from a vpn
+    if (route === "tor") return "\u{f05f9}"
     if (vpnOn) return "\u{f023}"
     if (!detailsConnected || connectivity === "none") return "\u{f0319}"
     if (connectivity === "limited" || connectivity === "portal") return "\u{f071}"
@@ -311,10 +312,10 @@ BarWidget {
         spacing: Style.spacing.xs
 
         // one sample draws no line, only an empty box
-        StatRow { label: "rx"; value: root.fmtSpeed(root.detailsRxKbps) }
+        StatRow { label: "rx"; value: root.speedText(root.detailsRxKbps) }
         Sparkline { width: parent.width; height: Style.space(30); values: root.rxHist }
 
-        StatRow { label: "tx"; value: root.fmtSpeed(root.detailsTxKbps) }
+        StatRow { label: "tx"; value: root.speedText(root.detailsTxKbps) }
         Sparkline { width: parent.width; height: Style.space(30); values: root.txHist; color: Colors.menu.text }
       }
 
@@ -337,6 +338,9 @@ BarWidget {
             Rectangle {
               id: netRow
               property bool pendingConnect: false
+              readonly property bool connecting: root.connectingSsid === wifiNet.modelData.ssid
+              readonly property bool failed: root.connectError !== "" && root.connectSsid === wifiNet.modelData.ssid
+              readonly property bool highlighted: wifiNet.modelData.active || activeFocus || netMouse.containsMouse
               width: parent.width
               height: Style.row.list
               radius: Style.shape.data
@@ -349,10 +353,15 @@ BarWidget {
               Keys.onEnterPressed: netRow.activate()
               Keys.onSpacePressed: netRow.activate()
 
+              function submit() {
+                root.connectTo(wifiNet.modelData.ssid, pwInput.text, idInput.text)
+                netRow.pendingConnect = false
+              }
+
               function activate() {
                 if (wifiNet.modelData.active) return
-                // open, or saved: the profile's own secret; a wrong one fails into connectError, then the field shows
-                if (!wifiNet.modelData.secure || (wifiNet.modelData.known && !netRow.pendingConnect && root.connectError === "")) {
+                // open, or saved: the profile's own secret; a wrong one fails into connectError, then this row's field shows
+                if (!wifiNet.modelData.secure || (wifiNet.modelData.known && !netRow.pendingConnect && !netRow.failed)) {
                   root.connectTo(wifiNet.modelData.ssid, "")
                   return
                 }
@@ -388,8 +397,10 @@ BarWidget {
                 anchors.right: parent.right
                 anchors.rightMargin: Style.spacing.sm
                 anchors.verticalCenter: parent.verticalCenter
-                text: wifiNet.modelData.signal + "%"
-                color: wifiNet.modelData.active ? Colors.menu.text : Colors.textDim
+                text: netRow.connecting ? "connecting"
+                  : (wifiNet.modelData.known && !wifiNet.modelData.active ? "saved :: " : "") + wifiNet.modelData.signal + "%"
+                dim: true
+                highlighted: netRow.highlighted
                 caption: true
               }
 
@@ -408,35 +419,15 @@ BarWidget {
               leftPadding: Style.spacing.sm
               bottomPadding: Style.spacing.xs
 
-              Rectangle {
+              TextField {
+                id: idInput
                 width: parent.width - parent.leftPadding
-                height: Style.row.control
-                radius: Style.shape.data
-                color: Style.normalFill
-                border.width: idInput.activeFocus ? 1 : 0
-                border.color: Colors.accent
-
-                TextInput {
-                  id: idInput
-                  onActiveFocusChanged: root.passwordFocused = activeFocus
-                  Component.onDestruction: if (activeFocus) root.passwordFocused = false
-                  anchors.fill: parent
-                  anchors.leftMargin: Style.spacing.xs
-                  anchors.rightMargin: Style.spacing.xs
-                  verticalAlignment: TextInput.AlignVCenter
-                  color: Colors.menu.text
-                  font.pixelSize: Style.font.caption
-                  font.family: Style.font.family
-                  onAccepted: pwInput.forceActiveFocus()
-
-                  Label {
-                    visible: idInput.text === ""
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "user@university.edu"
-                    dim: true
-                    caption: true
-                  }
-                }
+                verticalPadding: Style.spacing.xs
+                font.pixelSize: Style.font.caption
+                placeholderText: "user@university.edu"
+                onActiveFocusChanged: root.passwordFocused = activeFocus
+                Component.onDestruction: if (activeFocus) root.passwordFocused = false
+                onAccepted: pwInput.forceActiveFocus()
               }
             }
 
@@ -446,46 +437,24 @@ BarWidget {
               spacing: Style.spacing.xs
               leftPadding: Style.spacing.sm
 
-              Rectangle {
+              TextField {
+                id: pwInput
                 width: parent.width - parent.leftPadding - connectButton.width - parent.spacing
-                height: Style.row.control
-                radius: Style.shape.data
-                color: Style.normalFill
-                border.width: pwInput.activeFocus ? 1 : 0
-                border.color: Colors.accent
-
-                TextInput {
-                  id: pwInput
-                  onActiveFocusChanged: root.passwordFocused = activeFocus
-                  Component.onDestruction: if (activeFocus) root.passwordFocused = false
-                  anchors.fill: parent
-                  anchors.leftMargin: Style.spacing.xs
-                  anchors.rightMargin: Style.spacing.xs
-                  verticalAlignment: TextInput.AlignVCenter
-                  echoMode: TextInput.Password
-                  color: Colors.menu.text
-                  font.pixelSize: Style.font.caption
-                  font.family: Style.font.family
-                  onAccepted: { root.connectTo(wifiNet.modelData.ssid, text, idInput.text); netRow.pendingConnect = false }
-                }
+                verticalPadding: Style.spacing.xs
+                font.pixelSize: Style.font.caption
+                password: true
+                placeholderText: "password"
+                onActiveFocusChanged: root.passwordFocused = activeFocus
+                Component.onDestruction: if (activeFocus) root.passwordFocused = false
+                onAccepted: netRow.submit()
               }
-              Rectangle {
+              Button {
                 id: connectButton
-                width: Style.space(70)
-                height: Style.row.control
-                radius: Style.shape.data
-                color: Style.selectedFillFor(Colors.menu.text, Colors.accent)
-                Label {
-                  anchors.centerIn: parent
-                  text: root.connectingSsid === wifiNet.modelData.ssid ? "..." : "Connect"
-                  color: Colors.accentText
-                  caption: true
-                }
-                MouseArea {
-                  anchors.fill: parent
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: { root.connectTo(wifiNet.modelData.ssid, pwInput.text, idInput.text); netRow.pendingConnect = false }
-                }
+                anchors.verticalCenter: parent.verticalCenter
+                variant: "action"
+                focusable: true
+                text: "Connect"
+                onClicked: netRow.submit()
               }
             }
           }

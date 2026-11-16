@@ -20,10 +20,10 @@ for name, points in pairs(CURVES) do
 end
 
 local ANIMATIONS = {
-    { leaf = "windowsIn", speed = 5, bezier = "overshot", style = "popin 70%" },
-    { leaf = "windowsOut", speed = 4, bezier = "md3_accel", style = "popin 70%" },
-    { leaf = "windowsMove", speed = 4.5, bezier = "md3_decel" },
-    { leaf = "border", speed = 10, bezier = "default" },
+    { leaf = "windowsIn", speed = 2.5, bezier = "overshot", style = "popin 70%" },
+    { leaf = "windowsOut", speed = 2, bezier = "md3_accel", style = "popin 70%" },
+    { leaf = "windowsMove", speed = 2.5, bezier = "md3_decel" },
+    { leaf = "border", speed = 1.5, bezier = "default" },
     { leaf = "fade", speed = 2.5, bezier = "md3_decel" },
     { leaf = "layers", speed = 2, bezier = "md3_decel", style = "slide" },
     { leaf = "layersIn", speed = 3, bezier = "menu_decel" },
@@ -53,10 +53,13 @@ hl.config({
         rounding = style.rounding,
         blur = {
             enabled = true,
-            size = 4,
-            passes = 2,
+            size = 6,
+            passes = 3,
             popups = true,
-            vibrancy = 0.1796,
+            contrast = 1.0,
+            brightness = style.blur_brightness or 1.0,
+            noise = 0.02,
+            vibrancy = 0.3,
             vibrancy_darkness = 1.0,
         },
         shadow = {

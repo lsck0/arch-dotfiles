@@ -18,6 +18,14 @@ BarWidget {
   // today's calendar events, the agenda's own rows: the desktop agenda sits behind every window
   readonly property int todayMax: 6
   readonly property var todayEvents: CalendarState.events.filter(e => e.today)
+  // the open panel counts as a viewer of the calendar, which then fetches at its full rate
+  property bool calendarHeld: false
+  function calendarHold(wanted) {
+    if (wanted === calendarHeld) return
+    calendarHeld = wanted
+    CalendarState.viewers += wanted ? 1 : -1
+  }
+  Component.onDestruction: calendarHold(false)
 
   readonly property var pomo: TimerState.pomo
   readonly property var reminders: TimerState.reminders
@@ -78,12 +86,10 @@ BarWidget {
     return Qt.formatTime(new Date(2000, 0, 1, wall.getUTCHours(), wall.getUTCMinutes()), Util.timeFormat)
   }
 
-  function travelLabel() {
-    if (root.travelHours === 0) return ""
-    var sign = root.travelHours > 0 ? "+" : "-"
+  readonly property string travelText: {
     var hours = Math.abs(root.travelHours)
-    var text = hours === Math.floor(hours) ? String(hours) : hours.toFixed(1)
-    return " (" + sign + text + "h)"
+    return (root.travelHours > 0 ? "+" : root.travelHours < 0 ? "-" : "")
+      + (hours === Math.floor(hours) ? String(hours) : hours.toFixed(1)) + "h"
   }
 
   JsonProcess {
@@ -120,6 +126,7 @@ BarWidget {
     anchorWidget: root
     title: "CLOCK"
     onOpened: { offsetsProc.run(); TimerState.reload() }
+    onVisibleChanged: root.calendarHold(visible)
     implicitWidth: Style.panelWidth.normal
 
     Column {
@@ -302,7 +309,14 @@ BarWidget {
       }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "TIMETRAVEL" + root.travelLabel() }
+      PanelSectionHeader { text: "TIMETRAVEL" }
+
+      // the slider's readout, and what it moves: the clock, the date, the calendar and the timezones
+      StatRow {
+        label: "Shift the panel by"
+        value: root.travelText
+        valueColor: root.travelHours !== 0 ? Colors.accentText : Colors.menu.text
+      }
 
       Slider {
         width: parent.width
@@ -324,8 +338,8 @@ BarWidget {
         onClicked: root.travelHours = 0
       }
 
+      // one link is no section: it closes the panel under a rule, like the patchbay row in the audio panel
       PanelSeparator {}
-      PanelSectionHeader { text: "TIMERS" }
 
       PanelRow {
         width: parent.width
@@ -333,8 +347,8 @@ BarWidget {
         label: "Reminders & pomodoro"
         trailing: {
           var parts = []
-          if (root.pomo.running) parts.push((root.pomo.paused ? "Paused " : "") + root.pomo.remaining)
-          if (root.reminders.length) parts.push(root.reminders.length + (root.reminders.length === 1 ? " reminder" : " reminders"))
+          if (root.pomo.running) parts.push((root.pomo.paused ? "paused " : "") + root.pomo.remaining)
+          if (root.reminders.length) parts.push(Util.count(root.reminders.length, "reminder"))
           return parts.join(" :: ")
         }
         onActivated: root.summon("panel.reminders", "{}")

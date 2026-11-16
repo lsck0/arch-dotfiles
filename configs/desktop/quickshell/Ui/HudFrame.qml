@@ -19,6 +19,7 @@ Item {
   property real inset: 0
   property real chamfer: 0
   property int chamferCorner: Qt.TopRightCorner
+  property bool topArms: true
 
   readonly property int hlen: Math.max(0, Math.min(len, Math.floor(width / 2) - thick))
   readonly property int vlen: Math.max(0, Math.min(len, Math.floor(height / 2) - thick))
@@ -38,17 +39,17 @@ Item {
     antialiasing: false
   }
 
-  Arm { x: 0; y: 0; width: root.hlen; height: root.thick }
-  Arm { x: 0; y: 0; width: root.thick; height: root.vlen }
-  Arm { visible: !root._cutTop; anchors.right: parent.right; y: 0; width: root.hlen; height: root.thick }
-  Arm { visible: !root._cutTop; anchors.right: parent.right; y: 0; width: root.thick; height: root.vlen }
+  Arm { visible: root.topArms; x: 0; y: 0; width: root.hlen; height: root.thick }
+  Arm { visible: root.topArms; x: 0; y: 0; width: root.thick; height: root.vlen }
+  Arm { visible: root.topArms && !root._cutTop; anchors.right: parent.right; y: 0; width: root.hlen; height: root.thick }
+  Arm { visible: root.topArms && !root._cutTop; anchors.right: parent.right; y: 0; width: root.thick; height: root.vlen }
   Arm { x: 0; anchors.bottom: parent.bottom; width: root.hlen; height: root.thick }
   Arm { x: 0; anchors.bottom: parent.bottom; width: root.thick; height: root.vlen }
   Arm { visible: !root._cutBottom; anchors.right: parent.right; anchors.bottom: parent.bottom; width: root.hlen; height: root.thick }
   Arm { visible: !root._cutBottom; anchors.right: parent.right; anchors.bottom: parent.bottom; width: root.thick; height: root.vlen }
 
   Shape {
-    visible: root._cutTop || root._cutBottom
+    visible: (root._cutTop && root.topArms) || root._cutBottom
     anchors.fill: parent
     opacity: root.strength
     preferredRendererType: Shape.CurveRenderer

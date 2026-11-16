@@ -7,6 +7,7 @@
 const HOME_NETWORK = path self home-network.nu
 use $HOME_NETWORK [hardware-mac-in-use gateways-parse dhcp-server link-tier TIER_HOME TIER_TRUSTED TIER_NONE]
 use lib/dispatch.nu [route-gateway]
+use ini.nu [ini-rows]
 
 def fail [msg: string] { error make {msg: $"home-network.test: ($msg)"} }
 
@@ -62,3 +63,22 @@ for c in $TIERS {
     let got = link-tier (gateways-parse ($c.home | lines)) $trusted $seen
     if $got != $c.tier { fail $"($c.name): ($got), want ($c.tier)" }
 }
+
+# A foreign network sees one MAC per network and boot, never the hardware one; only home_wired's drop-in keeps
+# ethernet's, wifi never.
+const NM_CONF = path self NetworkManager.conf
+const HOME_WIRED = path self home-wired.conf
+let conf = ini-rows (open --raw $NM_CONF) | where key != null
+let mac = [
+    [key want];
+    ["connection.stable-id" "${CONNECTION}/${BOOT}"]
+    ["wifi.cloned-mac-address" stable]
+    ["ethernet.cloned-mac-address" stable]
+]
+for m in $mac {
+    let got = $conf | where section == connection and key == $m.key | get --optional 0.value
+    if $got != $m.want { fail $"NetworkManager.conf: ($m.key) is ($got | to nuon), want ($m.want)" }
+}
+let wired = ini-rows (open --raw $HOME_WIRED) | where key != null
+let matches = $wired | where key == match-device | get value
+if ($wired | any { $in.key =~ '^wifi' }) or $matches != ["type:ethernet"] { fail "home-wired.conf reaches beyond ethernet" }

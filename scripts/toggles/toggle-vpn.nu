@@ -5,6 +5,7 @@ use ../lib/platform.nu [platform-load]
 
 const REPO = path self ../..
 
+# Homelab VPN: get [--json] prints the state, on, off or toggle switches it, a bare call toggles.
 def main [action: string = "toggle", --json] {
     switch-run {
         label: "Homelab VPN"

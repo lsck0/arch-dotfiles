@@ -2,11 +2,12 @@ use module.nu *
 
 export const meta = {packages: {pacman: [obsidian]}}
 
-const REST_VERSION = "5.4.0"
+const REST_VERSION = "5.5.2"
 const REST_URL = $"https://github.com/coddingtonbear/obsidian-local-rest-api/releases/download/($REST_VERSION)"
 const REST_SHA256 = {
-    main.js: 1432a15543a927122524e4ea1951aac1cb9d0ed784a6d4836f1c771ea76b767f
-    manifest.json: 50fca5cc8eadca296be46fa9ad11c14789b9e5fddf18fe058f6bc42e535372a6
+    # released 2026-10-17
+    main.js: 90494b6444c5fede5d12f97346aab839265b5c7a09520fe87b4efc22360b6cd8
+    manifest.json: 2ce46dfa1ee9b6150dd8dd0dbcc68636ee15d5433f9a3fa24e9b6cc8446ebe25
     styles.css: 19956deaf4d14142381f81fdf92cae8241fd0aa08a1a3a5464b0d007bae1924d
 }
 const REST_ID = "obsidian-local-rest-api"

@@ -415,11 +415,16 @@ def lint-generated []: nothing -> list<string> {
     if $run.exit_code == 0 { [] } else { [$"dot internal gen --check: ($run.stdout + $run.stderr | str trim)"] }
 }
 
+# What a passing test still has to say: its stderr lines marked `: warn: `, shown as notes that never fail the gate.
+export def test-warnings [stderr: string]: nothing -> list<string> {
+    $stderr | lines | where $it =~ ': warn: ' | str trim
+}
+
 # Each test works in a temp dir of its own, so they run side by side; the cache dir is one of the run's own, so no
 # test reads or writes the user's (command-package's answers, the discover cache).
-def unit-tests []: nothing -> list<string> {
+def unit-tests []: nothing -> record<findings: list<string>, notes: list<string>> {
     let cache = mktemp --directory --tmpdir dot-test-cache-XXXXXX
-    let failed = glob $"($REPO)/{configs,themes,scripts,skills}/**/*.test.{sh,nu}" --exclude ($SECRETS_DATA | each { $"configs/($in)" }) | sort
+    let runs = glob $"($REPO)/{configs,themes,scripts,skills}/**/*.test.{sh,nu}" --exclude ($SECRETS_DATA | each { $"configs/($in)" }) | sort
     | par-each --keep-order --threads (jobs) {|t|
         # null in: an external in each would otherwise read the test's own path as stdin
         let run = with-env {DOT_RUN_FILE: "", FAILURES_FILE: "", DOT_NO_JOURNAL: 1, XDG_CACHE_HOME: $cache} {
@@ -429,22 +434,23 @@ def unit-tests []: nothing -> list<string> {
                 null | ^bash $t | complete
             }
         }
-        if $run.exit_code != 0 { $"(rel $t): failed\n($run.stdout + $run.stderr | str trim --right)" }
-    } | compact
+        if $run.exit_code != 0 { {finding: $"(rel $t): failed\n($run.stdout + $run.stderr | str trim --right)"} } else { {notes: (test-warnings $run.stderr)} }
+    }
     rm --recursive --force $cache
-    $failed
+    {findings: ($runs | get --optional finding | compact), notes: ($runs | get --optional notes | compact | flatten)}
 }
 
 # Every lint finding, one line each; empty when the repo passes. The lints only read, so they run side by side; the
-# unit tests run after them.
-export def gate-lint []: nothing -> list<string> {
+# unit tests run after them, and the warnings of those that pass are the notes.
+export def gate-lint []: nothing -> record<findings: list<string>, notes: list<string>> {
     let lints = [
         {|| lint-modules } {|| lint-layers } {|| lint-exports } {|| lint-sync } {|| lint-stray } {|| lint-platform-facts }
         {|| lint-patterns (walk | where { nu-script $in }) $NU_PITFALLS } {|| lint-exec-bits } {|| lint-ascii } {|| lint-loaded }
         {|| lint-generated } {|| lint-fail-closed } {|| lint-rc-escalation } {|| lint-engine-imports }
         {|| lint-patterns (linked-scripts | where ($it | str ends-with ".nu")) $LINKED_RELATIVE }
     ]
-    ($lints | par-each --keep-order {|lint| do $lint } | flatten) ++ (unit-tests)
+    let tests = unit-tests
+    {findings: (($lints | par-each --keep-order {|lint| do $lint } | flatten) ++ $tests.findings), notes: $tests.notes}
 }
 
 def pkgbuild [path: path]: nothing -> bool {

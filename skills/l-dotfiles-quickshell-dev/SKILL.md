@@ -7,7 +7,9 @@ description: Editing the quickshell shell (bar, launcher, lock, notifications, O
 
 `configs/desktop/quickshell/mod.nu` copies the tree (`theme.json` included) into `~/.config/quickshell`; an edit lands
 with `dot apply desktop/quickshell`, and a live edit is drift. Runs as `quickshell.service` (started by
-`hyprland_autostart.lua`). Entry `shell.qml`; `plugins/<name>/`, `Commons/` singletons, `scripts/` helpers.
+`hyprland_autostart.lua`). Entry `shell.qml`; `plugins/<name>/`, `Commons/` singletons, `Ui/` shared components,
+`scripts/` helpers. `Ui/GlassCard.qml` is the one card material (fill over the wallpaper blur, edge, chamfer,
+brackets, scanlines); `Ui/Scrim.qml` the dim over every screen behind an overlay.
 
 ## Edit loop
 

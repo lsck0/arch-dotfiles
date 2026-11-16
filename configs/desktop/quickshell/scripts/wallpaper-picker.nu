@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# opens the quickshell image picker, which runs `dot theme <image>` on Enter; without quickshell, a bemenu picker: the
+# opens the quickshell image picker, which runs `dot theme <theme|image>` on Enter; without quickshell, a bemenu picker: the
 # keybind runs this without a terminal, where dot's fzf picker cannot draw
 
 const HERE = path self | path expand | path dirname
@@ -9,10 +9,11 @@ const MENU = ($HERE | path join .. .. hyprland picker.nu | path expand)
 const THEME_LIST = ($HERE | path join .. plugins image-picker list.nu | path expand)
 const WALLPAPER_LIST = ($HERE | path join .. .. .. core wallust wallpaper-list.nu | path expand)
 const THEME_DIR = ($HERE | path join .. .. .. .. themes | path expand)
+const DERIVED = "pywal"
 
 def dot-bin []: nothing -> path { $nu.home-dir | path join .local bin dot }
 
-# {label, image} per choice: a theme by name (its wallpaper is the theme), a wallpaper by file name
+# {label, image} per choice: a theme by name, a wallpaper by file name
 def choices-list [themes: bool]: nothing -> table<label: string, image: string> {
     if $themes {
         ^$THEME_LIST themes $THEME_DIR $WALLPAPER_LIST | lines | split column "\t" image thumb label | select label image
@@ -27,13 +28,17 @@ def fallback-pick [themes: bool]: nothing -> nothing {
     let label = $picked.stdout | str trim
     if $picked.exit_code != 0 or $label == "" { return }
     let image = $choices | where label == $label | get 0?.image
-    if $image != null { ^(dot-bin) theme $image }
+    if $image != null { ^(dot-bin) theme (if $themes { $label } else { $image }) }
 }
 
 def main [--themes] {
+    let wal = $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join wal
+    # what dot theme recorded as in effect: a theme's name, or DERIVED, under which the Themes tab preselects none
+    let recorded = try { open --raw ($wal | path join nvim_theme) | str trim } catch { "" }
     let payload = {
         mode: (if $themes { 1 } else { 0 })
-        selectedImage: ($env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join wal wallpaper | path expand)
+        wallpaper: ($wal | path join wallpaper | path expand)
+        theme: (if $recorded == $DERIVED { "" } else { $recorded })
     }
     # summon exits 0 with "unknown" when the plugin failed to load, so only "ok" means a picker is open
     let summoned = shell-call shell summon panel.image-picker ($payload | to json -r) | complete

@@ -4,11 +4,11 @@ export const meta = {packages: {pacman: [zotero-bin uv]}}
 
 const ZOTERO_HOME = ".zotero/zotero"
 # MCP_FROZEN cuts off its deps (mcp-uvx); bump both together
-const MCP_VERSION = "0.14.1"
-const MCP_FROZEN = "2026-10-08"
-const BBT_VERSION = "9.0.71"
+const MCP_VERSION = "0.15.2"
+const MCP_FROZEN = "2026-11-02"
+const BBT_VERSION = "9.0.77"
 const BBT_URL = $"https://github.com/retorquere/zotero-better-bibtex/releases/download/v($BBT_VERSION)/zotero-better-bibtex-($BBT_VERSION).xpi"
-const BBT_SHA256 = "bf61a1690dc8a2b7ab09be9de2c89986f4fb6d495c82407d89b102b26fbaa9d5"
+const BBT_SHA256 = "a5f1d2baf8ff42c85761b7a3d8f6799ffc306f082e8024d5b83ce80e8592bd0b" # released 2026-11-03
 const BBT_ID = "better-bibtex@iris-advies.com"
 const BBT_TRANSLATOR_BIBTEX = "ca65189f-8815-4afe-8c8b-8c7c15f0edca"
 const ZOTERO_USER_LIBRARY_ID = 1

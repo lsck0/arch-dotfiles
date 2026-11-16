@@ -5,7 +5,7 @@ use ini.nu [ini-apply ini-rows]
 export const meta = {packages: {pacman: [curl gamescope jq libnotify unzip wmctrl zenity zip]}}
 
 const URL = "https://github.com/murkl/d2launcher.git"
-const COMMIT = "73d6d145f1b8fd228fe7ac1263c4f4230d37ebea" # 4.1.3
+const COMMIT = "73d6d145f1b8fd228fe7ac1263c4f4230d37ebea" # 4.1.3, 2025-01-29
 const HERE = path self .
 
 def install-dir []: nothing -> path { xdg data d2launcher }
@@ -24,7 +24,7 @@ def vendor-dir []: nothing -> path { if (vendor-own) { xdg data d2launcher-vendo
 
 # d2launcher's own wine (its wine_native_url at COMMIT); valve's tree reports itself as wine-5.12-15359-g492470267af
 const WINE_URL = "https://github.com/Kron4ek/Wine-Builds/releases/download/7.0-5-proton/wine-7.0-5-proton-amd64.tar.xz"
-const WINE_SHA256 = "fbfddbab42be0f3c6d9f6f0b9b899a8503e50358bde659621a83fbe7ca83bbca"
+const WINE_SHA256 = "fbfddbab42be0f3c6d9f6f0b9b899a8503e50358bde659621a83fbe7ca83bbca" # released 2022-11-24
 const WINE_TOP = "wine-7.0-5-proton-amd64"
 
 # Fetched into the fallback vendor dir only: a synced vendor dir brings its own copy.

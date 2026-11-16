@@ -214,6 +214,8 @@ def main []: nothing -> nothing {
                 null
             } catch {|e| $e }
             ^gpgconf --kill all | complete | ignore
+            # the keyring's socket dir under the runtime dir outlives its home otherwise
+            ^gpgconf --remove-socketdir | complete | ignore
             if $checked != null { error make $checked }
         }
         null

@@ -3,6 +3,7 @@ use lib.nu [switch-run]
 
 const GRADING = path self ../../configs/desktop/color-grading/color-grading.py
 
+# Night light: get [--json] prints the state, on, off or toggle switches it, a bare call toggles.
 def main [action: string = "toggle", --json] {
     switch-run {
         label: "Night light"

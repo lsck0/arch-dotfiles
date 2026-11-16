@@ -14,16 +14,21 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
 
 ## Security
 
-- AppArmor (apparmor.d plus own profiles, content openers enforced), KSPP cmdline, sysctl hardening.
-- LUKS root: TPM2+PIN, YubiKey FIDO2 or passphrase; remote unlock over initramfs ssh; secure boot with own keys, UKIs.
-- sudo and polkit: YubiKey touch or fingerprint (fprintd), password fallback.
+- AppArmor (apparmor.d plus own profiles, content openers enforced; `aa enforce|complain|off <profile>` per machine),
+  KSPP cmdline, sysctl hardening.
+- LUKS root: TPM2+PIN, YubiKey FIDO2 or passphrase; remote unlock over initramfs ssh; secure boot with own keys, UKIs;
+  `dot sync` backs the header up into the secrets every 90 days.
+- sudo and polkit: YubiKey touch or fingerprint (fprintd), password fallback; sudo refuses a caller without a terminal;
+  faillock locks for two minutes after six failures.
 - nftables lockdown by default, inbound opens on home networks, port-knocked sshd (host keys pinned across
   reinstalls); with `untrusted_policy` lockdown-tor (luca-pc, luca-notebook) an egress kill switch off home.
 - A per-source rate limit on the ssh port (fail2ban where a platform keeps it on), an endlessh tarpit on port 22, the
   OSSEC HIDS with its alerts in the bar's system panel.
-- Untrusted networks: a MAC per network and boot, ProtonVPN or tor; fail-closed VPN namespace for `vpn <cmd>`;
-  Portmaster.
-- Secrets in a git-crypt submodule unlocked with the YubiKey; per-repo credential isolation (`identity-init`).
+- Untrusted networks: a MAC per network and boot, Avahi masked (IPv6 off too under lockdown-tor), ProtonVPN or tor;
+  fail-closed VPN namespace for `vpn <cmd>`; Steam and its games bypass ProtonVPN as group `vpn-bypass` after a key
+  touch; Portmaster.
+- Secrets in a git-crypt submodule unlocked with the YubiKey, `dot secrets audit` for what is due for rotation or a
+  recovery drill; per-repo credential isolation (`identity-init`).
 - Telemetry off everywhere but Claude Code where `remote_control` is on; browser policies; sandboxed builds
   (`sandbox-build`), confined GUI apps (`confine`).
 
@@ -33,12 +38,13 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
 - quickshell: bar with clock, weather, media, OBS, Discord, agents, homelab, system, network, display, audio and
   notification panels; launcher, clipboard (with OpenPGP), settings window, tasks and notes, overview, power menu, lock,
   OSD, reminders, pomodoro, desktop agenda (sections now, all day, meetings, to do) with the quote of the day set on
-  the wallpaper.
+  the wallpaper, or the wallpaper's own (`wallpapers/quotes.json`).
 - Toggles (`scripts/toggles/`; `prefix+m` in tmux and herdr, the bar, the settings window on `SUPER+comma`): route
   (direct, proton, tor, offline), homelab VPN, firewall, captive portal, radios, focus, night light, shaders, color
-  grading, power mode, font, theme mode and more.
+  grading, power mode, font, theme mode and more; a failure is one toast with its cause.
 - Theming: 74 palettes or wallust from the wallpaper, applied live to every themed app (`dot theme`; pickers on
-  `SUPER+CTRL+w` for wallpapers, `SUPER+SHIFT+w` for themes).
+  `SUPER+CTRL+w` for wallpapers, `SUPER+SHIFT+w` for themes, with the recent picks and a lottery, `CTRL+R` for a
+  wallpaper, `CTRL+T` for a theme).
 - Idle: dim, lock, screens off, suspend; guards for media, ssh and working agents. Lid closed with an external monitor
   moves the desktop there.
 - Power and disks: tlp, zram, the sched_ext lavd scheduler on laptops, smartd, the CPU package's draw in the bar.
@@ -54,8 +60,9 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
 - Mail (Thunderbird), LibreOffice, zathura, Obsidian, VeraCrypt.
 - Browsers: Firefox, Chromium, qutebrowser. Chat: Signal, Telegram, Element, Discord, TeamSpeak. Spotify (spicetify).
 - Taskwarrior with the homelab sync server, timewarrior, bugwarrior; homelab calendar on the desktop agenda.
-- LLMs: ollama and vLLM (ROCm), socket activated, abliterated (uncensored) models pinned by digest, and only those
-  (ollama drops any other model); ollama splits a model too big for the GPU into RAM; Alpaca as a desktop client.
+- LLMs: ollama and vLLM (ROCm), socket activated, models pinned by digest (abliterated chat models, an embedding and
+  a coding model), and only those (ollama drops any other model); ollama splits a model too big for the GPU into RAM;
+  Alpaca as a desktop client.
 - Generation: ComfyUI (Flux schnell, Hunyuan3D 2.1) behind `comfy-gen` and Blender's Generate sidebar.
 - Gaming: Steam, Proton, gamemode, MangoHud, FFXIV with Dalamud, Lutris, Diablo II (vanilla, Median XL, PD2 S3 and
   S14), Minecraft, VR, emulators (RetroArch, melonDS, mGBA), NetHack.
@@ -97,11 +104,12 @@ Keys are SUPER plus the named key unless written as a full chord; `hyprctl binds
 description.
 
 - Apps: terminal (`Return`, kitty on `SHIFT+Return`), Firefox (`a`), qutebrowser (`SHIFT+a`), file manager (`e`),
-  editor (`n`), notes pad (`SHIFT+n`), notes folder (`ALT+n`), system monitor (`SHIFT+t`), magnifier (`x`), desktop mascots (`y`, `SHIFT+y`
-  stops them).
-- Shell: launcher (`d`, `ALT+d` runs from `$PATH`), quick capture (`i`), clipboard (`v`), overview (`Tab`, a submap while open), tasks
-  (`o`), settings (`comma`), timer (`t`), wallpaper picker (`CTRL+w`), theme picker (`SHIFT+w`), power menu
-  (`SHIFT+e`), lock (`Escape`), restart quickshell (`SHIFT+r`), discord mute (`m`).
+  editor (`n`), notes pad (`SHIFT+n`), notes folder (`ALT+n`), system monitor (`SHIFT+t`), magnifier (`x`), desktop
+  mascots (`y`, `SHIFT+y` stops them).
+- Shell: launcher (`d`, `ALT+d` runs from `$PATH`), dismiss notifications (`SHIFT+d`), quick capture (`i`), dictation
+  (`ALT+v`, again to type it), clipboard (`v`), overview (`Tab`, a submap while open), tasks (`o`), settings
+  (`comma`), timer (`t`), wallpaper picker (`CTRL+w`), theme picker (`SHIFT+w`), power menu (`SHIFT+e`), lock
+  (`Escape`), restart quickshell (`SHIFT+r`), discord mute (`m`).
 - Bar panels: `b` then a letter (audio, notifications, clock, display, homelab, agents, media, network, obs, system,
   discord voice, weather).
 - Windows: focus and move (`hjkl` or arrows, `SHIFT` moves), both walking through a tab group as in i3 (focus cycles

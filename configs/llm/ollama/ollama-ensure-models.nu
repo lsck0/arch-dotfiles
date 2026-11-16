@@ -29,7 +29,11 @@ def model-digest [model: string]: nothing -> string {
 def manifest-get-pinned [entry: record]: nothing -> record {
     let name = $entry.model | split row ":"
     let repo = if ($name.0 | str contains "/") { $name.0 } else { $"library/($name.0)" }
-    let manifest = http get --raw --headers [Accept $MANIFEST_TYPE] $"($REGISTRY)/($repo)/manifests/($name.1)"
+    manifest-pinned $entry (http get --raw --headers [Accept $MANIFEST_TYPE] $"($REGISTRY)/($repo)/manifests/($name.1)")
+}
+
+# The manifest the registry served, parsed only when it is the pinned one.
+export def manifest-pinned [entry: record, manifest: string]: nothing -> record {
     let served = $manifest | hash sha256
     if $served != $entry.pin {
         error make {msg: $"ollama: the registry serves ($entry.model) as ($served), pinned ($entry.pin); not pulling, bump the pin"}
@@ -38,10 +42,16 @@ def manifest-get-pinned [entry: record]: nothing -> record {
 }
 
 def model-pull-pinned [entry: record]: nothing -> nothing {
-    if (model-digest $entry.model) == $entry.pin { return }
-    manifest-get-pinned $entry | ignore
+    pull-pinned $entry {|model| model-digest $model } {|e| manifest-get-pinned $e | ignore }
+}
+
+# Pulls entry unless digest (a model's local digest) already is its pin; manifest raises on a registry that serves
+# another manifest than the pin, before anything is pulled. A pull that lands another digest is removed again.
+export def pull-pinned [entry: record, digest: closure, manifest: closure]: nothing -> nothing {
+    if (do $digest $entry.model) == $entry.pin { return }
+    do $manifest $entry
     ^ollama pull $entry.model
-    if (model-digest $entry.model) != $entry.pin {
+    if (do $digest $entry.model) != $entry.pin {
         ^ollama rm $entry.model | ignore
         error make {msg: $"ollama: pulled ($entry.model) does not match its pin ($entry.pin), removed"}
     }
@@ -59,12 +69,16 @@ def variant-is-current [variant: record, base: string]: nothing -> bool {
 
 # a model pulled by hand or left by an older pin set is gone on the next run: the pins are the whole set
 def models-prune []: nothing -> nothing {
-    let kept = [$LARGE.model $EMBEDDING.model $CODING.model] | append ($CONTEXT_VARIANTS.name | each { $"($in):latest" })
-    let stale = http get $"($OLLAMA_URL)/api/tags" | get models | get name | where $it not-in $kept
-    for model in $stale {
+    for model in (models-stale (http get $"($OLLAMA_URL)/api/tags" | get models | get name)) {
         print $"ollama: removing unpinned ($model)"
         ^ollama rm $model
     }
+}
+
+# The installed models no pin keeps.
+export def models-stale [installed: list<string>]: nothing -> list<string> {
+    let kept = [$LARGE.model $EMBEDDING.model $CODING.model] | append ($CONTEXT_VARIANTS.name | each { $"($in):latest" })
+    $installed | where $it not-in $kept
 }
 
 def context-variants-ensure []: nothing -> nothing {

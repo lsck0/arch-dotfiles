@@ -6,7 +6,7 @@ export const meta = {
     deps: [llm/vllm llm/ollama]
     packages: {
         pacman: [sqlite]
-        flatpak: {com.jeffser.Alpaca: ced59ceb84b2a8824c270305f413e76720ebf0b1d4fcfe224c19b4cd25ae42eb}
+        flatpak: {com.jeffser.Alpaca: ced59ceb84b2a8824c270305f413e76720ebf0b1d4fcfe224c19b4cd25ae42eb} # built 2026-08-03
     }
 }
 
@@ -14,7 +14,7 @@ const APP = "com.jeffser.Alpaca"
 # Speech recognition's model, fetched here so the mic works without a download prompt. Alpaca runs whisper on the cpu:
 # base garbles real speech, medium transcribes a sentence in about 3 s on the desktop. stt-model indexes Alpaca's
 # STT_MODELS (tiny base small medium large); whisper's url carries its sha256.
-const WHISPER = {name: medium, index: 3, sha256: "345ae4da62f9b3d59415adc60127b97c714f32e89e936602e85993674d08dcb1"}
+const WHISPER = {name: medium, index: 3, sha256: "345ae4da62f9b3d59415adc60127b97c714f32e89e936602e85993674d08dcb1"} # published 2022-09-20
 const WHISPER_URL = $"https://openaipublic.azureedge.net/main/whisper/models/($WHISPER.sha256)/($WHISPER.name).pt"
 const SCHEMA = "CREATE TABLE IF NOT EXISTS instance (id TEXT NOT NULL PRIMARY KEY, pinned INTEGER NOT NULL,
     type TEXT NOT NULL, properties TEXT NOT NULL);

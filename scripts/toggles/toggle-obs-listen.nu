@@ -63,6 +63,7 @@ def reconcile []: nothing -> nothing {
     job kill $socket
 }
 
+# Hear OBS output: get [--json] prints the state, on, off or toggle switches it, a bare call toggles.
 def main [action: string = "toggle", --json] {
     if $action == reconcile {
         reconcile

@@ -24,8 +24,23 @@ def exec-cases [dir: path]: nothing -> nothing {
     wants "failing exec" $failing.error ["`sh -c 'echo first >&2; echo the real reason >&2; exit 3'`" "exited 3" "the real reason"]
     let absent = apply-module [(action exec "absent" [$ABSENT --flag])] $dir user | first
     wants "absent exec" $absent.error [$"($ABSENT) not installed" "no package known"]
-    let known = cause-text (cause-from-output "lsusb -d 1050:" 127 "setsid: failed to execute lsusb: No such file or directory")
-    wants "absent, package known" $known ["lsusb not installed (usbutils)"]
+    # setsid's line per LC_MESSAGES: a missing argv[0] is named in any language, and only on setsid's own exit code
+    let german = "konnte nicht ausgef\u{fc}hrt werden"
+    let execs = [
+        [what command exit_code output wants];
+        ["absent, package known" "lsusb -d 1050:" 127 "setsid: failed to execute lsusb: No such file or directory" "lsusb not installed (usbutils)"]
+        ["absent, German" "lsusb -d 1050:" 127 $"setsid: lsusb ($german): Datei oder Verzeichnis nicht gefunden" "lsusb not installed (usbutils)"]
+        ["absent, German, no package" $"($ABSENT) --flag" 127 $"setsid: ($ABSENT) ($german): Datei oder Verzeichnis nicht gefunden" $"($ABSENT) not installed \(no package known\)"]
+        ["not executable, German" "lsusb -d 1050:" 126 $"setsid: lsusb ($german): Keine Berechtigung" "`lsusb -d 1050:` exited 126"]
+        ["127 of the command itself" "sh -c lsusb" 127 "sh: line 1: lsusb: command not found" "`sh -c lsusb` exited 127"]
+        ["a step's nu, not the step" "step lsusb" 127 $"setsid: nu ($german): Datei oder Verzeichnis nicht gefunden" "`step lsusb` exited 127"]
+    ]
+    for e in $execs { wants $e.what (cause-text (cause-from-output $e.command $e.exit_code $e.output)) [$e.wants] }
+    # the real setsid under a German locale, where the machine has one
+    if (^locale -a | lines | any { $in =~ '^de_DE\.(?i:utf-?8)$' }) {
+        let real = with-env {LC_ALL: "de_DE.UTF-8", LANGUAGE: "de"} { ^setsid --wait $ABSENT --flag | complete }
+        wants "absent, setsid's own German" (cause-text (cause-from-output $"($ABSENT) --flag" $real.exit_code $real.stderr)) [$"($ABSENT) not installed"]
+    }
     assert equal (command-package lsusb --sync-dir $dir) $FILES_DB_MISSING "a sync dir without a files db answered a package"
 }
 
@@ -233,8 +248,24 @@ def reinstall-cases [dir: path]: nothing -> nothing {
     wants "install" $f.after_install.0 ["pacman the install pass: `pacman -Su --needed" "exited 1" "unable to satisfy dependency 'libjcat' required by fwupd" "fix: no repo has libjcat"]
 }
 
+# A pacman files database of the test's own, holding one package: command-package asks it, never the machine's.
+def files-db-seed [dir: path]: nothing -> path {
+    let sync = $dir | path join pacman sync
+    let package = $dir | path join pacman-src usbutils-018-1
+    mkdir $sync $package
+    "%NAME%\nusbutils\n\n%VERSION%\n018-1\n" | save ($package | path join desc)
+    "%FILES%\nusr/\nusr/bin/\nusr/bin/lsusb\n" | save ($package | path join files)
+    # pacman reads the repos its config names, and refuses an unsigned database of one that wants a signature (lsck0):
+    # each gets the package, the others answer
+    for repo in (^pacman-conf --repo-list | lines) {
+        ^tar --create --gzip --file ($sync | path join $"($repo).files") --directory ($package | path dirname) ($package | path basename)
+    }
+    $sync
+}
+
 def main [--show] {
     let dir = mktemp --directory --tmpdir dot-cause-test-XXXXXX
+    $env.DOT_PACMAN_SYNC_DIR = files-db-seed $dir
     # command-package keeps its answers under the cache dir: the test's own, never the user's
     $env.XDG_CACHE_HOME = $dir | path join cache
     if $show {

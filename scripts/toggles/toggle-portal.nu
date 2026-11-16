@@ -18,6 +18,7 @@ def portal-open []: nothing -> bool {
     ^systemctl list-units --type timer --state active --plain --no-legend $PORTAL_TIMERS | str trim | is-not-empty
 }
 
+# Captive portal: get [--json] prints the state, on, off or toggle switches it, a bare call toggles.
 def main [action: string = "toggle", --json] {
     switch-run {
         label: "Captive portal"

@@ -4,6 +4,7 @@ use lib.nu [switch-run unit-active]
 const UNIT = "toggle-keep-awake.service"
 const INHIBIT = [systemd-inhibit --what=sleep:idle --who=toggles "--why=keep-awake toggle enabled" --mode=block sleep infinity]
 
+# Keep awake: get [--json] prints the state, on, off or toggle switches it, a bare call toggles.
 def main [action: string = "toggle", --json] {
     switch-run {
         label: "Keep awake"

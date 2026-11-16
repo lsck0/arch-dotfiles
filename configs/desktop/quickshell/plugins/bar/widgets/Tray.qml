@@ -22,7 +22,11 @@ BarWidget {
   readonly property var pinnedItems: bucket("pinned")
   readonly property var drawerItems: bucket("drawer")
   readonly property var allItems: bucket("all")
-  readonly property int drawerCount: drawerItems.length
+  // unpinned icons past the cap fold into one "+N" slot that opens the manage popup
+  readonly property int drawerShownCountMax: 6
+  readonly property var drawerShown: drawerItems.slice(0, drawerShownCountMax)
+  readonly property int drawerOverflowCount: drawerItems.length - drawerShown.length
+  readonly property int drawerCount: drawerShown.length + (drawerOverflowCount > 0 ? 1 : 0)
   readonly property int trayItemExtent: Style.bar.iconSlot
   readonly property int trayItemGap: Style.bar.itemGap
   readonly property int drawerExtent: drawerCount > 0 ? drawerCount * trayItemExtent + (drawerCount - 1) * trayItemGap : 0
@@ -220,8 +224,19 @@ BarWidget {
             spacing: root.trayItemGap
 
             Repeater {
-              model: root.drawerItems
+              model: root.drawerShown
               TrayItem {}
+            }
+
+            WidgetButton {
+              visible: root.drawerOverflowCount > 0
+              bar: root.bar
+              fixedWidth: root.trayItemExtent
+              fontSize: Style.font.caption
+              hoverFill: true
+              text: "+" + root.drawerOverflowCount
+              tooltipText: Util.count(root.drawerOverflowCount, "more tray icon") + " :: click to manage"
+              onPressed: root.managePopupOpen = !root.managePopupOpen
             }
           }
         }
@@ -265,19 +280,10 @@ BarWidget {
       }
 
       Label {
-        text: "Pinned icons stay visible. Hidden icons never show. Shift+right-click an icon opens this."
+        visible: root.allItems.length === 0
+        text: "> NO TRAY ICONS"
         dim: true
         caption: true
-        wrapMode: Text.WordWrap
-        width: parent.width
-      }
-
-      Label {
-        visible: root.allItems.length === 0
-        text: "No tray items"
-        dim: true
-        font.pixelSize: Style.font.bodySmall
-        font.italic: true
       }
 
       Repeater {
@@ -497,7 +503,7 @@ BarWidget {
               }
               width: trayMenuColumn.width
               implicitHeight: hiddenRow ? 0 : (modelData.isSeparator ? Style.space(9) : Style.space(26))
-              opacity: modelData.enabled ? 1.0 : 0.45
+              opacity: modelData.enabled ? 1 : Style.emphasis.faint
 
               Rectangle {
                 visible: menuRow.modelData.isSeparator
@@ -627,6 +633,15 @@ BarWidget {
       root.openTrayMenu(trayItemRoot.modelData, trayItemRoot, mouse)
     }
 
+    Rectangle {
+      anchors.centerIn: parent
+      width: parent.width
+      height: Style.bar.sizeHorizontal
+      radius: Style.shape.data
+      color: trayMouse.pressed ? Style.pressedFill : trayMouse.containsMouse ? Style.hoverFill : "transparent"
+      Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
+    }
+
     TrayIcon {
       anchors.centerIn: parent
       width: Style.bar.iconCanvas
@@ -635,6 +650,7 @@ BarWidget {
     }
 
     MouseArea {
+      id: trayMouse
       anchors.fill: parent
       acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
       hoverEnabled: true

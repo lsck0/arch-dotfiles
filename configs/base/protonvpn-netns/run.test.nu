@@ -13,6 +13,7 @@ const NS = "protonvpn"
 const RUN_INSTALLED = "/usr/local/lib/protonvpn-netns/run"
 const STUBS = {
     ip: '#!/bin/sh
+[ -z "${STUB_LOG:-}" ] || echo "$*" >> "$STUB_LOG"
 case "$1 $2" in
     "netns identify") echo "${STUB_NETNS:-}" ;;
     "netns exec") shift 3; exec "$@" ;;
@@ -62,8 +63,21 @@ def main [] {
                 fail $"run.sh dropped a plain value: ($vars | to nuon)"
             }
 
-            let down = with-env {STUB_DOWN: "1"} { ^$RUN ...$print_args reached | complete }
-            if $down.exit_code == 0 or $down.stdout != "" { fail "run.sh ran a command with the namespace down" }
+            # fail closed: with the namespace or its link gone the command never runs, nor is the namespace entered
+            let ran = $work | path join ran
+            let command = $bin | path join command
+            $"#!/bin/sh\ntouch ($ran)\n" | save $command
+            chmod +x $command
+            let log = $work | path join ip.log
+            let down = with-env {STUB_DOWN: "1", STUB_LOG: $log} { ^$RUN $command | complete }
+            let asked = open --raw $log | lines
+            if $down.exit_code == 0 or ($ran | path exists) { fail "run.sh ran a command with the namespace down" }
+            if $"-n ($NS) link show wg-($NS)" not-in $asked or ($asked | any { $in starts-with "netns exec" }) {
+                fail $"run.sh did not check the link before entering: ip calls ($asked | to nuon)"
+            }
+            rm $log
+            let up = with-env {STUB_LOG: $log} { ^$RUN $command | complete }
+            if $up.exit_code != 0 or not ($ran | path exists) { fail $"the command stub did not run with the namespace up: ($up.stderr)" }
             let direct = with-env {SUDO_USER: ""} { ^$RUN ...$print_args reached | complete }
             if $direct.exit_code == 0 or $direct.stdout != "" { fail "run.sh ran a command without sudo" }
 

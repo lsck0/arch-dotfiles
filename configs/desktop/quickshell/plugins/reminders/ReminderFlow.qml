@@ -10,7 +10,8 @@ Item {
 
   property bool opened: false
   property string step: "minutes"
-  property string minutes: ""
+  // the duration or clock word the name step is for
+  property string when: ""
   property string filterText: ""
   property var renameTarget: null
   // the Pending row DEL cancels and R renames, moved with the arrows on an empty prompt
@@ -30,13 +31,13 @@ Item {
     foreground: Colors.menu.text
   }
 
-  readonly property string promptText: step === "name" ? "name for the " + minutes + " min reminder (optional)"
+  readonly property string promptText: step === "name" ? "name for the " + ReminderFlowModel.whenLabel(when) + " reminder (optional)"
     : step === "rename" ? "new name for " + (renameTarget ? renameTarget.label : "")
-    : "remind me in ... minutes, then a name"
+    : "10m tea, 15:00 dentist"
 
   function reset() {
     root.step = "minutes"
-    root.minutes = ""
+    root.when = ""
     root.filterText = ""
     root.renameTarget = null
   }
@@ -59,12 +60,12 @@ Item {
     TimerState.reload()
   }
 
-  function remindIn(minutes, name) {
-    run([root.reminderScript].concat(ReminderFlowModel.reminderArgs(minutes, name)))
+  function remindAt(when, name) {
+    run([root.reminderScript].concat(ReminderFlowModel.reminderArgs(when, name, new Date())))
   }
 
-  function askName(minutes) {
-    root.minutes = String(minutes)
+  function askName(when) {
+    root.when = String(when)
     root.step = "name"
     root.filterText = ""
     keyCatcher.forceActiveFocus()
@@ -82,14 +83,14 @@ Item {
       if (!root.filterText.trim()) return
       let entry = ReminderFlowModel.parseEntry(root.filterText)
       if (!entry) {
-        Quickshell.execDetached(["notify-send", "-a", "quickshell-action", "-u", "low", "Invalid reminder", "Start with the number of minutes"])
+        Quickshell.execDetached(["notify-send", "-a", "quickshell-action", "-u", "low", "Invalid reminder", ReminderFlowModel.WHEN_HINT])
         return
       }
       if (entry.name) {
-        root.remindIn(entry.minutes, entry.name)
+        root.remindAt(entry.when, entry.name)
         root.reset()
       } else {
-        root.askName(entry.minutes)
+        root.askName(entry.when)
       }
       return
     }
@@ -98,7 +99,7 @@ Item {
       root.reset()
       return
     }
-    root.remindIn(root.minutes, root.filterText)
+    root.remindAt(root.when, root.filterText)
     root.reset()
   }
 
@@ -169,8 +170,8 @@ Item {
     query: root.filterText
     placeholder: root.promptText
     hints: root.step !== "minutes" ? [["ENTER", "set"], ["ESC", "back"]]
-      : root.filterText !== "" ? [["0-9", "minutes"], ["ENTER", "next"], ["ESC", "clear"]]
-      : [["0-9", "minutes"], ["SPACE", !root.pomo.running ? "pomodoro" : root.pomo.paused ? "resume" : "pause"]]
+      : root.filterText !== "" ? [["0-9", "duration or time"], ["ENTER", "next"], ["ESC", "clear"]]
+      : [["0-9", "duration or time"], ["SPACE", !root.pomo.running ? "pomodoro" : root.pomo.paused ? "resume" : "pause"]]
         .concat(root.pomo.running ? [["N", "skip"], ["SHIFT+S", "stop"]] : [])
         .concat(root.reminders.length > 1 ? [["^/v", "select"]] : [])
         .concat(root.reminders.length > 0 ? [["DEL", "cancel"], ["R", "rename"]] : [])
@@ -186,11 +187,15 @@ Item {
 
       Keys.priority: Keys.BeforeItem
       Keys.onPressed: function(event) {
+        const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
         if (event.key === Qt.Key_Escape) {
           if (root.filterText) root.filterText = ""
           else if (root.step !== "minutes") root.reset()
           else root.close()
-        } else if (Util.isWordDelete(event.key, event.modifiers)) root.filterText = Util.wordDelete(root.filterText)
+        } else if (Util.isNext(event.key, event.modifiers)) root.selectMove(1)
+        else if (Util.isPrev(event.key, event.modifiers)) root.selectMove(-1)
+        else if (ctrl && event.key === Qt.Key_U) root.filterText = ""
+        else if (Util.isWordDelete(event.key, event.modifiers)) root.filterText = Util.wordDelete(root.filterText)
         else if (event.key === Qt.Key_Backspace) root.filterText = root.filterText.slice(0, -1)
         else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) root.submit()
         else if (root.step === "minutes" && root.filterText === "" && root.pomoKey(event)) {}
@@ -254,7 +259,8 @@ Item {
               anchors.leftMargin: -Style.spacing.xs
               anchors.rightMargin: -Style.spacing.xs
               radius: Style.shape.data
-              color: rowHover.hovered || reminderRow.index === root.selectedRow ? Style.hoverFill : "transparent"
+              color: reminderRow.index === root.selectedRow ? Colors.menu.selectedBackground
+                : rowHover.hovered ? Style.hoverFill : "transparent"
             }
             HoverHandler { id: rowHover }
 
@@ -290,6 +296,7 @@ Item {
               Label {
                 text: reminderRow.modelData.atTime || ""
                 dim: true
+                highlighted: reminderRow.index === root.selectedRow || rowHover.hovered
               }
             }
             IconButton {

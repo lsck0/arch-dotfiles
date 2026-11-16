@@ -2,6 +2,7 @@
 
 use log.nu *
 use state.nu [LIB_DIR nu-bin SYSTEM_STATE xdg save-atomic]
+use usage.nu [die]
 
 const SELF = path self
 const REPO = path self ../..
@@ -18,7 +19,7 @@ export const SECRETS_GROUP = "secrets"
 export const SECRETS_DATA = ["secrets/keys/**" "secrets/state/**"]
 const META_DEFAULT = {deps: [], packages: {pacman: [], native: [], flatpak: {}, nix: []}, serial: false}
 # a verb or hook evaluated in a child nu is killed past this; a whole layer's batch takes seconds
-export const EVAL_TIMEOUT = 2min
+const EVAL_TIMEOUT = 2min
 # the verbs that do their work while evaluated (update, backup, restore) instead of declaring it
 export const VERB_WORK_TIMEOUT = 30min
 # a config home no login has: profile-load under it reads no profile and no options but PROFILE_FILE
@@ -32,7 +33,7 @@ export def names-read [file: path]: nothing -> list<string> {
 
 # The mod.nu and dependencies.txt files under configs/, absolute. git's index and untracked list in a checkout and its
 # secrets submodule, which skip ignored trees (qmk_firmware's 40k files); a walk where either has no git (the root copy).
-export def modules-markers [repo: path]: nothing -> list<string> {
+def modules-markers [repo: path]: nothing -> list<string> {
     let configs = $repo | path join configs
     let dirs = [$repo ($configs | path join $SECRETS_GROUP)] | where ($it | path exists)
     let listed = $dirs | each {|d|
@@ -133,6 +134,13 @@ export def modules-discover [repo: path, groups: list<string>]: nothing -> table
         $scanned
     }
     $found | insert selected {|m| $m.group in ["" $SECRETS_GROUP] or $m.group in $groups or $m.id in $groups }
+}
+
+# Exits 2 on an id that is no module. Called before a run is opened, so a typo is misuse and never the last run.
+export def modules-known [repo: path, ids: list<string>]: nothing -> nothing {
+    if ($ids | is-empty) { return }
+    let unknown = $ids | where $it not-in (modules-discover $repo [] | get id)
+    if ($unknown | is-not-empty) { die --misuse $"no module ($unknown | str join ', '); dot plan --modules lists them" }
 }
 
 # The modules root runs a hook of: each with a system verb or a packages hook (a broken one counted, unknown), and of

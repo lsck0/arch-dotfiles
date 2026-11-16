@@ -24,6 +24,7 @@ Item {
   signal activated()
 
   readonly property color textColor: Colors.textFor(tint)
+  readonly property bool highlighted: clickable && (activeFocus || mouse.containsMouse)
 
   width: parent ? parent.width : 0
   implicitHeight: body.implicitHeight
@@ -63,6 +64,7 @@ Item {
           text: root.glyph
           rotation: root.glyphRotation
           dim: true
+          highlighted: root.highlighted
           icon: true
           caption: true
         }
@@ -99,6 +101,7 @@ Item {
           visible: root.note !== ""
           text: root.note
           dim: true
+          highlighted: root.highlighted
           caption: true
           font.features: { "tnum": 1 }
         }
@@ -122,6 +125,7 @@ Item {
       text: root.note
       elide: Text.ElideRight
       dim: true
+      highlighted: root.highlighted
       caption: true
     }
 

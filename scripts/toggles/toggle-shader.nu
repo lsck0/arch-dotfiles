@@ -146,5 +146,6 @@ def "main toggle" [] {
 
 def "main set" [entry: string] { let shaders = shaders; apply (entry-parse $entry $shaders) $shaders }
 
-# a bare entry, so `get` output round-trips back through set
+# Shader: get [--json] prints the entry, list names them, set <entry> or the entry alone applies one (so `get`
+# output round-trips), off removes it, toggle switches between off and the last shader, a bare call toggles.
 def main [entry?: string] { if $entry == null { main toggle } else { main set $entry } }

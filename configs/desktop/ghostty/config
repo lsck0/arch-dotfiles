@@ -9,6 +9,9 @@ confirm-close-surface = false
 quit-after-last-window-closed = false
 
 background-opacity-cells = false
+# ghostty asks the compositor for its blur itself (ext-background-effect-v1); left off, Hyprland blurs every
+# translucent window but this one
+background-blur = true
 
 cursor-style = block
 cursor-style-blink = true

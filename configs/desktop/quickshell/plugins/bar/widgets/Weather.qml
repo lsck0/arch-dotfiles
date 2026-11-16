@@ -57,7 +57,9 @@ BarWidget {
     return pts[Math.round(Number(deg) / 45) % 8]
   }
 
-  function t(v) { return (Math.round(Number(v) * 10) / 10) + "\u00b0" }
+  // a temperature with its unit; the chart axis and the day tiles, under the hero that names it, keep the bare degree
+  function t(v) { return (Math.round(Number(v) * 10) / 10) + root.units }
+  function degrees(v) { return (Math.round(Number(v) * 10) / 10) + "\u00b0" }
   function n0(v) { return Math.round(Number(v)) }
 
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
@@ -206,7 +208,7 @@ BarWidget {
     DataState {
       anchors.verticalCenter: parent.verticalCenter
       loading: forecastProc.running
-      error: root.updatedMs > 0 ? root.failNote : ""
+      error: root.failNote
       updatedMs: root.updatedMs
       staleAfterMs: root.staleAfterMs
     }
@@ -323,8 +325,7 @@ BarWidget {
         Label {
           width: parent.width
           visible: root.countryOthers > 0
-          text: root.countryOthers + " more warning" + (root.countryOthers === 1 ? "" : "s")
-            + " elsewhere in your country"
+          text: Util.count(root.countryOthers, "more warning") + " elsewhere in your country"
           dim: true
           caption: true
         }
@@ -439,8 +440,8 @@ BarWidget {
           width: parent.width
           height: Style.space(64)
 
-          AxisLabel { id: tempMaxLabel; anchors.top: parent.top; x: hourlyChart.axisWidth - implicitWidth; text: root.t(root.hourlyTempMax) }
-          AxisLabel { id: tempMinLabel; anchors.bottom: parent.bottom; x: hourlyChart.axisWidth - implicitWidth; text: root.t(root.hourlyTempMin) }
+          AxisLabel { id: tempMaxLabel; anchors.top: parent.top; x: hourlyChart.axisWidth - implicitWidth; text: root.degrees(root.hourlyTempMax) }
+          AxisLabel { id: tempMinLabel; anchors.bottom: parent.bottom; x: hourlyChart.axisWidth - implicitWidth; text: root.degrees(root.hourlyTempMin) }
           AxisLabel { id: rainMaxLabel; anchors.top: parent.top; anchors.right: parent.right; text: "100%" }
           AxisLabel { id: rainMinLabel; anchors.bottom: parent.bottom; anchors.right: parent.right; text: "0%" }
 
@@ -558,7 +559,7 @@ BarWidget {
                 elide: Text.ElideRight
               }
               TileLabel {
-                text: root.t(dayTile.modelData.hi) + "  " + root.t(dayTile.modelData.lo)
+                text: root.degrees(dayTile.modelData.hi) + " " + root.degrees(dayTile.modelData.lo)
                 color: Colors.menu.text
                 caption: true
               }

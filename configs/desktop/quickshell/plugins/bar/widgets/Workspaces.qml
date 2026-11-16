@@ -153,13 +153,14 @@ BarWidget {
         WidgetButton {
           id: btn
           bar: root.bar
-          text: String(cell.modelData % root.workspaceCount)
+          // urgent carries a mark beside its colour
+          text: String(cell.modelData % root.workspaceCount) + (cell.urgent ? "!" : "")
           active: cell.focused
           activeColor: Colors.textOnFill(Colors.accent, Style.selectedFill)
           foreground: cell.urgent ? Colors.urgentText
             : cell.occupied ? Colors.bar.text : Colors.textDim
           hoverFill: !cell.focused
-          fixedWidth: Style.space(20)
+          fixedWidth: Style.bar.statusSlot
           onPressed: function() { root.focusWorkspace(cell.modelData) }
         }
       }

@@ -1,4 +1,4 @@
-# ComfyUI v0.43.0's requirements.txt, torch from the ROCm index; uv.lock pins every wheel by hash.
+# ComfyUI v0.44.2's requirements.txt, torch from the ROCm index; uv.lock pins every wheel by hash.
 # Bump: copy the new tag's requirements.txt here, move exclude-newer to the tag's date, then `uv lock`.
 [project]
 name = "comfyui-env"
@@ -9,9 +9,9 @@ dependencies = [
   "torchvision==0.29.1+rocm7.2",
   # torch's own triton build, only on the ROCm index; a source applies to a direct dependency alone
   "triton-rocm==3.8.0",
-  "comfyui-frontend-package==1.57.4",
-  "comfyui-workflow-templates==0.11.97",
-  "comfyui-embedded-docs==0.5.15",
+  "comfyui-frontend-package==1.57.6",
+  "comfyui-workflow-templates==0.11.103",
+  "comfyui-embedded-docs==0.5.16",
   "torchsde",
   "numpy>=1.25.0",
   "einops",
@@ -45,7 +45,7 @@ dependencies = [
 
 [tool.uv]
 package = false
-exclude-newer = "2026-10-28T00:00:00Z"
+exclude-newer = "2026-11-07T00:00:00Z"
 environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
 
 [tool.uv.sources]

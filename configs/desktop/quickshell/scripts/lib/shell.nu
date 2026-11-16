@@ -5,8 +5,11 @@ export const SHELL_CONFIG = ($nu.home-dir | path join .config quickshell)
 const IPC_TIMEOUT = "3s"
 
 # Sent as the app the shell shows through dnd (NotificationLogic.js ACTION_APP); a shown one still goes to history.
-export def action-notify [glyph: string, title: string, body: string = ""]: nothing -> nothing {
-    ^notify-send -a quickshell-action -u low -h $"string:lsck0-glyph:($glyph)" -- $title $body
+# --urgency normal for the one that should be noticed (a timer's end), which stays up longer than a low confirmation.
+export def action-notify [
+    glyph: string, title: string, body: string = "", --urgency: string = "low"
+]: nothing -> nothing {
+    ^notify-send -a quickshell-action -u $urgency -h $"string:lsck0-glyph:($glyph)" -- $title $body
 }
 
 # Bounded, so a shell that is down or hung never blocks the caller.

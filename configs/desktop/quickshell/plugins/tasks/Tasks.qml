@@ -8,6 +8,7 @@ Item {
   id: root
 
   property string view: "tasks"
+  readonly property var views: ["tasks", "notes", "inbox"]
   property string inputMode: ""
   property string filterText: ""
   property int selectedIndex: 0
@@ -58,6 +59,7 @@ Item {
   onOpenedChanged: {
     if (opened) {
       root.inputMode = ""
+      root.filterText = ""
       root.selectedIndex = 0
       root.selectedUuid = ""
       TaskState.refresh()
@@ -75,6 +77,12 @@ Item {
       else if (root.inputMode !== "") input.forceActiveFocus()
       else keyCatcher.forceActiveFocus()
     })
+  }
+
+  // TAB walks the views forward, SHIFT+TAB back
+  function cycleView(key) {
+    var step = key === Qt.Key_Backtab ? root.views.length - 1 : 1
+    root.setView(root.views[(root.views.indexOf(root.view) + step) % root.views.length])
   }
 
   function setView(name) {
@@ -118,7 +126,7 @@ Item {
       if (root.filterText) root.filterText = ""
       else root.close()
     } else if (key === Qt.Key_Tab || key === Qt.Key_Backtab) {
-      root.setView("notes")
+      root.cycleView(key)
     } else if (key === Qt.Key_Up || text === "k") {
       root.select(root.selectedIndex - 1)
     } else if (key === Qt.Key_Down || text === "j") {
@@ -173,7 +181,7 @@ Item {
     } else if (key === Qt.Key_Tab || key === Qt.Key_Backtab) {
       // in add and modify mode TAB only completes: a word with nothing to complete must not leave the line
       if (key === Qt.Key_Tab && (root.inputMode === "add" || root.inputMode === "modify")) root.completeInput()
-      else root.setView("notes")
+      else root.cycleView(key)
     } else if (root.inputMode === "filter" && (key === Qt.Key_Down || key === Qt.Key_Up)) {
       root.endInput()
       root.select(key === Qt.Key_Down ? 0 : root.filtered.length - 1)
@@ -349,7 +357,7 @@ Item {
             visible: root.inputMode !== ""
             color: Colors.menu.text
             selectionColor: Style.selectionFillFor(Colors.foreground, Colors.accent)
-            selectedTextColor: Colors.menu.text
+            selectedTextColor: Style.selectionTextFor(Colors.foreground, Colors.accent)
             font.family: Style.font.family
             font.pixelSize: Style.font.heading
             clip: true
@@ -424,6 +432,8 @@ Item {
 
             readonly property bool hasCursor: index === root.selectedIndex && root.inputMode === ""
             readonly property bool hot: hasCursor || rowMouse.containsMouse
+            // the row carries a fill: dim text on it reads as normal text
+            readonly property bool lit: hot || index === root.selectedIndex
 
             width: ListView.view.width
             height: root.rowHeight
@@ -486,6 +496,7 @@ Item {
                 visible: text !== ""
                 text: root.metaText(row.modelData)
                 dim: true
+                highlighted: row.lit
                 caption: true
                 elide: Text.ElideRight
               }
@@ -528,7 +539,8 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: row.modelData.scheduled !== ""
                 text: row.modelData.scheduled
-                color: Colors.textDim
+                dim: true
+                highlighted: row.lit
                 caption: true
               }
 
@@ -536,7 +548,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: row.modelData.due !== ""
                 text: row.modelData.due
-                color: row.modelData.overdue ? Colors.urgentText : Colors.textDim
+                color: row.modelData.overdue ? Colors.urgentText : row.lit ? Colors.foreground : Colors.textDim
                 caption: true
               }
             }
@@ -629,7 +641,7 @@ Item {
           textFormat: TextEdit.PlainText
           color: Colors.menu.text
           selectionColor: Style.selectionFillFor(Colors.foreground, Colors.accent)
-          selectedTextColor: Colors.menu.text
+          selectedTextColor: Style.selectionTextFor(Colors.foreground, Colors.accent)
           wrapMode: TextEdit.Wrap
           selectByMouse: true
           persistentSelection: true
@@ -649,7 +661,7 @@ Item {
             } else if (NotesState.conflictKey(event.key, event.modifiers)) {
               event.accepted = true
             } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
-              root.setView("inbox")
+              root.cycleView(event.key)
               event.accepted = true
             }
           }
@@ -701,7 +713,7 @@ Item {
           readOnly: true
           color: Colors.menu.text
           selectionColor: Style.selectionFillFor(Colors.foreground, Colors.accent)
-          selectedTextColor: Colors.menu.text
+          selectedTextColor: Style.selectionTextFor(Colors.foreground, Colors.accent)
           wrapMode: TextEdit.Wrap
           selectByMouse: true
           font.family: Style.font.family
@@ -711,7 +723,7 @@ Item {
           Keys.priority: Keys.BeforeItem
           Keys.onPressed: function (event) {
             if (event.key === Qt.Key_Escape) root.close()
-            else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) root.setView("tasks")
+            else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) root.cycleView(event.key)
             else if (event.key === Qt.Key_Down || event.text === "j") inboxFlick.scrollBy(root.rowHeight)
             else if (event.key === Qt.Key_Up || event.text === "k") inboxFlick.scrollBy(-root.rowHeight)
             else if (event.key === Qt.Key_PageDown) inboxFlick.scrollBy(inboxFlick.height)

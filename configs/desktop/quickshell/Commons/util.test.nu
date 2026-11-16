@@ -50,6 +50,24 @@ TestCase {
     compare(Util.alpha(null, 1).r, 0)
   }
 
+  function test_bytes() {
+    compare(Util.bytes(0), "0B")
+    compare(Util.bytes(340 * 1024), "340K")
+    compare(Util.bytes(512 * Util.bytesPerMib), "512M")
+    compare(Util.bytes(1.5 * Util.bytesPerMib), "1.5M")
+    compare(Util.bytes(29.5 * Util.bytesPerGib), "29.5G")
+    compare(Util.bytes(undefined), "0B")
+    compare(Util.bytesOf(29.5 * Util.bytesPerGib, 60 * Util.bytesPerGib), "29.5/60G")
+    compare(Util.bytesOf(512 * Util.bytesPerMib, 8 * Util.bytesPerGib), "0.5/8G")
+    compare(Util.bytesOf(60 * Util.bytesPerGib, 60 * Util.bytesPerGib), "60.0/60G")
+  }
+
+  function test_count() {
+    compare(Util.count(0, "reminder"), "0 reminders")
+    compare(Util.count(1, "reminder"), "1 reminder")
+    compare(Util.count(2, "reminder"), "2 reminders")
+  }
+
   function test_completion() {
     compare(Util.completion("wo", ["work", "workout", "home"]), "work")
     compare(Util.completion("ho", ["work", "home"]), "home")

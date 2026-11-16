@@ -9,7 +9,7 @@ arch=(x86_64)
 url="https://github.com/NubleX/ID-Spoofer"
 license=(MIT)
 makedepends=(git go)
-source=("git+$url.git#commit=b650920b45461a30883da96b7dc64a863132bfc7")
+source=("git+$url.git#commit=50aeb21271c646423d7e55fd09c61a3e71e0fd66")
 sha256sums=(SKIP)
 
 pkgver() {

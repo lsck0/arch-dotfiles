@@ -35,7 +35,7 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
 - `dot apply [mod...] [--user|--system] [--packages] [--force]`, `dot plan [mod...] [--system] [--order|--modules]`,
   `dot status [--brief|--json]`, `dot set [mod[.key] [value]] [--default] [--machine] [--json]`,
   `dot module adopt|reset|unlink|remove|restore`, `dot explain <path|package>`, `dot log [--trace]`,
-  `dot theme [wallpaper|random]`, `dot secrets audit`; `dot secrets unlock|lock` are Luca's (YubiKey), never an agent's.
+  `dot theme [theme|wallpaper|random]`, `dot secrets audit`; `dot secrets unlock|lock` are Luca's (YubiKey), never an agent's.
 - `dot internal <cmd>` (`scripts/lib/internal.nu`): plumbing for scripts and units; `gen` regenerates
   `mirror/packages.txt`, FEATURES.md's module and options tables and `platforms/homelab.nu` (`dot sync` runs it
   before committing, lint fails when one is stale), `iso` builds the install iso.

@@ -8,13 +8,8 @@ function titleCase(name) {
   return name.replace(/[-_]+/g, " ").replace(/\b\w/g, function(match) { return match.toUpperCase() })
 }
 
-function labelForPath(path) {
-  return titleCase(nameForPath(path))
-}
-
 function labelForImage(image) {
-  if (image && image.displayName) return titleCase(image.displayName)
-  return labelForPath(image ? image.filePath : "")
+  return titleCase(image.displayName || nameForPath(image.filePath))
 }
 
 function loadRows(rows) {
@@ -23,10 +18,7 @@ function loadRows(rows) {
   var paths = String(rows || "").split("\n")
 
   for (var i = 0; i < paths.length; i++) {
-    var row = paths[i]
-    if (!row) continue
-
-    var columns = row.split("\t")
+    var columns = paths[i].split("\t")
     var path = columns[0]
     if (!path) continue
 
@@ -37,20 +29,50 @@ function loadRows(rows) {
     images.push({
       filePath: path,
       thumbnailPath: columns[1] || path,
-      displayName: columns[2] || ""
+      displayName: columns[2] || "",
+      artist: columns[3] || ""
     })
   }
 
   return images
 }
 
-function indexForSelectedImage(images, selectedImage) {
-  var values = Array.isArray(images) ? images : []
-  for (var i = 0; i < values.length; i++) {
-    if (values[i].filePath === selectedImage) return i
-  }
+// What applying a row hands to dot theme, and what it is recalled by: a theme's name, else the wallpaper's path.
+function pickFor(image) {
+  return image.displayName || image.filePath
+}
 
-  return 0
+// Every word occurs in the file name, the theme name or the artist, in any order.
+function matches(image, words) {
+  var text = (nameForPath(image.filePath) + " " + image.displayName + " " + image.artist).toLowerCase().replace(/[-_]+/g, " ")
+  return words.every(function(word) { return text.indexOf(word) !== -1 })
+}
+
+// The row a pick names; the first when none does.
+function indexOfPick(images, pick) {
+  return Math.max(0, images.findIndex(function(image) { return pickFor(image) === pick }))
+}
+
+// list.nu recent's rows: "<theme|wallpaper>\t<pick>\t<thumb>\t<the theme's palette as json>"
+function loadRecent(rows) {
+  return String(rows || "").split("\n").filter(Boolean).map(function(row) {
+    var columns = row.split("\t")
+    var palette = null
+    try {
+      palette = columns[3] ? JSON.parse(columns[3]) : null
+    } catch (e) {}
+    return { kind: columns[0], pick: columns[1], thumbnailPath: columns[2], label: titleCase(nameForPath(columns[1])), palette: palette }
+  })
+}
+
+// The recent tiles left to right, each with its slot: per kind the newest `shown` picks other than the one in effect
+// (current: [wallpaper, theme]), wallpapers before themes.
+function recentTiles(recent, current, shown) {
+  function last(kind, inEffect) {
+    return recent.filter(function(entry) { return entry.kind === kind && entry.pick !== inEffect }).slice(0, shown)
+  }
+  return last("wallpaper", current[0]).concat(last("theme", current[1]))
+    .map(function(entry, slot) { return Object.assign({}, entry, { slot: slot }) })
 }
 
 function hex2(v) {

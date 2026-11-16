@@ -96,8 +96,6 @@ def die [message: string] {
     error make {msg: $message}
 }
 
-def questions-load []: nothing -> record { open $QUESTIONS }
-
 def text-fill [text: string, values: record]: nothing -> string {
     $values | items {|name, value| {name: $name, value: $value} } | reduce --fold $text {|v, acc|
         let tag = $"{($v.name)}"
@@ -143,7 +141,7 @@ def --env tui-init []: nothing -> nothing {
 
 def --wrapped dlg [...args: string]: nothing -> string {
     # collected inside the try: a msgbox's empty stream piped out of it raises nu's "internal error"
-    try { ^dialog --backtitle $TUI_BACKTITLE --cr-wrap --stdout ...$args | collect } catch { die (questions-load).messages.aborted }
+    try { ^dialog --backtitle $TUI_BACKTITLE --cr-wrap --stdout ...$args | collect } catch { die (open $QUESTIONS).messages.aborted }
 }
 
 # Box width clamped to the terminal so a narrow console does not abort the install; floor 40, cap TUI_WIDTH.
@@ -191,7 +189,7 @@ def yes [title: string, text: string, --default-yes]: nothing -> bool {
         let default = if $default_yes { [] } else { [--defaultno] }
         # --stdout: else dialog draws into complete's pipe and the next enter answers a box never shown
         let status = (^dialog --backtitle $TUI_BACKTITLE --stdout --cr-wrap --title $title ...$default --yesno $text (height $text $TUI_BOX_ROWS) (tui-width) | complete).exit_code
-        if $status > 1 { die (questions-load).messages.aborted }
+        if $status > 1 { die (open $QUESTIONS).messages.aborted }
         $status == 0
     } else if $default_yes {
         not ((input $"($text) [Y/n] " | str lowercase) | str starts-with "n")
@@ -581,7 +579,7 @@ export def bootstrap-profile-resolve [repo: path, e: record, picked: string]: no
 # The picked platform; custom with BOOTSTRAP_SERVER=1 becomes server, both generic (no platforms/ file).
 export def bootstrap-platform-resolve [repo: path, e: record, picked: string, wsl: bool]: nothing -> record {
     let server_flag = env-or BOOTSTRAP_SERVER
-    if $server_flag not-in ["" "0" "1"] { die (text-fill (questions-load).messages.flag_invalid {env: BOOTSTRAP_SERVER, value: $server_flag}) }
+    if $server_flag not-in ["" "0" "1"] { die (text-fill (open $QUESTIONS).messages.flag_invalid {env: BOOTSTRAP_SERVER, value: $server_flag}) }
     let name = if $picked == $PLATFORM_NEW and $server_flag == "1" { $SERVER } else { $picked }
     if $name == $SERVER and $wsl { die $e.invalid_wsl }
     if $name in [$PLATFORM_NEW $SERVER] { return {platform: $name, generic: true, server: ($name == $SERVER)} }
@@ -904,7 +902,7 @@ def wsl-install [q: record, c: record]: nothing -> nothing {
 
 # Asks or reads every answer, then partitions, installs and arms the stage chain (or sets up WSL); root only.
 export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing {
-    let q = questions-load
+    let q = open $QUESTIONS
     let m = $q.messages
     if not (is-admin) { die $m.root }
     if not (on-archiso) and not (on-wsl) { die $m.host }

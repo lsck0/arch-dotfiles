@@ -1,7 +1,7 @@
 # hyprland's lua config, plus platform.lua generated each run from the live monitors and keyboard
 
 use module.nu *
-use ../../core/wallust/palette.nu [RADIUS_PX BORDER_PX OPACITY_SURFACE SHADE_HOVER palette-rgb readable-on shade rgb-to-hex]
+use ../../core/wallust/palette.nu [RADIUS_PX BORDER_PX OPACITY_WINDOW SHADE_HOVER is-light palette-rgb readable-on shade rgb-to-hex]
 use ../../core/wallust/font.nu [font-load]
 use plugins.nu [plugins-missing plugins-unloaded]
 use lid.nu [INTERNAL_PANEL]
@@ -264,6 +264,9 @@ def platform-lua [cfg: record]: nothing -> string {
     $"return (lua-from $facts)\n"
 }
 
+# the blurred backdrop is dimmed under a dark theme's light text and lifted under a light theme's dark text
+const BLUR_BRIGHTNESS = {dark: 0.75, light: 1.3}
+
 # Tab strip and title bars: the theme's background, the focused tab one shade off, text raised to TEXT_RATIO on each.
 def bar-colors []: nothing -> record {
     let p = palette-rgb "hyprland bars"
@@ -273,13 +276,14 @@ def bar-colors []: nothing -> record {
     {
         bar_bg: (do $hex $p.bg), bar_text: (do $hex ($p.fg | readable-on $p.bg))
         tab_active_bg: (do $hex $active), tab_active_text: (do $hex ($p.fg | readable-on $active))
+        blur_brightness: (if ($p.bg | is-light) { $BLUR_BRIGHTNESS.light } else { $BLUR_BRIGHTNESS.dark })
     }
 }
 
 def style-record []: nothing -> record {
     let font = font-load
     {
-        rounding: $RADIUS_PX, border: $BORDER_PX, opacity_surface: $OPACITY_SURFACE
+        rounding: $RADIUS_PX, border: $BORDER_PX, opacity_window: $OPACITY_WINDOW
         font: $font.family, font_size: $font.ui_size
     } | merge (bar-colors)
 }

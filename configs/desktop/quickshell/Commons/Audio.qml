@@ -9,6 +9,8 @@ Singleton {
   readonly property string loopbackPrefix: "app."
   readonly property string loopbackOutSuffix: ".out"
   readonly property var obsNamePattern: /^OBS(:|$)/
+  // speech-dispatcher keeps a silent dummy stream open: it plays nothing a fader could change
+  readonly property var silentStreamPattern: /^speech-dispatcher/
 
   readonly property real floorDb: -60
   readonly property real volumeStep: 0.05
@@ -21,6 +23,9 @@ Singleton {
   function isPeakMonitor(node) { return !!node && node.name === peakMonitorName }
   function isLoopback(node) { return !!node && node.name.startsWith(loopbackPrefix) }
   function isLoopbackSink(node) { return isLoopback(node) && !node.isStream }
+  function isSilentStream(node) {
+    return silentStreamPattern.test(String((node.properties || {})["application.name"] || "")) || silentStreamPattern.test(node.name)
+  }
 
   readonly property var sinks: nodes.filter(n => n.audio && n.isSink && !n.isStream && !isChain(n) && !isLoopback(n))
   readonly property var sources: nodes.filter(n => n.audio && !n.isSink && !n.isStream)
@@ -28,7 +33,7 @@ Singleton {
   readonly property var appStreams: {
     var seen = []
     return nodes.filter(n => {
-      if (!n.audio || !n.isSink || !n.isStream || isChain(n) || isLoopback(n)) return false
+      if (!n.audio || !n.isSink || !n.isStream || isChain(n) || isLoopback(n) || isSilentStream(n)) return false
       var out = loopbackOutOf(n)
       if (!out) return true
       if (seen.indexOf(out) >= 0) return false
@@ -126,6 +131,8 @@ Singleton {
     if (d <= floorDb) return "-inf"
     return (d > 0 ? "+" : "") + d.toFixed(1)
   }
+  // a volume as the bar tooltip, the faders and the OSD read it: 45% -20.8 dB
+  function levelText(cubic) { return Math.round(cubic * 100) + "% " + dbText(cubic) + " dB" }
   function meterPosition(peak) { return Math.max(0, Math.min(1, 1 - db(peak) / floorDb)) }
 
   function volumeIcon(volume, muted) {

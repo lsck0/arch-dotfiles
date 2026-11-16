@@ -3,18 +3,18 @@ use module.nu *
 export const meta = {deps: [base/essentials], packages: {pacman: [uv]}}
 
 const COMFYUI_URL = "https://github.com/comfyanonymous/ComfyUI"
-# v0.43.0; pyproject.toml carries this tag's requirements.txt, bump both together
-const COMFYUI_COMMIT = "426f5eea52a7ece1dd599fff4cb6cd1f352ddd24"
+# v0.44.2, 2026-11-06; pyproject.toml carries this tag's requirements.txt, bump both together
+const COMFYUI_COMMIT = "e6515b16ed360b01bd6548bffaca193f88f181fb"
 # the torch rocm wheels hold one model at a time beside the desktop on a 16 GB card; smaller cards stay without
 const VRAM_MIN = 12GiB
 const HF = "https://huggingface.co"
 # each file pinned by repo commit and its lfs sha256 (https://huggingface.co/api/models/<repo>/tree/<commit>); placed
 # where the bundled workflow templates look for it (Templates, "Flux Schnell" and "Hunyuan3D 2.1")
 export const MODELS = [
-    # text to image, Apache-2.0; the fp8 single-file checkpoint carries clip, t5 and the vae
+    # text to image, Apache-2.0, 2026-10-28; the fp8 single-file checkpoint carries clip, t5 and the vae
     {repo: "Comfy-Org/Flux-1-Schnell", commit: d31e04067066d92c55ece2b01748dcc337725d7a, file: flux1-schnell-fp8.safetensors
         dir: checkpoints, sha256: ead426278b49030e9da5df862994f25ce94ab2ee4df38b556ddddb3db093bf72}
-    # image to 3d mesh (glb); tencent-hunyuan-community license, which excludes the EU, UK and South Korea
+    # image to 3d mesh (glb), 2026-10-28; tencent-hunyuan-community license, which excludes the EU, UK and South Korea
     {repo: "Comfy-Org/Hunyuan-3D-2.1", commit: d28dcff0eb85a3740955e24cb1d53def66591278, file: hunyuan_3d_v2.1.safetensors
         dir: checkpoints, sha256: 5f21e98a6cb99b13b5e224abaee33929570fff7af2b6a0060001559a04ba9d72}
 ]

@@ -2,7 +2,7 @@
 # Reason for custom package: pinned lean-prism schema
 
 pkgname=lean-tui
-pkgver=1.0.1
+pkgver=1.2.0
 pkgrel=1
 pkgdesc="Standalone TUI infoview for the Lean 4 theorem prover"
 arch=(x86_64)
@@ -11,14 +11,14 @@ license=(MIT)
 depends=(gcc-libs)
 makedepends=(rustup)
 options=(!lto)
-_prism_commit=af86afc
+_prism_commit=78bf8b11e0965263ef74e2cbf69a7cec6af02038
 source=(
     "$pkgname-$pkgver.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate"
     "protocol-schema-$_prism_commit.json::https://codeberg.org/wvhulle/lean-prism/raw/commit/$_prism_commit/protocol-schema.json"
 )
 sha256sums=(
-    74365efa1b01192cb770e6507ddf11491a0d29fa6fc84babfe8da9f464e467ec
-    4659416647556949e7c5f3ad4669ddc90f5724478d1bed809fd6555a8fc2bdbf
+    bf54f475243a91ffd46c943f7fd5b80814db66e2fdd0a08d7fd00c110e4c3452
+    200c03d82e26e5af1525093c4208a8f9e6be5e0755914eb197edbe4f2c746dd2
 )
 
 prepare() {

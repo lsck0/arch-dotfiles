@@ -5,7 +5,7 @@ export const meta = {packages: {pacman: [godot npm rsync]}}
 # bump with mcp/package.json's godot-mcp-server (then `npm install --package-lock-only` there): the bridge and the
 # addon speak one release's protocol
 const URL = "https://github.com/tomyud1/godot-mcp.git"
-const COMMIT = "3037a5bfc522767d71e63773209a0e308c778e39"
+const COMMIT = "2c1f30088437d9d842eb6b32069f93b979e718ec" # committed 2026-10-17
 # the editor's GDScript language server (network/language_server/remote_port's default): it listens while a project
 # is open in the editor, the only time the addon can reach the bridge. The bridge's own 6505 says nothing, it is the
 # bridge that listens there

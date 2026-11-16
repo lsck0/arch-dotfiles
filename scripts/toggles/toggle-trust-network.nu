@@ -33,12 +33,10 @@ def secret-listed []: nothing -> list<string> {
     open --raw $SECRET | lines | where $it =~ '^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$' | str lowercase
 }
 
-def unlocked []: nothing -> bool { secret-is-plaintext $WITNESS }
-
 def listed []: nothing -> list<string> { (secret-listed) ++ (option-listed) | uniq }
 
 # A pending system part is no failure: the option is written, the network follows on the next system apply, which
-# the toast says in place of "Turned on" (switch-run's {said}).
+# the toast says in place of the switch's own line (switch-run's {said}).
 def settled [run: record]: nothing -> any {
     if $run.exit_code == $EXIT_PENDING {
         {said: "Saved; the network changes with the next dot apply --system"}
@@ -49,7 +47,7 @@ def settled [run: record]: nothing -> any {
 
 # Unlocked, the secret takes the whole list and the option is emptied of what it held; locked, the option does.
 def store [gateways: list<string>]: nothing -> any {
-    if not (unlocked) {
+    if not (secret-is-plaintext $WITNESS) {
         return (settled (^nu --no-config-file $DOT set --machine $OPTION ($gateways | to nuon) | complete))
     }
     # emptied, never deleted: root keeps its last copy of a secret it is not sent, as for a locked one; renamed into
@@ -59,7 +57,7 @@ def store [gateways: list<string>]: nothing -> any {
     if (option-listed | is-not-empty) {
         settled (^nu --no-config-file $DOT set --machine $OPTION "[]" | complete)
     } else {
-        settled (^nu --no-config-file $DOT apply $MODULE --system | complete)
+        settled (^nu --no-config-file $DOT apply --system | complete)
     }
 }
 
@@ -69,6 +67,7 @@ def link []: nothing -> record {
     $link
 }
 
+# Trusted network: get [--json] prints the state, on, off or toggle switches it, a bare call toggles.
 def main [action: string = "toggle", --json] {
     switch-run {
         label: "Trusted network"
@@ -76,13 +75,14 @@ def main [action: string = "toggle", --json] {
         is-on: {|| let link = uplink; $link != null and $link.dev in (trusted-links) }
         on: {||
             # a rejoined wifi has a random mac: storing a listed one again reruns the home step
-            store (listed | append (link).mac | uniq)
+            let link = link
+            store (listed | append $link.mac | uniq) | default {said: $"Trusted ($link.dev), gateway ($link.mac)"}
         }
         off: {||
             let gateways = listed
             let mac = (link).mac
             if $mac not-in $gateways {
-                error make {msg: (if (unlocked) {
+                error make {msg: (if (secret-is-plaintext $WITNESS) {
                     "home by home_gateways or configs/secrets/keys/home-gateways, not a trusted network"
                 } else {
                     "configs/secrets is locked: unlock it to change the trusted list"

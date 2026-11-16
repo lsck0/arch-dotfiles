@@ -128,6 +128,9 @@ def secrets-cases [repo: path]: nothing -> nothing {
 def main [] {
     let work = mktemp --directory --tmpdir system-test.XXXXXX
     $env.XDG_CACHE_HOME = $work | path join cache
+    # the user's git config (commit.gpgsign, a template dir) stays out of the scratch repos
+    $env.GIT_CONFIG_GLOBAL = "/dev/null"
+    $env.GIT_CONFIG_SYSTEM = "/dev/null"
     try { check $work; secrets-cases ($work | path join declared) } catch {|e| rm --recursive --force $work; error make $e }
     rm --recursive --force $work
 }

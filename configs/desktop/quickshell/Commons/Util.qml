@@ -69,6 +69,37 @@ QtObject {
 
   function ago(minutes) { return span(minutes) + " ago" }
 
+  // a count with its noun: 1 reminder, 2 reminders
+  function count(n, noun) { return n + " " + noun + (Number(n) === 1 ? "" : "s") }
+
+  readonly property real bytesPerMib: 1024 * 1024
+  readonly property real bytesPerGib: bytesPerMib * 1024
+  readonly property var byteSuffixes: ["B", "K", "M", "G", "T"]
+  readonly property int byteSuffixDecimalsFrom: 3
+  // below this a smaller unit keeps its decimal too (1.5M, not 2M)
+  readonly property int byteWholeFrom: 10
+
+  function byteExponent(bytes) {
+    var exponent = 0
+    for (let v = Math.max(0, Number(bytes) || 0); v >= 1024 && exponent < byteSuffixes.length - 1; v /= 1024) exponent++
+    return exponent
+  }
+
+  // the shell's one size form: binary units under the one-letter suffix free -h and the lock screen use (340K, 29.5G)
+  function bytes(bytes) {
+    var exponent = byteExponent(bytes)
+    var v = Math.max(0, Number(bytes) || 0) / Math.pow(1024, exponent)
+    var decimal = exponent >= byteSuffixDecimalsFrom || (exponent > 0 && v < byteWholeFrom)
+    return (decimal ? v.toFixed(1) : Math.round(v)) + byteSuffixes[exponent]
+  }
+
+  // used of total in the total's unit: 29.5/60G
+  function bytesOf(used, total) {
+    var exponent = byteExponent(total)
+    var unit = Math.pow(1024, exponent)
+    return (Math.max(0, Number(used) || 0) / unit).toFixed(1) + "/" + (Math.max(0, Number(total) || 0) / unit).toFixed(0) + byteSuffixes[exponent]
+  }
+
   readonly property string timeFormat: Qt.locale().timeFormat(Locale.ShortFormat)
   readonly property string dayFormat: Qt.locale().dateFormat(Locale.ShortFormat).replace(/\W*y+\W*/, "")
 
@@ -98,6 +129,10 @@ QtObject {
 
   // a key event's text that types one visible character
   function printable(text) { return !!text && text.length === 1 && text.charCodeAt(0) >= 32 && text.charCodeAt(0) !== 127 }
+
+  // the readline and vim chords a list takes beside the arrows: Ctrl+N or Ctrl+J down, Ctrl+P or Ctrl+K up
+  function isNext(key, modifiers) { return (modifiers & Qt.ControlModifier) !== 0 && (key === Qt.Key_N || key === Qt.Key_J) }
+  function isPrev(key, modifiers) { return (modifiers & Qt.ControlModifier) !== 0 && (key === Qt.Key_P || key === Qt.Key_K) }
 
   function isWordDelete(key, modifiers) {
     return (modifiers & Qt.ControlModifier) !== 0 && (key === Qt.Key_W || key === Qt.Key_Backspace)

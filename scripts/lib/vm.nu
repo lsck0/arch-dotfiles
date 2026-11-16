@@ -95,10 +95,8 @@ export def cache-dir [name: string]: nothing -> path {
     $dir
 }
 
-def scenarios-load []: nothing -> record { open $SCENARIOS }
-
 export def vm-scenario-names []: nothing -> list<string> {
-    let all = scenarios-load
+    let all = open $SCENARIOS
     ($all.scenarios | columns) ++ ($all.presets | columns) ++ [$SCENARIO_ALL]
 }
 
@@ -121,7 +119,7 @@ def one-of [what: string, values: list<any>]: nothing -> any {
 
 # One run's whole setup: the selected scenarios over the base one, and the platform and profile they need.
 def scenario-resolve [spec: record, platform: any, profile: any]: nothing -> record {
-    let all = scenarios-load
+    let all = open $SCENARIOS
     let platform = $platform | default $spec.platform | default $PLATFORM
     let base = $all.scenarios | get $all.base
     let chosen = $spec.names | uniq | each {|n|
@@ -179,7 +177,7 @@ def home-expect [platform: string]: record -> record {
 
 # The runs a --scenario value asks for: a comma list of scenarios and presets is one run, all is each of them alone.
 export def vm-scenario-plan [spec: string, platform: any, profile: any]: nothing -> list<record> {
-    let all = scenarios-load
+    let all = open $SCENARIOS
     let preset = {|name, p| {label: $name, names: $p.scenarios, platform: ($p.platform? | default null)} }
     let specs = if $spec == $SCENARIO_ALL {
         let alone = $all.scenarios | columns | each {|n| {label: $n, names: [$n], platform: null} }

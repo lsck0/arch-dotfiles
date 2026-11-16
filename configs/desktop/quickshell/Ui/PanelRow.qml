@@ -29,6 +29,8 @@ Rectangle {
   opacity: enabled ? 1 : Style.emphasis.disabled
 
   readonly property color _text: on ? Colors.menu.selectedText : Colors.menu.text
+  // the row carries a fill: selected, focused or under the pointer
+  readonly property bool highlighted: on || activeFocus || (mouse.containsMouse && enabled)
 
   color: mouse.pressed && enabled ? Style.pressedFillFor(Colors.foreground, Colors.accent)
     : on ? Colors.menu.selectedBackground
@@ -99,7 +101,8 @@ Rectangle {
     anchors.rightMargin: Style.spacing.sm
     anchors.verticalCenter: parent.verticalCenter
     text: root.trailing
-    color: root.on ? Colors.menu.text : Colors.textDim
+    dim: true
+    highlighted: root.highlighted
     caption: true
   }
 

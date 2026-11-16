@@ -38,6 +38,7 @@ Item {
   readonly property string historyPath: Paths.runtime + "/clipboard-history.json"
   readonly property string imagesDir: Paths.runtime + "/clipboard-images"
   readonly property int historyLimit: 500
+  readonly property int displayLimit: 50
   readonly property string configPath: Paths.home + "/.config/quickshell/clipboard.json"
   readonly property int msPerHour: 3600000
   // fallback only; link always writes clipboard.json from clipboard_history_max_age_h in mod.nu
@@ -58,7 +59,7 @@ Item {
     root.opened = true
     root.filterText = ""
     root.selectedIndex = 0
-    root.cursorActive = false
+    root.cursorActive = true
     pointerGate.reset()
     root.rebuildDisplay()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
@@ -300,7 +301,7 @@ Item {
   }
 
   function rebuildDisplay() {
-    var rows = ClipboardHistory.displayRows(root.history, root.filterText, 50)
+    var rows = ClipboardHistory.displayRows(root.history, root.filterText, root.displayLimit)
 
     displayModel.clear()
     for (let i = 0; i < rows.length; i++) {
@@ -546,7 +547,7 @@ Item {
     open: root.opened && !root.gpgHidden
     name: "clipboard"
     title: "clipboard"
-    suffix: "[" + String(displayModel.count) + "]"
+    suffix: "[" + displayModel.count + (displayModel.count < root.history.length ? "/" + root.history.length : "") + "]"
     prompt: true
     query: root.filterText
     placeholder: "search clipboard"
@@ -573,7 +574,8 @@ Item {
           event.accepted = root.gpgKey(event)
           return
         }
-        if (event.modifiers & Qt.ControlModifier) {
+        const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
+        if (ctrl) {
           if (event.key === Qt.Key_E) root.startEncrypt()
           else if (event.key === Qt.Key_D) root.startDecrypt()
           event.accepted = event.key === Qt.Key_E || event.key === Qt.Key_D
@@ -586,8 +588,9 @@ Item {
         } else if (event.key === Qt.Key_Delete) {
           if (event.modifiers & Qt.ShiftModifier) root.requestClearHistory()
           else root.removeDisplayIndex(root.selectedIndex)
-        } else if (event.key === Qt.Key_Up) root.select(-1)
-        else if (event.key === Qt.Key_Down) root.select(1)
+        } else if (event.key === Qt.Key_Up || Util.isPrev(event.key, event.modifiers)) root.select(-1)
+        else if (event.key === Qt.Key_Down || Util.isNext(event.key, event.modifiers)) root.select(1)
+        else if (ctrl && event.key === Qt.Key_U) root.setFilter("")
         else if (event.key === Qt.Key_PageUp) root.select(-6)
         else if (event.key === Qt.Key_PageDown) root.select(6)
         else if (event.key === Qt.Key_Home) root.selectAbsolute(0)
@@ -687,8 +690,9 @@ Item {
                   width: parent.width - reticle.width - parent.spacing - (rowDelegate.previewImage.length > 0 ? parent.height + parent.spacing : 0)
                   height: parent.height
                   text: rowDelegate.previewText
-                  color: rowDelegate.hasCursor ? Colors.menu.selectedText
-                    : rowDelegate.entryType === "image" || rowDelegate.entryType === "file" ? Colors.textDim : Colors.menu.text
+                  dim: rowDelegate.entryType === "image" || rowDelegate.entryType === "file"
+                  highlighted: rowDelegate.index === root.selectedIndex
+                  color: rowDelegate.hasCursor ? Colors.menu.selectedText : dim && !highlighted ? Colors.textDim : Colors.menu.text
                   elide: Text.ElideRight
                   verticalAlignment: Text.AlignVCenter
                   layer.enabled: rowDelegate.hasCursor && Style.fx.glow > 0
@@ -734,7 +738,7 @@ Item {
             anchors.top: parent.top
             anchors.bottom: parent.bottom
             width: Style.normalBorderWidth
-            color: Util.alpha(Colors.menu.border, 0.28)
+            color: Colors.edge
           }
 
           PanelSectionHeader {

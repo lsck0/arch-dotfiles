@@ -159,8 +159,8 @@ ShellRoot {
     }
   }
 
-  Background {}
-  DesktopWidgets { mainScreenName: shell.mainScreenName; shellHost: shell }
+  Background { id: background }
+  DesktopWidgets { mainScreenName: shell.mainScreenName; shellHost: shell; wallpaper: background.displayedBackground; wallpaperChanging: background.incomingBackground !== "" }
   Osd {}
   Clipboard {}
   AppSearch { appLibrary: shell.appLibrary }

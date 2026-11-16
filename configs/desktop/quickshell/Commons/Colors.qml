@@ -36,6 +36,7 @@ QtObject {
   readonly property color warnBase: "#e8c317"
   readonly property color okBase: "#23a55a"
   readonly property color severeBase: "#e67e22"
+  readonly property color liveBase: "#c0392b"
   readonly property var rampStops: [0, 0.5, 0.75, 1]
   readonly property real urgentMinApart: Palette.URGENT_APART_MIN_DEG
   readonly property real urgentMaxTurn: 20
@@ -43,20 +44,21 @@ QtObject {
   property bool animatePalette: false
   component SemanticTokens: QtObject {
     id: semanticColors
-    property color live: "#c0392b"
-    property color recording: root.severeBase
+    // strokes, dots and tints at semanticContrast like warn and ok; a label takes textFor or textOnFill of them
+    property color live: root.readable(root.liveBase)
+    property color recording: root.readable(root.severeBase)
     property color warn: root.warn
-    property color speaking: root.okBase
+    property color speaking: root.readable(root.okBase)
     property color alertRed: semanticColors.live
     property color alertOrange: semanticColors.recording
   }
   readonly property SemanticTokens semantic: SemanticTokens {}
 
   readonly property color scrim: Util.alpha(root.background, Style.translucency.scrim)
-  readonly property color panelFill: Util.alpha(root.background, Style.translucency.panel)
-  readonly property color overlayFill: Util.alpha(root.background, Style.translucency.overlay)
+  readonly property color edge: Util.alpha(root.foreground, Style.surface.edgeAlpha)
+  readonly property color panelFill: Util.alpha(root.background, Style.translucency.shell)
   component BarTokens: QtObject {
-    property color background: Util.alpha(root.background, Style.translucency.bar)
+    property color background: root.panelFill
     property color text: root.foreground
     property color active: root.urgentText
   }
@@ -69,36 +71,24 @@ QtObject {
   readonly property PopupTokens popups: PopupTokens {}
 
   component TooltipTokens: QtObject {
-    property color background: root.overlayFill
+    property color background: root.panelFill
     property color text: root.foreground
-    property color border: Util.alpha(root.foreground, 1)
+    property color border: root.edge
   }
   readonly property TooltipTokens tooltip: TooltipTokens {}
 
   component NotificationTokens: QtObject {
-    property color background: root.overlayFill
     property color text: root.foreground
-    property color border: Util.alpha(root.accent, 1)
   }
   readonly property NotificationTokens notifications: NotificationTokens {}
 
   component MenuTokens: QtObject {
-    property color background: root.panelFill
     property color text: root.foreground
-    property color border: Util.alpha(root.foreground, 1)
     property color scrim: root.scrim
     property color selectedBackground: Util.alpha(root.accent, Style.selectedFillAlpha)
     property color selectedText: root.foreground
   }
   readonly property MenuTokens menu: MenuTokens {}
-
-  component ImagePickerTokens: QtObject {
-    property color scrim: root.scrim
-    property color text: root.foreground
-    property color selectedBorder: Util.alpha(root.accent, 1)
-    property color unselectedBorder: Util.alpha(root.foreground, 0.28)
-  }
-  readonly property ImagePickerTokens imagePicker: ImagePickerTokens {}
 
   property string rawColors: ""
   property bool syncHold: false
@@ -166,9 +156,9 @@ QtObject {
     return Qt.rgba(out[0], out[1], out[2], 1)
   }
 
-  // c conditioned for text on overlayFill over any backdrop: a white or black glyph showing through is the worst case
+  // c conditioned for text on panelFill over any backdrop: a white or black glyph showing through is the worst case
   function textOnOverlay(c) {
-    const through = 1 - Style.translucency.overlay
+    const through = 1 - Style.translucency.shell
     return textOnFill(textOnFill(c, Qt.rgba(1, 1, 1, through)), Qt.rgba(0, 0, 0, through))
   }
 
@@ -182,7 +172,7 @@ QtObject {
     var hex = {}
     for (const role of ["background", "foreground", "accent", "accent2", "urgent", "muted"]) hex[role] = Palette.rgbToHex([root[role].r, root[role].g, root[role].b], "#")
     var p = Palette.conditionPalette(parsed, hex, Object.assign({}, Theme.values, {
-      "urgentRed": Palette.rgbToHex([root.semantic.live.r, root.semantic.live.g, root.semantic.live.b], "#"),
+      "urgentRed": Palette.rgbToHex([root.liveBase.r, root.liveBase.g, root.liveBase.b], "#"),
       "accent2Contrast": root.accent2Contrast,
       "urgentMinApart": root.urgentMinApart,
       "urgentMaxTurn": root.urgentMaxTurn,

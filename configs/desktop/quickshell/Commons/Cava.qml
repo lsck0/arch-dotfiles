@@ -7,13 +7,17 @@ Singleton {
   id: root
 
   readonly property int barCount: 24
-  readonly property int framerate: 60
+  // half a 60 fps meter's wakeups and binding passes; the fall and the peak hold below are per second, not per frame
+  readonly property int framerate: 30
 
   property var values: zeroed()
 
   property var peaks: zeroed()
 
-  readonly property real releaseKeep: 0.72
+  // what a falling bar keeps per frame at releaseRate frames a second, carried to the framerate in use
+  readonly property int releaseRate: 60
+  readonly property real releaseKeepAtRate: 0.72
+  readonly property real releaseKeep: Math.pow(releaseKeepAtRate, releaseRate / framerate)
   readonly property int peakHoldFrames: Math.round(framerate * 0.2)
   readonly property real peakFallPerFrame: 100 / (framerate * 0.6)
   property var peakAge: zeroed()

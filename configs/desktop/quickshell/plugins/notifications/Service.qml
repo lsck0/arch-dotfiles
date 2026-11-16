@@ -52,6 +52,8 @@ Item {
   }
 
   readonly property alias doNotDisturb: settings.dnd
+  // what holds it on when it was not the user
+  readonly property string dndSource: settings.dndByObs ? "OBS" : settings.dndByShare ? "screen share" : "" // qmllint disable unqualified
   // the bar, OBS and a share change it here, not through toggle-dnd.nu: its readers (settings) still hear of it
   onDoNotDisturbChanged: ToggleEvents.changed("toggle-dnd.nu")
 
@@ -652,17 +654,19 @@ Item {
     onTriggered: if (popupModel.count === 0) service.popupScreen = null
   }
 
-  function rowApp(i) {
+  // what a toast folds under: its app, except a critical one, which is a group of its own and so always shows
+  function rowGroup(i) {
     var row = i >= 0 && i < popupModel.count ? popupModel.get(i) : null
-    return row ? String(row.app || "") : ""
+    if (!row) return ""
+    return row.urgency === NotificationLogic.URGENCY_CRITICAL ? "\n" + i : String(row.app || "")
   }
 
   function groupSizeAt(i) {
-    var app = rowApp(i)
-    if (!app) return 1
-    if (i > 0 && rowApp(i - 1) === app) return 0
+    var group = rowGroup(i)
+    if (!group) return 1
+    if (i > 0 && rowGroup(i - 1) === group) return 0
     var n = 1
-    while (rowApp(i + n) === app) n++
+    while (rowGroup(i + n) === group) n++
     return n
   }
 
@@ -720,6 +724,9 @@ Item {
         spacing: 0
         model: popupModel
 
+        // the whole column holds while the pointer is on it, so no toast expires and shifts another under a click
+        HoverHandler { id: stackHover }
+
         add: Transition {
           ParallelAnimation {
             NumberAnimation { property: "x"; from: service.toastWidth; to: 0; duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
@@ -762,7 +769,7 @@ Item {
           readonly property real quarterMs: cardSlot.lifetime / card.gaugeSegments
           property real remainingMs: cardSlot.lifetime
           property double resumedAtMs: Date.now()
-          readonly property bool ticking: cardSlot.lifetime > 0 && !card.hovered && cardSlot.index >= 0
+          readonly property bool ticking: cardSlot.lifetime > 0 && !stackHover.hovered && cardSlot.index >= 0
           readonly property int segmentsLeft: cardSlot.lifetime > 0
             ? Math.max(0, Math.ceil(cardSlot.remainingMs / cardSlot.quarterMs - 0.001)) : 0
 

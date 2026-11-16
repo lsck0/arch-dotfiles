@@ -9,7 +9,8 @@ Item {
   property real maximum: 1
   property real step: 0.05
   property bool integer: false
-  property color trackColor: Style.selectedFill
+  // the unfilled track is a control edge like a field's border: 3:1 on the background
+  property color trackColor: Style.normalBorderColor
   property color fillColor: Colors.foreground
   property color knobColor: Colors.foreground
   property bool dragging: false
@@ -47,6 +48,15 @@ Item {
   readonly property real range: Math.max(0.0001, maximum - minimum)
   readonly property real progress: Math.max(0, Math.min(1, (liveValue - minimum) / range))
   readonly property bool _hot: mouseArea.containsMouse || root.dragging || root.activeFocus
+
+  Rectangle {
+    anchors.fill: parent
+    anchors.leftMargin: -Style.spacing.xs
+    anchors.rightMargin: -Style.spacing.xs
+    radius: Style.shape.data
+    color: root.activeFocus ? Style.focusFillFor(Colors.foreground, Colors.accent) : "transparent"
+    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
+  }
 
   Rectangle {
     id: track

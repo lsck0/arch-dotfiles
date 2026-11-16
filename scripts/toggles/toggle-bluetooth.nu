@@ -4,6 +4,7 @@ use lib.nu [switch-run unit-active]
 const SHOW_TIMEOUT_S = 3
 const POWER_TIMEOUT_S = 5
 
+# Bluetooth: get [--json] prints the state, on, off or toggle switches it, a bare call toggles.
 def main [action: string = "toggle", --json] {
     switch-run {
         label: Bluetooth

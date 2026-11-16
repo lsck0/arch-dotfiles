@@ -10,6 +10,7 @@ const STDERR_LINES = 3
 const PACKAGE_BIN_DIR = "usr/bin/"
 # by path: the command missing may be missing because PATH is bare
 const PACMAN = "/usr/bin/pacman"
+# DOT_PACMAN_SYNC_DIR names another (a test's seeded one); pacman is asked with its parent as dbpath
 const PACMAN_SYNC_DIR = "/var/lib/pacman/sync"
 const FILES_DB_GLOB = "*.files"
 const OWNER_NONE = "-"
@@ -36,6 +37,10 @@ const NOT_FOUND = 'Command `(?<name>[^`]+)` not found'
 const EXITED = 'exited with code (?<code>-?\d+)'
 # setsid's word for an argv[0] that is not on PATH
 const EXEC_MISSING = 'failed to execute (?<name>\S+): No such file or directory'
+# the same line in any language (German puts the name first): the words move, the
+# prefix and setsid's exit code for ENOENT do not
+const EXEC_FAILED = '^setsid: (?<said>.*): [^:]+$'
+const EXIT_EXEC_MISSING = 127
 # a call on its source line: words and quoted strings up to a pipe, a closing bracket, a statement's end or a comment
 const CALL = r#'^(?<call>(?:"(?:[^"\\]|\\.)*"|'[^']*'|`[^`]*`|[^"'`|})\];#])*)'#
 const SOURCES_UNNAMED = [source "<commandline>"]
@@ -127,7 +132,8 @@ def owners-cache [sync_dir: path]: nothing -> path {
 # The repo package that brings a command, asked of pacman's files database once per refresh of it (a query reads every
 # files database, about a second; owners-cache keeps each answer, none as OWNER_NONE); null when no package has it,
 # FILES_DB_MISSING (never kept) when the sync dir holds no files database to ask.
-export def command-package [name: string, --sync-dir: path = $PACMAN_SYNC_DIR]: nothing -> any {
+export def command-package [name: string, --sync-dir: path]: nothing -> any {
+    let sync_dir = $sync_dir | default $env.DOT_PACMAN_SYNC_DIR? | default $PACMAN_SYNC_DIR
     if (glob ($sync_dir | path join $FILES_DB_GLOB) | is-empty) { return $FILES_DB_MISSING }
     let command = $name | path basename
     # a cache that cannot be written (a read-only home, a full disk) costs the query, never the cause
@@ -136,7 +142,7 @@ export def command-package [name: string, --sync-dir: path = $PACMAN_SYNC_DIR]: 
         open --raw $cache | lines | parse "{command} {package}" | where command == $command | get --optional 0.package
     }
     let package = if $cached != null { $cached } else {
-        let found = try { ^$PACMAN -Fq $"($PACKAGE_BIN_DIR)($command)" | complete } catch { {stdout: ""} }
+        let found = try { ^$PACMAN -Fq --dbpath ($sync_dir | path dirname) $"($PACKAGE_BIN_DIR)($command)" | complete } catch { {stdout: ""} }
         $found.stdout | lines | get --optional 0 | default $OWNER_NONE | split row "/" | last
     }
     if $cache != null and $cached == null { try { $"($command) ($package)\n" | save --append $cache } }
@@ -176,6 +182,16 @@ export def cause-from-error [err: record]: nothing -> record {
     from-rendered (rendered-parse ($err.rendered? | default "")) $err.msg $err.msg null $err.exit_code? []
 }
 
+# The argv[0] setsid could not find, null when it ran: named by its English line, else (another LC_MESSAGES) the
+# command's first word when setsid's own line carries it and the exit code is the one for a missing file.
+def exec-missing [command: string, exit_code: int, output: string]: nothing -> any {
+    let named = $output | parse --regex $EXEC_MISSING | get --optional 0.name
+    if $named != null or $exit_code != $EXIT_EXEC_MISSING { return $named }
+    let said = $output | lines | parse --regex $EXEC_FAILED | get --optional 0.said
+    let first = $command | split row --regex '\s+' | get --optional 0 | default ""
+    if $said != null and $first != "" and $first in ($said | split row --regex '\s+') { $first }
+}
+
 # The cause of a command that exited non-zero with this output (stdout and stderr): a nushell error in it (a step)
 # names the call inside, else the command itself; the stderr lines are the last before any error block.
 export def cause-from-output [command: string, exit_code: int, output: string]: nothing -> record {
@@ -188,7 +204,7 @@ export def cause-from-output [command: string, exit_code: int, output: string]: 
         let found = rendered-parse ([$split.rest] ++ ($rows | skip ($head.index + 1)) | str join "\n")
         return (from-rendered $found null $command $command null $stderr)
     }
-    let missing = $output | parse --regex $EXEC_MISSING | get --optional 0.name
+    let missing = exec-missing $command $exit_code $output
     cause-make $"($command) exited ($exit_code)" $command $missing $exit_code (if $missing == null { $stderr } else { [] }) null
 }
 

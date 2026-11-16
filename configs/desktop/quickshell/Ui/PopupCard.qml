@@ -56,7 +56,15 @@ PopupWindow {
 
   default property alias body: contentHolder.children
 
+  // where it docks on the bar, which stops its hairline there
+  readonly property rect dockRect: Qt.rect(anchor.rect.x, 0, implicitWidth, 0) // qmllint disable missing-property
+
   visible: open || boot.progress > 0
+  onVisibleChanged: {
+    if (!bar) return
+    if (visible) bar.activePopup = root
+    else if (bar.activePopup === root) bar.activePopup = null
+  }
   color: "transparent"
   implicitWidth: contentWidth + neckWidth
   implicitHeight: contentHeight
@@ -118,28 +126,22 @@ PopupWindow {
       opacity: boot.progress
       transform: Translate { y: root.revealSlide }
 
-      DockShape {
+      GlassCard {
         id: card
         width: root.width
         height: root.height
         docked: root.docked
-        fillColor: Colors.menu.background
-      }
+        bracketInset: boot.bracketInset
+        scanlines: root.open
 
-      Item {
-        id: contentHolder
-        x: card.sideInset + card.strokeWidth + root.padding
-        y: card.strokeWidth + root.padding
-        width: card.width - x * 2
-        height: card.height - (card.strokeWidth + root.padding) * 2
-        opacity: boot.rowOpacity(1)
-      }
-
-      Item {
-        x: card.sideInset
-        width: card.width - card.sideInset * 2
-        height: card.height
-        HudFrame { inset: boot.bracketInset; chamfer: card.cut; chamferCorner: card.cutCorner }
+        Item {
+          id: contentHolder
+          x: card.shape.sideInset + card.shape.strokeWidth + root.padding
+          y: card.shape.strokeWidth + root.padding
+          width: card.width - x * 2
+          height: card.height - (card.shape.strokeWidth + root.padding) * 2
+          opacity: boot.rowOpacity(1)
+        }
       }
     }
   }

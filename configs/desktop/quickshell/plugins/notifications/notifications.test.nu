@@ -64,6 +64,10 @@ TestCase {
     verify(!NotificationLogic.isEphemeralApp("alert"))
     verify(NotificationLogic.shouldBypassDnd({ appName: "toggles", urgency: NotificationLogic.URGENCY_CRITICAL }))
     verify(!NotificationLogic.shouldBypassDnd({ appName: "toggles", urgency: 1 }))
+    for (const app of ["oomd", "systemd", "dotfiles"]) {
+      verify(NotificationLogic.shouldBypassDnd({ appName: app, urgency: NotificationLogic.URGENCY_CRITICAL }))
+      verify(!NotificationLogic.shouldBypassDnd({ appName: app, urgency: 1 }))
+    }
     verify(NotificationLogic.isEphemeralApp("toggles"))
   }
 

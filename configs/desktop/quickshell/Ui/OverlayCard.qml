@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
@@ -49,10 +50,12 @@ PanelWindow {
     span: Math.min(card.width, card.height) / 2
   }
 
-  Rectangle {
-    anchors.fill: parent
-    color: Colors.scrim
-    opacity: bootIn.progress
+  // under this surface: outside the card it is clear, so the card alone takes the wallpaper blur
+  Scrim {
+    shown: root.visible
+    progress: bootIn.progress
+    interactive: root.open
+    onClicked: root.dismissed()
   }
 
   MouseArea {
@@ -61,21 +64,17 @@ PanelWindow {
     onClicked: root.dismissed()
   }
 
-  Item {
+  GlassCard {
     id: card
     anchors.centerIn: parent
     width: Math.min(root.cardWidth, root.width - Style.gapsOut * 2)
     height: Math.min(root.cardHeight, root.height - Style.gapsOut * 2)
     opacity: bootIn.progress
+    bracketInset: bootIn.bracketInset
+    scanlines: root.scanlines
+    flicker: true
 
     MouseArea { anchors.fill: parent }
-
-    DockShape {
-      id: shape
-      anchors.fill: parent
-      fillColor: Colors.overlayFill
-      glow: true
-    }
 
     Column {
       id: chrome
@@ -153,8 +152,5 @@ PanelWindow {
         opacity: bootIn.rowOpacity(bootIn.staggerCap)
       }
     }
-
-    HudFrame { inset: bootIn.bracketInset; chamfer: shape.cut; chamferCorner: shape.cutCorner }
-    Scanlines { shown: root.scanlines; flicker: true }
   }
 }

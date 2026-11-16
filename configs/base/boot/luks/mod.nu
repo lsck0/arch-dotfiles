@@ -58,37 +58,48 @@ def hook-place []: nothing -> nothing {
 # Sets the root's unlock options on the cmdline. The TPM2 enrol note and the header backup reminder print only when
 # the luksDump differs from the last apply's, so once per keyslot change.
 def root-unlock [part: string]: nothing -> nothing {
-    let header = ^cryptsetup luksDump $"/dev/($part)"
+    # the json metadata: with systemd's token plugin the text dump prints every token after the first on stderr
+    let header = ^cryptsetup luksDump --dump-json-metadata $"/dev/($part)"
     let stamp = $SYSTEM_STATE | path join $HEADER_STAMP
     let header_hash = $header | hash sha256
     let header_changed = $header_hash != (file-trim $stamp)
-    # with tpm2-measure-pcr, fido2-device=auto and no enrolled token fail the unlock without asking the passphrase
-    let fido = $header | str contains systemd-fido2
-    if not $fido {
-        print ("note: luks: no yubikey enrolled, once the stage chain is done: "
-            + $"sudo systemd-cryptenroll --fido2-device=auto /dev/($part), then rerun dot apply")
-    }
-    # tries=0 asks again after a wrong passphrase: the default 3, one spent on the token, drops to an emergency shell
-    # whose root is locked, so a typo at the prompt left the machine unbootable until "exit"
-    # tpm2-device=auto without a tpm2 token logs "No valid TPM2 token data found" on every boot
-    let tpm2 = $header | str contains systemd-tpm2
-    let tokens = [(if $tpm2 { 'tpm2-device=auto' }) (if $fido { 'fido2-device=auto' })] | compact
-    cmdline-set $"rd.luks.options=($tokens | append [tpm2-measure-pcr=yes tries=0] | str join ',')"
-    # never TPM-only: any signed uki would unseal it unattended
-    let enroll = $"systemd-cryptenroll --tpm2-device=auto --tpm2-with-pin=yes --tpm2-pcrs=7+15:sha256=($PCR15_INITIAL)"
-    if not $tpm2 {
-        if $header_changed {
-            print $"note: luks: no TPM2 seal enrolled, for a measured-boot pin unlock: sudo ($enroll) /dev/($part), then rerun dot apply"
-        }
-    } else if ($header =~ 'tpm2-pin:\s+false') {
-        print ("note: luks: a TPM2 seal without a pin unlocks any boot, replace it: "
-            + $"sudo ($enroll) --wipe-slot=tpm2 /dev/($part)")
-    }
+    let unlock = unlock-plan ($header | from json | get tokens | values) $part $header_changed
+    cmdline-set $unlock.cmdline
+    for note in $unlock.notes { print $note }
     if $header_changed {
-        print "luks: keyslots changed, back up the header: configs/base/boot/luks/header-backup.nu (as the admin)"
         mkdir $SYSTEM_STATE
         $"($header_hash)\n" | save --force $stamp
     }
+}
+
+# The root's rd.luks.options from its LUKS2 tokens (luksDump's json metadata), and the notes an apply prints for it,
+# in order.
+export def unlock-plan [tokens: list<record>, part: string, header_changed: bool]: nothing -> record<cmdline: string, notes: list<string>> {
+    let types = $tokens | get --optional type | default []
+    # with tpm2-measure-pcr, fido2-device=auto and no enrolled token fail the unlock without asking the passphrase
+    let fido = "systemd-fido2" in $types
+    # tries=0 asks again after a wrong passphrase: the default 3, one spent on the token, drops to an emergency shell
+    # whose root is locked, so a typo at the prompt left the machine unbootable until "exit"
+    # tpm2-device=auto without a tpm2 token logs "No valid TPM2 token data found" on every boot
+    let tpm2 = "systemd-tpm2" in $types
+    let devices = [(if $tpm2 { 'tpm2-device=auto' }) (if $fido { 'fido2-device=auto' })] | compact
+    # never TPM-only: any signed uki would unseal it unattended
+    let enroll = $"systemd-cryptenroll --tpm2-device=auto --tpm2-with-pin=yes --tpm2-pcrs=7+15:sha256=($PCR15_INITIAL)"
+    let notes = [
+        (if not $fido {
+            ("note: luks: no yubikey enrolled, once the stage chain is done: "
+                + $"sudo systemd-cryptenroll --fido2-device=auto /dev/($part), then rerun dot apply")
+        })
+        (if not $tpm2 and $header_changed {
+            $"note: luks: no TPM2 seal enrolled, for a measured-boot pin unlock: sudo ($enroll) /dev/($part), then rerun dot apply"
+        })
+        (if ($tokens | any {|t| $t.type? == "systemd-tpm2" and ($t | get --optional "tpm2-pin") == false }) {
+            ("note: luks: a TPM2 seal without a pin unlocks any boot, replace it: "
+                + $"sudo ($enroll) --wipe-slot=tpm2 /dev/($part)")
+        })
+        (if $header_changed { "luks: keyslots changed, back up the header: configs/base/boot/luks/header-backup.nu (as the admin)" })
+    ] | compact
+    {cmdline: $"rd.luks.options=($devices | append [tpm2-measure-pcr=yes tries=0] | str join ',')", notes: $notes}
 }
 
 export def configure []: nothing -> nothing {

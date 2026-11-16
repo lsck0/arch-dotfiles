@@ -102,6 +102,10 @@ Item {
     if (qrSize > 0) error = ""
   }
 
+  function passwordKey() {
+    if (root.showingQr && root.secured) root.togglePassword()
+  }
+
   function togglePassword() {
     if (passwordVisible) { passwordVisible = false; return }
     if (password !== "") { passwordVisible = true; return }
@@ -156,7 +160,8 @@ Item {
     open: root.opened
     name: "wifiqr"
     title: root.ssid || "wi-fi"
-    hints: [["ESC", "close"]]
+    hints: (root.showingQr && root.secured ? [["ENTER", root.passwordVisible ? "hide password" : "show password"]] : [])
+      .concat([["ESC", "close"]])
     scanlines: false
     cardWidth: Math.max(qrContent.implicitWidth, Style.space(280)) + chromeWidth
     cardHeight: qrContent.implicitHeight + chromeHeight
@@ -167,6 +172,9 @@ Item {
       anchors.fill: parent
       focus: true
       Keys.onEscapePressed: root.close()
+      Keys.onReturnPressed: root.passwordKey()
+      Keys.onEnterPressed: root.passwordKey()
+      Keys.onSpacePressed: root.passwordKey()
     }
 
     ColumnLayout {

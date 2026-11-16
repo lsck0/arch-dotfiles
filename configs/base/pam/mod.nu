@@ -30,7 +30,7 @@ const SYSTEM_AUTH_INCLUDE = '^auth\s.*include.*system-auth'
 const AUTH_ANY = '^-?auth\s'
 
 # u2f against /etc/u2f_mappings, touch only; no nouserok: a user without a key falls through to the password.
-def u2f-line [origin: string]: nothing -> string {
+export def u2f-line [origin: string]: nothing -> string {
     let options = $"cue pinverification=0 authfile=/etc/u2f_mappings origin=($origin) appid=($origin)"
     $"auth       sufficient pam_u2f.so ($options)"
 }
@@ -79,17 +79,22 @@ def has-fprint []: nothing -> bool {
 export def sudo-stack [u2f: string, line: string]: nothing -> nothing {
     if not ($SUDO | path exists) { return }
     let before = open --raw $SUDO | lines
-    let with_u2f = if $u2f != "true" or $line in $before { $before } else {
+    let after = sudo-lines $before ($u2f == "true") $line (has-fprint)
+    if $after == $before or not ($after | any { $in =~ system-auth }) { return }
+    if not ($"($SUDO).pre-auth.bak" | path exists) { ^cp -a $SUDO $"($SUDO).pre-auth.bak" }
+    $after | to text | save --force $SUDO
+}
+
+# sudo's stack with the factors in: the terminal gate, the u2f line, the fprintd line where a finger can be taken, then
+# the stock system-auth include (the password).
+export def sudo-lines [before: list<string>, u2f: bool, line: string, fprint: bool]: nothing -> list<string> {
+    let with_u2f = if not $u2f or $line in $before { $before } else {
         auth-insert ($before | where not ($it =~ 'pam_(u2f|fprintd)[.]so')) $line
     }
-    let fprint = has-fprint
     let after = if $fprint and $FPRINT_LINE not-in $with_u2f {
         auth-insert ($with_u2f | where not ($it =~ 'pam_fprintd[.]so')) $FPRINT_LINE
     } else if not $fprint {
         $with_u2f | where not ($it =~ '^auth\s+sufficient\s+pam_fprintd\.so')
     } else { $with_u2f }
-    let after = auth-insert ($after | where $it != $TTY_LINE) $TTY_LINE $AUTH_ANY
-    if $after == $before or not ($after | any { $in =~ system-auth }) { return }
-    if not ($"($SUDO).pre-auth.bak" | path exists) { ^cp -a $SUDO $"($SUDO).pre-auth.bak" }
-    $after | to text | save --force $SUDO
+    auth-insert ($after | where $it != $TTY_LINE) $TTY_LINE $AUTH_ANY
 }

@@ -32,8 +32,11 @@ Singleton {
   property string actionError: ""
   property string exportError: ""
   readonly property string errorText: actionError || exportError
-  // the last change undo can revert: {uuid, desc, op}
-  property var lastAction: null
+  // the done, delete, start and stop changes undo can still revert, newest last: {uuid, desc, op}; lastAction is the
+  // one the next undo takes
+  property var undoStack: []
+  readonly property int undoCountMax: 20
+  readonly property var lastAction: undoStack.length > 0 ? undoStack[undoStack.length - 1] : null
   property var mutateItem: null
 
   // add and modify hand their text back, so the panel can put it into the input again
@@ -126,7 +129,14 @@ Singleton {
   }
 
   property real nowTick: Date.now()
-  Timer { interval: 30000; running: true; repeat: true; onTriggered: root.nowTick = Date.now() }
+  // the clock behind the elapsed and tracked texts: only the panel and a running task (the agenda's row) show one
+  Timer {
+    interval: 30000
+    running: root.panelOpen || root.activeTask !== null
+    repeat: true
+    triggeredOnStart: true
+    onTriggered: root.nowTick = Date.now()
+  }
 
   readonly property var activeTask: {
     for (let i = 0; i < root.tasks.length; i++) if (root.tasks[i].active) return root.tasks[i]
@@ -247,8 +257,9 @@ Singleton {
       return
     }
     root.actionError = ""
-    if (item.op === "undo") root.lastAction = null
-    else if (["done", "delete", "start", "stop"].indexOf(item.op) >= 0) root.lastAction = { uuid: item.uuid, desc: item.desc, op: item.op }
+    if (item.op === "undo") root.undoStack = root.undoStack.slice(0, -1)
+    else if (["done", "delete", "start", "stop"].indexOf(item.op) >= 0)
+      root.undoStack = root.undoStack.concat([{ uuid: item.uuid, desc: item.desc, op: item.op }]).slice(-root.undoCountMax)
   }
 
   onPanelOpenChanged: if (!panelOpen) root.actionError = ""

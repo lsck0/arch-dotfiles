@@ -2,6 +2,8 @@
 use lib.nu [switch-run]
 use ../../configs/base/tor/anonymous-socks.nu *
 
+# Anonymous SOCKS: get [--json] prints the state, on, off or toggle switches it, a bare call toggles;
+# check, newnym, proxylist and proxyconf work on the pool.
 def main [action: string = "toggle", --json] {
     switch-run {
         label: "Anonymous SOCKS"

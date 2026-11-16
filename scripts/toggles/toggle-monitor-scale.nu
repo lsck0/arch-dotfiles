@@ -139,4 +139,6 @@ def "main toggle" [] {
 }
 
 def "main reapply" [] { reapply }
+# Monitor scale: get [monitor] [--json] prints the scale, list the monitors, set <scale> [monitor] saves and applies
+# one, live <scale> [monitor] applies it unsaved, toggle takes the next scale, a bare call prints the scale.
 def main [] { main get }

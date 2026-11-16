@@ -2,14 +2,14 @@
 # Reason for custom package: not in the repos
 
 pkgname=chiko
-pkgver=0.2.0
+pkgver=0.3.0
 pkgrel=1
 pkgdesc="gRPC TUI client"
 arch=(x86_64)
 url="https://github.com/felangga/chiko"
 license=(MIT)
 makedepends=(git go)
-source=("git+$url.git#commit=8e5d9f9731cc5b466efa7c17c70d36f05df1e41a")
+source=("git+$url.git#commit=5fc39cefe531a1092ef8196c11bc80dae96e2865")
 sha256sums=(SKIP)
 
 build() {

@@ -5,7 +5,7 @@ use ../../../../scripts/lib/state.nu [xdg process-running]
 
 const REPO = path self ../../../..
 const ASAR_URL = "https://github.com/BetterDiscord/BetterDiscord/releases/download/v1.14.5/betterdiscord.asar"
-const ASAR_SHA256 = "2576f2b1dcb3bf5fdc79a5ef137a077543aa9aa0ffcd8337e8c27b8260fc49f3"
+const ASAR_SHA256 = "2576f2b1dcb3bf5fdc79a5ef137a077543aa9aa0ffcd8337e8c27b8260fc49f3" # released 2026-11-04
 const FRESH_SECONDS = 60
 const EXIT_WAIT_SECONDS = 10
 

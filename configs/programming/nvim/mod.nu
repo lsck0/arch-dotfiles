@@ -25,6 +25,7 @@ const THEME_ROLES = "wal/nvim-roles.json"
 # local_plugins/dictate.lua's speech model; huggingface serves it by commit, its lfs oid is the sha256
 const WHISPER_MODEL = {
     file: "ggml-large-v3-turbo-q5_0.bin"
+    # committed 2024-10-29
     commit: "5359861c739e955e79d9a303bcbc70fb988958b1"
     sha256: "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2"
 }

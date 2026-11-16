@@ -32,6 +32,7 @@ BarWidget {
   // A wheel spin or held key asks for many levels; one process sets every monitor in turn, and the newest asked
   // level follows once it exits. Detached sets per notch landed in any order, leaving an older level last.
   property int brightnessPending: -1
+  readonly property int brightnessStepPct: 5
   property int brightnessApplying: -1
 
   function applyBrightnessAll(pct) {
@@ -171,6 +172,10 @@ BarWidget {
     anchors.fill: parent
     bar: root.bar
     text: "\u{f0379}"
+    tooltipText: "Brightness " + (root.brightnessKnown ? Math.round(root.brightnessPct) + "%" : "--") + " :: scroll +-" + root.brightnessStepPct
+    onWheelMoved: function(delta) {
+      if (root.brightnessKnown && delta !== 0) root.applyBrightnessAll(root.brightnessPct + (delta > 0 ? 1 : -1) * root.brightnessStepPct)
+    }
   }
 
   HoverPanel {
@@ -236,6 +241,7 @@ BarWidget {
         }
       }
 
+      PanelSeparator {}
       PanelSectionHeader { text: "MONITORS" }
 
       Repeater {
@@ -259,8 +265,8 @@ BarWidget {
             }
             Label {
               text: monitorRow.disabled ? "off"
-                : monitorRow.modelData.width + "x" + monitorRow.modelData.height + "@" + Math.round(monitorRow.modelData.refreshRate) + "Hz"
-                  + (monitorRow.mirrorOf ? "  |  mirroring " + monitorRow.mirrorOf : "")
+                : monitorRow.modelData.width + "x" + monitorRow.modelData.height + " :: " + Math.round(monitorRow.modelData.refreshRate) + " Hz"
+                  + (monitorRow.mirrorOf ? " :: mirroring " + monitorRow.mirrorOf : "")
               dim: true
               caption: true
             }
@@ -272,16 +278,16 @@ BarWidget {
             spacing: Style.spacing.xs
             Repeater {
               model: {
-                var opts = [{ value: "extend", label: "Extend" }]
+                var opts = [{ value: "extend", label: "EXTEND" }]
                 var others = 0
                 for (let i = 0; i < root.monitors.length; i++) {
                   const m = root.monitors[i]
                   if (m.name === monitorRow.modelData.name || m.disabled) continue
                   if (m.mirrorOf && m.mirrorOf !== "none") continue
                   others++
-                  opts.push({ value: "mirror:" + m.name, label: "Mirror " + m.name })
+                  opts.push({ value: "mirror:" + m.name, label: "MIRROR " + m.name })
                 }
-                if (others > 0 || monitorRow.disabled) opts.push({ value: "off", label: "Off" })
+                if (others > 0 || monitorRow.disabled) opts.push({ value: "off", label: "OFF" })
                 return opts
               }
               Button {
@@ -314,6 +320,7 @@ BarWidget {
         }
       }
 
+      PanelSeparator {}
       PanelSectionHeader { text: "COLOR GRADING" }
 
       Column {
@@ -340,6 +347,7 @@ BarWidget {
         }
       }
 
+      PanelSeparator { visible: shaderList.visible }
       PanelSectionHeader { visible: shaderList.visible; text: "SHADERS" }
 
       Column {

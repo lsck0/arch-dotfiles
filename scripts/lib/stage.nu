@@ -1,7 +1,7 @@
 # One install stage per boot: install, then config, which disarms the chain and reboots.
 
 use log.nu *
-use state.nu [EXIT_PENDING INSTALL_PASS_FILE SYSTEM_REPO CONFIG_ISSUE SECRETS_ISSUE]
+use state.nu [EXIT_PENDING file-trim INSTALL_PASS_FILE SYSTEM_REPO CONFIG_ISSUE SECRETS_ISSUE]
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use system.nu [ENTRY]
 use profile.nu [profile-has]
@@ -59,11 +59,6 @@ def note [message: string]: nothing -> nothing {
     $"(date now | format date '%+') ($message)\n" | ^sudo tee -a ($STAGE_STATE_DIR | path join log) | ignore
 }
 
-# portmaster blocks the watcher; only a test install has a report url
-def watcher-unblock []: nothing -> nothing {
-    if ($STAGE_REPORT | path exists) { do { ^sudo systemctl stop portmaster.service } | complete | ignore }
-}
-
 # A beacon to the watcher at url, and over the vm's channel when there is one; --sudo when the channel is root's.
 export def report-beacon-send [url: string, tag: string, --sudo]: nothing -> nothing {
     ^curl -s -m 10 $"($url)/beacon/($tag)" | complete | ignore
@@ -74,23 +69,16 @@ export def report-beacon-send [url: string, tag: string, --sudo]: nothing -> not
 
 def report-beacon [tag: string]: nothing -> nothing {
     if not ($STAGE_REPORT | path exists) { return }
-    watcher-unblock
+    # portmaster blocks the watcher; only a test install has a report url
+    do { ^sudo systemctl stop portmaster.service } | complete | ignore
     report-beacon-send (open --raw $STAGE_REPORT | str trim) $tag --sudo
 }
 
-def luks-device []: nothing -> string {
-    if ($STAGE_LUKS_DEVICE | path exists) { open --raw $STAGE_LUKS_DEVICE | str trim } else { "" }
-}
-
 def disarm []: nothing -> bool {
-    let device = luks-device
+    let device = file-trim $STAGE_LUKS_DEVICE
     let armed = (^sudo test -f $STAGE_KEY_FILE | complete).exit_code == 0
-    if $device == "" {
-        if $armed { return false }
-        ^sudo rm -f $STAGE_MKINITCPIO_DROPIN
-        return true
-    }
-    if $armed {
+    if $device == "" and $armed { return false }
+    if $device != "" and $armed {
         let status = (^sudo cryptsetup open --test-passphrase --key-file $STAGE_KEY_FILE $device | complete).exit_code
         if $status == 0 {
             if (^sudo cryptsetup luksRemoveKey $device $STAGE_KEY_FILE | complete).exit_code != 0 { return false }
@@ -200,11 +188,6 @@ def boot-next-here []: nothing -> nothing {
     if $r.exit_code != 0 { note $"BootNext not set: ($r.stderr | str trim)" }
 }
 
-def stage-reboot []: nothing -> nothing {
-    boot-next-here
-    ^sudo systemctl reboot
-}
-
 # Runs the stage named in the state dir's `next`, then arms the following one or disarms the chain.
 export def stage-run [repo: path]: nothing -> nothing {
     if not ($STAGE_NEXT | path exists) and ($STAGE_STOPPED | path exists) { stage-rearm }
@@ -260,7 +243,8 @@ export def stage-run [repo: path]: nothing -> nothing {
     let next = $decided.next
     if ($next | is-not-empty) {
         $"($next)\n" | ^sudo tee $STAGE_NEXT | ignore
-        stage-reboot
+        boot-next-here
+        ^sudo systemctl reboot
         return
     }
     ^sudo fstrim /boot | complete | ignore
@@ -270,8 +254,8 @@ export def stage-run [repo: path]: nothing -> nothing {
         ^sudo mkdir -p ($CONFIG_ISSUE | path dirname)
         $"\n(config-banner $failures)\n\n" | ^sudo tee $CONFIG_ISSUE | ignore
     }
-    if (luks-device) != "" {
-        note $"to rotate the disk's volume key \(slow, runs online\): sudo cryptsetup reencrypt (luks-device)"
+    if (file-trim $STAGE_LUKS_DEVICE) != "" {
+        note $"to rotate the disk's volume key \(slow, runs online\): sudo cryptsetup reencrypt (file-trim $STAGE_LUKS_DEVICE)"
     }
     if (profile-has secrets) and not (secret-is-plaintext $WITNESS) {
         let message = "dotfiles secrets are still locked: the YubiKey was not recognized during the install chain.\nPlug it in and run `dot apply` (or `dot secrets unlock`) to pull it in; this banner clears itself once unlocked."

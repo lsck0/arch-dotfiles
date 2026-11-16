@@ -15,6 +15,8 @@ Item {
   property AppLibrary appLibrary: null
   property bool opened: false
   property string filterText: ""
+  // the mode prefix openWith started on: ESC clears back to it, then closes
+  property string homeText: ""
   property int selectedIndex: 0
   property var rows: []
 
@@ -44,6 +46,9 @@ Item {
   // hyprctl names that the hint grammar spells differently; every other key name is shown upper case
   readonly property var keyNames: ({ "mouse:272": "LMB", "mouse:273": "RMB", "mouse:274": "MMB", "Return": "ENTER",
                                      "Escape": "ESC", "Delete": "DEL" })
+  // binds on a keycode are a position on the board, whatever the layout prints there
+  readonly property var keycodeNames: ({ 49: "BELOW ESC" })
+  readonly property string keysSeparator: " / "
   property var binds: []
   property string bindsState: ""
 
@@ -64,6 +69,7 @@ Item {
     panel.screen = Util.focusedScreen()
     root.opened = true
     root.filterText = ""
+    root.homeText = ""
     root.selectedIndex = 0
     // focusHistoryID for the @ order; lands before a typed @ is read
     Hyprland.refreshToplevels()
@@ -164,7 +170,7 @@ Item {
     const clock = ReminderFlowModel.clockNext(words[0], now)
     const minutes = ReminderFlowModel.minutesOf(words[0])
     if (!clock && minutes <= 0)
-      return [{ kind: "capture", name: "x a duration or time first: 90, 10m, 2h, 1h30m, 15:00", sub: "reminder", icon: "", glyph: "\u{f0f3}", keys: "", payload: null }]
+      return [{ kind: "capture", name: "x " + ReminderFlowModel.WHEN_HINT, sub: "reminder", icon: "", glyph: "\u{f0f3}", keys: "", payload: null }]
     const at = clock || new Date(now.getTime() + minutes * 60000)
     const name = words.slice(1).join(" ") || (clock ? "reminder at " + Qt.formatDateTime(at, "HH:mm") : minutes + "-min reminder")
     const sub = "at " + Qt.formatDateTime(at, "HH:mm") + (clock ? " (in " + TimerState.remainingText((at.getTime() - now.getTime()) / 1000) + ")" : "")
@@ -201,26 +207,34 @@ Item {
     }
     const key = String(bind.key || "")
     parts.push(bind.catch_all ? "ANY"
-      : root.keyNames[key] || key.toUpperCase() || "CODE:" + bind.keycode)
+      : root.keyNames[key] || key.toUpperCase() || root.keycodeNames[bind.keycode] || "CODE:" + bind.keycode)
     return parts.join("+")
   }
 
+  // one row per action: binds sharing a description and a submap (h and Left, a letter with and without SUPER) fold
   function bindRows() {
     var words = root.modeQuery.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 0 })
     var topLevel = []
     var submaps = []
+    var rowOf = ({})
     for (let i = 0; i < root.binds.length; i++) {
       const b = root.binds[i]
       const keys = root.bindKeys(b)
       const name = String(b.description || "") || String(b.dispatcher || "") + " " + String(b.arg || "")
       const sub = b.submap ? "[" + b.submap + "]" : ""
-      const haystack = (name + " " + keys + " " + sub).toLowerCase()
-      if (!words.every(function(w) { return haystack.indexOf(w) >= 0 })) continue
-      const row = { kind: "bind", name: name, sub: sub, icon: "", glyph: "\u{f030c}", keys: keys, payload: "" }
-      if (b.submap) submaps.push(row)
-      else topLevel.push(row)
+      const id = sub + "\n" + name
+      if (rowOf[id]) {
+        rowOf[id].keys += root.keysSeparator + keys
+        continue
+      }
+      rowOf[id] = { kind: "bind", name: name, sub: sub, icon: "", glyph: "\u{f030c}", keys: keys, payload: "" }
+      if (b.submap) submaps.push(rowOf[id])
+      else topLevel.push(rowOf[id])
     }
-    return topLevel.concat(submaps)
+    return topLevel.concat(submaps).filter(function(row) {
+      const haystack = (row.name + " " + row.keys + " " + row.sub).toLowerCase()
+      return words.every(function(w) { return haystack.indexOf(w) >= 0 })
+    })
   }
 
   function rebuild() {
@@ -380,7 +394,12 @@ Item {
     function toggle(): string { root.toggle(); return "ok" }
     function open(): string { root.open(); return "ok" }
     // opens on a mode: "+ " for a task, "! " for a reminder, "# " for a note
-    function openWith(text: string): string { root.open(); root.setFilter(text); return "ok" }
+    function openWith(text: string): string {
+      root.open()
+      root.setFilter(text)
+      root.homeText = root.mode === "apps" ? "" : text.charAt(0) + " "
+      return "ok"
+    }
     function close(): string { root.close(); return "ok" }
   }
 
@@ -391,8 +410,9 @@ Item {
     title: root.modeTitles[root.mode]
     suffix: "[" + String(root.rows.length) + "]"
     prompt: true
-    query: root.filterText
-    placeholder: root.modePlaceholders[root.mode]
+    // a bare prefix leaves the line to the mode's placeholder, the one place the capture grammar is shown
+    query: root.mode === "apps" || root.modeQuery ? root.filterText : ""
+    placeholder: (root.mode === "apps" ? "" : root.filterText.charAt(0) + " ") + root.modePlaceholders[root.mode]
     hints: root.modeHints[root.mode]
     onDismissed: root.close()
 
@@ -403,11 +423,15 @@ Item {
 
       Keys.priority: Keys.BeforeItem
       Keys.onPressed: function(event) {
+        const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
         if (event.key === Qt.Key_Escape) {
-          if (root.filterText) root.setFilter("")
+          if (root.filterText && root.filterText.trim() !== root.homeText.trim()) root.setFilter(root.homeText)
           else root.close()
-        } else if (event.key === Qt.Key_Up) root.selectAt(root.selectedIndex - 1)
-        else if (event.key === Qt.Key_Down) root.selectAt(root.selectedIndex + 1)
+        } else if (event.key === Qt.Key_Up || Util.isPrev(event.key, event.modifiers))
+          root.selectAt(root.selectedIndex - 1)
+        else if (event.key === Qt.Key_Down || Util.isNext(event.key, event.modifiers))
+          root.selectAt(root.selectedIndex + 1)
+        else if (ctrl && event.key === Qt.Key_U) root.setFilter(root.homeText)
         else if (event.key === Qt.Key_PageUp) root.selectAt(root.selectedIndex - resultList.pageRows)
         else if (event.key === Qt.Key_PageDown) root.selectAt(root.selectedIndex + resultList.pageRows)
         else if (event.key === Qt.Key_Home) root.selectAt(0)
@@ -415,7 +439,7 @@ Item {
         else if (event.key === Qt.Key_Delete && root.mode === "remind") root.reminderCancelAt(root.selectedIndex)
         else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
           root.activateAt(root.selectedIndex, (event.modifiers & Qt.ShiftModifier) !== 0)
-        else if ((event.key === Qt.Key_V && (event.modifiers & Qt.ControlModifier))
+        else if ((event.key === Qt.Key_V && ctrl)
                  || (event.key === Qt.Key_Insert && (event.modifiers & Qt.ShiftModifier))) root.paste()
         else if (Util.isWordDelete(event.key, event.modifiers)) root.setFilter(Util.wordDelete(root.filterText))
         else if (event.key === Qt.Key_Backspace) root.setFilter(root.filterText.slice(0, -1))

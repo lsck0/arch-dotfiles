@@ -17,13 +17,14 @@ use system.nu [system-pack system-archive system-secrets-digest entry-parses ent
 use ../../configs/core/wallust/wallpaper.nu [wallpaper-set]
 use cause.nu [cause-from-error cause-text failure-line failure-is-system names-shown SYSTEM_FIX]
 use online.nu [network-online OFFLINE_PENDING]
+use usage.nu [counted]
 
 export const INTERNAL = path self internal.nu
 export const PIPELINE_CLI = path self pipeline-cli.nu
 const FAILURES = "FAILURES.config"
 const FAILURES_INSTALL = "FAILURES.install"
 const FAILURES_PUBLISHED = $REPO | path join $FAILURES
-const NIXPKGS = "github:NixOS/nixpkgs/b6c8664de9b6cc07fe5666a29f91884ba81197c4"
+const NIXPKGS = "github:NixOS/nixpkgs/f4a03c008967841f2a0b3cb7c436fc6fc31671f6" # committed 2026-11-07
 const FLATHUB = "https://dl.flathub.org/repo/flathub.flatpakrepo"
 const LFS_FILTER = [
     -c "filter.lfs.clean=git-lfs clean -- %f" -c "filter.lfs.smudge=git-lfs smudge -- %f"
@@ -64,7 +65,7 @@ def summary [results: table]: nothing -> nothing {
     let waiting = $results | where pending? != null | get id | uniq
     let skipped = ($results.id | uniq | length) - ($busy | length) - ($waiting | length)
     let held = if ($waiting | is-empty) { "" } else { $", ($waiting | length) pending" }
-    log-info $"($results.id | uniq | length) modules, ($skipped) unchanged($held)(if ($counts | is-empty) { '' } else { $', ($counts)' })" {kind: summary}
+    log-info $"(counted ($results.id | uniq | length) module), ($skipped) unchanged($held)(if ($counts | is-empty) { '' } else { $', ($counts)' })" {kind: summary}
     let slow = $results | sort-by ms --reverse | first 5 | each { $"($in.ms / 1000 | math round --precision 1)s ($in.id)" } | str join ", "
     log-debug $"slowest: ($slow)"
 }

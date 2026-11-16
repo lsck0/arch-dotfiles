@@ -7,6 +7,11 @@ Singleton {
   id: root
 
   readonly property int refreshMs: 10 * 60 * 1000
+  // nobody looks at the events closely: the desktop agenda behind the windows makes do with a rarer fetch
+  readonly property int refreshIdleMs: 30 * 60 * 1000
+  // the open surfaces that list the events (the clock panel); each counts itself in and out
+  property int viewers: 0
+  onViewersChanged: if (viewers > 0) calendarProc.refresh()
   // after a failed or empty fetch the rollover check retries at most this often between polls
   readonly property int retryMs: 5 * 60 * 1000
   property var all: []
@@ -59,7 +64,7 @@ Singleton {
   JsonProcess {
     id: calendarProc
     command: [Paths.bin("task-calendar"), "events"]
-    intervalMs: root.refreshMs
+    intervalMs: root.viewers > 0 ? root.refreshMs : root.refreshIdleMs
     minAgeMs: root.retryMs
     onParsed: function (data) {
       root.all = (data && data.events) ? Array.prototype.slice.call(data.events) : []

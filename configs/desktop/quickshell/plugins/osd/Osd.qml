@@ -33,7 +33,7 @@ Item {
   readonly property int messageGap: Math.round(root.gap * 2 / 3)
   readonly property int barWidth: Style.space(142)
   readonly property int maxMessageWidth: Style.space(190)
-  readonly property int borderWidth: Math.max(1, Style.space(2))
+  readonly property int borderWidth: Style.surface.borderWidth
 
   readonly property int iconInkWidth: Math.ceil(iconMetrics.tightBoundingRect.width)
   readonly property int iconWidth: root.hasProgress
@@ -200,7 +200,7 @@ Item {
       exclusionMode: ExclusionMode.Ignore
       mask: Region {}
 
-      Rectangle {
+      GlassCard {
         id: card
         readonly property int logHeight: root.lines.length * Math.ceil(logMetrics.height)
         readonly property int chromeWidth: root.borderWidth * 2 + root.pad * 2
@@ -211,17 +211,13 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: Style.space(67)
-        color: Colors.overlayFill
-        border.width: root.borderWidth
-        border.color: Colors.popups.border
-        radius: Style.shape.surface
         opacity: boot.progress
         transform: Translate { y: (1 - boot.progress) * Style.spacing.sm }
 
         Column {
           visible: root.logMode
           anchors.fill: parent
-          anchors.margins: card.border.width + root.pad
+          anchors.margins: root.borderWidth + root.pad
 
           Repeater {
             model: root.lines.length
@@ -239,7 +235,7 @@ Item {
         Row {
           visible: !root.logMode
           anchors.fill: parent
-          anchors.margins: card.border.width + root.pad
+          anchors.margins: root.borderWidth + root.pad
           spacing: root.hasProgress ? root.gap : root.messageGap
 
           Item {
@@ -283,9 +279,6 @@ Item {
             running: root.opened
           }
         }
-
-        HudFrame {}
-        Scanlines {}
       }
 
       Glitch {

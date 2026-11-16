@@ -57,10 +57,11 @@ BarWidget {
     "dropPct", "fps", "cpu", "memMb", "freeDiskMb", "frameTimeMs", "renderSkipped", "renderTotal", "encoderSkipped",
     "encoderTotal"]
   // the running session, empty while idle
+  // a degraded stream says so in the label too, not only by turning from the live to the warn colour
   readonly property string sessionLabel: streamReconnecting ? "RECONNECTING"
-    : streaming && recording ? "LIVE+REC"
-    : streaming ? "LIVE"
-    : recording ? (recordPaused ? "REC PAUSED" : "REC") : ""
+    : (streaming && recording ? "LIVE+REC"
+      : streaming ? "LIVE"
+      : recording ? (recordPaused ? "REC PAUSED" : "REC") : "") + (streaming && degraded ? " !" : "")
 
   // the timers keep a padded minute (05:03), so the pill does not widen at 10:00
   function clock(seconds) {
@@ -68,21 +69,7 @@ BarWidget {
     return c.length === 4 ? "0" + c : c
   }
 
-  function gb(mb) {
-    var v = Number(mb) || 0
-    return v >= 1024 ? (v / 1024).toFixed(1) + " GB" : Math.round(v) + " MB"
-  }
-
-  readonly property real bytesPerKb: 1024
-  readonly property real bytesPerMb: bytesPerKb * 1024
-  readonly property real bytesPerGb: bytesPerMb * 1024
-
-  function bytesText(bytes) {
-    var v = Number(bytes) || 0
-    if (v >= bytesPerGb) return (v / bytesPerGb).toFixed(2) + " GB"
-    if (v >= bytesPerMb) return (v / bytesPerMb).toFixed(0) + " MB"
-    return Math.round(v / bytesPerKb) + " KB"
-  }
+  function mibText(mib) { return Util.bytes((Number(mib) || 0) * Util.bytesPerMib) }
 
   function clearSession() {
     streaming = false
@@ -424,7 +411,7 @@ BarWidget {
       StatRow {
         visible: root.connected
         label: "OBS memory"
-        value: root.gb(root.memMb)
+        value: root.mibText(root.memMb)
       }
 
       PanelSeparator { visible: root.streaming }
@@ -433,13 +420,13 @@ BarWidget {
       StatRow {
         visible: root.streaming
         label: "Sent"
-        value: root.bytesText(root.streamBytes)
+        value: Util.bytes(root.streamBytes)
       }
 
       StatRow {
         visible: root.streaming
         label: "Dropped frames"
-        value: root.droppedFrames + "  (" + root.dropPct.toFixed(2) + "%)"
+        value: root.droppedFrames + " (" + root.dropPct.toFixed(2) + "%)"
         valueColor: root.dropPct >= 1 ? Colors.warnText : Colors.menu.text
       }
 
@@ -478,13 +465,13 @@ BarWidget {
       StatRow {
         visible: root.recording
         label: "Written"
-        value: root.bytesText(root.recordBytes)
+        value: Util.bytes(root.recordBytes)
       }
 
       StatRow {
         visible: root.connected
         label: "Disk free"
-        value: root.gb(root.freeDiskMb)
+        value: root.mibText(root.freeDiskMb)
       }
 
       StatRow {

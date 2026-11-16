@@ -34,12 +34,6 @@ def user-is-admin []: nothing -> bool {
     $ADMIN_GROUP in (^id -nG | str trim | split row " ")
 }
 
-# One unit per call: EnqueueUnitJobMany is refused before polkit can ask.
-export def systemctl-guarded [verb: string, ...units: string]: nothing -> nothing {
-    let ask = if (user-is-admin) { [] } else { [--no-ask-password] }
-    for unit in $units { ^systemctl ...$ask $verb $unit | complete | raise-failed $"systemctl ($verb) ($unit)" }
-}
-
 # Passes a completed external's output on and, when it failed, raises its last stderr line, which the failure toast
 # shows: nushell's own error for a failed external names no cause.
 def raise-failed [what: string]: record -> nothing {
@@ -54,7 +48,9 @@ def raise-failed [what: string]: record -> nothing {
 
 # Runs the root helper through pkexec; a non-admin is turned away before its password dialog.
 export def root-run [...args: string]: nothing -> nothing {
-    if not (user-is-admin) { error make {msg: $"($args.0) needs an admin"} }
+    if not (user-is-admin) {
+        error make {msg: $"refused, this user is not in group ($ADMIN_GROUP): switch it from an admin login"}
+    }
     let run = ^pkexec $ROOT_HELPER ...$args | complete
     # 126: the dialog was dismissed; pkexec's own refusals (127) name themselves on stderr
     if $run.exit_code == 126 {
@@ -118,6 +114,13 @@ export def notify [summary: string, body: string, --critical]: nothing -> nothin
     ^timeout $IPC_TIMEOUT_S notify-send -a toggles ...$urgency $summary $body | complete | ignore
 }
 
+# The one failure toast: "Switch to <target> failed, now <state>: <cause>", target and state where they are known.
+export def notify-failed [label: string, cause: string, --to: string, --now: string]: nothing -> nothing {
+    let to = if $to != null { $" to ($to)" } else { "" }
+    let now = if $now != null { $", now ($now)" } else { "" }
+    notify $label $"Switch($to) failed($now): ($cause)" --critical
+}
+
 # The element after `current` in the input list, wrapping; the first when `current` is not in it.
 export def cycle-next [current: any]: list -> any {
     let list = $in
@@ -161,10 +164,10 @@ def lock-take [lock: path]: nothing -> bool {
     (^mkdir $lock | complete).exit_code == 0
 }
 
-# get/on/off/toggle for a switch; a failure exits 1 with its cause in the toast, except a `get` that cannot read the
-# state, which reports `error` under the switch's own label. One flip runs at a time: a press while one runs is
-# reported, not run again; `on`/`off` in that state already do nothing. An on/off closure may return {said: <body>}
-# to replace the "Turned on/off" toast (a change saved but not yet in effect).
+# get/on/off/toggle for a switch; any other action exits 2, a failure exits 1 with its cause in the toast, except a
+# `get` that cannot read the state, which reports `error` under the switch's own label. One flip runs at a time: a
+# press while one runs is reported, not run again; `on`/`off` in that state already do nothing. An on/off closure may
+# return {said: <body>} to replace the "Turned on/off" toast (a change saved but not yet in effect).
 export def switch-run [switch: record, action: string, --json]: nothing -> any {
     let available_get = {|| if "available" in $switch { do $switch.available } else { true } }
     let state_get = {|available| if $available and (do $switch.is-on) { "on" } else { "off" } }
@@ -184,15 +187,15 @@ export def switch-run [switch: record, action: string, --json]: nothing -> any {
                 notify $switch.label "Still switching"
                 return
             }
-            let fail = {|message, err|
+            let fail = {|cause, to|
                 rm --force --recursive $lock
-                notify $switch.label $"($message): ($err.msg)" --critical
-                with-env {LOG_TAG: ($env.PROCESS_PATH | path basename)} { log-err $err.msg }
+                notify-failed $switch.label $cause --to $to
+                with-env {LOG_TAG: ($env.PROCESS_PATH | path basename)} { log-err $cause }
                 exit 1
             }
             # an explicit on/off whose state cannot be read runs anyway
             let current = try { do $state_get (do $available_get) } catch {|err|
-                if $action == toggle { do $fail "Failed to read its state" $err }
+                if $action == toggle { do $fail $"its state cannot be read: ($err.msg)" null }
                 null
             }
             if $action == $current {
@@ -201,7 +204,7 @@ export def switch-run [switch: record, action: string, --json]: nothing -> any {
                 return
             }
             let action = if $action != toggle { $action } else if $current == on { "off" } else { "on" }
-            let result = try { do ($switch | get $action) } catch {|err| do $fail $"Failed to turn ($action)" $err }
+            let result = try { do ($switch | get $action) } catch {|err| do $fail $err.msg $action }
             rm --force --recursive $lock
             # anything else it returned is an external's captured stdout, passed on as it would have streamed
             let said = if ($result | describe) =~ '^record' { $result.said? } else {
@@ -211,8 +214,7 @@ export def switch-run [switch: record, action: string, --json]: nothing -> any {
             notify $switch.label ($said | default $"Turned ($action)")
         }
         _ => {
-            print -e $"usage: ($env.PROCESS_PATH | path basename) {get [--json]|on|off|toggle}"
-            exit 1
+            die --misuse $"unknown action '($action)', one of get [--json], on, off, toggle; --help says more"
         }
     }
 }
@@ -223,7 +225,10 @@ export def service-switch [label: string, unit: string]: nothing -> record {
         available: {|| unit-exists $unit }
         is-on: {|| unit-active $unit }
         on: {|| ^systemctl --no-ask-password start $unit | complete | raise-failed $"systemctl start ($unit)" }
-        off: {|| systemctl-guarded stop $unit }
+        off: {||
+            let ask = if (user-is-admin) { [] } else { [--no-ask-password] }
+            ^systemctl ...$ask stop $unit | complete | raise-failed $"systemctl stop ($unit)"
+        }
     }
 }
 

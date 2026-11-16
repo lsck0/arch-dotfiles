@@ -14,7 +14,7 @@ def main [--fzf] {
         | each {|t| $t | insert line (line $t) }
     let lines = $toggles.line | to text
     let picked = if $fzf {
-        $lines | ^fzf --prompt="Toggles> " --height=~60% --border --header="enter: toggle | esc: cancel" | complete
+        $lines | ^fzf --prompt="Toggles> " --height=~60% --border --header="enter: flip, or step to the next state | esc: cancel" | complete
     } else {
         $lines | ^$PICKER -p Toggles | complete
     } | get stdout | str trim

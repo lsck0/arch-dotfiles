@@ -2,7 +2,7 @@
 
 const DOT = path self ../../../../scripts/dot.nu
 const JAILS_URL = "https://github.com/SogoCZE/Jails.git"
-const JAILS_COMMIT = "42fa76c816ad34c9f24a4bde586d145c992dc860"
+const JAILS_COMMIT = "42fa76c816ad34c9f24a4bde586d145c992dc860" # committed 2026-09-09
 
 export def zip-newest []: nothing -> any {
     glob ($nu.home-dir | path join sync vendor "jai-*.zip") | sort --natural | last

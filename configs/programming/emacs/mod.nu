@@ -6,7 +6,7 @@ use ../../core/wallust/font.nu [font-load]
 export const meta = {packages: {pacman: [emacs]}}
 
 const DOOM_URL = "https://github.com/doomemacs/doomemacs.git"
-const DOOM_COMMIT = "59cdaa32ae933469bb6a1fb3cadee8a988c15968"
+const DOOM_COMMIT = "7ccac7f643ad67baa25b216717cf8617a0903c69" # committed 2026-11-06
 const DOOMDIR = [doom/init.el doom/config.el doom/packages.el]
 const FORMATTING = [clang-format prettierrc.json ruff.toml rustfmt.toml stylua.toml]
 const SORT_DERIVES = "sort-derives-stdout.nu"

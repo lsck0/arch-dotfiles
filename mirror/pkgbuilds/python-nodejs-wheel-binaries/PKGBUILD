@@ -2,7 +2,7 @@
 # Reason for custom package: use system node
 
 pkgname=python-nodejs-wheel-binaries
-pkgver=24.19.0
+pkgver=24.22.1
 pkgrel=1
 pkgdesc="Python API of the nodejs-wheel binaries, backed by the system node"
 arch=(any)
@@ -11,7 +11,7 @@ license=(MIT)
 depends=(python nodejs npm)
 _name=nodejs-wheel
 source=("$_name-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=(8a39a4b57aeb765a6c7b6e30014f46c8cbf22fc322b913b8dd4a70a6f1f042dc)
+sha256sums=(afe27d3edcf1966e38aaa0a0af86019faea9a43c86cf7dfac2e2ab2bc10dea59)
 
 prepare() {
     cd "$_name-$pkgver"

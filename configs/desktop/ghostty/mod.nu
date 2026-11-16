@@ -1,10 +1,11 @@
 use module.nu *
-use ../../core/wallust/palette.nu [OPACITY_SURFACE]
+use ../../core/wallust/palette.nu [opacity-shell]
 use ../../core/wallust/font.nu [font-load]
 
 export const meta = {deps: [desktop/kitty], reads: [desktop/hyprland], packages: {pacman: [ghostty xdg-terminal-exec]}}
 
 const SERVICE = "app-com.mitchellh.ghostty.service"
+const RELOAD = path self xdg/ghostty-reload.sh
 
 export def link [cfg: record] {
     let config = xdg config
@@ -12,13 +13,12 @@ export def link [cfg: record] {
     let scale = xwayland-scale-for $cfg
     [
         (file-render config ($config | path join ghostty config) {CACHE: (xdg cache), CONFIG: $config})
-        (link-commands xdg/ghostty-window.sh)
+        (link-commands xdg/ghostty-window.sh xdg/ghostty-reload.sh)
         (file-render xdg/ghostty-new-window.desktop ($apps | path join ghostty-new-window.desktop) {HOME: $nu.home-dir})
         (file-copy xdg/xdg-terminals.list ($config | path join xdg-terminals.list))
         (file-link (xdg runtime toggles ghostty-powersave.conf) (xdg cache ghostty-powersave.conf))
         # GDK_SCALE only for what a tab runs, so ghostty's own gtk keeps the compositor's fractional scale
         (file-text ($config | path join dotfiles ghostty-env.conf) $"env = GDK_SCALE=($scale)\n")
-        (file-text ($config | path join dotfiles ghostty-style.conf) $"background-opacity = ($OPACITY_SURFACE)\n")
         (dropin $SERVICE systemd/override.conf)
         (dropin app-ghostty-surface-transient-.scope systemd/surface.conf)
         (unit-enable $SERVICE)
@@ -31,11 +31,9 @@ export def theme [cfg: record, wallpaper: string] {
     let fragment = $"font-family = ($font.mono)\nfont-family = Symbols Nerd Font Mono\nfont-size = ($font.size)\n"
     [
         (file-text ($config | path join dotfiles ghostty-font.conf) $fragment --generated)
+        (file-text ($config | path join dotfiles ghostty-style.conf) $"background-opacity = (opacity-shell)\n" --generated)
         (if (process-running ghostty) {
-            exec ghostty-reload [
-                timeout 5 gdbus call --session --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty
-                --method org.gtk.Actions.Activate reload-config "[]" "{}"
-            ]
+            exec ghostty-reload [$RELOAD]
         })
     ]
 }

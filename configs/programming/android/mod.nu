@@ -17,7 +17,7 @@ const JAVA_HOME = "/usr/lib/jvm/java-21-openjdk"
 # 22.0, the last with the java sdkmanager: 23.0's is a shim fetching an unpinned android-cli from a floating
 # dl.google.com/android/cli/latest url, which a VM run off home got a 404 for
 const CMDLINE_TOOLS_URL = "https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip"
-const CMDLINE_TOOLS_SHA256 = "4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583"
+const CMDLINE_TOOLS_SHA256 = "4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583" # published 2026-07-15
 # off home under lockdown-tor, tor-router carries everything, and dl.google.com answers tor exits with 404
 const TOR_ROUTER = "tor-router.service"
 const SYSTEM_IMAGE = "system-images;android-35;google_apis;x86_64"

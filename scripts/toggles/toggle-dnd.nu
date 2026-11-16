@@ -1,6 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 use lib.nu [switch-run quickshell-call]
 
+# Do not disturb: get [--json] prints the state, on, off or toggle switches it, a bare call toggles.
 def main [action: string = "toggle", --json] {
     switch-run {
         label: "Do not disturb"

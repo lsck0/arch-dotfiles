@@ -18,11 +18,10 @@ PanelWindow {
   property BarWidget anchorWidget: null
   readonly property bool anchored: anchorWidget !== null
 
-  readonly property real edgeMargin: Style.spacing.sm
   readonly property real fadeHeight: Style.space(32)
 
   // everything around the body: padding, the title and the card's bottom stroke, which the body must not run under
-  readonly property real chromeHeight: padding * 2 + titleInset + card.strokeWidth
+  readonly property real chromeHeight: padding * 2 + titleInset + card.shape.strokeWidth
   readonly property real screenBodyHeight: Math.max(Style.space(120),
     (screen ? screen.height : Style.space(1080)) - Style.bar.sizeHorizontal - Style.gapsOut * 2 - chromeHeight) // qmllint disable missing-property
   // a panel caps its body below the screen's room here; past it the body scrolls
@@ -41,11 +40,10 @@ PanelWindow {
   readonly property real anchoredLeft: {
     if (!anchored || !bar) return 0
     var centre = anchorWidget.barX + anchorWidget.width / 2
-    var maxLeft = Math.max(edgeMargin, bar.width - implicitWidth - edgeMargin)
-    return Math.max(edgeMargin, Math.min(maxLeft, centre - implicitWidth / 2))
+    return Math.max(0, Math.min(bar.width - implicitWidth, centre - implicitWidth / 2))
   }
   // where the panel sits on its screen: the toasts and the desktop widgets give way to it
-  readonly property rect screenRect: Qt.rect(anchored ? anchoredLeft : (bar ? bar.width : 0) - Style.spacing.sm - implicitWidth,
+  readonly property rect screenRect: Qt.rect(anchored ? anchoredLeft : (bar ? bar.width : 0) - implicitWidth,
     bar ? bar.exclusiveZone : 0, implicitWidth, implicitHeight)
 
   signal opened()
@@ -92,7 +90,7 @@ PanelWindow {
   margins {
     top: 0 // qmllint disable missing-property
     left: root.anchored ? root.anchoredLeft : 0 // qmllint disable missing-property
-    right: root.anchored ? 0 : Style.spacing.sm // qmllint disable missing-property
+    right: 0 // qmllint disable missing-property
   }
 
   WlrLayershell.namespace: "quickshell-panel-" + (moduleName || "panel")
@@ -244,92 +242,86 @@ PanelWindow {
       clip: true
       opacity: bootIn.progress
 
-      DockShape {
+      GlassCard {
         id: card
         width: root.width
         height: root.height
         docked: true
-        neck: 0
-        fillColor: Colors.bar.background
+        bracketInset: bootIn.bracketInset
+        scanlines: root.shown
+        flicker: true
 
-        readonly property real contentLeftInset: sideInset + strokeWidth + root.padding
-        readonly property real contentRightInset: contentLeftInset
-        readonly property real contentTopInset: root.padding
-        readonly property real contentBottomInset: strokeWidth + root.padding
-      }
+        readonly property real contentLeftInset: shape.sideInset + shape.strokeWidth + root.padding
+        readonly property real contentBottomInset: shape.strokeWidth + root.padding
 
-      Item {
-        x: card.sideInset
-        width: card.width - card.sideInset * 2
-        height: card.height
-        HudFrame { inset: bootIn.bracketInset; chamfer: card.cut; chamferCorner: card.cutCorner }
-      }
+        Flickable {
+          id: inner
+          x: card.contentLeftInset
+          y: root.padding + root.titleInset
+          width: card.width - card.contentLeftInset * 2
+          height: card.height - root.padding - card.contentBottomInset - root.titleInset
+          opacity: bootIn.rowOpacity(1)
+          contentWidth: width
+          contentHeight: Math.max(height, root.bodyHeight)
+          interactive: root.bodyHeight > height
+          flickableDirection: Flickable.VerticalFlick
+          boundsBehavior: Flickable.StopAtBounds
+          clip: interactive
+          layer.enabled: interactive
+          layer.effect: FadeMask { maskSource: bodyFade }
+        }
 
-      Flickable {
-        id: inner
-        x: card.contentLeftInset
-        y: card.contentTopInset + root.titleInset
-        width: card.width - card.contentLeftInset - card.contentRightInset
-        height: card.height - card.contentTopInset - card.contentBottomInset - root.titleInset
-        opacity: bootIn.rowOpacity(1)
-        contentWidth: width
-        contentHeight: Math.max(height, root.bodyHeight)
-        interactive: root.bodyHeight > height
-        flickableDirection: Flickable.VerticalFlick
-        boundsBehavior: Flickable.StopAtBounds
-        clip: interactive
-        layer.enabled: interactive
-        layer.effect: FadeMask { maskSource: bodyFade }
-      }
-
-      // more above or below: the body fades out at that edge and the scroll track shows where the view sits
-      FadeRamp {
-        id: bodyFade
-        x: inner.x
-        y: inner.y
-        width: inner.width
-        height: inner.height
-        reach: root.fadeHeight
-        fadeTop: inner.atYBeginning ? 0 : 1
-        fadeBottom: inner.atYEnd ? 0 : 1
-        layer.enabled: inner.interactive
-      }
-
-      Rectangle {
-        id: scrollTrack
-        visible: inner.interactive
-        x: inner.x + inner.width + (root.padding - width) / 2
-        y: inner.y
-        width: Math.max(1, Style.space(3))
-        height: inner.height
-        radius: width / 2
-        color: Util.alpha(Colors.accent, Style.emphasis.disabled)
-        opacity: inner.opacity
+        // more above or below: the body fades out at that edge and the scroll track shows where the view sits
+        FadeRamp {
+          id: bodyFade
+          x: inner.x
+          y: inner.y
+          width: inner.width
+          height: inner.height
+          reach: root.fadeHeight
+          fadeTop: inner.atYBeginning ? 0 : 1
+          fadeBottom: inner.atYEnd ? 0 : 1
+          layer.enabled: inner.interactive
+        }
 
         Rectangle {
-          y: inner.visibleArea.yPosition * scrollTrack.height
-          width: parent.width
-          height: Math.max(parent.width * 4, inner.visibleArea.heightRatio * scrollTrack.height)
-          radius: parent.radius
-          color: Colors.accent
+          id: scrollTrack
+          visible: inner.interactive
+          x: inner.x + inner.width + (root.padding - width) / 2
+          y: inner.y
+          width: Math.max(1, Style.space(3))
+          height: inner.height
+          radius: width / 2
+          color: Util.alpha(Colors.accent, Style.emphasis.disabled)
+          opacity: inner.opacity
+
+          Rectangle {
+            y: inner.visibleArea.yPosition * scrollTrack.height
+            width: parent.width
+            height: Math.max(parent.width * 4, inner.visibleArea.heightRatio * scrollTrack.height)
+            radius: parent.radius
+            color: Colors.accent
+          }
+        }
+
+        HudTitle {
+          id: titleBar
+          visible: root.title.length > 0
+          z: 4
+          x: card.contentLeftInset
+          y: root.padding
+          width: card.width - card.contentLeftInset * 2
+          height: visible ? implicitHeight : 0
+          text: root.title
+          // pinned by a click or opened from the keyboard: it stays when the pointer leaves
+          suffix: root.barPinned ? ":: PINNED" : ""
+          typed: bootIn.typed
+          // one step above the section headers, like an overlay card's title
+          size: Style.font.title
+          rule: true
+          blinking: visible && root.shown
         }
       }
-
-      HudTitle {
-        id: titleBar
-        visible: root.title.length > 0
-        z: 4
-        x: card.contentLeftInset
-        y: card.contentTopInset
-        width: card.width - card.contentLeftInset - card.contentRightInset
-        height: visible ? implicitHeight : 0
-        text: root.title
-        typed: bootIn.typed
-        rule: true
-        blinking: visible && root.shown
-      }
-
-      Scanlines { anchors.fill: card; shown: root.shown; flicker: true }
     }
 
     Item {

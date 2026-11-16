@@ -77,8 +77,8 @@ matches stops the run (and `vm.test.nu` in lint), so a refactor cannot void a sc
 - Stages beacon `install-ok|failed`, `config-ok|failed` (`stage.nu`, `/var/lib/dotfiles-stage/report`).
 - The chain's end runs `scripts/lib/stage-report.nu` as root: probes in `scripts/lib/invariants.txt`,
   `dot status --json` (`status.json`), `dot internal backup --roundtrip`, stage log, journals, network and nft state,
-  `/etc/issue.d`, `FAILURES.*`, `*.log`; uploads `logs.tgz` and writes it to the channel, beacons `chain-done`,
-  reboots (waits at the passphrase; not unlocked).
+  `/etc/issue.d`, `FAILURES.*`, `*.log`; uploads `logs.tgz` and writes it to the channel, beacons `chain-done`
+  (`chain-fail` on a failed report or a stopped chain), reboots (waits at the passphrase; not unlocked).
 - `$XDG_CACHE_HOME/vm-test/<name>/logs/<scenario>`: the report. Pass is `dot test: <scenario>: chain succeeded`,
   wanting every invariant row at its value (`any` rows only where the scenario's `expect` names them),
   `backup_roundtrip=ok`, `sshd_installed=yes`, a mirror reachable (`mirror_reachable=yes`) or a banner naming a `dot`

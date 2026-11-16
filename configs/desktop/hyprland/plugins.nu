@@ -4,7 +4,7 @@
 use ../../../scripts/lib/state.nu [xdg]
 
 const PLUGINS = [
-    {name: "dynamic-cursors", url: "https://github.com/virtcode/hypr-dynamic-cursors", commit: "2a8d0b735328d874a78ca93b2f201649f712a74a", dir: "", output: "out/dynamic-cursors.so"}
+    {name: "dynamic-cursors", url: "https://github.com/virtcode/hypr-dynamic-cursors", commit: "2a8d0b735328d874a78ca93b2f201649f712a74a", dir: "", output: "out/dynamic-cursors.so"} # committed 2026-10-05
 ]
 const PC = "/usr/share/pkgconfig/hyprland.pc"
 

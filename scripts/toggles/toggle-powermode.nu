@@ -1,11 +1,10 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [status-record status-print notify root-run state-get state-set state-clear state-file quickshell-call cycle-next toggle-run exclusive-run state-check]
+use lib.nu [status-record status-print notify notify-failed root-run state-get state-set state-clear state-file quickshell-call cycle-next toggle-run exclusive-run state-check]
 use ../lib/platform.nu [platform-load]
 
 # auto is no forced mode: tlp picks by the power source
 const MODES = {auto: Auto, balanced: Balanced, performance: Performance, power-saver: "Power saver"}
 const REPO = path self ../..
-const GHOSTTY_TIMEOUT_S = 3
 
 def current []: nothing -> string { state-get powermode --volatile | if $in in $MODES { $in } else { "auto" } }
 
@@ -27,8 +26,7 @@ def saver-sync []: nothing -> nothing {
     state-set powersaver $saver --volatile
     let ghostty_conf = state-file ghostty-powersave.conf --volatile
     if $saver == on { "cursor-style-blink = false\n" | save --force $ghostty_conf } else { rm --force $ghostty_conf }
-    (^timeout $GHOSTTY_TIMEOUT_S gdbus call --session --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty
-        --method org.gtk.Actions.Activate reload-config '[]' '{}' | complete)
+    ^ghostty-reload | complete
     ^hyprctl reload config-only | complete
     toggle-run shader reapply | complete
     toggle-run monitor-scale reapply | complete
@@ -36,13 +34,11 @@ def saver-sync []: nothing -> nothing {
 }
 
 def "main _apply" [mode: string]: nothing -> nothing {
-    if $mode == auto {
-        root-run tlp start
-        state-clear powermode --volatile
-    } else {
-        root-run tlp $mode
-        state-set powermode $mode --volatile
+    try { root-run tlp (if $mode == auto { "start" } else { $mode }) } catch {|err|
+        notify-failed "Power mode" $err.msg --to ($MODES | get $mode) --now ($MODES | get (current))
+        exit 1
     }
+    if $mode == auto { state-clear powermode --volatile } else { state-set powermode $mode --volatile }
     saver-sync
     notify "Power mode" ($MODES | get $mode)
 }
@@ -65,4 +61,6 @@ def "main balanced" [] { main set balanced }
 def "main performance" [] { main set performance }
 def "main power-saver" [] { main set power-saver }
 def "main sync" [] { saver-sync }
+# Power mode: get [--json] prints the mode (nothing for auto), set <mode> or the mode's own name (auto, balanced,
+# performance, power-saver) switches to it, toggle takes the next one, a bare call toggles.
 def main [] { main toggle }

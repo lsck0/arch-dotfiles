@@ -162,7 +162,7 @@ Item {
           height: Math.round(panel.tileWidth * outH / outW)
           radius: Style.shape.data
           opacity: panel.boot.rowOpacity(index)
-          color: Util.alpha(Colors.background, Style.translucency.overlay)
+          color: Colors.panelFill
           borderSpec: Border.controlSpec(selected ? "selected" : "normal", Colors.menu.text, Colors.accent)
           clip: true
 
@@ -220,7 +220,7 @@ Item {
           Rectangle {
             anchors.fill: parent
             z: 3
-            color: Util.alpha(Colors.background, tile.selected ? 0 : Style.translucency.scrim * 0.75)
+            color: Util.alpha(Colors.background, tile.selected ? 0 : Style.translucency.scrim)
             Behavior on color { ColorAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
           }
 
@@ -230,7 +230,7 @@ Item {
             anchors.top: parent.top
             width: label.implicitWidth + Style.spacing.sm * 2
             height: label.implicitHeight + Style.spacing.xs * 2
-            color: Colors.overlayFill
+            color: Colors.panelFill
 
             Label {
               id: label

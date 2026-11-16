@@ -6,18 +6,11 @@ const PROFILE_KEYS = [capabilities name email gpg_fingerprint]
 export const PROFILE_CAPABILITIES = [secrets]
 export const PROFILE_OWNERS_FILE = $SYSTEM_STATE | path join owners
 
-def profile-dir []: nothing -> path {
-    xdg config dotfiles
-}
-
-export def profile-options-file []: nothing -> path {
-    profile-dir | path join options.nuon
-}
-
 # The profile (PROFILE_FILE first) with its option values; unknown keys or capabilities and root are errors.
 export def profile-load []: nothing -> record {
     if (is-admin) { error make {msg: "the system layer never reads a user fact"} }
-    let file = [($env.PROFILE_FILE? | default "") (profile-dir | path join profile.nuon)]
+    let dir = xdg config dotfiles
+    let file = [($env.PROFILE_FILE? | default "") ($dir | path join profile.nuon)]
         | where {|f| $f != "" and ($f | path exists) } | get --optional 0
     let raw = if $file == null { {} } else { open $file }
     let unknown = $raw | columns | where $it not-in $PROFILE_KEYS
@@ -25,7 +18,7 @@ export def profile-load []: nothing -> record {
     let caps = $raw.capabilities? | default []
     let bad = $caps | where $it not-in $PROFILE_CAPABILITIES
     if ($bad | is-not-empty) { error make {msg: $"($file): unknown capabilities ($bad | str join ', ')"} }
-    let options_file = profile-options-file
+    let options_file = $dir | path join options.nuon
     {
         file: $file
         capabilities: $caps

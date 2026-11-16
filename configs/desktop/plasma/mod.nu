@@ -53,7 +53,7 @@ const WALLPAPER_SECTION = '^\[(?<s>Containments\]\[\d+\]\[Wallpaper\]\[org\.kde\
 const DRM = "/sys/class/drm"
 # The weather widget's place is the owner's location: kept in secrets' state, a placeholder in the public files.
 const WEATHER = path self ../../secrets/state/plasma/weather.nuon
-const MODERNCLOCK = {id: com.github.prayag2.modernclock, url: "https://github.com/prayag2/kde_modernclock", commit: 5c86f0f23d2646be7e9872fc5e769bdce259af92}
+const MODERNCLOCK = {id: com.github.prayag2.modernclock, url: "https://github.com/prayag2/kde_modernclock", commit: 5c86f0f23d2646be7e9872fc5e769bdce259af92} # committed 2024-03-07
 const KDE_FONT_KEYS = [
     [group key];
     [General font] [General fixed] [General menuFont] [General smallestReadableFont] [General toolBarFont] [WM activeFont]

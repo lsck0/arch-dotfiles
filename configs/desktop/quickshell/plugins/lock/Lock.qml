@@ -44,6 +44,9 @@ Item {
     if (root.keyNote !== "") return retries !== "" ? root.keyNote + ", " + retries : root.keyNote
     if (pamFprint.active) return root.fprintCue !== "" ? root.fprintCue : "fingerprint ready"
     if (root.keyMode) return retries !== "" ? "security key PIN, " + retries : "security key PIN"
+    // a finger round that timed out, or was stopped by typing, is no longer listening; past the last round it stays off
+    if (root.fprintAvailable)
+      return root.fprintRounds >= root.fprintRoundsMax ? "fingerprint off :: type password" : "fingerprint paused :: ESC to retry"
     return ""
   }
   property string statsText: ""
@@ -239,6 +242,7 @@ Item {
       if (result === PamResult.Success) root.unlock()
       else root.fail()
       active = false
+      if (result !== PamResult.Success) root.fprintArm()
     }
     onError: function(err) {
       root.fail()
@@ -467,7 +471,7 @@ Item {
           height: clockBlock.height + Style.surface.padding * 2
           radius: height / 2
           blur: Style.space(112)
-          color: Colors.overlayFill
+          color: Colors.panelFill
         }
 
         Column {
@@ -525,12 +529,11 @@ Item {
               font.letterSpacing: Style.labelTracking
               horizontalAlignment: TextInput.AlignHCenter
               verticalAlignment: TextInput.AlignVCenter
-              placeholderText: root.authError ? "> ACCESS DENIED" : "> AUTH REQUIRED"
+              placeholderText: root.authError ? "> ACCESS DENIED" : root.keyMode ? "> KEY PIN" : "> AUTH REQUIRED"
               placeholderTextColor: root.authError ? Colors.urgentText : Colors.textDim
               background: null
               onTextEdited: {
                 root.authError = false
-                if (!root.keyMode) root.keyNote = ""
                 root.fprintDisarm()
               }
               onAccepted: {
@@ -632,7 +635,7 @@ Item {
             height: parent.height + Style.surface.padding * 2
             radius: height / 2
             blur: Style.space(48)
-            color: Colors.overlayFill
+            color: Colors.panelFill
           }
 
           Label {
@@ -651,7 +654,7 @@ Item {
           visible: surface.isPrimary && root.notes.length > 0
           width: notesColumn.implicitWidth + Style.spacing.xs * 2
           height: notesColumn.implicitHeight + Style.spacing.xs * 2
-          color: Colors.overlayFill
+          color: Colors.panelFill
           border.width: Style.normalBorderWidth
           border.color: Style.normalBorderColor
           radius: Style.shape.surface

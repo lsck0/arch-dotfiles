@@ -4,7 +4,7 @@ use preserve.nu [preserve-aside]
 export const meta = {packages: {pacman: [gimp]}}
 
 const PHOTOGIMP_VERSION = "3.1"
-const PHOTOGIMP_SHA256 = "bf0e1279870d40152beb3e702cf3e4e01a6892031a1ace5bc4a9b858894b584e"
+const PHOTOGIMP_SHA256 = "bf0e1279870d40152beb3e702cf3e4e01a6892031a1ace5bc4a9b858894b584e" # released 2026-07-11
 const PHOTOGIMP_URL = $"https://github.com/Diolinux/PhotoGIMP/releases/download/($PHOTOGIMP_VERSION)/PhotoGIMP-linux.zip"
 # the gimp config version PhotoGIMP's release ships
 const PHOTOGIMP_GIMP = "3.0"

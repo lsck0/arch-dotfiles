@@ -170,12 +170,16 @@ BarWidget {
     anchors.centerIn: parent
     spacing: Style.spacing.xs
 
-    CavaBars {
+    // the cells exist only while they show: hidden ones would still re-evaluate on every cava frame
+    Loader {
       anchors.verticalCenter: parent.verticalCenter
-      visible: root.spectrumLive
-      rows: 4
-      targetWidth: Style.space(96)
-      targetHeight: Style.bar.sizeHorizontal * 0.4
+      active: root.spectrumLive
+      visible: active
+      sourceComponent: CavaBars {
+        rows: 4
+        targetWidth: Style.space(96)
+        targetHeight: Style.bar.sizeHorizontal * 0.4
+      }
     }
 
     Label {
@@ -244,7 +248,9 @@ BarWidget {
             id: art
             anchors.fill: parent
             source: root.artSource
-            sourceSize.width: Math.ceil(artFrame.width * Screen.devicePixelRatio)
+            // twice the frame: a 16:9 video thumbnail is cropped to the square, and decoded at the frame's width its
+            // height would fall short and be scaled up, soft beside a square album cover
+            sourceSize.width: Math.ceil(artFrame.width * 2 * Screen.devicePixelRatio)
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
@@ -303,12 +309,15 @@ BarWidget {
         }
       }
 
-      CavaBars {
+      Loader {
         anchors.horizontalCenter: parent.horizontalCenter
-        visible: panel.visible && Cava.available
-        rows: 12
-        targetWidth: parent.width
-        targetHeight: Style.space(72)
+        active: panel.visible && Cava.available
+        visible: active
+        sourceComponent: CavaBars {
+          rows: 12
+          targetWidth: content.width
+          targetHeight: Style.space(72)
+        }
       }
 
       Column {
@@ -360,7 +369,7 @@ BarWidget {
 
           TransportButton {
             iconText: "\u{f074}"
-            tooltipText: "Shuffle"
+            tooltipText: root.player && root.player.shuffle ? "Shuffle: on" : "Shuffle: off"
             foreground: root.player && root.player.shuffle ? Colors.accentText : Colors.menu.text
             enabled: root.player !== null && root.player.shuffleSupported
             onClicked: if (root.player) root.player.shuffle = !root.player.shuffle

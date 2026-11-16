@@ -34,6 +34,8 @@ def expect [name: string, got: any, want: any] {
 def main [] {
     if (which nvim | is-empty) { print "python.test: skipped, needs nvim"; return }
     let work = mktemp --directory --tmpdir dot-python-test-XXXXXX
+    # nvim --clean still opens its log under the state dir: the test's own, never the user's nvim.log
+    $env.XDG_STATE_HOME = $work | path join state
     let bare = $work | path join bare
     mkdir $bare
     let project = $work | path join project

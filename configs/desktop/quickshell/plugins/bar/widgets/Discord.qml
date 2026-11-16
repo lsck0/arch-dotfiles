@@ -171,7 +171,7 @@ BarWidget {
               ? "\u{f0581}"    // md-volume_off
               : "\u{f036d}"    // md-microphone_off
             color: Colors.urgent
-            fontSize: Math.round(parent.width * 0.72)
+            fontSize: Math.max(Style.font.captionFloor, Math.round(parent.width * 0.72))
           }
         }
       }
@@ -228,7 +228,7 @@ BarWidget {
             width: parent.width
             horizontalAlignment: Text.AlignRight
             text: root.guildName
-              ? root.guildName + "  ::  " + root.channelName
+              ? root.guildName + " :: " + root.channelName
               : (root.channelName || "Voice call")
             color: Colors.menu.text
             caption: true

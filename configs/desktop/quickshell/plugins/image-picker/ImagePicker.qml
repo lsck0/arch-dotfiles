@@ -22,25 +22,69 @@ Item {
 
   readonly property string pluginDir: Paths.plugin("image-picker")
   readonly property string dot: Paths.bin("dot")
+  readonly property string credits: Paths.dotfiles + "/wallpapers/CREDITS.md"
+  // dot theme's record of the last picks (configs/core/wallust/wallpaper.nu)
+  readonly property string recentFile: Paths.envDir("XDG_STATE_HOME", Paths.home + "/.local/state") + "/dotfiles/theme-recent.json"
   property int mode: 0
   property var modeNames: ["Wallpapers", "Themes"]
-  property string selectedImage: ""
+  // per mode, the pick in effect: the wallpaper's path, the theme's name ("" under a derived palette)
+  property var current: ["", ""]
+  readonly property int pageStep: 10
+  // a held arrow moves one more image per heldPerStep repeats, up to heldStepMax
+  readonly property int heldPerStep: 8
+  readonly property int heldStepMax: 4
+  property int heldRepeats: 0
+  property var recentPicks: []
+  readonly property int recentShown: 3
+  // the tiles under the slices: the last wallpapers left of the preview, the last themes right of it
+  readonly property var recentTiles: ImagePickerModel.recentTiles(recentPicks, current, recentShown)
+  // the tile Ctrl+Left/Right focused and the one under the pointer, -1 for none
+  property int recentIndex: -1
+  property int recentHovered: -1
+  readonly property int recentTileWidth: Style.space(100)
+  readonly property int recentTileHeight: Style.space(56)
+  // the slices' slant, on a tile's height
+  readonly property real recentSkew: skewOffset * recentTileHeight / sliceHeight
+
+  // The lottery (Ctrl+R wallpaper, Ctrl+T theme): the result is drawn first, then the carousel spins to it over
+  // lotterySpinMs, slowing all the way, at least lotteryStepsMin images far and whole laps further when the draw is
+  // nearer, at most lotteryStepsMax: a draw further off starts that close to it, so a long list costs no more frames
+  // or thumbnails than a short one; landed, the stroke blinks and the chime rings lotteryDings times, and
+  // lotteryBeatMs later the pick is applied as Enter does.
+  readonly property int lotterySpinMs: 2000
+  readonly property int lotteryStepsMin: 24
+  readonly property int lotteryStepsMax: 48
+  readonly property int lotteryDings: 3
+  readonly property int lotteryDingMs: 130
+  readonly property int lotteryBeatMs: 250
+  readonly property string lotterySound: Paths.shellDir + "/sounds/pomodoro.oga"
+  // scripts/pomodoro.nu plays the same chime at this volume
+  readonly property real lotterySoundVolume: 0.3
+  // a lottery that waits for the other source's scan
+  property bool lotteryPending: false
+  property bool lotteryRunning: false
+  // the show without its effects: no sound, nothing applied (ipc `image-picker lottery true`)
+  property bool lotteryDry: false
+  property int lotteryTarget: -1
+  property int lotteryStart: 0
+  property real lotteryTravel: 0
+  property real lotteryStroke: 1
   property int selectedIndex: 0
   property bool imagesLoaded: false
   property bool opened: false
   property bool layoutSettled: false
-  readonly property bool ready: imagesLoaded && imageArray.length > 0 && (opened ? layoutSettled : true)
+  readonly property bool ready: imagesLoaded && imageArray.length > 0 && (!opened || layoutSettled)
   property int requestSerial: 0
   readonly property string filterText: filterField.text
-  property var filterMatches: []
   property var filterPositions: []
-  property int filteredCount: 0
+  // the matching images' indices in carousel order
+  property var filterOrder: []
+  readonly property int filteredCount: filterOrder.length
   property var imageArray: []
   property color dimColor: Colors.background
-  property color foreground: Colors.imagePicker.text
-  property color scrim: Colors.imagePicker.scrim
-  property color selectedBorder: Colors.imagePicker.selectedBorder
-  property color unselectedBorder: Colors.imagePicker.unselectedBorder
+  property color foreground: Colors.foreground
+  property color selectedBorder: Util.alpha(Colors.accent, 1)
+  property color unselectedBorder: Util.alpha(Colors.foreground, 0.28)
   property int expandedWidth: Style.space(768)
   property int expandedHeight: Style.space(475)
   property int sliceWidth: Style.space(108)
@@ -51,47 +95,30 @@ Item {
   readonly property int nearbyRange: 16
   readonly property bool showPalette: mode === 0
   readonly property int paletteHeight: showPalette ? Style.space(40) : 0
-  property int bottomChromeHeight: paletteHeight + Style.space(104)
+  property int bottomChromeHeight: paletteHeight + Style.space(104) + keyHints.height + Style.spacing.sm
   property var preview: null
   readonly property int quantizeDepth: 3
   readonly property int quantizeSize: 64
 
   function rebuildFilterCache() {
-    var matches = []
-    var positions = []
-    var count = 0
-    var needle = String(filterText || "").toLowerCase()
-    for (let i = 0; i < imageArray.length; i++) {
-      const image = imageArray[i]
-      const path = String(image.filePath || "")
-      const matched = !needle || ImagePickerModel.nameForPath(path).toLowerCase().indexOf(needle) !== -1 || ImagePickerModel.labelForPath(path).toLowerCase().indexOf(needle) !== -1 || ImagePickerModel.labelForImage(image).toLowerCase().indexOf(needle) !== -1
-      matches.push(matched)
-      positions.push(matched ? count++ : -1)
-    }
-    filterMatches = matches
-    filterPositions = positions
-    filteredCount = count
+    var words = filterText.toLowerCase().split(/\s+/).filter(Boolean)
+    var order = []
+    filterPositions = imageArray.map(function(image, index) { return ImagePickerModel.matches(image, words) ? order.push(index) - 1 : -1 })
+    filterOrder = order
   }
 
-  function revealWhenSettled(serial) {
-    Qt.callLater(function() {
-      if (serial === root.requestSerial && root.opened && root.imagesLoaded && root.imageArray.length > 0)
-        root.layoutSettled = true
-    })
-  }
-
-  function currentPath() {
-    if (imageArray.length === 0 || !itemMatches(selectedIndex)) return ""
-    return imageArray[selectedIndex].filePath
-  }
+  readonly property var selected: itemMatches(selectedIndex) ? imageArray[selectedIndex] : null
+  readonly property int selectedPosition: Math.max(0, filteredPosition(selectedIndex))
 
   function currentLabel() {
-    if (imageArray.length === 0 || !itemMatches(selectedIndex)) return filterText ? "No matches" : ""
-    return ImagePickerModel.labelForImage(imageArray[selectedIndex])
+    var tile = recentTiles[recentHovered >= 0 ? recentHovered : recentIndex]
+    if (tile) return tile.label
+    if (!selected) return filterText ? "No matches" : ""
+    return ImagePickerModel.labelForImage(selected)
   }
 
   function itemMatches(index) {
-    return index >= 0 && index < filterMatches.length ? filterMatches[index] : false
+    return filteredPosition(index) >= 0
   }
 
   function filteredPosition(index) {
@@ -102,41 +129,100 @@ Item {
     if (index >= 0 && index < imageArray.length && itemMatches(index)) selectedIndex = index
   }
 
-  function selectAdjacent(direction) {
-    var count = imageArray.length
-    if (count === 0) return
-    var index = selectedIndex
-    for (let i = 0; i < count; i++) {
-      index = (index + direction + count) % count
-      if (itemMatches(index)) {
-        select(index)
-        return
-      }
-    }
+  // by position among the matching images: a step wraps around the ends, a jump stops at them
+  function selectAt(position, wrap) {
+    var count = filteredCount
+    if (count > 0) select(filterOrder[wrap ? ((position % count) + count) % count : Math.max(0, Math.min(count - 1, position))])
+  }
+
+  // dot theme takes a theme by its name, a wallpaper by its path (shown under its own derived palette), or `random`
+  function apply(pick) {
+    if (!pick) return
+    Quickshell.execDetached([root.dot, "theme", pick])
+    root.cancel()
   }
 
   function applySelected() {
-    var path = currentPath()
-    if (path) Quickshell.execDetached([root.dot, "theme", path])
-    root.cancel()
+    if (selected) apply(ImagePickerModel.pickFor(selected))
+  }
+
+  function lottery(source) {
+    if (lotteryRunning || lotteryPending) return
+    // a scan in flight draws when it lands: the list it would draw from now is the last mode's
+    if (mode === source && imagesLoaded) return lotteryDraw()
+    lotteryPending = true
+    if (mode !== source) switchMode()
+  }
+
+  function lotteryDraw() {
+    var count = filteredCount
+    if (count === 0) return lotteryCancel()
+    lotteryStart = selectedPosition
+    // never the image the carousel is on, so the wheel always turns
+    var steps = count === 1 ? 0 : 1 + Math.floor(Math.random() * (count - 1))
+    lotteryTarget = filterOrder[(lotteryStart + steps) % count]
+    lotteryRunning = true
+    if (count === 1 || Power.saver) return lotteryLand()
+    while (steps < lotteryStepsMin) steps += count
+    if (steps > lotteryStepsMax) {
+      lotteryStart = (lotteryStart + steps - lotteryStepsMax) % count
+      steps = lotteryStepsMax
+      selectAt(lotteryStart, true)
+    }
+    lotterySpin.to = steps
+    lotterySpin.restart()
+  }
+
+  function lotteryLand() {
+    select(lotteryTarget)
+    lotteryDing.restart()
+  }
+
+  function lotteryFinish() {
+    var dry = lotteryDry
+    lotteryCancel()
+    if (!dry) applySelected()
+  }
+
+  // the carousel stays where it stopped
+  function lotteryCancel() {
+    lotterySpin.stop()
+    lotteryDing.stop()
+    lotteryStroke = 1
+    lotteryPending = false
+    lotteryRunning = false
+    lotteryDry = false
+    lotteryTarget = -1
+  }
+
+  function themePalette(raw) {
+    try {
+      return raw ? Colors.conditionPalette(raw) : null
+    } catch (e) {
+      return null
+    }
   }
 
   // a new serial drops the scan still streaming, so its late rows cannot reopen the picker
   function cancel() {
+    root.lotteryCancel()
     root.requestSerial += 1
     root.opened = false
   }
 
-  // a later batch of the same scan keeps the image the user moved to; the first one preselects selectedImage
+  // a later batch of the same scan keeps the image the user moved to; the first one preselects what is in effect
   function loadRows(rows) {
     var newImages = ImagePickerModel.loadRows(rows)
-    var current = root.imagesLoaded && root.imageArray[root.selectedIndex] ? root.imageArray[root.selectedIndex].filePath : root.selectedImage
-    root.selectedIndex = ImagePickerModel.indexForSelectedImage(newImages, current)
+    var pick = root.imagesLoaded && root.imageArray[root.selectedIndex] ? ImagePickerModel.pickFor(root.imageArray[root.selectedIndex]) : root.current[root.mode]
+    root.selectedIndex = ImagePickerModel.indexOfPick(newImages, pick)
     root.imageArray = newImages
     root.rebuildFilterCache()
     root.imagesLoaded = true
     root.opened = true
-    root.revealWhenSettled(root.requestSerial)
+    var serial = root.requestSerial
+    Qt.callLater(function() {
+      if (serial === root.requestSerial && root.opened && root.imagesLoaded && root.imageArray.length > 0) root.layoutSettled = true
+    })
   }
 
   function startImageScan(serial) {
@@ -146,13 +232,13 @@ Item {
     }
     loadImagesProc.activeSerial = serial
     loadImagesProc.queuedSerial = 0
-    loadImagesProc.command = root.mode === 1 ? [root.pluginDir + "/list.nu", "themes", Paths.themes, Paths.wallpaperList] : [root.pluginDir + "/list.nu", Paths.wallpaperList]
+    loadImagesProc.command = [root.pluginDir + "/list.nu"].concat(root.mode === 1 ? ["themes", Paths.themes] : [], [Paths.wallpaperList, root.credits])
     loadImagesProc.running = true
   }
 
   function scan() {
-    filterField.clear()
     imageArray = []
+    rebuildFilterCache()
     selectedIndex = 0
     imagesLoaded = false
     layoutSettled = false
@@ -162,30 +248,29 @@ Item {
 
   function switchMode() {
     root.mode = root.mode === 1 ? 0 : 1
-    root.selectedImage = ""
     root.scan()
   }
 
-  // payload: {mode: 0 wallpapers | 1 themes, selectedImage: path to preselect}
+  // payload: {mode: 0 wallpapers | 1 themes, wallpaper: the path on screen, theme: the theme in effect or ""}
   function open(args) {
     args = args || {}
+    lotteryCancel()
     mode = args.mode === 1 ? 1 : 0
-    selectedImage = String(args.selectedImage || selectedImage)
+    current = [String(args.wallpaper || ""), String(args.theme || "")]
     opened = false
+    recentIndex = -1
+    recentHovered = -1
+    filterField.clear()
+    recentProc.running = true
     scan()
   }
 
-  function close() {
-    cancel()
-  }
-
   onFilterTextChanged: {
+    recentIndex = -1
     rebuildFilterCache()
-    if (!itemMatches(selectedIndex)) {
-      const first = filterMatches.indexOf(true)
-      if (first >= 0) selectedIndex = first
-    }
+    if (!itemMatches(selectedIndex) && filterOrder.length > 0) selectedIndex = filterOrder[0]
   }
+  onLotteryTravelChanged: if (lotterySpin.running) selectAt(lotteryStart + Math.floor(lotteryTravel), true)
   onSelectedIndexChanged: {
     root.preview = null
     quantizeDelay.restart()
@@ -201,6 +286,53 @@ Item {
     layoutSettled = false
     quantizeDelay.stop()
     quantizer.source = ""
+  }
+
+  IpcHandler {
+    target: "image-picker"
+
+    function close(): string { root.cancel(); return "ok" }
+    function lottery(dry: bool): string {
+      if (!root.opened) return "closed"
+      if (root.lotteryRunning || root.lotteryPending) return "busy"
+      root.lotteryDry = dry
+      root.lottery(root.mode)
+      return "ok"
+    }
+  }
+
+  NumberAnimation {
+    id: lotterySpin
+    target: root
+    property: "lotteryTravel"
+    from: 0
+    duration: root.lotterySpinMs
+    // the last images pass one by one, slow enough to follow
+    easing.type: Easing.OutCubic
+    onFinished: root.lotteryLand()
+  }
+
+  SequentialAnimation {
+    id: lotteryDing
+
+    SequentialAnimation {
+      loops: root.lotteryDings
+
+      ScriptAction {
+        script: if (!root.lotteryDry) Quickshell.execDetached(["pw-play", "--media-role", "Notification", "--volume", String(root.lotterySoundVolume), root.lotterySound])
+      }
+      NumberAnimation { target: root; property: "lotteryStroke"; to: Style.emphasis.disabled; duration: root.lotteryDingMs / 2 }
+      NumberAnimation { target: root; property: "lotteryStroke"; to: 1; duration: root.lotteryDingMs / 2 }
+    }
+    PauseAnimation { duration: root.lotteryBeatMs }
+    ScriptAction { script: root.lotteryFinish() }
+  }
+
+  Process {
+    id: recentProc
+    command: [root.pluginDir + "/list.nu", "recent", Paths.themes, Paths.wallpaperList, root.recentFile]
+    stdout: StdioCollector { id: recentOut; waitForEnd: true }
+    onExited: root.recentPicks = ImagePickerModel.loadRecent(recentOut.text)
   }
 
   ColorQuantizer {
@@ -248,6 +380,10 @@ Item {
     onExited: {
       streamFlush.stop()
       if (activeSerial === root.requestSerial && streamBuffer !== loadedBuffer) root.loadRows(streamBuffer)
+      if (activeSerial === root.requestSerial && root.lotteryPending) {
+        root.lotteryPending = false
+        root.lotteryDraw()
+      }
       streamBuffer = ""
       loadedBuffer = ""
       var serial = queuedSerial
@@ -288,10 +424,11 @@ Item {
       right: true
     }
 
-    Rectangle {
-      anchors.fill: parent
-      color: root.scrim
-      opacity: boot.progress
+    Scrim {
+      shown: root.opened || boot.progress > 0
+      progress: boot.progress
+      interactive: root.opened
+      onClicked: root.cancel()
     }
 
     MouseArea {
@@ -334,15 +471,12 @@ Item {
             readonly property string filePath: imageData ? imageData.filePath : ""
             readonly property string thumbnailPath: imageData ? imageData.thumbnailPath : ""
             readonly property bool matched: root.itemMatches(index)
-            readonly property int relativeIndex: root.filteredPosition(index) - Math.max(0, root.filteredPosition(root.selectedIndex))
+            readonly property int relativeIndex: root.filteredPosition(index) - root.selectedPosition
             readonly property bool selected: matched && index === root.selectedIndex
             readonly property bool nearby: matched && Math.abs(relativeIndex) <= root.nearbyRange
             property bool sourceActivated: nearby
-            readonly property real skAbs: Math.abs(root.skewOffset)
-            readonly property real topLeft: root.skewOffset >= 0 ? skAbs : 0
-            readonly property real topRight: root.skewOffset >= 0 ? width : width - skAbs
-            readonly property real bottomRight: root.skewOffset >= 0 ? width - skAbs : width
-            readonly property real bottomLeft: root.skewOffset >= 0 ? 0 : skAbs
+            readonly property var outline: [Qt.point(root.skewOffset, 0), Qt.point(width, 0), Qt.point(width - root.skewOffset, height),
+              Qt.point(0, height), Qt.point(root.skewOffset, 0)]
 
             onNearbyChanged: if (nearby) sourceActivated = true
             visible: nearby
@@ -366,28 +500,7 @@ Item {
                 ShapePath {
                   fillColor: "white"
                   strokeColor: "transparent"
-                  startX: item.topLeft
-                  startY: 0
-
-                  PathLine {
-                    x: item.topRight
-                    y: 0
-                  }
-
-                  PathLine {
-                    x: item.bottomRight
-                    y: item.height
-                  }
-
-                  PathLine {
-                    x: item.bottomLeft
-                    y: item.height
-                  }
-
-                  PathLine {
-                    x: item.topLeft
-                    y: 0
-                  }
+                  PathPolyline { path: item.outline }
                 }
               }
             }
@@ -400,14 +513,16 @@ Item {
               Image {
                 anchors.fill: parent
                 source: !item.sourceActivated ? "" : Util.fileUrl(item.thumbnailPath || item.filePath)
-                sourceSize.width: Math.ceil((item.selected ? root.expandedWidth : root.sliceWidth) * Screen.devicePixelRatio)
+                // a lottery passes the images at slice size: only the one it lands on is decoded again for the preview
+                sourceSize.width: Math.ceil((item.selected && (!root.lotteryRunning || item.index === root.lotteryTarget) ? root.expandedWidth : root.sliceWidth) * Screen.devicePixelRatio)
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
               }
 
               Image {
                 anchors.fill: parent
-                source: (item.selected && item.sourceActivated && item.filePath) ? Util.fileUrl(item.filePath) : ""
+                // a lottery loads no preview but the one it lands on, from its start
+                source: item.filePath && (root.lotteryRunning ? item.index === root.lotteryTarget : item.selected && item.sourceActivated) ? Util.fileUrl(item.filePath) : ""
                 sourceSize.width: Math.ceil(root.expandedWidth * Screen.devicePixelRatio)
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
@@ -441,33 +556,13 @@ Item {
               antialiasing: true
               preferredRendererType: Shape.CurveRenderer
               layer.enabled: item.selected && Style.fx.glow > 0
+              opacity: item.selected ? root.lotteryStroke : 1
 
               ShapePath {
                 fillColor: "transparent"
                 strokeColor: item.selected ? root.selectedBorder : root.unselectedBorder
                 strokeWidth: item.selected ? Style.focusBorderWidth : Style.normalBorderWidth
-                startX: item.topLeft
-                startY: 0
-
-                PathLine {
-                  x: item.topRight
-                  y: 0
-                }
-
-                PathLine {
-                  x: item.bottomRight
-                  y: item.height
-                }
-
-                PathLine {
-                  x: item.bottomLeft
-                  y: item.height
-                }
-
-                PathLine {
-                  x: item.topLeft
-                  y: 0
-                }
+                PathPolyline { path: item.outline }
               }
 
               layer.effect: Glow {}
@@ -529,6 +624,122 @@ Item {
         }
       }
 
+      Component {
+        id: recentTile
+
+        Column {
+          id: tile
+          required property var modelData
+          readonly property var swatches: root.themePalette(modelData.palette)
+          readonly property bool marked: modelData.slot === root.recentIndex || modelData.slot === root.recentHovered
+
+          spacing: Style.spacing.xxs
+
+          Item {
+            width: root.recentTileWidth
+            height: root.recentTileHeight
+
+            // sheared into the slices' slant; the image inside is sheared back, so the slant only crops it
+            Item {
+              width: parent.width - root.recentSkew
+              height: parent.height
+              clip: true
+              transform: Matrix4x4 {
+                matrix: Qt.matrix4x4(1, -root.recentSkew / root.recentTileHeight, 0, root.recentSkew, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+              }
+
+              Image {
+                width: parent.width + root.recentSkew
+                height: parent.height
+                source: Util.fileUrl(tile.modelData.thumbnailPath)
+                sourceSize.width: Math.ceil(width * Screen.devicePixelRatio)
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                transform: Matrix4x4 {
+                  matrix: Qt.matrix4x4(1, root.recentSkew / root.recentTileHeight, 0, -root.recentSkew, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+                }
+              }
+
+              Rectangle {
+                anchors.fill: parent
+                color: "transparent"
+                antialiasing: true
+                border.width: tile.marked ? Style.focusBorderWidth : Style.normalBorderWidth
+                border.color: tile.marked ? root.selectedBorder : root.unselectedBorder
+              }
+            }
+
+            MouseArea {
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onContainsMouseChanged: root.recentHovered = containsMouse ? tile.modelData.slot : root.recentHovered === tile.modelData.slot ? -1 : root.recentHovered
+              onClicked: root.apply(tile.modelData.pick)
+            }
+          }
+
+          Row {
+            visible: tile.swatches !== null
+
+            Repeater {
+              model: ["background", "foreground", "accent", "accent2", "urgent"]
+
+              Rectangle {
+                required property string modelData
+
+                width: (root.recentTileWidth - root.recentSkew) / 5
+                height: Style.spacing.xs
+                color: tile.swatches ? tile.swatches[modelData] : "transparent"
+              }
+            }
+          }
+        }
+      }
+
+      Item {
+        id: recentGroups
+        readonly property real groupWidth: root.recentShown * (root.recentTileWidth + Style.spacing.sm)
+        readonly property real gap: root.expandedWidth / 2 + Style.spacing.lg
+
+        // both groups or neither: the room left of the preview is the room right of it
+        visible: root.ready && root.recentTiles.length > 0 && (parent.width - root.expandedWidth) / 2 >= groupWidth + Style.spacing.lg
+        anchors.top: carousel.bottom
+        anchors.topMargin: Style.spacing.sm
+        anchors.horizontalCenter: carousel.horizontalCenter
+
+        Repeater {
+          model: [["wallpaper", "last wallpapers"], ["theme", "last themes"]]
+
+          Column {
+            id: recentGroup
+            required property var modelData
+            required property int index
+            readonly property var tiles: root.recentTiles.filter(function(tile) { return tile.kind === recentGroup.modelData[0] })
+
+            visible: tiles.length > 0
+            x: index === 0 ? -recentGroups.gap - width : recentGroups.gap
+            spacing: Style.spacing.xs
+
+            Label {
+              anchors.right: recentGroup.index === 0 ? parent.right : undefined
+              text: recentGroup.modelData[1]
+              dim: true
+              caption: true
+            }
+
+            Row {
+              anchors.right: recentGroup.index === 0 ? parent.right : undefined
+              spacing: Style.spacing.sm
+
+              Repeater {
+                model: recentGroup.tiles
+                delegate: recentTile
+              }
+            }
+          }
+        }
+      }
+
       Label {
         anchors.centerIn: carousel
         visible: !root.ready
@@ -547,18 +758,39 @@ Item {
         anchors.topMargin: text !== "" ? Style.spacing.md : 0
         foreground: root.foreground
         accent: root.selectedBorder
-        placeholderText: "filter by name"
+        placeholderText: "filter by artist or title"
         Keys.onPressed: function(event) {
-          if (event.key === Qt.Key_Escape) {
+          const key = event.key
+          const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
+          const enter = key === Qt.Key_Return || key === Qt.Key_Enter
+          const direction = key === Qt.Key_Right || key === Qt.Key_Tab ? 1 : key === Qt.Key_Left || key === Qt.Key_Backtab ? -1 : 0
+          root.heldRepeats = direction !== 0 && event.isAutoRepeat ? root.heldRepeats + 1 : 0
+          const tiles = recentGroups.visible ? root.recentTiles.length : 0
+          const tileStep = ctrl && (key === Qt.Key_Left || key === Qt.Key_Right)
+          event.accepted = true
+          if (root.lotteryRunning || root.lotteryPending) {
+            // a running lottery takes Esc alone: it stops where it is and nothing is applied
+            if (key === Qt.Key_Escape) root.lotteryCancel()
+            return
+          }
+          if (ctrl && key === Qt.Key_R) root.lottery(0)
+          else if (ctrl && key === Qt.Key_T) root.lottery(1)
+          // through the tiles and back to the carousel, which is -1
+          else if (tileStep) root.recentIndex = (root.recentIndex + 1 + direction + tiles + 1) % (tiles + 1) - 1
+          else if (root.recentIndex >= 0 && enter) root.apply(root.recentTiles[root.recentIndex].pick)
+          else if (root.recentIndex >= 0 && key === Qt.Key_Escape) root.recentIndex = -1
+          else if (key === Qt.Key_Escape) {
             if (text) clear()
             else root.cancel()
-          } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) root.applySelected()
-          else if (event.key === Qt.Key_Left || event.key === Qt.Key_Backtab || (event.key === Qt.Key_Tab && event.modifiers & Qt.ShiftModifier))
-            root.selectAdjacent(-1)
-          else if (event.key === Qt.Key_Right || event.key === Qt.Key_Tab) root.selectAdjacent(1)
-          else if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) root.switchMode()
-          else return
-          event.accepted = true
+          } else if (enter) root.applySelected()
+          else if (direction !== 0) root.selectAt(root.selectedPosition + direction * Math.min(root.heldStepMax, 1 + Math.floor(root.heldRepeats / root.heldPerStep)), true)
+          else if (key === Qt.Key_PageUp || key === Qt.Key_PageDown)
+            root.selectAt(root.selectedPosition + (key === Qt.Key_PageDown ? root.pageStep : -root.pageStep), false)
+          else if (key === Qt.Key_Home) root.selectAt(0, false)
+          else if (key === Qt.Key_End) root.selectAt(root.filteredCount - 1, false)
+          else if (key === Qt.Key_Up || key === Qt.Key_Down) root.switchMode()
+          else event.accepted = false
+          if (event.accepted && !tileStep) root.recentIndex = -1
         }
       }
 
@@ -591,9 +823,20 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           text: root.modeNames[root.mode] || ""
           typed: boot.typed
-          suffix: "[" + String(root.filteredCount) + "]"
+          suffix: !root.selected ? "[0]" : "[" + (root.selectedPosition + 1) + "/" + root.filteredCount + "]"
+            + (root.selected.artist ? " :: " + root.selected.artist : "")
           blinking: root.opened
         }
+      }
+
+      KeyHints {
+        id: keyHints
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Style.spacing.sm
+        anchors.horizontalCenter: carousel.horizontalCenter
+        hints: [["</>", "select"], ["PGUP/PGDN", "ten"], ["^/v", root.mode === 1 ? "wallpapers" : "themes"], ["TYPE", "filter"]]
+          .concat(recentGroups.visible ? [["CTRL+</>", "recent"]] : [],
+            [["CTRL+R", "lottery"], ["CTRL+T", "theme lottery"], ["ENTER", "apply"], ["ESC", root.lotteryRunning || root.lotteryPending ? "stop" : root.recentIndex >= 0 ? "back" : root.filterText ? "clear" : "close"]])
       }
 
       HudFrame {

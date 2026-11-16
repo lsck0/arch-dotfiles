@@ -10,7 +10,7 @@ Everything here only reads, except `dot module adopt|reset` and the restart at t
 ## dot
 
 ```bash
-dot status --brief        # failed checks only
+dot status --brief        # FAIL and todo checks only
 dot status [--json]       # generation, last run, pending work, managed files changed since their apply, every check
 dot log [--module <id>] [--level WARN]   # the last changing run's records
 dot log <run> --trace     # span tree with timings
@@ -20,6 +20,9 @@ dot module adopt <file>   # a hand edit becomes the module's source
 dot module reset <file>   # back to the module's copy, the edit preserved aside
 ```
 
+- `dot status` lists each check under its level, `FAIL`, `todo` (pending work, no fault: an apply, `--packages` or a
+  reboot due), `note`, `ok`, in that order (`LEVELS` in `scripts/lib/doctor.nu`). `--brief`, `--json` and the exit
+  code count `todo` as `FAIL`; `--json` reports it as `FAIL`.
 - `FAILURES.config` / `FAILURES.install` at the repo root: the last run's failures, system included, one line each as
   `<module> <verb>/<step>: <cause>; fix: <hint>` (the command, its exit code or `not installed (<package>)`, the last
   stderr lines, the file:line); `dot status` groups them by cause. The fixes come from `HINTS` in

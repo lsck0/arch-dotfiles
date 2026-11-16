@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # Table cases for the nushell pitfalls lint (what each pattern flags, and the lines it must leave alone) and the
 # fail-closed lint.
-use gate.nu [patterns-find NU_PITFALLS LINKED_RELATIVE shebang fail-closed-find FAIL_CLOSED linked-scripts]
+use gate.nu [patterns-find NU_PITFALLS LINKED_RELATIVE shebang fail-closed-find FAIL_CLOSED linked-scripts test-warnings]
 use std/assert
 
 const REPO = path self ../..
@@ -93,7 +93,21 @@ def linked-relative-check [] {
     }
 }
 
+# Only the marked lines of a passing test reach the gate's notes.
+def test-warnings-check [] {
+    let cases = [
+        [name stderr wants];
+        ["silent" "" []]
+        ["a warning among other output" "starting\npins.test: warn: a/mod.nu:8: pinned 2025-01-29, 656 days old\ndone\n" ["pins.test: warn: a/mod.nu:8: pinned 2025-01-29, 656 days old"]]
+        ["the word alone" "this would warn: nothing" []]
+    ]
+    for c in $cases {
+        assert equal (test-warnings $c.stderr) $c.wants $"test warnings, ($c.name)"
+    }
+}
+
 def main [] {
+    test-warnings-check
     pitfalls-check
     shebang-check
     fail-closed-check

@@ -83,6 +83,11 @@ hl.bind(mod .. " + a", app("firefox"), { description = "firefox" })
 hl.bind(mod .. " + SHIFT + a", app("qutebrowser"), { description = "qutebrowser" })
 hl.bind(mod .. " + d", quickshell_toggle("appsearch"), { description = "app launcher" })
 hl.bind(
+    mod .. " + SHIFT + d",
+    quickshell_call("notifications", "dismissAll"),
+    { description = "dismiss every notification on screen" }
+)
+hl.bind(
     mod .. " + ALT + d",
     hl.dsp.exec_cmd(
         "cmd=$(bash -c 'compgen -c' | sort -u | " .. hypr_script("picker.nu") .. ' -p run) && uwsm-app -- sh -c "$cmd"'
@@ -281,6 +286,7 @@ hl.define_submap("resize", function()
 
     hl.bind(mod .. " + r", hl.dsp.submap("reset"), { description = "leave resize mode" })
     hl.bind("Escape", hl.dsp.submap("reset"), { description = "leave resize mode" })
+    hl.bind("catchall", hl.dsp.submap("reset"), { description = "leave resize mode" })
 end)
 
 local PANELS = {
@@ -312,13 +318,13 @@ hl.define_submap("panels", "reset", function()
 end)
 
 hl.define_submap("overview", function()
-    hl.bind(mod .. " + Tab", quickshell_call("overview", "next"), { repeating = true, description = "next window" })
+    hl.bind(mod .. " + Tab", quickshell_call("overview", "next"), { repeating = true, description = "next workspace" })
     hl.bind(
         mod .. " + SHIFT + Tab",
         quickshell_call("overview", "prev"),
-        { repeating = true, description = "previous window" }
+        { repeating = true, description = "previous workspace" }
     )
-    hl.bind(mod .. " + Return", quickshell_call("overview", "commit"), { description = "go to the selected window" })
+    hl.bind(mod .. " + Return", quickshell_call("overview", "commit"), { description = "go to the selected workspace" })
     hl.bind(
         "Escape",
         hl.dsp.exec_cmd(quickshell_cmd("overview", "close") .. "; hyprctl dispatch 'hl.dsp.submap(\"reset\")'"),

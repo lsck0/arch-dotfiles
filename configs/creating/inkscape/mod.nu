@@ -7,8 +7,8 @@ export const options = {
 }
 
 # MCP_FROZEN cuts off its deps (mcp-uvx); bump both together
-const MCP_VERSION = "1.3.1"
-const MCP_FROZEN = "2026-09-01"
+const MCP_VERSION = "2.0.0"
+const MCP_FROZEN = "2026-11-09"
 # inkex pins lxml 5.4.0, which has no wheel for and fails to build on python 3.14
 const MCP_PYTHON = "3.12"
 # inkscape merges its preferences over the built-in ones by group id, so this group alone is a complete file

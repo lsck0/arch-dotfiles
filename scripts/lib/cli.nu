@@ -8,10 +8,19 @@ const REPO = path self ../..
 const CRASH_LOG_LINES = 20
 const SUPERVISOR = path self interruptible.sh
 const CRASH_FILE = "crash.json"
+# wider than any row: the piped table is never wrapped or truncated
+const ROWS_PIPED_WIDTH = 100_000
 
 # A switch as the argv it was given: [--name] when on.
 export def flag [name: string, on: bool]: nothing -> list<string> {
     if $on { [$"--($name)"] } else { [] }
+}
+
+# A command's rows: the table at a terminal; piped, borderless at full width, one row a line, where nushell's own table
+# wraps a cell to 80 columns and grep finds half an id.
+export def rows-out []: table -> any {
+    let rows = $in
+    if (is-terminal --stdout) { $rows } else { $rows | table --theme none --index false --width $ROWS_PIPED_WIDTH }
 }
 
 # Parallel jobs: DOTFILES_JOBS, else the cpu count.

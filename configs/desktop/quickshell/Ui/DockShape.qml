@@ -6,13 +6,10 @@ Item {
   id: root
 
   property bool docked: false
-  property color fillColor: Colors.menu.background
-  property color strokeColor: Util.alpha(Colors.accent, Style.surface.ruleAlpha)
-  property real strokeWidth: docked ? Math.max(1, Style.fx.bracketWidth) : Style.surface.borderWidth
+  property color fillColor: Colors.panelFill
+  property color strokeColor: Colors.edge
+  property real strokeWidth: Style.surface.borderWidth
   property real chamfer: Style.shape.chamfer
-
-  property bool glow: false
-  Component { id: glowEffect; Glow {} }
 
   property real neck: docked ? Style.shape.neck : 0
   readonly property real sideInset: neck
@@ -28,7 +25,6 @@ Item {
 
   layer.enabled: width > 0 && height > 0
   layer.smooth: true
-  layer.effect: root.glow && Style.fx.glow > 0 ? glowEffect : null
 
   Shape {
     anchors.fill: parent

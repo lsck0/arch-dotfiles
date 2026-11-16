@@ -12,9 +12,9 @@ Item {
   property int selectedIndex: 0
   readonly property string userName: Quickshell.env("USER") || Quickshell.env("LOGNAME") || ""
   readonly property var actions: [
-    { label: "Lock", hotkey: "L", icon: "\u{f023}", cmd: ["loginctl", "lock-session"] },
+    { label: "Lock", hotkey: "O", icon: "\u{f023}", cmd: ["loginctl", "lock-session"] },
     { label: "Exit", hotkey: "E", icon: "\u{f08b}", cmd: ["uwsm", "stop"], confirm: true },
-    { label: "Suspend", hotkey: "H", icon: "\u{f04b2}", cmd: ["systemctl", "suspend", "--check-inhibitors=no"] },
+    { label: "Suspend", hotkey: "Z", icon: "\u{f04b2}", cmd: ["systemctl", "suspend", "--check-inhibitors=no"] },
     { label: "Shutdown", hotkey: "S", icon: "\u{f011}", cmd: ["systemctl", "poweroff"], confirm: true },
     { label: "Reboot", hotkey: "R", icon: "\u{f0709}", cmd: ["systemctl", "reboot"], confirm: true },
     { label: "Firmware", hotkey: "F", icon: "\u{f0493}", cmd: ["systemctl", "reboot", "--firmware-setup"], confirm: true }
@@ -50,9 +50,11 @@ Item {
 
   function hotkeyIndex(key) {
     var letter = String.fromCharCode(key).toUpperCase()
-    for (let i = 0; i < root.actions.length; i++)
-      if (root.actions[i].hotkey === letter) return i
-    return -1
+    return root.actions.findIndex(function(action) { return action.hotkey === letter })
+  }
+
+  function select(step) {
+    root.selectedIndex = Math.max(0, Math.min(root.actions.length - 1, root.selectedIndex + step))
   }
 
   IpcHandler {
@@ -69,8 +71,8 @@ Item {
     title: "session"
     suffix: root.userName.length > 0 ? "@" + root.userName : ""
     hints: root.pendingAction
-      ? [["Y/ENTER", "confirm"], ["N/ESC", "cancel"]]
-      : [["</>", "select"], ["ENTER", "run"], ["L/E/H/S/R/F", "direct"], ["ESC", "close"]]
+      ? [["Y", "confirm"], ["N/ESC", "cancel"]]
+      : [["</>", "select"], ["ENTER", "run"], [root.actions.map(function(action) { return action.hotkey }).join("/"), "direct"], ["ESC", "close"]]
     cardWidth: actionRow.implicitWidth + chromeWidth
     cardHeight: actionRow.implicitHeight + confirmLine.height + Style.spacing.sm + chromeHeight
     onDismissed: root.close()
@@ -82,7 +84,7 @@ Item {
       Keys.priority: Keys.BeforeItem
       Keys.onPressed: function(event) {
         if (root.pendingAction) {
-          if (event.key === Qt.Key_Y || event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+          if (event.key === Qt.Key_Y)
             root.activate(root.pendingIndex)
           else
             root.pendingIndex = -1
@@ -90,8 +92,8 @@ Item {
           return
         }
         if (event.key === Qt.Key_Escape) root.close()
-        else if (event.key === Qt.Key_Left) root.selectedIndex = Math.max(0, root.selectedIndex - 1)
-        else if (event.key === Qt.Key_Right) root.selectedIndex = Math.min(root.actions.length - 1, root.selectedIndex + 1)
+        else if (event.key === Qt.Key_Left || event.key === Qt.Key_H) root.select(-1)
+        else if (event.key === Qt.Key_Right || event.key === Qt.Key_L) root.select(1)
         else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) root.activate(root.selectedIndex)
         else {
           let index = root.hotkeyIndex(event.key)
@@ -183,7 +185,7 @@ Item {
 
       Label {
         anchors.verticalCenter: parent.verticalCenter
-        text: root.pendingAction ? "> " + root.pendingAction.label.toUpperCase() + "? [Y/n]" : ""
+        text: root.pendingAction ? "> " + root.pendingAction.label.toUpperCase() + "? [y/N]" : ""
         color: Colors.urgentText
         font.bold: true
         font.letterSpacing: Style.headerTracking

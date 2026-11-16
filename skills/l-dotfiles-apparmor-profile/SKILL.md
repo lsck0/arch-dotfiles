@@ -33,8 +33,8 @@ is `enforce`; `apparmor.test.nu` fails otherwise. Luca backs one off on one mach
    (`include <abstractions/dotfiles/viewer-read>`).
 3. `configs/base/apparmor/apparmor.test.nu`: exit 0 is clean.
 4. Load: an agent runs `DOT_SYSTEM=skip dot apply` (pending, exit 3) and asks Luca for `dot apply --system`, which
-   installs, reloads and fails if a profile is not in its mode. Does nothing on WSL; needs
-   `/etc/apparmor.d/abstractions/base-strict`. Quick loop for Luca:
+   installs, reloads and fails if a profile is not in its mode. Does nothing on WSL; installs no profiles without
+   apparmor.d (`aa-install` or `/etc/apparmor.d/abstractions/base-strict`). Quick loop for Luca:
    ```bash
    sudo install -m644 configs/base/apparmor/local/<p> /etc/apparmor.d/local/<p>
    sudo apparmor_parser -r /etc/apparmor.d/<file>

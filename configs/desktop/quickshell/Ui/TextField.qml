@@ -23,7 +23,7 @@ TextField {
   font.pixelSize: Style.font.body
   color: foreground
   selectionColor: selectionTint
-  selectedTextColor: foreground
+  selectedTextColor: Style.selectionTextFor(foreground, accent)
   placeholderTextColor: Colors.textDim
 
   Keys.onPressed: function (event) {

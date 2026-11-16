@@ -4,8 +4,8 @@ use module.nu *
 export const meta = {deps: [programming/claude], serial: true}
 
 const URL = "https://github.com/JuliusBrussee/caveman.git"
-const COMMIT = "6571943370f7c9d4de1946481177ee7b306cd8e8"
-const SKILLS_CLI = "skills@1.7.0"
+const COMMIT = "1e91f1306d602d4ca23618701b1185575ae1869b" # v4.1.0, committed 2026-11-08
+const SKILLS_CLI = "skills@1.7.6"
 # else the claude cli writes failed telemetry events under ~/.claude on every call
 const CLAUDE = [env DISABLE_TELEMETRY=1 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 claude]
 const PROBE = "skills/caveman/SKILL.md"
@@ -56,7 +56,7 @@ export def link [cfg: record] {
         (if (has claude) { claude-steps $dir $probe })
         (if (has gemini) { gemini-step })
         (if (has node) and (has hermes) {
-            (exec "caveman hermes" [node ($dir | path join bin install.js) --only hermes --non-interactive]
+            (exec "caveman hermes" [node ($dir | path join installer install.js) --only hermes --non-interactive]
                 --done=(same-file $probe $hermes) --requires $probe)
         })
         (if (has copilot) and (has npx) {

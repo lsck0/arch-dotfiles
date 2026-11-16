@@ -16,6 +16,8 @@ BarWidget {
   property bool ok: false
   property string error: ""
   property bool absent: false
+  // when the last good answer came: an unreachable lab keeps showing it under its age
+  property real updatedMs: 0
   // the last good homelab-status.nu answer
   property var lab: ({
     links: { homepage: "", dashboard: "", alerts: "", proxmox: "", nas: "" },
@@ -40,6 +42,10 @@ BarWidget {
 
   function num(value, suffix) {
     return value === null || value === undefined ? "--" : value + (suffix || "")
+  }
+
+  function sizeOf(usedGib, totalGib) {
+    return (Number(totalGib) || 0) > 0 ? Util.bytesOf((Number(usedGib) || 0) * Util.bytesPerGib, totalGib * Util.bytesPerGib) : "--"
   }
 
   visible: !root.absent
@@ -72,6 +78,7 @@ BarWidget {
       // the closed panel's poll carries no clients: the last ones stay for the next open
       if (s.clients === undefined) s.clients = root.lab.clients
       root.lab = s
+      root.updatedMs = Date.now()
     }
   }
 
@@ -209,6 +216,8 @@ BarWidget {
       text: groupBox.title
       color: Colors.accentText
       caption: true
+      font.capitalization: Font.AllUppercase
+      font.letterSpacing: Style.headerTracking
     }
 
     Grid {
@@ -246,7 +255,8 @@ BarWidget {
 
             Label {
               anchors.verticalCenter: parent.verticalCenter
-              text: tile.asleep ? "o" : "*"
+              // up, asleep and down differ by mark, not only by colour
+              text: tile.down ? "x" : tile.asleep ? "o" : "*"
               color: tile.down ? Colors.urgentText : tile.asleep ? Colors.textDim : Colors.menu.text
             }
             Label {
@@ -292,12 +302,16 @@ BarWidget {
       LinkStat {
         visible: !root.ok
         label: "Status"
-        value: !root.received ? "Connecting..." : root.error === "source" ? "No homelab checkout"
+        value: !root.received ? "Connecting" : root.error === "source" ? "No homelab checkout"
           : root.vpnUp ? "VPN up, lab unreachable" : "Unreachable"
         alert: root.received
       }
+      LinkStat {
+        visible: !root.ok && root.updatedMs > 0
+        label: "Last answer"
+        value: Qt.formatDateTime(new Date(root.updatedMs), Util.dayFormat + " " + Util.timeFormat)
+      }
       PanelSeparator { visible: vpnRow.visible }
-      PanelSectionHeader { text: "Tools"; visible: vpnRow.visible }
       PanelRow {
         id: vpnRow
         width: parent.width
@@ -310,9 +324,11 @@ BarWidget {
         }
       }
 
+      PanelSeparator { visible: !root.ok && root.updatedMs > 0 }
+
       Column {
         width: parent.width
-        visible: root.ok
+        visible: root.updatedMs > 0
         spacing: Style.spacing.sm
 
         Column {
@@ -349,7 +365,7 @@ BarWidget {
             spacing: Style.spacing.xxs
             LinkStat {
               label: "Memory"
-              value: root.num(root.lab.host.memUsedGb) + " / " + root.num(root.lab.host.memTotalGb, " GB")
+              value: root.sizeOf(root.lab.host.memUsedGb, root.lab.host.memTotalGb)
               url: root.lab.links.proxmox
             }
             LinkStat { label: "Temperature"; value: root.num(root.lab.host.tempC, "\u00b0C"); url: root.lab.links.proxmox }
@@ -364,7 +380,7 @@ BarWidget {
         PanelSectionHeader { text: "Storage" }
         GaugeRow {
           label: "NAS free"
-          value: root.num(root.lab.storage.nasFreeGb) + " / " + root.num(root.lab.storage.nasTotalGb, " GB")
+          value: root.sizeOf(root.lab.storage.nasFreeGb, root.lab.storage.nasTotalGb)
           fraction: (Number(root.lab.storage.nasTotalGb) || 0) > 0 ? (Number(root.lab.storage.nasFreeGb) || 0) / Number(root.lab.storage.nasTotalGb) : 0
           url: root.lab.links.nas
         }

@@ -4,6 +4,6 @@
   "private": true,
   "description": "Repo-pinned local install of godot-mcp-server for the agents' MCP server (arch-dotfiles/configs/programming/godot).",
   "dependencies": {
-    "godot-mcp-server": "0.6.0"
+    "godot-mcp-server": "0.6.1"
   }
 }

@@ -11,20 +11,28 @@ Item {
   property bool dim: false
   property int valueElide: Text.ElideRight
   readonly property real valueShare: 0.65
+  // a clickable row is a link: focusable, activated by Enter or Space, and as tall as any other control
   property bool clickable: false
+  readonly property bool highlighted: clickable && (activeFocus || mouse.containsMouse)
 
   signal activated()
 
   width: parent ? parent.width : implicitWidth
   implicitWidth: labelText.implicitWidth + valueRow.implicitWidth + Style.spacing.md
-  implicitHeight: valueText.implicitHeight + Style.spacing.xxs * 2
+  implicitHeight: Math.max(clickable ? Style.row.control : 0, valueText.implicitHeight + Style.spacing.xxs * 2)
+  activeFocusOnTab: clickable
+  Keys.onReturnPressed: root.activated()
+  Keys.onEnterPressed: root.activated()
+  Keys.onSpacePressed: root.activated()
 
   Rectangle {
     anchors.fill: parent
     anchors.leftMargin: -Style.spacing.xs
     anchors.rightMargin: -Style.spacing.xs
     radius: Style.shape.data
-    color: mouse.containsMouse && root.clickable ? Style.hoverFill : "transparent"
+    color: !root.clickable ? "transparent"
+      : root.activeFocus ? Style.focusFillFor(Colors.foreground, Colors.accent)
+      : mouse.containsMouse ? Style.hoverFill : "transparent"
     Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
   }
 
@@ -65,7 +73,7 @@ Item {
       width: Math.min(implicitWidth, root.width * root.valueShare)
       elide: root.valueElide
       text: root.value
-      color: root.dim ? Colors.textDim : root.valueColor
+      color: root.dim && !root.highlighted ? Colors.textDim : root.valueColor
       caption: true
       font.features: { "tnum": 1 }
     }
@@ -73,6 +81,7 @@ Item {
       visible: root.note !== ""
       text: root.note
       dim: true
+      highlighted: root.highlighted
       caption: true
       font.features: { "tnum": 1 }
     }

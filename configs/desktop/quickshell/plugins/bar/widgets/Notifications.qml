@@ -16,7 +16,17 @@ BarWidget {
   readonly property var service: root.bar && root.bar.shellHost
     ? root.bar.shellHost.plugin("service.notifications") : null
   readonly property bool dndOn: service ? service.doNotDisturb : false
+  // what switched it on when it was not the user: "OBS", "screen share", else ""
+  readonly property string dndSource: service && service.dndSource ? service.dndSource : ""
   readonly property var history: service ? service.history : []
+  // the bell's dot means news: entries that arrived since the panel was last open
+  property double seenMs: 0
+  readonly property int unseenCount: history.filter(function(e) { return (e.timestamp || 0) > root.seenMs }).length
+
+  // a history card shows bodyLinesCollapsed lines; one card at a time opens to bodyLinesExpanded
+  readonly property int bodyLinesCollapsed: 3
+  readonly property int bodyLinesExpanded: 30
+  property string expandedKey: ""
 
   implicitWidth: button.implicitWidth
   implicitHeight: Style.bar.sizeHorizontal
@@ -69,10 +79,11 @@ BarWidget {
     anchors.fill: parent
     bar: root.bar
     text: root.dndOn
-      ? (root.history.length > 0 ? "\u{ec09}" : "\u{ec08}")
-      : (root.history.length > 0 ? "\u{eb9a}" : "\u{eaa2}")
+      ? (root.unseenCount > 0 ? "\u{ec09}" : "\u{ec08}")
+      : (root.unseenCount > 0 ? "\u{eb9a}" : "\u{eaa2}")
     useActiveColor: false
-    tooltipText: (root.dndOn ? "Do not disturb :: " : "") + root.history.length + " recent notifications"
+    tooltipText: (root.dndOn ? "Do not disturb :: " : "") + (root.unseenCount > 0 ? root.unseenCount + " new :: " : "")
+      + Util.count(root.history.length, "recent notification") + " :: MMB dnd"
     onPressed: function(b) {
       if (b === Qt.MiddleButton) root.toggleDnd()
     }
@@ -86,6 +97,8 @@ BarWidget {
     maxBodyHeight: Style.space(400)
 
     onOpened: if (root.service) root.service.refreshHistory()
+    // seen once the panel closes again: while it is open the new ones are on screen
+    onShownChanged: if (!shown) { root.seenMs = Date.now(); root.expandedKey = "" }
 
     property double nowMs: Date.now()
     Timer {
@@ -104,7 +117,7 @@ BarWidget {
       PanelRow {
         width: parent.width
         label: "Do not disturb"
-        trailing: "silence popups"
+        trailing: root.dndOn && root.dndSource !== "" ? "on :: " + root.dndSource : "silence popups"
         stateMarker: true
         on: root.dndOn
         onActivated: root.toggleDnd()
@@ -129,38 +142,59 @@ BarWidget {
           visible: root.history.length > 0
           variant: "chip"
           focusable: true
-          text: "clear"
+          text: "CLEAR"
           onClicked: { root.clearHistory(); root.closePanel() }
         }
       }
 
       Label {
         visible: root.history.length === 0
-        bottomPadding: Style.spacing.md
         text: "> NOTHING RECENT"
         dim: true
-        font.letterSpacing: Style.displayTracking
+        caption: true
       }
 
       Repeater {
         model: root.history
-        delegate: NotificationCard {
+        delegate: Column {
+          id: entry
           required property var modelData
-          variant: "row"
-          now: panel.nowMs
-          bodyLines: root.history.length <= 2 ? 10 : 3
-          width: content.width
-          app: modelData.app || ""
-          appIcon: modelData.appIcon || ""
-          summary: modelData.summary || ""
-          body: modelData.body || ""
-          image: modelData.image || ""
-          glyph: modelData.glyph || ""
-          urgency: modelData.urgency !== undefined ? modelData.urgency : 1
-          timestamp: modelData.timestamp || 0
+          readonly property string key: (modelData.originalId || 0) + ":" + (modelData.timestamp || 0)
+          readonly property bool expanded: root.expandedKey === key
+          // an opened card no longer cuts its body, and still needs its LESS
+          readonly property bool bodyLong: card.truncated || expanded
 
-          onCardClicked: root.openEntry(modelData)
-          onCloseRequested: root.removeEntry(modelData)
+          function toggleExpanded() { root.expandedKey = expanded ? "" : key }
+
+          width: content.width
+
+          NotificationCard {
+            id: card
+            variant: "row"
+            now: panel.nowMs
+            bodyLines: entry.expanded ? root.bodyLinesExpanded : root.bodyLinesCollapsed
+            width: parent.width
+            app: entry.modelData.app || ""
+            appIcon: entry.modelData.appIcon || ""
+            summary: entry.modelData.summary || ""
+            body: entry.modelData.body || ""
+            image: entry.modelData.image || ""
+            glyph: entry.modelData.glyph || ""
+            urgency: entry.modelData.urgency !== undefined ? entry.modelData.urgency : 1
+            timestamp: entry.modelData.timestamp || 0
+
+            Keys.onSpacePressed: if (entry.bodyLong) entry.toggleExpanded()
+            onCardClicked: root.openEntry(entry.modelData)
+            onCloseRequested: root.removeEntry(entry.modelData)
+          }
+
+          Button {
+            visible: entry.bodyLong
+            anchors.right: parent.right
+            variant: "chip"
+            text: entry.expanded ? "LESS" : "MORE"
+            onClicked: entry.toggleExpanded()
+          }
         }
       }
     }

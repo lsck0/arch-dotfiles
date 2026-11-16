@@ -1,12 +1,13 @@
 #!/usr/bin/env -S nu --no-config-file
 # dot plan, apply and status, which dot.nu hands off to: this process parses only the pipeline, run and doctor, not the
 # whole CLI, since every call of a closure-taking command costs per command the process parsed. The signatures are
-# dot.nu's, which carries their help and completion.
+# dot.nu's, which carries their help and completion and turns away misuse (an unknown module, flags that contradict)
+# before handing off.
 
 const REPO = path self ../..
 use log.nu *
-use cli.nu [build guarded flag]
-use usage.nu [die]
+use cli.nu [build guarded flag rows-out]
+use usage.nu [counted]
 use modules.nu [modules-graph modules-packages]
 use pipeline.nu [pipeline-load pipeline-plan]
 use ledger.nu [packages-convergence]
@@ -20,6 +21,12 @@ const PLAN_OTHER_TAG = 1
 
 def main []: nothing -> nothing { help main }
 
+# What a module waits for, a group it waits for whole as <group>/*: base alone is some thirty ids on every row.
+def after-short [after: list<string>, groups: table]: nothing -> list<string> {
+    let whole = $groups | where {|g| $g.ids | all { $in in $after } }
+    ($whole | each { $"($in.group)/*" }) ++ ($after | where $it not-in ($whole.ids | flatten))
+}
+
 def "main plan" [...mods: string, --system, --force, --order, --modules, --json]: nothing -> any {
     let layer = if $system { "system" } else { "user" }
     if $order or $modules {
@@ -27,14 +34,16 @@ def "main plan" [...mods: string, --system, --force, --order, --modules, --json]
             let ctx = pipeline-load $REPO $layer
             let rows = if $order {
                 let verb = if $system { "system" } else { "link" }
-                modules-graph $REPO ($ctx.modules | where {|m| $verb in $m.verbs and $m.cfg.enable }) | select level id after
-                | update after { str join " " }
+                let ran = $ctx.modules | where {|m| $verb in $m.verbs and $m.cfg.enable }
+                let groups = $ran | where group != "" | group-by group | items {|group, members| {group: $group, ids: $members.id} }
+                modules-graph $REPO $ran | select level id after
+                | update after {|row| if $json { $row.after } else { after-short $row.after $groups } | str join " " }
             } else {
                 $ctx.modules | each {|m|
                     {id: $m.id, kind: (if ($m.native | is-empty) { "packages" } else { "native" }), verbs: ($m.verbs | str join " "), enabled: $m.cfg.enable, packages: ($m.meta.packages.pacman | length)}
                 }
             }
-            if $json { $rows | to json } else { $rows }
+            if $json { $rows | to json } else { $rows | rows-out }
         })
     }
     guarded plan --read-only {
@@ -87,10 +96,7 @@ def "main apply" [...mods: string, --user, --system, --packages, --force, --yes,
     if $no_system { $env.DOT_SYSTEM = "skip" }
     user-locked
     let one = if $user and $system { "" } else if $user or ($mods | is-not-empty) { "user" } else if $system { "system" } else { "" }
-    if ($mods | is-not-empty) and $system { die --misuse "apply: modules converge their user layer, --system takes none" }
     if $packages {
-        if ($mods | is-not-empty) { die --misuse "apply --packages takes no modules" }
-        if $one == "system" { die --misuse "apply --packages: both layers, or --user alone" }
         tee-log install ([apply --packages] ++ (flag user ($one == "user")) ++ (flag yes $yes) ++ (flag force $force))
         let pending = guarded apply {
             let status = install-run ($one == "user") $yes true
@@ -146,7 +152,7 @@ def "main status" [--brief, --json]: nothing -> nothing {
             return
         }
         print $"($head.generation) at ($head.build.commit)(if $head.build.dirty { ', with edits' } else { '' })"
-        print $"last run ($head.last_run), ($head.errors) errors"
+        print $"last run ($head.last_run), (counted $head.errors error)"
         if ($head.migrations_pending | is-not-empty) { print $"migrations pending: ($head.migrations_pending | str join ' ')" }
         if ($head.system_pending | is-not-empty) { print $"system part pending: ($head.system_pending | str join ' '); dot apply runs it" }
         $drift | where pending | each { print $"pending apply: ($in.target) \(($in.module), ($in.drift)\); dot apply puts it back" } | ignore

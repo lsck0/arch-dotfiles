@@ -58,10 +58,13 @@ Every source is pinned and checked:
   `SIGNING_KEY_FINGERPRINT`; `dot sync`'s pull (`sync-pull`) merges nothing unless origin's head carries that
   signature, and `programming/projects` sets `merge.verifySignatures` on the checkout for a hand pull.
 
+`scripts/lib/pins.test.nu` (in `dot test lint`) fails on a floating source missing from its `EXCEPTIONS` and warns on a
+pin older than 90 days, a pin with no ISO date in a comment on or above its line, and an exception matching nothing.
+
 Still floating, fix when touching the module:
 
-- `npx` without lockfile: `configs/programming/kubernetes` (`kubernetes-mcp-server@0.0.67`),
-  `configs/programming/caveman` (`skills@1.7.0`).
+- `npx` without lockfile: `configs/programming/kubernetes` (`kubernetes-mcp-server@0.1.2`),
+  `configs/programming/caveman` (`skills@1.7.6`).
 - Latest-version installs: mason (`configs/programming/nvim/lua/lib/mason_packages.lua`), the VSCodium vim extension,
   Firefox and Chromium store extensions (`policies.json`, `policy.json`), rustup toolchains, Claude Code plugins other
   than caveman.
@@ -69,6 +72,9 @@ Still floating, fix when touching the module:
   installs `badldap` and `kerbad` plus their transitive deps), `bruno-cli` and `kulala-fmt` (`npm install -g` of the
   registry tarball; `kulala-fmt` also runs tree-sitter install scripts), `lean-tui` (`rustup toolchain install
   nightly`, whatever nightly is current at build time).
+- Version pins with no hash: `configs/llm/vllm` (`vllm==<release>+<rocm tag>` from `wheels.vllm.ai`, an index without
+  upload times, so `--exclude-newer` is off for it and a wheel replaced under the same version installs unnoticed).
+- `configs/programming/kani`: `cargo kani setup` downloads the bundle for the packaged kani version, unchecked here.
 - Game content that must track upstream: d2launcher's `mxl-install` (the current Median XL release from its live
   manifest; host, file names and the manifest's sha1s are checked) and dalamud's `plugin-restore.nu` (the version the
   plugin index lists, as Dalamud itself updates; name and version are checked).

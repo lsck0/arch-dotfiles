@@ -93,6 +93,8 @@ def "main resolve" [] { resolve }
 def "main coords" [] { resolve | split row " " | get 1? | default "" }
 def "main source" [] { resolve | split row " " | get 0 }
 
+# Weather location (manual): get [--json] prints the state, on, off or toggle switches it, a bare call toggles;
+# set <lat> <lon> pins a place, clear unpins, resolve, coords and source report it.
 def main [action: string = "toggle", --json] {
     switch-run {
         label: "Weather location (manual)"

@@ -45,6 +45,10 @@ PanelWindow {
   property string activePanel: ""
   // the HoverPanel on screen, open or still closing; the toasts and desktop widgets read its rect to hide under it
   property var activePanelWindow: null
+  // the docked PopupCard on screen
+  property var activePopup: null
+  // a docked panel or popup grows out of the bar: the hairline stops for its width and runs on down its sides
+  readonly property var dock: activePanelWindow ? activePanelWindow.screenRect : activePopup ? activePopup.dockRect : null
   property string pinnedPanel: ""
   property bool keyboardPanel: false
   property var panelNames: []
@@ -146,7 +150,11 @@ PanelWindow {
 
   function hoverTriggerExit(id) {
     if (root.pendingPanel === id) { switchIntent.stop(); root.pendingPanel = "" }
-    if (root.activePanel !== id) return
+    if (root.activePanel !== id) {
+      // a sweep across another trigger stopped the close timer and never opened that panel: the open one still closes
+      if (root.activePanel !== "" && root.pinnedPanel === "" && !root.triggerHovered && !root.panelHovered) hoverCloseTimer.restart()
+      return
+    }
     root.triggerHovered = false
     hoverCloseTimer.restart()
   }
@@ -226,17 +234,14 @@ PanelWindow {
     color: Colors.bar.background
   }
 
-  Rectangle {
-    anchors.left: parent.left
-    anchors.right: parent.right
+  component Hairline: Rectangle {
     anchors.bottom: parent.bottom
-    height: Math.max(1, Style.fx.bracketWidth)
-    color: Colors.accent
+    height: Style.surface.borderWidth
+    color: Colors.edge
     z: 1
-    opacity: Style.surface.ruleAlpha
-    layer.enabled: Style.fx.glow > 0 && !root.quiet
-    layer.effect: Glow { shadowColor: Colors.accent }
   }
+  Hairline { width: root.dock ? root.dock.x : root.width }
+  Hairline { visible: root.dock !== null; x: root.dock ? root.dock.x + root.dock.width : 0; width: root.width - x }
 
   Scanlines { shown: !root.quiet }
 
@@ -336,7 +341,14 @@ PanelWindow {
 
     Item {
       id: centerHolder
-      readonly property real gapLeft: leftHolder.x + leftHolder.width + parent.keepClear
+      // the left section at its widest so far: a workspace opening or closing then leaves the centre where it is.
+      // A bar of another width (scale, monitor) starts over
+      property real leftWidest: 0
+      readonly property real leftWidth: leftHolder.width
+      readonly property real barWidth: parent.width
+      onLeftWidthChanged: leftWidest = Math.max(leftWidest, leftWidth)
+      onBarWidthChanged: leftWidest = leftWidth
+      readonly property real gapLeft: leftHolder.x + Math.max(leftWidth, leftWidest) + parent.keepClear
       readonly property real gapRight: rightHolder.x - parent.keepClear
       anchors.verticalCenter: parent.verticalCenter
       height: parent.height
@@ -374,7 +386,7 @@ PanelWindow {
       var pos = root.tooltipItem.mapToItem(root.contentItem, 0, 0)
       return Math.max(0, Math.min(root.width - tooltipSurface.width, pos.x))
     }
-    anchor.rect.y: Style.bar.sizeHorizontal + Style.spacing.xxs
+    anchor.rect.y: Style.bar.sizeHorizontal + Style.spacing.xs
 
     BorderSurface {
       id: tooltipSurface

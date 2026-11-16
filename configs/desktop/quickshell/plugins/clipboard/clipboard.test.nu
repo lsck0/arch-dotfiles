@@ -27,6 +27,14 @@ TestCase {
     compare(loaded.map(function (e) { return e.addedMs }).join(","), "5000,5000")
   }
 
+  // the load boundary: whatever the file holds, the history is an array of normalized entries
+  function test_corrupt_history_loads_empty() {
+    var entry = { type: "text", text: "a" }
+    for (const raw of [JSON.stringify(entry), "null", "7", JSON.stringify("text"), "not json", ""])
+      compare(ClipboardHistory.parseHistory(raw).length, 0)
+    compare(ClipboardHistory.parseHistory(JSON.stringify([null, 7, { type: "bogus" }, entry])).length, 1)
+  }
+
   function test_recopy_refreshes() {
     var history = ClipboardHistory.addEntry([], { type: "text", text: "a" }, 10, 1000)
     history = ClipboardHistory.addEntry(history, { type: "text", text: "b" }, 10, 2000)

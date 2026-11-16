@@ -1,15 +1,15 @@
 #!/usr/bin/env -S nu --no-config-file
 # Saves font.json and reruns the current theme; nothing in the repo is rewritten.
-use lib.nu [DOT status-record status-print notify cycle-next]
+use lib.nu [status-record status-print notify cycle-next]
 use ../../configs/core/wallust/font.nu [font-load font-save]
-use ../../configs/core/wallust/wallpaper.nu [wallpaper-get]
+use ../../configs/core/wallust/wallpaper.nu [wallpaper-get wallpaper-set]
 
 const UI_SIZE_MIN = 6
 const SIZE_MIN = 1
 const SIZE_MAX = 48
 const SHORTLIST = [
     "Kode Mono" "Tektur" "0xProto Nerd Font" "JetBrainsMono Nerd Font" "FiraCode Nerd Font" "Hack Nerd Font"
-    "CaskaydiaCove Nerd Font" "CommitMono Nerd Font"
+    "CaskaydiaCove Nerd Font" "CommitMono Nerd Font" "JuliaMono"
 ]
 
 def families-installed []: nothing -> list<string> {
@@ -22,7 +22,7 @@ def shortlist []: nothing -> list<string> { let installed = families-installed; 
 def font-set [changes: record, title: string, value: string]: nothing -> nothing {
     font-save $changes
     let wallpaper = wallpaper-get
-    if ($wallpaper | path exists) { ^nu --no-config-file $DOT theme $wallpaper } else {
+    if ($wallpaper | path exists) { wallpaper-set $wallpaper } else {
         print -e "no theme yet: the font applies with the first dot theme"
     }
     notify $title $value
@@ -90,4 +90,6 @@ def "main toggle" [] {
     font-set {family: $next} Font $next
 }
 
+# Font: get [--json] prints the family, list and shortlist name the installed ones, set <family>, set-size <n> and
+# set-ui-size <n> change it, toggle takes the next of the shortlist, a bare call prints the family.
 def main [] { main get }

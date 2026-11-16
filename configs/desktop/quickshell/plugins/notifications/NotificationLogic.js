@@ -40,12 +40,14 @@ var ALERT_APP = "alert"
 // scripts/toggles/lib.nu's toasts: a failure passes dnd and stays in history, a success is dropped under dnd and
 // leaves no history entry once shown (the bar shows the state)
 var TOGGLES_APP = "toggles"
+// whose critical toasts pass dnd: a bare notify-send, the two above, and the machine's own failure alarms (a killed
+// unit, a failed unit, a failed dot run)
+var DND_CRITICAL_APPS = ["notify-send", ALERT_APP, TOGGLES_APP, "oomd", "systemd", "dotfiles"]
 
 function shouldBypassDnd(notification) {
   var appName = String((notification && notification.appName) || "")
   return appName === ACTION_APP
-    || ((appName === "notify-send" || appName === ALERT_APP || appName === TOGGLES_APP)
-      && notification.urgency === URGENCY_CRITICAL)
+    || (DND_CRITICAL_APPS.indexOf(appName) >= 0 && notification.urgency === URGENCY_CRITICAL)
 }
 
 function isEphemeralApp(appName) {

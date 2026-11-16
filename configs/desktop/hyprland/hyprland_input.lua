@@ -5,6 +5,9 @@ hl.config({
         kb_layout = platform.keyboard.layout,
         kb_variant = platform.keyboard.variant,
         kb_options = platform.keyboard.options,
+        repeat_rate = 30,
+        repeat_delay = 400,
+        numlock_by_default = true,
         follow_mouse = 1,
         -- a new tile reflows the layout under a resting cursor; with refocus on, the next touchpad jitter hands focus to
         -- whatever window now sits there, so a freshly opened terminal loses it. Focus follows only on crossing a border

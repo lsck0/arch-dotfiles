@@ -32,11 +32,6 @@ export def platform-file [repo: path]: nothing -> any {
     $found
 }
 
-export def platform-options-file [file: path]: nothing -> path {
-    let parsed = $file | path parse
-    $parsed.parent | path join $"($parsed.stem).options.nuon"
-}
-
 def platform-probe-form-factor []: nothing -> string {
     let virt = try { ^systemd-detect-virt | str trim } catch { "none" }
     if $virt == "wsl" { return "wsl" }
@@ -64,7 +59,7 @@ export def platform-load [repo: path]: nothing -> record {
     if ($unknown_facts | is-not-empty) {
         error make {msg: $"($file): unknown facts ($unknown_facts | str join ', '); a per-module setting is a module option"}
     }
-    let options_file = if $file == null { null } else { platform-options-file $file }
+    let options_file = if $file != null { let p = $file | path parse; $p.parent | path join $"($p.stem).options.nuon" }
     {
         file: $file
         hostname: ($raw.hostname? | default { open --raw /etc/hostname | str trim })

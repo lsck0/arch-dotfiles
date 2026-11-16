@@ -133,7 +133,8 @@ def hardware-detect []: nothing -> record {
     }
 }
 
-def main [interval_s: number = 10] {
+# --top adds the top processes by cpu and memory, the costliest part of a tick: only the open panel shows them
+def main [interval_s: number = 10, --top] {
     let hw = hardware-detect
     let amd = $hw.static.gpuVendor == amd
     let device = $"($hw.gpu_card)/device"
@@ -143,7 +144,7 @@ def main [interval_s: number = 10] {
 
     let tck = ^getconf CLK_TCK | into int
     mut prev = {
-        stat: (stat-read), rc6: (int-read $rc6_path), procs: (proc-ticks), time: (date now)
+        stat: (stat-read), rc6: (int-read $rc6_path), procs: (if $top { proc-ticks } else { [] }), time: (date now)
     }
     mut temp_c = 0
     mut delay = $FIRST_SAMPLE
@@ -152,7 +153,7 @@ def main [interval_s: number = 10] {
         $delay = $interval_s * 1sec
 
         let stat = stat-read
-        let procs = proc-ticks
+        let procs = if $top { proc-ticks } else { [] }
         let time = date now
         let dt_ms = ($time - $prev.time) / 1ms
         let rc6 = if $amd { $prev.rc6 } else { int-read $rc6_path }
@@ -208,7 +209,7 @@ def main [interval_s: number = 10] {
             energyKwh: ($energy_wh / 1000 | math round -p 4)
             vramUsedMb: $vram_used_mb
             vramTotalMb: $vram_total_mb
-            top: {cpu: (top-cpu $procs $prev.procs $dt_ms $tck), mem: (top-mem $procs $hw.mem_total_kb)}
+            top: (if $top { {cpu: (top-cpu $procs $prev.procs $dt_ms $tck), mem: (top-mem $procs $hw.mem_total_kb)} })
         } | to json -r | print
 
         $prev = {stat: $stat, rc6: $rc6, procs: $procs, time: $time}

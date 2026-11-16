@@ -41,8 +41,9 @@ QtObject {
   readonly property real actionHotFillAlpha: 0.20
   readonly property real actionDangerFillAlpha: 0.08
 
-  readonly property real normalBorderAlpha: 0.45
-  readonly property real hoverBorderAlpha: 0.70
+  // a resting control border is 3:1 on the background in every palette from 0.635 up
+  readonly property real normalBorderAlpha: 0.65
+  readonly property real hoverBorderAlpha: 0.80
   readonly property real focusBorderAlpha: 0.85
   readonly property real selectedBorderAlpha: 1.0
 
@@ -66,6 +67,11 @@ QtObject {
   function pressedFillFor(foreground, accent) { return Util.alpha(pressedStateColor(foreground, accent), pressedFillAlpha) }
   function focusFillFor(foreground, accent) { return Util.alpha(focusStateColor(foreground, accent), focusFillAlpha) }
   function selectionFillFor(foreground, accent) { return Util.alpha(selectionStateColor(foreground, accent), selectionFillAlpha) }
+  // selected text in a field: the selection lies over the focus fill, so the text is conditioned for both stacked
+  readonly property real selectionOverFocusAlpha: 1 - (1 - focusFillAlpha) * (1 - selectionFillAlpha)
+  function selectionTextFor(foreground, accent) {
+    return Colors.textOnFill(foreground || Colors.foreground, Util.alpha(selectionStateColor(foreground, accent), selectionOverFocusAlpha))
+  }
 
   function normalBorderFor(foreground, accent) { return Util.alpha(normalStateColor(foreground, accent), normalBorderAlpha) }
   function hoverBorderFor(foreground, accent) { return Util.alpha(hoverStateColor(foreground, accent), hoverBorderAlpha) }
@@ -89,10 +95,11 @@ QtObject {
   }
   readonly property RowTokens row: RowTokens {}
 
+  // a hover panel's window: the card and the neck on either side that fillets it into the bar
   component PanelWidthTokens: QtObject {
-    readonly property int narrow: root.space(320) + root.shape.neck * 2
-    readonly property int normal: root.space(360) + root.shape.neck * 2
-    readonly property int wide: root.space(460) + root.shape.neck * 2
+    readonly property int narrow: root.space(320) + root.shape.neck * 4
+    readonly property int normal: root.space(360) + root.shape.neck * 4
+    readonly property int wide: root.space(460) + root.shape.neck * 4
   }
   readonly property PanelWidthTokens panelWidth: PanelWidthTokens {}
 
@@ -134,19 +141,16 @@ QtObject {
     readonly property int padding: root.spacing.lg
     readonly property int borderWidth: Palette.BORDER_PX
     readonly property real ruleAlpha: 0.85
+    // the one hairline every surface is outlined with, in the foreground colour
+    readonly property real edgeAlpha: 0.22
   }
   readonly property SurfaceTokens surface: SurfaceTokens {}
 
   component TranslucencyTokens: QtObject {
-    readonly property real saver: 0.96
-    // light fills go nearly opaque: a dark wallpaper through them eats the dark text
-    readonly property real barLight: 0.94
-    readonly property real panelLight: 0.96
+    // the power saver turns the compositor's blur off, and a surface without blur is opaque
     readonly property bool light: Palette.isLight([Colors.background.r, Colors.background.g, Colors.background.b],
       Theme.values.lightLuminance)
-    readonly property real bar: Power.saver ? saver : light ? barLight : Palette.OPACITY_BAR
-    readonly property real panel: Power.saver ? saver : light ? panelLight : Palette.OPACITY_PANEL
-    readonly property real overlay: Power.saver ? saver : 0.92
+    readonly property real shell: Power.saver ? 1 : light ? Palette.OPACITY_SHELL_LIGHT : Palette.OPACITY_SHELL
     readonly property real scrim: 0.55
   }
   readonly property TranslucencyTokens translucency: TranslucencyTokens {}
@@ -177,7 +181,7 @@ QtObject {
     readonly property string family: root.resolvedFontFamily
     readonly property string iconFamily: root.resolvedIconFontFamily
 
-    readonly property int captionFloor: 11
+    readonly property int captionFloor: Theme.fontSizeMin
     readonly property int caption: Math.max(captionFloor, root.baseSize - 1)
     readonly property int bodySmall: caption
     readonly property int body: root.baseSize

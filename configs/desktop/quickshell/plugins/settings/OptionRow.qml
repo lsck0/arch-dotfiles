@@ -37,7 +37,10 @@ Item {
   readonly property var page: listed.slice(pageStart, pageStart + Schema.choicePageSize)
     .map(function (c) { return { value: c, label: Schema.choiceLabel(c) } })
   readonly property var tags: {
-    var out = [{ text: option.source || "default", color: Colors.menu.text, faint: true }]
+    // a pending row says so in a word: accent2Text is near warnText in half the palettes, so colour alone would read as
+    // the [relogin] warning beside it
+    var out = [pending ? { text: "pending", color: Colors.accent2Text }
+      : { text: option.source || "default", color: Colors.menu.text, faint: true }]
     if (option.apply && option.apply !== "live")
       out.push({ text: option.apply, color: option.apply === "relink" ? Colors.accentText : option.apply === "relogin" ? Colors.warnText : Colors.urgentText })
     if (option.scope === "machine") out.push({ text: "machine", color: Colors.menu.text, faint: true })
@@ -45,6 +48,8 @@ Item {
       out.push({ text: "reset", color: Colors.accentText, reset: true })
     return out
   }
+
+  readonly property bool lit: hasCursor || rowMouse.containsMouse
 
   implicitHeight: body.implicitHeight + Style.spacing.sm * 2
 
@@ -119,7 +124,7 @@ Item {
             Label {
               required property var modelData
               text: "[" + modelData.text + "]"
-              color: modelData.faint ? Colors.textDim : modelData.color
+              color: modelData.faint && !row.lit ? Colors.textDim : modelData.color
               caption: true
               font.bold: !modelData.faint
 
@@ -266,6 +271,7 @@ Item {
         visible: text !== ""
         text: row.option.doc || ""
         dim: true
+        highlighted: row.lit
         caption: true
         wrapMode: Text.Wrap
       }

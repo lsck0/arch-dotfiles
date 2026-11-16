@@ -3,12 +3,12 @@
 const REPO = path self | path expand | path dirname --num-levels 2
 const LIB = $REPO | path join scripts lib
 use ($LIB | path join log.nu) *
-use ($LIB | path join cli.nu) [guarded crash-retire theme-locked flag]
+use ($LIB | path join cli.nu) [guarded crash-retire theme-locked flag rows-out self-argv]
 use ($LIB | path join usage.nu) [die]
-use ($LIB | path join complete.nu) [command-table module-ids option-keys option-values theme-names run-ids]
+use ($LIB | path join complete.nu) [command-table words-misuse module-ids option-keys option-values theme-names run-ids]
 use ($LIB | path join state.nu) [state-dir SYSTEM_STATE]
 use ($LIB | path join platform.nu) [platform-env]
-use ($LIB | path join modules.nu) [modules-packages modules-eval VERB_WORK_TIMEOUT]
+use ($LIB | path join modules.nu) [modules-packages modules-eval modules-known VERB_WORK_TIMEOUT]
 use ($LIB | path join pipeline.nu) [pipeline-load pipeline-plan pipeline-apply module-get]
 use ($LIB | path join preserve.nu) [tty-confirm]
 use ($LIB | path join ledger.nu) [packages-resolve PACKAGES_DENY]
@@ -16,11 +16,11 @@ use ($LIB | path join gate.nu) [gate-lint gate-tools gate-palette]
 use ($LIB | path join vm.nu) [USER vm-test vm-scenario-names vm-destroy screenshot]
 use ($REPO | path join configs base yubikey yubikey.nu) [yubikey-init yubikey-seal yubikey-unlock yubikey-lock]
 use ($REPO | path join configs base yubikey audit.nu) [audit-run audit-rotated audit-drilled]
-use ($REPO | path join configs core wallust wallpaper.nu) [wallpaper-set wallpaper-random wallpaper-pick]
+use ($REPO | path join configs core wallust wallpaper.nu) [theme-set wallpaper-random wallpaper-pick]
 use ($LIB | path join sync.nu) [sync-commit sync-can-sign sync-pull]
 use ($LIB | path join run.nu) [failures-publish finish config-banner-clear admin system-allowed system-skipped pending-exit user-locked unlink-run system-part update-run log-tee INTERNAL PIPELINE_CLI]
 use ($LIB | path join system.nu) [RUN_ID]
-use ($LIB | path join set.nu) [options-list option-target option-write option-apply]
+use ($LIB | path join set.nu) [options-list option-target option-target-check option-write option-apply]
 
 const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo prescribes and records it
 
@@ -30,8 +30,8 @@ const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo 
     --packages                    declared packages, flatpak and nix, then the apply; undeclared ones go after a yes
   plan [mod...]                   what an apply would do; --order the run order, --modules every module
   status [--brief|--json]         generation, pending work, failures, changed files, health checks, secrets
-  set [mod[.key] [value]]         options: every set one, a module's, one; a value sets it, --default resets it
-  theme [name|random]             wallpaper and theme, fzf without a name
+  set [mod[.key] [value]]         options: all, a module's, one; a value sets it, --default resets it
+  theme [theme|wallpaper|random]  a theme by name, else a wallpaper under its own derived palette; fzf without one
   module adopt|reset <file>       a changed file: into the repo | back to the repo copy
   module unlink|remove|restore    a module: off | gone with its packages | its restore verb (app state)
   log [run] | explain <thing>     a run's records | who wrote a path, who declares a package
@@ -40,9 +40,16 @@ const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo 
 
   --no-system on sync, apply, set: only the user part, same as DOT_SYSTEM=skip
   sync --system: enter root even when nothing shows the system layer has work
-  dot <command> --help for its flags"
+  dot <command> --help for its flags
+
+  exit: 0 done; 1 failed, for status a check that failed or is pending; 2 misuse, or an install given up;
+        3 done with work pending (a system part skipped, a module waiting on its packages); 130 interrupted"
 
 const LOG_LEVELS = [TRACE DEBUG INFO WARN ERROR PANIC]
+# a mistyped command is offered the one within this many edits
+const COMMAND_TYPO_MAX = 2
+# --wrapped: they take any words
+const COMMANDS_OPEN = [internal]
 
 # plan, apply and status run in pipeline-cli.nu, a process that parses only what they need
 def pipeline-cli [...args: string]: nothing -> nothing {
@@ -56,7 +63,9 @@ def --wrapped main [...args: string]: nothing -> nothing {
         print $USAGE
         return
     }
-    die --misuse $"unknown command '($word)', dot lists them"
+    let near = command-table | get name | each { split row " " | first } | uniq
+        | where {|name| ($name | str distance $word) <= $COMMAND_TYPO_MAX } | get --optional 0
+    die --misuse $"unknown command '($word)'(if $near == null { '' } else { $', maybe ($near)' }); dot lists them"
 }
 
 # what an apply would do, touching nothing
@@ -68,6 +77,7 @@ def "main plan" [
     --modules  # every module: kind, verbs, whether this machine runs it
     --json     # --order or --modules as json
 ]: nothing -> any {
+    modules-known $REPO $mods
     pipeline-cli plan ...$mods ...(flag system $system) ...(flag force $force) ...(flag order $order) ...(flag modules $modules) ...(flag json $json)
 }
 
@@ -81,6 +91,10 @@ def "main apply" [
     --yes        # with --packages: remove undeclared packages unasked; hand-installed flatpak and nix still ask
     --no-system  # only the user part, same as DOT_SYSTEM=skip
 ]: nothing -> nothing {
+    if ($mods | is-not-empty) and $system { die --misuse "apply: modules converge their user layer, --system takes none" }
+    if $packages and ($mods | is-not-empty) { die --misuse "apply --packages takes no modules" }
+    if $packages and $system and not $user { die --misuse "apply --packages: both layers, or --user alone" }
+    modules-known $REPO $mods
     let flags = (flag user $user) ++ (flag system $system) ++ (flag packages $packages) ++ (flag force $force) ++ (flag yes $yes) ++ (flag no-system $no_system)
     pipeline-cli apply ...$mods ...$flags
 }
@@ -90,6 +104,7 @@ def "main module" []: nothing -> nothing { help main module }
 
 # reverse a native module's last apply; files changed since stay, originals come back
 def "main module unlink" [mod: string@module-ids]: nothing -> nothing {
+    modules-known $REPO [$mod]
     user-locked
     theme-locked
     guarded unlink { unlink-run $mod | finish $in }
@@ -97,6 +112,7 @@ def "main module unlink" [mod: string@module-ids]: nothing -> nothing {
 
 # unlink a module, turn it off (--machine: for the machine), offer its packages for removal
 def "main module remove" [mod: string@module-ids, --machine, --yes]: nothing -> nothing {
+    modules-known $REPO [$mod]
     user-locked
     theme-locked
     guarded remove {
@@ -187,6 +203,7 @@ def "main module reset" [file: path]: nothing -> nothing {
 
 # run one module's restore verb (state its link does not already restore)
 def "main module restore" [mod: string@module-ids]: nothing -> nothing {
+    modules-known $REPO [$mod]
     user-locked
     guarded restore {
         let ctx = pipeline-load $REPO user
@@ -197,7 +214,7 @@ def "main module restore" [mod: string@module-ids]: nothing -> nothing {
     }
 }
 
-# options: every one off its default, a module's, one; a value sets it, --default resets it
+# options: all of them (a module's enable only where it is off), a module's, one; a value sets it, --default resets it
 def "main set" [
     target?: string@option-keys
     ...value: any@option-values  # nuon or json, validated, stored, applied as the option says
@@ -207,6 +224,7 @@ def "main set" [
     --no-system  # only the user part, same as DOT_SYSTEM=skip
 ]: nothing -> any {
     if $no_system { $env.DOT_SYSTEM = "skip" }
+    if $target != null { option-target-check $target }
     let write = $target != null and ($default or ($value | is-not-empty))
     if $write { user-locked }
     guarded set --read-only=(not $write) {
@@ -216,7 +234,8 @@ def "main set" [
         let ids = if $target == null { [] } else { pipeline-load $REPO user | get modules.id }
         if $target == null or $target in $ids {
             if $default or $given { error make {msg: "dot set <module>.<option> <value>, or --default"} }
-            return (options-list $target $json)
+            let rows = options-list $target $json
+            return (if $json { $rows } else { $rows | rows-out })
         }
         let t = option-target $target
         if $json { return (options-list $t.mod true) }
@@ -226,25 +245,23 @@ def "main set" [
             return
         }
         if not $given {
-            let row = options-list $t.mod false | where option == $t.key | get --optional 0
-            if $row == null { error make {msg: $"no option ($target); dot set lists them"} }
-            return $row
+            return (options-list $t.mod false | where option == $t.key | first)
         }
         let parsed = if ($value | describe) != "string" { $value } else { try { $value | from nuon } catch { try { $value | from json } catch { $value } } }
         option-apply $target (option-write $t.mod $t.key $parsed $machine)
     }
 }
 
-# wallpaper and theme: fzf without a name, random for any
+# a theme by name, or a wallpaper by file name or path under the palette derived from it; a bare name is a theme first
 def "main theme" [
-    wallpaper?: string@theme-names
+    name?: string@theme-names  # none: pick a wallpaper in fzf; random: any wallpaper
     --sync  # wait for every theme verb
 ]: nothing -> nothing {
     guarded theme {
-        match $wallpaper {
+        match $name {
             null => (wallpaper-pick)
             "random" => (wallpaper-random --sync=$sync)
-            _ => (wallpaper-set $wallpaper --sync=$sync)
+            _ => (theme-set $name --sync=$sync)
         }
     }
 }
@@ -329,7 +346,7 @@ def "main log" [
         } | flatten | append ($errors | reject --optional ...($spans | get span | uniq) | values | flatten | each { $"! ($in.msg)" }) | str join "\n")
     }
     let shown = $LOG_LEVELS | skip until { $in == $level }
-    $records | where {|r| $r.level in $shown and ($module == null or $r.module == $module) } | select time level module msg
+    $records | where {|r| $r.level in $shown and ($module == null or $r.module == $module) } | select time level module msg | rows-out
 }
 
 # which module and run wrote a path, or which module declares a package
@@ -352,7 +369,11 @@ def "main explain" [thing: string]: nothing -> nothing {
             } | get id
         }
         if ($owners | is-empty) and ($declares | is-empty) { error make {msg: $"nothing owns ($thing)"} }
-        $owners | each {|o| print $"($o.module) ($o.verb): ($o.output.kind) ($o.output.target)(if $o.output.source? != null { $' from ($o.output.source)' } else { '' }), run ($o.run) at ($o.time)" } | ignore
+        $owners | each {|o|
+            print $"($o.module) ($o.verb): ($o.output.kind) ($o.output.target)"
+            if $o.output.source? != null { print $"  from ($o.output.source | str replace $"($REPO)/" '')" }
+            print $"  run ($o.run), (try { $o.time | into datetime | format date '%F %H:%M' } catch { $o.time })"
+        } | ignore
         $declares | each { print $"($in) declares the package ($thing)" } | ignore
     }
 }
@@ -370,7 +391,10 @@ def gate-report [what: string, findings: list<string>, notes: list<string>]: not
 def "main test" []: nothing -> nothing { help main test }
 
 # static checks: module refs, layer rules, ~/sync writes, generated files, *.test.nu
-def "main test lint" []: nothing -> nothing { gate-report lint (gate-lint) [] }
+def "main test lint" []: nothing -> nothing {
+    let lint = gate-lint
+    gate-report lint $lint.findings $lint.notes
+}
 
 # every formatter and linter, verified (the sync gate), plus palette.nu against Palette.js
 def "main test check" []: nothing -> nothing {
@@ -403,7 +427,7 @@ def "main test run" [
 ]: nothing -> nothing {
     guarded test {
         if not $dry_run {
-            let problems = gate-lint
+            let problems = gate-lint | get findings
             if ($problems | is-not-empty) { error make {msg: ($problems | str join "\n")} }
         }
         vm-test $name $iso $scenario $platform $profile ($user | default $USER) $master $dry_run
@@ -439,4 +463,12 @@ def --wrapped "main internal" [...args: string]: nothing -> nothing {
         $env.DOT_COMMANDS = command-table | to nuon
     }
     exec $nu.current-exe --no-config-file $INTERNAL ...$args
+}
+
+# nushell parses the words against a command's signature before any command here runs, and answers a mistyped flag
+# with its parser's frame; this top-level check runs first and answers in dot's own form
+let words = self-argv | skip 1 | skip while { $in | str starts-with "-" } | skip 1
+if ($words | is-not-empty) and $words.0 not-in $COMMANDS_OPEN {
+    let misuse = words-misuse (command-table) $words $COMMANDS_OPEN
+    if $misuse != null { die --misuse $misuse }
 }

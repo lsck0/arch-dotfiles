@@ -11,6 +11,9 @@ QtObject {
   readonly property string fontPath: Paths.wal + "/font.json"
   readonly property string fontFamilyDefault: "Kode Mono"
   readonly property int fontSizeDefault: 13
+  // no text in the shell is set smaller: below it the glyphs lose their counters on a 1.0 scale panel
+  readonly property int fontSizeMin: 11
+  readonly property int fontSizeMax: 32
   // every theme.json knob by its key: [section, default, min, max, integer]. A missing or invalid key takes the
   // default, so a deleted key reverts
   readonly property var knobs: ({
@@ -107,7 +110,7 @@ QtObject {
     }
     if (!Util.isPlainObject(font)) return
     fontFamily = (typeof font.family === "string" && font.family.trim().length > 0) ? font.family.trim() : fontFamilyDefault
-    fontSize = Math.round(_num(font.size, fontSizeDefault, 6, 32))
+    fontSize = Math.round(_num(font.size, fontSizeDefault, fontSizeMin, fontSizeMax))
     revision++
   }
 

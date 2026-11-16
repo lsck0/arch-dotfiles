@@ -22,4 +22,6 @@ def "main on" [] { apply default }
 def "main off" [] { apply off }
 def "main set" [preset: string] { apply $preset }
 def "main toggle" [] { let status = grading; apply ($status.presets.name | cycle-next $status.preset) }
+# Color grading: get [--json] prints the preset, list names them, set <preset> applies one, on is the default
+# preset, off none, toggle takes the next one, a bare call toggles.
 def main [] { main toggle }

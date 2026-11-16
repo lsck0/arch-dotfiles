@@ -13,6 +13,8 @@ Item {
 
   readonly property var flow: agent.flow // qmllint disable unresolved-type
   readonly property bool opened: agent.isActive && flow !== null
+  // false while pam waits on a key touch or a finger: nothing to type, nothing to submit
+  readonly property bool responseRequired: flow !== null && flow.isResponseRequired
 
   PolkitAgent { id: agent }
 
@@ -39,7 +41,7 @@ Item {
     name: "polkit"
     title: "authenticate"
     suffix: root.flow ? root.flow.actionId : ""
-    hints: [["ENTER", "submit"], ["ESC", "cancel"]]
+    hints: (root.responseRequired ? [["ENTER", "submit"]] : []).concat([["ESC", "cancel"]])
     scanlines: false
     cardWidth: Style.space(480)
     cardHeight: authBody.implicitHeight + chromeHeight
@@ -66,7 +68,8 @@ Item {
       Label {
         Layout.fillWidth: true
         visible: text !== ""
-        text: root.flow ? root.flow.supplementaryMessage || (root.flow.failed ? "Authentication failed, try again" : "") : ""
+        text: root.flow ? root.flow.supplementaryMessage || (root.flow.failed ? "Authentication failed, try again"
+          : !root.responseRequired ? "Waiting for a key touch or fingerprint" : "") : ""
         color: root.flow && (root.flow.supplementaryIsError || root.flow.failed) ? Colors.urgentText : Colors.textDim
         caption: true
         wrapMode: Text.WordWrap
@@ -75,7 +78,7 @@ Item {
       TextField {
         id: password
         Layout.fillWidth: true
-        visible: root.flow !== null && root.flow.isResponseRequired
+        visible: root.responseRequired
         password: root.flow !== null && !root.flow.responseVisible
         placeholderText: root.flow ? root.flow.inputPrompt : ""
         Keys.onReturnPressed: root.submit()

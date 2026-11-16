@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 # direct, proton, tor or offline; wg0 and the SOCKS pool are not routes. Offline also cycles wg0.
-use lib.nu [notify cycle-next status-record status-print toggle-run state-get state-set state-file root-run unit-active exclusive-run state-check]
+use lib.nu [notify notify-failed cycle-next status-record status-print toggle-run state-get state-set state-file root-run unit-active exclusive-run state-check]
 use ../lib/state.nu [xdg]
 
 const ROUTES = {direct: Direct, proton: ProtonVPN, tor: Tor, offline: Offline}
@@ -61,7 +61,6 @@ def proton-disconnect []: nothing -> nothing {
     portmaster-restore
 }
 
-def tor-start []: nothing -> nothing { ^systemctl --no-ask-password start $TOR_UNIT }
 def tor-stop []: nothing -> nothing { guards-stop $TOR_UNIT }
 
 # remembers the radios and whether wg0 was up, so leaving offline restores both
@@ -109,11 +108,12 @@ def "main _apply" [route: string, --keep-tor]: nothing -> nothing {
                     try { tor-stop } catch { notify Route "ProtonVPN is up, tor keeps running beside it" }
                 }
             }
-            tor => { tor-start; proton-disconnect }
+            tor => { ^systemctl --no-ask-password start $TOR_UNIT; proton-disconnect }
             offline => { offline-enter }
         }
     } catch {|err|
-        notify Route $"Switch to ($ROUTES | get $route) failed, now ($ROUTES | get (current))" --critical
+        let cause = $err.msg | str trim | lines | first
+        notify-failed Route $cause --to ($ROUTES | get $route) --now ($ROUTES | get (current))
         print -e $err.msg
         exit 1
     }
@@ -134,4 +134,6 @@ def "main tor" [] { main set tor }
 def "main offline" [] { main set offline }
 # offline is no stop of the cycle: a press too many must not cut the machine off
 def "main toggle" [] { main set ($ROUTES | columns | where $it != offline | cycle-next (current)) }
+# Route: get [--json] prints the route, set <route> or the route's own name (direct, proton, tor, offline) switches
+# to it, toggle takes the next of direct, proton and tor, a bare call toggles.
 def main [] { main toggle }
