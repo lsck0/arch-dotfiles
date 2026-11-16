@@ -2,7 +2,7 @@ use module.nu *
 
 export const meta = {
     deps: [desktop/hyprland]
-    packages: {pacman: [cava libqalculate pipewire-audio qrencode qt6-shadertools quickshell websocat wtype zenity]}
+    packages: {pacman: [cava imagemagick libqalculate pipewire-audio qrencode qt6-shadertools quickshell websocat wtype zenity]}
 }
 
 export const options = {

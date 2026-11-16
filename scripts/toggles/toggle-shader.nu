@@ -33,7 +33,7 @@ def entry-parse [entry: string, shaders: table]: nothing -> string {
     let first = $shaders | where name == $entry | get variants.0?.0?
     let entry = if $first == null { $entry } else { $"($entry):($first)" }
     if $entry not-in (entries $shaders) {
-        error make {msg: $"unknown shader '($entry)', see: toggle-shader.nu list"}
+        error make {msg: $"no shader '($entry)'; toggle-shader.nu list lists them"}
     }
     $entry
 }

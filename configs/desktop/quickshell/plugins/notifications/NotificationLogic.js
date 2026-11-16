@@ -18,7 +18,12 @@ function stripImageTags(text) {
 }
 
 function styledBody(body, app, appIcon) {
-  return sanitizeBody(body, app, appIcon).replace(/\r\n|\r|\n/g, "<br/>")
+  return joinHyphens(sanitizeBody(body, app, appIcon).replace(/\r\n|\r|\n/g, "<br/>"))
+}
+
+// a word joiner after each hyphen outside a tag: the line breaker would split a unit name or a command flag there
+function joinHyphens(text) {
+  return String(text || "").replace(/(<[^>]*>)|-/g, function (match, tag) { return tag ? tag : "-\u2060" })
 }
 
 function sanitizeBody(body, app, appIcon) {

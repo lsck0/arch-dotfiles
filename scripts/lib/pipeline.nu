@@ -9,6 +9,7 @@ use modules.nu [modules-discover modules-graph modules-eval modules-packages-eac
 use converge.nu [state-read state-path observe-outputs recorded-hashes decls-check plan-module apply-module state-write mode-normal unit-state-holds]
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use cause.nu [failure-line cause-from-error cause-text]
+use usage.nu [counted]
 
 # %H: the dir the file was found under, so one find stamps every dir, a dir nested in another counted in both
 const HASH_STAMP = '%H\t%P %s %T@\n'
@@ -40,6 +41,23 @@ const RESULT_NONE = {ok: true, pending: null, log: "", outcomes: [], error: null
 const ROW_OUTSIDE = {
     after: [], deps: [], level: 0, serial: false, cfg: {}, options: {}, force: false, pending: null, native: true, skipped: false
     input: "", prev: [], actions: [], error: null
+}
+
+# A line before a phase that can take seconds, so a run at a terminal is not silent for long: on stderr in log-info's
+# shape, recorded at DEBUG only, so it stays out of the journal and dot log. Callers pass fixed text and counts.
+export def pipeline-progress [message: string]: nothing -> nothing {
+    let level = $env.DOT_LOG? | default INFO | str uppercase
+    # DEBUG and TRACE print it through log-debug, WARN and above print nothing
+    if $level not-in [TRACE DEBUG WARN ERROR PANIC] { print -e $"($env.LOG_TAG? | default dotfiles): ($message)" }
+    log-debug $message {kind: progress}
+}
+
+# Whether a module's input shows it converged: it equals the layer's record, or the caller saw this same input while
+# the layer held this same converged record (converged: {input, root}, null without). The second is for a user planning
+# the system layer: root's inputs hash root's paths and secrets, never the user's; any root run that recorded the module
+# since (another checkout, dot apply --system, a reset) changes the record and so ends the skip.
+export def input-converged [input: string, recorded: string, converged: any]: nothing -> bool {
+    $input == $recorded or ($recorded != "" and $converged == {input: $input, root: $recorded})
 }
 
 def eval-env [ctx: record]: nothing -> record {
@@ -76,7 +94,9 @@ def --env app-dirs-load [repo: path]: nothing -> nothing {
 }
 
 # The run context for a layer: repo, platform, profile and every discovered module with its resolved options.
-export def --env pipeline-load [repo: path, layer: string]: nothing -> record {
+# --progress: a line first, for a run someone waits on.
+export def --env pipeline-load [repo: path, layer: string, --progress]: nothing -> record {
+    if $progress { pipeline-progress $"($layer) layer: reading modules" }
     $env.DOT_LAYER = $layer
     if $layer == "user" { app-dirs-load $repo }
     let platform = span platform {} { platform-load $repo }
@@ -371,9 +391,11 @@ def package-versions [names: list<string>]: nothing -> record {
 # Unchanged modules are skipped unevaluated; a disabled one plans its removals, as does one gone from the repo. A link
 # or system verb whose module's packages are not installed is planned pending (--packages-unchecked: the install
 # pass's base/pacman, run before them). --revert-all plans the disabled and gone modules' removals even for a list of ids
-# (the theme pass of a full apply, which names only the linked modules).
-export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: bool, args: list = [], --packages-unchecked, --revert-all]: nothing -> table {
+# (the theme pass of a full apply, which names only the linked modules). --converged: id -> {input, root}, see
+# input-converged. --progress: a line before the checks and before the evaluation.
+export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: bool, args: list = [], --packages-unchecked, --revert-all, --converged: record, --progress]: nothing -> table {
     for id in $ids { module-get $ctx $id | ignore }
+    let converged = $converged | default {}
     let broken = $ctx.modules | where {|m| $m.broken and (($ids | is-empty) or $m.id in $ids) }
     if ($ids | is-not-empty) and ($broken | is-not-empty) {
         error make {msg: $"($broken.id | str join ', '): mod.nu does not parse"}
@@ -382,6 +404,7 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     let retired = if $verb not-in $REVERT_VERBS { [] } else {
         $ctx.modules | where {|m| not $m.cfg.enable and not $m.broken and $verb in $m.native and (($ids | is-empty) or $revert_all or $m.id in $ids) and ((state-read $m.id $verb).outputs | is-not-empty) }
     }
+    if $progress { pipeline-progress $"($ctx.layer) layer: checking (counted ($active | length) module)" }
     let graph = span graph {} { modules-graph $ctx.repo ($active ++ $retired) }
     let olds = span state {} { $graph | where $verb in $it.native | par-each --keep-order {|m|
         let prev = state-read $m.id $verb
@@ -423,8 +446,11 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     } }
     let prev_targets = $natives | get prev.outputs | flatten
     let before = span observe {} { observe-outputs $prev_targets $ctx.layer }
-    let fresh = $natives | where {|n| not $force and not $n.volatile and $n.id not-in $retired.id and $n.input == $n.prev.input and (outputs-clean $n.prev.outputs $before) } | get id
+    let fresh = $natives | where {|n|
+        not $force and not $n.volatile and $n.id not-in $retired.id and (input-converged $n.input $n.prev.input ($converged | get --optional $n.id)) and (outputs-clean $n.prev.outputs $before)
+    } | get id
     let to_eval = $graph | where {|m| $verb in $m.native and $m.id not-in $fresh }
+    if $progress and ($to_eval | is-not-empty) { pipeline-progress $"($ctx.layer) layer: evaluating (counted ($to_eval | length) "changed module")" }
     let prev = $natives | each {|n| [$n.id $n.prev.outputs] } | into record
     let planned = eval-plan $ctx $to_eval $verb $args $prev $force $before
     let gated = $to_eval | where id not-in $retired.id

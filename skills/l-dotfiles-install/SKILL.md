@@ -120,9 +120,11 @@ Each login updates with `dot sync` (agents never run it): pull `origin/master` (
 `secrets`), migrate, install, apply, every module's `update` verb (`update-run`), its output also in `sync.log`. Root
 is entered once for packages and the system layer, and not at all when nothing is due (`system-due` in
 `scripts/lib/run.nu`: a failed or pending check, work in the system plan, undeclared packages, pending migrations,
-changed system secrets, else a package upgrade; `dot sync --system` forces it). Only the machine holding the
-`SIGNING_KEY_FINGERPRINT` secret key backs up, regenerates the generated files (`dot internal gen`), commits and
-pushes; elsewhere it stops after the apply. A non-wheel login converges its user layer only. An origin head without
+changed system secrets, else a package upgrade; `dot sync --system` forces it). The user side's system plan skips a
+module whose input and root record both match `~/.local/state/dotfiles/system-inputs.nuon`, saved after a clean root
+entry; any other root run re-records it and ends the skip. Only the machine holding the `SIGNING_KEY_FINGERPRINT`
+secret key backs up, regenerates the generated files (`dot internal gen`), commits and pushes; elsewhere it stops
+after the apply. A non-wheel login converges its user layer only. An origin head without
 that signature merges nothing; local edits are autostashed; a conflict stops the run; a checkout off `master` refuses.
 
 ## Another login

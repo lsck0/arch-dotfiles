@@ -8,7 +8,7 @@ use doctor.nu [doctor-checks]
 use platform.nu [platform-load]
 use profile.nu [profile-has]
 use modules.nu [modules-packages]
-use pipeline.nu [module-get pipeline-load pipeline-plan pipeline-apply pending-save flatpak-installed nix-installed THEME_VERB_TIMEOUT NIX_FLAGS]
+use pipeline.nu [module-get pipeline-load pipeline-plan pipeline-apply pending-save pipeline-progress flatpak-installed nix-installed THEME_VERB_TIMEOUT NIX_FLAGS]
 use converge.nu [state-read observe-outputs plan-module recorded-hashes apply-module state-write output-file-state unit-state-holds action-recorded dir-hidden]
 use ledger.nu [ledger-units ledger-get ledger-set ledger-diff ledger-remove packages-convergence]
 use migrate.nu [migrations-run migrations-pending]
@@ -57,6 +57,8 @@ const CHECKUPDATES_NONE = 2
 const THEME_STAMP_PATHS = [configs/core/wallust themes]
 # a fresh install's theme: its wallpaper makes wallpaper.nu apply its palette
 const THEME_DEFAULT = path self ../../themes/shien.json
+# in the user's state: id -> {input: what this user's system plan saw, root: root's converged record of it then}
+const SYSTEM_INPUTS = "system-inputs.nuon"
 
 def summary [results: table]: nothing -> nothing {
     let outcomes = $results | get outcomes | flatten
@@ -92,16 +94,17 @@ export def plan-print [planned: table, verb: string, modules: table = [], mods: 
 }
 
 # The user layer's plan; the module evaluations see GOPATH.
-export def --env link-plan [ctx: record, mods: list<string>, force: bool]: nothing -> table {
+export def --env link-plan [ctx: record, mods: list<string>, force: bool, --progress]: nothing -> table {
     $env.GOPATH = xdg data go
-    pipeline-plan $ctx link $mods $force
+    pipeline-plan $ctx link $mods $force --progress=$progress
 }
 
 # The user layer's run; --user-only names the modules whose system part it leaves out, for a caller that runs none.
-export def --env link-run [mods: list<string>, force: bool, --user-only]: nothing -> table {
-    let ctx = pipeline-load $REPO user
-    let planned = link-plan $ctx $mods $force
+# --ctx: the user layer as the caller loaded it in this process, else it is loaded here.
+export def --env link-run [mods: list<string>, force: bool, --user-only, --ctx: record]: nothing -> table {
     let full = $mods | is-empty
+    let ctx = if $ctx != null { $ctx } else { pipeline-load $REPO user --progress=$full }
+    let planned = link-plan $ctx $mods $force --progress=$full
     $env.DOT_FULL_RUN = $full
     failures-open
     let results = pipeline-apply $ctx $planned link (jobs)
@@ -524,9 +527,8 @@ def --env install-report [ran: record]: nothing -> int {
     $install
 }
 
-# Rustup, flatpak and nix as the user: after root's entry, so nothing slow sits between two of them.
-def --env install-user-run [yes: bool, offer_by_hand: bool]: nothing -> nothing {
-    let ctx = pipeline-load $REPO user
+# Rustup, flatpak and nix as the user: after root's entry, so nothing slow sits between two of them. ctx: the user layer.
+def --env install-user-run [ctx: record, yes: bool, offer_by_hand: bool]: nothing -> nothing {
     let waiting = install-user (modules-packages $REPO $ctx.modules $ctx.platform) $ctx.platform $yes $offer_by_hand (network-online)
     if ($waiting | is-not-empty) {
         log-note $"packages pending, ($OFFLINE_PENDING) --packages: ($waiting | str join ', ')"
@@ -550,7 +552,7 @@ export def --env install-run [user: bool, yes: bool, offer_by_hand: bool]: nothi
     if not $user and not $system and (admin) { system-skipped "packages" false }
     install-begin
     if $system and (install-report (system-run install --yes=$yes)) == $EXIT_ABORTED { return (install-end $EXIT_ABORTED) }
-    install-user-run $yes $offer_by_hand
+    install-user-run (pipeline-load $REPO user) $yes $offer_by_hand
     install-end
 }
 
@@ -617,11 +619,38 @@ export def upgrades-due [exit_code: any]: nothing -> any {
     if $exit_code == 0 { "package upgrades are available" } else { $"checkupdates exited ($exit_code), the mirrors' state is unknown" }
 }
 
-# A plain def: pipeline-load's DOT_LAYER stays in here.
-def system-facts []: nothing -> record {
-    let ctx = pipeline-load $REPO system
+def system-inputs-file []: nothing -> path {
+    with-env {DOT_LAYER: user} { state-dir } | path join $SYSTEM_INPUTS
+}
+
+# What system-inputs-save kept, {} without a readable record.
+def system-inputs-read []: nothing -> record {
+    let kept = try { open --raw (system-inputs-file) | from nuon } catch { null }
+    if ($kept | describe | str starts-with "record") { $kept } else { {} }
+}
+
+# Keeps a system plan's inputs (id -> input) once the system layer is converged, each paired with root's record as it
+# reads now, for the next plan's --converged; a module root recorded as not converged is left out.
+def system-inputs-save [inputs: any]: nothing -> nothing {
+    if $inputs == null { return }
+    let kept = with-env {DOT_LAYER: system} {
+        $inputs | items {|id, input| {id: $id, input: $input, root: (state-read $id system).input} } | where root != ""
+    } | each {|r| [$r.id {input: $r.input, root: $r.root}] } | into record
+    let file = system-inputs-file
+    mkdir ($file | path dirname)
+    $kept | to nuon | save-atomic $file
+}
+
+# The system layer's context, without its DOT_LAYER leaking to the caller.
+def system-ctx []: nothing -> record { pipeline-load $REPO system }
+
+# For system-due: facts, and inputs, what the system plan saw of each module that planned (id -> input). ctx: the system
+# layer. A plain def: the DOT_LAYER its plan reads root's records under stays in here.
+def system-facts [ctx: record]: nothing -> record {
+    $env.DOT_LAYER = "system"
     let declared = modules-packages $REPO $ctx.modules $ctx.platform
-    {
+    let planned = pipeline-plan $ctx system [] false --converged (system-inputs-read)
+    let facts = {
         "system part pending": (with-env {DOT_LAYER: user} { pending-read })
         "migrations pending": (migrations-pending $REPO system | get id)
         "undeclared packages": (packages-convergence $declared.pacman $ctx.platform.packages_keep).remove
@@ -629,16 +658,29 @@ def system-facts []: nothing -> record {
         "the system secrets differ from what root was last handed": ((file-trim $SYSTEM_SECRETS_DIGEST null) != (system-secrets-digest $REPO $ctx.platform.facts.wireguard?))
         "the config failure banner is up": ($CONFIG_ISSUE | path exists)
         "root's last entry": (stages-due (try { open $SYSTEM_STAGES } catch { null }))
-        "the system plan": (plan-due (pipeline-plan $ctx system [] false))
+        "the system plan": (plan-due $planned)
     }
+    {facts: $facts, inputs: ($planned | where native and error == null and input != "" | each {|r| [$r.id $r.input] } | into record)}
 }
 
-# system-due on this machine, then, only when nothing else is due, whether the mirrors hold an upgrade.
-def system-due-now []: nothing -> list<string> {
-    let due = try { system-due (doctor-checks) (system-facts) } catch {|e| [$"the system layer's state could not be read: ($e.msg)"] }
-    if ($due | is-not-empty) { return $due }
+# system-due on this machine, then, only when nothing else is due, whether the mirrors hold an upgrade: due, and the
+# system plan's inputs (null when it did not plan). The system layer is loaded once; the checks and the plan side by side.
+def system-due-now []: nothing -> record {
+    let read = try {
+        let ctx = system-ctx
+        let both = [{|| doctor-checks --system-ctx $ctx } {|| system-facts $ctx }] | par-each --keep-order {|c| do $c }
+        {due: (system-due $both.0 $both.1.facts), inputs: $both.1.inputs}
+    } catch {|e| {due: [$"the system layer's state could not be read: ($e.msg)"], inputs: null} }
+    if ($read.due | is-not-empty) { return $read }
     let code = if (which checkupdates | is-empty) { null } else { (^timeout $CHECKUPDATES_TIMEOUT_S checkupdates | complete).exit_code }
-    [(upgrades-due $code)] | compact
+    $read | update due ([(upgrades-due $code)] | compact)
+}
+
+# The line before a root entry: why root is entered, the first reason and how many more.
+export def system-due-line [due: list<string>]: nothing -> string {
+    let first = $due | first | lines | get --optional 0 | default ""
+    let more = if ($due | length) > 1 { $", (($due | length) - 1) more" } else { "" }
+    $"system layer: entering root for ($first)($more)"
 }
 
 # dot sync after its pull: migrations, one root entry for packages and the system layer, the user's packages, the user
@@ -650,11 +692,16 @@ export def --env update-run [yes: bool, system: bool]: nothing -> record {
     let config_failures = $env.FAILURES_FILE
     install-begin
     if (system-allowed) {
-        let due = if $system { ["dot sync --system"] } else { system-due-now }
-        if ($due | is-empty) {
+        let due = if $system { {due: ["dot sync --system"], inputs: null} } else {
+            pipeline-progress "system layer: checking what is due"
+            system-due-now
+        }
+        if ($due.due | is-empty) {
             log-info "system layer: nothing to do, root not entered; dot sync --system enters it anyway"
+            system-inputs-save $due.inputs
         } else {
-            log-debug $"system layer due: ($due | str join '; ')"
+            log-debug $"system layer due: ($due.due | str join '; ')"
+            pipeline-progress (system-due-line $due.due)
             $env.DOT_SYSTEM_RAN = true
             let ran = system-run sync --yes=$yes
             if (install-report $ran) == $EXIT_ABORTED { exit (install-end $EXIT_ABORTED) }
@@ -663,15 +710,18 @@ export def --env update-run [yes: bool, system: bool]: nothing -> record {
             $env.FAILURES_FILE = $config_failures
             config-report $ran
             $env.FAILURES_FILE = $installing
+            if $ran.code == 0 and (stages-due {stages: $ran.stages}) == null { system-inputs-save $due.inputs }
         }
     } else if (admin) {
         system-skipped "packages" false
         system-skipped "system layer" true
     }
-    install-user-run $yes false
+    # loaded once for both: root is done, and the user's flatpak and nix installs change no module's detect
+    let ctx = pipeline-load $REPO user --progress
+    install-user-run $ctx $yes false
     let install = install-end
     failures-open
-    let results = link-run [] false
+    let results = link-run [] false --ctx $ctx
     try { ^nu --no-config-file $INTERNAL update } catch { log-warn "update: a module's update verb failed, see dot log" }
     {install: $install, results: $results}
 }

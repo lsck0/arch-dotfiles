@@ -55,6 +55,8 @@ Row {
     }
   }
 
+  onValueChanged: if (activeFocus) _focusedIndex = Math.max(0, selectedOptionIndex())
+
   Keys.priority: Keys.BeforeItem
   Keys.onPressed: function(event) {
     if (event.key === Qt.Key_Left || event.text === "h") {
@@ -84,7 +86,10 @@ Row {
       selected: root.optionValue(modelData) === root.value
       hasCursor: focused
       focused: root.activeFocus && root._focusedIndex === index
-      onClicked: root.changed(root.optionValue(modelData))
+      onClicked: {
+        root._focusedIndex = index
+        root.changed(root.optionValue(modelData))
+      }
     }
   }
 }

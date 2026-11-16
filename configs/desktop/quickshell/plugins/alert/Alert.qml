@@ -26,7 +26,7 @@ Item {
       glyph: String(payload.glyph || "\u{f0020}"), // md-alarm
       kind: String(payload.kind || ""),
       message: String(payload.message || ""),
-      at: Qt.formatTime(new Date(), "HH:mm")
+      at: Qt.formatTime(new Date(), Util.timeFormat)
     })
     root.alerts = next
   }
@@ -94,9 +94,9 @@ Item {
     screen: root.mainScreen
     // top centre: the top right corner is the toast column's
     anchors { top: true }
-    margins { top: Style.bar.sizeHorizontal + Style.spacing.sm } // qmllint disable missing-property
+    margins { top: Style.bar.sizeHorizontal + Style.gapsOut } // qmllint disable missing-property
     implicitWidth: Style.space(440)
-    implicitHeight: Math.min(stack.implicitHeight, (screen ? screen.height : stack.implicitHeight) - Style.bar.sizeHorizontal - Style.spacing.sm * 2) // qmllint disable missing-property
+    implicitHeight: Math.min(stack.implicitHeight, (screen ? screen.height : stack.implicitHeight) - Style.bar.sizeHorizontal - Style.gapsOut * 2) // qmllint disable missing-property
     color: "transparent"
     WlrLayershell.namespace: "quickshell-alert"
     WlrLayershell.layer: WlrLayer.Overlay
@@ -164,6 +164,7 @@ Item {
                 HudTitle {
                   width: parent.width
                   text: card.modelData.kind || "alert"
+                  suffix: ":: " + card.modelData.at
                   size: Style.font.title
                   rule: true
                   blinking: win.visible
@@ -194,8 +195,7 @@ Item {
                     id: texts
                     anchors.left: badge.right
                     anchors.leftMargin: Style.spacing.sm
-                    anchors.right: closeButton.left
-                    anchors.rightMargin: Style.spacing.sm
+                    anchors.right: parent.right
                     anchors.verticalCenter: badge.verticalCenter
                     spacing: Style.spacing.xxs
 
@@ -214,22 +214,6 @@ Item {
                       color: Colors.menu.text
                       wrapMode: Text.WordWrap
                     }
-                    Label {
-                      text: card.modelData.at
-                      dim: true
-                      caption: true
-                    }
-                  }
-
-                  Button {
-                    id: closeButton
-                    variant: "icon"
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    iconText: "\u{f0156}"
-                    tooltipText: "Dismiss"
-                    foreground: Colors.menu.text
-                    onClicked: root.dismissAt(card.index)
                   }
                 }
 
@@ -243,13 +227,13 @@ Item {
                     Button {
                       required property var modelData
                       variant: "chip"
-                      text: (card.newest ? "[" + modelData[1] + "] " : "") + "Snooze " + modelData[0] + " min"
+                      text: (card.newest ? "[" + modelData[1] + "] " : "") + "SNOOZE " + modelData[0] + " MIN"
                       onClicked: root.snoozeAt(card.index, modelData[0])
                     }
                   }
                   Button {
                     variant: "chip"
-                    text: (card.newest ? "[ESC] " : "") + "Dismiss"
+                    text: (card.newest ? "[ESC] " : "") + "DISMISS"
                     selected: true
                     onClicked: root.dismissAt(card.index)
                   }

@@ -9,7 +9,6 @@ BootIn 1.0 BootIn.qml
 BorderSurface 1.0 BorderSurface.qml
 Button 1.0 Button.qml
 ButtonGroup 1.0 ButtonGroup.qml
-ConfirmDialog 1.0 ConfirmDialog.qml
 DataState 1.0 DataState.qml
 DockShape 1.0 DockShape.qml
 EmptyState 1.0 EmptyState.qml

@@ -218,7 +218,7 @@ Item {
 
       CenterNote {
         visible: root.loading
-        text: ":: GENERATING QR CODE"
+        text: "> GENERATING"
         color: root.onScrimDim
       }
 
@@ -228,12 +228,6 @@ Item {
         color: root.onScrimUrgent
         wrapMode: Text.Wrap
         Layout.maximumWidth: Style.space(320)
-      }
-
-      CenterNote {
-        visible: root.showingQr
-        text: ":: SCAN TO JOIN THIS NETWORK"
-        color: root.onScrimDim
       }
 
       CenterNote {

@@ -90,6 +90,9 @@ const RUN_CASES = [
         ["--device D --share file:///a/b.png file:///a/c.pdf"] 0]
     ["clipboard link" [share --notify] "text/plain\n" {text: "https://example.org"} "D Phone\n"
         ["--device D --share https://example.org"] 0]
+    ["clipboard word naming a dir" [share] "text/plain\n" {text: "bin"} "D Phone\n" ["--device D --share-text bin"] 0]
+    ["clipboard absolute path" [share] "text/plain\n" {text: "/etc/hostname"} "D Phone\n"
+        ["--device D --share /etc/hostname"] 0]
     ["clipboard image" [share] "image/png\n" {} "D Phone\n" [] 1]
     ["phone away" [share "hi"] "" {} "" [] 1]
     ["clipboard send" [clipboard] "" {} "D Phone\n" ["--device D --send-clipboard"] 0]
@@ -111,6 +114,7 @@ try {
         $c.devices | save ($state | path join devices)
         $c.clipboard | items {|type, body| $body | save ($state | path join $type) } | ignore
         let out = with-env {PATH: ([($work | path join bin)] ++ $env.PATH), STUB_STATE: $state} {
+            cd $work
             ^nu --no-config-file $PHONE ...$c.args | complete
         }
         let calls_file = $state | path join calls

@@ -352,29 +352,16 @@ BarWidget {
         }
 
         PanelSectionHeader { text: "Host" }
-        Item {
-          width: parent.width
-          implicitHeight: Math.max(hostHero.implicitHeight, hostReads.implicitHeight)
-          height: implicitHeight
-          Hero { id: hostHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; value: String(Math.round(Number(root.lab.host.cpuPct) || 0)); unit: "%" }
-          Column {
-            id: hostReads
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width * 0.6
-            spacing: Style.spacing.xxs
-            LinkStat {
-              label: "Memory"
-              value: root.sizeOf(root.lab.host.memUsedGb, root.lab.host.memTotalGb)
-              url: root.lab.links.proxmox
-            }
-            LinkStat { label: "Temperature"; value: root.num(root.lab.host.tempC, "\u00b0C"); url: root.lab.links.proxmox }
-            LinkStat { label: "Uptime"; value: root.num(root.lab.host.uptimeH, " h"); url: root.lab.links.proxmox }
-          }
+        GaugeRow { label: "CPU"; value: root.num(root.lab.host.cpuPct, "%"); fraction: (Number(root.lab.host.cpuPct) || 0) / 100; url: root.lab.links.proxmox }
+        GaugeRow {
+          label: "Memory"
+          value: Math.round(root.memFraction * 100) + "%"
+          note: root.sizeOf(root.lab.host.memUsedGb, root.lab.host.memTotalGb)
+          fraction: root.memFraction
+          url: root.lab.links.proxmox
         }
-        // one line and a gauge each: the hero and the readings above already carry the numbers
-        GaugeRow { label: "CPU"; value: root.num(root.lab.host.cpuPct, "%"); fraction: (Number(root.lab.host.cpuPct) || 0) / 100 }
-        GaugeRow { label: "Memory"; value: Math.round(root.memFraction * 100) + "%"; fraction: root.memFraction }
+        LinkStat { label: "Temperature"; value: root.num(root.lab.host.tempC, "\u00b0C"); url: root.lab.links.proxmox }
+        LinkStat { label: "Uptime"; value: root.num(root.lab.host.uptimeH, " h"); url: root.lab.links.proxmox }
 
         PanelSeparator {}
         PanelSectionHeader { text: "Storage" }
@@ -423,17 +410,7 @@ BarWidget {
           spacing: Style.spacing.sm
 
           PanelSeparator {}
-          Row {
-            width: parent.width
-            spacing: Style.spacing.xs
-            PanelSectionHeader { text: "Incoming" }
-            Label {
-              anchors.verticalCenter: parent.verticalCenter
-              text: root.lab.clients.window || ""
-              dim: true
-              caption: true
-            }
-          }
+          PanelSectionHeader { text: root.lab.clients.window ? "Incoming :: " + root.lab.clients.window : "Incoming" }
 
           Grid {
             id: clientGrid

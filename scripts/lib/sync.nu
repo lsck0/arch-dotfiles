@@ -179,7 +179,8 @@ def push-error [stderr: string]: nothing -> string {
 }
 
 # Pushes the secrets checkout; a rejected push rebases it onto the revision origin's signed generation names (another
-# machine's sync) and fails when the secrets origin holds more than that.
+# machine's sync) and fails when the secrets origin holds more than that. A checkout with no commit of its own past that
+# revision only fast-forwards to it: it has nothing to push, and adopts nothing unnamed.
 export def secrets-push [repo: path, secrets: path]: nothing -> nothing {
     mut tries = 0
     mut push = ^git -C $secrets push origin $"HEAD:($BRANCH)" | complete
@@ -189,6 +190,10 @@ export def secrets-push [repo: path, secrets: path]: nothing -> nothing {
         if $tries > $PUSH_TRIES { error make {msg: $"secrets: push still rejected after ($PUSH_TRIES) rebases"} }
         origin-fetch $repo
         let named = secrets-named $repo $secrets
+        if (^git -C $secrets merge-base --is-ancestor HEAD $named | complete).exit_code == 0 {
+            ^git -C $secrets merge --ff-only --quiet $named
+            return
+        }
         if (^git -C $secrets merge-base --is-ancestor $named HEAD | complete).exit_code == 0 {
             error make {msg: $"secrets origin holds commits no signed generation names, nothing adopted: finish the dot sync that pushed them, or inspect git -C ($secrets) log origin/($BRANCH)"}
         }

@@ -246,22 +246,23 @@ Singleton {
   function undoLast() {
     var last = root.lastAction
     if (!last) return
+    root.undoStack = root.undoStack.slice(0, -1)
     if (last.op === "stop") root.stopOthers(last.uuid)
     var args = last.op === "start" ? [last.uuid, "stop"]
       : last.op === "stop" ? [last.uuid, "start"]
       : [last.uuid, "modify", "status:pending"]
-    run(args, { op: "undo", uuid: last.uuid, desc: last.desc })
+    run(args, { op: "undo", uuid: last.uuid, desc: last.desc, undone: last })
   }
 
   function mutateFinish(item, exitCode, stderr) {
     if (exitCode !== 0) {
       root.actionError = String(stderr || "").trim().split("\n")[0] || "task exited " + exitCode
       if (item.op === "add" || item.op === "modify") root.inputFailed(item.op, item.uuid, item.text)
+      if (item.op === "undo") root.undoStack = root.undoStack.concat([item.undone]).slice(-root.undoCountMax)
       return
     }
     root.actionError = ""
-    if (item.op === "undo") root.undoStack = root.undoStack.slice(0, -1)
-    else if (["done", "delete", "start", "stop"].indexOf(item.op) >= 0)
+    if (["done", "delete", "start", "stop"].indexOf(item.op) >= 0)
       root.undoStack = root.undoStack.concat([{ uuid: item.uuid, desc: item.desc, op: item.op }]).slice(-root.undoCountMax)
   }
 

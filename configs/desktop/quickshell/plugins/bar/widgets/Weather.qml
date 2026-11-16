@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Effects
 import qs.Commons
 import qs.Ui
 
@@ -58,8 +59,8 @@ BarWidget {
   }
 
   // a temperature with its unit; the chart axis and the day tiles, under the hero that names it, keep the bare degree
-  function t(v) { return (Math.round(Number(v) * 10) / 10) + root.units }
-  function degrees(v) { return (Math.round(Number(v) * 10) / 10) + "\u00b0" }
+  function t(v) { return Number(v).toFixed(1) + root.units }
+  function degrees(v) { return Number(v).toFixed(1) + "\u00b0" }
   function n0(v) { return Math.round(Number(v)) }
 
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
@@ -600,6 +601,12 @@ BarWidget {
           retainWhileLoading: true
           smooth: true
           cache: true
+          // weather.nu folds the provider's scale into a white mask stepped by rate, so rain takes the accent
+          layer.enabled: true
+          layer.effect: MultiEffect {
+            colorization: 1
+            colorizationColor: Colors.accentText
+          }
         }
 
         Rectangle {
@@ -675,7 +682,7 @@ BarWidget {
               let firstIsobar = Math.ceil(root.field.pressureMin / isobarStep) * isobarStep
               ctx.lineWidth = 1
               ctx.strokeStyle = Colors.menu.text
-              ctx.globalAlpha = 0.42
+              ctx.globalAlpha = 0.28
               let sub = 6
               let cellsAcross = (n - 1) * sub
               for (level = firstIsobar; level <= root.field.pressureMax; level += isobarStep) {
@@ -732,8 +739,8 @@ BarWidget {
             var latticeStep = S / density
             var arrowReach = latticeStep * 0.28
 
-            ctx.strokeStyle = Colors.accent
-            ctx.fillStyle = Colors.accent
+            ctx.strokeStyle = Colors.textDim
+            ctx.fillStyle = Colors.textDim
             ctx.lineWidth = 1
 
             for (let gy = 0; gy < density; gy++) {

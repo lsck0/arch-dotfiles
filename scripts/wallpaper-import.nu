@@ -35,7 +35,7 @@ def files-under [dir: path]: nothing -> list<path> {
 
 # Import high-res wallpapers (files, dirs, zips) into ~/sync/wallpapers/, shadowing matching low-res ones.
 def main [...sources: path]: nothing -> nothing {
-    if ($sources | is-empty) { die --misuse "the following arguments are required: file|dir|zip" }
+    if ($sources | is-empty) { die --misuse "no source given: wallpaper-import.nu <file|dir|zip>..." }
     $env.LOG_TAG = "wallpaper-import"
     let bought = $nu.home-dir | path join $BOUGHT
     if not ($bought | path dirname | path exists) { die "~/sync is missing: syncthing is not set up here" }

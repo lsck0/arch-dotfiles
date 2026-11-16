@@ -1,9 +1,10 @@
 #!/usr/bin/env -S nu --no-config-file
 # dot status's luks and crash checks: a LUKS root no token unlocks is a note naming the enrol command, a token the
 # cmdline asks for and the boot missed is one too, and a crash record stays a note until it is gone. A declared
-# package that is not installed is pending work (todo), unless the mirror's last build predates its first ask. The
+# package that is not installed is pending work (todo), unless the mirror's last build predates its first ask. A failed
+# systemd-run without --unit is its caller's, not a failed unit to report. The
 # printed lines put what needs action first and end on the count of each level.
-use doctor.nu [luks-reports crash-reports packages-reports doctor-lines]
+use doctor.nu [luks-reports crash-reports packages-reports doctor-lines units-owned]
 use std/assert
 
 const UUID = "39244fe4-3a83-414e-aa5e-f1a17f10057d"
@@ -58,6 +59,20 @@ def packages-cases []: nothing -> nothing {
     assert ($mixed.1.text | str contains new-tool) $"packages: the note lacks the awaited name: ($mixed.1.text)"
 }
 
+def units-cases []: nothing -> nothing {
+    let cases = [
+        [name unit owned];
+        ["a named service" "kwalletd6.service" true]
+        ["a systemd-run --scope" "run-p3772105-i3810015.scope" false]
+        ["a systemd-run service" "run-u42.service" false]
+        ["a systemd-run --unit name" "run-backup.service" true]
+        ["a pid scope without its instance" "run-p3772105.scope" true]
+    ]
+    for c in $cases {
+        assert equal ([$c.unit] | units-owned | is-not-empty) $c.owned $"units ($c.name)"
+    }
+}
+
 def lines-cases []: nothing -> nothing {
     let records = [
         [level check text];
@@ -74,6 +89,7 @@ def main []: nothing -> nothing {
     let dir = mktemp --directory --tmpdir dot-doctor-test-XXXXXX
     luks-cases
     packages-cases
+    units-cases
     lines-cases
     crash-cases $dir
     rm --recursive --force $dir

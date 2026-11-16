@@ -124,7 +124,7 @@ def scenario-resolve [spec: record, platform: any, profile: any]: nothing -> rec
     let base = $all.scenarios | get $all.base
     let chosen = $spec.names | uniq | each {|n|
         let s = $all.scenarios | get --optional $n
-        if $s == null { error make {msg: $"unknown scenario ($n), one of: (vm-scenario-names | str join ' ')"} }
+        if $s == null { error make {msg: $"no scenario ($n), one of (vm-scenario-names | str join ' ')"} }
         $s
     }
     let field = {|key| $chosen | each { get --optional $key } | compact }
@@ -362,7 +362,7 @@ export def screenshot [name: string]: nothing -> path {
     let png = cache-dir $name | path join screen.png
     let ppm = cache-dir $name | path join screen.ppm
     let shot = ^virsh -q -c $CONNECT screenshot $name $ppm | complete
-    if $shot.exit_code != 0 { error make {msg: "screenshot failed, is the vm running?"} }
+    if $shot.exit_code != 0 { error make {msg: $"no screenshot of ($name): ($shot.stderr | str trim | lines | last 1 | get 0? | default $'virsh exited ($shot.exit_code)')"} }
     ^magick $ppm $png
     $png
 }

@@ -26,9 +26,9 @@ BarWidget {
   readonly property bool tight: worstPct >= 80
   readonly property bool hasUsage: usage.t_total !== undefined && usage.t_total !== ""
   readonly property var models: [
-    { name: usage.m1_name, tokens: usage.m1_tokens, pct: Number(usage.m1_pct) || 0, cost: usage.m1_cost },
-    { name: usage.m2_name, tokens: usage.m2_tokens, pct: Number(usage.m2_pct) || 0, cost: usage.m2_cost },
-    { name: usage.m3_name, tokens: usage.m3_tokens, pct: Number(usage.m3_pct) || 0, cost: usage.m3_cost }
+    { name: usage.m1_name, tokens: usage.m1_tokens, cost: usage.m1_cost },
+    { name: usage.m2_name, tokens: usage.m2_tokens, cost: usage.m2_cost },
+    { name: usage.m3_name, tokens: usage.m3_tokens, cost: usage.m3_cost }
   ].filter(function(m) { return m.name })
 
   // the session reset in the shell's own clock format; a day prefix once it is not today
@@ -39,8 +39,6 @@ BarWidget {
     const sameDay = when.toDateString() === new Date().toDateString()
     return Qt.formatDateTime(when, sameDay ? Util.timeFormat : Util.dayFormat + " " + Util.timeFormat)
   }
-
-  property var pctHist: []
 
   visible: hasUsage || errorText !== ""
 
@@ -59,7 +57,6 @@ BarWidget {
       root.usage = data
       if (!root.hasUsage) return
       root.updatedMs = Date.now()
-      root.pctHist = Util.historyPush(root.pctHist, root.worstPct)
     }
     onFailed: function (error) { root.received = true; root.errorText = "bad json" }
   }
@@ -94,56 +91,6 @@ BarWidget {
     }
   }
 
-  component BarRow: Item {
-    id: barRow
-    property string label: ""
-    property bool upper: true
-    property string value: ""
-    property string note: ""
-    property int pct: -1
-    property bool alert: false
-    width: parent.width
-    implicitHeight: rowValue.implicitHeight + Style.spacing.xxs * 2
-
-    Rectangle {
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      visible: barRow.pct >= 0
-      height: parent.height
-      width: parent.width * Math.max(0, Math.min(100, barRow.pct)) / 100
-      radius: Style.shape.data
-      color: barRow.alert ? Util.alpha(Colors.urgent, Style.tintFillAlpha) : Util.alpha(Colors.accent, Style.tintFillAlpha)
-    }
-    Label {
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      width: parent.width * 0.4
-      text: barRow.label
-      color: Colors.menu.text
-      caption: true
-      font.capitalization: barRow.upper ? Font.AllUppercase : Font.MixedCase
-      font.letterSpacing: barRow.upper ? Style.labelTracking : 0
-      elide: Text.ElideRight
-    }
-    Row {
-      anchors.right: parent.right
-      anchors.verticalCenter: parent.verticalCenter
-      spacing: Style.spacing.sm
-      Label {
-        id: rowValue
-        text: barRow.value
-        color: barRow.alert ? Colors.urgentText : Colors.menu.text
-        caption: true
-      }
-      Label {
-        visible: barRow.note !== ""
-        text: barRow.note
-        dim: true
-        caption: true
-      }
-    }
-  }
-
   HoverPanel {
     anchorWidget: root
     title: "CLAUDE CODE"
@@ -154,12 +101,12 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.sm
 
-      BarRow {
+      StatRow {
         // a failed refresh shows over older data too: the figures below are then the last good ones
         visible: !root.received || root.errorText !== ""
         label: "Status"
         value: root.errorText ? "x ERR " + root.errorText : "--"
-        alert: root.errorText !== ""
+        valueColor: root.errorText !== "" ? Colors.urgentText : Colors.menu.text
       }
 
       Column {
@@ -167,41 +114,41 @@ BarWidget {
         visible: root.hasUsage
         spacing: Style.spacing.sm
 
-        // the bar's worst figure is the larger of these two rows; the sparkline below is its history
+        // the bar's worst figure is the larger of these two rows
         PanelSectionHeader { text: "Limits" }
-        BarRow {
+        StatRow {
           visible: !!root.usage.sub
           label: "Plan"
           value: root.usage.sub ? root.usage.sub + " " + (root.usage.tier || "") : ""
         }
-        BarRow {
+        MetricRow {
           visible: root.hasSession
+          valueBeside: true
           label: "Session"
           value: root.sessionPct + "%"
           note: root.sessionResetText ? "resets " + root.sessionResetText : ""
-          pct: root.sessionPct
-          alert: root.sessionPct >= 80
+          fraction: Math.min(1, root.sessionPct / 100)
+          tint: root.sessionPct >= 80 ? Colors.urgent : Colors.accent
         }
-        BarRow {
+        MetricRow {
+          valueBeside: true
           label: "Week"
           value: root.weekPct + "%"
-          pct: root.weekPct
-          alert: root.weekPct >= 80
+          fraction: Math.min(1, root.weekPct / 100)
+          tint: root.weekPct >= 80 ? Colors.urgent : Colors.accent
         }
-        // one point draws no line, only an empty box
-        Sparkline { width: parent.width; height: Style.space(34); values: root.pctHist; minValue: 0; maxValue: 100; color: root.tight ? Colors.urgent : Colors.accent; glow: true }
 
         PanelSeparator {}
         PanelSectionHeader { text: "Today" }
-        BarRow { label: "Tokens"; value: root.usage.t_total || "--"; note: root.usage.t_cost || "" }
-        BarRow { label: "In / out"; value: (root.usage.t_input || "--") + " / " + (root.usage.t_output || "--") }
-        BarRow { label: "Cache r/w"; value: (root.usage.t_cache_r || "--") + " / " + (root.usage.t_cache_w || "--") }
-        BarRow {
+        StatRow { label: "Tokens"; value: root.usage.t_total || "--"; note: root.usage.t_cost || "" }
+        StatRow { label: "In / out"; value: (root.usage.t_input || "--") + " / " + (root.usage.t_output || "--") }
+        StatRow { label: "Cache r/w"; value: (root.usage.t_cache_r || "--") + " / " + (root.usage.t_cache_w || "--") }
+        StatRow {
           label: "Messages"
           value: String(root.usage.t_messages === undefined ? "--" : root.usage.t_messages)
           note: Util.count(root.usage.t_sessions || 0, "session")
         }
-        BarRow {
+        StatRow {
           visible: (root.usage.active || 0) > 0
           label: "Active now"
           value: String(root.usage.active)
@@ -209,18 +156,18 @@ BarWidget {
 
         PanelSeparator {}
         PanelSectionHeader { text: "Week" }
-        BarRow { label: "Tokens"; value: root.usage.w_tokens || "--"; note: root.usage.w_cost || "" }
-        BarRow {
+        StatRow { label: "Tokens"; value: root.usage.w_tokens || "--"; note: root.usage.w_cost || "" }
+        StatRow {
           label: "Messages"
           value: String(root.usage.w_messages === undefined ? "--" : root.usage.w_messages)
           note: Util.count(root.usage.w_sessions || 0, "session")
         }
-        BarRow {
+        StatRow {
           label: "Daily"
           value: root.usage.spark || ""
           note: (root.usage.streak || 0) + "d streak"
         }
-        BarRow {
+        StatRow {
           visible: !!root.usage.top_project
           label: "Top project"
           value: root.usage.top_project || ""
@@ -235,18 +182,16 @@ BarWidget {
           PanelSectionHeader { text: root.usage.m_days ? "Models :: " + root.usage.m_days + "d" : "Models" }
           Repeater {
             model: root.models
-            delegate: BarRow {
+            delegate: StatRow {
               required property var modelData
               label: modelData.name
-              upper: false
               value: modelData.tokens
               note: modelData.cost
-              pct: modelData.pct
             }
           }
         }
 
-        BarRow {
+        StatRow {
           visible: root.updatedMs > 0
           label: "Updated"
           value: root.updatedMs > 0 ? Qt.formatDateTime(new Date(root.updatedMs), Util.dayFormat + " " + Util.timeFormat) : ""

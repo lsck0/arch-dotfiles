@@ -179,7 +179,7 @@ def config-write [scratch: path, role: string] {
 }
 
 # offload in the repo with the scratch environment; stdout, stderr and the exit code.
-def offload-run [scratch: path, repo: path, args: list<string>]: nothing -> record {
+def offload-run [scratch: path, repo: path, args: list<string>, input: string = ""]: nothing -> record {
     let env_scratch = {
         HOME: ($scratch | path join home)
         XDG_CONFIG_HOME: ($scratch | path join config)
@@ -189,7 +189,7 @@ def offload-run [scratch: path, repo: path, args: list<string>]: nothing -> reco
     }
     with-env $env_scratch {
         cd $repo
-        "" | ^$nu.current-exe --no-config-file --stdin $SCRIPT ...$args | complete
+        $input | ^$nu.current-exe --no-config-file --stdin $SCRIPT ...$args | complete
     }
 }
 
@@ -202,19 +202,19 @@ def repo-state [repo: path]: nothing -> record {
     }
 }
 
-# One role's whole run: the snapshot carries tracked changes but not untracked files, the code comes back, ls shows
-# it, fetch brings the worktree back as a ref and listed paths as files, and the repo is untouched.
+# One role's whole run: the snapshot carries tracked and staged changes but not untracked files, the code comes back,
+# ls shows it, fetch brings the worktree back as a ref and listed paths as files, and the repo is untouched.
 def flow-check [scratch: path, repo: path, role: string] {
     config-write $scratch $role
     let before = repo-state $repo
-    let started = offload-run $scratch $repo [--detach -- sh -c 'cat tracked.txt; test ! -e untracked.txt && echo clean; echo made > result.txt; exit 3']
+    let started = offload-run $scratch $repo [--detach -- sh -c 'cat tracked.txt staged.txt; test ! -e untracked.txt && echo clean; echo made > result.txt; exit 3']
     if $started.exit_code != 0 { fail $"($role): start: ($started.stderr)" }
     let job = $started.stdout | str trim
     if not (job-id-valid $job) { fail $"($role): start printed ($job | to nuon)" }
 
     let attached = offload-run $scratch $repo [attach $job]
     if $attached.exit_code != 3 { fail $"($role): attach exit ($attached.exit_code): ($attached.stderr)" }
-    if $attached.stdout != "changed\nclean\n" { fail $"($role): attach output ($attached.stdout | to nuon)" }
+    if $attached.stdout != "changed\nstaged\nclean\n" { fail $"($role): attach output ($attached.stdout | to nuon)" }
 
     let listed = offload-run $scratch $repo [host ls]
     let row = $listed.stdout | from nuon | where job == $job
@@ -245,6 +245,33 @@ def flow-check [scratch: path, repo: path, role: string] {
     if ($worktrees | is-not-empty) { fail $"($role): the argument ran: ($worktrees)" }
 }
 
+# An agent's worktree past the job's commit, by its own commit and then kept dirty for the next session: fetch still
+# brings each job's worktree back.
+def agent-check [scratch: path, repo: path] {
+    config-write $scratch target
+    let client = "test-client"
+    let bare = (offload-run $scratch $repo [host init $client repo]).stdout | from nuon | get bare
+    let commit = ^git -C $repo rev-parse HEAD | str trim
+    let jobs = [a1 a2] | each {|nonce| job-id repo (date now) $nonce }
+    for job in $jobs { ^git -C $repo push --no-verify --quiet $bare $"($commit):(ref-source $job)" }
+    let request = {job: $jobs.0, client: $client, slug: repo, kind: agent, commit: $commit, command: []}
+    let started = offload-run $scratch $repo [host start] ($request | to nuon)
+    if $started.exit_code != 0 { fail $"agent: start: ($started.stderr)" }
+    let worktree = $started.stdout | from nuon | get worktree
+    "committed\n" | save ($worktree | path join agent.txt)
+    ^git -C $worktree add agent.txt
+    ^git -C $worktree -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit --quiet -m agent
+    "dirty\n" | save ($worktree | path join dirty.txt)
+    let again = offload-run $scratch $repo [host start] ($request | update job $jobs.1 | to nuon)
+    if $again.exit_code != 0 or ($again.stdout | from nuon | get note) == null { fail $"agent: second start: ($again.stderr)" }
+    for job in $jobs {
+        let fetched = offload-run $scratch $repo [fetch $job]
+        if $fetched.exit_code != 0 { fail $"agent: fetch ($job): ($fetched.stderr)" }
+        let files = [agent.txt dirty.txt] | each {|f| ^git -C $repo show $"(ref-result $job):($f)" | str trim }
+        if $files != [committed dirty] { fail $"agent: ($job)'s result ref holds ($files | to nuon)" }
+    }
+}
+
 def main [] {
     pure-check
     if (which git sh tar | length) < 3 { print --stderr "offload.test: skipped the runs: needs git, sh and tar"; return }
@@ -263,8 +290,11 @@ def main [] {
     ^git -C $repo -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit --quiet -m init
     "changed\n" | save --force ($repo | path join tracked.txt)
     "new\n" | save ($repo | path join untracked.txt)
+    "staged\n" | save ($repo | path join staged.txt)
+    ^git -C $repo add staged.txt
 
     flow-check $scratch $repo target
     flow-check $scratch $repo client
+    agent-check $scratch $repo
     rm --recursive --force $scratch
 }

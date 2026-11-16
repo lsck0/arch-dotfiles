@@ -19,7 +19,7 @@ Label {
     : stale || error !== "" ? "stale"
     : "fresh"
 
-  readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true) // qmllint disable missing-property
+  readonly property bool onScreen: visible && (QsWindow.window ? !!QsWindow.window.visible : true) // qmllint disable missing-property
 
   Timer {
     interval: root.msPerMinute

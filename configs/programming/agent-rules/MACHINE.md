@@ -14,6 +14,22 @@ on it is changed by hand.
 - The arch-dotfiles, homelab, nyangine and university sessions are one team (system configuration, hosting, software,
   knowledge): what each owns and how to ask it is skill `l-project-agents`.
 
+# Clean up after yourself
+
+Disk is shared by every session; stale data fills it until builds, snapshots and the desktop fail. What a task
+created, the task removes when it ends, finished or abandoned:
+
+- Worktrees and clones made for a job: `git worktree remove` (and `git worktree prune`), or the clone's directory, once
+  its work is merged, pushed or dropped; then delete its branch if nothing else needs it.
+- Build output, caches, test images, VMs, containers and images, downloads, scratch and temp files made for the task:
+  delete them, or say in the report where they are and why they stay.
+- Processes, units, timers, inhibitors, ports and test outputs the task started: stop them.
+- Never write large intermediate files into a place that is snapshotted or synced (the NAS's cold storage, `~/sync`)
+  unless the result belongs there; stage elsewhere and move the finished result.
+- Before a job that writes tens of gigabytes, check free space (`df -h`) and the target's snapshot or sync; stop and
+  report when it would go below 15% free.
+- Clean up only what you or your workers created; anything else, report.
+
 # Commits
 
 A commit is one line, a conventional commit: `type(scope): summary`, imperative, lowercase, no trailing period. No

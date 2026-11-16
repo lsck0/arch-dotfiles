@@ -6,8 +6,10 @@ ConditionVirtualization=!wsl
 
 [Service]
 Type=oneshot
-# kwalletd6 exits nonzero by design and dbus-broker renames its unit per activation
-ExecCondition=/usr/bin/sh -c 'case "%i" in dbus-*-org.kde.kwalletd6@*.service) exit 1;; esac'
+# kwalletd6 exits nonzero by design and dbus-broker renames its unit per activation; a systemd-run without --unit
+# (run-u<n>, run-p<pid>-i<n>) is an ad-hoc job and an offload job's exit code goes to its client: both callers already
+# have the exit status
+ExecCondition=/usr/bin/sh -c 'case "%i" in dbus-*-org.kde.kwalletd6@*.service|run-u[0-9]*.service|run-p[0-9]*-i[0-9]*.service|offload-*.service) exit 1;; esac'
 ExecStartPre=/usr/bin/gdbus wait --session org.freedesktop.Notifications
 ExecStart=/usr/bin/notify-send -u critical -a systemd "%i failed" "journalctl --user -xeu %i"
 TimeoutStartSec=1min

@@ -38,10 +38,10 @@ Item {
     ? [["CTRL+S", "overwrite disk"], ["CTRL+R", "take disk"], ["TAB", "inbox"], ["ESC", "close"]]
     : view === "notes" ? [["TAB", "inbox"], ["ESC", "close"]]
     : view === "inbox" ? [["^/v", "scroll"], ["TAB", "tasks"], ["ESC", "close"]]
-    : inputMode === "add" ? [["ENTER", "add"], ["TAB", "complete +tag project: due: scheduled: priority:"], ["ESC", "back"]]
-    : inputMode === "modify" ? [["ENTER", "modify"], ["TAB", "complete +tag -tag project: due: priority:"], ["ESC", "back"]]
+    : inputMode === "add" ? [["ENTER", "add"], ["TAB", "complete"], ["ESC", "back"]]
+    : inputMode === "modify" ? [["ENTER", "modify"], ["TAB", "complete"], ["ESC", "back"]]
     : inputMode === "filter" ? [["ENTER", "keep"], ["TAB", "notes"], ["ESC", "clear"]]
-    : [["^/v", "move"], ["ENTER/D", "done"], ["S", "start/stop"], ["X", "delete"], ["E", "edit"], ["U", "undo"],
+    : [["^/v", "select"], ["ENTER/D", "done"], ["S", "start/stop"], ["X", "delete"], ["E", "edit"], ["U", "undo"],
        ["A", "add"], ["/", "filter"], ["TAB", "notes"], ["ESC", "close"]]
 
   function open() {
@@ -577,21 +577,21 @@ Item {
 
           StripLine {
             visible: TaskState.activeTask !== null
-            text: TaskState.activeTask ? ("tracking :: " + TaskState.activeTask.desc + " " + TaskState.activeElapsedText()) : ""
+            text: TaskState.activeTask ? ("TRACKING :: " + TaskState.activeTask.desc + " " + TaskState.activeElapsedText()) : ""
             color: Colors.accentText
             elide: Text.ElideRight
           }
 
           StripLine {
             visible: TaskState.trackedTotalSeconds > 0
-            text: "worktime today :: " + TaskState.totalTrackedText()
+            text: "WORKTIME TODAY :: " + TaskState.totalTrackedText()
             dim: true
           }
 
           StripLine {
             visible: TimerState.pomoRunning
-            text: "pomodoro :: " + TimerState.pomoPhaseLabel + " " + Util.clock(TimerState.pomoRemainingSeconds)
-              + (TimerState.pomoPaused ? " (paused)" : "")
+            text: "POMODORO :: " + TimerState.pomoPhaseLabel + " " + Util.clock(TimerState.pomoRemainingSeconds)
+              + (TimerState.pomoPaused ? " :: PAUSED" : "")
             color: TimerState.pomo.phase === "work" ? Colors.accentText : Colors.okText
           }
 
@@ -601,7 +601,7 @@ Item {
 
             StripLine {
               required property var modelData
-              text: "reminder :: " + String(modelData.label || "") + " at " + String(modelData.atTime || "")
+              text: "REMINDER :: " + String(modelData.label || "") + " :: " + String(modelData.atTime || "")
               color: Colors.accent2Text
               elide: Text.ElideRight
             }
@@ -609,7 +609,7 @@ Item {
 
           StripLine {
             visible: TimerState.reminderCount > root.reminderShownMax
-            text: "+" + (TimerState.reminderCount - root.reminderShownMax) + " more reminders"
+            text: "+" + (TimerState.reminderCount - root.reminderShownMax) + " MORE"
             dim: true
           }
         }
@@ -675,7 +675,7 @@ Item {
             anchors.left: parent.left
             anchors.top: parent.top
             visible: notesEdit.text.length === 0
-            text: "no notes, start typing"
+            text: "> NO NOTES"
             dim: true
           }
         }
@@ -738,7 +738,7 @@ Item {
             anchors.left: parent.left
             anchors.top: parent.top
             visible: inboxEdit.text.length === 0
-            text: "no # notes yet"
+            text: "> NO # NOTES"
             dim: true
           }
         }

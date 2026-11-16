@@ -32,7 +32,7 @@ def --wrapped sevenzip [...args: string]: nothing -> string {
 }
 
 def sevenzip-extract [archive: path, stage: path]: nothing -> nothing {
-    if (which 7z | is-empty) { error make {msg: $"unsupported archive \(install 7z\): ($archive)"} }
+    if (which 7z | is-empty) { error make {msg: $"($archive): bsdtar cannot read it and 7z is not installed"} }
     sevenzip l -slt -- $archive | split row "\n----------\n" | get --optional 1 | default ""
     | split row "\n\n" | where $it != "" | each { lines | parse "{key} = {value}" | transpose -r -d }
     | each {|e| {

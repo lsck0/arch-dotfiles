@@ -442,7 +442,7 @@ Item {
 
     visible: hidden > 0
     leftPadding: markerWidth.width + Style.spacing.sm
-    text: "+" + hidden + " more"
+    text: "+" + hidden + " MORE"
     caption: true
     dim: true
   }

@@ -2,7 +2,7 @@
 # Table cases for the package gate and the hold on dependents: pure records in, reasons and pending lines out, then
 # pipeline-apply's scheduler over rows that run nothing; what is absent and which link sources are alive against fake
 # tools first on PATH.
-use pipeline.nu [packages-gate packages-absent links-alive module-held pending-lines pipeline-apply modules-gone secrets-stamp barriers-run]
+use pipeline.nu [packages-gate packages-absent links-alive module-held pending-lines pipeline-apply modules-gone secrets-stamp barriers-run input-converged]
 use modules.nu [modules-eval]
 use module.nu [step]
 use cause.nu [cause-hint]
@@ -451,6 +451,50 @@ def barrier-cases [work: path]: nothing -> nothing {
     }
 }
 
+# A user's system plan: root's record hashes root's paths and secrets, so only an input this user saw while root held
+# the same converged record skips the evaluation; a root run since (another checkout, apply --system) ends the skip.
+def converged-cases []: nothing -> nothing {
+    let cases = [
+        [name input recorded converged wants];
+        ["the layer's own record" a a null true]
+        ["changed since the layer's record" b a null false]
+        ["seen with this record" b a {input: b, root: a} true]
+        ["seen, but changed since" c a {input: b, root: a} false]
+        ["seen, but root recorded it again since" b r {input: b, root: a} false]
+        ["seen, but root recorded it not converged" b "" {input: b, root: ""} false]
+        ["an older file's bare input" b a b false]
+        ["never recorded, never seen" b "" null false]
+    ]
+    for c in $cases {
+        let got = input-converged $c.input $c.recorded $c.converged
+        assert equal $got $c.wants $"converged ($c.name): got ($got)"
+    }
+}
+
+# The progress line: on stderr at the default level as log-info prints, through log-debug at DEBUG, none above INFO,
+# and never an INFO record in the run file (the journal and dot log stay free of it).
+def progress-cases [work: path]: nothing -> nothing {
+    let run_file = $work | path join progress.jsonl
+    let cases = [
+        [name level wants];
+        ["default" null "dot: system layer: reading modules"]
+        ["info" INFO "dot: system layer: reading modules"]
+        ["unknown level ranks as info" loud "dot: system layer: reading modules"]
+        ["debug" DEBUG "dot: debug: system layer: reading modules"]
+        ["warn" WARN ""]
+    ]
+    for c in $cases {
+        rm --force $run_file
+        let env_vars = {LOG_TAG: dot, DOT_RUN_FILE: $run_file, DOT_RUN_ID: test, DOT_LOG: $c.level}
+        let run = with-env $env_vars { ^$nu.current-exe --no-config-file -I $env.FILE_PWD -c "use pipeline.nu [pipeline-progress]; pipeline-progress 'system layer: reading modules'" | complete }
+        assert equal $run.exit_code 0 $"progress ($c.name): ($run.stderr)"
+        assert equal ($run.stderr | str trim) $c.wants $"progress ($c.name): stderr"
+        assert equal $run.stdout "" $"progress ($c.name): stdout"
+        let levels = open --raw $run_file | lines | each { from json | get level }
+        assert equal $levels [DEBUG] $"progress ($c.name): recorded"
+    }
+}
+
 def main [] {
     let work = mktemp --directory --tmpdir dot-pipeline-test-XXXXXX
     # the user's git config (commit.gpgsign, a template dir) stays out of the scratch repos
@@ -471,5 +515,7 @@ def main [] {
     gone-cases $work
     secrets-stamp-cases $work
     barrier-cases $work
+    converged-cases
+    progress-cases $work
     rm --recursive --force $work
 }

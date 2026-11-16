@@ -9,7 +9,7 @@ def main [action: string = "toggle", --json] {
         is-on: {|| unit-active vllm.socket }
         on: {||
             if not (unit-exists vllm.socket) {
-                error make {msg: "vllm is not installed (configs/llm/vllm)"}
+                error make {msg: "vllm is not installed: dot apply sets it up through llm/vllm, on a ROCm GPU only"}
             }
             root-run vllm on
         }

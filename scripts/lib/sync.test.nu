@@ -159,6 +159,11 @@ def secrets-cases [work: path, owner: string]: nothing -> nothing {
     secrets-fast-forward $checkout $b
     assert equal (head $b) $next_a "the fast-forward did not stop at the revision the signed generation names"
 
+    # another sync pushed its secrets but not yet its generation: with nothing of b's own to push, b's sync goes on
+    let message = push-refused $checkout $b
+    assert equal $message "" "no commit of b's own behind an unnamed one: the push refused"
+    assert equal (head $b) $next_a "no commit of b's own behind an unnamed one: the checkout moved"
+
     let backup = secrets-commit $b backup --local
     let message = push-refused $checkout $b
     assert ($message | str contains $UNNAMED) $"an unnamed secrets commit: ($message | to nuon)"

@@ -218,7 +218,7 @@ BarWidget {
 
       PanelSeparator { visible: root.todayEvents.length > 0 }
       PanelSectionHeader {
-        text: "TODAY" + (CalendarState.stale ? " (offline)" : "")
+        text: "TODAY" + (CalendarState.stale ? " :: OFFLINE" : "")
         visible: root.todayEvents.length > 0
       }
 
@@ -259,7 +259,7 @@ BarWidget {
 
       Label {
         visible: root.todayEvents.length > root.todayMax
-        text: "+" + (root.todayEvents.length - root.todayMax) + " more"
+        text: "+" + (root.todayEvents.length - root.todayMax) + " MORE"
         dim: true
         caption: true
       }
@@ -269,42 +269,11 @@ BarWidget {
 
       Repeater {
         model: root.zoneOffsets
-        Item {
-          id: zone
+        StatRow {
           required property var modelData
-          width: content.width
-          implicitHeight: zoneTime.implicitHeight
-          height: implicitHeight
-          Label {
-            id: zoneMark
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            text: ">"
-            color: Colors.accentText
-            opacity: Style.emphasis.dim
-          }
-          Label {
-            anchors.left: zoneMark.right
-            anchors.leftMargin: Style.spacing.xs
-            anchors.right: zoneTime.left
-            anchors.rightMargin: Style.spacing.xs
-            anchors.verticalCenter: parent.verticalCenter
-            text: zone.modelData.zone
-            color: Colors.menu.text
-            font.capitalization: Font.AllUppercase
-            font.letterSpacing: Style.labelTracking
-            elide: Text.ElideRight
-          }
-          Label {
-            id: zoneTime
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width * 0.32
-            horizontalAlignment: Text.AlignRight
-            text: root.timeInZone(zone.modelData.spans)
-            color: Colors.accentText
-            font.letterSpacing: Style.displayTracking
-          }
+          label: modelData.zone
+          value: root.timeInZone(modelData.spans)
+          valueColor: Colors.accentText
         }
       }
 
@@ -313,7 +282,7 @@ BarWidget {
 
       // the slider's readout, and what it moves: the clock, the date, the calendar and the timezones
       StatRow {
-        label: "Shift the panel by"
+        label: "Offset"
         value: root.travelText
         valueColor: root.travelHours !== 0 ? Colors.accentText : Colors.menu.text
       }

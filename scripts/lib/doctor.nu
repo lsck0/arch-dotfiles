@@ -36,6 +36,8 @@ const INVARIANT_PENDING = "pending"
 const TODO = "todo"
 # `dot status` lists the checks in this order: what needs action first
 const LEVELS = [FAIL $TODO note ok]
+# a systemd-run without --unit (run-u<n>, run-p<pid>-i<n>): its caller has the exit status, failure-notify skips it too
+const UNIT_AD_HOC = '^run-(u[0-9]+|p[0-9]+-i[0-9]+)\.'
 
 def report [level: string, check: string, text: string]: nothing -> record {
     {level: $level, check: $check, text: $text}
@@ -182,11 +184,12 @@ export def packages-reports [missing: list<string>, recorded: list<string>, buil
     ] | compact
 }
 
-# A package group counts as installed.
-def packages []: nothing -> list<record> {
+# A package group counts as installed. ctx: the system layer as the caller loaded it, null to load it here.
+def packages [ctx: any]: nothing -> list<record> {
     if (which pacman | is-empty) { return [] }
-    let ctx = pipeline-load $REPO system
-    let declared = modules-packages $REPO $ctx.modules $ctx.platform | get pacman
+    let ctx = if $ctx != null { $ctx } else { pipeline-load $REPO system }
+    # profile-owner in a packages hook answers from the owners file only under the system layer
+    let declared = with-env {DOT_LAYER: system} { modules-packages $REPO $ctx.modules $ctx.platform } | get pacman
     let unmet = with-env {LC_ALL: C} { do { ^pacman -Qq ...$declared } | complete }
         | get stderr | lines | parse "error: package '{name}' was not found" | get name
     # one query for every unmet name that may be a group: -Qg lists "<group> <member>" for those installed
@@ -210,10 +213,12 @@ def firewall []: nothing -> list<record> {
     }
 }
 
+export def units-owned []: list<string> -> list<string> { where $it !~ $UNIT_AD_HOC }
+
 def units []: nothing -> list<record> {
     [system user] | each {|scope|
         let failed = ^systemctl $"--($scope)" list-units --failed --plain --no-legend | lines
-            | each { split row " " | first }
+            | each { split row " " | first } | units-owned
         let journal = if $scope == "user" { "journalctl --user -xeu <unit>" } else { "journalctl -xeu <unit>" }
         if ($failed | is-not-empty) {
             report FAIL units $"failed ($scope) units: (names-shown $failed $SHOWN_MAX); ($journal)"
@@ -297,22 +302,24 @@ def preserved []: nothing -> list<record> {
     }
 }
 
-# the health checks, in order; one closure each so this list is their single source
-def checks []: nothing -> list<closure> {
+# the health checks, in order; one closure each so this list is their single source. system: the loaded system layer
+# or null.
+def checks [system: any]: nothing -> list<closure> {
     [
         {|| failures} {|| crashes} {|| config-pending} {|| modules-pending} {|| reboot} {|| invariants} {|| apparmor} {|| snapshot}
-        {|| packages} {|| firewall} {|| luks} {|| units} {|| hooks} {|| secrets} {|| preserved}
+        {|| packages $system} {|| firewall} {|| luks} {|| units} {|| hooks} {|| secrets} {|| preserved}
     ]
 }
 
 # The checks run side by side, they are independent reads; their records in check order.
-def checks-run []: nothing -> list<record> {
-    checks | par-each --keep-order {|c| do $c } | flatten
+def checks-run [system: any = null]: nothing -> list<record> {
+    checks $system | par-each --keep-order {|c| do $c } | flatten
 }
 
 # Every check's records, unprinted, in check order; pending work reads FAIL here, as every reader of the level expects.
-export def doctor-checks []: nothing -> list<record> {
-    checks-run | update level {|r| if $r.level == $TODO { "FAIL" } else { $r.level } }
+# --system-ctx: the system layer, when the caller loaded it already.
+export def doctor-checks [--system-ctx: record]: nothing -> list<record> {
+    checks-run $system_ctx | update level {|r| if $r.level == $TODO { "FAIL" } else { $r.level } }
 }
 
 # The lines of `dot status`: the checks by level, what needs action first, then the count of each level.

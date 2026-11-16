@@ -66,7 +66,7 @@ def "main options" [] {
 def "main set" [...family: string] {
     let family = $family | str join " "
     if ($family | is-empty) { error make {msg: "usage: toggle-font.nu set <family>"} }
-    if $family not-in (families-installed) { error make {msg: $"font family not installed: ($family)"} }
+    if $family not-in (families-installed) { error make {msg: $"no font family ($family) installed; toggle-font.nu list lists them"} }
     font-set {family: $family} Font $family
 }
 

@@ -8,7 +8,7 @@
 # `apply --run` is replaced through the argv it knows and then entered again; a dismissed pkexec prompt is no failure.
 use state.nu [EXIT_PENDING EXIT_ABORTED]
 use system.nu [ENTRY entry-takes-run]
-use run.nu [failures-publish log-tee-argv system-due upgrades-due stage-code stage-failures stages-due plan-due entry-enter entry-declined]
+use run.nu [failures-publish log-tee-argv system-due system-due-line upgrades-due stage-code stage-failures stages-due plan-due entry-enter entry-declined]
 use std/assert
 
 const REPO = path self ../..
@@ -253,7 +253,22 @@ def stage-cases []: nothing -> nothing {
     assert ($known | str contains "runs/20261115T204044-abcd.jsonl") $"stage: the line does not name root's run file: ($known)"
 }
 
+# The line before the root entry: the first reason's first line, then how many more.
+def due-line-cases []: nothing -> nothing {
+    let cases = [
+        [name due wants];
+        ["one" ["the system plan: base/ssh: update /etc/ssh/sshd_config"] "system layer: entering root for the system plan: base/ssh: update /etc/ssh/sshd_config"]
+        ["several" ["package upgrades are available" "migrations pending: 0042-x" "config: x"] "system layer: entering root for package upgrades are available, 2 more"]
+        ["a multi-line reason" ["packages: a\nb"] "system layer: entering root for packages: a"]
+    ]
+    for c in $cases {
+        let got = system-due-line $c.due
+        assert equal $got $c.wants $"due line ($c.name)"
+    }
+}
+
 def main [] {
+    due-line-cases
     publish-cases
     tee-cases
     due-cases

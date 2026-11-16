@@ -68,8 +68,8 @@ Item {
       Label {
         Layout.fillWidth: true
         visible: text !== ""
-        text: root.flow ? root.flow.supplementaryMessage || (root.flow.failed ? "Authentication failed, try again"
-          : !root.responseRequired ? "Waiting for a key touch or fingerprint" : "") : ""
+        text: root.flow ? root.flow.supplementaryMessage || (root.flow.failed ? "> AUTHENTICATION FAILED"
+          : !root.responseRequired ? "> WAITING FOR TOUCH" : "") : ""
         color: root.flow && (root.flow.supplementaryIsError || root.flow.failed) ? Colors.urgentText : Colors.textDim
         caption: true
         wrapMode: Text.WordWrap

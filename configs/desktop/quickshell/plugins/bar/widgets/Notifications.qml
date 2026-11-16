@@ -19,8 +19,7 @@ BarWidget {
   // what switched it on when it was not the user: "OBS", "screen share", else ""
   readonly property string dndSource: service && service.dndSource ? service.dndSource : ""
   readonly property var history: service ? service.history : []
-  // the bell's dot means news: entries that arrived since the panel was last open
-  property double seenMs: 0
+  readonly property double seenMs: service ? service.historySeenMs : 0
   readonly property int unseenCount: history.filter(function(e) { return (e.timestamp || 0) > root.seenMs }).length
 
   // a history card shows bodyLinesCollapsed lines; one card at a time opens to bodyLinesExpanded
@@ -98,7 +97,7 @@ BarWidget {
 
     onOpened: if (root.service) root.service.refreshHistory()
     // seen once the panel closes again: while it is open the new ones are on screen
-    onShownChanged: if (!shown) { root.seenMs = Date.now(); root.expandedKey = "" }
+    onShownChanged: if (!shown) { if (root.service) root.service.historyMarkSeen(); root.expandedKey = "" }
 
     property double nowMs: Date.now()
     Timer {

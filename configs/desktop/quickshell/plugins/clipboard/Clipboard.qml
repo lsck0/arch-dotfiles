@@ -234,14 +234,11 @@ Item {
 
   function requestClearHistory() {
     if (root.history.length === 0) return
-    clearConfirm.selectedIndex = 0
     root.clearConfirmOpen = true
   }
 
   function cancelClearHistory() {
     root.clearConfirmOpen = false
-    pointerGate.reset()
-    Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
 
   function imagePaths() {
@@ -549,9 +546,10 @@ Item {
     title: "clipboard"
     suffix: "[" + displayModel.count + (displayModel.count < root.history.length ? "/" + root.history.length : "") + "]"
     prompt: true
-    query: root.filterText
-    placeholder: "search clipboard"
-    hints: root.gpgMode === "encrypt" ? [["^/v", "key"], ["SPACE", "pick"], ["ENTER", "encrypt"], ["ESC", "back"]]
+    query: root.clearConfirmOpen ? "" : root.filterText
+    placeholder: root.clearConfirmOpen ? "clear history? [y/N]" : "search clipboard"
+    hints: root.clearConfirmOpen ? [["Y", "clear"], ["N/ESC", "cancel"]]
+      : root.gpgMode === "encrypt" ? [["^/v", "key"], ["SPACE", "pick"], ["ENTER", "encrypt"], ["ESC", "back"]]
       : root.gpgMode === "decrypt" ? [["^/v", "scroll"], ["ESC", "back"]]
       : [["ENTER", "copy"], ["SHIFT+ENTER", "paste"], ["ALT+ENTER", "open"], ["DEL", "forget"], ["SHIFT+DEL", "clear"], ["CTRL+E", "encrypt"], ["CTRL+D", "decrypt"], ["ESC", "close"]]
     keyboard: !root.gpgBusy
@@ -561,13 +559,14 @@ Item {
     Item {
       id: keyCatcher
       anchors.fill: parent
-      z: root.clearConfirmOpen ? 20 : 0
       focus: true
 
       Keys.priority: Keys.BeforeItem
       Keys.onPressed: function(event) {
         if (root.clearConfirmOpen) {
-          if (clearConfirm.handleKey(event)) event.accepted = true
+          if (event.key === Qt.Key_Y) root.confirmClearHistory()
+          else if (!event.isAutoRepeat && event.key !== Qt.Key_Shift) root.cancelClearHistory()
+          event.accepted = true
           return
         }
         if (root.gpgMode !== "") {
@@ -605,18 +604,6 @@ Item {
           root.setFilter(root.filterText + event.text)
         else return
         event.accepted = true
-      }
-
-      ConfirmDialog {
-        id: clearConfirm
-
-        anchors.fill: parent
-        opened: root.clearConfirmOpen
-        z: 10
-        message: "Delete entire clipboard history?"
-        confirmText: "Delete"
-        onCanceled: root.cancelClearHistory()
-        onConfirmed: root.confirmClearHistory()
       }
     }
 
@@ -783,7 +770,7 @@ Item {
             Label {
               width: parent.width
               visible: text !== ""
-              text: root.gpgBusy ? "> waiting for gpg (pinentry or a key touch may ask)" : root.gpgError
+              text: root.gpgBusy ? "> WAITING FOR GPG" : root.gpgError
               color: root.gpgBusy ? Colors.menu.text : Colors.urgentText
               wrapMode: Text.Wrap
             }

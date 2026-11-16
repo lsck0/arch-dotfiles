@@ -342,19 +342,22 @@ PanelWindow {
     Item {
       id: centerHolder
       // the left section at its widest so far: a workspace opening or closing then leaves the centre where it is.
-      // A bar of another width (scale, monitor) starts over
+      // A bar of another width (scale, monitor) starts over; a right section that took the room back wins over it
       property real leftWidest: 0
       readonly property real leftWidth: leftHolder.width
       readonly property real barWidth: parent.width
       onLeftWidthChanged: leftWidest = Math.max(leftWidest, leftWidth)
       onBarWidthChanged: leftWidest = leftWidth
-      readonly property real gapLeft: leftHolder.x + Math.max(leftWidth, leftWidest) + parent.keepClear
+      readonly property real gapLeftWidest: leftHolder.x + Math.max(leftWidth, leftWidest) + parent.keepClear
+      readonly property real gapLeft: gapRight - gapLeftWidest >= centerSection.implicitWidth
+        ? gapLeftWidest : leftHolder.x + leftWidth + parent.keepClear
       readonly property real gapRight: rightHolder.x - parent.keepClear
       anchors.verticalCenter: parent.verticalCenter
       height: parent.height
       clip: true
       width: Math.max(0, Math.min(centerSection.implicitWidth, gapRight - gapLeft))
-      x: gapLeft + Math.max(0, (gapRight - gapLeft - width) / 2)
+      // on the bar's centre while that fits the gap, so the right section growing a digit leaves it where it is
+      x: Math.max(gapLeft, Math.min(gapRight - width, (barWidth - width) / 2))
 
       RowLayout {
         id: centerSection

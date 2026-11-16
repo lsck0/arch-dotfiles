@@ -17,9 +17,11 @@ BarWidget {
   readonly property var players: MediaState.players
   readonly property var player: MediaState.player
 
+  // a browser tab without media metadata reports its site's address as the album or artist
+  function tag(v) { return /^[a-z]+:\/\//i.test(String(v || "")) ? "" : String(v || "") }
   readonly property string title: player ? (player.trackTitle || "") : ""
-  readonly property string artist: player ? (player.trackArtist || "") : ""
-  readonly property string album: player ? (player.trackAlbum || "") : ""
+  readonly property string artist: player ? tag(player.trackArtist) : ""
+  readonly property string album: player ? tag(player.trackAlbum) : ""
   readonly property bool playing: player !== null && player.playbackState === MprisPlaybackState.Playing
 
   readonly property string artUrl: {
@@ -136,15 +138,19 @@ BarWidget {
 
   PwObjectTracker { objects: root.playerStreams }
 
-  readonly property bool recentlyActive: playing || lingerTimer.running
-  onPlayingChanged: if (!playing) lingerTimer.restart()
+  // set, not bound: a binding on playing would drop to false for the one evaluation before the linger starts, hiding
+  // the widget and closing its panel on every pause
+  property bool recentlyActive: false
+  onPlayingChanged: if (playing) recentlyActive = true; else lingerTimer.restart()
 
   Timer {
     id: lingerTimer
     interval: 30000
+    onTriggered: root.recentlyActive = root.playing
   }
 
   Component.onCompleted: {
+    recentlyActive = playing
     Cava.source = spectrumSource
     refreshArt()
   }
@@ -283,10 +289,12 @@ BarWidget {
 
           Label {
             width: parent.width
-            text: root.title || "Nothing playing"
+            text: root.title || (root.player ? root.player.identity : "")
             color: Colors.menu.text
             font.pixelSize: Style.font.title
             font.bold: true
+            wrapMode: Text.Wrap
+            maximumLineCount: 2
             elide: Text.ElideRight
             layer.enabled: Style.fx.glow > 0
             layer.effect: Glow {}
@@ -294,8 +302,8 @@ BarWidget {
           Label {
             width: parent.width
             text: root.artist
+            visible: text !== ""
             dim: true
-            caption: true
             elide: Text.ElideRight
           }
           Label {
@@ -371,7 +379,7 @@ BarWidget {
             iconText: "\u{f074}"
             tooltipText: root.player && root.player.shuffle ? "Shuffle: on" : "Shuffle: off"
             foreground: root.player && root.player.shuffle ? Colors.accentText : Colors.menu.text
-            enabled: root.player !== null && root.player.shuffleSupported
+            visible: root.player !== null && root.player.shuffleSupported
             onClicked: if (root.player) root.player.shuffle = !root.player.shuffle
           }
 
@@ -410,7 +418,7 @@ BarWidget {
             }
             foreground: root.player && root.player.loopState !== MprisLoopState.None
               ? Colors.accentText : Colors.menu.text
-            enabled: root.player !== null && root.player.loopSupported
+            visible: root.player !== null && root.player.loopSupported
             onClicked: {
               if (!root.player) return
               switch (root.player.loopState) {

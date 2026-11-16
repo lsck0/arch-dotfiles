@@ -102,7 +102,7 @@ export def homelab-render [lab: record]: nothing -> string {
         push: {
             prometheus: (field $lab $.monitoring.push.prometheus '^https://\S+$')
             loki: (field $lab $.monitoring.push.loki '^https://\S+$')
-            desktops: ($lab.monitoring.push.desktops | each {|d| if ($d =~ '^[a-z0-9-]+$') { $d } else { error make {msg: $"homelab: desktop ($d)"} } })
+            desktops: ($lab.monitoring.push.desktops | each {|d| if ($d =~ '^[a-z0-9-]+$') { $d } else { error make {msg: $"homelab: lab.json monitoring.push.desktops has ($d | to nuon), not of the shape ^[a-z0-9-]+$"} } })
         }
     }
     $"($HEAD)\nexport const HOMELAB = ($values | options-to-nuon)\n"

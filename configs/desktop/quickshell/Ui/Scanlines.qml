@@ -15,7 +15,7 @@ Item {
   property bool flicker: false
   readonly property int flickerCycles: 2
 
-  readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true) // qmllint disable missing-property
+  readonly property bool onScreen: visible && (QsWindow.window ? !!QsWindow.window.visible : true) // qmllint disable missing-property
 
   Loader {
     anchors.fill: parent

@@ -178,11 +178,14 @@ def repo-top []: nothing -> path {
 }
 
 # HEAD plus the working tree as one commit on top of it, through a scratch index: HEAD, the index and the worktree
-# stay as they are. Tracked changes always, untracked files (ignored ones never) only with all.
+# stay as they are. Tracked and staged files always, untracked files (ignored ones never) only with all.
 def snapshot-create [top: path, all: bool]: nothing -> string {
     let dir = mktemp --directory --tmpdir offload-XXXXXX
-    let tree = with-env {GIT_INDEX_FILE: ($dir | path join index)} {
-        ^git -C $top read-tree HEAD
+    let index = ^git -C $top rev-parse --path-format=absolute --git-path index | str trim
+    let scratch = $dir | path join index
+    if ($index | path exists) { cp $index $scratch }
+    let tree = with-env {GIT_INDEX_FILE: $scratch} {
+        if not ($scratch | path exists) { ^git -C $top read-tree HEAD }
         ^git -C $top add (if $all { "--all" } else { "--update" })
         ^git -C $top write-tree | str trim
     }
@@ -464,11 +467,13 @@ def "main host stop" [job: string]: nothing -> nothing {
     print (null | to nuon)
 }
 
-# The job's worktree as it is now, committed on top of the job's commit as its result ref.
+# The job's worktree as it is now, committed on top of its HEAD as the job's result ref. A run's worktree is shared
+# by the repo's runs, so its HEAD must still be the job's commit; an agent's worktree keeps its work across sessions
+# and its own commits.
 def "main host snapshot" [job: string]: nothing -> nothing {
     let record = open (job-dir $job | path join $JOB_FILE)
     let head = ^git -C $record.worktree rev-parse HEAD | str trim
-    if $head != $record.commit { die $"($record.worktree) moved on to a later job; ($job)'s result is gone" }
+    if $record.kind == $KIND_RUN and $head != $record.commit { die $"($record.worktree) moved on to a later job; ($job)'s result is gone" }
     let commit = snapshot-create $record.worktree true
     ^git -C $record.worktree update-ref (ref-result $job) $commit
     print ({ref: (ref-result $job), commit: $commit, bare: (bare-path $record.client $record.slug)} | to nuon)

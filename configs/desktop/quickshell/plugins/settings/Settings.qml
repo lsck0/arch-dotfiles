@@ -59,7 +59,7 @@ Item {
   readonly property string queuedNeeds: Schema.strongestApply(queued.map(function (id) { return root.pending[id].option }))
 
   readonly property var hints: {
-    var out = [["TYPE", root.expandedId ? "filter" : "search"], ["TAB", "pane"], ["ENTER", "edit"], ["</>", "change"],
+    var out = [["TAB", "pane"], ["TYPE", root.expandedId ? "filter" : "search"], ["ENTER", "edit"], ["</>", "change"],
       ["CTRL+R", "reset"]]
     if (cursorRow && cursorRow.kind === "option" && cursorRow.option.type === "path") out.push(["CTRL+O", "browse"])
     if (queued.length > 0) out.push(["CTRL+S", "apply"], ["CTRL+Z", "revert"])
@@ -751,7 +751,7 @@ Item {
             color: sectionRow.header ? Colors.textDim : sectionRow.current ? Colors.menu.selectedText : Colors.menu.text
             caption: sectionRow.header
             font.bold: sectionRow.current || sectionRow.header
-            font.letterSpacing: sectionRow.header ? Style.space(1) : 0
+            font.letterSpacing: sectionRow.header ? Style.labelTracking : 0
             elide: Text.ElideRight
           }
 
@@ -875,6 +875,8 @@ Item {
                   anchors.verticalCenter: parent.verticalCenter
                   text: (slot.hasCursor ? "> " : "  ") + parent.toggle.label
                   color: slot.hasCursor ? Colors.menu.selectedText : Colors.menu.text
+                  font.capitalization: Font.AllUppercase
+                  font.letterSpacing: Style.labelTracking
                   elide: Text.ElideRight
                 }
 
@@ -961,7 +963,6 @@ Item {
             Component {
               id: actionRow
               PanelRow {
-                upper: false
                 label: (slot.hasCursor ? "> " : "  ") + slot.modelData.name
                 trailing: slot.modelData.detail + (slot.modelData.terminal ? "  [terminal]" : "")
                 on: slot.hasCursor
@@ -1022,14 +1023,10 @@ Item {
 
                   Label {
                     width: parent.width
-                    text: drift.confirming
-                      ? "reset puts the repo's copy of only this file back, your edit is kept aside in dot's preserved/;"
-                        + " ENTER again to reset, ESC keeps it"
-                      : drift.entry.module + ", " + drift.entry.drift + ": adopt carries the edit into the repo, reset puts the repo's "
-                        + "copy of this file back"
+                    text: drift.confirming ? "> RESET? [ENTER] reset [ESC] keep" : drift.entry.module + " :: " + drift.entry.drift
                     color: drift.confirming ? Colors.warnText : Colors.textDim
                     caption: true
-                    wrapMode: Text.Wrap
+                    elide: Text.ElideRight
                   }
                 }
 
@@ -1124,8 +1121,7 @@ Item {
               anchors.right: buttons.left
               anchors.rightMargin: Style.spacing.md
               anchors.verticalCenter: parent.verticalCenter
-              text: root.queued.length + (root.queued.length === 1 ? " change" : " changes") + " pending"
-                + (root.queuedNeeds ? ", needs " + root.queuedNeeds : "")
+              text: root.queued.length + " PENDING" + (root.queuedNeeds ? " :: " + root.queuedNeeds.toUpperCase() : "")
               color: Colors.accent2Text
               elide: Text.ElideRight
             }
@@ -1162,7 +1158,7 @@ Item {
               anchors.right: systemApplyButton.left
               anchors.rightMargin: Style.spacing.md
               anchors.verticalCenter: parent.verticalCenter
-              text: "saved, the system part needs apply"
+              text: "SYSTEM PENDING"
               color: Colors.warnText
               elide: Text.ElideRight
             }

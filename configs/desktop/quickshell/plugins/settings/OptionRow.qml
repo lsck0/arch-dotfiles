@@ -110,6 +110,8 @@ Item {
           text: (row.hasCursor ? "> " : "  ") + (row.option.label || row.option.key) + (row.pending ? " *" : "")
           color: row.pending ? Colors.accent2Text : row.hasCursor ? Colors.menu.selectedText : Colors.menu.text
           font.bold: row.pending
+          font.capitalization: Font.AllUppercase
+          font.letterSpacing: Style.labelTracking
           elide: Text.ElideRight
         }
 
@@ -268,18 +270,8 @@ Item {
 
       Label {
         width: parent.width
-        visible: text !== ""
-        text: row.option.doc || ""
-        dim: true
-        highlighted: row.lit
-        caption: true
-        wrapMode: Text.Wrap
-      }
-
-      Label {
-        width: parent.width
         visible: row.expanded && (row.choiceFilter !== "" || row.listed.length > Schema.choicePageSize)
-        text: (row.choiceFilter ? "filter " + row.choiceFilter + ": " : "") + (row.listed.length === 0 ? "no match"
+        text: (row.choiceFilter ? row.choiceFilter + " :: " : "") + (row.listed.length === 0 ? "> NO MATCH"
           : (row.pageStart + 1) + "-" + (row.pageStart + row.page.length) + " of " + row.listed.length)
         color: Colors.accentText
         caption: true

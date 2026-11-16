@@ -69,7 +69,9 @@ Item {
     if (!id) return
     root.recordLaunch(id)
     root.beginLaunchFeedback(name)
-    var argv = ["uwsm-app", "--", "gtk-launch", id + ".desktop"]
+    // the app keeps the launcher's stdout: the journal, not this Process's pipe, which closes once gtk-launch returns
+    // and kills an app that logs to stdout afterwards (Discord's main process died on EPIPE)
+    var argv = ["systemd-cat", "--identifier=" + id, "uwsm-app", "--", "gtk-launch", id + ".desktop"]
     // gtk-launch returns once the app is spawned; a second launch inside that moment goes without the exit check
     if (launchProc.running) {
       Quickshell.execDetached(argv)

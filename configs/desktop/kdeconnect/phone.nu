@@ -72,8 +72,10 @@ def main [] { help main }
 def "main share" [...targets: string, --notify]: nothing -> nothing {
     attempt $notify {
         let device = device-reachable
-        let raw = if ($targets | is-empty) { clipboard-targets } else { $targets }
-        let items = $raw | each {|t| share-target $t ($t | path exists) }
+        let clipboard = $targets | is-empty
+        let raw = if $clipboard { clipboard-targets } else { $targets }
+        # copied text is a file only as an absolute path: a copied word would resolve against wherever phone runs
+        let items = $raw | each {|t| share-target $t ((not $clipboard or ($t | str starts-with "/")) and ($t | path exists)) }
         let urls = $items | where kind != text | get value
         if ($urls | is-not-empty) { kdeconnect $device --share ($urls | first) ...($urls | skip 1) }
         for text in ($items | where kind == text | get value) { kdeconnect $device --share-text $text }

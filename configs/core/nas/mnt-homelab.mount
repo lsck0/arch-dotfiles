@@ -14,5 +14,7 @@ ConditionVirtualization=!wsl
 What=@SHARE@
 Where=/mnt/homelab
 Type=cifs
-Options=credentials=/etc/samba/homelab.cred,seal,uid=0,gid=wheel,vers=3.1.1,_netdev,nofail,file_mode=0660,dir_mode=0770,soft,echo_interval=10
+# seal encrypts each write into one contiguous buffer: the default 4 MiB wsize needs order-9 pages, which fail under
+# memory pressure; 1 MiB keeps them small
+Options=credentials=/etc/samba/homelab.cred,seal,uid=0,gid=wheel,vers=3.1.1,_netdev,nofail,file_mode=0660,dir_mode=0770,soft,echo_interval=10,wsize=1048576
 TimeoutSec=5s

@@ -26,7 +26,8 @@ def saver-sync []: nothing -> nothing {
     state-set powersaver $saver --volatile
     let ghostty_conf = state-file ghostty-powersave.conf --volatile
     if $saver == on { "cursor-style-blink = false\n" | save --force $ghostty_conf } else { rm --force $ghostty_conf }
-    ^ghostty-reload | complete
+    # desktop/ghostty links it, and complete does not catch a command that is not there
+    if (which ghostty-reload | is-not-empty) { ^ghostty-reload | complete }
     ^hyprctl reload config-only | complete
     toggle-run shader reapply | complete
     toggle-run monitor-scale reapply | complete

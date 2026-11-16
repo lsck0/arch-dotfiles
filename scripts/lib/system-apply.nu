@@ -268,7 +268,7 @@ def "main install" [--unattended, --yes]: nothing -> nothing {
     ^pacman-key --populate archlinux
     let offline = (which nm-online | is-not-empty) and not (try { ^nm-online $"--timeout=($OFFLINE_WAIT_S)"; true } catch { false })
     if $offline { log-warn $"still offline after ($OFFLINE_WAIT_S)s" }
-    let ctx = pipeline-load $repo system
+    let ctx = pipeline-load $repo system --progress
     # pipeline-apply records the failure itself
     for id in (phase-ids $ctx early) { if not (module-system $ctx $id --packages-unchecked) { exit $EXIT_ABORTED } }
     # a power cut mid-transaction leaves the lock, and every retry boot would fail on it
@@ -348,7 +348,7 @@ def "main config" [--unattended, --force]: nothing -> nothing {
     failures-begin ($SYSTEM_STATE | path join FAILURES)
     # a pending migration converts root's state before any verb reads it, also without a sync
     migrations-run $repo system | ignore
-    let ctx = pipeline-load $repo system
+    let ctx = pipeline-load $repo system --progress
     let secrets = mktemp --directory --tmpdir-path /run
     let run = try {
         ^tar -x --no-same-owner --no-same-permissions -C $secrets -f -
@@ -358,7 +358,7 @@ def "main config" [--unattended, --force]: nothing -> nothing {
         secrets-refused $handed $allowed | each { rm --force ($secrets | path join $in) } | ignore
         secrets-record $secrets
         $env.DOTFILES_SECRETS = $secrets
-        let planned = pipeline-plan $ctx system [] $force | where id not-in (phase-ids $ctx early)
+        let planned = pipeline-plan $ctx system [] $force --progress | where id not-in (phase-ids $ctx early)
         let results = pipeline-apply $ctx $planned system 1
         pending-save $planned.id $results --full
         {results: $results, waiting: ($results | any { $in.pending? != null })}

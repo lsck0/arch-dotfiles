@@ -1,6 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # NotificationLogic.js under qmltestrunner: the toast's action filter, the sender name of a snapshot, the history list,
-# the exec argv allowlist, the img tag stripping, who passes dnd and which closed toast goes to history
+# the exec argv allowlist, the img tag stripping, the hyphen joiner, who passes dnd and which closed toast goes to
+# history
 
 const LOGIC = path self NotificationLogic.js
 const RUNNER = "/usr/lib/qt6/bin/qmltestrunner"
@@ -53,6 +54,11 @@ TestCase {
     compare(NotificationLogic.stripImageTags("<img src=x>hello"), "hello")
     compare(NotificationLogic.stripImageTags("<i<img>mg src=x>hello"), "hello")
     compare(NotificationLogic.stripImageTags("plain text"), "plain text")
+  }
+
+  function test_join_hyphens() {
+    compare(NotificationLogic.joinHyphens("-xeu run-p1"), "-\u2060xeu run-\u2060p1")
+    compare(NotificationLogic.joinHyphens("<a href=\"https://a-b\">a-b</a>"), "<a href=\"https://a-b\">a-\u2060b</a>")
   }
 
   function test_bypass_dnd() {

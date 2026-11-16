@@ -67,7 +67,7 @@ export def option-write [mod: string, key: string, value: any, machine: bool]: n
     if $spec == null { error make {msg: $"($mod) has no option ($key); dot set ($mod) lists them"} }
     let bad = if $value == null { [] } else { option-value-errors $mod $key $spec $value "dot set" }
     if ($bad | is-not-empty) { error make {msg: ($bad | str join "\n")} }
-    if $spec.scope == "machine" and not $machine { error make {msg: $"($mod).($key) is a machine option: dot set --machine"} }
+    if $spec.scope == "machine" and not $machine { error make {msg: $"($mod).($key) is a machine option, set it with dot set --machine ($mod).($key) <value>"} }
     let file = if $machine { $ctx.platform.options_file } else { $ctx.profile.options_file }
     if $file == null or ($file | str starts-with "/etc/") { error make {msg: $"this machine's options are root's ($file | default '/etc/dotfiles'), not settable from here"} }
     let current = if ($file | path exists) { open $file } else { {} }

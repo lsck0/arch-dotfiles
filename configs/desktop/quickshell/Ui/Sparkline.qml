@@ -28,7 +28,7 @@ Item {
   onHeightChanged: cv.requestPaint()
   onColorChanged: cv.requestPaint()
 
-  readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true) // qmllint disable missing-property
+  readonly property bool onScreen: visible && (QsWindow.window ? !!QsWindow.window.visible : true) // qmllint disable missing-property
 
   property bool pulsing: true
   property real pulse: 0

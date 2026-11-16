@@ -592,7 +592,7 @@ Item {
         spacing: Style.spacing.sm
 
         Repeater {
-          model: [["bg", "background"], ["fg", "foreground"], ["acc", "accent"], ["acc2", "accent2"], ["urg", "urgent"]]
+          model: [["BG", "background"], ["FG", "foreground"], ["ACC", "accent"], ["ACC2", "accent2"], ["URG", "urgent"]]
 
           Column {
             required property var modelData
@@ -759,7 +759,7 @@ Item {
         anchors.topMargin: text !== "" ? Style.spacing.md : 0
         foreground: root.foreground
         accent: root.selectedBorder
-        placeholderText: "filter by artist or title"
+        placeholderText: "filter"
         Keys.onPressed: function(event) {
           const key = event.key
           const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
@@ -812,6 +812,7 @@ Item {
       }
 
       Item {
+        id: titleLine
         anchors.top: parent.top
         anchors.topMargin: Style.spacing.xs
         anchors.horizontalCenter: carousel.horizontalCenter
@@ -834,10 +835,10 @@ Item {
         id: keyHints
         anchors.bottom: parent.bottom
         anchors.bottomMargin: Style.spacing.sm
-        anchors.horizontalCenter: carousel.horizontalCenter
-        hints: [["</>", "select"], ["PGUP/PGDN", "ten"], ["^/v", root.mode === 1 ? "wallpapers" : "themes"], ["TYPE", "filter"]]
+        anchors.left: titleLine.left
+        hints: [["</>", "select"], ["PGUP/PGDN", "ten"], ["^/v", root.mode === 1 ? "wallpapers" : "themes"]]
           .concat(recentGroups.visible ? [["CTRL+</>", "recent"]] : [],
-            [["CTRL+R", "lottery"], ["CTRL+T", "theme lottery"], ["ENTER", "apply"], ["ESC", root.lotteryRunning || root.lotteryPending ? "stop" : root.recentIndex >= 0 ? "back" : root.filterText ? "clear" : "close"]])
+            [["TYPE", "filter"], ["CTRL+R", "lottery"], ["CTRL+T", "theme lottery"], ["ENTER", "apply"], ["ESC", root.lotteryRunning || root.lotteryPending ? "stop" : root.recentIndex >= 0 ? "back" : root.filterText ? "clear" : "close"]])
       }
 
       HudFrame {

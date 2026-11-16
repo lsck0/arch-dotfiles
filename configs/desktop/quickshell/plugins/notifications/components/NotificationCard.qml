@@ -35,7 +35,7 @@ BorderSurface {
   function formatTime(ts, ref) {
     if (!ts) return ""
     var when = new Date(ts * (ts < 1e12 ? 1000 : 1))
-    if (ref && Math.round((ref - when.getTime()) / 1000) < 60) return "now"
+    if (ref && Math.round((ref - when.getTime()) / 1000) < 60) return "NOW"
     var sameDay = when.toDateString() === (ref ? new Date(ref) : new Date()).toDateString()
     return Qt.formatDateTime(when, sameDay ? Util.timeFormat : Util.dayFormat + " " + Util.timeFormat)
   }
@@ -58,7 +58,8 @@ BorderSurface {
 
   readonly property real edge: isRow ? 0 : Style.surface.borderWidth
   readonly property bool critical: urgency === NotificationLogic.URGENCY_CRITICAL
-  readonly property color strokeColor: critical ? Colors.urgent : Colors.edge
+  // the panels' inset: a toast pads like a hover panel, a history row stays on the panel's own rhythm
+  readonly property real padX: isRow ? Style.spacing.md : Style.surface.padding
 
   implicitWidth: root.isRow ? Style.panelWidth.normal : Style.space(420)
   implicitHeight: mainColumn.implicitHeight + edge * 2
@@ -81,15 +82,16 @@ BorderSurface {
     visible: !root.isRow
     anchors.fill: parent
     z: -1
-    strokeColor: root.strokeColor
   }
 
+  // critical is an urgent mark on the left; a toast's sits inside its hairline, clear of the corner brackets
   Rectangle {
-    visible: root.isRow && root.urgency === NotificationLogic.URGENCY_CRITICAL
+    visible: root.critical
     anchors.left: parent.left
+    anchors.leftMargin: root.edge
     anchors.verticalCenter: parent.verticalCenter
     width: Style.space(2)
-    height: parent.height - Style.space(8)
+    height: parent.height - (root.isRow ? Style.space(8) : (root.edge + Style.fx.bracketLen + Style.spacing.xs) * 2)
     radius: Style.shape.data
     color: Colors.urgent
   }
@@ -119,17 +121,17 @@ BorderSurface {
 
     RowLayout {
       Layout.fillWidth: true
-      Layout.leftMargin: Style.spacing.md
-      Layout.rightMargin: Style.spacing.md
-      Layout.topMargin: root.singleLineToast ? Style.spacing.xs : Style.spacing.sm
-      Layout.bottomMargin: root.singleLineToast ? Style.spacing.xs : Style.spacing.sm
+      Layout.leftMargin: root.padX
+      Layout.rightMargin: root.padX
+      Layout.topMargin: root.isRow ? (root.singleLineToast ? Style.spacing.xs : Style.spacing.sm) : Style.spacing.md
+      Layout.bottomMargin: root.isRow ? (root.singleLineToast ? Style.spacing.xs : Style.spacing.sm) : Style.spacing.md
       spacing: root.collapseRedundantIcon ? 0 : (root.compactGlyph ? Style.spacing.sm : Style.spacing.md)
 
       Item {
         id: smallIconSlot
         Layout.preferredWidth: visible ? (root.isRow ? Style.space(24) : Style.space(32)) : 0
         Layout.preferredHeight: visible ? (root.isRow ? Style.space(24) : Style.space(32)) : 0
-        Layout.alignment: Qt.AlignVCenter
+        Layout.alignment: Qt.AlignTop
         visible: !root.collapseRedundantIcon && !root.compactGlyph && (root.hasSmallIcon || root.hasGlyph) && (root.hasGlyph || smallIconImage.status !== Image.Error)
 
         Image {
@@ -168,28 +170,19 @@ BorderSurface {
         Layout.fillWidth: true
         Layout.alignment: Qt.AlignVCenter
         // a toast's text stops short of its close mark
-        Layout.rightMargin: root.isRow ? Style.spacing.md : closeMark.width + Style.shape.chamfer - Style.spacing.md
+        Layout.rightMargin: root.isRow ? Style.spacing.md : closeMark.width + Style.shape.chamfer - root.padX
         spacing: Style.spacing.xxs
 
         Row {
           Layout.fillWidth: true
           spacing: Style.spacing.xs
-          visible: root.critical || root.app.length > 0 || root.timeLabel.length > 0
+          visible: root.app.length > 0 || root.timeLabel.length > 0
 
           readonly property bool showDot: root.app.length > 0 && root.timeLabel.length > 0
           readonly property real dotSlotWidth: showDot ? dotText.implicitWidth + spacing : 0
-          readonly property real criticalSlotWidth: root.critical ? criticalText.implicitWidth + spacing : 0
 
-          Label {
-            id: criticalText
-            visible: root.critical
-            text: "! CRITICAL"
-            color: Colors.urgentText
-            caption: true
-            font.bold: true
-          }
           Caption {
-            width: Math.min(implicitWidth, parent.width - timeText.implicitWidth - parent.dotSlotWidth - parent.criticalSlotWidth - parent.spacing)
+            width: Math.min(implicitWidth, parent.width - timeText.implicitWidth - parent.dotSlotWidth - parent.spacing)
             text: root.app.toUpperCase() + (root.groupCount > 1 ? " x" + root.groupCount : "")
             elide: Text.ElideRight
           }
@@ -207,10 +200,10 @@ BorderSurface {
         Label {
           Layout.fillWidth: true
           visible: root.summary.length > 0
-          text: root.summary
+          text: NotificationLogic.joinHyphens(root.summary)
           color: Colors.notifications.text
           font.bold: true
-          wrapMode: Text.WordWrap
+          wrapMode: Text.WrapAtWordBoundaryOrAnywhere
           elide: Text.ElideRight
           maximumLineCount: 2
         }
@@ -229,7 +222,7 @@ BorderSurface {
             var argv = NotificationLogic.parseExecArgv(JSON.stringify(["xdg-open", link]))
             if (argv) Quickshell.execDetached(["uwsm-app", "--"].concat(argv))
           }
-          wrapMode: Text.WordWrap
+          wrapMode: Text.WrapAtWordBoundaryOrAnywhere
           elide: Text.ElideRight
           maximumLineCount: Math.max(1, root.bodyLines)
         }
@@ -243,10 +236,9 @@ BorderSurface {
           Repeater {
             model: root.isRow ? [] : root.actions
             Button {
-              variant: "action"
+              variant: "chip"
               required property var modelData
-              text: modelData.text
-              foreground: Colors.notifications.text
+              text: modelData.text.toUpperCase()
               onClicked: root.actionInvoked(modelData.id)
             }
           }
@@ -259,9 +251,9 @@ BorderSurface {
     Rectangle {
       id: gauge
       Layout.fillWidth: true
-      Layout.leftMargin: Style.spacing.md
-      Layout.rightMargin: Style.spacing.md
-      Layout.bottomMargin: Style.spacing.sm
+      Layout.leftMargin: root.padX
+      Layout.rightMargin: root.padX
+      Layout.bottomMargin: Style.spacing.md
       implicitHeight: Style.spacing.xxs
       visible: !root.isRow && root.segmentsLeft > 0
       radius: Style.shape.data
@@ -280,38 +272,27 @@ BorderSurface {
   }
 
   // always on a toast, where a plain click runs the default action instead; on hover in a history row
-  Item {
+  Button {
     id: closeMark
     anchors.top: parent.top
     anchors.right: parent.right
-    anchors.topMargin: root.edge + Style.spacing.xs
+    anchors.topMargin: root.edge + (root.isRow ? Style.spacing.xs : Style.spacing.sm)
     anchors.rightMargin: root.edge + Style.shape.chamfer
-    width: Style.row.control
-    height: Style.row.control
+    variant: "icon"
+    iconText: "\u{f00d}"
+    foreground: hot ? Colors.notifications.text : Colors.textDim
+    fontSize: Style.font.caption
     visible: opacity > 0
     opacity: root.hovered || !root.isRow ? 1 : 0
+    onClicked: root.closeRequested()
 
     Behavior on opacity { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
-
-    Label {
-      anchors.centerIn: parent
-      text: "x"
-      color: closeArea.containsMouse ? Colors.notifications.text : Colors.textDim
-      font.pixelSize: Style.font.heading
-    }
-
-    MouseArea {
-      id: closeArea
-      anchors.fill: parent
-      hoverEnabled: true
-      cursorShape: Qt.PointingHandCursor
-      onClicked: root.closeRequested()
-    }
   }
 
   component Caption: Label {
     dim: true
     caption: true
+    font.letterSpacing: Style.labelTracking
   }
 
 }

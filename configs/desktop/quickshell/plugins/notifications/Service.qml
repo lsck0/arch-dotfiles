@@ -38,6 +38,8 @@ Item {
       property bool dndByObs: false
       // a screen share (Discord, a browser) turned it on: Hyprland's screencast event, any portal share
       property bool dndByShare: false
+      // the bell's news are entries newer than this: the history panel was last closed then
+      property double historySeenMs: 0
     }
   }
 
@@ -52,10 +54,15 @@ Item {
   }
 
   readonly property alias doNotDisturb: settings.dnd
+  readonly property alias historySeenMs: settings.historySeenMs
   // what holds it on when it was not the user
   readonly property string dndSource: settings.dndByObs ? "OBS" : settings.dndByShare ? "screen share" : "" // qmllint disable unqualified
   // the bar, OBS and a share change it here, not through toggle-dnd.nu: its readers (settings) still hear of it
   onDoNotDisturbChanged: ToggleEvents.changed("toggle-dnd.nu")
+
+  function historyMarkSeen() {
+    settings.historySeenMs = Date.now() // qmllint disable unqualified
+  }
 
   function setDoNotDisturb(value) {
     settings.dndByObs = false // qmllint disable unqualified
@@ -385,7 +392,8 @@ Item {
   readonly property string copyImagesScript:
     "while (( $# >= 2 )); do\n" +
     "  if [[ -f $1 ]] && timeout 5 head -c 5242881 -- \"$1\" > \"$2.tmp\" 2>/dev/null &&\n" +
-    "     (( $(stat -c%s -- \"$2.tmp\") <= 5242880 )); then mv -f -- \"$2.tmp\" \"$2\"; else rm -f -- \"$2.tmp\"; fi\n" +
+    "     (( $(stat -c%s -- \"$2.tmp\") <= 5242880 )); then mv -f -- \"$2.tmp\" \"$2\"\n" +
+    "  else rm -f -- \"$2.tmp\"; [[ -f $2 ]] || json=${json//\"\\\"file://$2\\\"\"/'\"\"'}; fi\n" +
     "  shift 2\n" +
     "done\n"
 

@@ -43,8 +43,14 @@ export def link [cfg: record] {
         router_tunnel: (if $homelab { $ssh.wake_router_tunnel })
         forwards: (forwards-read)
     }
+    let user = $env.USER? | default (^id -un | str trim)
     [
         (file-text (xdg config offload config.nuon) ($config | to nuon --indent 4) --generated)
         (link-commands offload.nu)
+        # the target's user manager outlives the last login, so a job keeps running after a logout
+        (if $role != $OFFLOAD_ROLE_CLIENT {
+            let lingers = $"/var/lib/systemd/linger/($user)" | path exists
+            exec offload-linger [loginctl enable-linger] --done=$lingers --undo [loginctl disable-linger]
+        })
     ]
 }

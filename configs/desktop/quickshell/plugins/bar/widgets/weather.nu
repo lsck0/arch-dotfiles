@@ -52,6 +52,34 @@ const DWD_URL = "https://maps.dwd.de/geoserver/dwd/wms?"
 const DWD_LAYER = "dwd:Radar_rv_product_1x1km_ger"
 const RAINVIEWER_INDEX_URL = "https://api.rainviewer.com/public/weather-maps.json"
 const RAINVIEWER_HOST = "https://tilecache.rainviewer.com"
+# each provider's colour scale folded into one theme-free mask: white rain whose opacity steps with the rate (0.1-0.4,
+# -2, -5, -15, 15+ mm/h, DWD's legend; RainViewer's Universal Blue by dBZ), black where the radar has no data
+const RADAR_SCALES = {
+    dwd: {
+        shade: ["#7D7D7D" "#FB00FF"]
+        levels: [
+            [level colours];
+            ["25%" ["#33FFFF" "#1ACC9A"]]
+            ["45%" ["#019934" "#4DB31B"]]
+            ["65%" ["#99CC01" "#CCE601"]]
+            ["85%" ["#FFFF01" "#FFC401" "#FF8901"]]
+            ["100%" ["#FF4501" "#FE0000" "#E5004C" "#CC0098" "#6600CB" "#0000FE"]]
+        ]
+    }
+    rainviewer: {
+        shade: []
+        levels: [
+            [level colours];
+            # drizzle, already fading by its own alpha
+            ["35%" ["#636159" "#726E61" "#827B69" "#928871" "#CEC087"]]
+            ["25%" ["#88DDEE"]]
+            ["45%" ["#00A3E0" "#0077AA"]]
+            ["65%" ["#005588"]]
+            ["85%" ["#FFEE00" "#FFAA00"]]
+            ["100%" ["#FF4400" "#C10000" "#FFAAFF" "#FF77FF" "#FFFFFF"]]
+        ]
+    }
+}
 const MERCATOR_Z0_M_PER_PX = 156543.03392
 const EARTH_RADIUS_M = 6378137.0
 const RADIANS_PER_DEGREE = 0.017453292519943295
@@ -249,8 +277,26 @@ def radar-plan-rainviewer [lat: float, lon: float]: nothing -> any {
     } catch { "bad index" }
 }
 
+# Snaps each pixel to the scale's nearest colour, then writes white (black on shade) with the level times the source
+# alpha; the panel tints it to the palette.
+def radar-mask [file: path, scale: record]: nothing -> bool {
+    let opaque = {|colours| $colours | each {|c| [-opaque $c] } | flatten }
+    let palette = $scale.shade ++ ($scale.levels | get colours | flatten) | each { $"xc:($in)" }
+    let levels = $scale.levels | each {|row| [-fill $"gray\(($row.level)\)"] ++ (do $opaque $row.colours) } | flatten
+    let args = [
+        $file -write mpr:src +delete
+        ...$palette +append -write mpr:palette +delete
+        mpr:src -alpha extract -write mpr:alpha +delete
+        mpr:src -alpha off +dither -remap mpr:palette -write mpr:snapped +delete
+        "(" mpr:snapped -fill black ...(do $opaque $scale.shade) -fill white +opaque black ")"
+        "(" mpr:snapped -fill white ...(do $opaque $scale.shade) ...$levels mpr:alpha -compose multiply -composite ")"
+        -alpha off -compose copy-opacity -composite $file
+    ]
+    (^magick ...$args | complete).exit_code == 0
+}
+
 def radar-get []: nothing -> record {
-    let manifest = cache-path radar/manifest.json
+    let manifest = cache-path radar/frames.json
     let cached = cache-load $manifest $RADAR_MAX_AGE
     if $cached != null { return $cached }
     let location = location-resolve
@@ -261,6 +307,7 @@ def radar-get []: nothing -> record {
     let in_dwd = ($lat >= $DWD_LAT_RANGE.0 and $lat <= $DWD_LAT_RANGE.1
         and $lon >= $DWD_LON_RANGE.0 and $lon <= $DWD_LON_RANGE.1)
     let plan = if $in_dwd { radar-plan-dwd $lat $lon } else { radar-plan-rainviewer $lat $lon }
+    let scale = if $in_dwd { $RADAR_SCALES.dwd } else { $RADAR_SCALES.rainviewer }
     if ($plan | describe) == string { return (failure $plan) }
 
     let now_s = (date now | into int) // 1_000_000_000
@@ -273,6 +320,7 @@ def radar-get []: nothing -> record {
         let body = http-fetch $it.item.url $RADAR_FRAME_TIMEOUT
         if ($body | describe) == binary and ($body | bytes at 0..7 | bytes index-of $PNG_MAGIC) >= 0 {
             file-save $file $body
+            if not (radar-mask $file $scale) { return }
             {file: $file, minutes: (($it.item.unix_s - $now_s) / 60 | math round), forecast: $it.item.forecast}
         }
     } | compact

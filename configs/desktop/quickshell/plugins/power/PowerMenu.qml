@@ -71,10 +71,10 @@ Item {
     title: "session"
     suffix: root.userName.length > 0 ? "@" + root.userName : ""
     hints: root.pendingAction
-      ? [["Y", "confirm"], ["N/ESC", "cancel"]]
+      ? [["Y", root.pendingAction.label.toLowerCase()], ["N/ESC", "cancel"]]
       : [["</>", "select"], ["ENTER", "run"], [root.actions.map(function(action) { return action.hotkey }).join("/"), "direct"], ["ESC", "close"]]
     cardWidth: actionRow.implicitWidth + chromeWidth
-    cardHeight: actionRow.implicitHeight + confirmLine.height + Style.spacing.sm + chromeHeight
+    cardHeight: actionRow.implicitHeight + chromeHeight
     onDismissed: root.close()
 
     Item {
@@ -172,31 +172,6 @@ Item {
             onClicked: root.activate(tile.index)
           }
         }
-      }
-    }
-
-    Row {
-      id: confirmLine
-      anchors.top: actionRow.bottom
-      anchors.topMargin: Style.spacing.sm
-      anchors.left: actionRow.left
-      height: Style.font.body + Style.spacing.xs * 2
-      spacing: Style.spacing.xs
-
-      Label {
-        anchors.verticalCenter: parent.verticalCenter
-        text: root.pendingAction ? "> " + root.pendingAction.label.toUpperCase() + "? [y/N]" : ""
-        color: Colors.urgentText
-        font.bold: true
-        font.letterSpacing: Style.headerTracking
-      }
-      BlinkCaret {
-        anchors.verticalCenter: parent.verticalCenter
-        visible: root.pendingAction !== null
-        prompt: true
-        running: root.pendingAction !== null
-        size: Style.font.body
-        color: Colors.urgentText
       }
     }
   }

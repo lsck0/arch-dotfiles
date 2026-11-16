@@ -91,9 +91,9 @@ def "main apply" [
     --yes        # with --packages: remove undeclared packages unasked; hand-installed flatpak and nix still ask
     --no-system  # only the user part, same as DOT_SYSTEM=skip
 ]: nothing -> nothing {
-    if ($mods | is-not-empty) and $system { die --misuse "apply: modules converge their user layer, --system takes none" }
-    if $packages and ($mods | is-not-empty) { die --misuse "apply --packages takes no modules" }
-    if $packages and $system and not $user { die --misuse "apply --packages: both layers, or --user alone" }
+    if ($mods | is-not-empty) and $system { die --misuse "dot apply --system takes no modules: a module converges its user layer" }
+    if $packages and ($mods | is-not-empty) { die --misuse "dot apply --packages takes no modules" }
+    if $packages and $system and not $user { die --misuse "dot apply --packages runs both layers, or --user alone" }
     modules-known $REPO $mods
     let flags = (flag user $user) ++ (flag system $system) ++ (flag packages $packages) ++ (flag force $force) ++ (flag yes $yes) ++ (flag no-system $no_system)
     pipeline-cli apply ...$mods ...$flags
@@ -123,7 +123,7 @@ def "main module remove" [mod: string@module-ids, --machine, --yes]: nothing -> 
         if ($m.native | is-not-empty) {
             let unlinked = unlink-run $mod
             if not (failures-publish $unlinked) or not ($unlinked | all { $in.ok }) {
-                error make {msg: $"($mod): the unlink failed, the module stays on and its packages stay; see dot log"}
+                error make {msg: $"($mod): the unlink failed, the module stays on and its packages stay; dot log says why"}
             }
         }
         option-write $mod enable false $machine | ignore
@@ -274,7 +274,7 @@ def "main sync" [
     --system     # enter root even when nothing shows the system layer has work
     --no-verify  # commit without the formatter, linter and gitleaks gates
 ]: nothing -> nothing {
-    if $no_system and $system { die --misuse "sync: --system and --no-system contradict" }
+    if $no_system and $system { die --misuse "dot sync: --system and --no-system contradict" }
     if $no_system { $env.DOT_SYSTEM = "skip" }
     user-locked
     let flags = (flag no-push $no_push) ++ (flag yes $yes) ++ (flag no-system $no_system) ++ (flag system $system) ++ (flag no-verify $no_verify)
@@ -315,13 +315,13 @@ def "main log" [
     --trace                          # the span tree with timings and each span's errors
 ]: nothing -> any {
     let level = $level | str uppercase
-    if $level not-in $LOG_LEVELS { die --misuse $"log: --level ($level), one of ($LOG_LEVELS | str join ' ')" }
+    if $level not-in $LOG_LEVELS { die --misuse $"dot log: no level ($level), one of ($LOG_LEVELS | str join ' ')" }
     let file = if $run == null { run-last-changed } else { runs-dir | path join $"($run).jsonl" }
     if $file == null {
         log-note $"no run recorded yet in (runs-dir)"
         return
     }
-    if not ($file | path exists) { die $"log: no run ($run) in (runs-dir); the newest: (ls (runs-dir) | where name ends-with '.jsonl' | sort-by name | last 3 | get name | path parse | get stem | str join ' ')" }
+    if not ($file | path exists) { die $"dot log: no run ($run) in (runs-dir); the newest: (ls (runs-dir) | where name ends-with '.jsonl' | sort-by name | last 3 | get name | path parse | get stem | str join ' ')" }
     let own = run-records $file
     # root's side of the run: its entries' own files, world-readable, named by the records system-run left
     let roots = $own | where kind? == system-run | get target | where $it =~ $RUN_ID | uniq
@@ -368,7 +368,7 @@ def "main explain" [thing: string]: nothing -> nothing {
                 $thing in ($p.pacman ++ $p.native ++ $p.nix ++ ($p.flatpak | columns))
             } | get id
         }
-        if ($owners | is-empty) and ($declares | is-empty) { error make {msg: $"nothing owns ($thing)"} }
+        if ($owners | is-empty) and ($declares | is-empty) { error make {msg: $"no module wrote or declares ($thing)"} }
         $owners | each {|o|
             print $"($o.module) ($o.verb): ($o.output.kind) ($o.output.target)"
             if $o.output.source? != null { print $"  from ($o.output.source | str replace $"($REPO)/" '')" }

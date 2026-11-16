@@ -23,7 +23,7 @@ def envrc-line-add [envrc: path]: nothing -> nothing {
 # Give a repository its own customer identity, see scripts/identity/envrc.
 def main [repo_dir?: path]: nothing -> nothing {
     let repo = $repo_dir | default "." | path expand
-    if ($repo | path type) != dir { die --misuse $"($repo_dir) is not a directory" }
+    if ($repo | path type) != dir { die --misuse $"not a directory: ($repo)" }
     if (which direnv | is-empty) { die "direnv missing: dot apply --packages" }
     let identity = $repo | path join .identity
     mkdir $identity

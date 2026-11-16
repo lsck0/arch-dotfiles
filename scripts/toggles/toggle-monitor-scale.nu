@@ -65,7 +65,7 @@ def lua-monitor [fields: record]: nothing -> string {
 
 def scale-apply [name: string, scale: string]: nothing -> nothing {
     let monitor = monitor-find $name
-    if $monitor == null { error make {msg: $"unknown monitor: ($name)"} }
+    if $monitor == null { error make {msg: $"no monitor ($name); toggle-monitor-scale.nu list lists them"} }
     let position = $"($monitor.x)x($monitor.y)"
     let expr = lua-monitor {output: $name, mode: (mode-of $monitor), position: $position, scale: ($scale | into float)}
     eval-checked $expr scale
@@ -89,7 +89,7 @@ def scale-set [name: string, scale: string]: nothing -> nothing {
 def layout-set [name: string, action: string, source: string]: nothing -> nothing {
     let all = monitors
     let monitor = $all | where name == $name | get 0?
-    if $monitor == null { error make {msg: $"no such monitor: ($name)"} }
+    if $monitor == null { error make {msg: $"no monitor ($name); toggle-monitor-scale.nu list lists them"} }
     let scale = if $monitor.scale > 0 { $monitor.scale | into string } else { "auto" }
     let active = $all | where (not $it.disabled) and $it.mirrorOf == "none"
     let fields = match $action {

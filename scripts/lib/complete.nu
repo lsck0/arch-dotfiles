@@ -212,6 +212,6 @@ export def completions-run [table: table, shell: string]: nothing -> nothing {
                 ($externs | str join "\n\n")
             ] | str join "\n" | print
         }
-        _ => { error make {msg: $"no completions for ($shell), one of zsh nu"} }
+        _ => { error make {msg: $"completions: no shell ($shell), one of zsh nu"} }
     }
 }

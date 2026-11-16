@@ -1,12 +1,12 @@
 .pragma library
 
 const togglesId = ":toggles"
-const togglesLabel = "Quick toggles"
+const togglesLabel = "QUICK TOGGLES"
 const systemId = ":system"
-const systemLabel = "System"
+const systemLabel = "SYSTEM"
 // what the window runs of dot itself; a terminal one may ask for sudo, a key touch or package removals
 const systemActions = [
-  { name: "update", detail: "dot sync: pull, migrate, install, apply, back up, commit, push", args: ["sync"], terminal: true },
+  { name: "update", detail: "dot sync", args: ["sync"], terminal: true },
   { name: "apply", detail: "dot apply --user", args: ["apply", "--user"], terminal: false },
   { name: "apply system", detail: "dot apply --system", args: ["apply", "--system"], terminal: true },
   { name: "packages", detail: "dot apply --packages", args: ["apply", "--packages"], terminal: true }
@@ -146,11 +146,11 @@ function systemEntries(status, needle) {
     return { kind: "check", id: systemId + ".check." + c.check, level: String(c.level), name: c.check, text: c.text }
   })
   var pending = (status.migrations_pending || []).map(function (m) {
-    return { kind: "check", id: systemId + ".migration." + m, level: "pending", name: "migration", text: m + " runs with the next dot sync" }
+    return { kind: "check", id: systemId + ".migration." + m, level: "pending", name: "migration", text: m }
   }).concat((status.system_pending || []).map(function (p) {
-    return { kind: "check", id: systemId + ".system." + p, level: "pending", name: "system", text: p + ": apply system runs it" }
+    return { kind: "check", id: systemId + ".system." + p, level: "pending", name: "system", text: p }
   })).concat((status.pending_apply || []).map(function (d) {
-    return { kind: "check", id: systemId + ".pending." + d.target, level: "pending", name: d.module, text: d.target + " (" + d.drift + "): apply puts it back" }
+    return { kind: "check", id: systemId + ".pending." + d.target, level: "pending", name: d.module, text: d.target + " :: " + d.drift }
   }))
   var actions = systemActions.map(function (a) { return Object.assign({ kind: "action", id: systemId + ".action." + a.name }, a) })
   var drifted = status.drift || []
