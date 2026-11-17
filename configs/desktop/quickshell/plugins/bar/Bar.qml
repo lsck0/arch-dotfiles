@@ -365,8 +365,11 @@ PanelWindow {
       height: parent.height
       clip: true
       width: Math.max(0, Math.min(centerSection.implicitWidth, gapRight - gapLeft))
-      // on the bar's centre while that fits the gap, so the right section growing a digit leaves it where it is
-      x: Math.max(gapLeft, Math.min(gapRight - width, (barWidth - width) / 2))
+      readonly property real centred: (barWidth - width) / 2
+      // on the bar's centre while that leaves room to spare, so the right section growing a digit leaves it where it is;
+      // otherwise midway between the left and right sections, not pressed against the right one
+      x: centred + width <= gapRight - parent.keepClear
+        ? Math.max(gapLeft, centred) : Math.max(gapLeft, gapLeft + (gapRight - gapLeft - width) / 2)
 
       RowLayout {
         id: centerSection
