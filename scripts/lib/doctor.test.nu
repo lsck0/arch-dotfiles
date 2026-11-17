@@ -3,8 +3,9 @@
 # cmdline asks for and the boot missed is one too, and a crash record stays a note until it is gone. A declared
 # package that is not installed is pending work (todo), unless the mirror's last build predates its first ask. A failed
 # systemd-run without --unit is its caller's, not a failed unit to report. The
-# printed lines put what needs action first and end on the count of each level.
-use doctor.nu [luks-reports crash-reports packages-reports doctor-lines units-owned]
+# printed lines put what needs action first and end on the count of each level. A package installed at a version no repo
+# carries is a stuck candidate, one an own build carries is not; core dumps are one note, the most frequent first.
+use doctor.nu [luks-reports crash-reports packages-reports doctor-lines units-owned stuck-candidates stuck-reports cores-reports]
 use std/assert
 
 const UUID = "39244fe4-3a83-414e-aa5e-f1a17f10057d"
@@ -85,12 +86,36 @@ def lines-cases []: nothing -> nothing {
     assert equal (doctor-lines [] | last) "0 FAIL, 0 todo, 0 note, 0 ok" "lines: no check at all"
 }
 
+def stuck-cases []: nothing -> nothing {
+    let listing = [
+        "lsck0 millennium 3.6.3-1.6 [installed: 3.6.3_beta.1-1.5]"
+        "lsck0 quickshell 0.3.2-2.13 [installed]"
+        "extra quickshell 0.3.2-1 [installed: 0.3.2-2.13]"
+        "core glibc 2.44-2 [installed: 2.44-1]"
+        "extra htop 3.4-1"
+    ] | str join "\n"
+    assert equal (stuck-candidates $listing | get name) [millennium glibc] "stuck: an own build's name is no candidate"
+    assert equal (stuck-reports [] | get level) [ok] "stuck: none"
+    let got = stuck-reports [{name: millennium, repo: lsck0, version: 3.6.3-1.6, installed: 3.6.3_beta.1-1.5}]
+    assert equal $got.0.level note "stuck: a note"
+    assert ($got.0.text | str contains "millennium 3.6.3_beta.1-1.5 > lsck0 3.6.3-1.6") "stuck: names both versions"
+}
+
+def cores-cases []: nothing -> nothing {
+    assert equal (cores-reports [] | get level) [ok] "cores: none"
+    let got = cores-reports [{exe: /usr/bin/a, sig: 11} {exe: /usr/lib/b, sig: 6} {exe: /usr/lib/b, sig: 11}]
+    assert equal $got.0.level note "cores: a note"
+    assert ($got.0.text | str contains "b x2 a x1") "cores: most frequent first, basename only"
+}
+
 def main []: nothing -> nothing {
     let dir = mktemp --directory --tmpdir dot-doctor-test-XXXXXX
     luks-cases
     packages-cases
     units-cases
     lines-cases
+    stuck-cases
+    cores-cases
     crash-cases $dir
     rm --recursive --force $dir
 }

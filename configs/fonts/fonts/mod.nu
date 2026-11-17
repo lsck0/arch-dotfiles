@@ -54,12 +54,19 @@ export def link [cfg: record] {
 # The theme's monospace family ahead of 50-dotfiles.conf's list: each alias prepends before the generic name, so the
 # earlier file's family ends up first.
 export def theme [cfg: record, wallpaper: string] {
-    let family = (font-load).mono | str replace --all "&" "&amp;" | str replace --all "<" "&lt;"
+    let font = font-load
+    let escape = {|family| $family | str replace --all "&" "&amp;" | str replace --all "<" "&lt;" }
+    # sans-serif follows the ui font, so a page or app asking for the generic family matches the rest of the desktop;
+    # strong, since fontconfig scores a monospace ui font's genericfamily above a weak alias (CJK still falls back next)
     let conf = [
         '<?xml version="1.0"?>'
         '<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">'
         '<fontconfig>'
-        $"  <alias><family>monospace</family><prefer><family>($family)</family></prefer></alias>"
+        $"  <alias><family>monospace</family><prefer><family>(do $escape $font.mono)</family></prefer></alias>"
+        '  <match target="pattern">'
+        '    <test name="family"><string>sans-serif</string></test>'
+        $"    <edit name=\"family\" mode=\"prepend\" binding=\"strong\"><string>(do $escape $font.family)</string></edit>"
+        '  </match>'
         '</fontconfig>'
     ] | to text
     [(file-text (xdg config fontconfig conf.d 49-dotfiles-font.conf) $conf --generated)]

@@ -48,6 +48,7 @@ export def theme [cfg: record, wallpaper: string] {
         (file-text (xdg config gtk-2.0 gtkrc) ($rc2 | to text) --generated)
         (do $set gtk-scheme color-scheme $scheme)
         (do $set gtk-font font-name $ui)
+        (do $set gtk-document-font document-font-name $ui)
         (do $set gtk-mono-font monospace-font-name $mono)
         (do $set gtk-icons icon-theme $icons)
         (exec gtk-buttons [gsettings set $WM_PREFERENCES button-layout $BUTTON_LAYOUT])

@@ -21,8 +21,8 @@ export def link [cfg: record] {
     let theme = theme-dir
     let palette = xdg cache wal colors-steam.css
     let colors = $theme | path join colors.css
-    let xtst = try { ^readlink ($steam | path join ubuntu12_32 libXtst.so.6) | str trim } catch { "" }
-    let linked = $xtst | str starts-with $"($MILLENNIUM_LIB)/"
+    let xtst = try { ^readlink ($steam | path join steamrt64 libXtst.so.6) | str trim } catch { "" }
+    let linked = $xtst | str starts-with $"/run/host($MILLENNIUM_LIB)/"
     [
         (desktop-override steam.desktop {
             $in | str replace --all "/usr/bin/steam" ($env.PWD | path join steam-launch.nu)

@@ -73,6 +73,8 @@ local CLEAR_BG = {
     "WinSeparator",
 }
 local CLEAR_BG_PREFIX = "^Buffer"
+-- neovide shows its window through only where a cell takes Normal's bg, so there the bars clear and Normal keeps its own
+local NEOVIDE_KEEP = { Normal = true, NormalNC = true }
 local CLEAR_FG_BG = { "BufferCurrent", "BufferOffset", "BufferVisible", "StatusLine" }
 
 local function luminance(rgb)
@@ -144,13 +146,13 @@ local function background_clear(hl, name)
     vim.api.nvim_set_hl(0, name, hl)
 end
 
--- After every ColorScheme handler; not in neovide, where a cleared bg falls back to near-black.
+-- After every ColorScheme handler. In neovide a cleared Normal bg falls back to near-black, so Normal keeps its bg there
+-- and neovide_normal_opacity makes it, and every cell cleared to it, transparent.
 local function transparency_apply()
-    if vim.g.neovide then
-        return
-    end
     for _, name in ipairs(CLEAR_BG) do
-        background_clear(hl_get(name), name)
+        if not (vim.g.neovide and NEOVIDE_KEEP[name]) then
+            background_clear(hl_get(name), name)
+        end
     end
     for name, hl in pairs(vim.api.nvim_get_hl(0, {})) do
         if name:find(CLEAR_BG_PREFIX) then

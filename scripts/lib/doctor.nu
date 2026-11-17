@@ -27,6 +27,10 @@ const HOOK_OUTCOME = ['^(Failed to start|Finished) ' $HOOK_RUN_PREFIX ' .* hook\
 const WITNESS = $REPO | path join $OWNER_WITNESS
 const APPARMOR_MANUAL = "/etc/apparmor/flags.d/manual.conf"
 const SNAPSHOT_MAX_DAYS = 30
+# `pacman -Sl` marks a package whose installed version differs from that repo's
+const SL_DIFFERS = '^(?<repo>\S+) (?<name>\S+) (?<version>\S+) \[installed: (?<installed>[^\]]+)\]$'
+# how far back `dot status` looks for programs that dumped core
+const CORES_SINCE = "-24h"
 const SHOWN_MAX = 8
 # failure groups dot status shows per FAILURES file, one line each
 const GROUPS_SHOWN = 5
@@ -189,6 +193,47 @@ export def packages-reports [missing: list<string>, recorded: list<string>, buil
     ] | compact
 }
 
+# rows: the packages whose installed version sorts above the repo's ({name, repo, version, installed}). -Su never
+# replaces those (a beta or git build above its release), so they stay behind every fix the repo ships.
+export def stuck-reports [rows: list<record>]: nothing -> list<record> {
+    if ($rows | is-empty) { return [(report ok stuck "no installed package sorts above its repo's version")] }
+    let shown = $rows | each { $"($in.name) ($in.installed) > ($in.repo) ($in.version)" }
+    [(report note stuck $"installed above the repo, -Su never replaces them: (names-shown $shown $SHOWN_MAX); sudo pacman -S <name>")]
+}
+
+# listing: `pacman -Sl`; the installed packages no repo carries at their installed version (a repo that has it, an own
+# build beside an older one in extra, lists it unmarked), each with every repo's version.
+export def stuck-candidates [listing: string]: nothing -> list<record> {
+    let rows = $listing | lines
+    let matching = $rows | where $it =~ ' \[installed\]$' | each { split row " " | get 1 }
+    $rows | parse --regex $SL_DIFFERS | where name not-in $matching
+}
+
+def stuck []: nothing -> list<record> {
+    if (which pacman | is-empty) { return [] }
+    let candidates = stuck-candidates (^pacman -Sl | complete | get stdout)
+    let newer = $candidates | where {|r| (^vercmp $r.installed $r.version | into int) > 0 }
+    # stuck only when it sorts above every repo that carries it
+    let names = $newer | get name | uniq | where {|n| ($candidates | where name == $n | length) == ($newer | where name == $n | length) }
+    stuck-reports ($newer | where name in $names | uniq-by name)
+}
+
+# dumps: coredumpctl's records ({exe, sig}); one line per program, most crashes first.
+export def cores-reports [dumps: list<record>]: nothing -> list<record> {
+    if ($dumps | is-empty) { return [(report ok cores "no program dumped core in the last day")] }
+    let shown = $dumps | group-by exe | items {|exe, runs| {exe: ($exe | path basename), count: ($runs | length)} }
+        | sort-by count --reverse | each { $"($in.exe) x($in.count)" }
+    [(report note cores $"dumped core in the last day: (names-shown $shown $SHOWN_MAX); coredumpctl info <exe>")]
+}
+
+def cores []: nothing -> list<record> {
+    if (which coredumpctl | is-empty) { return [] }
+    let out = ^coredumpctl --since $CORES_SINCE --json=short --no-pager list | complete
+    # no dump in the window exits 1 with nothing on stdout
+    let dumps = if ($out.stdout | str trim | is-empty) { [] } else { $out.stdout | from json }
+    cores-reports $dumps
+}
+
 # A package group counts as installed. ctx: the system layer as the caller loaded it, null to load it here.
 def packages [ctx: any]: nothing -> list<record> {
     if (which pacman | is-empty) { return [] }
@@ -312,7 +357,7 @@ def preserved []: nothing -> list<record> {
 def checks [system: any]: nothing -> list<closure> {
     [
         {|| failures} {|| crashes} {|| config-pending} {|| modules-pending} {|| reboot} {|| invariants} {|| apparmor} {|| snapshot}
-        {|| packages $system} {|| firewall} {|| luks} {|| units} {|| hooks} {|| secrets} {|| preserved}
+        {|| packages $system} {|| stuck} {|| firewall} {|| luks} {|| units} {|| hooks} {|| cores} {|| secrets} {|| preserved}
     ]
 }
 

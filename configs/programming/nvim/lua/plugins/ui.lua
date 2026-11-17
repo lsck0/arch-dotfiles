@@ -49,7 +49,7 @@ return {
         event = "VeryLazy",
         opts = {
             options = {
-                theme = vim.g.neovide and "auto" or "glass",
+                theme = "glass",
                 globalstatus = true,
                 refresh = { refresh_time = 250 },
 
