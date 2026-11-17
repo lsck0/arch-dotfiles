@@ -1,6 +1,7 @@
 use module.nu *
 
 export const meta = {
+    reads: [desktop/hyprland]
     packages: {
         pacman: [
             ani-cli-git bleachbit bluetui chawan filezilla font-manager gearlever geogebra-6-bin gnome-calculator
@@ -79,6 +80,11 @@ export def link [cfg: record] {
             str replace --regex '(?m)^Exec=env ' 'Exec=env GTK_USE_PORTAL=0 '
         })
         (step filezilla-seed $filezilla --creates $filezilla)
+        # qt5 under xwayland sees scale 1 (force_zero_scaling) and ignores GDK_SCALE, so its ui scale is forced to the
+        # xwayland one; its own title bar draws a frame and shadow inside the tile
+        (ini-merge (xdg config onlyoffice DesktopEditors.conf) {
+            General: {force-scale: (xwayland-scale-for $cfg | into string), system-scale: "false", titlebar: "system"}
+        })
         # wine's menu builder registers every prefix's file handlers as this user's defaults (.crt, .reg, .vbs, .chm went
         # to notepad in a deleted scratch prefix); prefixes here are throwaway or launched by their own script
         (file-text (xdg config environment.d wine.conf) "WINEDLLOVERRIDES=winemenubuilder.exe=d\n")
