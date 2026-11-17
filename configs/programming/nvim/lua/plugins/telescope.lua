@@ -35,8 +35,11 @@ return {
         },
         config = function()
             local actions = require("telescope.actions")
+            -- 'winborder' (tl t tr r br b bl l) in telescope's order (t r b l tl tr br bl)
+            local b = vim.opt.winborder:get()
             require("telescope").setup({
                 defaults = {
+                    borderchars = { b[2], b[4], b[6], b[8], b[1], b[3], b[5], b[7] },
                     file_ignore_patterns = FILE_IGNORE_PATTERNS,
                     layout_strategy = "bottom_pane",
                     layout_config = { height = 25 },

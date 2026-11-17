@@ -8,7 +8,7 @@ Item {
   property Item source: null
   property real u_progress: 0
 
-  readonly property int durationMs: 180
+  readonly property int durationMs: Style.motion.base
   readonly property int rows: 48
   readonly property string shaderPath: Paths.shellDir + "/shaders/glitch.frag.qsb"
 

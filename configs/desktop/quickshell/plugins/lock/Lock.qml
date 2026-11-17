@@ -200,7 +200,8 @@ Item {
 
   Timer {
     id: unlockDelay
-    interval: Style.motion.enabled ? 180 : 0
+    // the Glitch's run (its durationMs), 0 under the power saver
+    interval: Style.motion.base
     onTriggered: root.locked = false
   }
 

@@ -31,10 +31,6 @@ PopupWindow {
     : 0
   readonly property real verticalContentInset: (padding + Style.surface.borderWidth) * 2
 
-  readonly property real slideDistance: Style.space(14)
-  readonly property real revealSlide: !docked ? 0
-    : -(1 - boot.progress) * slideDistance
-
   function fittedContentWidth(width, cap) {
     var desired = Math.max(1, Number(width) || 1)
     var maxWidth = root.availableCardWidth > 0 ? root.availableCardWidth : desired
@@ -118,13 +114,12 @@ PopupWindow {
     onTabRequested: function(direction) { root.focusWalk(direction > 0) }
     onMoveRequested: function(dx, dy) { root.focusWalk(dy > 0 || dx > 0) }
 
+    // it fades in moving down out of the bar, and back up on the way out
     Item {
       id: reveal
-      width: parent.width
-      height: Math.round(parent.height * boot.progress)
-      clip: true
+      anchors.fill: parent
       opacity: boot.progress
-      transform: Translate { y: root.revealSlide }
+      transform: Translate { y: -(1 - boot.progress) * Style.motion.travel }
 
       GlassCard {
         id: card

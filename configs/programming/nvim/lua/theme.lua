@@ -40,6 +40,11 @@ local CLEAR_BG = {
     "Normal",
     "NormalNC",
     "NormalFloat",
+    -- a float is the terminal's glass inside its hairline, frame and title included (ghostty fills a cell bg opaque)
+    "FloatBorder",
+    "FloatTitle",
+    "FloatFooter",
+    "Pmenu",
     "Comment",
     "Constant",
     "Special",

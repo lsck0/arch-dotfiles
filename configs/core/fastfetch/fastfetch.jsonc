@@ -25,8 +25,8 @@
     },
     {
       "type": "custom",
-      "format": "----------------------------------",
-      "outputColor": "blue",
+      "format": "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+      "outputColor": "90",
     },
     {
       "type": "os",
@@ -35,12 +35,12 @@
     },
     {
       "type": "kernel",
-      "key": "Kernel",
+      "key": "KERNEL",
       "format": "{1} {2} {4}",
     },
     {
       "type": "packages",
-      "key": "PKGs",
+      "key": "PKGS",
       "format": "{pacman} packages",
     },
     {
@@ -55,13 +55,13 @@
     },
     {
       "type": "memory",
-      "key": "Memory",
-      "format": "{used} / {total} ({percentage})",
+      "key": "MEMORY",
+      "format": "{used} / {total} :: {percentage}",
     },
     {
       "type": "disk",
-      "key": "Disk",
-      "format": "{mountpoint}: {size-used} / {size-total} ({size-percentage})",
+      "key": "DISK",
+      "format": "{mountpoint} :: {size-used} / {size-total} :: {size-percentage}",
     },
     {
       "type": "localip",
@@ -69,17 +69,17 @@
     },
     {
       "type": "uptime",
-      "key": "Uptime",
+      "key": "UPTIME",
     },
     {
       "type": "command",
-      "key": "Age",
+      "key": "AGE",
       "text": "echo \"$(( ( $(date +%s) - $(date -d \"$(grep -m1 -oP '^\\[\\K[^\\]]+' /var/log/pacman.log)\" +%s) ) / 86400 )) days\"",
     },
     {
       "type": "custom",
-      "format": "----------------------------------",
-      "outputColor": "blue",
+      "format": "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+      "outputColor": "90",
     },
     "break",
   ],

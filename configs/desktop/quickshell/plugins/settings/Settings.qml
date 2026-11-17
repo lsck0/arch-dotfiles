@@ -731,6 +731,7 @@ Item {
           opacity: root.query && !header && modelData.count === 0 ? Style.emphasis.disabled : 1
           color: header ? "transparent" : hasCursor ? Colors.menu.selectedBackground
             : current || sectionMouse.containsMouse ? Style.hoverFill : "transparent"
+          Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
           Rectangle {
             visible: sectionRow.current
@@ -866,6 +867,7 @@ Item {
                 implicitHeight: Style.row.list
                 radius: Style.shape.data
                 color: slot.hasCursor ? Colors.menu.selectedBackground : toggleMouse.containsMouse ? Style.hoverFill : "transparent"
+                Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
                 Label {
                   anchors.left: parent.left
@@ -926,6 +928,7 @@ Item {
                 implicitHeight: Math.max(Style.row.list, checkText.implicitHeight + Style.spacing.sm * 2)
                 radius: Style.shape.data
                 color: slot.hasCursor ? Colors.menu.selectedBackground : "transparent"
+                Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
                 Label {
                   id: checkLevel
@@ -985,6 +988,7 @@ Item {
                 implicitHeight: driftColumn.implicitHeight + Style.spacing.sm * 2
                 radius: Style.shape.data
                 color: slot.hasCursor ? Colors.menu.selectedBackground : driftMouse.containsMouse ? Style.hoverFill : "transparent"
+                Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
                 MouseArea {
                   id: driftMouse

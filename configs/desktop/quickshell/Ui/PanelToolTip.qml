@@ -16,6 +16,19 @@ ToolTip {
   delay: 400
   padding: 0
 
+  enter: Transition {
+    NumberAnimation {
+      property: "opacity"; from: 0; to: 1
+      duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter
+    }
+  }
+  exit: Transition {
+    NumberAnimation {
+      property: "opacity"; to: 0
+      duration: Style.motion.exit; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.leave
+    }
+  }
+
   background: BorderSurface {
     color: root.panelBackground
     borderSpec: root.panelBorderSpec

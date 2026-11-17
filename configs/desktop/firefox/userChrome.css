@@ -45,7 +45,15 @@ body {
 }
 
 :root {
-    --rtk-accent: var(--lwt-accent-color, var(--toolbar-bgcolor, AccentColor));
+    /* pywalfox's accent is its url bar highlight; --lwt-accent-color is the frame, the background */
+    --rtk-accent: var(--lwt-toolbar-field-highlight, var(--toolbarbutton-icon-fill, AccentColor));
+    /* the shell's hairline: the text colour at its edge alpha */
+    --rtk-edge: color-mix(in srgb, var(--toolbar-color, currentColor) var(--rtk-edge-alpha), transparent);
+    --arrowpanel-border-color: color-mix(
+        in srgb,
+        var(--arrowpanel-color, currentColor) var(--rtk-edge-alpha),
+        transparent
+    ) !important;
     --tab-border-radius: var(--rtk-radius) !important;
     --toolbarbutton-border-radius: var(--rtk-radius) !important;
     --arrowpanel-border-radius: var(--rtk-radius) !important;
@@ -112,7 +120,7 @@ panel,
 
 #urlbar,
 #urlbar-background {
-    border: 1px solid color-mix(in srgb, var(--rtk-accent) 45%, transparent) !important;
+    border: 1px solid var(--rtk-edge) !important;
 }
 
 #urlbar[focused="true"] > #urlbar-background {

@@ -68,7 +68,8 @@ Item {
 
   Timer {
     id: switchDelay
-    interval: 80
+    // the overview has closed before the workspace slides
+    interval: Style.motion.exit
     onTriggered: {
       if (root.pendingWorkspace !== "") Hyprland.dispatch("hl.dsp.focus({ workspace = \"" + root.pendingWorkspace + "\" })")
       root.pendingWorkspace = ""
@@ -221,7 +222,7 @@ Item {
             anchors.fill: parent
             z: 3
             color: Util.alpha(Colors.background, tile.selected ? 0 : Style.translucency.scrim)
-            Behavior on color { ColorAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
+            Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
           }
 
           Rectangle {

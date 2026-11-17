@@ -14,7 +14,14 @@ Column {
   spacing: Style.spacing.sm
   opacity: shown ? 1 : 0
   visible: opacity > 0
-  Behavior on opacity { NumberAnimation { duration: Style.motion.base; easing.type: Style.motion.fastEasing } }
+  Behavior on opacity {
+    id: fade
+    NumberAnimation {
+      duration: Style.motion.fadeMs(fade.targetValue > 0)
+      easing.type: Easing.BezierSpline
+      easing.bezierCurve: Style.motion.curve(fade.targetValue > 0)
+    }
+  }
   width: parent.width * 0.8
 
   Label {

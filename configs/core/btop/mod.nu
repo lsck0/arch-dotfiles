@@ -29,7 +29,8 @@ export def theme [cfg: record, wallpaper: string] {
     let slots = {
         main_bg: $p.bg main_fg: $p.fg title: $accent hi_fg: $accent selected_bg: $accent selected_fg: $p.bg
         inactive_fg: $p.c8 graph_text: $p.fg meter_bg: $p.c8 proc_misc: $p.c6
-        cpu_box: $p.c4 mem_box: $p.c6 net_box: $p.c5 proc_box: $p.c2 div_line: $p.c8
+        # one hairline for every box, as the shell outlines its surfaces
+        cpu_box: $p.c8 mem_box: $p.c8 net_box: $p.c8 proc_box: $p.c8 div_line: $p.c8
         temp_start: $p.c2 temp_mid: $p.c3 temp_end: $p.c1
         cpu_start: $p.c4 cpu_mid: $p.c5 cpu_end: $p.c1
         free_start: $p.c2 free_mid: $p.c6 free_end: $p.c4

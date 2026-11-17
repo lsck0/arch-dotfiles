@@ -2,6 +2,7 @@ use module.nu *
 use secrets.nu [owner-system-unlocked]
 use ../../core/wallust/palette.nu [RADIUS_PX OPACITY_SHELL OPACITY_SHELL_LIGHT TEXT_RATIO ACCENT2_RATIO hex-to-rgb rgb-to-hex is-light passes quantize readable-on wal-colors-file]
 use ../../core/wallust/font.nu [font-load]
+use ../qutebrowser/mod.nu [EDGE_ALPHA]
 
 export const meta = {
     deps: [desktop/qutebrowser]
@@ -40,7 +41,7 @@ def tor-profiles []: nothing -> list<path> {
 
 def chrome-style []: nothing -> string {
     let percent = {|opacity| $"($opacity * 100 | math round)%" }
-    $":root {\n    --rtk-radius: ($RADIUS_PX)px;\n    --appshell-opacity: (do $percent $OPACITY_SHELL_LIGHT);\n}\n@media \(prefers-color-scheme: dark\) {\n    :root {\n        --appshell-opacity: (do $percent $OPACITY_SHELL);\n    }\n}\n"
+    $":root {\n    --rtk-radius: ($RADIUS_PX)px;\n    --rtk-edge-alpha: (do $percent $EDGE_ALPHA);\n    --appshell-opacity: (do $percent $OPACITY_SHELL_LIGHT);\n}\n@media \(prefers-color-scheme: dark\) {\n    :root {\n        --appshell-opacity: (do $percent $OPACITY_SHELL);\n    }\n}\n"
 }
 
 # pywalfox install's manifest, pointed at pywalfox-host.sh instead of the package's main.sh

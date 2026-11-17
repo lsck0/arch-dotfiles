@@ -204,20 +204,30 @@ PanelWindow {
   property int layoutRevision: 0
 
   property var tooltipItem: null
+  property string tooltipNext: ""
+  // the shown widget and text: they change only when the tooltip shows, and stay while it fades out
+  property var tooltipAnchor: null
   property string tooltipText: ""
   property bool tooltipShown: false
+
+  function placeTooltip() {
+    tooltipAnchor = tooltipItem
+    tooltipText = tooltipNext
+    tooltipShown = true
+  }
 
   Timer {
     id: tooltipDelay
     interval: 400
-    onTriggered: root.tooltipShown = root.tooltipItem !== null
+    onTriggered: if (root.tooltipItem !== null) root.placeTooltip()
   }
 
   function showTooltip(item, text) {
     if (!text) return
     tooltipItem = item
-    tooltipText = text
-    if (!tooltipShown) tooltipDelay.restart()
+    tooltipNext = text
+    if (tooltipShown) placeTooltip()
+    else tooltipDelay.restart()
   }
 
   function hideTooltip(item) {
@@ -225,7 +235,6 @@ PanelWindow {
       tooltipDelay.stop()
       tooltipShown = false
       tooltipItem = null
-      tooltipText = ""
     }
   }
 
@@ -379,14 +388,15 @@ PanelWindow {
   }
 
   PopupWindow {
-    visible: root.tooltipShown && root.tooltipItem !== null && root.visible
+    // mapped until the fade out ends
+    visible: root.visible && root.tooltipAnchor !== null && (root.tooltipShown || tooltipSurface.opacity > 0)
     color: "transparent"
     implicitWidth: tooltipSurface.width
     implicitHeight: tooltipSurface.height
     anchor.window: root // qmllint disable missing-property
     anchor.rect.x: { // qmllint disable unqualified unresolved-type
-      if (!root.tooltipItem) return 0
-      var pos = root.tooltipItem.mapToItem(root.contentItem, 0, 0)
+      if (!root.tooltipAnchor) return 0
+      var pos = root.tooltipAnchor.mapToItem(root.contentItem, 0, 0)
       return Math.max(0, Math.min(root.width - tooltipSurface.width, pos.x))
     }
     anchor.rect.y: Style.bar.sizeHorizontal + Style.spacing.xs
@@ -404,10 +414,16 @@ PanelWindow {
       width: tooltipRow.implicitWidth + contentLeftInset + contentRightInset
 
       opacity: root.tooltipShown ? 1 : 0
-      Behavior on opacity { NumberAnimation { duration: Style.motion.fast; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
+      Behavior on opacity {
+        id: tooltipFade
+        NumberAnimation { duration: Style.motion.fadeMs(tooltipFade.targetValue > 0); easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.curve(tooltipFade.targetValue > 0) }
+      }
       transform: Translate {
-        y: root.tooltipShown ? 0 : -Style.space(6)
-        Behavior on y { NumberAnimation { duration: Style.motion.fast; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
+        y: root.tooltipShown ? 0 : -Style.motion.travel
+        Behavior on y {
+          id: tooltipSlide
+          NumberAnimation { duration: Style.motion.fadeMs(tooltipSlide.targetValue === 0); easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.curve(tooltipSlide.targetValue === 0) }
+        }
       }
 
       Row {

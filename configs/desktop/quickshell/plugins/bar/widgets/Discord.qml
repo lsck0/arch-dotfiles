@@ -100,9 +100,6 @@ BarWidget {
         readonly property bool silenced:
           modelData.selfDeaf || modelData.deaf || modelData.selfMute || modelData.mute
 
-        scale: modelData.speaking ? 1.14 : 1.0
-        Behavior on scale { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
-
         Rectangle {
           anchors.centerIn: parent
           width: parent.width + root.ringWidth * 2

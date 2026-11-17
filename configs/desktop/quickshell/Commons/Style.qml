@@ -156,20 +156,34 @@ QtObject {
   }
   readonly property TranslucencyTokens translucency: TranslucencyTokens {}
 
+  // one set for the whole shell, all 0 under the power saver. Scroll positions and swapped results do not animate
   component MotionTokens: QtObject {
     readonly property bool enabled: !Power.saver
+    // hover and press fills, focus rings, list selection, knob size
     readonly property int fast: enabled ? 90 : 0
+    // every surface's enter and every value change
     readonly property int base: enabled ? 160 : 0
-    readonly property int exit: Math.round(base * 0.75)
+    // every exit and every fade that gives way to a surface
+    readonly property int exit: enabled ? 120 : 0
+    // content travelling a distance: a pill's trailing edge, a carousel, a workspace
     readonly property int slow: enabled ? 240 : 0
+    // palette fade, wallpaper reveal, pulses, sweeps
     readonly property int ambient: enabled ? 600 : 0
+    // an opening surface's row stagger
     readonly property int boot: enabled ? 220 : 0
-    readonly property real closeRate: 0.6
+    // a panel replacing another runs its enter and exit at this rate
     readonly property real switchRate: 0.3
+    // the one distance a tooltip, popup, OSD, alert or toast enters from
+    readonly property int travel: root.space(8)
     readonly property int fastEasing: Easing.OutCubic
     readonly property int ambientEasing: Easing.InOutQuad
+    // Hyprland's enter and exit curves (md3_decel, menu_accel): every enter and move, every exit
     readonly property var enter: [0.05, 0.7, 0.1, 1, 1, 1]
     readonly property var leave: [0.38, 0.04, 1, 0.07, 1, 1]
+
+    // a fade's duration and curve by its direction: base on enter, exit on the way out
+    function fadeMs(entering) { return entering ? base : exit }
+    function curve(entering) { return entering ? enter : leave }
   }
   readonly property MotionTokens motion: MotionTokens {}
 

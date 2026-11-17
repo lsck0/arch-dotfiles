@@ -318,8 +318,8 @@ Item {
       ScriptAction {
         script: if (!root.lotteryDry) Quickshell.execDetached(["pw-play", "--media-role", "Notification", "--volume", String(root.lotterySoundVolume), root.lotterySound])
       }
-      NumberAnimation { target: root; property: "lotteryStroke"; to: Style.emphasis.disabled; duration: root.lotteryDingMs / 2 }
-      NumberAnimation { target: root; property: "lotteryStroke"; to: 1; duration: root.lotteryDingMs / 2 }
+      NumberAnimation { target: root; property: "lotteryStroke"; to: Style.emphasis.disabled; duration: root.lotteryDingMs / 2; easing.type: Style.motion.ambientEasing }
+      NumberAnimation { target: root; property: "lotteryStroke"; to: 1; duration: root.lotteryDingMs / 2; easing.type: Style.motion.ambientEasing }
     }
     PauseAnimation { duration: root.lotteryBeatMs }
     ScriptAction { script: root.lotteryFinish() }
@@ -538,6 +538,7 @@ Item {
               Rectangle {
                 anchors.fill: parent
                 color: Util.alpha(Colors.background, item.selected ? 0 : 0.42)
+                Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
               }
 
               layer.effect: MultiEffect {

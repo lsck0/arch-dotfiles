@@ -42,6 +42,8 @@ const FALLBACK = {
 const CHROME_COLORS = "wal/qutebrowser-colors.json"
 const CHROME_ALT_SHADE = 0.03
 const STARTPAGE_SURFACE_SHADE = 0.06
+# the shell's hairline (quickshell Style.surface.edgeAlpha): every panel's edge, the foreground at this alpha
+export const EDGE_ALPHA = 0.22
 
 export def detect [cfg: record]: nothing -> record {
     {search_url: (if (platform-has homelab) { $SEARCH_HOMELAB } else { $SEARCH_DEFAULT })}
@@ -112,6 +114,13 @@ def startpage-colors []: nothing -> record {
     }
 }
 
+# the shell's glass on the palette's background: dark and light themes take different fills
+def glass-percent []: nothing -> int {
+    let p = palette-rgb "qutebrowser startpage"
+    let light = $p != null and ($p.bg | condition-bg | is-light)
+    (if $light { $OPACITY_SHELL_LIGHT } else { $OPACITY_SHELL }) * 100 | math round
+}
+
 # config.py's chrome roles, conditioned like the startpage; config.py falls back to the raw slots without it.
 def chrome-colors []: nothing -> any {
     let p = palette-rgb "qutebrowser chrome"
@@ -154,6 +163,8 @@ export def theme [cfg: record, wallpaper: string] {
         CACHE: (xdg cache)
         DATA: (xdg data)
         RADIUS: $RADIUS_PX
+        EDGE: ($EDGE_ALPHA * 100 | math round)
+        GLASS: (glass-percent)
         FONT: $font.family
         FONT_SIZE: $font.ui_size
         SEARCH: ($cfg.search_url | default $SEARCH_DEFAULT | to json)

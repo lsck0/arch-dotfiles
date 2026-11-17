@@ -21,6 +21,7 @@
         --accent: @ACCENT@;
         --accent2: @ACCENT2@;
         --radius: @RADIUS@px;
+        --edge: color-mix(in srgb, var(--fg) @EDGE@%, transparent);
         font-family: "@FONT@", monospace;
         font-size: @FONT_SIZE@pt;
         color: var(--fg);
@@ -40,11 +41,12 @@
         margin: 12vh auto auto;
         width: min(68rem, 94vw);
         padding: 1.6rem 2rem 1.8rem;
-        background: color-mix(in srgb, var(--surface) 78%, transparent);
-        border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+        background: color-mix(in srgb, var(--surface) @GLASS@%, transparent);
+        border: 1px solid var(--edge);
         border-radius: var(--radius);
       }
       header { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.85rem; }
+      #clock, #hint { text-transform: uppercase; letter-spacing: 0.08em; }
       .head { color: var(--accent2); font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; }
       #prompt {
         display: flex; align-items: center; gap: 0.6rem;
@@ -58,7 +60,8 @@
         color: var(--fg); font: inherit; font-size: 1.1rem;
       }
       #q::placeholder { color: var(--muted); }
-      #hint { color: var(--muted); font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #hint { display: flex; gap: 0.9rem; color: var(--muted); font-size: 0.8rem; white-space: nowrap; overflow: hidden; }
+      #hint b { color: var(--accent); margin-right: 0.4em; }
       @media (max-width: 40rem) { #hint { display: none; } }
       #groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 1.1rem 1.6rem; }
       section h2 { margin: 0 0 0.45rem; font-size: 0.8rem; }
@@ -188,7 +191,15 @@
         items.forEach((it) => { it.a.classList.remove("sel"); it.a.firstChild.textContent = ""; });
         shown.slice(0, 9).forEach((m, i) => { m.it.a.firstChild.textContent = String(i + 1); });
         if (query !== "" && shown.length > 0 && !url) shown[sel].it.a.classList.add("sel");
-        hint.textContent = url ? "enter: open url" : query === "" ? "type to filter, ctrl+1-9 open" : shown.length ? "enter: open, shift+enter: search" : "enter: search";
+        const keys = url ? [["enter", "open url"]] : query === "" ? [["ctrl+1-9", "open"]]
+          : shown.length ? [["enter", "open"], ["shift+enter", "search"]] : [["enter", "search"]];
+        hint.replaceChildren(...keys.map(([k, v]) => {
+          const s = document.createElement("span");
+          s.innerHTML = "<b></b>";
+          s.firstChild.textContent = "[" + k + "]";
+          s.append(v);
+          return s;
+        }));
       }
 
       // a synthesized anchor click navigates the tab where scripted location.href is constrained (file:// new-tab context)
@@ -235,7 +246,7 @@
         const d = new Date();
         const two = (n) => String(n).padStart(2, "0");
         document.getElementById("clock").textContent =
-          d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }).toLowerCase() + "  " + two(d.getHours()) + ":" + two(d.getMinutes());
+          d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }) + " :: " + two(d.getHours()) + ":" + two(d.getMinutes());
       }
       tick();
       setInterval(tick, 15000);

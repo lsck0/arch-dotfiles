@@ -5,7 +5,18 @@ return {
         opts = {
             preset = "modern",
             delay = 200,
-            icons = { mappings = false },
+            icons = { mappings = false, separator = "::", breadcrumb = "::" },
+            -- the preset's rounded corners otherwise
+            win = { border = vim.opt.winborder:get() },
+            -- keys as the shell's hints: [a] [esc] [c-w]
+            replace = {
+                key = {
+                    function(key)
+                        -- the trail's root is the empty key
+                        return key == "" and key or "[" .. key:gsub("<(.-)>", string.lower) .. "]"
+                    end,
+                },
+            },
             spec = {
                 { "<leader>f", group = "find" },
                 { "<leader>l", group = "lsp" },

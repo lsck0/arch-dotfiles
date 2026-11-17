@@ -29,9 +29,8 @@ set.cursorline = true
 set.expandtab = true
 set.fillchars = { eob = " " }
 do
-    -- the font beside the palette (configs/core/wallust/font.nu), for neovide
-    set.guifont = "Kode Mono:h16"
-    local f = io.open((vim.env.XDG_CACHE_HOME or (vim.env.HOME .. "/.cache")) .. "/wal/font.json")
+    -- the terminals' font (configs/core/wallust/font.nu) as this module's theme verb resolves it, for neovide
+    local f = io.open((vim.env.XDG_CACHE_HOME or (vim.env.HOME .. "/.cache")) .. "/wal/nvim-font.json")
     if f then
         local ok, font = pcall(vim.json.decode, f:read("*a"))
         f:close()
@@ -50,6 +49,7 @@ set.number = true
 set.pumheight = 12
 set.relativenumber = true
 set.scrolloff = 8
+set.shortmess:append("I") -- no intro screen: an empty start is an empty buffer
 set.shell = "zsh"
 set.shiftwidth = 4
 set.showtabline = 2
@@ -68,7 +68,8 @@ set.undofile = true
 set.undolevels = 10000
 set.updatetime = 250
 set.virtualedit = "block"
-set.winborder = "rounded"
+-- the shell's card: square hairline corners (style.json radius_px) and the top-right chamfer
+set.winborder = "\u{250C},\u{2500},\u{2572},\u{2502},\u{2518},\u{2500},\u{2514},\u{2502}"
 set.wrap = false
 set.modeline = false -- security: no option execution from opened files
 

@@ -107,7 +107,7 @@ BorderSurface {
   scale: mouseArea.pressed && !isIcon ? 0.98 : 1.0
   Behavior on scale { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
-  layer.enabled: Style.fx.glow > 0 && isPlain && (_showFocusRing || selected || active || mouseArea.pressed)
+  layer.enabled: Style.fx.glow > 0 && isPlain && (_showFocusRing || selected || active)
   layer.effect: Glow {}
 
   readonly property color _textColor: !enabled && isIcon ? Util.alpha(foreground, Style.emphasis.faint)

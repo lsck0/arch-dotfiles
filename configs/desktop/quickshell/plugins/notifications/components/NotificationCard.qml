@@ -315,7 +315,7 @@ BorderSurface {
         radius: gauge.radius
         color: root.critical ? Colors.urgent : Colors.accent
         opacity: Style.emphasis.dim
-        Behavior on width { NumberAnimation { duration: Style.motion.base; easing.type: Style.motion.fastEasing } }
+        Behavior on width { NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
       }
     }
   }

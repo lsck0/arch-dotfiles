@@ -97,9 +97,9 @@ hl.window_rule({
 hl.window_rule({ match = { class = "^UnrealEditor$", title = "^Message Log$" }, size = "1200 700", center = true })
 
 -- unanimated: grim captures right after slurp's overlay exits, a fade-out would still show the region border
-for _, layer in ipairs({ { "slurp", "^selection$" }, { "quickshell-notifications", "^quickshell-notifications$" } }) do
-    hl.layer_rule({ name = layer[1] .. "-no-anim", match = { namespace = layer[2] }, no_anim = true })
-end
+hl.layer_rule({ name = "slurp-no-anim", match = { namespace = "^selection$" }, no_anim = true })
+-- the shell animates its own surfaces; a compositor slide or fade on top would play every open twice
+hl.layer_rule({ name = "quickshell-no-anim", match = { namespace = "^quickshell-" }, no_anim = true })
 
 hl.layer_rule({
     name = "quickshell-blur",
@@ -115,4 +115,11 @@ hl.layer_rule({
 })
 
 -- the scrim under an overlay card dims and blurs the live screen; it lies under the card's own surface
-hl.layer_rule({ name = "quickshell-scrim", match = { namespace = "^quickshell-scrim$" }, xray = false, order = 1 })
+-- the scrim has no glow halos: a low threshold blurs it from the first frame of its fade to the last, not from halfway
+hl.layer_rule({
+    name = "quickshell-scrim",
+    match = { namespace = "^quickshell-scrim$" },
+    xray = false,
+    order = 1,
+    ignore_alpha = 0.02,
+})

@@ -12,7 +12,7 @@ error_symbol = '[λ](bold red)'
 
 [directory]
 style = 'bold blue'
-read_only = ' '
+read_only = ' '
 read_only_style = 'bold red'
 truncation_symbol = '.../'
 format = '[\[](bold blue)[$path]($style)[$read_only]($read_only_style)[\]](bold blue) '
@@ -75,26 +75,26 @@ style = 'bold blue'
 format = '[$symbol$number]($style) '
 
 [rust]
-symbol = ' '
+symbol = ' '
 style = 'bold red'
 format = '[$symbol($version)]($style) '
 
 [python]
-symbol = ' '
+symbol = ' '
 style = 'bold yellow'
 format = '[$symbol($version)]($style) '
 
 [nodejs]
-symbol = ' '
+symbol = ' '
 style = 'bold green'
 format = '[$symbol($version)]($style) '
 
 [golang]
-symbol = ' '
+symbol = ' '
 style = 'bold cyan'
 format = '[$symbol($version)]($style) '
 
 [lua]
-symbol = ' '
+symbol = ' '
 style = 'bold blue'
 format = '[$symbol($version)]($style) '

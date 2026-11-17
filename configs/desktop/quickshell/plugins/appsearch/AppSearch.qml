@@ -475,6 +475,7 @@ Item {
         opacity: panel.boot.rowOpacity(index)
         color: selected ? Colors.menu.selectedBackground
           : rowMouse.containsMouse ? Style.hoverFill : "transparent"
+        Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
         Row {
           anchors.fill: parent

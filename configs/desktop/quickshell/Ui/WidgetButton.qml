@@ -44,7 +44,12 @@ Item {
   implicitHeight: Style.bar.sizeHorizontal
 
   Behavior on opacity {
-    NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
+    id: fade
+    NumberAnimation {
+      duration: Style.motion.fadeMs(fade.targetValue > 0)
+      easing.type: Easing.BezierSpline
+      easing.bezierCurve: Style.motion.curve(fade.targetValue > 0)
+    }
   }
 
   Rectangle {

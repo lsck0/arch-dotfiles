@@ -441,6 +441,7 @@ Item {
             opacity: panel.boot.rowOpacity(index)
             color: hasCursor ? Colors.menu.selectedBackground
               : index === root.selectedIndex || rowMouse.containsMouse ? Style.hoverFill : "transparent"
+            Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
             MouseArea {
               id: rowMouse

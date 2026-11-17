@@ -53,7 +53,8 @@ const DWD_LAYER = "dwd:Radar_rv_product_1x1km_ger"
 const RAINVIEWER_INDEX_URL = "https://api.rainviewer.com/public/weather-maps.json"
 const RAINVIEWER_HOST = "https://tilecache.rainviewer.com"
 # each provider's colour scale folded into one theme-free mask: white rain whose opacity steps with the rate (0.1-0.4,
-# -2, -5, -15, 15+ mm/h, DWD's legend; RainViewer's Universal Blue by dBZ), black where the radar has no data
+# -2, -5, -15, 15+ mm/h, DWD's legend; RainViewer's Universal Blue by dBZ); where the radar has no data, and its range
+# edge, stay transparent: a dark wedge with a dotted rim read as a defect
 const RADAR_SCALES = {
     dwd: {
         shade: ["#7D7D7D" "#FB00FF"]
@@ -277,7 +278,7 @@ def radar-plan-rainviewer [lat: float, lon: float]: nothing -> any {
     } catch { "bad index" }
 }
 
-# Snaps each pixel to the scale's nearest colour, then writes white (black on shade) with the level times the source
+# Snaps each pixel to the scale's nearest colour, then writes white (transparent on shade) with the level times the source
 # alpha; the panel tints it to the palette.
 def radar-mask [file: path, scale: record]: nothing -> bool {
     let opaque = {|colours| $colours | each {|c| [-opaque $c] } | flatten }
@@ -289,7 +290,7 @@ def radar-mask [file: path, scale: record]: nothing -> bool {
         mpr:src -alpha extract -write mpr:alpha +delete
         mpr:src -alpha off +dither -remap mpr:palette -write mpr:snapped +delete
         "(" mpr:snapped -fill black ...(do $opaque $scale.shade) -fill white +opaque black ")"
-        "(" mpr:snapped -fill white ...(do $opaque $scale.shade) ...$levels mpr:alpha -compose multiply -composite ")"
+        "(" mpr:snapped -fill black ...(do $opaque $scale.shade) ...$levels mpr:alpha -compose multiply -composite ")"
         -alpha off -compose copy-opacity -composite $file
     ]
     (^magick ...$args | complete).exit_code == 0

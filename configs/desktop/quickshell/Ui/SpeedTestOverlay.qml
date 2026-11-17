@@ -137,7 +137,12 @@ OverlayCard {
         onClicked: root.runAgainRequested()
 
         Behavior on opacity {
-          NumberAnimation { duration: Style.motion.slow; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
+          id: runAgainFade
+          NumberAnimation {
+            duration: Style.motion.fadeMs(runAgainFade.targetValue > 0)
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Style.motion.curve(runAgainFade.targetValue > 0)
+          }
         }
       }
     }
@@ -164,7 +169,7 @@ OverlayCard {
     opacity: engaged ? 1 : 0.5
 
     Behavior on opacity {
-      NumberAnimation { duration: Style.motion.slow; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
+      NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
     }
 
     Behavior on shown {

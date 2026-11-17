@@ -7,31 +7,24 @@ local function with_alpha(c, a)
     return (c:gsub("rgb%((%x+)%)", "rgba(%1" .. a .. ")"))
 end
 
-local CURVES = {
-    md3_decel = { { 0.05, 0.7 }, { 0.1, 1 } },
-    md3_accel = { { 0.3, 0 }, { 0.8, 0.15 } },
-    overshot = { { 0.05, 0.9 }, { 0.1, 1.1 } },
-    menu_decel = { { 0.1, 1 }, { 0, 1 } },
-    menu_accel = { { 0.38, 0.04 }, { 1, 0.07 } },
-    softAcDecel = { { 0.26, 0.26 }, { 0.15, 1 } },
-}
-for name, points in pairs(CURVES) do
-    hl.curve(name, { type = "bezier", points = points })
-end
+-- the shell's motion (configs/desktop/quickshell/Commons/Style.qml, motion): enter curve for every enter and move, exit
+-- curve for every exit; speeds are deciseconds, base 160 = 1.6, exit 120 = 1.2, slow 240 = 2.4. Windows travel farther
+-- than a panel and keep their own speeds. Shell layers animate themselves (no_anim in hyprland_windowrules.lua)
+hl.curve("enter", { type = "bezier", points = { { 0.05, 0.7 }, { 0.1, 1 } } })
+hl.curve("exit", { type = "bezier", points = { { 0.38, 0.04 }, { 1, 0.07 } } })
 
 local ANIMATIONS = {
-    { leaf = "windowsIn", speed = 2.5, bezier = "overshot", style = "popin 70%" },
-    { leaf = "windowsOut", speed = 2, bezier = "md3_accel", style = "popin 70%" },
-    { leaf = "windowsMove", speed = 2.5, bezier = "md3_decel" },
-    { leaf = "border", speed = 1.5, bezier = "default" },
-    { leaf = "fade", speed = 2.5, bezier = "md3_decel" },
-    { leaf = "layers", speed = 2, bezier = "md3_decel", style = "slide" },
-    { leaf = "layersIn", speed = 3, bezier = "menu_decel" },
-    { leaf = "layersOut", speed = 0.8, bezier = "menu_accel" },
-    { leaf = "fadeLayersIn", speed = 2, bezier = "menu_decel" },
-    { leaf = "fadeLayersOut", speed = 1.5, bezier = "menu_accel" },
-    { leaf = "workspaces", speed = 2.2, bezier = "softAcDecel", style = "slidefade 15%" },
-    { leaf = "specialWorkspace", speed = 3, bezier = "md3_decel", style = "slidefadevert 15%" },
+    { leaf = "windowsIn", speed = 2.5, bezier = "enter", style = "popin 90%" },
+    { leaf = "windowsOut", speed = 2, bezier = "exit", style = "popin 90%" },
+    { leaf = "windowsMove", speed = 2.5, bezier = "enter" },
+    { leaf = "border", speed = 1.5, bezier = "enter" },
+    { leaf = "fade", speed = 1.6, bezier = "enter" },
+    { leaf = "fadeOut", speed = 1.2, bezier = "exit" },
+    { leaf = "fadeLayersOut", speed = 1.2, bezier = "exit" },
+    { leaf = "layers", speed = 1.6, bezier = "enter", style = "fade" },
+    { leaf = "layersOut", speed = 1.2, bezier = "exit" },
+    { leaf = "workspaces", speed = 2.4, bezier = "enter", style = "slidefade 15%" },
+    { leaf = "specialWorkspace", speed = 2.4, bezier = "enter", style = "slidefadevert 15%" },
 }
 for _, animation in ipairs(ANIMATIONS) do
     animation.enabled = true

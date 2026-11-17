@@ -212,7 +212,7 @@ Item {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: Style.space(67)
         opacity: boot.progress
-        transform: Translate { y: (1 - boot.progress) * Style.spacing.sm }
+        transform: Translate { y: (1 - boot.progress) * Style.motion.travel }
 
         Column {
           visible: root.logMode

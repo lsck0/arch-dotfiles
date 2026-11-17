@@ -54,7 +54,7 @@ return {
                 refresh = { refresh_time = 250 },
 
                 section_separators = { left = "", right = "" },
-                component_separators = { left = "", right = "" },
+                component_separators = { left = "::", right = "::" },
             },
             sections = {
                 lualine_a = { "mode" },

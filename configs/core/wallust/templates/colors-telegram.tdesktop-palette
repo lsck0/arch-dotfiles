@@ -144,7 +144,7 @@ dialogsVerifiedIconFg: {{background}}; // chat list verified icon check
 dialogsSendingIconFg: {{color4}}; // chat list sending message icon (clock)
 dialogsSentIconFg: {{color4}}; // chat list sent message tick / double tick icon
 dialogsUnreadBg: {{color4}}; // chat list unread badge background for not muted chat
-dialogsUnreadBgMuted: {{background}}; // chat list unread badge background for muted chat
+dialogsUnreadBgMuted: {{color8}}; // chat list unread badge background for muted chat
 dialogsUnreadFg: {{background}}; // chat list unread badge text
 dialogsBgOver: {{color4}}1f; // chat list background with mouse over
 dialogsOnlineBadgeFg: {{color4}}; // chat list online status
@@ -167,15 +167,15 @@ dialogsChatIconFgActive: dialogsNameFgActive; // chat list group or channel icon
 dialogsDateFgActive: {{background}}; // chat list date text for current (active) chat
 dialogsTextFgActive: {{background}}; // chat list message text for current (active) chat
 dialogsTextFgServiceActive: dialogsTextFgActive; // chat list group sender name text for current (active) chat
-dialogsDraftFgActive: {{color4}}; // chat list draft label for current (active) chat
+dialogsDraftFgActive: {{background}}; // chat list draft label for current (active) chat
 dialogsVerifiedIconBgActive: dialogsTextFgActive; // chat list verified icon background for current (active) chat
 dialogsVerifiedIconFgActive: dialogsBgActive; // chat list verified icon check for current (active) chat
-dialogsSendingIconFgActive: {{foreground}}99; // chat list sending message icon (clock) for current (active) chat
+dialogsSendingIconFgActive: {{background}}; // chat list sending message icon (clock) for current (active) chat
 dialogsSentIconFgActive: dialogsTextFgActive; // chat list sent message tick / double tick icon for current (active) chat
 dialogsUnreadBgActive: dialogsTextFgActive; // chat list unread badge background for not muted chat for current (active) chat
-dialogsUnreadBgMutedActive: {{color4}}; // chat list unread badge background for muted chat for current (active) chat
+dialogsUnreadBgMutedActive: {{ bg_alt }}; // chat list unread badge background for muted chat for current (active) chat
 dialogsUnreadFgActive: {{color4}}; // chat list unread badge text for current (active) chat
-dialogsOnlineBadgeFgActive: {{foreground}}; // chat list online status for current (active) chat
+dialogsOnlineBadgeFgActive: {{background}}; // chat list online status for current (active) chat
 dialogsRippleBg: {{color4}}2b; //
 dialogsRippleBgActive: {{color4}}; //
 dialogsForwardBg: dialogsBgActive; // forwarding panel background (when forwarding messages in the smallest window size)

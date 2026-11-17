@@ -261,6 +261,7 @@ Item {
               radius: Style.shape.data
               color: reminderRow.index === root.selectedRow ? Colors.menu.selectedBackground
                 : rowHover.hovered ? Style.hoverFill : "transparent"
+              Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
             }
             HoverHandler { id: rowHover }
 

@@ -23,7 +23,7 @@ $env.config = {
     filesize: { unit: "metric" }
     rm: { always_trash: true }
     table: {
-        mode: "rounded"
+        mode: "single"
         index_mode: "always"
         header_on_separator: false
     }
@@ -120,8 +120,10 @@ source $STARSHIP
 source $ZOXIDE
 source $WAL
 
-# config.nu also loads for `nu -l -c`, whose stdout a caller reads
-let fetch = $nu.is-interactive and (is-terminal --stdout) and ("TERM" in $env) and $env.TERM != "dumb"
+# config.nu also loads for `nu -l -c`, whose stdout a caller reads; as zshrc, not in every tmux or herdr pane or nvim
+# terminal
+let nested = [TMUX HERDR_ENV NVIM] | any {|name| $name in $env }
+let fetch = $nu.is-interactive and (is-terminal --stdout) and ("TERM" in $env) and $env.TERM != "dumb" and not $nested
 if $fetch and (which fastfetch | is-not-empty) {
     fastfetch
 }

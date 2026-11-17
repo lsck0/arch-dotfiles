@@ -1,5 +1,6 @@
 use module.nu *
 use ../../core/wallust/editor.nu [editor-roles]
+use ../../core/wallust/font.nu [font-load]
 use ../../core/wallust/palette.nu [palette-rgb rgb-to-hex]
 
 const QUIET_GIT = [GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=advice.detachedHead GIT_CONFIG_VALUE_0=false]
@@ -22,6 +23,8 @@ const INSTALL_PASSES = 2
 const THEME_MARKER = "wal/nvim_theme"
 # colors/wal.lua reads it
 const THEME_ROLES = "wal/nvim-roles.json"
+# options.lua reads it: font.json exists only once a font was set, the default is font.nu's
+const THEME_FONT = "wal/nvim-font.json"
 # local_plugins/dictate.lua's speech model; huggingface serves it by commit, its lfs oid is the sha256
 const WHISPER_MODEL = {
     file: "ggml-large-v3-turbo-q5_0.bin"
@@ -163,7 +166,8 @@ export def theme [cfg: record, wallpaper: string] {
         let ansi = $p | select c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 c15 | update cells { rgb-to-hex --prefix "#" }
         file-text (xdg cache $THEME_ROLES) $"($p | editor-roles $p.bg | insert ansi $ansi | to json --indent 2)\n" --generated
     }
-    [$roles (step theme-push)] | compact
+    let font = file-text (xdg cache $THEME_FONT) $"(font-load | select mono size | to json)\n" --generated
+    [$roles $font (step theme-push)] | compact
 }
 
 export def theme-push []: nothing -> nothing {

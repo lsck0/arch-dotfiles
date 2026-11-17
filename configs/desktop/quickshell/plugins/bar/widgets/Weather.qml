@@ -195,8 +195,8 @@ BarWidget {
         id: alertFlash
         running: false
         loops: alertGlyph.flashCount
-        NumberAnimation { to: Style.emphasis.faint; duration: Style.motion.base }
-        NumberAnimation { to: 1.0; duration: Style.motion.base }
+        NumberAnimation { to: Style.emphasis.faint; duration: Style.motion.base; easing.type: Style.motion.ambientEasing }
+        NumberAnimation { to: 1.0; duration: Style.motion.base; easing.type: Style.motion.ambientEasing }
       }
       Connections {
         target: root
