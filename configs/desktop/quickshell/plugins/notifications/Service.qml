@@ -616,7 +616,6 @@ Item {
     bodyMarkupSupported: true
     bodyHyperlinksSupported: true
     persistenceSupported: true
-    inlineReplySupported: true
 
     onNotification: function(notification) {
       service.handleNotification(notification)
@@ -696,36 +695,6 @@ Item {
     return out
   }
 
-  // the live notification's reply placeholder when it takes an inline reply, else null
-  function replyPlaceholderFor(originalId, timestamp) {
-    var index = rowIndexOf(originalId, timestamp)
-    if (index < 0 || isRestoredRow(popupModel.get(index))) return null
-    var ref = liveRefs[originalId]
-    try {
-      return ref && ref.hasInlineReply ? String(ref.inlineReplyPlaceholder || "") : null
-    } catch (e) {
-      return null
-    }
-  }
-
-  // the toast whose reply field holds the keyboard ("originalId:timestamp"), empty while none does
-  property string replyKey: ""
-  // a bar panel over the toasts ends the reply, so the keyboard does not jump back once it closes
-  onPanelOverToastsChanged: if (panelOverToasts) replyKey = ""
-
-  function sendReply(index, text) {
-    if (index < 0 || index >= popupModel.count) return
-    var entry = popupModel.get(index)
-    var ref = !isRestoredRow(entry) ? liveRefs[entry.originalId] : null
-    try {
-      if (ref && ref.hasInlineReply) ref.sendInlineReply(text)
-    } catch (e) {
-      console.warn("notifications: inline reply failed:", e)
-    }
-    replyKey = ""
-    removePopup(index)
-  }
-
   function invokeAction(index, identifier) {
     if (index < 0 || index >= popupModel.count) return
     invokeLiveAction(popupModel.get(index), identifier)
@@ -742,20 +711,13 @@ Item {
 
       WlrLayershell.namespace: "quickshell-notifications"
       WlrLayershell.layer: WlrLayer.Overlay
-      // a toast takes the keyboard only while its reply field is clicked into; a click elsewhere gives it back
-      WlrLayershell.keyboardFocus: service.replyKey !== "" && !service.panelOverToasts ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+      WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
       exclusionMode: ExclusionMode.Ignore
       color: "transparent"
 
       anchors { top: true; bottom: true; left: true; right: true }
 
       mask: Region { item: service.panelOverToasts ? null : popupList }
-
-      HyprlandFocusGrab {
-        active: service.replyKey !== "" && !service.panelOverToasts
-        windows: [popupWindow]
-        onCleared: service.replyKey = ""
-      }
 
       ListView {
         id: popupList
@@ -821,7 +783,6 @@ Item {
           property real remainingMs: cardSlot.lifetime
           property double resumedAtMs: Date.now()
           readonly property bool ticking: cardSlot.lifetime > 0 && !stackHover.hovered && cardSlot.index >= 0
-            && service.replyKey !== cardSlot.clockKey
           readonly property int segmentsLeft: cardSlot.lifetime > 0
             ? Math.max(0, Math.ceil(cardSlot.remainingMs / cardSlot.quarterMs - 0.001)) : 0
 
@@ -886,7 +847,6 @@ Item {
           Component.onDestruction: {
             if (service.rowIndexOf(cardSlot.originalId, cardSlot.timestamp) >= 0) return
             delete service.toastClocks[cardSlot.clockKey]
-            if (service.replyKey === cardSlot.clockKey) service.replyKey = ""
           }
 
           NotificationCard {
@@ -905,15 +865,10 @@ Item {
             groupCount: Math.max(1, cardSlot.groupSize)
             segmentsLeft: cardSlot.segmentsLeft
             actions: service.actionsFor(cardSlot.originalId, cardSlot.timestamp)
-            replyPlaceholder: service.replyPlaceholderFor(cardSlot.originalId, cardSlot.timestamp)
-            replying: service.replyKey === cardSlot.clockKey
 
             onCloseRequested: if (cardSlot.index >= 0) service.removePopup(cardSlot.index)
             onCardClicked: if (cardSlot.index >= 0) service.invokePopupDefault(cardSlot.index)
             onActionInvoked: function(identifier) { if (cardSlot.index >= 0) service.invokeAction(cardSlot.index, identifier) }
-            onReplyStarted: service.replyKey = cardSlot.clockKey
-            onReplyCancelled: if (service.replyKey === cardSlot.clockKey) service.replyKey = ""
-            onReplySent: function(text) { if (cardSlot.index >= 0) service.sendReply(cardSlot.index, text) }
           }
         }
       }
