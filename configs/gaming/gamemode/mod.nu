@@ -26,21 +26,26 @@ export def detect [cfg: record]: nothing -> record {
     }
 }
 
+# gamemoded reads [gpu] only from root-owned files (/etc, /usr/share): from ~/.config it drops every key with
+# "not configurable from unsafe config files"
+export def gpu-section [device: any, vendor: any, level: any]: nothing -> string {
+    if $device == null { return "" }
+    let amd = if $vendor == "amd" and $level != null { $"amd_performance_level=($level)\n" } else { "" }
+    $"[gpu]\napply_gpu_optimisations=accept-responsibility\ngpu_device=($device)\n($amd)"
+}
+
 export def link [cfg: record] {
-    let gpu = if $cfg.gpu_device == null { "" } else {
-        let level = if (gpu-list | where index == $cfg.gpu_device | get --optional 0.vendor) == "amd" {
-            $"amd_performance_level=($cfg.amd_performance_level)\n"
-        } else { "" }
-        $"\n[gpu]\napply_gpu_optimisations=accept-responsibility\ngpu_device=($cfg.gpu_device)\n($level)"
-    }
     [
-        (file-text (xdg config gamemode.ini) $"(open --raw gamemode.ini)($gpu)")
+        (file-text (xdg config gamemode.ini) (open --raw gamemode.ini))
         (link-commands gamemode-hook.nu)
     ]
 }
 
 export def system [cfg: record] {
+    let vendor = gpu-list | where index == $cfg.gpu_device | get --optional 0.vendor
+    let gpu = gpu-section $cfg.gpu_device $vendor $cfg.amd_performance_level
     [
+        (if $gpu != "" { file-text /etc/gamemode.ini $gpu })
         (file-copy split-lock-mitigate.nu /usr/local/bin/split-lock-mitigate --mode 755)
         (polkit-rules 49-gamemode-services.rules)
         (group-admins gamemode)

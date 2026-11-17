@@ -28,6 +28,10 @@ BorderSurface {
   property double now: 0
 
   property var actions: []
+  // a string (maybe empty) when the live notification takes an inline reply, null otherwise
+  property var replyPlaceholder: null
+  readonly property bool canReply: !isRow && replyPlaceholder !== null && replyPlaceholder !== undefined
+  property bool replying: false
   property int groupCount: 1
   property int segmentsLeft: 0
   readonly property int gaugeSegments: 4
@@ -46,6 +50,16 @@ BorderSurface {
   signal closeRequested()
   signal cardClicked()
   signal actionInvoked(string identifier)
+  signal replyStarted()
+  signal replyCancelled()
+  signal replySent(string text)
+
+  onReplyingChanged: if (replying) replyField.forceActiveFocus(); else replyField.focus = false
+
+  function submitReply() {
+    var text = replyField.text.trim()
+    if (text.length > 0) root.replySent(text)
+  }
   readonly property string smallIconSource: image.length > 0 ? image : Util.iconSource(appIcon)
   readonly property bool hasGlyph: glyph.length > 0
   readonly property bool compactGlyph: hasGlyph && smallIconSource.length === 0 && singleLineToast
@@ -242,6 +256,41 @@ BorderSurface {
               onClicked: root.actionInvoked(modelData.id)
             }
           }
+        }
+
+        // the field takes the keyboard only once clicked into: a toast never steals focus on its own
+        RowLayout {
+          Layout.fillWidth: true
+          Layout.topMargin: Style.spacing.xs
+          visible: root.canReply
+          spacing: Style.spacing.xs
+
+          TextField {
+            id: replyField
+            Layout.fillWidth: true
+            verticalPadding: Style.spacing.xs
+            font.pixelSize: Style.font.caption
+            placeholderText: root.replyPlaceholder || "reply"
+            onPressed: if (!root.replying) root.replyStarted()
+            onAccepted: root.submitReply()
+            Keys.onEscapePressed: {
+              replyField.clear()
+              root.replyCancelled()
+            }
+          }
+          Button {
+            variant: "chip"
+            text: "SEND"
+            enabled: replyField.text.trim().length > 0
+            onClicked: root.submitReply()
+          }
+        }
+
+        KeyHints {
+          Layout.fillWidth: true
+          Layout.topMargin: Style.spacing.xs
+          visible: root.canReply && root.replying
+          hints: [["ENTER", "send"], ["ESC", "close"]]
         }
       }
     }

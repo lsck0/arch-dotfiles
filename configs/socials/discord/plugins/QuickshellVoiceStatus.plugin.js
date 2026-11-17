@@ -1,7 +1,7 @@
 /**
  * @name QuickshellVoiceStatus
  * @author Luca
- * @version 1.1.0
+ * @version 1.1.1
  * @description Publish the current VC to quickshell and take its mute, deafen and disconnect commands.
  * @source https://github.com/lsck0/arch-dotfiles
  */
@@ -198,11 +198,6 @@ module.exports = class QuickshellVoiceStatus {
     this._commandWatcher = null;
   }
 
-  _fallbackToPoll() {
-    this._closeWatcher();
-    if (!this._commandPoll) this._commandPoll = setInterval(() => this._pollCommands(), COMMAND_POLL_MS);
-  }
-
   _publish() {
     try {
       this._write(this._snapshot());
@@ -248,20 +243,17 @@ module.exports = class QuickshellVoiceStatus {
       if (this._fs.existsSync(this._commandPath)) this._fs.unlinkSync(this._commandPath);
     } catch (e) {}
 
+    // betterdiscord's fs.watch returns only {close}, no event emitter: the watcher is kept for stop() to close, else a
+    // reloaded plugin leaves it running the old code
     try {
       this._commandWatcher = this._fs.watch(this._runtimeDir, (event, name) => {
         if (name === COMMAND_FILE) this._pollCommands();
-      });
-      // a watcher that errors stops firing for good: fall back to polling instead of going deaf
-      this._commandWatcher.on("error", (e) => {
-        console.error("[QuickshellVoiceStatus] command watcher failed, polling instead", e);
-        this._fallbackToPoll();
       });
     } catch (e) {
       this._commandWatcher = null;
     }
     // the watcher covers live changes; poll only as a fallback when fs.watch failed
-    if (!this._commandWatcher) this._fallbackToPoll();
+    if (!this._commandWatcher) this._commandPoll = setInterval(() => this._pollCommands(), COMMAND_POLL_MS);
 
     this._heartbeat = setInterval(() => {
       if (this._voiceChannelId()) {

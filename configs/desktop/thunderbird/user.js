@@ -17,3 +17,6 @@ user_pref("mailnews.start_page.enabled", false);
 
 user_pref("extensions.activeThemeID", "default-theme@mozilla.org");
 user_pref("ui.systemUsesDarkTheme", @DARK@);
+
+// new mail is announced by the shell toast, which do-not-disturb silences; thunderbird's own chime ignores it
+user_pref("mail.biff.play_sound", false);

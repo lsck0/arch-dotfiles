@@ -70,6 +70,8 @@ hl.bind(
     hl.dsp.exec_cmd(shell_bin("mangohud-toggle")),
     { non_consuming = true, description = "show or hide the mangohud overlay" }
 )
+-- teamspeak's push-to-talk helper reads X11 keys only: it runs under XWayland (socials/teamspeak) and gets F13 passed
+hl.bind("F13", hl.dsp.pass({ window = "class:(?i)^teamspeak" }), { description = "teamspeak push-to-talk" })
 hl.bind(mod .. " + Tab", quickshell_call("overview", "open"), { description = "overview of workspaces and windows" })
 hl.bind(
     mod .. " + Return",

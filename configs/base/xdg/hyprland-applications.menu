@@ -1,0 +1,7 @@
+<!DOCTYPE Menu PUBLIC "-//freedesktop//DTD Menu 1.0//EN"
+ "http://www.freedesktop.org/standards/menu-spec/1.0/menu.dtd">
+<!-- uwsm sets XDG_MENU_PREFIX=hyprland-; without this file kservice's menu holds only applications-merged entries -->
+<Menu>
+    <Name>Applications</Name>
+    <MergeFile>/etc/xdg/menus/plasma-applications.menu</MergeFile>
+</Menu>

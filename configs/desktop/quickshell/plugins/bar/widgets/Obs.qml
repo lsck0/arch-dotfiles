@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
@@ -147,6 +148,12 @@ BarWidget {
   barPriority: 35
 
   hoverPanel: true
+
+  // libobs asks the portal for an idle inhibit no backend here honours; the bar is always mapped, so it holds it
+  IdleInhibitor {
+    enabled: root.active
+    window: root.QsWindow.window
+  }
 
   hoverFill: true
   visible: connected || faulted

@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [playerctl]}}
+export const meta = {packages: {pacman: [libpulse playerctl]}}
 
 const SCRIPTS = [agent-guard.nu sleep-guard.nu]
 # each unit runs sleep-guard.nu <guard> (the agent guard runs from the agents' hooks instead); unit names stay literal
@@ -8,6 +8,7 @@ const SCRIPTS = [agent-guard.nu sleep-guard.nu]
 const UNITS = [
     [guard unit while];
     [media idle-guard-media.service "media plays"]
+    [mic idle-guard-mic.service "a microphone records"]
     [ssh idle-guard-ssh.service "an ssh session is open"]
 ]
 export const AGENT_GUARD = ".config/idle-guards/agent-guard.nu"

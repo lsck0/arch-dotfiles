@@ -49,3 +49,8 @@ export def link [cfg: record] {
         (file-copy fonts.conf (xdg config fontconfig conf.d 50-dotfiles.conf))
     ]
 }
+
+export def system [cfg: record] {
+    # a scan rule edits the fonts themselves, so it must reach the cache root builds for /usr/share/fonts
+    [(file-copy sarasa-generic.conf /etc/fonts/conf.d/45-dotfiles-sarasa-generic.conf --then [fc-cache --system-only --force])]
+}

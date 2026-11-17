@@ -28,6 +28,7 @@ export def pam-env []: nothing -> nothing {
 const DIRS = [desktop documents downloads music pictures videos sync vault .local/share/applications]
 const CAPITALIZED = [Desktop Documents Downloads Music Pictures Projects Public Templates Videos]
 const USER_DIRS = path self user-dirs.dirs
+const PLASMA_MENU = "/etc/xdg/menus/plasma-applications.menu"
 
 # A dir user-dirs.dirs names (DOCUMENTS, VIDEOS, ...), read from the repo: xdg-user-dir answers $HOME until this
 # module's copy lands, and a fresh install's first run plans every module before it applies any.
@@ -42,6 +43,8 @@ const RECLAIM = [
     [name target mode];
     # the install stage runs npm (obs, mason) before the session's environment.d exists; app-dirs.conf covers it after
     [.npm .cache/npm move]
+    # ANSIBLE_HOME in app-dirs.conf; a project's venv or devenv ansible made ~/.ansible before it
+    [.ansible .local/share/ansible move]
     # DOTNET_CLI_HOME moves the sdk's dir, but the runtime's X509 store hardcodes ~/.dotnet/corefx
     [.dotnet .local/share/dotnet link]
     # these honour CARGO_HOME, RUSTUP_HOME, ELAN_HOME, GHCUP_USE_XDG_DIRS and OPAMROOT, but the install stage runs them
@@ -145,6 +148,11 @@ export def link [cfg: record] {
         (if (which Hyprland | is-not-empty) {
             (file-copy hyprland-portals.conf ($portals | path join hyprland-portals.conf)
                 --then (unit-restart xdg-desktop-portal.service --if-running))
+        })
+        # kde's open-with dialog and every kservice menu read $XDG_MENU_PREFIX applications.menu, which uwsm names
+        # after the compositor; plasma's file is the one with categories, and ksycoca rebuilds when the dir changes
+        (if (which Hyprland | is-not-empty) and ($PLASMA_MENU | path exists) {
+            files-into ($config | path join menus) hyprland-applications.menu
         })
         # a user kde-portals.conf replaces plasma's whole file, so it repeats plasma's lines
         (if (which startplasma-wayland | is-not-empty) { files-into $portals kde-portals.conf })

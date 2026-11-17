@@ -2,12 +2,8 @@ use module.nu *
 
 export const meta = {packages: {pacman: [teamspeak6-client]}}
 
-const FLAGS = "--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations"
-
 export def link [cfg: record] {
-    desktop-override teamspeak6-client.desktop {
-        $in
-        | str replace --all --regex '(?m)^(Exec=teamspeak6) ' $'$1 ($FLAGS) '
-        | desktop-set {Categories: "Network;Chat;Telephony;"}
-    }
+    # X11 on purpose: its push-to-talk helper reads keys through XInput only, so a native Wayland window never sees
+    # the key; Hyprland passes F13 to it (desktop/hyprland keybindings)
+    desktop-override teamspeak6-client.desktop { desktop-set {Categories: "Network;Chat;Telephony;"} }
 }
