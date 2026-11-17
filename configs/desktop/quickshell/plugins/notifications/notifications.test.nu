@@ -17,7 +17,10 @@ TestCase {
     verify(NotificationLogic.isHiddenAction("mail-mark-read", "Mark as read"))
     verify(NotificationLogic.isHiddenAction("anything", "Mark as Read"))
     verify(NotificationLogic.isHiddenAction("mark", ""))
-    verify(!NotificationLogic.isHiddenAction("reply", "Reply"))
+    verify(NotificationLogic.isHiddenAction("reply", "Reply"))
+    verify(NotificationLogic.isHiddenAction("inline-reply", ""))
+    verify(NotificationLogic.isHiddenAction("anything", "Reply"))
+    verify(!NotificationLogic.isHiddenAction("answer", "Answer call"))
     verify(!NotificationLogic.isHiddenAction("default", "Open"))
   }
 

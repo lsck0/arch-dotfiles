@@ -116,11 +116,12 @@ function snapshotOf(notification, timestamp, entryName, entryIcon) {
   }
 }
 
-var HIDDEN_ACTION_IDS = ["mail-mark-read", "mark", "mark-read", "mark_read"]
+// mark-read is noise; reply needs the app anyway, and clicking the toast opens the app there
+var HIDDEN_ACTION_IDS = ["mail-mark-read", "mark", "mark-read", "mark_read", "inline-reply", "reply"]
 
 function isHiddenAction(identifier, text) {
   var id = String(identifier || "").toLowerCase()
-  return HIDDEN_ACTION_IDS.indexOf(id) >= 0 || /^\s*mark (?:as )?read\s*$/i.test(String(text || ""))
+  return HIDDEN_ACTION_IDS.indexOf(id) >= 0 || /^\s*(?:mark (?:as )?read|reply)\s*$/i.test(String(text || ""))
 }
 
 var POPUP_ROLES = ["app", "appIcon", "summary", "body", "image", "glyph", "execArgv", "urgency", "expireTimeout"]
