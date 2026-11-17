@@ -15,6 +15,8 @@
   owner /tmp/** rwk,
   owner /tmp/** l -> /tmp/**,
   owner /var/tmp/** rwk,
+  # /dev/shm is scratch like /tmp: image and video work staged in RAM
+  owner /dev/shm/** rwk,
 
   deny @{HOME}/.{profile,bash_profile,bash_login,bashrc,bash_logout,zshenv,zprofile,zshrc,zlogin,zlogout} w,
   deny @{HOME}/.{xprofile,xinitrc,xsession,pam_environment} w,

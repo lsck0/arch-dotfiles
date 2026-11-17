@@ -193,6 +193,11 @@ function M.apply(name)
         vim.g.colors_name = nil
         vim.o.background = background
     end
+    -- neovide's background is the terminals' glass: the shell opacity of the theme's brightness
+    if vim.g.neovide and style.opacity_shell then
+        local light = (background or vim.o.background) == "light"
+        vim.g.neovide_normal_opacity = light and style.opacity_shell_light or style.opacity_shell
+    end
     -- a colorscheme clears only when colors_name is set
     vim.cmd.highlight("clear")
     local ok, err = pcall(vim.cmd.colorscheme, colorscheme)

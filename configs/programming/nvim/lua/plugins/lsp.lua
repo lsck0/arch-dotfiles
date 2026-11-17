@@ -122,6 +122,18 @@ return {
             })
             vim.lsp.enable("nushell")
 
+            -- quickshell imports its own config as qs.*: the same qs link the lint gate (scripts/lib/gate.nu) gives
+            -- qmllint, else every qs import and the types it brings are unresolved
+            if vim.fn.executable("qmlls6") == 1 then
+                local qml_imports = vim.fn.stdpath("cache") .. "/qmlls-imports"
+                if not vim.uv.fs_lstat(qml_imports .. "/qs") then
+                    vim.fn.mkdir(qml_imports, "p")
+                    vim.uv.fs_symlink(require("lib.dotfiles") .. "/configs/desktop/quickshell", qml_imports .. "/qs")
+                end
+                vim.lsp.config("qmlls", { cmd = { "qmlls6", "-I", qml_imports } })
+                vim.lsp.enable("qmlls")
+            end
+
             -- kani projects need these cfgs and nightly, plain rust must not get them
             local function rust_extra_env(root)
                 local f = type(root) == "string" and io.open(root .. "/Cargo.toml")
@@ -358,6 +370,12 @@ return {
                 args = { "format", "$FILENAME" },
                 stdin = false,
             }
+            -- a @NAME@ template is not toml yet: taplo refuses it on every save, so it is skipped as the gate does
+            formatters.taplo = {
+                condition = function(_, ctx)
+                    return not table.concat(vim.api.nvim_buf_get_lines(ctx.buf, 0, -1, false), "\n"):find("@[A-Z_]+@")
+                end,
+            }
             formatters.php_cs_fixer = {
                 prepend_args = function(_, ctx)
                     local configs = { ".php-cs-fixer.php", ".php-cs-fixer.dist.php" }
@@ -405,6 +423,7 @@ return {
                 sql = { "sql_formatter" },
                 tex = { "latexindent" },
                 text = { "fmt_text" },
+                toml = { "taplo" },
                 typst = { "typstyle" },
             }
             for _, ft in ipairs({

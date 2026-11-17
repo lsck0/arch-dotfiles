@@ -367,7 +367,8 @@ export def palette-rgb [program: string]: nothing -> any {
 export def style-json []: nothing -> string {
     {
         radius_px: $RADIUS_PX text_ratio: $TEXT_RATIO light_luminance: $LIGHT_LUMINANCE
-        white_text_luminance_max: $WHITE_TEXT_LUMINANCE_MAX
+        white_text_luminance_max: $WHITE_TEXT_LUMINANCE_MAX opacity_shell: $OPACITY_SHELL
+        opacity_shell_light: $OPACITY_SHELL_LIGHT
     } | to json --indent 2 | $"($in)\n"
 }
 

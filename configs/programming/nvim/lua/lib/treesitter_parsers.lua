@@ -52,6 +52,7 @@ local parsers = {
     "prisma",
     "proto",
     "python",
+    "qmljs",
     "query",
     "regex",
     "ruby",

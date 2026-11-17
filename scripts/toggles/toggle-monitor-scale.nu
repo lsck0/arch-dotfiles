@@ -2,7 +2,8 @@
 use lib.nu [DOT status-record status-print notify state-set state-file hyprland-instance option-value]
 
 const HYPRLAND = "desktop/hyprland"
-const SCALES = ["1" "1.25" "1.5" "2"]
+# 1.67 is the 4K monitors' own setting (3840 / 1.67 = 2304 logical px wide)
+const SCALES = ["1" "1.25" "1.5" "1.67" "2"]
 const SCALE_TOLERANCE = 0.01
 const SCALE_SETTLE = 400ms
 const REFRESH_DECIMALS = 5

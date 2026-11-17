@@ -1,5 +1,7 @@
 # managed by arch-dotfiles/apparmor
 owner @{HOME}/{.claude,projects/*/.identity/claude}/chrome/chrome-native-host rPUx,
+# Claude Desktop's native messaging host for the browser extension, the same as Claude Code's above
+/usr/lib/claude-desktop/resources/chrome-native-host rPUx,
 owner @{user_share_dirs}/work/ rw,
 owner @{user_share_dirs}/work/chromium/ rw,
 owner @{user_share_dirs}/work/chromium/** rwk,

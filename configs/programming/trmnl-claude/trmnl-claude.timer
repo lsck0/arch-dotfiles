@@ -3,7 +3,7 @@ Description=Refresh the Claude usage panel on the TRMNL display
 
 [Timer]
 OnCalendar=*:0/15
-Persistent=true
+# no Persistent: its catch-up at login posts before the network is up and fails; the next quarter hour posts
 AccuracySec=1min
 
 [Install]

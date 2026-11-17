@@ -42,7 +42,8 @@ done
 unset file
 
 export FZF_DEFAULT_COMMAND='fd --type f --hidden --exclude .git'
-zsh_init_cache fzf --zsh && source $REPLY
+# its restore of the caller's options sets zle, which a shell without a terminal refuses with an error per widget
+[[ -t 0 ]] && zsh_init_cache fzf --zsh && source $REPLY
 source /usr/share/zsh/plugins/fzf-tab-git/fzf-tab.plugin.zsh
 source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh

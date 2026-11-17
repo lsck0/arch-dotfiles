@@ -109,7 +109,8 @@ description.
 - Shell: launcher (`d`, `ALT+d` runs from `$PATH`), dismiss notifications (`SHIFT+d`), quick capture (`i`), dictation
   (`ALT+v`, again to type it), clipboard (`v`), overview (`Tab`, a submap while open), tasks (`o`), settings
   (`comma`), timer (`t`), wallpaper picker (`CTRL+w`), theme picker (`SHIFT+w`), power menu (`SHIFT+e`), lock
-  (`Escape`), restart quickshell (`SHIFT+r`), discord mute (`m`).
+  (`Escape`), restart quickshell (`SHIFT+r`), discord mute (`m`), clipboard to the phone (`u`, `SHIFT+u` shares files,
+  a link or text).
 - Bar panels: `b` then a letter (audio, notifications, clock, display, homelab, agents, media, network, obs, system,
   discord voice, weather).
 - Windows: focus and move (`hjkl` or arrows, `SHIFT` moves), both walking through a tab group as in i3 (focus cycles

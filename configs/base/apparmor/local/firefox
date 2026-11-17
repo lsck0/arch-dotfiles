@@ -2,6 +2,9 @@
 @{lib}/python3.@{int}/site-packages/pywalfox/bin/main.sh rCx -> pywalfox,
 owner @{user_share_dirs}/dotfiles/pywalfox-host rCx -> pywalfox,
 owner @{user_share_dirs}/mozilla/native-messaging-hosts/{,*.json} r,
+# the profile lives under XDG config here, where the upstream profile's mozilla dirs do not look: Widevine (DRM video,
+# Spotify) maps its library from the profile and crashed without this
+owner @{user_config_dirs}/mozilla/firefox/*/gmp-widevinecdm/*/libwidevinecdm.so mr,
 
 include <abstractions/dotfiles/viewer-read>
 

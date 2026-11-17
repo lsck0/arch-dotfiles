@@ -79,5 +79,8 @@ export def link [cfg: record] {
             str replace --regex '(?m)^Exec=env ' 'Exec=env GTK_USE_PORTAL=0 '
         })
         (step filezilla-seed $filezilla --creates $filezilla)
+        # wine's menu builder registers every prefix's file handlers as this user's defaults (.crt, .reg, .vbs, .chm went
+        # to notepad in a deleted scratch prefix); prefixes here are throwaway or launched by their own script
+        (file-text (xdg config environment.d wine.conf) "WINEDLLOVERRIDES=winemenubuilder.exe=d\n")
     ]
 }

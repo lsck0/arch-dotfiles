@@ -6,6 +6,9 @@ return {
             {
                 "windwp/nvim-autopairs",
                 opts = {
+                    -- Enter is blink's: autopairs' own <CR> map raced blink's per buffer and won in some,
+                    -- so Enter made a newline under an open menu; blink falls back to autopairs below
+                    map_cr = false,
                     fast_wrap = {},
                     disable_filetype = { "TelescopePrompt", "vim" },
                 },
@@ -62,7 +65,13 @@ return {
                 preset = "none",
                 ["<C-Space>"] = { "show", "show_documentation", "hide_documentation" },
                 ["<C-e>"] = { "cancel", "fallback" },
-                ["<CR>"] = { "accept", "fallback" },
+                ["<CR>"] = {
+                    "accept",
+                    function()
+                        vim.api.nvim_feedkeys(require("nvim-autopairs").autopairs_cr(), "n", false)
+                        return true
+                    end,
+                },
                 ["<Tab>"] = { "select_next", "snippet_forward", "fallback" },
                 ["<S-Tab>"] = { "select_prev", "snippet_backward", "fallback" },
                 ["<Down>"] = { "select_next", "fallback" },
