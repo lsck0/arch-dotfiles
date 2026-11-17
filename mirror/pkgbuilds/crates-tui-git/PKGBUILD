@@ -1,0 +1,44 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# Reason for custom package: the AUR's builds upstream HEAD, whose lock carries an openssl-sys that refuses OpenSSL 4
+
+pkgname=crates-tui-git
+pkgver=0.1.25.r15.geef4e39
+pkgrel=1
+pkgdesc="A TUI for exploring crates.io (git)"
+arch=(x86_64)
+url="https://github.com/ratatui-org/crates-tui"
+license=(MIT)
+depends=(gcc-libs openssl)
+makedepends=(cargo git)
+provides=("${pkgname%-git}")
+conflicts=("${pkgname%-git}")
+options=(!lto)
+# v0.1.25-15, 2026-11-02
+_commit=eef4e39b36c9030afb9ceca2296181ed72d38b8f
+source=("${pkgname%-git}::git+$url.git#commit=$_commit")
+sha256sums=(SKIP)
+
+pkgver() {
+    cd "${pkgname%-git}"
+    git describe --long --tags | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
+}
+
+# the lock's openssl-sys refuses OpenSSL 4; 0.9.118 (2026-11-01) and the openssl crate of its release accept it
+prepare() {
+    cd "${pkgname%-git}"
+    cargo update -p openssl --precise 0.10.82
+    cargo update -p openssl-sys --precise 0.9.118
+    cargo fetch --locked --target "$(rustc --print host-tuple)"
+}
+
+build() {
+    cd "${pkgname%-git}"
+    cargo build --frozen --release
+}
+
+package() {
+    cd "${pkgname%-git}"
+    install -Dm755 -t "$pkgdir/usr/bin" "target/release/${pkgname%-git}"
+    install -Dm644 -t "$pkgdir/usr/share/doc/$pkgname" README.md
+    install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
+}

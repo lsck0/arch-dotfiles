@@ -1,3 +1,4 @@
 core                              # wallust palette.nu and font.nu (theme verbs), core/gh core/git core/tmux (projects)
-desktop                           # idle-guards (claude, copilot, gemini-cli, hermes), hyprland reload (hermes)
+desktop                           # idle-guards (claude, copilot, gemini-cli, hermes), hyprland reload (hermes),
+                                  # hyprland's xwayland_scale option (debugging, emacs, renderdoc)
 llm                               # vllm model option and ollama LONG_CONTEXT (hermes)

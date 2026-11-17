@@ -1,4 +1,5 @@
 use module.nu *
+use ../../core/wallust/font.nu [font-load]
 use steam-launch-options.nu [launch-options-fingerprint steam-open]
 use hook/steam-bootstrap.nu [MILLENNIUM_LIB bootstrap-pending]
 
@@ -13,9 +14,11 @@ export def launch-options []: nothing -> nothing {
     ^nu --no-config-file steam-launch-options.nu
 }
 
+def theme-dir []: nothing -> path { xdg data Steam millennium themes cyberpunk }
+
 export def link [cfg: record] {
     let steam = xdg data Steam
-    let theme = $steam | path join millennium themes cyberpunk
+    let theme = theme-dir
     let palette = xdg cache wal colors-steam.css
     let colors = $theme | path join colors.css
     let xtst = try { ^readlink ($steam | path join ubuntu12_32 libXtst.so.6) | str trim } catch { "" }
@@ -38,4 +41,11 @@ export def link [cfg: record] {
         })
         (exec steam-bootstrap [nu --no-config-file hook/steam-bootstrap.nu] --done=(not (bootstrap-pending)))
     ]
+}
+
+# font.css is imported after shared.css, whose --cp-font holds until the first theme run
+export def theme [cfg: record, wallpaper: string] {
+    let family = font-load | get family
+    let css = $":root {\n    --cp-font: \"($family)\", \"JetBrainsMono Nerd Font\", sans-serif;\n}\n"
+    file-text (theme-dir | path join font.css) $css --generated
 }

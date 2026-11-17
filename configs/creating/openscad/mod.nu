@@ -21,3 +21,13 @@ export def link [cfg: record] {
         })
     ]
 }
+
+export def theme [cfg: record, wallpaper: string] {
+    if (which openscad | is-empty) { return [] }
+    let light = (palette-load | get --optional light) == "1"
+    # stock schemes from /usr/share/openscad/color-schemes; the editor paper is the scheme's, not the qt palette's
+    [(ini-merge (xdg config OpenSCAD OpenSCAD.conf) {
+        editor: {syntaxhighlight: (if $light { "For Light Background" } else { "For Dark Background" })}
+        "3dview": {colorscheme: (if $light { "Tomorrow" } else { "Tomorrow Night" })}
+    })]
+}

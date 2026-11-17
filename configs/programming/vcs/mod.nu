@@ -10,5 +10,11 @@ export const meta = {
 }
 
 export def link [cfg: record] {
-    shell-aliases vcs
+    [
+        (shell-aliases vcs)
+        # its bundled electron predates 38 and would run on scaled xwayland, unlike every other electron app here
+        (desktop-override github-desktop.desktop {
+            str replace --all --regex "(?m)^Exec=/usr/bin/github-desktop " "Exec=/usr/bin/github-desktop --ozone-platform-hint=auto "
+        })
+    ]
 }

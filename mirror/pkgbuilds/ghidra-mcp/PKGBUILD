@@ -54,7 +54,9 @@ build() {
 }
 
 package() {
-    depends+=("ghidra=$(pacman -Q ghidra | cut -d' ' -f2)")
+    # set by index, not depends+=(): makepkg evaluates a depends+=() line in package() for .SRCINFO, which the builder
+    # reads before ghidra is installed (an empty "ghidra=" then); only the built package pins the exact version
+    depends[${#depends[@]}]="ghidra=$(pacman -Q ghidra | cut -d' ' -f2)"
     cd "$pkgname-$pkgver"
     # the bridge needs mcp<2 (it imports mcp.server.fastmcp, gone in 2.x); configs/pentesting/ghidra runs it from its
     # own mcp-compat python, so the system's python-mcp 2.x stays untouched

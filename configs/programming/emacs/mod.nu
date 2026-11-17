@@ -3,7 +3,7 @@ use ../../core/wallust/editor.nu [editor-roles]
 use ../../core/wallust/palette.nu [hex-to-rgb palette-rgb readable-on rgb-to-hex]
 use ../../core/wallust/font.nu [font-load]
 
-export const meta = {packages: {pacman: [emacs]}}
+export const meta = {reads: [desktop/hyprland], packages: {pacman: [emacs]}}
 
 const DOOM_URL = "https://github.com/doomemacs/doomemacs.git"
 const DOOM_COMMIT = "7ccac7f643ad67baa25b216717cf8617a0903c69" # committed 2026-11-06
@@ -42,8 +42,9 @@ export def link [cfg: record] {
 
 export def theme [cfg: record, wallpaper: string] {
     let font = font-load
-    # emacs renders at the raw point size and, unlike the gtk apps, gets no desktop scale; fold it in so it matches
-    let size = ($font.size * $font.scale | math round)
+    # the x11 build sizes frame text from xwayland's 96 dpi, and GDK_SCALE reaches only its gtk widgets; fold the
+    # xwayland scale in so it matches the other x11 apps
+    let size = ($font.size * (xwayland-scale-for $cfg) | math round)
     let reload = if (process-running emacs) { step theme-reload }
     let font_el = file-text (xdg cache $FONT) $"($LEXICAL)\n\(setq doom-font \(font-spec :family ($font.mono | to json) :size ($size).0\)\)\n" --generated
     let p = palette-load

@@ -10,5 +10,6 @@
     "workbench.welcomePage.walkthroughs.openOnInstall": false,
     "workbench.settings.enableNaturalLanguageSearch": false,
     "redhat.telemetry.enabled": false,
-    "vim.useSystemClipboard": true
+    "vim.useSystemClipboard": true,
+    "window.controlsStyle": "hidden"
 }

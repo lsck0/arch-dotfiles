@@ -1,0 +1,1 @@
+core                              # wallust font.nu (steam, d2launcher)

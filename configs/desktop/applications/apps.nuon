@@ -88,7 +88,7 @@
     {id: hyprpicker, name: Hyprpicker, comment: "Pick a color on screen and copy it", icon: kcolorchooser,
         categories: [Graphics Utility], exec: "hyprpicker --autocopy"}
     {id: idle, name: IDLE, comment: "Python's own editor and shell", icon: text-x-python, categories: [Development IDE],
-        exec: "idle %F"}
+        exec: "@BIN@/idle %F"}
     {id: imagemagick-animate, name: "ImageMagick Animate", comment: "Play an image sequence or animated GIF",
         icon: image-gif, categories: [Graphics Viewer "2DGraphics"], exec: "@BIN@/desktop-run --file -- animate",
         tryexec: animate}

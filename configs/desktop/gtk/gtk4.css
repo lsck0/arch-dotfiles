@@ -1,0 +1,9 @@
+@import url("file://@THEME_CSS@");
+
+/* libadwaita rounds and shadows a floating window itself, inside Hyprland's own rounding, border and shadow */
+window.csd,
+window.csd:backdrop {
+    --window-radius: @RADIUS_PX @px;
+    box-shadow: none;
+    outline: none;
+}

@@ -1,4 +1,5 @@
 use module.nu *
+use ../../core/wallust/font.nu [PX_PER_PT font-load]
 
 export const meta = {packages: {pacman: [obsidian]}}
 
@@ -51,7 +52,8 @@ export def link [cfg: record] {
     ]
     let api_key = if ($key | is-empty) { random binary $API_KEY_BYTES | encode hex --lower } else { $key }
     [
-        (json-merge $config [(json-set [cli] true) (json-set [vaults $vault_id] $vault_entry)])
+        # native: Hyprland's server-side frame instead of Obsidian's own window buttons in the tab bar
+        (json-merge $config [(json-set [cli] true) (json-set [frame] native) (json-set [vaults $vault_id] $vault_entry)])
         ($REST_SHA256 | items {|file, sha256| fetch-file $"($REST_URL)/($file)" $sha256 ($plugin | path join $file) })
         (step plugin-enable $vault --done=$enabled)
         (file-link ($nu.home-dir | path join $NOTES) ($vault | path join $NOTES_LINK))
@@ -67,5 +69,13 @@ export def link [cfg: record] {
             type: http, url: $"http://127.0.0.1:($REST_PORT)/mcp/", headers: {Authorization: $"Bearer ($api_key)"}
             gate: {probe: $"127.0.0.1:($REST_PORT)", app: Obsidian}
         }})
+    ]
+}
+
+export def theme [cfg: record, wallpaper: string] {
+    let font = font-load
+    json-merge ($nu.home-dir | path join $VAULT .obsidian appearance.json) [
+        (json-set [interfaceFontFamily] $font.family) (json-set [textFontFamily] $font.family)
+        (json-set [monospaceFontFamily] $font.mono) (json-set [baseFontSize] ($font.size * $PX_PER_PT | math round))
     ]
 }

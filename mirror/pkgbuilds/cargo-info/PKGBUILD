@@ -3,7 +3,7 @@
 
 pkgname=cargo-info
 pkgver=0.7.7
-pkgrel=1
+pkgrel=2
 pkgdesc="Fetch information about crates from crates.io"
 arch=(x86_64)
 url="https://crates.io/crates/cargo-info"
@@ -13,8 +13,11 @@ makedepends=(cargo)
 source=("$pkgname-$pkgver.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate")
 sha256sums=(86be8c17e8bf14dc509f918b84dd18fa90cfb86f2822be8713370f68ed8c3ce4)
 
+# the lock's openssl-sys refuses OpenSSL 4; 0.9.118 (2026-11-01) and the openssl crate of its release accept it
 prepare() {
     cd "$pkgname-$pkgver"
+    cargo update -p openssl --precise 0.10.82
+    cargo update -p openssl-sys --precise 0.9.118
     cargo fetch --locked --target "$(rustc --print host-tuple)"
 }
 

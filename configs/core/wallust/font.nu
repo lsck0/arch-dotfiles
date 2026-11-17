@@ -7,6 +7,8 @@ const FONT_DEFAULT = {family: "Kode Mono", size: 13, ui_size: 11}
 # a family without monospace glyphs takes this partner where the program needs a fixed pitch (terminals, editors)
 const MONO_PARTNERS = {Tektur: "Kode Mono"}
 const UI_SIZE_BASE = 10
+# the roles are points; a program sized in css or logical pixels takes them times this
+export const PX_PER_PT = 4 / 3
 
 def font-file []: nothing -> path { xdg cache $FILE }
 

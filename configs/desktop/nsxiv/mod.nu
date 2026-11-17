@@ -2,7 +2,7 @@ use module.nu *
 use ../../core/wallust/palette.nu [ACCENT2_RATIO hex-to-rgb readable-on rgb-to-hex shade]
 use ../../core/wallust/font.nu [font-load]
 
-export const meta = {deps: [core/trash core/wallust], packages: {pacman: [nsxiv xorg-xrdb]}}
+export const meta = {deps: [core/trash core/wallust], reads: [desktop/hyprland], packages: {pacman: [nsxiv xorg-xrdb]}}
 
 const RESOURCES = "wal/colors-nsxiv.Xresources"
 const BAR_SHADE = 0.075
@@ -27,7 +27,9 @@ export def theme [cfg: record, wallpaper: string] {
         "mark.foreground": ($p.c4 | hex-to-rgb | readable-on $bg --ratio $ACCENT2_RATIO)
     } | items {|key, color| $"Nsxiv.($key): ($color | rgb-to-hex --prefix '#')" }
     let file = xdg cache $RESOURCES
-    let text = $resources | append $"Nsxiv.bar.font: ($font.mono)-($font.ui_size)" | str join "\n"
+    # plain Xft at Xwayland's 96 dpi with no Xft.dpi: the point size carries the scale GDK_SCALE gives gtk apps
+    let size = $font.ui_size * (xwayland-scale-for $cfg)
+    let text = $resources | append $"Nsxiv.bar.font: ($font.mono)-($size)" | str join "\n"
     let then = if (process-running Xwayland) { [xrdb -nocpp -merge $file] } else { [] }
     file-text $file $"($text)\n" --generated --then $then
 }

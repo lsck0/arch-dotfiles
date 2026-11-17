@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [uwsm ksshaskpass plasma5-integration plasma-integration]}}
+export const meta = {packages: {pacman: [uwsm ksshaskpass breeze5 plasma5-integration plasma-integration]}}
 
 export def link [cfg: record] {
     let dir = xdg config uwsm

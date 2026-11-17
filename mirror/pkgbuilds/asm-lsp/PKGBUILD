@@ -1,0 +1,35 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# Reason for custom package: the AUR's locks an openssl-sys that refuses OpenSSL 4
+
+pkgname=asm-lsp
+pkgver=0.10.1
+pkgrel=1
+pkgdesc="A language server for NASM/GAS/GO Assembly"
+arch=(x86_64)
+url="https://github.com/bergercookie/asm-lsp"
+license=(BSD-2-Clause)
+depends=(gcc-libs glibc)
+makedepends=(cargo)
+options=(!lto)
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha512sums=(06951419f6ac1014d581a9263947a9f1fb6d3039aaaf3561c45b1910eeedc519163f1f2afb8e1f511f297aaf971b6c75da97c8d76bde56cebd9859b638f6ff84)
+
+# the lock's openssl-sys refuses OpenSSL 4; 0.9.118 (2026-11-01) and the openssl crate of its release accept it
+prepare() {
+    cd "$pkgname-$pkgver"
+    cargo update -p openssl --precise 0.10.82
+    cargo update -p openssl-sys --precise 0.9.118
+    cargo fetch --locked --target "$(rustc --print host-tuple)"
+}
+
+build() {
+    cd "$pkgname-$pkgver"
+    export CARGO_TARGET_DIR=target
+    cargo build --frozen --release
+}
+
+package() {
+    cd "$pkgname-$pkgver"
+    install -Dm755 -t "$pkgdir/usr/bin" "target/release/$pkgname"
+    install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
+}

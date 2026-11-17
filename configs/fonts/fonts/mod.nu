@@ -1,4 +1,5 @@
 use module.nu *
+use ../../core/wallust/font.nu [font-load]
 
 export const meta = {
     packages: {
@@ -48,6 +49,20 @@ export def link [cfg: record] {
         # a drop-in, not fonts.conf: plasma's font settings rewrite that one
         (file-copy fonts.conf (xdg config fontconfig conf.d 50-dotfiles.conf))
     ]
+}
+
+# The theme's monospace family ahead of 50-dotfiles.conf's list: each alias prepends before the generic name, so the
+# earlier file's family ends up first.
+export def theme [cfg: record, wallpaper: string] {
+    let family = (font-load).mono | str replace --all "&" "&amp;" | str replace --all "<" "&lt;"
+    let conf = [
+        '<?xml version="1.0"?>'
+        '<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">'
+        '<fontconfig>'
+        $"  <alias><family>monospace</family><prefer><family>($family)</family></prefer></alias>"
+        '</fontconfig>'
+    ] | to text
+    [(file-text (xdg config fontconfig conf.d 49-dotfiles-font.conf) $conf --generated)]
 }
 
 export def system [cfg: record] {

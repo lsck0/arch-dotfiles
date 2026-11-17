@@ -27,3 +27,10 @@ export def link [cfg: record] {
             --env-vars {HF_HUB_DISABLE_TELEMETRY: "1"})
     ]
 }
+
+export def theme [cfg: record, wallpaper: string] {
+    if (which audacity | is-empty) { return [] }
+    let light = (palette-load | get --optional light) == "1"
+    # audacity saves its cfg on exit, so a switch while it runs lands on its next start after this merge
+    [(ini-merge (xdg config audacity audacity.cfg) {GUI: {Theme: (if $light { "light" } else { "dark" })}})]
+}

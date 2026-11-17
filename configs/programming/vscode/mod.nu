@@ -1,5 +1,5 @@
 use module.nu *
-use ../../core/wallust/font.nu [font-load]
+use ../../core/wallust/font.nu [PX_PER_PT font-load]
 use ../../core/wallust/palette.nu [SHADE_CHROME hex-to-rgb rgb-to-hex shade]
 
 export const meta = {packages: {pacman: [vscodium-bin]}}
@@ -31,7 +31,13 @@ def settings [user_dir: path]: nothing -> record {
         }
     }
     let font = font-load
-    let typeface = {"editor.fontFamily": $"'($font.mono)', 'monospace'", "editor.fontSize": $font.size}
+    # the font roles are points, vscodium's sizes css pixels
+    let typeface = {
+        "editor.fontFamily": $"'($font.mono)', 'monospace'"
+        "editor.fontSize": ($font.size * $PX_PER_PT | math round)
+        "workbench.experimental.fontFamily": $"'($font.family)', sans-serif"
+        "workbench.experimental.fontSize": ($font.ui_size * $PX_PER_PT | math round)
+    }
     let edits = open settings.json | merge $typeface | merge $theme | items {|k, v| json-set [$k] $v }
     json-merge ($user_dir | path join settings.json) $edits
 }

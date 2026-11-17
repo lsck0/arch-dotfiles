@@ -1,5 +1,5 @@
 use module.nu *
-use ../../core/wallust/font.nu [font-load]
+use ../../core/wallust/font.nu [PX_PER_PT font-load]
 use ../../core/wallust/editor.nu [editor-roles]
 use ../../core/wallust/palette.nu [condition-bg palette-rgb rgb-to-hex]
 
@@ -8,8 +8,14 @@ export const meta = {packages: {pacman: [zed]}}
 # Merged: zed's UI edits survive, the repo's keys and the font win.
 def settings []: nothing -> record {
     let font = font-load
-    let edits = open settings.json | merge {buffer_font_family: $font.mono, buffer_font_size: $font.size}
-        | items {|k, v| json-set [$k] $v }
+    # the font roles are points, zed's sizes logical pixels
+    let typeface = {
+        buffer_font_family: $font.mono
+        buffer_font_size: ($font.size * $PX_PER_PT | math round)
+        ui_font_family: $font.family
+        ui_font_size: ($font.ui_size * $PX_PER_PT | math round)
+    }
+    let edits = open settings.json | merge $typeface | items {|k, v| json-set [$k] $v }
     json-merge (xdg config zed settings.json) $edits
 }
 

@@ -64,6 +64,7 @@ bootvine
 bpftop
 bpftrace
 breeze-icons
+breeze5
 brightnessctl
 browserpass
 browserpass-chromium
@@ -266,6 +267,7 @@ grafana-alloy-bin
 graphviz
 grex
 grim
+gtk-engine-murrine
 gtk3
 gtk4
 gum

@@ -1,21 +1,13 @@
 [CompactMode]
-FontFamily=Kode Mono
-FontSize=10
-FontWeight=50
 IconSize=16
-ItalicFont=false
 PreviewSize=22
-UseSystemFont=false
+UseSystemFont=true
 
 [DetailsMode]
 ExpandableFolders=false
-FontFamily=Kode Mono
-FontSize=10
-FontWeight=50
 IconSize=22
-ItalicFont=false
 PreviewSize=22
-UseSystemFont=false
+UseSystemFont=true
 
 [General]
 BrowseThroughArchives=true
@@ -31,12 +23,8 @@ UseTabForSwitchingSplitView=true
 Version=202
 
 [IconsMode]
-FontFamily=Kode Mono
-FontSize=10
-FontWeight=50
 IconSize=48
-ItalicFont=false
-UseSystemFont=false
+UseSystemFont=true
 
 [KDE Action Restrictions]
 action/focus_terminal_panel=false

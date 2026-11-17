@@ -1,5 +1,6 @@
 use module.nu *
 use ini.nu [ini-apply ini-rows]
+use ../../core/wallust/font.nu [font-load]
 
 # no wine: desktop/applications' wine-staging conflicts with it
 export const meta = {packages: {pacman: [curl gamescope jq libnotify unzip wmctrl zenity zip]}}
@@ -228,7 +229,7 @@ def config []: nothing -> string {
         'mxl_update_check="true"'
         'mxl_update_channel="public"'
         'd2_stats_tray="true"'
-        'gui_font="JetBrainsMono Nerd Font"'
+        $'gui_font="(font-load | get family)"'
         $'wineprefix="(prefix-dir)"'
         $"custom_command=\"bash '(home-dir | path join gamescope.sh)'\""
     ] | to text
