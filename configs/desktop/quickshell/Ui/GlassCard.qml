@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import qs.Commons
 
 // the one glass every shell card is drawn as: the shell fill over the wallpaper blur, the hairline edge, the chamfer,
 // the corner brackets and the scanlines. Children lie between the fill and the brackets
@@ -11,6 +12,7 @@ Item {
   property alias docked: shape.docked
   property alias strokeColor: shape.strokeColor
   property real bracketInset: 0
+  property color bracketColor: Colors.accent
   property bool scanlines: true
   property bool flicker: false
 
@@ -29,7 +31,7 @@ Item {
     width: parent.width - shape.sideInset * 2
     height: parent.height
     // brackets mark free corners: a docked card's top ones run into the bar
-    HudFrame { inset: root.bracketInset; chamfer: shape.cut; chamferCorner: shape.cutCorner; topArms: !shape.docked }
+    HudFrame { color: root.bracketColor; inset: root.bracketInset; chamfer: shape.cut; chamferCorner: shape.cutCorner; topArms: !shape.docked }
     Scanlines { shown: root.scanlines; flicker: root.flicker }
   }
 }

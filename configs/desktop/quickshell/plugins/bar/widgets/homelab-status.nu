@@ -14,6 +14,11 @@ const STATUS_CLASSES = [2xx 3xx 4xx 5xx]
 const FETCH_TIMEOUT = 5sec
 const PROBE_TIMEOUT = 3sec
 const GIB = 1073741824
+# mc-gate and mc-metrics on the minecraft guest: one series per server label, the phase series also for parked servers
+const MC_SELECTOR = '{job="homelab-node-exporter",vm="minecraft"}'
+const MC_TICKS_PER_S = 20
+const MS_PER_S = 1000
+const MC_FAILURE_WINDOW = "1h"
 # the lab answers only on a home link (base/networkmanager's 70-home-network lists them here) or through wg0
 const HOME_NETWORK = "/run/home-network"
 const WG_LINK = "/sys/class/net/wg0"
@@ -152,6 +157,45 @@ def clients [src: record]: nothing -> record {
     {window: $CLIENT_WINDOW, countries: $countries, agents: $agents, hosts: $hosts, traffic: $traffic}
 }
 
+def by-server []: list<record> -> record {
+    reduce --fold {} {|row, acc| $acc | upsert ($row.metric.server? | default "") $row.value }
+}
+
+# One row per server from the minecraft series, running first. Worst TPS is the slowest dimension, or the mean tick
+# where a server has no dimension series (vanilla); readings of mc-metrics count only while it answers.
+export def minecraft-from [series: record]: nothing -> list<record> {
+    let phases = $series.phase | reduce --fold {} {|row, acc|
+        let server = $row.metric.server? | default ""
+        if $server == "" { return $acc }
+        let current = $acc | get -o $server
+        if $row.value == 1 { $acc | upsert $server ($row.metric.phase? | default unknown) } else if $current == null { $acc | upsert $server unknown } else { $acc }
+    }
+    let players = $series.players | by-server
+    let dimension_tps = $series.dimensionTps | by-server
+    let tick_mean = $series.tickMean | by-server
+    let mem_used = $series.memUsed | by-server
+    let mem_limit = $series.memLimit | by-server
+    let metrics_up = $series.metricsUp | by-server
+    let failures = $series.startFailures | by-server
+    $phases | items {|server, phase|
+        let running = $phase == running
+        let measured = $running and ($metrics_up | get -o $server) == 1
+        let tick_ms = $tick_mean | get -o $server
+        let tps = if not $measured { null } else if $server in $dimension_tps { $dimension_tps | get $server } else if $tick_ms != null and $tick_ms > 0 {
+            [$MC_TICKS_PER_S ($MS_PER_S / $tick_ms)] | math min
+        }
+        {
+            name: $server
+            phase: $phase
+            players: ($players | get -o $server | default 0 | into int)
+            tps: (if $tps != null { $tps | math round --precision 1 })
+            memUsedBytes: (if $measured { $mem_used | get -o $server })
+            memLimitBytes: (if $measured { $mem_limit | get -o $server })
+            startFailures: ($failures | get -o $server | default 0 | math ceil | into int)
+        }
+    } | sort-by {|s| if $s.phase == running { 0 } else { 1 } } name
+}
+
 def sample [src: record]: nothing -> record {
     if ($src.by_ip | is-empty) or ($src.prometheus | is-empty) { return {ok: false, error: source} }
     # away without the tunnel every fetch would only run into its timeout
@@ -197,6 +241,19 @@ def sample [src: record]: nothing -> record {
         }
     } | sort-by minutes
     let services = $services | values | sort-by {|s| $s.order? | default $ORDER_UNLISTED } id name
+    let mc = {|expr| do $query ($expr | str replace -a SELECTOR $MC_SELECTOR) }
+    let minecraft = try {
+        minecraft-from {
+            phase: (do $mc "homelab_mc_phaseSELECTOR")
+            players: (do $mc "homelab_mc_playersSELECTOR")
+            dimensionTps: (do $mc "min by (server) (homelab_mc_dimension_tpsSELECTOR)")
+            tickMean: (do $mc "homelab_mc_tick_mean_msSELECTOR")
+            memUsed: (do $mc "homelab_mc_container_memory_bytesSELECTOR")
+            memLimit: (do $mc "homelab_mc_container_memory_limit_bytesSELECTOR")
+            metricsUp: (do $mc "homelab_mc_metrics_upSELECTOR")
+            startFailures: (do $mc $"sum by \(server) \(increase\(homelab_mc_start_failures_totalSELECTOR[($MC_FAILURE_WINDOW)]))")
+        }
+    } catch { [] }
 
     let host = $'instance="($src.host_ip):9100"'
     let nas = $'instance="($src.nas_ip):9100",mountpoint="/"'
@@ -215,6 +272,7 @@ def sample [src: record]: nothing -> record {
         links: $src.links
         services: $services
         alerts: $alerts
+        minecraft: $minecraft
         host: {
             cpuPct: (do $rounded (do $scalar $"100 * \(1 - avg\(rate\(node_cpu_seconds_total{mode=\"idle\",($host)}[5m])))") 0)
             memUsedGb: (if ($mem_total | default 0) != 0 and $mem_avail != null { do $rounded (($mem_total - $mem_avail) / $GIB) 1 })

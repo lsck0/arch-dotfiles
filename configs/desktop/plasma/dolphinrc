@@ -24,6 +24,7 @@ Version=202
 
 [IconsMode]
 IconSize=48
+PreviewSize=48
 UseSystemFont=true
 
 [KDE Action Restrictions]

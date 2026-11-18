@@ -1,6 +1,6 @@
 use module.nu *
 use ../../core/wallust/font.nu [font-load]
-use ../../core/wallust/palette.nu [ICON_THEMES RADIUS_PX]
+use ../../core/wallust/palette.nu [ICON_THEMES RADIUS_PX hex-to-rgb rgb-to-hsv]
 use ../cursor/mod.nu [CURSOR_SIZE_PX cursor-name]
 use ../oomox/mod.nu [INTERFACE]
 
@@ -16,6 +16,18 @@ const FLATPAK_GLOBAL = "[Context]\nfilesystems=~/.themes:ro;xdg-config/gtk-3.0:r
 # no buttons on either side of a client-side title bar: Hyprland closes and moves windows
 const BUTTON_LAYOUT = ":"
 const WM_PREFERENCES = "org.gnome.desktop.wm.preferences"
+# libadwaita offers only named accents: their hues in turns, slate for a grey accent below this saturation
+const GNOME_ACCENTS = {blue: 0.592, teal: 0.525, green: 0.364, yellow: 0.114, orange: 0.064, red: 0.981, pink: 0.919, purple: 0.792}
+const GNOME_SLATE_SATURATION = 0.25
+
+# The named libadwaita accent nearest the palette's accent (c4, kdeglobals' AccentColor too).
+def gnome-accent [hex: string]: nothing -> string {
+    let hsv = $hex | hex-to-rgb | rgb-to-hsv
+    if $hsv.1 < $GNOME_SLATE_SATURATION { return "slate" }
+    $GNOME_ACCENTS | transpose name hue
+    | each {|a| let d = ($a.hue - $hsv.0 | math abs); {name: $a.name, distance: ([$d (1 - $d)] | math min)} }
+    | sort-by distance | first | get name
+}
 
 export def link [cfg: record] {
     if (which flatpak | is-not-empty) { file-text (xdg data flatpak overrides global) $FLATPAK_GLOBAL }
@@ -55,6 +67,7 @@ export def theme [cfg: record, wallpaper: string] {
         (do $set gtk-font font-name $ui)
         (do $set gtk-document-font document-font-name $ui)
         (do $set gtk-mono-font monospace-font-name $mono)
+        (do $set gtk-accent accent-color (gnome-accent $p.c4))
         (do $set gtk-icons icon-theme $icons)
         (do $set gtk-cursor cursor-theme $cursor)
         (do $set gtk-cursor-size cursor-size ($CURSOR_SIZE_PX | into string))

@@ -21,14 +21,19 @@ BarWidget {
   // the last good homelab-status.nu answer
   property var lab: ({
     links: { homepage: "", dashboard: "", alerts: "", proxmox: "", nas: "" },
-    services: [], alerts: [], host: {}, storage: {}, traffic: {}, clients: {}
+    services: [], alerts: [], minecraft: [], host: {}, storage: {}, traffic: {}, clients: {}
   })
 
   readonly property var monitored: lab.services.filter(function(s) { return s.up === true || s.up === false })
   readonly property var downServices: monitored.filter(function(s) { return !s.up && !s.onDemand })
   readonly property int upCount: monitored.filter(function(s) { return s.up }).length
   readonly property int asleepCount: monitored.filter(function(s) { return !s.up && s.onDemand }).length
-  readonly property int problemCount: lab.alerts.length + downServices.length
+  readonly property var mcServers: lab.minecraft || []
+  readonly property int mcFailingCount: mcServers.filter(function(s) { return s.startFailures > 0 }).length
+  readonly property int mcPlayers: mcServers.reduce(function(sum, s) { return s.phase === "running" ? sum + s.players : sum }, 0)
+  readonly property real tpsUrgentBelow: 15
+  readonly property real tpsWarnBelow: 19.5
+  readonly property int problemCount: lab.alerts.length + downServices.length + mcFailingCount
   readonly property real memFraction: (Number(lab.host.memTotalGb) || 0) > 0
     ? (Number(lab.host.memUsedGb) || 0) / Number(lab.host.memTotalGb) : 0
   // alerts and client lists past this many rows wait behind an expand row
@@ -59,8 +64,11 @@ BarWidget {
   implicitWidth: root.absent ? 0 : trigger.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: Style.bar.sizeHorizontal
 
-  // the closed panel only feeds the bar's problem count
-  readonly property int hiddenIntervalS: Power.onBattery ? 900 : 300
+  // the closed panel only feeds the bar's problem count; away (no home link, no wg0) the helper answers without the
+  // network, so a short poll brings the widget back soon after a home link or the vpn comes up
+  readonly property bool away: root.error === "away"
+  readonly property int awayIntervalS: 30
+  readonly property int hiddenIntervalS: away ? awayIntervalS : Power.onBattery ? 900 : 300
   readonly property int statusRestartDelayMs: 5 * 1000
 
   function restartStatus() {
@@ -68,7 +76,7 @@ BarWidget {
     statusProc.running = true
   }
 
-  onHiddenIntervalSChanged: if (!root.absent && !panel.visible) restartStatus()
+  onHiddenIntervalSChanged: if (root.error !== "source" && !panel.visible) restartStatus()
 
   JsonProcess {
     id: statusProc
@@ -81,9 +89,9 @@ BarWidget {
       root.received = true
       root.ok = s.ok === true
       root.error = s.error || ""
-      // hide on a missing checkout, but keep polling: homelab-status.nu re-stats lab.json each loop, so the widget
-      // returns once it reappears
-      root.absent = root.error === "source"
+      // hide on a missing checkout or a network the lab cannot be reached from, but keep polling: the widget returns
+      // once lab.json reappears or a home link or wg0 comes up
+      root.absent = root.error === "source" || root.error === "away"
       if (!root.ok) return
       // the closed panel's poll carries no clients: the last ones stay for the next open
       if (s.clients === undefined) s.clients = root.lab.clients
@@ -124,7 +132,7 @@ BarWidget {
     function onChanged(script) {
       if (script !== "toggle-vpn.nu") return
       // wg0 came or went: the closed panel's next poll may be minutes off
-      if (!root.absent) root.restartStatus()
+      if (root.error !== "source") root.restartStatus()
       if (panel.visible) vpnProc.run()
     }
   }
@@ -150,6 +158,20 @@ BarWidget {
       color: Colors.urgentText
       layer.enabled: Style.fx.glow > 0
       layer.effect: Glow { shadowColor: Colors.urgent }
+    }
+    Label {
+      anchors.verticalCenter: parent.verticalCenter
+      visible: root.ok && root.mcPlayers > 0
+      text: "\u{f0373}"   // md-minecraft
+      color: Colors.textDim
+      icon: true
+      font.pixelSize: Style.font.icon
+    }
+    Label {
+      anchors.verticalCenter: parent.verticalCenter
+      visible: root.ok && root.mcPlayers > 0
+      text: root.mcPlayers
+      color: Colors.bar.text
     }
   }
 
@@ -455,6 +477,82 @@ BarWidget {
             label: "All clients"
             trailing: "+" + (root.clientRowsMax - root.rowsShownMax)
             onActivated: root.clientsShowAll = true
+          }
+        }
+
+        Column {
+          width: parent.width
+          visible: root.mcServers.length > 0
+          spacing: Style.spacing.sm
+
+          PanelSeparator {}
+          PanelSectionHeader { text: "Minecraft" }
+          Repeater {
+            model: root.mcServers
+            delegate: Item {
+              id: server
+              required property var modelData
+              readonly property bool running: modelData.phase === "running"
+              readonly property bool asleep: modelData.phase === "sleeping"
+              readonly property bool failing: modelData.startFailures > 0
+              readonly property bool measured: modelData.tps !== null && modelData.tps !== undefined
+              width: parent ? parent.width : 0
+              implicitHeight: serverName.implicitHeight + Style.spacing.xxs * 2
+
+              Label {
+                id: serverName
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.min(implicitWidth, parent.width - readings.implicitWidth - Style.spacing.md)
+                text: server.modelData.name
+                color: server.asleep && !server.failing ? Colors.textDim : Colors.menu.text
+                elide: Text.ElideRight
+                caption: true
+                font.capitalization: Font.AllUppercase
+                font.letterSpacing: Style.labelTracking
+              }
+              Row {
+                id: readings
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Style.spacing.sm
+
+                Label {
+                  visible: server.failing
+                  text: "start failed"
+                  color: Colors.urgentText
+                  caption: true
+                }
+                Label {
+                  text: server.modelData.phase
+                  color: server.running ? Colors.menu.text : Colors.textDim
+                  caption: true
+                }
+                Label {
+                  visible: server.running || server.modelData.players > 0
+                  text: server.modelData.players + (server.modelData.players === 1 ? " player" : " players")
+                  color: Colors.menu.text
+                  caption: true
+                  font.features: { "tnum": 1 }
+                }
+                Label {
+                  visible: server.measured
+                  text: server.measured ? server.modelData.tps.toFixed(1) + " tps" : ""
+                  color: !server.measured ? Colors.menu.text
+                    : server.modelData.tps < root.tpsUrgentBelow ? Colors.urgentText
+                    : server.modelData.tps < root.tpsWarnBelow ? Colors.warnText : Colors.menu.text
+                  caption: true
+                  font.features: { "tnum": 1 }
+                }
+                Label {
+                  visible: (Number(server.modelData.memLimitBytes) || 0) > 0
+                  text: visible ? Util.bytesOf(server.modelData.memUsedBytes, server.modelData.memLimitBytes) : ""
+                  dim: true
+                  caption: true
+                  font.features: { "tnum": 1 }
+                }
+              }
+            }
           }
         }
 

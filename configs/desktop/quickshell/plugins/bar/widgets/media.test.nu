@@ -1,7 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
 # The media path end to end: fake MPRIS players on a private session bus drive a copy of the shell (MediaState, the
 # bar's Media widget, the lock's media line) under an offscreen quickshell, and each scenario checks what the bar and
-# the lock show. The copy stubs the PanelWindow hover panel, shortens the pause linger and never fetches art.
+# the lock show, and the accent the media surfaces take from a generated cover. The copy stubs the PanelWindow hover
+# panel, shortens the pause linger and never fetches art.
 
 const SHELL = path self ../../..
 const DRIVER = r#'
@@ -23,6 +24,9 @@ import dbus.service
 from gi.repository import GLib
 
 LINGER_MS = 1000
+# Colors.qml's accent with no colors.json, and a cover colour readable as is on its background
+THEME_ACCENT = "#39bae6"
+ART_ORANGE = "#FF8000"
 SETTLE_S = 6.0
 MPRIS = "org.mpris.MediaPlayer2"
 PLAYER = MPRIS + ".Player"
@@ -34,6 +38,8 @@ HOVER_STUB = """import QtQuick
 Item {
   property var anchorWidget: null
   property string title: ""
+  property color accent
+  property color accentText
   default property alias body: inner.data
   visible: false
   Item { id: inner }
@@ -69,7 +75,10 @@ ShellRoot {
     artist: media.artist,
     album: media.album,
     artUrl: media.artUrl,
-    lock: lock.mediaText
+    lock: lock.mediaText,
+    artAccent: MediaState.artAccent ? MediaState.artAccent.toString() : "",
+    accent: MediaState.accent.toString(),
+    themeAccent: Colors.accent.toString()
   })
   onStateChanged: console.log("STATE " + state)
   Component.onCompleted: console.log("STATE " + state)
@@ -88,9 +97,12 @@ def build(src, out):
     media = open(media_path).read()
     media, n = re.subn(r"(id: lingerTimer\s+interval: )30000", r"\g<1>%d" % LINGER_MS, media)
     assert n == 1, "Media.qml: lingerTimer interval not found"
-    media, n = re.subn(r"curl -sfL", "false", media)
-    assert n == 1, "Media.qml: art fetch not found"
     open(media_path, "w").write(media)
+    state_path = os.path.join(out, "Commons/MediaState.qml")
+    state = open(state_path).read()
+    state, n = re.subn(r"curl -sfL", "false", state)
+    assert n == 1, "MediaState.qml: art fetch not found"
+    open(state_path, "w").write(state)
     lock = open(os.path.join(out, "plugins/lock/Lock.qml")).read()
     m = re.search(r"(?ms)^  readonly property var player: \{.*?^  \}\n(?:  readonly property string media\w+:[^\n]*\n)+", lock)
     assert m and "mediaText" in m.group(0), "Lock.qml: player and mediaText not found"
@@ -329,7 +341,13 @@ def song(title, artist, **extra):
     return {**SONG, "xesam:title": title, "xesam:artist": [artist], **extra}
 
 
-def scenarios(h):
+def cover(work, name, color):
+    path = os.path.join(work, name + ".png")
+    subprocess.run(["magick", "-size", "64x64", "xc:" + color, path], check=True)
+    return "file://" + path
+
+
+def scenarios(h, work):
     linger = LINGER_MS / 1000
 
     h.expect("nothing: bar hidden, no lock line", players=[], player="", shown=False, lock="")
@@ -437,6 +455,27 @@ def scenarios(h):
     h.players["mpv"].update(Metadata={**meta, "mpris:artUrl": "file:///tmp/covers/"})
     h.expect("directory art: no art url", artUrl="")
 
+    # an orange that already clears the stroke and text contrast on the default dark background, so it shows unchanged
+    orange = cover(work, "orange", ART_ORANGE)
+    black = cover(work, "black", "#000000")
+    h.clear()
+    h.expect("no player: theme accent", artAccent="", accent=THEME_ACCENT, themeAccent=THEME_ACCENT)
+    h.add("mpv", "mpv", "Playing", song("Orange", "Cover", **{"mpris:artUrl": orange}), "mpv")
+    h.expect("playing with a coloured cover: accent from the art", artUrl=orange, artAccent=ART_ORANGE.lower(),
+             accent=ART_ORANGE.lower())
+    h.players["mpv"].update(PlaybackStatus="Paused")
+    h.expect("paused: back to the theme accent", playing=False, artAccent="", accent=THEME_ACCENT, seconds=2)
+    h.players["mpv"].update(PlaybackStatus="Playing")
+    h.expect("playing again: the art accent returns", artAccent=ART_ORANGE.lower(), accent=ART_ORANGE.lower())
+    h.players["mpv"].update(Metadata=song("Black", "Cover", **{"mpris:artUrl": black}))
+    h.expect("cover without a colour: theme accent", artUrl=black, artAccent="", accent=THEME_ACCENT)
+    meta = dict(SONG)
+    del meta["mpris:artUrl"]
+    h.players["mpv"].update(Metadata=song("Orange", "Cover", **{"mpris:artUrl": orange}))
+    h.expect("art accent setup", artAccent=ART_ORANGE.lower())
+    h.players["mpv"].update(Metadata=meta)
+    h.expect("track without art: theme accent", artUrl="", artAccent="", accent=THEME_ACCENT)
+
     h.clear()
     h.add("spotify", "Spotify", "Playing", SPOTIFY, "spotify")
     h.expect("spotify metadata: string trackid, uint64 length", shown=True, line="Supernova :: Electric Callboy",
@@ -471,7 +510,7 @@ def main():
     try:
         if not h.wait(lambda s: True, 20):
             raise SystemExit("no STATE from quickshell:\n" + "\n".join(h.log[-60:]))
-        scenarios(h)
+        scenarios(h, work)
     finally:
         for name in list(h.players):
             h.remove(name)
@@ -494,7 +533,7 @@ if __name__ == "__main__":
 '#
 
 def main [] {
-    let missing = [quickshell dbus-run-session python3] | where { which $in | is-empty }
+    let missing = [quickshell dbus-run-session python3 magick] | where { which $in | is-empty }
     let bindings = if ($missing | is-empty) { ^python3 -I -c "import dbus.mainloop.glib, gi" | complete | get exit_code } else { 1 }
     if ($missing | is-not-empty) or $bindings != 0 {
         print -e $"media.test.nu: warn: skipped, missing ($missing | append (if $bindings != 0 { [python-dbus] } else { [] }) | uniq | str join ', ')"

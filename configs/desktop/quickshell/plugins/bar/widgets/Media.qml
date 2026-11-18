@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Services.Mpris
 import Quickshell.Services.Pipewire
-import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
@@ -24,69 +23,7 @@ BarWidget {
   // a player without a title (a tab with no media metadata, an idle player) names itself, as the panel does
   readonly property string line: (title || (player ? String(player.identity || "") : "")) + (artist ? " :: " + artist : "")
 
-  readonly property string artUrl: {
-    if (!player) return ""
-    // only a remote image or a local file: some players report a bare directory (file:///, file://) for no cover
-    var art = String(player.trackArtUrl || "")
-    if (/^https?:\/\/./i.test(art) || /^file:\/\/\/.*[^\/]$/.test(art)) return art
-    var url = String((player.metadata && player.metadata["xesam:url"]) || "")
-    var m = url.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/)|youtu\.be\/)([\w-]{11})/)
-    return m ? "https://i.ytimg.com/vi/" + m[1] + "/mqdefault.jpg" : ""
-  }
-
-  readonly property bool artRemote: /^https?:\/\//i.test(root.artUrl)
-  readonly property string artCacheDir: Paths.runtimeDir + "/quickshell-mediaart"
-  readonly property string artCacheFile:
-    root.artRemote ? (root.artCacheDir + "/" + Qt.md5(root.artUrl)) : ""
-  readonly property int artCacheKeep: 50
-  readonly property string artFetchCheck: "[ -e /run/trusted-network ]"
-    + " && ! ip link show proton0 >/dev/null 2>&1 && ! ip link show wg0 >/dev/null 2>&1"
-    + " && ! systemctl -q is-active tor-router.service && ! systemctl --user -q is-active anonymous-socks-tor.service"
-
-  property string artSource: ""
-  property string artFetchedUrl: ""
-  property int artTries: 0
-
-  function fetchArt() {
-    artProc.running = false
-    if (!root.artCacheFile) return
-    root.artFetchedUrl = root.artUrl
-    artProc.running = true
-  }
-
-  function refreshArt() {
-    root.artTries = 0
-    root.artSource = ""
-    var u = root.artUrl
-    // a player with no art may still send "file:///", a directory, which only floods the log with load errors
-    if (!u || u.endsWith("/")) { artProc.running = false; return }
-    if (!root.artRemote) { artProc.running = false; root.artSource = u; return }
-    fetchArt()
-  }
-
-  onArtUrlChanged: refreshArt()
-
-  Process {
-    id: artDropProc
-    command: ["rm", "-f", "--", root.artCacheFile]
-    onExited: root.fetchArt()
-  }
-
-  Process {
-    id: artProc
-    command: ["sh", "-c",
-      "d=$1 f=$2; if ! { " + root.artFetchCheck + "; }; then rm -rf -- \"$d\"; exit 1; fi; " +
-      "[ -s \"$f\" ] && exit 0; mkdir -p -m 700 -- \"$d\" || exit 1; " +
-      "curl -sfL --max-time 8 -o \"$f.part\" \"$3\" && mv -f -- \"$f.part\" \"$f\" || { rm -f -- \"$f.part\"; exit 1; }; " +
-      "ls -1t -- \"$d\" | tail -n +" + (root.artCacheKeep + 1) + " | while IFS= read -r o; do rm -f -- \"$d/$o\"; done",
-      "sh", root.artCacheDir, root.artCacheFile, root.artUrl]
-    onExited: function (exitCode) {
-      if (exitCode !== 0) return
-      if (root.artFetchedUrl !== root.artUrl) return
-      root.artSource = ""
-      root.artSource = "file://" + root.artCacheFile
-    }
-  }
+  readonly property string artUrl: MediaState.artUrl
 
   readonly property var playerStreams: {
     var entry = String(player ? (player.desktopEntry || "") : "").toLowerCase()
@@ -156,7 +93,6 @@ BarWidget {
   Component.onCompleted: {
     recentlyActive = active
     Cava.source = spectrumSource
-    refreshArt()
   }
 
   readonly property bool barSpectrum: setting("barSpectrum", true) === true
@@ -225,6 +161,8 @@ BarWidget {
     id: panel
     anchorWidget: root
     title: "MEDIA"
+    accent: MediaState.accent
+    accentText: MediaState.accentText
     implicitWidth: Style.panelWidth.normal
 
     Loader {
@@ -253,13 +191,13 @@ BarWidget {
           width: Style.space(72)
           height: width
           radius: Style.shape.surface
-          color: Style.selectedFillFor(Colors.menu.text, Colors.accent)
+          color: Style.selectedFillFor(Colors.menu.text, MediaState.accent)
           clip: true
 
           Image {
             id: art
             anchors.fill: parent
-            source: root.artSource
+            source: MediaState.artSource
             // twice the frame: a 16:9 video thumbnail is cropped to the square, and decoded at the frame's width its
             // height would fall short and be scaled up, soft beside a square album cover
             sourceSize.width: Math.ceil(artFrame.width * 2 * Screen.devicePixelRatio)
@@ -267,13 +205,7 @@ BarWidget {
             asynchronous: true
             cache: true
             visible: status === Image.Ready
-            onStatusChanged: {
-              if (status === Image.Error && root.artRemote && root.artTries < 2) {
-                root.artTries += 1
-                root.artSource = ""
-                artDropProc.running = true
-              }
-            }
+            onStatusChanged: if (status === Image.Error) MediaState.artFailed()
           }
 
           Label {
@@ -285,7 +217,7 @@ BarWidget {
             font.pixelSize: Style.font.title
           }
 
-          HudFrame {}
+          HudFrame { color: MediaState.accent }
         }
 
         Column {
@@ -384,7 +316,7 @@ BarWidget {
           TransportButton {
             iconText: "\u{f074}"
             tooltipText: root.player && root.player.shuffle ? "Shuffle: on" : "Shuffle: off"
-            foreground: root.player && root.player.shuffle ? Colors.accentText : Colors.menu.text
+            foreground: root.player && root.player.shuffle ? MediaState.accentText : Colors.menu.text
             visible: root.player !== null && root.player.shuffleSupported
             onClicked: if (root.player) root.player.shuffle = !root.player.shuffle
           }
@@ -423,7 +355,7 @@ BarWidget {
               }
             }
             foreground: root.player && root.player.loopState !== MprisLoopState.None
-              ? Colors.accentText : Colors.menu.text
+              ? MediaState.accentText : Colors.menu.text
             visible: root.player !== null && root.player.loopSupported
             onClicked: {
               if (!root.player) return
@@ -514,8 +446,9 @@ BarWidget {
     property real targetHeight: 0
     readonly property int cellHeight: Math.max(2, Math.floor((targetHeight - (rows - 1)) / rows))
     readonly property int cellWidth: Math.max(2, Math.floor((targetWidth - spacing * (Cava.barCount - 1)) / Cava.barCount))
-    // BarGauge's segments: one accent, unlit cells a faint track, the head lighter; the held peak in accent2
-    readonly property color litColor: Colors.readable(Colors.accent)
+    // BarGauge's segments: one accent (the cover's while it plays), unlit cells a faint track, the head lighter; the
+    // held peak in accent2
+    readonly property color litColor: MediaState.accent
     readonly property color headColor: Qt.lighter(litColor, 1.35)
     readonly property color capColor: Colors.accent2
 

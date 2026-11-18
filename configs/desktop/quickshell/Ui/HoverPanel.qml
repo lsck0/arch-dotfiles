@@ -12,6 +12,9 @@ PanelWindow {
   property string moduleName: anchorWidget ? anchorWidget.moduleName : ""
   property real padding: Style.surface.padding
   property string title: ""
+  // the brackets, title and scroll track; a panel with its own accent (the media panel's cover colour) sets both
+  property color accent: Colors.accent
+  property color accentText: Colors.accentText
   readonly property real titleInset: titleBar.visible ? titleBar.height + Style.spacing.sm : 0
   default property alias body: inner.flickableData
 
@@ -248,6 +251,7 @@ PanelWindow {
         height: root.height
         docked: true
         bracketInset: bootIn.bracketInset
+        bracketColor: root.accent
         scanlines: root.shown
         flicker: true
 
@@ -292,7 +296,7 @@ PanelWindow {
           width: Math.max(1, Style.space(3))
           height: inner.height
           radius: width / 2
-          color: Util.alpha(Colors.accent, Style.emphasis.disabled)
+          color: Util.alpha(root.accent, Style.emphasis.disabled)
           opacity: inner.opacity
 
           Rectangle {
@@ -300,7 +304,7 @@ PanelWindow {
             width: parent.width
             height: Math.max(parent.width * 4, inner.visibleArea.heightRatio * scrollTrack.height)
             radius: parent.radius
-            color: Colors.accent
+            color: root.accent
           }
         }
 
@@ -313,6 +317,7 @@ PanelWindow {
           width: card.width - card.contentLeftInset * 2
           height: visible ? implicitHeight : 0
           text: root.title
+          color: root.accentText
           // pinned by a click or opened from the keyboard: it stays when the pointer leaves
           suffix: root.barPinned ? ":: PINNED" : ""
           typed: bootIn.typed
