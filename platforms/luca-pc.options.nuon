@@ -72,21 +72,36 @@
                 silent: false
             }
         ]
-        # discord and spotify land on 5 through app_workspaces; spotify waits for discord's window, so discord takes the
-        # left half. spotify starts through its desktop entry, so spotify-launch.nu runs (patched copy, wayland, CDP).
-        # The chat apps and steam start in their trays. element names its secret store here too: this launch skips the
-        # desktop entry that socials/element patches.
         autostart: [
-            {cmd: discord}
-            {cmd: "gtk-launch spotify", after: discord}
-            {cmd: firefox, workspace: 6}
-            {cmd: "ghostty --gtk-single-instance=false", workspace: 1, float: true}
-            {cmd: "Telegram -startintray"}
-            {cmd: "element-desktop --hidden --password-store=gnome-libsecret"}
-            {cmd: "zapzap --hideStart"}
-            {cmd: "$DOTFILES/configs/gaming/steam/steam-launch.nu -silent"}
+            {
+                cmd: discord
+            }
+            {
+                cmd: "gtk-launch spotify"
+                after: discord
+            }
+            {
+                cmd: firefox
+                workspace: 6
+            }
+            {
+                cmd: "ghostty --gtk-single-instance=false"
+                workspace: 1
+                float: true
+            }
+            {
+                cmd: "Telegram -startintray"
+            }
+            {
+                cmd: "element-desktop --hidden --password-store=gnome-libsecret"
+            }
+            {
+                cmd: "zapzap --hideStart"
+            }
+            {
+                cmd: "$DOTFILES/configs/gaming/steam/steam-launch.nu -silent"
+            }
         ]
-        # the HUN monitors' speakers popped on every wake (2026-11-09)
         monitor_speaker_volume: 0
         pointer_sensitivity: 0.1
         natural_scroll: true
@@ -98,9 +113,10 @@
     "base/nftables": {
         pentest_listeners: true
     }
-    "base/fail2ban": {enable: false}
+    "base/fail2ban": {
+        enable: false
+    }
     "base/boot/sata": {
-        # nvme only; two AHCI controllers with eight empty ports cost 2.2 s of kernel time per boot (2026-11)
         probe: false
     }
     "base/v4l2loopback": {
@@ -109,11 +125,7 @@
     "base/ssh": {
         wake_host: "192.168.178.138"
     }
-    "llm/vllm": {
-        gpu_memory_utilization: 0.7
-    }
     "programming/hermes": {
-        # the always-on voice agent with its SUPER+grave dropdown: the desktop only
         system_agent: true
     }
     "programming/cargo": {
@@ -121,5 +133,8 @@
     }
     "programming/claude": {
         remote_control: true
+    }
+    "llm/vllm": {
+        context: 40960
     }
 }

@@ -9,6 +9,7 @@ const ROOT_OWNED = "/usr/share/licenses"
 const CFG = {
     model: m, model_revision: r, tool_call_parser: hermes, reasoning_parser: qwen3, gpu_memory_utilization: 0.5
     kv_cache_dtype: fp8
+    context: 65536
 }
 
 def fail [msg: string] { error make {msg: $"vllm.test: ($msg)"} }

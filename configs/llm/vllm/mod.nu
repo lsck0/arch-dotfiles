@@ -39,6 +39,14 @@ export const options = {
         label: "KV cache dtype"
         choices: [auto fp8]
     }
+    context: {
+        type: int
+        default: 65536
+        doc: "The context window vllm serves; Hermes needs 64000. Past the model's native 32768 it switches on YaRN rope scaling"
+        label: "Context window"
+        min: 4096
+        max: 131072
+    }
 }
 
 const PREFIX = "/opt/vllm"
@@ -54,6 +62,10 @@ const EXCLUDE_NEWER = "2026-11-01"
 const PYTHON_VERSION = "3.12"
 const ROCM_BIN = "/opt/rocm/bin"
 const DESKTOP_VRAM = 4.5GiB
+# Qwen3's trained window: YaRN scales past it by context / this (Qwen's own recommendation for long context); its
+# config already allows MAX_POSITIONS without scaling
+const NATIVE_CONTEXT = 32768
+const MAX_POSITIONS = 40960
 const SHARE_STEP = 0.05
 const STUB_SOURCE = "mpi-cxx-stub.c"
 const UV_EXCLUDES = "uv-excludes.txt"
@@ -73,6 +85,18 @@ def rocm-gpu []: nothing -> bool {
     $info.exit_code == 0 and ($info.stdout =~ '(?m)^Agent \d+') and ($info.stdout =~ 'gfx[0-9a-f]{3,}')
 }
 
+# vllm's --hf-overrides for a context past the native window, else nothing; transformers 5 names it rope_parameters,
+# which must carry the model's rope_theta (1e6 for Qwen3)
+def rope-args [cfg: record]: nothing -> string {
+    if $cfg.context <= $MAX_POSITIONS { return "" }
+    let rope = {
+        rope_type: yarn, factor: ($cfg.context / $NATIVE_CONTEXT), original_max_position_embeddings: $NATIVE_CONTEXT
+        rope_theta: 1000000
+    }
+    # max_position_embeddings too: vllm caps max_model_len by it and does not scale it by the factor
+    $"--hf-overrides '({max_position_embeddings: $cfg.context, rope_parameters: $rope} | to json --raw)'"
+}
+
 export def system [cfg: record] {
     if not (rocm-gpu) or $cfg.gpu_memory_utilization == null { return [] }
     let share = $cfg.gpu_memory_utilization | into string --decimals 2
@@ -85,7 +109,7 @@ export def system [cfg: record] {
     let values = {
         MODEL: $cfg.model, MODEL_REVISION: $cfg.model_revision, GPU_MEMORY_UTILIZATION: $share
         TOOL_CALL_PARSER: $cfg.tool_call_parser, REASONING_PARSER: $cfg.reasoning_parser, PERF_LEVEL_PATH: $perf_path
-        KV_CACHE_DTYPE: $cfg.kv_cache_dtype
+        KV_CACHE_DTYPE: $cfg.kv_cache_dtype, MAX_MODEL_LEN: $cfg.context, ROPE_ARGS: (rope-args $cfg)
     }
     let stamp = venv-stamp
     let python = $PREFIX | path join venv bin python

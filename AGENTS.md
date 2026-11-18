@@ -87,7 +87,7 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
 - Modules declare what they want (`scripts/lib/module.nu`); the engine applies the difference. Managed files are copies
   with their hash recorded; a changed copy is kept until `dot module adopt` or `reset`; files dot never wrote are taken
   over; both preserved aside. Links only where an app reads the repo live. dot writes nothing into `~/sync` but
-  `~/sync/.stignore`, where `core/syncthing` keeps its `**/.identity` line (the capture and notes tools write their
+  `~/sync/.stignore`, where `core/syncthing` keeps its `**/.identity` and `/vendor` lines (the capture and notes tools write their
   notes there at runtime).
 - Keep `$HOME` clean: env var to `configs/base/xdg/app-dirs.conf`, hardcoded dirs to `RECLAIM` in
   `configs/base/xdg/mod.nu`, forced non-dot dirs to `home.hidden`.

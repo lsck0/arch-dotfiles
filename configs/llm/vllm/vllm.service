@@ -42,7 +42,7 @@ ExecStart=/opt/vllm/venv/bin/vllm serve @MODEL@ \
     --tokenizer-revision ${VLLM_MODEL_REVISION} \
     --host 127.0.0.1 \
     --port 8001 \
-    --max-model-len auto \
+    --max-model-len @MAX_MODEL_LEN@ @ROPE_ARGS@ \
     --gpu-memory-utilization @GPU_MEMORY_UTILIZATION@ \
     --language-model-only \
     --compilation-config '{"cudagraph_capture_sizes": [1, 2, 4, 8]}' \

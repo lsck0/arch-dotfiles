@@ -272,6 +272,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `llm/vllm.reasoning_parser` | `string` | `"qwen3"` | vllm's reasoning parser, which moves the model's thinking out of the reply into reasoning_content |
 | `llm/vllm.gpu_memory_utilization` | `float?` | detected | The share of vram vllm takes; the rest stays for the desktop rendering on the same card |
 | `llm/vllm.kv_cache_dtype` | `string` | `"fp8"` | fp8 halves the kv cache's vram use but has no native matrix support on RDNA3; auto (bf16) is faster there |
+| `llm/vllm.context` | `int` | `65536` | The context window vllm serves; Hermes needs 64000. Past the model's native 32768 it switches on YaRN rope scaling |
 | `pentesting/wireshark.mcp` | `bool` | `true` | Register wireshark-mcp with the coding agents; off, no agent session starts its server |
 | `programming/android.avd` | `string` | `"nya35"` | Name of the emulator image made from the system image; empty makes none |
 | `programming/cargo.sccache_redis` | `bool` | `false` | Compile through sccache with the homelab's shared redis cache (secret sccache.env); plain rustc whenever it is unreachable |

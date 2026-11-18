@@ -25,7 +25,8 @@ const GUI_SECRET = "configs/secrets/keys/syncthing/gui-password"
 const API_WAIT_S = 30
 const GUI_TRIES = 3
 const PASSWORD_SHAPE = '^[A-Za-z0-9+/=._~-]+$'
-const STIGNORE_LINE = "**/.identity"
+# ~/sync/vendor holds large third-party archives (engine zips, launchers) that stay local, never on the NAS
+const STIGNORE_LINES = ["**/.identity" "/vendor"]
 const VERSIONS_MAX_AGE_S = 30 * 24 * 60 * 60
 const NAS_NAME = '(^|-)nas$'
 # upstream's default; the stored configs carry 20
@@ -54,10 +55,11 @@ def stignore-lines []: nothing -> list<string> {
     if (stignore-file | path exists) { open --raw (stignore-file) | lines } else { [] }
 }
 
-# Adds the line to ~/sync/.stignore, keeping edits: the one file in ~/sync the dotfiles touch (it never syncs).
+# Adds the lines to ~/sync/.stignore, keeping edits: the one file in ~/sync the dotfiles touch (it never syncs).
 export def stignore []: nothing -> nothing {
     let lines = stignore-lines
-    if $STIGNORE_LINE not-in $lines { $lines | append $STIGNORE_LINE | to text | save --force (stignore-file) }
+    let missing = $STIGNORE_LINES | where $it not-in $lines
+    if ($missing | is-not-empty) { $lines | append $missing | to text | save --force (stignore-file) }
 }
 
 # Installs the device identity before the daemon starts, so it comes up paired.
@@ -146,7 +148,7 @@ export def link [cfg: record] {
     let identity = if $paired { [cert.pem key.pem config.xml] | each {|f| open --raw ($secrets | path join $f) | hash sha256 } } else { [] }
     let api_key = [(gui-version) $nas ($paired | into string) ($VERSIONS_MAX_AGE_S | into string) ($RECONNECT_INTERVAL_S | into string) ...$identity] | str join "\n" | hash sha256
     [
-        (step stignore --done=($STIGNORE_LINE in (stignore-lines)))
+        (step stignore --done=($STIGNORE_LINES | all {|l| $l in (stignore-lines) }))
         (step identity-install --done=(not $changed))
         (dropin syncthing.service 10-background.conf --then (unit-restart syncthing.service --if-running))
         (unit-enable syncthing.service --now)
