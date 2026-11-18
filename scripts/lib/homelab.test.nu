@@ -19,7 +19,7 @@ const LAB = {
         internal: {subnet: "10.9.0.0/24", router: "10.9.0.1", ingress: null}
         external: {subnet: "10.8.0.0/24", router: "10.8.0.1", ingress: null}
     }
-    nas: {ip: "10.9.0.5", smb: "//10.9.0.5/share", syncthing: "tcp://10.9.0.5:22000"}
+    nas: {ip: "10.9.0.5", smb: "//10.9.0.5/share", syncthing: "tcp://10.9.0.5:22000", vendor: "bulk/vendor"}
     mirror: {
         arch: "http://10.9.0.5:8090/archlinux/$repo/os/$arch"
         lsck0: "https://mirror.lab.test/$arch"
@@ -35,7 +35,7 @@ const WANT = {
     hypervisor: "192.0.2.2"
     subnets: ["10.8.0.0/24" "10.9.0.0/24"]
     ssh_hosts: ["10.8.0.*" "10.9.0.*" "192.0.2.1" "192.0.2.2"]
-    nas: {ip: "10.9.0.5", smb: "//10.9.0.5/share", syncthing: "tcp://10.9.0.5:22000"}
+    nas: {ip: "10.9.0.5", smb: "//10.9.0.5/share", syncthing: "tcp://10.9.0.5:22000", vendor: "bulk/vendor"}
     mirror: {
         arch: "http://10.9.0.5:8090/archlinux/$repo/os/$arch"
         lsck0: "https://mirror.lab.test/$arch"

@@ -182,7 +182,7 @@
       "id": "pipewire_audio_application_capture",
       "versioned_id": "pipewire_audio_application_capture",
       "settings": {
-        "TargetName": "wine64-preloader"
+        "TargetName": "smeepy.1.0.0.linux-x86_64"
       },
       "mixers": 13,
       "sync": 0,
@@ -190,7 +190,7 @@
       "volume": 1.0,
       "balance": 0.5,
       "enabled": true,
-      "muted": true,
+      "muted": false,
       "push-to-mute": false,
       "push-to-mute-delay": 0,
       "push-to-talk": false,

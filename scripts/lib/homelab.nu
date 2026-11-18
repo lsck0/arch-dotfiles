@@ -92,6 +92,8 @@ export def homelab-render [lab: record]: nothing -> string {
             ip: (field $lab $.nas.ip $IPV4)
             smb: (field $lab $.nas.smb '^//\S+/\S+$')
             syncthing: (field $lab $.nas.syncthing '^tcp://\S+:\d+$')
+            # the share-relative dir of re-downloadable installers and engines, outside syncthing and every backup
+            vendor: (field $lab $.nas.vendor '^[a-z0-9_-]+(/[a-z0-9_-]+)*$')
         }
         mirror: {
             arch: (field $lab $.mirror.arch '^https?://\S+\$repo\S*\$arch$')

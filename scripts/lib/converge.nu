@@ -216,6 +216,8 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
                     action $id update $d.target "a copy the dotfiles wrote" ($d | insert preserve true) $obs.hash $d.source
                 } else if $obs.type == file and $d.target not-in ($prev | where kind in [file link] | get target) {
                     action $id update $d.target "not the dotfiles' own yet: preserved aside" ($d | insert preserve true) $obs.hash $d.source
+                } else if $obs.type == symlink and ($prev | where kind == link and target == $d.target | get --optional 0.source) == $obs.link {
+                    action $id update $d.target "changed in the module" $d $obs.link $d.source
                 } else if $force {
                     action $id update $d.target "drift, forced: preserved aside" ($d | insert preserve true) $obs.hash $d.source
                 } else {
@@ -421,7 +423,7 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
         } else { try {
             match $a.kind {
                 "create" | "update" => {
-                    sync-guard $a.target
+                    sync-guard $a.target --link=($a.decl.kind == "link")
                     let inplace = ($a.decl.inplace? | default false) and (path-kind $a.target) == "file"
                     let aside = if ($a.decl.preserve? | default false) { preserve-aside $a.target --copy=$inplace } else { null }
                     if $a.decl.kind == "link" {

@@ -1,1 +1,1 @@
-core                              # wallust font.nu (steam, d2launcher)
+core                              # wallust font.nu (steam, d2launcher), nas vendor.nu (d2launcher)

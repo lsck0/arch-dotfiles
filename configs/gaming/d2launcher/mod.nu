@@ -1,9 +1,10 @@
 use module.nu *
 use ini.nu [ini-apply ini-rows]
+use ../../core/nas/vendor.nu [nas-vendor-dir nas-vendor-newer]
 use ../../core/wallust/font.nu [font-load]
 
-# no wine: desktop/applications' wine-staging conflicts with it
-export const meta = {packages: {pacman: [curl gamescope jq libnotify unzip wmctrl zenity zip]}}
+# no wine: desktop/applications' wine-staging conflicts with it; volatile: a newer copy on the NAS is no local input
+export const meta = {packages: {pacman: [curl gamescope jq libnotify unzip wmctrl zenity zip]}, volatile: true}
 
 const URL = "https://github.com/murkl/d2launcher.git"
 const COMMIT = "73d6d145f1b8fd228fe7ac1263c4f4230d37ebea" # 4.1.3, 2025-01-29
@@ -14,21 +15,28 @@ def install-dir []: nothing -> path { xdg data d2launcher }
 # SCRIPT_HOME_DIR is hardcoded in the script.
 def home-dir []: nothing -> path { $nu.home-dir | path join .d2launcher }
 
+# Where the vendor dir lived before the NAS; read only, to move an existing install's copy and prefix off it.
 def synced-vendor []: nothing -> path { $nu.home-dir | path join sync vendor d2launcher }
 
-# The fallback vendor dir is dot's; a synced one is read-only to it (nothing lands in ~/sync). The owner's machines get
-# the vendor dir from syncthing; on a fresh one it can arrive after the first apply, and a fallback built meanwhile
-# (wine, a copied game, Median XL) would be left behind once it does.
-def vendor-own []: nothing -> bool { not (synced-vendor | path exists) and not (profile-has secrets) }
+# The owner's vendor dir is a local copy of the NAS's, made once (wine never runs off the share); anyone else's is
+# built by dot (wine, a copied game, Median XL).
+def vendor-own []: nothing -> bool { not (profile-has secrets) }
 
-def vendor-dir []: nothing -> path { if (vendor-own) { xdg data d2launcher-vendor } else { synced-vendor } }
+def vendor-dir []: nothing -> path { xdg data d2launcher-vendor }
+
+# The owner's copy source: the NAS, else the synced dir a machine from before the NAS still holds.
+def vendor-source []: nothing -> any {
+    let nas = nas-vendor-dir
+    [(if $nas != null { $nas | path join d2launcher }) (synced-vendor)] | compact
+        | where { ($in | path type) == dir } | get --optional 0
+}
 
 # d2launcher's own wine (its wine_native_url at COMMIT); valve's tree reports itself as wine-5.12-15359-g492470267af
 const WINE_URL = "https://github.com/Kron4ek/Wine-Builds/releases/download/7.0-5-proton/wine-7.0-5-proton-amd64.tar.xz"
 const WINE_SHA256 = "fbfddbab42be0f3c6d9f6f0b9b899a8503e50358bde659621a83fbe7ca83bbca" # released 2022-11-24
 const WINE_TOP = "wine-7.0-5-proton-amd64"
 
-# Fetched into the fallback vendor dir only: a synced vendor dir brings its own copy.
+# Fetched into dot's own vendor dir only: the owner's copy brings its own.
 def wine-fetch-decl []: nothing -> list<record> {
     if not (vendor-own) { return [] }
     fetch-file $WINE_URL $WINE_SHA256 (vendor-dir | path join bin wine) --extract $WINE_TOP
@@ -37,6 +45,8 @@ def wine-fetch-decl []: nothing -> list<record> {
 def wine-ready []: nothing -> bool { (wine-bin | path exists) or (wine-fetch-decl | is-not-empty) }
 
 const VENDOR_LINKED = [bin patches backup]
+# about 6 GB: minutes at home, far longer over wireguard
+const VENDOR_COPY_TIMEOUT = 60min
 const BASE_MARKER = "d2exp.mpq"
 const BASE_IN_PREFIX = "drive_c/Program Files (x86)/Diablo II"
 const PATCH_VERSION = "d2launcher-patch.version"
@@ -103,10 +113,14 @@ export def link [cfg: record] {
     let seeded = $game | path join $BASE_MARKER | path exists
     let game_empty = ($game | path type) == dir and (ls $game | is-empty)
     let own = vendor-own
-    if not (synced-vendor | path exists) and (profile-has secrets) {
-        log-note "d2launcher: waiting for syncthing to bring ~/sync/vendor/d2launcher; apply again once it is there"
-    } else if not $own and not ($game | path join $PATCH_VERSION | path exists) {
-        log-note $"d2launcher: ($game) is not set up in the synced vendor dir; set it up on the machine that owns it"
+    let source = if $own { null } else { vendor-source }
+    let copied = $VENDOR_LINKED | all {|d| ($vendor | path join $d | path type) == dir }
+    let want = if $source == null { "" } else { patch-version $source }
+    let have = patch-version $vendor
+    let behind = not $copied or (nas-vendor-newer $have $want)
+    let synced_prefix = synced-vendor | path join wineprefix
+    if not $own and $source == null and not $copied {
+        log-note "d2launcher: the NAS vendor dir is not reachable and there is no local copy yet; apply again at home"
     }
     [
         (fetch-git $URL $COMMIT $dir)
@@ -118,10 +132,11 @@ export def link [cfg: record] {
                 exec $"d2launcher-vendor-($d)" [mkdir -p $path] --creates $path
             }
         })
+        (if $source != null and $behind { step vendor-copy $source --key $want --creates ($vendor | path join bin) --timeout $VENDOR_COPY_TIMEOUT })
+        # never from the NAS: cifs turned the prefix's dosdevices links into copies of drive_c
+        (if not $own and ($synced_prefix | path exists) { step prefix-copy $synced_prefix --creates (prefix-dir) })
         ...($VENDOR_LINKED | each {|d| file-link ($vendor | path join $d) (home-dir | path join $d) })
         ...(wine-fetch-decl)
-        # chmod only: syncthing ignores permissions, so this changes no synced content
-        (step wine-bin-fixup --done=(wine-bin-unexecutable | is-empty))
         (if $own { step game-seed $base --done=(not (($seedable and not $seeded) or $game_empty)) })
         (if $own and ($seedable or $seeded) { step mxl-install --network --creates ($game | path join $PATCH_VERSION) })
         (file-text (home-dir | path join d2launcher.conf) (config))
@@ -286,15 +301,31 @@ export def d2gl-window [width: string, height: string]: nothing -> nothing {
     d2gl-ini-text | ini-apply (d2gl-screen-keys $width $height) false | save --force (game-dir | path join d2gl.ini)
 }
 
-# ~/sync ignores permissions (core/syncthing, ignorePerms), so a resync silently drops wine's execute bit
-def wine-bin-unexecutable []: nothing -> list<path> {
-    let dir = wine-bin | path dirname
-    if not ($dir | path exists) { return [] }
-    ls --long $dir | where type == file and ($it.mode | str substring 2..2) != "x" | get name
+def patch-version [dir: path]: nothing -> string { file-trim ($dir | path join bin diablo2 $PATCH_VERSION) }
+
+# Each dir swapped in once whole, so a NAS dropping mid-copy leaves the previous copy. The NAS's cifs mount (and the
+# synced dir's ignorePerms) drop wine's execute bit, put back here.
+export def vendor-copy [source: string]: nothing -> nothing {
+    let vendor = vendor-dir
+    mkdir $vendor
+    for d in $VENDOR_LINKED {
+        let part = $vendor | path join $"($d).part"
+        rm --recursive --force $part
+        ^cp --recursive --preserve=mode,timestamps --reflink=auto ($source | path join $d) $part
+        let wine = glob ($part | path join wine bin *)
+        if ($wine | is-not-empty) { ^chmod +x ...$wine }
+        rm --recursive --force ($vendor | path join $d)
+        mv $part ($vendor | path join $d)
+    }
 }
 
-export def wine-bin-fixup []: nothing -> nothing {
-    ^chmod +x ...(wine-bin-unexecutable)
+# The saves live in the prefix: copied, links kept, from the synced dir an install from before the NAS ran on.
+export def prefix-copy [source: string]: nothing -> nothing {
+    let part = $"(prefix-dir).part"
+    rm --recursive --force $part
+    mkdir (vendor-dir)
+    ^cp --archive --reflink=auto $source $part
+    mv $part (prefix-dir)
 }
 
 def prefix-dir []: nothing -> path { vendor-dir | path join wineprefix }

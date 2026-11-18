@@ -12,10 +12,11 @@ export def preserve-dir []: nothing -> path {
 }
 
 # Refuses a write under ~/sync (any login's, root's layer writes too): a file made there before syncthing delivers the
-# real one collides with it.
-export def sync-guard [path: path]: nothing -> nothing {
+# real one collides with it. --link: the write replaces path itself, so a link there pointing into ~/sync is no write
+# into it.
+export def sync-guard [path: path, --link]: nothing -> nothing {
     let sync_dir = (^realpath -m ($nu.home-dir | path join sync))
-    let target = (^realpath -m $path)
+    let target = if $link { ^realpath -m ($path | path dirname) | path join ($path | path basename) } else { ^realpath -m $path }
     if $target == $sync_dir or ($target | str starts-with $"($sync_dir)/") or $target =~ $SYNC_ANY {
         error make {msg: $"refusing to write ($path), ~/sync belongs to syncthing"}
     }

@@ -25,7 +25,7 @@ const GUI_SECRET = "configs/secrets/keys/syncthing/gui-password"
 const API_WAIT_S = 30
 const GUI_TRIES = 3
 const PASSWORD_SHAPE = '^[A-Za-z0-9+/=._~-]+$'
-# ~/sync/vendor holds large third-party archives (engine zips, launchers) that stay local, never on the NAS
+# third-party archives (engine zips, launchers) live on the NAS's bulk/vendor, outside syncthing
 const STIGNORE_LINES = ["**/.identity" "/vendor"]
 const VERSIONS_MAX_AGE_S = 30 * 24 * 60 * 60
 const NAS_NAME = '(^|-)nas$'

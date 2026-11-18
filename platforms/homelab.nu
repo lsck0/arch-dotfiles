@@ -11,6 +11,7 @@ export const HOMELAB = {
         ip: "10.100.0.100"
         smb: "//10.100.0.100/homelab"
         syncthing: "tcp://10.100.0.100:22000"
+        vendor: "bulk/vendor"
     }
     mirror: {
         arch: "http://10.100.0.100:8090/archlinux/$repo/os/$arch"
