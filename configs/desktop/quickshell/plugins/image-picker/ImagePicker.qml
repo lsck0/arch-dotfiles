@@ -57,13 +57,10 @@ Item {
   readonly property int lotteryDings: 3
   readonly property int lotteryDingMs: 130
   readonly property int lotteryBeatMs: 250
-  readonly property string lotterySound: Paths.shellDir + "/sounds/pomodoro.oga"
-  // scripts/pomodoro.nu plays the same chime at this volume
-  readonly property real lotterySoundVolume: 0.3
   // a lottery that waits for the other source's scan
   property bool lotteryPending: false
   property bool lotteryRunning: false
-  // the show without its effects: no sound, nothing applied (ipc `image-picker lottery true`)
+  // the show without its effects: nothing applied (ipc `image-picker lottery true`)
   property bool lotteryDry: false
   property int lotteryTarget: -1
   property int lotteryStart: 0
@@ -315,9 +312,6 @@ Item {
     SequentialAnimation {
       loops: root.lotteryDings
 
-      ScriptAction {
-        script: if (!root.lotteryDry) Quickshell.execDetached(["pw-play", "--media-role", "Notification", "--volume", String(root.lotterySoundVolume), root.lotterySound])
-      }
       NumberAnimation { target: root; property: "lotteryStroke"; to: Style.emphasis.disabled; duration: root.lotteryDingMs / 2; easing.type: Style.motion.ambientEasing }
       NumberAnimation { target: root; property: "lotteryStroke"; to: 1; duration: root.lotteryDingMs / 2; easing.type: Style.motion.ambientEasing }
     }

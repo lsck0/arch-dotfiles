@@ -96,6 +96,32 @@ TestCase {
     compare\(ids\(Schema.sections\(modules, [], \"zzz\", { checks: [] }\)\), \":toggles,:system,#base,base/a\"\)
   }
 
+  // status.nu's records as rows: an unavailable one hidden, a broken one kept, showing [error]; a switch only an
+  // off/on record, rows by label, an options toggle under its own header
+  function test_toggles\() {
+    var t = function \(name, label, state, states, available\) {
+      return { name: name, label: label, state: state, text: state, states: states, on: false, available: available }
+    }
+    var toggles = [
+      t\(\"wifi\", \"Wi-Fi\", \"on\", [\"off\", \"on\"], true\), t\(\"mobile\", \"Mobile\", \"off\", [\"off\", \"on\"], false\),
+      t\(\"route\", \"route\", \"error\", [], true\), t\(\"powermode\", \"Power mode\", \"auto\", [\"auto\", \"balanced\"], true\),
+      Object.assign\(t\(\"font\", \"Font\", \"x\", [], true\), { options: [{ key: \"family\", type: \"string\" }] }\)
+    ]
+    var rows = Schema.toggleEntries\(toggles, \"\"\)
+    compare\(rows.map\(function \(r\) { return r.id }\).join\(\",\"\), \":toggles.powermode,:toggles.route,:toggles.wifi,#:toggles/font,:toggles.font.family\"\)
+    verify\(Schema.toggleIsSwitch\(toggles[0]\)\)
+    verify\(!Schema.toggleIsSwitch\(toggles[2]\)\)
+    verify\(!Schema.toggleIsSwitch\(toggles[3]\)\)
+    compare\(rows[4].option.toggle, \"font\"\)
+    compare\(Schema.toggleEntries\(toggles, \"wi-fi\"\).length, 1\)
+    compare\(Schema.toggleEntries\(toggles, \"mobile\"\).length, 0\)
+    compare\(Schema.toggleEntries\([], \"\"\).length, 0\)
+    // a radio whose probe failed \(NetworkManager down\): shown as [error], never as a switch that is off
+    var broken = Schema.toggleEntries\([t\(\"wifi\", \"Wi-Fi\", \"error\", [], true\)], \"\"\)
+    compare\(broken.length, 1\)
+    verify\(!Schema.toggleIsSwitch\(broken[0].toggle\)\)
+  }
+
   function test_type\() {
     compare\(Schema.typeOf\({ type: \"filesize?\" }\), \"filesize\"\)
     compare\(Schema.typeOf\({ type: \"list<record>?\" }\), \"json\"\)

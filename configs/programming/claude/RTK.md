@@ -12,6 +12,7 @@ for `cat`, `head` (`--head-lines <n>`) and `tail` (`--tail-lines <n>`), and
 `ps`, `df`, `du`, `curl`, `systemctl`, `git`, `gh`, `make`, `cargo`, `npm`,
 `uv`, `pytest`, `docker` and `kubectl`. `rtk hook check '<command>'` prints
 the form of anything else, or that it is left alone.
+Commands quoted in skills are written plain; run their rtk form.
 
 Truncated results state their recovery path in their own output. Re-run a
 command as `rtk bypass <cmd>` only when its result is unusable: empty when

@@ -2,7 +2,19 @@
 use lib.nu [switch-run toggle-run state-get state-set state-file]
 
 const PARTS = [dnd keep-awake nightlight]
+# what a reboot resets (a transient unit, a runtime file) while focus' own state persists
+const PARTS_VOLATILE = [keep-awake nightlight]
 const GRADING_PRESET = "grayscale"
+
+# At session start (toggles-reapply.service): the volatile parts a focus left on turns on again.
+def "main reapply" [] {
+    if (state-get focus) != on { return }
+    let states = try { open --raw (state-file focus-previous) | from nuon } catch { [] }
+    let parts = $PARTS_VOLATILE | where {|name| ($states | where name == $name | get state.0? | default off) != on }
+    with-env {TOGGLES_QUIET: "1"} {
+        for part in $parts { try { toggle-run $part on o+e> /dev/null } catch { print -e $"focus mode: ($part) stays off" } }
+    }
+}
 
 # Focus mode: get [--json] prints the state, on, off or toggle switches it, a bare call toggles.
 def main [action: string = "toggle", --json] {

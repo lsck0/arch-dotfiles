@@ -54,16 +54,15 @@ Item {
   readonly property string notesDir: Paths.state + "/notifications"
   readonly property int notesShown: 3
   property var notes: []
+  // only a player that plays: a paused tab or app left open is not media playing; the bar's one first, then from the
+  // bar's list, so a browser tab and its plasma-browser-integration twin show the same track as the bar
   readonly property var player: {
-    var list = Mpris.players.values // qmllint disable missing-property
-    var fallback = null
-    for (let i = 0; i < list.length; i++) {
-      if (list[i].playbackState === MprisPlaybackState.Playing) return list[i]
-      if (!fallback && list[i].trackTitle) fallback = list[i]
-    }
-    return fallback
+    var shown = MediaState.player
+    if (shown && shown.playbackState === MprisPlaybackState.Playing) return shown
+    return MediaState.players.find(p => p.playbackState === MprisPlaybackState.Playing) || null
   }
-  readonly property string mediaText: player && player.trackTitle ? (player.playbackState === MprisPlaybackState.Playing ? "> " : "|| ") + (player.trackArtist ? player.trackArtist + " :: " : "") + player.trackTitle : ""
+  readonly property string mediaArtist: player ? MediaState.tag(player.trackArtist) : ""
+  readonly property string mediaText: player && player.trackTitle ? "> " + (mediaArtist ? mediaArtist + " :: " : "") + player.trackTitle : ""
   property string clockText: "00//00//00"
   property string dateText: ""
 

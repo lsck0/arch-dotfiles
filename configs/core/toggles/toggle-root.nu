@@ -18,6 +18,9 @@ const PORT_MAX = 65535
 const NFT_LISTING_FRAME = '^(table .*\{|chain .*\{|type .*|\}|)$'
 const POOL_SIZE_MAX = 999
 const GUARD_STOP_UNITS = [portmaster.service tor-router.service]
+const TOR_UNIT = "tor-router.service"
+# the persona dispatcher's mark on a tor it started: its tor-off stops a marked tor, so a user's choice drops the mark
+const DISPATCHER_TOR = "/run/persona-tor"
 const CGROUP_ROOT = "/sys/fs/cgroup"
 const APPROVAL_DIR = "@APPROVAL_DIR@"
 const APPROVAL_MINUTES = "@APPROVAL_MINUTES@"
@@ -26,7 +29,7 @@ const APPROVAL_MARGIN = 5sec
 
 def usage []: nothing -> nothing {
     print -e ("usage: toggle-root {tlp MODE|start|wg up|down|vllm on|off|firewall STATE|raise-default|"
-        + "portmaster-restore|portal on|off|guard-stop UNIT...|anonsocks VERB...}")
+        + "portmaster-restore|portal on|off|tor-start|guard-stop UNIT...|anonsocks VERB...}")
     exit 1
 }
 
@@ -274,7 +277,13 @@ def main [...args: string] {
             let units = $args | skip 1
             if ($units | is-empty) or ($units | any { $in not-in $GUARD_STOP_UNITS }) { usage }
             ^systemctl stop ...$units
+            if $TOR_UNIT in $units { rm --force $DISPATCHER_TOR }
             approval-record
+        }
+        # the user's tor: unmarked, so the dispatcher's tor-off on a trusted link leaves it running
+        [1, "tor-start"] => {
+            rm --force $DISPATCHER_TOR
+            ^systemctl start $TOR_UNIT
         }
         [_, "anonsocks"] => { anonsocks ($args | skip 1) }
         _ => { usage }

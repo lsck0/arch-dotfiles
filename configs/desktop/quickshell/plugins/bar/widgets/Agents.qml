@@ -15,10 +15,12 @@ BarWidget {
   property string errorText: ""
   property real updatedMs: 0
   readonly property int staleAfterMs: usageProc.intervalMs * 2
+  readonly property int sessionResetGraceMs: 5 * 1000
+  property bool sessionResetPassed: false
 
   // some plans have no 5h session window: the api sends no session header, the script a dash
   readonly property bool hasSession: typeof usage.u_session === "number"
-  readonly property int sessionPct: hasSession ? usage.u_session : 0
+  readonly property int sessionPct: hasSession && !sessionResetPassed ? usage.u_session : 0
   readonly property int weekPct: Number(usage.u_week) || 0
   readonly property int worstPct: Math.max(sessionPct, weekPct)
   readonly property int worstPctShown: Math.min(100, worstPct)
@@ -55,10 +57,34 @@ BarWidget {
       root.errorText = data && data.error ? String(data.error) : ""
       if (root.errorText) return
       root.usage = data
+      root.sessionResetPassed = false
+      sessionResetTimer.arm()
       if (!root.hasUsage) return
       root.updatedMs = Date.now()
     }
     onFailed: function (error) { root.received = true; root.errorText = "bad json" }
+  }
+
+  // the 5h window ends on its own clock, not on the next poll: zero the session and fetch the fresh window then
+  Timer {
+    id: sessionResetTimer
+    function arm() {
+      const at = Number(root.usage.u_reset_at) || 0
+      stop()
+      if (at <= 0) return
+      const leftMs = at * 1000 + root.sessionResetGraceMs - Date.now()
+      // a reset already past at the fetch: that window is over, and fetching again at once would loop on the answer
+      if (leftMs <= 0) {
+        root.sessionResetPassed = true
+        return
+      }
+      interval = leftMs
+      start()
+    }
+    onTriggered: {
+      root.sessionResetPassed = true
+      usageProc.run()
+    }
   }
 
   Row {

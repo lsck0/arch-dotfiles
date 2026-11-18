@@ -13,6 +13,7 @@ on it is changed by hand.
 - Homelab changes go through the homelab repo's session (`homelab-*`), never ad hoc on a guest: skill `l-homelab`.
 - The arch-dotfiles, homelab, nyangine and university sessions are one team (system configuration, hosting, software,
   knowledge): what each owns and how to ask it is skill `l-project-agents`.
+- Heavy builds and tests: `fence <cmd>` (memory, CPU and IO caps); details in skill `l-resources`.
 
 # Clean up after yourself
 

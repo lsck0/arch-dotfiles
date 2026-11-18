@@ -1,10 +1,11 @@
 use module.nu *
 use ../../core/wallust/font.nu [font-load]
 use ../../core/wallust/palette.nu [ICON_THEMES RADIUS_PX]
+use ../cursor/mod.nu [CURSOR_SIZE_PX cursor-name]
 use ../oomox/mod.nu [INTERFACE]
 
 export const meta = {
-    deps: [desktop/oomox]
+    deps: [desktop/cursor desktop/oomox]
     reads: [desktop/hyprland]
     packages: {pacman: [breeze-icons flat-remix-gtk gtk-engine-murrine gtk3 gtk4 nwg-look xdg-user-dirs-gtk]}
 }
@@ -33,13 +34,17 @@ export def theme [cfg: record, wallpaper: string] {
     let light = $p.light == "1"
     let scheme = if $light { "prefer-light" } else { "prefer-dark" }
     let icons = if $light { $ICON_THEMES.light } else { $ICON_THEMES.dark }
+    let cursor = cursor-name ($cfg.deps?."desktop/cursor"?.active? | default false)
     let ini = [
         "[Settings]" $"gtk-theme-name=($GTK_THEME)" $"gtk-font-name=($ui)" $"gtk-icon-theme-name=($icons)"
-        $"gtk-decoration-layout=($BUTTON_LAYOUT)"
+        $"gtk-decoration-layout=($BUTTON_LAYOUT)" $"gtk-cursor-theme-name=($cursor)"
+        $"gtk-cursor-theme-size=($CURSOR_SIZE_PX)"
     ]
     # gtk2 under xwayland ignores GDK_SCALE and sees 96 dpi, so only its font can follow the xwayland scale
     let ui2 = $"($font.family) ($font.ui_size * (xwayland-scale-for $cfg))"
-    let rc2 = [$"gtk-theme-name=\"($GTK_THEME)\"" $"gtk-icon-theme-name=\"($icons)\"" $"gtk-font-name=\"($ui2)\""]
+    let rc2 = [$"gtk-theme-name=\"($GTK_THEME)\"" $"gtk-icon-theme-name=\"($icons)\"" $"gtk-font-name=\"($ui2)\""
+        $"gtk-cursor-theme-name=\"($cursor)\""
+    ]
     let set = {|name, key, value| exec $name [gsettings set $INTERFACE $key $value] }
     [
         $css
@@ -51,6 +56,8 @@ export def theme [cfg: record, wallpaper: string] {
         (do $set gtk-document-font document-font-name $ui)
         (do $set gtk-mono-font monospace-font-name $mono)
         (do $set gtk-icons icon-theme $icons)
+        (do $set gtk-cursor cursor-theme $cursor)
+        (do $set gtk-cursor-size cursor-size ($CURSOR_SIZE_PX | into string))
         (exec gtk-buttons [gsettings set $WM_PREFERENCES button-layout $BUTTON_LAYOUT])
         # oomox's export flips it again once the theme files are new, which a running gtk3 app needs to reread them
         (do $set gtk-theme gtk-theme $GTK_THEME)

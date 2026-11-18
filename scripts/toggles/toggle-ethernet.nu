@@ -1,10 +1,10 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [switch-run]
+use lib.nu [switch-run nmcli-read]
 
 # Ethernet: get [--json] prints the state, on, off or toggle switches it, a bare call toggles.
 def main [action: string = "toggle", --json] {
     let link = {||
-        (^nmcli -t -f DEVICE,TYPE,STATE device | complete).stdout | lines | parse "{device}:{type}:{state}"
+        nmcli-read -t -f DEVICE,TYPE,STATE device | lines | parse "{device}:{type}:{state}"
         | where type == ethernet | get --optional 0
     }
     switch-run {

@@ -17,12 +17,12 @@ BarWidget {
   readonly property var players: MediaState.players
   readonly property var player: MediaState.player
 
-  // a browser tab without media metadata reports its site's address as the album or artist
-  function tag(v) { return /^[a-z]+:\/\//i.test(String(v || "")) ? "" : String(v || "") }
   readonly property string title: player ? (player.trackTitle || "") : ""
-  readonly property string artist: player ? tag(player.trackArtist) : ""
-  readonly property string album: player ? tag(player.trackAlbum) : ""
+  readonly property string artist: player ? MediaState.tag(player.trackArtist) : ""
+  readonly property string album: player ? MediaState.tag(player.trackAlbum) : ""
   readonly property bool playing: player !== null && player.playbackState === MprisPlaybackState.Playing
+  // a player without a title (a tab with no media metadata, an idle player) names itself, as the panel does
+  readonly property string line: (title || (player ? String(player.identity || "") : "")) + (artist ? " :: " + artist : "")
 
   readonly property string artUrl: {
     if (!player) return ""
@@ -139,19 +139,22 @@ BarWidget {
 
   PwObjectTracker { objects: root.playerStreams }
 
-  // set, not bound: a binding on playing would drop to false for the one evaluation before the linger starts, hiding
+  // any player playing keeps the widget up, so a paused player pinned while another plays stays shown
+  readonly property bool active: playing || players.some(p => p.playbackState === MprisPlaybackState.Playing)
+
+  // set, not bound: a binding on active would drop to false for the one evaluation before the linger starts, hiding
   // the widget and closing its panel on every pause
   property bool recentlyActive: false
-  onPlayingChanged: if (playing) recentlyActive = true; else lingerTimer.restart()
+  onActiveChanged: if (active) recentlyActive = true; else lingerTimer.restart()
 
   Timer {
     id: lingerTimer
     interval: 30000
-    onTriggered: root.recentlyActive = root.playing
+    onTriggered: root.recentlyActive = root.active
   }
 
   Component.onCompleted: {
-    recentlyActive = playing
+    recentlyActive = active
     Cava.source = spectrumSource
     refreshArt()
   }
@@ -202,7 +205,7 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       width: Style.space(200)
       elide: Text.ElideRight
-      text: root.title + (root.artist ? " :: " + root.artist : "")
+      text: root.line
       dim: true
     }
   }

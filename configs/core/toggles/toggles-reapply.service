@@ -1,0 +1,13 @@
+[Unit]
+Description=Turn on again what a reboot reset under a toggle still on
+Documentation=file:@DOTFILES@/scripts/toggles/toggle-focus.nu
+After=graphical-session.target color-grading.service
+PartOf=graphical-session.target
+ConditionEnvironment=WAYLAND_DISPLAY
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/nu --no-config-file @DOTFILES@/scripts/toggles/toggle-focus.nu reapply
+
+[Install]
+WantedBy=graphical-session.target

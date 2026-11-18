@@ -115,7 +115,8 @@ One home per kind of data, no catch-all: config in git; app state in `configs/se
 - State: `$XDG_STATE_HOME/dotfiles` (root: `/var/lib/dotfiles`); `modules/<id>/<verb>.nuon` is the one record of what
   dot wrote; `ledger` holds units, packages, migrations.
 - Locked secrets start with `\0GITCRYPT` (`secret-is-plaintext`); never write into `configs/secrets/` while locked.
-- Hyprland config and dispatch are Lua, X11 apps scale through `GDK_SCALE` only: `configs/desktop/hyprland/AGENTS.md`.
+- Hyprland config and dispatch are Lua; `GDK_SCALE` scales only GTK under xwayland, every other toolkit its own way:
+  `configs/desktop/hyprland/AGENTS.md`.
 - `~/.config/<app>` holds managed copies: a repo edit changes nothing until `dot apply <group>/<module>`.
   `file-text --generated` outputs are overwritten without a drift check whenever their module runs;
   `dot explain <path>` names the writer.

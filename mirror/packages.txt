@@ -386,6 +386,7 @@ libpqxx
 libpulse
 libqalculate
 libreoffice-fresh
+librsvg
 libva
 libva-utils
 libvips
@@ -994,6 +995,7 @@ xivlauncher-bin
 xorg-server
 xorg-server-xvfb
 xorg-xauth
+xorg-xcursorgen
 xorg-xeyes
 xorg-xhost
 xorg-xinput

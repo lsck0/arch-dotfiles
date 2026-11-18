@@ -67,7 +67,11 @@ BarWidget {
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: Style.bar.sizeHorizontal
 
-  property var alerts: []
+  // weather.nu gives each warning's start and end as unix seconds, so it counts down and drops once it expires
+  property var alertsFetched: []
+  property real alertsNowMs: 0
+  readonly property int alertsTickMs: 60 * 1000
+  readonly property var alerts: alertsFetched.filter(a => a.expiresAtMs === null || a.expiresAtMs > alertsNowMs)
   property int countryOthers: 0
 
   readonly property var topAlert: alerts.length > 0 ? alerts[0] : null
@@ -148,9 +152,23 @@ BarWidget {
         return
       }
       alertsProc.retryStop()
-      root.alerts = d.alerts || []
+      const atMs = seconds => seconds === null || seconds === undefined ? null : Number(seconds) * 1000
+      root.alertsNowMs = Date.now()
+      root.alertsFetched = (d.alerts || []).map(a => Object.assign({}, a, {
+        startsAtMs: atMs(a.startsAt), expiresAtMs: atMs(a.endsAt)
+      }))
       root.countryOthers = d.countryOthers || 0
     }
+  }
+
+  // ticks each minute, and at the next warning's end so it drops on time
+  readonly property real alertsNextEndMs: alertsFetched.reduce((m, a) => a.expiresAtMs !== null && a.expiresAtMs > alertsNowMs ? Math.min(m, a.expiresAtMs) : m, Infinity)
+
+  Timer {
+    interval: Math.max(1000, Math.min(root.alertsTickMs, root.alertsNextEndMs - root.alertsNowMs))
+    running: root.alertsFetched.length > 0
+    repeat: true
+    onTriggered: root.alertsNowMs = Date.now()
   }
 
   // the last published frames show at once, after a shell reload too; a fetch takes up to a minute, then replaces them
@@ -321,8 +339,10 @@ BarWidget {
                 width: parent.width
                 text: {
                   var bits = []
-                  if (Number(alertItem.modelData.startsIn) > 0) bits.push("starts in " + Util.span(alertItem.modelData.startsIn))
-                  if (alertItem.modelData.endsIn !== null) bits.push("ends in " + Util.span(alertItem.modelData.endsIn))
+                  const startsAtMs = alertItem.modelData.startsAtMs
+                  const expiresAtMs = alertItem.modelData.expiresAtMs
+                  if (startsAtMs !== null && startsAtMs > root.alertsNowMs) bits.push("starts in " + Util.span((startsAtMs - root.alertsNowMs) / 60000))
+                  if (expiresAtMs !== null) bits.push("ends in " + Util.span((expiresAtMs - root.alertsNowMs) / 60000))
                   bits.push(alertItem.modelData.scope === "here" ? "your area" : "your region")
                   if (alertItem.modelData.certainty) bits.push(String(alertItem.modelData.certainty).toLowerCase())
                   return bits.join(" :: ")

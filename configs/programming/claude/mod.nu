@@ -102,6 +102,8 @@ export def link [cfg: record] {
             (json-set [env DISABLE_ERROR_REPORTING] "1")
             (json-set [env CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY] "1")
             (json-set [attribution] {commit: "", pr: ""})
+            # ~80 l-* skills overflow the default 1% of the context, and the listing drops their descriptions
+            (json-set [skillListingBudgetFraction] 0.04)
             (json-set [modelSettings $cfg.model effortLevel] $cfg.effort)
             (json-set [hooks] (hooks-merge $current (home $AGENT_GUARD)))
             # login via credentials.json only: settings.json is shared into every identity

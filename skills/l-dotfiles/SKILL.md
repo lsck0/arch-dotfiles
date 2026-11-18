@@ -22,7 +22,7 @@ follow `MACHINE.md`: message the `arch-dotfiles-*` session with the exact need.
 ## In the checkout
 
 - Never edit a file while a `dot sync` runs: it evaluates the checkout live and then commits it. Wait for Luca's with
-  `pgrep -f '^/usr/bin/nu --no-config-file .*/scripts/dot[.]nu sync'`; a loose `pgrep -f 'dot.nu sync'` matches the
+  `pgrep -f 'nu --no-config-file \S*(scripts/dot[.]nu|bin/dot) sync'`; a loose `pgrep -f 'dot.nu sync'` matches the
   waiting shell itself and never ends.
 - A renamed or deleted file that `~/.local/bin` or a unit links into the repo leaves the command dangling until its
   module's user layer is applied (step 3; `scripts/` is the module `scripts`). `find ~/.local/bin -xtype l` lists

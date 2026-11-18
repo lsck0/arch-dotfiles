@@ -9,8 +9,10 @@ Singleton {
   property bool running: false
   property bool probed: false
   property bool connected: false
-  // streaming or recording: what is on screen may be on the stream (the desktop widgets censor themselves)
-  property bool live: false
+  property bool outputActive: false
+  // what is on screen may be on the stream (the desktop widgets censor themselves); fails closed while obs runs unreachable
+  // and before the first probe answers
+  readonly property bool live: outputActive || ((running || !probed) && !connected)
   readonly property bool listening: listenState.state === "on"
   readonly property string listenScript: listenState.path
   property var inputVolumes: ({})
@@ -59,7 +61,15 @@ Singleton {
     onExited: function(exitCode) {
       root.running = exitCode === 0
       root.probed = true
+      if (root.running && !exitWait.running) exitWait.running = true
     }
+  }
+
+  // a closing obs drops its socket and its window well before its process is gone: the censor holds until it is
+  Process {
+    id: exitWait
+    command: ["pidwait", "-x", "obs"]
+    onExited: root.probe()
   }
 
   Connections {

@@ -29,7 +29,8 @@ Three collections, each with its profile (OBS doesn't pair them; pick both):
   1 to 3 (`RecTracks=7`).
 - Private parts live in secrets: the Streaming collection in `keys/obs/Streaming.json` (its widget urls carry
   tokens), the stream art (overlays, PNGTuber gifs, badges, `.kra` sources) in `state/obs/`, referenced by absolute
-  path from the collection; the public module holds only the generic Bare and VirtualCam collections and profiles.
+  path from the collection; the public module holds no art, only the generic Bare and VirtualCam collections, the
+  profiles and obs-mcp.
 - OBS saves collection and profile over the live copies on exit: `dot apply --user creating/obs` refuses while OBS runs
   with changes. Live edits reach the repo through the `backup` verb (`dot sync`).
 - Change a profile live with `SetProfileParameter` (AdvOut is read each stream start), so the exit save matches.

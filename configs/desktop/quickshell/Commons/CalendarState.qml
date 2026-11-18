@@ -22,15 +22,26 @@ Singleton {
   // today's events are a cached or outdated answer (lab unreachable, calendar-sync stopped); the agenda says so
   property bool stale: false
 
-  // ended events drop out between two fetches
+  // the local date as the fetch's date-only all-day bounds spell it
+  function dateKey(date) {
+    return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0")
+  }
+
+  // past a rollover the fetch's `today` flags name the old day: all-day events retire at their exclusive end
   readonly property var events: {
     var out = []
+    const now = new Date(root.nowMs)
+    const rolledOver = root.fetchedDate !== "" && now.toDateString() !== root.fetchedDate
+    const todayKey = dateKey(now)
     for (let i = 0; i < root.all.length; i++) {
       let e = root.all[i]
-      // never time-drop an all-day event: its date-only start parses as UTC midnight and would vanish mid-day (and west of UTC); the next fetch retires it when the day rolls over
+      // never time-drop an all-day event: its date-only start parses as UTC midnight and would vanish mid-day (and west of UTC)
       let end = e.all_day ? NaN : Date.parse(e.end || e.start || "")
       if (!isNaN(end) && end <= root.nowMs) continue
-      out.push({ summary: String(e.summary || ""), when: root.whenText(e), allDay: !!e.all_day, today: !!e.today,
+      if (rolledOver && e.all_day && String(e.end || "") <= todayKey) continue
+      let startKey = e.all_day ? String(e.start || "") : dateKey(new Date(Date.parse(e.start || "")))
+      let today = rolledOver ? startKey <= todayKey : !!e.today
+      out.push({ summary: String(e.summary || ""), when: root.whenText(e, today), allDay: !!e.all_day, today: today,
                  marker: root.sourceMarker(e), markerColor: root.sourceColors[e.source] || Colors.textDim })
     }
     return out
@@ -44,8 +55,8 @@ Singleton {
     return String(e.source_label || e.source || ">").charAt(0).toUpperCase()
   }
 
-  function whenText(e) {
-    var day = e.today ? "" : String(e.day || "").slice(0, 3) + " "
+  function whenText(e, today) {
+    var day = today ? "" : String(e.day || "").slice(0, 3) + " "
     return day + (e.all_day ? "all day" : String(e.time || ""))
   }
 
@@ -74,6 +85,7 @@ Singleton {
     }
     onFailed: function (error) {
       root.fetchFailed = true
+      root.stale = true
       console.warn("CalendarState: task-calendar failed:", error)
     }
   }

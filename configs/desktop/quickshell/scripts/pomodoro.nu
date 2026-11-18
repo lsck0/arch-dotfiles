@@ -53,17 +53,23 @@ def timer-cancel []: nothing -> nothing {
     if ($timers | is-not-empty) { systemctl --user stop ...$timers }
 }
 
-# Nanoseconds in the unit name: two skips in one second would otherwise collide.
-def timer-arm [seconds: int]: nothing -> nothing {
+# in UTC, so a dst change or a new timezone keeps the epoch
+def timer-calendar [ends_at: int]: nothing -> string {
+    $ends_at * 1_000_000_000 | into datetime | format date '%Y-%m-%d %H:%M:%S UTC'
+}
+
+# Wall-clock like endsAt: a monotonic timer pauses in suspend and leaves the card at 00:00.
+def timer-arm [ends_at: int]: nothing -> nothing {
     timer-cancel
-    (systemd-run --user --quiet --collect $"--on-active=($seconds)s" --timer-property=AccuracySec=1s
+    (systemd-run --user --quiet --collect $"--on-calendar=(timer-calendar $ends_at)" --timer-property=AccuracySec=1s
         $"--unit=($UNIT_PREFIX)-(date now | into int)" flock (lock-path) $nu.current-exe --no-config-file
         ($env.CURRENT_FILE | path expand) locked _elapsed)
 }
 
 def phase-start [state: record, phase: string, seconds: int]: nothing -> nothing {
-    state-save ($state | merge {running: true, paused: false, phase: $phase, endsAt: ((now) + $seconds), remaining: 0})
-    timer-arm $seconds
+    let ends_at = (now) + $seconds
+    state-save ($state | merge {running: true, paused: false, phase: $phase, endsAt: $ends_at, remaining: 0})
+    timer-arm $ends_at
 }
 
 def phase-advance [--chime]: nothing -> nothing {

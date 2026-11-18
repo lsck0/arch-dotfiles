@@ -2,9 +2,11 @@ use module.nu *
 use ini.nu [ini-apply ini-rows]
 use ../../core/wallust/palette.nu [ICON_THEMES hex-rgb255 hex-to-rgb readable-on rgb-to-hex semantic shade]
 use ../../core/wallust/font.nu [font-load]
+use ../cursor/mod.nu [STOCK cursor-name]
 
 export const meta = {
     deps: [core/locale]
+    reads: [desktop/cursor]
     packages: {
         pacman: [
             ark bluedevil dolphin kdeplasma-addons kscreen plasma-desktop plasma-integration plasma-nm plasma-pa plasma-vault
@@ -45,6 +47,8 @@ const DOLPHIN_VIEW = "dolphin/view_properties/global/.directory"
 const DOLPHIN_DOCK = "dolphin/dock-state"
 const WAL_WALLPAPER = "wal/wallpaper"
 const SHELLRC = "plasmashellrc"
+# the repo holds the stock cursor; the live copy names the one desktop/cursor puts in effect
+const KCMINPUTRC = "kcminputrc"
 const SHELL_UPDATES = "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates"
 const KCONF_UPDATERC = "kconf_updaterc"
 # not *rc: rc-files would copy it whole
@@ -72,6 +76,10 @@ const VOLATILE_KEYS = [
 
 def config-path [name: string]: nothing -> path {
     $nu.home-dir | path join $CONFIG $name
+}
+
+def kcminput-cursor [name: string]: string -> string {
+    str replace --regex '(?m)^cursorTheme=.*$' $"cursorTheme=($name)"
 }
 
 def rc-files []: nothing -> list<string> {
@@ -141,7 +149,8 @@ export def link [cfg: record] {
         (ini-seed $DOLPHIN_VIEW (xdg data $DOLPHIN_VIEW))
         # no kiosk key hides dolphin's dock short of shell_access=false, which also stops it running any executable
         (ini-merge ($nu.home-dir | path join $DOLPHIN_STATE) {State: {State: (open --raw $DOLPHIN_DOCK | str trim)}})
-        (rc-files | where $it != $SHELLRC | each {|f| file-copy $f (config-path $f) })
+        (rc-files | where $it not-in [$SHELLRC $KCMINPUTRC] | each {|f| file-copy $f (config-path $f) })
+        (file-text (config-path $KCMINPUTRC) (open --raw $KCMINPUTRC | kcminput-cursor (cursor-name ($cfg.deps?."desktop/cursor"?.active? | default false))))
         (file-text (config-path $SHELLRC) (open --raw $SHELLRC | ini-apply (shell-updates-done) true))
         # kconf_update's record of the migrations it ran: the repo's configs are already migrated, so a fresh account
         # does not run them again (plasma6.0-remove-old-shortcuts would drop shortcuts the repo keeps)
@@ -325,6 +334,8 @@ export def backup [cfg: record]: nothing -> nothing {
     for f in $files {
         if (config-path $f | path exists) { cp --force (config-path $f) ($DIR | path join $f) }
     }
+    let kcminput = $DIR | path join $KCMINPUTRC
+    open --raw $kcminput | kcminput-cursor $STOCK | save --force $kcminput
     if (config-path $KCONF_UPDATERC | path exists) { kconf-back (config-path $KCONF_UPDATERC) ($DIR | path join $KCONF_SEED) }
     let globals = config-path $KDEGLOBALS
     if ($globals | path exists) {

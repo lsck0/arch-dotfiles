@@ -26,7 +26,11 @@ def themes []: nothing -> table {
 
 def background []: nothing -> any { try { open (wal-colors-file) | get special.background } }
 
-def current-mode []: nothing -> string { background | if $in == null { "dark" } else { mode-of $in } }
+def current-mode []: nothing -> string {
+    let bg = background
+    if $bg == null { error make {msg: $"no palette in (wal-colors-file), run dot theme first"} }
+    mode-of $bg
+}
 
 def distance [a: string, b: string]: nothing -> float {
     $a | hex-to-rgb | zip ($b | hex-to-rgb) | each { ($in.0 - $in.1) ** 2 } | math sum
@@ -74,8 +78,11 @@ def flip []: nothing -> nothing {
 }
 
 def "main get" [--json] {
-    let mode = current-mode
-    status-print (status-record Theme $mode --text ($mode | str capitalize) --states $MODES) $json
+    let status = try {
+        let mode = current-mode
+        status-record Theme $mode --text ($mode | str capitalize) --states $MODES
+    } catch { status-record Theme error }
+    status-print $status $json
 }
 
 # what toggle would switch to, without switching
@@ -83,7 +90,7 @@ def "main target" [] { target | to json --raw }
 
 def "main set" [mode: string] {
     state-check "theme mode" $mode $MODES
-    if $mode != (current-mode) { flip }
+    if $mode != (try { current-mode }) { flip }
 }
 
 def "main light" [] { main set light }

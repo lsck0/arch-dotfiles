@@ -1,6 +1,6 @@
 ---
 name: l-dotfiles-live-debug
-description: "Reading the live system dot manages: dot status, run logs and traces, FAILURES files, the crash record, user journals and failed units, files changed since their apply, which module wrote a file, AppArmor denials, quickshell logs, restarting a user service. Load when something on the machine misbehaves or a dot run failed, hangs or says nothing. A stopped install chain or its login banner is l-dotfiles-install."
+description: "Reading the live system dot manages: dot status, run logs and traces, FAILURES files, the crash record, user journals and failed units, files changed since their apply, which module wrote a file, AppArmor denials, quickshell logs, restarting a user service, a program that keeps crashing (core dumps), a package stuck above its repo. Load when something on the machine misbehaves or a dot run failed, hangs or says nothing. A stopped install chain or its login banner is l-dotfiles-install."
 ---
 
 # live-debug
@@ -39,6 +39,10 @@ dot module reset <file>   # back to the module's copy, the edit preserved aside
   under `runs/` there, which `dot log` merges into the run that asked for it. `dot log` with no run recorded prints a
   note. Cut-off state (the ledger's last line, a module's record, a run log line, the discover
   cache) is dropped or rescanned, a warning where it matters, never a crash.
+- `stuck` (note): a package installed above its repo's version (a beta, a downgraded mirror); `-Su` never replaces
+  it. The fix is `sudo pacman -S <name>`, Luca's.
+- `cores` (note): programs that dumped core in the last 24 h, most crashes first; `coredumpctl info <exe>` for the
+  backtrace.
 - Login banners in `/etc/issue.d/` (`dotfiles-stage`, `-config`, `-secrets`): `l-dotfiles-install`, Check the chain.
 - Exit 3 means pending, not a failure: a system part under `DOT_SYSTEM=skip` or after a dismissed pkexec prompt, or
   modules waiting on their packages (`dot status` lists them; `dot apply --packages` installs them).
@@ -91,4 +95,4 @@ added behind it in the free space.
 ## Restart
 
 `systemctl --user restart <unit>` (after `reset-failed` if it hit its start limit); quickshell via
-`configs/desktop/quickshell/restart.nu`. Never restart an app the user is working in without asking.
+`~/.config/quickshell/restart.nu` (`l-dotfiles-quickshell-dev`). Never restart an app the user is working in without asking.

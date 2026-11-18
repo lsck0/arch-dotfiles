@@ -10,6 +10,8 @@ Editing, reload, logs, screenshots: `l-dotfiles-quickshell-dev`.
 - IPC: `quickshell ipc -p ~/.config/quickshell show` lists every target; panels open with
   `quickshell ipc call shell summon <id> [json]` or `quickshell ipc call bar open <panel>`.
 - Colors come from `Colors.qml`/`Theme.qml` tokens, never hardcoded.
+- No explanatory help sentences in the UI: short labels, values, key hints (`[ESC] Dismiss`) and terse empty states
+  (`> NO TRAY ICONS`) only.
 - Launcher prefixes: `=` calc, `>` run, `@` windows, `?` keys, `:` clipboard, and the capture modes `+` task, `!`
   reminder, `#` note (through `scripts/capture.nu`); `appsearch openWith '<text>'` opens it on a mode (SUPER+i,
   SUPER+SHIFT+i for `!`).

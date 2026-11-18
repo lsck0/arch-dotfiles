@@ -136,7 +136,7 @@ Every module under `configs/`, the owner's own in `configs/secrets/` aside. A pl
 | `base` | `apparmor`, `boot/hardening`, `boot/luks`, `boot/remote-unlock`, `boot/sata`, `boot/sbctl`, `boot/systemd-boot`, `bootvine`, `cleanup`, `coredump`, `dot`, `endlessh`, `essentials`, `fail2ban`, `failure-notify`, `fancontrol`, `fprintd`, `fwupd`, `ghostmirror`, `hardening`, `hardware`, `i2c`, `lact`, `networkmanager`, `nftables`, `oomd`, `ossec`, `pacman`, `pam`, `perf`, `portmaster`, `powercap`, `protonvpn`, `protonvpn-netns`, `resolved`, `sandbox`, `scx`, `smartd`, `ssh`, `sudo`, `systemd`, `tablet`, `tlp`, `tor`, `v4l-utils`, `v4l2loopback`, `wireguard`, `xdg`, `yubikey`, `zram` |
 | `core` | `alloy`, `btop`, `cli`, `fastfetch`, `gh`, `git`, `gnupg`, `herdr`, `locale`, `nas`, `ntfy`, `nushell`, `proton/pass`, `proton/sessions`, `starship`, `syncthing`, `timezone-auto`, `tmux`, `toggles`, `trash`, `veracrypt`, `wallust`, `yazi`, `yt-dlp`, `zsh` |
 | `creating` | `apps`, `audacity`, `blender`, `gimp`, `inkscape`, `krita`, `obs`, `openscad` |
-| `desktop` | `applications`, `bookokrat`, `chromium`, `color-grading`, `dictation`, `feather`, `firefox`, `ghostty`, `gparted`, `gtk`, `hyprland`, `idle-guards`, `jdownloader`, `kdeconnect`, `kitty`, `libreoffice`, `ly`, `mpv`, `nsxiv`, `obsidian`, `oomox`, `pipewire`, `plasma`, `printing`, `qbittorrent`, `quickshell`, `qutebrowser`, `shimoji`, `thunderbird`, `uwsm`, `zathura` |
+| `desktop` | `applications`, `bookokrat`, `chromium`, `color-grading`, `cursor`, `dictation`, `feather`, `firefox`, `ghostty`, `gparted`, `gtk`, `hyprland`, `idle-guards`, `jdownloader`, `kdeconnect`, `kitty`, `libreoffice`, `ly`, `mpv`, `nsxiv`, `obsidian`, `oomox`, `pipewire`, `plasma`, `printing`, `qbittorrent`, `quickshell`, `qutebrowser`, `shimoji`, `thunderbird`, `uwsm`, `zathura` |
 | `fonts` | `fonts` |
 | `gaming` | `d2launcher`, `dalamud`, `emulators`, `ffxiv`, `gamemode`, `games`, `lutris`, `mangohud`, `modrinth`, `nethack`, `pd2`, `protonup`, `runtime`, `steam`, `vkbasalt`, `vpn-bypass`, `vr` |
 | `latex` | `latex`, `sioyek`, `zotero` |
@@ -221,6 +221,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `creating/obs.record_encoder` | `string?` | detected | The recording encoder of the Recording and Streaming profiles |
 | `creating/obs.stream_encoder` | `string?` | detected | The streaming encoder; h264 is what every ingest takes |
 | `creating/openscad.mcp` | `bool` | `true` | Register openscad-mcp with the coding agents; off, no agent session starts its server |
+| `desktop/cursor.active` | `bool` | `true` | Hyprland, X11, gtk and KDE apps take the palette's cursor; off, they keep the stock rose-pine one |
 | `desktop/hyprland.monitors` | `list<record>?` | detected | One hl.monitor per output: output, mode, position, scale; detected from the connected outputs, any other output gets its preferred mode and an auto scale |
 | `desktop/hyprland.main_monitor` | `string?` | detected | The output holding workspace 1, the bar's notifications, steam's toasts and the tablet; detected: the internal panel, else the largest, leftmost on a tie |
 | `desktop/hyprland.workspaces` | `record?` | unset | Workspace to output; detected: the first ceil(10 / outputs) on the main monitor, the rest split over the others left to right |

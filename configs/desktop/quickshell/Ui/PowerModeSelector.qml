@@ -29,7 +29,7 @@ Item {
     fill: true
     spacing: Style.spacing.xs
     options: root.modeOptions
-    value: powerMode.state === "" ? "auto" : powerMode.state
+    value: powerMode.state
     onChanged: function(value) { Quickshell.execDetached([powerMode.path, String(value)]) }
   }
 }

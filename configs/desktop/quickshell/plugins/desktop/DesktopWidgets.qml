@@ -96,9 +96,8 @@ Item {
       }
 
       // no card: the quote is set on the wallpaper itself, bottom right, in the shell's own face. It sits on the
-      // wallpaper, not on the theme, so it is always light text in a soft dark halo (a photo caption), which reads on a
-      // light theme and a busy or bright wallpaper alike without a box around it. It gives way to a bar panel, to the
-      // agenda column growing down into it, and to a wallpaper change.
+      // wallpaper, not on the theme, so it is light text, outlined and in a wide dark halo, readable on any wallpaper.
+      // It gives way to a bar panel, to the agenda column growing down into it, and to a wallpaper change.
       Column {
         id: quoteCard
         readonly property int measure: Math.min(root.quoteWidth, panel.width - root.quoteMargin * 2)
@@ -117,10 +116,11 @@ Item {
           shadowEnabled: true
           shadowColor: Colors.wallpaperShadow
           shadowOpacity: 1
+          blurMax: 48
           shadowBlur: 1
-          shadowScale: 1.02
+          shadowScale: 1.04
           shadowHorizontalOffset: 0
-          shadowVerticalOffset: 1
+          shadowVerticalOffset: 0
         }
 
         TextMetrics {
@@ -141,7 +141,10 @@ Item {
           horizontalAlignment: Text.AlignRight
           font.pixelSize: Style.font.title + 4
           lineHeight: 1.15
+          font.weight: Font.Medium
           color: Colors.wallpaperText
+          style: Text.Outline
+          styleColor: Colors.wallpaperShadow
         }
 
         SectionTitle {
@@ -149,6 +152,8 @@ Item {
           first: true
           text: root.quoteShown.author + (root.quoteShown.cite ? " \u00b7 " + root.quoteShown.cite : "")
           color: Colors.wallpaperText
+          style: Text.Outline
+          styleColor: Colors.wallpaperShadow
           wrapMode: Text.WordWrap
           horizontalAlignment: Text.AlignRight
         }

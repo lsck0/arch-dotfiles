@@ -249,7 +249,9 @@ def main [interval_s: int = 30, --clients] {
         let stamp = try { ls -l $lab_path | get 0.modified } catch { null }
         if $stamp == null or $stamp != $modified {
             let lab = try { open $lab_path } catch { null }
-            $src = if ($lab | describe) =~ '^record' and $lab.schema? == $LAB_SCHEMA { source-load $lab } else { {by_ip: {}, prometheus: ""} }
+            $src = if ($lab | describe) =~ '^record' and $lab.schema? == $LAB_SCHEMA {
+                try { source-load $lab } catch { {by_ip: {}, prometheus: ""} }
+            } else { {by_ip: {}, prometheus: ""} }
             $modified = $stamp
         }
         let line = try { sample $src } catch {|error| {ok: false, error: $error.msg} }

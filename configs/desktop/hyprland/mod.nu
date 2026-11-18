@@ -12,7 +12,7 @@ export const meta = {
         pacman: [
             app2unit bemenu-wayland brightnessctl cpio ddcutil grim hyprcursor hypridle hyprland hyprlock hyprpicker
             libnotify libx11 mission-center omarchy-share-picker-git pavucontrol playerctl polkit
-            qt5-wayland qt6-wayland rose-pine-cursor rose-pine-hyprcursor slurp wayland
+            qt5-wayland qt6-wayland slurp wayland
             wayland-boomer-git wl-clip-persist wl-clipboard xdg-desktop-portal-gtk xdg-desktop-portal-hyprland
             xdg-desktop-portal-kde xorg-server xorg-xauth xorg-xhost xorg-xinput xorg-xrdb xorg-xwayland ydotool
         ]
@@ -138,7 +138,7 @@ def instance-alive [dir: path]: nothing -> bool {
 
 # Whether a Hyprland runs for this process, adopting the live instance when the inherited signature is dead: a shell
 # (a herdr pane, a ssh login) keeps the signature of the Hyprland it was started under through a crash or a relogin.
-def --env hyprland-live []: nothing -> bool {
+export def --env hyprland-live []: nothing -> bool {
     let hypr = xdg runtime hypr
     let sig = $env.HYPRLAND_INSTANCE_SIGNATURE? | default ""
     if $sig != "" and (instance-alive ($hypr | path join $sig)) { return true }

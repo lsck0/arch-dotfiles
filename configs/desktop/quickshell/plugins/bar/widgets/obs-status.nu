@@ -3,7 +3,8 @@
 const CONFIG_RELATIVE = "obs-studio/plugin_config/obs-websocket/config.json"
 const PORT_DEFAULT = 4455
 const SUBSCRIPTIONS = 0b1001101
-const EVENTS_REPOLL = [StreamState RecordState CurrentProgramScene Exit InputMuteStateChanged]
+const EVENTS_REPOLL = [StreamState RecordState CurrentProgramScene InputMuteStateChanged]
+const EVENT_EXIT = "ExitStarted"
 const MUTE_SOURCES = {Mic: "Mic/Aux", Desktop: "Desktop Audio", Game: "Game Audio"}
 const APP_CAPTURE_KIND = "pipewire_audio_application_capture"
 const COMMANDS = {
@@ -31,6 +32,8 @@ const MAIN_JOB = 0
 const TAG_SOCKET = 1
 const TAG_EVENT = 2
 const TAG_STDIN = 3
+const ERROR_CLOSED = "connection closed"
+const ERROR_EXITING = "obs exiting"
 
 export def config-read []: nothing -> any {
     let path = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join $CONFIG_RELATIVE
@@ -43,7 +46,7 @@ def sha256-base64 []: string -> string { hash sha256 --binary | encode base64 }
 
 def socket-recv []: nothing -> record {
     let message = try { job recv --tag $TAG_SOCKET --timeout $RECV_TIMEOUT } catch { error make {msg: "obs-websocket timed out"} }
-    if $message.op == null { error make {msg: "connection closed"} }
+    if $message.op == null { error make {msg: $ERROR_CLOSED} }
     $message
 }
 
@@ -57,7 +60,7 @@ export def request [socket: int, type: string, data: record = {}]: nothing -> an
         let remaining = $deadline - (date now)
         if $remaining <= 0sec { return null }
         let reply = try { job recv --tag $TAG_SOCKET --timeout $remaining } catch { return null }
-        if $reply.op == null { error make {msg: "connection closed"} }
+        if $reply.op == null { error make {msg: $ERROR_CLOSED} }
         if $reply.d.requestId? == $id {
             return (if $reply.d.requestStatus.result { $reply.d.responseData? | default {} })
         }
@@ -103,8 +106,11 @@ def timecode-seconds []: any -> int {
 
 def snapshot [socket: int]: nothing -> record {
     let stats = request $socket GetStats | default {}
-    let stream = request $socket GetStreamStatus | default {}
-    let record = request $socket GetRecordStatus | default {}
+    # an unanswered output status must not read as off air: the widgets would uncensor on stream
+    let stream = request $socket GetStreamStatus
+    if $stream == null { error make {msg: "GetStreamStatus unanswered"} }
+    let record = request $socket GetRecordStatus
+    if $record == null { error make {msg: "GetRecordStatus unanswered"} }
     let scene = request $socket GetCurrentProgramScene | default {}
     let scenes = request $socket GetSceneList | default {}
     let apps = request $socket GetInputList {inputKind: $APP_CAPTURE_KIND} | get -o inputs | default []
@@ -219,14 +225,20 @@ def main [] {
                 if $message.stdin? != null {
                     $due = command-apply $socket $message.stdin
                 } else if $message.op == null {
-                    error make {msg: "connection closed"}
+                    error make {msg: $ERROR_CLOSED}
+                } else if $message.op == $OP_EVENT and $message.d.eventType == $EVENT_EXIT {
+                    error make {msg: $ERROR_EXITING}
                 } else if $message.op == $OP_EVENT and ($EVENTS_REPOLL | any {|prefix| $message.d.eventType | str starts-with $prefix }) {
                     $due = true
                 }
             }
         } catch {|error| $error.msg }
         try { job kill $socket }
-        $last = emit {connected: false, error: ($failure | str substring 0..<$ERROR_LENGTH_MAX)} $last
+        # obs closing or not listening yet is no fault
+        let state = if $failure in [$ERROR_CLOSED $ERROR_EXITING] { {connected: false} } else {
+            {connected: false, error: ($failure | str substring 0..<$ERROR_LENGTH_MAX)}
+        }
+        $last = emit $state $last
         sleep $backoff
         $backoff = [$RECONNECT_MAX ($backoff * $RECONNECT_GROWTH)] | math min
     }

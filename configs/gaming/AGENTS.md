@@ -8,7 +8,10 @@
   `~/sync/games/d2/Save-S14` via `ProjectDiablo.json`, no PlugY. S3 ("Project Diablo II S3") keeps PlugY and
   `~/sync/games/d2/Save`; its saves can't move to S14.
 - Gamemode and the MangoHud wrapper are a per-game Steam launch option written by `steam-launch-options.nu`, which
-  refuses while Steam runs (Steam rewrites `localconfig.vdf` on exit).
+  refuses while Steam runs (Steam rewrites `localconfig.vdf` on exit). Millennium hooks the 64-bit client through
+  `steamrt64/libXtst.so.6` -> `/run/host/usr/lib/millennium/libmillennium_bootstrap_x64.so` (pressure-vessel sees the
+  host under `/run/host`); `steam/hook/steam-bootstrap.nu` links it. A beta Millennium sorting above the release is
+  caught by `dot status` `stuck`.
 - Games bypass the VPN (`vpn-bypass`); torrents are bound to it.
 - Saves and worlds live in `~/sync`, launcher state in `configs/secrets/` via `backup`/`link`; installs are not backed
   up. `modrinth`'s backup copies `app.db` only when a login table changed (`LOGIN_TABLES`).

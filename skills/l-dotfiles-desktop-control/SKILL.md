@@ -1,6 +1,6 @@
 ---
 name: l-dotfiles-desktop-control
-description: "Driving Luca's live Hyprland desktop the way he does with keys and the bar: open a url or app, move and focus windows, workspaces, media and volume, notifications, toggles (trust network, route, tor, vpn, dnd, night light), quickshell panels, tasks, reminders and notes, screenshots, typing text, acting inside a browser page. Load when Luca asks an agent in his session (the system agent above all) to do something on his screen. Launching a program only to check it is l-dotfiles-gui-testing; changing the shell itself is l-dotfiles-quickshell-dev."
+description: "Driving Luca's live Hyprland desktop the way he does with keys and the bar: open a url or app, move and focus windows, workspaces, media and volume, notifications, toggles (trust network, route incl. tor, vpn, dnd, night light), quickshell panels, tasks, reminders and notes, screenshots, typing text, acting inside a browser page. Load when Luca asks an agent in his session (the system agent above all) to do something on his screen. Launching a program only to check it is l-dotfiles-gui-testing; changing the shell itself is l-dotfiles-quickshell-dev."
 ---
 
 # desktop-control
@@ -12,7 +12,7 @@ changes still go through the dotfiles (`l-dotfiles`); this skill is for using th
 
 - Act only on a clear ask. Never close, kill or move a window, end media or change a toggle he did not name.
 - Toggles with security weight (`toggle-route`, `toggle-vpn`, `toggle-firewall`, `toggle-trust-network`,
-  `toggle-portal`): repeat the change back and wait for his yes before running it.
+  `toggle-portal`, `toggle-anonymous-socks`): repeat the change back and wait for his yes before running it.
 - Never type passwords or secrets, never answer a sudo, polkit or YubiKey prompt: those are his.
 - Screens off (`dpmsStatus` false in `hyprctl monitors -j`) or the lock up (`qs ipc -p ~/.config/quickshell call lock
   isLocked` prints true): he is away; queue the request and tell him, never unlock or wake.
@@ -39,7 +39,7 @@ hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = "maximized", action = "toggl
 hyprctl dispatch 'hl.dsp.window.float({ action = "toggle" })'
 ```
 
-On luca-pc workspaces 1 to 4 are on DP-2 (main), 5 to 10 on DP-1. Closing a window:
+Which workspace sits on which monitor: `desktop/hyprland.workspaces` in `platforms/luca-pc.options.nuon`. Closing a window:
 `$DOTFILES/configs/desktop/hyprland/window-close.nu` acts on the focused one; focus it first, and only when he asked.
 
 ## Media, sound, screen
@@ -58,16 +58,17 @@ On luca-pc workspaces 1 to 4 are on DP-2 (main), 5 to 10 on DP-1. Closing a wind
 ## The shell (quickshell)
 
 - `qs ipc -p ~/.config/quickshell show` lists the targets. Panels: `qs ipc -p ~/.config/quickshell call bar toggle
-  <panel>`; `call bar list` prints the panels there are now (clock, weather, media, homelab, system, network,
-  display, audio-io, notifications, agents; a widget adds its own while it shows). The launcher on a mode: `call
+  <panel>`; `call bar list` prints the panels there are now (clock, weather, homelab, system, network,
+  display, audio-io, notifications, agents; media and discord only while they show). The launcher on a mode: `call
   appsearch openWith '+ '`.
 - Notify him: `notify-send -a system-agent '<title>' '<body>'` (shown in the bar; dnd holds it). Close every toast
   on screen into history: `call notifications dismissAll` (his `SUPER+SHIFT+d`).
 
 ## Toggles
 
-`scripts/toggles/status.nu` prints every toggle's state as JSON. Each is `toggle-<name>.nu [on|off|toggle]` in
-`$DOTFILES/scripts/toggles/` (route takes direct, proton, tor, offline). Read the status before and after; a toggle
+`scripts/toggles/status.nu` prints every toggle's state as JSON. Each is `$DOTFILES/scripts/toggles/toggle-<name>.nu`: on/off
+ones take `on|off|toggle`, n-state ones `set <value>` or the state itself (route `direct|proton|tor|offline`, firewall
+`permissive|default|restrictive`, powermode `auto|balanced|performance|power-saver`). Read the status before and after; a toggle
 with a root half asks for Luca's touch and fails without him: report that, never retry around it.
 
 ## Tasks, reminders, notes

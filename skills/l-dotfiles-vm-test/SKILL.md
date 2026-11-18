@@ -5,19 +5,23 @@ description: "The end-to-end test, dot test run: the lsck0 iso with an answer fi
 
 # vm-test
 
-`dot test run` runs as the user, no sudo anywhere: a `qemu:///session` VM (Secure Boot in Setup Mode from
-`OVMF_CODE.secboot.4m.fd` and a fresh `OVMF_VARS.4m.fd` copy, no TPM, 200 GiB) from the lsck0 iso plus a cd labelled
-`LSCK0` with the answers (`lsck0.nuon`, `unattended: true`), the snapshot bundle and its lfs objects. Disk, NVRAM,
-answers, serial log and the report channel all live in `$XDG_CACHE_HOME/vm-test/<name>/`. Its nic is a qemu stream
-netdev to passt, which runs inside a pasta namespace of the user's own (`network.log`): a scenario's blocked cidrs are
-unreachable routes there. The guest sees `10.0.2.15/24`, gateway `10.0.2.2` (MAC `9a:55:9a:55:9a:55`), dns
-`10.0.2.3` (passt relays it to the home router, `base/networkmanager`'s `homelab_dns`, so split horizon works as at
-home; passt skips the host's 127.0.0.53 stub) or the scenario's. It reports to a socat server on the host
-(`scripts/lib/vm/serve.sh`, the first free port from 8765, `10.0.2.2:8765` from the guest through pasta `-T`) via the
-answers' `report` url, and the chain's end also over the virtio channel `lsck0.report` (`report.log`), which no guest
-firewall stands in front of. qemu, pasta, passt, socat and the heavy host steps get nice 19 and idle io, which holds
-since `base/perf` puts flash disks on `mq-deadline`. socat and pasta keep pidfiles in the cache dir; `dot test destroy`
-and the next run stop them by pidfile and command line, so a ctrl+c leaves them only until then. Up to 12 h a run.
+`dot test run` runs as the user, no sudo anywhere. Up to 12 h a run.
+
+- The VM: `qemu:///session`, Secure Boot in Setup Mode from `OVMF_CODE.secboot.4m.fd` and a fresh `OVMF_VARS.4m.fd`
+  copy, no TPM, 200 GiB. It boots the lsck0 iso plus a cd labelled `LSCK0` with the answers (`lsck0.nuon`,
+  `unattended: true`), the snapshot bundle and its lfs objects.
+- Disk, NVRAM, answers, serial log and the report channel all live in `$XDG_CACHE_HOME/vm-test/<name>/`.
+- Network: the nic is a qemu stream netdev to passt, which runs inside a pasta namespace of the user's own
+  (`network.log`); a scenario's blocked cidrs are unreachable routes there. The guest sees `10.0.2.15/24`, gateway
+  `10.0.2.2` (MAC `9a:55:9a:55:9a:55`), dns `10.0.2.3` or the scenario's. passt relays dns to the home router
+  (`base/networkmanager`'s `homelab_dns`, so split horizon works as at home) and skips the host's 127.0.0.53 stub.
+- Reports: a socat server on the host (`scripts/lib/vm/serve.sh`, the first free port from 8765, `10.0.2.2:8765` from
+  the guest through pasta `-T`) via the answers' `report` url; the chain's end also over the virtio channel
+  `lsck0.report` (`report.log`), which no guest firewall stands in front of.
+- qemu, pasta, passt, socat and the heavy host steps get nice 19 and idle io, which holds since `base/perf` puts flash
+  disks on `mq-deadline`.
+- socat and pasta keep pidfiles in the cache dir; `dot test destroy` and the next run stop them by pidfile and command
+  line, so a ctrl+c leaves them only until then.
 
 ## Before
 
@@ -31,7 +35,7 @@ and the next run stop them by pidfile and command line, so a ctrl+c leaves them 
 ## Run
 
 ```bash
-dot test run                              # platforms/vm.nuon, login luca (--user <login>), profile luca
+dot test run                              # platforms/vm.nuon, login `USER` of vm.nu (--user <login>), profile luca
 dot test run --platform luca-notebook
 dot test run --profile custom
 dot test run --platform server

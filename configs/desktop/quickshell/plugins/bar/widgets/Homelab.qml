@@ -61,6 +61,7 @@ BarWidget {
 
   // the closed panel only feeds the bar's problem count
   readonly property int hiddenIntervalS: Power.onBattery ? 900 : 300
+  readonly property int statusRestartDelayMs: 5 * 1000
 
   function restartStatus() {
     statusProc.running = false
@@ -74,6 +75,8 @@ BarWidget {
     running: true
     streaming: true
     command: [Paths.barWidget("homelab-status.nu")].concat(panel.visible ? ["30", "--clients"] : [String(root.hiddenIntervalS)])
+    // the helper loops forever: an exit is a crash, restarted after a pause so a crash loop stays cheap
+    onRunningChanged: if (!running) statusRestart.restart()
     onParsed: function(s) {
       root.received = true
       root.ok = s.ok === true
@@ -87,6 +90,12 @@ BarWidget {
       root.lab = s
       root.updatedMs = Date.now()
     }
+  }
+
+  Timer {
+    id: statusRestart
+    interval: root.statusRestartDelayMs
+    onTriggered: if (!statusProc.running) statusProc.running = true
   }
 
   Connections {

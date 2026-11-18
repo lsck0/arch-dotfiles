@@ -13,11 +13,10 @@ const PORTMASTER_UNIT = "portmaster.service"
 # with the persona dispatcher as a pre-up hook, root stops portmaster before proton0 activates and nothing asks here
 const DISPATCHER_PRE_UP = "/etc/NetworkManager/dispatcher.d/pre-up.d/90-anonymous-persona"
 
-def radios []: nothing -> table { ^rfkill -rno ID,SOFT | lines | parse "{id} {soft}" }
+def radios []: nothing -> table { ^rfkill -rno TYPE,SOFT | lines | parse "{type} {soft}" }
 
-def offline []: nothing -> bool {
-    (^nmcli networking | complete).stdout == "disabled\n" and (try { radios } catch { [] } | all { $in.soft != unblocked })
-}
+# networking off alone: a radio unblocked meanwhile (bluetooth for headphones) leaves the machine offline
+def offline []: nothing -> bool { (^nmcli networking | complete).stdout == "disabled\n" }
 
 def proton-up []: nothing -> bool { "/sys/class/net/proton0" | path exists }
 
@@ -63,42 +62,47 @@ def proton-disconnect []: nothing -> nothing {
 
 def tor-stop []: nothing -> nothing { guards-stop $TOR_UNIT }
 
-# remembers the radios and whether wg0 was up, so leaving offline restores both
+# radio types and wg0, persistent: NM's networking off and the rfkill blocks outlast a reboot, rfkill ids may not
 def offline-enter []: nothing -> nothing {
     let vpn = (try { toggle-run vpn get | str trim }) == on
-    if $vpn { try { toggle-run vpn off } catch { print -e "offline: failed to take wg0 down, continuing" } }
+    # quiet: the route's own toast says offline; a failure still toasts
+    if $vpn {
+        try { with-env {TOGGLES_QUIET: "1"} { toggle-run vpn off } } catch { print -e "offline: failed to take wg0 down, continuing" }
+    }
     proton-disconnect
     # offline cuts every link below tor anyway: a declined password prompt must not leave the switch half done
     try { tor-stop } catch { print -e "offline: tor keeps running, its links go down anyway" }
-    # a second press while already offline would record the radios it blocked itself, and leaving would unblock none
-    let saved = state-file offline-rfkill --volatile
-    if not ($saved | path exists) {
-        radios | where soft == unblocked | get id | str join "\n" | save --force $saved
-        state-set offline-vpn (if $vpn { "on" } else { "off" }) --volatile
-    }
+    radios | where soft == unblocked | get type | uniq | str join "\n" | save --force (state-file offline-rfkill)
+    state-set offline-vpn (if $vpn { "on" } else { "off" })
     ^nmcli networking off
     ^rfkill block all
 }
 
 def offline-leave []: nothing -> nothing {
-    let saved = state-file offline-rfkill --volatile
+    let saved = state-file offline-rfkill
     # no record: leave every radio as it is, rather than lifting a block set outside this switch
-    let ids = if ($saved | path exists) { open --raw $saved | lines | where $it != "" } else { [] }
-    if ($ids | is-not-empty) { ^rfkill unblock ...$ids }
+    let types = if ($saved | path exists) { open --raw $saved | lines | where $it != "" } else { [] }
+    for type in $types { ^rfkill unblock $type }
     ^nmcli networking on
-    if (state-get offline-vpn --volatile) == on and (try { toggle-run vpn on o> /dev/null; false } catch { true }) {
+    let vpn_back = {|| try { with-env {TOGGLES_QUIET: "1"} { toggle-run vpn on o> /dev/null }; true } catch { false } }
+    if (state-get offline-vpn) == on and not (do $vpn_back) {
         notify Route "Back online, but the homelab vpn did not come back" --critical
     }
-    rm --force $saved (state-file offline-vpn --volatile)
+    rm --force $saved (state-file offline-vpn)
 }
 
 # only a user-chosen tor stops, after proton0 is up; the dispatcher stops its own
 def "main _apply" [route: string, --keep-tor]: nothing -> nothing {
     let from = current
-    if $route == $from { return }
+    # still a reply: the bar marks the route busy until the script reports back
+    if $route == $from {
+        notify Route ($ROUTES | get $route)
+        return
+    }
     let dispatcher_tor = $DISPATCHER_TOR | path exists
     try {
-        if $from == offline { offline-leave }
+        # a record outlives networking turned on outside this switch: its radios are still blocked
+        if $from == offline or (state-file offline-rfkill | path exists) { offline-leave }
         match $route {
             direct => { proton-disconnect; tor-stop }
             proton => {
@@ -108,7 +112,7 @@ def "main _apply" [route: string, --keep-tor]: nothing -> nothing {
                     try { tor-stop } catch { notify Route "ProtonVPN is up, tor keeps running beside it" }
                 }
             }
-            tor => { ^systemctl --no-ask-password start $TOR_UNIT; proton-disconnect }
+            tor => { root-run tor-start; proton-disconnect }
             offline => { offline-enter }
         }
     } catch {|err|

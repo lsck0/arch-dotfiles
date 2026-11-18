@@ -5,8 +5,17 @@ use ../lib/platform.nu [platform-load]
 # auto is no forced mode: tlp picks by the power source
 const MODES = {auto: Auto, balanced: Balanced, performance: Performance, power-saver: "Power saver"}
 const REPO = path self ../..
+# tlp's own record of a forced profile (tlp-func-base's MANUALMODEFILE): gone after any tlp start, a restart included
+const TLP_MANUAL = "/run/tlp/manual_mode"
+const TLP_PROFILES = {"0": performance, "1": balanced, "2": power-saver}
 
-def current []: nothing -> string { state-get powermode --volatile | if $in in $MODES { $in } else { "auto" } }
+# tlp's mode; its record unreadable (a root umask), the last one forced here
+def current []: nothing -> string {
+    if not ($TLP_MANUAL | path exists) { return "auto" }
+    let code = try { open --raw $TLP_MANUAL | str trim } catch { "" }
+    if $code in $TLP_PROFILES { return ($TLP_PROFILES | get $code) }
+    state-get powermode --volatile | if $in in $MODES and $in != auto { $in } else { "auto" }
+}
 
 def on-battery []: nothing -> bool {
     (platform-load $REPO).form_factor == laptop and (
@@ -44,11 +53,9 @@ def "main _apply" [mode: string]: nothing -> nothing {
     notify "Power mode" ($MODES | get $mode)
 }
 
-# auto prints empty
 def "main get" [--json] {
     let mode = current
-    if not $json { return (if $mode == auto { "" } else { $mode }) }
-    status-print (status-record "Power mode" $mode --text ($MODES | get $mode) --states ($MODES | columns)) true
+    status-print (status-record "Power mode" $mode --text ($MODES | get $mode) --states ($MODES | columns)) $json
 }
 
 # auto is a stop of its own: else the first press leaves it for good
@@ -62,6 +69,6 @@ def "main balanced" [] { main set balanced }
 def "main performance" [] { main set performance }
 def "main power-saver" [] { main set power-saver }
 def "main sync" [] { saver-sync }
-# Power mode: get [--json] prints the mode (nothing for auto), set <mode> or the mode's own name (auto, balanced,
+# Power mode: get [--json] prints the mode, set <mode> or the mode's own name (auto, balanced,
 # performance, power-saver) switches to it, toggle takes the next one, a bare call toggles.
 def main [] { main toggle }

@@ -86,7 +86,7 @@ BarWidget {
     scenes = []
     mutes = ({})
     ObsProcess.connected = false
-    ObsProcess.live = false
+    ObsProcess.outputActive = false
     ObsProcess.inputVolumes = ({})
     ObsProcess.inputMutes = ({})
   }
@@ -99,12 +99,13 @@ BarWidget {
       return
     }
     if (!ObsProcess.connected) Quickshell.execDetached([ObsProcess.listenScript, "reconcile"])
-    ObsProcess.connected = true
     streaming = payload.streaming === true
     streamReconnecting = payload.streamReconnecting === true
     recording = payload.recording === true
     recordPaused = payload.recordPaused === true
-    ObsProcess.live = streaming || recording
+    // outputActive before connected: the other order lifts the censor for a moment on every reconnect mid-stream
+    ObsProcess.outputActive = streaming || recording
+    ObsProcess.connected = true
     for (const key of numberKeys) root[key] = Number(payload[key]) || 0
     scene = String(payload.scene || "")
     if (Array.isArray(payload.scenes)) scenes = payload.scenes

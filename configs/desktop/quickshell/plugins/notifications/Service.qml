@@ -47,10 +47,10 @@ Item {
     id: persisted
     reloadableId: "quickshell-notifications"
     property bool obsSession: false
-    property bool shareSession: false
+    property int shareCount: 0
     // a share outlives a reload but not a restart: a dead shell's claim on disk is released, and since Hyprland
     // never re-announces a running share and nothing can query one, a share that spans a restart loses its DND
-    onLoaded: if (settings.dndByShare && !shareSession) service.shareSync(false) // qmllint disable unqualified
+    onLoaded: if (settings.dndByShare && shareCount === 0) service.shareSync(false) // qmllint disable unqualified
   }
 
   readonly property alias doNotDisturb: settings.dnd
@@ -86,15 +86,15 @@ Item {
     }
   }
 
-  // screencast>>1,<owner> as a share starts, screencast>>0,<owner> as it ends
+  // screencast events name no session, only its type, so a count tells the last share's end
   function shareSync(sharing) {
-    persisted.shareSession = sharing
+    persisted.shareCount = Math.max(0, persisted.shareCount + (sharing ? 1 : -1))
     if (sharing) {
       if (!settings.dnd || settings.dndByObs) { // qmllint disable unqualified
         settings.dndByShare = true // qmllint disable unqualified
         settings.dnd = true // qmllint disable unqualified
       }
-    } else {
+    } else if (persisted.shareCount === 0) {
       if (settings.dndByShare && !settings.dndByObs) settings.dnd = false // qmllint disable unqualified
       settings.dndByShare = false // qmllint disable unqualified
     }

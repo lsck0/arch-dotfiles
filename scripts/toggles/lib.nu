@@ -177,7 +177,8 @@ export def switch-run [switch: record, action: string, --json]: nothing -> any {
                 let available = do $available_get
                 status-record $switch.label (do $state_get $available) --states [off on] --available=$available
             } catch {
-                status-record $switch.label error --available=(try { do $available_get } catch { false })
+                # a probe that fails cannot say the switch is missing: shown, as an error
+                status-record $switch.label error --available=(try { do $available_get } catch { true })
             }
             status-print $status $json
         }
@@ -232,14 +233,25 @@ export def service-switch [label: string, unit: string]: nothing -> record {
     }
 }
 
+# nmcli's answer to a query; a failed one (NetworkManager down) raises its last stderr line, so a probe built on it
+# reports `error` rather than a radio off or missing.
+export def --wrapped nmcli-read [...args: string]: nothing -> string {
+    let run = ^nmcli ...$args | complete
+    if $run.exit_code != 0 {
+        let cause = $run.stderr | str trim | lines | last 1 | str join ""
+        error make {msg: (if $cause != "" { $cause } else { $"nmcli exited ($run.exit_code)" })}
+    }
+    $run.stdout
+}
+
 # A switch for an nmcli radio; on fails without the hardware, which the soft switch alone would report enabled.
 export def radio-switch [label: string, radio: string]: nothing -> record {
     let hardware = $"($radio | str uppercase)-HW"
     let types = if $radio == wwan { [gsm wwan] } else { [$radio] }
     {
         label: $label
-        available: {|| ^nmcli -t -f TYPE device | lines | any {|type| $type in $types } }
-        is-on: {|| (^nmcli -t -f $"($hardware),($radio | str uppercase)" radio | complete).stdout == "enabled:enabled\n" }
+        available: {|| nmcli-read -t -f TYPE device | lines | any {|type| $type in $types } }
+        is-on: {|| (nmcli-read -t -f $"($hardware),($radio | str uppercase)" radio) == "enabled:enabled\n" }
         on: {||
             if (^nmcli -t -f $hardware radio | str trim) != enabled {
                 error make {msg: $"no ($radio) hardware"}

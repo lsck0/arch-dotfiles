@@ -11,28 +11,40 @@ Singleton {
 
   property string pinnedPlayer: ""
 
+  readonly property string browserIntegrationBus: "plasma-browser-integration"
+
   function duplicateScore(p) {
-    // an artist marks real track metadata: plasma-browser-integration's twin of a tab can carry only the page title
-    return (p.playbackState === MprisPlaybackState.Playing ? 8 : 0) + (p.trackArtUrl ? 4 : 0)
+    // playing outweighs all metadata
+    return (p.playbackState === MprisPlaybackState.Playing ? 16 : 0) + (p.trackArtUrl ? 4 : 0)
       + (p.trackArtist ? 4 : 0) + (p.lengthSupported && p.length > 0 ? 2 : 0) + (p.trackTitle ? 1 : 0)
   }
 
-  // one player per bus, then per identity (a browser's tabs), the richest one kept; playerctld only proxies the others
+  // a browser tab without media metadata reports its site's address as the album or artist: no tag then
+  function tag(v) { return /^[a-z]+:\/\//i.test(String(v || "")) ? "" : String(v || "") }
+
+  function isBrowserIntegration(p) {
+    return String(p.dbusName || "").indexOf(browserIntegrationBus) !== -1
+  }
+
+  // one player per bus, a browser tab and its plasma-browser-integration twin folded by identity into the richer one;
+  // playerctld only proxies the others
   readonly property var players: {
     var values = Mpris.players ? Mpris.players.values : [] // qmllint disable missing-property
     var seen = ({})
-    var byIdentity = ({})
+    var kept = []
     for (let i = 0; i < values.length; i++) {
       let p = values[i]
       let bus = String(p.dbusName || "")
       let key = bus || String(p.identity || i)
       if (bus.indexOf("playerctld") !== -1 || seen[key]) continue
       seen[key] = true
-      let idKey = String(p.identity || p.dbusName).toLowerCase().trim()
-      let held = byIdentity[idKey]
-      if (!held || duplicateScore(p) > duplicateScore(held)) byIdentity[idKey] = p
+      let identity = String(p.identity || "").toLowerCase().trim()
+      let twin = identity ? kept.findIndex(held => String(held.identity || "").toLowerCase().trim() === identity
+        && (isBrowserIntegration(p) || isBrowserIntegration(held))) : -1
+      if (twin === -1) kept.push(p)
+      else if (duplicateScore(p) > duplicateScore(kept[twin])) kept[twin] = p
     }
-    return Object.values(byIdentity)
+    return kept
   }
 
   property string lastShownPlayer: ""

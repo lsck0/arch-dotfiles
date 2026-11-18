@@ -9,6 +9,14 @@ const RULES = "49-toggles.rules"
 # the helper's stamp of an authenticated lowering, and how long the rule lets the next one pass on it
 const APPROVAL_DIR = "/run/toggle-auth"
 const APPROVAL_MINUTES = 5
+const REAPPLY_UNIT = "toggles-reapply.service"
+
+export def link [cfg: record] {
+    [
+        (file-render $REAPPLY_UNIT (unit-dir | path join $REAPPLY_UNIT) {DOTFILES: $env.DOTFILES})
+        (unit-enable $REAPPLY_UNIT)
+    ]
+}
 
 export def system [cfg: record] {
     let names = {ACTION: $ACTION, HELPER: $HELPER, APPROVAL_DIR: $APPROVAL_DIR, APPROVAL_MINUTES: $APPROVAL_MINUTES}

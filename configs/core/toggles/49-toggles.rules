@@ -48,6 +48,7 @@ var VERBS_UNPROMPTED = new RegExp("^(" + [
     "firewall (restrictive|raise-default)",
     "portal off",
     "portmaster-restore",
+    "tor-start",
     "anonsocks (egress-on|nft-off|persona-off)",
     "anonsocks rate-on [0-9]{1,6} [0-9]{1,6} [0-9]{1,6}",
     "anonsocks persona-on (64|128) user\\.slice/[A-Za-z0-9@._/-]+"

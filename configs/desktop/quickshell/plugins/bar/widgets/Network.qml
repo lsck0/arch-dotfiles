@@ -29,23 +29,29 @@ BarWidget {
   hoverFill: true
   hoverCursor: Qt.ArrowCursor
 
-  // the network toggles' status records (scripts/toggles/status.nu), by name
+  // the network toggles' status records (scripts/toggles/status.nu), by name; a toggle without one is unknown ("")
+  // and claims nothing. A failed refresh keeps the last records, marked stale on the bar by their age.
   property var toggles: ({})
-  function toggleState(name, fallback) { return toggles[name] ? toggles[name].state : fallback }
-  function toggleOn(name) { return toggleState(name, "off") === "on" }
+  property real togglesUpdatedMs: 0
+  property string togglesError: ""
+  function toggleState(name) { return toggles[name] ? toggles[name].state : "" }
+  function toggleOn(name) { return toggleState(name) === "on" }
+  function toggleError(name) { return toggleState(name) === "error" }
+  // a section's header, marked when one of its toggles cannot read its state
+  function sectionError(names) { return names.some(name => toggleError(name)) }
   function toggleAvailable(name) { return !!toggles[name] && toggles[name].available }
   function toggleLabel(name, fallback) { return toggles[name] && toggles[name].label ? toggles[name].label : fallback }
   readonly property var toggleNames: ["route", "vpn", "anonymous-socks", "bluetooth", "wifi", "ethernet", "mobile", "firewall",
     "trust-network", "portal"]
 
-  readonly property string homeVpnState: toggleState("vpn", "off")
-  readonly property string route: toggleState("route", "direct")
+  readonly property string homeVpnState: toggleState("vpn")
+  readonly property string route: toggleState("route")
   readonly property bool vpnOn: homeVpnState === "on" || route === "proton"
   // traffic leaves through a tunnel: the bar glyph takes the accent
   readonly property bool tunnelled: vpnOn || route === "tor"
-  readonly property bool wifiOn: toggleState("wifi", "on") === "on"
+  readonly property bool wifiOn: toggleOn("wifi")
   readonly property bool offlineModeOn: route === "offline"
-  readonly property string firewallState: toggleState("firewall", "")
+  readonly property string firewallState: toggleState("firewall")
   readonly property bool portalOpen: toggleOn("portal")
 
   property bool detailsConnected: false
@@ -153,10 +159,17 @@ BarWidget {
     id: togglesProc
     command: [Paths.toggle("status.nu")].concat(root.toggleNames)
     onParsed: function (data) {
+      if (!Array.isArray(data)) {
+        root.togglesError = "bad json"
+        return
+      }
       var next = {}
-      for (let i = 0; i < data.length; i++) next[data[i].name] = data[i]
+      for (let i = 0; i < data.length; i++) if (data[i] && data[i].name) next[data[i].name] = data[i]
       root.toggles = next
+      root.togglesError = ""
+      root.togglesUpdatedMs = Date.now()
     }
+    onFailed: root.togglesError = "bad json"
   }
   Component.onCompleted: refreshAll()
   JsonProcess {
@@ -269,6 +282,12 @@ BarWidget {
       font.pixelSize: Style.font.icon
       layer.enabled: Style.fx.glow > 0 && root.tunnelled
       layer.effect: Glow {}
+    }
+    DataState {
+      anchors.verticalCenter: parent.verticalCenter
+      loading: togglesProc.running
+      error: root.togglesError
+      updatedMs: root.togglesUpdatedMs
     }
   }
 
@@ -486,7 +505,11 @@ BarWidget {
       }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "FIREWALL" }
+      PanelSectionHeader {
+        readonly property bool failed: root.sectionError(["firewall", "trust-network", "portal"])
+        text: "FIREWALL" + (failed ? " :: ERR" : "")
+        foreground: failed ? Colors.urgentText : Colors.accentText
+      }
       ButtonGroup {
         width: content.width
         fill: true
@@ -514,7 +537,11 @@ BarWidget {
       }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "ROUTE" }
+      PanelSectionHeader {
+        readonly property bool failed: root.sectionError(["route", "vpn", "anonymous-socks"])
+        text: "ROUTE" + (failed ? " :: ERR" : "")
+        foreground: failed ? Colors.urgentText : Colors.accentText
+      }
       // the homelab chip sits beside the routes, toggled on its own: wg0 is a full tunnel (AllowedIPs 0.0.0.0/0) through
       // the router, which reaches the lab, the house lan and the internet, so while it is up the internet goes out home
       Row {
@@ -546,17 +573,23 @@ BarWidget {
         onActivated: root.runToggle("anonymous-socks")
       }
 
-      PanelSeparator {}
-      PanelSectionHeader { text: "RADIOS" }
-      // one chip per radio, lit while it is on: four toggle rows took a row each
+      PanelSeparator { visible: radios.visibleChildren.length > 0 }
+      PanelSectionHeader {
+        readonly property bool failed: root.sectionError(["wifi", "ethernet", "mobile", "bluetooth"])
+        visible: radios.visibleChildren.length > 0
+        text: "RADIOS" + (failed ? " :: ERR" : "")
+        foreground: failed ? Colors.urgentText : Colors.accentText
+      }
+      // one chip per radio, lit while it is on: four toggle rows took a row each; a radio the machine lacks has none
       Flow {
+        id: radios
         width: content.width
         spacing: Style.spacing.xs
 
-        RadioChip { text: "WI-FI"; toggle: "wifi"; selected: root.wifiOn }
-        RadioChip { text: "ETHERNET"; toggle: "ethernet" }
+        RadioChip { visible: root.toggleAvailable("wifi"); text: "WI-FI"; toggle: "wifi"; selected: root.wifiOn }
+        RadioChip { visible: root.toggleAvailable("ethernet"); text: "ETHERNET"; toggle: "ethernet" }
         RadioChip { visible: root.toggleAvailable("mobile"); text: "MOBILE"; toggle: "mobile" }
-        RadioChip { text: "BLUETOOTH"; toggle: "bluetooth" }
+        RadioChip { visible: root.toggleAvailable("bluetooth"); text: "BLUETOOTH"; toggle: "bluetooth" }
       }
 
       PanelSeparator {}

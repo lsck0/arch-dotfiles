@@ -1,6 +1,6 @@
 ---
 name: l-dotfiles-gui-testing
-description: The one procedure for launching an app, game, editor or viewer only to screenshot or check it, with muted audio and clean teardown; on Hyprland 0.57 a headless output can kill Luca's live apps, so ask him first. Load before any agent starts a GUI program the user is not watching.
+description: The one procedure for launching an app, game, editor or viewer only to screenshot or check it, with muted audio and clean teardown; on Hyprland 0.57 a headless output can kill Luca's live apps, so ask him first. Load before any agent starts a GUI program the user is not watching, or a nested compositor (Hyprland, Plasma) to test a session.
 ---
 
 # gui-testing
@@ -22,8 +22,8 @@ headless output of the agent's own, created only after Luca agreed (Never, first
 - `pkill -f <pattern>`: it matches the agent's own shell. Kill by PID.
 - A Flatpak or other xdg-desktop-portal app on a headless output of the live session: its dialogs go through the
   user's portals, and an output removed under an open one leaves xdg-desktop-portal-kde hung, so every file dialog in
-  the session freezes. Such apps run only in a nested Hyprland with its own `dbus-run-session`; after any GUI test,
-  `busctl --user call org.freedesktop.impl.portal.desktop.kde /org/freedesktop/portal/desktop
+  the session freezes. Such apps run only in a nested Hyprland with its own private dbus-daemon on `$rt/bus`; after
+  any GUI test, `busctl --user call org.freedesktop.impl.portal.desktop.kde /org/freedesktop/portal/desktop
   org.freedesktop.DBus.Peer Ping` must answer.
 - Removing an output you did not create.
 
@@ -63,15 +63,17 @@ grim -o HEADLESS-N /tmp/<agent>-shot.png
 
 ## Apps that escape the exec rule
 
-The workspace rule holds only for what the started pid maps. Re-exec wrappers (`soffice`), splash then main window
-(GIMP), parentless X11 dialogs (HexChat's Network List at global 0,0) can land on the user's screen. Two paths:
+The workspace rule holds only for what the started pid maps. Re-exec wrappers (`soffice`, `dbus-run-session`, any
+launcher that forks), splash then main window (GIMP), parentless X11 dialogs (HexChat's Network List at global 0,0) can
+land on the user's screen. Exec the GUI binary itself; a bus it needs is started beforehand, never wrapped around it.
+Two paths:
 
 - The real binary. LibreOffice: `/usr/lib/libreoffice/program/soffice.bin --writer
   -env:UserInstallation=file://$HOME/.config/libreoffice/<agent>`; a fresh profile exits once to restart, so launch
   twice.
 - Otherwise a nested Hyprland on your workspace (about 940x490 on a scale-2 headless output). It runs on a private
-  runtime dir `$rt` that links only the outer compositor's socket and pulse, so the compositor, its `dbus-run-session`
-  portals (`$rt/doc`) and everything started inside stay off the user's `/run/user/$UID`. Keep the path short: a
+  runtime dir `$rt` that links only the outer compositor's socket and pulse, so the compositor, its own private
+  dbus-daemon on `$rt/bus`, its portals (`$rt/doc`) and everything started inside stay off the user's `/run/user/$UID`. Keep the path short: a
   socket path over 108 bytes fails, so never the scratchpad. A window rule under test goes into its config:
 
 ```bash
@@ -81,7 +83,8 @@ cat > /tmp/<agent>-nested.lua <<'EOF'
 hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
 hl.config({ misc = { disable_hyprland_logo = true, disable_splash_rendering = true }, ecosystem = { no_update_news = true } })
 EOF
-hyprctl dispatch "hl.dsp.exec_cmd('sh -c \"exec env -u HYPRLAND_INSTANCE_SIGNATURE -u DISPLAY XDG_RUNTIME_DIR=$rt dbus-run-session Hyprland -c /tmp/<agent>-nested.lua\"', { workspace = '<ws> silent' })"
+XDG_RUNTIME_DIR=$rt dbus-daemon --session --fork --print-pid --address=unix:path=$rt/bus > $rt/dbus.pid
+hyprctl dispatch "hl.dsp.exec_cmd('sh -c \"exec env -u HYPRLAND_INSTANCE_SIGNATURE -u DISPLAY XDG_RUNTIME_DIR=$rt DBUS_SESSION_BUS_ADDRESS=unix:path=$rt/bus Hyprland -c /tmp/<agent>-nested.lua\"', { workspace = '<ws> silent' })"
 timeout 10 sh -c "until [ -S $rt/hypr/*/.socket.sock ]; do sleep 0.2; done"
 nested=$(ls $rt/hypr)
 XDG_RUNTIME_DIR=$rt HYPRLAND_INSTANCE_SIGNATURE=$nested hyprctl dispatch "hl.dsp.exec_cmd('env PULSE_SINK=agent-null <app>')"
@@ -93,6 +96,11 @@ XDG_RUNTIME_DIR=$rt HYPRLAND_INSTANCE_SIGNATURE=$nested hyprctl clients -j | jq 
   called as in the next section.
 - The nested compositor is the `aquamarine` client in the outer `hyprctl clients -j`: check its `monitor` is your
   output's id, as for any app, kill the apps inside, then it.
+- A nested Plasma: `kwin_wayland --width W --height H --xwayland --socket <name> --exit-with-session plasmashell`,
+  exec'd directly the same way on the same `$rt` and private bus. KWin and plasmashell rewrite KDE files in
+  `~/.config` (`kwinrc`, `kglobalshortcutsrc`, `kwinoutputconfig.json`, `plasma-org.kde.plasma.desktop-appletsrc`,
+  `kcminputrc`, `kdeglobals`, `plasmashellrc`): `cp -a` them aside first and restore them after teardown. Its
+  `kdeconnectd`, `kactivitymanagerd` and `xdg-desktop-portal-kde` outlive it: kill them by PID.
 - Confined apps write only where their AppArmor profile allows: zathura's `-c` as `~/.config/zathura/<agent>`,
   chromium's `--user-data-dir` as `/tmp/.org.chromium.Chromium.<agent>`. Remove state an app keeps across runs
   (zathura's `~/.local/share/zathura/bookmarks.sqlite`) with the test files.
@@ -102,7 +110,7 @@ XDG_RUNTIME_DIR=$rt HYPRLAND_INSTANCE_SIGNATURE=$nested hyprctl clients -j | jq 
 The shell keeps state under `$XDG_RUNTIME_DIR` (`quickshell/`, `toggles/`, cava's config). `Lock.qml` writes its
 crash-recovery marker `$XDG_RUNTIME_DIR/quickshell/locked` while locked: a test shell on the real runtime dir that
 locks and is killed leaves `/run/user/$UID/quickshell/locked`, and the user's live shell locks the screen on its next
-start. A test quickshell runs only inside the nested `dbus-run-session` Hyprland, which hands it `$rt` (a private
+start. A test quickshell runs only inside the nested Hyprland with its own private dbus-daemon on `$rt/bus`, which hands it `$rt` (a private
 runtime dir keeps it off the user's state, not off the user's session bus: `l-dotfiles-quickshell-dev`).
 
 ```bash
@@ -126,7 +134,7 @@ hyprctl output remove HEADLESS-N
 
 Only your own output and sink. A killed test quickshell leaves every helper it started running, reparented to
 `systemd --user`: take `pgrep -P $(cat $qspidfile)` before `kill $(cat $qspidfile)`, then kill by PID the ones still
-alive. No nested Hyprland outlives the test. Then `rm -r $rt $qspidfile` (a still mounted `$rt/doc` first
+alive. No nested compositor outlives the test. Then `kill $(cat $rt/dbus.pid)` and `rm -r $rt $qspidfile` (a still mounted `$rt/doc` first
 `fusermount3 -u $rt/doc`), and with the test files the per-agent app state:
 `rm -r ~/.config/libreoffice/<agent> ~/.config/zathura/<agent>` and zathura's `bookmarks.sqlite`.
 

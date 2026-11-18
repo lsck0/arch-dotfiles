@@ -13,6 +13,8 @@ const WITNESS = path self ../.. | path join $OWNER_WITNESS
 const MODULE = "base/networkmanager"
 const KEY = "trusted_gateways"
 const OPTION = $"($MODULE).($KEY)"
+# the links 70-home-network decided home; trusted too, but by home_gateways, which this switch does not change
+const HOME_NETWORK = "/run/home-network"
 
 # The physical link of the default route and its gateway's mac, null without one.
 def uplink []: nothing -> any {
@@ -24,6 +26,13 @@ def uplink []: nothing -> any {
     if $mac == null { return null }
     {dev: $route.dev, mac: ($mac | str lowercase)}
 }
+
+def home-links []: nothing -> list<string> {
+    if ($HOME_NETWORK | path exists) { open --raw $HOME_NETWORK | lines } else { [] }
+}
+
+# Home is not this switch's to take back: hidden there (available false), not on with an off that fails.
+def uplink-switchable []: nothing -> bool { let link = uplink; $link != null and $link.dev not-in (home-links) }
 
 def option-listed []: nothing -> list<string> { option-value $MODULE $KEY | str lowercase }
 
@@ -64,6 +73,7 @@ def store [gateways: list<string>]: nothing -> any {
 def link []: nothing -> record {
     let link = uplink
     if $link == null { error make {msg: "no wired or wifi link with a gateway"} }
+    if $link.dev in (home-links) { error make {msg: $"($link.dev) is home, set by home_gateways"} }
     $link
 }
 
@@ -71,7 +81,7 @@ def link []: nothing -> record {
 def main [action: string = "toggle", --json] {
     switch-run {
         label: "Trusted network"
-        available: {|| uplink | is-not-empty }
+        available: {|| uplink-switchable }
         is-on: {|| let link = uplink; $link != null and $link.dev in (trusted-links) }
         on: {||
             # a rejoined wifi has a random mac: storing a listed one again reruns the home step
@@ -83,7 +93,7 @@ def main [action: string = "toggle", --json] {
             let mac = (link).mac
             if $mac not-in $gateways {
                 error make {msg: (if (secret-is-plaintext $WITNESS) {
-                    "home by home_gateways or configs/secrets/keys/home-gateways, not a trusted network"
+                    $"gateway ($mac) is not on the trusted list"
                 } else {
                     "configs/secrets is locked: unlock it to change the trusted list"
                 })}

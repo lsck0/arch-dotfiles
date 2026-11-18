@@ -116,12 +116,12 @@ export def packages [cfg: record]: nothing -> record {
     `--if-running` leaves a stopped one stopped), `dropin <unit> <src> [--name]`,
     `user-hook <name> <script> --watch [paths] [--permanent] [--no-brake] [--mkdir]`.
   - actions: `exec <name> [argv]`, `step <command> [args]` (an own export, run at apply time). Either is recorded
-    with any of `--creates <path>`, `--key <string>` (it runs again when the key differs from the one it last ran
-    with: a version, a hash the module already computes), `--done` (an eval-time "already so", e.g.
-    `--done=($ref == $COMMIT)`) or `--undo [argv]` (run from the state dir, before the module's other actions, once
-    the verb no longer returns it: the module off or gone, but also a verb that returns `[]` on a passing condition,
-    so an action with an undo is never left out on secrets locked; an undo whose command is gone counts as done).
-    Never a stamp file of its own. Name an action by its version
+    with any of `--creates <path>`, `--key <string>`, `--done` or `--undo [argv]`. `--key` runs it again when the key
+    differs from the one it last ran with (a version, a hash the module already computes). `--done` is an eval-time
+    "already so", e.g. `--done=($ref == $COMMIT)`. `--undo` runs from the state dir, before the module's other
+    actions, once the verb no longer returns the action: the module off or gone, but also a verb that returns `[]` on
+    a passing condition. So an action with an undo is never left out on secrets locked; an undo whose command is gone
+    counts as done. Never a stamp file of its own. Name an action by its version
     (`exec $"flux-toolchain ($channel)" ... --undo [rustup toolchain uninstall $channel]`) and a bump replaces it: the
     old name's undo runs first. `exec --then [argv]` runs after it went through.
   - reactions: a `--then` runs once per module run after every action, however many declarations carry the same

@@ -185,10 +185,12 @@ def series-pick [source: record, variables: record, index: int]: nothing -> reco
     $variables | items {|key, variable| {$key: ($source | get -o $variable | get -o $index | default 0)} } | into record
 }
 
-# Relative, so it cannot hint the timezone.
-def iso-to-minutes [value: any]: nothing -> any {
-    try { ($value | into datetime) - (date now) | $in / 1min | math round } catch { null }
+# Unix seconds: absolute, so a cached reply stays right, and zoneless, so it cannot hint the timezone.
+def iso-to-epoch [value: any]: nothing -> any {
+    try { $value | into datetime | into int | $in // 1_000_000_000 } catch { null }
 }
+
+def epoch-now []: nothing -> int { date now | into int | $in // 1_000_000_000 }
 
 def radar-span-km [lat: float]: nothing -> int {
     $RADAR_SIZE_PX * $MERCATOR_Z0_M_PER_PX * ($lat | math cos -d) / (2 ** $RADAR_ZOOM) / 1000 | math round
@@ -450,10 +452,18 @@ def alert-info-pick [alert: record]: nothing -> any {
     $english | append $infos | get 0?
 }
 
+# A cached reply without the warnings that ended since it was written; one from before startsAt/endsAt is a miss.
+export def alerts-current [now: int]: any -> any {
+    let reply = $in
+    if ($reply.alerts? | default [] | any {|alert| 'endsAt' not-in ($alert | columns) }) { return null }
+    $reply | upsert alerts { $in | where {|alert| $alert.endsAt == null or $alert.endsAt > $now } }
+}
+
 def alerts-get []: nothing -> record {
     let cache = cache-path weather-alerts.json
     let cached = cache-load $cache $FEED_MAX_AGE
-    if $cached != null { return $cached }
+    let current = if $cached != null { $cached | alerts-current (epoch-now) }
+    if $current != null { return $current }
     let location = location-resolve
     if $location == null { return (failure "no location") }
     let lat = $location.lat | into float
@@ -501,10 +511,10 @@ def alerts-get []: nothing -> record {
             if $scope == "here" or ($polygons | any { polygon-contains $in $lat $lon }) { "here" } else if (
                 $mine | is-not-empty) and ($names | any { $in in $mine }) { "region" } else { $scope }
         }
-        let ends_in = iso-to-minutes $info.expires?
+        let ends_at = iso-to-epoch $info.expires?
         let awareness = alert-awareness $info
-        if ($ends_in == null or $ends_in >= 0) and $awareness.level >= $ALERT_LEVEL_MIN {
-            {info: $info, scope: $scope, ends_in: $ends_in} | merge $awareness
+        if ($ends_at == null or $ends_at > (epoch-now)) and $awareness.level >= $ALERT_LEVEL_MIN {
+            {info: $info, scope: $scope, ends_at: $ends_at} | merge $awareness
         }
     } | compact
     let alerts = $candidates | where scope != ""
@@ -519,8 +529,8 @@ def alerts-get []: nothing -> record {
             colour: $c.colour
             kind: $c.kind
             scope: $c.scope
-            startsIn: (iso-to-minutes ([$c.info.onset? $c.info.effective?] | compact -e | get 0?))
-            endsIn: $c.ends_in
+            startsAt: (iso-to-epoch ([$c.info.onset? $c.info.effective?] | compact -e | get 0?))
+            endsAt: $c.ends_at
         }
     } | sort-by -c {|a, b|
         if $a.level != $b.level { $a.level > $b.level } else { $a.scope == "here" and $b.scope != "here" }
