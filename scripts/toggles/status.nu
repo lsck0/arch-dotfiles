@@ -13,7 +13,9 @@ def main [...names: string, --options] {
     }
     $scripts | par-each {|script|
         let name = $script | path parse | get stem | str replace --regex '^toggle-' ''
-        let reply = ^$script get --json | complete
+        # a script that cannot start (missing or rewritten mid-sync) raises instead of exiting: one toggle's error, not
+        # the whole list's
+        let reply = try { ^$script get --json | complete } catch { {exit_code: 127, stdout: ""} }
         # empty stdout parses as null without raising: a toggle that broke shows as an error, not as nothing
         let parsed = if $reply.exit_code == 0 { try { $reply.stdout | from json } catch { null } }
         let toggle = $parsed | default {name: $name, label: $name, state: error, text: error, states: [], on: false, available: true}
