@@ -49,7 +49,7 @@ def rule-allowlist []: nothing -> nothing {
     let lowering = rule-verbs VERBS_LOWERING
     let cases = [
         [verb unprompted lowering];
-        ["tlp balanced" true false] ["tlp start" true false] ["wg down" true false] ["vllm on" true false]
+        ["tlp balanced" true false] ["tlp start" true false] ["wg down" true false] ["vllm on" true false] ["ollama off" true false]
         ["firewall restrictive" true false] ["firewall raise-default" true false] ["portal off" true false]
         ["portmaster-restore" true false] ["tor-start" true false]
         ["anonsocks nft-off" true false] ["anonsocks rate-on 9061 10 5" true false]

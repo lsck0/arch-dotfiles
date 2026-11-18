@@ -28,7 +28,7 @@ const APPROVAL_MINUTES = "@APPROVAL_MINUTES@"
 const APPROVAL_MARGIN = 5sec
 
 def usage []: nothing -> nothing {
-    print -e ("usage: toggle-root {tlp MODE|start|wg up|down|vllm on|off|firewall STATE|raise-default|"
+    print -e ("usage: toggle-root {tlp MODE|start|wg up|down|vllm on|off|ollama on|off|firewall STATE|raise-default|"
         + "portmaster-restore|portal on|off|tor-start|guard-stop UNIT...|anonsocks VERB...}")
     exit 1
 }
@@ -242,6 +242,17 @@ def main [...args: string] {
                 off => {
                     ^systemctl disable --now vllm.socket
                     ^systemctl stop vllm-proxy.service vllm.service
+                }
+                _ => { usage }
+            }
+        }
+        # socket-activated like vllm: off has to take the socket too, or the next request starts it again
+        [2, "ollama"] => {
+            match $args.1 {
+                on => { ^systemctl enable --now ollama.socket }
+                off => {
+                    ^systemctl disable --now ollama.socket
+                    ^systemctl stop ollama.service
                 }
                 _ => { usage }
             }

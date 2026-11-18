@@ -45,6 +45,7 @@ var VERBS_UNPROMPTED = new RegExp("^(" + [
     "tlp (balanced|performance|power-saver|start)",
     "wg (up|down)",
     "vllm (on|off)",
+    "ollama (on|off)",
     "firewall (restrictive|raise-default)",
     "portal off",
     "portmaster-restore",
