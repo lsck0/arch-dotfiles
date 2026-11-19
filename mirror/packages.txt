@@ -447,6 +447,7 @@ minder
 minecraft-launcher
 mingw-w64-gcc
 minikube
+minisign
 mission-center
 mitmproxy
 mkcert
