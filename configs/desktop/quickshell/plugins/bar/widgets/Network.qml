@@ -104,7 +104,7 @@ BarWidget {
   function panelOpened() {
     var now = Date.now()
     wifiShowAll = false
-    if (now - lastRefreshMs >= refreshMinAgeMs) refreshAll()
+    if (now - lastRefreshMs >= refreshMinAgeMs || togglesError !== "") refreshAll()
     else detailsProc.run()
     refreshWifiList(now - lastScanMs >= refreshMinAgeMs)
   }
@@ -158,11 +158,15 @@ BarWidget {
   JsonProcess {
     id: togglesProc
     command: [Paths.toggle("status.nu")].concat(root.toggleNames)
+    // a run at login can die before the session is up; without a retry the bar keeps "x ERR" until a network event
+    retryDelaysMs: [2, 5, 10, 30, 60].map(function (s) { return s * 1000 })
     onParsed: function (data) {
       if (!Array.isArray(data)) {
         root.togglesError = "bad json"
+        togglesProc.retryStart()
         return
       }
+      togglesProc.retryStop()
       var next = {}
       for (let i = 0; i < data.length; i++) if (data[i] && data[i].name) next[data[i].name] = data[i]
       root.toggles = next
