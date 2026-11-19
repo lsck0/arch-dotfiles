@@ -217,8 +217,8 @@
       "versioned_id": "pipewire_audio_application_capture",
       "settings": {
         "TargetName": "wine64-preloader",
-        "ExceptApp": true,
         "CaptureMode": 1,
+        "ExceptApp": true,
         "apps": [
           {
             "value": "wine64-preloader",

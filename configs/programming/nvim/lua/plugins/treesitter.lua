@@ -18,6 +18,12 @@ return {
                 pattern = "TSUpdate",
                 callback = function()
                     local parsers = require("nvim-treesitter.parsers")
+                    -- nyangine's plugin owns the grammar's path; its own TSUpdate hook fires while this module is still
+                    -- loading and is lost, so the parser installed for nya would fail every update
+                    local has_nya, nya = pcall(require, "nyangine.treesitter")
+                    if has_nya then
+                        parsers.nya = { install_info = { path = nya.grammar_directory(), queries = "queries" } }
+                    end
                     -- kulala.nvim registers kulala_http only while installing it; once installed the updater
                     -- would fail on it ("Parser not available"), so its config lives here too
                     local kulala = vim.fs.joinpath(vim.fn.stdpath("data"), "lazy", "kulala.nvim", "lua", "tree-sitter")
