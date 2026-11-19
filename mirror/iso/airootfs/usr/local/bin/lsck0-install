@@ -84,7 +84,7 @@ const TEXT = {
     no_link: "no network: plug in a cable or pick a Wi-Fi network"
     no_address: "{devices} is up but has no address yet"
     no_answer: "{host} does not answer over https"
-    lab_down: "install: the homelab mirror ({host}) does not answer: a generic install goes on without its [lsck0] repo, an owner install stops at pacstrap"
+    lab_down: "install: the homelab mirror ({host}) does not answer: a generic install goes on without its [lsck0] repo, an owner install stops before touching the disk"
 }
 
 def text-fill [text: string, values: record]: nothing -> string {

@@ -5,7 +5,9 @@ const RESCAN_SETTLE = 1.5sec
 # The ssids NM has a profile for: those connect with the saved secret, no password asked.
 def known-ssids []: nothing -> list<string> {
     ^nmcli -t -f TYPE,UUID connection show | lines | where $it starts-with "802-11-wireless:"
-    | each { split row ":" | last } | each {|uuid| ^nmcli -g 802-11-wireless.ssid connection show $uuid | str trim }
+    | each { split row ":" | last }
+    # unescaped (-g escapes ':' and '\'), and only the newline trimmed: an ssid may start or end with a space
+    | each {|uuid| ^nmcli --escape no -g 802-11-wireless.ssid connection show uuid $uuid | str trim --right --char "\n" }
 }
 
 def main [mode?: string] {

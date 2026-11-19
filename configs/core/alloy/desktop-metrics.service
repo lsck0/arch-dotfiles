@@ -5,6 +5,8 @@ ConditionPathIsDirectory=/var/lib/node-textfile
 
 [Service]
 Type=oneshot
+# oneshot has no start timeout: a hung run would hold the unit activating and stop the timer
+TimeoutStartSec=1min
 Nice=10
 ExecStart=/usr/local/bin/desktop-metrics system
 ProtectSystem=strict

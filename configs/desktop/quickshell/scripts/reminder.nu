@@ -198,7 +198,7 @@ def "main _fire" [unit: string]: nothing -> nothing {
     let body = if ($record.missed? | default false) { $"missed at (epoch-format-time $record.at)" } else if $record.clock {
         $"reminder for (epoch-format-time $record.at)"
     } else { $"(unit-minutes $unit) minute reminder" }
-    ^$ALERT $title $body $BELL_GLYPH reminder $record.message
+    ^$ALERT ({title: $title, body: $body, glyph: $BELL_GLYPH, kind: reminder, message: $record.message} | to json -r)
     rm -f (record-path $unit)
     index-write
 }

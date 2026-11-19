@@ -6,8 +6,13 @@ const WRAPPER = "/usr/local/bin/gparted-run"
 const ACTION = "dev.lsck0.gparted.run"
 const POLICY = "dev.lsck0.gparted.policy"
 
+# root's detect sees no live Hyprland and falls back to the form factor's scale: the user layer, which sees the
+# session's, hands it to the wrapper as its first argument
 export def link [cfg: record] {
-    desktop-override gparted.desktop { str replace --all --regex '(?m)^Exec=.*gparted.*$' $'Exec=pkexec ($WRAPPER) %f' }
+    let scale = xwayland-scale-for $cfg
+    desktop-override gparted.desktop {
+        str replace --all --regex '(?m)^Exec=.*gparted.*$' $'Exec=pkexec ($WRAPPER) ($scale) %f'
+    }
 }
 
 export def system [cfg: record] {

@@ -958,6 +958,8 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
     # a closure captures no mut
     let c = $c
     let disk = $c.disk
+    # a homelab machine's install needs [lsck0]: with the lab down it dies here, before the disk is touched
+    if $c.homelab and ($PACMAN_CONF | path exists) { pacman-conf-lsck0 (open --raw $PACMAN_CONF) true {|| lsck0-reachable } | ignore }
     let parts = span partition {} {
         ^umount -R $MOUNT | complete | ignore
         ^cryptsetup close $LUKS_NAME | complete | ignore

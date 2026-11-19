@@ -25,6 +25,8 @@ const USER_METRICS = [
     dot_check_failed desktop_failed_units
 ]
 const USER_LABELS = [layer verb check manager]
+# a login's file is a few kilobytes
+const USER_FILE_MAX = 1_000_000
 # a run log per dot command; the newest are enough for each verb's last outcome
 const RUNS_READ = 60
 const CRASH_WINDOW = "-30d"
@@ -105,23 +107,34 @@ def run-metrics [dir: path, layer: string]: nothing -> list<record> {
     $per_verb ++ $failures
 }
 
-# The rows a login left in its runtime dir: only from a file it owns, only USER_METRICS with numeric values, labels
-# limited to USER_LABELS, and `user` set here from the owner.
+# The rows a login left in its runtime dir: only from a regular file it owns (no link, no fifo), only USER_METRICS with
+# numeric values, labels limited to USER_LABELS with scalar values, and `user` set here from the owner. Any other
+# shape drops that login's rows, never the run.
 def user-rows []: nothing -> list<record> {
     if not ($RUNTIME_ROOT | path exists) { return [] }
     ls $RUNTIME_ROOT | where type == dir | each {|dir|
         let uid = $dir.name | path basename
         let file = $dir.name | path join $USER_FILE
         if not ($uid =~ '^[0-9]+$') or not ($file | path exists) { return [] }
-        let owner = ^stat -c %u $file | str trim
+        # not followed: the type and owner are the file's own
+        let info = ^stat -c '%u|%F|%s' -- $file | complete | get stdout | str trim | split row "|"
         let login = ^getent passwd $uid | complete | get stdout | split row ":" | get --optional 0 | default ""
-        if $owner != $uid or $login == "" { return [] }
-        let rows = try { open --raw $file | from json } catch { [] }
-        $rows | where {|r| ($r.name? in $USER_METRICS) and (($r.value? | describe) in [int float]) } | each {|r|
-            let labels = $r.labels? | default {} | transpose key value | where key in $USER_LABELS
-                | reduce --fold {} {|kv, acc| $acc | insert $kv.key ($kv.value | into string) }
-            metric $r.name gauge ($labels | insert user $login) $r.value
-        }
+        if ($info | length) != 3 or $info.0 != $uid or $info.1 != "regular file" or $login == "" { return [] }
+        if ($info.2 | into int) > $USER_FILE_MAX { return [] }
+        try {
+            let rows = open --raw $file | from json
+            if ($rows | describe) !~ '^(list|table)' { return [] }
+            $rows | where {|r|
+                ($r | describe) =~ '^record' and ($r.name? in $USER_METRICS) and (($r.value? | describe) in [int float])
+            } | each {|r|
+                let given = $r.labels? | default {}
+                let given = if ($given | describe) =~ '^record' { $given } else { {} }
+                let labels = $given | transpose key value
+                    | where {|kv| $kv.key in $USER_LABELS and (($kv.value | describe) in [string int float]) }
+                    | reduce --fold {} {|kv, acc| $acc | insert $kv.key ($kv.value | into string) }
+                metric $r.name gauge ($labels | insert user $login) $r.value
+            }
+        } catch { [] }
     } | flatten
 }
 

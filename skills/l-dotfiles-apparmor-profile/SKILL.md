@@ -39,7 +39,8 @@ is `enforce`; `apparmor.test.nu` fails otherwise. Luca backs one off on one mach
    sudo install -m644 configs/base/apparmor/local/<p> /etc/apparmor.d/local/<p>
    sudo apparmor_parser -r /etc/apparmor.d/<file>
    ```
-   `<file>` is `<p>.dotfiles` for an own profile (in `profiles/`), else `<p>.apparmor.d` if it exists, else `<p>`.
+   `<file>` is `<p>.dotfiles` when `/etc/apparmor.d/<p>.dotfiles` exists (an own profile: `profiles/<p>` or an
+   `OVERRIDES` entry in `mod.nu`), else `<p>.apparmor.d` if it exists, else `<p>`.
    Never reload the bare `<p>` of an own profile: it is the stock unconfined stub and replaces the enforced one.
    Then still `dot apply --system`.
 5. Retry and recheck the log.

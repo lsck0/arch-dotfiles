@@ -97,8 +97,19 @@ def rate-cap-compare []: nothing -> nothing {
     }
 }
 
+# llm/ollama and llm/vllm declare their sockets enabled: a toggle that enables or disables them fights the next apply.
+def llm-toggles-runtime-only []: nothing -> nothing {
+    let helper = open --raw $HELPER
+    for unit in [vllm ollama] {
+        let branch = $helper | parse --regex ('(?s)\[2, "' + $unit + '"\] => \{(?<body>.*?)\n        \}') | get 0?.body
+        if $branch == null { fail $"no ($unit) branch" }
+        if $branch =~ 'systemctl (enable|disable)' { fail $"($unit) must start and stop its socket, never enable or disable it" }
+    }
+}
+
 def main [] {
     helper-refuses
     rule-allowlist
     rate-cap-compare
+    llm-toggles-runtime-only
 }

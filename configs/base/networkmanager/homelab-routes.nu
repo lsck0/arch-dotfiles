@@ -38,6 +38,8 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
     let metric = $lab.HOMELAB_UNREACHABLE_METRIC? | default ""
 
     if $action == down {
+        # wg0 gone while away: the plain-http lab mirror must not stay first on a foreign link
+        if $iface == $WG_IFACE and (file-lines $HOME_NETWORK | is-empty) { mirror-place "" }
         out ip route flush table $TABLE dev $iface | ignore
         if (out ip route show table $TABLE | is-not-empty) { return }
         for net in $nets { out ip rule del to $net lookup $TABLE priority $PRIORITY | ignore }

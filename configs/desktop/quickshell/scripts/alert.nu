@@ -11,14 +11,16 @@ const SOUND_TIMEOUT = "3s"
 # NotificationLogic.js ALERT_APP: kept in history and, critical, shown through dnd until dismissed
 const FALLBACK_APP = "alert"
 
-# untyped: nu parses a lone argv word true, false or a number as that value, which a string parameter refuses
-def main [title?, body?, glyph?, kind?, snooze_message?] {
-    let text = {|value, fallback| $value | default $fallback | into string }
-    let title = do $text $title "Reminder"
-    let body = do $text $body ""
-    let glyph = do $text $glyph $GLYPH_BELL
-    let kind = do $text $kind ""
-    let snooze_message = do $text $snooze_message ""
+# payload: {title, body, glyph, kind, message} as json, one argv word that starts with '{': nu re-parses an argv word
+# that starts with '-' as flags, even after --, so free text never goes as a positional of its own
+def main [payload?: string] {
+    let fields = if $payload == null { {} } else { $payload | from json }
+    let text = {|key, fallback| $fields | get -o $key | default $fallback | into string }
+    let title = do $text title "Reminder"
+    let body = do $text body ""
+    let glyph = do $text glyph $GLYPH_BELL
+    let kind = do $text kind ""
+    let snooze_message = do $text message ""
     let payload = {title: $title, body: $body, glyph: $glyph, kind: $kind, message: $snooze_message} | to json -r
     let summoned = shell-call shell summon panel.alert $payload | complete
     if ($summoned.stdout | str trim) != "ok" {

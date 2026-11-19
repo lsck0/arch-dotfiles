@@ -169,10 +169,10 @@ def "main packages" [kind: string@[pacman flatpak nix] = "pacman", --groups: str
     }
 }
 
-# pending one-time migrations (--system: root's); --baseline marks them run on a fresh install
-def "main migrate" [--baseline, --system]: nothing -> nothing {
+# pending one-time user migrations; --baseline marks them run on a fresh install (root's: system-apply.nu migrate)
+def "main migrate" [--baseline]: nothing -> nothing {
     guarded migrate {
-        let done = migrations-run $REPO (if $system { "system" } else { "user" }) --baseline=$baseline
+        let done = migrations-run $REPO user --baseline=$baseline
         if ($done | is-not-empty) { log-info $"migrations (if $baseline { 'marked' } else { 'applied' }): ($done | str join ' ')" }
     }
 }

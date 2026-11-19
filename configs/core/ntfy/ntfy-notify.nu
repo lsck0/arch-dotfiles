@@ -36,10 +36,26 @@ def state-dir []: nothing -> path {
     xdg state ntfy-notify
 }
 
-def subscription []: nothing -> any {
+# lab.json's topics less denied, null without any left.
+def subscription [denied: list<string> = []]: nothing -> any {
     let lab = homelab-lab-load
-    if $lab == null or ($lab.ntfy.desktop | is-empty) { return null }
-    {server: $lab.ntfy.url, topics: $lab.ntfy.desktop}
+    if $lab == null { return null }
+    let topics = $lab.ntfy.desktop | where $it not-in $denied
+    if ($topics | is-empty) { return null }
+    {server: $lab.ntfy.url, topics: $topics}
+}
+
+# The topics of sub the server refuses this token (403): one refused topic fails the whole multi-topic stream, so a
+# failed subscribe asks each alone and the others stay subscribed.
+def topics-refused [sub: record, token: string]: nothing -> list<string> {
+    $sub.topics | where {|topic|
+        let url = $"($sub.server)/($topic | url encode)/json?poll=1&since=latest"
+        let code = (
+            $"Authorization: Bearer ($token)\n" | ^curl --silent --output /dev/null --write-out "%{http_code}"
+                --max-time 10 --header "User-Agent: ntfy-notify" --header @- $url | complete | get stdout | str trim
+        )
+        $code == "403"
+    }
 }
 
 def modified [file: any]: nothing -> any {
@@ -137,23 +153,28 @@ def last-id-read []: nothing -> string {
     open --raw $file | str trim
 }
 
-def subscribe [sub: record, since: string, token: string]: nothing -> nothing {
+# Whether the server opened the stream (ntfy's `open` event): curl's failure never reaches nu from a streamed `for`,
+# so a 401, 403 or connect error ends here with false.
+def subscribe [sub: record, since: string, token: string]: nothing -> bool {
     let query = if $since == "" { "" } else { $"?({since: $since} | url build-query)" }
     let url = $"($sub.server)/($sub.topics | each { url encode } | str join ',')/json($query)"
     let last_id = state-dir | path join last-id
     mut lab_modified = modified (homelab-lab-path)
+    mut opened = false
     # the token goes to curl on stdin: on the command line every local user could read it with ps
     # iterate the stream directly: a `let` would collect the whole response first, so nothing shows until curl exits
     for line in ($"Authorization: Bearer ($token)\n" | ^curl --silent --show-error --fail --no-buffer --speed-limit 1
         --speed-time $IDLE_S --header "User-Agent: ntfy-notify" --header @- $url | lines) {
         let msg = try { $line | from json } catch { null }
         if ($msg | describe) !~ '^record' { continue }
+        $opened = true
         if $msg.event? != "message" {
             let written = modified $last_id
             if $written != null and (date now) - $written > $LAST_ID_REFRESH { touch $last_id }
             let lab_now = modified (homelab-lab-path)
             if $lab_now != $lab_modified {
-                if (subscription) != $sub { return }
+                # lab.json changed: the next round starts from its topics again, refused ones included
+                if (subscription) != $sub { return true }
                 $lab_modified = $lab_now
             }
             continue
@@ -161,10 +182,14 @@ def subscribe [sub: record, since: string, token: string]: nothing -> nothing {
         if (date now) - (($msg.time? | default 0) * 1_000_000_000 | into datetime) < $MAX_REPLAY { notify $msg }
         file-replace $last_id ($msg.id? | default "")
     }
+    $opened
 }
 
 def main []: nothing -> nothing {
     mut delay_s = $BACKOFF_MIN_S
+    # topics the server refused, until lab.json changes (the lab's acl and lab.json agree again after its deploy)
+    mut denied: list<string> = []
+    mut denied_lab: any = null
     loop {
         let started = date now
         let token = token-read
@@ -173,13 +198,22 @@ def main []: nothing -> nothing {
             sleep $NO_TOPICS_WAIT
             continue
         }
-        let sub = subscription
+        let lab_now = modified (homelab-lab-path)
+        if $lab_now != $denied_lab { $denied = []; $denied_lab = $lab_now }
+        let sub = subscription $denied
         if $sub == null {
-            print --stderr "ntfy-notify: no ntfy topics in the homelab's lab.json"
+            print --stderr "ntfy-notify: no ntfy topics in the homelab's lab.json the server allows"
             sleep $NO_TOPICS_WAIT
             continue
         }
-        try { subscribe $sub (last-id-read) $token } catch {|e| print --stderr $"ntfy-notify: ($e.msg)" }
+        let failed = try { not (subscribe $sub (last-id-read) $token) } catch {|e| print --stderr $"ntfy-notify: ($e.msg)"; true }
+        if $failed {
+            let refused = topics-refused $sub $token
+            if ($refused | is-not-empty) {
+                print --stderr $"ntfy-notify: the server refuses ($refused | str join ', '), subscribing without them"
+                $denied = $denied ++ $refused
+            }
+        }
         $delay_s = if (date now) - $started > $HEALTHY { $BACKOFF_MIN_S } else {
             [($delay_s * 2) $BACKOFF_MAX_S] | math min
         }

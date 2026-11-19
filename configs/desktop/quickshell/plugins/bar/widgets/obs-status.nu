@@ -8,8 +8,14 @@ const EVENT_EXIT = "ExitStarted"
 const MUTE_SOURCES = {Mic: "Mic/Aux", Desktop: "Desktop Audio", Game: "Game Audio"}
 const APP_CAPTURE_KIND = "pipewire_audio_application_capture"
 # a recording started on the VirtualCam profile would follow its 720p30 output: toggleRecord moves to this one first
+# and the stop of that recording moves back, so the camera keeps its capped output
 const PROFILE_RECORDING = "Recording"
 const PROFILE_VIRTUALCAM = "VirtualCam"
+# the profile to return to once the recording stops; a file, since a keybind's one-shot run starts it and the bar's
+# run sees it stop
+const RESTORE_RELATIVE = "quickshell/obs-profile-restore"
+const EVENT_RECORD = "RecordStateChanged"
+const OUTPUT_STOPPED = "OBS_WEBSOCKET_OUTPUT_STOPPED"
 const COMMANDS = {
     toggleStream: [ToggleStream null]
     toggleRecord: [ToggleRecord null]
@@ -124,6 +130,7 @@ def snapshot [socket: int]: nothing -> record {
     let replay = request $socket GetReplayBufferStatus | default {}
     let scene = request $socket GetCurrentProgramScene | default {}
     let scenes = request $socket GetSceneList | default {}
+    let profile = request $socket GetProfileList | get -o currentProfileName | default ""
     let apps = request $socket GetInputList {inputKind: $APP_CAPTURE_KIND} | get -o inputs | default []
         | each {|input| {label: $input.inputName, name: $input.inputName} }
     let inputs = $MUTE_SOURCES | transpose label name | append $apps | uniq-by label | each {|input|
@@ -162,7 +169,9 @@ def snapshot [socket: int]: nothing -> record {
         scenes: ($scenes.scenes? | default [] | reverse | get -o sceneName | compact --empty)
         mutes: ($inputs | where mute != null | each {|i| [$i.label $i.mute] } | into record)
         volumes: ($inputs | where volume != null | each {|i| [$i.label ($i.volume | round-to 4)] } | into record)
-    }
+    } | merge (if $record.outputActive? == true and $profile == $PROFILE_VIRTUALCAM {
+        {error: $"recording on the ($PROFILE_VIRTUALCAM) profile's output"}
+    } else { {} })
 }
 
 def command-apply [socket: int, line: string]: nothing -> bool {
@@ -197,8 +206,12 @@ def command-apply [socket: int, line: string]: nothing -> bool {
     true
 }
 
-# Before a recording starts on the VirtualCam profile, switches to Recording; obs refuses a profile change while any
-# output runs, so then it stays and the widget shows the profile.
+def restore-path []: nothing -> path {
+    $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state) | path join $RESTORE_RELATIVE
+}
+
+# Before a recording starts on the VirtualCam profile, switches to Recording and records VirtualCam to return to; obs
+# refuses a profile change while any output runs, so then it stays and the snapshot carries it as the error.
 def recording-profile [socket: int]: nothing -> nothing {
     let record = request $socket GetRecordStatus | default {}
     if $record.outputActive? == true { return }
@@ -206,7 +219,25 @@ def recording-profile [socket: int]: nothing -> nothing {
     if $profile != $PROFILE_VIRTUALCAM { return }
     if (request $socket SetCurrentProfile {profileName: $PROFILE_RECORDING}) == null {
         print -e $"obs-status: SetCurrentProfile\(($PROFILE_RECORDING)) rejected, recording on ($PROFILE_VIRTUALCAM)"
+        return
     }
+    let path = restore-path
+    mkdir ($path | path dirname)
+    $PROFILE_VIRTUALCAM | save -f $path
+}
+
+# Returns to the profile recording-profile left once no recording runs; a refused change keeps the file for the next
+# stop.
+def profile-restore [socket: int]: nothing -> nothing {
+    let path = restore-path
+    let profile = try { open --raw $path | str trim } catch { return }
+    let record = request $socket GetRecordStatus | default {}
+    if $record.outputActive? == true { return }
+    if (request $socket SetCurrentProfile {profileName: $profile}) == null {
+        print -e $"obs-status: SetCurrentProfile\(($profile)) rejected, staying on ($PROFILE_RECORDING)"
+        return
+    }
+    rm -f $path
 }
 
 def emit [payload: record, last: string]: nothing -> string {
@@ -233,6 +264,8 @@ def main [] {
         let failure = try {
             socket-identify $socket $config.password
             $backoff = $RECONNECT_MIN
+            # a recording that stopped while no run was connected, obs closing included
+            profile-restore $socket
             mut due = true
             mut polled = date now
             mut active = false
@@ -255,6 +288,9 @@ def main [] {
                 } else if $message.op == $OP_EVENT and $message.d.eventType == $EVENT_EXIT {
                     error make {msg: $ERROR_EXITING}
                 } else if $message.op == $OP_EVENT and ($EVENTS_REPOLL | any {|prefix| $message.d.eventType | str starts-with $prefix }) {
+                    if $message.d.eventType == $EVENT_RECORD and $message.d.eventData?.outputState? == $OUTPUT_STOPPED {
+                        profile-restore $socket
+                    }
                     $due = true
                 }
             }

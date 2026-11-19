@@ -34,8 +34,8 @@ const SECRET_READS_REPO = ["configs/secrets/keys/**" ".git/git-crypt/**" ".git/m
 const SECRET_READS_HOME = [
     ".ssh/id_*" ".gnupg/**" ".config/sops/age/**" ".config/gh/**" ".config/rclone/**" ".config/containers/auth.json"
     ".docker/config.json" ".config/git/forgejo-credentials" ".config/tea/config.yml" ".config/sccache/config"
-    ".config/task/sync.taskrc" ".config/task/calendar.env" ".netrc" ".pgpass" ".local/share/pgpass"
-    ".claude/.credentials.json" ".hermes/.env" ".hermes/**/.env"
+    ".config/task/sync.taskrc" ".config/task/calendar.env" ".config/obs-studio/basic/profiles/*/service.json"
+    ".netrc" ".pgpass" ".local/share/pgpass" ".claude/.credentials.json" ".hermes/.env" ".hermes/**/.env"
 ]
 
 const ACCOUNT_KEYS = [oauthAccount userID hasCompletedOnboarding lastOnboardingVersion]

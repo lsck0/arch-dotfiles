@@ -252,24 +252,19 @@ def main [...args: string] {
             # NetworkManager may not dispatch a link wg-quick made
             if ($PERSONA_DISPATCHER | path exists) { try { ^$PERSONA_DISPATCHER $WG_INTERFACE $direction } }
         }
+        # runtime only: llm/vllm declares the socket enabled, so a disable here would be undone by the next apply
         [2, "vllm"] => {
             match $args.1 {
-                on => { ^systemctl enable --now vllm.socket }
-                off => {
-                    ^systemctl disable --now vllm.socket
-                    ^systemctl stop vllm-proxy.service vllm.service
-                }
+                on => { ^systemctl start vllm.socket }
+                off => { ^systemctl stop vllm.socket vllm-proxy.service vllm.service }
                 _ => { usage }
             }
         }
         # socket-activated like vllm: off has to take the socket too, or the next request starts it again
         [2, "ollama"] => {
             match $args.1 {
-                on => { ^systemctl enable --now ollama.socket }
-                off => {
-                    ^systemctl disable --now ollama.socket
-                    ^systemctl stop ollama.service
-                }
+                on => { ^systemctl start ollama.socket }
+                off => { ^systemctl stop ollama.socket ollama.service }
                 _ => { usage }
             }
         }

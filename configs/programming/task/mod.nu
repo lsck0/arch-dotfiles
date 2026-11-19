@@ -25,6 +25,7 @@ const SYNC_RC = ".config/task/sync.taskrc"
 # CALENDAR_FEED (the homelab calendar feed dir), read by task-calendar.nu
 const CALENDAR = "configs/secrets/keys/calendar/desktop.env"
 const CALENDAR_ENV = ".config/task/calendar.env"
+const UDA = ($nu.home-dir | path join .config bugwarrior uda.taskrc)
 
 def secret-read [file: path]: nothing -> string {
     open --raw $file | str trim --right
@@ -60,9 +61,11 @@ def calendar-text []: nothing -> string {
 export def link [cfg: record] {
     let sync = sync-text $cfg
     let calendar = calendar-text
-    # taskrc includes ~/.config/bugwarrior/uda.taskrc; the bugwarrior module owns that file (empty or generated), so it is not written here
+    # taskrc includes ~/.config/bugwarrior/uda.taskrc and refuses a missing include; programming/bugwarrior owns its
+    # content, so an empty unmanaged one stands in where that module is off, never wrote it or removed it
     [
         (files-into (xdg config task) taskrc wal.theme)
+        (exec task-uda-placeholder [install -D -m 644 /dev/null $UDA] --creates $UDA)
         (if ($HOOK | path exists) { file-copy $HOOK ($nu.home-dir | path join .task hooks on-modify.timewarrior) --mode 755 })
         (file-text ($nu.home-dir | path join $SYNC_RC) $sync --mode 600)
         (if ($calendar | is-not-empty) { file-text ($nu.home-dir | path join $CALENDAR_ENV) $calendar --mode 600 })

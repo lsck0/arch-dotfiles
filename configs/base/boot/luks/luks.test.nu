@@ -3,7 +3,7 @@
 # device): a token is asked for only when enrolled, the passphrase always stays (tries=0), and a TPM2 seal is only ever
 # suggested with a pin, a pinless one flagged.
 
-use mod.nu [unlock-plan]
+use mod.nu [luks-unlisted unlock-plan]
 
 const PART = "nvme0n1p2"
 const BASE = "tpm2-measure-pcr=yes,tries=0"
@@ -26,6 +26,7 @@ def dump [image: path, tokens: list<string>]: nothing -> list<record> {
 }
 
 def main [] {
+    crypttab-check
     if (which cryptsetup | is-empty) { print --stderr "luks.test: skipped: needs cryptsetup"; return }
     let dir = mktemp --directory --tmpdir dot-luks-test-XXXXXX
     let image = $dir | path join root.img
@@ -61,4 +62,20 @@ def case-check [image: path, c: record]: nothing -> list<string> {
         (if $kinds != $c.notes { $"($c.what): notes ($kinds | to nuon), wants ($c.notes | to nuon)" })
         (if ($pinless_enrol | is-not-empty) { $"($c.what): a TPM2 enrol without a pin: ($pinless_enrol | to nuon)" })
     ] | compact
+}
+
+# A partition a kept crypttab line already opens, by its luks-<uuid> name or by its device under any name, gets no
+# second entry.
+def crypttab-check []: nothing -> nothing {
+    let parts = [[name uuid]; [sda1 u1] [sda2 u2] [sda3 u3] [sda4 u4] [sda5 u5]]
+    let kept = [
+        "# comment UUID=u5"
+        ""
+        "luks-u1\tUUID=nope\tnone\tluks"
+        "data UUID=u2 /etc/cryptsetup-keys.d/data.key luks"
+        "  scratch\t/dev/disk/by-uuid/u3  none luks"
+        "swap /dev/sda4 /dev/urandom swap"
+    ]
+    let got = luks-unlisted $kept $parts | get name
+    if $got != [sda5] { fail $"crypttab: unlisted ($got | to nuon), wants [sda5]" }
 }

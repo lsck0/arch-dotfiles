@@ -85,6 +85,16 @@ def main [] {
             let call = pending $root | where label == "--call mom" | first | get unit
             if (reminder cancel $call).exit_code != 0 or $call in (records $root) { fail "cancel left its record" }
 
+            # a message starting with - reaches the alert card whole
+            if (reminder 4 "--" "--call dad").exit_code != 0 { fail "a second message starting with -- not set" }
+            let dad = pending $root | where label == "--call dad" | first | get unit
+            calls-reset $root
+            let r = reminder _fire $dad
+            if $r.exit_code != 0 or not (calls $root | str contains '"title":"--call dad"') or not (calls $root | str contains '"message":"--call dad"') {
+                fail $"fire of a -- message: ($r.stderr) (calls $root)"
+            }
+            if $dad in (records $root) { fail "fire left its record" }
+
             # a lone true, false or null word is a name, not a bool or null
             if (reminder 2 "--" "true").exit_code != 0 { fail "a message true not set" }
             let word = pending $root | where label == "true" | get --optional 0.unit

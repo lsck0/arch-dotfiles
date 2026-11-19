@@ -50,3 +50,9 @@ vault
 .local/state/syncthing
 .local/state/zsh
 .config/nushell/history.txt
+.config/tea
+.config/git/forgejo-credentials
+.config/sccache
+.config/obs-studio/basic/profiles/Streaming/service.json
+.local/share/msf4/database.yml
+.local/share/msf4/rpc.env

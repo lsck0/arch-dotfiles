@@ -8,8 +8,9 @@ const MCP_URL = "https://projects.blender.org/lab/blender_mcp.git"
 const MCP_COMMIT = "2cea8d566dde07fbac28a61d698909d69724e853"
 const MCP_PORT = "9876"
 const MCP_HOST = "127.0.0.1"
-# apparmor's blender-mcp profile keeps the venv read-only, so python cannot write __pycache__ at runtime
-const INSTALL_FLAGS = ["--compile-bytecode"]
+# apparmor's blender-mcp profile keeps the venv read-only, so python cannot write __pycache__ at runtime, and execs
+# only a uv-managed python: without --managed-python uv falls back to /usr/bin's when none is installed yet
+const INSTALL_FLAGS = ["--compile-bytecode" "--managed-python"]
 const HERE = path self .
 const CONSTRAINTS = $HERE | path join constraints.txt
 const PREFS_SCRIPT = $HERE | path join mcp-prefs.py

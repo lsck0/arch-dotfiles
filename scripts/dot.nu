@@ -197,6 +197,8 @@ def "main module reset" [file: path]: nothing -> nothing {
         let actions = $row.actions | each {|a| if $a.target == $target { $reset } else { $a } }
         let result = pipeline-apply $ctx [($row | update actions $actions | update after [])] link 1 | first
         if not $result.ok { error make {msg: $"reset ($target): ($result.error)"} }
+        # a held module (packages missing) is recorded pending, nothing written
+        if $result.pending? != null { error make {msg: $"reset ($target): ($row.id) is pending, ($result.pending)"} }
         log-info $"($target) <- ($row.id), the edit kept aside: dot status lists preserved copies"
     }
 }

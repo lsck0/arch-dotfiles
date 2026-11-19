@@ -69,6 +69,12 @@
       section.wide { grid-column: 1 / -1; columns: 12rem; column-gap: 1.6rem; }
       section.wide h2 { column-span: all; }
       section.wide a.link { break-inside: avoid; }
+      /* a link's sub-group (the homelab's guests): a small heading kept with its links in one column */
+      .sub { break-inside: avoid; margin-bottom: 0.7rem; }
+      .sub h3 { margin: 0 0 0.2rem; color: var(--muted); font-size: 0.7rem; font-weight: 400; letter-spacing: 0.15em; text-transform: uppercase; }
+      /* a link on a guest the lab has powered down: still there, but it answers nothing */
+      a.link.off { color: var(--muted); }
+      a.link .state { color: var(--muted); font-size: 0.75rem; }
       a.link {
         display: flex; gap: 0.5rem; padding: 0.12rem 0.3rem; margin: 0 -0.3rem;
         color: var(--fg); text-decoration: none; border-radius: var(--radius);
@@ -136,9 +142,31 @@
         a.innerHTML = '<span class="key"></span><span></span><span class="group"></span>';
         // a label shows instead of the name when the command name needs a prefix (lab-grafana shows as grafana)
         a.children[1].textContent = link.label || link.name;
-        a.lastChild.textContent = link.group;
-        box.appendChild(a);
-        items.push({ a: a, box: box, name: words(link.name + " " + (link.label || "")), group: words(link.group) });
+        a.lastChild.textContent = link.sub ? link.group + " :: " + link.sub : link.group;
+        if (link.off) {
+          a.classList.add("off");
+          const st = document.createElement("span");
+          st.className = "state";
+          st.textContent = "off";
+          a.children[1].after(st);
+        }
+        // links.js lists a group's links by sub-group, so a new sub opens its own block
+        let home = box;
+        if (link.sub) {
+          if (!box.subs) box.subs = new Map();
+          home = box.subs.get(link.sub);
+          if (!home) {
+            home = document.createElement("div");
+            home.className = "sub";
+            const h = document.createElement("h3");
+            h.textContent = link.sub;
+            home.appendChild(h);
+            box.appendChild(home);
+            box.subs.set(link.sub, home);
+          }
+        }
+        home.appendChild(a);
+        items.push({ a: a, box: box, home: home, name: words(link.name + " " + (link.label || "")), group: words(link.group + " " + (link.sub || "")) });
       }
       // screen order on an empty query: group by group, as the grid lays them out
       for (const box of boxes.values()) {
@@ -180,7 +208,7 @@
         }
         // a query shows one flat ranked list, so the numbers and the arrow order follow the screen
         if (query === "") {
-          for (const it of items) it.box.appendChild(it.a);
+          for (const it of items) it.home.appendChild(it.a);
         } else {
           shown.sort((x, y) => y.s - x.s);
           matches.replaceChildren(...shown.map((m) => m.it.a));

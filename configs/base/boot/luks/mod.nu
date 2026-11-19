@@ -26,12 +26,24 @@ def root-backing []: nothing -> any {
     ^lsblk -J -lso NAME,TYPE $src | from json | get blockdevices | where type == part | get --optional 0.name
 }
 
+# The partitions no kept crypttab line opens, by its luks-<uuid> name or by its device in the second field: a volume
+# listed under another name, e.g. archinstall's keyfile entry, would get a second, passphrase-only unit.
+export def luks-unlisted [kept: list<string>, parts: table]: nothing -> table {
+    let fields = $kept | str trim | where { $in != "" and not ($in | str starts-with "#") }
+        | each { split row --regex '\s+' }
+    let named = $fields | each { first }
+    let devices = $fields | each { get --optional 1 | default "" }
+    $parts | where {|p|
+        let refs = [$"UUID=($p.uuid)" $"/dev/disk/by-uuid/($p.uuid)" $"/dev/($p.name)"]
+        $"luks-($p.uuid)" not-in $named and ($refs | all { $in not-in $devices })
+    }
+}
+
 def crypttab-write [root: any]: nothing -> nothing {
     let current = try { open --raw $CRYPTTAB } catch { $MARKER }
     if not ($current | str contains $MARKER) { backup-once $CRYPTTAB }
     let kept = $current | lines | take until {|l| $l == $MARKER }
-    let named = $kept | each { split row --regex '\s+' | first }
-    let entries = luks-parts | where name != $root and $"luks-($it.uuid)" not-in $named | where {|p|
+    let entries = luks-unlisted $kept (luks-parts | where name != $root) | where {|p|
         let disk = ^lsblk -dno PKNAME $"/dev/($p.name)" | str trim
         (^lsblk -dno RM,HOTPLUG $"/dev/($disk)" | str replace --all " " "" | str trim) == "00"
     } | each {|p| $"luks-($p.uuid)\tUUID=($p.uuid)\tnone\t($ENTRY_OPTIONS)" }

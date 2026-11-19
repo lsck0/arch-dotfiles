@@ -19,9 +19,15 @@ def main []: nothing -> nothing {
     if ($packs | is-not-empty) {
         # the overlay makes its config root with a plain mkdir
         mkdir (xdg data)
-        for pack in $packs { ^shimejictl import $pack }
+        # a rejected pack stays out of the marker and is retried next login; the others and the settings still go in
+        let ok = $packs | where {|pack| (^shimejictl import $pack | complete).exit_code == 0 }
+        let failed = $packs | where $it not-in $ok
+        if ($failed | is-not-empty) { print --stderr $"shimoji: import failed: ($failed | path basename | str join ', ')" }
         mkdir ($marker | path dirname)
-        $done ++ ($packs | each { path basename }) | uniq | sort | str join "\n" | save --force $marker
+        $done ++ ($ok | each { path basename }) | uniq | sort | str join "\n" | save --force $marker
     }
-    $SETTINGS | items {|key, value| ^shimejictl config set $key ($value | into string) } | ignore
+    $SETTINGS | items {|key, value|
+        let set = ^shimejictl config set $key ($value | into string) | complete
+        if $set.exit_code != 0 { print --stderr $"shimoji: config set ($key) failed: ($set.stderr | str trim)" }
+    } | ignore
 }

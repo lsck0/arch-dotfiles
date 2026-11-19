@@ -72,6 +72,8 @@ Singleton {
   }
 
   readonly property var editFields: ["project", "priority", "due", "scheduled", "wait", "until", "recur"]
+  // set from the edit line though the line does not show them
+  readonly property var editFieldsExtra: ["depends"]
 
   // The task as the command that would create it: what the edit line starts from.
   function commandText(task) {
@@ -85,20 +87,32 @@ Singleton {
     return out.join(" ")
   }
 
-  // The edited command against the task: only what changed, a field or tag deleted from the line cleared.
+  // A word of the edit line's tail: a field (its key a prefix of an editFields or editFieldsExtra key) or a +tag/-tag.
+  function editToken(w) {
+    if (w.length > 1 && (w.charAt(0) === "+" || w.charAt(0) === "-")) return true
+    var attr = w.match(/^([a-z]+):/)
+    return !!attr && root.editFields.concat(root.editFieldsExtra).some(function (f) { return f.indexOf(attr[1]) === 0 })
+  }
+
+  // The edited command against the task: only what changed, a field or tag deleted from the line cleared. The
+  // description is the line up to its tail of fields and tags, never shorter than the task's own description when
+  // the line still starts with it, and goes as one description: argument, so its words stay as written.
   function editArgs(task, text) {
     var list = root.words(text)
-    var bare = [], set = {}, tags = {}, untag = []
-    for (let i = 0; i < list.length; i++) {
+    var desc = root.words(task.desc)
+    var floor = desc.length <= list.length && desc.every(function (w, i) { return list[i] === w }) ? desc.length : 0
+    var end = list.length
+    while (end > floor && root.editToken(list[end - 1])) end--
+    var set = {}, tags = {}, untag = []
+    for (let i = end; i < list.length; i++) {
       let w = list[i]
-      let attr = w.match(/^([a-z]+):(.*)$/)
-      if (w.length > 1 && w.charAt(0) === "+") tags[w.slice(1)] = true
-      else if (w.length > 1 && w.charAt(0) === "-") untag.push(w)
-      else if (attr) set[attr[1]] = w
-      else bare.push(w)
+      if (w.charAt(0) === "+") tags[w.slice(1)] = true
+      else if (w.charAt(0) === "-") untag.push(w)
+      else set[w.match(/^([a-z]+):/)[1]] = w
     }
     var args = []
-    if (bare.join(" ") !== task.desc) args = args.concat(bare)
+    var bare = list.slice(0, end).join(" ")
+    if (bare !== "" && bare !== desc.join(" ")) args.push("description:" + bare)
     for (let key in set) {
       let full = root.editFields.find(function (f) { return f.indexOf(key) === 0 }) || key
       if (set[key] !== key + ":" + ((task.fields || {})[full] || "")) args.push(set[key])

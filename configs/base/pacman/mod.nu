@@ -6,8 +6,9 @@ const FILESDB_TIMER = "pacman-filesdb-refresh.timer"
 # pacman-contrib's: the install pass runs this verb before and after installing it, the input re-plans it the second time
 const FILESDB_TIMER_FILE = $"/usr/lib/systemd/system/($FILESDB_TIMER)"
 
-# early: its system verb sets up pacman.conf and the mirror's key before the install pass, and runs again after it
-export const meta = {phase: early, packages: {pacman: [downgrade pacman-contrib yay]}, inputs: [$FILESDB_TIMER_FILE]}
+# early: its system verb sets up pacman.conf and the mirror's key before the install pass, and runs again after it;
+# volatile: off the lab [lsck0] is kept only while the mirror answers, so every run probes it again
+export const meta = {phase: early, packages: {pacman: [downgrade pacman-contrib yay]}, inputs: [$FILESDB_TIMER_FILE], volatile: true}
 
 export const options = {
     yay_cache_days: {

@@ -30,7 +30,8 @@ BarWidget {
   }
 
   // A wheel spin or held key asks for many levels; one process sets every monitor in turn, and the newest asked
-  // level follows once it exits. Detached sets per notch landed in any order, leaving an older level last.
+  // level follows once it exits. Detached sets per notch landed in any order, leaving an older level last. Pending and
+  // applying are -1 when there is none, so a level asked again after a finished run always runs.
   property int brightnessPending: -1
   readonly property int brightnessStepPct: 5
   property int brightnessApplying: -1
@@ -39,14 +40,15 @@ BarWidget {
     pct = Math.max(1, Math.min(100, Math.round(pct)))
     root.brightnessPct = pct
     root.brightnessKnown = true
-    root.brightnessPending = pct
+    root.brightnessPending = brightnessSet.running && pct === root.brightnessApplying ? -1 : pct
     root.brightnessFlush()
   }
 
   function brightnessFlush() {
-    if (brightnessSet.running || root.brightnessPending === root.brightnessApplying)
+    if (brightnessSet.running || root.brightnessPending < 0)
       return
     root.brightnessApplying = root.brightnessPending
+    root.brightnessPending = -1
     const names = root.activeMonitors.map(function (m) { return m.name })
     brightnessSet.command = ["sh", "-c", 'pct="$1"; script="$2"; shift 2; for m; do "$script" set "$m" "$pct"; done',
       "sh", String(root.brightnessApplying), Paths.script("monitor-brightness.nu")].concat(names)
@@ -55,7 +57,10 @@ BarWidget {
 
   Process {
     id: brightnessSet
-    onExited: root.brightnessFlush()
+    onExited: {
+      root.brightnessApplying = -1
+      root.brightnessFlush()
+    }
   }
 
   readonly property string gradingCli: Paths.dotfiles + "/configs/desktop/color-grading/color-grading.py"

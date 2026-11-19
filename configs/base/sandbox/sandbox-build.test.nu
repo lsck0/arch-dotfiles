@@ -21,7 +21,10 @@ const TUNABLES = {
 # a file tool works on these: archives and media in ~/sync, an agent's transcripts, dot's own state
 const FILE_TOOL_READS = [sync .claude .config/dotfiles]
 # denied by a glob, which str expand does not resolve
-const GLOB_DENIED = {".aws": ".*aws*"}
+const GLOB_DENIED = {
+    ".aws": ".*aws*"
+    ".config/obs-studio/basic/profiles/Streaming/service.json": ".config/obs-studio/basic/profiles/*/service.json"
+}
 
 # Home-relative paths the file-tool profiles are denied all access to, braces expanded.
 def denied-paths []: nothing -> list<string> {

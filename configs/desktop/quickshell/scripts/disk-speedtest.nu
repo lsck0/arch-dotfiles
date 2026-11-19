@@ -51,7 +51,8 @@ def phase-run [phase: string, chunk: path, files: list<path>, stat: path] {
         $before = $after
     }
     let alive = job list | where id in $workers | length
-    $workers | each { job kill $in } | ignore
+    # job kill refuses a job that has exited, a failed worker's or one ending between the list and the kill
+    job list | where id in $workers | each {|j| try { job kill $j.id } } | ignore
     if $alive < $PARALLEL { fail $"Disk ($phase) test failed before finishing" }
     if $samples > 1 {
         let seconds = ($end_time - $baseline.time) / 1sec
