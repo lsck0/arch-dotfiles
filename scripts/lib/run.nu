@@ -42,7 +42,9 @@ const LOG_TEE = 'printf "%s: %s\n" "$(date --iso-8601=seconds)" "$*" > "$0"; "$@
 # is one unless its decl declares the unit disabled; drift, a hand edit, is not one
 const UNDO_KINDS = [remove unmask unmerge undo forget]
 # the doctor checks that must each report ok before a sync leaves root out
-const IDLE_CHECKS = [failures config pending snapshot packages]
+# doctor's failures check is left out: a user layer failure (an app that holds its files) is no reason to enter root,
+# failures-system picks the lines that are
+const IDLE_CHECKS = [config pending snapshot packages]
 # what a sync names of one reason to enter root before it counts the rest
 const DUE_SHOWN = 5
 # the stage a root copy older than `apply --run` is replaced through: its `apply` knows install and config only. A sync
@@ -631,6 +633,13 @@ export def system-due [checks: list<record>, facts: record, awaited: list<string
     } | compact)
 }
 
+# The failures only root can clear: FAILURES.config's system layer lines and every FAILURES.install line (the install
+# chain runs as root).
+export def failures-system [config: path, install: path]: nothing -> list<string> {
+    let read = {|file| try { open --raw $file | lines | where ($it | str trim) != "" } catch { [] } }
+    (do $read $config | where {|l| failure-is-system $l }) ++ (do $read $install)
+}
+
 # The module id of a pending line, "<id>: <why>" as pending-save writes it.
 def pending-id [line: string]: nothing -> string { $line | split row ": " | first }
 
@@ -705,6 +714,7 @@ def system-facts [ctx: record]: nothing -> record {
         "modules declaring no packages": $declared.incomplete
         "the system secrets differ from what root was last handed": ((file-trim $SYSTEM_SECRETS_DIGEST null) != (system-secrets-digest $REPO $ctx.platform.facts.wireguard?))
         "the config failure banner is up": ($CONFIG_ISSUE | path exists)
+        "failures of the system layer": (failures-system $FAILURES_PUBLISHED ($REPO | path join $FAILURES_INSTALL))
         "root's last entry": (stages-due (try { open $SYSTEM_STAGES } catch { null }) ($awaited | is-not-empty))
         "the system plan": (plan-due $planned ($ctx.modules | where {|m| $m.meta.secrets? | default [] | is-not-empty } | get id))
         "the machine's platform files changed since root's last clean entry": (platform-edited (

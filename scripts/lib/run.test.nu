@@ -10,7 +10,7 @@
 # `apply --run` is replaced through the argv it knows and then entered again; a dismissed pkexec prompt is no failure.
 use state.nu [EXIT_PENDING EXIT_ABORTED]
 use system.nu [ENTRY entry-takes-run]
-use run.nu [failures-publish log-tee-argv system-due system-due-line upgrades-due awaited-arrived platform-edited stage-code stage-failures stages-due plan-due entry-enter entry-declined]
+use run.nu [failures-publish failures-system log-tee-argv system-due system-due-line upgrades-due awaited-arrived platform-edited stage-code stage-failures stages-due plan-due entry-enter entry-declined]
 use std/assert
 
 const REPO = path self ../..
@@ -70,8 +70,23 @@ def tee-cases []: nothing -> nothing {
     assert ($run.stdout | lines | any { ($in | str trim) == $own }) $"tee: the command left session ($own): ($run.stdout)"
 }
 
+# A user layer failure is no reason to enter root; a system layer one and the install chain's are.
+def failures-system-cases []: nothing -> nothing {
+    let dir = mktemp --directory
+    let config = $dir | path join FAILURES.config
+    let install = $dir | path join FAILURES.install
+    assert equal (failures-system $config $install) [] "failures-system: no files"
+    "creating/obs link/eval: obs runs, close it\n" | save $config
+    assert equal (failures-system $config $install) [] "failures-system: a user layer line"
+    "creating/obs link/eval: obs runs, close it\na/mod system/step: broke\n" | save --force $config
+    assert equal (failures-system $config $install) ["a/mod system/step: broke"] "failures-system: the system line of two"
+    "pacman: x\n" | save $install
+    assert equal (failures-system $config $install) ["a/mod system/step: broke" "pacman: x"] "failures-system: the install chain's"
+    rm --recursive $dir
+}
+
 def due-cases []: nothing -> nothing {
-    let settled = [failures config pending snapshot packages] | each { {level: ok, check: $in, text: fine} }
+    let settled = [config pending snapshot packages] | each { {level: ok, check: $in, text: fine} }
     let facts = {waiting: [], differs: false, entry: null}
     let cases = [
         [name checks facts wants];
@@ -334,6 +349,7 @@ def main [] {
     due-line-cases
     publish-cases
     tee-cases
+    failures-system-cases
     due-cases
     report-cases
     plan-cases
