@@ -8,9 +8,9 @@ abbreviation.minimum=3
 report.next.columns=id,start.age,entry.age,depends.indicator,priority,project,tags,recur.indicator,scheduled.countdown,due.relative,until.remaining,description.count,urgency
 report.next.labels=ID,Active,Age,D,P,Project,Tag,R,S,Due,Until,Description,Urg
 
-dateformat=Y-M-D
-dateformat.report=Y-M-D
-dateformat.annotation=Y-M-D
+dateformat=d.m.y
+dateformat.report=d.m.y
+dateformat.annotation=d.m.y
 date.iso=yes
 weekstart=Monday
 journal.info=off

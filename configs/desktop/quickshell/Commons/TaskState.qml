@@ -11,7 +11,9 @@ Singleton {
   readonly property int refreshMs: 3 * 60 * 1000
   readonly property int refreshClosedMs: 30 * 60 * 1000
   readonly property int dueSoonMs: 15 * 60 * 1000
-  readonly property var taskArgv: ["task", "rc.verbose=nothing", "rc.confirmation=off", "rc.recurrence.confirmation=off"]
+  // d.m.y: a typed or prefilled date reads 20.11.26; ISO (with a time) and named dates parse whatever it is
+  readonly property var taskArgv: ["task", "rc.verbose=nothing", "rc.confirmation=off", "rc.recurrence.confirmation=off",
+    "rc.dateformat=d.m.y"]
   readonly property string notifiedPath: Paths.state + "/task-due-notified.json"
   readonly property string glyph: "\u{f0756}" // md-format-list-checks
   readonly property int msPerMinute: 60 * 1000
@@ -59,6 +61,56 @@ Singleton {
     var m = String(value || "").match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/)
     if (!m) return null
     return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]))
+  }
+
+  // a date as the command line takes it: the day alone at local midnight as dd.mm.yy (rc.dateformat), with a time
+  // as ISO, the one form taskwarrior reads with a time beside d.m.y
+  function cmdDate(value) {
+    var d = twDate(value)
+    if (!d) return ""
+    return Qt.formatDateTime(d, d.getHours() === 0 && d.getMinutes() === 0 ? "dd.MM.yy" : "yyyy-MM-ddTHH:mm")
+  }
+
+  readonly property var editFields: ["project", "priority", "due", "scheduled", "wait", "until", "recur"]
+
+  // The task as the command that would create it: what the edit line starts from.
+  function commandText(task) {
+    if (!task) return ""
+    var out = [task.desc]
+    for (let i = 0; i < root.editFields.length; i++) {
+      let key = root.editFields[i]
+      if (task.fields && task.fields[key]) out.push(key + ":" + task.fields[key])
+    }
+    for (let i = 0; i < task.tags.length; i++) out.push("+" + task.tags[i])
+    return out.join(" ")
+  }
+
+  // The edited command against the task: only what changed, a field or tag deleted from the line cleared.
+  function editArgs(task, text) {
+    var list = root.words(text)
+    var bare = [], set = {}, tags = {}, untag = []
+    for (let i = 0; i < list.length; i++) {
+      let w = list[i]
+      let attr = w.match(/^([a-z]+):(.*)$/)
+      if (w.length > 1 && w.charAt(0) === "+") tags[w.slice(1)] = true
+      else if (w.length > 1 && w.charAt(0) === "-") untag.push(w)
+      else if (attr) set[attr[1]] = w
+      else bare.push(w)
+    }
+    var args = []
+    if (bare.join(" ") !== task.desc) args = args.concat(bare)
+    for (let key in set) {
+      let full = root.editFields.find(function (f) { return f.indexOf(key) === 0 }) || key
+      if (set[key] !== key + ":" + ((task.fields || {})[full] || "")) args.push(set[key])
+    }
+    for (let i = 0; i < root.editFields.length; i++) {
+      let key = root.editFields[i]
+      let given = Object.keys(set).some(function (k) { return key.indexOf(k) === 0 })
+      if (!given && task.fields && task.fields[key]) args.push(key + ":")
+    }
+    for (let t in tags) if (task.tags.indexOf(t) < 0) args.push("+" + t)
+    for (let i = 0; i < task.tags.length; i++) if (!tags[task.tags[i]]) args.push("-" + task.tags[i])
+    return args.concat(untag)
   }
 
   function dueText(value) {
@@ -187,6 +239,11 @@ Singleton {
         due: dueText(t.due),
         scheduled: scheduledText(t.scheduled),
         until: untilText(t.until),
+        // the raw values the edit line writes back as a command: dates as taskwarrior's yyyy-mm-ddThh:mm in local time
+        fields: {
+          project: String(t.project || ""), priority: String(t.priority || ""), due: cmdDate(t.due),
+          scheduled: cmdDate(t.scheduled), wait: cmdDate(t.wait), until: cmdDate(t.until), recur: String(t.recur || "")
+        },
         recur: String(t.recur || ""),
         blocked: !!(t.depends && t.depends.length),
         overdue: !!d && d.getTime() < Date.now(),
@@ -239,11 +296,12 @@ Singleton {
     return recurs && !due && !hasDue ? list.concat(["due:eod"]) : list
   }
 
-  // bare words replace the description, attributes (due:, priority:, project:, +tag, -tag) change only themselves
+  // the edit line holds the whole task as a command (commandText): what changed is set, what was deleted is cleared
   function modify(task, text) {
-    var list = root.words(text)
-    if (!task || list.length === 0) return
-    list = root.withRecurDue(list, task.dueRaw !== "")
+    if (!task || root.words(text).length === 0) return
+    var list = root.editArgs(task, text)
+    if (list.length === 0) return
+    list = root.withRecurDue(list, task.dueRaw !== "" && list.indexOf("due:") < 0)
     run([task.uuid, "modify"].concat(list), { op: "modify", uuid: task.uuid, desc: task.desc, text: text })
   }
 

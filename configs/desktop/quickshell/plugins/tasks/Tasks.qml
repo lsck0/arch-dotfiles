@@ -112,7 +112,7 @@ Item {
   function startInput(mode) {
     root.modifyTask = mode === "modify" ? root.selectedTask : null
     root.inputMode = mode
-    input.text = mode === "filter" ? root.filterText : ""
+    input.text = mode === "filter" ? root.filterText : mode === "modify" ? TaskState.commandText(root.modifyTask) : ""
     input.forceActiveFocus()
   }
 
@@ -384,7 +384,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: root.inputMode === "" || input.text === ""
             text: root.inputMode === "add" ? "description project:x due:tomorrow sch:mon until:eom priority:H +tag"
-              : root.inputMode === "modify" && root.modifyTask ? "new description or due:fri priority:H -tag :: " + root.modifyTask.desc
+              : root.inputMode === "modify" && root.modifyTask ? "description project:x due:fri priority:H +tag"
               : root.inputMode === "filter" ? "filter"
               : root.filterText ? root.filterText : "add or filter"
             color: root.inputMode === "" && root.filterText ? Colors.menu.text : Colors.textDim
