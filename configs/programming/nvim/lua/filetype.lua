@@ -8,7 +8,6 @@ vim.filetype.add({
         -- nvim guesses lifelines for an .ll without a leading comment or target line
         ll = "llvm",
         shader = "hlsl",
-        nya = "nya",
         nuon = "nu",
     },
     pattern = {

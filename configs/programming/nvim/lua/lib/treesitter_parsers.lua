@@ -76,8 +76,4 @@ local parsers = {
     "zig",
 }
 
-if require("lib.nya") then
-    table.insert(parsers, "nya")
-end
-
 return parsers

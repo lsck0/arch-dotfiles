@@ -363,13 +363,6 @@ return {
                 command = "fmt",
                 args = { "--split-only", "--width=120", "--goal=120" },
             }
-            -- .nya goes through the engine's own serde (`./build format`), so only a nyangine checkout with a built
-            -- ./build has it; it rewrites in place, and a file with comments is only parse-checked, never rewritten
-            formatters.nya_format = {
-                command = vim.fn.expand("~/projects/nyangine/build"),
-                args = { "format", "$FILENAME" },
-                stdin = false,
-            }
             -- a @NAME@ template is not toml yet: taplo refuses it on every save, so it is skipped as the gate does
             formatters.taplo = {
                 condition = function(_, ctx)
@@ -400,7 +393,6 @@ return {
                 kotlin = { "ktlint" },
                 lua = { "stylua" },
                 nix = { "nixfmt" },
-                nya = { "nya_format" },
                 php = { "php_cs_fixer" },
                 pkgbuild = { "shfmt" },
                 plaintex = { "latexindent" },
