@@ -74,6 +74,15 @@ Singleton {
   }
 
   // when a not-yet-ready task is scheduled: the time today, the weekday this week, else the date; empty once ready
+  // until: the date the task expires and is deleted, shown as "until <day>"
+  function untilText(value) {
+    var d = twDate(value)
+    if (!d) return ""
+    var now = new Date()
+    if (d.toDateString() === now.toDateString()) return "until " + Qt.formatDateTime(d, "HH:mm")
+    return "until " + (d.getTime() - now.getTime() < 6 * root.msPerDay ? Qt.formatDateTime(d, "ddd") : Qt.formatDateTime(d, "MMM d"))
+  }
+
   function scheduledText(value) {
     var d = twDate(value)
     if (!d || d.getTime() <= Date.now()) return ""
@@ -177,6 +186,9 @@ Singleton {
         dueMs: d ? d.getTime() : Infinity,
         due: dueText(t.due),
         scheduled: scheduledText(t.scheduled),
+        until: untilText(t.until),
+        recur: String(t.recur || ""),
+        blocked: !!(t.depends && t.depends.length),
         overdue: !!d && d.getTime() < Date.now(),
         active: !!t.start,
         startMs: s ? s.getTime() : 0,
@@ -215,15 +227,23 @@ Singleton {
   }
 
   function add(text) {
-    var list = root.words(text)
+    var list = root.withRecurDue(root.words(text), false)
     if (list.length === 0) return
     run(["add"].concat(list), { op: "add", text: text })
+  }
+
+  // taskwarrior refuses recur: without a due date, the anchor each instance is scheduled from: the end of today when none is given (today is its midnight, overdue at once)
+  function withRecurDue(list, hasDue) {
+    var recurs = list.some(function (w) { return /^recur:\S/.test(w) })
+    var due = list.some(function (w) { return /^due:\S/.test(w) })
+    return recurs && !due && !hasDue ? list.concat(["due:eod"]) : list
   }
 
   // bare words replace the description, attributes (due:, priority:, project:, +tag, -tag) change only themselves
   function modify(task, text) {
     var list = root.words(text)
     if (!task || list.length === 0) return
+    list = root.withRecurDue(list, task.dueRaw !== "")
     run([task.uuid, "modify"].concat(list), { op: "modify", uuid: task.uuid, desc: task.desc, text: text })
   }
 

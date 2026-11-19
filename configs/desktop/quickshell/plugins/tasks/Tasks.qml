@@ -201,16 +201,22 @@ Item {
     return Object.keys(seen).sort()
   }
 
-  readonly property var fieldKeywords: ["project:", "due:", "scheduled:", "wait:", "priority:", "recur:"]
-  readonly property var freeformKeywords: ["due:", "sch:", "scheduled:", "wait:", "recur:"]
+  readonly property var fieldKeywords: ["project:", "due:", "scheduled:", "wait:", "until:", "priority:", "recur:"]
+  readonly property var dateKeywords: ["due:", "sch:", "scheduled:", "wait:", "until:"]
   readonly property var priorities: ["H", "M", "L"]
+  // taskwarrior's named dates and recurrence periods; a relative value (3d, 2wk, 15:00) has nothing to complete
+  readonly property var namedDates: ["now", "today", "tomorrow", "yesterday", "sod", "eod", "sow", "eow", "soww", "eoww",
+    "som", "eom", "soq", "eoq", "soy", "eoy", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+    "later", "someday"]
+  readonly property var recurPeriods: ["daily", "weekdays", "weekly", "biweekly", "monthly", "bimonthly", "quarterly",
+    "semiannual", "annual", "yearly"]
 
   // after a keyword's colon complete its value, else complete the bare word into the keyword
   function completeInput() {
     var head = input.text.slice(0, input.cursorPosition)
     var start = head.search(/\S*$/)
     var word = head.slice(start)
-    var value = word.match(/^([+-]|pro(?:ject)?:|due:|sch(?:eduled)?:|wait:|recur:|prio(?:rity)?:)(.*)$/)
+    var value = word.match(/^([+-]|pro(?:ject)?:|due:|sch(?:eduled)?:|wait:|until:|recur:|prio(?:rity)?:)(.*)$/)
     if (value) return root.completeValue(start, value[1], value[2])
     if (!word) return false
     var field = Util.completion(word, root.fieldKeywords)
@@ -220,12 +226,13 @@ Item {
     return true
   }
 
-  // due:, scheduled:, wait: and recur: take a freeform date or period (tomorrow, eod, 3days, weekly): nothing to
-  // complete against, stay in add mode.
+  // dates complete against taskwarrior's named dates, recur: against its periods; a relative value matches none and
+  // stays as typed
   function completeValue(start, keyword, partial) {
-    if (root.freeformKeywords.indexOf(keyword) >= 0) return true
     var pool = keyword.length === 1 ? root.known("tags")
       : keyword === "priority:" || keyword === "prio:" ? root.priorities
+      : root.dateKeywords.indexOf(keyword) >= 0 ? root.namedDates
+      : keyword === "recur:" ? root.recurPeriods
       : root.known("project")
     var done = Util.completion(partial, pool)
     var unique = pool.filter(function (c) { return c.indexOf(done) === 0 }).length === 1
@@ -256,6 +263,9 @@ Item {
     var parts = []
     if (task.project) parts.push(task.project)
     if (task.priority) parts.push("priority:" + task.priority)
+    if (task.recur) parts.push("recur:" + task.recur)
+    if (task.until) parts.push(task.until)
+    if (task.blocked) parts.push("blocked")
     for (let i = 0; i < task.tags.length; i++) parts.push("+" + task.tags[i])
     var tracked = TaskState.trackedText(task.desc)
     if (tracked) parts.push(tracked + " today")
@@ -373,7 +383,7 @@ Item {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             visible: root.inputMode === "" || input.text === ""
-            text: root.inputMode === "add" ? "description project:x due:tomorrow priority:H +tag"
+            text: root.inputMode === "add" ? "description project:x due:tomorrow sch:mon until:eom priority:H +tag"
               : root.inputMode === "modify" && root.modifyTask ? "new description or due:fri priority:H -tag :: " + root.modifyTask.desc
               : root.inputMode === "filter" ? "filter"
               : root.filterText ? root.filterText : "add or filter"

@@ -274,10 +274,11 @@ def "main install" [--unattended, --yes]: nothing -> nothing {
     # a power cut mid-transaction leaves the lock, and every retry boot would fail on it
     if ($PACMAN_LOCK | path exists) and not (process-running pacman) { rm --force $PACMAN_LOCK }
     let declared = modules-packages $repo $ctx.modules $ctx.platform
-    # at a terminal a lab outage ends the pass now, not after DOWNLOAD_TRIES warnings; the unattended chain waits it out
+    # at a terminal a lab outage skips the packages now, not after DOWNLOAD_TRIES warnings: the config stage still runs
+    # and a module missing a package stays pending; the unattended chain waits it out
     if not $unattended and not $offline and $ctx.platform.facts.homelab? == true and (mirror-silent) {
-        fail (failure-line pacman "the database sync" $"the homelab mirror ($HOMELAB.mirror.lsck0) does not answer; nothing installed, dot sync again once it does")
-        exit $EXIT_ABORTED
+        log-warn $"the homelab mirror ($HOMELAB.mirror.lsck0) does not answer: packages skipped, what needs a new one stays pending until a dot sync once it does"
+        exit $EXIT_PENDING
     }
     pacman-retry "the database sync" (if $offline { $OFFLINE_TRIES } else { $DOWNLOAD_TRIES }) -Syy --noconfirm
     # one package the mirror cannot resolve drops only itself and what needs it, never the whole pass
