@@ -28,7 +28,8 @@ def --wrapped main [...args] {
     let d = do $at "-d"
     if $d != null { $"($args | get ($d + 1))\n" | save --force ($env.STUB_STATE | path join default) }
     let p = do $at "-p"
-    if $p != null { $"($args | get ($p + 1)) ($args | get ((do $at "-v") + 1))\n" | save --append ($env.STUB_STATE | path join queues) }
+    let v = do $at "-v"
+    if $p != null and $v != null { $"($args | get ($p + 1)) ($args | get ($v + 1))\n" | save --append ($env.STUB_STATE | path join queues) }
 }'
 }
 
@@ -58,6 +59,7 @@ def main [] {
         if (do $file queues) != $"($WANT_NAME) ($WANT_URI)" { fail $"want exactly one queue ($WANT_NAME) on ($WANT_URI), got: (do $file queues)" }
         if (do $file default) != $WANT_NAME { fail "the new queue did not become the default" }
         if not ((do $file calls) | str contains "-m everywhere") { fail "the queue is not an IPP Everywhere one" }
+        if not ((do $file calls) | str contains $"lpadmin -p ($WANT_NAME) -o PageSize=A4") { fail "the new queue's paper is not A4" }
 
         "" | save --force ($work | path join calls)
         if (sync-run $work) != 0 { fail "rerun failed" }

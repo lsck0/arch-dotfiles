@@ -4,6 +4,8 @@
 const DISCOVERY_TIMEOUT_S = 10
 const SERVICES = [ipp ipps]
 const DEFAULT_SET = "system default destination:"
+# matches PAGE_SIZE in mod.nu
+const PAGE_SIZE = "A4"
 
 def warn [msg: string]: nothing -> nothing { print --stderr $"printers-sync: ($msg)" }
 
@@ -37,6 +39,10 @@ def main []: nothing -> nothing {
             }
             if (^lpadmin -p $name -E -v $uri -m everywhere -o printer-is-shared=false | complete).exit_code == 0 {
                 warn $"added ($name) \(($uri)\)"
+                # a second call: lpadmin edits PageSize in the PPD cups generated for the new queue
+                if (^lpadmin -p $name -o $"PageSize=($PAGE_SIZE)" | complete).exit_code != 0 {
+                    warn $"($name) keeps the printer's default paper, it takes no PageSize=($PAGE_SIZE)"
+                }
                 if ($created | is-empty) { $created = $name }
             } else {
                 warn $"($uri) does not take an IPP Everywhere queue"
