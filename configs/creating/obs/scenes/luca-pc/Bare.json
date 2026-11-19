@@ -217,7 +217,25 @@
       "versioned_id": "pipewire_audio_application_capture",
       "settings": {
         "TargetName": "wine64-preloader",
-        "ExceptApp": true
+        "ExceptApp": true,
+        "CaptureMode": 1,
+        "apps": [
+          {
+            "value": "wine64-preloader",
+            "selected": false,
+            "hidden": false
+          },
+          {
+            "value": "wpexec",
+            "selected": false,
+            "hidden": false
+          },
+          {
+            "value": "pipewire",
+            "selected": false,
+            "hidden": false
+          }
+        ]
       },
       "mixers": 13,
       "sync": 0,

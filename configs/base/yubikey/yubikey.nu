@@ -16,6 +16,9 @@ const AGE_SLOT = "1"
 const TOUCH_WAIT = 30min
 const TOUCH_ATTEMPT_S = "900"
 const TOUCH_RETRY = 2sec
+# a missed touch times out after seconds; failures this fast in a row are no touch's (offline, no matching identity)
+const TOUCH_FAST = 5sec
+const TOUCH_FAST_MAX = 3
 const INIT_STEPS = [pins pgp ssh u2f age]
 const PCSC_REFUSED = "PC/SC not available"
 const GITHUB_OVER_SSH = "url.git@github.com:lsck0/.insteadOf=https://github.com/lsck0/"
@@ -54,12 +57,18 @@ def recipient [identity: path]: nothing -> string {
 # --foreground: a background group stops on the tty read; the cap only guards a stalled network.
 def with-touch [argv: list<string>]: nothing -> bool {
     let deadline = (date now) + $TOUCH_WAIT
-    while not (try { ^timeout --foreground $TOUCH_ATTEMPT_S ...$argv; true } catch { false }) {
-        if (date now) > $deadline { return false }
+    mut fast = 0
+    mut done = false
+    while not $done {
+        let start = date now
+        $done = try { ^timeout --foreground $TOUCH_ATTEMPT_S ...$argv; true } catch { false }
+        if $done { break }
+        $fast = if ((date now) - $start) < $TOUCH_FAST { $fast + 1 } else { 0 }
+        if $fast >= $TOUCH_FAST_MAX or (date now) > $deadline { break }
         print ">>> not done, touch the YubiKey again when it blinks"
         sleep $TOUCH_RETRY
     }
-    true
+    $done
 }
 
 # Decrypt the passphrase-protected ssh stub once before the touch loop, or ssh asks every attempt.

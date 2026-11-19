@@ -67,6 +67,8 @@ BarWidget {
   // the closed panel only feeds the bar's problem count; away (no home link, no wg0) the helper answers without the
   // network, so a short poll brings the widget back soon after a home link or the vpn comes up
   readonly property bool away: root.error === "away"
+  // away, the vpn's state decides whether the widget shows, so it is read then and not only with the panel open
+  onAwayChanged: if (away) vpnProc.run()
   readonly property int awayIntervalS: 30
   readonly property int hiddenIntervalS: away ? awayIntervalS : Power.onBattery ? 900 : 300
   readonly property int statusRestartDelayMs: 5 * 1000
@@ -89,9 +91,9 @@ BarWidget {
       root.received = true
       root.ok = s.ok === true
       root.error = s.error || ""
-      // hide on a missing checkout or a network the lab cannot be reached from, but keep polling: the widget returns
-      // once lab.json reappears or a home link or wg0 comes up
-      root.absent = root.error === "source" || root.error === "away"
+      // hide on a missing checkout, and away unless the vpn is there to connect (the panel offers it); keep polling:
+      // the widget returns once lab.json reappears or a home link or wg0 comes up
+      root.absent = root.error === "source" || (root.away && !root.vpnOffered)
       if (!root.ok) return
       // the closed panel's poll carries no clients: the last ones stay for the next open
       if (s.clients === undefined) s.clients = root.lab.clients
@@ -124,7 +126,10 @@ BarWidget {
   JsonProcess {
     id: vpnProc
     command: [Paths.toggle("toggle-vpn.nu"), "get", "--json"]
-    onParsed: function(data) { if (data) root.vpn = data }
+    onParsed: function(data) {
+      if (data) root.vpn = data
+      if (root.error !== "source") root.absent = root.away && !root.vpnOffered
+    }
   }
 
   Connections {
@@ -133,7 +138,7 @@ BarWidget {
       if (script !== "toggle-vpn.nu") return
       // wg0 came or went: the closed panel's next poll may be minutes off
       if (root.error !== "source") root.restartStatus()
-      if (panel.visible) vpnProc.run()
+      if (panel.visible || root.away) vpnProc.run()
     }
   }
 

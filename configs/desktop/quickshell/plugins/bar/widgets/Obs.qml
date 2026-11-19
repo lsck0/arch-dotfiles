@@ -40,6 +40,10 @@ BarWidget {
   property real recordKbps: 0
   readonly property real diskSecondsLeft: recordKbps > 0 ? (freeDiskMb * 1024 * 8) / recordKbps : 0
   readonly property bool active: streaming || recording
+  property bool virtualcam: false
+  property bool replayBuffer: false
+  // any output that shows or keeps the screen: the censor and the idle inhibit follow it, not only live and rec
+  readonly property bool capturing: active || virtualcam || replayBuffer
   property var bitrateHist: []
   property var dropHist: []
   readonly property color stateColor: (degraded || faulted) ? Colors.semantic.warn : (streaming ? Colors.semantic.live : (recording ? Colors.semantic.recording : Colors.muted))
@@ -77,6 +81,8 @@ BarWidget {
     streamReconnecting = false
     recording = false
     recordPaused = false
+    virtualcam = false
+    replayBuffer = false
     bitrateKbps = 0
     recordKbps = 0
     prevStreamBytes = -1
@@ -103,12 +109,14 @@ BarWidget {
     streamReconnecting = payload.streamReconnecting === true
     recording = payload.recording === true
     recordPaused = payload.recordPaused === true
+    virtualcam = payload.virtualcam === true
+    replayBuffer = payload.replayBuffer === true
     // outputActive before connected: the other order lifts the censor for a moment on every reconnect mid-stream
-    ObsProcess.outputActive = streaming || recording
+    ObsProcess.outputActive = capturing
     ObsProcess.connected = true
     for (const key of numberKeys) root[key] = Number(payload[key]) || 0
     scene = String(payload.scene || "")
-    if (Array.isArray(payload.scenes)) scenes = payload.scenes
+    if (Util.isList(payload.scenes)) scenes = Array.from(payload.scenes)
     if (payload.mutes && typeof payload.mutes === "object") mutes = payload.mutes
     ObsProcess.inputMutes = mutes
     ObsProcess.inputVolumes = (payload.volumes && typeof payload.volumes === "object") ? payload.volumes : ({})
@@ -152,7 +160,7 @@ BarWidget {
 
   // libobs asks the portal for an idle inhibit no backend here honours; the bar is always mapped, so it holds it
   IdleInhibitor {
-    enabled: root.active
+    enabled: root.capturing
     window: root.QsWindow.window
   }
 

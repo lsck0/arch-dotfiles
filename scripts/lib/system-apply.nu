@@ -14,6 +14,7 @@ use sync.nu [bootstrap-const FINGERPRINT_VALUE]
 use cause.nu [cause-from-output cause-text failure-line argv-text]
 use profile.nu [profile-owner-add]
 use ../../platforms/homelab.nu [HOMELAB]
+use homelab.nu [LSCK0_SECTION]
 
 const EXIT_FAILURES = 1
 const OFFLINE_WAIT_S = 120
@@ -24,6 +25,7 @@ const DOWNLOAD_BACKOFF_STEP = 5sec
 const DOWNLOAD_BACKOFF_MAX = 1min
 const DOWNLOAD_ERRORS = '(?i)failed retrieving file|failed to retrieve some files|failed to synchronize|could not resolve|returned error: (403|429|5\d\d)|timed? ?out|too slow|connection (refused|reset)|could not connect|network is unreachable'
 const PACMAN_LOCK = "/var/lib/pacman/db.lck"
+const PACMAN_CONF = "/etc/pacman.conf"
 const ADDUSER_BIN = "/usr/local/bin/adduser-dotfiles"
 const NOT_ON_MIRROR = "not on the mirror"
 const MIRROR_PROBE_TIMEOUT_S = 5
@@ -291,10 +293,17 @@ def "main install" [--unattended, --yes]: nothing -> nothing {
         fail $"($d.name): ($d.why), left out of this pass; what needs it stays pending"
     }
     let built = if ($LSCK0_DB | path exists) { ls $LSCK0_DB | get 0.modified } else { null }
-    let absent = mirror-awaited ($resolved.dropped | where why == $NOT_ON_MIRROR | get name) (ledger-get $LEDGER_AWAITED) $built (date now)
+    let missing = $resolved.dropped | where why == $NOT_ON_MIRROR | get name
+    # base/pacman leaves [lsck0] out while the lab does not answer: what only it carries waits, its ask times kept
+    let lsck0_on = open --raw $PACMAN_CONF | lines | any {|l| ($l | str trim) == $LSCK0_SECTION }
+    let absent = if $lsck0_on { mirror-awaited $missing (ledger-get $LEDGER_AWAITED) $built (date now) } else {
+        {awaited: $missing, failed: [], record: (ledger-get $LEDGER_AWAITED)}
+    }
     ledger-set $LEDGER_AWAITED $absent.record
     for name in $absent.failed { fail $"($NOT_ON_MIRROR): ($name) \(no build since it was first asked for carries it: a typo, or its build failed\)" }
-    if ($absent.awaited | is-not-empty) {
+    if not $lsck0_on and ($absent.awaited | is-not-empty) {
+        log-note $"[lsck0] left out while the homelab mirror does not answer: ($absent.awaited | str join ' ') wait for it, then dot sync"
+    } else if ($absent.awaited | is-not-empty) {
         log-note $"($NOT_ON_MIRROR) yet, newer than its last build: ($absent.awaited | str join ' '); the next nightly build brings them, then dot sync"
     }
     let available = $resolved.kept
@@ -359,9 +368,11 @@ def "main config" [--unattended, --force]: nothing -> nothing {
         secrets-refused $handed $allowed | each { rm --force ($secrets | path join $in) } | ignore
         secrets-record $secrets
         $env.DOTFILES_SECRETS = $secrets
-        let planned = pipeline-plan $ctx system [] $force --progress | where id not-in (phase-ids $ctx early)
+        let early = phase-ids $ctx early
+        let planned = pipeline-plan $ctx system [] $force --progress | where id not-in $early
         let results = pipeline-apply $ctx $planned system 1
-        pending-save $planned.id $results --full
+        # the install stage holds the early modules' lines
+        pending-save $planned.id $results --full --keep $early
         {results: $results, waiting: ($results | any { $in.pending? != null })}
     } catch {|e|
         rm --recursive --force $secrets

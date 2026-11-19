@@ -25,13 +25,15 @@ export def link [cfg: record] {
     let ssh = $nu.home-dir | path join .ssh
     # ssh tries id_ed25519_sk by default, after the agent's keys; a copy, ssh rejects a key file others can read
     let secrets = $env.DOTFILES | path join configs secrets keys yubikey
-    let stub = glob ($secrets | path join "ssh-*") | where {|f| not ($f | str ends-with ".pub") } | get --optional 0
-    let pub = glob ssh-*.pub | get --optional 0
+    # a stub and its public key by serial (glob's order is the directory's); the lowest enrolled serial is the default
+    let key = glob ($secrets | path join "ssh-*") | where {|f| not ($f | str ends-with ".pub") } | sort
+        | each {|stub| {stub: $stub, pub: ($"($stub | path basename).pub" | path expand)} }
+        | where { $in.pub | path exists } | get --optional 0
     [
-        (if (profile-has secrets) and $stub != null and $pub != null and (secret-is-plaintext $stub) {
+        (if (profile-has secrets) and $key != null and (secret-is-plaintext $key.stub) {
             [
-                (file-copy $stub ($ssh | path join id_ed25519_sk) --mode 600)
-                (file-copy $pub ($ssh | path join id_ed25519_sk.pub))
+                (file-copy $key.stub ($ssh | path join id_ed25519_sk) --mode 600)
+                (file-copy $key.pub ($ssh | path join id_ed25519_sk.pub))
             ]
         })
         (link-commands totp.nu)

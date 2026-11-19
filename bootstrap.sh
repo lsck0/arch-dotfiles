@@ -20,8 +20,18 @@ if [[ -d /run/archiso ]]; then
     (($(df --output=size -BM /run/archiso/cowspace | tail -1 | tr -dc 0-9) >= COW_MIN_MIB)) ||
         mount -o "remount,size=${COW_MIN_MIB}M" /run/archiso/cowspace
     systemctl start pacman-init.service
-    pacman -Sy --noconfirm --needed archlinux-keyring
-    pacman -S --noconfirm --needed glibc nushell git gnupg
+    # the lsck0 iso's [lsck0] is Required, so with the lab down every sync with it fails: these syncs go without it
+    # and the live pacman.conf stays as it is, for dot internal bootstrap to decide whether the install goes on
+    conf=/etc/pacman.conf
+    server=$(awk '/^\[/ { s = ($0 == "[lsck0]") } s && /^Server *=/ { sub(/^Server *= */, ""); print; exit }' "$conf")
+    if [[ -n "$server" ]] && ! curl -fs -m 5 -r 0-0 -o /dev/null "${server//\$arch/$(uname -m)}/lsck0.db"; then
+        echo "bootstrap: the homelab mirror does not answer, these syncs go without [lsck0]" >&2
+        conf=$(mktemp)
+        awk '/^\[/ { s = ($0 == "[lsck0]") } !s' /etc/pacman.conf > "$conf"
+    fi
+    pacman --config "$conf" -Sy --noconfirm --needed archlinux-keyring
+    pacman --config "$conf" -S --noconfirm --needed glibc nushell git gnupg
+    [[ "$conf" == /etc/pacman.conf ]] || rm -f "$conf"
 else
     pacman-key --init && pacman-key --populate archlinux
     pacman -Sy --noconfirm --needed archlinux-keyring

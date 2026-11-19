@@ -15,6 +15,8 @@ def queue-name [instance: string]: nothing -> string {
 }
 
 def main []: nothing -> nothing {
+    # lpstat translates the lines parsed here
+    $env.LC_ALL = "C"
     let discovered = ^lpinfo --timeout $DISCOVERY_TIMEOUT_S --include-schemes dnssd -v | complete | get stdout | lines
     let existing = ^lpstat -v | complete | get stdout
     mut seen = []

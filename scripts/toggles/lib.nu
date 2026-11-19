@@ -220,15 +220,18 @@ export def switch-run [switch: record, action: string, --json]: nothing -> any {
     }
 }
 
-export def service-switch [label: string, unit: string]: nothing -> record {
+# A system service switched by start and stop. sockets are the ones that activate it: they go with it, or the next
+# client starts it again, and one listening counts as on.
+export def service-switch [label: string, unit: string, ...sockets: string]: nothing -> record {
+    let units = [$unit ...$sockets]
     {
         label: $label
         available: {|| unit-exists $unit }
-        is-on: {|| unit-active $unit }
-        on: {|| ^systemctl --no-ask-password start $unit | complete | raise-failed $"systemctl start ($unit)" }
+        is-on: {|| $units | any {|u| unit-active $u } }
+        on: {|| ^systemctl --no-ask-password start ...$units | complete | raise-failed $"systemctl start ($unit)" }
         off: {||
             let ask = if (user-is-admin) { [] } else { [--no-ask-password] }
-            ^systemctl ...$ask stop $unit | complete | raise-failed $"systemctl stop ($unit)"
+            ^systemctl ...$ask stop ...$units | complete | raise-failed $"systemctl stop ($unit)"
         }
     }
 }

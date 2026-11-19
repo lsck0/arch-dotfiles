@@ -146,7 +146,12 @@ def configure [home: path, settings: record, remove: list<string>, mcp: record]:
     let removed = $remove | each {|key| ($have | get --optional ($key | split row "." | into cell-path)) == null }
     let served = $mcp | items {|name, spec| ($have.mcp_servers? | get --optional $name) == $spec }
     let current = $set ++ $removed ++ $hooked ++ $served ++ [($have.display?.skin? == $SKIN) (not $stale)] | all { $in }
-    [(exec $"configure ($home)" [env $"HERMES_HOME=($home)" $PYTHON configure.py ($want | to json --raw)] --done=$current)]
+    # through a mode-600 file, not argv: the mcp specs carry the gated servers' bearer headers
+    let input = $home | path join .dot-configure.json
+    [
+        (file-text $input ($want | to json --raw) --mode 600 --generated)
+        (exec $"configure ($home)" [env $"HERMES_HOME=($home)" $PYTHON configure.py $input] --done=$current)
+    ]
 }
 
 # without a gpu share llm/vllm serves nothing, so hermes gets no vllm provider

@@ -2,4 +2,6 @@
 use lib.nu [switch-run service-switch]
 
 # OOM protection: get [--json] prints the state, on, off or toggle switches it, a bare call toggles.
-def main [action: string = "toggle", --json] { switch-run (service-switch "OOM protection" systemd-oomd.service) $action --json=$json }
+def main [action: string = "toggle", --json] {
+    switch-run (service-switch "OOM protection" systemd-oomd.service systemd-oomd.socket) $action --json=$json
+}

@@ -49,10 +49,12 @@ def expr-save [name: string, kind: string, expr: string]: nothing -> nothing {
     state-set $"monitor-($name)-($kind)" $"(hyprland-instance) ($expr)" --volatile
 }
 
+# In the order they were saved, as they ran live: a later expression for an output replaces the fields of an earlier
+# one, so a scale saved before a mirror would otherwise undo it.
 def reapply []: nothing -> nothing {
-    let saved = [layout scale] | each {|kind|
-        glob (state-file $"monitor-*-($kind)" --volatile) | each { open --raw $in | split row --number 2 " " }
-    } | flatten | where { $in.0 == (hyprland-instance) } | each { $in.1 }
+    let saved = [layout scale] | each {|kind| glob (state-file $"monitor-*-($kind)" --volatile) } | flatten
+        | sort-by {|file| ls --directory $file | get 0.modified }
+        | each { open --raw $in | split row --number 2 " " } | where { $in.0 == (hyprland-instance) } | each { $in.1 }
     # a scale expression re-enables its output: a monitor turned off (lid closed) goes off again last
     for expr in ($saved ++ ($saved | where { $in =~ 'disabled = true' })) { ^hyprctl eval $expr o> /dev/null }
 }

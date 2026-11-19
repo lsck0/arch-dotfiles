@@ -485,6 +485,14 @@ def powermode-cases [w: path]: nothing -> nothing {
 
 def trust-cases [w: path]: nothing -> nothing {
     expect $w "away: offered, off" (rec $w trust-network | select state available) {state: off, available: true}
+    # an owner's locked secrets: the mac never goes to the option, the public repo's platform file
+    let r = toggle $w trust-network on
+    expect $w "owner locked: on refused" [$r.exit_code (open (world $w option.nuon))] [1 []]
+    expect $w "owner locked toast" (toasts-take $w | last) "critical\tTrusted network\tSwitch to on failed: configs/secrets is locked: unlock it to trust this network"
+
+    # a login without secrets keeps the list in the option
+    let profile = $w | path join home .config dotfiles profile.nuon
+    "{capabilities: []}" | save --force $profile
     let r = toggle $w trust-network on
     expect $w "trust exit" $r.exit_code 0
     expect $w "trust stores the gateway" (open (world $w option.nuon)) [$MAC]
@@ -518,6 +526,38 @@ def trust-cases [w: path]: nothing -> nothing {
     put $w networking disabled
     expect $w "no uplink: hidden" (rec $w trust-network | select state available) {state: off, available: false}
     put $w networking enabled
+    "{capabilities: [secrets]}" | save --force $profile
+}
+
+# a socket-activated service: off takes its socket too, or the next client starts it again
+def service-cases [w: path]: nothing -> nothing {
+    $"(peek $w known-units)\ndocker.service\ndocker.socket\n" | save --force (world $w known-units)
+    touch (world $w units system docker.socket)
+    expect $w "docker: a listening socket is on" (rec $w docker | select state available) {state: on, available: true}
+    toggle $w docker off | ignore
+    expect $w "docker off takes the socket" [(unit-up $w docker.service) (unit-up $w docker.socket)] [false false]
+    toggle $w docker on | ignore
+    expect $w "docker on brings both" [(unit-up $w docker.service) (unit-up $w docker.socket)] [true true]
+    toasts-take $w | ignore
+}
+
+# reapply replays the saved expressions in the order they were saved: a mirror after a scale stays a mirror
+def monitor-cases [w: path]: nothing -> nothing {
+    let dir = runtime $w | path join toggles
+    mkdir $dir
+    let scale = 'hl.monitor({ output = "HDMI-A-1", scale = 1.5 })'
+    let mirror = 'hl.monitor({ output = "HDMI-A-1", mirror = "DP-1" })'
+    $" ($scale)" | save --force ($dir | path join monitor-HDMI-A-1-scale)
+    $" ($mirror)" | save --force ($dir | path join monitor-HDMI-A-1-layout)
+    ^touch -d "2026-01-01 00:00:00" ($dir | path join monitor-HDMI-A-1-scale)
+    ^touch -d "2026-01-01 00:00:01" ($dir | path join monitor-HDMI-A-1-layout)
+    let before = peek $w calls | lines | length
+    let r = toggle $w monitor-scale reapply
+    let evals = peek $w calls | lines | skip $before | where { $in | str starts-with "hyprctl eval " }
+        | str replace "hyprctl eval " ""
+    expect $w "monitor reapply exit" $r.exit_code 0
+    expect $w "reapply keeps the saved order" $evals [$scale $mirror]
+    rm ($dir | path join monitor-HDMI-A-1-scale) ($dir | path join monitor-HDMI-A-1-layout)
 }
 
 def radio-cases [w: path]: nothing -> nothing {
@@ -597,6 +637,8 @@ def main [] {
         trust-cases $w
         radio-cases $w
         firewall-cases $w
+        service-cases $w
+        monitor-cases $w
         null
     } catch {|err| $err.rendered? | default $err.msg }
     let failures = if ($w | path join failures | path exists) { open --raw ($w | path join failures) } else { "" }

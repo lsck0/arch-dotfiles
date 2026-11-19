@@ -459,6 +459,19 @@ export def alerts-current [now: int]: any -> any {
     $reply | upsert alerts { $in | where {|alert| $alert.endsAt == null or $alert.endsAt > $now } }
 }
 
+# The 0.1 degree cell a reverse geocode was made in, hashed so no coordinates reach disk.
+export def place-key [lat: float, lon: float]: nothing -> string {
+    $"($lat | math round -p 1),($lon | math round -p 1)" | hash sha256
+}
+
+# A cached place is the filtered {address} with the key of the cell it was geocoded in; anything else is a miss.
+export def place-current [key: string]: any -> any {
+    let place = $in
+    if ($place | describe -d).type == record and ($place | columns | sort) == [address key] and $place.key == $key {
+        $place
+    }
+}
+
 def alerts-get []: nothing -> record {
     let cache = cache-path weather-alerts.json
     let cached = cache-load $cache $FEED_MAX_AGE
@@ -469,10 +482,10 @@ def alerts-get []: nothing -> record {
     let lat = $location.lat | into float
     let lon = $location.lon | into float
 
+    let key = place-key $lat $lon
     let place_cache = cache-path weather-place.json
-    let cached_place = cache-load $place_cache $PLACE_MAX_AGE
-    # anything but the filtered {address} is a miss, so a full reverse geocode cached before the filter is replaced
-    if ($cached_place | describe -d).type != record or ($cached_place | columns) != [address] {
+    # a place from another cell, or a full reverse geocode cached before the filter, is a miss
+    if (cache-load $place_cache $PLACE_MAX_AGE | place-current $key) == null {
         let url = {lat: $location.lat, lon: $location.lon} | format pattern $NOMINATIM_URL
         let body = http-fetch $url $PLACE_TIMEOUT [User-Agent $NOMINATIM_USER_AGENT]
         let parsed = if ($body | is-empty) { null } else { try { $body | from json } catch { null } }
@@ -481,15 +494,15 @@ def alerts-get []: nothing -> record {
             let v = $addr | get -o $k
             if $v == null { $acc } else { $acc | insert $k $v }
         }
-        if ($region | is-not-empty) { file-save $place_cache ({address: $region} | to json) }
+        if ($region | is-not-empty) { file-save $place_cache ({address: $region, key: $key} | to json) }
     }
-    let place = try { open --raw $place_cache | from json } catch { null }
+    let place = try { open --raw $place_cache | from json | place-current $key } catch { null }
     let address = if ($place | describe -d | get type) == record { $place.address? | default {} } else { {} }
     if ($address.country_code? | is-empty) { return (failure "no region") }
     let slug = $FEED_SLUGS | get -o $address.country_code
     if $slug == null { return {ok: true, supported: false, alerts: [], countryOthers: 0} }
 
-    let feed_cache = cache-path weather-alerts-feed.json
+    let feed_cache = cache-path $"weather-alerts-feed-($slug).json"
     if (cache-load $feed_cache $FEED_MAX_AGE) == null {
         let body = http-fetch ({slug: $slug} | format pattern $FEED_URL) $FEED_TIMEOUT
         if not ($body | is-empty) { file-save $feed_cache $body }

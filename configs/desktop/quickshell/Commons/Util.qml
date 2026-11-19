@@ -21,8 +21,15 @@ QtObject {
     return "'" + String(value || "").replace(/'/g, "'\\''") + "'"
   }
 
+  // a list, also one that crossed a var signal or property: QML hands that over as a sequence, for which
+  // Array.isArray is false
+  function isList(value) {
+    return Array.isArray(value)
+      || (value !== null && typeof value === "object" && typeof value.length === "number" && typeof value.map === "function")
+  }
+
   function isPlainObject(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value)
+    return value !== null && typeof value === "object" && !isList(value)
   }
 
   // a JSON object from text, {} for empty, invalid or non-object text

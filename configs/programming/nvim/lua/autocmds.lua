@@ -9,15 +9,19 @@ autocmd("TextYankPost", {
     end,
 })
 
-local PROSE = { "markdown", "text", "gitcommit", "tex", "plaintex", "rst", "org", "typst" }
+local PROSE = { "markdown", "text", "gitcommit", "tex", "plaintex", "rst", "org", "typst", "mail" }
 local SPELLED = { markdown = true, gitcommit = true, text = true, tex = true, plaintex = true, org = true }
 
 autocmd("FileType", {
-    desc = "Prose: hard-wrap at textwidth, spell-check the natural-language filetypes",
+    desc = "Prose: hard-wrap at textwidth, soft-wrap what is longer than the window, spell-check",
     group = group("prose", { clear = true }),
     pattern = PROSE,
     callback = function(args)
         vim.opt_local.textwidth = 120
+        -- a pasted paragraph or a window narrower than textwidth still reads: wrapped at words, indent kept
+        vim.opt_local.wrap = true
+        vim.opt_local.linebreak = true
+        vim.opt_local.breakindent = true
         vim.opt_local.formatoptions:append("tn")
         if SPELLED[vim.bo[args.buf].filetype] then
             vim.opt_local.spell = true

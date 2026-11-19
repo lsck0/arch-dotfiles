@@ -102,7 +102,8 @@ def outputs-publish [built: path, out: path, keep: int, sign: any]: nothing -> l
     let latest = $out | path join $ISO_LATEST
     ^ln -sfn ($iso | path basename) $latest
     $"($sum)  ($ISO_LATEST)\n" | save --force $"($latest).sha256"
-    let signed = if $sign == null { [] } else {
+    # an unsigned publish drops the signature a signed build of the same name left, and latest.sig with it
+    let signed = if $sign == null { rm --force $"($iso).sig" $"($latest).sig"; [] } else {
         ^gpg --batch --yes --local-user $sign --detach-sign --output $"($iso).sig" $iso
         iso-signer-verify $iso $"($iso).sig"
         ^ln -sfn $"($iso | path basename).sig" $"($latest).sig"

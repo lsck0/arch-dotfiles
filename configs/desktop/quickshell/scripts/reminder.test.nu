@@ -85,6 +85,14 @@ def main [] {
             let call = pending $root | where label == "--call mom" | first | get unit
             if (reminder cancel $call).exit_code != 0 or $call in (records $root) { fail "cancel left its record" }
 
+            # a lone true, false or null word is a name, not a bool or null
+            if (reminder 2 "--" "true").exit_code != 0 { fail "a message true not set" }
+            let word = pending $root | where label == "true" | get --optional 0.unit
+            if $word == null { fail "message true lost" }
+            if (reminder rename $word "--" "null").exit_code != 0 { fail "rename to null" }
+            if "null" not-in (pending $root | get label) { fail "rename to null lost" }
+            if (reminder cancel $word).exit_code != 0 { fail "cancel of the true reminder" }
+
             # a reboot takes the timers and the runtime index; one record has passed while the machine was off
             rm -rf ($root | path join fake units) ($root | path join run quickshell-reminders)
             let missed = "quickshell-reminder-7m-1"

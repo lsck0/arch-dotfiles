@@ -149,7 +149,8 @@ def file-classify [obs: record, want: string, recorded: any, generated: bool, st
         if $mode != null and (mode-normal ($obs.mode? | default $mode)) != (mode-normal $mode) {
             do $c update "mode changed" false
         } else if $recorded == $want { do $c skip "" false } else { do $c record "already this content" false }
-    } else if $obs.type == file and ($generated or $recorded == $obs.hash) {
+    } else if $obs.type == file and (($generated and $recorded != null) or $recorded == $obs.hash) {
+        # --generated skips the drift check, not the takeover of a file dot never wrote
         do $c update "changed in the module" false
     } else if $recorded == null {
         do $c update "not the dotfiles' own yet: preserved aside" true
@@ -277,7 +278,8 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
             })
             "json" => {
                 let restorable = $o.keys? | default [] | where not ($it.before.unknown? | default false)
-                if $claimed or ($restorable | is-empty) { action $id forget $o.target "no longer declared" $o null null } else {
+                # a file gone has no keys to give back: unmerging would write it again
+                if $claimed or ($restorable | is-empty) or $obs.type == "" { action $id forget $o.target "no longer declared" $o null null } else {
                     action $id unmerge $o.target "no longer declared: dot's keys go back" $o null null
                 }
             }
@@ -464,6 +466,8 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     {}
                 }
                 "enable" | "mask" => {
+                    # systemctl enable refuses a masked unit
+                    if $a.kind == "enable" and $a.before in [masked masked-runtime] { systemctl-retry $scope unmask $a.target }
                     let now = if ($a.decl.now? | default false) { [--now] } else { [] }
                     systemctl-retry $scope $a.kind ...$now $a.target
                     {}

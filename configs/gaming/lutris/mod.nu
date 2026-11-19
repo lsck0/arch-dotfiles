@@ -16,14 +16,16 @@ export const options = {
 
 const DPI_BASE = 96
 
+# null outside the session (no monitor answers): wine.yml keeps its last dpi
 export def detect [cfg: record]: nothing -> record {
-    let scale = monitors-live | sort-by focused --reverse | get --optional 0.scale | default 1
-    {dpi: ($DPI_BASE * $scale | math round | into int)}
+    let monitor = monitors-live | sort-by focused --reverse | get --optional 0
+    if $monitor == null { return {dpi: null} }
+    {dpi: ($DPI_BASE * $monitor.scale | math round | into int)}
 }
 
 # Lutris writes both LogPixels keys from a game's own wine options; battle.net's cef renders blank when they differ.
 export def link [cfg: record] {
-    if (which lutris | is-empty) { return [] }
+    if (which lutris | is-empty) or $cfg.dpi == null { return [] }
     let config = xdg config lutris
     let dir = if ($config | path exists) { $config } else { xdg data lutris }
     let file = $dir | path join runners wine.yml

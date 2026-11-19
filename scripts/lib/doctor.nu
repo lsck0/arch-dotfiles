@@ -11,7 +11,7 @@ use pipeline.nu [pipeline-load PENDING_FILE]
 use modules.nu [modules-packages]
 use cause.nu [failures-group names-shown]
 use invariants.nu [invariants-load]
-use cli.nu [crash-file crash-read]
+use cli.nu [crash-file crash-list crash-read]
 use usage.nu [counted]
 use ../../configs/base/yubikey/audit.nu [audit-findings]
 
@@ -323,11 +323,10 @@ def luks []: nothing -> list<record> {
 # A crash record is retired by its command's next run that goes through (cli.nu guarded): one still there is unresolved.
 export def crash-reports [files: list<path>]: nothing -> list<record> {
     let found = $files | each {|file|
-        let crash = crash-read $file
-        if $crash != null {
+        crash-list (crash-read $file) | each {|crash|
             report note crash $"dot ($crash.command) crashed in run ($crash.run) and has not gone through since: ($crash.error | lines | get --optional 0 | default ''); dot log ($crash.run) --trace, the whole error in ($file)"
         }
-    } | compact
+    } | flatten
     if ($found | is-empty) { [(report ok crash "no crash record left by a dot command")] } else { $found }
 }
 

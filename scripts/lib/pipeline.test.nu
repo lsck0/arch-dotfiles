@@ -82,6 +82,11 @@ def pending-lines-cases []: nothing -> nothing {
         let got = pending-lines $c.earlier $c.planned $c.results $c.full
         assert equal $got $c.wants $"pending lines ($c.name): got ($got | to nuon), wants ($c.wants | to nuon)"
     }
+    # root's config stage plans every module but the early ones, whose lines the install stage wrote just before
+    let staged = ["base/pacman: pending, offline" "a/old: packages missing: x"]
+    let got = pending-lines $staged [a/old a/new] $results true [base/pacman]
+    let wants = ["base/pacman: pending, offline" "a/new: waits on a/old (failed)"]
+    assert equal $got $wants $"pending lines full with keep: got ($got | to nuon), wants ($wants | to nuon)"
 }
 
 # A fresh dir of executables, each a sh script, for the front of PATH.

@@ -3,10 +3,13 @@
 const CONFIG_RELATIVE = "obs-studio/plugin_config/obs-websocket/config.json"
 const PORT_DEFAULT = 4455
 const SUBSCRIPTIONS = 0b1001101
-const EVENTS_REPOLL = [StreamState RecordState CurrentProgramScene InputMuteStateChanged]
+const EVENTS_REPOLL = [StreamState RecordState VirtualcamState ReplayBufferState CurrentProgramScene InputMuteStateChanged]
 const EVENT_EXIT = "ExitStarted"
 const MUTE_SOURCES = {Mic: "Mic/Aux", Desktop: "Desktop Audio", Game: "Game Audio"}
 const APP_CAPTURE_KIND = "pipewire_audio_application_capture"
+# a recording started on the VirtualCam profile would follow its 720p30 output: toggleRecord moves to this one first
+const PROFILE_RECORDING = "Recording"
+const PROFILE_VIRTUALCAM = "VirtualCam"
 const COMMANDS = {
     toggleStream: [ToggleStream null]
     toggleRecord: [ToggleRecord null]
@@ -94,7 +97,12 @@ export def socket-identify [socket: int, password: string]: nothing -> nothing {
         $identify | insert authentication ($secret + $auth.challenge | sha256-base64)
     }
     socket-send $socket {op: $OP_IDENTIFY, d: $identify}
-    if (socket-recv).op != $OP_IDENTIFIED { error make {msg: "identify rejected"} }
+    # obs closes the socket on a failed authentication instead of answering: past the hello that is a fault, not
+    # obs being away
+    let reply = try { socket-recv } catch {|e|
+        error make {msg: (if $e.msg == $ERROR_CLOSED { "obs-websocket closed the connection at identify (wrong password?)" } else { $e.msg })}
+    }
+    if $reply.op != $OP_IDENTIFIED { error make {msg: "identify rejected"} }
 }
 
 def round-to [digits: int]: any -> float { default 0 | into float | math round --precision $digits }
@@ -111,6 +119,9 @@ def snapshot [socket: int]: nothing -> record {
     if $stream == null { error make {msg: "GetStreamStatus unanswered"} }
     let record = request $socket GetRecordStatus
     if $record == null { error make {msg: "GetRecordStatus unanswered"} }
+    # null when the output does not exist (no v4l2loopback, replay buffer off): reads as off
+    let vcam = request $socket GetVirtualCamStatus | default {}
+    let replay = request $socket GetReplayBufferStatus | default {}
     let scene = request $socket GetCurrentProgramScene | default {}
     let scenes = request $socket GetSceneList | default {}
     let apps = request $socket GetInputList {inputKind: $APP_CAPTURE_KIND} | get -o inputs | default []
@@ -128,6 +139,8 @@ def snapshot [socket: int]: nothing -> record {
         streamReconnecting: ($stream.outputReconnecting? == true)
         recording: ($record.outputActive? == true)
         recordPaused: ($record.outputPaused? == true)
+        virtualcam: ($vcam.outputActive? == true)
+        replayBuffer: ($replay.outputActive? == true)
         streamSeconds: ($stream.outputTimecode? | timecode-seconds)
         recordSeconds: ($record.outputTimecode? | timecode-seconds)
         streamBytes: ($stream.outputBytes? | default 0)
@@ -175,12 +188,25 @@ def command-apply [socket: int, line: string]: nothing -> bool {
     }
     let entry = $COMMANDS | get -o $cmd
     if $entry == null { return false }
+    if $cmd == toggleRecord { recording-profile $socket }
     let data = if $entry.1 == null { {} } else {
         if ($message.scene? | is-empty) { return false }
         {($entry.1): ($message.scene | into string)}
     }
     if (request $socket $entry.0 $data) == null { print -e $"obs-status: ($entry.0) rejected" }
     true
+}
+
+# Before a recording starts on the VirtualCam profile, switches to Recording; obs refuses a profile change while any
+# output runs, so then it stays and the widget shows the profile.
+def recording-profile [socket: int]: nothing -> nothing {
+    let record = request $socket GetRecordStatus | default {}
+    if $record.outputActive? == true { return }
+    let profile = request $socket GetProfileList | get -o currentProfileName | default ""
+    if $profile != $PROFILE_VIRTUALCAM { return }
+    if (request $socket SetCurrentProfile {profileName: $PROFILE_RECORDING}) == null {
+        print -e $"obs-status: SetCurrentProfile\(($PROFILE_RECORDING)) rejected, recording on ($PROFILE_VIRTUALCAM)"
+    }
 }
 
 def emit [payload: record, last: string]: nothing -> string {
@@ -214,7 +240,7 @@ def main [] {
                 let interval = if $active { $POLL_ACTIVE } else { $POLL_IDLE }
                 if $due or (date now) - $polled >= $interval {
                     let state = snapshot $socket
-                    $active = $state.streaming or $state.recording
+                    $active = $state.streaming or $state.recording or $state.virtualcam or $state.replayBuffer
                     $last = emit $state $last
                     $polled = date now
                     $due = false

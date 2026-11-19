@@ -6,11 +6,13 @@ function atTheMachine(subject) {
     return subject.local && subject.active && subject.isInGroup("wheel");
 }
 
-// start/stop, unprompted: nothing here guards the network
+// start/stop, unprompted: nothing here guards the network. a socket goes with its service, or the next client starts it
 var TOGGLE_UNITS = [
     "docker.service",
+    "docker.socket",
     "ollama.service",
-    "systemd-oomd.service"
+    "systemd-oomd.service",
+    "systemd-oomd.socket"
 ];
 
 // starting these tightens; stopping one drops the firewall or sends traffic around tor

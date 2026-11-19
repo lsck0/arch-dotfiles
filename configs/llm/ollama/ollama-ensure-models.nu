@@ -6,7 +6,12 @@ const MODEL_LAYER_TYPE = "application/vnd.ollama.image.model"
 const OLLAMA_URL = "http://127.0.0.1:11434"
 # a pin is the sha256sum of `curl -H 'Accept: <MANIFEST_TYPE>' <REGISTRY>/<namespace>/<name>/manifests/<tag>`
 # abliterated (uncensored) builds; the 30b moe spills what the gpu lacks into ram and stays fast
-export const SMALL = {model: "huihui_ai/qwen3-abliterated:8b", pin: "543f9deff86d8347fd96ea1f3e54e73861ea70d52def71d31ccaeaf013de6ba6"}
+# SMALL's layer is the MODEL_LAYER_TYPE digest of its pinned manifest, the base its context variants are built from
+export const SMALL = {
+    model: "huihui_ai/qwen3-abliterated:8b"
+    pin: "543f9deff86d8347fd96ea1f3e54e73861ea70d52def71d31ccaeaf013de6ba6"
+    layer: "sha256:6da140c19a3625dc4e98e57a2d87cab5b5613854402f1f389def4540037541ab"
+}
 export const LARGE = {model: "huihui_ai/qwen3-abliterated:30b-a3b", pin: "45838c4ad5680e5f653edbc60079f29a7ab370d0a5e46a67317945c65e80bd9f"}
 # embeddings (rag, semantic search: 4096 dims, 32k context, multilingual) and code (fill-in-the-middle, agentic tool use;
 # the same 30b-a3b moe shape as LARGE)
@@ -82,10 +87,13 @@ export def models-stale [installed: list<string>]: nothing -> list<string> {
 }
 
 def context-variants-ensure []: nothing -> nothing {
-    let layer = manifest-get-pinned $SMALL | get layers | where mediaType == $MODEL_LAYER_TYPE | get 0.digest
-    let base = $"/(($layer | str replace ':' '-'))"
+    let base = $"/(($SMALL.layer | str replace ':' '-'))"
     let missing = $CONTEXT_VARIANTS | where {|v| not (variant-is-current $v $base) }
     if ($missing | is-empty) { return }
+    let layer = manifest-get-pinned $SMALL | get layers | where mediaType == $MODEL_LAYER_TYPE | get 0.digest
+    if $layer != $SMALL.layer {
+        error make {msg: $"ollama: ($SMALL.model)'s pinned manifest has model layer ($layer), pinned ($SMALL.layer); fix the pin"}
+    }
     model-pull-pinned $SMALL
     for variant in $missing {
         let modelfile = mktemp --tmpdir

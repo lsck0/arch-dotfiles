@@ -198,10 +198,11 @@ def waits-on [why: string]: nothing -> list<string> {
 }
 
 # The pending lines of this layer's last runs: a full run replaces them, a partial one only its own modules' and the
-# holds of modules it did not plan whose every dependency named now ran ok.
-export def pending-lines [earlier: list<string>, planned: list<string>, results: table, full: bool]: nothing -> list<string> {
+# holds of modules it did not plan whose every dependency named now ran ok. keep: modules a full run never plans (root's
+# early phase, run by the install stage), whose lines a full run leaves as they are.
+export def pending-lines [earlier: list<string>, planned: list<string>, results: table, full: bool, keep: list<string> = []]: nothing -> list<string> {
     let ran_ok = $results | where {|r| $r.ok and $r.pending? == null } | get id
-    let kept = if $full { [] } else {
+    let kept = if $full { $earlier | where {|l| let id = $l | split row ": " | first; $id in $keep and $id not-in $planned } } else {
         $earlier | where {|l|
             let parts = $l | split row ": "
             let id = $parts | first
@@ -212,10 +213,10 @@ export def pending-lines [earlier: list<string>, planned: list<string>, results:
     $kept ++ ($results | where pending? != null | each { $"($in.id): ($in.pending)" }) | uniq
 }
 
-export def pending-save [planned: list<string>, results: table, --full]: nothing -> nothing {
+export def pending-save [planned: list<string>, results: table, --full, --keep: list<string> = []]: nothing -> nothing {
     let file = state-dir | path join $PENDING_FILE
     let earlier = try { open --raw $file | lines } catch { [] }
-    let now = pending-lines $earlier $planned $results $full
+    let now = pending-lines $earlier $planned $results $full $keep
     if ($now | is-empty) { rm --force $file } else { $now | to text | save-atomic $file }
 }
 
@@ -468,7 +469,11 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
             $row | merge {native: true, skipped: false, input: $native.input, prev: $native.prev.outputs, actions: $p.actions, error: $p.error, pending: ($waiting | get --optional $m.id)}
         }
     }
-    let gone = if $verb not-in $REVERT_VERBS or (($ids | is-not-empty) and not $revert_all) { [] } else { modules-gone $ctx $verb }
+    # a module still in the repo that no longer has the verb plans its recorded outputs as a gone one does
+    let dropped = if $verb not-in $REVERT_VERBS { [] } else {
+        $ctx.modules | where {|m| not $m.broken and $verb not-in $m.native and (($ids | is-empty) or $revert_all or $m.id in $ids) and ((state-read $m.id $verb).outputs | is-not-empty) } | get id
+    }
+    let gone = (if $verb not-in $REVERT_VERBS or (($ids | is-not-empty) and not $revert_all) { [] } else { modules-gone $ctx $verb }) ++ $dropped
     let claimed = if ($gone | is-empty) { [] } else {
         $prev_targets | get --optional target | default [] | append ($planned | get actions | flatten | get --optional target | default []) | uniq
     }

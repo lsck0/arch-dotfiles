@@ -1,5 +1,5 @@
 """Set and remove the hermes settings, set the agent-guard hooks and the dotfiles' MCP servers (null drops one) the hermes
-module passes as JSON (argv[1]) in the profile at HERMES_HOME, in hermes' own venv: one interpreter instead of a hermes
+module passes as a JSON file (argv[1]) in the profile at HERMES_HOME, in hermes' own venv: one interpreter instead of a hermes
 launch per key."""
 
 import json
@@ -9,7 +9,8 @@ from agent.shell_hooks import _record_approval
 from hermes_cli.config import load_config, save_config, set_config_value
 from hermes_cli.skin_cmd import _use
 
-want = json.loads(sys.argv[1])
+with open(sys.argv[1]) as f:
+    want = json.load(f)
 for key, value in want["settings"].items():
     # force: a key may be real but missing from this hermes version's schema (e.g. model_aliases)
     set_config_value(key, value if isinstance(value, str) else json.dumps(value), force=True)

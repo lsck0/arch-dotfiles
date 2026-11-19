@@ -404,7 +404,8 @@ function release_all()
                     local stream_id = tonumber(link.properties["link.output.node"])
                     local stream = not seen[stream_id] and node_get(stream_id) or nil
                     seen[stream_id] = true
-                    if stream then
+                    -- only the app's own streams: another loopback's .out or the eq's output can be linked in too
+                    if stream and not stream.properties["node.link-group"] then
                         handed = true
                         pending = pending + 1
                         level_get(stream, function(own)

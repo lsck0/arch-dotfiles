@@ -1,13 +1,17 @@
 use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
 
-# Ships this desktop's node metrics and journal to the homelab (Grafana: Prometheus desktops, Loki desktops), only on
-# a machine the lab lists as a desktop and with its push credential (secrets keys/alloy/<host>, `user:password`).
+# Ships this desktop's node metrics, its health (desktop-metrics.nu) and journal to the homelab (Grafana: Prometheus
+# desktops, Loki desktops), only on a machine the lab lists as a desktop and with its push credential (secrets
+# keys/alloy/<host>, `user:password`); anywhere else the module declares nothing.
 # grafana-alloy-bin, Grafana's own build: Arch's grafana-alloy is built without journal support, so its
 # loki.source.journal stays off. Until the mirror carries the bin package, whichever of the two is installed runs.
 export const meta = {packages: {pacman: [grafana-alloy-bin]}, secrets: ["alloy/{host}"]}
 
 const AC_RULES = "/etc/udev/rules.d/99-alloy-ac.rules"
+# desktop-metrics' textfile, made only where alloy pushes: the user half runs only when it exists
+const TEXTFILE_DIR = "/var/lib/node-textfile"
+const TMPFILES = "/etc/tmpfiles.d/node-textfile.conf"
 # both packages' units pass $CUSTOM_ARGS to `alloy run`; this file is read after the package's own, which sets it empty
 const ARGS = "CUSTOM_ARGS=\"--disable-reporting\"\n"
 
@@ -42,8 +46,23 @@ export def system [cfg: record] {
         (file-text $"/etc/systemd/system/($build.unit).d/10-dotfiles.conf" $dropin
             --then [sh -c $"systemctl daemon-reload && systemctl try-restart ($build.unit)"])
         (file-render 99-alloy-ac.rules $AC_RULES {UNIT: $build.unit} --then (udev-reload))
+        (file-copy node-textfile.conf $TMPFILES --then [systemd-tmpfiles --create $TMPFILES])
+        (file-copy desktop-metrics.nu /usr/local/bin/desktop-metrics --mode 755)
+        (unit-file desktop-metrics.service)
+        (unit-file desktop-metrics.timer --enable --now)
         (file-render config.alloy ($build.dir | path join config.alloy)
-            {HOST: $host, PROMETHEUS: $HOMELAB.push.prometheus, LOKI: $HOMELAB.push.loki} --then (unit-restart $build.unit --reload))
+            {HOST: $host, PROMETHEUS: $HOMELAB.push.prometheus, LOKI: $HOMELAB.push.loki, TEXTFILE: $TEXTFILE_DIR}
+            --then (unit-restart $build.unit --reload))
         (unit-enable $build.unit --now)
+    ]
+}
+
+# The login's half of desktop-metrics, only once the system half made its directory (a lab-listed desktop with its
+# credential).
+export def link [cfg: record] {
+    if not ($TEXTFILE_DIR | path exists) or not ("/usr/local/bin/desktop-metrics" | path exists) { return [] }
+    [
+        (unit-file desktop-metrics-user.service)
+        (unit-file desktop-metrics-user.timer --enable --now)
     ]
 }

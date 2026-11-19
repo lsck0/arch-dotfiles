@@ -371,7 +371,7 @@ Item {
     command: ["bash", "-c", "cat \"$1\"/*.json \"$1\"/history/*.json 2>/dev/null" + " | jq -s -c --argjson since \"$2\" '[.[] | select((.timestamp // 0) >= $since)" + " | {app: (.app // \"\"), timestamp}] | unique_by([.timestamp, .app]) | sort_by(-.timestamp)'", "--", root.notesDir, String(Math.floor(root.lockedAtMs))]
 
     onParsed: function(parsed) {
-      root.notes = Array.isArray(parsed) ? parsed : []
+      root.notes = Util.isList(parsed) ? Array.from(parsed) : []
     }
     onFailed: root.notes = []
   }

@@ -1,0 +1,7 @@
+[Unit]
+Description=Desktop health metrics for alloy's textfile collector (user half, rows into the runtime dir)
+
+[Service]
+Type=oneshot
+Nice=10
+ExecStart=/usr/local/bin/desktop-metrics user

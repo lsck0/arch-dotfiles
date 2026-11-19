@@ -1,0 +1,15 @@
+[Unit]
+Description=Desktop health metrics for alloy's textfile collector (system half)
+# made by tmpfiles after the timer is enabled on the first apply: skipped, not failed, until then
+ConditionPathIsDirectory=/var/lib/node-textfile
+
+[Service]
+Type=oneshot
+Nice=10
+ExecStart=/usr/local/bin/desktop-metrics system
+ProtectSystem=strict
+ReadWritePaths=/var/lib/node-textfile
+# read-only, not hidden: each login's rows are in its runtime dir under /run/user
+ProtectHome=read-only
+PrivateTmp=yes
+NoNewPrivileges=yes

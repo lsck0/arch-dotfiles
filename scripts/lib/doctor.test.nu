@@ -37,6 +37,10 @@ def crash-cases [dir: path]: nothing -> nothing {
     let got = crash-reports [$file ($dir | path join absent.json)]
     assert equal ($got | get level) [note] $"crash: ($got | to nuon)"
     assert ($got.0.text | str contains "dot sync crashed in run 20261113T000849-q7jb and has not gone through since: first line;") $got.0.text
+    # another command's crash rides along under others: both are reported
+    {run: "20261113T010000-aaaa", command: apply, error: "boom", others: [{run: "20261113T000849-q7jb", command: sync, error: "first line"}]} | to json | save --force $file
+    let both = crash-reports [$file] | get text
+    assert (($both | length) == 2 and ($both | any { str contains "dot apply crashed" }) and ($both | any { str contains "dot sync crashed" })) $"crash: ($both | to nuon)"
 }
 
 def packages-cases []: nothing -> nothing {

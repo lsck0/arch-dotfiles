@@ -34,12 +34,17 @@ def policy []: nothing -> string {
     if $policy == lockdown-tor and ($STAGE_UNIT | path exists) { "firewall-only" } else { $policy }
 }
 
-# Whether any link is not trusted, by NM's state (not operstate: a cable without a profile is up, a modem reads unknown).
+# The links NM has connected (not operstate: a cable without a profile is up, a modem reads unknown).
+def connected []: nothing -> table<type: string, state: string, dev: string> {
+    # DEVICE last: a bluetooth one is an address, its escaped colons stay in the remainder
+    out nmcli -t -f TYPE,STATE,DEVICE device | lines
+        | parse --regex '^(?<type>[^:]*):(?<state>[^:]*):(?<dev>.*)$' | where state == connected
+}
+
+# Whether any link is not trusted, by NM's state.
 def foreign [policy: string]: nothing -> bool {
     if $policy == off { return false }
-    # DEVICE last: a bluetooth one is an address, its escaped colons stay in the remainder
-    let links = out nmcli -t -f TYPE,STATE,DEVICE device | lines
-        | parse --regex '^(?<type>[^:]*):(?<state>[^:]*):(?<dev>.*)$' | where state == connected
+    let links = connected
     # a modem's or a phone's DEVICE is not its interface; mobile data is never trusted
     if ($links | any { $in.type in [gsm bt] }) { return true }
     let physical = $links | where { link-physical $in.dev } | get dev
@@ -160,7 +165,7 @@ def portal-end [policy: string, iface: string, domains: list<string>]: nothing -
     # gone by its own timeout unless toggle-portal ended the window early
     ok nft delete element inet fw_egress portal $"{ ($iface) }" | ignore
     # the window may have seen the network become trusted: only then are its own domains and resolver wanted back
-    let trusted = $iface in (file-lines $TRUSTED_NETWORK)
+    let trusted = $policy == off or $iface in (file-lines $TRUSTED_NETWORK)
     if $trusted {
         ok resolvectl domain $iface ...(if ($domains | is-empty) { [""] } else { $domains }) | ignore
     } else {
@@ -186,6 +191,10 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
             rm --force $MARKER
             # the conflict drops lockdown before the load, so a failed load would leave no table at all
             if not (ok systemctl start fw-inbound.service) { ok systemctl start fw-lockdown.service | ignore }
+            # a trusted link that came up beside a foreign one got ipv6 off; the foreign one's down lifts it here
+            for dev in (connected | get dev | where { link-physical $in }) {
+                ok sysctl -wq $"net.ipv6.conf.($dev).disable_ipv6=0" | ignore
+            }
         }
         ok systemctl unmask --runtime avahi-daemon.service | ignore
         ok systemctl start avahi-daemon.socket | ignore

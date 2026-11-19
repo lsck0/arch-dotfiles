@@ -120,17 +120,22 @@ def reminder-set [at: int, message: string, --clock]: nothing -> nothing {
     index-write
 }
 
+# nu parses a lone argv word true, false or null as bool or null even after --, so the name words are untyped
+def words-join [words: list]: nothing -> string {
+    $words | each {|w| if $w == null { "null" } else { $w | into string } } | str join " "
+}
+
 def main [
     --interactive (-i)
     minutes?: int
-    ...message: string
+    ...message
 ]: nothing -> nothing {
     if $interactive {
         shell-call shell summon panel.reminders "{}"
         return
     }
     if $minutes == null or $minutes <= 0 { error make {msg: "minutes must be a positive integer, see --help"} }
-    let message = $message | str join " "
+    let message = words-join $message
     let at = (epoch-now) + $minutes * 60
     reminder-set $at $message
     let unit_label = if $minutes == 1 { "1 minute" } else { $"($minutes) minutes" }
@@ -139,10 +144,10 @@ def main [
 }
 
 # at a wall-clock time, seconds since the epoch
-def "main at" [epoch: int, ...message: string]: nothing -> nothing {
+def "main at" [epoch: int, ...message]: nothing -> nothing {
     let now = epoch-now
     if $epoch <= $now + $ARM_MARGIN_S { error make {msg: $"($epoch) is not in the future"} }
-    let message = $message | str join " "
+    let message = words-join $message
     reminder-set $epoch $message --clock
     let time = epoch-format-time $epoch
     let title = if $message != "" { $"($message) at ($time)" } else { $"Reminder set for ($time)" }
@@ -170,11 +175,11 @@ def "main cancel" [target: string]: nothing -> nothing {
 def "main delete" [target: string]: nothing -> nothing { main cancel $target }
 
 # name a pending reminder, or with no name drop it back to "<n>-min reminder"
-def "main rename" [target: string, ...name: string]: nothing -> nothing {
+def "main rename" [target: string, ...name]: nothing -> nothing {
     let unit = unit-from-target $target rename
     let pending = reminder-list | where unit == $unit | get --optional 0
     if $pending == null { error make {msg: $"no pending reminder ($unit)"} }
-    record-save (record-load $unit | merge {at: $pending.at, message: ($name | str join " " | str trim)})
+    record-save (record-load $unit | merge {at: $pending.at, message: (words-join $name | str trim)})
     index-write
 }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # weather.nu alerts: a warning's start and end are unix seconds, so a cached reply served minutes later still names the
 # right times; serving it drops the warnings that ended since, and a cached reply from before those fields is a miss
-use weather.nu [alerts-current]
+use weather.nu [alerts-current place-current place-key]
 
 const WEATHER = path self weather.nu
 const NOW = 1_800_000_000
@@ -23,6 +23,15 @@ def main [] {
         if $got != $c.want { fail $"($c.name): ($got | to nuon)" }
     }
     if (reply [{event: a, startsIn: null, endsIn: 5}] | alerts-current $NOW) != null { fail "relative fields served from cache" }
+
+    # a cached place holds only for the cell it was geocoded in, so a move or a pinned location geocodes again
+    let berlin = place-key 52.52 13.40
+    let place = {address: {country_code: de}, key: $berlin}
+    if ($place | place-current (place-key 52.51 13.41)) != $place { fail "same cell missed" }
+    if ($place | place-current (place-key 48.20 16.37)) != null { fail "other cell served" }
+    if ({address: {country_code: de}} | place-current $berlin) != null { fail "keyless place served" }
+    if (null | place-current $berlin) != null { fail "no place served" }
+    if not ($berlin =~ '^[0-9a-f]{64}$') { fail $"key is not a hash: ($berlin)" }
 
     # end to end: a cache hit needs no network, and its times pass through unchanged however old the cache is
     let cache = mktemp -d

@@ -34,7 +34,7 @@ export def system [cfg: record] {
             exec homelab-cred [install -Dm600 -o root -g root $secret $CRED]
         })
         (file-render mnt-homelab.mount (unit-dir | path join mnt-homelab.mount) {SHARE: $cfg.share})
-        (unit-file mnt-homelab.automount --enable)
+        (unit-file mnt-homelab.automount --enable --now)
     ]
 }
 

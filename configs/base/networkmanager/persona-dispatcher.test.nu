@@ -51,15 +51,15 @@ def stage [dir: path]: nothing -> path {
     $copy | path join persona-dispatcher.nu
 }
 
-# The calls one `up` of IFACE made, from a lockdown marker as at boot.
-def event [dir: path, script: path, policy: any, trusted: bool]: nothing -> list<string> {
+# The calls one event made (an `up` of IFACE unless args say otherwise), from a lockdown marker as at boot.
+def event [dir: path, script: path, policy: any, trusted: bool, args: list<string> = []]: nothing -> list<string> {
     let root = $dir | path join root
     rm --force ($dir | path join calls) ($root | path join run persona-tor) ($root | path join etc NetworkManager untrusted-policy)
     touch ($root | path join run persona-lockdown)
     if $policy != null { $"($policy)\n" | save --force ($root | path join etc NetworkManager untrusted-policy) }
     (if $trusted { $"($IFACE)\n" } else { "" }) | save --force ($root | path join run trusted-network)
     let r = with-env {PATH: ([($dir | path join bin)] ++ $env.PATH), CONNECTION_UUID: "test-uuid"} {
-        ^nu --no-config-file $script $IFACE up | complete
+        ^nu --no-config-file $script ...(if ($args | is-empty) { [$IFACE up] } else { $args }) | complete
     }
     if $r.exit_code != 0 { fail $"dispatcher failed \(policy ($policy), trusted ($trusted)\): ($r.stderr)" }
     let calls = $dir | path join calls
@@ -97,6 +97,16 @@ def main [] {
         let v6_off = ($v6 | default "" | str ends-with "=1")
         let wants_off = not $c.trusted and $c.policy not-in [firewall-only off]
         if $v6_off != $wants_off { fail $"($c.what): ipv6 on the link ($v6)" }
+    }
+    # the foreign link's down (its node gone) lifts the lockdown, and with it ipv6 off on the trusted link left
+    let calls = event $dir $script lockdown-tor true [eth8 down]
+    if $"sysctl -wq net.ipv6.conf.($IFACE).disable_ipv6=0" not-in $calls {
+        fail $"lockdown lifted by a down: ipv6 stays off on ($IFACE): ($calls | to nuon)"
+    }
+    # off trusts every network: a portal's end gives the link back its resolver as on any up
+    let calls = event $dir $script off false [$IFACE portal-end]
+    if $"resolvectl default-route ($IFACE) no" in $calls or $"resolvectl dnsovertls ($IFACE) opportunistic" not-in $calls {
+        fail $"off, portal end: foreign dns on ($IFACE): ($calls | to nuon)"
     }
     rm --recursive --force $dir
 }

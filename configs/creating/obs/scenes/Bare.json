@@ -15,7 +15,7 @@
     "volume": 0.8341541290283203,
     "balance": 0.5,
     "enabled": true,
-    "muted": true,
+    "muted": false,
     "push-to-mute": false,
     "push-to-mute-delay": 0,
     "push-to-talk": false,
@@ -182,7 +182,7 @@
       "volume": 1.0,
       "balance": 0.5,
       "enabled": true,
-      "muted": true,
+      "muted": false,
       "push-to-mute": false,
       "push-to-mute-delay": 0,
       "push-to-talk": false,
@@ -206,7 +206,25 @@
       "versioned_id": "pipewire_audio_application_capture",
       "settings": {
         "TargetName": "wine64-preloader",
-        "ExceptApp": true
+        "ExceptApp": true,
+        "CaptureMode": 1,
+        "apps": [
+          {
+            "value": "wine64-preloader",
+            "selected": false,
+            "hidden": false
+          },
+          {
+            "value": "wpexec",
+            "selected": false,
+            "hidden": false
+          },
+          {
+            "value": "pipewire",
+            "selected": false,
+            "hidden": false
+          }
+        ]
       },
       "mixers": 13,
       "sync": 0,
@@ -214,7 +232,7 @@
       "volume": 1.0,
       "balance": 0.5,
       "enabled": true,
-      "muted": true,
+      "muted": false,
       "push-to-mute": false,
       "push-to-mute-delay": 0,
       "push-to-talk": false,

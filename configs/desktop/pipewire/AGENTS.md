@@ -8,4 +8,6 @@
   apps unseen for 20 starts are removed. Later streams are only routed. While `dot.obs-listen` is set and OBS runs,
   all loopbacks are muted.
 - Never name a loopback node like its app: OBS's application capture matches node.name.
+- OBS's Desktop Audio (an ExceptApp application capture, multiple-apps mode) excludes the clients `wpexec` (every
+  `app.*.out`) and `pipewire` (`eq.out`), else each app is captured twice: once as its stream, once as its loopback.
 - Native pipewire/wireplumber only, no easyeffects. No-op on WSL.

@@ -3,6 +3,7 @@
 # no MANGOHUD=1 on the client either: its shader-precompile helper fossilize_replay loads the layer and aborts at exit
 
 use ../../../scripts/lib/state.nu [xdg]
+use steam-launch-options.nu [steam-open]
 
 const SELF = path self
 const GROUP = "vpn-bypass"
@@ -25,12 +26,13 @@ def --env stash-load [stash: path]: nothing -> nothing {
 }
 
 # Steam in the vpn-bypass group, which egresses past proton0 (gaming/vpn-bypass), after one key touch through games-run;
-# with no vpn up (at home, say) it starts as is, unasked; with the prompt dismissed it stays on the vpn.
+# with no vpn up (at home, say) it starts as is, unasked; with the prompt dismissed it stays on the vpn. A running
+# Steam only takes the url (a steam:// link, a jump-list action) from this one, so that goes unasked too.
 def --wrapped main [...args: string]: nothing -> nothing {
     let stash = xdg runtime $STASH_NAME
     if (^id -gn | str trim) == $GROUP {
         if ($stash | path exists) { stash-load $stash }
-    } else if ($"/sys/class/net/($VPN_IFACE)" | path exists) and ($GAMES_RUN | path exists) and (which pkexec | is-not-empty) {
+    } else if not (steam-open) and ($"/sys/class/net/($VPN_IFACE)" | path exists) and ($GAMES_RUN | path exists) and (which pkexec | is-not-empty) {
         ^env -0 | save --force $stash
         let code = try { ^pkexec --keep-cwd $GAMES_RUN $SELF ...$args; 0 } catch {|e| $e.exit_code? | default 1 }
         if not ($stash | path exists) { exit $code }

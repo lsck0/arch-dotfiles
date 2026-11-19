@@ -1,0 +1,167 @@
+#!/usr/bin/nu --no-config-file
+# This desktop's health as a textfile for alloy's node exporter (core/alloy), which pushes it to the homelab's desktops
+# store. `user` runs as each login and leaves its rows (its dot runs and checks, failed user units) as JSON in its own
+# runtime dir; `system` runs as root, adds the system layer's dot runs, AppArmor denials this boot and core dumps, and
+# writes the one file alloy reads. Root keeps only USER_METRICS from a login's file and sets its `user` label from the
+# file's owner, so no account can forge another's series or the system's. Names and labels are a contract with the
+# homelab's alert rules (l-project-agents, Contracts): a rename is told to homelab first.
+
+const DIR = "/var/lib/node-textfile"
+const SYSTEM_RUNS = "/var/lib/dotfiles/runs"
+const RUNTIME_ROOT = "/run/user"
+const USER_FILE = "desktop-metrics.json"
+const HELP = {
+    dot_run_last_timestamp_seconds: "Unix time the newest dot run of this verb ended"
+    dot_run_last_success_timestamp_seconds: "Unix time the newest ok dot run of this verb ended"
+    dot_run_last_ok: "1 when the newest dot run of this verb ended ok"
+    dot_run_failures: "ERROR records in the newest dot apply or sync"
+    dot_check_failed: "dot status checks of this kind at FAIL"
+    desktop_failed_units: "Failed units of this systemd manager"
+    apparmor_denials_total: "AppArmor denials since boot, by profile"
+    desktop_crash_last_timestamp_seconds: "Unix time of the newest core dump of this program in 30 days"
+}
+const USER_METRICS = [
+    dot_run_last_timestamp_seconds dot_run_last_success_timestamp_seconds dot_run_last_ok dot_run_failures
+    dot_check_failed desktop_failed_units
+]
+const USER_LABELS = [layer verb check manager]
+# a run log per dot command; the newest are enough for each verb's last outcome
+const RUNS_READ = 60
+const CRASH_WINDOW = "-30d"
+
+def label-value [value: any]: nothing -> string {
+    $value | into string | str replace --all '\' '\\' | str replace --all '"' '\"' | str replace --all "\n" '\n'
+}
+
+# rows {name, type, labels: record, value} as exposition text, HELP and TYPE once per name
+def exposition []: list<record> -> string {
+    $in | group-by name | items {|name, rows|
+        let samples = $rows | each {|row|
+            let labels = $row.labels | items {|k, v| $'($k)="(label-value $v)"' } | str join ","
+            let braces = if ($labels | is-empty) { "" } else { $"{($labels)}" }
+            $"($name)($braces) ($row.value)"
+        }
+        [$"# HELP ($name) ($HELP | get $name)" $"# TYPE ($name) ($rows.0.type)"] ++ $samples | str join "\n"
+    } | str join "\n" | $in + "\n"
+}
+
+# Replaces path in one rename from a temporary file beside it, so a reader never sees half a file.
+def save-atomic [path: path, mode: string]: string -> nothing {
+    let text = $in
+    let tmp = ^mktemp --tmpdir=($path | path dirname) $".($path | path basename).XXXXXX" | str trim
+    $text | save --force $tmp
+    ^chmod $mode $tmp
+    ^mv --force $tmp $path
+}
+
+def metric [name: string, type: string, labels: record, value: any]: nothing -> record {
+    {name: $name, type: $type, labels: $labels, value: $value}
+}
+
+# One run log as {verb, time, ok, errors}, null while it is still being written. A run that ends through `exit` writes
+# no end record for its top span, and root's runs have one top span per stage, so the verb comes from the `run` record
+# and ok means: no ERROR or PANIC record, no top span ended other than ok, no failures or install-failures file
+# beside the log.
+def run-record [file: path, newest: bool]: nothing -> any {
+    let records = try { open --raw $file | lines | where $it != "" | each { from json } } catch { return null }
+    let run = $records | where kind? == "run" | get --optional 0
+    if $run == null { return null }
+    let tops = $records | where {|r| $r.kind? == "span" and $r.phase? == "end" and $r.parent? == "" }
+    let finished = ($records | any { $in.kind? == "summary" }) or ($tops | is-not-empty)
+    # the newest log without a summary or end may be a run in progress; an older one exited early
+    if $newest and not $finished { return null }
+    let errors = $records | where level? in [ERROR PANIC] | length
+    let failed_file = [failures install-failures] | any {|suffix|
+        let side = $file | str replace --regex '\.jsonl$' $".($suffix)"
+        ($side | path exists) and (open --raw $side | str trim | is-not-empty)
+    }
+    {
+        verb: ($run.target? | default "" | str replace --regex '^system ' '' | split row " " | first)
+        time: ($records | last | get time | into datetime | into int | $in // 1_000_000_000)
+        ok: ($errors == 0 and not $failed_file and ($tops | all { $in.outcome? == "ok" }))
+        errors: $errors
+    }
+}
+
+# Each verb's last run and last ok run from dot's run logs, and the ERROR records of the newest apply or sync.
+def run-metrics [dir: path, layer: string]: nothing -> list<record> {
+    if not ($dir | path exists) { return [] }
+    let files = ls $dir | where name ends-with ".jsonl" | sort-by name | last $RUNS_READ | get name
+    let newest = $files | last 1
+    let runs = $files | each {|file| run-record $file ($file in $newest) } | compact | where verb != ""
+    let per_verb = $runs | group-by verb | items {|verb, rows|
+        let last = $rows | last
+        let last_ok = $rows | where ok | get --optional time | last
+        [
+            (metric dot_run_last_timestamp_seconds gauge {layer: $layer, verb: $verb} $last.time)
+            (metric dot_run_last_ok gauge {layer: $layer, verb: $verb} (if $last.ok { 1 } else { 0 }))
+        ] ++ (if $last_ok == null { [] } else {
+            [(metric dot_run_last_success_timestamp_seconds gauge {layer: $layer, verb: $verb} $last_ok)]
+        })
+    } | flatten
+    let failures = $runs | where verb in [apply sync] | last 1 | each {|run|
+        metric dot_run_failures gauge {layer: $layer} $run.errors
+    }
+    $per_verb ++ $failures
+}
+
+# The rows a login left in its runtime dir: only from a file it owns, only USER_METRICS with numeric values, labels
+# limited to USER_LABELS, and `user` set here from the owner.
+def user-rows []: nothing -> list<record> {
+    if not ($RUNTIME_ROOT | path exists) { return [] }
+    ls $RUNTIME_ROOT | where type == dir | each {|dir|
+        let uid = $dir.name | path basename
+        let file = $dir.name | path join $USER_FILE
+        if not ($uid =~ '^[0-9]+$') or not ($file | path exists) { return [] }
+        let owner = ^stat -c %u $file | str trim
+        let login = ^getent passwd $uid | complete | get stdout | split row ":" | get --optional 0 | default ""
+        if $owner != $uid or $login == "" { return [] }
+        let rows = try { open --raw $file | from json } catch { [] }
+        $rows | where {|r| ($r.name? in $USER_METRICS) and (($r.value? | describe) in [int float]) } | each {|r|
+            let labels = $r.labels? | default {} | transpose key value | where key in $USER_LABELS
+                | reduce --fold {} {|kv, acc| $acc | insert $kv.key ($kv.value | into string) }
+            metric $r.name gauge ($labels | insert user $login) $r.value
+        }
+    } | flatten
+}
+
+def "main system" []: nothing -> nothing {
+    let denied = ^journalctl -k -b --no-pager -o cat --grep 'apparmor="DENIED"' | complete | get stdout | lines
+        | each { parse --regex 'profile="(?<profile>[^"]+)"' | get --optional 0.profile } | compact
+    let apparmor = $denied | uniq --count | each {|row|
+        metric apparmor_denials_total counter {profile: $row.value} $row.count
+    }
+    let dumps = ^coredumpctl list --json=short --no-pager --since $CRASH_WINDOW | complete
+    let crashes = if $dumps.exit_code != 0 { [] } else {
+        $dumps.stdout | from json | where exe? != null | each {|d| {program: ($d.exe | path basename), time: ($d.time // 1_000_000)} }
+            | group-by program | items {|program, rows|
+                metric desktop_crash_last_timestamp_seconds gauge {program: $program} ($rows.time | math max)
+            }
+    }
+    let dir = $env.DESKTOP_METRICS_DIR? | default $DIR
+    (run-metrics $SYSTEM_RUNS system) ++ $apparmor ++ $crashes ++ (user-rows) | exposition
+    | save-atomic ($dir | path join desktop.prom) "644"
+}
+
+def "main user" []: nothing -> nothing {
+    # by path: graphviz's dot is on every PATH, and a user unit's may lack ~/.local/bin, where this dot is linked
+    let dot = $nu.home-dir | path join .local bin dot
+    let status = try { ^$dot status --json | complete | get stdout | from json } catch { null }
+    let checks = if $status == null { [] } else {
+        $status.checks | group-by check | items {|check, rows|
+            metric dot_check_failed gauge {check: $check} ($rows | where level == FAIL | length)
+        }
+    }
+    let state = $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state)
+    let failed = ^systemctl --user --failed --plain --no-legend | complete | get stdout | lines | where $it != "" | length
+    let runtime = $env.XDG_RUNTIME_DIR? | default ($RUNTIME_ROOT | path join (^id -u | str trim))
+    (
+        (run-metrics ($state | path join dotfiles runs) user)
+        ++ $checks
+        ++ [(metric desktop_failed_units gauge {manager: user} $failed)]
+        | to json --raw
+        | save-atomic ($runtime | path join $USER_FILE) "600"
+    )
+}
+
+def main []: nothing -> nothing { print --stderr "desktop-metrics system|user" ; exit 2 }

@@ -1,11 +1,12 @@
 #!/usr/bin/env -S nu --no-config-file
 # The default route's gateway mac joins the trusted list: no lockdown there, but none of home's homelab wiring (home
 # is home_gateways and the secrets' list). Unlocked, the list is configs/secrets/keys/trusted-gateways (the repo is
-# public, and a mac is all a rogue access point needs), else the trusted_gateways option; the system apply of
-# base/networkmanager that follows re-decides the link.
+# public, and a mac is all a rogue access point needs); a login without secrets has the trusted_gateways option, an
+# owner's locked secrets refuse a new mac. The system apply of base/networkmanager that follows re-decides the link.
 
 use lib.nu [DOT switch-run trusted-links option-value]
 use ../lib/secrets.nu [secret-is-plaintext OWNER_WITNESS]
+use ../lib/profile.nu [profile-has]
 use ../lib/state.nu [EXIT_PENDING]
 
 const SECRET = path self ../../configs/secrets/keys/trusted-gateways
@@ -86,6 +87,10 @@ def main [action: string = "toggle", --json] {
         on: {||
             # a rejoined wifi has a random mac: storing a listed one again reruns the home step
             let link = link
+            # the option is the public repo's platform file, which the next dot sync pushes
+            if not (secret-is-plaintext $WITNESS) and (profile-has secrets) {
+                error make {msg: "configs/secrets is locked: unlock it to trust this network"}
+            }
             store (listed | append $link.mac | uniq) | default {said: $"Trusted ($link.dev), gateway ($link.mac)"}
         }
         off: {||

@@ -2,7 +2,7 @@
 # Table cases for plan-module, state-write and the ledger diff: pure records in, actions and state records out.
 use converge.nu [plan-module state-write state-read recorded-hashes ask-batch apply-module observe]
 use state.nu [state-dir]
-use module.nu [file-text json-merge json-set exec step]
+use module.nu [file-text json-merge json-set exec step unit-enable]
 use ledger.nu [ledger-diff ledger-remove ledger-get ledger-set]
 use std/assert
 
@@ -45,11 +45,14 @@ def file-cases []: nothing -> nothing {
         [drift $decl $owned (seen-file $other) false drift]
         ["drift, forced" $decl $owned (seen-file $other) true update]
         ["generated drift" $generated $owned (seen-file $other) false update]
+        ["generated, not the dotfiles' own" $generated [] (seen-file $other) false update]
     ]
     for c in $cases {
         let a = plan-one [$c.decl] $c.prev $c.seen {} $c.force
         assert equal $a.kind $c.kind $"file ($c.name): planned ($a.kind) \(($a.reason)\), wants ($c.kind)"
     }
+    let taken = plan-one [$generated] [] (seen-file $other) {} false
+    assert ($taken.decl.preserve? | default false) "file generated, not the dotfiles' own: the original is not preserved aside"
 }
 
 def orphan-cases []: nothing -> nothing {
@@ -61,6 +64,11 @@ def orphan-cases []: nothing -> nothing {
     assert equal $kept.kind "drift" $"orphan changed: planned ($kept.kind), wants drift"
     let claimed = plan-module $ID [] $prev (seen-file $want) {} $REPO false [$TARGET] | first
     assert equal $claimed.kind "forget" $"orphan claimed: planned ($claimed.kind), wants forget"
+    let merged = [{kind: json, target: $TARGET, hash: null, keys: [{path: [a], set: 1, before: {absent: true}}]}]
+    let unmerged = plan-module $ID [] $merged (seen-file $want) {} $REPO false | first
+    assert equal $unmerged.kind "unmerge" $"orphan merge: planned ($unmerged.kind), wants unmerge"
+    let gone = plan-module $ID [] $merged (seen-none) {} $REPO false | first
+    assert equal $gone.kind "forget" $"orphan merge, file gone: planned ($gone.kind), wants forget"
 }
 
 # A removed file whose preserved original goes back: the original lands even when the file was its dir's only one,
@@ -340,6 +348,22 @@ def hidden-cases [work: path]: nothing -> nothing {
     assert equal $orphan.kind unreadable $"orphan under a closed directory: ($orphan.kind) ($orphan.reason)"
 }
 
+# Enabling a masked unit unmasks it first: systemctl enable refuses a masked one.
+def unmask-cases [work: path]: nothing -> nothing {
+    let bin = $work | path join unmask-bin
+    let calls = $work | path join systemctl-calls
+    mkdir $bin
+    $"#!/bin/sh\necho \"$*\" >> ($calls)\n" | save --force ($bin | path join systemctl)
+    ^chmod +x ($bin | path join systemctl)
+    let seen = {paths: {}, units: {"dot-test.service": masked}}
+    let planned = plan-module $ID [(unit-enable dot-test.service)] [] $seen {} $REPO false | first
+    assert equal $planned.kind "enable" $"enable a masked unit: planned ($planned.kind), wants enable"
+    let done = with-env {PATH: ([$bin] ++ $env.PATH)} { apply-module [$planned] ($work | path join unmask-module) user | first }
+    assert $done.ok $"enable a masked unit failed: ($done.error)"
+    let got = open --raw $calls | lines
+    assert equal $got ["--user unmask dot-test.service" "--user enable dot-test.service"] $"enable a masked unit ran ($got | to nuon)"
+}
+
 def main [] {
     ask-batch-cases
     let work = mktemp --directory
@@ -355,6 +379,7 @@ def main [] {
             then-once-cases $work
             merge-keys-cases $work
             hidden-cases $work
+            unmask-cases $work
             corrupted-state-cases
             with-env {DOTFILES_UNATTENDED: "1", DOT_TEST_REMOVED: ($work | path join removed)} {
                 ledger-diff-cases

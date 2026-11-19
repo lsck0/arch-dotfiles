@@ -41,7 +41,7 @@ tab picks by theme name, its Wallpapers tab by path. Every pick lands in `$XDG_S
 `palette.nu` also holds `RADIUS_PX`, `BORDER_PX`, `OPACITY_SHELL`, `OPACITY_SHELL_LIGHT` (shell, terminals, browser
 chrome: `opacity-shell`) and `OPACITY_WINDOW` (an app Hyprland fades whole); modules write them into configs,
 quickshell gets them in `Palette.js`. Live readers (qutebrowser, nvim) read `~/.config/dotfiles/style.json` (`style-json`), which holds only the keys they use: `radius_px`, `text_ratio`,
-`light_luminance`, `white_text_luminance_max`.
+`light_luminance`, `white_text_luminance_max`, and `opacity_shell`/`opacity_shell_light` (neovide's opacity in nvim's `theme.lua`).
 
 Each theme names its other-mode partner in `"pair"` (`toggle-theme-mode.nu` flips to it by theme name; from a derived
 palette it takes the nearest theme of the mode as the start and flips back to the wallpaper, derived again).

@@ -310,9 +310,14 @@ export def link [cfg: record] {
     } --then (unit-restart hypridle.service --if-running)
     let build = plugins-missing | is-not-empty
     let live = hyprland-live
+    # its idle policy drives hyprctl and the quickshell lock, so it stays out of the plasma session
+    let idle_unit = file-text (unit-dir | path join hypridle.service.d 10-hyprland.conf) (
+        "[Unit]\nConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland\n"
+    )
     [
         $files
         $idle
+        $idle_unit
         # offline only the build waits: plugins built earlier still load
         (if $build { step plugins-build --network })
         (if $build or ($live and (plugins-unloaded | is-not-empty)) { step plugins-load })

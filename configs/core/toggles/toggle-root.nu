@@ -9,8 +9,10 @@ const WG_CONFIG = "/etc/wireguard/wg0.conf"
 const PERSONA_DISPATCHER = "/etc/NetworkManager/dispatcher.d/90-anonymous-persona"
 const TRUSTED_NETWORK = "/run/trusted-network"
 const PORTAL_UNIT = "persona-portal"
+# one table for every login, a chain per caller uid in it: one login's verbs never flush or drop another's guard
 const NFT_TABLE = "anonymous_socks"
-const PERSONA_CHAIN = "ANONSOCKS_PERSONA"
+# the caller's uid follows: with ten digits, iptables' longest chain name (28)
+const PERSONA_CHAIN = "ANONSOCKS_PERSONA_"
 const TLP_MODES = [balanced performance power-saver]
 const FIREWALL_STATES = [permissive default restrictive]
 const PERSONA_TTLS = ["64" "128"]
@@ -73,16 +75,19 @@ def anonsocks-guard-release [what: string]: nothing -> nothing {
     }
 }
 
+def persona-chain []: nothing -> string { $"($PERSONA_CHAIN)(caller-uid)" }
+
 def persona-off []: nothing -> nothing {
+    let chain = persona-chain
     for ipt in [iptables ip6tables] {
-        # the cgroup is gone once tor stops, so the jump is found by its chain
-        let jumps = ^$ipt -t mangle -S POSTROUTING | complete | get stdout | lines | where ($it | str contains $"-j ($PERSONA_CHAIN)")
+        # the cgroup is gone once tor stops, so the jump is found by its chain, the target that ends the rule
+        let jumps = ^$ipt -t mangle -S POSTROUTING | complete | get stdout | lines | where ($it | str ends-with $" -j ($chain)")
         for rule in $jumps {
             let rule_args = $rule | str replace "-A" "-D" | split row " " | str trim --char '"'
             try { ^$ipt -t mangle ...$rule_args } catch { print -e $"toggle-root: ($ipt) could not delete: ($rule)" }
         }
-        ^$ipt -t mangle -F $PERSONA_CHAIN | complete
-        ^$ipt -t mangle -X $PERSONA_CHAIN | complete
+        ^$ipt -t mangle -F $chain | complete
+        ^$ipt -t mangle -X $chain | complete
     }
 }
 
@@ -117,7 +122,10 @@ def portal [direction: string]: nothing -> nothing {
     }
 }
 
-# Whether a listing of the `out` chain holds the cap for these numbers and no other rule; nft prints a range of one
+# The caller's own chain of the table: egress (the slice's guard) or out (the rate cap).
+def anonsocks-chain [kind: string]: nothing -> string { $"($kind)_(caller-uid)" }
+
+# Whether a listing of an `out` chain holds the cap for these numbers and no other rule; nft prints a range of one
 # port as the port and adds its default burst.
 export def anonsocks-rate-cap-loaded [listing: string, port: int, last: int, rate: int]: nothing -> bool {
     let rules = $listing | lines | str trim | where { $in !~ $NFT_LISTING_FRAME } | str replace --regex ' burst \d+ packets' ""
@@ -135,17 +143,18 @@ def anonsocks [args: list<string>]: nothing -> nothing {
             let last = $port + $pool - 1
             if not ($port >= 1 and $pool in 1..$POOL_SIZE_MAX and $last <= $PORT_MAX and $rate >= 1) { usage }
             # the numbers are the caller's, so they set a cap but never replace one over a running slice
-            let loaded = ^nft list chain inet $NFT_TABLE out | complete
+            let chain = anonsocks-chain out
+            let loaded = ^nft list chain inet $NFT_TABLE $chain | complete
             if $loaded.exit_code == 0 {
                 # the same cap again is no change: a refusal here makes anonymous-socks-up tear the slice down
                 if (anonsocks-rate-cap-loaded $loaded.stdout $port $last $rate) { return }
                 anonsocks-guard-release "its rate cap stays as it is"
             }
             $"add table inet ($NFT_TABLE)
-add chain inet ($NFT_TABLE) out { type filter hook output priority 0 ; policy accept ; }
-flush chain inet ($NFT_TABLE) out
+add chain inet ($NFT_TABLE) ($chain) { type filter hook output priority 0 ; policy accept ; }
+flush chain inet ($NFT_TABLE) ($chain)
 table inet ($NFT_TABLE) {
-    chain out {
+    chain ($chain) {
         type filter hook output priority 0; policy accept;
         oif \"lo\" tcp dport ($port)-($last) ct state new limit rate over ($rate)/second drop
     }
@@ -154,11 +163,12 @@ table inet ($NFT_TABLE) {
         }
         [1, "egress-on"] => {
             let slice = anonsocks-slice
+            let chain = anonsocks-chain egress
             $"add table inet ($NFT_TABLE)
-add chain inet ($NFT_TABLE) egress { type filter hook output priority 0 ; policy accept ; }
-flush chain inet ($NFT_TABLE) egress
+add chain inet ($NFT_TABLE) ($chain) { type filter hook output priority 0 ; policy accept ; }
+flush chain inet ($NFT_TABLE) ($chain)
 table inet ($NFT_TABLE) {
-    chain egress {
+    chain ($chain) {
         type filter hook output priority 0; policy accept;
         socket cgroupv2 level 4 \"($slice)\" oif != \"lo\" reject
         # redirected to lo, e.g. portmaster's dns, the lookup still leaves in the clear
@@ -169,7 +179,12 @@ table inet ($NFT_TABLE) {
         }
         [1, "nft-off"] => {
             anonsocks-guard-release "its netfilter guard stays"
-            ^nft delete table inet $NFT_TABLE | complete | ignore
+            for kind in [egress out] { ^nft delete chain inet $NFT_TABLE (anonsocks-chain $kind) | complete | ignore }
+            # the table goes with the last login's chains
+            let left = ^nft list table inet $NFT_TABLE | complete
+            if $left.exit_code == 0 and not ($left.stdout | lines | any { $in =~ '^\s*chain ' }) {
+                ^nft delete table inet $NFT_TABLE | complete | ignore
+            }
         }
         [3, "persona-on"] => {
             let ttl = $args.1
@@ -178,12 +193,13 @@ table inet ($NFT_TABLE) {
             let cgroup_pattern = $'^user\.slice/user-($uid)\.slice/user@($uid)\.service/[A-Za-z0-9@._/-]+$'
             if $ttl not-in $PERSONA_TTLS or $cgroup !~ $cgroup_pattern or ($cgroup | str contains "..") { usage }
             persona-off
+            let chain = persona-chain
             for ipt in [iptables ip6tables] {
-                if (^$ipt -t mangle -N $PERSONA_CHAIN | complete).exit_code != 0 { ^$ipt -t mangle -F $PERSONA_CHAIN }
+                if (^$ipt -t mangle -N $chain | complete).exit_code != 0 { ^$ipt -t mangle -F $chain }
                 let hop_limit = if $ipt == iptables { [TTL --ttl-set] } else { [HL --hl-set] }
-                ^$ipt -t mangle -A $PERSONA_CHAIN -j ...$hop_limit $ttl
+                ^$ipt -t mangle -A $chain -j ...$hop_limit $ttl
                 try {
-                    ^$ipt -t mangle -A POSTROUTING -m cgroup --path $cgroup -j $PERSONA_CHAIN
+                    ^$ipt -t mangle -A POSTROUTING -m cgroup --path $cgroup -j $chain
                 } catch {
                     print -e $"toggle-root: ($ipt) persona jump failed, tor runs without it"
                 }

@@ -183,11 +183,21 @@ def scene-mic [mic: oneof<string, nothing>]: record -> record {
     $in | update AuxAudioDevice1.settings.device_id $mic
 }
 
+# A shared seed (scenes/*.json, not a machine's copy) renders unmuted: a mute is live state, and one carried back
+# into the seed would make every machine without its own copy record silence.
+def scene-unmute [dir: path]: record -> record {
+    let scene = $in
+    if $dir != ($HERE | path join scenes) { return $scene }
+    $scene
+    | if $in.AuxAudioDevice1? == null { $in } else { update AuxAudioDevice1 { upsert muted false } }
+    | update sources { each {|src| if $src.muted? == true { $src | update muted false } else { $src } } }
+}
+
 def json-text []: record -> string { $"($in | to json --indent 2)\n" }
 
 # A collection for this machine: its mic, with --machine also its canvas and webcam (the shared Streaming layout stays).
 def scene-render [cfg: record, src: path, --machine]: nothing -> string {
-    let scene = open $src | scene-mic $cfg.mic
+    let scene = open $src | scene-mic $cfg.mic | scene-unmute ($src | path dirname)
     if not $machine { return ($scene | json-text) }
     $scene | scene-fit (canvas-size $cfg) | if $cfg.webcam == null { $in } else {
         update sources {
@@ -312,7 +322,7 @@ export def link [cfg: record] {
         })
         (ini-merge ($obs | path join global.ini) $GLOBAL)
         (ini-merge ($obs | path join user.ini) ({Basic: $selection} | merge $USER_GENERAL) --missing-only)
-        (step websocket-init $websocket --creates $websocket)
+        (step websocket-init $websocket --done=(websocket-ok $websocket))
         $mcp
         (desktop-override com.obsproject.Studio.desktop {
             $in | str replace --all --regex '(?m)^Exec=obs.*' $"Exec=obs ($LAUNCH_FLAGS)"
@@ -320,15 +330,32 @@ export def link [cfg: record] {
     ]
 }
 
+# The server settings dot holds obs-websocket to; obs writes its own config with the server off on a first start
+const WEBSOCKET_SETTINGS = {
+    alerts_enabled: false, auth_required: true, first_load: false, server_enabled: true, server_port: $WEBSOCKET_PORT
+}
+
+def websocket-read [file: path]: nothing -> record {
+    try { open $file | into record } catch { {} }
+}
+
+# The config is on, authenticated, on WEBSOCKET_PORT and has a password; obs running keeps it as it is, as obs
+# rewrites the file on exit.
+def websocket-ok [file: path]: nothing -> bool {
+    if (process-running obs) { return true }
+    let config = websocket-read $file
+    ($config.server_password? | default "" | is-not-empty) and ($WEBSOCKET_SETTINGS | items {|k, v| ($config | get --optional $k) == $v } | all { $in })
+}
+
+# Brings the config to WEBSOCKET_SETTINGS, keeping its password (a new one only when it has none): also a config obs
+# wrote itself when it started before this module linked.
 export def websocket-init [file: path]: nothing -> nothing {
     mkdir ($file | path dirname)
-    let password = random chars --length 32
+    let config = websocket-read $file
+    let password = $config.server_password? | default "" | if ($in | is-empty) { random chars --length 32 } else { $in }
     touch $file
     chmod 600 $file
-    {
-        alerts_enabled: false, auth_required: true, first_load: false, server_enabled: true
-        server_password: $password, server_port: $WEBSOCKET_PORT
-    } | to json --indent 4 | save --force $file
+    $config | merge $WEBSOCKET_SETTINGS | upsert server_password $password | to json --indent 4 | save --force $file
 }
 
 # Skips a collection edited since link that obs has not loaded; the portal token is never stored.

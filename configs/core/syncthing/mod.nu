@@ -67,6 +67,10 @@ export def identity-install []: nothing -> nothing {
     let state = xdg state syncthing
     ^systemctl --user stop syncthing.service
     for f in $IDENTITY { ^install -D -m $f.mode (secret-dir | path join $f.file) ($state | path join $f.file) }
+    # unit-enable --now starts only a unit it enables; an enabled one comes back up here, on the new identity
+    if (^systemctl --user is-enabled syncthing.service | complete | get stdout | str trim) == "enabled" {
+        ^systemctl --user start syncthing.service
+    }
 }
 
 # The file the gui password comes from: the secret when readable, else one generated on this machine.

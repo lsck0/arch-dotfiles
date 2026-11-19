@@ -8,7 +8,8 @@ Editing, reload, logs, screenshots: `l-dotfiles-quickshell-dev`.
   widgets), `scripts/` (helpers the plugins call; `scripts/lib/shell.nu` holds their action notification and bounded
   IPC call), `services/` (`AppLibrary`, `AppSearch`), `shaders/` (baked by `restart.nu prepare`), `sounds/`.
 - IPC: `quickshell ipc -p ~/.config/quickshell show` lists every target; panels open with
-  `quickshell ipc call shell summon <id> [json]` or `quickshell ipc call bar open <panel>`.
+  `quickshell ipc call shell summon <id> <json>` (`{}` without a payload; the argument is required) or
+  `quickshell ipc call bar open <panel>`.
 - Colors come from `Colors.qml`/`Theme.qml` tokens, never hardcoded.
 - No explanatory help sentences in the UI: short labels, values, key hints (`[ESC] Dismiss`) and terse empty states
   (`> NO TRAY ICONS`) only.

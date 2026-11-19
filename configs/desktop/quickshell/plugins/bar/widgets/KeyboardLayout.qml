@@ -69,7 +69,7 @@ BarWidget {
     }
     onParsed: function(devices) {
       const listed = devices ? devices.keyboards : null
-      if (!Array.isArray(listed)) return
+      if (!Util.isList(listed)) return
 
       const typed = listed.filter(k => KeyboardLayoutModel.isTypedKeyboard(k.name))
       const kb = KeyboardLayoutModel.selectKeyboard(typed, root.typedKeyboardName)

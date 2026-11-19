@@ -161,7 +161,7 @@ BarWidget {
     // a run at login can die before the session is up; without a retry the bar keeps "x ERR" until a network event
     retryDelaysMs: [2, 5, 10, 30, 60].map(function (s) { return s * 1000 })
     onParsed: function (data) {
-      if (!Array.isArray(data)) {
+      if (!Util.isList(data)) {
         root.togglesError = "bad json"
         togglesProc.retryStart()
         return
@@ -243,6 +243,18 @@ BarWidget {
       if (root.toggleBusy(name)) root.busyToggles = Util.mapWithout(root.busyToggles, name)
       if (root.toggleNames.indexOf(name) >= 0) nmDebounce.restart()
     }
+  }
+
+  // Wi-Fi turned on with the panel open: scan now and once more when the radio is up (the first rescan can come too
+  // early); nothing else refreshes the list while the panel stays open
+  onWifiOnChanged: if (wifiOn && panel.visible) {
+    refreshWifiList(true)
+    wifiSettleScan.restart()
+  }
+  Timer {
+    id: wifiSettleScan
+    interval: 3000
+    onTriggered: if (root.wifiOn && panel.visible) root.refreshWifiList(true)
   }
 
   // rxKbps/txKbps need continuous sampling; nmcli monitor only emits on connectivity changes, not throughput

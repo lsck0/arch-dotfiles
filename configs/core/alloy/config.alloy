@@ -6,9 +6,13 @@ local.file "push" {
   is_secret = true
 }
 
-// systemd: unit states over d-bus, so the lab's dashboard counts failed units
+// systemd: unit states over d-bus, so the lab's dashboard counts failed units; textfile: desktop-metrics' health
 prometheus.exporter.unix "node" {
-  enable_collectors = ["systemd"]
+  enable_collectors = ["systemd", "textfile"]
+
+  textfile {
+    directory = "@TEXTFILE@"
+  }
 }
 
 prometheus.scrape "node" {
