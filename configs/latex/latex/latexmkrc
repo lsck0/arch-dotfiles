@@ -2,7 +2,20 @@ $pdf_mode        = 1;   # pdflatex
 $postscript_mode = 0;
 $dvi_mode        = 0;
 
-$pdflatex = "pdflatex -synctex=1 -interaction=nonstopmode -file-line-error %O %S";
+# pdf mode runs pdflatex, unless the file loads a package only lualatex and xelatex can run: then lualatex, so a
+# fontspec document builds from vimtex or a plain latexmk without a TeX program line
+$pdflatex = "internal pdf_or_lua %O %S";
+sub pdf_or_lua {
+    my $source = $_[-1];
+    my $engine = "pdflatex";
+    if (open(my $fh, "<", $source)) {
+        local $/;
+        my $text = <$fh>;
+        close($fh);
+        $engine = "lualatex" if $text =~ /^[^%\n]*\\(?:usepackage|RequirePackage)(?:\[[^\]]*\])?\{[^}]*\b(?:fontspec|unicode-math|polyglossia)\b/m;
+    }
+    return system($engine, "-synctex=1", "-interaction=nonstopmode", "-file-line-error", @_);
+}
 $lualatex = "lualatex -synctex=1 -interaction=nonstopmode -file-line-error %O %S";
 $xelatex  = "xelatex -synctex=1 -interaction=nonstopmode -file-line-error %O %S";
 $biber    = "biber --input-encoding=utf8 --output-encoding=utf8 %O %S";
