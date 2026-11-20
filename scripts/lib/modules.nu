@@ -116,13 +116,31 @@ def modules-scan [repo: path, markers: list<path>]: nothing -> table {
     }
 }
 
-# Every module in the repo, cached on the markers' stat; selected says whether this platform runs it.
+# The .nu files the given files import, followed transitively: their consts (HOMELAB) feed the cached options and meta.
+def imports-walk [files: list<string>]: nothing -> list<string> {
+    mut seen = $files
+    mut todo = $files
+    while ($todo | is-not-empty) {
+        let known = $seen
+        let found = ^grep -HE $IMPORT_GREP ...$todo | complete | get stdout | lines
+            | parse --regex $"^\(?<file>[^:]+\):($IMPORT_LINE)"
+            | each {|r| $r.file | path dirname | path join $r.p | path expand } | uniq
+            | where {|f| $f not-in $known and ($f | path exists) }
+        $seen = $seen ++ $found
+        $todo = $found
+    }
+    $seen | skip ($files | length)
+}
+
+# Every module in the repo, cached on the stat of the markers and what they import; selected says whether this
+# platform runs it.
 export def modules-discover [repo: path, groups: list<string>]: nothing -> table {
     let configs = $repo | path join configs
     let found = modules-markers $repo
     let markers = $found | where ($it | path basename) == $MARKER and ($it | path dirname) != $configs
         | append ($ROOT_MODULES | each {|r| $repo | path join $r $MARKER } | where ($it | path exists))
     let inputs = $markers | append ($found | where ($it | path basename) == $DEPENDENCIES) | append $SELF
+        | append (imports-walk $markers)
     let key = ls --full-paths ...$inputs | select name size modified | to nuon | hash sha256
     # the caller's own cache, never root's: a user plans the system layer too
     let cache = if (is-admin) { $SYSTEM_STATE | path join discover.nuon } else { xdg cache dotfiles discover.nuon }

@@ -30,10 +30,12 @@ export def theme [cfg: record, wallpaper: string] {
     let txt = $bg | shade 0.02
     let btn = $bg | shade 0.075
     let hdr_btn = $bg | shade 0.03
+    let caret = do $on $txt
     let values = {
         NAME: wal, BG: (do $hex $bg), FG: (do $on $bg), MENU_BG: (do $hex $menu), MENU_FG: (do $on $menu)
         SEL_BG: (do $hex $selection.0), SEL_FG: (do $hex $selection.1), TXT_BG: (do $hex $txt), TXT_FG: (do $on $txt)
         BTN_BG: (do $hex $btn), BTN_FG: (do $on $btn), HDR_BTN_BG: (do $hex $hdr_btn), HDR_BTN_FG: (do $on $hdr_btn)
+        CARET1_FG: $caret, CARET2_FG: $caret, CARET_SIZE: 0.04
         GTK3_GENERATE_DARK: (if ($bg | is-light) { "False" } else { "True" }), ROUNDNESS: $RADIUS_PX, SPACING: 3, GRADIENT: "0.0"
     }
     let text = $values | items {|k, v| $"($k)=($v)" } | str join "\n"

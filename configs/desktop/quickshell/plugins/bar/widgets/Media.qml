@@ -157,6 +157,30 @@ BarWidget {
     }
   }
 
+  // the position the seek bar and clock read, only while the panel shows: MPRIS sends no updates while a track runs, so
+  // it is sampled each frame while the player plays, and set once on opening and on every jump, pause, track or player
+  // change
+  property real position: 0
+  readonly property real length: player && player.lengthSupported && player.length > 0 ? player.length : 0
+
+  function syncPosition() {
+    if (!panel.visible) return
+    position = player && player.positionSupported ? Math.max(0, player.position) : 0
+  }
+
+  onPlayerChanged: syncPosition()
+  onPlayingChanged: syncPosition()
+
+  Connections {
+    target: root.player
+    function onPositionChanged() { root.syncPosition() }
+    function onPostTrackChanged() { root.syncPosition() }
+  }
+
+  // a change that moves the track's text and art in, the panel's own opening has its boot-in
+  readonly property string trackKey: player ? player.dbusName + "\n" + title + "\n" + artist : ""
+  onTrackKeyChanged: if (panel.visible) trackIn.restart()
+
   HoverPanel {
     id: panel
     anchorWidget: root
@@ -165,34 +189,87 @@ BarWidget {
     accentText: MediaState.accentText
     implicitWidth: Style.panelWidth.normal
 
+    onVisibleChanged: if (visible) root.syncPosition()
+
     Loader {
       active: panel.visible && Cava.available
       sourceComponent: CavaRef {}
     }
 
-    Timer {
-      interval: 1000
-      repeat: true
-      running: panel.visible && root.player !== null && root.player.positionSupported
-      onTriggered: if (root.player) root.player.positionChanged()
+    // a sample only when the bar would move half a pixel or the clock a second, so the fill glides without a rebind
+    // every frame
+    FrameAnimation {
+      running: panel.visible && root.playing && root.player.positionSupported && !seek.dragging
+      onTriggered: {
+        var p = root.player.position
+        var px = root.length > 0 ? Math.abs(p - root.position) * seek.width / root.length : 0
+        if (px >= 0.5 || Math.floor(p) !== Math.floor(root.position)) root.position = p
+      }
+    }
+
+    ParallelAnimation {
+      id: trackIn
+      NumberAnimation {
+        target: trackRow; property: "opacity"; from: 0.25; to: 1
+        duration: Style.motion.base; easing.type: Style.motion.fastEasing
+      }
+      NumberAnimation {
+        target: trackShift; property: "x"; from: Style.motion.travel; to: 0
+        duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter
+      }
     }
 
     Column {
       id: content
       width: parent.width
-      spacing: Style.spacing.sm
+      spacing: Style.spacing.md
+
+      Flow {
+        width: parent.width
+        spacing: Style.spacing.xs
+        visible: root.players.length > 1
+
+        Repeater {
+          model: root.players
+          delegate: Button {
+            required property var modelData
+            required property int index
+            readonly property string name: String(modelData.identity || modelData.dbusName)
+            // two players of one app (two mpv) are told apart by their place among their namesakes
+            readonly property int namesake: root.players.slice(0, index)
+              .filter(p => String(p.identity || p.dbusName) === name).length
+            variant: "chip"
+            focusable: true
+            iconText: modelData.playbackState === MprisPlaybackState.Playing ? "\u{f04b}" : "\u{f04c}"
+            text: namesake > 0 ? name + " " + (namesake + 1) : name
+            selected: root.player === modelData
+            onClicked: MediaState.pinnedPlayer = MediaState.pinnedPlayer === modelData.dbusName ? "" : modelData.dbusName
+          }
+        }
+      }
 
       Row {
+        id: trackRow
         width: parent.width
-        spacing: Style.spacing.sm
+        spacing: Style.spacing.md
+        transform: Translate { id: trackShift }
 
         Rectangle {
           id: artFrame
-          width: Style.space(72)
+          width: Style.space(80)
           height: width
           radius: Style.shape.surface
           color: Style.selectedFillFor(Colors.menu.text, MediaState.accent)
           clip: true
+
+          Label {
+            anchors.centerIn: parent
+            visible: art.status !== Image.Ready
+            text: "\u{f001}"
+            dim: true
+            icon: true
+            font.pixelSize: Style.font.heading
+          }
 
           Image {
             id: art
@@ -204,26 +281,18 @@ BarWidget {
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
-            visible: status === Image.Ready
+            opacity: status === Image.Ready ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: Style.motion.base; easing.type: Style.motion.fastEasing } }
             onStatusChanged: if (status === Image.Error) MediaState.artFailed()
-          }
-
-          Label {
-            anchors.centerIn: parent
-            visible: !art.visible
-            text: "\u{f001}"
-            dim: true
-            icon: true
-            font.pixelSize: Style.font.title
           }
 
           HudFrame { color: MediaState.accent }
         }
 
         Column {
-          width: parent.width - artFrame.width - Style.spacing.sm
-          spacing: Style.spacing.xxs
+          width: parent.width - artFrame.width - parent.spacing
           anchors.verticalCenter: parent.verticalCenter
+          spacing: Style.spacing.xxs
 
           Label {
             width: parent.width
@@ -241,14 +310,14 @@ BarWidget {
             width: parent.width
             text: root.artist
             visible: text !== ""
-            dim: true
+            color: Colors.menu.text
             elide: Text.ElideRight
           }
           Label {
             width: parent.width
             text: root.album
+            visible: text !== ""
             dim: true
-            visible: root.album !== ""
             caption: true
             elide: Text.ElideRight
           }
@@ -260,174 +329,125 @@ BarWidget {
         active: panel.visible && Cava.available
         visible: active
         sourceComponent: CavaBars {
-          rows: 12
+          rows: 8
           targetWidth: content.width
-          targetHeight: Style.space(72)
+          targetHeight: Style.space(48)
         }
       }
 
       Column {
         width: parent.width
-        spacing: Style.spacing.xxs
-        visible: root.player !== null && root.player.lengthSupported && root.player.length > 0
+        spacing: 0
+        visible: root.length > 0
 
         Slider {
           id: seek
           width: parent.width
           step: 5
-          maximum: root.player && root.player.length > 0 ? root.player.length : 1
-          value: root.player ? root.player.position : 0
+          maximum: Math.max(1, root.length)
+          value: Math.min(root.position, maximum)
           enabled: root.player !== null && root.player.canSeek
           opacity: enabled ? 1 : Style.emphasis.disabled
+          fillColor: MediaState.accent
           onReleased: function (v) {
             if (!root.player || !root.player.canSeek) return
             root.player.position = v
-            root.player.positionChanged()
+            root.position = v
           }
         }
 
-        Row {
+        Item {
           width: parent.width
+          height: elapsed.implicitHeight
+
           Label {
-            width: parent.width / 2
-            text: root.player ? Util.clock(seek.dragging ? seek.liveValue : root.player.position) : "0:00"
+            id: elapsed
+            anchors.left: parent.left
+            text: Util.clock(seek.dragging ? seek.liveValue : root.position)
             dim: true
             caption: true
+            font.features: { "tnum": 1 }
           }
           Label {
-            width: parent.width / 2
-            horizontalAlignment: Text.AlignRight
-            text: root.player ? Util.clock(root.player.length) : "0:00"
+            anchors.right: parent.right
+            text: Util.clock(root.length)
             dim: true
             caption: true
-          }
-        }
-      }
-
-      Item {
-        width: parent.width
-        height: transport.implicitHeight
-
-        Row {
-          id: transport
-          anchors.horizontalCenter: parent.horizontalCenter
-          spacing: Style.spacing.sm
-
-          TransportButton {
-            iconText: "\u{f074}"
-            tooltipText: root.player && root.player.shuffle ? "Shuffle: on" : "Shuffle: off"
-            foreground: root.player && root.player.shuffle ? MediaState.accentText : Colors.menu.text
-            visible: root.player !== null && root.player.shuffleSupported
-            onClicked: if (root.player) root.player.shuffle = !root.player.shuffle
-          }
-
-          TransportButton {
-            iconText: "\u{f048}"
-            tooltipText: "Previous"
-            enabled: root.player !== null && root.player.canGoPrevious
-            onClicked: if (root.player) root.player.previous()
-          }
-
-          TransportButton {
-            iconText: root.playing ? "\u{f04c}" : "\u{f04b}"
-            tooltipText: root.playing ? "Pause" : "Play"
-            enabled: root.player !== null && root.player.canTogglePlaying
-            fontSize: Style.font.icon + Style.space(4)
-            onClicked: if (root.player) root.player.togglePlaying()
-          }
-
-          TransportButton {
-            iconText: "\u{f051}"
-            tooltipText: "Next"
-            enabled: root.player !== null && root.player.canGoNext
-            onClicked: if (root.player) root.player.next()
-          }
-
-          TransportButton {
-            iconText: root.player && root.player.loopState === MprisLoopState.Track
-              ? "\u{f0458}" : "\u{f0456}"
-            tooltipText: {
-              if (!root.player) return "Repeat"
-              switch (root.player.loopState) {
-              case MprisLoopState.Track: return "Repeat: track"
-              case MprisLoopState.Playlist: return "Repeat: playlist"
-              default: return "Repeat: off"
-              }
-            }
-            foreground: root.player && root.player.loopState !== MprisLoopState.None
-              ? MediaState.accentText : Colors.menu.text
-            visible: root.player !== null && root.player.loopSupported
-            onClicked: {
-              if (!root.player) return
-              switch (root.player.loopState) {
-              case MprisLoopState.None: root.player.loopState = MprisLoopState.Playlist; break
-              case MprisLoopState.Playlist: root.player.loopState = MprisLoopState.Track; break
-              default: root.player.loopState = MprisLoopState.None
-              }
-            }
+            font.features: { "tnum": 1 }
           }
         }
       }
 
       Row {
-        width: parent.width
+        anchors.horizontalCenter: parent.horizontalCenter
         spacing: Style.spacing.sm
-        visible: root.player !== null
-        opacity: root.volumeAvailable ? 1 : Style.emphasis.disabled
 
-        Button {
-          anchors.verticalCenter: parent.verticalCenter
-          variant: "icon"
-          focusable: true
-          size: Style.space(24)
-          enabled: root.volumeAvailable
-          iconText: Audio.volumeIcon(root.playerVolume, root.playerMuted)
-          foreground: root.playerMuted ? Colors.urgent : Colors.menu.text
-          tooltipText: root.playerMuted ? "Unmute" : "Mute"
-          onClicked: root.togglePlayerMute()
+        TransportButton {
+          iconText: "\u{f074}"
+          tooltipText: root.player && root.player.shuffle ? "Shuffle: on" : "Shuffle: off"
+          foreground: root.player && root.player.shuffle ? MediaState.accentText : Colors.menu.text
+          visible: root.player !== null && root.player.shuffleSupported
+          onClicked: if (root.player) root.player.shuffle = !root.player.shuffle
         }
 
-        Slider {
-          id: playerVolumeSlider
-          width: content.width - Style.space(24) - Style.space(40) - parent.spacing * 2
-          enabled: root.volumeAvailable
-          value: root.playerVolume
-          onMoved: function(v) { root.setPlayerVolume(v) }
-          onRightClicked: root.togglePlayerMute()
+        TransportButton {
+          iconText: "\u{f048}"
+          tooltipText: "Previous"
+          enabled: root.player !== null && root.player.canGoPrevious
+          onClicked: if (root.player) root.player.previous()
         }
 
-        Label {
-          width: Style.space(40)
-          height: playerVolumeSlider.height
-          horizontalAlignment: Text.AlignRight
-          verticalAlignment: Text.AlignVCenter
-          text: root.volumeAvailable ? Math.round(root.playerVolume * 100) + "%" : "--"
-          color: Colors.menu.text
-          caption: true
+        TransportButton {
+          iconText: root.playing ? "\u{f04c}" : "\u{f04b}"
+          tooltipText: root.playing ? "Pause" : "Play"
+          enabled: root.player !== null && root.player.canTogglePlaying
+          fontSize: Style.font.icon + Style.space(4)
+          onClicked: if (root.player) root.player.togglePlaying()
+        }
+
+        TransportButton {
+          iconText: "\u{f051}"
+          tooltipText: "Next"
+          enabled: root.player !== null && root.player.canGoNext
+          onClicked: if (root.player) root.player.next()
+        }
+
+        TransportButton {
+          iconText: root.player && root.player.loopState === MprisLoopState.Track
+            ? "\u{f0458}" : "\u{f0456}"
+          tooltipText: {
+            if (!root.player) return "Repeat"
+            switch (root.player.loopState) {
+            case MprisLoopState.Track: return "Repeat: track"
+            case MprisLoopState.Playlist: return "Repeat: playlist"
+            default: return "Repeat: off"
+            }
+          }
+          foreground: root.player && root.player.loopState !== MprisLoopState.None
+            ? MediaState.accentText : Colors.menu.text
+          visible: root.player !== null && root.player.loopSupported
+          onClicked: {
+            if (!root.player) return
+            switch (root.player.loopState) {
+            case MprisLoopState.None: root.player.loopState = MprisLoopState.Playlist; break
+            case MprisLoopState.Playlist: root.player.loopState = MprisLoopState.Track; break
+            default: root.player.loopState = MprisLoopState.None
+            }
+          }
         }
       }
 
-      Column {
+      Fader {
         width: parent.width
-        spacing: Style.spacing.xxs
-        visible: root.players.length > 1
-
-        PanelSeparator {}
-        PanelSectionHeader { text: "PLAYERS" }
-
-        Repeater {
-          model: root.players
-          delegate: PanelRow {
-            required property var modelData
-            width: content.width
-            on: root.player === modelData
-            glyph: modelData.playbackState === MprisPlaybackState.Playing ? "\u{f04b}" : ""
-            label: modelData.identity || modelData.dbusName
-            upper: false
-            onActivated: MediaState.pinnedPlayer =
-              (MediaState.pinnedPlayer === modelData.dbusName) ? "" : modelData.dbusName
-          }
-        }
+        visible: root.player !== null
+        enabled: root.volumeAvailable
+        value: root.playerVolume
+        muted: root.playerMuted
+        glyph: Audio.volumeIcon(root.playerVolume, false)
+        mutedGlyph: Audio.volumeIcon(root.playerVolume, true)
+        readoutText: root.volumeAvailable ? Math.round(root.playerVolume * 100) + "%" : "--"
+        onMoved: function (v) { root.setPlayerVolume(v) }
+        onMuteToggled: root.togglePlayerMute()
       }
     }
   }

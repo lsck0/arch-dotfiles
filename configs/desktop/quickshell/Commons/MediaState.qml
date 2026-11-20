@@ -5,9 +5,11 @@ import Quickshell.Io
 import Quickshell.Services.Mpris
 import "Palette.js" as Palette
 
-// The player the bar shows (the pinned one, else a playing one, else the last shown), its cover art fetched once for
-// every screen, the accent taken from that art while it plays, and the `media` IPC target the media keys drive, so
-// keys, bar and agents act on the same player.
+// The player the bar shows, its cover art fetched once for every screen, the accent taken from that art while it plays,
+// and the `media` IPC target the media keys drive, so keys, bar and agents act on the same player.
+//
+// The shown player: the pinned one; else the playing one that started last; else, with all paused, the one shown
+// before; else the one that played last. A pin holds until its player vanishes or another starts playing.
 Singleton {
   id: root
 
@@ -28,8 +30,18 @@ Singleton {
     return String(p.dbusName || "").indexOf(browserIntegrationBus) !== -1
   }
 
-  // one player per bus, a browser tab and its plasma-browser-integration twin folded by identity into the richer one;
+  // OBS's own browser sources and an app's idle media session (a closed tab, a chat client's webview: no title, not
+  // playing) are not media to show
+  function isNoise(p) {
+    var name = String(p.identity || "") + " " + String(p.desktopEntry || "")
+    if (/\bobs\b|obsproject/i.test(name)) return true
+    return !p.trackTitle && p.playbackState !== MprisPlaybackState.Playing
+  }
+
   // playerctld only proxies the others
+  function isIgnored(p) { return String(p.dbusName || "").indexOf("playerctld") !== -1 || isNoise(p) }
+
+  // one player per bus, a browser tab and its plasma-browser-integration twin folded by identity into the richer one
   readonly property var players: {
     var values = Mpris.players ? Mpris.players.values : [] // qmllint disable missing-property
     var seen = ({})
@@ -38,7 +50,7 @@ Singleton {
       let p = values[i]
       let bus = String(p.dbusName || "")
       let key = bus || String(p.identity || i)
-      if (bus.indexOf("playerctld") !== -1 || seen[key]) continue
+      if (seen[key] || isIgnored(p)) continue
       seen[key] = true
       let identity = String(p.identity || "").toLowerCase().trim()
       let twin = identity ? kept.findIndex(held => String(held.identity || "").toLowerCase().trim() === identity
@@ -53,10 +65,18 @@ Singleton {
 
   property var player: null
 
+  // bus -> order in which it last started playing, and the buses playing at the last look; plain maps, read only here
+  property var startedAt: ({})
+  property var wasPlaying: ({})
+  property int startCount: 0
+
+  function startOf(p) { return root.startedAt[p.dbusName] || 0 }
+  function latest(list) { return list.reduce((best, p) => !best || startOf(p) > startOf(best) ? p : best, null) }
+
   function pickPlayer() {
     var byBus = name => name ? players.find(p => p.dbusName === name) : undefined
-    return byBus(pinnedPlayer) || players.find(p => p.playbackState === MprisPlaybackState.Playing)
-      || byBus(lastShownPlayer) || players[0] || null
+    return byBus(pinnedPlayer) || latest(players.filter(p => p.playbackState === MprisPlaybackState.Playing))
+      || byBus(lastShownPlayer) || latest(players.filter(p => startOf(p) > 0)) || players[0] || null
   }
 
   function updatePlayer() {
@@ -65,18 +85,46 @@ Singleton {
     lastShownPlayer = player ? player.dbusName : ""
   }
 
+  // stamps each player that went to playing since the last look, forgets the vanished, and drops a pin another
+  // player's start overrides
+  function notePlayback() {
+    var values = Mpris.players ? Mpris.players.values : [] // qmllint disable missing-property
+    var now = ({})
+    var started = []
+    for (let i = 0; i < values.length; i++) {
+      let p = values[i]
+      if (p.playbackState !== MprisPlaybackState.Playing || isIgnored(p)) continue
+      now[p.dbusName] = true
+      if (!root.wasPlaying[p.dbusName]) started.push(p.dbusName)
+    }
+    var stamps = ({})
+    for (let i = 0; i < values.length; i++) {
+      let bus = values[i].dbusName
+      if (root.startedAt[bus]) stamps[bus] = root.startedAt[bus]
+    }
+    for (let i = 0; i < started.length; i++) stamps[started[i]] = ++root.startCount
+    root.startedAt = stamps
+    root.wasPlaying = now
+    if (pinnedPlayer && started.some(bus => bus !== pinnedPlayer)) pinnedPlayer = ""
+  }
+
   readonly property string playbackKey: Array.from(Mpris.players ? Mpris.players.values : []) // qmllint disable missing-property
     .map(p => p.dbusName + ":" + p.playbackState).join(";")
 
-  onPlaybackKeyChanged: updatePlayer()
+  onPlaybackKeyChanged: {
+    notePlayback()
+    updatePlayer()
+  }
   onPinnedPlayerChanged: updatePlayer()
 
   onPlayersChanged: {
+    notePlayback()
     if (pinnedPlayer && !players.some(p => p.dbusName === pinnedPlayer)) pinnedPlayer = ""
     updatePlayer()
   }
 
   Component.onCompleted: {
+    notePlayback()
     updatePlayer()
     refreshArt()
   }

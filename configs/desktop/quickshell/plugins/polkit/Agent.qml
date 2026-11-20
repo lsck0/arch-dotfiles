@@ -24,6 +24,9 @@ Item {
     function onIsResponseRequiredChanged() {
       if (root.flow.isResponseRequired) Qt.callLater(function() { password.text = ""; password.forceActiveFocus() })
     }
+    function onFailedChanged() {
+      if (root.flow.failed) authShake.play()
+    }
   }
 
   function submit() {
@@ -57,6 +60,7 @@ Item {
       id: authBody
       width: parent.width
       spacing: Style.spacing.md
+      transform: Shake { id: authShake }
 
       Label {
         Layout.fillWidth: true

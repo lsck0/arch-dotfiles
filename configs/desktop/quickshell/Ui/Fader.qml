@@ -1,22 +1,36 @@
 import QtQuick
+import Quickshell.Widgets
 import qs.Commons
 
-// a mute glyph, a slider and its reading; the caller owns what the level is and applies moved and muteToggled
+// a glyph, a slider and its reading; the caller owns what the level is and applies moved, released and muteToggled
 Item {
   id: root
 
-  property real volume: 0
+  property real value: 0
+  property real minimum: 0
+  property real maximum: 1
+  property real step: 0.05
+  property bool integer: false
   property bool muted: false
+  // false: the glyph only names the level, it is no mute button
+  property bool muteable: true
   property string readoutText: ""
+  property string readoutWidest: muteable ? "MUTED" : "100%"
   property string glyph: "\u{f057e}"
   property string mutedGlyph: "\u{f075f}"
+  // an app's own icon in place of the glyph
+  property url iconSource: ""
   property string caption: ""
   property real captionWidth: Style.space(52)
 
+  readonly property real glyphSize: Style.space(24)
+
   signal moved(real value)
+  signal released(real value)
   signal muteToggled()
 
   implicitHeight: slider.implicitHeight
+  opacity: enabled ? 1 : Style.emphasis.disabled
 
   Label {
     id: captionLabel
@@ -32,16 +46,35 @@ Item {
 
   Button {
     id: muteGlyph
+    visible: root.muteable
     anchors.left: captionLabel.right
     anchors.leftMargin: root.caption !== "" ? Style.spacing.xs : 0
     anchors.verticalCenter: parent.verticalCenter
     variant: "icon"
     focusable: true
-    size: Style.space(24)
-    iconText: root.muted ? root.mutedGlyph : root.glyph
+    size: root.glyphSize
+    iconText: root.iconSource.toString() !== "" ? "" : root.muted ? root.mutedGlyph : root.glyph
     foreground: root.muted ? Colors.urgent : Colors.menu.text
     tooltipText: root.muted ? "Unmute" : "Mute"
     onClicked: root.muteToggled()
+
+    IconImage {
+      visible: root.iconSource.toString() !== ""
+      anchors.centerIn: parent
+      implicitSize: Style.font.icon + Style.spacing.xs
+      source: root.iconSource
+      opacity: root.muted ? Style.emphasis.disabled : 1
+    }
+  }
+
+  Label {
+    visible: !root.muteable
+    anchors.fill: muteGlyph
+    horizontalAlignment: Text.AlignHCenter
+    verticalAlignment: Text.AlignVCenter
+    text: root.glyph
+    color: Colors.menu.text
+    icon: true
   }
 
   Slider {
@@ -51,10 +84,15 @@ Item {
     anchors.leftMargin: Style.spacing.sm
     anchors.rightMargin: Style.spacing.sm
     anchors.verticalCenter: parent.verticalCenter
-    value: root.volume
+    minimum: root.minimum
+    maximum: root.maximum
+    step: root.step
+    integer: root.integer
+    value: root.value
     fillColor: root.muted ? Colors.urgent : Colors.bar.text
     onMoved: function(v) { root.moved(v) }
-    onRightClicked: root.muteToggled()
+    onReleased: function(v) { root.released(v) }
+    onRightClicked: if (root.muteable) root.muteToggled()
   }
 
   Label {
@@ -68,7 +106,6 @@ Item {
     caption: true
     font.features: { "tnum": 1 }
 
-    // the widest reading: a boost above 0 dB carries a sign as well, and + is no narrower than -
-    Label { id: readoutWidest; visible: false; caption: true; text: "100% +00.0 dB" }
+    Label { id: readoutWidest; visible: false; caption: true; font.features: { "tnum": 1 }; text: root.readoutWidest }
   }
 }

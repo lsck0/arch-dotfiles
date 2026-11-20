@@ -86,6 +86,14 @@ def discover-cache-cases [] {
         assert equal (open $cache | get modules.id) [g/m] $"discover cache ($c.name): not written anew"
         assert equal (^stat -c "%a" $cache | str trim) "600" $"discover cache ($c.name): readable by others"
     }
+    let shared = $repo | path join configs g shared.nu
+    "export const V = \"old\"\n" | save $shared
+    "use ../shared.nu [V]\nexport const options = {v: {type: string, default: $V}}\nexport def link [cfg: record] { [] }\n"
+        | save --force ($repo | path join configs g m mod.nu)
+    let discover = {|| with-env {XDG_CACHE_HOME: ($work | path join cache)} { modules-discover $repo [g] } }
+    assert equal (do $discover | get 0.options.v.default) old "discover cache: imported const not read"
+    "export const V = \"newer\"\n" | save --force $shared
+    assert equal (do $discover | get 0.options.v.default) newer "discover cache: a changed import served stale"
     rm --recursive --force $work
 }
 

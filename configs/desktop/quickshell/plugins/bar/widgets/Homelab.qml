@@ -199,12 +199,8 @@ BarWidget {
     property string title: ""
     property var rows: []
 
-    Label {
+    PanelSubHeader {
       text: list.title
-      color: Colors.accentText
-      caption: true
-      font.capitalization: Font.AllUppercase
-      font.letterSpacing: Style.headerTracking
       elide: Text.ElideRight
       width: list.width
       bottomPadding: Style.spacing.xxs
@@ -257,13 +253,7 @@ BarWidget {
     visible: members.length > 0
     spacing: Style.spacing.xs
 
-    Label {
-      text: groupBox.title
-      color: Colors.accentText
-      caption: true
-      font.capitalization: Font.AllUppercase
-      font.letterSpacing: Style.headerTracking
-    }
+    PanelSubHeader { text: groupBox.title }
 
     Grid {
       id: serviceGrid

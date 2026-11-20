@@ -1,6 +1,5 @@
 use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
-use vendor.nu [NAS_MOUNT]
 
 const CRED = "/etc/samba/homelab.cred"
 const CRED_KEYS = '^(username|password|domain)='
@@ -36,8 +35,4 @@ export def system [cfg: record] {
         (file-render mnt-homelab.mount (unit-dir | path join mnt-homelab.mount) {SHARE: $cfg.share})
         (unit-file mnt-homelab.automount --enable --now)
     ]
-}
-
-export def link [cfg: record] {
-    if (owner-unlocked) and (platform-has homelab) { file-link $NAS_MOUNT ($nu.home-dir | path join nas) }
 }

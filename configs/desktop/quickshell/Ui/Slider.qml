@@ -26,18 +26,29 @@ Item {
 
   signal rightClicked()
 
+  readonly property real coarseScale: 4
+  readonly property real fineScale: 0.2
+
   activeFocusOnTab: true
-  function nudge(direction) {
-    var step = root.integer ? Math.max(1, root.step) : root.step
-    var next = Math.max(root.minimum, Math.min(root.maximum, root.liveValue + direction * step))
+  function setTo(value) {
+    var next = Math.max(root.minimum, Math.min(root.maximum, value))
     if (root.integer) next = Math.round(next)
     root.liveValue = next
     root.moved(next)
     root.released(next)
   }
+  function nudge(direction, scale) {
+    var step = root.step * (scale === undefined ? 1 : scale)
+    root.setTo(root.liveValue + direction * (root.integer ? Math.max(1, Math.round(step)) : step))
+  }
   Keys.onPressed: function(event) {
-    if (event.key === Qt.Key_Left || event.text === "h") root.nudge(-1)
-    else if (event.key === Qt.Key_Right || event.text === "l") root.nudge(1)
+    var scale = event.modifiers & Qt.ShiftModifier ? root.coarseScale : event.modifiers & Qt.ControlModifier ? root.fineScale : 1
+    if (event.key === Qt.Key_Left || event.key === Qt.Key_H) root.nudge(-1, scale)
+    else if (event.key === Qt.Key_Right || event.key === Qt.Key_L) root.nudge(1, scale)
+    else if (event.key === Qt.Key_PageDown) root.nudge(-1, root.coarseScale)
+    else if (event.key === Qt.Key_PageUp) root.nudge(1, root.coarseScale)
+    else if (event.key === Qt.Key_Home) root.setTo(root.minimum)
+    else if (event.key === Qt.Key_End) root.setTo(root.maximum)
     else return
     event.accepted = true
   }

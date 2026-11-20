@@ -132,6 +132,8 @@ _startpage = "file://" + os.path.expanduser("~/.config/qutebrowser/startpage.htm
 c.url.start_pages = [_startpage]
 c.url.default_page = _startpage
 config.set("content.local_content_can_access_remote_urls", True, _startpage)
+# explicit: once the page has a per-url setting, qtwebengine drops this default and links.js never loads
+config.set("content.local_content_can_access_file_urls", True, _startpage)
 
 _ddg = "https://duckduckgo.com/?q={}"
 _search = _ddg

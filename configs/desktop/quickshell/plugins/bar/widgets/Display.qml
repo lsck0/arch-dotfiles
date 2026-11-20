@@ -129,6 +129,8 @@ BarWidget {
     onTriggered: monitorsProc.run()
   }
 
+  readonly property var monitorScales: [1, 1.25, 1.5, 1.666667, 2]
+
   function setMonitorScale(name, scale) {
     Quickshell.execDetached([Paths.toggle("toggle-monitor-scale.nu"), "live", String(scale), name])
     monitorsSettle.restart()
@@ -204,46 +206,19 @@ BarWidget {
       PanelSectionHeader { text: "BRIGHTNESS" }
 
       // the slider is the gauge; the monitor list below counts the monitors
-      Item {
+      Fader {
         width: parent.width
-        implicitHeight: Math.max(briSlider.implicitHeight, briValue.implicitHeight)
-
-        Slider {
-          id: briSlider
-          visible: root.brightnessKnown
-          anchors.left: parent.left
-          anchors.right: briValue.left
-          anchors.rightMargin: Style.spacing.sm
-          anchors.verticalCenter: parent.verticalCenter
-          minimum: 1
-          maximum: 100
-          integer: true
-          value: root.brightnessPct
-          onMoved: function(v) { root.brightnessDragging = true; root.brightnessPct = v }
-          onReleased: function(v) { root.brightnessDragging = false; root.applyBrightnessAll(v) }
-        }
-
-        Label {
-          id: briValue
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          width: briSizer.implicitWidth
-          horizontalAlignment: Text.AlignRight
-          text: root.brightnessKnown ? Math.round(root.brightnessPct) + "%" : "--"
-          color: Colors.menu.text
-          font.letterSpacing: Style.displayTracking
-          font.features: { "tnum": 1 }
-
-          Text {
-            id: briSizer
-            visible: false
-            textFormat: Text.PlainText
-            text: "100%"
-            font.family: briValue.font.family
-            font.pixelSize: briValue.font.pixelSize
-            font.letterSpacing: briValue.font.letterSpacing
-          }
-        }
+        enabled: root.brightnessKnown
+        muteable: false
+        glyph: "\u{f0379}"
+        minimum: 1
+        maximum: 100
+        integer: true
+        step: root.brightnessStepPct
+        value: root.brightnessPct
+        readoutText: root.brightnessKnown ? Math.round(root.brightnessPct) + "%" : "--"
+        onMoved: function(v) { root.brightnessDragging = true; root.brightnessPct = v }
+        onReleased: function(v) { root.brightnessDragging = false; root.applyBrightnessAll(v) }
       }
 
       PanelSeparator {}
@@ -277,51 +252,47 @@ BarWidget {
             }
           }
 
-          Flow {
+          ChoiceRow {
             visible: root.monitors.length > 1
-            width: parent.width
-            spacing: Style.spacing.xs
-            Repeater {
-              model: {
-                var opts = [{ value: "extend", label: "EXTEND" }]
-                var others = 0
-                for (let i = 0; i < root.monitors.length; i++) {
-                  const m = root.monitors[i]
-                  if (m.name === monitorRow.modelData.name || m.disabled) continue
-                  if (m.mirrorOf && m.mirrorOf !== "none") continue
-                  others++
-                  opts.push({ value: "mirror:" + m.name, label: "MIRROR " + m.name })
-                }
-                if (others > 0 || monitorRow.disabled) opts.push({ value: "off", label: "OFF" })
-                return opts
+            caption: "LAYOUT"
+            options: {
+              var opts = [{ value: "extend", label: "EXTEND" }]
+              var others = 0
+              for (let i = 0; i < root.monitors.length; i++) {
+                const m = root.monitors[i]
+                if (m.name === monitorRow.modelData.name || m.disabled) continue
+                if (m.mirrorOf && m.mirrorOf !== "none") continue
+                others++
+                opts.push({ value: "mirror:" + m.name, label: "MIRROR " + m.name })
               }
-              Button {
-                variant: "chip"
-                focusable: true
-                required property var modelData
-                text: modelData.label
-                selected: modelData.value === monitorRow.layoutValue
-                onClicked: if (!selected) root.setMonitorLayout(monitorRow.modelData.name, modelData.value)
-              }
+              if (others > 0 || monitorRow.disabled) opts.push({ value: "off", label: "OFF" })
+              return opts
             }
+            value: monitorRow.layoutValue
+            onChanged: function(v) { if (v !== monitorRow.layoutValue) root.setMonitorLayout(monitorRow.modelData.name, v) }
           }
 
-          Flow {
+          ChoiceRow {
             visible: !monitorRow.disabled
-            width: parent.width
-            spacing: Style.spacing.xs
-            Repeater {
-              model: [1, 1.25, 1.5, 1.666667, 2]
-              Button {
-                variant: "chip"
-                focusable: true
-                required property real modelData
-                selected: Math.abs(Number(monitorRow.modelData.scale) - modelData) < 0.01
-                text: (Math.round(modelData * 100) / 100) + "x"
-                onClicked: root.setMonitorScale(monitorRow.modelData.name, modelData)
-              }
+            caption: "SCALE"
+            options: root.monitorScales.map(function(s) { return { value: String(s), label: (Math.round(s * 100) / 100) + "x" } })
+            value: {
+              const current = root.monitorScales.find(s => Math.abs(Number(monitorRow.modelData.scale) - s) < 0.01)
+              return current === undefined ? "" : String(current)
             }
+            onChanged: function(v) { root.setMonitorScale(monitorRow.modelData.name, Number(v)) }
           }
+        }
+      }
+
+      // a pause first: the click's own pointer motion would wake them (misc:mouse_move_enables_dpms)
+      PanelRow {
+        width: parent.width
+        label: "Screens off"
+        trailing: "until input"
+        onActivated: {
+          root.closePanel()
+          Quickshell.execDetached(["sh", "-c", "sleep 1.5; exec \"$0\" off", Paths.home + "/.config/hypr/dpms.nu"])
         }
       }
 
@@ -392,6 +363,37 @@ BarWidget {
           }
         }
       }
+    }
+  }
+
+  // a caption naming the choice, then its chips, wrapping under themselves past the panel's width
+  component ChoiceRow: Item {
+    id: choice
+    property string caption: ""
+    property alias options: group.options
+    property alias value: group.value
+
+    signal changed(string value)
+
+    width: parent ? parent.width : 0
+    implicitHeight: group.implicitHeight
+
+    Label {
+      id: choiceCaption
+      width: Style.space(52)
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      text: choice.caption
+      dim: true
+      caption: true
+    }
+
+    ButtonGroup {
+      id: group
+      anchors.left: choiceCaption.right
+      anchors.right: parent.right
+      spacing: Style.spacing.xs
+      onChanged: function(v) { choice.changed(v) }
     }
   }
 }

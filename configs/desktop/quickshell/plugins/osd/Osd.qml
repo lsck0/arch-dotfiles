@@ -213,6 +213,8 @@ Item {
         anchors.bottomMargin: Style.space(67)
         opacity: boot.progress
         transform: Translate { y: (1 - boot.progress) * Style.motion.travel }
+        Behavior on width { enabled: root.opened && boot.progress >= 1; NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
+        Behavior on height { enabled: root.opened && boot.progress >= 1; NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
 
         Column {
           visible: root.logMode

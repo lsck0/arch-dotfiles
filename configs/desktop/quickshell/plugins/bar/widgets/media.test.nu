@@ -411,6 +411,7 @@ def scenarios(h, work):
     h.clear()
     h.add("mpv", "mpv", "Playing", song("Pinned Song", "Pin"), "mpv")
     h.add("spotify", "Spotify", "Playing", SPOTIFY, "spotify")
+    h.expect("pin-playing setup", players=[MPRIS + ".mpv=1", MPRIS + ".spotify=1"])
     h.ipc("harness", "pin", MPRIS + ".mpv")
     h.expect("pinned player shown over another playing one", pinned=MPRIS + ".mpv", player=MPRIS + ".mpv",
              shown=True, line="Pinned Song :: Pin")
@@ -499,6 +500,65 @@ def scenarios(h, work):
     h.clear()
     h.add("vlc", "VLC media player", "Playing", {"mpris:trackid": dbus.ObjectPath("/t/1")}, "vlc")
     h.expect("no title: bar names the player, lock empty", shown=True, line="VLC media player", lock="")
+    h.players["vlc"].update(PlaybackStatus="Paused")
+    h.expect("no title and paused: dropped as noise", players=[], player="", seconds=2)
+
+    selection(h)
+
+
+def selection(h):
+    """the shown player: pinned, else the playing one that started last, else the one shown before, else the one that
+    played last; noise never listed"""
+    h.clear()
+    h.add("spotify", "Spotify", "Playing", SPOTIFY, "spotify")
+    h.add("mpv", "mpv", "Paused", song("Later", "Mpv"), "mpv")
+    h.expect("select setup", player=MPRIS + ".spotify")
+    h.players["mpv"].update(PlaybackStatus="Playing")
+    h.expect("two playing: the one started last", player=MPRIS + ".mpv", line="Later :: Mpv")
+    h.players["spotify"].update(PlaybackStatus="Paused")
+    h.players["spotify"].update(PlaybackStatus="Playing")
+    h.expect("restarted player: shown again", player=MPRIS + ".spotify", line="Supernova :: Electric Callboy")
+    h.players["spotify"].update(PlaybackStatus="Paused")
+    h.expect("shown one paused, the other plays: the playing one", player=MPRIS + ".mpv", seconds=2)
+    h.players["mpv"].update(PlaybackStatus="Paused")
+    h.hold("all paused: the last shown kept", 1, player=MPRIS + ".mpv")
+
+    h.clear()
+    h.add("vlc", "VLC media player", "Paused", song("Never Played", "Vlc"), "vlc")
+    h.add("mpv", "mpv", "Playing", song("Played", "Mpv"), "mpv")
+    h.expect("fallback setup", player=MPRIS + ".mpv")
+    h.players["mpv"].update(PlaybackStatus="Paused")
+    h.add("spotify", "Spotify", "Playing", SPOTIFY, "spotify")
+    h.expect("fallback setup: newcomer plays", player=MPRIS + ".spotify")
+    h.remove("spotify")
+    h.expect("shown player vanishing, all left paused: the one that played last", player=MPRIS + ".mpv",
+             line="Played :: Mpv", seconds=2)
+
+    h.clear()
+    h.add("spotify", "Spotify", "Playing", SPOTIFY, "spotify")
+    h.add("mpv", "mpv", "Paused", song("Pinned", "Mpv"), "mpv")
+    h.add("vlc", "VLC media player", "Paused", song("Newcomer", "Vlc"), "vlc")
+    h.expect("pin setup", player=MPRIS + ".spotify", players=[MPRIS + ".spotify=1", MPRIS + ".mpv=2", MPRIS + ".vlc=2"])
+    h.ipc("harness", "pin", MPRIS + ".mpv")
+    h.expect("pin over a playing one", player=MPRIS + ".mpv", pinned=MPRIS + ".mpv")
+    h.players["spotify"].update(PlaybackStatus="Paused")
+    h.players["spotify"].update(PlaybackStatus="Playing")
+    h.expect("another player starting: pin dropped, the starter shown", pinned="", player=MPRIS + ".spotify")
+    h.ipc("harness", "pin", MPRIS + ".vlc")
+    h.players["vlc"].update(PlaybackStatus="Playing")
+    h.hold("the pinned player itself starting: pin kept", 1, pinned=MPRIS + ".vlc", player=MPRIS + ".vlc")
+
+    h.clear()
+    h.add("spotify", "Spotify", "Paused", SPOTIFY, "spotify")
+    h.add("obs", "OBS Studio", "Playing", song("Browser Source", "Obs"), "com.obsproject.Studio")
+    h.add("chromium.instance88469", "ZapZap", "Stopped",
+          {"mpris:trackid": dbus.ObjectPath("/org/mpris/MediaPlayer2/TrackList/NoTrack"), "xesam:title": "",
+           "xesam:artist": [""], "mpris:artUrl": "", "mpris:length": dbus.Int64(0)})
+    h.expect("noise: OBS and an idle webview never listed, the paused real player shown",
+             players=[MPRIS + ".spotify=2"], player=MPRIS + ".spotify", playing=False, lock="")
+    h.players["chromium.instance88469"].update(PlaybackStatus="Playing", Metadata=song("Voice Note", "Chat"))
+    h.expect("a webview that starts playing media: listed and shown", player=MPRIS + ".chromium.instance88469",
+             line="Voice Note :: Chat")
 
 
 def main():

@@ -436,11 +436,12 @@ BarWidget {
           width: body.width
           caption: modelData
           captionWidth: Style.space(72)
-          volume: Math.min(1, Number(mul) || 0)
+          value: Math.min(1, Number(mul) || 0)
           muted: ObsProcess.inputMutes[modelData] === true
           glyph: mic ? "\u{f036c}" : "\u{f057e}"
           mutedGlyph: mic ? "\u{f036d}" : "\u{f075f}"
           readoutText: mul === undefined ? "--" : root.mulText(Number(mul) || 0)
+          readoutWidest: "100% +00.0 dB"
           onMoved: function(v) { root.setInputVolume(input.modelData, v) }
           onMuteToggled: root.send({ "cmd": "toggleMute", "source": input.modelData })
         }

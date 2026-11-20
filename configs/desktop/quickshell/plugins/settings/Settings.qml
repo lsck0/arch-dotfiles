@@ -631,53 +631,6 @@ Item {
     function close(): string { root.close(); return "ok" }
   }
 
-  // an overflowing list keeps its bar on screen at rest, not only while it scrolls. It sits in the gutter beside
-  // the list, out of its faded layer and clear of the cursor row
-  component ListScrollBar: ScrollBar {
-    id: scrollBar
-    required property ListView list
-
-    parent: list.parent
-    anchors.top: list.top
-    anchors.bottom: list.bottom
-    anchors.left: list.right
-    anchors.leftMargin: Style.spacing.xxs
-    policy: size < 1 ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-    padding: Style.spacing.xxs
-    minimumSize: 0.1
-    background: Rectangle {
-      implicitWidth: Style.spacing.xs + Style.spacing.xxs * 2
-      radius: width / 2
-      color: Util.alpha(Colors.menu.text, Style.hoverFillAlpha)
-    }
-    contentItem: Rectangle {
-      implicitWidth: Style.spacing.xs
-      radius: width / 2
-      color: scrollBar.active || scrollBar.hovered ? Colors.menu.text : Colors.textDim
-    }
-  }
-
-  // alpha mask fading the last visible row of an overflowing list until it reaches its end
-  component ListFade: FadeRamp {
-    required property ListView list
-    readonly property bool overflows: list.contentHeight > list.height + 1
-
-    anchors.fill: list
-    reach: Style.row.list
-    fadeBottom: list.atYEnd ? 0 : 0.95
-    layer.enabled: overflows
-    Behavior on fadeBottom { NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
-  }
-
-  // a list masked by its ListFade while it overflows
-  component FadedList: ListView {
-    id: fadedList
-    required property ListFade fade
-
-    layer.enabled: fade.overflows
-    layer.effect: FadeMask { maskSource: fadedList.fade }
-  }
-
   OverlayCard {
     id: panel
     open: root.opened && !root.picking

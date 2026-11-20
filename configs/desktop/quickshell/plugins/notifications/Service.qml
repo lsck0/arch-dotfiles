@@ -302,6 +302,11 @@ Item {
     }
   }
 
+  // a folded group goes with its head: the head stands for every row under it
+  function removePopupGroup(index) {
+    for (let i = index + Math.max(1, groupSizeAt(index)) - 1; i >= index; i--) removePopup(i)
+  }
+
   function clearPopups() {
     while (popupModel.count > 0) removePopup(0)
   }
@@ -329,7 +334,7 @@ Item {
     var argv = NotificationLogic.parseExecArgv(entry.execArgv)
     if (argv) Quickshell.execDetached(["uwsm-app", "--"].concat(argv))
     else if (!invokeLiveAction(entry, "default")) focusApp(entry)
-    removePopup(index)
+    removePopupGroup(index)
   }
 
   function focusApp(entry) {
@@ -698,15 +703,18 @@ Item {
   function invokeAction(index, identifier) {
     if (index < 0 || index >= popupModel.count) return
     invokeLiveAction(popupModel.get(index), identifier)
-    removePopup(index)
+    removePopupGroup(index)
   }
 
+  // mapped on every screen from the start: same-layer surfaces stack by map order, so an overlay opened later
+  // always lies above the toasts
   Variants {
-    model: service.popupScreen ? [service.popupScreen] : []
+    model: Quickshell.screens
 
     PanelWindow {
       id: popupWindow
       required property var modelData
+      readonly property bool active: modelData === service.popupScreen
       screen: modelData
 
       WlrLayershell.namespace: "quickshell-notifications"
@@ -717,7 +725,7 @@ Item {
 
       anchors { top: true; bottom: true; left: true; right: true }
 
-      mask: Region { item: service.panelOverToasts ? null : popupList }
+      mask: Region { item: popupWindow.active && !service.panelOverToasts ? popupList : null }
 
       ListView {
         id: popupList
@@ -738,7 +746,7 @@ Item {
         height: Math.min(contentHeight, parent.height - service.barClearance - Style.gapsOut)
         interactive: false
         spacing: 0
-        model: popupModel
+        model: popupWindow.active ? popupModel : null
 
         // the whole column holds while the pointer is on it, so no toast expires and shifts another under a click
         HoverHandler { id: stackHover }
@@ -864,9 +872,12 @@ Item {
             glyph: cardSlot.glyph
             groupCount: Math.max(1, cardSlot.groupSize)
             segmentsLeft: cardSlot.segmentsLeft
+            lifetimeMs: cardSlot.lifetime
+            remainingMs: cardSlot.remainingMs
+            ticking: cardSlot.ticking
             actions: service.actionsFor(cardSlot.originalId, cardSlot.timestamp)
 
-            onCloseRequested: if (cardSlot.index >= 0) service.removePopup(cardSlot.index)
+            onCloseRequested: if (cardSlot.index >= 0) service.removePopupGroup(cardSlot.index)
             onCardClicked: if (cardSlot.index >= 0) service.invokePopupDefault(cardSlot.index)
             onActionInvoked: function(identifier) { if (cardSlot.index >= 0) service.invokeAction(cardSlot.index, identifier) }
           }

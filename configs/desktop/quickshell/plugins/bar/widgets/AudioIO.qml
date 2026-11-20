@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Services.Pipewire
-import Quickshell.Widgets
 import qs.Commons
 import qs.Ui
 
@@ -19,10 +18,6 @@ BarWidget {
   readonly property bool deafened: muted && micMuted
   function toggleMute() {
     if (sink && sink.audio) sink.audio.muted = !sink.audio.muted
-  }
-
-  function toggleMicMute() {
-    if (source && source.audio) source.audio.muted = !source.audio.muted
   }
 
   function toggleDeafen() {
@@ -97,23 +92,11 @@ BarWidget {
         }
       }
 
-      Flow {
+      DeviceGroup {
         width: content.width
-        spacing: Style.spacing.xs
-
-        Repeater {
-          model: ScriptModel {
-            values: Audio.sinks
-          }
-
-          delegate: Chip {
-            required property var modelData
-
-            text: Audio.deviceName(modelData)
-            selected: modelData === root.sink
-            onClicked: Pipewire.preferredDefaultAudioSink = modelData
-          }
-        }
+        nodes: Audio.sinks
+        current: root.sink
+        onPicked: function(node) { Pipewire.preferredDefaultAudioSink = node }
       }
 
       PanelSeparator {}
@@ -142,23 +125,11 @@ BarWidget {
         active: root.live
       }
 
-      Flow {
+      DeviceGroup {
         width: content.width
-        spacing: Style.spacing.xs
-
-        Repeater {
-          model: ScriptModel {
-            values: Audio.sources
-          }
-
-          delegate: Chip {
-            required property var modelData
-
-            text: Audio.deviceName(modelData)
-            selected: modelData === root.source
-            onClicked: Pipewire.preferredDefaultAudioSource = modelData
-          }
-        }
+        nodes: Audio.sources
+        current: root.source
+        onPicked: function(node) { Pipewire.preferredDefaultAudioSource = node }
       }
 
       Flow {
@@ -207,28 +178,13 @@ BarWidget {
 
       PanelSeparator {}
 
-      Row {
+      PanelRow {
         width: content.width
-        spacing: Style.spacing.sm
-
-        PanelRow {
-          width: (parent.width - parent.spacing) / 2
-          centered: true
-          enabled: root.hasMic
-          glyph: root.micMuted ? "\u{f036d}" : "\u{f036c}"
-          label: !root.hasMic ? "No mic" : root.micMuted ? "Mic muted" : "Mute mic"
-          on: root.hasMic && root.micMuted
-          onActivated: root.toggleMicMute()
-        }
-
-        PanelRow {
-          width: (parent.width - parent.spacing) / 2
-          centered: true
-          glyph: root.deafened ? "\u{f07ce}" : "\u{f02cb}"
-          label: root.deafened ? "All muted" : "Mute all"
-          on: root.deafened
-          onActivated: root.toggleDeafen()
-        }
+        centered: true
+        glyph: root.deafened ? "\u{f07ce}" : "\u{f02cb}"
+        label: root.deafened ? "All muted" : "Mute all"
+        on: root.deafened
+        onActivated: root.toggleDeafen()
       }
 
       PanelSeparator {}
@@ -280,13 +236,43 @@ BarWidget {
     }
   }
 
+  // the level rises at once and falls at fallRate; the peak holds for holdMs, then falls the same way
   component Meter: Item {
     id: meter
     property var node: null
     property bool active: false
     readonly property real levelDb: Audio.db(monitor.peak)
+    readonly property real level: active ? Audio.meterPosition(monitor.peak) : 0
+    readonly property real fallRate: 1.5
+    readonly property int holdMs: 800
+    property real shown: 0
+    property real held: 0
 
     implicitHeight: Style.spacing.xs
+
+    onLevelChanged: {
+      if (level >= shown) {
+        shownFall.stop()
+        shown = level
+      } else {
+        shownFall.to = level
+        shownFall.restart()
+      }
+      if (level >= held) {
+        heldFall.stop()
+        held = level
+        holdTimer.restart()
+      }
+    }
+
+    SmoothedAnimation { id: shownFall; target: meter; property: "shown"; velocity: meter.fallRate }
+    SmoothedAnimation { id: heldFall; target: meter; property: "held"; to: 0; velocity: meter.fallRate }
+
+    Timer {
+      id: holdTimer
+      interval: meter.holdMs
+      onTriggered: heldFall.restart()
+    }
 
     PwNodePeakMonitor {
       id: monitor
@@ -297,8 +283,26 @@ BarWidget {
     BarGauge {
       anchors.fill: parent
       segments: 32
-      value: meter.active ? Audio.meterPosition(monitor.peak) : 0
+      animated: false
+      value: meter.shown
+      hold: meter.held
       color: Util.level(meter.levelDb, [-9, -3, -1])
+    }
+  }
+
+  component DeviceGroup: ButtonGroup {
+    id: group
+    property var nodes: []
+    property var current: null
+
+    signal picked(var node)
+
+    spacing: Style.spacing.xs
+    options: nodes.map(n => ({ value: String(n.id), label: Audio.deviceName(n) }))
+    value: current ? String(current.id) : ""
+    onChanged: function(v) {
+      const node = group.nodes.find(n => String(n.id) === v)
+      if (node && node !== group.current) group.picked(node)
     }
   }
 
@@ -307,9 +311,10 @@ BarWidget {
     property var node: null
     readonly property bool hasAudio: !!node && !!node.audio
 
-    volume: hasAudio ? node.audio.volume : 0
+    value: hasAudio ? node.audio.volume : 0
     muted: hasAudio ? node.audio.muted : false
-    readoutText: Audio.levelText(volume)
+    readoutText: Audio.levelText(value)
+    readoutWidest: "100% +00.0 dB"
     onMoved: function(v) { if (nodeFader.hasAudio) nodeFader.node.audio.volume = v }
     onMuteToggled: if (nodeFader.hasAudio) nodeFader.node.audio.muted = !nodeFader.node.audio.muted
   }
@@ -327,41 +332,33 @@ BarWidget {
 
     Item {
       width: parent.width
-      implicitHeight: Math.max(appIcon.height, routeChip.implicitHeight)
+      implicitHeight: Math.max(streamFader.implicitHeight, routeButton.height)
 
-      IconImage {
-        id: appIcon
+      NodeFader {
+        id: streamFader
         anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        implicitSize: Style.font.icon + Style.spacing.sm
-        source: Audio.appIcon(stream.node)
-      }
-
-      Label {
-        anchors.left: appIcon.right
-        anchors.leftMargin: Style.spacing.sm
-        anchors.right: routeChip.left
+        anchors.right: routeButton.left
         anchors.rightMargin: Style.spacing.xs
         anchors.verticalCenter: parent.verticalCenter
-        elide: Text.ElideRight
-        text: Audio.appName(stream.node)
-        color: Colors.menu.text
+        node: Audio.levelOf(stream.node)
+        caption: Audio.appName(stream.node)
+        captionWidth: Style.space(96)
+        iconSource: Audio.appIcon(stream.node)
       }
 
-      Chip {
-        id: routeChip
+      Button {
+        id: routeButton
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        width: Math.min(implicitWidth, Style.space(150))
-        text: "> " + Audio.deviceName(stream.target)
+        variant: "icon"
+        focusable: true
+        size: streamFader.glyphSize
+        iconText: "\u{f0a1e}"
         selected: stream.routing
+        foreground: stream.routing ? Colors.accentText : Colors.menu.text
+        tooltipText: "> " + Audio.deviceName(stream.target)
         onClicked: stream.host.routingStreamId = stream.routing ? -1 : stream.node.id
       }
-    }
-
-    NodeFader {
-      width: parent.width
-      node: Audio.levelOf(stream.node)
     }
 
     Flow {

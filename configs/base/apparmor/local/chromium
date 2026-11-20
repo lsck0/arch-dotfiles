@@ -12,6 +12,7 @@ owner @{user_share_dirs}/work/chromium/WidevineCdm/*/_platform_specific/linux_*/
 @{run}/udev/data/+hid:* r,
 include <abstractions/dotfiles/nssdb>
 deny @{sys}/fs/cgroup/**/cpu.max r,
+deny @{sys}/devices/virtual/dmi/id/{bios,board}_* r,
 owner /tmp/puppeteer_dev_chrome_profile-*/ rw,
 owner /tmp/puppeteer_dev_chrome_profile-*/** rwk,
 owner /tmp/.org.chromium.Chromium.*/ rw,

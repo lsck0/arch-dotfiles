@@ -22,6 +22,13 @@ export const OVERRIDES = {
     libreoffice: "/usr/lib/libreoffice/program/soffice"
     thunderbird: "/usr/{bin/thunderbird,lib/thunderbird/thunderbird}"
 }
+# apparmor.d's include-if-exists dirs inside its own profiles, each given one of our abstractions
+export const HOOKS = {
+    "abstractions/common/chromium.d/dotfiles-qtwebengine": qtwebengine
+    "abstractions/app/firefox_crashhelper.d/dotfiles": firefox-crashhelper
+}
+
+export def hook-text [name: string]: nothing -> string { $"  include <abstractions/dotfiles/($name)>\n" }
 
 def rows [file: path]: nothing -> table {
     if not ($file | path exists) { return [] }
@@ -82,8 +89,7 @@ export def system [cfg: record] {
         [
             (files-into $"($ETC)/abstractions/dotfiles" ...(glob abstractions/*))
             (files-into $"($ETC)/local" ...(glob local/*))
-            (file-text $"($ETC)/abstractions/common/chromium.d/dotfiles-qtwebengine"
-                "  include <abstractions/dotfiles/qtwebengine>\n")
+            ($HOOKS | items {|hook, name| file-text ($ETC | path join $hook) (hook-text $name) })
             (glob profiles/* | each {|p|
                 let name = $p | path basename
                 own-profile $name (open --raw $p) ($modes | get --optional $name)

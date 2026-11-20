@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
@@ -128,13 +129,13 @@ Item {
     } else if (key === Qt.Key_Tab || key === Qt.Key_Backtab) {
       root.cycleView(key)
     } else if (key === Qt.Key_Up || text === "k") {
-      root.select(root.selectedIndex - 1)
+      root.select(listCursor.step(root.selectedIndex, -1))
     } else if (key === Qt.Key_Down || text === "j") {
-      root.select(root.selectedIndex + 1)
+      root.select(listCursor.step(root.selectedIndex, 1))
     } else if (key === Qt.Key_PageUp) {
-      root.select(root.selectedIndex - 6)
+      root.select(listCursor.page(root.selectedIndex, -1))
     } else if (key === Qt.Key_PageDown) {
-      root.select(root.selectedIndex + 6)
+      root.select(listCursor.page(root.selectedIndex, 1))
     } else if (key === Qt.Key_Home || text === "g") {
       root.select(0)
     } else if (key === Qt.Key_End || text === "G") {
@@ -421,19 +422,28 @@ Item {
           elide: Text.ElideRight
         }
 
-        ListView {
+        ListCursor {
+          id: listCursor
+          list: taskList
+          rowHeight: root.rowHeight
+        }
+
+        FadedList {
           id: taskList
           // the error line's own height binding loops with its elide, so the list skips it while it is hidden
           anchors.top: errorLine.visible ? errorLine.bottom : inputLine.bottom
           anchors.topMargin: Style.spacing.sm
           anchors.left: parent.left
           anchors.right: parent.right
+          anchors.rightMargin: taskBar.gutter
           anchors.bottom: timerStrip.top
           anchors.bottomMargin: timerStrip.visible ? Style.spacing.sm : 0
           model: root.filtered
           clip: true
           spacing: Style.spacing.xs
           boundsBehavior: Flickable.StopAtBounds
+          ScrollBar.vertical: ListScrollBar { id: taskBar; list: taskList }
+          fade: taskFade
 
           delegate: Rectangle {
             id: row
@@ -573,6 +583,11 @@ Item {
             text: TaskState.errorText ? "> FAILED" : !TaskState.loaded ? "> LOADING" : root.filterText ? "> NO MATCH" : "> NO TASKS"
             dim: true
           }
+        }
+
+        ListFade {
+          id: taskFade
+          list: taskList
         }
 
         Column {

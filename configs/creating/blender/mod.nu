@@ -31,16 +31,21 @@ def pin []: nothing -> string {
     $"($MCP_COMMIT) (open --raw $CONSTRAINTS | hash sha256) ($INSTALL_FLAGS | str join ' ')"
 }
 
-# the add-on tree is fixed by MCP_COMMIT (what fetch-git lands); the prefs script writes MCP_HOST and MCP_PORT into
-# blender's prefs, so those four are the whole input
-def addon-pin []: nothing -> string {
-    $"($MCP_COMMIT) (open --raw $PREFS_SCRIPT | hash sha256) ($MCP_HOST):($MCP_PORT)"
+# blender keeps extensions and prefs per major.minor, so a new one starts without the add-ons
+def user-version []: nothing -> string {
+    package-version blender | default "" | split row "." | first 2 | str join "."
 }
 
-# the extension's files are the whole input
+# the add-on tree is fixed by MCP_COMMIT (what fetch-git lands); the prefs script writes MCP_HOST and MCP_PORT into
+# blender's prefs, so those four and the user dir's version are the whole input
+def addon-pin []: nothing -> string {
+    $"($MCP_COMMIT) (open --raw $PREFS_SCRIPT | hash sha256) ($MCP_HOST):($MCP_PORT) (user-version)"
+}
+
+# the extension's files and the user dir's version are the whole input
 def generate-pin []: nothing -> string {
     glob ($HERE | path join $GENERATE "*") | where ($it | path type) == file | sort | each { open --raw $in | hash sha256 }
-    | str join " "
+    | append (user-version) | str join " "
 }
 
 export def link [cfg: record] {

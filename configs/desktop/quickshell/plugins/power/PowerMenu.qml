@@ -71,7 +71,7 @@ Item {
     title: "session"
     suffix: root.userName.length > 0 ? "@" + root.userName : ""
     hints: root.pendingAction
-      ? [["Y", root.pendingAction.label.toLowerCase()], ["N/ESC", "cancel"]]
+      ? [["Y/ENTER", root.pendingAction.label.toLowerCase()], ["N/ESC", "cancel"]]
       : [["</>", "select"], ["ENTER", "run"], [root.actions.map(function(action) { return action.hotkey }).join("/"), "direct"], ["ESC", "close"]]
     cardWidth: actionRow.implicitWidth + chromeWidth
     cardHeight: actionRow.implicitHeight + chromeHeight
@@ -84,7 +84,8 @@ Item {
       Keys.priority: Keys.BeforeItem
       Keys.onPressed: function(event) {
         if (root.pendingAction) {
-          if (event.key === Qt.Key_Y)
+          if (event.key === Qt.Key_Y || event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+              || (!event.isAutoRepeat && root.hotkeyIndex(event.key) === root.pendingIndex))
             root.activate(root.pendingIndex)
           else if (!event.isAutoRepeat && event.key !== Qt.Key_Shift)
             root.pendingIndex = -1
@@ -119,7 +120,8 @@ Item {
           required property int index
           opacity: panel.boot.rowOpacity(index)
           readonly property bool selected: index === root.selectedIndex
-          readonly property color tint: root.pendingIndex === index ? Colors.urgent : Colors.accent
+          readonly property bool pending: index === root.pendingIndex
+          readonly property color tint: pending ? Colors.urgent : Colors.accent
 
           width: Style.space(132)
           height: Style.space(132)
@@ -144,8 +146,8 @@ Item {
 
             Label {
               anchors.horizontalCenter: parent.horizontalCenter
-              text: tile.modelData.label
-              color: Colors.menu.text
+              text: tile.modelData.label + (tile.pending ? " ?" : "")
+              color: tile.pending ? Colors.urgentText : Colors.menu.text
               font.capitalization: Font.AllUppercase
               font.letterSpacing: Style.headerTracking
             }
@@ -162,7 +164,7 @@ Item {
             font.letterSpacing: Style.headerTracking
           }
 
-          HudFrame { shown: tile.selected }
+          HudFrame { shown: tile.selected; color: tile.tint }
 
           MouseArea {
             anchors.fill: parent

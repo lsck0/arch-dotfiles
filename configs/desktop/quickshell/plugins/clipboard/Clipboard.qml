@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import QtQuick.Controls
 import qs.Commons
 import qs.Ui
 import "ClipboardHistory.js" as ClipboardHistory
@@ -332,8 +333,7 @@ Item {
       cursorActive = true
       selectedIndex = delta < 0 ? displayModel.count - 1 : 0
     } else {
-      // sign-safe wrap: a PageUp step larger than the list (short history) made JS % return a negative index, losing the selection
-      selectedIndex = ((selectedIndex + delta) % displayModel.count + displayModel.count) % displayModel.count
+      selectedIndex = listCursor.step(selectedIndex, delta)
     }
     resultList.positionViewAtIndex(selectedIndex, ListView.Contain)
   }
@@ -590,8 +590,8 @@ Item {
         } else if (event.key === Qt.Key_Up || Util.isPrev(event.key, event.modifiers)) root.select(-1)
         else if (event.key === Qt.Key_Down || Util.isNext(event.key, event.modifiers)) root.select(1)
         else if (ctrl && event.key === Qt.Key_U) root.setFilter("")
-        else if (event.key === Qt.Key_PageUp) root.select(-6)
-        else if (event.key === Qt.Key_PageDown) root.select(6)
+        else if (event.key === Qt.Key_PageUp) root.selectAbsolute(listCursor.page(root.selectedIndex, -1))
+        else if (event.key === Qt.Key_PageDown) root.selectAbsolute(listCursor.page(root.selectedIndex, 1))
         else if (event.key === Qt.Key_Home) root.selectAbsolute(0)
         else if (event.key === Qt.Key_End) root.selectAbsolute(displayModel.count - 1)
         else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
@@ -618,7 +618,14 @@ Item {
           height: parent.height
           clip: true
 
-          ListView {
+          ListCursor {
+            id: listCursor
+            list: resultList
+            rowHeight: root.rowHeight
+            wrapSingle: true
+          }
+
+          FadedList {
             id: resultList
             anchors.fill: parent
             anchors.rightMargin: root.contentMargin
@@ -626,6 +633,8 @@ Item {
             clip: true
             spacing: Style.spacing.xs
             boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ListScrollBar { list: resultList }
+            fade: resultFade
 
             delegate: Rectangle {
               id: rowDelegate
@@ -711,6 +720,11 @@ Item {
               glyphSize: Style.font.displayLarge
               text: root.filterText ? "> NO MATCH" : "> NO CLIPBOARD ENTRIES"
             }
+          }
+
+          ListFade {
+            id: resultFade
+            list: resultList
           }
         }
 

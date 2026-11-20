@@ -2,7 +2,7 @@
 
 Desktop notifications for what would otherwise sit in the journal:
 
-- a failed user service (`OnFailure=failure-notify@%n.service`), except kwalletd6 (KWallet is disabled here),
+- a failed user service (`OnFailure=failure-notify@%N.service`), except kwalletd6 (KWallet is disabled here),
   an unnamed `systemd-run` job (`run-u*`, `run-p*`) and an offload job (`offload-*`), whose caller has its
   exit status;
 - `FAILURES.*` from the last dot run, at login (`failures-login.service`);

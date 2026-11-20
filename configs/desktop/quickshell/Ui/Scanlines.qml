@@ -40,6 +40,11 @@ Item {
         target: Theme
         function onRevisionChanged() { cv.requestPaint() }
       }
+      // a palette change from colors.json leaves the theme revision as it is
+      Connections {
+        target: Colors
+        function onBackgroundChanged() { cv.requestPaint() }
+      }
     }
   }
 

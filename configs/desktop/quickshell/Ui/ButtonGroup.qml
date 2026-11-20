@@ -2,7 +2,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
 
-Row {
+// one focus stop, h and l move inside; with a width set the chips wrap onto further lines when they do not fit
+Flow {
   id: root
 
   property var options: []

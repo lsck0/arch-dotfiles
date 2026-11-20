@@ -9,7 +9,9 @@ Type=oneshot
 # kwalletd6 exits nonzero by design and dbus-broker renames its unit per activation; a systemd-run without --unit
 # (run-u<n>, run-p<pid>-i<n>) is an ad-hoc job and an offload job's exit code goes to its client: both callers already
 # have the exit status
-ExecCondition=/usr/bin/sh -c 'case "%i" in dbus-*-org.kde.kwalletd6@*.service|run-u[0-9]*.service|run-p[0-9]*-i[0-9]*.service|offload-*.service) exit 1;; esac'
+ExecCondition=/usr/bin/sh -c 'case "%i" in dbus-*-org.kde.kwalletd6@*|run-u[0-9]*|run-p[0-9]*-i[0-9]*|offload-*) exit 1;; esac'
+# at logout the session's apps fail as they are killed, and the notifier would be killed with them
+ExecCondition=/usr/bin/sh -c 'test "$$(systemctl --user is-system-running)" != stopping'
 ExecStartPre=/usr/bin/gdbus wait --session org.freedesktop.Notifications
 # normal: the card times out and the history keeps it; the unit restarts on its own or waits for the journal anyway
 ExecStart=/usr/bin/notify-send -u normal -a systemd "%i failed" "journalctl --user -xeu %i"

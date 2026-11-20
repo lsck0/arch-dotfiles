@@ -32,6 +32,7 @@ PanelKeyCatcher 1.0 PanelKeyCatcher.qml
 PanelRow 1.0 PanelRow.qml
 PanelSectionHeader 1.0 PanelSectionHeader.qml
 PanelSeparator 1.0 PanelSeparator.qml
+PanelSubHeader 1.0 PanelSubHeader.qml
 PanelToolTip 1.0 PanelToolTip.qml
 PointerMoveGate 1.0 PointerMoveGate.qml
 PopupCard 1.0 PopupCard.qml
@@ -46,3 +47,8 @@ StatRow 1.0 StatRow.qml
 TextField 1.0 TextField.qml
 Toggle 1.0 Toggle.qml
 WidgetButton 1.0 WidgetButton.qml
+Shake 1.0 Shake.qml
+ListCursor 1.0 ListCursor.qml
+ListFade 1.0 ListFade.qml
+FadedList 1.0 FadedList.qml
+ListScrollBar 1.0 ListScrollBar.qml

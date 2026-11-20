@@ -1,0 +1,6 @@
+# managed by arch-dotfiles/apparmor
+
+  abi <abi/4.0>,
+
+  # the profile lives under XDG config here, where the upstream crashhelper child does not look
+  owner "@{user_config_dirs}/mozilla/firefox/Crash Reports/{,crash_helper_server-*.log}" rw,

@@ -70,12 +70,9 @@ BarWidget {
   readonly property string memSpec: stats.memTotalGb > 0 ? [stats.memTotalGb.toFixed(0) + "G", stats.memType,
     stats.memSpeedMts > 0 ? stats.memSpeedMts + " MT/s" : "", stats.memChannels > 0 ? stats.memChannels + "-CH" : ""]
     .filter(function(v) { return v }).join(" :: ") : ""
-  // the history heatmap's rows: the gpu's only while it reports a load
-  readonly property var historyRows: [
-    { label: "CPU", values: cpuHist, max: 100, tint: critLoad(stats.cpu) },
-    { label: "TMP", values: tempHist, max: 100, tint: critTemp(stats.tempC) },
-    { label: "MEM", values: memHist, max: 100, tint: critLoad(memPct) }
-  ].concat(hasGpuPct ? [{ label: "GPU", values: gpuHist, max: 100, tint: critLoad(stats.gpuPct) }] : [])
+  // system-stats.nu's TOP_COUNT: the rows the top lists hold their place with until the first --top sample
+  readonly property int topCount: 2
+  readonly property var topPending: Array(topCount).fill({ name: "--", pct: null })
 
   function reading(value, unit) { return statsReceived ? value + unit : "--" }
 
@@ -183,7 +180,7 @@ BarWidget {
 
     Stat {
       glyph: "\u{f035b}"
-      widest: "100%"
+      widest: "99%"
       value: root.reading(root.stats.cpu, "%")
     }
 
@@ -204,7 +201,7 @@ BarWidget {
     Stat {
       visible: root.hasGpuPct
       glyph: "\u{f08ae}"
-      widest: "100%"
+      widest: "99%"
       value: root.stats.gpuPct + "%"
     }
 
@@ -218,7 +215,7 @@ BarWidget {
     Stat {
       visible: root.batteryPresent
       glyph: root.batteryIcon
-      widest: "100%"
+      widest: "99%"
       value: Math.round(root.batteryFraction * 100) + "%"
     }
 
@@ -254,6 +251,7 @@ BarWidget {
 
         Meter {
           label: "CPU"
+          history: root.cpuHist
           fraction: root.stats.cpu / 100
           tint: root.critLoad(root.stats.cpu)
           value: root.reading(root.stats.cpu, "%")
@@ -262,6 +260,7 @@ BarWidget {
 
         Meter {
           label: "TMP"
+          history: root.tempHist
           fraction: root.stats.tempC / 100
           tint: root.critTemp(root.stats.tempC)
           value: root.reading(root.stats.tempC, "\u00b0C")
@@ -269,6 +268,7 @@ BarWidget {
 
         Meter {
           label: "MEM"
+          history: root.memHist
           fraction: root.memPct / 100
           tint: root.critLoad(root.memPct)
           value: root.reading(Math.round(root.memPct), "%")
@@ -278,6 +278,7 @@ BarWidget {
         Meter {
           visible: root.hasGpuPct
           label: "GPU"
+          history: root.gpuHist
           fraction: root.stats.gpuPct / 100
           tint: root.critLoad(root.stats.gpuPct)
           value: root.stats.gpuPct + "%"
@@ -291,74 +292,6 @@ BarWidget {
           tint: root.critLoad(root.vramPct)
           value: Math.round(root.vramPct) + "%"
           note: Util.bytesOf(root.stats.vramUsedMb * Util.bytesPerMib, root.stats.vramTotalMb * Util.bytesPerMib)
-        }
-      }
-
-      PanelSeparator { visible: historySection.visible }
-
-      // one sample draws a single column: the history waits for a second one
-      Column {
-        id: historySection
-        visible: root.cpuHist.length > 1
-        width: parent.width
-        spacing: Style.spacing.sm
-
-        PanelSectionHeader { text: "HISTORY" }
-
-        Row {
-          width: parent.width
-          spacing: Style.spacing.xs
-
-          Column {
-            id: fluxLabels
-            Repeater {
-              model: root.historyRows
-
-              Item {
-                id: fluxRow
-                required property var modelData
-
-                width: fluxLabel.implicitWidth
-                height: flux.height / root.historyRows.length
-
-                PanelSectionHeader {
-                  id: fluxLabel
-                  anchors.verticalCenter: parent.verticalCenter
-                  text: fluxRow.modelData.label
-                  foreground: fluxRow.modelData.tint
-                }
-              }
-            }
-          }
-
-          Heatmap {
-            id: flux
-            width: parent.width - fluxLabels.width - parent.spacing
-            height: Style.space(22) * root.historyRows.length
-            active: panel.visible
-            rows: root.historyRows
-          }
-        }
-
-        Row {
-          width: parent.width
-
-          Label {
-            width: parent.width / 2
-            text: Math.round(Util.historyCountMax * root.statsIntervalS / 60) + " MIN"
-            dim: true
-            caption: true
-            font.letterSpacing: Style.labelTracking
-          }
-
-          Label {
-            width: parent.width / 2
-            horizontalAlignment: Text.AlignRight
-            text: "NOW"
-            color: Colors.accentText
-            caption: true
-            font.letterSpacing: Style.labelTracking
-          }
         }
       }
 
@@ -435,7 +368,7 @@ BarWidget {
       }
 
       Column {
-        visible: root.stats.top !== null
+        visible: root.topWanted
         width: parent.width
         spacing: Style.spacing.sm
 
@@ -449,7 +382,8 @@ BarWidget {
           spacing: Style.spacing.sm
 
           Repeater {
-            model: root.stats.top ? [{ head: "CPU", items: root.stats.top.cpu }, { head: "MEM", items: root.stats.top.mem }] : []
+            model: [{ head: "CPU", items: root.stats.top ? root.stats.top.cpu : root.topPending },
+              { head: "MEM", items: root.stats.top ? root.stats.top.mem : root.topPending }]
 
             Column {
               required property var modelData
@@ -479,14 +413,15 @@ BarWidget {
                     width: parent.width - procPct.width - parent.spacing
                     text: procRow.modelData.name
                     elide: Text.ElideRight
-                    opacity: Style.emphasis.strong
+                    opacity: procRow.modelData.pct === null ? Style.emphasis.disabled : Style.emphasis.strong
                     caption: true
                   }
 
                   Label {
                     id: procPct
                     width: Style.space(44)
-                    text: (procRow.modelData.pct >= 100 ? Math.round(procRow.modelData.pct) : procRow.modelData.pct.toFixed(1)) + "%"
+                    text: procRow.modelData.pct === null ? "--"
+                      : (procRow.modelData.pct >= 100 ? Math.round(procRow.modelData.pct) : procRow.modelData.pct.toFixed(1)) + "%"
                     horizontalAlignment: Text.AlignRight
                     dim: true
                     caption: true
@@ -605,13 +540,16 @@ BarWidget {
       font.pixelSize: Style.font.icon
     }
 
+    // digits right-aligned in the slot stay put against the next glyph; a reading past widest widens it
     Label {
       id: slotText
       anchors.verticalCenter: parent.verticalCenter
-      width: Math.ceil(sizer.implicitWidth)
+      width: Math.max(Math.ceil(sizer.implicitWidth), implicitWidth)
+      horizontalAlignment: Text.AlignRight
       text: parent.value
       color: Colors.textFor(parent.tint)
       font.letterSpacing: Style.displayTracking
+      font.features: { "tnum": 1 }
 
       Text {
         id: sizer
@@ -620,6 +558,8 @@ BarWidget {
         text: stat.widest
         font.family: slotText.font.family
         font.pixelSize: slotText.font.pixelSize
+        font.letterSpacing: slotText.font.letterSpacing
+        font.features: { "tnum": 1 }
       }
     }
   }

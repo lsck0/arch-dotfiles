@@ -242,6 +242,8 @@ def payload-build [include_other: bool, strict_activity: bool, scrape: bool]: no
         | each {|g| {name: $g.project, tokens: ($g.items.total | sum)} }
     let credentials = credentials-read $claude
     let limits = if $scrape { usage-limits $claude } else { {} }
+    # the api leaves the 5h window out at times; the week's reset stands in
+    let reset = $limits.session? | default $limits.week_all?
     let slots = 0..<$MODEL_SLOTS | each {|i|
         let m = $models | get --optional $i
         let n = $i + 1
@@ -268,9 +270,9 @@ def payload-build [include_other: bool, strict_activity: bool, scrape: bool]: no
             $projects | sort-by tokens --reverse | first | get name
         })
         u_session: ($limits.session?.pct? | default $NONE), u_week: ($limits.week_all?.pct? | default $NONE)
-        u_reset: (if "session" in $limits { $limits.session.resets } else { "" })
+        u_reset: ($reset.resets? | default "")
         # epoch seconds: the bar formats the reset in the shell's own clock format
-        u_reset_at: ($limits.session?.at? | default 0)
+        u_reset_at: ($reset.at? | default 0)
         updated: ($now | format date "%b %-d, %H:%M")
     } | merge ($slots | reduce --fold {} {|s, acc| $acc | merge $s })
 }

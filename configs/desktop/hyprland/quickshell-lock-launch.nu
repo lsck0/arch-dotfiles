@@ -56,11 +56,21 @@ def gpg-cache-flush []: nothing -> nothing {
     ^timeout $GPG_TIMEOUT gpg-connect-agent --no-autostart reloadagent /bye | complete | ignore
 }
 
+# Every output already powered off (the bar's screens-off or the idle listener): taking the lock wakes them.
+def outputs-dark []: nothing -> bool {
+    let outputs = try { ^hyprctl monitors -j | from json } catch { [] }
+    ($outputs | is-not-empty) and ($outputs | all { $in.dpmsStatus? == false })
+}
+
 def main [] {
     if (locked) { return }
+    let dark = outputs-dark
     let taken = lock-take
     gpg-cache-flush
-    if $taken { return }
+    if $taken {
+        if $dark { ^$DPMS off | complete | ignore }
+        return
+    }
     ^notify-send -u critical "Screen not locked" "quickshell and hyprlock both failed to take the lock" | complete | ignore
     ^$DPMS off | complete | ignore
     exit 1

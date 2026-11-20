@@ -270,14 +270,7 @@ BarWidget {
       anchors.fill: parent
       spacing: Style.spacing.sm
 
-      Label {
-        text: "Tray icons"
-        color: Colors.accentText
-        caption: true
-        font.bold: true
-        font.capitalization: Font.AllUppercase
-        font.letterSpacing: Style.headerTracking
-      }
+      PanelSectionHeader { text: "TRAY ICONS" }
 
       Label {
         visible: root.allItems.length === 0

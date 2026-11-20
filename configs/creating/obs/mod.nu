@@ -107,7 +107,7 @@ export def detect [cfg: record]: nothing -> record {
     let h264 = if (do $vaapi H264) { "ffmpeg_vaapi_tex" } else if $nvidia { "obs_nvenc_h264_tex" } else { "obs_x264" }
     {
         vaapi_render_node: $gpu.by_path?
-        canvas: (if $monitor != null { $"($monitor.width)x($monitor.height)" })
+        canvas: (if $monitor != null { $"($monitor.width)x($monitor.height)" } else { live-canvas })
         mic: (audio-device sources)
         webcam: (glob /dev/v4l/by-id/*-video-index0 | sort | get --optional 0)
         monitor_device: (audio-device sinks)
@@ -118,6 +118,17 @@ export def detect [cfg: record]: nothing -> record {
 
 def obs-dir []: nothing -> path {
     xdg config obs-studio
+}
+
+# The canvas the live profiles have, for an apply outside the session, where no monitor answers.
+def live-canvas []: nothing -> oneof<string, nothing> {
+    let base = glob (obs-dir | path join basic profiles * basic.ini) | sort | each {|ini|
+        let video = ini-rows (open --raw $ini) | where section == Video
+        let cx = $video | where key == BaseCX | get --optional 0.value
+        let cy = $video | where key == BaseCY | get --optional 0.value
+        if $cx != null and $cy != null { $"($cx)x($cy)" }
+    }
+    $base | compact | get --optional 0
 }
 
 def canvas-size [cfg: record]: nothing -> record {

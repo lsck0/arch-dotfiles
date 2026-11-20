@@ -8,7 +8,9 @@ deny @{user_config_dirs}/chromium/{,**} r,
 owner @{user_cache_dirs}/qutebrowser/{,**} l,
 include <abstractions/dotfiles/nssdb>
 include <abstractions/dotfiles/viewer-read>
-owner /tmp/[0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_] rw,
+owner /tmp/{,tmp}[0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_] rw,
+# ctypes' find_library tries ldconfig first and falls back without it
+deny @{bin}/ldconfig x,
 owner /tmp/qutebrowser-basedir-*/{,**} rwkl,
 owner /tmp/qutebrowser-downloads-*/{,**} rw,
 include <abstractions/devices-u2f>

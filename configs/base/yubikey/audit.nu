@@ -30,7 +30,7 @@ export const CLASSES = [
     ["wireguard/*.conf" wireguard] ["wireguard/*.png" -] [ssh/private.asc ssh] [ssh/passphrase ssh]
     ["initramfs-ssh/*/sshkeydir/.ed25519.sk" ssh] ["yubikey/ssh-*" ssh] ["gh/*/token" api] [googleapi api] [sdd_github api] [de-arrow-key api]
     [ntfy-desktop-token api] [ntfy-phone-token api] [trmnl-claude.env api] ["calendar/*" api] [hermes-anthropic.env api] [protonvpn-netns.conf api] ["taskwarrior-*" api]
-    [forgejo.env api] [registry.env api] [sccache.env api] ["alloy/*" api] [grafana-mcp-token api]
+    [forgejo.env api] [registry.env api] [sccache.env api] ["alloy/*" api] [grafana-mcp-token api] [claude-oauth-token api]
     [samba-homelab password] [wifi password] [syncthing/gui-password password] [pgp/private.asc identity]
     [pgp/vorrh-private.asc identity] [age.txt identity] [age-recovery-key.txt identity] ["syncthing/*/key.pem" identity]
     ["*.pub*" -] ["*/public.asc" -] ["pgp/*-public.asc" -] ["syncthing/*" -] ["initramfs-ssh/*" -] ["ssh-host/*" -]

@@ -18,7 +18,8 @@ boots, unattended, and retires itself and its sudo drop-in at the end, or stops 
    or a picker; never offline), clones master, checks HEAD against the iso's signing key and runs that `bootstrap.sh`
    with `LSCK0_INSTALL=1`, which starts `dot internal iso-install` (`scripts/lib/iso-install.nu`).
    - The lab mirror is probed apart and a lab outage named as one: the bootstrap drops `[lsck0]` from the live
-     `pacman.conf` and installs without it (`pacman-conf-lsck0`); a platform with the `homelab` fact stops at pacstrap.
+     `pacman.conf` and installs without it (`pacman-conf-lsck0`); a platform with the `homelab` fact stops before the
+     disk is touched (re-checked at pacstrap).
    - Answer file: `lsck0.nuon` or `lsck0.<name>.nuon` on a FAT32 partition labelled `LSCK0` (and other places), keys
      in `mirror/iso/lsck0.example.nuon`; `lsck0.*` boot parameters map to `BOOTSTRAP_*`. An answered key is not asked.
    - One answer file found: a 10 s yes/no, then it is used (an unattended boot goes on by itself); several: a menu of

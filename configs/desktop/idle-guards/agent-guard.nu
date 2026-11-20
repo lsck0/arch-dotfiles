@@ -16,8 +16,18 @@ def state-dir []: nothing -> path {
     $dir
 }
 
-def alive [pid: string]: nothing -> bool {
-    $pid != "" and ($"/proc/($pid)" | path exists)
+def stat-fields [pid: string]: nothing -> list<string> {
+    open --raw $"/proc/($pid)/stat" | str replace --regex '^.*\) ' '' | split row " "
+}
+
+# A process claim, "<pid> <start time>": a pid alone outlives its process once the kernel reuses it.
+def claim-of [pid: string]: nothing -> string {
+    $"($pid) (stat-fields $pid | get 19)"
+}
+
+def alive [claim: string]: nothing -> bool {
+    let pid = $claim | split row " " | first
+    $pid != "" and (try { (claim-of $pid) == $claim } catch { false })
 }
 
 def read-or [file: path, fallback: string]: nothing -> string {
@@ -32,7 +42,7 @@ def session-id []: string -> string {
 }
 
 def ppid-of [pid: string]: nothing -> string {
-    open --raw $"/proc/($pid)/stat" | str replace --regex '^.*\) ' '' | split row " " | get 1
+    stat-fields $pid | get 1
 }
 
 # The hook's caller, the agent process: its exit ends the session's claim. Agents run a hook through `bash -c`, which
@@ -44,7 +54,15 @@ def parent-pid []: nothing -> string {
 }
 
 def session-busy [dir: path, sid: string]: nothing -> bool {
-    if not (alive (read-or ($dir | path join $"($sid).pid") "")) { return false }
+    let pid_file = $dir | path join $"($sid).pid"
+    let claim = read-or $pid_file ""
+    if not (alive $claim) {
+        # a dead session's turn or subagent count would come back with its claim
+        if (read-or $pid_file "") == $claim {
+            rm --force $pid_file ($dir | path join $"($sid).turn") ($dir | path join $"($sid).agents")
+        }
+        return false
+    }
     ($dir | path join $"($sid).turn" | path exists) or ((read-or ($dir | path join $"($sid).agents") "0" | into int) > 0)
 }
 
@@ -102,7 +120,7 @@ def agents-add [dir: path, sid: string, delta: int]: nothing -> nothing {
 def start [stdin: string, subagent: bool]: nothing -> nothing {
     let dir = state-dir
     let sid = $stdin | session-id
-    parent-pid | save --force ($dir | path join $"($sid).pid")
+    claim-of (parent-pid) | save --force ($dir | path join $"($sid).pid")
     if $subagent { agents-add $dir $sid 1 } else { touch ($dir | path join $"($sid).turn") }
     holder-ensure $dir
 }
@@ -131,7 +149,7 @@ def "main agents-add-locked" [sid: string, delta: int]: nothing -> nothing {
 
 def "main hold" []: nothing -> nothing {
     let dir = state-dir
-    $nu.pid | into string | save --force ($dir | path join .holder)
+    claim-of ($nu.pid | into string) | save --force ($dir | path join .holder)
     mut held = {}
     while (any-busy $dir) {
         let wanted = inhibits-wanted (power-read)

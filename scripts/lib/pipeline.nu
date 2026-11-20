@@ -483,8 +483,10 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     # a planned module's json keys from the decls its merges carry, a fresh or failed one's from its record
     let claimed_keys = if ($gone | is-empty) { [] } else {
         let ran = $planned | where error == null
-        ($ran | each {|p| json-claims $p.id ($p.actions | where kind in [merge skip] | get decl) } | flatten)
+        (
+            ($ran | each {|p| json-claims $p.id ($p.actions | where kind in [merge skip] | get decl) } | flatten)
             ++ ($natives | where id not-in $ran.id | each {|n| json-claims $n.id $n.prev.outputs } | flatten)
+        )
     }
     $rows ++ ($gone | each {|id| module-gone-row $ctx $id $verb $force $claimed $claimed_keys }) ++ ($broken | where selected | each {|m|
         $ROW_OUTSIDE | merge {id: $m.id, dir: $m.dir, error: "mod.nu does not parse"}

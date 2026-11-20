@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import QtQuick
+import QtQuick.Controls
 import qs.Commons
 import qs.Ui
 import "../../services"
@@ -22,6 +23,8 @@ Item {
 
   readonly property int rowHeight: Style.space(44)
   readonly property int iconSize: Style.space(28)
+  // icon files that failed to load once (an Icon= path the package does not ship): their rows keep the glyph
+  property var brokenIcons: ({})
 
   readonly property var prefixes: ({ "=": "calc", ">": "run", "@": "windows", "?": "keys", "+": "task", "!": "remind", "#": "note" })
   readonly property string mode: prefixes[filterText.charAt(0)] || "apps"
@@ -95,8 +98,9 @@ Item {
       const e = entries[i]
       const name = AppSearch.entryName(e)
       const sub = AppSearch.entrySubtext(e)
+      const icon = root.appLibrary.iconSource(e.icon)
       out.push({ kind: "app", name: name, sub: sub.toLowerCase() === name.toLowerCase() ? "" : sub,
-                 icon: root.appLibrary.iconSource(e.icon), glyph: "", keys: "", payload: e })
+                 icon: root.brokenIcons[icon] ? "" : icon, glyph: "\u{f08c6}", keys: "", payload: e })
     }
     return out
   }
@@ -281,6 +285,7 @@ Item {
   }
 
   function selectAt(index) {
+    pointerGate.reset()
     root.selectedIndex = Math.max(0, Math.min(index, root.rows.length - 1))
     resultList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
   }
@@ -428,12 +433,12 @@ Item {
           if (root.filterText && root.filterText.trim() !== root.homeText.trim()) root.setFilter(root.homeText)
           else root.close()
         } else if (event.key === Qt.Key_Up || Util.isPrev(event.key, event.modifiers))
-          root.selectAt(root.selectedIndex - 1)
+          root.selectAt(listCursor.step(root.selectedIndex, -1))
         else if (event.key === Qt.Key_Down || Util.isNext(event.key, event.modifiers))
-          root.selectAt(root.selectedIndex + 1)
+          root.selectAt(listCursor.step(root.selectedIndex, 1))
         else if (ctrl && event.key === Qt.Key_U) root.setFilter(root.homeText)
-        else if (event.key === Qt.Key_PageUp) root.selectAt(root.selectedIndex - resultList.pageRows)
-        else if (event.key === Qt.Key_PageDown) root.selectAt(root.selectedIndex + resultList.pageRows)
+        else if (event.key === Qt.Key_PageUp) root.selectAt(listCursor.page(root.selectedIndex, -1))
+        else if (event.key === Qt.Key_PageDown) root.selectAt(listCursor.page(root.selectedIndex, 1))
         else if (event.key === Qt.Key_Home) root.selectAt(0)
         else if (event.key === Qt.Key_End) root.selectAt(root.rows.length - 1)
         else if (event.key === Qt.Key_Delete && root.mode === "remind") root.reminderCancelAt(root.selectedIndex)
@@ -450,18 +455,32 @@ Item {
       }
     }
 
-    ListView {
+    ListCursor {
+      id: listCursor
+      list: resultList
+      rowHeight: root.rowHeight
+    }
+
+    PointerMoveGate {
+      id: pointerGate
+      referenceItem: panel.card
+    }
+
+    FadedList {
       id: resultList
       readonly property int rowPitch: root.rowHeight + spacing
       readonly property int pageRows: Math.max(1, Math.floor((parent.height + spacing) / rowPitch))
       anchors.top: parent.top
       anchors.left: parent.left
       anchors.right: parent.right
+      anchors.rightMargin: resultBar.gutter
       height: pageRows * rowPitch - spacing
       clip: true
       model: root.rows
       spacing: Style.spacing.xxs
       boundsBehavior: Flickable.StopAtBounds
+      ScrollBar.vertical: ListScrollBar { id: resultBar; list: resultList }
+      fade: resultFade
 
       delegate: Rectangle {
         id: rowDelegate
@@ -508,6 +527,7 @@ Item {
               fillMode: Image.PreserveAspectFit
               asynchronous: true
               source: rowDelegate.modelData.icon
+              onStatusChanged: if (status === Image.Error) root.brokenIcons[rowDelegate.modelData.icon] = true
             }
 
             Label {
@@ -528,7 +548,8 @@ Item {
               width: parent.width
               textFormat: Text.StyledText
               text: rowDelegate.modelData.kind === "app"
-                ? AppSearch.highlight(rowDelegate.modelData.name, root.modeQuery, String(Colors.accent2Text))
+                ? AppSearch.highlight(rowDelegate.modelData.name, root.modeQuery,
+                    String(rowDelegate.selected ? Colors.textOnFill(Colors.accent2Text, Colors.menu.selectedBackground) : Colors.accent2Text))
                 : AppSearch.escapeHtml(rowDelegate.modelData.name)
               color: rowDelegate.selected ? Colors.menu.selectedText : Colors.menu.text
               elide: Text.ElideRight
@@ -562,6 +583,9 @@ Item {
           anchors.fill: parent
           hoverEnabled: true
           cursorShape: Qt.PointingHandCursor
+          onPositionChanged: function(mouse) {
+            if (pointerGate.moved(rowDelegate, mouse)) root.selectedIndex = rowDelegate.index
+          }
           onClicked: root.activateAt(rowDelegate.index)
         }
       }
@@ -573,6 +597,11 @@ Item {
           : root.mode === "keys" && root.bindsState === "error" ? "> HYPRCTL BINDS FAILED"
           : root.modeQuery ? "> NO MATCH" : root.modeEmpty[root.mode]
       }
+    }
+
+    ListFade {
+      id: resultFade
+      list: resultList
     }
   }
 }

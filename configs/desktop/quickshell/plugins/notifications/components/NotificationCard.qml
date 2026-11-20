@@ -31,6 +31,28 @@ BorderSurface {
   property int groupCount: 1
   property int segmentsLeft: 0
   readonly property int gaugeSegments: 4
+  property real lifetimeMs: 0
+  property real remainingMs: 0
+  property bool ticking: false
+  // drains continuously while motion is on; the quarter steps stay for the power saver
+  readonly property bool gaugeSmooth: Style.motion.enabled && lifetimeMs > 0
+  property real gaugeFraction: 0
+
+  function gaugeSync() {
+    gaugeDrain.stop()
+    gaugeFraction = lifetimeMs > 0 ? Math.min(1, remainingMs / lifetimeMs) : 0
+    if (!ticking || !gaugeSmooth || isRow) return
+    gaugeDrain.duration = remainingMs
+    gaugeDrain.start()
+  }
+
+  onLifetimeMsChanged: gaugeSync()
+  onRemainingMsChanged: gaugeSync()
+  onTickingChanged: gaugeSync()
+  onGaugeSmoothChanged: gaugeSync()
+  Component.onCompleted: gaugeSync()
+
+  NumberAnimation { id: gaugeDrain; target: root; property: "gaugeFraction"; to: 0; easing.type: Easing.Linear }
 
   function formatTime(ts, ref) {
     if (!ts) return ""
@@ -46,7 +68,10 @@ BorderSurface {
   signal closeRequested()
   signal cardClicked()
   signal actionInvoked(string identifier)
-  readonly property string smallIconSource: image.length > 0 ? image : Util.iconSource(appIcon)
+  // a stored image swept from disk falls back to the app icon
+  property bool imageFailed: false
+  onImageChanged: imageFailed = false
+  readonly property string smallIconSource: image.length > 0 && !imageFailed ? image : Util.iconSource(appIcon)
   readonly property bool hasGlyph: glyph.length > 0
   readonly property bool compactGlyph: hasGlyph && smallIconSource.length === 0 && singleLineToast
   readonly property bool hasSmallIcon: smallIconSource.length > 0
@@ -143,6 +168,7 @@ BorderSurface {
           fillMode: Image.PreserveAspectFit
           asynchronous: true
           visible: !root.hasGlyph || smallIconImage.status === Image.Ready
+          onStatusChanged: if (status === Image.Error && root.image.length > 0) root.imageFailed = true
         }
 
         Label {
@@ -246,8 +272,7 @@ BorderSurface {
       }
     }
 
-    // one unbroken track that empties in quarter steps; dashes this close to the bottom stroke read as gaps in the
-    // border
+    // one unbroken track; dashes this close to the bottom stroke read as gaps in the border
     Rectangle {
       id: gauge
       Layout.fillWidth: true
@@ -261,12 +286,12 @@ BorderSurface {
 
       Rectangle {
         id: gaugeFill
-        width: gauge.width * Math.min(1, root.segmentsLeft / root.gaugeSegments)
+        width: gauge.width * (root.gaugeSmooth ? root.gaugeFraction : Math.min(1, root.segmentsLeft / root.gaugeSegments))
         height: gauge.height
         radius: gauge.radius
         color: root.critical ? Colors.urgent : Colors.accent
         opacity: Style.emphasis.dim
-        Behavior on width { NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
+        Behavior on width { enabled: !root.gaugeSmooth; NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
       }
     }
   }

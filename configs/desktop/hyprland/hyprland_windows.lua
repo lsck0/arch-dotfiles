@@ -8,23 +8,26 @@ local function with_alpha(c, a)
 end
 
 -- the shell's motion (configs/desktop/quickshell/Commons/Style.qml, motion): enter curve for every enter and move, exit
--- curve for every exit; speeds are deciseconds, base 160 = 1.6, exit 120 = 1.2, slow 240 = 2.4. Windows travel farther
--- than a panel and keep their own speeds. Shell layers animate themselves (no_anim in hyprland_windowrules.lua)
+-- curve for every exit; speeds are deciseconds, fast 90 = 0.9, base 160 = 1.6, exit 120 = 1.2, slow 240 = 2.4. Windows
+-- travel farther than a panel and take slow. Shell layers animate themselves (no_anim in hyprland_windowrules.lua)
 hl.curve("enter", { type = "bezier", points = { { 0.05, 0.7 }, { 0.1, 1 } } })
-hl.curve("exit", { type = "bezier", points = { { 0.38, 0.04 }, { 1, 0.07 } } })
+hl.curve("exit", { type = "bezier", points = { { 0.3, 0 }, { 0.8, 0.15 } } })
 
 local ANIMATIONS = {
-    { leaf = "windowsIn", speed = 2.5, bezier = "enter", style = "popin 90%" },
-    { leaf = "windowsOut", speed = 2, bezier = "exit", style = "popin 90%" },
-    { leaf = "windowsMove", speed = 2.5, bezier = "enter" },
-    { leaf = "border", speed = 1.5, bezier = "enter" },
+    { leaf = "global", speed = 2.4, bezier = "enter" },
+    { leaf = "windowsIn", speed = 2.4, bezier = "enter", style = "popin 90%" },
+    { leaf = "windowsOut", speed = 1.2, bezier = "exit", style = "popin 95%" },
+    { leaf = "windowsMove", speed = 2.4, bezier = "enter" },
+    { leaf = "border", speed = 0.9, bezier = "enter" },
     { leaf = "fade", speed = 1.6, bezier = "enter" },
     { leaf = "fadeOut", speed = 1.2, bezier = "exit" },
     { leaf = "fadeLayersOut", speed = 1.2, bezier = "exit" },
+    { leaf = "fadePopupsOut", speed = 1.2, bezier = "exit" },
     { leaf = "layers", speed = 1.6, bezier = "enter", style = "fade" },
     { leaf = "layersOut", speed = 1.2, bezier = "exit" },
     { leaf = "workspaces", speed = 2.4, bezier = "enter", style = "slidefade 15%" },
     { leaf = "specialWorkspace", speed = 2.4, bezier = "enter", style = "slidefadevert 15%" },
+    { leaf = "zoomFactor", speed = 1.6, bezier = "enter" },
 }
 for _, animation in ipairs(ANIMATIONS) do
     animation.enabled = true
@@ -57,16 +60,18 @@ hl.config({
         },
         shadow = {
             enabled = true,
-            range = 12,
+            range = 14,
             render_power = 3,
-            color = with_alpha(wal.color4, "18"),
-            color_inactive = "rgba(00000066)",
+            color = "rgba(00000077)",
+            color_inactive = "rgba(00000030)",
         },
     },
     group = {
         col = {
             border_active = wal_gradient,
-            border_inactive = "rgba(00000000)",
+            border_inactive = with_alpha(wal.color8, "aa"),
+            border_locked_active = wal_gradient,
+            border_locked_inactive = with_alpha(wal.color8, "aa"),
         },
         groupbar = {
             font_family = style.font,
@@ -75,8 +80,8 @@ hl.config({
             font_weight_inactive = "normal",
             height = style.font_size + 8,
             gradients = true,
-            rounding = 0,
-            gradient_rounding = 0,
+            rounding = style.rounding,
+            gradient_rounding = style.rounding,
             indicator_height = 0,
             gaps_in = 1,
             gaps_out = 0,
@@ -86,6 +91,8 @@ hl.config({
             col = {
                 active = style.tab_active_bg or wal.color8,
                 inactive = style.bar_bg or wal.color0,
+                locked_active = style.tab_active_bg or wal.color8,
+                locked_inactive = style.bar_bg or wal.color0,
             },
         },
     },

@@ -22,6 +22,9 @@ PanelWindow {
   readonly property bool anchored: anchorWidget !== null
 
   readonly property real fadeHeight: Style.space(32)
+  readonly property real gutter: Style.spacing.md
+  // an opening body wipes in from the top, so its rows arrive in order; a panel switch skips it
+  readonly property bool revealing: shown && !bootIn.instant && bootIn.phase < 1
 
   // everything around the body: padding, the title and the card's bottom stroke, which the body must not run under
   readonly property real chromeHeight: padding * 2 + titleInset + card.shape.strokeWidth
@@ -38,7 +41,21 @@ PanelWindow {
     for (const child of inner.contentItem.children) if (child.visible) height = Math.max(height, child.implicitHeight)
     return height
   }
-  implicitHeight: Math.min(maxHeight, bodyHeight + chromeHeight)
+  readonly property real targetHeight: Math.min(maxHeight, bodyHeight + chromeHeight)
+
+  // the card glides to a new body height; the window resizes once, at once to grow and after the glide to shrink
+  property real cardHeight: targetHeight
+  property real heldHeight: 0
+  Behavior on cardHeight {
+    enabled: root.shown && bootIn.progress >= 1
+    NumberAnimation {
+      duration: Style.motion.base
+      easing.type: Easing.BezierSpline
+      easing.bezierCurve: Style.motion.enter
+      onRunningChanged: root.heldHeight = running ? Math.max(root.heldHeight, root.cardHeight) : 0
+    }
+  }
+  implicitHeight: Math.max(targetHeight, heldHeight)
 
   readonly property real anchoredLeft: {
     if (!anchored || !bar) return 0
@@ -47,7 +64,7 @@ PanelWindow {
   }
   // where the panel sits on its screen: the toasts and the desktop widgets give way to it
   readonly property rect screenRect: Qt.rect(anchored ? anchoredLeft : (bar ? bar.width : 0) - implicitWidth,
-    bar ? bar.exclusiveZone : 0, implicitWidth, implicitHeight)
+    bar ? bar.exclusiveZone : 0, implicitWidth, cardHeight)
 
   signal opened()
 
@@ -73,6 +90,7 @@ PanelWindow {
     if (!shown) return
     bar.activePanelWindow = root
     inner.contentY = 0
+    inner.contentX = -inner.leftMargin
     if (anchorWidget && anchorWidget.refreshBarX) anchorWidget.refreshBarX()
     keys.forceActiveFocus()
     opened()
@@ -248,7 +266,7 @@ PanelWindow {
       GlassCard {
         id: card
         width: root.width
-        height: root.height
+        height: root.cardHeight
         docked: true
         bracketInset: bootIn.bracketInset
         bracketColor: root.accent
@@ -258,21 +276,25 @@ PanelWindow {
         readonly property real contentLeftInset: shape.sideInset + shape.strokeWidth + root.padding
         readonly property real contentBottomInset: shape.strokeWidth + root.padding
 
+        // the gutter keeps a row's focus cursor and fill, drawn past its edges, inside the clip
         Flickable {
           id: inner
-          x: card.contentLeftInset
+          x: card.contentLeftInset - root.gutter
           y: root.padding + root.titleInset
-          width: card.width - card.contentLeftInset * 2
+          width: card.width - card.contentLeftInset * 2 + root.gutter * 2
           height: card.height - root.padding - card.contentBottomInset - root.titleInset
           opacity: bootIn.rowOpacity(1)
-          contentWidth: width
+          leftMargin: root.gutter
+          rightMargin: root.gutter
+          contentWidth: width - root.gutter * 2
           contentHeight: Math.max(height, root.bodyHeight)
-          interactive: root.bodyHeight > height
+          interactive: root.bodyHeight > root.targetHeight - root.chromeHeight
           flickableDirection: Flickable.VerticalFlick
           boundsBehavior: Flickable.StopAtBounds
-          clip: interactive
-          layer.enabled: interactive
+          clip: interactive || root.cardHeight !== root.targetHeight
+          layer.enabled: interactive || root.revealing
           layer.effect: FadeMask { maskSource: bodyFade }
+          Component.onCompleted: contentX = -leftMargin
         }
 
         // more above or below: the body fades out at that edge and the scroll track shows where the view sits
@@ -285,13 +307,14 @@ PanelWindow {
           reach: root.fadeHeight
           fadeTop: inner.atYBeginning ? 0 : 1
           fadeBottom: inner.atYEnd ? 0 : 1
-          layer.enabled: inner.interactive
+          reveal: root.revealing ? 1 - Math.pow(1 - bootIn.phase, 3) : 1
+          layer.enabled: inner.layer.enabled
         }
 
         Rectangle {
           id: scrollTrack
           visible: inner.interactive
-          x: inner.x + inner.width + (root.padding - width) / 2
+          x: inner.x + inner.width - root.gutter + (root.padding - width) / 2
           y: inner.y
           width: Math.max(1, Style.space(3))
           height: inner.height

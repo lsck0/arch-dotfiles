@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
-use mod.nu [OVERRIDES TUNABLES override-text tunables]
+use mod.nu [HOOKS OVERRIDES TUNABLES hook-text override-text tunables]
 use profile-flags.nu [ETC MARKER OWN_SUFFIX SOURCE upstream-files]
 
 const HERE = path self .
@@ -89,6 +89,11 @@ def compile-check [rows: table, source: path, etc: path]: nothing -> list<string
     tunables | save --force ($work | path join $TUNABLES)
     glob abstractions/* | each { cp $in ($work | path join abstractions dotfiles) } | ignore
     glob local/* | each { cp $in ($work | path join local) } | ignore
+    $HOOKS | items {|hook, name|
+        let file = $work | path join $hook
+        mkdir ($file | path dirname)
+        hook-text $name | save $file
+    } | ignore
     let overrides = $OVERRIDES | columns
     # parsed under the installed name: the bare one has a disable/ link wherever a stock stub exists
     # every file written before any parse starts: written from the parallel parse, some came out mangled

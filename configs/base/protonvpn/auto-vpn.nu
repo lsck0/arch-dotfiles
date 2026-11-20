@@ -56,7 +56,8 @@ def main []: nothing -> nothing {
         for line in (with-env {LC_ALL: C} { ^nmcli monitor err> /dev/null } | lines) { $line | job send 0 }
         $MONITOR_END | job send 0
     } | ignore
-    mut state = decide {last: "", attempts: 0, retry_at: null}
+    # a start is no move onto a trusted network: a proton route already up there is the user's
+    mut state = decide {last: $LAST_TRUSTED, attempts: 0, retry_at: null}
     loop {
         let message = if $state.retry_at == null { job recv } else {
             let wait = [($state.retry_at - (date now)) 1sec] | math max

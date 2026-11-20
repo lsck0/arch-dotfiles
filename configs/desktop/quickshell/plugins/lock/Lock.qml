@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
+import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Mpris
@@ -67,6 +68,7 @@ Item {
   property string dateText: ""
 
   signal clearFields()
+  signal authFailed()
   signal glitchOut()
 
   function lock() {
@@ -109,6 +111,7 @@ Item {
     root.authError = true
     root._pw = ""
     root.clearFields()
+    root.authFailed()
   }
 
   function fprintArm() {
@@ -162,6 +165,7 @@ Item {
     root.keyModeLeave()
     root.authError = true
     root.keyNote = note
+    root.authFailed()
     if (root.keyDevice !== "") retriesProc.running = true
   }
 
@@ -513,6 +517,15 @@ Item {
             border.color: root.authError ? Colors.urgent : (pwField.activeFocus ? Colors.accent : Style.normalBorderColor)
             radius: Style.shape.data
             opacity: (pwField.text.length > 0 || root.authError || pamPw.active || root.keyMode) ? 1 : 0
+            transform: Shake { id: pwShake }
+
+            Connections {
+              function onAuthFailed() {
+                pwShake.play()
+              }
+
+              target: root
+            }
 
             TextField {
               id: pwField
@@ -605,6 +618,15 @@ Item {
             color: Colors.textOnOverlay(root.keyNote !== "" ? Colors.urgent : Colors.textDim)
             caption: true
 
+            Behavior on opacity {
+              id: keyStatusFade
+              NumberAnimation {
+                duration: Style.motion.fadeMs(keyStatusFade.targetValue > 0)
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Style.motion.curve(keyStatusFade.targetValue > 0)
+              }
+            }
+
             FontMetrics {
               id: keyStatusMetrics
               font: keyStatusText.font
@@ -647,25 +669,22 @@ Item {
           }
         }
 
-        Rectangle {
+        GlassCard {
           anchors.right: parent.right
           anchors.bottom: parent.bottom
           anchors.margins: Style.spacing.lg
           visible: surface.isPrimary && root.notes.length > 0
-          width: notesColumn.implicitWidth + Style.spacing.xs * 2
-          height: notesColumn.implicitHeight + Style.spacing.xs * 2
-          color: Colors.panelFill
-          border.width: Style.normalBorderWidth
-          border.color: Style.normalBorderColor
-          radius: Style.shape.surface
+          width: notesColumn.implicitWidth + Style.surface.padding * 2
+          height: notesColumn.implicitHeight + Style.surface.padding * 2
+          scanlines: false
 
-          Column {
+          ColumnLayout {
             id: notesColumn
             anchors.centerIn: parent
             spacing: Style.spacing.xxs
 
             HudTitle {
-              anchors.right: parent.right
+              Layout.alignment: Qt.AlignRight
               text: "notifications"
               suffix: "[" + root.notes.length + "]"
               blinking: false
@@ -677,7 +696,7 @@ Item {
               Label {
                 required property var modelData
 
-                anchors.right: parent.right
+                Layout.alignment: Qt.AlignRight
                 text: (modelData.app || "--") + " :: " + Qt.formatDateTime(new Date(modelData.timestamp), Util.timeFormat)
                 color: Colors.textOnOverlay(Colors.textDim)
                 caption: true
