@@ -9,6 +9,9 @@ const LISTEN_KEY = "dot.obs-listen"
 const STREAM_TRACK = "1"
 const MONITOR_NONE = "OBS_MONITORING_TYPE_NONE"
 const MONITOR_AND_OUTPUT = "OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT"
+# a "<name> For Me" copy of an alert widget plays to this desktop's own output, not into the stream mix: shown while
+# listen is off (the stream inputs do not monitor then), hidden while on, so an alert is heard once either way
+const FOR_ME_SUFFIX = " For Me"
 
 def obs-connect []: nothing -> int {
     let config = config-read
@@ -30,9 +33,25 @@ def stream-track-inputs [socket: int]: nothing -> list<string> {
     }
 }
 
+# The "For Me" items in every scene shown when shown is true, hidden else.
+def for-me-sync [socket: int, shown: bool]: nothing -> nothing {
+    let scenes = request $socket GetSceneList | get --optional scenes | default [] | get sceneName
+    for scene in $scenes {
+        let items = request $socket GetSceneItemList {sceneName: $scene} | get --optional sceneItems | default []
+            | where {|i| ($i.sourceName | str ends-with $FOR_ME_SUFFIX) and $i.sceneItemEnabled != $shown }
+        for item in $items {
+            let set = {sceneName: $scene, sceneItemId: $item.sceneItemId, sceneItemEnabled: $shown}
+            if (request $socket SetSceneItemEnabled $set) == null {
+                print -e $"toggle-obs-listen: SetSceneItemEnabled\(($scene)/($item.sourceName)) rejected"
+            }
+        }
+    }
+}
+
 # On, the stream-track inputs that do not monitor start to; off, every monitoring one stops.
 def monitor-sync [socket: int, on: bool]: nothing -> nothing {
     let type = if $on { $MONITOR_AND_OUTPUT } else { $MONITOR_NONE }
+    for-me-sync $socket (not $on)
     let names = stream-track-inputs $socket | where {|name| ((monitor-type-of $socket $name) == $MONITOR_NONE) == $on }
     for name in $names {
         if (request $socket SetInputAudioMonitorType {inputName: $name, monitorType: $type}) == null {
