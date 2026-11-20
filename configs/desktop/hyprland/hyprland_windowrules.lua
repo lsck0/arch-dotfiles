@@ -21,7 +21,7 @@ hl.window_rule({
     match = { class = "^awakened-poe-trade$" },
     float = true,
     pin = true,
-    no_border = true,
+    border_size = 0,
     no_shadow = true,
     no_anim = true,
     opacity = 1,

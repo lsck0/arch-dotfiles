@@ -171,6 +171,8 @@ export def build [colors_json: string, active: string]: nothing -> nothing {
     if $active == "true" and (hyprland-live) {
         ^hyprctl setcursor $CURSOR_THEME $CURSOR_SIZE_PX | ignore
         ^systemctl --user set-environment $"XCURSOR_THEME=($CURSOR_THEME)" $"HYPRCURSOR_THEME=($CURSOR_THEME)"
+        # dynamic-cursors' shake magnifier reloads its theme only on a config reload, not on setcursor
+        reload
     }
 }
 
