@@ -1,0 +1,7 @@
+[Unit]
+Description=offload: cancel this user's running jobs while the desktop is busy
+
+[Service]
+Type=oneshot
+TimeoutStartSec=1min
+ExecStart=/usr/bin/nu --no-config-file /usr/local/lib/offload/worker.nu enforce

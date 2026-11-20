@@ -280,6 +280,8 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `programming/claude.effort` | `string` | `"medium"` | Reasoning effort of that model |
 | `programming/claude.remote_control` | `bool` | `false` | Every session registers with the remote-control relay at start. It needs Claude's feature flags, so on, DO_NOT_TRACK is lifted for claude and usage telemetry is sent; off, telemetry is off |
 | `programming/hermes.system_agent` | `bool` | `false` | An always-on Hermes session (profile system, unit hermes-system-agent) that drives the desktop and talks: SUPER+grave shows it, SUPER+ALT+a talks to it |
+| `programming/offload.memory_cap_mib` | `int?` | unset | MiB the offload jobs of one user may use together (offload.slice), a job's memoryMiB at most this; none: half the RAM |
+| `programming/offload.cpus_cap` | `int?` | unset | CPUs the offload jobs of one user may use together, a job's cpus at most this; none: half the cores |
 | `programming/task.sync_url` | `string?` | unset | The taskchampion server every replica syncs with as the one client of configs/secrets/keys/taskwarrior-*; none: no sync |
 | `programming/task.recurrence` | `bool` | `true` | This replica creates the instances of recurring tasks; one per sync, or each adds its own copy (task-sync(5)) |
 | `programming/trmnl-claude.poster` | `bool` | `false` | This machine posts its Claude usage to the TRMNL panel; one poster per panel, a second would overwrite it |

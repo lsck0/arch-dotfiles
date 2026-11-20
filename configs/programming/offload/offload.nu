@@ -9,6 +9,8 @@ const REPO = path self | path expand | path dirname --num-levels 4
 use ($REPO | path join scripts lib secrets.nu) [secret-is-plaintext]
 use ($REPO | path join scripts lib state.nu) [xdg file-trim]
 use ($REPO | path join scripts lib usage.nu) [die]
+use ($REPO | path join configs programming offload worker.nu) [admit job-cancel metrics-update peak-mib]
+use ($REPO | path join configs programming offload consent.nu) [trust-list trust-revoke]
 
 export const OFFLOAD_ROLE_TARGET = "target"
 export const OFFLOAD_ROLE_CLIENT = "client"
@@ -31,6 +33,11 @@ const TARGET_COMMAND = ".local/bin/offload"
 const HERDR_OPEN = ".local/bin/herdr-open"
 const HERDR_POLLS = 100
 const HERDR_POLL_INTERVAL = 100ms
+# the worker's protocol entry, installed by the system verb on the target
+const WORKER = "/usr/local/lib/offload/worker.nu"
+const SLICE = "offload.slice"
+const NICE = 10
+const IO_WEIGHT = 10
 const UNIT_PREFIX = "offload-"
 const REF_PREFIX = "refs/offload"
 const JOB_FILE = "job.nuon"
@@ -58,7 +65,8 @@ const SNAPSHOT_IDENTITY = {
 const EXIT_NOT_FOUND = 127
 const USAGE = "usage: offload [--untracked] [--detach] [--] <command...>
        offload attach|stop|fetch <job> [paths...]
-       offload ls | status | agent [--untracked] | forward <service> [--port <n>]"
+       offload ls | status | agent [--untracked] | forward <service> [--port <n>]
+       offload worker <device> '<verb> [arg]' | trust [--json] | trust revoke <device>"
 
 # The leading flags of a run, up to the command or a `--`.
 export def args-parse [argv: list<string>]: nothing -> record<untracked: bool, detach: bool, command: list<string>> {
@@ -404,6 +412,11 @@ def "main host start" []: string -> nothing {
     if ($request | describe) !~ '^record' or not (request-valid $request) { die --misuse "start: not a valid request" }
     let bare = bare-path $request.client $request.slug
     if not ($bare | path exists) { die $"no ($bare): init first" }
+    # the worker's admission, as for every client: idle desktop, then the device's consent (this desktop needs none)
+    let device = $request.client | str replace --all --regex '[._]+' '-'
+    let local = $request.client == (name-safe (sys host | get hostname)) and $env.SSH_CONNECTION? == null
+    let refused = admit $device $request.kind $local
+    if $refused != null { die $"refused: ($refused)" }
     let dir = offload-dir jobs $request.job
     if ($dir | path exists) { die $"job ($request.job) exists already" }
     let worktree = worktree-path $request.client $request.slug $request.kind
@@ -419,6 +432,7 @@ def "main host start" []: string -> nothing {
         touch $log
         let self = self-argv
         (^systemd-run --user --quiet --collect $"--unit=(unit-name $request.job)" $"--description=offload ($request.job)"
+            $"--slice=($SLICE)" $"--property=Nice=($NICE)" $"--property=IOWeight=($IO_WEIGHT)"
             $"--working-directory=($worktree)" $"--property=StandardOutput=append:($log)"
             $"--property=StandardError=append:($log)"
             systemd-inhibit --what=sleep --mode=block --who=offload $"--why=job ($request.job)"
@@ -431,7 +445,8 @@ def "main host start" []: string -> nothing {
 # The unit's command: runs the job's argv as it is, no shell, and records its exit code.
 def "main host exec" [job: string]: nothing -> nothing {
     let dir = job-dir $job
-    let command = open ($dir | path join $JOB_FILE) | get command
+    let record = open ($dir | path join $JOB_FILE)
+    let command = $record.command
     let name = $command | first
     let code = if not ($name | str contains "/") and (which $name | is-empty) {
         print --stderr $"offload: ($name): command not found"
@@ -440,6 +455,9 @@ def "main host exec" [job: string]: nothing -> nothing {
         try { run-external $name ...($command | skip 1); 0 } catch { [$env.LAST_EXIT_CODE 1] | math max }
     }
     $code | into string | save --force ($dir | path join $EXIT_FILE)
+    let ended = date now
+    let seconds = ($ended - $record.started) / 1sec | math round
+    metrics-update {kind: $KIND_RUN, exit: $code, seconds: $seconds, peakMiB: (peak-mib), ended: (($ended | into int) // 1_000_000_000)}
     exit $code
 }
 
@@ -462,8 +480,8 @@ def "main host attach" [job: string]: nothing -> nothing {
 def "main host ls" []: nothing -> nothing { print (jobs-list | to nuon) }
 
 def "main host stop" [job: string]: nothing -> nothing {
-    job-dir $job | ignore
-    ^systemctl --user stop (unit-name $job)
+    job-cancel (job-dir $job) "stopped by offload stop"
+    metrics-update
     print (null | to nuon)
 }
 
@@ -590,6 +608,23 @@ def "main status" []: nothing -> nothing {
     if $config.role == $OFFLOAD_ROLE_TARGET and ($jobs | is-not-empty) {
         print ($jobs | group-by client | items {|client, js| {client: $client, last: ($js | last | get started)} })
     }
+}
+
+# The worker's protocol (offer, submit, status, get, cancel, gc) as this user, for a script here or a client over
+# ssh: the same entry and job spec the lab's builder uses through its forced command.
+def "main worker" [device: string, command: string]: nothing -> nothing {
+    if not ($WORKER | path exists) { die $"no ($WORKER): the worker runs on the offload target" }
+    exec $nu.current-exe --no-config-file $WORKER local $device $command
+}
+
+# The devices allowed to offload without asking (offload-consent's Always allow), --json for the bar.
+def "main trust" [--json]: nothing -> nothing {
+    let devices = trust-list
+    print (if $json { $devices | to json --raw } else { $devices })
+}
+
+def "main trust revoke" [device: string]: nothing -> nothing {
+    try { trust-revoke $device } catch {|e| die --misuse $e.msg }
 }
 
 # Runs a command on the target in the repo's current state (HEAD plus tracked changes; --untracked adds untracked

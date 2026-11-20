@@ -3,7 +3,8 @@
 # store. `user` runs as each login and leaves its rows (its dot runs and checks, failed user units) as JSON in its own
 # runtime dir; `system` runs as root, adds the system layer's dot runs, AppArmor denials this boot and core dumps, and
 # writes the one file alloy reads. Root keeps only USER_METRICS from a login's file and sets its `user` label from the
-# file's owner, so no account can forge another's series or the system's. Names and labels are a contract with the
+# file's owner, so no account can forge another's series or the system's. On an offload target root also reads each
+# worker user's state in /run/offload/metrics (programming/offload). Names and labels are a contract with the
 # homelab's alert rules (l-project-agents, Contracts): a rename is told to homelab first.
 
 const DIR = "/var/lib/node-textfile"
@@ -19,6 +20,11 @@ const HELP = {
     desktop_failed_units: "Failed units of this systemd manager"
     apparmor_denials_total: "AppArmor denials since boot, by profile"
     desktop_crash_last_timestamp_seconds: "Unix time of the newest core dump of this program in 30 days"
+    worker_up: "1 when offload's worker is installed on this desktop"
+    jobs_running: "offload jobs running now, every worker user's together"
+    job_last_exit: "Exit code of the newest finished offload job of this kind"
+    job_last_seconds: "Run time in seconds of the newest finished offload job of this kind"
+    job_last_peak_mib: "Peak memory in MiB of the newest finished offload job of this kind"
 }
 const USER_METRICS = [
     dot_run_last_timestamp_seconds dot_run_last_success_timestamp_seconds dot_run_last_ok dot_run_failures
@@ -30,6 +36,12 @@ const USER_FILE_MAX = 1_000_000
 # a run log per dot command; the newest are enough for each verb's last outcome
 const RUNS_READ = 60
 const CRASH_WINDOW = "-30d"
+# programming/offload's worker: its entry, and each worker user's state file, named by its uid
+const OFFLOAD_RUN = "/run/offload"
+const OFFLOAD_METRICS = "/run/offload/metrics"
+const OFFLOAD_WORKER = "/usr/local/lib/offload/worker.nu"
+const OFFLOAD_KINDS = [static-site oci-image arch-base run]
+const OFFLOAD_FILE_MAX = 100_000
 
 def label-value [value: any]: nothing -> string {
     $value | into string | str replace --all '\' '\\' | str replace --all '"' '\"' | str replace --all "\n" '\n'
@@ -145,6 +157,47 @@ def user-rows []: nothing -> list<record> {
     } | flatten
 }
 
+def number [value: any]: nothing -> bool { ($value | describe) in [int float] }
+
+# The worker's rows from each user's state {running, last: {<kind>: {exit, seconds, peakMiB, ended}}}: running summed,
+# each kind's newest finished job across users. A malformed state or entry adds nothing.
+export def offload-metrics [up: bool, states: list<any>]: nothing -> list<record> {
+    let valid = $states | where {|s|
+        ($s | describe) =~ '^record' and ($s.running? | describe) == "int" and ($s.last? | describe) =~ '^record'
+    }
+    let finished = $valid | each {|s| $s.last | transpose kind job } | flatten | where {|e|
+        ($e.kind in $OFFLOAD_KINDS and ($e.job | describe) =~ '^record' and ($e.job.exit? | describe) == "int"
+            and (number $e.job.seconds?) and (number $e.job.peakMiB?) and (number $e.job.ended?))
+    }
+    let per_kind = $finished | group-by kind | items {|kind, rows|
+        let job = $rows | sort-by { $in.job.ended } | last | get job
+        [
+            (metric job_last_exit gauge {kind: $kind} $job.exit)
+            (metric job_last_seconds gauge {kind: $kind} $job.seconds)
+            (metric job_last_peak_mib gauge {kind: $kind} $job.peakMiB)
+        ]
+    } | flatten
+    [
+        (metric worker_up gauge {} (if $up { 1 } else { 0 }))
+        (metric jobs_running gauge {} ($valid | reduce --fold 0 {|s, acc| $acc + $s.running }))
+    ] ++ $per_kind
+}
+
+# Each worker user's state file, only a regular one its uid owns; nothing off an offload target.
+def offload-rows []: nothing -> list<record> {
+    if not ($OFFLOAD_RUN | path exists) { return [] }
+    let states = if not ($OFFLOAD_METRICS | path exists) { [] } else {
+        ls $OFFLOAD_METRICS | where name =~ '/[0-9]+\.json$' | each {|f|
+            let uid = $f.name | path parse | get stem
+            let info = ^stat -c '%u|%F|%s' -- $f.name | complete | get stdout | str trim | split row "|"
+            if ($info | length) != 3 or $info.0 != $uid or $info.1 != "regular file" { return null }
+            if ($info.2 | into int) > $OFFLOAD_FILE_MAX { return null }
+            try { open --raw $f.name | from json } catch { null }
+        } | compact
+    }
+    offload-metrics ($OFFLOAD_WORKER | path exists) $states
+}
+
 def "main system" []: nothing -> nothing {
     let denied = ^journalctl -k -b --no-pager -o cat --grep 'apparmor="DENIED"' | complete | get stdout | lines
         | each { parse --regex 'profile="(?<profile>[^"]+)"' | get --optional 0.profile } | compact
@@ -159,7 +212,7 @@ def "main system" []: nothing -> nothing {
             }
     }
     let dir = $env.DESKTOP_METRICS_DIR? | default $DIR
-    (run-metrics $SYSTEM_RUNS system) ++ $apparmor ++ $crashes ++ (user-rows) | exposition
+    (run-metrics $SYSTEM_RUNS system) ++ $apparmor ++ $crashes ++ (user-rows) ++ (offload-rows) | exposition
     | save-atomic ($dir | path join desktop.prom) "644"
 }
 

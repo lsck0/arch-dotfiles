@@ -23,4 +23,8 @@ export const HOMELAB = {
         loki: "https://push.lsck0.dev/loki/api/v1/push"
         desktops: [luca-notebook luca-pc]
     }
+    builder: {
+        ip: "10.100.0.102"
+        key: null
+    }
 }

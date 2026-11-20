@@ -11,6 +11,12 @@ export const LSCK0_SERVER_PLACEHOLDER = "@LSCK0_SERVER@"
 export const LSCK0_SECTION = "[lsck0]"
 const LSCK0_PROBE_TIMEOUT_S = 5
 const LAB_RELATIVE = "src/generated/lab.json"
+# beside lab.json: the lab's published public keys by name
+const KEYS_FILE = "ssh-keys.json"
+const BUILDER_ROLE = "app-builder"
+# the builder's key for programming/offload's worker, absent until the lab publishes it
+const BUILDER_KEY = "desktop-worker-key"
+const ED25519 = '^ssh-ed25519 [A-Za-z0-9+/]+={0,2}( [A-Za-z0-9@._-]+)?$'
 const LAB_SCHEMA = 1
 const IPV4 = '^(\d{1,3}\.){3}\d{1,3}$'
 const CIDR4 = '^(?<net>(\d{1,3}\.){3}\d{1,3})/(?<bits>\d{1,2})$'
@@ -74,8 +80,26 @@ def field [lab: record, path: cell-path, shape: string]: nothing -> string {
     $value
 }
 
-# The generated file's text for one lab.json; fails on a schema or a value it does not know.
-export def homelab-render [lab: record]: nothing -> string {
+# The guest the lab builds on, by its role, with the worker key the lab published for it (null until then); null when
+# no guest has the role.
+def builder-render [lab: record, keys: any]: nothing -> any {
+    let guests = $lab.guests? | default {} | values | where { $BUILDER_ROLE in ($in.roles? | default []) }
+    if ($guests | is-empty) { return null }
+    if ($guests | length) > 1 { error make {msg: $"homelab: lab.json has more than one ($BUILDER_ROLE) guest"} }
+    let ip = $guests.0.ip?
+    if ($ip | describe) != "string" or not ($ip =~ $IPV4) {
+        error make {msg: $"homelab: lab.json's ($BUILDER_ROLE) guest has the ip ($ip | to nuon)"}
+    }
+    let key = if ($keys | describe) =~ '^record' { $keys | get --optional $BUILDER_KEY }
+    if $key != null and (($key | describe) != "string" or not ($key =~ $ED25519)) {
+        error make {msg: $"homelab: ($KEYS_FILE) ($BUILDER_KEY) is no ed25519 public key line"}
+    }
+    {ip: $ip, key: $key}
+}
+
+# The generated file's text for one lab.json and its ssh-keys.json (null when absent); fails on a schema or a value it
+# does not know.
+export def homelab-render [lab: record, keys: any = null]: nothing -> string {
     if $lab.schema? != $LAB_SCHEMA { error make {msg: $"homelab: lab.json schema ($lab.schema? | to nuon), wants ($LAB_SCHEMA)"} }
     let zones = $lab.zones? | default {}
     if ($zones | is-empty) { error make {msg: "homelab: lab.json has no zones"} }
@@ -106,19 +130,26 @@ export def homelab-render [lab: record]: nothing -> string {
             loki: (field $lab $.monitoring.push.loki '^https://\S+$')
             desktops: ($lab.monitoring.push.desktops | each {|d| if ($d =~ '^[a-z0-9-]+$') { $d } else { error make {msg: $"homelab: lab.json monitoring.push.desktops has ($d | to nuon), not of the shape ^[a-z0-9-]+$"} } })
         }
+        # programming/offload's worker: the one guest that logs in to it, and with which key
+        builder: (builder-render $lab $keys)
     }
     $"($HEAD)\nexport const HOMELAB = ($values | options-to-nuon)\n"
+}
+
+def keys-load [lab: path]: nothing -> any {
+    let file = $lab | path dirname | path join $KEYS_FILE
+    if ($file | path exists) { open $file }
 }
 
 # Whether repo's generated file differs from what lab renders to; no lab (no checkout) is never stale.
 export def homelab-stale [repo: path, lab: any]: nothing -> bool {
     if $lab == null { return false }
     let file = $repo | path join $HOMELAB_FILE
-    not ($file | path exists) or (open --raw $file) != (homelab-render (open $lab))
+    not ($file | path exists) or (open --raw $file) != (homelab-render (open $lab) (keys-load $lab))
 }
 
 # Writes repo's generated file from lab; without a lab the committed file stays.
 export def homelab-write [repo: path, lab: any]: nothing -> nothing {
     if $lab == null { return }
-    homelab-render (open $lab) | save --force ($repo | path join $HOMELAB_FILE)
+    homelab-render (open $lab) (keys-load $lab) | save --force ($repo | path join $HOMELAB_FILE)
 }

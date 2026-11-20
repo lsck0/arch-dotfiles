@@ -116,7 +116,16 @@ BarWidget {
       if (root.absent) return
       root.restartStatus()
       if (panel.visible) vpnProc.run()
+      if (panel.visible) trustProc.run()
     }
+  }
+
+  // the devices offload lets in without asking (offload trust), read while the panel shows; a row revokes its device
+  property var offloadTrusted: []
+  JsonProcess {
+    id: trustProc
+    command: [Paths.bin("offload"), "trust", "--json"]
+    onParsed: function(data) { root.offloadTrusted = Array.isArray(data) ? data : [] }
   }
 
   // toggle-vpn.nu's record: "Connect homelab VPN" only where the vpn exists and is down, read while the panel shows
@@ -568,6 +577,28 @@ BarWidget {
         ServiceGroup { title: "Internal"; group: "internal" }
         ServiceGroup { title: "External"; group: "external" }
         ServiceGroup { title: "Apps"; group: "apps" }
+      }
+
+      Column {
+        width: parent.width
+        visible: root.offloadTrusted.length > 0
+        spacing: Style.spacing.sm
+
+        PanelSeparator {}
+        PanelSectionHeader { text: "Offload :: trusted" }
+        Repeater {
+          model: root.offloadTrusted
+          delegate: PanelRow {
+            required property var modelData
+            width: parent.width
+            label: modelData.device
+            trailing: "Revoke"
+            onActivated: {
+              Quickshell.execDetached([Paths.bin("offload"), "trust", "revoke", modelData.device])
+              root.offloadTrusted = root.offloadTrusted.filter(function(d) { return d.device !== modelData.device })
+            }
+          }
+        }
       }
     }
   }

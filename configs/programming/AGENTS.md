@@ -26,4 +26,9 @@
 - `offload` (platform fact `offload`: `target` luca-pc, `client` luca-notebook) sends the repo's HEAD and working
   changes as a git ref to a per-client bare repo on the target and runs the command there in a transient unit under a
   sleep inhibitor, so the target sleeps again after; `offload host` is its ssh-called half; the target's address is
-  `base/ssh.wake_host`.
+  `base/ssh.wake_host`. On the target `worker.nu` (installed to `/usr/local/lib/offload`) is the one protocol every
+  client goes through: offer, submit (job JSON plus a git bundle), status, get, cancel, gc; the lab's builder reaches
+  it as the locked-down `labworker` (key and address from `HOMELAB.builder`, forced command `serve`), Luca's devices
+  as Luca (`offload worker`, and `offload host start` admits through it). Admission is idle-only (`gate.nu`: gamemode,
+  obs output; power) and per-device consent (`consent.nu`'s notification, trusted devices revoked from the bar's
+  homelab panel); jobs run in `offload.slice` and `offload-enforce.path` cancels them when the desktop gets busy.

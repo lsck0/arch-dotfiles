@@ -1,0 +1,9 @@
+[Unit]
+Description=offload's jobs, every client's of this user together
+
+[Slice]
+MemoryMax=@MEMORY@M
+MemorySwapMax=0
+CPUQuota=@CPU_QUOTA@%
+IOWeight=10
+TasksMax=8192

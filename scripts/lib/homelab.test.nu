@@ -42,7 +42,10 @@ const WANT = {
         isoSigner: "0123456789ABCDEF0123456789ABCDEF01234567"
     }
     push: {prometheus: "https://push.lab.test/api/v1/write", loki: "https://push.lab.test/loki/api/v1/push", desktops: [pc]}
+    builder: null
 }
+const BUILDER = {ip: "10.9.0.102", name: "102-dev", roles: [ci app-builder], zone: internal}
+const BUILDER_KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOkq0a1b2c3d4e5f6 desktop-worker-key"
 
 # The HOMELAB constant a rendered file exports, read back the way a module imports it.
 def rendered-values [text: string]: nothing -> record {
@@ -73,6 +76,24 @@ def render-cases []: nothing -> nothing {
         assert not (try { homelab-render $c.lab; true } catch { false }) $"render: ($c.name) rendered"
     }
     assert equal (homelab-subnet-glob "10.0.0.0/8") "10.*" "glob: 10.0.0.0/8"
+}
+
+def builder-cases []: nothing -> nothing {
+    let lab = $LAB | update guests {"102": $BUILDER, "103": {ip: "10.9.0.103", roles: [ci]}}
+    assert equal (rendered-values (homelab-render $lab)).builder {ip: "10.9.0.102", key: null} "builder: no key"
+    let keyed = rendered-values (homelab-render $lab {desktop-worker-key: $BUILDER_KEY, other: "x"})
+    assert equal $keyed.builder {ip: "10.9.0.102", key: $BUILDER_KEY} "builder: the published key"
+    let refused = [
+        [name lab keys];
+        [two-builders ($lab | update guests {a: $BUILDER, b: ($BUILDER | update ip "10.9.0.104")}) null]
+        [ip ($lab | update guests {a: ($BUILDER | update ip "dev.lab.test")}) null]
+        [rsa-key $lab {desktop-worker-key: "ssh-rsa AAAAB3NzaC1yc2E"}]
+        [two-lines $lab {desktop-worker-key: $"($BUILDER_KEY)\nssh-ed25519 AAAA x"}]
+        [option-injection $lab {desktop-worker-key: $"command=\"sh\" ($BUILDER_KEY)"}]
+    ]
+    for c in $refused {
+        assert not (try { homelab-render $c.lab $c.keys; true } catch { false }) $"builder: ($c.name) rendered"
+    }
 }
 
 def stale-cases []: nothing -> nothing {
@@ -119,6 +140,7 @@ def signer-case []: nothing -> nothing {
 
 def main [] {
     render-cases
+    builder-cases
     stale-cases
     lab-path-cases
     signer-case

@@ -1,0 +1,13 @@
+[Unit]
+Description=offload: this login's idle gate (gamemode, obs output)
+ConditionPathIsDirectory=/run/offload/gate
+
+[Service]
+ExecStart=@DOTFILES@/configs/programming/offload/gate.nu
+# a login gone takes its state along: no stale busy left behind
+ExecStopPost=/usr/bin/rm -f /run/offload/gate/%U.json
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

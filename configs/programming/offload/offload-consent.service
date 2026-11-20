@@ -1,0 +1,8 @@
+[Unit]
+Description=offload: ask whether a device may offload work
+
+[Service]
+Type=oneshot
+# oneshot has no start timeout; each question waits a minute at most
+TimeoutStartSec=10min
+ExecStart=@DOTFILES@/configs/programming/offload/consent.nu ask

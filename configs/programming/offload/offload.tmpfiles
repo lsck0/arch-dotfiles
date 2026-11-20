@@ -1,0 +1,10 @@
+# offload's shared state on the target: each login's idle gate and the desktop's consent answers and trusted devices
+# are the offload group's (wheel) to write and every worker's to read; any worker may ask and keep its metrics state
+d /run/offload 0755 root root -
+d /run/offload/gate 2775 root offload -
+d /run/offload/answers 2775 root offload -
+d /run/offload/consent 1773 root offload -
+d /run/offload/metrics 1733 root root -
+d /etc/offload 0755 root root -
+d /var/lib/offload 0755 root root -
+d /var/lib/offload/trust 2775 root offload -

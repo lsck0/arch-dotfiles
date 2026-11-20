@@ -185,6 +185,7 @@ def offload-run [scratch: path, repo: path, args: list<string>, input: string = 
         XDG_CONFIG_HOME: ($scratch | path join config)
         XDG_STATE_HOME: ($scratch | path join state)
         XDG_RUNTIME_DIR: ($scratch | path join run)
+        OFFLOAD_ROOT: ($scratch | path join root)
         PATH: ([($scratch | path join bin)] ++ $env.PATH)
     }
     with-env $env_scratch {
@@ -255,6 +256,17 @@ def agent-check [scratch: path, repo: path] {
     let jobs = [a1 a2] | each {|nonce| job-id repo (date now) $nonce }
     for job in $jobs { ^git -C $repo push --no-verify --quiet $bare $"($commit):(ref-source $job)" }
     let request = {job: $jobs.0, client: $client, slug: repo, kind: agent, commit: $commit, command: []}
+    let refused = offload-run $scratch $repo [host start] ($request | to nuon)
+    if $refused.exit_code == 0 or not ($refused.stderr =~ "cannot ask") { fail $"agent: an unknown device started: ($refused.stderr)" }
+    let trust = $scratch | path join root var lib offload trust
+    mkdir $trust
+    {device: $client, since: (date now)} | to nuon | save ($trust | path join $"($client).nuon")
+    let gate = $scratch | path join root run offload gate
+    mkdir $gate
+    {gamemode: true, obs: false} | to json | save ($gate | path join 1000.json)
+    let busy = offload-run $scratch $repo [host start] ($request | to nuon)
+    if $busy.exit_code == 0 or not ($busy.stderr =~ "gamemode") { fail $"agent: started while a game runs: ($busy.stderr)" }
+    rm ($gate | path join 1000.json)
     let started = offload-run $scratch $repo [host start] ($request | to nuon)
     if $started.exit_code != 0 { fail $"agent: start: ($started.stderr)" }
     let worktree = $started.stdout | from nuon | get worktree
