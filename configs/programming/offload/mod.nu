@@ -150,7 +150,8 @@ def labworker [builder: record, setup: list<string>]: nothing -> list<any> {
             --undo [usermod --del-subuids $LAB_SUBIDS --del-subgids $LAB_SUBIDS $LABWORKER] --requires $LAB_HOME)
         (exec "offload labworker linger" [loginctl enable-linger $LABWORKER] --done=($linger | path exists)
             --undo [loginctl disable-linger $LABWORKER] --requires $LAB_HOME)
-        (exec "offload labworker enforce" [...$manager enable --now $ENFORCE]
+        # linger starts the manager without waiting for it; starting its unit blocks until its bus is up
+        (exec "offload labworker enforce" [sh -c $"systemctl start user@$\(id -u ($LABWORKER)\).service && exec \"$@\"" sh ...$manager enable --now $ENFORCE]
             --creates ($LAB_HOME | path join .config systemd user default.target.wants $ENFORCE)
             --undo [...$manager disable --now $ENFORCE] --requires $linger)
         # takes effect on the manager's next start (boot); a restart would kill a running job
