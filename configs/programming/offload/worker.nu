@@ -233,13 +233,15 @@ export def power-on-battery [supplies: list<record>]: nothing -> bool {
     $supplies | any {|s| $s.type? == "Battery" and $s.status? == "Discharging" }
 }
 
-# Why the desktop is not idle, from each login's gate state {gamemode, obs} and the power; empty when it is.
-export def gate-reasons [sessions: list<any>, on_battery: bool]: nothing -> list<string> {
+# Why the desktop is not idle, from each login's gate state {gamemode, obs}, the logins whose gate is missing, and the
+# power; empty when it is. A missing gate is busy: the worker never runs past a gate that is down.
+export def gate-reasons [sessions: list<any>, on_battery: bool, missing: int = 0]: nothing -> list<string> {
     let valid = $sessions | where {|s|
         ($s | describe) =~ '^record' and ($s.gamemode? | describe) == "bool" and ($s.obs? | describe) == "bool"
     }
     [
         (if ($valid | length) != ($sessions | length) { "a login's gate state is unreadable" })
+        (if $missing > 0 { "a login's idle gate is not running" })
         (if ($valid | any { $in.gamemode }) { "a game runs in gamemode" })
         (if ($valid | any { $in.obs }) { "obs is streaming or recording" })
         (if $on_battery { "the desktop is on battery" })
@@ -345,8 +347,17 @@ def power-supplies []: nothing -> list<record> {
     }
 }
 
+# the offload group's logins with a running manager: each one owes a gate file
+def gate-missing []: nothing -> int {
+    let members = try { open --raw (state-at /etc/group) } catch { "" } | lines | parse "{name}:{x}:{gid}:{users}"
+    | where name == offload | get --optional 0.users | default "" | split row "," | where $it != ""
+    $members | each {|user| try { ^id -u $user | str trim } catch { null } } | compact
+    | where {|uid| (state-at $"/run/user/($uid)" | path exists) and not (state-at $"($GATE_DIR)/($uid).json" | path exists) }
+    | length
+}
+
 export def gate-now []: nothing -> list<string> {
-    gate-reasons (gate-sessions) (power-on-battery (power-supplies))
+    gate-reasons (gate-sessions) (power-on-battery (power-supplies)) (gate-missing)
 }
 
 def free-memory-mib []: nothing -> int {

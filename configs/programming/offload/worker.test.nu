@@ -166,6 +166,7 @@ def gate-cases [] {
         "obs is streaming or recording" "the desktop is on battery"
     ]
     assert equal (gate-reasons [null] false) ["a login's gate state is unreadable"] "gate: a broken file is busy"
+    assert equal (gate-reasons [] false 1) ["a login's idle gate is not running"] "gate: a missing gate is busy"
     assert equal (gate-reasons [{gamemode: "no", obs: false}] false) ["a login's gate state is unreadable"]
 }
 

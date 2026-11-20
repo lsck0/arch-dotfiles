@@ -1,6 +1,8 @@
 [Unit]
 Description=offload: this login's idle gate (gamemode, obs output)
 ConditionPathIsDirectory=/run/offload/gate
+# the group reaches a login on its next start; until then the gate counts as down, so the worker waits
+ConditionGroup=offload
 
 [Service]
 ExecStart=@DOTFILES@/configs/programming/offload/gate.nu
