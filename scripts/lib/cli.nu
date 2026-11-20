@@ -91,11 +91,17 @@ def crash-save [file: path, crashes: list<record>]: nothing -> nothing {
     if $record == null { rm --force $file } else { $record | to json | save --force $file }
 }
 
+# Whether a run of <name> that goes through resolves crash c: a --read-only run (`dot internal theme list`,
+# `dot set --json`) only a read-only crash, a writer of that name still fails.
+def crash-resolves [c: record, name: string, read_only: bool]: nothing -> bool {
+    $c.command? == $name and (not $read_only or ($c.read_only? | default false))
+}
+
 # Drops the crash of <name>: its run went through. Another command's unresolved crash stays.
-export def crash-retire [name: string]: nothing -> nothing {
+export def crash-retire [name: string, --read-only]: nothing -> nothing {
     let crash = crash-file ($env.DOT_RUN_FILE | path dirname)
     let crashes = crash-list (crash-read $crash)
-    if ($crashes | any { $in.command? == $name }) { crash-save $crash ($crashes | where command? != $name) }
+    if ($crashes | any {|c| crash-resolves $c $name $read_only }) { crash-save $crash ($crashes | where {|c| not (crash-resolves $c $name $read_only) }) }
 }
 
 # One logged run, crash.json on error, which the command's next run that goes through retires. --read-only and
@@ -108,7 +114,7 @@ export def guarded [name: string, body: closure, --read-only, --background]: not
     let crash = crash-file ($env.DOT_RUN_FILE | path dirname)
     try {
         let value = span $name {} $body
-        crash-retire $name
+        crash-retire $name --read-only=$read_only
         $value
     } catch {|err|
         let code = if ($err.debug | str starts-with "LabeledError") {
@@ -129,9 +135,9 @@ export def guarded [name: string, body: closure, --read-only, --background]: not
         let tail = if ($run | path exists) { open --raw $run | lines | last $CRASH_LOG_LINES } else { [] }
         let cause = cause-from-error $err
         let brief = if $cause.command != null or $cause.at != null or $cause.exit_code != null { cause-text $cause } else { error-brief $err.rendered --root $REPO }
-        let record = {run: $env.DOT_RUN_ID, command: $name, error: $err.msg, cause: $cause, debug: ($err.debug | ansi strip), rendered: ($err.rendered | ansi strip), build: (build), log: $tail}
+        let record = {run: $env.DOT_RUN_ID, command: $name, read_only: $read_only, error: $err.msg, cause: $cause, debug: ($err.debug | ansi strip), rendered: ($err.rendered | ansi strip), build: (build), log: $tail}
         # one file per layer: a crash of one command must not overwrite another's that is still unresolved
-        crash-save $crash ([$record] ++ (crash-list (crash-read $crash) | where command? != $name))
+        crash-save $crash ([$record] ++ (crash-list (crash-read $crash) | where {|c| not (crash-resolves $c $name $read_only) }))
         log-record PANIC $"($brief); the full error is in ($crash)" {msg_detail: $err.msg, cause: $cause}
         run-journal
         exit 1

@@ -10,7 +10,6 @@ export const meta = {
             npm
         ]
     }
-    backup: {secrets: true}
 }
 
 export const options = {
@@ -399,18 +398,23 @@ def profile-back [live: path, repo: path]: nothing -> nothing {
 
 export def backup [cfg: record]: nothing -> nothing {
     let basic = obs-dir | path join basic
-    let streaming = $basic | path join scenes Streaming.json
-    let streaming_secret = secret $SECRET_SCENES
-    if ($streaming | path exists) {
-        secret-seed-guard ($basic | path join scenes .from-secrets) $streaming_secret $streaming
+    # only the Streaming collection and service.json are secrets: the rest backs up while they are locked or absent
+    if (owner-unlocked) {
+        let streaming = $basic | path join scenes Streaming.json
+        let streaming_secret = secret $SECRET_SCENES
+        if ($streaming | path exists) {
+            secret-seed-guard ($basic | path join scenes .from-secrets) $streaming_secret $streaming
+        }
+        scene-back $cfg $streaming $streaming_secret $streaming_secret
+        let service = $basic | path join profiles Streaming service.json
+        if ($service | path exists) { cp --force $service (secret $SECRET_SERVICE) }
+        # no backup.secrets, so no umask 077: a new file would be 644
+        [$streaming_secret (secret $SECRET_SERVICE)] | where {|f| $f | path exists } | each {|f| ^chmod 600 $f } | ignore
     }
-    scene-back $cfg $streaming $streaming_secret $streaming_secret
     for seed in (repo-scenes) {
         let own = host-file ($seed | path dirname) ($seed | path basename)
         scene-back $cfg ($basic | path join scenes ($seed | path basename)) (scene-seed $seed) $own --machine --seed $seed
     }
-    let service = $basic | path join profiles Streaming service.json
-    if ($service | path exists) { cp --force $service (secret $SECRET_SERVICE) }
     let recorded = recorded-hashes
     for repo in (repo-profiles) {
         let live = $basic | path join ($repo | path relative-to $HERE)

@@ -161,7 +161,10 @@ def "main packages" [kind: string@[pacman flatpak nix] = "pacman", --groups: str
         if $kind not-in [pacman flatpak nix] { error make {msg: $"packages: no kind ($kind), one of pacman flatpak nix"} }
         let ctx = pipeline-load $REPO system
         let chosen = $groups | default "" | split row --regex '[ ,]+' | where $it != ""
-        let mods = if ($chosen | is-empty) { $ctx.modules } else { $ctx.modules | update selected {|m| $m.group in $chosen or $m.group == "" } }
+        # another machine's modules run at their enable default, its selection: this machine's enable answers are not its
+        let mods = if ($chosen | is-empty) { $ctx.modules } else {
+            $ctx.modules | update selected {|m| $m.group == "" or $m.group in $chosen or $m.id in $chosen } | update cfg {|m| $m.cfg | upsert enable $m.selected }
+        }
         let platform = if ($chosen | is-empty) { $ctx.platform } else { $ctx.platform | update extra_packages [] }
         let platform = if $form_factor == null { $platform } else { $platform | update form_factor $form_factor }
         let out = modules-packages $REPO $mods $platform | get $kind

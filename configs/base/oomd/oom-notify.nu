@@ -21,6 +21,8 @@ def main []: nothing -> nothing {
             "kernel OOM killer, last resort"
         }
         let message = $entry.MESSAGE? | if ($in | describe) == string { $in } else { "OOM kill event" }
-        ^notify-send -u critical -a oomd -- $"Killed: ($unit)" $"($message) \(($source)\)"
+        # normal, not critical: the kill already happened and nothing waits on an answer, so the card times out and
+        # the history keeps it
+        ^notify-send -u normal -a oomd -- $"Killed: ($unit)" $"($message) \(($source)\)"
     }
 }

@@ -299,13 +299,14 @@ def radar-mask [file: path, scale: record]: nothing -> bool {
 }
 
 def radar-get []: nothing -> record {
-    let manifest = cache-path radar/frames.json
-    let cached = cache-load $manifest $RADAR_MAX_AGE
-    if $cached != null { return $cached }
     let location = location-resolve
     if $location == null { return (failure "no location") }
     let lat = $location.lat | into float
     let lon = $location.lon | into float
+    let key = place-key $lat $lon
+    let manifest = cache-path radar/frames.json
+    let cached = cache-load $manifest $RADAR_MAX_AGE | reply-current $key
+    if $cached != null { return $cached }
 
     let in_dwd = ($lat >= $DWD_LAT_RANGE.0 and $lat <= $DWD_LAT_RANGE.1
         and $lon >= $DWD_LON_RANGE.0 and $lon <= $DWD_LON_RANGE.1)
@@ -330,7 +331,9 @@ def radar-get []: nothing -> record {
     let reply = if ($frames | is-empty) { failure "no frames" } else {
         # licence condition, the attribution must be displayed
         let attribution = if $in_dwd { "Deutscher Wetterdienst" } else { "RainViewer" }
-        reply-publish {ok: true, frames: $frames, spanKm: (radar-span-km $lat), attribution: $attribution} $manifest
+        reply-publish {
+            ok: true, frames: $frames, spanKm: (radar-span-km $lat), attribution: $attribution, key: $key
+        } $manifest
     }
     # prune only after publishing, a failed run keeps the live generation
     let doomed = if $reply.ok { ls $radar_dir | where name =~ '/f-\d+$' and name != $stage | get name } else {
@@ -341,13 +344,14 @@ def radar-get []: nothing -> record {
 }
 
 def field-get []: nothing -> record {
-    let cache = cache-path weather-field.json
-    let cached = cache-load $cache $FIELD_MAX_AGE
-    if $cached != null { return $cached }
     let location = location-resolve
     if $location == null { return (failure "no location") }
     let lat0 = $location.lat | into float
     let lon0 = $location.lon | into float
+    let key = place-key $lat0 $lon0
+    let cache = cache-path weather-field.json
+    let cached = cache-load $cache $FIELD_MAX_AGE | reply-current $key
+    if $cached != null { return $cached }
 
     let half_m = (radar-span-km $lat0) * 1000 / 2
     let dlat = $half_m / $METRES_PER_DEGREE_LAT
@@ -393,6 +397,7 @@ def field-get []: nothing -> record {
         cells: $cells
         windUnits: ($units.wind_speed_10m? | default "km/h")
         pressureUnits: ($units.pressure_msl? | default "hPa")
+        key: $key
     }
     let out = if ($pressures | is-empty) { $out } else {
         $out | insert pressureMin ($pressures | math min) | insert pressureMax ($pressures | math max)
@@ -400,10 +405,11 @@ def field-get []: nothing -> record {
     reply-publish $out $cache
 }
 
-def area-tokens-map [texts: list<string>]: nothing -> record {
-    let texts = $texts | uniq
+# "" is folded apart: `lines` drops a trailing empty line, which would shift every later text off its tokens.
+export def area-tokens-map [texts: list<string>]: nothing -> record {
+    let texts = $texts | uniq | where $it != ""
     let folded = $texts | str replace -ar '[\r\n]' " " | str join "\n" | ^uconv -x $AREA_FOLD_RULES | lines
-    $texts | zip $folded | reduce -f {} {|pair, map|
+    $texts | zip $folded | reduce -f {"": []} {|pair, map|
         let tokens = $pair.1 | str lowercase | str replace -ar '[^a-z0-9 ]+' " " | split row " "
             | where { ($in | str length) >= $AREA_TOKEN_LENGTH_MIN and $in not-in $AREA_WORDS_GENERIC } | uniq
         $map | upsert $pair.0 $tokens
@@ -472,17 +478,23 @@ export def place-current [key: string]: any -> any {
     }
 }
 
+# A cached radar, field or alerts reply holds only for the cell it was made in; a keyless one is a miss.
+export def reply-current [key: string]: any -> any {
+    let reply = $in
+    if ($reply | describe -d).type == record and $reply.key? == $key { $reply }
+}
+
 def alerts-get []: nothing -> record {
-    let cache = cache-path weather-alerts.json
-    let cached = cache-load $cache $FEED_MAX_AGE
-    let current = if $cached != null { $cached | alerts-current (epoch-now) }
-    if $current != null { return $current }
     let location = location-resolve
     if $location == null { return (failure "no location") }
     let lat = $location.lat | into float
     let lon = $location.lon | into float
-
     let key = place-key $lat $lon
+    let cache = cache-path weather-alerts.json
+    let cached = cache-load $cache $FEED_MAX_AGE | reply-current $key
+    let current = if $cached != null { $cached | alerts-current (epoch-now) }
+    if $current != null { return $current }
+
     let place_cache = cache-path weather-place.json
     # a place from another cell, or a full reverse geocode cached before the filter, is a miss
     if (cache-load $place_cache $PLACE_MAX_AGE | place-current $key) == null {
@@ -515,12 +527,12 @@ def alerts-get []: nothing -> record {
     let area_texts = $infos | each { $in.area? | default [] | each { $in.areaDesc? | default "" | into string } }
     | flatten
     let tokens = area-tokens-map ($address_texts | append $area_texts)
-    let mine = $address_texts | each {|text| $tokens | get $text } | flatten | uniq
+    let mine = $address_texts | each {|text| $tokens | get -o $text | default [] } | flatten | uniq
 
     let candidates = $infos | each {|info|
         let scope = $info.area? | default [] | reduce -f "" {|area, scope|
             let polygons = [$area.polygon?] | flatten | compact -e
-            let names = $tokens | get ($area.areaDesc? | default "" | into string)
+            let names = $tokens | get -o ($area.areaDesc? | default "" | into string) | default []
             if $scope == "here" or ($polygons | any { polygon-contains $in $lat $lon }) { "here" } else if (
                 $mine | is-not-empty) and ($names | any { $in in $mine }) { "region" } else { $scope }
         }
@@ -553,6 +565,7 @@ def alerts-get []: nothing -> record {
         supported: true
         alerts: ($alerts | first $ALERTS_COUNT_MAX)
         countryOthers: ($candidates | where scope == "" | length)
+        key: $key
     } $cache
 }
 

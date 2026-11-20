@@ -16,6 +16,17 @@ hl.window_rule({ match = { class = "^(firefox|chromium)$" }, focus_on_activate =
 
 hl.window_rule({ match = { initial_title = "^Discord Popout$" }, opacity = 1 })
 
+-- awakened poe trade: a pinned overlay above the game
+hl.window_rule({
+    match = { class = "^awakened-poe-trade$" },
+    float = true,
+    pin = true,
+    no_border = true,
+    no_shadow = true,
+    no_anim = true,
+    opacity = 1,
+})
+
 -- every window of the gtk portal is a dialog (file chooser, app chooser, access prompt), whatever its language
 hl.window_rule({ match = { class = "^xdg-desktop-portal-gtk$" }, float = true, center = true })
 

@@ -52,6 +52,9 @@ export def link [cfg: record] {
                         --creates ($sdk | path join $p.created) --requires $sdkmanager --network)
                 })
             ]
+        } else {
+            # pending, so the module is planned again off tor even with no avd waiting on the downloads
+            step tor-wait
         })
         (if ($cfg.avd | is-not-empty) {
             # the image is sdkmanager's download: offline or failed, the avd waits for it instead of failing on it
@@ -60,6 +63,12 @@ export def link [cfg: record] {
                 --undo [$avdmanager delete avd --name $cfg.avd])
         })
     ]
+}
+
+# Pending while tor-router carries the traffic: dl.google.com refuses tor exits.
+export def tor-wait []: nothing -> nothing {
+    print "dl.google.com refuses tor exits"
+    exit $EXIT_PENDING
 }
 
 # Seat access to Samsung phones for samloader in Download mode and adb when booted, without root or a group.

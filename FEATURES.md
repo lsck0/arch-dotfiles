@@ -138,7 +138,7 @@ Every module under `configs/`, the owner's own in `configs/secrets/` aside. A pl
 | `creating` | `apps`, `audacity`, `blender`, `gimp`, `inkscape`, `krita`, `obs`, `openscad` |
 | `desktop` | `applications`, `bookokrat`, `chromium`, `color-grading`, `cursor`, `dictation`, `feather`, `firefox`, `ghostty`, `gparted`, `gtk`, `hyprland`, `idle-guards`, `jdownloader`, `kdeconnect`, `kitty`, `libreoffice`, `ly`, `mpv`, `nsxiv`, `obsidian`, `oomox`, `pipewire`, `plasma`, `printing`, `qbittorrent`, `quickshell`, `qutebrowser`, `shimoji`, `thunderbird`, `uwsm`, `zathura` |
 | `fonts` | `fonts` |
-| `gaming` | `d2launcher`, `dalamud`, `emulators`, `ffxiv`, `gamemode`, `games`, `lutris`, `mangohud`, `modrinth`, `nethack`, `pd2`, `protonup`, `runtime`, `steam`, `vkbasalt`, `vpn-bypass`, `vr` |
+| `gaming` | `awakened-poe-trade`, `d2launcher`, `dalamud`, `emulators`, `ffxiv`, `gamemode`, `games`, `lutris`, `mangohud`, `modrinth`, `nethack`, `pd2`, `protonup`, `runtime`, `steam`, `vkbasalt`, `vpn-bypass`, `vr` |
 | `latex` | `latex`, `sioyek`, `zotero` |
 | `llm` | `alpaca`, `comfyui`, `ollama`, `tools`, `vllm` |
 | `pentesting` | `caido`, `ghidra`, `llm-jailbreaks`, `metasploit`, `netscanner`, `nuclei`, `pentest`, `proxychains`, `rustscan`, `seclists`, `toolkit`, `wireshark`, `zaproxy` |

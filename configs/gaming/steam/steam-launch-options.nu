@@ -73,7 +73,9 @@ export def launch-options-fingerprint []: nothing -> string {
 def appids-installed []: nothing -> list<string> {
     let folders = steam-root | path join steamapps libraryfolders.vdf
     let libraries = try {
-        vdf-get (open --raw $folders | vdf-parse) libraryfolders | each { vdf-get $in.v path } | compact
+        # libraryfolders holds string keys (contentstatsid) besides the numbered libraries
+        vdf-get (open --raw $folders | vdf-parse) libraryfolders | default []
+            | where ($it.v | describe) != string | each { vdf-get $in.v path } | compact
     } catch { [] }
     $libraries | prepend (steam-root) | each { glob ($in | path join steamapps "appmanifest_*.acf") } | flatten
         | each { path basename | parse "appmanifest_{id}.acf" | get 0.id } | where $it =~ '^\d+$' | uniq

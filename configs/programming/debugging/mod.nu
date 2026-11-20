@@ -17,8 +17,9 @@ export def link [cfg: record] {
     let user = xdg config raddbg default.raddbg_user
     let font = $RADDBG_FONT_PX * (xwayland-scale-for $cfg) | math round | into string
     [
-        # once per scale, so a size picked in the app afterwards stays; raddbg writes the file on its first start
-        (if (which raddbg | is-not-empty) { step raddbg-font $font --creates $user --key $font })
+        # once per scale, so a size picked in the app afterwards stays; pending until raddbg writes the file on its
+        # first start, so the key is recorded only once a size got in
+        (if (which raddbg | is-not-empty) { step raddbg-font $font --creates $user --requires $user --key $font })
         (if (which tracy-profiler | is-not-empty) {
             ini-merge (xdg config tracy tracy.ini) {achievements: {enabled: 0, asked: 1}} --missing-only
         })
@@ -28,6 +29,9 @@ export def link [cfg: record] {
 # Sets every window's font size in the user file raddbg keeps.
 export def raddbg-font [size: string]: nothing -> nothing {
     let user = xdg config raddbg default.raddbg_user
-    if not ($user | path exists) { return }
+    if not ($user | path exists) {
+        print "raddbg has not written its user file yet"
+        exit $EXIT_PENDING
+    }
     open --raw $user | str replace --all --regex '(?m)^(\s*font_size:)\s*\d+' $"${1} ($size)" | save --force $user
 }

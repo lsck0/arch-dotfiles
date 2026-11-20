@@ -180,7 +180,10 @@ for dev in /sys/class/net/*; do
     [[ -n $profile ]] && run links nmcli -f connection.id,connection.type,802-11-wireless.ssid,802-11-wireless.cloned-mac-address,802-3-ethernet.cloned-mac-address,ipv4.method,ipv4.dns,ipv4.ignore-auto-dns,ipv6.method connection show "$profile"
 done
 run links nmcli -f GENERAL.DEVICE,IP4.ADDRESS,IP4.GATEWAY,IP4.DNS,IP6.DNS device show
-grab /run/home-network /etc/NetworkManager/home-gateways /etc/NetworkManager/homelab.env
+grab /run/home-network /etc/NetworkManager/homelab.env
+# home-gateways is a secret (a gateway's mac is all a rogue access point needs): only its shape, one word per field
+[[ -r /etc/NetworkManager/home-gateways ]] &&
+    sed -E 's/[^[:space:]]+/<redacted>/g' /etc/NetworkManager/home-gateways > "$out/files/home-gateways"
 root_grab /etc/NetworkManager/dispatcher.d
 
 for name in archlinux.org example.com; do

@@ -3,7 +3,9 @@
 /* libadwaita rounds and shadows a floating window itself, inside Hyprland's own rounding, border and shadow */
 window.csd,
 window.csd:backdrop {
-    --window-radius: @RADIUS_PX @px;
+    /* prettier splits a placeholder from its unit, and file-render then never fills it */
+    /* prettier-ignore */
+    --window-radius: @RADIUS_PX@px;
     box-shadow: none;
     outline: none;
 }

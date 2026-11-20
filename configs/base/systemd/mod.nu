@@ -18,9 +18,13 @@ const AVAHI_ALIAS = "/etc/systemd/system/dbus-org.freedesktop.Avahi.service"
 const ENABLED = [avahi-daemon.socket bluetooth.service cups.socket fstrim.timer]
 # unused (luks binds pcr 7+15, cryptenroll makes the srk); systemd 258 fails them on a tpm without nvpcr indices
 const TPM_UNUSED = [systemd-pcrproduct.service systemd-pcrlogin@.service systemd-tpm2-setup-early.service]
-const MASKED = [NetworkManager-wait-online.service systemd-binfmt.service ...$TPM_UNUSED]
+const MASKED = [NetworkManager-wait-online.service ...$TPM_UNUSED]
 # the user preset enables these but arch never applies user presets, so they are linked as --global enable would
 const USER_PRESET = [[unit target]; [systemd-tmpfiles-setup.service basic.target] [systemd-tmpfiles-clean.timer timers.target]]
+
+def binfmt-rules []: nothing -> list<string> {
+    [/usr/lib /etc /run] | each {|d| glob ($d | path join binfmt.d *.conf) } | flatten | path basename
+}
 
 export def system [cfg: record] {
     [
@@ -38,6 +42,11 @@ export def system [cfg: record] {
             unit-enable thermald.service
         })
         ($MASKED | where {|u| unit-installed $u } | each {|u| unit-mask $u })
+        # while wine's is the only binfmt rule nothing execs .exe directly, and its automount held sysinit.target ~1 s;
+        # another rule (qemu/binfmt) needs the unit at boot, and the orphaned mask is lifted
+        (if (unit-installed systemd-binfmt.service) and (binfmt-rules | where $it != wine.conf | is-empty) {
+            unit-mask systemd-binfmt.service
+        })
         # the initrd copies the unit from /usr/lib without the /etc mask, so mask it there too
         (if $env.FORM_FACTOR? != "wsl" { step cmdline-set rd.systemd.mask=systemd-tpm2-setup-early.service })
         (if $env.FORM_FACTOR? == "laptop" { dropin $KBD_DROPIN kbd-backlight.conf })

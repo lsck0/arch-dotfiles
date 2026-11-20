@@ -122,9 +122,10 @@ export def link [cfg: record] {
 export def theme [cfg: record, wallpaper: string] {
     let p = palette-load
     if $p == null { return [] }
-    # light-ansi paints panels (diffs, user messages) in ansi white, which light palettes keep as a mid-grey text
-    # colour (github-light's color7 is #6e7781), so the panels come out dark: light takes Claude's own rgb theme
-    json-merge (home .claude settings.json) [(json-set [theme] (if $p.light == "1" { "light" } else { "dark-ansi" }))]
+    # the ansi themes paint panels (diffs, user messages) in a palette slot meant as text: light-ansi in white, a mid-grey
+    # on light palettes (github-light's color7 is #6e7781), dark-ansi in bright black, a mid-grey under light text on
+    # dark ones (color8 #75777E): both take Claude's own rgb theme
+    json-merge (home .claude settings.json) [(json-set [theme] (if $p.light == "1" { "light" } else { "dark" }))]
 }
 
 export def backup [cfg: record]: nothing -> nothing {

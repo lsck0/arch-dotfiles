@@ -28,7 +28,7 @@ def start []: nothing -> nothing {
 }
 
 def finish []: nothing -> nothing {
-    ^systemctl --user stop $"($UNIT).service"
+    if (recording) { ^systemctl --user stop $"($UNIT).service" }
     let model = $nu.home-dir | path join $MODEL
     if not ($model | path exists) { return (notify "Dictation failed" $"no whisper model at ($model)") }
     if not ((wav) | path exists) { return (notify "Dictation failed" "nothing was recorded") }
@@ -44,5 +44,7 @@ def finish []: nothing -> nothing {
 }
 
 def main []: nothing -> nothing {
-    if (recording) { finish } else { start }
+    # past RuntimeMaxSec the unit stopped on its own and the wav is finished: type it, never record over it
+    let capped = ((wav) | path exists) and (ls (wav) | get 0.size) > 44b
+    if (recording) or $capped { finish } else { start }
 }

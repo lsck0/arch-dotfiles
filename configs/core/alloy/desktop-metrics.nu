@@ -24,7 +24,7 @@ const USER_METRICS = [
     dot_run_last_timestamp_seconds dot_run_last_success_timestamp_seconds dot_run_last_ok dot_run_failures
     dot_check_failed desktop_failed_units
 ]
-const USER_LABELS = [layer verb check manager]
+const USER_LABELS = [verb check manager]
 # a login's file is a few kilobytes
 const USER_FILE_MAX = 1_000_000
 # a run log per dot command; the newest are enough for each verb's last outcome
@@ -89,7 +89,11 @@ def run-record [file: path, newest: bool]: nothing -> any {
 def run-metrics [dir: path, layer: string]: nothing -> list<record> {
     if not ($dir | path exists) { return [] }
     let files = ls $dir | where name ends-with ".jsonl" | sort-by name | last $RUNS_READ | get name
-    let newest = $files | last 1
+    # a read-only run (status, plan) may start during an apply or sync: newest is the newest run that can change things
+    let read_only = if ($files | is-empty) { [] } else {
+        ^grep --files-with-matches --fixed-strings '"read_only":true' ...$files | complete | get stdout | lines
+    }
+    let newest = $files | where $it not-in $read_only | last 1
     let runs = $files | each {|file| run-record $file ($file in $newest) } | compact | where verb != ""
     let per_verb = $runs | group-by verb | items {|verb, rows|
         let last = $rows | last
@@ -101,7 +105,8 @@ def run-metrics [dir: path, layer: string]: nothing -> list<record> {
             [(metric dot_run_last_success_timestamp_seconds gauge {layer: $layer, verb: $verb} $last_ok)]
         })
     } | flatten
-    let failures = $runs | where verb in [apply sync] | last 1 | each {|run|
+    # root's part of a dot apply is its config stage
+    let failures = $runs | where verb in [apply sync config] | last 1 | each {|run|
         metric dot_run_failures gauge {layer: $layer} $run.errors
     }
     $per_verb ++ $failures
@@ -132,6 +137,8 @@ def user-rows []: nothing -> list<record> {
                 let labels = $given | transpose key value
                     | where {|kv| $kv.key in $USER_LABELS and (($kv.value | describe) in [string int float]) }
                     | reduce --fold {} {|kv, acc| $acc | insert $kv.key ($kv.value | into string) }
+                # a login's dot runs are always the user layer; layer="system" is root's alone
+                let labels = if ($r.name | str starts-with dot_run_) { $labels | insert layer user } else { $labels }
                 metric $r.name gauge ($labels | insert user $login) $r.value
             }
         } catch { [] }

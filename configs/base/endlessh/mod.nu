@@ -7,8 +7,7 @@ export def system [cfg: record] {
     [
         (file-copy config /etc/endlessh/config)
         (dropin endlessh.service override.conf)
-        (if not (^sshd -T o+e>| complete | get stdout | lines | any { ($in | str lowercase) == "port 22" }) {
-            unit-enable endlessh.service --now
-        })
+        # the declared port, not sshd -T: base/ssh writes the new one only after every module has planned
+        (if $cfg.deps."base/ssh".port != 22 { unit-enable endlessh.service --now } else { unit-disable endlessh.service --now })
     ]
 }

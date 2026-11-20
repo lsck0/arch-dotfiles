@@ -588,13 +588,20 @@ export def bootstrap-platform-resolve [repo: path, e: record, picked: string, ws
     {platform: $name, generic: false, server: false}
 }
 
+# A zone /etc/localtime can point at: a TZif file, never a region dir (Europe) or a data file (leapseconds).
+export def timezone-known [zone: string, root: path = /usr/share/zoneinfo]: nothing -> bool {
+    let file = $root | path join $zone
+    if ($file | path type) != file { return false }
+    try { (open --raw $file | bytes at 0..<4) == 0x[545A6966] } catch { false }
+}
+
 def answer-valid [e: record, value: string, c: record]: nothing -> bool {
     if ($value | is-empty) and ($e.empty_ok? | default false) { return true }
     if $e.pattern? != null and $value !~ $e.pattern { return false }
     match $e.id {
         # no other named platform's name; a server may be called server
         "hostname" => ($value not-in ($c.platforms | where $it != $c.platform))
-        "timezone" => ($"/usr/share/zoneinfo/($value)" | path exists)
+        "timezone" => (timezone-known $value)
         "locale" => ($value in (open --raw /etc/locale.gen | lines | each { str replace --regex '^#' '' | split row " " | first }))
         "keymap" => ((^loadkeys $value | complete).exit_code == 0)
         _ => true

@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 # Table cases for plan-module, state-write and the ledger diff: pure records in, actions and state records out.
-use converge.nu [plan-module state-write state-read recorded-hashes ask-batch apply-module observe]
+use converge.nu [plan-module json-claims state-write state-read recorded-hashes ask-batch apply-module observe]
 use state.nu [state-dir]
 use module.nu [file-text json-merge json-set exec step unit-enable]
 use ledger.nu [ledger-diff ledger-remove ledger-get ledger-set]
@@ -69,6 +69,24 @@ def orphan-cases []: nothing -> nothing {
     assert equal $unmerged.kind "unmerge" $"orphan merge: planned ($unmerged.kind), wants unmerge"
     let gone = plan-module $ID [] $merged (seen-none) {} $REPO false | first
     assert equal $gone.kind "forget" $"orphan merge, file gone: planned ($gone.kind), wants forget"
+    # another module merging into the same file claims only its own keys: this one's still go back
+    let shared = [{kind: json, target: $TARGET, hash: null, keys: [{path: [a], set: 1, before: {absent: true}} {path: [b], set: 2, before: {absent: true}}]}]
+    let other = [{id: other/module, target: $TARGET, path: [b]}]
+    let partial = plan-module $ID [] $shared (seen-file $want) {} $REPO false [$TARGET] $other | first
+    assert equal [$partial.kind $partial.decl.keys.path] [unmerge [[a]]] $"orphan merge, file shared: planned ($partial.kind) ($partial.decl.keys.path | to nuon), wants unmerge of [a]"
+    let taken = plan-module $ID [] $merged (seen-file $want) {} $REPO false [$TARGET] [{id: other/module, target: $TARGET, path: [a]}] | first
+    assert equal $taken.kind "forget" $"orphan merge, key taken: planned ($taken.kind), wants forget"
+    let decl = {kind: json, target: $TARGET, edits: [{path: [b], value: 2}]}
+    let claims = json-claims other/module [$decl ($merged.0 | update target other.json) {kind: file, target: $TARGET}]
+    assert equal $claims [{id: other/module, target: $TARGET, path: [b]} {id: other/module, target: other.json, path: [a]}] $"json-claims: ($claims | to nuon)"
+    let own = plan-module $ID [] $merged (seen-file $want) {} $REPO false [$TARGET] [{id: $ID, target: $TARGET, path: [a]}] | first
+    assert equal $own.kind "unmerge" $"orphan merge, its own claim: planned ($own.kind), wants unmerge"
+    # a unit gone with its package has nothing to disable or unmask: systemctl fails on it every run
+    let unit = {kind: unit, target: dot-test.service, hash: null, state: enabled}
+    for c in [[enabled enabled disable] [enabled not-found forget] [enabled disabled forget] [masked masked unmask] [masked not-found forget]] {
+        let a = plan-module $ID [] [($unit | update state $c.0)] {paths: {}, units: {dot-test.service: $c.1}} {} $REPO false | first
+        assert equal $a.kind $c.2 $"orphan unit ($c.0), ($c.1) now: planned ($a.kind), wants ($c.2)"
+    }
 }
 
 # A removed file whose preserved original goes back: the original lands even when the file was its dir's only one,

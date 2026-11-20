@@ -262,10 +262,18 @@ def resolution [cfg: record]: nothing -> record {
     parse-wxh $text
 }
 
-# A multiple of 12 keeps both sides of 4:3 whole and even.
+# A multiple of 12 keeps both sides of 4:3 whole and even. With no monitor answering (an apply from a tty or a unit)
+# the size gamescope.sh already holds stays, not the fallback.
 def render-size [cfg: record]: nothing -> record {
     if $cfg.render_size != null {
         return (parse-wxh $cfg.render_size)
+    }
+    let script = home-dir | path join gamescope.sh
+    let kept = if $cfg.resolution == null and ($script | path exists) {
+        open --raw $script | parse --regex 'gamescope -w (?<w>\d+) -h (?<h>\d+)' | get --optional 0
+    }
+    if $kept != null {
+        return {w: ($kept.w | into int), h: ($kept.h | into int)}
     }
     let h = (resolution $cfg).h | $in - ($in mod 12)
     {w: ($h // 3 * 4), h: $h}

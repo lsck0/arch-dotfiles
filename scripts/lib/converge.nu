@@ -189,8 +189,14 @@ def action-done [d: record, last: any]: nothing -> bool {
     ($evidence | is-not-empty) and ($evidence | all { $in })
 }
 
+# The json keys a module sets, {id target path}: from its declarations' edits or its recorded outputs' keys.
+export def json-claims [id: string, items: list<record>]: nothing -> list<record> {
+    $items | where kind? == json | each {|i| $i.edits? | default ($i.keys? | default []) | each {|k| {id: $id, target: $i.target, path: $k.path} } } | flatten
+}
+
 # Undos of orphaned actions, declarations against disk, then the other orphans (disables and unmasks first).
-export def plan-module [id: string, decls: list<record>, prev: list<record>, seen: record, recorded: record, repo: string, force: bool, all_targets: list<string> = []]: nothing -> list<record> {
+# all_targets: every module's declared targets; claimed_keys: json-claims of every module, this one's skipped.
+export def plan-module [id: string, decls: list<record>, prev: list<record>, seen: record, recorded: record, repo: string, force: bool, all_targets: list<string> = [], claimed_keys: list<record> = []]: nothing -> list<record> {
     let wanted = (fold-merges $decls) | each {|d|
         let obs = $seen.paths | get --optional $d.target
         if $obs.hash? == $UNREADABLE { return (action $id unreadable $d.target $UNREADABLE_REASON $d null null) }
@@ -271,16 +277,22 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
             "link" => {
                 if $obs.type == symlink and $obs.link == $o.source { action $id remove $o.target "no longer declared" $o $o.source null } else { action $id forget $o.target "not the link it was" $o null null }
             }
-            "unit" => (match ($o.state? | default enabled) {
-                "enabled" => (action $id disable $o.target "no longer declared" ($o | insert now true) enabled null)
-                "masked" => (action $id unmask $o.target "no longer declared" $o masked null)
-                _ => (action $id forget $o.target "no longer declared" $o null null)
-            })
+            "unit" => {
+                # systemctl disable and unmask fail on a unit gone with its package: nothing is left to undo
+                let state = $seen.units | get --optional $o.target | default "not-found"
+                match ($o.state? | default enabled) {
+                    "enabled" if $state not-in [not-found disabled] => (action $id disable $o.target "no longer declared" ($o | insert now true) enabled null)
+                    "masked" if $state in [masked masked-runtime] => (action $id unmask $o.target "no longer declared" $o masked null)
+                    _ => (action $id forget $o.target $"no longer declared, ($state) now" $o null null)
+                }
+            }
             "json" => {
-                let restorable = $o.keys? | default [] | where not ($it.before.unknown? | default false)
+                # a key another module sets on the same file is its now: per key, a shared file (mcp-servers) is no claim
+                let held = $claimed_keys | where id != $id and target == $o.target | get path
+                let restorable = $o.keys? | default [] | where {|k| not ($k.before.unknown? | default false) and $k.path not-in $held }
                 # a file gone has no keys to give back: unmerging would write it again
-                if $claimed or ($restorable | is-empty) or $obs.type == "" { action $id forget $o.target "no longer declared" $o null null } else {
-                    action $id unmerge $o.target "no longer declared: dot's keys go back" $o null null
+                if ($restorable | is-empty) or $obs.type == "" { action $id forget $o.target "no longer declared" $o null null } else {
+                    action $id unmerge $o.target "no longer declared: dot's keys go back" ($o | update keys $restorable) null null
                 }
             }
             "exec" | "step" => {

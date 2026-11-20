@@ -103,6 +103,8 @@ export def sshd [port: string]: nothing -> nothing {
     }
     ^systemctl enable sshd.service
     let active = (^systemctl is-active --quiet sshd.service | complete).exit_code == 0
+    # base/endlessh's tarpit holds 22 until its own verb runs after this one
+    if $port == "22" { do { ^systemctl disable --now endlessh.service } | complete | ignore }
     if not $active or $rekeyed or (open --raw $DROPIN) != $before { ^systemctl reload-or-restart sshd.service }
 }
 
@@ -156,7 +158,8 @@ def authorized-keys-render []: nothing -> string {
     # a locked secrets store cannot read the committed key, so only append what is readable and never prune
     if not (secret-is-plaintext $pubkey) {
         let missing = $keys | where $it not-in $existing
-        return ($raw + ($missing | to text))
+        let base = if $raw == "" or ($raw | str ends-with "\n") { $raw } else { $raw + "\n" }
+        return ($base + ($missing | to text))
     }
     # rebuild the managed block so a key rotated out of the sources loses access; lines outside it are kept
     let begin = $existing | enumerate | where item == $MANAGED_BEGIN | get --optional 0.index

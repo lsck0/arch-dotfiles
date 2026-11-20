@@ -42,10 +42,12 @@ def heading [text: string]: nothing -> nothing { print $"\n== ($text)" }
 # service, ssh), ykman then warns on stderr and only the PIV applet age unlocks with is out of reach (ccid false).
 def card []: nothing -> record<present: bool, serial: string, ccid: bool> {
     let info = if (which ykman | is-empty) { {exit_code: 1} } else { do { ^ykman info } | complete }
-    if $info.exit_code != 0 { return {present: false, serial: "", ccid: false} }
+    # a Security Key series key shows no serial: nothing to unlock with, so the gpg fallback
+    let sn = $info.stdout? | default "" | lines | parse "Serial number: {sn}" | get --optional 0.sn | default "" | str trim
+    if $info.exit_code != 0 or $sn == "" { return {present: false, serial: "", ccid: false} }
     {
         present: true
-        serial: ($info.stdout | lines | parse "Serial number: {sn}" | get 0.sn | str trim)
+        serial: $sn
         ccid: ($info.stderr | str contains $PCSC_REFUSED | not $in)
     }
 }

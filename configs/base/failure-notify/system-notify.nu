@@ -22,7 +22,7 @@ def card [entry: record]: nothing -> any {
         _ => {
             let unit = $entry.UNIT? | default "-"
             if (^systemctl -q is-failed $unit | complete).exit_code != 0 { return null }
-            {key: $unit, urgency: critical, title: $"($unit) failed", body: $"journalctl -xeu ($unit)"}
+            {key: $unit, urgency: normal, title: $"($unit) failed", body: $"journalctl -xeu ($unit)"}
         }
     }
 }

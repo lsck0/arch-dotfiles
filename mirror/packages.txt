@@ -35,6 +35,7 @@ avr-gcc
 avr-gdb
 avr-libc
 avrdude
+awakened-poe-trade-bin
 aws-cli-v2
 bacon
 base

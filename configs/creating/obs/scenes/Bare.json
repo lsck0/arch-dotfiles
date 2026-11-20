@@ -223,6 +223,16 @@
             "value": "pipewire",
             "selected": false,
             "hidden": false
+          },
+          {
+            "value": "obs",
+            "selected": false,
+            "hidden": false
+          },
+          {
+            "value": "obs-browser-page",
+            "selected": false,
+            "hidden": false
           }
         ]
       },

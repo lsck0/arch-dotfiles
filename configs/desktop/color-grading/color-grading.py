@@ -8,7 +8,7 @@ sleeps in select until an output, or a setting, changes.
 
 Presets (PRESETS below, the single list; toggles and the bar read it through `list` / `status`):
     off        identity everywhere
-    default    contrast 1.05 around mid grey, black point 0.010, gamma 1.07, 6000K
+    default    contrast 1.10 around mid grey, black point 0.010, gamma 1.07, 6000K
     reading    4500K, contrast 0.92, blacks lifted to 4%: paper-like, low strain
     grayscale  every channel gets Rec.709 luma, then the default curve
 Night light (4000K) and brightness compose with any preset: CTM = brightness * whitepoint * preset.
@@ -132,7 +132,7 @@ MID_GREY = 0.5
 IDENTITY: Matrix = (1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
 LUMA = (0.2126, 0.7152, 0.0722)
 CURVE_IDENTITY = Curve(contrast=1.0, blackpoint=0.0, gamma=1.0, floor=0.0, ceiling=1.0)
-CURVE_DEFAULT = Curve(contrast=1.05, blackpoint=0.010, gamma=1.07, floor=0.0, ceiling=1.0)
+CURVE_DEFAULT = Curve(contrast=1.10, blackpoint=0.010, gamma=1.07, floor=0.0, ceiling=1.0)
 
 PRESETS: dict[str, Preset] = {
     p.name: p

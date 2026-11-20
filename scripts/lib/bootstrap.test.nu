@@ -2,7 +2,7 @@
 # bootstrap-profile-resolve and bootstrap-platform-resolve against a throwaway repo: custom resolves to no file, a
 # named pick reads its capabilities or its platform's groups, and an unknown pick or server-on-wsl dies. The groups
 # answer unattended, the install chain's ESP marker, and the live pacman.conf's [lsck0] with the lab up and down.
-use bootstrap.nu [bootstrap-profile-resolve bootstrap-platform-resolve answer-groups stage-marker-state pacman-conf-lsck0]
+use bootstrap.nu [bootstrap-profile-resolve bootstrap-platform-resolve answer-groups stage-marker-state pacman-conf-lsck0 timezone-known]
 use stage.nu [STAGE_ESP_RUNNING STAGE_ESP_STOPPED]
 use platform.nu [platform-groups-all]
 use std/assert
@@ -112,8 +112,18 @@ def pacman-conf-cases []: nothing -> nothing {
     assert (dies {|| pacman-conf-lsck0 $PACMAN_LSCK0 true {|| false } }) "pacman.conf: a homelab machine with the lab down must die"
 }
 
+# The timezone answer names a zone file: a region dir or a zoneinfo data file passes the pattern, never this.
+def timezone-cases [repo: path]: nothing -> nothing {
+    let root = $repo | path join zoneinfo
+    mkdir ($root | path join Europe)
+    "TZif2 zone data\n" | save ($root | path join Europe Berlin)
+    "Leap 2016 Dec 31 23:59:60 + S\n" | save ($root | path join leapseconds)
+    assert (timezone-known Europe/Berlin $root) "timezone: a zone file must pass"
+    for z in [Europe leapseconds Europe/Nowhere] { assert not (timezone-known $z $root) $"timezone: ($z) must not pass" }
+}
+
 def main [] {
     let repo = fixture
-    try { profile-cases $repo; platform-cases $repo; groups-cases $repo; marker-cases $repo; pacman-conf-cases } catch {|e| rm --recursive --force $repo; error make $e }
+    try { profile-cases $repo; platform-cases $repo; groups-cases $repo; marker-cases $repo; pacman-conf-cases; timezone-cases $repo } catch {|e| rm --recursive --force $repo; error make $e }
     rm --recursive --force $repo
 }

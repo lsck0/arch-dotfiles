@@ -31,9 +31,14 @@ def sql-escape [s: string]: nothing -> string {
 
 export def link [cfg: record] {
     if (^flatpak info $APP | complete).exit_code != 0 { return [] }
-    # without a gpu share llm/vllm installs nothing, so no instance points at its port
+    # llm/vllm installs nothing when disabled, without a gpu share or without a rocm gpu: its socket unit tells, so no
+    # instance points at an unserved port
     let vllm = $cfg.deps."llm/vllm"
-    let vllm_model = if $vllm.gpu_memory_utilization? == null { "" } else { $vllm.model | default "" }
+    let served = (
+        ($vllm.enable? | default false) and $vllm.gpu_memory_utilization? != null
+        and ("/etc/systemd/system/vllm.socket" | path exists)
+    )
+    let vllm_model = if $served { $vllm.model | default "" } else { "" }
     [
         (step seed $vllm_model --done=(seeded $vllm_model))
         (fetch-file $WHISPER_URL $WHISPER.sha256 (db | path dirname | path join whisper $"($WHISPER.name).pt"))

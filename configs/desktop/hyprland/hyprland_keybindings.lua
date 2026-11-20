@@ -104,6 +104,15 @@ hl.bind(
 -- loginctl, so hypridle's lock_cmd picks quickshell or hyprlock
 hl.bind(mod .. " + Escape", hl.dsp.exec_cmd("loginctl lock-session"), { description = "lock the screen" })
 hl.bind(mod .. " + m", quickshell_call("discord", "toggleMute"), { description = "mute or unmute discord" })
+-- f12 in discord is its devtools (ctrl+shift+i; they are on in socials/discord's settings); non-consuming, so every
+-- other app still gets its own f12
+hl.bind("F12", function()
+    local window = hl.get_active_window()
+    if window and window.class == "discord" then
+        -- typed, not send_shortcut: electron takes no synthetic shortcut events, only keys from the focused seat
+        hl.dispatch(hl.dsp.exec_cmd("wtype -M ctrl -M shift i -m shift -m ctrl"))
+    end
+end, { non_consuming = true, description = "discord: open or close devtools" })
 hl.bind(mod .. " + e", app("dolphin"), { description = "file manager (dolphin)" })
 hl.bind(mod .. " + n", app("neovide"), { description = "editor (neovide)" })
 hl.bind(

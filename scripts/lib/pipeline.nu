@@ -6,7 +6,7 @@ use platform.nu [platform-load platform-env]
 use profile.nu [profile-load]
 use options.nu [options-resolve]
 use modules.nu [modules-discover modules-graph modules-eval modules-packages-each modules-root-run IMPORT_LINE IMPORT_GREP]
-use converge.nu [state-read state-path observe-outputs recorded-hashes decls-check plan-module apply-module state-write mode-normal unit-state-holds]
+use converge.nu [state-read state-path observe-outputs recorded-hashes decls-check plan-module json-claims apply-module state-write mode-normal unit-state-holds]
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use cause.nu [failure-line cause-from-error cause-text]
 use usage.nu [counted]
@@ -321,13 +321,16 @@ def eval-plan [ctx: record, mods: table, verb: string, args: list, prev: record,
         | each {|e| if not $e.ok { $e } else { try { decls-check $e.id $e.decls; $e } catch {|err| $e | merge {ok: false, decls: [], error: $err.msg} } } }
     let decls = $evaluated | get decls | flatten
     let all_targets = $decls | get --optional target | default [] | uniq
+    # json keys per module: an evaluated one's from its decls, a fresh or failed one's from its record
+    let declared = $evaluated | where ok
+    let claimed_keys = ($declared | each {|r| json-claims $r.id $r.decls } | flatten) ++ ($prev | items {|mid, outs| if $mid in $declared.id { [] } else { json-claims $mid $outs } } | flatten)
     let olds = $prev | values | flatten
     let seen = span observe {} { observe-outputs ($decls ++ $olds) $ctx.layer $known }
     let recorded = recorded-hashes
     $evaluated | each {|r|
         if not $r.ok { return {id: $r.id, actions: [], error: $r.error} }
         try {
-            {id: $r.id, actions: (plan-module $r.id $r.decls ($prev | get $r.id) $seen $recorded $ctx.repo $force $all_targets), error: null}
+            {id: $r.id, actions: (plan-module $r.id $r.decls ($prev | get $r.id) $seen $recorded $ctx.repo $force $all_targets $claimed_keys), error: null}
         } catch {|err| {id: $r.id, actions: [], error: $"plan: ($err.msg)"} }
     }
 }
@@ -372,11 +375,11 @@ export def modules-gone [ctx: record, verb: string]: nothing -> list<string> {
 }
 
 # A gone module's row: its recorded outputs planned against no declarations, as unlink does. Targets another module
-# records or plans are forgotten, not removed.
-def module-gone-row [ctx: record, id: string, verb: string, force: bool, claimed: list<string>]: nothing -> record {
+# records or plans are forgotten, not removed; of a json file merged into, only the keys no other module sets go back.
+def module-gone-row [ctx: record, id: string, verb: string, force: bool, claimed: list<string>, claimed_keys: list<record>]: nothing -> record {
     let prev = (state-read $id $verb).outputs
     let seen = observe-outputs $prev $ctx.layer
-    let planned = try { {actions: (plan-module $id [] $prev $seen (recorded-hashes) $ctx.repo $force $claimed), error: null} } catch {|e| {actions: [], error: $"plan: ($e.msg)"} }
+    let planned = try { {actions: (plan-module $id [] $prev $seen (recorded-hashes) $ctx.repo $force $claimed $claimed_keys), error: null} } catch {|e| {actions: [], error: $"plan: ($e.msg)"} }
     $ROW_OUTSIDE | merge {id: $id, dir: ($ctx.repo | path join configs $id), force: $force, prev: $prev, actions: $planned.actions, error: $planned.error}
 }
 
@@ -477,7 +480,13 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     let claimed = if ($gone | is-empty) { [] } else {
         $prev_targets | get --optional target | default [] | append ($planned | get actions | flatten | get --optional target | default []) | uniq
     }
-    $rows ++ ($gone | each {|id| module-gone-row $ctx $id $verb $force $claimed }) ++ ($broken | where selected | each {|m|
+    # a planned module's json keys from the decls its merges carry, a fresh or failed one's from its record
+    let claimed_keys = if ($gone | is-empty) { [] } else {
+        let ran = $planned | where error == null
+        ($ran | each {|p| json-claims $p.id ($p.actions | where kind in [merge skip] | get decl) } | flatten)
+            ++ ($natives | where id not-in $ran.id | each {|n| json-claims $n.id $n.prev.outputs } | flatten)
+    }
+    $rows ++ ($gone | each {|id| module-gone-row $ctx $id $verb $force $claimed $claimed_keys }) ++ ($broken | where selected | each {|m|
         $ROW_OUTSIDE | merge {id: $m.id, dir: $m.dir, error: "mod.nu does not parse"}
     })
 }
