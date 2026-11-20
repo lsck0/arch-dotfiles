@@ -239,3 +239,26 @@ function historyList(raw) {
   })
   return rows.sort(function(a, b) { return (b.timestamp || 0) - (a.timestamp || 0) })
 }
+
+// the lab sends an alert to ntfy and to its telegram bot: telegram, also on the phone, is the one kept
+var ALERT_TWIN_MS = 120000
+// how long an ntfy alert waits for its telegram twin while telegram runs here
+var ALERT_HOLD_MS = 15000
+var ALERT_PHRASE_MIN = 20
+
+function alertSource(app) {
+  var name = String(app || "").toLowerCase()
+  if (name === "ntfy" || name === "ntfy-notify") return "ntfy"
+  if (name.indexOf("telegram") >= 0) return "telegram"
+  return ""
+}
+
+function alertPhrases(summary, body) {
+  return (String(summary || "") + "\n" + stripImageTags(String(body || ""))).split("\n").map(function(line) {
+    return line.toLowerCase().replace(/^(firing|resolved):\s*/, "").replace(/^[-\u2022*]\s*/, "").replace(/\u2026$/, "").replace(/\s+/g, " ").trim()
+  }).filter(function(line) { return line.length >= ALERT_PHRASE_MIN })
+}
+
+function alertTwins(a, b) {
+  return a.some(function(x) { return b.some(function(y) { return x.indexOf(y) === 0 || y.indexOf(x) === 0 }) })
+}

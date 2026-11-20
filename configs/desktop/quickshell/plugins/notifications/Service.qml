@@ -165,7 +165,77 @@ Item {
     return NotificationLogic.replacementSnapshot(notification, originalId, timestamp, entryNameOf(notification), entryIconOf(notification))
   }
 
+  // recent ntfy and telegram alerts: {id, source, phrases, at}; ntfy alerts held for a telegram twin: {notification, until}
+  property var recentAlerts: []
+  property var heldAlerts: []
+
+  // telegram is the truth: its alert shows and closes an ntfy twin; an ntfy alert with a telegram twin is dropped, and
+  // while telegram runs it is held until the twin comes or ALERT_HOLD_MS passes
+  function alertTwinDropped(notification) {
+    const source = NotificationLogic.alertSource(notification.appName)
+    if (!source) return false
+    const now = Date.now()
+    const phrases = NotificationLogic.alertPhrases(notification.summary, notification.body)
+    const recent = recentAlerts.filter(r => now - r.at < NotificationLogic.ALERT_TWIN_MS)
+    const twin = recent.find(r => r.source !== source && NotificationLogic.alertTwins(r.phrases, phrases))
+    recentAlerts = recent.concat([{ id: notification.id, source: source, phrases: phrases, at: now }])
+    if (source === "telegram") {
+      if (twin) {
+        const held = heldAlerts.find(h => h.notification.id === twin.id)
+        if (held) {
+          heldAlerts = heldAlerts.filter(h => h !== held)
+          held.notification.dismiss()
+        } else if (liveRefs[twin.id]) {
+          liveRefs[twin.id].dismiss()
+        }
+      }
+      return false
+    }
+    if (twin) {
+      notification.dismiss()
+      return true
+    }
+    telegramProbe.waiting = telegramProbe.waiting.concat([notification])
+    telegramProbe.running = true
+    return true
+  }
+
+  Process {
+    id: telegramProbe
+    property var waiting: []
+    command: ["pgrep", "-xi", "telegram(-deskto(p)?)?"]
+    onExited: function(code) {
+      const batch = waiting
+      waiting = []
+      if (code !== 0) {
+        batch.forEach(n => service.showNotification(n))
+        return
+      }
+      const until = Date.now() + NotificationLogic.ALERT_HOLD_MS
+      service.heldAlerts = service.heldAlerts.concat(batch.map(n => ({ notification: n, until: until })))
+    }
+  }
+
+  Timer {
+    interval: 1000
+    repeat: true
+    running: service.heldAlerts.length > 0
+    onTriggered: {
+      const now = Date.now()
+      const due = service.heldAlerts.filter(h => h.until <= now)
+      service.heldAlerts = service.heldAlerts.filter(h => h.until > now)
+      due.forEach(h => service.showNotification(h.notification))
+    }
+  }
+
   function handleNotification(notification) {
+    // tracked at once: an untracked notification is discarded when this handler returns, a held one included
+    notification.tracked = true
+    if (alertTwinDropped(notification)) return
+    showNotification(notification)
+  }
+
+  function showNotification(notification) {
     notification.tracked = true
     var snapshot = NotificationLogic.snapshotOf(notification, Date.now(), entryNameOf(notification), entryIconOf(notification))
     var originalId = snapshot.originalId
