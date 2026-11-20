@@ -23,8 +23,6 @@ PanelWindow {
 
   readonly property real fadeHeight: Style.space(32)
   readonly property real gutter: Style.spacing.md
-  // an opening body wipes in from the top, so its rows arrive in order; a panel switch skips it
-  readonly property bool revealing: shown && !bootIn.instant && bootIn.phase < 1
 
   // everything around the body: padding, the title and the card's bottom stroke, which the body must not run under
   readonly property real chromeHeight: padding * 2 + titleInset + card.shape.strokeWidth
@@ -292,7 +290,7 @@ PanelWindow {
           flickableDirection: Flickable.VerticalFlick
           boundsBehavior: Flickable.StopAtBounds
           clip: interactive || root.cardHeight !== root.targetHeight
-          layer.enabled: interactive || root.revealing
+          layer.enabled: interactive
           layer.effect: FadeMask { maskSource: bodyFade }
           Component.onCompleted: contentX = -leftMargin
         }
@@ -307,8 +305,7 @@ PanelWindow {
           reach: root.fadeHeight
           fadeTop: inner.atYBeginning ? 0 : 1
           fadeBottom: inner.atYEnd ? 0 : 1
-          reveal: root.revealing ? 1 - Math.pow(1 - bootIn.phase, 3) : 1
-          layer.enabled: inner.layer.enabled
+          layer.enabled: inner.interactive
         }
 
         Rectangle {
