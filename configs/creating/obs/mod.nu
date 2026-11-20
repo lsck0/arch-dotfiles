@@ -76,7 +76,8 @@ const USER_GENERAL = {General: {FirstRun: "true"}}
 const SELECT_STREAMING = {Profile: Streaming, ProfileDir: Streaming, SceneCollection: Streaming, SceneCollectionFile: Streaming.json}
 const SELECT_BARE = {Profile: Recording, ProfileDir: Recording, SceneCollection: Bare, SceneCollectionFile: Bare.json}
 # obs never shows chromium's local network access prompt, so an https overlay could not reach discord's rpc
-const LAUNCH_FLAGS = "--enable-unsafe-webgpu --enable-features=Vulkan --disable-features=LocalNetworkAccessChecks"
+# no vulkan or webgpu flags: cef's gpu process crashed in radv with them
+const LAUNCH_FLAGS = "--disable-features=LocalNetworkAccessChecks"
 
 def vaapi-encodes [node: string, profile: string]: nothing -> bool {
     if (which vainfo | is-empty) { return false }

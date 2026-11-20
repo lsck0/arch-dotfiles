@@ -5,6 +5,10 @@
     --cp-accent: #39bae6;
     --cp-accent-2: #d2a6ff;
     --cp-font: "Kode Mono", "JetBrainsMono Nerd Font", sans-serif;
+    --cp-muted: color-mix(in srgb, var(--cp-fg) 55%, var(--cp-bg));
+    --cp-good: var(--cp-accent);
+    --cp-warn: var(--cp-accent-2);
+    --cp-bad: var(--cp-accent-2);
 }
 
 :root {
@@ -22,16 +26,41 @@
     --gpStoreLightestGrey: var(--cp-fg) !important;
 }
 
+/* steam's own colour tokens: its greens, blues and greys follow the palette instead of leaking through */
+:root {
+    --gpColor-Green: var(--cp-accent) !important;
+    --gpColor-GreenHi: color-mix(in srgb, var(--cp-accent) 80%, var(--cp-fg)) !important;
+    --gpColor-Blue: var(--cp-accent) !important;
+    --gpColor-BlueHi: color-mix(in srgb, var(--cp-accent) 80%, var(--cp-fg)) !important;
+    --gpColor-LightBlue: var(--cp-accent) !important;
+    --gpColor-DustyBlue: var(--cp-muted) !important;
+    --gpColor-ChalkyBlue: var(--cp-muted) !important;
+    --gpColor-Orange: var(--cp-warn) !important;
+    --gpColor-Yellow: var(--cp-warn) !important;
+    --gpColor-Red: var(--cp-bad) !important;
+    --gpColor-RedHi: var(--cp-bad) !important;
+    --gpSystemLightestGrey: var(--cp-fg) !important;
+    --gpSystemLighterGrey: color-mix(in srgb, var(--cp-fg) 80%, var(--cp-bg)) !important;
+    --gpSystemLightGrey: var(--cp-muted) !important;
+    --gpSystemGrey: color-mix(in srgb, var(--cp-fg) 25%, var(--cp-bg)) !important;
+    --gpSystemDarkGrey: color-mix(in srgb, var(--cp-fg) 14%, var(--cp-bg)) !important;
+    --gpSystemDarkerGrey: var(--cp-bg-alt) !important;
+    --gpSystemDarkestGrey: var(--cp-bg) !important;
+    --gpStoreLightGrey: var(--cp-muted) !important;
+    --gpStoreGrey: color-mix(in srgb, var(--cp-fg) 25%, var(--cp-bg)) !important;
+    --gpStoreDarkGrey: color-mix(in srgb, var(--cp-fg) 14%, var(--cp-bg)) !important;
+    --gpStoreDarkerGrey: var(--cp-bg-alt) !important;
+    --gpStoreDarkestGrey: var(--cp-bg) !important;
+}
+
 html,
 body {
     background-color: var(--cp-bg) !important;
 }
 
+/* every text in one face: steam's own sans otherwise survives in the library details, news and friends lists */
 body,
-button,
-input,
-textarea,
-select {
+body *:not(svg):not(svg *) {
     font-family: var(--cp-font) !important;
 }
 

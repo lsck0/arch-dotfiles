@@ -57,6 +57,12 @@ BarWidget {
   readonly property bool degraded: streamReconnecting || dropPct >= 1 || congestion >= 0.3
   readonly property bool faulted: obsSeen && !connected && errorText !== ""
   readonly property bool obsSeen: ObsProcess.running
+  // the inputs obs-status.nu reports, in its order: Mic, Desktop, Game, then each app capture by name
+  readonly property var mixerInputs: connected ? Object.keys(ObsProcess.inputVolumes)
+    .concat(Object.keys(ObsProcess.inputMutes).filter(k => ObsProcess.inputVolumes[k] === undefined)) : []
+  readonly property int mixerShownMax: 4
+  property bool mixerShowAll: false
+  readonly property var mixerShown: mixerShowAll ? mixerInputs : mixerInputs.slice(0, mixerShownMax)
   // obs-status.nu's numbers, each the property of its name
   readonly property var numberKeys: ["streamSeconds", "recordSeconds", "recordBytes", "congestion", "droppedFrames",
     "dropPct", "fps", "cpu", "memMb", "freeDiskMb", "frameTimeMs", "renderSkipped", "renderTotal", "encoderSkipped",
@@ -146,6 +152,16 @@ BarWidget {
     prevSampleMs = nowMs
     bitrateHist = Util.historyPush(bitrateHist, streaming ? bitrateKbps : (recording ? recordKbps : 0))
     dropHist = Util.historyPush(dropHist, dropPct)
+  }
+
+  // OBS volume is an amplitude multiplier, so its dB is 20 log10, not the 60 log10 of a pipewire cubic volume
+  function mulText(mul) {
+    return Math.round(mul * 100) + "% " + (mul > 0 ? (20 * Math.log(mul) / Math.LN10).toFixed(1) : "-inf") + " dB"
+  }
+
+  function setInputVolume(source, value) {
+    ObsProcess.inputVolumes = Util.mapSet(ObsProcess.inputVolumes, source, value)
+    send({ "cmd": "setInputVolume", "source": source, "volume": value })
   }
 
   function send(command) {
@@ -260,8 +276,10 @@ BarWidget {
     anchorWidget: root
     title: "OBS"
     implicitWidth: Style.panelWidth.normal
+    onShownChanged: if (!shown) root.mixerShowAll = false
 
     Column {
+      id: body
       width: parent.width
       spacing: Style.spacing.sm
 
@@ -401,6 +419,39 @@ BarWidget {
         text: "> NO SCENES"
         dim: true
         caption: true
+      }
+
+      PanelSeparator { visible: root.mixerInputs.length > 0 }
+      PanelSectionHeader { visible: root.mixerInputs.length > 0; text: "MIXER" }
+
+      Repeater {
+        model: root.mixerShown
+
+        delegate: Fader {
+          id: input
+          required property string modelData
+          readonly property var mul: ObsProcess.inputVolumes[modelData]
+          readonly property bool mic: modelData === "Mic"
+
+          width: body.width
+          caption: modelData
+          captionWidth: Style.space(72)
+          volume: Math.min(1, Number(mul) || 0)
+          muted: ObsProcess.inputMutes[modelData] === true
+          glyph: mic ? "\u{f036c}" : "\u{f057e}"
+          mutedGlyph: mic ? "\u{f036d}" : "\u{f075f}"
+          readoutText: mul === undefined ? "--" : root.mulText(Number(mul) || 0)
+          onMoved: function(v) { root.setInputVolume(input.modelData, v) }
+          onMuteToggled: root.send({ "cmd": "toggleMute", "source": input.modelData })
+        }
+      }
+
+      PanelRow {
+        visible: root.mixerShown.length < root.mixerInputs.length
+        width: body.width
+        label: "All inputs"
+        trailing: "+" + (root.mixerInputs.length - root.mixerShown.length)
+        onActivated: root.mixerShowAll = true
       }
 
       PanelSeparator { visible: root.connected }

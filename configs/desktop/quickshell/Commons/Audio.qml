@@ -11,6 +11,8 @@ Singleton {
   readonly property var obsNamePattern: /^OBS(:|$)/
   // speech-dispatcher keeps a silent dummy stream open: it plays nothing a fader could change
   readonly property var silentStreamPattern: /^speech-dispatcher/
+  // OBS's playback streams are its monitoring, one per monitored input: OBS's own faders and the listen toggle own them
+  readonly property string obsAppName: "OBS Studio"
 
   readonly property real floorDb: -60
   readonly property real volumeStep: 0.05
@@ -34,6 +36,7 @@ Singleton {
     var seen = []
     return nodes.filter(n => {
       if (!n.audio || !n.isSink || !n.isStream || isChain(n) || isLoopback(n) || isSilentStream(n)) return false
+      if ((n.properties || {})["application.name"] === obsAppName) return false
       var out = loopbackOutOf(n)
       if (!out) return true
       if (seen.indexOf(out) >= 0) return false
@@ -69,15 +72,6 @@ Singleton {
       return targets[i]
     }
     return null
-  }
-
-  function isTappedByObs(node) {
-    return targetsOf(node).some(t => isObs(t))
-  }
-
-  function obsInputOf(node) {
-    var tap = targetsOf(node).find(t => isObs(t))
-    return tap ? tap.name.replace(/^OBS:\s*/, "") : ""
   }
 
   readonly property var micListeners: {

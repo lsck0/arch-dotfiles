@@ -14,6 +14,7 @@ DockShape 1.0 DockShape.qml
 EmptyState 1.0 EmptyState.qml
 FadeMask 1.0 FadeMask.qml
 FadeRamp 1.0 FadeRamp.qml
+Fader 1.0 Fader.qml
 Glitch 1.0 Glitch.qml
 GlassCard 1.0 GlassCard.qml
 Glow 1.0 Glow.qml

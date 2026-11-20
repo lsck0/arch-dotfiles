@@ -67,20 +67,9 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.sm
 
-      Row {
-        spacing: Style.spacing.xs
+      PanelSectionHeader { text: "OUTPUT" }
 
-        PanelSectionHeader { text: "OUTPUT" }
-
-        Tag {
-          anchors.verticalCenter: parent.verticalCenter
-          visible: Audio.isTappedByObs(root.sink)
-          text: "OBS"
-          tint: Colors.semantic.live
-        }
-      }
-
-      Fader {
+      NodeFader {
         width: content.width
         node: root.sink
         glyph: Audio.volumeIcon(root.volume, false)
@@ -129,18 +118,7 @@ BarWidget {
 
       PanelSeparator {}
 
-      Row {
-        spacing: Style.spacing.xs
-
-        PanelSectionHeader { text: "MICROPHONE" }
-
-        Tag {
-          anchors.verticalCenter: parent.verticalCenter
-          visible: Audio.isTappedByObs(root.source)
-          text: "OBS"
-          tint: Colors.semantic.live
-        }
-      }
+      PanelSectionHeader { text: "MICROPHONE" }
 
       Label {
         visible: !root.hasMic
@@ -149,13 +127,12 @@ BarWidget {
         caption: true
       }
 
-      ObsPair {
+      NodeFader {
         visible: root.hasMic
         width: content.width
         node: root.source
         glyph: "\u{f036c}"
         mutedGlyph: "\u{f036d}"
-        obsLabel: "Mic"
       }
 
       Meter {
@@ -325,117 +302,16 @@ BarWidget {
     }
   }
 
-  component Fader: Item {
-    id: fader
+  component NodeFader: Fader {
+    id: nodeFader
     property var node: null
-    property string glyph: "\u{f057e}"
-    property string mutedGlyph: "\u{f075f}"
-    property string caption: ""
-    property bool external: false
-    property string obsLabel: ""
-    readonly property real obsMul: external ? (Number(ObsProcess.inputVolumes[obsLabel]) || 0) : 0
-    readonly property bool muted: external ? (ObsProcess.inputMutes[obsLabel] === true) : (node && node.audio ? node.audio.muted : false)
-    readonly property real volume: external ? Math.min(1, obsMul) : (node && node.audio ? node.audio.volume : 0)
-    // OBS reports an amplitude multiplier, pipewire a cubic volume: both read as percent and dB
-    readonly property string readoutText: muted ? "MUTED"
-      : external ? Math.round(obsMul * 100) + "% " + (obsMul > 0 ? (20 * Math.log(obsMul) / Math.LN10).toFixed(1) : "-inf") + " dB"
-      : Audio.levelText(volume)
+    readonly property bool hasAudio: !!node && !!node.audio
 
-    function toggleMute() {
-      if (external) ObsProcess.send({ "cmd": "toggleMute", "source": fader.obsLabel })
-      else if (node && node.audio) node.audio.muted = !node.audio.muted
-    }
-
-    function setExternal(value) {
-      ObsProcess.inputVolumes = Util.mapSet(ObsProcess.inputVolumes, fader.obsLabel, value)
-      ObsProcess.send({ "cmd": "setInputVolume", "source": fader.obsLabel, "volume": value })
-    }
-
-    implicitHeight: slider.implicitHeight
-
-    Caption {
-      id: captionLabel
-      visible: fader.caption !== ""
-      width: visible ? Style.space(52) : 0
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      text: fader.caption
-      color: fader.muted ? Colors.urgentText : Colors.textDim
-    }
-
-    Button {
-      id: muteGlyph
-      anchors.left: captionLabel.right
-      anchors.leftMargin: fader.caption !== "" ? Style.spacing.xs : 0
-      anchors.verticalCenter: parent.verticalCenter
-      variant: "icon"
-      focusable: true
-      size: Style.space(24)
-      iconText: fader.muted ? fader.mutedGlyph : fader.glyph
-      foreground: fader.muted ? Colors.urgent : Colors.menu.text
-      tooltipText: fader.muted ? "Unmute" : "Mute"
-      onClicked: fader.toggleMute()
-    }
-
-    Slider {
-      id: slider
-      anchors.left: muteGlyph.right
-      anchors.right: readout.left
-      anchors.leftMargin: Style.spacing.sm
-      anchors.rightMargin: Style.spacing.sm
-      anchors.verticalCenter: parent.verticalCenter
-      value: fader.volume
-      fillColor: fader.muted ? Colors.urgent : Colors.bar.text
-      onMoved: function(v) {
-        if (fader.external) fader.setExternal(v)
-        else if (fader.node && fader.node.audio) fader.node.audio.volume = v
-      }
-      onRightClicked: fader.toggleMute()
-    }
-
-    Caption {
-      id: readout
-      width: readoutWidest.implicitWidth
-      anchors.right: parent.right
-      anchors.verticalCenter: parent.verticalCenter
-      horizontalAlignment: Text.AlignRight
-      text: fader.readoutText
-      color: fader.muted ? Colors.urgentText : Colors.menu.text
-      font.features: { "tnum": 1 }
-
-      // the widest reading: a boost above 0 dB carries a sign as well, and + is no narrower than -
-      Caption { id: readoutWidest; visible: false; text: "100% +00.0 dB" }
-    }
-  }
-
-  component ObsPair: Column {
-    id: pair
-    property var node: null
-    property string glyph: "\u{f057e}"
-    property string mutedGlyph: "\u{f075f}"
-    property string obsLabel: ""
-    readonly property bool obsHas: ObsProcess.connected && pair.obsLabel !== "" && ObsProcess.inputVolumes[pair.obsLabel] !== undefined
-
-    width: parent ? parent.width : 0
-    spacing: Style.spacing.xs
-
-    Fader {
-      width: parent.width
-      node: pair.node
-      glyph: pair.glyph
-      mutedGlyph: pair.mutedGlyph
-      caption: pair.obsHas ? "SYSTEM" : ""
-    }
-
-    Fader {
-      width: parent.width
-      visible: pair.obsHas
-      external: true
-      caption: "OBS"
-      glyph: pair.glyph
-      mutedGlyph: pair.mutedGlyph
-      obsLabel: pair.obsLabel
-    }
+    volume: hasAudio ? node.audio.volume : 0
+    muted: hasAudio ? node.audio.muted : false
+    readoutText: Audio.levelText(volume)
+    onMoved: function(v) { if (nodeFader.hasAudio) nodeFader.node.audio.volume = v }
+    onMuteToggled: if (nodeFader.hasAudio) nodeFader.node.audio.muted = !nodeFader.node.audio.muted
   }
 
   component StreamRow: Column {
@@ -444,7 +320,6 @@ BarWidget {
     property AudioIO host: null
     readonly property var node: modelData
     readonly property var target: Audio.sinkOf(node)
-    readonly property bool onStream: Audio.isTappedByObs(node)
     readonly property bool routing: host !== null && host.routingStreamId === node.id
 
     width: parent ? parent.width : 0
@@ -465,26 +340,12 @@ BarWidget {
       Label {
         anchors.left: appIcon.right
         anchors.leftMargin: Style.spacing.sm
-        anchors.right: tags.left
+        anchors.right: routeChip.left
         anchors.rightMargin: Style.spacing.xs
         anchors.verticalCenter: parent.verticalCenter
         elide: Text.ElideRight
         text: Audio.appName(stream.node)
         color: Colors.menu.text
-      }
-
-      Row {
-        id: tags
-        anchors.right: routeChip.left
-        anchors.rightMargin: Style.spacing.xs
-        anchors.verticalCenter: parent.verticalCenter
-        spacing: Style.spacing.xs
-
-        Tag {
-          visible: stream.onStream
-          text: "OBS"
-          tint: Colors.semantic.live
-        }
       }
 
       Chip {
@@ -498,10 +359,9 @@ BarWidget {
       }
     }
 
-    ObsPair {
+    NodeFader {
       width: parent.width
       node: Audio.levelOf(stream.node)
-      obsLabel: Audio.obsInputOf(stream.node)
     }
 
     Flow {
