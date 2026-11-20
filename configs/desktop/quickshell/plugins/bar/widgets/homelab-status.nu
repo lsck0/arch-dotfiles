@@ -52,7 +52,8 @@ export def source-load [lab: record]: nothing -> record {
             roles: ($g.guest.roles? | default [])
         }
     }
-    let urls = $lab.routes | transpose route r | where r.protocol == http | each {|route|
+    # a vm's link is a page at a route's root; a narrower path is an api or a door (registry-api /v2, ntfy-api /v1)
+    let urls = $lab.routes | transpose route r | where r.protocol == http and ($it.r.path? | default "/") == "/" | each {|route|
         let vm = $guests | where id == $route.r.vmid | get 0?
         if $vm != null {
             {id: $vm.id, named: ($route.route != $vm.name), web: ($route.r.port not-in $WEB_PORTS), route: $route.route, host: $route.r.host}

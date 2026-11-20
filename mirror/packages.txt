@@ -633,6 +633,8 @@ python-validity-git
 qbe
 qbittorrent
 qemu-full
+qemu-user-static
+qemu-user-static-binfmt
 qmk
 qpwgraph
 qrencode

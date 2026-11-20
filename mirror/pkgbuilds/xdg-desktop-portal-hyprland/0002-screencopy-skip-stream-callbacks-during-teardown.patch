@@ -1,0 +1,21 @@
+From: arch-dotfiles, for hyprwm/xdg-desktop-portal-hyprland#431 (open, no upstream fix)
+Subject: screencopy: skip stream state callbacks while the portal is torn down
+
+unique_ptr::reset nulls m_sPortals.screencopy before ~CScreencopyPortal runs; its pw_core_disconnect calls
+pwStreamStateChange for each live stream, which dereferenced the null portal: a segfault on every shutdown
+with a screencast attached.
+
+--- a/src/portals/Screencopy.cpp
++++ b/src/portals/Screencopy.cpp
+@@ -907,6 +907,11 @@
+ static void pwStreamStateChange(void* data, pw_stream_state old, pw_stream_state state, const char* error) {
+     const auto PSTREAM = (CPipewireConnection::SPWStream*)data;
+ 
++    // the portal is being torn down: unique_ptr::reset nulls it before ~CScreencopyPortal, whose pw_core_disconnect
++    // calls back here for every live stream (hyprwm/xdg-desktop-portal-hyprland#431)
++    if (!g_pPortalManager->m_sPortals.screencopy)
++        return;
++
+     PSTREAM->pSession->sharingData.nodeID         = pw_stream_get_node_id(PSTREAM->stream);
+     PSTREAM->pSession->sharingData.pipewireSerial = readObjectSerial(PSTREAM->stream);
+ 
