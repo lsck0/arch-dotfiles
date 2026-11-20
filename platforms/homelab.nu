@@ -25,6 +25,6 @@ export const HOMELAB = {
     }
     builder: {
         ip: "10.100.0.102"
-        key: null
+        key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDde7d/0sHMXjsEUqCRZ3BiZLnejgTeul93AvCRAJWyk desktop-worker-key"
     }
 }

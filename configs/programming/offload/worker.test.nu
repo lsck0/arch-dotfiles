@@ -1,12 +1,14 @@
 #!/usr/bin/env -S nu --no-config-file
 # The worker's protocol by table: the original command's strict parse, the job spec's checks (kinds, ids, pinned
-# images, nix refused, paths inside the checkout, the network and the caps), the idle gate, the consent decision and
-# the login's half of it, the offer, the manifest and the metrics state; then admission and serve against a scratch
-# OFFLOAD_ROOT, serve refusing anything but its vocabulary.
+# images, nix refused, paths inside the checkout, the network, the caps, the cache), the submit header, the cache's
+# key and eviction, the idle gate, the consent decision and the login's half of it, the offer, the manifest and the
+# metrics state; then admission and serve against a scratch OFFLOAD_ROOT, and whole jobs with podman and systemd
+# stubbed: a streamed image checked by its id, complete and thin packs, the cache restored, saved and kept clean.
 
 use worker.nu [
     command-parse spec-validate toolchain-validate path-inside-valid power-on-battery gate-reasons consent-decide
-    manifest-build metrics-state offer-build job-state admit CONSENT_WINDOW KIND_TIMEOUT_S
+    manifest-build metrics-state offer-build job-state admit header-validate cache-evict cache-key target-inside image-pin
+    CONSENT_WINDOW KIND_TIMEOUT_S
 ]
 use consent.nu [request-pending action-answer]
 use std/assert
@@ -40,6 +42,10 @@ def spec-cases [] {
     assert equal (spec-validate $SPEC $LIMITS) $SPEC "spec: the valid job"
     assert equal (spec-validate ($SPEC | update kind arch-base | update network true) $LIMITS).network true "spec: arch-base network"
     assert equal (spec-validate ($SPEC | update cpus 1.5) $LIMITS).cpus 1.5 "spec: fractional cpus"
+    let id = "sha256:" + (1..64 | each { "b" } | str join)
+    assert equal (spec-validate ($SPEC | update toolchain {oci: $id}) $LIMITS).toolchain.oci $id "spec: an image id"
+    let cached = $SPEC | insert cache {paths: [node_modules .cache/zola]}
+    assert equal (spec-validate $cached $LIMITS) $cached "spec: a cache"
     let bad = [
         [name spec];
         [not-a-record [1 2]]
@@ -75,12 +81,77 @@ def spec-cases [] {
         [timeout-over ($SPEC | update timeoutS 7201)]
         [timeout-oci-image ($SPEC | update kind oci-image | update timeoutS 3601)]
         [timeout-zero ($SPEC | update timeoutS 0)]
+        [short-id ($SPEC | update toolchain {oci: "sha256:abc"})]
+        [bare-hex-id ($SPEC | update toolchain {oci: (1..64 | each { "b" } | str join)})]
+        [cache-key-named ($SPEC | insert cache {paths: [x], key: other-repo})]
+        [cache-empty ($SPEC | insert cache {paths: []})]
+        [cache-dots ($SPEC | insert cache {paths: ["a/../../x"]})]
+        [cache-absolute ($SPEC | insert cache {paths: [/tmp]})]
+        [cache-checkout ($SPEC | insert cache {paths: ["."]})]
+        [cache-git ($SPEC | insert cache {paths: [.git/hooks]})]
+        [cache-repeat ($SPEC | insert cache {paths: [a a]})]
+        [cache-type ($SPEC | insert cache {paths: [1]})]
     ]
     for c in $bad { refused $"spec ($c.name)" { spec-validate $c.spec $LIMITS } }
     assert equal ($KIND_TIMEOUT_S | select static-site oci-image arch-base) {static-site: 7200, oci-image: 3600, arch-base: 10800}
     let nix = try { toolchain-validate {nix: "/nix/store/x", drv: "/nix/store/x.drv"}; "" } catch {|e| $e.msg }
     assert ($nix | str starts-with "nix toolchains are not offered") $"nix refusal reads ($nix)"
     for p in ["." "public" "a/b/c" "a..b"] { assert (path-inside-valid $p) $"path ($p) refused" }
+}
+
+def header-cases [] {
+    let id = $SPEC | update toolchain {oci: ("sha256:" + (1..64 | each { "b" } | str join))}
+    let parent = "f" | fill --width 40 --character f
+    assert equal (header-validate {pack: 10} $SPEC) {image: 0, pack: 10, shallow: []}
+    assert equal (header-validate {image: 5, pack: 10, shallow: [$parent]} $id) {image: 5, pack: 10, shallow: [$parent]}
+    let local = $SPEC | update toolchain {oci: ("localhost/static-site-toolchain-site@" + $id.toolchain.oci)}
+    assert equal (header-validate {image: 5, pack: 10} $local).image 5 "header: a localhost pin streams"
+    let bad = [
+        [name header spec];
+        [not-a-record [1] $SPEC]
+        [no-pack {image: 5} $id]
+        [zero-pack {pack: 0} $SPEC]
+        [pack-over {pack: 2147483649} $SPEC]
+        [image-over {image: 8589934593, pack: 1} $id]
+        [negative-image {image: -1, pack: 1} $id]
+        [string-pack {pack: "10"} $SPEC]
+        [bundle {bundle: 10} $SPEC]
+        [shallow-short {pack: 10, shallow: [abc]} $SPEC]
+        [shallow-repeat {pack: 10, shallow: [$parent $parent]} $SPEC]
+        [shallow-string {pack: 10, shallow: $parent} $SPEC]
+        [shallow-many {pack: 10, shallow: (0..64 | each {|i| $i | fill --width 40 --character 0 --alignment right })} $SPEC]
+        [streamed-by-digest {image: 5, pack: 10} $SPEC]
+    ]
+    for c in $bad { refused $"header ($c.name)" { header-validate $c.header $c.spec } }
+}
+
+def pin-cases [] {
+    let id = "sha256:" + (1..64 | each { "c" } | str join)
+    assert equal (image-pin $id) $id "pin: a bare id"
+    assert equal (image-pin $"localhost/static-site-toolchain-site@($id)") $id "pin: a localhost name's digest"
+    assert equal (image-pin $IMAGE) null "pin: a registry digest is no id"
+    assert equal (image-pin $"localhost/x@sha256:abc") null "pin: a short digest"
+    let local = $SPEC | update toolchain {oci: $"localhost/static-site-toolchain-site@($id)"}
+    assert equal (spec-validate $local $LIMITS) $local "spec: the lab's localhost pin"
+}
+
+def cache-cases [] {
+    let now = date now
+    let entries = [[key bytes used]; [a 30 ($now - 3day)] [b 30 ($now - 1day)] [c 30 ($now - 2day)]]
+    assert equal (cache-evict $entries 100 0 null) [] "evict: fits"
+    assert equal (cache-evict $entries 100 20 null) [a] "evict: the oldest first"
+    assert equal (cache-evict $entries 100 50 null) [a c] "evict: in order of last use"
+    assert equal (cache-evict $entries 100 50 b) [a] "evict: the replaced entry is not counted"
+    assert equal (cache-evict $entries 10 50 null) [a c b] "evict: everything for a big one"
+    let key = cache-key lab-builder lsck0/site "sha256:01"
+    assert ($key =~ '^[0-9a-f]{64}$') "key: a sha256"
+    assert ($key != (cache-key lab-builder lsck0/other "sha256:01")) "key: repos share a key"
+    assert ($key != (cache-key lab-builder lsck0/site "sha256:02")) "key: images share a key"
+    assert ($key != (cache-key phone lsck0/site "sha256:01")) "key: devices share a key"
+    assert (target-inside /w/src /w/src/a) "inside: below"
+    assert (target-inside /w/src /w/src) "inside: the root"
+    assert not (target-inside /w/src /w/src2/a) "inside: a sibling with the root's prefix"
+    assert not (target-inside /w/src /etc) "inside: outside"
 }
 
 def gate-cases [] {
@@ -125,14 +196,17 @@ def consent-cases [] {
 }
 
 def record-cases [] {
-    let offer = offer-build [] 0 30000 $LIMITS
+    let offer = offer-build [] 0 30000 $LIMITS ["sha256:01"]
     assert ($offer.accepts and $offer.reason == null) "offer: idle"
+    assert equal $offer.images ["sha256:01"]
     assert equal $offer.cap {
         memoryMiB: 16384, cpus: 8, kinds: [static-site oci-image arch-base], toolchains: [oci]
-        timeoutS: {static-site: 7200, oci-image: 3600, arch-base: 10800}
+        timeoutS: {static-site: 7200, oci-image: 3600, arch-base: 10800}, imageBytes: 8589934592
+        packBytes: 2147483648, cacheBytes: 21474836480
     }
-    assert equal (offer-build ["a game runs in gamemode"] 0 1 $LIMITS).reason "a game runs in gamemode"
-    assert equal (offer-build [] 1 1 $LIMITS) ((offer-build [] 1 1 $LIMITS) | update accepts false | update reason "a job is running")
+    assert equal (offer-build ["a game runs in gamemode"] 0 1 $LIMITS []).reason "a game runs in gamemode"
+    let busy = offer-build [] 1 1 $LIMITS []
+    assert equal [$busy.accepts $busy.reason] [false "a job is running"]
 
     let job = {job: j1, kind: static-site, commit: $COMMIT, command: $SPEC.command, spec: $SPEC}
     let run = {started: (date now), ended: (date now), exit: 0, peakMiB: 300, sha256: "ab"}
@@ -191,21 +265,67 @@ def root-cases [] {
 }
 
 const STUB_PODMAN = '#!/bin/sh
+log="$STUB_LOG"
 case "$1" in
-  image|pull) exit 0 ;;
+  images) [ -f "$log.images" ] && sed "s/^/sha256:/; s/$/|<none>|/" "$log.images"; exit 0 ;;
+  image)
+    [ "$2" = exists ] && { grep -qx "${3#sha256:}" "$log.images" 2>/dev/null; exit $?; }
+    exit 9 ;;
+  load) echo "$STUB_LOAD_ID" >> "$log.images"; echo "Loaded image: sha256:$STUB_LOAD_ID"; exit 0 ;;
+  untag) echo "$*" >> "$log.untag"; exit 0 ;;
   unshare) shift; exec "$@" ;;
   --cgroup-manager=cgroupfs) shift ;;
 esac
 [ "$1" = run ] || exit 9
 for a; do case $a in --mount=*) src=${a#*src=}; src=${src%%,*} ;; esac; done
-printf "%s\n" "$@" > "$STUB_LOG.podman"
-mkdir -p "$src/public" && echo built > "$src/public/index.html"'
+printf "%s\n" "$@" > "$log.podman"
+if [ -e "$src/.cache/build/x" ]; then cat "$src/.cache/build/x"; else echo none; fi > "$log.restored"
+mkdir -p "$src/public" "$src/.cache/build" && echo built > "$src/public/index.html"
+for last; do :; done
+echo "$last" > "$src/.cache/build/x"
+case "$last" in
+  fail) exit 3 ;;
+  evil) ln -s /etc "$src/.cache/build/evil" ;;
+esac
+exit 0'
 const STUB_SYSTEMD_RUN = '#!/bin/sh
 printf "%s\n" "$@" > "$STUB_LOG.systemd-run"'
 const STUB_SYSTEMCTL = "#!/bin/sh\nexit 0"
 
-# submit, the unit's run and get as this desktop's own client, podman and systemd stubbed: the unit's caps, the
-# container's flags, the result tar's manifest and artifact, status, and a bundle without the commit failing.
+def git-commit [repo: path, file: string, text: string]: nothing -> string {
+    $text | save --force ($repo | path join $file)
+    ^git -C $repo add $file
+    ^git -C $repo -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit --quiet -m $file
+    ^git -C $repo rev-parse HEAD | str trim
+}
+
+# The commit's pack as the lab makes it (pack-objects fed the commit alone in a checkout one commit deep), its thin
+# pack against its parent, or the commit and its trees without their blobs.
+def pack-write [repo: path, commit: string, file: path, --thin, --treeless]: nothing -> nothing {
+    let script = if $thin {
+        'printf "%s\n--not\n%s^\n" "$2" "$2" | git -C "$1" pack-objects --stdout --revs --thin --quiet > "$3"'
+    } else if $treeless {
+        '{ echo "$2"; git -C "$1" rev-parse "$2^{tree}"; git -C "$1" ls-tree -r -d --format="%(objectname)" "$2"; } | git -C "$1" pack-objects --stdout --quiet > "$3"'
+    } else {
+        'd=$(mktemp -d) && git clone --quiet --depth 1 "file://$1" "$d/c" && echo "$2" | git -C "$d/c" pack-objects --stdout --revs --quiet > "$3"; rm -rf "$d"'
+    }
+    ^sh -c $script sh $repo $commit $file
+}
+
+# A docker-archive of one image whose config holds text: its id is the config's sha256.
+def archive-write [dir: path, text: string]: nothing -> record<file: path, id: string> {
+    let tree = $dir | path join $"archive-($text)"
+    mkdir $tree
+    let config = $"{\"config\": \"($text)\"}"
+    let hex = $config | hash sha256
+    $config | save ($tree | path join $"($hex).json")
+    [{Config: $"($hex).json", RepoTags: ["ghcr.io/evil/redirect:latest"], Layers: []}] | to json | save ($tree | path join manifest.json)
+    let file = $dir | path join $"archive-($text).tar"
+    ^tar --create --file $file --directory $tree -- manifest.json $"($hex).json"
+    {file: $file, id: $"sha256:($hex)"}
+}
+
+# submit, the unit's run and get as this desktop's own client with podman and systemd stubbed.
 def flow-cases [] {
     let scratch = mktemp --directory --tmpdir worker-flow-XXXXXX
     let bin = $scratch | path join bin
@@ -217,66 +337,131 @@ def flow-cases [] {
     {memoryMiB: 8192, cpus: 4} | to nuon | save ($scratch | path join root etc offload limits.nuon)
     let repo = $scratch | path join repo
     ^git init --quiet $repo
-    "x\n" | save ($repo | path join a.txt)
-    ^git -C $repo add a.txt
-    ^git -C $repo -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit --quiet -m one
-    let commit = ^git -C $repo rev-parse HEAD | str trim
-    let bundle = $scratch | path join repo.bundle
-    ^git -C $repo bundle create --quiet $bundle HEAD
+    mkdir ($repo | path join keep)
+    git-commit $repo keep/h "unchanged\n" | ignore
+    let parent = git-commit $repo a.txt "one\n"
+    let commit = git-commit $repo a.txt "two\n"
+    let pack = $scratch | path join closure.pack
+    pack-write $repo $commit $pack
+    let thin = $scratch | path join thin.pack
+    pack-write $repo $commit $thin --thin
+    let treeless = $scratch | path join treeless.pack
+    pack-write $repo $commit $treeless --treeless
+    let image = archive-write $scratch good
+    let forged = archive-write $scratch forged
     let host = sys host | get hostname
+    let log = $scratch | path join log
     let env_flow = {
         OFFLOAD_ROOT: ($scratch | path join root), XDG_STATE_HOME: ($scratch | path join state)
-        XDG_RUNTIME_DIR: $scratch, STUB_LOG: ($scratch | path join log), PATH: ([$bin] ++ $env.PATH)
+        XDG_CACHE_HOME: ($scratch | path join cache), XDG_RUNTIME_DIR: $scratch, STUB_LOG: $log
+        STUB_LOAD_ID: ($image.id | str replace "sha256:" ""), PATH: ([$bin] ++ $env.PATH)
     }
-    let worker = {|command: string, input: any|
+    # header line, image archive, pack: the submit's stdin
+    let submit = {|spec: record, pack: path, archive: any|
+        let input = $scratch | path join input
+        let sizes = {pack: (ls $pack | get 0.size | into int), shallow: [$parent]}
+        let header = if $archive == null { $sizes } else { $sizes | insert image (ls $archive | get 0.size | into int) }
+        $"($header | to json --raw)\n" | save --force $input
+        ^sh -c 'cat "$@"' sh ...([$archive $pack] | compact) | save --append --raw $input
         with-env $env_flow {
             hide-env --ignore-errors SSH_CONNECTION
-            if $input == null {
-                ^$nu.current-exe --no-config-file $SCRIPT local $host $command | complete
-            } else {
-                open --raw $input | ^$nu.current-exe --no-config-file $SCRIPT local $host $command | complete
-            }
+            open --raw $input | ^$nu.current-exe --no-config-file $SCRIPT local $host $"submit ($spec | to json --raw)" | complete
         }
     }
-    let spec = $SPEC | update commit $commit
-    let submitted = do $worker $"submit ($spec | to json --raw)" $bundle
-    assert equal $submitted.exit_code 0 $"submit: ($submitted.stdout)"
-    let id = $submitted.stdout | from json | get id
-    let unit = open --raw ($scratch | path join log.systemd-run) | lines
+    let run = {|id: string| with-env $env_flow { ^$nu.current-exe --no-config-file $SCRIPT run $id | complete } }
+    let status = {|id: string|
+        with-env $env_flow { ^$nu.current-exe --no-config-file $SCRIPT local $host $"status ($id)" | complete } | get stdout | from json
+    }
+    let toolchain = $"localhost/static-site-toolchain-site@($image.id)"
+    let spec = $SPEC | update commit $commit | update toolchain {oci: $toolchain} | insert cache {paths: [.cache/build]}
+    | update command [build v1]
+
+    let refused = do $submit $spec $pack null
+    assert ($refused.exit_code == 1 and ($refused.stdout =~ "not on this worker")) $"an absent image was not refused: ($refused.stdout)"
+    let by_digest = do $submit ($spec | update toolchain {oci: $IMAGE}) $pack $image.file
+    assert ($by_digest.stdout =~ "pinned by its image id") $"an image streamed under a registry digest: ($by_digest.stdout)"
+
+    let first = do $submit $spec $pack $image.file
+    assert equal $first.exit_code 0 $"submit: ($first.stdout)"
+    let id = $first.stdout | from json | get id
+    let unit = open --raw $"($log).systemd-run" | lines
     for want in ["--slice=offload.slice" "--property=MemoryMax=4096M" "--property=CPUQuota=400%" "--property=MemorySwapMax=0" run $id] {
         assert ($want in $unit) $"systemd-run lacks ($want): ($unit)"
     }
-    let ran = with-env $env_flow { ^$nu.current-exe --no-config-file $SCRIPT run $id | complete }
+    let ran = do $run $id
     assert equal $ran.exit_code 0 $"run: ($ran.stderr)"
-    let container = open --raw ($scratch | path join log.podman) | lines
-    for want in [--network=none --read-only --security-opt=no-new-privileges --cgroups=disabled --pull=never $IMAGE zola] {
+    let container = open --raw $"($log).podman" | lines
+    let hex = $image.id | str replace "sha256:" ""
+    for want in [--network=none --read-only --security-opt=no-new-privileges --cgroups=disabled --pull=never $hex build] {
         assert ($want in $container) $"podman lacks ($want): ($container)"
     }
-    let status = do $worker $"status ($id)" null | get stdout | from json
-    assert equal $status.state done $"status: ($status)"
+    assert not ($container | any { $in =~ "ghcr.io|localhost/" }) "the container ran by a name"
+    assert (open --raw $"($log).untag" | str contains $hex) "the loaded image kept its names"
+    assert equal (open --raw $"($log).restored" | str trim) none "a first job found a cache"
+    assert equal (do $status $id).state done
     let out = $scratch | path join out
     mkdir $out
     with-env $env_flow { ^$nu.current-exe --no-config-file $SCRIPT local $host $"get ($id)" | ^tar --extract --directory $out }
     let manifest = open ($out | path join manifest.json)
-    assert equal [$manifest.id $manifest.exit $manifest.commit] [$id 0 $commit]
+    assert equal [$manifest.id $manifest.exit $manifest.commit $manifest.toolchain.oci] [$id 0 $commit $toolchain]
     let sha = ^sha256sum ($out | path join artifact.tar.zst) | split row " " | first
     assert equal $manifest.sha256 $sha "manifest: the artifact's sha256"
     assert equal (^tar --extract --zstd --to-stdout --file ($out | path join artifact.tar.zst) public/index.html | str trim) built
     let metrics = open ($scratch | path join root run offload metrics $"(^id -u | str trim).json")
     assert equal $metrics.last.static-site.exit 0 "metrics: the finished job"
+    let offer = with-env $env_flow { ^$nu.current-exe --no-config-file $SCRIPT local $host offer | complete } | get stdout | from json
+    assert ($image.id in $offer.images) $"offer: the loaded image is not listed: ($offer.images)"
 
-    let other = do $worker $"submit ($spec | update commit ('f' | fill --width 40 --character f) | to json --raw)" $bundle
-    let failed_id = $other.stdout | from json | get id
-    let failed = with-env $env_flow { ^$nu.current-exe --no-config-file $SCRIPT run $failed_id | complete }
-    assert ($failed.exit_code != 0 and ($failed.stderr =~ "lacks")) $"a missing commit ran: ($failed.stderr)"
-    let refused = do $worker $"submit ($spec | update output '../x' | to json --raw)" $bundle
-    assert equal $refused.exit_code 1 "an escaping output was submitted"
+    # the image is held now: no stream; the cache from the first job is restored, a failed job writes none
+    let key = cache-key $host $spec.repo $image.id
+    let cached = $scratch | path join cache offload $key tree .cache build x
+    assert equal (open --raw $cached | str trim) v1 "cache: the first job's path"
+    let jobs = [[last restored kept]; [fail v1 v1] [v2 v1 v2] [evil v2 v2]]
+    for j in $jobs {
+        let next = do $submit ($spec | update command [build $j.last]) $pack null
+        let next_id = $next.stdout | from json | get id
+        do $run $next_id | ignore
+        assert equal (open --raw $"($log).restored" | str trim) $j.restored $"cache: ($j.last) found ($j.restored)"
+        assert equal (open --raw $cached | str trim) $j.kept $"cache: after ($j.last) it holds the wrong job's"
+    }
+    assert not ($scratch | path join cache offload $key tree .cache build evil | path exists --no-symlink) "cache: saved a link out"
+
+    # a cached link out of the checkout planted in the store is dropped on restore
+    ^ln -s /etc ($scratch | path join cache offload $key tree .cache build evil)
+    let planted = do $submit ($spec | update command [build v3]) $pack null
+    let planted_id = $planted.stdout | from json | get id
+    let planted_run = do $run $planted_id
+    assert ($planted_run.stderr =~ "link out of the checkout") $"cache: a planted link was restored: ($planted_run.stderr)"
+    assert equal (open --raw $"($log).restored" | str trim) none "cache: the tree with a link out was restored"
+
+    let lines_before = open --raw $"($log).images" | lines | length
+    let mismatch = do $submit $spec $pack $forged.file
+    let mismatch_id = $mismatch.stdout | from json | get id
+    let mismatch_run = do $run $mismatch_id
+    assert ($mismatch_run.exit_code != 0 and ($mismatch_run.stderr =~ "not the pinned")) $"a forged image ran: ($mismatch_run.stderr)"
+    assert equal (open --raw $"($log).images" | lines | length) $lines_before "a forged image was loaded"
+    assert equal (do $status $mismatch_id).state failed
+
+    let thin_job = do $submit ($spec | update command [build v4]) $thin null
+    let thin_run = do $run ($thin_job.stdout | from json | get id)
+    assert ($thin_run.exit_code != 0 and ($thin_run.stderr =~ "complete closure")) $"a thin pack checked out: ($thin_run.stderr)"
+    let treeless_job = do $submit ($spec | update command [build v5]) $treeless null
+    let treeless_run = do $run ($treeless_job.stdout | from json | get id)
+    assert ($treeless_run.exit_code != 0 and ($treeless_run.stderr =~ "missing")) $"a pack without blobs checked out: ($treeless_run.stderr)"
+    let other = do $submit ($spec | update commit $parent) $pack null
+    let other_run = do $run ($other.stdout | from json | get id)
+    assert ($other_run.exit_code != 0) "a pack of another commit checked out"
+    let escaping = do $submit ($spec | update output '../x') $pack null
+    assert equal $escaping.exit_code 1 "an escaping output was submitted"
     rm --recursive --force $scratch
 }
 
 def main [] {
     parse-cases
     spec-cases
+    header-cases
+    pin-cases
+    cache-cases
     gate-cases
     consent-cases
     record-cases
