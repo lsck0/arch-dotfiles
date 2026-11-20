@@ -1,8 +1,6 @@
 [Unit]
 Description=offload: a device asks to offload work
 ConditionPathIsDirectory=/run/offload/consent
-# the group reaches a login on its next start; until then no worker job runs here
-ConditionGroup=offload
 
 [Path]
 PathChanged=/run/offload/consent

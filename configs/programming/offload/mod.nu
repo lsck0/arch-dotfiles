@@ -106,6 +106,15 @@ export def link [cfg: record] {
     ]
 }
 
+# The group's directories also carry an acl per member: a login started before the group existed lacks it until its
+# manager restarts, which a lingering user's logout never does
+const GROUP_DIRS = [/run/offload/gate /run/offload/answers /var/lib/offload/trust]
+
+def group-acls [group: string]: nothing -> string {
+    group-members wheel | each {|user| $GROUP_DIRS | each {|dir| $"a+ ($dir) - - - - u:($user):rwx\n" } } | flatten
+    | str join
+}
+
 def memory-half []: nothing -> int {
     open /proc/meminfo | parse --regex '(?m)^MemTotal:\s+(?<kb>\d+) kB' | get 0.kb | into int | $in // 2048
 }
@@ -172,7 +181,7 @@ export def system [cfg: record] {
     let setup = [sh -c $"systemd-sysusers && systemd-tmpfiles --create ($TMPFILES)(if $lab { $' ($LAB_TMPFILES)' } else { '' })"]
     [
         (group-admins offload)
-        (file-copy offload.tmpfiles $TMPFILES --then $setup)
+        (file-text $TMPFILES ((open --raw offload.tmpfiles) + (group-acls offload)) --then $setup)
         (file-text /etc/offload/limits.nuon ({memoryMiB: $memory, cpus: $cpus} | to nuon))
         (file-copy worker.nu $WORKER)
         (file-render offload.slice ($USER_UNITS | path join offload.slice) {MEMORY: $memory, CPU_QUOTA: ($cpus * 100)})
