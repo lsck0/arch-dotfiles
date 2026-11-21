@@ -3,6 +3,7 @@
 use log.nu *
 use state.nu [LIB_DIR nu-bin SYSTEM_STATE xdg save-atomic]
 use usage.nu [die]
+use platform.nu [platform-env]
 
 const SELF = path self
 const REPO = path self ../..
@@ -306,7 +307,10 @@ export def modules-eval [modules: table, verb: string, cfgs: record, args: list,
 export def modules-packages-each [modules: table, platform: record]: nothing -> table {
     let wsl = $platform.form_factor == "wsl"
     let computing = $modules | where {|m| "packages" in $m.native }
-    let results = modules-eval $computing packages ($computing | each {|m| [$m.id $m.cfg] } | into record) []
+    # a hook reads the platform's facts (OFFLOAD, FORM_FACTOR) from env, whoever calls it
+    let results = with-env (if "facts" in $platform { platform-env $platform } else { {} }) {
+        modules-eval $computing packages ($computing | each {|m| [$m.id $m.cfg] } | into record) []
+    }
     $results | where not ok | each { log-warn $"($in.id): packages failed, checking its meta alone: ($in.error)" } | ignore
     let computed = $results | each {|r| [$r.id {ok: $r.ok, decls: ($r.decls | get --optional 0 | default {})}] } | into record
     $modules | each {|m|
