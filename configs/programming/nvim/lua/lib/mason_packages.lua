@@ -1,5 +1,5 @@
 -- mason package names, installed eagerly by the module's link verb (mod.nu reads this list)
-return {
+local packages = {
     "bash-language-server",
     "bibtex-tidy",
     "clangd",
@@ -62,3 +62,8 @@ return {
     "yaml-language-server",
     "zls",
 }
+-- versions held back: omnisharp v2.0.0 dropped the -net6.0 assets mason's registry still names
+packages.pins = {
+    omnisharp = "v1.39.15",
+}
+return packages

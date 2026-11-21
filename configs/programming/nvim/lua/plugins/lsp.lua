@@ -83,7 +83,12 @@ return {
             registry:on("package:install:success", install_end)
             registry:on("package:install:failed", install_end)
             require("mason-tool-installer").setup({
-                ensure_installed = mason_packages,
+                ensure_installed = vim.iter(ipairs(mason_packages))
+                    :map(function(_, name)
+                        local pin = mason_packages.pins[name]
+                        return pin and { name, version = pin } or name
+                    end)
+                    :totable(),
                 run_on_start = true,
             })
             -- lazy-loaded on a later buffer, VimEnter has already fired then

@@ -55,9 +55,16 @@ def clone [root: path, line: string]: nothing -> list<record> {
     }
     # core/ntfy may have cloned the homelab since this plan was made. The clone lands beside dest and moves in whole:
     # one cut off mid-checkout would otherwise stand as dest and satisfy --creates
-    let git = [env GIT_TERMINAL_PROMPT=0 git ...$auth clone --quiet --recurse-submodules $url]
-    let into = 'test -e "$0/.git" && exit 0; rm -rf "$0.partial" && "$@" "$0.partial" && mv "$0.partial" "$0"'
-    [(exec $"clone ($dest | path basename)" [sh -c $into $dest ...$git] --creates $dest --network --timeout $CLONE_TIMEOUT)]
+    # submodules come after the clone and may fail: one on a host this machine holds no key for (the publication on
+    # gitlab.gwdg.de, from the notebook) leaves its directory empty instead of failing the whole clone
+    let git = [env GIT_TERMINAL_PROMPT=0 git ...$auth]
+    let into = ([
+        'test -e "$0/.git" && exit 0; url=$1; shift; rm -rf "$0.partial" && "$@" clone --quiet "$url" "$0.partial" || exit 1'
+        '"$@" -C "$0.partial" submodule --quiet update --init --recursive \'
+        '  || echo "$0: a submodule did not clone, the rest is in place" >&2'
+        'mv "$0.partial" "$0"'
+    ] | str join "\n")
+    [(exec $"clone ($dest | path basename)" [sh -c $into $dest $url ...$git] --creates $dest --network --timeout $CLONE_TIMEOUT)]
 }
 
 def collections [root: path]: nothing -> list<path> {
