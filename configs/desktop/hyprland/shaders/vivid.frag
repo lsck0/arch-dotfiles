@@ -8,7 +8,7 @@ out vec4 fragColor;
 
 #include "color.glsl"
 
-const float SATURATION = 1.10;
+const float SATURATION = 1.06;
 const float VIBRANCE = 0.15;
 const float CHROMA_MAX = 0.32;
 
