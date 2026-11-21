@@ -15,7 +15,6 @@ hl.config({
     },
     decoration = {
         screen_shader = "",
-        blur = { enabled = false },
         shadow = { enabled = false },
     },
 })

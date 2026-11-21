@@ -5,17 +5,19 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
 
 ## dot
 
-- `dot sync`: pull, migrate, install, apply, back up app state, signed `Generation: <n>` commit, push.
+- `dot sync`: pull (signature-verified), migrate, install, apply, back up app state, signed `Generation: <n>` commit
+  behind the formatter, linter and gitleaks gates, push.
 - `dot apply`, `dot plan`, `dot status`, `dot set`, `dot theme`, `dot module adopt|reset|unlink|remove|restore`,
   `dot explain`, `dot log`, `dot secrets`, `dot test lint|check|fmt|run`: see `dot --help`.
-- Platforms `luca-pc`, `luca-notebook`, `server`, `vm`, `wsl`; profile `luca` (owner, with secrets) or `custom`.
+- Platforms `luca-pc`, `luca-notebook`, `server`, `vm`, `wsl` or `custom` (answered at install); profile `luca`
+  (owner, with secrets) or `custom` (no capabilities).
 - Install: the lsck0 iso (answer file optional) or `curl | sh` from the official Arch ISO or WSL.
 - `[lsck0]` package mirror built by the homelab from `mirror/`.
 
 ## Security
 
 - AppArmor (apparmor.d plus own profiles, content openers enforced; `aa enforce|complain|off <profile>` per machine),
-  KSPP cmdline, sysctl hardening.
+  KSPP cmdline, sysctl hardening, a modprobe blacklist.
 - LUKS root: TPM2+PIN, YubiKey FIDO2 or passphrase; remote unlock over initramfs ssh; secure boot with own keys, UKIs;
   `dot sync` backs the header up into the secrets every 90 days.
 - sudo and polkit: YubiKey touch or fingerprint (fprintd), password fallback; sudo refuses a caller without a terminal;
@@ -27,8 +29,12 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
 - Untrusted networks: a MAC per network and boot, Avahi masked (IPv6 off too under lockdown-tor), ProtonVPN or tor;
   fail-closed VPN namespace for `vpn <cmd>`; Steam and its games bypass ProtonVPN as group `vpn-bypass` after a key
   touch; Portmaster.
+- DNS over TLS to Quad9 with DNSSEC, LLMNR and mDNS off (systemd-resolved).
+- Audit timers (lynis, arch-audit, update and doctor checks, recovery drill); a failed unit notifies, and the login
+  shows what the last run left in `FAILURES.*`.
 - Secrets in a git-crypt submodule unlocked with the YubiKey, `dot secrets audit` for what is due for rotation or a
-  recovery drill; per-repo credential isolation (`identity-init`).
+  recovery drill; a secrets commit refuses a file that would land unencrypted; per-repo credential isolation
+  (`identity-init`).
 - Telemetry off everywhere but Claude Code where `remote_control` is on; browser policies; sandboxed builds
   (`sandbox-build`), confined GUI apps (`confine`).
 
@@ -45,8 +51,8 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
 - Theming: 74 palettes or wallust from the wallpaper, applied live to every themed app (`dot theme`; pickers on
   `SUPER+CTRL+w` for wallpapers, `SUPER+SHIFT+w` for themes, with the recent picks and a lottery, `CTRL+R` for a
   wallpaper, `CTRL+T` for a theme).
-- Idle: dim, lock, screens off, suspend; guards for media, ssh and working agents. Lid closed with an external monitor
-  moves the desktop there.
+- Idle: dim, lock, screens off, suspend, each sooner in power saver; guards for media, a recording microphone, ssh and
+  working agents. Lid closed with an external monitor moves the desktop there.
 - Power and disks: tlp, zram, the sched_ext lavd scheduler on laptops, smartd, the CPU package's draw in the bar.
 - Shimeji desktop mascots.
 
@@ -55,20 +61,26 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
 - Shell: zsh and nushell, starship, tmux and herdr, ghostty, yazi, about 60 CLI tools.
 - Editors: Neovim (LSPs for about 40 languages via mason), Emacs, VSCodium, Zed, JetBrains.
 - Agents: Claude Code, Copilot, Gemini, Hermes, sharing `skills/`; MCP servers registered per app.
-- Toolchains for C, Rust, Go, Zig, Odin, Haskell, OCaml, Lean, Jai, Java, .NET, Node, Android; nix, devenv, docker,
-  podman, kubernetes, PostgreSQL; Forgejo (`tea`) and Grafana MCP for the homelab.
-- Mail (Thunderbird), LibreOffice, zathura, Obsidian, VeraCrypt.
-- Browsers: Firefox, Chromium, qutebrowser. Chat: Signal, Telegram, Element, Discord, TeamSpeak. Spotify (spicetify).
+- Toolchains for C, Rust, Go, Zig, Odin, Haskell, OCaml, Lean, Jai, Python, Java, .NET, Node, Typst, Android; nix,
+  devenv, docker, podman, kubernetes, PostgreSQL; Forgejo (`tea`) and Grafana MCP for the homelab.
+- Formal verification (cbmc, TLA+, z3, kani, flux) and debuggers (gdb, cgdb, nnd, raddbg, RenderDoc).
+- Mail (Thunderbird, Proton Mail), LibreOffice, zathura, sioyek, Obsidian, VeraCrypt; mpv, nsxiv, qBittorrent,
+  JDownloader; KDE Connect as the phone link.
+- Browsers: Firefox, Chromium, qutebrowser, Tor Browser. Chat: Signal, Telegram, Element, Discord, TeamSpeak. Spotify
+  (spicetify).
+- Homelab: ntfy pushes to the desktop, alloy ships metrics and the journal to its Grafana.
 - Taskwarrior with the homelab sync server, timewarrior, bugwarrior; homelab calendar on the desktop agenda.
-- LLMs: ollama and vLLM (ROCm), socket activated, models pinned by digest (abliterated chat models, an embedding and
-  a coding model), and only those (ollama drops any other model); ollama splits a model too big for the GPU into RAM;
+- LLMs: ollama and vLLM (ROCm), socket activated, models pinned (ollama's by digest, vLLM's by commit; abliterated
+  chat models, an embedding and a coding model), and only those (ollama drops any other model); ollama splits a model
+  too big for the GPU into RAM;
   Alpaca as a desktop client.
 - Generation: ComfyUI (Flux schnell, Hunyuan3D 2.1) behind `comfy-gen` and Blender's Generate sidebar.
 - Gaming: Steam, Proton, gamemode, MangoHud, FFXIV with Dalamud, Lutris, Diablo II (vanilla, Median XL, PD2 S3 and
-  S14), Minecraft, VR, emulators (RetroArch, melonDS, mGBA), NetHack.
-- Creating: OBS (streaming, recording, virtual cam), Blender, GIMP, Krita, Inkscape, kdenlive, Audacity, OpenSCAD;
-  Godot and Unreal with MCP.
-- LaTeX, Zotero; libvirt, Waydroid; a pentesting toolkit.
+  S14), Path of Exile (Path of Building, Awakened PoE Trade), Minecraft, VR, emulators (RetroArch, melonDS, mGBA),
+  NetHack, Heroic; Proton-GE, vkBasalt.
+- Creating: OBS (streaming, recording, virtual cam), Blender, GIMP, Krita, Inkscape, kdenlive, Audacity, OpenSCAD,
+  Godot, Unreal; MCP servers for OBS, Blender, Inkscape, Audacity, OpenSCAD, Godot and Unreal.
+- LaTeX, Zotero; libvirt, Waydroid, distrobox, qemu-user for foreign architectures; a pentesting toolkit.
 
 ## Workflows
 
@@ -77,7 +89,8 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
   reminder (`! 10m tea`, `! 1h30m stretch`, `! 15:00 dentist`; the row shows when it fires, the pending ones below it,
   `DEL` cancels one), `#` appends a timestamped line to `~/sync/notes/inbox.md`. The same from a shell: `capture
   task|remind|note <words>`. A rejected task reopens the launcher on the typed line. `>` runs a shell
-  command (`SHIFT+ENTER` in kitty), notifies when it fails and lists recent commands; `CTRL+V` pastes.
+  command (`SHIFT+ENTER` in kitty), notifies when it fails and lists recent commands; `=` calculates, `@` finds a
+  window, `:` searches the clipboard, `?` the keybinds; `CTRL+V` pastes.
 - Tasks: `scheduled:` is when a task can start, `due:` its deadline (`due:eod` ends the day; `due:tomorrow` is its
   first minute), `priority:H|M|L`, `wait:` hides it until then. The agenda's to-do rows show priority in the marker
   (`!` overdue), a pending start as `@14:00`, `@Tue` or `@Nov 20`, then the time left until due. `SUPER+o` for the full
@@ -95,7 +108,8 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
 
 ## Backups
 
-- Config in git; app state in the secrets submodule (`keys/` encrypted, `state/` plain), backed up by `dot sync`.
+- Config in git; app state in the secrets submodule (`keys/` encrypted, `state/` plain), backed up by `dot sync`;
+  Proton sign-ins carried across a reinstall.
 - `~/sync` via syncthing with the NAS; NAS share at `/mnt/homelab`.
 
 ## Keybinds
@@ -106,25 +120,27 @@ description.
 - Apps: terminal (`Return`, kitty on `SHIFT+Return`), Firefox (`a`), qutebrowser (`SHIFT+a`), file manager (`e`),
   editor (`n`), notes pad (`SHIFT+n`), notes folder (`ALT+n`), system monitor (`SHIFT+t`), magnifier (`x`), desktop
   mascots (`y`, `SHIFT+y` stops them).
-- Shell: launcher (`d`, `ALT+d` runs from `$PATH`), dismiss notifications (`SHIFT+d`), quick capture (`i`), dictation
-  (`ALT+v`, again to type it), clipboard (`v`), overview (`Tab`, a submap while open), tasks (`o`), settings
+- Shell: launcher (`d`, `ALT+d` runs from `$PATH`), dismiss notifications (`SHIFT+d`), quick capture (`i`, `SHIFT+i`
+  a reminder), dictation (`ALT+v`, again to type it), clipboard (`v`), overview (`Tab`; while open `Tab` and
+  `SHIFT+Tab` step, `Return` goes there, `Escape` closes), tasks (`o`), settings
   (`comma`), timer (`t`), wallpaper picker (`CTRL+w`), theme picker (`SHIFT+w`), power menu (`SHIFT+e`), lock
   (`Escape`), restart quickshell (`SHIFT+r`), discord mute (`m`), clipboard to the phone (`u`, `SHIFT+u` shares files,
-  a link or text).
-- Bar panels: `b` then a letter (audio, notifications, clock, display, homelab, agents, media, network, obs, system,
-  discord voice, weather).
+  a link or text), system agent with `hermes.system_agent` (`grave`, the key under Escape, shows it; `ALT+a` talks).
+- Bar panels: `b` then a letter: `a` audio, `b` notifications, `c` clock, `d` display, `h` homelab, `i` agents, `m`
+  media, `n` network, `o` obs, `s` system, `v` discord voice, `w` weather.
 - Windows: focus and move (`hjkl` or arrows, `SHIFT` moves), both walking through a tab group as in i3 (focus cycles
   its tabs before leaving, a move enters and leaves it), close (`q`), float (`space`), fullscreen (`f`), previous
   window (`s`), split (`g`), tabs (`w` tabs or untabs the window, `CTRL+hjkl` tabs it with that neighbour, `c` and
   `SHIFT+c` next and previous tab, `SHIFT+h`/`l` reorder a tab before leaving the group; a titled tab bar), resize
   mode (`r`), mouse move and resize.
 - Workspaces: `1` to `0` focus, `SHIFT` moves the window there.
-- Capture: a region (`Print` alone or `SHIFT+s`), the monitor (`SHIFT+Print` without SUPER), the window (`Print`),
+- Capture: a region (`Print` alone or `SHIFT+s`), the monitor (`SHIFT+Print` without SUPER), the window (`Print` with
+  SUPER),
   each saved to `~/pictures/screenshots` and copied; screen recording (`ALT+Print` starts and stops, into
   `~/videos/recordings`), color picker (`p`), OBS replay buffer (`F9` saves, `SHIFT+F9` starts or stops), MangoHud
   (`SHIFT+F12` without SUPER).
 - Media and hardware keys, also on the lock screen: playback (the bar's player), volume, mic mute, brightness (`SHIFT`
-  for software brightness), keyboard backlight (`SHIFT+b`), lid switch.
+  for software brightness), keyboard backlight (`SHIFT+b`), lid switch; `F13` is TeamSpeak's push-to-talk.
 
 ## Modules
 

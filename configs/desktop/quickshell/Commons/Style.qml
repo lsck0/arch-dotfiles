@@ -148,10 +148,9 @@ QtObject {
   readonly property SurfaceTokens surface: SurfaceTokens {}
 
   component TranslucencyTokens: QtObject {
-    // the power saver turns the compositor's blur off, and a surface without blur is opaque
     readonly property bool light: Palette.isLight([Colors.background.r, Colors.background.g, Colors.background.b],
       Theme.values.lightLuminance)
-    readonly property real shell: Power.saver ? 1 : light ? Palette.OPACITY_SHELL_LIGHT : Palette.OPACITY_SHELL
+    readonly property real shell: light ? Palette.OPACITY_SHELL_LIGHT : Palette.OPACITY_SHELL
     readonly property real scrim: 0.55
   }
   readonly property TranslucencyTokens translucency: TranslucencyTokens {}
