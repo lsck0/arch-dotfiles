@@ -324,8 +324,9 @@ export def unit-name [id: string]: nothing -> string { $"($UNIT_PREFIX)($id).ser
 
 export def units-active []: nothing -> list<string> {
     with-env (manager-env) {
-        ^systemctl --user list-units $"($UNIT_PREFIX)*" --state=active,activating --plain --no-legend
+        ^systemctl --user list-units $"($UNIT_PREFIX)*" --type=service --state=active,activating --plain --no-legend
     } | lines | each { split row " " | first | str replace --regex $'^($UNIT_PREFIX)' '' | str replace --regex '\.service$' '' }
+    | where $it =~ '-\d{8}-\d{6}-[0-9a-f]+$'
 }
 
 def limits-load []: nothing -> record {

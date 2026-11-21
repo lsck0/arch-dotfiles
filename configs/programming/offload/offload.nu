@@ -337,8 +337,9 @@ def job-dir [job: string]: nothing -> path {
 }
 
 def units-active []: nothing -> list<string> {
-    ^systemctl --user list-units $"($UNIT_PREFIX)*" --state=active,activating --plain --no-legend
+    ^systemctl --user list-units $"($UNIT_PREFIX)*" --type=service --state=active,activating --plain --no-legend
     | lines | each { split row " " | first | str replace --regex $'^($UNIT_PREFIX)' '' | str replace --regex '\.service$' '' }
+    | where $it =~ '-\d{4}-\d{6}-[0-9a-f]+$'
 }
 
 def unit-main-pid [job: string]: nothing -> int {
