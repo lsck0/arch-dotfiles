@@ -178,6 +178,7 @@ enola
 entr
 espeak-ng
 ethtool
+exiled-exchange-2-bin
 expect
 exploitdb
 eza

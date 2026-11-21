@@ -76,8 +76,8 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
   Alpaca as a desktop client.
 - Generation: ComfyUI (Flux schnell, Hunyuan3D 2.1) behind `comfy-gen` and Blender's Generate sidebar.
 - Gaming: Steam, Proton, gamemode, MangoHud, FFXIV with Dalamud, Lutris, Diablo II (vanilla, Median XL, PD2 S3 and
-  S14), Path of Exile (Path of Building, Awakened PoE Trade), Minecraft, VR, emulators (RetroArch, melonDS, mGBA),
-  NetHack, Heroic; Proton-GE, vkBasalt.
+  S14), Path of Exile (Path of Building, Awakened PoE Trade), Path of Exile 2 (Exiled Exchange 2), Minecraft, VR,
+  emulators (RetroArch, melonDS, mGBA), NetHack, Heroic; Proton-GE, vkBasalt.
 - Creating: OBS (streaming, recording, virtual cam), Blender, GIMP, Krita, Inkscape, kdenlive, Audacity, OpenSCAD,
   Godot, Unreal; MCP servers for OBS, Blender, Inkscape, Audacity, OpenSCAD, Godot and Unreal.
 - LaTeX, Zotero; libvirt, Waydroid, distrobox, qemu-user for foreign architectures; a pentesting toolkit.
@@ -154,7 +154,7 @@ Every module under `configs/`, the owner's own in `configs/secrets/` aside. A pl
 | `creating` | `apps`, `audacity`, `blender`, `gimp`, `inkscape`, `krita`, `obs`, `openscad` |
 | `desktop` | `applications`, `bookokrat`, `chromium`, `color-grading`, `cursor`, `dictation`, `feather`, `firefox`, `ghostty`, `gparted`, `gtk`, `hyprland`, `idle-guards`, `jdownloader`, `kdeconnect`, `kitty`, `libreoffice`, `ly`, `mpv`, `nsxiv`, `obsidian`, `oomox`, `pipewire`, `plasma`, `printing`, `qbittorrent`, `quickshell`, `qutebrowser`, `shimoji`, `thunderbird`, `uwsm`, `zathura` |
 | `fonts` | `fonts` |
-| `gaming` | `awakened-poe-trade`, `d2launcher`, `dalamud`, `emulators`, `ffxiv`, `gamemode`, `games`, `lutris`, `mangohud`, `modrinth`, `nethack`, `pd2`, `protonup`, `runtime`, `steam`, `vkbasalt`, `vpn-bypass`, `vr` |
+| `gaming` | `awakened-poe-trade`, `d2launcher`, `dalamud`, `emulators`, `exiled-exchange-2`, `ffxiv`, `gamemode`, `games`, `lutris`, `mangohud`, `modrinth`, `nethack`, `pd2`, `protonup`, `runtime`, `steam`, `vkbasalt`, `vpn-bypass`, `vr` |
 | `latex` | `latex`, `sioyek`, `zotero` |
 | `llm` | `alpaca`, `comfyui`, `ollama`, `tools`, `vllm` |
 | `pentesting` | `caido`, `ghidra`, `llm-jailbreaks`, `metasploit`, `netscanner`, `nuclei`, `pentest`, `proxychains`, `rustscan`, `seclists`, `toolkit`, `wireshark`, `zaproxy` |
