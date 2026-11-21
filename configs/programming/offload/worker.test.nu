@@ -275,7 +275,7 @@ case "$1" in
   load) echo "$STUB_LOAD_ID" >> "$log.images"; echo "Loaded image: sha256:$STUB_LOAD_ID"; exit 0 ;;
   untag) echo "$*" >> "$log.untag"; exit 0 ;;
   unshare) shift; exec "$@" ;;
-  --cgroup-manager=cgroupfs) shift ;;
+  --runtime=crun) shift; [ "$1" = --cgroup-manager=cgroupfs ] && shift ;;
 esac
 [ "$1" = run ] || exit 9
 for a; do case $a in --mount=*) src=${a#*src=}; src=${src%%,*} ;; esac; done

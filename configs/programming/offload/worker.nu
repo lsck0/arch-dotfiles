@@ -779,7 +779,7 @@ def podman-argv [job: record, src: path, image: string]: nothing -> list<string>
     let spec = $job.spec
     let workdir = if $spec.workdir == "." { $SANDBOX } else { $SANDBOX | path join $spec.workdir }
     [
-        --cgroup-manager=cgroupfs run --rm --cgroups=disabled --pull=never --log-driver=passthrough
+        --runtime=crun --cgroup-manager=cgroupfs run --rm --cgroups=disabled --pull=never --log-driver=passthrough
         $"--name=(unit-name $job.job | str replace '.service' '')"
         $"--network=(if $spec.network { 'pasta' } else { 'none' })"
         --read-only --security-opt=no-new-privileges --env=HOME=/tmp $"--timeout=($spec.timeoutS)"

@@ -57,7 +57,7 @@ def forwards-read []: nothing -> record {
 }
 
 export def packages [cfg: record]: nothing -> record {
-    {pacman: (if $env.OFFLOAD? == $OFFLOAD_ROLE_TARGET { [podman] } else { [] })}
+    {pacman: (if $env.OFFLOAD? == $OFFLOAD_ROLE_TARGET { [podman crun] } else { [] })}
 }
 
 # The target's login half of the worker: the idle gate, the consent questions, the enforcement in this manager.
