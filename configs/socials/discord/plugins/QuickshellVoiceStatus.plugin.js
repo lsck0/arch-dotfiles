@@ -1,8 +1,9 @@
 /**
  * @name QuickshellVoiceStatus
  * @author Luca
- * @version 1.1.1
- * @description Publish the current VC to quickshell and take its mute, deafen and disconnect commands.
+ * @version 1.2.0
+ * @description Publish the current VC to quickshell, take its mute, deafen and disconnect commands, and report OBS to
+ * Discord as a streamer tool.
  * @source https://github.com/lsck0/arch-dotfiles
  */
 
@@ -12,6 +13,9 @@ const COMMAND_POLL_MS = 250;
 const PUBLISH_DEBOUNCE_MS = 150;
 // below the bar widget's staleAfterMs (Discord.qml), which drops a state not refreshed in time
 const HEARTBEAT_MS = 15000;
+// Discord checks Twitch for a live stream only in Streamer Mode, which Incognito's process-scan block keeps off
+const STREAMER_TOOLS = ["obs"];
+const STREAMER_TOOLS_POLL_MS = 10000;
 
 module.exports = class QuickshellVoiceStatus {
   constructor() {
@@ -27,6 +31,8 @@ module.exports = class QuickshellVoiceStatus {
     this._commandPoll = null;
     this._commandWatcher = null;
     this._publishTimer = null;
+    this._streamerTools = null;
+    this._streamerToolsPoll = null;
   }
 
   _resolveStores() {
@@ -154,11 +160,42 @@ module.exports = class QuickshellVoiceStatus {
       console.error(`[QuickshellVoiceStatus] ${name}() failed`, e);
     }
     try {
-      W.getModule((m) => m && typeof m.dispatch === "function" && typeof m.subscribe === "function",
-        { searchExports: true }).dispatch(fluxAction);
+      this._dispatch(fluxAction);
     } catch (e) {
       console.error(`[QuickshellVoiceStatus] ${name}: no action module and no dispatcher`, e);
     }
+  }
+
+  _dispatch(action) {
+    BdApi.Webpack.getModule((m) => m && typeof m.dispatch === "function" && typeof m.subscribe === "function",
+      { searchExports: true }).dispatch(action);
+  }
+
+  _streamerToolsRunning() {
+    let count = 0;
+    for (const pid of this._fs.readdirSync("/proc")) {
+      if (!/^\d+$/.test(pid)) continue;
+      try {
+        if (STREAMER_TOOLS.includes(this._fs.readFileSync(`/proc/${pid}/comm`, "utf8").trim())) count++;
+      } catch (e) {}
+    }
+    return count;
+  }
+
+  _reportStreamerTools(count) {
+    if (count === this._streamerTools) return;
+    try {
+      this._dispatch({ type: "RUNNING_STREAMER_TOOLS_CHANGE", count });
+      this._streamerTools = count;
+    } catch (e) {
+      console.error("[QuickshellVoiceStatus] streamer tools report failed", e);
+    }
+  }
+
+  _pollStreamerTools() {
+    try {
+      this._reportStreamerTools(this._streamerToolsRunning());
+    } catch (e) {}
   }
 
   _pollCommands() {
@@ -262,6 +299,9 @@ module.exports = class QuickshellVoiceStatus {
       }
     }, HEARTBEAT_MS);
 
+    this._pollStreamerTools();
+    this._streamerToolsPoll = setInterval(() => this._pollStreamerTools(), STREAMER_TOOLS_POLL_MS);
+
     this._publish();
   }
 
@@ -275,6 +315,10 @@ module.exports = class QuickshellVoiceStatus {
     this._closeWatcher();
     if (this._publishTimer) clearTimeout(this._publishTimer);
     this._publishTimer = null;
+    if (this._streamerToolsPoll) clearInterval(this._streamerToolsPoll);
+    this._streamerToolsPoll = null;
+    if (this._streamerTools) this._reportStreamerTools(0);
+    this._streamerTools = null;
     this._lastPayload = "";
     this._write({ inVoice: false });
   }

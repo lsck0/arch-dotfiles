@@ -72,3 +72,5 @@ No CDP. `configs/socials/discord/plugins/QuickshellVoiceStatus.plugin.js` writes
 `$XDG_RUNTIME_DIR/quickshell-discord-voice.json` and runs JSON lines `{"cmd": ...}` from
 `$XDG_RUNTIME_DIR/quickshell-discord-cmd` (unlinked on read; write a temp file and `mv` it). Commands:
 `toggleSelfMute`, `toggleSelfDeaf`, `disconnect`.
+
+It also reports a running `obs` as a streamer tool, which turns on Streamer Mode and with it Discord's Twitch live check.
