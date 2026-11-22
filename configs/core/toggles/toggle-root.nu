@@ -30,8 +30,15 @@ const APPROVAL_MINUTES = "@APPROVAL_MINUTES@"
 const APPROVAL_MARGIN = 5sec
 
 def usage []: nothing -> nothing {
-    print -e ("usage: toggle-root {tlp MODE|start|wg up|down|vllm on|off|ollama on|off|firewall STATE|raise-default|"
-        + "portmaster-restore|portal on|off|tor-start|guard-stop UNIT...|anonsocks VERB...}")
+    print -e ([
+        $"usage: toggle-root tlp ($TLP_MODES | append start | str join '|')"
+        "       toggle-root wg up|down"
+        "       toggle-root vllm|ollama|portal on|off"
+        $"       toggle-root firewall ($FIREWALL_STATES | append raise-default | str join '|')"
+        "       toggle-root portmaster-restore|tor-start"
+        "       toggle-root guard-stop UNIT..."
+        "       toggle-root anonsocks VERB..."
+    ] | str join "\n")
     exit 1
 }
 
