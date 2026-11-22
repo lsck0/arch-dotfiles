@@ -37,7 +37,7 @@ def declared-cases []: nothing -> nothing {
         ["renamed" [{module: a, entry: "alloy-{host}"}] [alloy-pc alloy-notebook] 0]
         ["missing for one host" [{module: a, entry: "syncthing/{host}/key.pem"}] [syncthing/pc/key.pem syncthing/notebook/key.pem] 0]
         ["missing without a host" [{module: a, entry: samba}] [samba] 0]
-        ["not backed up yet" [{module: a, entry: "ssh-host/{host}/key"} {module: a, entry: "ssh-host/{host}/other"}] [] 1]
+        ["not backed up yet" [{module: a, entry: wazuh-enrollment-password}] [] 1]
     ]
     for c in $cases {
         let found = declared-findings $c.declared $hosts $held

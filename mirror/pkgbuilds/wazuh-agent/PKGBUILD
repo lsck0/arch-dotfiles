@@ -1,0 +1,45 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# Reason for custom package: the AUR recipe takes its SCA policy from a branch and leaves client.keys world-readable
+
+pkgname=wazuh-agent
+pkgver=4.14.10
+pkgrel=1
+_rpmrel=1
+# the lab's manager runs this version; an agent never runs newer than its manager
+pkgdesc="Wazuh agent: log collection, file integrity, rootcheck and SCA, reporting to a Wazuh manager"
+arch=(x86_64)
+url="https://wazuh.com/"
+license=(GPL-2.0-only)
+depends=(brotli curl inetutils nodejs perl python sudo)
+conflicts=(wazuh-manager)
+# ossec.conf is base/wazuh's: the rpm only templates one in its %post
+backup=(var/ossec/etc/local_internal_options.conf)
+options=(!strip !debug)
+install=wazuh-agent.install
+_sca=cis_arch_linux.yml
+_sca_commit=6151d1cfa3be27e2e9626e5f489f4e0fe647edd7 # 2025-10-30
+source=(
+    "https://packages.wazuh.com/4.x/yum/$pkgname-$pkgver-$_rpmrel.x86_64.rpm"
+    "$_sca::https://raw.githubusercontent.com/wazuh/integrations/$_sca_commit/integrations/archlinux_sca/sca/$_sca"
+    cis_arch_linux-arch-derivatives.patch
+    wazuh-agent.sysusers
+)
+sha512sums=(0e0f9193aeb19a3bb85b3161f05dbecfa8efd57f06fdacb3be210b2fbde1896f3d56d27c127719980313134f1e08daf40ab7679120288baa5e3ccae2d84a7b63
+    3951de83f3f61191eb5ddc5c5474a2a049e86d6a9607cdcbbe9caa77cc58d3a33f9a3e6b2070381ff6285b8b41da544a9785d1fbe3fb1dd72d956c58c516b2c6
+    41548675747387bc11ea755f41272d42456d82845fa9e469c3ad6f16254062ac220e6e5652721201884e2256941968b24b92d17e15b869eaf2a7ba2ba22a8d72
+    SKIP)
+
+prepare() {
+    chmod -R u+rwX var/ossec
+    # patch refuses the symlink makepkg leaves for a plain source
+    cp --remove-destination -- "$(readlink -f $_sca)" $_sca
+    patch -Np1 -i cis_arch_linux-arch-derivatives.patch
+}
+
+package() {
+    cp -a usr var "$pkgdir/"
+    install -Dm640 $_sca "$pkgdir/var/ossec/ruleset/sca/$_sca"
+    install -Dm644 wazuh-agent.sysusers "$pkgdir/usr/lib/sysusers.d/wazuh-agent.conf"
+    rm -f "$pkgdir/var/ossec/etc/client.keys"
+    chmod 644 "$pkgdir/usr/lib/systemd/system/wazuh-agent.service"
+}

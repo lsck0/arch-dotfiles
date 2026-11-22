@@ -1,0 +1,21 @@
+# The rpm's files belong to the wazuh user, which sysusers creates only during the transaction.
+_own() {
+    chown -R root:wazuh /var/ossec
+    chown -R wazuh:wazuh /var/ossec/logs /var/ossec/queue /var/ossec/var /var/ossec/tmp 2> /dev/null || true
+    touch /var/ossec/logs/active-responses.log
+    chown wazuh:wazuh /var/ossec/logs/active-responses.log
+    chmod 660 /var/ossec/logs/active-responses.log
+    [ ! -f /var/ossec/etc/client.keys ] || chmod 640 /var/ossec/etc/client.keys
+}
+
+post_install() {
+    _own
+}
+
+post_upgrade() {
+    _own
+}
+
+pre_remove() {
+    systemctl disable --now wazuh-agent.service 2> /dev/null || true
+}

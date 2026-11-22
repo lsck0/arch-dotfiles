@@ -1,5 +1,0 @@
-# syscheckd skips a battery boot (ConditionACPower in its drop-in) and is paused, scan state kept, while on battery;
-# plugged in, it continues or starts and integrity monitoring resumes. SIGSTOP, not systemctl freeze: systemd refuses to
-# stop a frozen unit, so a shutdown on battery would wait out the stop timeout
-SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="0", RUN+="/usr/bin/systemctl kill --signal=SIGSTOP ossec-syscheckd.service"
-SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="1", RUN+="/usr/bin/systemctl kill --signal=SIGCONT ossec-syscheckd.service", RUN+="/usr/bin/systemctl --no-block start ossec-syscheckd.service"

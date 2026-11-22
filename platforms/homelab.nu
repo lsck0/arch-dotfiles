@@ -27,4 +27,11 @@ export const HOMELAB = {
         ip: "10.100.0.102"
         key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDde7d/0sHMXjsEUqCRZ3BiZLnejgTeul93AvCRAJWyk desktop-worker-key"
     }
+    wazuh: {
+        manager: "10.100.0.101"
+        events: 1514
+        enrollment: 1515
+        version: "4.14.10"
+        secret: wazuh-enrollment-password
+    }
 }

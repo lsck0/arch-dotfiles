@@ -43,6 +43,7 @@ const WANT = {
     }
     push: {prometheus: "https://push.lab.test/api/v1/write", loki: "https://push.lab.test/loki/api/v1/push", desktops: [pc]}
     builder: null
+    wazuh: null
 }
 const BUILDER = {ip: "10.9.0.102", name: "102-dev", roles: [ci app-builder], zone: internal}
 const BUILDER_KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOkq0a1b2c3d4e5f6 desktop-worker-key"
@@ -96,6 +97,23 @@ def builder-cases []: nothing -> nothing {
     }
 }
 
+def wazuh-cases []: nothing -> nothing {
+    let wazuh = {manager: "10.9.0.101", events: 1514, enrollment: 1515, version: "4.14.10", secret: "wazuh-enrollment-password"}
+    assert equal (rendered-values (homelab-render ($LAB | insert wazuh $wazuh))).wazuh $wazuh "wazuh: the manager"
+    assert equal (rendered-values (homelab-render ($LAB | insert wazuh null))).wazuh null "wazuh: none"
+    let refused = [
+        [name value];
+        [host ($wazuh | update manager "wazuh.lab.test")]
+        [port ($wazuh | update events 70000)]
+        [port-string ($wazuh | update enrollment "1515")]
+        [version ($wazuh | update version "4.14")]
+        [secret-path ($wazuh | update secret "../ssh/private.asc")]
+    ]
+    for c in $refused {
+        assert not (try { homelab-render ($LAB | insert wazuh $c.value); true } catch { false }) $"wazuh: ($c.name) rendered"
+    }
+}
+
 def stale-cases []: nothing -> nothing {
     let dir = mktemp --directory
     let repo = $dir | path join repo
@@ -141,6 +159,7 @@ def signer-case []: nothing -> nothing {
 def main [] {
     render-cases
     builder-cases
+    wazuh-cases
     stale-cases
     lab-path-cases
     signer-case

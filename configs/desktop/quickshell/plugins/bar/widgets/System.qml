@@ -28,7 +28,6 @@ BarWidget {
   readonly property bool hasVram: stats.gpuVendor !== "intel" && stats.vramTotalMb > 0
   readonly property real vramPct: hasVram ? stats.vramUsedMb / stats.vramTotalMb * 100 : 0
   readonly property real pricePerKwh: 0.35
-  property var ossec: null
   property var cpuHist: []
   property var gpuHist: []
   property var memHist: []
@@ -37,10 +36,6 @@ BarWidget {
   readonly property real cpuSparkFloor: 25
   readonly property var loadThresholds: [60, 80, 92]
   readonly property var tempThresholds: [60, 75, 85]
-  readonly property var ossecThresholds: [7, 10, 12]
-  readonly property int ossecRetryMs: 600000
-  // "clear alerts" writes the unix time here; ossec-alerts.nu watches it and hides every alert up to it
-  readonly property string ossecClearedPath: Paths.state + "/ossec-cleared"
   readonly property var batteryDevice: UPower.displayDevice
   readonly property bool batteryPresent: batteryDevice && batteryDevice.isPresent === true
   readonly property bool onBattery: UPower.onBattery === true
@@ -99,10 +94,6 @@ BarWidget {
     return Util.level(t, tempThresholds)
   }
 
-  function critLevel(level) {
-    return Util.level(level, ossecThresholds)
-  }
-
   implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: Style.bar.sizeHorizontal
   onStatsIntervalSChanged: {
@@ -145,23 +136,6 @@ BarWidget {
         root.tempHist = Util.historyPush(root.tempHist, s.tempC)
       }
     }
-  }
-
-  FileView {
-    id: ossecClearedFile
-    path: root.ossecClearedPath
-    atomicWrites: true
-    printErrors: false
-  }
-
-  JsonProcess {
-    command: [Paths.barWidget("ossec-alerts.nu"), root.ossecClearedPath]
-    streaming: true
-    running: true
-    // restart the stream when it exits: the script returns at once while ossec-server.target is down, so a long
-    // retry keeps a machine without ossec from spawning nu every few seconds
-    intervalMs: root.ossecRetryMs
-    onParsed: function(data) { root.ossec = data }
   }
 
   Row {
@@ -217,15 +191,6 @@ BarWidget {
       glyph: root.batteryIcon
       widest: "99%"
       value: Math.round(root.batteryFraction * 100) + "%"
-    }
-
-    Stat {
-      visible: root.ossec !== null && root.ossec.high > 0
-      glyph: "\u{f0ce4}"
-      widest: "99"
-      value: root.ossec ? root.ossec.high : ""
-      tint: Colors.semantic.live
-      glyphTint: Colors.semantic.live
     }
   }
 
@@ -428,74 +393,6 @@ BarWidget {
                     font.features: { "tnum": 1 }
                   }
                 }
-              }
-            }
-          }
-        }
-      }
-
-      Column {
-        visible: root.ossec !== null && root.ossec.total > 0
-        width: parent.width
-        spacing: Style.spacing.sm
-
-        PanelSeparator {}
-
-        PanelSectionHeader { text: "ALERTS" }
-
-        Meter {
-          label: "24H"
-          value: root.ossec ? String(root.ossec.total) : ""
-          note: root.ossec ? "max L" + root.ossec.maxLevel : ""
-          tint: root.critLevel(root.ossec ? root.ossec.maxLevel : 0)
-        }
-
-        PanelRow {
-          width: parent.width
-          glyph: "\u{f0e2a}"
-          label: "Clear alerts"
-          onActivated: ossecClearedFile.setText(Math.floor(Date.now() / 1000) + "\n")
-        }
-
-        Column {
-          width: parent.width
-          spacing: Style.spacing.xs
-
-          Repeater {
-            model: root.ossec ? root.ossec.recent : []
-
-            Row {
-              id: alertRow
-              required property var modelData
-
-              width: parent.width
-              spacing: Style.spacing.xs
-
-              Label {
-                id: alertLevel
-                width: Style.space(28)
-                text: "L" + alertRow.modelData.level
-                color: Colors.textFor(root.critLevel(alertRow.modelData.level))
-                caption: true
-                font.bold: true
-                layer.enabled: Style.fx.glow > 0
-
-                layer.effect: Glow { shadowColor: alertLevel.color }
-              }
-
-              Label {
-                width: parent.width - alertLevel.width - alertTime.width - parent.spacing * 2
-                text: alertRow.modelData.desc
-                elide: Text.ElideRight
-                opacity: Style.emphasis.strong
-                caption: true
-              }
-
-              Label {
-                id: alertTime
-                text: alertRow.modelData.t
-                dim: true
-                caption: true
               }
             }
           }

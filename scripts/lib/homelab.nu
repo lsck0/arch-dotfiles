@@ -97,6 +97,26 @@ def builder-render [lab: record, keys: any]: nothing -> any {
     {ip: $ip, key: $key}
 }
 
+# The lab's Wazuh manager for base/wazuh's agent, null when the lab runs none.
+def wazuh-render [lab: record]: nothing -> any {
+    let wazuh = $lab.wazuh?
+    if $wazuh == null { return null }
+    let port = {|key|
+        let value = $wazuh | get --optional $key
+        if ($value | describe) != "int" or $value not-in 1..65535 {
+            error make {msg: $"homelab: lab.json wazuh.($key) is ($value | to nuon), not a port"}
+        }
+        $value
+    }
+    {
+        manager: (field $lab $.wazuh.manager $IPV4)
+        events: (do $port events)
+        enrollment: (do $port enrollment)
+        version: (field $lab $.wazuh.version '^\d+\.\d+\.\d+$')
+        secret: (field $lab $.wazuh.secret '^[a-z0-9-]+$')
+    }
+}
+
 # The generated file's text for one lab.json and its ssh-keys.json (null when absent); fails on a schema or a value it
 # does not know.
 export def homelab-render [lab: record, keys: any = null]: nothing -> string {
@@ -132,6 +152,8 @@ export def homelab-render [lab: record, keys: any = null]: nothing -> string {
         }
         # programming/offload's worker: the one guest that logs in to it, and with which key
         builder: (builder-render $lab $keys)
+        # base/wazuh's agent: where it enrolls and reports, and the secret holding the enrollment password
+        wazuh: (wazuh-render $lab)
     }
     $"($HEAD)\nexport const HOMELAB = ($values | options-to-nuon)\n"
 }

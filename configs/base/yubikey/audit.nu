@@ -19,10 +19,8 @@ const SEALED_HEADER_BYTES = 4096
 const HOST = "{host}"
 # what a module's meta.secrets names and keys/ does not hold yet, as globs over the path with its host filled in
 const UNBACKED = [
-    # sshd's host keys: no machine has run the backup command base/ssh prints, so a reinstall changes its identity
-    "ssh-host/*"
-    # the notebook's initramfs host key, generated there: the backup command remote-unlock printed was never run
-    "initramfs-ssh/luca-notebook/*"
+    # base/wazuh's enrollment password lives in the homelab's sops; Luca copies it over
+    "wazuh-enrollment-password"
 ]
 # the first matching glob decides, so a narrower one stands before the wider one that would swallow it
 export const CLASSES = [

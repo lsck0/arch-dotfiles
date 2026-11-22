@@ -140,7 +140,6 @@ cups-pk-helper
 curl
 curseforge
 cyan
-czmq-git
 dalfox-bin
 ddcutil
 delve
@@ -526,7 +525,6 @@ openssl
 openvpn
 optipng
 osmium-tool
-ossec-hids-local
 osslsigncode
 osv-scanner
 otf-atkinsonhyperlegiblemono-nerd
@@ -966,6 +964,7 @@ wayland
 wayland-boomer-git
 waypipe
 wayvr-bin
+wazuh-agent
 websocat
 wev
 wget

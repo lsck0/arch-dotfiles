@@ -1,0 +1,2 @@
+g wazuh - -
+u wazuh -:wazuh "Wazuh agent" /var/ossec /usr/bin/nologin
