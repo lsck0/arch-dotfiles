@@ -6,7 +6,7 @@ umask 077
 
 usage() {
     echo "usage: collect-diagnostics [--root <mnt>] [dest]: logs, journals, network and dot state into" \
-        "dest/diag-<host>-<time>/ (default: a mounted LSCK0 stick)"
+        "dest/diag-<host>-<time>/ (default: a mounted LSCK0 stick, else \$XDG_STATE_HOME/diagnostics; run from the stick, its own dir)"
     echo "  --root <mnt>: also read an installed system mounted at <mnt> (from the stick: open its LUKS root, mount @ there and @home, @log" \
         "as its fstab does): its journal, dot state, stage and install logs, boot config"
 }

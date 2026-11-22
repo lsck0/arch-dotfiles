@@ -35,7 +35,8 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
 - `dot apply [mod...] [--user|--system] [--packages] [--force]`, `dot plan [mod...] [--system] [--order|--modules]`,
   `dot status [--brief|--json]`, `dot set [mod[.key] [value]] [--default] [--machine] [--json]`,
   `dot module adopt|reset|unlink|remove|restore`, `dot explain <path|package>`, `dot log [--trace]`,
-  `dot theme [theme|wallpaper|random]`, `dot secrets audit`; `dot secrets unlock|lock` are Luca's (YubiKey), never an agent's.
+  `dot theme [theme|wallpaper|random]`, `dot secrets audit`; `dot secrets unlock|lock` are Luca's (YubiKey), never an
+  agent's.
 - `dot internal <cmd>` (`scripts/lib/internal.nu`): plumbing for scripts and units; `gen` regenerates
   `mirror/packages.txt`, FEATURES.md's module and options tables and `platforms/homelab.nu` (`dot sync` runs it
   before committing, lint fails when one is stale), `iso` builds the install iso.
@@ -87,8 +88,8 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
 - Modules declare what they want (`scripts/lib/module.nu`); the engine applies the difference. Managed files are copies
   with their hash recorded; a changed copy is kept until `dot module adopt` or `reset`; files dot never wrote are taken
   over; both preserved aside. Links only where an app reads the repo live. dot writes nothing into `~/sync` but
-  `~/sync/.stignore`, where `core/syncthing` keeps its `**/.identity` and `/vendor` lines (the capture and notes tools write their
-  notes there at runtime).
+  `~/sync/.stignore`, where `core/syncthing` keeps its `**/.identity` and `/vendor` lines (the capture and notes tools
+  write their notes there at runtime).
 - Keep `$HOME` clean: env var to `configs/base/xdg/app-dirs.conf`, hardcoded dirs to `RECLAIM` in
   `configs/base/xdg/mod.nu`, forced non-dot dirs to `home.hidden`.
 - Native over bolt-on: the tool's own mechanism (Hyprland rules, systemd units, pipewire config, pacman hooks, udev),

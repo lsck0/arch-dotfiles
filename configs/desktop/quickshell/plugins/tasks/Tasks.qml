@@ -43,7 +43,7 @@ Item {
     : inputMode === "modify" ? [["ENTER", "modify"], ["TAB", "complete"], ["ESC", "back"]]
     : inputMode === "filter" ? [["ENTER", "keep"], ["TAB", "notes"], ["ESC", "clear"]]
     : [["^/v", "select"], ["ENTER/D", "done"], ["S", "start/stop"], ["X", "delete"], ["E", "edit"], ["U", "undo"],
-       ["A", "add"], ["/", "filter"], ["TAB", "notes"], ["ESC", "close"]]
+       ["A", "add"], ["/", "filter"], ["TAB", "notes"], ["ESC", filterText ? "clear" : "close"]]
 
   function open() {
     TaskState.panelOpen = true

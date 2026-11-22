@@ -63,7 +63,7 @@ const SNAPSHOT_IDENTITY = {
     GIT_COMMITTER_NAME: offload, GIT_COMMITTER_EMAIL: "offload@localhost"
 }
 const EXIT_NOT_FOUND = 127
-const USAGE = "usage: offload [--untracked] [--detach] [--] <command...>
+const USAGE = "usage: offload [-u|--untracked] [-d|--detach] [--] <command...>
        offload attach|stop|fetch <job> [paths...]
        offload ls | status | agent [--untracked] | forward <service> [--port <n>]
        offload worker <device> '<verb> [arg]' | trust [--json] | trust revoke <device>"
@@ -632,6 +632,10 @@ def "main trust revoke" [device: string]: nothing -> nothing {
 # files): output streams here, ctrl-c or a lost connection only detaches. --detach starts it and returns.
 # untyped: a typed rest makes nu parse `true` or `null` as values and refuse them
 def --wrapped main [...argv]: nothing -> nothing {
+    if ($argv | get --optional 0 | into string) in ["-h" "--help"] {
+        print $USAGE
+        return
+    }
     let parsed = try { args-parse $argv } catch {|e| die --misuse $"($e.msg)\n($USAGE)" }
     let config = config-load
     let started = job-send $config $KIND_RUN $parsed.untracked $parsed.command

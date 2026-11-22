@@ -2,7 +2,7 @@
 # Run a command offline in the work dir, e.g. `sandbox-build -- cargo test` or `sandbox-build -w ./crate -- make`.
 set -euo pipefail
 
-USAGE="usage: sandbox-build [-w writable-dir] [--] <command...>"
+USAGE="usage: sandbox-build [-w|--work <dir>] [--] <command...>"
 # home paths holding keys, tokens and browser or messenger sessions, relative to $HOME, one a line
 SENSITIVE_HOME=$(dirname -- "$(readlink -f -- "$0")")/sensitive-home.txt
 REPO=${DOTFILES:-$HOME/projects/arch-dotfiles}
@@ -15,7 +15,7 @@ usage_fail() {
 work=$PWD
 case ${1:-} in
     -h | --help)
-        echo "$USAGE: run it offline in the work dir"
+        echo "$USAGE: run it offline, writable only in the work dir (default: here)"
         exit 0
         ;;
     -w | --work)

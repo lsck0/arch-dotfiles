@@ -4,9 +4,9 @@ The user-layer baseline on every machine.
 
 - A themed program ships a wallust template (`core/wallust`), never a hardcoded palette: `l-dotfiles-theming`.
 - Toggles: `l-dotfiles-toggles`.
-- Owner-only modules (`nas`, `ntfy`, `syncthing`, `proton/pass`, `proton/sessions`) gate on `owner-unlocked`
+- Owner-only modules (`ntfy`, `syncthing`, `proton/pass`, `proton/sessions`) gate on `owner-unlocked`
   (`l-dotfiles-secrets-access`); `git`'s identity and `gnupg`'s default-key are value-gated the same way and fall back
-  to none.
+  to none. `nas` is system layer: it mounts only with the `homelab` fact and the `samba-homelab` secret.
 - `nushell` and `zsh` hold the generic shell config only: an alias or def for a tool is `shell-aliases` in the module
   that declares the tool (gated on the tool when the module does not declare it).
 - `yt-dlp` is a fail-closed wrapper into the VPN namespace, never bare `/usr/bin/yt-dlp`.

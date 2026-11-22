@@ -551,7 +551,7 @@ Item {
     hints: root.clearConfirmOpen ? [["Y", "clear"], ["N/ESC", "cancel"]]
       : root.gpgMode === "encrypt" ? [["^/v", "key"], ["SPACE", "pick"], ["ENTER", "encrypt"], ["ESC", "back"]]
       : root.gpgMode === "decrypt" ? [["^/v", "scroll"], ["ESC", "back"]]
-      : [["ENTER", "copy"], ["SHIFT+ENTER", "paste"], ["ALT+ENTER", "open"], ["DEL", "forget"], ["SHIFT+DEL", "clear"], ["CTRL+E", "encrypt"], ["CTRL+D", "decrypt"], ["ESC", "close"]]
+      : [["ENTER", "copy"], ["SHIFT+ENTER", "paste"], ["ALT+ENTER", "open"], ["DEL", "forget"], ["SHIFT+DEL", "clear"], ["CTRL+E", "encrypt"], ["CTRL+D", "decrypt"], ["ESC", root.filterText ? "clear" : "close"]]
     keyboard: !root.gpgBusy
     cardWidth: Style.space(700)
     onDismissed: root.close()

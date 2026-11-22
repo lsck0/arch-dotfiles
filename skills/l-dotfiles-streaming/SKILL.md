@@ -42,10 +42,9 @@ HEAR in the mixer, `qs ipc -p ~/.config/quickshell call obs toggleListen` and `s
 switch every track-1 input to monitor-and-output or none, always from OBS's live
 `GetInputAudioMonitorType`/`GetInputAudioTracks`, never from remembered state: a collection can arrive with monitoring
 on, which would play the app twice. It also sets `dot.obs-listen` on the default metadata, muting the per-app loopbacks
-(`configs/desktop/pipewire`), and shows every `<name> For Me` scene item (an alert widget playing to the desktop,
-not the stream mix) while off, hiding it while on, so an alert is heard once. The bar runs the toggle's `reconcile` on
-connect. App captures tap the app's own stream,
-so system faders don't change what OBS hears.
+(`configs/desktop/pipewire`), and shows every `<name> For Me` scene item (an alert widget playing to the desktop, not
+the stream mix) while off, hiding it while on, so an alert is heard once. The bar runs the toggle's `reconcile` on
+connect. App captures tap the app's own stream, so system faders don't change what OBS hears.
 
 ## Inspect a running OBS
 

@@ -12,7 +12,7 @@ NICENESS=19
 IO_CLASS_IDLE=3
 CPU_WEIGHT=10
 CPU_DIR=/sys/devices/system/cpu
-USAGE="usage: fence [--cpu-quota <percent>] <command> [args...]"
+USAGE="usage: fence [--cpu-quota <percent>] <command...>"
 
 # The cpus whose l3 is smaller than the largest: the non-v-cache ccd on an x3d part, none on a uniform cpu. A line is
 # .../cpu<n>/cache/index3/size:<kb>K, so the numbers in it are n, 3 and kb.
@@ -23,6 +23,12 @@ cpus_build() {
 }
 
 cpu_quota=
+case ${1:-} in
+    -h | --help)
+        echo "$USAGE: run it memory-capped (FENCE_MEM, default $MEMORY_MAX_DEFAULT) at the lowest cpu, io and oom priority"
+        exit 0
+        ;;
+esac
 if [ "${1:-}" = --cpu-quota ]; then
     case "${2:-}" in
         '' | *[!0-9]*)

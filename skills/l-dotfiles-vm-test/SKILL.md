@@ -70,8 +70,8 @@ dot test run --scenario all --dry-run
 ```
 
 Snapshot edits (`extra_packages`, `replace`) need the snapshot, so `pkg-fail`, `no-tor` and `config-fail` refuse
-`--master`. A `replace` whose pattern no longer
-matches stops the run (and `vm.test.nu` in lint), so a refactor cannot void a scenario.
+`--master`. A `replace` whose pattern no longer matches stops the run (and `vm.test.nu` in lint), so a refactor cannot
+void a scenario.
 
 ## Reports
 

@@ -90,6 +90,7 @@ def "main toggle" [] {
     font-set {family: $next} Font $next
 }
 
-# Font: get [--json] prints the family, list and shortlist name the installed ones, set <family>, set-size <n> and
-# set-ui-size <n> change it, toggle takes the next of the shortlist, a bare call prints the family.
+# Font: get [--json] prints the family, size and ui-size the sizes, list and shortlist name the installed ones,
+# set <family>, set-size <n> and set-ui-size <n> change it, toggle takes the next of the shortlist, a bare call prints
+# the family.
 def main [] { main get }

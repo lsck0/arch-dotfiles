@@ -39,8 +39,9 @@ hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = "maximized", action = "toggl
 hyprctl dispatch 'hl.dsp.window.float({ action = "toggle" })'
 ```
 
-Which workspace sits on which monitor: `desktop/hyprland.workspaces` in `platforms/luca-pc.options.nuon`. Closing a window:
-`$DOTFILES/configs/desktop/hyprland/window-close.nu` acts on the focused one; focus it first, and only when he asked.
+Which workspace sits on which monitor: `desktop/hyprland.workspaces` in `platforms/luca-pc.options.nuon`. Closing a
+window: `$DOTFILES/configs/desktop/hyprland/window-close.nu` acts on the focused one; focus it first, and only when he
+asked.
 
 ## Media, sound, screen
 
@@ -66,10 +67,11 @@ Which workspace sits on which monitor: `desktop/hyprland.workspaces` in `platfor
 
 ## Toggles
 
-`scripts/toggles/status.nu` prints every toggle's state as JSON. Each is `$DOTFILES/scripts/toggles/toggle-<name>.nu`: on/off
-ones take `on|off|toggle`, n-state ones `set <value>` or the state itself (route `direct|proton|tor|offline`, firewall
-`permissive|default|restrictive`, powermode `auto|balanced|performance|power-saver`). Read the status before and after; a toggle
-with a root half asks for Luca's touch and fails without him: report that, never retry around it.
+`scripts/toggles/status.nu` prints every toggle's state as JSON. Each is
+`$DOTFILES/scripts/toggles/toggle-<name>.nu`: on/off ones take `on|off|toggle`, n-state ones `set <value>` or the state
+itself (route `direct|proton|tor|offline`, firewall `permissive|default|restrictive`, powermode
+`auto|balanced|performance|power-saver`). Read the status before and after; a toggle with a root half asks for Luca's
+touch and fails without him: report that, never retry around it.
 
 ## Tasks, reminders, notes
 
@@ -85,8 +87,9 @@ with a root half asks for Luca's touch and fails without him: report that, never
 
 `wtype '<text>'` types into whatever has focus (a chat box, a form); `wtype -k Return` sends a key, `wtype -M ctrl l
 -m ctrl` a chord. Check the focused window first (`hyprctl activewindow -j`), and never into a terminal or a password
-field. There is no pointer automation (no ydotoold). His dictation (`dictate`, `SUPER+ALT+v`) records on the first
-press and types the transcript on the second: his voice, not an agent's tool.
+field. There is no pointer automation: `ydotool.service` runs only while `mouse-jittering` does. His dictation
+(`dictate`, `SUPER+ALT+v`) records on the first press and types the transcript on the second: his voice, not an agent's
+tool.
 
 Acting inside an app or a page, in this order, and say which before you start:
 

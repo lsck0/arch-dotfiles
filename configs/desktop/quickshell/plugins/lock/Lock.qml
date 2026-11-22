@@ -637,7 +637,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             // the password box stays hidden until the first key, so the hint names the way in
             hints: (root.keyMode || pwField.text.length > 0 ? [["ENTER", "unlock"]] : [["TYPE", "password"]])
-              .concat(root.keyDevice !== "" ? [["CTRL+K", "security key"]] : [])
+              .concat(root.keyDevice !== "" && !root.keyMode ? [["CTRL+K", "security key"]] : [])
               .concat(root.keyMode ? [["ESC", "password"]] : pwField.text.length > 0 ? [["ESC", "clear"]] : [])
           }
         }

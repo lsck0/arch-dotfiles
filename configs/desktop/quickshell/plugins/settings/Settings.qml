@@ -66,7 +66,7 @@ Item {
     else if (root.systemPending) out.push(["CTRL+S", "apply system"])
     if (root.promptPossible) out.push(["--", "keyboard released"])
     out.push(["CTRL+SHIFT+U", root.updateArmed ? "confirm sync" : "update"])
-    out.push(["ESC", root.editingId || root.expandedId ? "back" : root.query ? "clear" : "close"])
+    out.push(["ESC", root.confirmId ? "cancel" : root.editingId || root.expandedId ? "back" : root.query ? "clear" : "close"])
     return out
   }
 

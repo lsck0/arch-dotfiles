@@ -30,6 +30,7 @@
   client goes through: offer, submit (job JSON; stdin a header line, a streamed image archive pinned by its id, the
   commit's pack, shallow), status, get, cancel, gc, with a per-repo cache keyed by the worker; the lab's
   builder reaches it as the locked-down `labworker` (key and address from `HOMELAB.builder`, forced command `serve`),
-  Luca's devices as Luca (`offload worker`, and `offload host start` admits through it). Admission is idle-only (`gate.nu`: gamemode,
-  obs output; power) and per-device consent (`consent.nu`'s notification, trusted devices revoked from the bar's
-  homelab panel); jobs run in `offload.slice` and `offload-enforce.path` cancels them when the desktop gets busy.
+  Luca's devices as Luca (`offload worker`, and `offload host start` admits through it). Admission is idle-only
+  (`gate.nu`: gamemode, obs output; power) and per-device consent (`consent.nu`'s notification, trusted devices
+  revoked from the bar's homelab panel); jobs run in `offload.slice` and `offload-enforce.path` cancels them when the
+  desktop gets busy.

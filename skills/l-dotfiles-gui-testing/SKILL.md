@@ -73,8 +73,9 @@ Two paths:
   twice.
 - Otherwise a nested Hyprland on your workspace (about 940x490 on a scale-2 headless output). It runs on a private
   runtime dir `$rt` that links only the outer compositor's socket and pulse, so the compositor, its own private
-  dbus-daemon on `$rt/bus`, its portals (`$rt/doc`) and everything started inside stay off the user's `/run/user/$UID`. Keep the path short: a
-  socket path over 108 bytes fails, so never the scratchpad. A window rule under test goes into its config:
+  dbus-daemon on `$rt/bus`, its portals (`$rt/doc`) and everything started inside stay off the user's
+  `/run/user/$UID`. Keep the path short: a socket path over 108 bytes fails, so never the scratchpad. A window rule
+  under test goes into its config:
 
 ```bash
 rt=/run/user/$UID/ag-<agent>; mkdir -m 700 $rt
@@ -110,8 +111,9 @@ XDG_RUNTIME_DIR=$rt HYPRLAND_INSTANCE_SIGNATURE=$nested hyprctl clients -j | jq 
 The shell keeps state under `$XDG_RUNTIME_DIR` (`quickshell/`, `toggles/`, cava's config). `Lock.qml` writes its
 crash-recovery marker `$XDG_RUNTIME_DIR/quickshell/locked` while locked: a test shell on the real runtime dir that
 locks and is killed leaves `/run/user/$UID/quickshell/locked`, and the user's live shell locks the screen on its next
-start. A test quickshell runs only inside the nested Hyprland with its own private dbus-daemon on `$rt/bus`, which hands it `$rt` (a private
-runtime dir keeps it off the user's state, not off the user's session bus: `l-dotfiles-quickshell-dev`).
+start. A test quickshell runs only inside the nested Hyprland with its own private dbus-daemon on `$rt/bus`, which
+hands it `$rt` (a private runtime dir keeps it off the user's state, not off the user's session bus:
+`l-dotfiles-quickshell-dev`).
 
 ```bash
 qspidfile=/tmp/<agent>-qs.pid
@@ -134,9 +136,9 @@ hyprctl output remove HEADLESS-N
 
 Only your own output and sink. A killed test quickshell leaves every helper it started running, reparented to
 `systemd --user`: take `pgrep -P $(cat $qspidfile)` before `kill $(cat $qspidfile)`, then kill by PID the ones still
-alive. No nested compositor outlives the test. Then `kill $(cat $rt/dbus.pid)` and `rm -r $rt $qspidfile` (a still mounted `$rt/doc` first
-`fusermount3 -u $rt/doc`), and with the test files the per-agent app state:
-`rm -r ~/.config/libreoffice/<agent> ~/.config/zathura/<agent>` and zathura's `bookmarks.sqlite`.
+alive. No nested compositor outlives the test. Then `kill $(cat $rt/dbus.pid)` and `rm -r $rt $qspidfile` (a still
+mounted `$rt/doc` first `fusermount3 -u $rt/doc`), and with the test files the per-agent app state: `rm -r
+~/.config/libreoffice/<agent> ~/.config/zathura/<agent>` and zathura's `bookmarks.sqlite`.
 
 A failed user `xdg-document-portal.service` (status 21) is left by a nested Hyprland that ran on the real runtime dir:
 tell Luca, never restart it yourself.

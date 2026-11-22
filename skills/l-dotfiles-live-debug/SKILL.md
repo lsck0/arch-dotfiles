@@ -37,8 +37,8 @@ dot module reset <file>   # back to the module's copy, the edit preserved aside
   `dot log`; `dot log --trace` shows each span's errors under it. The command's next run that goes through removes
   it; until then `dot status` notes it (`crash`). Root's state: `/var/lib/dotfiles`; each root entry writes a run file
   under `runs/` there, which `dot log` merges into the run that asked for it. `dot log` with no run recorded prints a
-  note. Cut-off state (the ledger's last line, a module's record, a run log line, the discover
-  cache) is dropped or rescanned, a warning where it matters, never a crash.
+  note. Cut-off state (the ledger's last line, a module's record, a run log line, the discover cache) is dropped or
+  rescanned, a warning where it matters, never a crash.
 - `stuck` (note): a package installed above its repo's version (a beta, a downgraded mirror); `-Su` never replaces
   it. The fix is `sudo pacman -S <name>`, Luca's.
 - `cores` (note): programs that dumped core in the last 24 h, most crashes first; `coredumpctl info <exe>` for the
@@ -95,4 +95,5 @@ added behind it in the free space.
 ## Restart
 
 `systemctl --user restart <unit>` (after `reset-failed` if it hit its start limit); quickshell via
-`~/.config/quickshell/restart.nu` (`l-dotfiles-quickshell-dev`). Never restart an app the user is working in without asking.
+`~/.config/quickshell/restart.nu` (`l-dotfiles-quickshell-dev`). Never restart an app the user is working in without
+asking.

@@ -36,7 +36,8 @@ const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo 
   module unlink|remove|restore    a module: off | gone with its packages | its restore verb (app state)
   log [run] | explain <thing>     a run's records | who wrote a path, who declares a package
   secrets unlock|lock|init|seal|audit
-  test lint|check|fmt|run|...     the gates and the vm test
+  test lint|check|fmt             the static gates
+  test run|shot|destroy           the vm test, a screenshot of it, its removal
 
   --no-system on sync, apply, set: only the user part, same as DOT_SYSTEM=skip
   sync --system: enter root even when nothing shows the system layer has work
@@ -111,7 +112,11 @@ def "main module unlink" [mod: string@module-ids]: nothing -> nothing {
 }
 
 # unlink a module, turn it off (--machine: for the machine), offer its packages for removal
-def "main module remove" [mod: string@module-ids, --machine, --yes]: nothing -> nothing {
+def "main module remove" [
+    mod: string@module-ids
+    --machine  # off for the machine too, its packages offered for removal
+    --yes      # remove those packages unasked
+]: nothing -> nothing {
     modules-known $REPO [$mod]
     user-locked
     theme-locked
@@ -418,12 +423,12 @@ const VM_NAME = "archlinux-test"
 
 # end-to-end vm test from the lsck0 iso, hours a run; --master tests github master; logs in $XDG_CACHE_HOME/vm-test/<name>/logs/<scenario>
 def "main test run" [
-    --iso: path
-    --platform: string
-    --user: string
-    --profile: string
-    --master
-    --name: string = $VM_NAME
+    --iso: path          # the iso to boot; none: the latest lsck0 release, verified
+    --platform: string   # the guest's platform over the scenario's
+    --user: string       # the guest's login; none: luca
+    --profile: string    # the guest's profile over the scenario's
+    --master             # github master instead of a snapshot of the working tree
+    --name: string = $VM_NAME  # the vm's name
     --scenario: string@vm-scenario-names = "home"  # comma list of scenarios and presets (scripts/lib/vm/scenarios.nuon), or all
     --dry-run  # print each run's answers, network and snapshot edits, boot nothing
 ]: nothing -> nothing {
@@ -453,7 +458,9 @@ def "main secrets unlock" [--identity: path]: nothing -> nothing { guarded secre
 # lock configs/secrets/ again
 def "main secrets lock" []: nothing -> nothing { guarded secrets { yubikey-lock } }
 # what is due for rotation or a recovery drill
-def "main secrets audit" [--brief]: nothing -> nothing { guarded audit --read-only { audit-run --brief=$brief } }
+def "main secrets audit" [
+    --brief  # only what is due, as "fail|note <text>"
+]: nothing -> nothing { guarded audit --read-only { audit-run --brief=$brief } }
 # record <paths> as rotated today
 def "main secrets audit rotated" [...paths: path]: nothing -> nothing { guarded audit { audit-rotated ...$paths } }
 # record the recovery drill as done today

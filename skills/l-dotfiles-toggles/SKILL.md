@@ -37,12 +37,13 @@ Examples: `toggle-focus.nu` (combines toggles via `toggle-run`), `toggle-theme-m
    ```
    Shortcuts: `service-switch <label> <unit> [socket...]` (sockets that would start the unit again stop and start
    with it), `radio-switch <label> wifi|wwan`; state without a probe: `state-get`/`state-set`/`state-clear`
-   (`--volatile` resets on boot; state a reboot must keep goes without it). A toggle whose effect resets on reboot while its state persists answers `reapply`, as `toggle-focus.nu` does, run at
-   session start by `configs/core/toggles/toggles-reapply.service`.
+   (`--volatile` resets on boot; state a reboot must keep goes without it). A toggle whose effect resets on reboot
+   while its state persists answers `reapply`, as `toggle-focus.nu` does, run at session start by
+   `configs/core/toggles/toggles-reapply.service`.
 2. Root work: one `root-run <verb>` per flip (`root-run tor-start`) (one prompt at most), running `toggle-root`
    (`configs/core/toggles/toggle-root.nu`) via pkexec. The helper takes no flags and `49-toggles.rules` allowlists
-   whole command lines, so a new verb goes into both: `VERBS_UNPROMPTED` (`tor-start`) when it tightens or guards nothing,
-   `VERBS_LOWERING` when it lowers a guard (asked, then the helper's `approval-record` stamp lets the next lowering
+   whole command lines, so a new verb goes into both: `VERBS_UNPROMPTED` (`tor-start`) when it tightens or guards
+   nothing, `VERBS_LOWERING` when it lowers a guard (asked, then the helper's `approval-record` stamp lets the next lowering
    pass for 5 minutes, `APPROVAL_MINUTES` in `mod.nu`).
 3. `switch-run` notifies quickshell (`toggles changed <script>`); an n-state toggle calls `notify` itself and runs its
    switch through `exclusive-run <label> _apply <state>` (the script again under its lock). Either runs one flip at

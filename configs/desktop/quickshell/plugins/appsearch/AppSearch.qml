@@ -33,15 +33,17 @@ Item {
   readonly property var modeTitles: ({ apps: "applications", calc: "calculator", run: "run", windows: "windows", keys: "keybinds", task: "new task", remind: "reminder", note: "note" })
   readonly property var modePlaceholders: ({ apps: "search applications", calc: "enter an expression", run: "command to run", windows: "search windows", keys: "search keybinds", task: "Dino letter project:dino due:fri +uni", remind: "10m tea, 15:00 dentist", note: "a thought for ~/sync/notes/inbox.md" })
   readonly property var modeHints: ({
-    apps: [["ENTER", "open"], ["=", "calc"], [">", "run"], ["@", "windows"], [":", "clipboard"], ["?", "keys"], ["+ ! #", "capture"], ["ESC", "close"]],
-    task: [["ENTER", "add"], ["ESC", "clear"]],
-    remind: [["ENTER", "set"], ["DEL", "cancel pending"], ["ESC", "clear"]],
-    note: [["ENTER", "save"], ["ESC", "clear"]],
-    calc: [["ENTER", "copy"], ["ESC", "clear"]],
-    run: [["ENTER", "run"], ["SHIFT+ENTER", "in terminal"], ["ESC", "clear"]],
-    windows: [["^/v", "select"], ["ENTER", "focus"], ["ESC", "clear"]],
-    keys: [["^/v", "select"], ["ENTER", "close"], ["ESC", "clear"]]
+    apps: [["ENTER", "open"], ["=", "calc"], [">", "run"], ["@", "windows"], [":", "clipboard"], ["?", "keys"], ["+ ! #", "capture"]],
+    task: [["ENTER", "add"]],
+    remind: [["ENTER", "set"], ["DEL", "cancel pending"]],
+    note: [["ENTER", "save"]],
+    calc: [["ENTER", "copy"]],
+    run: [["ENTER", "run"], ["SHIFT+ENTER", "in terminal"]],
+    windows: [["^/v", "select"], ["ENTER", "focus"]],
+    keys: [["^/v", "select"], ["ENTER", "close"]]
   })
+  // ESC clears back to the home prefix, then closes
+  readonly property bool escClears: filterText !== "" && filterText.trim() !== homeText.trim()
   // what an empty list says while nothing is typed
   readonly property var modeEmpty: ({ apps: "> NO APPS", calc: "> TYPE AN EXPRESSION", run: "> TYPE A COMMAND", windows: "> NO WINDOWS", keys: "> NO KEYBINDS", task: "> TYPE A TASK", remind: "> 10M|15:00 \u00b7 NAME", note: "> TYPE A NOTE" })
 
@@ -418,7 +420,7 @@ Item {
     // a bare prefix leaves the line to the mode's placeholder, the one place the capture grammar is shown
     query: root.mode === "apps" || root.modeQuery ? root.filterText : ""
     placeholder: (root.mode === "apps" ? "" : root.filterText.charAt(0) + " ") + root.modePlaceholders[root.mode]
-    hints: root.modeHints[root.mode]
+    hints: root.modeHints[root.mode].concat([["ESC", root.escClears ? "clear" : "close"]])
     onDismissed: root.close()
 
     Item {

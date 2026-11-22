@@ -1,0 +1,17 @@
+# Replaces python-validity's rule of the same name: its add|change RUN started python3-validity.service, which is
+# enabled and restarts itself anyway; the service's own stop resets the sensor at shutdown, and that start then failed
+# with exit 4 against the shutdown transaction. The sensors are base/fprintd's VALIDITY_USB_FILTERS.
+SUBSYSTEM!="usb", GOTO="python_validity_end"
+ENV{DEVTYPE}!="usb_device", GOTO="python_validity_end"
+
+ATTRS{idVendor}=="138a", ATTRS{idProduct}=="0090", GOTO="python_validity_match"
+ATTRS{idVendor}=="138a", ATTRS{idProduct}=="0097", GOTO="python_validity_match"
+ATTRS{idVendor}=="138a", ATTRS{idProduct}=="009d", GOTO="python_validity_match"
+ATTRS{idVendor}=="06cb", ATTRS{idProduct}=="009a", GOTO="python_validity_match"
+GOTO="python_validity_end"
+
+LABEL="python_validity_match"
+ACTION=="add|change", ATTR{power/control}="auto"
+ACTION=="remove", RUN+="/bin/systemctl --no-block stop python3-validity.service"
+
+LABEL="python_validity_end"

@@ -122,10 +122,10 @@ description.
   mascots (`y`, `SHIFT+y` stops them).
 - Shell: launcher (`d`, `ALT+d` runs from `$PATH`), dismiss notifications (`SHIFT+d`), quick capture (`i`, `SHIFT+i`
   a reminder), dictation (`ALT+v`, again to type it), clipboard (`v`), overview (`Tab`; while open `Tab` and
-  `SHIFT+Tab` step, `Return` goes there, `Escape` closes), tasks (`o`), settings
-  (`comma`), timer (`t`), wallpaper picker (`CTRL+w`), theme picker (`SHIFT+w`), power menu (`SHIFT+e`), lock
-  (`Escape`), restart quickshell (`SHIFT+r`), discord mute (`m`), clipboard to the phone (`u`, `SHIFT+u` shares files,
-  a link or text), system agent with `hermes.system_agent` (`grave`, the key under Escape, shows it; `ALT+a` talks).
+  `SHIFT+Tab` step, `Return` goes there, `Escape` without SUPER closes), tasks (`o`), settings (`comma`), timer
+  (`t`), wallpaper picker (`CTRL+w`), theme picker (`SHIFT+w`), power menu (`SHIFT+e`), lock (`Escape`), restart
+  quickshell (`SHIFT+r`), discord mute (`m`), clipboard to the phone (`u`, `SHIFT+u` shares files, a link or text),
+  system agent with `hermes.system_agent` (`grave`, the key under Escape, shows it; `ALT+a` talks).
 - Bar panels: `b` then a letter: `a` audio, `b` notifications, `c` clock, `d` display, `h` homelab, `i` agents, `m`
   media, `n` network, `o` obs, `s` system, `v` discord voice, `w` weather.
 - Windows: focus and move (`hjkl` or arrows, `SHIFT` moves), both walking through a tab group as in i3 (focus cycles
@@ -135,8 +135,7 @@ description.
   mode (`r`), mouse move and resize.
 - Workspaces: `1` to `0` focus, `SHIFT` moves the window there.
 - Capture: a region (`Print` alone or `SHIFT+s`), the monitor (`SHIFT+Print` without SUPER), the window (`Print` with
-  SUPER),
-  each saved to `~/pictures/screenshots` and copied; screen recording (`ALT+Print` starts and stops, into
+  SUPER), each saved to `~/pictures/screenshots` and copied; screen recording (`ALT+Print` starts and stops, into
   `~/videos/recordings`), color picker (`p`), OBS replay buffer (`F9` saves, `SHIFT+F9` starts or stops), MangoHud
   (`SHIFT+F12` without SUPER).
 - Media and hardware keys, also on the lock screen: playback (the bar's player), volume, mic mute, brightness (`SHIFT`
