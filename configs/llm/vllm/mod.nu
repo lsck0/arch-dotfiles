@@ -110,6 +110,7 @@ export def system [cfg: record] {
         MODEL: $cfg.model, MODEL_REVISION: $cfg.model_revision, GPU_MEMORY_UTILIZATION: $share
         TOOL_CALL_PARSER: $cfg.tool_call_parser, REASONING_PARSER: $cfg.reasoning_parser, PERF_LEVEL_PATH: $perf_path
         KV_CACHE_DTYPE: $cfg.kv_cache_dtype, MAX_MODEL_LEN: $cfg.context, ROPE_ARGS: (rope-args $cfg)
+        ROCM_LIBS: (rocm-libs)
     }
     let stamp = venv-stamp
     let python = $PREFIX | path join venv bin python
@@ -128,6 +129,13 @@ export def system [cfg: record] {
         ])
         (unit-file vllm.socket --enable --now)
     ]
+}
+
+# The ROCm wheels' library dirs in the venv, ahead of /opt/rocm for every process vllm starts.
+def rocm-libs []: nothing -> string {
+    let platlib = $PREFIX | path join venv lib $"python($PYTHON_VERSION)" site-packages
+    [_rocm_sdk_core/lib _rocm_sdk_core/lib/host-math/lib _rocm_sdk_core/lib/rocm_sysdeps/lib _rocm_sdk_libraries/lib]
+    | each { $platlib | path join $in } | str join ":"
 }
 
 # Downloads the pinned model into vllm.service's own cache, as its dynamic user, so the service owns the files.
