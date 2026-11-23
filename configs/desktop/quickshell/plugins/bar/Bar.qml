@@ -350,25 +350,31 @@ PanelWindow {
 
     Item {
       id: centerHolder
-      // the left section at its widest so far: a workspace opening or closing then leaves the centre where it is.
-      // A bar of another width (scale, monitor) starts over; a right section that took the room back wins over it
+      // both sections at their widest so far: a workspace or a tray icon coming or going then leaves the centre where
+      // it is. A bar of another width (scale, monitor) starts over; when the centre does not fit the widest gap, the
+      // sections as they are now win
       property real leftWidest: 0
+      property real rightWidest: 0
       readonly property real leftWidth: leftHolder.width
+      readonly property real rightWidth: rightHolder.width
       readonly property real barWidth: parent.width
       onLeftWidthChanged: leftWidest = Math.max(leftWidest, leftWidth)
-      onBarWidthChanged: leftWidest = leftWidth
+      onRightWidthChanged: rightWidest = Math.max(rightWidest, rightWidth)
+      onBarWidthChanged: {
+        leftWidest = leftWidth
+        rightWidest = rightWidth
+      }
       readonly property real gapLeftWidest: leftHolder.x + Math.max(leftWidth, leftWidest) + parent.keepClear
-      readonly property real gapLeft: gapRight - gapLeftWidest >= centerSection.implicitWidth
-        ? gapLeftWidest : leftHolder.x + leftWidth + parent.keepClear
-      readonly property real gapRight: rightHolder.x - parent.keepClear
+      readonly property real gapRightWidest: barWidth - Math.max(rightWidth, rightWidest) - parent.keepClear
+      readonly property bool fitsWidest: gapRightWidest - gapLeftWidest >= centerSection.implicitWidth
+      readonly property real gapLeft: fitsWidest ? gapLeftWidest : leftHolder.x + leftWidth + parent.keepClear
+      readonly property real gapRight: fitsWidest ? gapRightWidest : rightHolder.x - parent.keepClear
       anchors.verticalCenter: parent.verticalCenter
       height: parent.height
       clip: true
       width: Math.max(0, Math.min(centerSection.implicitWidth, gapRight - gapLeft))
-      readonly property real centred: (barWidth - width) / 2
-      // on the bar's centre, pushed only as far as the left or right section needs: a longer title slides it, never
-      // jumps it to the midpoint between the sections
-      x: Math.max(gapLeft, Math.min(centred, gapRight - width))
+      // on the midpoint of the gap between the left and the right section
+      x: gapLeft + Math.max(0, gapRight - gapLeft - width) / 2
 
       RowLayout {
         id: centerSection
