@@ -1,0 +1,36 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# Reason for custom package: the AUR one locks openssl-sys 0.9.111, which refuses OpenSSL 4
+
+pkgname=wiki-tui
+pkgver=0.9.2
+pkgrel=1
+pkgdesc="A simple and easy to use Wikipedia Text User Interface"
+arch=(x86_64)
+url="https://github.com/Builditluc/wiki-tui"
+license=(MIT)
+depends=(gcc-libs glibc openssl)
+makedepends=(cargo)
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+# v0.9.2, 2025-12-08
+sha256sums=(4f51547c0597ee9d6be9e946a612bfc052f8addd59b01f2bd599b31c3b636004)
+
+# the lock's openssl-sys refuses OpenSSL 4; 0.9.118 (2026-11-01) and the openssl crate of its release accept it
+prepare() {
+    cd "$pkgname-$pkgver"
+    cargo update -p openssl --precise 0.10.82
+    cargo update -p openssl-sys --precise 0.9.118
+    cargo fetch --locked --target "$(rustc --print host-tuple)"
+}
+
+build() {
+    cd "$pkgname-$pkgver"
+    cargo build --frozen --release
+}
+
+package() {
+    cd "$pkgname-$pkgver"
+    install -Dm755 "target/release/$pkgname" "$pkgdir/usr/bin/$pkgname"
+    install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    install -Dm644 logo.png "$pkgdir/usr/share/pixmaps/$pkgname.png"
+}

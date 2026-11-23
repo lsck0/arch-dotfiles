@@ -1,5 +1,6 @@
 # Maintainer: Luca Sandrock <luca.sandrock@proton.me>
-# Reason for custom package: build the perl plugin with -Dc_std=gnu99 (perl 5.44's headers need C99)
+# Reason for custom package: build the perl plugin with -Dc_std=gnu99 (perl 5.44's headers need C99) and drop the
+# ERR_remove_state call OpenSSL 4 removed
 # Based on the AUR recipe by:
 # Maintainer: Christian Hesse <mail@eworm.de>
 # Maintainer: Robin Candau <antiz@archlinux.org>
@@ -8,7 +9,7 @@
 
 pkgname=hexchat
 pkgver=2.16.2
-pkgrel=6
+pkgrel=7
 pkgdesc='A popular and easy to use graphical IRC (chat) client'
 arch=('x86_64')
 url='https://hexchat.github.io/'
@@ -23,6 +24,12 @@ optdepends=('enchant: Spell check'
     'python-cffi: Python plugin')
 source=("git+https://github.com/hexchat/hexchat.git#tag=v${pkgver}")
 sha256sums=('5d9e457ba10ac756b96561db098bbb2bc7e63de4e1552be570f1b5175eddf313')
+
+# lsck0: OpenSSL 4 removed ERR_remove_state (a no-op since 1.1), which _SSL_close still calls when meson finds no
+# ERR_remove_thread_state; dropping the call changes nothing on any OpenSSL since 1.1.
+prepare() {
+    sed -i '/ERR_remove_state (0);/d' hexchat/src/common/ssl.c
+}
 
 # lsck0: hexchat's meson forces c_std=gnu89, while perl 5.44's inline.h needs C99 (for-loop declarations) in the
 # perl plugin; gnu99 builds it. Drop this copy once the AUR recipe passes it.

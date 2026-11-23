@@ -1,0 +1,43 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# Reason for custom package: the AUR one runs app.asar on a system electron31, whose nodejs-lts-iron no longer builds
+# against Arch's OpenSSL; the AppImage's own electron runs it as released, native modules included
+
+pkgname=exiled-exchange-2-bin
+_name=exiled-exchange-2
+# v0.16.3, 2026-09-06
+pkgver=0.16.3
+pkgrel=2
+pkgdesc="Path of Exile 2 trading app for price checking"
+arch=(x86_64)
+url="https://github.com/Kvan7/Exiled-Exchange-2"
+license=(MIT)
+depends=(alsa-lib at-spi2-core gtk3 libcups libdrm libnotify libxss libxtst mesa nss)
+provides=("$_name=$pkgver")
+conflicts=("$_name")
+options=(!strip !debug)
+source=(
+    "$_name-$pkgver.AppImage::$url/releases/download/v$pkgver/Exiled-Exchange-2-$pkgver.AppImage"
+    "LICENSE-$pkgver::https://raw.githubusercontent.com/Kvan7/Exiled-Exchange-2/v$pkgver/LICENSE"
+)
+sha256sums=(6801c510b7652fb71c729cc05bd44e1c5d616430274064cb2ed0e89d2d024f64
+    5c8de7f881b34dc31f872531a1eee1eabc79e10acd8fc91c026e10c5a8258c3f)
+
+prepare() {
+    chmod +x "$_name-$pkgver.AppImage"
+    "./$_name-$pkgver.AppImage" --appimage-extract > /dev/null
+    sed -i -E "s|^Exec=AppRun[^%]*|Exec=$_name |" "squashfs-root/$_name.desktop"
+}
+
+package() {
+    install -d "$pkgdir/opt"
+    cp -a squashfs-root "$pkgdir/opt/$_name"
+    chmod -R u+rwX,go+rX,go-w "$pkgdir/opt/$_name"
+
+    install -d "$pkgdir/usr/bin"
+    printf '#!/bin/sh\nAPPDIR=/opt/%s exec /opt/%s/AppRun "$@"\n' "$_name" "$_name" > "$pkgdir/usr/bin/$_name"
+    chmod 755 "$pkgdir/usr/bin/$_name"
+
+    install -Dm644 "squashfs-root/$_name.desktop" -t "$pkgdir/usr/share/applications"
+    cp -a squashfs-root/usr/share/icons "$pkgdir/usr/share/"
+    install -Dm644 "LICENSE-$pkgver" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

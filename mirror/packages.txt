@@ -947,6 +947,7 @@ valgrind
 ventoy-bin
 veracrypt
 vim
+vintagestory
 virt-install
 vkbasalt
 vkd3d
