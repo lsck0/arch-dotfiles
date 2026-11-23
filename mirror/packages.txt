@@ -351,6 +351,7 @@ ksshaskpass
 kubecolor
 kubectl
 kubectx
+kubeseal
 kulala-fmt
 lact
 lazydocker
