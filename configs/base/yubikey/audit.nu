@@ -35,6 +35,8 @@ export const CLASSES = [
     ["*.pub*" -] ["*/public.asc" -] ["pgp/*-public.asc" -] ["syncthing/*" -] ["initramfs-ssh/*" -] ["ssh-host/*" -]
     ["luks-headers/*" -] [rotation.txt -] [home-gateways -] [trusted-gateways -] [diablo2/cd-keys -]
     ["claude/*" -] ["caido/*" -] ["modrinth/*" -] ["obs/*" -] ["proton/*" -]
+    # the lab rotates it in its sops; this is a copy
+    [wazuh-enrollment-password -]
 ]
 const MAX_DAYS = {wireguard: 365, api: 365, ssh: 730, password: 730, identity: 1825, recovery-drill: 365}
 
