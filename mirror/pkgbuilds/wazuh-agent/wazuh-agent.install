@@ -1,11 +1,18 @@
-# The rpm's files belong to the wazuh user, which sysusers creates only during the transaction.
+# The rpm's files belong to the wazuh user, which the sysusers hook creates only after the scriptlets run: create it
+# here first, or every chown below fails silently and agentd, as wazuh, cannot open its own queue.
 _own() {
+    systemd-sysusers wazuh-agent.conf
     chown -R root:wazuh /var/ossec
     chown -R wazuh:wazuh /var/ossec/logs /var/ossec/queue /var/ossec/var /var/ossec/tmp 2> /dev/null || true
     touch /var/ossec/logs/active-responses.log
     chown wazuh:wazuh /var/ossec/logs/active-responses.log
     chmod 660 /var/ossec/logs/active-responses.log
-    [ ! -f /var/ossec/etc/client.keys ] || chmod 640 /var/ossec/etc/client.keys
+    # agentd, as wazuh, saves the key its enrollment receives through a temp file in etc/; the rpm's own scriptlet
+    # would have made etc/ group-writable and created the file
+    chmod 770 /var/ossec/etc
+    touch /var/ossec/etc/client.keys
+    chown wazuh:wazuh /var/ossec/etc/client.keys
+    chmod 640 /var/ossec/etc/client.keys
 }
 
 post_install() {

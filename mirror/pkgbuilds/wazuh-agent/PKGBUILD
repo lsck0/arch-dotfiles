@@ -3,7 +3,7 @@
 
 pkgname=wazuh-agent
 pkgver=4.14.10
-pkgrel=1
+pkgrel=2
 _rpmrel=1
 # the lab's manager runs this version; an agent never runs newer than its manager
 pkgdesc="Wazuh agent: log collection, file integrity, rootcheck and SCA, reporting to a Wazuh manager"
