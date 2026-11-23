@@ -1,105 +1,63 @@
 ---
 name: l-dotfiles-vm-test
-description: "The end-to-end test, dot test run: the lsck0 iso with an answer file in a libvirt VM through the whole unattended chain, the chain's own report, screenshot and teardown. Takes hours. Load before testing a fresh install or the install stages."
+description: "The end-to-end install test, dot test run: the lsck0 iso with an answer file in a libvirt session VM through the whole unattended chain, scenarios, the chain's report, shot and destroy. Takes hours. Load before testing a fresh install, the install stages or bootstrap changes. Reading a real machine's stopped chain is l-dotfiles-install."
 ---
 
 # vm-test
 
-`dot test run` runs as the user, no sudo anywhere. Up to 12 h a run.
-
-- The VM: `qemu:///session`, Secure Boot in Setup Mode from `OVMF_CODE.secboot.4m.fd` and a fresh `OVMF_VARS.4m.fd`
-  copy, no TPM, 200 GiB. It boots the lsck0 iso plus a cd labelled `LSCK0` with the answers (`lsck0.nuon`,
-  `unattended: true`), the snapshot bundle and its lfs objects.
-- Disk, NVRAM, answers, serial log and the report channel all live in `$XDG_CACHE_HOME/vm-test/<name>/`.
-- Network: the nic is a qemu stream netdev to passt, which runs inside a pasta namespace of the user's own
-  (`network.log`); a scenario's blocked cidrs are unreachable routes there. The guest sees `10.0.2.15/24`, gateway
-  `10.0.2.2` (MAC `9a:55:9a:55:9a:55`), dns `10.0.2.3` or the scenario's. passt relays dns to the home router
-  (`base/networkmanager`'s `homelab_dns`, so split horizon works as at home) and skips the host's 127.0.0.53 stub.
-- Reports: a socat server on the host (`scripts/lib/vm/serve.sh`, the first free port from 8765, `10.0.2.2:8765` from
-  the guest through pasta `-T`) via the answers' `report` url; the chain's end also over the virtio channel
-  `lsck0.report` (`report.log`), which no guest firewall stands in front of.
-- qemu, pasta, passt, socat and the heavy host steps get nice 19 and idle io, which holds since `base/perf` puts flash
-  disks on `mq-deadline`.
-- socat and pasta keep pidfiles in the cache dir; `dot test destroy` and the next run stop them by pidfile and command
-  line, so a ctrl+c leaves them only until then.
-
-## Before
-
-- `dot test lint` (`run` runs it first).
-- `kvm` group, `virt-install`, `virsh`, `passt`, `pasta`, `socat`, `xorriso`, `curl`; `magick` for `shot`.
-- The iso: the published one, fetched to `$XDG_CACHE_HOME/vm-test/` and checked against `.sha256` and its `.sig`
-  (signer `HOMELAB.mirror.isoSigner`); `--iso PATH` a local build.
-- Tests the working tree (untracked included) as a bundle over `origin/master`; `--master` tests GitHub master. The
-  stub applies the bundle and execs its own stub, so a published iso runs the current installer.
+`dot test run` runs as the user, no sudo, up to 12 h. Disk, NVRAM, answers, logs and the report channel live in
+`$XDG_CACHE_HOME/vm-test/<name>/` (default name `archlinux-test`).
 
 ## Run
 
+1. Needs: the `kvm` group, `virt-install`, `virsh`, `passt`, `pasta`, `socat`, `xorriso`, `curl`; `magick` for `shot`.
+2. It tests the working tree (untracked files included) as a bundle over `origin/master`; `--master` tests GitHub
+   master. The iso is the published one, fetched and verified; `--iso PATH` boots a local build.
+3. Start it in the background; `run` runs `dot test lint` first, prints each beacon and exits 1 with the problems.
+
 ```bash
-dot test run                              # platforms/vm.nuon, login `USER` of vm.nu (--user <login>), profile luca
-dot test run --platform luca-notebook
-dot test run --profile custom
-dot test run --platform server
-dot test run --name other-vm              # beside the default archlinux-test
+dot test run                              # platform vm, login luca, profile luca, scenario home
+dot test run --platform luca-notebook --profile custom
+dot test run --scenario off-home,public-mirror
+dot test run --scenario all --dry-run     # each run's answers, network and snapshot edits; boots nothing
+dot test run --name other-vm              # beside the default VM
 dot test run --iso "${XDG_CACHE_HOME:-$HOME/.cache}"/dotfiles-iso/out/archlinux-lsck0-latest-x86_64.iso
 ```
 
-Run it in the background; it prints each beacon and exits 1 with the problems.
-
 ## Scenarios
 
-`--scenario` (default `home`) takes a comma list from `scripts/lib/vm/scenarios.nuon`, layered over `home`; two
-that disagree (`home,off-home`) are refused. `all` runs each scenario and preset alone, one fresh VM each, in a row.
-`--dry-run` prints each run's answers, pasta and virt-install lines and snapshot edits, booting nothing.
+`--scenario` takes a comma list from `scripts/lib/vm/scenarios.nuon`, layered over `home`; two that disagree
+(`home,off-home`) are refused. `all` runs each scenario and preset alone, one fresh VM each, in a row.
 
 | scenario | condition |
 |---|---|
-| `home` | `home_network: true`: the install records passt's gateway (MAC, address, dhcp server); `home_network=yes` |
-| `off-home` | `home_network: false`; host lan, lab (`homelab_subnets`) and IPv6 (passt `-4`) blocked, dns 9.9.9.9 |
-| `secrets-locked` | profile `luca`, `--redirdev none`, so no YubiKey reaches the guest; wants the secrets banner |
-| `public-mirror` | the lab (`homelab_subnets` of the run's and the host's platform) blocked, dns 9.9.9.9 |
-| `pkg-fail` | platform `extra_packages: [lsck0-vm-test-unresolvable]`; install `failed`, `planted_dropped` |
-| `no-tor` | `base/tor` declares `lsck0-vm-test-no-tor` in place of `tor`; as pkg-fail, plus `tor_installed=no` |
-| `lab-down` | profile `custom`, off-home plus `mirror.lsck0.dev` blocked (`lsck0`); `lsck0_dropped=yes` |
+| `home` | `home_network: true`: the install records passt's gateway as home |
+| `off-home` | `home_network: false`; host lan, lab subnets and IPv6 blocked, dns 9.9.9.9 |
+| `secrets-locked` | profile `luca`, no YubiKey reaches the guest; wants the secrets banner |
+| `public-mirror` | the lab blocked, dns 9.9.9.9 |
+| `pkg-fail` | an unresolvable `extra_packages` entry; install `failed`, `planted_dropped` |
+| `no-tor` | `base/tor` declares a missing package in place of `tor`; as pkg-fail, plus `tor_installed=no` |
+| `lab-down` | profile `custom`, off-home plus `mirror.lsck0.dev` blocked; `lsck0_dropped=yes` |
 | `config-fail` | `core/btop`'s `link` throws: config `failed`, the chain disarmed, `config_banner=yes` |
 | `notebook-2026-10-30` | preset: off-home, secrets-locked, public-mirror on `luca-notebook` |
 
-```bash
-dot test run --scenario off-home,public-mirror
-dot test run --scenario notebook-2026-10-30
-dot test run --scenario all --dry-run
-```
+`pkg-fail`, `no-tor` and `config-fail` edit the snapshot, so they refuse `--master`. A snapshot `replace` whose pattern
+no longer matches stops the run (and `vm.test.nu` in lint), so a refactor cannot void a scenario.
 
-Snapshot edits (`extra_packages`, `replace`) need the snapshot, so `pkg-fail`, `no-tor` and `config-fail` refuse
-`--master`. A `replace` whose pattern no longer matches stops the run (and `vm.test.nu` in lint), so a refactor cannot
-void a scenario.
+## Read the result
 
-## Reports
+- Pass prints `dot test: <scenario>: chain succeeded` and destroys the VM. A failure keeps the VM and prints its
+  `dot test destroy --name <name>` line; in a series only the last failure keeps its VM.
+- The report: `$XDG_CACHE_HOME/vm-test/<name>/logs/<scenario>` (`status.json`, journals, `FAILURES.*`, invariants).
+- Install failed: `host/upload/bootstrap.log` in the cache dir. A power-off without `bootstrap-ok`, or a guest down
+  mid-chain with no verdict, is a crash: read `serial.log`.
+- Live: `dot test shot` writes `screen.png` in the cache dir; `serial.log` and `report.log` (virtio channel) beside
+  it. `virsh -c qemu:///session send-key` types on the console. A viewer goes on a headless output
+  (`l-dotfiles-gui-testing`).
 
-- Install beacons `bootstrap-ok` (http and channel) and powers the VM off when done; a power-off without it is a crash
-  (see `serial.log`), as is a guest that goes down mid-chain with no verdict. On failure the stub uploads
-  `/tmp/lsck0-install.log` to `$XDG_CACHE_HOME/vm-test/<name>/host/upload/bootstrap.log` and beacons `bootstrap-fail`.
-- Stages beacon `install-ok|failed`, `config-ok|failed` (`stage.nu`, `/var/lib/dotfiles-stage/report`).
-- The chain's end runs `scripts/lib/stage-report.nu` as root: probes in `scripts/lib/invariants.txt`,
-  `dot status --json` (`status.json`), `dot internal backup --roundtrip`, stage log, journals, network and nft state,
-  `/etc/issue.d`, `FAILURES.*`, `*.log`; uploads `logs.tgz` and writes it to the channel, beacons `chain-done`
-  (`chain-fail` on a failed report or a stopped chain), reboots (waits at the passphrase; not unlocked).
-- `$XDG_CACHE_HOME/vm-test/<name>/logs/<scenario>`: the report. Pass is `dot test: <scenario>: chain succeeded`,
-  wanting every invariant row at its value (`any` rows only where the scenario's `expect` names them),
-  `backup_roundtrip=ok`, `sshd_installed=yes`, a mirror reachable (`mirror_reachable=yes`) or a banner naming a `dot`
-  command (`issue_escape=yes`), and either each stage as the scenario's `stages` say (`ok` by default), no `FAILURES.*`
-  line but its `failures_allowed` ones (notes) and no error in `status.json` unless every failure line was allowed, or
-  a chain stopped before config (`chain_stopped=yes`: `--stopped` beside install-stop's `stopped` marker, probed after
-  its disarm, so `stage_armed`, `sudo_passwordless`, `keyfile_present` and `luks_keyslots` keep their values) with its
-  banner and the rows of `scenarios.nuon`'s `stopped` at theirs. `dot status` FAIL checks print as notes.
-- A pass destroys the VM; a failure keeps it for inspection and prints the `dot test destroy --name` line. In a
-  series of runs only the last keeps its VM, as the next run reuses the name; the others leave their logs.
+Read [reference.md](reference.md) for the VM and network setup, the beacons and the exact pass criteria.
 
-## While and after
+## Teardown
 
-```bash
-dot test shot      # $XDG_CACHE_HOME/vm-test/<name>/screen.png
-dot test destroy   # VM, disk, NVRAM, passt, pasta and socat; the cached iso stays
-```
-
-Serial console `serial.log`, channel `report.log`, both in the cache dir. A viewer goes on a headless output
-(`l-dotfiles-gui-testing`); `virsh -c qemu:///session send-key` types on the console without one.
+`dot test destroy [--name <name>]` removes the VM, disk, NVRAM, passt, pasta and socat; the cached iso stays. A ctrl+c
+leaves socat and pasta running until the next run or destroy stops them by pidfile.

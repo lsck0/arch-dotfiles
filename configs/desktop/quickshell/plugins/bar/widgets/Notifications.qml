@@ -28,7 +28,6 @@ BarWidget {
   property string expandedKey: ""
 
   implicitWidth: button.implicitWidth
-  implicitHeight: Style.bar.sizeHorizontal
 
   function findEntry(name) {
     var want = String(name || "").trim().toLowerCase()

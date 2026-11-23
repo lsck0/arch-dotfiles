@@ -5,11 +5,11 @@ use module.nu [file-render]
 
 const HERE = path self .
 
-def fail [msg: string] { error make {msg: $"gtk.test: ($msg)"} }
+use std/assert
 
 def main [] {
     let css = file-render ($HERE | path join gtk4.css) /nonexistent/gtk.css {THEME_CSS: /theme.css, RADIUS_PX: 2} | get content
     let left = $css | parse --regex '(?P<p>@[A-Z_]+@?)' | get p
-    if ($left | is-not-empty) { fail $"placeholders left: ($left | str join ' ')" }
-    if not ($css | str contains "--window-radius: 2px;") { fail "--window-radius is not 2px" }
+    assert equal $left [] "placeholders left"
+    assert ($css | str contains "--window-radius: 2px;") "--window-radius is not 2px"
 }

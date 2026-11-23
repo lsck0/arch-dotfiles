@@ -40,16 +40,14 @@ export def link [cfg: record] {
         # keyed by the key set and account: a new key or account registers again; away from the forge it waits
         (if $unlocked {
             let fingerprint = [$f.FORGEJO_URL $f.FORGEJO_USER ...(keys-local | sort)] | str join "\n" | hash sha256
-            let stamp = xdg cache dotfiles forgejo-keys
-            (step keys-register --key $fingerprint --network
-                --done=(($stamp | path exists) and (open --raw $stamp) == $fingerprint))
+            step keys-register --key $fingerprint --network
         })
     ]
 }
 
 # The owner's ssh public keys readable here.
 def keys-local []: nothing -> list<string> {
-    $env.DOTFILES | path join configs secrets keys ssh/public.asc
+    secret-path keys ssh public.asc
     | append (glob ($env.DOTFILES | path join configs base yubikey ssh-*.pub))
     | append (glob ($nu.home-dir | path join .ssh *.pub))
     | where { secret-is-plaintext $in } | each { open --raw $in | str trim } | uniq
@@ -76,5 +74,4 @@ export def keys-register []: nothing -> nothing {
         } catch {|e| print $"note: forgejo: ssh key ($title) not added: ($e.msg)"; false }
     }
     if not ($added | all { $in }) { error make {msg: "forgejo: not every ssh key was added"} }
-    rm --force (xdg cache dotfiles forgejo-keys)
 }

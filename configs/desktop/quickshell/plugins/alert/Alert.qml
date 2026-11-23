@@ -124,7 +124,7 @@ Item {
       }
 
       // a burst of alerts (after a suspend) outgrows the screen, so the stack scrolls below the bar
-      ListView {
+      ToastList {
         id: stack
         anchors.fill: parent
         clip: true
@@ -132,24 +132,6 @@ Item {
         spacing: Style.spacing.xs
         model: alerts
         opacity: root.closing ? 0 : 1
-        Behavior on opacity {
-          id: stackFade
-          NumberAnimation { duration: Style.motion.fadeMs(stackFade.targetValue > 0); easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.curve(stackFade.targetValue > 0) }
-        }
-
-        // the toasts' transitions: in from the travel distance, out to the edge, the rest shifting at base
-        add: Transition {
-          NumberAnimation { property: "x"; from: Style.motion.travel; to: 0; duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
-          NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
-        }
-        remove: Transition {
-          NumberAnimation { property: "x"; to: stack.width; duration: Style.motion.exit; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.leave }
-          NumberAnimation { property: "opacity"; to: 0; duration: Style.motion.exit; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.leave }
-        }
-        displaced: Transition {
-          NumberAnimation { properties: "x,y"; duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
-          NumberAnimation { property: "opacity"; to: 1; duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
-        }
 
         delegate: GlassCard {
           id: card

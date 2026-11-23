@@ -2,9 +2,9 @@
 # lib/python.lua resolves $VIRTUAL_ENV, then root/.venv, then the poetry env, else nothing; checked in headless nvim on
 # scratch projects, with a stub poetry on PATH for the poetry branch.
 
-const HERE = path self .
+use std/assert
 
-def fail [msg: string] { error make {msg: $"python.test: ($msg)"} }
+const HERE = path self .
 
 def python-stub [dir: string] {
     mkdir ($dir | path join bin)
@@ -23,12 +23,8 @@ io.stdout:write\(vim.json.encode\({ python = require\('lib.python'\).find\(root\
     hide-env --ignore-errors VIRTUAL_ENV
     let run = with-env $env_extra { ^nvim --clean --headless -l $file | complete }
     rm --force $file
-    if $run.exit_code != 0 { fail $"nvim exited ($run.exit_code): ($run.stderr | str trim)" }
+    assert equal $run.exit_code 0 $"nvim: ($run.stderr | str trim)"
     $run.stdout | from json | get python
-}
-
-def expect [name: string, got: any, want: any] {
-    if $got != $want { fail $"($name): got ($got | to nuon), want ($want | to nuon)" }
 }
 
 def main [] {
@@ -53,14 +49,14 @@ def main [] {
     let base = {}
     let stubbed = {PATH: ($env.PATH | prepend ($work | path join stub))}
 
-    expect "null root" (python-find null $base) null
-    expect "empty root" (python-find "" $base) null
-    expect "neither" (python-find $bare $base) null
-    expect ".venv" (python-find $project $base) $dotvenv
-    expect "VIRTUAL_ENV over .venv" (python-find $project {VIRTUAL_ENV: ($work | path join active)}) $active
-    expect "VIRTUAL_ENV without python" (python-find $project {VIRTUAL_ENV: $bare}) $dotvenv
-    expect "poetry env" (python-find $poetry_project $stubbed) $poetry_env
-    expect "poetry failing" (python-find $poetry_project ($stubbed | merge {POETRY_STUB_FAIL: "1"})) null
-    expect ".venv over poetry" (python-find $project $stubbed) $dotvenv
+    assert equal (python-find null $base) null "null root"
+    assert equal (python-find "" $base) null "empty root"
+    assert equal (python-find $bare $base) null "neither"
+    assert equal (python-find $project $base) $dotvenv ".venv"
+    assert equal (python-find $project {VIRTUAL_ENV: ($work | path join active)}) $active "VIRTUAL_ENV over .venv"
+    assert equal (python-find $project {VIRTUAL_ENV: $bare}) $dotvenv "VIRTUAL_ENV without python"
+    assert equal (python-find $poetry_project $stubbed) $poetry_env "poetry env"
+    assert equal (python-find $poetry_project ($stubbed | merge {POETRY_STUB_FAIL: "1"})) null "poetry failing"
+    assert equal (python-find $project $stubbed) $dotvenv ".venv over poetry"
     rm --recursive --force $work
 }

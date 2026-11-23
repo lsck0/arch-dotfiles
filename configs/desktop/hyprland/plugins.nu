@@ -9,6 +9,7 @@ const PLUGINS = [
 ]
 const PC = "/usr/share/pkgconfig/hyprland.pc"
 const TOGGLES = path self ../../../scripts/toggles
+const SELF = path self
 
 def cache-dir []: nothing -> path { xdg cache hypr-plugins }
 
@@ -116,20 +117,32 @@ def plugins-load [hyprland: string]: nothing -> nothing {
     }
 }
 
+# The login run and a dot apply share the checkout and the output dir, so each verb reruns itself under one lock;
+# true in the caller, which then stops.
+def relaunch-locked [verb?: string]: nothing -> bool {
+    if $env.PLUGINS_LOCKED? != null { return false }
+    mkdir (cache-dir)
+    with-env {PLUGINS_LOCKED: "1"} { ^flock (cache-dir | path join lock) nu --no-config-file $SELF ...([$verb] | compact) }
+    true
+}
+
 # Builds what the installed hyprland lacks (git and make, the network).
 def "main build" []: nothing -> nothing {
+    if (relaunch-locked build) { return }
     let hyprland = commit-installed
     if $hyprland != "" and not (plugins-build $hyprland) { exit 1 }
 }
 
 # Loads the built plugins into the running hyprland.
 def "main load" []: nothing -> nothing {
+    if (relaunch-locked load) { return }
     let hyprland = commit-installed
     if $hyprland != "" { plugins-load $hyprland }
 }
 
 # Builds what the installed hyprland lacks, then loads it into the running one when they match.
 def main []: nothing -> nothing {
+    if (relaunch-locked) { return }
     let hyprland = commit-installed
     if $hyprland == "" { return }
     let built = plugins-build $hyprland

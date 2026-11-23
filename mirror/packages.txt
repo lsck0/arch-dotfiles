@@ -603,6 +603,7 @@ python-certipy-ad-git
 python-evdev
 python-faker
 python-frida
+python-gobject
 python-hypothesis
 python-ipykernel
 python-jsonschema
@@ -930,6 +931,7 @@ ttf-zed-mono-nerd
 typos
 typst
 typstyle
+udisks2
 umu-launcher
 unzip
 updo

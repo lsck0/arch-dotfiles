@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # direct, proton, tor or offline; wg0 and the SOCKS pool are not routes. Offline also cycles wg0.
 use lib.nu [notify notify-failed cycle-next status-record status-print toggle-run state-get state-set state-file root-run unit-active exclusive-run state-check]
-use ../lib/state.nu [xdg]
+use ../lib/state.nu [xdg file-lines]
 
 const ROUTES = {direct: Direct, proton: ProtonVPN, tor: Tor, offline: Offline}
 const COUNTRY = "CH"
@@ -37,7 +37,7 @@ def portmaster-restore []: nothing -> nothing {
 }
 
 def proton-connect []: nothing -> nothing {
-    let settings = xdg config "Proton VPN" settings.json
+    let settings = xdg config Proton VPN settings.json
     # the app writes every default into settings.json, killswitch 0 included: the value counts, not the key
     if (try { (open $settings).killswitch? | default 0 } catch { 0 }) == 0 {
         ^protonvpn config set kill-switch standard | complete
@@ -81,8 +81,7 @@ def offline-enter []: nothing -> nothing {
 def offline-leave []: nothing -> nothing {
     let saved = state-file offline-rfkill
     # no record: leave every radio as it is, rather than lifting a block set outside this switch
-    let types = if ($saved | path exists) { open --raw $saved | lines | where $it != "" } else { [] }
-    for type in $types { ^rfkill unblock $type }
+    for type in (file-lines $saved) { ^rfkill unblock $type }
     ^nmcli networking on
     let vpn_back = {|| try { with-env {TOGGLES_QUIET: "1"} { toggle-run vpn on o> /dev/null }; true } catch { false } }
     if (state-get offline-vpn) == on and not (do $vpn_back) {
@@ -94,15 +93,16 @@ def offline-leave []: nothing -> nothing {
 # only a user-chosen tor stops, after proton0 is up; the dispatcher stops its own
 def "main _apply" [route: string, --keep-tor]: nothing -> nothing {
     let from = current
+    # a record outlives networking turned on outside this switch: its radios are still blocked
+    let blocked = $from == offline or (state-file offline-rfkill | path exists)
     # still a reply: the bar marks the route busy until the script reports back
-    if $route == $from {
+    if $route == $from and not ($blocked and $route != offline) {
         notify Route ($ROUTES | get $route)
         return
     }
     let dispatcher_tor = $DISPATCHER_TOR | path exists
     try {
-        # a record outlives networking turned on outside this switch: its radios are still blocked
-        if $from == offline or (state-file offline-rfkill | path exists) { offline-leave }
+        if $blocked { offline-leave }
         match $route {
             direct => { proton-disconnect; tor-stop }
             proton => {
@@ -124,9 +124,11 @@ def "main _apply" [route: string, --keep-tor]: nothing -> nothing {
     notify Route ($ROUTES | get (current))
 }
 
+# without NetworkManager (WSL) every route is a press that fails: hidden
 def "main get" [--json] {
-    let route = current
-    status-print (status-record Route $route --text ($ROUTES | get $route) --states ($ROUTES | columns)) $json
+    let available = which nmcli | is-not-empty
+    let route = if $available { current } else { "direct" }
+    status-print (status-record Route $route --text ($ROUTES | get $route) --states ($ROUTES | columns) --available=$available) $json
 }
 def "main set" [route: string, --keep-tor] {
     state-check route $route ($ROUTES | columns)

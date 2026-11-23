@@ -1,46 +1,51 @@
 ---
 name: l-dotfiles-apparmor-profile
-description: Writing or adjusting an AppArmor profile or local/ drop-in in configs/base/apparmor, loading it, reading denials, apparmor.test.nu, and the enforce vs complain policy. Load when an app is blocked by AppArmor or a new app needs confinement.
+description: "Writing or adjusting AppArmor profiles and local/ drop-ins in configs/base/apparmor, reading DENIED lines, apparmor.test.nu, the aa command and the enforce policy. Load when an app is blocked by AppArmor, a profile transition is not found, or a new app needs confinement. Reproducing the denial in a GUI app: l-dotfiles-gui-testing."
 ---
 
 # apparmor-profile
 
 Built on apparmor.d (`aa-install`). In `configs/base/apparmor/`:
 
-- `profiles.conf`: every deployed profile, `<name> <mode>[,flags]`. `,flags` only for apparmor.d's; an own profile keeps
-  flags in its `profile` line and `mod.nu` writes the mode into it.
-- `profiles/<name>`: own profiles. First line `# managed by arch-dotfiles/apparmor`, then `profile <name> <attachment>
-  flags=(...)`. apparmor.d profiles with a brace attachment (firefox, thunderbird, libreoffice, browserpass)
-  become own profiles too: `OVERRIDES` in `mod.nu` generates them from the installed
-  apparmor.d profile, swapping only the attachment in its `profile` line, and errors (apply and test) once apparmor.d
-  no longer ships one. A `profile transition not found` denial into an apparmor.d program is this case.
+- `profiles.conf`: the mode of every deployed profile, `<name> <mode>[,flags]`. `,flags` only for apparmor.d's; an own
+  profile keeps its flags in its `profile` line and `mod.nu` writes the mode into it.
+- `profiles/<name>`: own profiles, installed as `/etc/apparmor.d/<name>.dotfiles`. First line
+  `# managed by arch-dotfiles/apparmor`, then `profile <name> <attachment> flags=(...)`.
+- `OVERRIDES` in `mod.nu`: apparmor.d profiles with a brace attachment (firefox, thunderbird, libreoffice, browserpass)
+  regenerated as own profiles from the installed one, only the attachment swapped; apply and test fail once
+  apparmor.d stops shipping one. A `profile transition not found` denial into an apparmor.d program is this case.
 - `local/<name>`: extra rules for an apparmor.d profile (`/etc/apparmor.d/local/<name>`); the name must be in
   `profiles.conf`.
-- `abstractions/`: installed as `abstractions/dotfiles/<name>`.
+- `abstractions/<name>`: installed as `abstractions/dotfiles/<name>`.
 
-## Policy
+## Rules
 
-Everything that opens other people's content (browsers, mail, chat, media, documents, images, archives, `child-open*`)
-is `enforce`; `apparmor.test.nu` fails otherwise. Luca backs one off on one machine with `aa complain <profile>`
-(sudo; writes `/etc/apparmor/{flags,include}.d/manual.conf`, survives runs), never in the baseline; likewise
-`aa enforce`, `aa off`. `aa` (sudo too) shows loaded modes; `aa list [filter]`, apparmor.d's names, needs no root.
+- Everything that opens other people's content (browsers, mail, chat, media, documents, images, archives,
+  `child-open*`) stays `enforce`; `apparmor.test.nu` fails otherwise.
+- Backing a profile off is Luca's, on one machine, never in the baseline: `aa complain|off|enforce <profile>` (sudo;
+  writes `/etc/apparmor/{flags,include}.d/manual.conf`, survives runs). `aa` (sudo) shows loaded modes and his
+  choices; `aa list [filter]` lists apparmor.d's names without root.
+- A rule names the checkout `@{DOTFILES}`, never `projects/arch-dotfiles` (the test fails).
+- A confined program may only exec into a loaded profile.
 
 ## Fix a denial
 
-1. Reproduce (the way `l-dotfiles-gui-testing` allows: ask Luca first), then read
+1. Reproduce it (a GUI app the way `l-dotfiles-gui-testing` allows: ask Luca first), then read
    `journalctl -k -b --no-pager -g 'apparmor="DENIED"' | tail`: `profile=`, `operation=`, `name=`, `requested_mask=`.
 2. Add the narrowest rule to `local/<profile>` or `profiles/<profile>`; prefer an abstraction
-   (`include <abstractions/dotfiles/viewer-read>`). Name the checkout `@{DOTFILES}`, never `projects/arch-dotfiles`.
-3. `configs/base/apparmor/apparmor.test.nu`: exit 0 is clean.
-4. Load: an agent runs `DOT_SYSTEM=skip dot apply` (pending, exit 3) and asks Luca for `dot apply --system`, which
-   installs, reloads and fails if a profile is not in its mode. Does nothing on WSL; installs no profiles without
-   apparmor.d (`aa-install` or `/etc/apparmor.d/abstractions/base-strict`). Quick loop for Luca:
-   ```bash
-   sudo install -m644 configs/base/apparmor/local/<p> /etc/apparmor.d/local/<p>
-   sudo apparmor_parser -r /etc/apparmor.d/<file>
-   ```
-   `<file>` is `<p>.dotfiles` when `/etc/apparmor.d/<p>.dotfiles` exists (an own profile: `profiles/<p>` or an
-   `OVERRIDES` entry in `mod.nu`), else `<p>.apparmor.d` if it exists, else `<p>`.
-   Never reload the bare `<p>` of an own profile: it is the stock unconfined stub and replaces the enforced one.
-   Then still `dot apply --system`.
-5. Retry and recheck the log.
+   (`include <abstractions/dotfiles/viewer-read>`).
+3. `configs/base/apparmor/apparmor.test.nu` (no root) until it exits 0.
+4. `DOT_SYSTEM=skip dot apply` (system part pending, exit 3), then ask Luca for `dot apply --system`: it installs,
+   reloads and fails when a profile is not in its mode. Does nothing on WSL, installs no profiles without apparmor.d.
+5. Retry and recheck the log; back to 2 while denials remain.
+
+Quick loop for Luca (sudo), followed by `dot apply --system` all the same:
+
+```bash
+sudo install -m644 configs/base/apparmor/local/<p> /etc/apparmor.d/local/<p>
+sudo apparmor_parser -r /etc/apparmor.d/<file>
+```
+
+`<file>` is `<p>.dotfiles` when it exists (own profile or `OVERRIDES` entry), else `<p>.apparmor.d` when it exists,
+else `<p>`. Never reload the bare `<p>` of an own profile: it is the stock unconfined stub and replaces the enforced
+one.

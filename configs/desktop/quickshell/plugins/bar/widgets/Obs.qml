@@ -183,7 +183,6 @@ BarWidget {
   hoverFill: true
   visible: connected || faulted
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
-  implicitHeight: Style.bar.sizeHorizontal
   onObsSeenChanged: {
     if (!obsSeen) {
       connected = false

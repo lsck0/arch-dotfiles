@@ -5,7 +5,7 @@ const SHA256 = "f93bfbd94cde68cc2e43cf5ba55da4f8e28b1a36b14fb14dadd566fc36b1312b
 const URL = $"https://github.com/grafana/mcp-grafana/releases/download/v($VERSION)/mcp-grafana_Linux_x86_64.tar.gz"
 
 export def link [cfg: record] {
-    let token = $env.DOTFILES | path join configs secrets keys grafana-mcp-token
+    let token = secret-path keys grafana-mcp-token
     let wanted = (profile-has secrets) and (platform-has homelab)
     if not $wanted or not (secret-is-plaintext $token) {
         if $wanted { log-warn $"no readable ($token), skipping \(README.md\)" }

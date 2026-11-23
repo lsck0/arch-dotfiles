@@ -4,6 +4,7 @@
 # run here, unprivileged, on such arguments: each must be refused with nothing evaluated. 49-toggles.rules is the
 # second layer: its verb lists must take the helper's verbs and nothing with a flag or an expression in it.
 
+use std/assert
 use toggle-root.nu [anonsocks-rate-cap-loaded]
 use ../../../scripts/launchers.test.nu [hostile]
 
@@ -11,8 +12,6 @@ const HERE = path self .
 const HELPER = $HERE | path join toggle-root.nu
 const RULES = $HERE | path join 49-toggles.rules
 const PERSONA_CGROUP = "user.slice/user-1000.slice/user@1000.service/app.slice/anonymous-socks-tor.service"
-
-def fail [msg: string] { error make {msg: $"toggle-root.test: ($msg)"} }
 
 # Every argv ends in usage or a parse error, so none reaches a verb's commands.
 def injections [marker: path]: nothing -> list<list<string>> {
@@ -23,17 +22,16 @@ def injections [marker: path]: nothing -> list<list<string>> {
 def helper-refuses []: nothing -> nothing {
     let work = mktemp --directory
     let marker = $work | path join evaluated
-    for argv in (injections $marker) {
+    let unrefused = injections $marker | where {|argv|
         let run = ^$HELPER ...$argv | complete
         let evaluated = $marker | path exists
         rm --force $marker
-        if $evaluated { rm --recursive $work; fail $"evaluated an argument: ($argv | to nuon)" }
-        if $run.exit_code == 0 { rm --recursive $work; fail $"accepted ($argv | to nuon)" }
+        $evaluated or $run.exit_code == 0
     }
     rm --recursive $work
-    if (open --raw $HELPER) !~ '(?m)^def main \[\.\.\.args: string\] \{$' {
-        fail "main must stay `def main [...args: string]`: --wrapped or a flag makes nu evaluate arguments as root"
-    }
+    assert equal $unrefused [] "argv evaluated or accepted"
+    let main_plain = (open --raw $HELPER) =~ '(?m)^def main \[\.\.\.args: string\] \{$'
+    assert $main_plain "main must stay `def main [...args: string]`: --wrapped or a flag makes nu evaluate arguments as root"
 }
 
 # A verb list of the rules file as one anchored pattern, built the way the rule builds it.
@@ -64,11 +62,10 @@ def rule-allowlist []: nothing -> nothing {
     ]
     for c in $cases {
         let got = {unprompted: ($c.verb =~ $unprompted), lowering: ($c.verb =~ $lowering)}
-        if $got != ($c | reject verb) { fail $"rule on '($c.verb)': ($got | to nuon)" }
+        assert equal $got ($c | reject verb) $"rule on '($c.verb)'"
     }
-    if (open --raw $RULES | str trim) !~ '(?s)return polkit\.Result\.NO;\n\}\);$' {
-        fail "the helper's rule must end by refusing every other command line"
-    }
+    let refuses_rest = (open --raw $RULES | str trim) =~ '(?s)return polkit\.Result\.NO;\n\}\);$'
+    assert $refuses_rest "the helper's rule must end by refusing every other command line"
 }
 
 # nft's own listing of the rule the helper loads, for a pool and for one port.
@@ -93,7 +90,7 @@ def rate-cap-compare []: nothing -> nothing {
     ]
     for c in $cases {
         let got = anonsocks-rate-cap-loaded $c.listing $c.port $c.last $c.rate
-        if $got != $c.want { fail $"rate cap ($c.port)-($c.last) at ($c.rate) against ($c.listing | to nuon): ($got)" }
+        assert equal $got $c.want $"rate cap ($c.port)-($c.last) at ($c.rate) against ($c.listing | to nuon)"
     }
 }
 
@@ -102,8 +99,8 @@ def llm-toggles-runtime-only []: nothing -> nothing {
     let helper = open --raw $HELPER
     for unit in [vllm ollama] {
         let branch = $helper | parse --regex ('(?s)\[2, "' + $unit + '"\] => \{(?<body>.*?)\n        \}') | get 0?.body
-        if $branch == null { fail $"no ($unit) branch" }
-        if $branch =~ 'systemctl (enable|disable)' { fail $"($unit) must start and stop its socket, never enable or disable it" }
+        assert ($branch != null) $"no ($unit) branch"
+        assert ($branch !~ 'systemctl (enable|disable)') $"($unit) must start and stop its socket, never enable or disable it"
     }
 }
 

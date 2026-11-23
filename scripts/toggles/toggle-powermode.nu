@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [status-record status-print notify notify-failed root-run state-get state-set state-clear state-file quickshell-call cycle-next toggle-run exclusive-run state-check]
+use lib.nu [status-record status-print notify notify-failed root-run state-get state-set state-clear state-file shell-call cycle-next toggle-run exclusive-run state-check]
 use ../lib/platform.nu [platform-load]
 
 # auto is no forced mode: tlp picks by the power source
@@ -40,7 +40,7 @@ def saver-sync []: nothing -> nothing {
     ^hyprctl reload config-only | complete
     toggle-run shader reapply | complete
     toggle-run monitor-scale reapply | complete
-    quickshell-call shell reloadPowerMode | complete | ignore
+    shell-call shell reloadPowerMode | complete | ignore
 }
 
 def "main _apply" [mode: string]: nothing -> nothing {
@@ -55,7 +55,8 @@ def "main _apply" [mode: string]: nothing -> nothing {
 
 def "main get" [--json] {
     let mode = current
-    status-print (status-record "Power mode" $mode --text ($MODES | get $mode) --states ($MODES | columns)) $json
+    let available = which tlp | is-not-empty
+    status-print (status-record "Power mode" $mode --text ($MODES | get $mode) --states ($MODES | columns) --available=$available) $json
 }
 
 # auto is a stop of its own: else the first press leaves it for good

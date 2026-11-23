@@ -159,14 +159,7 @@ Item {
         }
 
         // gives way at exit when a panel or the wallpaper reveal covers it, comes back at base
-        Behavior on opacity {
-          id: quoteFade
-          NumberAnimation {
-            duration: Style.motion.fadeMs(quoteFade.targetValue > 0)
-            easing.type: Easing.BezierSpline
-            easing.bezierCurve: Style.motion.curve(quoteFade.targetValue > 0)
-          }
-        }
+        FadeBehavior on opacity {}
       }
 
       Column {
@@ -179,14 +172,7 @@ Item {
         visible: !screenGuard.remapping
         opacity: panel.widgetsHidden ? 0 : 1
 
-        Behavior on opacity {
-          id: widgetFade
-          NumberAnimation {
-            duration: Style.motion.fadeMs(widgetFade.targetValue > 0)
-            easing.type: Easing.BezierSpline
-            easing.bezierCurve: Style.motion.curve(widgetFade.targetValue > 0)
-          }
-        }
+        FadeBehavior on opacity {}
 
         Card {
           heading: "Pomodoro"

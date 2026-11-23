@@ -90,7 +90,7 @@ export def wifi-conf []: nothing -> nothing {
         }
         return
     }
-    let networks = open --raw $wifi | lines | where $it != "" | each {|line|
+    let networks = file-lines $wifi | each {|line|
         let fields = $line | split row "\t"
         if ($fields | length) != 2 { error make {msg: "remote-unlock: configs/secrets/keys/wifi is not one ssid<tab>passphrase per line"} }
         # the passphrase goes in on stdin, never argv; wpa_passphrase's comments repeat it in plain, so they all go

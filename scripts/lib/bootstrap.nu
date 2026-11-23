@@ -1,7 +1,7 @@
 # Install from the Arch ISO or set up WSL from bootstrap/questions.nuon; unattended from BOOTSTRAP_*.
 
 use log.nu *
-use state.nu [SYSTEM_REPO path-kind]
+use state.nu [SYSTEM_REPO path-kind file-trim]
 use system.nu [system-pack system-unpack]
 use platform.nu [platform-groups-all platform-files PLATFORM_NAME_FILE]
 use profile.nu [profile-owner-add]
@@ -241,7 +241,7 @@ def home-gateway-line []: nothing -> any {
     ^ping -c 1 -W $PING_TIMEOUT_S -I $route.dev $route.gateway | complete | ignore
     let mac = ^ip -j neigh show $route.gateway dev $route.dev | from json | get --optional 0.lladdr | default "" | str lowercase
     if not ($mac =~ $MAC_PATTERN) { return null }
-    let ifindex = try { open --raw $"/sys/class/net/($route.dev)/ifindex" | str trim } catch { "" }
+    let ifindex = file-trim $"/sys/class/net/($route.dev)/ifindex"
     let lease = try { open --raw ($NETWORKD_LEASES | path join $ifindex) } catch { "" }
     let server = $lease | parse --regex '(?m)^SERVER_ADDRESS=(?<id>\S+)$' | get --optional 0.id
     if $server == null { $mac } else { $"($mac) ($route.gateway) ($server)" }

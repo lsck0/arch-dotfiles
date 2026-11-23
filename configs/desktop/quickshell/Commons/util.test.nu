@@ -2,9 +2,10 @@
 # Util.qml's text helpers and Palette.js's derived palette under qmltestrunner, Util alone in a module so the service
 # singletons stay unloaded
 
+use ../scripts/lib/qml-test.nu [qml-test-run]
+
 const UTIL = path self Util.qml
 const PALETTE = path self Palette.js
-const RUNNER = "/usr/lib/qt6/bin/qmltestrunner"
 const TEST = '
 import QtQuick
 import QtTest
@@ -127,17 +128,11 @@ TestCase {
 '
 
 def main [] {
-    let dir = mktemp --directory
-    # remove the temp dir whether the run succeeds or a step throws
-    let outcome = try {
-        mkdir ($dir | path join utiltest)
-        open --raw $UTIL | str replace --all --regex '(?m)^import Quickshell.*\n' '' | save ($dir | path join utiltest Util.qml)
-        "module utiltest\nsingleton Util 1.0 Util.qml\n" | save ($dir | path join utiltest qmldir)
-        cp $PALETTE ($dir | path join utiltest Palette.js)
-        $TEST | save ($dir | path join tst_util.qml)
-        with-env {QT_QPA_PLATFORM: offscreen} { ^$RUNNER -import $dir -input ($dir | path join tst_util.qml) } | complete
-    } catch {|e| {failed: $e.msg} }
-    rm --recursive --force $dir
-    if ($outcome | get --optional failed) != null { error make {msg: $outcome.failed} }
-    if $outcome.exit_code != 0 { error make {msg: $"qmltestrunner failed\n($outcome.stdout)($outcome.stderr)"} }
+    qml-test-run $TEST {|dir|
+        let module = $dir | path join utiltest
+        mkdir $module
+        open --raw $UTIL | str replace --all --regex '(?m)^import Quickshell.*\n' '' | save ($module | path join Util.qml)
+        "module utiltest\nsingleton Util 1.0 Util.qml\n" | save ($module | path join qmldir)
+        cp $PALETTE ($module | path join Palette.js)
+    }
 }

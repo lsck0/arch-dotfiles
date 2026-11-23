@@ -14,7 +14,7 @@ const shell = {
 const bar = {
     left:   ["AppMenu", "Workspaces", "Submap"],
     center: ["Clock", "Weather", "Media", "Obs", "Discord"],
-    right:  ["Tray", "Separator", "Agents", "Homelab", "System", "Network",
+    right:  ["Tray", "Separator", "Agents", "Homelab", "System", "Drives", "Phone", "Network",
              "Display", "AudioIO", "Notifications", "KeyboardLayout", "Indicators", "Exit"]
 };
 

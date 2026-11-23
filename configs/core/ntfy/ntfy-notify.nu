@@ -4,7 +4,7 @@
 const REPO = path self ../../..
 use ($REPO | path join scripts lib secrets.nu) [secret-is-plaintext]
 use ($REPO | path join scripts lib homelab.nu) [homelab-lab-load homelab-lab-path]
-use ($REPO | path join scripts lib state.nu) [xdg]
+use ($REPO | path join scripts lib state.nu) [save-atomic xdg]
 
 const MAX_REPLAY = 1hr
 # keepalive is 45s: under a byte a second over 90s is a dead connection
@@ -96,12 +96,6 @@ def group-key [payload: record]: nothing -> string {
         | sort | str join "|"
 }
 
-def file-replace [file: path, text: string]: nothing -> nothing {
-    mkdir (state-dir)
-    $text | save --force $"($file).tmp"
-    mv --force $"($file).tmp" $file
-}
-
 def alerts-open-read []: nothing -> record {
     let opened = try { open (state-dir | path join open-alerts.json) } catch { {} }
     if ($opened | describe) =~ '^record' { $opened } else { {} }
@@ -137,7 +131,7 @@ def notify [msg: record]: nothing -> nothing {
             notify-send homelab $GLYPH_HOMELAB normal $s.title $s.body $s.click | ignore
             $opened
         }
-        file-replace (state-dir | path join open-alerts.json) ($opened | to json --raw)
+        $opened | to json --raw | save-atomic (state-dir | path join open-alerts.json)
         return
     }
     let priority = $msg.priority? | default $PRIORITY_DEFAULT | into int
@@ -180,12 +174,13 @@ def subscribe [sub: record, since: string, token: string]: nothing -> bool {
             continue
         }
         if (date now) - (($msg.time? | default 0) * 1_000_000_000 | into datetime) < $MAX_REPLAY { notify $msg }
-        file-replace $last_id ($msg.id? | default "")
+        $msg.id? | default "" | save-atomic $last_id
     }
     $opened
 }
 
 def main []: nothing -> nothing {
+    mkdir (state-dir)
     mut delay_s = $BACKOFF_MIN_S
     # topics the server refused, until lab.json changes (the lab's acl and lab.json agree again after its deploy)
     mut denied: list<string> = []

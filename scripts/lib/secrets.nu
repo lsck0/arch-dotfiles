@@ -5,6 +5,9 @@ use profile.nu [profile-has profile-owner]
 const GITCRYPT_MAGIC = 0x[00 47 49 54 43 52 59 50 54]
 export const OWNER_WITNESS = "configs/secrets/keys/pgp/private.asc"
 const KEYS_PUBLIC = ['*.pub' '*public*']
+const SECRET_KINDS = [keys state]
+# in a dir the repo seeded from secrets: a backup from it carries no unseeded live state over the repo's
+export const SECRET_SEED_MARKER = ".from-secrets"
 
 # Whether the bytes are a locked git-crypt blob (those start with "\0GITCRYPT").
 export def secret-bytes-locked []: binary -> bool {
@@ -51,12 +54,25 @@ export def secrets-keys-chmod [secrets: path]: nothing -> nothing {
     ^find $keys -type f ...($KEYS_PUBLIC | each { [! -name $in] } | flatten) -exec chmod 600 '{}' +
 }
 
-# Before a backup: live state at witness that the repo never seeded (no marker) would overwrite the repo's, so fail.
-export def secret-seed-guard [marker: path, witness: path, label: string]: nothing -> nothing {
+# The repo's secret of app under configs/secrets/<keys|state>, parts below it.
+export def secret-path [kind: string, app: string, ...parts: string]: nothing -> path {
+    if $kind not-in $SECRET_KINDS { error make {msg: $"secret-path: ($kind) is none of ($SECRET_KINDS | str join ', ')"} }
+    $env.DOTFILES | path join configs secrets $kind $app ...$parts
+}
+
+# Marks dir as seeded from secrets, which lets secret-seed-guard pass its backups.
+export def secret-seed-mark [dir: path]: nothing -> nothing {
+    mkdir $dir
+    touch ($dir | path join $SECRET_SEED_MARKER)
+}
+
+# Before a backup: live state at witness that the repo never seeded into dir would overwrite the repo's, so fail;
+# without live state dir is marked.
+export def secret-seed-guard [dir: path, witness: path]: nothing -> nothing {
+    let marker = $dir | path join $SECRET_SEED_MARKER
     if ($marker | path exists) { return }
     if ($witness | path exists) {
-        error make {msg: $"($label) was not seeded from secrets; dot apply --user seeds it, or touch ($marker) to keep the live state"}
+        error make {msg: $"($dir) was not seeded from secrets; dot apply --user seeds it, or touch ($marker) to keep the live state"}
     }
-    mkdir ($marker | path dirname)
-    touch $marker
+    secret-seed-mark $dir
 }

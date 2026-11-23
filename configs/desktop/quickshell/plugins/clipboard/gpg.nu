@@ -7,6 +7,11 @@ def status-of [stderr: string]: nothing -> list<string> {
     $stderr | lines | where { $in starts-with "[GNUPG:] " }
 }
 
+# gpg's last human-readable stderr line, the status lines aside
+def failure-of [stderr: string]: nothing -> string {
+    $stderr | lines | where { not ($in starts-with "[GNUPG:]") } | last | default "gpg failed"
+}
+
 def status-has [status: list<string>, pattern: string]: nothing -> bool {
     $status | any { $in =~ $'^\[GNUPG:\] ($pattern)' }
 }
@@ -80,7 +85,7 @@ def "main encrypt" [...recipients: string, --trust-unverified]: string -> nothin
     let to = $recipients | append $me | uniq | each { [--recipient $in] } | flatten
     let trust = if $trust_unverified { [--trust-model always] } else { [] }
     let run = $"($text)\n" | do { ^gpg --batch ...$trust --armor --local-user $me --sign --encrypt ...$to } | complete
-    if $run.exit_code != 0 { return (emit {ok: false, error: ($run.stderr | lines | where { not ($in starts-with "[GNUPG:]") } | last | default "gpg failed")}) }
+    if $run.exit_code != 0 { return (emit {ok: false, error: (failure-of $run.stderr)}) }
     emit {ok: true, armored: ($run.stdout | str trim --right --char "\n")}
 }
 
@@ -97,7 +102,7 @@ def "main decrypt" []: string -> nothing {
         return (emit {ok: false, error: "no OpenPGP message in this entry"})
     }
     if $run.exit_code != 0 and $sig.state in [none good untrusted] {
-        return (emit {ok: false, error: ($run.stderr | lines | where { not ($in starts-with "[GNUPG:]") } | last | default "gpg failed")})
+        return (emit {ok: false, error: (failure-of $run.stderr)})
     }
     if ($run.stdout | describe) == binary {
         return (emit {ok: false, error: "decrypted plaintext is binary, not text"})

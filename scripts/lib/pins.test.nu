@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 # Third-party sources are pinned (l-dotfiles-add-package, Supply chain). A source that floats fails, outside EXCEPTIONS:
-# the sources that skill lists as still floating, and the lines a rule matches that are pinned another way.
+# the floating sources this lint tracks (the skill lists only those it cannot see) and lines pinned another way.
 # A pin's age is its upstream date, read offline from where it is written down: a *_FROZEN, EXCLUDE_NEWER or
 # _exclude_newer cutoff, a uv.lock's upload times, or an ISO date in a comment on the pin's own line or in the comment
 # lines directly above it (`# v1.0.3, 2026-09-11`). A pin older than MAX_AGE, a pin with no date and an exception that

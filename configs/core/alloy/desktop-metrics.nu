@@ -42,6 +42,9 @@ const OFFLOAD_METRICS = "/run/offload/metrics"
 const OFFLOAD_WORKER = "/usr/local/lib/offload/worker.nu"
 const OFFLOAD_KINDS = [static-site oci-image arch-base run]
 const OFFLOAD_FILE_MAX = 100_000
+# another account's file is read as that uid with no group of its own
+const NOBODY_GID = 65534
+const READ_TIMEOUT = "5s"
 
 def label-value [value: any]: nothing -> string {
     $value | into string | str replace --all '\' '\\' | str replace --all '"' '\"' | str replace --all "\n" '\n'
@@ -126,11 +129,21 @@ def run-metrics [dir: path, layer: string]: nothing -> list<record> {
 
 def number [value: any]: nothing -> bool { ($value | describe) in [int float] }
 
-# Whether root may read another account's file: a regular one uid owns (not followed: the type and owner are the
-# file's own), at most max_bytes.
-def file-owned [file: path, uid: string, max_bytes: int]: nothing -> bool {
+# Another account's file as text, or null: only a regular file uid owns (not followed: the type and owner are the
+# file's own), at most max_bytes. Read as uid, bounded in size and time, since the path can be swapped after the stat
+# for a link to anything that account may read, or a fifo.
+def owned-read [file: path, uid: string, max_bytes: int]: nothing -> any {
     let info = ^stat -c '%u|%F|%s' -- $file | complete | get stdout | str trim | split row "|"
-    ($info | length) == 3 and $info.0 == $uid and $info.1 == "regular file" and ($info.2 | into int) <= $max_bytes
+    if ($info | length) != 3 or $info.0 != $uid or $info.1 != "regular file" or ($info.2 | into int) > $max_bytes {
+        return null
+    }
+    let read = (^setpriv $"--reuid=($uid)" $"--regid=($NOBODY_GID)" --clear-groups
+        timeout $READ_TIMEOUT head -c ($max_bytes + 1) -- $file | complete)
+    # bytes that are not UTF-8 come back as binary, which is no text either
+    let text = $read.stdout
+    if $read.exit_code != 0 or ($text | describe) != "string" or ($text | str length --utf-8-bytes) > $max_bytes {
+        null
+    } else { $text }
 }
 
 # The rows a login left in its runtime dir: only from a regular file it owns (no link, no fifo), only USER_METRICS with
@@ -143,9 +156,10 @@ def user-rows []: nothing -> list<record> {
         let file = $dir.name | path join $USER_FILE
         if not ($uid =~ '^[0-9]+$') or not ($file | path exists) { return [] }
         let login = ^getent passwd $uid | complete | get stdout | split row ":" | get --optional 0 | default ""
-        if not (file-owned $file $uid $USER_FILE_MAX) or $login == "" { return [] }
+        let text = if $login == "" { null } else { owned-read $file $uid $USER_FILE_MAX }
+        if $text == null { return [] }
         try {
-            let rows = open --raw $file | from json
+            let rows = $text | from json
             if ($rows | describe) !~ '^(list|table)' { return [] }
             $rows | where {|r|
                 ($r | describe) =~ '^record' and ($r.name? in $USER_METRICS) and (number $r.value?)
@@ -192,8 +206,7 @@ def offload-rows []: nothing -> list<record> {
     let states = if not ($OFFLOAD_METRICS | path exists) { [] } else {
         ls $OFFLOAD_METRICS | where name =~ '/[0-9]+\.json$' | each {|f|
             let uid = $f.name | path parse | get stem
-            if not (file-owned $f.name $uid $OFFLOAD_FILE_MAX) { return null }
-            try { open --raw $f.name | from json } catch { null }
+            try { owned-read $f.name $uid $OFFLOAD_FILE_MAX | from json } catch { null }
         } | compact
     }
     offload-metrics ($OFFLOAD_WORKER | path exists) $states

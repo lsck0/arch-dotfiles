@@ -31,7 +31,6 @@ BarWidget {
   readonly property var reminders: TimerState.reminders
 
   implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
-  implicitHeight: Style.bar.sizeHorizontal
 
   readonly property int msPerMinute: 60 * 1000
   readonly property real travelMs: travelHours * 60 * msPerMinute

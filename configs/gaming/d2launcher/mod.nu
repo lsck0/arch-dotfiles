@@ -48,6 +48,7 @@ const VENDOR_LINKED = [bin patches backup]
 # about 6 GB: minutes at home, far longer over wireguard
 const VENDOR_COPY_TIMEOUT = 60min
 const BASE_MARKER = "d2exp.mpq"
+export const PD2_DIR = "ProjectD2"
 const BASE_IN_PREFIX = "drive_c/Program Files (x86)/Diablo II"
 const PATCH_VERSION = "d2launcher-patch.version"
 const D2_EXE = "Diablo II.exe"
@@ -92,6 +93,12 @@ def lod-detect []: nothing -> any {
         | where { path join $BASE_MARKER | path exists } | get --optional 0
 }
 
+# The lord of destruction install at base: null when unset or when it holds no d2exp.mpq (a stale base_dir), so the
+# trees built on it are skipped.
+export def lod-base [base: any]: nothing -> any {
+    if $base != null and ($base | path join $BASE_MARKER | path exists) { $base }
+}
+
 # The launcher's own wine (5.12): 1.13c game.exe overflows its stack under the system's wine-staging.
 export def wine-bin []: nothing -> path { home-dir | path join bin wine bin wine }
 
@@ -108,8 +115,7 @@ export def link [cfg: record] {
     let script = $dir | path join d2launcher
     let vendor = vendor-dir
     let game = game-dir
-    let base = $cfg.base_dir | default ""
-    let seedable = $base != "" and ($base | path join $BASE_MARKER | path exists)
+    let base = lod-base $cfg.base_dir
     let seeded = $game | path join $BASE_MARKER | path exists
     let game_empty = ($game | path type) == dir and (ls $game | is-empty)
     let own = vendor-own
@@ -121,6 +127,9 @@ export def link [cfg: record] {
     let synced_prefix = synced-vendor | path join wineprefix
     if not $own and $source == null and not $copied {
         log-note "d2launcher: the NAS vendor dir is not reachable and there is no local copy yet; apply again at home"
+    }
+    if $cfg.base_dir != null and $base == null {
+        log-note $"d2launcher: base_dir ($cfg.base_dir) holds no ($BASE_MARKER); plain Diablo II and pd2 are skipped"
     }
     [
         (fetch-git $URL $COMMIT $dir)
@@ -137,10 +146,13 @@ export def link [cfg: record] {
         (if not $own and ($synced_prefix | path exists) { step prefix-copy $synced_prefix --creates (prefix-dir) })
         # the saves live in syncthing (backed up with the rest of ~/sync), the prefix only links to them
         (step save-link --done=(not (save-linkable)))
-        ...($VENDOR_LINKED | each {|d| file-link ($vendor | path join $d) (home-dir | path join $d) })
+        # only to a dir that exists or a copy this apply makes: the script's mkdir -p fails on a dangling link
+        ...(if $own or $copied or $source != null {
+            $VENDOR_LINKED | each {|d| file-link ($vendor | path join $d) (home-dir | path join $d) }
+        } else { [] })
         ...(wine-fetch-decl)
-        (if $own { step game-seed $base --done=(not (($seedable and not $seeded) or $game_empty)) })
-        (if $own and ($seedable or $seeded) { step mxl-install --network --creates ($game | path join $PATCH_VERSION) })
+        (if $own { step game-seed ($base | default "") --done=(not (($base != null and not $seeded) or $game_empty)) })
+        (if $own and ($base != null or $seeded) { step mxl-install --network --creates ($game | path join $PATCH_VERSION) })
         (file-text (home-dir | path join d2launcher.conf) (config))
         (game-script (home-dir | path join gamescope.sh) (gamescope-values $cfg))
         (if $own { d2gl-window-decl $cfg })
@@ -166,11 +178,13 @@ export def wine-tree [name: string]: nothing -> record {
     {root: $root, prefix: ($root | path join prefix), lod: ($root | path join "Diablo II")}
 }
 
-# The lord of destruction base linked into a tree, so the game's logs land there, and the tree's prefix.
+# The lord of destruction base linked into a tree, so the game's logs land there, and the tree's prefix. A ProjectD2
+# in the base is left out: each pd2 season puts its own there, which a link would write into the base.
 export def wine-tree-decls [tree: record, base: path]: nothing -> list<record> {
     let env_vars = wine-env $tree.prefix | items {|k, v| $"($k)=($v)" }
     [
-        ...(ls $base | get name | each {|f| file-link $f ($tree.lod | path join ($f | path basename)) })
+        ...(ls $base | get name | where ($it | path basename) != $PD2_DIR
+            | each {|f| file-link $f ($tree.lod | path join ($f | path basename)) })
         (exec $"($tree.root | path basename)-prefix" [env ...$env_vars (wine-bin | path dirname | path join wineboot) --init]
             --creates ($tree.prefix | path join user.reg) --requires (wine-bin))
     ]
@@ -200,7 +214,7 @@ export def game-launcher [script: path, id: string, title: string, comment: stri
 }
 
 def vanilla-decls [cfg: record]: nothing -> list<record> {
-    let base = $cfg.base_dir
+    let base = lod-base $cfg.base_dir
     if $base == null or not (wine-ready) { return [] }
     let tree = wine-tree diablo2
     let save = $nu.home-dir | path join $VANILLA_SAVE

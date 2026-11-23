@@ -17,7 +17,7 @@ Item {
   property int value: 0
   property int maxValue: 100
   property bool hasProgress: true
-  property int duration: 1200
+  property int duration: OsdModel.DURATION_DEFAULT_MS
   property var lines: []
   property int typedChars: 0
   readonly property bool logMode: lines.length > 0
@@ -46,8 +46,8 @@ Item {
     ? root.iconWidth + root.gap + root.barWidth + root.gap + root.valueWidth
     : (root.message === "" ? root.iconWidth : root.iconWidth + root.messageGap + root.messageWidth)
 
-  function show(iconName, rawMessage, rawValue, rawMax, rawProgressText, rawDuration) {
-    var next = OsdModel.stateForShow(iconName, rawMessage, rawValue, rawMax, rawProgressText, rawDuration)
+  function show(payload) {
+    var next = OsdModel.stateFor(payload)
     maxValue = next.maxValue
     hasProgress = next.hasProgress
     value = next.value
@@ -113,7 +113,7 @@ Item {
         console.warn("osd: payload has no lines, message or value")
         return false
       }
-      show(p.icon || "", p.message || "", p.value === undefined ? "" : String(p.value), p.max === undefined ? "100" : String(p.max), p.progressText || "", p.duration === undefined ? "1200" : String(p.duration))
+      root.show(p)
       return true
     } catch (e) {
       console.warn("osd: bad payload:", e)

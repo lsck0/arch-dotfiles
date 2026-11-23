@@ -15,9 +15,11 @@ singleton Util 1.0 Util.qml
 JsonProcess 1.0 JsonProcess.qml
 ToggleState 1.0 ToggleState.qml
 WatchedFile 1.0 WatchedFile.qml
+EventWatcher 1.0 EventWatcher.qml
 singleton TimerState 1.0 TimerState.qml
 singleton TaskState 1.0 TaskState.qml
 ProcessQueue 1.0 ProcessQueue.qml
 singleton CalendarState 1.0 CalendarState.qml
 singleton NotesState 1.0 NotesState.qml
 singleton MediaState 1.0 MediaState.qml
+singleton BluetoothAgent 1.0 BluetoothAgent.qml

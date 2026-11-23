@@ -107,7 +107,7 @@ def app-entry [app: record, values: record]: nothing -> string {
         $"Terminal=("ConsoleOnly" in $app.categories)"
         $"Categories=($app.categories | str join ';');"
     ] | to text
-    $values | transpose key value | reduce --fold $text {|pair, acc| $acc | str replace --all $"@($pair.key)@" ($pair.value | into string) }
+    $text | text-render $values
 }
 
 export def link [cfg: record] {

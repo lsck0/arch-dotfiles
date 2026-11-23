@@ -7,7 +7,7 @@ const BACKUP_EXCLUDES = [vnavmesh/meshcache/ BossMod/replays/ Questionable/PathD
 
 def paths []: nothing -> record {
     let xl = $nu.home-dir | path join $XLCORE
-    let shared = $env.DOTFILES | path join configs secrets state dalamud
+    let shared = secret-path state dalamud
     {
         xl: $xl, config: ($xl | path join dalamudConfig.json), plugins: ($xl | path join installedPlugins)
         manifests: ($shared | path join manifests), saved: (host-file $shared)
@@ -41,13 +41,13 @@ export def seed []: nothing -> nothing {
     ^cp -n $p.seed.config ($p.xl | path join dalamudConfig.json)
     ^cp -n $p.seed.ui ($p.xl | path join dalamudUI.ini)
     ^cp -rnT $p.seed.plugin_configs ($p.xl | path join pluginConfigs)
-    touch ($p.xl | path join .dalamud-from-secrets)
+    secret-seed-mark $p.xl
 }
 
 export def backup [cfg: record]: nothing -> nothing {
     let p = paths
     if not ($p.config | path exists) { error make {msg: $"no ($p.config)"} }
-    secret-seed-guard ($p.xl | path join .dalamud-from-secrets) $p.seed.config $p.xl
+    secret-seed-guard $p.xl $p.seed.config
     mkdir $p.manifests $p.saved
     cp --force $p.config ($p.xl | path join dalamudUI.ini) $p.saved
     let excludes = $BACKUP_EXCLUDES | each {|e| [--exclude $e] } | flatten

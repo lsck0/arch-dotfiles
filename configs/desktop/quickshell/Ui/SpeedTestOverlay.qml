@@ -136,14 +136,7 @@ OverlayCard {
         opacity: root.running ? 0 : 1
         onClicked: root.runAgainRequested()
 
-        Behavior on opacity {
-          id: runAgainFade
-          NumberAnimation {
-            duration: Style.motion.fadeMs(runAgainFade.targetValue > 0)
-            easing.type: Easing.BezierSpline
-            easing.bezierCurve: Style.motion.curve(runAgainFade.targetValue > 0)
-          }
-        }
+        FadeBehavior on opacity {}
       }
     }
   }

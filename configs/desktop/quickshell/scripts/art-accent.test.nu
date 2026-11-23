@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-# art-accent.nu on generated covers: a solid colour, a grey cover with a small blue patch, a black one; and the cache
-# answering the second call for the same image content.
+# art-accent.nu on generated covers: a solid colour, a grey cover with a small blue patch, a black one, a jpeg, an svg it
+# refuses; and the cache answering the second call for the same image content.
 
 const ART_ACCENT = path self art-accent.nu
 const BLUE = "#2050E0"
@@ -33,6 +33,12 @@ def main [] {
         expect "grey with a blue patch" (accent $grey_blue $cache) $BLUE
         expect "pure black" (accent $black $cache) ""
         expect "missing file" (accent ($dir | path join none.png) $cache) ""
+        let svg = $dir | path join red.svg
+        '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="#FF0000"/></svg>' | save $svg
+        expect "not a raster cover" (accent $svg $cache) ""
+        let jpeg = $dir | path join red.jpg
+        ^magick -size 100x100 xc:#FF0000 $jpeg
+        expect "jpeg, lossy red" (accent $jpeg $cache) "#FE0000"
 
         let entry = $cache | path join (open --raw $red | hash md5)
         "#123456" | save --force $entry

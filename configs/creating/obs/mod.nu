@@ -66,8 +66,8 @@ const CANVAS_FALLBACK = "1920x1080"
 const VIRTUALCAM_HEIGHT = 720
 const STREAM_HEIGHT = 1080
 const PORTAL_TOKEN = "RestoreToken"
-const SECRET_SCENES = "obs/Streaming.json"
-const SECRET_SERVICE = "obs/service.json"
+const SECRET_SCENES = "Streaming.json"
+const SECRET_SERVICE = "service.json"
 # scene item keys obs derives from pos, scale and bounds on load
 const ITEM_RELATIVE_KEYS = [pos_rel scale_rel scale_ref bounds_rel]
 const GLOBAL = {General: {AutomaticSearch: "true", SafeMode: "false", ConfirmOnExit: "true"}}
@@ -284,15 +284,11 @@ def scene-seed [seed: path]: nothing -> path {
     host-seed ($seed | path dirname) ($seed | path basename)
 }
 
-def secret [name: string]: nothing -> path {
-    $env.DOTFILES | path join configs secrets keys $name
-}
-
 export def link [cfg: record] {
     let obs = obs-dir
     let basic = $obs | path join basic
-    let streaming = secret $SECRET_SCENES
-    let service = secret $SECRET_SERVICE
+    let streaming = secret-path keys obs $SECRET_SCENES
+    let service = secret-path keys obs $SECRET_SERVICE
     let scene = {|live, text, mode|
         [(scene-file $live $text $mode) (file-text (applied-file $live) ($text | scene-hash))]
     }
@@ -300,7 +296,7 @@ export def link [cfg: record] {
     let selection = if $has_stream { $SELECT_STREAMING } else { $SELECT_BARE }
     let secret_scene = if $has_stream {
         (do $scene ($basic | path join scenes Streaming.json) (scene-render $cfg $streaming) "600")
-        | append (file-text ($basic | path join scenes .from-secrets) "")
+        | append (file-text ($basic | path join scenes $SECRET_SEED_MARKER) "")
     } else { [] }
     let scenes = $secret_scene ++ (repo-scenes | each {|seed|
         do $scene ($basic | path join scenes ($seed | path basename)) (scene-render $cfg (scene-seed $seed) --machine) "644"
@@ -413,15 +409,14 @@ export def backup [cfg: record]: nothing -> nothing {
     # only the Streaming collection and service.json are secrets: the rest backs up while they are locked or absent
     if (owner-unlocked) {
         let streaming = $basic | path join scenes Streaming.json
-        let streaming_secret = secret $SECRET_SCENES
-        if ($streaming | path exists) {
-            secret-seed-guard ($basic | path join scenes .from-secrets) $streaming_secret $streaming
-        }
+        let streaming_secret = secret-path keys obs $SECRET_SCENES
+        if ($streaming | path exists) { secret-seed-guard ($basic | path join scenes) $streaming_secret }
         scene-back $cfg $streaming $streaming_secret $streaming_secret
         let service = $basic | path join profiles Streaming service.json
-        if ($service | path exists) { cp --force $service (secret $SECRET_SERVICE) }
+        let service_secret = secret-path keys obs $SECRET_SERVICE
+        if ($service | path exists) { cp --force $service $service_secret }
         # no backup.secrets, so no umask 077: a new file would be 644
-        [$streaming_secret (secret $SECRET_SERVICE)] | where {|f| $f | path exists } | each {|f| ^chmod 600 $f } | ignore
+        [$streaming_secret $service_secret] | where {|f| $f | path exists } | each {|f| ^chmod 600 $f } | ignore
     }
     for seed in (repo-scenes) {
         let own = host-file ($seed | path dirname) ($seed | path basename)

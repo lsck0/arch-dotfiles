@@ -1,9 +1,31 @@
 #!/usr/bin/env -S nu --no-config-file
-# Table cases for repository-url and repository-name: urls kept, user/repo to github, anything else refused.
-use repository.nu [repository-url repository-name]
+# Table cases for repository-url and repository-name: urls kept, user/repo to github, anything else refused. And
+# repository-find-under on a real tree: checkouts, bare repos and linked worktrees, never a submodule, a pruned dir or
+# what lies past the depth.
+use repository.nu [repository-url repository-name repository-find-under]
+use state.nu [tmp-dir-run]
 use std/assert
 
+def --wrapped git-quiet [...args: string]: nothing -> nothing {
+    ^git -c init.defaultBranch=main -c user.name=t -c user.email=t@t -c protocol.file.allow=always ...$args out+err> /dev/null
+}
+
+def find-cases [work: path]: nothing -> nothing {
+    git-quiet init ($work | path join a)
+    git-quiet -C ($work | path join a) commit --allow-empty -m x
+    git-quiet -C ($work | path join a) worktree add ($work | path join wt)
+    git-quiet init --bare ($work | path join group b.git)
+    git-quiet -C ($work | path join a) push ($work | path join group b.git) main
+    git-quiet init ($work | path join node_modules c)
+    git-quiet init ($work | path join x y z deep)
+    git-quiet -C ($work | path join a) submodule add ($work | path join group b.git) sub
+    let got = repository-find-under $work 2 | update dir { path relative-to $work }
+    let wants = [[dir kind]; [a checkout] [group/b.git bare] [wt worktree]]
+    assert equal $got $wants $"found ($got | to nuon)"
+}
+
 def main [] {
+    tmp-dir-run {|work| find-cases $work }
     let cases = [
         [spec url name];
         ["user/repo" "https://github.com/user/repo.git" "repo"]

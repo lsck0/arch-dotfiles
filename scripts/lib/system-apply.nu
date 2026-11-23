@@ -2,7 +2,7 @@
 # Root's one entry: re-execs under one flock and interruptible.sh, only from the root-owned copy.
 
 use log.nu *
-use state.nu [SYSTEM_REPO SYSTEM_STATE NU_ROOT EXIT_ABORTED EXIT_PENDING INSTALL_PASS_FILE process-running group-exists save-atomic]
+use state.nu [SYSTEM_REPO SYSTEM_STATE NU_ROOT EXIT_ABORTED EXIT_PENDING INSTALL_PASS_FILE CONFIG_ISSUE process-running tmp-dir-run group-exists save-atomic file-lines]
 use pipeline.nu [pipeline-load pipeline-plan pipeline-apply pending-save barriers-run]
 use modules.nu [modules-packages]
 use ledger.nu [packages-convergence packages-orphans-remove ledger-get ledger-set ledger-packages ledger-units awaited-names LEDGER_AWAITED LSCK0_DB]
@@ -37,6 +37,8 @@ const STAGES = {install: [install packages], config: [config], sync: [install pa
 const PACKAGES_FAILED = "removing undeclared packages"
 # what a step of a root entry failed with, read back by stages-run
 const FAILURES = $SYSTEM_STATE | path join FAILURES
+# a tmpfs: the handed secrets never reach a disk
+const RUN_TMP = "/run"
 
 def repo-guard []: nothing -> path {
     let repo = $env.FILE_PWD | path dirname | path dirname
@@ -69,14 +71,6 @@ def --env entry-begin [name: string, unattended: bool = false]: nothing -> path 
     if $unattended { $env.DOTFILES_UNATTENDED = "1" }
     run-open $name
     $repo
-}
-
-# Runs body on a fresh dir under /run, a tmpfs, removed after it whether body fails or not.
-def run-tmp [body: closure]: nothing -> any {
-    let dir = mktemp --directory --tmpdir-path /run
-    let result = try { do $body $dir } catch {|e| rm --recursive --force $dir; error make $e }
-    rm --recursive --force $dir
-    $result
 }
 
 def --env failures-end [what: string]: nothing -> nothing {
@@ -170,7 +164,7 @@ def stages-run [stage: string, secrets: path, unattended: bool, force: bool, yes
                 0
             } catch {|e| $e.exit_code? | default 1 }
         }
-        let lines = open --raw $FAILURES | lines | where ($it | str trim) != ""
+        let lines = file-lines $FAILURES
         let lines = if $step == "packages" and $code != 0 and ($lines | is-empty) { [$"($PACKAGES_FAILED): exited ($code)"] } else { $lines }
         $rows = $rows | append {stage: $step, code: $code, failures: $lines}
     }
@@ -256,7 +250,7 @@ def "main apply" [sha: string, stage: string, --run: string = "", --unattended, 
     log-debug $"system ($stage) for the run ($run)" {kind: run, target: $stage, user_run: $run}
     rm --force $SYSTEM_STAGES
     let rows = try {
-        run-tmp {|work|
+        tmp-dir-run --parent $RUN_TMP {|work|
             ^tar -x --no-same-owner --no-same-permissions -C $work -f - repo.tar secrets.tar
             open --raw ($work | path join repo.tar) | system-unpack $SYSTEM_REPO $sha
             stages-run $stage ($work | path join secrets.tar) $unattended $force $yes
@@ -363,7 +357,7 @@ def "main config" [--unattended, --force]: nothing -> nothing {
     # a pending migration converts root's state before any verb reads it, also without a sync
     migrations-run $repo system | ignore
     let ctx = pipeline-load $repo system --progress
-    let run = run-tmp {|secrets|
+    let run = tmp-dir-run --parent $RUN_TMP {|secrets|
         ^tar -x --no-same-owner --no-same-permissions -C $secrets -f -
         let allowed = system-secrets $repo $ctx.platform.facts.wireguard?
         let handed = ^find $secrets -mindepth 1 ! -type d -print0 | split row (char nul) | where $it != ""
@@ -421,6 +415,13 @@ def "main preserve-prune" [days: int]: nothing -> nothing {
     repo-guard | ignore
     locked
     preserve-prune $days
+}
+
+# banner-clear: a failed config stage's login banner, once the asking run applied both layers without a failure; here
+# and not a bare rm, so polkit's kept approval of this entry covers it
+def "main banner-clear" []: nothing -> nothing {
+    repo-guard | ignore
+    rm --force $CONFIG_ISSUE
 }
 
 const USERNAME_PATTERN = '^[a-z_][a-z0-9_-]{0,31}$'

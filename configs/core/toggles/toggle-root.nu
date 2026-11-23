@@ -42,12 +42,14 @@ def usage []: nothing -> nothing {
     exit 1
 }
 
+def die [msg: string]: nothing -> nothing {
+    print -e $"toggle-root: ($msg)"
+    exit 1
+}
+
 def caller-uid []: nothing -> string {
     let uid = $env.PKEXEC_UID? | default ""
-    if $uid !~ '^[0-9]+$' {
-        print -e "toggle-root: no PKEXEC_UID, run it through pkexec"
-        exit 1
-    }
+    if $uid !~ '^[0-9]+$' { die "no PKEXEC_UID, run it through pkexec" }
     $uid
 }
 
@@ -77,8 +79,7 @@ def anonsocks-slice []: nothing -> string {
 def anonsocks-guard-release [what: string]: nothing -> nothing {
     let events = [$CGROUP_ROOT (anonsocks-slice) cgroup.events] | path join
     if ($events | path exists) and "populated 0" not-in (open --raw $events | lines) {
-        print -e $"toggle-root: anonsocks.slice still runs something, ($what)"
-        exit 1
+        die $"anonsocks.slice still runs something, ($what)"
     }
 }
 
@@ -100,20 +101,14 @@ def persona-off []: nothing -> nothing {
 
 # Takes no link from the caller: the dispatcher's own idea of foreign, the connected physical links not trusted.
 def portal [direction: string]: nothing -> nothing {
-    if not ($PERSONA_DISPATCHER | path exists) {
-        print -e "toggle-root: no persona dispatcher"
-        exit 1
-    }
+    if not ($PERSONA_DISPATCHER | path exists) { die "no persona dispatcher" }
     match $direction {
         on => {
             let trusted = if ($TRUSTED_NETWORK | path exists) { open --raw $TRUSTED_NETWORK | lines } else { [] }
             let links = ^nmcli -t -f DEVICE,STATE device | lines | parse --regex '^(?<dev>[^:]*):(?<state>.*)$'
                 | where {|l| $l.state == connected and $l.dev not-in $trusted }
                 | where {|l| $"/sys/class/net/($l.dev)/device" | path exists }
-            if ($links | is-empty) {
-                print -e "toggle-root: no foreign link to open a portal on"
-                exit 1
-            }
+            if ($links | is-empty) { die "no foreign link to open a portal on" }
             for link in $links { ^$PERSONA_DISPATCHER $link.dev portal }
         }
         # the timer's service is the dispatcher's own portal-end, with the link's search domains it saved
@@ -131,6 +126,20 @@ def portal [direction: string]: nothing -> nothing {
 
 # The caller's own chain of the table: egress (the slice's guard) or out (the rate cap).
 def anonsocks-chain [kind: string]: nothing -> string { $"($kind)_(caller-uid)" }
+
+# Replaces the caller's chain with these rules in one nft transaction.
+def anonsocks-chain-load [chain: string, rules: list<string>]: nothing -> nothing {
+    $"add table inet ($NFT_TABLE)
+add chain inet ($NFT_TABLE) ($chain) { type filter hook output priority 0 ; policy accept ; }
+flush chain inet ($NFT_TABLE) ($chain)
+table inet ($NFT_TABLE) {
+    chain ($chain) {
+        type filter hook output priority 0; policy accept;
+($rules | each { $"        ($in)" } | str join "\n")
+    }
+}
+" | ^nft -f -
+}
 
 # Whether a listing of an `out` chain holds the cap for these numbers and no other rule; nft prints a range of one
 # port as the port and adds its default burst.
@@ -157,32 +166,16 @@ def anonsocks [args: list<string>]: nothing -> nothing {
                 if (anonsocks-rate-cap-loaded $loaded.stdout $port $last $rate) { return }
                 anonsocks-guard-release "its rate cap stays as it is"
             }
-            $"add table inet ($NFT_TABLE)
-add chain inet ($NFT_TABLE) ($chain) { type filter hook output priority 0 ; policy accept ; }
-flush chain inet ($NFT_TABLE) ($chain)
-table inet ($NFT_TABLE) {
-    chain ($chain) {
-        type filter hook output priority 0; policy accept;
-        oif \"lo\" tcp dport ($port)-($last) ct state new limit rate over ($rate)/second drop
-    }
-}
-" | ^nft -f -
+            anonsocks-chain-load $chain [$"oif \"lo\" tcp dport ($port)-($last) ct state new limit rate over ($rate)/second drop"]
         }
         [1, "egress-on"] => {
             let slice = anonsocks-slice
             let chain = anonsocks-chain egress
-            $"add table inet ($NFT_TABLE)
-add chain inet ($NFT_TABLE) ($chain) { type filter hook output priority 0 ; policy accept ; }
-flush chain inet ($NFT_TABLE) ($chain)
-table inet ($NFT_TABLE) {
-    chain ($chain) {
-        type filter hook output priority 0; policy accept;
-        socket cgroupv2 level 4 \"($slice)\" oif != \"lo\" reject
-        # redirected to lo, e.g. portmaster's dns, the lookup still leaves in the clear
-        socket cgroupv2 level 4 \"($slice)\" ct status dnat reject
-    }
-}
-" | ^nft -f -
+            anonsocks-chain-load $chain [
+                $"socket cgroupv2 level 4 \"($slice)\" oif != \"lo\" reject"
+                # redirected to lo, e.g. portmaster's dns, the lookup still leaves in the clear
+                $"socket cgroupv2 level 4 \"($slice)\" ct status dnat reject"
+            ]
         }
         [1, "nft-off"] => {
             anonsocks-guard-release "its netfilter guard stays"
@@ -236,10 +229,7 @@ def main [...args: string] {
     match [($args | length) ($args.0? | default "")] {
         [2, "tlp"] => {
             let mode = $args.1
-            if (which tlp | is-empty) {
-                print -e "toggle-root: tlp is not installed"
-                exit 1
-            }
+            if (which tlp | is-empty) { die "tlp is not installed" }
             if $mode in $TLP_MODES {
                 ^tlp $mode
             } else if $mode == start {
@@ -249,10 +239,7 @@ def main [...args: string] {
             }
         }
         [2, "wg"] => {
-            if not ($WG_CONFIG | path exists) or (which wg-quick | is-empty) {
-                print -e $"toggle-root: no ($WG_INTERFACE) configured"
-                exit 1
-            }
+            if not ($WG_CONFIG | path exists) or (which wg-quick | is-empty) { die $"no ($WG_INTERFACE) configured" }
             let direction = $args.1
             if $direction not-in [up down] { usage }
             ^wg-quick $direction $WG_INTERFACE
@@ -278,8 +265,7 @@ def main [...args: string] {
         # permissive to default only tightens, so the rule never asks for it: from restrictive it would lower
         [2, "firewall"] if $args.1 == raise-default => {
             if (^systemctl is-active --quiet fw-lockdown.service | complete).exit_code == 0 {
-                print -e "toggle-root: restrictive is active, default would lower it"
-                exit 1
+                die "restrictive is active, default would lower it"
             }
             firewall-raise default
         }

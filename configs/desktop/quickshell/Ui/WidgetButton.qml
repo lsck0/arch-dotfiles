@@ -43,14 +43,7 @@ Item {
   implicitWidth: fixedWidth > 0 ? fixedWidth : Math.max(Style.bar.statusSlot, label.implicitWidth + scaledHorizontalMargin * 2)
   implicitHeight: Style.bar.sizeHorizontal
 
-  Behavior on opacity {
-    id: fade
-    NumberAnimation {
-      duration: Style.motion.fadeMs(fade.targetValue > 0)
-      easing.type: Easing.BezierSpline
-      easing.bezierCurve: Style.motion.curve(fade.targetValue > 0)
-    }
-  }
+  FadeBehavior on opacity {}
 
   Rectangle {
     anchors.fill: parent

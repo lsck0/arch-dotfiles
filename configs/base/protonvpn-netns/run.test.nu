@@ -3,6 +3,7 @@
 # hand a command on: every argument must arrive as typed, with nothing in it evaluated on the way, and run.sh must
 # pass on only plain environment values. ip, setpriv, sudo and id are stubs, so nothing here needs the namespace.
 
+use std/assert
 use ../../../scripts/launchers.test.nu [hostile]
 
 const HERE = path self .
@@ -28,13 +29,10 @@ printf "%s\n" "$@"'
 case "$1" in -nG) echo "users wheel" ;; *) exec /usr/bin/id "$@" ;; esac'
 }
 
-def fail [msg: string] { error make {msg: $"protonvpn-netns run.test: ($msg)"} }
-
 def passed-check [what: string, run: record, want: list<string>, marker: path]: nothing -> nothing {
-    if ($marker | path exists) { fail $"($what) evaluated an argument" }
-    if $run.exit_code != 0 { fail $"($what) exited ($run.exit_code): ($run.stderr | str trim)" }
-    let got = $run.stdout | lines
-    if $got != $want { fail $"($what) passed ($got | to nuon), want ($want | to nuon)" }
+    assert (not ($marker | path exists)) $"($what) evaluated an argument"
+    assert equal $run.exit_code 0 $"($what) exited ($run.exit_code): ($run.stderr | str trim)"
+    assert equal ($run.stdout | lines) $want $"($what) passed the wrong argv"
 }
 
 def main [] {
@@ -57,11 +55,9 @@ def main [] {
             let unsafe = {DISPLAY: $"$\(touch ($marker)\)", TERM: "../x y", LANG: "en_US.UTF-8", WAYLAND_DISPLAY: "wayland-1"}
             let kept = with-env $unsafe { ^$RUN /usr/bin/env | complete }
             let vars = $kept.stdout | lines | parse "{name}={value}" | transpose --header-row --as-record
-            if ($marker | path exists) { fail "run.sh evaluated an environment value" }
-            if $vars.DISPLAY != "" or $vars.TERM != "" { fail $"run.sh kept an unsafe value: ($vars | to nuon)" }
-            if $vars.LANG != $unsafe.LANG or $vars.WAYLAND_DISPLAY != $unsafe.WAYLAND_DISPLAY {
-                fail $"run.sh dropped a plain value: ($vars | to nuon)"
-            }
+            assert (not ($marker | path exists)) "run.sh evaluated an environment value"
+            assert equal ($vars | select DISPLAY TERM) {DISPLAY: "", TERM: ""} "run.sh kept an unsafe value"
+            assert equal ($vars | select LANG WAYLAND_DISPLAY) ($unsafe | select LANG WAYLAND_DISPLAY) "run.sh dropped a plain value"
 
             # fail closed: with the namespace or its link gone the command never runs, nor is the namespace entered
             let ran = $work | path join ran
@@ -71,20 +67,20 @@ def main [] {
             let log = $work | path join ip.log
             let down = with-env {STUB_DOWN: "1", STUB_LOG: $log} { ^$RUN $command | complete }
             let asked = open --raw $log | lines
-            if $down.exit_code == 0 or ($ran | path exists) { fail "run.sh ran a command with the namespace down" }
-            if $"-n ($NS) link show wg-($NS)" not-in $asked or ($asked | any { $in starts-with "netns exec" }) {
-                fail $"run.sh did not check the link before entering: ip calls ($asked | to nuon)"
-            }
+            assert ($down.exit_code != 0 and not ($ran | path exists)) "run.sh ran a command with the namespace down"
+            assert ($"-n ($NS) link show wg-($NS)" in $asked and not ($asked | any { $in starts-with "netns exec" })) (
+                $"run.sh did not check the link before entering: ip calls ($asked | to nuon)")
             rm $log
             let up = with-env {STUB_LOG: $log} { ^$RUN $command | complete }
-            if $up.exit_code != 0 or not ($ran | path exists) { fail $"the command stub did not run with the namespace up: ($up.stderr)" }
+            assert ($up.exit_code == 0 and ($ran | path exists)) $"the command stub did not run with the namespace up: ($up.stderr)"
             let direct = with-env {SUDO_USER: ""} { ^$RUN ...$print_args reached | complete }
-            if $direct.exit_code == 0 or $direct.stdout != "" { fail "run.sh ran a command without sudo" }
+            assert ($direct.exit_code != 0 and $direct.stdout == "") "run.sh ran a command without sudo"
 
-            passed-check "vpn outside" (^$VPN curl ...$args | complete) ([-n $RUN_INSTALLED curl] ++ $args) $marker
+            passed-check "vpn outside" (^$VPN curl ...$args | complete) ([-n $RUN_INSTALLED /usr/bin/curl] ++ $args) $marker
             let inside = with-env {STUB_NETNS: $NS} { ^$VPN ...$print_args ...$args | complete }
             passed-check "vpn inside" $inside $args $marker
-            if (^$VPN | complete).exit_code != 2 { fail "vpn without a command must exit 2" }
+            assert equal (^$VPN | complete).exit_code 2 "vpn without a command must exit 2"
+            assert equal (^$VPN vpn-test-missing-command | complete).exit_code 127 "vpn with a missing command must exit 127"
 
             let shim = ^($bin | path join yt-dlp) ...$args | complete
             passed-check "shim" $shim ([-n $RUN_INSTALLED /usr/bin/yt-dlp] ++ $args) $marker

@@ -2,11 +2,11 @@
 # The link verb evaluates with the network denied (a fresh net namespace) and no lazy.nvim installed, as on a fresh
 # install off the network: its probes never bootstrap lazy, so it returns within seconds and asks for the prefetch step.
 
+use std/assert
+
 const HERE = path self .
 const LIB = path self ../../../scripts/lib
 const EVAL_WAIT_MAX = 20sec
-
-def fail [msg: string] { error make {msg: $"nvim.test: ($msg)"} }
 
 def main [] {
     if (which nvim unshare | length) < 2 { print "nvim.test: skipped, needs nvim and unshare"; return }
@@ -24,10 +24,10 @@ def main [] {
     }
     let took = (date now) - $start
     rm --recursive --force $work
-    if $run.exit_code != 0 { fail $"link exited ($run.exit_code) after ($took): ($run.stderr | str trim)" }
-    if $took > $EVAL_WAIT_MAX { fail $"link took ($took), wants within ($EVAL_WAIT_MAX)" }
+    assert equal $run.exit_code 0 $"link after ($took): ($run.stderr | str trim)"
+    assert ($took <= $EVAL_WAIT_MAX) $"link took ($took), wants within ($EVAL_WAIT_MAX)"
     let steps = $run.stdout | from nuon
     let prefetch = $steps | where target == prefetch | get --optional 0
-    if $prefetch == null { fail $"no prefetch step declared: ($steps | to nuon)" }
-    if not $prefetch.network { fail "the prefetch step does not declare --network" }
+    assert ($prefetch != null) $"no prefetch step declared: ($steps | to nuon)"
+    assert $prefetch.network "the prefetch step does not declare --network"
 }

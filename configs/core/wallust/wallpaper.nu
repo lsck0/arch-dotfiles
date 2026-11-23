@@ -1,7 +1,7 @@
 use font.nu [font-save]
 use palette.nu [condition-derived hex-to-rgb]
-use ../../../scripts/lib/state.nu [xdg file-trim]
-use ../../../scripts/toggles/lib.nu [quickshell-call]
+use ../../../scripts/lib/state.nu [file-trim save-atomic xdg]
+use ../../../scripts/toggles/lib.nu [shell-call]
 
 const INTERNAL = path self ../../../scripts/lib/internal.nu
 const LIST = path self wallpaper-list.nu
@@ -59,7 +59,7 @@ def recent-record [file: string, palette: string]: nothing -> nothing {
     let path = xdg state dotfiles $RECENT
     let recent = try { open $path | into record } catch { {} }
     mkdir ($path | path dirname)
-    recent-add $recent $file $palette | to json | save --force $path
+    recent-add $recent $file $palette | to json | save-atomic $path
 }
 
 # The palette a wallpaper keeps when nothing new was picked: the recorded one; without a usable record (a fresh home,
@@ -118,7 +118,7 @@ def recolor [file: path, palette: string]: nothing -> bool {
     let switched = (wallpaper-get) != ($file | path expand) or (theme-get) != $palette
     ^ln -sfn $file (wal wallpaper)
     $"($file)\n" | save --force (wal wallpaper_path)
-    if (which quickshell | is-not-empty) { quickshell-call background set $file | complete | ignore }
+    if (which quickshell | is-not-empty) { shell-call background set $file | complete | ignore }
     if $palette == $DERIVED { derived-apply $file } else {
         # by path: wallust matches a name as a prefix, gruvbox-dark would also match gruvbox-dark-soft
         let theme = $THEMES | path join $"($palette).json"
@@ -164,9 +164,7 @@ def request [wallpaper: string, palette: string, sync: bool, --pick]: nothing ->
     } | path expand
     if not ($file | path exists) { error make {msg: $"wallpaper not found: ($file)"} }
     if $pick { recent-record $file $palette }
-    let request = request-file
-    $"($file)\n($palette)\n(random uuid)\n" | save --force $"($request).tmp"
-    ^mv -f $"($request).tmp" $request
+    $"($file)\n($palette)\n(random uuid)\n" | save-atomic (request-file)
     if (do { ^systemctl --user cat $UNIT } | complete).exit_code != 0 {
         theme-serve
         return

@@ -123,7 +123,9 @@ export def homelab-render [lab: record, keys: any = null, source: any = null]: n
     if $lab.schema? != $LAB_SCHEMA { error make {msg: $"homelab: lab.json schema ($lab.schema? | to nuon), wants ($LAB_SCHEMA)"} }
     let zones = $lab.zones? | default {}
     if ($zones | is-empty) { error make {msg: "homelab: lab.json has no zones"} }
-    let subnets = $zones | columns | each {|zone| field $lab ([zones $zone subnet] | into cell-path) $CIDR4 } | sort
+    # the wireguard tunnel is a lab network too: every reader of the subnets (homelab dns, routes, ssh hosts) covers it
+    let subnets = $zones | columns | each {|zone| field $lab ([zones $zone subnet] | into cell-path) $CIDR4 }
+        | append (field $lab $.wireguard.subnet $CIDR4) | sort
     let router = field $lab $.router $IPV4
     let hypervisor = field $lab $.proxmox.ip $IPV4
     let values = {

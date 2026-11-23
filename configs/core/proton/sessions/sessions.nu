@@ -3,7 +3,7 @@
 # session is live, so a newer sign-in is never replaced.
 
 use ../../../../scripts/lib/secrets.nu [secret-is-plaintext]
-use ../../../../scripts/lib/state.nu [xdg]
+use ../../../../scripts/lib/state.nu [sqlite-snapshot xdg]
 
 # files: under the app's state dir; items: the Secret Service search that finds its items
 export const APPS = [
@@ -73,7 +73,7 @@ def tree-copy [src: path, dest: path]: nothing -> nothing {
         mkdir ($to | path dirname)
         let head = open --raw $from | first ($SQLITE_MAGIC | bytes length) | into binary
         if $head == $SQLITE_MAGIC {
-            ^sqlite3 $from $".backup '($to)'"
+            sqlite-snapshot $from $to
             ^chmod $"--reference=($from)" $to
         } else {
             ^cp --preserve=mode $from $to

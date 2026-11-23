@@ -48,9 +48,12 @@ TextField 1.0 TextField.qml
 Toggle 1.0 Toggle.qml
 WidgetButton 1.0 WidgetButton.qml
 Shake 1.0 Shake.qml
+FadeBehavior 1.0 FadeBehavior.qml
 ListCursor 1.0 ListCursor.qml
 ListFade 1.0 ListFade.qml
 FadedList 1.0 FadedList.qml
 ListScrollBar 1.0 ListScrollBar.qml
 CursorFill 1.0 CursorFill.qml
 FilterListKeys 1.0 FilterListKeys.qml
+ToastList 1.0 ToastList.qml
+ListRow 1.0 ListRow.qml

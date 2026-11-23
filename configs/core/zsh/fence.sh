@@ -51,6 +51,7 @@ fi
 set -- choom -n "$OOM_SCORE_ADJ" -- ionice -c "$IO_CLASS_IDLE" "$@"
 # the scope needs a reachable user manager, which a bare wsl root shell lacks
 if ! systemctl --user show-environment > /dev/null 2>&1; then
+    echo "fence: no user manager, running without a memory cap" >&2
     exec "$@"
 fi
 set -- -p "MemoryMax=${FENCE_MEM:-$MEMORY_MAX_DEFAULT}" -p "MemorySwapMax=$MEMORY_SWAP_MAX" -p "CPUWeight=$CPU_WEIGHT" \

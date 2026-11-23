@@ -6,7 +6,7 @@ import Quickshell.Wayland
 import Quickshell.Services.Notifications
 import Quickshell.Hyprland
 import qs.Commons
-
+import qs.Ui
 import "components"
 import "NotificationLogic.js" as NotificationLogic
 
@@ -381,21 +381,26 @@ Item {
     while (popupModel.count > 0) removePopup(0)
   }
 
+  // the actions of the live notification behind the row, none for a restored row or a closed notification
+  function liveActionsOf(entry) {
+    var ref = entry && !isRestoredRow(entry) ? liveRefs[entry.originalId] : null
+    try {
+      return ref && ref.actions ? Array.from(ref.actions).filter(a => !!a) : []
+    } catch (e) {
+      return []
+    }
+  }
+
   // true when the live notification behind the row has the action and it was invoked
   function invokeLiveAction(entry, identifier) {
-    var ref = !isRestoredRow(entry) ? liveRefs[entry.originalId] : null
+    var action = liveActionsOf(entry).find(a => String(a.identifier) === identifier)
     try {
-      for (let i = 0; ref && ref.actions && i < ref.actions.length; i++) {
-        let action = ref.actions[i]
-        if (action && String(action.identifier) === identifier) {
-          action.invoke()
-          return true
-        }
-      }
+      if (action) action.invoke()
     } catch (e) {
       console.warn("invoke " + identifier + " failed:", e)
+      return false
     }
-    return false
+    return !!action
   }
 
   function invokePopupDefault(index) {
@@ -755,19 +760,10 @@ Item {
 
   function actionsFor(originalId, timestamp) {
     var index = rowIndexOf(originalId, timestamp)
-    if (index < 0 || isRestoredRow(popupModel.get(index))) return []
-    var ref = liveRefs[originalId]
-    var out = []
-    try {
-      for (let i = 0; ref && ref.actions && i < ref.actions.length; i++) {
-        let a = ref.actions[i]
-        if (a && a.identifier !== "default" && String(a.text || "").length > 0
-            && !NotificationLogic.isHiddenAction(a.identifier, a.text))
-          out.push({ id: String(a.identifier), text: String(a.text) })
-      }
-    } catch (e) {
-    }
-    return out
+    if (index < 0) return []
+    return liveActionsOf(popupModel.get(index))
+      .filter(a => a.identifier !== "default" && String(a.text || "").length > 0 && !NotificationLogic.isHiddenAction(a.identifier, a.text))
+      .map(a => ({ id: String(a.identifier), text: String(a.text) }))
   }
 
   function invokeAction(index, identifier) {
@@ -797,17 +793,9 @@ Item {
 
       mask: Region { item: popupWindow.active && !service.panelOverToasts ? popupList : null }
 
-      ListView {
+      ToastList {
         id: popupList
         opacity: service.panelOverToasts ? 0 : 1
-        Behavior on opacity {
-          id: giveWay
-          NumberAnimation {
-            duration: Style.motion.fadeMs(giveWay.targetValue > 0)
-            easing.type: Easing.BezierSpline
-            easing.bezierCurve: Style.motion.curve(giveWay.targetValue > 0)
-          }
-        }
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.topMargin: service.barClearance
@@ -820,20 +808,6 @@ Item {
 
         // the whole column holds while the pointer is on it, so no toast expires and shifts another under a click
         HoverHandler { id: stackHover }
-
-        // a toast enters from the shell's one travel distance and leaves all the way to the screen edge
-        add: Transition {
-          NumberAnimation { property: "x"; from: Style.motion.travel; to: 0; duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
-          NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
-        }
-        remove: Transition {
-          NumberAnimation { property: "x"; to: service.toastWidth; duration: Style.motion.exit; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.leave }
-          NumberAnimation { property: "opacity"; to: 0; duration: Style.motion.exit; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.leave }
-        }
-        displaced: Transition {
-          NumberAnimation { properties: "x,y"; duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
-          NumberAnimation { property: "opacity"; to: 1; duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
-        }
 
         delegate: Item {
           id: cardSlot

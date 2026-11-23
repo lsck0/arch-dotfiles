@@ -1,5 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file -I @DOTFILES@/scripts/lib
-# knock (base/nftables/fw-inbound.nft), then ssh to the real sshd on base/ssh's port; 22 is a tarpit
+# knock (base/nftables/fw-inbound.nft), then ssh to the real sshd on base/ssh's port; 22 is a tarpit. All over ipv4:
+# fw-inbound's knock sets hold ipv4 addresses only
 
 const REPO = "@DOTFILES@"
 use secrets.nu [secret-is-plaintext]
@@ -21,12 +22,12 @@ def --wrapped main [target, ...args]: nothing -> nothing {
     let own_port = $config | where key == port | get 0.value
     let port = if $own_port == $SSH_DEFAULT_PORT { $PORT } else { $own_port }
     for _ in 1..$KNOCK_TRIES {
-        ^knock $host ...($KNOCK | each { into string })
-        if (do { ^nc -z -w $PROBE_TIMEOUT_S $host $port } | complete).exit_code == 0 { break }
+        ^knock -4 $host ...($KNOCK | each { into string })
+        if (do { ^nc -4 -z -w $PROBE_TIMEOUT_S $host $port } | complete).exit_code == 0 { break }
     }
     let keys = [($REPO | path join configs secrets keys ssh/private.asc) ($nu.home-dir | path join .ssh id_ed25519_sk)]
         | where { secret-is-plaintext $in }
     let ids = $keys | each { [-i $in] } | flatten
     let only = if ($keys | is-empty) { [] } else { [-o IdentitiesOnly=yes] }
-    exec ssh -p $port ...$ids ...$only $target ...$args
+    exec ssh -4 -p $port ...$ids ...$only $target ...$args
 }

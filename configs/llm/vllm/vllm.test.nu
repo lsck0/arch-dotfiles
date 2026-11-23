@@ -2,6 +2,7 @@
 # prefix-root-owned on a missing dir, a dir the test user owns and a root-owned tree; on a ROCm machine, system's
 # prefix-own and keyed venv steps.
 
+use std/assert
 use mod.nu [prefix-root-owned system]
 
 const HERE = path self .
@@ -12,8 +13,6 @@ const CFG = {
     context: 65536
 }
 
-def fail [msg: string] { error make {msg: $"vllm.test: ($msg)"} }
-
 def main [] {
     let dir = mktemp --directory --tmpdir dot-vllm-test-XXXXXX
     let cases = [[name dir want]; ["missing dir" ($dir | path join missing) false] ["user-owned dir" $dir false]
@@ -21,7 +20,7 @@ def main [] {
     let failed = $cases | where {|c| (prefix-root-owned $c.dir) != $c.want }
     rm --recursive $dir
     for c in $failed { print --stderr $"vllm.test: ($c.name): got (not $c.want)" }
-    if ($failed | is-not-empty) { fail $"($failed | length) of ($cases | length) prefix-root-owned cases failed" }
+    assert ($failed | is-empty) $"($failed | length) of ($cases | length) prefix-root-owned cases failed"
 
     # system reads the venv's sources relative to the module dir, as converge runs it
     cd $HERE
@@ -30,8 +29,8 @@ def main [] {
         print --stderr "vllm.test: system skipped: no ROCm GPU"
         return
     }
-    if ($steps.target | take 2) != [prefix-own venv] { fail $"steps start ($steps.target | take 2), want prefix-own venv" }
+    assert equal ($steps.target | take 2) [prefix-own venv] "first steps"
     let venv = $steps | where target == venv | first
-    if $venv.creates != "/opt/vllm/venv/bin/python" { fail $"venv creates ($venv.creates)" }
-    if ($venv.key | str length) != 64 { fail $"venv key ($venv.key) is not a sha256" }
+    assert equal $venv.creates "/opt/vllm/venv/bin/python" "venv creates"
+    assert equal ($venv.key | str length) 64 $"venv key ($venv.key) is not a sha256"
 }

@@ -1,7 +1,7 @@
 [Unit]
 Description=Load the secrets ssh key into ssh-agent
 Requires=ssh-agent.socket
-After=ssh-agent.socket graphical-session.target
+After=ssh-agent.socket
 
 [Service]
 Type=oneshot
@@ -13,4 +13,4 @@ ExecCondition=/usr/bin/nu --no-config-file -c 'use @DOTFILES@/scripts/lib/secret
 ExecStart=/usr/bin/ssh-add @DOTFILES@/configs/secrets/keys/ssh/private.asc
 
 [Install]
-WantedBy=graphical-session.target
+WantedBy=default.target

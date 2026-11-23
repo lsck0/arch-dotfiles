@@ -1,9 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
 # the agent guard's inhibitors by power source: the lid switch is held on mains only, and a closed, undocked notebook
-# on battery holds nothing.
-use agent-guard.nu [inhibits-wanted]
+# on battery holds nothing; a subagent count whose stop hook never ran expires with its claim.
+use agent-guard.nu [claim-of inhibits-wanted session-busy]
 
-def fail [msg: string] { error make {msg: $"agent-guard.test: ($msg)"} }
+use std/assert
 
 def main [] {
     let cases = [
@@ -16,6 +16,14 @@ def main [] {
     ]
     for c in $cases {
         let got = inhibits-wanted ($c | select on_battery lid_closed docked)
-        if $got != $c.want { fail $"($c.name): ($got | to nuon)" }
+        assert equal $got $c.want $c.name
     }
+
+    let dir = mktemp --directory
+    claim-of ($nu.pid | into string) | save ($dir | path join s.pid)
+    "1" | save ($dir | path join s.agents)
+    assert (session-busy $dir s) "a fresh subagent count is idle"
+    ^touch --date "1 hour ago" ($dir | path join s.pid)
+    assert (not (session-busy $dir s)) "an orphaned subagent count stays busy"
+    rm --recursive $dir
 }

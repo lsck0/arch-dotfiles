@@ -1,42 +1,40 @@
 ---
 name: l-dotfiles-gui-testing
-description: The one procedure for launching an app, game, editor or viewer only to screenshot or check it, with muted audio and clean teardown; on Hyprland 0.57 a headless output can kill Luca's live apps, so ask him first. Load before any agent starts a GUI program the user is not watching, or a nested compositor (Hyprland, Plasma) to test a session.
+description: "The one procedure for launching an app or game only to screenshot or check it: an own headless output, muted audio, nested Hyprland or Plasma, a test quickshell, teardown. On Hyprland 0.57 an output can kill Luca's live apps, so ask him first. Load before starting any GUI program he is not watching. Acting on his screen for him: l-dotfiles-desktop-control."
 ---
 
 # gui-testing
 
-A program launched only to check something never shows on the user's monitors unless he says so. The default is a
-headless output of the agent's own, created only after Luca agreed (Never, first item); with his explicit permission
-(he is away, "use the pc") his real monitors are the other path (below).
+A program launched only to check something never shows on Luca's monitors unless he says so. Default: a headless output
+of the agent's own, created only after he agreed. With his explicit permission (he is away, "use the pc") his real
+monitors are the other path.
 
 ## Never
 
-- Any of this on Hyprland 0.57 without asking Luca first: on 2026-11-01, within seconds of `hyprctl output create
-  headless` (and a nested Hyprland on it), his live neovide, Firefox, ghostty and quickshell died with
-  `unknown object (N), message attach(?oii)` in the compositor's log. Until that is understood, an output created on
-  the live compositor can kill the user's apps.
-- `hyprctl keyword monitor`, `hl.monitor`, a monitor rule or position: an auto-positioned output follows the rightmost
-  one and can push a real monitor off-screen. Create the headless output and nothing else (a nested Hyprland's own
-  config, below, is the only place for `hl.monitor`).
-- Bare `grim`: it captures the headless areas too. Always `grim -o HEADLESS-N`.
+- Create an output on the live compositor without asking Luca: on Hyprland 0.57, `hyprctl output create headless` (and
+  a nested Hyprland on it) once killed his live neovide, Firefox, ghostty and quickshell within seconds
+  (`unknown object (N), message attach(?oii)` in the compositor log).
+- `hyprctl keyword monitor`, `hl.monitor`, a monitor rule or position on the live compositor: an auto-positioned output
+  follows the rightmost one and can push a real monitor off-screen. Create the headless output and nothing else.
+- Bare `grim`: it captures the headless areas too. Always `grim -o <output>`.
 - `pkill -f <pattern>`: it matches the agent's own shell. Kill by PID.
-- A Flatpak or other xdg-desktop-portal app on a headless output of the live session: its dialogs go through the
-  user's portals, and an output removed under an open one leaves xdg-desktop-portal-kde hung, so every file dialog in
-  the session freezes. Such apps run only in a nested Hyprland with its own private dbus-daemon on `$rt/bus`; after
-  any GUI test, `busctl --user call org.freedesktop.impl.portal.desktop.kde /org/freedesktop/portal/desktop
-  org.freedesktop.DBus.Peer Ping` must answer.
-- Removing an output you did not create.
-
-## Luca's monitors, with his permission
-
-- Screens off: `hyprctl dispatch "hl.dsp.dpms({ mode = 'on' })"`; turn them off again when done.
-- The desktop under the windows: move an empty workspace onto the main monitor
-  (`hl.dsp.workspace.move({ monitor = 'DP-2' })` while it is focused), then put workspace 1 back afterwards.
-- hypridle locks after `idle_lock_s` (default 1200 s) without input; IPC calls and screenshots are no input.
-  `toggle-keep-awake.nu` holds it off; `agent-guard` only blocks suspend. A lock needs Luca's login: stop there.
-- `grim -o <output>` of a real monitor captures whatever he has open: crop to what the check needs.
+- A Flatpak or other xdg-desktop-portal app on a headless output of the live session: an output removed under an open
+  portal dialog hangs xdg-desktop-portal-kde and freezes every file dialog in the session. Such apps run only in a
+  nested Hyprland ([nested.md](nested.md)).
+- Remove an output or sink you did not create; restart a failed user `xdg-document-portal.service` (status 21, left by
+  a nested Hyprland on the real runtime dir): tell Luca instead.
 
 ## Procedure
+
+Copy this checklist and tick it off:
+
+```
+- [ ] Luca agreed
+- [ ] output and null sink created, name, id, workspace and module index noted
+- [ ] app launched by pid, its window on my output, grim -o taken
+- [ ] nested teardown (if used), per-agent app state removed
+- [ ] teardown done, portal ping answers
+```
 
 ```bash
 hyprctl monitors -j | jq -r '.[].name'                 # before
@@ -45,8 +43,8 @@ hyprctl monitors -j | jq -r '.[] | select(.name | startswith("HEADLESS")) | "\(.
 pactl load-module module-null-sink sink_name=agent-null    # keep the printed module index
 ```
 
-The name not in the before list is yours: `HEADLESS-N`, its id and workspace `<ws>`. `exec_cmd` returns no pid, so
-`sh -c` writes its own pid and `exec`s the app (the second argument is window rules; an unknown effect is refused):
+The name missing from the before list is yours: `HEADLESS-N`, its id and workspace `<ws>`. `exec_cmd` returns no pid,
+so `sh -c` writes its own pid and `exec`s the app (the second argument is window rules; an unknown effect is refused):
 
 ```bash
 pidfile=/tmp/<agent>-app.pid
@@ -56,89 +54,35 @@ hyprctl clients -j | jq --argjson pid "$pid" '.[] | select(.pid == $pid) | {clas
 grim -o HEADLESS-N /tmp/<agent>-shot.png
 ```
 
+- Confined apps write only where their AppArmor profile allows: zathura `-c ~/.config/zathura/<agent>`, chromium
+  `--user-data-dir /tmp/.org.chromium.Chromium.<agent>`.
+- `monitor` must be your output's id. A window on a physical monitor is killed by PID at once and the launch fixed,
+  never moved by focusing it.
 - An app that forks its window off a launcher (electron, steam, flatpak) has another pid: find it by class or title
   against a `hyprctl clients -j` from before the launch.
-- `monitor` must be your output's id. A window on a physical monitor is killed at once by PID and the launch fixed,
-  never moved by focusing it.
-
-## Apps that escape the exec rule
-
-The workspace rule holds only for what the started pid maps. Re-exec wrappers (`soffice`, `dbus-run-session`, any
-launcher that forks), splash then main window (GIMP), parentless X11 dialogs (HexChat's Network List at global 0,0) can
-land on the user's screen. Exec the GUI binary itself; a bus it needs is started beforehand, never wrapped around it.
-Two paths:
-
-- The real binary. LibreOffice: `/usr/lib/libreoffice/program/soffice.bin --writer
-  -env:UserInstallation=file://$HOME/.config/libreoffice/<agent>`; a fresh profile exits once to restart, so launch
-  twice.
-- Otherwise a nested Hyprland on your workspace (about 940x490 on a scale-2 headless output). It runs on a private
-  runtime dir `$rt` that links only the outer compositor's socket and pulse, so the compositor, its own private
-  dbus-daemon on `$rt/bus`, its portals (`$rt/doc`) and everything started inside stay off the user's
-  `/run/user/$UID`. Keep the path short: a socket path over 108 bytes fails, so never the scratchpad. A window rule
-  under test goes into its config:
-
-```bash
-rt=/run/user/$UID/ag-<agent>; mkdir -m 700 $rt
-ln -s $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY.lock $XDG_RUNTIME_DIR/pulse $rt/
-cat > /tmp/<agent>-nested.lua <<'EOF'
-hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
-hl.config({ misc = { disable_hyprland_logo = true, disable_splash_rendering = true }, ecosystem = { no_update_news = true } })
-EOF
-XDG_RUNTIME_DIR=$rt dbus-daemon --session --fork --print-pid --address=unix:path=$rt/bus > $rt/dbus.pid
-hyprctl dispatch "hl.dsp.exec_cmd('sh -c \"exec env -u HYPRLAND_INSTANCE_SIGNATURE -u DISPLAY XDG_RUNTIME_DIR=$rt DBUS_SESSION_BUS_ADDRESS=unix:path=$rt/bus Hyprland -c /tmp/<agent>-nested.lua\"', { workspace = '<ws> silent' })"
-timeout 10 sh -c "until [ -S $rt/hypr/*/.socket.sock ]; do sleep 0.2; done"
-nested=$(ls $rt/hypr)
-XDG_RUNTIME_DIR=$rt HYPRLAND_INSTANCE_SIGNATURE=$nested hyprctl dispatch "hl.dsp.exec_cmd('env PULSE_SINK=agent-null <app>')"
-XDG_RUNTIME_DIR=$rt HYPRLAND_INSTANCE_SIGNATURE=$nested hyprctl clients -j | jq '.[] | {class, title, pid, at, size}'
-```
-
-- `wayland-<n>` below is the nested compositor's own socket: the one in `$rt` you did not link.
-- A QML test runs a trimmed shell copy inside (`quickshell -p <copy>`, a `shell.qml` with only the plugin), started and
-  called as in the next section.
-- The nested compositor is the `aquamarine` client in the outer `hyprctl clients -j`: check its `monitor` is your
-  output's id, as for any app, kill the apps inside, then it.
-- A nested Plasma: `kwin_wayland --width W --height H --xwayland --socket <name> --exit-with-session plasmashell`,
-  exec'd directly the same way on the same `$rt` and private bus. KWin and plasmashell rewrite KDE files in
-  `~/.config` (`kwinrc`, `kglobalshortcutsrc`, `kwinoutputconfig.json`, `plasma-org.kde.plasma.desktop-appletsrc`,
-  `kcminputrc`, `kdeglobals`, `plasmashellrc`): `cp -a` them aside first and restore them after teardown. Its
-  `kdeconnectd`, `kactivitymanagerd` and `xdg-desktop-portal-kde` outlive it: kill them by PID.
-- Confined apps write only where their AppArmor profile allows: zathura's `-c` as `~/.config/zathura/<agent>`,
-  chromium's `--user-data-dir` as `/tmp/.org.chromium.Chromium.<agent>`. Remove state an app keeps across runs
-  (zathura's `~/.local/share/zathura/bookmarks.sqlite`) with the test files.
-
-## Test quickshell: private runtime dir
-
-The shell keeps state under `$XDG_RUNTIME_DIR` (`quickshell/`, `toggles/`, cava's config). `Lock.qml` writes its
-crash-recovery marker `$XDG_RUNTIME_DIR/quickshell/locked` while locked: a test shell on the real runtime dir that
-locks and is killed leaves `/run/user/$UID/quickshell/locked`, and the user's live shell locks the screen on its next
-start. A test quickshell runs only inside the nested Hyprland with its own private dbus-daemon on `$rt/bus`, which
-hands it `$rt` (a private runtime dir keeps it off the user's state, not off the user's session bus:
-`l-dotfiles-quickshell-dev`).
-
-```bash
-qspidfile=/tmp/<agent>-qs.pid
-XDG_RUNTIME_DIR=$rt HYPRLAND_INSTANCE_SIGNATURE=$nested hyprctl dispatch "hl.dsp.exec_cmd('sh -c \"echo \$\$ > $qspidfile; exec env PULSE_SINK=agent-null quickshell -p <copy>\"')"
-XDG_RUNTIME_DIR=$rt WAYLAND_DISPLAY=wayland-<n> qs ipc -p <copy> call lock isLocked
-```
-
-`qs ipc` for that shell needs both its `XDG_RUNTIME_DIR` and its `WAYLAND_DISPLAY`. `pipewire-0` stays unlinked: the
-audio widgets stay empty (`Failed to connect pipewire context`), and linking it hands the test shell the user's real
-audio graph. A `/run/user/$UID/quickshell/locked` you find was left by a test: remove it only after `qs ipc -p
-~/.config/quickshell call lock isLocked` prints `false` for the user's shell.
+- Re-exec wrappers, splash-then-main apps and parentless X11 dialogs escape the workspace rule: [nested.md](nested.md),
+  read it before launching LibreOffice, GIMP, HexChat, a portal app, a nested Plasma or a test quickshell.
 
 ## Teardown
+
+Nested run: do the [nested.md](nested.md) teardown first.
 
 ```bash
 kill $pid; rm $pidfile
 pactl unload-module <index>
 hyprctl output remove HEADLESS-N
+busctl --user call org.freedesktop.impl.portal.desktop.kde /org/freedesktop/portal/desktop org.freedesktop.DBus.Peer Ping
 ```
 
-Only your own output and sink. A killed test quickshell leaves every helper it started running, reparented to
-`systemd --user`: take `pgrep -P $(cat $qspidfile)` before `kill $(cat $qspidfile)`, then kill by PID the ones still
-alive. No nested compositor outlives the test. Then `kill $(cat $rt/dbus.pid)` and `rm -r $rt $qspidfile` (a still
-mounted `$rt/doc` first `fusermount3 -u $rt/doc`), and with the test files the per-agent app state: `rm -r
-~/.config/libreoffice/<agent> ~/.config/zathura/<agent>` and zathura's `bookmarks.sqlite`.
+The portal ping must answer; if it hangs, tell Luca. Remove the per-agent state (`~/.config/zathura/<agent>`,
+`/tmp/.org.chromium.Chromium.<agent>`, `~/.config/libreoffice/<agent>`, zathura's
+`~/.local/share/zathura/bookmarks.sqlite`) with the test files.
 
-A failed user `xdg-document-portal.service` (status 21) is left by a nested Hyprland that ran on the real runtime dir:
-tell Luca, never restart it yourself.
+## Luca's monitors, with his permission
+
+- Screens off: `hyprctl dispatch "hl.dsp.dpms({ mode = 'on' })"`; off again when done.
+- The desktop under the windows: move an empty workspace onto the main monitor
+  (`hl.dsp.workspace.move({ monitor = 'DP-2' })` while it is focused), then put workspace 1 back.
+- hypridle locks after the `desktop/hyprland.idle_lock_s` option without input; IPC calls and screenshots are no input.
+  `toggle-keep-awake.nu` holds it off (`agent-guard` only blocks suspend). A lock needs Luca's login: stop there.
+- `grim -o <output>` of a real monitor captures whatever he has open: crop to what the check needs.

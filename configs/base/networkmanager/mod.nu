@@ -1,6 +1,7 @@
 use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
-use lib/dispatch.nu [route-gateway]
+use lib/dispatch.nu [out route-gateway]
+use home-network.nu [TIER_NONE dhcp-server gateway-mac gateways-parse link-tier]
 
 export const meta = {
     packages: {native: [ethtool modemmanager networkmanager wpa_supplicant]}
@@ -175,7 +176,7 @@ export def system [cfg: record] {
 def gateway-line []: string -> string { str trim | str lowercase | split row --regex '\s+' | str join " " }
 
 def lines-of [file: path, shape: string]: nothing -> list<string> {
-    if ($file | path exists) { open --raw $file | lines | where $it =~ $shape | each { gateway-line } } else { [] }
+    file-lines $file | where $it =~ $shape | each { gateway-line }
 }
 
 def lines-save [file: path]: list<string> -> nothing { each { $"($in)\n" } | str join | save --force $file }
@@ -213,7 +214,7 @@ export def home [home_wired: string, trusted: string, ...gateways: string]: noth
     let trusted_want = (lines-of $secret_trusted $MAC) ++ ($trusted | split row "," | where $it != "" | str lowercase) | uniq
     $trusted_want | lines-save $"($NM)/trusted-gateways"
 
-    let ssids = if ($secret_ssids | path exists) { open --raw $secret_ssids | lines | where $it != "" } else { [] }
+    let ssids = file-lines $secret_ssids
     let profiles = ^nmcli -g UUID,TYPE connection show | lines | parse "{uuid}:{type}"
     let active = ^nmcli -g UUID connection show --active | lines
     for p in ($profiles | where type == 802-11-wireless) {
@@ -227,29 +228,32 @@ export def home [home_wired: string, trusted: string, ...gateways: string]: noth
         for p in ($profiles | where type == 802-3-ethernet) { ^nmcli connection modify $p.uuid ipv6.method auto }
     }
     let connected = ^nmcli -g DEVICE,STATE device | lines | parse "{dev}:{state}" | where state == connected | get dev
-    let gateway_macs = $want | each { split row " " | first } | append $trusted_want | uniq
-    for dev in $connected { trusted-wifi-mac $dev $gateway_macs $ssids }
+    let home_gateways = gateways-parse $want
+    for dev in $connected { trusted-wifi-mac $dev $home_gateways $trusted_want $ssids }
     # 90 only lifts a lockdown on a link that just became trusted; 70 alone only refills the sets. Any other 90 up
     # restarts tor and portmaster, undoing an open portal or a stop by hand.
     for link in $connected {
         ^$"($DISPATCHERS)/70-home-network" $link up
         # its routes and split dns follow a changed script now, not at the link's next lease
         if ($"($DISPATCHERS)/80-homelab-routes" | path exists) { ^$"($DISPATCHERS)/80-homelab-routes" $link up }
-        if not ($LOCKDOWN_MARKER | path exists) or not ($TRUSTED_NETWORK | path exists) { continue }
-        if $link not-in (open --raw $TRUSTED_NETWORK | lines) { continue }
+        if not ($LOCKDOWN_MARKER | path exists) or $link not-in (file-lines $TRUSTED_NETWORK) { continue }
         let uuid = ^nmcli -g GENERAL.CON-UUID device show $link | str trim
         with-env {CONNECTION_UUID: $uuid} { ^$"($DISPATCHERS)/90-anonymous-persona" $link up }
     }
 }
 
-# A trusted gateway's wifi keeps the hardware mac (70-home-network needs it); untrusted gets random back.
-def trusted-wifi-mac [dev: string, gateways: list<string>, ssids: list<string>]: nothing -> nothing {
+# A wifi whose gateway 70-home-network would trust keeps the hardware mac (it needs it); untrusted gets random back.
+def trusted-wifi-mac [dev: string, home: table, trusted_macs: list<string>, ssids: list<string>]: nothing -> nothing {
     let uuid = ^nmcli -g GENERAL.CON-UUID device show $dev | str trim
     if $uuid == "" or (^nmcli -g connection.type connection show $uuid | str trim) != "802-11-wireless" { return }
     let gateway = route-gateway (^ip -4 route show default dev $dev)
     if $gateway == null { return }
-    let mac = ^ip neigh show $gateway dev $dev | parse --regex 'lladdr (?<mac>\S+)' | get --optional 0.mac | default ""
-    let trusted = ($mac | str lowercase) in $gateways
+    let seen = {
+        mac: (gateway-mac $dev $gateway | str lowercase)
+        gateway: $gateway
+        dhcp_server: (dhcp-server (out nmcli -t -f DHCP4.OPTION device show $dev))
+    }
+    let trusted = (link-tier $home $trusted_macs $seen) != $TIER_NONE
     let permanent = (^nmcli -g 802-11-wireless.cloned-mac-address connection show $uuid | str trim) == "permanent"
     let ssid = ^nmcli -g 802-11-wireless.ssid connection show $uuid | str trim
     if $trusted and not $permanent {

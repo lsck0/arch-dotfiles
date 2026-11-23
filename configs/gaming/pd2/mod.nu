@@ -1,5 +1,5 @@
 use module.nu *
-use ../d2launcher/mod.nu [game-launcher save-path-set wine-bin wine-tree wine-tree-decls z-path]
+use ../d2launcher/mod.nu [PD2_DIR game-launcher lod-base save-path-set wine-bin wine-tree wine-tree-decls z-path]
 # re-exported: the save-path step runs in this module
 export use ../d2launcher/mod.nu [save-path]
 use pd2-pin.nu [S14_URL]
@@ -50,22 +50,22 @@ export def detect [cfg: record]: nothing -> record {
 }
 
 export def link [cfg: record] {
-    let base = $cfg.deps?."gaming/d2launcher"?.base_dir?
+    let base = lod-base $cfg.deps?."gaming/d2launcher"?.base_dir?
     if $base == null or not (wine-bin | path exists) { return [] }
     [(s14 $cfg $base) (s3 $cfg $base)]
 }
 
-# project diablo 2's dll checks that its own dir sits inside a lord of destruction install, hence ProjectD2 in the tree
+# project diablo 2's dll checks that its own dir sits inside a lord of destruction install, hence PD2_DIR in the tree
 def season-launcher [s: record, exe: string, id: string, title: string, comment: string]: nothing -> list<record> {
     game-launcher ($s.root | path join pd2.sh) $id $title $comment {
-        game: ($s.lod | path join ProjectD2), prefix: $s.prefix, exe: $exe, width: $SIZE.w, height: $SIZE.h
+        game: ($s.lod | path join $PD2_DIR), prefix: $s.prefix, exe: $exe, width: $SIZE.w, height: $SIZE.h
         name: "Project Diablo II", dll_overrides: "ddraw=n,b"
     }
 }
 
 def s14 [cfg: record, base: path]: nothing -> list {
     let s = wine-tree pd2-s14
-    let game = $s.lod | path join ProjectD2
+    let game = $s.lod | path join $PD2_DIR
     [
         (wine-tree-decls $s $base)
         (open s14-client.nuon | each {|f|
@@ -84,7 +84,7 @@ def s3 [cfg: record, base: path]: nothing -> list {
     let s = wine-tree pd2
     [
         (wine-tree-decls $s $base)
-        (file-link $cfg.game_dir ($s.lod | path join ProjectD2))
+        (file-link $cfg.game_dir ($s.lod | path join $PD2_DIR))
         (if $cfg.save_dir != null { step save-path $s.prefix $cfg.save_dir --done=(save-path-set $s.prefix $cfg.save_dir) })
         (season-launcher $s PlugY.exe pd2-s3 "Project Diablo II S3" "Diablo II single player, Project Diablo 2 season 3 with PlugY")
     ]

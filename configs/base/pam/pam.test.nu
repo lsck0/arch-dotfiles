@@ -3,11 +3,10 @@
 # taken, then system-auth's password; never nouserok, so a user without a key falls through to the password. A second
 # pass changes nothing.
 
+use std/assert
 use mod.nu [sudo-lines u2f-line]
 
 const STOCK = ["#%PAM-1.0" "" "auth\t\tinclude\t\tsystem-auth" "account\t\tinclude\t\tsystem-auth" "session\t\tinclude\t\tsystem-auth"]
-
-def fail [msg: string] { error make {msg: $"pam.test: ($msg)"} }
 
 # The module each auth line loads (an include as include:<target>), in stack order.
 def auth-order [lines: list<string>]: nothing -> list<string> {
@@ -33,13 +32,13 @@ def main [] {
     for c in $cases {
         let once = sudo-lines $c.before $c.u2f $line $c.fprint
         let order = auth-order $once
-        if $order != $c.order { fail $"($c.what): auth order ($order | to nuon), wants ($c.order | to nuon)" }
-        if ($once | any { $in =~ nouserok }) { fail $"($c.what): nouserok in the stack" }
-        if $c.u2f and $line not-in $once { fail $"($c.what): the key line is not the module's" }
+        assert equal $order $c.order $"($c.what): auth order ($order | to nuon), wants ($c.order | to nuon)"
+        assert not ($once | any { $in =~ nouserok }) $"($c.what): nouserok in the stack"
+        assert (not $c.u2f or $line in $once) $"($c.what): the key line is not the module's"
         let gate = $once | where $it =~ pam_succeed_if | first
-        if not ($gate =~ '^auth\s+requisite\s' and ($gate | str contains "tty =~ ?*")) { fail $"($c.what): terminal gate is ($gate)" }
-        if not ($once | any { $in =~ '^account\s+include\s+system-auth' }) { fail $"($c.what): account stack lost" }
+        assert ($gate =~ '^auth\s+requisite\s' and ($gate | str contains "tty =~ ?*")) $"($c.what): terminal gate is ($gate)"
+        assert ($once | any { $in =~ '^account\s+include\s+system-auth' }) $"($c.what): account stack lost"
         let twice = sudo-lines $once $c.u2f $line $c.fprint
-        if $twice != $once { fail $"($c.what): second pass changed ($once | to nuon) to ($twice | to nuon)" }
+        assert equal $twice $once $"($c.what): second pass changed ($once | to nuon) to ($twice | to nuon)"
     }
 }

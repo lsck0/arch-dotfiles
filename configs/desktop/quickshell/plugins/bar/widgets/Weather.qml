@@ -65,7 +65,6 @@ BarWidget {
   function n0(v) { return Math.round(Number(v)) }
 
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
-  implicitHeight: Style.bar.sizeHorizontal
 
   // weather.nu gives each warning's start and end as unix seconds, so it counts down and drops once it expires
   property var alertsFetched: []

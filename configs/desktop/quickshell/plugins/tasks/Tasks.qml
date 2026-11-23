@@ -25,6 +25,17 @@ Item {
     caption: true
   }
 
+  component TextPane: TextEdit {
+    textFormat: TextEdit.PlainText
+    color: Colors.menu.text
+    selectionColor: Style.selectionFillFor(Colors.foreground, Colors.accent)
+    selectedTextColor: Style.selectionTextFor(Colors.foreground, Colors.accent)
+    wrapMode: TextEdit.Wrap
+    selectByMouse: true
+    font.family: Style.font.family
+    font.pixelSize: Style.font.body
+  }
+
   readonly property var filtered: {
     var needle = root.filterText.trim().toLowerCase()
     return (TaskState.tasks || []).filter(function (t) {
@@ -660,19 +671,11 @@ Item {
           else if (contentY + height <= r.y + r.height) contentY = r.y + r.height - height
         }
 
-        TextEdit {
+        TextPane {
           id: notesEdit
           width: notesFlick.width
           height: Math.max(notesFlick.height, implicitHeight)
-          textFormat: TextEdit.PlainText
-          color: Colors.menu.text
-          selectionColor: Style.selectionFillFor(Colors.foreground, Colors.accent)
-          selectedTextColor: Style.selectionTextFor(Colors.foreground, Colors.accent)
-          wrapMode: TextEdit.Wrap
-          selectByMouse: true
           persistentSelection: true
-          font.family: Style.font.family
-          font.pixelSize: Style.font.body
 
           Component.onCompleted: text = NotesState.text
           onTextChanged: if (activeFocus) NotesState.edit(text)
@@ -731,19 +734,11 @@ Item {
 
         function scrollBy(dy) { contentY = Math.max(0, Math.min(contentHeight - height, contentY + dy)) }
 
-        TextEdit {
+        TextPane {
           id: inboxEdit
           width: inboxFlick.width
           height: Math.max(inboxFlick.height, implicitHeight)
-          textFormat: TextEdit.PlainText
           readOnly: true
-          color: Colors.menu.text
-          selectionColor: Style.selectionFillFor(Colors.foreground, Colors.accent)
-          selectedTextColor: Style.selectionTextFor(Colors.foreground, Colors.accent)
-          wrapMode: TextEdit.Wrap
-          selectByMouse: true
-          font.family: Style.font.family
-          font.pixelSize: Style.font.body
           text: inboxFile.content
 
           Keys.priority: Keys.BeforeItem

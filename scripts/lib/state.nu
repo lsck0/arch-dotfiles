@@ -45,6 +45,29 @@ export def file-trim [file: path, fallback: any = ""]: nothing -> any {
     try { open --raw $file | str trim } catch { $fallback }
 }
 
+# A file's lines that are not blank, none when it is missing or unreadable.
+export def file-lines [file: path]: nothing -> list<string> {
+    try { open --raw $file | lines | where ($it | str trim) != "" } catch { [] }
+}
+
+# The text with each @key@ replaced by its value.
+export def text-render [values: record]: string -> string {
+    let template = $in
+    $values | transpose key value
+    | reduce --fold $template {|pair, text| $text | str replace --all $"@($pair.key)@" ($pair.value | into string) }
+}
+
+# A consistent copy of a live SQLite database at copy. .backup into an old copy bumps its counter, so an unchanged
+# database would differ on every run: it goes into a fresh file renamed over the copy, and a failed one leaves the
+# last good copy, not none.
+export def sqlite-snapshot [db: path, copy: path]: nothing -> nothing {
+    let next = $"($copy).new"
+    mkdir ($copy | path dirname)
+    rm --force $next
+    ^sqlite3 $db $".backup '($next)'"
+    mv --force $next $copy
+}
+
 # Whether a process of this exact name runs: a theme or reload step only acts on a running app.
 export def process-running [name: string]: nothing -> bool {
     (^pgrep -x $name | complete).exit_code == 0
@@ -88,6 +111,22 @@ export def save-atomic [file: path, --mode: string]: string -> nothing {
     # the old mode carries over, but never world-writable: a stray one would stick to every later write
     if $mode == null and ($file | path exists) { ^chmod --reference $file $tmp; ^chmod o-w $tmp }
     mv --force $tmp $file
+}
+
+# Runs body on a fresh dir under parent (default $TMPDIR), removed after it whether body fails or not.
+export def tmp-dir-run [body: closure, --parent: path]: nothing -> any {
+    let dir = if $parent == null { mktemp --directory } else { mktemp --directory --tmpdir-path $parent }
+    let result = try { do $body $dir } catch {|e| rm --recursive --force $dir; error make $e }
+    rm --recursive --force $dir
+    $result
+}
+
+# Puts next in dest's place by one atomic rename (renameat2 RENAME_EXCHANGE): a power cut leaves the old one or the
+# new one, never none. Both sit on one filesystem.
+export def path-swap [next: path, dest: path]: nothing -> nothing {
+    if (path-kind $dest) == "" { mv $next $dest; return }
+    ^mv --exchange --no-target-directory $next $dest
+    rm --recursive --force $next
 }
 
 # The path type, "" for a missing path (path type fails on one instead of answering nothing).

@@ -3,11 +3,11 @@
 const SCRIPTS = path self | path expand | path dirname
 use ($SCRIPTS | path join lib usage.nu) [die]
 use ($SCRIPTS | path join lib state.nu) [xdg]
+use ($SCRIPTS | path join lib repository.nu) [repository-find-under]
 
 const TMS_CONFIG = [tms config.toml]
 const SEARCH_DIR_DEFAULT = "projects"
 const SEARCH_DEPTH_DEFAULT = 10
-const FD_EXCLUDES = [elpa node_modules .cargo vendor target]
 const SERVER_POLLS = 100
 const SERVER_POLL_INTERVAL = 100ms
 const FZF_ARGS = [
@@ -19,20 +19,10 @@ def server-running []: nothing -> bool {
     (do { ^herdr status server } | complete | get stdout) =~ "status: running"
 }
 
+# a bare repo's .bare dir is the store of its worktrees, which are listed themselves
 def repos-in [root: string, depth: int]: nothing -> list<record> {
-    let excludes = $FD_EXCLUDES | each { [--exclude $in] } | flatten
-    do { ^fd --type d --type f --hidden --no-ignore --max-depth ($depth + 1) ...$excludes '^(\.git|HEAD)$' $root }
-    | complete | get stdout | lines
-    | where {|entry|
-        if ($entry | path basename) == HEAD {
-            let dir = $entry | path dirname
-            (($entry | path type) == file and ($dir | path join objects | path type) == dir
-                and ($dir | path join refs | path type) == dir and $entry !~ '/\.(git|bare)/')
-        } else {
-            ($entry | path type) == dir or (open --raw $entry | lines | get 0? | default "") =~ '^gitdir: .*/worktrees/[^/]+/?$'
-        }
-    }
-    | each {|git| $git | path dirname | {display: ($in | path relative-to $root), full: $in} }
+    repository-find-under $root $depth | where not ($it.kind == bare and ($it.dir | path basename) == .bare)
+    | each { {display: ($in.dir | path relative-to $root), full: $in.dir} }
 }
 
 # Pick a project from tms's search dirs and bookmarks and open it as a herdr session.

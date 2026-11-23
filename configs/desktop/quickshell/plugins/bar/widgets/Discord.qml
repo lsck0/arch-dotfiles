@@ -32,7 +32,6 @@ BarWidget {
   visible: live
 
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
-  implicitHeight: Style.bar.sizeHorizontal
 
   Timer {
     id: staleTimer

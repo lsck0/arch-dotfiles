@@ -3,11 +3,10 @@
 # (the variants' base) included. A pull happens only for a manifest whose sha256 is the pin, and a pull that lands
 # another digest is removed. ollama is a stub logging its argv; the registry and the local digest are injected.
 
+use std/assert
 use ollama-ensure-models.nu [SMALL LARGE EMBEDDING CODING LONG_CONTEXT SHORT_CONTEXT models-stale manifest-pinned pull-pinned]
 
 const MANIFEST = '{"schemaVersion":2,"layers":[]}'
-
-def fail [msg: string] { error make {msg: $"ollama.test: ($msg)"} }
 
 def prune-cases []: nothing -> nothing {
     let installed = [
@@ -16,8 +15,8 @@ def prune-cases []: nothing -> nothing {
     ]
     let got = models-stale $installed
     let want = [$SMALL.model "llama3:8b" $"($LARGE.model)-old" "qwen3-coder:latest"]
-    if $got != $want { fail $"stale ($got | to nuon), want ($want | to nuon)" }
-    if (models-stale [$LARGE.model $CODING.model] | is-not-empty) { fail "a pinned model counted as stale" }
+    assert equal $got $want "stale models"
+    assert (models-stale [$LARGE.model $CODING.model] | is-empty) "a pinned model counted as stale"
 }
 
 # One pull-pinned run in dir: the local digest before and after the stub's pull, the registry's manifest text.
@@ -56,12 +55,12 @@ exit 0
         ["an older local copy, registry moved on" "sha256:old" $entry.pin $other [] true]
         ["pull lands another digest" "" "sha256:other" $MANIFEST [$"pull ($entry.model)" $"rm ($entry.model)"] true]
     ]
-    for c in $cases {
-        let r = pull $dir $entry $c.before $c.after $c.served
-        if $r.calls != $c.calls { rm --recursive --force $dir; fail $"($c.what): ollama ran ($r.calls | to nuon), want ($c.calls | to nuon)" }
-        if ($r.error != null) != $c.fails { rm --recursive --force $dir; fail $"($c.what): error ($r.error | to nuon)" }
-    }
+    let runs = $cases | each {|c| $c | insert run (pull $dir $entry $c.before $c.after $c.served) }
     rm --recursive --force $dir
+    for r in $runs {
+        assert equal $r.run.calls $r.calls $"($r.what): ollama calls"
+        assert equal ($r.run.error != null) $r.fails $"($r.what): error ($r.run.error | to nuon)"
+    }
 }
 
 def main [] {

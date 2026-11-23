@@ -18,4 +18,10 @@ esac
 if [ "$(ip netns identify 2> /dev/null)" = "$NS" ]; then
     exec "$@"
 fi
-exec sudo -n "$RUN" "$@"
+# the namespace's PATH is the system one: resolve here, where the caller's ~/.local/bin counts, and fail as a shell would
+cmd=$(command -v "$1") || {
+    echo "vpn: $1: command not found" >&2
+    exit 127
+}
+shift
+exec sudo -n "$RUN" "$cmd" "$@"

@@ -7,7 +7,7 @@
 
 const REPO = path self | path expand | path dirname --num-levels 4
 use ($REPO | path join scripts lib secrets.nu) [secret-is-plaintext]
-use ($REPO | path join scripts lib state.nu) [xdg file-trim]
+use ($REPO | path join scripts lib state.nu) [xdg file-lines file-trim]
 use ($REPO | path join scripts lib usage.nu) [die]
 use ($REPO | path join configs programming offload worker.nu) [
     admit job-cancel metrics-update metrics-finished peak-mib units-active unit-name
@@ -115,7 +115,7 @@ export def remote-command [argv: list<string>]: nothing -> string {
     $argv | each { sh-quote $in } | str join " "
 }
 
-export def ssh-options [config: record, control: string, identities: list<path>]: nothing -> list<string> {
+def ssh-options [config: record, control: string, identities: list<path>]: nothing -> list<string> {
     let ids = $identities | each { [-i $in] } | flatten
     let only = if ($identities | is-empty) { [] } else { [-o IdentitiesOnly=yes] }
     [
@@ -202,9 +202,7 @@ def self-argv []: nothing -> list<string> {
     [$nu.current-exe --no-config-file --stdin $env.CURRENT_FILE]
 }
 
-def at-home []: nothing -> bool {
-    ($HOME_NETWORK | path exists) and (open --raw $HOME_NETWORK | lines | where $it != "" | is-not-empty)
-}
+def at-home []: nothing -> bool { file-lines $HOME_NETWORK | is-not-empty }
 
 def wg-up []: nothing -> bool { $"/sys/class/net/($WG_IFACE)" | path exists }
 
@@ -226,12 +224,15 @@ def master-alive [config: record]: nothing -> bool {
     (do { ^ssh ...(ssh-base $config) -O check $config.host } | complete).exit_code == 0
 }
 
+def port-open [host: string, port: int]: nothing -> bool {
+    (do { ^nc -z -w $PROBE_TIMEOUT_S $host ($port | into string) } | complete).exit_code == 0
+}
+
 # Knocks (base/nftables), then probes the hidden sshd port; the knock only opens it once the target's firewall is up.
 def knock-open [config: record, tries: int]: nothing -> bool {
     for _ in 1..$tries {
         ^knock $config.host ...($config.knock | each { into string })
-        let probe = do { ^nc -z -w $PROBE_TIMEOUT_S $config.host ($config.port | into string) } | complete
-        if $probe.exit_code == 0 { return true }
+        if (port-open $config.host $config.port) { return true }
     }
     false
 }
@@ -253,6 +254,11 @@ def connect [config: record]: nothing -> nothing {
     if $sent.exit_code != 0 { die $"the router at ($router) did not send the magic packet" }
     for _ in 1..$WAKE_TRIES {
         if (knock-open $config 1) { return }
+        # a target woken from power-off stops at its LUKS prompt in the initramfs sshd (base/boot/remote-unlock)
+        let unlock = $config.unlock_port?
+        if $unlock != null and (port-open $config.host $unlock) {
+            die $"($config.host) waits for its disk passphrase: ssh -p ($unlock) root@($config.host), then run this again"
+        }
         sleep $WAKE_INTERVAL
     }
     die $"($config.host) did not answer ssh after the wake"
@@ -337,8 +343,10 @@ def jobs-list []: nothing -> table {
     let dir = offload-dir jobs
     if not ($dir | path exists) { return [] }
     let active = units-active $STAMP_DATE_DIGITS
+    # the worker keeps its oci jobs in the same dir; only its own gc removes them
     ls $dir | where type == dir | get name | where { $in | path join $JOB_FILE | path exists } | each {|d|
         let job = open ($d | path join $JOB_FILE)
+        if $job.kind? not-in $KINDS { return null }
         let exit = file-trim ($d | path join $EXIT_FILE) null
         let state = if $job.kind == $KIND_AGENT { $KIND_AGENT } else if $job.job in $active { "running" } else if $exit == null {
             "stopped"

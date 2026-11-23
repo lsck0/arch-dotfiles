@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
+import Quickshell.Bluetooth
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
@@ -78,11 +79,87 @@ BarWidget {
   property string connectError: ""
   property bool passwordFocused: false
 
+  // bluez through Quickshell.Bluetooth; the section shows only while the default adapter is powered
+  readonly property BluetoothAdapter btAdapter: Bluetooth.defaultAdapter // qmllint disable unresolved-type
+  readonly property bool btOn: !!btAdapter && btAdapter.enabled
+  // connected, then paired, then what a scan found; a discovered device without a name is noise
+  readonly property var btDevices: {
+    if (!btOn) return []
+    var list = btAdapter.devices.values.filter(d => d.connected || d.paired || d.deviceName !== "") // qmllint disable missing-property
+    function rank(d) { return d.connected ? 0 : d.paired ? 1 : 2 }
+    return list.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name))
+  }
+  // shares the panel with the Wi-Fi list: the first few, the rest behind "All devices"
+  readonly property int btShownCountMax: 4
+  property bool btShowAll: false
+  readonly property var btShown: btShowAll ? btDevices : btDevices.slice(0, btShownCountMax)
+
+  // a scan this panel started runs while it is open, at most btScanMaxMs; one another client started is only shown
+  readonly property int btScanMaxMs: 60 * 1000
+  property BluetoothAdapter btScanAdapter: null // qmllint disable unresolved-type
+  readonly property bool btScanning: !!btAdapter && btAdapter.discovering
+  function btScan(on) {
+    if (on && btOn && !btScanAdapter) {
+      btScanAdapter = btAdapter
+      btAdapter.discovering = true
+      btScanStop.restart()
+    } else if (!on && btScanAdapter) {
+      btScanStop.stop()
+      btScanAdapter.discovering = false
+      btScanAdapter = null
+    }
+  }
+
+  // pair, then trust and connect: the intent lives here, keyed by device, so a re-sorted list keeps it
+  property var btPending: []
+  // address -> true: the last pair asked for here ended without a bond (rejected, timed out, wrong code)
+  property var btFailed: ({})
+  function btPair(device) {
+    btFailed = Util.mapWithout(btFailed, device.address)
+    if (btPending.indexOf(device) < 0) btPending = btPending.concat([device])
+    device.pair()
+  }
+  function btPairDone(device, ok) {
+    btPending = btPending.filter(d => d !== device)
+    if (!ok) {
+      btFailed = Util.mapSet(btFailed, device.address, true)
+      return
+    }
+    device.trusted = true
+    device.connect()
+  }
+  readonly property string btRequestText: {
+    var r = BluetoothAgent.request
+    if (!r) return ""
+    switch (r.type) {
+    case "confirm": return "Does " + r.name + " show " + r.passkey + "?"
+    case "authorize": return "Allow " + r.name + " to pair?"
+    case "service": return "Allow " + r.name + " to use service " + r.passkey + "?"
+    case "pin": return "PIN for " + r.name
+    case "passkey": return "Passkey for " + r.name
+    case "display-pin": return "Type PIN " + r.passkey + " on " + r.name
+    case "display-passkey": return "Type " + r.passkey + " on " + r.name + ", then Enter"
+    default: return ""
+    }
+  }
+  readonly property bool btRequestInput: !!BluetoothAgent.request
+    && (BluetoothAgent.request.type === "pin" || BluetoothAgent.request.type === "passkey")
+
+  function btIcon(icon) {
+    if (icon.indexOf("headset") >= 0) return "\u{f02ce}"
+    if (icon.indexOf("audio") >= 0) return "\u{f02cb}"
+    if (icon.indexOf("mouse") >= 0) return "\u{f037d}"
+    if (icon.indexOf("keyboard") >= 0) return "\u{f030c}"
+    if (icon.indexOf("gaming") >= 0) return "\u{f0297}"
+    if (icon.indexOf("phone") >= 0) return "\u{f011c}"
+    if (icon.indexOf("computer") >= 0) return "\u{f0322}"
+    return "\u{f00af}"
+  }
+
   // network-details.nu counts KiB a second
   function speedText(kibPerSecond) { return Util.bytes(kibPerSecond * 1024) + "/s" }
 
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
-  implicitHeight: Style.bar.sizeHorizontal
 
   readonly property int refreshMinAgeMs: 60 * 1000
   property real lastRefreshMs: 0
@@ -104,6 +181,8 @@ BarWidget {
   function panelOpened() {
     var now = Date.now()
     wifiShowAll = false
+    btShowAll = false
+    btFailed = ({})
     if (now - lastRefreshMs >= refreshMinAgeMs || togglesError !== "") refreshAll()
     else detailsProc.run()
     refreshWifiList(now - lastScanMs >= refreshMinAgeMs)
@@ -213,27 +292,10 @@ BarWidget {
     }
   }
 
-  Process {
-    id: nmMonitorProc
-    running: true
-    command: ["setpriv", "--pdeathsig", "TERM", "nmcli", "monitor"]
-    Component.onDestruction: running = false
-    stdout: SplitParser {
-      onRead: nmDebounce.restart()
-    }
-    onExited: nmRestartTimer.restart()
-  }
-
-  Timer {
-    id: nmDebounce
-    interval: 400
-    onTriggered: root.refreshAll()
-  }
-
-  Timer {
-    id: nmRestartTimer
-    interval: 5000
-    onTriggered: nmMonitorProc.running = true
+  EventWatcher {
+    id: nmMonitor
+    command: ["nmcli", "monitor"]
+    onFired: root.refreshAll()
   }
 
   Connections {
@@ -241,7 +303,7 @@ BarWidget {
     function onChanged(script) {
       var name = script.replace(/^toggle-(.*)\.nu$/, "$1")
       if (root.toggleBusy(name)) root.busyToggles = Util.mapWithout(root.busyToggles, name)
-      if (root.toggleNames.indexOf(name) >= 0) nmDebounce.restart()
+      if (root.toggleNames.indexOf(name) >= 0) nmMonitor.queue()
     }
   }
 
@@ -255,6 +317,32 @@ BarWidget {
     id: wifiSettleScan
     interval: 3000
     onTriggered: if (root.wifiOn && panel.visible) root.refreshWifiList(true)
+  }
+
+  Timer {
+    id: btScanStop
+    interval: root.btScanMaxMs
+    onTriggered: root.btScan(false)
+  }
+  Connections {
+    target: panel
+    function onShownChanged() {
+      if (!panel.shown) root.btScan(false)
+      BluetoothAgent.viewers += panel.shown ? 1 : -1
+    }
+  }
+  Component.onDestruction: {
+    btScan(false)
+    if (panel.shown) BluetoothAgent.viewers -= 1
+  }
+  Instantiator {
+    model: root.btPending
+    delegate: Connections {
+      required property BluetoothDevice modelData
+      target: modelData
+      function onPairedChanged() { if (modelData.paired) root.btPairDone(modelData, true) }
+      function onPairingChanged() { if (!modelData.pairing && !modelData.paired) root.btPairDone(modelData, false) }
+    }
   }
 
   // rxKbps/txKbps need continuous sampling; nmcli monitor only emits on connectivity changes, not throughput
@@ -311,7 +399,7 @@ BarWidget {
     id: panel
     anchorWidget: root
     onOpened: root.panelOpened()
-    pinned: root.passwordFocused
+    pinned: root.passwordFocused || !!BluetoothAgent.request
     title: "NETWORK"
     implicitWidth: Style.panelWidth.normal
 
@@ -370,23 +458,19 @@ BarWidget {
             required property var modelData
             width: content.width
 
-            Rectangle {
+            ListRow {
               id: netRow
               property bool pendingConnect: false
               readonly property bool connecting: root.connectingSsid === wifiNet.modelData.ssid
-              readonly property bool failed: root.connectError !== "" && root.connectSsid === wifiNet.modelData.ssid
-              readonly property bool highlighted: wifiNet.modelData.active || activeFocus || netMouse.containsMouse
+              readonly property bool connectFailed: root.connectError !== "" && root.connectSsid === wifiNet.modelData.ssid
               width: parent.width
-              height: Style.row.list
-              radius: Style.shape.data
-              color: wifiNet.modelData.active ? Colors.menu.selectedBackground
-                : activeFocus ? Style.focusFill
-                : netMouse.containsMouse ? Style.hoverFill : "transparent"
-
+              selected: wifiNet.modelData.active
+              glyph: wifiNet.modelData.active ? "*" : (wifiNet.modelData.secure ? "\u{f023}" : "\u{f1eb}")
+              label: wifiNet.modelData.ssid
+              trailing: connecting ? "connecting"
+                : (wifiNet.modelData.known && !wifiNet.modelData.active ? "saved :: " : "") + wifiNet.modelData.signal + "%"
               activeFocusOnTab: !wifiNet.modelData.active
-              Keys.onReturnPressed: netRow.activate()
-              Keys.onEnterPressed: netRow.activate()
-              Keys.onSpacePressed: netRow.activate()
+              onActivated: activate()
 
               function submit() {
                 root.connectTo(wifiNet.modelData.ssid, pwInput.text, idInput.text)
@@ -396,55 +480,12 @@ BarWidget {
               function activate() {
                 if (wifiNet.modelData.active) return
                 // open, or saved: the profile's own secret; a wrong one fails into connectError, then this row's field shows
-                if (!wifiNet.modelData.secure || (wifiNet.modelData.known && !netRow.pendingConnect && !netRow.failed)) {
+                if (!wifiNet.modelData.secure || (wifiNet.modelData.known && !netRow.pendingConnect && !netRow.connectFailed)) {
                   root.connectTo(wifiNet.modelData.ssid, "")
                   return
                 }
                 netRow.pendingConnect = !netRow.pendingConnect
                 if (netRow.pendingConnect) Qt.callLater(wifiNet.modelData.enterprise ? idInput.forceActiveFocus : pwInput.forceActiveFocus)
-              }
-
-              Label {
-                id: netIcon
-                anchors.left: parent.left
-                anchors.leftMargin: Style.spacing.sm
-                anchors.verticalCenter: parent.verticalCenter
-                text: wifiNet.modelData.active ? "*" : (wifiNet.modelData.secure ? "\u{f023}" : "\u{f1eb}")
-                color: wifiNet.modelData.active ? Colors.menu.selectedText : Colors.menu.text
-                caption: true
-                icon: true
-                layer.enabled: Style.fx.glow > 0 && wifiNet.modelData.active
-                layer.effect: Glow {}
-              }
-              Label {
-                // an access point picks its SSID: never markup
-                anchors.left: netIcon.right
-                anchors.leftMargin: Style.spacing.xs
-                anchors.right: netSignal.left
-                anchors.rightMargin: Style.spacing.xs
-                anchors.verticalCenter: parent.verticalCenter
-                text: wifiNet.modelData.ssid
-                color: wifiNet.modelData.active ? Colors.menu.selectedText : Colors.menu.text
-                elide: Text.ElideRight
-              }
-              Label {
-                id: netSignal
-                anchors.right: parent.right
-                anchors.rightMargin: Style.spacing.sm
-                anchors.verticalCenter: parent.verticalCenter
-                text: netRow.connecting ? "connecting"
-                  : (wifiNet.modelData.known && !wifiNet.modelData.active ? "saved :: " : "") + wifiNet.modelData.signal + "%"
-                dim: true
-                highlighted: netRow.highlighted
-                caption: true
-              }
-
-              MouseArea {
-                id: netMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: netRow.activate()
               }
             }
 
@@ -517,6 +558,148 @@ BarWidget {
           text: root.connectError
           color: Colors.urgentText
           caption: true
+        }
+      }
+
+      PanelSeparator { visible: root.btOn }
+      // with the adapter off there is nothing to list: the RADIOS section turns it on
+      PanelSectionHeader { visible: root.btOn; text: "BLUETOOTH" }
+
+      Column {
+        visible: root.btOn
+        width: content.width
+        spacing: Style.spacing.xxs
+
+        // the pairing agent's open question: a code to compare or type, a PIN to enter, a pairing or service to allow
+        Column {
+          visible: !!BluetoothAgent.request
+          width: content.width
+          spacing: Style.spacing.xs
+          bottomPadding: Style.spacing.xs
+
+          Label {
+            // the device picks its name: plain text
+            width: parent.width
+            leftPadding: Style.spacing.sm
+            wrapMode: Text.Wrap
+            text: root.btRequestText
+            color: Colors.accentText
+          }
+          Row {
+            width: parent.width
+            spacing: Style.spacing.xs
+            leftPadding: Style.spacing.sm
+
+            TextField {
+              id: btCodeInput
+              visible: root.btRequestInput
+              width: parent.width - parent.leftPadding - btAccept.width - btReject.width - parent.spacing * 2
+              verticalPadding: Style.spacing.xs
+              font.pixelSize: Style.font.caption
+              placeholderText: BluetoothAgent.request && BluetoothAgent.request.type === "passkey" ? "000000" : "PIN"
+              inputMethodHints: BluetoothAgent.request && BluetoothAgent.request.type === "passkey" ? Qt.ImhDigitsOnly : Qt.ImhNone
+              onActiveFocusChanged: root.passwordFocused = activeFocus
+              Component.onDestruction: if (activeFocus) root.passwordFocused = false
+              onAccepted: btAccept.clicked()
+            }
+            Button {
+              id: btAccept
+              visible: BluetoothAgent.needsAnswer
+              anchors.verticalCenter: parent.verticalCenter
+              variant: "action"
+              focusable: true
+              text: root.btRequestInput ? "Pair" : "Accept"
+              onClicked: {
+                BluetoothAgent.respond(true, btCodeInput.text)
+                btCodeInput.text = ""
+              }
+            }
+            Button {
+              id: btReject
+              anchors.verticalCenter: parent.verticalCenter
+              variant: "action"
+              focusable: true
+              text: BluetoothAgent.needsAnswer ? "Reject" : "Dismiss"
+              onClicked: {
+                BluetoothAgent.respond(false)
+                btCodeInput.text = ""
+              }
+            }
+          }
+        }
+
+        Repeater {
+          // diffed by device: a re-sort keeps rows, their focus and hover
+          model: ScriptModel { values: root.btShown }
+          delegate: ListRow {
+            id: btRow
+            required property BluetoothDevice modelData
+            readonly property int deviceState: modelData.state // qmllint disable unresolved-type
+            readonly property bool busy: modelData.pairing || deviceState === BluetoothDeviceState.Connecting
+              || deviceState === BluetoothDeviceState.Disconnecting
+            width: content.width
+            opacity: busy ? Style.emphasis.dim : 1
+            selected: modelData.connected
+            failed: root.btFailed[modelData.address] === true
+            controlHovered: btForget.hot
+            glyph: root.btIcon(modelData.icon)
+            label: modelData.name
+            trailing: {
+              var d = btRow.modelData
+              if (d.pairing) return "pairing"
+              if (btRow.deviceState === BluetoothDeviceState.Connecting) return "connecting"
+              if (btRow.deviceState === BluetoothDeviceState.Disconnecting) return "disconnecting"
+              if (btRow.failed) return "pairing failed"
+              var battery = d.batteryAvailable ? " :: " + Math.round(d.battery * 100) + "%" : ""
+              // a press disconnects: say so where the press lands
+              if (d.connected) return (btRow.activeFocus || (btRow.hovered && !btForget.hot) ? "disconnect" : "connected") + battery
+              return d.paired ? "saved" : "new"
+            }
+            Keys.onDeletePressed: btRow.forget()
+            onActivated: {
+              if (busy) return
+              if (modelData.connected) modelData.disconnect()
+              else if (modelData.paired) modelData.connect()
+              else root.btPair(modelData)
+            }
+            onSecondaryActivated: forget()
+
+            function forget() {
+              if (modelData.paired) modelData.forget()
+            }
+
+            // its place stays reserved on a paired row, so the status does not jump under the pointer
+            Button {
+              id: btForget
+              visible: btRow.modelData.paired
+              opacity: btRow.hovered || btRow.activeFocus ? 1 : 0
+              variant: "icon"
+              iconText: "\u{f0156}"
+              tooltipText: "Forget"
+              onClicked: btRow.forget()
+            }
+          }
+        }
+
+        PanelRow {
+          visible: root.btShown.length < root.btDevices.length
+          width: content.width
+          label: "All devices"
+          trailing: "+" + (root.btDevices.length - root.btShown.length)
+          onActivated: root.btShowAll = true
+        }
+
+        Label {
+          visible: root.btDevices.length === 0
+          text: root.btScanning ? "> SCANNING" : "> NO DEVICES"
+          dim: true
+          caption: true
+        }
+
+        ToggleRow {
+          label: root.btScanning ? "Scanning for devices" : "Scan for devices"
+          on: root.btScanning
+          onActivated: root.btScan(!root.btScanAdapter)
         }
       }
 

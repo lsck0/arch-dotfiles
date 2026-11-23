@@ -7,6 +7,7 @@ use ../../configs/base/tor/anonymous-socks.nu *
 def main [action: string = "toggle", --json] {
     switch-run {
         label: "Anonymous SOCKS"
+        available: {|| which tor | is-not-empty }
         is-on: {|| (anonymous-socks-status) == on }
         on: {|| anonymous-socks-up }
         off: {|| anonymous-socks-down }

@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import qs.Commons
 import qs.Ui
 
 BarWidget {
@@ -9,14 +8,13 @@ BarWidget {
   barPriority: 60
 
   implicitWidth: row.implicitWidth
-  implicitHeight: Style.bar.sizeHorizontal
 
   Row {
     id: row
     anchors.centerIn: parent
 
     Repeater {
-      model: ["StayAwake.qml"]
+      model: ["Recording.qml", "ScreenShare.qml", "Camera.qml", "Microphone.qml", "StayAwake.qml"]
 
       Loader {
         id: slot

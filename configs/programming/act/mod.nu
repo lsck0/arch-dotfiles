@@ -2,7 +2,7 @@ use module.nu *
 
 export const meta = {packages: {pacman: [act podman]}}
 
-# act talks to rootless podman's socket: no root daemon, no docker group
+# act talks to rootless podman's socket through its shell alias: no root daemon, no docker group
 export def link [cfg: record] {
     [
         (unit-enable podman.socket --now)
@@ -10,7 +10,7 @@ export def link [cfg: record] {
         (unit-file podman-prune.service)
         (unit-timer podman-prune.timer "Prune rootless podman images weekly" --calendar weekly
             --delay 1h --enable --now)
-        (files-into (xdg config environment.d) docker-host.conf)
+        (shell-aliases act)
         (file-copy actrc (xdg config act actrc))
     ]
 }

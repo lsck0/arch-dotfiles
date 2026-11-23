@@ -4,6 +4,8 @@ use state.nu [file-trim]
 
 const PLATFORM_LOCAL_DIR = "/etc/dotfiles"
 export const PLATFORM_NAME_FILE = "/etc/dotfiles/platform"
+# the checkout's own machine platform and its options (`dot set --machine`), git-ignored
+export const PLATFORM_REPO_LOCAL = [platforms/local.nuon platforms/local.options.nuon]
 const FORM_FACTORS = [desktop laptop server vm wsl]
 export const PLATFORM_FACTS = [form_factor homelab wireguard secure_boot_own_keys lsck0_snapshot offload]
 const PLATFORM_KEYS = [hostname label form_factor groups extra_packages facts packages_keep flatpak_keep nix_keep]
@@ -23,7 +25,7 @@ export def platform-files [repo: path]: nothing -> list<path> {
 export def platform-file [repo: path]: nothing -> any {
     let name = file-trim $PLATFORM_NAME_FILE
     let named = if $name != "" { $repo | path join platforms $"($name).nuon" }
-    let found = [($PLATFORM_LOCAL_DIR | path join platform.nuon) ($repo | path join platforms local.nuon) $named]
+    let found = [($PLATFORM_LOCAL_DIR | path join platform.nuon) ($repo | path join $PLATFORM_REPO_LOCAL.0) $named]
         | compact | where ($it | path exists) | get --optional 0
     if $found == null and $named != null {
         let known = platform-files $repo | each { path parse | get stem } | str join ', '

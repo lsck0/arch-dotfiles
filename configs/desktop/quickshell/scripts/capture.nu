@@ -86,8 +86,7 @@ def --wrapped "main remind" [duration, ...message]: nothing -> nothing {
         capture-fail $BELL_GLYPH "Reminder not set" $"not a duration or time: ($duration) \(90, 10m, 2h, 1h30m, 15:00\)" $line
     }
     let when = if $at != null { [at $at] } else { [$minutes] }
-    # one joined argument: reminder.nu's typed words would read a lone true or null as a bool
-    let r = ^($HERE | path join reminder.nu) ...$when -- ...([($message | str join " ")] | where $it != "") | complete
+    let r = ^($HERE | path join reminder.nu) ...$when -- ...$message | complete
     if $r.exit_code != 0 { capture-fail $BELL_GLYPH "Reminder not set" ($r.stderr | str trim | lines | get --optional 0 | default "reminder.nu failed") $line }
 }
 

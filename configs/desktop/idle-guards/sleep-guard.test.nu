@@ -2,7 +2,7 @@
 # the mic guard's predicate: a running microphone holds, a monitor or an idle microphone does not
 use sleep-guard.nu [mic-recording]
 
-def fail [msg: string] { error make {msg: $"sleep-guard.test: ($msg)"} }
+use std/assert
 
 def node [class: string, state: string]: nothing -> record {
     {state: $state, properties: {"media.class": $class}}
@@ -22,6 +22,6 @@ def main [] {
     ]
     for c in $cases {
         let got = $c.sources | mic-recording
-        if $got != $c.want { fail $"($c.name): ($got)" }
+        assert equal $got $c.want $c.name
     }
 }

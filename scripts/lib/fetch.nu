@@ -1,6 +1,6 @@
 # Pinned downloads: files by sha256, git trees by commit.
 
-use state.nu [state-dir path-kind xdg file-trim]
+use state.nu [state-dir path-kind xdg file-trim tmp-dir-run path-swap]
 use online.nu [remote-pending]
 
 # git has no retry of its own: a remote's 5xx or 429 gets these waits before the fetch fails (curl retries files itself)
@@ -61,11 +61,12 @@ export def fetch-file-run [url: string, sha256: string, dest: path, --mode: stri
     } else if $extract == "." {
         extract $cached $next
     } else {
-        let tmp = mktemp --directory --tmpdir-path ($dest | path dirname)
-        extract $cached $tmp
-        let member = $tmp | path join $extract
-        if (path-kind $member) == "dir" { mv $member $next } else { ^install -m $mode $member $next }
-        rm --recursive --force $tmp
+        # beside dest, so the member moves into place by a rename
+        tmp-dir-run --parent ($dest | path dirname) {|tmp|
+            extract $cached $tmp
+            let member = $tmp | path join $extract
+            if (path-kind $member) == "dir" { mv $member $next } else { ^install -m $mode $member $next }
+        }
     }
     if $in_place and (path-kind $dest) == "file" and (path-kind $next) == "file" {
         ^chmod u+w,go-rwx $dest
@@ -73,8 +74,7 @@ export def fetch-file-run [url: string, sha256: string, dest: path, --mode: stri
         ^chmod $mode $dest
         rm $next
     } else {
-        rm --recursive --force $dest
-        mv $next $dest
+        path-swap $next $dest
     }
     mkdir (stamp $dest | path dirname)
     $sha256 | save --force (stamp $dest)

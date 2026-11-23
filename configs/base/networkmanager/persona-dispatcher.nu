@@ -1,8 +1,8 @@
-#!/usr/bin/nu --no-config-file
+#!/usr/bin/env -S nu --no-config-file -I /var/lib/dotfiles/repo/scripts/lib
 # decided over every physical link on each event: a link stays locked down until 70-home-network decided it trusted
 # (home or a trusted network); only the homelab's share follows home itself
 
-use lib/dispatch.nu [file-lines lab-env lab-nets link-physical ok out]
+use lib/dispatch.nu [file-lines lab-env lab-nets link-physical ok out untrusted-policy]
 
 const SELF = path self
 const HOME_NETWORK = "/run/home-network"
@@ -13,7 +13,6 @@ const TOR_ROUTER = "/usr/local/bin/tor-router"
 # what tor-router routes into; without it fw-egress still holds, open only to pacman's escape
 const TOR = "/usr/bin/tor"
 const VM_GUEST = "/etc/NetworkManager/vm-guest"
-const POLICY_FILE = "/etc/NetworkManager/untrusted-policy"
 # the install chain's unit: while it exists the chain downloads directly; its last step removes it and reboots
 const STAGE_UNIT = "/etc/systemd/system/dotfiles-stage.service"
 const VPN_IFACE = "proton0"
@@ -28,7 +27,7 @@ const PORTAL_UNIT = "persona-portal"
 const IFNAME = '^[A-Za-z0-9_.-]{1,15}$'
 
 def policy []: nothing -> string {
-    let policy = if ($POLICY_FILE | path exists) { open --raw $POLICY_FILE | str trim } else { "" }
+    let policy = untrusted-policy
     let policy = if $policy in [firewall-only off] { $policy } else { "lockdown-tor" }
     # tor would carry every download of the install through a few slow exits that some hosts refuse; inbound stays shut
     if $policy == lockdown-tor and ($STAGE_UNIT | path exists) { "firewall-only" } else { $policy }
@@ -97,6 +96,10 @@ def foreign-dns [iface: string]: nothing -> nothing {
     ok resolvectl default-route $iface no | ignore
 }
 
+def ipv6-set [dev: string, on: bool]: nothing -> nothing {
+    ok sysctl -wq $"net.ipv6.conf.($dev).disable_ipv6=(if $on { 0 } else { 1 })" | ignore
+}
+
 def portal-open [iface: string]: nothing -> bool {
     ok systemctl is-active -q $"($PORTAL_UNIT)-($iface).timer"
 }
@@ -109,8 +112,7 @@ def vpn-event [policy: string, action: string]: nothing -> nothing {
             ok systemctl stop portmaster.service | ignore
             tor-off
             # proton's ~. would race resolved's quad9 per query
-            ok resolvectl domain $VPN_IFACE "" | ignore
-            ok resolvectl default-route $VPN_IFACE no | ignore
+            foreign-dns $VPN_IFACE
         }
         "down" | "vpn-down" => {
             if (foreign $policy) { tor-on $policy $VPN_IFACE }
@@ -133,6 +135,8 @@ def wg-event [policy: string, action: string]: nothing -> nothing {
             for net in (lab-nets $lab) { ok ip route replace unreachable $net metric $metric | ignore }
         }
     }
+    # a running tor route bypasses wg0's own subnet and lans
+    ok $TOR_ROUTER home | ignore
 }
 
 # Captive portal mode: its pages live on the foreign network, out of reach of tor and strict dot.
@@ -192,14 +196,12 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
             # the conflict drops lockdown before the load, so a failed load would leave no table at all
             if not (ok systemctl start fw-inbound.service) { ok systemctl start fw-lockdown.service | ignore }
             # a trusted link that came up beside a foreign one got ipv6 off; the foreign one's down lifts it here
-            for dev in (connected | get dev | where { link-physical $in }) {
-                ok sysctl -wq $"net.ipv6.conf.($dev).disable_ipv6=0" | ignore
-            }
+            for dev in (connected | get dev | where { link-physical $in }) { ipv6-set $dev true }
         }
         ok systemctl unmask --runtime avahi-daemon.service | ignore
         ok systemctl start avahi-daemon.socket | ignore
         if $action == up {
-            ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=0" | ignore
+            ipv6-set $iface true
             ok nmcli connection modify $uuid ipv6.method auto | ignore
             # portmaster's global drop-in is gone whenever it stops (a vpn up, a portal, by hand); pin the link so
             # the strict-dot default never strands lab names on the home resolver, nor a trusted lan's names on its
@@ -212,13 +214,14 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
         # mask the daemon, a stop is undone by activation; the unix socket stays enabled for base/systemd
         ok systemctl stop avahi-daemon.socket | ignore
         ok systemctl mask --runtime --now avahi-daemon.service | ignore
-        if $action == up and $iface not-in (file-lines $TRUSTED_NETWORK) { foreign-dns $iface }
+        let untrusted = $iface not-in (file-lines $TRUSTED_NETWORK)
+        if $action == up and $untrusted { foreign-dns $iface }
         if $action == up and $policy == lockdown-tor {
-            ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=1" | ignore
-            if $iface not-in (file-lines $TRUSTED_NETWORK) { ok nmcli connection modify $uuid ipv6.method disabled | ignore }
+            ipv6-set $iface false
+            if $untrusted { ok nmcli connection modify $uuid ipv6.method disabled | ignore }
         } else if $policy != lockdown-tor {
-            ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=0" | ignore
-            if $iface not-in (file-lines $TRUSTED_NETWORK) { ok nmcli connection modify $uuid ipv6.method auto | ignore }
+            ipv6-set $iface true
+            if $untrusted { ok nmcli connection modify $uuid ipv6.method auto | ignore }
         }
     }
     # the nas answers only on home's lan or through wg0; a trusted network is neither

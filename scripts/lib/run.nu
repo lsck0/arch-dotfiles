@@ -3,7 +3,7 @@
 const REPO = path self ../..
 use log.nu *
 use cli.nu [flag jobs root-runner state-lock-hold]
-use state.nu [SYSTEM_REPO SYSTEM_STATE LIB_DIR state-dir save-atomic EXIT_ABORTED EXIT_PENDING xdg CONFIG_ISSUE file-trim]
+use state.nu [SYSTEM_REPO SYSTEM_STATE LIB_DIR state-dir save-atomic EXIT_ABORTED EXIT_PENDING xdg CONFIG_ISSUE file-trim file-lines]
 use doctor.nu [doctor-checks]
 use platform.nu [platform-load PLATFORM_NAME_FILE]
 use profile.nu [profile-has]
@@ -165,10 +165,6 @@ def --env failures-open []: nothing -> nothing {
     }
 }
 
-# A file's lines that are not blank, none when it is missing or unreadable.
-def file-lines [file: path]: nothing -> list<string> {
-    try { open --raw $file | lines | where ($it | str trim) != "" } catch { [] }
-}
 
 # The modules a run carried through: every result of theirs ok and none pending, so their earlier failures are over.
 def failures-cleared [results: table]: nothing -> list<string> {
@@ -218,8 +214,8 @@ export def config-banner-clear []: nothing -> nothing {
     if not ($CONFIG_ISSUE | path exists) or $env.DOT_FULL_RUN? != true or $env.DOT_SYSTEM_RAN? != true { return }
     if ($FAILURES_PUBLISHED | path exists) { return }
     let runner = system-runner
-    let r = ^$runner rm -f $CONFIG_ISSUE | complete
-    if $r.exit_code != 0 { log-note $"($CONFIG_ISSUE) left in place: ($runner) rm exited ($r.exit_code)" }
+    let r = ^$runner ($SYSTEM_REPO | path join $ENTRY) banner-clear | complete
+    if $r.exit_code != 0 { log-note $"($CONFIG_ISSUE) left in place: ($runner) banner-clear exited ($r.exit_code)" }
 }
 
 export def admin []: nothing -> bool {

@@ -33,7 +33,7 @@ const NAS_NAME = '(^|-)nas$'
 const RECONNECT_INTERVAL_S = 60
 
 def secret-dir []: nothing -> path {
-    $env.DOTFILES | path join configs secrets keys syncthing (sys host | get hostname)
+    secret-path keys syncthing (sys host | get hostname)
 }
 
 def st [...args: string]: nothing -> string {
@@ -144,12 +144,12 @@ export def link [cfg: record] {
     if not (owner-unlocked) or not (platform-has homelab) { return [] }
     let state = xdg state syncthing
     let secrets = secret-dir
-    let paired = [config.xml key.pem] | all {|f| secret-is-plaintext ($secrets | path join $f) }
+    let paired = $IDENTITY.file | all {|f| secret-is-plaintext ($secrets | path join $f) }
     let differs = {|f| not ($state | path join $f | path exists) or (open --raw ($secrets | path join $f)) != (open --raw ($state | path join $f)) }
     let changed = $paired and (not ($state | path join config.xml | path exists) or ([cert.pem key.pem] | any $differs))
     let nas = $cfg.nas_address | default ""
     # a new identity replaces config.xml, so its secrets are part of what api-config last set
-    let identity = if $paired { [cert.pem key.pem config.xml] | each {|f| open --raw ($secrets | path join $f) | hash sha256 } } else { [] }
+    let identity = if $paired { $IDENTITY.file | each {|f| open --raw ($secrets | path join $f) | hash sha256 } } else { [] }
     let api_key = [(gui-version) $nas ($paired | into string) ($VERSIONS_MAX_AGE_S | into string) ($RECONNECT_INTERVAL_S | into string) ...$identity] | str join "\n" | hash sha256
     [
         (step stignore --done=($STIGNORE_LINES | all {|l| $l in (stignore-lines) }))
@@ -166,9 +166,9 @@ export def backup [cfg: record]: nothing -> nothing {
     if not (owner-unlocked) or not (platform-has homelab) { return }
     let state = xdg state syncthing
     let secrets = secret-dir
-    let live = $IDENTITY | get file | each {|f| $state | path join $f }
+    let live = $IDENTITY.file | each {|f| $state | path join $f }
     if not ($live | all { path exists }) { return }
-    let stored = $IDENTITY | get file | where {|f| $secrets | path join $f | path exists }
+    let stored = $IDENTITY.file | where {|f| $secrets | path join $f | path exists }
     if "cert.pem" in $stored and (open --raw ($secrets | path join cert.pem)) != (open --raw ($state | path join cert.pem)) {
         error make {msg: $"syncthing: the running identity is not the one in ($secrets), dot apply --user core/syncthing installs it"}
     }

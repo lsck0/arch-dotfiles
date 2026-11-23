@@ -18,25 +18,23 @@
   # /dev/shm is scratch like /tmp: image and video work staged in RAM
   owner /dev/shm/** rwk,
 
-  deny @{HOME}/.{profile,bash_profile,bash_login,bashrc,bash_logout,zshenv,zprofile,zshrc,zlogin,zlogout} w,
-  deny @{HOME}/.{xprofile,xinitrc,xsession,pam_environment} w,
-  deny @{user_config_dirs}/{autostart,systemd,environment.d,zsh,fish,nushell,hypr,uwsm,git,quickshell,tmux,ghostty}/{,**} w,
-  deny @{user_config_dirs}/{mimeapps.list,user-dirs.dirs} w,
-  deny @{user_bin_dirs}/{,**} w,
-  deny @{user_share_dirs}/{opam/*,jai,cargo,go,ghcup,caveman,flatpak/exports,android-sdk/*}/bin/{,**} w,
+  deny @{HOME}/.{profile,bash_profile,bash_login,bashrc,bash_logout,zshenv,zprofile,zshrc,zlogin,zlogout} wl,
+  deny @{HOME}/.{xprofile,xinitrc,xsession,pam_environment} wl,
+  deny @{user_config_dirs}/{autostart,systemd,environment.d,zsh,fish,nushell,hypr,uwsm,git,quickshell,tmux,ghostty}/{,**} wl,
+  deny @{user_config_dirs}/{mimeapps.list,user-dirs.dirs} wl,
+  deny @{user_bin_dirs}/{,**} wl,
+  deny @{user_share_dirs}/{opam/*,jai,cargo,go,ghcup,caveman,flatpak/exports,android-sdk/*}/bin/{,**} wl,
   # the real dirs base/xdg has not linked into the share dir (cargo, ghcup, jai), and a ~/.go from before GOPATH moved
-  deny @{HOME}/.{cargo,go,ghcup,jai}/bin/{,**} w,
-  deny @{user_share_dirs}/{applications,dbus-1,systemd}/{,**} w,
+  deny @{HOME}/.{cargo,go,ghcup,jai}/bin/{,**} wl,
+  deny @{user_share_dirs}/{applications,dbus-1,systemd}/{,**} wl,
   # all of nvim's data dir but mason/staging, where mason runs unzip to unpack every LSP it installs
   deny @{user_share_dirs}/nvim/{,*} w,
   deny @{user_share_dirs}/nvim/{[^m]*,m,m[^a]*,ma,ma[^s]*,mas,mas[^o]*,maso,maso[^n]*,mason?*}/** w,
   deny @{user_share_dirs}/nvim/mason/{,*} w,
   deny @{user_share_dirs}/nvim/mason/{[^s]*,s,s[^t]*,st,st[^a]*,sta,sta[^g]*,stag,stag[^i]*,stagi,stagi[^n]*,stagin,stagin[^g]*,staging?*}/** w,
   deny @{HOME}/.claude/{,**} w,
-  # claude code starts the mcp servers and hooks these name, unconfined and without asking
-  deny @{HOME}/.claude.json{,.backup*} w,
-  deny @{user_projects_dirs}/**/.claude/{,**} w,
-  deny @{user_projects_dirs}/**/.mcp.json w,
+  # claude code starts the mcp servers and hooks these name, unconfined and without asking; a server's env holds its token
+  deny @{HOME}/.claude.json{,.backup*} mrwkl,
   # ~/.nix-profile/bin is on PATH ahead of /usr/bin; vscode-oss runs its extensions
   deny @{HOME}/.nix-profile w,
   deny @{user_state_dirs}/nix/{,**} w,
@@ -50,8 +48,10 @@
   deny @{HOME}/.ZAP/plugin/{,**} w,
   deny @{user_state_dirs}/pki/{,**} mrwkl,
   # not in deny-sensitive-home: the browsers, mail and chat profiles include it and a deny would outrank their own rules
-  deny @{user_config_dirs}/{mozilla,thunderbird,chromium,BraveSoftware,google-chrome,Element,Signal,discord,Proton}/{,**} mrwkl,
-  deny @{user_share_dirs}/{mozilla,librewolf,zen,qutebrowser,TelegramDesktop}/{,**} mrwkl,
+  deny @{user_config_dirs}/{mozilla,thunderbird,chromium,BraveSoftware,google-chrome,vivaldi,opera,microsoft-edge,Element,Signal,discord,Claude,obsidian,Proton*,me.proton.*}/{,**} mrwkl,
+  deny @{user_share_dirs}/{mozilla,librewolf,zen,qutebrowser,TelegramDesktop,ZapZap}/{,**} mrwkl,
+  # kdeconnect's private key, filezilla's saved logins
+  deny @{user_config_dirs}/{kdeconnect,filezilla}/{,**} mrwkl,
   deny @{user_config_dirs}/task/{sync.taskrc,calendar.env} mrwkl,
   # tokens and passwords dot writes: forgejo, the sccache redis, the stream key, metasploit's db and rpc
   deny @{user_config_dirs}/tea/{,**} mrwkl,

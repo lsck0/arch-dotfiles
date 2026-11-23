@@ -1,5 +1,7 @@
-#!/usr/bin/nu --no-config-file
+#!/usr/bin/env -S nu --no-config-file -I /var/lib/dotfiles/repo/scripts/lib
 # its own table, so portmaster's, docker's and fail2ban's rules stay untouched and stop is one table delete
+
+use state.nu [env-file-load file-lines text-render]
 
 const TABLE = "tor_router"
 const TRANS_PORT = 9040
@@ -8,6 +10,10 @@ const TUNNEL_MARKS = "0x0ea13b2c, 0x0000ca6c"
 const HOME_NETWORK = "/run/home-network"
 const TRUSTED_NETWORK = "/run/trusted-network"
 const HOMELAB_ENV = "/etc/NetworkManager/homelab.env"
+const WG_IFACE = "wg0"
+# base/ssh's router and desktop addresses, rendered in by the module: a full tunnel routes the house lan through
+# table 51820, so the main table names none of them
+const WG_HOSTS = "@WG_HOSTS@"
 const RULESET = r#'add table inet @TABLE@
 delete table inet @TABLE@
 table inet @TABLE@ {
@@ -15,7 +21,9 @@ table inet @TABLE@ {
 	# lan goes via tor
 	set trusted_links { type ifname; }
 	set lan4 { type ipv4_addr; flags interval; auto-merge; }
-	set homelab4 { type ipv4_addr; flags interval; @HOMELAB4@ }
+	# the homelab's subnets and dns, the house's hosts, and what the main table routes out wg0: its tunnel subnet and a
+	# split tunnel's lans; never a full tunnel's default
+	set wg4 { type ipv4_addr; flags interval; auto-merge; }
 	set lab_dns { type ipv4_addr; @LAB_DNS@ }
 	# 127.192.0.0/10 is torrc's VirtualAddrNetworkIPv4 and must reach the TransPort
 	set direct4 { type ipv4_addr; flags interval; elements = { 127.0.0.0/9, 127.128.0.0/10 } }
@@ -29,14 +37,14 @@ table inet @TABLE@ {
 		meta l4proto udp meta mark { @TUNNEL_MARKS@ } return
 		# the dhcp client's unicast renew and broadcast rebind; redirected, the lease runs out
 		udp sport 68 udp dport 67 return
-		# the homelab's split-horizon dns stays plain out a home link, before the redirect below
+		# the homelab's split-horizon dns stays plain out a home link or wg0, before the redirect below
 		oifname @trusted_links ip daddr @lab_dns meta l4proto { tcp, udp } th dport 53 return
+		oifname "wg0" ip daddr @wg4 return
 		udp dport 53 redirect to :@DNS_PORT@
 		tcp dport 53 redirect to :@TRANS_PORT@
 		# no lo: the automapped 127.192.0.0/10 must still reach the TransPort
 		oifname { "virbr*", "docker*", "br-*", "veth*", "waydroid*", "lxc*" } return
 		oifname @trusted_links ip daddr @lan4 return
-		oifname "wg0" ip daddr @homelab4 return
 		ip daddr @direct4 return
 		ip6 daddr @direct6 return
 		meta l4proto { tcp, udp } redirect to :@TRANS_PORT@
@@ -47,7 +55,7 @@ table inet @TABLE@ {
 		ct direction reply accept
 		oifname { "lo", "virbr*", "docker*", "br-*", "veth*", "waydroid*", "lxc*" } accept
 		oifname @trusted_links ip daddr @lan4 accept
-		oifname "wg0" ip daddr @homelab4 accept
+		oifname "wg0" ip daddr @wg4 accept
 		ip daddr 127.0.0.0/8 accept
 		ip6 daddr @direct6 accept
 		meta skuid @TOR_UID@ accept
@@ -71,34 +79,33 @@ table inet @TABLE@ {
 '#
 
 def homelab []: nothing -> record {
-    let vars = if ($HOMELAB_ENV | path exists) {
-        open --raw $HOMELAB_ENV | lines | parse --regex '^(?<key>[A-Z_]+)=(?<value>.*)$'
-        | reduce --fold {} {|v, acc| $acc | upsert $v.key ($v.value | str trim --char '"') }
-    } else { {} }
+    let vars = env-file-load $HOMELAB_ENV
     {dns: ($vars.HOMELAB_DNS? | default ""), nets: ($vars.HOMELAB_NETS? | default "" | split row " " | where $it != "")}
 }
 
-def elements [values: list<string>]: nothing -> string {
-    if ($values | is-empty) { "" } else { $"elements = { ($values | str join ',') }" }
+# The prefixes the main table routes out link, never a full tunnel's default or its two /1 halves; a missing link has
+# none.
+def routes [link: string, ...filter: string]: nothing -> list<string> {
+    ^ip -4 route show dev $link ...$filter | complete | get stdout | lines | each { split row " " | first }
+    | where $it != default and not ($it =~ '/[01]$')
 }
 
-def links-in [file: path]: nothing -> list<string> {
-    try { open --raw $file | lines | where $it != "" } catch { [] }
-}
-
-# Refills the lan bypass for the current trusted links, the homelab's subnets only with a home one among them;
-# flushed first, so a failed fill only keeps the lan on tor.
+# Refills the lan bypass for the current trusted links (the homelab's subnets only with a home one among them) and
+# wg0's; flushed first, so a failed fill only keeps the lan on tor.
 def home-fill []: nothing -> nothing {
-    let ifaces = links-in $TRUSTED_NETWORK
-    ^nft flush set inet $TABLE trusted_links
-    ^nft flush set inet $TABLE lan4
-    let links = $ifaces | each {|i|
-        ^ip -4 route show dev $i scope link proto kernel | lines | each { split row " " | first }
+    let ifaces = file-lines $TRUSTED_NETWORK
+    let lab = homelab
+    let home_lab = if (file-lines $HOME_NETWORK | is-empty) { [] } else { $lab.nets }
+    let sets = {
+        trusted_links: $ifaces
+        lan4: ($home_lab ++ ($ifaces | each { routes $in scope link proto kernel } | flatten))
+        wg4: ($lab.nets ++ [$lab.dns] ++ ($WG_HOSTS | split row " ") ++ (routes $WG_IFACE))
     }
-    let lab = if (links-in $HOME_NETWORK | is-empty) { [] } else { (homelab).nets }
-    let nets = $lab ++ ($links | flatten) | uniq | sort
-    if ($ifaces | is-not-empty) { ^nft add element inet $TABLE trusted_links $"{ ($ifaces | str join ',') }" }
-    if ($nets | is-not-empty) { ^nft add element inet $TABLE lan4 $"{ ($nets | str join ',') }" }
+    $sets | items {|set, elements|
+        ^nft flush set inet $TABLE $set
+        let unique = $elements | where $it != "" | uniq | sort
+        if ($unique | is-not-empty) { ^nft add element inet $TABLE $set $"{ ($unique | str join ',') }" }
+    } | ignore
 }
 
 def "main start" []: nothing -> nothing {
@@ -106,18 +113,16 @@ def "main start" []: nothing -> nothing {
         print --stderr "tor-router: tor.service is not active, start it first"
         exit 1
     }
-    let lab = homelab
-    let values = {
+    let dns = (homelab).dns
+    $RULESET | text-render {
         TABLE: $TABLE TRANS_PORT: $TRANS_PORT DNS_PORT: $DNS_PORT TUNNEL_MARKS: $TUNNEL_MARKS
-        TOR_UID: (^id -u tor | str trim) HOMELAB4: (elements $lab.nets)
-        LAB_DNS: (elements (if $lab.dns == "" { [] } else { [$lab.dns] }))
+        TOR_UID: (^id -u tor | str trim) LAB_DNS: (if $dns == "" { "" } else { $"elements = { ($dns) }" })
     }
-    $values | items {|k, v| {k: $k, v: $v} }
-    | reduce --fold $RULESET {|p, text| $text | str replace --all $"@($p.k)@" ($p.v | into string) }
     | ^nft -f -
     try { home-fill } catch { print --stderr "tor-router: trusted links not filled in, the lan goes through tor" }
 }
 
+# Also on wg0 up and down (the persona dispatcher): its routes change.
 def "main home" []: nothing -> nothing {
     if (^nft list table inet $TABLE | complete).exit_code != 0 { return }
     home-fill

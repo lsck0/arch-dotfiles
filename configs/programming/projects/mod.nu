@@ -45,7 +45,7 @@ def clone [root: path, line: string]: nothing -> list<record> {
         return []
     }
     let auth = if $secret == null { [] } else {
-        let token = $env.DOTFILES | path join configs secrets keys $secret
+        let token = secret-path keys $secret
         if not (secret-is-plaintext $token) {
             log-warn $"projects: configs/secrets/keys/($secret) is locked, ($dest | path basename) skipped"
             return []

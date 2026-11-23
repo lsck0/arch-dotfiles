@@ -291,22 +291,8 @@ Item {
 
   function rebuildDisplay() {
     var rows = ClipboardHistory.displayRows(root.history, root.filterText, root.displayLimit)
-
     displayModel.clear()
-    for (let i = 0; i < rows.length; i++) {
-      let row = rows[i]
-      displayModel.append({
-        entryType: row.entryType,
-        fullText: row.fullText,
-        copyText: row.copyText,
-        paneText: row.paneText,
-        previewText: row.previewText,
-        previewImage: row.previewImage ? Util.fileUrl(row.previewImage) : "",
-        path: row.path,
-        mime: row.mime,
-        historyIndex: row.index
-      })
-    }
+    for (const row of rows) displayModel.append(Object.assign(row, { previewImage: row.previewImage ? Util.fileUrl(row.previewImage) : "" }))
 
     if (displayModel.count === 0) selectedIndex = 0
     else if (selectedIndex >= displayModel.count) selectedIndex = displayModel.count - 1
@@ -449,8 +435,7 @@ Item {
   WatchedFile {
     path: root.configPath
     onLoaded: {
-      var hours = 0
-      try { hours = Number(JSON.parse(text()).max_age_h) } catch (e) {}
+      var hours = Number(Util.parseObject(text()).max_age_h)
       root.maxAgeMs = (hours > 0 ? hours : root.maxAgeHoursDefault) * root.msPerHour
     }
   }

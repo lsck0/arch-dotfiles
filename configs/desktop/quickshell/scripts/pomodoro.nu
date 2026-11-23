@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 
 const HERE = path self | path expand | path dirname
-use ($HERE | path join lib shell.nu) [SHELL_CONFIG action-notify]
+use ($HERE | path join lib shell.nu) [SHELL_CONFIG action-notify epoch-now epoch-to-calendar json-save-atomic]
 
 const CONFIG_PATH = ($SHELL_CONFIG | path join pomodoro.json)
 const CONFIG_DEFAULT = {focus: 25, break: 5, long: 15, cycles: 4}
@@ -35,8 +35,7 @@ def state-load []: nothing -> record {
 }
 
 def state-save [state: record]: nothing -> nothing {
-    mkdir (state-path | path dirname)
-    $state | select --optional running paused phase endsAt cycle remaining work break long cycles | to json -r | save -f (state-path)
+    json-save-atomic ($state | select --optional running paused phase endsAt cycle remaining work break long cycles) (state-path)
 }
 
 # Plays in the foreground: the timer's unit kills background children on exit.
@@ -46,28 +45,21 @@ def chime-play []: nothing -> nothing {
 
 def clock [seconds: int]: nothing -> string { $"($seconds // 60):($seconds mod 60 | fill -a r -c 0 -w 2)" }
 
-def now []: nothing -> int { date now | into int | $in // 1_000_000_000 }
-
 def timer-cancel []: nothing -> nothing {
     let timers = systemctl --user list-timers --all --output=json $"($UNIT_PREFIX)-*.timer" | from json | get unit
     if ($timers | is-not-empty) { systemctl --user stop ...$timers }
 }
 
-# in UTC, so a dst change or a new timezone keeps the epoch
-def timer-calendar [ends_at: int]: nothing -> string {
-    $ends_at * 1_000_000_000 | into datetime | format date '%Y-%m-%d %H:%M:%S UTC'
-}
-
 # Wall-clock like endsAt: a monotonic timer pauses in suspend and leaves the card at 00:00.
 def timer-arm [ends_at: int]: nothing -> nothing {
     timer-cancel
-    (systemd-run --user --quiet --collect $"--on-calendar=(timer-calendar $ends_at)" --timer-property=AccuracySec=1s
+    (systemd-run --user --quiet --collect $"--on-calendar=(epoch-to-calendar $ends_at)" --timer-property=AccuracySec=1s
         $"--unit=($UNIT_PREFIX)-(date now | into int)" flock (lock-path) $nu.current-exe --no-config-file
         ($env.CURRENT_FILE | path expand) locked _elapsed)
 }
 
 def phase-start [state: record, phase: string, seconds: int]: nothing -> nothing {
-    let ends_at = (now) + $seconds
+    let ends_at = (epoch-now) + $seconds
     state-save ($state | merge {running: true, paused: false, phase: $phase, endsAt: $ends_at, remaining: 0})
     timer-arm $ends_at
 }
@@ -97,7 +89,7 @@ def retime []: nothing -> nothing {
     let config = config-load
     let lengths = {work: $config.focus, break: $config.break, long: $config.long, cycles: $config.cycles}
     let total = ($state | get $state.phase) * 60
-    let left = if $state.paused { $state.remaining } else { [($state.endsAt - (now)) 0] | math max }
+    let left = if $state.paused { $state.remaining } else { [($state.endsAt - (epoch-now)) 0] | math max }
     let left = ($lengths | get $state.phase) * 60 - ($total - $left)
     let state = $state | merge $lengths
     if $left <= 0 {
@@ -141,7 +133,7 @@ def "main status" [--json (-j)]: nothing -> nothing {
             totalSeconds: 0, defaultWork: $config.focus, longEvery: $config.cycles, tooltip: "Pomodoro: off"
         }
     } else {
-        let remaining = [(if $state.paused { $state.remaining } else { $state.endsAt - (now) }) 0] | math max
+        let remaining = [(if $state.paused { $state.remaining } else { $state.endsAt - (epoch-now) }) 0] | math max
         let label = $PHASE_LABELS | get $state.phase
         let paused_note = if $state.paused { " (paused)" } else { "" }
         {
@@ -176,7 +168,7 @@ def "main locked stop" []: nothing -> nothing {
 def "main locked pause" []: nothing -> nothing {
     let state = state-load
     if not $state.running or $state.paused { return }
-    let remaining = [($state.endsAt - (now)) 0] | math max
+    let remaining = [($state.endsAt - (epoch-now)) 0] | math max
     timer-cancel
     state-save ($state | merge {paused: true, endsAt: 0, remaining: $remaining})
     action-notify $GLYPH "Pomodoro paused" $"(clock $remaining) left"
@@ -202,6 +194,6 @@ def "main locked retime" []: nothing -> nothing { retime }
 # a timer that fired while a pause or skip held the lock is stale
 def "main locked _elapsed" []: nothing -> nothing {
     let state = state-load
-    if not $state.running or $state.paused or $state.endsAt > (now) { return }
+    if not $state.running or $state.paused or $state.endsAt > (epoch-now) { return }
     phase-advance --chime
 }

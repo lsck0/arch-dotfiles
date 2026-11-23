@@ -2,8 +2,11 @@
 
 # What runs later unconfined, so no confined app may write or link it: the dotfiles (applied as root), the identity
 # wrappers and credentials (.identity/chromium stays open: the identity browser's profile), git hooks and config
-# anywhere in home (core.hooksPath dirs too), direnv and devenv inputs (direnv's allow hash covers .envrc only) and the
-# agents' settings, which start hooks and MCP servers.
+# anywhere in home (core.hooksPath dirs too), direnv and devenv inputs (direnv's allow hash covers .envrc only), the
+# agents' settings, which start hooks and MCP servers, what every shell sources (the init and color caches the rc files
+# regenerate only when stale, zsh's fpath, nushell's vendor autoload, opam's env, the prompt's and fastfetch's command
+# modules, wallust's templates that render into those caches, jj's pager and aliases) and herdr's create scripts with
+# the hash list that allows them.
 
   abi <abi/4.0>,
 
@@ -16,5 +19,11 @@
   deny @{HOME}/**/.claude/{,**} wl,
   deny @{HOME}/**/.mcp.json wl,
   deny @{MOUNTS}/**/.git/{hooks/{,**},config} wl,
+  deny @{user_cache_dirs}/{wal,zsh,nushell,oh-my-zsh}/{,**} wl,
+  deny @{user_share_dirs}/{zsh/site-functions,nushell/vendor/autoload}/{,**} wl,
+  deny @{HOME}/.opam/opam-init/{,**} wl,
+  deny @{user_config_dirs}/{starship.toml,fastfetch/{,**},herdr/{,**},yt-dlp/{,**},yazi/{,**},wallust/{,**},jj/{,**}} wl,
+  deny @{HOME}/**/.herdr-create wl,
+  deny @{user_state_dirs}/herdr/{,**} wl,
 
   include if exists <abstractions/dotfiles/deny-exec-later.d>

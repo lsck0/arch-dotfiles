@@ -3,6 +3,7 @@
 # device): a token is asked for only when enrolled, the passphrase always stays (tries=0), and a TPM2 seal is only ever
 # suggested with a pin, a pinless one flagged.
 
+use std/assert
 use mod.nu [luks-unlisted unlock-plan]
 
 const PART = "nvme0n1p2"
@@ -13,8 +14,6 @@ const NOTE_FIDO = "no yubikey enrolled"
 const NOTE_TPM2 = "no TPM2 seal enrolled"
 const NOTE_PINLESS = "TPM2 seal without a pin"
 const NOTE_HEADER = "back up the header"
-
-def fail [msg: string] { error make {msg: $"luks.test: ($msg)"} }
 
 # The image's tokens, exactly these, as root-unlock reads them from the json metadata.
 def dump [image: path, tokens: list<string>]: nothing -> list<record> {
@@ -49,7 +48,7 @@ def main [] {
     ]
     let failed = $cases | each {|c| case-check $image $c } | flatten
     rm --recursive --force $dir
-    if ($failed | is-not-empty) { fail ($failed | str join "\n") }
+    assert ($failed | is-empty) ($failed | str join "\n")
 }
 
 # What one case got wrong, empty when it holds.
@@ -77,5 +76,5 @@ def crypttab-check []: nothing -> nothing {
         "swap /dev/sda4 /dev/urandom swap"
     ]
     let got = luks-unlisted $kept $parts | get name
-    if $got != [sda5] { fail $"crypttab: unlisted ($got | to nuon), wants [sda5]" }
+    assert equal $got [sda5] $"crypttab: unlisted ($got | to nuon), wants [sda5]"
 }

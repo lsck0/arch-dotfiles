@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # Each .frag carries @label/@variants/@animated/@themed headers; any shader costs direct scanout.
 
-use lib.nu [status-record status-print notify state-get state-set quickshell-call hyprland-instance]
+use lib.nu [status-record status-print notify state-get state-set shell-call hyprland-instance]
 use ../lib/state.nu [xdg]
 
 const DAMAGE_FULL = 2
@@ -57,7 +57,7 @@ def entry-label [entry: string, shaders: table]: nothing -> string {
 
 def theme-constants []: nothing -> record {
     try {
-        let palette = quickshell-call shell palette | from json
+        let palette = shell-call shell palette | from json
         let numbers = $palette.background ++ $palette.accent ++ [$palette.glowStrength $palette.scanlineOpacity $palette.scanlineSpacing]
         if not ($numbers | all { ($in | describe) in [int float] }) { error make {msg: "palette is not numeric"} }
         let float = {|x| $x | into string | if $in =~ '[.e]' { $in } else { $"($in).0" } }

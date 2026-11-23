@@ -1,4 +1,4 @@
-#!/usr/bin/nu --no-config-file
+#!/usr/bin/env -S nu --no-config-file -I /var/lib/dotfiles/repo/scripts/lib
 # NM dispatcher: on a home link the homelab subnets route out the lan from their own table, ahead of a full-tunnel vpn
 
 use lib/dispatch.nu [attempt file-lines lab-env lab-nets link-physical out route-gateway]

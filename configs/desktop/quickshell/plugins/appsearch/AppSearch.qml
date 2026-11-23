@@ -101,15 +101,14 @@ Item {
       const name = AppSearch.entryName(e)
       const sub = AppSearch.entrySubtext(e)
       const icon = root.appLibrary.iconSource(e.icon)
-      out.push({ kind: "app", name: name, sub: sub.toLowerCase() === name.toLowerCase() ? "" : sub,
-                 icon: root.brokenIcons[icon] ? "" : icon, glyph: "\u{f08c6}", keys: "", payload: e })
+      out.push(root.row("app", "\u{f08c6}", name, sub.toLowerCase() === name.toLowerCase() ? "" : sub, e, root.brokenIcons[icon] ? "" : icon))
     }
     return out
   }
 
-  // a row without an icon file or key hint: every mode but apps, windows and keys
-  function row(kind, glyph, name, sub, payload) {
-    return { kind: kind, name: name, sub: sub, icon: "", glyph: glyph, keys: "", payload: payload }
+  // icon: an icon file shown instead of the glyph, apps and windows only; keys: the keybind rows' hint
+  function row(kind, glyph, name, sub, payload, icon, keys) {
+    return { kind: kind, name: name, sub: sub, icon: icon || "", glyph: glyph, keys: keys || "", payload: payload }
   }
 
   // the query's words, each of which a window or keybind row must contain
@@ -136,8 +135,8 @@ Item {
       const title = String(t.title || "")
       const ws = t.workspace ? String(t.workspace.id) : "--"
       if (!root.matchesAll(words, (title + " " + cls + " " + ws).toLowerCase())) continue
-      out.push({ kind: "window", name: title || cls || "--", sub: "[" + ws + "] " + cls,
-                 icon: cls ? Util.iconSource(cls.toLowerCase()) : "", glyph: "\u{f2d0}", keys: "", payload: String(t.address || "") })
+      out.push(root.row("window", "\u{f2d0}", title || cls || "--", "[" + ws + "] " + cls, String(t.address || ""),
+                        cls ? Util.iconSource(cls.toLowerCase()) : ""))
     }
     return out
   }
@@ -242,7 +241,7 @@ Item {
         rowOf[id].keys += root.keysSeparator + keys
         continue
       }
-      rowOf[id] = Object.assign(root.row("bind", "\u{f030c}", name, sub, ""), { keys: keys })
+      rowOf[id] = root.row("bind", "\u{f030c}", name, sub, "", "", keys)
       if (b.submap) submaps.push(rowOf[id])
       else topLevel.push(rowOf[id])
     }

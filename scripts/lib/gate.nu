@@ -5,6 +5,7 @@ use platform.nu [PLATFORM_FACTS platform-files]
 use modules.nu [VERBS HOOKS names-read modules-graph ROOT_MODULES SECRETS_DATA SECRETS_GROUP]
 use pipeline.nu [pipeline-load]
 use cli.nu [jobs]
+use state.nu [tmp-dir-run]
 
 const REPO = path self ../..
 const SUDO = '\bsudo\b'
@@ -483,10 +484,10 @@ def nu-check [files: list<string>]: nothing -> list<string> {
 }
 
 def qml-lint [files: list<string>]: nothing -> list<string> {
-    let root = mktemp --directory
-    ^ln -s ($REPO | path join configs desktop quickshell) ($root | path join qs)
-    let run = ^$QMLLINT -I $root --json - ...($files | each {|f| $REPO | path join $f }) | complete
-    rm --recursive --force $root
+    let run = tmp-dir-run {|root|
+        ^ln -s ($REPO | path join configs desktop quickshell) ($root | path join qs)
+        ^$QMLLINT -I $root --json - ...($files | each {|f| $REPO | path join $f }) | complete
+    }
     let report = try { $run.stdout | from json } catch { return [$"qmllint: ($run.stderr | str trim | default --empty 'no json report')"] }
     $report.files | each {|f| $f.warnings | where type != info | each {|w| $"(rel $f.filename):($w.line? | default 0):($w.column? | default 0): ($w.message | lines | first) [($w.id? | default $w.type)]" } } | flatten
 }
@@ -598,11 +599,11 @@ export def gate-palette []: nothing -> record {
     let sync = if $nu_side.synced { [] } else { [$"($PALETTE_JS): constants block is stale, run ($PALETTE_NU) js --write"] }
     let qml = which qml6 | get --optional 0.path | default "/usr/lib/qt6/bin/qml"
     if not ($qml | path exists) { return {findings: $sync, notes: ["qml6: not installed, palette.nu against Palette.js not compared"]} }
-    let dir = mktemp --directory
-    let probe = $dir | path join probe.qml
-    $PALETTE_PROBE_QML | str replace "@JS@" $"file://($REPO | path join $PALETTE_JS)" | str replace "@INPUTS@" ($themes | each { open $in } | to json --raw) | save $probe
-    let run = with-env {QT_QPA_PLATFORM: offscreen, QT_FORCE_STDERR_LOGGING: "1"} { ^timeout $PALETTE_TIMEOUT_S $qml $probe | complete }
-    rm --recursive --force $dir
+    let run = tmp-dir-run {|dir|
+        let probe = $dir | path join probe.qml
+        $PALETTE_PROBE_QML | str replace "@JS@" $"file://($REPO | path join $PALETTE_JS)" | str replace "@INPUTS@" ($themes | each { open $in } | to json --raw) | save $probe
+        with-env {QT_QPA_PLATFORM: offscreen, QT_FORCE_STDERR_LOGGING: "1"} { ^timeout $PALETTE_TIMEOUT_S $qml $probe | complete }
+    }
     let line = $run.stderr | lines | where ($it | str contains "qml: probe ") | get --optional 0
     if $line == null { return {findings: ($sync ++ [$"palette: Palette.js probe failed:\n($run.stderr | str trim)"]), notes: []} }
     let got = $line | split row "qml: probe " | last | from json

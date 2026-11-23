@@ -1,8 +1,9 @@
 # Root never runs user-writable files: the user packs repo and secrets, the root copy unpacks them.
 
 use log.nu *
-use state.nu [SYSTEM_REPO SYSTEM_STATE nu-bin]
+use state.nu [SYSTEM_REPO SYSTEM_STATE nu-bin tmp-dir-run xdg path-swap]
 use secrets.nu [secret-is-plaintext]
+use platform.nu [PLATFORM_REPO_LOCAL]
 use modules.nu [modules-discover modules-root-run IMPORT_LINE IMPORT_GREP]
 
 const SYSTEM_PATHS = [configs migrations platforms profiles scripts]
@@ -111,12 +112,14 @@ export def system-recorded []: nothing -> list<string> {
     glob ($dir | path join "**" system.nuon) | each { path dirname | path relative-to $dir }
 }
 
-# Every file the root copy holds, by git's view: --cached the tracked, --others the untracked. The non-.nu files of a
-# module root never runs stay out, so the app state backup and update write after the pack leaves the copy current.
+# Every file the root copy holds, by git's view: --cached the tracked, --others the untracked, which includes the
+# git-ignored local platform, since root must load the platform the user layer does. The non-.nu files of a module
+# root never runs stay out, so the app state backup and update write after the pack leaves the copy current.
 export def system-files [checkout: path, which: string]: nothing -> list<string> {
     let modules = module-dirs-root $checkout
+    let local = if $which == "--others" { $PLATFORM_REPO_LOCAL } else { [] }
     ^git -C $checkout ls-files -z $which --exclude-standard --deduplicate -- ...$SYSTEM_PATHS
-    | split row (char nul) | where {|f| $f != "" and ($checkout | path join $f | path type) == "file" }
+    | split row (char nul) | append $local | uniq | where {|f| $f != "" and ($checkout | path join $f | path type) == "file" }
     | append (private-files $checkout $which)
     | where {|f| root-reads $f $modules }
 }
@@ -147,13 +150,13 @@ export def system-pack [checkout: path, copy: path = $SYSTEM_REPO]: nothing -> b
     let tracked = system-files $checkout "--cached"
     let untracked = system-files $checkout "--others" | where $it not-in $tracked
     if $ENTRY not-in $tracked and $ENTRY not-in $untracked { error make {msg: $"($checkout) lists no ($ENTRY), not packing"} }
-    let tar = mktemp --tmpdir dot-pack.XXXXXX
-    $tracked | str join (char nul) | ^tar -C $checkout --no-recursion --null -T - --mode=go=u,go-w -cf $tar
-    # untracked new modules apply before their commit; their mode as is, so a 600 file never turns world-readable
-    if ($untracked | is-not-empty) { $untracked | str join (char nul) | ^tar -C $checkout --no-recursion --null -T - --mode=go-w -rf $tar }
-    let out = open --raw $tar | into binary
-    rm --force $tar
-    $out
+    tmp-dir-run {|dir|
+        let tar = $dir | path join repo.tar
+        $tracked | str join (char nul) | ^tar -C $checkout --no-recursion --null -T - --mode=go=u,go-w -cf $tar
+        # untracked new modules apply before their commit; their mode as is, so a 600 file never turns world-readable
+        if ($untracked | is-not-empty) { $untracked | str join (char nul) | ^tar -C $checkout --no-recursion --null -T - --mode=go-w -rf $tar }
+        open --raw $tar | into binary
+    }
 }
 
 # Whether repo's entry parses with this nu, its imports included; nothing of it runs. A root copy whose entry does not
@@ -188,13 +191,7 @@ export def system-unpack [copy: path, sha: string]: binary -> nothing {
     ^chmod -R go-w $next
     if ($secrets | path exists) { ^chmod -R go= $secrets }
     ^chmod 755 $next
-    # one atomic rename (renameat2 RENAME_EXCHANGE): a power cut leaves the old copy or the new one, never none
-    if ($copy | path exists) {
-        ^mv --exchange --no-target-directory $next $copy
-        rm --recursive --force $next
-    } else {
-        mv $next $copy
-    }
+    path-swap $next $copy
 }
 
 # The system secrets this checkout holds in plaintext: their dir and their names in it.
@@ -211,11 +208,13 @@ export def system-secrets-digest [checkout: path, wireguard: any]: nothing -> st
 
 # The repo tar and the plaintext system secrets, flat as DOTFILES_SECRETS/<file>, in one tar for system-apply.
 export def system-archive [checkout: path, wireguard: any]: nothing -> binary {
-    let work = mktemp --directory
-    system-pack $checkout | save --raw ($work | path join repo.tar)
+    let repo = system-pack $checkout
     let plain = secrets-plain $checkout $wireguard
-    $plain.names | str join (char nul) | ^tar -C $plain.dir -c --null -T - -f - | save --raw ($work | path join secrets.tar)
-    let out = ^tar -C $work -cf - repo.tar secrets.tar
-    rm --recursive --force $work
-    $out
+    # the plaintext secrets stay on the per-user tmpfs where there is one (the install chain's unit has none)
+    let runtime = xdg runtime
+    tmp-dir-run --parent (if ($runtime | path exists) { $runtime }) {|work|
+        $repo | save --raw ($work | path join repo.tar)
+        $plain.names | str join (char nul) | ^tar -C $plain.dir -c --null -T - -f - | save --raw ($work | path join secrets.tar)
+        ^tar -C $work -cf - repo.tar secrets.tar
+    }
 }

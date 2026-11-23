@@ -23,7 +23,7 @@ def --wrapped main [...args] {
     notify-send: 'def --wrapped main [...args] {}'
 }
 
-def fail [msg: string] { error make {msg: $"phone.test: ($msg)"} }
+use std/assert
 
 const TARGET_CASES = [
     [name target exists kind value];
@@ -40,7 +40,7 @@ const TARGET_CASES = [
 
 for c in $TARGET_CASES {
     let got = share-target $c.target $c.exists
-    if $got != {kind: $c.kind, value: $c.value} { fail $"share-target ($c.name): ($got | to nuon)" }
+    assert equal $got {kind: $c.kind, value: $c.value} $"share-target ($c.name)"
 }
 
 const URI_LIST_CASES = [
@@ -52,7 +52,7 @@ const URI_LIST_CASES = [
 
 for c in $URI_LIST_CASES {
     let got = uri-list-parse $c.text
-    if $got != $c.want { fail $"uri-list-parse ($c.name): ($got | to nuon)" }
+    assert equal $got $c.want $"uri-list-parse ($c.name)"
 }
 
 const SOURCE_CASES = [
@@ -66,7 +66,7 @@ const SOURCE_CASES = [
 
 for c in $SOURCE_CASES {
     let got = clipboard-source $c.types
-    if $got != $c.want { fail $"clipboard-source ($c.name): ($got)" }
+    assert equal $got $c.want $"clipboard-source ($c.name)"
 }
 
 const PICK_CASES = [
@@ -78,7 +78,7 @@ const PICK_CASES = [
 
 for c in $PICK_CASES {
     let got = try { device-pick $c.listing } catch {|e| $e.msg }
-    if $got != $c.want { fail $"device-pick ($c.name): ($got | to nuon)" }
+    assert equal $got $c.want $"device-pick ($c.name)"
 }
 
 # end to end: the argv kdeconnect-cli gets, and that a failure exits non-zero without calling it
@@ -119,8 +119,8 @@ try {
         }
         let calls_file = $state | path join calls
         let calls = if ($calls_file | path exists) { open --raw $calls_file | lines } else { [] }
-        if $out.exit_code != $c.exit_code { fail $"($c.name): exit ($out.exit_code), stderr ($out.stderr | str trim)" }
-        if $calls != $c.calls { fail $"($c.name): calls ($calls | to nuon)" }
+        assert equal $out.exit_code $c.exit_code $"($c.name): exit, stderr ($out.stderr | str trim)"
+        assert equal $calls $c.calls $"($c.name): calls"
     }
 } catch {|e|
     rm --recursive --force $work

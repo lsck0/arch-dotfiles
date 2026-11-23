@@ -163,7 +163,6 @@ BarWidget {
 
   visible: allItems.length > 0
   implicitWidth: allHidden ? hiddenHandle.implicitWidth : trayContent.implicitWidth
-  implicitHeight: Style.bar.sizeHorizontal
 
   Loader {
     id: trayContent

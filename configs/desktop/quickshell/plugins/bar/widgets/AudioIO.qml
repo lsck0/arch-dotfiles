@@ -33,7 +33,6 @@ BarWidget {
   hoverFill: true
   visible: sink !== null
   implicitWidth: button.implicitWidth
-  implicitHeight: button.implicitHeight
 
   PwObjectTracker {
     objects: [root.sink, root.source].filter(n => !!n)

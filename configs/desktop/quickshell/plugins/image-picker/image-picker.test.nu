@@ -1,8 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
 # ImagePickerModel.js under qmltestrunner: the scan's rows, the filter and the recent tiles
 
+use ../../scripts/lib/qml-test.nu [qml-test-run]
+
 const MODEL = path self ImagePickerModel.js
-const RUNNER = "/usr/lib/qt6/bin/qmltestrunner"
 const TEST = '
 import QtQuick
 import QtTest
@@ -48,14 +49,5 @@ TestCase {
 '
 
 def main [] {
-    let dir = mktemp --directory
-    # remove the temp dir whether the run succeeds or a step throws
-    let outcome = try {
-        cp $MODEL $dir
-        $TEST | save ($dir | path join tst_image_picker.qml)
-        with-env {QT_QPA_PLATFORM: offscreen} { ^$RUNNER -input ($dir | path join tst_image_picker.qml) } | complete
-    } catch {|e| {failed: $e.msg} }
-    rm --recursive --force $dir
-    if ($outcome | get --optional failed) != null { error make {msg: $outcome.failed} }
-    if $outcome.exit_code != 0 { error make {msg: $"($outcome.stdout)($outcome.stderr)"} }
+    qml-test-run $TEST {|dir| cp $MODEL $dir }
 }

@@ -1,12 +1,12 @@
-#!/usr/bin/nu --no-config-file
+#!/usr/bin/env -S nu --no-config-file -I /var/lib/dotfiles/repo/scripts/lib
 # NM dispatcher: a link is trusted by the hardware mac plus a known gateway, never the ssid, which a foreign network
 # can copy. Home (home-gateways: the homelab's network) is trusted too; a trusted network (trusted-gateways) only lifts
 # the lockdown. /run/trusted-network feeds the firewall sets and tor-router; /run/home-network the homelab wiring.
 # A home-gateways line is `<mac> <gateway address> <dhcp server identifier>`: a router mac cannot be rotated once
 # known, so home also wants the address it answers on and the dhcp server its lease names. A mac alone is only
-# trusted, and not even that once a full line names the same mac.
+# trusted, and not even that once a full line names the same mac. untrusted_policy off trusts every routed link.
 
-use lib/dispatch.nu [file-lines link-physical ok out route-gateway]
+use lib/dispatch.nu [file-lines link-physical ok out route-gateway untrusted-policy]
 
 const GATEWAYS = "/etc/NetworkManager/home-gateways"
 const TRUSTED_GATEWAYS = "/etc/NetworkManager/trusted-gateways"
@@ -38,15 +38,16 @@ export def dhcp-server [options: string]: nothing -> any {
     $options | parse --regex '(?m):dhcp_server_identifier = (?<id>\S+)$' | get --optional 0.id
 }
 
-# The tier a link reaches by what it sees ({mac gateway dhcp_server} of its default route): home only when a home line
-# names all three; trusted by a trusted mac, or a home mac no full line names.
-export def link-tier [home: table, trusted: list<string>, seen: any]: nothing -> string {
-    if $seen == null or ($seen.mac | is-empty) { return $TIER_NONE }
+# The tier a link reaches by what it sees ({mac gateway dhcp_server} of its default route, null without one; mac ""
+# when no gateway may vouch): home only when a home line names all three; trusted by a trusted mac, a home mac no full
+# line names, or --trust-all.
+export def link-tier [home: table, trusted: list<string>, seen: any, --trust-all]: nothing -> string {
+    if $seen == null { return $TIER_NONE }
     let named = $home | where mac == $seen.mac
     let full = $named | where gateway != null
     if ($full | any {|l| $l.gateway == $seen.gateway and $l.dhcp_server == $seen.dhcp_server }) { return $TIER_HOME }
-    if $seen.mac in $trusted or (($full | is-empty) and ($named | is-not-empty)) { return $TIER_TRUSTED }
-    $TIER_NONE
+    let vouched = $seen.mac in $trusted or (($full | is-empty) and ($named | is-not-empty))
+    if $vouched or $trust_all { $TIER_TRUSTED } else { $TIER_NONE }
 }
 
 # Writes the links one per line, atomically; none removes the file.
@@ -58,7 +59,7 @@ def links-save [file: path, links: list<string>]: nothing -> nothing {
     mv --force $next $file
 }
 
-def gateway-mac [link: string, gateway: string]: nothing -> string {
+export def gateway-mac [link: string, gateway: string]: nothing -> string {
     let known = out ip neigh show $gateway dev $link | parse --regex 'lladdr (?<mac>\S+)' | get --optional 0.mac
     if $known != null { return $known }
     # fw-egress drops a ping out of an undecided link, arp sits below it
@@ -79,13 +80,15 @@ export def hardware-mac-in-use [address: string, ethtool: string, assign_type: s
     $address == $hardware
 }
 
-# What a link sees of its default route, null unless it carries the hardware mac and has a gateway.
+# What a link sees of its default route, null without one; a link off its hardware mac asks its gateway nothing.
 def link-observe [link: string]: nothing -> any {
-    let address = try { open --raw $"/sys/class/net/($link)/address" } catch { "" }
-    let assign_type = try { open --raw $"/sys/class/net/($link)/addr_assign_type" } catch { "" }
-    if not (hardware-mac-in-use $address (out ethtool -P $link) $assign_type) { return null }
     let gateway = route-gateway (out ip -4 route show default dev $link)
     if $gateway == null { return null }
+    let address = try { open --raw $"/sys/class/net/($link)/address" } catch { "" }
+    let assign_type = try { open --raw $"/sys/class/net/($link)/addr_assign_type" } catch { "" }
+    if not (hardware-mac-in-use $address (out ethtool -P $link) $assign_type) {
+        return {mac: "", gateway: $gateway, dhcp_server: null}
+    }
     let mac = gateway-mac $link $gateway | str lowercase
     {mac: $mac, gateway: $gateway, dhcp_server: (dhcp-server (out nmcli -t -f DHCP4.OPTION device show $link))}
 }
@@ -94,11 +97,14 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
     if $action not-in [up down] { return }
     if not (link-physical $iface) and $iface not-in (file-lines $TRUSTED_NETWORK) { return }
     let home_gateways = gateways-parse (file-lines $GATEWAYS)
-    let trusted_gateways = file-lines $TRUSTED_GATEWAYS | where $it != "" | str lowercase
-    let tiers = if ($home_gateways | is-empty) and ($trusted_gateways | is-empty) { [] } else {
+    let trusted_gateways = file-lines $TRUSTED_GATEWAYS | str lowercase
+    let trust_all = (untrusted-policy) == off
+    let tiers = if ($home_gateways | is-empty) and ($trusted_gateways | is-empty) and not $trust_all { [] } else {
         glob /sys/class/net/* | path basename
         | where {|link| (link-physical $link) and not ($action == down and $link == $iface) }
-        | each {|link| {link: $link, tier: (link-tier $home_gateways $trusted_gateways (link-observe $link))} }
+        | each {|link|
+            {link: $link, tier: (link-tier $home_gateways $trusted_gateways (link-observe $link) --trust-all=$trust_all)}
+        }
     }
     let trusted = $tiers | where tier != $TIER_NONE | get link
     let home = $tiers | where tier == $TIER_HOME | get link

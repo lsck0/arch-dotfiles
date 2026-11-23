@@ -308,30 +308,28 @@ def priority-style [task: record]: nothing -> string {
 
 def urgency [task: record]: nothing -> string { $task.urgency? | default 0 | into float | into string --decimals 1 }
 
+# A bold row: text on the left, cut to leave room for `right`, flush against the right edge.
+def put-row [y: int, x: int, w: int, text: string, right: string]: nothing -> list<record> {
+    let right_w = $right | str length
+    [(put $y $x (truncate $text ($w - $right_w - 2)) bold) (put $y ($x + $w - $right_w) $right bold)]
+}
+
 def render-active [y0: int, x: int, w: int, rows: int, timer: any, tasks: list]: nothing -> record {
     mut ops = [(put $y0 $x ACTIVE dim)]
     mut y = $y0 + 1
     if $timer == null and ($tasks | is-empty) { return {y: ($y + 2), ops: ($ops | append (put $y $x "  -" dim))} }
     if $timer != null {
-        let since = elapsed $timer.start?
         let label = $"timew: (tags-of $timer | str join ' ' | if $in == '' { '(untagged)' } else { $in })"
-        $ops = $ops ++ [
-            (put $y $x (truncate $label ($w - ($since | str length) - 2)) bold)
-            (put $y ($x + $w - ($since | str length)) $since bold)
-        ]
+        $ops = $ops ++ (put-row $y $x $w $label (elapsed $timer.start?))
         $y += 2
     }
     for task in $tasks {
         if $y >= $rows - 3 { break }
-        let since = elapsed $task.start?
         let meta = [$"#($task.id? | default 0)" $task.priority? (urgency $task) (due-relative $task)
             (if ($task.project? | is-empty) { null } else { $"@($task.project)" })]
             | where { is-not-empty } | append (tags-of $task | first $ACTIVE_TAG_LIMIT | each { $"+($in)" })
-        $ops = $ops ++ [
-            (put $y $x (truncate (desc-of $task) ($w - ($since | str length) - 2)) bold)
-            (put $y ($x + $w - ($since | str length)) $since bold)
-            (put ($y + 1) $x (truncate ($meta | str join "  ") $w) dim)
-        ]
+        $ops = $ops ++ (put-row $y $x $w (desc-of $task) (elapsed $task.start?))
+        $ops = $ops | append (put ($y + 1) $x (truncate ($meta | str join "  ") $w) dim)
         $y += 3
     }
     {y: $y, ops: $ops}

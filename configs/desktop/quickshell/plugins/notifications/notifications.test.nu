@@ -3,8 +3,9 @@
 # the exec argv allowlist, the img tag stripping, the hyphen joiner, who passes dnd and which closed toast goes to
 # history
 
+use ../../scripts/lib/qml-test.nu [qml-test-run]
+
 const LOGIC = path self NotificationLogic.js
-const RUNNER = "/usr/lib/qt6/bin/qmltestrunner"
 const TEST = '
 import QtQuick
 import QtTest
@@ -92,14 +93,5 @@ TestCase {
 '
 
 def main [] {
-    let dir = mktemp --directory
-    # remove the temp dir whether the run succeeds or a step throws
-    let outcome = try {
-        cp $LOGIC $dir
-        $TEST | save ($dir | path join tst_notifications.qml)
-        with-env {QT_QPA_PLATFORM: offscreen} { ^$RUNNER -input ($dir | path join tst_notifications.qml) } | complete
-    } catch {|e| {failed: $e.msg} }
-    rm --recursive --force $dir
-    if ($outcome | get --optional failed) != null { error make {msg: $outcome.failed} }
-    if $outcome.exit_code != 0 { error make {msg: $"qmltestrunner failed\n($outcome.stdout)($outcome.stderr)"} }
+    qml-test-run $TEST {|dir| cp $LOGIC $dir }
 }

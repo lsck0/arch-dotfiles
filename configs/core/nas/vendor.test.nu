@@ -1,19 +1,19 @@
 #!/usr/bin/env -S nu --no-config-file
 # vendor.nu's choice of what to install: the newest zip by version, nothing without a reachable vendor dir, and an
 # install only when the NAS holds something newer than what is installed.
+use std/assert
 use vendor.nu [nas-vendor-newer nas-vendor-newest]
 
-def fail [msg: string] { error make {msg: $"vendor.test: ($msg)"} }
-
 def main [] {
-    if (nas-vendor-newest null "jai-*.zip") != null { fail "an unreachable vendor dir yields a zip" }
+    assert equal (nas-vendor-newest null "jai-*.zip") null "an unreachable vendor dir yields a zip"
     let dir = mktemp --directory --tmpdir vendor-test.XXXXXX
-    if (nas-vendor-newest $dir "jai-*.zip") != null { rm -r $dir; fail "an empty vendor dir yields a zip" }
+    let empty = nas-vendor-newest $dir "jai-*.zip"
     ["jai-beta-2-9.zip" "jai-beta-2-030.zip" "jai-beta-2-10.zip" "Linux_Unreal_Engine_5.8.4.zip"]
         | each {|f| touch ($dir | path join $f) } | ignore
     let newest = nas-vendor-newest $dir "jai-*.zip" | path basename
     rm -r $dir
-    if $newest != "jai-beta-2-030.zip" { fail $"newest jai zip: ($newest)" }
+    assert equal $empty null "an empty vendor dir yields a zip"
+    assert equal $newest "jai-beta-2-030.zip" "newest jai zip"
     let cases = [
         [installed candidate want];
         ["" "" false]
@@ -27,7 +27,6 @@ def main [] {
         ["d2launcher-mxl-2.14.7" "d2launcher-mxl-2.14.6" false]
     ]
     for c in $cases {
-        let got = nas-vendor-newer $c.installed $c.candidate
-        if $got != $c.want { fail $"newer ($c.installed | to nuon) -> ($c.candidate | to nuon): ($got)" }
+        assert equal (nas-vendor-newer $c.installed $c.candidate) $c.want $"newer ($c.installed | to nuon) -> ($c.candidate | to nuon)"
     }
 }

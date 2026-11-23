@@ -4,9 +4,10 @@
 # untrusted_policy and whether the link is trusted, the units started and stopped; a missing or unknown policy file is
 # lockdown-tor, fail closed.
 
+use std/assert
+
 const HERE = path self .
-const DISPATCHER = $HERE | path join persona-dispatcher.nu
-const LIB = $HERE | path join lib
+const LIB = path self ../../../scripts/lib
 const IFACE = "eth9"
 const STUBS = [systemctl sysctl nmcli resolvectl ip nft systemd-run]
 # the dispatcher's own paths, each moved under the scratch dir; one gone from the source fails the test
@@ -17,20 +18,20 @@ const MOVED = [
 ]
 const LOCKDOWN = [fw-egress.service fw-lockdown.service tor-router.service]
 
-def fail [msg: string] { error make {msg: $"persona-dispatcher.test: ($msg)"} }
-
 # The dispatcher and its lib copied into dir with every MOVED path and /sys/class/net under dir.
 def stage [dir: path]: nothing -> path {
     let root = $dir | path join root
-    let text = $MOVED | reduce --fold (open --raw $DISPATCHER) {|p, acc|
-        if not ($acc | str contains $"\"($p)\"") { fail $"($p) is no longer a path of the dispatcher" }
-        $acc | str replace --all $"\"($p)\"" $"\"($root)($p)\""
+    let sources = [persona-dispatcher.nu lib/dispatch.nu] | each {|f| {file: $f, text: (open --raw ($HERE | path join $f))} }
+    let staged = $MOVED | reduce --fold $sources {|p, acc|
+        let quoted = $"\"($p)\""
+        assert ($acc | any { $in.text | str contains $quoted }) $"($p) is no longer a path of the dispatcher"
+        $acc | update text { str replace --all $quoted $"\"($root)($p)\"" }
     }
     let copy = $dir | path join dispatcher
     mkdir ($copy | path join lib)
-    $text | str replace --all "/sys/class/net/" $"($root)/sys/class/net/" | save ($copy | path join persona-dispatcher.nu)
-    open --raw ($LIB | path join dispatch.nu) | str replace --all "/sys/class/net/" $"($root)/sys/class/net/"
-    | save ($copy | path join lib dispatch.nu)
+    for f in $staged {
+        $f.text | str replace --all "/sys/class/net/" $"($root)/sys/class/net/" | save ($copy | path join $f.file)
+    }
     mkdir ($root | path join sys class net $IFACE device) ($root | path join run) ($root | path join etc NetworkManager)
     mkdir ($root | path join usr bin) ($root | path join usr local bin)
     touch ($root | path join usr bin tor) ($root | path join usr local bin tor-router)
@@ -59,9 +60,9 @@ def event [dir: path, script: path, policy: any, trusted: bool, args: list<strin
     if $policy != null { $"($policy)\n" | save --force ($root | path join etc NetworkManager untrusted-policy) }
     (if $trusted { $"($IFACE)\n" } else { "" }) | save --force ($root | path join run trusted-network)
     let r = with-env {PATH: ([($dir | path join bin)] ++ $env.PATH), CONNECTION_UUID: "test-uuid"} {
-        ^nu --no-config-file $script ...(if ($args | is-empty) { [$IFACE up] } else { $args }) | complete
+        ^nu --no-config-file -I $LIB $script ...(if ($args | is-empty) { [$IFACE up] } else { $args }) | complete
     }
-    if $r.exit_code != 0 { fail $"dispatcher failed \(policy ($policy), trusted ($trusted)\): ($r.stderr)" }
+    assert equal $r.exit_code 0 $"dispatcher failed \(policy ($policy), trusted ($trusted)\): ($r.stderr)"
     let calls = $dir | path join calls
     if ($calls | path exists) { open --raw $calls | lines } else { [] }
 }
@@ -91,22 +92,23 @@ def main [] {
         let started = units $calls start
         # the nas mount follows home, which no case is
         let stopped = units $calls stop | where $it != mnt-homelab.mount
-        if $started != ($c.started | sort) { fail $"($c.what): started ($started | to nuon), wants ($c.started | to nuon)" }
-        if $stopped != ($c.stopped | sort) { fail $"($c.what): stopped ($stopped | to nuon), wants ($c.stopped | to nuon)" }
+        assert equal $started ($c.started | sort) $"($c.what): started ($started | to nuon), wants ($c.started | to nuon)"
+        assert equal $stopped ($c.stopped | sort) $"($c.what): stopped ($stopped | to nuon), wants ($c.stopped | to nuon)"
         let v6 = $calls | where ($it | str contains $"net.ipv6.conf.($IFACE).disable_ipv6=") | get --optional 0
         let v6_off = ($v6 | default "" | str ends-with "=1")
         let wants_off = not $c.trusted and $c.policy not-in [firewall-only off]
-        if $v6_off != $wants_off { fail $"($c.what): ipv6 on the link ($v6)" }
+        assert equal $v6_off $wants_off $"($c.what): ipv6 on the link ($v6)"
     }
     # the foreign link's down (its node gone) lifts the lockdown, and with it ipv6 off on the trusted link left
     let calls = event $dir $script lockdown-tor true [eth8 down]
-    if $"sysctl -wq net.ipv6.conf.($IFACE).disable_ipv6=0" not-in $calls {
-        fail $"lockdown lifted by a down: ipv6 stays off on ($IFACE): ($calls | to nuon)"
-    }
+    assert ($"sysctl -wq net.ipv6.conf.($IFACE).disable_ipv6=0" in $calls) (
+        $"lockdown lifted by a down: ipv6 stays off on ($IFACE): ($calls | to nuon)"
+    )
     # off trusts every network: a portal's end gives the link back its resolver as on any up
     let calls = event $dir $script off false [$IFACE portal-end]
-    if $"resolvectl default-route ($IFACE) no" in $calls or $"resolvectl dnsovertls ($IFACE) opportunistic" not-in $calls {
-        fail $"off, portal end: foreign dns on ($IFACE): ($calls | to nuon)"
-    }
+    let foreign = $"resolvectl default-route ($IFACE) no" in $calls
+    assert (not $foreign and $"resolvectl dnsovertls ($IFACE) opportunistic" in $calls) (
+        $"off, portal end: foreign dns on ($IFACE): ($calls | to nuon)"
+    )
     rm --recursive --force $dir
 }

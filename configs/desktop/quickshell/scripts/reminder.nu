@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 
 const HERE = path self | path expand | path dirname
-use ($HERE | path join lib shell.nu) [SHELL_CONFIG action-notify shell-call]
+use ($HERE | path join lib shell.nu) [SHELL_CONFIG action-notify epoch-now epoch-to-calendar json-save-atomic shell-call]
 
 const UNIT_PREFIX = "quickshell-reminder-"
 const BELL_GLYPH = "\u{f009e}"
@@ -27,12 +27,7 @@ def record-load [unit: string]: nothing -> record {
     {unit: $unit, at: 0, message: "", clock: false} | merge (if ($path | path exists) { open $path } else { {} })
 }
 
-def record-save [record: record]: nothing -> nothing {
-    mkdir (record-dir)
-    let path = record-path $record.unit
-    $record | to json -r | save -f $"($path).tmp"
-    mv -f $"($path).tmp" $path
-}
+def record-save [record: record]: nothing -> nothing { json-save-atomic $record (record-path $record.unit) }
 
 # the minutes in the unit name, for the "<n>-min reminder" label
 def unit-minutes [unit: string]: nothing -> int { $unit | parse $"($UNIT_PREFIX){minutes}m-{set_at}" | get 0.minutes | into int }
@@ -42,8 +37,6 @@ def unit-from-target [target: string, verb: string]: nothing -> string {
     if not ($unit starts-with $UNIT_PREFIX) { error make {msg: $"refusing to ($verb) non-reminder unit '($target)'"} }
     $unit
 }
-
-def epoch-now []: nothing -> int { date now | into int | $in // 1_000_000_000 }
 
 def epoch-to-date [epoch: int]: nothing -> datetime { $epoch * 1_000_000_000 | into datetime | date to-timezone local }
 
@@ -90,18 +83,11 @@ def reminder-list []: nothing -> table {
     }
 }
 
-def index-write []: nothing -> nothing {
-    mkdir (reminder-dir)
-    let index = reminder-dir | path join index.json
-    {reminders: (reminder-list)} | to json -r | save -f $"($index).tmp"
-    mv -f $"($index).tmp" $index
-}
+def index-write []: nothing -> nothing { json-save-atomic {reminders: (reminder-list)} (reminder-dir | path join index.json) }
 
-# wall-clock, so a suspend neither delays it nor drops it: a time passed while asleep fires on resume; in UTC, so a dst
-# change or a new timezone keeps the epoch in the record
+# wall-clock, so a suspend neither delays it nor drops it: a time passed while asleep fires on resume
 def timer-arm [unit: string, at: int]: nothing -> record {
-    let calendar = $at * 1_000_000_000 | into datetime | format date '%Y-%m-%d %H:%M:%S UTC'
-    (systemd-run --user --quiet --collect $"--on-calendar=($calendar)" --timer-property=AccuracySec=1s $"--unit=($unit)"
+    (systemd-run --user --quiet --collect $"--on-calendar=(epoch-to-calendar $at)" --timer-property=AccuracySec=1s $"--unit=($unit)"
         ($env.CURRENT_FILE | path expand) _fire $unit) | complete
 }
 
@@ -120,22 +106,20 @@ def reminder-set [at: int, message: string, --clock]: nothing -> nothing {
     index-write
 }
 
-# nu parses a lone argv word true, false or null as bool or null even after --, so the name words are untyped
-def words-join [words: list]: nothing -> string {
-    $words | each {|w| if $w == null { "null" } else { $w | into string } } | str join " "
+# Message words reach main, at and rename through --wrapped mains: a typed main evaluates a word such as `--x=(cmd)`
+# after `--` as nu code and reads a lone true or null as a bool. Callers end the flags with `--`, dropped here.
+def message-from-words [words: list]: nothing -> string {
+    $words | skip (if ($words | get --optional 0) == "--" { 1 } else { 0 }) | str join " " | str trim
 }
 
-def main [
-    --interactive (-i)
-    minutes?: int
-    ...message
-]: nothing -> nothing {
-    if $interactive {
+def --wrapped main [...words]: nothing -> nothing {
+    if ($words | get --optional 0) in ["-i" "--interactive"] {
         shell-call shell summon panel.reminders "{}"
         return
     }
-    if $minutes == null or $minutes <= 0 { error make {msg: "minutes must be a positive integer, see --help"} }
-    let message = words-join $message
+    let minutes = try { $words.0 | into int } catch { 0 }
+    if $minutes <= 0 { error make {msg: "want <minutes> [-- message], or -i for the panel"} }
+    let message = message-from-words ($words | skip 1)
     let at = (epoch-now) + $minutes * 60
     reminder-set $at $message
     let unit_label = if $minutes == 1 { "1 minute" } else { $"($minutes) minutes" }
@@ -144,10 +128,11 @@ def main [
 }
 
 # at a wall-clock time, seconds since the epoch
-def "main at" [epoch: int, ...message]: nothing -> nothing {
+def --wrapped "main at" [epoch, ...words]: nothing -> nothing {
+    let epoch = $epoch | into int
     let now = epoch-now
     if $epoch <= $now + $ARM_MARGIN_S { error make {msg: $"($epoch) is not in the future"} }
-    let message = words-join $message
+    let message = message-from-words $words
     reminder-set $epoch $message --clock
     let time = epoch-format-time $epoch
     let title = if $message != "" { $"($message) at ($time)" } else { $"Reminder set for ($time)" }
@@ -175,11 +160,11 @@ def "main cancel" [target: string]: nothing -> nothing {
 def "main delete" [target: string]: nothing -> nothing { main cancel $target }
 
 # name a pending reminder, or with no name drop it back to "<n>-min reminder"
-def "main rename" [target: string, ...name]: nothing -> nothing {
-    let unit = unit-from-target $target rename
+def --wrapped "main rename" [target, ...words]: nothing -> nothing {
+    let unit = unit-from-target ($target | into string) rename
     let pending = reminder-list | where unit == $unit | get --optional 0
     if $pending == null { error make {msg: $"no pending reminder ($unit)"} }
-    record-save (record-load $unit | merge {at: $pending.at, message: (words-join $name | str trim)})
+    record-save (record-load $unit | merge {at: $pending.at, message: (message-from-words $words)})
     index-write
 }
 

@@ -143,8 +143,10 @@ def cache-load [path: path, max_age: duration]: nothing -> any {
 
 def file-save [path: path, body: any]: nothing -> nothing {
     mkdir ($path | path dirname)
-    $body | save -f $"($path).tmp"
-    mv -f $"($path).tmp" $path
+    # a temp per writer: the bar's run and a refresh can overlap
+    let temp = $"($path).($nu.pid).tmp"
+    $body | save -f $temp
+    mv -f $temp $path
 }
 
 def location-resolve []: nothing -> any {

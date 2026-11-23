@@ -55,8 +55,6 @@ const KCONF_UPDATERC = "kconf_updaterc"
 const KCONF_SEED = "kconf_update.seed"
 const WALLPAPER_SECTION = '^\[(?<s>Containments\]\[\d+\]\[Wallpaper\]\[org\.kde\.image\]\[General)\]$'
 const DRM = "/sys/class/drm"
-# The weather widget's place is the owner's location: kept in secrets' state, a placeholder in the public files.
-const WEATHER = path self ../../secrets/state/plasma/weather.nuon
 const MODERNCLOCK = {id: com.github.prayag2.modernclock, url: "https://github.com/prayag2/kde_modernclock", commit: 5c86f0f23d2646be7e9872fc5e769bdce259af92} # committed 2024-03-07
 const KDE_FONT_KEYS = [
     [group key];
@@ -124,9 +122,11 @@ def shell-updates-done []: nothing -> record {
     if ($scripts | is-empty) { {} } else { {Updates: {performed: ($scripts | str join ",")}} }
 }
 
-# The owner's place from WEATHER, else blanks: the widget then opens unset and asks for a place.
+# The weather widget's place, the owner's location from secrets' state (a placeholder in the public files); without
+# it blanks: the widget then opens unset and asks for a place.
 def weather-values []: nothing -> record {
-    let place = if (owner-unlocked) and ($WEATHER | path exists) { open $WEATHER } else { {display: "", info: ""} }
+    let weather = secret-path state plasma weather.nuon
+    let place = if (owner-unlocked) and ($weather | path exists) { open $weather } else { {display: "", info: ""} }
     {WEATHER_PLACE: $place.display, WEATHER_INFO: $place.info}
 }
 

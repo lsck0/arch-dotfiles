@@ -2,13 +2,14 @@
 # offload's worker on the target: one protocol for every client. The lab's builder reaches it as labworker through its
 # forced ssh command (`serve <device>`), the notebook and this desktop through `offload worker` (`local <device>`).
 # Verbs: offer, submit <json> with its sources on stdin (a header line, then the image archive if streamed, then a
-# complete pack of the commit), status <id>, get <id> (the result tar on stdout), cancel <id>, gc. A job is admitted only while the desktop is idle (no game in gamemode, no obs output, on mains) and its device
-# consents; it runs in a transient unit of the caller's own user manager inside offload.slice, its oci toolchain in
-# rootless podman with only its checkout mounted. Self-contained: labworker runs the root-owned copy in
-# /usr/local/lib/offload and reads nothing of the repo.
+# complete pack of the commit), status <id>, get <id> (the result tar on stdout), cancel <id>, gc. A job is admitted
+# only while the desktop is idle (no game in gamemode, no obs output, on mains) and its device consents; it runs in a
+# transient unit of the caller's own user manager inside offload.slice, its oci toolchain in rootless podman with only
+# its checkout mounted. Self-contained: labworker runs the root-owned copy in /usr/local/lib/offload and reads nothing
+# of the repo.
 
 export const VERBS = [offer submit status get cancel gc]
-export const OCI_KINDS = [static-site oci-image arch-base]
+const OCI_KINDS = [static-site oci-image arch-base]
 export const KIND_RUN = "run"
 export const KIND_AGENT = "agent"
 export const KIND_TIMEOUT_S = {static-site: 7200, oci-image: 3600, arch-base: 10800}
@@ -69,11 +70,11 @@ const NONCE_BYTES = 2
 
 export const JOB_FILE = "job.nuon"
 export const EXIT_FILE = "exit"
-export const CANCEL_FILE = "cancelled"
+const CANCEL_FILE = "cancelled"
 export const LOG_FILE = "log"
 const PACK_FILE = "source.pack"
 const IMAGE_FILE = "image.tar"
-export const ERROR_FILE = "error"
+const ERROR_FILE = "error"
 const CACHE_TREE = "tree"
 const CACHE_USED = "used"
 const SOURCE_DIR = "src"
@@ -142,7 +143,7 @@ export def toolchain-validate [toolchain: any]: nothing -> nothing {
 }
 
 # A job's cache: only paths, each relative and inside the checkout, none in .git; the key is the worker's own.
-export def cache-validate [cache: any]: nothing -> nothing {
+def cache-validate [cache: any]: nothing -> nothing {
     if not (is-record $cache) or ($cache | columns) != [paths] { fail "cache is {paths: [...]}" }
     let paths = $cache.paths
     if not (is-list $paths $CACHE_PATHS_MAX) {
@@ -376,7 +377,7 @@ def gate-missing []: nothing -> int {
     | length
 }
 
-export def gate-now []: nothing -> list<string> {
+def gate-now []: nothing -> list<string> {
     gate-reasons (gate-sessions) (power-on-battery (power-supplies)) (gate-missing)
 }
 
@@ -389,33 +390,40 @@ def answer-read [device: string]: nothing -> any {
     try { open (state-at $ANSWER_DIR | path join $"($device).nuon") } catch { null }
 }
 
-export def trust-has [device: string]: nothing -> bool {
+def trust-has [device: string]: nothing -> bool {
     state-at $TRUST_DIR | path join $"($device).nuon" | path exists
 }
 
+# allow or deny: the desktop's answer to the request with nonce, awaited for CONSENT_WAIT; null when none came.
+def consent-await [device: string, nonce: string]: nothing -> any {
+    let deadline = (date now) + $CONSENT_WAIT
+    while (date now) < $deadline {
+        sleep $CONSENT_POLL
+        let decided = consent-decide false (answer-read $device) $nonce (date now)
+        if $decided != "ask" { return $decided }
+    }
+    null
+}
+
 # Null when the device may go on, else why not: a trusted device, a fresh answer, or the desktop asked now (a
-# notification with Allow once, Always allow this device, Deny) and its answer awaited; no answer is a deny.
+# notification with Allow once, Always allow this device, Deny) and its answer awaited, no answer a deny. The request
+# file carries the nonce in its name: the consent dir is shared by the offload group, so a guessable name could be
+# squatted by another member, and two jobs of one device would remove each other's request.
 def consent [device: string, verb: string, local: bool]: nothing -> any {
     if $local { return null }
+    let denied = $"($device) was denied on this desktop"
     let decided = consent-decide (trust-has $device) (answer-read $device) null (date now)
     if $decided == "allow" { return null }
-    if $decided == "deny" { return $"($device) was denied on this desktop" }
+    if $decided == "deny" { return $denied }
     let dir = state-at $CONSENT_DIR
     if not ($dir | path exists) { return "the desktop cannot ask for consent here" }
     let nonce = random binary 8 | encode hex --lower
     let request = {device: $device, verb: $verb, user: (^id -un | str trim), nonce: $nonce, time: (date now)}
-    try { $request | to nuon | save-atomic ($dir | path join $"($device).nuon") } catch {
-        return "another request of this device awaits its answer"
-    }
-    let deadline = (date now) + $CONSENT_WAIT
-    while (date now) < $deadline {
-        sleep $CONSENT_POLL
-        match (consent-decide false (answer-read $device) $nonce (date now)) {
-            "allow" => { return null }
-            "deny" => { return $"($device) was denied on this desktop" }
-        }
-    }
-    $"($device) got no answer on this desktop"
+    let file = $dir | path join $"($device).($nonce).nuon"
+    try { $request | to nuon | save-atomic $file } catch {|e| return $"the desktop cannot ask for consent: ($e.msg)" }
+    let answer = consent-await $device $nonce
+    rm --force $file
+    match $answer { "allow" => null, "deny" => $denied, _ => $"($device) got no answer on this desktop" }
 }
 
 # Null when a job may start now, else why not: the idle gate first, so a game is never interrupted by a question.
@@ -729,12 +737,14 @@ def links-escape [root: path, path: path]: nothing -> bool {
     $got.stdout | lines | where $it != "" | any { not (target-inside $real $in) }
 }
 
+# Only before the job runs: the job can write the checkout's .git/config, and a git run on the tree after it would run
+# its core.fsmonitor on the host, outside the container.
 def tracked [src: path, path: string]: nothing -> bool {
     (^git --literal-pathspecs -C $src ls-files -- $path | str trim | is-not-empty)
 }
 
-# Restores the key's cached paths into the fresh checkout: only where nothing is yet, never through a link out of the
-# checkout, and dropped again when the restored tree carries a link out.
+# Restores the key's cached paths, none tracked, into the fresh checkout: only where nothing is yet, never through a
+# link out of the checkout, and dropped again when the restored tree carries a link out.
 def cache-restore [src: path, key: string, paths: list<string>]: nothing -> nothing {
     let entry = cache-root | path join $key
     if not ($entry | path exists) { return }
@@ -743,8 +753,8 @@ def cache-restore [src: path, key: string, paths: list<string>]: nothing -> noth
         if not ($cached | path exists --no-symlink) { continue }
         let dest = $src | path join $p
         let target = ^realpath --canonicalize-missing -- $dest | str trim
-        if not (target-inside (^realpath -- $src | str trim) $target) or ($dest | path exists --no-symlink) or (tracked $src $p) {
-            print --stderr $"offload worker: cache ($p) not restored: tracked, present or through a link out"
+        if not (target-inside (^realpath -- $src | str trim) $target) or ($dest | path exists --no-symlink) {
+            print --stderr $"offload worker: cache ($p) not restored: present or through a link out"
             continue
         }
         unshare-copy $cached $dest
@@ -756,10 +766,10 @@ def cache-restore [src: path, key: string, paths: list<string>]: nothing -> noth
     "" | save --force ($entry | path join $CACHE_USED)
 }
 
-# Saves the paths after a job that exited 0: each inside the checkout and untracked, none with a link out, together
+# Saves the paths, none tracked, after a job that exited 0: each inside the checkout, none with a link out, together
 # at most CACHE_KEY_MAX; older entries make room first. A path the job did not leave is left out.
 def cache-save [src: path, key: string, paths: list<string>]: nothing -> nothing {
-    let kept = $paths | where {|p| (inside $src $p) != null and not (tracked $src $p) }
+    let kept = $paths | where {|p| (inside $src $p) != null }
     if ($kept | is-empty) { return }
     if ($kept | any {|p| links-escape $src ($src | path join $p) }) {
         print --stderr "offload worker: cache not saved: a path holds a link out of the checkout"

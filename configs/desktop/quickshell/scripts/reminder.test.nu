@@ -103,6 +103,13 @@ def main [] {
             if "null" not-in (pending $root | get label) { fail "rename to null lost" }
             if (reminder cancel $word).exit_code != 0 { fail "cancel of the true reminder" }
 
+            # a word such as --x=(cmd) after -- is the name, never evaluated as nu code
+            if (reminder 2 "--" "--x=(1 + 1)").exit_code != 0 { fail "a message --x=(1 + 1) not set" }
+            let code = pending $root | where label == "--x=(1 + 1)" | get --optional 0.unit
+            if $code == null { fail $"message --x=\(1 + 1\) evaluated: (pending $root | get label | to nuon)" }
+            if (reminder rename $code "--" "--y=(2 + 2)").exit_code != 0 or "--y=(2 + 2)" not-in (pending $root | get label) { fail "rename to --y=(2 + 2)" }
+            if (reminder cancel $code).exit_code != 0 { fail "cancel of the --x reminder" }
+
             # a reboot takes the timers and the runtime index; one record has passed while the machine was off
             rm -rf ($root | path join fake units) ($root | path join run quickshell-reminders)
             let missed = "quickshell-reminder-7m-1"

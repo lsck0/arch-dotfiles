@@ -1,70 +1,62 @@
 ---
 name: l-dotfiles-quickshell-dev
-description: Editing the quickshell shell (bar, launcher, lock, notifications, OSD) in configs/desktop/quickshell, live reload, logs, IPC calls and screenshots of its layers. Load when changing or debugging the bar or any shell UI.
+description: "Editing the quickshell shell in configs/desktop/quickshell (bar, panels, launcher, lock, notifications, OSD): apply and reload loop, logs, qs ipc targets, layer screenshots, offscreen QML harnesses. Load when changing or debugging any shell UI. Driving the live shell for Luca: l-dotfiles-desktop-control; a test shell: l-dotfiles-gui-testing."
 ---
 
 # quickshell-dev
 
-`configs/desktop/quickshell/mod.nu` copies the tree (`theme.json` included) into `~/.config/quickshell`; an edit lands
-with `dot apply desktop/quickshell`, and a live edit is drift. Runs as `quickshell.service` (started by
-`hyprland_autostart.lua`). Entry `shell.qml`; `plugins/<name>/`, `Commons/` singletons, `Ui/` shared components,
-`scripts/` helpers. `Ui/GlassCard.qml` is the one card material (fill over the wallpaper blur, edge, chamfer,
-brackets, scanlines); `Ui/Scrim.qml` the dim over every screen behind an overlay.
+Layout, UI copy rules, launcher prefixes, reminders and IPC summons: `configs/desktop/quickshell/AGENTS.md`.
+`mod.nu` copies the tree into `~/.config/quickshell`, so a live edit there is drift. Runs as `quickshell.service`.
+`Ui/GlassCard.qml` is the one card material, `Ui/Scrim.qml` the dim behind every overlay.
 
 ## Edit loop
 
-1. `dot apply desktop/quickshell`; the shell reloads (`Configuration Loaded` in the log), not while the lock is held.
-2. `journalctl --user -u quickshell -f -o cat` names file and line of a QML error.
-3. No fresh `Configuration Loaded`, still broken or crashed: `~/.config/quickshell/restart.nu` (restarts the unit,
-   kills strays, bakes shaders; Luca's `SUPER+SHIFT+r`). The restart flickers his live bar: while he works, ask.
-
-Launcher prefixes, capture modes, reminders and IPC summons: `configs/desktop/quickshell/AGENTS.md`. The desktop
-agenda (`plugins/desktop`) groups now, all day, meetings and to do; its quote sits on the wallpaper with
-theme-independent colours (`Colors.wallpaperText`).
+1. `dot apply desktop/quickshell`; the shell hot-reloads (`Configuration Loaded` in the log), not while the lock is
+   held.
+2. `journalctl --user -u quickshell -f -o cat` names file and line of a QML error. Fix, back to 1.
+3. No fresh `Configuration Loaded`, still broken or crashed: `~/.config/quickshell/restart.nu` (restarts the unit, kills
+   strays, bakes shaders; Luca's `SUPER+SHIFT+r`). It flickers his live bar: while he works, ask.
 
 ## IPC
 
 ```bash
 qs ipc -p ~/.config/quickshell show                  # every target and function
-qs ipc -p ~/.config/quickshell call bar toggle <panel>
 qs ipc -p ~/.config/quickshell call bar list         # panel names
+qs ipc -p ~/.config/quickshell call bar toggle <panel>
 ```
 
-The bar target is `bar` on the main screen and `bar-<output>` elsewhere. `bar open|toggle` (mod+b then a letter) gives
-the panel the keyboard: hjkl/arrows move, Tab jumps sections, Esc or q closes. An `IpcHandler { target: "<name>" }`
-adds a target; keybinds call them through `quickshell_call(target, fn)` in `hyprland_keybindings.lua`.
+- The bar target is `bar` on the main screen and `bar-<output>` elsewhere (`open|close|toggle|state|list`). An opened
+  panel takes the keyboard (Luca: `mod+b` then a letter): hjkl/arrows move, Tab jumps sections, Esc or q closes.
+- An `IpcHandler { target: "<name>" }` adds a target; keybinds reach it through `quickshell_call(target, fn)` in
+  `configs/desktop/hyprland/hyprland_keybindings.lua`.
+- On the live shell an agent only reads (`show`, `list`, `state`) unless Luca asked; a `call` that opens or toggles
+  drives his screen. Check UI on a test shell (`l-dotfiles-gui-testing`).
 
-`~/.config/quickshell` is the user's live shell: an agent only reads it (`show`, `list`) unless Luca asked
-for it (`l-dotfiles-desktop-control`). A `call` that opens or toggles drives the user's screen; check UI on a test
-shell in the nested Hyprland instead
-(`XDG_RUNTIME_DIR=$rt WAYLAND_DISPLAY=wayland-<n> qs ipc -p <copy> call ...`, `l-dotfiles-gui-testing`).
+## Screenshot the bar
 
-## Screenshot one layer
-
-Reading the live bar's own layer is fine; anything that launches or opens UI goes to `l-dotfiles-gui-testing`.
+Reading the live bar's own layer is fine; anything that opens UI goes to `l-dotfiles-gui-testing`.
 
 ```bash
 g=$(hyprctl layers -j | jq -r '[.[] | .levels[][] | select(.namespace == "quickshell-bar")][0] | "\(.x),\(.y) \(.w)x\(.h)"')
 grim -g "$g" /tmp/bar.png
 ```
 
-Geometry is logical, the PNG physical (scale 1.67 on the desktop). Verification screenshots go on the agent's own
-headless output (`l-dotfiles-gui-testing`).
+Geometry is logical, the PNG physical (scale 1.67 on luca-pc).
+
+## Test new types without the live bar
+
+- Non-window types: a copy of the tree with a test `shell.qml` wrapping them in `Component {}`, run with
+  `QT_QPA_PLATFORM=offscreen`, a private `XDG_RUNTIME_DIR` and `dbus-run-session` in a `systemd-run --user` unit with
+  `-p OnFailure=` (keeps the failure notifier quiet). Window types fail there with "No PanelWindow backend loaded".
+- A scripted harness: copy `plugins/bar/widgets/media.test.nu` (offscreen shell copy, stubbed PanelWindows, fake D-Bus
+  services on a private bus, an `IpcHandler` the test drives).
 
 ## Pitfalls
 
-- Never start a second quickshell in the user's session: it takes over notifications, and a test lock locks the real
-  screen. A test shell runs only in the nested Hyprland on a private `XDG_RUNTIME_DIR` and its private bus, and its
-  helpers outlive it: start, lock marker and teardown in `l-dotfiles-gui-testing`.
-- Hot reload sometimes misses: no fresh `Configuration Loaded` means `restart.nu`. It always fails with "<Name> is not
-  a type" for an inline component (`component X: ...`) or a file new to the running process; a fresh process loads the
-  same tree, so after adding one, restart.
-- Check new non-window types before restarting the live bar: a copy of the tree with a test `shell.qml` wrapping them in
-  `Component {}`, run with `QT_QPA_PLATFORM=offscreen`, a private `XDG_RUNTIME_DIR` and `dbus-run-session` in a
-  `systemd-run --user` unit with `-p OnFailure=` (the failure notifier stays quiet). Window types fail there with "No
-  PanelWindow backend loaded". `plugins/bar/widgets/media.test.nu` is the pattern for a scripted harness: an
-  offscreen copy of the shell with stubbed PanelWindows, fake D-Bus services on a private bus, and an `IpcHandler`
-  the test drives.
+- Never start a second quickshell in Luca's session: it takes over notifications, and a test lock locks the real
+  screen. A test shell runs only in the nested Hyprland (`l-dotfiles-gui-testing`).
+- Hot reload always fails with "<Name> is not a type" for an inline component (`component X: ...`) or a file new to the
+  running process: after adding one, `restart.nu`.
+- Helper processes keep old code: cava and `pomodoro.nu` until a shell restart, `obs-status.nu` until OBS restarts.
 - Hover panels stay compact: a reading appears once per panel (no hero, row, sparkline and gauge for one metric),
   empty sections and one-point sparklines hide, long lists cap with an expand row, about 1000 logical px a panel.
-- Helper processes keep old code (cava, pomodoro until a shell restart; `obs-status.nu` until OBS restarts).

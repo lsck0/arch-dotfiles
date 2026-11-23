@@ -24,7 +24,7 @@ export def system [cfg: record] {
 export def link [cfg: record] {
     let ssh = $nu.home-dir | path join .ssh
     # ssh tries id_ed25519_sk by default, after the agent's keys; a copy, ssh rejects a key file others can read
-    let secrets = $env.DOTFILES | path join configs secrets keys yubikey
+    let secrets = secret-path keys yubikey
     # a stub and its public key by serial (glob's order is the directory's); the lowest enrolled serial is the default
     let key = glob ($secrets | path join "ssh-*") | where {|f| not ($f | str ends-with ".pub") } | sort
         | each {|stub| {stub: $stub, pub: ($"($stub | path basename).pub" | path expand)} }

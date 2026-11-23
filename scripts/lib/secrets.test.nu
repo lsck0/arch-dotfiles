@@ -1,8 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
 # secret-is-plaintext decides every rollout that reads keys/: only a file that exists and lacks git-crypt's header
-# counts. secret-seed-guard's three branches: a marker passes, live state the repo never seeded fails, and a clean
-# start sets the marker. secrets-keys-chmod closes keys/ and its private files, dotfiles included.
-use secrets.nu [secret-is-plaintext secret-seed-guard secrets-keys-chmod]
+# counts. secret-seed-guard's three branches: a marker (secret-seed-mark's) passes, live state the repo never seeded
+# fails, and a clean start sets the marker. secret-path names keys/ or state/ only. secrets-keys-chmod closes keys/ and
+# its private files, dotfiles included.
+use secrets.nu [secret-is-plaintext secret-path secret-seed-guard secret-seed-mark secrets-keys-chmod]
 use std/assert
 
 const GITCRYPT_BLOB = 0x[00 47 49 54 43 52 59 50 54 00 9a 3c]
@@ -31,17 +32,28 @@ def seed-cases [work: path]: nothing -> nothing {
     let witness = $work | path join live state.db
     mkdir ($witness | path dirname)
 
-    let marker = $work | path join markers seeded
-    secret-seed-guard $marker $witness app
-    assert ($marker | path exists) "no live state: the marker was not set"
+    let clean = $work | path join clean
+    secret-seed-guard $clean $witness
+    assert ($clean | path join .from-secrets | path exists) "no live state: the marker was not set"
 
     touch $witness
-    secret-seed-guard $marker $witness app
+    secret-seed-guard $clean $witness
+    let seeded = $work | path join seeded
+    secret-seed-mark $seeded
+    secret-seed-guard $seeded $witness
 
-    let unseeded = $work | path join markers unseeded
-    let message = try { secret-seed-guard $unseeded $witness app; "" } catch {|e| $e.msg }
-    assert ($message | str contains "app was not seeded from secrets") $"live state without a marker: ($message | to nuon)"
+    let unseeded = $work | path join unseeded
+    let message = try { secret-seed-guard $unseeded $witness; "" } catch {|e| $e.msg }
+    assert ($message | str contains $"($unseeded) was not seeded from secrets") $"live state without a marker: ($message | to nuon)"
     assert (not ($unseeded | path exists)) "live state without a marker: the marker was set"
+}
+
+def path-cases []: nothing -> nothing {
+    with-env {DOTFILES: /repo} {
+        assert equal (secret-path keys syncthing host) /repo/configs/secrets/keys/syncthing/host
+        assert equal (secret-path state ffxiv) /repo/configs/secrets/state/ffxiv
+        assert ((try { secret-path secrets x; "" } catch {|e| $e.msg }) | str contains "none of keys, state") "another kind"
+    }
 }
 
 def mode [file: path]: nothing -> string { ^stat --format=%a $file | str trim }
@@ -67,7 +79,7 @@ def chmod-cases [work: path]: nothing -> nothing {
 
 def main []: nothing -> nothing {
     let work = mktemp --directory
-    let outcome = try { plaintext-cases $work; seed-cases $work; chmod-cases $work; null } catch {|e| $e }
+    let outcome = try { plaintext-cases $work; seed-cases $work; path-cases; chmod-cases $work; null } catch {|e| $e }
     rm --recursive --force $work
     if $outcome != null { error make $outcome }
 }

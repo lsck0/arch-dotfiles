@@ -113,7 +113,6 @@ BarWidget {
 
   visible: layoutLabel !== "" && multipleLayouts
   implicitWidth: button.implicitWidth
-  implicitHeight: button.implicitHeight
 
   WidgetButton {
     id: button

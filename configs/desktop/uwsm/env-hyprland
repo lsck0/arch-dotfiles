@@ -1,14 +1,27 @@
 export _JAVA_AWT_WM_NONREPARENTING=1
 export GTK_IM_MODULE=simple
 export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
-boot_card=""
-other_card=""
-for status in /sys/class/drm/card[0-9]*-*/status; do
-    [ "$(cat "$status")" = connected ] || continue
-    card="${status%/status}"
-    card="${card##*/}"
-    card="${card%%-*}"
-    if [ "$(cat "/sys/class/drm/$card/device/boot_vga" 2>/dev/null)" = 1 ]; then boot_card="$card"; else other_card="$card"; fi
+# aquamarine opens only the firmware's display gpu when every connected output hangs off it, so an unused igpu stays
+# closed. A notebook (an internal panel) keeps a second gpu with ports open: a dock or cable plugged in after login
+# lands there, and aquamarine sees only the gpus it opened at start. cardN since it splits on ':'
+boot_connected=""
+other_connected=""
+other_ports=""
+panel=""
+for connector in /sys/class/drm/card[0-9]*-*; do
+    name="${connector##*/}"
+    case "$name" in *-Writeback-*) continue ;; *-eDP-* | *-LVDS-*) panel=1 ;; esac
+    card="${name%%-*}"
+    connected=""
+    [ "$(cat "$connector/status" 2>/dev/null)" = connected ] && connected="$card"
+    if [ "$(cat "/sys/class/drm/$card/device/boot_vga" 2>/dev/null)" = 1 ]; then
+        boot_connected="${boot_connected:-$connected}"
+    else
+        other_ports=1
+        other_connected="${other_connected:-$connected}"
+    fi
 done
-[ -n "$boot_card" ] && [ -z "$other_card" ] && export AQ_DRM_DEVICES="/dev/dri/$boot_card"
-unset boot_card other_card status card
+if [ -n "$boot_connected" ] && [ -z "$other_connected" ] && { [ -z "$panel" ] || [ -z "$other_ports" ]; }; then
+    export AQ_DRM_DEVICES="/dev/dri/$boot_connected"
+fi
+unset boot_connected other_connected other_ports panel connector name card connected

@@ -20,6 +20,8 @@ export def link [cfg: record] {
             --undo [rtk init -g --copilot --uninstall])
         # no undo for these two: uninstalling removes GEMINI.md whole and programming/claude's RTK.md
         (exec rtk-gemini [rtk init -g --auto-patch --gemini] --done=$gemini)
-        (exec rtk-claude [rtk init -g --auto-patch --agent claude] --done=$claude)
+        # --hook-only: RTK.md is programming/claude's copy, which rtk's stock text would replace; the patch's backup goes
+        (exec rtk-claude [sh -c 'rtk init -g --auto-patch --agent claude --hook-only && rm -f -- "$1"' sh
+            ($home | path join .claude settings.json.bak)] --done=$claude)
     ]
 }

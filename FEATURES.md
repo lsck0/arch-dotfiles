@@ -194,7 +194,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/networkmanager.trusted_gateways` | `list<string>` | `[]` | Router MACs of trusted networks: no lockdown, direct egress, the lan's inbound services, the hardware MAC, but none of home's homelab wiring; beside the admin's configs/secrets/keys/trusted-gateways, where toggle-trust-network adds the current one while unlocked |
 | `base/networkmanager.homelab_dns` | `string?` | `"192.168.178.29"` | The homelab's split-horizon resolver, asked for homelab_domain out a home link (homelab machines); default the lab's router |
 | `base/networkmanager.homelab_domain` | `string?` | `"lsck0.dev"` | The homelab's DNS zone |
-| `base/networkmanager.homelab_subnets` | `list<string>` | `["10.100.0.0/24", "10.200.0.0/24", "10.250.0.0/24"]` | The homelab's subnets, routed straight out a home link and through wg0 elsewhere; default the lab's zones |
+| `base/networkmanager.homelab_subnets` | `list<string>` | `["10.0.0.0/24", "10.100.0.0/24", "10.200.0.0/24", "10.250.0.0/24"]` | The homelab's subnets, routed straight out a home link and through wg0 elsewhere; default the lab's zones |
 | `base/nftables.ssh_knock_window` | `string` | `"1h"` | How long a successful SSH port-knock keeps that IP allowed through to base/ssh.port, nft timeout syntax |
 | `base/nftables.ssh_rate` | `string` | `"30/minute burst 30 packets"` | New connections to base/ssh.port one address may open before the rest are dropped, nft limit syntax |
 | `base/nftables.pentest_listeners` | `bool` | `false` | Let tun0 (a lab vpn) reach the pentest listener ports (handlers, payload servers) while a trusted link has the inbound ruleset loaded; for machines with the pentesting group |
@@ -204,7 +204,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/smartd.test_schedule` | `string` | `"S/../.././02\|L/../../6/03"` | When smartd runs self-tests, smartd.conf(5) -s regex syntax (default: short test daily at 02:00, long test Saturday at 03:00) |
 | `base/ssh.port` | `int` | `2222` | The port sshd listens on, reached through the port-knock (sshk, wake-pc, nftables) |
 | `base/ssh.knock` | `list<int>` | `[9003, 7001, 8002]` | The three ports knocked in order to open the sshd port to that address (sshk, wake-pc, nftables) |
-| `base/ssh.homelab_hosts` | `list<string>` | `["10.100.0.*", "10.200.0.*", "10.250.0.*", "192.168.178.29", "192.168.178.200"]` | ssh patterns of the homelab's guests, router and hypervisor: root, accept-new host keys from known_hosts.homelab (homelab profiles only); default the lab's zones, router and hypervisor |
+| `base/ssh.homelab_hosts` | `list<string>` | `["10.0.0.*", "10.100.0.*", "10.200.0.*", "10.250.0.*", "192.168.178.29", "192.168.178.200"]` | ssh patterns of the homelab's guests, router and hypervisor: root, accept-new host keys from known_hosts.homelab (homelab profiles only); default the lab's zones, router and hypervisor |
 | `base/ssh.wake_router` | `string?` | `"192.168.178.29"` | The always-on homelab router whose `wol-pc` wakes the desktop (wake-pc, homelab profiles only) |
 | `base/ssh.wake_router_tunnel` | `string?` | unset | The router's address inside the wireguard tunnel, which wake-pc asks away from home: its lan address is unrouted there, or shadowed by a foreign lan on the same subnet |
 | `base/ssh.wake_host` | `string?` | unset | The desktop wake-pc wakes and then ssh-es into |

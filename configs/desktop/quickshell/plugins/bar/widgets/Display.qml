@@ -20,7 +20,6 @@ BarWidget {
   readonly property var activeMonitors: monitors.filter(function (m) { return !m.disabled })
 
   implicitWidth: button.implicitWidth
-  implicitHeight: button.implicitHeight
 
   function refreshAllBrightness() {
     for (const monitor of root.activeMonitors) {
@@ -115,26 +114,103 @@ BarWidget {
     }
   }
 
-  function setMonitorLayout(name, action) {
-    var args = [Paths.toggle("toggle-monitor-scale.nu"), "layout", name]
-    if (action.indexOf("mirror:") === 0) args.push("mirror", action.substring(7))
-    else args.push(action)
-    Quickshell.execDetached(args)
-    monitorsSettle.restart()
+  // layout, mode, position and scale go through toggle-monitor-scale.nu one at a time, each reading the layout the
+  // last one left; the monitors are read again once the queue drains
+  readonly property string monitorScript: Paths.toggle("toggle-monitor-scale.nu")
+  property ProcessQueue monitorQueue: ProcessQueue {
+    onRunItem: function (argv) { monitorActionProc.command = argv; monitorActionProc.running = true }
+  }
+  function monitorRun(args) { root.monitorQueue.enqueue([root.monitorScript].concat(args)) }
+
+  Process {
+    id: monitorActionProc
+    onExited: {
+      root.monitorQueue.done()
+      if (!root.monitorQueue.running) monitorsProc.run()
+    }
   }
 
-  Timer {
-    id: monitorsSettle
-    interval: 800
-    onTriggered: monitorsProc.run()
+  function setMonitorLayout(name, action) {
+    if (action.indexOf("mirror:") === 0) root.monitorRun(["layout", name, "mirror", action.substring(7)])
+    else root.monitorRun(["layout", name, action])
   }
 
   readonly property var monitorScales: [1, 1.25, 1.5, 1.666667, 2]
 
-  function setMonitorScale(name, scale) {
-    Quickshell.execDetached([Paths.toggle("toggle-monitor-scale.nu"), "live", String(scale), name])
-    monitorsSettle.restart()
+  // saved like mode and position: set persists the scale hyprland settled on
+  function setMonitorScale(name, scale) { root.monitorRun(["set", String(scale), name]) }
+  function setMonitorMode(name, mode) { root.monitorRun(["mode", name, mode]) }
+  function setMonitorPosition(name, placement) {
+    const parts = placement.split(":")
+    root.monitorRun(["position", name, parts[0], parts[1]])
   }
+
+  readonly property var monitorRelations: [
+    { value: "left-of", label: "LEFT" }, { value: "right-of", label: "RIGHT" },
+    { value: "above", label: "ABOVE" }, { value: "below", label: "BELOW" }
+  ]
+
+  // an availableModes entry, "3840x2160@144.00Hz": its resolution and its rate with the trailing zeros dropped, the
+  // form toggle-monitor-scale.nu mode takes
+  function modeParse(entry) {
+    const match = /^(\d+)x(\d+)@([\d.]+)Hz$/.exec(String(entry))
+    if (!match) return null
+    return { resolution: match[1] + "x" + match[2], area: Number(match[1]) * Number(match[2]), rate: String(Number(match[3])) }
+  }
+
+  function monitorModes(monitor) {
+    return (monitor.availableModes || []).map(root.modeParse).filter(function (m) { return m !== null })
+  }
+
+  function monitorResolutions(monitor) {
+    const seen = {}
+    return root.monitorModes(monitor).filter(function (m) {
+      if (seen[m.resolution]) return false
+      seen[m.resolution] = true
+      return true
+    }).sort(function (a, b) { return b.area - a.area }).map(function (m) { return m.resolution })
+  }
+
+  function monitorRates(monitor, resolution) {
+    const rates = []
+    for (const m of root.monitorModes(monitor))
+      if (m.resolution === resolution && rates.indexOf(m.rate) < 0) rates.push(m.rate)
+    return rates.sort(function (a, b) { return Number(b) - Number(a) })
+  }
+
+  function monitorActive(monitor) { return !monitor.disabled && (!monitor.mirrorOf || monitor.mirrorOf === "none") }
+
+  // the layout's logical size, as toggle-monitor-scale.nu places it: mode over scale, axes swapped when turned
+  function monitorLogicalSize(monitor) {
+    const w = Math.round(monitor.width / monitor.scale)
+    const h = Math.round(monitor.height / monitor.scale)
+    return monitor.transform % 2 === 1 ? { w: h, h: w } : { w: w, h: h }
+  }
+
+  // "<relation>:<other>" when the monitor sits exactly where position <relation> <other> would put it
+  function monitorPlacement(monitor) {
+    const size = root.monitorLogicalSize(monitor)
+    for (const other of root.activeMonitors) {
+      if (other.name === monitor.name || !root.monitorActive(other)) continue
+      const beside = root.monitorLogicalSize(other)
+      if (monitor.y === other.y && monitor.x + size.w === other.x) return "left-of:" + other.name
+      if (monitor.y === other.y && monitor.x === other.x + beside.w) return "right-of:" + other.name
+      if (monitor.x === other.x && monitor.y + size.h === other.y) return "above:" + other.name
+      if (monitor.x === other.x && monitor.y === other.y + beside.h) return "below:" + other.name
+    }
+    return ""
+  }
+
+  function monitorPlacementOptions(monitor) {
+    const others = root.activeMonitors.filter(function (m) { return m.name !== monitor.name && root.monitorActive(m) })
+    const opts = []
+    for (const other of others)
+      for (const relation of root.monitorRelations)
+        opts.push({ value: relation.value + ":" + other.name, label: relation.label + (others.length > 1 ? " " + other.name : "") })
+    return opts
+  }
+
+  property string expandedMonitor: ""
 
   Component {
     id: brightnessGetComponent
@@ -224,6 +300,7 @@ BarWidget {
       PanelSeparator {}
       PanelSectionHeader { text: "MONITORS" }
 
+      // one row per monitor; its settings open under it, one monitor at a time, a lone monitor always
       Repeater {
         model: root.monitors
         Column {
@@ -232,55 +309,94 @@ BarWidget {
           width: content.width
           spacing: Style.spacing.xs
 
+          readonly property string name: modelData.name
           readonly property bool disabled: !!modelData.disabled
           readonly property string mirrorOf: modelData.mirrorOf && modelData.mirrorOf !== "none" ? modelData.mirrorOf : ""
+          readonly property bool active: !disabled && !mirrorOf
           readonly property string layoutValue: disabled ? "off" : (mirrorOf ? "mirror:" + mirrorOf : "extend")
+          readonly property bool expanded: root.monitors.length === 1 || root.expandedMonitor === name
+          readonly property string resolution: modelData.width + "x" + modelData.height
+          readonly property var rates: root.monitorRates(modelData, resolution)
 
-          Row {
-            spacing: Style.spacing.sm
-            Label {
-              text: monitorRow.modelData.name
-              color: Colors.menu.text
-              caption: true
-            }
-            Label {
-              text: monitorRow.disabled ? "off"
-                : monitorRow.modelData.width + "x" + monitorRow.modelData.height + " :: " + Math.round(monitorRow.modelData.refreshRate) + " Hz"
-                  + (monitorRow.mirrorOf ? " :: mirroring " + monitorRow.mirrorOf : "")
-              dim: true
-              caption: true
-            }
+          PanelRow {
+            width: parent.width
+            upper: false
+            label: monitorRow.name
+            trailing: (monitorRow.disabled ? "off"
+              : monitorRow.resolution + " :: " + Math.round(monitorRow.modelData.refreshRate) + " Hz"
+                + (monitorRow.mirrorOf ? " :: mirroring " + monitorRow.mirrorOf
+                  : " :: " + (Math.round(monitorRow.modelData.scale * 100) / 100) + "x"))
+              + (root.monitors.length > 1 ? (monitorRow.expanded ? "  ^" : "  v") : "")
+            onActivated: if (root.monitors.length > 1) root.expandedMonitor = monitorRow.expanded ? "" : monitorRow.name
           }
 
-          ChoiceRow {
-            visible: root.monitors.length > 1
-            caption: "LAYOUT"
-            options: {
-              var opts = [{ value: "extend", label: "EXTEND" }]
-              var others = 0
-              for (let i = 0; i < root.monitors.length; i++) {
-                const m = root.monitors[i]
-                if (m.name === monitorRow.modelData.name || m.disabled) continue
-                if (m.mirrorOf && m.mirrorOf !== "none") continue
-                others++
-                opts.push({ value: "mirror:" + m.name, label: "MIRROR " + m.name })
+          Column {
+            visible: monitorRow.expanded
+            width: parent.width
+            spacing: Style.spacing.xs
+
+            ChoiceRow {
+              visible: root.monitors.length > 1
+              caption: "LAYOUT"
+              options: {
+                var opts = [{ value: "extend", label: "EXTEND" }]
+                var others = 0
+                for (let i = 0; i < root.monitors.length; i++) {
+                  const m = root.monitors[i]
+                  if (m.name === monitorRow.name || !root.monitorActive(m)) continue
+                  others++
+                  opts.push({ value: "mirror:" + m.name, label: "MIRROR " + m.name })
+                }
+                if (others > 0 || monitorRow.disabled) opts.push({ value: "off", label: "OFF" })
+                return opts
               }
-              if (others > 0 || monitorRow.disabled) opts.push({ value: "off", label: "OFF" })
-              return opts
+              value: monitorRow.layoutValue
+              onChanged: function(v) { if (v !== monitorRow.layoutValue) root.setMonitorLayout(monitorRow.name, v) }
             }
-            value: monitorRow.layoutValue
-            onChanged: function(v) { if (v !== monitorRow.layoutValue) root.setMonitorLayout(monitorRow.modelData.name, v) }
-          }
 
-          ChoiceRow {
-            visible: !monitorRow.disabled
-            caption: "SCALE"
-            options: root.monitorScales.map(function(s) { return { value: String(s), label: (Math.round(s * 100) / 100) + "x" } })
-            value: {
-              const current = root.monitorScales.find(s => Math.abs(Number(monitorRow.modelData.scale) - s) < 0.01)
-              return current === undefined ? "" : String(current)
+            ChoiceRow {
+              id: positionChoice
+              visible: monitorRow.active && options.length > 1
+              caption: "POSITION"
+              options: root.monitorPlacementOptions(monitorRow.modelData)
+              value: root.monitorPlacement(monitorRow.modelData)
+              onChanged: function(v) { if (v !== positionChoice.value) root.setMonitorPosition(monitorRow.name, v) }
             }
-            onChanged: function(v) { root.setMonitorScale(monitorRow.modelData.name, Number(v)) }
+
+            // a resolution takes its highest rate
+            ChoiceRow {
+              visible: monitorRow.active && options.length > 1
+              caption: "MODE"
+              options: root.monitorResolutions(monitorRow.modelData).map(function(r) { return { value: r, label: r } })
+              value: monitorRow.resolution
+              onChanged: function(v) {
+                const rates = root.monitorRates(monitorRow.modelData, v)
+                if (v !== monitorRow.resolution && rates.length > 0) root.setMonitorMode(monitorRow.name, v + "@" + rates[0])
+              }
+            }
+
+            ChoiceRow {
+              id: rateChoice
+              visible: monitorRow.active && options.length > 1
+              caption: "RATE"
+              options: monitorRow.rates.map(function(r) { return { value: r, label: r + " Hz" } })
+              value: {
+                const current = monitorRow.rates.find(r => Math.abs(Number(r) - Number(monitorRow.modelData.refreshRate)) < 0.01)
+                return current === undefined ? "" : current
+              }
+              onChanged: function(v) { if (v !== rateChoice.value) root.setMonitorMode(monitorRow.name, monitorRow.resolution + "@" + v) }
+            }
+
+            ChoiceRow {
+              visible: !monitorRow.disabled
+              caption: "SCALE"
+              options: root.monitorScales.map(function(s) { return { value: String(s), label: (Math.round(s * 100) / 100) + "x" } })
+              value: {
+                const current = root.monitorScales.find(s => Math.abs(Number(monitorRow.modelData.scale) - s) < 0.01)
+                return current === undefined ? "" : String(current)
+              }
+              onChanged: function(v) { root.setMonitorScale(monitorRow.name, Number(v)) }
+            }
           }
         }
       }

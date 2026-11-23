@@ -33,7 +33,7 @@ def --wrapped main [...args] {
 }'
 }
 
-def fail [msg: string] { error make {msg: $"printers-sync.test: ($msg)"} }
+use std/assert
 
 def sync-run [work: path]: nothing -> int {
     with-env {PATH: ([($work | path join bin)] ++ $env.PATH), STUB_STATE: $work} {
@@ -55,20 +55,20 @@ def main [] {
         "" | save ($work | path join calls)
         let file = {|name| open --raw ($work | path join $name) | str trim }
 
-        if (sync-run $work) != 0 { fail "first run failed" }
-        if (do $file queues) != $"($WANT_NAME) ($WANT_URI)" { fail $"want exactly one queue ($WANT_NAME) on ($WANT_URI), got: (do $file queues)" }
-        if (do $file default) != $WANT_NAME { fail "the new queue did not become the default" }
-        if not ((do $file calls) | str contains "-m everywhere") { fail "the queue is not an IPP Everywhere one" }
-        if not ((do $file calls) | str contains $"lpadmin -p ($WANT_NAME) -o PageSize=A4") { fail "the new queue's paper is not A4" }
+        assert equal (sync-run $work) 0 "first run failed"
+        assert equal (do $file queues) $"($WANT_NAME) ($WANT_URI)" "want exactly one queue"
+        assert equal (do $file default) $WANT_NAME "the new queue did not become the default"
+        assert ((do $file calls) | str contains "-m everywhere") "the queue is not an IPP Everywhere one"
+        assert ((do $file calls) | str contains $"lpadmin -p ($WANT_NAME) -o PageSize=A4") "the new queue's paper is not A4"
 
         "" | save --force ($work | path join calls)
-        if (sync-run $work) != 0 { fail "rerun failed" }
-        if (do $file calls | is-not-empty) { fail $"rerun was not a no-op: (do $file calls)" }
+        assert equal (sync-run $work) 0 "rerun failed"
+        assert equal (do $file calls) "" "rerun was not a no-op"
 
         "" | save --force ($work | path join queues)
         "PDF\n" | save --force ($work | path join default)
-        if (sync-run $work) != 0 { fail "run with a default failed" }
-        if (do $file default) != "PDF" { fail "a set default was replaced" }
+        assert equal (sync-run $work) 0 "run with a default failed"
+        assert equal (do $file default) "PDF" "a set default was replaced"
     } catch {|e|
         rm --recursive --permanent $work
         print --stderr $e.msg

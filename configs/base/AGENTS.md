@@ -19,9 +19,9 @@ profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
   probe resolves through the lab DNS. A home line is `<mac> <gateway address> <dhcp server identifier>` and needs all
   three (the MACs were public once); a MAC alone only counts as trusted, and not at all once a full line names it.
   Trusted (`trusted_gateways`, secrets' `keys/trusted-gateways` where `toggle-trust-network` writes while unlocked,
-  plus home) only lifts the untrusted-network persona (`untrusted_policy`): `/run/trusted-network` feeds the
-  firewall's `trusted_links` sets, tor-router and the persona; `/run/home-network` the homelab wiring. The homelab
-  mirror also comes back first on wg0. `toggle-portal` opens a captive portal window for `portal_window_s`
+  plus home) only lifts the untrusted-network persona (`untrusted_policy`, whose `off` trusts every routed link):
+  `/run/trusted-network` feeds the firewall's `trusted_links` sets, tor-router and the persona; `/run/home-network`
+  the homelab wiring. The homelab mirror also comes back first on wg0. `toggle-portal` opens a captive portal window for `portal_window_s`
   (default 300) on every foreign link (the dispatcher's `<iface> portal`), off ends it early. The MAC is one per
   network and boot (`connection.stable-id`), never the hardware one.
 - `ssh` and `nftables`: sshd listens on `base/ssh.port` behind a three-port knock (`base/ssh.knock`, held open for

@@ -4,10 +4,10 @@
 # public, and a mac is all a rogue access point needs); a login without secrets has the trusted_gateways option, an
 # owner's locked secrets refuse a new mac. The system apply of base/networkmanager that follows re-decides the link.
 
-use lib.nu [DOT switch-run trusted-links option-value]
+use lib.nu [DOT switch-run trusted-links option-value failure-raise]
 use ../lib/secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use ../lib/profile.nu [profile-has]
-use ../lib/state.nu [EXIT_PENDING]
+use ../lib/state.nu [EXIT_PENDING file-lines]
 
 const SECRET = path self ../../configs/secrets/keys/trusted-gateways
 const WITNESS = path self ../.. | path join $OWNER_WITNESS
@@ -28,12 +28,8 @@ def uplink []: nothing -> any {
     {dev: $route.dev, mac: ($mac | str lowercase)}
 }
 
-def home-links []: nothing -> list<string> {
-    if ($HOME_NETWORK | path exists) { open --raw $HOME_NETWORK | lines } else { [] }
-}
-
 # Home is not this switch's to take back: hidden there (available false), not on with an off that fails.
-def uplink-switchable []: nothing -> bool { let link = uplink; $link != null and $link.dev not-in (home-links) }
+def uplink-switchable []: nothing -> bool { let link = uplink; $link != null and $link.dev not-in (file-lines $HOME_NETWORK) }
 
 def option-listed []: nothing -> list<string> { option-value $MODULE $KEY | str lowercase }
 
@@ -50,8 +46,8 @@ def listed []: nothing -> list<string> { (secret-listed) ++ (option-listed) | un
 def settled [run: record]: nothing -> any {
     if $run.exit_code == $EXIT_PENDING {
         {said: "Saved; the network changes with the next dot apply --system"}
-    } else if $run.exit_code != 0 {
-        error make {msg: ($run.stderr | str trim | lines | last 1 | str join "")}
+    } else {
+        $run | failure-raise dot
     }
 }
 
@@ -74,7 +70,7 @@ def store [gateways: list<string>]: nothing -> any {
 def link []: nothing -> record {
     let link = uplink
     if $link == null { error make {msg: "no wired or wifi link with a gateway"} }
-    if $link.dev in (home-links) { error make {msg: $"($link.dev) is home, set by home_gateways"} }
+    if $link.dev in (file-lines $HOME_NETWORK) { error make {msg: $"($link.dev) is home, set by home_gateways"} }
     $link
 }
 

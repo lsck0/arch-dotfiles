@@ -9,6 +9,9 @@ const INHIBIT_LID = "handle-lid-switch"
 const BATTERY_DISCHARGING = "Discharging"
 # logind drops an inhibitor when its process is gone, a moment after the kill
 const RELEASE_SETTLE = 500ms
+# every hook of a working agent, a subagent's tool calls included, rewrites the claim; a subagent count whose claim is
+# older than this lost its stop hook (an interrupt, a crash) and would otherwise hold the machine up for good
+const AGENTS_TTL = 30min
 
 def state-dir []: nothing -> path {
     let dir = $env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u | str trim)" | path join agent-busy
@@ -21,7 +24,7 @@ def stat-fields [pid: string]: nothing -> list<string> {
 }
 
 # A process claim, "<pid> <start time>": a pid alone outlives its process once the kernel reuses it.
-def claim-of [pid: string]: nothing -> string {
+export def claim-of [pid: string]: nothing -> string {
     $"($pid) (stat-fields $pid | get 19)"
 }
 
@@ -53,17 +56,17 @@ def parent-pid []: nothing -> string {
     $pid
 }
 
-def session-busy [dir: path, sid: string]: nothing -> bool {
+export def session-busy [dir: path, sid: string]: nothing -> bool {
     let pid_file = $dir | path join $"($sid).pid"
+    let agents_file = $dir | path join $"($sid).agents"
     let claim = read-or $pid_file ""
     if not (alive $claim) {
         # a dead session's turn or subagent count would come back with its claim
-        if (read-or $pid_file "") == $claim {
-            rm --force $pid_file ($dir | path join $"($sid).turn") ($dir | path join $"($sid).agents")
-        }
+        if (read-or $pid_file "") == $claim { rm --force $pid_file ($dir | path join $"($sid).turn") $agents_file }
         return false
     }
-    ($dir | path join $"($sid).turn" | path exists) or ((read-or ($dir | path join $"($sid).agents") "0" | into int) > 0)
+    if ((date now) - (ls $pid_file).0.modified) > $AGENTS_TTL { rm --force $agents_file }
+    ($dir | path join $"($sid).turn" | path exists) or ((read-or $agents_file "0" | into int) > 0)
 }
 
 def any-busy [dir: path]: nothing -> bool {

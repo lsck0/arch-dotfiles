@@ -15,3 +15,6 @@ ReadWritePaths=/var/lib/node-textfile
 ProtectHome=read-only
 PrivateTmp=yes
 NoNewPrivileges=yes
+PrivateDevices=yes
+# bounds a run fed an endless file
+MemoryMax=512M

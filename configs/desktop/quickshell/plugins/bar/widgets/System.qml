@@ -95,7 +95,6 @@ BarWidget {
   }
 
   implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
-  implicitHeight: Style.bar.sizeHorizontal
   onStatsIntervalSChanged: {
     statsProc.running = false
     statsRestart.restart()

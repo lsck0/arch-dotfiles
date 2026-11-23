@@ -6,7 +6,7 @@ export const XLCORE = ".xlcore"
 
 def paths []: nothing -> record {
     let xl = $nu.home-dir | path join $XLCORE
-    let saved = $env.DOTFILES | path join configs secrets state ffxiv
+    let saved = secret-path state ffxiv
     {
         xl: $xl, config: ($xl | path join ffxivConfig), launcher: ($xl | path join launcher.ini)
         seed: {config: (host-seed $saved ffxivConfig), launcher: (host-seed $saved launcher.ini)}
@@ -38,13 +38,13 @@ export def seed []: nothing -> nothing {
     let p = paths
     mkdir $p.config
     ^cp -rnT $p.seed.config $p.config
-    touch ($p.config | path join .from-secrets)
+    secret-seed-mark $p.config
 }
 
 export def backup [cfg: record]: nothing -> nothing {
     let p = paths
     if not ($p.config | path join FFXIV.cfg | path exists) { error make {msg: $"no ($p.config)/FFXIV.cfg"} }
-    secret-seed-guard ($p.config | path join .from-secrets) $p.seed.config $p.config
+    secret-seed-guard $p.config $p.seed.config
     mkdir $p.saved
     (^rsync -a --delete --prune-empty-dirs --include 'FFXIV*.cfg' --include 'FFXIV_CHR*/' --include 'FFXIV_CHR*/*.DAT'
         --exclude '*' $"($p.config)/" ($p.saved | path join ffxivConfig))

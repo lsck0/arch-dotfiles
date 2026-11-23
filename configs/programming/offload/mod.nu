@@ -4,12 +4,15 @@ use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
 
 # the target's address and knock are base/ssh's (wake_host, the desktop wake-pc wakes); the ports offload forward
-# offers are the llm services' own sockets, read where they are declared. The target's sshd drop-in for the lab's
-# builder goes in after base/ssh's own. Volatile: labworker's uid, there once sysusers made it, names its manager's
-# drop-in.
+# offers are the llm services' own sockets and its initramfs unlock port base/boot/remote-unlock's tinysshd drop-in,
+# each read where it is declared. The target's sshd drop-in for the lab's builder goes in after base/ssh's own.
+# Volatile: labworker's uid, there once sysusers made it, names its manager's drop-in.
 export const meta = {
     deps: [base/ssh]
-    inputs: [configs/llm/ollama/ollama.socket configs/llm/vllm/vllm.socket configs/llm/comfyui/comfyui.socket]
+    inputs: [
+        configs/llm/ollama/ollama.socket configs/llm/vllm/vllm.socket configs/llm/comfyui/comfyui.socket
+        configs/base/boot/remote-unlock/tinysshd.conf
+    ]
     volatile: true
 }
 
@@ -33,6 +36,8 @@ export const options = {
 const LLM = path self ../../llm
 const FORWARD_SERVICES = [ollama vllm comfyui]
 const LISTEN_LOOPBACK = '(?m)^ListenStream=127\.0\.0\.1:(?<port>\d+)\s*$'
+const UNLOCK_CONF = path self ../../base/boot/remote-unlock/tinysshd.conf
+const UNLOCK_PORT = '(?m)^Environment=SSHD_PORT=(?<port>\d+)\s*$'
 const WORKER = "/usr/local/lib/offload/worker.nu"
 const TMPFILES = "/etc/tmpfiles.d/offload.conf"
 const USER_UNITS = "/etc/systemd/user"
@@ -91,6 +96,7 @@ export def link [cfg: record] {
         router: (if $homelab { $ssh.wake_router })
         router_tunnel: (if $homelab { $ssh.wake_router_tunnel })
         forwards: (forwards-read)
+        unlock_port: (open --raw $UNLOCK_CONF | parse --regex $UNLOCK_PORT | get 0.port | into int)
     }
     let user = $env.USER? | default (^id -un | str trim)
     [

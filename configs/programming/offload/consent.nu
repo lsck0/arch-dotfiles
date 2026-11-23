@@ -42,7 +42,7 @@ export def trust-list []: nothing -> list<record> {
     | where { ($in.device? | default "" | into string) =~ $DEVICE } | sort-by device
 }
 
-export def trust-add [device: string]: nothing -> nothing {
+def trust-add [device: string]: nothing -> nothing {
     {device: $device, since: (date now)} | to nuon | save-atomic (trust-file $device)
 }
 

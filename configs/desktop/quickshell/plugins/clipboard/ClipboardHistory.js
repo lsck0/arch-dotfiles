@@ -210,7 +210,7 @@ function displayRows(history, query, limit) {
       previewImage: previewPath,
       path: isImage ? String(entry.path || "") : (isFile && paths.length === 1 ? paths[0] : ""),
       mime: isImage ? String(entry.mime || "image/png") : (isFile ? "text/uri-list" : "text/plain"),
-      index: i
+      historyIndex: i
     })
     if (rows.length >= limit) break
   }

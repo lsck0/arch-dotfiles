@@ -1,9 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
+use std/assert
+
 const EXTRACT = path self extract.nu
 const OVERSIZE = "3G"
 const CORRUPT_OFFSET = 34
-
-def fail [msg: string] { error make {msg: $"extract.test: ($msg)"} }
 
 def extract-run [archive: path, destination: path]: nothing -> record {
     ^nu --no-config-file $EXTRACT $archive $destination | complete
@@ -14,9 +14,8 @@ def refused-check [work: path, name: string, archive: path]: nothing -> nothing 
     let out = $work | path join $"out-($name)"
     mkdir $out
     let run = extract-run $archive $out
-    if $run.exit_code == 0 { fail $"($name): accepted, stdout: ($run.stdout | str trim)" }
-    let left = ls --all $out
-    if ($left | is-not-empty) { fail $"($name): left behind ($left.name | path basename | str join ' ')" }
+    assert not equal $run.exit_code 0 $"($name): accepted, stdout: ($run.stdout | str trim)"
+    assert equal (ls --all $out | get name | path basename) [] $"($name): left files behind"
 }
 
 def main [] {
@@ -32,9 +31,9 @@ def main [] {
         let out = $work | path join out-good
         mkdir $out
         let run = extract-run (do $archive good.tar) $out
-        if $run.exit_code != 0 { fail $"good.tar failed: ($run.stderr | str trim)" }
-        if ($run.stdout | str trim) != ($out | path join good) { fail $"good.tar printed ($run.stdout | str trim)" }
-        if (open --raw ($out | path join good f1)) != "one" { fail "good.tar: dir/f1 not flattened into good/f1" }
+        assert equal $run.exit_code 0 $"good.tar failed: ($run.stderr | str trim)"
+        assert equal ($run.stdout | str trim) ($out | path join good) "good.tar printed the wrong destination"
+        assert equal (open --raw ($out | path join good f1)) "one" "good.tar: dir/f1 not flattened into good/f1"
 
         ^bsdtar -cf (do $archive traversal.tar) -C $src -s ',^dir,../dir,' dir/f1
         refused-check $work traversal (do $archive traversal.tar)
@@ -64,7 +63,7 @@ def main [] {
         refused-check $work corrupt (do $archive corrupt.7z)
 
         let missing = extract-run (do $archive good.tar) ($work | path join missing)
-        if $missing.exit_code != 2 { fail $"a missing destination exited ($missing.exit_code), want 2" }
+        assert equal $missing.exit_code 2 "a missing destination must exit 2"
     } catch {|err|
         rm --recursive --force $work
         error make {msg: $err.msg}

@@ -23,8 +23,6 @@ def profile-uuid [ssid: string]: nothing -> any {
         | get 0?
 }
 
-def profile-exists [ssid: string]: nothing -> bool { (profile-uuid $ssid) != null }
-
 # eduroam's common setup: peap with mschapv2 inside, the realm's radius certificate checked against the system cas so an
 # evil twin cannot collect the password; the anonymous outer identity keeps the user name off the air
 def connect-enterprise [ssid: string, identity: string, password: string]: nothing -> nothing {
@@ -59,7 +57,7 @@ def main [ssid: string] {
     if $identity != "" { return (connect-enterprise $ssid $identity $typed) }
 
     let secrets_wifi = [($env.DOTFILES? | default ($nu.home-dir | path join projects arch-dotfiles)) configs/secrets/keys/wifi] | path join
-    let saved = if $typed == "" and ($secrets_wifi | path exists) and (secret-is-plaintext $secrets_wifi) and not (profile-exists $ssid) {
+    let saved = if $typed == "" and ($secrets_wifi | path exists) and (secret-is-plaintext $secrets_wifi) and (profile-uuid $ssid) == null {
         try { open --raw $secrets_wifi | decode utf-8 | lines | parse "{ssid}\t{password}" | where ssid == $ssid and password != "" | get password.0? } catch { null }
     }
     let password = $saved | default $typed
@@ -70,9 +68,11 @@ def main [ssid: string] {
         $"($password)\n" | ^nmcli --ask dev wifi connect $ssid
     }
 
-    # a saved network is home: reconnect with the hardware mac so the router's dhcp reservation holds
+    # a saved network is home: reconnect with the hardware mac so the router's dhcp reservation holds; by uuid, as the
+    # name nmcli gave the new profile can clash with an older one's
     if $saved != null {
-        ^nmcli connection modify $ssid $"($WIFI_TYPE).cloned-mac-address" permanent ipv6.method auto
-        ^nmcli connection up $ssid
+        let uuid = profile-uuid $ssid
+        ^nmcli connection modify uuid $uuid $"($WIFI_TYPE).cloned-mac-address" permanent ipv6.method auto
+        ^nmcli connection up uuid $uuid
     }
 }

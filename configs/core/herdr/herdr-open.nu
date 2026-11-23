@@ -1,6 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 
 const REPO = path self | path expand | path dirname --num-levels 4
+use ($REPO | path join scripts lib proc.nu) [notify]
 use ($REPO | path join scripts lib state.nu) [xdg]
 
 const PROMPT = '(λ|❯|[$%#])[[:space:]]*$'
@@ -46,8 +47,8 @@ def main [dir: path, label?: string]: nothing -> nothing {
     if ($create | path exists) and (ls --long $create | get 0.mode | str contains x) {
         if (create-allowed $create) { exec $create $label }
         let refused = $"($create)\nread it, then: herdr-open allow ($dir)"
-        if (which notify-send | is-empty) { print --stderr $"herdr-open: .herdr-create not allowed: ($refused)" } else {
-            ^notify-send -a herdr ".herdr-create not allowed" $refused | complete | ignore
+        if not (notify herdr ".herdr-create not allowed" $refused) {
+            print --stderr $"herdr-open: .herdr-create not allowed: ($refused)"
         }
     }
 

@@ -62,7 +62,6 @@ BarWidget {
 
   visible: !root.absent
   implicitWidth: root.absent ? 0 : trigger.implicitWidth + Style.bar.itemPaddingX * 2
-  implicitHeight: Style.bar.sizeHorizontal
 
   // the closed panel only feeds the bar's problem count; away (no home link, no wg0) the helper answers without the
   // network, so a short poll brings the widget back soon after a home link or the vpn comes up

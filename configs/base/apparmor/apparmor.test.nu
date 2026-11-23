@@ -14,10 +14,13 @@ const ENFORCED = [
 ]
 # profiles their own package ships and loads, not apparmor.d: a local/ drop-in extends them, their mode stays the package's
 const PACKAGE_PROFILES = [torbrowser.Browser.firefox torbrowser.Tor.tor]
-# rules other modules rely on: the discord voice plugin claims its command file by renaming it to .reading
+# rules other modules rely on: the discord voice plugin claims its command file by renaming it to .reading,
+# herdr-open runs a .herdr-create its allow list names
 const REQUIRED_RULES = {
-    discord: ["owner @{run}/user/@{uid}/quickshell-discord-cmd{,.reading} rw,"]
+    local/discord: ["owner @{run}/user/@{uid}/quickshell-discord-cmd{,.reading} rw,"]
+    abstractions/deny-exec-later: ["deny @{HOME}/**/.herdr-create wl," "deny @{user_state_dirs}/herdr/{,**} wl,"]
 }
+const CORE = path self ../../core
 # the checkout is @{DOTFILES}, defined once in the tunables
 const REPO_PATH = "projects/arch-dotfiles"
 
@@ -121,9 +124,38 @@ def compile-check [rows: table, source: path, etc: path]: nothing -> list<string
 }
 
 def required-check []: nothing -> list<string> {
-    $REQUIRED_RULES | items {|name, rules|
-        let have = open --raw $"local/($name)" | lines | str trim
-        $rules | where $it not-in $have | each {|r| $"local/($name) lacks '($r)'" }
+    $REQUIRED_RULES | items {|file, rules|
+        let have = open --raw $file | lines | str trim
+        $rules | where $it not-in $have | each {|r| $"($file) lacks '($r)'" }
+    } | flatten
+}
+
+# what the core rc files source or autoload later: zshrc and tmux.conf name it, config.nu sources from $nu.cache-dir
+# (nushell) and the wal dir beside it; deny-exec-later or file-tool closes each dir under its tunable against write and
+# link
+def sourced-check []: nothing -> list<string> {
+    let rc = {|file| open --raw ($CORE | path join $file) }
+    let zshrc = do $rc zsh/zshrc
+    let tmux = do $rc tmux/tmux.conf
+    let dirs = {
+        user_cache_dirs: (
+            ($zshrc | parse --regex '\{XDG_CACHE_HOME:-[^}]+\}/(?<dir>[^/\s"]+)' | get dir)
+            ++ ($tmux | parse --regex '@CACHE@/(?<dir>[^/\s]+)' | get dir)
+            ++ [nushell] ++ (do $rc nushell/config.nu | parse --regex 'path dirname \| path join (?<dir>\S+)' | get dir)
+        )
+        user_config_dirs: (
+            ($zshrc | parse --regex '\{XDG_CONFIG_HOME:-[^}]+\}/(?<dir>[^/\s"]+)' | get dir)
+            ++ ($tmux | parse --regex 'run-shell ~/\.config/(?<dir>[^/\s]+)/' | get dir)
+        )
+        user_share_dirs: ($zshrc | parse --regex '\{XDG_DATA_HOME:-[^}]+\}/(?<dir>[^\s")]+)' | get dir)
+        HOME: ($zshrc | parse --regex 'source ~/(?<dir>\S+)/[^/\s]+' | get dir)
+    }
+    let rules = [abstractions/deny-exec-later abstractions/file-tool] | each { open --raw $in | lines } | flatten | str trim
+    $dirs | items {|tunable, sourced|
+        let closed = $rules | parse --regex ('^deny @\{' + $tunable + '\}/\{?(?<dirs>[^{}]+?)\}?/\{,\*\*\} wl,$')
+            | get dirs | each { split row "," } | flatten
+        $sourced | uniq | where $it not-in $closed
+            | each { $"no wl deny closes @{($tunable)}/($in), which core rc files source" }
     } | flatten
 }
 
@@ -150,7 +182,7 @@ def main []: nothing -> nothing {
         print --stderr $"apparmor.test: skipped compiling: needs ($needs)"
         []
     }
-    let failures = (rows-check $rows) ++ (own-check $rows) ++ (required-check) ++ (repo-path-check) ++ $compiled
+    let failures = (rows-check $rows) ++ (own-check $rows) ++ (required-check) ++ (sourced-check) ++ (repo-path-check) ++ $compiled
     for f in $failures { print --stderr $"apparmor.test: ($f)" }
     if ($failures | is-not-empty) { exit 1 }
 }

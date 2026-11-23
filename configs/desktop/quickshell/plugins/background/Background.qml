@@ -158,14 +158,10 @@ Item {
       readonly property size decodeSize: Qt.size(
         Math.ceil(width * outputScale), Math.ceil(height * outputScale))
 
+      readonly property bool revealReady: root.incomingBackground !== "" && !maskReady && incomingFrame.status === Image.Ready
+
       function maybeStartReveal() {
-        if (!root.incomingBackground || maskReady) return
-        if (incomingFrame.status !== Image.Ready) return
-        Qt.callLater(function() {
-          if (!root.incomingBackground || maskReady) return
-          if (incomingFrame.status !== Image.Ready) return
-          root.startReveal(panel)
-        })
+        if (revealReady) Qt.callLater(function() { if (panel.revealReady) root.startReveal(panel) })
       }
 
       WlrLayershell.namespace: "quickshell-background"
@@ -339,5 +335,4 @@ Item {
       }
     }
   }
-
 }

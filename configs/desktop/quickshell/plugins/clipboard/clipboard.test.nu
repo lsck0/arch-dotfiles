@@ -2,8 +2,9 @@
 # ClipboardHistory.js under qmltestrunner: an entry's stamp survives a save and a load, a re-copy refreshes it, and the
 # age limit drops what is older
 
+use ../../scripts/lib/qml-test.nu [qml-test-run]
+
 const LOGIC = path self ClipboardHistory.js
-const RUNNER = "/usr/lib/qt6/bin/qmltestrunner"
 const TEST = '
 import QtQuick
 import QtTest
@@ -58,14 +59,5 @@ TestCase {
 '
 
 def main [] {
-    let dir = mktemp --directory
-    # remove the temp dir whether the run succeeds or a step throws
-    let outcome = try {
-        cp $LOGIC $dir
-        $TEST | save ($dir | path join tst_clipboard.qml)
-        with-env {QT_QPA_PLATFORM: offscreen} { ^$RUNNER -input ($dir | path join tst_clipboard.qml) } | complete
-    } catch {|e| {failed: $e.msg} }
-    rm --recursive --force $dir
-    if ($outcome | get --optional failed) != null { error make {msg: $outcome.failed} }
-    if $outcome.exit_code != 0 { error make {msg: $"qmltestrunner failed\n($outcome.stdout)($outcome.stderr)"} }
+    qml-test-run $TEST {|dir| cp $LOGIC $dir }
 }

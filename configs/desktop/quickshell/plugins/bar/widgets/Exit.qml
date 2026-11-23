@@ -9,7 +9,6 @@ BarWidget {
   barPriority: 40
 
   implicitWidth: button.implicitWidth
-  implicitHeight: Style.bar.sizeHorizontal
 
   BarIconButton {
     id: button

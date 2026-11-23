@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {native: [polkit tor]}}
+export const meta = {packages: {native: [polkit tor]}, reads: [base/ssh]}
 
 const ROUTER = "/usr/local/bin/tor-router"
 const PERSONA = "/etc/NetworkManager/dispatcher.d/90-anonymous-persona"
@@ -10,13 +10,19 @@ export def link [cfg: record] {
     if (which tor | is-not-empty) { shell-aliases tor }
 }
 
+# The addresses tor-router keeps direct out wg0 beyond its routes; a host name cannot go into an nft set
+def wg-hosts [ssh: record]: nothing -> string {
+    [$ssh.wake_router $ssh.wake_router_tunnel $ssh.wake_host] | where $it != null and $it =~ '^\d+(\.\d+){3}$'
+    | str join " "
+}
+
 export def system [cfg: record] {
     # no tor-router without the tor it routes into
     if $env.FORM_FACTOR? == "wsl" or (which tor | is-empty) { return [] }
     [
         (file-copy torrc /etc/tor/torrc)
         # vendored from edu4rdshl/tor-router: no package upgrade can restore its fail-open unit
-        (file-copy tor-router.nu $ROUTER --mode 755
+        (file-render tor-router.nu $ROUTER {WG_HOSTS: (wg-hosts $cfg.deps."base/ssh")} --mode 755
             --then [sh -c $"! systemctl is-active -q tor-router.service || ($ROUTER) start"])
         # no Requires=tor.service, so a tor restart cannot tear the table down; once in place the persona dispatcher
         # switches a foreign link to tor, so a fresh install off home goes onto tor without waiting for a link event

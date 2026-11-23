@@ -618,14 +618,7 @@ Item {
             color: Colors.textOnOverlay(root.keyNote !== "" ? Colors.urgent : Colors.textDim)
             caption: true
 
-            Behavior on opacity {
-              id: keyStatusFade
-              NumberAnimation {
-                duration: Style.motion.fadeMs(keyStatusFade.targetValue > 0)
-                easing.type: Easing.BezierSpline
-                easing.bezierCurve: Style.motion.curve(keyStatusFade.targetValue > 0)
-              }
-            }
+            FadeBehavior on opacity {}
 
             FontMetrics {
               id: keyStatusMetrics

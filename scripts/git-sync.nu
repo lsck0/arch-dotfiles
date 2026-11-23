@@ -2,10 +2,10 @@
 
 const SCRIPTS = path self | path expand | path dirname
 use ($SCRIPTS | path join lib usage.nu) [die]
+use ($SCRIPTS | path join lib repository.nu) [repository-find-under]
 
 const JOBS_DEFAULT = 8
-const SEARCH_DEPTH = 5
-const PRUNED = [vendor node_modules .cache target .venv .direnv]
+const SEARCH_DEPTH = 3
 const CONFLICT = '^(U.|.U|AA|DD)'
 
 def --wrapped git-out [dir: path, ...args: string]: nothing -> string {
@@ -16,22 +16,19 @@ def refs-of [dir: path, ...patterns: string]: nothing -> list<string> {
     git-out $dir for-each-ref --exclude=refs/remotes/*/HEAD "--format=%(refname) %(objectname)" ...$patterns | lines
 }
 
-def repos-under [base: path]: nothing -> list<path> {
-    let pruned = $PRUNED | each { [-name $in -o] } | flatten | drop
-    (^find $base -maxdepth $SEARCH_DEPTH -type d "(" ...$pruned -o -path "*/.git/*" ")" -prune
-        -o -type f -name HEAD -printf "%h\n")
-    | lines | where { ($in | path join objects | path type) == dir and ($in | path join refs | path type) == dir }
-    | str replace --regex '/\.git$' '' | uniq | sort
-    | where {|dir|
-        let top = git-out ($dir | path dirname) rev-parse --show-toplevel
-        $top == "" or $top == $dir or (do { ^git -C $top check-ignore -q $dir } | complete).exit_code != 0
+# a worktree shares its checkout's refs; an ignored nested repo belongs to the outer one
+def repos-under [base: path]: nothing -> table<dir: path, kind: string> {
+    repository-find-under $base $SEARCH_DEPTH | where kind != worktree | where {|repo|
+        let top = git-out ($repo.dir | path dirname) rev-parse --show-toplevel
+        $top == "" or $top == $repo.dir or (do { ^git -C $top check-ignore -q $repo.dir } | complete).exit_code != 0
     }
 }
 
-# through direnv where the repo has its own identity, so its credentials push and pull
+# through direnv where the repo has its own identity, so its credentials push and pull; no prompts, as parallel ones
+# would fight over the terminal: a repo that needs input fails and is fixed alone
 def --wrapped remote-git [dir: path, ...args: string]: nothing -> record {
     let prefix = if ($dir | path join .identity envrc | path exists) { [direnv exec $dir] } else { [] }
-    do { run-external ...($prefix ++ [git -C $dir ...$args]) } | complete
+    with-env {GIT_TERMINAL_PROMPT: "0"} { do { run-external ...($prefix ++ [git -C $dir ...$args]) } | complete }
 }
 
 def sync-one [dir: path, bare: bool]: nothing -> list<string> {
@@ -92,11 +89,11 @@ def main [dir?: path]: nothing -> nothing {
     let base = $dir | default "." | path expand
     if ($base | path type) != dir { die --misuse $"not a directory: ($base)" }
     let repos = repos-under $base
-    let names = $repos | each {|r| if $r == $base { $r } else { $r | path relative-to $base } }
-    let pad = $names | each { str length } | append 0 | math max
-    $repos | zip $names | par-each --threads ($env.GIT_SYNC_JOBS? | default $JOBS_DEFAULT | into int) {|pair|
-        let bare = (git-out $pair.0 rev-parse --is-bare-repository) == "true"
-        let statuses = sync-one $pair.0 $bare | if ($in | is-empty) { ["UP TO DATE"] } else { $in }
-        print $"($pair.1 | fill -w $pad)  ($statuses | str join ', ')(if $bare { '  (bare)' } else { '' })"
+        | insert name {|r| if $r.dir == $base { $r.dir } else { $r.dir | path relative-to $base } }
+    let pad = $repos.name | each { str length } | append 0 | math max
+    $repos | par-each --threads ($env.GIT_SYNC_JOBS? | default $JOBS_DEFAULT | into int) {|repo|
+        let bare = $repo.kind == bare
+        let statuses = sync-one $repo.dir $bare | if ($in | is-empty) { ["UP TO DATE"] } else { $in }
+        print $"($repo.name | fill -w $pad)  ($statuses | str join ', ')(if $bare { '  (bare)' } else { '' })"
     } | ignore
 }

@@ -1,147 +1,61 @@
 ---
 name: l-dotfiles-install
-description: Installing a machine from this repo (owner, generic, WSL), how the unattended boot chain runs, what dot sync does on an installed machine, and adding another login. Load when setting up or reinstalling a machine or user, when an install chain stopped or left a login banner, or to know what a sync will do.
+description: "Installing a machine from this repo (lsck0 iso, Arch ISO one-liner, WSL), the unattended boot chain and resuming a stopped one, its /etc/issue.d banners, what dot sync does, and adduser-dotfiles. Load when setting up or reinstalling a machine or login, when a chain stopped, or to predict a sync. Testing in a VM: l-dotfiles-vm-test."
 ---
 
 # install
 
-Three stages: `bootstrap.sh` (nushell, a verified checkout, then `dot internal bootstrap`: keyboard, disk, base system,
-user, root copy, arms the chain), then `dot internal stage` runs `dot apply --packages` and `dot apply` on their own
-boots, unattended, and retires itself and its sudo drop-in at the end, or stops disarmed (Check the chain).
+Three stages: `bootstrap.sh` (nushell, a verified checkout, then `dot internal bootstrap`: keyboard, disk, base
+system, user, root copy, arms the chain), then `dot internal stage` runs `dot apply --packages` and `dot apply` on
+their own boots, unattended. At the end it retires itself and its sudo drop-in, or stops disarmed.
 
 ## Install
 
-1. Arch Linux-LSCK0 iso, https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso (check `.sha256`, and `.sig`
-   against `configs/base/pacman/archrepo.asc`, signer `HOMELAB.mirror.isoSigner` in `platforms/homelab.nu`,
-   `88042EFBF5F141C2ACF4697ADD84D7C4053DD354`; `dot test run` checks both), written raw to a stick. Its stub
-   autologins on tty1, waits for internet (archlinux.org and github answering; cable, else the answer file's `wifi`
-   or a picker; never offline), clones master, checks HEAD against the iso's signing key and runs that `bootstrap.sh`
-   with `LSCK0_INSTALL=1`, which starts `dot internal iso-install` (`scripts/lib/iso-install.nu`).
-   - The lab mirror is probed apart and a lab outage named as one: the bootstrap drops `[lsck0]` from the live
-     `pacman.conf` and installs without it (`pacman-conf-lsck0`); a platform with the `homelab` fact stops before the
-     disk is touched (re-checked at pacstrap).
-   - Answer file: `lsck0.nuon` or `lsck0.<name>.nuon` on a FAT32 partition labelled `LSCK0` (and other places), keys
-     in `mirror/iso/lsck0.example.nuon`; `lsck0.*` boot parameters map to `BOOTSTRAP_*`. An answered key is not asked.
-   - One answer file found: a 10 s yes/no, then it is used (an unattended boot goes on by itself); several: a menu of
-     them plus "no answer file", which takes the first after 10 s only when that is the one file saying
-     `unattended: true`. Each file is found once (by path and content); one that does not parse is listed as ignored,
-     never offered. Only the
-     pick's `source` files are staged, into a dir of its own; a missing one stops the install. No answer file means
-     every question is asked; the second stage does not search again, and a picked file it cannot parse stops it.
-     An older stub connects with the first `lsck0.nuon`'s wifi, then switches to master's stub, which asks.
-   - `unattended: true` skips the summary, asks each `"ask"` password once up front under the keymap the install sets
-     (the answer's, else the default), logs to `/tmp/lsck0-install.log` (copied to `/var/log/lsck0-install.log`).
-   - Unattended, a disk whose ESP holds `/boot/dotfiles-stage-in-progress` is refused unless `reinstall: true`
-     (`BOOTSTRAP_REINSTALL=1`, or the one-boot `lsck0.reinstall=1`): a running chain is left to finish, a stopped one
-     (the marker's first line `stopped`) is named with its resume, `dot internal stage`.
-   - `efibootmgr --bootnext` points at the new ESP before the reboot; each stage reboot sets BootNext to its own entry.
-   - The answer file's `source` (an unverified tree over master, the vm test's) is used only with `lsck0.insecure=1`,
-     in a VM, or after a yes on the console.
-   - Frozen on the stick: the stub up to its newer-stub switch (network, clone, signature check) and the trust anchor
-     from `bootstrap.sh`. Everything else comes from master at install time; only a change to the frozen part needs a
-     reburn. A newer verified stub on master replaces the stick's.
-2. From the official Arch ISO: `curl -fsSL https://install-linux.lsck0.dev | sh`.
+- lsck0 iso: `https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso`, checked against `.sha256` and `.sig`
+  (key `configs/base/pacman/archrepo.asc`, signer `HOMELAB.mirror.isoSigner` in `platforms/homelab.nu`,
+  `88042EFBF5F141C2ACF4697ADD84D7C4053DD354`), written raw
+  to a stick. Build one with `dot internal iso` (root, mkarchiso). Its stub autologins, waits for internet, clones
+  master, checks HEAD's signature and runs `bootstrap.sh`, which starts `dot internal iso-install`.
+- From the official Arch ISO: `curl -fsSL https://install-linux.lsck0.dev | sh`.
+- WSL: the same line in a fresh Arch distro's root shell; no disk, bootloader or chain.
 
-Build the iso: `dot internal iso` (root, mkarchiso).
+`bootstrap.sh` (bash, runs only on the Arch ISO or WSL) refuses unless HEAD is signed by `SIGNING_KEY_FINGERPRINT`
+(`BOOTSTRAP_INSECURE=1` skips). Nothing is written before the summary's `install`. Login name, profile and machine are
+independent; nothing derives from the login name.
 
-- `bootstrap.sh` (bash, runs only on the Arch ISO or WSL) installs nushell (grows the overlay if needed), clones master
-  and refuses unless HEAD is signed by `SIGNING_KEY_FINGERPRINT` (`BOOTSTRAP_INSECURE=1` skips). From an existing
-  checkout it skips the clone.
-- Questions: `scripts/lib/bootstrap/questions.nuon`, in ask order (id = answer-file key, kind, title, text, options,
-  default, `BOOTSTRAP_*` env, `when`; code steps are entries with `step`). Top-level `answers` holds answer-file-only
-  keys; `messages` and `summary` every other text. The iso's second stage reads its keys and types from it. Wording,
-  order or a new question is an edit there; `bootstrap.nu` only walks the list.
-- Order: keyboard, profile, machine, home network (`server` and `custom` add their questions here), then disk,
-  encryption, login name, passwords, summary. Nothing is written before the summary's `install`.
-- Login name, profile and machine are independent; nothing derives from the login name.
-- Profile: `profiles/<name>.nuon` (luca) or `custom` (default, no file, no capabilities); copied to
-  `~/.config/dotfiles/profile.nuon`.
-- Machine: `server` (not on WSL), `custom`, then each `platforms/<name>.nuon` by `label` (WSL: only `wsl`; `vm` hidden,
-  the vm test names it). A named pick goes to `/etc/dotfiles/platform`. `server` and `custom` ask hostname, an ssh key
-  for `~/.ssh/authorized_keys` (empty: console only), off WSL timezone, locale and secure boot (`own`, `microsoft`
-  default, `off`), and write `/etc/dotfiles/platform.nuon` (and `.options.nuon`). `server` is base plus docker;
-  `custom` asks the groups (preselected: core, desktop, fonts, programming; base always in).
-- Every machine asks for disk encryption (LUKS2, default yes).
-- Prompts stay short: one question, the options, at most one line of context for a risky choice.
-
-## WSL
-
-The same line in a fresh Arch distro's root shell. No disk, bootloader or chain: keyring, upgrade, wheel user,
-`wsl.conf` (systemd, default user, hostname, no Windows PATH), verified repo, `~/.local/bin/dot` and a minimal
-`~/.zshenv`/`~/.zshrc` (the first apply takes both over). Machine `wsl`: groups base, core, programming, no homelab;
-firewall, vpn and tor modules off. Hardware modules skip themselves, so sudo is password only; `core/locale` sets
-`en_US.UTF-8`. No YubiKey without USB passthrough: `dot secrets unlock --identity <age file>` (fetches the submodule
-via `gh auth` or the ssh key).
-
-Luca's test on Windows (WSL 2.x):
-
-1. `wsl --update`, `wsl --install archlinux`.
-2. `curl -fsSL https://raw.githubusercontent.com/lsck0/arch-dotfiles/master/bootstrap.sh | bash`; machine `wsl`,
-   profile `custom` or `luca`, user, password.
-3. `wsl --terminate archlinux`, `wsl -d archlinux`; `systemctl is-system-running` says running or degraded.
-4. `dot sync --no-push` (long first run).
-5. `dot status --brief`, `systemctl --user list-timers`, `cat /etc/wsl.conf`.
-6. Profile `luca`: `gh auth login`, then `dot secrets unlock --identity <age file>` (or usbipd-win and
-   `dot secrets unlock`).
-
-## Unattended
-
-No tty or `BOOTSTRAP_ASSUME_YES=1`: answers from env. `BOOTSTRAP_{USERNAME,DISK,PASSWORD,USER_PASSWORD,ROOT_PASSWORD,
-KEYMAP}` (keymap default de-latin1, loaded at once; `BOOTSTRAP_KEYMAP_DEFAULT` only preselects; no username default),
-`BOOTSTRAP_PROFILE` (default custom), `BOOTSTRAP_PLATFORM=<host>|server|custom` (default custom; the `bootstrap.sh`
-argument wins), `BOOTSTRAP_HOME_NETWORK=0|1`, `BOOTSTRAP_ENCRYPT=0|1` (default 1); server or custom also
-`BOOTSTRAP_{HOSTNAME,GROUPS,TIMEZONE,LOCALE,SSH_KEY}` and `BOOTSTRAP_SECURE_BOOT`. `BOOTSTRAP_SERVER=1` turns custom
-into server. Each question's `env` and `default` is the reference. `dot test run` drives this through an answer file
-(`--profile`, default luca; `report` makes the stages beacon and upload logs, skill `l-dotfiles-vm-test`).
+Read [reference.md](reference.md) for answer files, the questions, unattended `BOOTSTRAP_*` variables, WSL details and
+the sync's due logic.
 
 ## Check the chain
 
 1. `/var/lib/dotfiles-stage/log`: one `<stage>: ok` per stage.
 2. `install.log`, `config.log`, `FAILURES.install`, `FAILURES.config` in the checkout; `/var/log/lsck0-install.log`.
 3. The install stage goes on by `/var/lib/dotfiles/install-pass`, not by dot's exit code (`stage-next` in
-   `scripts/lib/stage.nu`). Pass written: config, even after a partial pass; modules whose packages are missing stay
-   pending (exit 3, `dot status`). No pass: a reboot retries after a backoff, 3 attempts in all. An attempt counts
-   before it runs, so a pass that dies with the machine counts too.
-4. Third attempt without a pass: the chain stops before config and disarms. The stage LUKS key slot, its keyfile and
-   initramfs drop-in go, then `next`, the unit and the passwordless sudoers drop-in; a `stopped` marker stays, and the
-   ESP marker reads `stopped` once the disk key is gone too (a kept key leaves it reading as a running chain). The disk
-   asks for its passphrase again, sudo for the password, nothing retries by itself. The login banner
-   (`/etc/issue.d/dotfiles-stage.issue`) names what failed, the way online on a fail-closed network
+   `scripts/lib/stage.nu`). Pass written: on to config, even after a partial pass; modules missing packages stay
+   pending (exit 3). No pass: a reboot retries after a backoff, 3 attempts in all, each counted before it runs.
+4. Third attempt without a pass: the chain stops before config and disarms. The stage LUKS key slot, keyfile and
+   initramfs drop-in go, then `next`, the unit and the passwordless sudoers drop-in; a `stopped` marker stays. The disk
+   asks for its passphrase again, sudo for the password, nothing retries. The banner
+   `/etc/issue.d/dotfiles-stage.issue` names what failed, how to get online on a fail-closed network
    (`dot set --machine base/networkmanager.untrusted_policy firewall-only && dot apply --system`) and the resume.
-5. Resume: `dot internal stage` at a terminal. sudo asks once, the drop-in, unit and install stage are armed again, the
-   install runs; the key is not re-added, so each later boot of the chain asks for the disk passphrase. Without a tty it
-   refuses and names the command.
-6. A failed config stage still ends the chain disarmed, with `/etc/issue.d/dotfiles-config.issue` naming what failed;
-   the first full `dot apply` (both layers) with no failure removes it (`config-banner-clear` in `scripts/lib/run.nu`).
-   A secrets profile whose YubiKey was missing gets `dotfiles-secrets.issue`; `base/yubikey` drops it once unlocked.
+5. Resume: Luca runs `dot internal stage` at a terminal (it refuses without a tty). sudo asks once, the chain is
+   re-armed and the install runs; the disk key is not re-added, so each later boot asks for the passphrase.
+6. A failed config stage also ends the chain disarmed, with `/etc/issue.d/dotfiles-config.issue`; the first full
+   `dot apply` (both layers) without failure removes it (`config-banner-clear` in `scripts/lib/run.nu`). A secrets
+   profile whose YubiKey was missing gets `dotfiles-secrets.issue`; `base/yubikey` drops it once unlocked.
 
 ## Updating
 
-Each login updates with `dot sync` (agents never run it):
-
-- One run: pull `origin/master` (`sync-pull`; the submodule only with `secrets`), migrate, install, apply, every
-  module's `update` verb (`update-run`), its output also in `sync.log`.
-- Root is entered once for packages and the system layer, and not at all when nothing is due; `dot sync --system`
-  forces it. Due (`system-due` in `scripts/lib/run.nu`): a failed or pending check, work in the system plan, undeclared
-  packages, pending migrations, changed system secrets, else a package upgrade. An edit to `/etc/dotfiles/platform*`
-  since the last clean entry is due too (`platform-edited`).
-- Not due: a root copy that differs only in files root never acts on (`root-acts-on` in `scripts/lib/system.nu`),
-  packages and modules that wait only on the mirror's next build, and a module with `meta.secrets` undoing outputs
-  (the user side plans without its secrets). A wait on the mirror ends when the database checkupdates syncs lists an
-  awaited package (`awaited-arrived`).
-- The user side's system plan skips a module whose input and root record both match
-  `~/.local/state/dotfiles/system-inputs.nuon`, saved after a clean root entry (an install pending only on the mirror
-  counts as clean); any other root run re-records it and ends the skip.
-- Only the machine holding the `SIGNING_KEY_FINGERPRINT` secret key backs up, regenerates the generated files (`dot
-  internal gen`), commits and pushes; elsewhere it stops after the apply. A non-wheel login converges its user layer
-  only.
-- An origin head without that signature merges nothing; local edits are autostashed; a conflict stops the run; a
-  checkout off `master` refuses.
+Each login updates with `dot sync`, which is Luca's; agents never run it. One run pulls `origin/master` (submodule
+only with `secrets`), migrates, installs, applies, runs every module's `update` verb, and logs to `sync.log`. Root is
+entered once, and not at all when nothing is due (`system-due` in `scripts/lib/run.nu`; `--system` forces it). Only
+the machine holding the `SIGNING_KEY_FINGERPRINT` secret key backs up, runs `dot internal gen`, commits and pushes. An
+unsigned origin head merges nothing; local edits are autostashed; a conflict stops the run; a checkout off `master`
+refuses.
 
 ## Another login
 
-`adduser-dotfiles <name> [--profile luca|custom]` (root-owned sh wrapper, runs `adduser` through sudo): creates the user
-(never wheel), its checkout, profile and user layer (one `dot apply --packages --user` in a login session through
-`systemd-run`). Without `--profile` it asks on a tty, else `custom`. Rerun-safe; an existing `profile.nuon` is kept. A
-`secrets` profile adds the login to `/var/lib/dotfiles/owners`, from which `configs/secrets/yubikey` maps their YubiKey
-in `/etc/u2f_mappings` on the next system run (without the submodule, sudo takes the password).
+`adduser-dotfiles <name> [--profile luca|custom]` (root-owned sh wrapper, sudo): creates the user (never wheel), its
+checkout, profile and user layer. Without `--profile` it asks on a tty, else `custom`. Rerun-safe; an existing
+`profile.nuon` is kept. A `secrets` profile adds the login to `/var/lib/dotfiles/owners`, from which
+`configs/secrets/yubikey` maps their YubiKey in `/etc/u2f_mappings` on the next system run.

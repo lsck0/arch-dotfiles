@@ -416,16 +416,10 @@ PanelWindow {
       width: tooltipRow.implicitWidth + contentLeftInset + contentRightInset
 
       opacity: root.tooltipShown ? 1 : 0
-      Behavior on opacity {
-        id: tooltipFade
-        NumberAnimation { duration: Style.motion.fadeMs(tooltipFade.targetValue > 0); easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.curve(tooltipFade.targetValue > 0) }
-      }
+      FadeBehavior on opacity {}
       transform: Translate {
         y: root.tooltipShown ? 0 : -Style.motion.travel
-        Behavior on y {
-          id: tooltipSlide
-          NumberAnimation { duration: Style.motion.fadeMs(tooltipSlide.targetValue === 0); easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.curve(tooltipSlide.targetValue === 0) }
-        }
+        FadeBehavior on y { entering: targetValue === 0 }
       }
 
       Row {

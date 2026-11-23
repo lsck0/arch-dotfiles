@@ -104,7 +104,7 @@ Item {
     root.expandedId = ""
     root.query = text
     root.pane = text ? "rows" : root.pane
-    root.selectRow(Schema.selectable(root.rows, 0, 1))
+    root.selectFirstRow()
   }
 
   function selectSection(index, direction) {
@@ -113,7 +113,7 @@ Item {
     if (next < 0) return
     root.sectionIndex = next
     root.expandedId = ""
-    root.selectRow(Schema.selectable(root.rows, 0, 1))
+    root.selectFirstRow()
     root.reveal(sectionList, sectionFade, root.sectionIndex)
   }
 
@@ -124,10 +124,11 @@ Item {
   }
 
   function selectRow(index) {
-    if (index < 0) { root.rowIndex = Schema.selectable(root.rows, 0, 1); return }
     root.rowIndex = index
-    root.reveal(rowList, rowFade, index)
+    if (index >= 0) root.reveal(rowList, rowFade, index)
   }
+
+  function selectFirstRow() { root.selectRow(Schema.selectable(root.rows, 0, 1)) }
 
   // the overflow fade covers the bottom row: scroll the cursor row above it, unless that runs past the end
   function reveal(list, fade, index) {
@@ -251,7 +252,7 @@ Item {
     if (key === Qt.Key_Tab || key === Qt.Key_Backtab) {
       root.expandedId = ""
       root.pane = root.pane === "rows" ? "sections" : "rows"
-      if (root.pane === "rows" && root.rowIndex < 0) root.selectRow(Schema.selectable(root.rows, 0, 1))
+      if (root.pane === "rows" && root.rowIndex < 0) root.selectFirstRow()
       return true
     }
 
@@ -282,7 +283,7 @@ Item {
         if (horizontal < 0) root.pane = "sections"
       }
     } else if (key === Qt.Key_Home) {
-      root.selectRow(Schema.selectable(root.rows, 0, 1))
+      root.selectFirstRow()
     } else if (key === Qt.Key_End) {
       root.selectRow(Schema.selectable(root.rows, root.rows.length - 1, -1))
     } else if (key === Qt.Key_Return || key === Qt.Key_Enter) {
@@ -520,7 +521,7 @@ Item {
       if (optionsProc.outText === root.modulesText) return
       root.modulesText = optionsProc.outText
       root.modules = data.modules.map(Schema.moduleNormalize)
-      if (root.rowIndex < 0 || root.rowIndex >= root.rows.length) root.selectRow(Schema.selectable(root.rows, 0, 1))
+      if (root.rowIndex < 0 || root.rowIndex >= root.rows.length) root.selectFirstRow()
       else root.selectRow(root.rowIndex)
       var at = root.sections[root.sectionIndex]
       if (at && at.kind === "header") root.selectSection(root.sectionIndex)
@@ -577,7 +578,7 @@ Item {
       root.dotStatus = data
       var at = root.sections.findIndex(function (s) { return s.id === id })
       if (at >= 0) root.sectionIndex = at
-      if (root.rowIndex < 0 || root.rowIndex >= root.rows.length) root.selectRow(Schema.selectable(root.rows, 0, 1))
+      if (root.rowIndex < 0 || root.rowIndex >= root.rows.length) root.selectFirstRow()
     }
   }
 

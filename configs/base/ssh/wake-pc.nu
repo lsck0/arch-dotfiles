@@ -5,11 +5,18 @@ const ROUTER_TUNNEL = "@ROUTER_TUNNEL@"
 const PC = "@HOST@"
 const KNOCK = [@KNOCK@]
 const PORT = "@PORT@"
+# base/boot/remote-unlock's tinysshd (tinysshd.conf): the initramfs asks there for the LUKS passphrase
+const UNLOCK_PORT = "@UNLOCK_PORT@"
 const HOME_NETWORK = "/run/home-network"
 const WG_IFACE = "wg0"
 const PROBE_TIMEOUT_S = 2
 const TRIES = 45
 const TRY_INTERVAL = 2sec
+
+# ipv4 only: fw-inbound's knock sets hold ipv4 addresses
+def port-open [port: string]: nothing -> bool {
+    (do { ^nc -4 -z -w $PROBE_TIMEOUT_S $PC $port } | complete).exit_code == 0
+}
 
 # the interface the kernel would send to ADDRESS through
 def route-dev [address: string]: nothing -> string {
@@ -49,11 +56,17 @@ def main []: nothing -> nothing {
     }
     print --stderr $"wake-pc: magic packet sent, waiting for ($PC) ..."
     # knock every try: it only opens the sshd port once the desktop's firewall is loaded
+    mut unlocked = false
     for _ in 1..$TRIES {
-        ^knock $PC ...($KNOCK | each { into string })
-        if (do { ^nc -z -w $PROBE_TIMEOUT_S $PC $PORT } | complete).exit_code == 0 { exec sshk $PC }
+        ^knock -4 $PC ...($KNOCK | each { into string })
+        if (port-open $PORT) { exec sshk $PC }
+        # tinysshd stays up until the boot leaves the initramfs: ask for the passphrase once, then wait for sshd
+        if not $unlocked and (port-open $UNLOCK_PORT) {
+            try { ^ssh -4 -p $UNLOCK_PORT $"root@($PC)" }
+            $unlocked = true
+        }
         sleep $TRY_INTERVAL
     }
-    print --stderr $"wake-pc: ($PC) did not answer ssh within ~3min"
+    print --stderr $"wake-pc: ($PC) did not answer ssh or the unlock prompt within ~3min"
     exit 1
 }

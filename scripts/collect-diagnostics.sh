@@ -111,6 +111,13 @@ root_grab_into() {
     fi
 }
 mkdir -p "$out/files/root"
+# what a bundle meant to be handed out must not carry: install answers' passwords and the wifi psk on the kernel
+# command line (/proc/cmdline, dmesg and every boot's journal), url userinfo, and the gateway's mac (ip neigh),
+# all a rogue access point needs to pass as a home network. No match crosses a quote or eats a backslash, so a
+# redacted json journal line stays valid json
+redact=(-e 's/(lsck0\.[^[:space:]=]*(pass|psk|secret|token)[^[:space:]=]*=)(\\?"[^"]*"|[^[:space:]"\\]*)/\1<redacted>/gI'
+    -e 's#(://)[^/@[:space:]"]+@#\1<redacted>@#g'
+    -e 's/(lladdr )[^[:space:]"]+/\1<redacted>/g')
 
 echo "collecting into $out" >&2
 
@@ -231,8 +238,9 @@ for unit in $("${as_user[@]}" systemctl --user --failed --plain --no-legend 2> /
 done
 if command -v zstd > /dev/null; then
     for boot in 0 -1 -2 -3 -4; do
-        "${as_root[@]}" journalctl -b "$boot" -o export 2> /dev/null | zstd -q -T0 > "$out/journal-boot$boot.export.zst"
-        [[ -s "$out/journal-boot$boot.export.zst" ]] || rm -f "$out/journal-boot$boot.export.zst"
+        # json, not export: export prefixes a binary field with its length, which a redaction would falsify
+        "${as_root[@]}" journalctl -b "$boot" -o json 2> /dev/null | sed -E "${redact[@]}" | zstd -q -T0 > "$out/journal-boot$boot.json.zst"
+        [[ -s "$out/journal-boot$boot.json.zst" ]] || rm -f "$out/journal-boot$boot.json.zst"
     done
 fi
 grab /var/log/Xorg.0.log
@@ -260,8 +268,7 @@ run session "${as_user[@]}" wpctl status
 run session upower -d
 run session sensors
 run session loginctl list-sessions
-# credentials from direnv or the shell stay out of a bundle meant to be handed out: whole entries, multi-line values
-# included, by name, and url userinfo in any value
+# credentials from direnv or the shell: whole entries by name, multi-line values included
 while IFS= read -r -d '' entry; do
     name=${entry%%=*}
     if [[ ${name^^} =~ TOKEN|KEY|SECRET|PASSWORD|PASS|CREDENTIAL|AUTH|COOKIE ]]; then
@@ -269,7 +276,7 @@ while IFS= read -r -d '' entry; do
     else
         printf '%s\n' "$entry"
     fi
-done < <(env -0) | sed -E 's#(://)[^/@[:space:]]+@#\1<redacted>@#g' > "$out/session-env.txt"
+done < <(env -0) > "$out/session-env.txt"
 
 run desktop "${as_user[@]}" hyprctl version
 run desktop "${as_user[@]}" hyprctl monitors
@@ -310,6 +317,7 @@ if [[ -n $target ]]; then
     done
 fi
 
+grep -rlIZ -E 'lsck0\.|://|lladdr' "$out" | xargs -0r sed -i -E "${redact[@]}"
 ((EUID == 0)) && [[ -n $owner ]] && chown -R "$owner" "$out"
 sync
 echo "done: $out ($(du -sh "$out" | cut -f1))" >&2

@@ -7,7 +7,7 @@ const LOGIN_TABLES = [minecraft_users modrinth_users minecraft_device_tokens]
 
 def paths []: nothing -> record {
     let data = xdg data ModrinthApp
-    let saved = $env.DOTFILES | path join configs secrets keys modrinth
+    let saved = secret-path keys modrinth
     {
         data: $data, db: ($data | path join app.db), seed: (host-seed $saved app.db), saved: (host-file $saved app.db)
         saves: ($nu.home-dir | path join sync games mc saves)
@@ -38,7 +38,7 @@ export def seed []: nothing -> nothing {
     let p = paths
     mkdir $p.data
     ^cp -n $p.seed $p.db
-    touch ($p.data | path join .from-secrets)
+    secret-seed-mark $p.data
 }
 
 export def relocate []: nothing -> nothing {
@@ -65,13 +65,8 @@ def logins [db: string]: nothing -> record {
 export def backup [cfg: record]: nothing -> nothing {
     let p = paths
     if (which modrinth-app | is-empty) or not ($p.db | path exists) { return }
-    secret-seed-guard ($p.data | path join .from-secrets) $p.seed $p.data
+    secret-seed-guard $p.data $p.seed
     let live = logins $"file:($p.db)?mode=ro"
     if $live.exit_code == 0 and $live == (logins $"file:($p.saved)?immutable=1") { return }
-    mkdir ($p.saved | path dirname)
-    # into a fresh file renamed over the copy: a failed .backup leaves the last good one, not none
-    let next = $"($p.saved).new"
-    rm --force $next
-    ^sqlite3 $p.db $".backup '($next)'"
-    mv --force $next $p.saved
+    sqlite-snapshot $p.db $p.saved
 }

@@ -1,6 +1,8 @@
 use ../lib/log.nu [log-err]
-use ../lib/state.nu [xdg file-trim]
+use ../lib/state.nu [xdg file-trim file-lines]
 use ../lib/usage.nu [die]
+# the shell's own bounded ipc call, shared with its action scripts and the wallpaper switch
+export use ../../configs/desktop/quickshell/scripts/lib/shell.nu [shell-call]
 
 export const TOGGLES_DIR = path self .
 export const DOT = path self ../dot.nu
@@ -9,6 +11,8 @@ const ADMIN_GROUP = "wheel"
 const IPC_TIMEOUT_S = 3
 const TRUSTED_NETWORK = "/run/trusted-network"
 const LOCK_BUSY_EXIT = 75
+# A flip killed mid-run leaves its lock behind; a system apply (trust network) can run this long.
+const LOCK_STALE = 5min
 
 # The state file of a toggle; --volatile puts it on tmpfs, for state whose tool resets on boot (tlp, rfkill ids).
 export def state-file [name: string, --volatile]: nothing -> path {
@@ -34,16 +38,22 @@ def user-is-admin []: nothing -> bool {
     $ADMIN_GROUP in (^id -nG | complete | get stdout | str trim | split row " ")
 }
 
-# Passes a completed external's output on and, when it failed, raises its last stderr line, which the failure toast
-# shows: nushell's own error for a failed external names no cause.
-def raise-failed [what: string]: record -> nothing {
+# Raises a completed external's last stderr line when it failed, which the failure toast shows: nushell's own error
+# for a failed external names no cause.
+export def failure-raise [what: string]: record -> nothing {
     let run = $in
-    if $run.stdout != "" { print --no-newline $run.stdout }
-    if $run.stderr != "" { print --stderr --no-newline $run.stderr }
     if $run.exit_code != 0 {
         let cause = $run.stderr | str trim | lines | last 1 | str join ""
         error make {msg: (if $cause != "" { $cause } else { $"($what) exited ($run.exit_code)" })}
     }
+}
+
+# Passes a completed external's output on, then raises its failure.
+def raise-failed [what: string]: record -> nothing {
+    let run = $in
+    if $run.stdout != "" { print --no-newline $run.stdout }
+    if $run.stderr != "" { print --stderr --no-newline $run.stderr }
+    $run | failure-raise $what
 }
 
 # Runs the root helper through pkexec; a non-admin is turned away before its password dialog.
@@ -94,21 +104,16 @@ export def option-value [module: string, key: string]: nothing -> any {
 
 # The links home-network.nu marked trusted, written by the system layer.
 export def trusted-links []: nothing -> list<string> {
-    if ($TRUSTED_NETWORK | path exists) { open --raw $TRUSTED_NETWORK | lines } else { [] }
+    file-lines $TRUSTED_NETWORK
 }
 
 # Saved hyprland state is tagged with it, so a restarted compositor never replays the last one's.
 export def hyprland-instance []: nothing -> string { $env.HYPRLAND_INSTANCE_SIGNATURE? | default "" }
 
-# Bounded by a timeout, so a shell that is down or hung never blocks a toggle.
-export def quickshell-call [target: string, ...args: string]: nothing -> string {
-    ^timeout $IPC_TIMEOUT_S quickshell ipc -p (xdg config quickshell) call $target ...$args
-}
-
 # Also pings the bar, which refreshes every reader of toggle state, so nothing polls.
 # TOGGLES_QUIET=1 (a combined toggle running its parts) keeps the ping and a failure, not the part's own success toast.
 export def notify [summary: string, body: string, --critical]: nothing -> nothing {
-    quickshell-call toggles changed ($env.PROCESS_PATH | path basename) | complete | ignore
+    shell-call toggles changed ($env.PROCESS_PATH | path basename) | complete | ignore
     if not $critical and $env.TOGGLES_QUIET? == "1" { return }
     let urgency = if $critical { [-u critical] } else { [] }
     ^timeout $IPC_TIMEOUT_S notify-send -a toggles ...$urgency $summary $body | complete | ignore
@@ -152,9 +157,6 @@ export def status-record [
 export def status-print [status: record, json: bool]: nothing -> any {
     if $json { $status | to json --raw } else { $status.state }
 }
-
-# A flip killed mid-run leaves its lock behind; a system apply (trust network) can run this long.
-const LOCK_STALE = 5min
 
 # Taken by creating the dir, which fails when it exists (nushell's own mkdir does not); a stale one is taken over.
 def lock-take [lock: path]: nothing -> bool {
@@ -240,10 +242,7 @@ export def service-switch [label: string, unit: string, ...sockets: string]: not
 # reports `error` rather than a radio off or missing.
 export def --wrapped nmcli-read [...args: string]: nothing -> string {
     let run = ^nmcli ...$args | complete
-    if $run.exit_code != 0 {
-        let cause = $run.stderr | str trim | lines | last 1 | str join ""
-        error make {msg: (if $cause != "" { $cause } else { $"nmcli exited ($run.exit_code)" })}
-    }
+    $run | failure-raise nmcli
     $run.stdout
 }
 
@@ -253,7 +252,7 @@ export def radio-switch [label: string, radio: string]: nothing -> record {
     let types = if $radio == wwan { [gsm wwan] } else { [$radio] }
     {
         label: $label
-        available: {|| nmcli-read -t -f TYPE device | lines | any {|type| $type in $types } }
+        available: {|| (which nmcli | is-not-empty) and (nmcli-read -t -f TYPE device | lines | any { $in in $types }) }
         is-on: {|| (nmcli-read -t -f $"($hardware),($radio | str uppercase)" radio) == "enabled:enabled\n" }
         on: {||
             if (^nmcli -t -f $hardware radio | str trim) != enabled {

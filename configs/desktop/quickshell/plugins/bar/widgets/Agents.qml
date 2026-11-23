@@ -45,7 +45,6 @@ BarWidget {
   visible: hasUsage || errorText !== ""
 
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
-  implicitHeight: Style.bar.sizeHorizontal
 
   JsonProcess {
     id: usageProc

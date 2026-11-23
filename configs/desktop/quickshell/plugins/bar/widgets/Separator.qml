@@ -44,7 +44,6 @@ BarWidget {
 
   visible: hasNeighbours
   implicitWidth: thickness + pad * 2
-  implicitHeight: Style.bar.sizeHorizontal
 
   Label {
     anchors.centerIn: parent

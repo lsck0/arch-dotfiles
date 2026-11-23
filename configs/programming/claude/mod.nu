@@ -46,7 +46,7 @@ def home [...parts: string]: nothing -> path {
 
 # Per machine: it holds credentials, so a new machine logs in itself instead of being seeded.
 def backup-dir []: nothing -> path {
-    host-file ($env.DOTFILES | path join configs secrets keys claude)
+    host-file (secret-path keys claude)
 }
 
 # `//` is an absolute path in a permission rule, `~/` the home dir.

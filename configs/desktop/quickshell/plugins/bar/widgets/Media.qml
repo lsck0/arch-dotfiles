@@ -111,7 +111,6 @@ BarWidget {
 
   visible: player !== null && recentlyActive
   implicitWidth: row.implicitWidth + Style.bar.itemPaddingX * 2
-  implicitHeight: Style.bar.sizeHorizontal
 
   Row {
     id: row

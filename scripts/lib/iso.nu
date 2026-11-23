@@ -1,7 +1,7 @@
 # The install iso: releng plus mirror/iso and the [lsck0] repo; the stub verifies master at install.
 
 use log.nu *
-use state.nu [xdg]
+use state.nu [xdg tmp-dir-run]
 use cli.nu [root-runner]
 use sync.nu [bootstrap-const FINGERPRINT_VALUE]
 use homelab.nu [LSCK0_SERVER_PLACEHOLDER lsck0-section]
@@ -36,9 +36,7 @@ def trust-write [dir: path]: nothing -> nothing {
 
 def keyring-write [dir: path]: nothing -> nothing {
     let key = $REPO | path join $LSCK0_KEY
-    let gnupg = mktemp --directory
-    let fingerprint = ^gpg --homedir $gnupg --show-keys --with-colons $key | lines | parse "fpr:{rest}" | get 0.rest | split row ":" | get 8
-    rm --recursive --force $gnupg
+    let fingerprint = tmp-dir-run {|gnupg| ^gpg --homedir $gnupg --show-keys --with-colons $key | lines | parse "fpr:{rest}" | get 0.rest | split row ":" | get 8 }
     if $fingerprint != $HOMELAB.mirror.isoSigner { error make {msg: $"iso: ($LSCK0_KEY) is ($fingerprint), the lab's signer is ($HOMELAB.mirror.isoSigner)"} }
     mkdir $dir
     cp $key ($dir | path join lsck0.gpg)
@@ -83,10 +81,10 @@ def profile-write [profile: path, mirror: any]: nothing -> nothing {
 # Fails unless sig is a good signature of iso by the lab's iso signer, checked against archrepo.asc alone in a throwaway
 # home.
 export def iso-signer-verify [iso: path, sig: path]: nothing -> nothing {
-    let gnupg = mktemp --directory
-    ^gpg --homedir $gnupg --batch --quiet --import ($REPO | path join $LSCK0_KEY)
-    let status = do { ^gpg --homedir $gnupg --batch --status-fd 1 --verify $sig $iso } | complete
-    rm --recursive --force $gnupg
+    let status = tmp-dir-run {|gnupg|
+        ^gpg --homedir $gnupg --batch --quiet --import ($REPO | path join $LSCK0_KEY)
+        do { ^gpg --homedir $gnupg --batch --status-fd 1 --verify $sig $iso } | complete
+    }
     let signer = $status.stdout | lines | parse --regex '^\[GNUPG:\] VALIDSIG .* (?<primary>[0-9A-F]{40})$' | get --optional 0.primary
     if $status.exit_code != 0 or $signer != $HOMELAB.mirror.isoSigner {
         error make {msg: $"iso: ($iso | path basename) is not signed by ($HOMELAB.mirror.isoSigner)"}

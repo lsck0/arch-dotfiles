@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [notify notify-failed root-run unit-active cycle-next status-record status-print exclusive-run state-check]
+use lib.nu [notify notify-failed root-run unit-active unit-exists cycle-next status-record status-print exclusive-run state-check]
 
 const STATES = {permissive: Permissive, default: Default, restrictive: Restrictive}
 # one step down per press, so default is never reached through permissive
@@ -39,7 +39,8 @@ def "main get" [--json] {
     } else {
         ""
     }
-    status-print (status-record Firewall $state --text $"($STATES | get $state)($suffix)" --states ($STATES | columns)) $json
+    let text = $"($STATES | get $state)($suffix)"
+    status-print (status-record Firewall $state --text $text --states ($STATES | columns) --available=(unit-exists fw-lockdown.service)) $json
 }
 
 def "main toggle" [] { exclusive-run Firewall _apply ($CYCLE | cycle-next (current)) }

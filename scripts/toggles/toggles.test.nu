@@ -332,6 +332,12 @@ def route-cases [w: path]: nothing -> nothing {
     expect $w "outside on: record lifted" (peek $w rfkill) "wlan unblocked\nbluetooth unblocked"
     expect $w "outside on: record gone" (state-file $w offline-rfkill | path exists) false
     toggle $w route set direct | ignore
+    # the same, picking the route already shown
+    toggle $w route set offline | ignore
+    put $w networking enabled
+    toggle $w route set direct | ignore
+    expect $w "outside on, same route: record lifted" (peek $w rfkill) "wlan unblocked\nbluetooth unblocked"
+    expect $w "outside on, same route: record gone" (state-file $w offline-rfkill | path exists) false
 
     # tor: the helper starts it unmarked; a dispatcher's marker is dropped
     touch ($w | path join run persona-tor)
@@ -595,6 +601,10 @@ def firewall-cases [w: path]: nothing -> nothing {
     toggle $w firewall set default | ignore
     expect $w "raise default" (rec $w firewall).state default
     take $w toasts | ignore
+    let units = peek $w known-units
+    put $w known-units ($units | str replace "fw-lockdown.service" "")
+    expect $w "firewall hidden without its units" (rec $w firewall).available false
+    put $w known-units $units
 }
 
 def status-cases [w: path]: nothing -> nothing {

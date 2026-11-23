@@ -17,8 +17,9 @@ function stripImageTags(text) {
   return text
 }
 
-function styledBody(body, app, appIcon) {
-  return joinHyphens(sanitizeBody(body, app, appIcon).replace(/\r\n|\r|\n/g, "<br/>"))
+// sanitizeBody's text as StyledText
+function styledBody(sanitized) {
+  return joinHyphens(String(sanitized || "").replace(/\r\n|\r|\n/g, "<br/>"))
 }
 
 // a word joiner after each hyphen outside a tag: the line breaker would split a unit name or a command flag there

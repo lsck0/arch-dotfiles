@@ -136,8 +136,15 @@ def anthropic-key [home: path]: nothing -> list<record> {
 def configure [home: path, settings: record, remove: list<string>, mcp: record]: nothing -> list<record> {
     let guard = $nu.home-dir | path join $AGENT_GUARD
     let hooks = if ($guard | path exists) { $GUARD_EVENTS | items {|event, action| {$event: $"($guard) ($action)"} } | into record } else { {} }
-    let want = {settings: $settings, remove: $remove, skin: $SKIN, hooks: $hooks, mcp: $mcp}
     let have = try { open ($home | path join config.yaml) } catch { {} }
+    # through a mode-600 file, not argv: the mcp specs carry the gated servers' bearer headers
+    let input = $home | path join .dot-configure.json
+    # a module that stops declaring a server takes its name out of mcp-servers.json instead of nulling it: a name the
+    # last input set that is gone now but still configured is dropped, a server added by hand never
+    let gone = try { open $input | get mcp | columns } catch { [] }
+        | where $it not-in ($mcp | columns) and $it in ($have.mcp_servers? | default {} | columns)
+    let mcp = $gone | each {|name| {$name: null} } | into record | merge $mcp
+    let want = {settings: $settings, remove: $remove, skin: $SKIN, hooks: $hooks, mcp: $mcp}
     let set = $settings | items {|key, value| ($have | get --optional ($key | split row "." | into cell-path)) == $value }
     let hooked = $hooks | items {|event, command| $command in ($have.hooks? | get --optional $event | default [] | get --optional command | default []) }
     # a guard hook left from when the guard existed keeps hermes calling a deleted script
@@ -146,8 +153,6 @@ def configure [home: path, settings: record, remove: list<string>, mcp: record]:
     let removed = $remove | each {|key| ($have | get --optional ($key | split row "." | into cell-path)) == null }
     let served = $mcp | items {|name, spec| ($have.mcp_servers? | get --optional $name) == $spec }
     let current = $set ++ $removed ++ $hooked ++ $served ++ [($have.display?.skin? == $SKIN) (not $stale)] | all { $in }
-    # through a mode-600 file, not argv: the mcp specs carry the gated servers' bearer headers
-    let input = $home | path join .dot-configure.json
     [
         (file-text $input ($want | to json --raw) --mode 600 --generated)
         (exec $"configure ($home)" [env $"HERMES_HOME=($home)" $PYTHON configure.py $input] --done=$current)
@@ -177,7 +182,9 @@ export def link [cfg: record] {
     let ollama = ollama-settings $cfg.deps?."llm/ollama"?
     let settings = $SETTINGS | merge $vllm | merge $ollama
     let remove = (if ($vllm | is-empty) { $VLLM_KEYS } else { [] }) ++ (if ($ollama | is-empty) { $OLLAMA_KEYS } else { [] })
-    let skills = glob ($env.DOTFILES | path join skills "l-*") | where ($it | path type) == dir
+    # both name the owner's machine, so another login gets neither (skills/mod.nu); the secrets' only once unlocked
+    let roots = if not (profile-has secrets) { [] } else if (owner-unlocked) { [skills configs/secrets/skills] } else { [skills] }
+    let skills = $roots | each {|root| glob ($env.DOTFILES | path join $root "l-*") } | flatten | where ($it | path type) == dir
     let home = homes | get default
     let mcp = try { open ($home | path join mcp-servers.json) } catch { {} }
     [

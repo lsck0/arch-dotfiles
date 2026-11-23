@@ -28,10 +28,6 @@ Item {
 
   readonly property bool showingQr: qrSize > 0 && !loading && error === ""
 
-  readonly property color onScrim: Colors.menu.text
-  readonly property color onScrimDim: Colors.textDim
-  readonly property color onScrimUrgent: Colors.urgentText
-
   component CenterNote: Label {
     caption: true
     Layout.fillWidth: true
@@ -219,13 +215,13 @@ Item {
       CenterNote {
         visible: root.loading
         text: "> GENERATING"
-        color: root.onScrimDim
+        color: Colors.textDim
       }
 
       CenterNote {
         visible: root.error !== ""
         text: root.error
-        color: root.onScrimUrgent
+        color: Colors.urgentText
         wrapMode: Text.Wrap
         Layout.maximumWidth: Style.space(320)
       }
@@ -235,7 +231,7 @@ Item {
         text: root.passwordError !== "" ? root.passwordError
           : root.passwordVisible ? root.password
           : ":: SHOW PASSWORD"
-        color: root.passwordError !== "" ? root.onScrimUrgent : root.passwordVisible ? root.onScrim : root.onScrimDim
+        color: root.passwordError !== "" ? Colors.urgentText : root.passwordVisible ? Colors.menu.text : Colors.textDim
         wrapMode: Text.WrapAnywhere
         Layout.maximumWidth: Style.space(320)
 

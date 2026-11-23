@@ -1,7 +1,7 @@
 # One install stage per boot: install, then config, which disarms the chain and reboots.
 
 use log.nu *
-use state.nu [EXIT_PENDING file-trim INSTALL_PASS_FILE SYSTEM_REPO CONFIG_ISSUE SECRETS_ISSUE]
+use state.nu [EXIT_PENDING file-trim file-lines INSTALL_PASS_FILE SYSTEM_REPO CONFIG_ISSUE SECRETS_ISSUE]
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use system.nu [ENTRY]
 use profile.nu [profile-has]
@@ -24,7 +24,9 @@ export const STAGE_NEXT = $STAGE_STATE_DIR | path join next
 # the encrypted root the stage key opens, absent for an unencrypted install
 export const STAGE_LUKS_DEVICE = $STAGE_STATE_DIR | path join luks-device
 export const STAGE_STOPPED = $STAGE_STATE_DIR | path join stopped
-const ATTEMPTS = $STAGE_STATE_DIR | path join install-attempts
+# the passes each stage ran, counted before each one, so a pass that dies with the machine still counts
+const ATTEMPTS_INSTALL = $STAGE_STATE_DIR | path join install-attempts
+const ATTEMPTS_CONFIG = $STAGE_STATE_DIR | path join config-attempts
 export const STAGE_RESUME = "dot internal stage"
 const STAGE_STOP = "stop"
 const DISARM_TRIES = 3
@@ -33,6 +35,10 @@ const EFIVARS = "/sys/firmware/efi/efivars"
 const EFI_GLOBAL = "8be4df61-93ca-11d2-aa0d-00e098032b8c"
 const EFI_ATTRS_NV_BS_RT = 0x[07 00 00 00]
 const INSTALL_ATTEMPTS_MAX = 3
+# config passes that died with the machine before the chain ends without one, so its passwordless sudo goes
+const CONFIG_ATTEMPTS_MAX = 3
+# the longest a config pass runs before it counts as failed; it installs no packages
+const CONFIG_TIMEOUT = "2h"
 # the wait before the reboot that retries an install pass, times the attempt
 const INSTALL_BACKOFF = 1min
 const INSTALL_FAILURES_SHOWN = 5
@@ -47,7 +53,7 @@ export const REPORT_CHANNEL = "/dev/virtio-ports/lsck0.report"
 const REPORT_RUN = 'nu --no-config-file "$1/scripts/lib/stage-report.nu" "$2" "$3" ${4:+--stopped}; '
 # as root: no stage left to run, no unit to start one, sudo asking for the password again; the attempts go with it, so
 # a resume (stage-rearm) starts counting from zero
-const STOP_DISARM = $"rm -f ($STAGE_NEXT) ($ATTEMPTS); echo install > ($STAGE_STOPPED); systemctl disable dotfiles-stage.service; rm -f ($STAGE_SUDOERS_DROPIN); "
+const STOP_DISARM = $"rm -f ($STAGE_NEXT) ($ATTEMPTS_INSTALL) ($ATTEMPTS_CONFIG); echo install > ($STAGE_STOPPED); systemctl disable dotfiles-stage.service; rm -f ($STAGE_SUDOERS_DROPIN); "
 # as root: the ESP marker of a chain disarmed for good, the disk key gone too
 const STOP_MARK = $"echo ($STAGE_ESP_STOPPED) > ($STAGE_ESP_MARKER); "
 # as root: sh -c's $1 the sudoers rule, $2 the drop-in, $3 the next stage's file, $4 the stopped marker, $5 its banner,
@@ -57,6 +63,12 @@ const STAGE_REARM = 'set -e; printf "%s" "$1" > "$2.new"; chmod 440 "$2.new"; vi
 def note [message: string]: nothing -> nothing {
     log-info $message
     $"(date now | format date '%+') ($message)\n" | ^sudo tee -a ($STAGE_STATE_DIR | path join log) | ignore
+}
+
+# A login banner (/etc/issue.d), root's.
+def banner-write [file: path, text: string]: nothing -> nothing {
+    ^sudo mkdir -p ($file | path dirname)
+    $"\n($text)\n\n" | ^sudo tee $file | ignore
 }
 
 # A beacon to the watcher at url, and over the vm's channel when there is one; --sudo when the channel is root's.
@@ -152,11 +164,10 @@ export def config-banner [failures: list<string>]: nothing -> string {
 # longer retries on its own; a person at the console resumes with STAGE_RESUME, sudo asking once and each boot of the
 # rest of the chain asking for the disk passphrase, since the key is not armed again.
 def install-stop [repo: path, attempts: int]: nothing -> nothing {
-    let failures = try { open --raw ($repo | path join $FAILURES_INSTALL) | lines } catch { [] }
+    let failures = file-lines ($repo | path join $FAILURES_INSTALL)
     let key_kept = not (disarm-retried)
     note $"install: failed ($attempts) times, the chain stops before config and is disarmed(if $key_kept { ' but for its disk key' } else { '' }), see the login banner"
-    ^sudo mkdir -p ($ISSUE | path dirname)
-    $"\n(install-banner $attempts $failures --key-kept=$key_kept)\n\n" | ^sudo tee $ISSUE | ignore
+    banner-write $ISSUE (install-banner $attempts $failures --key-kept=$key_kept)
     # a stopped chain uploads its logs too, the banner among them, and the report sends the verdict; the root copy
     # exists once the install ran as root
     let report = if ($STAGE_REPORT | path exists) and ($SYSTEM_REPO | path join scripts lib stage-report.nu | path exists) { $REPORT_RUN } else {
@@ -198,8 +209,7 @@ export def stage-run [repo: path]: nothing -> nothing {
         if not (disarm-retried) {
             let message = $"dotfiles install chain stopped: the temporary disk key is still in place, see ($STAGE_STATE_DIR)/log"
             note $"disarm failed ($DISARM_TRIES) times, retrying next boot"
-            ^sudo mkdir -p ($ISSUE | path dirname)
-            $"\n($message)\n\n" | ^sudo tee $ISSUE | ignore
+            banner-write $ISSUE $message
             # a watcher would otherwise poll until its chain timeout
             report-beacon chain-fail
             exit 1
@@ -213,18 +223,24 @@ export def stage-run [repo: path]: nothing -> nothing {
             ^sudo ($SYSTEM_REPO | path join $ENTRY) migrate --baseline
         } catch {|e| note $"migrate --baseline failed: ($e.msg)" }
     }
-    let args = if $stage == "install" { [apply --packages] } else { [apply] }
-    # counted before the pass, so one that dies with the machine still counts towards the stop
-    let attempts = (try { open --raw $ATTEMPTS | into int } catch { 0 }) | if $stage == "install" { $in + 1 } else { $in }
-    if $stage == "install" {
-        if $attempts > $INSTALL_ATTEMPTS_MAX {
-            install-stop $repo ($attempts - 1)
-            exit 1
-        }
-        $"($attempts)\n" | ^sudo tee $ATTEMPTS | ignore
-        ^sudo rm -f $INSTALL_PASS_FILE
+    let attempts_file = if $stage == "install" { $ATTEMPTS_INSTALL } else { $ATTEMPTS_CONFIG }
+    let attempts = (try { open --raw $attempts_file | into int } catch { 0 }) + 1
+    if $stage == "install" and $attempts > $INSTALL_ATTEMPTS_MAX {
+        install-stop $repo ($attempts - 1)
+        exit 1
     }
-    let status = try { "" | ^nu --no-config-file ($repo | path join scripts dot.nu) ...$args; 0 } catch {|e| $e.exit_code? | default 1 }
+    $"($attempts)\n" | ^sudo tee $attempts_file | ignore
+    if $stage == "install" { ^sudo rm -f $INSTALL_PASS_FILE }
+    let status = if $stage == "config" and $attempts > $CONFIG_ATTEMPTS_MAX {
+        note $"config: ($attempts - 1) passes never finished, the chain ends without another"
+        1
+    } else {
+        let dot = [nu --no-config-file ($repo | path join scripts dot.nu)]
+        # only config is bounded: a hung one would keep the passwordless sudo for good, a timeout fails it like any
+        # error; install stays unbounded, a package download on a slow line may take hours
+        let cmd = if $stage == "install" { [...$dot apply --packages] } else { [timeout --kill-after=1min $CONFIG_TIMEOUT ...$dot apply] }
+        try { "" | run-external ...$cmd; 0 } catch {|e| $e.exit_code? | default 1 }
+    }
     # config runs after a partial pass, its modules without packages pending; after no pass it would disarm a bare system
     let decided = stage-next $stage $status ($INSTALL_PASS_FILE | path exists) $attempts
     # pending modules wait on packages a later dot apply --packages brings; the stage itself went through
@@ -249,10 +265,9 @@ export def stage-run [repo: path]: nothing -> nothing {
     }
     ^sudo fstrim /boot | complete | ignore
     if not $decided.ok {
-        let failures = try { open --raw ($repo | path join $FAILURES_CONFIG) | lines | where ($it | str trim) != "" } catch { [] }
+        let failures = file-lines ($repo | path join $FAILURES_CONFIG)
         note "config: failed, the chain ends disarmed, see the login banner"
-        ^sudo mkdir -p ($CONFIG_ISSUE | path dirname)
-        $"\n(config-banner $failures)\n\n" | ^sudo tee $CONFIG_ISSUE | ignore
+        banner-write $CONFIG_ISSUE (config-banner $failures)
     }
     if (file-trim $STAGE_LUKS_DEVICE) != "" {
         note $"to rotate the disk's volume key \(slow, runs online\): sudo cryptsetup reencrypt (file-trim $STAGE_LUKS_DEVICE)"
@@ -260,12 +275,11 @@ export def stage-run [repo: path]: nothing -> nothing {
     if (profile-has secrets) and not (secret-is-plaintext $WITNESS) {
         let message = "dotfiles secrets are still locked: the YubiKey was not recognized during the install chain.\nPlug it in and run `dot apply` (or `dot secrets unlock`) to pull it in; this banner clears itself once unlocked."
         note "secrets still locked, see the login banner"
-        ^sudo mkdir -p ($SECRETS_ISSUE | path dirname)
-        $"\n($message)\n\n" | ^sudo tee $SECRETS_ISSUE | ignore
+        banner-write $SECRETS_ISSUE $message
     }
     boot-next-here
     # the report runs as root from the root copy, after the chain is disarmed, so it sees the finished system
     let report = if ($STAGE_REPORT | path exists) { $REPORT_RUN } else { "" }
-    let disarm = $"rm -f ($STAGE_SUDOERS_DROPIN); systemctl disable dotfiles-stage.service; rm -f ($STAGE_UNIT) ($STAGE_NEXT) ($STAGE_ESP_MARKER); "
+    let disarm = $"rm -f ($STAGE_SUDOERS_DROPIN); systemctl disable dotfiles-stage.service; rm -f ($STAGE_UNIT) ($STAGE_NEXT) ($STAGE_ESP_MARKER) ($ATTEMPTS_INSTALL) ($ATTEMPTS_CONFIG); "
     ^sudo sh -c $"($disarm)($report)systemctl reboot" sh $SYSTEM_REPO $env.USER $repo
 }

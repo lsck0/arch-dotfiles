@@ -7,15 +7,15 @@ const HERE = path self .
 const REPO = path self ../../..
 const QUICKSHELL = path self ../quickshell
 
-def fail [msg: string] { error make {msg: $"keybindings.test: ($msg)"} }
+use std/assert
 
 def captures [text: string, pattern: string]: nothing -> list<string> {
     $text | parse --regex $pattern | get capture0 | uniq
 }
 
 def executable-check [file: path, what: string]: nothing -> nothing {
-    if not ($file | path exists) { fail $"($what) ($file) does not exist" }
-    if (^test -x $file | complete).exit_code != 0 { fail $"($what) ($file) is not executable" }
+    assert ($file | path exists) $"($what) ($file) does not exist"
+    assert equal (^test -x $file | complete).exit_code 0 $"($what) ($file) is not executable"
 }
 
 # quickshell's QML: target name to the text of the file declaring that IpcHandler.
@@ -44,7 +44,7 @@ def main [] {
     let sources = glob $"($REPO)/{scripts,configs}/**/*.{nu,sh}" --exclude [**/secrets/**]
         | path parse | get stem | uniq
     for name in (captures $lua 'shell_bin\("([^"]+)"\)') {
-        if $name not-in $sources { fail $"shell_bin ($name) has no ($name).nu or ($name).sh in the repo" }
+        assert ($name in $sources) $"shell_bin ($name) has no ($name).nu or ($name).sh in the repo"
     }
 
     let handlers = ipc-handlers
@@ -53,26 +53,22 @@ def main [] {
         ++ ($lua | parse --regex 'quickshell_toggle\("([^"]+)"\)' | rename target | insert function toggle)
         ++ ($lua | parse --regex 'quickshell_cmd\("([^"]+)",\s*"([A-Za-z]+)"' | rename target function)
     )
-    if ($calls | is-empty) { fail "found no quickshell calls; the parse is stale" }
+    assert ($calls | is-not-empty) "found no quickshell calls; the parse is stale"
     for call in $calls {
         let text = $handlers | get --optional $call.target
-        if $text == null { fail $"quickshell IPC target ($call.target) is declared by no IpcHandler" }
-        if not ($text =~ $"function ($call.function)\\\(") {
-            fail $"quickshell IPC target ($call.target) has no function ($call.function)"
-        }
+        assert ($text != null) $"quickshell IPC target ($call.target) is declared by no IpcHandler"
+        assert ($text =~ $"function ($call.function)\\\(") $"quickshell IPC target ($call.target) has no function ($call.function)"
     }
 
     let qml = glob $"($QUICKSHELL)/**/*.qml" | each { open --raw $in } | str join "\n"
     let panels = captures $lua 'panel = "([^"]+)"'
-    if ($panels | is-empty) { fail "found no bar panels; the parse is stale" }
+    assert ($panels | is-not-empty) "found no bar panels; the parse is stale"
     for panel in $panels {
-        if not ($qml =~ $"moduleName:\\s*\"($panel)\"") {
-            fail $"bar panel ($panel) has no widget with that moduleName"
-        }
+        assert ($qml =~ $"moduleName:\\s*\"($panel)\"") $"bar panel ($panel) has no widget with that moduleName"
     }
 
     let plugins = open --raw ($QUICKSHELL | path join plugins Plugins.js)
     for id in (captures $lua 'summon ([a-z.]+) ') {
-        if not ($plugins =~ $"\"($id)\"") { fail $"summoned plugin ($id) is not in plugins/Plugins.js" }
+        assert ($plugins =~ $"\"($id)\"") $"summoned plugin ($id) is not in plugins/Plugins.js"
     }
 }

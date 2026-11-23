@@ -12,6 +12,7 @@ const CANARY = '^[^\]\[*?]*/Private/[^\]\[*?/]+$'
 const PLUGINS_INSTALL = path self unreal-install-plugins.nu
 # the engine zip unpacks to ~60 GB
 const INSTALL_TIMEOUT = 60min
+const FREE_MIN_PERCENT = 15
 # the editor's MCP server, on unreal-editor.nu's MCP_PORT
 const MCP_ADDRESS = "127.0.0.1:8766"
 const MCP = {type: http, url: $"http://($MCP_ADDRESS)/mcp", gate: {probe: $MCP_ADDRESS, app: "the Unreal editor"}}
@@ -33,7 +34,9 @@ def desktop-text [version: string]: nothing -> string {
     ] | compact | to text
 }
 
-def fail [message: string]: nothing -> nothing {
+# Drops the half-unpacked staging dir and exits 1.
+def fail [staging: path, message: string]: nothing -> nothing {
+    rm --recursive --force $staging
     print -e $"unreal: ($message)"
     exit 1
 }
@@ -47,25 +50,27 @@ export def unreal-install [zip: string]: nothing -> nothing {
     let staging = $"($engine).new"
     rm --recursive --force $staging
     mkdir $staging
+    let unpacked = ^unzip -Zt $zip | parse --regex '(?<bytes>\d+) bytes uncompressed' | get 0.bytes | into int
+    let disk = ^df --output=avail,size --block-size=1 $staging | lines | last | str trim | split row --regex '\s+' | into int
+    if $disk.0 - $unpacked < $disk.1 * $FREE_MIN_PERCENT // 100 {
+        fail $staging $"($name) unpacks to ($unpacked | into filesize), which would leave less than ($FREE_MIN_PERCENT)% of the disk free"
+    }
     # unzip fails only after tens of GB, and apparmor's deny-sensitive-home refuses every Private dir
     let canary = ^zipinfo -1 $zip | lines | where $it =~ $CANARY | get --optional 0
     if $canary != null {
         if (^unzip -q $zip $canary -d $staging | complete).exit_code != 0 {
-            rm --recursive --force $staging
-            fail $"cannot unpack ($canary) into ($staging), check the unzip apparmor profile"
+            fail $staging $"cannot unpack ($canary) into ($staging), check the unzip apparmor profile"
         }
         rm --recursive --force $staging
         mkdir $staging
     }
     if (^unzip -q $zip -d $staging | complete).exit_code != 0 {
-        rm --recursive --force $staging
-        fail $"cannot unpack ($name) into ($staging)"
+        fail $staging $"cannot unpack ($name) into ($staging)"
     }
     let root = [$staging] ++ (ls $staging | where type == dir | get name)
         | where {|d| ($d | path join Engine | path type) == dir } | get --optional 0
     if $root == null or not ($root | path join $EDITOR | path exists) {
-        rm --recursive --force $staging
-        fail $"no ($EDITOR) in ($name)"
+        fail $staging $"no ($EDITOR) in ($name)"
     }
     $"($name)\n" | save --force ($root | path join $STAMP)
     if ($engine | path exists) and not $installed {

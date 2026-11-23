@@ -1,4 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
+use std/assert
+
 const GATE = path self mcp-gate.py
 const SERVER_WAIT = 5sec
 # A streamable http server on an own loopback port, written to the file in argv[1]. The first session it hands out is
@@ -41,8 +43,6 @@ open(sys.argv[1], "w").write(str(server.server_port))
 server.serve_forever()
 '
 
-def fail [msg: string] { error make {msg: $"mcp-gate.test: ($msg)"} }
-
 def request [id: int, method: string]: nothing -> string {
     {jsonrpc: "2.0", id: $id, method: $method} | to json --raw
 }
@@ -54,7 +54,7 @@ def main [] {
     try {
         let deadline = (date now) + $SERVER_WAIT
         while not ($port_file | path exists) or (open --raw $port_file | is-empty) {
-            if (date now) > $deadline { fail "the test server never came up" }
+            assert ((date now) <= $deadline) "the test server never came up"
             sleep 50ms
         }
         let address = $"127.0.0.1:(open --raw $port_file)"
@@ -65,13 +65,13 @@ def main [] {
             (request 3 ping)
         ]
         let run = $lines | str join "\n" | ^python3 $GATE --probe $address --app test --url $"http://($address)/mcp" | complete
-        if $run.exit_code != 0 { fail $"the relay failed: ($run.stderr | str trim)" }
+        assert equal $run.exit_code 0 $"the relay failed: ($run.stderr | str trim)"
         let answers = $run.stdout | lines | each { from json }
-        if ($answers | any { $in.error? != null }) { fail $"a request failed after the session was dropped: ($run.stdout | str trim)" }
-        if ($answers.id | sort) != [1 2 3] { fail $"answers for ($answers.id), wanted 1 2 3" }
+        assert (not ($answers | any { $in.error? != null })) $"a request failed after the session was dropped: ($run.stdout | str trim)"
+        assert equal ($answers.id | sort) [1 2 3] "answers for the wrong ids"
         # the dropped session was opened again, once, with the client's handshake
-        if ($answers | where id != 1 | get result.sessions | uniq) != [2] { fail $"sessions: ($run.stdout | str trim)" }
-        if $answers.id != [1 3 2] { fail $"ping waited behind the slow call: answered in the order ($answers.id)" }
+        assert equal ($answers | where id != 1 | get result.sessions | uniq) [2] $"sessions: ($run.stdout | str trim)"
+        assert equal $answers.id [1 3 2] "ping waited behind the slow call"
     } catch {|e|
         job kill $server
         rm --recursive --force $work

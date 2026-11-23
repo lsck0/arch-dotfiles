@@ -53,7 +53,6 @@ BarWidget {
 
   visible: submap !== ""
   implicitWidth: chip.width
-  implicitHeight: Style.bar.sizeHorizontal
 
   Rectangle {
     id: chip

@@ -1,7 +1,0 @@
-mode = "dark"
-background = "{{background}}"
-foreground = "{{foreground}}"
-lighter_background = "{{background | lighten(0.06)}}"
-muted = "{{color8}}"
-accent = "{{color4}}"
-selection = "{{background | lighten(0.12)}}"

@@ -24,6 +24,8 @@ export def system [cfg: record] {
         (file-copy printers-sync.nu $SYNC --mode 755)
         (unit-file printers-sync.service)
         (file-copy printers-dispatcher.nu $DISPATCHER --mode 755)
+        # mdns host lookup, for the printers' .local names; the rest of the file stays the package's
+        (file-text $NSSWITCH (open --raw $NSSWITCH | str replace --regex --multiline '^hosts:.*$' $NSSWITCH_HOSTS))
         (step queues)
     ]
 }
@@ -50,16 +52,10 @@ def queues-page-size []: nothing -> nothing {
     }
 }
 
-# Turns on mdns host lookup, adds the PDF queue and a queue per driverless printer found now, and sets every
-# queue's default paper.
+# Adds the PDF queue and a queue per driverless printer found now, and sets every queue's default paper.
 export def queues []: nothing -> nothing {
     # cups.socket is enabled in base/systemd, but nothing starts it at boot
     ^systemctl start cups.socket
-    let nss = open --raw $NSSWITCH
-    if not ($nss | str contains mdns_minimal) {
-        cp $NSSWITCH $"($NSSWITCH).bak-(date now | format date '%Y%m%d')"
-        $nss | str replace --regex --multiline '^hosts:.*$' $NSSWITCH_HOSTS | save --force $NSSWITCH
-    }
     # the PDF queue is the first-install marker: once it exists, leave mdns discovery to the NM dispatcher on home connect
     if (queue-pdf) { queues-page-size; return }
     ^lpadmin -p $PDF_QUEUE -v cups-pdf:/ -m CUPS-PDF_opt.ppd -E

@@ -1,22 +1,22 @@
 ---
 name: l-dotfiles-toggles
-description: Adding an on/off or n-state switch as scripts/toggles/toggle-<name>.nu with lib.nu, its root half, and wiring it into quickshell and the menu. Load when adding or changing a toggle. Flipping one for Luca is l-dotfiles-desktop-control.
+description: "Adding or changing a switch in scripts/toggles/toggle-<name>.nu: lib.nu (switch-run, service-switch, exclusive-run), its root half in toggle-root and 49-toggles.rules, quickshell and menu wiring, toggles.test.nu. Load when adding or changing a toggle. Flipping one for Luca: l-dotfiles-desktop-control."
 ---
 
 # toggles
 
-Every `scripts/toggles/toggle-*.nu` answers `get` (the state) and `get --json` (the record from `status-record` in
-`lib.nu`: `{name, label, state, text, states, on, available}`; `states` lists the resting state first). On/off ones go
-through `switch-run` (`on|off|toggle`); n-state ones take `set <value>` and `toggle` (`cycle-next`): route, firewall
-and powermode keep their states in a const record and switch under `exclusive-run`, color-grading cycles the presets
-`color-grading.py` reports, font sets any installed family and cycles its shortlist; shader toggles between off and
-the last shader, monitor-scale steps through its own `SCALES` list. `status.nu [name...]` lists the records,
-`menu.nu` (`prefix+m` in tmux and herdr) shows them; a new script appears in both without registration. `get` stays
-cheap and side-effect free: `dot set` and the settings window call it. A script answering `options` (rows shaped like
-`dot set --json`, see `toggle-font.nu`) shows those rows in the settings window instead.
+Every `scripts/toggles/toggle-*.nu` answers `get` and `get --json` (`status-record` in `lib.nu`:
+`{name, label, state, text, states, on, available}`, `states` with the resting state first). `status.nu [name...]`
+lists the records and `menu.nu` (`prefix+m` in tmux and herdr) shows them: a new script appears in both without
+registration. `get` stays cheap and side-effect free: `dot set` and the settings window call it. A script answering
+`options` (rows shaped like `dot set --json`, `toggle-font.nu`) shows those rows in the settings window instead.
 
-Examples: `toggle-focus.nu` (combines toggles via `toggle-run`), `toggle-theme-mode.nu` (own `get`/`set`),
-`toggle-obs-listen.nu` (live app state), `toggle-route.nu` (exclusive states over several tools).
+Kinds, with the file to copy:
+
+- on/off through `switch-run` (`on|off|toggle`): `toggle-dnd.nu`; combining others via `toggle-run`: `toggle-focus.nu`;
+  live app state: `toggle-obs-listen.nu`.
+- n-state with `set <value>` and `toggle` (`cycle-next`), states in a const record, switched under `exclusive-run`:
+  `toggle-route.nu`, `toggle-firewall.nu`, `toggle-powermode.nu`; own `get`/`set`: `toggle-theme-mode.nu`.
 
 ## Add one
 
@@ -35,27 +35,24 @@ Examples: `toggle-focus.nu` (combines toggles via `toggle-run`), `toggle-theme-m
        } $action --json=$json
    }
    ```
-   Shortcuts: `service-switch <label> <unit> [socket...]` (sockets that would start the unit again stop and start
-   with it), `radio-switch <label> wifi|wwan`; state without a probe: `state-get`/`state-set`/`state-clear`
-   (`--volatile` resets on boot; state a reboot must keep goes without it). A toggle whose effect resets on reboot
-   while its state persists answers `reapply`, as `toggle-focus.nu` does, run at session start by
-   `configs/core/toggles/toggles-reapply.service`.
-2. Root work: one `root-run <verb>` per flip (`root-run tor-start`) (one prompt at most), running `toggle-root`
-   (`configs/core/toggles/toggle-root.nu`) via pkexec. The helper takes no flags and `49-toggles.rules` allowlists
-   whole command lines, so a new verb goes into both: `VERBS_UNPROMPTED` (`tor-start`) when it tightens or guards
-   nothing, `VERBS_LOWERING` when it lowers a guard (asked, then the helper's `approval-record` stamp lets the next lowering
-   pass for 5 minutes, `APPROVAL_MINUTES` in `mod.nu`).
-3. `switch-run` notifies quickshell (`toggles changed <script>`); an n-state toggle calls `notify` itself and runs its
-   switch through `exclusive-run <label> _apply <state>` (the script again under its lock). Either runs one flip at
-   a time (a press meanwhile says "Still switching"); `switch-run` skips an `on`/`off` already in that state and
-   takes `{said: <body>}` from on/off in place of "Turned on". A failure is the one critical toast of `notify-failed
-   <label> <cause> --to <state> --now <state>` ("Switch to X failed, now Y: <cause>"): `switch-run` sends it with the
-   closure's `err.msg`, an n-state `_apply` calls it itself; `root-run` and `service-switch` raise the last stderr
-   line as that cause. `TOGGLES_QUIET=1` (a combined toggle's parts) keeps the ping and failures, not the success
-   toast.
-
-Quickshell control (only for a dedicated one): run `Quickshell.execDetached([Paths.toggle("toggle-<name>.nu"),
-"toggle"])`, refresh on `ToggleEvents.changed(script)`.
+   Shortcuts: `service-switch <label> <unit> [socket...]` (sockets that would restart the unit stop and start with
+   it), `radio-switch <label> wifi|wwan`. State without a probe: `state-get`/`state-set`/`state-clear`; `--volatile`
+   resets on boot. An effect that resets on reboot while its state persists: answer `reapply` (`toggle-focus.nu`),
+   which `configs/core/toggles/toggles-reapply.service` runs at session start.
+2. Root work: one `root-run <verb>` per flip (one prompt at most), running `configs/core/toggles/toggle-root.nu` via
+   pkexec. The helper takes no flags and `49-toggles.rules` allowlists whole command lines, so a new verb goes into
+   both: `VERBS_UNPROMPTED` when it tightens or guards nothing, `VERBS_LOWERING` when it lowers a guard (asked once,
+   then `approval-record` lets the next lowering pass for `APPROVAL_MINUTES` in `mod.nu`).
+3. Notifications come from `lib.nu`; keep them consistent:
+   - `switch-run` pings quickshell (`toggles changed <script>`), runs one flip at a time ("Still switching"), skips an
+     `on`/`off` already in that state, and takes `{said: <body>}` from on/off in place of "Turned on".
+   - An n-state toggle calls `notify` itself and runs its switch as `exclusive-run <label> _apply <state>`.
+   - A failure is one critical toast, `notify-failed <label> <cause> --to <state> --now <state>`: `switch-run` sends it
+     with the closure's `err.msg`, an n-state `_apply` itself; `root-run` and `service-switch` raise the last stderr
+     line as the cause.
+   - `TOGGLES_QUIET=1` (a combined toggle's parts) keeps the ping and failures, drops the success toast.
+4. A dedicated quickshell control only: `Quickshell.execDetached([Paths.toggle("toggle-<name>.nu"), "toggle"])`,
+   refreshed on `ToggleEvents.changed(script)`.
 
 ## Test
 
@@ -66,6 +63,6 @@ nu --no-config-file --ide-check 50 scripts/toggles/toggle-<name>.nu
 dot test lint
 ```
 
-`scripts/toggles/toggles.test.nu` walks the state machines of the network, focus and power toggles against stubs in a
-bwrap sandbox (no real bus, network or unit flips) and runs in `dot test lint`; a new state or transition gets a step
-there.
+Flipping a real toggle changes Luca's live machine: a security-weighted one (route, vpn, firewall, trust-network,
+portal, anonymous-socks) only after his yes. `scripts/toggles/toggles.test.nu` walks the network, focus and power state
+machines against stubs in a bwrap sandbox and runs in `dot test lint`; a new state or transition gets a step there.

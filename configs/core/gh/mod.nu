@@ -6,7 +6,7 @@ const TOKEN_SHAPE = '^gh[a-z]_'
 const HOSTS = "gh/hosts.yml"
 
 export def token-file []: nothing -> path {
-    host-file ($env.DOTFILES | path join configs secrets keys gh) token
+    host-file (secret-path keys gh) token
 }
 
 export def link [cfg: record] {

@@ -4,12 +4,12 @@ export use log.nu [log-info log-note log-warn log-err log-debug]
 export use profile.nu [profile-has profile-load profile-owner]
 export use platform.nu [platform-has display-xwayland-scale gpu-list monitors-live]
 export use json.nu [json-set json-delete]
-export use secrets.nu [secret-is-plaintext secret-seed-guard owner-unlocked system-secret]
+export use secrets.nu [secret-is-plaintext secret-path secret-seed-guard secret-seed-mark SECRET_SEED_MARKER owner-unlocked system-secret]
 use fetch.nu [fetch-file-done fetch-file-cached fetch-git-done]
 use state.nu [nu-bin LIB_DIR HOOK_WATCH_PREFIX HOOK_RUN_PREFIX]
 # what a module may read of the engine's state: its records, the root's state paths, the install chain's secrets
-# banner, a step's pending exit code, a running process, an existing group
-export use state.nu [xdg env-file-load file-trim process-running group-exists recorded-hashes SYSTEM_STATE SYSTEM_REPO EXIT_PENDING SECRETS_ISSUE]
+# banner, a step's pending exit code, a running process, an existing group; and the text and file primitives
+export use state.nu [xdg env-file-load file-trim file-lines text-render sqlite-snapshot process-running group-exists recorded-hashes SYSTEM_STATE SYSTEM_REPO EXIT_PENDING SECRETS_ISSUE]
 export use ../../configs/core/wallust/palette.nu [palette-load]
 
 export const DECL_KEYS = [kind target source content mode generated inplace edits state now argv creates key done undo requires then notify network timeout]
@@ -70,11 +70,9 @@ export def file-text [dest: path, content: string, --mode: string = $MODE_FILE, 
     decl file $dest {content: $content, mode: $mode, generated: $generated, inplace: $in_place, then: $then, notify: $notify}
 }
 
-# Writes src to dest with each @key@ replaced by its value.
+# Writes src to dest with each @key@ replaced by its value (text-render).
 export def file-render [src: path, dest: path, values: record, --mode: string = $MODE_FILE, --generated, --then: list<string> = [], --notify: list<string> = []]: nothing -> record {
-    let text = $values | items {|key, value| {key: $key, value: $value} }
-        | reduce --fold (open --raw $src) {|pair, acc| $acc | str replace --all $"@($pair.key)@" ($pair.value | into string) }
-    decl file $dest {content: $text, mode: $mode, generated: $generated, then: $then, notify: $notify}
+    decl file $dest {content: (open --raw $src | text-render $values), mode: $mode, generated: $generated, then: $then, notify: $notify}
 }
 
 # Copies each src into dir under its own name.

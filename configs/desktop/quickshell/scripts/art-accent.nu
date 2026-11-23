@@ -15,9 +15,22 @@ def channel-to-hex [value: int]: nothing -> string {
     $value | format number | get lowerhex | str replace "0x" "" | fill --alignment right --character "0" --width 2
 }
 
+# By magic bytes, never magick's own detection: a website picks the cover through its media session, and a PostScript,
+# SVG or MVG body would reach ghostscript or a coder that reads local files. "" for anything but these rasters.
+def image-coder [file: path]: nothing -> string {
+    let header = open --raw $file | bytes at 0..11
+    if ($header | bytes starts-with 0x[89504E47]) { "png" } else if ($header | bytes starts-with 0x[FFD8FF]) {
+        "jpeg"
+    } else if ($header | bytes starts-with ("GIF8" | into binary)) { "gif" } else if (
+        ($header | bytes starts-with ("RIFF" | into binary)) and ($header | bytes at 8..11) == ("WEBP" | into binary)
+    ) { "webp" } else { "" }
+}
+
 # Point samples, not a resize: averaging would invent blends of neighbouring colours along every edge.
 export def art-accent-pick [file: path]: nothing -> string {
-    let histogram = ^magick $"($file)[0]" -alpha off -sample $"($SAMPLE_PX)x($SAMPLE_PX)!" +dither -colors $COLOR_COUNT -depth 8 -format "%c" histogram:info:- | complete
+    let coder = image-coder $file
+    if $coder == "" { return "" }
+    let histogram = ^magick $"($coder):($file)[0]" -alpha off -sample $"($SAMPLE_PX)x($SAMPLE_PX)!" +dither -colors $COLOR_COUNT -depth 8 -format "%c" histogram:info:- | complete
     if $histogram.exit_code != 0 { return "" }
     let colors = $histogram.stdout | lines | parse --regex $HISTOGRAM_LINE
         | each {|row| {count: ($row.count | into int), rgb: ([$row.r $row.g $row.b] | each { into float | math round | into int })} }

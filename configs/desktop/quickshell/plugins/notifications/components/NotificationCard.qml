@@ -79,7 +79,7 @@ BorderSurface {
   readonly property bool singleLineToast: sanitizedBody.length === 0
   readonly property bool collapseRedundantIcon: singleLineToast && !hasGlyph && summaryStartsWithGlyph
   readonly property string sanitizedBody: NotificationLogic.sanitizeBody(body, app, appIcon)
-  readonly property string styledBody: NotificationLogic.styledBody(body, app, appIcon)
+  readonly property string styledBody: NotificationLogic.styledBody(sanitizedBody)
 
   readonly property real edge: isRow ? 0 : Style.surface.borderWidth
   readonly property bool critical: urgency === NotificationLogic.URGENCY_CRITICAL

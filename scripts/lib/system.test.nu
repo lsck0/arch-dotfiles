@@ -75,6 +75,13 @@ def check [work: path]: nothing -> nothing {
     let differing = $ours | where {|f| (open --raw ($checkout | path join $f) | hash sha256) != (open --raw ($copy | path join $f) | hash sha256) }
     assert equal $differing [] "the copy differs from the checkout after a user-only module's backup"
 
+    # the git-ignored local platform reaches root, so both layers load the same platform
+    mkdir ($checkout | path join platforms)
+    "platforms/local.nuon\n" | save ($checkout | path join .gitignore)
+    "{groups: [group]}\n" | save ($checkout | path join platforms local.nuon)
+    assert ("platforms/local.nuon" in (system-files $checkout "--others")) "the git-ignored local platform is not packed"
+    rm ($checkout | path join .gitignore) ($checkout | path join platforms local.nuon)
+
     # root records the digest of the secrets tar it extracted; the user derives the same from the checkout
     let keys = $secrets | path join keys
     mkdir ($keys | path join wg)

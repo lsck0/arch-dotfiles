@@ -146,6 +146,9 @@ Singleton {
   readonly property string artCacheFile:
     root.artRemote ? (root.artCacheDir + "/" + Qt.md5(root.artUrl)) : ""
   readonly property int artCacheKeep: 50
+  // the cache sits in the runtime tmpfs: curl >= 8.4 aborts at this size even without a sent length, and its exit
+  // code throws the partial body away
+  readonly property int artBytesMax: 10 * 1024 * 1024
   readonly property string artFetchCheck: "[ -e /run/trusted-network ]"
     + " && ! ip link show proton0 >/dev/null 2>&1 && ! ip link show wg0 >/dev/null 2>&1"
     + " && ! systemctl -q is-active tor-router.service && ! systemctl --user -q is-active anonymous-socks-tor.service"
@@ -194,7 +197,9 @@ Singleton {
     command: ["sh", "-c",
       "d=$1 f=$2; if ! { " + root.artFetchCheck + "; }; then rm -rf -- \"$d\"; exit 1; fi; " +
       "[ -s \"$f\" ] && exit 0; mkdir -p -m 700 -- \"$d\" || exit 1; " +
-      "curl -sfL --max-time 8 -o \"$f.part\" \"$3\" && mv -f -- \"$f.part\" \"$f\" || { rm -f -- \"$f.part\"; exit 1; }; " +
+      "curl -sfL --proto =https,http --max-redirs 3 --max-time 8 --max-filesize " + root.artBytesMax +
+      " -o \"$f.part\" \"$3\" && [ -s \"$f.part\" ] && mv -f -- \"$f.part\" \"$f\" " +
+      "|| { rm -f -- \"$f.part\"; exit 1; }; " +
       "ls -1t -- \"$d\" | tail -n +" + (root.artCacheKeep + 1) + " | while IFS= read -r o; do rm -f -- \"$d/$o\"; done",
       "sh", root.artCacheDir, root.artCacheFile, root.artUrl]
     onExited: function (exitCode) {

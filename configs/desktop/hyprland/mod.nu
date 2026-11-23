@@ -1,7 +1,9 @@
 # hyprland's lua config, plus platform.lua generated each run from the live monitors and keyboard
 
 use module.nu *
-use ../../core/wallust/palette.nu [RADIUS_PX BORDER_PX OPACITY_WINDOW SHADE_HOVER is-light palette-rgb readable-on shade rgb-to-hex]
+use ../../core/wallust/palette.nu [
+    RADIUS_PX BORDER_PX OPACITY_WINDOW SHADE_CHROME SHADE_CURRENT SHADE_HOVER is-light palette-rgb readable-on shade rgb-to-hex
+]
 use ../../core/wallust/font.nu [font-load]
 use plugins.nu [plugins-missing plugins-unloaded]
 use lid.nu [INTERNAL_PANEL]
@@ -115,6 +117,7 @@ export const options = {
 }
 
 const CONFIG_DIR = ".config/hypr"
+const SHARE_PICKER_COLORS = ".local/state/omarchy/current/theme/colors.toml"
 const CONFIG_FILES = [
     hyprland.lua hyprland_autostart.lua hyprland_cursor.lua hyprland_input.lua hyprland_keybindings.lua
     hyprland_layout.lua hyprland_misc.lua hyprland_monitors.lua hyprland_plugins.lua hyprland_powersave.lua
@@ -128,6 +131,7 @@ const MM_PER_INCH = 25.4
 const SCALES = [1.0 1.25 1.5 1.666667 2.0 2.5 3.0]
 # the width of an output listing no modes
 const WIDTH_FALLBACK_PX = 1920
+const REFRESH_FLUID_HZ = 50.0
 const PLUGINS = path self plugins.nu
 
 # A Hyprland instance dir whose lock names a running pid; a dead one keeps its dir and socket file behind.
@@ -157,9 +161,12 @@ def --env outputs-live []: nothing -> table {
     monitors-live --all | sort-by x
 }
 
+# The largest mode at the highest rate, among the fluid ones when there are: a TV's 4096x2160@24 (DCI) would beat its
+# 3840x2160@60 on area alone.
 def mode-best [modes: list<string>]: nothing -> string {
-    let best = $modes | parse --regex '(?<w>\d+)x(?<h>\d+)@(?<hz>[\d.]+)Hz' | into int w h | into float hz
-        | sort-by --reverse {|m| [($m.w * $m.h) $m.hz] } | first
+    let parsed = $modes | parse --regex '(?<w>\d+)x(?<h>\d+)@(?<hz>[\d.]+)Hz' | into int w h | into float hz
+    let fluid = $parsed | where hz >= $REFRESH_FLUID_HZ
+    let best = if ($fluid | is-empty) { $parsed } else { $fluid } | sort-by --reverse {|m| [($m.w * $m.h) $m.hz] } | first
     if $best == null { "preferred" } else { $"($best.w)x($best.h)@($best.hz | math round)" }
 }
 
@@ -339,10 +346,25 @@ export def --env reload []: nothing -> nothing {
     ^($toggles | path join toggle-shader.nu) reapply
 }
 
+# xdph's share picker: mode from the theme's light flag, its raised surfaces one shade off the background
+def share-picker-colors []: nothing -> any {
+    let p = palette-rgb "share picker"
+    if $p == null { return null }
+    let hex = {|c| $c | rgb-to-hex --prefix "#" }
+    {
+        mode: (if ($p.bg | is-light) { "light" } else { "dark" })
+        background: (do $hex $p.bg), foreground: (do $hex $p.fg), muted: (do $hex $p.c8), accent: (do $hex $p.c4)
+        lighter_background: (do $hex ($p.bg | shade $SHADE_CHROME)), selection: (do $hex ($p.bg | shade $SHADE_CURRENT))
+    } | to toml
+}
+
 # style.lua carries the font and the bar colours, both theme inputs
 export def theme [cfg: record, wallpaper: string] {
+    let picker = share-picker-colors
     [
         (file-text ($nu.home-dir | path join $CONFIG_DIR style.lua) $"return (lua-from (style-record))\n" --generated)
+        # omarchy-share-picker reads ~/.local/state literally, whatever XDG_STATE_HOME says
+        (if $picker != null { file-text ($nu.home-dir | path join $SHARE_PICKER_COLORS) $picker --generated })
         (step reload)
     ]
 }

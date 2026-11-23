@@ -3,6 +3,8 @@
 # on the way (a nu `def --wrapped main` runs a --flag=(expr) value and requotes others). What each one execs is a stub
 # printing its arguments; one named by an absolute path is swapped for the stub in a copy of the launcher.
 
+use std/assert
+
 const REPO = path self ..
 const PRINT = "#!/bin/sh\nprintf '%s\\n' \"$@\"\n"
 const STUBS = {
@@ -14,8 +16,6 @@ const STUBS = {
 }
 const COMMAND = "/usr/bin/printf"
 const COMMAND_FORMAT = '%s\n'
-
-def fail [msg: string] { error make {msg: $"launchers.test: ($msg)"} }
 
 # Arguments nothing may evaluate or requote; the root helpers' tests share them, and each one naming marker creates it
 # when evaluated.
@@ -34,7 +34,7 @@ def launcher [file: path, swap: list<string>, work: path]: nothing -> path {
     if ($swap | is-empty) { return $source }
     let copy = $work | path join ($file | path basename)
     $swap | reduce --fold (open --raw $source) {|target, text|
-        if not ($text | str contains $target) { fail $"($file) no longer names ($target)" }
+        assert str contains $text $target $"($file) no longer names ($target)"
         $text | str replace --all $target ($work | path join bin target)
     } | save --force $copy
     chmod +x $copy
@@ -43,10 +43,9 @@ def launcher [file: path, swap: list<string>, work: path]: nothing -> path {
 
 # The output must end with tail: what a launcher puts before the command (a cpu pin, a unit name) varies by machine.
 def passed-check [what: string, run: record, tail: list<string>, marker: path]: nothing -> nothing {
-    if ($marker | path exists) { fail $"($what) evaluated an argument" }
-    if $run.exit_code != 0 { fail $"($what) exited ($run.exit_code): ($run.stderr | str trim)" }
-    let got = $run.stdout | lines
-    if ($got | last ($tail | length)) != $tail { fail $"($what) passed ($got | to nuon), want it to end with ($tail | to nuon)" }
+    assert (not ($marker | path exists)) $"($what) evaluated an argument"
+    assert equal $run.exit_code 0 $"($what) exited ($run.exit_code): ($run.stderr | str trim)"
+    assert equal ($run.stdout | lines | last ($tail | length)) $tail $"($what) passed the wrong argv tail"
 }
 
 def main [] {

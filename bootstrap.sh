@@ -6,11 +6,8 @@ SIGNING_KEY_FINGERPRINT=E7501F533316E9AFC6AAE907122F2CB527D1EFE3
 SIGNING_KEY_FILE=configs/core/gnupg/luca-sandrock.pub.asc
 COW_MIN_MIB=1024
 
-if [[ -d /run/archiso ]] && grep -q 'archisobasedir=' /proc/cmdline; then
-    :
-elif grep -qi microsoft /proc/sys/kernel/osrelease; then
-    :
-else
+if ! { [[ -d /run/archiso ]] && grep -q 'archisobasedir=' /proc/cmdline; } &&
+    ! grep -qi microsoft /proc/sys/kernel/osrelease; then
     echo "bootstrap: run this from the Arch ISO or inside WSL" >&2
     exit 1
 fi
@@ -30,7 +27,9 @@ if [[ -d /run/archiso ]]; then
         awk '/^\[/ { s = ($0 == "[lsck0]") } !s' /etc/pacman.conf > "$conf"
     fi
     pacman --config "$conf" -Sy --noconfirm --needed archlinux-keyring
-    pacman --config "$conf" -S --noconfirm --needed glibc nushell git gnupg
+    # nushell, git and curl link the repos' current libssl, but an older iso's openssl meets their unversioned
+    # dependency: openssl comes along, and openssl-3 keeps the old soname for the iso's own users (pacman's libcurl)
+    pacman --config "$conf" -S --noconfirm --needed glibc openssl openssl-3 curl nushell git gnupg
     [[ "$conf" == /etc/pacman.conf ]] || rm -f "$conf"
 else
     pacman-key --init && pacman-key --populate archlinux
@@ -43,15 +42,19 @@ if [[ ! -f "$repo/scripts/dot.nu" ]]; then
     rm -rf "$CLONE_DIR" && git clone --filter=blob:none "$DOTFILES_URL" "$CLONE_DIR" && repo=$CLONE_DIR
     if [[ "${BOOTSTRAP_INSECURE:-0}" != 1 ]]; then
         gnupg=$(mktemp -d)
-        trap 'gpgconf --homedir "$gnupg" --kill all 2> /dev/null || true; rm -rf "$gnupg"' EXIT
+        gnupg_drop() {
+            gpgconf --homedir "$gnupg" --kill all 2> /dev/null || true
+            rm -rf "$gnupg"
+        }
+        # exec skips the EXIT trap, so the success path drops the keyring itself
+        trap gnupg_drop EXIT
         GNUPGHOME=$gnupg gpg --batch -q --import "$repo/$SIGNING_KEY_FILE"
         if ! status=$(GNUPGHOME=$gnupg git -C "$repo" verify-commit --raw HEAD 2>&1) ||
             ! grep -q "^\[GNUPG:\] VALIDSIG .* $SIGNING_KEY_FINGERPRINT\$" <<< "$status"; then
             echo "bootstrap: $DOTFILES_URL HEAD is not signed by $SIGNING_KEY_FINGERPRINT. BOOTSTRAP_INSECURE=1 skips this check." >&2
             exit 1
         fi
-        gpgconf --homedir "$gnupg" --kill all 2> /dev/null || true
-        rm -rf "$gnupg"
+        gnupg_drop
         trap - EXIT
     fi
 fi

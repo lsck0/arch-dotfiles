@@ -4,7 +4,7 @@
 
 use stage.nu [STAGE_STATE_DIR STAGE_STOPPED STAGE_REPORT STAGE_LUKS_DEVICE REPORT_CHANNEL report-beacon-send]
 use invariants.nu [invariants-load]
-use state.nu [file-trim]
+use state.nu [file-trim text-render]
 use homelab.nu [homelab-subnet-glob]
 use ../../platforms/homelab.nu [HOMELAB]
 
@@ -41,11 +41,12 @@ def report [user: string, checkout: path, url: string, stopped: bool]: nothing -
     let lsck0_mirror = $lsck0 | select scheme host port | insert path "/" | url join
     let lab_glob = $HOMELAB.subnets | each { homelab-subnet-glob $in } | str join "|"
     # before portmaster goes: the mirror probe sees what the machine's own firewall lets out
+    let values = {
+        USER: $user, LUKS: $luks, CHECKOUT: $checkout, LAB_MIRROR: $lab_mirror, LSCK0_MIRROR: $lsck0_mirror
+        LSCK0_HOST: $lsck0.host, LAB_GLOB: $lab_glob
+    }
     let facts = invariants-load | each {|i|
-        let probe = $i.probe | str replace --all "@USER@" $user | str replace --all "@LUKS@" $luks | str replace --all "@CHECKOUT@" $checkout
-            | str replace --all "@LAB_MIRROR@" $lab_mirror | str replace --all "@LSCK0_MIRROR@" $lsck0_mirror
-            | str replace --all "@LSCK0_HOST@" $lsck0.host | str replace --all "@LAB_GLOB@" $lab_glob
-        $"($i.key)=(^bash -c $probe | complete | get stdout | str trim)"
+        $"($i.key)=(^bash -c ($i.probe | text-render $values) | complete | get stdout | str trim)"
     }
     # what the network probes saw with portmaster up, then without it: tells portmaster apart from tor or the route
     let reach = "a=$(getent ahostsv4 archlinux.org | head -n 1); echo \"dns: ${a:-no answer}\"; curl -s -o /dev/null -m 20 -w 'https: %{http_code} %{errormsg}\n' https://archlinux.org"

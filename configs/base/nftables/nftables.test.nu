@@ -4,7 +4,8 @@
 # veth: sshd's port drops until the three ports were knocked in order, then accepts, and a source past ssh_rate is
 # dropped again. The system verb keeps the lockdown ruleset the resting state, whose input policy is drop.
 
-use module.nu [decls-flatten]
+use std/assert
+use module.nu [decls-flatten text-render]
 use mod.nu [system]
 
 const HERE = path self .
@@ -28,15 +29,13 @@ const LOCKDOWN_UNIT = $HERE | path join fw-lockdown.service
 const PENTEST_IFACE = "tun0"
 const PENTEST_LINKS = 'elements = { "tun0" }'
 
-def fail [msg: string] { error make {msg: $"nftables.test: ($msg)"} }
-
 # ExecStart's shell command with systemd's escapes undone and the installed paths pointed at the repo; ExecReload
 # must be the same load, as only ExecStart's runs here.
 def load-command [trusted_network: path]: nothing -> string {
     let lines = open --raw $UNIT | lines
     let start = $lines | where ($it | str starts-with "ExecStart=") | get 0 | str replace "ExecStart=" ""
     let reload = $lines | where ($it | str starts-with "ExecReload=") | get 0 | str replace "ExecReload=" ""
-    if $reload != $start { fail "ExecReload is not ExecStart's load" }
+    assert equal $reload $start "ExecReload is not ExecStart's load"
     $start | str replace "/bin/sh -c '" "" | str substring 0..-2
     | str replace --all '$$' '$' | str replace --all '%%' '%'
     | str replace --all /etc/nftables.d/fw-egress.nft $RULESET | str replace --all /usr/sbin/nft nft
@@ -49,19 +48,17 @@ def set-elements [ruleset: list, name: string]: nothing -> list {
 
 def load [command: string, path_dirs: list<path>]: nothing -> list {
     let r = with-env {PATH: ($path_dirs ++ $env.PATH)} { ^unshare -rn sh -c $"($command)\nnft -j list table inet fw_egress" | complete }
-    if $r.exit_code != 0 { fail $"load failed: ($r.stderr)" }
+    assert ($r.exit_code == 0) $"load failed: ($r.stderr)"
     $r.stdout | from json | get nftables
 }
 
 # fw-inbound.nft as the module renders it, loaded: tun0 is in its set only with pentest_listeners.
 def inbound-rules [pentest_links: string]: nothing -> string {
-    let text = $INBOUND_VALUES | merge {PENTEST_LINKS: $pentest_links} | transpose k v
-        | reduce --fold (open --raw $INBOUND) {|p, acc| $acc | str replace --all $"@($p.k)@" $p.v }
     let file = mktemp --tmpdir dot-nftables-test-XXXXXX.nft
-    $text | save --force $file
+    open --raw $INBOUND | text-render ($INBOUND_VALUES | merge {PENTEST_LINKS: $pentest_links}) | save --force $file
     let r = ^unshare -rn sh -c $"nft -f ($file) && nft list table inet fw" | complete
     rm --force $file
-    if $r.exit_code != 0 { fail $"fw-inbound does not load \(pentest '($pentest_links)'\): ($r.stderr)" }
+    assert ($r.exit_code == 0) $"fw-inbound does not load \(pentest '($pentest_links)'\): ($r.stderr)"
     $r.stdout
 }
 
@@ -87,13 +84,13 @@ nft -j list table inet fw'
 
 def peer-probe [values: record, ports: list<int>]: nothing -> record {
     let rules = mktemp --tmpdir dot-nftables-test-XXXXXX.nft
-    $values | transpose k v | reduce --fold (open --raw $INBOUND) {|p, acc| $acc | str replace --all $"@($p.k)@" ($p.v | into string) }
-    | save --force $rules
-    let script = [[HOST $HOST_ADDRESS] [PEER $PEER_ADDRESS] [RULES $rules] [PORTS ($ports | str join " ")] [T $CONNECT_TIMEOUT]]
-    | reduce --fold $PEER_PROBE {|p, acc| $acc | str replace --all $"@($p.0)@" $p.1 }
+    open --raw $INBOUND | text-render $values | save --force $rules
+    let script = $PEER_PROBE | text-render {
+        HOST: $HOST_ADDRESS PEER: $PEER_ADDRESS RULES: $rules PORTS: ($ports | str join " ") T: $CONNECT_TIMEOUT
+    }
     let r = ^unshare -rn bash -c $script | complete
     rm --force $rules
-    if $r.exit_code != 0 { fail $"peer probe failed: ($r.stderr)" }
+    assert ($r.exit_code == 0) $"peer probe failed: ($r.stderr)"
     let through = $r.stderr | lines | parse "{port} {rc}" | each { ($in.rc | into int) != $EXIT_TIMEOUT }
     {through: $through, ruleset: ($r.stdout | from json | get nftables)}
 }
@@ -113,14 +110,13 @@ def inbound-knock []: nothing -> nothing {
     ]
     for c in $cases {
         let got = peer-probe $v ($c.knocks ++ [$ssh]) | get through | last
-        if $got != $c.through { fail $"fw-inbound: ($c.what): sshd's port (if $got { 'reached' } else { 'dropped' })" }
+        assert equal $got $c.through $"fw-inbound: ($c.what): sshd's port (if $got { 'reached' } else { 'dropped' })"
     }
     let flood = peer-probe $v ($k ++ (1..8 | each { $ssh }))
     let attempts = $flood.through | skip 3
-    if not ($attempts | first) or ($attempts | last) { fail $"fw-inbound: knocked source past ssh_rate: ($attempts | to nuon)" }
-    if $PEER_ADDRESS not-in (set-elements $flood.ruleset ssh_flood | each { if ($in | describe) =~ record { $in.elem.val } else { $in } }) {
-        fail "fw-inbound: the knocked source is not in ssh_flood"
-    }
+    assert (($attempts | first) and not ($attempts | last)) $"fw-inbound: knocked source past ssh_rate: ($attempts | to nuon)"
+    let flooded = set-elements $flood.ruleset ssh_flood | each { if ($in | describe) =~ record { $in.elem.val } else { $in } }
+    assert ($PEER_ADDRESS in $flooded) "fw-inbound: the knocked source is not in ssh_flood"
 }
 
 # The resting state the system verb declares: lockdown enabled, the inbound ruleset only a trusted link's start, and
@@ -133,16 +129,16 @@ def lockdown-default []: nothing -> nothing {
     # the engine runs a verb in its module dir, where its sources are
     let units = with-env {FORM_FACTOR: desktop} { cd $HERE; system $cfg } | decls-flatten | where kind == unit
     let state = {|u| $units | where target == $u | get --optional 0.state }
-    if (do $state fw-lockdown.service) != enabled { fail "fw-lockdown.service is not enabled" }
-    if (do $state fw-inbound.service) != disabled { fail "fw-inbound.service is not disabled" }
+    assert equal (do $state fw-lockdown.service) enabled "fw-lockdown.service is not enabled"
+    assert equal (do $state fw-inbound.service) disabled "fw-inbound.service is not disabled"
     let unit = open --raw $LOCKDOWN_UNIT
-    if not ($unit =~ '(?m)^WantedBy=multi-user\.target$' and $unit =~ '(?m)^Conflicts=fw-inbound\.service$') {
-        fail "fw-lockdown.service is not wanted at boot or does not displace fw-inbound"
-    }
+    assert ($unit =~ '(?m)^WantedBy=multi-user\.target$' and $unit =~ '(?m)^Conflicts=fw-inbound\.service$') (
+        "fw-lockdown.service is not wanted at boot or does not displace fw-inbound"
+    )
     let r = ^unshare -rn sh -c $"nft -f ($LOCKDOWN) && nft -j list chain inet fw input" | complete
-    if $r.exit_code != 0 { fail $"fw-lockdown does not load: ($r.stderr)" }
+    assert ($r.exit_code == 0) $"fw-lockdown does not load: ($r.stderr)"
     let policy = $r.stdout | from json | get nftables | where { $in.chain? != null } | get 0.chain.policy
-    if $policy != drop { fail $"fw-lockdown's input policy is ($policy)" }
+    assert equal $policy drop "fw-lockdown's input policy is not drop"
 }
 
 def main [] {
@@ -157,11 +153,9 @@ def main [] {
     let rules = load $command []
     for e in ($ESCAPES | transpose set user) {
         let uid = ^id -u $e.user | str trim | into int
-        if (set-elements $rules $e.set) != [$uid] { fail $"($e.set) is not ($e.user)'s uid ($uid)" }
+        assert equal (set-elements $rules $e.set) [$uid] $"($e.set) is not ($e.user)'s uid ($uid)"
     }
-    if (set-elements $rules trusted_links) != [eth9] {
-        fail "trusted_links did not take /run/trusted-network"
-    }
+    assert equal (set-elements $rules trusted_links) [eth9] "trusted_links did not take /run/trusted-network"
 
     # a fresh install: no tor user, the switch still loads and pacman still gets out
     let shim = $dir | path join bin
@@ -170,11 +164,11 @@ def main [] {
     chmod +x ($shim | path join id)
     let fresh = load $command [$shim]
     rm --recursive --force $dir
-    if (set-elements $fresh tor_uid | is-not-empty) { fail "tor_uid filled without a tor user" }
-    if (set-elements $fresh fetch_uid | is-empty) { fail "no fetch_uid without a tor user" }
+    assert (set-elements $fresh tor_uid | is-empty) "tor_uid filled without a tor user"
+    assert (set-elements $fresh fetch_uid | is-not-empty) "no fetch_uid without a tor user"
 
-    if (inbound-rules "" | str contains $PENTEST_IFACE) { fail "fw-inbound opens tun0 without pentest_listeners" }
-    if not (inbound-rules $PENTEST_LINKS | str contains $PENTEST_IFACE) { fail "fw-inbound leaves tun0 out with pentest_listeners" }
+    assert not (inbound-rules "" | str contains $PENTEST_IFACE) "fw-inbound opens tun0 without pentest_listeners"
+    assert (inbound-rules $PENTEST_LINKS | str contains $PENTEST_IFACE) "fw-inbound leaves tun0 out with pentest_listeners"
     lockdown-default
     inbound-knock
 }
