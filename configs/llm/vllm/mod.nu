@@ -135,7 +135,7 @@ export def system [cfg: record] {
 def rocm-libs []: nothing -> string {
     let platlib = $PREFIX | path join venv lib $"python($PYTHON_VERSION)" site-packages
     [_rocm_sdk_core/lib _rocm_sdk_core/lib/host-math/lib _rocm_sdk_core/lib/rocm_sysdeps/lib _rocm_sdk_libraries/lib]
-    | each { $platlib | path join $in } | str join ":"
+    | each {|dir| $platlib | path join $dir } | str join ":"
 }
 
 # Downloads the pinned model into vllm.service's own cache, as its dynamic user, so the service owns the files.
