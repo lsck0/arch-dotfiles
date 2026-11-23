@@ -6,7 +6,7 @@
 
 const REPO = path self | path expand | path dirname --num-levels 4
 use ($REPO | path join configs desktop quickshell plugins bar widgets obs-status.nu) [config-read socket-open socket-identify request]
-use ($REPO | path join configs programming offload worker.nu) [state-at]
+use ($REPO | path join configs programming offload worker.nu) [state-at save-atomic]
 
 const GATE_DIR = "/run/offload/gate"
 const GAMEMODE = [com.feralinteractive.GameMode /com/feralinteractive/GameMode com.feralinteractive.GameMode]
@@ -35,12 +35,7 @@ def obs-connect []: nothing -> any {
 }
 
 def state-write [state: record]: nothing -> nothing {
-    let dir = state-at $GATE_DIR
-    let file = $dir | path join $"(^id -u | str trim).json"
-    let tmp = ^mktemp --tmpdir=($dir) .gate.XXXXXX | str trim
-    $state | to json --raw | save --force $tmp
-    ^chmod 644 $tmp
-    ^mv --force $tmp $file
+    $state | to json --raw | save-atomic (state-at $GATE_DIR | path join $"(^id -u | str trim).json")
 }
 
 def main []: nothing -> nothing {

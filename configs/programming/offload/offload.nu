@@ -9,7 +9,10 @@ const REPO = path self | path expand | path dirname --num-levels 4
 use ($REPO | path join scripts lib secrets.nu) [secret-is-plaintext]
 use ($REPO | path join scripts lib state.nu) [xdg file-trim]
 use ($REPO | path join scripts lib usage.nu) [die]
-use ($REPO | path join configs programming offload worker.nu) [admit job-cancel metrics-update peak-mib]
+use ($REPO | path join configs programming offload worker.nu) [
+    admit job-cancel metrics-update metrics-finished peak-mib units-active unit-name
+    SLICE NICE IO_WEIGHT JOB_FILE LOG_FILE EXIT_FILE KIND_RUN KIND_AGENT
+]
 use ($REPO | path join configs programming offload consent.nu) [trust-list trust-revoke]
 
 export const OFFLOAD_ROLE_TARGET = "target"
@@ -35,18 +38,11 @@ const HERDR_POLLS = 100
 const HERDR_POLL_INTERVAL = 100ms
 # the worker's protocol entry, installed by the system verb on the target
 const WORKER = "/usr/local/lib/offload/worker.nu"
-const SLICE = "offload.slice"
-const NICE = 10
-const IO_WEIGHT = 10
-const UNIT_PREFIX = "offload-"
 const REF_PREFIX = "refs/offload"
-const JOB_FILE = "job.nuon"
-const LOG_FILE = "log"
-const EXIT_FILE = "exit"
+# a job id's stamp, MMDD before the time: units-active tells offload's runs from the worker's jobs by it
+const STAMP_DATE_DIGITS = 4
 # finished jobs kept on the target with their logs and refs; older ones go when a new one starts
 const JOBS_KEPT = 50
-const KIND_RUN = "run"
-const KIND_AGENT = "agent"
 const KINDS = [$KIND_RUN $KIND_AGENT]
 const AGENT_SUFFIX = ".agent"
 const NAME_MAX = 40
@@ -109,7 +105,6 @@ export def job-id-valid [job: string]: nothing -> bool {
 
 export def ref-source [job: string]: nothing -> string { $"($REF_PREFIX)/($job)/source" }
 export def ref-result [job: string]: nothing -> string { $"($REF_PREFIX)/($job)/result" }
-export def unit-name [job: string]: nothing -> string { $"($UNIT_PREFIX)($job).service" }
 
 export def sh-quote [arg: string]: nothing -> string {
     $"'($arg | str replace --all "'" "'\\''")'"
@@ -134,9 +129,8 @@ export def reach-blocker [at_home: bool, wg_up: bool, route_dev: string]: nothin
     if $at_home { return null }
     if not $wg_up { return $"away from home and ($WG_IFACE) is down; bring the home vpn up first \(bar: network, Home VPN\)" }
     if $route_dev != $WG_IFACE {
-        return $"the target's address routes out ($route_dev), not ($WG_IFACE): this network shadows the home lan"
+        $"the target's address routes out ($route_dev), not ($WG_IFACE): this network shadows the home lan"
     }
-    null
 }
 
 # The router address that sends the wake packet: the lan one at home, the tunnel one away, null when none fits.
@@ -144,8 +138,7 @@ export def router-address [config: record, at_home: bool, route_dev: string]: no
     if $config.router == null { return null }
     if $at_home { return $config.router }
     if $config.router_tunnel != null { return $config.router_tunnel }
-    if $route_dev == $WG_IFACE { return $config.router }
-    null
+    if $route_dev == $WG_IFACE { $config.router }
 }
 
 export def forward-spec [config: record, service: string, port_local?: int]: nothing -> string {
@@ -265,16 +258,18 @@ def connect [config: record]: nothing -> nothing {
     die $"($config.host) did not answer ssh after the wake"
 }
 
+# The command line of `offload host <verb> ...args` on the target: this script itself there, ssh from a client.
+def host-argv [config: record, verb: string, args: list<string>, --tty]: nothing -> list<string> {
+    let argv = [host $verb ...$args]
+    if $config.role == $OFFLOAD_ROLE_TARGET { return [...(self-argv) ...$argv] }
+    let tty = if $tty { [-t] } else { [] }
+    [ssh ...(ssh-base $config) ...$tty $config.host (remote-command [$TARGET_COMMAND ...$argv])]
+}
+
 # `offload host <verb> ...args` on the target with input as nuon on stdin; its stdout parsed as nuon.
 def host-call [config: record, verb: string, args: list<string>, input: any = null]: nothing -> any {
-    let argv = [host $verb ...$args]
-    let stdin = $input | to nuon
-    let run = if $config.role == $OFFLOAD_ROLE_TARGET {
-        let self = self-argv
-        $stdin | do { ^($self | first) ...($self | skip 1) ...$argv } | complete
-    } else {
-        $stdin | do { ^ssh ...(ssh-base $config) $config.host (remote-command [$TARGET_COMMAND ...$argv]) } | complete
-    }
+    let argv = host-argv $config $verb $args
+    let run = $input | to nuon | do { ^($argv | first) ...($argv | skip 1) } | complete
     if $run.exit_code != 0 {
         print --stderr --no-newline $run.stderr
         exit $run.exit_code
@@ -284,13 +279,8 @@ def host-call [config: record, verb: string, args: list<string>, input: any = nu
 
 # The same, handing the terminal over (attach, agent).
 def host-exec [config: record, verb: string, args: list<string>, --tty]: nothing -> nothing {
-    let argv = [host $verb ...$args]
-    if $config.role == $OFFLOAD_ROLE_TARGET {
-        let self = self-argv
-        exec ($self | first) ...($self | skip 1) ...$argv
-    }
-    let tty = if $tty { [-t] } else { [] }
-    exec ssh ...(ssh-base $config) ...$tty $config.host (remote-command [$TARGET_COMMAND ...$argv])
+    let argv = host-argv $config $verb $args --tty=$tty
+    exec ($argv | first) ...($argv | skip 1)
 }
 
 # The url and environment git pushes and fetches to the target's bare repo with: a path on the target itself, ssh
@@ -336,11 +326,7 @@ def job-dir [job: string]: nothing -> path {
     $dir
 }
 
-def units-active []: nothing -> list<string> {
-    ^systemctl --user list-units $"($UNIT_PREFIX)*" --type=service --state=active,activating --plain --no-legend
-    | lines | each { split row " " | first | str replace --regex $'^($UNIT_PREFIX)' '' | str replace --regex '\.service$' '' }
-    | where $it =~ '-\d{4}-\d{6}-[0-9a-f]+$'
-}
+def job-record [job: string]: nothing -> record { open (job-dir $job | path join $JOB_FILE) }
 
 def unit-main-pid [job: string]: nothing -> int {
     do { ^systemctl --user show --property=MainPID --value (unit-name $job) } | complete | get stdout | str trim
@@ -350,7 +336,7 @@ def unit-main-pid [job: string]: nothing -> int {
 def jobs-list []: nothing -> table {
     let dir = offload-dir jobs
     if not ($dir | path exists) { return [] }
-    let active = units-active
+    let active = units-active $STAMP_DATE_DIGITS
     ls $dir | where type == dir | get name | where { $in | path join $JOB_FILE | path exists } | each {|d|
         let job = open ($d | path join $JOB_FILE)
         let exit = file-trim ($d | path join $EXIT_FILE) null
@@ -378,7 +364,7 @@ def worktree-checkout [bare: path, worktree: path, commit: string, keep_dirty: b
 }
 
 def jobs-prune []: nothing -> nothing {
-    let active = units-active
+    let active = units-active $STAMP_DATE_DIGITS
     let done = jobs-list | where job not-in $active
     if ($done | length) <= $JOBS_KEPT { return }
     $done | first (($done | length) - $JOBS_KEPT) | each {|j|
@@ -431,13 +417,12 @@ def "main host start" []: string -> nothing {
     if $request.kind == $KIND_RUN {
         let log = $dir | path join $LOG_FILE
         touch $log
-        let self = self-argv
         (^systemd-run --user --quiet --collect $"--unit=(unit-name $request.job)" $"--description=offload ($request.job)"
             $"--slice=($SLICE)" $"--property=Nice=($NICE)" $"--property=IOWeight=($IO_WEIGHT)"
             $"--working-directory=($worktree)" $"--property=StandardOutput=append:($log)"
             $"--property=StandardError=append:($log)"
             systemd-inhibit --what=sleep --mode=block --who=offload $"--why=job ($request.job)"
-            ...$self host exec $request.job)
+            ...(self-argv) host exec $request.job)
     }
     jobs-prune
     print ({job: $request.job, worktree: $worktree, note: $note} | to nuon)
@@ -456,9 +441,7 @@ def "main host exec" [job: string]: nothing -> nothing {
         try { run-external $name ...($command | skip 1); 0 } catch { [$env.LAST_EXIT_CODE 1] | math max }
     }
     $code | into string | save --force ($dir | path join $EXIT_FILE)
-    let ended = date now
-    let seconds = ($ended - $record.started) / 1sec | math round
-    metrics-update {kind: $KIND_RUN, exit: $code, seconds: $seconds, peakMiB: (peak-mib), ended: (($ended | into int) // 1_000_000_000)}
+    metrics-finished $KIND_RUN $code $record.started (date now) (peak-mib)
     exit $code
 }
 
@@ -490,7 +473,7 @@ def "main host stop" [job: string]: nothing -> nothing {
 # by the repo's runs, so its HEAD must still be the job's commit; an agent's worktree keeps its work across sessions
 # and its own commits.
 def "main host snapshot" [job: string]: nothing -> nothing {
-    let record = open (job-dir $job | path join $JOB_FILE)
+    let record = job-record $job
     let head = ^git -C $record.worktree rev-parse HEAD | str trim
     if $record.kind == $KIND_RUN and $head != $record.commit { die $"($record.worktree) moved on to a later job; ($job)'s result is gone" }
     let commit = snapshot-create $record.worktree true
@@ -501,7 +484,7 @@ def "main host snapshot" [job: string]: nothing -> nothing {
 # The listed paths of the job's worktree as a tar stream on stdout; each must stay inside the worktree.
 def "main host tar" [job: string]: string -> nothing {
     let paths = $in | from nuon
-    let worktree = open (job-dir $job | path join $JOB_FILE) | get worktree
+    let worktree = job-record $job | get worktree
     let root = $worktree | path expand
     for p in $paths {
         let full = $worktree | path join $p
@@ -513,7 +496,7 @@ def "main host tar" [job: string]: string -> nothing {
 }
 
 def "main host agent" [job: string]: nothing -> nothing {
-    let record = open (job-dir $job | path join $JOB_FILE)
+    let record = job-record $job
     if $record.kind != $KIND_AGENT { die $"($job) is a run: offload attach" }
     herdr-server-ensure
     ^($nu.home-dir | path join $HERDR_OPEN) $record.worktree $"offload-($record.client)-($record.slug)"
@@ -552,14 +535,8 @@ def "main fetch" [job: string, ...paths: string]: nothing -> nothing {
     if ($bad | is-not-empty) { die --misuse $"not relative paths inside the repo: ($bad | str join ', ')" }
     connect $config
     if ($paths | is-not-empty) {
-        let argv = [host tar $job]
-        let input = $paths | to nuon
-        if $config.role == $OFFLOAD_ROLE_TARGET {
-            let self = self-argv
-            $input | ^($self | first) ...($self | skip 1) ...$argv | ^tar --extract --directory $top
-        } else {
-            $input | ^ssh ...(ssh-base $config) $config.host (remote-command [$TARGET_COMMAND ...$argv]) | ^tar --extract --directory $top
-        }
+        let argv = host-argv $config tar [$job]
+        $paths | to nuon | ^($argv | first) ...($argv | skip 1) | ^tar --extract --directory $top
         print --stderr $"offload: unpacked ($paths | str join ' ') into ($top)"
         return
     }

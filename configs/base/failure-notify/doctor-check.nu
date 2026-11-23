@@ -1,6 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 
 const REPO = path self | path expand | path dirname --num-levels 4
+use ($REPO | path join scripts lib proc.nu) [notify]
 use ($REPO | path join scripts lib state.nu) [xdg file-trim]
 
 const DOT = $REPO | path join scripts dot.nu
@@ -24,7 +25,7 @@ def main []: nothing -> nothing {
         let body = $findings | first $SHOWN_LINES | str substring 0..<$SHOWN_WIDTH | append "dot status shows them all"
         # no notification daemon yet: unrecorded, so the next run tries again
         let title = $"Doctor: ($findings | length) findings"
-        if (^notify-send -a doctor -u normal $title ($body | str join "\n") | complete).exit_code != 0 { return }
+        if not (notify doctor $title ($body | str join "\n")) { return }
     }
     $digest | save --force $notified
 }

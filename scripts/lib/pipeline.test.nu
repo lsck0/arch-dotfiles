@@ -362,6 +362,30 @@ def eval-timeout-cases [work: path]: nothing -> nothing {
     assert (not $r.ok and $r.error == $wants) $"eval timeout: ok ($r.ok) error ($r.error | to nuon), wants ($wants | to nuon)"
 }
 
+# meta.native_only: on WSL its verbs are not evaluated and declare nothing, other verbs and form factors evaluate.
+def native-only-cases [work: path]: nothing -> nothing {
+    let dir = $work | path join native-only
+    mkdir $dir
+    "use module.nu *\nexport def link [cfg: record] { file-text /x \"x\" }\nexport def system [cfg: record] { file-text /y \"y\" }\n"
+        | save --force ($dir | path join mod.nu)
+    let mods = [{id: n/native, dir: $dir, meta: {native_only: [system]}} {id: n/plain, dir: $dir, meta: {}}]
+    let cfgs = {n/native: {}, n/plain: {}}
+    let targets = {|ff verb|
+        with-env {FORM_FACTOR: $ff, XDG_STATE_HOME: ($work | path join state)} { modules-eval $mods $verb $cfgs [] }
+        | each {|r| assert $r.ok $"native-only ($ff) ($verb): ($r.id) failed: ($r.error)"; {id: $r.id, targets: ($r.decls | get target)} }
+    }
+    let cases = [
+        [ff verb wants];
+        [wsl system [[id targets]; [n/native []] [n/plain [/y]]]]
+        [wsl link [[id targets]; [n/native [/x]] [n/plain [/x]]]]
+        [desktop system [[id targets]; [n/native [/y]] [n/plain [/y]]]]
+    ]
+    for c in $cases {
+        let got = do $targets $c.ff $c.verb
+        assert equal $got $c.wants $"native-only ($c.ff) ($c.verb): got ($got | to nuon), wants ($c.wants | to nuon)"
+    }
+}
+
 # State a deleted module left with outputs is planned for removal; a module still there, one with no outputs and one
 # whose whole group dir is absent (the secrets submodule not checked out) are not.
 def gone-cases [work: path]: nothing -> nothing {
@@ -517,6 +541,7 @@ def main [] {
     requires-cases $work
     remote-cases $work
     eval-timeout-cases $work
+    native-only-cases $work
     gone-cases $work
     secrets-stamp-cases $work
     barrier-cases $work

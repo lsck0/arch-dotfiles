@@ -107,6 +107,18 @@ Item {
     return out
   }
 
+  // a row without an icon file or key hint: every mode but apps, windows and keys
+  function row(kind, glyph, name, sub, payload) {
+    return { kind: kind, name: name, sub: sub, icon: "", glyph: glyph, keys: "", payload: payload }
+  }
+
+  // the query's words, each of which a window or keybind row must contain
+  function queryWords() { return root.modeQuery.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 0 }) }
+
+  function matchesAll(words, haystack) {
+    return words.every(function(w) { return haystack.indexOf(w) >= 0 })
+  }
+
   function focusOrder(toplevel) {
     const id = (toplevel.lastIpcObject || {}).focusHistoryID
     return typeof id === "number" && id >= 0 ? id : Number.MAX_SAFE_INTEGER
@@ -114,7 +126,7 @@ Item {
 
   // most recently focused first, every word matched like apps and keys
   function windowRows() {
-    var words = root.modeQuery.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 0 })
+    var words = root.queryWords()
     var values = Array.from(Hyprland.toplevels.values)
     values.sort(function(a, b) { return root.focusOrder(a) - root.focusOrder(b) })
     var out = []
@@ -123,8 +135,7 @@ Item {
       const cls = t.wayland ? String(t.wayland.appId || "") : ""
       const title = String(t.title || "")
       const ws = t.workspace ? String(t.workspace.id) : "--"
-      const haystack = (title + " " + cls + " " + ws).toLowerCase()
-      if (!words.every(function(w) { return haystack.indexOf(w) >= 0 })) continue
+      if (!root.matchesAll(words, (title + " " + cls + " " + ws).toLowerCase())) continue
       out.push({ kind: "window", name: title || cls || "--", sub: "[" + ws + "] " + cls,
                  icon: cls ? Util.iconSource(cls.toLowerCase()) : "", glyph: "\u{f2d0}", keys: "", payload: String(t.address || "") })
     }
@@ -137,16 +148,16 @@ Item {
       : root.calcState === "error" ? "x ERR"
       : root.calcState === "loading" && !root.calcResult ? "--"
       : root.calcResult
-    return [{ kind: "calc", name: "= " + text, sub: root.modeQuery, icon: "", glyph: "\u{f00ec}", keys: "", payload: root.calcResult }]
+    return [root.row("calc", "\u{f00ec}", "= " + text, root.modeQuery, root.calcResult)]
   }
 
   function runRows() {
     var q = root.modeQuery
-    var out = q ? [{ kind: "run", name: q, sub: "sh -c", icon: "", glyph: "\u{f018d}", keys: "", payload: q }] : []
+    var out = q ? [root.row("run", "\u{f018d}", q, "sh -c", q)] : []
     for (let i = 0; i < root.runHistory.length; i++) {
       const cmd = root.runHistory[i]
       if (cmd === q || cmd.indexOf(q) < 0) continue
-      out.push({ kind: "run", name: cmd, sub: "recent", icon: "", glyph: "\u{f02da}", keys: "", payload: cmd })
+      out.push(root.row("run", "\u{f02da}", cmd, "recent", cmd))
     }
     return out
   }
@@ -176,18 +187,16 @@ Item {
     const clock = ReminderFlowModel.clockNext(words[0], now)
     const minutes = ReminderFlowModel.minutesOf(words[0])
     if (!clock && minutes <= 0)
-      return [{ kind: "capture", name: "x " + ReminderFlowModel.WHEN_HINT, sub: "reminder", icon: "", glyph: "\u{f0f3}", keys: "", payload: null }]
+      return [root.row("capture", "\u{f0f3}", "x " + ReminderFlowModel.WHEN_HINT, "reminder", null)]
     const at = clock || new Date(now.getTime() + minutes * 60000)
     const name = words.slice(1).join(" ") || (clock ? "reminder at " + Qt.formatDateTime(at, "HH:mm") : minutes + "-min reminder")
     const sub = "at " + Qt.formatDateTime(at, "HH:mm") + (clock ? " (in " + TimerState.remainingText((at.getTime() - now.getTime()) / 1000) + ")" : "")
-    return [{ kind: "capture", name: name, sub: sub, icon: "", glyph: "\u{f0f3}", keys: "", payload: [script, "remind"].concat(words) }]
+    return [root.row("capture", "\u{f0f3}", name, sub, [script, "remind"].concat(words))]
   }
 
   // what is already set, so a duplicate is seen and cancelled (DEL) without the overlay
   function reminderPendingRows() {
-    return TimerState.reminders.map(function(r) {
-      return { kind: "reminder", name: r.label, sub: "pending, at " + r.atTime, icon: "", glyph: "\u{f009c}", keys: "", payload: r.unit }
-    })
+    return TimerState.reminders.map(function(r) { return root.row("reminder", "\u{f009c}", r.label, "pending, at " + r.atTime, r.unit) })
   }
 
   function reminderCancelAt(index) {
@@ -202,8 +211,8 @@ Item {
     if (root.mode === "remind") return reminderPreviewRows(words, script).concat(reminderPendingRows())
     if (words.length === 0) return []
     if (root.mode === "task")
-      return [{ kind: "capture", name: root.modeQuery, sub: root.taskPreview(words), icon: "", glyph: "\u{f0ae}", keys: "", payload: [script, "task"].concat(words) }]
-    return [{ kind: "capture", name: root.modeQuery, sub: "~/sync/notes/inbox.md", icon: "", glyph: "\u{f0f6}", keys: "", payload: [script, "note"].concat(words) }]
+      return [root.row("capture", "\u{f0ae}", root.modeQuery, root.taskPreview(words), [script, "task"].concat(words))]
+    return [root.row("capture", "\u{f0f6}", root.modeQuery, "~/sync/notes/inbox.md", [script, "note"].concat(words))]
   }
 
   function bindKeys(bind) {
@@ -219,7 +228,7 @@ Item {
 
   // one row per action: binds sharing a description and a submap (h and Left, a letter with and without SUPER) fold
   function bindRows() {
-    var words = root.modeQuery.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 0 })
+    var words = root.queryWords()
     var topLevel = []
     var submaps = []
     var rowOf = ({})
@@ -233,13 +242,12 @@ Item {
         rowOf[id].keys += root.keysSeparator + keys
         continue
       }
-      rowOf[id] = { kind: "bind", name: name, sub: sub, icon: "", glyph: "\u{f030c}", keys: keys, payload: "" }
+      rowOf[id] = Object.assign(root.row("bind", "\u{f030c}", name, sub, ""), { keys: keys })
       if (b.submap) submaps.push(rowOf[id])
       else topLevel.push(rowOf[id])
     }
     return topLevel.concat(submaps).filter(function(row) {
-      const haystack = (row.name + " " + row.keys + " " + row.sub).toLowerCase()
-      return words.every(function(w) { return haystack.indexOf(w) >= 0 })
+      return root.matchesAll(words, (row.name + " " + row.keys + " " + row.sub).toLowerCase())
     })
   }
 
@@ -430,31 +438,28 @@ Item {
 
       Keys.priority: Keys.BeforeItem
       Keys.onPressed: function(event) {
-        const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
-        if (event.key === Qt.Key_Escape) {
-          if (root.filterText && root.filterText.trim() !== root.homeText.trim()) root.setFilter(root.homeText)
-          else root.close()
-        } else if (event.key === Qt.Key_Up || Util.isPrev(event.key, event.modifiers))
-          root.selectAt(listCursor.step(root.selectedIndex, -1))
-        else if (event.key === Qt.Key_Down || Util.isNext(event.key, event.modifiers))
-          root.selectAt(listCursor.step(root.selectedIndex, 1))
-        else if (ctrl && event.key === Qt.Key_U) root.setFilter(root.homeText)
-        else if (event.key === Qt.Key_PageUp) root.selectAt(listCursor.page(root.selectedIndex, -1))
-        else if (event.key === Qt.Key_PageDown) root.selectAt(listCursor.page(root.selectedIndex, 1))
-        else if (event.key === Qt.Key_Home) root.selectAt(0)
-        else if (event.key === Qt.Key_End) root.selectAt(root.rows.length - 1)
-        else if (event.key === Qt.Key_Delete && root.mode === "remind") root.reminderCancelAt(root.selectedIndex)
-        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
-          root.activateAt(root.selectedIndex, (event.modifiers & Qt.ShiftModifier) !== 0)
-        else if ((event.key === Qt.Key_V && ctrl)
+        if (event.key === Qt.Key_Delete && root.mode === "remind") root.reminderCancelAt(root.selectedIndex)
+        else if ((event.key === Qt.Key_V && (event.modifiers & Qt.ControlModifier))
                  || (event.key === Qt.Key_Insert && (event.modifiers & Qt.ShiftModifier))) root.paste()
-        else if (Util.isWordDelete(event.key, event.modifiers)) root.setFilter(Util.wordDelete(root.filterText))
-        else if (event.key === Qt.Key_Backspace) root.setFilter(root.filterText.slice(0, -1))
-        else if (Util.printable(event.text))
-          root.setFilter(root.filterText + event.text)
-        else return
+        else {
+          event.accepted = listKeys.handle(event)
+          return
+        }
         event.accepted = true
       }
+    }
+
+    FilterListKeys {
+      id: listKeys
+      cursor: listCursor
+      index: root.selectedIndex
+      filter: root.filterText
+      onEscaped: root.escClears ? root.setFilter(root.homeText) : root.close()
+      onStepped: function (delta) { root.selectAt(listCursor.step(root.selectedIndex, delta)) }
+      onJumped: function (index) { root.selectAt(index) }
+      onActivated: function (modifiers) { root.activateAt(root.selectedIndex, (modifiers & Qt.ShiftModifier) !== 0) }
+      onFilterCleared: root.setFilter(root.homeText)
+      onFilterEdited: function (text) { root.setFilter(text) }
     }
 
     ListCursor {
@@ -484,19 +489,17 @@ Item {
       ScrollBar.vertical: ListScrollBar { id: resultBar; list: resultList }
       fade: resultFade
 
-      delegate: Rectangle {
+      delegate: CursorFill {
         id: rowDelegate
         required property var modelData
         required property int index
         readonly property bool selected: index === root.selectedIndex
 
+        hasCursor: selected
+        hovered: rowMouse.containsMouse
         width: ListView.view.width
         height: root.rowHeight
-        radius: Style.shape.data
         opacity: panel.boot.rowOpacity(index)
-        color: selected ? Colors.menu.selectedBackground
-          : rowMouse.containsMouse ? Style.hoverFill : "transparent"
-        Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
         Row {
           anchors.fill: parent

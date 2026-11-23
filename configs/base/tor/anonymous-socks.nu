@@ -58,7 +58,7 @@ def is-up [s: record]: nothing -> bool {
 # Refuses a non-admin before pkexec reaches polkit, so the bar never shows a password prompt; for an admin at the
 # machine none of these verbs asks (49-toggles.rules).
 def root-netfilter [...args: string]: nothing -> nothing {
-    if not (^id -nG | split row " " | any { $in == wheel }) { error make {msg: "the netfilter guard needs an admin"} }
+    if not (^id -nG | complete | get stdout | str trim | split row " " | any { $in == wheel }) { error make {msg: "the netfilter guard needs an admin"} }
     ^pkexec $TOGGLE_ROOT anonsocks ...$args
 }
 

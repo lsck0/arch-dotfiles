@@ -11,7 +11,7 @@ export const VERBS = [offer submit status get cancel gc]
 export const OCI_KINDS = [static-site oci-image arch-base]
 export const KIND_RUN = "run"
 export const KIND_AGENT = "agent"
-export const KIND_TIMEOUT_S = {static-site: 7200, oci-image: 3600, arch-base: 10800, run: 86400}
+export const KIND_TIMEOUT_S = {static-site: 7200, oci-image: 3600, arch-base: 10800}
 const NETWORK_KINDS = [arch-base]
 const SPEC_KEYS = [kind repo commit toolchain command workdir output network memoryMiB cpus timeoutS]
 const SPEC_OPTIONAL = [cache]
@@ -53,11 +53,11 @@ export const TRUST_DIR = "/var/lib/offload/trust"
 # {memoryMiB, cpus}: the module's caps, written by its system verb
 const LIMITS = "/etc/offload/limits.nuon"
 const POWER = "/sys/class/power_supply"
-const SLICE = "offload.slice"
+export const SLICE = "offload.slice"
 export const UNIT_PREFIX = "offload-"
-const NICE = 10
+export const NICE = 10
 const TASKS_MAX = 4096
-const IO_WEIGHT = 10
+export const IO_WEIGHT = 10
 # past the job's own timeout podman already killed it; this only catches a wedged runner
 const RUNTIME_MARGIN_S = 600
 export const CONSENT_WAIT = 60sec
@@ -91,6 +91,24 @@ def is-string [value: any]: nothing -> bool { ($value | describe) == "string" }
 
 def is-int [value: any]: nothing -> bool { ($value | describe) == "int" }
 
+def is-record [value: any]: nothing -> bool { ($value | describe) =~ '^record' }
+
+# A list of 1 to max items.
+def is-list [value: any, max: int]: nothing -> bool {
+    ($value | describe) =~ '^list' and ($value | is-not-empty) and ($value | length) <= $max
+}
+
+# A file's text trimmed, null when it cannot be read.
+def text-read [path: path]: nothing -> any { try { open --raw $path | str trim } catch { null } }
+
+# Removes a tree the container's uids own part of, inside podman's user namespace.
+def unshare-rm [path: path]: nothing -> nothing { do { ^podman unshare rm --recursive --force -- $path } | complete | ignore }
+
+def unshare-copy [from: path, to: path]: nothing -> nothing {
+    mkdir ($to | path dirname)
+    ^podman unshare cp --archive --reflink=auto -- $from $to
+}
+
 # The verb and its argument of an ssh original command, refused unless it is exactly one of VERBS with the argument
 # that verb takes: nothing, a job id, or (submit) the job's JSON.
 export def command-parse [original: string]: nothing -> record<verb: string, arg: string> {
@@ -114,7 +132,7 @@ export def path-inside-valid [path: any]: nothing -> bool {
 }
 
 export def toolchain-validate [toolchain: any]: nothing -> nothing {
-    if ($toolchain | describe) !~ '^record' { fail "toolchain is no object" }
+    if not (is-record $toolchain) { fail "toolchain is no object" }
     let keys = $toolchain | columns
     if "nix" in $keys or "drv" in $keys { fail $NIX_REFUSAL }
     if $keys != [oci] { fail "toolchain is {oci: <sha256:<id> or registry/name@sha256:<digest>>}" }
@@ -125,9 +143,9 @@ export def toolchain-validate [toolchain: any]: nothing -> nothing {
 
 # A job's cache: only paths, each relative and inside the checkout, none in .git; the key is the worker's own.
 export def cache-validate [cache: any]: nothing -> nothing {
-    if ($cache | describe) !~ '^record' or ($cache | columns) != [paths] { fail "cache is {paths: [...]}" }
+    if not (is-record $cache) or ($cache | columns) != [paths] { fail "cache is {paths: [...]}" }
     let paths = $cache.paths
-    if ($paths | describe) !~ '^list' or ($paths | is-empty) or ($paths | length) > $CACHE_PATHS_MAX {
+    if not (is-list $paths $CACHE_PATHS_MAX) {
         fail $"cache.paths is a list of 1 to ($CACHE_PATHS_MAX) paths"
     }
     for p in $paths {
@@ -140,7 +158,7 @@ export def cache-validate [cache: any]: nothing -> nothing {
 
 # A submitted job, checked whole against limits {memoryMiB, cpus}; its first fault is the error.
 export def spec-validate [spec: any, limits: record]: nothing -> record {
-    if ($spec | describe) !~ '^record' { fail "the job is no JSON object" }
+    if not (is-record $spec) { fail "the job is no JSON object" }
     let keys = $spec | columns
     let missing = $SPEC_KEYS | where $it not-in $keys
     if ($missing | is-not-empty) { fail $"the job lacks ($missing | str join ', ')" }
@@ -153,7 +171,7 @@ export def spec-validate [spec: any, limits: record]: nothing -> record {
     if not (is-string $spec.commit) or not ($spec.commit =~ $COMMIT) { fail "commit is no full 40-hex commit id" }
     toolchain-validate $spec.toolchain
     let command = $spec.command
-    if ($command | describe) !~ '^list' or ($command | is-empty) or ($command | length) > $COMMAND_MAX {
+    if not (is-list $command $COMMAND_MAX) {
         fail $"command is a list of 1 to ($COMMAND_MAX) arguments"
     }
     let bad = $command | where {|a|
@@ -189,7 +207,7 @@ export def image-pin [ref: string]: nothing -> any {
 # first, and the commit's parents the pack leaves out. A streamed image must be pinned by its id, the one pin a loaded
 # archive can be checked against.
 export def header-validate [header: any, spec: record]: nothing -> record<image: int, pack: int, shallow: list<string>> {
-    if ($header | describe) !~ '^record' { fail "the header is no JSON object" }
+    if not (is-record $header) { fail "the header is no JSON object" }
     let unknown = $header | columns | where $it not-in $HEADER_KEYS
     if ($unknown | is-not-empty) { fail $"the header has unknown keys ($unknown | str join ', ')" }
     let pack = $header.pack?
@@ -237,7 +255,7 @@ export def power-on-battery [supplies: list<record>]: nothing -> bool {
 # power; empty when it is. A missing gate is busy: the worker never runs past a gate that is down.
 export def gate-reasons [sessions: list<any>, on_battery: bool, missing: int = 0]: nothing -> list<string> {
     let valid = $sessions | where {|s|
-        ($s | describe) =~ '^record' and ($s.gamemode? | describe) == "bool" and ($s.obs? | describe) == "bool"
+        (is-record $s) and ($s.gamemode? | describe) == "bool" and ($s.obs? | describe) == "bool"
     }
     [
         (if ($valid | length) != ($sessions | length) { "a login's gate state is unreadable" })
@@ -252,7 +270,7 @@ export def gate-reasons [sessions: list<any>, on_battery: bool, missing: int = 0
 # with a nonce, the answer to that very request.
 export def consent-decide [trusted: bool, answer: any, nonce: any, now: datetime]: nothing -> string {
     if $trusted { return "allow" }
-    if ($answer | describe) !~ '^record' { return "ask" }
+    if not (is-record $answer) { return "ask" }
     let time = try { $answer.time | into datetime } catch { return "ask" }
     if $now - $time > $CONSENT_WINDOW or $time > $now { return "ask" }
     if $nonce != null and $answer.nonce? != $nonce { return "ask" }
@@ -269,7 +287,7 @@ export def manifest-build [job: record, run: record, worker: record]: nothing ->
 
 # The worker's metrics state: its running jobs and each kind's last finished job, finished one replacing its kind's.
 export def metrics-state [previous: any, running: int, finished: any]: nothing -> record {
-    let last = if ($previous | describe) =~ '^record' and ($previous.last? | describe) =~ '^record' { $previous.last } else { {} }
+    let last = if (is-record $previous) and (is-record $previous.last?) { $previous.last } else { {} }
     let last = if $finished == null { $last } else {
         $last | upsert $finished.kind ($finished | reject kind)
     }
@@ -284,7 +302,7 @@ export def offer-build [reasons: list<string>, running: int, free_mib: int, limi
         accepts: ($reason == null), reason: $reason, freeMemoryMiB: $free_mib, images: $images
         cap: {
             memoryMiB: $limits.memoryMiB, cpus: $limits.cpus, kinds: $OCI_KINDS, toolchains: [oci]
-            timeoutS: ($KIND_TIMEOUT_S | select ...$OCI_KINDS), imageBytes: $IMAGE_MAX, packBytes: $PACK_MAX
+            timeoutS: $KIND_TIMEOUT_S, imageBytes: $IMAGE_MAX, packBytes: $PACK_MAX
             cacheBytes: $CACHE_KEY_MAX
         }
     }
@@ -294,7 +312,7 @@ export def job-id [device: string, time: datetime, nonce: string]: nothing -> st
     $"($device)-($time | format date $STAMP_FORMAT)-($nonce)"
 }
 
-def save-atomic [path: path]: string -> nothing {
+export def save-atomic [path: path]: string -> nothing {
     let text = $in
     let tmp = ^mktemp --tmpdir=($path | path dirname) $".($path | path basename).XXXXXX" | str trim
     try {
@@ -322,11 +340,13 @@ def jobs-dir []: nothing -> path {
 
 export def unit-name [id: string]: nothing -> string { $"($UNIT_PREFIX)($id).service" }
 
-export def units-active []: nothing -> list<string> {
+# The ids of the active units whose job id carries a stamp of this many digits before its time: the worker's
+# (YYYYMMDD) by default, offload's runs (MMDD) with 4.
+export def units-active [date_digits: int = 8]: nothing -> list<string> {
     with-env (manager-env) {
         ^systemctl --user list-units $"($UNIT_PREFIX)*" --type=service --state=active,activating --plain --no-legend
     } | lines | each { split row " " | first | str replace --regex $'^($UNIT_PREFIX)' '' | str replace --regex '\.service$' '' }
-    | where $it =~ '-\d{8}-\d{6}-[0-9a-f]+$'
+    | where $it =~ $'-\d{($date_digits)}-\d{6}-[0-9a-f]+$'
 }
 
 def limits-load []: nothing -> record {
@@ -343,8 +363,7 @@ def gate-sessions []: nothing -> list<any> {
 
 def power-supplies []: nothing -> list<record> {
     glob $"(state-at $POWER)/*" | each {|d|
-        let read = {|name| try { open --raw ($d | path join $name) | str trim } catch { null } }
-        {type: (do $read type), online: (do $read online), status: (do $read status)}
+        {type: (text-read ($d | path join type)), online: (text-read ($d | path join online)), status: (text-read ($d | path join status))}
     }
 }
 
@@ -416,6 +435,12 @@ export def metrics-update [finished: any = null]: nothing -> nothing {
     try { metrics-state $previous (units-active | length) $finished | to json --raw | save-atomic $file } catch { }
 }
 
+# Refreshes the metrics with a job of kind that ran from started to ended.
+export def metrics-finished [kind: string, exit: int, started: datetime, ended: datetime, peak: int]: nothing -> nothing {
+    let seconds = ($ended - $started) / 1sec | math round
+    metrics-update {kind: $kind, exit: $exit, seconds: $seconds, peakMiB: $peak, ended: (($ended | into int) // 1_000_000_000)}
+}
+
 def job-dir [id: string]: nothing -> path {
     if not ($id =~ $JOB_ID) { fail "no job id" }
     jobs-dir | path join $id
@@ -430,11 +455,10 @@ def job-load [id: string, device: string, local: bool]: nothing -> record {
 }
 
 export def job-state [dir: path, active: list<string>]: nothing -> record {
-    let read = {|name| try { open --raw ($dir | path join $name) | str trim } catch { null } }
     let id = $dir | path basename
-    let cancelled = do $read $CANCEL_FILE
-    let error = do $read $ERROR_FILE
-    let exit = do $read $EXIT_FILE
+    let cancelled = text-read ($dir | path join $CANCEL_FILE)
+    let error = text-read ($dir | path join $ERROR_FILE)
+    let exit = text-read ($dir | path join $EXIT_FILE)
     let state = if $cancelled != null { "cancelled" } else if $exit != null {
         if $exit == "0" and ($dir | path join $MANIFEST | path exists) { "done" } else { "failed" }
     } else if $id in $active { "running" } else { "lost" }
@@ -562,7 +586,7 @@ def verb-gc [device: string, local: bool]: nothing -> record {
         ($job.kind? in $OCI_KINDS and ($local or $job.client? == $device) and $state.state != "running"
             and (ls --directory $d | get 0.modified) < $cutoff)
     } | each {|d|
-        do { ^podman unshare rm --recursive --force $d } | complete | ignore
+        unshare-rm $d
         $d | path basename
     }
     {removed: $removed, images: (images-gc), cache: (cache-trim 0 null)}
@@ -690,10 +714,10 @@ def cache-trim [incoming: int, keep: any]: nothing -> list<string> {
     # a save cut off midway leaves its hidden staging dir
     if ($root | path exists) {
         ls --all $root | where type == dir and ($it.name | path basename | str starts-with ".") and modified < ((date now) - 1day)
-        | each { do { ^podman unshare rm --recursive --force -- $in.name } | complete | ignore } | ignore
+        | each { unshare-rm $in.name } | ignore
     }
     let evict = cache-evict (cache-entries) $CACHE_TOTAL_MAX $incoming $keep
-    for key in $evict { do { ^podman unshare rm --recursive --force -- (cache-root | path join $key) } | complete | ignore }
+    for key in $evict { unshare-rm (cache-root | path join $key) }
     $evict
 }
 
@@ -723,11 +747,10 @@ def cache-restore [src: path, key: string, paths: list<string>]: nothing -> noth
             print --stderr $"offload worker: cache ($p) not restored: tracked, present or through a link out"
             continue
         }
-        mkdir ($dest | path dirname)
-        ^podman unshare cp --archive --reflink=auto -- $cached $dest
+        unshare-copy $cached $dest
         if (links-escape $src $dest) {
             print --stderr $"offload worker: cache ($p) carried a link out of the checkout; dropped"
-            do { ^podman unshare rm --recursive --force -- $dest } | complete | ignore
+            unshare-rm $dest
         }
     }
     "" | save --force ($entry | path join $CACHE_USED)
@@ -749,13 +772,9 @@ def cache-save [src: path, key: string, paths: list<string>]: nothing -> nothing
     mkdir $root
     let entry = $root | path join $key
     let fresh = $root | path join $".($key).(random binary $NONCE_BYTES | encode hex --lower)"
-    for p in $kept {
-        let dest = $fresh | path join $CACHE_TREE $p
-        mkdir ($dest | path dirname)
-        ^podman unshare cp --archive --reflink=auto -- ($src | path join $p) $dest
-    }
+    for p in $kept { unshare-copy ($src | path join $p) ($fresh | path join $CACHE_TREE $p) }
     "" | save --force ($fresh | path join $CACHE_USED)
-    if ($entry | path exists) { do { ^podman unshare rm --recursive --force -- $entry } | complete | ignore }
+    if ($entry | path exists) { unshare-rm $entry }
     ^mv $fresh $entry
 }
 
@@ -773,6 +792,12 @@ export def peak-mib []: nothing -> int {
     let cgroup = open /proc/self/cgroup | lines | where ($it | str starts-with "0::") | get --optional 0 | default "0::/"
         | str substring 3..
     try { open --raw $"/sys/fs/cgroup($cgroup)/memory.peak" | str trim | into int | $in // 1048576 } catch { 0 }
+}
+
+# Why the job failed, on the unit's log and as its error file.
+def job-error [dir: path, msg: string]: nothing -> nothing {
+    print --stderr $"offload worker: ($msg)"
+    $msg | save --force ($dir | path join $ERROR_FILE)
 }
 
 def podman-argv [job: record, src: path, image: string]: nothing -> list<string> {
@@ -812,8 +837,7 @@ def "main run" [id: string]: nothing -> nothing {
         let code = try { ^podman ...(podman-argv $job $src $image); 0 } catch { [$env.LAST_EXIT_CODE 1] | math max }
         {code: $code, key: $key}
     } catch {|e|
-        print --stderr $"offload worker: ($e.msg)"
-        $e.msg | save --force ($dir | path join $ERROR_FILE)
+        job-error $dir $e.msg
         {code: 1, key: null}
     }
     let code = $attempt.code
@@ -827,12 +851,10 @@ def "main run" [id: string]: nothing -> nothing {
             ^sha256sum ($dir | path join $ARTIFACT) | split row " " | first
         } catch { null }
     }
-    if $code == 0 and $sha == null {
-        let msg = $"output ($job.spec.output) is missing, outside the checkout or unreadable"
-        print --stderr $"offload worker: ($msg)"
-        $msg | save --force ($dir | path join $ERROR_FILE)
-    }
-    let exit = if $code == 0 and $sha == null { 1 } else { $code }
+    let exit = if $code == 0 and $sha == null {
+        job-error $dir $"output ($job.spec.output) is missing, outside the checkout or unreadable"
+        1
+    } else { $code }
     let peak = peak-mib
     let version = open --raw $SELF | hash sha256 | str substring 0..<12
     let run = {started: $started, ended: $ended, exit: $exit, peakMiB: $peak, sha256: $sha}
@@ -843,11 +865,10 @@ def "main run" [id: string]: nothing -> nothing {
     }
     let members = [$MANIFEST] ++ (if $sha != null { [$ARTIFACT] } else { [] })
     ^tar --create --file ($dir | path join $RESULT) --directory $dir -- ...$members
-    if ($src | path exists) { do { ^podman unshare rm --recursive --force $src } | complete | ignore }
+    if ($src | path exists) { unshare-rm $src }
     rm --force ($dir | path join $ARTIFACT)
     $exit | into string | save --force ($dir | path join $EXIT_FILE)
-    let seconds = ($ended - $started) / 1sec | math round
-    metrics-update {kind: $job.kind, exit: $exit, seconds: $seconds, peakMiB: $peak, ended: (($ended | into int) // 1_000_000_000)}
+    metrics-finished $job.kind $exit $started $ended $peak
     exit $exit
 }
 

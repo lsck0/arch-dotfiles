@@ -1,5 +1,6 @@
 # The health checks of `dot status`.
 
+use proc.nu [succeeds]
 use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir xdg file-trim HOOK_WATCH_PREFIX HOOK_RUN_PREFIX]
 use ledger.nu [ledger-get awaited-names LEDGER_AWAITED LSCK0_DB]
 use platform.nu [platform-load]
@@ -248,13 +249,11 @@ def packages [ctx: any]: nothing -> list<record> {
     packages-reports ($unmet | where $it not-in $groups) (with-env {DOT_LAYER: system} { ledger-get $LEDGER_AWAITED }) $built
 }
 
-def succeeds [argv: list<string>]: nothing -> bool { (do { ^$argv.0 ...($argv | skip 1) } | complete).exit_code == 0 }
-
 def firewall []: nothing -> list<record> {
     if (which nft | is-empty) or (platform-load $REPO).form_factor == "wsl" { return [] }
-    let egress_enabled = succeeds [systemctl -q is-enabled fw-egress.service]
-    let egress_down = $egress_enabled and not (succeeds [systemctl -q is-active fw-egress.service])
-    if not (succeeds [systemctl -q is-active fw-lockdown.service fw-inbound.service]) {
+    let egress_enabled = succeeds systemctl -q is-enabled fw-egress.service
+    let egress_down = $egress_enabled and not (succeeds systemctl -q is-active fw-egress.service)
+    if not (succeeds systemctl -q is-active fw-lockdown.service fw-inbound.service) {
         [(report FAIL firewall "no inbound table loaded, fw-lockdown and fw-inbound are both inactive")]
     } else if $egress_down {
         [(report FAIL firewall "fw-egress is enabled but not active")]

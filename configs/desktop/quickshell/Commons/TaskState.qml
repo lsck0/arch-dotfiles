@@ -139,24 +139,25 @@ Singleton {
     return "in " + Math.max(1, Math.floor(diff / root.msPerMinute)) + "m"
   }
 
-  // when a not-yet-ready task is scheduled: the time today, the weekday this week, else the date; empty once ready
+  // the time today, the weekday this week, else the date
+  function dayText(d) {
+    var now = new Date()
+    if (d.toDateString() === now.toDateString()) return Qt.formatDateTime(d, "HH:mm")
+    return Qt.formatDateTime(d, d.getTime() - now.getTime() < 6 * root.msPerDay ? "ddd" : "MMM d")
+  }
+
   // until: the date the task expires and is deleted, shown as "until <day>"
   function untilText(value) {
     var d = twDate(value)
-    if (!d) return ""
-    var now = new Date()
-    if (d.toDateString() === now.toDateString()) return "until " + Qt.formatDateTime(d, "HH:mm")
-    return "until " + (d.getTime() - now.getTime() < 6 * root.msPerDay ? Qt.formatDateTime(d, "ddd") : Qt.formatDateTime(d, "MMM d"))
+    return d ? "until " + root.dayText(d) : ""
   }
 
+  // when a not-yet-ready task is scheduled, with its time past today when it has one; empty once ready
   function scheduledText(value) {
     var d = twDate(value)
     if (!d || d.getTime() <= Date.now()) return ""
-    var now = new Date()
-    var timed = d.getHours() !== 0 || d.getMinutes() !== 0
-    if (d.toDateString() === now.toDateString()) return "@" + Qt.formatDateTime(d, "HH:mm")
-    var day = d.getTime() - now.getTime() < 6 * root.msPerDay ? Qt.formatDateTime(d, "ddd") : Qt.formatDateTime(d, "MMM d")
-    return "@" + day + (timed ? " " + Qt.formatDateTime(d, "HH:mm") : "")
+    var timed = d.toDateString() !== new Date().toDateString() && (d.getHours() !== 0 || d.getMinutes() !== 0)
+    return "@" + root.dayText(d) + (timed ? " " + Qt.formatDateTime(d, "HH:mm") : "")
   }
 
   // timew exports tags sorted: every tag counts, the description is the join key back to a task. `:day` returns every

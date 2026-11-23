@@ -1,9 +1,0 @@
-[Unit]
-Description=Desktop health metrics every 5 minutes (system half)
-
-[Timer]
-OnBootSec=2min
-OnUnitActiveSec=5min
-
-[Install]
-WantedBy=timers.target

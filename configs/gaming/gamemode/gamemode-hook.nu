@@ -1,6 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
 # gamemode's start/end hook: frees the gpu and cpu from local inference and the trmnl timer while a game runs
 
+const REPO = path self | path expand | path dirname --num-levels 4
+use ($REPO | path join scripts lib proc.nu) [succeeds]
+
 const TRMNL_TIMER = "trmnl-claude.timer"
 const VLLM_PROXY = "vllm-proxy.service"
 const VLLM_SOCKET = "vllm.socket"
@@ -14,12 +17,8 @@ def mark [name: string]: nothing -> path {
     $env.XDG_RUNTIME_DIR | path join toggles $"gamemode-($name)"
 }
 
-def --wrapped succeeds [...argv: string]: nothing -> bool {
-    (do { run-external ...$argv } | complete).exit_code == 0
-}
-
 def admin []: nothing -> bool {
-    "wheel" in (^id -nG | split row " ")
+    "wheel" in (^id -nG | complete | get stdout | str trim | split row " ")
 }
 
 # Stops the units, idle sockets included, and records the active ones in mark.

@@ -113,7 +113,7 @@ export def link [cfg: record] {
         (if (secret-is-plaintext ($backup | path join credentials.json)) and not ($creds | path exists) {
             [
                 (exec claude-login [install -Dm600 ($backup | path join credentials.json) $creds] --creates $creds)
-                (json-merge (home .claude.json) (open ($backup | path join account.json) | items {|k, v| json-set [$k] $v }))
+                (json-merge (home .claude.json) (open ($backup | path join account.json)))
             ]
         })
     ]

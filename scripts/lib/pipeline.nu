@@ -172,6 +172,21 @@ export def packages-absent [declared: table]: nothing -> record {
     }
 }
 
+# The result of a module that ran nothing of its own, fields over RESULT_NONE.
+def result-bare [id: string, fields: record = {}]: nothing -> record {
+    $RESULT_NONE | merge {id: $id, notes: [], ms: 0} | merge $fields
+}
+
+# A module's cancel marker in dir, empty without one.
+def cancel-file [dir: string, id: string]: nothing -> string {
+    if $dir == "" { "" } else { $dir | path join ($id | str replace --all "/" "+") }
+}
+
+# Whether verb's state of the module records outputs.
+def outputs-recorded [id: string, verb: string]: nothing -> bool {
+    (state-read $id $verb).outputs | is-not-empty
+}
+
 # Why each module whose declared packages are not all installed waits: id -> reason, none for the rest.
 export def packages-gate [declared: table, absent: record]: nothing -> record {
     let kinds = [pacman flatpak nix] | where {|k| $absent | get $k | is-not-empty }
@@ -370,7 +385,7 @@ export def modules-gone [ctx: record, verb: string]: nothing -> list<string> {
     glob ($root | path join "**" $"($verb).nuon") --no-dir | each { path dirname | path relative-to $root }
     | where {|id|
         let group = $ctx.repo | path join configs ($id | path split | first)
-        $id not-in $ctx.modules.id and ($group | path exists) and ((state-read $id $verb).outputs | is-not-empty)
+        $id not-in $ctx.modules.id and ($group | path exists) and (outputs-recorded $id $verb)
     }
 }
 
@@ -402,8 +417,10 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
         error make {msg: $"($broken.id | str join ', '): mod.nu does not parse"}
     }
     let active = $ctx.modules | where {|m| $verb in $m.verbs and $m.cfg.enable and (($ids | is-empty) or $m.id in $ids) }
-    let retired = if $verb not-in $REVERT_VERBS { [] } else {
-        $ctx.modules | where {|m| not $m.cfg.enable and not $m.broken and $verb in $m.native and (($ids | is-empty) or $revert_all or $m.id in $ids) and ((state-read $m.id $verb).outputs | is-not-empty) }
+    let reverts = $verb in $REVERT_VERBS
+    let reverting = ($ids | is-empty) or $revert_all
+    let retired = if not $reverts { [] } else {
+        $ctx.modules | where {|m| not $m.cfg.enable and not $m.broken and $verb in $m.native and ($reverting or $m.id in $ids) and (outputs-recorded $m.id $verb) }
     }
     if $progress { pipeline-progress $"($ctx.layer) layer: checking (counted ($active | length) module)" }
     let graph = span graph {} { modules-graph $ctx.repo ($active ++ $retired) }
@@ -411,11 +428,11 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
         let prev = state-read $m.id $verb
         {m: $m, prev: $prev, outside: ($prev.outputs | where kind in [file link] and source != null and not ($it.source | str starts-with $m.dir))}
     } }
-    let stamped = stamps ([$LIB_DIR] ++ ($olds | each { $in.m.dir }))
-    # a link depends only on its source existing; the probe is bounded, a stat() on a dead autofs mount blocks
-    let alive = links-alive ($olds | each { $in.outside } | flatten | where kind == link | get --optional source | default [] | uniq)
     # the lib's own imports outside it (the wallust palette) count for every module
     let import_dirs = [$LIB_DIR] ++ ($olds | each { $in.m.dir })
+    let stamped = stamps $import_dirs
+    # a link depends only on its source existing; the probe is bounded, a stat() on a dead autofs mount blocks
+    let alive = links-alive ($olds | each { $in.outside } | flatten | where kind == link | get --optional source | default [] | uniq)
     let mapped = $import_dirs | each {|d| [$d true] } | into record
     let import_map = span imports {} { imports-map $import_dirs }
     let importing = imports-by-dir $import_map $mapped
@@ -435,7 +452,6 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     let natives = span inputs {} { $olds | par-each --keep-order {|o|
         let m = $o.m
         let packaged = $m.meta.packages.pacman ++ $m.meta.packages.native | each {|n| $"($n) ($versions | get --optional $n)" } | str join "\n"
-        let prev = $o.prev
         let outside = $o.outside
         # most modules have no outside outputs and no imports: skip their closures, each costs (l-dotfiles-live-debug)
         let links = if ($outside | is-empty) { "" } else { $outside | where kind == link | get source | each {|s| $"($s) ($alive | get $s)" } | str join "\n" }
@@ -443,7 +459,7 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
         let imported = if ($imports | is-empty) { "" } else { $imports | each {|f| $"($f) ($import_hashes | get $f)" } | str join "\n" }
         let sources = if ($outside | is-empty) { [] } else { $outside | where kind == file | get source }
         let input = [$global ($stamped | get $m.dir) $imported ($m.cfg | to nuon) (stat $ctx.repo ($m.meta.inputs? | default [])) (stat $ctx.repo $sources) $links $packaged] | str join "\n" | hash sha256
-        {id: $m.id, prev: $prev, input: $input, volatile: ($m.meta.volatile? | default false)}
+        {id: $m.id, prev: $o.prev, input: $input, volatile: ($m.meta.volatile? | default false)}
     } }
     let prev_targets = $natives | get prev.outputs | flatten
     let before = span observe {} { observe-outputs $prev_targets $ctx.layer }
@@ -473,10 +489,10 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
         }
     }
     # a module still in the repo that no longer has the verb plans its recorded outputs as a gone one does
-    let dropped = if $verb not-in $REVERT_VERBS { [] } else {
-        $ctx.modules | where {|m| not $m.broken and $verb not-in $m.native and (($ids | is-empty) or $revert_all or $m.id in $ids) and ((state-read $m.id $verb).outputs | is-not-empty) } | get id
+    let dropped = if not $reverts { [] } else {
+        $ctx.modules | where {|m| not $m.broken and $verb not-in $m.native and ($reverting or $m.id in $ids) and (outputs-recorded $m.id $verb) } | get id
     }
-    let gone = (if $verb not-in $REVERT_VERBS or (($ids | is-not-empty) and not $revert_all) { [] } else { modules-gone $ctx $verb }) ++ $dropped
+    let gone = (if $reverts and $reverting { modules-gone $ctx $verb } else { [] }) ++ $dropped
     let claimed = if ($gone | is-empty) { [] } else {
         $prev_targets | get --optional target | default [] | append ($planned | get actions | flatten | get --optional target | default []) | uniq
     }
@@ -596,7 +612,7 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
                 log-note $"($h.id): pending, ($h.why)" {module: $h.id}
                 # a held module that did not evaluate either: its error is a failure too, not hidden behind the hold
                 let error = $planned | where id == $h.id | get --optional 0.error
-                let result = $RESULT_NONE | merge {id: $h.id, ok: ($error == null), pending: $h.why, error: $error, notes: [], ms: 0}
+                let result = result-bare $h.id {ok: ($error == null), pending: $h.why, error: $error}
                 $done = $done | insert $h.id (if $result.ok { "pending" } else { "failed" })
                 $waiting = waiting-release $waiting $dependents [$h.id]
                 $results = $results | append $result
@@ -613,7 +629,7 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
         if ($instant | is-not-empty) {
             $done = $done | merge ($instant | each {|m| [$m.id ok] } | into record)
             $waiting = waiting-release $waiting $dependents $instant.id
-            $results = $results ++ ($instant | each {|m| $RESULT_NONE | merge {id: $m.id, notes: [], ms: 0} })
+            $results = $results ++ ($instant | each {|m| result-bare $m.id })
             $pending = $pending | where id not-in $instant.id
             continue
         }
@@ -623,11 +639,11 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
         let running_serial = $planned | where id in ($running | columns) | any {|m| $m.serial? | default false }
         let startable = if $running_serial { [] } else if $busy == 0 and $serial_wait { $ready | where serial | first 1 } else { $ready | where not serial | first ([($jobs - $busy) 0] | math max) }
         for m in $startable {
-            let cancel = if $cancel_dir == "" { "" } else { $cancel_dir | path join ($m.id | str replace --all "/" "+") }
+            let cancel = cancel-file $cancel_dir $m.id
             let id = job spawn {
                 # a job that dies without sending would leave job recv waiting forever
                 let result = try { with-env {DOT_CANCEL_FILE: $cancel} { module-run $ctx $m $verb $args } } catch {|e|
-                    $RESULT_NONE | merge {id: $m.id, ok: false, error: (cause-text (cause-from-error $e)), notes: [], ms: 0}
+                    result-bare $m.id {ok: false, error: (cause-text (cause-from-error $e))}
                 }
                 if $cancel == "" or not ($cancel | path exists) { $result | job send 0 }
             }
@@ -642,13 +658,13 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
             let since = $started
             let late = $running | columns | where {|id| (date now) - ($since | get $id) > $timeout } | get --optional 0
             if $late != null {
-                touch ($cancel_dir | path join ($late | str replace --all "/" "+"))
+                touch (cancel-file $cancel_dir $late)
                 $killed = true
                 try { job kill ($running | get $late) }
                 # its processes carry DOT_RUN_FILE and DOTFILES_MODULE, setsid'd ones included
                 procs-kill [$"DOTFILES_MODULE=($late)" $"DOT_RUN_FILE=($env.DOT_RUN_FILE? | default '')"]
                 log-warn $"($late): ($verb) still running after ($timeout), killed" {module: $late}
-                $RESULT_NONE | merge {id: $late, ok: false, error: $"timed out after ($timeout)", notes: [], ms: ($timeout / 1ms)}
+                result-bare $late {ok: false, error: $"timed out after ($timeout)", ms: ($timeout / 1ms)}
             } else {
                 try { job recv --timeout 1sec } catch { null }
             }

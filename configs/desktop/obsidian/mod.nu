@@ -63,7 +63,7 @@ export def link [cfg: record] {
         ])
         (json-merge $settings ([(json-set [apiKey] $api_key)] ++ $server) --then [chmod 600 $settings])
         (link-commands obsidian-launch.nu)
-        (desktop-override obsidian.desktop { str replace --all --regex '(?m)^Exec=/usr/bin/obsidian' $"Exec=($nu.home-dir)/.local/bin/obsidian-launch" })
+        (desktop-exec obsidian.desktop /usr/bin/obsidian --command $"($nu.home-dir)/.local/bin/obsidian-launch")
         # gated: while Obsidian is closed a session shows a server with no tools, not a failed one
         (mcp-servers {obsidian-mcp: {
             type: http, url: $"http://127.0.0.1:($REST_PORT)/mcp/", headers: {Authorization: $"Bearer ($api_key)"}

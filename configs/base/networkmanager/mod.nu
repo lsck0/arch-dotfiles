@@ -6,6 +6,7 @@ export const meta = {
     packages: {native: [ethtool modemmanager networkmanager wpa_supplicant]}
     volatile: true
     secrets: [home-gateways trusted-gateways wifi]
+    native_only: [system]
 }
 
 export const options = {
@@ -130,7 +131,6 @@ def homelab-env [cfg: record]: nothing -> any {
 }
 
 export def system [cfg: record] {
-    if $env.FORM_FACTOR? == "wsl" { return [] }
     let home_wired = $cfg.home_wired
     for key in [[name shape what]; [home_gateways $HOME_LINE "a home gateway line"] [trusted_gateways $MAC "a mac"]] {
         let bad = $cfg | get $key.name | where not ($it =~ $key.shape)

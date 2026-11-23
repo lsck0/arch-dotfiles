@@ -29,6 +29,7 @@ export const meta = {
     backup: {secrets: true}                           # its backup verb writes into secrets: runs only unlocked
     secrets: ["alloy/{host}"]                         # what its system verb reads of keys/ (root gets only these)
     phase: early                                      # install stage: early (base/pacman) or install (base/yubikey)
+    native_only: [system]                             # verbs not evaluated on WSL, declaring nothing there
     barrier: {run: boot-commit, watch: [/etc/x]}      # an export run once after a layer's apply that changed a
                                                       # watched path or a decl's --notify <this id> flagged
 }
@@ -102,8 +103,9 @@ export def packages [cfg: record]: nothing -> record {
 - Declarations (`scripts/lib/module.nu`):
   - files: `file-copy <src> <dest> [--then]`, `files-into <dir> <src...>`, `file-text <dest> <text> [--generated]
     [--in-place]`, `file-render <src> <dest> {KEY: v}` (`@KEY@`), `file-link` (only where the app reads the repo
-    live), `link-commands <file...>`, `json-merge <file> [(json-set [k] v) (json-delete [k])]`, `ini-merge <file>
-    {section: {key: v}} [--missing-only]`, `desktop-override <id> {|text| ...}`, `mcp-servers {name: spec}`
+    live), `link-commands <file...>`, `json-merge <file> [(json-set [k] v) (json-delete [k])]` (or a record of top-level keys),
+    `ini-merge <file> {section: {key: v}} [--missing-only]`, `desktop-override <id> {|text| ...}`, `desktop-exec <id>
+    <cmd> [--command] [--args] [--env-vars]` (rewrites its `Exec=` lines), `mcp-servers {name: spec}`
     (Claude, Gemini, Copilot and Hermes, each in its format; null drops one), `mcp-uvx` (a pinned PyPI server in a
     venv of its own, built at apply), `shell-aliases <name>` (the module's `aliases.nu`/`aliases.zsh` into nushell's
     autoload dir and zsh's conf.d; a tool's aliases and defs live with the module declaring the tool, never in
@@ -111,9 +113,12 @@ export def packages [cfg: record]: nothing -> record {
   - rules: `udev-rules <src> [trigger args...] [--then]` (into `/etc/udev/rules.d`, reloaded and triggered by
     `udev-reload [trigger args...] [--and <cmd>]`, also the `--then` of any other file udev reads), `polkit-rules
     <src> [--name] [--values {KEY: v}]` (into `/etc/polkit-1/rules.d`, rendered when given values).
-  - units: `unit-file <src> [--enable --now]`, `unit-enable|unit-disable|unit-mask <name> [--now]`,
+  - units: `unit-file <src> [--name] [--values {KEY: v}] [--enable --now]`, `unit-timer <name> <description>
+    [--calendar] [--boot] [--startup] [--every] [--delay] [--accuracy] [--ac-power <udev rules>] [--enable --now]` (the
+    .timer text written for it; a calendar adds `Persistent=true`), `unit-enable|unit-disable|unit-mask <name>
+    [--now]`, `unit-switch <name> <bool> [--now]` (enable or disable),
     `unit-restart <name> [--reload] [--if-running]` (the one `--then` for a unit: skips a unit not installed yet;
-    `--if-running` leaves a stopped one stopped), `dropin <unit> <src> [--name]`,
+    `--if-running` leaves a stopped one stopped), `dropin <unit> <src> [--name] [--values]`,
     `user-hook <name> <script> --watch [paths] [--permanent] [--no-brake] [--mkdir]`.
   - actions: `exec <name> [argv]`, `step <command> [args]` (an own export, run at apply time). Either is recorded
     with any of `--creates <path>`, `--key <string>`, `--done` or `--undo [argv]`. `--key` runs it again when the key

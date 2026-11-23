@@ -9,6 +9,7 @@ export const meta = {
             linux-tools-meta lm_sensors sof-firmware vulkan-intel vulkan-nouveau vulkan-radeon wireless-regdb
         ]
     }
+    native_only: [system]
 }
 
 export const options = {
@@ -56,7 +57,6 @@ export def packages [cfg: record]: nothing -> record {
 }
 
 export def system [cfg: record] {
-    if $env.FORM_FACTOR? == "wsl" { return [] }
     if ($cfg.nvidia_driver | default none) == none {
         return [(step cmdline-unset nvidia_drm.modeset) (step kms-restore)]
     }

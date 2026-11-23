@@ -175,34 +175,38 @@ def stub-write [path: path, body: string]: nothing -> nothing {
 
 # A machine on its home-less wired link: networking on, wifi and bluetooth radios unblocked, the default firewall.
 def world-init [w: path]: nothing -> nothing {
-    let rt = runtime $w
-    mkdir (world $w fail) (world $w units system) (world $w units user) ($w | path join bin) ($w | path join home)
-    mkdir $rt ($w | path join etc-dotfiles) ($w | path join etc-wg) ($w | path join dispatcher) ($w | path join bt hci0)
-    mkdir ($w | path join net enp16s0 device) ($w | path join net enp16s0 statistics) ($w | path join net wlan0 device)
-    mkdir ($w | path join home .config dotfiles) ($w | path join home .cache) ($w | path join home .local state)
-    "{capabilities: [secrets]}" | save --force ($w | path join home .config dotfiles profile.nuon)
-    "luca-pc\n" | save --force ($w | path join etc-dotfiles platform)
-    "" | save --force ($w | path join etc-wg wg0.conf)
-    "02:00:00:00:00:01\n" | save --force ($w | path join net enp16s0 address)
-    "1000\n" | save --force ($w | path join net enp16s0 statistics rx_bytes)
-    "1000\n" | save --force ($w | path join net enp16s0 statistics tx_bytes)
-    put $w networking enabled
-    put $w rfkill "wlan unblocked\nbluetooth unblocked\n"
-    put $w devices "enp16s0:ethernet:connected\nwlan0:wifi:disconnected\n"
-    put $w connectivity full
-    put $w wifi-hw enabled
-    put $w known-units ([tor-router.service portmaster.service fw-inbound.service fw-lockdown.service bluetooth.service] | str join "\n")
+    let files = {
+        home/.config/dotfiles/profile.nuon: "{capabilities: [secrets]}"
+        etc-dotfiles/platform: "luca-pc\n"
+        etc-wg/wg0.conf: ""
+        net/enp16s0/address: "02:00:00:00:00:01\n"
+        net/enp16s0/statistics/rx_bytes: "1000\n"
+        net/enp16s0/statistics/tx_bytes: "1000\n"
+        world/networking: enabled
+        world/rfkill: "wlan unblocked\nbluetooth unblocked\n"
+        world/devices: "enp16s0:ethernet:connected\nwlan0:wifi:disconnected\n"
+        world/connectivity: full
+        world/wifi-hw: enabled
+        world/known-units: ([tor-router.service portmaster.service fw-inbound.service fw-lockdown.service bluetooth.service] | str join "\n")
+        world/routes.json: '[{"dst":"default","gateway":"192.0.2.1","dev":"enp16s0","metric":100}]'
+        world/neigh.json: $'[{"dst":"192.0.2.1","dev":"enp16s0","lladdr":"($MAC | str uppercase)","state":["REACHABLE"]}]'
+        world/dnd: off
+        world/preset: off
+        world/bt-power: yes
+        world/option.nuon: "[]"
+        dot.nu: $DOT_STUB
+        toggle-root.nu: (open --raw $HELPER | str replace "@APPROVAL_DIR@" "/run/toggle-auth" | str replace "@APPROVAL_MINUTES@" "5")
+    }
+    for f in ($files | transpose path text) {
+        let path = $w | path join $f.path
+        mkdir ($path | path dirname)
+        $f.text | save --force $path
+    }
+    mkdir (runtime $w) (world $w fail) (world $w units system) (world $w units user) ($w | path join bin) ($w | path join dispatcher)
+    mkdir ($w | path join bt hci0) ($w | path join net enp16s0 device) ($w | path join net wlan0 device)
+    mkdir ($w | path join home .cache) ($w | path join home .local state)
     for u in [fw-inbound.service portmaster.service bluetooth.service] { touch (world $w units system $u) }
-    put $w routes.json '[{"dst":"default","gateway":"192.0.2.1","dev":"enp16s0","metric":100}]'
-    put $w neigh.json $'[{"dst":"192.0.2.1","dev":"enp16s0","lladdr":"($MAC | str uppercase)","state":["REACHABLE"]}]'
-    put $w dnd off
-    put $w preset off
-    put $w bt-power yes
-    put $w option.nuon "[]"
     for s in ($STUBS | transpose name body) { stub-write ($w | path join bin $s.name) $s.body }
-    $DOT_STUB | save --force ($w | path join dot.nu)
-    open --raw $HELPER | str replace "@APPROVAL_DIR@" "/run/toggle-auth" | str replace "@APPROVAL_MINUTES@" "5"
-    | save --force ($w | path join toggle-root.nu)
 }
 
 # Runs argv in the sandbox: the home hidden, the repo read-only with dot.nu and color-grading.py stubbed and the
@@ -239,15 +243,16 @@ def expect [w: path, what: string, got: any, want: any]: nothing -> nothing {
     }
 }
 
-def toasts-take [w: path]: nothing -> list<string> {
-    let f = world $w toasts
-    let lines = if ($f | path exists) { open --raw $f | lines } else { [] }
-    rm --force $f
-    $lines
+# Runs the toggle and checks that it succeeded and its state is now want.
+def switched [w: path, want: string, name: string, ...args: string]: nothing -> nothing {
+    let what = [$name ...$args] | str join " "
+    expect $w $"($what) exit" (toggle $w $name ...$args).exit_code 0
+    expect $w $what (rec $w $name).state $want
 }
 
-def events-take [w: path]: nothing -> list<string> {
-    let f = world $w events
+# What the stubs appended to a world file since the last take: the toasts, the bar's events.
+def take [w: path, file: string]: nothing -> list<string> {
+    let f = world $w $file
     let lines = if ($f | path exists) { open --raw $f | lines } else { [] }
     rm --force $f
     $lines
@@ -258,6 +263,15 @@ def inject [w: path, command: string, pattern: string, code: string, message: st
 }
 
 def heal [w: path, command: string]: nothing -> nothing { rm --force (world $w fail $command) }
+
+# The toggle run while command's calls matching pattern fail with code and message, healed after: its exit code and
+# the toasts it left.
+def failing [w: path, command: string, pattern: string, code: string, message: string, name: string, ...args: string]: nothing -> list<any> {
+    inject $w $command $pattern $code $message
+    let r = toggle $w $name ...$args
+    heal $w $command
+    [$r.exit_code (take $w toasts)]
+}
 
 # What a reboot resets: /run (the runtime dir, tlp's record), links made at runtime, user units; NM's networking
 # state and rfkill's blocks are restored by their services, units enabled stay.
@@ -281,39 +295,33 @@ def route-cases [w: path]: nothing -> nothing {
     # wg0 up before offline: offline takes it down and leaving brings it back
     toggle $w vpn on | ignore
     expect $w "vpn on" (rec $w vpn).state on
-    toasts-take $w | ignore
-    events-take $w | ignore
+    take $w toasts | ignore
+    take $w events | ignore
 
-    let r = toggle $w route set offline
-    expect $w "offline exit" $r.exit_code 0
-    expect $w "offline route" (rec $w route).state offline
+    switched $w offline route set offline
     expect $w "offline networking" (peek $w networking) disabled
     expect $w "offline radios blocked" (peek $w rfkill) "wlan blocked\nbluetooth blocked"
     expect $w "offline wg0 down" ($w | path join net wg0 | path exists) false
     expect $w "offline record" (open --raw (state-file $w offline-rfkill) | lines) [wlan bluetooth]
     expect $w "offline vpn record" (open --raw (state-file $w offline-vpn) | str trim) on
-    expect $w "offline toast" (toasts-take $w | last) "normal\tRoute\tOffline"
-    expect $w "offline pings the bar" ("toggle-route.nu" in (events-take $w)) true
+    expect $w "offline toast" (take $w toasts | last) "normal\tRoute\tOffline"
+    expect $w "offline pings the bar" ("toggle-route.nu" in (take $w events)) true
 
     # headphones while offline: a radio unblocked keeps the route offline
-    let r = toggle $w bluetooth on
-    expect $w "bluetooth on while offline" $r.exit_code 0
-    expect $w "bluetooth on" (rec $w bluetooth).state on
+    switched $w on bluetooth on
     expect $w "offline survives bluetooth" (rec $w route).state offline
 
     reboot $w
     expect $w "offline survives a reboot" (rec $w route).state offline
     expect $w "offline record survives a reboot" (state-file $w offline-rfkill | path exists) true
 
-    toasts-take $w | ignore
-    let r = toggle $w route set direct
-    expect $w "back to direct exit" $r.exit_code 0
-    expect $w "back to direct" (rec $w route).state direct
+    take $w toasts | ignore
+    switched $w direct route set direct
     expect $w "radios restored" (peek $w rfkill) "wlan unblocked\nbluetooth unblocked"
     expect $w "networking on" (peek $w networking) enabled
     expect $w "wg0 back" ($w | path join net wg0 | path exists) true
     expect $w "records gone" ([offline-rfkill offline-vpn] | each { state-file $w $in | path exists }) [false false]
-    expect $w "direct toast" (toasts-take $w) ["normal\tRoute\tDirect"]
+    expect $w "direct toast" (take $w toasts) ["normal\tRoute\tDirect"]
     toggle $w vpn off | ignore
 
     # networking turned on outside the switch: the record still lifts its blocks on the next switch
@@ -327,19 +335,15 @@ def route-cases [w: path]: nothing -> nothing {
 
     # tor: the helper starts it unmarked; a dispatcher's marker is dropped
     touch ($w | path join run persona-tor)
-    toasts-take $w | ignore
-    let r = toggle $w route set tor
-    expect $w "tor exit" $r.exit_code 0
-    expect $w "tor route" (rec $w route).state tor
+    take $w toasts | ignore
+    switched $w tor route set tor
     expect $w "tor unit" (unit-up $w tor-router.service) true
     expect $w "tor marker dropped" ($w | path join run persona-tor | path exists) false
     # proton over a user's tor: tor stops once proton0 is up, portmaster with it (no pre-up dispatcher here)
-    let r = toggle $w route set proton
-    expect $w "proton exit" $r.exit_code 0
-    expect $w "proton route" (rec $w route).state proton
+    switched $w proton route set proton
     expect $w "proton: tor stopped" (unit-up $w tor-router.service) false
     expect $w "proton: portmaster stopped" (unit-up $w portmaster.service) false
-    expect $w "proton toasts" (toasts-take $w) ["normal\tRoute\tTor" "normal\tRoute\tProtonVPN"]
+    expect $w "proton toasts" (take $w toasts) ["normal\tRoute\tTor" "normal\tRoute\tProtonVPN"]
     let r = toggle $w route set direct
     expect $w "proton off" [$r.exit_code (rec $w route).state ($w | path join net proton0 | path exists)] [0 direct false]
     touch (world $w units system portmaster.service)
@@ -352,24 +356,17 @@ def route-cases [w: path]: nothing -> nothing {
     toggle $w route set direct | ignore
     expect $w "direct stops tor" (unit-up $w tor-router.service) false
     touch (world $w units system portmaster.service)
-    toasts-take $w | ignore
+    take $w toasts | ignore
 
     # failures roll back to the state before and say so
-    inject $w protonvpn '^connect' 1 "Connection failed: no server"
-    let r = toggle $w route set proton
-    expect $w "proton failure exit" $r.exit_code 1
+    let r = failing $w protonvpn '^connect' 1 "Connection failed: no server" route set proton
+    expect $w "proton failure" [$r.0 ($r.1 | last | str starts-with "critical\tRoute\tSwitch to ProtonVPN failed, now Direct: connect failed")] [1 true]
     expect $w "proton failure: route stays" (rec $w route).state direct
-    let toast = toasts-take $w | last
-    expect $w "proton failure toast" ($toast | str starts-with "critical\tRoute\tSwitch to ProtonVPN failed, now Direct: connect failed") true
-    heal $w protonvpn
     touch (world $w units system portmaster.service)
 
-    inject $w pkexec 'tor-start' 126 "Error executing command as another user: Request dismissed"
-    let r = toggle $w route set tor
-    expect $w "tor cancelled exit" $r.exit_code 1
+    let r = failing $w pkexec 'tor-start' 126 "Error executing command as another user: Request dismissed" route set tor
+    expect $w "tor cancelled" [$r.0 ($r.1 | last)] [1 "critical\tRoute\tSwitch to Tor failed, now Direct: authorization cancelled"]
     expect $w "tor cancelled: route stays" (rec $w route).state direct
-    expect $w "tor cancelled toast" (toasts-take $w | last) "critical\tRoute\tSwitch to Tor failed, now Direct: authorization cancelled"
-    heal $w pkexec
 
     # a second press while one switch runs is reported, never queued
     let lock = runtime $w | path join toggles toggle-route.nu.flock
@@ -378,7 +375,7 @@ def route-cases [w: path]: nothing -> nothing {
     sleep 300ms
     let r = toggle $w route set tor
     expect $w "busy exit" $r.exit_code 75
-    expect $w "busy toast" (toasts-take $w) ["normal\tRoute\tStill switching"]
+    expect $w "busy toast" (take $w toasts) ["normal\tRoute\tStill switching"]
     expect $w "busy: route stays" (rec $w route).state direct
     job kill $holder
     ^pkill -f $"flock --close ($lock) sleep" | complete | ignore
@@ -386,7 +383,7 @@ def route-cases [w: path]: nothing -> nothing {
 
     # a press for the route already in effect (the bar's state was stale) still reports back
     let r = toggle $w route set direct
-    expect $w "same route" [$r.exit_code (events-take $w | last) (toasts-take $w)] [0 toggle-route.nu ["normal\tRoute\tDirect"]]
+    expect $w "same route" [$r.exit_code (take $w events | last) (take $w toasts)] [0 toggle-route.nu ["normal\tRoute\tDirect"]]
 
     expect $w "toggle never cycles into offline" (["direct" "proton" "tor"] | each {|from|
         toggle $w route set $from | ignore
@@ -398,18 +395,16 @@ def route-cases [w: path]: nothing -> nothing {
     toggle $w route set direct | ignore
     # no persona dispatcher here to restore it
     touch (world $w units system portmaster.service)
-    toasts-take $w | ignore
+    take $w toasts | ignore
 }
 
 def focus-cases [w: path]: nothing -> nothing {
-    let r = toggle $w focus on
-    expect $w "focus on exit" $r.exit_code 0
-    expect $w "focus on" (rec $w focus).state on
+    switched $w on focus on
     expect $w "focus: dnd" (peek $w dnd) on
     expect $w "focus: keep-awake" (unit-up $w toggle-keep-awake.service --user) true
     expect $w "focus: nightlight" (open --raw (runtime $w | path join nightlight) | str trim) on
     expect $w "focus: grading" (peek $w preset) grayscale
-    expect $w "focus toast" (toasts-take $w) ["normal\tFocus mode\tTurned on"]
+    expect $w "focus toast" (take $w toasts) ["normal\tFocus mode\tTurned on"]
 
     reboot $w
     expect $w "focus survives a reboot" (rec $w focus).state on
@@ -418,11 +413,10 @@ def focus-cases [w: path]: nothing -> nothing {
     expect $w "reapply exit" $r.exit_code 0
     expect $w "reapply keep-awake" (rec $w keep-awake).state on
     expect $w "reapply nightlight" (rec $w nightlight).state on
-    expect $w "reapply is quiet" (toasts-take $w) []
+    expect $w "reapply is quiet" (take $w toasts) []
 
-    let r = toggle $w focus off
-    expect $w "focus off exit" $r.exit_code 0
-    expect $w "focus off parts" ([dnd keep-awake nightlight focus] | each {|t| (rec $w $t).state }) [off off off off]
+    switched $w off focus off
+    expect $w "focus off parts" ([dnd keep-awake nightlight] | each {|t| (rec $w $t).state }) [off off off]
     expect $w "focus off grading" (peek $w preset) off
     expect $w "reapply after off does nothing" [(toggle $w focus reapply).exit_code (rec $w keep-awake).state] [0 off]
 
@@ -436,15 +430,12 @@ def focus-cases [w: path]: nothing -> nothing {
 
     # a part that cannot be turned off keeps focus on and its record for the next try
     toggle $w focus on | ignore
-    inject $w color-grading.py '^set nightlight off' 1 "hyprsunset: no socket"
-    let r = toggle $w focus off
-    expect $w "stuck part exit" $r.exit_code 1
+    let r = failing $w color-grading.py '^set nightlight off' 1 "hyprsunset: no socket" focus off
+    expect $w "stuck part" [$r.0 ($r.1 | last | str starts-with "critical\tFocus mode\tSwitch to off failed")] [1 true]
     expect $w "stuck part keeps focus on" (rec $w focus).state on
-    expect $w "stuck part toast" (toasts-take $w | last | str starts-with "critical\tFocus mode\tSwitch to off failed") true
-    heal $w color-grading.py
     toggle $w focus off | ignore
     expect $w "retry clears focus" (rec $w focus).state off
-    toasts-take $w | ignore
+    take $w toasts | ignore
 }
 
 def powermode-cases [w: path]: nothing -> nothing {
@@ -452,7 +443,7 @@ def powermode-cases [w: path]: nothing -> nothing {
     let r = toggle $w powermode set balanced
     expect $w "balanced exit" $r.exit_code 0
     expect $w "balanced from tlp" (rec $w powermode | select state on) {state: balanced, on: true}
-    expect $w "balanced toast" (toasts-take $w) ["normal\tPower mode\tBalanced"]
+    expect $w "balanced toast" (take $w toasts) ["normal\tPower mode\tBalanced"]
     # the bar's selector names auto as a value of its own, never empty
     toggle $w powermode set performance | ignore
     expect $w "performance" ((toggle $w powermode get).stdout | str trim) performance
@@ -463,14 +454,11 @@ def powermode-cases [w: path]: nothing -> nothing {
     expect $w "power-saver" (rec $w powermode).state power-saver
     expect $w "saver flag" (open --raw (runtime $w | path join toggles powersaver) | str trim) on
     expect $w "saver reloads the bar" ((peek $w shell-calls) | str contains "shell reloadPowerMode") true
-    toasts-take $w | ignore
+    take $w toasts | ignore
 
-    inject $w tlp '^performance' 1 "Error: tlp is disabled"
-    let r = toggle $w powermode set performance
-    expect $w "tlp failure exit" $r.exit_code 1
+    let r = failing $w tlp '^performance' 1 "Error: tlp is disabled" powermode set performance
+    expect $w "tlp failure" $r [1 ["critical\tPower mode\tSwitch to Performance failed, now Power saver: Error: tlp is disabled"]]
     expect $w "tlp failure: mode stays" (rec $w powermode).state power-saver
-    expect $w "tlp failure toast" (toasts-take $w) ["critical\tPower mode\tSwitch to Performance failed, now Power saver: Error: tlp is disabled"]
-    heal $w tlp
 
     toggle $w powermode set auto | ignore
     expect $w "auto clears tlp's record" [($w | path join run tlp manual_mode | path exists) (rec $w powermode).state] [false auto]
@@ -480,7 +468,7 @@ def powermode-cases [w: path]: nothing -> nothing {
     expect $w "reboot is auto" (rec $w powermode).state auto
     expect $w "toggle cycles from auto" ([1 2 3 4] | each { toggle $w powermode toggle | ignore; (rec $w powermode).state }) [balanced performance power-saver auto]
     expect $w "unknown mode exits 2" (toggle $w powermode set turbo).exit_code 2
-    toasts-take $w | ignore
+    take $w toasts | ignore
 }
 
 def trust-cases [w: path]: nothing -> nothing {
@@ -488,7 +476,7 @@ def trust-cases [w: path]: nothing -> nothing {
     # an owner's locked secrets: the mac never goes to the option, the public repo's platform file
     let r = toggle $w trust-network on
     expect $w "owner locked: on refused" [$r.exit_code (open (world $w option.nuon))] [1 []]
-    expect $w "owner locked toast" (toasts-take $w | last) "critical\tTrusted network\tSwitch to on failed: configs/secrets is locked: unlock it to trust this network"
+    expect $w "owner locked toast" (take $w toasts | last) "critical\tTrusted network\tSwitch to on failed: configs/secrets is locked: unlock it to trust this network"
 
     # a login without secrets keeps the list in the option
     let profile = $w | path join home .config dotfiles profile.nuon
@@ -496,7 +484,7 @@ def trust-cases [w: path]: nothing -> nothing {
     let r = toggle $w trust-network on
     expect $w "trust exit" $r.exit_code 0
     expect $w "trust stores the gateway" (open (world $w option.nuon)) [$MAC]
-    expect $w "trust toast says pending" (toasts-take $w) ["normal\tTrusted network\tSaved; the network changes with the next dot apply --system"]
+    expect $w "trust toast says pending" (take $w toasts) ["normal\tTrusted network\tSaved; the network changes with the next dot apply --system"]
     # the system apply marks the link
     "enp16s0\n" | save --force ($w | path join run trusted-network)
     expect $w "trusted: on" (rec $w trust-network).state on
@@ -504,7 +492,7 @@ def trust-cases [w: path]: nothing -> nothing {
     expect $w "untrust exit" $r.exit_code 0
     expect $w "untrust drops the gateway" (open (world $w option.nuon)) []
     rm ($w | path join run trusted-network)
-    toasts-take $w | ignore
+    take $w toasts | ignore
 
     # a gateway trusted by home_gateways is home: not offered, and on refuses
     "enp16s0\n" | save --force ($w | path join run home-network)
@@ -513,13 +501,13 @@ def trust-cases [w: path]: nothing -> nothing {
     let r = toggle $w trust-network off
     expect $w "home: off refused" [$r.exit_code (open (world $w option.nuon))] [0 []]
     rm ($w | path join run home-network) ($w | path join run trusted-network)
-    toasts-take $w | ignore
+    take $w toasts | ignore
 
     # off a gateway nobody listed: refused with the reason, nothing written
     "enp16s0\n" | save --force ($w | path join run trusted-network)
     let r = toggle $w trust-network off
     expect $w "unlisted off exit" $r.exit_code 1
-    expect $w "unlisted off toast" (toasts-take $w | last) "critical\tTrusted network\tSwitch to off failed: configs/secrets is locked: unlock it to change the trusted list"
+    expect $w "unlisted off toast" (take $w toasts | last) "critical\tTrusted network\tSwitch to off failed: configs/secrets is locked: unlock it to change the trusted list"
     rm ($w | path join run trusted-network)
 
     # no default route (offline): nothing to trust
@@ -538,7 +526,7 @@ def service-cases [w: path]: nothing -> nothing {
     expect $w "docker off takes the socket" [(unit-up $w docker.service) (unit-up $w docker.socket)] [false false]
     toggle $w docker on | ignore
     expect $w "docker on brings both" [(unit-up $w docker.service) (unit-up $w docker.socket)] [true true]
-    toasts-take $w | ignore
+    take $w toasts | ignore
 }
 
 # reapply replays the saved expressions in the order they were saved: a mirror after a scale stays a mirror
@@ -566,7 +554,7 @@ def radio-cases [w: path]: nothing -> nothing {
     expect $w "wifi off" [(rec $w wifi).state (peek $w rfkill | lines | first)] [off "wlan blocked"]
     put $w wifi-hw missing
     let r = toggle $w wifi on
-    expect $w "wifi without hardware" [$r.exit_code (toasts-take $w | last)] [1 "critical\tWi-Fi\tSwitch to on failed: no wifi hardware"]
+    expect $w "wifi without hardware" [$r.exit_code (take $w toasts | last)] [1 "critical\tWi-Fi\tSwitch to on failed: no wifi hardware"]
     put $w wifi-hw enabled
     toggle $w wifi on | ignore
     expect $w "ethernet" (rec $w ethernet | select state available) {state: on, available: true}
@@ -576,30 +564,25 @@ def radio-cases [w: path]: nothing -> nothing {
     expect $w "mobile hidden" (rec $w mobile).available false
 
     # a hung bluetoothd: the switch gives up after its timeout and says so
-    inject $w bluetoothctl '^power off' hang
-    let r = toggle $w bluetooth off
-    expect $w "bluetooth hang exit" $r.exit_code 1
-    expect $w "bluetooth hang toast" (toasts-take $w | last | str starts-with "critical\tBluetooth\tSwitch to off failed") true
-    heal $w bluetoothctl
+    let r = failing $w bluetoothctl '^power off' hang "" bluetooth off
+    expect $w "bluetooth hang" [$r.0 ($r.1 | last | str starts-with "critical\tBluetooth\tSwitch to off failed")] [1 true]
     rm --force --recursive ($w | path join bt hci0)
     expect $w "no adapter: hidden" (rec $w bluetooth | select state available) {state: off, available: false}
     mkdir ($w | path join bt hci0)
 
     # a broken probe is an error, never a quiet off or a radio gone missing
     inject $w nmcli '^-t -f ' 8 "Error: NetworkManager is not running."
-    expect $w "nmcli down: wifi error" (rec $w wifi | select state available) {state: error, available: true}
-    expect $w "nmcli down: ethernet error" (rec $w ethernet | select state available) {state: error, available: true}
-    expect $w "nmcli down: mobile error" (rec $w mobile | select state available) {state: error, available: true}
+    for t in [wifi ethernet mobile] {
+        expect $w $"nmcli down: ($t) error" (rec $w $t | select state available) {state: error, available: true}
+    }
     let r = toggle $w wifi toggle
-    expect $w "nmcli down: toggle refused" [$r.exit_code (toasts-take $w | last)] [1 "critical\tWi-Fi\tSwitch failed: its state cannot be read: Error: NetworkManager is not running."]
+    expect $w "nmcli down: toggle refused" [$r.exit_code (take $w toasts | last)] [1 "critical\tWi-Fi\tSwitch failed: its state cannot be read: Error: NetworkManager is not running."]
     heal $w nmcli
     expect $w "nmcli back: wifi on" (rec $w wifi | select state available) {state: on, available: true}
 
     # vpn up fails in the helper: the cause reaches the toast
-    inject $w wg-quick '^up' 1 "RTNETLINK answers: Operation not permitted"
-    let r = toggle $w vpn on
-    expect $w "vpn failure" [$r.exit_code (toasts-take $w | last)] [1 "critical\tHomelab VPN\tSwitch to on failed: RTNETLINK answers: Operation not permitted"]
-    heal $w wg-quick
+    let r = failing $w wg-quick '^up' 1 "RTNETLINK answers: Operation not permitted" vpn on
+    expect $w "vpn failure" [$r.0 ($r.1 | last)] [1 "critical\tHomelab VPN\tSwitch to on failed: RTNETLINK answers: Operation not permitted"]
 }
 
 def firewall-cases [w: path]: nothing -> nothing {
@@ -608,10 +591,10 @@ def firewall-cases [w: path]: nothing -> nothing {
     expect $w "restrictive" (rec $w firewall).state restrictive
     toggle $w firewall set permissive | ignore
     expect $w "permissive" (rec $w firewall | select state text) {state: permissive, text: Permissive}
-    expect $w "lowering toast" (toasts-take $w | last) "critical\tFirewall\tLowered to Permissive"
+    expect $w "lowering toast" (take $w toasts | last) "critical\tFirewall\tLowered to Permissive"
     toggle $w firewall set default | ignore
     expect $w "raise default" (rec $w firewall).state default
-    toasts-take $w | ignore
+    take $w toasts | ignore
 }
 
 def status-cases [w: path]: nothing -> nothing {

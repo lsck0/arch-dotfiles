@@ -38,9 +38,7 @@ export def link [cfg: record] {
         (exec spotify-prefs [install -D --mode 644 /dev/null $prefs] --creates $prefs)
         (files-into (spicetify-dir | path join Extensions) ...$EXTENSIONS)
         (step configure --done=$configured)
-        (desktop-override spotify.desktop {
-            $in | str replace --all --regex '(?m)^Exec=spotify ' $"Exec=($env.PWD)/spotify-launch.nu "
-        })
+        (desktop-exec spotify.desktop spotify --command $"($env.PWD)/spotify-launch.nu")
         (exec spicetify-apply [./hook/spicetify-apply.nu] --done=($configured and not (apply-pending)))
         # --permanent also runs it on every login: an upgrade while logged out fires no path unit
         (user-hook spicetify-apply hook/spicetify-apply.nu --permanent --watch [

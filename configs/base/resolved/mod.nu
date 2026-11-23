@@ -1,9 +1,8 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [systemd-resolvconf]}}
+export const meta = {packages: {pacman: [systemd-resolvconf]}, native_only: [system]}
 
 export def system [cfg: record] {
-    if $env.FORM_FACTOR? == "wsl" { return [] }
     [
         # a reload keeps the per-link dns NetworkManager pushed (the homelab's split dns); a restart drops it until the
         # link's next change

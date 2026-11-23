@@ -1,13 +1,12 @@
 #!/usr/bin/env -S nu --no-config-file
+const REPO = path self | path expand | path dirname --num-levels 4
+use ($REPO | path join scripts lib proc.nu) [succeeds]
+
 const WORKTREES_DIR = ".worktrees"
 const BARE_DIR = ".bare"
 
 def hold []: nothing -> nothing {
     input "enter to close..." | ignore
-}
-
-def --wrapped git-ok [...args: string]: nothing -> bool {
-    (do { ^git ...$args } | complete).exit_code == 0
 }
 
 def worktrees-parse []: string -> table {
@@ -61,9 +60,9 @@ def main []: nothing -> nothing {
             $main.path | path join $slug
         }
         let added = try {
-            if (git-ok show-ref --verify --quiet $"refs/heads/($branch)") {
+            if (succeeds git show-ref --verify --quiet $"refs/heads/($branch)") {
                 ^git worktree add $wt $branch
-            } else if (git-ok show-ref --verify --quiet $"refs/remotes/origin/($branch)") {
+            } else if (succeeds git show-ref --verify --quiet $"refs/remotes/origin/($branch)") {
                 ^git worktree add --track -b $branch $wt $"origin/($branch)"
             } else {
                 ^git worktree add -b $branch $wt
@@ -82,7 +81,7 @@ def main []: nothing -> nothing {
     if ($env.HERDR_SESSION? | default "") + ($env.HERDR_ENV? | default "") != "" {
         ^herdr-open $wt $label
     } else if ($env.TMUX? | default "") != "" {
-        if (do { ^tmux has-session -t $"=($label)" } | complete).exit_code != 0 {
+        if not (succeeds tmux has-session -t $"=($label)") {
             ^tmux new-session -d -s $label -c $wt
         }
         ^tmux switch-client -t $"=($label)"

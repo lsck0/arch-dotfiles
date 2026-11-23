@@ -76,7 +76,7 @@ def main [
         cd $cd
     }
     if $open != null { open-when-up $open }
-    let sudo = $group != null and $group not-in (^id -nG | str trim | split row " ")
+    let sudo = $group != null and $group not-in (^id -nG | complete | get stdout | str trim | split row " ")
     let command = (if $sudo { [sudo] } else { [] }) ++ $command ++ $extra
 
     if $notify and not (is-terminal --stdin) {

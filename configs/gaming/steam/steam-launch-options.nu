@@ -1,6 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
 # per game, not on the client: preloading into it breaks the webhelper websocket, MANGOHUD=1 is vulkan-only
 
+const REPO = path self | path expand | path dirname --num-levels 4
+use ($REPO | path join scripts lib state.nu) [save-atomic]
+
 const LAUNCH_OPTIONS_DEFAULT = "gamemoderun mangohud %command%"
 # PNGTuber Plus is opengl under proton: only obs-gamecapture's gl preload is captured, and mangohud's shim bypasses it
 const LAUNCH_OPTIONS_APPS = {"2596880": "gamemoderun obs-gamecapture %command%"}
@@ -105,9 +108,7 @@ def localconfig-process [file: path, installed: list<string>]: nothing -> bool {
     if $filled == $config { return true }
     let backup = $file + $BACKUP_SUFFIX
     if not ($backup | path exists) { cp --preserve [mode timestamps] $file $backup }
-    let tmp = $"($file).($nu.pid).tmp"
-    vdf-dump $filled | save --force $tmp
-    mv --force $tmp $file
+    vdf-dump $filled | save-atomic $file
     print $"steam-launch-options: filled the launch options in ($file)"
     true
 }

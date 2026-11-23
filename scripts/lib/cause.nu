@@ -241,12 +241,17 @@ export def cause-hint [text: string]: nothing -> any {
     null
 }
 
+# A FAILURES line's "; fix: <fix>", empty without one.
+def fix-suffix [fix: any]: nothing -> string {
+    if $fix == null { "" } else { $"($FIX_SEP)($fix)" }
+}
+
 # "<subject>[ <where>]: <cause>[; fix: <fix>]" from a cause's text, the fix from HINTS unless --fix gives one. A
 # module's where is "<verb>/<step>".
 export def failure-line [subject: string, where: any, text: string, --fix: string]: nothing -> string {
     let fix = $fix | default (cause-hint $text | get --optional fix)
     let head = if ($where | is-empty) { $subject } else { $"($subject) ($where)" }
-    $"($head): ($text)(if $fix == null { '' } else { $'($FIX_SEP)($fix)' })"
+    $"($head): ($text)(fix-suffix $fix)"
 }
 
 # A FAILURES line back into subject, where (null unless a module's), text and fix.
@@ -296,6 +301,6 @@ export def failures-group [lines: list<string>]: nothing -> list<string> {
         }
         let fixes = $g.fix | compact | uniq
         let fix = if ($fixes | length) == 1 { $fixes.0 } else if $hint != null { $hint.fix_each } else { null }
-        $"($g | length) ($noun) \((names-shown $subjects $GROUP_SUBJECTS_SHOWN)\): ($text)(if $fix == null { '' } else { $'($FIX_SEP)($fix)' })"
+        $"($g | length) ($noun) \((names-shown $subjects $GROUP_SUBJECTS_SHOWN)\): ($text)(fix-suffix $fix)"
     }
 }

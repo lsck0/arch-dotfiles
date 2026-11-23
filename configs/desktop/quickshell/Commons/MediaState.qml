@@ -266,8 +266,7 @@ Singleton {
     target: "media"
 
     function playPause(): string {
-      var playing = root.player && root.player.playbackState === MprisPlaybackState.Playing
-      return root.act("canTogglePlaying", playing ? "media-pause" : "media-play", p => p.togglePlaying())
+      return root.act("canTogglePlaying", root.playing ? "media-pause" : "media-play", p => p.togglePlaying())
     }
     function next(): string { return root.act("canGoNext", "media-next", p => p.next()) }
     function previous(): string { return root.act("canGoPrevious", "media-previous", p => p.previous()) }

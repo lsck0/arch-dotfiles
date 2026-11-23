@@ -340,16 +340,11 @@ end
 
 -- A 16 kHz mono s16 WAV file around raw samples.
 local function wav_bytes(pcm)
-    local function u32(x)
-        return string.char(
-            x % 256,
-            math.floor(x / 256) % 256,
-            math.floor(x / 65536) % 256,
-            math.floor(x / 16777216) % 256
-        )
-    end
     local function u16(x)
         return string.char(x % 256, math.floor(x / 256) % 256)
+    end
+    local function u32(x)
+        return u16(x % 65536) .. u16(math.floor(x / 65536))
     end
     local n = #pcm
     return "RIFF"
@@ -409,6 +404,27 @@ local function mark_range(s, id)
     return m[1], m[2], m[3].end_row, m[3].end_col
 end
 
+-- A piece's extmark over its text; id moves an existing one. Neither edge grows with text typed at it.
+local function mark_set(s, row, col, end_row, end_col, id)
+    return vim.api.nvim_buf_set_extmark(s.buf, NS, row, col, {
+        id = id,
+        end_row = end_row,
+        end_col = end_col,
+        right_gravity = false,
+        end_right_gravity = false,
+    })
+end
+
+local function tail_at(s)
+    local tail = vim.api.nvim_buf_get_extmark_by_id(s.buf, NS, s.tail, {})
+    return tail[1], tail[2]
+end
+
+local function cursor_to_tail(s)
+    local row, col = tail_at(s)
+    vim.api.nvim_win_set_cursor(s.win, { row + 1, col })
+end
+
 local function cursor_at(s, row, col)
     if not vim.api.nvim_win_is_valid(s.win) or vim.api.nvim_win_get_buf(s.win) ~= s.buf then
         return false
@@ -420,46 +436,28 @@ end
 -- Puts text over a piece's range and stretches its extmark over the new text; the cursor follows a tail it sat at.
 local function set_piece(s, piece, text)
     local row, col, end_row, end_col = mark_range(s, piece.id)
-    local tail = vim.api.nvim_buf_get_extmark_by_id(s.buf, NS, s.tail, {})
-    local follow = cursor_at(s, tail[1], tail[2])
+    local follow = cursor_at(s, tail_at(s))
     local lines = vim.split(text, "\n", { plain = true })
     vim.api.nvim_buf_set_text(s.buf, row, col, end_row, end_col, lines)
-    local last_row = row + #lines - 1
-    local last_col = (#lines == 1 and col or 0) + #lines[#lines]
-    vim.api.nvim_buf_set_extmark(s.buf, NS, row, col, {
-        id = piece.id,
-        end_row = last_row,
-        end_col = last_col,
-        right_gravity = false,
-        end_right_gravity = false,
-    })
+    mark_set(s, row, col, row + #lines - 1, (#lines == 1 and col or 0) + #lines[#lines], piece.id)
     piece.text = text
     if follow then
-        tail = vim.api.nvim_buf_get_extmark_by_id(s.buf, NS, s.tail, {})
-        vim.api.nvim_win_set_cursor(s.win, { tail[1] + 1, tail[2] })
+        cursor_to_tail(s)
     end
 end
 
 -- A new piece at the tail, a space apart from the text before it.
 local function append_piece(s, text, pcm)
-    local tail = vim.api.nvim_buf_get_extmark_by_id(s.buf, NS, s.tail, {})
-    local row, col = tail[1], tail[2]
+    local row, col = tail_at(s)
     local before = (vim.api.nvim_buf_get_lines(s.buf, row, row + 1, false)[1] or ""):sub(1, col)
     local prefix = (col > 0 and not before:match("%s$")) and " " or ""
     local follow = cursor_at(s, row, col)
     vim.api.nvim_buf_set_text(s.buf, row, col, row, col, { prefix })
     local start = col + #prefix
-    local id = vim.api.nvim_buf_set_extmark(s.buf, NS, row, start, {
-        end_row = row,
-        end_col = start,
-        right_gravity = false,
-        end_right_gravity = false,
-    })
-    local piece = { id = id, pcm = pcm, text = "" }
+    local piece = { id = mark_set(s, row, start, row, start), pcm = pcm, text = "" }
     set_piece(s, piece, text)
     if follow then
-        tail = vim.api.nvim_buf_get_extmark_by_id(s.buf, NS, s.tail, {})
-        vim.api.nvim_win_set_cursor(s.win, { tail[1] + 1, tail[2] })
+        cursor_to_tail(s)
     end
     return piece
 end
@@ -489,14 +487,7 @@ local function flush_rewrite(s)
         table.insert(texts, piece.text)
         vim.api.nvim_buf_del_extmark(s.buf, NS, piece.id)
     end
-    local span = {
-        id = vim.api.nvim_buf_set_extmark(s.buf, NS, row, col, {
-            end_row = end_row,
-            end_col = end_col,
-            right_gravity = false,
-            end_right_gravity = false,
-        }),
-    }
+    local span = { id = mark_set(s, row, col, end_row, end_col) }
     local before = context(s.buf, row, col)
     local _, after = context(s.buf, end_row, end_col)
     rewrite(s.ft, before, after, table.concat(texts, " "), function(text, code)
@@ -547,12 +538,12 @@ local function transcribe_piece(s, pcm, done)
         ("http://127.0.0.1:%d/inference"):format(s.port),
     }, { stdin = wav_bytes((prev and prev.pcm or "") .. pcm), text = true }, function(r)
         vim.schedule(function()
-            if not s.finished and r.code ~= 0 then
-                notify("whisper-server request failed (" .. r.code .. ")", vim.log.levels.ERROR)
+            if s.finished then
+                return done()
             end
-            if s.finished or r.code ~= 0 then
-                done()
-                return
+            if r.code ~= 0 then
+                notify("whisper-server request failed (" .. r.code .. ")", vim.log.levels.ERROR)
+                return done()
             end
             local text = transcript(r.stdout or "")
             local fresh = text
@@ -574,7 +565,7 @@ end
 
 -- Rewrite mode: once speech pauses, the pieces still in the window are final.
 local function arm_idle(s)
-    s.idle_gen = (s.idle_gen or 0) + 1
+    s.idle_gen = s.idle_gen + 1
     local gen = s.idle_gen
     vim.defer_fn(function()
         if session ~= s or s.idle_gen ~= gen or s.busy or #s.queue > 0 or (s.vad and s.vad.speech) then
@@ -712,6 +703,7 @@ function M.enable(rewrite_speech)
         open = {},
         held = {},
         final_tail = "",
+        idle_gen = 0,
     }
     session = s
     s.server = vim.system({

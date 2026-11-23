@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {native: [v4l2loopback-dkms v4l2loopback-utils]}}
+export const meta = {packages: {native: [v4l2loopback-dkms v4l2loopback-utils]}, native_only: [system]}
 
 export const options = {
     video_nr: {
@@ -27,7 +27,6 @@ export def detect [cfg: record]: nothing -> record {
 }
 
 export def system [cfg: record] {
-    if $env.FORM_FACTOR? == "wsl" { return [] }
     [
         (file-copy v4l2loopback.conf /etc/modules-load.d/v4l2loopback.conf)
         (file-render v4l2loopback-options.conf /etc/modprobe.d/v4l2loopback.conf {VIDEO_NR: $cfg.video_nr, LABEL: $LABEL})

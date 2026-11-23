@@ -68,7 +68,7 @@ export def link [cfg: record] {
     }
     let bootstrapping = process-running updater_bootstr
     [
-        (json-merge ($config | path join settings.json) ($SETTINGS | items {|k, v| json-set [$k] $v }))
+        (json-merge ($config | path join settings.json) $SETTINGS)
         (file-copy discordo.toml (xdg config discordo config.toml))
         # never beside a running bootstrap: they share one download dir
         (if not $bootstrapping and ($BOOTSTRAP | path exists) {

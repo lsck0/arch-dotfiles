@@ -47,10 +47,9 @@ export def system [cfg: record] {
         (unit-file ollama-proxy.service)
         (unit-file ollama.socket --enable --now)
         ([listen.conf hardening.conf gpu.conf] | each { dropin ollama.service $in --then $RESTART })
-        (file-render perf.conf (unit-dir | path join ollama.service.d perf.conf)
-            {GPU_OVERHEAD: (gpu-overhead $cfg), PARALLEL: $cfg.parallel} --then $RESTART)
-        (file-render keep-alive.conf (unit-dir | path join ollama.service.d keep-alive.conf)
-            {KEEP_ALIVE_MIN: $KEEP_ALIVE_MIN} --then $RESTART)
+        (dropin ollama.service perf.conf --values {GPU_OVERHEAD: (gpu-overhead $cfg), PARALLEL: $cfg.parallel}
+            --then $RESTART)
+        (dropin ollama.service keep-alive.conf --values {KEEP_ALIVE_MIN: $KEEP_ALIVE_MIN} --then $RESTART)
     ]
 }
 

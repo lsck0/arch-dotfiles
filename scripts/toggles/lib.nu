@@ -31,7 +31,7 @@ export def state-clear [name: string, --volatile]: nothing -> nothing {
 }
 
 def user-is-admin []: nothing -> bool {
-    $ADMIN_GROUP in (^id -nG | str trim | split row " ")
+    $ADMIN_GROUP in (^id -nG | complete | get stdout | str trim | split row " ")
 }
 
 # Passes a completed external's output on and, when it failed, raises its last stderr line, which the failure toast

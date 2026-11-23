@@ -250,7 +250,7 @@ def radar-plan-dwd [lat: float, lon: float]: nothing -> table {
     let y = ($lat / 2 + 45 | math tan -d | math ln) * $EARTH_RADIUS_M
     let half = $RADAR_SIZE_PX * $MERCATOR_Z0_M_PER_PX / (2 ** $RADAR_ZOOM) / 2
     let step_s = $RADAR_STEP_MIN * 60
-    let latest = ((date now | into int) // 1_000_000_000 - $DWD_LATENCY_S) // $step_s * $step_s
+    let latest = ((epoch-now) - $DWD_LATENCY_S) // $step_s * $step_s
     let bbox = [($x - $half) ($y - $half) ($x + $half) ($y + $half)] | each { into string --decimals 6 } | str join ","
     seq ($latest - $RADAR_HISTORY_MIN * 60) $step_s $latest | each {|unix_s|
         let query = {
@@ -314,7 +314,7 @@ def radar-get []: nothing -> record {
     let scale = if $in_dwd { $RADAR_SCALES.dwd } else { $RADAR_SCALES.rainviewer }
     if ($plan | describe) == string { return (failure $plan) }
 
-    let now_s = (date now | into int) // 1_000_000_000
+    let now_s = epoch-now
     let radar_dir = cache-path radar
     let stage = $radar_dir | path join $"f-($now_s)"
     rm -rf $stage

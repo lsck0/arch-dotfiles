@@ -148,8 +148,7 @@ export def wallpaper-get []: nothing -> string {
 
 # Wallpapers fitting the largest monitor in physical pixels, rotation swapping the axes.
 export def wallpaper-list []: nothing -> list<string> {
-    let monitors = if (which hyprctl | is-empty) { [] } else { try { ^hyprctl monitors -j | from json } catch { [] } }
-    let screen = $monitors
+    let screen = try { ^hyprctl monitors -j | from json } catch { [] }
         | each { if $in.transform mod 2 == 1 { [$in.height $in.width] } else { [$in.width $in.height] } }
         | sort-by { $in.0 * $in.1 } | last
     ^$LIST ...(if $screen == null { [] } else { [--screen $"($screen.0)x($screen.1)"] }) | lines
@@ -162,8 +161,7 @@ def request [wallpaper: string, palette: string, sync: bool, --pick]: nothing ->
         let found = do { ^$LIST --resolve $wallpaper } | complete
         if $found.exit_code != 0 { error make {msg: ($found.stderr | str trim)} }
         $found.stdout | str trim
-    }
-    let file = $file | path expand
+    } | path expand
     if not ($file | path exists) { error make {msg: $"wallpaper not found: ($file)"} }
     if $pick { recent-record $file $palette }
     let request = request-file

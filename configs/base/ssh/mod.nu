@@ -5,6 +5,7 @@ use ../../../platforms/homelab.nu [HOMELAB]
 export const meta = {
     packages: {pacman: [knockd openbsd-netcat openssh]}
     secrets: ["ssh-host/{host}/ssh_host_ed25519_key" "ssh-host/{host}/ssh_host_mldsa44_ed25519_key" "ssh-host/{host}/ssh_host_ecdsa_key" "ssh-host/{host}/ssh_host_rsa_key"]
+    native_only: [system]
 }
 const SSH_HOST_KEYS = $meta.secrets | path basename
 
@@ -56,7 +57,6 @@ const PRIVATE_KEY = "configs/secrets/keys/ssh/private.asc"
 const PUBLIC_KEY = "configs/secrets/keys/ssh/public.asc"
 
 export def system [cfg: record] {
-    if $env.FORM_FACTOR? == "wsl" { return [] }
     step sshd ($cfg.port | into string)
 }
 
@@ -127,8 +127,8 @@ export def link [cfg: record] {
         # claimed disabled: an orphan disable of the vendor unit would take ssh-agent.socket along (Also=)
         (unit-disable ssh-agent.service --now)
         (unit-enable ssh-agent.socket --now)
-        (file-render ssh-add.service (unit-dir | path join ssh-add.service) {DOTFILES: $env.DOTFILES})
-        (if $owner { unit-enable ssh-add.service } else { unit-disable ssh-add.service })
+        (unit-file ssh-add.service --values {DOTFILES: $env.DOTFILES})
+        (unit-switch ssh-add.service $owner)
         (file-text (ssh-dir config) $"Include ~/.ssh/config.d/*\n($hosts)" --mode 600)
         (if $owner and not (authorize-done) { step authorize })
         (file-render sshk.nu ($bin | path join sshk) {DOTFILES: $env.DOTFILES, PORT: $cfg.port, KNOCK: $knock}

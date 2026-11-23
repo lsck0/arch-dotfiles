@@ -24,9 +24,7 @@ export def link [cfg: record] {
     [
         (preferences)
         # its bundled electron predates 38 and would run on scaled xwayland, unlike every other electron app here
-        (desktop-override bruno.desktop {
-            str replace --all --regex "(?m)^Exec=/opt/Bruno/bruno " "Exec=/opt/Bruno/bruno --ozone-platform-hint=auto "
-        })
+        (desktop-exec bruno.desktop /opt/Bruno/bruno --args [--ozone-platform-hint=auto])
     ]
 }
 

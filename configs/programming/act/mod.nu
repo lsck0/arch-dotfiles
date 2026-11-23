@@ -8,7 +8,8 @@ export def link [cfg: record] {
         (unit-enable podman.socket --now)
         # the store only grows otherwise: every act run and image build leaves its layers in ~/.local/share/containers
         (unit-file podman-prune.service)
-        (unit-file podman-prune.timer --enable --now)
+        (unit-timer podman-prune.timer "Prune rootless podman images weekly" --calendar weekly
+            --delay 1h --enable --now)
         (files-into (xdg config environment.d) docker-host.conf)
         (file-copy actrc (xdg config act actrc))
     ]

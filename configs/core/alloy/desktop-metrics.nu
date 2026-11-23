@@ -124,6 +124,15 @@ def run-metrics [dir: path, layer: string]: nothing -> list<record> {
     $per_verb ++ $failures
 }
 
+def number [value: any]: nothing -> bool { ($value | describe) in [int float] }
+
+# Whether root may read another account's file: a regular one uid owns (not followed: the type and owner are the
+# file's own), at most max_bytes.
+def file-owned [file: path, uid: string, max_bytes: int]: nothing -> bool {
+    let info = ^stat -c '%u|%F|%s' -- $file | complete | get stdout | str trim | split row "|"
+    ($info | length) == 3 and $info.0 == $uid and $info.1 == "regular file" and ($info.2 | into int) <= $max_bytes
+}
+
 # The rows a login left in its runtime dir: only from a regular file it owns (no link, no fifo), only USER_METRICS with
 # numeric values, labels limited to USER_LABELS with scalar values, and `user` set here from the owner. Any other
 # shape drops that login's rows, never the run.
@@ -133,19 +142,15 @@ def user-rows []: nothing -> list<record> {
         let uid = $dir.name | path basename
         let file = $dir.name | path join $USER_FILE
         if not ($uid =~ '^[0-9]+$') or not ($file | path exists) { return [] }
-        # not followed: the type and owner are the file's own
-        let info = ^stat -c '%u|%F|%s' -- $file | complete | get stdout | str trim | split row "|"
         let login = ^getent passwd $uid | complete | get stdout | split row ":" | get --optional 0 | default ""
-        if ($info | length) != 3 or $info.0 != $uid or $info.1 != "regular file" or $login == "" { return [] }
-        if ($info.2 | into int) > $USER_FILE_MAX { return [] }
+        if not (file-owned $file $uid $USER_FILE_MAX) or $login == "" { return [] }
         try {
             let rows = open --raw $file | from json
             if ($rows | describe) !~ '^(list|table)' { return [] }
             $rows | where {|r|
-                ($r | describe) =~ '^record' and ($r.name? in $USER_METRICS) and (($r.value? | describe) in [int float])
+                ($r | describe) =~ '^record' and ($r.name? in $USER_METRICS) and (number $r.value?)
             } | each {|r|
-                let given = $r.labels? | default {}
-                let given = if ($given | describe) =~ '^record' { $given } else { {} }
+                let given = if ($r.labels? | describe) =~ '^record' { $r.labels } else { {} }
                 let labels = $given | transpose key value
                     | where {|kv| $kv.key in $USER_LABELS and (($kv.value | describe) in [string int float]) }
                     | reduce --fold {} {|kv, acc| $acc | insert $kv.key ($kv.value | into string) }
@@ -156,8 +161,6 @@ def user-rows []: nothing -> list<record> {
         } catch { [] }
     } | flatten
 }
-
-def number [value: any]: nothing -> bool { ($value | describe) in [int float] }
 
 # The worker's rows from each user's state {running, last: {<kind>: {exit, seconds, peakMiB, ended}}}: running summed,
 # each kind's newest finished job across users. A malformed state or entry adds nothing.
@@ -189,9 +192,7 @@ def offload-rows []: nothing -> list<record> {
     let states = if not ($OFFLOAD_METRICS | path exists) { [] } else {
         ls $OFFLOAD_METRICS | where name =~ '/[0-9]+\.json$' | each {|f|
             let uid = $f.name | path parse | get stem
-            let info = ^stat -c '%u|%F|%s' -- $f.name | complete | get stdout | str trim | split row "|"
-            if ($info | length) != 3 or $info.0 != $uid or $info.1 != "regular file" { return null }
-            if ($info.2 | into int) > $OFFLOAD_FILE_MAX { return null }
+            if not (file-owned $f.name $uid $OFFLOAD_FILE_MAX) { return null }
             try { open --raw $f.name | from json } catch { null }
         } | compact
     }

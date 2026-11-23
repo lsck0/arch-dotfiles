@@ -53,7 +53,7 @@ def cache-dir []: nothing -> path { xdg cache dotfiles cursor }
 # glyph; rose-pine's own colours before the first palette.
 def cursor-colors []: nothing -> record {
     let p = palette-load
-    if $p == null { return ($SOURCE_COLORS | items {|role, hexes| [$role $"#($hexes.0)"] } | into record) }
+    if $p == null { return ($SOURCE_COLORS | update cells { $"#($in.0)" }) }
     let body = $p.bg | hex-to-rgb
     let outline = $p.fg | hex-to-rgb | readable-on $body --ratio $FOREGROUND_RATIO
     $ACCENT_SLOTS | reduce --fold {body: ($body | rgb-to-hex --prefix "#"), outline: ($outline | rgb-to-hex --prefix "#")} {|slot, acc|

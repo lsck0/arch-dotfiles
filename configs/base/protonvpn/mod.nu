@@ -8,6 +8,6 @@ export def link [cfg: record] {
     [
         (link-commands auto-vpn.nu)
         (unit-file auto-vpn.service)
-        (if $wanted { unit-enable auto-vpn.service --now } else { unit-disable auto-vpn.service --now })
+        (unit-switch auto-vpn.service $wanted --now)
     ]
 }

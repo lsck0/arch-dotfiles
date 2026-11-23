@@ -40,14 +40,11 @@ export def link [cfg: record] {
     if not ($OOMD | path exists) { return [] }
     [
         (dropin app.slice oomd-app.slice.conf --name 10-oomd.conf)
-        (file-render session-protect.slice.conf (unit-dir | path join session.slice.d 10-protect.conf)
-            {MEMORY_LOW: (systemd-size $cfg.session_memory_low)})
+        (dropin session.slice session-protect.slice.conf --name 10-protect.conf
+            --values {MEMORY_LOW: (systemd-size $cfg.session_memory_low)})
         # a server has no notification daemon to tell
         (if (which notify-send | is-not-empty) {
-            [
-                (file-render oom-notify.service (unit-dir | path join oom-notify.service) {DOTFILES: $env.DOTFILES})
-                (unit-enable oom-notify.service --now)
-            ]
+            unit-file oom-notify.service --values {DOTFILES: $env.DOTFILES} --enable --now
         })
     ]
 }

@@ -18,6 +18,6 @@ export def link [cfg: record] {
     [
         (desktop-override jdownloader.desktop $java)
         (desktop-override jd-containers.desktop $java)
-        ($SETTINGS | items {|file, keys| json-merge ($dir | path join $file) ($keys | items {|k, v| json-set [$k] $v }) })
+        ($SETTINGS | items {|file, keys| json-merge ($dir | path join $file) $keys })
     ]
 }

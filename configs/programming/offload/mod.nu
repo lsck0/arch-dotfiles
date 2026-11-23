@@ -64,9 +64,8 @@ export def packages [cfg: record]: nothing -> record {
 def target-session []: nothing -> list<any> {
     let values = {DOTFILES: $env.DOTFILES}
     [
-        (file-render offload-gate.service (unit-dir | path join offload-gate.service) $values)
-        (unit-enable offload-gate.service --now)
-        (file-render offload-consent.service (unit-dir | path join offload-consent.service) $values)
+        (unit-file offload-gate.service --values $values --enable --now)
+        (unit-file offload-consent.service --values $values)
         (unit-file offload-consent.path --enable --now)
         (if ($USER_UNITS | path join $ENFORCE | path exists) { unit-enable $ENFORCE --now })
     ]

@@ -15,8 +15,6 @@ export def link [cfg: record] {
         ])
         # qrenderdoc cannot capture or replay a wayland window and would pick wayland first; qt on xcb ignores
         # GDK_SCALE and sees 96 dpi, so it takes xwayland's scale itself
-        (desktop-override renderdoc.desktop {
-            str replace --all --regex "(?m)^Exec=qrenderdoc " $"Exec=env QT_QPA_PLATFORM=xcb QT_SCALE_FACTOR=($scale) qrenderdoc "
-        })
+        (desktop-exec renderdoc.desktop qrenderdoc --env-vars {QT_QPA_PLATFORM: xcb, QT_SCALE_FACTOR: $scale})
     ]
 }

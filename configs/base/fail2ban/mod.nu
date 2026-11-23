@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {native: [fail2ban]}, deps: [base/ssh]}
+export const meta = {packages: {native: [fail2ban]}, deps: [base/ssh], native_only: [system]}
 
 export const options = {
     bantime: {
@@ -24,7 +24,6 @@ export const options = {
 }
 
 export def system [cfg: record] {
-    if $env.FORM_FACTOR? == "wsl" { return [] }
     let values = {
         BANTIME: $cfg.bantime, FINDTIME: $cfg.findtime, MAXRETRY: $cfg.maxretry, SSH_PORT: $cfg.deps."base/ssh".port
     }

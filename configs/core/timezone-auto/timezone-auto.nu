@@ -2,6 +2,7 @@
 
 const REPO = path self ../../..
 const TOGGLES = $REPO | path join scripts toggles
+use ($REPO | path join scripts lib proc.nu) [notify]
 use ($REPO | path join scripts lib state.nu) [xdg]
 # not ipapi.co: it 429ed about every second keyless request
 const LOOKUP_URL = "https://ipinfo.io/json"
@@ -59,7 +60,7 @@ def suppressed []: nothing -> any {
     if (off-trusted) { return "off a trusted network" }
     let tunnel = tunnel-up
     if $tunnel != null { return $"tunnel ($tunnel)" }
-    if "wheel" not-in (^id -nG | str trim | split row " ") { return "not in wheel" }
+    if "wheel" not-in (^id -nG | complete | get stdout | str trim | split row " ") { return "not in wheel" }
     null
 }
 
@@ -69,9 +70,7 @@ def apply []: nothing -> nothing {
     let want = tz-detect
     if $want == null or not (tz-valid $want) or $want == $current { return }
     ^timedatectl --no-ask-password set-timezone $want
-    if (which notify-send | is-not-empty) {
-        do { ^notify-send -a timezone "Timezone updated" $"($current) -> ($want)" } | complete | ignore
-    }
+    notify timezone "Timezone updated" $"($current) -> ($want)" | ignore
     do { ^systemctl --user try-restart quickshell.service } | complete | ignore
 }
 

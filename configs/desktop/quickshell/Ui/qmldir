@@ -52,3 +52,5 @@ ListCursor 1.0 ListCursor.qml
 ListFade 1.0 ListFade.qml
 FadedList 1.0 FadedList.qml
 ListScrollBar 1.0 ListScrollBar.qml
+CursorFill 1.0 CursorFill.qml
+FilterListKeys 1.0 FilterListKeys.qml

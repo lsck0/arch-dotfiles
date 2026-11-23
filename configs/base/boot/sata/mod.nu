@@ -1,6 +1,8 @@
 use module.nu *
 export use ../boot.nu [cmdline-set cmdline-unset]
 
+export const meta = {native_only: [system]}
+
 export const options = {
     probe: {
         type: bool
@@ -18,6 +20,5 @@ const BLACKLIST_KEY = "initcall_blacklist"
 const AHCI_INITCALL = "ahci_pci_driver_init"
 
 export def system [cfg: record] {
-    if $env.FORM_FACTOR? == "wsl" { return [] }
     if $cfg.probe { step cmdline-unset $BLACKLIST_KEY } else { step cmdline-set $"($BLACKLIST_KEY)=($AHCI_INITCALL)" }
 }

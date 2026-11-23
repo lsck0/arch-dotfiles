@@ -23,6 +23,9 @@ const SPEC = {
     memoryMiB: 4096, cpus: 4, timeoutS: 1800
 }
 
+# A run of one hex digit, a digest's or (40) a commit id's length.
+def hex [digit: string, width: int = 64]: nothing -> string { "" | fill --width $width --character $digit }
+
 def refused [what: string, thunk: closure]: nothing -> nothing {
     assert not (try { do $thunk; true } catch { false }) $"($what) passed"
 }
@@ -42,7 +45,7 @@ def spec-cases [] {
     assert equal (spec-validate $SPEC $LIMITS) $SPEC "spec: the valid job"
     assert equal (spec-validate ($SPEC | update kind arch-base | update network true) $LIMITS).network true "spec: arch-base network"
     assert equal (spec-validate ($SPEC | update cpus 1.5) $LIMITS).cpus 1.5 "spec: fractional cpus"
-    let id = "sha256:" + (1..64 | each { "b" } | str join)
+    let id = "sha256:" + (hex b)
     assert equal (spec-validate ($SPEC | update toolchain {oci: $id}) $LIMITS).toolchain.oci $id "spec: an image id"
     let cached = $SPEC | insert cache {paths: [node_modules .cache/zola]}
     assert equal (spec-validate $cached $LIMITS) $cached "spec: a cache"
@@ -59,7 +62,7 @@ def spec-cases [] {
         [upper-commit ($SPEC | update commit ($COMMIT | str uppercase))]
         [sha256-commit ($SPEC | update commit ($COMMIT + "000000000000000000000000"))]
         [tag-only ($SPEC | update toolchain {oci: "ghcr.io/lsck0/site-builder:1.2"})]
-        [unqualified ($SPEC | update toolchain {oci: ("site@sha256:" + (1..64 | each { "a" } | str join))})]
+        [unqualified ($SPEC | update toolchain {oci: ("site@sha256:" + (hex a))})]
         [short-digest ($SPEC | update toolchain {oci: "ghcr.io/x/y@sha256:abc"})]
         [nix ($SPEC | update toolchain {nix: "/nix/store/abc-gcc", drv: "/nix/store/abc.drv"})]
         [two-toolchains ($SPEC | update toolchain {oci: $IMAGE, nix: "/nix/store/x"})]
@@ -82,7 +85,7 @@ def spec-cases [] {
         [timeout-oci-image ($SPEC | update kind oci-image | update timeoutS 3601)]
         [timeout-zero ($SPEC | update timeoutS 0)]
         [short-id ($SPEC | update toolchain {oci: "sha256:abc"})]
-        [bare-hex-id ($SPEC | update toolchain {oci: (1..64 | each { "b" } | str join)})]
+        [bare-hex-id ($SPEC | update toolchain {oci: (hex b)})]
         [cache-key-named ($SPEC | insert cache {paths: [x], key: other-repo})]
         [cache-empty ($SPEC | insert cache {paths: []})]
         [cache-dots ($SPEC | insert cache {paths: ["a/../../x"]})]
@@ -100,8 +103,8 @@ def spec-cases [] {
 }
 
 def header-cases [] {
-    let id = $SPEC | update toolchain {oci: ("sha256:" + (1..64 | each { "b" } | str join))}
-    let parent = "f" | fill --width 40 --character f
+    let id = $SPEC | update toolchain {oci: ("sha256:" + (hex b))}
+    let parent = hex f 40
     assert equal (header-validate {pack: 10} $SPEC) {image: 0, pack: 10, shallow: []}
     assert equal (header-validate {image: 5, pack: 10, shallow: [$parent]} $id) {image: 5, pack: 10, shallow: [$parent]}
     let local = $SPEC | update toolchain {oci: ("localhost/static-site-toolchain-site@" + $id.toolchain.oci)}
@@ -126,7 +129,7 @@ def header-cases [] {
 }
 
 def pin-cases [] {
-    let id = "sha256:" + (1..64 | each { "c" } | str join)
+    let id = "sha256:" + (hex c)
     assert equal (image-pin $id) $id "pin: a bare id"
     assert equal (image-pin $"localhost/static-site-toolchain-site@($id)") $id "pin: a localhost name's digest"
     assert equal (image-pin $IMAGE) null "pin: a registry digest is no id"
@@ -369,10 +372,9 @@ def flow-cases [] {
             open --raw $input | ^$nu.current-exe --no-config-file $SCRIPT local $host $"submit ($spec | to json --raw)" | complete
         }
     }
-    let run = {|id: string| with-env $env_flow { ^$nu.current-exe --no-config-file $SCRIPT run $id | complete } }
-    let status = {|id: string|
-        with-env $env_flow { ^$nu.current-exe --no-config-file $SCRIPT local $host $"status ($id)" | complete } | get stdout | from json
-    }
+    let worker = {|...args| with-env $env_flow { ^$nu.current-exe --no-config-file $SCRIPT ...$args | complete } }
+    let run = {|id: string| do $worker run $id }
+    let status = {|id: string| do $worker local $host $"status ($id)" | get stdout | from json }
     let toolchain = $"localhost/static-site-toolchain-site@($image.id)"
     let spec = $SPEC | update commit $commit | update toolchain {oci: $toolchain} | insert cache {paths: [.cache/build]}
     | update command [build v1]
@@ -410,7 +412,7 @@ def flow-cases [] {
     assert equal (^tar --extract --zstd --to-stdout --file ($out | path join artifact.tar.zst) public/index.html | str trim) built
     let metrics = open ($scratch | path join root run offload metrics $"(^id -u | str trim).json")
     assert equal $metrics.last.static-site.exit 0 "metrics: the finished job"
-    let offer = with-env $env_flow { ^$nu.current-exe --no-config-file $SCRIPT local $host offer | complete } | get stdout | from json
+    let offer = do $worker local $host offer | get stdout | from json
     assert ($image.id in $offer.images) $"offer: the loaded image is not listed: ($offer.images)"
 
     # the image is held now: no stream; the cache from the first job is restored, a failed job writes none

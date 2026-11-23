@@ -23,9 +23,11 @@ export def system [cfg: record] {
         (if $homelab != null { file-text $HOMELAB_FILE $"($homelab)\n" })
         (step place ($homelab | default ""))
         (unit-file ghostmirror.service)
-        (unit-file ghostmirror.timer --enable --now)
+        (unit-timer ghostmirror.timer "Weekly ghostmirror sorting" --calendar weekly --delay 30m
+            --ac-power 99-ghostmirror-ac.rules --enable --now)
         (unit-file ghostmirror-refresh.service)
-        (unit-file ghostmirror-refresh.timer --enable --now)
+        (unit-timer ghostmirror-refresh.timer "Monthly ghostmirror mirror pool rebuild" --calendar monthly --delay 1h
+            --ac-power 99-ghostmirror-ac.rules --enable --now)
         (udev-rules 99-ghostmirror-ac.rules)
     ]
 }

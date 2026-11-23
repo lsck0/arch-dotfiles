@@ -11,9 +11,7 @@ export def link [cfg: record] {
     [
         # pass picks its cookie store from the desktop (basic under hyprland, kwallet under plasma): pinned to the one
         # a reinstall can carry without a keyring
-        (desktop-override $PASS_DESKTOP {
-            $in | str replace --all --regex '(?m)^(Exec=proton-pass) ' '$1 --password-store=basic '
-        })
+        (desktop-exec $PASS_DESKTOP proton-pass --args [--password-store=basic])
         (link-commands proton-sessions-restore.nu)
         # reenable: a changed WantedBy leaves the old target's wants link behind
         (unit-file proton-sessions-restore.service --enable --then [systemctl --user reenable proton-sessions-restore.service])

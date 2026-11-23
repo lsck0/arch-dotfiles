@@ -25,10 +25,7 @@ export def link [cfg: record] {
     [
         ($SCRIPTS | each {|script| file-copy $script ($dir | path join $script) --mode 755 })
         ($UNITS | each {|u|
-            [
-                (file-render idle-guard.service (unit-dir | path join $u.unit) {GUARD: $u.guard, WHILE: $u.while})
-                (unit-enable $u.unit)
-            ]
+            unit-file idle-guard.service --name $u.unit --values {GUARD: $u.guard, WHILE: $u.while} --enable
         })
     ]
 }

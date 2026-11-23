@@ -20,7 +20,7 @@ export def link [cfg: record] {
         (file-text (xdg config tealdeer config.toml)
             ((open --raw tealdeer.toml) + $"\n[directories]\ncache_dir = \"(tldr-dir)\"\n"))
         (unit-file tldr-update.service)
-        (unit-file tldr-update.timer --enable --now)
+        (unit-timer tldr-update.timer "Weekly tldr pages refresh" --calendar weekly --delay 1h --enable --now)
         # the first fetch here, so the pages are there before the timer's first run
         (if (which tldr | is-not-empty) {
             exec tldr-pages [tldr --update] --creates (tldr-dir | path join tldr-pages) --network

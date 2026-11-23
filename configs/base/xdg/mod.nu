@@ -144,16 +144,15 @@ export def link [cfg: record] {
             let entry = $"[Desktop Entry]\nType=Application\nName=($id)\nHidden=true\n"
             file-text ($config | path join autostart $"($id).desktop") $entry
         })
-        # the portal reads its routing only at start
-        (if (which Hyprland | is-not-empty) {
+        (if (which Hyprland | is-not-empty) {[
+            # the portal reads its routing only at start
             (file-copy hyprland-portals.conf ($portals | path join hyprland-portals.conf)
                 --then (unit-restart xdg-desktop-portal.service --if-running))
-        })
-        # kde's open-with dialog and every kservice menu read $XDG_MENU_PREFIX applications.menu, which uwsm names
-        # after the compositor; plasma's file is the one with categories, and ksycoca rebuilds when the dir changes
-        (if (which Hyprland | is-not-empty) and ($PLASMA_MENU | path exists) {
-            files-into ($config | path join menus) hyprland-applications.menu
-        })
+            # kde's open-with dialog and every kservice menu read $XDG_MENU_PREFIX applications.menu, which uwsm
+            # names after the compositor; plasma's file is the one with categories, and ksycoca rebuilds when the dir
+            # changes
+            (if ($PLASMA_MENU | path exists) { files-into ($config | path join menus) hyprland-applications.menu })
+        ]})
         # a user kde-portals.conf replaces plasma's whole file, so it repeats plasma's lines
         (if (which startplasma-wayland | is-not-empty) { files-into $portals kde-portals.conf })
         (file-text ($config | path join gtk-3.0 bookmarks) ($bookmarks | to text))

@@ -1,9 +1,0 @@
-[Unit]
-Description=Check the system timezone after boot
-
-[Timer]
-OnStartupSec=2min
-AccuracySec=5min
-
-[Install]
-WantedBy=timers.target

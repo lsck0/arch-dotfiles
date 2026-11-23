@@ -1,6 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 
 const REPO = path self | path expand | path dirname --num-levels 4
+use ($REPO | path join scripts lib proc.nu) [notify]
 use ($REPO | path join scripts lib state.nu) [xdg file-trim]
 
 const EXIT_NO_UPDATES = 2
@@ -27,7 +28,7 @@ def main []: nothing -> nothing {
         let urgency = if ($advisories | is-empty) { "low" } else { "normal" }
         let body = $"($updates | length) packages, dot sync installs them($security)"
         # no notification daemon yet: unrecorded, so tomorrow's run tries again
-        if (^notify-send -a updates -u $urgency "Updates available" $body | complete).exit_code != 0 { return }
+        if not (notify updates "Updates available" $body --urgency $urgency) { return }
     }
     $digest | save --force $last
 }

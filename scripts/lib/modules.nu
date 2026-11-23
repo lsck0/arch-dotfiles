@@ -270,6 +270,12 @@ export def modules-graph [repo: path, modules: table]: nothing -> table {
 # spent half its time here one module after another.
 export def modules-eval [modules: table, verb: string, cfgs: record, args: list, --private, --timeout: duration]: nothing -> table {
     if ($modules | is-empty) { return [] }
+    # meta.native_only: the verbs a module declares nothing from on WSL, never evaluated there
+    if $env.FORM_FACTOR? == "wsl" and ($modules | any {|m| $verb in ($m.meta?.native_only? | default []) }) {
+        let evaluated = modules-eval ($modules | where {|m| $verb not-in ($m.meta?.native_only? | default []) }) $verb $cfgs $args --private=$private --timeout=$timeout
+        let by_id = $evaluated | each {|r| [$r.id $r] } | into record
+        return ($modules | each {|m| $by_id | get --optional $m.id | default {id: $m.id, ok: true, decls: [], error: null} })
+    }
     let timeout = $timeout | default $EVAL_TIMEOUT
     let calls = $modules | enumerate | each {|m|
         let cfg = $cfgs | get $m.item.id | to nuon

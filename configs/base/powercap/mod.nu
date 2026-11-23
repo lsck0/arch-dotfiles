@@ -1,7 +1,8 @@
 use module.nu *
 
+export const meta = {native_only: [system]}
+
 export def system [cfg: record] {
-    if $env.FORM_FACTOR? == "wsl" { return [] }
     let restart = unit-restart powercap-watts.service
     [
         (file-copy powercap-watts.sh /usr/local/bin/powercap-watts --mode 755 --then $restart)

@@ -206,8 +206,8 @@ export def readable-on [bg: list<float>, --ratio: float = $TEXT_RATIO]: list<flo
     if $walked.ok or (cmp (contrast $target $bg) (contrast $walked.out $bg)) < 0 { $walked.out } else { $target }
 }
 
-export def readable-light-on [bg: list<float>, --ratio: float = $TEXT_RATIO]: list<float> -> list<float> {
-    (walk $bg $in $WHITE $ratio).out
+export def readable-light-on [bg: list<float>]: list<float> -> list<float> {
+    (walk $bg $in $WHITE $TEXT_RATIO).out
 }
 
 # The input mixed into bg until its contrast drops to ratio.
@@ -230,13 +230,13 @@ export def semantic [role: string, bg: list<float>, --ratio: float = $TEXT_RATIO
 }
 
 # A selection background darkened from the input and the light text readable on it.
-export def selection-pair [fg: list<float>, --ratio: float = $TEXT_RATIO]: list<float> -> list<list<float>> {
+export def selection-pair [fg: list<float>]: list<float> -> list<list<float>> {
     let hsv = $in | rgb-to-hsv
     let stop = {|v|
         let cand = hsv-to-rgb $hsv.0 $hsv.1 $v
-        if (passes $fg $cand $ratio) or (passes $WHITE $cand $ratio) {
-            let light = $fg | readable-light-on $cand --ratio $ratio
-            if (passes $light $cand $ratio) { [$cand $light] }
+        if (passes $fg $cand $TEXT_RATIO) or (passes $WHITE $cand $TEXT_RATIO) {
+            let light = $fg | readable-light-on $cand
+            if (passes $light $cand $TEXT_RATIO) { [$cand $light] }
         }
     }
     let r = search-until $SELECTION_COUNT_MAX $hsv.2 {|v| $v * $SELECTION_DARKEN } $stop

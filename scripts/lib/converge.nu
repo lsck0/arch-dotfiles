@@ -98,6 +98,11 @@ export def observe-outputs [items: list, scope: string, known: record = {paths: 
     observe $paths ($items | where kind == unit | get --optional target | default []) $scope $known
 }
 
+# The previous apply's output of this kind on target, null without one.
+def prev-of [prev: list<record>, kind: string, target: string]: nothing -> any {
+    $prev | where kind == $kind and target == $target | get --optional 0
+}
+
 def now-ns []: nothing -> int { date now | into int }
 
 def out-key [kind: string, target: string]: nothing -> string { $"($kind)\t($target)" }
@@ -200,13 +205,13 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
     let wanted = (fold-merges $decls) | each {|d|
         let obs = $seen.paths | get --optional $d.target
         if $obs.hash? == $UNREADABLE { return (action $id unreadable $d.target $UNREADABLE_REASON $d null null) }
-        let then_failed = ($d.then | is-not-empty) and ($prev | where kind == $d.kind and target == $d.target | get --optional 0.then_failed | default false)
+        let then_failed = ($d.then | is-not-empty) and ((prev-of $prev $d.kind $d.target).then_failed? | default false)
         match $d.kind {
             "file" => {
                 let want = if $d.content != null { $d.content | hash sha256 } else { open --raw $d.source | hash sha256 }
                 let written = $recorded | get --optional $d.target
                 let rec = if $written != null and $obs.hash? == $written { $written } else {
-                    $prev | where kind == file and target == $d.target | get --optional 0.hash | default $written
+                    (prev-of $prev file $d.target).hash? | default $written
                 }
                 let c = file-classify $obs $want $rec $d.generated (link-stale $obs $d.target $repo) $force $d.mode
                 let before = match $obs.type { "" => null, "symlink" => $obs.link, _ => $obs.hash }
@@ -219,11 +224,11 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
                     action $id create $d.target "missing" $d $obs.link $d.source
                 } else if $obs.type == file and ($d.source | path exists) and $obs.hash == (open --raw $d.source | hash sha256) {
                     action $id update $d.target "a copy of the source" $d $obs.hash $d.source
-                } else if $obs.type == file and ($prev | where kind == file and target == $d.target | get --optional 0.hash) == $obs.hash {
+                } else if $obs.type == file and (prev-of $prev file $d.target).hash? == $obs.hash {
                     action $id update $d.target "a copy the dotfiles wrote" ($d | insert preserve true) $obs.hash $d.source
                 } else if $obs.type == file and $d.target not-in ($prev | where kind in [file link] | get target) {
                     action $id update $d.target "not the dotfiles' own yet: preserved aside" ($d | insert preserve true) $obs.hash $d.source
-                } else if $obs.type == symlink and ($prev | where kind == link and target == $d.target | get --optional 0.source) == $obs.link {
+                } else if $obs.type == symlink and (prev-of $prev link $d.target).source? == $obs.link {
                     action $id update $d.target "changed in the module" $d $obs.link $d.source
                 } else if $force {
                     action $id update $d.target "drift, forced: preserved aside" ($d | insert preserve true) $obs.hash $d.source
@@ -233,7 +238,7 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
             }
             "json" => {
                 # known: the keys dot set with what they held before; null for a record from before they were tracked
-                let last = $prev | where kind == json and target == $d.target | get --optional 0
+                let last = prev-of $prev json $d.target
                 let known = if $last == null { [] } else { $last.keys? }
                 let drop = $known | default [] | where path not-in $d.edits.path
                 let d = $d | insert known $known | insert drop $drop
@@ -257,7 +262,7 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
                 if (unit-state-holds $d.state $state) { action $id skip $d.target "" $d $state $state } else { action $id $verb $d.target $state $d $state $d.state }
             }
             "exec" | "step" => {
-                let last = $prev | where kind == $d.kind and target == $d.target | get --optional 0
+                let last = prev-of $prev $d.kind $d.target
                 if (action-done $d $last) { action $id skip $d.target "" $d null null } else { action $id $d.kind $d.target "" $d null null }
             }
         }
@@ -344,27 +349,22 @@ def home-short []: path -> string {
     if ($file | str starts-with $"($home)/") { $"~/($file | path relative-to $home)" } else { $file }
 }
 
-# A command of an action, bounded by timeout: a failure carries its cause, a timeout says so.
-def action-command [a: record, dir: path, what: string, argv: list<string>, timeout: duration]: nothing -> string {
+# A command of an action, bounded by timeout, as {output, pending}: a failure carries its cause, a timeout says so.
+# --pending: an exit EXIT_PENDING waits for the next apply, its last line the reason (a remote not reachable yet).
+def action-command [a: record, dir: path, what: string, argv: list<string>, timeout: duration, --pending]: nothing -> record {
     let out = do { cd $dir; command-stream $"($a.module) ($a.target)" $argv $timeout }
     if $out.timed_out { error make {msg: $"`($what)` timed out after ($timeout)"} }
-    if $out.exit_code != 0 { error make {msg: (cause-text (cause-from-output $what $out.exit_code $out.output))} }
-    $out.output
-}
-
-# nu -c ends on a failed external with its exit code alone: the step prints the error, its call and line, itself. A
-# step that exits EXIT_PENDING waits for the next apply, its last line the reason (a remote not reachable yet).
-def run-step [a: record, dir: path]: nothing -> record {
-    let call = $"use ($dir | to nuon) [($a.target)]; try { ($a.target) ($a.decl.argv | each { to nuon } | str join ' ') } catch {|e| print -e $e.rendered; exit \($e.exit_code? | default 1\) }"
-    let what = $"step ($a.target)"
-    let timeout = $a.decl.timeout? | default $STEP_TIMEOUT
-    let out = do { cd $dir; command-stream $"($a.module) ($a.target)" [(nu-bin) --no-config-file -I $LIB_DIR -c $call] $timeout }
-    if $out.timed_out { error make {msg: $"`($what)` timed out after ($timeout)"} }
-    if $out.exit_code == $EXIT_PENDING {
+    if $pending and $out.exit_code == $EXIT_PENDING {
         return {output: $out.output, pending: ($out.output | lines | where ($it | str trim) != "" | last | default "pending")}
     }
     if $out.exit_code != 0 { error make {msg: (cause-text (cause-from-output $what $out.exit_code $out.output))} }
     {output: $out.output, pending: null}
+}
+
+# nu -c ends on a failed external with its exit code alone: the step prints the error, its call and line, itself.
+def run-step [a: record, dir: path]: nothing -> record {
+    let call = $"use ($dir | to nuon) [($a.target)]; try { ($a.target) ($a.decl.argv | each { to nuon } | str join ' ') } catch {|e| print -e $e.rendered; exit \($e.exit_code? | default 1\) }"
+    action-command $a $dir $"step ($a.target)" [(nu-bin) --no-config-file -I $LIB_DIR -c $call] ($a.decl.timeout? | default $STEP_TIMEOUT) --pending
 }
 
 # a sibling module's daemon-reload running at the same moment fails a unit verb once
@@ -383,7 +383,7 @@ def then-run [outcomes: list<record>, dir: path]: nothing -> list<record> {
     let thens = $hooked | get decl.then | uniq
     $thens | reduce --fold $outcomes {|then, acc|
         let a = $hooked | where decl.then == $then | last
-        let result = try { {output: (action-command $a $dir (argv-text $then) $then $THEN_TIMEOUT), error: null} } catch {|e| {output: "", error: (cause-text (cause-from-error $e))} }
+        let result = try { {output: (action-command $a $dir (argv-text $then) $then $THEN_TIMEOUT).output, error: null} } catch {|e| {output: "", error: (cause-text (cause-from-error $e))} }
         log-record (if $result.error == null { "DEBUG" } else { "ERROR" }) $"then (argv-text $then)" {module: $a.module, kind: then, target: (argv-text $then), ms: 0, outcome: ($result.error | default ok)}
         $acc | each {|o|
             if $o not-in $hooked or $o.decl.then != $then { $o } else if $result.error != null {
@@ -505,11 +505,11 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     }
                 }
                 "forget" => { {} }
-                "exec" => { {output: (action-command $a $dir (argv-text $a.decl.argv) $a.decl.argv ($a.decl.timeout? | default $STEP_TIMEOUT))} }
+                "exec" => (action-command $a $dir (argv-text $a.decl.argv) $a.decl.argv ($a.decl.timeout? | default $STEP_TIMEOUT))
                 # from the state dir: the module's own dir may be gone; with its tool gone too there is nothing to undo
                 "undo" => {
                     if (which ($a.decl.undo | first) | is-empty) { {output: $"($a.decl.undo | first) is gone, nothing to undo"} } else {
-                        {output: (action-command $a (state-dir) (argv-text $a.decl.undo) $a.decl.undo $STEP_TIMEOUT)}
+                        action-command $a (state-dir) (argv-text $a.decl.undo) $a.decl.undo $STEP_TIMEOUT
                     }
                 }
             }
@@ -543,7 +543,7 @@ export def state-write [id: string, verb: string, input: string, actions: list<r
     let failed = $outcomes | where not ok | get target
     let kept = {|a| ($a.decl.kind in [exec step] and (action-recorded $a.decl) and $a.kind in [skip exec step]) or ($a.decl.kind in [file link unit] and $a.kind not-in [remove forget unmask] and not ($a.kind == "disable" and $a.decl.state? != "disabled")) or ($a.decl.kind in [json ini] and $a.kind in [merge skip]) }
     let owned = $actions | where {|a| do $kept $a } | each {|a|
-        let before = $prev | where kind == $a.decl.kind and target == $a.target | get --optional 0
+        let before = prev-of $prev $a.decl.kind $a.target
         let o = $done | get --optional (out-key $a.decl.kind $a.target)
         if $a.decl.kind in [json ini] {
             let output = if $o.hash? != null { {kind: $a.decl.kind, target: $a.target, hash: $o.hash, at: $o.at} } else { $before }

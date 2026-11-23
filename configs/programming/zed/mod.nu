@@ -15,8 +15,7 @@ def settings []: nothing -> record {
         ui_font_family: $font.family
         ui_font_size: ($font.ui_size * $PX_PER_PT | math round)
     }
-    let edits = open settings.json | merge $typeface | items {|k, v| json-set [$k] $v }
-    json-merge (xdg config zed settings.json) $edits
+    json-merge (xdg config zed settings.json) (open settings.json | merge $typeface)
 }
 
 export def link [cfg: record] {

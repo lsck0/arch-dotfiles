@@ -109,10 +109,7 @@ Item {
 
   function selectSection(index, direction) {
     if (root.sections.length === 0) return
-    var dir = direction || 1
-    var start = Math.max(0, Math.min(index, root.sections.length - 1))
-    var next = Schema.selectable(root.sections, start, dir)
-    if (next < 0) next = Schema.selectable(root.sections, start, -dir)
+    var next = root.nearest(root.sections, index, direction || 1)
     if (next < 0) return
     root.sectionIndex = next
     root.expandedId = ""
@@ -151,11 +148,15 @@ Item {
     root.noticeIsError = isError
   }
 
+  // the selectable entry at index, else the next one in direction, else the next one back; -1 when there is none
+  function nearest(list, index, direction) {
+    var start = Math.max(0, Math.min(index, list.length - 1))
+    var next = Schema.selectable(list, start, direction)
+    return next >= 0 ? next : Schema.selectable(list, start, -direction)
+  }
+
   function moveRow(delta) {
-    var direction = delta > 0 ? 1 : -1
-    var start = Math.max(0, Math.min(root.rows.length - 1, root.rowIndex + delta))
-    var next = Schema.selectable(root.rows, start, direction)
-    if (next < 0) next = Schema.selectable(root.rows, start, -direction)
+    var next = root.nearest(root.rows, root.rowIndex + delta, delta > 0 ? 1 : -1)
     if (next >= 0) root.selectRow(next)
   }
 
@@ -462,22 +463,19 @@ Item {
   }
 
   function finishBatch() {
-    var applied = root.batch.applied
-    var failed = root.batch.failed
-    var notes = root.batch.notes
-    var system = root.batch.system
+    var done = root.batch
     root.batch = { applied: [], failed: 0, notes: [], system: false }
     root.load()
-    if (system) root.applySystem()
-    if (applied.length === 0 && failed === 0 && notes.length === 0) return
+    if (done.system) root.applySystem()
+    if (done.applied.length === 0 && done.failed === 0 && done.notes.length === 0) return
     var parts = []
-    if (applied.length > 0) {
-      let needs = Schema.strongestApply(applied)
-      parts.push("applied " + applied.length
+    if (done.applied.length > 0) {
+      let needs = Schema.strongestApply(done.applied)
+      parts.push("applied " + done.applied.length
         + (needs === "relogin" ? ", log out and back in to finish" : needs === "reboot" ? ", reboot to finish" : ""))
     }
-    if (failed > 0) parts.push(failed + " failed, see the marked options")
-    root.say(parts.concat(notes).join("; "), failed > 0)
+    if (done.failed > 0) parts.push(done.failed + " failed, see the marked options")
+    root.say(parts.concat(done.notes).join("; "), done.failed > 0)
   }
 
   // one toggle process at a time: a press while one runs waits its turn, marked busy; the running one's own press is
@@ -666,25 +664,22 @@ Item {
         ScrollBar.vertical: ListScrollBar { list: sectionList }
         fade: sectionFade
 
-        delegate: Rectangle {
+        delegate: CursorFill {
           id: sectionRow
           required property var modelData
           required property int index
 
           readonly property bool header: modelData.kind === "header"
           readonly property bool current: !header && index === root.sectionIndex && !root.query
-          readonly property bool hasCursor: current && root.pane === "sections"
           readonly property bool hasPending: Object.keys(root.pending).some(function (id) {
             return id.indexOf(sectionRow.modelData.id + ".") === 0
           })
 
           width: ListView.view.width
           height: header ? Style.row.list * 0.8 + (index > 1 ? Style.spacing.sm : 0) : Style.row.list
-          radius: Style.shape.data
           opacity: root.query && !header && modelData.count === 0 ? Style.emphasis.disabled : 1
-          color: header ? "transparent" : hasCursor ? Colors.menu.selectedBackground
-            : current || sectionMouse.containsMouse ? Style.hoverFill : "transparent"
-          Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
+          hasCursor: current && root.pane === "sections"
+          hovered: current || sectionMouse.containsMouse
 
           Rectangle {
             visible: sectionRow.current
@@ -788,6 +783,7 @@ Item {
             required property int index
 
             readonly property bool hasCursor: root.pane === "rows" && index === root.rowIndex
+            readonly property string mark: hasCursor ? "> " : "  "
 
             width: ListView.view.width
             height: loader.height
@@ -812,15 +808,14 @@ Item {
 
             Component {
               id: toggleRow
-              Rectangle {
+              CursorFill {
                 readonly property var toggle: slot.modelData.toggle
                 readonly property bool busy: root.busyToggles[toggle.name] === true
                 readonly property bool isSwitch: Schema.toggleIsSwitch(toggle)
 
                 implicitHeight: Style.row.list
-                radius: Style.shape.data
-                color: slot.hasCursor ? Colors.menu.selectedBackground : toggleMouse.containsMouse ? Style.hoverFill : "transparent"
-                Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
+                hasCursor: slot.hasCursor
+                hovered: toggleMouse.containsMouse
 
                 Label {
                   anchors.left: parent.left
@@ -828,7 +823,7 @@ Item {
                   anchors.right: toggleState.left
                   anchors.rightMargin: Style.spacing.md
                   anchors.verticalCenter: parent.verticalCenter
-                  text: (slot.hasCursor ? "> " : "  ") + parent.toggle.label
+                  text: slot.mark + parent.toggle.label
                   color: slot.hasCursor ? Colors.menu.selectedText : Colors.menu.text
                   font.capitalization: Font.AllUppercase
                   font.letterSpacing: Style.labelTracking
@@ -872,16 +867,14 @@ Item {
 
             Component {
               id: checkRow
-              Rectangle {
+              CursorFill {
                 readonly property var check: slot.modelData
                 readonly property color levelColor: check.level === "FAIL" ? Colors.urgentText
                   : check.level === "WARN" || check.level === "pending" ? Colors.warnText
                   : check.level === "ok" ? Colors.okText : Colors.accentText
 
                 implicitHeight: Math.max(Style.row.list, checkText.implicitHeight + Style.spacing.sm * 2)
-                radius: Style.shape.data
-                color: slot.hasCursor ? Colors.menu.selectedBackground : "transparent"
-                Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
+                hasCursor: slot.hasCursor
 
                 Label {
                   id: checkLevel
@@ -890,7 +883,7 @@ Item {
                   anchors.top: parent.top
                   anchors.topMargin: Style.spacing.sm
                   width: Style.space(70)
-                  text: (slot.hasCursor ? "> " : "  ") + "[" + parent.check.level.toLowerCase() + "]"
+                  text: slot.mark + "[" + parent.check.level.toLowerCase() + "]"
                   color: parent.levelColor
                   caption: true
                   font.bold: true
@@ -919,7 +912,7 @@ Item {
             Component {
               id: actionRow
               PanelRow {
-                label: (slot.hasCursor ? "> " : "  ") + slot.modelData.name
+                label: slot.mark + slot.modelData.name
                 trailing: slot.modelData.detail + (slot.modelData.terminal ? "  [terminal]" : "")
                 on: slot.hasCursor
                 enabled: !systemProc.running
@@ -932,16 +925,15 @@ Item {
 
             Component {
               id: driftRow
-              Rectangle {
+              CursorFill {
                 id: drift
                 readonly property var entry: slot.modelData
                 readonly property string choice: root.choiceOf(entry)
                 readonly property bool confirming: root.confirmId === entry.id
 
                 implicitHeight: driftColumn.implicitHeight + Style.spacing.sm * 2
-                radius: Style.shape.data
-                color: slot.hasCursor ? Colors.menu.selectedBackground : driftMouse.containsMouse ? Style.hoverFill : "transparent"
-                Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
+                hasCursor: slot.hasCursor
+                hovered: driftMouse.containsMouse
 
                 MouseArea {
                   id: driftMouse
@@ -955,7 +947,7 @@ Item {
                   anchors.left: parent.left
                   anchors.leftMargin: Style.spacing.md
                   anchors.top: driftColumn.top
-                  text: slot.hasCursor ? "> " : "  "
+                  text: slot.mark
                   color: Colors.accentText
                 }
 

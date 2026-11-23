@@ -5,18 +5,17 @@
 # record in /var/lib/offload/trust, which the bar lists and revokes through `offload trust`.
 
 const REPO = path self | path expand | path dirname --num-levels 4
-use ($REPO | path join configs programming offload worker.nu) [TRUST_DIR DEVICE CONSENT_WAIT state-at]
+use ($REPO | path join configs programming offload worker.nu) [TRUST_DIR DEVICE CONSENT_WAIT state-at save-atomic]
 
 const CONSENT_DIR = "/run/offload/consent"
 const ANSWER_DIR = "/run/offload/answers"
 const GLYPH = "\u{f0c2e}"
 
-def save-atomic [path: path]: string -> nothing {
-    let text = $in
-    let tmp = ^mktemp --tmpdir=($path | path dirname) $".($path | path basename).XXXXXX" | str trim
-    $text | save --force $tmp
-    ^chmod 644 $tmp
-    ^mv --force $tmp $path
+def answer-file [device: string]: nothing -> path { state-at $ANSWER_DIR | path join $"($device).nuon" }
+
+def trust-file [device: string]: nothing -> path {
+    if not ($device =~ $DEVICE) { error make {msg: $"($device) is no device name"} }
+    state-at $TRUST_DIR | path join $"($device).nuon"
 }
 
 # Whether a request file ({device, verb, user, nonce, time}) is one, still waiting and not answered yet.
@@ -44,13 +43,11 @@ export def trust-list []: nothing -> list<record> {
 }
 
 export def trust-add [device: string]: nothing -> nothing {
-    if not ($device =~ $DEVICE) { error make {msg: $"($device) is no device name"} }
-    {device: $device, since: (date now)} | to nuon | save-atomic (state-at $TRUST_DIR | path join $"($device).nuon")
+    {device: $device, since: (date now)} | to nuon | save-atomic (trust-file $device)
 }
 
 export def trust-revoke [device: string]: nothing -> nothing {
-    if not ($device =~ $DEVICE) { error make {msg: $"($device) is no device name"} }
-    rm --force (state-at $TRUST_DIR | path join $"($device).nuon") (state-at $ANSWER_DIR | path join $"($device).nuon")
+    rm --force (trust-file $device) (answer-file $device)
 }
 
 def ask [request: record]: nothing -> nothing {
@@ -62,8 +59,7 @@ def ask [request: record]: nothing -> nothing {
     } | complete | get stdout | str trim
     let decided = action-answer $action
     if $decided.trust { trust-add $request.device }
-    {nonce: $request.nonce, answer: $decided.answer, time: (date now)} | to nuon
-    | save-atomic (state-at $ANSWER_DIR | path join $"($request.device).nuon")
+    {nonce: $request.nonce, answer: $decided.answer, time: (date now)} | to nuon | save-atomic (answer-file $request.device)
 }
 
 # Until no request waits: one arriving while a notification is open is seen on the next pass.
@@ -71,7 +67,7 @@ def "main ask" []: nothing -> nothing {
     loop {
         let pending = glob $"(state-at $CONSENT_DIR)/*.nuon" | each {|f|
             let request = try { open $f } catch { null }
-            let answer = try { open (state-at $ANSWER_DIR | path join $"($request.device).nuon") } catch { null }
+            let answer = try { open (answer-file $request.device) } catch { null }
             if (request-pending $request $answer (date now)) { $request }
         } | compact
         if ($pending | is-empty) { return }

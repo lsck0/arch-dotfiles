@@ -422,11 +422,19 @@ def scenarios(h, work):
     h.clear()
     h.add("spotify", "Spotify", "Playing", SPOTIFY, "spotify")
     h.add("mpv", "mpv", "Paused", song("Paused Pin", "Pin"), "mpv")
-    h.expect("pin-paused setup", player=MPRIS + ".spotify", shown=True)
+    h.add("vlc", "VLC media player", "Paused", song("Newcomer", "Vlc"), "vlc")
+    h.expect("pin-paused setup", player=MPRIS + ".spotify", shown=True,
+             players=[MPRIS + ".spotify=1", MPRIS + ".mpv=2", MPRIS + ".vlc=2"])
     h.ipc("harness", "pin", MPRIS + ".mpv")
     h.expect("paused player pinned while another plays: bar shows the pin, lock the playing one",
-             player=MPRIS + ".mpv", line="Paused Pin :: Pin", lock="> Electric Callboy :: Supernova")
+             player=MPRIS + ".mpv", pinned=MPRIS + ".mpv", line="Paused Pin :: Pin", lock="> Electric Callboy :: Supernova")
     h.hold("paused pin stays shown past the linger while something plays", linger + 1, shown=True)
+    h.players["spotify"].update(PlaybackStatus="Paused")
+    h.players["spotify"].update(PlaybackStatus="Playing")
+    h.expect("another player starting: pin dropped, the starter shown", pinned="", player=MPRIS + ".spotify")
+    h.ipc("harness", "pin", MPRIS + ".vlc")
+    h.players["vlc"].update(PlaybackStatus="Playing")
+    h.hold("the pinned player itself starting: pin kept", 1, pinned=MPRIS + ".vlc", player=MPRIS + ".vlc")
 
     h.clear()
     h.add("mpv", "mpv", "Playing", SONG, "mpv")
@@ -470,8 +478,6 @@ def scenarios(h, work):
     h.expect("playing again: the art accent returns", artAccent=ART_ORANGE.lower(), accent=ART_ORANGE.lower())
     h.players["mpv"].update(Metadata=song("Black", "Cover", **{"mpris:artUrl": black}))
     h.expect("cover without a colour: theme accent", artUrl=black, artAccent="", accent=THEME_ACCENT)
-    meta = dict(SONG)
-    del meta["mpris:artUrl"]
     h.players["mpv"].update(Metadata=song("Orange", "Cover", **{"mpris:artUrl": orange}))
     h.expect("art accent setup", artAccent=ART_ORANGE.lower())
     h.players["mpv"].update(Metadata=meta)
@@ -533,20 +539,6 @@ def selection(h):
     h.remove("spotify")
     h.expect("shown player vanishing, all left paused: the one that played last", player=MPRIS + ".mpv",
              line="Played :: Mpv", seconds=2)
-
-    h.clear()
-    h.add("spotify", "Spotify", "Playing", SPOTIFY, "spotify")
-    h.add("mpv", "mpv", "Paused", song("Pinned", "Mpv"), "mpv")
-    h.add("vlc", "VLC media player", "Paused", song("Newcomer", "Vlc"), "vlc")
-    h.expect("pin setup", player=MPRIS + ".spotify", players=[MPRIS + ".spotify=1", MPRIS + ".mpv=2", MPRIS + ".vlc=2"])
-    h.ipc("harness", "pin", MPRIS + ".mpv")
-    h.expect("pin over a playing one", player=MPRIS + ".mpv", pinned=MPRIS + ".mpv")
-    h.players["spotify"].update(PlaybackStatus="Paused")
-    h.players["spotify"].update(PlaybackStatus="Playing")
-    h.expect("another player starting: pin dropped, the starter shown", pinned="", player=MPRIS + ".spotify")
-    h.ipc("harness", "pin", MPRIS + ".vlc")
-    h.players["vlc"].update(PlaybackStatus="Playing")
-    h.hold("the pinned player itself starting: pin kept", 1, pinned=MPRIS + ".vlc", player=MPRIS + ".vlc")
 
     h.clear()
     h.add("spotify", "Spotify", "Paused", SPOTIFY, "spotify")

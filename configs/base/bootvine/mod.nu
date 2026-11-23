@@ -12,10 +12,9 @@ export const CONSOLE_PALETTE = [
 
 # bootvine draws the systemd job tree on tty12 from the initrd on and answers ask-password requests (the LUKS
 # passphrase, the TPM2 pin) in a popup there; systemd's console agent stays as the fallback on tty1.
-export const meta = {packages: {native: [bootvine]}, inputs: [$HOOK_INSTALL]}
+export const meta = {packages: {native: [bootvine]}, inputs: [$HOOK_INSTALL], native_only: [system]}
 
 export def system [cfg: record] {
-    if $env.FORM_FACTOR? == "wsl" { return [] }
     [(step hooks) (if ($HOOK_INSTALL | path exists) { $UNITS | each { unit-enable $in } })]
 }
 

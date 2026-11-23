@@ -38,8 +38,7 @@ def settings [user_dir: path]: nothing -> record {
         "workbench.experimental.fontFamily": $"'($font.family)', sans-serif"
         "workbench.experimental.fontSize": ($font.ui_size * $PX_PER_PT | math round)
     }
-    let edits = open settings.json | merge $typeface | merge $theme | items {|k, v| json-set [$k] $v }
-    json-merge ($user_dir | path join settings.json) $edits
+    json-merge ($user_dir | path join settings.json) (open settings.json | merge $typeface | merge $theme)
 }
 
 def edition []: nothing -> any { $EDITIONS | where {|e| which $e.bin | is-not-empty } | get --optional 0 }

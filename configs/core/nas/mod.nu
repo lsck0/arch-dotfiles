@@ -32,7 +32,7 @@ export def system [cfg: record] {
         (if $present and (try { open --raw $CRED } catch { "" }) != (open --raw $secret) {
             exec homelab-cred [install -Dm600 -o root -g root $secret $CRED]
         })
-        (file-render mnt-homelab.mount (unit-dir | path join mnt-homelab.mount) {SHARE: $cfg.share})
+        (unit-file mnt-homelab.mount --values {SHARE: $cfg.share})
         (unit-file mnt-homelab.automount --enable --now)
     ]
 }

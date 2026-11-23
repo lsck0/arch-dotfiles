@@ -49,7 +49,8 @@ export def system [cfg: record] {
         (file-copy node-textfile.conf $TMPFILES --then [systemd-tmpfiles --create $TMPFILES])
         (file-copy desktop-metrics.nu /usr/local/bin/desktop-metrics --mode 755)
         (unit-file desktop-metrics.service)
-        (unit-file desktop-metrics.timer --enable --now)
+        (unit-timer desktop-metrics.timer "Desktop health metrics every 5 minutes (system half)" --boot 2min
+            --every 5min --enable --now)
         (file-render config.alloy ($build.dir | path join config.alloy)
             {HOST: $host, PROMETHEUS: $HOMELAB.push.prometheus, LOKI: $HOMELAB.push.loki, TEXTFILE: $TEXTFILE_DIR}
             --then (unit-restart $build.unit --reload))
@@ -63,6 +64,7 @@ export def link [cfg: record] {
     if not ($TEXTFILE_DIR | path exists) or not ("/usr/local/bin/desktop-metrics" | path exists) { return [] }
     [
         (unit-file desktop-metrics-user.service)
-        (unit-file desktop-metrics-user.timer --enable --now)
+        (unit-timer desktop-metrics-user.timer "Desktop health metrics every 5 minutes (user half)" --startup 2min
+            --every 5min --enable --now)
     ]
 }

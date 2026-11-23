@@ -35,6 +35,8 @@ const ADMIN_GROUP = "wheel"
 # what one root entry runs for `apply <sha> <stage>`, in order, each from the unpacked copy
 const STAGES = {install: [install packages], config: [config], sync: [install packages config]}
 const PACKAGES_FAILED = "removing undeclared packages"
+# what a step of a root entry failed with, read back by stages-run
+const FAILURES = $SYSTEM_STATE | path join FAILURES
 
 def repo-guard []: nothing -> path {
     let repo = $env.FILE_PWD | path dirname | path dirname
@@ -58,6 +60,23 @@ def --env run-open [name: string]: nothing -> nothing {
     let id = $env.DOT_RUN_ID? | default ""
     if $id =~ $RUN_ID and $inherited == (runs-dir | path join $"($id).jsonl") and ($inherited | path exists) { return }
     run-begin $name
+}
+
+# What every locked entry starts with: the guard, the lock, --unattended and the run file named name; the root copy.
+def --env entry-begin [name: string, unattended: bool = false]: nothing -> path {
+    let repo = repo-guard
+    locked
+    if $unattended { $env.DOTFILES_UNATTENDED = "1" }
+    run-open $name
+    $repo
+}
+
+# Runs body on a fresh dir under /run, a tmpfs, removed after it whether body fails or not.
+def run-tmp [body: closure]: nothing -> any {
+    let dir = mktemp --directory --tmpdir-path /run
+    let result = try { do $body $dir } catch {|e| rm --recursive --force $dir; error make $e }
+    rm --recursive --force $dir
+    $result
 }
 
 def --env failures-end [what: string]: nothing -> nothing {
@@ -140,11 +159,10 @@ export def stages-exit [codes: list<int>]: nothing -> int {
 # install ends them. secrets: the tar the config step reads.
 def stages-run [stage: string, secrets: path, unattended: bool, force: bool, yes: bool]: nothing -> table {
     let entry = $SYSTEM_REPO | path join $ENTRY
-    let failures = $SYSTEM_STATE | path join FAILURES
     mut rows = []
     for step in ($STAGES | get $stage) {
         if ($rows | any { $in.code == $EXIT_ABORTED }) { break }
-        "" | save --force $failures
+        "" | save --force $FAILURES
         let flags = [--unattended=($unattended)] ++ (if $step == "config" { [--force=($force)] } else { [--yes=($yes)] })
         let code = span $"stage ($step)" {} {
             try {
@@ -152,7 +170,7 @@ def stages-run [stage: string, secrets: path, unattended: bool, force: bool, yes
                 0
             } catch {|e| $e.exit_code? | default 1 }
         }
-        let lines = open --raw $failures | lines | where ($it | str trim) != ""
+        let lines = open --raw $FAILURES | lines | where ($it | str trim) != ""
         let lines = if $step == "packages" and $code != 0 and ($lines | is-empty) { [$"($PACKAGES_FAILED): exited ($code)"] } else { $lines }
         $rows = $rows | append {stage: $step, code: $code, failures: $lines}
     }
@@ -237,33 +255,22 @@ def "main apply" [sha: string, stage: string, --run: string = "", --unattended, 
     run-open $"system ($stage)"
     log-debug $"system ($stage) for the run ($run)" {kind: run, target: $stage, user_run: $run}
     rm --force $SYSTEM_STAGES
-    let work = mktemp --directory --tmpdir-path /run
     let rows = try {
-        ^tar -x --no-same-owner --no-same-permissions -C $work -f - repo.tar secrets.tar
-        open --raw ($work | path join repo.tar) | system-unpack $SYSTEM_REPO $sha
-        stages-run $stage ($work | path join secrets.tar) $unattended $force $yes
-    } catch {|e|
-        rm --recursive --force $work
-        run-journal
-        error make $e
-    }
-    rm --recursive --force $work
+        run-tmp {|work|
+            ^tar -x --no-same-owner --no-same-permissions -C $work -f - repo.tar secrets.tar
+            open --raw ($work | path join repo.tar) | system-unpack $SYSTEM_REPO $sha
+            stages-run $stage ($work | path join secrets.tar) $unattended $force $yes
+        }
+    } catch {|e| run-journal; error make $e }
     {run: $run, root_run: $env.DOT_RUN_ID, stages: $rows} | to nuon | save-atomic $SYSTEM_STAGES
     run-journal
     exit (stages-exit $rows.code)
 }
 
-def --env unattended [on: bool]: nothing -> nothing {
-    if $on { $env.DOTFILES_UNATTENDED = "1" }
-}
-
 # every declared package from [lsck0] in one pass, base/pacman first, base/yubikey last
 def "main install" [--unattended, --yes]: nothing -> nothing {
-    let repo = repo-guard
-    locked
-    unattended $unattended
-    run-open install
-    failures-begin ($SYSTEM_STATE | path join FAILURES)
+    let repo = entry-begin install $unattended
+    failures-begin $FAILURES
     # the install stage runs base/pacman's verb, so root's state is migrated before it, as config does
     migrations-run $repo system | ignore
     ^pacman-key --init
@@ -351,16 +358,12 @@ def secrets-record [secrets: path]: nothing -> nothing {
 
 # every system verb; the secrets arrive as a tar on stdin into a tmpfs gone at exit
 def "main config" [--unattended, --force]: nothing -> nothing {
-    let repo = repo-guard
-    locked
-    unattended $unattended
-    run-open config
-    failures-begin ($SYSTEM_STATE | path join FAILURES)
+    let repo = entry-begin config $unattended
+    failures-begin $FAILURES
     # a pending migration converts root's state before any verb reads it, also without a sync
     migrations-run $repo system | ignore
     let ctx = pipeline-load $repo system --progress
-    let secrets = mktemp --directory --tmpdir-path /run
-    let run = try {
+    let run = run-tmp {|secrets|
         ^tar -x --no-same-owner --no-same-permissions -C $secrets -f -
         let allowed = system-secrets $repo $ctx.platform.facts.wireguard?
         let handed = ^find $secrets -mindepth 1 ! -type d -print0 | split row (char nul) | where $it != ""
@@ -374,11 +377,7 @@ def "main config" [--unattended, --force]: nothing -> nothing {
         # the install stage holds the early modules' lines
         pending-save $planned.id $results --full --keep $early
         {results: $results, waiting: ($results | any { $in.pending? != null })}
-    } catch {|e|
-        rm --recursive --force $secrets
-        error make $e
     }
-    rm --recursive --force $secrets
     rm --force $ADDUSER_BIN
     $"#!/bin/sh\n[ \"$\(id -u\)\" = 0 ] || exec sudo \"$0\" \"$@\"\nexec /usr/bin/nu --no-config-file ($SYSTEM_REPO | path join $ENTRY) adduser \"$@\"\n" | save $ADDUSER_BIN
     ^chmod 755 $ADDUSER_BIN
@@ -391,10 +390,7 @@ def "main config" [--unattended, --force]: nothing -> nothing {
 
 # remove explicit packages no module declares, after a yes
 def "main packages" [--yes, --plan, --unattended]: nothing -> nothing {
-    let repo = repo-guard
-    unattended $unattended
-    locked
-    run-open packages
+    let repo = entry-begin packages $unattended
     let ctx = pipeline-load $repo system
     let declared = modules-packages $repo $ctx.modules $ctx.platform
     if ($declared.incomplete | is-not-empty) {
@@ -410,18 +406,14 @@ def "main packages" [--yes, --plan, --unattended]: nothing -> nothing {
 
 # module <id>: that module's system verb alone, for running it by hand; the system verb is the only one root runs
 def "main module" [id: string]: nothing -> nothing {
-    let repo = repo-guard
-    locked
-    run-open module
+    let repo = entry-begin module
     let ctx = pipeline-load $repo system
     if "system" not-in ($ctx.modules | where id == $id | get --optional 0.native | default []) { error make {msg: $"($id) has no native system verb"} }
     if not (module-system $ctx $id) { exit 1 }
 }
 
 def "main migrate" [--baseline]: nothing -> nothing {
-    let repo = repo-guard
-    locked
-    run-open migrate
+    let repo = entry-begin migrate
     migrations-run $repo system --baseline=$baseline | ignore
 }
 

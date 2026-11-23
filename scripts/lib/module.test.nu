@@ -1,8 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
 # Table cases for desktop-set (whole keys replaced or added in the [Desktop Entry] group only), decls-flatten (any
 # depth), unit-restart's argv per layer and flags, and the udev and polkit rule declarations (target, source or
-# rendered content, --then), and mcp-uvx (the venv built before the registration, which names the venv's entry point).
-use module.nu [desktop-set decls-flatten polkit-rules udev-reload udev-rules unit-restart mcp-uvx]
+# rendered content, --then), mcp-uvx (the venv built before the registration, which names the venv's entry point), and
+# unit-timer's text (key order, Persistent with a calendar, the mains condition) and enabling.
+use module.nu [desktop-set decls-flatten polkit-rules udev-reload udev-rules unit-dir unit-restart unit-timer mcp-uvx]
 use std/assert
 
 def main [] {
@@ -62,6 +63,25 @@ def main [] {
     for c in $reloads {
         assert equal $c.got $c.wants $"($c.name): got ($c.got | to nuon), wants ($c.wants | to nuon)"
     }
+    let install = "\n[Install]\nWantedBy=timers.target\n"
+    let ac = "# mains only: 99-x-ac.rules stops it on battery and starts it at the plug-in, where Persistent= catches up\n"
+    let timers = [
+        [name decls wants];
+        ["calendar" (unit-timer x.timer "X weekly" --calendar weekly --delay 1h)
+            $"[Unit]\nDescription=X weekly\n\n[Timer]\nOnCalendar=weekly\nPersistent=true\nRandomizedDelaySec=1h\n($install)"]
+        ["on mains" (unit-timer x.timer "X" --calendar monthly --ac-power 99-x-ac.rules)
+            $"[Unit]\nDescription=X\n($ac)ConditionACPower=true\n\n[Timer]\nOnCalendar=monthly\nPersistent=true\n($install)"]
+        ["monotonic" (unit-timer x.timer "X" --boot 2min --startup 1min --every 5min --accuracy 1min)
+            $"[Unit]\nDescription=X\n\n[Timer]\nOnBootSec=2min\nOnStartupSec=1min\nOnUnitActiveSec=5min\nAccuracySec=1min\n($install)"]
+    ]
+    for c in $timers {
+        let got = $c.decls | get 0
+        assert equal $got.content $c.wants $"unit-timer ($c.name): got ($got.content | to nuon), wants ($c.wants | to nuon)"
+        assert equal $got.target (unit-dir | path join x.timer) $"unit-timer ($c.name): target ($got.target)"
+    }
+    let enabled = with-env {DOT_LAYER: system} { unit-timer x.timer "X" --calendar daily --enable --now }
+    assert equal ($enabled | select kind target) [[kind target]; [file /etc/systemd/system/x.timer] [unit x.timer]] $"unit-timer enabled: ($enabled | to nuon)"
+    assert equal ($enabled.1 | select state now) {state: enabled, now: true} $"unit-timer enabled: ($enabled.1 | to nuon)"
     let dir = mktemp --directory
     cd $dir
     "a @K@ b" | save x.rules

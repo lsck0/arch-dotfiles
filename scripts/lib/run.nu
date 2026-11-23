@@ -70,9 +70,10 @@ def summary [results: table]: nothing -> nothing {
     let counts = $outcomes | group-by kind | items {|k, v| $"($v | length) ($k)" } | str join ", "
     let busy = $results | where {|r| ($r.outcomes | is-not-empty) or ($r.log | str trim | is-not-empty) } | get id | uniq
     let waiting = $results | where pending? != null | get id | uniq
-    let skipped = ($results.id | uniq | length) - ($busy | length) - ($waiting | length)
+    let total = $results.id | uniq | length
+    let skipped = $total - ($busy | length) - ($waiting | length)
     let held = if ($waiting | is-empty) { "" } else { $", ($waiting | length) pending" }
-    log-info $"(counted ($results.id | uniq | length) module), ($skipped) unchanged($held)(if ($counts | is-empty) { '' } else { $', ($counts)' })" {kind: summary}
+    log-info $"(counted $total module), ($skipped) unchanged($held)(if ($counts | is-empty) { '' } else { $', ($counts)' })" {kind: summary}
     let slow = $results | sort-by ms --reverse | first 5 | each { $"($in.ms / 1000 | math round --precision 1)s ($in.id)" } | str join ", "
     log-debug $"slowest: ($slow)"
 }
@@ -164,6 +165,11 @@ def --env failures-open []: nothing -> nothing {
     }
 }
 
+# A file's lines that are not blank, none when it is missing or unreadable.
+def file-lines [file: path]: nothing -> list<string> {
+    try { open --raw $file | lines | where ($it | str trim) != "" } catch { [] }
+}
+
 # The modules a run carried through: every result of theirs ok and none pending, so their earlier failures are over.
 def failures-cleared [results: table]: nothing -> list<string> {
     $results | group-by id | items {|id, rows| if ($rows | all {|r| $r.ok and $r.pending? == null }) { $id } } | compact
@@ -172,18 +178,16 @@ def failures-cleared [results: table]: nothing -> list<string> {
 # Publishes the run's failures into published (the checkout's FAILURES.config), false when the run failed.
 export def failures-publish [results: table, published: path = $FAILURES_PUBLISHED]: nothing -> bool {
     let owned = $env.DOT_FAILURES_OWNED? == true
+    let full = $env.DOT_FULL_RUN? == true
     let failures = if $owned { file-trim $env.FAILURES_FILE } else { "" }
     let cleared = failures-cleared $results
     # a partial run adds to what earlier runs recorded instead of replacing it, but for the modules it carried through
     # a module's system line is over only when the system layer ran too
     let system_ran = $env.DOT_SYSTEM_RAN? == true
-    let earlier = if ($published | path exists) {
-        open --raw $published | lines | where {|l| ($l | split row " " | first) not-in $cleared or ((failure-is-system $l) and not $system_ran) }
-    } else { [] }
+    let lines = file-lines $published
+    let earlier = $lines | where {|l| ($l | split row " " | first) not-in $cleared or ((failure-is-system $l) and not $system_ran) }
     if ($failures | is-not-empty) {
-        let kept = if ($env.DOT_FULL_RUN? != true) { $earlier } else if not $system_ran {
-            $earlier | where {|l| failure-is-system $l }
-        } else { [] }
+        let kept = if not $full { $earlier } else if not $system_ran { $earlier | where {|l| failure-is-system $l } } else { [] }
         let failures = $kept | append ($failures | lines) | where ($it | str trim) != "" | uniq | str join "\n"
         $"($failures)\n" | save-atomic $published
         print "=== FAILED ==="
@@ -191,21 +195,14 @@ export def failures-publish [results: table, published: path = $FAILURES_PUBLISH
         return false
     }
     if ($results | any { not $in.ok }) { return false }
-    if $owned and ($env.DOT_FULL_RUN? != true) and ($published | path exists) {
-        let left = $earlier | where ($it | str trim) != ""
-        if ($left | is-empty) { rm --force $published } else if ($left | length) != (open --raw $published | lines | where ($it | str trim) != "" | length) {
-            $left | to text | save-atomic $published
-        }
+    if $owned and not $full and ($published | path exists) {
+        if ($earlier | is-empty) { rm --force $published } else if ($earlier | length) != ($lines | length) { $earlier | to text | save-atomic $published }
         return true
     }
-    # a user-only run cannot vouch for the system layer: its earlier failures stay published until it runs again
-    let system_stale = not $system_ran and ($published | path exists) and (open --raw $published | lines | any {|l| failure-is-system $l })
-    if $owned and ($env.DOT_FULL_RUN? == true) {
-        if not $system_stale { rm --force $published } else {
-            # the user layer passed in full: only the system lines it cannot vouch for stay
-            let system = open --raw $published | lines | where {|l| failure-is-system $l }
-            $system | to text | save-atomic $published
-        }
+    if $owned and $full {
+        # a user-only run cannot vouch for the system layer: the user layer passed in full, only its system lines stay
+        let system = if $system_ran { [] } else { $lines | where {|l| failure-is-system $l } }
+        if ($system | is-empty) { rm --force $published } else { $system | to text | save-atomic $published }
     }
     true
 }
@@ -226,7 +223,7 @@ export def config-banner-clear []: nothing -> nothing {
 }
 
 export def admin []: nothing -> bool {
-    ^id -nG | split row " " | any { $in == wheel }
+    ^id -nG | complete | get stdout | str trim | split row " " | any { $in == wheel }
 }
 
 export def system-allowed []: nothing -> bool {
@@ -366,12 +363,17 @@ def system-failed [ran: record, stage: string]: nothing -> nothing {
     for l in (stage-failures $ran $stage (system-runner)) { fail $l }
 }
 
+# A step of a root entry into this run's failures and pending state: its code, null when the entry never reached it.
+def --env stage-report [ran: record, stage: string]: nothing -> any {
+    let code = stage-code $ran $stage
+    if $code == $EXIT_PENDING { $env.DOT_SYSTEM_PENDING = true } else if $code not-in [0 null] { system-failed $ran $stage }
+    $code
+}
+
 # The config step of a root entry, into this run's failures and pending state.
 def --env config-report [ran: record]: nothing -> nothing {
     if (entry-declined $ran (system-runner)) { system-declined "system layer" true; return }
-    let code = stage-code $ran config
-    if $code in [0 $EXIT_PENDING] { rm --force (pending-file) } else if $code != null { system-failed $ran config }
-    if $code == $EXIT_PENDING { $env.DOT_SYSTEM_PENDING = true }
+    if (stage-report $ran config) in [0 $EXIT_PENDING] { rm --force (pending-file) }
 }
 
 # What root's config stage needs from the user first: the unlocked secrets and the lfs objects.
@@ -525,9 +527,7 @@ def --env install-begin []: nothing -> nothing {
 # The install and packages steps of a root entry, into the install failures; the install step's code.
 def --env install-report [ran: record]: nothing -> int {
     if (entry-declined $ran (system-runner)) { system-declined "packages" false; return $EXIT_PENDING }
-    let install = stage-code $ran install
-    if $install not-in [0 $EXIT_PENDING] { system-failed $ran install }
-    if $install == $EXIT_PENDING { $env.DOT_SYSTEM_PENDING = true }
+    let install = stage-report $ran install
     if ($ran.stages | where stage == packages and code != 0 | is-not-empty) { system-failed $ran packages }
     $install
 }
@@ -567,7 +567,7 @@ def pending-file []: nothing -> path {
 
 # What earlier runs left of the system layer for the next apply, each named once.
 export def pending-read []: nothing -> list<string> {
-    try { open --raw (pending-file) | lines | where $it != "" | uniq } catch { [] }
+    file-lines (pending-file) | uniq
 }
 
 export def --env system-part [target: string]: nothing -> nothing {
@@ -636,8 +636,7 @@ export def system-due [checks: list<record>, facts: record, awaited: list<string
 # The failures only root can clear: FAILURES.config's system layer lines and every FAILURES.install line (the install
 # chain runs as root).
 export def failures-system [config: path, install: path]: nothing -> list<string> {
-    let read = {|file| try { open --raw $file | lines | where ($it | str trim) != "" } catch { [] } }
-    (do $read $config | where {|l| failure-is-system $l }) ++ (do $read $install)
+    (file-lines $config | where {|l| failure-is-system $l }) ++ (file-lines $install)
 }
 
 # The module id of a pending line, "<id>: <why>" as pending-save writes it.
@@ -655,7 +654,7 @@ def mirror-awaits []: nothing -> list<string> {
 def pending-awaited [ctx: record, awaited: list<string>]: nothing -> list<string> {
     if ($awaited | is-empty) { return [] }
     let ids = [(with-env {DOT_LAYER: user} { state-dir }) $SYSTEM_STATE] | uniq
-        | each {|dir| try { open --raw ($dir | path join $PENDING_FILE) | lines | where $it != "" } catch { [] } }
+        | each {|dir| file-lines ($dir | path join $PENDING_FILE) }
         | flatten | each {|l| pending-id $l } | uniq
     let modules = $ctx.modules | where id in $ids
     if ($modules | is-empty) { return [] }

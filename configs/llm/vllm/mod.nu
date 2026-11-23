@@ -123,7 +123,7 @@ export def system [cfg: record] {
             --timeout 90min --requires ($PREFIX | path join venv bin hf))
         (file-copy vllm-wait-ready.nu /usr/local/bin/vllm-wait-ready --mode 755)
         (unit-file vllm-proxy.service)
-        (file-render vllm.service (unit-dir | path join vllm.service) $values --then [
+        (unit-file vllm.service --values $values --then [
             systemctl try-restart vllm.service
         ])
         (unit-file vllm.socket --enable --now)

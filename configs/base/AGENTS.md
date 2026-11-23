@@ -3,7 +3,8 @@
 The system baseline, almost all `system` verbs (root). Root logic that edits live state (crypttab, HOOKS, cmdline, NM
 profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
 
-- Hardware and host modules return nothing on WSL; their packages are `meta.packages.native`, which WSL skips.
+- Hardware and host modules return nothing on WSL: `meta.native_only: [system]` (the verbs the engine skips there), or
+  a guard in the verb when WSL is one condition of several; their packages are `meta.packages.native`, which WSL skips.
 - `pacman`'s system verb runs first so the mirror and key exist before any sync.
 - Bypasses are an explicit group or route (`pentest`, `vpn-bypass`, `vmnet` for vm-net's DoT to quad9 only), never a
   loosened global rule.

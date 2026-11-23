@@ -4,8 +4,9 @@ const NM_DISPATCHER_DIR = "/etc/NetworkManager/dispatcher.d"
 
 export def link [cfg: record] {
     [
-        (file-render timezone-auto.service (unit-dir | path join timezone-auto.service) {DIR: $env.PWD})
-        (unit-file timezone-auto.timer --enable --now)
+        (unit-file timezone-auto.service --values {DIR: $env.PWD})
+        (unit-timer timezone-auto.timer "Check the system timezone after boot" --startup 2min
+            --accuracy 5min --enable --now)
     ]
 }
 

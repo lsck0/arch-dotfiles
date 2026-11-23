@@ -2,7 +2,7 @@ use module.nu *
 export use ../boot/boot.nu [cmdline-set]
 use profile-flags.nu [BASELINE_FLAGS ETC MANUAL_FLAGS MARKER OWN_SUFFIX SOURCE text-mode upstream-files]
 
-export const meta = {packages: {native: [apparmor apparmor.d]}, volatile: true}
+export const meta = {packages: {native: [apparmor apparmor.d]}, volatile: true, native_only: [system]}
 
 const PARSER_CONF = "/etc/apparmor/parser.conf"
 const SYSCTL = "/etc/sysctl.d/99-apparmor.conf"
@@ -68,7 +68,6 @@ def own-profile [name: string, text: string, mode: any]: nothing -> record {
 }
 
 export def system [cfg: record] {
-    if $env.FORM_FACTOR? == "wsl" { return [] }
     let upstream = rows profiles.conf | where name not-in (own)
     [
         (step cmdline-set $LSM)

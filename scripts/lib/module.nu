@@ -44,6 +44,16 @@ def layer-is-system []: nothing -> bool {
     ($env.DOT_LAYER? | default user) == "system"
 }
 
+# systemctl's scope flag for the running layer.
+def layer-scope []: nothing -> string {
+    if (layer-is-system) { "--system" } else { "--user" }
+}
+
+# key set to value, left out while value is empty.
+def set-nonempty [key: string, value: any]: record -> record {
+    if ($value | is-empty) { $in } else { $in | upsert $key $value }
+}
+
 # The systemd unit dir of the running layer: /etc/systemd/system for the system layer, else the user's.
 export def unit-dir []: nothing -> path {
     if (layer-is-system) { "/etc/systemd/system" } else { xdg config systemd user }
@@ -109,8 +119,9 @@ export def shell-aliases [name: string]: nothing -> list<record> {
     | each {|f| file-copy $f.src ($f.dir | path join $"($name).($f.src | path parse | get extension)") }
 }
 
-# Applies json-set/json-delete edits to a live JSON file, keeping every other key.
-export def json-merge [file: path, edits: list<record>, --then: list<string> = []]: nothing -> record {
+# Applies json-set/json-delete edits to a live JSON file, keeping every other key; a record sets its top-level keys.
+export def json-merge [file: path, edits: oneof<list<record>, record>, --then: list<string> = []]: nothing -> record {
+    let edits = if ($edits | describe) =~ '^record' { $edits | items {|key, value| json-set [$key] $value } } else { $edits }
     decl json $file {edits: $edits, then: $then}
 }
 
@@ -143,8 +154,8 @@ def mcp-gated [name: string]: any -> any {
     let args = if $spec.type? == http { $head ++ [--url $spec.url] } else { $head ++ [-- $spec.command] ++ ($spec.args? | default []) }
     # headers through the environment, which only the owner reads, not argv, which every local user does
     let headers = $spec.headers? | default {}
-    let environment = $spec.env? | default {} | merge (if ($headers | is-empty) { {} } else { {MCP_GATE_HEADERS: ($headers | to json -r)} })
-    {type: stdio, command: python3, args: $args} | merge (if ($environment | is-empty) { {} } else { {env: $environment} })
+    let environment = $spec.env? | default {} | set-nonempty MCP_GATE_HEADERS (if ($headers | is-not-empty) { $headers | to json -r })
+    {type: stdio, command: python3, args: $args} | set-nonempty env $environment
 }
 
 # A Claude Code server spec in another agent's form; null where that agent has no counterpart.
@@ -185,8 +196,7 @@ export def mcp-servers [servers: record]: nothing -> list<record> {
 }
 
 def mcp-stdio [command: path, args: list<string>, env_vars: record, gate: record]: nothing -> record {
-    {type: stdio, command: $command, args: $args} | merge (if ($env_vars | is-empty) { {} } else { {env: $env_vars} })
-    | merge (if ($gate | is-empty) { {} } else { {gate: $gate} })
+    {type: stdio, command: $command, args: $args} | set-nonempty env $env_vars | set-nonempty gate $gate
 }
 
 # A script of the module as the MCP server name: linked into ~/.local/bin (link-commands) and registered from there.
@@ -255,23 +265,47 @@ export def ini-merge [file: path, values: record, --missing-only, --then: list<s
     decl ini $file {edits: [{values: $values, missing_only: $missing_only}], then: $then}
 }
 
-# Installs a unit file into the layer's unit dir, optionally enabled.
-export def unit-file [src: path, --enable, --now, --then: list<string> = []]: nothing -> list<record> {
-    let name = $src | path basename
-    [(file-copy $src (unit-dir | path join $name) --then $then)] ++ (if $enable { [(unit-enable $name --now=$now)] } else { [] })
+# Installs a unit file into the layer's unit dir as name (default its own), rendered with values when given
+# (file-render), optionally enabled.
+export def unit-file [src: path, --name: string, --values: record, --enable, --now, --then: list<string> = []]: nothing -> list<record> {
+    let name = $name | default ($src | path basename)
+    let dest = unit-dir | path join $name
+    let file = if $values == null { file-copy $src $dest --then $then } else { file-render $src $dest $values --then $then }
+    [$file] ++ (if $enable { [(unit-enable $name --now=$now)] } else { [] })
+}
+
+# A .timer written like unit-file installs one: --calendar adds Persistent=true, --every is OnUnitActiveSec,
+# --ac-power names the udev rules that stop it on battery and start it at the plug-in.
+export def unit-timer [
+    name: string, description: string, --calendar: string, --boot: string, --startup: string, --every: string
+    --delay: string, --accuracy: string, --ac-power: string, --enable, --now, --then: list<string> = []
+]: nothing -> list<record> {
+    let ac = if $ac_power == null { [] } else {
+        [
+            $"# mains only: ($ac_power) stops it on battery and starts it at the plug-in, where Persistent= catches up"
+            "ConditionACPower=true"
+        ]
+    }
+    let keys = [
+        [OnCalendar $calendar] [OnBootSec $boot] [OnStartupSec $startup] [OnUnitActiveSec $every]
+        [Persistent (if $calendar != null { "true" })] [RandomizedDelaySec $delay] [AccuracySec $accuracy]
+    ]
+    let timer = $keys | where {|kv| $kv.1 != null } | each {|kv| $"($kv.0)=($kv.1)" }
+    let text = ["[Unit]" $"Description=($description)" ...$ac "" "[Timer]" ...$timer "" "[Install]" "WantedBy=timers.target"]
+    let file = file-text (unit-dir | path join $name) ($text | append "" | str join "\n") --then $then
+    [$file] ++ (if $enable { [(unit-enable $name --now=$now)] } else { [] })
 }
 
 # Whether the layer's systemd knows unit; a template instance (foo@bar.service) checks its template.
 export def unit-installed [unit: string]: nothing -> bool {
-    let scope = if (layer-is-system) { "--system" } else { "--user" }
     let name = $unit | str replace --regex '^([^@]+@).*(\.[a-z]+)$' '$1$2'
-    ^systemctl $scope list-unit-files --no-legend $name | complete | get stdout | str trim | is-not-empty
+    ^systemctl (layer-scope) list-unit-files --no-legend $name | complete | get stdout | str trim | is-not-empty
 }
 
 # A --then command restarting a unit, skipped while the unit is not installed yet (a fresh install); --reload reloads
 # one that supports it, --if-running leaves a stopped one stopped (systemd's try- verbs still fail on a missing unit).
 export def unit-restart [name: string, --reload, --if-running]: nothing -> list<string> {
-    let scope = if (layer-is-system) { "--system" } else { "--user" }
+    let scope = layer-scope
     let verb = $"(if $if_running { 'try-' })(if $reload { 'reload-or-' })restart"
     [sh -c $"! systemctl ($scope) cat ($name) >/dev/null 2>&1 || systemctl ($scope) ($verb) ($name)"]
 }
@@ -284,14 +318,20 @@ export def unit-disable [name: string, --now]: nothing -> record {
     decl unit $name {state: disabled, now: $now}
 }
 
+# Enables a unit while on holds, else disables it; --now starts or stops it as well.
+export def unit-switch [name: string, on: bool, --now]: nothing -> record {
+    if $on { unit-enable $name --now=$now } else { unit-disable $name --now=$now }
+}
+
 # Masks a unit; --now also stops it, else every later daemon-reload warns that it changed under it.
 export def unit-mask [name: string, --now]: nothing -> record {
     decl unit $name {state: masked, now: $now}
 }
 
-# Copies src as a drop-in into <unit>.d, named --name or its basename.
-export def dropin [unit: string, src: path, --name: string, --then: list<string> = [], --notify: list<string> = []]: nothing -> record {
-    file-copy $src (unit-dir | path join $"($unit).d" ($name | default ($src | path basename))) --then $then --notify $notify
+# Copies src as a drop-in into <unit>.d, named --name or its basename, rendered with values when given (file-render).
+export def dropin [unit: string, src: path, --name: string, --values: record, --then: list<string> = [], --notify: list<string> = []]: nothing -> record {
+    let dest = unit-dir | path join $"($unit).d" ($name | default ($src | path basename))
+    if $values == null { file-copy $src $dest --then $then --notify $notify } else { file-render $src $dest $values --then $then --notify $notify }
 }
 
 # A user copy of a system .desktop entry passed through edit; nothing when the app is not installed.
@@ -299,6 +339,21 @@ export def desktop-override [id: string, edit: closure]: nothing -> list<record>
     let system = $DESKTOP_SYSTEM_DIR | path join $id
     if not ($system | path exists) { return [] }
     [(file-text (xdg data applications $id) (open --raw $system | do $edit))]
+}
+
+# A regex matching text literally.
+def regex-escape []: string -> string {
+    str replace --all --regex '([\\.+*?()|\[\]{}^$])' '\$1'
+}
+
+# desktop-override rewriting each Exec line that runs cmd: cmd becomes --command when given, run through `env` with
+# --env-vars, and --args go before the entry's own arguments.
+export def desktop-exec [id: string, cmd: string, --command: string, --args: list<string> = [], --env-vars: record = {}]: nothing -> list<record> {
+    let vars = $env_vars | items {|key, value| $"($key)=($value)" }
+    let prefix = if ($vars | is-empty) { [] } else { [env ...$vars] }
+    let exec = [...$prefix ($command | default $cmd) ...$args] | str join " " | str replace --all "$" "$$"
+    let pattern = '(?m)^Exec=' + ($cmd | regex-escape) + '( |$)'
+    desktop-override $id { str replace --all --regex $pattern ($"Exec=($exec)" + '${1}') }
 }
 
 # An imperative command. Given any of --creates, --key, --done or --undo it is recorded: it is skipped once --done

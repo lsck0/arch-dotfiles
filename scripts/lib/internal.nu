@@ -16,6 +16,7 @@ use preserve.nu [preserve-prune]
 use migrate.nu [migrations-run]
 use fetch.nu [fetch-file-run fetch-git-run]
 use state.nu [EXIT_PENDING]
+use proc.nu [notify]
 use bootstrap.nu [bootstrap-run]
 use stage.nu [stage-run]
 use ../../configs/base/yubikey/audit.nu [audit-remind]
@@ -217,8 +218,8 @@ def "main theme apply" [wallpaper: path, ...mods: string@module-ids]: nothing ->
             | where not ok | get id
         $failed | each { log-err $"theme: ($in) failed" } | ignore
         # the switch itself succeeds on purpose, so no unit failure reports a module left in the old colors
-        if ($failed | is-not-empty) and (which notify-send | is-not-empty) {
-            ^notify-send -a dotfiles -u low "Theme partly applied" $"($failed | str join ', '): dot log" | complete | ignore
+        if ($failed | is-not-empty) {
+            notify dotfiles "Theme partly applied" $"($failed | str join ', '): dot log" --urgency low | ignore
         }
     }
 }

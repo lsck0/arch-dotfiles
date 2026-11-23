@@ -1,7 +1,7 @@
 use module.nu *
 use ../fprintd/mod.nu [validity-sensor-ids]
 
-export const meta = {packages: {native: [tlp]}, volatile: true}
+export const meta = {packages: {native: [tlp]}, volatile: true, native_only: [system]}
 
 export const options = {
     charge_start: {
@@ -21,7 +21,6 @@ export const options = {
 }
 
 export def system [cfg: record] {
-    if $env.FORM_FACTOR? == "wsl" { return [] }
     if $cfg.charge_start >= $cfg.charge_stop { error make {msg: "tlp: charge_start must be below charge_stop"} }
     let restart = unit-restart tlp.service
     let conf = if $env.FORM_FACTOR? == "laptop" {

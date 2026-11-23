@@ -67,7 +67,7 @@ Item {
   }
 
   function close() {
-    root.cancelClearHistory()
+    root.clearConfirmOpen = false
     root.gpgReset()
     root.opened = false
   }
@@ -233,15 +233,6 @@ Item {
     root.expireHistory()
   }
 
-  function requestClearHistory() {
-    if (root.history.length === 0) return
-    root.clearConfirmOpen = true
-  }
-
-  function cancelClearHistory() {
-    root.clearConfirmOpen = false
-  }
-
   function imagePaths() {
     const seen = {}
     const paths = []
@@ -270,7 +261,7 @@ Item {
   function confirmClearHistory() {
     root.replaceHistory([])
     root.cursorActive = false
-    root.cancelClearHistory()
+    root.clearConfirmOpen = false
   }
 
   function removeDisplayIndex(index) {
@@ -328,14 +319,7 @@ Item {
 
   function select(delta) {
     if (displayModel.count === 0) return
-    pointerGate.reset()
-    if (!cursorActive) {
-      cursorActive = true
-      selectedIndex = delta < 0 ? displayModel.count - 1 : 0
-    } else {
-      selectedIndex = listCursor.step(selectedIndex, delta)
-    }
-    resultList.positionViewAtIndex(selectedIndex, ListView.Contain)
+    root.selectAbsolute(!root.cursorActive ? (delta < 0 ? displayModel.count - 1 : 0) : listCursor.step(root.selectedIndex, delta))
   }
 
   function selectAbsolute(index) {
@@ -565,7 +549,7 @@ Item {
       Keys.onPressed: function(event) {
         if (root.clearConfirmOpen) {
           if (event.key === Qt.Key_Y) root.confirmClearHistory()
-          else if (!event.isAutoRepeat && event.key !== Qt.Key_Shift) root.cancelClearHistory()
+          else if (!event.isAutoRepeat && event.key !== Qt.Key_Shift) root.clearConfirmOpen = false
           event.accepted = true
           return
         }
@@ -573,38 +557,37 @@ Item {
           event.accepted = root.gpgKey(event)
           return
         }
-        const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
-        if (ctrl) {
+        if (event.modifiers & Qt.ControlModifier) {
           if (event.key === Qt.Key_E) root.startEncrypt()
           else if (event.key === Qt.Key_D) root.startDecrypt()
           event.accepted = event.key === Qt.Key_E || event.key === Qt.Key_D
           if (event.accepted) return
         }
-
-        if (event.key === Qt.Key_Escape) {
-          if (root.filterText) root.setFilter("")
-          else root.close()
-        } else if (event.key === Qt.Key_Delete) {
-          if (event.modifiers & Qt.ShiftModifier) root.requestClearHistory()
-          else root.removeDisplayIndex(root.selectedIndex)
-        } else if (event.key === Qt.Key_Up || Util.isPrev(event.key, event.modifiers)) root.select(-1)
-        else if (event.key === Qt.Key_Down || Util.isNext(event.key, event.modifiers)) root.select(1)
-        else if (ctrl && event.key === Qt.Key_U) root.setFilter("")
-        else if (event.key === Qt.Key_PageUp) root.selectAbsolute(listCursor.page(root.selectedIndex, -1))
-        else if (event.key === Qt.Key_PageDown) root.selectAbsolute(listCursor.page(root.selectedIndex, 1))
-        else if (event.key === Qt.Key_Home) root.selectAbsolute(0)
-        else if (event.key === Qt.Key_End) root.selectAbsolute(displayModel.count - 1)
-        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-          const row = root.rowAt(root.selectedIndex)
-          if (event.modifiers & Qt.AltModifier) root.openRow(row)
-          else root.copyRow(row, (event.modifiers & Qt.ShiftModifier) !== 0)
-        } else if (Util.isWordDelete(event.key, event.modifiers)) root.setFilter(Util.wordDelete(root.filterText))
-        else if (event.key === Qt.Key_Backspace) root.setFilter(root.filterText.slice(0, -1))
-        else if (Util.printable(event.text))
-          root.setFilter(root.filterText + event.text)
-        else return
-        event.accepted = true
+        if (event.key === Qt.Key_Delete) {
+          if (!(event.modifiers & Qt.ShiftModifier)) root.removeDisplayIndex(root.selectedIndex)
+          else if (root.history.length > 0) root.clearConfirmOpen = true
+          event.accepted = true
+          return
+        }
+        event.accepted = listKeys.handle(event)
       }
+    }
+
+    FilterListKeys {
+      id: listKeys
+      cursor: listCursor
+      index: root.selectedIndex
+      filter: root.filterText
+      onEscaped: root.filterText ? root.setFilter("") : root.close()
+      onStepped: function (delta) { root.select(delta) }
+      onJumped: function (index) { root.selectAbsolute(index) }
+      onActivated: function (modifiers) {
+        const row = root.rowAt(root.selectedIndex)
+        if (modifiers & Qt.AltModifier) root.openRow(row)
+        else root.copyRow(row, (modifiers & Qt.ShiftModifier) !== 0)
+      }
+      onFilterCleared: root.setFilter("")
+      onFilterEdited: function (text) { root.setFilter(text) }
     }
 
     Item {
@@ -636,23 +619,18 @@ Item {
             ScrollBar.vertical: ListScrollBar { list: resultList }
             fade: resultFade
 
-            delegate: Rectangle {
+            delegate: CursorFill {
               id: rowDelegate
               required property int index
               required property string entryType
               required property string previewText
-              required property string fullText
               required property string previewImage
 
-              readonly property bool hasCursor: root.cursorActive && index === root.selectedIndex
-
+              hasCursor: root.cursorActive && index === root.selectedIndex
+              hovered: index === root.selectedIndex
               width: ListView.view.width
               height: root.rowHeight
-              radius: Style.shape.data
               opacity: panel.boot.rowOpacity(index)
-              color: hasCursor ? Colors.menu.selectedBackground
-                : index === root.selectedIndex ? Style.hoverFill : "transparent"
-              Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
               Row {
                 anchors.fill: parent
@@ -828,18 +806,15 @@ Item {
               currentIndex: root.gpgKeyIndex
               onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
 
-              delegate: Rectangle {
+              delegate: CursorFill {
                 id: keyRow
                 required property int index
                 required property var modelData
-                readonly property bool hasCursor: index === root.gpgKeyIndex
                 readonly property bool picked: root.gpgPicked[modelData.fpr] === true
 
+                hasCursor: index === root.gpgKeyIndex
                 width: ListView.view.width
                 height: keyText.implicitHeight + Style.spacing.sm * 2
-                radius: Style.shape.data
-                color: hasCursor ? Colors.menu.selectedBackground : "transparent"
-                Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
                 Label {
                   id: keyText

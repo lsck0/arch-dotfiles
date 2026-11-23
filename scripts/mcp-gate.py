@@ -50,8 +50,8 @@ def emit(text: str) -> None:
         sys.stdout.flush()
 
 
-def send(message: dict) -> None:
-    emit(json.dumps(message))
+def reply(request_id, **body) -> None:
+    emit(json.dumps({"jsonrpc": "2.0", "id": request_id} | body))
 
 
 def parse(line: str) -> dict:
@@ -71,10 +71,7 @@ def offline(app: str, name: str) -> None:
         "ping": {},
     }
     for line in sys.stdin:
-        try:
-            request = json.loads(line)
-        except ValueError:
-            continue
+        request = parse(line)
         if "id" not in request:
             continue
         method = request.get("method", "")
@@ -86,11 +83,11 @@ def offline(app: str, name: str) -> None:
                 "serverInfo": {"name": name, "version": "offline"},
                 "instructions": note,
             }
-            send({"jsonrpc": "2.0", "id": request["id"], "result": result})
+            reply(request["id"], result=result)
         elif method in empty:
-            send({"jsonrpc": "2.0", "id": request["id"], "result": empty[method]})
+            reply(request["id"], result=empty[method])
         else:
-            send({"jsonrpc": "2.0", "id": request["id"], "error": {"code": METHOD_NOT_FOUND, "message": note}})
+            reply(request["id"], error={"code": METHOD_NOT_FOUND, "message": note})
 
 
 def relay(url: str, headers: dict[str, str]) -> None:
@@ -145,8 +142,7 @@ def relay(url: str, headers: dict[str, str]) -> None:
         except (urllib.error.URLError, OSError, http.client.HTTPException, ValueError) as error:
             message = parse(line)
             if "id" in message:
-                failure = {"code": RELAY_FAILED, "message": f"relay: {error}"}
-                send({"jsonrpc": "2.0", "id": message["id"], "error": failure})
+                reply(message["id"], error={"code": RELAY_FAILED, "message": f"relay: {error}"})
 
     with ThreadPoolExecutor(REQUESTS_PARALLEL_MAX) as pool:
         for line in sys.stdin:

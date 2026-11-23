@@ -1,6 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # Plugins built as the user against hyprland's headers (hyprpm needs root); hyprpm.toml maps commits.
 
+use ../../../scripts/lib/proc.nu [notify]
 use ../../../scripts/lib/state.nu [xdg]
 
 const PLUGINS = [
@@ -81,7 +82,7 @@ def plugins-build [hyprland: string]: nothing -> bool {
     }
     let failed = $builds | where status == failed
     if ($failed | is-not-empty) {
-        ^notify-send -a hyprland "Hyprland plugins did not build" ($failed | get name | str join ", ") | complete | ignore
+        notify hyprland "Hyprland plugins did not build" ($failed | get name | str join ", ") | ignore
     }
     $failed | is-empty
 }
@@ -104,7 +105,7 @@ def plugins-load [hyprland: string]: nothing -> nothing {
     let loaded = $results | where exit_code == 0
     let load_failed = $results | where exit_code != 0
     if ($load_failed | is-not-empty) {
-        ^notify-send -a hyprland "Hyprland plugins did not load" ($load_failed | get name | str join ", ") | complete | ignore
+        notify hyprland "Hyprland plugins did not load" ($load_failed | get name | str join ", ") | ignore
     }
     # plugin options are only accepted once the plugin is in, so the config is read again; a reload drops the
     # `hyprctl eval` state (lid.nu's panel off, the shader), which the toggles replay, as mod.nu's reload does

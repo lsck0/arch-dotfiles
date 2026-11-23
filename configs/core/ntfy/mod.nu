@@ -14,7 +14,6 @@ export def link [cfg: record] {
     [
         # programming/projects may clone the homelab at the same time: the losing clone must not fail
         (exec homelab-clone [sh -c $"git clone --recurse-submodules ($HOMELAB_URL) ($homelab) || true"] --creates ($homelab | path join .git) --network)
-        (file-render ntfy-notify.service (unit-dir | path join ntfy-notify.service) {DIR: $env.PWD})
-        (unit-enable ntfy-notify.service --now)
+        (unit-file ntfy-notify.service --values {DIR: $env.PWD} --enable --now)
     ]
 }

@@ -1,5 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
 
+const REPO = path self | path expand | path dirname --num-levels 4
+use ($REPO | path join scripts lib proc.nu) [notify]
+
 # Files, links and text to the paired phone over KDE Connect. What the phone sends lands on its own: files in
 # the download dir, links in the browser, text on the clipboard.
 
@@ -59,7 +62,7 @@ def --wrapped kdeconnect [device: record, ...args: string] {
 
 def report [notify: bool, title: string, body: string = "", --error] {
     print --stderr=$error ([$title $body] | where $it != "" | str join ": ")
-    if $notify { ^notify-send --app-name $APP $title $body | complete | ignore }
+    if $notify { notify $APP $title $body | ignore }
 }
 
 def attempt [notify: bool, action: closure] {

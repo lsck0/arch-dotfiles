@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
-use ../../../scripts/lib/state.nu [xdg]
+use ../../../scripts/lib/state.nu [save-atomic xdg]
 use ../../../scripts/lib/usage.nu [die]
 
 const PUBLIC_DIR = path self ../../../wallpapers
@@ -43,9 +43,7 @@ def sizes-of [files: table]: nothing -> table {
     | each { print --stderr $"wallpaper-list: skipping ($in.path): unreadable image" }
     if ($read | is-not-empty) or (($sizes | length) != ($cached | length)) {
         mkdir ($cache_file | path dirname)
-        let tmp = $"($cache_file).($nu.pid)"
-        $sizes | to tsv --noheaders | save --force $tmp
-        mv --force $tmp $cache_file
+        $sizes | to tsv --noheaders | save-atomic $cache_file
     }
     $sizes
 }

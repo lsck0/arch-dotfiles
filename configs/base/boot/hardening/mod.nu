@@ -1,6 +1,8 @@
 use module.nu *
 use ../boot.nu [cmdline-set cmdline-unset key-of]
 
+export const meta = {native_only: [system]}
+
 export const options = {
     allow_smt: {
         type: bool
@@ -42,7 +44,6 @@ def smt-leaks []: nothing -> bool {
 }
 
 export def system [cfg: record] {
-    if $env.FORM_FACTOR? == "wsl" { return [] }
     let smt = if not $cfg.allow_smt and (smt-leaks) { [nosmt] } else { [] }
     let extra = $smt ++ (if $cfg.relax_mitigations { $RELAXED } else { [] })
     step harden ...$extra
