@@ -119,7 +119,7 @@ def wazuh-render [lab: record]: nothing -> any {
 
 # The generated file's text for one lab.json and its ssh-keys.json (null when absent); fails on a schema or a value it
 # does not know.
-export def homelab-render [lab: record, keys: any = null]: nothing -> string {
+export def homelab-render [lab: record, keys: any = null, source: any = null]: nothing -> string {
     if $lab.schema? != $LAB_SCHEMA { error make {msg: $"homelab: lab.json schema ($lab.schema? | to nuon), wants ($LAB_SCHEMA)"} }
     let zones = $lab.zones? | default {}
     if ($zones | is-empty) { error make {msg: "homelab: lab.json has no zones"} }
@@ -155,7 +155,9 @@ export def homelab-render [lab: record, keys: any = null]: nothing -> string {
         # base/wazuh's agent: where it enrolls and reports, and the secret holding the enrollment password
         wazuh: (wazuh-render $lab)
     }
-    $"($HEAD)\nexport const HOMELAB = ($values | options-to-nuon)\n"
+    let text = $"($HEAD)\nexport const HOMELAB = ($values | options-to-nuon)\n"
+    if $source == null { return $text }
+    $"($text)\n# lab.json's commit date: a checkout behind it never rewrites this file\nexport const HOMELAB_SOURCE = \"($source | format date '%Y-%m-%dT%H:%M:%S%:z')\"\n"
 }
 
 def keys-load [lab: path]: nothing -> any {
@@ -163,15 +165,46 @@ def keys-load [lab: path]: nothing -> any {
     if ($file | path exists) { open $file }
 }
 
-# Whether repo's generated file differs from what lab renders to; no lab (no checkout) is never stale.
-export def homelab-stale [repo: path, lab: any]: nothing -> bool {
-    if $lab == null { return false }
-    let file = $repo | path join $HOMELAB_FILE
-    not ($file | path exists) or (open --raw $file) != (homelab-render (open $lab) (keys-load $lab))
+# lab.json's last commit date in its checkout, its mtime while it has uncommitted changes, null outside git.
+def lab-date [lab: path]: nothing -> any {
+    let dir = $lab | path dirname
+    let dirty = ^git -C $dir status --porcelain -- $lab | complete
+    if $dirty.exit_code != 0 { return null }
+    if ($dirty.stdout | str trim) != "" { return (ls --long $lab | get 0.modified) }
+    let date = ^git -C $dir log -1 --format=%cI -- $lab | complete | get stdout | str trim
+    if $date != "" { $date | into datetime }
 }
 
-# Writes repo's generated file from lab; without a lab the committed file stays.
+# The lab.json date the committed file was rendered from, null when it records none.
+def recorded-date [file: path]: nothing -> any {
+    if not ($file | path exists) { return null }
+    let found = open --raw $file | parse --regex '(?m)^export const HOMELAB_SOURCE = "(?<date>[^"]+)"$'
+    if ($found | is-not-empty) { $found.0.date | into datetime }
+}
+
+# The file to write for lab, null when lab is absent or older than what the committed file was rendered from: a
+# checkout not pulled since would take back the lab's newer values.
+def lab-text [repo: path, lab: any]: nothing -> any {
+    if $lab == null { return null }
+    let date = lab-date $lab
+    let known = recorded-date ($repo | path join $HOMELAB_FILE)
+    if $date != null and $known != null and $date < $known { return null }
+    homelab-render (open $lab) (keys-load $lab) $date
+}
+
+# Whether repo's generated file differs from what lab renders to; no lab (no checkout) or one behind is never stale.
+export def homelab-stale [repo: path, lab: any]: nothing -> bool {
+    let text = lab-text $repo $lab
+    let file = $repo | path join $HOMELAB_FILE
+    $text != null and (not ($file | path exists) or (open --raw $file) != $text)
+}
+
+# Writes repo's generated file from lab; without a lab, or with one behind, the committed file stays.
 export def homelab-write [repo: path, lab: any]: nothing -> nothing {
-    if $lab == null { return }
-    homelab-render (open $lab) (keys-load $lab) | save --force ($repo | path join $HOMELAB_FILE)
+    let text = lab-text $repo $lab
+    if $text == null {
+        if $lab != null { print --stderr $"homelab: ($lab) is behind ($HOMELAB_FILE), kept; pull the homelab checkout" }
+        return
+    }
+    $text | save --force ($repo | path join $HOMELAB_FILE)
 }

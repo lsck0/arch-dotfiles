@@ -132,6 +132,35 @@ def stale-cases []: nothing -> nothing {
     rm --recursive --force $dir
 }
 
+# a checkout whose lab.json is older than the one the file was rendered from keeps the file
+def behind-cases []: nothing -> nothing {
+    let dir = mktemp --directory
+    let repo = $dir | path join repo
+    let lab = $dir | path join lab.json
+    mkdir ($repo | path join platforms)
+    let commit = {|date|
+        with-env {GIT_COMMITTER_DATE: $date, GIT_AUTHOR_DATE: $date} {
+            ^git -C $dir -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit --quiet --allow-empty-message -m "" -- $lab
+        }
+    }
+    ^git -C $dir init --quiet
+    $LAB | to json | save $lab
+    ^git -C $dir add $lab
+    do $commit "2026-01-01T00:00:00+00:00"
+    let old = ^git -C $dir rev-parse HEAD | str trim
+    $LAB | update nas.ip "10.9.0.6" | to json | save --force $lab
+    do $commit "2026-02-01T00:00:00+00:00"
+    homelab-write $repo $lab
+    let file = $repo | path join $HOMELAB_FILE
+    let newer = open --raw $file
+    assert str contains $newer 'HOMELAB_SOURCE = "2026-02-01T00:00:00+00:00"' "behind: the date is not recorded"
+    ^git -C $dir reset --quiet --hard $old
+    assert not (homelab-stale $repo $lab) "behind: an older checkout is stale"
+    homelab-write $repo $lab
+    assert equal (open --raw $file) $newer "behind: an older checkout rewrote the file"
+    rm --recursive --force $dir
+}
+
 def lab-path-cases []: nothing -> nothing {
     let dir = mktemp --directory
     assert equal (with-env {HOMELAB_DIR: $dir} { homelab-lab-path }) null "lab path: an empty checkout dir has a lab.json"
@@ -161,6 +190,7 @@ def main [] {
     builder-cases
     wazuh-cases
     stale-cases
+    behind-cases
     lab-path-cases
     signer-case
 }
