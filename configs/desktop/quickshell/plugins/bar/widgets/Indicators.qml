@@ -14,7 +14,7 @@ BarWidget {
     anchors.centerIn: parent
 
     Repeater {
-      model: ["Recording.qml", "ScreenShare.qml", "Camera.qml", "Microphone.qml", "StayAwake.qml"]
+      model: ["Recording.qml", "ScreenShare.qml", "Camera.qml", "StayAwake.qml"]
 
       Loader {
         id: slot

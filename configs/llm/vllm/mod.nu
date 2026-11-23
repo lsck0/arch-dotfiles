@@ -50,14 +50,14 @@ export const options = {
 }
 
 const PREFIX = "/opt/vllm"
-const RELEASE = "0.32.0"
-const ROCM_TAG = "rocm723"
+const RELEASE = "0.34.0"
+const ROCM_TAG = "rocm100"
 const VERSION = $"($RELEASE)+($ROCM_TAG)"
-const OMNI_VERSION = "0.32.0"
+const OMNI_VERSION = "0.34.0"
 # the bare rocm/ index keeps only the newest release; rocm/<release>/<rocm tag>/ keeps the pin resolvable
 const WHEELS_URL = $"https://wheels.vllm.ai/rocm/($RELEASE)/($ROCM_TAG)/"
 # pins the resolver's view of every transitive dep (torch, transformers, ...) as of this date; bump with VERSION
-const EXCLUDE_NEWER = "2026-11-01"
+const EXCLUDE_NEWER = "2026-11-23"
 # rocm wheels are cp312 only
 const PYTHON_VERSION = "3.12"
 const ROCM_BIN = "/opt/rocm/bin"
@@ -69,9 +69,9 @@ const MAX_POSITIONS = 40960
 const SHARE_STEP = 0.05
 const STUB_SOURCE = "mpi-cxx-stub.c"
 const UV_EXCLUDES = "uv-excludes.txt"
-# root runs a build backend for this one dependency, which ships no wheel; every other one installs from a wheel, so a
-# new sdist-only dependency fails the step by name instead of building as root
-const SDIST_ONLY = "openai-whisper"
+# root runs a build backend for these dependencies, which ship no wheel (rocm is the ROCm 10 wheels' meta package); every
+# other one installs from a wheel, so a new sdist-only dependency fails the step by name instead of building as root
+const SDIST_ONLY = [openai-whisper rocm]
 
 export def detect [cfg: record]: nothing -> record {
     let gpu = gpu-list | where vendor == amd | get --optional 0
@@ -167,7 +167,7 @@ export def venv []: nothing -> nothing {
         with-env {UV_PYTHON_INSTALL_DIR: ($PREFIX | path join python)} {
             ^uv venv --allow-existing --python $PYTHON_VERSION $venv
             # --excludes: mooncake's bundled glog clashes with the system's and aborts the import
-            (^uv pip install --only-binary ":all:" --no-binary $SDIST_ONLY --python $venv --config-file $uv_config
+            (^uv pip install --only-binary ":all:" ...($SDIST_ONLY | each {|p| [--no-binary $p] } | flatten) --python $venv --config-file $uv_config
                 --exclude-newer $EXCLUDE_NEWER --excludes $UV_EXCLUDES $"vllm==($VERSION)" $"vllm-omni==($OMNI_VERSION)")
             ^uv pip uninstall --python $venv -r $UV_EXCLUDES
         }
