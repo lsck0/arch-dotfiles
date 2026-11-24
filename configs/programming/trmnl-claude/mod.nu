@@ -7,6 +7,14 @@ export const options = {
         doc: "This machine posts its Claude usage to the TRMNL panel; one poster per panel, a second would overwrite it"
         label: "Post to TRMNL"
     }
+    interval_min: {
+        type: int
+        default: 15
+        doc: "Minutes between posts, stepped within each hour"
+        label: "Post interval (min)"
+        min: 1
+        max: 60
+    }
 }
 
 const SECRET = "configs/secrets/keys/trmnl-claude.env"
@@ -15,6 +23,6 @@ export def link [cfg: record] {
     if not $cfg.poster or not (secret-is-plaintext ($env.DOTFILES | path join $SECRET)) { return [] }
     [
         (unit-file services/trmnl-claude.service --values {DIR: $env.PWD})
-        (unit-file services/trmnl-claude.timer --enable --now)
+        (unit-file services/trmnl-claude.timer --values {INTERVAL_MIN: $cfg.interval_min} --enable --now)
     ]
 }

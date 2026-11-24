@@ -12,10 +12,26 @@ export const options = {
         apply: live
         scope: user
     }
+    update_ms: {
+        type: int
+        default: 500
+        doc: "Milliseconds between samples"
+        label: "Update interval (ms)"
+        min: 100
+        scope: user
+    }
+    temp_scale: {
+        type: string
+        default: celsius
+        doc: "Unit of the temperature readouts"
+        label: "Temperature unit"
+        choices: [celsius fahrenheit kelvin rankine]
+        scope: user
+    }
 }
 
 export def link [cfg: record] {
-    files-into (xdg config btop) config/btop.conf
+    file-render config/btop.conf (xdg config btop btop.conf) {UPDATE_MS: $cfg.update_ms, TEMP_SCALE: $cfg.temp_scale}
 }
 
 export def apply [cfg: record] {

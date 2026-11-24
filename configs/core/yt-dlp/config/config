@@ -1,4 +1,4 @@
--o "~/downloads/yt-dlp/%(uploader)s/%(title)s [%(id)s].%(ext)s"
+-o "@DOWNLOAD_DIR@/%(uploader)s/%(title)s [%(id)s].%(ext)s"
 --restrict-filenames
 --continue
 --no-mtime
@@ -8,14 +8,14 @@
 --fragment-retries 10
 
 -f bv*+ba/b
---merge-output-format mp4
+--merge-output-format @CONTAINER@
 
 --embed-metadata
 --embed-thumbnail
 --embed-chapters
 --embed-subs
---sub-langs en.*,de.*
+--sub-langs @SUB_LANGS@
 
 --sponsorblock-mark all
 
---download-archive ~/downloads/yt-dlp/.archive
+--download-archive @DOWNLOAD_DIR@/.archive

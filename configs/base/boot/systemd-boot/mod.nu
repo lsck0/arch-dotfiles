@@ -9,10 +9,21 @@ export const meta = {
     barrier: {run: boot-commit, watch: $BOOT_WATCH}
 }
 
+export const options = {
+    menu_timeout_s: {
+        type: int
+        default: 0
+        doc: "Seconds the boot menu waits before the default entry; 0 hides it, a held key still shows it"
+        label: "Boot menu timeout (s)"
+        min: 0
+        max: 60
+    }
+}
+
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" or not (esp-supported) { return [] }
     [
-        (step install)
+        (step install ($cfg.menu_timeout_s | into string))
         # not a pacman hook: bootctl update would race sbctl's re-sign hook for the last place in hook order
         (unit-enable systemd-boot-update.service)
         # kernel-modules-hook keeps the running kernel's modules through a kernel upgrade or downgrade; this drops
@@ -21,7 +32,7 @@ export def system [cfg: record] {
     ]
 }
 
-export def install []: nothing -> nothing {
+export def install [menu_timeout_s: string]: nothing -> nothing {
     # every run, not only the barrier's: a pacman kernel upgrade rebuilds with the HOOKS line as it stands
     hooks-sweep
     let words = cmdline-words
@@ -43,9 +54,10 @@ export def install []: nothing -> nothing {
         rm --force $"($ESP)/initramfs-($pkgbase).img" $"($ESP)/initramfs-($pkgbase)-fallback.img"
     }
     if (^bootctl $"--esp-path=($ESP)" is-installed | complete).exit_code != 0 { ^bootctl $"--esp-path=($ESP)" install }
-    # cp, not install -m: a chmod on the fmask=0077 fat esp fails
+    # save, not install -m: a chmod on the fmask=0077 fat esp fails
     mkdir $"($ESP)/loader"
-    if (open --raw config/loader.conf) != (try { open --raw $"($ESP)/loader/loader.conf" } catch { "" }) {
-        ^cp config/loader.conf $"($ESP)/loader/loader.conf"
+    let loader = open --raw config/loader.conf | text-render {TIMEOUT: $menu_timeout_s}
+    if $loader != (try { open --raw $"($ESP)/loader/loader.conf" } catch { "" }) {
+        $loader | save --force $"($ESP)/loader/loader.conf"
     }
 }

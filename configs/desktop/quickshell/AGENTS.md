@@ -2,7 +2,7 @@
 
 Editing, reload, logs, screenshots: `l-dotfiles-quickshell-dev`.
 
-- `config/shell.qml`: one `Bar` per screen, loads `plugins/Plugins.js` (summon ids and bar layout), owns the `shell` and
+- `config/shell.qml`: one `Bar` per screen, loads `plugins/Plugins.js` (summon ids), owns the `shell` and
   `discord` IPC targets; every other target lives in the plugin or `Commons/` singleton it drives.
 - `plugins/<feature>/`, `Commons/` (singletons: palette, style, audio, tasks, timers, calendar, notes), `Ui/` (shared
   widgets), `scripts/` (helpers the plugins call; `scripts/lib/shell.nu` holds their action notification, bounded
@@ -13,6 +13,8 @@ Editing, reload, logs, screenshots: `l-dotfiles-quickshell-dev`.
 - Settings window (`plugins/settings/`): a UI over `dot set --json` and `dot status --json`; MACHINE (the platform
   file's keys, `fixed` ones read only), quick toggles, system, then every module's options. `schema.test.nu` covers
   `Schema.js`.
+- Options in `mod.nu` reach the shell as generated json beside the tree (`bar.json` the bar layout, `notify.json`,
+  `pomodoro.json`, `clipboard.json`) and the `fx` section of `theme.json`; its other knobs stay in the repo copy.
 - Colors come from `Colors.qml`/`Theme.qml` tokens, never hardcoded.
 - No explanatory help sentences in the UI: short labels, values, key hints (`[ESC] Dismiss`) and terse empty states
   (`> NO TRAY ICONS`) only.

@@ -116,10 +116,10 @@ c.colors.messages.error.bg = red
 c.colors.messages.warning.bg = accent
 c.colors.messages.info.bg = bg
 
-c.tabs.position = "top"
-c.tabs.show = "multiple"
+c.tabs.position = "@TABS_POSITION@"
+c.tabs.show = "@TABS_SHOW@"
 c.tabs.indicator.width = 2
-c.statusbar.show = "in-mode"
+c.statusbar.show = "@STATUSBAR_SHOW@"
 c.scrolling.smooth = True
 c.fonts.default_family = _font["family"]
 c.fonts.default_size = f"{_font['ui_size']}pt"

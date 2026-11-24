@@ -2,4 +2,4 @@
 -P ubuntu-24.04=catthehacker/ubuntu:act-24.04
 -P ubuntu-22.04=catthehacker/ubuntu:act-22.04
 --container-daemon-socket -
---container-options --memory=12g --cpus=4 --pids-limit=-1
+--container-options --memory=@MEMORY@ --cpus=@CPUS@ --pids-limit=-1

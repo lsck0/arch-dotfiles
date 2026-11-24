@@ -6,6 +6,17 @@ export const meta = {
     packages: {pacman: [imagemagick wallust-git]}
 }
 
+export const options = {
+    palette: {
+        type: string
+        default: salience
+        doc: "wallust palette that picks the colours from a wallpaper"
+        label: "Palette"
+        choices: [salience ansi kmeans]
+        scope: user
+    }
+}
+
 const STAND_IN = "void"
 const STYLE_JSON = "dotfiles/style.json"
 
@@ -14,7 +25,7 @@ export def link [cfg: record] {
     let templates = glob config/templates/**/* --no-dir | each { path relative-to ($env.PWD | path join config) }
     [
         (shell-aliases wallust)
-        (file-render config/wallust.toml ($dir | path join wallust.toml) {CACHE: (xdg cache), DATA: (xdg data)})
+        (file-render config/wallust.toml ($dir | path join wallust.toml) {CACHE: (xdg cache), DATA: (xdg data), PALETTE: $cfg.palette})
         ($templates | each {|t| file-copy ("config" | path join $t) ($dir | path join $t) })
         (files-into ($dir | path join colorschemes) ...(glob ../../../themes/*.json))
         (file-text (xdg config $STYLE_JSON) (style-json) --generated)

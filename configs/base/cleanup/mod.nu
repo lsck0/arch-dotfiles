@@ -13,6 +13,14 @@ export const options = {
         doc: "Age past which journal entries are dropped even with space left, journald.conf(5) MaxRetentionSec"
         label: "Journal retention"
     }
+    nix_gc_days: {
+        type: int
+        default: 30
+        doc: "Age in days past which the weekly nix-gc deletes old generations"
+        label: "Nix garbage age (days)"
+        min: 1
+        max: 365
+    }
 }
 
 # scripts/lib/fetch.nu's pinned downloads, as root and as the user; it touches a blob on reuse, so the age counts
@@ -42,7 +50,7 @@ export def link [cfg: record] {
         (unit-timer home-sweep.timer "Weekly home directory log sweep" --calendar weekly --delay 1h --enable --now)
         (if (which nix-collect-garbage | is-not-empty) {
             [
-                (unit-file services/nix-gc.service)
+                (unit-file services/nix-gc.service --values {DAYS: $cfg.nix_gc_days})
                 (unit-timer nix-gc.timer "Weekly nix store garbage collection" --calendar weekly --delay 1h --enable --now)
             ]
         })

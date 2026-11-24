@@ -6,7 +6,6 @@ export const meta = {packages: {pacman: [ollama]}}
 # the socket starts both again on the next request, with the new settings; a restart of ollama alone stops the proxy
 # bound to it, and that stop cancels ollama's start job
 const RESTART = [systemctl stop ollama-proxy.service ollama.service]
-export const KEEP_ALIVE_MIN = 30
 # kept free when no gpu reports its vram
 const GPU_OVERHEAD_FALLBACK = 512MiB
 
@@ -22,6 +21,14 @@ export const options = {
         default: 4
         doc: "Requests one loaded model answers at once; each slot holds its own context in vram"
         label: "Parallel requests"
+    }
+    keep_alive_min: {
+        type: int
+        default: 30
+        doc: "Idle minutes before a loaded model is unloaded and ollama stops"
+        label: "Keep alive (min)"
+        min: 1
+        max: 1440
     }
 }
 # the pinned models are tens of GB: pulled once per pin set, and only where a gpu runs them (not the vm test)
@@ -44,12 +51,12 @@ export def link [cfg: record] {
 
 export def system [cfg: record] {
     [
-        (unit-file services/ollama-proxy.service)
+        (unit-file services/ollama-proxy.service --values {KEEP_ALIVE_MIN: $cfg.keep_alive_min})
         (unit-file services/ollama.socket --enable --now)
         ([services/listen.conf services/hardening.conf services/gpu.conf] | each { dropin ollama.service $in --then $RESTART })
         (dropin ollama.service services/perf.conf --values {GPU_OVERHEAD: (gpu-overhead $cfg), PARALLEL: $cfg.parallel}
             --then $RESTART)
-        (dropin ollama.service services/keep-alive.conf --values {KEEP_ALIVE_MIN: $KEEP_ALIVE_MIN} --then $RESTART)
+        (dropin ollama.service services/keep-alive.conf --values {KEEP_ALIVE_MIN: $cfg.keep_alive_min} --then $RESTART)
     ]
 }
 

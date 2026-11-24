@@ -14,6 +14,13 @@ export const options = {
         doc: "Address of the homelab NAS device (the lab's nas role); discovery is off, so this is how it is found"
         label: "NAS address"
     }
+    versions_max_age_days: {
+        type: int
+        default: 30
+        doc: "Days staggered versioning keeps old versions of files in ~/sync"
+        label: "Version retention (days)"
+        min: 1
+    }
 }
 
 export def packages [cfg: record]: nothing -> record {
@@ -27,7 +34,7 @@ const GUI_TRIES = 3
 const PASSWORD_SHAPE = '^[A-Za-z0-9+/=._~-]+$'
 # third-party archives (engine zips, launchers) live on the NAS's bulk/vendor, outside syncthing
 const STIGNORE_LINES = ["**/.identity" "/vendor"]
-const VERSIONS_MAX_AGE_S = 30 * 24 * 60 * 60
+const DAY_S = 24 * 60 * 60
 const NAS_NAME = '(^|-)nas$'
 # upstream's default; the stored configs carry 20
 const RECONNECT_INTERVAL_S = 60
@@ -111,7 +118,7 @@ def gui-login [user: string, password: string]: nothing -> nothing {
     if not $set { error make {msg: "syncthing: the gui login did not stick, the gui is open to every local user"} }
 }
 
-export def api-config [paired: string, nas: string = ""]: nothing -> nothing {
+export def api-config [paired: string, versions_max_age_s: string, nas: string = ""]: nothing -> nothing {
     api-wait
     if $nas != "" {
         for id in (st config devices list | lines) {
@@ -133,7 +140,7 @@ export def api-config [paired: string, nas: string = ""]: nothing -> nothing {
     }
     if "sync" in (st config folders list | lines) {
         ^syncthing cli config folders sync versioning type set staggered
-        ^syncthing cli config folders sync versioning params set maxAge ($VERSIONS_MAX_AGE_S | into string)
+        ^syncthing cli config folders sync versioning params set maxAge $versions_max_age_s
         if (st config folders sync versioning type get) != "staggered" {
             error make {msg: "syncthing: staggered versioning on sync did not stick"}
         }
@@ -148,15 +155,16 @@ export def link [cfg: record] {
     let differs = {|f| not ($state | path join $f | path exists) or (open --raw ($secrets | path join $f)) != (open --raw ($state | path join $f)) }
     let changed = $paired and (not ($state | path join config.xml | path exists) or ([cert.pem key.pem] | any $differs))
     let nas = $cfg.nas_address | default ""
+    let versions_max_age_s = $cfg.versions_max_age_days * $DAY_S | into string
     # a new identity replaces config.xml, so its secrets are part of what api-config last set
     let identity = if $paired { $IDENTITY.file | each {|f| open --raw ($secrets | path join $f) | hash sha256 } } else { [] }
-    let api_key = [(gui-version) $nas ($paired | into string) ($VERSIONS_MAX_AGE_S | into string) ($RECONNECT_INTERVAL_S | into string) ...$identity] | str join "\n" | hash sha256
+    let api_key = [(gui-version) $nas ($paired | into string) $versions_max_age_s ($RECONNECT_INTERVAL_S | into string) ...$identity] | str join "\n" | hash sha256
     [
         (step stignore --done=($STIGNORE_LINES | all {|l| $l in (stignore-lines) }))
         (step identity-install --done=(not $changed))
         (dropin syncthing.service services/10-background.conf --then (unit-restart syncthing.service --if-running))
         (unit-enable syncthing.service --now)
-        (step api-config ($paired | into string) $nas --key $api_key)
+        (step api-config ($paired | into string) $versions_max_age_s $nas --key $api_key)
     ]
 }
 

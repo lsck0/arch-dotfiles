@@ -20,6 +20,17 @@ export const MODELS = [
 ]
 const MODELS_TIMEOUT = 3hr
 
+export const options = {
+    idle_min: {
+        type: int
+        default: 10
+        doc: "Idle minutes after the last editor tab or request before ComfyUI stops"
+        label: "Idle stop (min)"
+        min: 1
+        max: 1440
+    }
+}
+
 def root []: nothing -> path { xdg data comfyui }
 
 def gpu-fits []: nothing -> bool {
@@ -33,6 +44,7 @@ export def link [cfg: record] {
     let values = {
         PYTHON: ($root | path join venv bin python), SRC: $src, BASE: $root
         OUTPUT: ($nu.home-dir | path join pictures comfyui), WAIT_READY: ($root | path join comfyui-wait-ready.nu)
+        IDLE_MIN: $cfg.idle_min
     }
     let venv_key = venv-key
     # the stamps the steps wrote before they were keyed: venv.stamp, and models/.pins/<sha256> beside each model

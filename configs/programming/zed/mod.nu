@@ -5,8 +5,13 @@ use ../../core/wallust/scripts/palette.nu [condition-bg palette-rgb rgb-to-hex]
 
 export const meta = {packages: {pacman: [zed]}}
 
-# Merged: zed's UI edits survive, the repo's keys and the font win.
-def settings []: nothing -> record {
+export const options = {
+    vim_mode: {type: bool, default: true, doc: "Vim keys in the editor", label: "Vim mode", scope: user}
+    format_on_save: {type: bool, default: true, doc: "Format a buffer on save", label: "Format on save", scope: user}
+}
+
+# Merged: zed's UI edits survive, the repo's keys, the options and the font win.
+def settings [cfg: record]: nothing -> record {
     let font = font-load
     # the font roles are points, zed's sizes logical pixels
     let typeface = {
@@ -15,16 +20,17 @@ def settings []: nothing -> record {
         ui_font_family: $font.family
         ui_font_size: ($font.ui_size * $PX_PER_PT | math round)
     }
-    json-merge (xdg config zed settings.json) (open config/settings.json | merge $typeface)
+    let choices = {vim_mode: $cfg.vim_mode, format_on_save: (if $cfg.format_on_save { "on" } else { "off" })}
+    json-merge (xdg config zed settings.json) (open config/settings.json | merge $choices | merge $typeface)
 }
 
 export def link [cfg: record] {
-    [(files-into (xdg config zed) config/keymap.json) (settings)]
+    [(files-into (xdg config zed) config/keymap.json) (settings $cfg)]
 }
 
 export def theme [cfg: record, wallpaper: string] {
     let p = palette-rgb zed
-    if $p == null { return (settings) }
+    if $p == null { return (settings $cfg) }
     let hex = $p | update cells { rgb-to-hex --prefix "#" }
     let ansi = [black red green yellow blue magenta cyan white] | enumerate | each {|c|
         [[$"terminal.ansi.($c.item)" ($hex | get $"c($c.index)")] [$"terminal.ansi.bright_($c.item)" ($hex | get $"c($c.index + 8)")]]
@@ -116,6 +122,6 @@ export def theme [cfg: record, wallpaper: string] {
     }
     [
         (file-text (xdg config zed themes wallust.json) $"($theme | to json --indent 2)\n" --generated)
-        (settings)
+        (settings $cfg)
     ]
 }

@@ -32,8 +32,8 @@ Three collections, each with its profile; OBS does not pair them, so pick both:
   minus the portal `RestoreToken`. Per machine: `config/scenes/<hostname>/<name>.json` (`host-seed`), preferred by
   apply, written by the backup.
 - Profiles in `config/profiles/<name>/`, `basic.ini` with `@KEY@` placeholders filled by `mod.nu`.
-- VirtualCam is capped at 720p (`VIRTUALCAM_HEIGHT`; 4k YUYV is about 500 MB/s).
-- Streaming outputs the full canvas and scales only the stream to `STREAM_RES` (at most `STREAM_HEIGHT` 1080, lanczos
+- VirtualCam is capped at 720p (option `virtualcam_height`; 4k YUYV is about 500 MB/s).
+- Streaming outputs the full canvas and scales only the stream to `STREAM_RES` (at most `stream_height`, 1080, lanczos
   `RescaleFilter=4`); `streamEncoder.json`: 6000 kbps CBR, keyint 2.
 - Recording: `record_encoder` option (AV1 on vaapi, else h264 via vaapi, nvenc or x264), CQP 18, hybrid mp4; a 60 s
   replay buffer in the Recording profile only (`RecRB`, `RecRBTime`).

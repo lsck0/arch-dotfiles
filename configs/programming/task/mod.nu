@@ -16,6 +16,16 @@ export const options = {
         doc: "This replica creates the instances of recurring tasks; one per sync, or each adds its own copy (task-sync(5))"
         label: "Create recurring tasks"
     }
+    sync_interval_min: {
+        type: int
+        default: 30
+        doc: "Minutes between the timer's syncs, stepped within each hour"
+        label: "Sync interval (min)"
+        min: 1
+        max: 60
+    }
+    week_start: {type: string, default: Monday, doc: "First day of the week", label: "Week starts", choices: [Monday Sunday], scope: user}
+    date_format: {type: string, default: d.m.y, doc: "Taskwarrior date format of input, reports and annotations", label: "Date format", scope: user}
 }
 
 const HOOK = "/usr/share/doc/timew/ext/on-modify.timewarrior"
@@ -64,12 +74,16 @@ export def link [cfg: record] {
     # taskrc includes ~/.config/bugwarrior/uda.taskrc and refuses a missing include; programming/bugwarrior owns its
     # content, so an empty unmanaged one stands in where that module is off, never wrote it or removed it
     [
-        (files-into (xdg config task) config/taskrc config/wal.theme)
+        (file-render config/taskrc (xdg config task taskrc) {DATE_FORMAT: $cfg.date_format, WEEK_START: $cfg.week_start})
+        (files-into (xdg config task) config/wal.theme)
         (exec task-uda-placeholder [install -D -m 644 /dev/null $UDA] --creates $UDA)
         (if ($HOOK | path exists) { file-copy $HOOK ($nu.home-dir | path join .task hooks on-modify.timewarrior) --mode 755 })
         (file-text ($nu.home-dir | path join $SYNC_RC) $sync --mode 600)
         (if ($calendar | is-not-empty) { file-text ($nu.home-dir | path join $CALENDAR_ENV) $calendar --mode 600 })
         (link-commands scripts/task-calendar.nu)
-        (if ($sync | is-not-empty) { (unit-file services/task-sync.service) ++ (unit-file services/task-sync.timer --enable --now) })
+        (if ($sync | is-not-empty) {
+            let timer = unit-file services/task-sync.timer --values {SYNC_INTERVAL_MIN: $cfg.sync_interval_min} --enable --now
+            (unit-file services/task-sync.service) ++ $timer
+        })
     ]
 }

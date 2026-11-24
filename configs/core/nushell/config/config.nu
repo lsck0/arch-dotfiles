@@ -1,10 +1,10 @@
 $env.config = {
     show_banner: false
-    edit_mode: emacs
+    edit_mode: @EDIT_MODE@
 
     history: {
         file_format: "sqlite"
-        max_size: 100_000
+        max_size: @HISTORY_SIZE@
         sync_on_enter: true
         isolation: false
     }

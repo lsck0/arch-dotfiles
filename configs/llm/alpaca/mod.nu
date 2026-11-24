@@ -1,5 +1,4 @@
 use module.nu *
-use ../ollama/mod.nu [KEEP_ALIVE_MIN]
 use ../ollama/scripts/ollama-ensure-models.nu [LONG_CONTEXT LONG_CONTEXT_TOKENS]
 
 export const meta = {
@@ -39,23 +38,24 @@ export def link [cfg: record] {
         and ("/etc/systemd/system/vllm.socket" | path exists)
     )
     let vllm_model = if $served { $vllm.model | default "" } else { "" }
+    let keep_alive_s = $cfg.deps."llm/ollama".keep_alive_min * 1min / 1sec | into int
     [
-        (step seed $vllm_model --done=(seeded $vllm_model))
+        (step seed $vllm_model ($keep_alive_s | into string) --done=(seeded $vllm_model $keep_alive_s))
         (fetch-file $WHISPER_URL $WHISPER.sha256 (db | path dirname | path join whisper $"($WHISPER.name).pt"))
         (ini-merge ($nu.home-dir | path join .var app $APP config glib-2.0 settings keyfile)
             {"com/jeffser/Alpaca": {stt-model: ($WHISPER.index | into string)}})
     ]
 }
 
-def ollama-instance []: nothing -> record {
+def ollama-instance [keep_alive_s: int]: nothing -> record {
     {
         name: "System Ollama", url: "http://127.0.0.1:11434", api: EMPTY, temperature: 0.7, num_ctx: $LONG_CONTEXT_TOKENS
-        keep_alive: (($KEEP_ALIVE_MIN * 1min) / 1sec | into int), default_model: $LONG_CONTEXT
+        keep_alive: $keep_alive_s, default_model: $LONG_CONTEXT
     }
 }
 
 # Whether the database holds every value the seed forces; read only, Alpaca may hold it open.
-def seeded [vllm_model: string]: nothing -> bool {
+def seeded [vllm_model: string, keep_alive_s: int]: nothing -> bool {
     let query = "SELECT i.id, i.properties, l.list FROM instance i LEFT JOIN online_instance_model_list l ON l.id = i.id WHERE i.id LIKE 'dotfiles-%'"
     let found = if not (db | path exists) { null } else {
         try { ^sqlite3 -readonly -json (db) $query | from json | default [] } catch { null }
@@ -63,7 +63,7 @@ def seeded [vllm_model: string]: nothing -> bool {
     if $found == null { return false }
     let rows = $found | each {|r| $r | update properties { from json } }
     let ollama = $rows | where id == dotfiles-ollama | get --optional 0.properties
-    let wanted = ollama-instance | select url api num_ctx keep_alive default_model
+    let wanted = ollama-instance $keep_alive_s | select url api num_ctx keep_alive default_model
     let ollama_set = $ollama != null and ($ollama | select --optional url api num_ctx keep_alive default_model) == $wanted
     let vllm = $rows | where id == dotfiles-vllm | get --optional 0
     let vllm_set = if $vllm_model == "" { $vllm == null } else {
@@ -73,9 +73,9 @@ def seeded [vllm_model: string]: nothing -> bool {
     $ollama_set and $vllm_set
 }
 
-export def seed [vllm_model: string]: nothing -> nothing {
+export def seed [vllm_model: string, keep_alive_s: string]: nothing -> nothing {
     mkdir (db | path dirname)
-    let ollama = ollama-instance
+    let ollama = ollama-instance ($keep_alive_s | into int)
     let vllm = {name: vLLM, url: "http://127.0.0.1:8000/v1", api: EMPTY, max_tokens: 2048, override_parameters: true, temperature: 0.7, seed: 0, default_model: $vllm_model, title_model: $vllm_model}
     let rows = [["dotfiles-ollama" ollama $ollama] ["dotfiles-vllm" "openai:generic" $vllm]]
         | where {|r| $r.0 != "dotfiles-vllm" or $vllm_model != "" }

@@ -56,10 +56,10 @@ export def link [cfg: record] {
 }
 
 # project diablo 2's dll checks that its own dir sits inside a lord of destruction install, hence PD2_DIR in the tree
-def season-launcher [s: record, exe: string, id: string, title: string, comment: string]: nothing -> list<record> {
+def season-launcher [cfg: record, s: record, exe: string, id: string, title: string, comment: string]: nothing -> list<record> {
     game-launcher ($s.root | path join pd2.sh) $id $title $comment {
         game: ($s.lod | path join $PD2_DIR), prefix: $s.prefix, exe: $exe, width: $SIZE.w, height: $SIZE.h
-        name: "Project Diablo II", dll_overrides: "ddraw=n,b"
+        name: "Project Diablo II", dll_overrides: "ddraw=n,b", filter: $cfg.deps."gaming/d2launcher".upscale_filter
     }
 }
 
@@ -75,7 +75,7 @@ def s14 [cfg: record, base: path]: nothing -> list {
         (if $cfg.s14_save_dir != null {
             json-merge ($game | path join ProjectDiablo.json) [(json-set [classic_game_settings other save_path] (z-path $cfg.s14_save_dir))]
         })
-        (season-launcher $s Game.exe pd2 "Project Diablo II" "Diablo II single player, Project Diablo 2 season 14")
+        (season-launcher $cfg $s Game.exe pd2 "Project Diablo II" "Diablo II single player, Project Diablo 2 season 14")
     ]
 }
 
@@ -86,6 +86,6 @@ def s3 [cfg: record, base: path]: nothing -> list {
         (wine-tree-decls $s $base)
         (file-link $cfg.game_dir ($s.lod | path join $PD2_DIR))
         (if $cfg.save_dir != null { step save-path $s.prefix $cfg.save_dir --done=(save-path-set $s.prefix $cfg.save_dir) })
-        (season-launcher $s PlugY.exe pd2-s3 "Project Diablo II S3" "Diablo II single player, Project Diablo 2 season 3 with PlugY")
+        (season-launcher $cfg $s PlugY.exe pd2-s3 "Project Diablo II S3" "Diablo II single player, Project Diablo 2 season 3 with PlugY")
     ]
 }

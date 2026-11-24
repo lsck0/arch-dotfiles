@@ -1,11 +1,11 @@
 [Unit]
-Description=Collect nix store garbage older than 30 days
+Description=Collect nix store garbage older than @DAYS@ days
 # on battery the week's run is skipped: the store only grows until the next one
 ConditionACPower=true
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/nix-collect-garbage --delete-older-than 30d
+ExecStart=/usr/bin/nix-collect-garbage --delete-older-than @DAYS@d
 Slice=background.slice
 Nice=19
 CPUSchedulingPolicy=batch

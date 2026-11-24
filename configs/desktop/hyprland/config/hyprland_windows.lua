@@ -1,3 +1,4 @@
+local platform = require("platform")
 local wal = require("wal_colors")
 local style = require("style")
 
@@ -34,10 +35,12 @@ for _, animation in ipairs(ANIMATIONS) do
     hl.animation(animation)
 end
 
+hl.config({ animations = { enabled = platform.look.animations } })
+
 hl.config({
     general = {
-        gaps_in = 4,
-        gaps_out = 8,
+        gaps_in = platform.look.gaps_in,
+        gaps_out = platform.look.gaps_out,
         border_size = style.border,
         col = {
             active_border = wal_gradient,
@@ -48,7 +51,7 @@ hl.config({
     decoration = {
         rounding = style.rounding,
         blur = {
-            enabled = true,
+            enabled = platform.look.blur,
             size = 6,
             passes = 3,
             popups = true,
@@ -59,7 +62,7 @@ hl.config({
             vibrancy_darkness = 1.0,
         },
         shadow = {
-            enabled = true,
+            enabled = platform.look.shadows,
             range = 14,
             render_power = 3,
             color = "rgba(00000077)",

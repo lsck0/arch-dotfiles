@@ -20,6 +20,12 @@ export const options = {
         doc: "Largest core systemd-coredump will write to storage, independent of the process size limit"
         label: "Max stored core size"
     }
+    retention: {
+        type: string
+        default: "7d"
+        doc: "Age past which stored cores are deleted, tmpfiles.d(5) age syntax"
+        label: "Coredump retention"
+    }
 }
 
 export def system [cfg: record] {
@@ -28,7 +34,7 @@ export def system [cfg: record] {
             MAX_USE: $cfg.max_use, PROCESS_SIZE_MAX: $cfg.process_size_max, EXTERNAL_SIZE_MAX: $cfg.external_size_max
         })
         # sorts before systemd.conf, so its age wins
-        (file-copy config/coredump-tmpfiles.conf /etc/tmpfiles.d/coredump.conf)
+        (file-render config/coredump-tmpfiles.conf /etc/tmpfiles.d/coredump.conf {RETENTION: $cfg.retention})
         (if $env.FORM_FACTOR? != "wsl" {
             [(step cmdline-set efi_pstore.pstore_disable=0) (unit-enable systemd-pstore.service)]
         })

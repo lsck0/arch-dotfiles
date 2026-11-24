@@ -20,12 +20,7 @@
     "transitionMs": 600
   },
   "fx": {
-    "glowStrength": 0.22,
-    "scanlineOpacity": 0.06,
     "scanlineSpacing": 3,
-    "phosphorBias": 0,
-    "cornerBrackets": true,
-    "crtFlicker": 0.02,
-    "matrixRain": 0.5
+    "phosphorBias": 0
   }
 }

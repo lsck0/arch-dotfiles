@@ -1,8 +1,9 @@
 # desktop/hyprland
 
 - `config/hyprland.lua` requires each `hyprland_*.lua` (`powersave` last, it overrides the rest).
-- `platform.lua` is generated from the module's options (monitors, workspaces, xwayland scale, keyboard from
-  `00-keyboard.conf`); per-machine behavior comes from there, never a hostname check (`l-dotfiles-platform-facts`).
+- `platform.lua` is generated from the module's options (monitors, workspaces, xwayland scale, input, gaps and effects,
+  keyboard from `00-keyboard.conf`) and base/xdg's default apps for SUPER+a, e and n; per-machine behavior comes from
+  there, never a hostname check (`l-dotfiles-platform-facts`).
 - Config and dispatch are Lua: `hyprctl dispatch "hl.dsp.exec_cmd('cmd')"`; `hyprctl dispatch exec cmd` fails.
   API stub: `config/hl.meta.lua`.
 - `scripts/plugins.nu` builds the plugins per user against the package headers, no hyprpm. `scripts/lid.nu` turns

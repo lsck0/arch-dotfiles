@@ -21,22 +21,16 @@ export const options = {
         label: "System agent"
         scope: machine
     }
+    model: {type: string, default: "claude-sonnet-5", doc: "The model every session starts on", label: "Model", scope: user}
+    delegation_model: {type: string, default: "claude-sonnet-5", doc: "The model subagents run on", label: "Subagent model", scope: user}
+    system_voice: {type: string, default: "en_US-lessac-medium", doc: "Piper voice the system agent answers in", label: "System agent voice"}
+    system_stt_model: {type: string, default: "small", doc: "Local whisper model the system agent hears with", label: "System agent speech model"}
 }
 
 const HOME = ".hermes"
 const ORCHESTRATOR = "profiles/orchestrator"
 const SYSTEM = "profiles/system"
 const SYSTEM_UNIT = "hermes-system-agent.service"
-# voice in both directions: the local whisper for speech in, piper's local voice reading every answer aloud; ctrl+space
-# toggles recording (the SUPER+ALT+a bind sends it to the tmux pane), barge-in stops it when Luca talks over it
-const SYSTEM_SETTINGS = {
-    voice.auto_tts: true
-    tts.provider: piper
-    tts.piper.voice: "en_US-lessac-medium"
-    stt.provider: local
-    stt.language: ""
-    stt.local.model: small
-}
 const PYTHON = "/opt/hermes-agent/venv/bin/python"
 const SKIN = "wallust"
 const VLLM_BASE_URL = "http://127.0.0.1:8000/v1"
@@ -44,24 +38,6 @@ const VLLM_KEYS = [model_aliases.vllm providers.vllm]
 # ollama's openai endpoint; its proxy socket is the 11434 every client uses
 const OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1"
 const OLLAMA_KEYS = [model_aliases.ollama providers.ollama]
-const SETTINGS = {
-    display.interface: tui
-    model.default: claude-sonnet-5
-    model.provider: anthropic
-    delegation.provider: anthropic
-    delegation.model: claude-sonnet-5
-    # the tui has no hold-to-talk, only a start/stop toggle key
-    voice.record_key: "ctrl+space"
-    # the "Help improve Hermes?" dialog answered no; unanswered it blocks every profile's first prompt.
-    # offer_version is OFFER_VERSION in hermes_cli/observability/shared_metrics_consent.py: bump with it, or it asks again
-    telemetry.shared_metrics.enabled: false
-    telemetry.shared_metrics.send: false
-    telemetry.shared_metrics.offer_version: 2
-    fallback_providers: [
-        {provider: nous, model: "meituan/longcat-2.0:free"}
-        {provider: nous, model: "poolside/laguna-s-2.1:free"}
-    ]
-}
 const ORCHESTRATOR_SETTINGS = {compression.threshold_tokens: 500000}
 const ANTHROPIC_KEY_SECRET = "configs/secrets/keys/hermes-anthropic.env"
 const REQUIRED_EXTRAS = [anthropic audio-io stt-whisper piper]
@@ -73,6 +49,40 @@ const GUARD_EVENTS = {
     on_session_end: turn-end
     subagent_start: subagent-start
     subagent_stop: subagent-stop
+}
+
+def settings [cfg: record]: nothing -> record {
+    {
+        display.interface: tui
+        model.default: $cfg.model
+        model.provider: anthropic
+        delegation.provider: anthropic
+        delegation.model: $cfg.delegation_model
+        # the tui has no hold-to-talk, only a start/stop toggle key
+        voice.record_key: "ctrl+space"
+        # the "Help improve Hermes?" dialog answered no; unanswered it blocks every profile's first prompt.
+        # offer_version is OFFER_VERSION in hermes_cli/observability/shared_metrics_consent.py: bump with it, or it asks again
+        telemetry.shared_metrics.enabled: false
+        telemetry.shared_metrics.send: false
+        telemetry.shared_metrics.offer_version: 2
+        fallback_providers: [
+            {provider: nous, model: "meituan/longcat-2.0:free"}
+            {provider: nous, model: "poolside/laguna-s-2.1:free"}
+        ]
+    }
+}
+
+# voice in both directions: the local whisper for speech in, piper's local voice reading every answer aloud; ctrl+space
+# toggles recording (the SUPER+ALT+a bind sends it to the tmux pane), barge-in stops it when Luca talks over it
+def system-settings [cfg: record]: nothing -> record {
+    {
+        voice.auto_tts: true
+        tts.provider: piper
+        tts.piper.voice: $cfg.system_voice
+        stt.provider: local
+        stt.language: ""
+        stt.local.model: $cfg.system_stt_model
+    }
 }
 
 def homes []: nothing -> record {
@@ -96,9 +106,9 @@ def profile [
 }
 
 # The system agent's profile, voice, unit and hyprland binds, only where the option is on.
-def system-agent [settings: record, remove: list<string>, mcp: record, skills: list<path>]: nothing -> list<record> {
+def system-agent [settings: record, voice: record, remove: list<string>, mcp: record, skills: list<path>]: nothing -> list<record> {
     [
-        (profile system "System agent: always on, drives the desktop, talks." ($settings | merge $SYSTEM_SETTINGS) $remove $mcp $skills)
+        (profile system "System agent: always on, drives the desktop, talks." ($settings | merge $voice) $remove $mcp $skills)
         (file-link scripts/system-agent.sh ($nu.home-dir | path join .local bin hermes-system-agent))
         (unit-file $"services/($SYSTEM_UNIT)" --enable --now)
         (file-copy config/hypr-system-agent.lua ($nu.home-dir | path join .config hypr dropins system_agent.lua) --then (then-step hypr-reload))
@@ -180,7 +190,7 @@ def ollama-settings [ollama: any]: nothing -> record {
 export def link [cfg: record] {
     let vllm = vllm-settings $cfg.deps?."llm/vllm"?
     let ollama = ollama-settings $cfg.deps?."llm/ollama"?
-    let settings = $SETTINGS | merge $vllm | merge $ollama
+    let settings = settings $cfg | merge $vllm | merge $ollama
     let remove = (if ($vllm | is-empty) { $VLLM_KEYS } else { [] }) ++ (if ($ollama | is-empty) { $OLLAMA_KEYS } else { [] })
     # both name the owner's machine, so another login gets neither (skills/mod.nu); the secrets' only once unlocked
     let roots = if not (profile-has secrets) { [] } else if (owner-unlocked) { [skills configs/secrets/skills] } else { [skills] }
@@ -192,7 +202,7 @@ export def link [cfg: record] {
         (profile orchestrator "Orchestrator. Not for interactive chat." ($settings | merge $ORCHESTRATOR_SETTINGS) $remove $mcp $skills)
         (configure $home $settings $remove $mcp)
         (anthropic-key $home)
-        (if $cfg.system_agent { system-agent $settings $remove $mcp $skills })
+        (if $cfg.system_agent { system-agent $settings (system-settings $cfg) $remove $mcp $skills })
     ]
 }
 

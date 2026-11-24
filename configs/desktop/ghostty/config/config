@@ -13,14 +13,14 @@ background-opacity-cells = false
 # translucent window but this one
 background-blur = true
 
-cursor-style = block
-cursor-style-blink = true
+cursor-style = @CURSOR_STYLE@
+cursor-style-blink = @CURSOR_BLINK@
 mouse-hide-while-typing = true
 
-window-width = 115
-window-height = 35
+window-width = @WINDOW_COLUMNS@
+window-height = @WINDOW_ROWS@
 
-mouse-scroll-multiplier = precision:1.5,discrete:1.5
+mouse-scroll-multiplier = precision:@SCROLL_MULTIPLIER@,discrete:@SCROLL_MULTIPLIER@
 
 window-padding-y = 0,0
 window-padding-balance = true

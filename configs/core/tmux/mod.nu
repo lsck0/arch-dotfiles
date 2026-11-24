@@ -2,6 +2,23 @@ use module.nu *
 
 export const meta = {deps: [core/cli], packages: {pacman: [entr tmux tmux-fingers tmux-sessionizer]}, inputs: [~/.config/tms/config.toml]}
 
+export const options = {
+    prefix: {
+        type: string
+        default: C-q
+        doc: "tmux prefix key, in tmux key syntax"
+        label: "Prefix key"
+        scope: user
+    }
+    mouse: {
+        type: bool
+        default: true
+        doc: "Mouse selects panes and windows, resizes and scrolls"
+        label: "Mouse"
+        scope: user
+    }
+}
+
 const TMS_CONFIG = "tms/config.toml"
 const PROJECTS_DEPTH = 1
 
@@ -12,7 +29,9 @@ export def link [cfg: record] {
     let wanted = {path: $projects, depth: $PROJECTS_DEPTH}
     let searched = if ($tms | path exists) { open $tms | get --optional search_dirs | default [] } else { [] }
     [
-        (file-render config/tmux.conf ($dir | path join tmux.conf) {CACHE: (xdg cache)})
+        (file-render config/tmux.conf ($dir | path join tmux.conf) {
+            CACHE: (xdg cache), PREFIX: $cfg.prefix, MOUSE: (if $cfg.mouse { "on" } else { "off" })
+        })
         ([popup.nu autoreload.nu] | each {|script| file-copy ("scripts" | path join $script) ($dir | path join $script) --mode 755 })
         (step tms-search $projects ($PROJECTS_DEPTH | into string) --done=($wanted in $searched))
     ]

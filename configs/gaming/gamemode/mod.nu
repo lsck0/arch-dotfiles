@@ -16,6 +16,20 @@ export const options = {
         label: "AMD performance level"
         choices: [auto high]
     }
+    renice: {
+        type: int
+        default: 10
+        doc: "Niceness gamemode lowers a game by, gamemode.ini renice"
+        label: "Renice"
+        min: 0
+        max: 20
+    }
+    pin_cores: {
+        type: bool
+        default: true
+        doc: "Pin a game to the cores with the largest l3 (an x3d's v-cache ccd)"
+        label: "Pin cores"
+    }
 }
 
 export def detect [cfg: record]: nothing -> record {
@@ -36,7 +50,9 @@ export def gpu-section [device: any, vendor: any, level: any]: nothing -> string
 
 export def link [cfg: record] {
     [
-        (file-text (xdg config gamemode.ini) (open --raw config/gamemode.ini))
+        (file-render config/gamemode.ini (xdg config gamemode.ini) {
+            RENICE: $cfg.renice, PIN_CORES: (if $cfg.pin_cores { "yes" } else { "no" })
+        })
         (link-commands scripts/gamemode-hook.nu)
     ]
 }

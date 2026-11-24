@@ -7,7 +7,6 @@ import QtQuick.Layouts
 import qs.Commons
 import qs.Ui
 import "widgets"
-import "../Plugins.js" as Plugins
 
 PanelWindow {
   id: root
@@ -22,7 +21,15 @@ PanelWindow {
     || !modelData
     || String(modelData.name) === mainScreenName
 
-  readonly property var layoutConfig: isMainScreen ? Plugins.bar : Plugins.barSecondary
+  // link writes bar.json from the bar_* options in mod.nu
+  property var layouts: ({})
+  readonly property var layoutConfig: (isMainScreen ? layouts.bar : layouts.barSecondary) || ({})
+
+  WatchedFile {
+    path: Paths.shellDir + "/bar.json"
+    blockLoading: true
+    onLoaded: root.layouts = Util.parseObject(text())
+  }
 
   anchors {
     top: true

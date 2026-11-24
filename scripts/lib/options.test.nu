@@ -1,8 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
 # options-nuon-set, the one writer of options and platform files: only the changed entry's lines move, comments and
 # quoting stay, a one-line record stays on its line, a record left empty goes, and what the text reads back as is always
-# the record with the change applied.
-use options.nu [options-nuon-set]
+# the record with the change applied. option-value-errors: a list option's choices bound each entry.
+use options.nu [options-nuon-set option-value-errors]
 use std/assert
 
 const FILE = '{
@@ -51,7 +51,17 @@ def whole-cases [] {
     assert equal ("{\n    a: 1}\n" | options-nuon-set [b] 2 | from nuon) {a: 1, b: 2} "whole: a brace after an entry"
 }
 
+def choice-cases [] {
+    let list = {type: "list<string>", choices: [media mic ssh]}
+    assert equal (option-value-errors m k $list [media ssh] f) [] "choices: a list of choices"
+    assert equal (option-value-errors m k $list [] f) [] "choices: an empty list"
+    assert equal (option-value-errors m k $list [media x] f) ["f: m.k: [x] is not one of [media, mic, ssh]"] "choices: a list entry outside"
+    assert equal (option-value-errors m k {type: "string?", choices: [a b]} null f) [] "choices: an unset nullable"
+    assert equal (option-value-errors m k {type: string, choices: [a b]} c f) ['f: m.k: "c" is not one of [a, b]'] "choices: a scalar outside"
+}
+
 def main [] {
     splice-cases
     whole-cases
+    choice-cases
 }

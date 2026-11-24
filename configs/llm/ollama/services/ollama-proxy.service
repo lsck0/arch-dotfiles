@@ -21,5 +21,5 @@ RestrictSUIDSGID=yes
 RestrictRealtime=yes
 LockPersonality=yes
 ExecStartPre=/bin/sh -c 'for i in $$(seq 60); do curl -sf -o /dev/null http://127.0.0.1:11435/api/version && exit 0; sleep 0.5; done; exit 1'
-ExecStart=/usr/lib/systemd/systemd-socket-proxyd --exit-idle-time=30min 127.0.0.1:11435
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd --exit-idle-time=@KEEP_ALIVE_MIN@min 127.0.0.1:11435
 ExecStopPost=+/usr/bin/systemctl --no-block stop ollama.service

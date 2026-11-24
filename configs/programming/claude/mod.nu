@@ -20,6 +20,7 @@ export const options = {
         choices: [low medium high xhigh max]
         scope: user
     }
+    voice: {type: bool, default: true, doc: "Voice dictation, hold to talk", label: "Voice", scope: user}
     remote_control: {
         type: bool
         default: false
@@ -92,7 +93,7 @@ export def link [cfg: record] {
         (json-merge $settings [
             (json-set [remoteControlAtStartup] $cfg.remote_control)
             (json-set [model] $cfg.model)
-            (json-set [voice] {enabled: true, mode: hold})
+            (json-set [voice] {enabled: $cfg.voice, mode: hold})
             ...(if $cfg.remote_control {
                 # remote control needs feature flags, which the session-wide DO_NOT_TRACK and DISABLE_TELEMETRY switch off
                 [(json-set [env DO_NOT_TRACK] "0") (json-delete [env DISABLE_TELEMETRY])]

@@ -5,7 +5,7 @@ onboarding = false
 # END PYWAL THEME
 
 [ui]
-sidebar_width = 20
+sidebar_width = @SIDEBAR_WIDTH@
 sidebar_min_width = 14
 sidebar_max_width = 30
 agent_panel_sort = "spaces"
@@ -18,7 +18,7 @@ pane_scrollbars = false
 kitty_graphics = true
 
 [keys]
-prefix = "ctrl+q"
+prefix = "@PREFIX@"
 split_horizontal = "prefix+s"    # tmux: bind s split-window -v (stacked)
 split_vertical = "prefix+v"      # tmux: bind v split-window -h (side by side)
 edit_scrollback = "prefix+e"

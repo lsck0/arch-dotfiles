@@ -10,11 +10,20 @@ export const meta = {
     packages: {pacman: [breeze-icons flat-remix-gtk gtk-engine-murrine gtk3 gtk4 nwg-look xdg-user-dirs-gtk]}
 }
 
+export const options = {
+    # no buttons on either side of a client-side title bar: Hyprland closes and moves windows
+    button_layout: {
+        type: string
+        default: ":"
+        doc: "Client-side title bar buttons, gnome's button-layout form (left:right, e.g. close,minimize:)"
+        label: "Title bar buttons"
+        scope: user
+    }
+}
+
 const GTK_THEME = "oomox-colors-oomox"
 # every flatpak reads the host's theme: oomox lives in ~/.themes, settings.ini and the gtk4 gtk.css in the config dir
 const FLATPAK_GLOBAL = "[Context]\nfilesystems=~/.themes:ro;xdg-config/gtk-3.0:ro;xdg-config/gtk-4.0:ro;\n"
-# no buttons on either side of a client-side title bar: Hyprland closes and moves windows
-const BUTTON_LAYOUT = ":"
 const WM_PREFERENCES = "org.gnome.desktop.wm.preferences"
 # libadwaita offers only named accents: their hues in turns, slate for a grey accent below this saturation
 const GNOME_ACCENTS = {blue: 0.592, teal: 0.525, green: 0.364, yellow: 0.114, orange: 0.064, red: 0.981, pink: 0.919, purple: 0.792}
@@ -49,7 +58,7 @@ export def theme [cfg: record, wallpaper: string] {
     let cursor = cursor-name ($cfg.deps?."desktop/cursor"?.active? | default false)
     let ini = [
         "[Settings]" $"gtk-theme-name=($GTK_THEME)" $"gtk-font-name=($ui)" $"gtk-icon-theme-name=($icons)"
-        $"gtk-decoration-layout=($BUTTON_LAYOUT)" $"gtk-cursor-theme-name=($cursor)"
+        $"gtk-decoration-layout=($cfg.button_layout)" $"gtk-cursor-theme-name=($cursor)"
         $"gtk-cursor-theme-size=($CURSOR_SIZE_PX)"
     ]
     # gtk2 under xwayland ignores GDK_SCALE and sees 96 dpi, so only its font can follow the xwayland scale
@@ -71,7 +80,7 @@ export def theme [cfg: record, wallpaper: string] {
         (do $set gtk-icons icon-theme $icons)
         (do $set gtk-cursor cursor-theme $cursor)
         (do $set gtk-cursor-size cursor-size ($CURSOR_SIZE_PX | into string))
-        (exec gtk-buttons [gsettings set $WM_PREFERENCES button-layout $BUTTON_LAYOUT])
+        (exec gtk-buttons [gsettings set $WM_PREFERENCES button-layout $cfg.button_layout])
         # oomox's export flips it again once the theme files are new, which a running gtk3 app needs to reread them
         (do $set gtk-theme gtk-theme $GTK_THEME)
     ]

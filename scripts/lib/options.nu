@@ -53,8 +53,11 @@ export def option-value-errors [id: string, name: string, spec: record, value: a
         return [$"($where): ($value | to nuon) is ($value | describe), wants ($spec.type)"]
     }
     let choices = $spec.choices? | default []
-    if ($choices | is-not-empty) and $value != null and $value not-in $choices {
-        return [$"($where): ($value | to nuon) is not one of ($choices | to nuon)"]
+    # a list option's choices are its entries' (the settings window's multi pick)
+    let listed = ($spec.type | str starts-with "list<") and $value != null
+    let outside = if $listed { $value } else { [$value] } | where $it != null and $it not-in $choices
+    if ($choices | is-not-empty) and ($outside | is-not-empty) {
+        return [$"($where): (if $listed { $outside } else { $value } | to nuon) is not one of ($choices | to nuon)"]
     }
     let low = if $value != null and ($spec.min? != null) and $value < $spec.min { [$"($where): ($value) is below ($spec.min)"] } else { [] }
     let high = if $value != null and ($spec.max? != null) and $value > $spec.max { [$"($where): ($value) is above ($spec.max)"] } else { [] }

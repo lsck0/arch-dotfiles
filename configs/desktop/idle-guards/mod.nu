@@ -2,6 +2,17 @@ use module.nu *
 
 export const meta = {packages: {pacman: [libpulse playerctl]}}
 
+export const options = {
+    guards: {
+        type: list<string>
+        default: [media mic ssh]
+        choices: [media mic ssh]
+        doc: "What holds off sleep: media (a player plays), mic (a microphone records), ssh (an ssh session is open)"
+        label: "Sleep guards"
+        scope: user
+    }
+}
+
 const SCRIPTS = [agent-guard.nu sleep-guard.nu]
 # each unit runs sleep-guard.nu <guard> (the agent guard runs from the agents' hooks instead); unit names stay literal
 # for the ledger
@@ -24,7 +35,7 @@ export def link [cfg: record] {
     let dir = xdg config idle-guards
     [
         ($SCRIPTS | each {|script| file-copy $"scripts/($script)" ($dir | path join $script) --mode 755 })
-        ($UNITS | each {|u|
+        ($UNITS | where guard in $cfg.guards | each {|u|
             unit-file services/idle-guard.service --name $u.unit --values {GUARD: $u.guard, WHILE: $u.while} --enable
         })
     ]

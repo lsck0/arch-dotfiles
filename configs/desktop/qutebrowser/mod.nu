@@ -25,12 +25,44 @@ export const options = {
         label: "Search method"
         scope: user
     }
+    tabs_position: {
+        type: string
+        default: "top"
+        choices: [top bottom left right]
+        doc: "Where the tab bar sits"
+        label: "Tab bar position"
+        scope: user
+    }
+    tabs_show: {
+        type: string
+        default: "multiple"
+        choices: [always never multiple switching]
+        doc: "When the tab bar shows: always, never, with more than one tab, or while switching"
+        label: "Tab bar shown"
+        scope: user
+    }
+    statusbar_show: {
+        type: string
+        default: "in-mode"
+        choices: [always never in-mode]
+        doc: "When the status bar shows; in-mode, only outside normal mode"
+        label: "Status bar shown"
+        scope: user
+    }
+    # qutebrowser never updates them itself
+    lists_max_age_days: {
+        type: int
+        default: 7
+        min: 1
+        max: 90
+        doc: "Age at which the adblock lists are fetched again on the next apply"
+        label: "Block list refresh (days)"
+        scope: user
+    }
 }
 
 const CONFIG_DIR = ".config/qutebrowser"
 const LISTS = [adblock-cache.dat blocked-hosts]
-# qutebrowser never updates them itself
-const LISTS_AGE_MAX = 7day
 const FETCH_QUIT_MS = "60000"
 const FETCH_TIMEOUT = "90"
 # the bar's palette knobs, so the startpage's hues match it
@@ -49,29 +81,31 @@ export def detect [cfg: record]: nothing -> record {
     {search_url: (if (platform-has homelab) { $SEARCH_HOMELAB } else { $SEARCH_DEFAULT })}
 }
 
-def lists-ready []: nothing -> bool {
+def lists-ready [max_age_days: int]: nothing -> bool {
     let data = xdg data qutebrowser
     $LISTS | each {|f| $data | path join $f } | all {|f|
-        ($f | path exists) and (ls $f | first | ($in.size | into int) > 0 and (date now) - $in.modified < $LISTS_AGE_MAX)
+        ($f | path exists) and (ls $f | first | ($in.size | into int) > 0 and (date now) - $in.modified < ($max_age_days * 1day))
     }
 }
 
 export def link [cfg: record] {
     let dir = $nu.home-dir | path join $CONFIG_DIR
     [
-        (file-copy config/config.py ($dir | path join config.py))
+        (file-render config/config.py ($dir | path join config.py) {
+            TABS_POSITION: $cfg.tabs_position, TABS_SHOW: $cfg.tabs_show, STATUSBAR_SHOW: $cfg.statusbar_show
+        })
         (file-text ($dir | path join search-url) $"($cfg.search_url | default $SEARCH_DEFAULT)\n")
-        (step lists-fetch --network --done=(lists-ready))
+        (step lists-fetch ($cfg.lists_max_age_days | into string) --network --done=(lists-ready $cfg.lists_max_age_days))
     ]
 }
 
 # Fetches the adblock lists in a windowless instance, never beside a running one: the quit would reach it over ipc.
-export def lists-fetch [] {
+export def lists-fetch [max_age_days: string] {
     if (process-running qutebrowser) { return }
     with-env {QT_QPA_PLATFORM: offscreen} {
         ^timeout $FETCH_TIMEOUT qutebrowser --nowindow ":adblock-update" $":later ($FETCH_QUIT_MS) quit" | complete | ignore
     }
-    if not (lists-ready) { log-warn "qutebrowser: block lists not fetched, dot apply --user --force desktop/qutebrowser retries" }
+    if not (lists-ready ($max_age_days | into int)) { log-warn "qutebrowser: block lists not fetched, dot apply --user --force desktop/qutebrowser retries" }
 }
 
 def bar-knobs []: nothing -> record {

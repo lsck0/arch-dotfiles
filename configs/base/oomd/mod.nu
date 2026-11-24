@@ -13,6 +13,14 @@ export const options = {
         doc: "session.slice's MemoryLow, the desktop working set a build's reclaim keeps; null: 15% of RAM, 2 GiB max"
         label: "Desktop memory reserve"
     }
+    pressure_limit_percent: {
+        type: int
+        default: 50
+        doc: "Memory pressure past which systemd-oomd kills the worst app.slice cgroup, held for 20 s"
+        label: "OOM pressure limit (%)"
+        min: 10
+        max: 99
+    }
 }
 
 def systemd-size [value: any]: nothing -> string {
@@ -28,7 +36,8 @@ export def system [cfg: record] {
     if not ($OOMD | path exists) { return [] }
     [
         (unit-enable systemd-oomd.service --now)
-        (file-copy config/oomd.conf /etc/systemd/oomd.conf.d/10-oomd.conf --then (unit-restart systemd-oomd.service --if-running))
+        (file-render config/oomd.conf /etc/systemd/oomd.conf.d/10-oomd.conf {LIMIT: $cfg.pressure_limit_percent}
+            --then (unit-restart systemd-oomd.service --if-running))
         # protection reaches session.slice only through every ancestor slice
         (dropin user.slice services/user-protect.slice.conf --name 10-protect.conf)
         (dropin user-.slice services/user-protect.slice.conf --name 10-protect.conf)

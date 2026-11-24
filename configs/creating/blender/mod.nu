@@ -2,6 +2,10 @@ use module.nu *
 
 export const meta = {packages: {pacman: [blender uv]}}
 
+export const options = {
+    mcp: {type: bool, default: true, doc: "Register blender-mcp with the coding agents; off, no agent session starts its server", label: "MCP server"}
+}
+
 # the add-on runs any python the server sends, unsandboxed, so the bridge never auto-starts
 const MCP_URL = "https://projects.blender.org/lab/blender_mcp.git"
 # v1.0.3, 2026-09-11; bump with constraints.txt (uv pip freeze of the tool env)
@@ -62,11 +66,11 @@ export def link [cfg: record] {
             let bridge = $nu.home-dir | path join .local bin blender-mcp-bridge
             $"($entry)\n[Desktop Action mcp-bridge]\nName=Blender with MCP bridge\nExec=($bridge) %f\n"
         })
-        (mcp-servers {blender-mcp: {
+        (if $cfg.mcp { mcp-servers {blender-mcp: {
             type: stdio, command: (^uv tool dir --bin | str trim | path expand | path join blender-mcp), args: []
             env: {BLENDER_MCP_HOST: $MCP_HOST, BLENDER_MCP_PORT: $MCP_PORT}
             gate: {probe: $"($MCP_HOST):($MCP_PORT)", app: "Blender with its MCP bridge (blender-mcp-bridge)"}
-        }})
+        }} })
     ]
 }
 

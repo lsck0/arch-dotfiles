@@ -5,7 +5,7 @@ const DISCOVERY_TIMEOUT_S = 10
 const SERVICES = [ipp ipps]
 const DEFAULT_SET = "system default destination:"
 # matches PAGE_SIZE in mod.nu
-const PAGE_SIZE = "A4"
+const PAGE_SIZE = "@PAGE_SIZE@"
 
 def warn [msg: string]: nothing -> nothing { print --stderr $"printers-sync: ($msg)" }
 

@@ -361,7 +361,9 @@ export def module-packages-every [m: record, every: record]: nothing -> list<str
         let set = $every.values | where id == $m.id and name == $name | get value
         let type = $spec.type | str trim --right --char "?"
         let nullable = if $type != $spec.type { [null] } else { [] }
-        let values = $spec.choices? | default (if $type == bool { [true false] } else { [] }) | append $nullable | append $set | uniq
+        # a list option's choices are entries, no values of it
+        let choices = if ($type | str starts-with "list<") { null } else { $spec.choices? }
+        let values = $choices | default (if $type == bool { [true false] } else { [] }) | append $nullable | append $set | uniq
         $values | each {|v| $defaults | upsert $name $v }
     } | flatten | prepend $defaults | uniq
     let runs = $every.profiles | each {|p| $variants | each {|cfg| {env: $p, cfg: $cfg} } } | flatten

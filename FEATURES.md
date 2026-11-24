@@ -175,11 +175,14 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/boot/remote-unlock.ssh_unlock` | `bool` | `false` | Wake-on-lan this machine, then ssh into the initramfs to unlock LUKS remotely |
 | `base/boot/remote-unlock.wifi` | `bool` | `false` | Also join the home wifis (configs/secrets/keys/wifi) in the initramfs; their keys are written into the image |
 | `base/boot/sata.probe` | `bool` | `true` | Probe the SATA ports at boot; false on a machine without SATA disks keeps the built-in AHCI driver from loading (0.3 s per empty port with staggered spin-up), and a SATA disk added later stays invisible until this is true again |
+| `base/boot/systemd-boot.menu_timeout_s` | `int` | `0` | Seconds the boot menu waits before the default entry; 0 hides it, a held key still shows it |
 | `base/cleanup.journal_max_use` | `string` | `"1G"` | Total disk space the systemd journal may keep, journald.conf(5) size syntax |
 | `base/cleanup.journal_retention` | `string` | `"3month"` | Age past which journal entries are dropped even with space left, journald.conf(5) MaxRetentionSec |
+| `base/cleanup.nix_gc_days` | `int` | `30` | Age in days past which the weekly nix-gc deletes old generations |
 | `base/coredump.max_use` | `string` | `"256M"` | Total disk space systemd-coredump may keep across every stored core, systemd.coredump(5) size syntax |
 | `base/coredump.process_size_max` | `string` | `"1G"` | Largest process core systemd-coredump will process at all, above it the core is skipped entirely |
 | `base/coredump.external_size_max` | `string` | `"1G"` | Largest core systemd-coredump will write to storage, independent of the process size limit |
+| `base/coredump.retention` | `string` | `"7d"` | Age past which stored cores are deleted, tmpfiles.d(5) age syntax |
 | `base/fail2ban.bantime` | `int` | `3600` | Seconds an IP stays banned after too many failed attempts, fail2ban jail.conf(5) bantime |
 | `base/fail2ban.findtime` | `int` | `600` | Seconds of history fail2ban scans for failed attempts, fail2ban jail.conf(5) findtime |
 | `base/fail2ban.maxretry` | `int` | `5` | Failed attempts within findtime before an IP is banned, fail2ban jail.conf(5) maxretry |
@@ -199,6 +202,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/nftables.ssh_rate` | `string` | `"30/minute burst 30 packets"` | New connections to base/ssh.port one address may open before the rest are dropped, nft limit syntax |
 | `base/nftables.pentest_listeners` | `bool` | `false` | Let tun0 (a lab vpn) reach the pentest listener ports (handlers, payload servers) while a trusted link has the inbound ruleset loaded; for machines with the pentesting group |
 | `base/oomd.session_memory_low` | `filesize?` | detected | session.slice's MemoryLow, the desktop working set a build's reclaim keeps; null: 15% of RAM, 2 GiB max |
+| `base/oomd.pressure_limit_percent` | `int` | `50` | Memory pressure past which systemd-oomd kills the worst app.slice cgroup, held for 20 s |
 | `base/pacman.yay_cache_days` | `int` | `30` | Days an unused yay build cache dir may sit in $XDG_CACHE_HOME/yay before yay-cache-clean.timer deletes it, find -mtime argument |
 | `base/pam.fido_origin` | `string` | `"pam://lsck0"` | FIDO2 origin and appid every enrolled key's mapping was made for (pamu2fcfg -o) |
 | `base/smartd.test_schedule` | `string` | `"S/../.././02\|L/../../6/03"` | When smartd runs self-tests, smartd.conf(5) -s regex syntax (default: short test daily at 02:00, long test Saturday at 03:00) |
@@ -209,14 +213,36 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/ssh.wake_router_tunnel` | `string?` | unset | The router's address inside the wireguard tunnel, which wake-pc asks away from home: its lan address is unrouted there, or shadowed by a foreign lan on the same subnet |
 | `base/ssh.wake_host` | `string?` | unset | The desktop wake-pc wakes and then ssh-es into |
 | `base/systemd.mem_sleep` | `string?` | unset | Suspend mode written to /sys/power/mem_sleep; unset, the firmware's default |
+| `base/systemd.power_key` | `string` | `"suspend"` | What a short press of the power key does, logind.conf(5) HandlePowerKey |
+| `base/systemd.power_key_long_press` | `string` | `"poweroff"` | What a long press of the power key does, logind.conf(5) HandlePowerKeyLongPress |
+| `base/systemd.bluetooth_auto_enable` | `bool` | `false` | Power bluetooth adapters on at boot and when plugged in |
 | `base/tlp.charge_start` | `int` | `95` | Battery charge level below which charging starts (laptops whose firmware supports thresholds) |
 | `base/tlp.charge_stop` | `int` | `100` | Battery charge level at which charging stops; 80 spares an always-plugged battery |
+| `base/tlp.battery_max_perf_percent` | `int` | `90` | CPU performance cap on battery, percent of the maximum (laptops) |
+| `base/tlp.platform_profile_ac` | `string` | `"balanced"` | Firmware platform profile on AC (laptops that have one) |
+| `base/tlp.platform_profile_battery` | `string` | `"low-power"` | Firmware platform profile on battery (laptops that have one) |
+| `base/tlp.energy_perf_policy` | `string` | `"performance"` | CPU energy/performance policy of a machine without a battery |
 | `base/v4l2loopback.video_nr` | `int?` | detected | /dev/video<n> of the OBS virtual camera; null: a loaded one's, else the first free from 10, past webcams |
+| `base/xdg.browser` | `list<string>` | `["firefox.desktop"]` | Desktop entries for web pages and links, first wins |
+| `base/xdg.editor` | `list<string>` | `["neovide.desktop", "nvim.desktop", "org.gnome.TextEditor.desktop"]` | Desktop entries for text, source and config files, first wins |
+| `base/xdg.file_manager` | `list<string>` | `["org.kde.dolphin.desktop", "nemo.desktop"]` | Desktop entries for folders, first wins |
+| `base/xdg.pdf_viewer` | `list<string>` | `["org.kde.okular.desktop", "org.pwmt.zathura.desktop"]` | Desktop entries for PDFs, first wins |
+| `base/xdg.image_viewer` | `list<string>` | `["feh.desktop", "nsxiv.desktop"]` | Desktop entries for images, first wins (raw photos stay with rawtherapee) |
+| `base/xdg.media_player` | `list<string>` | `["mpv.desktop"]` | Desktop entries for audio and video, first wins |
+| `base/xdg.autostart_hidden` | `list<string>` | `[print-applet, geoclue-demo-agent, remmina-applet]` | XDG autostart entries hidden from the session, by desktop file id |
+| `base/zram.size` | `string` | `"ram"` | Size of the zram swap device, zram-generator.conf(5) zram-size expression over ram (MiB) |
 | `base/zram.compression_algorithm` | `string` | `"zstd"` | Compression used for the zram swap device, zram-generator.conf(5) compression-algorithm (a weaker CPU may prefer lz4) |
 | `base/zram.swappiness` | `int` | `150` | How aggressively the kernel swaps to zram versus reclaiming page cache, sysctl(8) vm.swappiness (a zram swap favors higher than disk swap's usual 60) |
 | `core/btop.accent` | `string` | `"c4"` | Palette slot for titles, highlights and the selection |
+| `core/btop.update_ms` | `int` | `500` | Milliseconds between samples |
+| `core/btop.temp_scale` | `string` | `"celsius"` | Unit of the temperature readouts |
+| `core/git.default_branch` | `string` | `"master"` | Branch git init starts with, init.defaultBranch |
+| `core/git.pull_rebase` | `bool` | `true` | git pull rebases local commits instead of merging, pull.rebase |
+| `core/git.side_by_side` | `bool` | `true` | delta shows diffs in two columns, delta.side-by-side |
 | `core/gnupg.cache_ttl` | `int` | `28800` | Seconds gpg-agent caches a passphrase after use before re-asking, gpg-agent.conf(5) default-cache-ttl; a screen lock or suspend empties the cache |
 | `core/gnupg.cache_ttl_max` | `int` | `86400` | Seconds gpg-agent caches a passphrase at most, however often it is used, gpg-agent.conf(5) max-cache-ttl |
+| `core/herdr.prefix` | `string` | `"ctrl+q"` | herdr prefix key, in herdr key syntax |
+| `core/herdr.sidebar_width` | `int` | `20` | Sidebar width in columns |
 | `core/locale.lang` | `string?` | detected | LANG in /etc/locale.conf; detected: the one bootstrap set |
 | `core/locale.formats` | `string?` | detected | Locale for dates, numbers, money, units, paper and addresses (every LC_ except CTYPE, MESSAGES, COLLATE and IDENTIFICATION); unset follows the language |
 | `core/locale.keyboard_layout` | `string?` | detected | xkb layout of the console, X11 and the compositor; detected: the one bootstrap set |
@@ -224,9 +250,23 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `core/locale.keyboard_options` | `list<string>?` | detected | xkb options, e.g. ctrl:nocaps |
 | `core/locale.wifi_country` | `string?` | detected | Wi-Fi regulatory domain (ISO 3166 alpha-2); detected: the country of the timezone, else the world domain |
 | `core/nas.share` | `string` | `"//10.100.0.100/homelab"` | The homelab NAS's smb share mounted at /mnt/homelab (//host/share) |
+| `core/nushell.edit_mode` | `string` | `"emacs"` | Line editor keymap |
+| `core/nushell.history_size` | `int` | `100000` | Commands the history keeps |
 | `core/starship.scan_timeout_ms` | `int` | `500` | Milliseconds starship waits for a directory scan (project file detection) before giving up, starship.toml scan_timeout |
 | `core/syncthing.nas_address` | `string?` | `"tcp://10.100.0.100:22000"` | Address of the homelab NAS device (the lab's nas role); discovery is off, so this is how it is found |
+| `core/syncthing.versions_max_age_days` | `int` | `30` | Days staggered versioning keeps old versions of files in ~/sync |
+| `core/tmux.prefix` | `string` | `"C-q"` | tmux prefix key, in tmux key syntax |
+| `core/tmux.mouse` | `bool` | `true` | Mouse selects panes and windows, resizes and scrolls |
 | `core/trash.retention_days` | `int` | `1` | Days trash-empty.timer keeps a deleted file before purging it, trash-empty(1)'s days argument |
+| `core/wallust.palette` | `string` | `"salience"` | wallust palette that picks the colours from a wallpaper |
+| `core/yazi.show_hidden` | `bool` | `false` | Show dotfiles |
+| `core/yazi.sort_by` | `string` | `"alphabetical"` | File order in a directory |
+| `core/yt-dlp.download_dir` | `string` | `"~/downloads/yt-dlp"` | Directory downloads and the download archive go to |
+| `core/yt-dlp.container` | `string` | `"mp4"` | Container merged video and audio streams go into, --merge-output-format |
+| `core/yt-dlp.sub_langs` | `list<string>` | `["en.*", "de.*"]` | Subtitle languages embedded, as regexes, --sub-langs |
+| `core/zsh.history_size` | `int` | `5000` | Commands the history keeps, HISTSIZE and SAVEHIST |
+| `creating/audacity.mcp` | `bool` | `true` | Register audacity-mcp with the coding agents; off, no agent session starts its server |
+| `creating/blender.mcp` | `bool` | `true` | Register blender-mcp with the coding agents; off, no agent session starts its server |
 | `creating/inkscape.mcp` | `bool` | `true` | Register inkscape-mcp with the coding agents; off, no agent session starts its server |
 | `creating/obs.vaapi_render_node` | `string?` | detected | The /dev/dri render node the vaapi encoders use, by-path so it survives reboots |
 | `creating/obs.canvas` | `string?` | detected | Canvas WxH: every profile's base and video output, and the Bare and VirtualCam collections |
@@ -235,8 +275,17 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `creating/obs.monitor_device` | `string?` | detected | The pipewire sink node obs monitors audio on |
 | `creating/obs.record_encoder` | `string?` | detected | The recording encoder of the Recording and Streaming profiles |
 | `creating/obs.stream_encoder` | `string?` | detected | The streaming encoder; h264 is what every ingest takes |
+| `creating/obs.virtualcam_height` | `int` | `720` | Height cap of the virtual camera's output, scaled from the canvas |
+| `creating/obs.stream_height` | `int` | `1080` | Height cap of the stream's output, scaled from the canvas |
+| `creating/obs.mcp` | `bool` | `true` | Register obs-mcp with the coding agents; off, no agent session starts its server |
 | `creating/openscad.mcp` | `bool` | `true` | Register openscad-mcp with the coding agents; off, no agent session starts its server |
 | `desktop/cursor.active` | `bool` | `true` | Hyprland, X11, gtk and KDE apps take the palette's cursor; off, they keep the stock rose-pine one |
+| `desktop/ghostty.cursor_style` | `string` | `"block"` | Text cursor shape |
+| `desktop/ghostty.cursor_blink` | `bool` | `true` | Text cursor blinks |
+| `desktop/ghostty.window_columns` | `int` | `115` | A new window's width in cells |
+| `desktop/ghostty.window_rows` | `int` | `35` | A new window's height in cells |
+| `desktop/ghostty.scroll_multiplier` | `float` | `1.5` | Mouse and touchpad scroll distance multiplier |
+| `desktop/gtk.button_layout` | `string` | `":"` | Client-side title bar buttons, gnome's button-layout form (left:right, e.g. close,minimize:) |
 | `desktop/hyprland.monitors` | `list<record>?` | detected | One hl.monitor per output: output, mode, position, scale; detected from the connected outputs, any other output gets its preferred mode and an auto scale |
 | `desktop/hyprland.main_monitor` | `string?` | detected | The output holding workspace 1, the bar's notifications, steam's toasts and the tablet; detected: the internal panel, else the largest, leftmost on a tie |
 | `desktop/hyprland.workspaces` | `record?` | unset | Workspace to output; detected: the first ceil(10 / outputs) on the main monitor, the rest split over the others left to right |
@@ -247,6 +296,18 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/hyprland.autostart` | `list<record>` | `[]` | Apps started once per login: {cmd, workspace?, float?, after?}; workspace and float apply to the window the command's own process opens; after names a window class whose first window starts this one (an order on a shared workspace) |
 | `desktop/hyprland.pointer_sensitivity` | `float` | `0.0` | libinput pointer acceleration, -1 to 1 |
 | `desktop/hyprland.natural_scroll` | `bool` | `false` | Touchpad content follows the fingers |
+| `desktop/hyprland.repeat_rate_hz` | `int` | `30` | Key repeats per second while held |
+| `desktop/hyprland.repeat_delay_ms` | `int` | `400` | Hold time before a key repeats |
+| `desktop/hyprland.numlock` | `bool` | `true` | Num lock on at login |
+| `desktop/hyprland.tap_to_click` | `bool` | `true` | A touchpad tap clicks |
+| `desktop/hyprland.touchpad_scroll_factor` | `float` | `0.5` | Touchpad scroll distance multiplier |
+| `desktop/hyprland.cursor_hide_s` | `int` | `10` | Idle seconds until the cursor hides, 0 never |
+| `desktop/hyprland.gaps_in_px` | `int` | `4` | Gap between tiled windows |
+| `desktop/hyprland.gaps_out_px` | `int` | `8` | Gap between tiled windows and the screen edge |
+| `desktop/hyprland.blur` | `bool` | `true` | Blur behind translucent windows and popups |
+| `desktop/hyprland.shadows` | `bool` | `true` | Drop shadows under windows |
+| `desktop/hyprland.animations` | `bool` | `true` | Window, layer and workspace animations; power saver turns them off regardless |
+| `desktop/hyprland.vrr` | `string` | `"off"` | Adaptive sync; fullscreen_games: fullscreen video and game windows only |
 | `desktop/hyprland.idle_dim_s` | `int` | `900` | Idle seconds until the screens dim |
 | `desktop/hyprland.idle_lock_s` | `int` | `1200` | Idle seconds until the session locks |
 | `desktop/hyprland.idle_dpms_s` | `int` | `2100` | Idle seconds until the screens go off |
@@ -255,32 +316,68 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/hyprland.idle_lock_saver_s` | `int` | `600` | Idle seconds until the session locks in power saver |
 | `desktop/hyprland.idle_dpms_saver_s` | `int` | `660` | Idle seconds until the screens go off in power saver |
 | `desktop/hyprland.idle_suspend_saver_s` | `int` | `1800` | Idle seconds until suspend in power saver |
+| `desktop/idle-guards.guards` | `list<string>` | `[media, mic, ssh]` | What holds off sleep: media (a player plays), mic (a microphone records), ssh (an ssh session is open) |
 | `desktop/kdeconnect.clipboard_auto` | `bool` | `false` | Send every desktop copy to the paired phone, passwords from a password manager excluded |
+| `desktop/ly.clock` | `string?` | `"%H:%M:%S"` | The greeter's clock, a strftime format; unset, no clock |
+| `desktop/ly.session` | `string` | `"Hyprland"` | Session preselected for a user ly has not seen yet; ly remembers each user's last one |
 | `desktop/mpv.ytdl_max_height` | `int` | `2160` | Max video height yt-dlp fetches for a stream (ytdl-format height filter, pixels); applies to mpv-stream, plain mpv runs no yt-dlp |
+| `desktop/mpv.hwdec` | `string` | `"auto-safe"` | Hardware video decoding (mpv hwdec) |
 | `desktop/pipewire.app_loopbacks` | `bool` | `true` | Every app plays through a loopback of its own that carries its system volume, so a capture of the app (obs) stays at full level |
 | `desktop/pipewire.eq_target` | `string?` | unset | The node.name of the headset sink the eq attaches to as a smart filter; unset, no eq chain |
 | `desktop/pipewire.eq_preset` | `string` | `"pro-x-2.txt"` | AutoEq ParametricEQ preset for that headset, a file in this module or an absolute path |
 | `desktop/plasma.kwin_outputs` | `bool?` | detected | Ship the committed kwin output layout; detected: on when a connected monitor's EDID is one it describes |
 | `desktop/plasma.locale` | `bool` | `true` | Ship plasma-localerc with core/locale's language |
+| `desktop/printing.page_size` | `string` | `"A4"` | Default paper of every queue (PPD PageSize) |
 | `desktop/quickshell.pomodoro_focus_min` | `int` | `25` | Minutes of one focus block |
 | `desktop/quickshell.pomodoro_break_min` | `int` | `5` | Minutes of the short break after a focus block |
 | `desktop/quickshell.pomodoro_long_break_min` | `int` | `15` | Minutes of the long break after the last focus block of a round |
 | `desktop/quickshell.pomodoro_cycles` | `int` | `4` | Focus blocks before a long break |
 | `desktop/quickshell.clipboard_history_max_age_h` | `int` | `12` | Hours a copied text or image stays in the clipboard history |
+| `desktop/quickshell.bar_left` | `list<string>` | `[AppMenu, Workspaces, Submap]` | Widgets on the left of the main bar, by plugins/bar/widgets name |
+| `desktop/quickshell.bar_center` | `list<string>` | `[Clock, Weather, Media, Obs, Discord]` | Widgets in the middle of the main bar |
+| `desktop/quickshell.bar_right` | `list<string>` | `[Tray, Separator, Agents, Phone, Homelab, System, Drives, Network, Display, AudioIO, Notifications, KeyboardLayout, Indicators, Exit]` | Widgets on the right of the main bar |
+| `desktop/quickshell.bar_secondary_left` | `list<string>` | `[AppMenu, Workspaces, Submap]` | Widgets on the left of every other screen's bar |
+| `desktop/quickshell.bar_secondary_center` | `list<string>` | `[]` | Widgets in the middle of every other screen's bar |
+| `desktop/quickshell.bar_secondary_right` | `list<string>` | `[]` | Widgets on the right of every other screen's bar |
+| `desktop/quickshell.notification_low_s` | `int` | `5` | Seconds a low urgency popup stays at least |
+| `desktop/quickshell.notification_normal_s` | `int` | `8` | Seconds a normal popup stays at least; critical ones stay until dismissed |
+| `desktop/quickshell.notification_max_s` | `int` | `30` | Seconds a popup stays at most, whatever its sender asks |
+| `desktop/quickshell.notification_history_max` | `int` | `30` | Notifications kept in the history |
+| `desktop/quickshell.fx_glow` | `float` | `0.22` | Accent glow around text and edges |
+| `desktop/quickshell.fx_scanlines` | `float` | `0.06` | Opacity of the scanline overlay |
+| `desktop/quickshell.fx_flicker` | `float` | `0.02` | CRT brightness flicker |
+| `desktop/quickshell.fx_matrix_rain` | `float` | `0.5` | Glyph rain on the lock screen |
+| `desktop/quickshell.fx_corner_brackets` | `bool` | `true` | Corner brackets on panels and cards |
 | `desktop/qutebrowser.search_url` | `string?` | detected | The default search engine, {} is the query; unset, the homelab's searxng on a homelab machine, else duckduckgo |
 | `desktop/qutebrowser.search_method` | `string` | `"GET"` | The startpage's search form method; most engines, the homelab's searxng too, take GET; POST works only in qutebrowser |
+| `desktop/qutebrowser.tabs_position` | `string` | `"top"` | Where the tab bar sits |
+| `desktop/qutebrowser.tabs_show` | `string` | `"multiple"` | When the tab bar shows: always, never, with more than one tab, or while switching |
+| `desktop/qutebrowser.statusbar_show` | `string` | `"in-mode"` | When the status bar shows; in-mode, only outside normal mode |
+| `desktop/qutebrowser.lists_max_age_days` | `int` | `7` | Age at which the adblock lists are fetched again on the next apply |
 | `gaming/d2launcher.base_dir` | `string?` | detected | A Diablo II: Lord of Destruction install the game dir is seeded from; detected in the lutris prefixes |
 | `gaming/d2launcher.resolution` | `string?` | detected | The monitor the render size derives from, WxH; detected from the focused monitor |
 | `gaming/d2launcher.render_size` | `string?` | unset | The 4:3 size the game renders at inside gamescope, WxH; the monitor's full height by default |
+| `gaming/d2launcher.upscale_filter` | `string` | `"linear"` | gamescope's upscale filter for every Diablo II launcher, -F |
+| `gaming/ffxiv.mangohud` | `bool` | `true` | Start XIVLauncher with MANGOHUD=1, the overlay over the game |
 | `gaming/gamemode.gpu_device` | `int?` | detected | The /dev/dri/cardN gamemode tunes while a game runs; none leaves the gpu alone |
 | `gaming/gamemode.amd_performance_level` | `string?` | detected | The amdgpu power_dpm_force_performance_level during a game; high holds the clocks up, wasteful on battery |
+| `gaming/gamemode.renice` | `int` | `10` | Niceness gamemode lowers a game by, gamemode.ini renice |
+| `gaming/gamemode.pin_cores` | `bool` | `true` | Pin a game to the cores with the largest l3 (an x3d's v-cache ccd) |
 | `gaming/lutris.dpi` | `int?` | detected | Logical dpi wine apps draw at under xwayland (LogPixels), 96 times the main monitor's scale |
 | `gaming/mangohud.font_size` | `int` | `18` | MangoHud overlay text size in pixels, MangoHud.conf font_size |
+| `gaming/mangohud.position` | `string` | `"top-left"` | MangoHud overlay corner, MangoHud.conf position |
 | `gaming/pd2.game_dir` | `string?` | detected | The season 3 ProjectD2 dir; detected under ~/sync/games/d2 |
 | `gaming/pd2.save_dir` | `string?` | detected | Season 3's single player saves (.d2s, plugy's .d2x and .sss); detected as Save beside the install |
 | `gaming/pd2.s14_save_dir` | `string?` | detected | Season 14's single player saves and shared stash; detected as ~/sync/games/d2/Save-S14 when it exists |
+| `gaming/vkbasalt.sharpness` | `float` | `0.4` | Contrast adaptive sharpening strength, vkBasalt.conf casSharpness |
+| `gaming/vkbasalt.enable_on_launch` | `bool` | `true` | Effects on from a game's start; Home toggles them |
+| `latex/sioyek.new_window` | `bool` | `true` | Open each file in its own window |
+| `latex/sioyek.page_separator_px` | `int` | `8` | Gap between pages |
+| `latex/zotero.mcp` | `bool` | `true` | Register zotero-mcp with the coding agents; off, no agent session starts its server |
+| `llm/comfyui.idle_min` | `int` | `10` | Idle minutes after the last editor tab or request before ComfyUI stops |
 | `llm/ollama.vram_percent` | `int` | `80` | Share of the largest gpu's vram ollama may fill; the rest stays free for the desktop, and a model that does not fit runs partly on the cpu |
 | `llm/ollama.parallel` | `int` | `4` | Requests one loaded model answers at once; each slot holds its own context in vram |
+| `llm/ollama.keep_alive_min` | `int` | `30` | Idle minutes before a loaded model is unloaded and ollama stops |
 | `llm/vllm.model` | `string` | `"RogerS-01/Josiefied-Qwen3-8B-abliterated-v1-AWQ"` | The hugging face repo vllm serves; an uncensored 4-bit AWQ build of Josiefied-Qwen3-8B-abliterated-v1 |
 | `llm/vllm.model_revision` | `string` | `"0244c2514cc272a603368c0440ff3002143b2336"` | The model repo's commit, weights and tokenizer alike; bump from https://huggingface.co/api/models/<model>/revision/main |
 | `llm/vllm.tool_call_parser` | `string` | `"hermes"` | vllm's tool call parser for the model's chat format (hermes for qwen3, gemma4 for gemma 4) |
@@ -288,16 +385,42 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `llm/vllm.gpu_memory_utilization` | `float?` | detected | The share of vram vllm takes; the rest stays for the desktop rendering on the same card |
 | `llm/vllm.kv_cache_dtype` | `string` | `"fp8"` | fp8 halves the kv cache's vram use but has no native matrix support on RDNA3; auto (bf16) is faster there |
 | `llm/vllm.context` | `int` | `65536` | The context window vllm serves; Hermes needs 64000. Past the model's native 32768 it switches on YaRN rope scaling |
+| `llm/vllm.idle_min` | `int` | `5` | Idle minutes after the last request before vllm stops and frees its vram |
+| `pentesting/metasploit.idle_min` | `int` | `15` | Idle minutes after the last rpc client before msfrpcd and its postgres stop |
 | `pentesting/wireshark.mcp` | `bool` | `true` | Register wireshark-mcp with the coding agents; off, no agent session starts its server |
+| `programming/act.container_memory` | `string` | `"12g"` | Memory cap of each job container (podman --memory) |
+| `programming/act.container_cpus` | `int` | `4` | CPUs of each job container |
+| `programming/act.prune_age_days` | `int` | `30` | Age past which an unused tagged image is pruned |
 | `programming/android.avd` | `string` | `"nya35"` | Name of the emulator image made from the system image; empty makes none |
+| `programming/android.avd_device` | `string` | `"pixel_6"` | Hardware profile of a new emulator image (avdmanager list device) |
 | `programming/cargo.sccache_redis` | `bool` | `false` | Compile through sccache with the homelab's shared redis cache (secret sccache.env); plain rustc whenever it is unreachable |
 | `programming/claude.model` | `string` | `"claude-opus-5-5"` | The model every session starts on |
 | `programming/claude.effort` | `string` | `"medium"` | Reasoning effort of that model |
+| `programming/claude.voice` | `bool` | `true` | Voice dictation, hold to talk |
 | `programming/claude.remote_control` | `bool` | `false` | Every session registers with the remote-control relay at start. It needs Claude's feature flags, so on, DO_NOT_TRACK is lifted for claude and usage telemetry is sent; off, telemetry is off |
+| `programming/copilot.model` | `string` | `"claude-sonnet-5"` | The model every session starts on |
+| `programming/debugging.raddbg_font_px` | `float` | `10.5` | raddbg's font size before the X11 scale; set once per value, a size picked in the app stays |
+| `programming/docker.prune_age_days` | `int` | `7` | Age past which dangling images and build cache are pruned |
 | `programming/hermes.system_agent` | `bool` | `false` | An always-on Hermes session (profile system, unit hermes-system-agent) that drives the desktop and talks: SUPER+grave shows it, SUPER+ALT+a talks to it |
+| `programming/hermes.model` | `string` | `"claude-sonnet-5"` | The model every session starts on |
+| `programming/hermes.delegation_model` | `string` | `"claude-sonnet-5"` | The model subagents run on |
+| `programming/hermes.system_voice` | `string` | `"en_US-lessac-medium"` | Piper voice the system agent answers in |
+| `programming/hermes.system_stt_model` | `string` | `"small"` | Local whisper model the system agent hears with |
+| `programming/jetbrains.autostart` | `bool` | `false` | Toolbox starts with the session |
 | `programming/offload.memory_cap_mib` | `int?` | unset | MiB the offload jobs of one user may use together (offload.slice), a job's memoryMiB at most this; none: half the RAM |
 | `programming/offload.cpus_cap` | `int?` | unset | CPUs the offload jobs of one user may use together, a job's cpus at most this; none: half the cores |
+| `programming/playwright.headless` | `bool` | `true` | The agents' browsers run without a window |
 | `programming/task.sync_url` | `string?` | unset | The taskchampion server every replica syncs with as the one client of configs/secrets/keys/taskwarrior-*; none: no sync |
 | `programming/task.recurrence` | `bool` | `true` | This replica creates the instances of recurring tasks; one per sync, or each adds its own copy (task-sync(5)) |
+| `programming/task.sync_interval_min` | `int` | `30` | Minutes between the timer's syncs, stepped within each hour |
+| `programming/task.week_start` | `string` | `"Monday"` | First day of the week |
+| `programming/task.date_format` | `string` | `"d.m.y"` | Taskwarrior date format of input, reports and annotations |
 | `programming/trmnl-claude.poster` | `bool` | `false` | This machine posts its Claude usage to the TRMNL panel; one poster per panel, a second would overwrite it |
+| `programming/trmnl-claude.interval_min` | `int` | `15` | Minutes between posts, stepped within each hour |
+| `programming/zed.vim_mode` | `bool` | `true` | Vim keys in the editor |
+| `programming/zed.format_on_save` | `bool` | `true` | Format a buffer on save |
+| `qemu/libvirt.nested` | `bool` | `true` | KVM guests may run their own guests |
+| `qemu/waydroid.multi_windows` | `bool` | `true` | Each Android app in its own resizable window |
+| `socials/spotify.adblock` | `bool` | `true` | Inject spicetify's adblock extension |
+| `socials/spotify.music_videos_hidden` | `bool` | `true` | Inject the extension that hides music videos |
 <!-- options end -->

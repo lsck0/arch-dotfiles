@@ -7,8 +7,8 @@
   `models` step, only with an AMD GPU of 12 GiB or more (`VRAM_MIN`); `llm/alpaca` fetches whisper's speech model.
 - Models are pinned: vLLM by hub commit (`model_revision`), ollama by manifest sha256 in `ollama-ensure-models.nu`,
   ComfyUI by hub commit and file sha256 (`MODELS`). ComfyUI's venv is `uv.lock`'s, torch from the ROCm index.
-- `llm/comfyui` is a user service: the editor at http://127.0.0.1:8188 (socket-activated, stops 10 minutes after the
-  last tab closes), outputs in `~/pictures/comfyui`.
+- `llm/comfyui` is a user service: the editor at http://127.0.0.1:8188 (socket-activated, stops `idle_min`
+  minutes, 10, after the last tab closes), outputs in `~/pictures/comfyui`.
 - `comfy-gen` (`llm/comfyui/scripts/comfy-gen.nu`) drives ComfyUI's API without the editor: `texture <prompt>`
   (Flux, then `pbr-maps.py` in ComfyUI's venv makes it seamless and derives normal, roughness and height),
   `3d <image|prompt>` (Hunyuan3D 2.1, shape only: core ComfyUI has no texture stage; a prompt's reference is drawn on

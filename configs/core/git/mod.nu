@@ -4,6 +4,30 @@ use ../wallust/scripts/palette.nu [palette-rgb]
 
 export const meta = {deps: [core/cli core/tmux core/wallust], packages: {pacman: [git git-delta]}, inputs: [/usr/bin/mergiraf /usr/bin/jj /usr/bin/git-lfs /usr/bin/gh]}
 
+export const options = {
+    default_branch: {
+        type: string
+        default: master
+        doc: "Branch git init starts with, init.defaultBranch"
+        label: "Default branch"
+        scope: user
+    }
+    pull_rebase: {
+        type: bool
+        default: true
+        doc: "git pull rebases local commits instead of merging, pull.rebase"
+        label: "Pull rebases"
+        scope: user
+    }
+    side_by_side: {
+        type: bool
+        default: true
+        doc: "delta shows diffs in two columns, delta.side-by-side"
+        label: "Side-by-side diffs"
+        scope: user
+    }
+}
+
 const DELTA_THEME = "wal/delta.gitconfig"
 const MERGIRAF_DRIVER = "mergiraf merge --git %O %A %B -s %S -x %X -y %Y -p %P -l %L"
 const GH_HELPER = "!/usr/bin/gh auth git-credential"
@@ -32,12 +56,12 @@ export def link [cfg: record] {
     let template = $dir | path join template
     let sections = [
         (if $identity != null { [user $identity] })
-        [init {defaultBranch: master, templateDir: $template}]
-        [pull {rebase: true}]
+        [init {defaultBranch: $cfg.default_branch, templateDir: $template}]
+        [pull {rebase: $cfg.pull_rebase}]
         [push {autoSetupRemote: true}]
         [core {pager: delta}]
         [interactive {diffFilter: "delta --color-only"}]
-        [delta {syntax-theme: wal, line-numbers: true, navigate: true, side-by-side: true}]
+        [delta {syntax-theme: wal, line-numbers: true, navigate: true, side-by-side: $cfg.side_by_side}]
         [merge {conflictStyle: zdiff3}]
         (if (has mergiraf) { ['merge "mergiraf"' {name: mergiraf, driver: $MERGIRAF_DRIVER}] })
         (if (has git-lfs) {

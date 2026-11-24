@@ -57,14 +57,29 @@ export const options = {
         label: "Streaming encoder"
         choices: [ffmpeg_vaapi_tex obs_nvenc_h264_tex obs_x264]
     }
+    # the virtual camera sends raw YUYV: 4k at 30 fps is ~500 MB/s that every consumer scales per frame
+    virtualcam_height: {
+        type: int
+        default: 720
+        doc: "Height cap of the virtual camera's output, scaled from the canvas"
+        label: "Virtual camera height"
+        min: 240
+        max: 2160
+    }
+    stream_height: {
+        type: int
+        default: 1080
+        doc: "Height cap of the stream's output, scaled from the canvas"
+        label: "Stream height"
+        min: 240
+        max: 2160
+    }
+    mcp: {type: bool, default: true, doc: "Register obs-mcp with the coding agents; off, no agent session starts its server", label: "MCP server"}
 }
 
 const HERE = path self .
 const WEBSOCKET_PORT = 4455
 const CANVAS_FALLBACK = "1920x1080"
-# the virtual camera sends raw YUYV: 4k at 30 fps is ~500 MB/s that every consumer scales per frame
-const VIRTUALCAM_HEIGHT = 720
-const STREAM_HEIGHT = 1080
 const PORTAL_TOKEN = "RestoreToken"
 const SECRET_SCENES = "Streaming.json"
 const SECRET_SERVICE = "service.json"
@@ -143,8 +158,8 @@ def sink-name [node: string]: nothing -> string {
 def profile-values [cfg: record]: nothing -> record {
     let size = canvas-size $cfg
     let fit = {|cap| let h = [$cap $size.h] | math min; {w: (($h * $size.w / $size.h / 2 | math round) * 2), h: $h} }
-    let virtualcam = do $fit $VIRTUALCAM_HEIGHT
-    let stream = do $fit $STREAM_HEIGHT
+    let virtualcam = do $fit $cfg.virtualcam_height
+    let stream = do $fit $cfg.stream_height
     {
         HOME: $nu.home-dir
         XDG_VIDEOS: (user-dir VIDEOS)
@@ -316,7 +331,7 @@ export def link [cfg: record] {
     }
     let websocket = $obs | path join plugin_config obs-websocket config.json
     # the mcp only with the app it drives
-    let mcp = if (which obs npm | length) == 2 {
+    let mcp = if $cfg.mcp and (which obs npm | length) == 2 {
         [
             (mcp-npm obs-mcp ($HERE | path join config mcp) (xdg data obs-mcp))
             (mcp-command obs-mcp scripts/obs-mcp.nu --gate {probe: $"127.0.0.1:($WEBSOCKET_PORT)", app: OBS})

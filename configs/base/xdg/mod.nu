@@ -3,6 +3,64 @@ use module.nu *
 # the applications dir's mtime: an entry added or removed there re-evaluates the desktop database's staleness
 export const meta = {inputs: [~/.local/share/applications]}
 
+export const options = {
+    browser: {
+        type: list<string>
+        default: [firefox.desktop]
+        doc: "Desktop entries for web pages and links, first wins"
+        label: "Browser"
+        group: apps
+        scope: user
+    }
+    editor: {
+        type: list<string>
+        default: [neovide.desktop nvim.desktop org.gnome.TextEditor.desktop]
+        doc: "Desktop entries for text, source and config files, first wins"
+        label: "Text editor"
+        group: apps
+        scope: user
+    }
+    file_manager: {
+        type: list<string>
+        default: [org.kde.dolphin.desktop nemo.desktop]
+        doc: "Desktop entries for folders, first wins"
+        label: "File manager"
+        group: apps
+        scope: user
+    }
+    pdf_viewer: {
+        type: list<string>
+        default: [org.kde.okular.desktop org.pwmt.zathura.desktop]
+        doc: "Desktop entries for PDFs, first wins"
+        label: "PDF viewer"
+        group: apps
+        scope: user
+    }
+    image_viewer: {
+        type: list<string>
+        default: [feh.desktop nsxiv.desktop]
+        doc: "Desktop entries for images, first wins (raw photos stay with rawtherapee)"
+        label: "Image viewer"
+        group: apps
+        scope: user
+    }
+    media_player: {
+        type: list<string>
+        default: [mpv.desktop]
+        doc: "Desktop entries for audio and video, first wins"
+        label: "Media player"
+        group: apps
+        scope: user
+    }
+    autostart_hidden: {
+        type: list<string>
+        default: [print-applet geoclue-demo-agent remmina-applet]
+        doc: "XDG autostart entries hidden from the session, by desktop file id"
+        label: "Hidden autostart entries"
+        scope: user
+    }
+}
+
 const PAM_ENV = "/etc/security/pam_env.conf"
 # app-dirs.conf's environment.d reaches only the graphical session; ssh and tty logins get these, or go creates ~/go
 const PAM_LINES = [
@@ -118,8 +176,18 @@ def places-xbel [file: path, marks: list<record>]: nothing -> string {
     $live | str replace $XBEL_END $"($missing.xml | str join)($XBEL_END)"
 }
 
-def autostart-hidden []: nothing -> list<string> {
-    open --raw config/hidden-autostart.list | lines | each { split row "#" | first | str trim } | where $it != ""
+# mimeapps.list's value for desktop entries: each followed by a semicolon
+def mime-entries [entries: list<string>]: nothing -> string {
+    $entries | each { $"($in);" } | str join
+}
+
+def mimeapps-values [cfg: record]: nothing -> record {
+    {
+        BROWSER: (mime-entries $cfg.browser), EDITOR: (mime-entries $cfg.editor)
+        FILE_MANAGER: (mime-entries $cfg.file_manager), FILE_MANAGER_FIRST: (mime-entries ($cfg.file_manager | first 1))
+        PDF_VIEWER: (mime-entries $cfg.pdf_viewer), PDF_VIEWER_FIRST: (mime-entries ($cfg.pdf_viewer | first 1))
+        IMAGE_VIEWER: (mime-entries $cfg.image_viewer), MEDIA_PLAYER: (mime-entries $cfg.media_player)
+    }
 }
 
 export def link [cfg: record] {
@@ -133,14 +201,15 @@ export def link [cfg: record] {
     let xbel = xdg data user-places.xbel
     [
         (if not (home-dirs-done) { step home-dirs })
-        (files-into $config config/mimeapps.list config/user-dirs.conf config/user-dirs.dirs)
+        (file-render config/mimeapps.list ($config | path join mimeapps.list) (mimeapps-values $cfg))
+        (files-into $config config/user-dirs.conf config/user-dirs.dirs)
         (files-into ($config | path join environment.d) config/app-dirs.conf)
         (dropin xdg-document-portal.service services/doc-portal.conf --name 10-success-exit.conf)
         ($RECLAIM | where mode != move and ((home $it.name | path type) not-in [dir file]) | each {|r|
             file-link (reclaim-target $r) (home $r.name)
         })
         (file-copy config/home.hidden (home .hidden))
-        (autostart-hidden | each {|id|
+        ($cfg.autostart_hidden | each {|id|
             let entry = $"[Desktop Entry]\nType=Application\nName=($id)\nHidden=true\n"
             file-text ($config | path join autostart $"($id).desktop") $entry
         })

@@ -8,11 +8,11 @@ abbreviation.minimum=3
 report.next.columns=id,start.age,entry.age,depends.indicator,priority,project,tags,recur.indicator,scheduled.countdown,due.relative,until.remaining,description.count,urgency
 report.next.labels=ID,Active,Age,D,P,Project,Tag,R,S,Due,Until,Description,Urg
 
-dateformat=d.m.y
-dateformat.report=d.m.y
-dateformat.annotation=d.m.y
+dateformat=@DATE_FORMAT@
+dateformat.report=@DATE_FORMAT@
+dateformat.annotation=@DATE_FORMAT@
 date.iso=yes
-weekstart=Monday
+weekstart=@WEEK_START@
 journal.info=off
 
 report.dash.description=Human overview, urgency first

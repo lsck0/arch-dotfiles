@@ -81,6 +81,13 @@ export const options = {
         doc: "The 4:3 size the game renders at inside gamescope, WxH; the monitor's full height by default"
         label: "Render size"
     }
+    upscale_filter: {
+        type: string
+        default: linear
+        doc: "gamescope's upscale filter for every Diablo II launcher, -F"
+        label: "Upscale filter"
+        choices: [linear nearest fsr nis pixel]
+    }
 }
 
 # lutris prefixes first, then ~/sync/games/d2 (a fresh install has no lutris entry)
@@ -190,8 +197,8 @@ export def wine-tree-decls [tree: record, base: path]: nothing -> list<record> {
     ]
 }
 
-# A gamescope launcher from gamescope.sh: game, prefix, exe, width, height and name given, args and dll_overrides
-# optional.
+# A gamescope launcher from gamescope.sh: game, prefix, exe, width, height, filter and name given, args and
+# dll_overrides optional.
 def game-script [dest: path, values: record]: nothing -> record {
     let all = {wine: (wine-bin | path dirname), args: "", dll_overrides: ""} | merge $values
     file-render ($HERE | path join config gamescope.sh) $dest $all --mode "755"
@@ -225,6 +232,7 @@ def vanilla-decls [cfg: record]: nothing -> list<record> {
         # windowed: its direct3d fullscreen mode fails under wine at most sizes
         ...(game-launcher ($tree.root | path join diablo2.sh) diablo2 $title "Plain Diablo II with Lord of Destruction 1.14d" {
             game: $tree.lod, prefix: $tree.prefix, exe: Game.exe, args: "-w", width: 800, height: 600, name: $title
+            filter: $cfg.upscale_filter
         })
     ]
 }
@@ -297,7 +305,7 @@ def gamescope-values [cfg: record]: nothing -> record {
     let size = render-size $cfg
     {
         game: (game-dir), prefix: (prefix-dir), width: $size.w, height: $size.h, args: $D2_ARGS
-        exe: (game-dir | path join $D2_EXE), name: "Diablo II"
+        exe: (game-dir | path join $D2_EXE), name: "Diablo II", filter: $cfg.upscale_filter
     }
 }
 

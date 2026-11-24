@@ -3,6 +3,8 @@ export use ../boot/scripts/boot.nu [cmdline-set]
 
 export const meta = {packages: {pacman: [nss-mdns], native: [bluez bluez-obex bluez-utils thermald]}, volatile: true}
 
+const POWER_KEY_ACTIONS = [ignore poweroff reboot suspend hibernate hybrid-sleep suspend-then-hibernate lock]
+
 export const options = {
     mem_sleep: {
         type: string?
@@ -10,6 +12,26 @@ export const options = {
         choices: [s2idle deep]
         doc: "Suspend mode written to /sys/power/mem_sleep; unset, the firmware's default"
         label: "Suspend mode"
+    }
+    power_key: {
+        type: string
+        default: suspend
+        choices: $POWER_KEY_ACTIONS
+        doc: "What a short press of the power key does, logind.conf(5) HandlePowerKey"
+        label: "Power key"
+    }
+    power_key_long_press: {
+        type: string
+        default: poweroff
+        choices: $POWER_KEY_ACTIONS
+        doc: "What a long press of the power key does, logind.conf(5) HandlePowerKeyLongPress"
+        label: "Power key long press"
+    }
+    bluetooth_auto_enable: {
+        type: bool
+        default: false
+        doc: "Power bluetooth adapters on at boot and when plugged in"
+        label: "Bluetooth on at boot"
     }
 }
 
@@ -37,7 +59,9 @@ export def system [cfg: record] {
             (file-text /etc/geoclue/conf.d/90-no-network-nmea.conf "[network-nmea]\nenable=false\n")
             (dropin geoclue.service services/geoclue-startup.conf --name 10-startup.conf)
         ]})
-        (if (unit-installed bluetooth.service) { ini-merge /etc/bluetooth/main.conf {Policy: {AutoEnable: "false"}} })
+        (if (unit-installed bluetooth.service) {
+            ini-merge /etc/bluetooth/main.conf {Policy: {AutoEnable: ($cfg.bluetooth_auto_enable | into string)}}
+        })
         (if (open --raw /proc/cpuinfo | str contains GenuineIntel) and (unit-installed thermald.service) {
             unit-enable thermald.service
         })
@@ -51,7 +75,8 @@ export def system [cfg: record] {
         (if $env.FORM_FACTOR? != "wsl" { step cmdline-set rd.systemd.mask=systemd-tpm2-setup-early.service })
         (if $env.FORM_FACTOR? == "laptop" { dropin $KBD_DROPIN services/kbd-backlight.conf })
         (file-copy config/user-stop-timeout.conf /etc/systemd/user.conf.d/10-stop-timeout.conf)
-        (file-copy config/logind.conf /etc/systemd/logind.conf.d/10-keys.conf
+        (file-render config/logind.conf /etc/systemd/logind.conf.d/10-keys.conf
+            {POWER_KEY: $cfg.power_key, POWER_KEY_LONG_PRESS: $cfg.power_key_long_press}
             --then (unit-restart systemd-logind.service --reload --if-running))
         (if $cfg.mem_sleep != null {
             file-text /etc/systemd/sleep.conf.d/10-mem-sleep.conf $"[Sleep]\nMemorySleepMode=($cfg.mem_sleep)\n"

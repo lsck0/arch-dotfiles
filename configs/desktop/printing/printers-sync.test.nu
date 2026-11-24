@@ -35,9 +35,14 @@ def --wrapped main [...args] {
 
 use std/assert
 
+const PAGE_SIZE = "A4"
+
+# the script as mod.nu installs it, its paper filled in
 def sync-run [work: path]: nothing -> int {
+    let sync = $work | path join printers-sync.nu
+    if not ($sync | path exists) { open --raw $SYNC | str replace --all "@PAGE_SIZE@" $PAGE_SIZE | save $sync }
     with-env {PATH: ([($work | path join bin)] ++ $env.PATH), STUB_STATE: $work} {
-        ^nu --no-config-file $SYNC | complete | get exit_code
+        ^nu --no-config-file $sync | complete | get exit_code
     }
 }
 
@@ -59,7 +64,7 @@ def main [] {
         assert equal (do $file queues) $"($WANT_NAME) ($WANT_URI)" "want exactly one queue"
         assert equal (do $file default) $WANT_NAME "the new queue did not become the default"
         assert ((do $file calls) | str contains "-m everywhere") "the queue is not an IPP Everywhere one"
-        assert ((do $file calls) | str contains $"lpadmin -p ($WANT_NAME) -o PageSize=A4") "the new queue's paper is not A4"
+        assert ((do $file calls) | str contains $"lpadmin -p ($WANT_NAME) -o PageSize=($PAGE_SIZE)") $"the new queue's paper is not ($PAGE_SIZE)"
 
         "" | save --force ($work | path join calls)
         assert equal (sync-run $work) 0 "rerun failed"

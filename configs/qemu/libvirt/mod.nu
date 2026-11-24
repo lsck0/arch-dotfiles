@@ -2,6 +2,10 @@ use module.nu *
 
 export const meta = {packages: {pacman: [archiso dnsmasq gnome-boxes libvirt qemu-full virt-install]}}
 
+export const options = {
+    nested: {type: bool, default: true, doc: "KVM guests may run their own guests", label: "Nested virtualization", apply: reboot}
+}
+
 const NESTED = {AuthenticAMD: kvm_amd, GenuineIntel: kvm_intel}
 const DEFAULT_SUBNET = "192.168.122.0/24"
 const DEFAULT_BRIDGE = "virbr0"
@@ -21,7 +25,7 @@ export def system [cfg: record] {
         # no libvirt group: its polkit rule is a silent root for every member's process
         (polkit-rules config/49-libvirt.rules)
         (group-admins kvm)
-        (if $module != null { file-text /etc/modprobe.d/kvm-nested.conf $"options ($module) nested=1\n" })
+        (if $cfg.nested and $module != null { file-text /etc/modprobe.d/kvm-nested.conf $"options ($module) nested=1\n" })
     ]
 }
 

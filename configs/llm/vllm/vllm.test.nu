@@ -11,6 +11,7 @@ const CFG = {
     model: m, model_revision: r, tool_call_parser: hermes, reasoning_parser: qwen3, gpu_memory_utilization: 0.5
     kv_cache_dtype: fp8
     context: 65536
+    idle_min: 5
 }
 
 def main [] {

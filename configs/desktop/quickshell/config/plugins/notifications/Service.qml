@@ -116,7 +116,10 @@ Item {
 
   ListModel { id: popupModel }
 
-  readonly property int historyLimit: 30
+  // fallback only; link always writes notify.json from the notification_* options in mod.nu
+  readonly property string optionsPath: Paths.shellDir + "/notify.json"
+  readonly property int historyLimitDefault: 30
+  property int historyLimit: historyLimitDefault
 
   property double popupNowMs: Date.now()
   Timer {
@@ -127,8 +130,25 @@ Item {
     onTriggered: service.popupNowMs = Date.now()
   }
 
-  readonly property var popupMinMs: [5000, 8000, 0]
-  readonly property int popupMaxMs: 30000
+  readonly property int msPerSecond: 1000
+  // by urgency: low, normal, critical (0: until dismissed)
+  readonly property var popupMinMsDefault: [5000, 8000, 0]
+  readonly property int popupMaxMsDefault: 30000
+  property var popupMinMs: popupMinMsDefault
+  property int popupMaxMs: popupMaxMsDefault
+
+  WatchedFile {
+    path: service.optionsPath
+    blockLoading: true
+    onLoaded: {
+      const options = Util.parseObject(text())
+      const positive = (value, fallback) => Number(value) > 0 ? Math.round(Number(value)) : fallback
+      const ms = (key, fallback) => positive(options[key], fallback / service.msPerSecond) * service.msPerSecond
+      service.popupMinMs = [ms("low_s", service.popupMinMsDefault[0]), ms("normal_s", service.popupMinMsDefault[1]), 0]
+      service.popupMaxMs = ms("max_s", service.popupMaxMsDefault)
+      service.historyLimit = positive(options.history, service.historyLimitDefault)
+    }
+  }
 
   function durationFor(urgency, expireTimeout) {
     var minMs = popupMinMs[urgency] ?? popupMinMs[NotificationUrgency.Normal]

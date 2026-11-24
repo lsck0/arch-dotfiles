@@ -1,3 +1,5 @@
+local platform = require("platform")
+
 hl.config({
     misc = {
         allow_session_lock_restore = true,
@@ -8,7 +10,7 @@ hl.config({
         force_default_wallpaper = 0,
         key_press_enables_dpms = true,
         mouse_move_enables_dpms = true,
-        vrr = 0,
+        vrr = platform.vrr,
     },
     render = {
         -- 2 not 1: a maximized app (unreal editor) flickers flipping scanout against its child windows

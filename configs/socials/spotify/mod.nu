@@ -6,12 +6,18 @@ use scripts/hook/spicetify-apply.nu [apply-pending]
 
 export const meta = {packages: {pacman: [spicetify-cli spotify spotify-player unzip websocat]}}
 
+export const options = {
+    adblock: {type: bool, default: true, doc: "Inject spicetify's adblock extension", label: "Adblock", scope: user}
+    music_videos_hidden: {type: bool, default: true, doc: "Inject the extension that hides music videos", label: "Hide music videos", scope: user}
+}
+
 const THEMES_URL = "https://github.com/spicetify/spicetify-themes.git"
 const THEMES_COMMIT = "176fdc7b334c3579475edc3f17452bf87f53d51b" # committed 2026-11-09
 
 const THEME_INI = "Themes/wal/color.ini"
 const THEME_CSS = "Themes/wal/user.css"
-const EXTENSIONS = [adblock.js no-music-videos.js]
+# the extensions in config/, each behind its option
+const EXTENSIONS = {adblock: adblock.js, music_videos_hidden: no-music-videos.js}
 const SETTINGS = [
     [section key value];
     [Setting current_theme wal] [Setting color_scheme pywal] [AdditionalOptions experimental_features "0"]
@@ -31,13 +37,14 @@ export def link [cfg: record] {
     ]
     if (package-version spotify) == null { return $base }
     let prefs = xdg config spotify prefs
-    let configured = configure-done
+    let extensions = extensions-wanted $cfg
+    let configured = configure-done $extensions
     [
         $base
         # spicetify's first run reads spotify's prefs; an empty one stands in before spotify's first start
         (exec spotify-prefs [install -D --mode 644 /dev/null $prefs] --creates $prefs)
-        (files-into (spicetify-dir | path join Extensions) ...($EXTENSIONS | each { $"config/($in)" }))
-        (step configure --done=$configured)
+        (files-into (spicetify-dir | path join Extensions) ...($extensions | each { $"config/($in)" }))
+        (step configure ...$extensions --done=$configured)
         (desktop-exec spotify.desktop spotify --command $"($env.PWD)/scripts/spotify-launch.nu")
         (exec spicetify-apply [./scripts/hook/spicetify-apply.nu] --done=($configured and not (apply-pending)))
         # --permanent also runs it on every login: an upgrade while logged out fires no path unit
@@ -47,24 +54,30 @@ export def link [cfg: record] {
     ]
 }
 
+def extensions-wanted [cfg: record]: nothing -> list<string> {
+    $EXTENSIONS | items {|option, file| if ($cfg | get $option) { $file } } | compact
+}
+
 # Whether config-xpui.ini already holds what configure sets, read from the file instead of spicetify.
-def configure-done []: nothing -> bool {
+def configure-done [wanted: list<string>]: nothing -> bool {
     let ini = spicetify-dir | path join config-xpui.ini
     if not ($ini | path exists) { return false }
     let rows = ini-rows (open --raw $ini) | where key != null | select section key value
     let extensions = $rows | where section == AdditionalOptions and key == extensions | get --optional 0.value | default ""
         | split row "|"
-    ($SETTINGS | all {|s| $s in $rows }) and ($EXTENSIONS | all { $in in $extensions })
+    let unwanted = $EXTENSIONS | values | where $it not-in $wanted
+    ($SETTINGS | all {|s| $s in $rows }) and ($wanted | all { $in in $extensions }) and ($unwanted | all { $in not-in $extensions })
 }
 
-export def configure []: nothing -> nothing {
+export def configure [...wanted: string]: nothing -> nothing {
     let settings = $SETTINGS | each {|s| [$s.key $s.value] } | flatten
     # remove_rtl_rule on also strips the [dir=ltr] rules spotify's spacing lives in
     ^spicetify config ...$settings | ignore
-    # `config extensions` toggles an entry, so only when absent
+    # `config extensions` toggles an entry, so only when absent; a trailing - removes one
     let enabled = ^spicetify config extensions | lines | str trim | where $it != ""
-    for ext in $EXTENSIONS {
-        if $ext not-in $enabled { ^spicetify config extensions $ext | ignore }
+    for ext in ($EXTENSIONS | values) {
+        if $ext in $wanted and $ext not-in $enabled { ^spicetify config extensions $ext | ignore }
+        if $ext not-in $wanted and $ext in $enabled { ^spicetify config extensions $"($ext)-" | ignore }
     }
 }
 

@@ -2,6 +2,10 @@ use module.nu *
 
 export const meta = {packages: {pacman: [zotero-bin uv]}}
 
+export const options = {
+    mcp: {type: bool, default: true, doc: "Register zotero-mcp with the coding agents; off, no agent session starts its server", label: "MCP server"}
+}
+
 const ZOTERO_HOME = ".zotero/zotero"
 # MCP_FROZEN cuts off its deps (mcp-uvx); bump both together
 const MCP_VERSION = "0.15.2"
@@ -57,9 +61,11 @@ export def link [cfg: record] {
         (if ($profiles | is-not-empty) and not ($bib | path exists) {
             step library-export $bib --requires ($profiles | first | path join $xpi)
         })
-        (mcp-uvx zotero-mcp $"zotero-mcp-server==($MCP_VERSION)" $MCP_FROZEN [zotero-mcp serve] zotero_mcp.server
-            --env-vars {ZOTERO_LOCAL: "true", ZOTERO_MCP_SCHEMA_REFRESH: "0", ZOTERO_NO_CLAUDE: "true"}
-            --gate {probe: ($ZOTERO_SERVER | str replace "http://" ""), app: Zotero})
+        (if $cfg.mcp {
+            (mcp-uvx zotero-mcp $"zotero-mcp-server==($MCP_VERSION)" $MCP_FROZEN [zotero-mcp serve] zotero_mcp.server
+                --env-vars {ZOTERO_LOCAL: "true", ZOTERO_MCP_SCHEMA_REFRESH: "0", ZOTERO_NO_CLAUDE: "true"}
+                --gate {probe: ($ZOTERO_SERVER | str replace "http://" ""), app: Zotero})
+        })
     ]
 }
 

@@ -2,6 +2,10 @@ use module.nu *
 
 export const meta = {packages: {pacman: [audacity uv]}}
 
+export const options = {
+    mcp: {type: bool, default: true, doc: "Register audacity-mcp with the coding agents; off, no agent session starts its server", label: "MCP server"}
+}
+
 # MCP_FROZEN cuts off its deps (mcp-uvx); bump both together
 const MCP_VERSION = "0.1.23"
 const MCP_FROZEN = "2026-10-14"
@@ -23,8 +27,10 @@ export def link [cfg: record] {
             # the .so's mtime, so an upgrade re-enables the module
             ModuleDateTime: {mod-script-pipe: $built}
         })
-        (mcp-uvx audacity $"audacity-mcp-server==($MCP_VERSION)" $MCP_FROZEN [audacity-mcp] audacity_mcp.tool_registry
-            --env-vars {HF_HUB_DISABLE_TELEMETRY: "1"})
+        (if $cfg.mcp {
+            (mcp-uvx audacity $"audacity-mcp-server==($MCP_VERSION)" $MCP_FROZEN [audacity-mcp] audacity_mcp.tool_registry
+                --env-vars {HF_HUB_DISABLE_TELEMETRY: "1"})
+        })
     ]
 }
 

@@ -3,6 +3,13 @@ use module.nu *
 export const meta = {packages: {native: [zram-generator]}}
 
 export const options = {
+    size: {
+        type: string
+        default: "ram"
+        doc: "Size of the zram swap device, zram-generator.conf(5) zram-size expression over ram (MiB)"
+        label: "Zram size"
+        apply: reboot
+    }
     compression_algorithm: {
         type: string
         default: "zstd"
@@ -33,8 +40,8 @@ export def system [cfg: record] {
         (if ($ZRAM_GENERATOR | path exists) {
             [
                 (file-render config/sysctl-zram.conf $SYSCTL {SWAPPINESS: $cfg.swappiness} --then [/usr/lib/systemd/systemd-sysctl $SYSCTL])
-                (file-render config/zram-generator.conf /etc/systemd/zram-generator.conf {COMPRESSION_ALGORITHM: $cfg.compression_algorithm}
-                    --then [systemctl daemon-reload])
+                (file-render config/zram-generator.conf /etc/systemd/zram-generator.conf
+                    {SIZE: $cfg.size, COMPRESSION_ALGORITHM: $cfg.compression_algorithm} --then [systemctl daemon-reload])
             ]
         })
     ]

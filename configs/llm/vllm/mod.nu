@@ -47,6 +47,14 @@ export const options = {
         min: 4096
         max: 131072
     }
+    idle_min: {
+        type: int
+        default: 5
+        doc: "Idle minutes after the last request before vllm stops and frees its vram"
+        label: "Idle stop (min)"
+        min: 1
+        max: 1440
+    }
 }
 
 const PREFIX = "/opt/vllm"
@@ -123,7 +131,7 @@ export def system [cfg: record] {
         (step model-fetch $cfg.model $cfg.model_revision --key $"($cfg.model)@($cfg.model_revision)" --network
             --timeout 90min --requires ($PREFIX | path join venv bin hf))
         (file-copy scripts/vllm-wait-ready.nu /usr/local/bin/vllm-wait-ready --mode 755)
-        (unit-file services/vllm-proxy.service)
+        (unit-file services/vllm-proxy.service --values {IDLE_MIN: $cfg.idle_min})
         (unit-file services/vllm.service --values $values --then [
             systemctl try-restart vllm.service
         ])

@@ -1,6 +1,6 @@
 backend = "fastresize"
 check_contrast = true
-palette = "salience"
+palette = "@PALETTE@"
 style = "dark"
 threshold = 14
 

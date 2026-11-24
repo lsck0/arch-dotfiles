@@ -3,6 +3,25 @@ use ../wallust/scripts/palette.nu [hex-to-rgb rgb-to-hex tone-map mix]
 
 export const meta = {deps: [core/cli core/wallust], packages: {pacman: [herdr-bin]}}
 
+export const options = {
+    prefix: {
+        type: string
+        default: ctrl+q
+        doc: "herdr prefix key, in herdr key syntax"
+        label: "Prefix key"
+        scope: user
+    }
+    sidebar_width: {
+        type: int
+        default: 20
+        doc: "Sidebar width in columns"
+        label: "Sidebar width"
+        min: 14
+        max: 30
+        scope: user
+    }
+}
+
 const BLOCK = '(?s)(# BEGIN PYWAL THEME\n).*?(# END PYWAL THEME)'
 const DARK_FLOOR = 0.16
 const BLENDS = {
@@ -12,8 +31,8 @@ const BLENDS = {
 # a server that is not running reads the new file when it starts
 const RELOAD = [sh -c "herdr server reload-config >/dev/null 2>&1 || true"]
 
-def config-text []: nothing -> string {
-    let source = open --raw config/config.toml
+def config-text [cfg: record]: nothing -> string {
+    let source = open --raw config/config.toml | text-render {PREFIX: $cfg.prefix, SIDEBAR_WIDTH: $cfg.sidebar_width}
     let p = palette-load
     if $p == null { return $source }
     let bg = if $p.light == "1" { $p.bg_conditioned } else {
@@ -32,18 +51,18 @@ def config-text []: nothing -> string {
     $source | str replace --regex $BLOCK $"${1}($block)\n${2}"
 }
 
-def config []: nothing -> record {
-    file-text (xdg config herdr config.toml) (config-text) --mode 600 --generated --then $RELOAD
+def config [cfg: record]: nothing -> record {
+    file-text (xdg config herdr config.toml) (config-text $cfg) --mode 600 --generated --then $RELOAD
 }
 
 export def link [cfg: record] {
     [
-        (config)
+        (config $cfg)
         (link-commands scripts/herdr-open.nu scripts/herdr-fingers.nu)
         (file-copy config/herdr.tmpfiles.conf (xdg config user-tmpfiles.d herdr.conf))
     ]
 }
 
 export def theme [cfg: record, wallpaper: string] {
-    config
+    config $cfg
 }

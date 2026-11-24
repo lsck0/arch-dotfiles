@@ -1,3 +1,5 @@
+local platform = require("platform")
+
 local mod = "SUPER"
 -- workspaces 1 to 10 on keys 1 to 0, the WORKSPACE_COUNT that mod.nu splits over the outputs
 local WORKSPACE_COUNT = 10
@@ -25,6 +27,13 @@ end
 -- An app gets its own scope in app.slice: out of the compositor's protected cgroup, an oomd candidate on its own.
 local function app(cmd)
     return hl.dsp.exec_cmd("uwsm-app -- " .. cmd)
+end
+
+-- base/xdg's first default app of a kind, by desktop entry; none set, no bind
+local function default_app(keys, entry, kind)
+    if entry then
+        hl.bind(mod .. keys, app(entry.desktop), { description = kind .. " (" .. entry.name .. ")" })
+    end
 end
 
 local function helper(cmd)
@@ -81,7 +90,7 @@ hl.bind(
     { description = "terminal (ghostty, kitty when ghostty is down)" }
 )
 hl.bind(mod .. " + SHIFT + Return", app("kitty"), { description = "kitty terminal" })
-hl.bind(mod .. " + a", app("firefox"), { description = "firefox" })
+default_app(" + a", platform.apps.browser, "browser")
 hl.bind(mod .. " + SHIFT + a", app("qutebrowser"), { description = "qutebrowser" })
 hl.bind(mod .. " + d", quickshell_toggle("appsearch"), { description = "app launcher" })
 hl.bind(
@@ -104,8 +113,8 @@ hl.bind(
 -- loginctl, so hypridle's lock_cmd picks quickshell or hyprlock
 hl.bind(mod .. " + Escape", hl.dsp.exec_cmd("loginctl lock-session"), { description = "lock the screen" })
 hl.bind(mod .. " + m", quickshell_call("discord", "toggleMute"), { description = "mute or unmute discord" })
-hl.bind(mod .. " + e", app("dolphin"), { description = "file manager (dolphin)" })
-hl.bind(mod .. " + n", app("neovide"), { description = "editor (neovide)" })
+default_app(" + e", platform.apps.file_manager, "file manager")
+default_app(" + n", platform.apps.editor, "editor")
 hl.bind(
     mod .. " + SHIFT + n",
     app(

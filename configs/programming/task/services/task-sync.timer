@@ -1,10 +1,10 @@
 [Unit]
-Description=Sync taskwarrior shortly after login and every 30 minutes
+Description=Sync taskwarrior shortly after login and every @SYNC_INTERVAL_MIN@ minutes
 
 [Timer]
 OnStartupSec=1min
 # the bar syncs on every change made through it; this only brings in what other replicas did
-OnCalendar=*:0/30
+OnCalendar=*:0/@SYNC_INTERVAL_MIN@
 AccuracySec=5min
 
 [Install]

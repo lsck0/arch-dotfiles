@@ -2,6 +2,10 @@ use module.nu *
 
 export const meta = {packages: {pacman: [waydroid]}}
 
+export const options = {
+    multi_windows: {type: bool, default: true, doc: "Each Android app in its own resizable window", label: "Multi-window"}
+}
+
 const IMAGE_TIMEOUT = 90min
 const SYSTEM_URL = "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86_64/lineage-20.0-20260927-VANILLA-waydroid_x86_64-system.zip/download"
 const SYSTEM_SHA256 = "053552725bf4ae25e2d3f7e6f1947203294aa9d73dc17fe1f3abe646e5d3bd8a" # built 2026-09-27
@@ -9,7 +13,6 @@ const VENDOR_URL = "https://sourceforge.net/projects/waydroid/files/images/vendo
 const VENDOR_SHA256 = "d911b8353f6c807b94790b1c41c67e863a9f3dcd1cf3ec0232351398235afd7a" # built 2026-09-27
 const IMAGES = "/etc/waydroid-extra/images"
 const CONFIG = "/var/lib/waydroid/waydroid.cfg"
-const PROPS = {properties: {persist.waydroid.multi_windows: "true", persist.waydroid.cursor_on_subsurface: "true"}}
 const FREEFORM = [
     development_settings_enabled enable_freeform_support force_resizable_activities enable_sizecompat_freeform
 ]
@@ -42,12 +45,15 @@ export def system [cfg: record] {
         })
         # a merge planned before init would overwrite init's [waydroid] section with sectionless content
         (if ($CONFIG | path exists) {
-            ini-merge $CONFIG $PROPS --then [waydroid upgrade --offline]
+            let props = {
+                persist.waydroid.multi_windows: ($cfg.multi_windows | into string), persist.waydroid.cursor_on_subsurface: "true"
+            }
+            ini-merge $CONFIG {properties: $props} --then [waydroid upgrade --offline]
         })
         (udev-rules config/70-waydroid-devperm.rules --subsystem-match=drm --subsystem-match=video4linux)
         (if not $up { step devperm-tighten })
         (unit-enable waydroid-container.service --now)
-        (if $up { step freeform })
+        (if $up and $cfg.multi_windows { step freeform })
     ]
 }
 

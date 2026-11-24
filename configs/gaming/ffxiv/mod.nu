@@ -4,6 +4,16 @@ export const meta = {packages: {pacman: [rsync xivlauncher-bin]}, backup: {secre
 
 export const XLCORE = ".xlcore"
 
+export const options = {
+    mangohud: {
+        type: bool
+        default: true
+        doc: "Start XIVLauncher with MANGOHUD=1, the overlay over the game"
+        label: "MangoHud"
+        scope: user
+    }
+}
+
 def paths []: nothing -> record {
     let xl = $nu.home-dir | path join $XLCORE
     let saved = secret-path state ffxiv
@@ -17,8 +27,8 @@ def paths []: nothing -> record {
 # Seeded once: the game rewrites these files in place.
 export def link [cfg: record] {
     let p = paths
-    let launcher = desktop-override XIVLauncher.desktop {
-        $in | str replace --all --regex '(?m)^Exec=' 'Exec=env MANGOHUD=1 '
+    let launcher = if $cfg.mangohud {
+        desktop-override XIVLauncher.desktop { $in | str replace --all --regex '(?m)^Exec=' 'Exec=env MANGOHUD=1 ' }
     }
     let unlocked = secret-is-plaintext $p.seed.launcher
     if (which xivlauncher-core | is-empty) or not $unlocked { return $launcher }

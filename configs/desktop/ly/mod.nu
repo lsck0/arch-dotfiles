@@ -3,11 +3,26 @@ use ../../base/bootvine/mod.nu [CONSOLE_PALETTE palette-channels]
 
 export const meta = {packages: {pacman: [ly]}}
 
+export const options = {
+    clock: {
+        type: string?
+        default: "%H:%M:%S"
+        doc: "The greeter's clock, a strftime format; unset, no clock"
+        label: "Login clock"
+    }
+    session: {
+        type: string
+        default: "Hyprland"
+        choices: [Hyprland Plasma]
+        doc: "Session preselected for a user ly has not seen yet; ly remembers each user's last one"
+        label: "Default session"
+    }
+}
+
 const ETC = "/etc/ly"
 const SESSIONS = $ETC | path join sessions
 const SAVE = $ETC | path join save.txt
 const LANG_STOCK = $ETC | path join lang en.ini
-const HYPRLAND = "Hyprland"
 const UID_MIN = 1000
 const UID_MAX = 59999
 const NO_LOGIN = '(nologin|false)$'
@@ -28,11 +43,11 @@ export def system [cfg: record] {
     let foreign = if ($SESSIONS | path exists) { ls $SESSIONS | get name | where ($it | path basename) not-in ($sessions | path basename) } else { [] }
     [
         # ly starts before /home is mounted, so every file is a real one in /etc
-        (file-copy config/config.ini ($ETC | path join config.ini))
+        (file-render config/config.ini ($ETC | path join config.ini) {CLOCK: ($cfg.clock | default "null")})
         (if ($LANG_STOCK | path exists) { file-text ($ETC | path join lang lsck0.ini) (lang-render) })
         (if ($foreign | is-not-empty) { exec "foreign sessions" [rm --force ...$foreign] })
         (files-into $SESSIONS ...$sessions)
-        (step save-defaults)
+        (step save-defaults $cfg.session)
         (file-text ($ETC | path join vtrgb) (palette-channels $CONSOLE_PALETTE | to text))
         ([palette.conf cursor.conf stage.conf log-filter.conf shutdown.conf] | each { dropin ly@.service $"services/($in)" })
         (unit-enable ly@tty1.service)
@@ -40,11 +55,11 @@ export def system [cfg: record] {
     ]
 }
 
-# Seeds Hyprland for users ly has not seen yet; ly keeps the known rows current itself (save=true).
-export def save-defaults []: nothing -> nothing {
+# Seeds the session for users ly has not seen yet; ly keeps the known rows current itself (save=true).
+export def save-defaults [session: string]: nothing -> nothing {
     # ly 1.4.1 lists its shell at 0, then the sessions in readdir order (no sort), so -U as ly does
     let names = ^ls -U $SESSIONS | lines
-    let index = $names | enumerate | where {|s| open --raw ($SESSIONS | path join $s.item) | lines | any { $in == $"Name=($HYPRLAND)" } }
+    let index = $names | enumerate | where {|s| open --raw ($SESSIONS | path join $s.item) | lines | any { $in == $"Name=($session)" } }
         | get --optional 0.index | default 0 | $in + 1
     let rows = if ($SAVE | path exists) { open --raw $SAVE | lines } else { ["1"] }
     let known = $rows | skip 1 | each { split row ":" | first }

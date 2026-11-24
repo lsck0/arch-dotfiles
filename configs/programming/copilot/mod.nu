@@ -8,6 +8,10 @@ export const meta = {
     inputs: [$AGENT_GUARD_INPUT]
 }
 
+export const options = {
+    model: {type: string, default: "claude-sonnet-5", doc: "The model every session starts on", label: "Model", scope: user}
+}
+
 # PascalCase events get the snake_case payload with the session_id the guard keys on. A permission prompt or the agent
 # finishing notifies; a tool approved there resumes the turn with no new prompt, so every tool call re-arms it.
 const GUARD_EVENTS = {
@@ -20,7 +24,7 @@ export def link [cfg: record] {
     let guard = $nu.home-dir | path join $AGENT_GUARD
     let hooks = $GUARD_EVENTS | items {|event, action| {$event: [{type: command, command: $"($guard) ($action)", timeout: 10}]} }
     [
-        (json-merge ($home | path join settings.json) [(json-set [model] "claude-sonnet-5") (json-set [theme] "default")])
+        (json-merge ($home | path join settings.json) [(json-set [model] $cfg.model) (json-set [theme] "default")])
         # its own file in copilot's hook dir, next to rtk's
         (if ($guard | path exists) {
             file-text ($home | path join hooks agent-guard.json) ({version: 1, hooks: ($hooks | into record)} | to json --indent 2)

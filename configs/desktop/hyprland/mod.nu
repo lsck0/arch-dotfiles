@@ -10,6 +10,8 @@ use scripts/lid.nu [INTERNAL_PANEL]
 
 export const meta = {
     deps: [base/essentials]
+    # SUPER+a, e and n start base/xdg's first browser, file manager and editor
+    reads: [base/xdg]
     packages: {
         pacman: [
             app2unit bemenu-wayland brightnessctl cpio ddcutil grim hyprcursor hypridle hyprland hyprlock hyprpicker
@@ -106,6 +108,25 @@ export const options = {
         group: input
         scope: user
     }
+    repeat_rate_hz: {type: int, default: 30, doc: "Key repeats per second while held", label: "Key repeat rate", group: input, min: 1, max: 100, scope: user}
+    repeat_delay_ms: {type: int, default: 400, doc: "Hold time before a key repeats", label: "Key repeat delay", group: input, min: 100, max: 2000, step: 50, scope: user}
+    numlock: {type: bool, default: true, doc: "Num lock on at login", label: "Num lock", group: input, scope: user}
+    tap_to_click: {type: bool, default: true, doc: "A touchpad tap clicks", label: "Tap to click", group: input, scope: user}
+    touchpad_scroll_factor: {type: float, default: 0.5, doc: "Touchpad scroll distance multiplier", label: "Touchpad scroll speed", group: input, min: 0.1, max: 3.0, step: 0.05, scope: user}
+    cursor_hide_s: {type: int, default: 10, doc: "Idle seconds until the cursor hides, 0 never", label: "Hide cursor after", group: input, min: 0, max: 600, scope: user}
+    gaps_in_px: {type: int, default: 4, doc: "Gap between tiled windows", label: "Inner gaps", group: layout, min: 0, max: 64, scope: user}
+    gaps_out_px: {type: int, default: 8, doc: "Gap between tiled windows and the screen edge", label: "Outer gaps", group: layout, min: 0, max: 64, scope: user}
+    blur: {type: bool, default: true, doc: "Blur behind translucent windows and popups", label: "Blur", group: layout, scope: user}
+    shadows: {type: bool, default: true, doc: "Drop shadows under windows", label: "Shadows", group: layout, scope: user}
+    animations: {type: bool, default: true, doc: "Window, layer and workspace animations; power saver turns them off regardless", label: "Animations", group: layout, scope: user}
+    vrr: {
+        type: string
+        default: off
+        choices: [off on fullscreen fullscreen_games]
+        doc: "Adaptive sync; fullscreen_games: fullscreen video and game windows only"
+        label: "Variable refresh rate"
+        group: display
+    }
     idle_dim_s: {type: int, default: 900, doc: "Idle seconds until the screens dim", label: "Dim after", group: idle, min: 60, scope: user}
     idle_lock_s: {type: int, default: 1200, doc: "Idle seconds until the session locks", label: "Lock after", group: idle, min: 60, scope: user}
     idle_dpms_s: {type: int, default: 2100, doc: "Idle seconds until the screens go off", label: "Screens off after", group: idle, min: 60, scope: user}
@@ -133,6 +154,8 @@ const SCALES = [1.0 1.25 1.5 1.666667 2.0 2.5 3.0]
 const WIDTH_FALLBACK_PX = 1920
 const REFRESH_FLUID_HZ = 50.0
 const PLUGINS = path self scripts/plugins.nu
+# misc.vrr's values by the vrr option's choice
+const VRR_MODES = {off: 0, on: 1, fullscreen: 2, fullscreen_games: 3}
 
 # A Hyprland instance dir whose lock names a running pid; a dead one keeps its dir and socket file behind.
 def instance-alive [dir: path]: nothing -> bool {
@@ -250,12 +273,20 @@ export def detect [cfg: record]: nothing -> record {
     {monitors: $monitors, main_monitor: $main} | merge (layout-derive $monitors $main)
 }
 
+# A default app's desktop entry and short name (org.kde.dolphin.desktop: dolphin); none set, no bind.
+def app-default [entries: list<string>]: nothing -> any {
+    let id = $entries | get --optional 0
+    if $id == null { return null }
+    {desktop: $id, name: ($id | str replace --regex '\.desktop$' '' | split row . | last)}
+}
+
 # Detect sees no output outside hyprland: picks over the platform's monitors keep platform.lua stable.
 def platform-lua [cfg: record]: nothing -> string {
     let backlight = glob /sys/class/leds/*kbd_backlight* | path basename | get --optional 0
     let monitors = $cfg.monitors | default []
     let main = $cfg.main_monitor | default (main-pick $monitors)
     let derived = layout-derive $monitors $main
+    let xdg = $cfg.deps."base/xdg"
     let facts = {
         xwayland_scale: ($cfg.xwayland_scale | default $derived.xwayland_scale | into string)
         main_monitor: $main
@@ -266,6 +297,13 @@ def platform-lua [cfg: record]: nothing -> string {
         monitor_speaker_volume: $cfg.monitor_speaker_volume
         keyboard: (keyboard-read)
         pointer: {sensitivity: $cfg.pointer_sensitivity, natural_scroll: $cfg.natural_scroll}
+        input: {
+            repeat_rate: $cfg.repeat_rate_hz, repeat_delay: $cfg.repeat_delay_ms, numlock: $cfg.numlock
+            tap_to_click: $cfg.tap_to_click, scroll_factor: $cfg.touchpad_scroll_factor, cursor_hide_s: $cfg.cursor_hide_s
+        }
+        look: {gaps_in: $cfg.gaps_in_px, gaps_out: $cfg.gaps_out_px, blur: $cfg.blur, shadows: $cfg.shadows, animations: $cfg.animations}
+        vrr: ($VRR_MODES | get $cfg.vrr)
+        apps: {browser: (app-default $xdg.browser), file_manager: (app-default $xdg.file_manager), editor: (app-default $xdg.editor)}
         kbd_backlight: $backlight
     }
     $"return (lua-from $facts)\n"

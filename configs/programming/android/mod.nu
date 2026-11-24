@@ -11,6 +11,13 @@ export const options = {
         apply: relink
         scope: user
     }
+    avd_device: {
+        type: string
+        default: "pixel_6"
+        doc: "Hardware profile of a new emulator image (avdmanager list device)"
+        label: "Emulator device"
+        scope: user
+    }
 }
 
 const JAVA_HOME = "/usr/lib/jvm/java-21-openjdk"
@@ -22,7 +29,6 @@ const CMDLINE_TOOLS_SHA256 = "4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e
 const TOR_ROUTER = "tor-router.service"
 const SYSTEM_IMAGE = "system-images;android-35;google_apis;x86_64"
 const SYSTEM_IMAGE_FILE = "system-images/android-35/google_apis/x86_64/system.img"
-const DEVICE = "pixel_6"
 const PACKAGES = [
     [package created];
     [platform-tools platform-tools/adb]
@@ -59,7 +65,7 @@ export def link [cfg: record] {
         (if ($cfg.avd | is-not-empty) {
             # the image is sdkmanager's download: offline or failed, the avd waits for it instead of failing on it
             let avdmanager = $tools | path join bin avdmanager
-            (exec $"avd ($cfg.avd)" [env ...$env_vars sh -c 'echo no | "$0" create avd --name "$1" --package "$2" --device "$3"' $avdmanager $cfg.avd $SYSTEM_IMAGE $DEVICE] --creates (xdg data android avd $"($cfg.avd).avd") --requires ($sdk | path join $SYSTEM_IMAGE_FILE)
+            (exec $"avd ($cfg.avd)" [env ...$env_vars sh -c 'echo no | "$0" create avd --name "$1" --package "$2" --device "$3"' $avdmanager $cfg.avd $SYSTEM_IMAGE $cfg.avd_device] --creates (xdg data android avd $"($cfg.avd).avd") --requires ($sdk | path join $SYSTEM_IMAGE_FILE)
                 --undo [$avdmanager delete avd --name $cfg.avd])
         })
     ]

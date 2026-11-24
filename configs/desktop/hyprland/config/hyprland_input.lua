@@ -5,9 +5,9 @@ hl.config({
         kb_layout = platform.keyboard.layout,
         kb_variant = platform.keyboard.variant,
         kb_options = platform.keyboard.options,
-        repeat_rate = 30,
-        repeat_delay = 400,
-        numlock_by_default = true,
+        repeat_rate = platform.input.repeat_rate,
+        repeat_delay = platform.input.repeat_delay,
+        numlock_by_default = platform.input.numlock,
         follow_mouse = 1,
         -- a new tile reflows the layout under a resting cursor; with refocus on, the next touchpad jitter hands focus to
         -- whatever window now sits there, so a freshly opened terminal loses it. Focus follows only on crossing a border
@@ -16,9 +16,9 @@ hl.config({
         touchpad = {
             natural_scroll = platform.pointer.natural_scroll,
             disable_while_typing = true,
-            tap_to_click = true,
+            tap_to_click = platform.input.tap_to_click,
             drag_lock = true,
-            scroll_factor = 0.5,
+            scroll_factor = platform.input.scroll_factor,
         },
         tablet = {
             -- set globally: the compositor's "-1" suffix on the two pen interfaces is unstable (configs/base/tablet/)
