@@ -37,4 +37,4 @@ export const HOMELAB = {
 }
 
 # lab.json's commit date: a checkout behind it never rewrites this file
-export const HOMELAB_SOURCE = "2026-11-23T13:07:08+01:00"
+export const HOMELAB_SOURCE = "2026-11-24T12:05:44+01:00"
