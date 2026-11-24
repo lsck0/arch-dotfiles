@@ -30,21 +30,21 @@ export def system [cfg: record] {
         (unit-enable systemd-oomd.service --now)
         (file-copy config/oomd.conf /etc/systemd/oomd.conf.d/10-oomd.conf --then (unit-restart systemd-oomd.service --if-running))
         # protection reaches session.slice only through every ancestor slice
-        (dropin user.slice config/user-protect.slice.conf --name 10-protect.conf)
-        (dropin user-.slice config/user-protect.slice.conf --name 10-protect.conf)
-        (dropin user@.service config/user-protect.service.conf --name 10-protect.conf)
+        (dropin user.slice services/user-protect.slice.conf --name 10-protect.conf)
+        (dropin user-.slice services/user-protect.slice.conf --name 10-protect.conf)
+        (dropin user@.service services/user-protect.service.conf --name 10-protect.conf)
     ]
 }
 
 export def link [cfg: record] {
     if not ($OOMD | path exists) { return [] }
     [
-        (dropin app.slice config/oomd-app.slice.conf --name 10-oomd.conf)
-        (dropin session.slice config/session-protect.slice.conf --name 10-protect.conf
+        (dropin app.slice services/oomd-app.slice.conf --name 10-oomd.conf)
+        (dropin session.slice services/session-protect.slice.conf --name 10-protect.conf
             --values {MEMORY_LOW: (systemd-size $cfg.session_memory_low)})
         # a server has no notification daemon to tell
         (if (which notify-send | is-not-empty) {
-            unit-file config/oom-notify.service --values {DOTFILES: $env.DOTFILES} --enable --now
+            unit-file services/oom-notify.service --values {DOTFILES: $env.DOTFILES} --enable --now
         })
     ]
 }

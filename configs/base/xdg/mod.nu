@@ -135,7 +135,7 @@ export def link [cfg: record] {
         (if not (home-dirs-done) { step home-dirs })
         (files-into $config config/mimeapps.list config/user-dirs.conf config/user-dirs.dirs)
         (files-into ($config | path join environment.d) config/app-dirs.conf)
-        (dropin xdg-document-portal.service config/doc-portal.conf --name 10-success-exit.conf)
+        (dropin xdg-document-portal.service services/doc-portal.conf --name 10-success-exit.conf)
         ($RECLAIM | where mode != move and ((home $it.name | path type) not-in [dir file]) | each {|r|
             file-link (reclaim-target $r) (home $r.name)
         })

@@ -100,7 +100,7 @@ def system-agent [settings: record, remove: list<string>, mcp: record, skills: l
     [
         (profile system "System agent: always on, drives the desktop, talks." ($settings | merge $SYSTEM_SETTINGS) $remove $mcp $skills)
         (file-link scripts/system-agent.sh ($nu.home-dir | path join .local bin hermes-system-agent))
-        (unit-file $"config/($SYSTEM_UNIT)" --enable --now)
+        (unit-file $"services/($SYSTEM_UNIT)" --enable --now)
         (file-copy config/hypr-system-agent.lua ($nu.home-dir | path join .config hypr dropins system_agent.lua) --then (then-step hypr-reload))
     ]
 }

@@ -10,8 +10,8 @@ export def system [cfg: record] {
         # it only loads what sensors-detect wrote, which never runs here; modules-load has it87
         (unit-disable lm_sensors.service)
         (file-copy scripts/gen-fancontrol.nu /usr/local/bin/gen-fancontrol --mode 755)
-        (dropin fancontrol.service config/fancontrol-regen.conf --name regen.conf)
-        (unit-file config/fancontrol-gen.service --enable)
+        (dropin fancontrol.service services/fancontrol-regen.conf --name regen.conf)
+        (unit-file services/fancontrol-gen.service --enable)
         (unit-enable fancontrol.service --now)
     ]
 }

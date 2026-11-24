@@ -19,8 +19,8 @@ export def link [cfg: record] {
         (file-link (xdg runtime toggles ghostty-powersave.conf) (xdg cache ghostty-powersave.conf))
         # GDK_SCALE only for what a tab runs, so ghostty's own gtk keeps the compositor's fractional scale
         (file-text ($config | path join dotfiles ghostty-env.conf) $"env = GDK_SCALE=($scale)\n")
-        (dropin $SERVICE config/systemd/override.conf)
-        (dropin app-ghostty-surface-transient-.scope config/systemd/surface.conf)
+        (dropin $SERVICE services/override.conf)
+        (dropin app-ghostty-surface-transient-.scope services/surface.conf)
         (unit-enable $SERVICE)
     ]
 }

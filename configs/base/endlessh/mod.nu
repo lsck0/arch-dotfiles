@@ -5,7 +5,7 @@ export const meta = {packages: {native: [endlessh-git]}, volatile: true, deps: [
 export def system [cfg: record] {
     [
         (file-copy config/config /etc/endlessh/config)
-        (dropin endlessh.service config/override.conf)
+        (dropin endlessh.service services/override.conf)
         # the declared port, not sshd -T: base/ssh writes the new one only after every module has planned
         (unit-switch endlessh.service ($cfg.deps."base/ssh".port != 22) --now)
     ]

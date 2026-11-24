@@ -154,7 +154,7 @@ export def link [cfg: record] {
     [
         (step stignore --done=($STIGNORE_LINES | all {|l| $l in (stignore-lines) }))
         (step identity-install --done=(not $changed))
-        (dropin syncthing.service config/10-background.conf --then (unit-restart syncthing.service --if-running))
+        (dropin syncthing.service services/10-background.conf --then (unit-restart syncthing.service --if-running))
         (unit-enable syncthing.service --now)
         (step api-config ($paired | into string) $nas --key $api_key)
     ]

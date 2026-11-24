@@ -10,8 +10,8 @@ use ../../../platforms/homelab.nu [HOMELAB]
 export const meta = {
     deps: [base/ssh]
     inputs: [
-        configs/llm/ollama/config/ollama.socket configs/llm/vllm/config/vllm.socket configs/llm/comfyui/config/comfyui.socket
-        configs/base/boot/remote-unlock/config/tinysshd.conf
+        configs/llm/ollama/services/ollama.socket configs/llm/vllm/services/vllm.socket configs/llm/comfyui/services/comfyui.socket
+        configs/base/boot/remote-unlock/services/tinysshd.conf
     ]
     volatile: true
 }
@@ -36,7 +36,7 @@ export const options = {
 const LLM = path self ../../llm
 const FORWARD_SERVICES = [ollama vllm comfyui]
 const LISTEN_LOOPBACK = '(?m)^ListenStream=127\.0\.0\.1:(?<port>\d+)\s*$'
-const UNLOCK_CONF = path self ../../base/boot/remote-unlock/config/tinysshd.conf
+const UNLOCK_CONF = path self ../../base/boot/remote-unlock/services/tinysshd.conf
 const UNLOCK_PORT = '(?m)^Environment=SSHD_PORT=(?<port>\d+)\s*$'
 const WORKER = "/usr/local/lib/offload/worker.nu"
 const TMPFILES = "/etc/tmpfiles.d/offload.conf"
@@ -54,7 +54,7 @@ const LAB_SUBIDS = "600200000-600265535"
 
 def forwards-read []: nothing -> record {
     $FORWARD_SERVICES | each {|service|
-        let socket = $LLM | path join $service config $"($service).socket"
+        let socket = $LLM | path join $service services $"($service).socket"
         let port = open --raw $socket | parse --regex $LISTEN_LOOPBACK | get --optional 0.port
         if $port == null { error make {msg: $"offload: ($socket) listens on no loopback port"} }
         [$service ($port | into int)]
@@ -69,9 +69,9 @@ export def packages [cfg: record]: nothing -> record {
 def target-session []: nothing -> list<any> {
     let values = {DOTFILES: $env.DOTFILES}
     [
-        (unit-file config/offload-gate.service --values $values --enable --now)
-        (unit-file config/offload-consent.service --values $values)
-        (unit-file config/offload-consent.path --enable --now)
+        (unit-file services/offload-gate.service --values $values --enable --now)
+        (unit-file services/offload-consent.service --values $values)
+        (unit-file services/offload-consent.path --enable --now)
         (if ($USER_UNITS | path join $ENFORCE | path exists) { unit-enable $ENFORCE --now })
     ]
 }
@@ -170,7 +170,7 @@ def labworker [builder: record, setup: list<string>]: nothing -> list<any> {
             --undo [...$manager disable --now $ENFORCE] --requires $linger)
         # takes effect on the manager's next start (boot); a restart would kill a running job
         (if $uid != null {
-            file-copy config/labworker-user.conf $"/etc/systemd/system/user@($uid).service.d/50-offload.conf" --then [systemctl daemon-reload]
+            file-copy services/labworker-user.conf $"/etc/systemd/system/user@($uid).service.d/50-offload.conf" --then [systemctl daemon-reload]
         })
     ]
 }
@@ -189,8 +189,8 @@ export def system [cfg: record] {
         (file-text $TMPFILES ((open --raw config/offload.tmpfiles) + (group-acls offload)) --then $setup)
         (file-text /etc/offload/limits.nuon ({memoryMiB: $memory, cpus: $cpus} | to nuon))
         (file-copy scripts/worker.nu $WORKER)
-        (file-render config/offload.slice ($USER_UNITS | path join offload.slice) {MEMORY: $memory, CPU_QUOTA: ($cpus * 100)})
-        (files-into $USER_UNITS config/offload-enforce.path config/offload-enforce.service)
+        (file-render services/offload.slice ($USER_UNITS | path join offload.slice) {MEMORY: $memory, CPU_QUOTA: ($cpus * 100)})
+        (files-into $USER_UNITS services/offload-enforce.path services/offload-enforce.service)
         (if $lab { labworker $builder $setup })
     ]
 }

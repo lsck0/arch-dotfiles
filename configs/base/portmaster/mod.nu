@@ -10,10 +10,10 @@ export def system [cfg: record] {
     let reload = unit-restart portmaster-bypass.service --reload
     [
         (group-system $VMNET)
-        (dropin portmaster.service config/dotfiles.conf)
+        (dropin portmaster.service services/dotfiles.conf)
         (file-copy config/config.json /var/lib/portmaster/config.json --then (unit-restart portmaster.service --if-running))
         (file-copy config/portmaster-bypass.nft /etc/nftables.d/portmaster-bypass.nft --then $reload)
-        (unit-file config/portmaster-bypass.service --enable --then $reload)
+        (unit-file services/portmaster-bypass.service --enable --then $reload)
         (file-copy scripts/vm-net.nu /usr/local/bin/vm-net --mode 755)
         (polkit-rules config/49-vm-net.rules)
     ]

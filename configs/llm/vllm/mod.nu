@@ -123,11 +123,11 @@ export def system [cfg: record] {
         (step model-fetch $cfg.model $cfg.model_revision --key $"($cfg.model)@($cfg.model_revision)" --network
             --timeout 90min --requires ($PREFIX | path join venv bin hf))
         (file-copy scripts/vllm-wait-ready.nu /usr/local/bin/vllm-wait-ready --mode 755)
-        (unit-file config/vllm-proxy.service)
-        (unit-file config/vllm.service --values $values --then [
+        (unit-file services/vllm-proxy.service)
+        (unit-file services/vllm.service --values $values --then [
             systemctl try-restart vllm.service
         ])
-        (unit-file config/vllm.socket --enable --now)
+        (unit-file services/vllm.socket --enable --now)
     ]
 }
 

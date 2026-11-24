@@ -7,7 +7,7 @@ export def link [cfg: record] {
     let wanted = (profile-has secrets) and (which nmcli | is-not-empty)
     [
         (link-commands scripts/auto-vpn.nu)
-        (unit-file config/auto-vpn.service)
+        (unit-file services/auto-vpn.service)
         (unit-switch auto-vpn.service $wanted --now)
     ]
 }

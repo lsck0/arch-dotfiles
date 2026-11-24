@@ -63,7 +63,7 @@ export def system [cfg: record] {
     # only on a changed ruleset, it empties the knock and portal sets; never a start, fw-egress off a trusted network cuts this run
     [
         # units first, so a fresh install's ruleset reload finds them
-        ($UNITS | each {|u| unit-file $"config/($u)" --then (unit-restart $u --reload --if-running) })
+        ($UNITS | each {|u| unit-file $"services/($u)" --then (unit-restart $u --reload --if-running) })
         (file-render config/fw-inbound.nft $"($DIR)/fw-inbound.nft" $inbound
             --then (unit-restart fw-inbound.service --reload --if-running))
         # the inbound lockdown holds from the first run, unless a trusted link already loaded fw-inbound

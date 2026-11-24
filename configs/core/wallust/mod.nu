@@ -18,8 +18,8 @@ export def link [cfg: record] {
         ($templates | each {|t| file-copy ("config" | path join $t) ($dir | path join $t) })
         (files-into ($dir | path join colorschemes) ...(glob ../../../themes/*.json))
         (file-text (xdg config $STYLE_JSON) (style-json) --generated)
-        (unit-file config/dot-theme.service)
-        (unit-file config/dot-theme.path --enable --now)
+        (unit-file services/dot-theme.service)
+        (unit-file services/dot-theme.path --enable --now)
         # theme verbs of later modules read colors.json now, before a fresh home's first theme switch
         (if (which wallust | is-not-empty) {
             exec palette-stand-in [wallust cs -q -s ($dir | path join colorschemes $"($STAND_IN).json")] --creates (wal-colors-file)

@@ -5,7 +5,7 @@ Signatures are in `scripts/lib/module.nu`; read its doc comment above a helper b
 ## Declarations
 
 - Sources (`<src>`, `<file>`, `<script>`) are relative to the module dir: `config/...` for what is installed,
-  `scripts/...` for what runs.
+  `services/...` for systemd units and drop-ins, `scripts/...` for what runs.
 - Files: `file-copy <src> <dest> [--then]`, `files-into <dir> <src...>`, `file-text <dest> <text> [--generated]
   [--in-place]` (`--generated` outputs are rewritten without a drift check), `file-render <src> <dest> {KEY: v}`
   (`@KEY@`), `file-link` (only where the app reads the repo live), `link-commands <file...>`, `json-merge <file>
@@ -19,11 +19,13 @@ Signatures are in `scripts/lib/module.nu`; read its doc comment above a helper b
   (`npm ci` on the committed lock).
 - Rules: `udev-rules <src> [trigger args...] [--then]` (reloaded and triggered by `udev-reload [trigger args...]
   [--and <cmd>]`, also the `--then` of any other file udev reads), `polkit-rules <src> [--name] [--values {KEY: v}]`.
-- Units: `unit-file <src> [--name] [--values {KEY: v}] [--enable --now]`, `unit-timer <name> <description> [--calendar]
+- Units (sources in `services/`): `unit-file <src> [--name] [--values {KEY: v}] [--enable --now]`
+  (`unit-file services/foo.service --enable --now`), `unit-timer <name> <description> [--calendar]
   [--boot] [--startup] [--every] [--delay] [--accuracy] [--ac-power <udev rules>] [--enable --now]` (a calendar adds
   `Persistent=true`), `unit-enable|unit-disable|unit-mask <name> [--now]`, `unit-switch <name> <bool> [--now]`,
   `unit-restart <name> [--reload] [--if-running]` (the one `--then` for a unit; skips a unit not installed yet),
-  `dropin <unit> <src> [--name] [--values]`, `user-hook <name> <script> --watch [paths] [--permanent] [--no-brake]
+  `dropin <unit> <src> [--name] [--values]` (`dropin x.service services/foo.conf`, installed as `foo.conf` unless
+  `--name`), `user-hook <name> <script> --watch [paths] [--permanent] [--no-brake]
   [--mkdir]`.
 - Groups: `group-system <group> [members]` (a sysusers.d file), `group-admins <group>` (wheel in it).
 - Fetch: `fetch-file <url> <sha256> <dest> [--extract <member>]`, `fetch-git <url> <commit> <dir>`; both mark

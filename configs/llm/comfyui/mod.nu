@@ -50,12 +50,12 @@ export def link [cfg: record] {
         (file-copy scripts/comfyui-wait-ready.nu $values.WAIT_READY --mode 755)
         # the unit sees none of $HOME but its own tree and this dir, so it cannot make it itself
         (exec comfyui-output [mkdir -p $values.OUTPUT] --creates $values.OUTPUT)
-        (unit-file config/comfyui.service --values $values --then [
+        (unit-file services/comfyui.service --values $values --then [
             # try-restart: a restart would start it outside the socket, holding vram with no idle exit
             systemctl --user try-restart comfyui.service
         ])
-        (unit-file config/comfyui-proxy.service --values $values)
-        (unit-file config/comfyui.socket --enable --now)
+        (unit-file services/comfyui-proxy.service --values $values)
+        (unit-file services/comfyui.socket --enable --now)
         # texture, image and 3d generation from a shell, an agent or the Blender panel (creating/blender)
         (link-commands scripts/comfy-gen.nu)
     ]

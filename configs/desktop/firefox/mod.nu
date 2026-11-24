@@ -90,7 +90,7 @@ export def link [cfg: record] {
                 (unit-enable speech-dispatcher.socket --now)
                 (file-text (xdg config speech-dispatcher speechd.conf)
                     "AddModule \"espeak-ng\" \"sd_espeak-ng\" \"espeak-ng.conf\"\nDefaultModule espeak-ng\n")
-                (dropin speech-dispatcher.service config/speech-dispatcher-timeout.conf --then [systemctl --user daemon-reload])
+                (dropin speech-dispatcher.service services/speech-dispatcher-timeout.conf --then [systemctl --user daemon-reload])
             ]
         })
         (user-hook firefox-profiles scripts/profile-link.nu --watch [$"%h/($HOME_DIR)/profiles.ini"])

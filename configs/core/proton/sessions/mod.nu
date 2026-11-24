@@ -14,7 +14,7 @@ export def link [cfg: record] {
         (desktop-exec $PASS_DESKTOP proton-pass --args [--password-store=basic])
         (link-commands scripts/proton-sessions-restore.nu)
         # reenable: a changed WantedBy leaves the old target's wants link behind
-        (unit-file config/proton-sessions-restore.service --enable --then [systemctl --user reenable proton-sessions-restore.service])
+        (unit-file services/proton-sessions-restore.service --enable --then [systemctl --user reenable proton-sessions-restore.service])
         (step sessions-restore-now --creates (xdg state $MARKER))
     ]
 }

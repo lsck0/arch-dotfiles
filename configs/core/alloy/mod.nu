@@ -48,7 +48,7 @@ export def system [cfg: record] {
         (file-render config/99-alloy-ac.rules $AC_RULES {UNIT: $build.unit} --then (udev-reload))
         (file-copy config/node-textfile.conf $TMPFILES --then [systemd-tmpfiles --create $TMPFILES])
         (file-copy scripts/desktop-metrics.nu /usr/local/bin/desktop-metrics --mode 755)
-        (unit-file config/desktop-metrics.service)
+        (unit-file services/desktop-metrics.service)
         (unit-timer desktop-metrics.timer "Desktop health metrics every 5 minutes (system half)" --boot 2min
             --every 5min --enable --now)
         (file-render config/config.alloy ($build.dir | path join config.alloy)
@@ -63,7 +63,7 @@ export def system [cfg: record] {
 export def link [cfg: record] {
     if not ($TEXTFILE_DIR | path exists) or not ("/usr/local/bin/desktop-metrics" | path exists) { return [] }
     [
-        (unit-file config/desktop-metrics-user.service)
+        (unit-file services/desktop-metrics-user.service)
         (unit-timer desktop-metrics-user.timer "Desktop health metrics every 5 minutes (user half)" --startup 2min
             --every 5min --enable --now)
     ]

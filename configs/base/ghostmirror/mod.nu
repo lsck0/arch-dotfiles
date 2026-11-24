@@ -22,10 +22,10 @@ export def system [cfg: record] {
         (file-copy scripts/mirrorlist-update.nu /usr/local/bin/mirrorlist-update --mode 755)
         (if $homelab != null { file-text $HOMELAB_FILE $"($homelab)\n" })
         (step place ($homelab | default ""))
-        (unit-file config/ghostmirror.service)
+        (unit-file services/ghostmirror.service)
         (unit-timer ghostmirror.timer "Weekly ghostmirror sorting" --calendar weekly --delay 30m
             --ac-power 99-ghostmirror-ac.rules --enable --now)
-        (unit-file config/ghostmirror-refresh.service)
+        (unit-file services/ghostmirror-refresh.service)
         (unit-timer ghostmirror-refresh.timer "Monthly ghostmirror mirror pool rebuild" --calendar monthly --delay 1h
             --ac-power 99-ghostmirror-ac.rules --enable --now)
         (udev-rules config/99-ghostmirror-ac.rules)

@@ -26,8 +26,8 @@ export def system [cfg: record] {
         ]
     }
     [
-        (dropin python3-validity.service config/override.conf --then (unit-restart python3-validity.service --if-running))
-        (dropin open-fprintd-resume.service config/open-fprintd-resume.conf)
+        (dropin python3-validity.service services/override.conf --then (unit-restart python3-validity.service --if-running))
+        (dropin open-fprintd-resume.service services/open-fprintd-resume.conf)
         (udev-rules config/60-python-validity.rules)
         ($VALIDITY_UNITS | each { unit-enable $in })
         (unit-mask fprintd.service --now)

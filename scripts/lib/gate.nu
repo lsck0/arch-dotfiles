@@ -32,10 +32,10 @@ const FAIL_CLOSED_CONST = '(?m)^\s*(?:export )?const (?<name>[A-Z][A-Z0-9_]*) = 
 export const FAIL_CLOSED = [
     [unit gate file escape];
     [fw-egress.service tor configs/base/pacman/config/pacman.conf '(?m)^DownloadUser\s*=\s*alpm\s*$']
-    [fw-egress.service tor configs/base/nftables/config/fw-egress.service 'u=\$\$\(id -u alpm\) && echo "add element inet fw_egress fetch_uid ']
+    [fw-egress.service tor configs/base/nftables/services/fw-egress.service 'u=\$\$\(id -u alpm\) && echo "add element inet fw_egress fetch_uid ']
     [fw-egress.service tor configs/base/nftables/config/fw-egress.nft '(?m)^\s*meta skuid @fetch_uid tcp dport \{ 80, 443 \} accept\s*$']
     [fw-egress.service tor configs/base/resolved/config/resolved.conf '(?m)^DNSOverTLS=yes\s*$']
-    [fw-egress.service tor configs/base/nftables/config/fw-egress.service 'u=\$\$\(id -u systemd-resolve\) && echo "add element inet fw_egress resolver_uid ']
+    [fw-egress.service tor configs/base/nftables/services/fw-egress.service 'u=\$\$\(id -u systemd-resolve\) && echo "add element inet fw_egress resolver_uid ']
     [fw-egress.service tor configs/base/nftables/config/fw-egress.nft '(?m)^\s*meta skuid @resolver_uid tcp dport 853 accept\s*$']
 ]
 const FAIL_CLOSED_OFF = '\bunit-(disable|mask)\b|\bsystemctl\b.*\b(stop|disable|mask|kill)\b'
@@ -58,10 +58,12 @@ def walk []: nothing -> list<path> {
 }
 
 # What a module dir (or a dir of sibling modules, like base/boot) holds at its top: the module's own files, its tests,
-# and three folders: config/ (what dot installs), scripts/ (what runs: linked commands, helpers, shared code), test/
+# and four folders: config/ (what dot installs), services/ (systemd units and drop-ins), scripts/ (what runs: linked
+# commands, helpers, shared code), test/
 # .herdr-create and .tms-create: tms and herdr read them from the module dir itself, which socials/desktop bookmarks
 const LAYOUT_FILES = [mod.nu AGENTS.md README.md dependencies.txt .gitignore .herdr-create .tms-create]
-const LAYOUT_DIRS = [config scripts test]
+const LAYOUT_DIRS = [config services scripts test]
+const UNIT_EXT = '\.(service|timer|socket|path|target|mount|automount|slice)$'
 
 def lint-layout []: nothing -> list<string> {
     let configs = $REPO | path join configs
@@ -80,7 +82,9 @@ def lint-layout []: nothing -> list<string> {
         } else {
             $top in $LAYOUT_DIRS or ($"($home)/($top)" in $dirs)
         }
-        if $ok { null } else { $"configs/($f): outside the module layout, belongs under config/, scripts/ or test/" }
+        if not $ok { return $"configs/($f): outside the module layout, belongs under config/, services/, scripts/ or test/" }
+        if $top == "config" and ($f =~ $UNIT_EXT) { return $"configs/($f): a systemd unit, belongs under services/" }
+        null
     } | compact | uniq
 }
 

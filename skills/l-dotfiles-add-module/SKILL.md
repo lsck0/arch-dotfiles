@@ -7,9 +7,10 @@ description: "Writing a module's mod.nu under configs/: meta, typed options, the
 
 A module is one folder `configs/<group>/<module>/` with a `mod.nu`; `dot` discovers its verbs, options and packages,
 nothing central changes. Read the group's `AGENTS.md` first. Its top holds only `mod.nu`, `AGENTS.md`, `README.md`,
-`dependencies.txt`, `.gitignore` and `*.test.nu`, plus three dirs: `config/` (what dot installs), `scripts/` (what
-runs: linked commands, helpers, shared code) and `test/` (fixtures); `lint-layout` in `scripts/lib/gate.nu` enforces
-it. Sources in declarations are relative to the module dir: `config/foo.conf`, `scripts/foo.nu`. An owner-only
+`dependencies.txt`, `.gitignore` and `*.test.nu`, plus four dirs: `config/` (what dot installs), `services/` (every
+systemd unit and drop-in, user or system), `scripts/` (what runs: linked commands, helpers, shared code) and `test/`
+(fixtures); `lint-layout` in `scripts/lib/gate.nu` enforces it and flags a unit under `config/`. Sources in
+declarations are relative to the module dir: `config/foo.conf`, `services/foo.service`, `scripts/foo.nu`. An owner-only
 module (employer setup, bookmarks, key wiring) goes in `configs/secrets/<module>/` (id `secrets/<module>`): same
 contract, runs after every other group wherever the submodule is pulled, gates inside itself (`owner-unlocked` in
 `link`, `$env.FORM_FACTOR` in `system`), and its packages stay off `mirror/packages.txt` (a mirror package it needs
@@ -51,7 +52,7 @@ export const options = {
 export def link [cfg: record] {
     [
         (files-into (xdg config btop) config/btop.conf)
-        (unit-file config/oom-notify.service --enable --now)
+        (unit-file services/oom-notify.service --enable --now)
         (if $cfg.accent == "c1" { file-text (xdg config btop extra.conf) "x\n" })
     ]
 }

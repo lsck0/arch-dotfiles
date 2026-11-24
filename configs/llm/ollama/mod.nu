@@ -44,12 +44,12 @@ export def link [cfg: record] {
 
 export def system [cfg: record] {
     [
-        (unit-file config/ollama-proxy.service)
-        (unit-file config/ollama.socket --enable --now)
-        ([config/listen.conf config/hardening.conf config/gpu.conf] | each { dropin ollama.service $in --then $RESTART })
-        (dropin ollama.service config/perf.conf --values {GPU_OVERHEAD: (gpu-overhead $cfg), PARALLEL: $cfg.parallel}
+        (unit-file services/ollama-proxy.service)
+        (unit-file services/ollama.socket --enable --now)
+        ([services/listen.conf services/hardening.conf services/gpu.conf] | each { dropin ollama.service $in --then $RESTART })
+        (dropin ollama.service services/perf.conf --values {GPU_OVERHEAD: (gpu-overhead $cfg), PARALLEL: $cfg.parallel}
             --then $RESTART)
-        (dropin ollama.service config/keep-alive.conf --values {KEEP_ALIVE_MIN: $KEEP_ALIVE_MIN} --then $RESTART)
+        (dropin ollama.service services/keep-alive.conf --values {KEEP_ALIVE_MIN: $KEEP_ALIVE_MIN} --then $RESTART)
     ]
 }
 

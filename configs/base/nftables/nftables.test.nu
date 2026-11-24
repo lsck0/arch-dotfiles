@@ -9,7 +9,7 @@ use module.nu [decls-flatten text-render]
 use mod.nu [system]
 
 const HERE = path self .
-const UNIT = $HERE | path join config fw-egress.service
+const UNIT = $HERE | path join services fw-egress.service
 const RULESET = $HERE | path join config fw-egress.nft
 const ESCAPES = {fetch_uid: alpm, resolver_uid: systemd-resolve}
 const INBOUND = $HERE | path join config fw-inbound.nft
@@ -25,7 +25,7 @@ const PEER_ADDRESS = "10.77.0.2"
 const CONNECT_TIMEOUT = "0.2"
 const EXIT_TIMEOUT = 124
 const LOCKDOWN = $HERE | path join config fw-lockdown.nft
-const LOCKDOWN_UNIT = $HERE | path join config fw-lockdown.service
+const LOCKDOWN_UNIT = $HERE | path join services fw-lockdown.service
 const PENTEST_IFACE = "tun0"
 const PENTEST_LINKS = 'elements = { "tun0" }'
 

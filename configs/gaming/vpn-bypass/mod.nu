@@ -16,7 +16,7 @@ export def system [cfg: record] {
         (file-copy config/games-bypass.nft /etc/nftables.d/games-bypass.nft --then $reload)
         (file-copy scripts/games-run.sh /usr/local/bin/games-run --mode 755)
         (file-copy ("config" | path join $POLICY) ("/usr/share/polkit-1/actions" | path join $POLICY))
-        (unit-file ("config" | path join $UNIT) --enable --then $reload)
+        (unit-file ("services" | path join $UNIT) --enable --then $reload)
         # in name order after home-network and homelab-routes
         (if ("/etc/NetworkManager/dispatcher.d" | path exists) {
             [(file-copy scripts/games-route.nu $DISPATCHER --mode 755) (step nudge)]

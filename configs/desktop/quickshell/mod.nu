@@ -14,7 +14,7 @@ export const options = {
 }
 
 const CONFIG_DIR = ".config/quickshell"
-const SKIP = [mod.nu AGENTS.md quickshell.service quickshell-reminders-rearm.service .qmllint.ini .gitignore dotfiles-settings.desktop]
+const SKIP = [mod.nu AGENTS.md .qmllint.ini .gitignore dotfiles-settings.desktop]
 const SKIP_PATTERN = '(__pycache__|\.log$|\.qsb$|\.test\.(nu|sh)$)'
 
 def pomodoro-config [cfg: record]: nothing -> record {
@@ -35,8 +35,8 @@ export def link [cfg: record] {
         ($files | each {|f| file-copy ("config" | path join $f.name) ($dir | path join $f.name) --in-place --mode (if ($f.mode | str substring 2..2) == "x" { "755" } else { "644" }) })
         (link-commands ...(glob 'config/scripts/*.{nu,sh}' | where $it !~ $SKIP_PATTERN))
         # not enabled: hyprland_autostart.lua starts it
-        (unit-file config/quickshell.service)
-        (unit-file config/quickshell-reminders-rearm.service --enable)
+        (unit-file services/quickshell.service)
+        (unit-file services/quickshell-reminders-rearm.service --enable)
         (pomodoro-config $cfg)
         (clipboard-config $cfg)
         # the settings window outside hyprland (settings-only.qml), listed in Plasma's launcher only

@@ -13,7 +13,7 @@ const REAPPLY_UNIT = "toggles-reapply.service"
 
 export def link [cfg: record] {
     [
-        (unit-file $"config/($REAPPLY_UNIT)" --values {DOTFILES: $env.DOTFILES} --enable)
+        (unit-file $"services/($REAPPLY_UNIT)" --values {DOTFILES: $env.DOTFILES} --enable)
     ]
 }
 

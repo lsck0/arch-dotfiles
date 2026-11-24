@@ -56,8 +56,8 @@ export def system [cfg: record] {
         (file-copy config/mkinitcpio-systemd-tool.conf $"($TOOL_DIR)/mkinitcpio-systemd-tool.conf")
         # the stock file matches eth* only
         (file-copy config/initrd-network.network $"($TOOL_DIR)/network/initrd-network.network")
-        (dropin initrd-tinysshd.service config/tinysshd.conf)
-        (dropin initrd-network.service config/initrd-network.conf)
+        (dropin initrd-tinysshd.service services/tinysshd.conf)
+        (dropin initrd-network.service services/initrd-network.conf)
         # the systemd-tool hook puts enabled units in the image, ConditionPathExists keeps them off the real system
         ($UNITS | each { unit-enable $in })
         (wifi $cfg.wifi)
@@ -76,7 +76,7 @@ def wifi [enabled: bool]: nothing -> list {
     [
         (step wifi-conf)
         (if ($WIFI_CONF | path exists) or (system-secret wifi | path exists) {
-            unit-file $"config/($WIFI_UNIT)" --enable
+            unit-file $"services/($WIFI_UNIT)" --enable
         } else { unit-disable $WIFI_UNIT })
     ]
 }

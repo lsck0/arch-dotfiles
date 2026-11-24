@@ -28,7 +28,7 @@ export def system [cfg: record] {
         (file-render config/ossec.conf $conf {
             MANAGER: $HOMELAB.wazuh.manager, EVENTS: $HOMELAB.wazuh.events, ENROLLMENT: $HOMELAB.wazuh.enrollment, HOST: $host
         } --mode "640" --then (do $own $conf))
-        (dropin $UNIT config/start-timeout.conf)
+        (dropin $UNIT services/start-timeout.conf)
         (unit-enable $UNIT --now)
     ]
 }

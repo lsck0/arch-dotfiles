@@ -7,7 +7,7 @@ export const meta = {
     secrets: ["ssh-host/{host}/ssh_host_ed25519_key" "ssh-host/{host}/ssh_host_mldsa44_ed25519_key" "ssh-host/{host}/ssh_host_ecdsa_key" "ssh-host/{host}/ssh_host_rsa_key"]
     native_only: [system]
     # wake-pc renders the initramfs unlock port from there
-    inputs: [configs/base/boot/remote-unlock/config/tinysshd.conf]
+    inputs: [configs/base/boot/remote-unlock/services/tinysshd.conf]
 }
 const SSH_HOST_KEYS = $meta.secrets | path basename
 
@@ -129,7 +129,7 @@ export def link [cfg: record] {
         # claimed disabled: an orphan disable of the vendor unit would take ssh-agent.socket along (Also=)
         (unit-disable ssh-agent.service --now)
         (unit-enable ssh-agent.socket --now)
-        (unit-file config/ssh-add.service --values {DOTFILES: $env.DOTFILES})
+        (unit-file services/ssh-add.service --values {DOTFILES: $env.DOTFILES})
         (unit-switch ssh-add.service $owner)
         (file-text (ssh-dir config) $"Include ~/.ssh/config.d/*\n($hosts)" --mode 600)
         (if $owner and not (authorize-done) { step authorize })
@@ -137,7 +137,7 @@ export def link [cfg: record] {
             --mode 755)
         (if $homelab and $cfg.wake_router != null and $cfg.wake_host != null {
             # the initramfs tinysshd's port, read where it is set (offload reads it the same way)
-            let unlock = open --raw ../boot/remote-unlock/config/tinysshd.conf | parse --regex '(?m)^Environment=SSHD_PORT=(?<p>\d+)'
+            let unlock = open --raw ../boot/remote-unlock/services/tinysshd.conf | parse --regex '(?m)^Environment=SSHD_PORT=(?<p>\d+)'
             let values = {
                 ROUTER: $cfg.wake_router, ROUTER_TUNNEL: ($cfg.wake_router_tunnel | default "")
                 HOST: $cfg.wake_host, PORT: $cfg.port, KNOCK: $knock

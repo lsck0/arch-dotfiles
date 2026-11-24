@@ -38,11 +38,11 @@ export def link [cfg: record] {
     [
         (link-commands scripts/home-sweep.nu)
         (file-text (xdg config user-tmpfiles.d dotfiles-fetch.conf) (fetch-cache-rule $FETCH_CACHE_USER))
-        (unit-file config/home-sweep.service)
+        (unit-file services/home-sweep.service)
         (unit-timer home-sweep.timer "Weekly home directory log sweep" --calendar weekly --delay 1h --enable --now)
         (if (which nix-collect-garbage | is-not-empty) {
             [
-                (unit-file config/nix-gc.service)
+                (unit-file services/nix-gc.service)
                 (unit-timer nix-gc.timer "Weekly nix store garbage collection" --calendar weekly --delay 1h --enable --now)
             ]
         })

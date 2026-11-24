@@ -17,7 +17,7 @@ export def system [cfg: record] {
     let restart = udev-reload --subsystem-match=input --subsystem-match=hidraw --and $nudge
     [
         # ahead of what restarts it: the udev nudge starts the unit, which runs this driver
-        (unit-file config/tablet-driver.service)
+        (unit-file services/tablet-driver.service)
         (file-copy scripts/tablet-driver.py /usr/local/bin/tablet-driver --mode 755 --then $restart)
         # 71- puts the uaccess tag in place before 73-seat-late.rules runs the builtin
         (udev-rules config/71-graphics-tablet.rules --then $restart)

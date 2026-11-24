@@ -25,7 +25,7 @@ export def link [cfg: record] {
     [
         ($SCRIPTS | each {|script| file-copy $"scripts/($script)" ($dir | path join $script) --mode 755 })
         ($UNITS | each {|u|
-            unit-file config/idle-guard.service --name $u.unit --values {GUARD: $u.guard, WHILE: $u.while} --enable
+            unit-file services/idle-guard.service --name $u.unit --values {GUARD: $u.guard, WHILE: $u.while} --enable
         })
     ]
 }

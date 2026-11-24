@@ -149,7 +149,7 @@ export def system [cfg: record] {
         (if $env.FORM_FACTOR? == "vm" { file-text $"($NM)/vm-guest" "" })
         (if $homelab != null { file-text $"($NM)/homelab.env" $homelab })
         (file-copy config/NetworkManager.conf $"($NM)/NetworkManager.conf" --then $restart)
-        (dropin wpa_supplicant.service config/wpa-log-filter.conf)
+        (dropin wpa_supplicant.service services/wpa-log-filter.conf)
         # NM's one auto wired profile serves every wired network, so a laptop's ethernet is never home (fail closed)
         (if $home_wired { file-copy config/home-wired.conf $"($NM)/conf.d/10-home-wired.conf" --then $restart })
         (if $cfg.wake_on_lan {[

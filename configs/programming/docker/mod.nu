@@ -11,7 +11,7 @@ export def system [cfg: record] {
         # forwarding policy lives in inet fw: docker's own FORWARD drop would also cut libvirt and lxc bridges
         (file-copy config/daemon.json /etc/docker/daemon.json --then (unit-restart docker.service --if-running))
         (unit-enable docker.socket)
-        (unit-file config/docker-prune.service --enable)
+        (unit-file services/docker-prune.service --enable)
     ]
 }
 

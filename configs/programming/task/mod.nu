@@ -70,6 +70,6 @@ export def link [cfg: record] {
         (file-text ($nu.home-dir | path join $SYNC_RC) $sync --mode 600)
         (if ($calendar | is-not-empty) { file-text ($nu.home-dir | path join $CALENDAR_ENV) $calendar --mode 600 })
         (link-commands scripts/task-calendar.nu)
-        (if ($sync | is-not-empty) { (unit-file config/task-sync.service) ++ (unit-file config/task-sync.timer --enable --now) })
+        (if ($sync | is-not-empty) { (unit-file services/task-sync.service) ++ (unit-file services/task-sync.timer --enable --now) })
     ]
 }

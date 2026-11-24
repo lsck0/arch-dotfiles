@@ -26,6 +26,6 @@ export def system [cfg: record] {
             --then [sh -c $"! systemctl is-active -q tor-router.service || ($ROUTER) start"])
         # no Requires=tor.service, so a tor restart cannot tear the table down; once in place the persona dispatcher
         # switches a foreign link to tor, so a fresh install off home goes onto tor without waiting for a link event
-        (unit-file config/tor-router.service --then [sh -c $"[ ! -x ($PERSONA) ] || exec ($PERSONA) '' tor-arrived"])
+        (unit-file services/tor-router.service --then [sh -c $"[ ! -x ($PERSONA) ] || exec ($PERSONA) '' tor-arrived"])
     ]
 }

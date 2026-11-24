@@ -38,7 +38,7 @@ Kinds, with the file to copy:
    Shortcuts: `service-switch <label> <unit> [socket...]` (sockets that would restart the unit stop and start with
    it), `radio-switch <label> wifi|wwan`. State without a probe: `state-get`/`state-set`/`state-clear`; `--volatile`
    resets on boot. An effect that resets on reboot while its state persists: answer `reapply` (`toggle-focus.nu`),
-   which `configs/core/toggles/config/toggles-reapply.service` runs at session start.
+   which `configs/core/toggles/services/toggles-reapply.service` runs at session start.
 2. Root work: one `root-run <verb>` per flip (one prompt at most), running
    `configs/core/toggles/scripts/toggle-root.nu` via pkexec. The helper takes no flags and `49-toggles.rules`
    allowlists whole command lines, so a new verb goes into both: `VERBS_UNPROMPTED` when it tightens or guards

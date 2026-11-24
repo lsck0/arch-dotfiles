@@ -22,7 +22,7 @@ export def system [cfg: record] {
     if not ($CUPSD | path exists) or $env.FORM_FACTOR? == "wsl" { return [] }
     [
         (file-copy scripts/printers-sync.nu $SYNC --mode 755)
-        (unit-file config/printers-sync.service)
+        (unit-file services/printers-sync.service)
         (file-copy scripts/printers-dispatcher.nu $DISPATCHER --mode 755)
         # mdns host lookup, for the printers' .local names; the rest of the file stays the package's
         (file-text $NSSWITCH (open --raw $NSSWITCH | str replace --regex --multiline '^hosts:.*$' $NSSWITCH_HOSTS))

@@ -32,7 +32,7 @@ export def system [cfg: record] {
         # glibc in the namespace asks the tunnel's resolver directly, never resolved over its unix socket (a leak)
         (file-text $"($NS_ETC)/nsswitch.conf" $nsswitch)
         (file-copy config/sudoers /etc/sudoers.d/20-protonvpn-netns --mode 440)
-        (unit-file $"config/($UNIT)" --enable --now --then $restart)
+        (unit-file $"services/($UNIT)" --enable --now --then $restart)
     ]
 }
 
