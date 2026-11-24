@@ -31,6 +31,8 @@ Item {
   readonly property string type: String(option.type || "")
   readonly property bool numeric: type === "int" || type === "float"
   readonly property bool segmented: Schema.segmented(option)
+  readonly property bool multi: type === "multi"
+  readonly property bool picking: type === "multi" || (type === "enum" && !segmented)
   readonly property bool typed: numeric || ["string", "path", "list", "json", "filesize"].indexOf(type) >= 0
   readonly property var choices: segmented ? option.choices.map(function (c) { return { value: c, label: Schema.choiceLabel(c) } }) : []
   readonly property int pageStart: Schema.choicePageStart(choiceCursor)
@@ -42,7 +44,11 @@ Item {
     var out = [pending ? { text: "pending", color: Colors.accent2Text }
       : { text: option.source || "default", color: Colors.menu.text, faint: true }]
     if (option.apply && option.apply !== "live")
-      out.push({ text: option.apply, color: option.apply === "relink" ? Colors.accentText : option.apply === "relogin" ? Colors.warnText : Colors.urgentText })
+      out.push({
+        text: option.apply,
+        color: ["relink", "apply", "packages"].indexOf(option.apply) >= 0 ? Colors.accentText
+          : option.apply === "relogin" ? Colors.warnText : Colors.urgentText
+      })
     if (option.scope === "machine") out.push({ text: "machine", color: Colors.menu.text, faint: true })
     if (Schema.resettable(option) && (hasCursor || rowMouse.containsMouse || pending))
       out.push({ text: "reset", color: Colors.accentText, reset: true })
@@ -181,10 +187,11 @@ Item {
         }
 
         Label {
-          visible: row.type === "enum" && !row.segmented
+          visible: row.picking
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
-          text: "[" + Schema.choiceLabel(row.value) + (row.expanded ? " ^]" : " v]")
+          text: "[" + (row.multi ? (row.value || []).length + "/" + (row.option.choices || []).length : Schema.choiceLabel(row.value))
+            + (row.expanded ? " ^]" : " v]")
           color: row.expanded ? Colors.accentText : Colors.menu.text
 
           MouseArea {
@@ -246,6 +253,17 @@ Item {
         }
 
         Label {
+          visible: row.type === "fixed"
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          width: parent.width
+          horizontalAlignment: Text.AlignRight
+          text: Schema.toText(row.option, row.value)
+          dim: true
+          elide: Text.ElideMiddle
+        }
+
+        Label {
           id: browse
           visible: row.type === "path"
           anchors.right: parent.right
@@ -281,21 +299,25 @@ Item {
 
       Flow {
         width: parent.width
-        visible: row.type === "list" || row.expanded
+        visible: row.type === "list" || row.multi || row.expanded
         spacing: Style.spacing.xs
 
         Repeater {
-          model: row.expanded ? row.page : row.type === "list" ? (row.value || []) : []
+          model: row.expanded ? row.page : row.type === "list" || row.multi ? (row.value || []) : []
 
           Button {
             variant: "chip"
             required property var modelData
             required property int index
-            text: row.expanded ? modelData.label : String(modelData) + "  x"
-            selected: row.expanded && row.pageStart + index === row.choiceCursor
+            readonly property bool cursor: row.expanded && row.pageStart + index === row.choiceCursor
+            text: row.expanded ? modelData.label : String(modelData) + (row.multi ? "" : "  x")
+            selected: row.multi ? !row.expanded || (row.value || []).indexOf(modelData.value) >= 0 : cursor
+            hasCursor: row.multi && cursor
             onClicked: {
-              if (row.expanded) {
-                row.changeRequested(modelData.value)
+              if (row.multi && !row.expanded) {
+                row.expandRequested()
+              } else if (row.expanded) {
+                row.changeRequested(Schema.choicePicked(row.option, row.value, modelData.value))
               } else {
                 const list = (row.value || []).slice()
                 list.splice(index, 1)

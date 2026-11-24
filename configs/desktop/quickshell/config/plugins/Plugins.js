@@ -18,4 +18,6 @@ const bar = {
              "Display", "AudioIO", "Notifications", "KeyboardLayout", "Indicators", "Exit"]
 };
 
-const barSecondary = { left: ["AppMenu", "Workspaces", "Submap"], center: [], right: [] };
+const barSecondary = {
+  left: ["AppMenu", "Workspaces", "Submap"], center: [], right: []
+};

@@ -11,6 +11,10 @@ const OPTION_SCOPE_DEFAULT = "machine"
 export const OPTION_ENABLE = "enable"
 const EVENTS_FILE = "dot/events.jsonl"
 const EVENTS_MAX_BYTES = 1048576
+const NUON_INDENT = 4
+const NUON_QUOTES = ['"' "'"]
+const NUON_OPEN = ["{" "["]
+const NUON_CLOSE = ["}" "]"]
 
 # Whether value fits a spec type; a trailing ? admits null, an int passes as float, a string as path.
 export def option-type-ok [type: string, value: any]: nothing -> bool {
@@ -90,10 +94,11 @@ export def options-schema [module: record]: nothing -> record {
     (module-options-built $module).schema
 }
 
-# Lands value on option name with its source, or adds the errors that kept it out.
+# Lands value on option name with its source, or adds the errors that kept it out. upsert, never update: platform.nu
+# reaches this file from every mod.nu, where a module's update verb shadows nushell's.
 def option-land [acc: record, name: string, value: any, source: string, errors: list<string>]: nothing -> record {
-    if ($errors | is-not-empty) { return ($acc | update errors { append $errors }) }
-    $acc | update values { upsert $name $value } | update sources { upsert $name $source }
+    if ($errors | is-not-empty) { return ($acc | upsert errors { append $errors }) }
+    $acc | upsert values { upsert $name $value } | upsert sources { upsert $name $source }
 }
 
 # Each module's option values and where each came from, plus every error across the layers.
@@ -154,20 +159,23 @@ export def options-notify [key: string, value: any, source: string, runtime?: an
     $"({key: $key, value: $value, source: $source, runtime: $runtime, error: $error} | to json --raw)\n" | save --append $file
 }
 
-# Nuon with records and lists spelled out one entry per line, never the table form, key order kept.
-export def options-to-nuon [--indent: int = 0]: any -> string {
+# Nuon with records and lists spelled out one entry per line, never the table form, key order kept; --inline on one
+# line.
+export def options-to-nuon [--indent: int = 0, --inline]: any -> string {
     let value = $in
     let pad = "" | fill --width ($indent * 4)
     let inner = $"($pad)    "
     match ($value | describe | split row "<" | first) {
         "record" => {
             if ($value | is-empty) { return "{}" }
+            if $inline { return $"{($value | items {|k, v| $'(nuon-word $k): ($v | options-to-nuon --inline)' } | str join ', ')}" }
             let lines = $value | items {|k, v| $"($inner)(nuon-word $k): ($v | options-to-nuon --indent ($indent + 1))" }
             $"{\n($lines | str join "\n")\n($pad)}"
         }
         "list" | "table" => {
             if ($value | is-empty) { return "[]" }
             let nested = $value | any {|v| ($v | describe) =~ '^(record|list|table)' }
+            if $inline { return $"[($value | each { options-to-nuon --inline } | str join ' ')]" }
             if not $nested { return $"[($value | each { options-to-nuon } | str join ' ')]" }
             let lines = $value | each {|v| $"($inner)($v | options-to-nuon --indent ($indent + 1))" }
             $"[\n($lines | str join "\n")\n($pad)]"
@@ -185,4 +193,157 @@ def nuon-word [text: string]: nothing -> string {
         ($back | describe) == "string" and $back == $text
     } catch { false })
     if $bare { $text } else { $text | to nuon }
+}
+
+# text, a nuon record, with the value at cell set: null removes it and any record it leaves empty. Only the entry's own
+# lines change, the rest of the text (comments, layout, quoting) stays; a one-line record is written anew, and text no
+# splice reads back as wanted is written whole by options-to-nuon.
+export def options-nuon-set [cell: list<string>, value: any]: string -> string {
+    let text = $in
+    let wanted = $text | from nuon | default {} | nuon-record-set $cell $value
+    let chars = $text | split chars
+    let spliced = try { nuon-splice $chars (nuon-skip $chars 0) $cell $value | str join } catch { null }
+    if $spliced != null and (try { ($spliced | from nuon) == $wanted } catch { false }) { return $spliced }
+    $"($wanted | options-to-nuon)\n"
+}
+
+def nuon-record-set [cell: list<string>, value: any]: record -> record {
+    let record = $in
+    let key = $cell.0
+    let inner = if ($cell | length) == 1 { $value } else {
+        $record | get --optional $key | default {} | nuon-record-set ($cell | skip 1) $value | if ($in | is-empty) { null } else { $in }
+    }
+    if $inner == null { $record | reject --optional $key } else { $record | upsert $key $inner }
+}
+
+def nuon-splice [chars: list<string>, open: int, cell: list<string>, value: any]: nothing -> list<string> {
+    if ($chars | get $open) != "{" { error make {msg: "no record"} }
+    let scan = nuon-entries $chars $open
+    let entry = $scan.entries | where key == $cell.0 | get --optional 0
+    if ($chars | skip $open | first ($scan.close - $open) | all { $in != "\n" }) {
+        let record = $chars | skip $open | first ($scan.close - $open + 1) | str join | from nuon | nuon-record-set $cell $value
+        # the file's own record goes multi-line, a nested one stays on its line
+        let root = $open == (nuon-skip $chars 0)
+        let text = $record | options-to-nuon --inline=(not $root) --indent ((nuon-indent $chars $open) // $NUON_INDENT)
+        return (nuon-replace $chars $open ($scan.close + 1) $text)
+    }
+    let nested = $cell | length | $in > 1
+    if $nested and $entry != null {
+        if ($chars | get $entry.value_start) != "{" { error make {msg: "no record"} }
+        let inner = nuon-splice $chars $entry.value_start ($cell | skip 1) $value
+        let left = nuon-entries $inner $open | get entries | where key == $cell.0 | first
+        let empty = $inner | skip $left.value_start | first ($left.value_end - $left.value_start) | str join | from nuon | is-empty
+        return (if $empty { nuon-entry-remove $inner $left } else { $inner })
+    }
+    let landed = if $nested { {} | nuon-record-set ($cell | skip 1) $value | if ($in | is-empty) { null } else { $in } } else { $value }
+    if $entry == null {
+        if $landed == null { return $chars }
+        let line = nuon-line-start $chars $scan.close
+        let indent = nuon-indent $chars $scan.close
+        if ($line + $indent) != $scan.close { error make {msg: "closing brace after an entry"} }
+        let pad = "" | fill --width ($indent + $NUON_INDENT)
+        let text = $"($pad)(nuon-word $cell.0): ($landed | options-to-nuon --indent ($indent // $NUON_INDENT + 1))\n"
+        return (nuon-replace $chars $line $line $text)
+    }
+    if $landed == null { return (nuon-entry-remove $chars $entry) }
+    let text = $landed | options-to-nuon --indent ((nuon-indent $chars $entry.key_start) // $NUON_INDENT)
+    nuon-replace $chars $entry.value_start $entry.value_end $text
+}
+
+def nuon-replace [chars: list<string>, start: int, end: int, text: string]: nothing -> list<string> {
+    ($chars | first $start) ++ ($text | split chars) ++ ($chars | skip $end)
+}
+
+# An entry alone on its lines, with its trailing comma or comment; any other is left to the whole rewrite.
+def nuon-entry-remove [chars: list<string>, entry: record]: nothing -> list<string> {
+    let start = nuon-line-start $chars $entry.key_start
+    if ($start + (nuon-indent $chars $entry.key_start)) != $entry.key_start { error make {msg: "entry shares its line"} }
+    let rest = $chars | skip $entry.value_end | take while { $in != "\n" } | str join
+    if not ($rest =~ '^[ \t]*,?[ \t]*(#.*)?$') { error make {msg: "entry shares its line"} }
+    nuon-replace $chars $start ($entry.value_end + ($rest | str length) + 1) ""
+}
+
+def nuon-line-start [chars: list<string>, at: int]: nothing -> int {
+    $at - ($chars | first $at | reverse | take while { $in != "\n" } | length)
+}
+
+def nuon-indent [chars: list<string>, at: int]: nothing -> int {
+    $chars | skip (nuon-line-start $chars $at) | take while { $in == " " } | length
+}
+
+# The index of the next char that is no blank, comma or comment.
+def nuon-skip [chars: list<string>, from: int]: nothing -> int {
+    let count = $chars | length
+    mut at = $from
+    while $at < $count {
+        let c = $chars | get $at
+        if $c == "#" {
+            while $at < $count and ($chars | get $at) != "\n" { $at += 1 }
+        } else if $c =~ '^[\s,]$' { $at += 1 } else { break }
+    }
+    $at
+}
+
+def nuon-string-end [chars: list<string>, open: int]: nothing -> int {
+    let quote = $chars | get $open
+    let count = $chars | length
+    mut at = $open + 1
+    mut end = -1
+    while $end < 0 and $at < $count {
+        let c = $chars | get $at
+        if $quote == '"' and $c == "\\" { $at += 2 } else if $c == $quote { $end = $at + 1 } else { $at += 1 }
+    }
+    if $end < 0 { error make {msg: "unterminated string"} }
+    $end
+}
+
+# The index after the value starting at from: a string, a record or list with its nested ones, or a bare word.
+def nuon-value-end [chars: list<string>, from: int]: nothing -> int {
+    let count = $chars | length
+    let first = $chars | get $from
+    if $first in $NUON_QUOTES { return (nuon-string-end $chars $from) }
+    mut at = $from
+    if $first not-in $NUON_OPEN {
+        while $at < $count and not (($chars | get $at) =~ '^[\s,\]}]$') { $at += 1 }
+        return $at
+    }
+    mut depth = 0
+    mut end = -1
+    while $end < 0 and $at < $count {
+        let c = $chars | get $at
+        if $c in $NUON_QUOTES {
+            $at = nuon-string-end $chars $at
+        } else if $c == "#" and ($chars | get ($at - 1)) =~ '^[\s,\[{]$' {
+            while $at < $count and ($chars | get $at) != "\n" { $at += 1 }
+        } else {
+            if $c in $NUON_OPEN { $depth += 1 }
+            if $c in $NUON_CLOSE { $depth -= 1 }
+            $at += 1
+            if $depth == 0 { $end = $at }
+        }
+    }
+    if $end < 0 { error make {msg: "unclosed record or list"} }
+    $end
+}
+
+# The record opening at open: each entry's key and where key and value start and end, and its closing brace.
+def nuon-entries [chars: list<string>, open: int]: nothing -> record {
+    mut at = $open + 1
+    mut entries = []
+    $at = nuon-skip $chars $at
+    while ($chars | get $at) != "}" {
+        let key_start = $at
+        let key_end = if ($chars | get $at) in $NUON_QUOTES { nuon-string-end $chars $at } else {
+            $at + ($chars | skip $at | take while { $in != ":" and not ($in =~ '^\s$') } | length)
+        }
+        let word = $chars | skip $key_start | first ($key_end - $key_start) | str join
+        let key = if ($word | str substring 0..0) in $NUON_QUOTES { $word | from nuon } else { $word }
+        $at = $key_end + ($chars | skip $key_end | take while { $in =~ '^[ \t]$' } | length)
+        if ($chars | get $at) != ":" { error make {msg: $"no colon after ($word)"} }
+        let value_start = nuon-skip $chars ($at + 1)
+        let value_end = nuon-value-end $chars $value_start
+        $entries = $entries | append {key: $key, key_start: $key_start, value_start: $value_start, value_end: $value_end}
+        $at = nuon-skip $chars $value_end
+    }
+    {entries: $entries, close: $at}
 }

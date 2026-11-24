@@ -10,6 +10,9 @@ Editing, reload, logs, screenshots: `l-dotfiles-quickshell-dev`.
 - IPC: `quickshell ipc -p ~/.config/quickshell show` lists every target; panels open with
   `quickshell ipc call shell summon <id> <json>` (`{}` without a payload; the argument is required) or
   `quickshell ipc call bar open <panel>`.
+- Settings window (`plugins/settings/`): a UI over `dot set --json` and `dot status --json`; MACHINE (the platform
+  file's keys, `fixed` ones read only), quick toggles, system, then every module's options. `schema.test.nu` covers
+  `Schema.js`.
 - Colors come from `Colors.qml`/`Theme.qml` tokens, never hardcoded.
 - No explanatory help sentences in the UI: short labels, values, key hints (`[ESC] Dismiss`) and terse empty states
   (`> NO TRAY ICONS`) only.

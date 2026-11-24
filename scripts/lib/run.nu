@@ -318,8 +318,13 @@ def interrupted-exit [code: int]: nothing -> nothing {
 }
 
 export def --env system-skipped [what: string, pending: bool, --why: string = "DOT_SYSTEM=skip"]: nothing -> nothing {
-    if $pending { $"($what)\n" | save --append (pending-file) }
+    if $pending { pending-add $what } else { $env.DOT_SYSTEM_PENDING = true }
     log-note $"system part pending \(($why)\): ($what)"
+}
+
+# Leaves what to the next dot apply: dot status lists it, a sync enters root for it, this run ends pending (exit 3).
+export def --env pending-add [what: string]: nothing -> nothing {
+    $"($what)\n" | save --append (pending-file)
     $env.DOT_SYSTEM_PENDING = true
 }
 
@@ -570,9 +575,8 @@ export def --env system-part [target: string]: nothing -> nothing {
     let runner = if $env.DOT_SYSTEM? == "skip" { null } else { root-runner }
     let ok = $runner != null and (with-env {DOTFILES_ROOT_RUNNER: $runner} { system-run config }).code in [0 $EXIT_PENDING]
     if $ok { return }
-    $"($target)\n" | save --append (pending-file)
+    pending-add $target
     log-note $"($target): system part pending, runs on the next dot apply"
-    $env.DOT_SYSTEM_PENDING = true
 }
 
 # Why root's last `apply` does not vouch for the system layer, null when its config step ended 0 and no step of it ended

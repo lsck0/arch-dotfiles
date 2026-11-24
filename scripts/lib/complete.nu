@@ -1,7 +1,7 @@
 # Completion from dot's own command table, for zsh's _dot and the nushell externs.
 
 use log.nu [runs-dir]
-use platform.nu [platform-load]
+use platform.nu [PLATFORM_TARGET platform-load platform-cells platform-spec]
 use modules.nu [modules-discover]
 use options.nu [options-schema]
 use ../../configs/core/wallust/scripts/wallpaper.nu [wallpaper-list]
@@ -38,17 +38,22 @@ export def module-ids [words: list<string>]: nothing -> list<record> {
 }
 
 export def option-keys [words: list<string>]: nothing -> list<record> {
-    complete-modules | each {|m|
+    let platform = platform-cells | each {|cell| {value: ($cell | prepend $PLATFORM_TARGET | str join "."), description: (platform-spec $cell).doc} }
+    let modules = complete-modules | each {|m|
         options-schema $m | items {|key, spec| {value: $"($m.id).($key)", description: ($spec.doc? | default "")} }
     } | flatten
+    $platform ++ $modules
 }
 
 export def option-values [words: list<string>]: nothing -> list<record> {
-    let target = $words | get --optional 0 | default "" | parse --regex '^(?<mod>.+)\.(?<key>[a-z][a-z0-9_]*)$' | get --optional 0
-    if $target == null { return [] }
-    let m = complete-modules | where id == $target.mod | get --optional 0
-    if $m == null { return [] }
-    let spec = options-schema $m | get --optional $target.key
+    let word = $words | get --optional 0 | default ""
+    let spec = if ($word | str starts-with $"($PLATFORM_TARGET).") { platform-spec ($word | split row "." | skip 1) } else {
+        let target = $word | parse --regex '^(?<mod>.+)\.(?<key>[a-z][a-z0-9_]*)$' | get --optional 0
+        if $target == null { return [] }
+        let m = complete-modules | where id == $target.mod | get --optional 0
+        if $m == null { return [] }
+        options-schema $m | get --optional $target.key
+    }
     if $spec == null { return [] }
     let values = if ($spec.choices? | is-not-empty) { $spec.choices } else if $spec.type == "bool" { [true false] } else { [] }
     $values | each { {value: ($in | to nuon), description: (if $in == $spec.default? { "default" } else { "" })} }

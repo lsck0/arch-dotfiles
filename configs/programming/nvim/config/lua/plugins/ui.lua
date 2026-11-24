@@ -164,7 +164,16 @@ return {
                                 picker:find()
                             end,
                         },
-                        win = { list = { keys = { ["H"] = "toggle_hidden_ignored" } } },
+                        -- own groups, so theme.lua can make the sidebar see-through in neovide without the other floats
+                        win = {
+                            list = {
+                                keys = { ["H"] = "toggle_hidden_ignored" },
+                                wo = {
+                                    winhighlight = "NormalFloat:SnacksExplorerList,FloatBorder:SnacksPickerListBorder,"
+                                        .. "CursorLine:SnacksPickerListCursorLine",
+                                },
+                            },
+                        },
                         icons = { git = { ignored = "\u{f0209} " } },
                         format = function(item, picker)
                             local ret = require("snacks.picker.format").file(item, picker)
@@ -191,6 +200,7 @@ return {
                                 min_width = 24,
                                 height = 0,
                                 border = "none",
+                                wo = { winhighlight = "Normal:SnacksExplorerBox,NormalNC:SnacksExplorerBox" },
                                 { win = "list", border = "none" },
                             },
                         },

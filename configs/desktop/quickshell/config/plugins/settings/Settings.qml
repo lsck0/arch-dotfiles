@@ -23,6 +23,7 @@ Item {
   property string draft: ""
 
   property var modules: []
+  property var machine: null
   property string modulesText: ""
   property bool loaded: false
   property string loadError: ""
@@ -35,8 +36,10 @@ Item {
   property var pending: ({})
   property var errors: ({})
   property var queue: []
-  property var batch: ({ applied: [], failed: 0, notes: [], system: false })
+  property var batch: ({ applied: [], failed: 0, notes: [], system: false, full: false })
   property bool systemPending: false
+  // a platform key waits for a whole dot apply, both layers, not only the system one
+  property bool systemFull: false
   readonly property int exitSystemPending: 3
   // what can raise a password prompt: the panel lets go of the keyboard for these only, a plain dot set keeps it
   readonly property bool promptPossible: (setProc.running && setProc.prompts) || systemApplyProc.running || toggleProc.running
@@ -47,11 +50,11 @@ Item {
   readonly property string updateArmedNotice: "press CTRL+SHIFT+U again to sync"
 
   readonly property string dot: Paths.bin("dot")
-  readonly property var sections: Schema.sections(modules, toggles, query, dotStatus)
+  readonly property var sections: Schema.sections(modules, toggles, query, dotStatus, machine)
   // room beside each list for its scroll bar, kept when the list fits so the rows never jump
   readonly property int barGutter: Style.spacing.xs + Style.spacing.xxs * 3
   readonly property var section: sections[Math.min(sectionIndex, sections.length - 1)] || null
-  readonly property var rows: Schema.rows(modules, toggles, section ? section.id : "", query, dotStatus)
+  readonly property var rows: Schema.rows(modules, toggles, section ? section.id : "", query, dotStatus, machine)
   readonly property var cursorRow: rowIndex >= 0 && rowIndex < rows.length ? rows[rowIndex] : null
   readonly property var choiceList: expandedId && cursorRow && cursorRow.id === expandedId
     ? Schema.choicesMatching(cursorRow.option, choiceQuery) : []
@@ -63,7 +66,7 @@ Item {
       ["CTRL+R", "reset"]]
     if (cursorRow && cursorRow.kind === "option" && cursorRow.option.type === "path") out.push(["CTRL+O", "browse"])
     if (queued.length > 0) out.push(["CTRL+S", "apply"], ["CTRL+Z", "revert"])
-    else if (root.systemPending) out.push(["CTRL+S", "apply system"])
+    else if (root.systemPending) out.push(["CTRL+S", root.systemFull ? "apply" : "apply system"])
     if (root.promptPossible) out.push(["--", "keyboard released"])
     out.push(["CTRL+SHIFT+U", root.updateArmed ? "confirm sync" : "update"])
     out.push(["ESC", root.confirmId ? "cancel" : root.editingId || root.expandedId ? "back" : root.query ? "clear" : "close"])
@@ -269,7 +272,8 @@ Item {
 
     if (root.expandedId && row && row.id === root.expandedId) {
       if (vertical !== 0 || horizontal !== 0) root.moveChoice(vertical !== 0 ? vertical : horizontal)
-      else if ((key === Qt.Key_Return || key === Qt.Key_Enter) && root.choiceList.length > 0) root.change(row, root.choiceList[root.choiceCursor])
+      else if ((key === Qt.Key_Return || key === Qt.Key_Enter) && root.choiceList.length > 0)
+        root.change(row, Schema.choicePicked(row.option, root.valueOf(row), root.choiceList[root.choiceCursor]))
       else if (key === Qt.Key_Backspace) root.filterChoices(root.choiceQuery.slice(0, -1))
       else if (Util.printable(text)) root.filterChoices(root.choiceQuery + text)
       else return false
@@ -327,13 +331,13 @@ Item {
   function activate(row) {
     if (row.kind === "toggle") { root.runToggle(row.toggle); return }
     if (row.kind === "action" || row.kind === "drift") { root.runSystem(row, root.choiceOf(row)); return }
-    if (row.kind !== "option") return
+    if (row.kind !== "option" || row.option.type === "fixed") return
     var option = row.option
     if (option.type === "bool") {
       root.change(row, !root.valueOf(row))
     } else if (option.type === "enum" && Schema.segmented(option)) {
       root.change(row, Schema.adjusted(option, root.valueOf(row), 1))
-    } else if (option.type === "enum") {
+    } else if (option.type === "enum" || option.type === "multi") {
       root.expandedId = row.id
       root.choiceCursor = Math.max(0, (option.choices || []).indexOf(root.valueOf(row)))
     } else {
@@ -374,7 +378,8 @@ Item {
 
   function change(row, value) {
     var option = row.option
-    if (root.expandedId === row.id) root.expandedId = ""
+    // a multi-select stays open while its choices are switched
+    if (root.expandedId === row.id && option.type !== "multi") root.expandedId = ""
     if (Schema.equal(value, root.valueOf(row)) && !(row.id in root.errors)) return
     root.errors = Util.mapWithout(root.errors, row.id)
     if (option.apply !== "live" && Schema.equal(value, option.value)) {
@@ -451,6 +456,10 @@ Item {
     if (exitCode === root.exitSystemPending && entry.option.scope === "machine") {
       root.systemPending = true
       root.batch.system = true
+      if (entry.option.apply === "apply") {
+        root.systemFull = true
+        root.batch.full = true
+      }
     }
     if (exitCode === 0 || exitCode === root.exitSystemPending) {
       entry.option.value = value
@@ -465,7 +474,7 @@ Item {
 
   function finishBatch() {
     var done = root.batch
-    root.batch = { applied: [], failed: 0, notes: [], system: false }
+    root.batch = { applied: [], failed: 0, notes: [], system: false, full: false }
     root.load()
     if (done.system) root.applySystem()
     if (done.applied.length === 0 && done.failed === 0 && done.notes.length === 0) return
@@ -521,6 +530,7 @@ Item {
       if (optionsProc.outText === root.modulesText) return
       root.modulesText = optionsProc.outText
       root.modules = data.modules.map(Schema.moduleNormalize)
+      root.machine = data.platform ? Schema.moduleNormalize(data.platform) : null
       if (root.rowIndex < 0 || root.rowIndex >= root.rows.length) root.selectFirstRow()
       else root.selectRow(root.rowIndex)
       var at = root.sections[root.sectionIndex]
@@ -544,13 +554,17 @@ Item {
 
   CollectedProcess {
     id: systemApplyProc
-    command: [root.dot, "apply", "--system"]
+    command: [root.dot, "apply"].concat(root.systemFull ? [] : ["--system"])
     onExited: function (exitCode) {
       // 3: what could run did, the rest waits (a module on its packages, or the prompt was dismissed); the notes say which
       var pending = exitCode === root.exitSystemPending
-      if (exitCode === 0) root.systemPending = false
+      var what = root.systemFull ? "machine" : "system part"
+      if (exitCode === 0) {
+        root.systemPending = false
+        root.systemFull = false
+      }
       if (exitCode === 0 || pending)
-        root.say([pending ? "system part pending" : "system part applied"].concat(root.notesOf(systemApplyProc)).join("; "), false)
+        root.say([what + (pending ? " pending" : " applied")].concat(root.notesOf(systemApplyProc)).join("; "), false)
       else root.say("apply failed: " + root.lastLine(systemApplyProc), true)
       root.load()
     }
@@ -1108,7 +1122,7 @@ Item {
               anchors.right: systemApplyButton.left
               anchors.rightMargin: Style.spacing.md
               anchors.verticalCenter: parent.verticalCenter
-              text: "SYSTEM PENDING"
+              text: root.systemFull ? "APPLY PENDING" : "SYSTEM PENDING"
               color: Colors.warnText
               elide: Text.ElideRight
             }
@@ -1117,7 +1131,7 @@ Item {
               id: systemApplyButton
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
-              text: systemApplyProc.running ? "applying" : "apply system"
+              text: systemApplyProc.running ? "applying" : root.systemFull ? "apply" : "apply system"
               bordered: true
               selected: true
               onClicked: root.applySystem()

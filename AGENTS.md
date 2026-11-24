@@ -34,6 +34,7 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   formatters and linters; `dot test fmt` formats. `dot test run`: the VM test.
 - `dot apply [mod...] [--user|--system] [--packages] [--force]`, `dot plan [mod...] [--system] [--order|--modules]`,
   `dot status [--brief|--json]`, `dot set [mod[.key] [value]] [--default] [--machine] [--json]`,
+  `dot set platform[.key] [value] [--default]` (the platform file's keys, `platform.facts.<fact>` too),
   `dot module adopt|reset|unlink|remove|restore`, `dot explain <path|package>`, `dot log [--trace]`,
   `dot theme [theme|wallpaper|random]`, `dot secrets audit`; `dot secrets unlock|lock` are Luca's (YubiKey), never an
   agent's.
@@ -60,9 +61,9 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   (what runs: linked commands, helpers, shared code) and `test/` (fixtures); a dir of sibling modules (`base/boot`) the
   same. `lint-layout` in `scripts/lib/gate.nu` enforces it.
 - `platforms/<name>.nuon` (facts, groups) and `<name>.options.nuon`: `luca-pc`, `luca-notebook`, `server`, `vm`,
-  `wsl`; the machine's choice is `/etc/dotfiles/platform`, server or custom answers
-  `/etc/dotfiles/platform{,.options}.nuon`. `profiles/<name>.nuon`: user identity and capabilities (`luca`, or
-  `custom` for none).
+  `wsl`; `dot set` and the settings window edit both, keeping each file's comments; the machine's choice is
+  `/etc/dotfiles/platform`, server or custom answers `/etc/dotfiles/platform{,.options}.nuon`.
+  `profiles/<name>.nuon`: user identity and capabilities (`luca`, or `custom` for none).
 - `platforms/homelab.nu`: the lab's values (`HOMELAB`), rendered from the homelab's `src/generated/lab.json` by
   `dot internal gen` and committed, so root and a fresh install read them without a checkout; never edited by hand.
 - Install: `bootstrap.sh`, `dot internal bootstrap`, then `dot internal stage` runs `dot apply --packages` and

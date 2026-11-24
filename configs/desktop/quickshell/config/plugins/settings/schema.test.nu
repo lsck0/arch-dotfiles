@@ -21,6 +21,7 @@ const CASES = [
     [list "list<string>" ["10.100.0.*" "a b"] '["10.100.0.*", "a b"]']
     [json record {"1": "DP-2"} '{"1": "DP-2"}']
     [filesize filesize 2147483648 "2147483648b"]
+    [multi "list<string>" ["base" "programming/docker"] '["base", "programming/docker"]']
 ]
 const READER = '
 def main [] {}
@@ -94,6 +95,40 @@ TestCase {
     var ids = function \(list\) { return list.map\(function \(s\) { return s.id }\).join\(\",\"\) }
     compare\(ids\(Schema.sections\(modules, [], \"\", null\)\), \":toggles,#base,base/a\"\)
     compare\(ids\(Schema.sections\(modules, [], \"zzz\", { checks: [] }\)\), \":toggles,:system,#base,base/a\"\)
+    compare\(ids\(Schema.sections\(modules, [], \"\", null, machine\(\)\)\), \"platform,:toggles,#base,base/a\"\)
+    compare\(Schema.sections\(modules, [], \"homelab\", null, machine\(\)\)[0].count, 1\)
+  }
+
+  // dot set --json's platform section: the top keys without a header, then the facts under theirs
+  function machine\() {
+    return Schema.moduleNormalize\({ name: \"platform\", label: \"luca-pc\", options: [
+      { key: \"hostname\", type: \"string\", fixed: true, source: \"platform\", scope: \"machine\", group: \"\", value: \"pc\" },
+      { key: \"groups\", type: \"list<string>\", nonempty: true, choices: [\"base\", \"core\"], source: \"platform\", scope: \"machine\", group: \"\" },
+      { key: \"facts.homelab\", type: \"bool\", source: \"default\", scope: \"machine\", group: \"facts\", apply: \"apply\" }
+    ] }\)
+  }
+
+  function test_machine\() {
+    var m = machine\(\)
+    var rows = Schema.rows\([], [], \"platform\", \"\", null, m\)
+    compare\(rows.map\(function \(r\) { return r.id }\).join\(\",\"\), \"platform.hostname,platform.groups,#platform/facts,platform.facts.homelab\"\)
+    compare\(rows[0].option.type, \"fixed\"\)
+    verify\(!Schema.resettable\(rows[0].option\)\)
+    compare\(rows[1].option.type, \"multi\"\)
+    verify\(Schema.resettable\(rows[1].option\)\)
+    compare\(Schema.choicePicked\(rows[1].option, [\"core\"], \"base\"\).join\(\",\"\), \"base,core\"\)
+    var opt = Object.assign\({}, rows[1].option, { value: [\"core\", \"base\"] }\)
+    var off = Schema.choicePicked\(opt, opt.value, \"core\"\)
+    compare\(Schema.choicePicked\(opt, off, \"core\"\).join\(\",\"\), \"core,base\"\)
+    compare\(Schema.choicePicked\(rows[1].option, [\"core\", \"base\"], \"core\"\).join\(\",\"\), \"base\"\)
+    compare\(Schema.choicePicked\(rows[1].option, [\"base\"], \"base\"\).join\(\",\"\), \"base\"\)
+    compare\(Schema.choicePicked\({ type: \"multi\" }, [\"a\"], \"a\"\).length, 0\)
+    compare\(Schema.choicePicked\({ type: \"enum\" }, \"a\", \"b\"\), \"b\"\)
+    compare\(Schema.adjusted\(rows[1].option, [\"core\"], 1\), undefined\)
+    var hits = Schema.rows\([], [], \"\", \"homelab\", null, m\)
+    compare\(hits[0].text, \"MACHINE\"\)
+    compare\(hits[1].id, \"platform.facts.homelab\"\)
+    compare\(Schema.strongestApply\([{ apply: \"packages\" }, { apply: \"apply\" }]\), \"apply\"\)
   }
 
   // status.nu's records as rows: an unavailable one hidden, a broken one kept, showing [error]; a switch only an
@@ -126,6 +161,8 @@ TestCase {
     compare\(Schema.typeOf\({ type: \"filesize?\" }\), \"filesize\"\)
     compare\(Schema.typeOf\({ type: \"list<record>?\" }\), \"json\"\)
     compare\(Schema.typeOf\({ type: \"string?\", choices: [\"a\"] }\), \"enum\"\)
+    compare\(Schema.typeOf\({ type: \"list<string>\", choices: [\"a\"] }\), \"multi\"\)
+    compare\(Schema.typeOf\({ type: \"string\", fixed: true }\), \"fixed\"\)
   }
 }
 " | save ($dir | path join tst_schema.qml)

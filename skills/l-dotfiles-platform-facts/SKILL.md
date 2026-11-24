@@ -1,6 +1,6 @@
 ---
 name: l-dotfiles-platform-facts
-description: "Choosing between a module option, a machine fact (platforms/*.nuon, platform-has) and a user capability (profiles/*.nuon, profile-has), the platform file keys, and adding a fact or capability. Load when a module must behave differently per machine or per user. Writing the module itself: l-dotfiles-add-module."
+description: "Choosing between a module option, a machine fact (platforms/*.nuon, platform-has) and a user capability (profiles/*.nuon, profile-has), the platform file keys and editing them (dot set platform.<key>, the settings window), and adding a fact or capability. Load when a module must behave differently per machine or per user. Writing the module itself: l-dotfiles-add-module."
 ---
 
 # platform-facts
@@ -29,14 +29,22 @@ Rules:
 
 `platform-load` (`scripts/lib/platform.nu`) takes the first of `/etc/dotfiles/platform.nuon` (server or custom),
 `platforms/local.nuon`, `platforms/<name>.nuon` for the name in `/etc/dotfiles/platform` (missing file: error).
-Keys (`PLATFORM_KEYS`): `hostname`, `label`, `form_factor` (desktop, laptop, server, vm, wsl; probed when unset),
-`groups` (groups or `group/module`, never `secrets`; empty means all), `extra_packages` (also in
-`mirror/packages.txt`), `facts`, `packages_keep`, `flatpak_keep`, `nix_keep`. Unknown keys or facts fail the load.
+Keys (`PLATFORM_KEYS`, typed like module options): `hostname`, `label`, `form_factor` (desktop, laptop, server, vm,
+wsl; probed when unset), `groups` (groups or `group/module`, never `secrets`; unset means all, never empty),
+`extra_packages` (also in `mirror/packages.txt`), `facts`, `packages_keep`, `flatpak_keep`, `nix_keep`.
+`platform-errors` is the one check: the load, `dot test lint` and every write run it; unknown keys or facts, a wrong
+type or choice, a missing group, empty `groups` fail.
 `platforms/server.nuon` is the server template.
+
+Edit it with `dot set platform.<key> <value>` or `platform.facts.<fact>` (`--default` unsets, `dot set platform` lists)
+or the settings window's MACHINE section; only that key's lines change. `hostname` names the platform and stays
+fixed; root's `/etc/dotfiles/platform.nuon` is refused like its options file. `label` is stored only; `form_factor`,
+`groups` and facts wait for the next `dot apply` (pending, exit 3; the window runs it); the package lists for
+`dot apply --packages`.
 
 ## Add a fact
 
-1. Add it to `PLATFORM_FACTS` in `scripts/lib/platform.nu`.
+1. Add its spec to `PLATFORM_FACTS` in `scripts/lib/platform.nu`: `type`, `default`, `label`, `doc`, `choices`.
 2. Set it in `facts` of the platforms that need it; unset is off.
 3. Read it with `platform-has`. A module acting on a fact also undoes its work when the fact is unset.
 4. `dot test lint`.

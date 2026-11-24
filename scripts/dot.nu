@@ -7,7 +7,7 @@ use ($LIB | path join cli.nu) [guarded crash-retire theme-locked flag rows-out s
 use ($LIB | path join usage.nu) [die]
 use ($LIB | path join complete.nu) [command-table words-misuse module-ids option-keys option-values theme-names run-ids]
 use ($LIB | path join state.nu) [state-dir SYSTEM_STATE]
-use ($LIB | path join platform.nu) [platform-env]
+use ($LIB | path join platform.nu) [PLATFORM_TARGET platform-env]
 use ($LIB | path join modules.nu) [modules-packages modules-eval modules-known VERB_WORK_TIMEOUT]
 use ($LIB | path join pipeline.nu) [pipeline-load pipeline-plan pipeline-apply module-get]
 use ($LIB | path join preserve.nu) [tty-confirm]
@@ -20,7 +20,7 @@ use ($REPO | path join configs core wallust scripts wallpaper.nu) [theme-set wal
 use ($LIB | path join sync.nu) [sync-commit sync-can-sign sync-pull]
 use ($LIB | path join run.nu) [failures-publish finish config-banner-clear admin system-allowed system-skipped pending-exit user-locked unlink-run system-part update-run log-tee INTERNAL PIPELINE_CLI]
 use ($LIB | path join system.nu) [RUN_ID]
-use ($LIB | path join set.nu) [options-list option-target option-target-check option-write option-apply]
+use ($LIB | path join set.nu) [options-list option-target option-target-check option-write option-apply platform-target platform-list platform-write platform-apply]
 
 const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo prescribes and records it
 
@@ -31,6 +31,7 @@ const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo 
   plan [mod...]                   what an apply would do; --order the run order, --modules every module
   status [--brief|--json]         generation, pending work, failures, changed files, health checks, secrets
   set [mod[.key] [value]]         options: all, a module's, one; a value sets it, --default resets it
+  set platform[.key] [value]      the machine's platform file: hostname, label, groups, facts, packages
   theme [theme|wallpaper|random]  a theme by name, else a wallpaper under its own derived palette; fzf without one
   module adopt|reset <file>       a changed file: into the repo | back to the repo copy
   module unlink|remove|restore    a module: off | gone with its packages | its restore verb (app state)
@@ -221,7 +222,8 @@ def "main module restore" [mod: string@module-ids]: nothing -> nothing {
     }
 }
 
-# options: all of them (a module's enable only where it is off), a module's, one; a value sets it, --default resets it
+# options: all of them (a module's enable only where it is off), a module's, one; a value sets it, --default resets it;
+# platform lists the machine's platform keys, platform.<key> (platform.facts.<fact>) is one of them
 def "main set" [
     target?: string@option-keys
     ...value: any@option-values  # nuon or json, validated, stored, applied as the option says
@@ -238,6 +240,17 @@ def "main set" [
         if ($value | length) > 1 { error make {msg: "dot set <module>.<option> <value>: one value, quote a list"} }
         let given = $value | is-not-empty
         let value = $value | get --optional 0
+        let cell = if $target == null { null } else { platform-target $target }
+        if $target == $PLATFORM_TARGET or $cell != null {
+            if $target == $PLATFORM_TARGET and ($default or $given) { error make {msg: "dot set platform.<key> <value>, or --default"} }
+            if $json { return (platform-list true | to json --raw) }
+            if $target == $PLATFORM_TARGET { return (platform-list false | rows-out) }
+            if $default and $given { error make {msg: "dot set --default takes no value"} }
+            if not ($default or $given) { return (platform-list false | where key == ($cell | str join ".") | first) }
+            let parsed = if $default { null } else { value-parse $value }
+            platform-apply $target (platform-write $cell $parsed)
+            return
+        }
         let ids = if $target == null { [] } else { pipeline-load $REPO user | get modules.id }
         if $target == null or $target in $ids {
             if $default or $given { error make {msg: "dot set <module>.<option> <value>, or --default"} }
@@ -254,9 +267,13 @@ def "main set" [
         if not $given {
             return (options-list $t.mod false | where option == $t.key | first)
         }
-        let parsed = if ($value | describe) != "string" { $value } else { try { $value | from nuon } catch { try { $value | from json } catch { $value } } }
-        option-apply $target (option-write $t.mod $t.key $parsed $machine)
+        option-apply $target (option-write $t.mod $t.key (value-parse $value) $machine)
     }
+}
+
+# A dot set value as typed: nuon, else json, else the text itself.
+def value-parse [value: any]: nothing -> any {
+    if ($value | describe) != "string" { $value } else { try { $value | from nuon } catch { try { $value | from json } catch { $value } } }
 }
 
 # a theme by name, or a wallpaper by file name or path under the palette derived from it; a bare name is a theme first

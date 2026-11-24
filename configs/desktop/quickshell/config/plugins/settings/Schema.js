@@ -1,5 +1,8 @@
 .pragma library
 
+// the machine's platform file, which dot set --json lists beside the modules and dot set takes as platform.<key>
+const machineId = "platform"
+const machineLabel = "MACHINE"
 const togglesId = ":toggles"
 const togglesLabel = "QUICK TOGGLES"
 const systemId = ":system"
@@ -14,13 +17,15 @@ const systemActions = [
 const driftChoices = ["adopt", "reset"]
 const segmentedMax = 4
 const choicePageSize = 30
-const applyOrder = ["live", "relink", "relogin", "reboot"]
+// a platform key's packages waits for dot apply --packages, its apply for a whole dot apply
+const applyOrder = ["live", "packages", "relink", "apply", "relogin", "reboot"]
 const filesizeUnits = { "": 1, b: 1, kb: 1e3, mb: 1e6, gb: 1e9, tb: 1e12, kib: 1024, mib: 1048576, gib: 1073741824, tib: 1099511627776 }
 const filesizeShown = [["TiB", 1099511627776], ["GiB", 1073741824], ["MiB", 1048576], ["KiB", 1024]]
 
 function typeOf(option) {
   var type = String(option.type || "").replace(/\?$/, "")
-  if ((option.choices || []).length > 0) return "enum"
+  if (option.fixed) return "fixed"
+  if ((option.choices || []).length > 0) return /^list</.test(type) ? "multi" : "enum"
   if (["bool", "int", "float", "path", "string", "filesize"].indexOf(type) >= 0) return type
   if (/^list<(string|path|int|float)>$/.test(type)) return "list"
   return "json"
@@ -32,7 +37,9 @@ function moduleNormalize(module) {
   })
 }
 
-function resettable(option) { return option.source === (option.scope === "machine" ? "platform" : "profile") }
+function resettable(option) {
+  return option.type !== "fixed" && option.source === (option.scope === "machine" ? "platform" : "profile")
+}
 
 function notes(text) {
   return String(text || "").split("\n").filter(function (l) { return /(^|: )note: /.test(l) })
@@ -71,9 +78,14 @@ function sectionLabel(module) {
 
 // a section with nothing to list is left out: System until dot status answers, a module without options; a search
 // keeps every section and only zeroes the counts, so the list keeps its indices while the query changes
-function sections(modules, toggles, query, status) {
+function sections(modules, toggles, query, status, machine) {
   var needle = query.trim().toLowerCase()
-  var out = [{
+  var out = (machine ? [{
+    kind: "section",
+    id: machineId,
+    label: machineLabel,
+    count: (machine.options || []).filter(function (o) { return !needle || optionMatches(needle, machine, o) }).length
+  }] : []).concat([{
     kind: "section",
     id: togglesId,
     label: togglesLabel,
@@ -83,7 +95,7 @@ function sections(modules, toggles, query, status) {
     id: systemId,
     label: systemLabel,
     count: systemEntries(status, needle).filter(function (r) { return r.kind !== "header" }).length
-  }].filter(function (s) { return s.id !== systemId || status })
+  }].filter(function (s) { return s.id !== systemId || status }))
   var group = null
   var sorted = modules.slice().sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0 })
   for (let m = 0; m < sorted.length; m++) {
@@ -189,41 +201,46 @@ function terminalCommand(argv, label) {
   return ["app2unit", "-T", "--", "bash", "-c", quoted + "; echo; read -rsn1 -p '" + label + " finished, any key closes'"]
 }
 
-function rows(modules, toggles, sectionId, query, status) {
+// a module's options under its group headers, the groups in the order their first option comes
+function moduleRows(module) {
+  var out = []
+  var groups = []
+  var byGroup = ({})
+  for (let o = 0; o < (module.options || []).length; o++) {
+    let option = module.options[o]
+    let group = option.group || ""
+    if (!(group in byGroup)) { byGroup[group] = []; groups.push(group) }
+    byGroup[group].push(option)
+  }
+  for (let g = 0; g < groups.length; g++) {
+    if (groups[g]) out.push({ kind: "header", id: "#" + module.name + "/" + groups[g], text: groups[g] })
+    for (let o = 0; o < byGroup[groups[g]].length; o++) out.push(optionRow(module, byGroup[groups[g]][o]))
+  }
+  return out
+}
+
+function rows(modules, toggles, sectionId, query, status, machine) {
   var needle = query.trim().toLowerCase()
   var out = []
   if (needle) {
+    let labelled = (machine ? [Object.assign({}, machine, { label: machineLabel })] : []).concat(modules)
     let hits = toggleEntries(toggles, needle)
     if (hits.length > 0) out.push({ kind: "header", id: "#" + togglesId, text: togglesLabel })
     out = out.concat(hits)
     out = out.concat(systemEntries(status, needle))
-    for (let m = 0; m < modules.length; m++) {
-      let module = modules[m]
+    for (let m = 0; m < labelled.length; m++) {
+      let module = labelled[m]
       let matched = (module.options || []).filter(function (o) { return optionMatches(needle, module, o) })
       if (matched.length > 0) out.push({ kind: "header", id: "#" + module.name, text: moduleLabel(module) })
       for (let o = 0; o < matched.length; o++) out.push(optionRow(module, matched[o]))
     }
     return out
   }
+  if (sectionId === machineId) return machine ? moduleRows(machine) : []
   if (sectionId === togglesId) return toggleEntries(toggles, "")
   if (sectionId === systemId) return systemEntries(status, "")
-  for (let m = 0; m < modules.length; m++) {
-    let module = modules[m]
-    if (module.name !== sectionId) continue
-    let groups = []
-    let byGroup = ({})
-    for (let o = 0; o < (module.options || []).length; o++) {
-      let option = module.options[o]
-      let group = option.group || ""
-      if (!(group in byGroup)) { byGroup[group] = []; groups.push(group) }
-      byGroup[group].push(option)
-    }
-    for (let g = 0; g < groups.length; g++) {
-      if (groups[g]) out.push({ kind: "header", id: "#" + module.name + "/" + groups[g], text: groups[g] })
-      for (let o = 0; o < byGroup[groups[g]].length; o++) out.push(optionRow(module, byGroup[groups[g]][o]))
-    }
-  }
-  return out
+  var module = modules.find(function (m) { return m.name === sectionId })
+  return module ? moduleRows(module) : []
 }
 
 function selectable(list, index, direction) {
@@ -306,6 +323,21 @@ function toggleArgument(option, value) {
   if (option.type === "list" || option.type === "json") return JSON.stringify(value === undefined ? null : value)
   if (option.type === "bool") return value ? "true" : "false"
   return String(value)
+}
+
+// a multi-select's value with choice switched, in the value's own order with a new one last; an enum's is the choice
+function choicePicked(option, value, choice) {
+  if (option.type !== "multi") return choice
+  var list = (value || []).slice()
+  var at = list.indexOf(choice)
+  if (at >= 0 && option.nonempty && list.length === 1) return list
+  if (at >= 0) list.splice(at, 1)
+  else list.push(choice)
+  // the saved order first, then the choices': switching one off and on again gives the saved value back, not pending
+  var saved = option.value || []
+  var choices = option.choices || []
+  function rank(c) { var i = saved.indexOf(c); return i >= 0 ? i : saved.length + choices.indexOf(c) }
+  return list.sort(function (a, b) { return rank(a) - rank(b) })
 }
 
 function choiceLabel(choice) { return choice === "" ? "(none)" : String(choice) }

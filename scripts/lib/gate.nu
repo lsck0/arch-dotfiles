@@ -1,7 +1,7 @@
 # Static gates behind dot test lint, check and fmt.
 
 use ../../configs/core/wallust/scripts/palette.nu
-use platform.nu [PLATFORM_FACTS platform-files]
+use platform.nu [platform-errors platform-files]
 use modules.nu [VERBS HOOKS names-read modules-graph ROOT_MODULES SECRETS_DATA SECRETS_GROUP]
 use pipeline.nu [pipeline-load]
 use cli.nu [jobs]
@@ -93,10 +93,6 @@ def lint-modules []: nothing -> list<string> {
     let groups = ls $configs | where type == dir | get name | path basename
     let deps = $groups | where {|g| $configs | path join $g dependencies.txt | path exists } | each {|g| [$g (names-read ($configs | path join $g dependencies.txt))] } | into record
     let bad_deps = $deps | items {|g, ds| $ds | where $it not-in $groups | each { $"configs/($g)/dependencies.txt: '($in)' is not a group" } } | flatten
-    let platforms = platform-files $REPO | each {|f|
-        open $f | get --optional groups | default [] | where {|g| $g not-in $groups and not ($configs | path join $g mod.nu | path exists) }
-        | each { $"(rel $f): groups has '($in)', not a group or module" }
-    } | flatten
     let siblings = glob $"($configs)/*/*/**/dependencies.txt" | each {|df|
         let grp = $df | path relative-to $configs | path split | first
         names-read $df | where {|d| not ($configs | path join $grp $d mod.nu | path exists) } | each { $"(rel $df): '($in)' is no module of configs/($grp)" }
@@ -117,7 +113,7 @@ def lint-modules []: nothing -> list<string> {
         $used ++ $metas | uniq | where {|h| $h != $grp and $h not-in $reach_skip and $h in $groups and $h not-in ($deps | get --optional $grp | default []) }
         | each {|h| $"(rel $f): reaches configs/($h), which configs/($grp)/dependencies.txt does not name" }
     } | flatten
-    $bad_deps ++ $platforms ++ $siblings ++ $undeclared
+    $bad_deps ++ $siblings ++ $undeclared
 }
 
 # Every module's mod.nu, the root modules' included.
@@ -241,11 +237,9 @@ export def lint-stray [repo: path = $REPO]: nothing -> list<string> {
     } | compact
 }
 
-def lint-platform-facts []: nothing -> list<string> {
-    platform-files $REPO | each {|f|
-        open $f | get --optional facts | default {} | columns | where $it not-in $PLATFORM_FACTS
-        | each { $"(rel $f): fact '($in)' is not in PLATFORM_FACTS; add it there so modules see it, or it is set for nothing" }
-    } | flatten
+# Every platform file as platform-load validates it: keys, groups, typed facts (a new fact goes in PLATFORM_FACTS).
+def lint-platforms []: nothing -> list<string> {
+    platform-files $REPO | each {|f| platform-errors $REPO (open $f) (rel $f) } | flatten
 }
 
 export const NU_PITFALLS = [
@@ -476,7 +470,7 @@ def unit-tests []: nothing -> record<findings: list<string>, notes: list<string>
 # unit tests run after them, and the warnings of those that pass are the notes.
 export def gate-lint []: nothing -> record<findings: list<string>, notes: list<string>> {
     let lints = [
-        {|| lint-modules } {|| lint-layout } {|| lint-layers } {|| lint-exports } {|| lint-sync } {|| lint-stray } {|| lint-platform-facts }
+        {|| lint-modules } {|| lint-layout } {|| lint-layers } {|| lint-exports } {|| lint-sync } {|| lint-stray } {|| lint-platforms }
         {|| lint-patterns (walk | where { nu-script $in }) $NU_PITFALLS } {|| lint-exec-bits } {|| lint-ascii } {|| lint-loaded }
         {|| lint-generated } {|| lint-fail-closed } {|| lint-rc-escalation } {|| lint-engine-imports }
         {|| lint-patterns (linked-scripts | where ($it | str ends-with ".nu")) $LINKED_RELATIVE }
