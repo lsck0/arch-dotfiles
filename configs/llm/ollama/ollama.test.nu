@@ -4,7 +4,7 @@
 # another digest is removed. ollama is a stub logging its argv; the registry and the local digest are injected.
 
 use std/assert
-use ollama-ensure-models.nu [SMALL LARGE EMBEDDING CODING LONG_CONTEXT SHORT_CONTEXT models-stale manifest-pinned pull-pinned]
+use scripts/ollama-ensure-models.nu [SMALL LARGE EMBEDDING CODING LONG_CONTEXT SHORT_CONTEXT models-stale manifest-pinned pull-pinned]
 
 const MANIFEST = '{"schemaVersion":2,"layers":[]}'
 

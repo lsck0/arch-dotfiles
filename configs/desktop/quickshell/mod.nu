@@ -28,19 +28,19 @@ def clipboard-config [cfg: record]: nothing -> record {
 
 export def link [cfg: record] {
     let dir = $nu.home-dir | path join $CONFIG_DIR
-    let files = ls --long ...(glob --no-dir **/*) | update name { path relative-to $env.PWD }
+    let files = ls --long ...(glob --no-dir config/**/*) | update name { path relative-to ($env.PWD | path join config) }
         | where {|f| ($f.name | path basename) not-in $SKIP and $f.name !~ $SKIP_PATTERN }
     [
         # in place: quickshell's file watcher follows the inode, so a replaced copy can go unseen and never reload
-        ($files | each {|f| file-copy $f.name ($dir | path join $f.name) --in-place --mode (if ($f.mode | str substring 2..2) == "x" { "755" } else { "644" }) })
-        (link-commands ...(glob 'scripts/*.{nu,sh}' | where $it !~ $SKIP_PATTERN))
+        ($files | each {|f| file-copy ("config" | path join $f.name) ($dir | path join $f.name) --in-place --mode (if ($f.mode | str substring 2..2) == "x" { "755" } else { "644" }) })
+        (link-commands ...(glob 'config/scripts/*.{nu,sh}' | where $it !~ $SKIP_PATTERN))
         # not enabled: hyprland_autostart.lua starts it
-        (unit-file quickshell.service)
-        (unit-file quickshell-reminders-rearm.service --enable)
+        (unit-file config/quickshell.service)
+        (unit-file config/quickshell-reminders-rearm.service --enable)
         (pomodoro-config $cfg)
         (clipboard-config $cfg)
         # the settings window outside hyprland (settings-only.qml), listed in Plasma's launcher only
-        (file-render dotfiles-settings.desktop (xdg data applications dotfiles-settings.desktop) {HOME: $nu.home-dir})
+        (file-render config/dotfiles-settings.desktop (xdg data applications dotfiles-settings.desktop) {HOME: $nu.home-dir})
     ]
 }
 

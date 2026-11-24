@@ -3,7 +3,7 @@
 # A derived palette comes out of condition-derived with color0 the background, color8 a grey, every floor of
 # contrast-floors kept, and color4 on a hue the picture has.
 
-use palette.nu [condition-derived contrast-floors hex-to-rgb hue-apart is-light palette-load palette-rgb passes rgb-to-hsv]
+use scripts/palette.nu [condition-derived contrast-floors hex-to-rgb hue-apart is-light palette-load palette-rgb passes rgb-to-hsv]
 
 const THEME = path self ../../../themes/atuel-light.json
 # what wallust derived from a night picture, blue but for a few lamps: a navy color0, a brown color8, a brown color4

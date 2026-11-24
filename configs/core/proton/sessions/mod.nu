@@ -1,5 +1,5 @@
 use module.nu *
-use sessions.nu [sessions-archives sessions-backup sessions-restore sessions-settle MARKER]
+use scripts/sessions.nu [sessions-archives sessions-backup sessions-restore sessions-settle MARKER]
 
 export const meta = {packages: {pacman: [python-secretstorage sqlite]}, backup: {secrets: true}, volatile: true}
 
@@ -12,9 +12,9 @@ export def link [cfg: record] {
         # pass picks its cookie store from the desktop (basic under hyprland, kwallet under plasma): pinned to the one
         # a reinstall can carry without a keyring
         (desktop-exec $PASS_DESKTOP proton-pass --args [--password-store=basic])
-        (link-commands proton-sessions-restore.nu)
+        (link-commands scripts/proton-sessions-restore.nu)
         # reenable: a changed WantedBy leaves the old target's wants link behind
-        (unit-file proton-sessions-restore.service --enable --then [systemctl --user reenable proton-sessions-restore.service])
+        (unit-file config/proton-sessions-restore.service --enable --then [systemctl --user reenable proton-sessions-restore.service])
         (step sessions-restore-now --creates (xdg state $MARKER))
     ]
 }

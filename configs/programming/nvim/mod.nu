@@ -1,7 +1,7 @@
 use module.nu *
-use ../../core/wallust/editor.nu [editor-roles]
-use ../../core/wallust/font.nu [font-load]
-use ../../core/wallust/palette.nu [palette-rgb rgb-to-hex]
+use ../../core/wallust/scripts/editor.nu [editor-roles]
+use ../../core/wallust/scripts/font.nu [font-load]
+use ../../core/wallust/scripts/palette.nu [palette-rgb rgb-to-hex]
 
 const QUIET_GIT = [GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=advice.detachedHead GIT_CONFIG_VALUE_0=false]
 # a cond that reads the terminal (image.nvim) holds in these runs, so their plugins are cloned and built here
@@ -69,7 +69,7 @@ def plugins-enabled []: nothing -> list<string> {
 
 def plugins-stale []: nothing -> list<string> {
     let enabled = plugins-enabled
-    open lazy-lock.json | items {|name, pin|
+    open config/lazy-lock.json | items {|name, pin|
         if $name not-in $enabled { return null }
         let git = xdg data nvim lazy $name .git
         if not ($git | path exists) or (head-commit $git) != $pin.commit { $name }
@@ -118,9 +118,9 @@ export def link [cfg: record] {
     let restore = if (plugins-stale | is-not-empty) { ["+Lazy! restore"] } else { install-commands (tools-missing) }
     let config = xdg config nvim
     # before the first link the probes read no config, so only the step itself can tell what is missing
-    let linked = ($config | path expand) == ($env.PWD | path expand)
+    let linked = ($config | path expand) == ($env.PWD | path join config | path expand)
     [
-        (file-link . $config)
+        (file-link config $config)
         (fetch-file $"https://huggingface.co/ggerganov/whisper.cpp/resolve/($WHISPER_MODEL.commit)/($WHISPER_MODEL.file)"
             $WHISPER_MODEL.sha256 (xdg data whisper-cpp $WHISPER_MODEL.file))
         (step prefetch --done=(($restore | is-empty) and $linked) --network --timeout $PREFETCH_TIMEOUT ...$restore)

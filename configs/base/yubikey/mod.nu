@@ -14,8 +14,8 @@ export def secrets-issue-clear []: nothing -> nothing { rm --force $SECRETS_ISSU
 
 export def system [cfg: record] {
     [
-        (polkit-rules pcsc.rules --name 50-pcsc-wheel.rules)
-        (udev-rules 70-yubikey-hidraw.rules --action=change --subsystem-match=hidraw)
+        (polkit-rules config/pcsc.rules --name 50-pcsc-wheel.rules)
+        (udev-rules config/70-yubikey-hidraw.rules --action=change --subsystem-match=hidraw)
         (unit-enable pcscd.socket --now)
         (if (secrets-arrived) and ($SECRETS_ISSUE | path exists) { step secrets-issue-clear })
     ]
@@ -27,7 +27,7 @@ export def link [cfg: record] {
     let secrets = secret-path keys yubikey
     # a stub and its public key by serial (glob's order is the directory's); the lowest enrolled serial is the default
     let key = glob ($secrets | path join "ssh-*") | where {|f| not ($f | str ends-with ".pub") } | sort
-        | each {|stub| {stub: $stub, pub: ($"($stub | path basename).pub" | path expand)} }
+        | each {|stub| {stub: $stub, pub: ($"config/($stub | path basename).pub" | path expand)} }
         | where { $in.pub | path exists } | get --optional 0
     [
         (if (profile-has secrets) and $key != null and (secret-is-plaintext $key.stub) {
@@ -36,6 +36,6 @@ export def link [cfg: record] {
                 (file-copy $key.pub ($ssh | path join id_ed25519_sk.pub))
             ]
         })
-        (link-commands totp.nu)
+        (link-commands scripts/totp.nu)
     ]
 }

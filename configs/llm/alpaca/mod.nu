@@ -1,6 +1,6 @@
 use module.nu *
 use ../ollama/mod.nu [KEEP_ALIVE_MIN]
-use ../ollama/ollama-ensure-models.nu [LONG_CONTEXT LONG_CONTEXT_TOKENS]
+use ../ollama/scripts/ollama-ensure-models.nu [LONG_CONTEXT LONG_CONTEXT_TOKENS]
 
 export const meta = {
     deps: [llm/vllm llm/ollama]

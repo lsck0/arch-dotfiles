@@ -1,6 +1,6 @@
 use module.nu *
-use ../../core/wallust/palette.nu *
-use ../../core/wallust/font.nu [font-load]
+use ../../core/wallust/scripts/palette.nu *
+use ../../core/wallust/scripts/font.nu [font-load]
 
 export const meta = {deps: [core/wallust], packages: {pacman: [qutebrowser python-adblock]}}
 
@@ -34,7 +34,7 @@ const LISTS_AGE_MAX = 7day
 const FETCH_QUIT_MS = "60000"
 const FETCH_TIMEOUT = "90"
 # the bar's palette knobs, so the startpage's hues match it
-const BAR_THEME = path self ../quickshell/theme.json
+const BAR_THEME = path self ../quickshell/config/theme.json
 # the startpage before the first theme; accent2 also when every pool colour sits on the urgent hue
 const FALLBACK = {
     bg: "#0d1117" surface: "#161b22" fg: "#c9d1d9" muted: "#8b949e" accent: "#58a6ff" accent2: "#d2a8ff"
@@ -59,7 +59,7 @@ def lists-ready []: nothing -> bool {
 export def link [cfg: record] {
     let dir = $nu.home-dir | path join $CONFIG_DIR
     [
-        (file-copy config.py ($dir | path join config.py))
+        (file-copy config/config.py ($dir | path join config.py))
         (file-text ($dir | path join search-url) $"($cfg.search_url | default $SEARCH_DEFAULT)\n")
         (step lists-fetch --network --done=(lists-ready))
     ]
@@ -159,7 +159,7 @@ export def theme [cfg: record, wallpaper: string] {
     let chrome = chrome-colors
     let dest = $nu.home-dir | path join $CONFIG_DIR startpage.html
     let font = font-load
-    let startpage = file-render startpage.html $dest ({
+    let startpage = file-render config/startpage.html $dest ({
         CACHE: (xdg cache)
         DATA: (xdg data)
         RADIUS: $RADIUS_PX

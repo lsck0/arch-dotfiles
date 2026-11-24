@@ -2,7 +2,7 @@ use module.nu *
 
 export const meta = {packages: {pacman: [godot npm rsync]}}
 
-# bump with mcp/package.json's godot-mcp-server (then `npm install --package-lock-only` there): the bridge and the
+# bump with config/mcp/package.json's godot-mcp-server (then `npm install --package-lock-only` there): the bridge and the
 # addon speak one release's protocol
 const URL = "https://github.com/tomyud1/godot-mcp.git"
 const COMMIT = "2c1f30088437d9d842eb6b32069f93b979e718ec" # committed 2026-10-17
@@ -15,8 +15,8 @@ export def link [cfg: record] {
     [
         (fetch-git $URL $COMMIT (xdg data godot-mcp))
         # the bridge and every dependency at the lock's hashes; none needs an install script
-        (mcp-npm godot-mcp mcp (xdg data godot-mcp-server) --ignore-scripts)
-        (link-commands godot-mcp-addon.nu)
-        (mcp-command godot-mcp godot-mcp.nu --gate {probe: $EDITOR_LSP, app: "the Godot editor (a project open)"})
+        (mcp-npm godot-mcp config/mcp (xdg data godot-mcp-server) --ignore-scripts)
+        (link-commands scripts/godot-mcp-addon.nu)
+        (mcp-command godot-mcp scripts/godot-mcp.nu --gate {probe: $EDITOR_LSP, app: "the Godot editor (a project open)"})
     ]
 }

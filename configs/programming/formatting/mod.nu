@@ -12,8 +12,8 @@ export def link [cfg: record] {
     [
         (exec rustfmt-nightly [rustup toolchain install nightly --profile minimal --component rustfmt]
             --creates ($rustup | path join toolchains nightly-x86_64-unknown-linux-gnu bin rustfmt) --network)
-        (file-copy chktexrc (xdg config chktexrc))
-        (file-copy latexindent.yaml $latexindent)
+        (file-copy config/chktexrc (xdg config chktexrc))
+        (file-copy config/latexindent.yaml $latexindent)
         (file-text (xdg config latexindent indentconfig.yaml) $"paths:\n  - ($latexindent)\n")
     ]
 }

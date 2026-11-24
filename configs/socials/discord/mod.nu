@@ -1,7 +1,7 @@
 use module.nu *
 use ../spotify/mod.nu [spicetify-colors]
-use ../../core/wallust/palette.nu [RADIUS_PX hex-rgb255]
-use ../../core/wallust/font.nu [font-load]
+use ../../core/wallust/scripts/palette.nu [RADIUS_PX hex-rgb255]
+use ../../core/wallust/scripts/font.nu [font-load]
 
 # its theme reads spotify's spicetify colours, so it runs after spotify's
 export const meta = {deps: [socials/spotify], packages: {pacman: [discord discordo-git]}}
@@ -10,8 +10,8 @@ const BOOTSTRAP = "/usr/share/discord/updater_bootstrap"
 const BOOTSTRAP_TIMEOUT = "900"
 const UPDATES_URL = "https://updates.discord.com/"
 const BOOTSTRAP_RUN = 'app=$(timeout "$1" "$2" --no-gui "$3" stable "$4") && ln -sfn "$3/$app/Discord" "$3/Discord"'
-const THEME = "wal.theme.css"
-const VOICE_PLUGIN = "plugins/QuickshellVoiceStatus.plugin.js"
+const THEME = "config/wal.theme.css"
+const VOICE_PLUGIN = "config/plugins/QuickshellVoiceStatus.plugin.js"
 # name: the plugin's @name, which betterdiscord keys plugins.json by; known before the fetch lands
 const PLUGINS = [
     [name url sha256];
@@ -69,7 +69,7 @@ export def link [cfg: record] {
     let bootstrapping = process-running updater_bootstr
     [
         (json-merge ($config | path join settings.json) $SETTINGS)
-        (file-copy discordo.toml (xdg config discordo config.toml))
+        (file-copy config/discordo.toml (xdg config discordo config.toml))
         # never beside a running bootstrap: they share one download dir
         (if not $bootstrapping and ($BOOTSTRAP | path exists) {
             let download = [sh -c $BOOTSTRAP_RUN discord-app $BOOTSTRAP_TIMEOUT $BOOTSTRAP $config $UPDATES_URL]
@@ -89,11 +89,11 @@ export def link [cfg: record] {
         (json-merge ($data | path join themes.json) [(json-set [(addon-name $THEME)] true)])
         (json-merge ($data | path join settings.json) [(json-set [addons checkForUpdates] false)])
         # discord self-updates and relaunches past any wrapper, so the hook stays armed
-        (user-hook betterdiscord-inject hook/betterdiscord-inject.nu --watch [
+        (user-hook betterdiscord-inject scripts/hook/betterdiscord-inject.nu --watch [
             "%h/.config/discord/Discord" "%h/.local/state/betterdiscord-modules"
         ])
         # discord's own cleanup deletes the openh264 build its host loads, so stream video fails to decode
-        (user-hook discord-openh264 hook/openh264-restore.nu --watch [
+        (user-hook discord-openh264 scripts/hook/openh264-restore.nu --watch [
             "%h/.config/discord/discord_asset_cache/openh264" "%h/.config/discord/Discord"
         ])
     ]
@@ -110,5 +110,5 @@ export def theme [cfg: record, wallpaper: string] {
     let text = $values | reduce --fold (open --raw $THEME) {|v, css|
         $css | str replace --regex --multiline ('^(\s*--' + $v.var + ':) .*$') $"${1} ($v.value);"
     }
-    file-text (betterdiscord-dir | path join themes $THEME) $text --generated --in-place
+    file-text (betterdiscord-dir | path join themes ($THEME | path basename)) $text --generated --in-place
 }

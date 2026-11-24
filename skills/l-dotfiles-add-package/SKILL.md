@@ -51,7 +51,7 @@ Every source is pinned and checked:
   a commit, never a branch or tag.
 - PyPI: `mcp-uvx <name> <pkg>==<version> <date> [argv] <module>` builds a venv at apply time with `--exclude-newer`
   the date (the pin's upload date or later), since a bare pin leaves dependencies floating. No `uvx` at run time.
-- node: a committed `package-lock.json` installed by `mcp-npm` (`npm ci`; `configs/creating/obs/mcp`);
+- node: a committed `package-lock.json` installed by `mcp-npm` (`npm ci`; `configs/creating/obs/config/mcp`);
   `npx -y <pkg>@<version>` floats.
 - The repo itself: `bootstrap.sh`, the iso stub and `system-apply.nu` refuse a HEAD not signed by
   `SIGNING_KEY_FINGERPRINT`; `dot sync` merges nothing unless origin's head carries that signature.
@@ -63,13 +63,14 @@ exception matching nothing.
 Still floating; fix when touching the module. The lint-tracked ones are `EXCEPTIONS` in `pins.test.nu`; these it
 cannot see:
 
-- mason (`configs/programming/nvim/lua/lib/mason_packages.lua`), rustup-managed tools, Claude Code plugins other than
-  caveman.
+- mason (`configs/programming/nvim/config/lua/lib/mason_packages.lua`), rustup-managed tools, Claude Code plugins
+  other than caveman.
 - `configs/llm/vllm`: `vllm==<release>+<rocm tag>` from `wheels.vllm.ai`, an index without upload times, so no
   `--exclude-newer` and no hash.
 - `configs/programming/kani`: `cargo kani setup` downloads its bundle unchecked.
 - Toolchains that track their channel by choice: elan's Lean `nightly` (`configs/programming/elan`), the sdkmanager
-  package ids (`configs/programming/android`), act's `catthehacker/ubuntu:act-*` images (`configs/programming/act/actrc`).
+  package ids (`configs/programming/android`), act's `catthehacker/ubuntu:act-*` images
+  (`configs/programming/act/config/actrc`).
 - Game content tracking upstream by design: d2launcher's `mxl-install`, dalamud's `plugin-restore.nu` (host, names,
   versions and the manifest's sha1s are checked).
 - AUR `-git` packages in `mirror/packages.txt` build from upstream HEAD. Privileged or always sourced: `it87-dkms-git`,

@@ -2,7 +2,7 @@
 # Hear the stream mix: stream-track inputs monitor, app-loopback mutes the per-app paths.
 
 use lib.nu [switch-run state-get state-set state-clear]
-use ../../configs/desktop/quickshell/plugins/bar/widgets/obs-status.nu [config-read socket-open socket-identify request]
+use ../../configs/desktop/quickshell/config/plugins/bar/widgets/obs-status.nu [config-read socket-open socket-identify request]
 
 const STATE = "obs-listen"
 const LISTEN_KEY = "dot.obs-listen"

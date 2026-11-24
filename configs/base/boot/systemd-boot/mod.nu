@@ -1,6 +1,6 @@
 use module.nu *
-use ../boot.nu [ESP CMDLINE BOOT_WATCH PRESETS backup-once cmdline-words esp-supported hooks-sweep uki-path]
-export use ../boot.nu [boot-commit]
+use ../scripts/boot.nu [ESP CMDLINE BOOT_WATCH PRESETS backup-once cmdline-words esp-supported hooks-sweep uki-path]
+export use ../scripts/boot.nu [boot-commit]
 
 # its barrier rebuilds and signs the boot chain once after a system run that changed any of BOOT_WATCH
 export const meta = {
@@ -45,7 +45,7 @@ export def install []: nothing -> nothing {
     if (^bootctl $"--esp-path=($ESP)" is-installed | complete).exit_code != 0 { ^bootctl $"--esp-path=($ESP)" install }
     # cp, not install -m: a chmod on the fmask=0077 fat esp fails
     mkdir $"($ESP)/loader"
-    if (open --raw loader.conf) != (try { open --raw $"($ESP)/loader/loader.conf" } catch { "" }) {
-        ^cp loader.conf $"($ESP)/loader/loader.conf"
+    if (open --raw config/loader.conf) != (try { open --raw $"($ESP)/loader/loader.conf" } catch { "" }) {
+        ^cp config/loader.conf $"($ESP)/loader/loader.conf"
     }
 }

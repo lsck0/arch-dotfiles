@@ -22,22 +22,22 @@ export def link [cfg: record] {
     [
         (profile-style (xdg config chromium))
         (file-text (xdg config chromium-flags.conf) "--no-first-run\n--ozone-platform-hint=auto\n")
-        (files-into (xdg data applications) chromium-streaming.desktop)
+        (files-into (xdg data applications) config/chromium-streaming.desktop)
         (desktop-override chromium.desktop { desktop-set {Name: "Chromium Private"} })
     ]
 }
 
 export def system [cfg: record] {
     let policy = if (platform-has homelab) {
-        file-copy policy.json $POLICY
+        file-copy config/policy.json $POLICY
     } else {
-        let text = open policy.json
+        let text = open config/policy.json
             | upsert DefaultSearchProviderName $SEARCH_OFF_HOMELAB.name | upsert DefaultSearchProviderSearchURL $SEARCH_OFF_HOMELAB.url
             | to json --indent 2
         file-text $POLICY $"($text)\n"
     }
     [
         $policy
-        (if ($CHROMIUM_LIB | path exists) { file-copy initial_preferences ($CHROMIUM_LIB | path join initial_preferences) })
+        (if ($CHROMIUM_LIB | path exists) { file-copy config/initial_preferences ($CHROMIUM_LIB | path join initial_preferences) })
     ]
 }

@@ -38,8 +38,8 @@ const EXCEPTIONS = [
     [configs/programming/kubernetes/mod.nu npx "kubernetes-mcp-server, no lockfile yet"]
     [configs/programming/caveman/mod.nu npx "the skills cli, no lockfile yet"]
     [configs/programming/vscode/mod.nu extension "the vim extension, latest"]
-    [configs/desktop/firefox/policies.json latest "store extensions, latest"]
-    [configs/desktop/chromium/policy.json extension "store extensions, latest"]
+    [configs/desktop/firefox/config/policies.json latest "store extensions, latest"]
+    [configs/desktop/chromium/config/policy.json extension "store extensions, latest"]
     [configs/base/essentials/mod.nu rustup "rustup toolchains track their channel"]
     [configs/programming/formatting/mod.nu rustup "rustfmt's nightly"]
     [scripts/lib/run.nu rustup "the default stable toolchain"]
@@ -49,9 +49,9 @@ const EXCEPTIONS = [
     [mirror/pkgbuilds/kulala-fmt/PKGBUILD npm "the registry tarball's dependencies"]
     # pinned another way
     [mirror/pkgbuilds/hexchat/PKGBUILD git-source "a tag under a makepkg checksum: a moved tag fails the build"]
-    [configs/desktop/hyprland/plugins.nu clone "cloned, then checked out at the pinned commit"]
+    [configs/desktop/hyprland/scripts/plugins.nu clone "cloned, then checked out at the pinned commit"]
     [configs/core/ntfy/mod.nu clone "the homelab repo, the owner's own"]
-    [configs/core/git/aliases.nu clone "the git wrapper: it clones what its caller names"]
+    [configs/core/git/config/aliases.nu clone "the git wrapper: it clones what its caller names"]
 ]
 
 const HEX_PIN = '\b(?:[0-9a-f]{40}|[0-9a-f]{64})\b'

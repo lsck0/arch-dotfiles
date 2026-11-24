@@ -8,7 +8,7 @@
   apheleia (from copies in `~/.config/doom/formatting`) as the fallback when a project has none, never linked. The
   exception is latexindent and chktex: they and texlab find their configs by path, so those are copied into
   `~/.config`.
-- Emacs is Doom: a pinned checkout in `~/.config/emacs`, the repo's `doom/` files copied to `~/.config/doom`, and
+- Emacs is Doom: a pinned checkout in `~/.config/emacs`, the repo's `config/doom/` files copied to `~/.config/doom`, and
   `doom sync` as a step keyed on the pin, `init.el`, `packages.el` and the emacs package. `init.el` stays Doom's
   default apart from the enabled modules; own settings go in `config.el`. The theme verb writes a palette theme and
   the font into the wal cache and reloads a running emacs over emacsclient.

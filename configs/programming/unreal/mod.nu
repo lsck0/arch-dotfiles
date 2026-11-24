@@ -1,5 +1,5 @@
 use module.nu *
-use ../../core/nas/vendor.nu [nas-vendor-dir nas-vendor-newer nas-vendor-newest]
+use ../../core/nas/scripts/vendor.nu [nas-vendor-dir nas-vendor-newer nas-vendor-newest]
 
 # volatile: a newer engine zip on the NAS is no local input
 export const meta = {packages: {pacman: [libnotify shared-mime-info unzip]}, volatile: true}
@@ -9,7 +9,7 @@ const STAMP = ".installed-from"
 const EDITOR = "Engine/Binaries/Linux/UnrealEditor"
 const ICON = "Engine/Source/Runtime/Launch/Resources/Linux/UnrealEngine.png"
 const CANARY = '^[^\]\[*?]*/Private/[^\]\[*?/]+$'
-const PLUGINS_INSTALL = path self unreal-install-plugins.nu
+const PLUGINS_INSTALL = path self scripts/unreal-install-plugins.nu
 # the engine zip unpacks to ~60 GB
 const INSTALL_TIMEOUT = 60min
 const FREE_MIN_PERCENT = 15
@@ -97,8 +97,8 @@ export def link [cfg: record] {
         log-note $"unreal: the NAS vendor dir is not reachable, (if $installed == '' { 'no engine installed' } else { $'keeping ($installed)' })"
     }
     [
-        (link-commands unreal-editor.nu unreal-install-plugins.nu)
-        (file-copy uproject.xml ($mime | path join packages uproject.xml) --then [update-mime-database $mime])
+        (link-commands scripts/unreal-editor.nu scripts/unreal-install-plugins.nu)
+        (file-copy config/uproject.xml ($mime | path join packages uproject.xml) --then [update-mime-database $mime])
         (mcp-servers {unreal-mcp: (if $installed != "" { $MCP })})
         (if $newer { step unreal-install $zip --key $name --creates $stamp --timeout $INSTALL_TIMEOUT })
         # base/xdg refreshes the desktop database

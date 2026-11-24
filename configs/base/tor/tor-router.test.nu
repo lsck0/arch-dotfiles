@@ -3,8 +3,8 @@
 # lookup and a connection out the uplink must land on tor's DNSPort and TransPort, and nothing may leave by the uplink.
 
 const HERE = path self .
-const ROUTER = $HERE | path join tor-router.nu
-const EGRESS = $HERE | path join .. nftables fw-egress.nft
+const ROUTER = $HERE | path join scripts tor-router.nu
+const EGRESS = $HERE | path join .. nftables config fw-egress.nft
 const UPLINK = "d0"
 const UPLINK_ADDRESS = "10.9.9.2/24"
 const UPLINK_GATEWAY = "10.9.9.1"

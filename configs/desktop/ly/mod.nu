@@ -24,17 +24,17 @@ def lang-render []: nothing -> string {
 }
 
 export def system [cfg: record] {
-    let sessions = [sessions/hyprland.desktop sessions/plasma.desktop]
+    let sessions = [config/sessions/hyprland.desktop config/sessions/plasma.desktop]
     let foreign = if ($SESSIONS | path exists) { ls $SESSIONS | get name | where ($it | path basename) not-in ($sessions | path basename) } else { [] }
     [
         # ly starts before /home is mounted, so every file is a real one in /etc
-        (file-copy config.ini ($ETC | path join config.ini))
+        (file-copy config/config.ini ($ETC | path join config.ini))
         (if ($LANG_STOCK | path exists) { file-text ($ETC | path join lang lsck0.ini) (lang-render) })
         (if ($foreign | is-not-empty) { exec "foreign sessions" [rm --force ...$foreign] })
         (files-into $SESSIONS ...$sessions)
         (step save-defaults)
         (file-text ($ETC | path join vtrgb) (palette-channels $CONSOLE_PALETTE | to text))
-        ([palette.conf cursor.conf stage.conf log-filter.conf shutdown.conf] | each { dropin ly@.service $in })
+        ([palette.conf cursor.conf stage.conf log-filter.conf shutdown.conf] | each { dropin ly@.service $"config/($in)" })
         (unit-enable ly@tty1.service)
         (unit-disable getty@tty1.service)
     ]

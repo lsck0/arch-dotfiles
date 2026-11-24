@@ -36,7 +36,7 @@ export def link [cfg: record] {
         ([[target text]; [$store $texts.store] [$tea $texts.tea] [$ssh $texts.ssh]] | where text != null
             | each {|t| file-text $t.target $t.text --mode 600 })
         (if $texts.inc != null { file-text $inc $texts.inc })
-        (file-copy known_hosts ($nu.home-dir | path join .ssh known_hosts.forgejo) --mode 600)
+        (file-copy config/known_hosts ($nu.home-dir | path join .ssh known_hosts.forgejo) --mode 600)
         # keyed by the key set and account: a new key or account registers again; away from the forge it waits
         (if $unlocked {
             let fingerprint = [$f.FORGEJO_URL $f.FORGEJO_USER ...(keys-local | sort)] | str join "\n" | hash sha256
@@ -48,7 +48,7 @@ export def link [cfg: record] {
 # The owner's ssh public keys readable here.
 def keys-local []: nothing -> list<string> {
     secret-path keys ssh public.asc
-    | append (glob ($env.DOTFILES | path join configs base yubikey ssh-*.pub))
+    | append (glob ($env.DOTFILES | path join configs base yubikey config ssh-*.pub))
     | append (glob ($nu.home-dir | path join .ssh *.pub))
     | where { secret-is-plaintext $in } | each { open --raw $in | str trim } | uniq
 }

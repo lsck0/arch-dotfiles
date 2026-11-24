@@ -1,0 +1,70 @@
+#!/usr/bin/env -S nu --no-config-file
+# no connectivity check before a connect: until proton0 is up the system layer keeps the link on tor
+
+const TOGGLE = path self | path expand | path dirname --num-levels 5 | path join scripts toggles toggle-route.nu
+    | path expand
+# trusted, not only home: a trusted network needs no vpn either
+const TRUSTED_NETWORK = "/run/trusted-network"
+const LAST_TRUSTED = "trusted"
+const LINK_TYPES = [ethernet wifi gsm bt]
+const MOBILE_TYPES = [gsm bt]
+# 70-home-network decides a new link in parallel with nmcli monitor (up to 1 s of arping)
+const TRUST_WAIT = 3sec
+const RETRY_FIRST = 15sec
+const RETRY_MAX = 5min
+const RETRY_ATTEMPTS = 6
+const MONITOR_END = "eof"
+# nmcli monitor's line once a captive portal is passed: a network given up on behind its portal gets its tries back
+const CONNECTIVITY_FULL = "Connectivity is now 'full'"
+# the persona dispatcher's mark on a tor it started; a tor route without it is the user's choice
+const DISPATCHER_TOR = "/run/persona-tor"
+
+def route []: nothing -> string { do { ^$TOGGLE get } | complete | get stdout | str trim }
+
+def vpn-on []: nothing -> bool { (route) == "proton" }
+
+# a tor route the user picked stays: auto-vpn neither adds proton beside it nor ends it on a trusted network
+def user-tor []: nothing -> bool { (route) == "tor" and not ($DISPATCHER_TOR | path exists) }
+
+def decide [state: record]: nothing -> record {
+    # DEVICE last: a bluetooth one is an address, its escaped colons stay in the remainder
+    let links = do { ^nmcli -t -f TYPE,STATE,CON-PATH,DEVICE device } | complete | get stdout | lines
+        | parse --regex '^(?<type>[^:]*):(?<state>[^:]*):(?<path>[^:]*):(?<dev>.*)$'
+        | where type in $LINK_TYPES and state == connected
+    if ($links | is-empty) or (user-tor) { return ($state | update retry_at null) }
+    let trusted_links = if ($TRUSTED_NETWORK | path exists) { open --raw $TRUSTED_NETWORK | lines } else { [] }
+    if ($links | all { $in.type not-in $MOBILE_TYPES and $in.dev in $trusted_links }) {
+        if $state.last != $LAST_TRUSTED and (vpn-on) { try { ^$TOGGLE direct } }
+        return ($state | merge {last: $LAST_TRUSTED, retry_at: null})
+    }
+    let net = $links.path | str join " "
+    let state = if $state.last != $net { {last: $net, attempts: 0, retry_at: ((date now) + $TRUST_WAIT)} } else { $state }
+    let due = $state.retry_at == null or (date now) >= $state.retry_at
+    if $state.attempts >= $RETRY_ATTEMPTS or not $due { return $state }
+    if (vpn-on) or (try { ^$TOGGLE proton --keep-tor; true } catch { false }) {
+        return ($state | merge {attempts: $RETRY_ATTEMPTS, retry_at: null})
+    }
+    let attempts = $state.attempts + 1
+    let delay = [($RETRY_FIRST * (2 ** ($attempts - 1))) $RETRY_MAX] | math min
+    $state | merge {attempts: $attempts, retry_at: (if $attempts < $RETRY_ATTEMPTS { (date now) + $delay })}
+}
+
+# nmcli's end ends this, the unit restarts it
+def main []: nothing -> nothing {
+    job spawn {
+        # CONNECTIVITY_FULL is matched in nmcli's untranslated wording
+        for line in (with-env {LC_ALL: C} { ^nmcli monitor err> /dev/null } | lines) { $line | job send 0 }
+        $MONITOR_END | job send 0
+    } | ignore
+    # a start is no move onto a trusted network: a proton route already up there is the user's
+    mut state = decide {last: $LAST_TRUSTED, attempts: 0, retry_at: null}
+    loop {
+        let message = if $state.retry_at == null { job recv } else {
+            let wait = [($state.retry_at - (date now)) 1sec] | math max
+            try { job recv --timeout $wait } catch { null }
+        }
+        if $message == $MONITOR_END { return }
+        if $message == $CONNECTIVITY_FULL { $state = $state | merge {attempts: 0, retry_at: (date now)} }
+        $state = decide $state
+    }
+}

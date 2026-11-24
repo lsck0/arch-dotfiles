@@ -1,6 +1,6 @@
 use module.nu *
-use ../../core/wallust/font.nu [font-load]
-use ../../core/wallust/palette.nu [ICON_THEMES RADIUS_PX hex-to-rgb rgb-to-hsv]
+use ../../core/wallust/scripts/font.nu [font-load]
+use ../../core/wallust/scripts/palette.nu [ICON_THEMES RADIUS_PX hex-to-rgb rgb-to-hsv]
 use ../cursor/mod.nu [CURSOR_SIZE_PX cursor-name]
 use ../oomox/mod.nu [INTERFACE]
 
@@ -35,10 +35,10 @@ export def link [cfg: record] {
 
 export def theme [cfg: record, wallpaper: string] {
     let font = font-load
-    let css = file-render gtk.css (xdg config gtk-3.0 gtk.css) {FONT: $font.family} --generated
+    let css = file-render config/gtk.css (xdg config gtk-3.0 gtk.css) {FONT: $font.family} --generated
     # libadwaita ignores gtk-theme-name, so its gtk.css imports oomox's export; gtk expands no ~ in url()
     let theme_css = $nu.home-dir | path join .themes $GTK_THEME gtk-4.0 gtk.css
-    let css4 = file-render gtk4.css (xdg config gtk-4.0 gtk.css) {THEME_CSS: $theme_css, RADIUS_PX: $RADIUS_PX} --generated
+    let css4 = file-render config/gtk4.css (xdg config gtk-4.0 gtk.css) {THEME_CSS: $theme_css, RADIUS_PX: $RADIUS_PX} --generated
     let p = palette-load
     if $p == null { return [$css $css4] }
     let mono = $"($font.mono) ($font.ui_size)"

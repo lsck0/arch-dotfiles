@@ -3,5 +3,5 @@ use module.nu *
 export const meta = {packages: {pacman: [gdb]}}
 
 export def link [cfg: record] {
-    file-copy gdbinit (xdg config gdb gdbinit)
+    file-copy config/gdbinit (xdg config gdb gdbinit)
 }

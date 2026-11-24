@@ -44,18 +44,18 @@ def auth-insert [lines: list<string>, line: string, before: string = $SYSTEM_AUT
 export def system [cfg: record] {
     # WSLg is graphical too, so dot's root-runner can pick pkexec there
     let entry = $SYSTEM_REPO | path join $ENTRY
-    let policy = file-render $SYSTEM_POLICY ($POLKIT_ACTIONS | path join $SYSTEM_POLICY) {ENTRY: $entry}
+    let policy = file-render $"config/($SYSTEM_POLICY)" ($POLKIT_ACTIONS | path join $SYSTEM_POLICY) {ENTRY: $entry}
     if $env.FORM_FACTOR? == "wsl" { return [$policy] }
     let line = u2f-line $cfg.fido_origin
     let u2f = $U2F_MODULE | path exists
     [
         $policy
         # copies, pam follows no symlinks
-        (file-copy quickshell-lock /etc/pam.d/quickshell-lock)
-        (file-render quickshell-lock-u2f /etc/pam.d/quickshell-lock-u2f {ORIGIN: $cfg.fido_origin})
+        (file-copy config/quickshell-lock /etc/pam.d/quickshell-lock)
+        (file-render config/quickshell-lock-u2f /etc/pam.d/quickshell-lock-u2f {ORIGIN: $cfg.fido_origin})
         # the lock screen offers the finger only where this service exists
-        (if (has-fprint) { file-copy quickshell-lock-fprint /etc/pam.d/quickshell-lock-fprint })
-        (file-copy faillock.conf /etc/security/faillock.conf)
+        (if (has-fprint) { file-copy config/quickshell-lock-fprint /etc/pam.d/quickshell-lock-fprint })
+        (file-copy config/faillock.conf /etc/security/faillock.conf)
         (step sudo-stack ($u2f | into string) $line)
         # pkexec takes the same factors as sudo: the key, then an enrolled finger, then the password
         (if $u2f and ($POLKIT_VENDOR | path exists) {

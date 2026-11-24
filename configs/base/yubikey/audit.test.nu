@@ -2,7 +2,7 @@
 # secret-class takes the first glob that matches, so CLASSES is ordered: a narrower glob after the wider one that
 # covers it would never be reached, and its credential would age unaudited. And declared-findings: a meta.secrets
 # entry keys/ lacks under any host is a fail (root is handed only what exists), an UNBACKED one a note.
-use audit.nu [CLASSES secret-class declared-findings]
+use scripts/audit.nu [CLASSES secret-class declared-findings]
 use std/assert
 
 def class-cases []: nothing -> nothing {

@@ -1,7 +1,7 @@
 use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
-use lib/dispatch.nu [out route-gateway]
-use home-network.nu [TIER_NONE dhcp-server gateway-mac gateways-parse link-tier]
+use scripts/lib/dispatch.nu [out route-gateway]
+use scripts/home-network.nu [TIER_NONE dhcp-server gateway-mac gateways-parse link-tier]
 
 export const meta = {
     packages: {native: [ethtool modemmanager networkmanager wpa_supplicant]}
@@ -148,20 +148,20 @@ export def system [cfg: record] {
         (file-text $"($NM)/portal-seconds" $"($cfg.portal_window_s)\n")
         (if $env.FORM_FACTOR? == "vm" { file-text $"($NM)/vm-guest" "" })
         (if $homelab != null { file-text $"($NM)/homelab.env" $homelab })
-        (file-copy NetworkManager.conf $"($NM)/NetworkManager.conf" --then $restart)
-        (dropin wpa_supplicant.service wpa-log-filter.conf)
+        (file-copy config/NetworkManager.conf $"($NM)/NetworkManager.conf" --then $restart)
+        (dropin wpa_supplicant.service config/wpa-log-filter.conf)
         # NM's one auto wired profile serves every wired network, so a laptop's ethernet is never home (fail closed)
-        (if $home_wired { file-copy home-wired.conf $"($NM)/conf.d/10-home-wired.conf" --then $restart })
+        (if $home_wired { file-copy config/home-wired.conf $"($NM)/conf.d/10-home-wired.conf" --then $restart })
         (if $cfg.wake_on_lan {[
-            (file-copy wake-on-lan.link /etc/systemd/network/90-wake-on-lan.link
+            (file-copy config/wake-on-lan.link /etc/systemd/network/90-wake-on-lan.link
                 --then (udev-reload --action=add --subsystem-match=net))
-            (file-copy wake-on-lan.conf $"($NM)/conf.d/20-wake-on-lan.conf" --then $restart)
+            (file-copy config/wake-on-lan.conf $"($NM)/conf.d/20-wake-on-lan.conf" --then $restart)
         ]})
         # a directory, which NM runs nothing in: the dispatchers' `use lib/dispatch.nu`
-        (file-copy lib/dispatch.nu $"($DISPATCHERS)/lib/dispatch.nu")
-        (do $dispatcher home-network.nu 70-home-network)
-        (do $dispatcher homelab-routes.nu 80-homelab-routes)
-        (do $dispatcher persona-dispatcher.nu 90-anonymous-persona)
+        (file-copy scripts/lib/dispatch.nu $"($DISPATCHERS)/lib/dispatch.nu")
+        (do $dispatcher scripts/home-network.nu 70-home-network)
+        (do $dispatcher scripts/homelab-routes.nu 80-homelab-routes)
+        (do $dispatcher scripts/persona-dispatcher.nu 90-anonymous-persona)
         (file-text $"($DISPATCHERS)/pre-up.d/90-anonymous-persona" --mode 755 (
             $PRE_UP | str replace @IFACE@ $VPN_IFACE | str replace @SCRIPT@ $"($DISPATCHERS)/90-anonymous-persona"
         ))

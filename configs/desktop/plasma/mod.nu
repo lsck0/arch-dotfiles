@@ -1,7 +1,7 @@
 use module.nu *
 use ini.nu [ini-apply ini-rows]
-use ../../core/wallust/palette.nu [ICON_THEMES hex-rgb255 hex-to-rgb readable-on rgb-to-hex semantic shade]
-use ../../core/wallust/font.nu [font-load]
+use ../../core/wallust/scripts/palette.nu [ICON_THEMES hex-rgb255 hex-to-rgb readable-on rgb-to-hex semantic shade]
+use ../../core/wallust/scripts/font.nu [font-load]
 use ../cursor/mod.nu [STOCK cursor-name]
 
 export const meta = {
@@ -30,7 +30,7 @@ export const options = {
     }
 }
 
-const DIR = path self .
+const DIR = path self config
 const CONFIG = ".config"
 const APPLETSRC = "plasma-org.kde.plasma.desktop-appletsrc"
 const TEMPLATES = [$APPLETSRC plasmarc kscreenlockerrc]
@@ -146,19 +146,19 @@ export def link [cfg: record] {
     [
         (files-into (xdg data applications) ...(glob ($DIR | path join applications "*.desktop")))
         # only seeded: dolphin rewrites its view properties on every view change
-        (ini-seed $DOLPHIN_VIEW (xdg data $DOLPHIN_VIEW))
+        (ini-seed ($DIR | path join $DOLPHIN_VIEW) (xdg data $DOLPHIN_VIEW))
         # no kiosk key hides dolphin's dock short of shell_access=false, which also stops it running any executable
-        (ini-merge ($nu.home-dir | path join $DOLPHIN_STATE) {State: {State: (open --raw $DOLPHIN_DOCK | str trim)}})
-        (rc-files | where $it not-in [$SHELLRC $KCMINPUTRC] | each {|f| file-copy $f (config-path $f) })
-        (file-text (config-path $KCMINPUTRC) (open --raw $KCMINPUTRC | kcminput-cursor (cursor-name ($cfg.deps?."desktop/cursor"?.active? | default false))))
-        (file-text (config-path $SHELLRC) (open --raw $SHELLRC | ini-apply (shell-updates-done) true))
+        (ini-merge ($nu.home-dir | path join $DOLPHIN_STATE) {State: {State: (open --raw ($DIR | path join $DOLPHIN_DOCK) | str trim)}})
+        (rc-files | where $it not-in [$SHELLRC $KCMINPUTRC] | each {|f| file-copy ($DIR | path join $f) (config-path $f) })
+        (file-text (config-path $KCMINPUTRC) (open --raw ($DIR | path join $KCMINPUTRC) | kcminput-cursor (cursor-name ($cfg.deps?."desktop/cursor"?.active? | default false))))
+        (file-text (config-path $SHELLRC) (open --raw ($DIR | path join $SHELLRC) | ini-apply (shell-updates-done) true))
         # kconf_update's record of the migrations it ran: the repo's configs are already migrated, so a fresh account
         # does not run them again (plasma6.0-remove-old-shortcuts would drop shortcuts the repo keeps)
-        (ini-seed $KCONF_SEED (config-path $KCONF_UPDATERC))
-        (if $cfg.locale and $lang != null { file-render $LOCALERC (config-path $LOCALERC) {LANG: $lang} })
+        (ini-seed ($DIR | path join $KCONF_SEED) (config-path $KCONF_UPDATERC))
+        (if $cfg.locale and $lang != null { file-render ($DIR | path join $LOCALERC) (config-path $LOCALERC) {LANG: $lang} })
         $applets
-        ($TEMPLATES | where $it != $APPLETSRC | each {|f| file-render $f (config-path $f) $values })
-        (if $cfg.kwin_outputs == true { file-copy $OUTPUTS (config-path $OUTPUTS) })
+        ($TEMPLATES | where $it != $APPLETSRC | each {|f| file-render ($DIR | path join $f) (config-path $f) $values })
+        (if $cfg.kwin_outputs == true { file-copy ($DIR | path join $OUTPUTS) (config-path $OUTPUTS) })
         $dirs
         (modernclock)
     ]
@@ -251,7 +251,7 @@ def wallpaper-set [wallpaper: string]: nothing -> list<record> {
     [(ini-merge $applets (wallpaper-values (open --raw $applets) $wallpaper) --then (then-step wallpaper-apply $wallpaper))]
 }
 
-# The qt font strings' family and size over the template's: the font beside the palette (core/wallust/font.nu).
+# The qt font strings' family and size over the template's: the font beside the palette (core/wallust/scripts/font.nu).
 def kde-fonts [template: string]: nothing -> record {
     let font = font-load
     let size = $font.ui_size
@@ -271,14 +271,14 @@ export def theme [cfg: record, wallpaper: string] {
     let colors = if $p == null { null } else { kde-colors $p }
     let themed = $THEMED | each {|f|
         let dest = if $f == $KDEGLOBALS { config-path $f } else { xdg data $f }
-        if $colors == null { return (file-copy $f $dest) }
+        if $colors == null { return (file-copy ($DIR | path join $f) $dest) }
         let colors = if $f == $KDEGLOBALS {
             let icons = if $p.light == "1" { $ICON_THEMES.light } else { $ICON_THEMES.dark }
-            $colors | merge deep (kde-fonts (open --raw $f)) | merge deep {Icons: {Theme: $icons}}
+            $colors | merge deep (kde-fonts (open --raw ($DIR | path join $f))) | merge deep {Icons: {Theme: $icons}}
         } else {
             $colors | upsert General.Name pywal
         }
-        file-text $dest (open --raw $f | ini-apply $colors false) --generated --then (then-step palette-notify)
+        file-text $dest (open --raw ($DIR | path join $f) | ini-apply $colors false) --generated --then (then-step palette-notify)
     }
     $themed ++ (wallpaper-set $wallpaper)
 }

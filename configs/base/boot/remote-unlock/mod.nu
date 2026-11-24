@@ -1,7 +1,7 @@
 # Remote LUKS unlock: tinyssh in a mkinitcpio-systemd-tool initramfs, reached over ethernet or the home wifi.
 
 use module.nu *
-use ../boot.nu [cmdline-set cmdline-unset hooks-read hooks-write hooks-insert CMDLINE MKINITCPIO]
+use ../scripts/boot.nu [cmdline-set cmdline-unset hooks-read hooks-write hooks-insert CMDLINE MKINITCPIO]
 
 export const options = {
     ssh_unlock: {
@@ -53,11 +53,11 @@ export def system [cfg: record] {
     if (which tinysshd | is-empty) or not ($HOOK_INSTALL | path exists) { return [] }
     [
         (step keys)
-        (file-copy mkinitcpio-systemd-tool.conf $"($TOOL_DIR)/mkinitcpio-systemd-tool.conf")
+        (file-copy config/mkinitcpio-systemd-tool.conf $"($TOOL_DIR)/mkinitcpio-systemd-tool.conf")
         # the stock file matches eth* only
-        (file-copy initrd-network.network $"($TOOL_DIR)/network/initrd-network.network")
-        (dropin initrd-tinysshd.service tinysshd.conf)
-        (dropin initrd-network.service initrd-network.conf)
+        (file-copy config/initrd-network.network $"($TOOL_DIR)/network/initrd-network.network")
+        (dropin initrd-tinysshd.service config/tinysshd.conf)
+        (dropin initrd-network.service config/initrd-network.conf)
         # the systemd-tool hook puts enabled units in the image, ConditionPathExists keeps them off the real system
         ($UNITS | each { unit-enable $in })
         (wifi $cfg.wifi)
@@ -76,7 +76,7 @@ def wifi [enabled: bool]: nothing -> list {
     [
         (step wifi-conf)
         (if ($WIFI_CONF | path exists) or (system-secret wifi | path exists) {
-            unit-file $WIFI_UNIT --enable
+            unit-file $"config/($WIFI_UNIT)" --enable
         } else { unit-disable $WIFI_UNIT })
     ]
 }

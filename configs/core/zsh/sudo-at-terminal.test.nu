@@ -4,8 +4,8 @@
 # name the same agent markers as cli.nu.
 
 const HERE = path self .
-const ZSHRC = $HERE | path join zshrc
-const CONFIG_NU = $HERE | path join .. nushell config.nu
+const ZSHRC = $HERE | path join config zshrc
+const CONFIG_NU = $HERE | path join .. nushell config config.nu
 const CLI_NU = $HERE | path join .. .. .. scripts lib cli.nu
 const RAN = "fake sudo ran"
 const REFUSED = "needs root"

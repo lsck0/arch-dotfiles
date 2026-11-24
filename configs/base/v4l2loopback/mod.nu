@@ -28,8 +28,8 @@ export def detect [cfg: record]: nothing -> record {
 
 export def system [cfg: record] {
     [
-        (file-copy v4l2loopback.conf /etc/modules-load.d/v4l2loopback.conf)
-        (file-render v4l2loopback-options.conf /etc/modprobe.d/v4l2loopback.conf {VIDEO_NR: $cfg.video_nr, LABEL: $LABEL})
+        (file-copy config/v4l2loopback.conf /etc/modules-load.d/v4l2loopback.conf)
+        (file-render config/v4l2loopback-options.conf /etc/modprobe.d/v4l2loopback.conf {VIDEO_NR: $cfg.video_nr, LABEL: $LABEL})
     ]
 }
 
@@ -38,8 +38,8 @@ export def link [cfg: record] {
     let config = xdg config
     [
         # read at pipewire and wireplumber start only; restarting either would drop live audio and video
-        (file-render virtcam-pipewire.conf ($config | path join pipewire pipewire.conf.d virtcam.conf)
+        (file-render config/virtcam-pipewire.conf ($config | path join pipewire pipewire.conf.d virtcam.conf)
             {VIDEO_NR: $cfg.video_nr, LABEL: $LABEL})
-        (file-render virtcam-wireplumber.conf ($config | path join wireplumber wireplumber.conf.d virtcam.conf) {LABEL: $LABEL})
+        (file-render config/virtcam-wireplumber.conf ($config | path join wireplumber wireplumber.conf.d virtcam.conf) {LABEL: $LABEL})
     ]
 }

@@ -6,7 +6,7 @@ use options.nu [options-to-nuon]
 use ../../platforms/homelab.nu [HOMELAB]
 
 export const HOMELAB_FILE = "platforms/homelab.nu"
-# configs/base/pacman/pacman.conf's [lsck0] Server, filled with mirror.lsck0 by base/pacman and the iso
+# configs/base/pacman/config/pacman.conf's [lsck0] Server, filled with mirror.lsck0 by base/pacman and the iso
 export const LSCK0_SERVER_PLACEHOLDER = "@LSCK0_SERVER@"
 export const LSCK0_SECTION = "[lsck0]"
 const LSCK0_PROBE_TIMEOUT_S = 5

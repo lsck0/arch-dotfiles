@@ -7,9 +7,9 @@
 
 const TOGGLES = path self .
 const REPO = path self ../..
-const HELPER = path self ../../configs/core/toggles/toggle-root.nu
+const HELPER = path self ../../configs/core/toggles/scripts/toggle-root.nu
 const DOT = path self ../dot.nu
-const GRADING = path self ../../configs/desktop/color-grading/color-grading.py
+const GRADING = path self ../../configs/desktop/color-grading/scripts/color-grading.py
 const MAC = "aa:bb:cc:00:11:22"
 const BT_TIMEOUT_S = 5
 

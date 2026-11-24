@@ -1,7 +1,7 @@
 use module.nu *
 use secrets.nu [owner-system-unlocked]
-use ../../core/wallust/palette.nu [RADIUS_PX OPACITY_SHELL OPACITY_SHELL_LIGHT TEXT_RATIO ACCENT2_RATIO hex-to-rgb rgb-to-hex is-light passes quantize readable-on wal-colors-file]
-use ../../core/wallust/font.nu [font-load]
+use ../../core/wallust/scripts/palette.nu [RADIUS_PX OPACITY_SHELL OPACITY_SHELL_LIGHT TEXT_RATIO ACCENT2_RATIO hex-to-rgb rgb-to-hex is-light passes quantize readable-on wal-colors-file]
+use ../../core/wallust/scripts/font.nu [font-load]
 use ../qutebrowser/mod.nu [EDGE_ALPHA]
 
 export const meta = {
@@ -54,7 +54,7 @@ def pywalfox-host []: nothing -> list<record> {
         path: $host, type: stdio, allowed_extensions: [pywalfox@frewacom.org]
     }
     [
-        (file-render pywalfox-host.sh $host {MAIN: $main, CACHE: (xdg cache wal pywalfox)} --mode 755)
+        (file-render scripts/pywalfox-host.sh $host {MAIN: $main, CACHE: (xdg cache wal pywalfox)} --mode 755)
         (file-text ($nu.home-dir | path join $PYWALFOX_HOST) $"($manifest | to json --indent 2)\n")
     ]
 }
@@ -70,18 +70,18 @@ export def link [cfg: record] {
         (file-link $root (xdg config firefox))
         (mozilla-profiles $ini | each {|dir|
             [
-                (file-copy userChrome.css ($dir | path join chrome userChrome.css))
+                (file-copy config/userChrome.css ($dir | path join chrome userChrome.css))
                 (file-text ($dir | path join chrome dotfiles-style.css) (chrome-style) --generated)
-                (file-render user.js ($dir | path join user.js) {HOME: $nu.home-dir})
+                (file-render config/user.js ($dir | path join user.js) {HOME: $nu.home-dir})
             ]
         })
         (tor-profiles | each {|dir|
             # no pywalfox in tor browser (an extension marks its users): dotfiles-colors.css stands in for its theme
-            let chrome = "@import url('dotfiles-colors.css');\n" + (open --raw userChrome.css)
+            let chrome = "@import url('dotfiles-colors.css');\n" + (open --raw config/userChrome.css)
             [
                 (file-text ($dir | path join chrome userChrome.css) $chrome)
                 (file-text ($dir | path join chrome dotfiles-style.css) (chrome-style) --generated)
-                (file-copy user-tor.js ($dir | path join user.js))
+                (file-copy config/user-tor.js ($dir | path join user.js))
             ]
         })
         (pywalfox-host)
@@ -90,10 +90,10 @@ export def link [cfg: record] {
                 (unit-enable speech-dispatcher.socket --now)
                 (file-text (xdg config speech-dispatcher speechd.conf)
                     "AddModule \"espeak-ng\" \"sd_espeak-ng\" \"espeak-ng.conf\"\nDefaultModule espeak-ng\n")
-                (dropin speech-dispatcher.service speech-dispatcher-timeout.conf --then [systemctl --user daemon-reload])
+                (dropin speech-dispatcher.service config/speech-dispatcher-timeout.conf --then [systemctl --user daemon-reload])
             ]
         })
-        (user-hook firefox-profiles hook/profile-link.nu --watch [$"%h/($HOME_DIR)/profiles.ini"])
+        (user-hook firefox-profiles scripts/profile-link.nu --watch [$"%h/($HOME_DIR)/profiles.ini"])
     ]
 }
 
@@ -221,15 +221,15 @@ export def theme [cfg: record, wallpaper: string] {
 
 export def system [cfg: record] {
     let extra = if (owner-system-unlocked) { glob ($SECRETS_DIR | path join * firefox-policies.json) | sort | each { open $in } } else { [] }
-    let doc = $extra | reduce --fold (open policies.json) {|it, acc| $acc | merge deep --strategy append $it }
+    let doc = $extra | reduce --fold (open config/policies.json) {|it, acc| $acc | merge deep --strategy append $it }
     let doc = if (platform-has homelab) { $doc } else { $doc | upsert policies.SearchEngines $SEARCH_OFF_HOMELAB }
     [
         (file-text $POLICIES $"($doc | to json --indent 2)\n")
         # the new tab url is settable only from autoconfig in the install dir; mozilla.cfg reads each user's home at runtime
         (if ($FIREFOX_DIR | path exists) {
             [
-                (file-copy autoconfig.js ($FIREFOX_DIR | path join defaults pref autoconfig.js))
-                (file-copy mozilla.cfg ($FIREFOX_DIR | path join mozilla.cfg))
+                (file-copy config/autoconfig.js ($FIREFOX_DIR | path join defaults pref autoconfig.js))
+                (file-copy config/mozilla.cfg ($FIREFOX_DIR | path join mozilla.cfg))
             ]
         })
     ]

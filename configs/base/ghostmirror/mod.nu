@@ -1,5 +1,5 @@
 # before module.nu: its exec would shadow the builtin exec the script parses with
-use mirrorlist-update.nu [HOMELAB_FILE MIRRORLIST mirrorlist-swap]
+use scripts/mirrorlist-update.nu [HOMELAB_FILE MIRRORLIST mirrorlist-swap]
 use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
 
@@ -19,16 +19,16 @@ const UPDATE_TIMEOUT_S = 600
 export def system [cfg: record] {
     let homelab = if (platform-has homelab) and $cfg.homelab_mirror != null { $"Server=($cfg.homelab_mirror)" }
     [
-        (file-copy mirrorlist-update.nu /usr/local/bin/mirrorlist-update --mode 755)
+        (file-copy scripts/mirrorlist-update.nu /usr/local/bin/mirrorlist-update --mode 755)
         (if $homelab != null { file-text $HOMELAB_FILE $"($homelab)\n" })
         (step place ($homelab | default ""))
-        (unit-file ghostmirror.service)
+        (unit-file config/ghostmirror.service)
         (unit-timer ghostmirror.timer "Weekly ghostmirror sorting" --calendar weekly --delay 30m
             --ac-power 99-ghostmirror-ac.rules --enable --now)
-        (unit-file ghostmirror-refresh.service)
+        (unit-file config/ghostmirror-refresh.service)
         (unit-timer ghostmirror-refresh.timer "Monthly ghostmirror mirror pool rebuild" --calendar monthly --delay 1h
             --ac-power 99-ghostmirror-ac.rules --enable --now)
-        (udev-rules 99-ghostmirror-ac.rules)
+        (udev-rules config/99-ghostmirror-ac.rules)
     ]
 }
 
@@ -44,7 +44,7 @@ export def place [homelab: string]: nothing -> nothing {
         if (mirrorlist-run rebuild) {
             mirrorlist-run sort | ignore
         } else if $linked or not (open --raw $MIRRORLIST | lines | any { str starts-with "Server" }) {
-            mirrorlist-swap (open --raw mirrorlist | lines)
+            mirrorlist-swap (open --raw config/mirrorlist | lines)
         }
     }
     mirrorlist-run homelab $homelab | ignore

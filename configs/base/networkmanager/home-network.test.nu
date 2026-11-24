@@ -4,10 +4,10 @@
 # permanent mac (virtio) is home only with the mac it came with (addr_assign_type 0). Then the tier a link reaches from
 # the dispatcher's inputs: the two gateway files, `ip route`, the gateway's mac and NM's dhcp options, and the policy.
 
-const HOME_NETWORK = path self home-network.nu
+const HOME_NETWORK = path self scripts/home-network.nu
 use $HOME_NETWORK [hardware-mac-in-use gateways-parse dhcp-server link-tier TIER_HOME TIER_TRUSTED TIER_NONE]
 use std/assert
-use lib/dispatch.nu [route-gateway]
+use scripts/lib/dispatch.nu [route-gateway]
 use ini.nu [ini-rows]
 
 const CASES = [
@@ -77,8 +77,8 @@ for c in $TRUST_ALL { tier-check $c --trust-all }
 
 # A foreign network sees one MAC per network and boot, never the hardware one; only home_wired's drop-in keeps
 # ethernet's, wifi never.
-const NM_CONF = path self NetworkManager.conf
-const HOME_WIRED = path self home-wired.conf
+const NM_CONF = path self config/NetworkManager.conf
+const HOME_WIRED = path self config/home-wired.conf
 let conf = ini-rows (open --raw $NM_CONF) | where key != null
 let mac = [
     [key want];

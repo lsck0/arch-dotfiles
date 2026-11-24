@@ -16,7 +16,7 @@ def main [] {
         mkdir ($work | path join $d)
         {$k: ($work | path join $d)}
     } | into record
-    ^ln -s $HERE ($work | path join config nvim)
+    ^ln -s ($HERE | path join config) ($work | path join config nvim)
     let call = $"cd ($HERE | to nuon); use ($HERE | to nuon); nvim link {} | where kind == step | to nuon"
     let start = date now
     let run = with-env ($dirs | merge {HOME: $work}) {

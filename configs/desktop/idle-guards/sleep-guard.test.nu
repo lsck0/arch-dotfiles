@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 # the mic guard's predicate: a running microphone holds, a monitor or an idle microphone does not
-use sleep-guard.nu [mic-recording]
+use scripts/sleep-guard.nu [mic-recording]
 
 use std/assert
 

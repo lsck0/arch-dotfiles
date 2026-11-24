@@ -1,12 +1,12 @@
 # hyprland's lua config, plus platform.lua generated each run from the live monitors and keyboard
 
 use module.nu *
-use ../../core/wallust/palette.nu [
+use ../../core/wallust/scripts/palette.nu [
     RADIUS_PX BORDER_PX OPACITY_WINDOW SHADE_CHROME SHADE_CURRENT SHADE_HOVER is-light palette-rgb readable-on shade rgb-to-hex
 ]
-use ../../core/wallust/font.nu [font-load]
-use plugins.nu [plugins-missing plugins-unloaded]
-use lid.nu [INTERNAL_PANEL]
+use ../../core/wallust/scripts/font.nu [font-load]
+use scripts/plugins.nu [plugins-missing plugins-unloaded]
+use scripts/lid.nu [INTERNAL_PANEL]
 
 export const meta = {
     deps: [base/essentials]
@@ -132,7 +132,7 @@ const SCALES = [1.0 1.25 1.5 1.666667 2.0 2.5 3.0]
 # the width of an output listing no modes
 const WIDTH_FALLBACK_PX = 1920
 const REFRESH_FLUID_HZ = 50.0
-const PLUGINS = path self plugins.nu
+const PLUGINS = path self scripts/plugins.nu
 
 # A Hyprland instance dir whose lock names a running pid; a dead one keeps its dir and socket file behind.
 def instance-alive [dir: path]: nothing -> bool {
@@ -298,9 +298,9 @@ def style-record []: nothing -> record {
 export def link [cfg: record] {
     let dir = $nu.home-dir | path join $CONFIG_DIR
     let files = [
-        (files-into $dir ...$CONFIG_FILES)
-        (glob shaders/* | each {|f| file-copy $f ($dir | path join shaders ($f | path basename)) })
-        ($COMMANDS | each {|f| file-copy $f ($dir | path join $f) --mode 755 })
+        (files-into $dir ...($CONFIG_FILES | each { $"config/($in)" }))
+        (glob config/shaders/* | each {|f| file-copy $f ($dir | path join shaders ($f | path basename)) })
+        ($COMMANDS | each {|f| file-copy $"scripts/($f)" ($dir | path join $f) --mode 755 })
         (unit-enable hypridle.service --now)
         (file-text ($dir | path join platform.lua) (platform-lua $cfg) --generated)
         # read by quickshell-lock-launch.nu on every lock
@@ -310,7 +310,7 @@ export def link [cfg: record] {
     let reload = then-step reload
     let files = $files | each {|d| if $d.kind == file { $d | merge {then: $reload} } else { $d } }
     # hypridle never rereads its config: a restart applies new idle times, no hyprland reload needed
-    let idle = file-render hypridle.conf ($dir | path join hypridle.conf) {
+    let idle = file-render config/hypridle.conf ($dir | path join hypridle.conf) {
         DIM_S: $cfg.idle_dim_s LOCK_S: $cfg.idle_lock_s DPMS_S: $cfg.idle_dpms_s
         SUSPEND_S: $cfg.idle_suspend_s DIM_SAVER_S: $cfg.idle_dim_saver_s LOCK_SAVER_S: $cfg.idle_lock_saver_s
         DPMS_SAVER_S: $cfg.idle_dpms_saver_s SUSPEND_SAVER_S: $cfg.idle_suspend_saver_s

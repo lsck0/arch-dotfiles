@@ -1,5 +1,5 @@
 use module.nu *
-use ../boot.nu [backup-once cmdline-set hooks-read hooks-write hooks-insert MKINITCPIO]
+use ../scripts/boot.nu [backup-once cmdline-set hooks-read hooks-write hooks-insert MKINITCPIO]
 
 export const meta = {packages: {native: [cryptsetup]}, volatile: true}
 
@@ -17,7 +17,7 @@ def luks-parts []: nothing -> table {
 
 export def system [cfg: record] {
     if (luks-parts | is-empty) { return [] }
-    [(file-copy crypto-modules.conf $CRYPTO_CONF) (step configure)]
+    [(file-copy config/crypto-modules.conf $CRYPTO_CONF) (step configure)]
 }
 
 def root-backing []: nothing -> any {
@@ -109,7 +109,7 @@ export def unlock-plan [tokens: list<record>, part: string, header_changed: bool
             ("note: luks: a TPM2 seal without a pin unlocks any boot, replace it: "
                 + $"sudo ($enroll) --wipe-slot=tpm2 /dev/($part)")
         })
-        (if $header_changed { "luks: keyslots changed, back up the header: configs/base/boot/luks/header-backup.nu (as the admin)" })
+        (if $header_changed { "luks: keyslots changed, back up the header: configs/base/boot/luks/scripts/header-backup.nu (as the admin)" })
     ] | compact
     {cmdline: $"rd.luks.options=($devices | append [tpm2-measure-pcr=yes tries=0] | str join ',')", notes: $notes}
 }

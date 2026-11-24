@@ -1,5 +1,5 @@
 use module.nu *
-use ../boot.nu [cmdline-set cmdline-unset key-of]
+use ../scripts/boot.nu [cmdline-set cmdline-unset key-of]
 
 export const meta = {native_only: [system]}
 

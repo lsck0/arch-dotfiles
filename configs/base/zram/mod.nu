@@ -28,12 +28,12 @@ const SYSCTL = "/etc/sysctl.d/99-zram.conf"
 export def system [cfg: record] {
     [
         (if ($MGLRU | path exists) {
-            file-copy mglru-tmpfiles.conf $MGLRU_TMPFILES --then [systemd-tmpfiles --create $MGLRU_TMPFILES]
+            file-copy config/mglru-tmpfiles.conf $MGLRU_TMPFILES --then [systemd-tmpfiles --create $MGLRU_TMPFILES]
         })
         (if ($ZRAM_GENERATOR | path exists) {
             [
-                (file-render sysctl-zram.conf $SYSCTL {SWAPPINESS: $cfg.swappiness} --then [/usr/lib/systemd/systemd-sysctl $SYSCTL])
-                (file-render zram-generator.conf /etc/systemd/zram-generator.conf {COMPRESSION_ALGORITHM: $cfg.compression_algorithm}
+                (file-render config/sysctl-zram.conf $SYSCTL {SWAPPINESS: $cfg.swappiness} --then [/usr/lib/systemd/systemd-sysctl $SYSCTL])
+                (file-render config/zram-generator.conf /etc/systemd/zram-generator.conf {COMPRESSION_ALGORITHM: $cfg.compression_algorithm}
                     --then [systemctl daemon-reload])
             ]
         })

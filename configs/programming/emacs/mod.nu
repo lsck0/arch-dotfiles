@@ -1,13 +1,13 @@
 use module.nu *
-use ../../core/wallust/editor.nu [editor-roles]
-use ../../core/wallust/palette.nu [hex-to-rgb palette-rgb readable-on rgb-to-hex]
-use ../../core/wallust/font.nu [font-load]
+use ../../core/wallust/scripts/editor.nu [editor-roles]
+use ../../core/wallust/scripts/palette.nu [hex-to-rgb palette-rgb readable-on rgb-to-hex]
+use ../../core/wallust/scripts/font.nu [font-load]
 
 export const meta = {reads: [desktop/hyprland], packages: {pacman: [emacs]}}
 
 const DOOM_URL = "https://github.com/doomemacs/doomemacs.git"
 const DOOM_COMMIT = "7ccac7f643ad67baa25b216717cf8617a0903c69" # committed 2026-11-06
-const DOOMDIR = [doom/init.el doom/config.el doom/packages.el]
+const DOOMDIR = [config/doom/init.el config/doom/config.el config/doom/packages.el]
 const FORMATTING = [clang-format prettierrc.json ruff.toml rustfmt.toml stylua.toml]
 const SORT_DERIVES = "sort-derives-stdout.nu"
 const THEME = "wal/doom-pywal-theme.el"
@@ -24,7 +24,7 @@ def doom-bin []: nothing -> path { emacs-dir | path join bin doom }
 # What doom sync installs from: the pin, the module and package lists, and the Emacs that compiles them.
 def sync-key []: nothing -> string {
     let emacs = ^pacman -Q emacs | complete | get stdout | str trim
-    [$DOOM_COMMIT (open --raw doom/init.el) (open --raw doom/packages.el) $emacs] | str join "\n" | hash sha256
+    [$DOOM_COMMIT (open --raw config/doom/init.el) (open --raw config/doom/packages.el) $emacs] | str join "\n" | hash sha256
 }
 
 export def link [cfg: record] {
@@ -34,8 +34,8 @@ export def link [cfg: record] {
     [
         (fetch-git $DOOM_URL $DOOM_COMMIT (emacs-dir))
         (files-into (xdg config doom) ...$DOOMDIR)
-        (files-into (xdg config doom formatting) ...($FORMATTING | each { $"../formatting/($in)" }))
-        (file-copy $"../formatting/($SORT_DERIVES)" (xdg config doom formatting $SORT_DERIVES) --mode 755)
+        (files-into (xdg config doom formatting) ...($FORMATTING | each { $"../formatting/config/($in)" }))
+        (file-copy $"../formatting/scripts/($SORT_DERIVES)" (xdg config doom formatting $SORT_DERIVES) --mode 755)
         (step sync --key $key --done=($synced == $key) --requires (doom-bin) --network --timeout $SYNC_TIMEOUT)
     ]
 }
@@ -55,7 +55,7 @@ export def theme [cfg: record, wallpaper: string] {
     let roles = palette-rgb emacs | editor-roles $bg | reject light | rename --block { $"r_($in)" }
     let shade = if $p.light == "1" { {mode: light, darken: lighten, lighten: darken} } else { {mode: dark, darken: darken, lighten: lighten} }
     [
-        (file-render doom-pywal-theme.el.in (xdg cache $THEME) ($p | merge $accents | merge $roles | merge $shade | rename --block { str uppercase }) --generated)
+        (file-render config/doom-pywal-theme.el.in (xdg cache $THEME) ($p | merge $accents | merge $roles | merge $shade | rename --block { str uppercase }) --generated)
         $font_el
         $reload
     ]

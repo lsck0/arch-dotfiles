@@ -27,7 +27,7 @@ export def system [cfg: record] {
     if not ($snapshot =~ $SNAPSHOT) { error make {msg: $"pacman: lsck0_snapshot '($snapshot)' is not YYYY-MM-DD"} }
     let suffix = if $snapshot == "" { "" } else { $"/($snapshot)" }
     let server = $HOMELAB.mirror.lsck0 | str replace --regex '/\$arch$' $"($suffix)/$$arch"
-    let conf = open --raw pacman.conf | str replace $LSCK0_SERVER_PLACEHOLDER $server
+    let conf = open --raw config/pacman.conf | str replace $LSCK0_SERVER_PLACEHOLDER $server
     # off the lab (no homelab fact) an unreachable [lsck0] would fail every sync: the machine goes on without it and
     # takes it back once it answers; the owner's machines keep it, an outage there is a failure to see
     let conf = if (platform-has homelab) or (lsck0-reachable) { $conf } else {
@@ -37,7 +37,7 @@ export def system [cfg: record] {
     [
         (step trust)
         (file-text /etc/pacman.conf $conf)
-        (files-into /etc/pacman.d/hooks ...(glob hooks/*.hook))
+        (files-into /etc/pacman.d/hooks ...(glob config/hooks/*.hook))
         # pacman -F's database, which names the package of a missing command (cause.nu)
         (if ($FILESDB_TIMER_FILE | path exists) { unit-enable $FILESDB_TIMER --now })
         # the weekly timer's first run is up to a week out; until then a fresh install names no package
@@ -48,18 +48,18 @@ export def system [cfg: record] {
 # Locally signs archrepo.asc's key, read in a throwaway gpg home so no /root/.gnupg stays behind.
 export def trust []: nothing -> nothing {
     let home = mktemp --directory
-    let fingerprint = ^gpg --homedir $home --show-keys --with-colons archrepo.asc | lines | parse "fpr:{rest}"
+    let fingerprint = ^gpg --homedir $home --show-keys --with-colons config/archrepo.asc | lines | parse "fpr:{rest}"
         | get --optional 0.rest | default "" | split row ":" | get --optional 8
     rm --recursive --force $home
     if ($fingerprint | is-empty) { error make {msg: "pacman: no fingerprint in archrepo.asc"} }
-    ^pacman-key --add archrepo.asc
+    ^pacman-key --add config/archrepo.asc
     ^pacman-key --lsign-key $fingerprint
 }
 
 export def link [cfg: record] {
     [
-        (files-into (xdg config pacman) makepkg.conf)
-        (unit-file yay-cache-clean.service --values {CACHE_DAYS: $cfg.yay_cache_days})
+        (files-into (xdg config pacman) config/makepkg.conf)
+        (unit-file config/yay-cache-clean.service --values {CACHE_DAYS: $cfg.yay_cache_days})
         (unit-timer yay-cache-clean.timer "Weekly yay cache cleanup" --calendar weekly --enable --now)
         (shell-aliases pacman)
     ]

@@ -5,7 +5,7 @@
 
 const HERE = path self .
 const REPO = path self ../../..
-const QUICKSHELL = path self ../quickshell
+const QUICKSHELL = path self ../quickshell/config
 
 use std/assert
 
@@ -31,10 +31,10 @@ def ipc-handlers []: nothing -> record {
 }
 
 def main [] {
-    let lua = open --raw ($HERE | path join hyprland_keybindings.lua)
+    let lua = open --raw ($HERE | path join config hyprland_keybindings.lua)
 
     for name in (captures $lua 'hypr_script\("([^"]+)"\)') {
-        executable-check ($HERE | path join $name) "hypr_script"
+        executable-check ($HERE | path join scripts $name) "hypr_script"
     }
     for rel in (captures $lua '\$DOTFILES/([^ "'']+)' | where not ($it | str ends-with "/")) {
         executable-check ($REPO | path join $rel) "$DOTFILES script"

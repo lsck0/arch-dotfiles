@@ -1,6 +1,6 @@
 use module.nu *
-use ../wallust/editor.nu [editor-roles]
-use ../wallust/palette.nu [palette-rgb]
+use ../wallust/scripts/editor.nu [editor-roles]
+use ../wallust/scripts/palette.nu [palette-rgb]
 
 export const meta = {deps: [core/cli core/tmux core/wallust], packages: {pacman: [git git-delta]}, inputs: [/usr/bin/mergiraf /usr/bin/jj /usr/bin/git-lfs /usr/bin/gh]}
 
@@ -49,10 +49,10 @@ export def link [cfg: record] {
     ] | compact
     [
         (file-text ($dir | path join config) (ini $sections))
-        (file-copy template/hooks/pre-commit ($template | path join hooks pre-commit) --mode 755)
+        (file-copy config/template/hooks/pre-commit ($template | path join hooks pre-commit) --mode 755)
         (if (has mergiraf) { file-text ($dir | path join attributes) $"(^mergiraf languages --gitattributes)\n" })
         (if (has jj) { file-text (xdg config jj config.toml) (jj-config $identity) })
-        (link-commands wtree.nu)
+        (link-commands scripts/wtree.nu)
         (shell-aliases git)
     ]
 }

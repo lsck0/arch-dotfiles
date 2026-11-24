@@ -318,7 +318,7 @@ export def luks-header-sync [repo: path]: nothing -> nothing {
     if not (secret-is-plaintext ($repo | path join $OWNER_WITNESS)) { return }
     try {
         if not (luks-header-due (luks-header-path $repo)) { return }
-        ^nu --no-config-file ($repo | path join configs base boot luks header-backup.nu)
+        ^nu --no-config-file ($repo | path join configs base boot luks scripts header-backup.nu)
         let stamp = luks-header-checked-stamp
         mkdir ($stamp | path dirname)
         (date now | format date "%s") | save --force $stamp

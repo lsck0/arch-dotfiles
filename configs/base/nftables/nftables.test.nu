@@ -9,10 +9,10 @@ use module.nu [decls-flatten text-render]
 use mod.nu [system]
 
 const HERE = path self .
-const UNIT = $HERE | path join fw-egress.service
-const RULESET = $HERE | path join fw-egress.nft
+const UNIT = $HERE | path join config fw-egress.service
+const RULESET = $HERE | path join config fw-egress.nft
 const ESCAPES = {fetch_uid: alpm, resolver_uid: systemd-resolve}
-const INBOUND = $HERE | path join fw-inbound.nft
+const INBOUND = $HERE | path join config fw-inbound.nft
 const INBOUND_VALUES = {
     SSH_KNOCK_WINDOW: "1h", SSH_PORT: "2222", SSH_RATE: "10/minute burst 10 packets"
     KNOCK_1: "7001", KNOCK_2: "7002", KNOCK_3: "7003"
@@ -24,8 +24,8 @@ const PEER_ADDRESS = "10.77.0.2"
 # a dropped SYN is waited out, a refused one (accepted, nothing listening) answers at once
 const CONNECT_TIMEOUT = "0.2"
 const EXIT_TIMEOUT = 124
-const LOCKDOWN = $HERE | path join fw-lockdown.nft
-const LOCKDOWN_UNIT = $HERE | path join fw-lockdown.service
+const LOCKDOWN = $HERE | path join config fw-lockdown.nft
+const LOCKDOWN_UNIT = $HERE | path join config fw-lockdown.service
 const PENTEST_IFACE = "tun0"
 const PENTEST_LINKS = 'elements = { "tun0" }'
 

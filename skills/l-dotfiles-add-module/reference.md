@@ -4,14 +4,16 @@ Signatures are in `scripts/lib/module.nu`; read its doc comment above a helper b
 
 ## Declarations
 
+- Sources (`<src>`, `<file>`, `<script>`) are relative to the module dir: `config/...` for what is installed,
+  `scripts/...` for what runs.
 - Files: `file-copy <src> <dest> [--then]`, `files-into <dir> <src...>`, `file-text <dest> <text> [--generated]
   [--in-place]` (`--generated` outputs are rewritten without a drift check), `file-render <src> <dest> {KEY: v}`
   (`@KEY@`), `file-link` (only where the app reads the repo live), `link-commands <file...>`, `json-merge <file>
   [(json-set [k] v) (json-delete [k])]` (or a record of top-level keys), `ini-merge <file> {section: {key: v}}
   [--missing-only]`, `desktop-override <id> {|text| ...}` (with `desktop-set {Key: v}` inside), `desktop-exec <id>
   <cmd> [--command] [--args] [--env-vars]` (rewrites its `Exec=` lines), `shell-aliases <name>` (the module's
-  `aliases.nu`/`aliases.zsh`; a tool's aliases live with the module declaring the tool, never in core/nushell or
-  core/zsh).
+  `config/aliases.nu`/`config/aliases.zsh`; a tool's aliases live with the module declaring the tool, never in
+  core/nushell or core/zsh).
 - MCP: `mcp-servers {name: spec}` (Claude, Gemini, Copilot and Hermes, each in its format; null drops one),
   `mcp-command <name> <script>`, `mcp-uvx` (pinned PyPI server in its own venv), `mcp-npm <name> <dir> <prefix>`
   (`npm ci` on the committed lock).

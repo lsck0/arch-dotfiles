@@ -7,16 +7,16 @@ description: "Writing or adjusting AppArmor profiles and local/ drop-ins in conf
 
 Built on apparmor.d (`aa-install`). In `configs/base/apparmor/`:
 
-- `profiles.conf`: the mode of every deployed profile, `<name> <mode>[,flags]`. `,flags` only for apparmor.d's; an own
-  profile keeps its flags in its `profile` line and `mod.nu` writes the mode into it.
-- `profiles/<name>`: own profiles, installed as `/etc/apparmor.d/<name>.dotfiles`. First line
+- `config/profiles.conf`: the mode of every deployed profile, `<name> <mode>[,flags]`. `,flags` only for apparmor.d's;
+  an own profile keeps its flags in its `profile` line and `mod.nu` writes the mode into it.
+- `config/profiles/<name>`: own profiles, installed as `/etc/apparmor.d/<name>.dotfiles`. First line
   `# managed by arch-dotfiles/apparmor`, then `profile <name> <attachment> flags=(...)`.
 - `OVERRIDES` in `mod.nu`: apparmor.d profiles with a brace attachment (firefox, thunderbird, libreoffice, browserpass)
   regenerated as own profiles from the installed one, only the attachment swapped; apply and test fail once
   apparmor.d stops shipping one. A `profile transition not found` denial into an apparmor.d program is this case.
-- `local/<name>`: extra rules for an apparmor.d profile (`/etc/apparmor.d/local/<name>`); the name must be in
-  `profiles.conf`.
-- `abstractions/<name>`: installed as `abstractions/dotfiles/<name>`.
+- `config/local/<name>`: extra rules for an apparmor.d profile (`/etc/apparmor.d/local/<name>`); the name must be in
+  `config/profiles.conf`.
+- `config/abstractions/<name>`: installed as `abstractions/dotfiles/<name>`.
 
 ## Rules
 
@@ -32,7 +32,7 @@ Built on apparmor.d (`aa-install`). In `configs/base/apparmor/`:
 
 1. Reproduce it (a GUI app the way `l-dotfiles-gui-testing` allows: ask Luca first), then read
    `journalctl -k -b --no-pager -g 'apparmor="DENIED"' | tail`: `profile=`, `operation=`, `name=`, `requested_mask=`.
-2. Add the narrowest rule to `local/<profile>` or `profiles/<profile>`; prefer an abstraction
+2. Add the narrowest rule to `config/local/<profile>` or `config/profiles/<profile>`; prefer an abstraction
    (`include <abstractions/dotfiles/viewer-read>`).
 3. `configs/base/apparmor/apparmor.test.nu` (no root) until it exits 0.
 4. `DOT_SYSTEM=skip dot apply` (system part pending, exit 3), then ask Luca for `dot apply --system`: it installs,
@@ -42,7 +42,7 @@ Built on apparmor.d (`aa-install`). In `configs/base/apparmor/`:
 Quick loop for Luca (sudo), followed by `dot apply --system` all the same:
 
 ```bash
-sudo install -m644 configs/base/apparmor/local/<p> /etc/apparmor.d/local/<p>
+sudo install -m644 configs/base/apparmor/config/local/<p> /etc/apparmor.d/local/<p>
 sudo apparmor_parser -r /etc/apparmor.d/<file>
 ```
 

@@ -3,8 +3,8 @@
 # deny outright is hidden from a build: the two lists cannot drift apart.
 
 const HERE = path self .
-const SENSITIVE_HOME_FILE = $HERE | path join sensitive-home.txt
-const ABSTRACTIONS = $HERE | path join .. apparmor abstractions
+const SENSITIVE_HOME_FILE = $HERE | path join config sensitive-home.txt
+const ABSTRACTIONS = $HERE | path join .. apparmor config abstractions
 const FILE_TOOL_RULES = [deny-sensitive-home file-tool]
 const DENY_ALL = "mrwkl,"
 # apparmor.d's tunables as home-relative paths

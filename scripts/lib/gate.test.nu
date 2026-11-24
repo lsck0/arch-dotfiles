@@ -85,7 +85,7 @@ def linked-relative-check [] {
         assert equal $got $c.wants $"linked, ($c.name): got lines ($got | to nuon), wants ($c.wants | to nuon)"
     }
     let linked = linked-scripts | each { path relative-to $REPO }
-    for f in [configs/base/apparmor/aa.nu configs/desktop/quickshell/scripts/alert.nu scripts/dot.nu] {
+    for f in [configs/base/apparmor/scripts/aa.nu configs/desktop/quickshell/config/scripts/alert.nu scripts/dot.nu] {
         assert ($f in $linked) $"linked scripts miss ($f)"
     }
     for f in [scripts/mod.nu scripts/extract.test.nu configs/base/apparmor/mod.nu] {

@@ -25,9 +25,10 @@ export def system [cfg: record] {
     let pass = $OSSEC | path join etc authd.pass
     [
         (file-text $pass (open --raw $password | str trim) --mode "640" --then (do $own $pass))
-        (file-render ossec.conf $conf {
+        (file-render config/ossec.conf $conf {
             MANAGER: $HOMELAB.wazuh.manager, EVENTS: $HOMELAB.wazuh.events, ENROLLMENT: $HOMELAB.wazuh.enrollment, HOST: $host
         } --mode "640" --then (do $own $conf))
+        (dropin $UNIT config/start-timeout.conf)
         (unit-enable $UNIT --now)
     ]
 }

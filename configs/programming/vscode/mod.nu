@@ -1,6 +1,6 @@
 use module.nu *
-use ../../core/wallust/font.nu [PX_PER_PT font-load]
-use ../../core/wallust/palette.nu [SHADE_CHROME hex-to-rgb rgb-to-hex shade]
+use ../../core/wallust/scripts/font.nu [PX_PER_PT font-load]
+use ../../core/wallust/scripts/palette.nu [SHADE_CHROME hex-to-rgb rgb-to-hex shade]
 
 export const meta = {packages: {pacman: [vscodium-bin]}}
 
@@ -38,7 +38,7 @@ def settings [user_dir: path]: nothing -> record {
         "workbench.experimental.fontFamily": $"'($font.family)', sans-serif"
         "workbench.experimental.fontSize": ($font.ui_size * $PX_PER_PT | math round)
     }
-    json-merge ($user_dir | path join settings.json) (open settings.json | merge $typeface | merge $theme)
+    json-merge ($user_dir | path join settings.json) (open config/settings.json | merge $typeface | merge $theme)
 }
 
 def edition []: nothing -> any { $EDITIONS | where {|e| which $e.bin | is-not-empty } | get --optional 0 }
@@ -49,7 +49,7 @@ export def link [cfg: record] {
     let user_dir = xdg config $edition.config User
     let installed = glob ($nu.home-dir | path join $edition.extensions extensions "vscodevim.vim-*") | is-not-empty
     [
-        (files-into $user_dir keybindings.json)
+        (files-into $user_dir config/keybindings.json)
         (settings $user_dir)
         (exec vim-mode [$edition.bin --install-extension vscodevim.vim] --done=$installed --undo [$edition.bin --uninstall-extension vscodevim.vim] --network)
     ]

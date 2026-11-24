@@ -1,8 +1,8 @@
 use module.nu *
 use ini.nu [ini-rows]
-use ../../core/wallust/palette.nu [RADIUS_PX SHADE_CHROME SHADE_CURRENT condition-bg dim-toward lift palette-rgb readable-on rgb-to-hex selection-pair semantic shade vivify]
-use ../../core/wallust/font.nu [font-load]
-use hook/spicetify-apply.nu [apply-pending]
+use ../../core/wallust/scripts/palette.nu [RADIUS_PX SHADE_CHROME SHADE_CURRENT condition-bg dim-toward lift palette-rgb readable-on rgb-to-hex selection-pair semantic shade vivify]
+use ../../core/wallust/scripts/font.nu [font-load]
+use scripts/hook/spicetify-apply.nu [apply-pending]
 
 export const meta = {packages: {pacman: [spicetify-cli spotify spotify-player unzip websocat]}}
 
@@ -27,7 +27,7 @@ export def link [cfg: record] {
     let base = [
         (fetch-git $THEMES_URL $THEMES_COMMIT $themes)
         # spotify's slider is its stream's channel volume; a restored stream volume under it caps max volume
-        (file-copy wireplumber.conf (xdg config wireplumber wireplumber.conf.d spotify.conf))
+        (file-copy config/wireplumber.conf (xdg config wireplumber wireplumber.conf.d spotify.conf))
     ]
     if (package-version spotify) == null { return $base }
     let prefs = xdg config spotify prefs
@@ -36,12 +36,12 @@ export def link [cfg: record] {
         $base
         # spicetify's first run reads spotify's prefs; an empty one stands in before spotify's first start
         (exec spotify-prefs [install -D --mode 644 /dev/null $prefs] --creates $prefs)
-        (files-into (spicetify-dir | path join Extensions) ...$EXTENSIONS)
+        (files-into (spicetify-dir | path join Extensions) ...($EXTENSIONS | each { $"config/($in)" }))
         (step configure --done=$configured)
-        (desktop-exec spotify.desktop spotify --command $"($env.PWD)/spotify-launch.nu")
-        (exec spicetify-apply [./hook/spicetify-apply.nu] --done=($configured and not (apply-pending)))
+        (desktop-exec spotify.desktop spotify --command $"($env.PWD)/scripts/spotify-launch.nu")
+        (exec spicetify-apply [./scripts/hook/spicetify-apply.nu] --done=($configured and not (apply-pending)))
         # --permanent also runs it on every login: an upgrade while logged out fires no path unit
-        (user-hook spicetify-apply hook/spicetify-apply.nu --permanent --watch [
+        (user-hook spicetify-apply scripts/hook/spicetify-apply.nu --permanent --watch [
             "%h/.config/spotify/prefs" "/opt/spotify/Apps/xpui.spa"
         ])
     ]
@@ -91,7 +91,7 @@ export def spicetify-colors []: nothing -> any {
 # user.css with the radius and the font
 def user-css []: nothing -> string {
     let font = font-load
-    open --raw user.css
+    open --raw config/user.css
     | str replace --regex --multiline '^(\s*--radius:) .*$' $"${1} ($RADIUS_PX)px;"
     | str replace --regex --multiline '^(\s*--font-scale:) .*$' $"${1} ($font.scale);"
     | str replace --regex 'font-family: "[^"]*", "Symbols Nerd Font"' $'font-family: "($font.family)", "Symbols Nerd Font"'
@@ -105,7 +105,7 @@ export def theme [cfg: record, wallpaper: string] {
     let width = $colors.key | str length | math max
     let body = $colors | each { $"($in.key | fill --width $width) = ($in.hex)\n" } | str join
     [
-        (file-text $ini $"[pywal]\n($body)" --generated --then [./spotify-reload.nu])
-        (file-text $css (user-css) --generated --then [./spotify-reload.nu])
+        (file-text $ini $"[pywal]\n($body)" --generated --then [./scripts/spotify-reload.nu])
+        (file-text $css (user-css) --generated --then [./scripts/spotify-reload.nu])
     ]
 }

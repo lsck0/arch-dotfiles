@@ -63,15 +63,15 @@ export def system [cfg: record] {
     # only on a changed ruleset, it empties the knock and portal sets; never a start, fw-egress off a trusted network cuts this run
     [
         # units first, so a fresh install's ruleset reload finds them
-        ($UNITS | each {|u| unit-file $u --then (unit-restart $u --reload --if-running) })
-        (file-render fw-inbound.nft $"($DIR)/fw-inbound.nft" $inbound
+        ($UNITS | each {|u| unit-file $"config/($u)" --then (unit-restart $u --reload --if-running) })
+        (file-render config/fw-inbound.nft $"($DIR)/fw-inbound.nft" $inbound
             --then (unit-restart fw-inbound.service --reload --if-running))
         # the inbound lockdown holds from the first run, unless a trusted link already loaded fw-inbound
-        (file-copy fw-lockdown.nft $"($DIR)/fw-lockdown.nft" --then [sh -c $LOCKDOWN_START])
+        (file-copy config/fw-lockdown.nft $"($DIR)/fw-lockdown.nft" --then [sh -c $LOCKDOWN_START])
         # the escape uids are filled in by the unit at start, so it never waits on tor being installed
-        (file-copy fw-egress.nft $"($DIR)/fw-egress.nft"
+        (file-copy config/fw-egress.nft $"($DIR)/fw-egress.nft"
             --then (unit-restart fw-egress.service --reload --if-running))
-        (file-copy fw-egress-uids.hook $HOOK)
+        (file-copy config/fw-egress-uids.hook $HOOK)
         (unit-disable fw-inbound.service)
         (unit-enable fw-lockdown.service)
         # fail closed: without tor, pacman's escape in fw-egress.nft is how tor gets installed

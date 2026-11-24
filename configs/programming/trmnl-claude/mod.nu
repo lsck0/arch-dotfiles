@@ -14,7 +14,7 @@ const SECRET = "configs/secrets/keys/trmnl-claude.env"
 export def link [cfg: record] {
     if not $cfg.poster or not (secret-is-plaintext ($env.DOTFILES | path join $SECRET)) { return [] }
     [
-        (unit-file trmnl-claude.service --values {DIR: $env.PWD})
-        (unit-file trmnl-claude.timer --enable --now)
+        (unit-file config/trmnl-claude.service --values {DIR: $env.PWD})
+        (unit-file config/trmnl-claude.timer --enable --now)
     ]
 }

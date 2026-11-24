@@ -52,9 +52,13 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
 ## Layout
 
 - `configs/<group>/<module>/mod.nu`: one tool or task. Read the group's `AGENTS.md` before editing there (one
-  instruction file per directory, no `CLAUDE.md`; `configs/programming/claude/CLAUDE.md` is the global `~/.claude`
-  file, which imports `MACHINE.md` from `programming/agent-rules`, the source of the machine rules for every agent
-  harness). `dependencies.txt` names the groups a group reaches into.
+  instruction file per directory, no `CLAUDE.md`; `configs/programming/claude/config/CLAUDE.md` is the global
+  `~/.claude` file, which imports `MACHINE.md` from `programming/agent-rules`, the source of the machine rules for every
+  agent harness). `dependencies.txt` names the groups a group reaches into.
+- A module dir's top holds only `mod.nu`, `AGENTS.md`, `README.md`, `dependencies.txt`, `.gitignore`, `*.test.nu`
+  (and a `.herdr-create`/`.tms-create` those tools read in place), plus `config/` (what dot installs), `scripts/`
+  (what runs: linked commands, helpers, shared code) and `test/` (fixtures); a dir of sibling modules (`base/boot`) the
+  same. `lint-layout` in `scripts/lib/gate.nu` enforces it.
 - `platforms/<name>.nuon` (facts, groups) and `<name>.options.nuon`: `luca-pc`, `luca-notebook`, `server`, `vm`,
   `wsl`; the machine's choice is `/etc/dotfiles/platform`, server or custom answers
   `/etc/dotfiles/platform{,.options}.nuon`. `profiles/<name>.nuon`: user identity and capabilities (`luca`, or
@@ -90,8 +94,10 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   over; both preserved aside. Links only where an app reads the repo live. dot writes nothing into `~/sync` but
   `~/sync/.stignore`, where `core/syncthing` keeps its `**/.identity` and `/vendor` lines (the capture and notes tools
   write their notes there at runtime).
-- Keep `$HOME` clean: env var to `configs/base/xdg/app-dirs.conf`, hardcoded dirs to `RECLAIM` in
+- Keep `$HOME` clean: env var to `configs/base/xdg/config/app-dirs.conf`, hardcoded dirs to `RECLAIM` in
   `configs/base/xdg/mod.nu`, forced non-dot dirs to `home.hidden`.
+- A module's sources are module-relative (`unit-file config/foo.service`, `link-commands scripts/foo.nu`); a new file
+  goes under `config/`, `scripts/` or `test/`, never loose at the module's top.
 - Native over bolt-on: the tool's own mechanism (Hyprland rules, systemd units, pipewire config, pacman hooks, udev),
   never a wrapper or polling script.
 - A nushell script that runs as root on arguments its caller chose takes neither `def --wrapped main` nor a

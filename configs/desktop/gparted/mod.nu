@@ -18,8 +18,8 @@ export def link [cfg: record] {
 export def system [cfg: record] {
     let names = {ACTION: $ACTION, WRAPPER: $WRAPPER}
     [
-        (file-render gparted-run.sh $WRAPPER {SCALE: (xwayland-scale-for $cfg)} --mode 755)
-        (file-render $POLICY ("/usr/share/polkit-1/actions" | path join $POLICY) $names)
-        (polkit-rules 49-gparted.rules --values $names)
+        (file-render scripts/gparted-run.sh $WRAPPER {SCALE: (xwayland-scale-for $cfg)} --mode 755)
+        (file-render $"config/($POLICY)" ("/usr/share/polkit-1/actions" | path join $POLICY) $names)
+        (polkit-rules config/49-gparted.rules --values $names)
     ]
 }

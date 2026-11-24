@@ -1,8 +1,8 @@
 use module.nu *
-use ../../core/wallust/palette.nu *
+use ../../core/wallust/scripts/palette.nu *
 use ../../desktop/idle-guards/mod.nu [AGENT_GUARD AGENT_GUARD_INPUT guard-hook]
 use ../../desktop/hyprland/mod.nu [reload]
-use ../../llm/ollama/ollama-ensure-models.nu [LONG_CONTEXT]
+use ../../llm/ollama/scripts/ollama-ensure-models.nu [LONG_CONTEXT]
 
 # after caveman and rtk: the orchestrator profile is a one-time clone of ~/.hermes, which they fill with skills
 export const meta = {
@@ -99,9 +99,9 @@ def profile [
 def system-agent [settings: record, remove: list<string>, mcp: record, skills: list<path>]: nothing -> list<record> {
     [
         (profile system "System agent: always on, drives the desktop, talks." ($settings | merge $SYSTEM_SETTINGS) $remove $mcp $skills)
-        (file-link system-agent.sh ($nu.home-dir | path join .local bin hermes-system-agent))
-        (unit-file $SYSTEM_UNIT --enable --now)
-        (file-copy hypr-system-agent.lua ($nu.home-dir | path join .config hypr dropins system_agent.lua) --then (then-step hypr-reload))
+        (file-link scripts/system-agent.sh ($nu.home-dir | path join .local bin hermes-system-agent))
+        (unit-file $"config/($SYSTEM_UNIT)" --enable --now)
+        (file-copy config/hypr-system-agent.lua ($nu.home-dir | path join .config hypr dropins system_agent.lua) --then (then-step hypr-reload))
     ]
 }
 
@@ -155,7 +155,7 @@ def configure [home: path, settings: record, remove: list<string>, mcp: record]:
     let current = $set ++ $removed ++ $hooked ++ $served ++ [($have.display?.skin? == $SKIN) (not $stale)] | all { $in }
     [
         (file-text $input ($want | to json --raw) --mode 600 --generated)
-        (exec $"configure ($home)" [env $"HERMES_HOME=($home)" $PYTHON configure.py $input] --done=$current)
+        (exec $"configure ($home)" [env $"HERMES_HOME=($home)" $PYTHON scripts/configure.py $input] --done=$current)
     ]
 }
 

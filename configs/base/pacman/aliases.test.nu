@@ -4,10 +4,10 @@
 # sudo and pacman first on PATH, and a terminal with no agent marker, so the guard lets the call through to the fake.
 
 const HERE = path self .
-const ALIASES_ZSH = $HERE | path join aliases.zsh
-const ALIASES_NU = $HERE | path join aliases.nu
-const ZSHRC = $HERE | path join .. .. core zsh zshrc
-const CONFIG_NU = $HERE | path join .. .. core nushell config.nu
+const ALIASES_ZSH = $HERE | path join config aliases.zsh
+const ALIASES_NU = $HERE | path join config aliases.nu
+const ZSHRC = $HERE | path join .. .. core zsh config zshrc
+const CONFIG_NU = $HERE | path join .. .. core nushell config config.nu
 const CLI_NU = $HERE | path join .. .. .. scripts lib cli.nu
 const MARKERS_NU = "const AGENT_MARKERS"
 const SUDO_PREFIX = "sudo "

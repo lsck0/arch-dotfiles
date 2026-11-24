@@ -1,6 +1,6 @@
 use module.nu *
-use ../../core/wallust/palette.nu [ACCENT2_RATIO hex-to-rgb readable-on rgb-to-hex shade]
-use ../../core/wallust/font.nu [font-load]
+use ../../core/wallust/scripts/palette.nu [ACCENT2_RATIO hex-to-rgb readable-on rgb-to-hex shade]
+use ../../core/wallust/scripts/font.nu [font-load]
 
 export const meta = {deps: [core/trash core/wallust], reads: [desktop/hyprland], packages: {pacman: [nsxiv xorg-xrdb]}}
 
@@ -8,7 +8,7 @@ const RESOURCES = "wal/colors-nsxiv.Xresources"
 const BAR_SHADE = 0.075
 
 export def link [cfg: record] {
-    file-copy exec/key-handler (xdg config nsxiv exec key-handler) --mode 755
+    file-copy scripts/key-handler (xdg config nsxiv exec key-handler) --mode 755
 }
 
 # nsxiv reads only the X server's resources: merged here while Xwayland runs, and at login by hyprland_autostart.lua.

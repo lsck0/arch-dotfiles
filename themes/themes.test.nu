@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-use ../configs/core/wallust/palette.nu [contrast-floors hex-to-rgb is-light passes]
+use ../configs/core/wallust/scripts/palette.nu [contrast-floors hex-to-rgb is-light passes]
 
 const THEMES = path self .
 const WALLPAPERS = path self ../wallpapers

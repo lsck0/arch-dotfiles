@@ -47,30 +47,30 @@ export def link [cfg: record] {
             --key $venv_key --done=$venv_stamped)
         (step models --network --timeout $MODELS_TIMEOUT --key ($MODELS | get sha256 | str join " ")
             --done=$models_stamped)
-        (file-copy comfyui-wait-ready.nu $values.WAIT_READY --mode 755)
+        (file-copy scripts/comfyui-wait-ready.nu $values.WAIT_READY --mode 755)
         # the unit sees none of $HOME but its own tree and this dir, so it cannot make it itself
         (exec comfyui-output [mkdir -p $values.OUTPUT] --creates $values.OUTPUT)
-        (unit-file comfyui.service --values $values --then [
+        (unit-file config/comfyui.service --values $values --then [
             # try-restart: a restart would start it outside the socket, holding vram with no idle exit
             systemctl --user try-restart comfyui.service
         ])
-        (unit-file comfyui-proxy.service --values $values)
-        (unit-file comfyui.socket --enable --now)
+        (unit-file config/comfyui-proxy.service --values $values)
+        (unit-file config/comfyui.socket --enable --now)
         # texture, image and 3d generation from a shell, an agent or the Blender panel (creating/blender)
-        (link-commands comfy-gen.nu)
+        (link-commands scripts/comfy-gen.nu)
     ]
 }
 
 # Everything the venv is built from.
 def venv-key []: nothing -> string {
-    [$COMFYUI_COMMIT (open --raw pyproject.toml | hash sha256) (open --raw uv.lock | hash sha256)] | str join " "
+    [$COMFYUI_COMMIT (open --raw scripts/pyproject.toml | hash sha256) (open --raw scripts/uv.lock | hash sha256)] | str join " "
 }
 
 # The venv from uv.lock, exactly: --locked refuses a lock out of date with pyproject.toml, --exact drops strays.
 export def venv []: nothing -> nothing {
     let root = root
     with-env {UV_PROJECT_ENVIRONMENT: ($root | path join venv), UV_PYTHON_INSTALL_DIR: ($root | path join python)} {
-        ^uv sync --locked --exact --no-install-project --project $env.PWD
+        ^uv sync --locked --exact --no-install-project --project ($env.PWD | path join scripts)
     }
     rm --force ($root | path join venv.stamp)
 }

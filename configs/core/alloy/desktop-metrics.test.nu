@@ -2,10 +2,10 @@
 # desktop-metrics' offload rows from worker states: running summed over users, each kind's newest finished job across
 # users, malformed states and entries dropped; every name the rows carry has its HELP.
 
-use desktop-metrics.nu [offload-metrics]
+use scripts/desktop-metrics.nu [offload-metrics]
 use std/assert
 
-const SCRIPT = path self desktop-metrics.nu
+const SCRIPT = path self scripts/desktop-metrics.nu
 const NAMES = [worker_up jobs_running job_last_exit job_last_seconds job_last_peak_mib]
 
 def value [rows: list<record>, name: string, labels: record = {}]: nothing -> any {

@@ -36,8 +36,8 @@ export def gpu-section [device: any, vendor: any, level: any]: nothing -> string
 
 export def link [cfg: record] {
     [
-        (file-text (xdg config gamemode.ini) (open --raw gamemode.ini))
-        (link-commands gamemode-hook.nu)
+        (file-text (xdg config gamemode.ini) (open --raw config/gamemode.ini))
+        (link-commands scripts/gamemode-hook.nu)
     ]
 }
 
@@ -46,8 +46,8 @@ export def system [cfg: record] {
     let gpu = gpu-section $cfg.gpu_device $vendor $cfg.amd_performance_level
     [
         (if $gpu != "" { file-text /etc/gamemode.ini $gpu })
-        (file-copy split-lock-mitigate.nu /usr/local/bin/split-lock-mitigate --mode 755)
-        (polkit-rules 49-gamemode-services.rules)
+        (file-copy scripts/split-lock-mitigate.nu /usr/local/bin/split-lock-mitigate --mode 755)
+        (polkit-rules config/49-gamemode-services.rules)
         (group-admins gamemode)
     ]
 }

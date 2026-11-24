@@ -3,7 +3,7 @@ use module.nu *
 export const meta = {deps: [core/wallust], packages: {pacman: [yazi]}}
 
 export def link [cfg: record] {
-    files-into (xdg config yazi) yazi.toml keymap.toml
+    files-into (xdg config yazi) config/yazi.toml config/keymap.toml
 }
 
 export def theme [cfg: record, wallpaper: string] {

@@ -36,7 +36,7 @@ def cargo-config [cfg: record] {
     let cargo = $nu.home-dir | path join .cargo
     let secret = $env.DOTFILES | path join $SECRET
     let shared = $cfg.sccache_redis and (profile-has secrets) and (secret-is-plaintext $secret)
-    if not $shared { return (files-into $cargo config.toml) }
+    if not $shared { return (files-into $cargo config/config.toml) }
     let s = env-file-load $secret
     let url = $s.SCCACHE_REDIS_ENDPOINT | url parse
     let port = $url.port | default --empty (if $url.scheme == rediss { $REDIS_TLS_PORT } else { $REDIS_PORT })
@@ -46,8 +46,8 @@ def cargo-config [cfg: record] {
     let password = $s.SCCACHE_REDIS_PASSWORD | to json
     [
         (file-text (xdg config sccache config) $"[cache.redis]\nendpoint = ($endpoint)\npassword = ($password)\n" --mode 600)
-        (file-render rustc-wrapper.sh $wrapper {HOST: $url.host, PORT: $port} --mode 755)
-        (file-text ($cargo | path join config.toml) $"(open --raw config.toml)\n[build]\nrustc-wrapper = \"($wrapper)\"\n")
+        (file-render scripts/rustc-wrapper.sh $wrapper {HOST: $url.host, PORT: $port} --mode 755)
+        (file-text ($cargo | path join config.toml) $"(open --raw config/config.toml)\n[build]\nrustc-wrapper = \"($wrapper)\"\n")
     ]
 }
 

@@ -50,7 +50,7 @@ export def link [cfg: record] {
         # the timeout ends the headless first run on purpose: the profile it creates is the result
         (exec zotero-profile [sh -c $"timeout ($PROFILE_TIMEOUT_S) zotero --headless > /dev/null 2>&1; true"] --creates $ini)
         ($profiles | each {|dir|
-            [(file-render user.js ($dir | path join user.js) $prefs) (fetch-file $BBT_URL $BBT_SHA256 ($dir | path join $xpi))]
+            [(file-render config/user.js ($dir | path join user.js) $prefs) (fetch-file $BBT_URL $BBT_SHA256 ($dir | path join $xpi))]
         })
         # the auto-export runs only on a library change, so an unchanged library never gets its file
         # better bibtex answers the export; its download may still be pending (offline), then the export waits too

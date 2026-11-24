@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # profile-mode on the profile lines apparmor.d and the own profiles carry, with and without flags; text-mode on a file.
 
-use profile-flags.nu [profile-mode text-mode]
+use scripts/profile-flags.nu [profile-mode text-mode]
 
 const CASES = [
     [line mode want];

@@ -27,16 +27,16 @@ Bit order may not match the physical layout: press each key and watch the F-code
 Check:
 
 ```bash
-./test-driver.py                     # offline decode test, run after any driver change
+scripts/test-driver.py               # offline decode test, run after any driver change
 systemctl status tablet-driver
-./verify-mapping.py 30 DP-2          # sweep the whole pad
+scripts/verify-mapping.py 30 DP-2     # sweep the whole pad
 libinput list-devices | grep '^Device.*T1161'   # exactly two virtual devices
 ```
 
 Calibrate at the pad, as root (writes `/var/lib/tablet-driver/calibration.json`, delete it for the defaults):
 
 ```bash
-sudo systemctl stop tablet-driver && sudo ./tablet-driver.py --calibrate 20 && sudo systemctl start tablet-driver
+sudo systemctl stop tablet-driver && sudo scripts/tablet-driver.py --calibrate 20 && sudo systemctl start tablet-driver
 ```
 
 Gotchas:

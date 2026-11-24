@@ -1,5 +1,5 @@
 use module.nu *
-use ../../core/wallust/font.nu [font-load]
+use ../../core/wallust/scripts/font.nu [font-load]
 
 export const meta = {
     packages: {
@@ -44,10 +44,10 @@ const LICENSES = [Cinzel.OFL.txt KodeMono.OFL.txt Tektur.OFL.txt Vollkorn.OFL.tx
 export def link [cfg: record] {
     let fonts = xdg data fonts
     [
-        ($FONTS | each {|f| file-copy $f ($fonts | path join $f) --then [fc-cache -f $fonts] })
-        ($LICENSES | each {|f| file-copy $f ($fonts | path join $f) })
+        ($FONTS | each {|f| file-copy $"config/($f)" ($fonts | path join $f) --then [fc-cache -f $fonts] })
+        ($LICENSES | each {|f| file-copy $"config/($f)" ($fonts | path join $f) })
         # a drop-in, not fonts.conf: plasma's font settings rewrite that one
-        (file-copy fonts.conf (xdg config fontconfig conf.d 50-dotfiles.conf))
+        (file-copy config/fonts.conf (xdg config fontconfig conf.d 50-dotfiles.conf))
     ]
 }
 
@@ -74,5 +74,5 @@ export def theme [cfg: record, wallpaper: string] {
 
 export def system [cfg: record] {
     # a scan rule edits the fonts themselves, so it must reach the cache root builds for /usr/share/fonts
-    [(file-copy sarasa-generic.conf /etc/fonts/conf.d/45-dotfiles-sarasa-generic.conf --then [fc-cache --system-only --force])]
+    [(file-copy config/sarasa-generic.conf /etc/fonts/conf.d/45-dotfiles-sarasa-generic.conf --then [fc-cache --system-only --force])]
 }

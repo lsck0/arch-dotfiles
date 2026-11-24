@@ -12,7 +12,7 @@ their own boots, unattended. At the end it retires itself and its sudo drop-in, 
 ## Install
 
 - lsck0 iso: `https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso`, checked against `.sha256` and `.sig`
-  (key `configs/base/pacman/archrepo.asc`, signer `HOMELAB.mirror.isoSigner` in `platforms/homelab.nu`,
+  (key `configs/base/pacman/config/archrepo.asc`, signer `HOMELAB.mirror.isoSigner` in `platforms/homelab.nu`,
   `88042EFBF5F141C2ACF4697ADD84D7C4053DD354`), written raw
   to a stick. Build one with `dot internal iso` (root, mkarchiso). Its stub autologins, waits for internet, clones
   master, checks HEAD's signature and runs `bootstrap.sh`, which starts `dot internal iso-install`.

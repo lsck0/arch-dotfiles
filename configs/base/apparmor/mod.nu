@@ -1,6 +1,6 @@
 use module.nu *
-export use ../boot/boot.nu [cmdline-set]
-use profile-flags.nu [BASELINE_FLAGS ETC MANUAL_FLAGS MARKER OWN_SUFFIX SOURCE text-mode upstream-files]
+export use ../boot/scripts/boot.nu [cmdline-set]
+use scripts/profile-flags.nu [BASELINE_FLAGS ETC MANUAL_FLAGS MARKER OWN_SUFFIX SOURCE text-mode upstream-files]
 
 export const meta = {packages: {native: [apparmor apparmor.d]}, volatile: true, native_only: [system]}
 
@@ -10,7 +10,7 @@ const EARLY_POLICY = "/etc/apparmor/earlypolicy"
 const PARSER_LINES = [write-cache $"cache-loc ($EARLY_POLICY)/" Optimize=compress-fast]
 # the kernel's CONFIG_LSM default with apparmor before bpf
 const LSM = "lsm=landlock,lockdown,yama,integrity,apparmor,bpf"
-const USER_DIRS = "../xdg/user-dirs.dirs"
+const USER_DIRS = "../xdg/config/user-dirs.dirs"
 # under the xdg-user-dirs.d chain that tunables/global includes, so every profile sees it before its abstractions
 export const TUNABLES = "tunables/xdg-user-dirs.d/apparmor.d.d/dotfiles"
 # apparmor.d profiles whose /{{,usr/}...} attachment apparmor 4.1.8 loads but never attaches, so they ran unconfined:
@@ -37,11 +37,11 @@ def rows [file: path]: nothing -> table {
 }
 
 def own []: nothing -> list<string> {
-    ls profiles | get name | path basename | append ($OVERRIDES | columns) | sort
+    ls config/profiles | get name | path basename | append ($OVERRIDES | columns) | sort
 }
 
 def modes []: nothing -> record {
-    rows profiles.conf | append (rows $MANUAL_FLAGS)
+    rows config/profiles.conf | append (rows $MANUAL_FLAGS)
     | reduce --fold {} {|r, acc| $acc | upsert $r.name ($r.flags | split row "," | first) }
 }
 
@@ -68,12 +68,12 @@ def own-profile [name: string, text: string, mode: any]: nothing -> record {
 }
 
 export def system [cfg: record] {
-    let upstream = rows profiles.conf | where name not-in (own)
+    let upstream = rows config/profiles.conf | where name not-in (own)
     [
         (step cmdline-set $LSM)
         (unit-enable apparmor.service)
-        (file-copy sysctl-apparmor.conf $SYSCTL --then [/usr/lib/systemd/systemd-sysctl $SYSCTL])
-        (file-copy modes /etc/apparmor/modes)
+        (file-copy config/sysctl-apparmor.conf $SYSCTL --then [/usr/lib/systemd/systemd-sysctl $SYSCTL])
+        (file-copy config/modes /etc/apparmor/modes)
         (file-text $BASELINE_FLAGS ($upstream | each { $"($in.name) ($in.flags)" } | to text))
         (file-text /etc/apparmor/include.d/dotfiles.conf ($upstream.name | to text))
         # an own profile replaces apparmor.d's of the same name: aa-install must not build its own
@@ -86,10 +86,10 @@ export def system [cfg: record] {
     } else {
         let modes = modes
         [
-            (files-into $"($ETC)/abstractions/dotfiles" ...(glob abstractions/*))
-            (files-into $"($ETC)/local" ...(glob local/*))
+            (files-into $"($ETC)/abstractions/dotfiles" ...(glob config/abstractions/*))
+            (files-into $"($ETC)/local" ...(glob config/local/*))
             ($HOOKS | items {|hook, name| file-text ($ETC | path join $hook) (hook-text $name) })
-            (glob profiles/* | each {|p|
+            (glob config/profiles/* | each {|p|
                 let name = $p | path basename
                 own-profile $name (open --raw $p) ($modes | get --optional $name)
             })
@@ -141,5 +141,5 @@ export def load []: nothing -> nothing {
 }
 
 export def link [cfg: record] {
-    link-commands aa.nu
+    link-commands scripts/aa.nu
 }

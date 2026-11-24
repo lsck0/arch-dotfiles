@@ -25,9 +25,9 @@ export def system [cfg: record] {
     let restart = unit-restart tlp.service
     let conf = if $env.FORM_FACTOR? == "laptop" {
         let values = {START: $cfg.charge_start, STOP: $cfg.charge_stop, USB_DENYLIST: (validity-sensor-ids | str join ' ')}
-        file-render bat.tlp.conf /etc/tlp.conf $values --then $restart
+        file-render config/bat.tlp.conf /etc/tlp.conf $values --then $restart
     } else {
-        file-copy ac-only.tlp.conf /etc/tlp.conf --then $restart
+        file-copy config/ac-only.tlp.conf /etc/tlp.conf --then $restart
     }
     [(unit-enable tlp.service --now) $conf]
 }

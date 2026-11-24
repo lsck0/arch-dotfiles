@@ -59,22 +59,22 @@ def main [] {
     }
     let args = hostile $marker
     let command = [$COMMAND $COMMAND_FORMAT]
-    let start = $REPO | path join configs creating blender mcp-start.py
+    let start = $REPO | path join configs creating blender scripts mcp-start.py
     let cases = [
         [file swap given tail env];
-        [configs/core/yt-dlp/yt-dlp.sh [/usr/local/bin/yt-dlp] $args $args {}]
-        [configs/base/v4l-utils/qvidcap.sh [/usr/bin/qvidcap] $args $args {}]
-        [configs/pentesting/zaproxy/zaproxy-launch.sh [/usr/share/zaproxy/zap.sh] $args ([-silent -configfile ($work | path join .ZAP mcp.properties)] ++ $args) {}]
-        [configs/creating/blender/blender-mcp-bridge.sh [] $args ($args ++ [--python $start]) {}]
-        [configs/core/zsh/fence.sh [] ($command ++ $args) ([nice -n19] ++ $command ++ $args) {}]
-        [configs/base/sandbox/confine.sh [] ([--] ++ $command ++ $args) ([--] ++ $command ++ $args) {}]
-        [configs/base/sandbox/sandbox-build.sh [] ([-w $work --] ++ $command ++ $args) ([--] ++ $command ++ $args) {}]
-        [configs/base/sandbox/sandbox-build.sh [] ([$"--work=($work)"] ++ $command ++ $args) ([--] ++ $command ++ $args) {}]
-        [configs/pentesting/pentest/pentest.sh [] ($command ++ $args) ([-g pentest -- /usr/bin/env $"PATH=($bin):/usr/bin"] ++ $command ++ $args) {}]
-        [configs/pentesting/pentest/pentest.sh [] ($command ++ $args) $args {STUB_GROUP: pentest}]
-        [configs/desktop/ghostty/xdg/ghostty-window.sh [/usr/bin/ghostty] $args ([+new-window] ++ $args) {STUB_GHOSTTY: up}]
-        [configs/desktop/ghostty/xdg/ghostty-window.sh [] $args $args {}]
-        [configs/desktop/ghostty/xdg/ghostty-window.sh [] (["--title=two words" "--working-directory=/a b" -e] ++ $command ++ ["--title=kept" -e]) ([--title "two words" --directory "/a b"] ++ $command ++ ["--title=kept" -e]) {}]
+        [configs/core/yt-dlp/scripts/yt-dlp.sh [/usr/local/bin/yt-dlp] $args $args {}]
+        [configs/base/v4l-utils/scripts/qvidcap.sh [/usr/bin/qvidcap] $args $args {}]
+        [configs/pentesting/zaproxy/scripts/zaproxy-launch.sh [/usr/share/zaproxy/zap.sh] $args ([-silent -configfile ($work | path join .ZAP mcp.properties)] ++ $args) {}]
+        [configs/creating/blender/scripts/blender-mcp-bridge.sh [] $args ($args ++ [--python $start]) {}]
+        [configs/core/zsh/scripts/fence.sh [] ($command ++ $args) ([nice -n19] ++ $command ++ $args) {}]
+        [configs/base/sandbox/scripts/confine.sh [] ([--] ++ $command ++ $args) ([--] ++ $command ++ $args) {}]
+        [configs/base/sandbox/scripts/sandbox-build.sh [] ([-w $work --] ++ $command ++ $args) ([--] ++ $command ++ $args) {}]
+        [configs/base/sandbox/scripts/sandbox-build.sh [] ([$"--work=($work)"] ++ $command ++ $args) ([--] ++ $command ++ $args) {}]
+        [configs/pentesting/pentest/scripts/pentest.sh [] ($command ++ $args) ([-g pentest -- /usr/bin/env $"PATH=($bin):/usr/bin"] ++ $command ++ $args) {}]
+        [configs/pentesting/pentest/scripts/pentest.sh [] ($command ++ $args) $args {STUB_GROUP: pentest}]
+        [configs/desktop/ghostty/scripts/ghostty-window.sh [/usr/bin/ghostty] $args ([+new-window] ++ $args) {STUB_GHOSTTY: up}]
+        [configs/desktop/ghostty/scripts/ghostty-window.sh [] $args $args {}]
+        [configs/desktop/ghostty/scripts/ghostty-window.sh [] (["--title=two words" "--working-directory=/a b" -e] ++ $command ++ ["--title=kept" -e]) ([--title "two words" --directory "/a b"] ++ $command ++ ["--title=kept" -e]) {}]
     ]
     mkdir ($work | path join .ZAP)
     touch ($work | path join .ZAP mcp.properties)

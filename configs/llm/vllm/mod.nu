@@ -67,8 +67,8 @@ const DESKTOP_VRAM = 4.5GiB
 const NATIVE_CONTEXT = 32768
 const MAX_POSITIONS = 40960
 const SHARE_STEP = 0.05
-const STUB_SOURCE = "mpi-cxx-stub.c"
-const UV_EXCLUDES = "uv-excludes.txt"
+const STUB_SOURCE = "scripts/mpi-cxx-stub.c"
+const UV_EXCLUDES = "scripts/uv-excludes.txt"
 # root runs a build backend for these dependencies, which ship no wheel (rocm is the ROCm 10 wheels' meta package); every
 # other one installs from a wheel, so a new sdist-only dependency fails the step by name instead of building as root
 const SDIST_ONLY = [openai-whisper rocm]
@@ -122,12 +122,12 @@ export def system [cfg: record] {
         # the weights at install, not on the first request, whose ready timeout a cold download would miss
         (step model-fetch $cfg.model $cfg.model_revision --key $"($cfg.model)@($cfg.model_revision)" --network
             --timeout 90min --requires ($PREFIX | path join venv bin hf))
-        (file-copy vllm-wait-ready.nu /usr/local/bin/vllm-wait-ready --mode 755)
-        (unit-file vllm-proxy.service)
-        (unit-file vllm.service --values $values --then [
+        (file-copy scripts/vllm-wait-ready.nu /usr/local/bin/vllm-wait-ready --mode 755)
+        (unit-file config/vllm-proxy.service)
+        (unit-file config/vllm.service --values $values --then [
             systemctl try-restart vllm.service
         ])
-        (unit-file vllm.socket --enable --now)
+        (unit-file config/vllm.socket --enable --now)
     ]
 }
 

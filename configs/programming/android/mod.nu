@@ -74,5 +74,5 @@ export def tor-wait []: nothing -> nothing {
 # Seat access to Samsung phones for samloader in Download mode and adb when booted, without root or a group.
 export def system [cfg: record] {
     # a phone already plugged in gets no add event
-    udev-rules 71-samsung.rules --action=change --attr-match=idVendor=04e8
+    udev-rules config/71-samsung.rules --action=change --attr-match=idVendor=04e8
 }

@@ -16,7 +16,7 @@ export def link [cfg: record] {
     let colors = xdg cache wal colors-thunderbird.css
     mozilla-profiles $ini | each {|dir|
         [
-            (file-copy userChrome.css ($dir | path join chrome userChrome.css))
+            (file-copy config/userChrome.css ($dir | path join chrome userChrome.css))
             (file-link $colors ($dir | path join chrome colors.css))
         ]
     }
@@ -35,7 +35,7 @@ export def theme [cfg: record, wallpaper: string] {
     mozilla-profiles (profiles-ini) | each {|dir|
         [
             (file-text ($dir | path join chrome dotfiles-font.css) $font --generated)
-            (file-render user.js ($dir | path join user.js) {DARK: $dark} --generated)
+            (file-render config/user.js ($dir | path join user.js) {DARK: $dark} --generated)
         ]
     }
 }

@@ -26,23 +26,23 @@ def fetch-cache-rule [dir: string]: nothing -> string { $"e ($dir) - - - ($FETCH
 export def system [cfg: record] {
     let journal = {MAX_USE: $cfg.journal_max_use, RETENTION: $cfg.journal_retention}
     [
-        (file-render journald-size.conf /etc/systemd/journald.conf.d/00-size.conf $journal
+        (file-render config/journald-size.conf /etc/systemd/journald.conf.d/00-size.conf $journal
             --then (unit-restart systemd-journald.service))
         # read by rootless podman too; a container already created keeps the driver it was made with
-        (file-copy containers-log.conf /etc/containers/containers.conf.d/10-log.conf)
+        (file-copy config/containers-log.conf /etc/containers/containers.conf.d/10-log.conf)
         (file-text /etc/tmpfiles.d/dotfiles-fetch.conf (fetch-cache-rule $FETCH_CACHE_ROOT))
     ]
 }
 
 export def link [cfg: record] {
     [
-        (link-commands home-sweep.nu)
+        (link-commands scripts/home-sweep.nu)
         (file-text (xdg config user-tmpfiles.d dotfiles-fetch.conf) (fetch-cache-rule $FETCH_CACHE_USER))
-        (unit-file home-sweep.service)
+        (unit-file config/home-sweep.service)
         (unit-timer home-sweep.timer "Weekly home directory log sweep" --calendar weekly --delay 1h --enable --now)
         (if (which nix-collect-garbage | is-not-empty) {
             [
-                (unit-file nix-gc.service)
+                (unit-file config/nix-gc.service)
                 (unit-timer nix-gc.timer "Weekly nix store garbage collection" --calendar weekly --delay 1h --enable --now)
             ]
         })

@@ -4,7 +4,7 @@ use log.nu [runs-dir]
 use platform.nu [platform-load]
 use modules.nu [modules-discover]
 use options.nu [options-schema]
-use ../../configs/core/wallust/wallpaper.nu [wallpaper-list]
+use ../../configs/core/wallust/scripts/wallpaper.nu [wallpaper-list]
 
 const REPO = path self ../..
 const COMPLETE_FILES = "<files>"

@@ -10,7 +10,7 @@ use state.nu [nu-bin LIB_DIR HOOK_WATCH_PREFIX HOOK_RUN_PREFIX]
 # what a module may read of the engine's state: its records, the root's state paths, the install chain's secrets
 # banner, a step's pending exit code, a running process, an existing group; and the text and file primitives
 export use state.nu [xdg env-file-load file-trim file-lines text-render sqlite-snapshot process-running group-exists recorded-hashes SYSTEM_STATE SYSTEM_REPO EXIT_PENDING SECRETS_ISSUE]
-export use ../../configs/core/wallust/palette.nu [palette-load]
+export use ../../configs/core/wallust/scripts/palette.nu [palette-load]
 
 export const DECL_KEYS = [kind target source content mode generated inplace edits state now argv creates key done undo requires then notify network timeout]
 export const DECL_KINDS = [file link json ini unit exec step]
@@ -109,10 +109,10 @@ export def link-commands [...files: path]: nothing -> list<record> {
     $files | each {|file| file-link $file ($nu.home-dir | path join $BIN_DIR ($file | path parse | get stem)) }
 }
 
-# The module's aliases and defs for its tools, aliases.nu and aliases.zsh as far as it has them, dropped in as
-# <name>.nu into nushell's user autoload dir and <name>.zsh into the conf.d core/zsh's zshrc sources.
+# The module's aliases and defs for its tools, config/aliases.nu and config/aliases.zsh as far as it has them, dropped
+# in as <name>.nu into nushell's user autoload dir and <name>.zsh into the conf.d core/zsh's zshrc sources.
 export def shell-aliases [name: string]: nothing -> list<record> {
-    [[src dir]; [aliases.nu (xdg config nushell autoload)] [aliases.zsh (xdg config zsh conf.d)]]
+    [[src dir]; [config/aliases.nu (xdg config nushell autoload)] [config/aliases.zsh (xdg config zsh conf.d)]]
     | where { $in.src | path exists }
     | each {|f| file-copy $f.src ($f.dir | path join $"($name).($f.src | path parse | get extension)") }
 }

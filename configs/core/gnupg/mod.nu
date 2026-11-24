@@ -35,7 +35,7 @@ def --wrapped gpg-ok [...args: string]: nothing -> bool {
 }
 
 def public-key [fpr: string]: nothing -> list<path> {
-    glob ($env.PWD | path join *.pub.asc) | where {|f| ^gpg --show-keys --with-colons $f | lines | any { $in == $"fpr:::::::::($fpr):" } }
+    glob ($env.PWD | path join config *.pub.asc) | where {|f| ^gpg --show-keys --with-colons $f | lines | any { $in == $"fpr:::::::::($fpr):" } }
 }
 
 def identity [fpr: string]: nothing -> list {
@@ -74,13 +74,13 @@ export def link [cfg: record] {
     [
         (exec gnupg-dir [install -d -m 700 $dir] --creates $dir)
         # reload keeps cached keys; scdaemon reads its config only at start
-        (file-render gpg-agent.conf ($dir | path join gpg-agent.conf) {
+        (file-render config/gpg-agent.conf ($dir | path join gpg-agent.conf) {
             CACHE_TTL: $cfg.cache_ttl, CACHE_TTL_MAX: $cfg.cache_ttl_max
             PINENTRY: (if ($PINENTRY_QT | path exists) { $PINENTRY_QT } else { $PINENTRY })
         }
             --then [gpgconf --reload gpg-agent])
-        (file-copy scdaemon.conf ($dir | path join scdaemon.conf) --then [gpgconf --kill scdaemon])
-        (file-text ($dir | path join gpg.conf) $"(open --raw gpg.conf)($default_key)" --mode 600)
+        (file-copy config/scdaemon.conf ($dir | path join scdaemon.conf) --then [gpgconf --kill scdaemon])
+        (file-text ($dir | path join gpg.conf) $"(open --raw config/gpg.conf)($default_key)" --mode 600)
         (if $fpr != "" { identity $fpr })
     ]
 }

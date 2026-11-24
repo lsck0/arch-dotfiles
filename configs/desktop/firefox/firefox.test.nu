@@ -3,7 +3,7 @@
 # text holds 4.5:1 on the frame, the toolbar and popups, and the url bar, the highlight 3:1 against its text.
 
 use mod.nu [pywalfox-slots pywalfox-brighten PYWALFOX_POPUP PYWALFOX_FIELD PYWALFOX_FRAME_LIGHT]
-use ../../core/wallust/palette.nu [hex-to-rgb contrast]
+use ../../core/wallust/scripts/palette.nu [hex-to-rgb contrast]
 
 const THEMES = path self ../../../themes
 const TEXT = 4.5

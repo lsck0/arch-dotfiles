@@ -7,5 +7,5 @@ export def system [cfg: record] {
     # laptop only: lavd ignores cgroup cpu.weight, which the desktop needs for session.slice (base/oomd)
     if $env.FORM_FACTOR? != "laptop" or not $supported { return [] }
     # not unit-restart: a failed attach falls back to eevdf and the next boot retries, so it must not fail the run
-    unit-file scx-lavd.service --enable --now --then [sh -c "systemctl restart scx-lavd.service || true"]
+    unit-file config/scx-lavd.service --enable --now --then [sh -c "systemctl restart scx-lavd.service || true"]
 }

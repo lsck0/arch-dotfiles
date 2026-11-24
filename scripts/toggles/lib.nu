@@ -2,7 +2,7 @@ use ../lib/log.nu [log-err]
 use ../lib/state.nu [xdg file-trim file-lines]
 use ../lib/usage.nu [die]
 # the shell's own bounded ipc call, shared with its action scripts and the wallpaper switch
-export use ../../configs/desktop/quickshell/scripts/lib/shell.nu [shell-call]
+export use ../../configs/desktop/quickshell/config/scripts/lib/shell.nu [shell-call]
 
 export const TOGGLES_DIR = path self .
 export const DOT = path self ../dot.nu

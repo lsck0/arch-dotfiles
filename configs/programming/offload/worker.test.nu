@@ -5,15 +5,15 @@
 # metrics state; then admission and serve against a scratch OFFLOAD_ROOT, and whole jobs with podman and systemd
 # stubbed: a streamed image checked by its id, complete and thin packs, the cache restored, saved and kept clean.
 
-use worker.nu [
+use scripts/worker.nu [
     command-parse spec-validate toolchain-validate path-inside-valid power-on-battery gate-reasons consent-decide
     manifest-build metrics-state offer-build job-state admit header-validate cache-evict cache-key target-inside image-pin
     CONSENT_WINDOW KIND_TIMEOUT_S
 ]
-use consent.nu [request-pending action-answer]
+use scripts/consent.nu [request-pending action-answer]
 use std/assert
 
-const SCRIPT = path self worker.nu
+const SCRIPT = path self scripts/worker.nu
 const COMMIT = "0123456789abcdef0123456789abcdef01234567"
 const IMAGE = "ghcr.io/lsck0/site-builder:1.2@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 const LIMITS = {memoryMiB: 16384, cpus: 8}

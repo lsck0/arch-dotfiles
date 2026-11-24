@@ -19,7 +19,7 @@ export def resource-db []: nothing -> nothing {
     let tmp = mktemp --directory
     let scratch = {XDG_DATA_HOME: ($tmp | path join data), XDG_CONFIG_HOME: ($tmp | path join config)}
     try {
-        with-env ($scratch | merge {QT_QPA_PLATFORM: offscreen, PYTHONPATH: $HERE}) {
+        with-env ($scratch | merge {QT_QPA_PLATFORM: offscreen, PYTHONPATH: ($HERE | path join scripts)}) {
             ^timeout $BUILD_TIMEOUT_S kritarunner -s warm | ignore
         }
         let built = $tmp | path join data kritarunner

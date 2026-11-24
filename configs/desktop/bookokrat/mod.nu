@@ -3,7 +3,7 @@ use module.nu *
 # config.yaml's synctex_editor runs sioyek's synctex-edit
 export const meta = {deps: [latex/sioyek], packages: {pacman: [bookokrat-bin]}}
 
-const SEED = path self config.yaml
+const SEED = path self config/config.yaml
 
 def config-file []: nothing -> path { xdg config bookokrat config.yaml }
 

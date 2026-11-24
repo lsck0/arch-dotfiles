@@ -76,8 +76,8 @@ def eq-link [cfg: record]: nothing -> list<record> {
     # the chain reads the preset only at start, and its own conf does not change with the preset
     let restart = unit-restart $EQ_UNIT --if-running
     [
-        (unit-file pipewire-chain@.service)
-        (file-copy $cfg.eq_preset $preset --then $restart)
+        (unit-file config/pipewire-chain@.service)
+        (file-copy ("config" | path join $cfg.eq_preset) $preset --then $restart)
         (file-text ($conf | path join eq.conf) (eq-render $preset $cfg.eq_target) --generated --then $restart)
         (unit-enable $EQ_UNIT --now)
     ]
@@ -86,8 +86,8 @@ def eq-link [cfg: record]: nothing -> list<record> {
 def loopback-link []: nothing -> list<record> {
     let restart = unit-restart $LOOPBACK_UNIT
     [
-        (file-copy $LOOPBACK_SCRIPT ($nu.home-dir | path join $SCRIPT_DIR $LOOPBACK_SCRIPT) --then $restart)
-        (unit-file $LOOPBACK_UNIT --enable --now --then $restart)
+        (file-copy $"scripts/($LOOPBACK_SCRIPT)" ($nu.home-dir | path join $SCRIPT_DIR $LOOPBACK_SCRIPT) --then $restart)
+        (unit-file $"config/($LOOPBACK_UNIT)" --enable --now --then $restart)
     ]
 }
 

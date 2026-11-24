@@ -6,10 +6,14 @@ description: "Writing a module's mod.nu under configs/: meta, typed options, the
 # add-module
 
 A module is one folder `configs/<group>/<module>/` with a `mod.nu`; `dot` discovers its verbs, options and packages,
-nothing central changes. Read the group's `AGENTS.md` first. An owner-only module (employer setup, bookmarks, key
-wiring) goes in `configs/secrets/<module>/` (id `secrets/<module>`): same contract, runs after every other group
-wherever the submodule is pulled, gates inside itself (`owner-unlocked` in `link`, `$env.FORM_FACTOR` in `system`),
-and its packages stay off `mirror/packages.txt` (a mirror package it needs goes in the platform's `extra_packages`).
+nothing central changes. Read the group's `AGENTS.md` first. Its top holds only `mod.nu`, `AGENTS.md`, `README.md`,
+`dependencies.txt`, `.gitignore` and `*.test.nu`, plus three dirs: `config/` (what dot installs), `scripts/` (what
+runs: linked commands, helpers, shared code) and `test/` (fixtures); `lint-layout` in `scripts/lib/gate.nu` enforces
+it. Sources in declarations are relative to the module dir: `config/foo.conf`, `scripts/foo.nu`. An owner-only
+module (employer setup, bookmarks, key wiring) goes in `configs/secrets/<module>/` (id `secrets/<module>`): same
+contract, runs after every other group wherever the submodule is pulled, gates inside itself (`owner-unlocked` in
+`link`, `$env.FORM_FACTOR` in `system`), and its packages stay off `mirror/packages.txt` (a mirror package it needs
+goes in the platform's `extra_packages`).
 
 ## The contract
 
@@ -46,15 +50,15 @@ export const options = {
 # user layer: returns declarations, writes nothing itself
 export def link [cfg: record] {
     [
-        (files-into (xdg config btop) btop.conf)
-        (unit-file oom-notify.service --enable --now)
+        (files-into (xdg config btop) config/btop.conf)
+        (unit-file config/oom-notify.service --enable --now)
         (if $cfg.accent == "c1" { file-text (xdg config btop extra.conf) "x\n" })
     ]
 }
 
 # root, from the root-owned copy; never a user fact
 export def system [cfg: record] {
-    file-copy smartd.conf /etc/smartd.conf --then (unit-restart smartd.service --if-running)
+    file-copy config/smartd.conf /etc/smartd.conf --then (unit-restart smartd.service --if-running)
 }
 
 export def theme [cfg: record, wallpaper: string] {
@@ -86,12 +90,13 @@ export def apply [cfg: record] { theme $cfg "" }          # a live option's hook
   return to their old values (unless edited since), and each recorded action runs its `--undo`. No unlink needed first.
 - Recorded actions (`--creates`, `--key`, `--done` or `--undo`) run once; a plain `exec` runs on every evaluation and
   what it did stays. Never a stamp file of its own.
-- A helper a unit, toggle or keybind runs is a script in the module dir, installed with `link-commands` or
+- A helper a unit, toggle or keybind runs is a script in the module's `scripts/`, installed with `link-commands` or
   `files-into`. A root helper on caller-chosen arguments takes no `def --wrapped main` and no value-taking flag
-  (`core/toggles/toggle-root.nu`); a pass-through is sh or bash (`base/protonvpn-netns/run.sh`).
-- A linked script finds the repo with `const REPO = path self | path expand | path dirname --num-levels <depth>`
-  (lint `LINKED_RELATIVE`); any other file uses `path self` with a relative path (`path self ../../..` in a module dir).
-- The user layer already loads `configs/base/xdg/app-dirs.conf`; never copy its variables into a module.
+  (`core/toggles/scripts/toggle-root.nu`); a pass-through is sh or bash (`base/protonvpn-netns/scripts/run.sh`).
+- A linked script finds the repo with `const REPO = path self | path expand | path dirname --num-levels <depth>` (5 in
+  a module's `scripts/`, lint `LINKED_RELATIVE`); any other file uses `path self` with a relative path
+  (`path self ../../../..` in `scripts/`, `../../..` at the module's top).
+- The user layer already loads `configs/base/xdg/config/app-dirs.conf`; never copy its variables into a module.
 - A one-time change on installed machines is a migration, never a substitute for a declaration:
   `migrations/<NNNN>-<slug>.nu` from `0000-sample.nu` (`up` only; `export const layer = "system"` runs as root).
 

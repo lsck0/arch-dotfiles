@@ -3,7 +3,7 @@ set -euo pipefail
 DOTFILES_URL=https://github.com/lsck0/arch-dotfiles.git
 CLONE_DIR=/tmp/arch-dotfiles
 SIGNING_KEY_FINGERPRINT=E7501F533316E9AFC6AAE907122F2CB527D1EFE3
-SIGNING_KEY_FILE=configs/core/gnupg/luca-sandrock.pub.asc
+SIGNING_KEY_FILE=configs/core/gnupg/config/luca-sandrock.pub.asc
 COW_MIN_MIB=1024
 
 if ! { [[ -d /run/archiso ]] && grep -q 'archisobasedir=' /proc/cmdline; } &&

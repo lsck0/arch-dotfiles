@@ -3,7 +3,7 @@
 # otherwise, and before the first build, the stock rose-pine themes stay in effect.
 
 use module.nu *
-use ../../core/wallust/palette.nu [ACCENT_RATIO FOREGROUND_RATIO hex-to-rgb readable-on rgb-to-hex]
+use ../../core/wallust/scripts/palette.nu [ACCENT_RATIO FOREGROUND_RATIO hex-to-rgb readable-on rgb-to-hex]
 use ../hyprland/mod.nu [hyprland-live reload]
 
 export const meta = {

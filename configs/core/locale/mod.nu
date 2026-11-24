@@ -48,11 +48,19 @@ export const options = {
 
 const LOCALE_CONF = "/etc/locale.conf"
 const VCONSOLE = "/etc/vconsole.conf"
+# what localectl set-x11-keymap writes and the compositor reads (desktop/hyprland); the install fills only vconsole.conf
+const X11_KEYBOARD = "/etc/X11/xorg.conf.d/00-keyboard.conf"
 const REGDOM = "/etc/conf.d/wireless-regdom"
 const ZONES = "/usr/share/zoneinfo/zone1970.tab"
 const XKB_MODEL = "pc105"
 const LOCALE_BASE = "en_US.UTF-8"
 const FORMAT_CATEGORIES = [LC_TIME LC_NUMERIC LC_MONETARY LC_PAPER LC_MEASUREMENT LC_ADDRESS LC_TELEPHONE LC_NAME]
+
+# The xkb layout, variant and options localectl last set for X11 and the compositor; empty while it never ran.
+def x11-keyboard []: nothing -> list<string> {
+    let conf = if ($X11_KEYBOARD | path exists) { open --raw $X11_KEYBOARD } else { "" }
+    [XkbLayout XkbVariant XkbOptions] | each {|key| $conf | parse --regex ('"' + $key + '"\s+"(?<v>[^"]*)"') | get --optional 0.v | default "" }
+}
 
 def zone-country []: nothing -> any {
     let zone = try { ^readlink /etc/localtime | str replace --regex '^.*zoneinfo/' '' } catch { return null }
@@ -82,9 +90,8 @@ export def system [cfg: record] {
     let locale_gen = $locales | each { $"($in) ($in | split row '.' | get --optional 1 | default 'UTF-8')\n" } | str join
     let formats = if $cfg.formats == null { [] } else { $FORMAT_CATEGORIES | each {|c| [$c $cfg.formats] } }
     let conf = [[LANG $lang]] ++ $formats | where $it.1 != null | each { $"($in.0)=($in.1)" }
-    let console = env-file-load $VCONSOLE
     let keyboard = [$cfg.keyboard_layout ($cfg.keyboard_variant | default "") ($cfg.keyboard_options | default [] | str join ",")]
-    let current = [$console.XKBLAYOUT? ($console.XKBVARIANT? | default "") ($console.XKBOPTIONS? | default "")]
+    let current = x11-keyboard
     [
         (file-text /etc/locale.gen $locale_gen --generated --then [locale-gen])
         (if ($conf | is-not-empty) { file-text $LOCALE_CONF ($conf | to text) --generated })

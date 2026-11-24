@@ -6,11 +6,11 @@ const DAEMON = "/usr/lib/systemd/system/nix-daemon.service"
 const RESTART = "systemctl daemon-reload && systemctl try-restart nix-daemon.service"
 
 export def link [cfg: record] {
-    file-copy nix.conf (xdg config nix nix.conf)
+    file-copy config/nix.conf (xdg config nix nix.conf)
 }
 
 export def system [cfg: record] {
     if not ($DAEMON | path exists) { return [] }
     # KillMode=process: a restart spares running builds; it reloads first, the engine does only after the module
-    dropin nix-daemon.service 10-priority.conf --then [sh -c $RESTART]
+    dropin nix-daemon.service config/10-priority.conf --then [sh -c $RESTART]
 }

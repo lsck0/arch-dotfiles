@@ -15,7 +15,7 @@ export const options = {
 }
 
 export def link [cfg: record] {
-    files-into (xdg config btop) btop.conf
+    files-into (xdg config btop) config/btop.conf
 }
 
 export def apply [cfg: record] {

@@ -2,11 +2,11 @@ use module.nu *
 use ../d2launcher/mod.nu [PD2_DIR game-launcher lod-base save-path-set wine-bin wine-tree wine-tree-decls z-path]
 # re-exported: the save-path step runs in this module
 export use ../d2launcher/mod.nu [save-path]
-use pd2-pin.nu [S14_URL]
+use scripts/pd2-pin.nu [S14_URL]
 
 # S14 from PD2's client host (no plugy), S3 synced with plugy; S3 saves can't move to S14. The launchers render
 # d2launcher's gamescope.sh, an input: this module's own files and imports do not cover it.
-export const meta = {deps: [gaming/d2launcher], inputs: [configs/gaming/d2launcher/gamescope.sh]}
+export const meta = {deps: [gaming/d2launcher], inputs: [configs/gaming/d2launcher/config/gamescope.sh]}
 
 const PD2_MARKER = "ProjectDiablo.dll"
 const GAMES_DIR = "sync/games/d2"
@@ -68,7 +68,7 @@ def s14 [cfg: record, base: path]: nothing -> list {
     let game = $s.lod | path join $PD2_DIR
     [
         (wine-tree-decls $s $base)
-        (open s14-client.nuon | each {|f|
+        (open config/s14-client.nuon | each {|f|
             fetch-file $"($S14_URL)/($f.name | url encode)" $f.sha256 ($game | path join $f.name)
         })
         # season 14 reads its save dir from its own settings, not the registry; the game fills in every other key

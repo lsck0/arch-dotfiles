@@ -23,13 +23,13 @@ export def guard-hook []: record -> bool {
 export def link [cfg: record] {
     let dir = xdg config idle-guards
     [
-        ($SCRIPTS | each {|script| file-copy $script ($dir | path join $script) --mode 755 })
+        ($SCRIPTS | each {|script| file-copy $"scripts/($script)" ($dir | path join $script) --mode 755 })
         ($UNITS | each {|u|
-            unit-file idle-guard.service --name $u.unit --values {GUARD: $u.guard, WHILE: $u.while} --enable
+            unit-file config/idle-guard.service --name $u.unit --values {GUARD: $u.guard, WHILE: $u.while} --enable
         })
     ]
 }
 
 export def system [cfg: record] {
-    polkit-rules 49-idle-guards.rules
+    polkit-rules config/49-idle-guards.rules
 }

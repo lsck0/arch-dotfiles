@@ -5,5 +5,5 @@ export const meta = {packages: {native: [v4l-utils]}}
 export def system [cfg: record] {
     # a PATH wrapper (qvidcap.sh says why), not desktop-override: qvidcap is run from the CLI too
     if $env.FORM_FACTOR? == "wsl" or not ("/usr/bin/qvidcap" | path exists) { return [] }
-    file-copy qvidcap.sh /usr/local/bin/qvidcap --mode 755
+    file-copy scripts/qvidcap.sh /usr/local/bin/qvidcap --mode 755
 }

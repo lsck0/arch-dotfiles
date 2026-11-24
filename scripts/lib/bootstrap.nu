@@ -314,7 +314,7 @@ def user-setup [c: record]: nothing -> nothing {
     if ($c.root_password | is-not-empty) { $"root:(one-line $c.root_password 'root password')\n" | in-target-input $root chpasswd }
     # sudo skips a drop-in named with a dot, so this one is checked before it can lock anyone out
     let sudoers = $"($root)/etc/sudoers.d/10-wheel"
-    ^install -Dm440 ($c.repo | path join configs base sudo 10-wheel) $"($sudoers).new"
+    ^install -Dm440 ($c.repo | path join configs base sudo config 10-wheel) $"($sudoers).new"
     if not (in-target-ok $root visudo -cqf /etc/sudoers.d/10-wheel.new) { die "the wheel sudoers drop-in does not parse" }
     mv --force $"($sudoers).new" $sudoers
     if not ($repo_copy | path exists) {
@@ -501,7 +501,7 @@ def target-system [c: record, root_uuid: string]: nothing -> nothing {
     if (glob (do $t /boot/EFI/Linux/*.efi) | is-empty) { die "mkinitcpio built no UKI in /boot/EFI/Linux" }
     in-target $MOUNT systemctl enable NetworkManager.service NetworkManager-wait-online.service systemd-timesyncd.service
     in-target $MOUNT bootctl install --esp-path=/boot --variables=yes
-    ^install -Dm644 ($c.repo | path join configs base zram zram-generator.conf) (do $t /etc/systemd/zram-generator.conf)
+    ^install -Dm644 ($c.repo | path join configs base zram config zram-generator.conf) (do $t /etc/systemd/zram-generator.conf)
 }
 
 def boot-next-installed [esp: string]: nothing -> nothing {

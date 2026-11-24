@@ -1,5 +1,5 @@
 use module.nu *
-use ../../core/wallust/palette.nu [hex-to-rgb mix rgb-to-hex]
+use ../../core/wallust/scripts/palette.nu [hex-to-rgb mix rgb-to-hex]
 
 export const meta = {packages: {pacman: [gh-dash gh-enhance-bin]}}
 
@@ -7,7 +7,7 @@ const SELECTED_MIX = 0.12
 
 # The theme verb and link render the same file, so neither sees the other's write as drift.
 def config-render []: nothing -> record {
-    let base = open config.yml
+    let base = open config/config.yml
     let p = palette-load
     let merged = if $p == null { $base } else {
         let c = $p | update cells { str lowercase }

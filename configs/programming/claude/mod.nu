@@ -88,7 +88,7 @@ export def link [cfg: record] {
     [
         # the wrapper that drops the session's DO_NOT_TRACK, only where remote control wants the feature flags
         (if $cfg.remote_control { shell-aliases claude })
-        (files-into (home .claude) CLAUDE.md RTK.md keybindings.json)
+        (files-into (home .claude) config/CLAUDE.md config/RTK.md config/keybindings.json)
         (json-merge $settings [
             (json-set [remoteControlAtStartup] $cfg.remote_control)
             (json-set [model] $cfg.model)

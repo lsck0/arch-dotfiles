@@ -21,7 +21,7 @@ const LOCKDOWN = [fw-egress.service fw-lockdown.service tor-router.service]
 # The dispatcher and its lib copied into dir with every MOVED path and /sys/class/net under dir.
 def stage [dir: path]: nothing -> path {
     let root = $dir | path join root
-    let sources = [persona-dispatcher.nu lib/dispatch.nu] | each {|f| {file: $f, text: (open --raw ($HERE | path join $f))} }
+    let sources = [persona-dispatcher.nu lib/dispatch.nu] | each {|f| {file: $f, text: (open --raw ($HERE | path join scripts $f))} }
     let staged = $MOVED | reduce --fold $sources {|p, acc|
         let quoted = $"\"($p)\""
         assert ($acc | any { $in.text | str contains $quoted }) $"($p) is no longer a path of the dispatcher"

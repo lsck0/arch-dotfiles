@@ -44,7 +44,7 @@ export def system [cfg: record] {
         (if ($CONFIG | path exists) {
             ini-merge $CONFIG $PROPS --then [waydroid upgrade --offline]
         })
-        (udev-rules 70-waydroid-devperm.rules --subsystem-match=drm --subsystem-match=video4linux)
+        (udev-rules config/70-waydroid-devperm.rules --subsystem-match=drm --subsystem-match=video4linux)
         (if not $up { step devperm-tighten })
         (unit-enable waydroid-container.service --now)
         (if $up { step freeform })

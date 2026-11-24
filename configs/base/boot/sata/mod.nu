@@ -1,5 +1,5 @@
 use module.nu *
-export use ../boot.nu [cmdline-set cmdline-unset]
+export use ../scripts/boot.nu [cmdline-set cmdline-unset]
 
 export const meta = {native_only: [system]}
 

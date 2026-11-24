@@ -1,0 +1,151 @@
+#!/usr/bin/env -S nu --no-config-file
+# Plugins built as the user against hyprland's headers (hyprpm needs root); hyprpm.toml maps commits.
+
+use ../../../../scripts/lib/proc.nu [notify]
+use ../../../../scripts/lib/state.nu [xdg]
+
+const PLUGINS = [
+    {name: "dynamic-cursors", url: "https://github.com/virtcode/hypr-dynamic-cursors", commit: "2a8d0b735328d874a78ca93b2f201649f712a74a", dir: "", output: "out/dynamic-cursors.so"} # committed 2026-10-05
+]
+const PC = "/usr/share/pkgconfig/hyprland.pc"
+const TOGGLES = path self ../../../../scripts/toggles
+const SELF = path self
+
+def cache-dir []: nothing -> path { xdg cache hypr-plugins }
+
+def out-dir []: nothing -> path { xdg data hypr-plugins }
+
+# Installed vs running hyprland commit: they differ between an upgrade and the relogin.
+def commit-installed []: nothing -> string {
+    try { ^Hyprland --version | parse --regex 'at commit (?<c>[0-9a-f]+)' | get 0.c } catch { "" }
+}
+
+def commit-running []: nothing -> string {
+    try { ^hyprctl version -j | from json | get commit } catch { "" }
+}
+
+def so-path [name: string, hyprland: string]: nothing -> path { out-dir | path join $"($name)-($hyprland).so" }
+
+# the package's pc file with its own prefix: an earlier hyprpm may have pointed it at its root store
+def pc-dir []: nothing -> path {
+    let dir = cache-dir | path join pkgconfig
+    mkdir $dir
+    open --raw $PC | str replace --regex '(?m)^prefix=.*$' 'prefix=/usr/include' | save --force ($dir | path join hyprland.pc)
+    $dir
+}
+
+# The plugin commit the checked-out map names for this hyprland, null when it has none.
+def plugin-commit [src: path, hyprland: string]: nothing -> any {
+    let pins = open --raw ($src | path join hyprpm.toml) | parse --regex '\["(?<h>[0-9a-f]{40})",\s*"(?<p>[0-9a-f]{40})"\]'
+    $pins | where h == $hyprland | get --optional 0.p
+}
+
+# Builds a plugin for this hyprland.
+def build [plugin: record, hyprland: string]: nothing -> nothing {
+    let src = cache-dir | path join $plugin.name
+    if not ($src | path join .git | path exists) { ^git clone --quiet $plugin.url $src }
+    if (do { ^git -C $src cat-file -e $"($plugin.commit)^{commit}" } | complete).exit_code != 0 { ^git -C $src fetch --quiet origin }
+    ^git -C $src checkout --quiet --force $plugin.commit
+    # the map names older hyprlands; one it lacks builds at the pinned commit itself, hyprpm's own rule, and a broken
+    # pairing fails the make below instead of loading
+    let mapped = plugin-commit $src $hyprland
+    if $mapped == null {
+        print --stderr $"($plugin.name): no map entry for hyprland ($hyprland), built at the pinned commit"
+    }
+    let pin = $mapped | default $plugin.commit
+    ^git -C $src checkout --quiet --force $pin
+    let dir = $src | path join $plugin.dir
+    do { cd $dir; ^make clean } | complete | ignore
+    let made = do { cd $dir; with-env {PKG_CONFIG_PATH: (pc-dir)} { ^make $"-j(sys cpu | length)" all } } | complete
+    if $made.exit_code != 0 { error make {msg: $"($plugin.name) did not build:\n($made.stderr | lines | last 20 | str join "\n")"} }
+    mkdir (out-dir)
+    cp ($src | path join $plugin.output) (so-path $plugin.name $hyprland)
+    # builds for other hyprland commits are dead after the upgrade
+    glob (out-dir | path join $"($plugin.name)-*.so") | where $it != (so-path $plugin.name $hyprland) | each { rm $in } | ignore
+}
+
+def plugins-missing-for [hyprland: string]: nothing -> list<record> {
+    $PLUGINS | where {|p| not (so-path $p.name $hyprland | path exists) }
+}
+
+# The plugins the installed hyprland has no build of; building them downloads.
+export def plugins-missing []: nothing -> list<string> {
+    let hyprland = commit-installed
+    if $hyprland == "" { return [] }
+    plugins-missing-for $hyprland | get name
+}
+
+# Builds what the installed hyprland lacks; false when a build failed.
+def plugins-build [hyprland: string]: nothing -> bool {
+    let builds = plugins-missing-for $hyprland | each {|p|
+        let status = try { build $p $hyprland; "built" } catch {|e| print --stderr $e.msg; "failed" }
+        {name: $p.name, status: $status}
+    }
+    let failed = $builds | where status == failed
+    if ($failed | is-not-empty) {
+        notify hyprland "Hyprland plugins did not build" ($failed | get name | str join ", ") | ignore
+    }
+    $failed | is-empty
+}
+
+# The built plugins the running hyprland has not loaded, none when it is not the installed one.
+def plugins-unloaded-for [hyprland: string]: nothing -> list<record> {
+    if $hyprland == "" or (commit-running) != $hyprland { return [] }
+    let listed = ^hyprctl plugin list | complete | get stdout
+    $PLUGINS | where {|p| (so-path $p.name $hyprland | path exists) and not ($listed | str contains $p.name) }
+}
+
+export def plugins-unloaded []: nothing -> list<string> {
+    plugins-unloaded-for (commit-installed) | get name
+}
+
+# Loads the built plugins into the running hyprland when it is the installed one; local, no download.
+def plugins-load [hyprland: string]: nothing -> nothing {
+    let results = plugins-unloaded-for $hyprland
+        | each {|p| {name: $p.name, exit_code: (^hyprctl plugin load (so-path $p.name $hyprland) | complete | get exit_code)} }
+    let loaded = $results | where exit_code == 0
+    let load_failed = $results | where exit_code != 0
+    if ($load_failed | is-not-empty) {
+        notify hyprland "Hyprland plugins did not load" ($load_failed | get name | str join ", ") | ignore
+    }
+    # plugin options are only accepted once the plugin is in, so the config is read again; a reload drops the
+    # `hyprctl eval` state (lid.nu's panel off, the shader), which the toggles replay, as mod.nu's reload does
+    if ($loaded | is-not-empty) {
+        ^hyprctl reload config-only | ignore
+        ^nu --no-config-file ($TOGGLES | path join toggle-monitor-scale.nu) reapply
+        ^nu --no-config-file ($TOGGLES | path join toggle-shader.nu) reapply
+    }
+}
+
+# The login run and a dot apply share the checkout and the output dir, so each verb reruns itself under one lock;
+# true in the caller, which then stops.
+def relaunch-locked [verb?: string]: nothing -> bool {
+    if $env.PLUGINS_LOCKED? != null { return false }
+    mkdir (cache-dir)
+    with-env {PLUGINS_LOCKED: "1"} { ^flock (cache-dir | path join lock) nu --no-config-file $SELF ...([$verb] | compact) }
+    true
+}
+
+# Builds what the installed hyprland lacks (git and make, the network).
+def "main build" []: nothing -> nothing {
+    if (relaunch-locked build) { return }
+    let hyprland = commit-installed
+    if $hyprland != "" and not (plugins-build $hyprland) { exit 1 }
+}
+
+# Loads the built plugins into the running hyprland.
+def "main load" []: nothing -> nothing {
+    if (relaunch-locked load) { return }
+    let hyprland = commit-installed
+    if $hyprland != "" { plugins-load $hyprland }
+}
+
+# Builds what the installed hyprland lacks, then loads it into the running one when they match.
+def main []: nothing -> nothing {
+    if (relaunch-locked) { return }
+    let hyprland = commit-installed
+    if $hyprland == "" { return }
+    let built = plugins-build $hyprland
+    plugins-load $hyprland
+    if not $built { exit 1 }
+}

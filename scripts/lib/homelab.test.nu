@@ -7,7 +7,7 @@ use ../../platforms/homelab.nu [HOMELAB]
 use std/assert
 
 const REPO = path self ../..
-const ARCHREPO_KEY = "configs/base/pacman/archrepo.asc"
+const ARCHREPO_KEY = "configs/base/pacman/config/archrepo.asc"
 # where a person checking the iso's .sig by hand reads the signer
 const SIGNER_DOCS = [README.md skills/l-dotfiles-install/SKILL.md]
 const LAB = {

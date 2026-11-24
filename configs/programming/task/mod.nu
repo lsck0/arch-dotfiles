@@ -64,12 +64,12 @@ export def link [cfg: record] {
     # taskrc includes ~/.config/bugwarrior/uda.taskrc and refuses a missing include; programming/bugwarrior owns its
     # content, so an empty unmanaged one stands in where that module is off, never wrote it or removed it
     [
-        (files-into (xdg config task) taskrc wal.theme)
+        (files-into (xdg config task) config/taskrc config/wal.theme)
         (exec task-uda-placeholder [install -D -m 644 /dev/null $UDA] --creates $UDA)
         (if ($HOOK | path exists) { file-copy $HOOK ($nu.home-dir | path join .task hooks on-modify.timewarrior) --mode 755 })
         (file-text ($nu.home-dir | path join $SYNC_RC) $sync --mode 600)
         (if ($calendar | is-not-empty) { file-text ($nu.home-dir | path join $CALENDAR_ENV) $calendar --mode 600 })
-        (link-commands task-calendar.nu)
-        (if ($sync | is-not-empty) { (unit-file task-sync.service) ++ (unit-file task-sync.timer --enable --now) })
+        (link-commands scripts/task-calendar.nu)
+        (if ($sync | is-not-empty) { (unit-file config/task-sync.service) ++ (unit-file config/task-sync.timer --enable --now) })
     ]
 }

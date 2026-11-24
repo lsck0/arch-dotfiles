@@ -9,11 +9,11 @@
   ComfyUI by hub commit and file sha256 (`MODELS`). ComfyUI's venv is `uv.lock`'s, torch from the ROCm index.
 - `llm/comfyui` is a user service: the editor at http://127.0.0.1:8188 (socket-activated, stops 10 minutes after the
   last tab closes), outputs in `~/pictures/comfyui`.
-- `comfy-gen` (`llm/comfyui/comfy-gen.nu`) drives ComfyUI's API without the editor: `texture <prompt>` (Flux, then
-  `pbr-maps.py` in ComfyUI's venv makes it seamless and derives normal, roughness and height), `3d <image|prompt>`
-  (Hunyuan3D 2.1, shape only: core ComfyUI has no texture stage; a prompt's reference is drawn on a green screen,
-  `object-prep.py` keys it out, crops and centres the object on white, else a shadow or floor comes back as geometry
-  and a light object on a light background vanishes; comfyui's models are unloaded first, as flux still loaded makes
-  its memory manager fail loading hunyuan) and `image <prompt>`; `--json` for scripts. Blender's
+- `comfy-gen` (`llm/comfyui/scripts/comfy-gen.nu`) drives ComfyUI's API without the editor: `texture <prompt>`
+  (Flux, then `pbr-maps.py` in ComfyUI's venv makes it seamless and derives normal, roughness and height),
+  `3d <image|prompt>` (Hunyuan3D 2.1, shape only: core ComfyUI has no texture stage; a prompt's reference is drawn on
+  a green screen, `object-prep.py` keys it out, crops and centres the object on white, else a shadow or floor comes
+  back as geometry and a light object on a light background vanishes; comfyui's models are unloaded first, as flux
+  still loaded makes its memory manager fail loading hunyuan) and `image <prompt>`; `--json` for scripts. Blender's
   `comfy_generate` extension (`creating/blender`) is a sidebar over it: texture the selection, generate a mesh.
 - Models are not backed up. GPU access comes from `rocm/compute`.

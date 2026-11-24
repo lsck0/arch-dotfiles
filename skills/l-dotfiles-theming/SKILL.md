@@ -10,8 +10,8 @@ description: "How dot theme and wallpaper switches recolor the system: wallust t
 
 ## How a switch runs
 
-`dot theme <theme|wallpaper|random>` (`configs/core/wallust/wallpaper.nu`; no argument: the picker). A bare theme name
-applies `themes/<theme>.json` as written (`wallust cs`), its wallpaper and its optional `"font"`
+`dot theme <theme|wallpaper|random>` (`configs/core/wallust/scripts/wallpaper.nu`; no argument: the picker). A bare
+theme name applies `themes/<theme>.json` as written (`wallust cs`), its wallpaper and its optional `"font"`
 (`$XDG_CACHE_HOME/wal/font.json`). Anything else (a file name with extension, a path, `random`) is a wallpaper under a
 palette derived from it (`wallust run`), also when a theme names that file. Names resolve from `~/sync/wallpapers/`
 (bought, `wallpaper-import`), then `wallpapers/`. Picks land in `$XDG_STATE_HOME/dotfiles/theme-recent.json`.
@@ -22,7 +22,7 @@ palette derived from it (`wallust run`), also when a theme names that file. Name
 2. `$XDG_CACHE_HOME/wal/nvim_theme` records the theme name, or `pywal` for a derived palette (`theme-get`); a rerun
    without a pick (`wallpaper-set`) keeps it.
 3. wallust renders `templates/wal/*` to `$XDG_CACHE_HOME/wal/<same name>` (pywal `{background}`, `{color0}`..) and the
-   other `[templates]` of `wallust.toml` (jinja in `templates/`: `{{color4}}`, `blend`).
+   other `[templates]` of `wallust.toml` (jinja in `config/templates/`: `{{color4}}`, `blend`).
 4. `dot internal theme apply` runs every enabled module's `theme [cfg, wallpaper]` verb, in parallel in `meta.deps`
    order (`THEME_VERB_TIMEOUT` in `scripts/lib/pipeline.nu`). A verb reads `palette-load` (hex `bg`, `fg`,
    `c0`..`c15`, `light`) or `palette-rgb`.
@@ -39,7 +39,7 @@ the `theme` verb of each module it applied.
 
 ## Add a template
 
-1. `configs/core/wallust/templates/wal/colors-<tool>.<ext>` with the placeholders.
+1. `configs/core/wallust/config/templates/wal/colors-<tool>.<ext>` with the placeholders.
 2. Point the program at `$XDG_CACHE_HOME/wal/colors-<tool>.<ext>` in its module's `link`.
 3. Needs a reload: a `theme` verb that pokes it (`configs/desktop/kitty/mod.nu`).
 4. A tool that finds its file by pywal convention, with no path in the repo: a row in `READERS` of
@@ -54,9 +54,9 @@ the `theme` verb of each module it applied.
    (`configs/core/herdr/mod.nu`); never into a file linked from the repo.
 3. Must run after another module's verb: name that module in `meta.deps`.
 4. An editor or diff viewer takes syntax, diagnostic, diff and surface colours from `editor-roles`
-   (`configs/core/wallust/editor.nu`) for the background it draws on, as nvim, zed, emacs and delta do.
-5. A conditioning change goes into `palette.nu`, then `configs/core/wallust/palette.nu js --write` regenerates
-   `Palette.js`; `dot test check` compares both on a dark and a light palette.
+   (`configs/core/wallust/scripts/editor.nu`) for the background it draws on, as nvim, zed, emacs and delta do.
+5. A conditioning change goes into `palette.nu`, then `configs/core/wallust/scripts/palette.nu js --write`
+   regenerates `Palette.js`; `dot test check` compares both on a dark and a light palette.
 
 ## Add a theme
 

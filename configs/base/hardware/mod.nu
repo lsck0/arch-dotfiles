@@ -1,6 +1,6 @@
 use module.nu *
-export use ../boot/boot.nu [cmdline-set cmdline-unset]
-use ../boot/boot.nu [hooks-read hooks-write hooks-insert]
+export use ../boot/scripts/boot.nu [cmdline-set cmdline-unset]
+use ../boot/scripts/boot.nu [hooks-read hooks-write hooks-insert]
 
 export const meta = {
     packages: {

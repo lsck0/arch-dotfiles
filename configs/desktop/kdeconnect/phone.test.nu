@@ -2,7 +2,7 @@
 # phone.nu's pure parts (what a target is, the clipboard's offer, the device pick), then the kdeconnect-cli calls a
 # share and a clipboard send make against stubbed kdeconnect-cli and wl-paste.
 
-const PHONE = path self phone.nu
+const PHONE = path self scripts/phone.nu
 use $PHONE [share-target uri-list-parse clipboard-source device-pick]
 
 const SHEBANG = "#!/usr/bin/env -S nu --no-config-file"

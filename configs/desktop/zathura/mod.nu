@@ -1,5 +1,5 @@
 use module.nu *
-use ../../core/wallust/font.nu [font-load]
+use ../../core/wallust/scripts/font.nu [font-load]
 
 # zathurarc's synctex-editor-command runs sioyek's synctex-edit
 export const meta = {deps: [latex/sioyek], packages: {pacman: [zathura zathura-pdf-mupdf]}}
@@ -11,7 +11,7 @@ export def theme [cfg: record, wallpaper: string] {
     let font = font-load
     let dest = xdg config zathura zathurarc
     [
-        (file-render zathurarc $dest {CACHE: (xdg cache), FONT: $font.family, UI_SIZE: $font.ui_size} --generated)
+        (file-render config/zathurarc $dest {CACHE: (xdg cache), FONT: $font.family, UI_SIZE: $font.ui_size} --generated)
         (step config-source)
     ]
 }

@@ -8,7 +8,7 @@ const HERE = path self .
 use std/assert
 
 def main [] {
-    let css = file-render ($HERE | path join gtk4.css) /nonexistent/gtk.css {THEME_CSS: /theme.css, RADIUS_PX: 2} | get content
+    let css = file-render ($HERE | path join config gtk4.css) /nonexistent/gtk.css {THEME_CSS: /theme.css, RADIUS_PX: 2} | get content
     let left = $css | parse --regex '(?P<p>@[A-Z_]+@?)' | get p
     assert equal $left [] "placeholders left"
     assert ($css | str contains "--window-radius: 2px;") "--window-radius is not 2px"

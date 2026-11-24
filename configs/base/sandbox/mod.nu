@@ -1,5 +1,5 @@
 use module.nu *
 
 export def link [cfg: record] {
-    link-commands sandbox-build.sh confine.sh
+    link-commands scripts/sandbox-build.sh scripts/confine.sh
 }

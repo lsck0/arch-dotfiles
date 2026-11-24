@@ -1,9 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
 use lib.nu [DOT status-record status-print notify notify-failed state-file state-check]
 use ../lib/log.nu [log-err]
-use ../../configs/core/wallust/wallpaper-list.nu [wallpaper-resolve]
-use ../../configs/core/wallust/wallpaper.nu [wallpaper-get theme-get]
-use ../../configs/core/wallust/palette.nu [hex-to-rgb is-light wal-colors-file]
+use ../../configs/core/wallust/scripts/wallpaper-list.nu [wallpaper-resolve]
+use ../../configs/core/wallust/scripts/wallpaper.nu [wallpaper-get theme-get]
+use ../../configs/core/wallust/scripts/palette.nu [hex-to-rgb is-light wal-colors-file]
 
 const THEMES = path self ../../themes
 const LAST_FLIP = "theme-mode.nuon"

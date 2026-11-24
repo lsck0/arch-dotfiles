@@ -5,12 +5,12 @@
 # second layer: its verb lists must take the helper's verbs and nothing with a flag or an expression in it.
 
 use std/assert
-use toggle-root.nu [anonsocks-rate-cap-loaded]
+use scripts/toggle-root.nu [anonsocks-rate-cap-loaded]
 use ../../../scripts/launchers.test.nu [hostile]
 
 const HERE = path self .
-const HELPER = $HERE | path join toggle-root.nu
-const RULES = $HERE | path join 49-toggles.rules
+const HELPER = $HERE | path join scripts toggle-root.nu
+const RULES = $HERE | path join config 49-toggles.rules
 const PERSONA_CGROUP = "user.slice/user-1000.slice/user@1000.service/app.slice/anonymous-socks-tor.service"
 
 # Every argv ends in usage or a parse error, so none reaches a verb's commands.

@@ -41,7 +41,7 @@ hyprctl dispatch 'hl.dsp.window.float({ action = "toggle" })'
 ```
 
 Workspace to monitor: `desktop/hyprland.workspaces` in `platforms/luca-pc.options.nuon`. Closing a window, only when he
-asked: focus it, then `$DOTFILES/configs/desktop/hyprland/window-close.nu` (acts on the focused one).
+asked: focus it, then `$DOTFILES/configs/desktop/hyprland/scripts/window-close.nu` (acts on the focused one).
 
 ## Media, sound, screen
 

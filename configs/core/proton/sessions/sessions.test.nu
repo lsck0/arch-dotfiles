@@ -3,7 +3,7 @@
 # into an empty home, and a restore that keeps a live session.
 
 use std/assert
-use sessions.nu [APPS session-backup session-restore]
+use scripts/sessions.nu [APPS session-backup session-restore]
 
 const LIVE_MARK = "live-session"
 

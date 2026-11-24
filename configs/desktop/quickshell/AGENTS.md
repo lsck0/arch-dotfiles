@@ -2,7 +2,7 @@
 
 Editing, reload, logs, screenshots: `l-dotfiles-quickshell-dev`.
 
-- `shell.qml`: one `Bar` per screen, loads `plugins/Plugins.js` (summon ids and bar layout), owns the `shell` and
+- `config/shell.qml`: one `Bar` per screen, loads `plugins/Plugins.js` (summon ids and bar layout), owns the `shell` and
   `discord` IPC targets; every other target lives in the plugin or `Commons/` singleton it drives.
 - `plugins/<feature>/`, `Commons/` (singletons: palette, style, audio, tasks, timers, calendar, notes), `Ui/` (shared
   widgets), `scripts/` (helpers the plugins call; `scripts/lib/shell.nu` holds their action notification, bounded
@@ -18,4 +18,5 @@ Editing, reload, logs, screenshots: `l-dotfiles-quickshell-dev`.
   SUPER+SHIFT+i for `!`).
 - Reminders (`scripts/reminder.nu`): transient wall-clock timers plus one record each in
   `$XDG_STATE_HOME/quickshell/reminders`, which `quickshell-reminders-rearm.service` re-arms after a reboot or logout.
-- The tree is a managed copy: edit the repo, `dot apply desktop/quickshell`; `restart.nu` restarts the unit.
+- The tree (`config/`, paths above relative to it) is a managed copy: edit the repo, `dot apply desktop/quickshell`;
+  `restart.nu` restarts the unit.

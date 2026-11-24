@@ -1,0 +1,42 @@
+# managed by arch-dotfiles/apparmor
+
+  abi <abi/4.0>,
+
+  @{DOTFILES}/configs/latex/sioyek/scripts/synctex-edit.nu rCx -> synctex-edit,
+
+  profile synctex-edit flags=(attach_disconnected) {
+    include <abstractions/base-strict>
+    include <abstractions/bus-session>
+    include <abstractions/nameservice-strict>
+    include <abstractions/notifications>
+
+    unix (create, connect, send, receive, getattr, getopt, setopt, shutdown) type=stream,
+
+    @{bin}/env rix,
+    @{bin}/nu rix,
+    @{bin}/{id,timeout} rix,
+    @{bin}/{emacsclient,notify-send,nvim} rix,
+
+    @{DOTFILES}/configs/latex/sioyek/scripts/synctex-edit.nu r,
+    owner @{user_config_dirs}/nushell/ r,
+    owner @{PROC}/@{pid}/maps r,
+
+    /usr/share/nvim/{,**} r,
+    /usr/lib/nvim/{,**} mr,
+
+    owner @{user_cache_dirs}/vimtex/nvim_servernames.log r,
+    owner @{user_state_dirs}/nvim/ r,
+    owner @{user_state_dirs}/nvim/nvim.log rw,
+    owner @{run}/user/@{uid}/ r,
+    owner @{run}/user/@{uid}/nvim.@{int}.@{int} rw,
+    owner @{run}/user/@{uid}/emacs/server rw,
+    owner /tmp/emacs@{uid}/server rw,
+
+    owner @{PROC}/@{pid}/fd/ r,
+    owner @{PROC}/@{pid}/cgroup r,
+    deny /dev/tty rw,
+    deny @{HOME}/**.pdf r,
+    deny @{run}/user/@{uid}/*/ r,
+  }
+
+  include if exists <abstractions/dotfiles/synctex-edit.d>

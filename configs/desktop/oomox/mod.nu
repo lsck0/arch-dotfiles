@@ -1,5 +1,5 @@
 use module.nu *
-use ../../core/wallust/palette.nu [palette-rgb condition-bg vivify shade selection-pair readable-on is-light rgb-to-hex RADIUS_PX SHADE_CHROME]
+use ../../core/wallust/scripts/palette.nu [palette-rgb condition-bg vivify shade selection-pair readable-on is-light rgb-to-hex RADIUS_PX SHADE_CHROME]
 
 export const meta = {packages: {pacman: [themix-gui-git themix-plugin-base16-git xorg-server-xvfb]}}
 
@@ -12,7 +12,7 @@ export const INTERFACE = "org.gnome.desktop.interface"
 
 export def link [cfg: record] {
     [
-        (files-into ($nu.home-dir | path join $EXPORT_DIR) $EXPORT_CONFIG)
+        (files-into ($nu.home-dir | path join $EXPORT_DIR) $"config/($EXPORT_CONFIG)")
         (desktop-override com.github.themix_project.Oomox.desktop { desktop-set {NoDisplay: true} })
     ]
 }

@@ -3,6 +3,6 @@
 .Rhistory
 FAILURES*
 __pycache__
-configs/desktop/plasma/*.lock
+configs/desktop/plasma/config/*.lock
 platforms/local.nuon
 platforms/local.options.nuon

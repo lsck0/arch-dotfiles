@@ -27,7 +27,7 @@ export def pam-env []: nothing -> nothing {
 
 const DIRS = [desktop documents downloads music pictures videos sync vault .local/share/applications]
 const CAPITALIZED = [Desktop Documents Downloads Music Pictures Projects Public Templates Videos]
-const USER_DIRS = path self user-dirs.dirs
+const USER_DIRS = path self config/user-dirs.dirs
 const PLASMA_MENU = "/etc/xdg/menus/plasma-applications.menu"
 
 # A dir user-dirs.dirs names (DOCUMENTS, VIDEOS, ...), read from the repo: xdg-user-dir answers $HOME until this
@@ -119,7 +119,7 @@ def places-xbel [file: path, marks: list<record>]: nothing -> string {
 }
 
 def autostart-hidden []: nothing -> list<string> {
-    open --raw hidden-autostart.list | lines | each { split row "#" | first | str trim } | where $it != ""
+    open --raw config/hidden-autostart.list | lines | each { split row "#" | first | str trim } | where $it != ""
 }
 
 export def link [cfg: record] {
@@ -133,28 +133,28 @@ export def link [cfg: record] {
     let xbel = xdg data user-places.xbel
     [
         (if not (home-dirs-done) { step home-dirs })
-        (files-into $config mimeapps.list user-dirs.conf user-dirs.dirs)
-        (files-into ($config | path join environment.d) app-dirs.conf)
-        (dropin xdg-document-portal.service doc-portal.conf --name 10-success-exit.conf)
+        (files-into $config config/mimeapps.list config/user-dirs.conf config/user-dirs.dirs)
+        (files-into ($config | path join environment.d) config/app-dirs.conf)
+        (dropin xdg-document-portal.service config/doc-portal.conf --name 10-success-exit.conf)
         ($RECLAIM | where mode != move and ((home $it.name | path type) not-in [dir file]) | each {|r|
             file-link (reclaim-target $r) (home $r.name)
         })
-        (file-copy home.hidden (home .hidden))
+        (file-copy config/home.hidden (home .hidden))
         (autostart-hidden | each {|id|
             let entry = $"[Desktop Entry]\nType=Application\nName=($id)\nHidden=true\n"
             file-text ($config | path join autostart $"($id).desktop") $entry
         })
         (if (which Hyprland | is-not-empty) {[
             # the portal reads its routing only at start
-            (file-copy hyprland-portals.conf ($portals | path join hyprland-portals.conf)
+            (file-copy config/hyprland-portals.conf ($portals | path join hyprland-portals.conf)
                 --then (unit-restart xdg-desktop-portal.service --if-running))
             # kde's open-with dialog and every kservice menu read $XDG_MENU_PREFIX applications.menu, which uwsm
             # names after the compositor; plasma's file is the one with categories, and ksycoca rebuilds when the dir
             # changes
-            (if ($PLASMA_MENU | path exists) { files-into ($config | path join menus) hyprland-applications.menu })
+            (if ($PLASMA_MENU | path exists) { files-into ($config | path join menus) config/hyprland-applications.menu })
         ]})
         # a user kde-portals.conf replaces plasma's whole file, so it repeats plasma's lines
-        (if (which startplasma-wayland | is-not-empty) { files-into $portals kde-portals.conf })
+        (if (which startplasma-wayland | is-not-empty) { files-into $portals config/kde-portals.conf })
         (file-text ($config | path join gtk-3.0 bookmarks) ($bookmarks | to text))
         (file-text $xbel (places-xbel $xbel $places) --generated)
         (if (which update-desktop-database | is-not-empty) and (desktop-database-stale) {

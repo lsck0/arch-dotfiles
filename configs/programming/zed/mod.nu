@@ -1,7 +1,7 @@
 use module.nu *
-use ../../core/wallust/font.nu [PX_PER_PT font-load]
-use ../../core/wallust/editor.nu [editor-roles]
-use ../../core/wallust/palette.nu [condition-bg palette-rgb rgb-to-hex]
+use ../../core/wallust/scripts/font.nu [PX_PER_PT font-load]
+use ../../core/wallust/scripts/editor.nu [editor-roles]
+use ../../core/wallust/scripts/palette.nu [condition-bg palette-rgb rgb-to-hex]
 
 export const meta = {packages: {pacman: [zed]}}
 
@@ -15,11 +15,11 @@ def settings []: nothing -> record {
         ui_font_family: $font.family
         ui_font_size: ($font.ui_size * $PX_PER_PT | math round)
     }
-    json-merge (xdg config zed settings.json) (open settings.json | merge $typeface)
+    json-merge (xdg config zed settings.json) (open config/settings.json | merge $typeface)
 }
 
 export def link [cfg: record] {
-    [(files-into (xdg config zed) keymap.json) (settings)]
+    [(files-into (xdg config zed) config/keymap.json) (settings)]
 }
 
 export def theme [cfg: record, wallpaper: string] {

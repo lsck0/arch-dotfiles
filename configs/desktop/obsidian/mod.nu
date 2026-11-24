@@ -1,5 +1,5 @@
 use module.nu *
-use ../../core/wallust/font.nu [PX_PER_PT font-load]
+use ../../core/wallust/scripts/font.nu [PX_PER_PT font-load]
 
 export const meta = {packages: {pacman: [obsidian]}}
 
@@ -62,7 +62,7 @@ export def link [cfg: record] {
             (json-set [newFileLocation] folder) (json-set [newFileFolderPath] $NOTES_LINK) (json-set [attachmentFolderPath] "./")
         ])
         (json-merge $settings ([(json-set [apiKey] $api_key)] ++ $server) --then [chmod 600 $settings])
-        (link-commands obsidian-launch.nu)
+        (link-commands scripts/obsidian-launch.nu)
         (desktop-exec obsidian.desktop /usr/bin/obsidian --command $"($nu.home-dir)/.local/bin/obsidian-launch")
         # gated: while Obsidian is closed a session shows a server with no tools, not a failed one
         (mcp-servers {obsidian-mcp: {

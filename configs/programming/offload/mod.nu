@@ -1,5 +1,5 @@
 # before module.nu: a file imported after it parses its exec calls as module.nu's exec declaration
-use offload.nu [OFFLOAD_ROLES OFFLOAD_ROLE_CLIENT OFFLOAD_ROLE_TARGET]
+use scripts/offload.nu [OFFLOAD_ROLES OFFLOAD_ROLE_CLIENT OFFLOAD_ROLE_TARGET]
 use module.nu *
 use ../../../platforms/homelab.nu [HOMELAB]
 
@@ -10,8 +10,8 @@ use ../../../platforms/homelab.nu [HOMELAB]
 export const meta = {
     deps: [base/ssh]
     inputs: [
-        configs/llm/ollama/ollama.socket configs/llm/vllm/vllm.socket configs/llm/comfyui/comfyui.socket
-        configs/base/boot/remote-unlock/tinysshd.conf
+        configs/llm/ollama/config/ollama.socket configs/llm/vllm/config/vllm.socket configs/llm/comfyui/config/comfyui.socket
+        configs/base/boot/remote-unlock/config/tinysshd.conf
     ]
     volatile: true
 }
@@ -36,7 +36,7 @@ export const options = {
 const LLM = path self ../../llm
 const FORWARD_SERVICES = [ollama vllm comfyui]
 const LISTEN_LOOPBACK = '(?m)^ListenStream=127\.0\.0\.1:(?<port>\d+)\s*$'
-const UNLOCK_CONF = path self ../../base/boot/remote-unlock/tinysshd.conf
+const UNLOCK_CONF = path self ../../base/boot/remote-unlock/config/tinysshd.conf
 const UNLOCK_PORT = '(?m)^Environment=SSHD_PORT=(?<port>\d+)\s*$'
 const WORKER = "/usr/local/lib/offload/worker.nu"
 const TMPFILES = "/etc/tmpfiles.d/offload.conf"
@@ -54,7 +54,7 @@ const LAB_SUBIDS = "600200000-600265535"
 
 def forwards-read []: nothing -> record {
     $FORWARD_SERVICES | each {|service|
-        let socket = $LLM | path join $service $"($service).socket"
+        let socket = $LLM | path join $service config $"($service).socket"
         let port = open --raw $socket | parse --regex $LISTEN_LOOPBACK | get --optional 0.port
         if $port == null { error make {msg: $"offload: ($socket) listens on no loopback port"} }
         [$service ($port | into int)]
@@ -69,9 +69,9 @@ export def packages [cfg: record]: nothing -> record {
 def target-session []: nothing -> list<any> {
     let values = {DOTFILES: $env.DOTFILES}
     [
-        (unit-file offload-gate.service --values $values --enable --now)
-        (unit-file offload-consent.service --values $values)
-        (unit-file offload-consent.path --enable --now)
+        (unit-file config/offload-gate.service --values $values --enable --now)
+        (unit-file config/offload-consent.service --values $values)
+        (unit-file config/offload-consent.path --enable --now)
         (if ($USER_UNITS | path join $ENFORCE | path exists) { unit-enable $ENFORCE --now })
     ]
 }
@@ -101,7 +101,7 @@ export def link [cfg: record] {
     let user = $env.USER? | default (^id -un | str trim)
     [
         (file-text (xdg config offload config.nuon) ($config | to nuon --indent 4) --generated)
-        (link-commands offload.nu)
+        (link-commands scripts/offload.nu)
         # the target's user manager outlives the last login, so a job keeps running after a logout
         (if $role != $OFFLOAD_ROLE_CLIENT {
             let lingers = $"/var/lib/systemd/linger/($user)" | path exists
@@ -153,11 +153,11 @@ def labworker [builder: record, setup: list<string>]: nothing -> list<any> {
     let manager = [systemctl --user -M $"($LABWORKER)@"]
     [
         (file-text $LAB_SYSUSERS $"u ($LABWORKER) - \"offload lab worker\" ($LAB_HOME) /usr/bin/sh\n" --then $setup)
-        (file-copy labworker.tmpfiles $LAB_TMPFILES --then $setup)
+        (file-copy config/labworker.tmpfiles $LAB_TMPFILES --then $setup)
         (file-text $LAB_AUTHORIZED $key)
         (exec "offload labworker unlock" [usermod --password "*" $LABWORKER] --done=(unlocked $LABWORKER)
             --requires $LAB_HOME)
-        (step sshd-dropin --key (open --raw labworker-sshd.conf | hash sha256)
+        (step sshd-dropin --key (open --raw config/labworker-sshd.conf | hash sha256)
             --undo [sh -c $"rm -f ($LAB_SSHD) && systemctl try-reload-or-restart sshd.service"])
         (exec $"offload labworker subids ($LAB_SUBIDS)"
             [usermod --add-subuids $LAB_SUBIDS --add-subgids $LAB_SUBIDS $LABWORKER] --done=(subids-done)
@@ -170,7 +170,7 @@ def labworker [builder: record, setup: list<string>]: nothing -> list<any> {
             --undo [...$manager disable --now $ENFORCE] --requires $linger)
         # takes effect on the manager's next start (boot); a restart would kill a running job
         (if $uid != null {
-            file-copy labworker-user.conf $"/etc/systemd/system/user@($uid).service.d/50-offload.conf" --then [systemctl daemon-reload]
+            file-copy config/labworker-user.conf $"/etc/systemd/system/user@($uid).service.d/50-offload.conf" --then [systemctl daemon-reload]
         })
     ]
 }
@@ -186,11 +186,11 @@ export def system [cfg: record] {
     let setup = [sh -c $"systemd-sysusers && systemd-tmpfiles --create ($TMPFILES)(if $lab { $' ($LAB_TMPFILES)' } else { '' })"]
     [
         (group-admins offload)
-        (file-text $TMPFILES ((open --raw offload.tmpfiles) + (group-acls offload)) --then $setup)
+        (file-text $TMPFILES ((open --raw config/offload.tmpfiles) + (group-acls offload)) --then $setup)
         (file-text /etc/offload/limits.nuon ({memoryMiB: $memory, cpus: $cpus} | to nuon))
-        (file-copy worker.nu $WORKER)
-        (file-render offload.slice ($USER_UNITS | path join offload.slice) {MEMORY: $memory, CPU_QUOTA: ($cpus * 100)})
-        (files-into $USER_UNITS offload-enforce.path offload-enforce.service)
+        (file-copy scripts/worker.nu $WORKER)
+        (file-render config/offload.slice ($USER_UNITS | path join offload.slice) {MEMORY: $memory, CPU_QUOTA: ($cpus * 100)})
+        (files-into $USER_UNITS config/offload-enforce.path config/offload-enforce.service)
         (if $lab { labworker $builder $setup })
     ]
 }
@@ -198,7 +198,7 @@ export def system [cfg: record] {
 # Installs the labworker sshd drop-in beside base/ssh's, kept only when sshd accepts the whole config.
 export def sshd-dropin []: nothing -> nothing {
     let before = if ($LAB_SSHD | path exists) { open --raw $LAB_SSHD }
-    open --raw labworker-sshd.conf | ^install -Dm644 /dev/stdin $LAB_SSHD
+    open --raw config/labworker-sshd.conf | ^install -Dm644 /dev/stdin $LAB_SSHD
     if (^sshd -t | complete).exit_code != 0 {
         if $before == null { rm $LAB_SSHD } else { $before | save --force $LAB_SSHD }
         error make {msg: "offload: sshd rejects 20-offload.conf, kept the previous config"}

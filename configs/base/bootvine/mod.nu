@@ -1,5 +1,5 @@
 use module.nu *
-use ../boot/boot.nu [cmdline-set cmdline-unset hooks-read hooks-write hooks-insert]
+use ../boot/scripts/boot.nu [cmdline-set cmdline-unset hooks-read hooks-write hooks-insert]
 
 const HOOK_INSTALL = "/usr/lib/initcpio/install/sd-bootvine"
 const UNITS = [bootvine.service bootvine-shutdown.service]

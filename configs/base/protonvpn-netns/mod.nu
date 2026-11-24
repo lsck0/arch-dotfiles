@@ -21,18 +21,18 @@ export def system [cfg: record] {
     let restart = unit-restart $UNIT
     let shims = $SHIMS ++ ($VPN_FORCED | where { $"/usr/bin/($in)" | path exists })
     # validated first, a broken drop-in would lock every admin out
-    if (^visudo -cf sudoers | complete).exit_code != 0 { error make {msg: "protonvpn-netns: sudoers does not parse"} }
+    if (^visudo -cf config/sudoers | complete).exit_code != 0 { error make {msg: "protonvpn-netns: sudoers does not parse"} }
     let nsswitch = open --raw /etc/nsswitch.conf
         | str replace --regex --multiline '^hosts:.*$' "hosts: files myhostname dns"
     [
         (step tunnel)
-        (file-copy netns.nu $"($LIB)/netns" --mode 755 --then $restart)
-        (file-copy run.sh $"($LIB)/run" --mode 755)
-        ($shims | each { file-copy shim.sh $"/usr/local/bin/($in)" --mode 755 })
+        (file-copy scripts/netns.nu $"($LIB)/netns" --mode 755 --then $restart)
+        (file-copy scripts/run.sh $"($LIB)/run" --mode 755)
+        ($shims | each { file-copy scripts/shim.sh $"/usr/local/bin/($in)" --mode 755 })
         # glibc in the namespace asks the tunnel's resolver directly, never resolved over its unix socket (a leak)
         (file-text $"($NS_ETC)/nsswitch.conf" $nsswitch)
-        (file-copy sudoers /etc/sudoers.d/20-protonvpn-netns --mode 440)
-        (unit-file $UNIT --enable --now --then $restart)
+        (file-copy config/sudoers /etc/sudoers.d/20-protonvpn-netns --mode 440)
+        (unit-file $"config/($UNIT)" --enable --now --then $restart)
     ]
 }
 

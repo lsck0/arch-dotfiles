@@ -38,13 +38,13 @@ export def link [cfg: record] {
     let dir = $nu.home-dir | path join $CONFIG_DIR
     let log = $nu.home-dir | path join $LOG_DIR
     [
-        (file-copy bugwarrior.toml ($dir | path join bugwarrior.toml))
+        (file-copy config/bugwarrior.toml ($dir | path join bugwarrior.toml))
         (exec bugwarrior-log-dir [mkdir -p $log] --creates $log)
         # `bugwarrior uda` opens the log file and the taskrc while planning; keep the empty placeholder until both exist
         (if (which bugwarrior | is-empty) or not ($log | path exists) or not ($TASKRC | path exists) {
             file-text $UDA ""
         } else {
-            file-text $UDA $"(uda-render ($env.PWD | path join bugwarrior.toml))\n"
+            file-text $UDA $"(uda-render ($env.PWD | path join config bugwarrior.toml))\n"
         })
     ]
 }

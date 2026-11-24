@@ -194,11 +194,11 @@ def scene-mic [mic: oneof<string, nothing>]: record -> record {
     $in | update AuxAudioDevice1.settings.device_id $mic
 }
 
-# A shared seed (scenes/*.json, not a machine's copy) renders unmuted: a mute is live state, and one carried back
+# A shared seed (config/scenes/*.json, not a machine's copy) renders unmuted: a mute is live state, and one carried back
 # into the seed would make every machine without its own copy record silence.
 def scene-unmute [dir: path]: record -> record {
     let scene = $in
-    if $dir != ($HERE | path join scenes) { return $scene }
+    if $dir != ($HERE | path join config scenes) { return $scene }
     $scene
     | if $in.AuxAudioDevice1? == null { $in } else { update AuxAudioDevice1 { upsert muted false } }
     | update sources { each {|src| if $src.muted? == true { $src | update muted false } else { $src } } }
@@ -273,11 +273,11 @@ def encoder-json [cfg: record, src: path]: nothing -> string {
 }
 
 def repo-scenes []: nothing -> list<path> {
-    glob ($HERE | path join scenes *.json) | sort
+    glob ($HERE | path join config scenes *.json) | sort
 }
 
 def repo-profiles []: nothing -> list<path> {
-    glob ($HERE | path join profiles * *)
+    glob ($HERE | path join config profiles * *)
 }
 
 def scene-seed [seed: path]: nothing -> path {
@@ -302,7 +302,7 @@ export def link [cfg: record] {
         do $scene ($basic | path join scenes ($seed | path basename)) (scene-render $cfg (scene-seed $seed) --machine) "644"
     })
     let profiles = repo-profiles | each {|src|
-        let dest = $basic | path join ($src | path relative-to $HERE)
+        let dest = $basic | path join ($src | path relative-to ($HERE | path join config))
         if ($src | path basename) == "basic.ini" {
             file-render $src $dest (profile-values $cfg)
         } else {
@@ -318,8 +318,8 @@ export def link [cfg: record] {
     # the mcp only with the app it drives
     let mcp = if (which obs npm | length) == 2 {
         [
-            (mcp-npm obs-mcp ($HERE | path join mcp) (xdg data obs-mcp))
-            (mcp-command obs-mcp obs-mcp.nu --gate {probe: $"127.0.0.1:($WEBSOCKET_PORT)", app: OBS})
+            (mcp-npm obs-mcp ($HERE | path join config mcp) (xdg data obs-mcp))
+            (mcp-command obs-mcp scripts/obs-mcp.nu --gate {probe: $"127.0.0.1:($WEBSOCKET_PORT)", app: OBS})
         ]
     }
     [
@@ -424,7 +424,7 @@ export def backup [cfg: record]: nothing -> nothing {
     }
     let recorded = recorded-hashes
     for repo in (repo-profiles) {
-        let live = $basic | path join ($repo | path relative-to $HERE)
+        let live = $basic | path join ($repo | path relative-to ($HERE | path join config))
         let saved = ($live | path exists) and (open --raw $live | hash sha256) != ($recorded | get --optional $live)
         if not $saved { continue }
         if ($repo | path basename) == "basic.ini" {

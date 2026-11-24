@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 
 use mod.nu [HOOKS OVERRIDES TUNABLES hook-text override-text tunables]
-use profile-flags.nu [ETC MARKER OWN_SUFFIX SOURCE upstream-files]
+use scripts/profile-flags.nu [ETC MARKER OWN_SUFFIX SOURCE upstream-files]
 
 const HERE = path self .
 # each profile parses from its own file: a few at a time, the parser is cpu bound and the desktop stays usable
@@ -29,7 +29,7 @@ def basenames [dir: string]: nothing -> list<string> {
 }
 
 def rows-check [rows: table]: nothing -> list<string> {
-    let own = basenames profiles
+    let own = basenames config/profiles
     let malformed = $rows | each {|r|
         let mode = $r.mode | split row "," | first
         [
@@ -49,10 +49,10 @@ def rows-check [rows: table]: nothing -> list<string> {
 }
 
 def own-check [rows: table]: nothing -> list<string> {
-    let unlisted = basenames profiles | append ($OVERRIDES | columns) | where $it not-in $rows.name
+    let unlisted = basenames config/profiles | append ($OVERRIDES | columns) | where $it not-in $rows.name
         | each { $"($in) is an own profile but not in profiles.conf" }
-    let profiles = basenames profiles | each {|name|
-        let lines = open --raw $"profiles/($name)" | lines
+    let profiles = basenames config/profiles | each {|name|
+        let lines = open --raw $"config/profiles/($name)" | lines
         [
             (if ($lines | first) != $MARKER { $"profiles/($name) lacks the marker line" })
             # any attachment: 7z spells its paths out, apparmor 4.1.8 never attaches its @{bin}/@{lib} expansion
@@ -61,7 +61,7 @@ def own-check [rows: table]: nothing -> list<string> {
             })
         ]
     }
-    let locals = basenames local | where $it not-in ($rows.name ++ $PACKAGE_PROFILES)
+    let locals = basenames config/local | where $it not-in ($rows.name ++ $PACKAGE_PROFILES)
         | each { $"local/($in) extends no profile of profiles.conf" }
     $unlisted ++ ($profiles | flatten | compact) ++ $locals
 }
@@ -79,7 +79,7 @@ def parse-ok [file: path, work: path, etc: path]: nothing -> bool {
 
 def compile-check [rows: table, source: path, etc: path]: nothing -> list<string> {
     let upstream = upstream-files $source | path basename
-    let own = basenames profiles
+    let own = basenames config/profiles
     let names = $rows | get name | each {|n|
         if $n in $own {
             if $n in $upstream { $"apparmor.d now ships ($n), drop profiles/($n)" }
@@ -90,8 +90,8 @@ def compile-check [rows: table, source: path, etc: path]: nothing -> list<string
     # the repo's tunables, not the installed ones: -I $work shadows the whole tunables tree
     cp -r ($etc | path join tunables) $work
     tunables | save --force ($work | path join $TUNABLES)
-    glob abstractions/* | each { cp $in ($work | path join abstractions dotfiles) } | ignore
-    glob local/* | each { cp $in ($work | path join local) } | ignore
+    glob config/abstractions/* | each { cp $in ($work | path join abstractions dotfiles) } | ignore
+    glob config/local/* | each { cp $in ($work | path join local) } | ignore
     $HOOKS | items {|hook, name|
         let file = $work | path join $hook
         mkdir ($file | path dirname)
@@ -102,7 +102,7 @@ def compile-check [rows: table, source: path, etc: path]: nothing -> list<string
     # every file written before any parse starts: written from the parallel parse, some came out mangled
     let files = $own ++ $overrides | each {|n|
         let file = $work | path join $"($n)($OWN_SUFFIX)"
-        if $n in $overrides { override-text $n $source | save $file } else { cp $"profiles/($n)" $file }
+        if $n in $overrides { override-text $n $source | save $file } else { cp $"config/profiles/($n)" $file }
         {name: $n, file: $file}
     }
     let profiles = $files | par-each --keep-order --threads $PARSE_THREADS {|f|
@@ -110,7 +110,7 @@ def compile-check [rows: table, source: path, etc: path]: nothing -> list<string
     } | compact
     # an own profile above already pulled in its local from $work; apparmor.d deploys one that replaces a stock
     # profile as <name>.apparmor.d
-    let locals = basenames local | where $it not-in ($own ++ $overrides) | par-each --keep-order --threads $PARSE_THREADS {|n|
+    let locals = basenames config/local | where $it not-in ($own ++ $overrides) | par-each --keep-order --threads $PARSE_THREADS {|n|
         let target = [$"($n).apparmor.d" $n] | each {|f| $etc | path join $f }
             | where ($it | path exists) and ($it | path expand | path type) == file | get --optional 0
         if $target == null {
@@ -125,7 +125,7 @@ def compile-check [rows: table, source: path, etc: path]: nothing -> list<string
 
 def required-check []: nothing -> list<string> {
     $REQUIRED_RULES | items {|file, rules|
-        let have = open --raw $file | lines | str trim
+        let have = open --raw ("config" | path join $file) | lines | str trim
         $rules | where $it not-in $have | each {|r| $"($file) lacks '($r)'" }
     } | flatten
 }
@@ -135,13 +135,13 @@ def required-check []: nothing -> list<string> {
 # link
 def sourced-check []: nothing -> list<string> {
     let rc = {|file| open --raw ($CORE | path join $file) }
-    let zshrc = do $rc zsh/zshrc
-    let tmux = do $rc tmux/tmux.conf
+    let zshrc = do $rc zsh/config/zshrc
+    let tmux = do $rc tmux/config/tmux.conf
     let dirs = {
         user_cache_dirs: (
             ($zshrc | parse --regex '\{XDG_CACHE_HOME:-[^}]+\}/(?<dir>[^/\s"]+)' | get dir)
             ++ ($tmux | parse --regex '@CACHE@/(?<dir>[^/\s]+)' | get dir)
-            ++ [nushell] ++ (do $rc nushell/config.nu | parse --regex 'path dirname \| path join (?<dir>\S+)' | get dir)
+            ++ [nushell] ++ (do $rc nushell/config/config.nu | parse --regex 'path dirname \| path join (?<dir>\S+)' | get dir)
         )
         user_config_dirs: (
             ($zshrc | parse --regex '\{XDG_CONFIG_HOME:-[^}]+\}/(?<dir>[^/\s"]+)' | get dir)
@@ -150,7 +150,7 @@ def sourced-check []: nothing -> list<string> {
         user_share_dirs: ($zshrc | parse --regex '\{XDG_DATA_HOME:-[^}]+\}/(?<dir>[^\s")]+)' | get dir)
         HOME: ($zshrc | parse --regex 'source ~/(?<dir>\S+)/[^/\s]+' | get dir)
     }
-    let rules = [abstractions/deny-exec-later abstractions/file-tool] | each { open --raw $in | lines } | flatten | str trim
+    let rules = [config/abstractions/deny-exec-later config/abstractions/file-tool] | each { open --raw $in | lines } | flatten | str trim
     $dirs | items {|tunable, sourced|
         let closed = $rules | parse --regex ('^deny @\{' + $tunable + '\}/\{?(?<dirs>[^{}]+?)\}?/\{,\*\*\} wl,$')
             | get dirs | each { split row "," } | flatten
@@ -160,7 +160,7 @@ def sourced-check []: nothing -> list<string> {
 }
 
 def repo-path-check []: nothing -> list<string> {
-    glob "{abstractions,local,profiles}/*" | each {|f|
+    glob "config/{abstractions,local,profiles}/*" | each {|f|
         if (open --raw $f | str contains $REPO_PATH) {
             $"($f | path relative-to $HERE) spells ($REPO_PATH), use @{DOTFILES}"
         }
@@ -171,7 +171,7 @@ def main []: nothing -> nothing {
     cd $HERE
     let source = $env.APPARMOR_D_SRC? | default $SOURCE
     let etc = $env.APPARMOR_ETC? | default $ETC
-    let rows = open --raw profiles.conf | lines | where { $in =~ '^[^#]' and ($in | str trim) != "" }
+    let rows = open --raw config/profiles.conf | lines | where { $in =~ '^[^#]' and ($in | str trim) != "" }
         | parse --regex '^(?<name>\S+)\s*(?<mode>\S*)\s*(?<extra>.*)$'
     let compilable = (
         ($source | path exists) and ($etc | path join abstractions base-strict | path exists)

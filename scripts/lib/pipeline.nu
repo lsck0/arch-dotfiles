@@ -82,7 +82,7 @@ def app-dirs-expand []: string -> string {
 
 # The install chain has no environment.d yet: load base/xdg's app dirs; session values win.
 def --env app-dirs-load [repo: path]: nothing -> nothing {
-    let file = $repo | path join configs base xdg app-dirs.conf
+    let file = $repo | path join configs base xdg config app-dirs.conf
     if not ($file | path exists) { return }
     open --raw $file | lines | parse --regex '^(?<k>[A-Za-z_][A-Za-z0-9_]*)=(?<v>.*)$'
     | where {|e| ($env | get --optional $e.k) == null }

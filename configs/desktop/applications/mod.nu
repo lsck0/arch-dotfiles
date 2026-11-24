@@ -19,7 +19,7 @@ const KDE_ONLY = [systemsettings org.kde.plasma.emojier]
 const HIDDEN = [appimagetool byobu]
 # caido keeps the 8080 stirling-pdf defaults to
 const STIRLING_PORT = 8090
-const APPS = "apps.nuon"
+const APPS = "config/apps.nuon"
 
 # filezilla nags until a greeting version is stored and rewrites the file on exit, so it is seeded only once
 const FILEZILLA_XML = "filezilla/filezilla.xml"
@@ -117,10 +117,10 @@ export def link [cfg: record] {
     let filezilla = xdg config $FILEZILLA_XML
     let values = {HOME: $nu.home-dir, BIN: $bin, DOTFILES: $env.DOTFILES, STIRLING_PORT: $STIRLING_PORT}
     [
-        (link-commands desktop-run.nu hollywood-run.nu)
+        (link-commands scripts/desktop-run.nu scripts/hollywood-run.nu)
         # tk takes its scale from the x screen's 96 dpi and ignores GDK_SCALE: these wrappers scale it at start
-        (if ("/usr/bin/idle" | path exists) { link-commands idle.py })
-        (if ("/usr/bin/gitk" | path exists) { link-commands gitk.tcl })
+        (if ("/usr/bin/idle" | path exists) { link-commands scripts/idle.py })
+        (if ("/usr/bin/gitk" | path exists) { link-commands scripts/gitk.tcl })
         (open $APPS | each {|app| file-text ($apps | path join $"($app.id).desktop") (app-entry $app $values) })
         ($SHOWN | each {|id| desktop-override $"($id).desktop" { desktop-set {NoDisplay: false} } })
         ($KDE_ONLY | each {|id| desktop-override $"($id).desktop" { line-drop '^OnlyShowIn=KDE;$' } })

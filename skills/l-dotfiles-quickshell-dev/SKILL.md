@@ -6,8 +6,8 @@ description: "Editing the quickshell shell in configs/desktop/quickshell (bar, p
 # quickshell-dev
 
 Layout, UI copy rules, launcher prefixes, reminders and IPC summons: `configs/desktop/quickshell/AGENTS.md`.
-`mod.nu` copies the tree into `~/.config/quickshell`, so a live edit there is drift. Runs as `quickshell.service`.
-`Ui/GlassCard.qml` is the one card material, `Ui/Scrim.qml` the dim behind every overlay.
+`mod.nu` copies the tree (`config/`) into `~/.config/quickshell`, so a live edit there is drift. Runs as
+`quickshell.service`. `Ui/GlassCard.qml` is the one card material, `Ui/Scrim.qml` the dim behind every overlay.
 
 ## Edit loop
 
@@ -28,7 +28,7 @@ qs ipc -p ~/.config/quickshell call bar toggle <panel>
 - The bar target is `bar` on the main screen and `bar-<output>` elsewhere (`open|close|toggle|state|list`). An opened
   panel takes the keyboard (Luca: `mod+b` then a letter): hjkl/arrows move, Tab jumps sections, Esc or q closes.
 - An `IpcHandler { target: "<name>" }` adds a target; keybinds reach it through `quickshell_call(target, fn)` in
-  `configs/desktop/hyprland/hyprland_keybindings.lua`.
+  `configs/desktop/hyprland/config/hyprland_keybindings.lua`.
 - On the live shell an agent only reads (`show`, `list`, `state`) unless Luca asked; a `call` that opens or toggles
   drives his screen. Check UI on a test shell (`l-dotfiles-gui-testing`).
 

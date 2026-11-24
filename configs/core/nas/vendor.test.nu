@@ -2,7 +2,7 @@
 # vendor.nu's choice of what to install: the newest zip by version, nothing without a reachable vendor dir, and an
 # install only when the NAS holds something newer than what is installed.
 use std/assert
-use vendor.nu [nas-vendor-newer nas-vendor-newest]
+use scripts/vendor.nu [nas-vendor-newer nas-vendor-newest]
 
 def main [] {
     assert equal (nas-vendor-newest null "jai-*.zip") null "an unreachable vendor dir yields a zip"

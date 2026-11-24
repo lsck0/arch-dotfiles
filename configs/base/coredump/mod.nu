@@ -1,5 +1,5 @@
 use module.nu *
-export use ../boot/boot.nu [cmdline-set]
+export use ../boot/scripts/boot.nu [cmdline-set]
 
 export const options = {
     max_use: {
@@ -24,11 +24,11 @@ export const options = {
 
 export def system [cfg: record] {
     [
-        (file-render 10-storage.conf /etc/systemd/coredump.conf.d/10-storage.conf {
+        (file-render config/10-storage.conf /etc/systemd/coredump.conf.d/10-storage.conf {
             MAX_USE: $cfg.max_use, PROCESS_SIZE_MAX: $cfg.process_size_max, EXTERNAL_SIZE_MAX: $cfg.external_size_max
         })
         # sorts before systemd.conf, so its age wins
-        (file-copy coredump-tmpfiles.conf /etc/tmpfiles.d/coredump.conf)
+        (file-copy config/coredump-tmpfiles.conf /etc/tmpfiles.d/coredump.conf)
         (if $env.FORM_FACTOR? != "wsl" {
             [(step cmdline-set efi_pstore.pstore_disable=0) (unit-enable systemd-pstore.service)]
         })

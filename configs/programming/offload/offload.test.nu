@@ -3,14 +3,14 @@
 # remote command line in a scratch home through sh): the target acting locally, a client over the stubbed ssh, a
 # hostile argument staying one literal argument, and the client's repo left exactly as it was.
 
-use offload.nu [
+use scripts/offload.nu [
     args-parse name-safe job-id job-id-valid ref-source ref-result sh-quote remote-command reach-blocker router-address
     forward-spec path-relative-valid request-valid
 ]
 
 use std/assert
 
-const SCRIPT = path self offload.nu
+const SCRIPT = path self scripts/offload.nu
 const COMMIT = "0123456789abcdef0123456789abcdef01234567"
 
 def pure-check [] {

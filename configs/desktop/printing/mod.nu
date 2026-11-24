@@ -21,9 +21,9 @@ export def system [cfg: record] {
     # cups also arrives under wsl, as a dependency of hermes-agent, where windows owns the printers
     if not ($CUPSD | path exists) or $env.FORM_FACTOR? == "wsl" { return [] }
     [
-        (file-copy printers-sync.nu $SYNC --mode 755)
-        (unit-file printers-sync.service)
-        (file-copy printers-dispatcher.nu $DISPATCHER --mode 755)
+        (file-copy scripts/printers-sync.nu $SYNC --mode 755)
+        (unit-file config/printers-sync.service)
+        (file-copy scripts/printers-dispatcher.nu $DISPATCHER --mode 755)
         # mdns host lookup, for the printers' .local names; the rest of the file stays the package's
         (file-text $NSSWITCH (open --raw $NSSWITCH | str replace --regex --multiline '^hosts:.*$' $NSSWITCH_HOSTS))
         (step queues)

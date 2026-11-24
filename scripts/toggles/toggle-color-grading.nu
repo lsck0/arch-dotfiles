@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 use lib.nu [notify cycle-next status-record status-print]
 
-const GRADING = path self ../../configs/desktop/color-grading/color-grading.py
+const GRADING = path self ../../configs/desktop/color-grading/scripts/color-grading.py
 
 def grading []: nothing -> record { ^$GRADING status | from json }
 

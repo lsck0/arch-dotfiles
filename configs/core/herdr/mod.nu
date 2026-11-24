@@ -1,5 +1,5 @@
 use module.nu *
-use ../wallust/palette.nu [hex-to-rgb rgb-to-hex tone-map mix]
+use ../wallust/scripts/palette.nu [hex-to-rgb rgb-to-hex tone-map mix]
 
 export const meta = {deps: [core/cli core/wallust], packages: {pacman: [herdr-bin]}}
 
@@ -13,7 +13,7 @@ const BLENDS = {
 const RELOAD = [sh -c "herdr server reload-config >/dev/null 2>&1 || true"]
 
 def config-text []: nothing -> string {
-    let source = open --raw config.toml
+    let source = open --raw config/config.toml
     let p = palette-load
     if $p == null { return $source }
     let bg = if $p.light == "1" { $p.bg_conditioned } else {
@@ -39,8 +39,8 @@ def config []: nothing -> record {
 export def link [cfg: record] {
     [
         (config)
-        (link-commands herdr-open.nu herdr-fingers.nu)
-        (file-copy herdr.tmpfiles.conf (xdg config user-tmpfiles.d herdr.conf))
+        (link-commands scripts/herdr-open.nu scripts/herdr-fingers.nu)
+        (file-copy config/herdr.tmpfiles.conf (xdg config user-tmpfiles.d herdr.conf))
     ]
 }
 

@@ -7,8 +7,8 @@ use std/assert
 use ../../../scripts/launchers.test.nu [hostile]
 
 const HERE = path self .
-const RUN = $HERE | path join run.sh
-const SHIM = $HERE | path join shim.sh
+const RUN = $HERE | path join scripts run.sh
+const SHIM = $HERE | path join scripts shim.sh
 const VPN = $HERE | path join .. .. .. scripts vpn.sh
 const NS = "protonvpn"
 const RUN_INSTALLED = "/usr/local/lib/protonvpn-netns/run"

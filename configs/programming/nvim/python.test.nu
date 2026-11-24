@@ -15,7 +15,7 @@ def python-stub [dir: string] {
 }
 
 def python-find [root: any, env_extra: record = {}] {
-    let script = $"package.path = ($HERE | path join lua ?.lua | to json) .. ';' .. package.path
+    let script = $"package.path = ($HERE | path join config lua ?.lua | to json) .. ';' .. package.path
 local root = vim.json.decode\(($root | to json | to json)\)
 io.stdout:write\(vim.json.encode\({ python = require\('lib.python'\).find\(root\) or vim.NIL }\)\)"
     let file = mktemp --tmpdir dot-python-test-XXXXXX.lua

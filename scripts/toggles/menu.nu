@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 use lib.nu [TOGGLES_DIR toggle-run]
 
-const PICKER = path self ../../configs/desktop/hyprland/picker.nu
+const PICKER = path self ../../configs/desktop/hyprland/scripts/picker.nu
 
 # an on/off switch shows its label alone, any other toggle its state too
 def line [toggle: record]: nothing -> string {

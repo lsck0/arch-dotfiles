@@ -3,7 +3,7 @@
 # the file, and a rerun without a pick keeps what is recorded. A pick leads the last ones of its kind. magick's
 # histogram reads as the picture's colours.
 
-use wallpaper.nu [pick-resolve palette-kept recent-add picture-parse]
+use scripts/wallpaper.nu [pick-resolve palette-kept recent-add picture-parse]
 
 const THEMES = [
     [name wallpaper];

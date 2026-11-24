@@ -1,13 +1,13 @@
 use module.nu *
-use ../../core/wallust/palette.nu [opacity-shell]
-use ../../core/wallust/font.nu [font-load]
+use ../../core/wallust/scripts/palette.nu [opacity-shell]
+use ../../core/wallust/scripts/font.nu [font-load]
 
 export const meta = {packages: {pacman: [kitty]}}
 
 export def link [cfg: record] {
     let dir = xdg config kitty
     [
-        (file-render kitty.conf ($dir | path join kitty.conf) {CACHE: (xdg cache)})
+        (file-render config/kitty.conf ($dir | path join kitty.conf) {CACHE: (xdg cache)})
     ]
 }
 

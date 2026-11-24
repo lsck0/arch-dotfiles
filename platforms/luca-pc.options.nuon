@@ -99,7 +99,7 @@
                 cmd: "zapzap --hideStart"
             }
             {
-                cmd: "$DOTFILES/configs/gaming/steam/steam-launch.nu -silent"
+                cmd: "$DOTFILES/configs/gaming/steam/scripts/steam-launch.nu -silent"
             }
         ]
         monitor_speaker_volume: 0

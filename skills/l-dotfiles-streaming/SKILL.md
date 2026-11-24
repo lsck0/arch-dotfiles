@@ -24,14 +24,14 @@ Three collections, each with its profile; OBS does not pair them, so pick both:
 | collection | profile | source | content |
 |---|---|---|---|
 | `Streaming` | Streaming | `configs/secrets/keys/obs/Streaming.json` | as is, except the mic takes the `mic` option |
-| `VirtualCam` | VirtualCam | `scenes/VirtualCam.json` | `Desktop`, `Webcam` (v4l2, option `webcam`, MJPG 1080p30), `Cam top left`.. corners with the cam a quarter wide; no audio |
-| `Bare` | Recording | `scenes/Bare.json` | `Desktop` with Desktop Audio, Game Audio, Mic/Aux |
+| `VirtualCam` | VirtualCam | `config/scenes/VirtualCam.json` | `Desktop`, `Webcam` (v4l2, option `webcam`, MJPG 1080p30), `Cam top left`.. corners with the cam a quarter wide; no audio |
+| `Bare` | Recording | `config/scenes/Bare.json` | `Desktop` with Desktop Audio, Game Audio, Mic/Aux |
 
-- Every `scenes/*.json` is a collection; a new one is a new file. `scene-render --machine` scales positions from its
-  `resolution` to the canvas and fills `AuxAudioDevice1` and every `v4l2_input`; `scene-back` reverses it, minus the
-  portal `RestoreToken`. Per machine: `scenes/<hostname>/<name>.json` (`host-seed`), preferred by apply, written by the
-  backup.
-- Profiles in `profiles/<name>/`, `basic.ini` with `@KEY@` placeholders filled by `mod.nu`.
+- Every `config/scenes/*.json` is a collection; a new one is a new file. `scene-render --machine` scales positions
+  from its `resolution` to the canvas and fills `AuxAudioDevice1` and every `v4l2_input`; `scene-back` reverses it,
+  minus the portal `RestoreToken`. Per machine: `config/scenes/<hostname>/<name>.json` (`host-seed`), preferred by
+  apply, written by the backup.
+- Profiles in `config/profiles/<name>/`, `basic.ini` with `@KEY@` placeholders filled by `mod.nu`.
 - VirtualCam is capped at 720p (`VIRTUALCAM_HEIGHT`; 4k YUYV is about 500 MB/s).
 - Streaming outputs the full canvas and scales only the stream to `STREAM_RES` (at most `STREAM_HEIGHT` 1080, lanczos
   `RescaleFilter=4`); `streamEncoder.json`: 6000 kbps CBR, keyint 2.
@@ -39,7 +39,7 @@ Three collections, each with its profile; OBS does not pair them, so pick both:
   replay buffer in the Recording profile only (`RecRB`, `RecRBTime`).
 - Tracks (`mixers` bitmask): 1 full mix, 2 mic, 3 apps without mic, 4 Twitch VOD (all but Spotify). Recordings take 1
   to 3 (`RecTracks=7`).
-- PNGTuber Plus runs under `obs-gamecapture` (`configs/gaming/steam/steam-launch-options.nu`) for obs-vkcapture.
+- PNGTuber Plus runs under `obs-gamecapture` (`configs/gaming/steam/scripts/steam-launch-options.nu`) for obs-vkcapture.
 
 ## Hearing the stream
 
@@ -56,12 +56,12 @@ not change what OBS hears.
 obs-websocket v5 on `ws://127.0.0.1:4455`, password `server_password` in
 `~/.config/obs-studio/plugin_config/obs-websocket/config.json`. Auth: `secret = base64(sha256(password + salt))`,
 `auth = base64(sha256(secret + challenge))` from Hello (op 0), sent in Identify (op 1). `obs-mcp` does this;
-`configs/desktop/quickshell/plugins/bar/widgets/obs-status.nu` is a websocat client to copy. An edit to it needs
-`dot apply desktop/quickshell`, then an OBS restart or `configs/desktop/quickshell/restart.nu`.
+`configs/desktop/quickshell/config/plugins/bar/widgets/obs-status.nu` is a websocat client to copy. An edit to it needs
+`dot apply desktop/quickshell`, then an OBS restart or `configs/desktop/quickshell/config/restart.nu`.
 
 ## Spotify
 
-CDP on `--remote-debugging-port=9233` (`DEVTOOLS_PORT` in `configs/socials/spotify/spotify-reload.nu`):
+CDP on `--remote-debugging-port=9233` (`DEVTOOLS_PORT` in `configs/socials/spotify/scripts/spotify-reload.nu`):
 
 ```bash
 curl -s http://127.0.0.1:9233/json/list | jq -r '.[] | "\(.type) \(.url) \(.webSocketDebuggerUrl)"'
@@ -70,7 +70,7 @@ echo '{"id":1,"method":"Runtime.evaluate","params":{"expression":"document.title
 
 ## Discord
 
-No CDP. `configs/socials/discord/plugins/QuickshellVoiceStatus.plugin.js` writes voice state to
+No CDP. `configs/socials/discord/config/plugins/QuickshellVoiceStatus.plugin.js` writes voice state to
 `$XDG_RUNTIME_DIR/quickshell-discord-voice.json` and runs JSON lines `{"cmd": ...}` from
 `$XDG_RUNTIME_DIR/quickshell-discord-cmd`, unlinked on read: write a temp file and `mv` it. Commands: `toggleSelfMute`,
 `toggleSelfDeaf`, `disconnect`. It reports a running `obs` as a streamer tool, which turns on Streamer Mode and with it

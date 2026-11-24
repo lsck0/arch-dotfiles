@@ -1,6 +1,6 @@
 use module.nu *
-use ../../core/wallust/editor.nu [editor-roles]
-use ../../core/wallust/palette.nu [palette-rgb]
+use ../../core/wallust/scripts/editor.nu [editor-roles]
+use ../../core/wallust/scripts/palette.nu [palette-rgb]
 
 export const meta = {
     packages: {
@@ -16,7 +16,7 @@ export const meta = {
 export def link [cfg: record] {
     [
         (shell-aliases devtools)
-        (files-into (xdg config environment.d) bat.conf)
+        (files-into (xdg config environment.d) config/bat.conf)
     ]
 }
 

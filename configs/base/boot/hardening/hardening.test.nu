@@ -4,7 +4,7 @@
 
 use std/assert
 use mod.nu [system harden-tokens]
-use ../boot.nu [key-of]
+use ../scripts/boot.nu [key-of]
 
 const BOOTSTRAP = path self ../../../../scripts/lib/bootstrap.nu
 # the install's own tokens that are no hardening: boot mode and two power or memory choices

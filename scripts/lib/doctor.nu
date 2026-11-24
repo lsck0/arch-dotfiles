@@ -14,12 +14,12 @@ use cause.nu [failures-group names-shown]
 use invariants.nu [invariants-load]
 use cli.nu [crash-file crash-list crash-read]
 use usage.nu [counted]
-use ../../configs/base/yubikey/audit.nu [audit-findings]
+use ../../configs/base/yubikey/scripts/audit.nu [audit-findings]
 
 # the boot chain barrier's record (base/boot/systemd-boot's meta.barrier): when it last went through
 const BOOT_BARRIER = "modules/base/boot/systemd-boot/barrier.nuon"
 const REPO = path self ../..
-const PROFILES_CONF = path self ../../configs/base/apparmor/profiles.conf
+const PROFILES_CONF = path self ../../configs/base/apparmor/config/profiles.conf
 const LUKS_TOKENS = [TPM2 FIDO2]
 const LUKS_ROOT = 'rd\.luks\.(?:name|uuid)=(?<uuid>[0-9a-fA-F-]+)'
 const LUKS_TOKEN_MISSING = 'No valid (?<token>TPM2|FIDO2) token data found'

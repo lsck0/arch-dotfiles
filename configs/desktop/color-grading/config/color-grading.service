@@ -1,0 +1,17 @@
+[Unit]
+Description=Color grading in the display CTM and gamma LUT
+Documentation=file:@DOTFILES@/configs/desktop/color-grading/scripts/color-grading.py
+After=graphical-session.target
+PartOf=graphical-session.target
+ConditionEnvironment=WAYLAND_DISPLAY
+ConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland
+
+[Service]
+Type=simple
+ExecStart=@DOTFILES@/configs/desktop/color-grading/scripts/color-grading.py run
+ExecReload=kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

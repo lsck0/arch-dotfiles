@@ -7,7 +7,7 @@ export const meta = {
     secrets: ["ssh-host/{host}/ssh_host_ed25519_key" "ssh-host/{host}/ssh_host_mldsa44_ed25519_key" "ssh-host/{host}/ssh_host_ecdsa_key" "ssh-host/{host}/ssh_host_rsa_key"]
     native_only: [system]
     # wake-pc renders the initramfs unlock port from there
-    inputs: [configs/base/boot/remote-unlock/tinysshd.conf]
+    inputs: [configs/base/boot/remote-unlock/config/tinysshd.conf]
 }
 const SSH_HOST_KEYS = $meta.secrets | path basename
 
@@ -98,7 +98,7 @@ export def sshd [port: string]: nothing -> nothing {
     # sshd -t needs host keys, absent before sshd's first start
     ^ssh-keygen -A
     let before = if ($DROPIN | path exists) { open --raw $DROPIN } else { null }
-    open --raw 10-hardening.conf | str replace --all "@PORT@" $port | ^install -Dm644 /dev/stdin $DROPIN
+    open --raw config/10-hardening.conf | str replace --all "@PORT@" $port | ^install -Dm644 /dev/stdin $DROPIN
     if (^sshd -t | complete).exit_code != 0 {
         if $before == null { rm $DROPIN } else { $before | save --force $DROPIN }
         error make {msg: "ssh: sshd rejects 10-hardening.conf, kept the previous config"}
@@ -129,21 +129,21 @@ export def link [cfg: record] {
         # claimed disabled: an orphan disable of the vendor unit would take ssh-agent.socket along (Also=)
         (unit-disable ssh-agent.service --now)
         (unit-enable ssh-agent.socket --now)
-        (unit-file ssh-add.service --values {DOTFILES: $env.DOTFILES})
+        (unit-file config/ssh-add.service --values {DOTFILES: $env.DOTFILES})
         (unit-switch ssh-add.service $owner)
         (file-text (ssh-dir config) $"Include ~/.ssh/config.d/*\n($hosts)" --mode 600)
         (if $owner and not (authorize-done) { step authorize })
-        (file-render sshk.nu ($bin | path join sshk) {DOTFILES: $env.DOTFILES, PORT: $cfg.port, KNOCK: $knock}
+        (file-render scripts/sshk.nu ($bin | path join sshk) {DOTFILES: $env.DOTFILES, PORT: $cfg.port, KNOCK: $knock}
             --mode 755)
         (if $homelab and $cfg.wake_router != null and $cfg.wake_host != null {
             # the initramfs tinysshd's port, read where it is set (offload reads it the same way)
-            let unlock = open --raw ../boot/remote-unlock/tinysshd.conf | parse --regex '(?m)^Environment=SSHD_PORT=(?<p>\d+)'
+            let unlock = open --raw ../boot/remote-unlock/config/tinysshd.conf | parse --regex '(?m)^Environment=SSHD_PORT=(?<p>\d+)'
             let values = {
                 ROUTER: $cfg.wake_router, ROUTER_TUNNEL: ($cfg.wake_router_tunnel | default "")
                 HOST: $cfg.wake_host, PORT: $cfg.port, KNOCK: $knock
                 UNLOCK_PORT: $unlock.0.p
             }
-            file-render wake-pc.nu ($bin | path join wake-pc) $values --mode 755
+            file-render scripts/wake-pc.nu ($bin | path join wake-pc) $values --mode 755
         })
     ]
 }
@@ -155,7 +155,7 @@ def mode-is [file: path, mode: string]: nothing -> bool {
 # The authorized_keys text authorize writes over the current one: the secrets' keys in the managed block.
 def authorized-keys-render []: nothing -> string {
     let pubkey = $env.DOTFILES | path join $PUBLIC_KEY
-    let keys = [$pubkey ...(glob ../yubikey/ssh-*.pub) (ssh-dir id_ed25519.pub)]
+    let keys = [$pubkey ...(glob ../yubikey/config/ssh-*.pub) (ssh-dir id_ed25519.pub)]
         | where { secret-is-plaintext $in } | each { open --raw $in | str trim } | where $it != "" | uniq
     let file = ssh-dir authorized_keys
     let raw = if ($file | path exists) { open --raw $file } else { "" }

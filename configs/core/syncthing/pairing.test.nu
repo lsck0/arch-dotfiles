@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # pairing-read sees a device, an address or a folder member change, and nothing of what syncthing or api-config rewrite.
 
-use pairing.nu [pairing-read]
+use scripts/pairing.nu [pairing-read]
 
 const NAS = '<device id="NAS" name="lab-nas"><address>tcp://10.0.0.1:22000</address><paused>false</paused></device>'
 const PHONE = '<device id="PHONE" name="phone"><address>dynamic</address></device>'

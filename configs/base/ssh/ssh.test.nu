@@ -69,7 +69,7 @@ def main [] {
     # sshk's help, which a wrapped main gets as a glob, answers with its usage instead of a conversion error
     let repo = $env.FILE_PWD | path join .. .. .. | path expand
     let sshk = $dir | path join sshk
-    open --raw ($env.FILE_PWD | path join sshk.nu)
+    open --raw ($env.FILE_PWD | path join scripts sshk.nu)
     | str replace --all "@DOTFILES@" $repo | str replace --all "@PORT@" "2222" | str replace --all "@KNOCK@" "1 2 3"
     | save $sshk
     for flag in [--help -h] {

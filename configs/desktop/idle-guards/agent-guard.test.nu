@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # the agent guard's inhibitors by power source: the lid switch is held on mains only, and a closed, undocked notebook
 # on battery holds nothing; a subagent count whose stop hook never ran expires with its claim.
-use agent-guard.nu [claim-of inhibits-wanted session-busy]
+use scripts/agent-guard.nu [claim-of inhibits-wanted session-busy]
 
 use std/assert
 

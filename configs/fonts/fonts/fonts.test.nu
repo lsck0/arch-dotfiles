@@ -28,14 +28,14 @@ def main [] {
     # the repo's fonts.conf as the only user drop-in, where 50-user.conf loads it; the scan rule ahead of the system's
     # conf.d as /etc/fonts/conf.d/45-* would be; a cache of its own, as the system's lacks the scan rule
     mkdir ($dir | path join fontconfig conf.d)
-    cp ($DIR | path join fonts.conf) ($dir | path join fontconfig conf.d 50-dotfiles.conf)
+    cp ($DIR | path join config fonts.conf) ($dir | path join fontconfig conf.d 50-dotfiles.conf)
     let conf = $dir | path join fonts.conf
     [
         '<?xml version="1.0"?>'
         '<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">'
         '<fontconfig>'
         '<dir>/usr/share/fonts</dir>'
-        $"<include>($DIR | path join sarasa-generic.conf)</include>"
+        $"<include>($DIR | path join config sarasa-generic.conf)</include>"
         '<include ignore_missing="yes">/etc/fonts/conf.d</include>'
         $"<cachedir>($dir | path join cache)</cachedir>"
         '</fontconfig>'

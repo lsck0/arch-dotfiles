@@ -44,7 +44,7 @@ export def link [cfg: record] {
     [
         (fetch-file $URL $SHA256 ($root | path join $VERSION $BINARY) --mode 755 --extract $BINARY)
         ($old | each {|dir| exec $"drop ($dir)" [rm -rf $dir] })
-        (mcp-command postgres-mcp postgres-mcp.nu)
+        (mcp-command postgres-mcp scripts/postgres-mcp.nu)
         (shell-aliases postgres)
     ]
 }

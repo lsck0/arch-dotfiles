@@ -13,15 +13,15 @@ const REAPPLY_UNIT = "toggles-reapply.service"
 
 export def link [cfg: record] {
     [
-        (unit-file $REAPPLY_UNIT --values {DOTFILES: $env.DOTFILES} --enable)
+        (unit-file $"config/($REAPPLY_UNIT)" --values {DOTFILES: $env.DOTFILES} --enable)
     ]
 }
 
 export def system [cfg: record] {
     let names = {ACTION: $ACTION, HELPER: $HELPER, APPROVAL_DIR: $APPROVAL_DIR, APPROVAL_MINUTES: $APPROVAL_MINUTES}
     [
-        (file-render toggle-root.nu $HELPER $names --mode 755)
-        (file-render $POLICY ("/usr/share/polkit-1/actions" | path join $POLICY) $names)
-        (polkit-rules $RULES --values $names)
+        (file-render scripts/toggle-root.nu $HELPER $names --mode 755)
+        (file-render $"config/($POLICY)" ("/usr/share/polkit-1/actions" | path join $POLICY) $names)
+        (polkit-rules $"config/($RULES)" --values $names)
     ]
 }

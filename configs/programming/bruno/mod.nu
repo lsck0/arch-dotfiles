@@ -1,5 +1,5 @@
 use module.nu *
-use ../../core/wallust/font.nu [font-load]
+use ../../core/wallust/scripts/font.nu [font-load]
 
 export const meta = {packages: {pacman: [bruno-bin bruno-cli]}}
 

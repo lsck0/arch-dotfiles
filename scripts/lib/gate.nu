@@ -1,6 +1,6 @@
 # Static gates behind dot test lint, check and fmt.
 
-use ../../configs/core/wallust/palette.nu
+use ../../configs/core/wallust/scripts/palette.nu
 use platform.nu [PLATFORM_FACTS platform-files]
 use modules.nu [VERBS HOOKS names-read modules-graph ROOT_MODULES SECRETS_DATA SECRETS_GROUP]
 use pipeline.nu [pipeline-load]
@@ -14,14 +14,14 @@ const QUOTED = r#''[^']*'|"(?:[^"\\]|\\.)*"'#
 # the folder root itself (syncthing needs it) and .stignore (per device) are not writes into it
 const SYNC_PATH = '(?:\$\{?HOME\}?|~|%h)/sync(?<tail>[^\w].*|$)'
 const SYNC_WRITE = '(^|[^\w-])(mkdir|touch|cp|mv|install|tee|rm|ln|unzip|tar|curl|wget)([^\w-]|$)|--mkdir|>'
-const FMT_DIR = path self ../../configs/programming/formatting
+const FMT_DIR = path self ../../configs/programming/formatting/config
 # templates carry @placeholders@, so no formatter or walk-based lint reads them
-const WALK_EXCLUDE = "configs/core/wallust/templates/"
+const WALK_EXCLUDE = "configs/core/wallust/config/templates/"
 # empty on purpose: shfmt reads .editorconfig only when no formatting flag is given
 const SHFMT_FLAGS = []
 const QMLLINT = "/usr/lib/qt6/bin/qmllint"
-const PALETTE_NU = "configs/core/wallust/palette.nu"
-const PALETTE_JS = "configs/desktop/quickshell/Commons/Palette.js"
+const PALETTE_NU = "configs/core/wallust/scripts/palette.nu"
+const PALETTE_JS = "configs/desktop/quickshell/config/Commons/Palette.js"
 const PALETTE_THEMES = [ayu-dark gruvbox-light]
 const PALETTE_TIMEOUT_S = 20
 # nushell's string forms, backtick included: a # inside one starts no comment
@@ -31,12 +31,12 @@ const FAIL_CLOSED_CONST = '(?m)^\s*(?:export )?const (?<name>[A-Z][A-Z0-9_]*) = 
 # lets the machine fetch the binary while the unit holds: a repo file each and the pattern it must keep.
 export const FAIL_CLOSED = [
     [unit gate file escape];
-    [fw-egress.service tor configs/base/pacman/pacman.conf '(?m)^DownloadUser\s*=\s*alpm\s*$']
-    [fw-egress.service tor configs/base/nftables/fw-egress.service 'u=\$\$\(id -u alpm\) && echo "add element inet fw_egress fetch_uid ']
-    [fw-egress.service tor configs/base/nftables/fw-egress.nft '(?m)^\s*meta skuid @fetch_uid tcp dport \{ 80, 443 \} accept\s*$']
-    [fw-egress.service tor configs/base/resolved/resolved.conf '(?m)^DNSOverTLS=yes\s*$']
-    [fw-egress.service tor configs/base/nftables/fw-egress.service 'u=\$\$\(id -u systemd-resolve\) && echo "add element inet fw_egress resolver_uid ']
-    [fw-egress.service tor configs/base/nftables/fw-egress.nft '(?m)^\s*meta skuid @resolver_uid tcp dport 853 accept\s*$']
+    [fw-egress.service tor configs/base/pacman/config/pacman.conf '(?m)^DownloadUser\s*=\s*alpm\s*$']
+    [fw-egress.service tor configs/base/nftables/config/fw-egress.service 'u=\$\$\(id -u alpm\) && echo "add element inet fw_egress fetch_uid ']
+    [fw-egress.service tor configs/base/nftables/config/fw-egress.nft '(?m)^\s*meta skuid @fetch_uid tcp dport \{ 80, 443 \} accept\s*$']
+    [fw-egress.service tor configs/base/resolved/config/resolved.conf '(?m)^DNSOverTLS=yes\s*$']
+    [fw-egress.service tor configs/base/nftables/config/fw-egress.service 'u=\$\$\(id -u systemd-resolve\) && echo "add element inet fw_egress resolver_uid ']
+    [fw-egress.service tor configs/base/nftables/config/fw-egress.nft '(?m)^\s*meta skuid @resolver_uid tcp dport 853 accept\s*$']
 ]
 const FAIL_CLOSED_OFF = '\bunit-(disable|mask)\b|\bsystemctl\b.*\b(stop|disable|mask|kill)\b'
 const FAIL_CLOSED_LIST = '(?m)^\s*(?:export )?const (?<name>[A-Z][A-Z0-9_]*) = \[(?<values>[^\]\n]*)\]\s*$'
@@ -55,6 +55,33 @@ def unquote [line: string, keep: closure]: nothing -> string {
 def walk []: nothing -> list<path> {
     ^git -C $REPO ls-files -z --cached --others --exclude-standard | split row (char nul) | where $it != "" and not ($it | str starts-with $WALK_EXCLUDE)
     | each {|f| $REPO | path join $f } | where {|p| ($p | path type) == "file" }
+}
+
+# What a module dir (or a dir of sibling modules, like base/boot) holds at its top: the module's own files, its tests,
+# and three folders: config/ (what dot installs), scripts/ (what runs: linked commands, helpers, shared code), test/
+# .herdr-create and .tms-create: tms and herdr read them from the module dir itself, which socials/desktop bookmarks
+const LAYOUT_FILES = [mod.nu AGENTS.md README.md dependencies.txt .gitignore .herdr-create .tms-create]
+const LAYOUT_DIRS = [config scripts test]
+
+def lint-layout []: nothing -> list<string> {
+    let configs = $REPO | path join configs
+    let tracked = ^git -C $configs ls-files -z | split row (char nul) | where $it != "" and not ($it | str starts-with $"($SECRETS_GROUP)/")
+    # every dir with a mod.nu, and every dir between a group and a nested module
+    let modules = $tracked | where ($it | path basename) == "mod.nu" | each { path dirname }
+    let homes = $modules | each {|m| $m | path split | drop | skip 1 | enumerate | each {|p| $m | path split | first ($p.index + 2) | path join } } | flatten
+    let dirs = $modules ++ $homes | uniq
+    $tracked | each {|f|
+        let home = $dirs | where {|d| $f | str starts-with $"($d)/" } | sort-by { str length } | last
+        if $home == null { return null }
+        let top = $f | path relative-to $home | path split | first
+        let is_file = ($f | path relative-to $home | path split | length) == 1
+        let ok = if $is_file {
+            $top in $LAYOUT_FILES or ($top | str ends-with ".test.nu")
+        } else {
+            $top in $LAYOUT_DIRS or ($"($home)/($top)" in $dirs)
+        }
+        if $ok { null } else { $"configs/($f): outside the module layout, belongs under config/, scripts/ or test/" }
+    } | compact | uniq
 }
 
 def lint-modules []: nothing -> list<string> {
@@ -170,7 +197,7 @@ def lint-sync []: nothing -> list<string> {
 
 # Every shell's functions and aliases also run in agents' shells (Claude Code sources a snapshot of them), so their
 # root goes through sudo-at-terminal, which refuses an agent or a process without a terminal.
-const RC_FILES = [configs/core/zsh/zshrc configs/core/zsh/zshenv configs/core/nushell/config.nu configs/core/nushell/env.nu]
+const RC_FILES = [configs/core/zsh/config/zshrc configs/core/zsh/config/zshenv configs/core/nushell/config/config.nu configs/core/nushell/config/env.nu]
 const RC_DROPINS = "configs/**/{aliases.nu,*.zsh}"
 const RC_ESCALATE = r#'(^|[\s;&|({="'^])(sudo|pkexec|run0|doas|su)(\s|$)'#
 const RC_GUARD = '^(def --wrapped )?sudo-at-terminal\b'
@@ -299,9 +326,9 @@ export def linked-scripts []: nothing -> list<path> {
 # ASCII only, except where the bytes are content: a keyboard legend, prompt glyphs, KDE's own rc text, accent tables,
 # a feed's placeholder, real names.
 const ASCII_ALLOW = [
-    '^configs/base/keyboard/sofle_choc/keymap\.c$' '\.age$' '^configs/core/herdr/herdr-open\.nu$'
-    '^configs/socials/desktop/\.herdr-create$' '^configs/core/starship/starship\.toml$' '^configs/desktop/plasma/.*rc$'
-    '^configs/programming/nvim/snippets/tex\.lua$' '^configs/programming/trmnl-claude/template-.*\.html$'
+    '^configs/base/keyboard/sofle_choc/keymap\.c$' '\.age$' '^configs/core/herdr/scripts/herdr-open\.nu$'
+    '^configs/socials/desktop/\.herdr-create$' '^configs/core/starship/config/starship\.toml$' '^configs/desktop/plasma/.*rc$'
+    '^configs/programming/nvim/config/snippets/tex\.lua$' '^configs/programming/trmnl-claude/config/template-.*\.html$'
     '^wallpapers/CREDITS\.md$'
 ]
 
@@ -445,7 +472,7 @@ def unit-tests []: nothing -> record<findings: list<string>, notes: list<string>
 # unit tests run after them, and the warnings of those that pass are the notes.
 export def gate-lint []: nothing -> record<findings: list<string>, notes: list<string>> {
     let lints = [
-        {|| lint-modules } {|| lint-layers } {|| lint-exports } {|| lint-sync } {|| lint-stray } {|| lint-platform-facts }
+        {|| lint-modules } {|| lint-layout } {|| lint-layers } {|| lint-exports } {|| lint-sync } {|| lint-stray } {|| lint-platform-facts }
         {|| lint-patterns (walk | where { nu-script $in }) $NU_PITFALLS } {|| lint-exec-bits } {|| lint-ascii } {|| lint-loaded }
         {|| lint-generated } {|| lint-fail-closed } {|| lint-rc-escalation } {|| lint-engine-imports }
         {|| lint-patterns (linked-scripts | where ($it | str ends-with ".nu")) $LINKED_RELATIVE }
@@ -485,7 +512,7 @@ def nu-check [files: list<string>]: nothing -> list<string> {
 
 def qml-lint [files: list<string>]: nothing -> list<string> {
     let run = tmp-dir-run {|root|
-        ^ln -s ($REPO | path join configs desktop quickshell) ($root | path join qs)
+        ^ln -s ($REPO | path join configs desktop quickshell config) ($root | path join qs)
         ^$QMLLINT -I $root --json - ...($files | each {|f| $REPO | path join $f }) | complete
     }
     let report = try { $run.stdout | from json } catch { return [$"qmllint: ($run.stderr | str trim | default --empty 'no json report')"] }

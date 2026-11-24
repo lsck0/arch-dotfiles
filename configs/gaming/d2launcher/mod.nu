@@ -1,7 +1,7 @@
 use module.nu *
 use ini.nu [ini-apply ini-rows]
-use ../../core/nas/vendor.nu [nas-vendor-dir nas-vendor-newer]
-use ../../core/wallust/font.nu [font-load]
+use ../../core/nas/scripts/vendor.nu [nas-vendor-dir nas-vendor-newer]
+use ../../core/wallust/scripts/font.nu [font-load]
 
 # no wine: desktop/applications' wine-staging conflicts with it; volatile: a newer copy on the NAS is no local input
 export const meta = {packages: {pacman: [curl gamescope jq libnotify unzip wmctrl zenity zip]}, volatile: true}
@@ -194,7 +194,7 @@ export def wine-tree-decls [tree: record, base: path]: nothing -> list<record> {
 # optional.
 def game-script [dest: path, values: record]: nothing -> record {
     let all = {wine: (wine-bin | path dirname), args: "", dll_overrides: ""} | merge $values
-    file-render ($HERE | path join gamescope.sh) $dest $all --mode "755"
+    file-render ($HERE | path join config gamescope.sh) $dest $all --mode "755"
 }
 
 def desktop-entry [id: string, keys: record]: nothing -> record {

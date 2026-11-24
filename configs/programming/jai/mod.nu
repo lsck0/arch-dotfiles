@@ -1,5 +1,5 @@
 use module.nu *
-use ../../core/nas/vendor.nu [nas-vendor-dir nas-vendor-newer nas-vendor-newest]
+use ../../core/nas/scripts/vendor.nu [nas-vendor-dir nas-vendor-newer nas-vendor-newest]
 
 # volatile: a newer jai zip on the NAS is no local input
 export const meta = {packages: {pacman: [unzip]}, volatile: true}

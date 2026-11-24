@@ -15,7 +15,7 @@ export const options = {
 export def link [cfg: record] {
     [
         (shell-aliases trash)
-        (unit-file trash-empty.service --values {RETENTION_DAYS: $cfg.retention_days})
+        (unit-file config/trash-empty.service --values {RETENTION_DAYS: $cfg.retention_days})
         (unit-timer trash-empty.timer "Daily user trash cleanup" --calendar daily --delay 1h --enable --now)
     ]
 }

@@ -44,7 +44,7 @@ export def link [cfg: record] {
     let clipboard = {General: {autoShare: ($cfg.clipboard_auto | into string), sendPassword: "false"}}
     let plugins = {Plugins: ($PLUGINS_OFF | each {|p| {$"($p)Enabled": "false"} } | into record)}
     [
-        (link-commands phone.nu)
+        (link-commands scripts/phone.nu)
         ($ids | each {|id| ini-merge ($config | path join $id $CLIPBOARD_PLUGIN config) $clipboard })
         ($ids | each {|id| ini-merge ($config | path join $id config) $plugins --then (device-plugins-reload $id) })
     ]

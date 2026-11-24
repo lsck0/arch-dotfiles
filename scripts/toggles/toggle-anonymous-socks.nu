@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 use lib.nu [switch-run]
-use ../../configs/base/tor/anonymous-socks.nu *
+use ../../configs/base/tor/scripts/anonymous-socks.nu *
 
 # Anonymous SOCKS: get [--json] prints the state, on, off or toggle switches it, a bare call toggles;
 # check, newnym, proxylist and proxyconf work on the pool.

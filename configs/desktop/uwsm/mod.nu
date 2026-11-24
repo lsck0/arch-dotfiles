@@ -5,7 +5,7 @@ export const meta = {packages: {pacman: [uwsm ksshaskpass breeze5 plasma5-integr
 export def link [cfg: record] {
     let dir = xdg config uwsm
     [
-        (file-render env ($dir | path join env) {DOTFILES: $env.DOTFILES})
-        (files-into $dir env-hyprland)
+        (file-render config/env ($dir | path join env) {DOTFILES: $env.DOTFILES})
+        (files-into $dir config/env-hyprland)
     ]
 }

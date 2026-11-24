@@ -1,5 +1,5 @@
 use module.nu *
-use ../boot.nu [EFI_SYSFS SDBOOT_ESP_FILES UKI_DIR sbctl-quiet sbctl-ready sbctl-unsigned]
+use ../scripts/boot.nu [EFI_SYSFS SDBOOT_ESP_FILES UKI_DIR sbctl-quiet sbctl-ready sbctl-unsigned]
 
 export const meta = {packages: {native: [sbctl]}, volatile: true}
 

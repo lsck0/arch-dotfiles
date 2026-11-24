@@ -12,8 +12,8 @@ const MCP_HOST = "127.0.0.1"
 # only a uv-managed python: without --managed-python uv falls back to /usr/bin's when none is installed yet
 const INSTALL_FLAGS = ["--compile-bytecode" "--managed-python"]
 const HERE = path self .
-const CONSTRAINTS = $HERE | path join constraints.txt
-const PREFS_SCRIPT = $HERE | path join mcp-prefs.py
+const CONSTRAINTS = $HERE | path join config constraints.txt
+const PREFS_SCRIPT = $HERE | path join scripts mcp-prefs.py
 const OPENAL_NOISE = "[ALSOFT]"
 # the comfy_generate extension: the Generate sidebar over llm/comfyui's comfy-gen
 const GENERATE = "comfy_generate"
@@ -44,7 +44,7 @@ def addon-pin []: nothing -> string {
 
 # the extension's files and the user dir's version are the whole input
 def generate-pin []: nothing -> string {
-    glob ($HERE | path join $GENERATE "*") | where ($it | path type) == file | sort | each { open --raw $in | hash sha256 }
+    glob ($HERE | path join config $GENERATE "*") | where ($it | path type) == file | sort | each { open --raw $in | hash sha256 }
     | append (user-version) | str join " "
 }
 
@@ -56,7 +56,7 @@ export def link [cfg: record] {
         # builds from the fetched tree: while the fetch is pending, so is the add-on
         (step addon-install --requires (addon-src) --key (addon-pin))
         (step generate-install --key (generate-pin))
-        (link-commands blender-mcp-bridge.sh)
+        (link-commands scripts/blender-mcp-bridge.sh)
         (desktop-override blender.desktop {
             let entry = desktop-set {Actions: "mcp-bridge;"}
             let bridge = $nu.home-dir | path join .local bin blender-mcp-bridge
@@ -107,7 +107,7 @@ export def addon-install []: nothing -> nothing {
 }
 
 export def generate-install []: nothing -> nothing {
-    extension-install ($HERE | path join $GENERATE) $GENERATE
+    extension-install ($HERE | path join config $GENERATE) $GENERATE
     let enable = (
         "import addon_utils, bpy\n"
         + $"addon_utils.enable\('($GENERATE_ADDON)', default_set=True, persistent=True\)\n"

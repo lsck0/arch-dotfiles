@@ -25,7 +25,7 @@ none and leaves them locked, saying so.
 - `state/`: plaintext app state that is no credential; readable locked.
 - `configs/secrets/<module>/`: the owner's own modules, plaintext (`skills` holds every agent skill but the public
   `skills/l-dotfiles*`). `dot sync` refuses any new or changed file outside `keys/`, `state/` and the module dirs.
-- `configs/base/yubikey/`: what a fresh install reads first: the sealed git-crypt key `secrets.key.age`, one
+- `configs/base/yubikey/config/`: what a fresh install reads first: the sealed git-crypt key `secrets.key.age`, one
   `age-<serial>.identity` and passphrase-protected `ssh-<serial>` stub per YubiKey.
 - `configs/secrets/yubikey/`: `recipients.txt` (offline recovery key), `RECOVERY.md`, `u2f_keys` (mapped in
   `/etc/u2f_mappings` to each login in `/var/lib/dotfiles/owners`). Its `link` merges `keys/age.txt` and the
@@ -62,8 +62,8 @@ YubiKey has unlocked `keys/`.
 ## Gotchas
 
 - `age-plugin-yubikey` prints no prompt; the key's blink is the only cue for a touch.
-- Touch steps (`with-touch`, `configs/base/yubikey/yubikey.nu`) cap each attempt at 15 min (`TOUCH_ATTEMPT_S`) and
-  retry until `TOUCH_WAIT` (30 min): the pull clones about 300 MB, and a shorter cap restarts it forever.
+- Touch steps (`with-touch`, `configs/base/yubikey/scripts/yubikey.nu`) cap each attempt at 15 min (`TOUCH_ATTEMPT_S`)
+  and retry until `TOUCH_WAIT` (30 min): the pull clones about 300 MB, and a shorter cap restarts it forever.
 - `timeout` needs `--foreground`: otherwise ssh reading `/dev/tty` after the touch stops on SIGTTIN and hangs
   invisibly. Ctrl+C misses that process group too, which keeps holding the key, so a manual `age -d` then hangs with
   no blink.

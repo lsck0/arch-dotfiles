@@ -12,8 +12,8 @@ export def link [cfg: record] {
     let wanted = {path: $projects, depth: $PROJECTS_DEPTH}
     let searched = if ($tms | path exists) { open $tms | get --optional search_dirs | default [] } else { [] }
     [
-        (file-render tmux.conf ($dir | path join tmux.conf) {CACHE: (xdg cache)})
-        ([popup.nu autoreload.nu] | each {|script| file-copy $script ($dir | path join $script) --mode 755 })
+        (file-render config/tmux.conf ($dir | path join tmux.conf) {CACHE: (xdg cache)})
+        ([popup.nu autoreload.nu] | each {|script| file-copy ("scripts" | path join $script) ($dir | path join $script) --mode 755 })
         (step tms-search $projects ($PROJECTS_DEPTH | into string) --done=($wanted in $searched))
     ]
 }
