@@ -75,11 +75,8 @@ local CLEAR_BG = {
 local CLEAR_BG_PREFIX = "^Buffer"
 -- neovide shows its window through only where a cell takes Normal's bg, so there the bars clear and Normal keeps its own
 local NEOVIDE_KEEP = { Normal = true, NormalNC = true }
--- neovide draws a float as its own layer on Normal's translucent bg, then the float's cells on top, over the windows
--- below: the explorer sidebar (a float over a split, plugins/ui.lua) stacks to near-opaque. Its own groups take a bg
--- one bit off Normal's with blend 100, which neovide paints fully transparent, so only the layer's one bg shows; every
--- other float keeps its bg, else the text under a picker shows through
-local NEOVIDE_GLASS = { "SnacksExplorerBox", "SnacksExplorerList" }
+-- the sidebar tree is a split like the editor: its window takes Normal's bg, which neovide draws as the same glass
+local SIDEBAR_NORMAL = { NeoTreeNormal = "Normal", NeoTreeNormalNC = "NormalNC", NeoTreeEndOfBuffer = "EndOfBuffer" }
 local CLEAR_FG_BG = { "BufferCurrent", "BufferOffset", "BufferVisible", "StatusLine" }
 
 local function luminance(rgb)
@@ -169,11 +166,8 @@ local function transparency_apply()
         hl.fg, hl.bg, hl.ctermfg, hl.ctermbg = nil, nil, nil, nil
         vim.api.nvim_set_hl(0, name, hl)
     end
-    local normal_bg = vim.g.neovide and hl_get("Normal").bg
-    for _, name in ipairs(NEOVIDE_GLASS) do
-        local hl = normal_bg and { fg = hl_get("NormalFloat").fg, bg = bit.bxor(normal_bg, 1), blend = 100 }
-            or { link = "NormalFloat" }
-        vim.api.nvim_set_hl(0, name, hl)
+    for name, target in pairs(SIDEBAR_NORMAL) do
+        vim.api.nvim_set_hl(0, name, { link = target })
     end
 end
 

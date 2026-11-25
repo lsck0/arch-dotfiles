@@ -176,7 +176,7 @@ vim.keymap.set("n", "<F10>", "<cmd>DapStepOver<CR>", { desc = "Debug: step over"
 vim.keymap.set("n", "<F11>", "<cmd>DapStepInto<CR>", { desc = "Debug: step into" })
 vim.keymap.set("n", "<F12>", "<cmd>DapStepOut<CR>", { desc = "Debug: step out" })
 
-vim.keymap.set("n", "<leader>e", "<cmd>lua require('lib.explorer').toggle()<CR>", { desc = "File explorer (snacks)" })
+vim.keymap.set("n", "<leader>e", "<cmd>lua require('lib.explorer').toggle()<CR>", { desc = "File explorer (neo-tree)" })
 vim.keymap.set("n", "<leader>gs", "<cmd>G<CR>", { desc = "Git (fugitive)" })
 vim.keymap.set("n", "<leader>gg", "<cmd>lua Snacks.lazygit()<CR>", { desc = "Lazygit" })
 vim.keymap.set("n", "<leader>gy", "<cmd>lua Snacks.gitbrowse()<CR>", { desc = "Open line on GitHub" })

@@ -138,26 +138,11 @@ autocmd("VimEnter", {
             return
         end
         for _, w in ipairs(vim.api.nvim_list_wins()) do
-            if
-                vim.api.nvim_get_option_value("filetype", { buf = vim.api.nvim_win_get_buf(w) }) == "snacks_picker_list"
-            then
+            if vim.api.nvim_get_option_value("filetype", { buf = vim.api.nvim_win_get_buf(w) }) == "neo-tree" then
                 return
             end
         end
         open_explorer_keep_focus()
-    end,
-})
-
-autocmd({ "BufWinEnter", "WinEnter" }, {
-    desc = "Reveal the current file in the explorer sidebar",
-    group = group("explorer-follow", { clear = true }),
-    callback = function()
-        -- scheduled: on BufWinEnter the window still reports the outgoing buffer
-        vim.schedule(function()
-            pcall(function()
-                require("lib.explorer").reveal_current()
-            end)
-        end)
     end,
 })
 

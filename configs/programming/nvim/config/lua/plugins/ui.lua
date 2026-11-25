@@ -42,7 +42,7 @@ return {
     { "Mofiqul/dracula.nvim", lazy = true },
     { "navarasu/onedark.nvim", lazy = true },
 
-    { "romgrk/barbar.nvim", event = "VeryLazy" },
+    { "romgrk/barbar.nvim", event = "VeryLazy", opts = { sidebar_filetypes = { ["neo-tree"] = true } } },
 
     {
         "nvim-lualine/lualine.nvim",
@@ -142,91 +142,12 @@ return {
             indent = { enabled = true },
             scroll = { enabled = false },
             words = { enabled = true },
-            -- the VimEnter autocmd is the only opener, else roots stack
-            explorer = { replace_netrw = false },
-            picker = {
-                sources = {
-                    explorer = {
-                        -- its reveal re-roots at the file, stacking roots; lib/explorer.lua reveals instead
-                        follow_file = false,
-                        hidden = true,
-                        ignored = true, -- still dimmed by the git status
-                        -- fd only skipped .git because of --no-ignore, which `ignored` just removed
-                        exclude = { "**/.git" },
-                        auto_close = false,
-                        jump = { close = false },
-                        actions = {
-                            toggle_hidden_ignored = function(picker)
-                                local show = not picker.opts.hidden
-                                picker.opts.hidden = show
-                                picker.opts.ignored = show
-                                picker.list:set_target()
-                                picker:find()
-                            end,
-                        },
-                        -- own groups, so theme.lua can make the sidebar see-through in neovide without the other floats
-                        win = {
-                            list = {
-                                keys = { ["H"] = "toggle_hidden_ignored" },
-                                wo = {
-                                    winhighlight = "NormalFloat:SnacksExplorerList,FloatBorder:SnacksPickerListBorder,"
-                                        .. "CursorLine:SnacksPickerListCursorLine",
-                                },
-                            },
-                        },
-                        icons = { git = { ignored = "\u{f0209} " } },
-                        format = function(item, picker)
-                            local ret = require("snacks.picker.format").file(item, picker)
-                            local it = item
-                            while it and not it.ignored do
-                                it = it.parent
-                            end
-                            if item.hidden and not it then
-                                table.insert(ret, {
-                                    col = 0,
-                                    virt_text = { { "\u{f0209} ", "SnacksPickerPathHidden" }, { " " } },
-                                    virt_text_pos = "right_align",
-                                    hl_mode = "combine",
-                                })
-                            end
-                            return ret
-                        end,
-                        layout = {
-                            preview = false,
-                            layout = {
-                                box = "vertical",
-                                position = "left",
-                                width = 24,
-                                min_width = 24,
-                                height = 0,
-                                border = "none",
-                                wo = { winhighlight = "Normal:SnacksExplorerBox,NormalNC:SnacksExplorerBox" },
-                                { win = "list", border = "none" },
-                            },
-                        },
-                    },
-                },
-            },
         },
         config = function(_, opts)
             require("snacks").setup(opts)
             -- snacks' latex images minus inline_formula: an inline image fills whole cells, so a one-letter formula
             -- stretches to the row height. Set, not an after/queries file: the first non-extending file in rtp wins.
             vim.treesitter.query.set("latex", "images", LATEX_IMAGES)
-            -- the explorer's close forgets only the closed folder's listing: an expanded subfolder keeps its cache and,
-            -- under a closed parent, loses its watch, so a file a tool writes there stays hidden after reopening.
-            -- Closing forgets the whole subtree, and reopening rescans it.
-            local Tree = require("snacks.explorer.tree")
-            local tree_close = Tree.close
-            function Tree:close(path)
-                tree_close(self, path)
-                local node = self:find(self:dir(path))
-                if node then
-                    self:walk(node, function(n)
-                        n.expanded = false
-                    end, { all = true })
-                end
-            end
             local inline = require("snacks.image.inline")
             local conceal = inline.conceal
             function inline:conceal()
