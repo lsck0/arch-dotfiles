@@ -7,8 +7,14 @@ import qs.Ui
 BarIndicator {
   id: root
 
-  // xdg-desktop-portal-hyprland names each screencast node so; to Pipewire it is a Video/Source like a camera
+  // xdg-desktop-portal-hyprland's screencast node; to Pipewire it is a Video/Source like a camera. Since 1.5 the
+  // node is named after the portal and the per-session xdph-streaming-<n> moved to media.name
   readonly property string screencastPrefix: "xdph-streaming-"
+  readonly property string screencastNode: "xdg-desktop-portal-hyprland"
+  function isScreencast(n) {
+    return n.name === screencastNode || n.name.startsWith(screencastPrefix)
+      || (n.properties?.["media.name"] ?? "").startsWith(screencastPrefix)
+  }
 
   property string label: ""
   property var devices: []

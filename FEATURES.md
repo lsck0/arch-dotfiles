@@ -330,7 +330,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/hyprland.border_px` | `int` | `1` | Window border width, the focused window's in the accent gradient |
 | `desktop/hyprland.gaps_out_px` | `int` | `8` | Gap between tiled windows and the screen edge |
 | `desktop/hyprland.blur` | `bool` | `true` | Blur behind translucent windows and popups |
-| `desktop/hyprland.blur_menus` | `bool` | `true` | Blur behind popups and untitled floating X11 windows (menus, tooltips) |
+| `desktop/hyprland.blur_menus` | `bool` | `true` | Blur the screen behind an open shell card (its dimmed backdrop), popups and untitled floating X11 windows (menus, tooltips); off, the shell's own surfaces keep their glass |
 | `desktop/hyprland.shadows` | `bool` | `true` | Drop shadows under windows |
 | `desktop/hyprland.animations` | `bool` | `true` | Window, layer and workspace animations; power saver turns them off regardless |
 | `desktop/hyprland.vrr` | `string` | `"off"` | Adaptive sync; fullscreen_games: fullscreen video and game windows only |

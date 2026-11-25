@@ -132,6 +132,8 @@ hl.layer_rule({
 hl.layer_rule({
     name = "quickshell-scrim",
     match = { namespace = "^quickshell-scrim$" },
+    -- blur_menus off: the screen behind an open card is only dimmed, the card keeps its own glass
+    blur = platform.look.blur_menus,
     xray = false,
     order = 1,
     ignore_alpha = 0.02,

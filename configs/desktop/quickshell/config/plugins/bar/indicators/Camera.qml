@@ -6,5 +6,5 @@ PrivacyIndicator {
   label: "Camera"
   text: "\u{f05a0}"
   devices: Audio.nodes.filter(n => !n.isStream && (n.type & PwNodeType.VideoSource) === PwNodeType.VideoSource
-    && !n.name.startsWith(screencastPrefix))
+    && !isScreencast(n))
 }

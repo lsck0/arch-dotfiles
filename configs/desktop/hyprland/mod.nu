@@ -147,7 +147,15 @@ export const options = {
     border_px: {type: int, default: $BORDER_PX, doc: "Window border width, the focused window's in the accent gradient", label: "Border width", group: layout, min: 0, max: 16, scope: user}
     gaps_out_px: {type: int, default: 8, doc: "Gap between tiled windows and the screen edge", label: "Outer gaps", group: layout, min: 0, max: 64, scope: user}
     blur: {type: bool, default: true, doc: "Blur behind translucent windows and popups", label: "Blur", group: layout, scope: user}
-    blur_menus: {type: bool, default: true, doc: "Blur behind popups and untitled floating X11 windows (menus, tooltips)", label: "Blur menus", group: layout, scope: user}
+    blur_menus: {
+        type: bool
+        default: true
+        doc: ("Blur the screen behind an open shell card (its dimmed backdrop), popups and untitled floating X11 windows "
+            + "(menus, tooltips); off, the shell's own surfaces keep their glass")
+        label: "Blur menus"
+        group: layout
+        scope: user
+    }
     shadows: {type: bool, default: true, doc: "Drop shadows under windows", label: "Shadows", group: layout, scope: user}
     animations: {type: bool, default: true, doc: "Window, layer and workspace animations; power saver turns them off regardless", label: "Animations", group: layout, scope: user}
     vrr: {
