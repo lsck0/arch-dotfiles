@@ -9,6 +9,8 @@
     }
     "desktop/pipewire": {
         eq_target: alsa_output.usb-Logitech_PRO_X_2_LIGHTSPEED_0000000000000000-00.analog-stereo
+        # the board's realtek: nothing in its jacks, its S/PDIF (no jack sense) caught the fallback as "a52 2"
+        disabled_cards: [alsa_card.pci-0000_7b_00.6]
     }
     "programming/task": {
         sync_url: "https://tasks.lsck0.dev"

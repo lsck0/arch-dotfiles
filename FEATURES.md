@@ -354,6 +354,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/mpv.hwdec` | `string` | `"auto-safe"` | Hardware video decoding (mpv hwdec) |
 | `desktop/pipewire.app_loopbacks` | `bool` | `true` | Every app plays through a loopback of its own that carries its system volume, so a capture of the app (obs) stays at full level |
 | `desktop/pipewire.eq_target` | `string?` | unset | The node.name of the headset sink the eq attaches to as a smart filter; unset, no eq chain |
+| `desktop/pipewire.disabled_cards` | `list<string>` | `[]` | Sound cards wireplumber leaves off, by device.name (wpctl status, pactl list cards): their outputs never show up nor catch the fallback when the headset goes |
 | `desktop/pipewire.eq_preset` | `string` | `"pro-x-2.txt"` | AutoEq ParametricEQ preset for that headset, a file in this module or an absolute path |
 | `desktop/plasma.kwin_outputs` | `bool?` | detected | Ship the committed kwin output layout; detected: on when a connected monitor's EDID is one it describes |
 | `desktop/plasma.locale` | `bool` | `true` | Ship plasma-localerc with core/locale's language |
