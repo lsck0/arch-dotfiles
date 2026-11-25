@@ -62,7 +62,7 @@ key = "prefix+shift+c"
 type = "popup"
 command = "pclone"
 width = "50%"
-height = "12%"
+height = "30%"
 
 [[keys.command]]
 key = "prefix+b"
