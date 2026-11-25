@@ -302,6 +302,8 @@ def remote-pending-cases []: nothing -> nothing {
         ["uv" "HTTP status server error, status code 503 Service Unavailable" "the remote answered 503, retried on the next apply"]
         ["wget" "ERROR 504: Gateway Time-out." "the remote answered 504, retried on the next apply"]
         ["dns" "fatal: unable to access 'https://x/': Could not resolve host: x" "the remote did not resolve, retried on the next apply"]
+        ["docker timeout" "Get \"https://registry.example/v2/\": context deadline exceeded" "the remote timed out, retried on the next apply"]
+        ["uv timeout" "error sending request for url (https://pypi.org/simple/jiter/) / cause: operation timed out" "the remote timed out, retried on the next apply"]
         ["gone" "Caused by: http status: 404" null]
         ["forbidden" "The requested URL returned error: 403" null]
         ["own failure" "blender -c extension build exited 1" null]

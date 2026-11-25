@@ -10,9 +10,13 @@ const PROBE_URL = "https://github.com"
 const PROBE_TIMEOUT_S = 5
 const CACHE_FILE = "online.nuon"
 export const OFFLINE_PENDING = "offline, retried on the next apply"
-# a remote that answers 5xx or 429, or a name that does not resolve: the remote's state, not the module's; curl's and
-# git's "returned error", rust's "http status", uv's "status code", wget's "ERROR <code>:"
-const REMOTE_TRANSIENT = '(?i)(?:returned error:|http status:|status code:?|ERROR) (?<code>5\d\d|429)\b|(?<code2>could not resolve host|temporary failure in name resolution)'
+# a remote that answers 5xx or 429, a name that does not resolve, or a connection that times out: the remote's state,
+# not the module's; curl's and git's "returned error", rust's "http status", uv's "status code", wget's "ERROR <code>:",
+# go's "context deadline exceeded" (docker), uv's and curl's "timed out", go's "i/o timeout"
+const REMOTE_STATUS = '(?:returned error:|http status:|status code:?|ERROR) (?<code>5\d\d|429)\b'
+const REMOTE_UNRESOLVED = '(?<code2>could not resolve host|temporary failure in name resolution)'
+const REMOTE_TIMEOUT = '(?<code3>context deadline exceeded|operation timed out|connection timed out|i/o timeout)'
+const REMOTE_TRANSIENT = $"\(?i\)($REMOTE_STATUS)|($REMOTE_UNRESOLVED)|($REMOTE_TIMEOUT)"
 
 def probe [url: string]: nothing -> bool {
     (do { ^curl --silent --head --output /dev/null --connect-timeout $PROBE_TIMEOUT_S --max-time $PROBE_TIMEOUT_S $url } | complete).exit_code == 0
@@ -23,7 +27,9 @@ def probe [url: string]: nothing -> bool {
 export def remote-pending [error: string]: nothing -> any {
     let found = $error | parse --regex $REMOTE_TRANSIENT | get --optional 0
     if $found == null { return null }
-    let what = if ($found.code | is-not-empty) { $"answered ($found.code)" } else { "did not resolve" }
+    let what = if ($found.code | is-not-empty) {
+        $"answered ($found.code)"
+    } else if ($found.code3 | is-not-empty) { "timed out" } else { "did not resolve" }
     $"the remote ($what), retried on the next apply"
 }
 

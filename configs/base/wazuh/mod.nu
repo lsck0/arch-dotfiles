@@ -28,14 +28,14 @@ export def system [cfg: record] {
     let password = [(system-secret $HOMELAB.wazuh.secret) $pass] | where { path exists } | get --optional 0
     if $password == null { return [] }
     let host = sys host | get hostname
-    # the daemons run as the wazuh group and read both; the password only for an enrollment
-    let own = {|file| [sh -c $"chown root:wazuh ($file) && systemctl try-restart ($UNIT)"] }
+    # services/agent.conf hands both to the wazuh group before every start; a change restarts a running agent
+    let restart = [systemctl try-restart $UNIT]
     [
-        (file-text $pass (open --raw $password | str trim) --mode "640" --then (do $own $pass))
+        (file-text $pass (open --raw $password | str trim) --mode "640" --then $restart)
         (file-render config/ossec.conf $conf {
             MANAGER: $HOMELAB.wazuh.manager, EVENTS: $HOMELAB.wazuh.events, ENROLLMENT: $HOMELAB.wazuh.enrollment, HOST: $host
-        } --mode "640" --then (do $own $conf))
-        (dropin $UNIT services/start-timeout.conf)
+        } --mode "640" --then $restart)
+        (dropin $UNIT services/agent.conf)
         (unit-enable $UNIT --now)
     ]
 }
