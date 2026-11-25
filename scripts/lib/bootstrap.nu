@@ -1,7 +1,7 @@
 # Install from the Arch ISO or set up WSL from bootstrap/questions.nuon; unattended from BOOTSTRAP_*.
 
 use log.nu *
-use state.nu [SYSTEM_REPO path-kind file-trim]
+use state.nu [SYSTEM_REPO LIB_DIR path-kind file-trim nu-bin text-render]
 use system.nu [system-pack system-unpack]
 use platform.nu [platform-groups-all platform-files PLATFORM_NAME_FILE]
 use profile.nu [profile-owner-add]
@@ -47,7 +47,7 @@ const LUKS_FORMAT = [--type luks2 --cipher aes-xts-plain64 --key-size 512 --sect
 const LUKS_OPEN = [--allow-discards --perf-no_read_workqueue --perf-no_write_workqueue --persistent]
 # kernel-modules-hook from the start: the install stage moves the kernel to the snapshot's, which would otherwise delete
 # the running kernel's modules before the reboot (no modprobe, no nft, so no firewall, until then)
-const PACSTRAP = [base linux linux-firmware kernel-modules-hook mkinitcpio btrfs-progs cryptsetup binutils networkmanager sudo git zsh zram-generator libfido2 nushell]
+const PACSTRAP = [base linux linux-firmware kernel-modules-hook mkinitcpio btrfs-progs cryptsetup binutils networkmanager sudo git git-lfs zsh zram-generator libfido2 nushell]
 const HOOKS = [base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck]
 const CMDLINE_TAIL = "rw zswap.enabled=0 nmi_watchdog=0 slab_nomerge init_on_alloc=1 init_on_free=1 randomize_kstack_offset=on vsyscall=none page_alloc.shuffle=1"
 # openssl, openssl-3 and openssh ride along: -Sy on an older iso pulls a libfido2 built against libcrypto.so.4, so
@@ -68,6 +68,7 @@ const PLATFORM_NEW = "custom"
 const SERVER = "server"
 const PROFILE_CUSTOM = "custom"
 const SBCTL_MODULE = "base/boot/sbctl"
+const ZRAM_MODULE = "base/zram"
 const LOGIN_SHELL = "/usr/bin/zsh"
 # the install's answer: base/networkmanager's own source, and the union 70-home-network reads until the first apply
 const HOME_GATEWAYS = ["/etc/NetworkManager/home-gateways.local" "/etc/NetworkManager/home-gateways"]
@@ -501,7 +502,21 @@ def target-system [c: record, root_uuid: string]: nothing -> nothing {
     if (glob (do $t /boot/EFI/Linux/*.efi) | is-empty) { die "mkinitcpio built no UKI in /boot/EFI/Linux" }
     in-target $MOUNT systemctl enable NetworkManager.service NetworkManager-wait-online.service systemd-timesyncd.service
     in-target $MOUNT bootctl install --esp-path=/boot --variables=yes
-    ^install -Dm644 ($c.repo | path join configs base zram config zram-generator.conf) (do $t /etc/systemd/zram-generator.conf)
+    mkdir (do $t /etc/systemd)
+    zram-config-render $c | save --force (do $t /etc/systemd/zram-generator.conf)
+}
+
+# base/zram's zram-generator.conf with its option defaults under the machine's options, so the install's first boots
+# swap to zram before its system verb renders the same file.
+export def zram-config-render [c: record]: nothing -> string {
+    let dir = $c.repo | path join configs $ZRAM_MODULE
+    let read = '$options | items {|key, spec| [$key $spec.default] } | into record | to nuon'
+    let defaults = ^(nu-bin) --no-config-file -I $LIB_DIR -c $"use ($dir | to nuon) [options]; ($read)" | from nuon
+    let machine = if $c.generic { $c.options } else {
+        $c.repo | path join platforms $"($c.platform).options.nuon" | if ($in | path exists) { open $in } else { {} }
+    }
+    let cfg = $defaults | merge ($machine | get --optional $ZRAM_MODULE | default {})
+    open --raw ($dir | path join config zram-generator.conf) | text-render {SIZE: $cfg.size, COMPRESSION_ALGORITHM: $cfg.compression_algorithm}
 }
 
 def boot-next-installed [esp: string]: nothing -> nothing {

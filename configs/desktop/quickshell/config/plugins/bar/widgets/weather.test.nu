@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # weather.nu alerts: a warning's start and end are unix seconds, so a cached reply served minutes later still names the
 # right times; serving it drops the warnings that ended since, and a cached reply from before those fields is a miss
-use weather.nu [alerts-current area-tokens-map place-current place-key reply-current]
+use weather.nu [alerts-current area-tokens-map place-current place-key reply-current windy-threshold]
 
 const WEATHER = path self weather.nu
 const NOW = 1_800_000_000
@@ -23,6 +23,11 @@ def main [] {
         if $got != $c.want { fail $"($c.name): ($got | to nuon)" }
     }
     if (reply [{event: a, startsIn: null, endsIn: 5}] | alerts-current $NOW) != null { fail "relative fields served from cache" }
+
+    # the windy threshold follows the unit open-meteo names in its reply, imperial ("mp/h") included
+    for c in [["km/h" 39.0] ["mp/h" 24.2] [null 39.0]] {
+        if (windy-threshold $c.0) != $c.1 { fail $"windy threshold for ($c.0): (windy-threshold $c.0)" }
+    }
 
     # a cached place holds only for the cell it was geocoded in, so a move or a pinned location geocodes again
     let berlin = place-key 52.52 13.40

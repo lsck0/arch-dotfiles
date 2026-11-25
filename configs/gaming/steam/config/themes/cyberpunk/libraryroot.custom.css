@@ -96,3 +96,67 @@
 [class*="scrollbar"] [class*="thumb"] {
     background-color: color-mix(in srgb, var(--cp-accent) 55%, transparent) !important;
 }
+
+/* the shell's language: terse uppercase section headers behind an accent prompt */
+[class*="_ShelfHeader"],
+[class*="ShelfName"],
+[class*="CollectionsHeader"] {
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+}
+[class*="ShelfName"]::before,
+[class*="CollectionsHeader"]::before {
+    content: "> ";
+    color: var(--cp-accent);
+}
+
+/* game art: a square hairline frame, the accent and a faint glow on hover */
+[class*="Capsule"],
+[class*="capsule"],
+[class*="Capsule"] img,
+[class*="capsule"] img {
+    border-radius: 0 !important;
+}
+[class*="LibraryItemBox"],
+[class*="Capsule"] [class*="Image"] {
+    box-shadow: 0 0 0 1px var(--cp-border) !important;
+    transition: box-shadow 120ms ease-out !important;
+}
+[class*="LibraryItemBox"]:hover,
+[class*="Capsule"]:hover [class*="Image"] {
+    box-shadow:
+        0 0 0 1px var(--cp-accent),
+        0 0 14px -4px var(--cp-accent) !important;
+}
+
+/* the playtime under each cover: a terminal chip, glass with an accent edge */
+[class*="Playtime"],
+[class*="PlayTime"],
+[class*="playtime"] {
+    background: color-mix(in srgb, var(--cp-bg) 72%, transparent) !important;
+    box-shadow:
+        inset 2px 0 0 0 var(--cp-accent),
+        0 0 0 1px var(--cp-border-faint) !important;
+    border-radius: 0 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    font-size: 0.85em !important;
+}
+
+/* the game list: one glass panel behind a hairline edge */
+[class*="GamesListSection"],
+[class*="gamelistsection"],
+[class*="LibrarySideBar"],
+[class*="librarysidebar"] {
+    background: color-mix(in srgb, var(--cp-bg) 55%, transparent) !important;
+    box-shadow: inset -1px 0 0 0 var(--cp-border) !important;
+}
+
+/* the footer (add a game, downloads, friends): hairline over it, terse uppercase labels */
+[class*="Footer"],
+[class*="footer"],
+[class*="BottomBar"] {
+    box-shadow: inset 0 1px 0 0 var(--cp-border) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+}

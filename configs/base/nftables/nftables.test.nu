@@ -2,7 +2,8 @@
 # fw-egress.service's own load, run in an unprivileged network namespace: the kill switch loads with pacman's escape
 # filled in, also on a fresh install where the tor user does not exist yet. fw-inbound from a peer namespace over a
 # veth: sshd's port drops until the three ports were knocked in order, then accepts, and a source past ssh_rate is
-# dropped again. The system verb keeps the lockdown ruleset the resting state, whose input policy is drop.
+# dropped again; with base/ssh.server off the knock opens nothing. The system verb keeps the lockdown ruleset the
+# resting state, whose input policy is drop.
 
 use std/assert
 use module.nu [decls-flatten text-render]
@@ -15,7 +16,7 @@ const ESCAPES = {fetch_uid: alpm, resolver_uid: systemd-resolve}
 const INBOUND = $HERE | path join config fw-inbound.nft
 const INBOUND_VALUES = {
     SSH_KNOCK_WINDOW: "1h", SSH_PORT: "2222", SSH_RATE: "10/minute burst 10 packets"
-    KNOCK_1: "7001", KNOCK_2: "7002", KNOCK_3: "7003"
+    KNOCK_1: "7001", KNOCK_2: "7002", KNOCK_3: "7003", SSH_RULE_PREFIX: ""
 }
 # a rate low enough to cross in a few connections
 const PROBE_RATE = "4/minute burst 4 packets"
@@ -28,6 +29,9 @@ const LOCKDOWN = $HERE | path join config fw-lockdown.nft
 const LOCKDOWN_UNIT = $HERE | path join services fw-lockdown.service
 const PENTEST_IFACE = "tun0"
 const PENTEST_LINKS = 'elements = { "tun0" }'
+const INBOUND_TARGET = "/etc/nftables.d/fw-inbound.nft"
+# fw-inbound's ssh_flood drop, ssh_allowed accept and three knock rules
+const SSH_RULES = 5
 
 # ExecStart's shell command with systemd's escapes undone and the installed paths pointed at the repo; ExecReload
 # must be the same load, as only ExecStart's runs here.
@@ -112,6 +116,8 @@ def inbound-knock []: nothing -> nothing {
         let got = peer-probe $v ($c.knocks ++ [$ssh]) | get through | last
         assert equal $got $c.through $"fw-inbound: ($c.what): sshd's port (if $got { 'reached' } else { 'dropped' })"
     }
+    let off = peer-probe ($v | merge {SSH_RULE_PREFIX: "# "}) ($k ++ [$ssh]) | get through | last
+    assert not $off "fw-inbound: the knock reached sshd's port with base/ssh.server off"
     let flood = peer-probe $v ($k ++ (1..8 | each { $ssh }))
     let attempts = $flood.through | skip 3
     assert (($attempts | first) and not ($attempts | last)) $"fw-inbound: knocked source past ssh_rate: ($attempts | to nuon)"
@@ -124,10 +130,20 @@ def inbound-knock []: nothing -> nothing {
 def lockdown-default []: nothing -> nothing {
     let cfg = {
         ssh_knock_window: "1h", ssh_rate: "30/minute burst 30 packets", pentest_listeners: false
-        deps: {"base/ssh": {port: 2222, knock: [7001 7002 7003]}, "base/networkmanager": {untrusted_policy: lockdown-tor}}
+        deps: {"base/ssh": {server: true, port: 2222, knock: [7001 7002 7003]}, "base/networkmanager": {untrusted_policy: lockdown-tor}}
     }
     # the engine runs a verb in its module dir, where its sources are
     let units = with-env {FORM_FACTOR: desktop} { cd $HERE; system $cfg } | decls-flatten | where kind == unit
+    # sshd's flood, accept and three knock rules, as the system verb renders them with base/ssh.server
+    let ssh_rules = {|server|
+        with-env {FORM_FACTOR: desktop} { cd $HERE; system ($cfg | upsert deps."base/ssh".server $server) }
+        | decls-flatten | where target == $INBOUND_TARGET | get 0.content | lines
+        | where { $in =~ 'dport (2222|7001|7002|7003) ' } | each { str trim }
+    }
+    let on = do $ssh_rules true
+    assert (($on | length) == $SSH_RULES and not ($on | any { str starts-with "#" })) $"sshd's rules with the server on: ($on | to nuon)"
+    let off = do $ssh_rules false
+    assert (($off | length) == $SSH_RULES and ($off | all { str starts-with "# " })) $"sshd's rules with the server off: ($off | to nuon)"
     let state = {|u| $units | where target == $u | get --optional 0.state }
     assert equal (do $state fw-lockdown.service) enabled "fw-lockdown.service is not enabled"
     assert equal (do $state fw-inbound.service) disabled "fw-inbound.service is not disabled"

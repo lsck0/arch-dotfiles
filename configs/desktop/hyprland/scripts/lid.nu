@@ -1,9 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
 # Docked lid closed: internal panel off so workspace 1 and the bar move to a visible screen.
 
-use ../../../../scripts/lib/platform.nu [monitors-live]
+use ../../../../scripts/lib/platform.nu [monitors-live INTERNAL_PANEL]
 
-export const INTERNAL_PANEL = '^(eDP|LVDS|DSI)-'
 const LAYOUT = path self ../../../../scripts/toggles/toggle-monitor-scale.nu
 const SELF = path self
 

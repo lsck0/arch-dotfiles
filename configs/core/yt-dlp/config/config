@@ -18,4 +18,4 @@
 
 --sponsorblock-mark all
 
---download-archive @DOWNLOAD_DIR@/.archive
+--download-archive "@DOWNLOAD_DIR@/.archive"

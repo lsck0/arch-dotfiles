@@ -8,9 +8,8 @@ use modules.nu [modules-packages]
 use ledger.nu [packages-convergence packages-orphans-remove ledger-get ledger-set ledger-packages ledger-units awaited-names LEDGER_AWAITED LSCK0_DB]
 use preserve.nu [tty-confirm preserve-prune]
 use migrate.nu [migrations-run]
-use system.nu [system-unpack system-secrets secrets-digest ENTRY SYSTEM_STAGES SYSTEM_SECRETS_DIGEST RUN_ID]
+use system.nu [system-unpack system-secrets secrets-digest bootstrap-const ENTRY FINGERPRINT_VALUE SYSTEM_STAGES SYSTEM_SECRETS_DIGEST RUN_ID]
 use cli.nu [supervise self-argv]
-use sync.nu [bootstrap-const FINGERPRINT_VALUE]
 use cause.nu [cause-from-output cause-text failure-line argv-text]
 use profile.nu [profile-owner-add]
 use ../../platforms/homelab.nu [HOMELAB]
@@ -453,6 +452,9 @@ def "main adduser" [name: string, --profile: string]: nothing -> nothing {
         let gnupg = ^runuser -u $name -- mktemp -d | str trim
         ^runuser -u $name -- env $"GNUPGHOME=($gnupg)" gpg --batch --quiet --import ($repo | path join $key_file)
         let status = ^runuser -u $name -- env $"GNUPGHOME=($gnupg)" git -C $checkout verify-commit --raw HEAD | complete
+        # the import started gpg-agent and scdaemon on the throwaway home; left running, scdaemon holds the card reader
+        ^runuser -u $name -- env $"GNUPGHOME=($gnupg)" gpgconf --kill all | complete | ignore
+        ^runuser -u $name -- env $"GNUPGHOME=($gnupg)" gpgconf --remove-socketdir | complete | ignore
         rm --recursive --force $gnupg
         if $status.exit_code != 0 or not ($status.stderr | str contains "VALIDSIG") or ($status.stderr | lines | where ($it | str contains VALIDSIG) | first | split row " " | last) != $fingerprint {
             rm --recursive --force $checkout

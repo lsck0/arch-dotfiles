@@ -30,7 +30,9 @@ def errors-cases [repo: path] {
         ["package no string" {packages_keep: [1]} 1]
         ["fact type" {facts: {homelab: "yes"}} 1]
         ["fact choice" {facts: {offload: server}} 1]
-        ["fact unset" {facts: {offload: null, wireguard: null}} 0]
+        ["fact unset" {facts: {offload: null, wireguard: null, lsck0_snapshot: null}} 0]
+        ["fact pattern" {facts: {lsck0_snapshot: "2026-11-01"}} 0]
+        ["fact off pattern" {facts: {lsck0_snapshot: latest}} 1]
         ["two bad keys" {label: 3, form_factor: tablet} 2]
     ]
     for c in $cases {

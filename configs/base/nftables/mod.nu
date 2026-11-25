@@ -33,6 +33,10 @@ const NFT_RATE = '^\d+/(second|minute|hour|day)( burst \d+ packets)?$'
 const PENTEST_LINKS = 'elements = { "tun0" }'
 const KNOCK_LENGTH = 3
 const PORT_MAX = 65535
+# what fw-inbound's knock and sshd rules start with: nothing while sshd runs, else a comment, so a knock opens no
+# unprivileged port another process could listen on
+const SSH_RULES_ON = ""
+const SSH_RULES_OFF = "# "
 const LOCKDOWN_START = "systemctl try-reload-or-restart fw-lockdown.service
 systemctl is-active -q fw-inbound.service fw-lockdown.service || systemctl start fw-lockdown.service"
 
@@ -59,6 +63,7 @@ export def system [cfg: record] {
         SSH_KNOCK_WINDOW: $cfg.ssh_knock_window, SSH_PORT: $ssh.port
         KNOCK_1: $knock.0, KNOCK_2: $knock.1, KNOCK_3: $knock.2, SSH_RATE: $cfg.ssh_rate
         PENTEST_LINKS: (if $cfg.pentest_listeners { $PENTEST_LINKS } else { "" })
+        SSH_RULE_PREFIX: (if $ssh.server { $SSH_RULES_ON } else { $SSH_RULES_OFF })
     }
     # only on a changed ruleset, it empties the knock and portal sets; never a start, fw-egress off a trusted network cuts this run
     [

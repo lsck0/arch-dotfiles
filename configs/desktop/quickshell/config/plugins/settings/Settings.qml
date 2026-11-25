@@ -367,7 +367,12 @@ Item {
   function submitEdit() {
     var row = root.rowById(root.editingId)
     if (row && row.option.type === "list" && root.draft.trim() !== "") {
-      root.change(row, (root.valueOf(row) || []).concat([root.draft.trim()]))
+      let entry = Schema.listEntry(row.option, root.draft)
+      if (entry === undefined) {
+        root.errors = Util.mapSet(root.errors, row.id, "not a valid " + row.option.nuType + " entry: " + root.draft.trim())
+        return
+      }
+      root.change(row, (root.valueOf(row) || []).concat([entry]))
       root.draft = ""
     } else {
       root.endEdit(true)

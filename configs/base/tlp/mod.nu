@@ -49,7 +49,16 @@ export const options = {
         doc: "CPU energy/performance policy of a machine without a battery"
         label: "CPU energy policy (AC only)"
     }
+    usb_autosuspend: {
+        type: bool
+        default: true
+        doc: "Let TLP suspend idle USB devices; off for NICs, DACs, hubs or dongles that drop out and do not resume"
+        label: "USB autosuspend"
+    }
 }
+
+# read before /etc/tlp.conf, which wins: the keys set here stay out of the two tlp confs
+const DROPINS = "/etc/tlp.d"
 
 export def system [cfg: record] {
     if $cfg.charge_start >= $cfg.charge_stop { error make {msg: "tlp: charge_start must be below charge_stop"} }
@@ -64,5 +73,15 @@ export def system [cfg: record] {
     } else {
         file-render config/ac-only.tlp.conf /etc/tlp.conf {ENERGY_PERF_POLICY: $cfg.energy_perf_policy} --then $restart
     }
-    [(unit-enable tlp.service --now) $conf]
+    # bat.tlp.conf sets BAT0; any other battery (a second one, or a laptop whose only one is BAT1) gets the same
+    let batteries = if $env.FORM_FACTOR? == "laptop" {
+        glob /sys/class/power_supply/BAT* | path basename | where $it != BAT0 | sort
+    } else { [] }
+    let thresholds = $batteries | each {|b| $"START_CHARGE_THRESH_($b)=($cfg.charge_start)\nSTOP_CHARGE_THRESH_($b)=($cfg.charge_stop)\n" }
+    [
+        (unit-enable tlp.service --now)
+        $conf
+        (if not $cfg.usb_autosuspend { file-text $"($DROPINS)/10-usb.conf" "USB_AUTOSUSPEND=0\n" --then $restart })
+        (if ($thresholds | is-not-empty) { file-text $"($DROPINS)/20-batteries.conf" ($thresholds | str join) --then $restart })
+    ]
 }

@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {inputs: [/etc/vconsole.conf /etc/localtime]}
+export const meta = {inputs: [/etc/vconsole.conf /etc/X11/xorg.conf.d/00-keyboard.conf /etc/localtime]}
 
 export const options = {
     lang: {

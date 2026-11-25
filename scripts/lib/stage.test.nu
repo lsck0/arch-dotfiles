@@ -1,10 +1,13 @@
 #!/usr/bin/env -S nu --no-config-file
-# The banner of a chain stopped before config names the failure, that it is disarmed, the way online and the resume,
-# within a tty's lines; the install stage's next step follows the install pass file, not dot's exit code.
+# The banner of a chain stopped before config names the failure, that it is disarmed, the way online (a root edit where
+# the platform's options are root's, which dot set refuses) and the resume, within a tty's lines; the install stage's
+# next step follows the install pass file, not dot's exit code.
 use stage.nu [install-banner config-banner stage-next stage-sudoers STAGE_RESUME]
 use std/assert
 
 const ESCAPE = "dot set --machine base/networkmanager.untrusted_policy firewall-only && dot apply --system"
+const OPTIONS_ROOT = "/etc/dotfiles/platform.options.nuon"
+const ESCAPE_ROOT = $"sudoedit ($OPTIONS_ROOT) && dot apply --system"
 const TTY_LINES = 24
 const EXIT_FAILED = 1
 const EXIT_PENDING = 3
@@ -26,6 +29,13 @@ def banner-cases []: nothing -> nothing {
     }
     let bare = install-banner 1 []
     assert (not ($bare | str contains "What failed") and ($bare | str contains $ESCAPE)) $"banner without failures:\n($bare)"
+    # dot set refuses root's options file, a custom or server platform's
+    let rooted = install-banner 1 [] --options-file $OPTIONS_ROOT
+    let edit = $rooted | lines | any { ($in | str trim) == $ESCAPE_ROOT }
+    assert ($edit and not ($rooted | str contains "dot set")) $"banner of a platform whose options are root's:\n($rooted)"
+    assert ($rooted | str contains "untrusted_policy: firewall-only") $"banner of root's options names no policy:\n($rooted)"
+    let named = install-banner 1 [] --options-file /home/u/arch-dotfiles/platforms/pc.options.nuon
+    assert ($named | str contains $ESCAPE) $"banner of a repo platform lacks dot set:\n($named)"
     let kept = install-banner 3 [] --key-kept
     assert (($kept | str contains "unlocks without its passphrase") and not ($kept | str contains "is disarmed")) $"banner with the disk key kept:\n($kept)"
     let config = config-banner (["base/x link/step y: z" ""] ++ (1..20 | each { $"m/($in) link/eval: e" }))

@@ -13,6 +13,28 @@ export const meta = {
     ]
 }
 
+# an http(s) url with a host and the query placeholder; the system verb names the engine after the host
+const SEARCH_URL_PATTERN = '^https?://[^/?#\s]+\S*\{searchTerms\}'
+
+export const options = {
+    # machine: the policies are /etc's, one set for every login
+    search_url: {
+        type: string?
+        default: null
+        doc: "Default search engine, {searchTerms} is the query; unset, the homelab's searxng on a homelab machine, else duckduckgo"
+        label: "Search engine URL"
+        pattern: $SEARCH_URL_PATTERN
+    }
+    extensions_off: {
+        type: list<string>
+        default: []
+        doc: "Force-installed extensions to leave out by id (seventv-next@7tv.app); the rest stay installed and unremovable"
+        label: "Extensions left out"
+    }
+    save_logins: {type: bool, default: false, doc: "Firefox offers to save passwords; off for a separate password manager", label: "Offer to save logins"}
+    safe_browsing: {type: bool, default: false, doc: "Google Safe Browsing warnings for phishing, malware and downloads", label: "Safe Browsing"}
+}
+
 const HOME_DIR = ".config/mozilla/firefox"
 # torbrowser-launcher's install; the same firefox, themed by the same userChrome.css
 const TOR_INI = ".local/share/torbrowser/tbb/x86_64/tor-browser/Browser/TorBrowser/Data/Browser/profiles.ini"
@@ -28,6 +50,9 @@ const SEARCH_OFF_HOMELAB = {
     Add: [{Name: DuckDuckGo, URLTemplate: "https://duckduckgo.com/?q={searchTerms}", Method: GET, Alias: ddg}]
     Default: DuckDuckGo
 }
+const SAFE_BROWSING_PREFS = [
+    browser.safebrowsing.malware.enabled browser.safebrowsing.phishing.enabled browser.safebrowsing.downloads.remote.enabled
+]
 
 # The profile dirs a firefox or thunderbird profiles.ini lists; none before the app's first start.
 export def mozilla-profiles [ini: path]: nothing -> list<path> {
@@ -219,10 +244,22 @@ export def theme [cfg: record, wallpaper: string] {
     $files | append (exec pywalfox-update [sh -c 'pywalfox "$0" && pywalfox update' $mode])
 }
 
+# A search_url as the one engine the policy adds and makes the default, named after its host.
+def search-engines [url: string]: nothing -> record {
+    let name = $url | url parse | get host | str replace --regex '^www\.' ''
+    {Add: [{Name: $name, URLTemplate: $url, Method: GET}], Default: $name}
+}
+
 export def system [cfg: record] {
     let extra = if (owner-system-unlocked) { glob ($SECRETS_DIR | path join * firefox-policies.json) | sort | each { open $in } } else { [] }
     let doc = $extra | reduce --fold (open config/policies.json) {|it, acc| $acc | merge deep --strategy append $it }
-    let doc = if (platform-has homelab) { $doc } else { $doc | upsert policies.SearchEngines $SEARCH_OFF_HOMELAB }
+    let doc = if $cfg.search_url != null {
+        $doc | upsert policies.SearchEngines (search-engines $cfg.search_url)
+    } else if (platform-has homelab) { $doc } else { $doc | upsert policies.SearchEngines $SEARCH_OFF_HOMELAB }
+    let extensions = $doc.policies.ExtensionSettings | reject --optional ...$cfg.extensions_off
+    let prefs = $SAFE_BROWSING_PREFS | reduce --fold $doc.policies.Preferences {|key, acc| $acc | upsert $key $cfg.safe_browsing }
+    let doc = $doc | upsert policies.ExtensionSettings $extensions | upsert policies.OfferToSaveLogins $cfg.save_logins
+        | upsert policies.Preferences $prefs
     [
         (file-text $POLICIES $"($doc | to json --indent 2)\n")
         # the new tab url is settable only from autoconfig in the install dir; mozilla.cfg reads each user's home at runtime

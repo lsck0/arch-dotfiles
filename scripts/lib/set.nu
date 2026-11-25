@@ -4,7 +4,7 @@
 const REPO = path self ../..
 use log.nu *
 use state.nu [save-atomic]
-use options.nu [OPTION_ENABLE options-schema option-value-errors options-notify options-nuon-set]
+use options.nu [OPTION_ENABLE options-schema option-value-errors options-notify options-nuon-set enable-raised]
 use platform.nu [PLATFORM_TARGET platform-load platform-spec platform-rows platform-errors platform-value-errors]
 use pipeline.nu [module-get pipeline-load pipeline-plan pipeline-apply]
 use run.nu [link-run unlink-run admin system-part pending-exit pending-add]
@@ -22,14 +22,19 @@ def option-runtime [spec: record]: nothing -> any {
     try { ^(toggle-script $spec.toggle) get | str trim } catch { null }
 }
 
+# --json marks fixed (read only) what dot set refuses here: a machine option where the options file is root's, and the
+# enable of a module the machine leaves off.
 export def options-list [mod: any, json: bool]: nothing -> any {
     let ctx = pipeline-load $REPO user
     let mods = $ctx.modules | where {|m| $mod == null or $m.id == $mod }
     if $json {
+        let writable = file-writable $ctx.platform.options_file
         let modules = $mods | each {|m|
+            let raisable = enable-machine $ctx $m
             let options = options-schema $m | items {|key, spec|
                 $spec | reject --optional toggle | merge {
                     key: $key
+                    fixed: (($spec.scope == "machine" and not $writable) or ($key == $OPTION_ENABLE and not $raisable))
                     value: ($m.cfg | get $key)
                     source: ($m.sources | get $key)
                     runtime: (if $spec.apply == "live" { option-runtime $spec } else { null })
@@ -69,18 +74,24 @@ export def option-target [target: string]: nothing -> record {
     $target | parse --regex $OPTION_TARGET | first
 }
 
-export def option-write [mod: string, key: string, value: any, machine: bool]: nothing -> record {
+# Stores value at mod.key in the machine's or the profile's options file; --default removes the entry instead, so the
+# layer below applies, where a given null is stored for a nullable option.
+export def option-write [mod: string, key: string, value: any, machine: bool, --default]: nothing -> record {
     let ctx = pipeline-load $REPO user
     let m = module-get $ctx $mod
     let spec = options-schema $m | get --optional $key
     if $spec == null { error make {msg: $"($mod) has no option ($key); dot set ($mod) lists them"} }
-    let bad = if $value == null { [] } else { option-value-errors $mod $key $spec $value "dot set" }
+    let bad = if $default { [] } else { option-value-errors $mod $key $spec $value "dot set" }
     if ($bad | is-not-empty) { error make {msg: ($bad | str join "\n")} }
     if $spec.scope == "machine" and not $machine { error make {msg: $"($mod).($key) is a machine option, set it with dot set --machine ($mod).($key) <value>"} }
     let file = if $machine { $ctx.platform.options_file } else { $ctx.profile.options_file }
     if not (file-writable $file) { error make {msg: $"this machine's options are root's ($file | default '/etc/dotfiles'), not settable from here"} }
+    let below = if $machine { $m.selected } else { enable-machine $ctx $m }
+    if $key == $OPTION_ENABLE and $value == true and not $default and not $below {
+        error make {msg: (enable-raised $mod {name: (if $machine { "platform" } else { "profile" }), file: $file})}
+    }
     let text = if ($file | path exists) { open --raw $file } else { "{}\n" }
-    let updated = $text | options-nuon-set [$mod $key] $value
+    let updated = $text | options-nuon-set [$mod $key] $value --remove=$default
     if $updated != $text { $updated | save-atomic $file }
     let resolved = pipeline-load $REPO user | get modules | where id == $mod | first
     {module: $m, spec: $spec, value: ($resolved.cfg | get $key), source: ($resolved.sources | get $key), machine: $machine}
@@ -130,6 +141,11 @@ export def option-apply [target: string, set: record]: nothing -> nothing {
     pending-exit
 }
 
+# A module's enable below the profile: what the platform's groups select, unless its options turn it off.
+def enable-machine [ctx: record, m: record]: nothing -> bool {
+    $ctx.platform.options | get --optional $m.id | get --optional $OPTION_ENABLE | default $m.selected
+}
+
 # What dot set writes itself: a file in the checkout or the profile, never root's under /etc.
 def file-writable [file: any]: nothing -> bool {
     $file != null and not ($file | str starts-with "/etc/")
@@ -164,7 +180,7 @@ export def platform-write [cell: list<string>, value: any]: nothing -> record {
     let bad = if $value == null { [] } else { platform-value-errors $REPO $cell $value "dot set" }
     if ($bad | is-not-empty) { error make {msg: ($bad | str join "\n")} }
     let text = open --raw $file
-    let updated = $text | options-nuon-set $cell $value
+    let updated = $text | options-nuon-set $cell $value --remove=($value == null)
     let errors = platform-errors $REPO ($updated | from nuon) $file
     if ($errors | is-not-empty) { error make {msg: ($errors | str join "\n")} }
     if $updated != $text { $updated | save-atomic $file }

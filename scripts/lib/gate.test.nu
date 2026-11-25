@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # Table cases for the nushell pitfalls lint (what each pattern flags, and the lines it must leave alone) and the
-# fail-closed lint.
-use gate.nu [patterns-find NU_PITFALLS LINKED_RELATIVE shebang fail-closed-find FAIL_CLOSED linked-scripts test-warnings]
+# fail-closed lint, and a platform's options file resolved over its modules.
+use gate.nu [patterns-find NU_PITFALLS LINKED_RELATIVE shebang fail-closed-find FAIL_CLOSED linked-scripts test-warnings platform-options-errors]
 use std/assert
 
 const REPO = path self ../..
@@ -106,7 +106,30 @@ def test-warnings-check [] {
     }
 }
 
+# A value another machine's options file holds fails there at load, so lint resolves every file: names, values, enable.
+def platform-options-check [] {
+    let mode = {type: string, default: a, doc: d, choices: [a b]}
+    let modules = [
+        [id options selected native];
+        [base/x {mode: $mode} true []]
+        [base/out {} false []]
+    ]
+    let cases = [
+        [name options wants];
+        ["fine" {"base/x": {mode: b, enable: false}} []]
+        ["no module" {"base/y": {enable: false}} ["f: base/y is no module"]]
+        ["no option" {"base/x": {gone: 1}} ["f: base/x.gone is no option of it"]]
+        ["outside the choices" {"base/x": {mode: c}} ['f: base/x.mode: "c" is not one of [a, b]']]
+        ["the wrong type" {"base/x": {mode: 1}} ["f: base/x.mode: 1 is int, wants string"]]
+        ["on outside the groups" {"base/out": {enable: true}} ["f: base/out.enable is true where the machine leaves it off; add its group to the platform's groups"]]
+    ]
+    for c in $cases {
+        assert equal (platform-options-errors $modules f $c.options) $c.wants $"platform options, ($c.name)"
+    }
+}
+
 def main [] {
+    platform-options-check
     test-warnings-check
     pitfalls-check
     shebang-check

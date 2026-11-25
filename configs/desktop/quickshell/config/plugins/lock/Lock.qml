@@ -64,6 +64,10 @@ Item {
   }
   readonly property string mediaArtist: player ? MediaState.tag(player.trackArtist) : ""
   readonly property string mediaText: player && player.trackTitle ? "> " + (mediaArtist ? mediaArtist + " :: " : "") + player.trackTitle : ""
+  // the locale's order and 12 or 24 hours (LC_TIME), in the lock's own separators: HH//mm//ss, >> dd/MM/yy
+  readonly property string clockFormat: Util.timeFormat.replace(/(m+)/, "$1:ss").replace(/[:.]/g, "//")
+  readonly property string dateFormat: ">> " + Qt.locale().dateFormat(Locale.ShortFormat).replace(/y+/, "yy")
+    .replace(/[^A-Za-z]+/g, "/").replace(/^\/|\/$/g, "")
   property string clockText: "00//00//00"
   property string dateText: ""
 
@@ -387,8 +391,8 @@ Item {
     triggeredOnStart: true
     onTriggered: {
       var now = new Date()
-      root.clockText = Qt.formatDateTime(now, "HH//mm//ss")
-      root.dateText = Qt.formatDateTime(now, ">> dd/MM/yy")
+      root.clockText = Qt.formatDateTime(now, root.clockFormat)
+      root.dateText = Qt.formatDateTime(now, root.dateFormat)
     }
   }
 
@@ -500,7 +504,7 @@ Item {
 
           Label {
             anchors.horizontalCenter: parent.horizontalCenter
-            visible: root.mediaText !== ""
+            visible: Prefs.lockMedia && root.mediaText !== ""
             width: Math.min(implicitWidth, Style.space(480))
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
@@ -666,7 +670,7 @@ Item {
           anchors.right: parent.right
           anchors.bottom: parent.bottom
           anchors.margins: Style.spacing.lg
-          visible: surface.isPrimary && root.notes.length > 0
+          visible: Prefs.lockNotifications && surface.isPrimary && root.notes.length > 0
           width: notesColumn.implicitWidth + Style.surface.padding * 2
           height: notesColumn.implicitHeight + Style.surface.padding * 2
           scanlines: false

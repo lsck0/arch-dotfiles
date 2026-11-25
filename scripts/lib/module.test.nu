@@ -2,8 +2,9 @@
 # Table cases for desktop-set (whole keys replaced or added in the [Desktop Entry] group only), decls-flatten (any
 # depth), unit-restart's argv per layer and flags, and the udev and polkit rule declarations (target, source or
 # rendered content, --then), mcp-uvx (the venv built before the registration, which names the venv's entry point), and
-# unit-timer's text (key order, Persistent with a calendar, the mains condition) and enabling.
-use module.nu [desktop-set decls-flatten polkit-rules udev-reload udev-rules unit-dir unit-restart unit-timer mcp-uvx]
+# unit-timer's text (key order, Persistent with a calendar, the mains condition) and enabling, and xwayland-scale-for
+# (the compositor's option, else its monitors' main scale, else the form factor's).
+use module.nu [desktop-set decls-flatten polkit-rules udev-reload udev-rules unit-dir unit-restart unit-timer mcp-uvx xwayland-scale-for]
 use std/assert
 
 def main [] {
@@ -121,4 +122,27 @@ def main [] {
     }
     cd ($dir | path dirname)
     rm --recursive $dir
+    xwayland-cases
+}
+
+def xwayland-cases [] {
+    let k4 = {output: DP-1, mode: "3840x2160@144", position: "0x0", scale: 1.0}
+    let fhd = {output: DP-2, mode: "1920x1080@60", position: "3840x0", scale: 1.666667}
+    let panel = {output: eDP-1, mode: "2880x1800", position: auto, scale: 2.0}
+    let hypr = {|o| {deps: {"desktop/hyprland": ({xwayland_scale: null, monitors: null, main_monitor: null} | merge $o)}} }
+    let cases = [
+        [name cfg form wants];
+        ["no compositor read" {deps: {}} desktop 2]
+        ["no compositor read, laptop" {} laptop 1]
+        ["option set" (do $hypr {xwayland_scale: 3, monitors: [$k4]}) desktop 3]
+        ["set monitors beat the form factor" (do $hypr {monitors: [$k4 $fhd]}) desktop 1]
+        ["main monitor named" (do $hypr {monitors: [$k4 $fhd], main_monitor: DP-2}) desktop 2]
+        ["internal panel is main" (do $hypr {monitors: [$k4 $panel]}) laptop 2]
+        ["no monitors" (do $hypr {}) laptop 1]
+        ["auto scale" (do $hypr {monitors: [($k4 | update scale auto)]}) desktop 2]
+    ]
+    for c in $cases {
+        let got = with-env {FORM_FACTOR: $c.form} { xwayland-scale-for $c.cfg }
+        assert equal $got $c.wants $"xwayland-scale-for ($c.name): got ($got), wants ($c.wants)"
+    }
 }

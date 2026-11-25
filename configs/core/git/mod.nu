@@ -2,7 +2,7 @@ use module.nu *
 use ../wallust/scripts/editor.nu [editor-roles]
 use ../wallust/scripts/palette.nu [palette-rgb]
 
-export const meta = {deps: [core/cli core/tmux core/wallust], packages: {pacman: [git git-delta]}, inputs: [/usr/bin/mergiraf /usr/bin/jj /usr/bin/git-lfs /usr/bin/gh]}
+export const meta = {deps: [core/cli core/tmux core/wallust], packages: {pacman: [git git-delta git-lfs]}, inputs: [/usr/bin/mergiraf /usr/bin/jj /usr/bin/gh]}
 
 export const options = {
     default_branch: {
@@ -24,6 +24,23 @@ export const options = {
         default: true
         doc: "delta shows diffs in two columns, delta.side-by-side"
         label: "Side-by-side diffs"
+        scope: user
+    }
+    # no quote, backslash, comment sign or line break: the value goes into git's ini and jj's toml unescaped
+    user_name: {
+        type: "string?"
+        default: null
+        pattern: '^[^"\\#;\n]+$'
+        doc: "Commit author name of a login that is not the owner, user.name; unset takes its profile's name"
+        label: "Author name"
+        scope: user
+    }
+    user_email: {
+        type: "string?"
+        default: null
+        pattern: '^[^"\\#;\s]+@[^"\\#;\s]+$'
+        doc: "Commit author email of a login that is not the owner, user.email; unset takes its profile's email"
+        label: "Author email"
         scope: user
     }
 }
@@ -51,8 +68,12 @@ def jj-config [identity: oneof<record, nothing>]: nothing -> string {
 
 export def link [cfg: record] {
     let dir = xdg config git
-    # identity rolls out only when the owner is actually unlocked (profile AND the YubiKey), never on profile selection alone
-    let identity = if (owner-unlocked) { profile-load | select name email } else { null }
+    # the owner's identity rolls out only when the owner is actually unlocked (profile AND the YubiKey), never on profile
+    # selection alone; any other login's is its own: the author options, else a profile without the secrets capability
+    let profile = profile-load | select name email
+    let fallback = if (profile-has secrets) { {name: "", email: ""} } else { $profile }
+    let own = {name: ($cfg.user_name | default $fallback.name), email: ($cfg.user_email | default $fallback.email)}
+    let identity = if (owner-unlocked) { $profile } else if $own.name != "" and $own.email != "" { $own } else { null }
     let template = $dir | path join template
     let sections = [
         (if $identity != null { [user $identity] })

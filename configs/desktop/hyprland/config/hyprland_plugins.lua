@@ -4,12 +4,14 @@ local function plugin_config(name, opts)
     end
 end
 
+local platform = require("platform")
+
 plugin_config("dynamic_cursors", {
     enabled = true,
     mode = "none",
 
     shake = {
-        enabled = true,
+        enabled = platform.cursor.shake,
         threshold = 4,
         base = 4.0,
         speed = 4.0,

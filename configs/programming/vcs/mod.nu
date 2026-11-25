@@ -3,7 +3,7 @@ use module.nu *
 export const meta = {
     packages: {
         pacman: [
-            difftastic git-absorb git-age git-filter-repo git-lfs github-cli github-desktop-bin jujutsu lazyjj mergiraf
+            difftastic git-absorb git-age git-filter-repo github-cli github-desktop-bin jujutsu lazyjj mergiraf
             onefetch pre-commit tig
         ]
     }

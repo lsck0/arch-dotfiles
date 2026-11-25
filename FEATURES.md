@@ -187,12 +187,14 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/fail2ban.findtime` | `int` | `600` | Seconds of history fail2ban scans for failed attempts, fail2ban jail.conf(5) findtime |
 | `base/fail2ban.maxretry` | `int` | `5` | Failed attempts within findtime before an IP is banned, fail2ban jail.conf(5) maxretry |
 | `base/ghostmirror.homelab_mirror` | `string?` | `"http://10.100.0.100:8090/archlinux/$repo/os/$arch"` | A homelab pacman mirror's URL ($repo and $arch as in a mirrorlist), put first on a homelab machine; default the lab's |
+| `base/ghostmirror.mirror_countries` | `list<string>?` | unset | Countries the monthly rebuild ranks mirrors from, as ghostmirror -c names them (Germany, "United States"); unset, the ones the install ranked, else Central Europe |
 | `base/hardware.nvidia_driver` | `string?` | detected | NVIDIA driver branch: open (Turing on), 580xx (Maxwell to Volta), 470xx (Kepler), none (nouveau) |
 | `base/networkmanager.untrusted_policy` | `string` | `"firewall-only"` | On an untrusted network: lockdown-tor closes inbound and lets out only tor, dhcp and tunnels until a VPN is up; firewall-only closes inbound and leaves egress open; off treats every network as trusted |
 | `base/networkmanager.portal_window_s` | `int` | `300` | Seconds toggle-portal leaves a foreign link open for a captive portal's sign-in before the lockdown is back |
 | `base/networkmanager.home_wired` | `bool?` | detected | Ethernet keeps its hardware MAC and IPv6, so a home gateway can vouch for it (a desktop); null detects it from the form factor |
 | `base/networkmanager.wake_on_lan` | `bool` | `false` | Wake on a magic packet over ethernet (udev sets it on every wired link, NetworkManager leaves it) |
 | `base/networkmanager.wifi_radio` | `bool?` | detected | Wi-Fi radio on at first boot; off on a desktop wired to the network, so only the link in use is up. Later toggles (toggle-wifi) persist in NetworkManager's own state; null detects it |
+| `base/networkmanager.connectivity_check` | `bool` | `true` | Probe ping.archlinux.org over http every 10 minutes for internet and captive portals; off sends nothing |
 | `base/networkmanager.home_gateways` | `list<string>` | `[]` | The home network's routers, the one with the homelab (its dns, routes, mirror, nas, printers), each '<mac> <gateway address> <dhcp server identifier>' (a mac alone is only trusted), beside the admin's configs/secrets/keys/home-gateways; home is trusted too |
 | `base/networkmanager.trusted_gateways` | `list<string>` | `[]` | Router MACs of trusted networks: no lockdown, direct egress, the lan's inbound services, the hardware MAC, but none of home's homelab wiring; beside the admin's configs/secrets/keys/trusted-gateways, where toggle-trust-network adds the current one while unlocked |
 | `base/networkmanager.homelab_dns` | `string?` | `"192.168.178.29"` | The homelab's split-horizon resolver, asked for homelab_domain out a home link (homelab machines); default the lab's router |
@@ -206,6 +208,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/pacman.yay_cache_days` | `int` | `30` | Days an unused yay build cache dir may sit in $XDG_CACHE_HOME/yay before yay-cache-clean.timer deletes it, find -mtime argument |
 | `base/pam.fido_origin` | `string` | `"pam://lsck0"` | FIDO2 origin and appid every enrolled key's mapping was made for (pamu2fcfg -o) |
 | `base/smartd.test_schedule` | `string` | `"S/../.././02\|L/../../6/03"` | When smartd runs self-tests, smartd.conf(5) -s regex syntax (default: short test daily at 02:00, long test Saturday at 03:00) |
+| `base/ssh.server` | `bool` | `true` | Run sshd behind the port-knock, and base/endlessh's tarpit on 22; off keeps the client and ssh-agent (wake-pc and offload need it on the target) |
 | `base/ssh.port` | `int` | `2222` | The port sshd listens on, reached through the port-knock (sshk, wake-pc, nftables) |
 | `base/ssh.knock` | `list<int>` | `[9003, 7001, 8002]` | The three ports knocked in order to open the sshd port to that address (sshk, wake-pc, nftables) |
 | `base/ssh.homelab_hosts` | `list<string>` | `["10.0.0.*", "10.100.0.*", "10.200.0.*", "10.250.0.*", "192.168.178.29", "192.168.178.200"]` | ssh patterns of the homelab's guests, router and hypervisor: root, accept-new host keys from known_hosts.homelab (homelab profiles only); default the lab's zones, router and hypervisor |
@@ -215,6 +218,9 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/systemd.mem_sleep` | `string?` | unset | Suspend mode written to /sys/power/mem_sleep; unset, the firmware's default |
 | `base/systemd.power_key` | `string` | `"suspend"` | What a short press of the power key does, logind.conf(5) HandlePowerKey |
 | `base/systemd.power_key_long_press` | `string` | `"poweroff"` | What a long press of the power key does, logind.conf(5) HandlePowerKeyLongPress |
+| `base/systemd.lid_switch` | `string` | `"suspend"` | What closing the lid does, logind.conf(5) HandleLidSwitch; lock or ignore keeps a clamshell machine running |
+| `base/systemd.lid_switch_external_power` | `string?` | unset | What closing the lid does on external power, HandleLidSwitchExternalPower; unset, as on battery |
+| `base/systemd.ntp_servers` | `list<string>` | `[]` | Time servers timesyncd asks, timesyncd.conf(5) NTP; empty, Arch's pool (a network that blocks it needs its own) |
 | `base/systemd.bluetooth_auto_enable` | `bool` | `false` | Power bluetooth adapters on at boot and when plugged in |
 | `base/tlp.charge_start` | `int` | `95` | Battery charge level below which charging starts (laptops whose firmware supports thresholds) |
 | `base/tlp.charge_stop` | `int` | `100` | Battery charge level at which charging stops; 80 spares an always-plugged battery |
@@ -222,6 +228,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/tlp.platform_profile_ac` | `string` | `"balanced"` | Firmware platform profile on AC (laptops that have one) |
 | `base/tlp.platform_profile_battery` | `string` | `"low-power"` | Firmware platform profile on battery (laptops that have one) |
 | `base/tlp.energy_perf_policy` | `string` | `"performance"` | CPU energy/performance policy of a machine without a battery |
+| `base/tlp.usb_autosuspend` | `bool` | `true` | Let TLP suspend idle USB devices; off for NICs, DACs, hubs or dongles that drop out and do not resume |
 | `base/v4l2loopback.video_nr` | `int?` | detected | /dev/video<n> of the OBS virtual camera; null: a loaded one's, else the first free from 10, past webcams |
 | `base/xdg.browser` | `list<string>` | `["firefox.desktop"]` | Desktop entries for web pages and links, first wins |
 | `base/xdg.editor` | `list<string>` | `["neovide.desktop", "nvim.desktop", "org.gnome.TextEditor.desktop"]` | Desktop entries for text, source and config files, first wins |
@@ -236,9 +243,12 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `core/btop.accent` | `string` | `"c4"` | Palette slot for titles, highlights and the selection |
 | `core/btop.update_ms` | `int` | `500` | Milliseconds between samples |
 | `core/btop.temp_scale` | `string` | `"celsius"` | Unit of the temperature readouts |
+| `core/fastfetch.on_shell_start` | `bool` | `true` | Run fastfetch (system summary, local address) atop each new top-level terminal, zsh and nushell |
 | `core/git.default_branch` | `string` | `"master"` | Branch git init starts with, init.defaultBranch |
 | `core/git.pull_rebase` | `bool` | `true` | git pull rebases local commits instead of merging, pull.rebase |
 | `core/git.side_by_side` | `bool` | `true` | delta shows diffs in two columns, delta.side-by-side |
+| `core/git.user_name` | `string?` | unset | Commit author name of a login that is not the owner, user.name; unset takes its profile's name |
+| `core/git.user_email` | `string?` | unset | Commit author email of a login that is not the owner, user.email; unset takes its profile's email |
 | `core/gnupg.cache_ttl` | `int` | `28800` | Seconds gpg-agent caches a passphrase after use before re-asking, gpg-agent.conf(5) default-cache-ttl; a screen lock or suspend empties the cache |
 | `core/gnupg.cache_ttl_max` | `int` | `86400` | Seconds gpg-agent caches a passphrase at most, however often it is used, gpg-agent.conf(5) max-cache-ttl |
 | `core/herdr.prefix` | `string` | `"ctrl+q"` | herdr prefix key, in herdr key syntax |
@@ -255,6 +265,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `core/starship.scan_timeout_ms` | `int` | `500` | Milliseconds starship waits for a directory scan (project file detection) before giving up, starship.toml scan_timeout |
 | `core/syncthing.nas_address` | `string?` | `"tcp://10.100.0.100:22000"` | Address of the homelab NAS device (the lab's nas role); discovery is off, so this is how it is found |
 | `core/syncthing.versions_max_age_days` | `int` | `30` | Days staggered versioning keeps old versions of files in ~/sync |
+| `core/timezone-auto.any_network` | `bool` | `false` | Look the timezone up on any network, not only a trusted one (base/networkmanager's home or trusted gateways), naming this machine's address to ipinfo.io there; a VPN or tor route still skips it |
 | `core/tmux.prefix` | `string` | `"C-q"` | tmux prefix key, in tmux key syntax |
 | `core/tmux.mouse` | `bool` | `true` | Mouse selects panes and windows, resizes and scrolls |
 | `core/trash.retention_days` | `int` | `1` | Days trash-empty.timer keeps a deleted file before purging it, trash-empty(1)'s days argument |
@@ -264,6 +275,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `core/yt-dlp.download_dir` | `string` | `"~/downloads/yt-dlp"` | Directory downloads and the download archive go to |
 | `core/yt-dlp.container` | `string` | `"mp4"` | Container merged video and audio streams go into, --merge-output-format |
 | `core/yt-dlp.sub_langs` | `list<string>` | `["en.*", "de.*"]` | Subtitle languages embedded, as regexes, --sub-langs |
+| `core/yt-dlp.vpn_only` | `bool` | `true` | Run yt-dlp only inside base/protonvpn-netns' namespace, never the bare route; without that namespace, or off, yt-dlp and mpv's url playback run direct |
 | `core/zsh.history_size` | `int` | `5000` | Commands the history keeps, HISTSIZE and SAVEHIST |
 | `creating/audacity.mcp` | `bool` | `true` | Register audacity-mcp with the coding agents; off, no agent session starts its server |
 | `creating/blender.mcp` | `bool` | `true` | Register blender-mcp with the coding agents; off, no agent session starts its server |
@@ -279,7 +291,14 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `creating/obs.stream_height` | `int` | `1080` | Height cap of the stream's output, scaled from the canvas |
 | `creating/obs.mcp` | `bool` | `true` | Register obs-mcp with the coding agents; off, no agent session starts its server |
 | `creating/openscad.mcp` | `bool` | `true` | Register openscad-mcp with the coding agents; off, no agent session starts its server |
+| `desktop/chromium.search_url` | `string?` | unset | Default search engine, {searchTerms} is the query; unset, the homelab's searxng on a homelab machine, else duckduckgo |
+| `desktop/color-grading.preset` | `string` | `"default"` | Preset before the toggle first picks one (default: warmer, more contrast; off: the output untouched) |
 | `desktop/cursor.active` | `bool` | `true` | Hyprland, X11, gtk and KDE apps take the palette's cursor; off, they keep the stock rose-pine one |
+| `desktop/cursor.size_px` | `int` | `30` | Pointer size in Hyprland, X11, gtk and KDE apps; scaled outputs ask for up to twice it |
+| `desktop/firefox.search_url` | `string?` | unset | Default search engine, {searchTerms} is the query; unset, the homelab's searxng on a homelab machine, else duckduckgo |
+| `desktop/firefox.extensions_off` | `list<string>` | `[]` | Force-installed extensions to leave out by id (seventv-next@7tv.app); the rest stay installed and unremovable |
+| `desktop/firefox.save_logins` | `bool` | `false` | Firefox offers to save passwords; off for a separate password manager |
+| `desktop/firefox.safe_browsing` | `bool` | `false` | Google Safe Browsing warnings for phishing, malware and downloads |
 | `desktop/ghostty.cursor_style` | `string` | `"block"` | Text cursor shape |
 | `desktop/ghostty.cursor_blink` | `bool` | `true` | Text cursor blinks |
 | `desktop/ghostty.window_columns` | `int` | `115` | A new window's width in cells |
@@ -288,14 +307,19 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/gtk.button_layout` | `string` | `":"` | Client-side title bar buttons, gnome's button-layout form (left:right, e.g. close,minimize:) |
 | `desktop/hyprland.monitors` | `list<record>?` | detected | One hl.monitor per output: output, mode, position, scale; detected from the connected outputs, any other output gets its preferred mode and an auto scale |
 | `desktop/hyprland.main_monitor` | `string?` | detected | The output holding workspace 1, the bar's notifications, steam's toasts and the tablet; detected: the internal panel, else the largest, leftmost on a tie |
-| `desktop/hyprland.workspaces` | `record?` | unset | Workspace to output; detected: the first ceil(10 / outputs) on the main monitor, the rest split over the others left to right |
-| `desktop/hyprland.xwayland_scale` | `int?` | unset | GDK_SCALE for X11 apps (force_zero_scaling); detected: the main monitor's scale rounded, else 1 on a laptop and 2 elsewhere |
+| `desktop/hyprland.bind_workspaces` | `bool` | `true` | Each workspace lives on its own monitor (the layout below); off, a workspace opens on the focused monitor |
+| `desktop/hyprland.workspaces` | `record?` | unset | Workspace to output; unset: the first ceil(10 / outputs) on the main monitor, the rest split over the others left to right |
+| `desktop/hyprland.xwayland_scale` | `int?` | unset | GDK_SCALE for X11 apps (force_zero_scaling); unset: the main monitor's scale rounded, else 1 on a laptop and 2 elsewhere |
 | `desktop/hyprland.app_workspaces` | `list<record>` | `[]` | Homes for apps by window class: {class, workspace, silent}; silent opens them without switching to their workspace or focusing them |
 | `desktop/hyprland.lock_screen` | `string` | `"quickshell"` | The lock screen hypridle and every lock key start; the other is the fallback |
 | `desktop/hyprland.monitor_speaker_volume` | `int?` | unset | Every DDC monitor's built-in speaker volume (VCP 0x62), set at session start; 0 silences speakers fed by DisplayPort audio, which can pop on wake |
 | `desktop/hyprland.autostart` | `list<record>` | `[]` | Apps started once per login: {cmd, workspace?, float?, after?}; workspace and float apply to the window the command's own process opens; after names a window class whose first window starts this one (an order on a shared workspace) |
 | `desktop/hyprland.pointer_sensitivity` | `float` | `0.0` | libinput pointer acceleration, -1 to 1 |
 | `desktop/hyprland.natural_scroll` | `bool` | `false` | Touchpad content follows the fingers |
+| `desktop/hyprland.left_handed` | `bool` | `false` | Swaps the primary and secondary mouse buttons |
+| `desktop/hyprland.accel_profile` | `string` | `"default"` | Pointer acceleration; flat turns it off, default is libinput's per device |
+| `desktop/hyprland.focus_follows_mouse` | `bool` | `true` | Focus moves to the window under the pointer; off, a click focuses |
+| `desktop/hyprland.cursor_shake` | `bool` | `true` | Shaking the pointer enlarges it (the dynamic-cursors plugin); off, the plugin is neither built nor loaded |
 | `desktop/hyprland.repeat_rate_hz` | `int` | `30` | Key repeats per second while held |
 | `desktop/hyprland.repeat_delay_ms` | `int` | `400` | Hold time before a key repeats |
 | `desktop/hyprland.numlock` | `bool` | `true` | Num lock on at login |
@@ -303,20 +327,26 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/hyprland.touchpad_scroll_factor` | `float` | `0.5` | Touchpad scroll distance multiplier |
 | `desktop/hyprland.cursor_hide_s` | `int` | `10` | Idle seconds until the cursor hides, 0 never |
 | `desktop/hyprland.gaps_in_px` | `int` | `4` | Gap between tiled windows |
+| `desktop/hyprland.border_px` | `int` | `1` | Window border width, the focused window's in the accent gradient |
 | `desktop/hyprland.gaps_out_px` | `int` | `8` | Gap between tiled windows and the screen edge |
 | `desktop/hyprland.blur` | `bool` | `true` | Blur behind translucent windows and popups |
+| `desktop/hyprland.blur_menus` | `bool` | `true` | Blur behind popups and untitled floating X11 windows (menus, tooltips) |
 | `desktop/hyprland.shadows` | `bool` | `true` | Drop shadows under windows |
 | `desktop/hyprland.animations` | `bool` | `true` | Window, layer and workspace animations; power saver turns them off regardless |
 | `desktop/hyprland.vrr` | `string` | `"off"` | Adaptive sync; fullscreen_games: fullscreen video and game windows only |
 | `desktop/hyprland.idle_dim_s` | `int` | `900` | Idle seconds until the screens dim |
 | `desktop/hyprland.idle_lock_s` | `int` | `1200` | Idle seconds until the session locks |
 | `desktop/hyprland.idle_dpms_s` | `int` | `2100` | Idle seconds until the screens go off |
+| `desktop/hyprland.idle_suspend` | `bool` | `true` | Suspend after the idle times below; off, idle never suspends |
+| `desktop/hyprland.idle_dim_monitors` | `bool` | `true` | Idle dim also lowers external monitors over DDC/CI; off, only the panel backlight and keyboard light dim |
 | `desktop/hyprland.idle_suspend_s` | `int` | `2400` | Idle seconds until suspend, unless an agent works or an inhibitor holds |
 | `desktop/hyprland.idle_dim_saver_s` | `int` | `300` | Idle seconds until the screens dim in power saver (a laptop on battery) |
 | `desktop/hyprland.idle_lock_saver_s` | `int` | `600` | Idle seconds until the session locks in power saver |
 | `desktop/hyprland.idle_dpms_saver_s` | `int` | `660` | Idle seconds until the screens go off in power saver |
 | `desktop/hyprland.idle_suspend_saver_s` | `int` | `1800` | Idle seconds until suspend in power saver |
+| `desktop/hyprland.screen_shader` | `string?` | unset | Shader each login starts with, a toggle-shader.nu list name (colorblind-correction:deuteranopia) |
 | `desktop/idle-guards.guards` | `list<string>` | `[media, mic, ssh]` | What holds off sleep: media (a player plays), mic (a microphone records), ssh (an ssh session is open) |
+| `desktop/kdeconnect.plugins_off` | `list<string>` | `[kdeconnect_notifications, kdeconnect_sendnotifications, kdeconnect_sms, kdeconnect_contacts, kdeconnect_mousepad, kdeconnect_remotekeyboard, kdeconnect_runcommand, kdeconnect_lockdevice, kdeconnect_shareinputdevices, kdeconnect_shareinputdevicesremote, kdeconnect_digitizer, kdeconnect_presenter]` | KDE Connect plugins turned off for every paired device on each apply; drop one to use it (phone notifications, SMS, the phone as remote or presenter) |
 | `desktop/kdeconnect.clipboard_auto` | `bool` | `false` | Send every desktop copy to the paired phone, passwords from a password manager excluded |
 | `desktop/ly.clock` | `string?` | `"%H:%M:%S"` | The greeter's clock, a strftime format; unset, no clock |
 | `desktop/ly.session` | `string` | `"Hyprland"` | Session preselected for a user ly has not seen yet; ly remembers each user's last one |
@@ -328,6 +358,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/plasma.kwin_outputs` | `bool?` | detected | Ship the committed kwin output layout; detected: on when a connected monitor's EDID is one it describes |
 | `desktop/plasma.locale` | `bool` | `true` | Ship plasma-localerc with core/locale's language |
 | `desktop/printing.page_size` | `string` | `"A4"` | Default paper of every queue (PPD PageSize) |
+| `desktop/qbittorrent.interface` | `string?` | unset | Interface qBittorrent is bound to; empty, none; unset, base/protonvpn's proton0 where the profile has secrets |
 | `desktop/quickshell.pomodoro_focus_min` | `int` | `25` | Minutes of one focus block |
 | `desktop/quickshell.pomodoro_break_min` | `int` | `5` | Minutes of the short break after a focus block |
 | `desktop/quickshell.pomodoro_long_break_min` | `int` | `15` | Minutes of the long break after the last focus block of a round |
@@ -348,11 +379,26 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/quickshell.fx_flicker` | `float` | `0.02` | CRT brightness flicker |
 | `desktop/quickshell.fx_matrix_rain` | `float` | `0.5` | Glyph rain on the lock screen |
 | `desktop/quickshell.fx_corner_brackets` | `bool` | `true` | Corner brackets on panels and cards |
+| `desktop/quickshell.fx_motion` | `bool` | `true` | Shell animations: glitch, shake, reveals, typing; off as under the power saver |
+| `desktop/quickshell.fx_glitch` | `bool` | `true` | Glitch flash on lock, unlock and launch |
+| `desktop/quickshell.desktop_quote` | `bool` | `true` | Daily quote on the wallpaper |
+| `desktop/quickshell.desktop_quotes_file` | `string?` | unset | JSON list of {text, author} to draw the daily quote from instead of the built-in one |
+| `desktop/quickshell.desktop_agenda` | `bool` | `true` | Tasks, reminders, events and the pomodoro on the wallpaper |
+| `desktop/quickshell.lock_show_media` | `bool` | `true` | Playing track on the lock screen |
+| `desktop/quickshell.lock_show_notifications` | `bool` | `true` | Unread notifications on the lock screen |
+| `desktop/quickshell.sounds` | `bool` | `true` | Chimes for alerts, reminders and pomodoro phases |
+| `desktop/quickshell.notification_position` | `string` | `"right"` | Corner of the screen popups stack in, below the bar |
+| `desktop/quickshell.weather_units` | `string` | `"metric"` | Units of the weather widget |
+| `desktop/quickshell.weather_location_sources` | `list<string>` | `[geoclue, timezone, ipgeo]` | Where weather looks for the location, in order, when none is pinned; geoclue and ipgeo ask online services |
+| `desktop/quickshell.clock_zones` | `list<string>` | `["NA West=America/Los_Angeles", "NA Central=America/Chicago", "NA East=America/New_York", "UK=Europe/London", "Central EU=Europe/Berlin", "NZ=Pacific/Auckland", "JP=Asia/Tokyo"]` | World clocks in the clock panel: an IANA zone, or label=zone |
+| `desktop/quickshell.bar_spectrum` | `bool` | `true` | Audio spectrum behind the bar's media widget |
+| `desktop/quickshell.agent_usage_limits` | `bool` | `true` | Rate-limit bars in the agents widget; each refresh sends a one-token request on your Claude plan |
 | `desktop/qutebrowser.search_url` | `string?` | detected | The default search engine, {} is the query; unset, the homelab's searxng on a homelab machine, else duckduckgo |
 | `desktop/qutebrowser.search_method` | `string` | `"GET"` | The startpage's search form method; most engines, the homelab's searxng too, take GET; POST works only in qutebrowser |
 | `desktop/qutebrowser.tabs_position` | `string` | `"top"` | Where the tab bar sits |
 | `desktop/qutebrowser.tabs_show` | `string` | `"multiple"` | When the tab bar shows: always, never, with more than one tab, or while switching |
 | `desktop/qutebrowser.statusbar_show` | `string` | `"in-mode"` | When the status bar shows; in-mode, only outside normal mode |
+| `desktop/qutebrowser.startpage_links` | `list<record>` | `[]` | Start page links, also firefox's home: {group, sub?, name, url}; for a profile without secrets, whose weblinks module writes them |
 | `desktop/qutebrowser.lists_max_age_days` | `int` | `7` | Age at which the adblock lists are fetched again on the next apply |
 | `gaming/d2launcher.base_dir` | `string?` | detected | A Diablo II: Lord of Destruction install the game dir is seeded from; detected in the lutris prefixes |
 | `gaming/d2launcher.resolution` | `string?` | detected | The monitor the render size derives from, WxH; detected from the focused monitor |
@@ -369,6 +415,8 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `gaming/pd2.game_dir` | `string?` | detected | The season 3 ProjectD2 dir; detected under ~/sync/games/d2 |
 | `gaming/pd2.save_dir` | `string?` | detected | Season 3's single player saves (.d2s, plugy's .d2x and .sss); detected as Save beside the install |
 | `gaming/pd2.s14_save_dir` | `string?` | detected | Season 14's single player saves and shared stash; detected as ~/sync/games/d2/Save-S14 when it exists |
+| `gaming/steam.launch_options` | `string` | `"gamemoderun mangohud %command%"` | Launch options filled into every installed game whose own are empty or ours; empty for none, %command% is the game |
+| `gaming/steam.millennium` | `bool` | `true` | The Millennium client mod with the themed cyberpunk skin; off unlinks it for this login, the package stays |
 | `gaming/vkbasalt.sharpness` | `float` | `0.4` | Contrast adaptive sharpening strength, vkBasalt.conf casSharpness |
 | `gaming/vkbasalt.enable_on_launch` | `bool` | `true` | Effects on from a game's start; Home toggles them |
 | `latex/sioyek.new_window` | `bool` | `true` | Open each file in its own window |
@@ -378,6 +426,8 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `llm/ollama.vram_percent` | `int` | `80` | Share of the largest gpu's vram ollama may fill; the rest stays free for the desktop, and a model that does not fit runs partly on the cpu |
 | `llm/ollama.parallel` | `int` | `4` | Requests one loaded model answers at once; each slot holds its own context in vram |
 | `llm/ollama.keep_alive_min` | `int` | `30` | Idle minutes before a loaded model is unloaded and ollama stops |
+| `llm/ollama.pull_models` | `bool` | `true` | Pull the pinned models (tens of GB) where a gpu has the vram for them; off leaves the store to ollama pull |
+| `llm/ollama.prune_unpinned` | `bool` | `true` | Remove every model the pins do not keep after a pull, those pulled by hand included |
 | `llm/vllm.model` | `string` | `"RogerS-01/Josiefied-Qwen3-8B-abliterated-v1-AWQ"` | The hugging face repo vllm serves; an uncensored 4-bit AWQ build of Josiefied-Qwen3-8B-abliterated-v1 |
 | `llm/vllm.model_revision` | `string` | `"0244c2514cc272a603368c0440ff3002143b2336"` | The model repo's commit, weights and tokenizer alike; bump from https://huggingface.co/api/models/<model>/revision/main |
 | `llm/vllm.tool_call_parser` | `string` | `"hermes"` | vllm's tool call parser for the model's chat format (hermes for qwen3, gemma4 for gemma 4) |
@@ -394,6 +444,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `programming/android.avd` | `string` | `"nya35"` | Name of the emulator image made from the system image; empty makes none |
 | `programming/android.avd_device` | `string` | `"pixel_6"` | Hardware profile of a new emulator image (avdmanager list device) |
 | `programming/cargo.sccache_redis` | `bool` | `false` | Compile through sccache with the homelab's shared redis cache (secret sccache.env); plain rustc whenever it is unreachable |
+| `programming/caveman.default_mode` | `string` | `"caveman"` | Voice every agent session starts in: off for normal replies, manual for only after /caveman |
 | `programming/claude.model` | `string` | `"claude-opus-5-5"` | The model every session starts on |
 | `programming/claude.effort` | `string` | `"medium"` | Reasoning effort of that model |
 | `programming/claude.voice` | `bool` | `true` | Voice dictation, hold to talk |
@@ -407,20 +458,24 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `programming/hermes.system_voice` | `string` | `"en_US-lessac-medium"` | Piper voice the system agent answers in |
 | `programming/hermes.system_stt_model` | `string` | `"small"` | Local whisper model the system agent hears with |
 | `programming/jetbrains.autostart` | `bool` | `false` | Toolbox starts with the session |
+| `programming/nvim.spell_languages` | `list<string>` | `[en]` | Spell-check languages of prose buffers (markdown, tex, commits), e.g. en, de; nvim offers to download a missing one |
+| `programming/nvim.dictation_language` | `string` | `"en"` | Language <M-v> dictation transcribes, a whisper code such as en or de, or auto to detect it |
 | `programming/offload.memory_cap_mib` | `int?` | unset | MiB the offload jobs of one user may use together (offload.slice), a job's memoryMiB at most this; none: half the RAM |
 | `programming/offload.cpus_cap` | `int?` | unset | CPUs the offload jobs of one user may use together, a job's cpus at most this; none: half the cores |
 | `programming/playwright.headless` | `bool` | `true` | The agents' browsers run without a window |
 | `programming/task.sync_url` | `string?` | unset | The taskchampion server every replica syncs with as the one client of configs/secrets/keys/taskwarrior-*; none: no sync |
 | `programming/task.recurrence` | `bool` | `true` | This replica creates the instances of recurring tasks; one per sync, or each adds its own copy (task-sync(5)) |
-| `programming/task.sync_interval_min` | `int` | `30` | Minutes between the timer's syncs, stepped within each hour |
+| `programming/task.sync_interval_min` | `int` | `30` | Minutes between the timer's syncs; a divisor of 60, so the steps within each hour are even |
 | `programming/task.week_start` | `string` | `"Monday"` | First day of the week |
 | `programming/task.date_format` | `string` | `"d.m.y"` | Taskwarrior date format of input, reports and annotations |
 | `programming/trmnl-claude.poster` | `bool` | `false` | This machine posts its Claude usage to the TRMNL panel; one poster per panel, a second would overwrite it |
-| `programming/trmnl-claude.interval_min` | `int` | `15` | Minutes between posts, stepped within each hour |
+| `programming/trmnl-claude.interval_min` | `int` | `15` | Minutes between posts; a divisor of 60, so the steps within each hour are even |
 | `programming/zed.vim_mode` | `bool` | `true` | Vim keys in the editor |
 | `programming/zed.format_on_save` | `bool` | `true` | Format a buffer on save |
 | `qemu/libvirt.nested` | `bool` | `true` | KVM guests may run their own guests |
 | `qemu/waydroid.multi_windows` | `bool` | `true` | Each Android app in its own resizable window |
+| `socials/discord.plugins` | `list<string>` | `[LastMessageDate, ZipPreview, DoNotTrack, BetterDoubleClickToEdit, DoubleClickToReply, "LaTeX Generator", PriorityDM, Incognito, "High-Res Profile Images", OpenInApp, SpotifyEnhance, "Hide Chat Icons"]` | Third-party BetterDiscord plugins fetched at their pins and enabled; empty for none (client mods break Discord's terms) |
+| `socials/discord.devtools` | `bool` | `true` | Discord's devtools (ctrl+shift+i), to debug a plugin; the console is where self-XSS scams ask to paste code |
 | `socials/spotify.adblock` | `bool` | `true` | Inject spicetify's adblock extension |
 | `socials/spotify.music_videos_hidden` | `bool` | `true` | Inject the extension that hides music videos |
 <!-- options end -->

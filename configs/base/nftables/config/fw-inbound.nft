@@ -33,11 +33,11 @@ table inet fw {
 
         # the knock is in a public repo, so it only keeps scanners out of sshd's log; publickey-only auth guards sshd
         # per source, in place of a log-reading daemon: nothing to guess with publickey-only, this only bounds the noise
-        tcp dport @SSH_PORT@ ct state new update @ssh_flood { ip saddr limit rate over @SSH_RATE@ } drop
-        ip saddr @ssh_allowed tcp dport @SSH_PORT@ ct state new accept
-        tcp dport @KNOCK_3@ ip saddr @knock2 update @ssh_allowed { ip saddr }
-        tcp dport @KNOCK_2@ ip saddr @knock1 update @knock2 { ip saddr }
-        tcp dport @KNOCK_1@ update @knock1 { ip saddr }
+        @SSH_RULE_PREFIX@tcp dport @SSH_PORT@ ct state new update @ssh_flood { ip saddr limit rate over @SSH_RATE@ } drop
+        @SSH_RULE_PREFIX@ip saddr @ssh_allowed tcp dport @SSH_PORT@ ct state new accept
+        @SSH_RULE_PREFIX@tcp dport @KNOCK_3@ ip saddr @knock2 update @ssh_allowed { ip saddr }
+        @SSH_RULE_PREFIX@tcp dport @KNOCK_2@ ip saddr @knock1 update @knock2 { ip saddr }
+        @SSH_RULE_PREFIX@tcp dport @KNOCK_1@ update @knock1 { ip saddr }
 
         iifname @trusted_links tcp dport { 22, 1714-1764, 9757, 22000, 53317 } accept
         iifname @trusted_links udp dport { 1714-1764, 5353, 9757, 22000, 53317 } accept

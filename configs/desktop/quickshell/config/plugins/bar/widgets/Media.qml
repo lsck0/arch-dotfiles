@@ -95,7 +95,8 @@ BarWidget {
     Cava.source = spectrumSource
   }
 
-  readonly property bool barSpectrum: setting("barSpectrum", true) === true
+  // bar_spectrum in mod.nu, unless this widget's own setting says otherwise
+  readonly property bool barSpectrum: setting("barSpectrum", Prefs.barSpectrum) === true
   readonly property bool spectrumLive: barSpectrum && visible && Cava.available && playing
     && !(root.bar && root.bar.quiet)
 
@@ -140,7 +141,8 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       width: Style.space(200)
       elide: Text.ElideRight
-      text: root.line
+      text: (MediaState.pinnedPlayer !== "" && root.player && root.player.dbusName === MediaState.pinnedPlayer
+        ? "\u{f0403} " : "") + root.line
       dim: true
     }
   }

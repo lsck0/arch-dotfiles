@@ -1,7 +1,8 @@
 use module.nu *
 use ../../base/bootvine/mod.nu [CONSOLE_PALETTE palette-channels]
 
-export const meta = {packages: {pacman: [ly]}}
+# core/locale's language picks the greeter's
+export const meta = {packages: {pacman: [ly]}, reads: [core/locale]}
 
 export const options = {
     clock: {
@@ -22,7 +23,8 @@ export const options = {
 const ETC = "/etc/ly"
 const SESSIONS = $ETC | path join sessions
 const SAVE = $ETC | path join save.txt
-const LANG_STOCK = $ETC | path join lang en.ini
+const LANG_DIR = $ETC | path join lang
+const LANG_FALLBACK = "en"
 const UID_MIN = 1000
 const UID_MAX = 59999
 const NO_LOGIN = '(nologin|false)$'
@@ -30,9 +32,19 @@ const NO_LOGIN = '(nologin|false)$'
 const HINT_GAP = "\u{a0}\u{a0}\u{a0}"
 const HINT_KEYS = '^(shutdown|restart|sleep|hibernate|toggle_password|brightness_down|brightness_up) = '
 
-# The stock en lang with F4's hint renamed to reboot-to-firmware, so a ly update keeps the rest in step.
-def lang-render []: nothing -> string {
-    open --raw $LANG_STOCK | lines | each {|line|
+# ly's own lang file for a LANG (de_DE.UTF-8: de_DE.ini, else de.ini), else the english one.
+def lang-stock [lang: any]: nothing -> path {
+    let code = $lang | default "" | split row "." | first
+    [$code ($code | split row "_" | first)] | where $it != "" | each { $LANG_DIR | path join $"($in).ini" }
+        | where { path exists } | get --optional 0 | default ($LANG_DIR | path join $"($LANG_FALLBACK).ini")
+}
+
+# The stock lang with F4's hint renamed to reboot-to-firmware (added where a translation lacks it), so a ly update
+# keeps the rest in step.
+def lang-render [stock: path]: nothing -> string {
+    let lines = open --raw $stock | lines
+    let lines = if ($lines | any { str starts-with "hibernate = " }) { $lines } else { $lines | append "hibernate = " }
+    $lines | each {|line|
         let line = if ($line | str starts-with "hibernate = ") { "hibernate = reboot to firmware" } else { $line }
         if $line =~ $HINT_KEYS { $"($line)($HINT_GAP)" } else { $line }
     } | to text
@@ -40,11 +52,12 @@ def lang-render []: nothing -> string {
 
 export def system [cfg: record] {
     let sessions = [config/sessions/hyprland.desktop config/sessions/plasma.desktop]
+    let stock = lang-stock $cfg.deps?."core/locale"?.lang?
     let foreign = if ($SESSIONS | path exists) { ls $SESSIONS | get name | where ($it | path basename) not-in ($sessions | path basename) } else { [] }
     [
         # ly starts before /home is mounted, so every file is a real one in /etc
         (file-render config/config.ini ($ETC | path join config.ini) {CLOCK: ($cfg.clock | default "null")})
-        (if ($LANG_STOCK | path exists) { file-text ($ETC | path join lang lsck0.ini) (lang-render) })
+        (if ($stock | path exists) { file-text ($LANG_DIR | path join lsck0.ini) (lang-render $stock) })
         (if ($foreign | is-not-empty) { exec "foreign sessions" [rm --force ...$foreign] })
         (files-into $SESSIONS ...$sessions)
         (step save-defaults $cfg.session)

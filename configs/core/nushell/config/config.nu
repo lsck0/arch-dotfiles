@@ -124,6 +124,6 @@ source $WAL
 # terminal
 let nested = [TMUX HERDR_ENV NVIM] | any {|name| $name in $env }
 let fetch = $nu.is-interactive and (is-terminal --stdout) and ("TERM" in $env) and $env.TERM != "dumb" and not $nested
-if $fetch and (which fastfetch | is-not-empty) {
+if $fetch and (which @FASTFETCH@ | is-not-empty) {
     fastfetch
 }

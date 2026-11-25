@@ -49,6 +49,13 @@ export const options = {
         label: "Status bar shown"
         scope: user
     }
+    startpage_links: {
+        type: list<record>
+        default: []
+        doc: "Start page links, also firefox's home: {group, sub?, name, url}; for a profile without secrets, whose weblinks module writes them"
+        label: "Start page links"
+        scope: user
+    }
     # qutebrowser never updates them itself
     lists_max_age_days: {
         type: int
@@ -95,6 +102,10 @@ export def link [cfg: record] {
             TABS_POSITION: $cfg.tabs_position, TABS_SHOW: $cfg.tabs_show, STATUSBAR_SHOW: $cfg.statusbar_show
         })
         (file-text ($dir | path join search-url) $"($cfg.search_url | default $SEARCH_DEFAULT)\n")
+        # startpage.html loads weblinks/links.js, the owner's secrets module's otherwise
+        (if ($cfg.startpage_links | is-not-empty) and not (profile-has secrets) {
+            file-text (xdg data weblinks links.js) $"const weblinks = ($cfg.startpage_links | to json --raw);\n"
+        })
         (step lists-fetch ($cfg.lists_max_age_days | into string) --network --done=(lists-ready $cfg.lists_max_age_days))
     ]
 }

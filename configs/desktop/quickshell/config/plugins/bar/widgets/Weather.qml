@@ -27,6 +27,8 @@ BarWidget {
   readonly property real hourlyTempMax: hourlyTemps.length > 0 ? Math.max.apply(null, hourlyTemps) : 0
   readonly property string units: report && report.units ? report.units.temp : "\u00b0C"
   readonly property string windUnits: report && report.units ? report.units.wind : "km/h"
+  readonly property string precipUnits: report && report.units && report.units.precip ? report.units.precip : "mm"
+  readonly property string pressureUnits: report && report.units && report.units.pressure ? report.units.pressure : "hPa"
 
   readonly property var wmo: [
     [0, 0, "\u{f0599}", "\u{f0594}", "clear"],
@@ -61,6 +63,7 @@ BarWidget {
 
   // a temperature with its unit; the chart axis and the day tiles, under the hero that names it, keep the bare degree
   function t(v) { return Number(v).toFixed(1) + root.units }
+  function precip(v) { const scale = root.precipUnits === "inch" ? 100 : 10; return Math.round(Number(v) * scale) / scale }
   function degrees(v) { return Number(v).toFixed(1) + "\u00b0" }
   function n0(v) { return Math.round(Number(v)) }
 
@@ -411,7 +414,8 @@ BarWidget {
 
         Stat {
           glyph: "\u{f0597}"; label: "RAIN NOW"
-          value: root.current ? (Math.round(Number(root.current.precip) * 10) / 10) + " mm" : "--"
+          // an inch takes two decimals for what a millimetre shows in one
+          value: root.current ? root.precip(root.current.precip) + " " + root.precipUnits : "--"
         }
         Stat {
           glyph: "\u{f054a}"; label: "POP 1H"
@@ -439,7 +443,7 @@ BarWidget {
         }
         Stat {
           glyph: "\u{f029a}"; label: "PRESSURE"
-          value: root.current ? root.n0(root.current.pressure) + " hPa" : "--"
+          value: root.current ? root.n0(root.current.pressure) + " " + root.pressureUnits : "--"
         }
         Stat {
           glyph: "\u{f0599}"; label: "UV"

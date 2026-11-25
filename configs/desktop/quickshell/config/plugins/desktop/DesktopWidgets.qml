@@ -28,7 +28,10 @@ Item {
   readonly property int quoteMinWidth: Style.space(240)
   readonly property int quoteWidth: Style.space(560)
   readonly property int quoteMargin: Style.spacing.lg * 3
-  property var quote: Quotes.forDate(new Date())
+  // desktop_quotes_file: the person's own list, ~ for the home; unset, unreadable or empty, the built-in one
+  readonly property string quotesPath: Prefs.desktopQuotesFile.replace(/^~(?=\/|$)/, Paths.home)
+  property var customQuotes: []
+  property var quote: Quotes.forDate(new Date(), customQuotes)
 
   // the wallpaper Background shows, and whether it is on its way to another. A wallpaper may carry a quote of its own
   // (wallpapers/quotes.json, read from the repo so an edit shows at once), which then stands in for the daily one.
@@ -42,6 +45,18 @@ Item {
     onLoaded: root.wallpaperQuotes = Util.parseObject(text())
   }
 
+  WatchedFile {
+    path: root.quotesPath
+    onLoaded: {
+      var parsed
+      try { parsed = JSON.parse(text()) } catch (e) { parsed = [] }
+      root.customQuotes = Quotes.fromList(parsed)
+    }
+    onLoadFailed: root.customQuotes = []
+  }
+  onQuotesPathChanged: if (quotesPath === "") customQuotes = []
+  onCustomQuotesChanged: quote = Quotes.forDate(new Date(), customQuotes)
+
   // the quote changes at midnight; a minute's poll is fine for a daily one and, unlike a timer aimed at midnight,
   // holds across a suspend
   Timer {
@@ -49,7 +64,7 @@ Item {
     running: true
     repeat: true
     onTriggered: {
-      const next = Quotes.forDate(new Date())
+      const next = Quotes.forDate(new Date(), root.customQuotes)
       if (next !== root.quote) root.quote = next
     }
   }
@@ -108,7 +123,8 @@ Item {
         anchors.rightMargin: root.quoteMargin
         width: measure
         spacing: Style.spacing.sm
-        visible: !screenGuard.remapping && measure >= root.quoteMinWidth && widgetColumn.y + widgetColumn.height < y
+        visible: Prefs.desktopQuote && !screenGuard.remapping && measure >= root.quoteMinWidth
+          && (!widgetColumn.visible || widgetColumn.y + widgetColumn.height < y)
         opacity: panel.panelOverQuote || root.wallpaperChanging ? 0 : 1
         layer.enabled: true
 
@@ -169,7 +185,7 @@ Item {
         anchors.topMargin: Style.bar.sizeHorizontal + Style.spacing.lg
         anchors.rightMargin: Style.spacing.lg
         spacing: Style.spacing.md
-        visible: !screenGuard.remapping
+        visible: Prefs.desktopAgenda && !screenGuard.remapping
         opacity: panel.widgetsHidden ? 0 : 1
 
         FadeBehavior on opacity {}

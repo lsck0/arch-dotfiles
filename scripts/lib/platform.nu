@@ -13,13 +13,13 @@ const FORM_FACTORS = [desktop laptop server vm wsl]
 # How dot set lands a platform key: live is stored and read where it is used, apply waits for the next dot apply (both
 # layers), packages for the next dot apply --packages.
 export const PLATFORM_APPLY = [live apply packages]
-# The facts a platform file may set, typed like module options; platform-env hands each, form_factor too, to modules as
-# an uppercase env var.
+# The facts a platform file may set, typed like module options (a string's format as a pattern); platform-env hands
+# each, form_factor too, to modules as an uppercase env var.
 export const PLATFORM_FACTS = {
     homelab: {type: bool, default: false, label: "Homelab", doc: "On the homelab: its DNS, mirror and services"}
     wireguard: {type: "string?", default: null, label: "WireGuard", doc: "The tunnel config in configs/secrets/keys, as wireguard/<name>.conf"}
     secure_boot_own_keys: {type: bool, default: false, label: "Own secure boot keys", doc: "Signs the boot chain with its own enrolled keys"}
-    lsck0_snapshot: {type: "string?", default: null, label: "lsck0 snapshot", doc: "Pins [lsck0] to a dated snapshot, YYYY-MM-DD"}
+    lsck0_snapshot: {type: "string?", default: null, pattern: '^\d{4}-\d{2}-\d{2}$', label: "lsck0 snapshot", doc: "Pins [lsck0] to a dated snapshot, YYYY-MM-DD"}
     offload: {type: "string?", default: null, choices: [target client], label: "Offload role", doc: "Runs offloaded jobs (target) or sends them (client)"}
 }
 # Every key of a platform file but facts, typed like module options. hostname names the platform and stays fixed.
@@ -102,7 +102,7 @@ export def platform-errors [repo: path, raw: record, file: string]: nothing -> l
     $keys ++ $typed
 }
 
-# Why value does not fit the platform key at cell: its type and choices, a list's entries, the groups' existence.
+# Why value does not fit the platform key at cell: its type, choices and pattern, a list's entries, the groups' existence.
 export def platform-value-errors [repo: path, cell: list<string>, value: any, file: string]: nothing -> list<string> {
     let spec = platform-spec $cell
     let id = $cell | drop | prepend $PLATFORM_TARGET | str join "."
@@ -194,8 +194,43 @@ export def display-xwayland-scale [form_factor: string]: nothing -> int {
     if $form_factor == "laptop" { 1 } else { 2 }
 }
 
+# A laptop's built-in panel by output name.
+export const INTERNAL_PANEL = '^(eDP|LVDS|DSI)-'
+
+# The main output of a monitors list ({output, mode}, desktop/hyprland's option): the internal panel, else the
+# largest, the first on a tie; null for none.
+export def monitors-main [monitors: list<record>]: nothing -> any {
+    let internal = $monitors | where output =~ $INTERNAL_PANEL
+    if ($internal | is-not-empty) { return $internal.0.output }
+    let sized = $monitors | each {|m|
+        let size = $m.mode | parse --regex '(?<w>\d+)x(?<h>\d+)' | into int w h | get --optional 0 | default {w: 0, h: 0}
+        {output: $m.output, area: ($size.w * $size.h)}
+    }
+    if ($sized | is-empty) { return null }
+    $sized | where area == ($sized.area | math max) | first | get output
+}
+
+# GDK_SCALE a monitors list implies: the main output's scale rounded, at least 1; the form factor's when the main
+# output has no numeric scale (none, or hyprland's "auto").
+export def monitors-xwayland-scale [monitors: list<record>, main: any, form_factor: string]: nothing -> int {
+    let scale = $monitors | where output == $main | get --optional 0.scale
+    if ($scale | describe) not-in [int float] { return (display-xwayland-scale $form_factor) }
+    [1 ($scale | math round | into int)] | math max
+}
+
+# Vram by pci address from nvidia-smi, as the proprietary driver puts none in sysfs; empty without it.
+def nvidia-vram []: nothing -> record {
+    if not ("/proc/driver/nvidia/version" | path exists) or (which nvidia-smi | is-empty) { return {} }
+    let run = do { ^timeout 5 nvidia-smi --query-gpu=pci.bus_id,memory.total --format=csv,noheader,nounits } | complete
+    if $run.exit_code != 0 { return {} }
+    # its bus id carries an 8-digit domain where sysfs has 4
+    $run.stdout | lines | parse --regex '^0*(?<bus>[0-9A-Fa-f]{4}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}\.[0-9]), *(?<mib>\d+)'
+        | reduce --fold {} {|r, acc| $acc | insert ($r.bus | str lowercase) (($r.mib | into int) * 1MiB) }
+}
+
 # The DRM cards, best first: most vram, then the one the firmware booted on.
 export def gpu-list []: nothing -> table {
+    let nvidia = nvidia-vram
     glob /sys/class/drm/card[0-9]* | where ($it | path basename) =~ '^card\d+$' | each {|card|
         let dev = $card | path join device
         let read = {|f| file-trim ($dev | path join $f) }
@@ -204,7 +239,7 @@ export def gpu-list []: nothing -> table {
         {
             index: ($card | path basename | str replace card "" | into int)
             vendor: ($GPU_VENDORS | get --optional (do $read vendor) | default other)
-            vram: (do $read mem_info_vram_total | if ($in | is-empty) { 0 } else { into int } | into filesize)
+            vram: (do $read mem_info_vram_total | if ($in | is-empty) { $nvidia | get --optional $pci | default 0 } else { into int } | into filesize)
             boot_vga: ((do $read boot_vga) == "1")
             render: (if $render == null { null } else { $"/dev/dri/($render)" })
             by_path: $"/dev/dri/by-path/pci-($pci)-render"

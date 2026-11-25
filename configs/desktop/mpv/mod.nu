@@ -1,6 +1,11 @@
 use module.nu *
+use ../../core/yt-dlp/mod.nu [vpn-routed]
 
-export const meta = {packages: {pacman: [mpv mpv-mpris]}}
+# core/yt-dlp's vpn-routed reads the two inputs
+export const meta = {
+    packages: {pacman: [mpv mpv-mpris]}, reads: [core/yt-dlp]
+    inputs: [configs/secrets/keys/protonvpn-netns.conf /usr/local/bin/yt-dlp]
+}
 
 export const options = {
     ytdl_max_height: {
@@ -22,7 +27,10 @@ export const options = {
 export def link [cfg: record] {
     let screenshots = $nu.home-dir | path join pictures screenshots
     [
-        (file-render config/mpv.conf (xdg config mpv mpv.conf) {YTDL_MAX_HEIGHT: $cfg.ytdl_max_height, SCREENSHOTS: $screenshots, HWDEC: $cfg.hwdec})
+        (file-render config/mpv.conf (xdg config mpv mpv.conf) {
+            YTDL_MAX_HEIGHT: $cfg.ytdl_max_height, SCREENSHOTS: $screenshots, HWDEC: $cfg.hwdec
+            YTDL: (if (vpn-routed $cfg.deps."core/yt-dlp") { "no" } else { "yes" })
+        })
         (exec mpv-screenshots [mkdir -p $screenshots] --creates $screenshots)
     ]
 }

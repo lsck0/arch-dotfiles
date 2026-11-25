@@ -6,12 +6,12 @@ use ../../core/wallust/scripts/palette.nu [
 ]
 use ../../core/wallust/scripts/font.nu [font-load]
 use scripts/plugins.nu [plugins-missing plugins-unloaded]
-use scripts/lid.nu [INTERNAL_PANEL]
 
 export const meta = {
     deps: [base/essentials]
-    # SUPER+a, e and n start base/xdg's first browser, file manager and editor
-    reads: [base/xdg]
+    # SUPER+a, e and n start base/xdg's first browser, file manager and editor; desktop/cursor's size and
+    # desktop/shimoji's enable reach platform.lua
+    reads: [base/xdg desktop/cursor desktop/shimoji]
     packages: {
         pacman: [
             app2unit bemenu-wayland brightnessctl cpio ddcutil grim hyprcursor hypridle hyprland hyprlock hyprpicker
@@ -21,8 +21,9 @@ export const meta = {
             xdg-desktop-portal-kde xorg-server xorg-xauth xorg-xhost xorg-xinput xorg-xrdb xorg-xwayland ydotool
         ]
     }
-    # core/locale's keyboard, written by localectl: a layout change re-renders platform.lua
-    inputs: [/etc/X11/xorg.conf.d/00-keyboard.conf]
+    # core/locale's keyboard, written by localectl: a layout change re-renders platform.lua; the applications dirs'
+    # mtimes: an app installed or removed changes which default app a key starts
+    inputs: [/etc/X11/xorg.conf.d/00-keyboard.conf /usr/share/applications ~/.local/share/applications]
 }
 
 export const options = {
@@ -38,17 +39,25 @@ export const options = {
         doc: "The output holding workspace 1, the bar's notifications, steam's toasts and the tablet; detected: the internal panel, else the largest, leftmost on a tie"
         group: display
     }
+    bind_workspaces: {
+        type: bool
+        default: true
+        doc: "Each workspace lives on its own monitor (the layout below); off, a workspace opens on the focused monitor"
+        label: "Bind workspaces to monitors"
+        group: display
+        scope: user
+    }
     workspaces: {
         type: record?
         default: null
-        doc: "Workspace to output; detected: the first ceil(10 / outputs) on the main monitor, the rest split over the others left to right"
+        doc: "Workspace to output; unset: the first ceil(10 / outputs) on the main monitor, the rest split over the others left to right"
         label: "Workspace layout"
         group: display
     }
     xwayland_scale: {
         type: int?
         default: null
-        doc: "GDK_SCALE for X11 apps (force_zero_scaling); detected: the main monitor's scale rounded, else 1 on a laptop and 2 elsewhere"
+        doc: "GDK_SCALE for X11 apps (force_zero_scaling); unset: the main monitor's scale rounded, else 1 on a laptop and 2 elsewhere"
         label: "XWayland scale"
         group: display
         min: 1
@@ -108,6 +117,26 @@ export const options = {
         group: input
         scope: user
     }
+    left_handed: {type: bool, default: false, doc: "Swaps the primary and secondary mouse buttons", label: "Left-handed", group: input, scope: user}
+    accel_profile: {
+        type: string
+        default: default
+        choices: [default adaptive flat]
+        doc: "Pointer acceleration; flat turns it off, default is libinput's per device"
+        label: "Pointer acceleration"
+        group: input
+        scope: user
+    }
+    focus_follows_mouse: {type: bool, default: true, doc: "Focus moves to the window under the pointer; off, a click focuses", label: "Focus follows mouse", group: input, scope: user}
+    cursor_shake: {
+        type: bool
+        default: true
+        doc: "Shaking the pointer enlarges it (the dynamic-cursors plugin); off, the plugin is neither built nor loaded"
+        label: "Shake to find cursor"
+        group: input
+        scope: user
+        apply: relogin
+    }
     repeat_rate_hz: {type: int, default: 30, doc: "Key repeats per second while held", label: "Key repeat rate", group: input, min: 1, max: 100, scope: user}
     repeat_delay_ms: {type: int, default: 400, doc: "Hold time before a key repeats", label: "Key repeat delay", group: input, min: 100, max: 2000, step: 50, scope: user}
     numlock: {type: bool, default: true, doc: "Num lock on at login", label: "Num lock", group: input, scope: user}
@@ -115,8 +144,10 @@ export const options = {
     touchpad_scroll_factor: {type: float, default: 0.5, doc: "Touchpad scroll distance multiplier", label: "Touchpad scroll speed", group: input, min: 0.1, max: 3.0, step: 0.05, scope: user}
     cursor_hide_s: {type: int, default: 10, doc: "Idle seconds until the cursor hides, 0 never", label: "Hide cursor after", group: input, min: 0, max: 600, scope: user}
     gaps_in_px: {type: int, default: 4, doc: "Gap between tiled windows", label: "Inner gaps", group: layout, min: 0, max: 64, scope: user}
+    border_px: {type: int, default: $BORDER_PX, doc: "Window border width, the focused window's in the accent gradient", label: "Border width", group: layout, min: 0, max: 16, scope: user}
     gaps_out_px: {type: int, default: 8, doc: "Gap between tiled windows and the screen edge", label: "Outer gaps", group: layout, min: 0, max: 64, scope: user}
     blur: {type: bool, default: true, doc: "Blur behind translucent windows and popups", label: "Blur", group: layout, scope: user}
+    blur_menus: {type: bool, default: true, doc: "Blur behind popups and untitled floating X11 windows (menus, tooltips)", label: "Blur menus", group: layout, scope: user}
     shadows: {type: bool, default: true, doc: "Drop shadows under windows", label: "Shadows", group: layout, scope: user}
     animations: {type: bool, default: true, doc: "Window, layer and workspace animations; power saver turns them off regardless", label: "Animations", group: layout, scope: user}
     vrr: {
@@ -130,11 +161,22 @@ export const options = {
     idle_dim_s: {type: int, default: 900, doc: "Idle seconds until the screens dim", label: "Dim after", group: idle, min: 60, scope: user}
     idle_lock_s: {type: int, default: 1200, doc: "Idle seconds until the session locks", label: "Lock after", group: idle, min: 60, scope: user}
     idle_dpms_s: {type: int, default: 2100, doc: "Idle seconds until the screens go off", label: "Screens off after", group: idle, min: 60, scope: user}
+    idle_suspend: {type: bool, default: true, doc: "Suspend after the idle times below; off, idle never suspends", label: "Suspend when idle", group: idle, scope: user}
+    idle_dim_monitors: {type: bool, default: true, doc: "Idle dim also lowers external monitors over DDC/CI; off, only the panel backlight and keyboard light dim", label: "Dim external monitors", group: idle, scope: machine}
     idle_suspend_s: {type: int, default: 2400, doc: "Idle seconds until suspend, unless an agent works or an inhibitor holds", label: "Suspend after", group: idle, min: 60, scope: user}
     idle_dim_saver_s: {type: int, default: 300, doc: "Idle seconds until the screens dim in power saver (a laptop on battery)", label: "Dim in power saver after", group: idle, min: 60, scope: user}
     idle_lock_saver_s: {type: int, default: 600, doc: "Idle seconds until the session locks in power saver", label: "Lock in power saver after", group: idle, min: 60, scope: user}
     idle_dpms_saver_s: {type: int, default: 660, doc: "Idle seconds until the screens go off in power saver", label: "Screens off in power saver after", group: idle, min: 60, scope: user}
     idle_suspend_saver_s: {type: int, default: 1800, doc: "Idle seconds until suspend in power saver", label: "Suspend in power saver after", group: idle, min: 60, scope: user}
+    screen_shader: {
+        type: string?
+        default: null
+        doc: "Shader each login starts with, a toggle-shader.nu list name (colorblind-correction:deuteranopia)"
+        label: "Screen shader at login"
+        group: display
+        scope: user
+        apply: relogin
+    }
 }
 
 const CONFIG_DIR = ".config/hypr"
@@ -154,8 +196,14 @@ const SCALES = [1.0 1.25 1.5 1.666667 2.0 2.5 3.0]
 const WIDTH_FALLBACK_PX = 1920
 const REFRESH_FLUID_HZ = 50.0
 const PLUGINS = path self scripts/plugins.nu
+# input.follow_mouse: 1 focuses the window under the pointer, 2 only on a click
+const FOLLOW_MOUSE = {on: 1, off: 2}
+# desktop/cursor's size_px default, for a platform whose groups leave that module out
+const CURSOR_SIZE_FALLBACK_PX = 30
 # misc.vrr's values by the vrr option's choice
 const VRR_MODES = {off: 0, on: 1, fullscreen: 2, fullscreen_games: 3}
+# system and flatpak desktop entries, after the user's own
+const DESKTOP_DIRS = [/var/lib/flatpak/exports/share/applications /usr/local/share/applications /usr/share/applications]
 
 # A Hyprland instance dir whose lock names a running pid; a dead one keeps its dir and socket file behind.
 def instance-alive [dir: path]: nothing -> bool {
@@ -212,17 +260,6 @@ def monitors-detect []: nothing -> list<record> {
     } | get rows
 }
 
-def main-pick [monitors: list<record>]: nothing -> any {
-    let internal = $monitors | where output =~ $INTERNAL_PANEL
-    if ($internal | is-not-empty) { return $internal.0.output }
-    let sized = $monitors | each {|m|
-        let size = $m.mode | parse --regex '(?<w>\d+)x(?<h>\d+)' | into int w h | get --optional 0 | default {w: 0, h: 0}
-        {output: $m.output, area: ($size.w * $size.h)}
-    }
-    if ($sized | is-empty) { return null }
-    $sized | where area == ($sized.area | math max) | first | get output
-}
-
 def workspaces-split [outputs: list<string>, main: any]: nothing -> record {
     if ($outputs | length) < 2 { return {} }
     let others = $outputs | where $it != $main
@@ -255,53 +292,54 @@ def lua-from [value: any]: nothing -> string {
     }
 }
 
-def xwayland-scale [scale: any]: nothing -> int {
-    if $scale == null { display-xwayland-scale $env.FORM_FACTOR } else { [1 ($scale | math round | into int)] | math max }
-}
-
-# The workspace split and X11 scale a monitor layout implies.
-def layout-derive [monitors: list<record>, main: any]: nothing -> record {
-    {
-        workspaces: (workspaces-split ($monitors | each { $in.output }) $main)
-        xwayland_scale: (xwayland-scale ($monitors | where output == $main | get --optional 0.scale))
-    }
-}
-
+# Only the live outputs: outside a running Hyprland (a tty, the install chain) nothing lands. The workspace split and
+# X11 scale follow from the resolved monitors in platform-lua (and xwayland-scale-for), so set monitors drive them too.
 export def detect [cfg: record]: nothing -> record {
     let monitors = monitors-detect
-    let main = main-pick $monitors
-    {monitors: $monitors, main_monitor: $main} | merge (layout-derive $monitors $main)
+    if ($monitors | is-empty) { return {} }
+    {monitors: $monitors, main_monitor: (monitors-main $monitors)}
 }
 
-# A default app's desktop entry and short name (org.kde.dolphin.desktop: dolphin); none set, no bind.
+# A default app's desktop entry and short name (org.kde.dolphin.desktop: dolphin): the first one installed, as xdg-open
+# walks the list; none installed, no bind.
 def app-default [entries: list<string>]: nothing -> any {
-    let id = $entries | get --optional 0
+    let dirs = [(xdg data applications) (xdg data flatpak exports share applications) ...$DESKTOP_DIRS]
+    let id = $entries | where {|e| $dirs | any {|d| $d | path join $e | path exists } } | get --optional 0
     if $id == null { return null }
     {desktop: $id, name: ($id | str replace --regex '\.desktop$' '' | split row . | last)}
 }
 
-# Detect sees no output outside hyprland: picks over the platform's monitors keep platform.lua stable.
+def cursor-size [cursor: any]: nothing -> int { $cursor.size_px? | default $CURSOR_SIZE_FALLBACK_PX }
+
+# The resolved monitors (set, else detected; none outside a live hyprland) drive the main pick, workspace split and X11
+# scale, so an apply from a tty renders what one inside the session does.
 def platform-lua [cfg: record]: nothing -> string {
     let backlight = glob /sys/class/leds/*kbd_backlight* | path basename | get --optional 0
     let monitors = $cfg.monitors | default []
-    let main = $cfg.main_monitor | default (main-pick $monitors)
-    let derived = layout-derive $monitors $main
+    let main = $cfg.main_monitor | default (monitors-main $monitors)
     let xdg = $cfg.deps."base/xdg"
     let facts = {
-        xwayland_scale: ($cfg.xwayland_scale | default $derived.xwayland_scale | into string)
+        xwayland_scale: ($cfg.xwayland_scale | default (monitors-xwayland-scale $monitors $main $env.FORM_FACTOR) | into string)
         main_monitor: $main
         monitors: $monitors
-        workspaces: ($cfg.workspaces | default $derived.workspaces)
+        workspaces: (if $cfg.bind_workspaces { $cfg.workspaces | default (workspaces-split ($monitors | each { $in.output }) $main) } else { {} })
         app_workspaces: $cfg.app_workspaces
         autostart: $cfg.autostart
         monitor_speaker_volume: $cfg.monitor_speaker_volume
         keyboard: (keyboard-read)
-        pointer: {sensitivity: $cfg.pointer_sensitivity, natural_scroll: $cfg.natural_scroll}
+        pointer: {
+            sensitivity: $cfg.pointer_sensitivity, natural_scroll: $cfg.natural_scroll, left_handed: $cfg.left_handed
+            # null leaves the key out: hyprland refuses "" and libinput then picks its own profile
+            accel_profile: (if $cfg.accel_profile == default { null } else { $cfg.accel_profile })
+            follow_mouse: (if $cfg.focus_follows_mouse { $FOLLOW_MOUSE.on } else { $FOLLOW_MOUSE.off })
+        }
+        cursor: {shake: $cfg.cursor_shake, size: (cursor-size $cfg.deps?."desktop/cursor"?)}
+        mascots: ($cfg.deps?."desktop/shimoji"?.enable? | default false)
         input: {
             repeat_rate: $cfg.repeat_rate_hz, repeat_delay: $cfg.repeat_delay_ms, numlock: $cfg.numlock
             tap_to_click: $cfg.tap_to_click, scroll_factor: $cfg.touchpad_scroll_factor, cursor_hide_s: $cfg.cursor_hide_s
         }
-        look: {gaps_in: $cfg.gaps_in_px, gaps_out: $cfg.gaps_out_px, blur: $cfg.blur, shadows: $cfg.shadows, animations: $cfg.animations}
+        look: {gaps_in: $cfg.gaps_in_px, gaps_out: $cfg.gaps_out_px, blur: $cfg.blur, blur_menus: $cfg.blur_menus, shadows: $cfg.shadows, animations: $cfg.animations}
         vrr: ($VRR_MODES | get $cfg.vrr)
         apps: {browser: (app-default $xdg.browser), file_manager: (app-default $xdg.file_manager), editor: (app-default $xdg.editor)}
         kbd_backlight: $backlight
@@ -325,12 +363,27 @@ def bar-colors []: nothing -> record {
     }
 }
 
-def style-record []: nothing -> record {
+def style-record [cfg: record]: nothing -> record {
     let font = font-load
     {
-        rounding: $RADIUS_PX, border: $BORDER_PX, opacity_window: $OPACITY_WINDOW
+        rounding: $RADIUS_PX, border: $cfg.border_px, opacity_window: $OPACITY_WINDOW
         font: $font.family, font_size: $font.ui_size
     } | merge (bar-colors)
+}
+
+# hypridle.conf with the idle times; without idle_suspend the suspend listeners go, without idle_dim_monitors the dim
+# leaves DDC/CI monitors alone.
+def hypridle-conf [cfg: record]: nothing -> string {
+    let text = open --raw config/hypridle.conf | text-render {
+        DIM_S: $cfg.idle_dim_s LOCK_S: $cfg.idle_lock_s DPMS_S: $cfg.idle_dpms_s
+        SUSPEND_S: $cfg.idle_suspend_s DIM_SAVER_S: $cfg.idle_dim_saver_s LOCK_SAVER_S: $cfg.idle_lock_saver_s
+        DPMS_SAVER_S: $cfg.idle_dpms_saver_s SUSPEND_SAVER_S: $cfg.idle_suspend_saver_s
+        DIM_FLAGS: (if $cfg.idle_dim_monitors { "" } else { " --no-ddc" })
+    }
+    if $cfg.idle_suspend { return $text }
+    $text | parse --regex '(?ms)(?<block>^listener \{\n.*?^\}\n\n?)' | get block
+        | where $it =~ 'on-timeout = systemctl suspend' | reduce --fold $text {|block, acc| $acc | str replace $block "" }
+        | str trim --right | $"($in)\n"
 }
 
 export def link [cfg: record] {
@@ -343,17 +396,15 @@ export def link [cfg: record] {
         (file-text ($dir | path join platform.lua) (platform-lua $cfg) --generated)
         # read by quickshell-lock-launch.nu on every lock
         (file-text ($dir | path join locker) $"($cfg.lock_screen)\n" --generated)
+        # read by toggle-shader.nu's reapply when this login has picked none
+        (if $cfg.screen_shader != null { file-text ($dir | path join shader) $"($cfg.screen_shader)\n" --generated })
     ] | decls-flatten
     # hyprland's own reload on a write drops the shader: one reload after every changed file restores it
     let reload = then-step reload
     let files = $files | each {|d| if $d.kind == file { $d | merge {then: $reload} } else { $d } }
     # hypridle never rereads its config: a restart applies new idle times, no hyprland reload needed
-    let idle = file-render config/hypridle.conf ($dir | path join hypridle.conf) {
-        DIM_S: $cfg.idle_dim_s LOCK_S: $cfg.idle_lock_s DPMS_S: $cfg.idle_dpms_s
-        SUSPEND_S: $cfg.idle_suspend_s DIM_SAVER_S: $cfg.idle_dim_saver_s LOCK_SAVER_S: $cfg.idle_lock_saver_s
-        DPMS_SAVER_S: $cfg.idle_dpms_saver_s SUSPEND_SAVER_S: $cfg.idle_suspend_saver_s
-    } --then (unit-restart hypridle.service --if-running)
-    let build = plugins-missing | is-not-empty
+    let idle = file-text ($dir | path join hypridle.conf) (hypridle-conf $cfg) --then (unit-restart hypridle.service --if-running)
+    let build = $cfg.cursor_shake and (plugins-missing | is-not-empty)
     let live = hyprland-live
     # its idle policy drives hyprctl and the quickshell lock, so it stays out of the plasma session
     let idle_unit = file-text (unit-dir | path join hypridle.service.d 10-hyprland.conf) (
@@ -365,7 +416,7 @@ export def link [cfg: record] {
         $idle_unit
         # offline only the build waits: plugins built earlier still load
         (if $build { step plugins-build --network })
-        (if $build or ($live and (plugins-unloaded | is-not-empty)) { step plugins-load })
+        (if $build or ($cfg.cursor_shake and $live and (plugins-unloaded | is-not-empty)) { step plugins-load })
     ]
 }
 
@@ -373,7 +424,7 @@ export def plugins-build []: nothing -> nothing { ^$PLUGINS build }
 
 export def plugins-load []: nothing -> nothing { ^$PLUGINS load }
 
-export def update [cfg: record]: nothing -> nothing { plugins-build; plugins-load }
+export def update [cfg: record]: nothing -> nothing { if $cfg.cursor_shake { plugins-build; plugins-load } }
 
 # Reloads hyprland; the shader goes last, a config write or scale re-render after it drops it.
 export def --env reload []: nothing -> nothing {
@@ -400,7 +451,7 @@ def share-picker-colors []: nothing -> any {
 export def theme [cfg: record, wallpaper: string] {
     let picker = share-picker-colors
     [
-        (file-text ($nu.home-dir | path join $CONFIG_DIR style.lua) $"return (lua-from (style-record))\n" --generated)
+        (file-text ($nu.home-dir | path join $CONFIG_DIR style.lua) $"return (lua-from (style-record $cfg))\n" --generated)
         # omarchy-share-picker reads ~/.local/state literally, whatever XDG_STATE_HOME says
         (if $picker != null { file-text ($nu.home-dir | path join $SHARE_PICKER_COLORS) $picker --generated })
         (step reload)

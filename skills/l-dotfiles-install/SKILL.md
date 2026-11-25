@@ -37,7 +37,8 @@ the sync's due logic.
    initramfs drop-in go, then `next`, the unit and the passwordless sudoers drop-in; a `stopped` marker stays. The disk
    asks for its passphrase again, sudo for the password, nothing retries. The banner
    `/etc/issue.d/dotfiles-stage.issue` names what failed, how to get online on a fail-closed network
-   (`dot set --machine base/networkmanager.untrusted_policy firewall-only && dot apply --system`) and the resume.
+   (`dot set --machine base/networkmanager.untrusted_policy firewall-only && dot apply --system`; a `sudoedit` of
+   root's options file on a custom or server platform, whose options `dot set` refuses) and the resume.
 5. Resume: Luca runs `dot internal stage` at a terminal (it refuses without a tty). sudo asks once, the chain is
    re-armed and the install runs; the disk key is not re-added, so each later boot asks for the passphrase.
 6. A failed config stage also ends the chain disarmed, with `/etc/issue.d/dotfiles-config.issue`; the first full

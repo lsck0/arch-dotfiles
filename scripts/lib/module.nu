@@ -2,7 +2,7 @@
 
 export use log.nu [log-info log-note log-warn log-err log-debug]
 export use profile.nu [profile-has profile-load profile-owner]
-export use platform.nu [platform-has display-xwayland-scale gpu-list monitors-live]
+export use platform.nu [platform-has display-xwayland-scale gpu-list monitors-live monitors-main monitors-xwayland-scale]
 export use json.nu [json-set json-delete]
 export use secrets.nu [secret-is-plaintext secret-path secret-seed-guard secret-seed-mark SECRET_SEED_MARKER owner-unlocked system-secret]
 use fetch.nu [fetch-file-done fetch-file-cached fetch-git-done]
@@ -30,10 +30,15 @@ def decl [kind: string, target: string, fields: record]: nothing -> record {
     } | merge $fields
 }
 
-# The xwayland_scale option of a module this one reads (meta.reads: the compositor's), else the detected value.
+# The X11 scale of the compositor this module reads (meta.reads): its xwayland_scale option, else what its monitors
+# imply (as its platform.lua derives it), else the form factor's.
 export def xwayland-scale-for [cfg: record]: nothing -> int {
-    $cfg.deps? | default {} | values | get --optional xwayland_scale | compact | get --optional 0
-    | default (display-xwayland-scale ($env.FORM_FACTOR? | default ""))
+    let form_factor = $env.FORM_FACTOR? | default ""
+    let compositor = $cfg.deps? | default {} | values | where {|d| "xwayland_scale" in ($d | columns) } | get --optional 0
+    if $compositor == null { return (display-xwayland-scale $form_factor) }
+    let monitors = $compositor.monitors? | default []
+    let main = $compositor.main_monitor? | default (monitors-main $monitors)
+    $compositor.xwayland_scale | default (monitors-xwayland-scale $monitors $main $form_factor)
 }
 
 def module-path [file: path]: nothing -> path {

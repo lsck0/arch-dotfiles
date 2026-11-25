@@ -104,7 +104,8 @@ def context-variants-ensure []: nothing -> nothing {
     ^ollama rm $SMALL.model
 }
 
-def main []: nothing -> nothing {
+# --keep-unpinned: llm/ollama's prune_unpinned is off, models pulled by hand stay
+def main [--keep-unpinned]: nothing -> nothing {
     if (which ollama | is-empty) { return }
     for _ in 1..$START_TRIES {
         if (do { ^ollama list } | complete).exit_code == 0 { break }
@@ -112,5 +113,5 @@ def main []: nothing -> nothing {
     }
     for entry in [$LARGE $EMBEDDING $CODING] { model-pull-pinned $entry }
     context-variants-ensure
-    models-prune
+    if not $keep_unpinned { models-prune }
 }

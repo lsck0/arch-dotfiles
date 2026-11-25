@@ -8,6 +8,8 @@ export const meta = {packages: {pacman: [ollama]}}
 const RESTART = [systemctl stop ollama-proxy.service ollama.service]
 # kept free when no gpu reports its vram
 const GPU_OVERHEAD_FALLBACK = 512MiB
+# the pinned set is pulled only beside a gpu this large: an apu's carveout reports a few hundred MB of vram
+const VRAM_MIN = 8GiB
 
 export const options = {
     vram_percent: {
@@ -30,6 +32,18 @@ export const options = {
         min: 1
         max: 1440
     }
+    pull_models: {
+        type: bool
+        default: true
+        doc: "Pull the pinned models (tens of GB) where a gpu has the vram for them; off leaves the store to ollama pull"
+        label: "Pull pinned models"
+    }
+    prune_unpinned: {
+        type: bool
+        default: true
+        doc: "Remove every model the pins do not keep after a pull, those pulled by hand included"
+        label: "Remove unpinned models"
+    }
 }
 # the pinned models are tens of GB: pulled once per pin set, and only where a gpu runs them (not the vm test)
 const MODELS_TIMEOUT = 6hr
@@ -37,14 +51,20 @@ const MODELS_TIMEOUT = 6hr
 export def link [cfg: record] {
     # the script's own hash too: a changed prune or ensure rule reruns it without a pin bump
     let script = open --raw scripts/ollama-ensure-models.nu | hash sha256
-    let pins = [$SMALL.pin $LARGE.pin $EMBEDDING.pin $CODING.pin $LONG_CONTEXT $LONG_CONTEXT_TOKENS $script] | str join "\n"
-        | hash sha256 | str substring 0..<12
+    let keep = if $cfg.prune_unpinned { [] } else { [--keep-unpinned] }
+    let pins = [$SMALL.pin $LARGE.pin $EMBEDDING.pin $CODING.pin $LONG_CONTEXT $LONG_CONTEXT_TOKENS $script ...$keep]
+        | str join "\n" | hash sha256 | str substring 0..<12
+    let gpus = gpu-list
+    # arch's ollama is the cpu build; rocm/compute adds the amd backend, nothing here the nvidia one (ollama-cuda)
+    if ($gpus | any { $in.vendor == nvidia }) and (glob /usr/lib/ollama/cuda_*/libggml-cuda.so | is-empty) {
+        log-note "llm/ollama: runs on the cpu; ollama-cuda in the platform's extra_packages adds the nvidia gpu"
+    }
     [
         (link-commands scripts/ollama-ensure-models.nu)
-        (if (gpu-list | where vram > 0b | is-not-empty) {
+        (if $cfg.pull_models and ($gpus | any { $in.vram >= $VRAM_MIN }) {
             # --done: the stamp it touched under $XDG_STATE_HOME/ollama-models before it was keyed
-            (exec ollama-models [nu --no-config-file ($env.PWD | path join scripts ollama-ensure-models.nu)] --key $pins
-                --done=(xdg state ollama-models $pins | path exists) --network --timeout $MODELS_TIMEOUT)
+            (exec ollama-models [nu --no-config-file ($env.PWD | path join scripts ollama-ensure-models.nu) ...$keep]
+                --key $pins --done=(xdg state ollama-models $pins | path exists) --network --timeout $MODELS_TIMEOUT)
         })
     ]
 }

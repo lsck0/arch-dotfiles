@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 
 const HERE = path self | path expand | path dirname
-use ($HERE | path join lib shell.nu) [SHELL_CONFIG action-notify epoch-now epoch-to-calendar json-save-atomic]
+use ($HERE | path join lib shell.nu) [SHELL_CONFIG action-notify epoch-now epoch-to-calendar json-save-atomic sounds-on]
 
 const CONFIG_PATH = ($SHELL_CONFIG | path join pomodoro.json)
 const CONFIG_DEFAULT = {focus: 25, break: 5, long: 15, cycles: 4}
@@ -40,7 +40,7 @@ def state-save [state: record]: nothing -> nothing {
 
 # Plays in the foreground: the timer's unit kills background children on exit.
 def chime-play []: nothing -> nothing {
-    if ($CHIME | path exists) { ^timeout $CHIME_TIMEOUT pw-play --media-role Notification --volume $CHIME_VOLUME $CHIME | complete | ignore }
+    if ($CHIME | path exists) and (sounds-on) { ^timeout $CHIME_TIMEOUT pw-play --media-role Notification --volume $CHIME_VOLUME $CHIME | complete | ignore }
 }
 
 def clock [seconds: int]: nothing -> string { $"($seconds // 60):($seconds mod 60 | fill -a r -c 0 -w 2)" }

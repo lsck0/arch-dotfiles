@@ -97,7 +97,7 @@ sudo-at-terminal() {
 }
 
 # not in every tmux or herdr pane or nvim terminal
-[[ -t 1 && $TERM != dumb && -z $TMUX$HERDR_ENV$NVIM ]] && fastfetch
+@FASTFETCH_OFF@[[ -t 1 && $TERM != dumb && -z $TMUX$HERDR_ENV$NVIM ]] && fastfetch
 
 zsh_init_cache starship init zsh --print-full-init && source $REPLY
 RPROMPT=

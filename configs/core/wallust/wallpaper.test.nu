@@ -1,9 +1,12 @@
 #!/usr/bin/env -S nu --no-config-file
 # What a switch applies: a picked theme is that theme, a picked wallpaper derives its palette also when a theme names
 # the file, and a rerun without a pick keeps what is recorded. A pick leads the last ones of its kind. magick's
-# histogram reads as the picture's colours.
+# histogram reads as the picture's colours. A derived palette runs wallust on the installed settings, each palette
+# option rendered.
 
-use scripts/wallpaper.nu [pick-resolve palette-kept recent-add picture-parse]
+use scripts/wallpaper.nu [pick-resolve palette-kept recent-add picture-parse derive]
+use state.nu [text-render]
+use std/assert
 
 const THEMES = [
     [name wallpaper];
@@ -12,6 +15,30 @@ const THEMES = [
     [both other.jpg]
 ]
 const DERIVED = "pywal"
+const CONFIG = path self config/wallust.toml
+const PALETTES = [salience ansi kmeans]
+const COLOURS = 16
+
+# wallust and magick are this module's packages; without them (a checkout on another machine) there is nothing to run.
+def derive-cases []: nothing -> nothing {
+    if (which wallust magick | length) < 2 { print -e "wallpaper.test: no wallust or magick, derive not run"; return }
+    let home = mktemp --directory --tmpdir wallpaper-test-XXXXXX
+    let picture = $home | path join picture.png
+    ^magick -size 64x64 gradient:red-blue $picture
+    let failed = try {
+        $PALETTES | where {|palette|
+            let config = $home | path join config
+            mkdir ($config | path join wallust)
+            open --raw $CONFIG | text-render {CACHE: ($home | path join cache), DATA: ($home | path join data), PALETTE: $palette}
+            | save --force ($config | path join wallust wallust.toml)
+            let dir = $home | path join $palette
+            let got = with-env {XDG_CONFIG_HOME: $config, XDG_CACHE_HOME: ($home | path join cache)} { derive $picture $dir }
+            ($got.colors? | columns | length) != $COLOURS
+        }
+    } catch {|e| rm --recursive --force $home; error make $e }
+    rm --recursive --force $home
+    assert equal $failed [] "derive: no 16 colours from the palettes"
+}
 
 def main [] {
     let picks = [
@@ -52,4 +79,5 @@ def main [] {
         | append ($recent | where {|c| (recent-add $c.before $c.file $c.palette) != $c.after })
         | append ($pictures | where {|c| ($c.text | picture-parse) != $c.colours }) | get name
     if ($failed | is-not-empty) { error make {msg: $"wallpaper.test: wrong result for ($failed | str join ', ')"} }
+    derive-cases
 }

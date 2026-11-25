@@ -3,6 +3,8 @@
 const SCRIPT_RELATIVE = "configs/programming/trmnl-claude/scripts/trmnl-claude.nu"
 const TIMEOUT = "60s"
 const TIMEOUT_EXIT_CODE = 124
+# agent_usage_limits in mod.nu, through prefs.json: off, the script skips the rate-limit request on the Claude plan
+const PREFS = ($nu.home-dir | path join .config quickshell prefs.json)
 
 def main [] {
     let repo = $env.DOTFILES? | default ($nu.home-dir | path join projects arch-dotfiles)
@@ -12,7 +14,8 @@ def main [] {
         print "{}"
         return
     }
-    let done = ^timeout $TIMEOUT $script --dry-run | complete
+    let limits = (try { open $PREFS | get --optional agentLimits } catch { null }) != false
+    let done = ^timeout $TIMEOUT $script --dry-run ...(if $limits { [] } else { [--no-scrape] }) | complete
     let reply = if $done.exit_code == $TIMEOUT_EXIT_CODE {
         {error: "timeout"}
     } else if $done.exit_code != 0 {

@@ -32,7 +32,11 @@ const FORECAST_DAILY = {
     code: weather_code hi: temperature_2m_max lo: temperature_2m_min precip: precipitation_sum
     pop: precipitation_probability_max windMax: wind_speed_10m_max uvMax: uv_index_max
 }
-const WINDY_KMH = 39.0
+# Beaufort 6, a strong breeze, in each wind unit the reply can carry (open-meteo writes mph as "mp/h")
+const WINDY = {"km/h": 39.0, "mp/h": 24.2}
+# weather_units in mod.nu, through prefs.json; metric is open-meteo's default and adds nothing
+const PREFS = ($nu.home-dir | path join .config quickshell prefs.json)
+const IMPERIAL_QUERY = "&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch"
 
 const RADAR_ZOOM = 7
 const RADAR_SIZE_PX = 512
@@ -206,10 +210,16 @@ def forecast-fallback [error: string]: nothing -> record {
     $stale | upsert stale true | upsert ageMin $age_min | upsert error $error
 }
 
+export def windy-threshold [unit?: string]: nothing -> float {
+    $WINDY | get --optional ($unit | default "km/h") | default ($WINDY | get "km/h")
+}
+
 def forecast-get []: nothing -> record {
     let location = location-resolve
     if $location == null { return (forecast-fallback "no location") }
-    let raw = http-fetch ({lat: $location.lat, lon: $location.lon} | format pattern $FORECAST_URL) $FORECAST_TIMEOUT
+    let imperial = (try { open $PREFS | get --optional weatherUnits } catch { null }) == "imperial"
+    let url = ({lat: $location.lat, lon: $location.lon} | format pattern $FORECAST_URL) + (if $imperial { $IMPERIAL_QUERY } else { "" })
+    let raw = http-fetch $url $FORECAST_TIMEOUT
     if ($raw | is-empty) { return (forecast-fallback "offline") }
     let d = try { $raw | from json } catch { return (forecast-fallback "bad response") }
     if ($d | describe -d | get type) != record or "current" not-in $d or "daily" not-in $d {
@@ -220,6 +230,8 @@ def forecast-get []: nothing -> record {
     let hours = $hourly.time? | default [] | enumerate | each {|it|
         {h: ($it.item | str substring 11..12)} | merge (series-pick $hourly $FORECAST_HOURLY $it.index)
     }
+    let units = $d.current_units? | default {}
+    let windy = windy-threshold $units.wind_speed_10m?
     let today = date now | format date "%F"
     let tomorrow = (date now) + 1day | format date "%F"
     let days = $d.daily.time? | default [] | enumerate | each {|it|
@@ -227,11 +239,10 @@ def forecast-get []: nothing -> record {
             with-env {LC_ALL: C} { $it.item | into datetime | format date "%a" }
         }
         let day = {label: $label} | merge (series-pick $d.daily $FORECAST_DAILY $it.index)
-        $day | insert windy ($day.windMax >= $WINDY_KMH)
+        $day | insert windy ($day.windMax >= $windy)
     }
     let current = $FORECAST_CURRENT | items {|key, variable| {$key: ($d.current | get -o $variable | default 0)} }
     | into record
-    let units = $d.current_units? | default {}
     reply-publish {
         ok: true
         source: $location.source
@@ -241,6 +252,7 @@ def forecast-get []: nothing -> record {
             temp: ($units.temperature_2m? | default "\u{b0}C")
             wind: ($units.wind_speed_10m? | default "km/h")
             precip: ($units.precipitation? | default "mm")
+            pressure: ($units.pressure_msl? | default "hPa")
         }
         hourly: $hours
         daily: $days

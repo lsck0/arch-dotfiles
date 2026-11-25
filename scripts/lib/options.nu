@@ -2,7 +2,7 @@
 
 use state.nu [xdg]
 
-const SPEC_KEYS = [type default doc label group choices min max step apply scope toggle]
+const SPEC_KEYS = [type default doc label group choices pattern min max step apply scope toggle]
 const SPEC_REQUIRED = [type default doc]
 export const OPTION_APPLY = [live relink relogin reboot]
 export const OPTION_SCOPE = [machine user]
@@ -46,7 +46,7 @@ def spec-errors [module: record, name: string, spec: record]: nothing -> list<st
     $unknown ++ $missing ++ $enums ++ $default_bad
 }
 
-# Why value is not valid for spec (type, choices, min, max), each line naming file and option; empty when fine.
+# Why value is not valid for spec (type, choices, pattern, min, max), each line naming file and option; empty when fine.
 export def option-value-errors [id: string, name: string, spec: record, value: any, file: string]: nothing -> list<string> {
     let where = $"($file): ($id).($name)"
     if not (option-type-ok $spec.type $value) {
@@ -58,6 +58,10 @@ export def option-value-errors [id: string, name: string, spec: record, value: a
     let outside = if $listed { $value } else { [$value] } | where $it != null and $it not-in $choices
     if ($choices | is-not-empty) and ($outside | is-not-empty) {
         return [$"($where): (if $listed { $outside } else { $value } | to nuon) is not one of ($choices | to nuon)"]
+    }
+    # a string value matches the pattern regex, so a verb parsing it never sees a malformed one
+    if ($value | describe) == string and ($spec.pattern? != null) and $value !~ $spec.pattern {
+        return [$"($where): ($value | to nuon) does not match ($spec.pattern)"]
     }
     let low = if $value != null and ($spec.min? != null) and $value < $spec.min { [$"($where): ($value) is below ($spec.min)"] } else { [] }
     let high = if $value != null and ($spec.max? != null) and $value > $spec.max { [$"($where): ($value) is above ($spec.max)"] } else { [] }
@@ -104,6 +108,13 @@ def option-land [acc: record, name: string, value: any, source: string, errors: 
     $acc | upsert values { upsert $name $value } | upsert sources { upsert $name $source }
 }
 
+# Why a layer may not turn on a module the layer below leaves off: root installs and runs only what the platform's
+# groups select and its options keep on, and never reads the profile.
+export def enable-raised [id: string, layer: record]: nothing -> string {
+    let fix = if $layer.name == "profile" { "the profile only turns a module off" } else { "add its group to the platform's groups" }
+    $"($layer.file): ($id).($OPTION_ENABLE) is true where the machine leaves it off; ($fix)"
+}
+
 # Each module's option values and where each came from, plus every error across the layers.
 export def options-resolve [modules: table, platform: record, profile: any, detected: record = {}]: nothing -> record {
     let ids = $modules.id
@@ -142,6 +153,8 @@ export def options-resolve [modules: table, platform: record, profile: any, dete
             let spec = $schema | get --optional $e.name
             let bad = if $spec == null { [$"($e.layer.file): ($module.id).($e.name) is no option of it"] } else if $e.layer.name == "profile" and $spec.scope == "machine" {
                 [$"($e.layer.file): ($module.id).($e.name) is a machine option, set it with dot set --machine"]
+            } else if $e.name == $OPTION_ENABLE and $e.value == true and not ($acc.values | get $OPTION_ENABLE) {
+                [(enable-raised $module.id $e.layer)]
             } else { option-value-errors $module.id $e.name $spec $e.value $e.layer.file }
             option-land $acc $e.name $e.value $e.layer.name $bad
         }
@@ -198,33 +211,34 @@ def nuon-word [text: string]: nothing -> string {
     if $bare { $text } else { $text | to nuon }
 }
 
-# text, a nuon record, with the value at cell set: null removes it and any record it leaves empty. Only the entry's own
-# lines change, the rest of the text (comments, layout, quoting) stays; a one-line record is written anew, and text no
-# splice reads back as wanted is written whole by options-to-nuon.
-export def options-nuon-set [cell: list<string>, value: any]: string -> string {
+# text, a nuon record, with the value at cell set (null stored as null); --remove drops the entry instead, with any
+# record it leaves empty. Only the entry's own lines change, the rest of the text (comments, layout, quoting) stays; a
+# one-line record is written anew, and text no splice reads back as wanted is written whole by options-to-nuon.
+export def options-nuon-set [cell: list<string>, value: any, --remove]: string -> string {
     let text = $in
-    let wanted = $text | from nuon | default {} | nuon-record-set $cell $value
+    let wanted = $text | from nuon | default {} | nuon-record-set $cell $value $remove
     let chars = $text | split chars
-    let spliced = try { nuon-splice $chars (nuon-skip $chars 0) $cell $value | str join } catch { null }
+    let spliced = try { nuon-splice $chars (nuon-skip $chars 0) $cell $value $remove | str join } catch { null }
     if $spliced != null and (try { ($spliced | from nuon) == $wanted } catch { false }) { return $spliced }
     $"($wanted | options-to-nuon)\n"
 }
 
-def nuon-record-set [cell: list<string>, value: any]: record -> record {
+def nuon-record-set [cell: list<string>, value: any, remove: bool]: record -> record {
     let record = $in
     let key = $cell.0
-    let inner = if ($cell | length) == 1 { $value } else {
-        $record | get --optional $key | default {} | nuon-record-set ($cell | skip 1) $value | if ($in | is-empty) { null } else { $in }
+    if ($cell | length) == 1 {
+        return (if $remove { $record | reject --optional $key } else { $record | upsert $key $value })
     }
-    if $inner == null { $record | reject --optional $key } else { $record | upsert $key $inner }
+    let inner = $record | get --optional $key | default {} | nuon-record-set ($cell | skip 1) $value $remove
+    if ($inner | is-empty) { $record | reject --optional $key } else { $record | upsert $key $inner }
 }
 
-def nuon-splice [chars: list<string>, open: int, cell: list<string>, value: any]: nothing -> list<string> {
+def nuon-splice [chars: list<string>, open: int, cell: list<string>, value: any, remove: bool]: nothing -> list<string> {
     if ($chars | get $open) != "{" { error make {msg: "no record"} }
     let scan = nuon-entries $chars $open
     let entry = $scan.entries | where key == $cell.0 | get --optional 0
     if ($chars | skip $open | first ($scan.close - $open) | all { $in != "\n" }) {
-        let record = $chars | skip $open | first ($scan.close - $open + 1) | str join | from nuon | nuon-record-set $cell $value
+        let record = $chars | skip $open | first ($scan.close - $open + 1) | str join | from nuon | nuon-record-set $cell $value $remove
         # the file's own record goes multi-line, a nested one stays on its line
         let root = $open == (nuon-skip $chars 0)
         let text = $record | options-to-nuon --inline=(not $root) --indent ((nuon-indent $chars $open) // $NUON_INDENT)
@@ -233,14 +247,14 @@ def nuon-splice [chars: list<string>, open: int, cell: list<string>, value: any]
     let nested = $cell | length | $in > 1
     if $nested and $entry != null {
         if ($chars | get $entry.value_start) != "{" { error make {msg: "no record"} }
-        let inner = nuon-splice $chars $entry.value_start ($cell | skip 1) $value
+        let inner = nuon-splice $chars $entry.value_start ($cell | skip 1) $value $remove
         let left = nuon-entries $inner $open | get entries | where key == $cell.0 | first
         let empty = $inner | skip $left.value_start | first ($left.value_end - $left.value_start) | str join | from nuon | is-empty
         return (if $empty { nuon-entry-remove $inner $left } else { $inner })
     }
-    let landed = if $nested { {} | nuon-record-set ($cell | skip 1) $value | if ($in | is-empty) { null } else { $in } } else { $value }
+    if $remove { return (if $entry == null { $chars } else { nuon-entry-remove $chars $entry }) }
+    let landed = if $nested { {} | nuon-record-set ($cell | skip 1) $value false } else { $value }
     if $entry == null {
-        if $landed == null { return $chars }
         let line = nuon-line-start $chars $scan.close
         let indent = nuon-indent $chars $scan.close
         if ($line + $indent) != $scan.close { error make {msg: "closing brace after an entry"} }
@@ -248,7 +262,6 @@ def nuon-splice [chars: list<string>, open: int, cell: list<string>, value: any]
         let text = $"($pad)(nuon-word $cell.0): ($landed | options-to-nuon --indent ($indent // $NUON_INDENT + 1))\n"
         return (nuon-replace $chars $line $line $text)
     }
-    if $landed == null { return (nuon-entry-remove $chars $entry) }
     let text = $landed | options-to-nuon --indent ((nuon-indent $chars $entry.key_start) // $NUON_INDENT)
     nuon-replace $chars $entry.value_start $entry.value_end $text
 }

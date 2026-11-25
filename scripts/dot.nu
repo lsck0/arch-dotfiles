@@ -261,7 +261,7 @@ def "main set" [
         if $json { return (options-list $t.mod true) }
         if $default {
             if $given { error make {msg: "dot set --default takes no value"} }
-            option-apply $target (option-write $t.mod $t.key null $machine)
+            option-apply $target (option-write $t.mod $t.key null $machine --default)
             return
         }
         if not $given {

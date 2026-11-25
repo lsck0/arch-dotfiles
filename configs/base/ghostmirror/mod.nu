@@ -12,15 +12,25 @@ export const options = {
         default: $HOMELAB.mirror.arch
         doc: "A homelab pacman mirror's URL ($repo and $arch as in a mirrorlist), put first on a homelab machine; default the lab's"
     }
+    mirror_countries: {
+        type: list<string>?
+        default: null
+        doc: ("Countries the monthly rebuild ranks mirrors from, as ghostmirror -c names them (Germany, \"United States\"); "
+            + "unset, the ones the install ranked, else Central Europe")
+        label: "Mirror countries"
+    }
 }
 
 const UPDATE_TIMEOUT_S = 600
+# mirrorlist-update's COUNTRIES_FILE, which bootstrap writes after ranking on the install iso
+const COUNTRIES_FILE = "/etc/pacman.d/mirror-countries"
 
 export def system [cfg: record] {
     let homelab = if (platform-has homelab) and $cfg.homelab_mirror != null { $"Server=($cfg.homelab_mirror)" }
     [
         (file-copy scripts/mirrorlist-update.nu /usr/local/bin/mirrorlist-update --mode 755)
         (if $homelab != null { file-text $HOMELAB_FILE $"($homelab)\n" })
+        (if ($cfg.mirror_countries | is-not-empty) { file-text $COUNTRIES_FILE $"($cfg.mirror_countries | str join ',')\n" })
         (step place ($homelab | default ""))
         (unit-file services/ghostmirror.service)
         (unit-timer ghostmirror.timer "Weekly ghostmirror sorting" --calendar weekly --delay 30m

@@ -1,7 +1,7 @@
 use module.nu *
 use ../../core/wallust/scripts/font.nu [font-load]
 use ../../core/wallust/scripts/palette.nu [ICON_THEMES RADIUS_PX hex-to-rgb rgb-to-hsv]
-use ../cursor/mod.nu [CURSOR_SIZE_PX cursor-name]
+use ../cursor/mod.nu [cursor-name cursor-size]
 use ../oomox/mod.nu [INTERFACE]
 
 export const meta = {
@@ -56,10 +56,11 @@ export def theme [cfg: record, wallpaper: string] {
     let scheme = if $light { "prefer-light" } else { "prefer-dark" }
     let icons = if $light { $ICON_THEMES.light } else { $ICON_THEMES.dark }
     let cursor = cursor-name ($cfg.deps?."desktop/cursor"?.active? | default false)
+    let size = cursor-size $cfg.deps?."desktop/cursor"?
     let ini = [
         "[Settings]" $"gtk-theme-name=($GTK_THEME)" $"gtk-font-name=($ui)" $"gtk-icon-theme-name=($icons)"
         $"gtk-decoration-layout=($cfg.button_layout)" $"gtk-cursor-theme-name=($cursor)"
-        $"gtk-cursor-theme-size=($CURSOR_SIZE_PX)"
+        $"gtk-cursor-theme-size=($size)"
     ]
     # gtk2 under xwayland ignores GDK_SCALE and sees 96 dpi, so only its font can follow the xwayland scale
     let ui2 = $"($font.family) ($font.ui_size * (xwayland-scale-for $cfg))"
@@ -79,7 +80,7 @@ export def theme [cfg: record, wallpaper: string] {
         (do $set gtk-accent accent-color (gnome-accent $p.c4))
         (do $set gtk-icons icon-theme $icons)
         (do $set gtk-cursor cursor-theme $cursor)
-        (do $set gtk-cursor-size cursor-size ($CURSOR_SIZE_PX | into string))
+        (do $set gtk-cursor-size cursor-size ($size | into string))
         (exec gtk-buttons [gsettings set $WM_PREFERENCES button-layout $cfg.button_layout])
         # oomox's export flips it again once the theme files are new, which a running gtk3 app needs to reread them
         (do $set gtk-theme gtk-theme $GTK_THEME)

@@ -25,7 +25,7 @@ autocmd("FileType", {
         vim.opt_local.formatoptions:append("tn")
         if SPELLED[vim.bo[args.buf].filetype] then
             vim.opt_local.spell = true
-            vim.opt_local.spelllang = "en"
+            vim.opt_local.spelllang = require("lib.dot_options").spell_languages
         end
     end,
 })

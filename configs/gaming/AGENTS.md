@@ -13,6 +13,7 @@
   `steamrt64/libXtst.so.6` -> `/run/host/usr/lib/millennium/libmillennium_bootstrap_x64.so` (pressure-vessel sees the
   host under `/run/host`); `steam/scripts/steam-bootstrap.nu` links it. A beta Millennium sorting above the release is
   caught by `dot status` `stuck`.
-- Games bypass the VPN (`vpn-bypass`); torrents are bound to it.
+- Games bypass the VPN (`vpn-bypass`); torrents are bound to qbittorrent's `interface`, `proton0` where the profile
+  has secrets (`desktop/AGENTS.md`).
 - Saves and worlds live in `~/sync`, launcher state in `configs/secrets/` via `backup`/`link`; installs are not backed
   up. `modrinth`'s backup copies `app.db` only when a login table changed (`LOGIN_TABLES`).

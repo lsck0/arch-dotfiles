@@ -733,9 +733,12 @@ Item {
   // a bar panel reaching into the toast column hides the toasts while it is open; their countdowns keep running, so
   // only the criticals and the ones with time left come back when it closes
   readonly property var popupBar: shell && popupScreen ? shell.barFor(popupScreen) : null
+  // notification_position in mod.nu: the toast column's corner below the bar
+  readonly property bool toastsLeft: Prefs.notificationPosition === "left"
   readonly property bool panelOverToasts: {
     var panel = popupBar ? popupBar.activePanelWindow : null
     if (!panel || !panel.visible) return false
+    if (service.toastsLeft) return panel.screenRect.x < Style.gapsOut + toastWidth
     return panel.screenRect.x + panel.screenRect.width > popupBar.width - Style.gapsOut - toastWidth
   }
   property int popupRevision: 0
@@ -816,10 +819,12 @@ Item {
       ToastList {
         id: popupList
         opacity: service.panelOverToasts ? 0 : 1
-        anchors.right: parent.right
+        anchors.right: service.toastsLeft ? undefined : parent.right
+        anchors.left: service.toastsLeft ? parent.left : undefined
         anchors.top: parent.top
         anchors.topMargin: service.barClearance
         anchors.rightMargin: Style.gapsOut
+        anchors.leftMargin: Style.gapsOut
         width: service.toastWidth
         height: Math.min(contentHeight, parent.height - service.barClearance - Style.gapsOut)
         interactive: false

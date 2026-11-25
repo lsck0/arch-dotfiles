@@ -6,6 +6,14 @@
 export const SHELL_CONFIG = ($nu.home-dir | path join .config quickshell)
 const IPC_TIMEOUT = "3s"
 
+# The options link writes for the shell (prefs-config in mod.nu); {} when missing, so each key keeps its default.
+export def prefs-load []: nothing -> record {
+    try { open ($SHELL_CONFIG | path join prefs.json) | into record } catch { {} }
+}
+
+# The sounds option: false silences the alert and pomodoro chimes.
+export def sounds-on []: nothing -> bool { (prefs-load | get --optional sounds) != false }
+
 # Sent as the app the shell shows through dnd (NotificationLogic.js ACTION_APP); a shown one still goes to history.
 # --urgency normal for the one that should be noticed (a timer's end), which stays up longer than a low confirmation.
 export def action-notify [

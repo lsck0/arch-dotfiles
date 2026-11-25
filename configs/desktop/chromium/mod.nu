@@ -2,6 +2,20 @@ use module.nu *
 
 export const meta = {packages: {pacman: [chromium browserpass browserpass-chromium]}}
 
+# an http(s) url with a host and the query placeholder; the system verb names the engine after the host
+const SEARCH_URL_PATTERN = '^https?://[^/?#\s]+\S*\{searchTerms\}'
+
+export const options = {
+    # machine: the policy is /etc's, one for every login
+    search_url: {
+        type: string?
+        default: null
+        doc: "Default search engine, {searchTerms} is the query; unset, the homelab's searxng on a homelab machine, else duckduckgo"
+        label: "Search engine URL"
+        pattern: $SEARCH_URL_PATTERN
+    }
+}
+
 const POLICY = "/etc/chromium/policies/managed/policy.json"
 const CHROMIUM_LIB = "/usr/lib/chromium"
 const SEARCH_OFF_HOMELAB = {name: DuckDuckGo, url: "https://duckduckgo.com/?q={searchTerms}"}
@@ -28,11 +42,14 @@ export def link [cfg: record] {
 }
 
 export def system [cfg: record] {
-    let policy = if (platform-has homelab) {
+    let search = if $cfg.search_url != null {
+        {name: ($cfg.search_url | url parse | get host | str replace --regex '^www\.' ''), url: $cfg.search_url}
+    } else if not (platform-has homelab) { $SEARCH_OFF_HOMELAB }
+    let policy = if $search == null {
         file-copy config/policy.json $POLICY
     } else {
         let text = open config/policy.json
-            | upsert DefaultSearchProviderName $SEARCH_OFF_HOMELAB.name | upsert DefaultSearchProviderSearchURL $SEARCH_OFF_HOMELAB.url
+            | upsert DefaultSearchProviderName $search.name | upsert DefaultSearchProviderSearchURL $search.url
             | to json --indent 2
         file-text $POLICY $"($text)\n"
     }

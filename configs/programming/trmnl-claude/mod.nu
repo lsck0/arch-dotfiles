@@ -10,10 +10,9 @@ export const options = {
     interval_min: {
         type: int
         default: 15
-        doc: "Minutes between posts, stepped within each hour"
+        doc: "Minutes between posts; a divisor of 60, so the steps within each hour are even"
         label: "Post interval (min)"
-        min: 1
-        max: 60
+        choices: [1 2 3 4 5 6 10 12 15 20 30]
     }
 }
 

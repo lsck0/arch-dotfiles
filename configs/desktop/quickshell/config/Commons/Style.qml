@@ -155,9 +155,10 @@ QtObject {
   }
   readonly property TranslucencyTokens translucency: TranslucencyTokens {}
 
-  // one set for the whole shell, all 0 under the power saver. Scroll positions and swapped results do not animate
+  // one set for the whole shell, all 0 under the power saver or with fx_motion off. Scroll positions and swapped
+  // results do not animate
   component MotionTokens: QtObject {
-    readonly property bool enabled: !Power.saver
+    readonly property bool enabled: !Power.saver && Prefs.motion
     // hover and press fills, focus rings, list selection, knob size
     readonly property int fast: enabled ? 90 : 0
     // every surface's enter and every value change

@@ -5,11 +5,14 @@ The user-layer baseline on every machine.
 - A themed program ships a wallust template (`core/wallust`), never a hardcoded palette: `l-dotfiles-theming`.
 - Toggles: `l-dotfiles-toggles`.
 - Owner-only modules (`ntfy`, `syncthing`, `proton/pass`, `proton/sessions`) gate on `owner-unlocked`
-  (`l-dotfiles-secrets-access`); `git`'s identity and `gnupg`'s default-key are value-gated the same way and fall back
-  to none. `nas` is system layer: it mounts only with the `homelab` fact and the `samba-homelab` secret.
+  (`l-dotfiles-secrets-access`). `git`'s (and jj's) identity is the owner's only when `owner-unlocked`; any other
+  login's is `core/git.user_name` and `user_email`, each falling back to the profile's own where the profile lacks the
+  secrets capability; without both, none. `gnupg`'s default-key only when `owner-unlocked`. `nas` is system layer: it
+  mounts only with the `homelab` fact and the `samba-homelab` secret.
 - `nushell` and `zsh` hold the generic shell config only: an alias or def for a tool is `shell-aliases` in the module
   that declares the tool (gated on the tool when the module does not declare it).
-- `yt-dlp` is a fail-closed wrapper into the VPN namespace, never bare `/usr/bin/yt-dlp`.
+- `yt-dlp` goes through a fail-closed wrapper into the VPN namespace wherever `base/protonvpn-netns` is configured and
+  `core/yt-dlp.vpn_only` is on (`vpn-routed`, also read by `desktop/mpv`); elsewhere bare `/usr/bin/yt-dlp` runs direct.
 - Shell functions and aliases (zshrc, config.nu, every `aliases.{zsh,nu}`) also run in agents' shells: root goes
   through `sudo-at-terminal`, which refuses an agent marker or a missing terminal (lint `lint-rc-escalation`).
 - `herdr-open` only runs a `.herdr-create` that was allowed (`herdr-open allow <dir>`).

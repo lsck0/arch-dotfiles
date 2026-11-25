@@ -57,9 +57,10 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   `~/.claude` file, which imports `MACHINE.md` from `programming/agent-rules`, the source of the machine rules for every
   agent harness). `dependencies.txt` names the groups a group reaches into.
 - A module dir's top holds only `mod.nu`, `AGENTS.md`, `README.md`, `dependencies.txt`, `.gitignore`, `*.test.nu`
-  (and a `.herdr-create`/`.tms-create` those tools read in place), plus `config/` (what dot installs), `scripts/`
-  (what runs: linked commands, helpers, shared code) and `test/` (fixtures); a dir of sibling modules (`base/boot`) the
-  same. `lint-layout` in `scripts/lib/gate.nu` enforces it.
+  (and a `.herdr-create`/`.tms-create` those tools read in place), plus `config/` (what dot installs), `services/`
+  (every systemd unit and drop-in, user or system), `scripts/` (what runs: linked commands, helpers, shared code) and
+  `test/` (fixtures); a dir of sibling modules (`base/boot`) the same. `lint-layout` in `scripts/lib/gate.nu` enforces
+  it and flags a unit under `config/`.
 - `platforms/<name>.nuon` (facts, groups) and `<name>.options.nuon`: `luca-pc`, `luca-notebook`, `server`, `vm`,
   `wsl`; `dot set` and the settings window edit both, keeping each file's comments; the machine's choice is
   `/etc/dotfiles/platform`, server or custom answers `/etc/dotfiles/platform{,.options}.nuon`.

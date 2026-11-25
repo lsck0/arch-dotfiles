@@ -16,6 +16,25 @@ export const meta = {
     }
 }
 
+export const options = {
+    spell_languages: {
+        type: list<string>
+        default: [en]
+        doc: "Spell-check languages of prose buffers (markdown, tex, commits), e.g. en, de; nvim offers to download a missing one"
+        label: "Spell languages"
+        scope: user
+    }
+    dictation_language: {
+        type: string
+        default: en
+        doc: "Language <M-v> dictation transcribes, a whisper code such as en or de, or auto to detect it"
+        label: "Dictation language"
+        scope: user
+    }
+}
+# lib/dot_options.lua reads it, its defaults when the file is absent
+const OPTIONS_FILE = "dot-options.json"
+
 const TREESITTER_TIMEOUT_MS = 600000
 # every plugin clone, then the mason tools and the parsers compiled one by one
 const PREFETCH_TIMEOUT = 45min
@@ -119,8 +138,13 @@ export def link [cfg: record] {
     let config = xdg config nvim
     # before the first link the probes read no config, so only the step itself can tell what is missing
     let linked = ($config | path expand) == ($env.PWD | path join config | path expand)
+    let picked = $cfg | select spell_languages dictation_language
+    let defaults = {spell_languages: $options.spell_languages.default, dictation_language: $options.dictation_language.default}
     [
         (file-link config $config)
+        (if $picked != $defaults {
+            file-text (xdg data nvim $OPTIONS_FILE) $"($picked | to json --indent 2)\n"
+        })
         (fetch-file $"https://huggingface.co/ggerganov/whisper.cpp/resolve/($WHISPER_MODEL.commit)/($WHISPER_MODEL.file)"
             $WHISPER_MODEL.sha256 (xdg data whisper-cpp $WHISPER_MODEL.file))
         (step prefetch --done=(($restore | is-empty) and $linked) --network --timeout $PREFETCH_TIMEOUT ...$restore)

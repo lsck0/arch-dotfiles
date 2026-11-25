@@ -3,10 +3,15 @@ use ../../../platforms/homelab.nu [HOMELAB]
 
 # Ships this desktop's node metrics, its health (desktop-metrics.nu) and journal to the homelab (Grafana: Prometheus
 # desktops, Loki desktops), only on a machine the lab lists as a desktop and with its push credential (secrets
-# keys/alloy/<host>, `user:password`); anywhere else the module declares nothing.
+# keys/alloy/<host>, `user:password`) or the password a run with it wrote; anywhere else the module declares nothing.
 # grafana-alloy-bin, Grafana's own build: Arch's grafana-alloy is built without journal support, so its
 # loki.source.journal stays off. Until the mirror carries the bin package, whichever of the two is installed runs.
-export const meta = {packages: {pacman: [grafana-alloy-bin]}, secrets: ["alloy/{host}"]}
+export const meta = {secrets: ["alloy/{host}"]}
+
+# only where an owner logs in: it pushes to the owner's lab alone
+export def packages [cfg: record]: nothing -> record {
+    {pacman: (if (profile-owner) { [grafana-alloy-bin] } else { [] })}
+}
 
 const AC_RULES = "/etc/udev/rules.d/99-alloy-ac.rules"
 # desktop-metrics' textfile, made only where alloy pushes: the user half runs only when it exists
@@ -25,10 +30,17 @@ export def system [cfg: record] {
     let host = sys host | get hostname
     let credential = system-secret alloy $host
     let build = $BUILDS | where { $in.probe | path exists } | get --optional 0
-    if $build == null or $host not-in $HOMELAB.push.desktops or not ($credential | path exists) { return [] }
-    let password = open --raw $credential | str trim | split row ":" | skip 1 | str join ":"
+    if $build == null or $host not-in $HOMELAB.push.desktops { return [] }
     # root-only; systemd hands it to the service as a credential, so the alloy user never reads a file of its own
     let secret = $build.dir | path join push-password
+    # a run with locked secrets is handed no credential: the password the last run wrote stays, so the push is never
+    # undone
+    let password = if ($credential | path exists) {
+        open --raw $credential | str trim | split row ":" | skip 1 | str join ":"
+    } else {
+        try { open --raw $secret } catch { null }
+    }
+    if $password == null { return [] }
     let args = $build.dir | path join dotfiles.env
     let restart = unit-restart $build.unit --if-running
     let dropin = [

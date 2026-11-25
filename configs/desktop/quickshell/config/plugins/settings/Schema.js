@@ -314,6 +314,16 @@ function fromText(option, text) {
   return String(text)
 }
 
+// a list option's new entry from its text, by the element type: a number for list<int> and list<float>; undefined when
+// the text is no such entry
+function listEntry(option, text) {
+  var entry = String(text).trim()
+  var element = (String(option.nuType || "").match(/^list<(\w+)>/) || [])[1]
+  if (element !== "int" && element !== "float") return entry === "" ? undefined : entry
+  var n = Number(entry)
+  return entry === "" || !isFinite(n) || (element === "int" && !Number.isInteger(n)) ? undefined : n
+}
+
 function encode(option, value) {
   if (option.type === "filesize") return Number(value) + "b"
   return JSON.stringify(value === undefined ? null : value)

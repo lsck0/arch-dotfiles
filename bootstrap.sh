@@ -29,12 +29,12 @@ if [[ -d /run/archiso ]]; then
     pacman --config "$conf" -Sy --noconfirm --needed archlinux-keyring
     # nushell, git and curl link the repos' current libssl, but an older iso's openssl meets their unversioned
     # dependency: openssl comes along, and openssl-3 keeps the old soname for the iso's own users (pacman's libcurl)
-    pacman --config "$conf" -S --noconfirm --needed glibc openssl openssl-3 curl nushell git gnupg
+    pacman --config "$conf" -S --noconfirm --needed glibc openssl openssl-3 curl nushell git git-lfs gnupg
     [[ "$conf" == /etc/pacman.conf ]] || rm -f "$conf"
 else
     pacman-key --init && pacman-key --populate archlinux
     pacman -Sy --noconfirm --needed archlinux-keyring
-    pacman -Su --noconfirm --needed nushell git gnupg sudo zsh
+    pacman -Su --noconfirm --needed nushell git git-lfs gnupg sudo zsh
 fi
 
 repo=$(dirname "$(readlink -f "${BASH_SOURCE[0]:-/}")")

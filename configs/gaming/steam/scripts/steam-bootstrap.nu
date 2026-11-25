@@ -23,11 +23,14 @@ def links-missing []: nothing -> list<record> {
     | where {|l| ($l.target | path type) != symlink or (^readlink $l.target | str trim) != $l.source }
 }
 
-# The 32-bit link only while it still points into millennium.
-def stale-link []: nothing -> list<path> {
-    let target = $nu.home-dir | path join .local share Steam $STALE
-    if ($target | path type) != symlink { return [] }
-    if (^readlink $target | str trim | str starts-with $"($MILLENNIUM_LIB)/") { [$target] } else { [] }
+# The 32-bit link, and with millennium off every link, only while it still points into millennium.
+def stale-link [millennium: bool]: nothing -> list<path> {
+    let steam = $nu.home-dir | path join .local share Steam
+    let targets = if $millennium { [$STALE] } else { $LINKS.target | append $STALE }
+    $targets | each {|t| $steam | path join $t } | where ($it | path type) == symlink | where {|t|
+        let source = ^readlink $t | str trim
+        [$MILLENNIUM_LIB $"/run/host($MILLENNIUM_LIB)"] | any {|lib| $source | str starts-with $"($lib)/" }
+    }
 }
 
 # Only steam's own copy goes, a launcher the user put there stays.
@@ -39,12 +42,14 @@ def shortcuts-steam []: nothing -> list<path> {
     | where {|s| ($s | path type) == file and (open --raw $s) == $source }
 }
 
-export def bootstrap-pending []: nothing -> bool {
-    (links-missing | is-not-empty) or (stale-link | is-not-empty) or (shortcuts-steam | is-not-empty)
+# --no-millennium: gaming/steam's millennium option is off, its links go instead.
+export def bootstrap-pending [--no-millennium]: nothing -> bool {
+    let missing = if $no_millennium { [] } else { links-missing }
+    ($missing | is-not-empty) or (stale-link (not $no_millennium) | is-not-empty) or (shortcuts-steam | is-not-empty)
 }
 
-def main []: nothing -> nothing {
-    for l in (links-missing) { ^ln -sfn $l.source $l.target }
-    for l in (stale-link) { rm $l }
+def main [--no-millennium]: nothing -> nothing {
+    if not $no_millennium { for l in (links-missing) { ^ln -sfn $l.source $l.target } }
+    for l in (stale-link (not $no_millennium)) { rm $l }
     for s in (shortcuts-steam) { rm $s }
 }

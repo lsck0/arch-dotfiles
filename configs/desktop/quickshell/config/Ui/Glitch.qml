@@ -18,7 +18,7 @@ Item {
   signal finished()
 
   function play() {
-    if (!root.baked || !root.source || !Style.motion.enabled || effect.status === ShaderEffect.Error) {
+    if (!root.baked || !root.source || !Style.motion.enabled || !Prefs.glitch || effect.status === ShaderEffect.Error) {
       root.finished()
       return
     }

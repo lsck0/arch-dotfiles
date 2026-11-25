@@ -7,7 +7,6 @@ const INTERNAL = path self ../../../../scripts/lib/internal.nu
 const LIST = path self wallpaper-list.nu
 const PICK = path self wallpaper-pick.nu
 const THEMES = path self ../../../../themes
-const CONFIG = path self ../config/wallust.toml
 const COLORS_TEMPLATE = path self ../config/templates/wal/colors.json
 const WAL = "wal"
 # what is in effect: a theme's name, or DERIVED for a palette taken from the wallpaper; named for nvim, its first reader
@@ -72,13 +71,13 @@ export def palette-kept [recorded: string, wallpaper: string, themes: table]: no
 # The theme in effect by name, "pywal" for a derived palette.
 export def theme-get []: nothing -> string { palette-kept (recorded) (wallpaper-get) (themes) }
 
-# What wallust derives from a wallpaper, as colors.json's record: the repo's settings with that one template, rendered
-# into dir, so nothing live is written before the palette is conditioned.
-def derive [file: path, dir: path]: nothing -> record {
+# What wallust derives from a wallpaper, as colors.json's record: the installed settings (the palette option rendered)
+# with that one template, rendered into dir, so nothing live is written before the palette is conditioned.
+export def derive [file: path, dir: path]: nothing -> record {
     let out = $dir | path join raw.json
     mkdir ($dir | path join templates)
     cp $COLORS_TEMPLATE ($dir | path join templates colors.json)
-    open $CONFIG | upsert templates {json: {template: colors.json, target: $out, pywal: true}} | to toml
+    open (xdg config wallust wallust.toml) | upsert templates {json: {template: colors.json, target: $out, pywal: true}} | to toml
     | save --force ($dir | path join wallust.toml)
     ^wallust run -s -q -d $dir $file
     open $out

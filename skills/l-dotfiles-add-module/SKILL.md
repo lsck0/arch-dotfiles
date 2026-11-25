@@ -94,9 +94,11 @@ export def apply [cfg: record] { theme $cfg "" }          # a live option's hook
 - A helper a unit, toggle or keybind runs is a script in the module's `scripts/`, installed with `link-commands` or
   `files-into`. A root helper on caller-chosen arguments takes no `def --wrapped main` and no value-taking flag
   (`core/toggles/scripts/toggle-root.nu`); a pass-through is sh or bash (`base/protonvpn-netns/scripts/run.sh`).
-- A linked script finds the repo with `const REPO = path self | path expand | path dirname --num-levels <depth>` (5 in
-  a module's `scripts/`, lint `LINKED_RELATIVE`); any other file uses `path self` with a relative path
-  (`path self ../../../..` in `scripts/`, `../../..` at the module's top).
+- A linked script finds the repo with `const REPO = path self | path expand | path dirname --num-levels <depth>`, one
+  level per directory between the file and the repo: 5 in `configs/<group>/<module>/scripts/`, 6 in a nested module's
+  (`core/proton/sessions/scripts/`); lint `LINKED_RELATIVE` checks the pattern, not the depth. Any other file uses
+  `path self` with a relative path (`path self ../../../..` in `scripts/`, `../../..` at the module's top), one more
+  `..` in a nested module.
 - The user layer already loads `configs/base/xdg/config/app-dirs.conf`; never copy its variables into a module.
 - A one-time change on installed machines is a migration, never a substitute for a declaration:
   `migrations/<NNNN>-<slug>.nu` from `0000-sample.nu` (`up` only; `export const layer = "system"` runs as root).

@@ -4,7 +4,7 @@
 const DISCOVERY_TIMEOUT_S = 10
 const SERVICES = [ipp ipps]
 const DEFAULT_SET = "system default destination:"
-# matches PAGE_SIZE in mod.nu
+# desktop/printing's page_size option, filled in when mod.nu installs this script as /usr/local/bin/printers-sync
 const PAGE_SIZE = "@PAGE_SIZE@"
 
 def warn [msg: string]: nothing -> nothing { print --stderr $"printers-sync: ($msg)" }

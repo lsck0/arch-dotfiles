@@ -6,6 +6,8 @@ use ../lib/state.nu [xdg]
 
 const DAMAGE_FULL = 2
 const DAMAGE_NONE = 0
+# an accessibility aid, not an effect: power saver keeps it
+const SAVER_KEEPS = "colorblind-correction"
 
 def shader-dir []: nothing -> path { xdg config hypr shaders }
 def render-dir []: nothing -> path { xdg runtime shaders }
@@ -102,10 +104,17 @@ def entry-load [entry: string, shaders: table]: nothing -> nothing {
     load (if $shader.animated { $DAMAGE_NONE } else { $DAMAGE_FULL }) (render $entry $shader)
 }
 
+# The shader desktop/hyprland's screen_shader starts each login with, null when unset.
+def login-default []: nothing -> any {
+    let entry = try { open --raw (xdg config hypr shader) | str trim } catch { "" }
+    if $entry == "" { null } else { $entry }
+}
+
 def apply [entry: string, shaders: table]: nothing -> nothing {
     if $entry == off {
         load $DAMAGE_FULL ""
-        state-set shader off --volatile
+        # tied to the instance, so this login's off holds over a login default
+        state-set shader $"(hyprland-instance) off" --volatile
         notify Shader Off
         return
     }
@@ -127,14 +136,15 @@ def "main status" [] { {current: (current), shaders: (shaders | select name labe
 
 def "main off" [] { apply off (shaders) }
 
+# This login's shader, else the login default; power saver drops all but colorblind correction.
 def "main reapply" [] {
     let saved = state-get shader --volatile | split row " "
-    if $saved.0 != (hyprland-instance) or ($saved | length) < 2 or (state-get powersaver --volatile) == on {
-        return
-    }
+    let picked = if $saved.0 == (hyprland-instance) and ($saved | length) >= 2 { $saved.1 } else { login-default }
+    if $picked == null or $picked == off { return }
+    if (state-get powersaver --volatile) == on and not ($picked | str starts-with $SAVER_KEEPS) { return }
     let shaders = shaders
-    let entry = try { entry-parse $saved.1 $shaders }
-    if $entry != null { entry-load $entry $shaders }
+    let entry = try { entry-parse $picked $shaders }
+    if $entry != null and $entry != off { entry-load $entry $shaders }
 }
 
 # on goes off, off brings back the last shader used

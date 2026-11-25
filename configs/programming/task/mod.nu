@@ -19,10 +19,9 @@ export const options = {
     sync_interval_min: {
         type: int
         default: 30
-        doc: "Minutes between the timer's syncs, stepped within each hour"
+        doc: "Minutes between the timer's syncs; a divisor of 60, so the steps within each hour are even"
         label: "Sync interval (min)"
-        min: 1
-        max: 60
+        choices: [1 2 3 4 5 6 10 12 15 20 30]
     }
     week_start: {type: string, default: Monday, doc: "First day of the week", label: "Week starts", choices: [Monday Sunday], scope: user}
     date_format: {type: string, default: d.m.y, doc: "Taskwarrior date format of input, reports and annotations", label: "Date format", scope: user}

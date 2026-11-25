@@ -2,6 +2,7 @@ use module.nu *
 
 export const meta = {
     packages: {pacman: [fzf-tab-git oh-my-zsh-git zsh zsh-autosuggestions zsh-completions zsh-syntax-highlighting]}
+    reads: [core/fastfetch]
 }
 
 export const options = {
@@ -17,7 +18,11 @@ export const options = {
 
 export def link [cfg: record] {
     [
-        (file-render config/zshrc ($nu.home-dir | path join .zshrc) {HISTORY_SIZE: $cfg.history_size})
+        (file-render config/zshrc ($nu.home-dir | path join .zshrc) {
+            HISTORY_SIZE: $cfg.history_size
+            # core/fastfetch's on_shell_start: off, the fetch line is a comment
+            FASTFETCH_OFF: (if $cfg.deps."core/fastfetch".on_shell_start { "" } else { "# " })
+        })
         (file-copy config/zshenv ($nu.home-dir | path join .zshenv))
         (link-commands scripts/fence.sh)
         (files-into (xdg config environment.d) config/no-telemetry.conf)

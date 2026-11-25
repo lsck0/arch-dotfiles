@@ -13,6 +13,9 @@ const ZONE_TABS = ["/usr/share/zoneinfo/zone1970.tab" "/usr/share/zoneinfo/zone.
 const IPGEO_URL = "https://ipapi.co/json/"
 const IPGEO_TIMEOUT = 6sec
 const COORD_DECIMALS = 2
+# desktop/quickshell's weather_location_sources, through the shell's prefs.json; [] leaves only the manual pin
+const SOURCES_DEFAULT = [geoclue timezone ipgeo]
+const PREFS = ($nu.home-dir | path join .config quickshell prefs.json)
 
 def manual-file []: nothing -> path { state-file weather-location.coords }
 
@@ -51,14 +54,22 @@ def ipgeo-coords []: nothing -> any {
     if $reply.latitude? != null and $reply.longitude? != null { coords-format $reply.latitude $reply.longitude }
 }
 
+def sources []: nothing -> list<string> {
+    let listed = try { open $PREFS | get --optional weatherSources } catch { null }
+    if ($listed | describe) =~ '^list' { $listed | where $it in $SOURCES_DEFAULT } else { $SOURCES_DEFAULT }
+}
+
 def resolve []: nothing -> string {
     let manual = manual-coords
     if $manual != null { return $"manual ($manual)" }
+    let sources = sources
     let cache = state-file weather-location.auto --volatile
+    # a cached fix from a source since taken off the list is a miss
     if ($cache | path exists) and ((date now) - (ls $cache | get 0.modified)) < $AUTO_CACHE_MAX_AGE {
-        return (open --raw $cache | str trim)
+        let cached = open --raw $cache | str trim
+        if ($cached | split row " " | first) in $sources { return $cached }
     }
-    for source in [geoclue timezone ipgeo] {
+    for source in $sources {
         let coords = match $source { geoclue => (geoclue-coords), timezone => (timezone-coords), ipgeo => (ipgeo-coords) }
         if $coords != null {
             $"($source) ($coords)" | save --force $cache

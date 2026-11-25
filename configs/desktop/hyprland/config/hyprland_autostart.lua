@@ -121,9 +121,19 @@ hl.on("hyprland.start", function()
         "uwsm-app -s b -- wl-clip-persist --clipboard regular -f '^((text|application|chromium|x-special)/.*|[^/]*|image/(png|jpeg|gif|webp|bmp|tiff|avif|svg\\+xml))$'"
     )
 
-    -- the shell expands $DOTFILES (an unset getenv would abort this hook); plugins.nu builds and loads the plugins
-    hl.exec_cmd("uwsm-app -s b -- $DOTFILES/configs/desktop/hyprland/scripts/plugins.nu")
-    hl.exec_cmd("uwsm-app -s b -- $DOTFILES/configs/desktop/shimoji/scripts/packs.nu")
+    -- the shell expands $DOTFILES (an unset getenv would abort this hook); plugins.nu builds and loads the plugins,
+    -- which only the cursor shake needs
+    if platform.cursor.shake then
+        hl.exec_cmd("uwsm-app -s b -- $DOTFILES/configs/desktop/hyprland/scripts/plugins.nu")
+    end
+    -- desktop/shimoji's mascots, only while that module is enabled: its package stays when the module is turned off
+    if platform.mascots then
+        hl.exec_cmd("uwsm-app -s b -- $DOTFILES/configs/desktop/shimoji/scripts/packs.nu")
+    end
+    -- monitors a crash or power loss left dimmed keep the low level in their own firmware
+    hl.exec_cmd("~/.config/hypr/screen-dim.nu restore")
+    -- the screen_shader option's shader, when set
+    hl.exec_cmd("$DOTFILES/scripts/toggles/toggle-shader.nu reapply")
     -- a session started docked with the lid already closed
     hl.exec_cmd("$DOTFILES/configs/desktop/hyprland/scripts/lid.nu")
 

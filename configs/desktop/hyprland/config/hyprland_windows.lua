@@ -54,7 +54,7 @@ hl.config({
             enabled = platform.look.blur,
             size = 6,
             passes = 3,
-            popups = true,
+            popups = platform.look.blur_menus,
             contrast = 1.0,
             brightness = style.blur_brightness or 1.0,
             noise = 0.02,

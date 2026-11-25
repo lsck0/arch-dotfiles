@@ -8,7 +8,8 @@ local M = {}
 
 -- programming/nvim's mod.nu fetches this file to the same path
 local MODEL_FILE = "ggml-large-v3-turbo-q5_0.bin"
-local LANGUAGE = "en"
+-- whisper's language code, or auto to detect it per piece
+local LANGUAGE = require("lib.dot_options").dictation_language
 local OLLAMA_URL = "http://127.0.0.1:11434"
 -- llm/ollama's 8b, LONG_CONTEXT in ollama-ensure-models.nu: at a 4k context it takes 5 GB of vram and answers in
 -- under a second, where the 30b moe took 15 GB; greedy decoding keeps the same speech giving the same latex

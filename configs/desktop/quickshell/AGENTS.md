@@ -14,7 +14,8 @@ Editing, reload, logs, screenshots: `l-dotfiles-quickshell-dev`.
   file's keys, `fixed` ones read only), quick toggles, system, then every module's options. `schema.test.nu` covers
   `Schema.js`.
 - Options in `mod.nu` reach the shell as generated json beside the tree (`bar.json` the bar layout, `notify.json`,
-  `pomodoro.json`, `clipboard.json`) and the `fx` section of `theme.json`; its other knobs stay in the repo copy.
+  `pomodoro.json`, `clipboard.json`, and `prefs.json` for the rest: QML through the `Prefs` singleton, the nu helpers
+  by opening it) and the `fx` section of `theme.json`; its other knobs stay in the repo copy.
 - Colors come from `Colors.qml`/`Theme.qml` tokens, never hardcoded.
 - No explanatory help sentences in the UI: short labels, values, key hints (`[ESC] Dismiss`) and terse empty states
   (`> NO TRAY ICONS`) only.

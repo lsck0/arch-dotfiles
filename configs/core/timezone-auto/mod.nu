@@ -1,6 +1,18 @@
 use module.nu *
 
 const NM_DISPATCHER_DIR = "/etc/NetworkManager/dispatcher.d"
+# timezone-auto.nu's ANY_NETWORK: present, the lookup also runs off a trusted network
+const ANY_NETWORK = "/etc/NetworkManager/timezone-auto-any-network"
+
+export const options = {
+    any_network: {
+        type: bool
+        default: false
+        doc: ("Look the timezone up on any network, not only a trusted one (base/networkmanager's home or trusted "
+            + "gateways), naming this machine's address to ipinfo.io there; a VPN or tor route still skips it")
+        label: "Any network"
+    }
+}
 
 export def link [cfg: record] {
     [
@@ -14,7 +26,11 @@ export def system [cfg: record] {
     [
         (polkit-rules config/49-timezone-auto.rules)
         (if ($NM_DISPATCHER_DIR | path exists) {
-            file-copy scripts/nm-dispatcher.nu ($NM_DISPATCHER_DIR | path join 85-timezone-auto) --mode 755
+            let dispatcher = if $cfg.any_network { "scripts/nm-dispatcher-any.nu" } else { "scripts/nm-dispatcher.nu" }
+            [
+                (if $cfg.any_network { file-text $ANY_NETWORK "" })
+                (file-copy $dispatcher ($NM_DISPATCHER_DIR | path join 85-timezone-auto) --mode 755)
+            ]
         })
     ]
 }

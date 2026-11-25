@@ -17,7 +17,7 @@ def main [] {
         {$k: ($work | path join $d)}
     } | into record
     ^ln -s ($HERE | path join config) ($work | path join config nvim)
-    let call = $"cd ($HERE | to nuon); use ($HERE | to nuon); nvim link {} | where kind == step | to nuon"
+    let call = $"cd ($HERE | to nuon); use ($HERE | to nuon); nvim link {spell_languages: [en], dictation_language: en} | compact | where kind == step | to nuon"
     let start = date now
     let run = with-env ($dirs | merge {HOME: $work}) {
         ^timeout ($EVAL_WAIT_MAX / 1sec) unshare --net --map-current-user nu --no-config-file -I $LIB -c $call | complete

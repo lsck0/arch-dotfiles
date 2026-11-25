@@ -136,3 +136,8 @@ hl.layer_rule({
     order = 1,
     ignore_alpha = 0.02,
 })
+
+-- X11 menus and tooltips are untitled floating windows: blur off for them leaves the window under a menu as it is
+if not platform.look.blur_menus then
+    hl.window_rule({ match = { xwayland = true, float = true, title = "^$" }, no_blur = true })
+end

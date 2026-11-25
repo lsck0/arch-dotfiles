@@ -8,7 +8,26 @@ export const meta = {
     volatile: true
 }
 
+# the plugins plugins_off governs, each declared on or off: the ini merge keeps no record to undo a dropped key, so one
+# taken off the list is switched back on, and a plugin outside it keeps what the device config holds
+const PLUGINS_GOVERNED = [
+    kdeconnect_notifications kdeconnect_sendnotifications kdeconnect_sms kdeconnect_contacts kdeconnect_mousepad
+    kdeconnect_remotekeyboard kdeconnect_runcommand kdeconnect_lockdevice kdeconnect_shareinputdevices
+    kdeconnect_shareinputdevicesremote kdeconnect_digitizer kdeconnect_presenter
+]
+
 export const options = {
+    plugins_off: {
+        type: list<string>
+        # chats and contacts stay on the phone, and nothing on it drives this machine
+        default: $PLUGINS_GOVERNED
+        choices: $PLUGINS_GOVERNED
+        doc: ("KDE Connect plugins turned off for every paired device on each apply; drop one to use it (phone "
+            + "notifications, SMS, the phone as remote or presenter)")
+        label: "Plugins off"
+        apply: relink
+        scope: user
+    }
     clipboard_auto: {
         type: bool
         default: false
@@ -20,12 +39,6 @@ export const options = {
 }
 
 const CLIPBOARD_PLUGIN = "kdeconnect_clipboard"
-# off for every paired device: chats and contacts stay on the phone, and nothing on it drives this machine
-const PLUGINS_OFF = [
-    kdeconnect_notifications kdeconnect_sendnotifications kdeconnect_sms kdeconnect_contacts kdeconnect_mousepad
-    kdeconnect_remotekeyboard kdeconnect_runcommand kdeconnect_lockdevice kdeconnect_shareinputdevices
-    kdeconnect_shareinputdevicesremote kdeconnect_digitizer kdeconnect_presenter
-]
 const DEVICES_PATH = "/modules/kdeconnect/devices"
 
 # a running daemon keeps a device's plugins loaded until told to reload them; a stopped one reads the config on start
@@ -42,7 +55,7 @@ export def link [cfg: record] {
         ini-rows (open --raw $trusted) | get section | uniq | where $it != ""
     } else { [] }
     let clipboard = {General: {autoShare: ($cfg.clipboard_auto | into string), sendPassword: "false"}}
-    let plugins = {Plugins: ($PLUGINS_OFF | each {|p| {$"($p)Enabled": "false"} } | into record)}
+    let plugins = {Plugins: ($PLUGINS_GOVERNED | each {|p| {$"($p)Enabled": ($p not-in $cfg.plugins_off | into string)} } | into record)}
     [
         (link-commands scripts/phone.nu)
         ($ids | each {|id| ini-merge ($config | path join $id $CLIPBOARD_PLUGIN config) $clipboard })

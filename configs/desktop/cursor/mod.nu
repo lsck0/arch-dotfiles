@@ -10,6 +10,9 @@ export const meta = {
     packages: {pacman: [librsvg rose-pine-cursor rose-pine-hyprcursor xorg-xcursorgen]}
 }
 
+# size_px's default, for a reader whose platform leaves this module out
+export const CURSOR_SIZE_PX = 30
+
 export const options = {
     active: {
         type: bool
@@ -18,10 +21,19 @@ export const options = {
         label: "Palette cursor"
         scope: user
     }
+    size_px: {
+        type: int
+        default: $CURSOR_SIZE_PX
+        doc: "Pointer size in Hyprland, X11, gtk and KDE apps; scaled outputs ask for up to twice it"
+        label: "Cursor size"
+        min: 16
+        max: 128
+        scope: user
+        apply: relogin
+    }
 }
 
 export const CURSOR_THEME = "palette-cursor"
-export const CURSOR_SIZE_PX = 30
 # the stock xcursor theme: the fallback, the source of every xcursor name an app may ask for, and of the animated
 # wait and progress cursors the hyprcursor set lacks
 export const STOCK = "BreezeX-RosePine-Linux"
@@ -30,8 +42,8 @@ const SELF = path self
 const SOURCE_PACKAGE = "rose-pine-hyprcursor"
 const SOURCE_DIR = "/usr/share/icons/rose-pine-hyprcursor/hyprcursors"
 const STOCK_CURSORS = "/usr/share/icons/BreezeX-RosePine-Linux/cursors"
-# 1x, 1.6x and 2x of CURSOR_SIZE_PX: what scaled outputs and GDK_SCALE ask an X11 app for
-const XCURSOR_SIZES_PX = [30 48 60]
+# 1x, 1.6x and 2x of the size: what scaled outputs and GDK_SCALE ask an X11 app for
+const XCURSOR_FACTORS = [1.0 1.6 2.0]
 # rose-pine's colours, by the palette role each takes; a badge draws its glyph in the outline colour
 const SOURCE_COLORS = {
     body: ["191724"]
@@ -128,8 +140,11 @@ def hyprcursor-build [src: path, out: path]: nothing -> nothing {
     cp --recursive ($built | path join $"theme_($CURSOR_THEME)" "*" | into glob) $out
 }
 
-# One xcursor per shape at XCURSOR_SIZES_PX with the hyprcursor hotspots, and a link for every stock name of it.
-def xcursor-build [shapes: path, out: path]: nothing -> nothing {
+# The size a reader's cfg.deps entry for this module names.
+export def cursor-size [cursor: any]: nothing -> int { $cursor.size_px? | default $CURSOR_SIZE_PX }
+
+# One xcursor per shape at XCURSOR_FACTORS of size with the hyprcursor hotspots, and a link for every stock name of it.
+def xcursor-build [shapes: path, out: path, size: int]: nothing -> nothing {
     let cursors = $out | path join cursors
     let pngs = cache-dir | path join stage-xcursor
     mkdir $cursors $pngs
@@ -137,7 +152,7 @@ def xcursor-build [shapes: path, out: path]: nothing -> nothing {
     $names | par-each {|shape|
         let meta = meta-read ($shapes | path join $shape meta.hl)
         let svg = $shapes | path join $shape $meta.image
-        let config = $XCURSOR_SIZES_PX | each {|size|
+        let config = $XCURSOR_FACTORS | each { $in * $size | math round | into int } | each {|size|
             let png = $pngs | path join $"($shape)-($size).png"
             ^rsvg-convert --width $size --height $size $svg --output $png
             let hot = {|f| [($f * $size | math round | into int) ($size - 1)] | math min }
@@ -153,7 +168,7 @@ def xcursor-build [shapes: path, out: path]: nothing -> nothing {
 
 # Builds the theme beside the live one and swaps it in; active, hands it to a running Hyprland and to the session's
 # environment, which X11 apps read at start.
-export def build [colors_json: string, active: string]: nothing -> nothing {
+export def build [colors_json: string, active: string, size: string]: nothing -> nothing {
     let shapes = source-extract
     let src = cache-dir | path join stage-source
     let next = cache-dir | path join stage-theme
@@ -162,14 +177,14 @@ export def build [colors_json: string, active: string]: nothing -> nothing {
     mkdir $src $next
     shapes-recolor $shapes ($colors_json | from json) $src
     hyprcursor-build $src $next
-    xcursor-build ($src | path join hyprcursors) $next
+    xcursor-build ($src | path join hyprcursors) $next ($size | into int)
     let dest = theme-dir
     mkdir ($dest | path dirname)
     rm --recursive --force $dest
     mv $next $dest
     rm --recursive --force ...$stages
     if $active == "true" and (hyprland-live) {
-        ^hyprctl setcursor $CURSOR_THEME $CURSOR_SIZE_PX | ignore
+        ^hyprctl setcursor $CURSOR_THEME $size | ignore
         ^systemctl --user set-environment $"XCURSOR_THEME=($CURSOR_THEME)" $"HYPRCURSOR_THEME=($CURSOR_THEME)"
         # dynamic-cursors' shake magnifier reloads its theme only on a config reload, not on setcursor
         reload
@@ -206,6 +221,7 @@ export def link [cfg: record] {
 export def theme [cfg: record, wallpaper: string] {
     let colors = cursor-colors
     let active = $cfg.active | into string
-    let key = [(package-version $SOURCE_PACKAGE) ($colors | to nuon) (open --raw $SELF | hash sha256) $active] | str join " "
-    step build ($colors | to json --raw) $active --key $key --undo [rm --recursive --force (theme-dir)]
+    let size = $cfg.size_px | into string
+    let key = [(package-version $SOURCE_PACKAGE) ($colors | to nuon) (open --raw $SELF | hash sha256) $active $size] | str join " "
+    step build ($colors | to json --raw) $active $size --key $key --undo [rm --recursive --force (theme-dir)]
 }

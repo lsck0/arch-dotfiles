@@ -7,10 +7,14 @@
 # configs name, relative to configs/secrets/keys/ ({host} this machine's name), and nothing that leaves keys/ by an
 # absolute path or a `..`. Of the paths that differ from root's copy, root acts on all but a user-only module's files and
 # .nu files nothing root runs imports; a module root keeps a record of counts as root-run after its system verb is gone.
-use system.nu [system-pack system-unpack system-files root-acts-on system-archive system-secrets system-secrets-digest entry-parses secrets-digest SECRETS_PREFIX SECRETS_DIGEST ENTRY]
+# bootstrap.sh and the signing key it names, which adduser verifies a new login's checkout with, ride in the copy and
+# count for root even when the key sits in a user-only module.
+use system.nu [system-pack system-unpack system-files root-acts-on system-archive system-secrets system-secrets-digest entry-parses secrets-digest bootstrap-const SECRETS_PREFIX SECRETS_DIGEST ENTRY]
 use std/assert
 
 const SHA = "0123456789abcdef0123456789abcdef01234567"
+const SIGNING_KEY_FILE = "configs/group/app/key.asc"
+const TRUST_URL = "https://example.invalid/dotfiles.git"
 
 def git-init [dir: path]: nothing -> nothing {
     let git = [-C $dir -c core.hooksPath=/dev/null -c user.name=test -c user.email=test@localhost]
@@ -31,6 +35,8 @@ def check [work: path]: nothing -> nothing {
     mkdir $app
     "export def link [cfg: record] { [] }\n" | save ($app | path join mod.nu)
     "{}\n" | save ($app | path join state.json)
+    "key\n" | save ($checkout | path join $SIGNING_KEY_FILE)
+    $"#!/usr/bin/env bash\nDOTFILES_URL=($TRUST_URL)\nSIGNING_KEY_FILE=($SIGNING_KEY_FILE)\n" | save ($checkout | path join bootstrap.sh)
     let helped = $checkout | path join configs group helped
     mkdir $helped
     "export use root.nu *\n" | save ($helped | path join mod.nu)
@@ -66,6 +72,8 @@ def check [work: path]: nothing -> nothing {
     assert ("configs/group/helped/unit.conf" in $packed) "a module whose root verb sits in a helper file is not packed whole"
     assert ("configs/group/sensed/state.json" not-in $packed) "a detect no root-run module reads ships its module whole"
     assert ("configs/group/probed/state.json" in $packed) "a detect a root-run module reads does not ship its module whole"
+    assert equal (bootstrap-const $copy DOTFILES_URL) $TRUST_URL "the copy's bootstrap.sh does not name the url"
+    assert ($copy | path join (bootstrap-const $copy SIGNING_KEY_FILE) | path exists) "the copy lacks the signing key adduser imports"
 
     # a backup writing a user-only module's state after the pack leaves the copy current, as dot status compares it
     "{changed: true}\n" | save --force ($checkout | path join configs group sensed state.json)
@@ -146,6 +154,8 @@ def acts-on-cases [repo: path]: nothing -> nothing {
     do $write "configs/base/svc/unit.conf" "x\n"
     do $write "configs/base/gone/mod.nu" "export def link [cfg: record] { [] }\n"
     do $write "scripts/lib/helper.nu" "use ../../configs/desktop/shared/via.nu\n"
+    do $write "configs/desktop/shell/key.asc" "key\n"
+    do $write "bootstrap.sh" "SIGNING_KEY_FILE=configs/desktop/shell/key.asc\n"
     let cases = [
         [name paths acted];
         ["a quickshell-like module's files" [configs/desktop/shell/Bar.qml configs/desktop/shell/mod.nu configs/desktop/shell/widget.nu] []]
@@ -158,6 +168,7 @@ def acts-on-cases [repo: path]: nothing -> nothing {
         ["a user-only .nu root's lib imports, transitively" [configs/desktop/shared/deep.nu] [configs/desktop/shared/deep.nu]]
         ["a module root keeps a record of" [configs/base/gone/mod.nu] [configs/base/gone/mod.nu]]
         ["a module gone from the checkout" [configs/old/thing/mod.nu] [configs/old/thing/mod.nu]]
+        ["the trust files, the key in a user-only module" [bootstrap.sh configs/desktop/shell/key.asc] [bootstrap.sh configs/desktop/shell/key.asc]]
     ]
     for c in $cases {
         let got = root-acts-on $repo [base/gone] $c.paths

@@ -10,6 +10,8 @@ const LOOKUP_TIMEOUT = 8sec
 const RETRY_DELAY = 5sec
 const HOME_DISPATCHER = "/etc/NetworkManager/dispatcher.d/70-home-network"
 const TRUSTED_NETWORK = "/run/trusted-network"
+# core/timezone-auto's any_network option
+const ANY_NETWORK = "/etc/NetworkManager/timezone-auto-any-network"
 const ZONEINFO = "/usr/share/zoneinfo"
 const TZ_SHAPE = '^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){1,2}$'
 
@@ -31,7 +33,7 @@ def tunnel-up []: nothing -> any {
 }
 
 def off-trusted []: nothing -> bool {
-    ($HOME_DISPATCHER | path exists) and not (($TRUSTED_NETWORK | path exists) and (open --raw $TRUSTED_NETWORK | is-not-empty))
+    not ($ANY_NETWORK | path exists) and ($HOME_DISPATCHER | path exists) and not (($TRUSTED_NETWORK | path exists) and (open --raw $TRUSTED_NETWORK | is-not-empty))
 }
 
 def tz-valid [tz: string]: nothing -> bool {

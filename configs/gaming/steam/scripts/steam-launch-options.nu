@@ -4,10 +4,14 @@
 const REPO = path self | path expand | path dirname --num-levels 5
 use ($REPO | path join scripts lib state.nu) [save-atomic]
 
-const LAUNCH_OPTIONS_DEFAULT = "gamemoderun mangohud %command%"
+export const LAUNCH_OPTIONS_DEFAULT = "gamemoderun mangohud %command%"
 # PNGTuber Plus is opengl under proton: only obs-gamecapture's gl preload is captured, and mangohud's shim bypasses it
 const LAUNCH_OPTIONS_APPS = {"2596880": "gamemoderun obs-gamecapture %command%"}
 const LAUNCH_OPTIONS_OURS = [$LAUNCH_OPTIONS_DEFAULT "gamemoderun mangohud obs-gamecapture %command%"]
+# gaming/steam's launch_options when not the default: every launch of this script fills it, steam-launch.nu's too
+const WANTED_FILE = [steam launch-options]
+# every wanted value a fill got into all logins: a game still holding an older one is ours after the option changed
+const FILLED_FILE = [steam launch-options.filled]
 const APPS_PATH = [UserLocalConfigStore Software Valve Steam apps]
 const STEAM_PROCESSES = [steam steamwebhelper]
 const BACKUP_SUFFIX = ".dotfiles-bak"
@@ -67,10 +71,40 @@ def vdf-update [pairs: list, path: list<string>, change: closure]: nothing -> li
     }
 }
 
-# This script, the logins' localconfig.vdf files and the installed games: a new game or login changes it.
-export def launch-options-fingerprint []: nothing -> string {
+def state-dir []: nothing -> path {
+    $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state)
+}
+
+export def wanted-file []: nothing -> path {
+    state-dir | path join ...$WANTED_FILE
+}
+
+def filled-file []: nothing -> path {
+    state-dir | path join ...$FILLED_FILE
+}
+
+def filled-load []: nothing -> list<string> {
+    let file = filled-file
+    if ($file | path exists) { open --raw $file | lines } else { [] }
+}
+
+def filled-add [value: string]: nothing -> nothing {
+    let filled = filled-load
+    if ($value | str trim) == "" or $value in $LAUNCH_OPTIONS_OURS or $value in $filled { return }
+    mkdir (filled-file | path dirname)
+    $filled | append $value | to text | save-atomic (filled-file)
+}
+
+def wanted-default []: nothing -> string {
+    let file = wanted-file
+    if ($file | path exists) { open --raw $file } else { $LAUNCH_OPTIONS_DEFAULT }
+}
+
+# This script, the wanted options, the logins' localconfig.vdf files and the installed games: a new game or login
+# changes it.
+export def launch-options-fingerprint [wanted: string]: nothing -> string {
     let configs = glob (steam-root | path join userdata "*" config localconfig.vdf) | sort
-    [(open --raw $SELF | hash sha256) ...$configs ...(appids-installed | sort)] | str join "\n" | hash sha256
+    [(open --raw $SELF | hash sha256) $wanted ...$configs ...(appids-installed | sort)] | str join "\n" | hash sha256
 }
 
 def appids-installed []: nothing -> list<string> {
@@ -84,12 +118,14 @@ def appids-installed []: nothing -> list<string> {
         | each { path basename | parse "appmanifest_{id}.acf" | get 0.id } | where $it =~ '^\d+$' | uniq
 }
 
-def apps-fill [installed: list<string>]: list -> list {
+# A game's options are ours while empty, one of ours, one filled before or the wanted default: one the player typed
+# stays.
+def apps-fill [installed: list<string>, default: string, filled: list<string>]: list -> list {
     each {|app|
         if $app.k not-in $installed or ($app.v | describe) == string { return $app }
         let existing = vdf-get $app.v LaunchOptions
-        let wanted = $LAUNCH_OPTIONS_APPS | get --optional $app.k | default $LAUNCH_OPTIONS_DEFAULT
-        let ours = $existing == null or ($existing | str trim) == "" or $existing in $LAUNCH_OPTIONS_OURS
+        let wanted = $LAUNCH_OPTIONS_APPS | get --optional $app.k | default $default
+        let ours = $existing == null or ($existing | str trim) == "" or $existing in ($LAUNCH_OPTIONS_OURS ++ $filled | append $default)
         if not $ours or $existing == $wanted { return $app }
         let options = if ($app.v | any { ($in.k | str lowercase) == "launchoptions" }) {
             $app.v | each { if ($in.k | str lowercase) == "launchoptions" { $in | update v $wanted } else { $in } }
@@ -98,17 +134,17 @@ def apps-fill [installed: list<string>]: list -> list {
     }
 }
 
-def localconfig-process [file: path, installed: list<string>]: nothing -> bool {
+def localconfig-process [file: path, installed: list<string>, default: string, filled: list<string>]: nothing -> bool {
     let config = try { open --raw $file | vdf-parse } catch {|e|
         print --stderr $"steam-launch-options: cannot read ($file): ($e.msg)"
         null
     }
     if $config == null { return false }
-    let filled = vdf-update $config $APPS_PATH {|apps| $apps | apps-fill $installed }
-    if $filled == $config { return true }
+    let updated = vdf-update $config $APPS_PATH {|apps| $apps | apps-fill $installed $default $filled }
+    if $updated == $config { return true }
     let backup = $file + $BACKUP_SUFFIX
     if not ($backup | path exists) { cp --preserve [mode timestamps] $file $backup }
-    vdf-dump $filled | save-atomic $file
+    vdf-dump $updated | save-atomic $file
     print $"steam-launch-options: filled the launch options in ($file)"
     true
 }
@@ -126,7 +162,10 @@ def main []: nothing -> nothing {
     }
     let configs = glob (steam-root | path join userdata "*" config localconfig.vdf)
     let installed = appids-installed
+    let default = wanted-default
+    let filled = filled-load
     if ($configs | is-not-empty) and ($installed | is-not-empty) {
-        if not ($configs | each { localconfig-process $in $installed } | all { $in }) { exit 1 }
+        if not ($configs | each { localconfig-process $in $installed $default $filled } | all { $in }) { exit 1 }
+        filled-add $default
     }
 }

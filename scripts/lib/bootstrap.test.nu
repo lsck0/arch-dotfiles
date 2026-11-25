@@ -1,8 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
 # bootstrap-profile-resolve and bootstrap-platform-resolve against a throwaway repo: custom resolves to no file, a
 # named pick reads its capabilities or its platform's groups, and an unknown pick or server-on-wsl dies. The groups
-# answer unattended, the install chain's ESP marker, and the live pacman.conf's [lsck0] with the lab up and down.
-use bootstrap.nu [bootstrap-profile-resolve bootstrap-platform-resolve answer-groups stage-marker-state pacman-conf-lsck0 timezone-known]
+# answer unattended, the install chain's ESP marker, the live pacman.conf's [lsck0] with the lab up and down, and the
+# installed zram-generator.conf rendered from base/zram's defaults under the machine's options.
+use bootstrap.nu [bootstrap-profile-resolve bootstrap-platform-resolve answer-groups stage-marker-state pacman-conf-lsck0 timezone-known zram-config-render]
 use stage.nu [STAGE_ESP_RUNNING STAGE_ESP_STOPPED]
 use platform.nu [platform-groups-all]
 use std/assert
@@ -122,8 +123,22 @@ def timezone-cases [repo: path]: nothing -> nothing {
     for z in [Europe leapseconds Europe/Nowhere] { assert not (timezone-known $z $root) $"timezone: ($z) must not pass" }
 }
 
+def zram-cases []: nothing -> nothing {
+    let cases = [
+        [name c wants];
+        ["defaults" {repo: $REPO, generic: true, options: {}} "zram-size = ram\ncompression-algorithm = zstd\n"]
+        ["machine option" {repo: $REPO, generic: true, options: {"base/zram": {size: "ram / 2"}}}
+            "zram-size = ram / 2\ncompression-algorithm = zstd\n"]
+    ]
+    for c in $cases {
+        let got = zram-config-render $c.c
+        assert ($got | str contains $c.wants) $"zram ($c.name): ($got)"
+        assert not ($got | str contains "@") $"zram ($c.name): a placeholder left: ($got)"
+    }
+}
+
 def main [] {
     let repo = fixture
-    try { profile-cases $repo; platform-cases $repo; groups-cases $repo; marker-cases $repo; pacman-conf-cases; timezone-cases $repo } catch {|e| rm --recursive --force $repo; error make $e }
+    try { profile-cases $repo; platform-cases $repo; groups-cases $repo; marker-cases $repo; pacman-conf-cases; timezone-cases $repo; zram-cases } catch {|e| rm --recursive --force $repo; error make $e }
     rm --recursive --force $repo
 }

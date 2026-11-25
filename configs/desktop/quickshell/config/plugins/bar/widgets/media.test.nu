@@ -431,10 +431,20 @@ def scenarios(h, work):
     h.hold("paused pin stays shown past the linger while something plays", linger + 1, shown=True)
     h.players["spotify"].update(PlaybackStatus="Paused")
     h.players["spotify"].update(PlaybackStatus="Playing")
-    h.expect("another player starting: pin dropped, the starter shown", pinned="", player=MPRIS + ".spotify")
+    h.hold("another player starting: pin kept", 1, pinned=MPRIS + ".mpv", player=MPRIS + ".mpv")
+    h.ipc("harness", "pin", "")
+    h.expect("pin clicked off: the playing one shown", pinned="", player=MPRIS + ".spotify")
     h.ipc("harness", "pin", MPRIS + ".vlc")
     h.players["vlc"].update(PlaybackStatus="Playing")
     h.hold("the pinned player itself starting: pin kept", 1, pinned=MPRIS + ".vlc", player=MPRIS + ".vlc")
+
+    h.clear()
+    h.add("mpv", "mpv", "Playing", song("Older", "Mpv"), "mpv")
+    h.add("spotify", "Spotify", "Playing", SPOTIFY, "spotify")
+    h.expect("two-playing setup: the later starter shown", player=MPRIS + ".spotify")
+    h.players["spotify"].update(PlaybackStatus="Paused")
+    h.expect("shown one paused while another plays: switches to the playing one", player=MPRIS + ".mpv",
+             playing=True, line="Older :: Mpv")
 
     h.clear()
     h.add("mpv", "mpv", "Playing", SONG, "mpv")

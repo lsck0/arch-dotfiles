@@ -188,8 +188,8 @@ Item {
     if (!clock && minutes <= 0)
       return [root.row("capture", "\u{f0f3}", "x " + ReminderFlowModel.WHEN_HINT, "reminder", null)]
     const at = clock || new Date(now.getTime() + minutes * 60000)
-    const name = words.slice(1).join(" ") || (clock ? "reminder at " + Qt.formatDateTime(at, "HH:mm") : minutes + "-min reminder")
-    const sub = "at " + Qt.formatDateTime(at, "HH:mm") + (clock ? " (in " + TimerState.remainingText((at.getTime() - now.getTime()) / 1000) + ")" : "")
+    const name = words.slice(1).join(" ") || (clock ? "reminder at " + Qt.formatDateTime(at, Util.timeFormat) : minutes + "-min reminder")
+    const sub = "at " + Qt.formatDateTime(at, Util.timeFormat) + (clock ? " (in " + TimerState.remainingText((at.getTime() - now.getTime()) / 1000) + ")" : "")
     return [root.row("capture", "\u{f0f3}", name, sub, [script, "remind"].concat(words))]
   }
 

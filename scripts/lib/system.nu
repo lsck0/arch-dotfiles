@@ -6,7 +6,9 @@ use secrets.nu [secret-is-plaintext]
 use platform.nu [PLATFORM_REPO_LOCAL]
 use modules.nu [modules-discover modules-root-run IMPORT_LINE IMPORT_GREP]
 
-const SYSTEM_PATHS = [configs migrations platforms profiles scripts]
+const BOOTSTRAP = "bootstrap.sh"
+const SYSTEM_PATHS = [$BOOTSTRAP configs migrations platforms profiles scripts]
+export const FINGERPRINT_VALUE = '[0-9A-F]{40}'
 export const ENTRY = "scripts/lib/system-apply.nu"
 export const SECRETS_PREFIX = "configs/secrets/"
 export const SECRETS_DIGEST = ".secrets-digest"
@@ -18,6 +20,20 @@ export const RUN_ID = '^\d{8}T\d{6}-[a-z0-9]{4}$'
 const PARSE_CHECK_LIMIT = 50
 # in the signature of an `apply` that takes the asking run's id; an entry without it rejects the flag before its body
 const ENTRY_RUN_FLAG = "--run: string"
+
+# The value of a NAME=value line in bootstrap.sh, the one source of the url and signing key.
+export def bootstrap-const [repo: path, name: string, value: string = '\S+']: nothing -> string {
+    let found = open --raw ($repo | path join $BOOTSTRAP) | parse --regex ('(?m)^' + $name + '=(?<v>' + $value + ')$') | get v
+    if ($found | length) != 1 { error make {msg: $"($BOOTSTRAP) has no single ($name)=($value)"} }
+    $found.0
+}
+
+# What adduser verifies a new login's checkout with, read by root outside any module it runs: bootstrap.sh and the
+# signing key it names.
+def trust-files [checkout: path]: nothing -> list<string> {
+    if not ($checkout | path join $BOOTSTRAP | path exists) { return [] }
+    [$BOOTSTRAP (bootstrap-const $checkout SIGNING_KEY_FILE)]
+}
 
 # The secrets group's module files (never keys/), which ride in the root copy like configs/.
 def private-files [checkout: path, which: string]: nothing -> list<string> {
@@ -90,16 +106,17 @@ def imports-reached [checkout: path, modules: record]: nothing -> list<string> {
 
 # Of the paths (relative) that differ between the checkout and root's copy, those root's next entry acts on: what
 # root runs (root-runs; recorded: the ids root holds a system record of, so a module whose system verb is gone still
-# counts) and the .nu files that imports. The rest, a user-only module's files, root reads only through discovery,
-# whose outcome (the system plan, packages, secrets) the user side reads from the checkout; it rides along with the
-# next entry something else makes due.
+# counts), the trust files and the .nu files that imports. The rest, a user-only module's files, root reads only
+# through discovery, whose outcome (the system plan, packages, secrets) the user side reads from the checkout; it rides
+# along with the next entry something else makes due.
 export def root-acts-on [checkout: path, recorded: list<string>, paths: list<string>]: nothing -> list<string> {
     # what lies outside SYSTEM_PATHS is never in the copy
     let paths = $paths | where {|f| ($f | path split | first) in $SYSTEM_PATHS }
     if ($paths | is-empty) { return [] }
     let base = $checkout | path expand
     let modules = module-dirs-root $base $recorded
-    let run = $paths | where {|f| root-runs $f $modules }
+    let trust = trust-files $base
+    let run = $paths | where {|f| $f in $trust or (root-runs $f $modules) }
     let rest = $paths | where {|f| $f not-in $run and ($f | str ends-with ".nu") }
     if ($rest | is-empty) { return $run }
     let reached = imports-reached $base $modules
@@ -114,14 +131,16 @@ export def system-recorded []: nothing -> list<string> {
 
 # Every file the root copy holds, by git's view: --cached the tracked, --others the untracked, which includes the
 # git-ignored local platform, since root must load the platform the user layer does. The non-.nu files of a module
-# root never runs stay out, so the app state backup and update write after the pack leaves the copy current.
+# root never runs stay out but for the trust files, so the app state backup and update write after the pack leaves the
+# copy current.
 export def system-files [checkout: path, which: string]: nothing -> list<string> {
     let modules = module-dirs-root $checkout
+    let trust = trust-files $checkout
     let local = if $which == "--others" { $PLATFORM_REPO_LOCAL } else { [] }
     ^git -C $checkout ls-files -z $which --exclude-standard --deduplicate -- ...$SYSTEM_PATHS
     | split row (char nul) | append $local | uniq | where {|f| $f != "" and ($checkout | path join $f | path type) == "file" }
     | append (private-files $checkout $which)
-    | where {|f| root-reads $f $modules }
+    | where {|f| $f in $trust or (root-reads $f $modules) }
 }
 
 # The secrets the system layer may read, relative to configs/secrets/keys/: each module's meta.secrets ({host} this

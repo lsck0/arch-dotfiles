@@ -27,6 +27,26 @@ export const options = {
         doc: "What a long press of the power key does, logind.conf(5) HandlePowerKeyLongPress"
         label: "Power key long press"
     }
+    lid_switch: {
+        type: string
+        default: suspend
+        choices: $POWER_KEY_ACTIONS
+        doc: "What closing the lid does, logind.conf(5) HandleLidSwitch; lock or ignore keeps a clamshell machine running"
+        label: "Lid close"
+    }
+    lid_switch_external_power: {
+        type: string?
+        default: null
+        choices: $POWER_KEY_ACTIONS
+        doc: "What closing the lid does on external power, HandleLidSwitchExternalPower; unset, as on battery"
+        label: "Lid close on power"
+    }
+    ntp_servers: {
+        type: list<string>
+        default: []
+        doc: "Time servers timesyncd asks, timesyncd.conf(5) NTP; empty, Arch's pool (a network that blocks it needs its own)"
+        label: "NTP servers"
+    }
     bluetooth_auto_enable: {
         type: bool
         default: false
@@ -78,6 +98,15 @@ export def system [cfg: record] {
         (file-render config/logind.conf /etc/systemd/logind.conf.d/10-keys.conf
             {POWER_KEY: $cfg.power_key, POWER_KEY_LONG_PRESS: $cfg.power_key_long_press}
             --then (unit-restart systemd-logind.service --reload --if-running))
+        (if $cfg.lid_switch != "suspend" or $cfg.lid_switch_external_power != null {
+            let power = $cfg.lid_switch_external_power | default $cfg.lid_switch
+            let text = $"[Login]\nHandleLidSwitch=($cfg.lid_switch)\nHandleLidSwitchExternalPower=($power)\n"
+            file-text /etc/systemd/logind.conf.d/20-lid.conf $text --then (unit-restart systemd-logind.service --reload --if-running)
+        })
+        (if ($cfg.ntp_servers | is-not-empty) {
+            let text = $"[Time]\nNTP=($cfg.ntp_servers | str join ' ')\n"
+            file-text /etc/systemd/timesyncd.conf.d/10-servers.conf $text --then (unit-restart systemd-timesyncd.service --if-running)
+        })
         (if $cfg.mem_sleep != null {
             file-text /etc/systemd/sleep.conf.d/10-mem-sleep.conf $"[Sleep]\nMemorySleepMode=($cfg.mem_sleep)\n"
         })

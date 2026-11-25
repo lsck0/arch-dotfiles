@@ -2,7 +2,7 @@
 # hand-dismissed alert card, a notification when the shell cannot show it; kind: reminder (snooze)
 
 const HERE = path self | path expand | path dirname
-use ($HERE | path join lib shell.nu) [SHELL_CONFIG shell-call]
+use ($HERE | path join lib shell.nu) [SHELL_CONFIG shell-call sounds-on]
 
 const SOUND_DIR = "sounds"
 const SOUND_FALLBACK = "reminder"
@@ -28,5 +28,5 @@ def main [payload?: string] {
     }
     # foreground: the systemd unit kills background children on exit
     let cue = $SHELL_CONFIG | path join $SOUND_DIR $"(if $kind == "" { $SOUND_FALLBACK } else { $kind }).oga"
-    if ($cue | path exists) { ^timeout $SOUND_TIMEOUT pw-play --media-role Notification $cue | complete | ignore }
+    if ($cue | path exists) and (sounds-on) { ^timeout $SOUND_TIMEOUT pw-play --media-role Notification $cue | complete | ignore }
 }

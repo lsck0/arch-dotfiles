@@ -9,6 +9,19 @@ const SKILLS_CLI = "skills@1.7.6"
 # else the claude cli writes failed telemetry events under ~/.claude on every call
 const CLAUDE = [env DISABLE_TELEMETRY=1 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 claude]
 const PROBE = "skills/caveman/SKILL.md"
+# the plugin's own default when no config names one (src/hooks/caveman-config.js)
+const MODE_DEFAULT = "caveman"
+
+export const options = {
+    default_mode: {
+        type: string
+        default: $MODE_DEFAULT
+        doc: "Voice every agent session starts in: off for normal replies, manual for only after /caveman"
+        label: "Default mode"
+        choices: [off manual caveman ultracave megacave]
+        scope: user
+    }
+}
 
 def has [cmd: string]: nothing -> bool {
     which $cmd | is-not-empty
@@ -53,6 +66,10 @@ export def link [cfg: record] {
     let copilot = $nu.home-dir | path join .agents skills caveman SKILL.md
     [
         (fetch-git $URL $COMMIT $dir)
+        # the user config every harness's hook reads; a repo's .caveman.json or CAVEMAN_DEFAULT_MODE still wins
+        (if $cfg.default_mode != $MODE_DEFAULT {
+            json-merge (xdg config caveman config.json) [(json-set [defaultMode] $cfg.default_mode)]
+        })
         (if (has claude) { claude-steps $dir $probe })
         (if (has gemini) { gemini-step })
         (if (has node) and (has hermes) {

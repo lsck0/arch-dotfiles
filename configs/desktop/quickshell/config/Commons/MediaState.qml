@@ -9,7 +9,7 @@ import "Palette.js" as Palette
 // and the `media` IPC target the media keys drive, so keys, bar and agents act on the same player.
 //
 // The shown player: the pinned one; else the playing one that started last; else, with all paused, the one shown
-// before; else the one that played last. A pin holds until its player vanishes or another starts playing.
+// before; else the one that played last. A pin holds until it is clicked off or its player vanishes.
 Singleton {
   id: root
 
@@ -85,8 +85,7 @@ Singleton {
     lastShownPlayer = player ? player.dbusName : ""
   }
 
-  // stamps each player that went to playing since the last look, forgets the vanished, and drops a pin another
-  // player's start overrides
+  // stamps each player that went to playing since the last look and forgets the vanished
   function notePlayback() {
     var values = Mpris.players ? Mpris.players.values : [] // qmllint disable missing-property
     var now = ({})
@@ -105,7 +104,6 @@ Singleton {
     for (let i = 0; i < started.length; i++) stamps[started[i]] = ++root.startCount
     root.startedAt = stamps
     root.wasPlaying = now
-    if (pinnedPlayer && started.some(bus => bus !== pinnedPlayer)) pinnedPlayer = ""
   }
 
   readonly property string playbackKey: Array.from(Mpris.players ? Mpris.players.values : []) // qmllint disable missing-property

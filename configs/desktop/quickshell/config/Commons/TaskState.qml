@@ -142,7 +142,7 @@ Singleton {
   // the time today, the weekday this week, else the date
   function dayText(d) {
     var now = new Date()
-    if (d.toDateString() === now.toDateString()) return Qt.formatDateTime(d, "HH:mm")
+    if (d.toDateString() === now.toDateString()) return Qt.formatDateTime(d, Util.timeFormat)
     return Qt.formatDateTime(d, d.getTime() - now.getTime() < 6 * root.msPerDay ? "ddd" : "MMM d")
   }
 
@@ -157,7 +157,7 @@ Singleton {
     var d = twDate(value)
     if (!d || d.getTime() <= Date.now()) return ""
     var timed = d.toDateString() !== new Date().toDateString() && (d.getHours() !== 0 || d.getMinutes() !== 0)
-    return "@" + root.dayText(d) + (timed ? " " + Qt.formatDateTime(d, "HH:mm") : "")
+    return "@" + root.dayText(d) + (timed ? " " + Qt.formatDateTime(d, Util.timeFormat) : "")
   }
 
   // timew exports tags sorted: every tag counts, the description is the join key back to a task. `:day` returns every

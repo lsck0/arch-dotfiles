@@ -8,11 +8,13 @@ hl.config({
         repeat_rate = platform.input.repeat_rate,
         repeat_delay = platform.input.repeat_delay,
         numlock_by_default = platform.input.numlock,
-        follow_mouse = 1,
+        follow_mouse = platform.pointer.follow_mouse,
         -- a new tile reflows the layout under a resting cursor; with refocus on, the next touchpad jitter hands focus to
         -- whatever window now sits there, so a freshly opened terminal loses it. Focus follows only on crossing a border
         mouse_refocus = false,
         sensitivity = platform.pointer.sensitivity,
+        accel_profile = platform.pointer.accel_profile,
+        left_handed = platform.pointer.left_handed,
         touchpad = {
             natural_scroll = platform.pointer.natural_scroll,
             disable_while_typing = true,

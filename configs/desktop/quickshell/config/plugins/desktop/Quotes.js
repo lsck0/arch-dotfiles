@@ -168,9 +168,18 @@ function step(n) {
     return s;
 }
 
-// The same quote all day: the local calendar day since the epoch picks it.
-function forDate(date) {
+// The same quote all day: the local calendar day since the epoch picks it, from list (desktop_quotes_file) or QUOTES.
+function forDate(date, list) {
+    const quotes = list && list.length > 0 ? list : QUOTES;
     const day = Math.floor((date.getTime() - date.getTimezoneOffset() * 60000) / 86400000);
-    const n = QUOTES.length;
-    return QUOTES[(((day * step(n)) % n) + n) % n];
+    const n = quotes.length;
+    return quotes[(((day * step(n)) % n) + n) % n];
+}
+
+// The {text, author} entries of a parsed quotes file; anything else is left out.
+function fromList(parsed) {
+    if (!Array.isArray(parsed))
+        return [];
+    return parsed.filter(q => q && typeof q.text === "string" && q.text.trim() !== "")
+        .map(q => ({"text": q.text.trim(), "author": typeof q.author === "string" ? q.author.trim() : ""}));
 }

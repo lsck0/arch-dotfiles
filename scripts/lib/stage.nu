@@ -5,7 +5,8 @@ use state.nu [EXIT_PENDING file-trim file-lines INSTALL_PASS_FILE SYSTEM_REPO CO
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use system.nu [ENTRY]
 use profile.nu [profile-has]
-use cause.nu [failures-group ONLINE_ESCAPE]
+use cause.nu [failures-group ONLINE_ESCAPE SYSTEM_FIX]
+use platform.nu [platform-load]
 
 const REPO = path self ../..
 const WITNESS = $REPO | path join $OWNER_WITNESS
@@ -44,6 +45,9 @@ const INSTALL_BACKOFF = 1min
 const INSTALL_FAILURES_SHOWN = 5
 const FAILURES_INSTALL = "FAILURES.install"
 const FAILURES_CONFIG = "FAILURES.config"
+# where dot set writes no options file: a custom or server platform's options are root's, under /etc/dotfiles
+const OPTIONS_ROOT_DIR = "/etc/"
+const ONLINE_POLICY = '"base/networkmanager": {untrusted_policy: firewall-only}'
 const CRYPTSETUP_NO_KEY = 2
 # a watcher's url (dot test, BOOTSTRAP_REPORT): the stages beacon to it, the chain's end reports to it
 export const STAGE_REPORT = $STAGE_STATE_DIR | path join report
@@ -127,8 +131,19 @@ export def stage-next [stage: string, status: int, passed: bool, attempts: int]:
     {ok: $ok, next: (if $attempts >= $INSTALL_ATTEMPTS_MAX { $STAGE_STOP } else { "install" })}
 }
 
+# How the banner gets a fail-closed machine online: ONLINE_ESCAPE where dot set may write the platform's options, else
+# a root edit of them, which dot set refuses.
+def online-escape [options_file: any]: nothing -> record {
+    if $options_file == null or not ($options_file | str starts-with $OPTIONS_ROOT_DIR) {
+        return {how: "Log in and get online with:", command: $ONLINE_ESCAPE}
+    }
+    {how: $"Log in, set ($ONLINE_POLICY) in root's options and apply:", command: $"sudoedit ($options_file) && ($SYSTEM_FIX)"}
+}
+
 # The login banner of a chain stopped before config: what failed, that it is disarmed, how to get online and resume.
-export def install-banner [attempts: int, failures: list<string>, --key-kept]: nothing -> string {
+# options_file is the platform's, which decides how it gets online.
+export def install-banner [attempts: int, failures: list<string>, --key-kept, --options-file: string]: nothing -> string {
+    let escape = online-escape $options_file
     let shown = failures-group $failures | first $INSTALL_FAILURES_SHOWN | each { $"  ($in)" }
     let disarmed = if $key_kept {
         "The temporary disk key could not be removed: the disk still unlocks without its passphrase. sudo asks again."
@@ -139,8 +154,8 @@ export def install-banner [attempts: int, failures: list<string>, --key-kept]: n
         $"dotfiles install chain stopped: the package install failed ($attempts) times, so config did not run."
         ...(if ($shown | is-empty) { [] } else { ["What failed:" ...$shown] })
         $disarmed
-        "Offline or on an untrusted network? Log in and get online with:"
-        $"  ($ONLINE_ESCAPE)"
+        $"Offline or on an untrusted network? ($escape.how)"
+        $"  ($escape.command)"
         "then resume the chain from here (sudo asks once, each boot of it asks for the disk passphrase):"
         $"  ($STAGE_RESUME)"
         $"Logs: ($STAGE_STATE_DIR)/log and install.log in the checkout."
@@ -167,7 +182,8 @@ def install-stop [repo: path, attempts: int]: nothing -> nothing {
     let failures = file-lines ($repo | path join $FAILURES_INSTALL)
     let key_kept = not (disarm-retried)
     note $"install: failed ($attempts) times, the chain stops before config and is disarmed(if $key_kept { ' but for its disk key' } else { '' }), see the login banner"
-    banner-write $ISSUE (install-banner $attempts $failures --key-kept=$key_kept)
+    let options_file = try { (platform-load $repo).options_file } catch { null }
+    banner-write $ISSUE (install-banner $attempts $failures --key-kept=$key_kept --options-file=$options_file)
     # a stopped chain uploads its logs too, the banner among them, and the report sends the verdict; the root copy
     # exists once the install ran as root
     let report = if ($STAGE_REPORT | path exists) and ($SYSTEM_REPO | path join scripts lib stage-report.nu | path exists) { $REPORT_RUN } else {

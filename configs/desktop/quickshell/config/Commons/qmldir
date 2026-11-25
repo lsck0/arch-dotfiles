@@ -7,6 +7,7 @@ singleton Colors 1.0 Colors.qml
 singleton DiscordControl 1.0 DiscordControl.qml
 singleton ObsProcess 1.0 ObsProcess.qml
 singleton Paths 1.0 Paths.qml
+singleton Prefs 1.0 Prefs.qml
 singleton Power 1.0 Power.qml
 singleton Style 1.0 Style.qml
 singleton Theme 1.0 Theme.qml

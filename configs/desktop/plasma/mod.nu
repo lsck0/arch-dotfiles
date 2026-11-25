@@ -2,7 +2,7 @@ use module.nu *
 use ini.nu [ini-apply ini-rows]
 use ../../core/wallust/scripts/palette.nu [ICON_THEMES hex-rgb255 hex-to-rgb readable-on rgb-to-hex semantic shade]
 use ../../core/wallust/scripts/font.nu [font-load]
-use ../cursor/mod.nu [STOCK cursor-name]
+use ../cursor/mod.nu [CURSOR_SIZE_PX STOCK cursor-name cursor-size]
 
 export const meta = {
     deps: [core/locale]
@@ -76,8 +76,8 @@ def config-path [name: string]: nothing -> path {
     $nu.home-dir | path join $CONFIG $name
 }
 
-def kcminput-cursor [name: string]: string -> string {
-    str replace --regex '(?m)^cursorTheme=.*$' $"cursorTheme=($name)"
+def kcminput-cursor [name: string, size: int]: string -> string {
+    str replace --regex '(?m)^cursorTheme=.*$' $"cursorTheme=($name)" | str replace --regex '(?m)^cursorSize=.*$' $"cursorSize=($size)"
 }
 
 def rc-files []: nothing -> list<string> {
@@ -150,7 +150,7 @@ export def link [cfg: record] {
         # no kiosk key hides dolphin's dock short of shell_access=false, which also stops it running any executable
         (ini-merge ($nu.home-dir | path join $DOLPHIN_STATE) {State: {State: (open --raw ($DIR | path join $DOLPHIN_DOCK) | str trim)}})
         (rc-files | where $it not-in [$SHELLRC $KCMINPUTRC] | each {|f| file-copy ($DIR | path join $f) (config-path $f) })
-        (file-text (config-path $KCMINPUTRC) (open --raw ($DIR | path join $KCMINPUTRC) | kcminput-cursor (cursor-name ($cfg.deps?."desktop/cursor"?.active? | default false))))
+        (file-text (config-path $KCMINPUTRC) (open --raw ($DIR | path join $KCMINPUTRC) | kcminput-cursor (cursor-name ($cfg.deps?."desktop/cursor"?.active? | default false)) (cursor-size $cfg.deps?."desktop/cursor"?)))
         (file-text (config-path $SHELLRC) (open --raw ($DIR | path join $SHELLRC) | ini-apply (shell-updates-done) true))
         # kconf_update's record of the migrations it ran: the repo's configs are already migrated, so a fresh account
         # does not run them again (plasma6.0-remove-old-shortcuts would drop shortcuts the repo keeps)
@@ -335,7 +335,7 @@ export def backup [cfg: record]: nothing -> nothing {
         if (config-path $f | path exists) { cp --force (config-path $f) ($DIR | path join $f) }
     }
     let kcminput = $DIR | path join $KCMINPUTRC
-    open --raw $kcminput | kcminput-cursor $STOCK | save --force $kcminput
+    open --raw $kcminput | kcminput-cursor $STOCK $CURSOR_SIZE_PX | save --force $kcminput
     if (config-path $KCONF_UPDATERC | path exists) { kconf-back (config-path $KCONF_UPDATERC) ($DIR | path join $KCONF_SEED) }
     let globals = config-path $KDEGLOBALS
     if ($globals | path exists) {

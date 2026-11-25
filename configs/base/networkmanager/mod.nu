@@ -47,6 +47,12 @@ export const options = {
             + "Later toggles (toggle-wifi) persist in NetworkManager's own state; null detects it")
         label: "Wi-Fi radio"
     }
+    connectivity_check: {
+        type: bool
+        default: true
+        doc: "Probe ping.archlinux.org over http every 10 minutes for internet and captive portals; off sends nothing"
+        label: "Connectivity check"
+    }
     home_gateways: {
         type: list<string>
         default: []
@@ -149,6 +155,9 @@ export def system [cfg: record] {
         (if $env.FORM_FACTOR? == "vm" { file-text $"($NM)/vm-guest" "" })
         (if $homelab != null { file-text $"($NM)/homelab.env" $homelab })
         (file-copy config/NetworkManager.conf $"($NM)/NetworkManager.conf" --then $restart)
+        (if not $cfg.connectivity_check {
+            file-text $"($NM)/conf.d/30-no-connectivity-check.conf" "[connectivity]\nenabled=false\n" --then $restart
+        })
         (dropin wpa_supplicant.service services/wpa-log-filter.conf)
         # NM's one auto wired profile serves every wired network, so a laptop's ethernet is never home (fail closed)
         (if $home_wired { file-copy config/home-wired.conf $"($NM)/conf.d/10-home-wired.conf" --then $restart })

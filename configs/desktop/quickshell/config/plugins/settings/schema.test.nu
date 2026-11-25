@@ -19,6 +19,7 @@ const CASES = [
     [int int 95 "95"]
     [bool bool false "false"]
     [list "list<string>" ["10.100.0.*" "a b"] '["10.100.0.*", "a b"]']
+    [list "list<int>" [9003 9004] "[9003, 9004]"]
     [json record {"1": "DP-2"} '{"1": "DP-2"}']
     [filesize filesize 2147483648 "2147483648b"]
     [multi "list<string>" ["base" "programming/docker"] '["base", "programming/docker"]']
@@ -67,6 +68,17 @@ TestCase {
     compare\(Schema.fromText\({ type: \"string\", nuType: \"string\" }, \"\"\), \"\"\)
     compare\(Schema.fromText\({ type: \"int\", nuType: \"int?\" }, \" \"\), null\)
     compare\(Schema.fromText\({ type: \"string\", nuType: \"string?\" }, \"de\"\), \"de\"\)
+  }
+
+  // an entry typed into a list<int> lands as a number, so dot set reads the list back as list<int>
+  function test_list_entry\() {
+    var ints = { type: \"list\", nuType: \"list<int>\" }
+    compare\(Schema.listEntry\(ints, \" 9004 \"\), 9004\)
+    compare\(Schema.listEntry\(ints, \"9.5\"\), undefined\)
+    compare\(Schema.listEntry\(ints, \"x\"\), undefined\)
+    compare\(Schema.listEntry\({ type: \"list\", nuType: \"list<float>?\" }, \"0.5\"\), 0.5\)
+    compare\(Schema.listEntry\({ type: \"list\", nuType: \"list<string>\" }, \" a b \"\), \"a b\"\)
+    compare\(Schema.listEntry\({ type: \"list\", nuType: \"list<path>\" }, \" \"\), undefined\)
   }
 
   function test_system\() {

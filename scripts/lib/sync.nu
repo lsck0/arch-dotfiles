@@ -4,13 +4,12 @@ use log.nu *
 use secrets.nu [secret-is-plaintext secret-bytes-locked secrets-keys-chmod secrets-wanted OWNER_WITNESS]
 use state.nu [state-dir]
 use gate.nu [lint-stray]
+use system.nu [bootstrap-const FINGERPRINT_VALUE]
 
 const BRANCH = "master"
 const PUSH_TRIES = 3
 const PUSH_REJECTED = "! [rejected]"
 const SECRETS_GITLINK = "configs/secrets"
-const BOOTSTRAP = "bootstrap.sh"
-export const FINGERPRINT_VALUE = '[0-9A-F]{40}'
 const LUKS_HEADER_MAX_AGE_DAYS = 90
 
 # Fails unless HEAD is on master: a detached HEAD would commit off it and the push would fail.
@@ -94,13 +93,6 @@ def secrets-follow-recorded [repo: path, secrets: path]: nothing -> nothing {
     try { ^git -C $secrets checkout --quiet $recorded } catch {
         error make {msg: $"secrets: local edits conflict with the pulled revision ($recorded), commit or move them in ($secrets)"}
     }
-}
-
-# The value of a NAME=value line in bootstrap.sh, the one source of the url and signing key.
-export def bootstrap-const [repo: path, name: string, value: string = '\S+']: nothing -> string {
-    let found = open --raw ($repo | path join $BOOTSTRAP) | parse --regex ('(?m)^' + $name + '=(?<v>' + $value + ')$') | get v
-    if ($found | length) != 1 { error make {msg: $"($BOOTSTRAP) has no single ($name)=($value)"} }
-    $found.0
 }
 
 def fingerprint [repo: path]: nothing -> string {

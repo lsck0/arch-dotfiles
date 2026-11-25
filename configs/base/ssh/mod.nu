@@ -12,6 +12,13 @@ export const meta = {
 const SSH_HOST_KEYS = $meta.secrets | path basename
 
 export const options = {
+    server: {
+        type: bool
+        default: true
+        doc: ("Run sshd behind the port-knock, and base/endlessh's tarpit on 22; off keeps the client and ssh-agent "
+            + "(wake-pc and offload need it on the target)")
+        label: "SSH server"
+    }
     port: {
         type: int
         default: 2222
@@ -59,6 +66,7 @@ const PRIVATE_KEY = "configs/secrets/keys/ssh/private.asc"
 const PUBLIC_KEY = "configs/secrets/keys/ssh/public.asc"
 
 export def system [cfg: record] {
+    if not $cfg.server { return (unit-disable sshd.service --now) }
     step sshd ($cfg.port | into string)
 }
 

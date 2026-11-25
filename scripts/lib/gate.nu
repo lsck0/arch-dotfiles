@@ -2,7 +2,8 @@
 
 use ../../configs/core/wallust/scripts/palette.nu
 use platform.nu [platform-errors platform-files]
-use modules.nu [VERBS HOOKS names-read modules-graph ROOT_MODULES SECRETS_DATA SECRETS_GROUP]
+use modules.nu [VERBS HOOKS names-read modules-graph modules-discover ROOT_MODULES SECRETS_DATA SECRETS_GROUP]
+use options.nu [options-resolve]
 use pipeline.nu [pipeline-load]
 use cli.nu [jobs]
 use state.nu [tmp-dir-run]
@@ -342,16 +343,19 @@ def order-check [ctx: record, verb: string, flags: string]: nothing -> list<stri
     }
 }
 
-# A renamed or dropped option breaks only the machines whose options file still sets it, at their next install.
-def platform-options-check [modules: table]: nothing -> list<string> {
-    let known = $modules | each {|m| {id: $m.id, keys: ($m.options | columns | append enable)} }
-    glob ($REPO | path join platforms '*.options.nuon') | sort | each {|f|
-        open $f | items {|id, values|
-            let module = $known | where id == $id | get --optional 0
-            if $module == null { [$"(rel $f): ($id) is no module"] } else {
-                $values | columns | where $it not-in $module.keys | each { $"(rel $f): ($id).($in) is no option of it" }
-            }
-        } | flatten
+# Why an options file's values do not resolve over modules, selected by its platform's groups, as dot does on that
+# machine: a dropped module or option, a type, choice, pattern or bound, an enable the platform cannot turn on. The
+# modules' own spec errors are left to their load.
+export def platform-options-errors [modules: table, file: string, options: record]: nothing -> list<string> {
+    options-resolve $modules {options_file: $file, options: $options} null | get errors | where ($it | str starts-with $"($file): ")
+}
+
+# A changed or dropped option breaks only the machines whose options file still sets it, at their next run.
+def platform-options-check [repo: path]: nothing -> list<string> {
+    glob ($repo | path join platforms '*.options.nuon') | sort | each {|f|
+        let platform = $f | str replace --regex '\.options\.nuon$' ".nuon"
+        let groups = if ($platform | path exists) { open $platform | get --optional groups | default [] } else { [] }
+        platform-options-errors (modules-discover $repo $groups) (rel $f) (open $f)
     } | flatten
 }
 
@@ -427,7 +431,7 @@ def lint-fail-closed []: nothing -> list<string> {
 export def gate-loaded [repo: path]: nothing -> list<string> {
     let system = do { order-check (pipeline-load $repo system) system " --system" }
     let user = pipeline-load $repo user
-    (order-check $user link "") ++ $system ++ (platform-options-check $user.modules)
+    (order-check $user link "") ++ $system ++ (platform-options-check $repo)
 }
 
 def lint-loaded []: nothing -> list<string> {

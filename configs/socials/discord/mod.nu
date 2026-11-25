@@ -29,9 +29,33 @@ const PLUGINS = [
     ["SpotifyEnhance" "https://raw.githubusercontent.com/Skamt/BDAddons/bd3a9bb1630ae57cce608cbaa0cd60a73028a8ac/SpotifyEnhance/SpotifyEnhance.plugin.js" 968bc780312957ec16d503446f50454691bec8e172a24f9db8c6ff633c7037ce] # committed 2026-11-08
     ["Hide Chat Icons" "https://raw.githubusercontent.com/Farcrada/DiscordPlugins/c1250d3990ed3b9f1bf3518aa68050402929c52b/Hide-Chat-Icons/HideChatIcons.plugin.js" a3e3b4af105403b12b78a2168ad3a5adfecbe5f72d1dff06ed8c896cd259e085] # committed 2024-08-20
 ]
+# the library LastMessageDate is built on: fetched while a plugin that needs it is picked
+const PLUGIN_LIBRARY = "BDFDB"
+const PLUGINS_ON_LIBRARY = ["LastMessageDate"]
+const PLUGIN_CHOICES = [
+    "LastMessageDate" "ZipPreview" "DoNotTrack" "BetterDoubleClickToEdit" "DoubleClickToReply" "LaTeX Generator"
+    "PriorityDM" "Incognito" "High-Res Profile Images" "OpenInApp" "SpotifyEnhance" "Hide Chat Icons"
+]
+const DEVTOOLS_KEY = "DANGEROUS_ENABLE_DEVTOOLS_ONLY_ENABLE_IF_YOU_KNOW_WHAT_YOURE_DOING"
+
+export const options = {
+    plugins: {
+        type: list<string>
+        default: $PLUGIN_CHOICES
+        doc: "Third-party BetterDiscord plugins fetched at their pins and enabled; empty for none (client mods break Discord's terms)"
+        label: "BetterDiscord plugins"
+        choices: $PLUGIN_CHOICES
+        scope: user
+    }
+    devtools: {
+        type: bool
+        default: true
+        doc: "Discord's devtools (ctrl+shift+i), to debug a plugin; the console is where self-XSS scams ask to paste code"
+        label: "Devtools"
+        scope: user
+    }
+}
 const SETTINGS = {
-    # devtools stay on to debug the self-authored BetterDiscord plugin in plugins/; the self-XSS risk is accepted on this own machine
-    DANGEROUS_ENABLE_DEVTOOLS_ONLY_ENABLE_IF_YOU_KNOW_WHAT_YOURE_DOING: true
     enableHardwareAcceleration: true
     offloadAdmControls: true
     asyncVideoInputDeviceInit: false
@@ -52,12 +76,22 @@ def addon-name [file: path]: nothing -> string {
     open --raw $file | lines | parse --regex '^\s*\*\s*@name\s+(?<name>.+)$' | get 0.name | str trim
 }
 
+# The picked plugins, with the library while one of them needs it.
+def plugins-picked [picked: list<string>]: nothing -> table {
+    let library = $PLUGINS_ON_LIBRARY | any { $in in $picked }
+    $PLUGINS | where {|p| $p.name in $picked or ($library and $p.name == $PLUGIN_LIBRARY) }
+}
+
 export def link [cfg: record] {
     let config = xdg config discord
     let plugins = betterdiscord-dir | path join plugins
-    let fetched = $PLUGINS | insert dest {|p| $plugins | path join ($p.url | path basename) }
+    let picked = plugins-picked $cfg.plugins
+    let fetched = $picked | insert dest {|p| $plugins | path join ($p.url | path basename) }
+    # a plugin taken off the list goes: its file removed, and off in plugins.json, which betterdiscord rewrites itself
+    let dropped = $PLUGINS | where name not-in $picked.name | insert dest {|p| $plugins | path join ($p.url | path basename) }
+    let leftover = $dropped.dest | where ($it | path exists)
     # betterdiscord adds a new addon disabled, keyed by its @name; the updater stays off, it would replace the pins
-    let managed = $PLUGINS.name | append (addon-name $VOICE_PLUGIN)
+    let managed = $picked.name | append (addon-name $VOICE_PLUGIN)
     let data = betterdiscord-dir | path join data stable
     let plugin_states = $data | path join plugins.json
     let enabled = try { open $plugin_states } catch { {} }
@@ -68,7 +102,8 @@ export def link [cfg: record] {
     }
     let bootstrapping = process-running updater_bootstr
     [
-        (json-merge ($config | path join settings.json) $SETTINGS)
+        # devtools stay on to debug the self-authored BetterDiscord plugin in plugins/; the self-XSS risk is accepted on this own machine
+        (json-merge ($config | path join settings.json) ({} | insert $DEVTOOLS_KEY $cfg.devtools | merge $SETTINGS))
         (file-copy config/discordo.toml (xdg config discordo config.toml))
         # never beside a running bootstrap: they share one download dir
         (if not $bootstrapping and ($BOOTSTRAP | path exists) {
@@ -78,14 +113,17 @@ export def link [cfg: record] {
         # in place: betterdiscord disables an addon whose file is renamed over, and misses changes through a symlink
         (file-copy $VOICE_PLUGIN ($plugins | path join ($VOICE_PLUGIN | path basename)) --in-place)
         ($fetched | each {|p| fetch-file $p.url $p.sha256 $p.dest --in-place })
-        (json-merge $plugin_states ($managed | each {|name| json-set [$name] true }))
-        (json-merge ($plugins | path join Incognito.config.json) [
-            (json-set [settings blockReadReceipts] false)
-            (json-set [settings blockUsageProfiling] false)
-            (json-set [settings anonymiseFiles] false)
-            # on, it patches IdleStore.isIdle/isAFK to false: discord never goes idle or away when the pc is left
-            (json-set [settings disableIdle] false)
-        ])
+        (json-merge $plugin_states (($managed | each {|name| json-set [$name] true }) ++ ($dropped.name | each {|name| json-set [$name] false })))
+        (if ($leftover | is-not-empty) { exec "discord plugins drop" [rm --force ...$leftover] })
+        (if "Incognito" in $picked.name {
+            json-merge ($plugins | path join Incognito.config.json) [
+                (json-set [settings blockReadReceipts] false)
+                (json-set [settings blockUsageProfiling] false)
+                (json-set [settings anonymiseFiles] false)
+                # on, it patches IdleStore.isIdle/isAFK to false: discord never goes idle or away when the pc is left
+                (json-set [settings disableIdle] false)
+            ]
+        })
         (json-merge ($data | path join themes.json) [(json-set [(addon-name $THEME)] true)])
         (json-merge ($data | path join settings.json) [(json-set [addons checkForUpdates] false)])
         # discord self-updates and relaunches past any wrapper, so the hook stays armed

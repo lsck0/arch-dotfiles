@@ -3,7 +3,7 @@
 use log.nu *
 use state.nu [xdg tmp-dir-run]
 use cli.nu [root-runner]
-use sync.nu [bootstrap-const FINGERPRINT_VALUE]
+use system.nu [bootstrap-const FINGERPRINT_VALUE]
 use homelab.nu [LSCK0_SERVER_PLACEHOLDER lsck0-section]
 use ../../platforms/homelab.nu [HOMELAB]
 

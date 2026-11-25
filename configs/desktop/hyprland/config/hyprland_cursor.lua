@@ -1,8 +1,8 @@
 local platform = require("platform")
 
-hl.env("HYPRCURSOR_SIZE", "30")
+hl.env("HYPRCURSOR_SIZE", tostring(platform.cursor.size))
 hl.env("HYPRCURSOR_THEME", "rose-pine-hyprcursor")
-hl.env("XCURSOR_SIZE", "30")
+hl.env("XCURSOR_SIZE", tostring(platform.cursor.size))
 hl.env("XCURSOR_THEME", "BreezeX-RosePine-Linux")
 
 -- hyprland 0.56.2 asserted in CHyprOpenGLImpl::beginSimple on hardware cursors when a client churns cursor shapes.
