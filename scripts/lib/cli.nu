@@ -33,8 +33,11 @@ export def jobs []: nothing -> int {
 
 # The checkout's commit, whether it is dirty, and the nushell version.
 export def build []: nothing -> record {
-    let head = try { ^git -C $REPO rev-parse --short=12 HEAD | str trim } catch { "none" }
-    let dirty = (try { ^git -C $REPO status --porcelain --ignore-submodules=all | str trim } catch { "" }) | is-not-empty
+    # root's copy has no .git: complete keeps git's fatal line out of the run's output
+    let rev = ^git -C $REPO rev-parse --short=12 HEAD | complete
+    let head = if $rev.exit_code == 0 { $rev.stdout | str trim } else { "none" }
+    let status = ^git -C $REPO status --porcelain --ignore-submodules=all | complete
+    let dirty = $status.exit_code == 0 and ($status.stdout | str trim | is-not-empty)
     {commit: $head, dirty: $dirty, nu: (version | get version)}
 }
 

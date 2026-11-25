@@ -79,9 +79,10 @@ export def system [cfg: record] {
             (file-text /etc/geoclue/conf.d/90-no-network-nmea.conf "[network-nmea]\nenable=false\n")
             (dropin geoclue.service services/geoclue-startup.conf --name 10-startup.conf)
         ]})
-        (if (unit-installed bluetooth.service) {
-            ini-merge /etc/bluetooth/main.conf {Policy: {AutoEnable: ($cfg.bluetooth_auto_enable | into string)}}
-        })
+        (if (unit-installed bluetooth.service) {[
+            (ini-merge /etc/bluetooth/main.conf {Policy: {AutoEnable: ($cfg.bluetooth_auto_enable | into string)}})
+            (dropin bluetooth.service services/bluetooth-config-mode.conf --name 10-config-mode.conf)
+        ]})
         (if (open --raw /proc/cpuinfo | str contains GenuineIntel) and (unit-installed thermald.service) {
             unit-enable thermald.service
         })

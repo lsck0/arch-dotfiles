@@ -21,6 +21,7 @@ const WALK_EXCLUDE = "configs/core/wallust/config/templates/"
 # empty on purpose: shfmt reads .editorconfig only when no formatting flag is given
 const SHFMT_FLAGS = []
 const QMLLINT = "/usr/lib/qt6/bin/qmllint"
+const QML_DIR = "/usr/lib/qt6/qml"
 const PALETTE_NU = "configs/core/wallust/scripts/palette.nu"
 const PALETTE_JS = "configs/desktop/quickshell/config/Commons/Palette.js"
 const PALETTE_THEMES = [ayu-dark gruvbox-light]
@@ -512,10 +513,33 @@ def nu-check [files: list<string>]: nothing -> list<string> {
     } | flatten | sort
 }
 
+# qmllint 6.12 fails the import of a module that only re-exports its submodules (Quickshell.Hyprland's own qmltypes is
+# an empty Module {}): an overlay ahead of the system path gives each such module its first submodule's types.
+def qml-reexport-overlay [root: path]: nothing -> nothing {
+    glob ($QML_DIR | path join Quickshell * qmldir) | each {|qmldir|
+        let dir = $qmldir | path dirname
+        let lines = open --raw $qmldir | lines
+        let own = $lines | where $it starts-with "typeinfo " | each {|l| $dir | path join ($l | split row " " | last) }
+        if ($own | any {|t| (open --raw $t) =~ 'Component \{' }) { return }
+        let sub = $lines | where $it starts-with "import " | each { split row " " | get 1 } | get --optional 0
+        if $sub == null { return }
+        let sub_dir = $QML_DIR | path join ...($sub | split row ".")
+        let types = glob ($sub_dir | path join *.qmltypes) | get --optional 0
+        if $types == null { return }
+        let into = $root | path join ($dir | path relative-to $QML_DIR)
+        mkdir $into
+        ls $dir | where type == dir | each {|d| ^ln -s $d.name ($into | path join ($d.name | path basename)) }
+        ($lines | where not ($it starts-with "typeinfo ")) ++ ["typeinfo reexport.qmltypes"] | str join "\n" | save ($into | path join qmldir)
+        ^cp $types ($into | path join reexport.qmltypes)
+    } | ignore
+}
+
 def qml-lint [files: list<string>]: nothing -> list<string> {
     let run = tmp-dir-run {|root|
         ^ln -s ($REPO | path join configs desktop quickshell config) ($root | path join qs)
-        ^$QMLLINT -I $root --json - ...($files | each {|f| $REPO | path join $f }) | complete
+        let overlay = $root | path join overlay
+        qml-reexport-overlay $overlay
+        ^$QMLLINT -I $overlay -I $root --json - ...($files | each {|f| $REPO | path join $f }) | complete
     }
     let report = try { $run.stdout | from json } catch { return [$"qmllint: ($run.stderr | str trim | default --empty 'no json report')"] }
     $report.files | each {|f| $f.warnings | where type != info | each {|w| $"(rel $f.filename):($w.line? | default 0):($w.column? | default 0): ($w.message | lines | first) [($w.id? | default $w.type)]" } } | flatten

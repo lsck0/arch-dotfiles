@@ -164,9 +164,10 @@ def secrets-named [repo: path, secrets: path]: nothing -> string {
     $named
 }
 
-# git's own fatal/error line: git-lfs prints a harmless locking-api warning first, which hid the cause
+# git's own fatal/error line: git-lfs prints a harmless locking-api warning first, which hid the cause; a refusal by
+# the remote (push protection, a hook, a size limit) says why only in its remote: and [remote rejected] lines
 def push-error [stderr: string]: nothing -> string {
-    let why = $stderr | lines | where $it =~ '^(fatal|error): ' | str join " " | str trim
+    let why = $stderr | lines | where $it =~ '^(fatal|error|remote): |\[remote rejected\]' | str join " " | str trim
     if $why == "" { error-brief $stderr } else { $why }
 }
 

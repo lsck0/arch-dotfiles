@@ -33,7 +33,8 @@ export def fetch-git-done [commit: string, dir: path]: nothing -> bool {
 
 def extract [archive: path, into: path]: nothing -> nothing {
     mkdir $into
-    if (^file -b --mime-type $archive | str trim) == "application/zip" { ^unzip -q $archive -d $into } else { ^tar -xf $archive -C $into }
+    # bsdtar reads zip and every tar; unzip is confined to the file-tool profile, which refuses root's writes outside /tmp
+    ^bsdtar -xof $archive -C $into
 }
 
 # --extract names an archive member, or . for all; --in-place keeps an existing file's inode for watchers.
@@ -42,7 +43,9 @@ export def fetch-file-run [url: string, sha256: string, dest: path, --mode: stri
     if not ($cached | path exists) {
         mkdir ($cached | path dirname)
         # --retry-all-errors: mirrors drop mid-transfer outside curl's default set; -C - resumes
-        let got = ^curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors -C - -o $"($cached).part" $url | complete
+        # --speed-limit/--speed-time: a stalled mirror never errors on its own, so under 1 kB/s for a minute is one
+        let got = (^curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors --speed-limit 1024 --speed-time 60
+            -C - -o $"($cached).part" $url | complete)
         if $got.exit_code != 0 { error make {msg: $"download of ($url) failed: ($got.stderr | str trim | lines | last)"} }
         if (^sha256sum $"($cached).part" | split row " " | first) != $sha256 {
             rm --force $"($cached).part"
