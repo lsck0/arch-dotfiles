@@ -57,7 +57,11 @@
                 "https://signin.ebay.com",
                 "https://signup.ebay.com",
                 "https://pages.ebay.com",
-                "https://accounts.google.com"
+                "https://accounts.google.com",
+                "https://x.com",
+                "https://abs.twimg.com",
+                "https://pbs.twimg.com",
+                "https://video.twimg.com"
             ]
         },
         "Cookies": {
@@ -160,7 +164,7 @@
             "dom.security.https_only_mode_send_http_background_request": false,
             "privacy.globalprivacycontrol.enabled": true,
             "privacy.fingerprintingProtection": true,
-            "privacy.fingerprintingProtection.granularOverrides": "[{\"firstPartyDomain\":\"ebay.de\",\"overrides\":\"-AllTargets\"},{\"firstPartyDomain\":\"ebay.com\",\"overrides\":\"-AllTargets\"},{\"firstPartyDomain\":\"google.com\",\"overrides\":\"-AllTargets\"}]",
+            "privacy.fingerprintingProtection.granularOverrides": "[{\"firstPartyDomain\":\"ebay.de\",\"overrides\":\"-AllTargets\"},{\"firstPartyDomain\":\"ebay.com\",\"overrides\":\"-AllTargets\"},{\"firstPartyDomain\":\"google.com\",\"overrides\":\"-AllTargets\"},{\"firstPartyDomain\":\"x.com\",\"overrides\":\"-AllTargets\"}]",
             "network.captive-portal-service.enabled": false,
             "network.connectivity-service.enabled": false,
             "browser.safebrowsing.malware.enabled": false,
