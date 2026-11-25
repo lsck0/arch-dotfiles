@@ -160,7 +160,7 @@ Every module under `configs/`, the owner's own in `configs/secrets/` aside. A pl
 | `programming` | `act`, `agent-rules`, `android`, `arduboy`, `asm-lsp`, `bruno`, `bugwarrior`, `cargo`, `caveman`, `cgdb`, `claude`, `copilot`, `debugging`, `devtools`, `direnv`, `docker`, `elan`, `emacs`, `espressif`, `flux`, `forgejo`, `formatting`, `gdb`, `gemini-cli`, `gh-dash`, `ghcup`, `godot`, `grafana`, `hermes`, `http`, `infra`, `jai`, `jetbrains`, `kani`, `kubernetes`, `lazygit`, `math`, `nietzschian`, `nix`, `nnd`, `nvim`, `offload`, `opam`, `playwright`, `postgres`, `projects`, `python`, `registry`, `renderdoc`, `rtk`, `security`, `task`, `toolchains`, `trmnl-claude`, `typos`, `unreal`, `vcs`, `verification`, `vscode`, `web-mcp`, `zed` |
 | `qemu` | `binfmt`, `containers`, `libvirt`, `waydroid` |
 | `rocm` | `compute` |
-| `socials` | `apps`, `desktop`, `discord`, `element`, `spotify`, `teamspeak`, `telegram` |
+| `socials` | `apps`, `desktop`, `discord`, `element`, `fluxer`, `spotify`, `teamspeak`, `telegram` |
 <!-- modules end -->
 
 ## Options

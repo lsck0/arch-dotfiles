@@ -2,7 +2,7 @@
 Description=sched_ext scheduler (scx_lavd)
 Documentation=https://github.com/sched-ext/scx
 ConditionPathIsDirectory=/sys/kernel/sched_ext
-Before=display-manager.service ly@tty1.service
+Before=display-manager.service
 StartLimitIntervalSec=60
 StartLimitBurst=3
 

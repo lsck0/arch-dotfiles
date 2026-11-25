@@ -26,7 +26,7 @@
   "flash.nvim": { "branch": "main", "commit": "5f0f270fdc7c5b0c21d903ee85b9cb06f2ac636a" },
   "garbage-day.nvim": { "branch": "main", "commit": "225b715cf7e502977e5e040219cf5009eed70ee1" },
   "git-conflict.nvim": { "branch": "main", "commit": "a1badcd070d176172940eb55d9d59029dad1c5a6" },
-  "gitsigns.nvim": { "branch": "main", "commit": "86a49261a2308e0e8e3d6bda1000c47b3b4b42bd" },
+  "gitsigns.nvim": { "branch": "main", "commit": "166c03131e6a3528f692dd89f37668d991f17baa" },
   "gpg.nvim": { "branch": "mainline", "commit": "fbc7be3ca5d6db5cf29031f1f640ec83d492a1ea" },
   "grug-far.nvim": { "branch": "main", "commit": "91b7e58b6ffc6ddad5acb7a7c1df21257724449e" },
   "gruvbox.nvim": { "branch": "main", "commit": "48262cda6a8a921b159c8ec3e21b48ccd870b7b2" },

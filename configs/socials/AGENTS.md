@@ -10,5 +10,5 @@
 - CEF/Chromium clients run native Wayland, not scaled XWayland.
 - `spotify`: always starts with Chrome DevTools on 127.0.0.1:9233 for the streaming tooling. CDP has no auth, so
   any local process can drive the logged-in session; accepted on purpose; CEF binds it to loopback only.
-- Clients with an AppArmor profile run enforce; teamspeak6-client, proton-meet-bin, chatuino-bin, discordo-git and
-  spotify-player have none yet.
+- Clients with an AppArmor profile run enforce; teamspeak6-client, proton-meet-bin, chatuino-bin, discordo-git,
+  fluxer-bin and spotify-player have none yet.

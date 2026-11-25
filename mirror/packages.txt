@@ -201,6 +201,7 @@ flamelens
 flat-remix-gtk
 flatpak
 flux-rs
+fluxer-bin
 font-manager
 foremost
 freetype2

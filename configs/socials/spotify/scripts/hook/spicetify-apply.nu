@@ -85,7 +85,10 @@ def stock-running []: nothing -> bool {
 # Restarts it through its desktop entry, so spotify-launch.nu runs the patched copy; a service, not a scope, so uwsm
 # returns and spotify outlives this hook's unit.
 def restart []: nothing -> nothing {
-    ^pkill -x spotify
+    # only the browser process: a TERM to its zygote, gpu and renderer children as well trips a CEF check, so it
+    # dumped core instead of quitting
+    let browsers = ^ps -C spotify -o pid=,args= | lines | where $it !~ ' --type=' | each { str trim | split row ' ' | first }
+    if ($browsers | is-not-empty) { ^kill -TERM ...$browsers }
     for _ in 1..$EXIT_WAIT_SECONDS {
         if not (process-running spotify) { break }
         sleep 1sec

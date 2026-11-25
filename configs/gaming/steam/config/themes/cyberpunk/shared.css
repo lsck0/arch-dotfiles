@@ -257,8 +257,9 @@ a:hover {
     text-decoration-color: var(--cp-accent) !important;
 }
 
+/* not the scroll container's Container and Body: the game page scrolls in one, and a fill there covers its hero art,
+   which steam paints at z-index -1000 */
 ._3Sb2o_mQ30IDRh0C72QUUu,
-._3VQUewWB8g6Z5qB4C7dGFr,
 ._17uEBe5Ri8TMsnfELvs8-N,
 ._3x1HklzyDs4TEjACrRO2tB {
     background: var(--cp-bg) !important;
@@ -301,9 +302,6 @@ a:hover {
     background: color-mix(in srgb, var(--cp-accent) 12%, transparent) !important;
 }
 
-._3lDczhulqraStjCitLYJ1K {
-    background: var(--cp-bg) !important;
-}
 .Jbe--NUNw7sxbxGsMSjVa {
     background: linear-gradient(
         transparent 0%,
@@ -329,6 +327,21 @@ a:hover {
 }
 ._3qDWQGB0rtwM3qpXTb11Q- {
     background: color-mix(in srgb, var(--cp-accent) 14%, transparent) !important;
+}
+
+/* the featured news event on a game page: steam's blue gradient header and edge */
+._3xi-HLpFVHaakihoqhQ_6C {
+    background: color-mix(in srgb, var(--cp-bg-alt) 85%, transparent) !important;
+    border-image: none !important;
+    border: 1px solid var(--cp-border) !important;
+}
+._1WdC0YUP8FT0dYWZ-QIVZL {
+    background: linear-gradient(
+        to right,
+        color-mix(in srgb, var(--cp-accent) 45%, transparent),
+        transparent
+    ) !important;
+    color: var(--cp-fg) !important;
 }
 
 .UkR3sY319PuaUNuUWks2K {

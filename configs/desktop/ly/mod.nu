@@ -62,8 +62,10 @@ export def system [cfg: record] {
         (files-into $SESSIONS ...$sessions)
         (step save-defaults $cfg.session)
         (file-text ($ETC | path join vtrgb) (palette-channels $CONSOLE_PALETTE | to text))
-        ([palette.conf cursor.conf stage.conf log-filter.conf shutdown.conf] | each { dropin ly@.service $"services/($in)" })
-        (unit-enable ly@tty1.service)
+        (unit-file services/ly.service)
+        ([palette.conf cursor.conf stage.conf log-filter.conf shutdown.conf] | each { dropin ly.service $"services/($in)" })
+        (unit-disable ly@tty1.service)
+        (unit-enable ly.service)
         (unit-disable getty@tty1.service)
     ]
 }

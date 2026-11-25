@@ -1,0 +1,17 @@
+# ly's own ly@.service on tty1, as a plain unit: systemd refuses to alias a template instance, and bootvine hands the
+# console to display-manager.service only, so behind ly@tty1 it pulled tty12 back in front of ly until its timeout
+[Unit]
+Description=TUI display manager
+After=systemd-user-sessions.service plymouth-quit-wait.service getty@tty1.service
+Conflicts=getty@tty1.service
+
+[Service]
+Type=idle
+ExecStart=/usr/bin/ly-dm
+StandardInput=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+
+[Install]
+Alias=display-manager.service

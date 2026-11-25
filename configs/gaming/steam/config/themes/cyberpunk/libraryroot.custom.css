@@ -81,10 +81,10 @@
     color: var(--cp-fg) !important;
 }
 
+/* bars fill through --color-progress-bar-foreground; a fill on every div under a *ProgressBar* class also covered
+   the download line's text and the bar's track */
 [class*="chievement"] [class*="Fill"],
-[class*="chievement"] [class*="fill"],
-[class*="ProgressBar"] div,
-[class*="progressbar"] div {
+[class*="chievement"] [class*="fill"] {
     background-color: var(--cp-accent) !important;
 }
 
