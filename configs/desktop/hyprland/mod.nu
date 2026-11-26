@@ -11,7 +11,9 @@ export const meta = {
     deps: [base/essentials]
     # SUPER+a, e and n start base/xdg's first browser, file manager and editor; desktop/cursor's size and
     # desktop/shimoji's enable reach platform.lua
-    reads: [base/xdg desktop/cursor desktop/shimoji]
+    # core/locale: a keyboard change through dot set re-links this module, after root's localectl rewrote the X11 file
+    # platform.lua follows; without it the compositor kept the old layout until the next whole dot apply
+    reads: [base/xdg core/locale desktop/cursor desktop/shimoji]
     packages: {
         pacman: [
             app2unit bemenu-wayland brightnessctl cpio ddcutil grim hyprcursor hypridle hyprland hyprlock hyprpicker

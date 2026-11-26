@@ -103,8 +103,10 @@ export def option-write [mod: string, key: string, value: any, machine: bool, --
     } else {
         root-set $"($mod).($key)" $value $default
     }
+    # root's set ran the module's system part in the same entry
+    let system_done = not $writable
     let resolved = pipeline-load $REPO user | get modules | where id == $mod | first
-    {module: $m, spec: $spec, value: ($resolved.cfg | get $key), source: ($resolved.sources | get $key), machine: $machine}
+    {module: $m, spec: $spec, value: ($resolved.cfg | get $key), source: ($resolved.sources | get $key), machine: $machine, system_done: $system_done}
 }
 
 export def option-apply [target: string, set: record]: nothing -> nothing {
@@ -138,7 +140,9 @@ export def option-apply [target: string, set: record]: nothing -> nothing {
                 let ids = (if "link" in $set.module.verbs { [$set.module.id] } else { [] }) ++ $readers
                 if ($ids | is-not-empty) { $results = link-run $ids false }
             }
-            if ($set.spec.scope == "machine" or $set.machine) and "system" in $set.module.verbs and (admin) { system-part $target }
+            if ($set.spec.scope == "machine" or $set.machine) and "system" in $set.module.verbs and (admin) and not ($set.system_done? | default false) {
+                system-part $target
+            }
             if $apply != "relink" {
                 log-note $"($target) takes effect after a ($apply)"
             }
@@ -196,7 +200,7 @@ def root-set [target: string, value: any, default: bool]: nothing -> nothing {
     let ran = ^$runner ...$argv | complete
     if $ran.exit_code != 0 {
         let why = $ran.stderr | str trim | lines | where $it != "" | last 1 | str join ""
-        error make {msg: $"($target): root did not store it \(($runner) exited ($ran.exit_code)\)(if $why != '' { ': ' + $why } else { '' })"}
+        error make {msg: $"($target): root's set failed, storing it or running its system part \(($runner) exited ($ran.exit_code)\)(if $why != '' { ': ' + $why } else { '' })"}
     }
 }
 

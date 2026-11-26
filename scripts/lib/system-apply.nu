@@ -264,14 +264,22 @@ def "main apply" [sha: string, stage: string, --run: string = "", --unattended, 
 
 # set <target> <json value> [--default]: store a machine option or platform key in this machine's root-owned file under
 # ROOT_OPTIONS_DIR, which dot set cannot write as the user; validated against this copy's specs, never the profile.
-# The value is positional and parsed as json here, never a value-taking flag. Its system part is a later dot apply.
+# The value is positional and parsed as json here, never a value-taking flag. A module option's system part runs in
+# this same entry, so a change asks for root once; a platform key's waits for the next dot apply.
 def "main set" [target: string, value: string, --default]: nothing -> nothing {
     let repo = repo-guard
     locked
     run-open "system set"
-    try { root-store $repo $target (if $default { null } else { $value | from json }) $default } catch {|e| run-journal; error make $e }
-    log-info $"set ($target)"
+    let ok = try {
+        let module = root-store $repo $target (if $default { null } else { $value | from json }) $default
+        log-info $"set ($target)"
+        if $module == null { true } else {
+            let ctx = pipeline-load $repo system
+            if "system" in (module-get $ctx $module).verbs { module-system $ctx $module } else { true }
+        }
+    } catch {|e| run-journal; error make $e }
     run-journal
+    if not $ok { exit $EXIT_FAILURES }
 }
 
 def root-file [file: any]: nothing -> path {
@@ -281,7 +289,8 @@ def root-file [file: any]: nothing -> path {
     $file
 }
 
-def root-store [repo: path, target: string, value: any, default: bool]: nothing -> nothing {
+# Stores target in root's file: the module whose option it is, null for a platform key.
+def root-store [repo: path, target: string, value: any, default: bool]: nothing -> any {
     let prefix = $"($PLATFORM_TARGET)."
     if ($target | str starts-with $prefix) {
         let cell = $target | str substring ($prefix | str length).. | split row "."
@@ -296,7 +305,7 @@ def root-store [repo: path, target: string, value: any, default: bool]: nothing 
         let errors = platform-errors $repo ($updated | from nuon) $file
         if ($errors | is-not-empty) { error make {msg: ($errors | str join "\n")} }
         if $updated != $text { $updated | save-atomic $file }
-        return
+        return null
     }
     let parts = $target | parse --regex '^(?<mod>.+)\.(?<key>[a-z][a-z0-9_]*)$' | get --optional 0
     if $parts == null { error make {msg: $"set: ($target) names no option"} }
@@ -314,6 +323,7 @@ def root-store [repo: path, target: string, value: any, default: bool]: nothing 
     let text = if ($file | path exists) { open --raw $file } else { "{}\n" }
     let updated = $text | options-nuon-set [$parts.mod $parts.key] $value --remove=$default
     if $updated != $text { $updated | save-atomic $file }
+    $parts.mod
 }
 
 # every declared package from [lsck0] in one pass, base/pacman first, base/yubikey last
