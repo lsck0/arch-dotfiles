@@ -54,7 +54,7 @@ export const options = {
     }
     autostart_hidden: {
         type: list<string>
-        default: [print-applet geoclue-demo-agent remmina-applet]
+        default: [print-applet geoclue-demo-agent remmina-applet app.fluxer.FluxerDesktop]
         doc: "XDG autostart entries hidden from the session, by desktop file id"
         label: "Hidden autostart entries"
         scope: user

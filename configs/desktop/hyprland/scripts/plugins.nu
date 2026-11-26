@@ -15,14 +15,26 @@ def cache-dir []: nothing -> path { xdg cache hypr-plugins }
 
 def out-dir []: nothing -> path { xdg data hypr-plugins }
 
-# Installed vs running hyprland commit: they differ between an upgrade and the relogin.
-def commit-installed []: nothing -> string {
-    try { ^Hyprland --version | parse --regex 'at commit (?<c>[0-9a-f]+)' | get 0.c } catch { "" }
+const VERSION_H = "/usr/include/hyprland/src/version.h"
+
+# Installed vs running hyprland ABI: they differ between an upgrade and the relogin. The ABI is the commit plus the
+# major.minor of its libraries (PluginAPI.hpp's version check), so a rebuild against a new hyprgraphics changes it
+# while the commit stays.
+def abi-installed []: nothing -> string {
+    try {
+        let defs = open --raw $VERSION_H | parse --regex '#define (?<k>[A-Z_]+)\s+"(?<v>[^"]*)"' | transpose --header-row --as-record
+        let minor = {|v| $v | split row "." | first 2 | str join "." }
+        let libs = [[aq AQUAMARINE] [hu HYPRUTILS] [hg HYPRGRAPHICS] [hc HYPRCURSOR] [hlg HYPRLANG]]
+            | each {|l| $"_($l.0)_(do $minor ($defs | get $"($l.1)_VERSION"))" } | str join
+        $"($defs.GIT_COMMIT_HASH)($libs)"
+    } catch { "" }
 }
 
-def commit-running []: nothing -> string {
-    try { ^hyprctl version -j | from json | get commit } catch { "" }
+def abi-running []: nothing -> string {
+    try { ^hyprctl version -j | from json | get abiHash } catch { "" }
 }
+
+def abi-commit [abi: string]: nothing -> string { $abi | split row "_" | first }
 
 def so-path [name: string, hyprland: string]: nothing -> path { out-dir | path join $"($name)-($hyprland).so" }
 
@@ -48,9 +60,9 @@ def build [plugin: record, hyprland: string]: nothing -> nothing {
     ^git -C $src checkout --quiet --force $plugin.commit
     # the map names older hyprlands; one it lacks builds at the pinned commit itself, hyprpm's own rule, and a broken
     # pairing fails the make below instead of loading
-    let mapped = plugin-commit $src $hyprland
+    let mapped = plugin-commit $src (abi-commit $hyprland)
     if $mapped == null {
-        print --stderr $"($plugin.name): no map entry for hyprland ($hyprland), built at the pinned commit"
+        print --stderr $"($plugin.name): no map entry for hyprland (abi-commit $hyprland), built at the pinned commit"
     }
     let pin = $mapped | default $plugin.commit
     ^git -C $src checkout --quiet --force $pin
@@ -60,7 +72,7 @@ def build [plugin: record, hyprland: string]: nothing -> nothing {
     if $made.exit_code != 0 { error make {msg: $"($plugin.name) did not build:\n($made.stderr | lines | last 20 | str join "\n")"} }
     mkdir (out-dir)
     cp ($src | path join $plugin.output) (so-path $plugin.name $hyprland)
-    # builds for other hyprland commits are dead after the upgrade
+    # builds for other hyprland ABIs are dead after the upgrade
     glob (out-dir | path join $"($plugin.name)-*.so") | where $it != (so-path $plugin.name $hyprland) | each { rm $in } | ignore
 }
 
@@ -70,7 +82,7 @@ def plugins-missing-for [hyprland: string]: nothing -> list<record> {
 
 # The plugins the installed hyprland has no build of; building them downloads.
 export def plugins-missing []: nothing -> list<string> {
-    let hyprland = commit-installed
+    let hyprland = abi-installed
     if $hyprland == "" { return [] }
     plugins-missing-for $hyprland | get name
 }
@@ -90,13 +102,13 @@ def plugins-build [hyprland: string]: nothing -> bool {
 
 # The built plugins the running hyprland has not loaded, none when it is not the installed one.
 def plugins-unloaded-for [hyprland: string]: nothing -> list<record> {
-    if $hyprland == "" or (commit-running) != $hyprland { return [] }
+    if $hyprland == "" or (abi-running) != $hyprland { return [] }
     let listed = ^hyprctl plugin list | complete | get stdout
     $PLUGINS | where {|p| (so-path $p.name $hyprland | path exists) and not ($listed | str contains $p.name) }
 }
 
 export def plugins-unloaded []: nothing -> list<string> {
-    plugins-unloaded-for (commit-installed) | get name
+    plugins-unloaded-for (abi-installed) | get name
 }
 
 # Loads the built plugins into the running hyprland when it is the installed one; local, no download.
@@ -129,21 +141,21 @@ def relaunch-locked [verb?: string]: nothing -> bool {
 # Builds what the installed hyprland lacks (git and make, the network).
 def "main build" []: nothing -> nothing {
     if (relaunch-locked build) { return }
-    let hyprland = commit-installed
+    let hyprland = abi-installed
     if $hyprland != "" and not (plugins-build $hyprland) { exit 1 }
 }
 
 # Loads the built plugins into the running hyprland.
 def "main load" []: nothing -> nothing {
     if (relaunch-locked load) { return }
-    let hyprland = commit-installed
+    let hyprland = abi-installed
     if $hyprland != "" { plugins-load $hyprland }
 }
 
 # Builds what the installed hyprland lacks, then loads it into the running one when they match.
 def main []: nothing -> nothing {
     if (relaunch-locked) { return }
-    let hyprland = commit-installed
+    let hyprland = abi-installed
     if $hyprland == "" { return }
     let built = plugins-build $hyprland
     plugins-load $hyprland

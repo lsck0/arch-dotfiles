@@ -236,7 +236,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `base/xdg.pdf_viewer` | `list<string>` | `["org.kde.okular.desktop", "org.pwmt.zathura.desktop"]` | Desktop entries for PDFs, first wins |
 | `base/xdg.image_viewer` | `list<string>` | `["feh.desktop", "nsxiv.desktop"]` | Desktop entries for images, first wins (raw photos stay with rawtherapee) |
 | `base/xdg.media_player` | `list<string>` | `["mpv.desktop"]` | Desktop entries for audio and video, first wins |
-| `base/xdg.autostart_hidden` | `list<string>` | `[print-applet, geoclue-demo-agent, remmina-applet]` | XDG autostart entries hidden from the session, by desktop file id |
+| `base/xdg.autostart_hidden` | `list<string>` | `[print-applet, geoclue-demo-agent, remmina-applet, "app.fluxer.FluxerDesktop"]` | XDG autostart entries hidden from the session, by desktop file id |
 | `base/zram.size` | `string` | `"ram"` | Size of the zram swap device, zram-generator.conf(5) zram-size expression over ram (MiB) |
 | `base/zram.compression_algorithm` | `string` | `"zstd"` | Compression used for the zram swap device, zram-generator.conf(5) compression-algorithm (a weaker CPU may prefer lz4) |
 | `base/zram.swappiness` | `int` | `150` | How aggressively the kernel swaps to zram versus reclaiming page cache, sysctl(8) vm.swappiness (a zram swap favors higher than disk swap's usual 60) |
