@@ -296,7 +296,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/cursor.active` | `bool` | `true` | Hyprland, X11, gtk and KDE apps take the palette's cursor; off, they keep the stock rose-pine one |
 | `desktop/cursor.size_px` | `int` | `30` | Pointer size in Hyprland, X11, gtk and KDE apps; scaled outputs ask for up to twice it |
 | `desktop/firefox.search_url` | `string?` | unset | Default search engine, {searchTerms} is the query; unset, the homelab's searxng on a homelab machine, else duckduckgo |
-| `desktop/firefox.extensions_off` | `list<string>` | `[]` | Force-installed extensions to leave out by id; the rest stay installed and unremovable, one deleted from the profile comes back on the next start |
+| `desktop/firefox.extensions_off` | `list<string>` | `[]` | Force-installed extensions to leave out by id: blocked, so firefox removes one already installed; the rest stay installed and unremovable, one deleted from the profile comes back on the next start |
 | `desktop/firefox.save_logins` | `bool` | `false` | Firefox offers to save passwords; off for a separate password manager |
 | `desktop/firefox.safe_browsing` | `bool` | `false` | Google Safe Browsing warnings for phishing, malware and downloads |
 | `desktop/ghostty.cursor_style` | `string` | `"block"` | Text cursor shape |

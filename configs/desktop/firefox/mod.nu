@@ -62,8 +62,8 @@ export const options = {
     extensions_off: {
         type: list<string>
         default: []
-        doc: ("Force-installed extensions to leave out by id; the rest stay installed and unremovable, one deleted from "
-            + "the profile comes back on the next start")
+        doc: ("Force-installed extensions to leave out by id: blocked, so firefox removes one already installed; the rest "
+            + "stay installed and unremovable, one deleted from the profile comes back on the next start")
         label: "Extensions left out"
         choices: $FORCED_EXTENSIONS
         choice_labels: $EXTENSION_NAMES
@@ -293,7 +293,10 @@ export def system [cfg: record] {
     let doc = if $cfg.search_url != null {
         $doc | upsert policies.SearchEngines (search-engines $cfg.search_url)
     } else if (platform-has homelab) { $doc } else { $doc | upsert policies.SearchEngines $SEARCH_OFF_HOMELAB }
-    let extensions = $doc.policies.ExtensionSettings | reject --optional ...$cfg.extensions_off
+    # dropping an id from the policy only unlocks it, firefox keeps the installed copy; blocked removes it
+    let extensions = $cfg.extensions_off | reduce --fold $doc.policies.ExtensionSettings {|id, acc|
+        $acc | upsert $id {installation_mode: blocked}
+    }
     let prefs = $SAFE_BROWSING_PREFS | reduce --fold $doc.policies.Preferences {|key, acc| $acc | upsert $key $cfg.safe_browsing }
     let doc = $doc | upsert policies.ExtensionSettings $extensions | upsert policies.OfferToSaveLogins $cfg.save_logins
         | upsert policies.Preferences $prefs
