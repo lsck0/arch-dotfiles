@@ -232,13 +232,14 @@ def "main set" [
     --json       # with schema and live state, for the settings window
     --no-system  # only the user part, same as DOT_SYSTEM=skip; a root-owned file is still stored through root
 ]: nothing -> any {
+    if $target != null { option-target-check $target }
+    let write = $target != null and ($default or ($value | is-not-empty))
+    # re-execs this command under the run lock, which inherits the environment: nothing below may change it before
+    if $write { user-locked }
     # --no-system defers the system part (the settings window applies it once per batch); storing a value in root's file
     # is no system part, so only a DOT_SYSTEM=skip from the caller's environment (an agent's) keeps the store out of root
     $env.DOT_SET_ROOT_STORE = if $env.DOT_SYSTEM? == "skip" { "no" } else { "yes" }
     if $no_system { $env.DOT_SYSTEM = "skip" }
-    if $target != null { option-target-check $target }
-    let write = $target != null and ($default or ($value | is-not-empty))
-    if $write { user-locked }
     guarded set --read-only=(not $write) {
         if ($value | length) > 1 { error make {msg: "dot set <module>.<option> <value>: one value, quote a list"} }
         let given = $value | is-not-empty
