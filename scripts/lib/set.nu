@@ -162,17 +162,23 @@ def file-writable [file: any]: nothing -> bool {
 }
 
 # Root's own file under ROOT_OPTIONS_DIR that an admin sets through root's set entry (a prompt), where this process can
-# reach root at all; never with DOT_SYSTEM=skip, so an agent's dot set stays out of root.
+# reach root at all; never where the caller's environment held DOT_SYSTEM=skip (dot.nu's DOT_SET_ROOT_STORE), so an
+# agent's dot set stays out of root, while --no-system only defers the system part.
 def root-settable [file: any]: nothing -> bool {
-    ($file != null and ($file | str starts-with $ROOT_OPTIONS_DIR) and $env.DOT_SYSTEM? != "skip" and (admin)
+    ($file != null and ($file | str starts-with $ROOT_OPTIONS_DIR) and (root-store-allowed) and (admin)
         and (root-entry-sets) and (root-runner) != null)
+}
+
+# Whether this run may enter root to store a value: unset outside dot set, where DOT_SYSTEM alone decides.
+def root-store-allowed []: nothing -> bool {
+    match ($env.DOT_SET_ROOT_STORE? | default "") { "yes" => true, "no" => false, _ => ($env.DOT_SYSTEM? != "skip") }
 }
 
 # Why file, root's, is not settable from this process.
 def root-unsettable [file: any]: nothing -> string {
     let where = $"this machine's settings are root's \(($file | default $ROOT_OPTIONS_DIR)\)"
     if $file == null or not ($file | str starts-with $ROOT_OPTIONS_DIR) { return $"($where), not settable from here" }
-    if $env.DOT_SYSTEM? == "skip" { return $"($where) and DOT_SYSTEM=skip keeps this run out of root" }
+    if not (root-store-allowed) { return $"($where) and DOT_SYSTEM=skip keeps this run out of root" }
     if not (admin) { return $"($where): only an admin \(wheel\) sets them" }
     if not (root-entry-sets) { return $"($where): root's copy predates setting them, run dot apply once" }
     $"($where): no terminal or graphical session to ask for root from"

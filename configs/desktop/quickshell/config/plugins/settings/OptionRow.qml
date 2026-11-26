@@ -25,6 +25,8 @@ Item {
   signal editRequested()
   signal draftEdited(string text)
   signal submitted()
+  // the field lost focus while editing: a click outside the window's rows, or into another app
+  signal fieldLeft()
   signal expandRequested()
   signal browseRequested()
 
@@ -238,7 +240,10 @@ Item {
             placeholderText: row.type === "list" ? "add an entry" : ""
 
             onTextEdited: row.draftEdited(text)
-            onActiveFocusChanged: if (activeFocus && !row.editing) row.editRequested()
+            onActiveFocusChanged: {
+              if (activeFocus && !row.editing) row.editRequested()
+              else if (!activeFocus && row.editing) row.fieldLeft()
+            }
 
             Keys.onPressed: function (event) {
               if (event.accepted) return

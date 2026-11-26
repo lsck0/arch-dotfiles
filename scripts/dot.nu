@@ -230,8 +230,11 @@ def "main set" [
     --default    # reset it, the layer below applies
     --machine    # the platform's value, for a machine option
     --json       # with schema and live state, for the settings window
-    --no-system  # only the user part, same as DOT_SYSTEM=skip
+    --no-system  # only the user part, same as DOT_SYSTEM=skip; a root-owned file is still stored through root
 ]: nothing -> any {
+    # --no-system defers the system part (the settings window applies it once per batch); storing a value in root's file
+    # is no system part, so only a DOT_SYSTEM=skip from the caller's environment (an agent's) keeps the store out of root
+    $env.DOT_SET_ROOT_STORE = if $env.DOT_SYSTEM? == "skip" { "no" } else { "yes" }
     if $no_system { $env.DOT_SYSTEM = "skip" }
     if $target != null { option-target-check $target }
     let write = $target != null and ($default or ($value | is-not-empty))

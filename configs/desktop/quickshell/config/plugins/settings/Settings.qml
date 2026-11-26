@@ -147,7 +147,10 @@ Item {
     list.contentY = Math.max(list.originY, Math.min(y, list.originY + list.contentHeight - list.height))
   }
 
+  // a click elsewhere keeps what the field holds: leaving a field by any way stores its draft, as Enter would
   function focusRow(index) {
+    var row = root.rows[index]
+    if (root.editingId && (!row || row.id !== root.editingId)) root.endEdit(true)
     root.pane = "rows"
     root.rowIndex = index
   }
@@ -353,6 +356,8 @@ Item {
   }
 
   function beginEdit(row) {
+    if (root.editingId === row.id) return
+    root.endEdit(true)
     root.expandedId = ""
     root.focusRow(root.rows.indexOf(row))
     root.draft = Schema.toText(row.option, root.valueOf(row))
@@ -1059,6 +1064,7 @@ Item {
                 onResetRequested: root.reset(slot.modelData)
                 onEditRequested: root.beginEdit(slot.modelData)
                 onDraftEdited: function (text) { root.draft = text }
+                onFieldLeft: if (root.editingId === slot.modelData.id) root.endEdit(true)
                 onSubmitted: root.submitEdit()
                 onExpandRequested: {
                   root.focusRow(slot.index)
