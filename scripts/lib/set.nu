@@ -91,9 +91,7 @@ export def option-write [mod: string, key: string, value: any, machine: bool, --
     if $spec.scope == "machine" and not $machine { error make {msg: $"($mod).($key) is a machine option, set it with dot set --machine ($mod).($key) <value>"} }
     let file = if $machine { $ctx.platform.options_file } else { $ctx.profile.options_file }
     let writable = file-writable $file
-    if not $writable and not ($machine and (root-settable $file)) {
-        error make {msg: $"this machine's options are root's ($file | default '/etc/dotfiles'), not settable from here"}
-    }
+    if not $writable and not ($machine and (root-settable $file)) { error make {msg: (root-unsettable $file)} }
     let below = if $machine { $m.selected } else { enable-machine $ctx $m }
     if $key == $OPTION_ENABLE and $value == true and not $default and not $below {
         error make {msg: (enable-raised $mod {name: (if $machine { "platform" } else { "profile" }), file: $file})}
@@ -170,6 +168,16 @@ def root-settable [file: any]: nothing -> bool {
         and (root-entry-sets) and (root-runner) != null)
 }
 
+# Why file, root's, is not settable from this process.
+def root-unsettable [file: any]: nothing -> string {
+    let where = $"this machine's settings are root's \(($file | default $ROOT_OPTIONS_DIR)\)"
+    if $file == null or not ($file | str starts-with $ROOT_OPTIONS_DIR) { return $"($where), not settable from here" }
+    if $env.DOT_SYSTEM? == "skip" { return $"($where) and DOT_SYSTEM=skip keeps this run out of root" }
+    if not (admin) { return $"($where): only an admin \(wheel\) sets them" }
+    if not (root-entry-sets) { return $"($where): root's copy predates setting them, run dot apply once" }
+    $"($where): no terminal or graphical session to ask for root from"
+}
+
 # Whether root's copy has the set entry yet; a copy from before it takes the next dot apply to learn it.
 def root-entry-sets []: nothing -> bool {
     try { open --raw ($SYSTEM_REPO | path join $ENTRY) | str contains 'def "main set"' } catch { false }
@@ -215,9 +223,7 @@ export def platform-write [cell: list<string>, value: any]: nothing -> record {
     if $spec.fixed { error make {msg: $"($target) names the platform, it is set at install"} }
     let file = (platform-load $REPO).file
     let writable = file-writable $file
-    if not $writable and not (root-settable $file) {
-        error make {msg: $"this machine's platform is root's ($file | default '/etc/dotfiles/platform.nuon'), not settable from here"}
-    }
+    if not $writable and not (root-settable $file) { error make {msg: (root-unsettable $file)} }
     let bad = if $value == null { [] } else { platform-value-errors $REPO $cell $value "dot set" }
     if ($bad | is-not-empty) { error make {msg: ($bad | str join "\n")} }
     let text = open --raw $file
