@@ -814,7 +814,16 @@ Item {
 
       anchors { top: true; bottom: true; left: true; right: true }
 
-      mask: Region { item: popupWindow.active && !service.panelOverToasts ? popupList : null }
+      mask: Region { item: popupWindow.active && !service.panelOverToasts ? popupInput : null }
+
+      // the toasts' own rectangle: the list spans the whole column, the input region only what it shows
+      Item {
+        id: popupInput
+        x: popupList.x
+        y: popupList.y
+        width: popupList.width
+        height: Math.min(popupList.contentHeight, popupList.height)
+      }
 
       ToastList {
         id: popupList
@@ -826,7 +835,9 @@ Item {
         anchors.rightMargin: Style.gapsOut
         anchors.leftMargin: Style.gapsOut
         width: service.toastWidth
-        height: Math.min(contentHeight, parent.height - service.barClearance - Style.gapsOut)
+        // the full column, not contentHeight: a view as tall as its toasts skips the displaced move of one pushed
+        // past its bottom by a new toast, which then stays drawn under the new one
+        height: parent.height - service.barClearance - Style.gapsOut
         interactive: false
         spacing: 0
         model: popupWindow.active ? popupModel : null
