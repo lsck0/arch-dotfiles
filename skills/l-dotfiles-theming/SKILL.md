@@ -13,8 +13,8 @@ description: "How dot theme and wallpaper switches recolor the system: wallust t
 `dot theme <theme|wallpaper|random>` (`configs/core/wallust/scripts/wallpaper.nu`; no argument: the picker). A bare
 theme name applies `themes/<theme>.json` as written (`wallust cs`), its wallpaper and its optional `"font"`
 (`$XDG_CACHE_HOME/wal/font.json`). Anything else (a file name with extension, a path, `random`) is a wallpaper under a
-palette derived from it (`wallust run`), also when a theme names that file. Names resolve from `~/sync/wallpapers/`
-(bought, `wallpaper-import`), then `wallpapers/`. Picks land in `$XDG_STATE_HOME/dotfiles/theme-recent.json`.
+palette derived from it (`wallust run`), also when a theme names that file. Names resolve from `~/pictures/wallpapers/`
+(a user's own), `~/sync/wallpapers/` (bought, `wallpaper-import`), then `wallpapers/`. Picks land in `$XDG_STATE_HOME/dotfiles/theme-recent.json`.
 
 1. A derived palette is conditioned (`condition-derived` in `palette.nu`): color0 is the background, color8 a grey of
    its hue at 3:1, color4 and color12 swap with the slot holding the picture's hue when wallust put a foreign one

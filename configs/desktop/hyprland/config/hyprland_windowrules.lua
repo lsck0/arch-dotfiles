@@ -143,3 +143,10 @@ hl.layer_rule({
 if not platform.look.blur_menus then
     hl.window_rule({ match = { xwayland = true, float = true, title = "^$" }, no_blur = true })
 end
+
+-- blur off with blur_menus on: every window but those X11 menus loses its blur, the shell's layers keep theirs
+if not platform.look.blur and platform.look.blur_menus then
+    hl.window_rule({ match = { xwayland = false }, no_blur = true })
+    hl.window_rule({ match = { xwayland = true, float = false }, no_blur = true })
+    hl.window_rule({ match = { xwayland = true, title = "^.+$" }, no_blur = true })
+end

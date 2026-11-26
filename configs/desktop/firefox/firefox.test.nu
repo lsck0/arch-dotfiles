@@ -1,11 +1,13 @@
 #!/usr/bin/env -S nu --no-config-file
 # Every theme through pywalfox's own derivation (its dark and light templates, from the slots pywalfox-slots writes):
-# text holds 4.5:1 on the frame, the toolbar and popups, and the url bar, the highlight 3:1 against its text.
+# text holds 4.5:1 on the frame, the toolbar and popups, and the url bar, the highlight 3:1 against its text; the
+# extensions_off picks match policies.json's force_installed ids.
 
-use mod.nu [pywalfox-slots pywalfox-brighten PYWALFOX_POPUP PYWALFOX_FIELD PYWALFOX_FRAME_LIGHT]
+use mod.nu [FORCED_EXTENSIONS pywalfox-slots pywalfox-brighten PYWALFOX_POPUP PYWALFOX_FIELD PYWALFOX_FRAME_LIGHT]
 use ../../core/wallust/scripts/palette.nu [hex-to-rgb contrast]
 
 const THEMES = path self ../../../themes
+const POLICIES = path self config/policies.json
 const TEXT = 4.5
 const HIGHLIGHT = 3.0
 const WHITE = [1.0 1.0 1.0]
@@ -37,6 +39,12 @@ def surfaces [theme: record]: nothing -> list<record> {
 }
 
 def main [] {
+    # extensions_off picks from FORCED_EXTENSIONS: one missing there cannot be left out, one extra leaves nothing out
+    let forced = open $POLICIES | get policies.ExtensionSettings | transpose id spec
+        | where spec.installation_mode == force_installed | get id | sort
+    if $forced != ($FORCED_EXTENSIONS | sort) {
+        error make {msg: $"firefox.test: FORCED_EXTENSIONS differs from policies.json's force_installed ids: ($forced | to nuon)"}
+    }
     let failed = glob ($THEMES | path join *.json) | sort | each {|f|
         surfaces (open $f) | where {|s| (contrast $s.a $s.b) < $s.want }
         | each {|s| $"($f | path basename): ($s.what) ((contrast $s.a $s.b) | math round --precision 2):1" }

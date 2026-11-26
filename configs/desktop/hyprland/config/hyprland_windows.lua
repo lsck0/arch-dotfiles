@@ -51,7 +51,9 @@ hl.config({
     decoration = {
         rounding = style.rounding,
         blur = {
-            enabled = platform.look.blur,
+            -- on for either switch: blur off with blur_menus on keeps the shell, popups and menus blurred and
+            -- turns it off per window (hyprland_windowrules.lua)
+            enabled = platform.look.blur or platform.look.blur_menus,
             size = 6,
             passes = 3,
             popups = platform.look.blur_menus,

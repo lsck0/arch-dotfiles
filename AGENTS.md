@@ -77,8 +77,8 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
 - `configs/secrets/`: private submodule, pulled only with the profile's `secrets` capability. `keys/` is git-crypt
   (credentials), `state/` plaintext app state, plus the owner's own modules (applied last, packages kept off the
   mirror). Anything else there makes sync refuse.
-- `themes/` (palettes), `wallpapers/` (credited art; bought ones in `~/sync/wallpapers`), `showcase/` (README
-  screenshots).
+- `themes/` (palettes), `wallpapers/` (credited art; bought ones in `~/sync/wallpapers`, a user's own in
+  `~/pictures/wallpapers`), `showcase/` (README screenshots).
 - `mirror/`: own pkgbuilds, `overrides.conf`, `iso/` (the install iso; only its stub `lsck0-install` is frozen on a
   stick).
 

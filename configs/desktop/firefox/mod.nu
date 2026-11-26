@@ -13,6 +13,23 @@ export const meta = {
     ]
 }
 
+# config/policies.json's force_installed ids, the extensions_off picks (firefox.test.nu holds the two equal)
+export const FORCED_EXTENSIONS = [
+    "78272b6fa58f4a1abaac99321d503a20@proton.me"
+    "deArrow@ajay.app"
+    "foxytab@eros.man"
+    "jid1-MnnxcxisBPnSXQ@jetpack"
+    "jobcentertycoon@gmail.com"
+    "plasma-browser-integration@kde.org"
+    "pywalfox@frewacom.org"
+    "seventv-next@7tv.app"
+    "sponsorBlocker@ajay.app"
+    "uBlock0@raymondhill.net"
+    "{74145f27-f039-47ce-a470-a662b129930a}"
+    "{762f9885-5a13-4abd-9c77-433dcd38b8fd}"
+    "{88ebde3a-4581-4c6b-8019-2a05a9e3e938}"
+]
+
 # an http(s) url with a host and the query placeholder; the system verb names the engine after the host
 const SEARCH_URL_PATTERN = '^https?://[^/?#\s]+\S*\{searchTerms\}'
 
@@ -28,8 +45,10 @@ export const options = {
     extensions_off: {
         type: list<string>
         default: []
-        doc: "Force-installed extensions to leave out by id (seventv-next@7tv.app); the rest stay installed and unremovable"
+        doc: ("Force-installed extensions to leave out by id; the rest stay installed and unremovable, one deleted from "
+            + "the profile comes back on the next start")
         label: "Extensions left out"
+        choices: $FORCED_EXTENSIONS
     }
     save_logins: {type: bool, default: false, doc: "Firefox offers to save passwords; off for a separate password manager", label: "Offer to save logins"}
     safe_browsing: {type: bool, default: false, doc: "Google Safe Browsing warnings for phishing, malware and downloads", label: "Safe Browsing"}

@@ -12,7 +12,18 @@ const CACHE = "wallpaper-list/sizes.tsv"
 # the bought ones, synced across machines by syncthing, absent on a machine without ~/sync
 const BOUGHT = "sync/wallpapers"
 
+# a user's own, kept apart from the repo's and the owner's: <pictures>/wallpapers, base/xdg's ~/pictures
+const OWN = "wallpapers"
+const PICTURES_DEFAULT = "pictures"
+
 def bought-dir []: nothing -> path { $nu.home-dir | path join $BOUGHT }
+
+def own-dir []: nothing -> path {
+    let pictures = try { ^xdg-user-dir PICTURES | str trim } catch { "" }
+    # xdg-user-dir answers $HOME itself when PICTURES is unset
+    let pictures = if $pictures in ["" $nu.home-dir] { $nu.home-dir | path join $PICTURES_DEFAULT } else { $pictures }
+    $pictures | path join $OWN
+}
 
 def images-in [dir: path]: nothing -> table {
     if not ($dir | path exists) { return [] }
@@ -20,9 +31,10 @@ def images-in [dir: path]: nothing -> table {
     | each { {path: $in.name, mtime: ($in.modified | into int)} }
 }
 
-# ~/sync/wallpapers (bought, private) shadows wallpapers/ by file name.
+# ~/pictures/wallpapers (the user's own) shadows ~/sync/wallpapers (bought, private), which shadows wallpapers/, by
+# file name.
 def wallpapers []: nothing -> table {
-    images-in $PUBLIC_DIR | append (images-in (bought-dir))
+    images-in $PUBLIC_DIR | append (images-in (bought-dir)) | append (images-in (own-dir))
     | insert name { $in.path | path basename } | reverse | uniq-by name | reject name | sort-by path
 }
 
@@ -48,10 +60,10 @@ def sizes-of [files: table]: nothing -> table {
     $sizes
 }
 
-# The file a bare wallpaper name refers to, the bought one first; null when none.
+# The file a bare wallpaper name refers to, the own one first, then the bought one; null when none.
 export def wallpaper-resolve [name: string]: nothing -> any {
     if $name == "" or "/" in $name or $name in [. ..] { return null }
-    [(bought-dir) $PUBLIC_DIR] | each { path join $name }
+    [(own-dir) (bought-dir) $PUBLIC_DIR] | each { path join $name }
     | where { ($in | path type) == file }
     | get --optional 0
 }

@@ -146,12 +146,19 @@ export const options = {
     gaps_in_px: {type: int, default: 4, doc: "Gap between tiled windows", label: "Inner gaps", group: layout, min: 0, max: 64, scope: user}
     border_px: {type: int, default: $BORDER_PX, doc: "Window border width, the focused window's in the accent gradient", label: "Border width", group: layout, min: 0, max: 16, scope: user}
     gaps_out_px: {type: int, default: 8, doc: "Gap between tiled windows and the screen edge", label: "Outer gaps", group: layout, min: 0, max: 64, scope: user}
-    blur: {type: bool, default: true, doc: "Blur behind translucent windows and popups", label: "Blur", group: layout, scope: user}
+    blur: {
+        type: bool
+        default: true
+        doc: "Blur behind translucent windows (terminals, editors); off with Blur menus on, only the shell and menus blur"
+        label: "Blur"
+        group: layout
+        scope: user
+    }
     blur_menus: {
         type: bool
         default: true
         doc: ("Blur the screen behind an open shell card (its dimmed backdrop), popups and untitled floating X11 windows "
-            + "(menus, tooltips); off, the shell's own surfaces keep their glass")
+            + "(menus, tooltips), apart from Blur; off, the shell's own surfaces keep their glass while Blur is on")
         label: "Blur menus"
         group: layout
         scope: user

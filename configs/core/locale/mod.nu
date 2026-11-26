@@ -19,21 +19,22 @@ export const options = {
     keyboard_layout: {
         type: string?
         default: null
-        doc: "xkb layout of the console, X11 and the compositor; detected: the one bootstrap set"
+        doc: ("xkb layout of the console, X11 and the compositor, several comma separated (de,ru) with a switch key in the "
+            + "options; detected: the one bootstrap set")
         group: input
         apply: relogin
     }
     keyboard_variant: {
         type: string?
         default: null
-        doc: "xkb variant, e.g. nodeadkeys"
+        doc: "xkb variant, one per layout comma separated, empty for the plain one (nodeadkeys, for de,ru)"
         group: input
         apply: relogin
     }
     keyboard_options: {
         type: list<string>?
         default: null
-        doc: "xkb options, e.g. ctrl:nocaps"
+        doc: "xkb options, e.g. ctrl:nocaps; with several layouts a switch key, grp:alt_shift_toggle for Alt+Shift"
         group: input
         apply: relogin
     }

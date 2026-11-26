@@ -255,9 +255,9 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `core/herdr.sidebar_width` | `int` | `20` | Sidebar width in columns |
 | `core/locale.lang` | `string?` | detected | LANG in /etc/locale.conf; detected: the one bootstrap set |
 | `core/locale.formats` | `string?` | detected | Locale for dates, numbers, money, units, paper and addresses (every LC_ except CTYPE, MESSAGES, COLLATE and IDENTIFICATION); unset follows the language |
-| `core/locale.keyboard_layout` | `string?` | detected | xkb layout of the console, X11 and the compositor; detected: the one bootstrap set |
-| `core/locale.keyboard_variant` | `string?` | detected | xkb variant, e.g. nodeadkeys |
-| `core/locale.keyboard_options` | `list<string>?` | detected | xkb options, e.g. ctrl:nocaps |
+| `core/locale.keyboard_layout` | `string?` | detected | xkb layout of the console, X11 and the compositor, several comma separated (de,ru) with a switch key in the options; detected: the one bootstrap set |
+| `core/locale.keyboard_variant` | `string?` | detected | xkb variant, one per layout comma separated, empty for the plain one (nodeadkeys, for de,ru) |
+| `core/locale.keyboard_options` | `list<string>?` | detected | xkb options, e.g. ctrl:nocaps; with several layouts a switch key, grp:alt_shift_toggle for Alt+Shift |
 | `core/locale.wifi_country` | `string?` | detected | Wi-Fi regulatory domain (ISO 3166 alpha-2); detected: the country of the timezone, else the world domain |
 | `core/nas.share` | `string` | `"//10.100.0.100/homelab"` | The homelab NAS's smb share mounted at /mnt/homelab (//host/share) |
 | `core/nushell.edit_mode` | `string` | `"emacs"` | Line editor keymap |
@@ -296,7 +296,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/cursor.active` | `bool` | `true` | Hyprland, X11, gtk and KDE apps take the palette's cursor; off, they keep the stock rose-pine one |
 | `desktop/cursor.size_px` | `int` | `30` | Pointer size in Hyprland, X11, gtk and KDE apps; scaled outputs ask for up to twice it |
 | `desktop/firefox.search_url` | `string?` | unset | Default search engine, {searchTerms} is the query; unset, the homelab's searxng on a homelab machine, else duckduckgo |
-| `desktop/firefox.extensions_off` | `list<string>` | `[]` | Force-installed extensions to leave out by id (seventv-next@7tv.app); the rest stay installed and unremovable |
+| `desktop/firefox.extensions_off` | `list<string>` | `[]` | Force-installed extensions to leave out by id; the rest stay installed and unremovable, one deleted from the profile comes back on the next start |
 | `desktop/firefox.save_logins` | `bool` | `false` | Firefox offers to save passwords; off for a separate password manager |
 | `desktop/firefox.safe_browsing` | `bool` | `false` | Google Safe Browsing warnings for phishing, malware and downloads |
 | `desktop/ghostty.cursor_style` | `string` | `"block"` | Text cursor shape |
@@ -329,8 +329,8 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/hyprland.gaps_in_px` | `int` | `4` | Gap between tiled windows |
 | `desktop/hyprland.border_px` | `int` | `1` | Window border width, the focused window's in the accent gradient |
 | `desktop/hyprland.gaps_out_px` | `int` | `8` | Gap between tiled windows and the screen edge |
-| `desktop/hyprland.blur` | `bool` | `true` | Blur behind translucent windows and popups |
-| `desktop/hyprland.blur_menus` | `bool` | `true` | Blur the screen behind an open shell card (its dimmed backdrop), popups and untitled floating X11 windows (menus, tooltips); off, the shell's own surfaces keep their glass |
+| `desktop/hyprland.blur` | `bool` | `true` | Blur behind translucent windows (terminals, editors); off with Blur menus on, only the shell and menus blur |
+| `desktop/hyprland.blur_menus` | `bool` | `true` | Blur the screen behind an open shell card (its dimmed backdrop), popups and untitled floating X11 windows (menus, tooltips), apart from Blur; off, the shell's own surfaces keep their glass while Blur is on |
 | `desktop/hyprland.shadows` | `bool` | `true` | Drop shadows under windows |
 | `desktop/hyprland.animations` | `bool` | `true` | Window, layer and workspace animations; power saver turns them off regardless |
 | `desktop/hyprland.vrr` | `string` | `"off"` | Adaptive sync; fullscreen_games: fullscreen video and game windows only |
