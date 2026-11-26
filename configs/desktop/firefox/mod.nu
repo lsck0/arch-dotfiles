@@ -30,6 +30,23 @@ export const FORCED_EXTENSIONS = [
     "{88ebde3a-4581-4c6b-8019-2a05a9e3e938}"
 ]
 
+# what the settings window shows for each forced id
+const EXTENSION_NAMES = {
+    "78272b6fa58f4a1abaac99321d503a20@proton.me": "Proton Pass"
+    "deArrow@ajay.app": "DeArrow"
+    "foxytab@eros.man": "FoxyTab"
+    "jid1-MnnxcxisBPnSXQ@jetpack": "Privacy Badger"
+    "jobcentertycoon@gmail.com": "Cookie Auto Decline"
+    "plasma-browser-integration@kde.org": "Plasma Integration"
+    "pywalfox@frewacom.org": "Pywalfox"
+    "seventv-next@7tv.app": "7TV"
+    "sponsorBlocker@ajay.app": "SponsorBlock"
+    "uBlock0@raymondhill.net": "uBlock Origin"
+    "{74145f27-f039-47ce-a470-a662b129930a}": "ClearURLs"
+    "{762f9885-5a13-4abd-9c77-433dcd38b8fd}": "Return YouTube Dislike"
+    "{88ebde3a-4581-4c6b-8019-2a05a9e3e938}": "Hide YouTube Shorts"
+}
+
 # an http(s) url with a host and the query placeholder; the system verb names the engine after the host
 const SEARCH_URL_PATTERN = '^https?://[^/?#\s]+\S*\{searchTerms\}'
 
@@ -49,6 +66,7 @@ export const options = {
             + "the profile comes back on the next start")
         label: "Extensions left out"
         choices: $FORCED_EXTENSIONS
+        choice_labels: $EXTENSION_NAMES
     }
     save_logins: {type: bool, default: false, doc: "Firefox offers to save passwords; off for a separate password manager", label: "Offer to save logins"}
     safe_browsing: {type: bool, default: false, doc: "Google Safe Browsing warnings for phishing, malware and downloads", label: "Safe Browsing"}

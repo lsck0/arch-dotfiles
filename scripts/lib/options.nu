@@ -2,13 +2,16 @@
 
 use state.nu [xdg]
 
-const SPEC_KEYS = [type default doc label group choices pattern min max step apply scope toggle]
+const SPEC_KEYS = [type default doc label group choices choice_labels ordered pattern min max step apply scope toggle]
 const SPEC_REQUIRED = [type default doc]
 export const OPTION_APPLY = [live relink relogin reboot]
 export const OPTION_SCOPE = [machine user]
 const OPTION_APPLY_DEFAULT = "relink"
 const OPTION_SCOPE_DEFAULT = "machine"
 export const OPTION_ENABLE = "enable"
+# where a machine without a platform of its own keeps its platform and options files, root's: dot set reaches them
+# through system-apply.nu's set
+export const ROOT_OPTIONS_DIR = "/etc/dotfiles/"
 const EVENTS_FILE = "dot/events.jsonl"
 const EVENTS_MAX_BYTES = 1048576
 const NUON_INDENT = 4
@@ -42,8 +45,11 @@ def spec-errors [module: record, name: string, spec: record]: nothing -> list<st
         # dot set applies a live option through the apply verb or the toggle; with neither it changes nothing
         (if $spec.apply == "live" and "apply" not-in $module.native and $spec.toggle? == null { $"($where): apply live needs an apply verb or a toggle" })
     ] | compact
+    # a label names a choice the settings window shows by it, so one for no choice is a typo
+    let unlabelled = $spec.choice_labels? | default {} | columns | where $it not-in ($spec.choices? | default [])
+        | each { $"($where): choice_labels names ($in), not one of its choices" }
     let default_bad = if ($missing | is-empty) { option-value-errors $module.id $name $spec $spec.default $file } else { [] }
-    $unknown ++ $missing ++ $enums ++ $default_bad
+    $unknown ++ $missing ++ $enums ++ $unlabelled ++ $default_bad
 }
 
 # Why value is not valid for spec (type, choices, pattern, min, max), each line naming file and option; empty when fine.

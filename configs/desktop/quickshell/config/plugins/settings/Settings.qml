@@ -142,6 +142,11 @@ Item {
     if (over > 0) list.contentY = Math.min(list.contentY + over, list.originY + list.contentHeight - list.height)
   }
 
+  function restoreScroll(list, y) {
+    list.forceLayout()
+    list.contentY = Math.max(list.originY, Math.min(y, list.originY + list.contentHeight - list.height))
+  }
+
   function focusRow(index) {
     root.pane = "rows"
     root.rowIndex = index
@@ -274,6 +279,8 @@ Item {
       if (vertical !== 0 || horizontal !== 0) root.moveChoice(vertical !== 0 ? vertical : horizontal)
       else if ((key === Qt.Key_Return || key === Qt.Key_Enter) && root.choiceList.length > 0)
         root.change(row, Schema.choicePicked(row.option, root.valueOf(row), root.choiceList[root.choiceCursor]))
+      else if (key === Qt.Key_Backspace && !root.choiceQuery && row.option.type === "sequence")
+        root.change(row, (root.valueOf(row) || []).slice(0, -1))
       else if (key === Qt.Key_Backspace) root.filterChoices(root.choiceQuery.slice(0, -1))
       else if (Util.printable(text)) root.filterChoices(root.choiceQuery + text)
       else return false
@@ -337,9 +344,9 @@ Item {
       root.change(row, !root.valueOf(row))
     } else if (option.type === "enum" && Schema.segmented(option)) {
       root.change(row, Schema.adjusted(option, root.valueOf(row), 1))
-    } else if (option.type === "enum" || option.type === "multi") {
+    } else if (option.type === "enum" || option.type === "multi" || option.type === "sequence") {
       root.expandedId = row.id
-      root.choiceCursor = Math.max(0, (option.choices || []).indexOf(root.valueOf(row)))
+      root.choiceCursor = option.type === "sequence" ? 0 : Math.max(0, (option.choices || []).indexOf(root.valueOf(row)))
     } else {
       root.beginEdit(row)
     }
@@ -383,8 +390,8 @@ Item {
 
   function change(row, value) {
     var option = row.option
-    // a multi-select stays open while its choices are switched
-    if (root.expandedId === row.id && option.type !== "multi") root.expandedId = ""
+    // a multi-select stays open while its choices are switched, a sequence while picks are appended
+    if (root.expandedId === row.id && option.type !== "multi" && option.type !== "sequence") root.expandedId = ""
     if (Schema.equal(value, root.valueOf(row)) && !(row.id in root.errors)) return
     root.errors = Util.mapWithout(root.errors, row.id)
     if (option.apply !== "live" && Schema.equal(value, option.value)) {
@@ -444,7 +451,8 @@ Item {
     setProc.id = id
     setProc.value = entry.value
     var option = entry.option
-    setProc.prompts = !!option.toggle
+    // a toggle's script, or root's set where the machine's file is root's, may prompt
+    setProc.prompts = !!option.toggle || option.root === true
     // a machine option's system part waits (exit 3): finishBatch runs it once for the whole batch, behind one prompt
     var machine = option.scope === "machine" ? ["--machine", "--no-system"] : []
     setProc.command = option.toggle ? [Paths.toggle("toggle-" + option.toggle + ".nu"), option.set, Schema.toggleArgument(option, entry.value)]
@@ -534,8 +542,13 @@ Item {
       root.loaded = true
       if (optionsProc.outText === root.modulesText) return
       root.modulesText = optionsProc.outText
+      // new rows reset both lists to the top: each live set reloads, so the view would jump on every change
+      var rowY = rowList.contentY
+      var sectionY = sectionList.contentY
       root.modules = data.modules.map(Schema.moduleNormalize)
       root.machine = data.platform ? Schema.moduleNormalize(data.platform) : null
+      root.restoreScroll(rowList, rowY)
+      root.restoreScroll(sectionList, sectionY)
       if (root.rowIndex < 0 || root.rowIndex >= root.rows.length) root.selectFirstRow()
       else root.selectRow(root.rowIndex)
       var at = root.sections[root.sectionIndex]

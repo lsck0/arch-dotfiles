@@ -62,7 +62,9 @@ it fails all of them, so they retry. `then-step <command> [args]` runs one of th
 
 ## Option keys
 
-`type`, `default`, `doc` required; `label`, `group`, `choices`, `pattern` (a regex a string value matches, checked by
+`type`, `default`, `doc` required; `label`, `group`, `choices`, `choice_labels` (a record from a choice to
+the name the settings window shows for it, for ids), `ordered` (a list option with choices is a sequence:
+the settings window appends a pick, which may repeat, instead of switching a set), `pattern` (a regex a string value matches, checked by
 `dot set`), `min`/`max`/`step`, `apply` (default relink), `scope`
 (default machine), `toggle` (set through `scripts/toggles/toggle-<name>.nu`: `on`/`off` for a bool, else
 `set <value>`; its `get` is what the settings window shows; `l-dotfiles-toggles`).

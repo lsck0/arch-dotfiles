@@ -5,26 +5,34 @@ export const meta = {
     packages: {pacman: [cava imagemagick libqalculate pipewire-audio python-gobject qrencode qt6-shadertools quickshell udisks2 websocat wtype zenity]}
 }
 
+# what the bar options' entries name: plugins/bar/widgets/<name>.qml, BarSection aside (bar.test.nu)
+export const BAR_WIDGETS = [
+    Agents AppMenu AudioIO Clock Discord Display Drives Exit Homelab Indicators KeyboardLayout Media Network Notifications Obs
+    Phone Separator Submap System Tray Weather Workspaces
+]
+
 export const options = {
     pomodoro_focus_min: {type: int, default: 25, doc: "Minutes of one focus block", label: "Focus", group: pomodoro, min: 1, max: 180, apply: live, scope: user}
     pomodoro_break_min: {type: int, default: 5, doc: "Minutes of the short break after a focus block", label: "Break", group: pomodoro, min: 1, max: 60, apply: live, scope: user}
     pomodoro_long_break_min: {type: int, default: 15, doc: "Minutes of the long break after the last focus block of a round", label: "Long break", group: pomodoro, min: 1, max: 120, apply: live, scope: user}
     pomodoro_cycles: {type: int, default: 4, doc: "Focus blocks before a long break", label: "Cycles", group: pomodoro, min: 1, max: 12, apply: live, scope: user}
     clipboard_history_max_age_h: {type: int, default: 12, doc: "Hours a copied text or image stays in the clipboard history", label: "Keep history for", group: clipboard, min: 1, max: 168, apply: live, scope: user}
-    bar_left: {type: list<string>, default: [AppMenu Workspaces Submap], doc: "Widgets on the left of the main bar, by plugins/bar/widgets name", label: "Left", group: bar, apply: live, scope: user}
-    bar_center: {type: list<string>, default: [Clock Weather Media Obs Discord], doc: "Widgets in the middle of the main bar", label: "Center", group: bar, apply: live, scope: user}
+    bar_left: {type: list<string>, default: [AppMenu Workspaces Submap], doc: "Widgets on the left of the main bar, by plugins/bar/widgets name", label: "Left", group: bar, choices: $BAR_WIDGETS, ordered: true, apply: live, scope: user}
+    bar_center: {type: list<string>, default: [Clock Weather Media Obs Discord], doc: "Widgets in the middle of the main bar", label: "Center", group: bar, choices: $BAR_WIDGETS, ordered: true, apply: live, scope: user}
     bar_right: {
         type: list<string>
         default: [Tray Separator Agents Phone Homelab System Drives Network Display AudioIO Notifications KeyboardLayout Indicators Exit]
         doc: "Widgets on the right of the main bar"
         label: "Right"
         group: bar
+        choices: $BAR_WIDGETS
+        ordered: true
         apply: live
         scope: user
     }
-    bar_secondary_left: {type: list<string>, default: [AppMenu Workspaces Submap], doc: "Widgets on the left of every other screen's bar", label: "Other screens left", group: bar, apply: live, scope: user}
-    bar_secondary_center: {type: list<string>, default: [], doc: "Widgets in the middle of every other screen's bar", label: "Other screens center", group: bar, apply: live, scope: user}
-    bar_secondary_right: {type: list<string>, default: [], doc: "Widgets on the right of every other screen's bar", label: "Other screens right", group: bar, apply: live, scope: user}
+    bar_secondary_left: {type: list<string>, default: [AppMenu Workspaces Submap], doc: "Widgets on the left of every other screen's bar", label: "Other screens left", group: bar, choices: $BAR_WIDGETS, ordered: true, apply: live, scope: user}
+    bar_secondary_center: {type: list<string>, default: [], doc: "Widgets in the middle of every other screen's bar", label: "Other screens center", group: bar, choices: $BAR_WIDGETS, ordered: true, apply: live, scope: user}
+    bar_secondary_right: {type: list<string>, default: [], doc: "Widgets on the right of every other screen's bar", label: "Other screens right", group: bar, choices: $BAR_WIDGETS, ordered: true, apply: live, scope: user}
     notification_low_s: {type: int, default: 5, doc: "Seconds a low urgency popup stays at least", label: "Low popup", group: notifications, min: 1, max: 120, apply: live, scope: user}
     notification_normal_s: {type: int, default: 8, doc: "Seconds a normal popup stays at least; critical ones stay until dismissed", label: "Normal popup", group: notifications, min: 1, max: 120, apply: live, scope: user}
     notification_max_s: {type: int, default: 30, doc: "Seconds a popup stays at most, whatever its sender asks", label: "Popup at most", group: notifications, min: 1, max: 600, apply: live, scope: user}

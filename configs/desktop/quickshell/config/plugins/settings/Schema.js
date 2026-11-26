@@ -25,7 +25,8 @@ const filesizeShown = [["TiB", 1099511627776], ["GiB", 1073741824], ["MiB", 1048
 function typeOf(option) {
   var type = String(option.type || "").replace(/\?$/, "")
   if (option.fixed) return "fixed"
-  if ((option.choices || []).length > 0) return /^list</.test(type) ? "multi" : "enum"
+  // an ordered list is a sequence: a pick appends, and may repeat (a bar's separators)
+  if ((option.choices || []).length > 0) return !/^list</.test(type) ? "enum" : option.ordered ? "sequence" : "multi"
   if (["bool", "int", "float", "path", "string", "filesize"].indexOf(type) >= 0) return type
   if (/^list<(string|path|int|float)>$/.test(type)) return "list"
   return "json"
@@ -54,18 +55,59 @@ function moduleLabel(module) { return module.label || module.name }
 
 function segmented(option) { return option.type === "enum" && (option.choices || []).length <= segmentedMax }
 
-function contains(needle, fields) {
-  return fields.some(function (f) { return String(f || "").toLowerCase().indexOf(needle) >= 0 })
+// how well one query term fits a text, -1 when not at all: a substring beats a scattered one, at a word start more,
+// earlier more; scattered (fuzzy) letters in order score less the wider they spread, and only where fuzzy is set
+function termScore(term, text, fuzzy) {
+  var hay = String(text === undefined || text === null ? "" : text).toLowerCase()
+  var at = hay.indexOf(term)
+  if (at >= 0) return 2000 - Math.min(at, 500) + (at === 0 || /[^a-z0-9]/.test(hay[at - 1]) ? 1000 : 0)
+  if (!fuzzy) return -1
+  var gaps = 0
+  var last = -1
+  for (let i = 0; i < term.length; i++) {
+    let next = hay.indexOf(term[i], last + 1)
+    if (next < 0) return -1
+    if (last >= 0) gaps += next - last - 1
+    last = next
+  }
+  return Math.max(1, 1000 - gaps * 10 - Math.min(hay.indexOf(term[0]), 500))
 }
 
-function optionMatches(needle, module, option) {
-  return contains(needle, [option.label, option.key, option.doc, option.group, module.name, module.label])
+// every whitespace-separated term of needle fits some field: names (labels, keys, ids) fuzzily, prose (docs, details)
+// only as a substring, since scattered letters fit nearly any sentence; the summed best scores, -1 for no match
+function matchScore(needle, names, prose) {
+  var terms = String(needle).toLowerCase().split(/\s+/).filter(function (t) { return t !== "" })
+  var total = 0
+  for (let t = 0; t < terms.length; t++) {
+    let best = -1
+    for (let f = 0; f < names.length; f++) best = Math.max(best, termScore(terms[t], names[f], true))
+    for (let f = 0; f < (prose || []).length; f++) best = Math.max(best, termScore(terms[t], prose[f], false))
+    if (best < 0) return -1
+    total += best
+  }
+  return total
 }
+
+function contains(needle, names, prose) { return matchScore(needle, names, prose) >= 0 }
+
+function optionScore(needle, module, option) {
+  return matchScore(needle, [option.label, option.key, option.group, module.name, module.label], [option.doc])
+}
+
+function optionMatches(needle, module, option) { return optionScore(needle, module, option) >= 0 }
 
 function toggleMatches(needle, toggle) { return contains(needle, [toggle.label, toggle.name, togglesLabel]) }
 
 function toggleOptionMatches(needle, toggle, option) {
-  return contains(needle, [option.label, option.key, option.doc, toggle.name, togglesLabel])
+  return contains(needle, [option.label, option.key, toggle.name, togglesLabel], [option.doc])
+}
+
+// the entries that match, best first; equal scores keep their order
+function ranked(list, score) {
+  return list.map(function (item, i) { return { item: item, i: i, score: score(item) } })
+    .filter(function (e) { return e.score >= 0 })
+    .sort(function (a, b) { return b.score - a.score || a.i - b.i })
+    .map(function (e) { return e.item })
 }
 
 function moduleGroup(module) { var i = module.name.indexOf("/"); return i < 0 ? "" : module.name.slice(0, i) }
@@ -169,7 +211,7 @@ function systemEntries(status, needle) {
   var drift = drifted.map(function (d) {
     return { kind: "drift", id: systemId + ".drift." + d.target, module: d.module, target: d.target, drift: d.drift }
   })
-  var match = function (r) { return !needle || contains(needle, [r.name, r.text, r.detail, r.module, r.target, r.level, systemLabel]) }
+  var match = function (r) { return !needle || contains(needle, [r.name, r.module, r.level, systemLabel], [r.text, r.detail, r.target]) }
   var out = []
   var passed = function (c) { return c.level === "ok" ? 1 : 0 }
   checks.sort(function (a, b) { return passed(a) - passed(b) })
@@ -230,7 +272,7 @@ function rows(modules, toggles, sectionId, query, status, machine) {
     out = out.concat(systemEntries(status, needle))
     for (let m = 0; m < labelled.length; m++) {
       let module = labelled[m]
-      let matched = (module.options || []).filter(function (o) { return optionMatches(needle, module, o) })
+      let matched = ranked(module.options || [], function (o) { return optionScore(needle, module, o) })
       if (matched.length > 0) out.push({ kind: "header", id: "#" + module.name, text: moduleLabel(module) })
       for (let o = 0; o < matched.length; o++) out.push(optionRow(module, matched[o]))
     }
@@ -335,8 +377,10 @@ function toggleArgument(option, value) {
   return String(value)
 }
 
-// a multi-select's value with choice switched, in the value's own order with a new one last; an enum's is the choice
+// a multi-select's value with choice switched, in the value's own order with a new one last; a sequence's with choice
+// appended; an enum's is the choice
 function choicePicked(option, value, choice) {
+  if (option.type === "sequence") return (value || []).concat([choice])
   if (option.type !== "multi") return choice
   var list = (value || []).slice()
   var at = list.indexOf(choice)
@@ -350,11 +394,16 @@ function choicePicked(option, value, choice) {
   return list.sort(function (a, b) { return rank(a) - rank(b) })
 }
 
-function choiceLabel(choice) { return choice === "" ? "(none)" : String(choice) }
+// a choice as the window shows it: its choice_labels name (an extension id's), else the choice itself
+function choiceLabel(option, choice) {
+  var labels = option.choice_labels || ({})
+  if (Object.prototype.hasOwnProperty.call(labels, String(choice))) return String(labels[String(choice)])
+  return choice === "" ? "(none)" : String(choice)
+}
 
 function choicesMatching(option, filter) {
-  var needle = filter.toLowerCase()
-  return (option.choices || []).filter(function (c) { return choiceLabel(c).toLowerCase().indexOf(needle) >= 0 })
+  if (filter === "") return option.choices || []
+  return ranked(option.choices || [], function (c) { return matchScore(filter, [choiceLabel(option, c), c]) })
 }
 
 function choicePageStart(cursor) { return Math.max(0, Math.floor(cursor / choicePageSize) * choicePageSize) }

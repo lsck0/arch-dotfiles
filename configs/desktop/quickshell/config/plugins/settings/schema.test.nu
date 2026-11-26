@@ -174,6 +174,22 @@ TestCase {
     compare\(Schema.typeOf\({ type: \"list<record>?\" }\), \"json\"\)
     compare\(Schema.typeOf\({ type: \"string?\", choices: [\"a\"] }\), \"enum\"\)
     compare\(Schema.typeOf\({ type: \"list<string>\", choices: [\"a\"] }\), \"multi\"\)
+    compare\(Schema.typeOf\({ type: \"list<string>\", choices: [\"a\"], ordered: true }\), \"sequence\"\)
+    var named = { type: \"multi\", choices: [\"x@y\", \"z\"], choice_labels: { \"x@y\": \"Named\" } }
+    compare\(Schema.choiceLabel\(named, \"x@y\"\), \"Named\"\)
+    compare\(Schema.choiceLabel\(named, \"z\"\), \"z\"\)
+    compare\(Schema.choiceLabel\({}, \"\"\), \"\(none\)\"\)
+    compare\(Schema.choicesMatching\(named, \"name\"\).join\(\",\"\), \"x@y\"\)
+    compare\(Schema.choicesMatching\(named, \"@y\"\).join\(\",\"\), \"x@y\"\)
+    // fuzzy: letters in order across a name, the tighter and the substring first; prose only as a substring
+    var bar = { choices: [\"Workspaces\", \"Separator\", \"KeyboardLayout\", \"Network\"] }
+    compare\(Schema.choicesMatching\(bar, \"kbl\"\).join\(\",\"\), \"KeyboardLayout\"\)
+    compare\(Schema.choicesMatching\(bar, \"work\"\).join\(\",\"\), \"Workspaces,Network\"\)
+    compare\(Schema.choicesMatching\(bar, \"zz\"\).length, 0\)
+    verify\(Schema.optionMatches\(\"brrgt\", { name: \"m\" }, { key: \"bar_right\", doc: \"x\" }\)\)
+    verify\(!Schema.optionMatches\(\"wdgt\", { name: \"m\" }, { key: \"k\", doc: \"Widgets\" }\)\)
+    verify\(Schema.optionMatches\(\"widg left\", { name: \"m\" }, { key: \"left\", doc: \"Widgets\" }\)\)
+    compare\(Schema.choicePicked\({ type: \"sequence\" }, [\"a\", \"b\"], \"a\"\).join\(\",\"\), \"a,b,a\"\)
     compare\(Schema.typeOf\({ type: \"string\", fixed: true }\), \"fixed\"\)
   }
 }

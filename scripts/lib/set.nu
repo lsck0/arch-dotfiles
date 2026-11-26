@@ -3,8 +3,10 @@
 
 const REPO = path self ../..
 use log.nu *
-use state.nu [save-atomic]
-use options.nu [OPTION_ENABLE options-schema option-value-errors options-notify options-nuon-set enable-raised]
+use state.nu [SYSTEM_REPO save-atomic]
+use system.nu [ENTRY]
+use cli.nu [root-runner]
+use options.nu [OPTION_ENABLE ROOT_OPTIONS_DIR options-schema option-value-errors options-notify options-nuon-set enable-raised]
 use platform.nu [PLATFORM_TARGET platform-load platform-spec platform-rows platform-errors platform-value-errors]
 use pipeline.nu [module-get pipeline-load pipeline-plan pipeline-apply]
 use run.nu [link-run unlink-run admin system-part pending-exit pending-add]
@@ -29,12 +31,15 @@ export def options-list [mod: any, json: bool]: nothing -> any {
     let mods = $ctx.modules | where {|m| $mod == null or $m.id == $mod }
     if $json {
         let writable = file-writable $ctx.platform.options_file
+        let by_root = root-settable $ctx.platform.options_file
         let modules = $mods | each {|m|
             let raisable = enable-machine $ctx $m
             let options = options-schema $m | items {|key, spec|
                 $spec | reject --optional toggle | merge {
                     key: $key
-                    fixed: (($spec.scope == "machine" and not $writable) or ($key == $OPTION_ENABLE and not $raisable))
+                    fixed: (($spec.scope == "machine" and not $writable and not $by_root) or ($key == $OPTION_ENABLE and not $raisable))
+                    # set through root: the window lets go of the keyboard for its prompt
+                    root: ($spec.scope == "machine" and not $writable and $by_root)
                     value: ($m.cfg | get $key)
                     source: ($m.sources | get $key)
                     runtime: (if $spec.apply == "live" { option-runtime $spec } else { null })
@@ -85,14 +90,21 @@ export def option-write [mod: string, key: string, value: any, machine: bool, --
     if ($bad | is-not-empty) { error make {msg: ($bad | str join "\n")} }
     if $spec.scope == "machine" and not $machine { error make {msg: $"($mod).($key) is a machine option, set it with dot set --machine ($mod).($key) <value>"} }
     let file = if $machine { $ctx.platform.options_file } else { $ctx.profile.options_file }
-    if not (file-writable $file) { error make {msg: $"this machine's options are root's ($file | default '/etc/dotfiles'), not settable from here"} }
+    let writable = file-writable $file
+    if not $writable and not ($machine and (root-settable $file)) {
+        error make {msg: $"this machine's options are root's ($file | default '/etc/dotfiles'), not settable from here"}
+    }
     let below = if $machine { $m.selected } else { enable-machine $ctx $m }
     if $key == $OPTION_ENABLE and $value == true and not $default and not $below {
         error make {msg: (enable-raised $mod {name: (if $machine { "platform" } else { "profile" }), file: $file})}
     }
-    let text = if ($file | path exists) { open --raw $file } else { "{}\n" }
-    let updated = $text | options-nuon-set [$mod $key] $value --remove=$default
-    if $updated != $text { $updated | save-atomic $file }
+    if $writable {
+        let text = if ($file | path exists) { open --raw $file } else { "{}\n" }
+        let updated = $text | options-nuon-set [$mod $key] $value --remove=$default
+        if $updated != $text { $updated | save-atomic $file }
+    } else {
+        root-set $"($mod).($key)" $value $default
+    }
     let resolved = pipeline-load $REPO user | get modules | where id == $mod | first
     {module: $m, spec: $spec, value: ($resolved.cfg | get $key), source: ($resolved.sources | get $key), machine: $machine}
 }
@@ -151,6 +163,29 @@ def file-writable [file: any]: nothing -> bool {
     $file != null and not ($file | str starts-with "/etc/")
 }
 
+# Root's own file under ROOT_OPTIONS_DIR that an admin sets through root's set entry (a prompt), where this process can
+# reach root at all; never with DOT_SYSTEM=skip, so an agent's dot set stays out of root.
+def root-settable [file: any]: nothing -> bool {
+    ($file != null and ($file | str starts-with $ROOT_OPTIONS_DIR) and $env.DOT_SYSTEM? != "skip" and (admin)
+        and (root-entry-sets) and (root-runner) != null)
+}
+
+# Whether root's copy has the set entry yet; a copy from before it takes the next dot apply to learn it.
+def root-entry-sets []: nothing -> bool {
+    try { open --raw ($SYSTEM_REPO | path join $ENTRY) | str contains 'def "main set"' } catch { false }
+}
+
+# Stores target through root's copy (system-apply.nu set), behind sudo or pkexec's prompt.
+def root-set [target: string, value: any, default: bool]: nothing -> nothing {
+    let runner = root-runner
+    let argv = [($SYSTEM_REPO | path join $ENTRY) set $target ($value | to json --raw)] ++ (if $default { [--default] } else { [] })
+    let ran = ^$runner ...$argv | complete
+    if $ran.exit_code != 0 {
+        let why = $ran.stderr | str trim | lines | where $it != "" | last 1 | str join ""
+        error make {msg: $"($target): root did not store it \(($runner) exited ($ran.exit_code)\)(if $why != '' { ': ' + $why } else { '' })"}
+    }
+}
+
 # The cell path below the platform file a target names, null for a target that is no platform key.
 export def platform-target [target: string]: nothing -> any {
     let prefix = $"($PLATFORM_TARGET)."
@@ -163,7 +198,10 @@ export def platform-target [target: string]: nothing -> any {
 export def platform-list [json: bool]: nothing -> any {
     let platform = platform-load $REPO
     let writable = file-writable $platform.file
-    let rows = platform-rows $REPO $platform | each {|r| $r | merge {fixed: ($r.fixed or not $writable), scope: machine} }
+    let by_root = not $writable and (root-settable $platform.file)
+    let rows = platform-rows $REPO $platform | each {|r|
+        $r | merge {fixed: ($r.fixed or not ($writable or $by_root)), root: (not $r.fixed and $by_root), scope: machine}
+    }
     if not $json { return ($rows | select key value source) }
     let label = if $platform.file == null { $PLATFORM_TARGET } else { $platform.file | path parse | get stem }
     {name: $PLATFORM_TARGET, label: $label, file: $platform.file, writable: $writable, options: $rows}
@@ -176,14 +214,19 @@ export def platform-write [cell: list<string>, value: any]: nothing -> record {
     let spec = platform-spec $cell
     if $spec.fixed { error make {msg: $"($target) names the platform, it is set at install"} }
     let file = (platform-load $REPO).file
-    if not (file-writable $file) { error make {msg: $"this machine's platform is root's ($file | default '/etc/dotfiles/platform.nuon'), not settable from here"} }
+    let writable = file-writable $file
+    if not $writable and not (root-settable $file) {
+        error make {msg: $"this machine's platform is root's ($file | default '/etc/dotfiles/platform.nuon'), not settable from here"}
+    }
     let bad = if $value == null { [] } else { platform-value-errors $REPO $cell $value "dot set" }
     if ($bad | is-not-empty) { error make {msg: ($bad | str join "\n")} }
     let text = open --raw $file
     let updated = $text | options-nuon-set $cell $value --remove=($value == null)
     let errors = platform-errors $REPO ($updated | from nuon) $file
     if ($errors | is-not-empty) { error make {msg: ($errors | str join "\n")} }
-    if $updated != $text { $updated | save-atomic $file }
+    if $updated != $text {
+        if $writable { $updated | save-atomic $file } else { root-set $target $value ($value == null) }
+    }
     let row = platform-rows $REPO (platform-load $REPO) | where key == ($cell | str join ".") | first
     {spec: $spec, value: $row.value, source: $row.source, changed: ($updated != $text)}
 }

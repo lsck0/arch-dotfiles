@@ -3,7 +3,9 @@
 
 use log.nu *
 use state.nu [SYSTEM_REPO SYSTEM_STATE NU_ROOT EXIT_ABORTED EXIT_PENDING INSTALL_PASS_FILE CONFIG_ISSUE process-running tmp-dir-run group-exists save-atomic file-lines]
-use pipeline.nu [pipeline-load pipeline-plan pipeline-apply pending-save barriers-run]
+use pipeline.nu [module-get pipeline-load pipeline-plan pipeline-apply pending-save barriers-run]
+use options.nu [ROOT_OPTIONS_DIR OPTION_ENABLE options-schema option-value-errors options-nuon-set enable-raised]
+use platform.nu [PLATFORM_TARGET platform-load platform-spec platform-errors platform-value-errors]
 use modules.nu [modules-packages]
 use ledger.nu [packages-convergence packages-orphans-remove ledger-get ledger-set ledger-packages ledger-units awaited-names LEDGER_AWAITED LSCK0_DB]
 use preserve.nu [tty-confirm preserve-prune]
@@ -231,7 +233,7 @@ def module-system [ctx: record, id: string, --packages-unchecked]: nothing -> bo
 
 # Never --wrapped: nu evaluates a wrapped main's `--flag=(expr)` arguments before its body runs, as root here.
 def main [] {
-    error make {msg: $"system-apply.nu <apply|install|config|packages|module|migrate|preserve-prune>"}
+    error make {msg: $"system-apply.nu <apply|install|config|packages|module|migrate|preserve-prune|set>"}
 }
 
 # apply <sha> <install|config|sync>: unpack the repo and secrets archive on stdin, run the stage's steps from the new
@@ -258,6 +260,60 @@ def "main apply" [sha: string, stage: string, --run: string = "", --unattended, 
     {run: $run, root_run: $env.DOT_RUN_ID, stages: $rows} | to nuon | save-atomic $SYSTEM_STAGES
     run-journal
     exit (stages-exit $rows.code)
+}
+
+# set <target> <json value> [--default]: store a machine option or platform key in this machine's root-owned file under
+# ROOT_OPTIONS_DIR, which dot set cannot write as the user; validated against this copy's specs, never the profile.
+# The value is positional and parsed as json here, never a value-taking flag. Its system part is a later dot apply.
+def "main set" [target: string, value: string, --default]: nothing -> nothing {
+    let repo = repo-guard
+    locked
+    run-open "system set"
+    try { root-store $repo $target (if $default { null } else { $value | from json }) $default } catch {|e| run-journal; error make $e }
+    log-info $"set ($target)"
+    run-journal
+}
+
+def root-file [file: any]: nothing -> path {
+    if $file == null or not ($file | str starts-with $ROOT_OPTIONS_DIR) {
+        error make {msg: $"set: this machine's file is ($file | default 'none'), not one of root's under ($ROOT_OPTIONS_DIR)"}
+    }
+    $file
+}
+
+def root-store [repo: path, target: string, value: any, default: bool]: nothing -> nothing {
+    let prefix = $"($PLATFORM_TARGET)."
+    if ($target | str starts-with $prefix) {
+        let cell = $target | str substring ($prefix | str length).. | split row "."
+        let spec = platform-spec $cell
+        if $spec == null { error make {msg: $"set: the platform has no key ($cell | str join '.')"} }
+        if $spec.fixed { error make {msg: $"set: ($target) is set at install"} }
+        let file = root-file (platform-load $repo).file
+        let bad = if $value == null { [] } else { platform-value-errors $repo $cell $value "dot set" }
+        if ($bad | is-not-empty) { error make {msg: ($bad | str join "\n")} }
+        let text = open --raw $file
+        let updated = $text | options-nuon-set $cell $value --remove=($value == null)
+        let errors = platform-errors $repo ($updated | from nuon) $file
+        if ($errors | is-not-empty) { error make {msg: ($errors | str join "\n")} }
+        if $updated != $text { $updated | save-atomic $file }
+        return
+    }
+    let parts = $target | parse --regex '^(?<mod>.+)\.(?<key>[a-z][a-z0-9_]*)$' | get --optional 0
+    if $parts == null { error make {msg: $"set: ($target) names no option"} }
+    let ctx = pipeline-load $repo system
+    let m = module-get $ctx $parts.mod
+    let spec = options-schema $m | get --optional $parts.key
+    if $spec == null { error make {msg: $"set: ($parts.mod) has no option ($parts.key)"} }
+    if $spec.scope != "machine" { error make {msg: $"set: ($target) is a user option, the profile's"} }
+    let bad = if $default { [] } else { option-value-errors $parts.mod $parts.key $spec $value "dot set" }
+    if ($bad | is-not-empty) { error make {msg: ($bad | str join "\n")} }
+    let file = root-file $ctx.platform.options_file
+    if $parts.key == $OPTION_ENABLE and $value == true and not $default and not $m.selected {
+        error make {msg: (enable-raised $parts.mod {name: "platform", file: $file})}
+    }
+    let text = if ($file | path exists) { open --raw $file } else { "{}\n" }
+    let updated = $text | options-nuon-set [$parts.mod $parts.key] $value --remove=$default
+    if $updated != $text { $updated | save-atomic $file }
 }
 
 # every declared package from [lsck0] in one pass, base/pacman first, base/yubikey last
