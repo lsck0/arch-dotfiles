@@ -90,6 +90,10 @@
                 after: discord
             }
             {
+                cmd: "fluxer --password-store=gnome-libsecret --autostart"
+                after: discord
+            }
+            {
                 cmd: firefox
                 workspace: 6
             }
