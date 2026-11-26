@@ -4,7 +4,7 @@ local style = require("style")
 -- steam drops its toasts on whatever monitor it thinks is primary
 hl.window_rule({ match = { title = "^notificationtoasts" }, float = true, monitor = platform.main_monitor })
 
-for _, class in ipairs({ "^[Ss]potify$", "^discord$", "^nemo$", "^(org.kde.)?dolphin$" }) do
+for _, class in ipairs({ "^[Ss]potify$", "^discord$", "^app.fluxer.FluxerDesktop$", "^nemo$", "^(org.kde.)?dolphin$" }) do
     hl.window_rule({ match = { class = class }, opacity = style.opacity_window })
 end
 -- steam's library and store art turn to noise over the wallpaper at the shared opacity

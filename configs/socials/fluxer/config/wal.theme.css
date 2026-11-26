@@ -1,0 +1,77 @@
+/* wal palette for Fluxer, rendered by socials/fluxer's theme verb; linked once in Fluxer (README.md), reread live */
+
+:root,
+html,
+body,
+.theme-dark,
+.theme-light,
+.theme-coal {
+    --wal-bg: #@bg @;
+    --wal-fg: #@fg @;
+    --wal-subtext: #@subtext @;
+    --wal-accent: #@accent @;
+    --wal-elevated: #@elevated @;
+    --wal-highlight: #@highlight @;
+    --wal-danger: #@danger @;
+
+    /* Fluxer's surface scale, its stops' order kept: each a step from the background toward the text */
+    --background-primary: var(--wal-bg) !important;
+    --background-secondary: color-mix(in srgb, var(--wal-fg) 3%, var(--wal-bg)) !important;
+    --background-secondary-lighter: color-mix(in srgb, var(--wal-fg) 4%, var(--wal-bg)) !important;
+    --background-secondary-alt: color-mix(in srgb, var(--wal-fg) 5%, var(--wal-bg)) !important;
+    --background-textarea: color-mix(in srgb, var(--wal-fg) 6%, var(--wal-bg)) !important;
+    --background-channel-header: color-mix(in srgb, var(--wal-fg) 6%, var(--wal-bg)) !important;
+    --guild-list-foreground: color-mix(in srgb, var(--wal-fg) 7%, var(--wal-bg)) !important;
+    --background-tertiary: var(--wal-elevated) !important;
+    --background-header-primary: var(--wal-highlight) !important;
+    --background-header-secondary: var(--wal-highlight) !important;
+    --background-header-primary-hover: color-mix(in srgb, var(--wal-fg) 18%, var(--wal-bg)) !important;
+    --background-modifier-hover: color-mix(in srgb, var(--wal-fg) 6%, transparent) !important;
+    --background-modifier-selected: color-mix(in srgb, var(--wal-fg) 10%, transparent) !important;
+    --background-modifier-accent: color-mix(in srgb, var(--wal-fg) 10%, transparent) !important;
+    --background-modifier-accent-focus: color-mix(in srgb, var(--wal-accent) 40%, transparent) !important;
+    --surface-interactive-hover-bg: color-mix(in srgb, var(--wal-fg) 6%, transparent) !important;
+    --surface-interactive-selected-bg: color-mix(in srgb, var(--wal-fg) 10%, transparent) !important;
+    --surface-interactive-selected-color: var(--wal-fg) !important;
+    --bg-primary: var(--wal-bg) !important;
+    --bg-secondary: color-mix(in srgb, var(--wal-fg) 3%, var(--wal-bg)) !important;
+    --bg-tertiary: var(--wal-elevated) !important;
+    --bg-hover: color-mix(in srgb, var(--wal-fg) 6%, transparent) !important;
+    --bg-active: color-mix(in srgb, var(--wal-fg) 10%, transparent) !important;
+    --bg-code: var(--wal-elevated) !important;
+    --bg-code-block: var(--wal-elevated) !important;
+    --bg-blockquote: var(--wal-highlight) !important;
+
+    /* text, its stops from the brightest down */
+    --text-primary: var(--wal-fg) !important;
+    --text-chat: color-mix(in srgb, var(--wal-fg) 92%, var(--wal-bg)) !important;
+    --text-secondary: var(--wal-subtext) !important;
+    --text-primary-muted: color-mix(in srgb, var(--wal-subtext) 85%, var(--wal-bg)) !important;
+    --text-chat-muted: color-mix(in srgb, var(--wal-subtext) 85%, var(--wal-bg)) !important;
+    --text-tertiary: color-mix(in srgb, var(--wal-subtext) 75%, var(--wal-bg)) !important;
+    --text-tertiary-muted: color-mix(in srgb, var(--wal-subtext) 60%, var(--wal-bg)) !important;
+    --text-tertiary-secondary: color-mix(in srgb, var(--wal-subtext) 50%, var(--wal-bg)) !important;
+    --text-muted: color-mix(in srgb, var(--wal-subtext) 75%, var(--wal-bg)) !important;
+    --text-link: var(--wal-accent) !important;
+    --interactive-active: var(--wal-fg) !important;
+    --interactive-muted: color-mix(in srgb, var(--wal-subtext) 60%, var(--wal-bg)) !important;
+
+    /* the accent: the palette's is readable on the background, so the background is readable on it */
+    --brand-primary: var(--wal-accent) !important;
+    --brand-primary-light: color-mix(in srgb, var(--wal-fg) 15%, var(--wal-accent)) !important;
+    --brand-primary-pressed: color-mix(in srgb, var(--wal-bg) 10%, var(--wal-accent)) !important;
+    --brand-primary-shade: color-mix(in srgb, var(--wal-bg) 20%, var(--wal-accent)) !important;
+    --brand-primary-fill: var(--wal-accent) !important;
+    --brand-primary-foreground: var(--wal-bg) !important;
+    --brand-secondary: color-mix(in srgb, var(--wal-bg) 25%, var(--wal-accent)) !important;
+    --text-on-brand-primary: var(--wal-bg) !important;
+    --status-danger: var(--wal-danger) !important;
+
+    --radius-sm: @radius @px !important;
+    --radius-md: @radius @px !important;
+    --radius-lg: @radius @px !important;
+    --radius-xl: @radius @px !important;
+    --radius-2xl: @radius @px !important;
+    --font-sans: "@font@", var(--font-fallback-sans) !important;
+    --font-sans-primary: "@font@", var(--font-fallback-sans) !important;
+}

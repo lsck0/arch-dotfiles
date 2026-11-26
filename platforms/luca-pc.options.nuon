@@ -67,6 +67,13 @@
                 class: "^discord$"
                 workspace: 5
                 silent: true
+                tabbed: true
+            }
+            {
+                class: "^app.fluxer.FluxerDesktop$"
+                workspace: 5
+                silent: true
+                tabbed: true
             }
             {
                 class: "^com.obsproject.Studio$"

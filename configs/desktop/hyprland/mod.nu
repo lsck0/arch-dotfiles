@@ -66,7 +66,8 @@ export const options = {
     app_workspaces: {
         type: list<record>
         default: []
-        doc: "Homes for apps by window class: {class, workspace, silent}; silent opens them without switching to their workspace or focusing them"
+        doc: ("Homes for apps by window class: {class, workspace, silent, tabbed?}; silent opens them without switching to their "
+            + "workspace or focusing them; the tabbed homes of one workspace open as one tab group")
         group: display
         scope: user
     }
@@ -161,6 +162,18 @@ export const options = {
             + "(menus, tooltips), apart from Blur; off, the shell's own surfaces keep their glass while Blur is on")
         label: "Blur menus"
         group: layout
+        scope: user
+    }
+    window_opacity: {
+        type: float
+        default: $OPACITY_WINDOW
+        doc: ("Opacity of the apps faded whole, text included (Discord, Fluxer, Spotify, the file managers); below the "
+            + "default their dimmed text can drop under 3:1 over a bright wallpaper")
+        label: "Window opacity"
+        group: layout
+        min: 0.3
+        max: 1.0
+        step: 0.05
         scope: user
     }
     shadows: {type: bool, default: true, doc: "Drop shadows under windows", label: "Shadows", group: layout, scope: user}
@@ -381,7 +394,7 @@ def bar-colors []: nothing -> record {
 def style-record [cfg: record]: nothing -> record {
     let font = font-load
     {
-        rounding: $RADIUS_PX, border: $cfg.border_px, opacity_window: $OPACITY_WINDOW
+        rounding: $RADIUS_PX, border: $cfg.border_px, opacity_window: $cfg.window_opacity
         font: $font.family, font_size: $font.ui_size
     } | merge (bar-colors)
 }

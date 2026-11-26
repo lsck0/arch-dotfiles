@@ -310,7 +310,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/hyprland.bind_workspaces` | `bool` | `true` | Each workspace lives on its own monitor (the layout below); off, a workspace opens on the focused monitor |
 | `desktop/hyprland.workspaces` | `record?` | unset | Workspace to output; unset: the first ceil(10 / outputs) on the main monitor, the rest split over the others left to right |
 | `desktop/hyprland.xwayland_scale` | `int?` | unset | GDK_SCALE for X11 apps (force_zero_scaling); unset: the main monitor's scale rounded, else 1 on a laptop and 2 elsewhere |
-| `desktop/hyprland.app_workspaces` | `list<record>` | `[]` | Homes for apps by window class: {class, workspace, silent}; silent opens them without switching to their workspace or focusing them |
+| `desktop/hyprland.app_workspaces` | `list<record>` | `[]` | Homes for apps by window class: {class, workspace, silent, tabbed?}; silent opens them without switching to their workspace or focusing them; the tabbed homes of one workspace open as one tab group |
 | `desktop/hyprland.lock_screen` | `string` | `"quickshell"` | The lock screen hypridle and every lock key start; the other is the fallback |
 | `desktop/hyprland.monitor_speaker_volume` | `int?` | unset | Every DDC monitor's built-in speaker volume (VCP 0x62), set at session start; 0 silences speakers fed by DisplayPort audio, which can pop on wake |
 | `desktop/hyprland.autostart` | `list<record>` | `[]` | Apps started once per login: {cmd, workspace?, float?, after?}; workspace and float apply to the window the command's own process opens; after names a window class whose first window starts this one (an order on a shared workspace) |
@@ -331,6 +331,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/hyprland.gaps_out_px` | `int` | `8` | Gap between tiled windows and the screen edge |
 | `desktop/hyprland.blur` | `bool` | `true` | Blur behind translucent windows (terminals, editors); off with Blur menus on, only the shell and menus blur |
 | `desktop/hyprland.blur_menus` | `bool` | `true` | Blur the screen behind an open shell card (its dimmed backdrop), popups and untitled floating X11 windows (menus, tooltips), apart from Blur; off, the shell's own surfaces keep their glass while Blur is on |
+| `desktop/hyprland.window_opacity` | `float` | `0.65` | Opacity of the apps faded whole, text included (Discord, Fluxer, Spotify, the file managers); below the default their dimmed text can drop under 3:1 over a bright wallpaper |
 | `desktop/hyprland.shadows` | `bool` | `true` | Drop shadows under windows |
 | `desktop/hyprland.animations` | `bool` | `true` | Window, layer and workspace animations; power saver turns them off regardless |
 | `desktop/hyprland.vrr` | `string` | `"off"` | Adaptive sync; fullscreen_games: fullscreen video and game windows only |
