@@ -7,6 +7,7 @@ const ENV_FILE = path self ../../../secrets/keys/trmnl-claude.env
 const PLUGIN_URL = "https://usetrmnl.com/api/custom_plugins"
 const MESSAGES_URL = "https://api.anthropic.com/v1/messages"
 const HTTP_TIMEOUT = 15sec
+const PROBE_MODELS = [claude-haiku-4-5 claude-haiku-5-5 claude-sonnet-5-5]
 const POST_TIMEOUT = 30sec
 const PUSH_STALE = 300min
 const DAYS_SCANNED = 7
@@ -191,13 +192,26 @@ def usage-limits [claude: path]: nothing -> record {
     let headers = {
         authorization: $"Bearer ($token)", anthropic-version: "2023-06-01", anthropic-beta: "oauth-2025-04-20"
     }
-    let body = {model: claude-haiku-4-5, max_tokens: 1, messages: [{role: user, content: "."}]} | to json --raw
-    let reply = try {
-        http post --full --allow-errors --max-time $HTTP_TIMEOUT --headers $headers --content-type application/json (
-            $MESSAGES_URL
-        ) $body
-    } catch { return {} }
-    let found = $reply.headers.response | reduce --fold {} {|h, acc| $acc | upsert ($h.name | str lowercase) $h.value }
+    # the first model whose reply carries the unified headers wins; the newer ones stand in once haiku 4.5 retires
+    let unified = {|found| $found | columns | any { $in | str starts-with anthropic-ratelimit-unified- } }
+    let probe = $PROBE_MODELS | reduce --fold null {|model, acc|
+        if $acc != null and (do $unified $acc.found) { return $acc }
+        let body = {model: $model, max_tokens: 1, messages: [{role: user, content: "."}]} | to json --raw
+        let reply = try {
+            http post --full --allow-errors --max-time $HTTP_TIMEOUT --headers $headers --content-type application/json (
+                $MESSAGES_URL
+            ) $body
+        } catch { return $acc }
+        let found = $reply.headers.response | reduce --fold {} {|h, f| $f | upsert ($h.name | str lowercase) $h.value }
+        {reply: $reply, found: $found}
+    }
+    if $probe == null { return {} }
+    let found = $probe.found
+    # a retired probe model or a dead login answers without the unified headers: said here, not shown as an idle window
+    if $probe.reply.status not-in 200..299 or not (do $unified $found) {
+        let kind = try { $probe.reply.body | get error.type } catch { "no unified ratelimit headers" }
+        print --stderr $"usage probe HTTP ($probe.reply.status): ($kind)"
+    }
     [[key prefix]; [session 5h] [week_all 7d]] | reduce --fold {} {|w, acc|
         let header = {|field| $found | get --optional $"anthropic-ratelimit-unified-($w.prefix)-($field)" }
         let pct = try { do $header utilization | into float | $in * 100 | math round | into int } catch { null }

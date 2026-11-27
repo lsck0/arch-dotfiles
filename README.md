@@ -21,6 +21,17 @@ UEFI only; the chosen disk is erased. Pick the `custom` profile unless you are m
 You trust me with root: the install signs my package key into pacman, my `[lsck0]` repo is searched before the
 official ones, and `dot sync` runs whatever I sign as root.
 
+First keys after login:
+
+| keys | for |
+|---|---|
+| `SUPER+Return` | terminal |
+| `SUPER+D` | app launcher |
+| `SUPER+F1` | every keybind, searchable |
+| `SUPER+,` | settings |
+| `SUPER+Escape` | lock |
+| `SUPER+SHIFT+E` | power menu |
+
 ![bar with weather and network panels and a fastfetch terminal](showcase/showcase1.png)
 ![wallpaper picker](showcase/showcase2.png)
 ![app launcher](showcase/showcase3.png)

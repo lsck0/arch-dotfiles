@@ -28,7 +28,9 @@
     "BlockThirdPartyCookies": true,
     "ExtensionInstallForcelist": [
         "ddkjiahejlhfcafbddmgiahcphecmpfh;https://clients2.google.com/service/update2/crx",
-        "naepdomgkenhinolocfifgehidddafch;https://clients2.google.com/service/update2/crx"
+        "naepdomgkenhinolocfifgehidddafch;https://clients2.google.com/service/update2/crx",
+        "pkehgijcmpdhfbdbbnkijodmdjhbjlgp;https://clients2.google.com/service/update2/crx",
+        "mdjildafknihdffpkfmmpnpoiajfjnjd;https://clients2.google.com/service/update2/crx"
     ],
     "DefaultSearchProviderEnabled": true,
     "DefaultSearchProviderName": "SearXNG",

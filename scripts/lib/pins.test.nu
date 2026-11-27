@@ -13,6 +13,7 @@ const MAX_AGE = 90day
 # lazy-lock.json and constraints.txt record none)
 const SOURCES = [
     "configs/**/{*.nu,*.sh,policies.json,policy.json,uv.lock}" "mirror/pkgbuilds/*/PKGBUILD" "scripts/lib/run.nu"
+    "scripts/lib/module.nu"
 ]
 const LOCKS = [uv.lock]
 # the private submodule: its modules are the owner's, its data is not source

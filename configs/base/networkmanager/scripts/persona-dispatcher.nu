@@ -224,8 +224,10 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
             if $untrusted { ok nmcli connection modify $uuid ipv6.method auto | ignore }
         }
     }
-    # the nas answers only on home's lan or through wg0; a trusted network is neither
-    if (file-lines $HOME_NETWORK | is-empty) and not ($"/sys/class/net/($WG_IFACE)" | path exists) {
+    # the nas answers only on home's lan or through wg0; a trusted network is neither. Decided on an up: a down at home
+    # (sleep, a carrier blip) has no route left, its cifs umount would hang into the unit's timeout and leave it failed
+    let away = (file-lines $HOME_NETWORK | is-empty) and not ($"/sys/class/net/($WG_IFACE)" | path exists)
+    if $action == up and $away {
         ok systemctl stop --no-block mnt-homelab.mount | ignore
     }
     if $foreign { tor-on $policy } else { tor-off }

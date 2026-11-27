@@ -90,7 +90,8 @@ def main [] {
     for c in $cases {
         let calls = event $dir $script $c.policy $c.trusted
         let started = units $calls start
-        # the nas mount follows home, which no case is
+        # the nas mount follows home, which no case is: every up away stops it
+        assert ("mnt-homelab.mount" in (units $calls stop)) $"($c.what): an up away left the nas mounted"
         let stopped = units $calls stop | where $it != mnt-homelab.mount
         assert equal $started ($c.started | sort) $"($c.what): started ($started | to nuon), wants ($c.started | to nuon)"
         assert equal $stopped ($c.stopped | sort) $"($c.what): stopped ($stopped | to nuon), wants ($c.stopped | to nuon)"
@@ -104,6 +105,8 @@ def main [] {
     assert ($"sysctl -wq net.ipv6.conf.($IFACE).disable_ipv6=0" in $calls) (
         $"lockdown lifted by a down: ipv6 stays off on ($IFACE): ($calls | to nuon)"
     )
+    # a down at home (sleep, a carrier blip) has no route to unmount over; the next up decides
+    assert ("mnt-homelab.mount" not-in (units $calls stop)) $"a down stopped the nas mount: ($calls | to nuon)"
     # off trusts every network: a portal's end gives the link back its resolver as on any up
     let calls = event $dir $script off false [$IFACE portal-end]
     let foreign = $"resolvectl default-route ($IFACE) no" in $calls

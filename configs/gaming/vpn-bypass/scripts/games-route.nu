@@ -57,16 +57,23 @@ def gateway [iface: string, family: string]: nothing -> string {
     | default ""
 }
 
-# One default route in the table, so the link that came up last owns it.
-def route-up [iface: string]: nothing -> nothing {
-    for family in $FAMILIES {
-        let via = gateway $iface $family
-        if $via == "" { continue }
-        attempt ip $family route replace default via $via dev $iface table $TABLE
-        if not (out ip $family rule list priority $PRIORITY | str contains $"fwmark ($GAME_MARK)") {
-            attempt ip $family rule add fwmark $GAME_MARK lookup $TABLE priority $PRIORITY
-        }
+# One default route per family in the table, so the link that came up last owns it; false without a gateway.
+def family-up [iface: string, family: string]: nothing -> bool {
+    let via = gateway $iface $family
+    if $via == "" { return false }
+    attempt ip $family route replace default via $via dev $iface table $TABLE
+    if not (out ip $family rule list priority $PRIORITY | str contains $"fwmark ($GAME_MARK)") {
+        attempt ip $family rule add fwmark $GAME_MARK lookup $TABLE priority $PRIORITY
     }
+    true
+}
+
+def route-up [iface: string]: nothing -> nothing {
+    for family in $FAMILIES { family-up $iface $family | ignore }
+}
+
+def default-missing [family: string]: nothing -> bool {
+    routes $family $TABLE | where $it.dst == "default" | is-empty
 }
 
 # Mirrors everything but the default into the table: main's connected routes, table 178, the lab's unreachables.
@@ -97,11 +104,11 @@ export def links-physical []: nothing -> list<string> {
 }
 
 def defaults-empty []: nothing -> bool {
-    $FAMILIES | all {|f| routes $f $TABLE | where $it.dst == "default" | is-empty }
+    $FAMILIES | all {|f| default-missing $f }
 }
 
 def main [iface: string = "", action: string = ""]: nothing -> nothing {
-    if $action not-in [up dhcp4-change dhcp6-change down] { return }
+    if $action not-in [up dhcp4-change dhcp6-change down connectivity-change] { return }
 
     # virbr0, docker bridges and tunnels only change the mirrored routes; an unplugged link's node is gone by its down
     let physical = $"/sys/class/net/($iface)/device" | path exists
@@ -109,12 +116,18 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
         if $physical {
             for family in $FAMILIES { out ip $family route flush table $TABLE dev $iface | ignore }
         }
-        # another physical link still up takes the table over
-        if (defaults-empty) {
-            for link in (links-physical | where $it != $iface) { route-up $link }
-        }
     } else if $physical {
         route-up $iface
+    }
+    # A family without a default takes the first physical link that has its gateway now: another link after a down,
+    # or the link itself once its RA default arrived after its up, which no dispatcher event of its own reports.
+    # A family that has one keeps its owner.
+    let missing = $FAMILIES | where {|f| default-missing $f }
+    if ($missing | is-not-empty) {
+        let links = links-physical | where {|l| $action != down or $l != $iface }
+        for family in $missing {
+            for link in $links { if (family-up $link $family) { break } }
+        }
     }
 
     if (defaults-empty) {

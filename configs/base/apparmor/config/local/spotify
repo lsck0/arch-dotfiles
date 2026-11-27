@@ -8,3 +8,5 @@ deny @{user_share_dirs}/spotify-patched/** w,
 deny /tmp/@{hex4}-@{hex4}-@{hex4}-@{hex4}/ w,
 @{sys}/devices/system/cpu/cpu@{int}/topology/core_id r,
 deny @{sys}/devices/virtual/dmi/id/{bios,board}_vendor r,
+# its embedded chromium looks for bundled extensions it does not need
+deny /usr/share/chromium/extensions/ r,

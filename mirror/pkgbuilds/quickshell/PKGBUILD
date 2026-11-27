@@ -3,7 +3,7 @@
 
 pkgname=quickshell
 pkgver=0.3.2
-pkgrel=2
+pkgrel=3
 pkgdesc="Flexible toolkit for making desktop shells with QtQuick"
 arch=(x86_64)
 url="https://git.outfoxxed.me/$pkgname/$pkgname"
@@ -59,6 +59,13 @@ build() {
 }
 
 package() {
+    # quickshell links Qt's private api, which changes with every Qt release: pinning the Qt it was built against
+    # leaves this build unresolvable after a Qt bump, so archbuild rebuilds it that night. Set by index, not
+    # depends+=(), for the reason in ghidra-mcp's PKGBUILD; pkgver only, so a Qt pkgrel rebuild keeps it resolving
+    local qt
+    for qt in qt6-base qt6-declarative qt6-wayland; do
+        depends[${#depends[@]}]="$qt=$(pacman -Q "$qt" | cut -d' ' -f2 | cut -d- -f1)"
+    done
     cd "$pkgname"
     DESTDIR="$pkgdir" cmake --install build
     install -Dm0644 -t "$pkgdir/usr/share/licenses/$pkgname/" LICENSE

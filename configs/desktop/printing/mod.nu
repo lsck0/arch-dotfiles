@@ -69,7 +69,8 @@ export def queues [page_size: string]: nothing -> nothing {
     if (queue-pdf) { queues-page-size $page_size; return }
     ^lpadmin -p $PDF_QUEUE -v cups-pdf:/ -m CUPS-PDF_opt.ppd -E
     try { ^$SYNC } catch { log-warn "printing: some printers found over mdns got no queue, see above" }
-    if (cups-out lpstat -v) !~ ' dnssd://' {
+    # cups keeps the ipp:// URI a dnssd one resolved to
+    if (cups-out lpstat -v) !~ ' (dnssd|ipps?)://' {
         log-info "printing: no driverless printer queue yet, the next home connect that finds a printer adds one"
     }
     if not (queue-pdf) { error make {msg: $"printing: no ($PDF_QUEUE) queue"} }

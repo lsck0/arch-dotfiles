@@ -9,7 +9,7 @@ export const meta = {
 }
 
 export const options = {
-    model: {type: string, default: "claude-sonnet-5", doc: "The model every session starts on", label: "Model", scope: user}
+    model: {type: string, default: "claude-sonnet-5.5", doc: "The model every session starts on", label: "Model", scope: user}
 }
 
 # PascalCase events get the snake_case payload with the session_id the guard keys on. A permission prompt or the agent

@@ -14,12 +14,27 @@ const systemActions = [
   { name: "apply system", detail: "dot apply --system", args: ["apply", "--system"], terminal: true },
   { name: "packages", detail: "dot apply --packages", args: ["apply", "--packages"], terminal: true }
 ]
+// what the window opens of the shell itself, under the keys that open it too (hyprland_keybindings.lua); words are
+// what a newcomer may search for it by
+const launchers = [
+  { name: "keybinds", detail: "SUPER+F1", words: ["keybindings", "shortcuts", "hotkeys", "keys", "help"],
+    ipc: ["appsearch", "openWith", "? "] },
+  { name: "wallpaper", detail: "SUPER+CTRL+W", words: ["wallpapers", "background"], bin: ["wallpaper-picker"] },
+  { name: "theme", detail: "SUPER+SHIFT+W", words: ["themes", "colors", "palette"], bin: ["wallpaper-picker", "--themes"] }
+]
 const driftChoices = ["adopt", "reset"]
 const segmentedMax = 4
 const choicePageSize = 30
 // a platform key's packages waits for dot apply --packages, its apply for a whole dot apply
 const applyOrder = ["live", "packages", "relink", "apply", "relogin", "reboot"]
 const filesizeUnits = { "": 1, b: 1, kb: 1e3, mb: 1e6, gb: 1e9, tb: 1e12, kib: 1024, mib: 1048576, gib: 1073741824, tib: 1099511627776 }
+// a search phrase also searched as what the options call it: a newcomer's word the labels and docs never use
+const synonyms = { "caps lock": "nocaps", "timeout": "idle", "startup": "autostart", "printer": "printing" }
+// a field's share of a term's score: labels and keys whole, the module less, docs less again, enum values and toggle
+// states least, so a hit in the label leads
+const weights = { name: 1, context: 0.6, prose: 0.5, value: 0.25 }
+// scattered letters may skip at most this many per letter after the first, so "dpi" fits no "desktop_quotes_file"
+const fuzzyGaps = 3
 const filesizeShown = [["TiB", 1099511627776], ["GiB", 1073741824], ["MiB", 1048576], ["KiB", 1024]]
 
 function typeOf(option) {
@@ -55,51 +70,115 @@ function moduleLabel(module) { return module.label || module.name }
 
 function segmented(option) { return option.type === "enum" && (option.choices || []).length <= segmentedMax }
 
-// how well one query term fits a text, -1 when not at all: a substring beats a scattered one, at a word start more,
-// earlier more; scattered (fuzzy) letters in order score less the wider they spread, and only where fuzzy is set
+// how well one query term fits a text, -1 when not at all: the whole text beats a substring, which beats scattered
+// letters, at a word start more, earlier more; scattered (fuzzy) letters, only where fuzzy is set, stay inside one word
+// and start at its first letter (so "light" never fits "playwright"), scoring less the wider they spread
 function termScore(term, text, fuzzy) {
   var hay = String(text === undefined || text === null ? "" : text).toLowerCase()
+  if (hay === term) return 4000
   var at = hay.indexOf(term)
   if (at >= 0) return 2000 - Math.min(at, 500) + (at === 0 || /[^a-z0-9]/.test(hay[at - 1]) ? 1000 : 0)
   if (!fuzzy) return -1
-  var gaps = 0
-  var last = -1
-  for (let i = 0; i < term.length; i++) {
-    let next = hay.indexOf(term[i], last + 1)
-    if (next < 0) return -1
-    if (last >= 0) gaps += next - last - 1
-    last = next
+  var best = -1
+  var offset = 0
+  var words = hay.split(/([\s\/.]+)/)
+  for (let w = 0; w < words.length; offset += words[w].length, w++) {
+    let word = words[w]
+    if (word[0] !== term[0]) continue
+    let gaps = 0
+    let last = 0
+    for (let i = 1; i < term.length && last >= 0; i++) {
+      let next = word.indexOf(term[i], last + 1)
+      if (next >= 0) gaps += next - last - 1
+      last = next
+    }
+    if (last >= 0 && gaps <= fuzzyGaps * (term.length - 1)) best = Math.max(best, Math.max(1, 1000 - gaps * 10 - Math.min(offset, 500)))
   }
-  return Math.max(1, 1000 - gaps * 10 - Math.min(hay.indexOf(term[0]), 500))
+  return best
 }
 
-// every whitespace-separated term of needle fits some field: names (labels, keys, ids) fuzzily, prose (docs, details)
-// only as a substring, since scattered letters fit nearly any sentence; the summed best scores, -1 for no match
-function matchScore(needle, names, prose) {
-  var terms = String(needle).toLowerCase().split(/\s+/).filter(function (t) { return t !== "" })
-  var total = 0
-  for (let t = 0; t < terms.length; t++) {
-    let best = -1
-    for (let f = 0; f < names.length; f++) best = Math.max(best, termScore(terms[t], names[f], true))
-    for (let f = 0; f < (prose || []).length; f++) best = Math.max(best, termScore(terms[t], prose[f], false))
-    if (best < 0) return -1
-    total += best
+// a search's fields by kind, each [text, weight, fuzzy]: names (labels, keys, ids) fuzzily, the rest only as a substring,
+// since scattered letters fit nearly any sentence
+function fields(names, context, prose, values) {
+  var out = []
+  var add = function (list, weight, fuzzy) { (list || []).forEach(function (t) { out.push([t, weight, fuzzy]) }) }
+  add(names, weights.name, true)
+  add(context, weights.context, false)
+  add(prose, weights.prose, false)
+  add(values, weights.value, false)
+  return out
+}
+
+// needle, then needle with each synonym phrase in it replaced, whole words only
+function variants(needle) {
+  var out = [needle]
+  for (let key in synonyms) {
+    let phrase = new RegExp("(^|\\s)" + key + "(?=\\s|$)")
+    out = out.concat(out.filter(function (v) { return phrase.test(v) }).map(function (v) { return v.replace(phrase, "$1" + synonyms[key]) }))
+  }
+  return out
+}
+
+// every whitespace-separated term of needle fits some field, needle or one of its synonym variants: the summed best
+// weighted scores, -1 for no match; fuzzy false keeps scattered letters out
+function matchScore(needle, list, fuzzy) {
+  var forms = variants(String(needle).toLowerCase().trim())
+  var total = -1
+  for (let v = 0; v < forms.length; v++) {
+    let terms = forms[v].split(/\s+/).filter(function (t) { return t !== "" })
+    let sum = 0
+    for (let t = 0; t < terms.length && sum >= 0; t++) {
+      let best = -1
+      for (let f = 0; f < list.length; f++) {
+        let score = termScore(terms[t], list[f][0], list[f][2] && fuzzy !== false)
+        if (score >= 0) best = Math.max(best, score * list[f][1])
+      }
+      sum = best < 0 ? -1 : sum + best
+    }
+    total = Math.max(total, sum)
   }
   return total
 }
 
-function contains(needle, names, prose) { return matchScore(needle, names, prose) >= 0 }
+function contains(needle, list, fuzzy) { return matchScore(needle, list, fuzzy) >= 0 }
 
-function optionScore(needle, module, option) {
-  return matchScore(needle, [option.label, option.key, option.group, module.name, module.label], [option.doc])
+// an enum's values, as stored and as shown
+function valueWords(option) {
+  if (option.type !== "enum") return []
+  return (option.choices || []).map(function (c) { return String(c) }).concat((option.choices || []).map(function (c) { return choiceLabel(option, c) }))
 }
 
-function optionMatches(needle, module, option) { return optionScore(needle, module, option) >= 0 }
+function optionScore(needle, module, option, fuzzy) {
+  return matchScore(needle, fields([option.label, option.key, option.group], [module.name, module.label], [option.doc], valueWords(option)), fuzzy)
+}
 
-function toggleMatches(needle, toggle) { return contains(needle, [toggle.label, toggle.name, togglesLabel]) }
+function optionMatches(needle, module, option, fuzzy) { return optionScore(needle, module, option, fuzzy) >= 0 }
 
-function toggleOptionMatches(needle, toggle, option) {
-  return contains(needle, [option.label, option.key, toggle.name, togglesLabel], [option.doc])
+// a multi-state toggle's states are searchable ("dark" finds the theme mode), a switch's off and on are not
+function toggleMatches(needle, toggle, fuzzy) {
+  var states = toggleIsSwitch(toggle) ? [] : toggle.states || []
+  return contains(needle, fields([toggle.label, toggle.name], [togglesLabel], [], states), fuzzy)
+}
+
+function toggleOptionMatches(needle, toggle, option, fuzzy) {
+  return contains(needle, fields([option.label, option.key], [toggle.name, togglesLabel], [option.doc], valueWords(option)), fuzzy)
+}
+
+function launchEntries(needle, fuzzy) {
+  var hits = launchers.filter(function (l) {
+    return !needle || contains(needle, fields([l.name].concat(l.words), [togglesLabel], [l.detail]), fuzzy)
+  }).map(function (l) { return Object.assign({ kind: "launch", id: togglesId + ".open." + l.name }, l) })
+  return hits.length > 0 ? [{ kind: "header", id: "#" + togglesId + "/open", text: "open" }].concat(hits) : []
+}
+
+// scattered letters count only while nothing fits needle as a word or substring: "dpi" lists Wine dpi alone
+function fuzzyAllowed(modules, toggles, needle, status, machine) {
+  var entry = function (r) { return r.kind !== "header" }
+  if (toggleEntries(toggles, needle, false).some(entry) || launchEntries(needle, false).some(entry)) return false
+  if (systemEntries(status, needle, false).some(entry)) return false
+  return !(machine ? [machine] : []).concat(modules).some(function (m) {
+    return (m.options || []).some(function (o) { return optionMatches(needle, m, o, false) })
+  })
 }
 
 // the entries that match, best first; equal scores keep their order
@@ -122,24 +201,27 @@ function sectionLabel(module) {
 // keeps every section and only zeroes the counts, so the list keeps its indices while the query changes
 function sections(modules, toggles, query, status, machine) {
   var needle = query.trim().toLowerCase()
+  var fuzzy = !needle || fuzzyAllowed(modules, toggles, needle, status, machine)
   var out = (machine ? [{
     kind: "section",
     id: machineId,
     label: machineLabel,
-    count: (machine.options || []).filter(function (o) { return !needle || optionMatches(needle, machine, o) }).length
+    count: (machine.options || []).filter(function (o) { return !needle || optionMatches(needle, machine, o, fuzzy) }).length
   }] : []).concat([{
     kind: "section",
     id: togglesId,
     label: togglesLabel,
-    count: toggleEntries(toggles, needle).filter(function (r) { return r.kind !== "header" }).length
+    count: toggleEntries(toggles, needle, fuzzy).concat(launchEntries(needle, fuzzy)).filter(function (r) { return r.kind !== "header" }).length
   }, {
     kind: "section",
     id: systemId,
     label: systemLabel,
-    count: systemEntries(status, needle).filter(function (r) { return r.kind !== "header" }).length
+    count: systemEntries(status, needle, fuzzy).filter(function (r) { return r.kind !== "header" }).length
   }].filter(function (s) { return s.id !== systemId || status }))
-  var group = null
-  var sorted = modules.slice().sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0 })
+  // a module outside any group (scripts, skills) comes first, under no header, beside MACHINE and the others
+  var group = ""
+  var key = function (m) { return (moduleGroup(m) ? "1" : "0") + m.name }
+  var sorted = modules.slice().sort(function (a, b) { return key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0 })
   for (let m = 0; m < sorted.length; m++) {
     let module = sorted[m]
     let options = module.options || []
@@ -150,17 +232,20 @@ function sections(modules, toggles, query, status, machine) {
       kind: "section",
       id: module.name,
       label: sectionLabel(module),
-      count: needle ? options.filter(function (o) { return optionMatches(needle, module, o) }).length : options.length
+      count: needle ? options.filter(function (o) { return optionMatches(needle, module, o, fuzzy) }).length : options.length
     })
   }
   return out
 }
 
-function optionRow(module, option) {
-  return { kind: "option", id: optionId(module, option), option: option }
+// title: what the row shows instead of the option's label, a search's "proxychains Enabled" among several Enabled
+function optionRow(module, option, title) {
+  var row = { kind: "option", id: optionId(module, option), option: option }
+  if (title) row.title = title
+  return row
 }
 
-function toggleIsSwitch(toggle) { return toggle.states.length === 2 && toggle.states[0] === "off" && toggle.states[1] === "on" }
+function toggleIsSwitch(toggle) { return (toggle.states || []).length === 2 && toggle.states[0] === "off" && toggle.states[1] === "on" }
 
 function toggleRow(toggle) { return { kind: "toggle", id: togglesId + "." + toggle.name, toggle: toggle } }
 
@@ -174,7 +259,7 @@ function toggleOptionRow(toggle, option) {
 
 function toggleLabel(toggle) { return String(toggle.label || toggle.name) }
 
-function toggleEntries(toggles, needle) {
+function toggleEntries(toggles, needle, fuzzy) {
   var plain = []
   var grouped = []
   // by what the row shows, not the script name: "Hear OBS output" files as obs-listen
@@ -183,10 +268,10 @@ function toggleEntries(toggles, needle) {
     let toggle = sorted[t]
     if (!toggle.available) continue
     if ((toggle.options || []).length === 0) {
-      if (!needle || toggleMatches(needle, toggle)) plain.push(toggleRow(toggle))
+      if (!needle || toggleMatches(needle, toggle, fuzzy)) plain.push(toggleRow(toggle))
       continue
     }
-    let options = toggle.options.filter(function (o) { return !needle || toggleOptionMatches(needle, toggle, o) })
+    let options = toggle.options.filter(function (o) { return !needle || toggleOptionMatches(needle, toggle, o, fuzzy) })
     if (options.length > 0) grouped.push({ kind: "header", id: "#" + togglesId + "/" + toggle.name, text: toggleLabel(toggle) })
     for (let o = 0; o < options.length; o++) grouped.push(toggleOptionRow(toggle, options[o]))
   }
@@ -194,7 +279,7 @@ function toggleEntries(toggles, needle) {
 }
 
 // dot status --json as rows: the actions, each managed file edited since its apply, then the checks, failing first
-function systemEntries(status, needle) {
+function systemEntries(status, needle, fuzzy) {
   if (!status) return needle ? [] : [{ kind: "header", id: "#" + systemId + "/loading", text: "status loading" }]
   var checks = (status.checks || []).map(function (c) {
     return { kind: "check", id: systemId + ".check." + c.check, level: String(c.level), name: c.check, text: c.text }
@@ -211,7 +296,9 @@ function systemEntries(status, needle) {
   var drift = drifted.map(function (d) {
     return { kind: "drift", id: systemId + ".drift." + d.target, module: d.module, target: d.target, drift: d.drift }
   })
-  var match = function (r) { return !needle || contains(needle, [r.name, r.module, r.level, systemLabel], [r.text, r.detail, r.target]) }
+  var match = function (r) {
+    return !needle || contains(needle, fields([r.name, r.module, r.level], [systemLabel], [r.text, r.detail, r.target]), fuzzy)
+  }
   var out = []
   var passed = function (c) { return c.level === "ok" ? 1 : 0 }
   checks.sort(function (a, b) { return passed(a) - passed(b) })
@@ -265,21 +352,39 @@ function rows(modules, toggles, sectionId, query, status, machine) {
   var needle = query.trim().toLowerCase()
   var out = []
   if (needle) {
+    let fuzzy = fuzzyAllowed(modules, toggles, needle, status, machine)
     let labelled = (machine ? [Object.assign({}, machine, { label: machineLabel })] : []).concat(modules)
-    let hits = toggleEntries(toggles, needle)
+    let hits = toggleEntries(toggles, needle, fuzzy).concat(launchEntries(needle, fuzzy))
     if (hits.length > 0) out.push({ kind: "header", id: "#" + togglesId, text: togglesLabel })
     out = out.concat(hits)
-    out = out.concat(systemEntries(status, needle))
-    for (let m = 0; m < labelled.length; m++) {
-      let module = labelled[m]
-      let matched = ranked(module.options || [], function (o) { return optionScore(needle, module, o) })
-      if (matched.length > 0) out.push({ kind: "header", id: "#" + module.name, text: moduleLabel(module) })
-      for (let o = 0; o < matched.length; o++) out.push(optionRow(module, matched[o]))
+    out = out.concat(systemEntries(status, needle, fuzzy))
+    // the module with the best hit first, so Enter or a change right after typing acts on the closest option
+    let groups = ranked(labelled.map(function (module) {
+      let scored = ranked((module.options || []).map(function (o) { return { option: o, score: optionScore(needle, module, o, fuzzy) } }),
+        function (e) { return e.score })
+      return { module: module, scored: scored }
+    }), function (g) { return g.scored.length > 0 ? g.scored[0].score : -1 })
+    // a label several modules' hits share ("Enabled") is shown with its module's name
+    let owners = ({})
+    groups.forEach(function (g) {
+      g.scored.forEach(function (e) {
+        let label = String(e.option.label || e.option.key)
+        owners[label] = (owners[label] || []).concat(owners[label] && owners[label].indexOf(g.module.name) >= 0 ? [] : [g.module.name])
+      })
+    })
+    for (let g = 0; g < groups.length; g++) {
+      let module = groups[g].module
+      out.push({ kind: "header", id: "#" + module.name, text: moduleLabel(module) })
+      for (let o = 0; o < groups[g].scored.length; o++) {
+        let option = groups[g].scored[o].option
+        let label = String(option.label || option.key)
+        out.push(optionRow(module, option, owners[label].length > 1 ? sectionLabel(module) + " " + label : ""))
+      }
     }
     return out
   }
   if (sectionId === machineId) return machine ? moduleRows(machine) : []
-  if (sectionId === togglesId) return toggleEntries(toggles, "")
+  if (sectionId === togglesId) return toggleEntries(toggles, "").concat(launchEntries(""))
   if (sectionId === systemId) return systemEntries(status, "")
   var module = modules.find(function (m) { return m.name === sectionId })
   return module ? moduleRows(module) : []
@@ -367,6 +472,8 @@ function listEntry(option, text) {
 }
 
 function encode(option, value) {
+  // a cleared nullable option unsets; Number(null) would store 0b
+  if (value === undefined || value === null) return "null"
   if (option.type === "filesize") return Number(value) + "b"
   return JSON.stringify(value === undefined ? null : value)
 }
@@ -403,7 +510,7 @@ function choiceLabel(option, choice) {
 
 function choicesMatching(option, filter) {
   if (filter === "") return option.choices || []
-  return ranked(option.choices || [], function (c) { return matchScore(filter, [choiceLabel(option, c), c]) })
+  return ranked(option.choices || [], function (c) { return matchScore(filter, fields([choiceLabel(option, c), c])) })
 }
 
 function choicePageStart(cursor) { return Math.max(0, Math.floor(cursor / choicePageSize) * choicePageSize) }

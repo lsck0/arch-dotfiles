@@ -49,7 +49,7 @@ export def link [cfg: record] {
         (if $cfg.millennium {
             [
                 (files-into $theme ...(glob config/themes/cyberpunk/*))
-                # millennium ignores links out of the theme dir; a palette rendered before the dir existed only needs copying
+                # millennium ignores links out of the theme dir, so the palette is a copy; the theme verb refreshes it
                 (exec steam-palette [cp $palette $colors] --creates $colors --requires $palette)
                 (json-merge (xdg config millennium config.json) [
                     (json-set [themes activeTheme] cyberpunk)
@@ -67,10 +67,15 @@ export def link [cfg: record] {
     ]
 }
 
-# font.css is imported after shared.css, whose --cp-font holds until the first theme run
+# font.css is imported after shared.css, whose --cp-font holds until the first theme run; wallust renders the palette
+# only into the cache, so a login without the skin gets no Steam tree
 export def theme [cfg: record, wallpaper: string] {
     if not $cfg.millennium { return [] }
     let family = font-load | get family
     let css = $":root {\n    --cp-font: \"($family)\", \"JetBrainsMono Nerd Font\", sans-serif;\n}\n"
-    file-text (theme-dir | path join font.css) $css --generated
+    let palette = xdg cache wal colors-steam.css
+    [
+        (file-text (theme-dir | path join font.css) $css --generated)
+        (exec steam-palette [cp $palette (theme-dir | path join colors.css)] --requires $palette)
+    ]
 }

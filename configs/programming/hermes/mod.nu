@@ -21,8 +21,8 @@ export const options = {
         label: "System agent"
         scope: machine
     }
-    model: {type: string, default: "claude-sonnet-5", doc: "The model every session starts on", label: "Model", scope: user}
-    delegation_model: {type: string, default: "claude-sonnet-5", doc: "The model subagents run on", label: "Subagent model", scope: user}
+    model: {type: string, default: "claude-sonnet-5-5", doc: "The model every session starts on", label: "Model", scope: user}
+    delegation_model: {type: string, default: "claude-sonnet-5-5", doc: "The model subagents run on", label: "Subagent model", scope: user}
     system_voice: {type: string, default: "en_US-lessac-medium", doc: "Piper voice the system agent answers in", label: "System agent voice"}
     system_stt_model: {type: string, default: "small", doc: "Local whisper model the system agent hears with", label: "System agent speech model"}
 }
@@ -65,9 +65,10 @@ def settings [cfg: record]: nothing -> record {
         telemetry.shared_metrics.enabled: false
         telemetry.shared_metrics.send: false
         telemetry.shared_metrics.offer_version: 2
+        # free ids rotate: check them against https://inference-api.nousresearch.com/v1/models
         fallback_providers: [
-            {provider: nous, model: "meituan/longcat-2.0:free"}
-            {provider: nous, model: "poolside/laguna-s-2.1:free"}
+            {provider: nous, model: "stepfun/step-3.7-flash:free"}
+            {provider: nous, model: "tencent/hy4-flash:free"}
         ]
     }
 }
@@ -134,11 +135,14 @@ export def required-extras []: nothing -> nothing {
     ^hermes pm install ...($REQUIRED_EXTRAS | each {|e| [--extra $e] } | flatten)
 }
 
-# merges the anthropic key secret into each home's own .env, never clobbering a key it does not own
+# merges the anthropic key secret into each home's own .env, never clobbering a key it does not own; locked secrets
+# keep the live file instead of dropping it
 def anthropic-key [home: path]: nothing -> list<record> {
     let secret = $env.DOTFILES | path join $ANTHROPIC_KEY_SECRET
-    if not (secret-is-plaintext $secret) { return [] }
     let file = $home | path join .env
+    if not (secret-is-plaintext $secret) {
+        return (if ($file | path exists) { [(file-text $file (open --raw $file) --mode 600)] } else { [] })
+    }
     let merged = env-file-load $file | merge (env-file-load $secret) | items {|k, v| $"($k)=($v)" } | str join "\n"
     [(file-text $file $"($merged)\n" --mode 600)]
 }

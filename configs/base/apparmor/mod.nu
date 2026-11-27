@@ -63,8 +63,10 @@ export def override-text [name: string, source: path]: nothing -> string {
     $"($MARKER)\n($text | str replace --regex $line $'profile ($name) ($OVERRIDES | get $name)')"
 }
 
+# --generated: repo or apparmor.d text in the mode of profiles.conf and manual.conf, which aa also writes in place
+# when it sets a mode; a drift check would keep that copy and its old body after the source changes
 def own-profile [name: string, text: string, mode: any]: nothing -> record {
-    file-text ($ETC | path join $"($name)($OWN_SUFFIX)") ($text | text-mode ($mode | default enforce))
+    file-text ($ETC | path join $"($name)($OWN_SUFFIX)") ($text | text-mode ($mode | default enforce)) --generated
 }
 
 export def system [cfg: record] {

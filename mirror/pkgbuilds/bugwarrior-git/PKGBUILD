@@ -1,0 +1,67 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# Reason for custom package: the AUR's builds upstream HEAD, whose typed task model (fa57002) its worker patch no
+# longer applies to; pinned, with the patch refreshed
+
+pkgname=bugwarrior-git
+pkgver=1692.fa57002
+pkgrel=1
+pkgdesc="Pull issues from issue trackers into taskwarrior (git)"
+arch=(any)
+url="https://github.com/GothenburgBitFactory/bugwarrior"
+license=(GPL-3.0-or-later)
+depends=(
+    python
+    python-click
+    python-dateutil
+    python-dogpile.cache
+    python-filelock
+    python-jinja
+    python-pydantic
+    python-requests
+    python-setuptools
+    python-taskw
+)
+makedepends=(git python-build python-installer python-setuptools-scm python-wheel)
+optdepends=(
+    "python-debianbts: bts support"
+    "python-email-validator: bts support"
+    "python-google-api-python-client: gmail support"
+    "python-jira: jira support"
+    "python-keyring: keyring support"
+    "python-phabricator: phabricator support"
+    "python-bugzilla: bugzilla support"
+)
+provides=("${pkgname%-git}")
+conflicts=("${pkgname%-git}")
+# develop, 2026-11-26
+_commit=fa57002a2cb22fdfe095ce0b35310fe9801d0cfc
+source=(
+    "${pkgname%-git}::git+$url.git#commit=$_commit"
+    # the AUR's: services are built in the worker, not pickled into it (python 3.14 starts workers by forkserver)
+    0001-collect-worker-side-service-construction.patch
+)
+sha256sums=(
+    SKIP
+    # refreshed for fa57002, 2026-11-27
+    0bdd137735eaad5afb805e27b4ca61ee68854a952323edcab93b22e45520f597
+)
+
+pkgver() {
+    cd "${pkgname%-git}"
+    echo "$(git rev-list --count HEAD).$(git rev-parse --short=7 HEAD)"
+}
+
+prepare() {
+    cd "${pkgname%-git}"
+    patch -Np1 < "$srcdir/0001-collect-worker-side-service-construction.patch"
+}
+
+build() {
+    cd "${pkgname%-git}"
+    python -m build --wheel --no-isolation
+}
+
+package() {
+    cd "${pkgname%-git}"
+    python -m installer --destdir="$pkgdir" dist/*.whl
+}

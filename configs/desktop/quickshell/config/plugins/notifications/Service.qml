@@ -524,7 +524,8 @@ Item {
 
   function materializeImage(snapshot, done) {
     var url = String((snapshot && snapshot.image) || "")
-    if (url.indexOf("image://") !== 0) {
+    // an image:// url lives only as long as its notification: once closed, its handle is gone
+    if (url.indexOf("image://") !== 0 || !service.liveRefs[snapshot.originalId]) {
       done(snapshot)
       return
     }
@@ -601,9 +602,10 @@ Item {
 
   Component {
     id: imageSaverComponent
+    // loaded at once, while its notification still holds the image: an app often closes it right after sending
     Image {
       visible: false
-      asynchronous: true
+      asynchronous: false
       cache: false
     }
   }

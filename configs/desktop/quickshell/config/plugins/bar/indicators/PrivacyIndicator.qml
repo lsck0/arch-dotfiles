@@ -8,10 +8,13 @@ BarIndicator {
   id: root
 
   // xdg-desktop-portal-hyprland's screencast node; to Pipewire it is a Video/Source like a camera. Since 1.5 the
-  // node is named after the portal and the per-session xdph-streaming-<n> moved to media.name
+  // node is named after the portal and the per-session xdph-streaming-<n> moved to media.name. A stream is never
+  // one, and is rejected before its properties are read: the tracker below binds the reader streams, and reading
+  // theirs here would loop devices back into readers
   readonly property string screencastPrefix: "xdph-streaming-"
   readonly property string screencastNode: "xdg-desktop-portal-hyprland"
   function isScreencast(n) {
+    if (n.isStream) return false
     return n.name === screencastNode || n.name.startsWith(screencastPrefix)
       || (n.properties?.["media.name"] ?? "").startsWith(screencastPrefix)
   }

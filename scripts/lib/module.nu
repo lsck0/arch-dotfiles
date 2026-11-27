@@ -245,21 +245,21 @@ export def mcp-uvx [
     | append (mcp-servers {$name: $spec})
 }
 
-const MCP_COMPAT_RELEASED = "2026-09-01"
+const MCP_COMPAT_FROZEN = "2026-09-01"
 
 # Arch's python-mcp is 2.x, whose FastMCP rename broke the ghidra and semgrep servers, and misses extras like structlog:
-# a venv over the system site-packages holds these pip specs, frozen at MCP_COMPAT_RELEASED, and runs the system
+# a venv over the system site-packages holds these pip specs, frozen at MCP_COMPAT_FROZEN, and runs the system
 # script. Returns {python, decl}: the venv's python and the exec declaration that builds it.
 export def mcp-compat [name: string, pins: list<string>]: nothing -> record {
     let py = ^python3 -c "import sys; print(f'{sys.version_info[0]}.{sys.version_info[1]}')" | str trim
     let dir = xdg data mcp-compat $name
-    let version = $"($MCP_COMPAT_RELEASED)-py($py)-($pins | str join '_' | hash sha256 | str substring 0..<8)"
+    let version = $"($MCP_COMPAT_FROZEN)-py($py)-($pins | str join '_' | hash sha256 | str substring 0..<8)"
     # $0 the venv, $1 the cutoff date, the rest the pins
     let script = 'rm -rf "$0" && uv venv --quiet --system-site-packages --python /usr/bin/python3 "$0" && cutoff=$1 && shift && uv pip install --quiet --python "$0/bin/python" --exclude-newer "$cutoff" "$@"'
     let python = $dir | path join bin python
     {
         python: $python
-        decl: (exec $"mcp-compat ($name)" [sh -c $script $dir $MCP_COMPAT_RELEASED ...$pins] --creates $python --key $version --undo [rm -rf $dir] --network)
+        decl: (exec $"mcp-compat ($name)" [sh -c $script $dir $MCP_COMPAT_FROZEN ...$pins] --creates $python --key $version --undo [rm -rf $dir] --network)
     }
 }
 

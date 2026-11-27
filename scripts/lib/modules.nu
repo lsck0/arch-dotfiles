@@ -16,6 +16,10 @@ const DEPENDENCIES = "dependencies.txt"
 # a relative use or source of a .nu file, as a regex (the path in p) and as grep -E reads it
 export const IMPORT_LINE = '\s*(?:export\s+)?(?:use|source|source-env)\s+(?<p>\.{1,2}/\S+\.nu)'
 export const IMPORT_GREP = '^\s*(export\s+)?(use|source|source-env)\s+\.{1,2}/\S+\.nu'
+# any use or source of a .nu path, bare ones too: `use scripts/x.nu` resolves next to the importing file, `use module.nu`
+# through -I to LIB_DIR
+const IMPORT_ANY_LINE = '\s*(?:export\s+)?(?:use|source|source-env)\s+(?<p>[\w.]\S*\.nu)(?:\s|$)'
+const IMPORT_ANY_GREP = '^\s*(export\s+)?(use|source|source-env)\s+[[:alnum:]_.][^[:space:]]*\.nu([[:space:]]|$)'
 # owner only: the cache names the private secrets group's modules and their options
 const DISCOVER_MODE = "600"
 export const ROOT_MODULES = [scripts skills]
@@ -117,15 +121,19 @@ def modules-scan [repo: path, markers: list<path>]: nothing -> table {
     }
 }
 
-# The .nu files the given files import, followed transitively: their consts (HOMELAB) feed the cached options and meta.
+# The .nu files the given files import, followed transitively: their consts (HOMELAB, a helper's default) feed the
+# cached options and meta.
 def imports-walk [files: list<string>]: nothing -> list<string> {
     mut seen = $files
     mut todo = $files
     while ($todo | is-not-empty) {
         let known = $seen
-        let found = ^grep -HE $IMPORT_GREP ...$todo | complete | get stdout | lines
-            | parse --regex $"^\(?<file>[^:]+\):($IMPORT_LINE)"
-            | each {|r| $r.file | path dirname | path join $r.p | path expand } | uniq
+        let found = ^grep -HE $IMPORT_ANY_GREP ...$todo | complete | get stdout | lines
+            | parse --regex $"^\(?<file>[^:]+\):($IMPORT_ANY_LINE)"
+            | each {|r|
+                let near = $r.file | path dirname | path join $r.p | path expand
+                if ($near | path exists) or ($r.p | str starts-with ".") { $near } else { $LIB_DIR | path join $r.p | path expand }
+            } | uniq
             | where {|f| $f not-in $known and ($f | path exists) }
         $seen = $seen ++ $found
         $todo = $found

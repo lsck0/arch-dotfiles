@@ -364,10 +364,13 @@ def checks-run [system: any = null]: nothing -> list<record> {
     checks $system | par-each --keep-order {|c| do $c } | flatten
 }
 
-# Every check's records, unprinted, in check order; pending work reads FAIL here, as every reader of the level expects.
+# Every check's records, unprinted, in check order; pending work reads FAIL here, as every reader of the level expects,
+# and carries pending: true, so a reader that tells work waiting from a fault (core/alloy's metrics) still can.
 # --system-ctx: the system layer, when the caller loaded it already.
 export def doctor-checks [--system-ctx: record]: nothing -> list<record> {
-    checks-run $system_ctx | update level {|r| if $r.level == $TODO { "FAIL" } else { $r.level } }
+    checks-run $system_ctx | each {|r|
+        {level: (if $r.level == $TODO { "FAIL" } else { $r.level }), check: $r.check, text: $r.text, pending: ($r.level == $TODO)}
+    }
 }
 
 # The lines of `dot status`: the checks by level, what needs action first, then the count of each level.

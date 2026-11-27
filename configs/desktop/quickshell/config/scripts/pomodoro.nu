@@ -20,13 +20,13 @@ def config-load []: nothing -> record {
     $CONFIG_DEFAULT | merge (try { open $CONFIG_PATH } catch { {} })
 }
 
-def state-path []: nothing -> path { $env.XDG_RUNTIME_DIR | path join quickshell-pomodoro state.json }
+# In the bare runtime dir, which exists from login: the shell's watch on a file under a missing dir never fires.
+def state-path []: nothing -> path { $env.XDG_RUNTIME_DIR | path join quickshell-pomodoro.json }
 
 def lock-path []: nothing -> path { $env.XDG_RUNTIME_DIR | path join quickshell-pomodoro.lock }
 
 # state-save and timer-arm as one unit: two rapid "set" calls would leave endsAt and the armed timer disagreeing
 def with-lock [...rest: string]: nothing -> nothing {
-    mkdir (state-path | path dirname)
     ^flock (lock-path) $nu.current-exe --no-config-file ($env.CURRENT_FILE | path expand) locked ...$rest
 }
 

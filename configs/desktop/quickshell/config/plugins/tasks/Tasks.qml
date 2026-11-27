@@ -53,8 +53,8 @@ Item {
     : inputMode === "add" ? [["ENTER", "add"], ["TAB", "complete"], ["ESC", "back"]]
     : inputMode === "modify" ? [["ENTER", "modify"], ["TAB", "complete"], ["ESC", "back"]]
     : inputMode === "filter" ? [["ENTER", "keep"], ["TAB", "notes"], ["ESC", "clear"]]
-    : [["^/v", "select"], ["ENTER/D", "done"], ["S", "start/stop"], ["X", "delete"], ["E", "edit"], ["U", "undo"],
-       ["A", "add"], ["/", "filter"], ["TAB", "notes"], ["ESC", filterText ? "clear" : "close"]]
+    : [["^/v", "select"], ["ENTER", "done"], ["CTRL+S", "start/stop"], ["DEL", "delete"], ["CTRL+E", "edit"],
+       ["CTRL+Z", "undo"], ["+", "add"], ["TYPE", "filter"], ["TAB", "notes"], ["ESC", filterText ? "clear" : "close"]]
 
   function open() {
     TaskState.panelOpen = true
@@ -133,37 +133,45 @@ Item {
     keyCatcher.forceActiveFocus()
   }
 
-  function listKey(key, text) {
+  // typing filters, as in every overlay list; an action on the selected task takes CTRL, so a typed word never acts
+  function listKey(key, text, modifiers) {
+    var ctrl = (modifiers & Qt.ControlModifier) !== 0
     if (key === Qt.Key_Escape) {
       if (root.filterText) root.filterText = ""
       else root.close()
     } else if (key === Qt.Key_Tab || key === Qt.Key_Backtab) {
       root.cycleView(key)
-    } else if (key === Qt.Key_Up || text === "k") {
+    } else if (key === Qt.Key_Up || Util.isPrev(key, modifiers)) {
       root.select(listCursor.step(root.selectedIndex, -1))
-    } else if (key === Qt.Key_Down || text === "j") {
+    } else if (key === Qt.Key_Down || Util.isNext(key, modifiers)) {
       root.select(listCursor.step(root.selectedIndex, 1))
     } else if (key === Qt.Key_PageUp) {
       root.select(listCursor.page(root.selectedIndex, -1))
     } else if (key === Qt.Key_PageDown) {
       root.select(listCursor.page(root.selectedIndex, 1))
-    } else if (key === Qt.Key_Home || text === "g") {
+    } else if (key === Qt.Key_Home) {
       root.select(0)
-    } else if (key === Qt.Key_End || text === "G") {
+    } else if (key === Qt.Key_End) {
       root.select(root.filtered.length - 1)
-    } else if (key === Qt.Key_Return || key === Qt.Key_Enter || text === "d") {
+    } else if (key === Qt.Key_Return || key === Qt.Key_Enter) {
       TaskState.markDone(root.selectedTask)
-    } else if (text === "s") {
+    } else if (ctrl && key === Qt.Key_S) {
       TaskState.toggleActive(root.selectedTask)
-    } else if (key === Qt.Key_Delete || text === "x") {
+    } else if (key === Qt.Key_Delete) {
       TaskState.remove(root.selectedTask)
-    } else if (text === "e") {
+    } else if (ctrl && key === Qt.Key_E) {
       if (root.selectedTask) root.startInput("modify")
-    } else if (text === "u") {
+    } else if (ctrl && key === Qt.Key_Z) {
       TaskState.undoLast()
-    } else if (text === "a" || text === "i") {
+    } else if (ctrl && key === Qt.Key_U) {
+      root.filterText = ""
+    } else if (key === Qt.Key_Backspace) {
+      root.filterText = root.filterText.slice(0, -1)
+      if (root.filterText) root.startInput("filter")
+    } else if (text === "+" && !ctrl) {
       root.startInput("add")
-    } else if (text === "/") {
+    } else if (Util.printable(text) && !ctrl && (modifiers & Qt.AltModifier) === 0) {
+      root.filterText += text
       root.startInput("filter")
     } else {
       return false
@@ -269,7 +277,7 @@ Item {
   }
 
   readonly property string lastActionText: TaskState.lastAction
-    ? TaskState.lastAction.op + " :: " + TaskState.lastAction.desc + " :: u to undo" : ""
+    ? TaskState.lastAction.op + " :: " + TaskState.lastAction.desc + " :: CTRL+Z undo" : ""
 
   function metaText(task) {
     var parts = []
@@ -309,7 +317,7 @@ Item {
       focus: true
 
       Keys.priority: Keys.BeforeItem
-      Keys.onPressed: function (event) { event.accepted = root.listKey(event.key, event.text) }
+      Keys.onPressed: function (event) { event.accepted = root.listKey(event.key, event.text, event.modifiers) }
     }
 
     Item {
@@ -398,7 +406,7 @@ Item {
             text: root.inputMode === "add" ? "description project:x due:tomorrow sch:mon until:eom priority:H +tag"
               : root.inputMode === "modify" && root.modifyTask ? "description project:x due:fri priority:H +tag"
               : root.inputMode === "filter" ? "filter"
-              : root.filterText ? root.filterText : "add or filter"
+              : root.filterText ? root.filterText : "filter :: + add"
             color: root.inputMode === "" && root.filterText ? Colors.menu.text : Colors.textDim
             font.pixelSize: Style.font.heading
             elide: Text.ElideRight

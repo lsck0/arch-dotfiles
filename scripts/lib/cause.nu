@@ -58,7 +58,8 @@ export const ONLINE_ESCAPE = "dot set --machine base/networkmanager.untrusted_po
 export const HINTS = [
     [class pattern label each fix];
     [missing '(\S+) not installed (\([^)]*\))' "not installed" "" $PACKAGES_FIX]
-    [timeout 'timed out after (\S+)' "timed out" "<bound>" "hung past its bound (<1>): dot log --trace shows the last output; a step that needs longer takes --timeout"]
+    # a bound as nushell renders a duration, its parts space-separated (1hr 30min)
+    [timeout 'timed out after (\d[\w.]*(?: \d[\w.]*)*)' "timed out" "<bound>" "hung past its bound (<1>): dot log --trace shows the last output; a step that needs longer takes --timeout"]
     [refused 'returned error: (403|429)' "mirror refused" "" "the mirror refuses this address (<1>, a rate ban): wait, then dot apply --packages"]
     [dns '(?i)could not resolve(?: host)?|temporary failure in name resolution|name or service not known' "no DNS" "" $"no DNS, maybe the kill switch \(fw-egress\); to get online: ($ONLINE_ESCAPE)"]
     [not-found 'target not found: (\S+)' "pacman targets not found" "<package>" "no repo has <1>: the mirror adds a new name with its nightly build, else drop it from its module's packages"]

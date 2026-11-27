@@ -46,6 +46,8 @@ export def link [cfg: record] {
         (files-into (spicetify-dir | path join Extensions) ...($extensions | each { $"config/($in)" }))
         (step configure ...$extensions --done=$configured)
         (desktop-exec spotify.desktop spotify --command $"($env.PWD)/scripts/spotify-launch.nu")
+        # the uwsm service the entry launches as; the template's drop-in reaches every instance
+        (dropin app-Hyprland-spotify@.service services/kill-mixed.conf)
         (exec spicetify-apply [./scripts/hook/spicetify-apply.nu] --done=($configured and not (apply-pending)))
         # --permanent also runs it on every login: an upgrade while logged out fires no path unit
         (user-hook spicetify-apply scripts/hook/spicetify-apply.nu --permanent --watch [

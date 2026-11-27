@@ -62,8 +62,9 @@ Item {
   readonly property string queuedNeeds: Schema.strongestApply(queued.map(function (id) { return root.pending[id].option }))
 
   readonly property var hints: {
-    var out = [["TAB", "pane"], ["TYPE", root.expandedId ? "filter" : "search"], ["ENTER", "edit"], ["</>", "change"],
-      ["CTRL+R", "reset"]]
+    var out = [["TAB", "pane"], ["TYPE", root.expandedId ? "filter" : "search"], ["ENTER", "edit"]]
+    if (root.pane === "rows" && cursorRow && root.adjustable(cursorRow)) out.push(["</>", "change"])
+    out.push(["CTRL+R", "reset"])
     if (cursorRow && cursorRow.kind === "option" && cursorRow.option.type === "path") out.push(["CTRL+O", "browse"])
     if (queued.length > 0) out.push(["CTRL+S", "apply"], ["CTRL+Z", "revert"])
     else if (root.systemPending) out.push(["CTRL+S", root.systemFull ? "apply" : "apply system"])
@@ -206,6 +207,13 @@ Item {
     }
   }
 
+  // a shell panel or picker the window opens, as its keys would; it takes the keyboard, so the window goes
+  function launch(row) {
+    root.close()
+    Quickshell.execDetached(row.ipc ? Paths.ipcCall(row.ipc[0], row.ipc[1], row.ipc[2])
+      : ["uwsm-app", "-s", "b", "--", Paths.bin(row.bin[0])].concat(row.bin.slice(1)))
+  }
+
   function choiceOf(row) { return root.driftChoice[row.id] || Schema.driftChoices[0] }
 
   // a terminal action leaves the window for its terminal; reset overwrites a hand edit, so it asks twice
@@ -322,7 +330,21 @@ Item {
 
   function valueOf(row) { return row.id in root.pending ? root.pending[row.id].value : row.option.value }
 
+  // what Left and Right change on a row; anything else, Left leaves for the sections pane
+  function adjustable(row) {
+    if (row.kind === "toggle" || row.kind === "drift") return true
+    if (row.kind !== "option") return false
+    if (row.option.type === "enum" && !Schema.segmented(row.option)) return false
+    return Schema.adjusted(row.option, root.valueOf(row), 1) !== undefined
+  }
+
+  // a switch toggle goes on with Right and off with Left, as a bool option does; a multi-state one steps to its next
   function adjust(row, direction) {
+    if (!root.adjustable(row)) return false
+    if (row.kind === "toggle") {
+      if (!Schema.toggleIsSwitch(row.toggle) || row.toggle.on !== direction > 0) root.runToggle(row.toggle)
+      return true
+    }
     if (row.kind === "drift") {
       let at = Schema.driftChoices.indexOf(root.choiceOf(row))
       let n = Schema.driftChoices.length
@@ -330,16 +352,13 @@ Item {
       root.confirmId = ""
       return true
     }
-    if (row.kind !== "option") return false
-    if (row.option.type === "enum" && !Schema.segmented(row.option)) return false
-    var next = Schema.adjusted(row.option, root.valueOf(row), direction)
-    if (next === undefined) return false
-    root.change(row, next)
+    root.change(row, Schema.adjusted(row.option, root.valueOf(row), direction))
     return true
   }
 
   function activate(row) {
     if (row.kind === "toggle") { root.runToggle(row.toggle); return }
+    if (row.kind === "launch") { root.launch(row); return }
     if (row.kind === "action" || row.kind === "drift") { root.runSystem(row, root.choiceOf(row)); return }
     if (row.kind !== "option" || row.option.type === "fixed") return
     var option = row.option
@@ -424,9 +443,13 @@ Item {
   }
 
   function revertQueued() {
-    for (let i = 0; i < root.queued.length; i++) root.errors = Util.mapWithout(root.errors, root.queued[i])
+    // the set already running writes its value either way: its entry stays, so setDone still records its exit
+    var running = setProc.running ? setProc.id : ""
+    for (let i = 0; i < root.queued.length; i++)
+      if (root.queued[i] !== running) root.errors = Util.mapWithout(root.errors, root.queued[i])
     var kept = {}
-    for (let id in root.pending) if (root.pending[id].option.apply === "live") kept[id] = root.pending[id]
+    for (let id in root.pending)
+      if (root.pending[id].option.apply === "live" || id === running) kept[id] = root.pending[id]
     root.pending = kept
     root.say("", false)
   }
@@ -494,7 +517,9 @@ Item {
     var done = root.batch
     root.batch = { applied: [], failed: 0, notes: [], system: false, full: false }
     root.load()
+    // a system apply refreshes the System section when it ends
     if (done.system) root.applySystem()
+    else if (done.applied.length > 0) dotStatusProc.run()
     if (done.applied.length === 0 && done.failed === 0 && done.notes.length === 0) return
     var parts = []
     if (done.applied.length > 0) {
@@ -550,14 +575,18 @@ Item {
       // new rows reset both lists to the top: each live set reloads, so the view would jump on every change
       var rowY = rowList.contentY
       var sectionY = sectionList.contentY
+      // the first answer adds the MACHINE section above the others, which would move the cursor off its section
+      var id = root.section ? root.section.id : ""
       root.modules = data.modules.map(Schema.moduleNormalize)
       root.machine = data.platform ? Schema.moduleNormalize(data.platform) : null
+      var at = root.sections.findIndex(function (s) { return s.id === id })
+      if (at >= 0) root.sectionIndex = at
       root.restoreScroll(rowList, rowY)
       root.restoreScroll(sectionList, sectionY)
       if (root.rowIndex < 0 || root.rowIndex >= root.rows.length) root.selectFirstRow()
       else root.selectRow(root.rowIndex)
-      var at = root.sections[root.sectionIndex]
-      if (at && at.kind === "header") root.selectSection(root.sectionIndex)
+      var current = root.sections[root.sectionIndex]
+      if (current && current.kind === "header") root.selectSection(root.sectionIndex)
       else root.reveal(sectionList, sectionFade, root.sectionIndex)
     }
   }
@@ -590,6 +619,7 @@ Item {
         root.say([what + (pending ? " pending" : " applied")].concat(root.notesOf(systemApplyProc)).join("; "), false)
       else root.say("apply failed: " + root.lastLine(systemApplyProc), true)
       root.load()
+      dotStatusProc.run()
     }
   }
 
@@ -716,8 +746,9 @@ Item {
           width: ListView.view.width
           height: header ? Style.row.list * 0.8 + (index > 1 ? Style.spacing.sm : 0) : Style.row.list
           opacity: root.query && !header && modelData.count === 0 ? Style.emphasis.disabled : 1
+          // lit only while this pane has the keyboard; in the rows pane only its mark and bold label stay
           hasCursor: current && root.pane === "sections"
-          hovered: current || sectionMouse.containsMouse
+          hovered: sectionMouse.containsMouse
 
           Rectangle {
             visible: sectionRow.current
@@ -735,7 +766,7 @@ Item {
             anchors.bottom: sectionRow.header ? parent.bottom : undefined
             text: sectionRow.header ? sectionRow.modelData.label.toUpperCase()
               : (sectionRow.hasCursor ? "> " : "") + sectionRow.modelData.label + (sectionRow.hasPending ? " *" : "")
-            color: sectionRow.header ? Colors.textDim : sectionRow.current ? Colors.menu.selectedText : Colors.menu.text
+            color: sectionRow.header ? Colors.textDim : sectionRow.hasCursor ? Colors.menu.selectedText : Colors.menu.text
             caption: sectionRow.header
             font.bold: sectionRow.current || sectionRow.header
             font.letterSpacing: sectionRow.header ? Style.labelTracking : 0
@@ -750,7 +781,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: String(sectionRow.modelData.count)
             dim: true
-            highlighted: sectionRow.current || sectionMouse.containsMouse
+            highlighted: sectionRow.hasCursor || sectionMouse.containsMouse
             caption: true
           }
 
@@ -832,7 +863,7 @@ Item {
               sourceComponent: slot.modelData.kind === "header" ? headerRow
                 : slot.modelData.kind === "toggle" ? toggleRow
                 : slot.modelData.kind === "check" ? checkRow
-                : slot.modelData.kind === "action" ? actionRow
+                : slot.modelData.kind === "action" || slot.modelData.kind === "launch" ? actionRow
                 : slot.modelData.kind === "drift" ? driftRow : optionRow
             }
 
@@ -953,10 +984,11 @@ Item {
                 label: slot.mark + slot.modelData.name
                 trailing: slot.modelData.detail + (slot.modelData.terminal ? "  [terminal]" : "")
                 on: slot.hasCursor
-                enabled: !systemProc.running
+                enabled: slot.modelData.kind === "launch" || !systemProc.running
                 onActivated: {
                   root.focusRow(slot.index)
-                  root.runSystem(slot.modelData, "")
+                  if (slot.modelData.kind === "launch") root.launch(slot.modelData)
+                  else root.runSystem(slot.modelData, "")
                 }
               }
             }
@@ -1048,6 +1080,7 @@ Item {
               id: optionRow
               OptionRow {
                 option: slot.modelData.option
+                title: slot.modelData.title || ""
                 value: root.valueOf(slot.modelData)
                 pending: slot.modelData.id in root.pending
                 error: root.errors[slot.modelData.id] || ""

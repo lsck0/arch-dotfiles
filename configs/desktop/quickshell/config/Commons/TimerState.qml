@@ -6,7 +6,8 @@ import Quickshell.Io
 Singleton {
   id: root
 
-  readonly property string pomoPath: Paths.runtimeDir + "/quickshell-pomodoro/state.json"
+  // beside, not under, a dir of its own: a watch whose parent is missing at start never sees the file appear
+  readonly property string pomoPath: Paths.runtimeDir + "/quickshell-pomodoro.json"
   readonly property string reminderIndexPath: Paths.runtimeDir + "/quickshell-reminders/index.json"
   readonly property string pomoConfigPath: Paths.home + "/.config/quickshell/pomodoro.json"
 

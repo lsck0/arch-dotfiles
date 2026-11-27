@@ -18,3 +18,6 @@ Type=cifs
 # memory pressure; 1 MiB keeps them small
 Options=credentials=/etc/samba/homelab.cred,seal,uid=0,gid=wheel,vers=3.1.1,_netdev,nofail,file_mode=0660,dir_mode=0770,soft,echo_interval=10,wsize=1048576,noserverino
 TimeoutSec=5s
+# a stop while the server is unreachable (left home, wg down) aborts the requests still in flight instead of waiting
+# them out past the timeout
+ForceUnmount=yes

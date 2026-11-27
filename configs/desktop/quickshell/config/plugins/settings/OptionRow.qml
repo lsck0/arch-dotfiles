@@ -8,6 +8,8 @@ Item {
   id: row
 
   property var option: ({})
+  // shown instead of the option's label: a search's "proxychains Enabled"
+  property string title: ""
   property var value
   property bool pending: false
   property string error: ""
@@ -32,6 +34,8 @@ Item {
 
   readonly property string type: String(option.type || "")
   readonly property bool numeric: type === "int" || type === "float"
+  // a read-only bool (a module's enable bound to the platform file) still reads as [on]/[off], only without the click
+  readonly property bool fixedBool: type === "fixed" && /^bool\??$/.test(String(option.nuType || ""))
   readonly property bool segmented: Schema.segmented(option)
   readonly property bool multi: type === "multi"
   readonly property bool sequence: type === "sequence"
@@ -117,7 +121,7 @@ Item {
 
         Label {
           width: Math.min(implicitWidth, head.width - tagRow.implicitWidth - head.spacing)
-          text: (row.hasCursor ? "> " : "  ") + (row.option.label || row.option.key) + (row.pending ? " *" : "")
+          text: (row.hasCursor ? "> " : "  ") + (row.title || row.option.label || row.option.key) + (row.pending ? " *" : "")
           color: row.pending ? Colors.accent2Text : row.hasCursor ? Colors.menu.selectedText : Colors.menu.text
           font.bold: row.pending
           font.capitalization: Font.AllUppercase
@@ -159,7 +163,7 @@ Item {
         height: parent.height
 
         Loader {
-          active: row.type === "bool"
+          active: row.type === "bool" || row.fixedBool
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
 
@@ -170,6 +174,7 @@ Item {
 
             MouseArea {
               anchors.fill: parent
+              enabled: !row.fixedBool
               cursorShape: Qt.PointingHandCursor
               onClicked: row.changeRequested(!row.value)
             }
@@ -260,7 +265,7 @@ Item {
         }
 
         Label {
-          visible: row.type === "fixed"
+          visible: row.type === "fixed" && !row.fixedBool
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
           width: parent.width

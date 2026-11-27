@@ -22,6 +22,7 @@ const CASES = [
     [list "list<int>" [9003 9004] "[9003, 9004]"]
     [json record {"1": "DP-2"} '{"1": "DP-2"}']
     [filesize filesize 2147483648 "2147483648b"]
+    [filesize "filesize?" null "null"]
     [multi "list<string>" ["base" "programming/docker"] '["base", "programming/docker"]']
 ]
 const READER = '
@@ -109,6 +110,8 @@ TestCase {
     compare\(ids\(Schema.sections\(modules, [], \"zzz\", { checks: [] }\)\), \":toggles,:system,#base,base/a\"\)
     compare\(ids\(Schema.sections\(modules, [], \"\", null, machine\(\)\)\), \"platform,:toggles,#base,base/a\"\)
     compare\(Schema.sections\(modules, [], \"homelab\", null, machine\(\)\)[0].count, 1\)
+    var loose = modules.concat\([{ name: \"scripts\", options: [{ key: \"y\" }] }]\)
+    compare\(ids\(Schema.sections\(loose, [], \"\", null\)\), \":toggles,scripts,#base,base/a\"\)
   }
 
   // dot set --json's platform section: the top keys without a header, then the facts under theirs
@@ -189,8 +192,90 @@ TestCase {
     verify\(Schema.optionMatches\(\"brrgt\", { name: \"m\" }, { key: \"bar_right\", doc: \"x\" }\)\)
     verify\(!Schema.optionMatches\(\"wdgt\", { name: \"m\" }, { key: \"k\", doc: \"Widgets\" }\)\)
     verify\(Schema.optionMatches\(\"widg left\", { name: \"m\" }, { key: \"left\", doc: \"Widgets\" }\)\)
+    // scattered letters stay inside one word from its start: \"light\" is no hit in playwright, \"effort\" none across words
+    verify\(!Schema.optionMatches\(\"light\", { name: \"programming/playwright\" }, { key: \"headless\", label: \"Headless browsers\" }\)\)
+    verify\(!Schema.optionMatches\(\"effort\", { name: \"m\" }, { key: \"k\", label: \"Screens off in power saver after\" }\)\)
+    // the module with the best hit leads: an exact label before a prefix in a module listed earlier
+    var ranked = Schema.rows\([Schema.moduleNormalize\({ name: \"a/x\", options: [{ key: \"k\", type: \"bool\", label: \"Effortless\" }] }\),
+      Schema.moduleNormalize\({ name: \"b/y\", options: [{ key: \"effort\", type: \"string\", label: \"Effort\" }] }\)], [], \"\", \"effort\", null\)
+    compare\(ranked.map\(function \(r\) { return r.id }\).join\(\",\"\), \"#b/y,b/y.effort,#a/x,a/x.k\"\)
     compare\(Schema.choicePicked\({ type: \"sequence\" }, [\"a\", \"b\"], \"a\"\).join\(\",\"\), \"a,b,a\"\)
     compare\(Schema.typeOf\({ type: \"string\", fixed: true }\), \"fixed\"\)
+  }
+
+  function ids\(list\) { return list.map\(function \(r\) { return r.id }\).join\(\",\"\) }
+
+  function mod\(name, options\) {
+    return Schema.moduleNormalize\({ name: name, options: options.map\(function \(o\) { return Object.assign\({ type: \"bool\" }, o\) }\) }\)
+  }
+
+  // scattered letters: too wide a spread is no hit, and any word or substring hit anywhere drops them all
+  function test_fuzzy\() {
+    verify\(!Schema.optionMatches\(\"dpi\", { name: \"m\" }, { key: \"desktop_quotes_file\" }\)\)
+    var modules = [mod\(\"a/q\", [{ key: \"quotes_file\", label: \"Quotes file\" }, { key: \"bar_right\", label: \"Right\" }]\),
+      mod\(\"b/w\", [{ key: \"dpi\", label: \"Wine dpi\" }]\)]
+    compare\(ids\(Schema.rows\(modules, [], \"\", \"dpi\", null\)\), \"#b/w,b/w.dpi\"\)
+    compare\(ids\(Schema.rows\(modules, [], \"\", \"brrgt\", null\)\), \"#a/q,a/q.bar_right\"\)
+    var counts = Schema.sections\(modules.concat\([mod\(\"c/d\", [{ key: \"dp_ix\" }]\)]\), [], \"dpi\", null\)
+      .filter\(function \(s\) { return s.kind === \"section\" && s.count > 0 }\)
+    compare\(ids\(counts\), \"b/w\"\)
+  }
+
+  // labels lead docs and module names; enum values and a multi-state toggle's states match, a switch's off/on do not
+  function test_search_fields\() {
+    var modules = [mod\(\"a/x\", [{ key: \"k\", label: \"Gateways\", doc: \"routers and printers\" }]\),
+      mod\(\"b/y\", [{ key: \"p\", label: \"Printers\" }]\),
+      mod\(\"c/printing\", [{ key: \"page_size\", label: \"Paper size\", type: \"string\" }]\),
+      mod\(\"d/z\", [{ key: \"look\", label: \"Look\", type: \"string\", choices: [\"dark\", \"light\"] }]\)]
+    compare\(ids\(Schema.rows\(modules, [], \"\", \"printers\", null\)\), \"#b/y,b/y.p,#a/x,a/x.k\"\)
+    compare\(ids\(Schema.rows\(modules, [], \"\", \"printing\", null\)\), \"#c/printing,c/printing.page_size\"\)
+    compare\(ids\(Schema.rows\(modules, [], \"\", \"light\", null\)\), \"#d/z,d/z.look\"\)
+    var theme = { name: \"theme-mode\", label: \"Theme\", state: \"dark\", text: \"dark\", states: [\"dark\", \"light\"], available: true }
+    var wifi = { name: \"wifi\", label: \"Wi-Fi\", state: \"on\", text: \"on\", states: [\"off\", \"on\"], available: true }
+    compare\(ids\(Schema.toggleEntries\([theme, wifi], \"dark mode\"\)\), \":toggles.theme-mode\"\)
+    compare\(ids\(Schema.toggleEntries\([theme, wifi], \"light\"\)\), \":toggles.theme-mode\"\)
+    compare\(Schema.toggleEntries\([theme, wifi], \"off\"\).length, 0\)
+  }
+
+  // a newcomer's word for what the options name otherwise
+  function test_synonyms\() {
+    var modules = [mod\(\"desktop/hyprland\", [{ key: \"idle_dpms_s\", label: \"Screens off after\", group: \"idle\", type: \"int\" },
+      { key: \"autostart\", label: \"Autostart\", type: \"list<string>\" }]\),
+      mod\(\"core/locale\", [{ key: \"keyboard_options\", label: \"Keyboard options\", doc: \"xkb options, e.g. ctrl:nocaps\", type: \"string\" }]\),
+      mod\(\"desktop/printing\", [{ key: \"page_size\", label: \"Paper size\", type: \"string\" }]\)]
+    compare\(ids\(Schema.rows\(modules, [], \"\", \"screen timeout\", null\)\), \"#desktop/hyprland,desktop/hyprland.idle_dpms_s\"\)
+    compare\(ids\(Schema.rows\(modules, [], \"\", \"startup\", null\)\), \"#desktop/hyprland,desktop/hyprland.autostart\"\)
+    compare\(ids\(Schema.rows\(modules, [], \"\", \"caps lock\", null\)\), \"#core/locale,core/locale.keyboard_options\"\)
+    compare\(ids\(Schema.rows\(modules, [], \"\", \"printer\", null\)\), \"#desktop/printing,desktop/printing.page_size\"\)
+  }
+
+  // the keybind list, wallpaper and theme pickers sit under quick toggles, found by the words a newcomer tries
+  function test_launchers\() {
+    compare\(ids\(Schema.rows\([], [], \":toggles\", \"\", null\)\), \"#:toggles/open,:toggles.open.keybinds,:toggles.open.wallpaper,:toggles.open.theme\"\)
+    compare\(Schema.sections\([], [], \"\", null\)[0].count, 3\)
+    var first = function \(q\) { return Schema.rows\([], [], \"\", q, null\).filter\(function \(r\) { return r.kind === \"launch\" }\).map\(function \(r\) { return r.name }\).join\(\",\"\) }
+    compare\(first\(\"keybinds\"\), \"keybinds\"\)
+    compare\(first\(\"shortcut\"\), \"keybinds\"\)
+    compare\(first\(\"hotkeys\"\), \"keybinds\"\)
+    compare\(first\(\"keybindings\"\), \"keybinds\"\)
+    compare\(first\(\"help\"\), \"keybinds\"\)
+    compare\(first\(\"wallpapers\"\), \"wallpaper\"\)
+    compare\(first\(\"themes\"\), \"theme\"\)
+    compare\(first\(\"background\"\), \"wallpaper\"\)
+    compare\(first\(\"colors\"\), \"theme\"\)
+    compare\(first\(\"palette\"\), \"theme\"\)
+    var keys = Schema.rows\([], [], \":toggles\", \"\", null\)[1]
+    compare\(keys.ipc.join\(\"|\"\), \"appsearch|openWith|? \"\)
+    compare\(Schema.rows\([], [], \":toggles\", \"\", null\)[3].bin.join\(\" \"\), \"wallpaper-picker --themes\"\)
+  }
+
+  // a label several hits share shows its module's name; a label of its own stays as it is
+  function test_titles\() {
+    var modules = [mod\(\"pentesting/proxychains\", [{ key: \"enable\", label: \"Enabled\" }]\),
+      mod\(\"pentesting/zaproxy\", [{ key: \"enable\", label: \"Enabled\" }, { key: \"port\", label: \"Proxy port\", type: \"int\" }]\)]
+    var hits = Schema.rows\(modules, [], \"\", \"proxy\", null\).filter\(function \(r\) { return r.kind === \"option\" }\)
+    compare\(hits.map\(function \(r\) { return r.title || \"-\" }\).join\(\",\"\), \"-,zaproxy Enabled,proxychains Enabled\"\)
+    compare\(Schema.rows\(modules, [], \"pentesting/zaproxy\", \"\", null\)[0].title, undefined\)
   }
 }
 " | save ($dir | path join tst_schema.qml)

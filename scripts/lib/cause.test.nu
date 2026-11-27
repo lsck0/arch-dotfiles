@@ -130,6 +130,8 @@ def hint-cases []: nothing -> nothing {
         ["audit: apparmor=\"DENIED\" operation=\"open\" profile=\"foo\"" apparmor "l-dotfiles-apparmor-profile"]
         ["`systemctl --user restart a.service` exited 1: Job for a.service failed because the control process exited with error code. / See \"systemctl --user status a.service\" for details." unit "journalctl --user -u a.service -b"]
         ["`systemctl restart b.service` exited 1: Job for b.service failed because a timeout was exceeded." unit "journalctl -u b.service -b"]
+        [$"`curl -o system.img x` timed out after (90min); fix: x" timeout "hung past its bound (1hr 30min)"]
+        [$"`sleep 9` timed out after (2min)" timeout "hung past its bound (2min)"]
         ["`sudo true` exited 1: sudo: a terminal is required to read the password" root "dot apply --system"]
         ["`sudo true` exited 1: sudo: 3 incorrect password attempts" root "dot apply --system"]
         ["`install -m 600 x /etc/y` exited 1: install: cannot create regular file '/etc/y': Permission denied" root "dot apply --system"]

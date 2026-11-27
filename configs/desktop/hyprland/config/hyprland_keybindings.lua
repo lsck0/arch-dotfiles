@@ -93,6 +93,8 @@ hl.bind(mod .. " + SHIFT + Return", app("kitty"), { description = "kitty termina
 default_app(" + a", platform.apps.browser, "browser")
 hl.bind(mod .. " + SHIFT + a", app("qutebrowser"), { description = "qutebrowser" })
 hl.bind(mod .. " + d", quickshell_toggle("appsearch"), { description = "app launcher" })
+-- F1, not slash: on the de layout / is SHIFT+7, which moves the window to workspace 7
+hl.bind(mod .. " + F1", quickshell_call("appsearch", "openWith '? '"), { description = "keybind list" })
 hl.bind(
     mod .. " + SHIFT + d",
     quickshell_call("notifications", "dismissAll"),

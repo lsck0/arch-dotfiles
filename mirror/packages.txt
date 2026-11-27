@@ -581,6 +581,7 @@ polkit-kde-agent
 portmaster-bin
 postgresql
 postgresql-libs
+postgresql-old-upgrade
 posting
 pre-commit
 prettier

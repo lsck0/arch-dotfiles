@@ -2,7 +2,8 @@
 # Run a heavy command in a memory-capped user scope at the lowest cpu, io and oom priority, pinned to the non-v-cache
 # ccd where there is one. FENCE_MEM overrides the memory cap (FENCE_MEM=14G); --cpu-quota <percent> caps cpu time.
 # The user manager delegates only cpu, memory and pids, so AllowedCPUs= and IOWeight= would be ignored in the scope:
-# taskset and ionice do that part. A killed run leaves a failed run-*.scope: systemctl --user reset-failed.
+# taskset and ionice do that part. --collect unloads a killed run's scope instead of leaving it failed; the oom-kill
+# stays in the journal.
 set -eu
 
 MEMORY_MAX_DEFAULT=16G
@@ -59,4 +60,4 @@ set -- -p "MemoryMax=${FENCE_MEM:-$MEMORY_MAX_DEFAULT}" -p "MemorySwapMax=$MEMOR
 if [ -n "$cpu_quota" ]; then
     set -- -p "CPUQuota=$cpu_quota%" "$@"
 fi
-exec systemd-run --user --scope --quiet "$@"
+exec systemd-run --user --scope --quiet --collect "$@"

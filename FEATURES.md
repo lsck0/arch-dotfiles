@@ -453,12 +453,12 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `programming/claude.effort` | `string` | `"medium"` | Reasoning effort of that model |
 | `programming/claude.voice` | `bool` | `true` | Voice dictation, hold to talk |
 | `programming/claude.remote_control` | `bool` | `false` | Every session registers with the remote-control relay at start. It needs Claude's feature flags, so on, DO_NOT_TRACK is lifted for claude and usage telemetry is sent; off, telemetry is off |
-| `programming/copilot.model` | `string` | `"claude-sonnet-5"` | The model every session starts on |
+| `programming/copilot.model` | `string` | `"claude-sonnet-5.5"` | The model every session starts on |
 | `programming/debugging.raddbg_font_px` | `float` | `10.5` | raddbg's font size before the X11 scale; set once per value, a size picked in the app stays |
 | `programming/docker.prune_age_days` | `int` | `7` | Age past which dangling images and build cache are pruned |
 | `programming/hermes.system_agent` | `bool` | `false` | An always-on Hermes session (profile system, unit hermes-system-agent) that drives the desktop and talks: SUPER+grave shows it, SUPER+ALT+a talks to it |
-| `programming/hermes.model` | `string` | `"claude-sonnet-5"` | The model every session starts on |
-| `programming/hermes.delegation_model` | `string` | `"claude-sonnet-5"` | The model subagents run on |
+| `programming/hermes.model` | `string` | `"claude-sonnet-5-5"` | The model every session starts on |
+| `programming/hermes.delegation_model` | `string` | `"claude-sonnet-5-5"` | The model subagents run on |
 | `programming/hermes.system_voice` | `string` | `"en_US-lessac-medium"` | Piper voice the system agent answers in |
 | `programming/hermes.system_stt_model` | `string` | `"small"` | Local whisper model the system agent hears with |
 | `programming/jetbrains.autostart` | `bool` | `false` | Toolbox starts with the session |

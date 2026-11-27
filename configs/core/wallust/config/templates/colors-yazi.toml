@@ -42,7 +42,7 @@ perm_type       = { fg = "{{color4}}" }
 perm_read       = { fg = "{{color3}}" }
 perm_write      = { fg = "{{color1}}" }
 perm_exec       = { fg = "{{color2}}" }
-progress_label  = { fg = "{{color15}}", bold = true }
+progress_label  = { fg = "{{foreground}}", bold = true }
 progress_normal = { fg = "{{color4}}", bg = "{{bg_alt}}" }
 progress_error  = { fg = "{{color1}}", bg = "{{bg_alt}}" }
 

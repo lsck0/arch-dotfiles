@@ -35,6 +35,8 @@ def profile-style [dir: path]: nothing -> list<any> {
 export def link [cfg: record] {
     [
         (profile-style (xdg config chromium))
+        # --no-first-run also skips initial_preferences, so a new profile takes its GTK theme from profile-style on the
+        # next apply; chromium 158 reads none of the distribution keys that would skip the first-run ui instead
         (file-text (xdg config chromium-flags.conf) "--no-first-run\n--ozone-platform-hint=auto\n")
         (files-into (xdg data applications) config/chromium-streaming.desktop)
         (desktop-override chromium.desktop { desktop-set {Name: "Chromium Private"} })

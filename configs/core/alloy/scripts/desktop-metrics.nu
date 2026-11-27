@@ -16,7 +16,8 @@ const HELP = {
     dot_run_last_success_timestamp_seconds: "Unix time the newest ok dot run of this verb ended"
     dot_run_last_ok: "1 when the newest dot run of this verb ended ok"
     dot_run_failures: "ERROR records in the newest dot apply or sync"
-    dot_check_failed: "dot status checks of this kind at FAIL"
+    dot_check_failed: "dot status checks of this kind at FAIL, pending work left out"
+    dot_check_pending: "dot status checks of this kind with work pending (todo: an apply, a package install, a reboot)"
     desktop_failed_units: "Failed units of this systemd manager"
     apparmor_denials_total: "AppArmor denials since boot, by profile"
     desktop_crash_last_timestamp_seconds: "Unix time of the newest core dump of this program in 30 days"
@@ -28,7 +29,7 @@ const HELP = {
 }
 const USER_METRICS = [
     dot_run_last_timestamp_seconds dot_run_last_success_timestamp_seconds dot_run_last_ok dot_run_failures
-    dot_check_failed desktop_failed_units
+    dot_check_failed dot_check_pending desktop_failed_units
 ]
 const USER_LABELS = [verb check manager]
 # a login's file is a few kilobytes
@@ -235,9 +236,13 @@ def "main user" []: nothing -> nothing {
     let dot = $nu.home-dir | path join .local bin dot
     let status = try { ^$dot status --json | complete | get stdout | from json } catch { null }
     let checks = if $status == null { [] } else {
-        $status.checks | group-by check | items {|check, rows|
-            metric dot_check_failed gauge {check: $check} ($rows | where level == FAIL | length)
-        }
+        # a dot from before the pending field counts its todo rows as failed, as it always did
+        $status.checks | default false pending | group-by check | items {|check, rows|
+            [
+                (metric dot_check_failed gauge {check: $check} ($rows | where level == FAIL and not $it.pending | length))
+                (metric dot_check_pending gauge {check: $check} ($rows | where pending | length))
+            ]
+        } | flatten
     }
     let state = $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state)
     let failed = ^systemctl --user --failed --plain --no-legend | complete | get stdout | lines | where $it != "" | length

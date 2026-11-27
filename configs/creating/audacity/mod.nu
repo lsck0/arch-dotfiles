@@ -1,4 +1,5 @@
 use module.nu *
+use scripts/theme-restore.nu [audacity-theme]
 
 export const meta = {packages: {pacman: [audacity uv]}}
 
@@ -27,6 +28,8 @@ export def link [cfg: record] {
             # the .so's mtime, so an upgrade re-enables the module
             ModuleDateTime: {mod-script-pipe: $built}
         })
+        # its exit rewrites the cfg with the theme it started with, so a switch made while it ran would not last
+        (user-hook audacity-theme scripts/theme-restore.nu --watch ["%h/.config/audacity/audacity.cfg"])
         (if $cfg.mcp {
             (mcp-uvx audacity $"audacity-mcp-server==($MCP_VERSION)" $MCP_FROZEN [audacity-mcp] audacity_mcp.tool_registry
                 --env-vars {HF_HUB_DISABLE_TELEMETRY: "1"})
@@ -36,7 +39,6 @@ export def link [cfg: record] {
 
 export def theme [cfg: record, wallpaper: string] {
     if (which audacity | is-empty) { return [] }
-    let light = (palette-load | get --optional light) == "1"
-    # audacity saves its cfg on exit, so a switch while it runs lands on its next start after this merge
-    [(ini-merge (xdg config audacity audacity.cfg) {GUI: {Theme: (if $light { "light" } else { "dark" })}})]
+    # a switch while it runs lands on its next start: its exit save reverts this merge, the audacity-theme hook redoes it
+    [(ini-merge (xdg config audacity audacity.cfg) {GUI: {Theme: (audacity-theme)}})]
 }

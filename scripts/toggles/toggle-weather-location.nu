@@ -51,7 +51,9 @@ def timezone-coords []: nothing -> any {
 
 def ipgeo-coords []: nothing -> any {
     let reply = try { http get --max-time $IPGEO_TIMEOUT $IPGEO_URL } catch { {} }
-    if $reply.latitude? != null and $reply.longitude? != null { coords-format $reply.latitude $reply.longitude }
+    if $reply.latitude? == null or $reply.longitude? == null { return null }
+    # a whole-number coordinate parses as an int, which a float parameter refuses
+    try { coords-format ($reply.latitude | into float) ($reply.longitude | into float) } catch { null }
 }
 
 def sources []: nothing -> list<string> {

@@ -90,7 +90,7 @@
                 after: discord
             }
             {
-                cmd: "fluxer --password-store=gnome-libsecret --autostart"
+                cmd: "fluxer --password-store=gnome-libsecret --remote-debugging-port=9234 --autostart"
                 after: discord
             }
             {

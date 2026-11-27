@@ -6,7 +6,8 @@ const PINENTRY = "/usr/bin/pinentry"
 
 export const meta = {
     packages: {pacman: [gpg-tui]}
-    inputs: [~/.gnupg/pubring.kbx ~/.gnupg/trustdb.gpg ~/.gnupg/private-keys-v1.d $PINENTRY_QT]
+    # the public keys: pubring.db under keyboxd (gnupg 2.4's default on a new home), pubring.kbx without it
+    inputs: [~/.gnupg/pubring.kbx ~/.gnupg/public-keys.d/pubring.db ~/.gnupg/trustdb.gpg ~/.gnupg/private-keys-v1.d $PINENTRY_QT]
 }
 
 export const options = {

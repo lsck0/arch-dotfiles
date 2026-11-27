@@ -37,4 +37,15 @@ def "main prepare" [] {
 
     # only a killed instance needs time to drop its layers
     if ($pids | is-not-empty) { sleep $SETTLE }
+
+    # every instance of this config is dead by now; each keeps its whole debug log in RAM until logout, so only the
+    # last one stays, for reading after a crash
+    let run = $env.XDG_RUNTIME_DIR | path join quickshell
+    let listed = ^quickshell list --show-dead --json -p $config | complete | get stdout
+    let dead = try { $listed | from json | default [] } catch { [] } | sort-by launch_time | drop 1
+    for instance in $dead {
+        rm -rf ($run | path join by-id $instance.id) ($run | path join by-shell $instance.shell_id $instance.id)
+        let pid_link = $run | path join by-pid ($instance.pid | into string)
+        if ($pid_link | path type) == symlink and (^readlink $pid_link | str ends-with $"/($instance.id)") { rm -f $pid_link }
+    }
 }

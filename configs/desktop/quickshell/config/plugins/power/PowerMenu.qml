@@ -12,7 +12,7 @@ Item {
   property int selectedIndex: 0
   readonly property string userName: Quickshell.env("USER") || Quickshell.env("LOGNAME") || ""
   readonly property var actions: [
-    { label: "Lock", hotkey: "O", icon: "\u{f023}", cmd: ["loginctl", "lock-session"] },
+    { label: "Lock", hotkey: "L", icon: "\u{f023}", cmd: ["loginctl", "lock-session"] },
     { label: "Exit", hotkey: "E", icon: "\u{f08b}", cmd: ["uwsm", "stop"], confirm: true },
     { label: "Suspend", hotkey: "Z", icon: "\u{f04b2}", cmd: ["systemctl", "suspend", "--check-inhibitors=no"] },
     { label: "Shutdown", hotkey: "S", icon: "\u{f011}", cmd: ["systemctl", "poweroff"], confirm: true },
@@ -93,8 +93,9 @@ Item {
           return
         }
         if (event.key === Qt.Key_Escape) root.close()
-        else if (event.key === Qt.Key_Left || event.key === Qt.Key_H) root.select(-1)
-        else if (event.key === Qt.Key_Right || event.key === Qt.Key_L) root.select(1)
+        // arrows and tab only: a letter is always an action's hotkey (L is lock)
+        else if (event.key === Qt.Key_Left || event.key === Qt.Key_Backtab) root.select(-1)
+        else if (event.key === Qt.Key_Right || event.key === Qt.Key_Tab) root.select(1)
         else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) root.activate(root.selectedIndex)
         else {
           let index = root.hotkeyIndex(event.key)

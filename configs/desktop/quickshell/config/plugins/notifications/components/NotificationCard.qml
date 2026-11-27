@@ -166,7 +166,8 @@ BorderSurface {
           sourceSize.width: smallIconSlot.width * Screen.devicePixelRatio
           sourceSize.height: smallIconSlot.height * Screen.devicePixelRatio
           fillMode: Image.PreserveAspectFit
-          asynchronous: true
+          // a notification's own image (image://qsimage) is gone once the app closes it, so it loads at once
+          asynchronous: root.smallIconSource.indexOf("image://qsimage/") !== 0
           visible: !root.hasGlyph || smallIconImage.status === Image.Ready
           onStatusChanged: if (status === Image.Error && root.image.length > 0) root.imageFailed = true
         }

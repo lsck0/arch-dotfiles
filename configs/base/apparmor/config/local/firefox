@@ -7,6 +7,7 @@ owner @{user_share_dirs}/mozilla/native-messaging-hosts/{,*.json} r,
 owner @{user_config_dirs}/mozilla/firefox/*/gmp-widevinecdm/*/libwidevinecdm.so mr,
 
 include <abstractions/dotfiles/viewer-read>
+include <abstractions/dotfiles/claude-desktop-fontconfig>
 
 include <abstractions/dotfiles/save-anywhere>
 

@@ -86,6 +86,7 @@ export def link [cfg: record] {
     let current = try { open $settings | get --optional hooks | default {} } catch { {} }
     let creds = home .claude .credentials.json
     let backup = backup-dir
+    let restore = (secret-is-plaintext ($backup | path join credentials.json)) and not ($creds | path exists)
     [
         # the wrapper that drops the session's DO_NOT_TRACK, only where remote control wants the feature flags
         (if $cfg.remote_control { shell-aliases claude })
@@ -111,13 +112,21 @@ export def link [cfg: record] {
             # login via credentials.json only: settings.json is shared into every identity
             (json-delete [env CLAUDE_CODE_OAUTH_TOKEN])
         ])
-        (if (secret-is-plaintext ($backup | path join credentials.json)) and not ($creds | path exists) {
-            [
-                (exec claude-login [install -Dm600 ($backup | path join credentials.json) $creds] --creates $creds)
-                (json-merge (home .claude.json) (open ($backup | path join account.json)))
-            ]
-        })
+        (if $restore { exec claude-login [install -Dm600 ($backup | path join credentials.json) $creds] --creates $creds })
+        (account-merge $restore $backup)
     ]
+}
+
+# Declared on every run with the value already there, the backup's only while restoring a login: keys declared only
+# while the credentials are missing are dropped, and so deleted, by the next run, which sees them present.
+def account-merge [restore: bool, backup: path]: nothing -> any {
+    let file = home .claude.json
+    let current = try { open $file | select --optional ...$ACCOUNT_KEYS } catch { {} }
+    let saved = if $restore { open ($backup | path join account.json) } else { {} }
+    let account = $current | merge $saved
+    let keys = $ACCOUNT_KEYS | where {|k| ($account | get --optional $k) != null }
+    if ($keys | is-empty) { return null }
+    json-merge $file ($keys | each {|k| {$k: ($account | get $k)} } | into record)
 }
 
 export def theme [cfg: record, wallpaper: string] {

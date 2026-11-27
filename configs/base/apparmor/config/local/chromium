@@ -26,3 +26,8 @@ deny @{user_config_dirs}/mimeapps.list* w,
 deny @{user_share_dirs}/applications/{,**} w,
 # apparmor.d writes only the download dir: "Save as" elsewhere failed, as firefox's no longer does
 include <abstractions/dotfiles/save-anywhere>
+include <abstractions/dotfiles/claude-desktop-fontconfig>
+# xdg-settings and xdg-mime probing the default browser on every start, which the policy turns off anyway
+deny @{bin}/xprop rx,
+deny @{bin}/dbus-send rx,
+deny @{PROC}/version r,

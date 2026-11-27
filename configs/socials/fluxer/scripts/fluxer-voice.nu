@@ -9,7 +9,9 @@ const BINDING = "qsFluxerVoice"
 const STATE_FILE = "quickshell-fluxer-voice.json"
 # a websocket frame holds a whole snapshot, avatars urls and all
 const FRAME_BYTES = 4194304
-const EXIT_NO_CLIENT = 1
+# Fluxer not running is the normal idle state, not a failure: a clean exit keeps failure-notify quiet, Restart=always
+# still brings the helper back
+const EXIT_NO_CLIENT = 0
 
 # Runs in Fluxer's page, once per document. Its engine facade (window._mediaEngineFacade) holds the call and fires
 # subscribe on every change; names come from its channel and guild stores, avatars from its avatar url helper, looked up

@@ -131,9 +131,11 @@ Item {
     var out = []
     for (let i = 0; i < values.length; i++) {
       const t = values[i]
-      const cls = t.wayland ? String(t.wayland.appId || "") : ""
+      // quickshell never prunes a toplevel whose closewindow it missed; closed or unmapped ones lack these
+      if (!t.wayland || !t.workspace) continue
+      const cls = String(t.wayland.appId || "")
       const title = String(t.title || "")
-      const ws = t.workspace ? String(t.workspace.id) : "--"
+      const ws = String(t.workspace.id)
       if (!root.matchesAll(words, (title + " " + cls + " " + ws).toLowerCase())) continue
       out.push(root.row("window", "\u{f2d0}", title || cls || "--", "[" + ws + "] " + cls, String(t.address || ""),
                         cls ? Util.iconSource(cls.toLowerCase()) : ""))

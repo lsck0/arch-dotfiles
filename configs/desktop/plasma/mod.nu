@@ -147,8 +147,9 @@ export def link [cfg: record] {
         (files-into (xdg data applications) ...(glob ($DIR | path join applications "*.desktop")))
         # only seeded: dolphin rewrites its view properties on every view change
         (ini-seed ($DIR | path join $DOLPHIN_VIEW) (xdg data $DOLPHIN_VIEW))
-        # no kiosk key hides dolphin's dock short of shell_access=false, which also stops it running any executable
-        (ini-merge ($nu.home-dir | path join $DOLPHIN_STATE) {State: {State: (open --raw ($DIR | path join $DOLPHIN_DOCK) | str trim)}})
+        # no kiosk key hides dolphin's dock short of shell_access=false, which also stops it running any executable;
+        # only seeded: the blob also holds the window's dock sizes, which dolphin rewrites on every close
+        (ini-merge ($nu.home-dir | path join $DOLPHIN_STATE) {State: {State: (open --raw ($DIR | path join $DOLPHIN_DOCK) | str trim)}} --missing-only)
         (rc-files | where $it not-in [$SHELLRC $KCMINPUTRC] | each {|f| file-copy ($DIR | path join $f) (config-path $f) })
         (file-text (config-path $KCMINPUTRC) (open --raw ($DIR | path join $KCMINPUTRC) | kcminput-cursor (cursor-name ($cfg.deps?."desktop/cursor"?.active? | default false)) (cursor-size $cfg.deps?."desktop/cursor"?)))
         (file-text (config-path $SHELLRC) (open --raw ($DIR | path join $SHELLRC) | ini-apply (shell-updates-done) true))
