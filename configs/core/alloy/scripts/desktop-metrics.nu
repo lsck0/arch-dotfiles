@@ -11,6 +11,9 @@ const DIR = "/var/lib/node-textfile"
 const SYSTEM_RUNS = "/var/lib/dotfiles/runs"
 const RUNTIME_ROOT = "/run/user"
 const USER_FILE = "desktop-metrics.json"
+# a binary under development (a build in a checkout under ~/projects, an agent's scratch copy in /tmp) dies on its own
+# asserts as part of the work: its core dumps are no desktop health, so they never page
+const DEV_EXE = '^(/tmp/|/var/tmp/|/home/[^/]+/projects/)'
 const HELP = {
     dot_run_last_timestamp_seconds: "Unix time the newest dot run of this verb ended"
     dot_run_last_success_timestamp_seconds: "Unix time the newest ok dot run of this verb ended"
@@ -221,7 +224,7 @@ def "main system" []: nothing -> nothing {
     }
     let dumps = ^coredumpctl list --json=short --no-pager --since $CRASH_WINDOW | complete
     let crashes = if $dumps.exit_code != 0 { [] } else {
-        $dumps.stdout | from json | where exe? != null | each {|d| {program: ($d.exe | path basename), time: ($d.time // 1_000_000)} }
+        $dumps.stdout | from json | where exe? != null and $it.exe !~ $DEV_EXE | each {|d| {program: ($d.exe | path basename), time: ($d.time // 1_000_000)} }
             | group-by program | items {|program, rows|
                 metric desktop_crash_last_timestamp_seconds gauge {program: $program} ($rows.time | math max)
             }

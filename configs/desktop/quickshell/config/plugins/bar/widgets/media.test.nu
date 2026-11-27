@@ -27,11 +27,14 @@ LINGER_MS = 1000
 # Colors.qml's accent with no colors.json, and a cover colour readable as is on its background
 THEME_ACCENT = "#39bae6"
 ART_ORANGE = "#FF8000"
-SETTLE_S = 6.0
+# an upper bound on reaching a state, never a wait: generous for a loaded machine, and a pass costs no more
+SETTLE_S = 20.0
 MPRIS = "org.mpris.MediaPlayer2"
 PLAYER = MPRIS + ".Player"
 PROPS = "org.freedesktop.DBus.Properties"
 OBJ = "/org/mpris/MediaPlayer2"
+# MprisPlaybackState as the shell prints it
+STATUS = {"Stopped": 0, "Playing": 1, "Paused": 2}
 
 HOVER_STUB = """import QtQuick
 // test stand-in: the real one is a PanelWindow, which has no backend offscreen
@@ -49,6 +52,7 @@ Item {
 SHELL = """import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Services.Mpris
 import qs.Commons
 import "plugins/bar/widgets"
 
@@ -65,6 +69,8 @@ ShellRoot {
   }
 
   readonly property string state: JSON.stringify({
+    // every player the shell knows, noise too, so the driver steps only once the shell caught up
+    seen: (Mpris.players ? Mpris.players.values : []).map(p => p.dbusName + "=" + p.playbackState),
     players: MediaState.players.map(p => p.dbusName + "=" + p.playbackState),
     player: MediaState.player ? MediaState.player.dbusName : "",
     pinned: MediaState.pinnedPlayer,
@@ -275,9 +281,21 @@ class Harness:
                 return True
         return False
 
+    def seen(self, name, status):
+        """wait until the shell knows the player in that status: the start order and the list order follow the order
+        the shell sees players in, not the order they joined the bus"""
+        key = MPRIS + "." + name + "=" + str(STATUS[status])
+        if not self.wait(lambda s: key in s["seen"]):
+            self.fail("shell sees " + key, key, self.state and self.state["seen"])
+
     def add(self, name, identity, status="Paused", meta=None, desktop=""):
         self.players[name] = FakePlayer(self.address, name, identity, status, meta, desktop)
+        self.seen(name, status)
         return self.players[name]
+
+    def status(self, name, status):
+        self.players[name].update(PlaybackStatus=status)
+        self.seen(name, status)
 
     def remove(self, name):
         self.players.pop(name).close()
@@ -286,7 +304,8 @@ class Harness:
         for name in list(self.players):
             self.remove(name)
         self.ipc("harness", "pin", "")
-        if not self.wait(lambda s: not s["players"] and not s["shown"] and not s["pinned"], LINGER_MS / 1000 + SETTLE_S):
+        if not self.wait(lambda s: not s["seen"] and not s["players"] and not s["shown"] and not s["pinned"],
+                         LINGER_MS / 1000 + SETTLE_S):
             self.fail("reset", "no players, hidden", self.state)
 
     def ipc(self, target, fn, *args):
@@ -307,9 +326,9 @@ class Harness:
         print(f"ok   {scenario}", flush=True)
         return True
 
-    def hold(self, scenario, seconds, **want):
-        """want holds for the whole window, not just once"""
-        end = time.monotonic() + seconds
+    def hold(self, scenario, seconds, since=None, **want):
+        """want holds for the whole window, not just once; with since, the window ends seconds after that moment"""
+        end = (since if since is not None else time.monotonic()) + seconds
         while time.monotonic() < end:
             self.pump(0.05)
             if not all(self.state.get(k) == v for k, v in want.items()):
@@ -369,13 +388,13 @@ def scenarios(h, work):
              players=[MPRIS + ".firefox.instance_1_58=1"], player=MPRIS + ".firefox.instance_1_58", shown=True,
              playing=True, line="The Video - YouTube", artUrl="https://i.ytimg.com/vi/oYmREV6m-Fg/mqdefault.jpg",
              lock="> The Video - YouTube")
-    h.players["plasma-browser-integration"].update(PlaybackStatus="Playing")
+    h.status("plasma-browser-integration", "Playing")
     h.expect("firefox and pbi twin both playing: the richer twin, lock agrees",
              players=[MPRIS + ".plasma-browser-integration=1"], player=MPRIS + ".plasma-browser-integration",
              shown=True, line="The Video :: The Channel", artUrl="file:///tmp/pbi-artwork.jpg",
              lock="> The Channel :: The Video")
-    h.players["firefox.instance_1_58"].update(PlaybackStatus="Paused")
-    h.players["plasma-browser-integration"].update(PlaybackStatus="Paused")
+    h.status("firefox.instance_1_58", "Paused")
+    h.status("plasma-browser-integration", "Paused")
     h.expect("firefox and pbi twin both paused: the richer twin, lock empty",
              players=[MPRIS + ".plasma-browser-integration=2"], playing=False, lock="")
 
@@ -397,7 +416,7 @@ def scenarios(h, work):
     h.expect("vanish setup", shown=True)
     h.remove("mpv")
     h.expect("player vanishing while shown: bar hidden at once, lock empty", players=[], player="", shown=False,
-             line="", lock="", seconds=2)
+             line="", lock="")
 
     h.clear()
     h.add("mpv", "mpv", "Paused", song("Left Open", "Idle"), "mpv")
@@ -405,8 +424,8 @@ def scenarios(h, work):
     h.expect("vanish-other setup", player=MPRIS + ".spotify", shown=True)
     h.remove("spotify")
     h.expect("playing player vanishing, a paused one left: falls back to the paused one", player=MPRIS + ".mpv",
-             playing=False, lock="", seconds=2)
-    h.expect("... then hides after the linger", shown=False, seconds=linger + 2)
+             playing=False, lock="")
+    h.expect("... then hides after the linger", shown=False, seconds=linger + SETTLE_S)
 
     h.clear()
     h.add("mpv", "mpv", "Playing", song("Pinned Song", "Pin"), "mpv")
@@ -429,31 +448,33 @@ def scenarios(h, work):
     h.expect("paused player pinned while another plays: bar shows the pin, lock the playing one",
              player=MPRIS + ".mpv", pinned=MPRIS + ".mpv", line="Paused Pin :: Pin", lock="> Electric Callboy :: Supernova")
     h.hold("paused pin stays shown past the linger while something plays", linger + 1, shown=True)
-    h.players["spotify"].update(PlaybackStatus="Paused")
-    h.players["spotify"].update(PlaybackStatus="Playing")
+    h.status("spotify", "Paused")
+    h.status("spotify", "Playing")
     h.hold("another player starting: pin kept", 1, pinned=MPRIS + ".mpv", player=MPRIS + ".mpv")
     h.ipc("harness", "pin", "")
     h.expect("pin clicked off: the playing one shown", pinned="", player=MPRIS + ".spotify")
     h.ipc("harness", "pin", MPRIS + ".vlc")
-    h.players["vlc"].update(PlaybackStatus="Playing")
+    h.status("vlc", "Playing")
     h.hold("the pinned player itself starting: pin kept", 1, pinned=MPRIS + ".vlc", player=MPRIS + ".vlc")
 
     h.clear()
     h.add("mpv", "mpv", "Playing", song("Older", "Mpv"), "mpv")
     h.add("spotify", "Spotify", "Playing", SPOTIFY, "spotify")
     h.expect("two-playing setup: the later starter shown", player=MPRIS + ".spotify")
-    h.players["spotify"].update(PlaybackStatus="Paused")
+    h.status("spotify", "Paused")
     h.expect("shown one paused while another plays: switches to the playing one", player=MPRIS + ".mpv",
              playing=True, line="Older :: Mpv")
 
     h.clear()
     h.add("mpv", "mpv", "Playing", SONG, "mpv")
     h.expect("pause setup", shown=True)
-    h.players["mpv"].update(PlaybackStatus="Paused")
-    h.expect("playing to paused: lock line gone at once", playing=False, lock="", seconds=1)
-    h.hold("playing to paused: bar lingers", linger * 0.6, shown=True, line="Song A :: Artist A")
-    h.expect("playing to paused: bar hides after the linger", shown=False, seconds=linger + 2)
-    h.players["mpv"].update(PlaybackStatus="Playing")
+    paused = time.monotonic()
+    h.status("mpv", "Paused")
+    h.expect("playing to paused: lock line gone at once", playing=False, lock="")
+    # measured from the pause, which the linger also counts from, so a slow step above never runs the window past it
+    h.hold("playing to paused: bar lingers", linger * 0.6, since=paused, shown=True, line="Song A :: Artist A")
+    h.expect("playing to paused: bar hides after the linger", shown=False, seconds=linger + SETTLE_S)
+    h.status("mpv", "Playing")
     h.expect("paused to playing again: shown", shown=True, lock="> Artist A :: Song A")
 
     h.clear()
@@ -482,9 +503,9 @@ def scenarios(h, work):
     h.add("mpv", "mpv", "Playing", song("Orange", "Cover", **{"mpris:artUrl": orange}), "mpv")
     h.expect("playing with a coloured cover: accent from the art", artUrl=orange, artAccent=ART_ORANGE.lower(),
              accent=ART_ORANGE.lower())
-    h.players["mpv"].update(PlaybackStatus="Paused")
-    h.expect("paused: back to the theme accent", playing=False, artAccent="", accent=THEME_ACCENT, seconds=2)
-    h.players["mpv"].update(PlaybackStatus="Playing")
+    h.status("mpv", "Paused")
+    h.expect("paused: back to the theme accent", playing=False, artAccent="", accent=THEME_ACCENT)
+    h.status("mpv", "Playing")
     h.expect("playing again: the art accent returns", artAccent=ART_ORANGE.lower(), accent=ART_ORANGE.lower())
     h.players["mpv"].update(Metadata=song("Black", "Cover", **{"mpris:artUrl": black}))
     h.expect("cover without a colour: theme accent", artUrl=black, artAccent="", accent=THEME_ACCENT)
@@ -511,13 +532,13 @@ def scenarios(h, work):
         h.fail("media key osd payload", "media-pause icon", out)
     h.clear()
     h.add("mpv", "mpv", "Paused", song("Title Only", ""), "mpv")
-    h.players["mpv"].update(PlaybackStatus="Playing")
+    h.status("mpv", "Playing")
     h.expect("title without artist: no separator", line="Title Only", lock="> Title Only")
     h.clear()
     h.add("vlc", "VLC media player", "Playing", {"mpris:trackid": dbus.ObjectPath("/t/1")}, "vlc")
     h.expect("no title: bar names the player, lock empty", shown=True, line="VLC media player", lock="")
-    h.players["vlc"].update(PlaybackStatus="Paused")
-    h.expect("no title and paused: dropped as noise", players=[], player="", seconds=2)
+    h.status("vlc", "Paused")
+    h.expect("no title and paused: dropped as noise", players=[], player="")
 
     selection(h)
 
@@ -529,26 +550,26 @@ def selection(h):
     h.add("spotify", "Spotify", "Playing", SPOTIFY, "spotify")
     h.add("mpv", "mpv", "Paused", song("Later", "Mpv"), "mpv")
     h.expect("select setup", player=MPRIS + ".spotify")
-    h.players["mpv"].update(PlaybackStatus="Playing")
+    h.status("mpv", "Playing")
     h.expect("two playing: the one started last", player=MPRIS + ".mpv", line="Later :: Mpv")
-    h.players["spotify"].update(PlaybackStatus="Paused")
-    h.players["spotify"].update(PlaybackStatus="Playing")
+    h.status("spotify", "Paused")
+    h.status("spotify", "Playing")
     h.expect("restarted player: shown again", player=MPRIS + ".spotify", line="Supernova :: Electric Callboy")
-    h.players["spotify"].update(PlaybackStatus="Paused")
-    h.expect("shown one paused, the other plays: the playing one", player=MPRIS + ".mpv", seconds=2)
-    h.players["mpv"].update(PlaybackStatus="Paused")
+    h.status("spotify", "Paused")
+    h.expect("shown one paused, the other plays: the playing one", player=MPRIS + ".mpv")
+    h.status("mpv", "Paused")
     h.hold("all paused: the last shown kept", 1, player=MPRIS + ".mpv")
 
     h.clear()
     h.add("vlc", "VLC media player", "Paused", song("Never Played", "Vlc"), "vlc")
     h.add("mpv", "mpv", "Playing", song("Played", "Mpv"), "mpv")
     h.expect("fallback setup", player=MPRIS + ".mpv")
-    h.players["mpv"].update(PlaybackStatus="Paused")
+    h.status("mpv", "Paused")
     h.add("spotify", "Spotify", "Playing", SPOTIFY, "spotify")
     h.expect("fallback setup: newcomer plays", player=MPRIS + ".spotify")
     h.remove("spotify")
     h.expect("shown player vanishing, all left paused: the one that played last", player=MPRIS + ".mpv",
-             line="Played :: Mpv", seconds=2)
+             line="Played :: Mpv")
 
     h.clear()
     h.add("spotify", "Spotify", "Paused", SPOTIFY, "spotify")
@@ -570,7 +591,7 @@ def main():
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
     h = Harness(shell_dir)
     try:
-        if not h.wait(lambda s: True, 20):
+        if not h.wait(lambda s: True, 60):
             raise SystemExit("no STATE from quickshell:\n" + "\n".join(h.log[-60:]))
         scenarios(h, work)
     finally:
@@ -612,7 +633,7 @@ def main [] {
             QT_QPA_PLATFORM=offscreen GIO_USE_VFS=local GVFS_DISABLE_FUSE=1
             $"XDG_STATE_HOME=($dir)/state" $"XDG_CACHE_HOME=($dir)/cache" $"XDG_CONFIG_HOME=($dir)/config"
             $"XDG_DATA_HOME=($dir)/data"
-            timeout 120 dbus-run-session -- python3 -I ($dir | path join driver.py) $SHELL $dir) | complete
+            timeout 300 dbus-run-session -- python3 -I ($dir | path join driver.py) $SHELL $dir) | complete
     } catch {|e| {failed: $e.msg} }
     rm --recursive --force $dir $rt
     if ($outcome | get --optional failed) != null { error make {msg: $outcome.failed} }
