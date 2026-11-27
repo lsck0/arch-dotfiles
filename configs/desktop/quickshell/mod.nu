@@ -7,8 +7,8 @@ export const meta = {
 
 # what the bar options' entries name: plugins/bar/widgets/<name>.qml, BarSection aside (bar.test.nu)
 export const BAR_WIDGETS = [
-    Agents AppMenu AudioIO Clock Discord Display Drives Exit Homelab Indicators KeyboardLayout Media Network Notifications Obs
-    Phone Separator Submap System Tray Weather Workspaces
+    Agents AppMenu AudioIO Clock Discord Display Drives Exit Fluxer Homelab Indicators KeyboardLayout Media Network
+    Notifications Obs Phone Separator Submap System Tray Weather Workspaces
 ]
 
 export const options = {
@@ -18,7 +18,7 @@ export const options = {
     pomodoro_cycles: {type: int, default: 4, doc: "Focus blocks before a long break", label: "Cycles", group: pomodoro, min: 1, max: 12, apply: live, scope: user}
     clipboard_history_max_age_h: {type: int, default: 12, doc: "Hours a copied text or image stays in the clipboard history", label: "Keep history for", group: clipboard, min: 1, max: 168, apply: live, scope: user}
     bar_left: {type: list<string>, default: [AppMenu Workspaces Submap], doc: "Widgets on the left of the main bar, by plugins/bar/widgets name", label: "Left", group: bar, choices: $BAR_WIDGETS, ordered: true, apply: live, scope: user}
-    bar_center: {type: list<string>, default: [Clock Weather Media Obs Discord], doc: "Widgets in the middle of the main bar", label: "Center", group: bar, choices: $BAR_WIDGETS, ordered: true, apply: live, scope: user}
+    bar_center: {type: list<string>, default: [Clock Weather Media Obs Discord Fluxer], doc: "Widgets in the middle of the main bar", label: "Center", group: bar, choices: $BAR_WIDGETS, ordered: true, apply: live, scope: user}
     bar_right: {
         type: list<string>
         default: [Tray Separator Agents Phone Homelab System Drives Network Display AudioIO Notifications KeyboardLayout Indicators Exit]
@@ -47,6 +47,7 @@ export const options = {
     desktop_quote: {type: bool, default: true, doc: "Daily quote on the wallpaper", label: "Quote", group: desktop, apply: live, scope: user}
     desktop_quotes_file: {type: string?, default: null, doc: "JSON list of {text, author} to draw the daily quote from instead of the built-in one", label: "Quotes file", group: desktop, apply: live, scope: user}
     desktop_agenda: {type: bool, default: true, doc: "Tasks, reminders, events and the pomodoro on the wallpaper", label: "Agenda", group: desktop, apply: live, scope: user}
+    desktop_blur: {type: bool, default: false, doc: "Blur the agenda and notes on the wallpaper past reading, as while streaming or recording", label: "Blur agenda and notes", group: desktop, apply: live, scope: user}
     lock_show_media: {type: bool, default: true, doc: "Playing track on the lock screen", label: "Media", group: lock, apply: live, scope: user}
     lock_show_notifications: {type: bool, default: true, doc: "Unread notifications on the lock screen", label: "Notifications", group: lock, apply: live, scope: user}
     sounds: {type: bool, default: true, doc: "Chimes for alerts, reminders and pomodoro phases", label: "Sounds", group: notifications, apply: live, scope: user}
@@ -72,6 +73,16 @@ export const options = {
         scope: user
     }
     bar_spectrum: {type: bool, default: true, doc: "Audio spectrum behind the bar's media widget", label: "Media spectrum", group: bar, apply: live, scope: user}
+    tray_default: {
+        type: string
+        default: drawer
+        doc: "Where a tray icon sits until it is pinned, hidden or put back by hand: the drawer, pinned, or hidden"
+        label: "Tray icons"
+        group: bar
+        choices: [drawer pinned hidden]
+        apply: live
+        scope: user
+    }
     agent_usage_limits: {type: bool, default: true, doc: "Rate-limit bars in the agents widget; each refresh sends a one-token request on your Claude plan", label: "Agent limits", group: bar, apply: live, scope: user}
 }
 
@@ -113,6 +124,7 @@ def prefs-config [cfg: record]: nothing -> record {
         desktopQuote: $cfg.desktop_quote
         desktopQuotesFile: $cfg.desktop_quotes_file
         desktopAgenda: $cfg.desktop_agenda
+        desktopBlur: $cfg.desktop_blur
         lockMedia: $cfg.lock_show_media
         lockNotifications: $cfg.lock_show_notifications
         sounds: $cfg.sounds
@@ -121,6 +133,7 @@ def prefs-config [cfg: record]: nothing -> record {
         weatherSources: $cfg.weather_location_sources
         clockZones: $cfg.clock_zones
         barSpectrum: $cfg.bar_spectrum
+        trayDefault: $cfg.tray_default
         agentLimits: $cfg.agent_usage_limits
     }
     file-text ($nu.home-dir | path join $CONFIG_DIR prefs.json) $"($config | to json --raw)\n" --generated

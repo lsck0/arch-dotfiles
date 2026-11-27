@@ -367,7 +367,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/quickshell.pomodoro_cycles` | `int` | `4` | Focus blocks before a long break |
 | `desktop/quickshell.clipboard_history_max_age_h` | `int` | `12` | Hours a copied text or image stays in the clipboard history |
 | `desktop/quickshell.bar_left` | `list<string>` | `[AppMenu, Workspaces, Submap]` | Widgets on the left of the main bar, by plugins/bar/widgets name |
-| `desktop/quickshell.bar_center` | `list<string>` | `[Clock, Weather, Media, Obs, Discord]` | Widgets in the middle of the main bar |
+| `desktop/quickshell.bar_center` | `list<string>` | `[Clock, Weather, Media, Obs, Discord, Fluxer]` | Widgets in the middle of the main bar |
 | `desktop/quickshell.bar_right` | `list<string>` | `[Tray, Separator, Agents, Phone, Homelab, System, Drives, Network, Display, AudioIO, Notifications, KeyboardLayout, Indicators, Exit]` | Widgets on the right of the main bar |
 | `desktop/quickshell.bar_secondary_left` | `list<string>` | `[AppMenu, Workspaces, Submap]` | Widgets on the left of every other screen's bar |
 | `desktop/quickshell.bar_secondary_center` | `list<string>` | `[]` | Widgets in the middle of every other screen's bar |
@@ -386,6 +386,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/quickshell.desktop_quote` | `bool` | `true` | Daily quote on the wallpaper |
 | `desktop/quickshell.desktop_quotes_file` | `string?` | unset | JSON list of {text, author} to draw the daily quote from instead of the built-in one |
 | `desktop/quickshell.desktop_agenda` | `bool` | `true` | Tasks, reminders, events and the pomodoro on the wallpaper |
+| `desktop/quickshell.desktop_blur` | `bool` | `false` | Blur the agenda and notes on the wallpaper past reading, as while streaming or recording |
 | `desktop/quickshell.lock_show_media` | `bool` | `true` | Playing track on the lock screen |
 | `desktop/quickshell.lock_show_notifications` | `bool` | `true` | Unread notifications on the lock screen |
 | `desktop/quickshell.sounds` | `bool` | `true` | Chimes for alerts, reminders and pomodoro phases |
@@ -394,6 +395,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `desktop/quickshell.weather_location_sources` | `list<string>` | `[geoclue, timezone, ipgeo]` | Where weather looks for the location, in order, when none is pinned; geoclue and ipgeo ask online services |
 | `desktop/quickshell.clock_zones` | `list<string>` | `["NA West=America/Los_Angeles", "NA Central=America/Chicago", "NA East=America/New_York", "UK=Europe/London", "Central EU=Europe/Berlin", "NZ=Pacific/Auckland", "JP=Asia/Tokyo"]` | World clocks in the clock panel: an IANA zone, or label=zone |
 | `desktop/quickshell.bar_spectrum` | `bool` | `true` | Audio spectrum behind the bar's media widget |
+| `desktop/quickshell.tray_default` | `string` | `"drawer"` | Where a tray icon sits until it is pinned, hidden or put back by hand: the drawer, pinned, or hidden |
 | `desktop/quickshell.agent_usage_limits` | `bool` | `true` | Rate-limit bars in the agents widget; each refresh sends a one-token request on your Claude plan |
 | `desktop/qutebrowser.search_url` | `string?` | detected | The default search engine, {} is the query; unset, the homelab's searxng on a homelab machine, else duckduckgo |
 | `desktop/qutebrowser.search_method` | `string` | `"GET"` | The startpage's search form method; most engines, the homelab's searxng too, take GET; POST works only in qutebrowser |

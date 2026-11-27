@@ -11,7 +11,10 @@ BarWidget {
   hoverPanel: true
   hoverFill: true
 
-  readonly property string statePath: Paths.runtimeDir + "/quickshell-discord-voice.json"
+  // the voice state a client's bridge writes: discord's BetterDiscord plugin here, fluxer-voice.nu for Fluxer.qml
+  property string statePath: Paths.runtimeDir + "/quickshell-discord-voice.json"
+  // mute, deafen and leave go through DiscordControl's command file; a client without one shows no buttons
+  property bool controllable: true
 
   readonly property int avatarSize: Style.space(22)
   readonly property int ringWidth: Math.max(1, Style.space(2))
@@ -243,9 +246,10 @@ BarWidget {
         }
       }
 
-      PanelSeparator {}
+      PanelSeparator { visible: root.controllable }
 
       Row {
+        visible: root.controllable
         width: parent.width
         spacing: Style.spacing.xs
 

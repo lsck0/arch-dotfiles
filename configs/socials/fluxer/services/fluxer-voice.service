@@ -1,0 +1,15 @@
+[Unit]
+Description=Fluxer's voice call state for the quickshell bar, read over its DevTools port
+PartOf=graphical-session.target
+After=graphical-session.target
+# Fluxer starts and quits on its own schedule: the helper exits while it is not running and comes back after RestartSec
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=%h/.local/bin/fluxer-voice
+Restart=always
+RestartSec=15
+Slice=background.slice
+
+[Install]
+WantedBy=graphical-session.target

@@ -19,6 +19,8 @@ BarWidget {
   property var activeTrayAnchor: null
   readonly property var pinnedIds: settings.pinned instanceof Array ? settings.pinned : []
   readonly property var hiddenIds: settings.hidden instanceof Array ? settings.hidden : []
+  // put back in the drawer by hand, against a tray_default of pinned or hidden
+  readonly property var drawerIds: settings.drawer instanceof Array ? settings.drawer : []
   readonly property var pinnedItems: bucket("pinned")
   readonly property var drawerItems: bucket("drawer")
   readonly property var allItems: bucket("all")
@@ -126,37 +128,43 @@ BarWidget {
     return item.tooltipTitle || item.title || item.id || ""
   }
 
-  function classifyItem(item) {
-    var iid = String(item.id || "")
+  // a hand-set place first, else the tray_default option's
+  function placeOf(iid) {
     if (hiddenIds.indexOf(iid) !== -1) return "hidden"
     if (pinnedIds.indexOf(iid) !== -1) return "pinned"
-    return "drawer"
+    if (drawerIds.indexOf(iid) !== -1) return "drawer"
+    return Prefs.trayDefault
   }
+
+  function classifyItem(item) { return placeOf(String(item.id || "")) }
 
   function bucket(category) {
     return SystemTray.items.values // qmllint disable missing-property
       .filter(item => item.status !== Status.Passive && (category === "all" || classifyItem(item) === category))
   }
 
-  function persistTrayState(pinned, hidden) {
-    if (!root.bar || !root.bar.shellHost || typeof root.bar.shellHost.setWidgetSettings !== "function") return
-    root.bar.shellHost.setWidgetSettings("Tray", { pinned: pinned, hidden: hidden })
-  }
-
-  // an id pinned or hidden leaves the other list
-  function toggleIn(own, other, iid) {
+  // an id sits in at most one of the three lists: its hand-set place
+  function placeSet(iid, place) {
     const without = list => list.filter(id => id !== iid)
-    return own.indexOf(iid) !== -1 ? [without(own), other] : [own.concat([iid]), without(other)]
+    const lists = { pinned: without(pinnedIds), hidden: without(hiddenIds), drawer: without(drawerIds) }
+    lists[place] = lists[place].concat([iid])
+    if (!root.bar || !root.bar.shellHost || typeof root.bar.shellHost.setWidgetSettings !== "function") return
+    root.bar.shellHost.setWidgetSettings("Tray", lists)
   }
 
-  function togglePin(iid) {
-    const [pinned, hidden] = toggleIn(pinnedIds, hiddenIds, iid)
-    persistTrayState(pinned, hidden)
-  }
+  // pin or hide, or back to the drawer from there
+  function togglePin(iid) { placeSet(iid, placeOf(iid) === "pinned" ? "drawer" : "pinned") }
 
-  function toggleHide(iid) {
-    const [hidden, pinned] = toggleIn(hiddenIds, pinnedIds, iid)
-    persistTrayState(pinned, hidden)
+  function toggleHide(iid) { placeSet(iid, placeOf(iid) === "hidden" ? "drawer" : "hidden") }
+
+  // a tray icon's left click: its app (focused), or its menu where it has only that
+  function activateItem(item, anchorItem, mouse) {
+    if (item.onlyMenu) {
+      root.openTrayMenu(item, anchorItem, mouse)
+      return
+    }
+    item.activate()
+    root.focusApp(item)
   }
 
   readonly property bool allHidden: allItems.length > 0 && pinnedItems.length === 0 && drawerCount === 0
@@ -296,8 +304,35 @@ BarWidget {
             var slash = id.lastIndexOf("/")
             return slash !== -1 ? id.substring(slash + 1) : (id || "Unknown")
           }
-          readonly property bool isPinned: root.pinnedIds.indexOf(itemId) !== -1
-          readonly property bool isHidden: root.hiddenIds.indexOf(itemId) !== -1
+          readonly property bool isPinned: root.placeOf(itemId) === "pinned"
+          readonly property bool isHidden: root.placeOf(itemId) === "hidden"
+
+          // the icon and name open the app, as its tray icon does
+          MouseArea {
+            id: rowOpen
+            anchors.left: parent.left
+            anchors.right: rowHideBtn.left
+            anchors.rightMargin: Style.spacing.sm
+            height: parent.height
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+            onClicked: function(mouse) {
+              if (mouse.button === Qt.MiddleButton) {
+                rowRoot.modelData.secondaryActivate()
+                return
+              }
+              const item = rowRoot.modelData
+              if (!item.onlyMenu) root.managePopupOpen = false
+              root.activateItem(item, rowOpen, mouse)
+            }
+          }
+
+          Rectangle {
+            anchors.fill: rowOpen
+            radius: Style.shape.data
+            color: rowOpen.containsMouse ? Style.hoverFill : "transparent"
+          }
 
           TrayIcon {
             id: rowIcon
@@ -663,11 +698,8 @@ BarWidget {
           mouse.accepted = true
         } else if (mouse.button === Qt.MiddleButton) {
           trayItemRoot.modelData.secondaryActivate()
-        } else if (trayItemRoot.modelData.onlyMenu) {
-          trayItemRoot.displayMenu(mouse)
         } else {
-          trayItemRoot.modelData.activate()
-          root.focusApp(trayItemRoot.modelData)
+          root.activateItem(trayItemRoot.modelData, trayItemRoot, mouse)
         }
       }
       onWheel: function(wheel) {

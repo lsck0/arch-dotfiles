@@ -235,7 +235,7 @@ Item {
           id: agendaCard
           heading: "Agenda"
           visible: !root.agendaEmpty
-          censored: ObsProcess.live
+          censored: ObsProcess.live || Prefs.desktopBlur
           onHeadingClicked: TaskState.panelOpen = true
 
           // one section per kind, each capped on its own and naming what the cap hid
@@ -343,7 +343,7 @@ Item {
           id: notesCard
           heading: "Notes"
           visible: NotesState.disk.trim().length > 0 || notesEdit.text.length > 0
-          censored: ObsProcess.live
+          censored: ObsProcess.live || Prefs.desktopBlur
 
           Label {
             width: parent.width
@@ -397,7 +397,7 @@ Item {
   component Card: GlassCard {
     id: card
     property string heading: ""
-    // while streaming or recording: the body blurs past reading, the heading stays, so the card still shows it is there
+    // while streaming or recording, or by the desktop_blur option: the body blurs past reading, the heading stays, so the card still shows it is there
     property bool censored: false
     default property alias body: bodyCol.data
     readonly property alias headingItem: headingText

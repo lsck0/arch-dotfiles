@@ -4,14 +4,23 @@ use ../../core/wallust/scripts/palette.nu [RADIUS_PX]
 use ../../core/wallust/scripts/font.nu [font-load]
 
 # its theme reads spotify's spicetify colours, as discord's does, so it runs after spotify's
-export const meta = {deps: [socials/spotify], packages: {pacman: [fluxer-bin]}}
+export const meta = {deps: [socials/spotify], packages: {pacman: [fluxer-bin websocat]}}
+
+# Chrome DevTools on loopback, as spotify's: desktop/quickshell's fluxer-voice.nu reads the call state from it. CDP has
+# no auth, so any local process can drive the logged-in session; accepted as for spotify, electron binds loopback only.
+# scripts/fluxer-voice.nu repeats it as PORT (fluxer.test.nu holds the two equal)
+export const DEVTOOLS_PORT = 9234
 
 # a stable path in Fluxer's own config dir for the one link in README.md; Fluxer watches a linked file
 const THEME = "wal.theme.css"
 
 export def link [cfg: record] {
     # electron picks its secret store from XDG_CURRENT_DESKTOP, which hyprland is not, so the store is named
-    desktop-exec app.fluxer.FluxerDesktop.desktop /usr/bin/fluxer --args [--password-store=gnome-libsecret]
+    [
+        (desktop-exec app.fluxer.FluxerDesktop.desktop /usr/bin/fluxer --args [--password-store=gnome-libsecret $"--remote-debugging-port=($DEVTOOLS_PORT)"])
+        (link-commands scripts/fluxer-voice.nu)
+        (unit-file services/fluxer-voice.service --enable --now)
+    ]
 }
 
 export def theme [cfg: record, wallpaper: string] {
