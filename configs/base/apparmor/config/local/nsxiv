@@ -1,0 +1,2 @@
+# managed by arch-dotfiles/apparmor
+include <abstractions/dotfiles/claude-desktop-fontconfig>

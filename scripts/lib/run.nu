@@ -8,7 +8,7 @@ use doctor.nu [doctor-checks]
 use platform.nu [platform-load PLATFORM_NAME_FILE]
 use profile.nu [profile-has]
 use modules.nu [modules-packages modules-packages-each]
-use pipeline.nu [module-get pipeline-load pipeline-plan pipeline-apply pending-save pipeline-progress flatpak-installed nix-installed packages-absent THEME_VERB_TIMEOUT NIX_FLAGS PENDING_FILE]
+use pipeline.nu [module-get pipeline-load pipeline-plan pipeline-apply pending-save pipeline-progress flatpak-installed nix-installed nix-stale packages-absent THEME_VERB_TIMEOUT NIX_FLAGS PENDING_FILE]
 use converge.nu [state-read observe-outputs plan-module recorded-hashes apply-module state-write output-file-state unit-state-holds action-recorded dir-hidden]
 use ledger.nu [ledger-units ledger-get ledger-set ledger-diff ledger-remove packages-convergence awaited-names LEDGER_AWAITED LSCK0_DB]
 use migrate.nu [migrations-run migrations-pending]
@@ -24,7 +24,7 @@ export const PIPELINE_CLI = path self pipeline-cli.nu
 const FAILURES = "FAILURES.config"
 const FAILURES_INSTALL = "FAILURES.install"
 const FAILURES_PUBLISHED = $REPO | path join $FAILURES
-const NIXPKGS = "github:NixOS/nixpkgs/f4a03c008967841f2a0b3cb7c436fc6fc31671f6" # committed 2026-11-07
+const NIXPKGS = "github:NixOS/nixpkgs/2786a2a72088ecf32aea5b3ec52099e6a7cff78f" # committed 2026-11-21
 const FLATHUB = "https://dl.flathub.org/repo/flathub.flatpakrepo"
 const LFS_FILTER = [
     -c "filter.lfs.clean=git-lfs clean -- %f" -c "filter.lfs.smudge=git-lfs smudge -- %f"
@@ -508,6 +508,15 @@ def install-user [declared: record, platform: record, yes: bool, offer_by_hand: 
         if ($missing | is-not-empty) and not $online { $waiting = $waiting | append $"nix ($missing | str join ' ')" }
         if ($missing | is-not-empty) and $online {
             try { ^nix ...$NIX_FLAGS profile add ...($missing | each { $"($NIXPKGS)#($in)" }) } catch { fail $"nix profile add ($missing | str join ' ')" }
+        }
+        # a pin bump: what came from the old commit is replaced from the new one; one that fails to add is missing
+        # next run, which adds it again
+        let stale = if $online { try { nix-stale $NIXPKGS | where $it in $declared.nix } catch { [] } } else { [] }
+        if ($stale | is-not-empty) {
+            try {
+                ^nix ...$NIX_FLAGS profile remove ...$stale
+                ^nix ...$NIX_FLAGS profile add ...($stale | each { $"($NIXPKGS)#($in)" })
+            } catch { fail $"nix profile move to ($NIXPKGS): ($stale | str join ' ')" }
         }
         let installed = if ($missing | is-empty) { $before } else { user-installed nix { nix-installed } }
         if $installed != null {

@@ -57,6 +57,9 @@ Geometry is logical, the PNG physical (scale 1.67 on luca-pc).
   screen. A test shell runs only in the nested Hyprland (`l-dotfiles-gui-testing`).
 - Hot reload always fails with "<Name> is not a type" for an inline component (`component X: ...`) or a file new to the
   running process: after adding one, `restart.nu`.
+- A `.pragma library` script (`Schema.js`, `Palette.js`, `Plugins.js`, the `*Model.js`) is imported once: hot reload
+  keeps its old code. `dot apply desktop/quickshell` restarts the unit when one changes, so ask Luca before applying
+  such an edit to his live shell.
 - Helper processes keep old code: cava and `pomodoro.nu` until a shell restart, `obs-status.nu` until OBS restarts.
 - Hover panels stay compact: a reading appears once per panel (no hero, row, sparkline and gauge for one metric),
   empty sections and one-point sparklines hide, long lists cap with an expand row, about 1000 logical px a panel.

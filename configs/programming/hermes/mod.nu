@@ -65,11 +65,9 @@ def settings [cfg: record]: nothing -> record {
         telemetry.shared_metrics.enabled: false
         telemetry.shared_metrics.send: false
         telemetry.shared_metrics.offer_version: 2
-        # free ids rotate: check them against https://inference-api.nousresearch.com/v1/models
-        fallback_providers: [
-            {provider: nous, model: "stepfun/step-3.7-flash:free"}
-            {provider: nous, model: "tencent/hy4-flash:free"}
-        ]
+        # none: the Nous free tier needs a login Luca does not keep, and a fallback that cannot answer only adds a
+        # failed hop; the local vllm and ollama aliases stay a /model switch away
+        fallback_providers: []
     }
 }
 

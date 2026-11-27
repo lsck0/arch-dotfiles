@@ -77,7 +77,9 @@ as a subcommand (route `direct|proton|tor|offline`, firewall `permissive|default
 
 ## Typing and acting inside a window
 
-`wtype '<text>'` types into whatever has focus; `wtype -k Return` sends a key, `wtype -M ctrl l -m ctrl` a chord. Check
+`wtype '<text>'` types into whatever has focus; `wtype -k Return` sends a key, `wtype -M ctrl l -m ctrl` a chord. Never a
+SUPER chord through wtype: its virtual keyboard's first key goes out as keycode 9, Hyprland matches binds by keycode, so
+`wtype -M logo -k F1` ran SUPER+Escape and locked the screen; reach a bind's action through `hyprctl dispatch` or `qs ipc`. Check
 the focused window first (`hyprctl activewindow -j`); never type into a terminal or a password field. No pointer
 automation: `ydotool.service` runs only while `mouse-jittering` does. `dictate` (`SUPER+ALT+v`) is his voice, not an
 agent's tool.

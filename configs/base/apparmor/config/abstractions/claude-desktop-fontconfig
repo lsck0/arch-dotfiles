@@ -2,7 +2,7 @@
 
   abi <abi/4.0>,
 
-  # a browser or host Claude Desktop starts inherits its FONTCONFIG_FILE, a private copy of /etc/fonts/fonts.conf
+  # a browser, viewer or host Claude Desktop (or an agent under it) starts inherits its FONTCONFIG_FILE, a private copy of /etc/fonts/fonts.conf
   # whose <cachedir> is beside it: denied, the child lost the font config it was pointed at
   owner @{user_cache_dirs}/claude-desktop/fontconfig/ r,
   owner @{user_cache_dirs}/claude-desktop/fontconfig/fonts.conf r,

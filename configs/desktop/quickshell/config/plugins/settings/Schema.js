@@ -171,6 +171,16 @@ function launchEntries(needle, fuzzy) {
   return hits.length > 0 ? [{ kind: "header", id: "#" + togglesId + "/open", text: "open" }].concat(hits) : []
 }
 
+// QUICK TOGGLES: the open rows first, where a newcomer browsing sees them; the plain toggles then get a header of
+// their own, else they would read as part of "open"
+function togglesSection(toggles, needle, fuzzy) {
+  var open = launchEntries(needle, fuzzy)
+  var rows = toggleEntries(toggles, needle, fuzzy)
+  if (open.length > 0 && rows.length > 0 && rows[0].kind !== "header")
+    rows = [{ kind: "header", id: "#" + togglesId + "/toggles", text: "toggles" }].concat(rows)
+  return open.concat(rows)
+}
+
 // scattered letters count only while nothing fits needle as a word or substring: "dpi" lists Wine dpi alone
 function fuzzyAllowed(modules, toggles, needle, status, machine) {
   var entry = function (r) { return r.kind !== "header" }
@@ -354,7 +364,7 @@ function rows(modules, toggles, sectionId, query, status, machine) {
   if (needle) {
     let fuzzy = fuzzyAllowed(modules, toggles, needle, status, machine)
     let labelled = (machine ? [Object.assign({}, machine, { label: machineLabel })] : []).concat(modules)
-    let hits = toggleEntries(toggles, needle, fuzzy).concat(launchEntries(needle, fuzzy))
+    let hits = togglesSection(toggles, needle, fuzzy)
     if (hits.length > 0) out.push({ kind: "header", id: "#" + togglesId, text: togglesLabel })
     out = out.concat(hits)
     out = out.concat(systemEntries(status, needle, fuzzy))
@@ -384,7 +394,7 @@ function rows(modules, toggles, sectionId, query, status, machine) {
     return out
   }
   if (sectionId === machineId) return machine ? moduleRows(machine) : []
-  if (sectionId === togglesId) return toggleEntries(toggles, "").concat(launchEntries(""))
+  if (sectionId === togglesId) return togglesSection(toggles, "")
   if (sectionId === systemId) return systemEntries(status, "")
   var module = modules.find(function (m) { return m.name === sectionId })
   return module ? moduleRows(module) : []

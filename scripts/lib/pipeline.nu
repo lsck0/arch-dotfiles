@@ -135,6 +135,14 @@ export def nix-installed []: nothing -> list<string> {
     ^nix ...$NIX_FLAGS profile list --json | from json | get elements | columns
 }
 
+# The installed nix packages that came from a nixpkgs commit other than pin: a pin bump moves them, as a fresh install
+# would take them from the new commit.
+export def nix-stale [pin: string]: nothing -> list<string> {
+    ^nix ...$NIX_FLAGS profile list --json | from json | get elements | transpose name element
+        | where {|e| let url = $e.element.originalUrl? | default ""; ($url | str starts-with "github:NixOS/nixpkgs/") and $url != $pin }
+        | get name
+}
+
 # Each module's packages; flatpak and nix only for the user layer, which installs them.
 def packages-declared [ctx: record, mods: table]: nothing -> table {
     let user = $ctx.layer == "user"

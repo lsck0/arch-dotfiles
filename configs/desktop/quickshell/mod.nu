@@ -158,6 +158,11 @@ def type-file [name: string]: nothing -> bool {
     ($name | path basename) in $TYPE_FILES or ($name | path parse | get extension) in $TYPE_EXTENSIONS
 }
 
+# Whether a copy is a `.pragma library` script: the engine imports it once, so hot reload keeps its old code
+def library-js [src: path]: nothing -> bool {
+    ($src | path parse | get extension) == "js" and (open --raw $src | lines | first 5 | any { str trim | $in == ".pragma library" })
+}
+
 export def link [cfg: record] {
     let dir = $nu.home-dir | path join $CONFIG_DIR
     let files = ls --long ...(glob --no-dir config/**/*) | update name { path relative-to ($env.PWD | path join config) }
@@ -165,11 +170,13 @@ export def link [cfg: record] {
     let restart = then-step shell-restart
     [
         # in place: quickshell's file watcher follows the inode, so a replaced copy can go unseen and never reload; a
-        # type file new to the tree fails that reload, so it restarts the shell instead
+        # type file new to the tree fails that reload, and a changed library script is never imported again, so both
+        # restart the shell instead
         ($files | each {|f|
             let dest = $dir | path join $f.name
-            let then = if (type-file $f.name) and not ($dest | path exists) { $restart } else { [] }
-            file-copy ("config" | path join $f.name) $dest --in-place --then $then --mode (if ($f.mode | str substring 2..2) == "x" { "755" } else { "644" })
+            let src = "config" | path join $f.name
+            let then = if ((type-file $f.name) and not ($dest | path exists)) or (library-js $src) { $restart } else { [] }
+            file-copy $src $dest --in-place --then $then --mode (if ($f.mode | str substring 2..2) == "x" { "755" } else { "644" })
         })
         (link-commands ...(glob 'config/scripts/*.{nu,sh}' | where $it !~ $SKIP_PATTERN))
         # not enabled: hyprland_autostart.lua starts it
@@ -186,11 +193,11 @@ export def link [cfg: record] {
     ]
 }
 
-# Restarts a running shell after a type file new to it landed. A dot run the shell started itself (the settings
+# Restarts a running shell after a type file new to it or a changed library script landed. A dot run the shell started itself (the settings
 # window's apply) sits in its cgroup and would die with it: that run only says so.
 export def shell-restart []: nothing -> nothing {
     if (open --raw /proc/self/cgroup | str contains $"/($UNIT)") {
-        log-note $"quickshell: new QML files, its hot reload keeps the old tree until restart.nu restarts ($UNIT)"
+        log-note $"quickshell: new QML files or changed library scripts, its hot reload keeps the old code until restart.nu restarts ($UNIT)"
         return
     }
     if (do { ^systemctl --user is-active --quiet $UNIT } | complete).exit_code != 0 { return }

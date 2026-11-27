@@ -25,3 +25,4 @@ owner @{user_cache_dirs}/event-sound-cache.tdb.* rwk,
 deny /dev/tty r,
 # apparmor.d writes only the download dir; uploads read only it as well
 include <abstractions/dotfiles/save-anywhere>
+include <abstractions/dotfiles/claude-desktop-fontconfig>
