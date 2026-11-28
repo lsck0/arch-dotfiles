@@ -229,9 +229,8 @@ def "main system" []: nothing -> nothing {
                 metric desktop_crash_last_timestamp_seconds gauge {program: $program} ($rows.time | math max)
             }
     }
-    let dir = $env.DESKTOP_METRICS_DIR? | default $DIR
     (run-metrics $SYSTEM_RUNS system) ++ $apparmor ++ $crashes ++ (user-rows) ++ (offload-rows) | exposition
-    | save-atomic ($dir | path join desktop.prom) "644"
+    | save-atomic ($DIR | path join desktop.prom) "644"
 }
 
 def "main user" []: nothing -> nothing {
@@ -239,8 +238,7 @@ def "main user" []: nothing -> nothing {
     let dot = $nu.home-dir | path join .local bin dot
     let status = try { ^$dot status --json | complete | get stdout | from json } catch { null }
     let checks = if $status == null { [] } else {
-        # a dot from before the pending field counts its todo rows as failed, as it always did
-        $status.checks | default false pending | group-by check | items {|check, rows|
+        $status.checks | group-by check | items {|check, rows|
             [
                 (metric dot_check_failed gauge {check: $check} ($rows | where level == FAIL and not $it.pending | length))
                 (metric dot_check_pending gauge {check: $check} ($rows | where pending | length))

@@ -114,7 +114,8 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
     for table in $TABLES {
         if (out nft list set inet $table trusted_links) == "" { continue }
         let add = if ($trusted | is-empty) { "" } else { $"add element inet ($table) trusted_links { ($trusted | str join ',') }\n" }
-        $"flush set inet ($table) trusted_links\n($add)" | do { ^nft -f - } | complete | ignore
+        let set = $"flush set inet ($table) trusted_links\n($add)" | ^nft -f - | complete
+        if $set.exit_code != 0 { print -e $"home-network: ($table) trusted_links kept its old links: ($set.stderr | str trim)" }
     }
     ok $TOR_ROUTER home | ignore
 }

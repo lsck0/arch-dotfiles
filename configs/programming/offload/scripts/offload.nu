@@ -7,27 +7,22 @@
 
 const REPO = path self | path expand | path dirname --num-levels 5
 use ($REPO | path join scripts lib secrets.nu) [secret-is-plaintext]
-use ($REPO | path join scripts lib state.nu) [xdg file-lines file-trim]
+use ($REPO | path join scripts lib state.nu) [xdg file-trim]
 use ($REPO | path join scripts lib usage.nu) [die]
 use ($REPO | path join configs programming offload scripts worker.nu) [
-    admit job-cancel metrics-update metrics-finished peak-mib units-active unit-name
-    SLICE NICE IO_WEIGHT JOB_FILE LOG_FILE EXIT_FILE KIND_RUN KIND_AGENT
+    admit job-cancel metrics-update metrics-finished path-inside-valid peak-mib units-active unit-name
+    SLICE NICE IO_WEIGHT JOB_FILE JOB_ID LOG_FILE EXIT_FILE KIND_RUN KIND_AGENT
 ]
 use ($REPO | path join configs programming offload scripts consent.nu) [trust-list trust-revoke]
+use ($REPO | path join configs base ssh scripts wake.nu) [host-reach host-wake knock-open]
 
 export const OFFLOAD_ROLE_TARGET = "target"
 export const OFFLOAD_ROLE_CLIENT = "client"
 export const OFFLOAD_ROLES = [$OFFLOAD_ROLE_TARGET $OFFLOAD_ROLE_CLIENT]
 
 const CONFIG = [offload config.nuon]
-const HOME_NETWORK = "/run/home-network"
-const WG_IFACE = "wg0"
 const LOOPBACK = "127.0.0.1"
-const PROBE_TIMEOUT_S = 2
 const PROBE_TRIES = 2
-const WAKE_TRIES = 45
-const WAKE_INTERVAL = 2sec
-const ROUTER_TIMEOUT_S = 5
 const CONTROL_PERSIST_S = 60
 const SERVER_ALIVE_S = 15
 
@@ -47,8 +42,6 @@ const KINDS = [$KIND_RUN $KIND_AGENT]
 const AGENT_SUFFIX = ".agent"
 const NAME_MAX = 40
 const NAME_FALLBACK = "repo"
-const JOB_ID_MAX = 64
-const JOB_ID = '^[a-z0-9][a-z0-9._-]*$'
 const COMMIT = '^[0-9a-f]{40}([0-9a-f]{24})?$'
 const TARGET_PATH = '^/[A-Za-z0-9._/-]+$'
 const STAMP_FORMAT = "%m%d-%H%M%S"
@@ -100,7 +93,7 @@ export def job-id [slug: string, time: datetime, nonce: string]: nothing -> stri
 }
 
 export def job-id-valid [job: string]: nothing -> bool {
-    $job =~ $JOB_ID and not ($job | str contains "..") and ($job | str length) <= $JOB_ID_MAX
+    $job =~ $JOB_ID and not ($job | str contains "..")
 }
 
 export def ref-source [job: string]: nothing -> string { $"($REF_PREFIX)/($job)/source" }
@@ -124,33 +117,12 @@ def ssh-options [config: record, control: string, identities: list<path>]: nothi
     ]
 }
 
-# Why the target is out of reach from here, or null when home or the tunnel routes its lan address.
-export def reach-blocker [at_home: bool, wg_up: bool, route_dev: string]: nothing -> any {
-    if $at_home { return null }
-    if not $wg_up { return $"away from home and ($WG_IFACE) is down; bring the home vpn up first \(bar: network, Home VPN\)" }
-    if $route_dev != $WG_IFACE {
-        $"the target's address routes out ($route_dev), not ($WG_IFACE): this network shadows the home lan"
-    }
-}
-
-# The router address that sends the wake packet: the lan one at home, the tunnel one away, null when none fits.
-export def router-address [config: record, at_home: bool, route_dev: string]: nothing -> any {
-    if $config.router == null { return null }
-    if $at_home { return $config.router }
-    if $config.router_tunnel != null { return $config.router_tunnel }
-    if $route_dev == $WG_IFACE { $config.router }
-}
-
 export def forward-spec [config: record, service: string, port_local?: int]: nothing -> string {
     let port = $config.forwards | get --optional $service
     if $port == null {
         error make {msg: $"no service ($service); one of ($config.forwards | columns | str join ', ')"}
     }
     $"($LOOPBACK):($port_local | default $port):($LOOPBACK):($port)"
-}
-
-export def path-relative-valid [path: string]: nothing -> bool {
-    $path != "" and not ($path | str starts-with "/") and ($path | path split | all { $in != ".." })
 }
 
 # A request the target acts on, checked whole: names as name-safe makes them, a job id, a full commit id.
@@ -202,15 +174,6 @@ def self-argv []: nothing -> list<string> {
     [$nu.current-exe --no-config-file --stdin $env.CURRENT_FILE]
 }
 
-def at-home []: nothing -> bool { file-lines $HOME_NETWORK | is-not-empty }
-
-def wg-up []: nothing -> bool { $"/sys/class/net/($WG_IFACE)" | path exists }
-
-def route-dev [address: string]: nothing -> string {
-    do { ^ip -o route get $address } | complete | get stdout | parse --regex 'dev (?<dev>\S+)' | get --optional 0.dev
-    | default ""
-}
-
 def identities []: nothing -> list<path> {
     [($REPO | path join configs secrets keys ssh private.asc) ($nu.home-dir | path join .ssh id_ed25519_sk)]
     | where { secret-is-plaintext $in }
@@ -224,44 +187,12 @@ def master-alive [config: record]: nothing -> bool {
     (do { ^ssh ...(ssh-base $config) -O check $config.host } | complete).exit_code == 0
 }
 
-def port-open [host: string, port: int]: nothing -> bool {
-    (do { ^nc -z -w $PROBE_TIMEOUT_S $host ($port | into string) } | complete).exit_code == 0
-}
-
-# Knocks (base/nftables), then probes the hidden sshd port; the knock only opens it once the target's firewall is up.
-def knock-open [config: record, tries: int]: nothing -> bool {
-    for _ in 1..$tries {
-        ^knock $config.host ...($config.knock | each { into string })
-        if (port-open $config.host $config.port) { return true }
-    }
-    false
-}
-
-# Reachable, or woken through the homelab router's wol-pc (base/ssh.wake_router) and waited for; the first ssh after
+# Reachable, or woken through the homelab router's wol-pc (base/ssh's wake.nu) and waited for; the first ssh after
 # this opens the shared connection inside the knock window, every later one rides it.
 def connect [config: record]: nothing -> nothing {
     if $config.role == $OFFLOAD_ROLE_TARGET or (master-alive $config) or (knock-open $config $PROBE_TRIES) { return }
-    let home = at-home
-    let blocker = reach-blocker $home (wg-up) (route-dev $config.host)
-    if $blocker != null { die $blocker }
-    let router_dev = if $config.router != null { route-dev $config.router } else { "" }
-    let router = router-address $config $home $router_dev
-    if $router == null { die $"($config.host) does not answer and no router can wake it \(base/ssh.wake_router\)" }
-    # the tunnel address checks against the router's lan host key, as wake-pc does
-    let key = [-o $"HostKeyAlias=($config.router)" -o $"UserKnownHostsFile=($nu.home-dir)/.ssh/known_hosts.homelab"]
     print --stderr $"offload: waking ($config.host) ..."
-    let sent = do { ^ssh -o $"ConnectTimeout=($ROUTER_TIMEOUT_S)" ...$key $"root@($router)" wol-pc } | complete
-    if $sent.exit_code != 0 { die $"the router at ($router) did not send the magic packet" }
-    for _ in 1..$WAKE_TRIES {
-        if (knock-open $config 1) { return }
-        # a target woken from power-off stops at its LUKS prompt in the initramfs sshd (base/boot/remote-unlock)
-        let unlock = $config.unlock_port?
-        if $unlock != null and (port-open $config.host $unlock) {
-            die $"($config.host) waits for its disk passphrase: ssh -p ($unlock) root@($config.host), then run this again"
-        }
-        sleep $WAKE_INTERVAL
-    }
-    die $"($config.host) did not answer ssh after the wake"
+    host-wake $config
 }
 
 # The command line of `offload host <verb> ...args` on the target: this script itself there, ssh from a client.
@@ -496,7 +427,7 @@ def "main host tar" [job: string]: string -> nothing {
     let root = $worktree | path expand
     for p in $paths {
         let full = $worktree | path join $p
-        if not (path-relative-valid $p) or not ($full | path exists) or not ($full | path expand | str starts-with $"($root)/") {
+        if not (path-inside-valid $p) or not ($full | path exists) or not ($full | path expand | str starts-with $"($root)/") {
             die $"tar: ($p) is no path inside the job's worktree"
         }
     }
@@ -539,7 +470,7 @@ def "main fetch" [job: string, ...paths: string]: nothing -> nothing {
     let config = config-load
     let job = job-arg $job
     let top = repo-top
-    let bad = $paths | where { not (path-relative-valid $in) }
+    let bad = $paths | where { not (path-inside-valid $in) }
     if ($bad | is-not-empty) { die --misuse $"not relative paths inside the repo: ($bad | str join ', ')" }
     connect $config
     if ($paths | is-not-empty) {
@@ -580,11 +511,11 @@ def "main forward" [service: string, --port: int]: nothing -> nothing {
 def "main status" []: nothing -> nothing {
     let config = config-load
     let jobs = if $config.role == $OFFLOAD_ROLE_TARGET { jobs-list } else {
-        let home = at-home
+        let place = host-reach $config.host
         let reach = if (master-alive $config) or (knock-open $config 1) { "awake" } else {
-            reach-blocker $home (wg-up) (route-dev $config.host) | default "asleep or off"
+            $place.blocker | default "asleep or off"
         }
-        print {target: $config.host, network: (if $home { "home" } else if (wg-up) { $WG_IFACE } else { "away" }), reach: $reach}
+        print {target: $config.host, network: $place.network, reach: $reach}
         if $reach != "awake" { return }
         host-call $config ls []
     }

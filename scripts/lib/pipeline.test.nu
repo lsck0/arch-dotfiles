@@ -2,7 +2,7 @@
 # Table cases for the package gate and the hold on dependents: pure records in, reasons and pending lines out, then
 # pipeline-apply's scheduler over rows that run nothing; what is absent and which link sources are alive against fake
 # tools first on PATH.
-use pipeline.nu [packages-gate packages-absent links-alive module-held pending-lines pipeline-apply modules-gone secrets-stamp barriers-run input-converged]
+use pipeline.nu [packages-gate packages-absent links-alive module-held pending-lines pipeline-apply modules-gone secrets-stamp lib-stamp barriers-run input-converged]
 use modules.nu [modules-eval]
 use module.nu [step]
 use cause.nu [cause-hint]
@@ -443,8 +443,22 @@ def secrets-stamp-cases [work: path]: nothing -> nothing {
     assert equal (with-env {DOTFILES_SECRETS: ""} { secrets-stamp ($work | path join stamp-none) }) "" "stamp: no keys/, empty stamp"
 }
 
-# A barrier runs once when its record is missing, when a watched path changed, when an action notified it, again after
-# it failed, and never for a disabled owner or with nothing changed.
+# The lib's stamp keeps the files a module's evaluation loads (module.nu and its imports, a lib file the mod.nu names)
+# and drops the rest, so an edit to bench.nu re-evaluates nothing while one to module.nu or state.nu re-evaluates all.
+def lib-stamp-cases [work: path]: nothing -> nothing {
+    let dir = $work | path join lib-stamp-module
+    mkdir $dir
+    "use module.nu *\nuse ini.nu\nexport def link [cfg: record] { [] }\n" | save --force ($dir | path join mod.nu)
+    let stamp = [module.nu state.nu ini.nu cause.nu bench.nu interruptible.sh pipeline.nu] | each { $"($in) 1 2" } | str join "\n"
+    let kept = lib-stamp $stamp [$dir] | lines | each { split row " " | first }
+    for f in [module.nu state.nu ini.nu cause.nu] { assert ($f in $kept) $"lib stamp: ($f) dropped, kept ($kept | to nuon)" }
+    for f in [bench.nu interruptible.sh pipeline.nu] { assert ($f not-in $kept) $"lib stamp: ($f) kept, kept ($kept | to nuon)" }
+    let bare = lib-stamp $stamp [] | lines | each { split row " " | first }
+    assert ("ini.nu" not-in $bare) $"lib stamp: ini.nu kept with no module importing it, kept ($bare | to nuon)"
+}
+
+# A barrier runs once when its record is missing, when a watched path changed, with force, again after it failed, and
+# never for a disabled owner or with nothing changed.
 def barrier-cases [work: path]: nothing -> nothing {
     let dir = $work | path join barrier-module
     mkdir $dir
@@ -457,27 +471,24 @@ def barrier-cases [work: path]: nothing -> nothing {
     let owner = {id: test/barrier, dir: $dir, broken: false, cfg: {enable: true}, meta: {barrier: {run: rebuild, watch: [$watched]}}}
     let ctx = {modules: [$owner], platform: {facts: {dot_test: true}}, layer: user}
     let runs = {|| if ($count | path exists) { open --raw $count | lines | length } else { 0 } }
-    let notify = {|id| [{outcomes: [{ok: true, pending: null, kind: create, decl: {notify: [$id]}}]}] }
     with-env {XDG_STATE_HOME: ($work | path join barrier-state), DOT_RUN_ID: "", DOT_RUN_FILE: "", FAILURES_FILE: ""} {
-        barriers-run $ctx [] false | ignore
+        barriers-run $ctx false | ignore
         assert equal (do $runs) 1 "a barrier with no record did not run"
-        barriers-run $ctx [] false | ignore
+        barriers-run $ctx false | ignore
         assert equal (do $runs) 1 "a barrier ran with nothing changed"
         "two" | save --force $watched
-        barriers-run $ctx [] false | ignore
+        barriers-run $ctx false | ignore
         assert equal (do $runs) 2 "a changed watched path did not run the barrier"
-        barriers-run $ctx (do $notify test/barrier) false | ignore
-        assert equal (do $runs) 3 "a notifying action did not run the barrier"
-        barriers-run $ctx (do $notify other/module) false | ignore
-        assert equal (do $runs) 3 "another module's notification ran this barrier"
+        barriers-run $ctx true | ignore
+        assert equal (do $runs) 3 "a forced barrier did not run"
         touch $fail
-        let failed = barriers-run $ctx (do $notify test/barrier) false | first
+        let failed = barriers-run $ctx true | first
         assert (not $failed.ok) "a failing barrier reported ok"
         rm $fail
-        barriers-run $ctx [] false | ignore
+        barriers-run $ctx false | ignore
         assert equal (do $runs) 4 "a barrier that failed last time did not run again"
         let off = $ctx | update modules [($owner | update cfg.enable false)]
-        barriers-run $off [] true | ignore
+        barriers-run $off true | ignore
         assert equal (do $runs) 4 "a disabled owner's barrier ran"
     }
 }
@@ -546,6 +557,7 @@ def main [] {
     native-only-cases $work
     gone-cases $work
     secrets-stamp-cases $work
+    lib-stamp-cases $work
     barrier-cases $work
     converged-cases
     progress-cases $work

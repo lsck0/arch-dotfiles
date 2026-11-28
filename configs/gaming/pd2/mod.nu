@@ -3,6 +3,8 @@ use ../d2launcher/mod.nu [PD2_DIR game-launcher lod-base save-path-set wine-bin 
 # re-exported: the save-path step runs in this module
 export use ../d2launcher/mod.nu [save-path]
 use scripts/pd2-pin.nu [S14_URL]
+# the update verb lives with the pin: a def named update here would shadow nushell's in the files imported above
+export use scripts/pd2-pin.nu [update]
 
 # S14 from PD2's client host (no plugy), S3 synced with plugy; S3 saves can't move to S14. The launchers render
 # d2launcher's gamescope.sh, an input: this module's own files and imports do not cover it.

@@ -133,8 +133,8 @@ def owners-cache [sync_dir: path]: nothing -> path {
 # The repo package that brings a command, asked of pacman's files database once per refresh of it (a query reads every
 # files database, about a second; owners-cache keeps each answer, none as OWNER_NONE); null when no package has it,
 # FILES_DB_MISSING (never kept) when the sync dir holds no files database to ask.
-export def command-package [name: string, --sync-dir: path]: nothing -> any {
-    let sync_dir = $sync_dir | default $env.DOT_PACMAN_SYNC_DIR? | default $PACMAN_SYNC_DIR
+export def command-package [name: string]: nothing -> any {
+    let sync_dir = $env.DOT_PACMAN_SYNC_DIR? | default $PACMAN_SYNC_DIR
     if (glob ($sync_dir | path join $FILES_DB_GLOB) | is-empty) { return $FILES_DB_MISSING }
     let command = $name | path basename
     # a cache that cannot be written (a read-only home, a full disk) costs the query, never the cause

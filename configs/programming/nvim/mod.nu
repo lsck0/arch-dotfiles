@@ -44,13 +44,9 @@ const THEME_MARKER = "wal/nvim_theme"
 const THEME_ROLES = "wal/nvim-roles.json"
 # options.lua reads it: font.json exists only once a font was set, the default is font.nu's
 const THEME_FONT = "wal/nvim-font.json"
-# local_plugins/dictate.lua's speech model; huggingface serves it by commit, its lfs oid is the sha256
-const WHISPER_MODEL = {
-    file: "ggml-large-v3-turbo-q5_0.bin"
-    # committed 2024-10-29
-    commit: "5359861c739e955e79d9a303bcbc70fb988958b1"
-    sha256: "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2"
-}
+# the speech model of local_plugins/dictate.lua and desktop/dictation, pinned in one file all three read (committed
+# 2024-10-29); huggingface serves it by commit, its lfs oid is the sha256
+const WHISPER_MODEL_PIN = path self config/whisper-model.json
 # lazy skips a plugin whose cond is false (a probe or prefetch makes the terminal ones true): its pin is never cloned
 const COND_LUA = '
 local found, cfg = pcall(require, "lazy.core.config")
@@ -140,13 +136,14 @@ export def link [cfg: record] {
     let linked = ($config | path expand) == ($env.PWD | path join config | path expand)
     let picked = $cfg | select spell_languages dictation_language
     let defaults = {spell_languages: $options.spell_languages.default, dictation_language: $options.dictation_language.default}
+    let model = open $WHISPER_MODEL_PIN
     [
         (file-link config $config)
         (if $picked != $defaults {
             file-text (xdg data nvim $OPTIONS_FILE) $"($picked | to json --indent 2)\n"
         })
-        (fetch-file $"https://huggingface.co/ggerganov/whisper.cpp/resolve/($WHISPER_MODEL.commit)/($WHISPER_MODEL.file)"
-            $WHISPER_MODEL.sha256 (xdg data whisper-cpp $WHISPER_MODEL.file))
+        (fetch-file $"https://huggingface.co/ggerganov/whisper.cpp/resolve/($model.commit)/($model.file)" $model.sha256
+            (xdg data whisper-cpp $model.file))
         (step prefetch --done=(($restore | is-empty) and $linked) --network --timeout $PREFETCH_TIMEOUT ...$restore)
     ]
 }

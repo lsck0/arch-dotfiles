@@ -27,7 +27,7 @@ Bit order may not match the physical layout: press each key and watch the F-code
 Check:
 
 ```bash
-scripts/test-driver.py               # offline decode test, run after any driver change
+scripts/test-driver.py               # offline decode test, also in dot test lint (tablet-driver.test.nu)
 systemctl status tablet-driver
 scripts/verify-mapping.py 30 DP-2     # sweep the whole pad
 libinput list-devices | grep '^Device.*T1161'   # exactly two virtual devices

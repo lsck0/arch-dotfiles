@@ -44,14 +44,7 @@ export def seed []: nothing -> nothing {
 export def relocate []: nothing -> nothing {
     let p = paths
     for profile in (unlinked $p) {
-        let live = $profile | path join saves
-        let synced = $p.saves | path join ($profile | path basename)
-        if ($live | path exists) and (ls $live | is-not-empty) {
-            print $"note: modrinth: ($live) has worlds and ($synced) exists: merge them by hand, then dot apply links it"
-            continue
-        }
-        rm --recursive --force $live   # absent or empty, checked above
-        ^ln -s $synced $live
+        sync-link ($profile | path join saves) ($p.saves | path join ($profile | path basename)) modrinth
     }
 }
 

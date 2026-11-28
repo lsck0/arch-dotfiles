@@ -13,12 +13,12 @@ makedepends=(git)
 options=(!strip)
 _stackver=3.11.1
 source=(
-    "git+$url.git#commit=84696517a251e360799f5b510e7456a9011ae050"
+    "git+$url.git#commit=84696517a251e360799f5b510e7456a9011ae050" # 2026-11-01
     "stack-$_stackver::https://github.com/commercialhaskell/stack/releases/download/v$_stackver/stack-$_stackver-linux-x86_64-bin"
 )
 sha256sums=(
     SKIP
-    67c66e918801c41ae4d286b1c91f9124f691c1c7d56071b53889cf4a5c667550
+    67c66e918801c41ae4d286b1c91f9124f691c1c7d56071b53889cf4a5c667550 # stack v3.11.1, 2026-06-13
 )
 
 pkgver() {

@@ -1,5 +1,7 @@
 # Where dot keeps its state and the primitives every writer uses: the lock, the atomic save, path-kind.
 
+use proc.nu [succeeds]
+
 export const SYSTEM_REPO = "/var/lib/dotfiles/repo"
 export const SYSTEM_STATE = "/var/lib/dotfiles"
 export const LIB_DIR = path self .
@@ -70,12 +72,18 @@ export def sqlite-snapshot [db: path, copy: path]: nothing -> nothing {
 
 # Whether a process of this exact name runs: a theme or reload step only acts on a running app.
 export def process-running [name: string]: nothing -> bool {
-    (^pgrep -x $name | complete).exit_code == 0
+    succeeds pgrep -x $name
 }
 
 # Whether the system has this group.
 export def group-exists [name: string]: nothing -> bool {
-    (^getent group $name | complete).exit_code == 0
+    succeeds getent group $name
+}
+
+# Whether the unit is active, in the user manager with --user.
+export def unit-active [unit: string, --user]: nothing -> bool {
+    let scope = if $user { [--user] } else { [] }
+    succeeds systemctl ...$scope is-active --quiet $unit
 }
 
 # The running layer's state dir; the system layer's is root's even when a user plans it.
@@ -129,7 +137,7 @@ export def path-swap [next: path, dest: path]: nothing -> nothing {
     rm --recursive --force $next
 }
 
-# The path type, "" for a missing path (path type fails on one instead of answering nothing).
+# The path type, "" for a missing path or one under a dir this process cannot read (path type fails there).
 export def path-kind [path: path]: nothing -> string {
     try { $path | path type | default "" } catch { "" }
 }

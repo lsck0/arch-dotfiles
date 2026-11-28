@@ -27,9 +27,7 @@ def paths []: nothing -> record {
 # Seeded once: the game rewrites these files in place.
 export def link [cfg: record] {
     let p = paths
-    let launcher = if $cfg.mangohud {
-        desktop-override XIVLauncher.desktop { $in | str replace --all --regex '(?m)^Exec=' 'Exec=env MANGOHUD=1 ' }
-    }
+    let launcher = if $cfg.mangohud { desktop-exec XIVLauncher.desktop xivlauncher-core --env-vars {MANGOHUD: "1"} }
     let unlocked = secret-is-plaintext $p.seed.launcher
     if (which xivlauncher-core | is-empty) or not $unlocked { return $launcher }
     # read from the seed until the first apply copies it, so GamePath exists before the launcher's first start

@@ -14,8 +14,7 @@ def "main json-update" []: string -> nothing {
     let args = $in | from json
     let raw = if ($args.file | path exists) { open --raw $args.file } else { "" }
     let current = if ($raw | str trim | is-empty) { {} } else { $raw | from json }
-    # a caller that tracks no keys (an older engine mid-sync) passes neither: its before-values are unknown
-    let keys = json-keys $current $args.edits $args.known?
+    let keys = json-keys $current $args.edits $args.known
     let merged = $current | json-keys-restore ($args.drop? | default []) | json-edits-apply $args.edits
     if $merged == $current and ($raw | str trim | is-not-empty) {
         print ({changed: false, owned: false, keys: $keys} | to json --raw)

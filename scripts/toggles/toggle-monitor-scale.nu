@@ -1,5 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 use lib.nu [DOT status-record status-print notify state-set state-file hyprland-instance option-value]
+use ../lib/platform.nu [monitors-live]
 
 const HYPRLAND = "desktop/hyprland"
 # 1.67 is the 4K monitors' own setting (3840 / 1.67 = 2304 logical px wide)
@@ -9,10 +10,8 @@ const SCALE_SETTLE = 400ms
 const REFRESH_DECIMALS = 5
 const RELATIONS = [left-of right-of above below]
 
-def monitors []: nothing -> table { ^hyprctl -j monitors all | from json }
-
 def monitor-get [name: string]: nothing -> record {
-    let monitor = monitors | where name == $name | get 0?
+    let monitor = monitors-live --all | where name == $name | get 0?
     if $monitor == null { error make {msg: $"no monitor ($name); toggle-monitor-scale.nu list lists them"} }
     $monitor
 }
@@ -20,7 +19,7 @@ def monitor-get [name: string]: nothing -> record {
 def monitor-is-active [monitor: record]: nothing -> bool { not $monitor.disabled and $monitor.mirrorOf == "none" }
 
 def monitor-default []: nothing -> string {
-    let active = ^hyprctl -j monitors | from json
+    let active = monitors-live
     $active | where focused | get name.0? | default ($active | get name.0)
 }
 
@@ -92,7 +91,7 @@ export def monitors-merge [saved: list<record>, live: list<record>, changes: lis
 }
 
 def persisted-update [changes: list<record>]: nothing -> nothing {
-    let updated = monitors-merge (monitors-persisted) (monitors) $changes
+    let updated = monitors-merge (monitors-persisted) (monitors-live --all) $changes
     ^nu --no-config-file $DOT set --machine $"($HYPRLAND).monitors" ($updated | to json --raw)
 }
 
@@ -147,7 +146,7 @@ def scale-set [name: string, scale: string]: nothing -> nothing {
 def layout-set [name: string, action: string, source: string]: nothing -> nothing {
     let monitor = monitor-get $name
     let scale = if $monitor.scale > 0 { $monitor.scale | into string } else { "auto" }
-    let active = monitors | where { monitor-is-active $in }
+    let active = monitors-live --all | where { monitor-is-active $in }
     let fields = match $action {
         extend => (persisted-of $name | merge {scale: $scale, disabled: false, mirror: ""})
         off => {
@@ -190,7 +189,7 @@ def position-set [name: string, relation: string, other: string]: nothing -> not
     let monitor = monitor-active $name
     let target = monitor-active $other
     let moved = position-relative $monitor $target $relation
-    let active = monitors | where { monitor-is-active $in }
+    let active = monitors-live --all | where { monitor-is-active $in }
     let placed = $active | each {|m| if $m.name == $name { {name: $name} | merge $moved } else { $m | select name x y } }
         | positions-normalize $in
     let changed = $placed | where {|p| $active | where name == $p.name and x == $p.x and y == $p.y | is-empty }
@@ -211,7 +210,7 @@ def "main get" [monitor?: string, --json] {
 }
 
 def "main list" [] {
-    let rows = ^hyprctl -j monitors | from json | each {|m| $"($m.name)\t(mode-of $m)\t($m.scale)" }
+    let rows = monitors-live | each {|m| $"($m.name)\t(mode-of $m)\t($m.scale)" }
     print ($rows | str join "\n")
 }
 

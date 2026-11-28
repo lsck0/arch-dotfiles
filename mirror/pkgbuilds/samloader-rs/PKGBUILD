@@ -13,6 +13,7 @@ makedepends=(cargo)
 # aws-lc-sys C objects built with gcc lto are unreadable to rust-lld
 options=(!lto)
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/$pkgver.tar.gz")
+# 2.2.0, 2026-09-25
 sha256sums=(88df5f94091d26f138fe027b04edc194015eb01d6e5d08e3736574862b60203f)
 
 prepare() {

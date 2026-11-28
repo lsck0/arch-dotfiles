@@ -108,10 +108,6 @@ Item {
   IpcHandler {
     target: "background"
 
-    function refresh(): void {
-      root.refreshBackground()
-    }
-
     function set(path: string): void {
       root.setBackground(path)
     }

@@ -1,10 +1,10 @@
 #!/usr/bin/env -S nu --no-config-file
 # Fluxer's voice call as desktop/quickshell's Fluxer widget reads it: one DevTools connection to the running client
-# (DEVTOOLS_PORT in mod.nu), a page script subscribed to its media engine that pushes each change through a CDP binding,
-# written to STATE in the Discord plugin's shape. Exits when Fluxer is not running or closes; fluxer-voice.service
-# starts it again.
+# (DEVTOOLS_PORT, which mod.nu's launcher opens), a page script subscribed to its media engine that pushes each change
+# through a CDP binding, written to STATE in the Discord plugin's shape. Exits when Fluxer is not running or closes;
+# fluxer-voice.service starts it again.
 
-const PORT = 9234
+export const DEVTOOLS_PORT = 9234
 const BINDING = "qsFluxerVoice"
 const STATE_FILE = "quickshell-fluxer-voice.json"
 # a websocket frame holds a whole snapshot, avatars urls and all
@@ -101,7 +101,7 @@ def state-write [path: path, text: string]: nothing -> nothing {
 
 def main [] {
     let state = $env.XDG_RUNTIME_DIR | path join $STATE_FILE
-    let pages = try { http get --max-time 3sec $"http://127.0.0.1:($PORT)/json/list" } catch { exit $EXIT_NO_CLIENT }
+    let pages = try { http get --max-time 3sec $"http://127.0.0.1:($DEVTOOLS_PORT)/json/list" } catch { exit $EXIT_NO_CLIENT }
     let page = $pages | where type == "page" | get --optional 0
     if $page == null { exit $EXIT_NO_CLIENT }
     # the binding survives reloads; the script added for new documents comes back with each one, the evaluate covers

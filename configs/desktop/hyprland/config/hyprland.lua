@@ -13,8 +13,8 @@ local MODULES = {
     "hyprland_powersave",
 }
 
--- drop-ins: another module's own binds and rules as ~/.config/hypr/dropins/<name>.lua (programming/hermes' system
--- agent), loaded after the rest and before the power-save overrides
+-- drop-ins: another module's own settings as ~/.config/hypr/dropins/<name>.lua (desktop/cursor's theme env,
+-- programming/hermes' system agent), loaded after the rest and before the power-save overrides
 local function dropins()
     local ok, pipe = pcall(io.popen, "ls " .. os.getenv("HOME") .. "/.config/hypr/dropins 2>/dev/null")
     if not ok or not pipe then

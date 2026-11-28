@@ -19,6 +19,6 @@ ProtectControlGroups=yes
 RestrictSUIDSGID=yes
 RestrictRealtime=yes
 LockPersonality=yes
-ExecStartPre=-+/usr/local/bin/vllm-wait-ready
+ExecStartPre=-+/usr/local/bin/vllm-wait-ready vllm.service http://127.0.0.1:8001/v1/models 9min 8000
 ExecStart=/usr/lib/systemd/systemd-socket-proxyd --exit-idle-time=@IDLE_MIN@min 127.0.0.1:8001
 ExecStopPost=+/usr/bin/systemctl stop vllm.service

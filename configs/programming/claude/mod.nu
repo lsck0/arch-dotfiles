@@ -40,6 +40,12 @@ const SECRET_READS_HOME = [
 ]
 
 const ACCOUNT_KEYS = [oauthAccount userID hasCompletedOnboarding lastOnboardingVersion]
+# config/mods/wallust-look, Claude Desktop's look from the wallust palette: copied here, loaded by every session through
+# CLAUDE_CODE_PLUGIN_DIRS, its palette.json written by the theme verb
+const LOOK_MOD = "config/mods/wallust-look"
+const LOOK_FILES = [.claude-plugin/plugin.json hooks/hooks.json hooks/register.ts hooks/make-colors.js hooks/make-colors.d.ts]
+
+def look-dir []: nothing -> path { xdg data claude mods wallust-look }
 
 def home [...parts: string]: nothing -> path {
     $nu.home-dir | path join ...$parts
@@ -91,7 +97,9 @@ export def link [cfg: record] {
         # the wrapper that drops the session's DO_NOT_TRACK, only where remote control wants the feature flags
         (if $cfg.remote_control { shell-aliases claude })
         (files-into (home .claude) config/CLAUDE.md config/RTK.md config/keybindings.json)
+        ($LOOK_FILES | each {|f| file-copy ($LOOK_MOD | path join $f) (look-dir | path join $f) })
         (json-merge $settings [
+            (json-set [env CLAUDE_CODE_PLUGIN_DIRS] (look-dir))
             (json-set [remoteControlAtStartup] $cfg.remote_control)
             (json-set [model] $cfg.model)
             (json-set [voice] {enabled: $cfg.voice, mode: hold})
@@ -135,7 +143,12 @@ export def theme [cfg: record, wallpaper: string] {
     # the ansi themes paint panels (diffs, user messages) in a palette slot meant as text: light-ansi in white, a mid-grey
     # on light palettes (github-light's color7 is #6e7781), dark-ansi in bright black, a mid-grey under light text on
     # dark ones (color8 #75777E): both take Claude's own rgb theme
-    json-merge (home .claude settings.json) [(json-set [theme] (if $p.light == "1" { "light" } else { "dark" }))]
+    let wal = xdg cache wal colors.json
+    [
+        (json-merge (home .claude settings.json) [(json-set [theme] (if $p.light == "1" { "light" } else { "dark" }))])
+        # what the look mod reads at each session start: wal's own background, foreground and sixteen colours
+        (file-text (look-dir | path join palette.json) $"(open $wal | select special colors | to json --indent 2)\n" --generated)
+    ]
 }
 
 export def backup [cfg: record]: nothing -> nothing {

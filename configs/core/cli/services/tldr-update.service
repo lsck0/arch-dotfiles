@@ -4,5 +4,5 @@ Description=Refresh the offline tldr pages
 [Service]
 Type=oneshot
 # the pages come from github: offline (a login before the network, an outage) the run is skipped, not failed
-ExecCondition=/bin/sh -c 'curl -sfo /dev/null --max-time 10 https://github.com'
+ExecCondition=/usr/bin/curl -so /dev/null --max-time 10 https://github.com
 ExecStart=/usr/bin/tldr --update

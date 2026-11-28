@@ -35,10 +35,9 @@ ShellRoot {
 
   function setWidgetSettings(widgetId, settings) {
     var key = String(widgetId)
-    var next = Util.mapWithout(settings, "id")
     var current = widgetSettings[key]
-    if (current && JSON.stringify(current) === JSON.stringify(next)) return false
-    widgetSettings = Util.mapSet(widgetSettings, key, next)
+    if (current && JSON.stringify(current) === JSON.stringify(settings)) return false
+    widgetSettings = Util.mapSet(widgetSettings, key, settings)
     widgetSettingsFile.setText(JSON.stringify(widgetSettings, null, 2) + "\n")
     return true
   }

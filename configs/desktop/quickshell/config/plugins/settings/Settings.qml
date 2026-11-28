@@ -36,7 +36,7 @@ Item {
   property var pending: ({})
   property var errors: ({})
   property var queue: []
-  property var batch: ({ applied: [], failed: 0, notes: [], system: false, full: false })
+  property var batch: ({ applied: [], failed: 0, notes: [], system: false })
   property bool systemPending: false
   // a platform key waits for a whole dot apply, both layers, not only the system one
   property bool systemFull: false
@@ -50,11 +50,13 @@ Item {
   readonly property string updateArmedNotice: "press CTRL+SHIFT+U again to sync"
 
   readonly property string dot: Paths.bin("dot")
-  readonly property var sections: Schema.sections(modules, toggles, query, dotStatus, machine)
+  // the query scored once, shared by the section counts and the rows
+  readonly property var found: Schema.search(modules, toggles, query, dotStatus, machine)
+  readonly property var sections: Schema.sections(modules, toggles, query, dotStatus, machine, found)
   // room beside each list for its scroll bar, kept when the list fits so the rows never jump
   readonly property int barGutter: Style.spacing.xs + Style.spacing.xxs * 3
   readonly property var section: sections[Math.min(sectionIndex, sections.length - 1)] || null
-  readonly property var rows: Schema.rows(modules, toggles, section ? section.id : "", query, dotStatus, machine)
+  readonly property var rows: Schema.rows(modules, toggles, section ? section.id : "", query, dotStatus, machine, found)
   readonly property var cursorRow: rowIndex >= 0 && rowIndex < rows.length ? rows[rowIndex] : null
   readonly property var choiceList: expandedId && cursorRow && cursorRow.id === expandedId
     ? Schema.choicesMatching(cursorRow.option, choiceQuery) : []
@@ -497,10 +499,7 @@ Item {
     if (exitCode === root.exitSystemPending && entry.option.scope === "machine") {
       root.systemPending = true
       root.batch.system = true
-      if (entry.option.apply === "apply") {
-        root.systemFull = true
-        root.batch.full = true
-      }
+      if (entry.option.apply === "apply") root.systemFull = true
     }
     if (exitCode === 0 || exitCode === root.exitSystemPending) {
       entry.option.value = value
@@ -515,7 +514,7 @@ Item {
 
   function finishBatch() {
     var done = root.batch
-    root.batch = { applied: [], failed: 0, notes: [], system: false, full: false }
+    root.batch = { applied: [], failed: 0, notes: [], system: false }
     root.load()
     // a system apply refreshes the System section when it ends
     if (done.system) root.applySystem()

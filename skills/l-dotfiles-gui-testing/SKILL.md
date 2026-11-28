@@ -17,7 +17,9 @@ monitors are the other path.
 - `hyprctl keyword monitor`, `hl.monitor`, a monitor rule or position on the live compositor: an auto-positioned output
   follows the rightmost one and can push a real monitor off-screen. Create the headless output and nothing else.
 - Bare `grim`: it captures the headless areas too. Always `grim -o <output>`.
-- `pkill -f <pattern>`: it matches the agent's own shell. Kill by PID.
+- Arm a window rule, an `hl.on` handler or a keybind that acts on windows (close, move, float, fullscreen) on the live
+  compositor before it passed in a nested Hyprland ([nested.md](nested.md)): `dot apply desktop/hyprland` arms it on
+  every window Luca opens.
 - A Flatpak or other xdg-desktop-portal app on a headless output of the live session: an output removed under an open
   portal dialog hangs xdg-desktop-portal-kde and freezes every file dialog in the session. Such apps run only in a
   nested Hyprland ([nested.md](nested.md)).

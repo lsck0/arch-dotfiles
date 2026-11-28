@@ -11,6 +11,7 @@ license=(MIT Apache-2.0)
 depends=(gcc-libs openssl)
 makedepends=(cargo)
 source=("$pkgname-$pkgver.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate")
+# 0.7.7, 2024-09-06
 sha256sums=(86be8c17e8bf14dc509f918b84dd18fa90cfb86f2822be8713370f68ed8c3ce4)
 
 # the lock's openssl-sys refuses OpenSSL 4; 0.9.118 (2026-11-01) and the openssl crate of its release accept it

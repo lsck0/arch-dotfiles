@@ -143,7 +143,7 @@ QtObject {
     readonly property int borderWidth: Palette.BORDER_PX
     readonly property real ruleAlpha: 0.85
     // the one hairline every surface is outlined with, in the foreground colour
-    readonly property real edgeAlpha: 0.22
+    readonly property real edgeAlpha: Palette.EDGE_ALPHA
   }
   readonly property SurfaceTokens surface: SurfaceTokens {}
 

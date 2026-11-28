@@ -8,7 +8,8 @@ Signatures are in `scripts/lib/module.nu`; read its doc comment above a helper b
   `services/...` for systemd units and drop-ins, `scripts/...` for what runs.
 - Files: `file-copy <src> <dest> [--then]`, `files-into <dir> <src...>`, `file-text <dest> <text> [--generated]
   [--in-place]` (`--generated` outputs are rewritten without a drift check), `file-render <src> <dest> {KEY: v}`
-  (`@KEY@`), `file-link` (only where the app reads the repo live), `link-commands <file...>`, `json-merge <file>
+  (`@KEY@`), `file-link` (only where the app reads the repo live), `skills-link <root>` (its `l-*` dirs into every
+  installed agent harness; `skill-dirs <root>` lists them), `link-commands <file...>`, `json-merge <file>
   [(json-set [k] v) (json-delete [k])]` (or a record of top-level keys), `ini-merge <file> {section: {key: v}}
   [--missing-only]`, `desktop-override <id> {|text| ...}` (with `desktop-set {Key: v}` inside), `desktop-exec <id>
   <cmd> [--command] [--args] [--env-vars]` (rewrites its `Exec=` lines), `shell-aliases <name>` (the module's
@@ -25,8 +26,7 @@ Signatures are in `scripts/lib/module.nu`; read its doc comment above a helper b
   `Persistent=true`), `unit-enable|unit-disable|unit-mask <name> [--now]`, `unit-switch <name> <bool> [--now]`,
   `unit-restart <name> [--reload] [--if-running]` (the one `--then` for a unit; skips a unit not installed yet),
   `dropin <unit> <src> [--name] [--values]` (`dropin x.service services/foo.conf`, installed as `foo.conf` unless
-  `--name`), `user-hook <name> <script> --watch [paths] [--permanent] [--no-brake]
-  [--mkdir]`.
+  `--name`), `user-hook <name> <script> --watch [paths] [--permanent] [--no-brake]`.
 - Groups: `group-system <group> [members]` (a sysusers.d file), `group-admins <group>` (wheel in it).
 - Fetch: `fetch-file <url> <sha256> <dest> [--extract <member>]`, `fetch-git <url> <commit> <dir>`; both mark
   themselves `--network`.
@@ -58,16 +58,28 @@ it fails all of them, so they retry. `then-step <command> [args]` runs one of th
 
 `xdg config|data|cache|state|runtime ...parts`, `unit-dir`, `process-running <name>` (gate a reload in `theme`),
 `group-exists <name>`, `package-version <pkg>` (upstream version without epoch and pkgrel, null when not installed),
-`palette-load` (for `theme`), `recorded-hashes` (what dot last wrote per path), `SYSTEM_STATE`, `SYSTEM_REPO`.
+`palette-load` (for `theme`), `recorded-hashes` (what dot last wrote per path), `SYSTEM_STATE`, `SYSTEM_REPO`,
+`sync-link <live> <synced> <module> [--same]` (a step's body: the live dir becomes a link into `~/sync` while it is
+absent or empty, or with `--same` identical to it; else a note asks for a hand merge).
 
 ## Option keys
 
-`type`, `default`, `doc` required; `label`, `group`, `choices`, `choice_labels` (a record from a choice to
-the name the settings window shows for it, for ids), `ordered` (a list option with choices is a sequence:
-the settings window appends a pick, which may repeat, instead of switching a set), `pattern` (a regex a string value matches, checked by
-`dot set`), `min`/`max`/`step`, `apply` (default relink), `scope`
-(default machine), `toggle` (set through `scripts/toggles/toggle-<name>.nu`: `on`/`off` for a bool, else
-`set <value>`; its `get` is what the settings window shows; `l-dotfiles-toggles`).
+`type`, `default`, `doc` required; `label`, `group`, `choices`, `choice_labels` (a record from a choice to the name the
+settings window shows for it, for ids), `ordered` (a list option with choices is a sequence: the settings window
+appends a pick, which may repeat, instead of switching a set), `pattern` (a regex a string value matches, checked by
+`dot set`), `min`/`max`/`step`, `apply` (default relink), `scope` (default machine), `toggle` (set through
+`scripts/toggles/toggle-<name>.nu`: `on`/`off` for a bool, else `set <value>`; its `get` is what the settings window
+shows; `l-dotfiles-toggles`).
+
+## Failures and alerts
+
+A failure reaches Luca once, and only when something is wrong. User services get `OnFailure=failure-notify@` from
+base/failure-notify's global drop-in; never set `OnFailure=` empty except for a test run. A failed system unit reaches
+him through `system-notify`. A health check is one closure in `checks` (`scripts/lib/doctor.nu`), notified hourly by
+`doctor-check` once per new set of findings: it reports `ok` on a healthy machine (test that case in its `*.test.nu`),
+`note` for information, `todo` for a step that is due (an apply, a reboot), and `FAIL` only for a fault he must fix.
+Never swallow an error (`| complete | ignore`, `try {} catch {}`) without logging it or raising it as pending; a quiet
+branch is only for an expected state, with a comment saying which.
 
 ## What root runs
 

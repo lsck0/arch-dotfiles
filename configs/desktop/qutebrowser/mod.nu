@@ -1,11 +1,12 @@
 use module.nu *
 use ../../core/wallust/scripts/palette.nu *
 use ../../core/wallust/scripts/font.nu [font-load]
+use ../../../platforms/homelab.nu [HOMELAB]
 
 export const meta = {deps: [core/wallust], packages: {pacman: [qutebrowser python-adblock]}}
 
 const SEARCH_DEFAULT = "https://duckduckgo.com/?q={}"
-const SEARCH_HOMELAB = "https://search.lsck0.dev/search?q={}"
+const SEARCH_HOMELAB = $"https://search.($HOMELAB.domain)/search?q={}"
 
 export const options = {
     # null so detect fills it: a detected value only lands on an option without a default
@@ -81,8 +82,6 @@ const FALLBACK = {
 const CHROME_COLORS = "wal/qutebrowser-colors.json"
 const CHROME_ALT_SHADE = 0.03
 const STARTPAGE_SURFACE_SHADE = 0.06
-# the shell's hairline (quickshell Style.surface.edgeAlpha): every panel's edge, the foreground at this alpha
-export const EDGE_ALPHA = 0.22
 
 export def detect [cfg: record]: nothing -> record {
     {search_url: (if (platform-has homelab) { $SEARCH_HOMELAB } else { $SEARCH_DEFAULT })}
@@ -100,8 +99,9 @@ export def link [cfg: record] {
     [
         (file-render config/config.py ($dir | path join config.py) {
             TABS_POSITION: $cfg.tabs_position, TABS_SHOW: $cfg.tabs_show, STATUSBAR_SHOW: $cfg.statusbar_show
+            # a JSON string's body is a valid Python string body: a quote or backslash in the url stays escaped
+            SEARCH: ($cfg.search_url | default $SEARCH_DEFAULT | to json | str substring 1..-2)
         })
-        (file-text ($dir | path join search-url) $"($cfg.search_url | default $SEARCH_DEFAULT)\n")
         # startpage.html loads weblinks/links.js, the owner's secrets module's otherwise
         (if ($cfg.startpage_links | is-not-empty) and not (profile-has secrets) {
             file-text (xdg data weblinks links.js) $"const weblinks = ($cfg.startpage_links | to json --raw);\n"

@@ -147,7 +147,7 @@ export def link [cfg: record] {
             # the initramfs tinysshd's port, read where it is set (offload reads it the same way)
             let unlock = open --raw ../boot/remote-unlock/services/tinysshd.conf | parse --regex '(?m)^Environment=SSHD_PORT=(?<p>\d+)'
             let values = {
-                ROUTER: $cfg.wake_router, ROUTER_TUNNEL: ($cfg.wake_router_tunnel | default "")
+                DOTFILES: $env.DOTFILES, ROUTER: $cfg.wake_router, ROUTER_TUNNEL: ($cfg.wake_router_tunnel | default "")
                 HOST: $cfg.wake_host, PORT: $cfg.port, KNOCK: $knock
                 UNLOCK_PORT: $unlock.0.p
             }

@@ -73,11 +73,12 @@ def dim [ddc: bool]: nothing -> nothing {
 def restore []: nothing -> nothing {
     if not (state-file | path exists) and not (pending-file | path exists) { return }
     let lines = if (state-file | path exists) { open --raw (state-file) | lines } else { [] }
-    for saved in ($lines | parse $"($BACKLIGHT_LINE) {level}") {
-        ^brightnessctl --quiet --class=backlight set $saved.level | complete | ignore
-    }
-    for saved in ($lines | parse $"($KBD_LINE) {device} {level}") {
-        ^brightnessctl --quiet --device $saved.device set $saved.level | complete | ignore
+    # the panel and keyboard light are not retried like a monitor: a light that refuses is gone or the user's to set
+    let lights = ($lines | parse $"($BACKLIGHT_LINE) {level}" | each {|saved| [--class=backlight $saved.level] })
+        ++ ($lines | parse $"($KBD_LINE) {device} {level}" | each {|saved| [--device $saved.device $saved.level] })
+    for light in $lights {
+        let set = ^brightnessctl --quiet ...($light | drop) set ($light | last) | complete
+        if $set.exit_code != 0 { print -e $"screen-dim: could not restore ($light | str join ' '): ($set.stderr | str trim)" }
     }
     let pending = if (pending-file | path exists) { open --raw (pending-file) | lines } else { [] }
     # this dim's level wins over an older pending one of the same monitor

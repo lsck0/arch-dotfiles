@@ -1,5 +1,7 @@
 use font.nu [font-save]
 use palette.nu [condition-derived hex-to-rgb]
+use wallpaper-list.nu [wallpaper-resolve]
+use ../../../../scripts/lib/proc.nu [notify]
 use ../../../../scripts/lib/state.nu [file-trim save-atomic xdg]
 use ../../../../scripts/toggles/lib.nu [shell-call]
 
@@ -117,7 +119,13 @@ def recolor [file: path, palette: string]: nothing -> bool {
     let switched = (wallpaper-get) != ($file | path expand) or (theme-get) != $palette
     ^ln -sfn $file (wal wallpaper)
     $"($file)\n" | save --force (wal wallpaper_path)
-    if (which quickshell | is-not-empty) { shell-call background set $file | complete | ignore }
+    # a shell that is down shows the wal/wallpaper link when it starts
+    if (which quickshell | is-not-empty) {
+        let set = shell-call background set $file | complete
+        if $set.exit_code != 0 and $set.stderr !~ "No running instances" {
+            print --stderr $"theme: quickshell background set: ($set.stderr | str trim)"
+        }
+    }
     if $palette == $DERIVED { derived-apply $file } else {
         # by path: wallust matches a name as a prefix, gruvbox-dark would also match gruvbox-dark-soft
         let theme = $THEMES | path join $"($palette).json"
@@ -138,7 +146,10 @@ export def theme-serve []: nothing -> nothing {
     # a failed verb is the theme apply's own report; the run still succeeds, so dot-theme.service keeps a newer request
     try {
         if (recolor $file $palette) { ^nu --no-config-file $INTERNAL theme apply $file }
-    } catch {|e| print --stderr $"theme: ($file | path basename): ($e.msg)" }
+    } catch {|e|
+        print --stderr $"theme: ($file | path basename): ($e.msg)"
+        notify dotfiles "Theme not applied" $"($file | path basename): ($e.msg)" | ignore
+    }
 }
 
 export def wallpaper-get []: nothing -> string {
@@ -157,9 +168,7 @@ export def wallpaper-list []: nothing -> list<string> {
 # among the last ones, a rerun of what is in effect is not.
 def request [wallpaper: string, palette: string, sync: bool, --pick]: nothing -> nothing {
     let file = if ($wallpaper | str contains "/") { $wallpaper } else {
-        let found = do { ^$LIST --resolve $wallpaper } | complete
-        if $found.exit_code != 0 { error make {msg: ($found.stderr | str trim)} }
-        $found.stdout | str trim
+        wallpaper-resolve $wallpaper | default { error make {msg: $"no wallpaper named ($wallpaper)"} }
     } | path expand
     if not ($file | path exists) { error make {msg: $"wallpaper not found: ($file)"} }
     if $pick { recent-record $file $palette }

@@ -2,6 +2,7 @@
 # The one location every weather script shares: a manual pin, else geoclue, the timezone's coordinate, then ip geo.
 
 use lib.nu [switch-run state-file notify]
+use ../../configs/desktop/quickshell/config/scripts/lib/shell.nu [prefs-load]
 
 const AUTO_CACHE_MAX_AGE = 30min
 const GEOCLUE_DEMO = "/usr/lib/geoclue-2.0/demos/where-am-i"
@@ -15,7 +16,6 @@ const IPGEO_TIMEOUT = 6sec
 const COORD_DECIMALS = 2
 # desktop/quickshell's weather_location_sources, through the shell's prefs.json; [] leaves only the manual pin
 const SOURCES_DEFAULT = [geoclue timezone ipgeo]
-const PREFS = ($nu.home-dir | path join .config quickshell prefs.json)
 
 def manual-file []: nothing -> path { state-file weather-location.coords }
 
@@ -57,7 +57,7 @@ def ipgeo-coords []: nothing -> any {
 }
 
 def sources []: nothing -> list<string> {
-    let listed = try { open $PREFS | get --optional weatherSources } catch { null }
+    let listed = prefs-load | get --optional weatherSources
     if ($listed | describe) =~ '^list' { $listed | where $it in $SOURCES_DEFAULT } else { $SOURCES_DEFAULT }
 }
 

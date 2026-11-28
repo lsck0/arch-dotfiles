@@ -1,18 +1,16 @@
 # Machine facts, exported to modules as uppercase env vars (platform-has).
 
 use state.nu [file-trim]
-use options.nu [option-value-errors]
+use options.nu [option-value-errors ROOT_OPTIONS_DIR]
 
-const PLATFORM_LOCAL_DIR = "/etc/dotfiles"
-export const PLATFORM_NAME_FILE = "/etc/dotfiles/platform"
+export const PLATFORM_NAME_FILE = $"($ROOT_OPTIONS_DIR)platform"
+# a machine without a platform of its own (server, custom answers): its platform file and options, root's
+export const PLATFORM_LOCAL_FILES = [$"($ROOT_OPTIONS_DIR)platform.nuon" $"($ROOT_OPTIONS_DIR)platform.options.nuon"]
 # what dot set calls the platform file, its keys below it: platform.label, platform.facts.homelab
 export const PLATFORM_TARGET = "platform"
 # the checkout's own machine platform and its options (`dot set --machine`), git-ignored
 export const PLATFORM_REPO_LOCAL = [platforms/local.nuon platforms/local.options.nuon]
 const FORM_FACTORS = [desktop laptop server vm wsl]
-# How dot set lands a platform key: live is stored and read where it is used, apply waits for the next dot apply (both
-# layers), packages for the next dot apply --packages.
-export const PLATFORM_APPLY = [live apply packages]
 # The facts a platform file may set, typed like module options (a string's format as a pattern); platform-env hands
 # each, form_factor too, to modules as an uppercase env var.
 export const PLATFORM_FACTS = {
@@ -53,7 +51,7 @@ export def platform-files [repo: path]: nothing -> list<path> {
 export def platform-file [repo: path]: nothing -> any {
     let name = file-trim $PLATFORM_NAME_FILE
     let named = if $name != "" { $repo | path join platforms $"($name).nuon" }
-    let found = [($PLATFORM_LOCAL_DIR | path join platform.nuon) ($repo | path join $PLATFORM_REPO_LOCAL.0) $named]
+    let found = [$PLATFORM_LOCAL_FILES.0 ($repo | path join $PLATFORM_REPO_LOCAL.0) $named]
         | compact | where ($it | path exists) | get --optional 0
     if $found == null and $named != null {
         let known = platform-files $repo | each { path parse | get stem } | str join ', '

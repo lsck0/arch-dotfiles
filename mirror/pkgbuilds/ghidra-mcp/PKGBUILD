@@ -13,6 +13,7 @@ license=(Apache-2.0)
 depends=(ghidra python python-pydantic)
 makedepends=(maven 'java-environment>=25' python-build python-installer python-hatchling python-wheel)
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+# v7.0.0, 2026-10-21
 sha256sums=(7d5446d8b89e83f85ee6f3767288eef3d5bf098e0920da15df6fe1dc2b5eeaa0)
 
 _ghidra_home=/opt/ghidra

@@ -12,6 +12,7 @@ depends=(python python-cryptography)
 makedepends=(python-build python-pip python-hatchling)
 optdepends=("krb5: For Kerberos authentication")
 source=("$pkgname-$pkgver.tar.gz::https://github.com/CravateRouge/bloodyAD/archive/v$pkgver.tar.gz")
+# v2.5.7, 2026-10-25
 sha256sums=(3d33e20ce3e21002709ccbf33d007af359a7eb6bf9c6d1c516eaf877ee97f319)
 
 _pyver=$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')

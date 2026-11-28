@@ -4,6 +4,8 @@ use log.nu [runs-dir]
 use platform.nu [PLATFORM_TARGET platform-load platform-cells platform-spec]
 use modules.nu [modules-discover]
 use options.nu [options-schema]
+use usage.nu [flag-find]
+export use usage.nu [command-table words-misuse]
 use ../../configs/core/wallust/scripts/wallpaper.nu [wallpaper-list]
 
 const REPO = path self ../..
@@ -78,58 +80,6 @@ def complete-values [completion: any, shape: any, words: list<string>]: nothing 
         "theme-names" => (theme-names $words)
         "run-ids" => (run-ids $words)
         _ => (if $shape in $COMPLETE_FILE_SHAPES { [{value: $COMPLETE_FILES, description: ""}] } else { [] })
-    }
-}
-
-# Every `def "main ..."` in scope as {name, description, params}, name prefixed by prefix.
-export def command-table [prefix: string = ""]: nothing -> table {
-    scope commands | where name =~ '^main ' | each {|c|
-        {
-            name: ($c.name | str replace --regex '^main ' $prefix)
-            description: ($c.description | lines | get --optional 0 | default "")
-            params: ($c.signatures | values | first | where parameter_type not-in [input output] | select parameter_name parameter_type syntax_shape is_optional short_flag description completion)
-        }
-    }
-}
-
-def flag-find [params: table, word: string]: nothing -> any {
-    let long = $word | parse --regex '^--(?<name>[^=]+)$' | get --optional 0.name
-    let short = $word | parse --regex '^-(?<name>[^-])$' | get --optional 0.name
-    $params | where parameter_type in [switch named] | where {|p| $p.parameter_name == $long or ($short != null and $p.short_flag == $short) } | get --optional 0
-}
-
-# What is wrong with dot's arguments, as one line, or null: an unknown flag or subcommand, a word too many, a missing
-# one. dot.nu asks before nushell parses them against the signature and answers with its own frame. `open` names the
-# commands that take any words.
-export def words-misuse [table: table, words: list<string>, open: list<string>]: nothing -> any {
-    let lead = $words | take while { not ($in | str starts-with "-") }
-    let depth = seq 0 ($lead | length) | reverse | where {|n| ($lead | first $n | str join " ") in $table.name } | get --optional 0
-    if $depth == null { return null }
-    let name = $lead | first $depth | str join " "
-    if $name in $open { return null }
-    let params = $table | where name == $name | get 0.params
-    let help = $"dot ($name) --help"
-    mut given = []
-    mut pending: any = null
-    for word in ($words | skip $depth) {
-        if $pending != null { $pending = null; continue }
-        if $word in [--help -h] { return null }
-        let typed = $word | parse --regex '^(?<flag>--[a-z][a-z0-9-]*|-[a-zA-Z])(?<value>=.*)?$' | get --optional 0
-        if $typed == null { $given = $given | append $word; continue }
-        let flag = flag-find $params $typed.flag
-        if $flag == null { return $"dot ($name) has no flag ($typed.flag); ($help) lists them" }
-        if $flag.parameter_type == named and ($typed.value | is-empty) { $pending = $typed.flag }
-    }
-    if $pending != null { return $"dot ($name): ($pending) needs a value; ($help) says which" }
-    let positionals = $params | where parameter_type == positional
-    let extra = if ($params | any { $in.parameter_type == rest }) { null } else { $given | get --optional ($positionals | length) }
-    let missing = $positionals | where not is_optional | get --optional ($given | length)
-    if $extra != null and ($table.name | any { $in | str starts-with $"($name) " }) {
-        $"unknown command '($name) ($extra)'; ($help) lists them"
-    } else if $extra != null {
-        $"dot ($name) takes no '($extra)'; ($help) says what it takes"
-    } else if $missing != null {
-        $"dot ($name) needs <($missing.parameter_name)>; ($help) says what it takes"
     }
 }
 

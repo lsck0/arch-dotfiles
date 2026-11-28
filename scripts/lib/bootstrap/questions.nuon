@@ -87,7 +87,7 @@
             default: ""
             empty_ok: true
             title: "ssh key"
-            text: "SSH public key (one line, e.g. ~/.ssh/id_ed25519.pub). Empty leaves just the console."
+            text: "SSH public key: the line in your ~/.ssh/id_ed25519.pub, like ssh-ed25519 AAAA... you@host. Empty leaves just the console."
             pattern: '^(ssh-(ed25519|rsa)|ecdsa-sha2-nistp(256|384|521)|sk-(ssh-ed25519|ecdsa-sha2-nistp256)@openssh\.com) [A-Za-z0-9+/=]+( [^\n]*)?$'
             invalid: "BOOTSTRAP_SSH_KEY is not one ssh public key line"
         }
@@ -126,12 +126,12 @@
             plain: "package groups ({required} is always in, * marks the preselected):"
             plain_prompt: "numbers to toggle, Enter keeps the marked: "
             options: [
-                {value: "base", label: "kernel, boot, drivers, firewall, security and system services"}
-                {value: "core", label: "shell, cli tools, diagnostics, git, gpg, theming"}
+                {value: "base", label: "kernel, boot, drivers, firewall, security"}
+                {value: "core", label: "shell, cli tools, git, gpg, theming"}
                 {value: "creating", label: "image, audio, video and 3d editors, obs"}
-                {value: "desktop", label: "hyprland and plasma, browsers, terminals, audio, printing, apps"}
+                {value: "desktop", label: "hyprland, plasma, browsers, audio, apps"}
                 {value: "fonts", label: "noto, nerd and cjk fonts"}
-                {value: "gaming", label: "steam, lutris, heroic, proton and game tooling"}
+                {value: "gaming", label: "steam, lutris, heroic, proton"}
                 {value: "latex", label: "tex engine, pdf viewer, zotero"}
                 {value: "llm", label: "local language models with ollama"}
                 {value: "pentesting", label: "security auditing and pentest tools"}

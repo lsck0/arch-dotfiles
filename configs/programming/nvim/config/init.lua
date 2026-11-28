@@ -1,10 +1,8 @@
 vim.g.mapleader = " "
 require("options")
 
--- before plugins so their startup messages land in it; pcall: absent before nvim 0.12
-pcall(function()
-    require("vim._core.ui2").enable({ msg = { targets = "msg" } })
-end)
+-- before plugins so their startup messages land in it
+require("vim._core.ui2").enable({ msg = { targets = "msg" } })
 
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 local lazy_missing = not vim.uv.fs_stat(lazypath)

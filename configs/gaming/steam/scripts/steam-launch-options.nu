@@ -2,12 +2,18 @@
 # per game, not on the client: preloading into it breaks the webhelper websocket, MANGOHUD=1 is vulkan-only
 
 const REPO = path self | path expand | path dirname --num-levels 5
-use ($REPO | path join scripts lib state.nu) [save-atomic]
+use ($REPO | path join scripts lib state.nu) [save-atomic xdg]
 
-export const LAUNCH_OPTIONS_DEFAULT = "gamemoderun mangohud %command%"
+# ENABLE_VKBASALT turns on gaming/vkbasalt's layer, which is inert where it is not installed
+export const LAUNCH_OPTIONS_DEFAULT = "ENABLE_VKBASALT=1 gamemoderun mangohud %command%"
 # PNGTuber Plus is opengl under proton: only obs-gamecapture's gl preload is captured, and mangohud's shim bypasses it
 const LAUNCH_OPTIONS_APPS = {"2596880": "gamemoderun obs-gamecapture %command%"}
-const LAUNCH_OPTIONS_OURS = [$LAUNCH_OPTIONS_DEFAULT "gamemoderun mangohud obs-gamecapture %command%"]
+# every value this script ever wrote, former defaults included: a game still holding one is ours to update
+const LAUNCH_OPTIONS_OURS = [
+    $LAUNCH_OPTIONS_DEFAULT "gamemoderun mangohud %command%" "gamemoderun mangohud obs-gamecapture %command%"
+]
+# Steam's tools (Proton, the runtimes, the redistributables) have app manifests too, but no launch options
+const TOOL_INSTALLDIR = '^(Proton|SteamLinuxRuntime)|^Steamworks Shared$'
 # gaming/steam's launch_options when not the default: every launch of this script fills it, steam-launch.nu's too
 const WANTED_FILE = [steam launch-options]
 # every wanted value a fill got into all logins: a game still holding an older one is ours after the option changed
@@ -71,17 +77,9 @@ def vdf-update [pairs: list, path: list<string>, change: closure]: nothing -> li
     }
 }
 
-def state-dir []: nothing -> path {
-    $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state)
-}
+export def wanted-file []: nothing -> path { xdg state ...$WANTED_FILE }
 
-export def wanted-file []: nothing -> path {
-    state-dir | path join ...$WANTED_FILE
-}
-
-def filled-file []: nothing -> path {
-    state-dir | path join ...$FILLED_FILE
-}
+def filled-file []: nothing -> path { xdg state ...$FILLED_FILE }
 
 def filled-load []: nothing -> list<string> {
     let file = filled-file
@@ -113,9 +111,25 @@ def appids-installed []: nothing -> list<string> {
         # libraryfolders holds string keys (contentstatsid) besides the numbered libraries
         vdf-get (open --raw $folders | vdf-parse) libraryfolders | default []
             | where ($it.v | describe) != string | each { vdf-get $in.v path } | compact
-    } catch { [] }
+    } catch {|e|
+        # absent until Steam's first start, when its own library is the only one
+        if ($folders | path exists) { print --stderr $"steam-launch-options: cannot read ($folders): ($e.msg)" }
+        []
+    }
     $libraries | prepend (steam-root) | each { glob ($in | path join steamapps "appmanifest_*.acf") } | flatten
-        | each { path basename | parse "appmanifest_{id}.acf" | get 0.id } | where $it =~ '^\d+$' | uniq
+        | each {|manifest| app-manifest-game $manifest } | compact | uniq
+}
+
+# The appid a manifest installs, null for one of Steam's tools.
+def app-manifest-game [manifest: path]: nothing -> any {
+    let state = try { vdf-get (open --raw $manifest | vdf-parse) AppState } catch {|e|
+        print --stderr $"steam-launch-options: cannot read ($manifest): ($e.msg)"
+        null
+    }
+    let id = $manifest | path basename | parse "appmanifest_{id}.acf" | get 0.id
+    if $state == null or not ($id =~ '^\d+$') { return null }
+    if ((vdf-get $state installdir | default "") =~ $TOOL_INSTALLDIR) { return null }
+    $id
 }
 
 # A game's options are ours while empty, one of ours, one filled before or the wanted default: one the player typed

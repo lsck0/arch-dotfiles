@@ -3,12 +3,12 @@
 
 use ../../../../scripts/lib/proc.nu [notify]
 use ../../../../scripts/lib/state.nu [xdg]
+use reload.nu [hyprland-reload]
 
 const PLUGINS = [
     {name: "dynamic-cursors", url: "https://github.com/virtcode/hypr-dynamic-cursors", commit: "2a8d0b735328d874a78ca93b2f201649f712a74a", dir: "", output: "out/dynamic-cursors.so"} # committed 2026-10-05
 ]
 const PC = "/usr/share/pkgconfig/hyprland.pc"
-const TOGGLES = path self ../../../../scripts/toggles
 const SELF = path self
 
 def cache-dir []: nothing -> path { xdg cache hypr-plugins }
@@ -120,13 +120,8 @@ def plugins-load [hyprland: string]: nothing -> nothing {
     if ($load_failed | is-not-empty) {
         notify hyprland "Hyprland plugins did not load" ($load_failed | get name | str join ", ") | ignore
     }
-    # plugin options are only accepted once the plugin is in, so the config is read again; a reload drops the
-    # `hyprctl eval` state (lid.nu's panel off, the shader), which the toggles replay, as mod.nu's reload does
-    if ($loaded | is-not-empty) {
-        ^hyprctl reload config-only | ignore
-        ^nu --no-config-file ($TOGGLES | path join toggle-monitor-scale.nu) reapply
-        ^nu --no-config-file ($TOGGLES | path join toggle-shader.nu) reapply
-    }
+    # plugin options are only accepted once the plugin is in, so the config is read again
+    if ($loaded | is-not-empty) { hyprland-reload }
 }
 
 # The login run and a dot apply share the checkout and the output dir, so each verb reruns itself under one lock;

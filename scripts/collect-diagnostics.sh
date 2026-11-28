@@ -8,7 +8,7 @@ usage() {
     echo "usage: collect-diagnostics [--root <mnt>] [dest]: logs, journals, network and dot state into" \
         "dest/diag-<host>-<time>/ (default: a mounted LSCK0 stick, else \$XDG_STATE_HOME/diagnostics; run from the stick, its own dir)"
     echo "  --root <mnt>: also read an installed system mounted at <mnt> (from the stick: open its LUKS root, mount @ there and @home, @log" \
-        "as its fstab does): its journal, dot state, stage and install logs, boot config"
+        "as its fstab does): its journal, dot state, stage, install and sync logs, boot config"
 }
 # the installed system to read besides the running one, when this runs from the live iso
 target=
@@ -255,7 +255,7 @@ run dot git -C "$repo" status --short
 run dot "${as_user[@]}" "$repo/scripts/dot.nu" status
 run dot "${as_user[@]}" "$repo/scripts/dot.nu" log
 run dot "${as_user[@]}" "$repo/scripts/dot.nu" log --level WARN
-grab "$repo"/FAILURES.* "$repo"/install.log "$repo"/config.log "$repo"/stage.log
+grab "$repo"/FAILURES.* "$repo"/install.log "$repo"/config.log "$repo"/sync.log
 grab "$user_home/.local/state/dotfiles/crash.json" "$user_home/.config/dotfiles/profile.nuon"
 grab "$user_home/.local/state/dotfiles/runs" "$user_home/.local/state/dotfiles/ledger"
 root dot cat /var/lib/dotfiles/crash.json
@@ -313,7 +313,7 @@ if [[ -n $target ]]; then
         [[ $link == /* ]] && checkout=$target$(dirname "$(dirname "$link")")
         root_grab_into "$out/files/target/${home##*/}" "$home/.local/state/dotfiles/runs" \
             "$home/.local/state/dotfiles/crash.json" "$home/.local/state/dotfiles/ledger" \
-            ${checkout:+"$checkout"/FAILURES.* "$checkout"/install.log "$checkout"/config.log "$checkout"/stage.log}
+            ${checkout:+"$checkout"/FAILURES.* "$checkout"/install.log "$checkout"/config.log "$checkout"/sync.log}
     done
 fi
 

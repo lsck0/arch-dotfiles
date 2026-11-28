@@ -99,7 +99,8 @@ def spec-cases [] {
     assert equal ($KIND_TIMEOUT_S | select static-site oci-image arch-base) {static-site: 7200, oci-image: 3600, arch-base: 10800}
     let nix = try { toolchain-validate {nix: "/nix/store/x", drv: "/nix/store/x.drv"}; "" } catch {|e| $e.msg }
     assert ($nix | str starts-with "nix toolchains are not offered") $"nix refusal reads ($nix)"
-    for p in ["." "public" "a/b/c" "a..b"] { assert (path-inside-valid $p) $"path ($p) refused" }
+    for p in ["." "public" "a/b/c" "a..b" target/release/app] { assert (path-inside-valid $p) $"path ($p) refused" }
+    for p in ["" /etc/passwd ../x a/../../x $"a(char nul)b" 1] { assert not (path-inside-valid $p) $"path ($p) taken" }
 }
 
 def header-cases [] {

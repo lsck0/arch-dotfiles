@@ -3,7 +3,7 @@
 use log.nu *
 use state.nu [SYSTEM_REPO LIB_DIR path-kind file-trim nu-bin text-render]
 use system.nu [system-pack system-unpack]
-use platform.nu [platform-groups-all platform-files PLATFORM_NAME_FILE]
+use platform.nu [platform-groups-all platform-files PLATFORM_NAME_FILE PLATFORM_LOCAL_FILES]
 use profile.nu [profile-owner-add]
 use stage.nu [
     STAGE_KEY_FILE STAGE_ESP_MARKER STAGE_ESP_RUNNING STAGE_ESP_STOPPED STAGE_RESUME STAGE_SUDOERS_DROPIN STAGE_NEXT STAGE_REPORT
@@ -11,9 +11,13 @@ use stage.nu [
 ]
 use ../../platforms/homelab.nu [HOMELAB]
 use homelab.nu [lsck0-reachable lsck0-drop LSCK0_SECTION]
+use iso-install.nu [when-holds]
 
 const MIRRORLIST = "/etc/pacman.d/mirrorlist"
 const PACMAN_CONF = "/etc/pacman.conf"
+# the installed system's pacman.conf (base/pacman), whose ParallelDownloads the live one takes for pacstrap
+const PACMAN_CONF_REPO = "configs/base/pacman/config/pacman.conf"
+const PARALLEL_DOWNLOADS = '(?m)^#?\s*ParallelDownloads\s*=.*$'
 const MIRROR_COUNTRIES = "/etc/pacman.d/mirror-countries"
 const MIRROR_CANDIDATES = 5
 const MIRROR_KEEP = 5
@@ -49,10 +53,12 @@ const LUKS_OPEN = [--allow-discards --perf-no_read_workqueue --perf-no_write_wor
 # the running kernel's modules before the reboot (no modprobe, no nft, so no firewall, until then)
 const PACSTRAP = [base linux linux-firmware kernel-modules-hook mkinitcpio btrfs-progs cryptsetup binutils networkmanager sudo git git-lfs zsh zram-generator libfido2 nushell]
 const HOOKS = [base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck]
+# the initrd's systemd reads /etc/hostname, which mkinitcpio's systemd hook leaves out: without it every boot until the
+# root mounts runs as the fallback hostname, archlinux
+const HOSTNAME_DROPIN = "/etc/mkinitcpio.conf.d/hostname.conf"
 const CMDLINE_TAIL = "rw zswap.enabled=0 nmi_watchdog=0 slab_nomerge init_on_alloc=1 init_on_free=1 randomize_kstack_offset=on vsyscall=none page_alloc.shuffle=1"
-# openssl, openssl-3 and openssh ride along: -Sy on an older iso pulls a libfido2 built against libcrypto.so.4, so
-# ssh-sk-helper fails to load until openssl is current, and openssl-3 keeps the iso's own libcrypto.so.3 users working.
-const SECRETS_TOOLS = [age age-plugin-yubikey git-crypt pcsclite ccid libfido2 yubikey-manager openssl openssl-3 openssh]
+# openssh rides along, so ssh-sk-helper matches the libfido2 and openssl this -Sy brings
+const SECRETS_TOOLS = [age age-plugin-yubikey git-crypt pcsclite ccid libfido2 yubikey-manager openssh]
 const STAGE_KEY_BYTES = 64
 const ISO_LOG_TARGET = "/var/log/lsck0-install.log"
 const SETUP_MODE_VAR = "/sys/firmware/efi/efivars/SetupMode-8be4df61-93ca-11d2-aa0d-00e098032b8c"
@@ -62,8 +68,6 @@ const NETWORK_TIMEOUT_S = 10
 const NETWORK_TRIES = 3
 const NETWORK_BACKOFF = 3sec
 const PING_TIMEOUT_S = 2
-const PLATFORM_LOCAL = "/etc/dotfiles/platform.nuon"
-const PLATFORM_LOCAL_OPTIONS = "/etc/dotfiles/platform.options.nuon"
 const PLATFORM_NEW = "custom"
 const SERVER = "server"
 const PROFILE_CUSTOM = "custom"
@@ -74,7 +78,7 @@ const LOGIN_SHELL = "/usr/bin/zsh"
 const HOME_GATEWAYS = ["/etc/NetworkManager/home-gateways.local" "/etc/NetworkManager/home-gateways"]
 const MAC_PATTERN = '^([0-9a-f]{2}:){5}[0-9a-f]{2}$'
 const NETWORKD_LEASES = "/run/systemd/netif/leases"
-const TUI_WIDTH = 72
+export const TUI_WIDTH = 72
 const TUI_BOX_ROWS = 4
 const TUI_INPUT_ROWS = 7
 const TUI_TEXT_MARGIN = 6
@@ -104,14 +108,6 @@ def text-fill [text: string, values: record]: nothing -> string {
         let shown = if ($v.value | describe | str starts-with "list") { $v.value | str join " " } else { $v.value | default "" | into string }
         $acc | str replace --all $tag $shown
     }
-}
-
-def when-holds [when: any, c: record]: nothing -> bool {
-    $when | default {} | items {|field, want|
-        if $field not-in $c { error make {msg: $"($QUESTIONS): `when` names ($field), no answer or fact by that name"} }
-        let have = $c | get $field
-        if ($want | describe | str starts-with "list") { $have in $want } else { $have == $want }
-    } | all {|held| $held }
 }
 
 def options-items [e: record, c: record]: nothing -> list<string> {
@@ -322,8 +318,8 @@ def user-setup [c: record]: nothing -> nothing {
         mkdir ($repo_copy | path dirname)
         ^cp -a $c.repo $repo_copy
     }
-    let local = $"($root)($PLATFORM_LOCAL)"
-    let local_options = $"($root)($PLATFORM_LOCAL_OPTIONS)"
+    let local = $"($root)($PLATFORM_LOCAL_FILES.0)"
+    let local_options = $"($root)($PLATFORM_LOCAL_FILES.1)"
     if $c.generic {
         mkdir ($local | path dirname)
         let facts = if $c.secure_boot == "own" { {facts: {secure_boot_own_keys: true}} } else { {} }
@@ -376,13 +372,6 @@ def --wrapped in-target-ok [root: string, ...cmd: string]: nothing -> bool {
 def --wrapped in-target-input [root: string, ...cmd: string]: string -> nothing {
     let text = $in
     if ($root | is-empty) { $text | ^($cmd | first) ...($cmd | skip 1) } else { $text | ^arch-chroot $root ...$cmd }
-}
-
-def pacman-init []: nothing -> nothing {
-    ^pacman-key --init
-    ^pacman-key --populate archlinux
-    ^pacman -Sy --noconfirm --needed archlinux-keyring
-    ^pacman -Su --noconfirm --needed git gnupg sudo zsh nushell
 }
 
 def iwd-get [text: string, section: string, key: string]: nothing -> string {
@@ -490,6 +479,8 @@ def target-system [c: record, root_uuid: string]: nothing -> nothing {
     $"($root) rootflags=subvol=@ ($CMDLINE_TAIL)\n" | save --force (do $t /etc/kernel/cmdline)
     let hooks = $HOOKS | where $c.encrypt or $it != "sd-encrypt" | str join " " | $"HOOKS=\(($in)\)"
     open --raw (do $t /etc/mkinitcpio.conf) | str replace --regex --multiline '^HOOKS=.*$' $hooks | save --force (do $t /etc/mkinitcpio.conf)
+    mkdir (do $t $HOSTNAME_DROPIN | path dirname)
+    "FILES+=(/etc/hostname)\n" | save --force (do $t $HOSTNAME_DROPIN)
     for preset in (glob (do $t /etc/mkinitcpio.d/*.preset)) {
         let pkgbase = $preset | path parse | get stem
         open --raw $preset | lines | where not ($it =~ '^#?default_(image|uki|cmdline)=') | each { str replace --regex '^PRESETS=.*' "PRESETS=('default')" }
@@ -512,10 +503,7 @@ export def zram-config-render [c: record]: nothing -> string {
     let dir = $c.repo | path join configs $ZRAM_MODULE
     let read = '$options | items {|key, spec| [$key $spec.default] } | into record | to nuon'
     let defaults = ^(nu-bin) --no-config-file -I $LIB_DIR -c $"use ($dir | to nuon) [options]; ($read)" | from nuon
-    let machine = if $c.generic { $c.options } else {
-        $c.repo | path join platforms $"($c.platform).options.nuon" | if ($in | path exists) { open $in } else { {} }
-    }
-    let cfg = $defaults | merge ($machine | get --optional $ZRAM_MODULE | default {})
+    let cfg = $defaults | merge ($c.options | get --optional $ZRAM_MODULE | default {})
     open --raw ($dir | path join config zram-generator.conf) | text-render {SIZE: $cfg.size, COMPRESSION_ALGORITHM: $cfg.compression_algorithm}
 }
 
@@ -735,6 +723,13 @@ export def pacman-conf-lsck0 [conf: string, homelab: bool, reachable: closure]: 
     $conf | lsck0-drop
 }
 
+# The live pacman.conf with the installed system's ParallelDownloads (an iso ships 5), so pacstrap downloads as wide as
+# the install stage will.
+export def pacman-conf-parallel [conf: string, repo: path]: nothing -> string {
+    let line = open --raw ($repo | path join $PACMAN_CONF_REPO) | lines | where $it =~ '^ParallelDownloads\s*=' | first
+    if ($conf =~ $PARALLEL_DOWNLOADS) { $conf | str replace --regex $PARALLEL_DOWNLOADS $line } else { $conf | str replace --regex '(?m)^\[options\]$' $"[options]\n($line)" }
+}
+
 # The install chain's state an ESP marker records: "" for none, "running", or "stopped" once it stopped and was disarmed.
 export def stage-marker-state [marker: path]: nothing -> string {
     if not ($marker | path exists) { return "" }
@@ -829,7 +824,7 @@ def step-platform-load [q: record, c: record]: nothing -> record {
         let all = platform-groups-all $c.repo
         let options = $c.repo | path join platforms $"($c.platform).options.nuon" | if ($in | path exists) { open $in } else { {} }
         let secure_boot = if ($options | get --optional $SBCTL_MODULE | get --optional enable) == false { "off" } else if ($p.facts?.secure_boot_own_keys? | default false) { "own" } else { "microsoft" }
-        $c | merge {hostname: $p.hostname, groups: ($p.groups? | default $all), form_factor: ($p.form_factor? | default ""), homelab: ($p.facts?.homelab? | default false), secure_boot: $secure_boot}
+        $c | merge {hostname: $p.hostname, groups: ($p.groups? | default $all), form_factor: ($p.form_factor? | default ""), homelab: ($p.facts?.homelab? | default false), secure_boot: $secure_boot, options: $options}
     } else if $c.server {
         let template = $c.repo | path join platforms $"($SERVER).nuon"
         let options = $template | path parse | $"($in.parent)/($in.stem).options.nuon"
@@ -873,14 +868,12 @@ def question-defaults [q: record]: nothing -> record {
 }
 
 # For the review re-walk: each id'd question's current answer becomes its default, so a second pass prefills what was
-# chosen and the user only changes what they want. Record-valued answers (profile/platform resolve to records) keep
-# their question default, which is a name the answer-* resolves again.
+# chosen and the user only changes what they want. Profile and platform prefill their name, which answer-* resolves
+# again.
 def questions-with-current [q: record, c: record]: nothing -> record {
     let qs = $q.questions | each {|e|
         let current = if $e.id? == null { null } else { $c | get --optional $e.id }
-        if $current != null and not ($current | describe | str starts-with "record") {
-            $e | upsert default $current
-        } else { $e }
+        if $current != null { $e | upsert default $current } else { $e }
     }
     $q | upsert questions $qs
 }
@@ -915,7 +908,6 @@ def summary-render [q: record, c: record]: nothing -> string {
 def wsl-install [q: record, c: record]: nothing -> nothing {
     if ($c.user_password | is-empty) { die $q.messages.wsl_password_empty }
     if (tui) { ^clear }
-    pacman-init
     user-setup ($c | merge {target_root: ""})
     $"($c.hostname)\n" | save --force /etc/hostname
     open --raw ($c.repo | path join configs base wsl wsl.conf) | str replace --all "@USER@" $c.username | str replace --all "@HOSTNAME@" $c.hostname | save --force /etc/wsl.conf
@@ -958,7 +950,7 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
             let text = $"($summary)\n\n(text-fill $q.summary.question $c)"
             let items = [install $q.summary.install review $q.summary.review quit $q.summary.quit]
             # clamped box height (not auto "0") so a long summary on a short console scrolls instead of aborting
-            let choice = dlg --title $q.summary.title --default-item install --menu $text (height $text ($TUI_BOX_ROWS + 3)) (tui-width) "0" ...$items
+            let choice = dlg --title $q.summary.title --no-tags --default-item install --menu $text (height $text ($TUI_BOX_ROWS + 3)) (tui-width) "0" ...$items
             if $choice == "quit" { die $m.aborted }
             if $choice == "install" { ^clear; break }
             # re-walk from a fresh base so a changed platform re-derives its facts; current answers prefill
@@ -1034,7 +1026,7 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         }
         if ($PACMAN_CONF | path exists) {
             let conf = open --raw $PACMAN_CONF
-            let synced = pacman-conf-lsck0 $conf $c.homelab {|| lsck0-reachable }
+            let synced = pacman-conf-lsck0 $conf $c.homelab {|| lsck0-reachable } | pacman-conf-parallel $in $c.repo
             if $synced != $conf { $synced | save --force $PACMAN_CONF }
         }
         ^pacman -Sy --noconfirm --needed archlinux-keyring

@@ -145,7 +145,7 @@ def theme-config [cfg: record]: nothing -> record {
     let fx = {
         glowStrength: $cfg.fx_glow
         scanlineOpacity: $cfg.fx_scanlines
-        ...($theme.fx | select scanlineSpacing phosphorBias)
+        ...($theme.fx | select scanlineSpacing)
         cornerBrackets: $cfg.fx_corner_brackets
         crtFlicker: $cfg.fx_flicker
         matrixRain: $cfg.fx_matrix_rain
@@ -193,8 +193,8 @@ export def link [cfg: record] {
     ]
 }
 
-# Restarts a running shell after a type file new to it or a changed library script landed. A dot run the shell started itself (the settings
-# window's apply) sits in its cgroup and would die with it: that run only says so.
+# Restarts a running shell after a type file new to it or a changed library script landed. A dot run the shell
+# started itself (the settings window's apply) sits in its cgroup and would die with it: that run only says so.
 export def shell-restart []: nothing -> nothing {
     if (open --raw /proc/self/cgroup | str contains $"/($UNIT)") {
         log-note $"quickshell: new QML files or changed library scripts, its hot reload keeps the old code until restart.nu restarts ($UNIT)"

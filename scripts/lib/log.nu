@@ -155,8 +155,8 @@ export def --env run-begin [name: string, --read-only]: nothing -> nothing {
     let changing = $runs.files | where $it not-in $runs.read_only
     # two runs starting together prune the same files; the one that loses the race finds them gone mid-rm
     ($changing | drop $RUNS_KEEP) ++ ($runs.read_only | drop $RUNS_READ_ONLY_KEEP) | each {|f| try { rm --force $f } } | ignore
-    # a run's side files (.failures, .install-failures, an older dot's .owners) go with its log
-    glob (runs-dir | path join "*.{owners,*failures}") | where {|f| not ($f | str replace --regex '\.(?:owners|[a-z-]*failures)$' '.jsonl' | path exists) }
+    # a run's side files (.failures, .install-failures) go with its log
+    glob (runs-dir | path join "*failures") | where {|f| not ($f | str replace --regex '\.[a-z-]*failures$' '.jsonl' | path exists) }
         | each {|f| try { rm --force $f } } | ignore
     log-debug $"run ($name)" {kind: run, target: $name, read_only: $read_only}
 }

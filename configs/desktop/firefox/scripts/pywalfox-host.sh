@@ -11,6 +11,7 @@ socket=${TMPDIR:-/tmp}/pywalfox_socket_$UID
 if [[ -S $socket ]] && /usr/bin/python -I -c 'import socket, sys; socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM).connect(sys.argv[1])' "$socket" 2> /dev/null; then
     exit 0
 fi
-# pywalfox reads $XDG_CACHE_HOME/wal/colors.json; the firefox module writes it a copy with color0 as the background
+# pywalfox reads $XDG_CACHE_HOME/wal/colors.json; the firefox module writes it a copy with the slots solved for
+# contrast (pywalfox-slots)
 export XDG_CACHE_HOME=@CACHE@
 exec @MAIN@ "$@"

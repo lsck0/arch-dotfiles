@@ -6,8 +6,8 @@
 -- two" in a tex buffer becomes \frac{x^2}{2}); without ollama the transcript stays.
 local M = {}
 
--- programming/nvim's mod.nu fetches this file to the same path
-local MODEL_FILE = "ggml-large-v3-turbo-q5_0.bin"
+-- programming/nvim's mod.nu fetches the model this pin names into the XDG data dir
+local MODEL_PIN = vim.fn.stdpath("config") .. "/whisper-model.json"
 -- whisper's language code, or auto to detect it per piece
 local LANGUAGE = require("lib.dot_options").dictation_language
 local OLLAMA_URL = "http://127.0.0.1:11434"
@@ -57,7 +57,7 @@ local session = nil
 
 local function model_path()
     local data = vim.env.XDG_DATA_HOME or (vim.env.HOME .. "/.local/share")
-    return data .. "/whisper-cpp/" .. MODEL_FILE
+    return data .. "/whisper-cpp/" .. vim.json.decode(table.concat(vim.fn.readfile(MODEL_PIN), "\n")).file
 end
 
 local function notify(msg, level)

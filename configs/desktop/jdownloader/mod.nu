@@ -12,12 +12,10 @@ const SETTINGS = {
 }
 
 export def link [cfg: record] {
-    let scale = xwayland-scale-for $cfg
-    let java = { str replace --all --regex '(?m)^Exec=' $"Exec=env JDK_JAVA_OPTIONS=-Dsun.java2d.uiScale=($scale) " }
+    let java = {JDK_JAVA_OPTIONS: $"-Dsun.java2d.uiScale=(xwayland-scale-for $cfg)"}
     let dir = $nu.home-dir | path join .jd cfg
     [
-        (desktop-override jdownloader.desktop $java)
-        (desktop-override jd-containers.desktop $java)
+        ([jdownloader.desktop jd-containers.desktop] | each { desktop-exec $in JDownloader --env-vars $java })
         ($SETTINGS | items {|file, keys| json-merge ($dir | path join $file) $keys })
     ]
 }

@@ -9,6 +9,9 @@ const MESSAGES_URL = "https://api.anthropic.com/v1/messages"
 const HTTP_TIMEOUT = 15sec
 const PROBE_MODELS = [claude-haiku-4-5 claude-haiku-5-5 claude-sonnet-5-5]
 const POST_TIMEOUT = 30sec
+# a sync or a link change can drop dns for a moment: a post that fails to connect or gets a server error tries again
+const POST_TRIES = 3
+const POST_RETRY_DELAY = 10sec
 const PUSH_STALE = 300min
 const DAYS_SCANNED = 7
 const SPARK_BLOCKS = [" " "\u{2581}" "\u{2582}" "\u{2583}" "\u{2584}" "\u{2585}" "\u{2586}" "\u{2587}" "\u{2588}"]
@@ -194,16 +197,17 @@ def usage-limits [claude: path]: nothing -> record {
     }
     # the first model whose reply carries the unified headers wins; the newer ones stand in once haiku 4.5 retires
     let unified = {|found| $found | columns | any { $in | str starts-with anthropic-ratelimit-unified- } }
-    let probe = $PROBE_MODELS | reduce --fold null {|model, acc|
-        if $acc != null and (do $unified $acc.found) { return $acc }
+    mut probe: any = null
+    for model in $PROBE_MODELS {
         let body = {model: $model, max_tokens: 1, messages: [{role: user, content: "."}]} | to json --raw
         let reply = try {
             http post --full --allow-errors --max-time $HTTP_TIMEOUT --headers $headers --content-type application/json (
                 $MESSAGES_URL
             ) $body
-        } catch { return $acc }
+        } catch {|e| print --stderr $"usage probe ($model): ($e.msg)"; continue }
         let found = $reply.headers.response | reduce --fold {} {|h, f| $f | upsert ($h.name | str lowercase) $h.value }
-        {reply: $reply, found: $found}
+        $probe = {reply: $reply, found: $found}
+        if (do $unified $found) { break }
     }
     if $probe == null { return {} }
     let found = $probe.found
@@ -308,9 +312,20 @@ def plugin-post [payload: record]: nothing -> nothing {
     let uuid = $env.TRMNL_PLUGIN_UUID? | default (env-file-load $ENV_FILE | get --optional TRMNL_PLUGIN_UUID)
     if $uuid == null { error make {msg: $"missing ($ENV_FILE) \(TRMNL_PLUGIN_UUID=...\)"} }
     let body = {merge_variables: $payload} | to json --raw
-    let reply = http post --full --allow-errors --raw --max-time $POST_TIMEOUT --content-type application/json (
-        $"($PLUGIN_URL)/($uuid)"
-    ) $body
+    mut reply: any = null
+    for attempt in 1..$POST_TRIES {
+        if $attempt > 1 { sleep $POST_RETRY_DELAY }
+        $reply = try {
+            http post --full --allow-errors --raw --max-time $POST_TIMEOUT --content-type application/json (
+                $"($PLUGIN_URL)/($uuid)"
+            ) $body
+        } catch {|e|
+            print --stderr $"post ($attempt)/($POST_TRIES): ($e.msg)"
+            null
+        }
+        if $reply != null and $reply.status < 500 { break }
+    }
+    if $reply == null { exit 1 }
     let answer = $reply.body | default "" | str trim
     if $reply.status >= 200 and $reply.status < 300 { print $"OK \(($reply.status)\): ($answer)" } else {
         print --stderr $"HTTP ($reply.status): ($answer)"

@@ -1,7 +1,7 @@
 use module.nu *
 
-const PROTON_GE_VERSION = "GE-Proton11-12"
-const PROTON_GE_SHA256 = "0595159e417c3dbbfb7cc3ae0d3ed15a617cc607aa23ef756ea79029d7af5d70" # released 2026-11-03
+const PROTON_GE_VERSION = "GE-Proton11-14"
+const PROTON_GE_SHA256 = "26bcea3324b68dee68bf6b9b005f4425cdb9c29872e126d790df5abfebe332a8" # released 2026-11-23
 const OVERLAY_URL = "https://github.com/thaylorz/proton-ge-custom/releases/download/proton-layered-overlay-v1/Proton-LayeredOverlay.tar.gz"
 const OVERLAY_SHA256 = "ba515bf1fa6e7f9634cb894640f21f0359dc7435c3a5ce458a37087ed6c3a4d7" # released 2026-06-09
 const OVERLAY_DIR = "Proton-LayeredOverlay"

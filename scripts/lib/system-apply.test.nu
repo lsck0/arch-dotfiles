@@ -154,7 +154,6 @@ def argv-cases []: nothing -> nothing {
         [packages $"--yes=($expr)" $"--plan=($expr)"]
         [module $expr]
         [migrate $"--baseline=($expr)"]
-        [preserve-prune $expr]
         [adduser $expr $"--profile=($expr)"]
     ]
     for call in $calls {

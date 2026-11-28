@@ -41,7 +41,7 @@ def exec-cases [dir: path]: nothing -> nothing {
         let real = with-env {LC_ALL: "de_DE.UTF-8", LANGUAGE: "de"} { ^setsid --wait $ABSENT --flag | complete }
         wants "absent, setsid's own German" (cause-text (cause-from-output $"($ABSENT) --flag" $real.exit_code $real.stderr)) [$"($ABSENT) not installed"]
     }
-    assert equal (command-package lsusb --sync-dir $dir) $FILES_DB_MISSING "a sync dir without a files db answered a package"
+    assert equal (with-env {DOT_PACMAN_SYNC_DIR: $dir} { command-package lsusb }) $FILES_DB_MISSING "a sync dir without a files db answered a package"
 }
 
 def step-cases [dir: path]: nothing -> nothing {

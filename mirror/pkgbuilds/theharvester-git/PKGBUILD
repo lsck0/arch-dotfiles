@@ -31,6 +31,7 @@ depends=(
 makedepends=(git python-build python-installer python-wheel python-flit-core)
 optdepends=("python-httpx: alternative to aiohttp")
 install=theHarvester.install
+# master, 2026-11-07
 source=("$pkgname::git+$url.git#commit=94e3eed71387067fdeb9dd6f4c023d11b4ae7c3b")
 sha256sums=(SKIP)
 

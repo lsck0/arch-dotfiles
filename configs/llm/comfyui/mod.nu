@@ -10,7 +10,7 @@ const VRAM_MIN = 12GiB
 const HF = "https://huggingface.co"
 # each file pinned by repo commit and its lfs sha256 (https://huggingface.co/api/models/<repo>/tree/<commit>); placed
 # where the bundled workflow templates look for it (Templates, "Flux Schnell" and "Hunyuan3D 2.1")
-export const MODELS = [
+const MODELS = [
     # text to image, Apache-2.0, 2026-10-28; the fp8 single-file checkpoint carries clip, t5 and the vae
     {repo: "Comfy-Org/Flux-1-Schnell", commit: d31e04067066d92c55ece2b01748dcc337725d7a, file: flux1-schnell-fp8.safetensors
         dir: checkpoints, sha256: ead426278b49030e9da5df862994f25ce94ab2ee4df38b556ddddb3db093bf72}
@@ -43,23 +43,15 @@ export def link [cfg: record] {
     let src = $root | path join src
     let values = {
         PYTHON: ($root | path join venv bin python), SRC: $src, BASE: $root
-        OUTPUT: ($nu.home-dir | path join pictures comfyui), WAIT_READY: ($root | path join comfyui-wait-ready.nu)
+        OUTPUT: ($nu.home-dir | path join pictures comfyui), WAIT_READY: ($root | path join unit-wait-ready.nu)
         IDLE_MIN: $cfg.idle_min
-    }
-    let venv_key = venv-key
-    # the stamps the steps wrote before they were keyed: venv.stamp, and models/.pins/<sha256> beside each model
-    let venv_stamped = (try { open --raw ($root | path join venv.stamp) | lines | str join " " }) == $venv_key
-    let models = $root | path join models
-    let models_stamped = $MODELS | all {|m|
-        [($models | path join $m.dir $m.file) ($models | path join .pins $m.sha256)] | all { path exists }
     }
     [
         (fetch-git $COMFYUI_URL $COMFYUI_COMMIT $src)
         (step venv --network --timeout 60min --requires ($src | path join main.py) --creates $values.PYTHON
-            --key $venv_key --done=$venv_stamped)
-        (step models --network --timeout $MODELS_TIMEOUT --key ($MODELS | get sha256 | str join " ")
-            --done=$models_stamped)
-        (file-copy scripts/comfyui-wait-ready.nu $values.WAIT_READY --mode 755)
+            --key (venv-key))
+        (step models --network --timeout $MODELS_TIMEOUT --key ($MODELS | get sha256 | str join " "))
+        (file-copy ../vllm/scripts/unit-wait-ready.nu $values.WAIT_READY --mode 755)
         # the unit sees none of $HOME but its own tree and this dir, so it cannot make it itself
         (exec comfyui-output [mkdir -p $values.OUTPUT] --creates $values.OUTPUT)
         (unit-file services/comfyui.service --values $values --then [
@@ -84,7 +76,6 @@ export def venv []: nothing -> nothing {
     with-env {UV_PROJECT_ENVIRONMENT: ($root | path join venv), UV_PYTHON_INSTALL_DIR: ($root | path join python)} {
         ^uv sync --locked --exact --no-install-project --project ($env.PWD | path join scripts)
     }
-    rm --force ($root | path join venv.stamp)
 }
 
 # Each pinned model once: curl resumes a partial .part, and only a file matching its sha256 takes the real name; one
@@ -106,5 +97,4 @@ export def models []: nothing -> nothing {
         }
         mv --force $part $dest
     }
-    rm --force --recursive ($dir | path join .pins)
 }

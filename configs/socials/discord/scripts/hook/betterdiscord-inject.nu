@@ -2,6 +2,7 @@
 # no betterdiscordctl: it assumes one discord_desktop_core suffix, which differs between hosts
 
 use ../../../../../scripts/lib/state.nu [xdg process-running]
+use core.nu [desktop-core]
 
 const REPO = path self ../../../../..
 const ASAR_URL = "https://github.com/BetterDiscord/BetterDiscord/releases/download/v1.14.5/betterdiscord.asar"
@@ -11,13 +12,12 @@ const EXIT_WAIT_SECONDS = 10
 
 def main []: nothing -> nothing {
     let asar = xdg config BetterDiscord data betterdiscord.asar
-    let host = xdg config discord Discord
     let modules_link = xdg state betterdiscord-modules
-    if not ($host | path exists) { return }
-    let modules = $host | path expand | path dirname | path join modules
+    let host = desktop-core
+    if $host == null { return }
     mkdir ($modules_link | path dirname)
-    ^ln -sfn $modules $modules_link
-    let core = glob ($modules | path join discord_desktop_core-*) | sort --natural | last 1 | get --optional 0
+    ^ln -sfn $host.modules $modules_link
+    let core = $host.core
     let index = $core | default "" | path join discord_desktop_core index.js
     if $core == null or not ($index | path exists) { return }
     let current = ($asar | path exists) and (open --raw $asar | hash sha256) == $ASAR_SHA256

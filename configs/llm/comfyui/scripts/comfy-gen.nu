@@ -141,7 +141,10 @@ def "main 3d" [
         run-graph (flux-graph $"($text), ($OBJECT_STYLE)" $SIZE_DEFAULT_PX $SIZE_DEFAULT_PX $"3d/(slug $text)-ref") | first
     }
     # flux still loaded makes comfyui's free_memory fail loading hunyuan (IndexError in model_management): unload first
-    try { http post --content-type application/json $"($URL)/free" {unload_models: true, free_memory: true} | ignore } catch { }
+    let free = {unload_models: true, free_memory: true}
+    try { http post --content-type application/json $"($URL)/free" $free | ignore } catch {|e|
+        print --stderr $"comfy-gen: models not unloaded, hunyuan may fail to load: ($e.msg)"
+    }
     # LoadImage reads ComfyUI's input dir; the recentred copy there needs no upload
     let input = xdg data comfyui input
     mkdir $input

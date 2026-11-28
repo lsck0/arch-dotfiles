@@ -8,6 +8,7 @@
 ---@field fullscreen fun(opts: table): HlDispatcher
 ---@field move fun(opts: table): HlDispatcher
 ---@field resize fun(opts?: table): HlDispatcher
+---@field set_prop fun(opts: table): HlDispatcher
 
 ---@class HlGroupDispatchers
 ---@field move_window fun(opts: table): HlDispatcher
@@ -15,14 +16,19 @@
 ---@field prev fun(): HlDispatcher
 ---@field toggle fun(): HlDispatcher
 
+---@class HlWorkspaceDispatchers
+---@field toggle_special fun(name: string): HlDispatcher
+
 ---@class HlDispatchers
 ---@field dpms fun(opts: table): HlDispatcher
 ---@field exec_cmd fun(cmd: string): HlDispatcher
 ---@field focus fun(opts: table): HlDispatcher
 ---@field group HlGroupDispatchers
 ---@field layout fun(msg: string): HlDispatcher
+---@field pass fun(opts: table): HlDispatcher
 ---@field submap fun(name: string): HlDispatcher
 ---@field window HlWindowDispatchers
+---@field workspace HlWorkspaceDispatchers
 
 ---@class HlSubscription
 ---@field remove fun(self: HlSubscription)
@@ -38,12 +44,15 @@
 ---@field dispatch fun(action: HlDispatcher)
 ---@field env fun(name: string, value: string)
 ---@field exec_cmd fun(cmd: string, rules?: table): any
+---@field get_active_special_workspace fun(): table?
 ---@field get_active_window fun(): table?
+---@field get_active_workspace fun(): table?
 ---@field get_monitors fun(): table[]
 ---@field get_windows fun(): table[]
 ---@field layer_rule fun(rule: table)
 ---@field monitor fun(spec: table)
 ---@field on fun(event: string, handler: fun(...): any): HlSubscription
+---@field timer fun(handler: fun(), opts: table): any
 ---@field window_rule fun(rule: table)
 ---@field workspace_rule fun(rule: table)
 hl = {}

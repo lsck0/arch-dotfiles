@@ -9,6 +9,7 @@ use module.nu [DECL_KEYS DECL_KINDS unit-dir]
 use ini.nu [ini-apply]
 use cause.nu [cause-from-error cause-from-output cause-text argv-text]
 use online.nu [network-online remote-pending OFFLINE_PENDING]
+use proc.nu [succeeds]
 
 const UNREADABLE = "unreadable"
 const UNREADABLE_REASON = "unreadable as this user, checked at apply"
@@ -60,7 +61,7 @@ export def ask-batch [paths: list<string>, batch: closure, each_path: closure]: 
 # Whether what is in dir cannot be looked up: its nearest existing ancestor is not searchable by this user.
 export def dir-hidden [dir: path]: nothing -> bool {
     if (path-kind $dir) == "" and ($dir | path dirname) != $dir { return (dir-hidden ($dir | path dirname)) }
-    (^test -e $dir -a ! -x $dir | complete).exit_code == 0
+    succeeds test -e $dir -a ! -x $dir
 }
 
 # What is on disk now for each target (type, hash, link, mode; a target that cannot be looked at has UNREADABLE as type
@@ -237,10 +238,10 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
                 }
             }
             "json" => {
-                # known: the keys dot set with what they held before; null for a record from before they were tracked
+                # known: the keys dot set with what they held before; none for a record from before they were tracked
                 let last = prev-of $prev json $d.target
-                let known = if $last == null { [] } else { $last.keys? }
-                let drop = $known | default [] | where path not-in $d.edits.path
+                let known = $last.keys? | default []
+                let drop = $known | where path not-in $d.edits.path
                 let d = $d | insert known $known | insert drop $drop
                 let raw = merge-read $obs $d.target
                 let current = if ($raw | str trim | is-empty) { {} } else { try { $raw | from json } catch { null } }
@@ -316,7 +317,7 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
 def prune-parents [start: path]: nothing -> nothing {
     mut dir = $start
     while $dir != $nu.home-dir and $dir != "/" and (path-kind $dir) == "dir" and (try { ls --all $dir | is-empty } catch { false }) {
-        if (^pacman -Qo $dir | complete).exit_code == 0 { break }
+        if (succeeds pacman -Qo $dir) { break }
         try { rm $dir } catch { break }
         $dir = $dir | path dirname
     }
@@ -369,7 +370,7 @@ def run-step [a: record, dir: path]: nothing -> record {
 
 # a sibling module's daemon-reload running at the same moment fails a unit verb once
 def systemctl-retry [scope: string, ...args: string]: nothing -> nothing {
-    if (do { ^systemctl $"--($scope)" ...$args } | complete).exit_code != 0 {
+    if not (succeeds systemctl $"--($scope)" ...$args) {
         sleep 1sec
         ^systemctl $"--($scope)" ...$args
     }

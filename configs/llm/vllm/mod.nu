@@ -122,15 +122,13 @@ export def system [cfg: record] {
     }
     let stamp = venv-stamp
     let python = $PREFIX | path join venv bin python
-    # the stamp venv wrote before it was keyed
-    let stamped = ($python | path exists) and (try { open --raw ($PREFIX | path join venv.stamp) }) == $stamp
     [
         (step prefix-own --done=(prefix-root-owned $PREFIX))
-        (step venv --network --timeout 60min --creates $python --key ($stamp | hash sha256) --done=$stamped)
+        (step venv --network --timeout 60min --creates $python --key ($stamp | hash sha256))
         # the weights at install, not on the first request, whose ready timeout a cold download would miss
         (step model-fetch $cfg.model $cfg.model_revision --key $"($cfg.model)@($cfg.model_revision)" --network
             --timeout 90min --requires ($PREFIX | path join venv bin hf))
-        (file-copy scripts/vllm-wait-ready.nu /usr/local/bin/vllm-wait-ready --mode 755)
+        (file-copy scripts/unit-wait-ready.nu /usr/local/bin/vllm-wait-ready --mode 755)
         (unit-file services/vllm-proxy.service --values {IDLE_MIN: $cfg.idle_min})
         (unit-file services/vllm.service --values $values --then [
             systemctl try-restart vllm.service
@@ -198,5 +196,4 @@ export def venv []: nothing -> nothing {
         ^install -m755 $stub ($platlib | path join torch lib libmpi_cxx.so.40)
         rm --recursive $build
     } catch {|e| rm --recursive --force $build; error make $e }
-    rm --force ($PREFIX | path join venv.stamp)
 }

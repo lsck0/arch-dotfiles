@@ -505,7 +505,6 @@ Item {
     function toggle(): string { root.toggle(); return "ok" }
     function open(): string { root.open(); return "ok" }
     function close(): string { root.close(); return "ok" }
-    function forget(hash: string): string { root.forgetTextHash(hash); return "ok" }
   }
 
   OverlayCard {

@@ -6,6 +6,7 @@ set -eu
 busctl --user --no-legend list | while read -r name _ process _; do
     case "$name $process" in
         ":"*" ghostty")
+            # a window closed since the listing has no connection left to call: skip it, not fail the rest
             timeout 5 gdbus call --session --dest "$name" --object-path /com/mitchellh/ghostty \
                 --method org.gtk.Actions.Activate reload-config "[]" "{}" > /dev/null || true
             ;;

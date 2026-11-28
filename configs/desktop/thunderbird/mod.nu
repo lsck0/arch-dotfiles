@@ -23,7 +23,11 @@ export def link [cfg: record] {
 }
 
 export def profile-create [] {
-    ^timeout $HEADLESS_TIMEOUT thunderbird --headless | complete | ignore
+    # it never exits on its own: the timeout ends it, and the profile it wrote is the result
+    let run = ^timeout $HEADLESS_TIMEOUT thunderbird --headless | complete
+    if not (profiles-ini | path exists) {
+        error make {msg: $"thunderbird --headless wrote no profile: ($run.stderr | str trim | lines | last 3 | str join ' ')"}
+    }
 }
 
 # user.js's ui.systemUsesDarkTheme tracks the palette: content under a light wallust theme is not told it is dark

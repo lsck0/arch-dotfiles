@@ -126,7 +126,6 @@ codelldb-bin
 contrast
 converseen
 coreutils
-cpio
 cppcheck
 crates-tui-git
 croc
@@ -198,7 +197,6 @@ filezilla
 firefox
 flamegraph
 flamelens
-flat-remix-gtk
 flatpak
 flux-rs
 fluxer-bin
@@ -394,7 +392,6 @@ libva
 libva-utils
 libvips
 libvirt
-libx11
 libxcomposite
 libxinerama
 libxslt
@@ -500,7 +497,6 @@ nvidia-open-dkms
 nvidia-utils
 nwg-look
 obfs4proxy
-obs-audio-wave-bin
 obs-pipewire-audio-capture
 obs-plugin-waveform-bin
 obs-studio
@@ -1002,13 +998,10 @@ xdg-user-dirs-gtk
 xdg-utils
 xh
 xivlauncher-bin
-xorg-server
 xorg-server-xvfb
-xorg-xauth
 xorg-xcursorgen
 xorg-xeyes
 xorg-xhost
-xorg-xinput
 xorg-xrdb
 xorg-xwayland
 xournalpp

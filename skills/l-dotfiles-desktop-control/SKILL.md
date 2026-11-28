@@ -1,6 +1,6 @@
 ---
 name: l-dotfiles-desktop-control
-description: "Acting on Luca's live Hyprland desktop the way his keys and bar do: urls and apps, windows and workspaces, media, volume, brightness, notifications, toggles (route, vpn, dnd, night light), quickshell panels, tasks, reminders, notes, screenshots, typing. Load when Luca asks an agent to do something on his screen. Launching only to check: l-dotfiles-gui-testing; changing the shell: l-dotfiles-quickshell-dev."
+description: "Acting on Luca's live Hyprland desktop the way his keys and bar do: urls and apps, windows and workspaces, media, volume, brightness, theme and wallpaper, notifications, toggles (route, vpn, dnd, night light), quickshell panels, tasks, reminders, notes, screenshots, typing. Load when Luca asks an agent to do something on his screen. Launching only to check: l-dotfiles-gui-testing; changing the shell: l-dotfiles-quickshell-dev."
 ---
 
 # desktop-control
@@ -49,6 +49,9 @@ asked: focus it, then `$DOTFILES/configs/desktop/hyprland/scripts/window-close.n
   as his keys, with the OSD. `playerctl -l` lists players.
 - Exact values: `wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.4` (or `5%+`), `wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle`,
   the mic is `@DEFAULT_AUDIO_SOURCE@`; `monitor-brightness get <output>`, `monitor-brightness set <output> <percent>`.
+- Theme: `dot theme <theme|wallpaper|random>` recolours everything at once; dark and light:
+  `$DOTFILES/scripts/toggles/toggle-theme-mode.nu toggle`. Remember the current one first to put it back
+  (`l-dotfiles-theming`, Test).
 - Look at the screen: `grim -o DP-2 /tmp/shot.png` (main) or `-o DP-1`, cropped to what you need: it shows whatever he
   has open. His own screenshots land in `~/pictures/screenshots` and the clipboard.
 
@@ -77,17 +80,18 @@ as a subcommand (route `direct|proton|tor|offline`, firewall `permissive|default
 
 ## Typing and acting inside a window
 
-`wtype '<text>'` types into whatever has focus; `wtype -k Return` sends a key, `wtype -M ctrl l -m ctrl` a chord. Never a
-SUPER chord through wtype: its virtual keyboard's first key goes out as keycode 9, Hyprland matches binds by keycode, so
-`wtype -M logo -k F1` ran SUPER+Escape and locked the screen; reach a bind's action through `hyprctl dispatch` or `qs ipc`. Check
-the focused window first (`hyprctl activewindow -j`); never type into a terminal or a password field. No pointer
-automation: `ydotool.service` runs only while `mouse-jittering` does. `dictate` (`SUPER+ALT+v`) is his voice, not an
-agent's tool.
+`wtype '<text>'` types into whatever has focus; `wtype -k Return` sends a key, `wtype -M ctrl l -m ctrl` a chord. Never
+a SUPER chord through wtype: its virtual keyboard's first key goes out as keycode 9, Hyprland matches binds by keycode,
+so `wtype -M logo -k F1` ran SUPER+Escape and locked the screen; reach a bind's action through `hyprctl dispatch` or
+`qs ipc`. Check the focused window first (`hyprctl activewindow -j`); never type into a terminal or a password field.
+No pointer automation: `ydotool.service` runs only while `mouse-jittering` does. `dictate` (`SUPER+ALT+v`) is his
+voice, not an agent's tool.
 
 Inside an app or page, in this order, saying which before you start:
 
-1. The app's HTTP API where it has one (ComfyUI).
-2. Firefox's web console: ctrl+l, ctrl+shift+k, one short line, Enter; F12 closes it.
+1. The MCP server its module registers (obs-mcp, inkscape, audacity, playwright for a page), when one is connected.
+2. The app's HTTP API where it has one (ComfyUI).
+3. Firefox's web console: ctrl+l, ctrl+shift+k, one short line, Enter; F12 closes it.
 
 Does not work: keys typed at a page hit its shortcuts unless a text field has focus; Firefox blocks `javascript:` in the
 address bar; a GTK portal file dialog ignores Enter from `wtype`.

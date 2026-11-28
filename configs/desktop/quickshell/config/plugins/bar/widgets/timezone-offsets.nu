@@ -1,11 +1,13 @@
 #!/usr/bin/env -S nu --no-config-file
 
+const HERE = path self | path expand | path dirname
+use ($HERE | path join ../../../scripts/lib/shell.nu) [prefs-load]
+
 # clock_zones in mod.nu, through prefs.json; a missing file keeps these
 const ZONES_DEFAULT = [
     "NA West=America/Los_Angeles" "NA Central=America/Chicago" "NA East=America/New_York" "UK=Europe/London"
     "Central EU=Europe/Berlin" "NZ=Pacific/Auckland" "JP=Asia/Tokyo"
 ]
-const PREFS = ($nu.home-dir | path join .config quickshell prefs.json)
 const WINDOW_H = 25
 const STEP_S = 3600
 
@@ -28,7 +30,7 @@ export def zones-parse [entries: list<string>]: nothing -> table<zone: string, i
 }
 
 def zones-load []: nothing -> list<string> {
-    let zones = try { open $PREFS | get --optional clockZones } catch { null }
+    let zones = prefs-load | get --optional clockZones
     if ($zones | describe) =~ '^list' { $zones | each { into string } } else { $ZONES_DEFAULT }
 }
 

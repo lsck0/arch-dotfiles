@@ -7,7 +7,8 @@ After=comfyui.socket
 Type=simple
 Sockets=comfyui.socket
 TimeoutStartSec=6min
-ExecStartPre=-/usr/bin/nu --no-config-file @WAIT_READY@
+ExecStartPre=-/usr/bin/nu --no-config-file @WAIT_READY@ \
+    comfyui.service http://127.0.0.1:8189/system_stats 5min 8188 --user
 # the open editor tab holds its websocket, so the backend stays up while the tab does
 ExecStart=/usr/lib/systemd/systemd-socket-proxyd --exit-idle-time=@IDLE_MIN@min 127.0.0.1:8189
 ExecStopPost=/usr/bin/systemctl --user stop comfyui.service

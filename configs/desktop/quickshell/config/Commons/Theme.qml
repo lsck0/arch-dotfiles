@@ -34,7 +34,6 @@ QtObject {
     "glowStrength": ["fx", 0.55, 0, 1],
     "scanlineOpacity": ["fx", 0.06, 0, 0.3],
     "scanlineSpacing": ["fx", 3, 2, 8, true],
-    "phosphorBias": ["fx", 0, 0, 1],
     "crtFlicker": ["fx", 0.02, 0, 0.1],
     "matrixRain": ["fx", 0.5, 0, 1]
   })

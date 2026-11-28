@@ -2,7 +2,7 @@
 # (dispatcher.d, /usr/local/bin, the lock's command dir) keeps its own.
 
 # Whether argv ran and exited 0; its output is dropped.
-export def --wrapped succeeds [...argv: string]: nothing -> bool {
+export def --wrapped succeeds [...argv]: nothing -> bool {
     (do { run-external ...$argv } | complete).exit_code == 0
 }
 

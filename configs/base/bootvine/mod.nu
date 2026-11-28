@@ -1,5 +1,5 @@
 use module.nu *
-use ../boot/scripts/boot.nu [cmdline-set cmdline-unset hooks-read hooks-write hooks-insert]
+use ../boot/scripts/boot.nu [cmdline-set hooks-read hooks-write hooks-insert]
 
 const HOOK_INSTALL = "/usr/lib/initcpio/install/sd-bootvine"
 const UNITS = [bootvine.service bootvine-shutdown.service]
@@ -18,13 +18,11 @@ export def system [cfg: record] {
     [(step hooks) (if ($HOOK_INSTALL | path exists) { $UNITS | each { unit-enable $in } })]
 }
 
-# A hook without its install script fails every mkinitcpio: plymouth's left with its package, and sd-bootvine waits
-# for its own (hooks-sweep drops it once the package leaves). It goes right after systemd; a busybox initrd has no
-# systemd to hook into, so bootvine then starts in stage 2 only.
+# sd-bootvine goes right after systemd once its install script is there (hooks-sweep drops it when the package leaves);
+# a busybox initrd has no systemd to hook into, so bootvine then starts in stage 2 only.
 export def hooks-placed [hooks: list<string>, installed: bool]: nothing -> list<string> {
-    let kept = $hooks | where $it != plymouth and ($installed or $it != sd-bootvine)
-    if not $installed or "sd-bootvine" in $kept or "systemd" not-in $kept { return $kept }
-    hooks-insert $kept sd-bootvine systemd --after
+    if not $installed or "sd-bootvine" in $hooks or "systemd" not-in $hooks { return $hooks }
+    hooks-insert $hooks sd-bootvine systemd --after
 }
 
 # The red, green and blue lines: each comma-joined channel of every palette slot, in slot order.
@@ -43,9 +41,7 @@ export def hooks []: nothing -> nothing {
         print "note: bootvine: HOOKS has no systemd hook, so bootvine starts after the initrd"
     }
     hooks-write (hooks-placed $hooks ($HOOK_INSTALL | path exists))
-    # splash was plymouth's; auto still prints systemd's status lines for a slow or failed unit when bootvine is gone;
-    # console=tty1 keeps /dev/console off the VT bootvine holds in front, so the console agent and an emergency
-    # shell open on tty1
-    cmdline-unset splash
+    # auto still prints systemd's status lines for a slow or failed unit when bootvine is gone; console=tty1 keeps
+    # /dev/console off the VT bootvine holds in front, so the console agent and an emergency shell open on tty1
     cmdline-set quiet loglevel=3 rd.udev.log_level=3 systemd.show_status=auto console=tty1 ...(palette-cmdline $CONSOLE_PALETTE)
 }

@@ -1,7 +1,8 @@
 # arch-dotfiles
 
 Every machine and user setting is reproducible from this repo through `dot` (`scripts/dot.nu`, linked to
-`~/.local/bin/dot`, ahead of graphviz's `dot`).
+`~/.local/bin/dot`, ahead of graphviz's `dot`): a thin entry that hands plan, apply and status to
+`scripts/lib/pipeline-cli.nu` and every other command to the whole CLI, `scripts/lib/dot-cli.nu`.
 
 ## Skills
 
@@ -32,6 +33,10 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
 
 - `dot test lint` (about a minute, no root): repo rules plus every `*.test.nu`/`*.test.sh`. `dot test check`:
   formatters and linters; `dot test fmt` formats. `dot test run`: the VM test.
+- `dot test bench [--only <prefix>] [--runs <n>] [--slow]` (`scripts/lib/bench.nu`, a few minutes, no root): plan,
+  apply, status, set, toggles, the settings search, desktop-metrics, each over warm runs against a stated budget; best,
+  median, p95 and spread, the delta to each bench's last run, results in `$XDG_STATE_HOME/dotfiles/bench`; exit 1 when a
+  p95 misses its budget. Run it before and after a change that claims speed; `--slow` times `dot test lint`.
 - `dot apply [mod...] [--user|--system] [--packages] [--force]`, `dot plan [mod...] [--system] [--order|--modules]`,
   `dot status [--brief|--json]`, `dot set [mod[.key] [value]] [--default] [--machine] [--json]`,
   `dot set platform[.key] [value] [--default]` (the platform file's keys, `platform.facts.<fact>` too),

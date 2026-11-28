@@ -134,48 +134,17 @@ Item {
   }
 
   // typing filters, as in every overlay list; an action on the selected task takes CTRL, so a typed word never acts
-  function listKey(key, text, modifiers) {
-    var ctrl = (modifiers & Qt.ControlModifier) !== 0
-    if (key === Qt.Key_Escape) {
-      if (root.filterText) root.filterText = ""
-      else root.close()
-    } else if (key === Qt.Key_Tab || key === Qt.Key_Backtab) {
-      root.cycleView(key)
-    } else if (key === Qt.Key_Up || Util.isPrev(key, modifiers)) {
-      root.select(listCursor.step(root.selectedIndex, -1))
-    } else if (key === Qt.Key_Down || Util.isNext(key, modifiers)) {
-      root.select(listCursor.step(root.selectedIndex, 1))
-    } else if (key === Qt.Key_PageUp) {
-      root.select(listCursor.page(root.selectedIndex, -1))
-    } else if (key === Qt.Key_PageDown) {
-      root.select(listCursor.page(root.selectedIndex, 1))
-    } else if (key === Qt.Key_Home) {
-      root.select(0)
-    } else if (key === Qt.Key_End) {
-      root.select(root.filtered.length - 1)
-    } else if (key === Qt.Key_Return || key === Qt.Key_Enter) {
-      TaskState.markDone(root.selectedTask)
-    } else if (ctrl && key === Qt.Key_S) {
-      TaskState.toggleActive(root.selectedTask)
-    } else if (key === Qt.Key_Delete) {
-      TaskState.remove(root.selectedTask)
-    } else if (ctrl && key === Qt.Key_E) {
-      if (root.selectedTask) root.startInput("modify")
-    } else if (ctrl && key === Qt.Key_Z) {
-      TaskState.undoLast()
-    } else if (ctrl && key === Qt.Key_U) {
-      root.filterText = ""
-    } else if (key === Qt.Key_Backspace) {
-      root.filterText = root.filterText.slice(0, -1)
-      if (root.filterText) root.startInput("filter")
-    } else if (text === "+" && !ctrl) {
-      root.startInput("add")
-    } else if (Util.printable(text) && !ctrl && (modifiers & Qt.AltModifier) === 0) {
-      root.filterText += text
-      root.startInput("filter")
-    } else {
-      return false
-    }
+  function listKey(event) {
+    var key = event.key
+    var ctrl = (event.modifiers & Qt.ControlModifier) !== 0
+    if (key === Qt.Key_Tab || key === Qt.Key_Backtab) root.cycleView(key)
+    else if (ctrl && key === Qt.Key_S) TaskState.toggleActive(root.selectedTask)
+    else if (key === Qt.Key_Delete) TaskState.remove(root.selectedTask)
+    else if (ctrl && key === Qt.Key_E) { if (root.selectedTask) root.startInput("modify") }
+    else if (ctrl && key === Qt.Key_Z) TaskState.undoLast()
+    else if (event.text === "+" && !ctrl) root.startInput("add")
+    else if ((ctrl || (event.modifiers & Qt.AltModifier)) && Util.printable(event.text)) return false
+    else return listKeys.handle(event)
     return true
   }
 
@@ -317,7 +286,7 @@ Item {
       focus: true
 
       Keys.priority: Keys.BeforeItem
-      Keys.onPressed: function (event) { event.accepted = root.listKey(event.key, event.text, event.modifiers) }
+      Keys.onPressed: function (event) { event.accepted = root.listKey(event) }
     }
 
     Item {
@@ -445,6 +414,25 @@ Item {
           id: listCursor
           list: taskList
           rowHeight: root.rowHeight
+        }
+
+        FilterListKeys {
+          id: listKeys
+          cursor: listCursor
+          index: root.selectedIndex
+          filter: root.filterText
+          onEscaped: {
+            if (root.filterText) root.filterText = ""
+            else root.close()
+          }
+          onStepped: function (delta) { root.select(listCursor.step(root.selectedIndex, delta)) }
+          onJumped: function (index) { root.select(index) }
+          onActivated: TaskState.markDone(root.selectedTask)
+          onFilterCleared: root.filterText = ""
+          onFilterEdited: function (text) {
+            root.filterText = text
+            if (text) root.startInput("filter")
+          }
         }
 
         FadedList {

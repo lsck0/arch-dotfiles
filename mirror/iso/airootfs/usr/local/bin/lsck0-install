@@ -32,8 +32,8 @@ const PICK_RESCAN = "rescan"
 const PICK_SHELL = "shell"
 # online means the internet answers; the homelab mirror is probed apart, so a lab outage is named as one
 const PROBES = [https://archlinux.org https://github.com]
-# its database, as the bootstrap probes it: the proxy answers on a backend outage too
-const LAB_PROBE = "https://mirror.lsck0.dev/x86_64/lsck0.db"
+# the iso's own, whose [lsck0] server dot internal iso writes from the lab's values
+const PACMAN_CONF = "/etc/pacman.conf"
 const PROBE_TIMEOUT_S = 5
 const SIGNING_KEY = "/usr/share/lsck0/signing-key.asc"
 const SOURCE_PATH_KEYS = [bundle lfs]
@@ -310,8 +310,18 @@ def url-answers [url: string]: nothing -> bool {
     (^curl -s -o /dev/null -m $PROBE_TIMEOUT_S -w "%{http_code}" $url | complete | get stdout) not-in ["" "000"]
 }
 
-def lab-answers []: nothing -> bool {
-    (^curl -fs -m $PROBE_TIMEOUT_S -r 0-0 -o /dev/null $LAB_PROBE | complete).exit_code == 0
+# The homelab mirror's database, as the bootstrap probes it (the proxy answers on a backend outage too); null on an iso
+# without [lsck0].
+def lab-probe []: nothing -> any {
+    let conf = open --raw $PACMAN_CONF | lines | each { str trim }
+    let start = $conf | enumerate | where item == "[lsck0]" | get --optional 0.index
+    if $start == null { return null }
+    $conf | skip ($start + 1) | take while {|l| not ($l | str starts-with "[") } | parse --regex '^Server\s*=\s*(?<url>\S+)$'
+    | get --optional 0.url | if $in == null { null } else { $"($in | str replace '$arch' (uname | get machine))/lsck0.db" }
+}
+
+def lab-answers [probe: string]: nothing -> bool {
+    (^curl -fs -m $PROBE_TIMEOUT_S -r 0-0 -o /dev/null $probe | complete).exit_code == 0
 }
 
 def network-missing []: nothing -> string {
@@ -553,7 +563,8 @@ def main [] {
 
     if not (network-step $early.wifi) { print "install: stopped; run lsck0-install to start over"; return }
     print "install: online"
-    if not (lab-answers) { print (text-fill $TEXT.lab_down {host: ($LAB_PROBE | url parse | get host)}) }
+    let probe = lab-probe
+    if $probe != null and not (lab-answers $probe) { print (text-fill $TEXT.lab_down {host: ($probe | url parse | get host)}) }
     ^systemctl start pacman-init.service
     let reuse = $env.LSCK0_CHECKOUT? | default ""
     let repo = if ($reuse | is-not-empty) { $reuse } else {

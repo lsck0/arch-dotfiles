@@ -12,8 +12,9 @@ export def link [cfg: record] {
     }
     let homelab = $nu.home-dir | path join projects homelab
     [
-        # programming/projects may clone the homelab at the same time: the losing clone must not fail
-        (exec homelab-clone [sh -c $"git clone --recurse-submodules ($HOMELAB_URL) ($homelab) || true"] --creates ($homelab | path join .git) --network)
+        # programming/projects may clone the homelab at the same time: the losing clone passes on the winner's checkout
+        (exec homelab-clone [sh -c $"git clone --recurse-submodules ($HOMELAB_URL) ($homelab) || test -d ($homelab)/.git"]
+            --creates ($homelab | path join .git) --network)
         (unit-file services/ntfy-notify.service --values {DIR: $env.PWD} --enable --now)
     ]
 }

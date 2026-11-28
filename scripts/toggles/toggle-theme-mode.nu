@@ -3,7 +3,7 @@ use lib.nu [DOT status-record status-print notify notify-failed state-file state
 use ../lib/log.nu [log-err]
 use ../../configs/core/wallust/scripts/wallpaper-list.nu [wallpaper-resolve]
 use ../../configs/core/wallust/scripts/wallpaper.nu [wallpaper-get theme-get]
-use ../../configs/core/wallust/scripts/palette.nu [hex-to-rgb is-light wal-colors-file]
+use ../../configs/core/wallust/scripts/palette.nu [hex-to-rgb is-light wal-colors-file palette-load]
 
 const THEMES = path self ../../themes
 const LAST_FLIP = "theme-mode.nuon"
@@ -24,13 +24,13 @@ def themes []: nothing -> table {
     }
 }
 
-def background []: nothing -> any { try { open (wal-colors-file) | get special.background } }
-
-def current-mode []: nothing -> string {
-    let bg = background
-    if $bg == null { error make {msg: $"no palette in (wal-colors-file), run dot theme first"} }
-    mode-of $bg
+def palette []: nothing -> record {
+    let palette = palette-load
+    if $palette == null { error make {msg: $"no palette in (wal-colors-file), run dot theme first"} }
+    $palette
 }
+
+def current-mode []: nothing -> string { if (palette).light == "1" { "light" } else { "dark" } }
 
 def distance [a: string, b: string]: nothing -> float {
     $a | hex-to-rgb | zip ($b | hex-to-rgb) | each { ($in.0 - $in.1) ** 2 } | math sum
@@ -40,8 +40,7 @@ def distance [a: string, b: string]: nothing -> float {
 def current-theme [themes: table, palette: string]: nothing -> record {
     let named = $themes | where name == $palette | get --optional 0
     if $named != null { return $named }
-    let bg = background
-    if $bg == null { error make {msg: $"no palette in (wal-colors-file), run dot theme first"} }
+    let bg = (palette).bg
     $themes | where mode == (mode-of $bg) | sort-by { distance $in.background $bg } | first
 }
 

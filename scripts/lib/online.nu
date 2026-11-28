@@ -3,6 +3,7 @@
 # lets out only tor, pacman's alpm user and systemd-resolved, so it says full while every user download is dropped.
 
 use state.nu [state-dir save-atomic]
+use proc.nu [succeeds]
 
 # where most pinned downloads come from; DOT_NETWORK_PROBE_URL overrides it (a test's file:// or dead port)
 const PROBE_URL = "https://github.com"
@@ -19,7 +20,7 @@ const REMOTE_TIMEOUT = '(?<code3>context deadline exceeded|operation timed out|c
 const REMOTE_TRANSIENT = $"\(?i\)($REMOTE_STATUS)|($REMOTE_UNRESOLVED)|($REMOTE_TIMEOUT)"
 
 def probe [url: string]: nothing -> bool {
-    (do { ^curl --silent --head --output /dev/null --connect-timeout $PROBE_TIMEOUT_S --max-time $PROBE_TIMEOUT_S $url } | complete).exit_code == 0
+    succeeds curl --silent --head --output /dev/null --connect-timeout $PROBE_TIMEOUT_S --max-time $PROBE_TIMEOUT_S $url
 }
 
 # The pending text for a download's failure the remote caused (an outage, a rate limit, a block of this exit), null

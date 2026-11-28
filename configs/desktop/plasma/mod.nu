@@ -86,7 +86,8 @@ def rc-files []: nothing -> list<string> {
 }
 
 export def detect [cfg: record]: nothing -> record {
-    let ours = open ($DIR | path join $OUTPUTS) | where name == outputs | get 0.data.edidHash
+    # outputs without an edidHash (a VM's) match no connected screen
+    let ours = open ($DIR | path join $OUTPUTS) | where name == outputs | get --optional 0.data.edidHash | default []
     # the connectors are links, which glob does not follow
     let connected = ls $DRM | get name | each { path join edid } | where ($it | path exists) | each { open --raw $in | hash md5 }
     {kwin_outputs: ($connected | any { $in in $ours })}

@@ -2,14 +2,14 @@ use module.nu *
 use ../spotify/mod.nu [spicetify-colors]
 use ../../core/wallust/scripts/palette.nu [RADIUS_PX]
 use ../../core/wallust/scripts/font.nu [font-load]
+use scripts/fluxer-voice.nu [DEVTOOLS_PORT]
 
 # its theme reads spotify's spicetify colours, as discord's does, so it runs after spotify's
 export const meta = {deps: [socials/spotify], packages: {pacman: [fluxer-bin websocat]}}
 
-# Chrome DevTools on loopback, as spotify's: desktop/quickshell's fluxer-voice.nu reads the call state from it. CDP has
-# no auth, so any local process can drive the logged-in session; accepted as for spotify, electron binds loopback only.
-# scripts/fluxer-voice.nu repeats it as PORT (fluxer.test.nu holds the two equal)
-export const DEVTOOLS_PORT = 9234
+# Chrome DevTools on loopback (DEVTOOLS_PORT), as spotify's: scripts/fluxer-voice.nu reads the call state from it for
+# desktop/quickshell's Fluxer widget. CDP has no auth, so any local process can drive the logged-in session; accepted
+# as for spotify, electron binds loopback only.
 
 # a stable path in Fluxer's own config dir for the one link in README.md; Fluxer watches a linked file
 const THEME = "wal.theme.css"

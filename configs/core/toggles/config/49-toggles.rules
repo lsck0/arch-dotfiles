@@ -10,7 +10,6 @@ function atTheMachine(subject) {
 var TOGGLE_UNITS = [
     "docker.service",
     "docker.socket",
-    "ollama.service",
     "systemd-oomd.service",
     "systemd-oomd.socket"
 ];

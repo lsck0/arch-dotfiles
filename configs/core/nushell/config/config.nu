@@ -104,8 +104,7 @@ def --wrapped sudo-at-terminal [...rest] {
     ^sudo ...$rest
 }
 
-# a tool's aliases and defs are its module's, dropped into the autoload dir (shell-aliases); an alias
-# resolves its command where it is declared, so these follow the defs they call
+# a tool's aliases and defs are its module's, dropped into the autoload dir (shell-aliases)
 alias cp = cp -v
 alias mkdir = mkdir -v
 alias mv = mv -v

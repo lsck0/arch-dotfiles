@@ -12,6 +12,7 @@ depends=(gcc-libs)
 makedepends=(cargo)
 options=(!lto)
 source=("$pkgname-$pkgver.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate")
+# 1.77.0, 2026-07-23
 sha256sums=(ed5a5dae07ea76b2b8fdc36dba500580b0e9485a3b5d14a5897bec5cb749db47)
 
 prepare() {

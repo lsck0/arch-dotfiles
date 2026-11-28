@@ -1,16 +1,9 @@
 [Unit]
 Description=Post Claude Code usage to the TRMNL display
 Documentation=https://github.com/emaspa/trmnl-claude
-# a long outage still ends in a failure, and its one notification
-StartLimitIntervalSec=10min
-StartLimitBurst=5
 
 [Service]
 Type=oneshot
-# a sync or a link change can drop dns for a moment
-Restart=on-failure
-RestartSec=1min
-# a retry that fixes itself is not a failure: OnFailure only once the limit is hit
-RestartMode=direct
+# the script retries a post itself: systemd's Restart= on a oneshot still fires OnFailure for the first failure
 ExecCondition=@DIR@/scripts/trmnl-claude.nu changed
 ExecStart=@DIR@/scripts/trmnl-claude.nu

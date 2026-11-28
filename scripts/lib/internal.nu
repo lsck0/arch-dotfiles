@@ -7,7 +7,6 @@ use cli.nu [jobs guarded theme-locked]
 use usage.nu [die]
 use complete.nu [command-table complete-run completions-run module-ids]
 use platform.nu [platform-env platform-files]
-use options.nu [options-events-file]
 use modules.nu [modules-packages modules-eval module-packages-every packages-every-context SECRETS_GROUP VERB_WORK_TIMEOUT]
 use online.nu [network-online]
 use pipeline.nu [pipeline-load pipeline-plan pipeline-apply THEME_VERB_TIMEOUT]
@@ -152,8 +151,8 @@ def "main gen" [--check]: nothing -> nothing {
 }
 
 # build the lsck0 install iso (needs root for mkarchiso); --work or DOT_ISO_WORK, default $XDG_CACHE_HOME/dotfiles-iso
-def "main iso" [--out: path, --work: path, --mirror: string, --sign: string, --keep: int = 3]: nothing -> nothing {
-    guarded iso { iso-build $out $work $mirror $sign $keep }
+def "main iso" [--out: path, --work: path, --mirror: string, --keep: int = 3]: nothing -> nothing {
+    guarded iso { iso-build $out $work $mirror $keep }
 }
 
 # declared packages of a kind, one per line; --groups/--form-factor for another machine
@@ -184,14 +183,6 @@ def "main migrate" [--baseline]: nothing -> nothing {
 # preserved copies older than <days>, after a yes
 def "main prune" [days: int]: nothing -> nothing {
     guarded prune { preserve-prune $days }
-}
-
-# every option and live state change as json lines {key, value, source, runtime}
-def "main watch" []: nothing -> nothing {
-    let file = options-events-file
-    mkdir ($file | path dirname)
-    if not ($file | path exists) { "" | save $file }
-    ^tail --follow=name --retry --lines=0 $file
 }
 
 # secret rotation and recovery drill reminders

@@ -2,8 +2,8 @@
 
 - Toolchains install eagerly in `link` (`exec ... --creates` or a plan-time check), so the first build or LSP start
   works offline; never lazily on first launch.
-- Package-only modules (`toolchains`, `python`, `security`, `vcs`, `http`, `infra`, `devtools`): a package goes into
-  the module that uses it, else the closest of these.
+- A package goes into the module that uses it, else the closest catch-all: the package-only `toolchains`, `python`,
+  `security`, `http` and `infra`, or `vcs` and `devtools`, which also carry config.
 - Formatter configs live in `programming/formatting` and are passed by nvim's conform (from the repo) and Doom's
   apheleia (from copies in `~/.config/doom/formatting`) as the fallback when a project has none, never linked. The
   exception is latexindent and chktex: they and texlab find their configs by path, so those are copied into
@@ -21,6 +21,9 @@
 - `programming/claude` denies the agent's file tools the credentials (`SECRET_READS_*`: `configs/secrets/keys`, the
   git-crypt key, ssh and gpg keys, tool tokens). A module still reads its secret in its own code; an agent works with
   the names (`l-dotfiles-secrets-access`).
+- `programming/claude` themes Claude Desktop through its own mod, `config/mods/wallust-look`: copied to
+  `$XDG_DATA_HOME/claude/mods/wallust-look`, loaded by every session through `CLAUDE_CODE_PLUGIN_DIRS`, and painted at
+  session start from the `palette.json` the theme verb writes beside it. `look.test.nu` checks every theme paints.
 - Editors in use are nvim, Doom Emacs and Zed. VSCodium (vim keys, theme, settings) and JetBrains (toolbox only) are
   backups: no language extensions, LSPs or theme parity are owed to them.
 - `offload` (platform fact `offload`: `target` luca-pc, `client` luca-notebook) sends the repo's HEAD and working

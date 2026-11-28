@@ -1,6 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
-use lib.nu [status-record status-print notify notify-failed root-run state-get state-set state-clear state-file shell-call cycle-next toggle-run exclusive-run state-check]
+use lib.nu [status-record status-print notify notify-failed root-run state-get state-set state-clear state-file shell-call cycle-next exclusive-run state-check hyprland-instance]
+use ../lib/log.nu [log-err]
 use ../lib/platform.nu [platform-load]
+use ../../configs/desktop/hyprland/scripts/reload.nu [hyprland-reload]
 
 # auto is no forced mode: tlp picks by the power source
 const MODES = {auto: Auto, balanced: Balanced, performance: Performance, power-saver: "Power saver"}
@@ -28,7 +30,11 @@ def saver []: nothing -> bool {
     match (current) { power-saver => true, auto => (on-battery), _ => false }
 }
 
-# Reloads ghostty, hyprland, the shader, the monitor layout and the bar, only when the saver state flips.
+def saver-log-err [saver: string, msg: string]: nothing -> nothing {
+    with-env {LOG_TAG: ($env.PROCESS_PATH | path basename)} { log-err $"power saver ($saver): ($msg)" }
+}
+
+# Reloads ghostty, hyprland (with the monitor layout and the shader) and the bar, only when the saver state flips.
 def saver-sync []: nothing -> nothing {
     let saver = if (saver) { "on" } else { "off" }
     if (state-get powersaver --volatile) == $saver { return }
@@ -36,10 +42,12 @@ def saver-sync []: nothing -> nothing {
     let ghostty_conf = state-file ghostty-powersave.conf --volatile
     if $saver == on { "cursor-style-blink = false\n" | save --force $ghostty_conf } else { rm --force $ghostty_conf }
     # desktop/ghostty links it, and complete does not catch a command that is not there
-    if (which ghostty-reload | is-not-empty) { ^ghostty-reload | complete }
-    ^hyprctl reload config-only | complete
-    toggle-run shader reapply | complete
-    toggle-run monitor-scale reapply | complete
+    if (which ghostty-reload | is-not-empty) {
+        let run = ^ghostty-reload | complete
+        if $run.exit_code != 0 { saver-log-err $saver $"ghostty-reload failed: ($run.stderr | str trim | lines | last 1 | str join '')" }
+    }
+    # outside a Hyprland session (a tty, a unit) there is nothing to reload
+    if (hyprland-instance) != "" { try { hyprland-reload } catch {|err| saver-log-err $saver $err.msg } }
     shell-call shell reloadPowerMode | complete | ignore
 }
 

@@ -55,8 +55,7 @@ Singleton {
     aside.path = copy
     aside.setText(root.text)
     root.takeDisk()
-    Quickshell.execDetached(["notify-send", "-a", "quickshell-action", "-u", "low", "-h", "string:lsck0-glyph:" + root.glyph,
-      "--", "Notes changed on disk", "your edits are in " + copy.replace(Paths.home, "~")])
+    Util.actionNotify(root.glyph, "Notes changed on disk", "your edits are in " + copy.replace(Paths.home, "~"))
   }
 
   Component.onDestruction: root.flush()

@@ -191,11 +191,6 @@ BarWidget {
     }
   }
 
-  Connections {
-    target: ObsProcess
-    function onCommandRequested(command) { root.send(command) }
-  }
-
   Timer {
     id: statusRestart
     interval: 2000

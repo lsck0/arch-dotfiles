@@ -16,6 +16,7 @@ _wheel="heretic_llm-$pkgver-py3-none-any.whl"
 _exclude_newer="2026-11-09"
 source=("https://files.pythonhosted.org/packages/py3/h/heretic-llm/$_wheel")
 noextract=("$_wheel")
+# 2.1.0, 2026-11-08
 sha256sums=(0618535181cb5788ed68bf52d2fae2d4a494cebbe5d752cec58d880bb110e5b4)
 
 build() {

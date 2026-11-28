@@ -381,7 +381,7 @@ Singleton {
     if (fresh.length === 0) return
     var title = fresh.length === 1 ? (fresh[0].overdue ? "Task overdue" : "Task due " + fresh[0].due) : fresh.length + " tasks due"
     var body = fresh.map(function (t) { return fresh.length === 1 ? t.desc : t.desc + " (" + t.due + ")" }).join("\n")
-    Quickshell.execDetached(["notify-send", "-a", "quickshell-action", "-u", "low", "-h", "string:lsck0-glyph:" + root.glyph, "--", title, body])
+    Util.actionNotify(root.glyph, title, body)
   }
 
   JsonProcess {

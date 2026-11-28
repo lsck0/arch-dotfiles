@@ -13,5 +13,8 @@ export def link [cfg: record] {
     [
         (exec elan-install [$ELAN toolchain install $CHANNEL] --done=$installed --network)
         (exec elan-default [$ELAN default $CHANNEL] --done=($current == $CHANNEL))
+        # the channel floats, so every nightly it moved past stays until collected
+        (unit-file services/elan-gc.service)
+        (unit-timer elan-gc.timer "Weekly Lean toolchain cleanup" --calendar weekly --delay 1h --enable --now)
     ]
 }

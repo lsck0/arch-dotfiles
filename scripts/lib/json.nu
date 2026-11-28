@@ -25,11 +25,11 @@ def json-slot [doc: any, path: list<string>]: nothing -> record {
 }
 
 # Each path the edits touch, with what it held before dot first set it and what dot sets. known: the record's keys,
-# whose before-values stand; null for a record from before keys were tracked, whose before-values are unknown.
-export def json-keys [current: any, edits: list<record>, known: any]: nothing -> list<record> {
+# whose before-values stand.
+export def json-keys [current: any, edits: list<record>, known: list<record>]: nothing -> list<record> {
     $edits | each {|e|
-        let kept = if $known == null { null } else { $known | where path == $e.path | get --optional 0 }
-        let before = if $kept != null { $kept.before } else if $known == null { {unknown: true} } else { json-slot $current $e.path }
+        let kept = $known | where path == $e.path | get --optional 0
+        let before = if $kept != null { $kept.before } else { json-slot $current $e.path }
         {path: $e.path, before: $before, set: (if ($e.delete? | default false) { {absent: true} } else { {value: $e.value} })}
     }
 }

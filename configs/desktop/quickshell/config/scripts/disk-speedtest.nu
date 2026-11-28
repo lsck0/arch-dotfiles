@@ -10,14 +10,8 @@ const SECTOR_BYTES = 512
 const BYTES_PER_MB = 1_000_000
 const STAT_FIELD = {read: 2, write: 6}
 
-def emit [line: record] {
-    print ($line | to json --raw)
-}
-
-def fail [message: string] {
-    emit {error: $message}
-    exit 1
-}
+const HERE = path self | path expand | path dirname
+use ($HERE | path join lib shell.nu) [json-emit json-fail]
 
 def disk-root [dev: string]: nothing -> string {
     let slave = glob $"/sys/class/block/($dev)/slaves/*" | sort | get --optional 0
@@ -45,7 +39,7 @@ def phase-run [phase: string, chunk: path, files: list<path>, stat: path] {
         sleep 1sec
         let after = sectors $stat $phase
         $end_time = date now
-        emit {$phase: ([0 ($after - $before)] | math max | $in * $SECTOR_BYTES / $BYTES_PER_MB | math round --precision 1)}
+        json-emit {$phase: ([0 ($after - $before)] | math max | $in * $SECTOR_BYTES / $BYTES_PER_MB | math round --precision 1)}
         $samples += 1
         if $samples == 1 { $baseline = {sectors: $after, time: $end_time} }
         $before = $after
@@ -53,11 +47,11 @@ def phase-run [phase: string, chunk: path, files: list<path>, stat: path] {
     let alive = job list | where id in $workers | length
     # job kill refuses a job that has exited, a failed worker's or one ending between the list and the kill
     job list | where id in $workers | each {|j| try { job kill $j.id } } | ignore
-    if $alive < $PARALLEL { fail $"Disk ($phase) test failed before finishing" }
+    if $alive < $PARALLEL { json-fail $"Disk ($phase) test failed before finishing" }
     if $samples > 1 {
         let seconds = ($end_time - $baseline.time) / 1sec
         let rate = if $seconds <= 0 or $before < $baseline.sectors { 0.0 } else { ($before - $baseline.sectors) * $SECTOR_BYTES / $BYTES_PER_MB / $seconds }
-        emit {$phase: ($rate | math round --precision 1)}
+        json-emit {$phase: ($rate | math round --precision 1)}
     }
 }
 
@@ -65,23 +59,23 @@ def "main measure" [run_dir: path, chunk: path] {
     let target_dir = $run_dir | path dirname
     # btrfs appends the subvolume as [/name]
     let source = ^findmnt -no SOURCE --target $target_dir | complete | get stdout | str trim | split row "[" | first
-    if not ($source | str starts-with /dev/) { fail $"Cannot find a disk behind ($target_dir)" }
+    if not ($source | str starts-with /dev/) { json-fail $"Cannot find a disk behind ($target_dir)" }
     let dev = $source | path expand | path basename
     let stat = $"/sys/class/block/($dev)/stat"
-    if not ($stat | path exists) { fail $"No I/O statistics for ($dev)" }
+    if not ($stat | path exists) { json-fail $"No I/O statistics for ($dev)" }
     let needed_mb = $PARALLEL * $FILE_MB * 2
     if (^df --output=avail -m $target_dir | lines | last | str trim | into int) < $needed_mb {
-        fail $"Need at least ($needed_mb)MB free on ($target_dir)"
+        json-fail $"Need at least ($needed_mb)MB free on ($target_dir)"
     }
 
     let disk = disk-root $dev
     let model = ^lsblk -dno MODEL $"/dev/($disk)" | complete | get stdout | str trim
-    emit {disk: ($model | default --empty $disk)}
+    json-emit {disk: ($model | default --empty $disk)}
 
     ^dd if=/dev/urandom $"of=($chunk)" $"bs=($CHUNK_MB)M" $"count=($FILE_MB // $CHUNK_MB)" status=none
     let files = 0..<$PARALLEL | each { $run_dir | path join $"($in).dat" }
     let staged = $files | par-each { dd-pass write $chunk $in } | all { $in }
-    if not $staged or (ls $files.0 | get 0.size) == 0B { fail $"Direct disk I/O is not available on ($target_dir)" }
+    if not $staged or (ls $files.0 | get 0.size) == 0B { json-fail $"Direct disk I/O is not available on ($target_dir)" }
 
     phase-run read $chunk $files $stat
     phase-run write $chunk $files $stat

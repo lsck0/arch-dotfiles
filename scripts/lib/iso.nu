@@ -91,7 +91,7 @@ export def iso-signer-verify [iso: path, sig: path]: nothing -> nothing {
     }
 }
 
-def outputs-publish [built: path, out: path, keep: int, sign: any]: nothing -> list<path> {
+def outputs-publish [built: path, out: path, keep: int]: nothing -> list<path> {
     mkdir $out
     let iso = $out | path join ($built | path basename)
     mv --force $built $iso
@@ -100,20 +100,13 @@ def outputs-publish [built: path, out: path, keep: int, sign: any]: nothing -> l
     let latest = $out | path join $ISO_LATEST
     ^ln -sfn ($iso | path basename) $latest
     $"($sum)  ($ISO_LATEST)\n" | save --force $"($latest).sha256"
-    # an unsigned publish drops the signature a signed build of the same name left, and latest.sig with it
-    let signed = if $sign == null { rm --force $"($iso).sig" $"($latest).sig"; [] } else {
-        ^gpg --batch --yes --local-user $sign --detach-sign --output $"($iso).sig" $iso
-        iso-signer-verify $iso $"($iso).sig"
-        ^ln -sfn $"($iso | path basename).sig" $"($latest).sig"
-        [$"($iso).sig"]
-    }
     let old = ls $out | get name | where {|f| ($f | path basename) =~ $ISO_PATTERN } | sort --reverse | skip $keep
-    for f in $old { rm --force $f $"($f).sha256" $"($f).sig" }
-    [$iso $"($iso).sha256" $latest] ++ $signed
+    for f in $old { rm --force $f $"($f).sha256" }
+    [$iso $"($iso).sha256" $latest]
 }
 
-# Builds the iso into out (default <work>/out), keeping the newest keep; sign is a gpg key or null.
-export def iso-build [out: any, work: any, mirror: any, sign: any, keep: int]: nothing -> nothing {
+# Builds the iso into out (default <work>/out), keeping the newest keep; the lab signs what it serves itself.
+export def iso-build [out: any, work: any, mirror: any, keep: int]: nothing -> nothing {
     if (which mkarchiso | is-empty) { error make {msg: "iso: mkarchiso missing (pacman -S archiso, declared by qemu/libvirt)"} }
     let work = $work | default $env.DOT_ISO_WORK? | default (xdg cache $WORK_DEFAULT) | path expand
     let out = $out | default ($work | path join out) | path expand
@@ -128,7 +121,7 @@ export def iso-build [out: any, work: any, mirror: any, sign: any, keep: int]: n
     let root_part = 'rm -rf "$1" "$2" && mkarchiso -v -r -w "$1" -o "$2" "$3" && chown -R "$4" "$2" "$3"'
     as-root sh -c $root_part sh $build $staging $profile $owner
     let built = glob ($staging | path join $"($ISO_NAME)-*-($ISO_ARCH).iso") | get 0
-    let outputs = outputs-publish $built $out $keep $sign
+    let outputs = outputs-publish $built $out $keep
     rm --recursive --force $staging $profile
     $outputs | each { print $in } | ignore
 }

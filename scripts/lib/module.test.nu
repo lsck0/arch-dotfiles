@@ -3,8 +3,9 @@
 # depth), unit-restart's argv per layer and flags, and the udev and polkit rule declarations (target, source or
 # rendered content, --then), mcp-uvx (the venv built before the registration, which names the venv's entry point), and
 # unit-timer's text (key order, Persistent with a calendar, the mains condition) and enabling, and xwayland-scale-for
-# (the compositor's option, else its monitors' main scale, else the form factor's).
-use module.nu [desktop-set decls-flatten polkit-rules udev-reload udev-rules unit-dir unit-restart unit-timer mcp-uvx xwayland-scale-for]
+# (the compositor's option, else its monitors' main scale, else the form factor's), skill-dirs and skills-link, and
+# sync-link (linked only while the live dir is absent, empty or with --same identical; otherwise left with a note).
+use module.nu [desktop-set decls-flatten polkit-rules udev-reload udev-rules unit-dir unit-restart unit-timer mcp-uvx xwayland-scale-for skill-dirs skills-link sync-link]
 use std/assert
 
 def main [] {
@@ -123,6 +124,58 @@ def main [] {
     cd ($dir | path dirname)
     rm --recursive $dir
     xwayland-cases
+    skills-cases
+    sync-link-cases
+}
+
+def skills-cases [] {
+    let dir = mktemp --directory
+    mkdir ($dir | path join l-b) ($dir | path join l-a) ($dir | path join other)
+    touch ($dir | path join l-file)
+    ^ln -s ($dir | path join l-a) ($dir | path join l-link)
+    let dirs = skill-dirs $dir
+    assert equal $dirs [($dir | path join l-a) ($dir | path join l-b)] $"skill-dirs: ($dirs | to nuon)"
+    let links = skills-link $dir
+    assert ($links | all {|d| $d.kind == link and $d.source in $dirs and ($d.target | path basename) == ($d.source | path basename) }) $"skills-link: ($links | to nuon)"
+    assert equal (($links | length) mod 2) 0 $"skills-link: not both dirs per harness: ($links | to nuon)"
+    rm --recursive $dir
+}
+
+const LIB = path self .
+
+# sync-link in a nu of its own, for the note it prints.
+def sync-link-run [live: path, synced: path, same: bool]: nothing -> record {
+    let call = $"use module.nu [sync-link]; sync-link ($live | to nuon) ($synced | to nuon) test --same=($same)"
+    ^$nu.current-exe --no-config-file -I $LIB -c $call | complete
+}
+
+def sync-link-cases [] {
+    let cases = [
+        [name live synced same linked];
+        ["absent" null [a] false true]
+        ["empty" [] [a] false true]
+        ["holding data" [a] [a] false false]
+        ["identical with --same" [a] [a] true true]
+        ["different with --same" [b] [a] true false]
+        ["no synced copy" [] null false false]
+    ]
+    for c in $cases {
+        let dir = mktemp --directory
+        let live = $dir | path join nested live
+        let synced = $dir | path join synced
+        if $c.synced != null { mkdir $synced; $c.synced | each {|f| $f | save ($synced | path join $f) } }
+        if $c.live != null { mkdir $live; $c.live | each {|f| $f | save ($live | path join $f) } }
+        let note = sync-link-run $live $synced $c.same
+        assert equal $note.exit_code 0 $"sync-link ($c.name): ($note | to nuon)"
+        let linked = ($live | path type) == symlink and (($live | path expand) == $synced)
+        assert equal $linked $c.linked $"sync-link ($c.name): linked ($linked)"
+        if not $c.linked and $c.live != null and ($c.live | is-not-empty) {
+            assert ($note.stdout =~ "note: test: ") $"sync-link ($c.name): no note: ($note | to nuon)"
+            assert equal (ls $live | get name | path basename) $c.live $"sync-link ($c.name): the live data changed"
+        }
+        if $c.linked { assert equal (sync-link-run $live $synced false).stdout "" $"sync-link ($c.name): a second run did something" }
+        rm --recursive $dir
+    }
 }
 
 def xwayland-cases [] {

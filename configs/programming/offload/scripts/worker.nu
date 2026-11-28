@@ -440,7 +440,9 @@ export def metrics-update [finished: any = null]: nothing -> nothing {
     if not (state-at $METRICS_DIR | path exists) { return }
     let file = metrics-file
     let previous = try { open $file } catch { null }
-    try { metrics-state $previous (units-active | length) $finished | to json --raw | save-atomic $file } catch { }
+    try { metrics-state $previous (units-active | length) $finished | to json --raw | save-atomic $file } catch {|e|
+        print --stderr $"offload: metrics not saved to ($file): ($e.msg)"
+    }
 }
 
 # Refreshes the metrics with a job of kind that ran from started to ended.

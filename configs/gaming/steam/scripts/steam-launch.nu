@@ -38,7 +38,8 @@ def --wrapped main [...args: string]: nothing -> nothing {
         if not ($stash | path exists) { exit $code }
         rm --force $stash
     }
-    do { ^$nu.current-exe --no-config-file $LAUNCH_OPTIONS } | complete | ignore
+    # a failed fill must not keep Steam from starting: its message goes to the journal, dot's step retries it
+    try { ^$nu.current-exe --no-config-file $LAUNCH_OPTIONS } catch {|e| print --stderr $"steam-launch: ($e.msg)" }
     $env.OBS_VKCAPTURE = "1"
     exec /usr/bin/steam ...$args
 }

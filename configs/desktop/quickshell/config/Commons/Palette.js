@@ -18,6 +18,7 @@ var RADIUS_PX = 2;
 var BORDER_PX = 1;
 var OPACITY_SHELL = 0.6;
 var OPACITY_SHELL_LIGHT = 0.74;
+var EDGE_ALPHA = 0.22;
 // END generated
 
 // a color1 hue outside this band is no red, so urgent starts from the semantic red instead
@@ -186,20 +187,6 @@ function withHue(rgb, deg) {
     return hsvToRgb(pyMod(deg, 360) / 360, hsv[1], hsv[2]);
 }
 
-function phosphor(rgb, amount) {
-    if (!amount)
-        return rgb;
-    var hsv = rgbToHsv(rgb);
-    var green = 1 / 3;
-    var h = hsv[1] === 0 ? green : hsv[0];
-    var d = green - h;
-    if (d > 0.5)
-        d -= 1;
-    else if (d < -0.5)
-        d += 1;
-    return hsvToRgb(pyMod(h + d * amount, 1), hsv[1], hsv[2]);
-}
-
 function separateUrgent(urgent, accent, minApart, maxTurn) {
     var uh = hueDeg(urgent), ah = hueDeg(accent);
     if (Math.abs(turn(ah, uh)) >= minApart)
@@ -240,8 +227,8 @@ function conditionPalette(parsed, fallback, knobs) {
     var fg = special.foreground ? readableOn(bg, hexToRgb(special.foreground), k.foregroundContrast)
         : hexToRgb(fallback.foreground);
     var surface = shade(bg, k.surfaceLift, k.lightLuminance);
-    var accent = colors.color4 ? readableOn(bg, phosphor(vivifyOn(bg, hexToRgb(colors.color4), k.accentMinSaturation,
-        k.accentMinValue, k.textContrast), k.phosphorBias), k.accentContrast) : hexToRgb(fallback.accent);
+    var accent = colors.color4 ? readableOn(bg, vivifyOn(bg, hexToRgb(colors.color4), k.accentMinSaturation,
+        k.accentMinValue, k.textContrast), k.accentContrast) : hexToRgb(fallback.accent);
     var urgentBase = colors.color1 ? hexToRgb(colors.color1) : null;
     if (urgentBase && !isRed(urgentBase))
         urgentBase = hexToRgb(k.urgentRed);

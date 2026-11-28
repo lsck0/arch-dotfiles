@@ -134,6 +134,12 @@ QtObject {
     return Quickshell.iconPath(value, true)
   }
 
+  // a low toast as the app the shell shows through dnd (NotificationLogic.js ACTION_APP); shell.nu's action-notify in nu
+  function actionNotify(glyph, title, body) {
+    Quickshell.execDetached(["notify-send", "-a", "quickshell-action", "-u", "low"]
+      .concat(glyph ? ["-h", "string:lsck0-glyph:" + glyph] : [], ["--", title, body]))
+  }
+
   // a key event's text that types one visible character
   function printable(text) { return !!text && text.length === 1 && text.charCodeAt(0) >= 32 && text.charCodeAt(0) !== 127 }
 

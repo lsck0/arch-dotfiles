@@ -29,14 +29,12 @@ def sync-key []: nothing -> string {
 
 export def link [cfg: record] {
     let key = sync-key
-    # the stamp doom sync was tracked by before it was recorded: one matching the key proves the sync already ran
-    let synced = file-trim (emacs-dir | path join .local dot-synced)
     [
         (fetch-git $DOOM_URL $DOOM_COMMIT (emacs-dir))
         (files-into (xdg config doom) ...$DOOMDIR)
         (files-into (xdg config doom formatting) ...($FORMATTING | each { $"../formatting/config/($in)" }))
         (file-copy $"../formatting/scripts/($SORT_DERIVES)" (xdg config doom formatting $SORT_DERIVES) --mode 755)
-        (step sync --key $key --done=($synced == $key) --requires (doom-bin) --network --timeout $SYNC_TIMEOUT)
+        (step sync --key $key --requires (doom-bin) --network --timeout $SYNC_TIMEOUT)
     ]
 }
 

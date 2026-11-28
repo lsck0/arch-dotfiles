@@ -84,16 +84,19 @@ def sync-one [dir: path, bare: bool]: nothing -> list<string> {
     | compact
 }
 
-# Fetch, pull and push every git repo under a dir (default: here) in parallel, GIT_SYNC_JOBS at a time.
+# Fetch, pull and push every git repo under a dir (default: here) in parallel, GIT_SYNC_JOBS at a time; exits 1 when
+# a fetch, pull or push failed.
 def main [dir?: path]: nothing -> nothing {
     let base = $dir | default "." | path expand
     if ($base | path type) != dir { die --misuse $"not a directory: ($base)" }
     let repos = repos-under $base
         | insert name {|r| if $r.dir == $base { $r.dir } else { $r.dir | path relative-to $base } }
     let pad = $repos.name | each { str length } | append 0 | math max
-    $repos | par-each --threads ($env.GIT_SYNC_JOBS? | default $JOBS_DEFAULT | into int) {|repo|
+    let failed = $repos | par-each --threads ($env.GIT_SYNC_JOBS? | default $JOBS_DEFAULT | into int) {|repo|
         let bare = $repo.kind == bare
         let statuses = sync-one $repo.dir $bare | if ($in | is-empty) { ["UP TO DATE"] } else { $in }
         print $"($repo.name | fill -w $pad)  ($statuses | str join ', ')(if $bare { '  (bare)' } else { '' })"
-    } | ignore
+        $statuses | any { str ends-with " FAILED" }
+    } | any { $in }
+    if $failed { exit 1 }
 }

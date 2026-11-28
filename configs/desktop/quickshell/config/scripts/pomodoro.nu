@@ -20,6 +20,11 @@ def config-load []: nothing -> record {
     $CONFIG_DEFAULT | merge (try { open $CONFIG_PATH } catch { {} })
 }
 
+# the config's lengths under the state's phase names
+def lengths-of [config: record]: nothing -> record {
+    {work: $config.focus, break: $config.break, long: $config.long, cycles: $config.cycles}
+}
+
 # In the bare runtime dir, which exists from login: the shell's watch on a file under a missing dir never fires.
 def state-path []: nothing -> path { $env.XDG_RUNTIME_DIR | path join quickshell-pomodoro.json }
 
@@ -68,7 +73,7 @@ def phase-advance [--chime]: nothing -> nothing {
     let state = state-load
     if not $state.running { return }
     let config = config-load
-    let lengths = {work: $config.focus, break: $config.break, long: $config.long, cycles: $config.cycles}
+    let lengths = lengths-of $config
     if $state.phase == work {
         let next = if $state.cycle mod $config.cycles == 0 { "long" } else { "break" }
         let minutes = $lengths | get $next
@@ -87,7 +92,7 @@ def retime []: nothing -> nothing {
     let state = state-load
     if not $state.running { return }
     let config = config-load
-    let lengths = {work: $config.focus, break: $config.break, long: $config.long, cycles: $config.cycles}
+    let lengths = lengths-of $config
     let total = ($state | get $state.phase) * 60
     let left = if $state.paused { $state.remaining } else { [($state.endsAt - (epoch-now)) 0] | math max }
     let left = ($lengths | get $state.phase) * 60 - ($total - $left)
@@ -155,7 +160,7 @@ def main []: nothing -> nothing { main status }
 # reached only through with-lock's flock-wrapped re-invocation: the actual state mutations
 def "main locked start" []: nothing -> nothing {
     let config = config-load
-    phase-start {cycle: 1, work: $config.focus, break: $config.break, long: $config.long, cycles: $config.cycles} work ($config.focus * 60)
+    phase-start ({cycle: 1} | merge (lengths-of $config)) work ($config.focus * 60)
     action-notify $GLYPH $"Focus for ($config.focus) min" "Pomodoro 1 started"
 }
 

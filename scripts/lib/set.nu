@@ -6,7 +6,7 @@ use log.nu *
 use state.nu [SYSTEM_REPO save-atomic]
 use system.nu [ENTRY]
 use cli.nu [root-runner]
-use options.nu [OPTION_ENABLE ROOT_OPTIONS_DIR options-schema option-value-errors options-notify options-nuon-set enable-raised]
+use options.nu [OPTION_ENABLE ROOT_OPTIONS_DIR options-schema option-value-errors options-nuon-set enable-raised]
 use platform.nu [PLATFORM_TARGET platform-load platform-spec platform-rows platform-errors platform-value-errors]
 use pipeline.nu [module-get pipeline-load pipeline-plan pipeline-apply]
 use run.nu [link-run unlink-run admin system-part pending-exit pending-add]
@@ -112,7 +112,6 @@ export def option-write [mod: string, key: string, value: any, machine: bool, --
 export def option-apply [target: string, set: record]: nothing -> nothing {
     mut results = []
     mut toggle_error = ""
-    mut runtime: any = null
     match $set.spec.apply {
         "live" => {
             if "apply" in $set.module.native {
@@ -125,7 +124,6 @@ export def option-apply [target: string, set: record]: nothing -> nothing {
                 if $toggled.exit_code != 0 {
                     $toggle_error = $"toggle-($set.spec.toggle) exited ($toggled.exit_code): ($toggled.stderr | str trim | lines | last 1 | str join '')"
                 }
-                $runtime = option-runtime $set.spec
             }
         }
         $apply => {
@@ -150,7 +148,6 @@ export def option-apply [target: string, set: record]: nothing -> nothing {
     }
     let failed = $results | where not ok | each {|r| $"($r.id): ($r.error | default 'failed')" }
     let error = if ($failed | is-not-empty) { $"stored, the apply failed: ($failed | str join '; ')" } else if $toggle_error != "" { $"stored, ($toggle_error)" } else { null }
-    options-notify $target $set.value $set.source $runtime --error $error
     if $error != null { error make {msg: $"($target): ($error)"} }
     pending-exit
 }
@@ -260,6 +257,5 @@ export def --env platform-apply [target: string, set: record]: nothing -> nothin
             _ => {}
         }
     }
-    options-notify $target $set.value $set.source
     pending-exit
 }

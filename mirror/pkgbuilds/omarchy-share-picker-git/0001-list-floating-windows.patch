@@ -1,0 +1,30 @@
+diff --git a/src/hypr.rs b/src/hypr.rs
+index 789aa6f..1c78992 100644
+--- a/src/hypr.rs
++++ b/src/hypr.rs
+@@ -101,7 +101,7 @@ pub fn clients() -> Vec<Client> {
+                 stable_id: c.stable_id,
+             })
+         })
+-        .filter(|c| c.mapped && !c.hidden && !c.floating && c.w > 8 && c.h > 8)
++        .filter(|c| c.mapped && !c.hidden && c.w > 8 && c.h > 8)
+         .filter(|c| c.class != "omarchy-share-picker")
+         .filter(|c| !(c.class.is_empty() && c.title.is_empty()))
+         .collect()
+diff --git a/src/ui.rs b/src/ui.rs
+index 0bd2c31..129bb15 100644
+--- a/src/ui.rs
++++ b/src/ui.rs
+@@ -75,11 +75,7 @@ impl PickerApp {
+             xdph_windows
+                 .into_iter()
+                 .filter(|w| !(w.class.is_empty() && w.title.is_empty()))
+-                .filter(|w| {
+-                    hypr::match_window(w, &clients)
+-                        .map(|c| !c.floating)
+-                        .unwrap_or(false)
+-                })
++                .filter(|w| hypr::match_window(w, &clients).is_some())
+                 .map(|w| {
+                     let client = hypr::match_window(&w, &clients).cloned();
+                     WindowRow { xdph: w, client }

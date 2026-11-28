@@ -18,12 +18,6 @@ Singleton {
   property var inputVolumes: ({})
   property var inputMutes: ({})
 
-  signal commandRequested(var command)
-
-  function send(command) {
-    root.commandRequested(command)
-  }
-
   function listenSet(on) {
     if (on !== root.listening) Quickshell.execDetached([root.listenScript, on ? "on" : "off"])
   }
@@ -42,14 +36,6 @@ Singleton {
   IpcHandler {
     function toggleListen(): void {
       root.listenSet(!root.listening)
-    }
-
-    function listen(on: bool): void {
-      root.listenSet(on)
-    }
-
-    function listening(): string {
-      return root.listening ? "on" : "off"
     }
 
     target: "obs"

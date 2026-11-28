@@ -14,6 +14,7 @@ depends=(gcc-libs glibc)
 makedepends=(cargo)
 options=(!debug !lto)
 source=("$pkgname-$pkgver.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate")
+# 0.18.2, 2026-05-11
 sha256sums=(fd3af80f712419acbfa91a599dfeb7930ac43feac7d3be3da993ab3304030a15)
 
 _afl_share=/usr/share/cargo-afl

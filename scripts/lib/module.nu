@@ -12,12 +12,14 @@ use state.nu [nu-bin LIB_DIR HOOK_WATCH_PREFIX HOOK_RUN_PREFIX]
 export use state.nu [xdg env-file-load file-trim file-lines text-render sqlite-snapshot process-running group-exists recorded-hashes SYSTEM_STATE SYSTEM_REPO EXIT_PENDING SECRETS_ISSUE]
 export use ../../configs/core/wallust/scripts/palette.nu [palette-load]
 
-export const DECL_KEYS = [kind target source content mode generated inplace edits state now argv creates key done undo requires then notify network timeout]
+export const DECL_KEYS = [kind target source content mode generated inplace edits state now argv creates key done undo requires then network timeout]
 export const DECL_KINDS = [file link json ini unit exec step]
 const MODE_FILE = "644"
 const BIN_DIR = ".local/bin"
 const DESKTOP_SYSTEM_DIR = "/usr/share/applications"
 const DESKTOP_ENTRY = "[Desktop Entry]"
+# each agent harness skills-link serves, by its command, with its home dir
+const SKILL_HOMES = {claude: ".claude", copilot: ".copilot", gemini: ".gemini", hermes: ".hermes"}
 # an app rewriting a watched path in bursts would retrigger its hook in a loop
 const HOOK_BRAKE = "StartLimitIntervalSec=1min\nStartLimitBurst=20\n"
 const MCP_GATE = path self ../mcp-gate.py
@@ -26,7 +28,7 @@ const MCP_LOCK_KEY_LENGTH = 16
 def decl [kind: string, target: string, fields: record]: nothing -> record {
     {
         kind: $kind target: $target source: null content: null mode: $MODE_FILE generated: false inplace: false edits: []
-        state: null now: false argv: [] creates: null key: null done: false undo: [] requires: null then: [] notify: [] network: false timeout: null
+        state: null now: false argv: [] creates: null key: null done: false undo: [] requires: null then: [] network: false timeout: null
     } | merge $fields
 }
 
@@ -65,19 +67,18 @@ export def unit-dir []: nothing -> path {
 }
 
 # Copies src to dest as a managed file; --then runs once dest changed (a restart, a reload); --in-place as file-text.
-# --notify: the modules whose barrier (meta.barrier) must run when this changed, as a foreign initramfs input does.
-export def file-copy [src: path, dest: path, --mode: string = $MODE_FILE, --in-place, --then: list<string> = [], --notify: list<string> = []]: nothing -> record {
-    decl file $dest {source: (module-path $src), mode: $mode, inplace: $in_place, then: $then, notify: $notify}
+export def file-copy [src: path, dest: path, --mode: string = $MODE_FILE, --in-place, --then: list<string> = []]: nothing -> record {
+    decl file $dest {source: (module-path $src), mode: $mode, inplace: $in_place, then: $then}
 }
 
 # --generated is overwritten without a drift check whenever its module runs; --in-place keeps the inode for watchers.
-export def file-text [dest: path, content: string, --mode: string = $MODE_FILE, --generated, --in-place, --then: list<string> = [], --notify: list<string> = []]: nothing -> record {
-    decl file $dest {content: $content, mode: $mode, generated: $generated, inplace: $in_place, then: $then, notify: $notify}
+export def file-text [dest: path, content: string, --mode: string = $MODE_FILE, --generated, --in-place, --then: list<string> = []]: nothing -> record {
+    decl file $dest {content: $content, mode: $mode, generated: $generated, inplace: $in_place, then: $then}
 }
 
 # Writes src to dest with each @key@ replaced by its value (text-render).
-export def file-render [src: path, dest: path, values: record, --mode: string = $MODE_FILE, --generated, --then: list<string> = [], --notify: list<string> = []]: nothing -> record {
-    decl file $dest {content: (open --raw $src | text-render $values), mode: $mode, generated: $generated, then: $then, notify: $notify}
+export def file-render [src: path, dest: path, values: record, --mode: string = $MODE_FILE, --generated, --then: list<string> = []]: nothing -> record {
+    decl file $dest {content: (open --raw $src | text-render $values), mode: $mode, generated: $generated, then: $then}
 }
 
 # Copies each src into dir under its own name.
@@ -107,6 +108,36 @@ export def polkit-rules [src: path, --name: string, --values: record]: nothing -
 # Symlinks dest to src in the repo, for an app that must read the repo live.
 export def file-link [src: path, dest: path]: nothing -> record {
     decl link $dest {source: (module-path $src)}
+}
+
+# The l-* skill dirs under root.
+export def skill-dirs [root: path]: nothing -> list<path> {
+    glob ($root | path expand | path join "l-*") --no-file --no-symlink | sort
+}
+
+# Links each skill dir under root into the skills dir of every installed agent harness.
+export def skills-link [root: path]: nothing -> list<record> {
+    let dirs = skill-dirs $root
+    $SKILL_HOMES | items {|tool, home|
+        if (which $tool | is-not-empty) {
+            $dirs | each {|d| file-link $d ($nu.home-dir | path join $home skills ($d | path basename)) }
+        }
+    } | compact | flatten
+}
+
+# A step's body: replaces the live dir by a link to its synced copy in ~/sync while the live one is absent or empty
+# (--same: or identical to the copy). One holding other data stays with a note for a hand merge: dot never fills
+# ~/sync. who names the module in the note.
+export def sync-link [live: path, synced: path, who: string, --same]: nothing -> nothing {
+    if ($live | path type) == symlink or not ($synced | path exists) { return }
+    let empty = not ($live | path exists) or (ls $live | is-empty)
+    if not $empty and not ($same and (^diff -rq $live $synced | complete).exit_code == 0) {
+        print $"note: ($who): ($live) holds data: merge it into ($synced) by hand, then dot apply links it"
+        return
+    }
+    rm --recursive --force $live   # absent, empty or identical to the synced copy, checked above
+    mkdir ($live | path dirname)
+    ^ln -s $synced $live
 }
 
 # Links each script into ~/.local/bin under its stem.
@@ -245,7 +276,7 @@ export def mcp-uvx [
     | append (mcp-servers {$name: $spec})
 }
 
-const MCP_COMPAT_FROZEN = "2026-09-01"
+const MCP_COMPAT_FROZEN = "2026-11-20"
 
 # Arch's python-mcp is 2.x, whose FastMCP rename broke the ghidra and semgrep servers, and misses extras like structlog:
 # a venv over the system site-packages holds these pip specs, frozen at MCP_COMPAT_FROZEN, and runs the system
@@ -281,7 +312,7 @@ export def unit-file [src: path, --name: string, --values: record, --enable, --n
 # --ac-power names the udev rules that stop it on battery and start it at the plug-in.
 export def unit-timer [
     name: string, description: string, --calendar: string, --boot: string, --startup: string, --every: string
-    --delay: string, --accuracy: string, --ac-power: string, --enable, --now, --then: list<string> = []
+    --delay: string, --accuracy: string, --ac-power: string, --enable, --now
 ]: nothing -> list<record> {
     let ac = if $ac_power == null { [] } else {
         [
@@ -295,7 +326,7 @@ export def unit-timer [
     ]
     let timer = $keys | where {|kv| $kv.1 != null } | each {|kv| $"($kv.0)=($kv.1)" }
     let text = ["[Unit]" $"Description=($description)" ...$ac "" "[Timer]" ...$timer "" "[Install]" "WantedBy=timers.target"]
-    let file = file-text (unit-dir | path join $name) ($text | append "" | str join "\n") --then $then
+    let file = file-text (unit-dir | path join $name) ($text | append "" | str join "\n")
     [$file] ++ (if $enable { [(unit-enable $name --now=$now)] } else { [] })
 }
 
@@ -332,9 +363,9 @@ export def unit-mask [name: string, --now]: nothing -> record {
 }
 
 # Copies src as a drop-in into <unit>.d, named --name or its basename, rendered with values when given (file-render).
-export def dropin [unit: string, src: path, --name: string, --values: record, --then: list<string> = [], --notify: list<string> = []]: nothing -> record {
+export def dropin [unit: string, src: path, --name: string, --values: record, --then: list<string> = []]: nothing -> record {
     let dest = unit-dir | path join $"($unit).d" ($name | default ($src | path basename))
-    if $values == null { file-copy $src $dest --then $then --notify $notify } else { file-render $src $dest $values --then $then --notify $notify }
+    if $values == null { file-copy $src $dest --then $then } else { file-render $src $dest $values --then $then }
 }
 
 # A user copy of a system .desktop entry passed through edit; nothing when the app is not installed.
@@ -367,11 +398,11 @@ export def desktop-exec [id: string, cmd: string, --command: string, --args: lis
 # bound when converge's STEP_TIMEOUT is too short for it; --then: run once it went through, as a file's.
 export def exec [
     name: string, argv: list<string>, --creates: path, --key: string, --done, --undo: list<string> = [], --requires: path
-    --network, --timeout: duration, --then: list<string> = [], --notify: list<string> = []
+    --network, --timeout: duration, --then: list<string> = []
 ]: nothing -> record {
     decl exec $name {
         argv: $argv, creates: $creates, key: $key, done: $done, undo: $undo, requires: $requires, network: $network
-        timeout: $timeout, then: $then, notify: $notify
+        timeout: $timeout, then: $then
     }
 }
 
@@ -379,11 +410,11 @@ export def exec [
 # --done, --undo, --requires, --network and --timeout as exec's.
 export def step [
     command: string, ...args: string, --creates: path, --key: string, --done, --undo: list<string> = [], --requires: path
-    --network, --timeout: duration, --notify: list<string> = []
+    --network, --timeout: duration
 ]: nothing -> record {
     decl step $command {
         argv: $args, creates: $creates, key: $key, done: $done, undo: $undo, requires: $requires, network: $network
-        timeout: $timeout, notify: $notify
+        timeout: $timeout
     }
 }
 
@@ -432,12 +463,12 @@ export def group-admins [group: string]: nothing -> record {
 }
 
 # Without --permanent it retires once undeclared.
-export def user-hook [name: string, script: path, --watch: list<string>, --permanent, --no-brake, --mkdir]: nothing -> list<record> {
+export def user-hook [name: string, script: path, --watch: list<string>, --permanent, --no-brake]: nothing -> list<record> {
     if (layer-is-system) { error make {msg: $"user-hook ($name): a user-layer helper, its --then starts a user unit"} }
     let dir = unit-dir
     let path_unit = [
         "[Unit]" $"Description=($HOOK_WATCH_PREFIX) ($name) hook" "" "[Path]"
-    ] ++ ($watch | each { $"PathChanged=($in)" }) ++ (if $mkdir { ["MakeDirectory=yes"] } else { [] }) ++ ["" "[Install]" "WantedBy=default.target"]
+    ] ++ ($watch | each { $"PathChanged=($in)" }) ++ ["" "[Install]" "WantedBy=default.target"]
     let install = if $permanent { "\n[Install]\nWantedBy=default.target\n" } else { "" }
     let service = $"[Unit]\nDescription=($HOOK_RUN_PREFIX) ($name) hook\n(if $no_brake { '' } else { $HOOK_BRAKE })\n[Service]\nType=oneshot\nExecStart=(module-path $script)\n($install)"
     [

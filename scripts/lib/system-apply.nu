@@ -8,7 +8,7 @@ use options.nu [ROOT_OPTIONS_DIR OPTION_ENABLE options-schema option-value-error
 use platform.nu [PLATFORM_TARGET platform-load platform-spec platform-errors platform-value-errors]
 use modules.nu [modules-packages]
 use ledger.nu [packages-convergence packages-orphans-remove ledger-get ledger-set ledger-packages ledger-units awaited-names LEDGER_AWAITED LSCK0_DB]
-use preserve.nu [tty-confirm preserve-prune]
+use preserve.nu [tty-confirm]
 use migrate.nu [migrations-run]
 use system.nu [system-unpack system-secrets secrets-digest bootstrap-const ENTRY FINGERPRINT_VALUE SYSTEM_STAGES SYSTEM_SECRETS_DIGEST RUN_ID]
 use cli.nu [supervise self-argv]
@@ -233,7 +233,7 @@ def module-system [ctx: record, id: string, --packages-unchecked]: nothing -> bo
 
 # Never --wrapped: nu evaluates a wrapped main's `--flag=(expr)` arguments before its body runs, as root here.
 def main [] {
-    error make {msg: $"system-apply.nu <apply|install|config|packages|module|migrate|preserve-prune|set>"}
+    error make {msg: $"system-apply.nu <apply|install|config|packages|module|migrate|set>"}
 }
 
 # apply <sha> <install|config|sync>: unpack the repo and secrets archive on stdin, run the stage's steps from the new
@@ -442,7 +442,7 @@ def "main config" [--unattended, --force]: nothing -> nothing {
     ^chmod 755 $ADDUSER_BIN
     try { ledger-units $repo ($ctx.modules | where cfg.enable) system | ignore } catch {|e| fail $"ledger: disabling dropped units: ($e.msg)" }
     # last, so every initramfs and cmdline change of this run is rebuilt once, then signed and verified
-    for b in (barriers-run $ctx $run.results $force | where not ok) { fail $"barrier of ($b.id): ($b.error)" }
+    for b in (barriers-run $ctx $force | where not ok) { fail $"barrier of ($b.id): ($b.error)" }
     failures-end config
     if $run.waiting { exit $EXIT_PENDING }
 }
@@ -474,12 +474,6 @@ def "main module" [id: string]: nothing -> nothing {
 def "main migrate" [--baseline]: nothing -> nothing {
     let repo = entry-begin migrate
     migrations-run $repo system --baseline=$baseline | ignore
-}
-
-def "main preserve-prune" [days: int]: nothing -> nothing {
-    repo-guard | ignore
-    locked
-    preserve-prune $days
 }
 
 # banner-clear: a failed config stage's login banner, once the asking run applied both layers without a failure; here

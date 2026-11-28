@@ -15,11 +15,6 @@ Item {
 
   implicitHeight: Style.bar.sizeHorizontal
 
-  function setting(name, fallback) {
-    var value = settings ? settings[name] : undefined
-    return value === undefined || value === null ? fallback : value
-  }
-
   function closePanel() { if (bar) bar.closePanel(moduleName) }
 
   // leaves the widget's panel for one of the shell's own: `shell summon <id> <json>`

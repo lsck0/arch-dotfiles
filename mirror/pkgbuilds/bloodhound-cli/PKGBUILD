@@ -11,6 +11,7 @@ license=(Apache-2.0)
 depends=(docker docker-compose)
 makedepends=(go)
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+# v0.2.1, 2026-04-23
 sha256sums=(0870395c3885d95c7cfafadb9b522aa919ad870ccbd3351d58cd0a005db8cdb3)
 
 build() {

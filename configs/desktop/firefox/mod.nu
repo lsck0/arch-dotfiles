@@ -1,8 +1,7 @@
 use module.nu *
 use secrets.nu [owner-system-unlocked]
-use ../../core/wallust/scripts/palette.nu [RADIUS_PX OPACITY_SHELL OPACITY_SHELL_LIGHT TEXT_RATIO ACCENT2_RATIO hex-to-rgb rgb-to-hex is-light passes quantize readable-on wal-colors-file]
+use ../../core/wallust/scripts/palette.nu [RADIUS_PX EDGE_ALPHA OPACITY_SHELL OPACITY_SHELL_LIGHT TEXT_RATIO ACCENT2_RATIO hex-to-rgb rgb-to-hex is-light passes quantize readable-on wal-colors-file]
 use ../../core/wallust/scripts/font.nu [font-load]
-use ../qutebrowser/mod.nu [EDGE_ALPHA]
 
 export const meta = {
     deps: [desktop/qutebrowser]
@@ -47,8 +46,9 @@ const EXTENSION_NAMES = {
     "{88ebde3a-4581-4c6b-8019-2a05a9e3e938}": "Hide YouTube Shorts"
 }
 
-# an http(s) url with a host and the query placeholder; the system verb names the engine after the host
-const SEARCH_URL_PATTERN = '^https?://[^/?#\s]+\S*\{searchTerms\}'
+# an http(s) url with a host and the query placeholder; the system verb names the engine after the host (search-name),
+# as desktop/chromium's does
+export const SEARCH_URL_PATTERN = '^https?://[^/?#\s]+\S*\{searchTerms\}'
 
 export const options = {
     # machine: the policies are /etc's, one set for every login
@@ -161,8 +161,9 @@ export def link [cfg: record] {
 
 export def profile-create [] {
     # the force-installed plasma extension starts its native host, a Qt app that aborts without a display
-    with-env {QT_QPA_PLATFORM: offscreen} {
-        ^timeout $HEADLESS_TIMEOUT firefox --headless about:blank | complete | ignore
+    let run = with-env {QT_QPA_PLATFORM: offscreen} { ^timeout $HEADLESS_TIMEOUT firefox --headless about:blank | complete }
+    if not ($nu.home-dir | path join $HOME_DIR profiles.ini | path exists) {
+        error make {msg: $"firefox --headless wrote no profile: ($run.stderr | str trim | lines | last 3 | str join ' ')"}
     }
 }
 
@@ -281,9 +282,12 @@ export def theme [cfg: record, wallpaper: string] {
     $files | append (exec pywalfox-update [sh -c 'pywalfox "$0" && pywalfox update' $mode])
 }
 
+# A search engine's name in the browser's settings: its url's host.
+export def search-name [url: string]: nothing -> string { $url | url parse | get host | str replace --regex '^www\.' '' }
+
 # A search_url as the one engine the policy adds and makes the default, named after its host.
 def search-engines [url: string]: nothing -> record {
-    let name = $url | url parse | get host | str replace --regex '^www\.' ''
+    let name = search-name $url
     {Add: [{Name: $name, URLTemplate: $url, Method: GET}], Default: $name}
 }
 

@@ -17,13 +17,14 @@ with the exact need.
 3. `DOT_SYSTEM=skip dot apply <group>/<module>` converges its user layer. The `system` verb needs root:
    `dot plan --system <group>/<module>` shows what root would do; Luca runs `dot apply --system` (his next `dot sync`
    enters root for it too). Exit 3 means the system part is pending, not failed.
-4. `dot test lint`; fix and rerun until clean, then report.
+4. `dot internal gen` when packages, options or modules changed, then `dot test lint` and `dot test check`; fix and
+   rerun until clean, then report.
 
 ## Gotchas
 
 - Never edit a file while a `dot sync` runs: it evaluates the checkout live, then commits it. Wait with
-  `pgrep -f 'nu --no-config-file \S*(scripts/dot[.]nu|bin/dot) sync'`; a loose `pgrep -f 'dot.nu sync'` matches the
-  waiting shell itself and never ends.
+  `pgrep -f 'nu --no-config-file \S*(scripts/dot[.]nu|scripts/lib/dot-cli[.]nu|bin/dot) sync'` (dot.nu hands sync to
+  dot-cli.nu); a loose `pgrep -f 'dot.nu sync'` matches the waiting shell itself and never ends.
 - Renaming or deleting a file that `~/.local/bin` or a unit links into the repo leaves the command dangling until its
   module's user layer is applied (`scripts/` is the module `scripts`). `find ~/.local/bin -xtype l` lists them.
 - A comment-only edit of a file the system layer deploys still changes its hash: the next sync enters root and runs

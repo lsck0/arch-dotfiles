@@ -165,6 +165,7 @@ def "main hold" []: nothing -> nothing {
         # the lid closed on mains and the charger then pulled: logind acted on the lid long ago, so the suspend is asked here
         if $INHIBIT_LID in $before and ($wanted | is-empty) {
             sleep $RELEASE_SETTLE
+            # refused only while another guard's inhibitor holds sleep, which keeps the machine up on purpose
             ^systemctl suspend | complete | ignore
         }
         sleep $POLL

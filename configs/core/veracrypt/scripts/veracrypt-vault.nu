@@ -2,8 +2,8 @@
 
 const SIZE_DEFAULT = "1G"
 
-def container []: nothing -> path { $env.VAULT_HC? | default ($nu.home-dir | path join sync vault.hc) }
-def mountpoint []: nothing -> path { $env.VAULT_MOUNT? | default ($nu.home-dir | path join vault) }
+def container []: nothing -> path { $nu.home-dir | path join sync vault.hc }
+def mountpoint []: nothing -> path { $nu.home-dir | path join vault }
 
 def main []: nothing -> nothing {
     print --stderr $"usage: veracrypt-vault create [size]|mount|umount|dismount|status
@@ -19,7 +19,7 @@ def "main create" [size?: string]: nothing -> nothing {
         print --stderr $"refusing to create: (container) already exists"
         exit 1
     }
-    let size = $size | default ($env.VAULT_SIZE? | default $SIZE_DEFAULT)
+    let size = $size | default $SIZE_DEFAULT
     (^veracrypt --text --create (container) $"--size=($size)" --encryption=AES --hash=SHA-512 --filesystem=ext4
         --volume-type=normal --pim=0 --keyfiles= --random-source=/dev/urandom)
     print --stderr $"created (container) \(($size)\); mount it with: veracrypt-vault mount"

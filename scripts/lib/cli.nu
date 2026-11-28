@@ -3,10 +3,10 @@
 use log.nu *
 use cause.nu [cause-from-error cause-text]
 use state.nu [state-dir]
+export use reexec.nu [self-argv supervise locks-held state-lock-hold]
 
 const REPO = path self ../..
 const CRASH_LOG_LINES = 20
-const SUPERVISOR = path self interruptible.sh
 const CRASH_FILE = "crash.json"
 # wider than any row: the piped table is never wrapped or truncated
 const ROWS_PIPED_WIDTH = 100_000
@@ -39,30 +39,6 @@ export def build []: nothing -> record {
     let status = ^git -C $REPO status --porcelain --ignore-submodules=all | complete
     let dirty = $status.exit_code == 0 and ($status.stdout | str trim | is-not-empty)
     {commit: $head, dirty: $dirty, nu: (version | get version)}
-}
-
-# This process's argv, to re-exec it.
-export def self-argv []: nothing -> list<string> {
-    open --raw $"/proc/($nu.pid)/cmdline" | into binary | decode utf-8 | split row (char nul) | drop 1
-}
-
-# Re-execs under interruptible.sh so ctrl+c ends the run; --lock holds a flock that nested runs skip.
-export def supervise [--lock: path, --argv: list<string>]: nothing -> nothing {
-    let argv = $argv | default (self-argv)
-    if $lock == null {
-        if not (is-terminal --stdin) { return }
-        if ($env.DOT_INTERRUPTIBLE? | default "") == (^ps -o sid= -p $nu.pid | str trim) { return }
-        exec $SUPERVISOR ...$argv
-    }
-    let held = locks-held
-    if $lock in $held { return }
-    mkdir ($lock | path dirname)
-    exec $SUPERVISOR --lock $lock env $"DOT_LOCK=($held | append $lock | str join (char esep))" ...$argv
-}
-
-# The flocks this process and its parents hold, from DOT_LOCK: a run can hold several, each taken by one re-exec.
-export def locks-held []: nothing -> list<string> {
-    $env.DOT_LOCK? | default "" | split row (char esep) | where $it != ""
 }
 
 # The crash record next to a runs dir.
@@ -161,15 +137,6 @@ export def root-runner []: nothing -> any {
     let seen_terminal = (is-terminal --stdin) and not (agent-session)
     let graphical = ($env.WAYLAND_DISPLAY? | is-not-empty) or ($env.DISPLAY? | is-not-empty)
     if $seen_terminal { "sudo" } else if $graphical and (which pkexec | is-not-empty) { "pkexec" } else { null }
-}
-
-# Holds <state dir>/name for the rest of the run; while another run holds it, says "dot: <busy>, waiting for it".
-export def state-lock-hold [name: string, busy: string]: nothing -> nothing {
-    let lock = state-dir | path join $name
-    if $lock not-in (locks-held) and ($lock | path exists) and (^flock --nonblock $lock true | complete).exit_code != 0 {
-        print -e $"dot: ($busy), waiting for it"
-    }
-    supervise --lock $lock
 }
 
 # Held by every writer of modules/<id>/theme.nuon outside a dot apply: dot-theme.service's theme apply and an unlink's

@@ -13,19 +13,19 @@ const TOOLSETS_SKIPPED = [GameFeaturesToolset ConversationToolset]
 def --wrapped main [...args: string]: nothing -> nothing {
     # 5.8's sdl3 wayland driver renders at 1x and the compositor stretches it (blurry)
     $env.SDL_VIDEO_WAYLAND_SCALE_TO_DISPLAY = "1"
-    let engine = [$env.UE_ROOT? (xdg data unreal-engine) /opt/unreal-engine] | compact --empty
+    let engine = [$env.UE_ROOT? (xdg data unreal-engine)] | compact --empty
         | where { $in | path join $EDITOR | path exists } | get --optional 0
     if $engine == null { print -e "unreal-editor: no engine (set UE_ROOT)"; exit 1 }
     let toolsets = try {
         open --raw ($engine | path join $ALL_TOOLSETS) | from json
         | get Plugins.Name | where $it not-in $TOOLSETS_SKIPPED | str join ","
-    } catch { "" }
+    } catch {|err| print -e $"unreal-editor: no toolsets enabled: ($err.msg)"; "" }
     let enable_plugins = if ($toolsets | is-empty) { "ModelContextProtocol" } else { $"ModelContextProtocol,($toolsets)" }
     let zen_args = try {
         open --raw ($engine | path join Engine/Config/BaseEngine.ini) | lines
         | skip until { $in == "[Zen.AutoLaunch]" } | skip 1 | take until { str starts-with "[" }
         | where { str starts-with "ExtraArgs=" } | each { str substring 10.. } | str join "\n"
-    } catch { "" }
+    } catch {|err| print -e $"unreal-editor: zen's own launch args dropped: ($err.msg)"; "" }
     (exec ($engine | path join $EDITOR) ...$args
         $"-EnablePlugins=($enable_plugins)"
         -ModelContextProtocolStartServer $"-ModelContextProtocolPort=($MCP_PORT)"

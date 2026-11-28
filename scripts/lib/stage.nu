@@ -7,6 +7,8 @@ use system.nu [ENTRY]
 use profile.nu [profile-has]
 use cause.nu [failures-group ONLINE_ESCAPE SYSTEM_FIX]
 use platform.nu [platform-load]
+use run.nu [log-tee-argv]
+use proc.nu [succeeds]
 
 const REPO = path self ../..
 const WITNESS = $REPO | path join $OWNER_WITNESS
@@ -92,12 +94,12 @@ def report-beacon [tag: string]: nothing -> nothing {
 
 def disarm []: nothing -> bool {
     let device = file-trim $STAGE_LUKS_DEVICE
-    let armed = (^sudo test -f $STAGE_KEY_FILE | complete).exit_code == 0
+    let armed = succeeds sudo test -f $STAGE_KEY_FILE
     if $device == "" and $armed { return false }
     if $device != "" and $armed {
         let status = (^sudo cryptsetup open --test-passphrase --key-file $STAGE_KEY_FILE $device | complete).exit_code
         if $status == 0 {
-            if (^sudo cryptsetup luksRemoveKey $device $STAGE_KEY_FILE | complete).exit_code != 0 { return false }
+            if not (succeeds sudo cryptsetup luksRemoveKey $device $STAGE_KEY_FILE) { return false }
         } else if $status != $CRYPTSETUP_NO_KEY {
             return false
         }
@@ -255,7 +257,10 @@ export def stage-run [repo: path]: nothing -> nothing {
         # only config is bounded: a hung one would keep the passwordless sudo for good, a timeout fails it like any
         # error; install stays unbounded, a package download on a slow line may take hours
         let cmd = if $stage == "install" { [...$dot apply --packages] } else { [timeout --kill-after=1min $CONFIG_TIMEOUT ...$dot apply] }
-        try { "" | run-external ...$cmd; 0 } catch {|e| $e.exit_code? | default 1 }
+        # teed here, not by dot's own terminal check: the banner and the report point at <stage>.log, which must exist
+        # however the console, timeout's process group or an early exit left dot's stdout
+        let logged = log-tee-argv ($repo | path join $"($stage).log") $cmd
+        try { "" | run-external ...$logged; 0 } catch {|e| $e.exit_code? | default 1 }
     }
     # config runs after a partial pass, its modules without packages pending; after no pass it would disarm a bare system
     let decided = stage-next $stage $status ($INSTALL_PASS_FILE | path exists) $attempts

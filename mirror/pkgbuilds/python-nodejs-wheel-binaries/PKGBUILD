@@ -11,6 +11,7 @@ license=(MIT)
 depends=(python nodejs npm)
 _name=nodejs-wheel
 source=("$_name-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+# v24.22.1, 2026-10-21
 sha256sums=(afe27d3edcf1966e38aaa0a0af86019faea9a43c86cf7dfac2e2ab2bc10dea59)
 
 prepare() {

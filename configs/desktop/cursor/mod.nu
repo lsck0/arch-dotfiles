@@ -5,13 +5,11 @@
 use module.nu *
 use ../../core/wallust/scripts/palette.nu [ACCENT_RATIO FOREGROUND_RATIO hex-to-rgb readable-on rgb-to-hex]
 use ../hyprland/mod.nu [hyprland-live reload]
+export use scripts/size.nu [CURSOR_SIZE_PX cursor-size]
 
 export const meta = {
     packages: {pacman: [librsvg rose-pine-cursor rose-pine-hyprcursor xorg-xcursorgen]}
 }
-
-# size_px's default, for a reader whose platform leaves this module out
-export const CURSOR_SIZE_PX = 30
 
 export const options = {
     active: {
@@ -33,7 +31,7 @@ export const options = {
     }
 }
 
-export const CURSOR_THEME = "palette-cursor"
+const CURSOR_THEME = "palette-cursor"
 # the stock xcursor theme: the fallback, the source of every xcursor name an app may ask for, and of the animated
 # wait and progress cursors the hyprcursor set lacks
 export const STOCK = "BreezeX-RosePine-Linux"
@@ -139,9 +137,6 @@ def hyprcursor-build [src: path, out: path]: nothing -> nothing {
     ^hyprcursor-util --create $src -o $built | ignore
     cp --recursive ($built | path join $"theme_($CURSOR_THEME)" "*" | into glob) $out
 }
-
-# The size a reader's cfg.deps entry for this module names.
-export def cursor-size [cursor: any]: nothing -> int { $cursor.size_px? | default $CURSOR_SIZE_PX }
 
 # One xcursor per shape at XCURSOR_FACTORS of size with the hyprcursor hotspots, and a link for every stock name of it.
 def xcursor-build [shapes: path, out: path, size: int]: nothing -> nothing {

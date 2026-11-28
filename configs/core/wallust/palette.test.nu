@@ -1,9 +1,10 @@
 #!/usr/bin/env -S nu --no-config-file
 # palette-load and palette-rgb on a missing, a malformed and a slot-broken colors.json degrade to null; a theme loads.
+# blend-floor finds the lowest passing blend and null when the foreground itself falls short.
 # A derived palette comes out of condition-derived with color0 the background, color8 a grey, every floor of
 # contrast-floors kept, and color4 on a hue the picture has.
 
-use scripts/palette.nu [condition-derived contrast-floors hex-to-rgb hue-apart is-light palette-load palette-rgb passes rgb-to-hsv]
+use scripts/palette.nu [blend-floor condition-derived contrast-floors hex-to-rgb hue-apart is-light mix palette-load palette-rgb passes rgb-to-hsv]
 
 const THEME = path self ../../../themes/atuel-light.json
 # what wallust derived from a night picture, blue but for a few lamps: a navy color0, a brown color8, a brown color4
@@ -22,6 +23,10 @@ const GREY = [{rgb: [0.3 0.3 0.3], count: 4096}]
 # color8's saturation stays below this: the background's hue, thinned by the walk to white or black
 const GREY_SATURATION_MAX = 0.2
 const HUE_SAME_DEG = 3.0
+# a floor the theme's foreground reaches well above 0 (kitty's dim text)
+const BLEND_FROM = 0.1
+const BLEND_STEP = 0.05
+const BLEND_RATIO = 3.0
 
 # What is wrong with a conditioned palette; accent is the slot of the input whose hue color4 must have.
 def derived-problems [wal: record, picture: table, accent: int]: nothing -> list<string> {
@@ -62,6 +67,13 @@ def main [] {
     } | get name
     rm --recursive $dir
     if ($failed | is-not-empty) { error make {msg: $"palette.test: wrong result for ($failed | str join ', ')"} }
+    let bg = $theme.special.background | hex-to-rgb
+    let fg = $theme.special.foreground | hex-to-rgb
+    let blend = {|t| passes (mix $bg $fg $t) $bg $BLEND_RATIO }
+    let t = blend-floor $bg $fg $bg $BLEND_FROM $BLEND_STEP $BLEND_RATIO
+    let lowest = $t != null and (do $blend $t) and ($t - $BLEND_STEP < $BLEND_FROM or not (do $blend ($t - $BLEND_STEP)))
+    if not $lowest { error make {msg: $"palette.test: blend-floor gave ($t), not the lowest passing blend"} }
+    if (blend-floor $bg $bg $bg 0.0 $BLEND_STEP $BLEND_RATIO) != null { error make {msg: "palette.test: blend-floor passed bg on bg"} }
     let dim = $NIGHT | update colors.color4 "#473D60" | update colors.color12 "#473D60" | update colors.color7 "#5A5A5A"
         | update special.foreground "#707070"
     let derived = [

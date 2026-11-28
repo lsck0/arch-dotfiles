@@ -6,15 +6,11 @@ description: "Writing a module's mod.nu under configs/: meta, typed options, the
 # add-module
 
 A module is one folder `configs/<group>/<module>/` with a `mod.nu`; `dot` discovers its verbs, options and packages,
-nothing central changes. Read the group's `AGENTS.md` first. Its top holds only `mod.nu`, `AGENTS.md`, `README.md`,
-`dependencies.txt`, `.gitignore` and `*.test.nu`, plus four dirs: `config/` (what dot installs), `services/` (every
-systemd unit and drop-in, user or system), `scripts/` (what runs: linked commands, helpers, shared code) and `test/`
-(fixtures); `lint-layout` in `scripts/lib/gate.nu` enforces it and flags a unit under `config/`. Sources in
-declarations are relative to the module dir: `config/foo.conf`, `services/foo.service`, `scripts/foo.nu`. An owner-only
-module (employer setup, bookmarks, key wiring) goes in `configs/secrets/<module>/` (id `secrets/<module>`): same
-contract, runs after every other group wherever the submodule is pulled, gates inside itself (`owner-unlocked` in
-`link`, `$env.FORM_FACTOR` in `system`), and its packages stay off `mirror/packages.txt` (a mirror package it needs
-goes in the platform's `extra_packages`).
+nothing central changes. Read the group's `AGENTS.md` first. Sources in declarations are relative to the module dir:
+`config/foo.conf`, `services/foo.service`, `scripts/foo.nu`. An owner-only module (employer setup, bookmarks, key
+wiring) goes in `configs/secrets/<module>/` (id `secrets/<module>`): same contract, runs after every other group
+wherever the submodule is pulled, gates inside itself (`owner-unlocked` in `link`, `$env.FORM_FACTOR` in `system`), and
+its packages stay off `mirror/packages.txt` (a mirror package it needs goes in the platform's `extra_packages`).
 
 ## The contract
 
@@ -33,7 +29,7 @@ export const meta = {
     phase: early                                      # install stage role: early (base/pacman) or install
     native_only: [system]                             # verbs not evaluated on WSL
     barrier: {run: boot-commit, watch: [/etc/x]}      # export run once after a layer's apply changed a watched
-                                                      # path or a decl's --notify <this id> flagged
+                                                      # path
 }
 
 export const options = {
@@ -75,9 +71,13 @@ export def apply [cfg: record] { theme $cfg "" }          # a live option's hook
 
 - Verbs (`VERBS` in `scripts/lib/modules.nu`): `link`, `system`, `theme`, `apply`, `backup`, `restore`, `update`
   (what floats outside pacman, run by `dot sync`). Hooks (`HOOKS`): `detect [cfg]: nothing -> record` fills options
-  platform and profile left null (a failure only warns); `packages [cfg]: nothing -> record` adds option-dependent
-  packages. Any
-  other export is a `step` target or imported by another module; everything else is a plain `def` (lint checks).
+  platform and profile left null (a failure only warns), probed only for a module of the platform's groups and, in a
+  run naming modules, only for those and what their `meta.deps` and `meta.reads` name; `packages [cfg]: nothing ->
+  record` adds option-dependent packages. Any other export (besides `meta` and `options`) is a `step` target or
+  imported by another module; everything else is a plain `def` or `const` (lint checks).
+- A module is evaluated again only when its input hash changes: its dir, the files it imports, of `scripts/lib` only
+  what its evaluation loads (`lib-stamp` in `scripts/lib/pipeline.nu`), its packages' versions, `meta.inputs`, the
+  platform facts and profile capabilities.
 - A verb returns declarations nested to any depth; null and `[]` add nothing. An optional entry is
   `(if <cond> { decl })`, never `else { [] }` or a trailing `| compact`. A value other code consumes (`++`, `append`,
   a spread) still needs its `else`.
@@ -92,8 +92,8 @@ export def apply [cfg: record] { theme $cfg "" }          # a live option's hook
 - Recorded actions (`--creates`, `--key`, `--done` or `--undo`) run once; a plain `exec` runs on every evaluation and
   what it did stays. Never a stamp file of its own.
 - A helper a unit, toggle or keybind runs is a script in the module's `scripts/`, installed with `link-commands` or
-  `files-into`. A root helper on caller-chosen arguments takes no `def --wrapped main` and no value-taking flag
-  (`core/toggles/scripts/toggle-root.nu`); a pass-through is sh or bash (`base/protonvpn-netns/scripts/run.sh`).
+  `files-into`. A root helper follows AGENTS.md's argv rule (`core/toggles/scripts/toggle-root.nu`; pass-through
+  `base/protonvpn-netns/scripts/run.sh`).
 - A linked script finds the repo with `const REPO = path self | path expand | path dirname --num-levels <depth>`, one
   level per directory between the file and the repo: 5 in `configs/<group>/<module>/scripts/`, 6 in a nested module's
   (`core/proton/sessions/scripts/`); lint `LINKED_RELATIVE` checks the pattern, not the depth. Any other file uses

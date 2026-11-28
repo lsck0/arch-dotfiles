@@ -31,3 +31,7 @@ include <abstractions/dotfiles/claude-desktop-fontconfig>
 deny @{bin}/xprop rx,
 deny @{bin}/dbus-send rx,
 deny @{PROC}/version r,
+# a fresh profile's web-app and default-app shortcuts: xdg-icon-resource and xdg-desktop-menu would write
+# ~/.local/share/applications and icons, which dot owns (the write is denied above); denied quietly, no shortcut lost
+deny @{bin}/xdg-icon-resource rx,
+deny @{bin}/xdg-desktop-menu rx,

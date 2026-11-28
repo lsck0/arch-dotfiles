@@ -8,6 +8,7 @@ First run: start Steam once, then restart it. If Steam was open during the apply
 (Settings, Themes, Client Theme, Cyberpunk).
 
 `steam-launch.nu` starts Steam with OBS capture, first running `steam-launch-options.nu`, which sets
-`gamemoderun mangohud %command%` on newly installed games.
+`ENABLE_VKBASALT=1 gamemoderun mangohud %command%` (vkBasalt, `gaming/vkbasalt`) on newly installed games, never on
+Steam's own tools (Proton, the runtimes).
 Gamemode and MangoHud stay per game: gamemode preloaded into the client breaks the webhelper, and `MANGOHUD=1` on the
 client makes its fossilize_replay helper abort at exit. Launch options set by hand are kept.

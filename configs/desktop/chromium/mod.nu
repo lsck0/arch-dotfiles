@@ -1,9 +1,7 @@
 use module.nu *
+use ../firefox/mod.nu [SEARCH_URL_PATTERN search-name]
 
 export const meta = {packages: {pacman: [chromium browserpass browserpass-chromium]}}
-
-# an http(s) url with a host and the query placeholder; the system verb names the engine after the host
-const SEARCH_URL_PATTERN = '^https?://[^/?#\s]+\S*\{searchTerms\}'
 
 export const options = {
     # machine: the policy is /etc's, one for every login
@@ -17,7 +15,6 @@ export const options = {
 }
 
 const POLICY = "/etc/chromium/policies/managed/policy.json"
-const CHROMIUM_LIB = "/usr/lib/chromium"
 const SEARCH_OFF_HOMELAB = {name: DuckDuckGo, url: "https://duckduckgo.com/?q={searchTerms}"}
 # Chromium Private is the Default profile, Chromium Streaming keeps stream logins and history off it; the owner's work
 # profile (a secrets module) has a data dir of its own. Each name shows in the launcher and chromium's profile menu.
@@ -35,8 +32,8 @@ def profile-style [dir: path]: nothing -> list<any> {
 export def link [cfg: record] {
     [
         (profile-style (xdg config chromium))
-        # --no-first-run also skips initial_preferences, so a new profile takes its GTK theme from profile-style on the
-        # next apply; chromium 158 reads none of the distribution keys that would skip the first-run ui instead
+        # a new profile takes its GTK theme from profile-style on the next apply; chromium 158 reads none of the
+        # distribution keys that would skip the first-run ui instead
         (file-text (xdg config chromium-flags.conf) "--no-first-run\n--ozone-platform-hint=auto\n")
         (files-into (xdg data applications) config/chromium-streaming.desktop)
         (desktop-override chromium.desktop { desktop-set {Name: "Chromium Private"} })
@@ -45,18 +42,11 @@ export def link [cfg: record] {
 
 export def system [cfg: record] {
     let search = if $cfg.search_url != null {
-        {name: ($cfg.search_url | url parse | get host | str replace --regex '^www\.' ''), url: $cfg.search_url}
+        {name: (search-name $cfg.search_url), url: $cfg.search_url}
     } else if not (platform-has homelab) { $SEARCH_OFF_HOMELAB }
-    let policy = if $search == null {
-        file-copy config/policy.json $POLICY
-    } else {
-        let text = open config/policy.json
-            | upsert DefaultSearchProviderName $search.name | upsert DefaultSearchProviderSearchURL $search.url
-            | to json --indent 2
-        file-text $POLICY $"($text)\n"
-    }
-    [
-        $policy
-        (if ($CHROMIUM_LIB | path exists) { file-copy config/initial_preferences ($CHROMIUM_LIB | path join initial_preferences) })
-    ]
+    if $search == null { return [(file-copy config/policy.json $POLICY)] }
+    let text = open config/policy.json
+        | upsert DefaultSearchProviderName $search.name | upsert DefaultSearchProviderSearchURL $search.url
+        | to json --indent 2
+    [(file-text $POLICY $"($text)\n")]
 }

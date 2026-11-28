@@ -2,7 +2,7 @@
 # Reason for custom package: not in the repos
 
 pkgname=leptosfmt
-pkgver=0.1.33
+pkgver=0.1.34
 pkgrel=1
 pkgdesc="View macro formatter for the Leptos web framework"
 arch=(x86_64)
@@ -12,7 +12,8 @@ depends=(gcc-libs)
 makedepends=(cargo)
 options=(!lto)
 source=("$pkgname-$pkgver.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate")
-sha256sums=(7b997abd8dcaee28dd2d2ade9e89218136b017873193cc3bccdbc8dbb9c59ddf)
+# 0.1.34, 2026-11-18
+sha256sums=(09200ee30dec9a612c5f0345cb5aabf2567d616d4ab05cfcad552dbc03cc0f8f)
 
 prepare() {
     cd "$pkgname-$pkgver"

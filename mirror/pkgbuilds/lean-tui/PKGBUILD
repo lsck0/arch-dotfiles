@@ -11,14 +11,14 @@ license=(MIT)
 depends=(gcc-libs)
 makedepends=(rustup)
 options=(!lto)
-_prism_commit=78bf8b11e0965263ef74e2cbf69a7cec6af02038
+_prism_commit=78bf8b11e0965263ef74e2cbf69a7cec6af02038 # 2026-10-30
 source=(
     "$pkgname-$pkgver.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate"
     "protocol-schema-$_prism_commit.json::https://codeberg.org/wvhulle/lean-prism/raw/commit/$_prism_commit/protocol-schema.json"
 )
 sha256sums=(
-    bf54f475243a91ffd46c943f7fd5b80814db66e2fdd0a08d7fd00c110e4c3452
-    200c03d82e26e5af1525093c4208a8f9e6be5e0755914eb197edbe4f2c746dd2
+    bf54f475243a91ffd46c943f7fd5b80814db66e2fdd0a08d7fd00c110e4c3452 # 1.2.0, 2026-10-30
+    200c03d82e26e5af1525093c4208a8f9e6be5e0755914eb197edbe4f2c746dd2 # lean-prism, 2026-10-30
 )
 
 prepare() {

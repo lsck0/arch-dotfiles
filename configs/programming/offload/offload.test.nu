@@ -4,8 +4,7 @@
 # hostile argument staying one literal argument, and the client's repo left exactly as it was.
 
 use scripts/offload.nu [
-    args-parse name-safe job-id job-id-valid ref-source ref-result sh-quote remote-command reach-blocker router-address
-    forward-spec path-relative-valid request-valid
+    args-parse name-safe job-id job-id-valid ref-source ref-result sh-quote remote-command forward-spec request-valid
 ]
 
 use std/assert
@@ -57,40 +56,10 @@ def pure-check [] {
     for w in $words { assert equal (^sh -c $"printf %s (sh-quote $w)") $w $"sh-quote ($w | to nuon)" }
     assert equal (remote-command [.local/bin/offload host start "it's"]) "'.local/bin/offload' 'host' 'start' 'it'\\''s'"
 
-    let blockers = [
-        [home wg dev blocked];
-        [true false "" false]
-        [false false "" true]
-        [false true wg0 false]
-        [false true wlan0 true]
-    ]
-    for c in $blockers { assert equal ((reach-blocker $c.home $c.wg $c.dev) != null) $c.blocked $"reach-blocker ($c | to nuon)" }
-    let config = {router: "192.168.178.29", router_tunnel: "10.0.0.1"}
-    let routers = [
-        [config home dev want];
-        [$config true "" "192.168.178.29"]
-        [$config false wlan0 "10.0.0.1"]
-        [($config | update router_tunnel null) false wg0 "192.168.178.29"]
-        [($config | update router_tunnel null) false wlan0 null]
-        [($config | update router null) true "" null]
-    ]
-    for c in $routers { assert equal (router-address $c.config $c.home $c.dev) $c.want $"router-address ($c | to nuon)" }
-
     let forwards = {forwards: {ollama: 11434, vllm: 8000}}
     assert equal (forward-spec $forwards ollama) "127.0.0.1:11434:127.0.0.1:11434" "forward-spec default port"
     assert equal (forward-spec $forwards vllm 9000) "127.0.0.1:9000:127.0.0.1:8000" "forward-spec local port"
     assert error { forward-spec $forwards sshd } "forward-spec took an unknown service"
-
-    let paths = [
-        [path valid];
-        [target/release/app true]
-        [out.txt true]
-        ["" false]
-        [/etc/passwd false]
-        [../x false]
-        [a/../../x false]
-    ]
-    for c in $paths { assert equal (path-relative-valid $c.path) $c.valid $"path-relative-valid ($c.path)" }
 
     let request = {job: $job, client: luca-notebook, slug: arch-dotfiles, kind: run, commit: $COMMIT, command: [make]}
     let requests = [

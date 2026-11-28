@@ -5,7 +5,7 @@ use ini.nu [ini-rows]
 export const meta = {
     packages: {
         pacman: [
-            lib32-obs-vkcapture obs-audio-wave-bin obs-pipewire-audio-capture obs-plugin-waveform-bin obs-studio
+            lib32-obs-vkcapture obs-pipewire-audio-capture obs-plugin-waveform-bin obs-studio
             obs-vkcapture websocat xdg-user-dirs
             npm
         ]

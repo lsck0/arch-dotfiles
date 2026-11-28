@@ -17,24 +17,24 @@ makedepends=(git python python-build python-setuptools python-wheel python-poetr
 options=(!strip)
 # Certipy's locked commit is a fork merge its force-pushed main no longer reaches, so git cannot check it out; GitHub
 # still serves its archive
-_certipy=017dab8ff4d4447976b2a0c2b2203fd61b888681
+_certipy=017dab8ff4d4447976b2a0c2b2203fd61b888681 # 2025-09-30
 _pypi=https://files.pythonhosted.org/packages/source
-source=("$pkgname::git+$url.git#commit=c7dc286ba65daf10402cdc470e531b84e6d3d911"
+source=("$pkgname::git+$url.git#commit=c7dc286ba65daf10402cdc470e531b84e6d3d911" # v1.5.1, 2026-02-23
     "certipy-$_certipy.tar.gz::https://github.com/Pennyw0rth/Certipy/archive/$_certipy.tar.gz"
-    "impacket::git+https://github.com/fortra/impacket.git#commit=caba5facdd3a01b5d0decc6daf5871839f22f792"
-    "oscrypto::git+https://github.com/wbond/oscrypto.git#commit=1547f535001ba568b239b8797465536759c742a3"
-    "nfsclient::git+https://github.com/Pennyw0rth/NfsClient.git#commit=9b61e0a6385743923ccffa6a80f8dbbf0714121d"
+    "impacket::git+https://github.com/fortra/impacket.git#commit=caba5facdd3a01b5d0decc6daf5871839f22f792"       # 2025-12-03
+    "oscrypto::git+https://github.com/wbond/oscrypto.git#commit=1547f535001ba568b239b8797465536759c742a3"        # 2023-08-23
+    "nfsclient::git+https://github.com/Pennyw0rth/NfsClient.git#commit=9b61e0a6385743923ccffa6a80f8dbbf0714121d" # 2025-11-26
     "$_pypi/a/arc4/arc4-0.4.0.tar.gz"
     "$_pypi/a/asn1tools/asn1tools-0.167.0.tar.gz"
     "$_pypi/p/python-libnmap/python-libnmap-0.7.3.tar.gz"
     requirements.txt)
 sha256sums=(SKIP
-    9211cf1fb0aa734406ab4a34ca21f46eb1f8fd6dc5415718945d9210bb4cffc7
+    9211cf1fb0aa734406ab4a34ca21f46eb1f8fd6dc5415718945d9210bb4cffc7 # Certipy, 2025-09-30
     SKIP SKIP SKIP
-    d431b53d11b24d62521dbbd06d755bf9d6d11a03cc7bbbdf37a13a12ee0747b6
-    cad53f6f6d788a6eec5e37543401cd8c39f138cc8016b64629ec29fb4735f5b2
-    d03629256c2ee9ab37390c28d4c4c2ae9637cd0861dd8ab9e0f32779545936c0
-    227b24afc2b7b140ab5dff4ec44b36a57813966a4d08c63f1d38317180040e9d)
+    d431b53d11b24d62521dbbd06d755bf9d6d11a03cc7bbbdf37a13a12ee0747b6  # arc4 0.4.0, 2023-04-21
+    cad53f6f6d788a6eec5e37543401cd8c39f138cc8016b64629ec29fb4735f5b2  # asn1tools 0.167.0, 2024-07-13
+    d03629256c2ee9ab37390c28d4c4c2ae9637cd0861dd8ab9e0f32779545936c0  # python-libnmap 0.7.3, 2022-09-01
+    227b24afc2b7b140ab5dff4ec44b36a57813966a4d08c63f1d38317180040e9d) # requirements.txt, resolved 2026-10-05
 
 # requirements.txt's resolve date; its hashes pin the files, this bounds what uv considers
 _exclude_newer="2026-10-05"

@@ -36,7 +36,7 @@ Three collections, each with its profile; OBS does not pair them, so pick both:
 - Streaming outputs the full canvas and scales only the stream to `STREAM_RES` (at most `stream_height`, 1080, lanczos
   `RescaleFilter=4`); `streamEncoder.json`: 6000 kbps CBR, keyint 2.
 - Recording: `record_encoder` option (AV1 on vaapi, else h264 via vaapi, nvenc or x264), CQP 18, hybrid mp4; a 60 s
-  replay buffer in the Recording profile only (`RecRB`, `RecRBTime`).
+  replay buffer in the Recording and VirtualCam profiles, off in Streaming (`RecRB`, `RecRBTime`).
 - Tracks (`mixers` bitmask): 1 full mix, 2 mic, 3 apps without mic, 4 Twitch VOD (all but Spotify). Recordings take 1
   to 3 (`RecTracks=7`).
 - PNGTuber Plus runs under `obs-gamecapture` (`configs/gaming/steam/scripts/steam-launch-options.nu`) for obs-vkcapture.
@@ -57,7 +57,8 @@ obs-websocket v5 on `ws://127.0.0.1:4455`, password `server_password` in
 `~/.config/obs-studio/plugin_config/obs-websocket/config.json`. Auth: `secret = base64(sha256(password + salt))`,
 `auth = base64(sha256(secret + challenge))` from Hello (op 0), sent in Identify (op 1). `obs-mcp` does this;
 `configs/desktop/quickshell/config/plugins/bar/widgets/obs-status.nu` is a websocat client to copy. An edit to it needs
-`dot apply desktop/quickshell`, then an OBS restart or `configs/desktop/quickshell/config/restart.nu`.
+`dot apply desktop/quickshell`; the running helper keeps its old code until OBS or the shell restarts
+(`l-dotfiles-quickshell-dev`). Both are live apps: ask Luca before restarting either.
 
 ## Spotify
 

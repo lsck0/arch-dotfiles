@@ -1,10 +1,11 @@
 [Unit]
-Description=Prune dangling docker images and build cache older than @AGE@
+Description=Prune dangling docker images and build cache older than @AGE_DAYS@ days
 After=docker.service
 
 [Service]
 Type=oneshot
-# no -a: until= is the build date, so -a would drop every image pulled for later that upstream built over @AGE@ ago
+# no -a: until= is the build date, so -a would drop every image pulled for later that upstream built over
+# @AGE_DAYS@ days ago
 ExecStart=/usr/bin/docker image prune -f --filter until=@AGE_HOURS@h
 ExecStart=/usr/bin/docker builder prune -af --filter until=@AGE_HOURS@h
 

@@ -13,19 +13,17 @@ export const VERBS = [link system theme apply backup restore update]
 export const HOOKS = [detect packages]
 const MARKER = "mod.nu"
 const DEPENDENCIES = "dependencies.txt"
-# a relative use or source of a .nu file, as a regex (the path in p) and as grep -E reads it
-export const IMPORT_LINE = '\s*(?:export\s+)?(?:use|source|source-env)\s+(?<p>\.{1,2}/\S+\.nu)'
-export const IMPORT_GREP = '^\s*(export\s+)?(use|source|source-env)\s+\.{1,2}/\S+\.nu'
-# any use or source of a .nu path, bare ones too: `use scripts/x.nu` resolves next to the importing file, `use module.nu`
-# through -I to LIB_DIR
-const IMPORT_ANY_LINE = '\s*(?:export\s+)?(?:use|source|source-env)\s+(?<p>[\w.]\S*\.nu)(?:\s|$)'
-const IMPORT_ANY_GREP = '^\s*(export\s+)?(use|source|source-env)\s+[[:alnum:]_.][^[:space:]]*\.nu([[:space:]]|$)'
+# a use or source of a .nu path, as a regex (the path in p) and as grep -E reads it; import-resolve finds the file
+const IMPORT_LINE = '\s*(?:export\s+)?(?:use|source|source-env)\s+(?<p>[\w.]\S*\.nu)(?:\s|$)'
+const IMPORT_GREP = '^\s*(export\s+)?(use|source|source-env)\s+[[:alnum:]_.][^[:space:]]*\.nu([[:space:]]|$)'
 # owner only: the cache names the private secrets group's modules and their options
 const DISCOVER_MODE = "600"
 export const ROOT_MODULES = [scripts skills]
 export const SECRETS_GROUP = "secrets"
 export const SECRETS_DATA = ["secrets/keys/**" "secrets/state/**"]
 const META_DEFAULT = {deps: [], packages: {pacman: [], native: [], flatpak: {}, nix: []}, serial: false}
+# the lib files modules-eval's child loads beside the module dirs; keep in step with its script
+export const EVAL_LIB = [module.nu cause.nu]
 # a verb or hook evaluated in a child nu is killed past this; a whole layer's batch takes seconds
 const EVAL_TIMEOUT = 2min
 # the verbs that do their work while evaluated (update, backup, restore) instead of declaring it
@@ -121,20 +119,34 @@ def modules-scan [repo: path, markers: list<path>]: nothing -> table {
     }
 }
 
+# The file an import in file names, absolute, as nu finds it: next to the importing file (`use scripts/x.nu`, always
+# for ./ and ../), else in lib, the -I dir every engine child gets (`use module.nu`).
+def import-resolve [file: string, import: string, lib: path]: nothing -> string {
+    let near = $file | path dirname | path join $import | path expand
+    if ($near | path exists) or ($import | str starts-with ".") { $near } else { $lib | path join $import | path expand }
+}
+
+# The imports of the .nu files at paths (files, or dirs searched whole), one grep for all: file -> the absolute .nu
+# paths it imports, a missing one included. lib: the -I dir a bare import falls back to.
+export def imports-map [paths: list<string>, lib: path = $LIB_DIR]: nothing -> record {
+    if ($paths | is-empty) { return {} }
+    let found = ^grep -rHE --include=*.nu $IMPORT_GREP ...$paths | complete
+    # 1 is no match; 2 an unreadable path, whose imports then go uncounted
+    if $found.exit_code > 1 { log-warn $"reading the imports failed: ($found.stderr | str trim)" }
+    $found.stdout | lines | uniq
+    | parse --regex $"^\(?<file>[^:]+\):($IMPORT_LINE)"
+    | each {|r| {file: $r.file, import: (import-resolve $r.file $r.p $lib)} }
+    | group-by file | items {|file, rows| [$file ($rows.import | uniq)] } | into record
+}
+
 # The .nu files the given files import, followed transitively: their consts (HOMELAB, a helper's default) feed the
-# cached options and meta.
-def imports-walk [files: list<string>]: nothing -> list<string> {
+# cached options and meta, and the lib files among them are what a module's evaluation loads.
+export def imports-walk [files: list<string>]: nothing -> list<string> {
     mut seen = $files
     mut todo = $files
     while ($todo | is-not-empty) {
         let known = $seen
-        let found = ^grep -HE $IMPORT_ANY_GREP ...$todo | complete | get stdout | lines
-            | parse --regex $"^\(?<file>[^:]+\):($IMPORT_ANY_LINE)"
-            | each {|r|
-                let near = $r.file | path dirname | path join $r.p | path expand
-                if ($near | path exists) or ($r.p | str starts-with ".") { $near } else { $LIB_DIR | path join $r.p | path expand }
-            } | uniq
-            | where {|f| $f not-in $known and ($f | path exists) }
+        let found = imports-map $todo | values | flatten | uniq | where {|f| $f not-in $known and ($f | path exists) }
         $seen = $seen ++ $found
         $todo = $found
     }

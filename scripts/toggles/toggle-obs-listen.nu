@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 # Hear the stream mix: stream-track inputs monitor, app-loopback mutes the per-app paths.
 
-use lib.nu [switch-run state-get state-set state-clear]
+use lib.nu [switch-run state-get state-set state-clear failure-raise]
 use ../../configs/desktop/quickshell/config/plugins/bar/widgets/obs-status.nu [config-read socket-open socket-identify request]
 
 const STATE = "obs-listen"
@@ -62,10 +62,10 @@ def monitor-sync [socket: int, on: bool]: nothing -> nothing {
 
 def listen-set [on: bool]: nothing -> nothing {
     if $on {
-        ^pw-metadata 0 $LISTEN_KEY 1 | ignore
+        ^pw-metadata 0 $LISTEN_KEY 1 | complete | failure-raise pw-metadata
         state-set $STATE on
     } else {
-        ^pw-metadata -d 0 $LISTEN_KEY | ignore
+        ^pw-metadata -d 0 $LISTEN_KEY | complete | failure-raise pw-metadata
         state-clear $STATE
     }
     let socket = try { obs-connect } catch { return }
@@ -78,7 +78,7 @@ def reconcile []: nothing -> nothing {
     let on = (state-get $STATE) == on
     let socket = obs-connect
     monitor-sync $socket $on
-    if $on { ^pw-metadata 0 $LISTEN_KEY 1 | ignore }
+    if $on { ^pw-metadata 0 $LISTEN_KEY 1 | complete | failure-raise pw-metadata }
     job kill $socket
 }
 

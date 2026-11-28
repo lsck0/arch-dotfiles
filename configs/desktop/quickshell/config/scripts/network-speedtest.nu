@@ -8,14 +8,8 @@ const UPLOAD_MB = 64
 const FAST_API_URL = "https://api.fast.com/netflix/speedtest/v2?https=true&token=YXNkZmFzZGxmbnNkYWZoYXNkZmhrYWxm&urlCount=3"
 const CURL_ARGS = [--fail --silent --show-error --connect-timeout 3 --max-time 20 --ipv4 -o /dev/null]
 
-def emit [line: record] {
-    print ($line | to json --raw)
-}
-
-def fail [message: string] {
-    emit {error: $message}
-    exit 1
-}
+const HERE = path self | path expand | path dirname
+use ($HERE | path join lib shell.nu) [json-emit json-fail]
 
 # Nu cannot trap TERM, so curl dies with the script through pdeathsig.
 def traffic-worker [direction: string, urls: list<string>] {
@@ -38,28 +32,31 @@ def measure [direction: string, counter: path, urls: list<string>] {
         if (job list | where id in $workers | is-empty) { break }
         sleep 1sec
         let after = open $counter | into int
-        emit {$direction: (($after - $before) * 8 / 1_000_000 | math round --precision 1)}
+        json-emit {$direction: (($after - $before) * 8 / 1_000_000 | math round --precision 1)}
         $before = $after
     }
-    job list | where id in $workers | each { job kill $in.id } | ignore
+    let alive = job list | where id in $workers | length
+    # job kill refuses a job that has exited, a failed worker's or one ending between the list and the kill
+    job list | where id in $workers | each {|j| try { job kill $j.id } } | ignore
+    if $alive == 0 { json-fail $"Network ($direction) test failed before finishing" }
 }
 
 def main [] {
     let iface = ^ip -j route get $PROBE | complete | get stdout | from json | get 0?.dev?
     let stats = $"/sys/class/net/($iface)/statistics"
     if $iface == null or not ($stats | path join rx_bytes | path exists) {
-        fail "No active network interface"
+        json-fail "No active network interface"
     }
 
     let name = ^nmcli -g GENERAL.CONNECTION device show $iface | complete | get stdout | str trim
-    emit {name: ($name | default -e $iface)}
+    json-emit {name: ($name | default -e $iface)}
     job spawn {
-        ^ping -c 1 -W 2 $PROBE | complete | get stdout | parse -r 'time[=<](?<ms>[0-9.]+) ms' | each { emit {ping: ($in.ms | into float)} }
+        ^ping -c 1 -W 2 $PROBE | complete | get stdout | parse -r 'time[=<](?<ms>[0-9.]+) ms' | each { json-emit {ping: ($in.ms | into float)} }
     } | ignore
 
     let urls = try { http get --max-time 20sec $FAST_API_URL | get targets.url } catch { [] }
     if ($urls | is-empty) {
-        fail "Failed to fetch speed test endpoints"
+        json-fail "Failed to fetch speed test endpoints"
     }
     measure down ($stats | path join rx_bytes) $urls
     measure up ($stats | path join tx_bytes) $urls

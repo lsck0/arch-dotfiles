@@ -10,7 +10,7 @@ Built on apparmor.d (`aa-install`). In `configs/base/apparmor/`:
 - `config/profiles.conf`: the mode of every deployed profile, `<name> <mode>[,flags]`. `,flags` only for apparmor.d's;
   an own profile keeps its flags in its `profile` line and `mod.nu` writes the mode into it.
 - `config/profiles/<name>`: own profiles, installed as `/etc/apparmor.d/<name>.dotfiles`. First line
-  `# managed by arch-dotfiles/apparmor`, then `profile <name> <attachment> flags=(...)`.
+  `# managed by arch-dotfiles/apparmor`, then `abi <abi/4.0>,` and `profile <name> <attachment> flags=(...)`.
 - `OVERRIDES` in `mod.nu`: apparmor.d profiles with a brace attachment (firefox, thunderbird, libreoffice, browserpass)
   regenerated as own profiles from the installed one, only the attachment swapped; apply and test fail once
   apparmor.d stops shipping one. A `profile transition not found` denial into an apparmor.d program is this case.

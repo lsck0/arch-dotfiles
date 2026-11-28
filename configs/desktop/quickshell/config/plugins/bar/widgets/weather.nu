@@ -2,6 +2,9 @@
 # location privacy: API replies run through LEAK_KEYS (reply-publish) before caching; the reverse-geocode is
 # cached as only country_code and the coarse ADDRESS_KEYS, never lat/lon, boundingbox or display_name
 
+const HERE = path self | path expand | path dirname
+use ($HERE | path join ../../../scripts/lib/shell.nu) [epoch-now file-save-atomic prefs-load]
+
 const LOCATION_TOGGLE = "scripts/toggles/toggle-weather-location.nu"
 const LEAK_KEYS = [
     latitude longitude lat lon coords elevation timezone timezone_abbreviation sunrise sunset daylight_duration
@@ -34,8 +37,6 @@ const FORECAST_DAILY = {
 }
 # Beaufort 6, a strong breeze, in each wind unit the reply can carry (open-meteo writes mph as "mp/h")
 const WINDY = {"km/h": 39.0, "mp/h": 24.2}
-# weather_units in mod.nu, through prefs.json; metric is open-meteo's default and adds nothing
-const PREFS = ($nu.home-dir | path join .config quickshell prefs.json)
 const IMPERIAL_QUERY = "&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch"
 
 const RADAR_ZOOM = 7
@@ -145,14 +146,6 @@ def cache-load [path: path, max_age: duration]: nothing -> any {
     }
 }
 
-def file-save [path: path, body: any]: nothing -> nothing {
-    mkdir ($path | path dirname)
-    # a temp per writer: the bar's run and a refresh can overlap
-    let temp = $"($path).($nu.pid).tmp"
-    $body | save -f $temp
-    mv -f $temp $path
-}
-
 def location-resolve []: nothing -> any {
     let repo = $env.DOTFILES? | default ($nu.home-dir | path join projects arch-dotfiles)
     let words = try {
@@ -183,7 +176,7 @@ def location-leak-find [node: any, path: string = ""]: nothing -> any {
 def reply-publish [reply: record, cache: path]: nothing -> record {
     let leak = location-leak-find $reply
     if $leak != null { return (failure $"location field leaked: ($leak)") }
-    file-save $cache ($reply | to json -r)
+    $reply | to json -r | file-save-atomic $cache
     $reply
 }
 
@@ -195,8 +188,6 @@ def series-pick [source: record, variables: record, index: int]: nothing -> reco
 def iso-to-epoch [value: any]: nothing -> any {
     try { $value | into datetime | into int | $in // 1_000_000_000 } catch { null }
 }
-
-def epoch-now []: nothing -> int { date now | into int | $in // 1_000_000_000 }
 
 def radar-span-km [lat: float]: nothing -> int {
     $RADAR_SIZE_PX * $MERCATOR_Z0_M_PER_PX * ($lat | math cos -d) / (2 ** $RADAR_ZOOM) / 1000 | math round
@@ -217,7 +208,8 @@ export def windy-threshold [unit?: string]: nothing -> float {
 def forecast-get []: nothing -> record {
     let location = location-resolve
     if $location == null { return (forecast-fallback "no location") }
-    let imperial = (try { open $PREFS | get --optional weatherUnits } catch { null }) == "imperial"
+    # weather_units in mod.nu, through prefs.json; metric is open-meteo's default and adds nothing
+    let imperial = (prefs-load | get --optional weatherUnits) == "imperial"
     let url = ({lat: $location.lat, lon: $location.lon} | format pattern $FORECAST_URL) + (if $imperial { $IMPERIAL_QUERY } else { "" })
     let raw = http-fetch $url $FORECAST_TIMEOUT
     if ($raw | is-empty) { return (forecast-fallback "offline") }
@@ -337,7 +329,7 @@ def radar-get []: nothing -> record {
         let file = $stage | path join $"frame-($it.index | fill -a r -c '0' -w 2).png"
         let body = http-fetch $it.item.url $RADAR_FRAME_TIMEOUT
         if ($body | describe) == binary and ($body | bytes at 0..7 | bytes index-of $PNG_MAGIC) >= 0 {
-            file-save $file $body
+            $body | file-save-atomic $file
             if not (radar-mask $file $scale) { return }
             {file: $file, minutes: (($it.item.unix_s - $now_s) / 60 | math round), forecast: $it.item.forecast}
         }
@@ -520,7 +512,7 @@ def alerts-get []: nothing -> record {
             let v = $addr | get -o $k
             if $v == null { $acc } else { $acc | insert $k $v }
         }
-        if ($region | is-not-empty) { file-save $place_cache ({address: $region, key: $key} | to json) }
+        if ($region | is-not-empty) { {address: $region, key: $key} | to json | file-save-atomic $place_cache }
     }
     let place = try { open --raw $place_cache | from json | place-current $key } catch { null }
     let address = if ($place | describe -d | get type) == record { $place.address? | default {} } else { {} }
@@ -531,7 +523,7 @@ def alerts-get []: nothing -> record {
     let feed_cache = cache-path $"weather-alerts-feed-($slug).json"
     if (cache-load $feed_cache $FEED_MAX_AGE) == null {
         let body = http-fetch ({slug: $slug} | format pattern $FEED_URL) $FEED_TIMEOUT
-        if not ($body | is-empty) { file-save $feed_cache $body }
+        if not ($body | is-empty) { $body | file-save-atomic $feed_cache }
     }
     let feed = try { open --raw $feed_cache | from json } catch { null }
     if ($feed | describe -d | get type) != record { return (failure "offline") }

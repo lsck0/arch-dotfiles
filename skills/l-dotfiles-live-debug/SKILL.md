@@ -12,7 +12,8 @@ waiting on, and never restart an app Luca is working in without asking.
 
 1. `dot status --brief`: FAIL and todo checks only. `dot status [--json]` adds generation, last run, pending work,
    drift and every check, ordered `FAIL`, `todo`, `note`, `ok` (`LEVELS` in `scripts/lib/doctor.nu`). `todo` is
-   pending work, no fault, but `--brief`, `--json` and the exit code count it as `FAIL`.
+   pending work, no fault, but `--brief`, `--json` and the exit code count it as `FAIL`; `--json` marks it
+   `pending: true`, and core/alloy's metrics split the two (`dot_check_failed`, `dot_check_pending`).
 2. `FAILURES.config` / `FAILURES.install` at the repo root: the last run's failures, system included, one line each as
    `<module> <verb>/<step>: <cause>; fix: <hint>`. Fixes come from `HINTS` in `scripts/lib/cause.nu`; a new failure
    class is a row there.
@@ -73,5 +74,5 @@ opened, `@`, `@home`, `@log` mounted as its fstab does). Root parts need sudo, s
 
 ## Restart
 
-`systemctl --user restart <unit>` (after `systemctl --user reset-failed <unit>` if it hit its start limit); quickshell
-via `~/.config/quickshell/restart.nu`.
+`systemctl --user restart <unit>` (after `systemctl --user reset-failed <unit>` if it hit its start limit), for a unit
+Luca is not working in. quickshell or an open app only after he agrees, via `~/.config/quickshell/restart.nu`.

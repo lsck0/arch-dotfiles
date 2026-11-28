@@ -3,6 +3,7 @@
 
 const REPO = path self | path expand | path dirname --num-levels 5
 use ($REPO | path join scripts lib state.nu) [xdg]
+use ($REPO | path join scripts lib proc.nu) [notify]
 
 const OBSIDIAN = "/usr/bin/obsidian"
 const WAIT_TRIES = 60
@@ -28,11 +29,19 @@ def restrict-disable []: nothing -> nothing {
         }
         sleep 1sec
     }
-    if $state == on { ^timeout $CLI_TIMEOUT $OBSIDIAN plugins:restrict off | complete | ignore }
+    if $state != on { return }
+    let off = ^timeout $CLI_TIMEOUT $OBSIDIAN plugins:restrict off | complete
+    if $off.exit_code != 0 {
+        let reason = $off.stderr | str trim | default --empty $"exit ($off.exit_code)"
+        notify obsidian "Obsidian kept restricted mode on" $"Community plugins stay off: ($reason)" | ignore
+    }
 }
 
 def --wrapped main [...args: string]: nothing -> nothing {
-    if ($args | get --optional 0) in ["-h" "--help"] { print "usage: obsidian-launch [args...]: start obsidian with its plugins restricted"; return }
+    if ($args | get --optional 0) in ["-h" "--help"] {
+        print "usage: obsidian-launch [args...]: start obsidian with restricted mode off, so its community plugins load"
+        return
+    }
     job spawn { restrict-disable } | ignore
     ^$OBSIDIAN ...$args
 }

@@ -52,8 +52,9 @@ Kinds, with the file to copy:
      with the closure's `err.msg`, an n-state `_apply` itself; `root-run` and `service-switch` raise the last stderr
      line as the cause.
    - `TOGGLES_QUIET=1` (a combined toggle's parts) keeps the ping and failures, drops the success toast.
-4. A dedicated quickshell control only: `Quickshell.execDetached([Paths.toggle("toggle-<name>.nu"), "toggle"])`,
-   refreshed on `ToggleEvents.changed(script)`.
+4. A dedicated quickshell control only: read the state with `ToggleState { script: "toggle-<name>.nu" }`
+   (`Commons/ToggleState.qml`, refreshed on `ToggleEvents.changed`), flip it with
+   `Quickshell.execDetached([Paths.toggle("toggle-<name>.nu"), "toggle"])`.
 
 ## Test
 
@@ -64,6 +65,6 @@ nu --no-config-file --ide-check 50 scripts/toggles/toggle-<name>.nu
 dot test lint
 ```
 
-Flipping a real toggle changes Luca's live machine: a security-weighted one (route, vpn, firewall, trust-network,
-portal, anonymous-socks) only after his yes. `scripts/toggles/toggles.test.nu` walks the network, focus and power state
+Flipping a real toggle changes Luca's live machine; a security-weighted one only after his yes (list:
+`l-dotfiles-desktop-control`). `scripts/toggles/toggles.test.nu` walks the network, focus and power state
 machines against stubs in a bwrap sandbox and runs in `dot test lint`; a new state or transition gets a step there.

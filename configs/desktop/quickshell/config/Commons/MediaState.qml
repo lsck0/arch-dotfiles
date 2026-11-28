@@ -168,8 +168,7 @@ Singleton {
     root.artTries = 0
     root.artSource = ""
     var u = root.artUrl
-    // a player with no art may still send "file:///", a directory, which only floods the log with load errors
-    if (!u || u.endsWith("/")) { artProc.running = false; return }
+    if (!u) { artProc.running = false; return }
     if (!root.artRemote) { artProc.running = false; root.artSource = u; return }
     fetchArt()
   }

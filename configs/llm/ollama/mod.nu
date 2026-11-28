@@ -62,9 +62,8 @@ export def link [cfg: record] {
     [
         (link-commands scripts/ollama-ensure-models.nu)
         (if $cfg.pull_models and ($gpus | any { $in.vram >= $VRAM_MIN }) {
-            # --done: the stamp it touched under $XDG_STATE_HOME/ollama-models before it was keyed
             (exec ollama-models [nu --no-config-file ($env.PWD | path join scripts ollama-ensure-models.nu) ...$keep]
-                --key $pins --done=(xdg state ollama-models $pins | path exists) --network --timeout $MODELS_TIMEOUT)
+                --key $pins --network --timeout $MODELS_TIMEOUT)
         })
     ]
 }

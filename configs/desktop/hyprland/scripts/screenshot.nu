@@ -3,15 +3,14 @@
 # success shows no toast, which the next screenshot would catch; a failure does. A cancel or a failed capture leaves
 # the clipboard as it was; slurp draws in the wallust palette.
 
-use ../../../core/wallust/scripts/palette.nu [wal-colors-file]
+use ../../../core/wallust/scripts/palette.nu [palette-load]
+use ../../quickshell/config/scripts/lib/shell.nu [action-notify]
 
-const FALLBACK = {bg: "#0b0e14", accent: "#39bae6"}
-const NOTIFY_APP = "quickshell-action"
+const FALLBACK = {bg: "#0b0e14", c4: "#39bae6"}
 const TITLE = "Screenshot"
+const GLYPH = "\u{f0100}"
 
-def notify [body: string]: nothing -> nothing {
-    ^notify-send -a $NOTIFY_APP -u low -- $TITLE $body
-}
+def notify [body: string]: nothing -> nothing { action-notify $GLYPH $TITLE $body }
 
 # grim into a file first: piping into wl-copy would set an empty clipboard when grim fails.
 def screenshot-save [grim_args: list<string>]: nothing -> nothing {
@@ -33,9 +32,9 @@ def main []: nothing -> nothing {
 }
 
 def "main region" []: nothing -> nothing {
-    let wal = try { open (wal-colors-file) } catch { null }
-    let bg = $wal.special?.background? | default $FALLBACK.bg | str trim --left --char "#"
-    let accent = $wal.colors?.color4? | default $FALLBACK.accent | str trim --left --char "#"
+    let palette = palette-load | default $FALLBACK
+    let bg = $palette.bg | str trim --left --char "#"
+    let accent = $palette.c4 | str trim --left --char "#"
     let region = ^slurp -b $"($bg)99" -c $"($accent)ff" -s $"($accent)22" -w 2 | complete
     if $region.exit_code != 0 { return }
     screenshot-save [-g ($region.stdout | str trim)]

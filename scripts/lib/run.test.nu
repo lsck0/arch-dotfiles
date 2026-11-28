@@ -363,7 +363,7 @@ def --env run-held [] { $env.DOT_SYSTEM_PENDING = true; [{id: t/held, ok: true, 
 def --env run-clean [] { [{id: t/clean, ok: true, pending: null, outcomes: [], log: ''}] }
 def --env run-failed [] { $env.DOT_SYSTEM_PENDING = true; [{id: t/failed, ok: false, pending: null, outcomes: [], log: ''}] }
 "
-    # each branch's shape in dot.nu's main apply, the run standing in for link-run or apply-run
+    # each branch's shape in pipeline-cli.nu's main apply, the run standing in for link-run or apply-run
     let cases = [
         [name call wants];
         ["a module held" "guarded apply --read-only { run-held | apply-finish $in }" $EXIT_PENDING]

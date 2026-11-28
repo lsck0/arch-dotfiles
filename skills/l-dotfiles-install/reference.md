@@ -8,9 +8,10 @@
 - Frozen on the stick: the stub up to its newer-stub switch (network, clone, signature check) and the trust anchor from
   `bootstrap.sh`. Everything else comes from master at install time; only a change to the frozen part needs a reburn.
   A newer verified stub on master replaces the stick's.
-- The lab mirror is probed apart: on an outage the bootstrap drops `[lsck0]` from the live `pacman.conf`
-  (`pacman-conf-lsck0`) and installs without it; a platform with the `homelab` fact stops before the disk is touched
-  (re-checked at pacstrap).
+- The lab mirror is probed apart, at the `[lsck0]` Server of the iso's own `pacman.conf` (an iso without one skips
+  it): on an outage the bootstrap drops `[lsck0]` from the live `pacman.conf` (`pacman-conf-lsck0`) and installs
+  without it; a platform with the `homelab` fact stops before the disk is touched (re-checked at pacstrap).
+- pacstrap downloads with the installed system's `ParallelDownloads` (`pacman-conf-parallel`), not the iso's.
 - `efibootmgr --bootnext` points at the new ESP before the reboot; each stage reboot sets BootNext to its own entry.
 
 ## Answer files

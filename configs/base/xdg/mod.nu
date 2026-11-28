@@ -1,8 +1,5 @@
 use module.nu *
 
-# the applications dir's mtime: an entry added or removed there re-evaluates the desktop database's staleness
-export const meta = {inputs: [~/.local/share/applications]}
-
 export const options = {
     browser: {
         type: list<string>
@@ -97,42 +94,64 @@ export def user-dir [name: string]: nothing -> path {
     $nu.home-dir | path join $dir
 }
 
+# program: the file whose presence means the tool is here; a link waits for it, so $HOME holds no link to a dir only
+# home-dirs would make for a tool nobody installed. meta.inputs lists the column, so an install re-plans this module
 const RECLAIM = [
-    [name target mode];
+    [name target mode program];
     # the install stage runs npm (obs, mason) before the session's environment.d exists; app-dirs.conf covers it after
-    [.npm .cache/npm move]
+    [.npm .cache/npm move /usr/bin/npm]
     # ANSIBLE_HOME in app-dirs.conf; a project's venv or devenv ansible made ~/.ansible before it
-    [.ansible .local/share/ansible move]
+    [.ansible .local/share/ansible move /usr/bin/ansible]
     # DOTNET_CLI_HOME moves the sdk's dir, but the runtime's X509 store hardcodes ~/.dotnet/corefx
-    [.dotnet .local/share/dotnet link]
+    [.dotnet .local/share/dotnet link /usr/bin/dotnet]
     # these honour CARGO_HOME, RUSTUP_HOME, ELAN_HOME, GHCUP_USE_XDG_DIRS and OPAMROOT, but the install stage runs them
     # before environment.d exists (as .npm), so a link covers every context instead of an app-dirs.conf line
-    [.cargo .local/share/cargo link] [.rustup .local/share/rustup link] [.elan .local/share/elan link]
-    [.ghcup .local/share/ghcup link] [.opam .local/share/opam link]
-    [.jai .local/share/jai link] [.kani .local/share/kani link] [.nuget .local/share/nuget link]
-    [.mono .local/state/mono link] [.subversion .config/subversion link] [.cgdb .config/cgdb link]
-    [.android .local/share/android link]
-    [.mitmproxy .config/mitmproxy link] [.proxychains .config/proxychains link] [.msf4 .local/share/msf4 link]
-    [.sliver .local/share/sliver link] [.sliver-client .local/share/sliver-client link] [.john .local/state/john link]
-    [.tlaplus .local/share/tlaplus link] [.Macaulay2 .local/share/Macaulay2 link] [.logseq .config/logseq link]
-    [.zotero .local/share/zotero link] [.librewolf .local/share/librewolf link] [.mozilla .local/share/mozilla link]
-    [.zen .local/share/zen link] [.minecraft .local/share/minecraft link] [.xlcore .local/share/xlcore link]
-    [.wine .local/share/wine link] [.ZAP .local/share/ZAP link] [.themes .local/share/themes link]
-    [.task .local/state/task link] [.timewarrior .local/share/timewarrior link] [.pki .local/state/pki link]
-    [.eclipse .local/share/eclipse link] [.vscode-oss .local/share/vscode-oss link]
-    [.vscode-oss-shared .local/share/vscode-oss-shared link] [.jd .local/share/jd link] [.nxc .local/share/nxc link]
-    [.phoronix-test-suite .local/share/phoronix-test-suite link] [.renderdoc .local/state/renderdoc link]
-    [.debug .local/state/debug link] [.designer .local/state/designer link] [.epic .local/state/epic link]
-    [.genius .config/genius link] [.idlerc .config/idlerc link] [.kismet .local/state/kismet link]
-    [.mcp-inspector .local/state/mcp-inspector link] [.netscanner .local/state/netscanner link]
-    [.nnd .local/state/nnd link] [.superseedr .local/state/superseedr link] [.usdview .local/state/usdview link]
-    [.lyx .config/lyx link] [.java .config/java link]
-    [.gemini .local/share/gemini link] [.copilot .local/share/copilot link] [.agents .local/share/agents link]
-    [.caido-mcp .local/share/caido-mcp link]
-    [.lmmsrc.xml .config/lmms/lmmsrc.xml link-file]
-    [.viminfo .local/state/vim/viminfo link-file]
-    [.wget-hsts .local/state/wget-hsts link-file] [.indentconfig.yaml .config/latexindent/indentconfig.yaml link-file]
+    [.cargo .local/share/cargo link /usr/bin/cargo] [.rustup .local/share/rustup link /usr/bin/rustup]
+    [.elan .local/share/elan link /usr/bin/elan] [.ghcup .local/share/ghcup link /usr/bin/ghcup]
+    [.opam .local/share/opam link /usr/bin/opam]
+    [.jai .local/share/jai link ~/.local/share/jai/bin/jai] [.kani .local/share/kani link /usr/bin/kani]
+    [.nuget .local/share/nuget link /usr/bin/dotnet] [.mono .local/state/mono link /usr/bin/mono]
+    [.subversion .config/subversion link /usr/bin/svn] [.cgdb .config/cgdb link /usr/bin/cgdb]
+    [.android .local/share/android link ~/.local/share/android-sdk]
+    [.mitmproxy .config/mitmproxy link /usr/bin/mitmproxy] [.proxychains .config/proxychains link /usr/bin/proxychains]
+    [.msf4 .local/share/msf4 link /usr/bin/msfconsole] [.sliver .local/share/sliver link /usr/bin/sliver-server]
+    [.sliver-client .local/share/sliver-client link /usr/bin/sliver-client] [.john .local/state/john link /usr/bin/john]
+    [.tlaplus .local/share/tlaplus link /usr/bin/tla-toolbox]
+    [.Macaulay2 .local/share/Macaulay2 link ~/.nix-profile/bin/M2] [.logseq .config/logseq link /usr/bin/logseq]
+    [.zotero .local/share/zotero link /usr/bin/zotero]
+    # Proton Pass writes its native messaging host into every browser's dir, librewolf's without librewolf
+    [.librewolf .local/share/librewolf link /usr/bin/proton-pass] [.mozilla .local/share/mozilla link /usr/bin/firefox]
+    [.zen .local/share/zen link /usr/bin/zen-browser]
+    [.minecraft .local/share/minecraft link /usr/bin/minecraft-launcher]
+    [.xlcore .local/share/xlcore link /usr/bin/xivlauncher-core] [.wine .local/share/wine link /usr/bin/wine]
+    [.ZAP .local/share/ZAP link /usr/bin/zaproxy]
+    # gtk reads ~/.themes and nss writes ~/.pki for whichever app links them
+    [.themes .local/share/themes link /usr/lib/libgtk-3.so.0] [.pki .local/state/pki link /usr/lib/libnss3.so]
+    [.task .local/state/task link /usr/bin/task] [.timewarrior .local/share/timewarrior link /usr/bin/timew]
+    [.eclipse .local/share/eclipse link /usr/bin/eclipse] [.vscode-oss .local/share/vscode-oss link /usr/bin/codium]
+    [.vscode-oss-shared .local/share/vscode-oss-shared link /usr/bin/codium]
+    [.jd .local/share/jd link /usr/bin/jdownloader] [.nxc .local/share/nxc link /usr/bin/nxc]
+    [.phoronix-test-suite .local/share/phoronix-test-suite link /usr/bin/phoronix-test-suite]
+    [.renderdoc .local/state/renderdoc link /usr/bin/qrenderdoc] [.debug .local/state/debug link /usr/bin/perf]
+    [.designer .local/state/designer link /usr/lib/qt6/bin/designer]
+    [.epic .local/state/epic link ~/.local/share/unreal-engine] [.genius .config/genius link /usr/bin/genius]
+    [.idlerc .config/idlerc link /usr/bin/idle3] [.kismet .local/state/kismet link /usr/bin/kismet]
+    [.mcp-inspector .local/state/mcp-inspector link /usr/bin/npm]
+    [.netscanner .local/state/netscanner link /usr/bin/netscanner] [.nnd .local/state/nnd link /usr/bin/nnd]
+    [.superseedr .local/state/superseedr link /usr/bin/superseedr] [.usdview .local/state/usdview link /usr/bin/usdview]
+    [.lyx .config/lyx link /usr/bin/lyx] [.java .config/java link /usr/bin/java]
+    [.gemini .local/share/gemini link /usr/bin/gemini] [.copilot .local/share/copilot link /usr/bin/copilot]
+    # copilot's skills dir, which the skills cli fills (programming/caveman)
+    [.agents .local/share/agents link /usr/bin/copilot]
+    [.caido-mcp .local/share/caido-mcp link /usr/bin/caido-mcp-server]
+    [.lmmsrc.xml .config/lmms/lmmsrc.xml link-file /usr/bin/lmms]
+    [.viminfo .local/state/vim/viminfo link-file /usr/bin/vim]
+    [.wget-hsts .local/state/wget-hsts link-file /usr/bin/wget]
+    [.indentconfig.yaml .config/latexindent/indentconfig.yaml link-file /usr/bin/latexindent]
 ]
+
+# the applications dir's mtime: an entry added or removed there re-evaluates the desktop database's staleness
+export const meta = {inputs: ([~/.local/share/applications] ++ $RECLAIM.program)}
 
 # update-desktop-database renames its cache into the dir, so the dir's mtime trails the cache's by under a millisecond
 const DESKTOP_CACHE_SLACK = 1sec
@@ -199,15 +218,15 @@ export def link [cfg: record] {
     let places = places $nas $projects
     let bookmarks = $places | where gtk | each { $"($in.href) ($in.title)" }
     let xbel = xdg data user-places.xbel
+    let links = $RECLAIM | where mode != move
+        | where {|r| (reclaim-wanted $r) and (home $r.name | path type) not-in [dir file] }
     [
         (if not (home-dirs-done) { step home-dirs })
         (file-render config/mimeapps.list ($config | path join mimeapps.list) (mimeapps-values $cfg))
         (files-into $config config/user-dirs.conf config/user-dirs.dirs)
         (files-into ($config | path join environment.d) config/app-dirs.conf)
         (dropin xdg-document-portal.service services/doc-portal.conf --name 10-success-exit.conf)
-        ($RECLAIM | where mode != move and ((home $it.name | path type) not-in [dir file]) | each {|r|
-            file-link (reclaim-target $r) (home $r.name)
-        })
+        ($links | each {|r| file-link (reclaim-target $r) (home $r.name) })
         (file-copy config/home.hidden (home .hidden))
         ($cfg.autostart_hidden | each {|id|
             let entry = $"[Desktop Entry]\nType=Application\nName=($id)\nHidden=true\n"
@@ -251,9 +270,14 @@ def reclaim-target [r: record]: nothing -> path {
     }
 }
 
+def reclaim-wanted [r: record]: nothing -> bool {
+    $r.program | path expand | path exists
+}
+
 # The dir a link reclaim needs in place: a link to nothing fails every mkdir through it, a tool's own and that of a
 # file a module writes there.
 def reclaim-parent [r: record]: nothing -> any {
+    if not (reclaim-wanted $r) { return null }
     let target = reclaim-target $r
     match $r.mode { "link" => $target, "link-file" => ($target | path dirname), _ => null }
 }

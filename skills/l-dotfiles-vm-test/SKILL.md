@@ -13,7 +13,10 @@ description: "The end-to-end install test, dot test run: the lsck0 iso with an a
 1. Needs: the `kvm` group, `virt-install`, `virsh`, `passt`, `pasta`, `socat`, `xorriso`, `curl`; `magick` for `shot`.
 2. It tests the working tree (untracked files included) as a bundle over `origin/master`; `--master` tests GitHub
    master. The iso is the published one, fetched and verified; `--iso PATH` boots a local build.
-3. Start it in the background; `run` runs `dot test lint` first, prints each beacon and exits 1 with the problems.
+3. Only on Luca's word (12 GiB guest, 8 vcpus, hours; `l-project-agents`, Sharing the machine). `free -g` must show
+   12G free beyond the running load. libvirt's session qemu runs outside `fence`, so one VM at a time, announced to the
+   other sessions. Then start it in the background; `run` runs `dot test lint` first, prints each beacon and exits 1
+   with the problems.
 
 ```bash
 dot test run                              # platform vm, login luca, profile luca, scenario home

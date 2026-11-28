@@ -56,6 +56,8 @@ export def themix-export []: nothing -> nothing {
     # running gtk3 apps reread the exported theme only on a theme name change, so it is flipped away and back
     let theme = ^gsettings get $INTERFACE gtk-theme | complete | get stdout | str trim | str trim --char "'"
     if ($theme | is-empty) { return }
+    # a failed flip away only leaves running apps on the old export; the flip back must land, or gtk has no theme
     ^gsettings set $INTERFACE gtk-theme "" | complete | ignore
-    ^gsettings set $INTERFACE gtk-theme $theme | complete | ignore
+    let back = ^gsettings set $INTERFACE gtk-theme $theme | complete
+    if $back.exit_code != 0 { error make {msg: $"gsettings could not set gtk-theme back to ($theme): ($back.stderr | str trim)"} }
 }

@@ -1,11 +1,10 @@
 use module.nu *
-use ../../core/nas/scripts/vendor.nu [nas-vendor-dir nas-vendor-newer nas-vendor-newest]
+use ../../core/nas/scripts/vendor.nu [NAS_VENDOR_STAMP nas-vendor-dir nas-vendor-plan nas-vendor-set-aside]
 
 # volatile: a newer engine zip on the NAS is no local input
 export const meta = {packages: {pacman: [libnotify shared-mime-info unzip]}, volatile: true}
 
 const ZIP_GLOB = "Linux_Unreal_Engine_*.zip"
-const STAMP = ".installed-from"
 const EDITOR = "Engine/Binaries/Linux/UnrealEditor"
 const ICON = "Engine/Source/Runtime/Launch/Resources/Linux/UnrealEngine.png"
 const CANARY = '^[^\]\[*?]*/Private/[^\]\[*?/]+$'
@@ -45,7 +44,6 @@ def fail [staging: path, message: string]: nothing -> nothing {
 export def unreal-install [zip: string]: nothing -> nothing {
     let name = $zip | path basename
     let engine = engine-dir
-    let installed = $engine | path join $STAMP | path exists
     # not /tmp: ~60 GB and /tmp is tmpfs; the old engine goes only once the new one is whole
     let staging = $"($engine).new"
     rm --recursive --force $staging
@@ -72,11 +70,8 @@ export def unreal-install [zip: string]: nothing -> nothing {
     if $root == null or not ($root | path join $EDITOR | path exists) {
         fail $staging $"no ($EDITOR) in ($name)"
     }
-    $"($name)\n" | save --force ($root | path join $STAMP)
-    if ($engine | path exists) and not $installed {
-        mv $engine $"($engine).pre-dotfiles-(date now | format date '%Y%m%d%H%M%S')"
-        print -e $"unreal: kept the existing ($engine) aside"
-    }
+    $"($name)\n" | save --force ($root | path join $NAS_VENDOR_STAMP)
+    nas-vendor-set-aside $engine
     rm --recursive --force $engine
     mv $root $engine
     rm --recursive --force $staging
@@ -87,20 +82,15 @@ export def unreal-install [zip: string]: nothing -> nothing {
 export def link [cfg: record] {
     if $env.FORM_FACTOR? != "desktop" { return [] }
     let mime = xdg data mime
-    let stamp = engine-dir | path join $STAMP
+    let stamp = engine-dir | path join $NAS_VENDOR_STAMP
     let installed = file-trim $stamp
-    let vendor = nas-vendor-dir
-    let zip = nas-vendor-newest $vendor $ZIP_GLOB
-    let name = if $zip == null { "" } else { $zip | path basename }
-    let newer = nas-vendor-newer $installed $name
-    if $vendor == null {
-        log-note $"unreal: the NAS vendor dir is not reachable, (if $installed == '' { 'no engine installed' } else { $'keeping ($installed)' })"
-    }
+    let plan = nas-vendor-plan (nas-vendor-dir) $installed $ZIP_GLOB
+    if $plan.note != null { log-note $"unreal: ($plan.note)" }
     [
         (link-commands scripts/unreal-editor.nu scripts/unreal-install-plugins.nu)
         (file-copy config/uproject.xml ($mime | path join packages uproject.xml) --then [update-mime-database $mime])
         (mcp-servers {unreal-mcp: (if $installed != "" { $MCP })})
-        (if $newer { step unreal-install $zip --key $name --creates $stamp --timeout $INSTALL_TIMEOUT })
+        (if $plan.newer { step unreal-install $plan.zip --key $plan.name --creates $stamp --timeout $INSTALL_TIMEOUT })
         # base/xdg refreshes the desktop database
         (if $installed != "" { file-text (xdg data applications unreal-engine.desktop) (desktop-text (zip-version $installed)) })
     ]

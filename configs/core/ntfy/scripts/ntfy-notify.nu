@@ -6,6 +6,7 @@ use ($REPO | path join scripts lib secrets.nu) [secret-is-plaintext]
 use ($REPO | path join scripts lib homelab.nu) [homelab-lab-load homelab-lab-path]
 use ($REPO | path join scripts lib state.nu) [save-atomic xdg]
 
+const TOKEN_FILE = $REPO | path join configs secrets keys ntfy-desktop-token
 const MAX_REPLAY = 1hr
 # keepalive is 45s: under a byte a second over 90s is a dead connection
 const IDLE_S = 90
@@ -27,10 +28,6 @@ const NOTIFICATIONS = [
     --session --dest org.freedesktop.Notifications --object-path /org/freedesktop/Notifications
     --method org.freedesktop.Notifications.CloseNotification
 ]
-
-def token-file []: nothing -> path {
-    $env.NTFY_TOKEN_FILE? | default ($env.DOTFILES? | default $REPO | path join configs secrets keys ntfy-desktop-token)
-}
 
 def state-dir []: nothing -> path {
     xdg state ntfy-notify
@@ -63,8 +60,8 @@ def modified [file: any]: nothing -> any {
 }
 
 def token-read []: nothing -> string {
-    if not (secret-is-plaintext (token-file)) { return "" }
-    open --raw (token-file) | decode utf-8 | str trim
+    if not (secret-is-plaintext $TOKEN_FILE) { return "" }
+    open --raw $TOKEN_FILE | decode utf-8 | str trim
 }
 
 # The url when it is a plain https link, else empty: it reaches xdg-open, so no file:, custom scheme or option.
@@ -189,7 +186,7 @@ def main []: nothing -> nothing {
         let started = date now
         let token = token-read
         if $token == "" {
-            print --stderr $"ntfy-notify: no token in (token-file), waiting"
+            print --stderr $"ntfy-notify: no token in ($TOKEN_FILE), waiting"
             sleep $NO_TOPICS_WAIT
             continue
         }

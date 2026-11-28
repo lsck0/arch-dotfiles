@@ -28,12 +28,5 @@ export def link [cfg: record] {
 
 export def relocate []: nothing -> nothing {
     let p = paths
-    # dot never fills ~/sync: a local dir that holds builds stays for a manual merge
-    if ($p.pob | path exists) and (ls $p.pob | is-not-empty) {
-        print $"note: games: ($p.pob) holds builds; merge them into ($p.pob_synced) by hand, then rerun"
-        return
-    }
-    if ($p.pob | path exists) { rm $p.pob }
-    mkdir ($p.pob | path dirname)
-    ^ln -s $p.pob_synced $p.pob
+    sync-link $p.pob $p.pob_synced games
 }

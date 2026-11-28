@@ -8,7 +8,7 @@ BarWidget {
   barPriority: 0
 
   readonly property int thickness: Math.max(1, Style.space(1))
-  readonly property int pad: setting("pad", Style.bar.groupGap)
+  readonly property int pad: Style.bar.groupGap
 
   property bool hasNeighbours: false
 

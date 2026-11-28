@@ -1,9 +1,13 @@
 #!/usr/bin/env -S nu --no-config-file
 # bootstrap-profile-resolve and bootstrap-platform-resolve against a throwaway repo: custom resolves to no file, a
 # named pick reads its capabilities or its platform's groups, and an unknown pick or server-on-wsl dies. The groups
-# answer unattended, the install chain's ESP marker, the live pacman.conf's [lsck0] with the lab up and down, and the
-# installed zram-generator.conf rendered from base/zram's defaults under the machine's options.
-use bootstrap.nu [bootstrap-profile-resolve bootstrap-platform-resolve answer-groups stage-marker-state pacman-conf-lsck0 timezone-known zram-config-render]
+# answer unattended and its checklist's width, the install chain's ESP marker, the live pacman.conf's [lsck0] with the
+# lab up and down and its ParallelDownloads, and the installed zram-generator.conf rendered from base/zram's defaults
+# under the machine's options.
+use bootstrap.nu [
+    bootstrap-profile-resolve bootstrap-platform-resolve answer-groups stage-marker-state pacman-conf-lsck0 pacman-conf-parallel
+    timezone-known zram-config-render TUI_WIDTH
+]
 use stage.nu [STAGE_ESP_RUNNING STAGE_ESP_STOPPED]
 use platform.nu [platform-groups-all]
 use std/assert
@@ -12,6 +16,9 @@ const QUESTIONS = path self bootstrap/questions.nuon
 const REPO = path self ../..
 const PACMAN_LSCK0 = "[options]\nArchitecture = auto\n\n[lsck0]\nServer = https://mirror.example/lsck0\n\n[core]\nInclude = /etc/pacman.d/mirrorlist\n"
 const PACMAN_PLAIN = "[options]\nArchitecture = auto\n\n[core]\nInclude = /etc/pacman.d/mirrorlist\n"
+# dialog's checklist inside a TUI_WIDTH box: its borders and margins, then "[ ] " before the tag
+const CHECKLIST_FRAME = 12
+const CHECKLIST_BOX = 4
 
 const PROFILE_E = {invalid: "unknown profile '{value}'", options: [{value: "custom", label: "nothing personal"}]}
 const PLATFORM_E = {invalid: "unknown machine '{value}'", invalid_wsl: "server is not for WSL", hidden: [vm server]}
@@ -77,6 +84,10 @@ def groups-cases [repo: path]: nothing -> nothing {
     let universe = platform-groups-all $REPO
     let stale = $e.default | where $it not-in $universe
     assert ($stale | is-empty) $"groups: the preset names ($stale | str join ', '), which configs/ does not have"
+    let tag = $e.options.value | each { str length } | math max
+    let room = $TUI_WIDTH - $CHECKLIST_FRAME - $CHECKLIST_BOX - $tag - 1
+    let cut = $e.options | where {|o| ($o.label | str length) > $room } | get value
+    assert ($cut | is-empty) $"groups: the labels of ($cut | str join ', ') exceed ($room) characters, the checklist cuts them"
 }
 
 def marker-cases [repo: path]: nothing -> nothing {
@@ -111,6 +122,17 @@ def pacman-conf-cases []: nothing -> nothing {
         assert equal $got $t.wants $"pacman.conf ($t.name): got ($got | to nuon)"
     }
     assert (dies {|| pacman-conf-lsck0 $PACMAN_LSCK0 true {|| false } }) "pacman.conf: a homelab machine with the lab down must die"
+    let parallel = open --raw ($REPO | path join configs base pacman config pacman.conf) | lines | where $it =~ '^ParallelDownloads' | first
+    let widths = [
+        [name conf];
+        ["set" "[options]\nParallelDownloads = 5\n"]
+        ["commented" "[options]\n#ParallelDownloads = 5\n"]
+        ["absent" "[options]\n"]
+    ]
+    for t in $widths {
+        let got = pacman-conf-parallel $t.conf $REPO
+        assert equal $got $"[options]\n($parallel)\n" $"pacman.conf parallel ($t.name): got ($got | to nuon)"
+    }
 }
 
 # The timezone answer names a zone file: a region dir or a zoneinfo data file passes the pattern, never this.
@@ -126,8 +148,8 @@ def timezone-cases [repo: path]: nothing -> nothing {
 def zram-cases []: nothing -> nothing {
     let cases = [
         [name c wants];
-        ["defaults" {repo: $REPO, generic: true, options: {}} "zram-size = ram\ncompression-algorithm = zstd\n"]
-        ["machine option" {repo: $REPO, generic: true, options: {"base/zram": {size: "ram / 2"}}}
+        ["defaults" {repo: $REPO, options: {}} "zram-size = ram\ncompression-algorithm = zstd\n"]
+        ["machine option" {repo: $REPO, options: {"base/zram": {size: "ram / 2"}}}
             "zram-size = ram / 2\ncompression-algorithm = zstd\n"]
     ]
     for c in $cases {

@@ -23,6 +23,7 @@ optdepends=('enchant: Spell check'
     'perl: Perl plugin'
     'python-cffi: Python plugin')
 source=("git+https://github.com/hexchat/hexchat.git#tag=v${pkgver}")
+# v2.16.2, 2024-02-07
 sha256sums=('5d9e457ba10ac756b96561db098bbb2bc7e63de4e1552be570f1b5175eddf313')
 
 # lsck0: OpenSSL 4 removed ERR_remove_state (a no-op since 1.1), which _SSL_close still calls when meson finds no

@@ -2,7 +2,8 @@
 
 const REPO = path self ../..
 use log.nu *
-use cli.nu [flag jobs root-runner state-lock-hold]
+use cli.nu [flag jobs root-runner]
+export use reexec.nu [user-locked]
 use state.nu [SYSTEM_REPO SYSTEM_STATE LIB_DIR state-dir save-atomic EXIT_ABORTED EXIT_PENDING xdg CONFIG_ISSUE file-trim file-lines]
 use doctor.nu [doctor-checks]
 use platform.nu [platform-load PLATFORM_NAME_FILE]
@@ -18,6 +19,7 @@ use ../../configs/core/wallust/scripts/wallpaper.nu [wallpaper-set]
 use cause.nu [cause-from-error cause-text failure-line failure-is-system names-shown SYSTEM_FIX]
 use online.nu [network-online OFFLINE_PENDING]
 use usage.nu [counted]
+use proc.nu [succeeds]
 
 export const INTERNAL = path self internal.nu
 export const PIPELINE_CLI = path self pipeline-cli.nu
@@ -109,7 +111,7 @@ export def --env link-plan [ctx: record, mods: list<string>, force: bool, --prog
 # --ctx: the user layer as the caller loaded it in this process, else it is loaded here.
 export def --env link-run [mods: list<string>, force: bool, --user-only, --ctx: record]: nothing -> table {
     let full = $mods | is-empty
-    let ctx = if $ctx != null { $ctx } else { pipeline-load $REPO user --progress=$full }
+    let ctx = if $ctx != null { $ctx } else { pipeline-load $REPO user --progress=$full --only=(if $full { null } else { $mods }) }
     let planned = link-plan $ctx $mods $force --progress=$full
     $env.DOT_FULL_RUN = $full
     failures-open
@@ -397,10 +399,6 @@ export def --env apply-run [system: bool, user: bool, force: bool]: nothing -> t
     if $user { link-run [] $force } else { [] }
 }
 
-export def user-locked []: nothing -> nothing {
-    state-lock-hold run.lock "another dot run holds the user layer"
-}
-
 export def --env unlink-run [mod: string]: nothing -> table {
     let ctx = pipeline-load $REPO user
     let m = module-get $ctx $mod
@@ -474,7 +472,7 @@ def install-user [declared: record, platform: record, yes: bool, offer_by_hand: 
         if not $online and ($behind | is-not-empty) { $waiting = $waiting | append $"flatpak ($behind | str join ' ')" }
         with-env {XDG_DATA_DIRS: $dirs} {
             if ($apps | is-not-empty) and $online {
-                if (^flatpak remote-add --user --if-not-exists flathub $FLATHUB | complete).exit_code != 0 {
+                if not (succeeds flatpak remote-add --user --if-not-exists flathub $FLATHUB) {
                     fail "flatpak remote-add --user flathub"
                 } else {
                     for a in $apps {

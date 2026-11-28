@@ -19,6 +19,7 @@ source=(
     "$_name-$pkgver.AppImage::$url/releases/download/v$pkgver/Exiled-Exchange-2-$pkgver.AppImage"
     "LICENSE-$pkgver::https://raw.githubusercontent.com/Kvan7/Exiled-Exchange-2/v$pkgver/LICENSE"
 )
+# v0.16.3, 2026-09-06
 sha256sums=(6801c510b7652fb71c729cc05bd44e1c5d616430274064cb2ed0e89d2d024f64
     5c8de7f881b34dc31f872531a1eee1eabc79e10acd8fc91c026e10c5a8258c3f)
 

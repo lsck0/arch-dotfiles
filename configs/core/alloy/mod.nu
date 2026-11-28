@@ -5,7 +5,7 @@ use ../../../platforms/homelab.nu [HOMELAB]
 # desktops, Loki desktops), only on a machine the lab lists as a desktop and with its push credential (secrets
 # keys/alloy/<host>, `user:password`) or the password a run with it wrote; anywhere else the module declares nothing.
 # grafana-alloy-bin, Grafana's own build: Arch's grafana-alloy is built without journal support, so its
-# loki.source.journal stays off. Until the mirror carries the bin package, whichever of the two is installed runs.
+# loki.source.journal stays off.
 export const meta = {secrets: ["alloy/{host}"]}
 
 # only where an owner logs in: it pushes to the owner's lab alone
@@ -17,22 +17,19 @@ const AC_RULES = "/etc/udev/rules.d/99-alloy-ac.rules"
 # desktop-metrics' textfile, made only where alloy pushes: the user half runs only when it exists
 const TEXTFILE_DIR = "/var/lib/node-textfile"
 const TMPFILES = "/etc/tmpfiles.d/node-textfile.conf"
-# both packages' units pass $CUSTOM_ARGS to `alloy run`; this file is read after the package's own, which sets it empty
+# the unit passes $CUSTOM_ARGS to `alloy run`; this file is read after the package's own, which sets it empty
 const ARGS = "CUSTOM_ARGS=\"--disable-reporting\"\n"
 
-# the two packages' layouts: the bin one is upstream's (alloy.service, /etc/alloy), Arch's is renamed
-const BUILDS = [
-    {unit: "alloy.service", dir: "/etc/alloy", probe: "/usr/lib/systemd/system/alloy.service"}
-    {unit: "grafana-alloy.service", dir: "/etc/grafana-alloy", probe: "/usr/lib/systemd/system/grafana-alloy.service"}
-]
+const UNIT = "alloy.service"
+const UNIT_FILE = "/usr/lib/systemd/system/alloy.service"
+const ETC = "/etc/alloy"
 
 export def system [cfg: record] {
     let host = sys host | get hostname
     let credential = system-secret alloy $host
-    let build = $BUILDS | where { $in.probe | path exists } | get --optional 0
-    if $build == null or $host not-in $HOMELAB.push.desktops { return [] }
+    if not ($UNIT_FILE | path exists) or $host not-in $HOMELAB.push.desktops { return [] }
     # root-only; systemd hands it to the service as a credential, so the alloy user never reads a file of its own
-    let secret = $build.dir | path join push-password
+    let secret = $ETC | path join push-password
     # a run with locked secrets is handed no credential: the password the last run wrote stays, so the push is never
     # undone
     let password = if ($credential | path exists) {
@@ -41,13 +38,13 @@ export def system [cfg: record] {
         try { open --raw $secret } catch { null }
     }
     if $password == null { return [] }
-    let args = $build.dir | path join dotfiles.env
-    let restart = unit-restart $build.unit --if-running
+    let args = $ETC | path join dotfiles.env
+    let restart = unit-restart $UNIT --if-running
     let dropin = [
         "[Unit]\nConditionACPower=true\n"
         "[Service]"
         $"LoadCredential=push:($secret)"
-        # the journal group: Arch's sysusers adds it, upstream's does not
+        # the journal group, which the package's alloy user is not in
         "SupplementaryGroups=systemd-journal"
         # no usage report to stats.grafana.org
         $"EnvironmentFile=($args)"
@@ -55,18 +52,18 @@ export def system [cfg: record] {
     [
         (file-text $secret $password --mode "600" --then $restart)
         (file-text $args $ARGS --then $restart)
-        (file-text $"/etc/systemd/system/($build.unit).d/10-dotfiles.conf" $dropin
-            --then [sh -c $"systemctl daemon-reload && systemctl try-restart ($build.unit)"])
-        (file-render config/99-alloy-ac.rules $AC_RULES {UNIT: $build.unit} --then (udev-reload))
+        (file-text $"/etc/systemd/system/($UNIT).d/10-dotfiles.conf" $dropin
+            --then [sh -c $"systemctl daemon-reload && systemctl try-restart ($UNIT)"])
+        (file-render config/99-alloy-ac.rules $AC_RULES {UNIT: $UNIT} --then (udev-reload))
         (file-copy config/node-textfile.conf $TMPFILES --then [systemd-tmpfiles --create $TMPFILES])
         (file-copy scripts/desktop-metrics.nu /usr/local/bin/desktop-metrics --mode 755)
         (unit-file services/desktop-metrics.service)
         (unit-timer desktop-metrics.timer "Desktop health metrics every 5 minutes (system half)" --boot 2min
             --every 5min --enable --now)
-        (file-render config/config.alloy ($build.dir | path join config.alloy)
+        (file-render config/config.alloy ($ETC | path join config.alloy)
             {HOST: $host, PROMETHEUS: $HOMELAB.push.prometheus, LOKI: $HOMELAB.push.loki, TEXTFILE: $TEXTFILE_DIR}
-            --then (unit-restart $build.unit --reload))
-        (unit-enable $build.unit --now)
+            --then (unit-restart $UNIT --reload))
+        (unit-enable $UNIT --now)
     ]
 }
 

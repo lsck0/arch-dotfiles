@@ -122,7 +122,7 @@ export def anonymous-socks-down []: nothing -> nothing {
     let s = settings
     do { ^systemctl --user stop $SLICE } | complete | ignore
     try { root-netfilter nft-off } catch { err "the netfilter guard stays in place" }
-    try { root-netfilter persona-off } catch { }
+    try { root-netfilter persona-off } catch { err "the persona marks stay in place" }
     rm --force $s.PC_CONF $s.VERIFIED
     do { ^systemctl --user stop $TOR_UNIT } | complete | ignore
 }

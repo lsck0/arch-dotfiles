@@ -83,7 +83,7 @@ Item {
       if (!root.filterText.trim()) return
       let entry = ReminderFlowModel.parseEntry(root.filterText)
       if (!entry) {
-        Quickshell.execDetached(["notify-send", "-a", "quickshell-action", "-u", "low", "Invalid reminder", ReminderFlowModel.WHEN_HINT])
+        Util.actionNotify("", "Invalid reminder", ReminderFlowModel.WHEN_HINT)
         return
       }
       if (entry.name) {

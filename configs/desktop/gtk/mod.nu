@@ -7,7 +7,7 @@ use ../oomox/mod.nu [INTERFACE]
 export const meta = {
     deps: [desktop/cursor desktop/oomox]
     reads: [desktop/hyprland]
-    packages: {pacman: [breeze-icons flat-remix-gtk gtk-engine-murrine gtk3 gtk4 nwg-look xdg-user-dirs-gtk]}
+    packages: {pacman: [breeze-icons gtk-engine-murrine gtk3 gtk4 nwg-look xdg-user-dirs-gtk]}
 }
 
 export const options = {

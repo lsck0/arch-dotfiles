@@ -95,9 +95,8 @@ BarWidget {
     Cava.source = spectrumSource
   }
 
-  // bar_spectrum in mod.nu, unless this widget's own setting says otherwise
-  readonly property bool barSpectrum: setting("barSpectrum", Prefs.barSpectrum) === true
-  readonly property bool spectrumLive: barSpectrum && visible && Cava.available && playing
+  // bar_spectrum in mod.nu
+  readonly property bool spectrumLive: Prefs.barSpectrum && visible && Cava.available && playing
     && !(root.bar && root.bar.quiet)
 
   // cava captures devices and sink monitors, not a stream: the player's loopback sink (desktop/pipewire), else all output

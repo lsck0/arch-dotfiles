@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 # Schema.js under qmltestrunner, and each `dot set` argument it builds read back through nu's argument coercion and
-# READER's copy of the value parse in scripts/dot.nu's `main set`; a change to that parse is mirrored here by hand
+# READER's copy of the value parse in scripts/lib/dot-cli.nu's `main set`; a change to that parse is mirrored here by hand
 
 const SCHEMA = path self Schema.js
 const RUNNER = "/usr/lib/qt6/bin/qmltestrunner"

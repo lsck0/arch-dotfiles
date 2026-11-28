@@ -40,6 +40,7 @@ makedepends=(
 )
 provides=("${_pkgname}=${pkgver}")
 install=millennium.install
+# v3.6.3, 2026-11-13
 source=("git+$url.git#commit=ac5e1ad646b1d1dd76a04aecf32d9e5e41779201")
 sha256sums=('SKIP')
 

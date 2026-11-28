@@ -80,7 +80,7 @@ TestCase {
     backgroundValueMin: Palette.BG_VALUE_MIN, backgroundValueMax: Palette.BG_VALUE_MAX,
     lightLuminance: Palette.LIGHT_LUMINANCE, foregroundContrast: 7, accentMinSaturation: 0.7, accentMinValue: 0.62,
     accentContrast: 3, urgentMinSaturation: 0.55, urgentMinValue: 0.55, urgentContrast: 3, mutedContrast: 1.9,
-    phosphorBias: 0, accent2Contrast: 3, urgentMinApart: 40, urgentMaxTurn: 20, surfaceLift: 0.04,
+    accent2Contrast: 3, urgentMinApart: 40, urgentMaxTurn: 20, surfaceLift: 0.04,
     textContrast: Palette.TEXT_RATIO, urgentRed: "#c0392b"
   })
   readonly property var fallback: ({

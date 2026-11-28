@@ -1,5 +1,6 @@
 use ../lib/log.nu [log-err]
 use ../lib/state.nu [xdg file-trim file-lines]
+export use ../lib/state.nu [unit-active]
 use ../lib/usage.nu [die]
 # the shell's own bounded ipc call, shared with its action scripts and the wallpaper switch
 export use ../../configs/desktop/quickshell/config/scripts/lib/shell.nu [shell-call]
@@ -90,11 +91,6 @@ export def toggle-run [name: string, ...args: string]: nothing -> any {
 # A machine without the module has no unit: the toggle is hidden there, not offered and failing.
 export def unit-exists [unit: string]: nothing -> bool {
     (^systemctl cat $unit | complete).exit_code == 0
-}
-
-export def unit-active [unit: string, --user]: nothing -> bool {
-    let scope = if $user { [--user] } else { [] }
-    (^systemctl ...$scope is-active --quiet $unit | complete).exit_code == 0
 }
 
 # An option's current value, as `dot set --json` reports it.

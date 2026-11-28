@@ -49,8 +49,6 @@ QtObject {
     property color recording: root.readable(root.severeBase)
     property color warn: root.warn
     property color speaking: root.readable(root.okBase)
-    property color alertRed: semanticColors.live
-    property color alertOrange: semanticColors.recording
   }
   readonly property SemanticTokens semantic: SemanticTokens {}
 
@@ -84,7 +82,6 @@ QtObject {
 
   component MenuTokens: QtObject {
     property color text: root.foreground
-    property color scrim: root.scrim
     property color selectedBackground: Util.alpha(root.accent, Style.selectedFillAlpha)
     property color selectedText: root.foreground
   }

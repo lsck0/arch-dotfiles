@@ -24,11 +24,13 @@ BarWidget {
   readonly property var pinnedItems: bucket("pinned")
   readonly property var drawerItems: bucket("drawer")
   readonly property var allItems: bucket("all")
-  // unpinned icons past the cap fold into one "+N" slot that opens the manage popup
+  // unpinned icons past the cap and hidden ones fold into one "+N" slot that opens the manage popup, so a hidden icon
+  // can always be brought back
   readonly property int drawerShownCountMax: 6
   readonly property var drawerShown: drawerItems.slice(0, drawerShownCountMax)
-  readonly property int drawerOverflowCount: drawerItems.length - drawerShown.length
-  readonly property int drawerCount: drawerShown.length + (drawerOverflowCount > 0 ? 1 : 0)
+  readonly property int hiddenCount: allItems.length - pinnedItems.length - drawerItems.length
+  readonly property int moreCount: drawerItems.length - drawerShown.length + hiddenCount
+  readonly property int drawerCount: drawerShown.length + (moreCount > 0 ? 1 : 0)
   readonly property int trayItemExtent: Style.bar.iconSlot
   readonly property int trayItemGap: Style.bar.itemGap
   readonly property int drawerExtent: drawerCount > 0 ? drawerCount * trayItemExtent + (drawerCount - 1) * trayItemGap : 0
@@ -148,7 +150,7 @@ BarWidget {
     const without = list => list.filter(id => id !== iid)
     const lists = { pinned: without(pinnedIds), hidden: without(hiddenIds), drawer: without(drawerIds) }
     lists[place] = lists[place].concat([iid])
-    if (!root.bar || !root.bar.shellHost || typeof root.bar.shellHost.setWidgetSettings !== "function") return
+    if (!root.bar || !root.bar.shellHost) return
     root.bar.shellHost.setWidgetSettings("Tray", lists)
   }
 
@@ -167,98 +169,73 @@ BarWidget {
     root.focusApp(item)
   }
 
-  readonly property bool allHidden: allItems.length > 0 && pinnedItems.length === 0 && drawerCount === 0
-
   visible: allItems.length > 0
-  implicitWidth: allHidden ? hiddenHandle.implicitWidth : trayContent.implicitWidth
+  implicitWidth: trayContent.implicitWidth
 
-  Loader {
+  Item {
     id: trayContent
     anchors.fill: parent
-    active: !root.allHidden
-    sourceComponent: horizontalTray
-  }
+    implicitWidth: pinnedRow.implicitWidth + root.drawerExtent
+    implicitHeight: Style.bar.sizeHorizontal
 
-  BarIconButton {
-    id: hiddenHandle
-    anchors.fill: parent
-    visible: root.allHidden
-    bar: root.bar
-    text: "\u{f070}"
-    tooltipText: "Tray icons (all hidden)"
-    onPressed: root.managePopupOpen = !root.managePopupOpen
-  }
-
-  Component {
-    id: horizontalTray
+    containmentMask: QtObject {
+      function contains(point: point): bool {
+        if (point.y < 0 || point.y > trayContent.height) return false
+        return point.x >= 0 && point.x <= trayContent.implicitWidth
+      }
+    }
 
     Item {
-      id: horizontalTrayRoot
+      width: root.drawerExtent
+      height: Style.bar.sizeHorizontal
+      visible: root.allItems.length > 0
 
-      readonly property int pinnedWidth: pinnedRow.implicitWidth
-
-      implicitWidth: pinnedWidth + root.drawerExtent
-      implicitHeight: Style.bar.sizeHorizontal
-
-      containmentMask: QtObject {
-        function contains(point: point): bool {
-          if (point.y < 0 || point.y > horizontalTrayRoot.height) return false
-          return point.x >= 0 && point.x <= horizontalTrayRoot.implicitWidth
+      MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.RightButton
+        onPressed: function(mouse) {
+          if (mouse.button === Qt.RightButton) root.managePopupOpen = !root.managePopupOpen
         }
       }
 
       Item {
+        anchors.verticalCenter: parent.verticalCenter
         width: root.drawerExtent
         height: Style.bar.sizeHorizontal
-        visible: root.allItems.length > 0
+        clip: true
 
-        MouseArea {
-          anchors.fill: parent
-          acceptedButtons: Qt.RightButton
-          onPressed: function(mouse) {
-            if (mouse.button === Qt.RightButton) root.managePopupOpen = !root.managePopupOpen
-          }
-        }
-
-        Item {
+        Row {
           anchors.verticalCenter: parent.verticalCenter
-          width: root.drawerExtent
-          height: Style.bar.sizeHorizontal
-          clip: true
+          spacing: root.trayItemGap
 
-          Row {
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: root.trayItemGap
+          Repeater {
+            model: root.drawerShown
+            TrayItem {}
+          }
 
-            Repeater {
-              model: root.drawerShown
-              TrayItem {}
-            }
-
-            WidgetButton {
-              visible: root.drawerOverflowCount > 0
-              bar: root.bar
-              fixedWidth: root.trayItemExtent
-              fontSize: Style.font.caption
-              hoverFill: true
-              text: "+" + root.drawerOverflowCount
-              tooltipText: Util.count(root.drawerOverflowCount, "more tray icon") + " :: click to manage"
-              onPressed: root.managePopupOpen = !root.managePopupOpen
-            }
+          WidgetButton {
+            visible: root.moreCount > 0
+            bar: root.bar
+            fixedWidth: root.trayItemExtent
+            fontSize: Style.font.caption
+            hoverFill: true
+            text: "+" + root.moreCount
+            tooltipText: Util.count(root.moreCount, "more tray icon") + (root.hiddenCount > 0 ? " (" + root.hiddenCount + " hidden)" : "") + " :: click to manage"
+            onPressed: root.managePopupOpen = !root.managePopupOpen
           }
         }
       }
+    }
 
-      Row {
-        id: pinnedRow
-        x: root.drawerExtent
-        anchors.verticalCenter: parent.verticalCenter
-        spacing: root.trayItemGap
-        leftPadding: root.pinnedItems.length > 0 && root.drawerCount > 0 ? Style.bar.groupGap : 0
-        Repeater {
-          model: root.pinnedItems
-          TrayItem {}
-        }
+    Row {
+      id: pinnedRow
+      x: root.drawerExtent
+      anchors.verticalCenter: parent.verticalCenter
+      spacing: root.trayItemGap
+      leftPadding: root.pinnedItems.length > 0 && root.drawerCount > 0 ? Style.bar.groupGap : 0
+      Repeater {
+        model: root.pinnedItems
+        TrayItem {}
       }
     }
   }

@@ -7,6 +7,7 @@ use options.nu [options-resolve]
 use pipeline.nu [pipeline-load]
 use cli.nu [jobs]
 use state.nu [tmp-dir-run]
+use proc.nu [succeeds]
 
 const REPO = path self ../..
 const SUDO = '\bsudo\b'
@@ -161,7 +162,10 @@ def lint-engine-imports []: nothing -> list<string> {
     } | flatten
 }
 
-# A mod.nu exports only verbs, hooks, its own steps and names other modules import.
+# the consts of a mod.nu the engine reads (modules-scan)
+const MODULE_CONSTS = [meta options]
+
+# A mod.nu exports only verbs, hooks, the engine's consts, its own steps and names other modules import.
 def lint-exports []: nothing -> list<string> {
     let mods = mod-files
     let imported = glob $"($REPO)/{configs,scripts}/**/*.nu" --exclude ($SECRETS_DATA | each { $"configs/($in)" }) | each {|f|
@@ -171,15 +175,15 @@ def lint-exports []: nothing -> list<string> {
         let text = open --raw $f
         let steps = $text | parse --regex 'step "?(?<name>[a-z0-9-]+)' | get name
         let barriers = $text | parse --regex 'barrier: \{run: (?<name>[a-z0-9-]+)' | get name
-        let allowed = $VERBS ++ $HOOKS ++ $steps ++ $barriers ++ $imported
+        let allowed = $VERBS ++ $HOOKS ++ $MODULE_CONSTS ++ $steps ++ $barriers ++ $imported
         $text | lines | enumerate | where ($it.item | str starts-with "export ") | each {|l|
             let names = if ($l.item | str starts-with "export use ") {
                 $l.item | parse --regex '\[(?<names>[^\]]*)\]' | get --optional 0.names | default "*" | split row " " | where $it != ""
             } else {
-                $l.item | parse --regex '^export (?:def(?: --\S+)*|alias|extern) "?(?<name>[a-z0-9-]+)' | get name
+                $l.item | parse --regex '^export (?:def(?: --\S+)*|alias|extern|const) "?(?<name>[A-Za-z0-9_-]+)' | get name
             }
             $names | where $it not-in $allowed | each {|name|
-                $"(rel $f):($l.index + 1): export ($name) is no verb \(($VERBS | str join ' ')\), step or import; make it a plain def"
+                $"(rel $f):($l.index + 1): export ($name) is no verb \(($VERBS | str join ' ')\), step or import; make it a plain def or const"
             }
         } | flatten
     } | flatten
@@ -293,7 +297,7 @@ def lint-patterns [files: list<path>, patterns: table]: nothing -> list<string> 
 def lint-exec-bits []: nothing -> list<string> {
     ^git -C $REPO ls-files --cached --others --exclude-standard | lines | uniq
     | where {|f| let p = $REPO | path join $f; ($p | path type) == file and (open --raw $p | into binary | bytes at 0..1) == 0x[2321] }
-    | where {|f| (^test -x ($REPO | path join $f) | complete).exit_code != 0 }
+    | where {|f| not (succeeds test -x ($REPO | path join $f)) }
     | each { $"($in): has a shebang but is not executable, chmod +x it" }
 }
 
@@ -583,7 +587,7 @@ export def gate-tools [apply: bool]: nothing -> record {
         (if ($recipes | is-empty) or (which shellcheck | is-empty) { [] } else {
             tool shellcheck -f gcc -s bash -e SC2034,SC2154,SC2164 ...$recipes | get stdout | lines | where ($it | str trim | is-not-empty)
         })
-        ($sh | where {|f| ($f | str starts-with "scripts/") and (^test -x ($REPO | path join $f) | complete).exit_code == 0 }
+        ($sh | where {|f| ($f | str starts-with "scripts/") and (succeeds test -x ($REPO | path join $f)) }
             | where {|f| let t = open --raw ($REPO | path join $f); not ($t =~ '(?m)^set -euo pipefail\b' or $t =~ '(?m)^# no-errexit: \S') }
             | each { $"($in): executable without 'set -euo pipefail' \(or a '# no-errexit: <reason>' line\)" })
         (if $ruff_checked == null { [] } else {

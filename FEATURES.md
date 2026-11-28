@@ -8,7 +8,7 @@ Everything here is set up by the install (bootstrap, then `dot apply`) and kept 
 - `dot sync`: pull (signature-verified), migrate, install, apply, back up app state, signed `Generation: <n>` commit
   behind the formatter, linter and gitleaks gates, push.
 - `dot apply`, `dot plan`, `dot status`, `dot set`, `dot theme`, `dot module adopt|reset|unlink|remove|restore`,
-  `dot explain`, `dot log`, `dot secrets`, `dot test lint|check|fmt|run`: see `dot --help`.
+  `dot explain`, `dot log`, `dot secrets`, `dot test lint|check|fmt|bench|run`: see `dot --help`.
 - Platforms `luca-pc`, `luca-notebook`, `server`, `vm`, `wsl` or `custom` (answered at install); profile `luca`
   (owner, with secrets) or `custom` (no capabilities).
 - Install: the lsck0 iso (answer file optional) or `curl | sh` from the official Arch ISO or WSL.
@@ -419,7 +419,7 @@ Every typed option besides `enable`. Detected: set from the hardware when the pl
 | `gaming/pd2.game_dir` | `string?` | detected | The season 3 ProjectD2 dir; detected under ~/sync/games/d2 |
 | `gaming/pd2.save_dir` | `string?` | detected | Season 3's single player saves (.d2s, plugy's .d2x and .sss); detected as Save beside the install |
 | `gaming/pd2.s14_save_dir` | `string?` | detected | Season 14's single player saves and shared stash; detected as ~/sync/games/d2/Save-S14 when it exists |
-| `gaming/steam.launch_options` | `string` | `"gamemoderun mangohud %command%"` | Launch options filled into every installed game whose own are empty or ours; empty for none, %command% is the game |
+| `gaming/steam.launch_options` | `string` | `"ENABLE_VKBASALT=1 gamemoderun mangohud %command%"` | Launch options filled into every installed game whose own are empty or ours; empty for none, %command% is the game |
 | `gaming/steam.millennium` | `bool` | `true` | The Millennium client mod with the themed cyberpunk skin; off unlinks it for this login, the package stays |
 | `gaming/vkbasalt.sharpness` | `float` | `0.4` | Contrast adaptive sharpening strength, vkBasalt.conf casSharpness |
 | `gaming/vkbasalt.enable_on_launch` | `bool` | `true` | Effects on from a game's start; Home toggles them |

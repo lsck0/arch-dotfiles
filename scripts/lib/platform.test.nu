@@ -1,8 +1,12 @@
 #!/usr/bin/env -S nu --no-config-file
 # A platform file's validation, the one platform-load and the lint apply and dot set checks each write against: known
 # keys and facts, typed values and choices, groups that exist; and the keys as the settings window lists them.
-use platform.nu [PLATFORM_APPLY platform-errors platform-value-errors platform-spec platform-cells platform-rows]
+use platform.nu [platform-errors platform-value-errors platform-spec platform-cells platform-rows]
 use std/assert
+
+# How dot set lands a platform key: live is stored and read where it is used, apply waits for the next dot apply (both
+# layers), packages for the next dot apply --packages.
+const PLATFORM_APPLY = [live apply packages]
 
 def scratch-repo []: nothing -> path {
     let repo = mktemp --directory --tmpdir dot-platform-test-XXXXXX

@@ -196,7 +196,7 @@ export def link [cfg: record] {
     let remove = (if ($vllm | is-empty) { $VLLM_KEYS } else { [] }) ++ (if ($ollama | is-empty) { $OLLAMA_KEYS } else { [] })
     # both name the owner's machine, so another login gets neither (skills/mod.nu); the secrets' only once unlocked
     let roots = if not (profile-has secrets) { [] } else if (owner-unlocked) { [skills configs/secrets/skills] } else { [skills] }
-    let skills = $roots | each {|root| glob ($env.DOTFILES | path join $root "l-*") } | flatten | where ($it | path type) == dir
+    let skills = $roots | each {|root| skill-dirs ($env.DOTFILES | path join $root) } | flatten
     let home = homes | get default
     let mcp = try { open ($home | path join mcp-servers.json) } catch { {} }
     [

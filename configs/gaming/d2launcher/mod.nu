@@ -152,7 +152,7 @@ export def link [cfg: record] {
         # never from the NAS: cifs turned the prefix's dosdevices links into copies of drive_c
         (if not $own and ($synced_prefix | path exists) { step prefix-copy $synced_prefix --creates (prefix-dir) })
         # the saves live in syncthing (backed up with the rest of ~/sync), the prefix only links to them
-        (step save-link --done=(not (save-linkable)))
+        (step save-link --done=((save-live | path type) == symlink or not (save-synced | path exists)))
         # only to a dir that exists or a copy this apply makes: the script's mkdir -p fails on a dangling link
         ...(if $own or $copied or $source != null {
             $VENDOR_LINKED | each {|d| file-link ($vendor | path join $d) (home-dir | path join $d) }
@@ -367,25 +367,8 @@ def prefix-dir []: nothing -> path { vendor-dir | path join wineprefix }
 def save-live []: nothing -> path { prefix-dir | path join drive_c users steamuser AppData Roaming MedianXL save }
 def save-synced []: nothing -> path { $nu.home-dir | path join sync games d2 Save-MedianXL }
 
-# The synced saves exist and the live dir is no link yet, but empty or the same content: safe to replace by the link.
-def save-linkable []: nothing -> bool {
-    let live = save-live
-    if not (save-synced | path exists) or ($live | path type) == symlink { return false }
-    if not ($live | path exists) { return true }
-    (ls $live | is-empty) or ((^diff -rq $live (save-synced) | complete).exit_code == 0)
-}
-
 export def save-link []: nothing -> nothing {
-    let live = save-live
-    if not (save-linkable) {
-        if ($live | path type) != symlink and (save-synced | path exists) {
-            print $"note: d2launcher: ($live) differs from (save-synced): merge them by hand, then dot apply links it"
-        }
-        return
-    }
-    rm --recursive --force $live   # absent, empty or identical to the synced copy, checked above
-    mkdir ($live | path dirname)
-    ^ln -s (save-synced) $live
+    sync-link (save-live) (save-synced) d2launcher --same
 }
 
 def wine-desktop-set []: nothing -> bool {

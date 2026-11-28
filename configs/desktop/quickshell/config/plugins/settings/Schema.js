@@ -173,22 +173,44 @@ function launchEntries(needle, fuzzy) {
 
 // QUICK TOGGLES: the open rows first, where a newcomer browsing sees them; the plain toggles then get a header of
 // their own, else they would read as part of "open"
-function togglesSection(toggles, needle, fuzzy) {
-  var open = launchEntries(needle, fuzzy)
-  var rows = toggleEntries(toggles, needle, fuzzy)
+function togglesSection(toggles, needle, fuzzy) { return togglesJoined(launchEntries(needle, fuzzy), toggleEntries(toggles, needle, fuzzy)) }
+
+function togglesJoined(open, rows) {
   if (open.length > 0 && rows.length > 0 && rows[0].kind !== "header")
     rows = [{ kind: "header", id: "#" + togglesId + "/toggles", text: "toggles" }].concat(rows)
   return open.concat(rows)
 }
 
-// scattered letters count only while nothing fits needle as a word or substring: "dpi" lists Wine dpi alone
-function fuzzyAllowed(modules, toggles, needle, status, machine) {
+function machineLabelled(machine) { return Object.assign({}, machine, { label: machineLabel }) }
+
+// one query's matches, scored once for both sections() and rows(): scattered letters count only while nothing fits
+// the needle as a word or substring ("dpi" lists Wine dpi alone), so the strict pass decides and is kept when it hits.
+// The section count scores the machine as it is, its rows under the MACHINE label.
+function search(modules, toggles, query, status, machine) {
+  var needle = query.trim().toLowerCase()
+  if (!needle) return { needle: "", fuzzy: true }
+  var scores = function (module, fuzzy) {
+    return (module.options || []).map(function (o) { return optionScore(needle, module, o, fuzzy) })
+  }
+  var pass = function (fuzzy) {
+    return {
+      needle: needle,
+      fuzzy: fuzzy,
+      open: launchEntries(needle, fuzzy),
+      toggles: toggleEntries(toggles, needle, fuzzy),
+      system: systemEntries(status, needle, fuzzy),
+      machine: machine ? scores(machine, fuzzy) : [],
+      modules: modules.map(function (m) { return scores(m, fuzzy) })
+    }
+  }
   var entry = function (r) { return r.kind !== "header" }
-  if (toggleEntries(toggles, needle, false).some(entry) || launchEntries(needle, false).some(entry)) return false
-  if (systemEntries(status, needle, false).some(entry)) return false
-  return !(machine ? [machine] : []).concat(modules).some(function (m) {
-    return (m.options || []).some(function (o) { return optionMatches(needle, m, o, false) })
-  })
+  var hit = function (s) { return s >= 0 }
+  var strict = pass(false)
+  var any = strict.open.some(entry) || strict.toggles.some(entry) || strict.system.some(entry)
+    || strict.machine.some(hit) || strict.modules.some(function (s) { return s.some(hit) })
+  var out = any ? strict : pass(true)
+  out.labelled = machine ? scores(machineLabelled(machine), out.fuzzy) : []
+  return out
 }
 
 // the entries that match, best first; equal scores keep their order
@@ -208,32 +230,36 @@ function sectionLabel(module) {
 }
 
 // a section with nothing to list is left out: System until dot status answers, a module without options; a search
-// keeps every section and only zeroes the counts, so the list keeps its indices while the query changes
-function sections(modules, toggles, query, status, machine) {
-  var needle = query.trim().toLowerCase()
-  var fuzzy = !needle || fuzzyAllowed(modules, toggles, needle, status, machine)
+// keeps every section and only zeroes the counts, so the list keeps its indices while the query changes.
+// found: search() over the same arguments, which Settings.qml shares with rows(); left out, it is scored here
+function sections(modules, toggles, query, status, machine, found) {
+  found = found || search(modules, toggles, query, status, machine)
+  var needle = found.needle
+  var entry = function (r) { return r.kind !== "header" }
+  var hits = function (scores) { return scores.filter(function (s) { return s >= 0 }).length }
   var out = (machine ? [{
     kind: "section",
     id: machineId,
     label: machineLabel,
-    count: (machine.options || []).filter(function (o) { return !needle || optionMatches(needle, machine, o, fuzzy) }).length
+    count: needle ? hits(found.machine) : (machine.options || []).length
   }] : []).concat([{
     kind: "section",
     id: togglesId,
     label: togglesLabel,
-    count: toggleEntries(toggles, needle, fuzzy).concat(launchEntries(needle, fuzzy)).filter(function (r) { return r.kind !== "header" }).length
+    count: (needle ? togglesJoined(found.open, found.toggles) : togglesSection(toggles, "", true)).filter(entry).length
   }, {
     kind: "section",
     id: systemId,
     label: systemLabel,
-    count: systemEntries(status, needle, fuzzy).filter(function (r) { return r.kind !== "header" }).length
+    count: (needle ? found.system : systemEntries(status, "", true)).filter(entry).length
   }].filter(function (s) { return s.id !== systemId || status }))
   // a module outside any group (scripts, skills) comes first, under no header, beside MACHINE and the others
   var group = ""
   var key = function (m) { return (moduleGroup(m) ? "1" : "0") + m.name }
-  var sorted = modules.slice().sort(function (a, b) { return key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0 })
-  for (let m = 0; m < sorted.length; m++) {
-    let module = sorted[m]
+  var order = modules.map(function (m, i) { return i })
+    .sort(function (a, b) { return key(modules[a]) < key(modules[b]) ? -1 : key(modules[a]) > key(modules[b]) ? 1 : 0 })
+  for (let m = 0; m < order.length; m++) {
+    let module = modules[order[m]]
     let options = module.options || []
     if (options.length === 0) continue
     let g = moduleGroup(module)
@@ -242,7 +268,7 @@ function sections(modules, toggles, query, status, machine) {
       kind: "section",
       id: module.name,
       label: sectionLabel(module),
-      count: needle ? options.filter(function (o) { return optionMatches(needle, module, o, fuzzy) }).length : options.length
+      count: needle ? hits(found.modules[order[m]]) : options.length
     })
   }
   return out
@@ -358,19 +384,21 @@ function moduleRows(module) {
   return out
 }
 
-function rows(modules, toggles, sectionId, query, status, machine) {
-  var needle = query.trim().toLowerCase()
+// found: as in sections()
+function rows(modules, toggles, sectionId, query, status, machine, found) {
+  found = found || search(modules, toggles, query, status, machine)
+  var needle = found.needle
   var out = []
   if (needle) {
-    let fuzzy = fuzzyAllowed(modules, toggles, needle, status, machine)
-    let labelled = (machine ? [Object.assign({}, machine, { label: machineLabel })] : []).concat(modules)
-    let hits = togglesSection(toggles, needle, fuzzy)
+    let labelled = (machine ? [machineLabelled(machine)] : []).concat(modules)
+    let scores = (machine ? [found.labelled] : []).concat(found.modules)
+    let hits = togglesJoined(found.open, found.toggles)
     if (hits.length > 0) out.push({ kind: "header", id: "#" + togglesId, text: togglesLabel })
     out = out.concat(hits)
-    out = out.concat(systemEntries(status, needle, fuzzy))
+    out = out.concat(found.system)
     // the module with the best hit first, so Enter or a change right after typing acts on the closest option
-    let groups = ranked(labelled.map(function (module) {
-      let scored = ranked((module.options || []).map(function (o) { return { option: o, score: optionScore(needle, module, o, fuzzy) } }),
+    let groups = ranked(labelled.map(function (module, m) {
+      let scored = ranked((module.options || []).map(function (o, i) { return { option: o, score: scores[m][i] } }),
         function (e) { return e.score })
       return { module: module, scored: scored }
     }), function (g) { return g.scored.length > 0 ? g.scored[0].score : -1 })
@@ -485,7 +513,7 @@ function encode(option, value) {
   // a cleared nullable option unsets; Number(null) would store 0b
   if (value === undefined || value === null) return "null"
   if (option.type === "filesize") return Number(value) + "b"
-  return JSON.stringify(value === undefined ? null : value)
+  return JSON.stringify(value)
 }
 
 function toggleArgument(option, value) {

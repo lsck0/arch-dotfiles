@@ -6,6 +6,8 @@ use ../../core/wallust/scripts/palette.nu [
 ]
 use ../../core/wallust/scripts/font.nu [font-load]
 use scripts/plugins.nu [plugins-missing plugins-unloaded]
+use scripts/reload.nu [hyprland-reload]
+use ../cursor/scripts/size.nu [cursor-size]
 
 export const meta = {
     deps: [base/essentials]
@@ -16,11 +18,11 @@ export const meta = {
     reads: [base/xdg core/locale desktop/cursor desktop/shimoji]
     packages: {
         pacman: [
-            app2unit bemenu-wayland brightnessctl cpio ddcutil grim hyprcursor hypridle hyprland hyprlock hyprpicker
-            libnotify libx11 mission-center omarchy-share-picker-git pavucontrol playerctl polkit
+            app2unit bemenu-wayland brightnessctl ddcutil grim hyprcursor hypridle hyprland hyprlock hyprpicker
+            libnotify mission-center omarchy-share-picker-git pavucontrol playerctl polkit
             qt5-wayland qt6-wayland slurp wayland
             wayland-boomer-git wl-clip-persist wl-clipboard xdg-desktop-portal-gtk xdg-desktop-portal-hyprland
-            xdg-desktop-portal-kde xorg-server xorg-xauth xorg-xhost xorg-xinput xorg-xrdb xorg-xwayland ydotool
+            xdg-desktop-portal-kde xorg-xhost xorg-xrdb xorg-xwayland ydotool
         ]
     }
     # core/locale's keyboard, written by localectl: a layout change re-renders platform.lua; the applications dirs'
@@ -228,8 +230,6 @@ const REFRESH_FLUID_HZ = 50.0
 const PLUGINS = path self scripts/plugins.nu
 # input.follow_mouse: 1 focuses the window under the pointer, 2 only on a click
 const FOLLOW_MOUSE = {on: 1, off: 2}
-# desktop/cursor's size_px default, for a platform whose groups leave that module out
-const CURSOR_SIZE_FALLBACK_PX = 30
 # misc.vrr's values by the vrr option's choice
 const VRR_MODES = {off: 0, on: 1, fullscreen: 2, fullscreen_games: 3}
 # system and flatpak desktop entries, after the user's own
@@ -338,8 +338,6 @@ def app-default [entries: list<string>]: nothing -> any {
     if $id == null { return null }
     {desktop: $id, name: ($id | str replace --regex '\.desktop$' '' | split row . | last)}
 }
-
-def cursor-size [cursor: any]: nothing -> int { $cursor.size_px? | default $CURSOR_SIZE_FALLBACK_PX }
 
 # The resolved monitors (set, else detected; none outside a live hyprland) drive the main pick, workspace split and X11
 # scale, so an apply from a tty renders what one inside the session does.
@@ -456,14 +454,7 @@ export def plugins-load []: nothing -> nothing { ^$PLUGINS load }
 
 export def update [cfg: record]: nothing -> nothing { if $cfg.cursor_shake { plugins-build; plugins-load } }
 
-# Reloads hyprland; the shader goes last, a config write or scale re-render after it drops it.
-export def --env reload []: nothing -> nothing {
-    if not (hyprland-live) { return }
-    let toggles = $env.DOTFILES | path join scripts toggles
-    ^hyprctl reload config-only
-    ^($toggles | path join toggle-monitor-scale.nu) reapply
-    ^($toggles | path join toggle-shader.nu) reapply
-}
+export def --env reload []: nothing -> nothing { if (hyprland-live) { hyprland-reload } }
 
 # xdph's share picker: mode from the theme's light flag, its raised surfaces one shade off the background
 def share-picker-colors []: nothing -> any {

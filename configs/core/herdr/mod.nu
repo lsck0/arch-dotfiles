@@ -1,5 +1,5 @@
 use module.nu *
-use ../wallust/scripts/palette.nu [ACCENT_RATIO TEXT_RATIO hex-to-rgb mix passes readable-on rgb-to-hex tone-map]
+use ../wallust/scripts/palette.nu [ACCENT_RATIO TEXT_RATIO blend-floor hex-to-rgb mix readable-on rgb-to-hex tone-map]
 
 export const meta = {deps: [core/cli core/wallust], packages: {pacman: [herdr-bin]}}
 
@@ -31,18 +31,15 @@ const BLENDS = {
 # herdr draws text in these: overlay0 the secondary lines (a row's branch and agent, unfocused rows, tab names),
 # overlay1 the selected row's number, subtext0 unfocused agent names. A blend short of its floor on selection_bg, the
 # surface nearest the foreground that text sits on, is raised toward the foreground in TEXT_STEP until it reaches it.
-const TEXT_FLOORS = {overlay0: $ACCENT_RATIO, overlay1: $TEXT_RATIO, subtext0: $TEXT_RATIO}
+export const TEXT_FLOORS = {overlay0: $ACCENT_RATIO, overlay1: $TEXT_RATIO, subtext0: $TEXT_RATIO}
 const TEXT_STEP = 0.02
-# a server that is not running reads the new file when it starts
-const RELOAD = [sh -c "herdr server reload-config >/dev/null 2>&1 || true"]
+const RELOAD = path self scripts/herdr-reload.nu
 
 # The first blend of fg into bg from t up that reaches ratio on surface; when fg itself falls short, fg walked toward
 # white or black.
 def text-blend [bg: list<float>, fg: list<float>, surface: list<float>, t: float, ratio: float]: nothing -> list<float> {
-    let steps = (1.0 - $t) / $TEXT_STEP | math ceil
-    let found = 0..$steps | each {|i| mix $bg $fg ([1.0 ($t + $i * $TEXT_STEP)] | math min) }
-        | where {|c| passes $c $surface $ratio } | get --optional 0
-    if $found == null { $fg | readable-on $surface --ratio $ratio } else { $found }
+    let found = blend-floor $bg $fg $surface $t $TEXT_STEP $ratio
+    if $found == null { $fg | readable-on $surface --ratio $ratio } else { mix $bg $fg $found }
 }
 
 # The [theme.custom] keys and colours for palette p (a `palette-load` record).
@@ -75,7 +72,7 @@ def config-text [cfg: record]: nothing -> string {
 }
 
 def config [cfg: record]: nothing -> record {
-    file-text (xdg config herdr config.toml) (config-text $cfg) --mode 600 --generated --then $RELOAD
+    file-text (xdg config herdr config.toml) (config-text $cfg) --mode 600 --generated --then [$RELOAD]
 }
 
 export def link [cfg: record] {

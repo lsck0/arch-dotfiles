@@ -28,9 +28,19 @@ stop() {
     fi
 }
 
+# a caller's own DOT_RUN_POINTER (dot test bench, which removes the run logs it caused) gets the run file on exit
+pointer_outer=${DOT_RUN_POINTER-}
+# shellcheck disable=SC2329 # the EXIT trap calls it
+pointer_release() {
+    if [[ -n $pointer_outer && -f $pointer_outer && ! -s $pointer_outer ]]; then
+        cat "$pointer" > "$pointer_outer" 2> /dev/null || true
+    fi
+    rm -f "$pointer"
+}
+
 sid=$(ps -o sid= -p $$ | tr -d ' ')
 pointer=$(mktemp --tmpdir dot-run.XXXXXX)
-trap 'rm -f "$pointer"' EXIT
+trap pointer_release EXIT
 trap stop INT
 # an asynchronous command starts with SIGINT ignored and stdin on /dev/null: undo both
 exec 3<&0

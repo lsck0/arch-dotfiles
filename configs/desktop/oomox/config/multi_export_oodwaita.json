@@ -34,14 +34,5 @@
       "last_app": "gtk4-oodwaita",
       "default_path_gtk4-oodwaita": "~/.themes/<THEME_NAME>/gtk-4.0/gtk.css"
     }
-  },
-  "4": {
-    "name": "base16",
-    "config": {
-      "default_path": "~/.config/oomox-qtstyleplugin/themes/<THEME_NAME>.css",
-      "last_variant": "default",
-      "last_app": "qt-oomox-styleplugin",
-      "default_path_qt-oomox-styleplugin": "~/.config/oomox-qtstyleplugin/themes/<THEME_NAME>.css"
-    }
   }
 }

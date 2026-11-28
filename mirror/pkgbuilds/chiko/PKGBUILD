@@ -9,6 +9,7 @@ arch=(x86_64)
 url="https://github.com/felangga/chiko"
 license=(MIT)
 makedepends=(git go)
+# v0.3.0, 2026-10-30
 source=("git+$url.git#commit=5fc39cefe531a1092ef8196c11bc80dae96e2865")
 sha256sums=(SKIP)
 

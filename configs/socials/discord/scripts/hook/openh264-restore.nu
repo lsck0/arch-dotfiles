@@ -3,21 +3,19 @@
 # host's as unused on every start: put the host's back, from cisco's binary pinned here
 
 use ../../../../../scripts/lib/state.nu [xdg]
+use core.nu [desktop-core]
 
 const REPO = path self ../../../../..
 const URL = "https://ciscobinary.openh264.org"
 # sha256 of the .bz2 cisco serves, per library name the host asks for
 const PINS = {
-    "libopenh264-2.5.1-linux64.7.so": "82e436db8606433e3f823c7fff3269c43b3ba3f12510a851ef7b156b80ad1b11"
+    # 2026-11-09
     "libopenh264-2.7.0-linux64.8.so": "44ad0dd2c5af2bac84d26f89f2eb4e268708b8739323d15d33837f7221ce4980"
 }
 
 def main []: nothing -> nothing {
     let cache = xdg cache discord-openh264
-    let host = xdg config discord Discord
-    if not ($host | path exists) { return }
-    let modules = $host | path expand | path dirname | path join modules
-    let core = glob ($modules | path join discord_desktop_core-*) | sort --natural | last 1 | get --optional 0
+    let core = desktop-core | get --optional core
     let asar = $core | default "" | path join discord_desktop_core core.asar
     if $core == null or not ($asar | path exists) { return }
     let name = open --raw $asar | parse --regex '(?<n>libopenh264-[0-9.]+-linux64\.[0-9]+\.so)' | get --optional 0.n

@@ -14,7 +14,8 @@ description: "How dot theme and wallpaper switches recolor the system: wallust t
 theme name applies `themes/<theme>.json` as written (`wallust cs`), its wallpaper and its optional `"font"`
 (`$XDG_CACHE_HOME/wal/font.json`). Anything else (a file name with extension, a path, `random`) is a wallpaper under a
 palette derived from it (`wallust run`), also when a theme names that file. Names resolve from `~/pictures/wallpapers/`
-(a user's own), `~/sync/wallpapers/` (bought, `wallpaper-import`), then `wallpapers/`. Picks land in `$XDG_STATE_HOME/dotfiles/theme-recent.json`.
+(a user's own), `~/sync/wallpapers/` (bought, `wallpaper-import`), then `wallpapers/`. Picks land in
+`$XDG_STATE_HOME/dotfiles/theme-recent.json`.
 
 1. A derived palette is conditioned (`condition-derived` in `palette.nu`): color0 is the background, color8 a grey of
    its hue at 3:1, color4 and color12 swap with the slot holding the picture's hue when wallust put a foreign one
@@ -33,7 +34,7 @@ the switch when `configs/core/wallust` or `themes/` changed (stamp `$XDG_CACHE_H
 the `theme` verb of each module it applied.
 
 `palette.nu` is the one authority: conditioning and the constants `RADIUS_PX`, `BORDER_PX`, `OPACITY_SHELL`,
-`OPACITY_SHELL_LIGHT` (`opacity-shell`), `OPACITY_WINDOW`. Quickshell recolours from `colors.json` through
+`OPACITY_SHELL_LIGHT` (`opacity-shell`), `OPACITY_WINDOW`, `EDGE_ALPHA`. Quickshell recolours from `colors.json` through
 `Commons/Palette.js`, its JS port; live readers (qutebrowser, nvim) read `~/.config/dotfiles/style.json`
 (`style-json`).
 

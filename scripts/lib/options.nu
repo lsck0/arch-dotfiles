@@ -1,7 +1,5 @@
 # Option resolution: default < detected < platform < profile; root never sees the profile.
 
-use state.nu [xdg]
-
 const SPEC_KEYS = [type default doc label group choices choice_labels ordered pattern min max step apply scope toggle]
 const SPEC_REQUIRED = [type default doc]
 export const OPTION_APPLY = [live relink relogin reboot]
@@ -12,8 +10,6 @@ export const OPTION_ENABLE = "enable"
 # where a machine without a platform of its own keeps its platform and options files, root's: dot set reaches them
 # through system-apply.nu's set
 export const ROOT_OPTIONS_DIR = "/etc/dotfiles/"
-const EVENTS_FILE = "dot/events.jsonl"
-const EVENTS_MAX_BYTES = 1048576
 const NUON_INDENT = 4
 const NUON_QUOTES = ['"' "'"]
 const NUON_OPEN = ["{" "["]
@@ -167,18 +163,6 @@ export def options-resolve [modules: table, platform: record, profile: any, dete
         {id: $module.id, values: $resolved.values, sources: $resolved.sources, errors: ($built.errors ++ $resolved.errors)}
     }
     {rows: ($rows | reject errors), errors: ($unknown_modules ++ ($rows | get errors | flatten))}
-}
-
-export def options-events-file []: nothing -> path {
-    xdg runtime $EVENTS_FILE
-}
-
-# Appends a changed option to the events file dot internal watch follows; --error: stored, but applying it failed.
-export def options-notify [key: string, value: any, source: string, runtime?: any, --error: any]: nothing -> nothing {
-    let file = options-events-file
-    mkdir ($file | path dirname)
-    if ($file | path exists) and (ls $file | get 0.size | into int) > $EVENTS_MAX_BYTES { "" | save --force $file }
-    $"({key: $key, value: $value, source: $source, runtime: $runtime, error: $error} | to json --raw)\n" | save --append $file
 }
 
 # Nuon with records and lists spelled out one entry per line, never the table form, key order kept; --inline on one

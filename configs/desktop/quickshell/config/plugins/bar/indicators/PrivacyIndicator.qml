@@ -7,21 +7,21 @@ import qs.Ui
 BarIndicator {
   id: root
 
-  // xdg-desktop-portal-hyprland's screencast node; to Pipewire it is a Video/Source like a camera. Since 1.5 the
-  // node is named after the portal and the per-session xdph-streaming-<n> moved to media.name. A stream is never
-  // one, and is rejected before its properties are read: the tracker below binds the reader streams, and reading
+  // streams are rejected before their properties are read: the tracker below binds the reader streams, and reading
   // theirs here would loop devices back into readers
+  readonly property var videoSources: Audio.nodes.filter(n => !n.isStream
+    && (n.type & PwNodeType.VideoSource) === PwNodeType.VideoSource)
+
+  // xdg-desktop-portal-hyprland's screencast node; to Pipewire it is a Video/Source like a camera. Since 1.5 the
+  // node is named after the portal and the per-session xdph-streaming-<n> is its media.name
   readonly property string screencastPrefix: "xdph-streaming-"
   readonly property string screencastNode: "xdg-desktop-portal-hyprland"
   function isScreencast(n) {
-    if (n.isStream) return false
-    return n.name === screencastNode || n.name.startsWith(screencastPrefix)
-      || (n.properties?.["media.name"] ?? "").startsWith(screencastPrefix)
+    return n.name === screencastNode || (n.properties?.["media.name"] ?? "").startsWith(screencastPrefix)
   }
 
   property string label: ""
   property var devices: []
-  property var ignored: function(node) { return false }
   // a screencast node lives exactly as long as its session, so it lights before the reader links
   property bool litByDevice: false
 
@@ -30,7 +30,7 @@ BarIndicator {
     for (let i = 0; i < devices.length; i++) {
       let targets = Audio.targetsOf(devices[i])
       for (let j = 0; j < targets.length; j++)
-        if (out.indexOf(targets[j]) < 0 && !ignored(targets[j])) out.push(targets[j])
+        if (out.indexOf(targets[j]) < 0) out.push(targets[j])
     }
     return out
   }

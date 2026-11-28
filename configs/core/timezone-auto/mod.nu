@@ -1,7 +1,7 @@
 use module.nu *
 
 const NM_DISPATCHER_DIR = "/etc/NetworkManager/dispatcher.d"
-# timezone-auto.nu's ANY_NETWORK: present, the lookup also runs off a trusted network
+# timezone-auto.nu's and nm-dispatcher.nu's ANY_NETWORK: present, the lookup also runs off a trusted network
 const ANY_NETWORK = "/etc/NetworkManager/timezone-auto-any-network"
 
 export const options = {
@@ -26,10 +26,9 @@ export def system [cfg: record] {
     [
         (polkit-rules config/49-timezone-auto.rules)
         (if ($NM_DISPATCHER_DIR | path exists) {
-            let dispatcher = if $cfg.any_network { "scripts/nm-dispatcher-any.nu" } else { "scripts/nm-dispatcher.nu" }
             [
                 (if $cfg.any_network { file-text $ANY_NETWORK "" })
-                (file-copy $dispatcher ($NM_DISPATCHER_DIR | path join 85-timezone-auto) --mode 755)
+                (file-copy scripts/nm-dispatcher.nu ($NM_DISPATCHER_DIR | path join 85-timezone-auto) --mode 755)
             ]
         })
     ]

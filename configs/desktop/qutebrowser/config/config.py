@@ -136,14 +136,8 @@ config.set("content.local_content_can_access_remote_urls", True, _startpage)
 config.set("content.local_content_can_access_file_urls", True, _startpage)
 
 _ddg = "https://duckduckgo.com/?q={}"
-_search = _ddg
-try:
-    with open(os.path.expanduser("~/.config/qutebrowser/search-url")) as _f:
-        _search = _f.read().strip()
-except OSError:
-    pass
 c.url.searchengines = {
-    "DEFAULT": _search,
+    "DEFAULT": "@SEARCH@",
     "ddg": _ddg,
     "g": "https://www.google.com/search?q={}",
     "ap": "https://archlinux.org/packages/?q={}",

@@ -151,13 +151,13 @@ def "main cancel" [target: string]: nothing -> nothing {
     let unit = unit-from-target $target cancel
     let pending = reminder-list | where unit == $unit | get --optional 0
     if $pending == null { error make {msg: $"no pending reminder ($unit)"} }
-    systemctl --user stop $"($unit).timer" $"($unit).service" | complete | ignore
+    # 5: a unit no longer loaded, a timer that fired or one a reboot dropped before the rearm
+    let stop = do { ^systemctl --user stop $"($unit).timer" $"($unit).service" } | complete
+    if $stop.exit_code not-in [0 5] { error make {msg: $"stopping ($unit) failed: ($stop.stderr | str trim)"} }
     rm -f (record-path $unit)
     index-write
     action-notify $BELL_GLYPH "Reminder cancelled" $pending.label
 }
-
-def "main delete" [target: string]: nothing -> nothing { main cancel $target }
 
 # name a pending reminder, or with no name drop it back to "<n>-min reminder"
 def --wrapped "main rename" [target, ...words]: nothing -> nothing {

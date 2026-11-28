@@ -13,6 +13,7 @@ depends=(nodejs)
 makedepends=(npm python)
 options=(!debug)
 source=("$pkgname-$pkgver.tgz::https://registry.npmjs.org/@mistweaverco/kulala-fmt/-/kulala-fmt-$pkgver.tgz")
+# 2.11.0, 2025-11-24
 sha256sums=(081f8e4192cfe46fcdbec66fc447f3e33d5f5fa766a4ce6863fc6848a9e53ed8)
 
 package() {

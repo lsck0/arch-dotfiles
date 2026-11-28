@@ -5,11 +5,12 @@ use state.nu [LIB_DIR state-dir save-atomic]
 use platform.nu [platform-load platform-env]
 use profile.nu [profile-load]
 use options.nu [options-resolve]
-use modules.nu [modules-discover modules-graph modules-eval modules-packages-each modules-root-run IMPORT_LINE IMPORT_GREP]
+use modules.nu [modules-discover modules-graph modules-eval modules-packages-each modules-root-run imports-walk imports-map EVAL_LIB]
 use converge.nu [state-read state-path observe-outputs recorded-hashes decls-check plan-module json-claims apply-module state-write mode-normal unit-state-holds]
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use cause.nu [failure-line cause-from-error cause-text]
 use usage.nu [counted]
+use proc.nu [succeeds]
 
 # %H: the dir the file was found under, so one find stamps every dir, a dir nested in another counted in both
 const HASH_STAMP = '%H\t%P %s %T@\n'
@@ -17,6 +18,8 @@ const HASH_STAMP = '%H\t%P %s %T@\n'
 const LINK_PROBE = 'for f; do if test -e "$f"; then echo y; else echo n; fi; done'
 const EXEC_PASSES_MAX = 3
 const NOTE_PREFIX = "note:"
+# the children detect probes in: 3 to 5 halve the 14 probes' 220 ms, from 7 on the spawns eat the gain
+const DETECT_CHILDREN = 4
 const REVERT_VERBS = [link system theme]
 # the verbs that run only once the module's packages are installed
 const GATED_VERBS = [link system]
@@ -30,8 +33,6 @@ const LINK_PROBE_TIMEOUT_S = 2
 const GLOB_META = '[*?\[{]'
 # a hung theme verb is killed after this; the run goes on
 export const THEME_VERB_TIMEOUT = 60sec
-# the outcomes that changed something a barrier watches for
-const BARRIER_KINDS = [create update record merge remove undo exec step]
 # a module's run result before it ran anything
 const RESULT_NONE = {ok: true, pending: null, log: "", outcomes: [], error: null}
 # a planned row of a module outside the graph: one gone from the repo, or one whose mod.nu does not parse
@@ -61,13 +62,24 @@ def eval-env [ctx: record]: nothing -> record {
     platform-env $ctx.platform | merge {DOT_LAYER: $ctx.layer, DOTFILES: $ctx.repo}
 }
 
-# Each module's detected option values; the system layer probes only the modules root runs a hook of.
-def detect [ctx: record, modules: table]: nothing -> record {
+# Each module's detected option values; only modules of the platform's groups probe (one outside them never runs, and
+# its probe may need what the machine lacks), and the system layer only those root runs a hook of. only: the modules a
+# run touches, which probe with what their cfg.deps carries (meta.deps, meta.reads); null probes every module. The
+# probes run in DETECT_CHILDREN children side by side: parsing the mod.nu files is most of the cost, and one child
+# parses them one after another.
+def detect [ctx: record, modules: table, only: any]: nothing -> record {
     let root = if $ctx.layer == "system" { modules-root-run $modules } else { null }
-    let probing = $modules | where {|m| "detect" in $m.native and ($root == null or $m.id in $root) }
+    let wanted = if $only == null { null } else {
+        $only ++ ($modules | where id in $only | each {|m| $m.meta.deps ++ ($m.meta.reads? | default []) } | flatten)
+    }
+    let probing = $modules | where {|m|
+        $m.selected and "detect" in $m.native and ($root == null or $m.id in $root) and ($wanted == null or $m.id in $wanted)
+    }
     if ($probing | is-empty) { return {} }
     let cfgs = $probing | each {|m| [$m.id ($m.options | items {|k, s| [$k $s.default] } | into record)] } | into record
-    with-env (eval-env $ctx) { modules-eval $probing detect $cfgs [] } | each {|r|
+    # round robin, so the heavy parses (obs, plasma, hyprland) land in different children
+    let shares = $probing | enumerate | group-by --to-table {|e| $e.index mod $DETECT_CHILDREN } | each { $in.items.item }
+    with-env (eval-env $ctx) { $shares | par-each {|share| modules-eval $share detect $cfgs [] } | flatten } | each {|r|
         if not $r.ok { log-warn $"($r.id): detect failed, its options stay unset: ($r.error)" }
         [$r.id ($r.decls | get --optional 0 | default {})]
     } | into record
@@ -91,8 +103,9 @@ def --env app-dirs-load [repo: path]: nothing -> nothing {
 }
 
 # The run context for a layer: repo, platform, profile and every discovered module with its resolved options.
-# --progress: a line first, for a run someone waits on.
-export def --env pipeline-load [repo: path, layer: string, --progress]: nothing -> record {
+# --progress: a line first, for a run someone waits on. --only: the modules the caller plans or applies; only they and
+# what they read probe their detect, every other module's detected options stay unset.
+export def --env pipeline-load [repo: path, layer: string, --progress, --only: list<string>]: nothing -> record {
     if $progress { pipeline-progress $"($layer) layer: reading modules" }
     $env.DOT_LAYER = $layer
     if $layer == "user" { app-dirs-load $repo }
@@ -100,7 +113,7 @@ export def --env pipeline-load [repo: path, layer: string, --progress]: nothing 
     let profile = if $layer == "user" { profile-load } else { null }
     let found = span discover {} { modules-discover $repo $platform.groups }
     let base = {repo: $repo, layer: $layer, platform: $platform, profile: $profile}
-    let detected = span detect {} { detect $base $found }
+    let detected = span detect {} { detect $base $found $only }
     let resolved = span resolve {} { options-resolve $found $platform $profile $detected }
     if ($resolved.errors | is-not-empty) {
         error make {msg: $"options:\n($resolved.errors | str join "\n")"}
@@ -257,18 +270,18 @@ export def links-alive [sources: list<string>]: nothing -> record {
     let batch = do { ^timeout $LINK_PROBE_TIMEOUT_S sh -c $LINK_PROBE probe ...$sources } | complete
     let answers = $batch.stdout | lines
     let alive = if $batch.exit_code == 0 and ($answers | length) == ($sources | length) { $answers | each { $in == "y" } } else {
-        $sources | each {|s| (do { ^timeout $LINK_PROBE_TIMEOUT_S test -e $s } | complete).exit_code == 0 }
+        $sources | each {|s| succeeds timeout $LINK_PROBE_TIMEOUT_S test -e $s }
     }
     $sources | zip $alive | into record
 }
 
-# The relative imports of every .nu file under dirs, one grep for all: file -> the absolute .nu paths it imports.
-def imports-map [dirs: list<string>]: nothing -> record {
-    if ($dirs | is-empty) { return {} }
-    ^grep -rHE --include=*.nu $IMPORT_GREP ...$dirs | complete | get stdout | lines | uniq
-    | parse --regex $"^\(?<file>[^:]+\):($IMPORT_LINE)"
-    | each {|r| {file: $r.file, import: ($r.file | path dirname | path join $r.p | path expand)} }
-    | group-by file | items {|file, rows| [$file $rows.import] } | into record
+# The lib's stamp narrowed to the files a module's evaluation loads: EVAL_LIB and what the modules' mod.nu files reach,
+# transitively. An edit to any other lib file (bench.nu, the cli) leaves every module's input as it was.
+export def lib-stamp [stamp: string, dirs: list<string>]: nothing -> string {
+    let seeds = $EVAL_LIB | each {|f| $LIB_DIR | path join $f }
+    let mods = $dirs | each { path join mod.nu } | where ($it | path exists)
+    let loaded = $seeds ++ (imports-walk ($seeds ++ $mods)) | where ($it | str starts-with $"($LIB_DIR)/") | each { path relative-to $LIB_DIR } | uniq
+    $stamp | lines | where {|l| ($l | split row " " | first) in $loaded } | str join "\n"
 }
 
 # The mapped dirs (dir -> true) a file sits under, nearest first.
@@ -288,12 +301,12 @@ def imports-by-dir [map: record, mapped: record]: nothing -> record {
     | flatten | group-by dir | items {|d, rows| [$d $rows.file] } | into record
 }
 
-# A file's relative imports, from the map when it covered the file's dir, else read.
+# A file's imports, from the map when it covered the file's dir, else read.
 def imports-of [file: string, map: record, mapped: record]: nothing -> list<string> {
     let listed = $map | get --optional $file
     if $listed != null { return $listed }
     if (dirs-mapped-over $file $mapped | is-not-empty) { return [] }
-    open --raw $file | lines | parse --regex $IMPORT_LINE | get p | each {|p| $file | path dirname | path join $p | path expand }
+    imports-map [$file] | get --optional $file | default []
 }
 
 # Imports outside the module's dir, followed transitively, so a change there re-runs the module. by_dir: imports-by-dir.
@@ -446,7 +459,7 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     let importing = imports-by-dir $import_map $mapped
     let lib_imported = imports-outside $LIB_DIR $importing $import_map $mapped | each {|f| $"($f) (open --raw $f | hash sha256)" } | str join "\n"
     let global = [
-        ($stamped | get $LIB_DIR) $lib_imported ($ctx.platform.facts | to nuon) ($ctx.profile.capabilities? | default [] | to nuon)
+        (lib-stamp ($stamped | get $LIB_DIR) ($olds | each { $in.m.dir })) $lib_imported ($ctx.platform.facts | to nuon) ($ctx.profile.capabilities? | default [] | to nuon)
         (secret-is-plaintext ($ctx.repo | path join $OWNER_WITNESS)) $verb ($args | to nuon)
         # sync's backup rewrites keys/ every run: a theme verb reads none, so that churn must not re-run its reloads
         (if $verb == "theme" { "" } else { secrets-stamp $ctx.repo })
@@ -708,18 +721,16 @@ def watch-hash [paths: list<string>]: nothing -> string {
 }
 
 # Each enabled module's barrier (meta.barrier: {run: <its export>, watch: [paths]}), once after a layer's apply when
-# an action of the run notified it, its watched paths changed since it last ran, its last run failed or force. The
-# record keeps the hash after the run, so what the barrier writes itself is no change, and when it last went through.
-export def barriers-run [ctx: record, results: list<record>, force: bool]: nothing -> list<record> {
-    let notified = $results | get --optional outcomes | default [] | flatten
-        | where {|o| $o.ok and $o.pending? == null and $o.kind in $BARRIER_KINDS } | each { $in.decl.notify? | default [] } | flatten | uniq
+# its watched paths changed since it last ran, its last run failed or force. The record keeps the hash after the run,
+# so what the barrier writes itself is no change, and when it last went through.
+export def barriers-run [ctx: record, force: bool]: nothing -> list<record> {
     $ctx.modules | where {|m| $m.cfg.enable and not $m.broken and $m.meta.barrier? != null } | each {|m|
         let file = state-path $m.id barrier
         let last = try { open $file } catch { null }
         let watch = $m.meta.barrier.watch? | default []
-        let dirty = $force or $last == null or not $last.ok or $last.hash != (watch-hash $watch) or $m.id in $notified
+        let dirty = $force or $last == null or not $last.ok or $last.hash != (watch-hash $watch)
         if not $dirty { return {id: $m.id, ran: false, ok: true, error: null} }
-        let decl = {kind: step, target: $m.meta.barrier.run, argv: [], timeout: null, requires: null, network: false, then: [], notify: []}
+        let decl = {kind: step, target: $m.meta.barrier.run, argv: [], timeout: null, requires: null, network: false, then: []}
         let action = {module: $m.id, kind: step, target: $m.meta.barrier.run, reason: "barrier", decl: $decl, before: null, after: null}
         let outcome = with-env (platform-env $ctx.platform) { apply-module [$action] $m.dir $ctx.layer } | first
         let ok = $outcome.ok and $outcome.pending == null

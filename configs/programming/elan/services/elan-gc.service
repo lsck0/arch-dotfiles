@@ -1,0 +1,10 @@
+[Unit]
+Description=Remove Lean toolchains no known project uses
+
+[Service]
+Type=oneshot
+# each nightly is ~3.5 GB; gc keeps the default, overrides and every toolchain a lean-toolchain file elan saw names
+ExecStart=/usr/bin/elan toolchain gc --delete
+Slice=background.slice
+Nice=19
+IOSchedulingClass=idle

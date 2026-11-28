@@ -1,5 +1,5 @@
 use module.nu *
-use ../../core/wallust/scripts/palette.nu [ACCENT_RATIO hex-to-rgb mix opacity-shell palette-load passes]
+use ../../core/wallust/scripts/palette.nu [ACCENT_RATIO blend-floor hex-to-rgb opacity-shell palette-load]
 use ../../core/wallust/scripts/font.nu [font-load]
 
 export const meta = {deps: [desktop/kitty], reads: [desktop/hyprland], packages: {pacman: [ghostty xdg-terminal-exec]}}
@@ -40,21 +40,16 @@ export def link [cfg: record] {
     ]
 }
 
-# The faint-opacity for palette p (a `palette-load` record): the lowest step at which fg over bg reaches ACCENT_RATIO.
-export def faint-opacity [p: record]: nothing -> float {
-    let bg = $p.bg | hex-to-rgb
-    let fg = $p.fg | hex-to-rgb
-    let steps = (1.0 - $FAINT_OPACITY_MIN) / $FAINT_OPACITY_STEP | math round
-    0..$steps | each {|i| $FAINT_OPACITY_MIN + $i * $FAINT_OPACITY_STEP | math round --precision 2 }
-        | where {|a| passes (mix $bg $fg $a) $bg $ACCENT_RATIO } | get --optional 0 | default 1.0
-}
-
 export def theme [cfg: record, wallpaper: string] {
     let config = xdg config
     let font = font-load
     let fragment = $"font-family = ($font.mono)\nfont-family = Symbols Nerd Font Mono\nfont-size = ($font.size)\n"
     let p = palette-load
-    let faint = if $p == null { "" } else { $"faint-opacity = (faint-opacity $p)\n" }
+    let faint = if $p == null { "" } else {
+        let bg = $p.bg | hex-to-rgb
+        let a = blend-floor $bg ($p.fg | hex-to-rgb) $bg $FAINT_OPACITY_MIN $FAINT_OPACITY_STEP $ACCENT_RATIO | default 1.0
+        $"faint-opacity = ($a | math round --precision 2)\n"
+    }
     let style = $"background-opacity = (opacity-shell)\n($faint)"
     [
         (file-text ($config | path join dotfiles ghostty-font.conf) $fragment --generated)

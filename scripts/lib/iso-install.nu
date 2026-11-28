@@ -27,7 +27,7 @@ const KIND_TYPES = {
 }
 
 # Answer-file keys from the questions: {type, env (the BOOTSTRAP_* it sets), keys (a record's own), password}.
-export def answers-spec [questions: record]: nothing -> record {
+def answers-spec [questions: record]: nothing -> record {
     let asked = $questions.questions | where {|e| $e.id? != null } | each {|e|
         {id: $e.id, type: ($KIND_TYPES | get $e.kind), env: $e.env, keys: null, password: ($e.kind == "password")}
     }
@@ -56,7 +56,7 @@ def record-problems [r: record, spec: record, prefix: string]: nothing -> list<s
 }
 
 # Type errors in answers a against spec, plus missing wifi ssids and source bundles and crypt-hashed passwords.
-export def answers-problems [spec: record, a: record]: nothing -> list<string> {
+def answers-problems [spec: record, a: record]: nothing -> list<string> {
     let top = record-problems $a ($spec | items {|k, v| [$k $v.type] } | into record) ""
     if ($top | is-not-empty) { return $top }
     let wifi = $a.wifi? | default [] | enumerate | each {|w|
@@ -83,7 +83,7 @@ def cmdline-value [spec: record, key: string, raw: string]: nothing -> any {
 }
 
 # The lsck0.* kernel parameters: lsck0.answers=<url or path> and overrides, wifi.* setting the first network.
-export def answers-cmdline [spec: record, cmdline: string]: nothing -> record {
+def answers-cmdline [spec: record, cmdline: string]: nothing -> record {
     $cmdline | parse --regex $CMDLINE_PARAM | reduce --fold {answers: null, overrides: {}} {|p, acc|
         let raw = if ($p.quoted | is-not-empty) { $p.quoted } else { $p.plain }
         if $p.key == "answers" { return ($acc | update answers $raw) }
@@ -163,7 +163,7 @@ def answers-fetch [where: string]: nothing -> record {
 }
 
 # The answers as BOOTSTRAP_* variables; an "ask" password is left for the bootstrap to prompt.
-export def answers-env [spec: record, a: record]: nothing -> record {
+def answers-env [spec: record, a: record]: nothing -> record {
     $a | items {|k, v|
         let key = $spec | get --optional $k | default {env: "", password: false}
         if $key.env == "" or ($key.password and $v == $PASSWORD_ASK) { return null }
@@ -172,23 +172,28 @@ export def answers-env [spec: record, a: record]: nothing -> record {
     } | compact | into record
 }
 
-def when-holds [when: any, c: record]: nothing -> bool {
+# Whether c meets a questions.nuon `when`; a field c lacks fails loudly, or holds with --lenient (a partial answer
+# file).
+export def when-holds [when: any, c: record, --lenient]: nothing -> bool {
     $when | default {} | items {|field, want|
-        if $field not-in $c { return true }
+        if $field not-in $c {
+            if $lenient { return true }
+            error make {msg: $"($QUESTIONS): `when` names ($field), no answer or fact by that name"}
+        }
         let have = $c | get $field
         if ($want | describe | str starts-with "list") { $have in $want } else { $have == $want }
     } | all {|held| $held }
 }
 
 # Answered keys whose every question is skipped for this machine; passwords are left out, always read.
-export def answers-unused [questions: record, a: record]: nothing -> list<string> {
+def answers-unused [questions: record, a: record]: nothing -> list<string> {
     let platform = $a.platform? | default $PLATFORM_DEFAULT | if $in == $PLATFORM_DEFAULT and ($a.server? | default false) { "server" } else { $in }
     let c = $a | merge {
         platform: $platform, encrypt: ($a.encrypt? | default true), host_wsl: false, machine_wsl: false
         password_given: ($a.password? | default "" | is-not-empty)
     }
     let asked = $questions.questions | where {|e| $e.id? != null and $e.kind != "password" }
-    $a | columns | where {|k| $k in $asked.id } | where {|k| not ($asked | where id == $k | any {|e| when-holds $e.when? $c }) }
+    $a | columns | where {|k| $k in $asked.id } | where {|k| not ($asked | where id == $k | any {|e| when-holds $e.when? $c --lenient }) }
 }
 
 def answers-ask [questions: record, a: record]: nothing -> record {

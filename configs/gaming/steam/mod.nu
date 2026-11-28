@@ -36,8 +36,6 @@ def theme-dir []: nothing -> path { xdg data Steam millennium themes cyberpunk }
 export def link [cfg: record] {
     let steam = xdg data Steam
     let theme = theme-dir
-    let palette = xdg cache wal colors-steam.css
-    let colors = $theme | path join colors.css
     let xtst = try { ^readlink ($steam | path join steamrt64 libXtst.so.6) | str trim } catch { "" }
     let linked = $xtst | str starts-with $"/run/host($MILLENNIUM_LIB)/"
     # off: the links into millennium go, so this login's steam starts the stock client
@@ -49,8 +47,6 @@ export def link [cfg: record] {
         (if $cfg.millennium {
             [
                 (files-into $theme ...(glob config/themes/cyberpunk/*))
-                # millennium ignores links out of the theme dir, so the palette is a copy; the theme verb refreshes it
-                (exec steam-palette [cp $palette $colors] --creates $colors --requires $palette)
                 (json-merge (xdg config millennium config.json) [
                     (json-set [themes activeTheme] cyberpunk)
                 ])
@@ -68,7 +64,8 @@ export def link [cfg: record] {
 }
 
 # font.css is imported after shared.css, whose --cp-font holds until the first theme run; wallust renders the palette
-# only into the cache, so a login without the skin gets no Steam tree
+# only into the cache, so a login without the skin gets no Steam tree; millennium ignores links out of the theme dir,
+# so the palette is a copy
 export def theme [cfg: record, wallpaper: string] {
     if not $cfg.millennium { return [] }
     let family = font-load | get family

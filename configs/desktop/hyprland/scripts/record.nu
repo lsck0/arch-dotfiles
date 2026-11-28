@@ -3,18 +3,20 @@
 # (creating/apps) runs as a transient user unit, stopped with SIGINT so it finalizes the file; the portal picks what is
 # recorded and remembers the choice. The bar's recording indicator reads the unit on each `toggles changed record.nu`.
 
+use ../../quickshell/config/scripts/lib/shell.nu [SHELL_CONFIG action-notify shell-call]
+
 const RECORDER = "gpu-screen-recorder"
 const UNIT = "screen-record.service"
 const SLICE = "background-graphical.slice"
 const FPS = 60
 const AUDIO = "default_output"
-const NOTIFY_APP = "quickshell-action"
 const TITLE = "Screen recording"
+# the bar's recording indicator (quickshell Recording.qml)
+const GLYPH = "\u{f044a}"
+# the unit's ExecStopPost has no nu to run shell.nu's shell-call in, so it takes the same bounded call as argv
 const IPC_TIMEOUT = "3s"
 
-def notify [body: string]: nothing -> nothing {
-    ^notify-send -a $NOTIFY_APP -u low -- $TITLE $body
-}
+def notify [body: string]: nothing -> nothing { action-notify $GLYPH $TITLE $body }
 
 def recording-active []: nothing -> bool { (^systemctl --user -q is-active $UNIT | complete).exit_code == 0 }
 
@@ -25,9 +27,8 @@ def recording-stop []: nothing -> nothing {
     notify $"Saved ($file)"
 }
 
-# Bounded and inline, not quickshell's shell.nu: hyprland applies before quickshell, so that copy may be missing or stale.
 def bar-ping []: nothing -> list<string> {
-    [timeout $IPC_TIMEOUT quickshell ipc -p ($nu.home-dir | path join .config quickshell) call toggles changed record.nu]
+    [timeout $IPC_TIMEOUT quickshell ipc -p $SHELL_CONFIG call toggles changed record.nu]
 }
 
 def recording-file []: nothing -> path {
@@ -52,6 +53,7 @@ def main []: nothing -> nothing {
         -p KillSignal=SIGINT -p OnFailure= -p SuccessExitStatus=SIGINT -p $"ExecStopPost=($ping)"
         $RECORDER -w portal -restore-portal-session yes -f $FPS -a $AUDIO -o $file) | complete
     if $started.exit_code != 0 { notify $"Could not start: ($started.stderr | str trim)"; return }
-    run-external ...(bar-ping) | complete | ignore
+    # a shell that is down misses only this refresh; the indicator reads the unit again when it starts
+    shell-call toggles changed record.nu | complete | ignore
     notify $"Recording to ($file), SUPER+ALT+Print stops"
 }

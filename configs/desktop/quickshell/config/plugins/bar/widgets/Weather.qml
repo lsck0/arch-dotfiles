@@ -80,7 +80,7 @@ BarWidget {
   readonly property bool alertProminent: topAlert !== null && Number(topAlert.level) >= 3
 
   function alertColor(level) {
-    return [Colors.semantic.warn, Colors.semantic.alertOrange, Colors.semantic.alertRed][Number(level) - 2] || Colors.menu.text
+    return [Colors.semantic.warn, Colors.semantic.recording, Colors.semantic.live][Number(level) - 2] || Colors.menu.text
   }
   function alertTextColor(level) {
     const c = alertColor(level)

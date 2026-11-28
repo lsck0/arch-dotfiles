@@ -11,7 +11,6 @@ const HELPER = path self ../../configs/core/toggles/scripts/toggle-root.nu
 const DOT = path self ../dot.nu
 const GRADING = path self ../../configs/desktop/color-grading/scripts/color-grading.py
 const MAC = "aa:bb:cc:00:11:22"
-const BT_TIMEOUT_S = 5
 
 # Sourced by every stub: logs the call, then fails it when WORLD/fail/<name> holds "<regex>\t<exit>\t<stderr>" (exit
 # "hang" sleeps instead) and the argv matches.
@@ -46,9 +45,8 @@ case "$*" in
   "networking on") echo enabled > $W/networking ;;
   "networking off") echo disabled > $W/networking ;;
   "-t -f TYPE device") devs | cut -d: -f2 ;;
-  "-t -f DEVICE,TYPE,STATE device"|"-t -f DEVICE,TYPE,STATE dev status") devs ;;
+  "-t -f DEVICE,TYPE,STATE device") devs ;;
   "-t -f DEVICE,STATE device") devs | cut -d: -f1,3 ;;
-  "-t -f CONNECTIVITY general") if [ "$net" = disabled ]; then echo none; else cat $W/connectivity; fi ;;
   "-t -f WIFI-HW,WIFI radio") s=disabled; [ "$(rf wlan)" = unblocked ] && s=enabled; echo "$(cat $W/wifi-hw):$s" ;;
   "-t -f WIFI-HW radio") cat $W/wifi-hw ;;
   "-t -f WWAN-HW,WWAN radio") echo missing:disabled ;;
@@ -57,8 +55,6 @@ case "$*" in
   "radio wifi off") sed -i "s/^wlan .*/wlan blocked/" $W/rfkill ;;
   "device connect "*) sed -i "s/^$3:\([^:]*\):.*/$3:\1:connected/" $W/devices ;;
   "device disconnect "*) sed -i "s/^$3:\([^:]*\):.*/$3:\1:disconnected/" $W/devices ;;
-  "-t -f GENERAL.CONNECTION,IP4.ADDRESS dev show "*) printf "GENERAL.CONNECTION:Wired 1\nIP4.ADDRESS[1]:192.0.2.10/24\n" ;;
-  monitor) exec sleep infinity ;;
   *) echo "nmcli stub: unhandled $*" >&2; exit 64 ;;
 esac'
     rfkill: '
@@ -122,7 +118,7 @@ while [ $# -gt 2 ]; do case $1 in -u) u=$2; shift 2 ;; -a) shift 2 ;; *) break ;
 printf "%s\t%s\t%s\n" "$u" "$1" "$2" >> $W/toasts'
     ip: '
 case "$*" in
-  "-j -4 route show default"|"-j route show default") if [ "$(cat $W/networking)" = enabled ]; then cat $W/routes.json; else echo "[]"; fi ;;
+  "-j -4 route show default") if [ "$(cat $W/networking)" = enabled ]; then cat $W/routes.json; else echo "[]"; fi ;;
   "-j neigh show "*) cat $W/neigh.json ;;
   *) echo "ip stub: unhandled $*" >&2; exit 64 ;;
 esac'
@@ -185,7 +181,6 @@ def world-init [w: path]: nothing -> nothing {
         world/networking: enabled
         world/rfkill: "wlan unblocked\nbluetooth unblocked\n"
         world/devices: "enp16s0:ethernet:connected\nwlan0:wifi:disconnected\n"
-        world/connectivity: full
         world/wifi-hw: enabled
         world/known-units: ([tor-router.service portmaster.service fw-inbound.service fw-lockdown.service bluetooth.service] | str join "\n")
         world/routes.json: '[{"dst":"default","gateway":"192.0.2.1","dev":"enp16s0","metric":100}]'
@@ -204,18 +199,18 @@ def world-init [w: path]: nothing -> nothing {
     }
     mkdir (runtime $w) (world $w fail) (world $w units system) (world $w units user) ($w | path join bin) ($w | path join dispatcher)
     mkdir ($w | path join bt hci0) ($w | path join net enp16s0 device) ($w | path join net wlan0 device)
-    mkdir ($w | path join home .cache) ($w | path join home .local state)
+    mkdir ($w | path join home .cache) ($w | path join home .local state) ($w | path join secrets)
     for u in [fw-inbound.service portmaster.service bluetooth.service] { touch (world $w units system $u) }
     for s in ($STUBS | transpose name body) { stub-write ($w | path join bin $s.name) $s.body }
 }
 
 # Runs argv in the sandbox: the home hidden, the repo read-only with dot.nu and color-grading.py stubbed and the
-# secrets hidden (locked), the fakes over /run and /sys, no network, a clean environment.
+# secrets swapped for the world's (empty: locked), the fakes over /run and /sys, no network, a clean environment.
 def --wrapped sb [w: path, ...argv: string]: nothing -> record {
     let home = $w | path join home
     (^bwrap --dev-bind / / --tmpfs $nu.home-dir --ro-bind $REPO $REPO
         --ro-bind ($w | path join dot.nu) $DOT --ro-bind ($w | path join bin color-grading) $GRADING
-        --tmpfs ($REPO | path join configs secrets)
+        --bind ($w | path join secrets) ($REPO | path join configs secrets)
         --bind ($w | path join run) /run --bind ($w | path join net) /sys/class/net --bind ($w | path join bt) /sys/class/bluetooth
         --bind ($w | path join etc-dotfiles) /etc/dotfiles --bind ($w | path join etc-wg) /etc/wireguard
         --bind ($w | path join dispatcher) /etc/NetworkManager/dispatcher.d
@@ -369,6 +364,11 @@ def route-cases [w: path]: nothing -> nothing {
     expect $w "proton failure" [$r.0 ($r.1 | last | str starts-with "critical\tRoute\tSwitch to ProtonVPN failed, now Direct: connect failed")] [1 true]
     expect $w "proton failure: route stays" (rec $w route).state direct
     touch (world $w units system portmaster.service)
+    let r = failing $w protonvpn '^config set kill-switch' 1 "settings.json is read-only" route set proton
+    let toast = "critical\tRoute\tSwitch to ProtonVPN failed, now Direct: kill switch not set: settings.json is read-only"
+    expect $w "kill switch failure" [$r.0 ($r.1 | last)] [1 $toast]
+    expect $w "kill switch failure: no connect" [(rec $w route).state ($w | path join net proton0 | path exists)] [direct false]
+    touch (world $w units system portmaster.service)
 
     let r = failing $w pkexec 'tor-start' 126 "Error executing command as another user: Request dismissed" route set tor
     expect $w "tor cancelled" [$r.0 ($r.1 | last)] [1 "critical\tRoute\tSwitch to Tor failed, now Direct: authorization cancelled"]
@@ -466,7 +466,11 @@ def powermode-cases [w: path]: nothing -> nothing {
     expect $w "tlp failure" $r [1 ["critical\tPower mode\tSwitch to Performance failed, now Power saver: Error: tlp is disabled"]]
     expect $w "tlp failure: mode stays" (rec $w powermode).state power-saver
 
-    toggle $w powermode set auto | ignore
+    # in a Hyprland session the saver flip reloads it, and a failed reload is logged, not dropped
+    inject $w hyprctl '^reload' 1 "no hyprland"
+    let r = sb $w env HYPRLAND_INSTANCE_SIGNATURE=test ($TOGGLES | path join toggle-powermode.nu) set auto
+    heal $w hyprctl
+    expect $w "auto: failed reload logged" [$r.exit_code ($r.stderr | str contains "power saver off: hyprland reload failed: hyprctl reload: no hyprland")] [0 true]
     expect $w "auto clears tlp's record" [($w | path join run tlp manual_mode | path exists) (rec $w powermode).state] [false auto]
     expect $w "auto: saver off" (open --raw (runtime $w | path join toggles powersaver) | str trim) off
     toggle $w powermode set balanced | ignore
@@ -515,6 +519,23 @@ def trust-cases [w: path]: nothing -> nothing {
     expect $w "unlisted off exit" $r.exit_code 1
     expect $w "unlisted off toast" (take $w toasts | last) "critical\tTrusted network\tSwitch to off failed: configs/secrets is locked: unlock it to change the trusted list"
     rm ($w | path join run trusted-network)
+
+    # unlocked: the secret takes the list and the system apply follows, the option stays empty
+    let keys = $w | path join secrets keys
+    mkdir ($keys | path join pgp)
+    "plaintext key\n" | save --force ($keys | path join pgp private.asc)
+    take $w calls | ignore
+    let r = toggle $w trust-network on
+    expect $w "unlocked trust exit" $r.exit_code 0
+    expect $w "unlocked trust stores the secret" [(open --raw ($keys | path join trusted-gateways)) (open (world $w option.nuon))] [$"($MAC)\n" []]
+    expect $w "unlocked trust applies" (take $w calls | where $it starts-with "dot ") ["dot apply --system"]
+    expect $w "unlocked trust toast says pending" (take $w toasts) ["normal\tTrusted network\tSaved; the network changes with the next dot apply --system"]
+    "enp16s0\n" | save --force ($w | path join run trusted-network)
+    let r = toggle $w trust-network off
+    expect $w "unlocked untrust exit" $r.exit_code 0
+    expect $w "unlocked untrust empties the secret" (open --raw ($keys | path join trusted-gateways)) ""
+    rm --recursive $keys ($w | path join run trusted-network)
+    take $w toasts | ignore
 
     # no default route (offline): nothing to trust
     put $w networking disabled

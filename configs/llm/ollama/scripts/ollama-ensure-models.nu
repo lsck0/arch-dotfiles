@@ -9,13 +9,17 @@ const OLLAMA_URL = "http://127.0.0.1:11434"
 # SMALL's layer is the MODEL_LAYER_TYPE digest of its pinned manifest, the base its context variants are built from
 export const SMALL = {
     model: "huihui_ai/qwen3-abliterated:8b"
+    # pinned 2026-10-30
     pin: "543f9deff86d8347fd96ea1f3e54e73861ea70d52def71d31ccaeaf013de6ba6"
     layer: "sha256:6da140c19a3625dc4e98e57a2d87cab5b5613854402f1f389def4540037541ab"
 }
+# pinned 2026-10-30
 export const LARGE = {model: "huihui_ai/qwen3-abliterated:30b-a3b", pin: "45838c4ad5680e5f653edbc60079f29a7ab370d0a5e46a67317945c65e80bd9f"}
 # embeddings (rag, semantic search: 4096 dims, 32k context, multilingual) and code (fill-in-the-middle, agentic tool use;
 # the same 30b-a3b moe shape as LARGE)
+# pinned 2026-11-05
 export const EMBEDDING = {model: "qwen3-embedding:8b", pin: "64b933495768fbd3b87c20583d379728a07471e0c66733a9df87cd1901b3c44b"}
+# pinned 2026-11-05
 export const CODING = {model: "qwen3-coder:30b", pin: "06c1097efce0431c2045fe7b2e5108366e43bee1b4603a7aded8f21689e90bca"}
 export const LONG_CONTEXT = "qwen3-abliterated-64k"
 export const LONG_CONTEXT_TOKENS = 65536

@@ -2,10 +2,11 @@ use module.nu *
 
 # One MACHINE.md rule in every harness's global instructions, for the owner only: it names this repo's sessions,
 # the homelab and the owner's workflow, none of which another login has.
-# after hermes, whose orchestrator clone must not find its dir; an input so a fresh install re-plans
+# after hermes, whose orchestrator clone must not find its dir; inputs so a fresh install, or gemini or copilot
+# installed later, re-plans
 export const meta = {
     deps: [programming/claude programming/rtk programming/hermes]
-    inputs: [~/.hermes/profiles/orchestrator ~/.hermes/profiles/system]
+    inputs: [~/.hermes/profiles/orchestrator ~/.hermes/profiles/system /usr/bin/gemini /usr/bin/copilot]
 }
 
 const RULES = "config/MACHINE.md"
@@ -21,11 +22,19 @@ export def link [cfg: record] {
     [
         # claude: imported by configs/programming/claude/config/CLAUDE.md
         (files-into ($nu.home-dir | path join .claude) $RULES)
-        # gemini: a second context file next to rtk's GEMINI.md
-        (files-into ($nu.home-dir | path join .gemini) $RULES)
-        (json-merge ($nu.home-dir | path join .gemini settings.json) [(json-set [context fileName] [GEMINI.md ($RULES | path basename)])])
+        # gemini: a second context file next to rtk's GEMINI.md; base/xdg links ~/.gemini only with gemini installed
+        (if (which gemini | is-not-empty) {
+            [
+                (files-into ($nu.home-dir | path join .gemini) $RULES)
+                (json-merge ($nu.home-dir | path join .gemini settings.json) [
+                    (json-set [context fileName] [GEMINI.md ($RULES | path basename)])
+                ])
+            ]
+        })
         # copilot's one global file, which rtk init also wrote: the rule plus the same rtk note claude reads
-        (file-text ($nu.home-dir | path join .copilot copilot-instructions.md) $"($rules)\n(open --raw ../claude/config/RTK.md)")
+        (if (which copilot | is-not-empty) {
+            file-text ($nu.home-dir | path join .copilot copilot-instructions.md) $"($rules)\n(open --raw ../claude/config/RTK.md)"
+        })
         ($souls | each {|dir| file-text ($dir | path join SOUL.md) $"($HERMES_SOUL)\n\n($rules)" })
     ]
 }

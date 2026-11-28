@@ -5,6 +5,7 @@ use secrets.nu [secret-is-plaintext secret-bytes-locked secrets-keys-chmod secre
 use state.nu [state-dir]
 use gate.nu [lint-stray]
 use system.nu [bootstrap-const FINGERPRINT_VALUE]
+use proc.nu [succeeds]
 
 const BRANCH = "master"
 const PUSH_TRIES = 3
@@ -76,15 +77,15 @@ def secrets-follow-recorded [repo: path, secrets: path]: nothing -> nothing {
     let recorded = secrets-recorded $repo HEAD
     let current = ^git -C $secrets rev-parse HEAD | str trim
     if $recorded == null or $recorded == $current { return }
-    if (^git -C $secrets cat-file -e $"($recorded)^{commit}" | complete).exit_code != 0 {
+    if not (succeeds git -C $secrets cat-file -e $"($recorded)^{commit}") {
         try { ^git -C $secrets fetch --quiet origin } catch { error make {msg: "secrets: fetch failed, the pulled generation names a revision this checkout lacks"} }
     }
-    if (^git -C $secrets merge-base --is-ancestor $recorded $current | complete).exit_code == 0 { return }
-    if (^git -C $secrets merge-base --is-ancestor $current $recorded | complete).exit_code != 0 {
+    if (succeeds git -C $secrets merge-base --is-ancestor $recorded $current) { return }
+    if not (succeeds git -C $secrets merge-base --is-ancestor $current $recorded) {
         if (^git -C $secrets status --porcelain | str trim | is-not-empty) {
             error make {msg: $"secrets: ($current) and the pulled ($recorded) diverged and ($secrets) has uncommitted edits"}
         }
-        if (^git -C $secrets rebase --quiet $recorded | complete).exit_code != 0 {
+        if not (succeeds git -C $secrets rebase --quiet $recorded) {
             ^git -C $secrets rebase --abort
             error make {msg: $"secrets: ($current) and the pulled ($recorded) changed the same file, merge them in ($secrets)"}
         }
@@ -101,7 +102,7 @@ def fingerprint [repo: path]: nothing -> string {
 
 # Whether gpg holds the secret key bootstrap.sh's SIGNING_KEY_FINGERPRINT names.
 export def sync-can-sign [repo: path]: nothing -> bool {
-    (^gpg --batch --list-secret-keys (fingerprint $repo) | complete).exit_code == 0
+    succeeds gpg --batch --list-secret-keys (fingerprint $repo)
 }
 
 # The changed files of the secrets checkout a commit would store unencrypted: all but keys/ (git-crypt's), state/
@@ -158,7 +159,7 @@ def secrets-named [repo: path, secrets: path]: nothing -> string {
     let named = secrets-recorded $repo $"origin/($BRANCH)"
     if $named == null { error make {msg: $"secrets: origin/($BRANCH) records no ($SECRETS_GITLINK)"} }
     let fetched = ^git -C $secrets fetch --quiet origin | complete
-    if (^git -C $secrets cat-file -e $"($named)^{commit}" | complete).exit_code != 0 {
+    if not (succeeds git -C $secrets cat-file -e $"($named)^{commit}") {
         error make {msg: $"secrets: origin's generation names ($named), which the secrets origin does not hold: (error-brief $fetched.stderr)"}
     }
     $named
@@ -183,14 +184,14 @@ export def secrets-push [repo: path, secrets: path]: nothing -> nothing {
         if $tries > $PUSH_TRIES { error make {msg: $"secrets: push still rejected after ($PUSH_TRIES) rebases"} }
         origin-fetch $repo
         let named = secrets-named $repo $secrets
-        if (^git -C $secrets merge-base --is-ancestor HEAD $named | complete).exit_code == 0 {
+        if (succeeds git -C $secrets merge-base --is-ancestor HEAD $named) {
             ^git -C $secrets merge --ff-only --quiet $named
             return
         }
-        if (^git -C $secrets merge-base --is-ancestor $named HEAD | complete).exit_code == 0 {
+        if (succeeds git -C $secrets merge-base --is-ancestor $named HEAD) {
             error make {msg: $"secrets origin holds commits no signed generation names, nothing adopted: finish the dot sync that pushed them, or inspect git -C ($secrets) log origin/($BRANCH)"}
         }
-        if (^git -C $secrets rebase $named | complete).exit_code != 0 {
+        if not (succeeds git -C $secrets rebase $named) {
             ^git -C $secrets rebase --abort
             error make {msg: $"secrets: this machine's backup and origin's ($named) changed the same file, resolve it in ($secrets)"}
         }
@@ -201,7 +202,7 @@ export def secrets-push [repo: path, secrets: path]: nothing -> nothing {
 # Fast-forwards the secrets checkout to the revision origin's signed generation names; origin-fetch ran before.
 export def secrets-fast-forward [repo: path, secrets: path]: nothing -> nothing {
     let named = secrets-named $repo $secrets
-    if (^git -C $secrets merge --ff-only --quiet $named | complete).exit_code != 0 {
+    if not (succeeds git -C $secrets merge --ff-only --quiet $named) {
         error make {msg: $"secrets: ($secrets) and origin's ($named) diverged after pushing, nothing committed; reconcile it, then dot sync again"}
     }
 }
@@ -229,10 +230,10 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
     if ($stray | is-not-empty) { error make {msg: $"nothing committed:\n($stray | str join "\n")"} }
     ^git -C $repo add .
     mut committed = false
-    if (^git -C $repo diff --cached --quiet | complete).exit_code == 0 {
+    if (succeeds git -C $repo diff --cached --quiet) {
         log-info "sync: nothing changed, no new generation"
     } else {
-        let broken = ^git -C $repo ls-files -z '*.sh' | split row (char nul) | where $it != "" | par-each {|f| if (^bash -n ($repo | path join $f) | complete).exit_code != 0 { $f } } | compact
+        let broken = ^git -C $repo ls-files -z '*.sh' | split row (char nul) | where $it != "" | par-each {|f| if not (succeeds bash -n ($repo | path join $f)) { $f } } | compact
         if ($broken | is-not-empty) { error make {msg: $"does not parse, nothing committed: ($broken | str join ' ')"} }
         if not $no_verify {
             try { ^nu --no-config-file ($repo | path join scripts dot.nu) test check } catch { error make {msg: "dot test check found a problem, nothing committed (dot sync --no-verify overrides)"} }
@@ -255,7 +256,7 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
         try { origin-merge $repo } catch {|e|
             error make {msg: $"($e.msg)\nthis machine's changes are stashed, not lost: git -C ($repo) stash pop, then dot sync again"}
         }
-        if (^git -C $repo stash pop --quiet | complete).exit_code != 0 {
+        if not (succeeds git -C $repo stash pop --quiet) {
             error make {msg: $"the stashed changes conflict with origin's generation; they stay in `git -C ($repo) stash list`, resolve them, then dot sync again"}
         }
         generated-refresh $repo
@@ -329,7 +330,7 @@ def sync-catch-up [repo: path]: nothing -> nothing {
 }
 
 def origin-merge [repo: path]: nothing -> nothing {
-    if (^git -C $repo merge --ff-only --autostash $"origin/($BRANCH)" | complete).exit_code != 0 {
+    if not (succeeds git -C $repo merge --ff-only --autostash $"origin/($BRANCH)") {
         error make {msg: $"($BRANCH) diverged from origin while syncing, nothing committed: git -C ($repo) pull --rebase"}
     }
     # a conflicting autostash pop still exits 0 and leaves markers that `git add .` would commit

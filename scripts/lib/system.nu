@@ -4,7 +4,8 @@ use log.nu *
 use state.nu [SYSTEM_REPO SYSTEM_STATE nu-bin tmp-dir-run xdg path-swap]
 use secrets.nu [secret-is-plaintext]
 use platform.nu [PLATFORM_REPO_LOCAL]
-use modules.nu [modules-discover modules-root-run IMPORT_LINE IMPORT_GREP]
+use modules.nu [modules-discover modules-root-run imports-map]
+use proc.nu [succeeds]
 
 const BOOTSTRAP = "bootstrap.sh"
 const SYSTEM_PATHS = [$BOOTSTRAP configs migrations platforms profiles scripts]
@@ -85,15 +86,12 @@ def root-reads [f: string, modules: record]: nothing -> bool {
     ($f | str ends-with ".nu") or (root-runs $f $modules)
 }
 
-# The .nu files (relative) that what root runs imports, followed transitively, as the engine reads a relative use or
-# source. One grep over the root copy's paths.
+# The .nu files (relative) that what root runs imports, followed transitively, as nu resolves a use or source. One
+# grep over the root copy's paths.
 def imports-reached [checkout: path, modules: record]: nothing -> list<string> {
     let prefix = $"($checkout)/"
     let dirs = $SYSTEM_PATHS | each {|p| $checkout | path join $p } | where ($it | path exists)
-    let map = ^grep -rHE --include=*.nu $IMPORT_GREP ...$dirs | complete | get stdout | lines
-        | parse --regex $"^\(?<file>[^:]+\):($IMPORT_LINE)"
-        | each {|r| {file: $r.file, import: ($r.file | path dirname | path join $r.p | path expand)} }
-        | group-by file | items {|file, rows| [$file $rows.import] } | into record
+    let map = imports-map $dirs ($checkout | path join scripts lib)
     mut todo = $map | columns | where {|f| root-runs ($f | str replace $prefix "") $modules }
     mut seen = $todo
     while ($todo | is-not-empty) {
@@ -160,7 +158,7 @@ export def system-pack [checkout: path, copy: path = $SYSTEM_REPO]: nothing -> b
     let source = $copy | path join .source
     if ($source | path exists) {
         let old = open --raw $source | str trim
-        let ancestor = {|a, b| (^git -C $checkout merge-base --is-ancestor $a $b | complete).exit_code == 0 }
+        let ancestor = {|a, b| succeeds git -C $checkout merge-base --is-ancestor $a $b }
         if $old != $head and not (do $ancestor $old $head) {
             if (do $ancestor $head $old) { error make {msg: $"($copy) is at ($old), ahead of ($checkout)'s HEAD ($head); keeping it, pull first"} }
             log-warn $"($copy) was at ($old), which ($checkout)'s history no longer has; replacing it with ($head)"

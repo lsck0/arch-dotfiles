@@ -35,6 +35,7 @@ source=(
     0001-fix-pipewire-meter-peaks-for-nodes-with-unpositioned.patch
 )
 sha256sums=(
+    # v0.3.2, 2026-10-08
     f14115a73c9fff6aa6399f924b632e88c3ce2cead2657f814a7825341f35baad
     c723301442b19061212f7c7e9e57222d33f826ae5e4e5069a33ba6117876aa99
 )
