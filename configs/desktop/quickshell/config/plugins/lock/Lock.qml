@@ -207,8 +207,8 @@ Item {
 
   Timer {
     id: unlockDelay
-    // the Glitch's run (its durationMs), 0 under the power saver
-    interval: Style.motion.base
+    // the Glitch's run (its durationMs), 0 under the power saver or with the glitch off, when play() skips it
+    interval: Prefs.glitch ? Style.motion.base : 0
     onTriggered: root.locked = false
   }
 
@@ -491,6 +491,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             value: root.clockText
             size: Style.font.hero * 2
+            color: Colors.textOnOverlay(Colors.accentText)
             live: true
           }
 
@@ -512,14 +513,10 @@ Item {
             color: Colors.textOnOverlay(Colors.accentText)
           }
 
-          Rectangle {
+          Item {
             anchors.horizontalCenter: parent.horizontalCenter
             width: Style.space(320)
             height: Style.space(46)
-            color: Util.alpha(Colors.background, 0.55)
-            border.width: root.authError ? Style.focusBorderWidth : Style.normalBorderWidth
-            border.color: root.authError ? Colors.urgent : (pwField.activeFocus ? Colors.accent : Style.normalBorderColor)
-            radius: Style.shape.data
             opacity: (pwField.text.length > 0 || root.authError || pamPw.active || root.keyMode) ? 1 : 0
             transform: Shake { id: pwShake }
 
@@ -529,6 +526,18 @@ Item {
               }
 
               target: root
+            }
+
+            // the scrim, not the TextField's controlFill: the box sits over the ASCII field and the clock
+            BorderSurface {
+              anchors.fill: parent
+              color: Colors.scrim
+              borderSpec: Border.controlSpec(root.authError ? "selected" : pwField.activeFocus ? "focus" : "normal",
+                Colors.foreground, root.authError ? Colors.urgent : Colors.accent)
+              radius: Style.shape.data
+
+              layer.enabled: Style.fx.glow > 0 && pwField.activeFocus
+              layer.effect: Glow {}
             }
 
             TextField {
@@ -547,7 +556,7 @@ Item {
               horizontalAlignment: TextInput.AlignHCenter
               verticalAlignment: TextInput.AlignVCenter
               placeholderText: root.authError ? "> ACCESS DENIED" : root.keyMode ? "> KEY PIN" : "> AUTH REQUIRED"
-              placeholderTextColor: root.authError ? Colors.urgentText : Colors.textDim
+              placeholderTextColor: Colors.textOnOverlay(root.authError ? Colors.urgentText : Colors.textDim)
               background: null
               onTextEdited: {
                 root.authError = false

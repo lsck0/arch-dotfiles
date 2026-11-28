@@ -272,6 +272,7 @@ Item {
           horizontalAlignment: Text.AlignRight
           text: Schema.toText(row.option, row.value)
           dim: true
+          highlighted: row.lit
           elide: Text.ElideMiddle
         }
 

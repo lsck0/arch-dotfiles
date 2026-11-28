@@ -25,6 +25,7 @@ Item {
   function open() {
     root.selectedIndex = 0
     root.pendingIndex = -1
+    pointerGate.reset()
     root.opened = true
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
@@ -54,7 +55,13 @@ Item {
   }
 
   function select(step) {
+    pointerGate.reset()
     root.selectedIndex = Math.max(0, Math.min(root.actions.length - 1, root.selectedIndex + step))
+  }
+
+  PointerMoveGate {
+    id: pointerGate
+    referenceItem: panel.card
   }
 
   IpcHandler {
@@ -171,7 +178,9 @@ Item {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onEntered: if (!root.pendingAction) root.selectedIndex = tile.index
+            onPositionChanged: function(mouse) {
+              if (pointerGate.moved(tile, mouse) && !root.pendingAction) root.selectedIndex = tile.index
+            }
             onClicked: root.activate(tile.index)
           }
         }

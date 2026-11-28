@@ -2,7 +2,10 @@ use module.nu *
 use ../../base/boot/scripts/boot.nu [KERNEL_HEADERS]
 
 # out of tree and unsigned: loading it taints the kernel, so only machines with OBS's virtual camera carry it
-export const meta = {packages: {native: ([v4l2loopback-dkms v4l2loopback-utils] ++ $KERNEL_HEADERS)}, native_only: [system]}
+export const meta = {
+    packages: {native: ([v4l2loopback-dkms v4l2loopback-utils] ++ $KERNEL_HEADERS)}
+    native_only: [system]
+}
 
 export const options = {
     video_nr: {
@@ -31,7 +34,8 @@ export def detect [cfg: record]: nothing -> record {
 export def system [cfg: record] {
     [
         (file-copy config/v4l2loopback.conf /etc/modules-load.d/v4l2loopback.conf)
-        (file-render config/v4l2loopback-options.conf /etc/modprobe.d/v4l2loopback.conf {VIDEO_NR: $cfg.video_nr, LABEL: $LABEL})
+        (file-render config/v4l2loopback-options.conf /etc/modprobe.d/v4l2loopback.conf
+            {VIDEO_NR: $cfg.video_nr, LABEL: $LABEL})
     ]
 }
 
@@ -42,6 +46,7 @@ export def link [cfg: record] {
         # read at pipewire and wireplumber start only; restarting either would drop live audio and video
         (file-render config/virtcam-pipewire.conf ($config | path join pipewire pipewire.conf.d virtcam.conf)
             {VIDEO_NR: $cfg.video_nr, LABEL: $LABEL})
-        (file-render config/virtcam-wireplumber.conf ($config | path join wireplumber wireplumber.conf.d virtcam.conf) {LABEL: $LABEL})
+        (file-render config/virtcam-wireplumber.conf ($config | path join wireplumber wireplumber.conf.d virtcam.conf)
+            {LABEL: $LABEL})
     ]
 }

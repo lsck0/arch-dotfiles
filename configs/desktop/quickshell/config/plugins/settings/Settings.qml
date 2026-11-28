@@ -66,8 +66,9 @@ Item {
   readonly property var hints: {
     var out = [["TAB", "pane"], ["TYPE", root.expandedId ? "filter" : "search"], ["ENTER", "edit"]]
     if (root.pane === "rows" && cursorRow && root.adjustable(cursorRow)) out.push(["</>", "change"])
-    out.push(["CTRL+R", "reset"])
-    if (cursorRow && cursorRow.kind === "option" && cursorRow.option.type === "path") out.push(["CTRL+O", "browse"])
+    var optionAtCursor = root.pane === "rows" && cursorRow && cursorRow.kind === "option" ? cursorRow : null
+    if (optionAtCursor && Schema.resettable(optionAtCursor.option)) out.push(["CTRL+R", "reset"])
+    if (optionAtCursor && optionAtCursor.option.type === "path") out.push(["CTRL+O", "browse"])
     if (queued.length > 0) out.push(["CTRL+S", "apply"], ["CTRL+Z", "revert"])
     else if (root.systemPending) out.push(["CTRL+S", root.systemFull ? "apply" : "apply system"])
     if (root.promptPossible) out.push(["--", "keyboard released"])
@@ -185,6 +186,14 @@ Item {
     root.choiceCursor = Math.max(0, root.choiceList.indexOf(root.valueOf(root.cursorRow)))
   }
 
+  // one line, so a pasted multi-line selection stays one query
+  function paste() {
+    var text = String(Quickshell.clipboardText || "").replace(/\s*\n\s*/g, " ")
+    if (!text) return
+    if (root.expandedId) root.filterChoices(root.choiceQuery + text)
+    else root.setQuery(root.query + text)
+  }
+
   function update() { root.runSystem(Object.assign({ kind: "action" }, Schema.systemActions[0]), "") }
 
   // Ctrl+Shift+U runs a full sync; arm on the first press and run on the second, so one stray keystroke never starts one
@@ -259,7 +268,12 @@ Item {
       else if (root.query) root.setQuery(Util.wordDelete(root.query))
       return true
     }
-    if (ctrl) {
+    if ((ctrl && key === Qt.Key_V) || (key === Qt.Key_Insert && (modifiers & Qt.ShiftModifier))) {
+      root.paste()
+      return true
+    }
+    var step = key === Qt.Key_Up || Util.isPrev(key, modifiers) ? -1 : key === Qt.Key_Down || Util.isNext(key, modifiers) ? 1 : 0
+    if (ctrl && step === 0) {
       if (key === Qt.Key_S) root.applyQueued()
       else if (key === Qt.Key_Z) root.revertQueued()
       else if (key === Qt.Key_U && (modifiers & Qt.ShiftModifier)) root.armOrUpdate()
@@ -277,12 +291,14 @@ Item {
       return true
     }
 
-    var vertical = key === Qt.Key_Up ? -1 : key === Qt.Key_Down ? 1 : key === Qt.Key_PageUp ? -6
-      : key === Qt.Key_PageDown ? 6 : 0
+    var pageRows = (root.pane === "sections" ? sectionCursor : rowCursor).pageRows
+    var vertical = step !== 0 ? step : key === Qt.Key_PageUp ? -pageRows : key === Qt.Key_PageDown ? pageRows : 0
     var horizontal = key === Qt.Key_Left ? -1 : key === Qt.Key_Right ? 1 : 0
 
     if (root.pane === "sections") {
       if (vertical !== 0) root.selectSection(root.sectionIndex + vertical, vertical > 0 ? 1 : -1)
+      else if (key === Qt.Key_Home) root.selectSection(0, 1)
+      else if (key === Qt.Key_End) root.selectSection(root.sections.length - 1, -1)
       else if (key === Qt.Key_Right || key === Qt.Key_Return || key === Qt.Key_Enter) root.enterSection(root.sectionIndex)
       else return root.typeKey(key, text)
       return true
@@ -749,6 +765,8 @@ Item {
           hasCursor: current && root.pane === "sections"
           hovered: sectionMouse.containsMouse
 
+          HudFrame { shown: sectionRow.hasCursor }
+
           Rectangle {
             visible: sectionRow.current
             width: Style.selectedBorderWidth
@@ -798,6 +816,12 @@ Item {
       ListFade {
         id: sectionFade
         list: sectionList
+      }
+
+      ListCursor {
+        id: sectionCursor
+        list: sectionList
+        rowHeight: Style.row.list
       }
 
       Rectangle {
@@ -865,6 +889,9 @@ Item {
                 : slot.modelData.kind === "action" || slot.modelData.kind === "launch" ? actionRow
                 : slot.modelData.kind === "drift" ? driftRow : optionRow
             }
+
+            // OptionRow draws its own
+            HudFrame { shown: slot.hasCursor && slot.modelData.kind !== "option" }
 
             Component {
               id: headerRow
@@ -1042,7 +1069,8 @@ Item {
                   Label {
                     width: parent.width
                     text: drift.confirming ? "> RESET? [ENTER] RESET [ESC] KEEP" : drift.entry.module + " :: " + drift.entry.drift
-                    color: drift.confirming ? Colors.warnText : Colors.textDim
+                    color: drift.confirming ? Colors.warnText
+                      : slot.hasCursor || driftMouse.containsMouse ? Colors.menu.selectedText : Colors.textDim
                     caption: true
                     elide: Text.ElideRight
                   }
@@ -1111,7 +1139,7 @@ Item {
           Label {
             anchors.centerIn: parent
             visible: root.rows.length === 0
-            text: !root.loaded && !root.loadError ? "> LOADING" : root.query ? "> NO MATCH" : "> NO OPTIONS"
+            text: root.loadError ? "> FAILED" : !root.loaded ? "> LOADING" : root.query ? "> NO MATCH" : "> NO OPTIONS"
             dim: true
           }
         }
@@ -1119,6 +1147,12 @@ Item {
         ListFade {
           id: rowFade
           list: rowList
+        }
+
+        ListCursor {
+          id: rowCursor
+          list: rowList
+          rowHeight: Style.row.list
         }
 
         Column {

@@ -22,10 +22,22 @@ Item {
   Connections {
     target: root.flow
     function onIsResponseRequiredChanged() {
-      if (root.flow.isResponseRequired) Qt.callLater(function() { password.text = ""; password.forceActiveFocus() })
+      Qt.callLater(root.focusInput)
     }
     function onFailedChanged() {
       if (root.flow.failed) authShake.play()
+    }
+  }
+
+  onOpenedChanged: if (opened) Qt.callLater(root.focusInput)
+
+  // the field while pam wants a response, else the key catcher, so Esc still cancels during a touch
+  function focusInput() {
+    if (root.responseRequired) {
+      password.text = ""
+      password.forceActiveFocus()
+    } else {
+      keyCatcher.forceActiveFocus()
     }
   }
 
@@ -51,6 +63,7 @@ Item {
     onDismissed: root.cancel()
 
     Item {
+      id: keyCatcher
       anchors.fill: parent
       focus: true
       Keys.onEscapePressed: root.cancel()

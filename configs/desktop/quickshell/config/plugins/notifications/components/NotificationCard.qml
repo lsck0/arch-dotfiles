@@ -306,7 +306,8 @@ BorderSurface {
     anchors.rightMargin: root.edge + Style.shape.chamfer
     variant: "icon"
     iconText: "\u{f00d}"
-    foreground: hot ? Colors.notifications.text : Colors.textDim
+    // a history row shows it only on the hover fill, where dim text is under 4.5:1
+    foreground: hot || root.isRow ? Colors.notifications.text : Colors.textDim
     fontSize: Style.font.caption
     visible: opacity > 0
     opacity: root.hovered || !root.isRow ? 1 : 0
@@ -317,6 +318,7 @@ BorderSurface {
 
   component Caption: Label {
     dim: true
+    highlighted: root.isRow && (root.hovered || root.activeFocus)
     caption: true
     font.letterSpacing: Style.labelTracking
   }

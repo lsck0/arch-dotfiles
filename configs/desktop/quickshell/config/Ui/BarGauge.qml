@@ -13,6 +13,9 @@ Row {
   property bool animated: true
   // a held peak above the level lights its own segment; below 0 there is none
   property real hold: -1
+  readonly property real headLift: 0.35
+  // toward the foreground, so the lead and hold segments stand out on light themes too (Qt.lighter washes them out there)
+  readonly property color headColor: Qt.tint(color, Util.alpha(Colors.foreground, headLift))
 
   spacing: gap
 
@@ -29,9 +32,9 @@ Row {
       height: root.height
       radius: 0
       antialiasing: false
-      color: index === root.holdIndex && index >= root.litCount ? Qt.lighter(root.color, 1.5)
+      color: index === root.holdIndex && index >= root.litCount ? root.headColor
              : index >= root.litCount ? Util.alpha(root.color, 0.13)
-             : (index === root.litCount - 1 ? Qt.lighter(root.color, 1.5) : root.color)
+             : (index === root.litCount - 1 ? root.headColor : root.color)
       Behavior on color {
         enabled: root.animated
         ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing }

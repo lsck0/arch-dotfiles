@@ -50,8 +50,7 @@ BarWidget {
   // stateColor is a stroke colour at 3:1; labels take its text form
   readonly property color stateText: Colors.textFor(stateColor)
   readonly property real actionFillAlphaMax: Style.actionHotFillAlpha + Style.actionDangerFillAlpha
-  // the state tokens conditioned for text: stat values on the panel, and action labels on their own tint
-  readonly property color liveText: Colors.textFor(Colors.semantic.live)
+  // the state tokens conditioned for text: action labels on their own tint
   readonly property color liveActionText: Colors.textOnFill(Colors.semantic.live, Util.alpha(Colors.semantic.live, actionFillAlphaMax))
   readonly property color recordingActionText: Colors.textOnFill(Colors.semantic.recording, Util.alpha(Colors.semantic.recording, actionFillAlphaMax))
   readonly property bool degraded: streamReconnecting || dropPct >= 1 || congestion >= 0.3
@@ -540,7 +539,7 @@ BarWidget {
         visible: root.recording && root.diskSecondsLeft > 0
         label: "Disk headroom"
         value: root.clock(root.diskSecondsLeft) + " at this rate"
-        valueColor: root.diskSecondsLeft < 600 ? root.liveText : (root.diskSecondsLeft < 3600 ? Colors.warnText : Colors.menu.text)
+        valueColor: root.diskSecondsLeft < 600 ? Colors.urgentText : (root.diskSecondsLeft < 3600 ? Colors.warnText : Colors.menu.text)
       }
 
       PanelSeparator { visible: root.connected }

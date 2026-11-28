@@ -225,7 +225,7 @@ QtObject {
     assign(p, true)
   }
 
-  readonly property bool paletteFades: animatePalette && !Power.saver
+  readonly property bool paletteFades: animatePalette && Style.motion.enabled
   // the curve of the wallpaper reveal (plugins/background/Background.qml), which the palette change rides on
   component PaletteFade: ColorAnimation { duration: Theme.values.transitionMs; easing.type: Easing.InOutCubic }
   Behavior on foreground { enabled: root.paletteFades; PaletteFade {} }

@@ -44,7 +44,7 @@ BarWidget {
     anchors.fill: parent
     bar: root.bar
     text: Audio.volumeIcon(root.volume, root.muted)
-    tooltipText: (root.muted ? "Muted" : Audio.levelText(root.volume)) + " :: MMB mute"
+    tooltipText: (root.muted ? "Muted" : Audio.levelText(root.volume)) + " :: MMB mute :: scroll volume"
     onPressed: function(b) { if (b === Qt.MiddleButton) root.toggleMute() }
     onWheelMoved: function(delta) { Audio.nudge(root.sink, delta) }
   }

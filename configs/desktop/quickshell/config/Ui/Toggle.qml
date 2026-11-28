@@ -48,7 +48,7 @@ Item {
     anchors.verticalCenter: parent.verticalCenter
     // flush right like the [state] of a multi-state toggle, so both read as one column
     text: root.checked ? "[on]" : "[off]"
-    color: root.checked ? Colors.textFor(root.accent) : Colors.textDim
+    color: root.checked ? Colors.textFor(root.accent) : root.hot ? root.foreground : Colors.textDim
     font.bold: root.checked
     layer.enabled: Style.fx.glow > 0 && root.checked
     layer.effect: Glow {}

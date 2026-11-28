@@ -154,14 +154,14 @@ Item {
     if (event.key === Qt.Key_Escape) { root.gpgReset(); return true }
     if (root.gpgMode === "decrypt") {
       const step = event.key === Qt.Key_Up ? -Style.row.list : event.key === Qt.Key_Down ? Style.row.list
-        : event.key === Qt.Key_PageUp ? -plainFlick.height : event.key === Qt.Key_PageDown ? plainFlick.height : 0
-      plainFlick.contentY = Math.max(0, Math.min(plainFlick.contentY + step, plainFlick.contentHeight - plainFlick.height))
+        : event.key === Qt.Key_PageUp ? -plainList.height : event.key === Qt.Key_PageDown ? plainList.height : 0
+      plainList.contentY = Math.max(0, Math.min(plainList.contentY + step, plainList.contentHeight - plainList.height))
       return true
     }
     if (root.gpgMode !== "encrypt" || root.gpgBusy) return true
     var n = root.gpgKeys.length
-    if (event.key === Qt.Key_Up && n > 0) root.gpgKeyIndex = (root.gpgKeyIndex - 1 + n) % n
-    else if (event.key === Qt.Key_Down && n > 0) root.gpgKeyIndex = (root.gpgKeyIndex + 1) % n
+    if (event.key === Qt.Key_Up && n > 0) root.gpgKeyIndex = Math.max(0, root.gpgKeyIndex - 1)
+    else if (event.key === Qt.Key_Down && n > 0) root.gpgKeyIndex = Math.min(n - 1, root.gpgKeyIndex + 1)
     else if (event.key === Qt.Key_Space) root.gpgToggleKey(root.gpgKeyIndex)
     else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) root.encryptPicked()
     return true
@@ -589,7 +589,6 @@ Item {
             id: listCursor
             list: resultList
             rowHeight: root.rowHeight
-            wrapSingle: true
           }
 
           FadedList {
@@ -761,67 +760,93 @@ Item {
               wrapMode: Text.Wrap
             }
 
-            Flickable {
-              id: plainFlick
+            // the plaintext is the list's one row, so it scrolls with the same bar and fade as every other list
+            Item {
               width: parent.width
               height: parent.height - y
               visible: root.gpgMode === "decrypt" && root.gpgResult !== null
-              clip: true
-              contentHeight: plainText.implicitHeight
-              boundsBehavior: Flickable.StopAtBounds
 
-              Label {
-                id: plainText
-                width: plainFlick.width
-                text: root.gpgResult ? root.gpgResult.plaintext : ""
-                color: Colors.menu.text
-                wrapMode: Text.WrapAnywhere
-                onTextChanged: plainFlick.contentY = 0
+              FadedList {
+                id: plainList
+                anchors.fill: parent
+                anchors.rightMargin: plainBar.gutter
+                model: root.gpgResult ? 1 : 0
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ListScrollBar { id: plainBar; list: plainList }
+                fade: plainFade
+
+                delegate: Label {
+                  width: ListView.view.width
+                  text: root.gpgResult ? root.gpgResult.plaintext : ""
+                  color: Colors.menu.text
+                  wrapMode: Text.WrapAnywhere
+                  onTextChanged: plainList.positionViewAtBeginning()
+                }
+              }
+
+              ListFade {
+                id: plainFade
+                list: plainList
               }
             }
 
-            ListView {
+            Item {
               width: parent.width
               height: parent.height - y
               visible: root.gpgMode === "encrypt"
-              model: root.gpgKeys
-              clip: true
-              spacing: Style.spacing.xs
-              currentIndex: root.gpgKeyIndex
-              onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
 
-              delegate: CursorFill {
-                id: keyRow
-                required property int index
-                required property var modelData
-                readonly property bool picked: root.gpgPicked[modelData.fpr] === true
+              FadedList {
+                id: keyList
+                anchors.fill: parent
+                anchors.rightMargin: keyBar.gutter
+                model: root.gpgKeys
+                clip: true
+                spacing: Style.spacing.xs
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ListScrollBar { id: keyBar; list: keyList }
+                fade: keyFade
+                currentIndex: root.gpgKeyIndex
+                onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
 
-                hasCursor: index === root.gpgKeyIndex
-                width: ListView.view.width
-                height: keyText.implicitHeight + Style.spacing.sm * 2
+                delegate: CursorFill {
+                  id: keyRow
+                  required property int index
+                  required property var modelData
+                  readonly property bool picked: root.gpgPicked[modelData.fpr] === true
 
-                Label {
-                  id: keyText
-                  anchors.fill: parent
-                  anchors.margins: Style.spacing.sm
-                  text: (keyRow.picked ? "[x] " : "[ ] ") + keyRow.modelData.uid + (keyRow.modelData.own ? "  (own)"
-                    : keyRow.modelData.valid ? "" : "  (not certified)")
-                    + "\n    " + keyRow.modelData.fpr
-                  color: keyRow.hasCursor ? Colors.menu.selectedText : Colors.menu.text
-                  caption: true
-                  elide: Text.ElideRight
-                }
+                  hasCursor: index === root.gpgKeyIndex
+                  width: ListView.view.width
+                  height: keyText.implicitHeight + Style.spacing.sm * 2
 
-                HudFrame { shown: keyRow.hasCursor }
+                  Label {
+                    id: keyText
+                    anchors.fill: parent
+                    anchors.margins: Style.spacing.sm
+                    text: (keyRow.picked ? "[x] " : "[ ] ") + keyRow.modelData.uid + (keyRow.modelData.own ? "  (own)"
+                      : keyRow.modelData.valid ? "" : "  (not certified)")
+                      + "\n    " + keyRow.modelData.fpr
+                    color: keyRow.hasCursor ? Colors.menu.selectedText : Colors.menu.text
+                    caption: true
+                    elide: Text.ElideRight
+                  }
 
-                MouseArea {
-                  anchors.fill: parent
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: {
-                    root.gpgKeyIndex = keyRow.index
-                    root.gpgToggleKey(keyRow.index)
+                  HudFrame { shown: keyRow.hasCursor }
+
+                  MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                      root.gpgKeyIndex = keyRow.index
+                      root.gpgToggleKey(keyRow.index)
+                    }
                   }
                 }
+              }
+
+              ListFade {
+                id: keyFade
+                list: keyList
               }
             }
           }

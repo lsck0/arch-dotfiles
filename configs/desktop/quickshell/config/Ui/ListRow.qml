@@ -2,7 +2,8 @@ import QtQuick
 import qs.Commons
 
 // A row of a panel's live list (Wi-Fi networks, Bluetooth devices): a caption glyph, a name the network or device
-// picked (never markup), a trailing status. The selected one (connected, active) is filled and its glyph glows.
+// picked (never markup), a trailing status. The selected one (connected, active) is marked like an on PanelRow: its
+// fill and a bar on the left edge; its glyph glows.
 // Children go into a row at the right edge (a forget button), the status left of them; a right click is
 // secondaryActivated.
 Rectangle {
@@ -25,14 +26,24 @@ Rectangle {
 
   height: Style.row.list
   radius: Style.shape.data
-  color: selected ? Colors.menu.selectedBackground
+  color: mouse.pressed ? Style.pressedFill
+    : selected ? Colors.menu.selectedBackground
     : activeFocus ? Style.focusFill
     : hovered ? Style.hoverFill : "transparent"
+
+  Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
   activeFocusOnTab: true
   Keys.onReturnPressed: root.activated()
   Keys.onEnterPressed: root.activated()
   Keys.onSpacePressed: root.activated()
+
+  Rectangle {
+    visible: root.selected
+    width: Style.selectedBorderWidth
+    height: parent.height
+    color: Style.selectedMarkColor(Colors.menu.text, Colors.accent)
+  }
 
   Label {
     id: glyphLabel

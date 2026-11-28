@@ -27,7 +27,8 @@ Signatures are in `scripts/lib/module.nu`; read its doc comment above a helper b
   `unit-restart <name> [--reload] [--if-running]` (the one `--then` for a unit; skips a unit not installed yet),
   `dropin <unit> <src> [--name] [--values]` (`dropin x.service services/foo.conf`, installed as `foo.conf` unless
   `--name`), `user-hook <name> <script> --watch [paths] [--permanent] [--no-brake]`.
-- Groups: `group-system <group> [members]` (a sysusers.d file), `group-admins <group>` (wheel in it).
+- Groups: `group-system <group> [members]` (a sysusers.d file), `group-admins <group>` (wheel in it),
+  `group-members-remove <group>` (everyone out of it, for a group whose membership would grant without asking).
 - Fetch: `fetch-file <url> <sha256> <dest> [--extract <member>]`, `fetch-git <url> <commit> <dir>`; both mark
   themselves `--network`.
 

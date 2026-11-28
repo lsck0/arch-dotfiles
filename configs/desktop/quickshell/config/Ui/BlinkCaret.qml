@@ -13,7 +13,7 @@ Label {
   readonly property int titleBlinkMs: 10000
 
   property bool expired: false
-  readonly property bool blinking: running && !expired && !Power.saver
+  readonly property bool blinking: running && !expired && Style.motion.enabled
 
   text: block ? " " : "_"
   color: Colors.accentText

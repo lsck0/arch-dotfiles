@@ -24,13 +24,13 @@ BarWidget {
   readonly property var pinnedItems: bucket("pinned")
   readonly property var drawerItems: bucket("drawer")
   readonly property var allItems: bucket("all")
-  // unpinned icons past the cap and hidden ones fold into one "+N" slot that opens the manage popup, so a hidden icon
-  // can always be brought back
+  // unpinned icons past the cap and hidden ones fold into one "+N" slot that opens the manage popup; with none folded
+  // it stays as a plain manage button, so an icon can always be hidden or brought back however few there are
   readonly property int drawerShownCountMax: 6
   readonly property var drawerShown: drawerItems.slice(0, drawerShownCountMax)
   readonly property int hiddenCount: allItems.length - pinnedItems.length - drawerItems.length
   readonly property int moreCount: drawerItems.length - drawerShown.length + hiddenCount
-  readonly property int drawerCount: drawerShown.length + (moreCount > 0 ? 1 : 0)
+  readonly property int drawerCount: drawerShown.length + 1
   readonly property int trayItemExtent: Style.bar.iconSlot
   readonly property int trayItemGap: Style.bar.itemGap
   readonly property int drawerExtent: drawerCount > 0 ? drawerCount * trayItemExtent + (drawerCount - 1) * trayItemGap : 0
@@ -214,13 +214,14 @@ BarWidget {
           }
 
           WidgetButton {
-            visible: root.moreCount > 0
             bar: root.bar
             fixedWidth: root.trayItemExtent
             fontSize: Style.font.caption
             hoverFill: true
-            text: "+" + root.moreCount
-            tooltipText: Util.count(root.moreCount, "more tray icon") + (root.hiddenCount > 0 ? " (" + root.hiddenCount + " hidden)" : "") + " :: click to manage"
+            text: root.moreCount > 0 ? "+" + root.moreCount : "\u{f141}"
+            tooltipText: (root.moreCount > 0
+              ? Util.count(root.moreCount, "more tray icon") + (root.hiddenCount > 0 ? " (" + root.hiddenCount + " hidden)" : "")
+              : "Tray icons") + " :: click to manage"
             onPressed: root.managePopupOpen = !root.managePopupOpen
           }
         }
@@ -284,7 +285,7 @@ BarWidget {
           readonly property bool isPinned: root.placeOf(itemId) === "pinned"
           readonly property bool isHidden: root.placeOf(itemId) === "hidden"
 
-          // the icon and name open the app, as its tray icon does
+          // the icon and name act as its tray icon does: left opens the app, middle its secondary action, right its menu
           MouseArea {
             id: rowOpen
             anchors.left: parent.left
@@ -293,10 +294,14 @@ BarWidget {
             height: parent.height
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+            acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
             onClicked: function(mouse) {
               if (mouse.button === Qt.MiddleButton) {
                 rowRoot.modelData.secondaryActivate()
+                return
+              }
+              if (mouse.button === Qt.RightButton) {
+                root.openTrayMenu(rowRoot.modelData, rowOpen, mouse)
                 return
               }
               const item = rowRoot.modelData

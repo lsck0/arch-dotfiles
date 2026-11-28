@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import Quickshell
 import QtQuick
+import QtQuick.Controls
 import qs.Commons
 import qs.Ui
 import "ReminderFlowModel.js" as ReminderFlowModel
@@ -22,6 +23,7 @@ Item {
   // clamped, so a fired or cancelled last row leaves the new last one selected
   readonly property int selectedRow: Math.min(selectedIndex, reminders.length - 1)
   readonly property var selectedReminder: selectedRow >= 0 ? reminders[selectedRow] : null
+  readonly property int pendingShownMax: 6
 
   readonly property string reminderScript: Paths.script("reminder.nu")
   readonly property string pomodoroScript: Paths.script("pomodoro.nu")
@@ -169,7 +171,7 @@ Item {
     prompt: true
     query: root.filterText
     placeholder: root.promptText
-    hints: root.step !== "minutes" ? [["ENTER", "set"], ["ESC", "back"]]
+    hints: root.step !== "minutes" ? [["ENTER", "set"], ["ESC", root.filterText ? "clear" : "back"]]
       : root.filterText !== "" ? [["0-9", "duration or time"], ["ENTER", "next"], ["ESC", "clear"]]
       : [["0-9", "duration or time"], ["SPACE", !root.pomo.running ? "pomodoro" : root.pomo.paused ? "resume" : "pause"]]
         .concat(root.pomo.running ? [["N", "skip"], ["SHIFT+S", "stop"]] : [])
@@ -245,77 +247,111 @@ Item {
           dim: true
         }
 
-        Repeater {
-          model: root.reminders
-          delegate: Item {
-            id: reminderRow
-            required property var modelData
-            required property int index
-            width: parent.width
-            height: Style.row.list
+        Item {
+          width: parent.width
+          height: pendingList.height
+          visible: root.reminders.length > 0
 
-            Rectangle {
-              anchors.fill: parent
-              anchors.leftMargin: -Style.spacing.xs
-              anchors.rightMargin: -Style.spacing.xs
-              radius: Style.shape.data
-              color: reminderRow.index === root.selectedRow ? Colors.menu.selectedBackground
-                : rowHover.hovered ? Style.hoverFill : "transparent"
-              Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
-            }
-            HoverHandler { id: rowHover }
+          FadedList {
+            id: pendingList
+            readonly property int rowPitch: Style.row.list + spacing
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.rightMargin: pendingBar.gutter
+            // bounded, so a long pending set scrolls instead of pushing the pomodoro off the clamped card
+            height: Math.min(root.reminders.length, root.pendingShownMax) * rowPitch - spacing
+            model: root.reminders
+            clip: true
+            spacing: Style.spacing.xs
+            boundsBehavior: Flickable.StopAtBounds
+            currentIndex: root.selectedRow
+            onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
+            ScrollBar.vertical: ListScrollBar { id: pendingBar; list: pendingList }
+            fade: pendingFade
 
-            Label {
-              id: bell
-              anchors.left: parent.left
-              anchors.verticalCenter: parent.verticalCenter
-              text: "\u{f009c}" // md-bell_outline
-              color: Colors.accentText
-              icon: true
-              font.pixelSize: Style.font.icon
-            }
-            Label {
-              anchors.left: bell.right
-              anchors.leftMargin: Style.spacing.sm
-              anchors.right: when.left
-              anchors.rightMargin: Style.spacing.sm
-              anchors.verticalCenter: parent.verticalCenter
-              text: reminderRow.modelData.label || ""
-              color: Colors.menu.text
-              elide: Text.ElideRight
-            }
-            Row {
-              id: when
-              anchors.right: rename.left
-              anchors.rightMargin: Style.spacing.sm
-              anchors.verticalCenter: parent.verticalCenter
-              spacing: Style.spacing.xs
+            delegate: CursorFill {
+              id: reminderRow
+              required property var modelData
+              required property int index
+
+              hasCursor: index === root.selectedRow
+              hovered: rowHover.hovered
+              width: ListView.view.width
+              height: Style.row.list
+              HoverHandler { id: rowHover }
+
               Label {
-                text: "in " + (reminderRow.modelData.remaining || "")
-                color: Colors.menu.text
+                id: reticle
+                anchors.left: parent.left
+                anchors.leftMargin: Style.spacing.xs
+                anchors.verticalCenter: parent.verticalCenter
+                width: Style.space(12)
+                text: reminderRow.hasCursor ? ">" : ""
+                color: Colors.accentText
+                layer.enabled: reminderRow.hasCursor && Style.fx.glow > 0
+                layer.effect: Glow {}
               }
               Label {
-                text: reminderRow.modelData.atTime || ""
-                dim: true
-                highlighted: reminderRow.index === root.selectedRow || rowHover.hovered
+                id: bell
+                anchors.left: reticle.right
+                anchors.verticalCenter: parent.verticalCenter
+                text: "\u{f009c}" // md-bell_outline
+                color: Colors.accentText
+                icon: true
+                font.pixelSize: Style.font.icon
               }
+              Label {
+                anchors.left: bell.right
+                anchors.leftMargin: Style.spacing.sm
+                anchors.right: when.left
+                anchors.rightMargin: Style.spacing.sm
+                anchors.verticalCenter: parent.verticalCenter
+                text: reminderRow.modelData.label || ""
+                color: reminderRow.hasCursor ? Colors.menu.selectedText : Colors.menu.text
+                elide: Text.ElideRight
+              }
+              Row {
+                id: when
+                anchors.right: rename.left
+                anchors.rightMargin: Style.spacing.sm
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Style.spacing.xs
+                Label {
+                  text: "in " + (reminderRow.modelData.remaining || "")
+                  color: reminderRow.hasCursor ? Colors.menu.selectedText : Colors.menu.text
+                }
+                Label {
+                  text: reminderRow.modelData.atTime || ""
+                  dim: true
+                  highlighted: reminderRow.hasCursor || rowHover.hovered
+                }
+              }
+              IconButton {
+                id: rename
+                anchors.right: cancel.left
+                anchors.verticalCenter: parent.verticalCenter
+                iconText: "\u{f03eb}" // md-pencil
+                tooltipText: "Rename reminder"
+                onClicked: root.askRename(reminderRow.modelData)
+              }
+              IconButton {
+                id: cancel
+                anchors.right: parent.right
+                anchors.rightMargin: Style.spacing.xs
+                anchors.verticalCenter: parent.verticalCenter
+                iconText: "\u{f0156}"
+                tooltipText: "Cancel reminder"
+                onClicked: root.run([root.reminderScript, "cancel", reminderRow.modelData.unit])
+              }
+
+              HudFrame { shown: reminderRow.hasCursor }
             }
-            IconButton {
-              id: rename
-              anchors.right: cancel.left
-              anchors.verticalCenter: parent.verticalCenter
-              iconText: "\u{f03eb}" // md-pencil
-              tooltipText: "Rename reminder"
-              onClicked: root.askRename(reminderRow.modelData)
-            }
-            IconButton {
-              id: cancel
-              anchors.right: parent.right
-              anchors.verticalCenter: parent.verticalCenter
-              iconText: "\u{f0156}"
-              tooltipText: "Cancel reminder"
-              onClicked: root.run([root.reminderScript, "cancel", reminderRow.modelData.unit])
-            }
+          }
+
+          ListFade {
+            id: pendingFade
+            list: pendingList
           }
         }
       }

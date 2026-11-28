@@ -112,7 +112,7 @@ export def sshd [port: string]: nothing -> nothing {
         error make {msg: "ssh: sshd rejects 10-hardening.conf, kept the previous config"}
     }
     ^systemctl enable sshd.service
-    let active = (^systemctl is-active --quiet sshd.service | complete).exit_code == 0
+    let active = unit-active sshd.service
     # base/endlessh's tarpit holds 22 until its own verb runs after this one
     if $port == "22" { do { ^systemctl disable --now endlessh.service } | complete | ignore }
     if not $active or $rekeyed or (open --raw $DROPIN) != $before { ^systemctl reload-or-restart sshd.service }

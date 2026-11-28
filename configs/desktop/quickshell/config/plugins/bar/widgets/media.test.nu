@@ -2,7 +2,7 @@
 # The media path end to end: fake MPRIS players on a private session bus drive a copy of the shell (MediaState, the
 # bar's Media widget, the lock's media line) under an offscreen quickshell, and each scenario checks what the bar and
 # the lock show, and the accent the media surfaces take from a generated cover. The copy stubs the PanelWindow hover
-# panel, shortens the pause linger and never fetches art.
+# panel, shortens the pause linger and fetches remote art through a stub that serves one local image.
 
 const SHELL = path self ../../..
 const DRIVER = r#'
@@ -21,6 +21,7 @@ import time
 import dbus
 import dbus.mainloop.glib
 import dbus.service
+import hashlib
 from gi.repository import GLib
 
 LINGER_MS = 1000
@@ -33,6 +34,8 @@ MPRIS = "org.mpris.MediaPlayer2"
 PLAYER = MPRIS + ".Player"
 PROPS = "org.freedesktop.DBus.Properties"
 OBJ = "/org/mpris/MediaPlayer2"
+# the art fetch stub's time per fetch: long enough that a fetch is still running when the players move on
+FETCH_DELAY_S = 0.3
 # MprisPlaybackState as the shell prints it
 STATUS = {"Stopped": 0, "Playing": 1, "Paused": 2}
 
@@ -81,6 +84,7 @@ ShellRoot {
     artist: media.artist,
     album: media.album,
     artUrl: media.artUrl,
+    artSource: MediaState.artSource,
     lock: lock.mediaText,
     artAccent: MediaState.artAccent ? MediaState.artAccent.toString() : "",
     accent: MediaState.accent.toString(),
@@ -92,9 +96,9 @@ ShellRoot {
 """
 
 
-def build(src, out):
-    """A copy of the tree with window types stubbed, the linger shortened, no network fetch and the lock's media
-    properties lifted out of Lock.qml into a plain QtObject."""
+def build(src, out, fetch):
+    """A copy of the tree with window types stubbed, the linger shortened, the network gate open, fetch in place of
+    curl and the lock's media properties lifted out of Lock.qml into a plain QtObject."""
     shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(src, out)
     with open(os.path.join(out, "Ui/HoverPanel.qml"), "w") as f:
@@ -106,8 +110,10 @@ def build(src, out):
     open(media_path, "w").write(media)
     state_path = os.path.join(out, "Commons/MediaState.qml")
     state = open(state_path).read()
-    state, n = re.subn(r"curl -sfL", "false", state)
+    state, n = re.subn(r"curl -sfL", fetch, state)
     assert n == 1, "MediaState.qml: art fetch not found"
+    state, n = re.subn(r"(?s)(readonly property string artFetchCheck: ).*?(\n  readonly)", r'\1"true"\2', state)
+    assert n == 1, "MediaState.qml: art fetch check not found"
     open(state_path, "w").write(state)
     lock = open(os.path.join(out, "plugins/lock/Lock.qml")).read()
     m = re.search(r"(?ms)^  readonly property var player: \{.*?^  \}\n(?:  readonly property string media\w+:[^\n]*\n)+", lock)
@@ -356,6 +362,16 @@ SPOTIFY = {"mpris:trackid": dbus.String("/com/spotify/track/3OFYm7iUGkfejfsgKXfj
            "xesam:url": "https://open.spotify.com/track/3OFYm7iUGkfejfsgKXfjdb"}
 
 
+# a YouTube tab as Firefox and its plasma-browser-integration twin report it: neither has art
+YT_LIST = "https://www.youtube.com/watch?v=gLRWgxnOW84&list=RD1G1tQcbcAvw&index=3"
+YT_LIST_THUMB = "https://i.ytimg.com/vi/gLRWgxnOW84/mqdefault.jpg"
+FIREFOX_BARE = {"mpris:trackid": dbus.ObjectPath("/org/mpris/MediaPlayer2/firefox"),
+                "xesam:title": "Mirrors - YouTube", "xesam:album": "", "xesam:artist": [""], "xesam:url": YT_LIST}
+PBI_BARE = {"kde:pid": dbus.Int32(4857), "mpris:length": dbus.Int64(215000000),
+            "mpris:trackid": dbus.ObjectPath("/org/kde/plasma/browser_integration/1337"),
+            "xesam:artist": ["Electric Callboy"], "xesam:title": "Mirrors", "xesam:url": YT_LIST}
+
+
 def song(title, artist, **extra):
     return {**SONG, "xesam:title": title, "xesam:artist": [artist], **extra}
 
@@ -364,6 +380,69 @@ def cover(work, name, color):
     path = os.path.join(work, name + ".png")
     subprocess.run(["magick", "-size", "64x64", "xc:" + color, path], check=True)
     return "file://" + path
+
+
+def fetch_stub(work):
+    """a curl stand-in that writes one local image to its -o file, whatever the url"""
+    image = cover(work, "fetched", "#3060FF")[len("file://"):]
+    path = os.path.join(work, "fetch")
+    with open(path, "w") as f:
+        f.write(f"""#!/bin/sh
+out=
+while [ $# -gt 0 ]; do [ "$1" = -o ] && {{ out=$2; shift; }}; shift; done
+sleep {FETCH_DELAY_S}
+cp -- '{image}' "$out"
+""")
+    os.chmod(path, 0o755)
+    return path
+
+
+def cached(url):
+    return "file://" + os.environ["XDG_RUNTIME_DIR"] + "/quickshell-mediaart/" + hashlib.md5(url.encode()).hexdigest()
+
+
+def art_warnings(h, since):
+    return [l for l in h.log[since:] if "Media.qml" in l and "Cannot open" in l]
+
+
+def art_sources_invalid(log):
+    """every art source the Image was handed in the whole run that is neither empty nor a local file: a bare file url
+    or a remote one fetched past the network gate"""
+    sources = (json.loads(m.group(1))["artSource"] for m in (re.search(r"STATE (\{.*\})$", l) for l in log) if m)
+    return sorted({s for s in sources if s and not re.match(r"^file:///.*[^/]$", s)})
+
+
+def youtube_twins(h):
+    """the thumbnail stands in for a YouTube tab's missing art, with and without its plasma-browser-integration twin,
+    and the Image never gets a bare file url"""
+    since = len(h.log)
+    thumb = cached(YT_LIST_THUMB)
+    h.clear()
+    h.add("spotify", "Spotify", "Paused", SPOTIFY, "spotify")
+    h.add("firefox.instance_1_12489", "Mozilla Firefox", "Playing", FIREFOX_BARE, "firefox")
+    h.expect("youtube tab without art: its thumbnail fetched and shown", player=MPRIS + ".firefox.instance_1_12489",
+             artUrl=YT_LIST_THUMB, artSource=thumb)
+    h.add("plasma-browser-integration", "Mozilla Firefox", "Playing", PBI_BARE, "firefox")
+    h.expect("youtube tab and its pbi twin, both playing, neither with art: the thumbnail",
+             player=MPRIS + ".plasma-browser-integration", artUrl=YT_LIST_THUMB, artSource=thumb)
+    h.status("firefox.instance_1_12489", "Paused")
+    h.status("plasma-browser-integration", "Paused")
+    h.expect("youtube twins both paused: the thumbnail kept", playing=False, artUrl=YT_LIST_THUMB, artSource=thumb)
+    h.status("firefox.instance_1_12489", "Playing")
+    h.expect("native tab playing, twin paused: the thumbnail", player=MPRIS + ".firefox.instance_1_12489",
+             artUrl=YT_LIST_THUMB, artSource=thumb)
+    h.status("plasma-browser-integration", "Playing")
+    h.hold("youtube twins playing again: the thumbnail holds", 1, artSource=thumb)
+    h.remove("plasma-browser-integration")
+    h.expect("pbi twin gone: the native tab's thumbnail", player=MPRIS + ".firefox.instance_1_12489",
+             artSource=thumb)
+    h.players["firefox.instance_1_12489"].update(Metadata={k: v for k, v in FIREFOX_BARE.items() if k != "xesam:url"})
+    h.expect("tab between videos, no url: no art", artUrl="", artSource="")
+    h.players["firefox.instance_1_12489"].update(Metadata=FIREFOX_BARE)
+    h.expect("next video: its thumbnail again", artUrl=YT_LIST_THUMB, artSource=thumb)
+    warnings = art_warnings(h, since)
+    if warnings:
+        h.fail("youtube twins: no art load warnings", "none", warnings)
 
 
 def scenarios(h, work):
@@ -541,6 +620,7 @@ def scenarios(h, work):
     h.expect("no title and paused: dropped as noise", players=[], player="")
 
     selection(h)
+    youtube_twins(h)
 
 
 def selection(h):
@@ -587,7 +667,7 @@ def selection(h):
 def main():
     src, work = sys.argv[1], sys.argv[2]
     shell_dir = os.path.join(work, "shell")
-    build(src, shell_dir)
+    build(src, shell_dir, fetch_stub(work))
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
     h = Harness(shell_dir)
     try:
@@ -602,6 +682,9 @@ def main():
             h.qs.wait(5)
         except subprocess.TimeoutExpired:
             h.qs.kill()
+    invalid = art_sources_invalid(h.log)
+    if invalid:
+        h.fail("art source only ever empty or a local file", "none other", invalid)
     errors = [l for l in h.log if re.search(r"\bERROR\b|TypeError|ReferenceError|is not a type|Unable to assign", l)
               and "pipewire context" not in l]
     if errors:

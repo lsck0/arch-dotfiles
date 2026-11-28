@@ -183,6 +183,9 @@ BarWidget {
     wifiShowAll = false
     btShowAll = false
     btFailed = ({})
+    // samples come only while the panel is open: a new opening starts a fresh line
+    rxHist = []
+    txHist = []
     if (now - lastRefreshMs >= refreshMinAgeMs || togglesError !== "") refreshAll()
     else detailsProc.run()
     refreshWifiList(now - lastScanMs >= refreshMinAgeMs)

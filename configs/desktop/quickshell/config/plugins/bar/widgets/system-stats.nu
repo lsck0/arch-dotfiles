@@ -134,7 +134,7 @@ def hardware-detect []: nothing -> record {
 }
 
 # --top adds the top processes by cpu and memory, the costliest part of a tick: only the open panel shows them
-def main [interval_s: number = 10, --top] {
+def main [interval_s: number = 5, --top] {
     let hw = hardware-detect
     let amd = $hw.static.gpuVendor == amd
     let device = $"($hw.gpu_card)/device"

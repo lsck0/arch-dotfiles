@@ -34,8 +34,15 @@ BarWidget {
   readonly property real tpsUrgentBelow: 15
   readonly property real tpsWarnBelow: 19.5
   readonly property int problemCount: lab.alerts.length + downServices.length + mcFailingCount
-  readonly property real memFraction: (Number(lab.host.memTotalGb) || 0) > 0
-    ? (Number(lab.host.memUsedGb) || 0) / Number(lab.host.memTotalGb) : 0
+  readonly property bool memKnown: (Number(lab.host.memTotalGb) || 0) > 0
+  readonly property real memFraction: memKnown ? (Number(lab.host.memUsedGb) || 0) / Number(lab.host.memTotalGb) : 0
+  // the host's gauges take the System widget's load ramp, so a busy lab reads like a busy desktop
+  readonly property var loadThresholds: [60, 80, 92]
+  readonly property bool nasKnown: (Number(lab.storage.nasTotalGb) || 0) > 0
+  // the NAS gauge fills by used share like every other gauge; its value stays the free size the label names
+  readonly property real nasUsedFraction: nasKnown
+    ? Math.max(0, 1 - (Number(lab.storage.nasFreeGb) || 0) / Number(lab.storage.nasTotalGb)) : 0
+  readonly property real nasFreeAlertBelow: 0.1
   // alerts and client lists past this many rows wait behind an expand row
   readonly property int rowsShownMax: 3
   property bool alertsShowAll: false
@@ -407,13 +414,15 @@ BarWidget {
           value: root.num(root.lab.host.cpuPct, "%")
           note: root.num(root.lab.host.tempC, "\u00b0C")
           fraction: (Number(root.lab.host.cpuPct) || 0) / 100
+          tint: Util.level(Number(root.lab.host.cpuPct) || 0, root.loadThresholds)
           url: root.lab.links.proxmox
         }
         GaugeRow {
           label: "Memory"
-          value: Math.round(root.memFraction * 100) + "%"
+          value: root.memKnown ? Math.round(root.memFraction * 100) + "%" : "--"
           note: root.sizeOf(root.lab.host.memUsedGb, root.lab.host.memTotalGb)
           fraction: root.memFraction
+          tint: Util.level(root.memFraction * 100, root.loadThresholds)
           url: root.lab.links.proxmox
         }
 
@@ -422,7 +431,8 @@ BarWidget {
         GaugeRow {
           label: "NAS free"
           value: root.sizeOf(root.lab.storage.nasFreeGb, root.lab.storage.nasTotalGb)
-          fraction: (Number(root.lab.storage.nasTotalGb) || 0) > 0 ? (Number(root.lab.storage.nasFreeGb) || 0) / Number(root.lab.storage.nasTotalGb) : 0
+          fraction: root.nasUsedFraction
+          alert: root.nasKnown && 1 - root.nasUsedFraction < root.nasFreeAlertBelow
           url: root.lab.links.nas
         }
         GaugeRow {

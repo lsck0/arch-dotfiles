@@ -105,12 +105,13 @@ PopupWindow {
 
   onOpenChanged: if (open) keys.forceActiveFocus()
 
-  // Esc closes, Tab and hjkl walk the focusable rows, like a HoverPanel
+  // Esc and q close, Tab and hjkl walk the focusable rows, like a HoverPanel
   PanelKeyCatcher {
     id: keys
     anchors.fill: parent
     blocked: !root.open
     onCloseRequested: root.close()
+    onTextKey: function(text) { if (text === "q") root.close() }
     onTabRequested: function(direction) { root.focusWalk(direction > 0) }
     onMoveRequested: function(dx, dy) { root.focusWalk(dy > 0 || dx > 0) }
 
@@ -121,6 +122,7 @@ PopupWindow {
       opacity: boot.progress
       transform: Translate { y: -(1 - boot.progress) * Style.motion.travel }
 
+      // no flicker: like the other small transient cards, only the big panels flicker
       GlassCard {
         id: card
         width: root.width

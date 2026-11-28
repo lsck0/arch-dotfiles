@@ -127,6 +127,7 @@ Item {
       dim: true
       highlighted: root.highlighted
       caption: true
+      font.features: { "tnum": 1 }
     }
 
     Sparkline {

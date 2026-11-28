@@ -429,7 +429,10 @@ Item {
     // a bare prefix leaves the line to the mode's placeholder, the one place the capture grammar is shown
     query: root.mode === "apps" || root.modeQuery ? root.filterText : ""
     placeholder: (root.mode === "apps" ? "" : root.filterText.charAt(0) + " ") + root.modePlaceholders[root.mode]
-    hints: root.modeHints[root.mode].concat([["ESC", root.escClears ? "clear" : "close"]])
+    // pending reminders and run history sit below the first row, reached only by arrowing down
+    hints: ((root.mode === "remind" && TimerState.reminders.length > 0) || (root.mode === "run" && root.rows.length > 1)
+            ? [["^/v", "select"]] : [])
+      .concat(root.modeHints[root.mode]).concat([["ESC", root.escClears ? "clear" : "close"]])
     onDismissed: root.close()
 
     Item {

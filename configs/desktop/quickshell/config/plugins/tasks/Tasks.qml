@@ -584,11 +584,10 @@ Item {
             HudFrame { shown: row.hasCursor }
           }
 
-          Label {
-            anchors.centerIn: parent
-            visible: root.filtered.length === 0
+          EmptyState {
+            shown: root.filtered.length === 0
+            glyph: "\u{f0135}" // md-checkbox-marked-outline
             text: TaskState.errorText ? "> FAILED" : !TaskState.loaded ? "> LOADING" : root.filterText ? "> NO MATCH" : "> NO TASKS"
-            dim: true
           }
         }
 
@@ -696,6 +695,7 @@ Item {
             function onTextChanged() { NotesState.syncInto(notesEdit) }
           }
 
+          // a text placeholder where the first line would go, not a list's empty state, so no EmptyState
           Label {
             anchors.left: parent.left
             anchors.top: parent.top
@@ -751,6 +751,7 @@ Item {
             event.accepted = true
           }
 
+          // a text placeholder where the first line would go, not a list's empty state, so no EmptyState
           Label {
             anchors.left: parent.left
             anchors.top: parent.top

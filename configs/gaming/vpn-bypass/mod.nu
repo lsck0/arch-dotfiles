@@ -12,7 +12,7 @@ export def system [cfg: record] {
     [
         (group-system $GROUP)
         # no members: newgrp would hand a member the bypass without asking; games-run asks for the key
-        (group-members $GROUP | each {|m| exec $"($GROUP) drops ($m)" [gpasswd -d $m $GROUP] })
+        (group-members-remove $GROUP)
         (file-copy config/games-bypass.nft /etc/nftables.d/games-bypass.nft --then $reload)
         (file-copy scripts/games-run.sh /usr/local/bin/games-run --mode 755)
         (file-copy ("config" | path join $POLICY) ("/usr/share/polkit-1/actions" | path join $POLICY))
@@ -25,6 +25,6 @@ export def system [cfg: record] {
 }
 
 export def nudge []: nothing -> nothing {
-    if (do { ^systemctl is-active -q NetworkManager.service } | complete).exit_code != 0 { return }
+    if not (unit-active NetworkManager.service) { return }
     for link in (links-physical) { ^$DISPATCHER $link up }
 }

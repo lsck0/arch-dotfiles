@@ -469,6 +469,11 @@ export def group-members [group: string]: nothing -> list<string> {
     | default "" | split row "," | where $it != ""
 }
 
+# Drops every login /etc/group lists in group from it.
+export def group-members-remove [group: string]: nothing -> list<record> {
+    group-members $group | each {|member| exec $"($group) drops ($member)" [gpasswd -d $member $group] }
+}
+
 # A system group every wheel member is in.
 export def group-admins [group: string]: nothing -> record {
     group-system $group ...(group-members wheel)

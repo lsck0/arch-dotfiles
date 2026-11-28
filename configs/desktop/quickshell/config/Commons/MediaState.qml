@@ -139,10 +139,7 @@ Singleton {
     return m ? "https://i.ytimg.com/vi/" + m[1] + "/mqdefault.jpg" : ""
   }
 
-  readonly property bool artRemote: /^https?:\/\//i.test(root.artUrl)
   readonly property string artCacheDir: Paths.runtimeDir + "/quickshell-mediaart"
-  readonly property string artCacheFile:
-    root.artRemote ? (root.artCacheDir + "/" + Qt.md5(root.artUrl)) : ""
   readonly property int artCacheKeep: 50
   // the cache sits in the runtime tmpfs: curl >= 8.4 aborts at this size even without a sent length, and its exit
   // code throws the partial body away
@@ -154,28 +151,34 @@ Singleton {
 
   // a local file url the art Image loads, empty while a remote cover is fetched or when there is none
   property string artSource: ""
+  // the url the next fetch is for, and the one the running or last fetch started with: an exit of a fetch for an
+  // earlier url never sets the source
   property string artFetchedUrl: ""
+  property string artRunUrl: ""
   property int artTries: 0
 
-  function fetchArt() {
+  function artIsRemote(url) { return /^https?:\/\//i.test(url) }
+  function artCacheFileFor(url) { return root.artCacheDir + "/" + Qt.md5(url) }
+
+  function fetchArt(url) {
     artProc.running = false
-    if (!root.artCacheFile) return
-    root.artFetchedUrl = root.artUrl
+    root.artFetchedUrl = url
     artProc.running = true
   }
 
+  // reads only artUrl itself: the bindings derived from it may not have caught up yet inside onArtUrlChanged
   function refreshArt() {
+    var url = root.artUrl
     root.artTries = 0
     root.artSource = ""
-    var u = root.artUrl
-    if (!u) { artProc.running = false; return }
-    if (!root.artRemote) { artProc.running = false; root.artSource = u; return }
-    fetchArt()
+    if (artIsRemote(url)) { fetchArt(url); return }
+    artProc.running = false
+    root.artSource = url
   }
 
   // a cached cover that fails to decode is dropped and fetched again, a bounded number of times
   function artFailed() {
-    if (!root.artRemote || root.artTries >= root.artTriesMax) return
+    if (!artIsRemote(root.artUrl) || root.artTries >= root.artTriesMax) return
     root.artTries += 1
     root.artSource = ""
     artDropProc.running = true
@@ -185,8 +188,8 @@ Singleton {
 
   Process {
     id: artDropProc
-    command: ["rm", "-f", "--", root.artCacheFile]
-    onExited: root.fetchArt()
+    command: ["rm", "-f", "--", root.artCacheFileFor(root.artUrl)]
+    onExited: if (root.artIsRemote(root.artUrl)) root.fetchArt(root.artUrl)
   }
 
   Process {
@@ -198,12 +201,12 @@ Singleton {
       " -o \"$f.part\" \"$3\" && [ -s \"$f.part\" ] && mv -f -- \"$f.part\" \"$f\" " +
       "|| { rm -f -- \"$f.part\"; exit 1; }; " +
       "ls -1t -- \"$d\" | tail -n +" + (root.artCacheKeep + 1) + " | while IFS= read -r o; do rm -f -- \"$d/$o\"; done",
-      "sh", root.artCacheDir, root.artCacheFile, root.artUrl]
+      "sh", root.artCacheDir, root.artCacheFileFor(root.artFetchedUrl), root.artFetchedUrl]
+    onStarted: root.artRunUrl = root.artFetchedUrl
     onExited: function (exitCode) {
-      if (exitCode !== 0) return
-      if (root.artFetchedUrl !== root.artUrl) return
+      if (exitCode !== 0 || root.artRunUrl !== root.artUrl) return
       root.artSource = ""
-      root.artSource = "file://" + root.artCacheFile
+      root.artSource = "file://" + root.artCacheFileFor(root.artRunUrl)
     }
   }
 

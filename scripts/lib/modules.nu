@@ -18,6 +18,8 @@ const IMPORT_LINE = '\s*(?:export\s+)?(?:use|source|source-env)\s+(?<p>[\w.]\S*\
 const IMPORT_GREP = '^\s*(export\s+)?(use|source|source-env)\s+[[:alnum:]_.][^[:space:]]*\.nu([[:space:]]|$)'
 # owner only: the cache names the private secrets group's modules and their options
 const DISCOVER_MODE = "600"
+const DISCOVER_PREFIX = "discover"
+const DISCOVER_ID_LENGTH = 16
 export const ROOT_MODULES = [scripts skills]
 export const SECRETS_GROUP = "secrets"
 export const SECRETS_DATA = ["secrets/keys/**" "secrets/state/**"]
@@ -153,6 +155,23 @@ export def imports-walk [files: list<string>]: nothing -> list<string> {
     $seen | skip ($files | length)
 }
 
+# One cache per checkout, so a worktree and the main checkout do not rescan on every switch; the caller's own, never
+# root's: a user plans the system layer too.
+def discover-cache [repo: path]: nothing -> path {
+    let dir = if (is-admin) { $SYSTEM_STATE } else { xdg cache dotfiles }
+    let id = $repo | path expand | hash sha256 | str substring 0..<$DISCOVER_ID_LENGTH
+    $dir | path join $"($DISCOVER_PREFIX)-($id).nuon"
+}
+
+# Removes the caches whose checkout is gone (a removed worktree) and any without a readable repo (a cut-off write, the
+# single cache of older versions); a miss pays this, a hit never reads the others.
+def discover-caches-prune [dir: path]: nothing -> nothing {
+    for cache in (glob ($dir | path join $"($DISCOVER_PREFIX)*.nuon")) {
+        let repo = try { open $cache | get repo } catch { null }
+        if $repo == null or not ($repo | path exists) { rm --force $cache }
+    }
+}
+
 # Every module in the repo, cached on the stat of the markers and what they import; selected says whether this
 # platform runs it.
 export def modules-discover [repo: path, groups: list<string>]: nothing -> table {
@@ -163,15 +182,15 @@ export def modules-discover [repo: path, groups: list<string>]: nothing -> table
     let inputs = $markers | append ($found | where ($it | path basename) == $DEPENDENCIES) | append $SELF
         | append (imports-walk $markers)
     let key = ls --full-paths ...$inputs | select name size modified | to nuon | hash sha256
-    # the caller's own cache, never root's: a user plans the system layer too
-    let cache = if (is-admin) { $SYSTEM_STATE | path join discover.nuon } else { xdg cache dotfiles discover.nuon }
+    let cache = discover-cache $repo
     # an unreadable or empty cache (a cut-off write) is a miss, rescanned and written anew
     let cached = try { let c = open $cache; {key: $c.key, modules: $c.modules} } catch { {key: ""} }
     let found = if $cached.key == $key { $cached.modules } else {
         let scanned = modules-scan $repo $markers
         if not ($scanned | any { $in.broken }) {
             mkdir ($cache | path dirname)
-            {key: $key, modules: $scanned} | to nuon | save-atomic $cache --mode $DISCOVER_MODE
+            discover-caches-prune ($cache | path dirname)
+            {key: $key, repo: ($repo | path expand), modules: $scanned} | to nuon | save-atomic $cache --mode $DISCOVER_MODE
         }
         $scanned
     }

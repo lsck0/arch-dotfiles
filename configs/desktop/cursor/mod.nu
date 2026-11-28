@@ -179,9 +179,12 @@ export def build [colors_json: string, active: string, size: string]: nothing ->
     mv $next $dest
     rm --recursive --force ...$stages
     if $active == "true" and (hyprland-live) {
+        # dynamic-cursors' shake magnifier keeps its own copy of the theme and skips a load whose name and size match
+        # the last (highres.cpp), and a recolour keeps both: with its hyprcursor off during setcursor it drops that
+        # copy, and the reload, which turns it back on, loads the new shapes
+        ^hyprctl eval "hl.config({ plugin = { dynamic_cursors = { hyprcursor = { enabled = false } } } })" | ignore
         ^hyprctl setcursor $CURSOR_THEME $size | ignore
         ^systemctl --user set-environment $"XCURSOR_THEME=($CURSOR_THEME)" $"HYPRCURSOR_THEME=($CURSOR_THEME)"
-        # dynamic-cursors' shake magnifier reloads its theme only on a config reload, not on setcursor
         reload
     }
 }

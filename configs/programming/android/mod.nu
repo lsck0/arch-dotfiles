@@ -46,7 +46,7 @@ export def link [cfg: record] {
     let env_vars = if ($JAVA_HOME | path exists) { [$"JAVA_HOME=($JAVA_HOME)"] } else { [] }
     # adb and the emulator on PATH for the session (systemd's environment.d) and zsh (zshenv sources the same dir)
     let path = $"PATH=${PATH}:($sdk)/platform-tools:($sdk)/emulator\n"
-    let tor = (^systemctl is-active --quiet $TOR_ROUTER | complete).exit_code == 0
+    let tor = unit-active $TOR_ROUTER
     if $tor { log-note "android: the sdk downloads wait for a network off tor, dl.google.com refuses tor exits" }
     [
         (file-text (xdg config environment.d android.conf) $path)

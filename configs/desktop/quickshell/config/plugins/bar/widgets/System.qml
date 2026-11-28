@@ -12,6 +12,7 @@ BarWidget {
   barPriority: 90
   hoverPanel: true
   hoverFill: true
+  hoverCursor: Qt.ArrowCursor
 
   // one system-stats.nu line; a key it leaves out or null takes the value here
   readonly property var statsEmpty: ({
@@ -32,10 +33,12 @@ BarWidget {
   property var gpuHist: []
   property var memHist: []
   property var tempHist: []
+  property var vramHist: []
   // the bar sparkline's floor: an idle desktop's few percent stay flat instead of filling the range
   readonly property real cpuSparkFloor: 25
   readonly property var loadThresholds: [60, 80, 92]
   readonly property var tempThresholds: [60, 75, 85]
+  readonly property int batteryLowPercent: 15
   readonly property var batteryDevice: UPower.displayDevice
   readonly property bool batteryPresent: batteryDevice && batteryDevice.isPresent === true
   readonly property bool onBattery: UPower.onBattery === true
@@ -46,12 +49,13 @@ BarWidget {
     "PendingCharge": UPowerDeviceState.PendingCharge
   })
   readonly property real batteryFraction: BatteryModel.batteryFraction(batteryDevice)
+  readonly property bool batteryLow: batteryPresent && onBattery && batteryFraction * 100 <= batteryLowPercent
   readonly property string batteryIcon: BatteryModel.batteryIcon(batteryDevice, onBattery, upowerStates)
   readonly property string batteryTime: {
     if (!batteryPresent) return ""
     return BatteryModel.formatDuration(onBattery ? batteryDevice.timeToEmpty : batteryDevice.timeToFull)
   }
-  readonly property int statsIntervalS: onBattery ? 15 : 10
+  readonly property int statsIntervalS: onBattery ? 15 : 5
   // the top lists show in the panel only: system-stats.nu walks /proc for them while the panel is open and for
   // topLingerMs after, so hovering in and out does not respawn it each time
   readonly property int topLingerMs: 30000
@@ -133,6 +137,7 @@ BarWidget {
         root.gpuHist = Util.historyPush(root.gpuHist, s.gpuPct || 0)
         root.memHist = Util.historyPush(root.memHist, root.memPct)
         root.tempHist = Util.historyPush(root.tempHist, s.tempC)
+        root.vramHist = Util.historyPush(root.vramHist, root.vramPct)
       }
     }
   }
@@ -157,7 +162,7 @@ BarWidget {
       value: root.reading(root.stats.cpu, "%")
     }
 
-    // the one reading whose state the panel colours: the bar carries the same tint
+    // temperature and a low battery carry their panel tint in the bar too
     Stat {
       glyph: "\u{f050f}"
       widest: "100\u00b0C"
@@ -190,6 +195,7 @@ BarWidget {
       glyph: root.batteryIcon
       widest: "99%"
       value: Math.round(root.batteryFraction * 100) + "%"
+      tint: root.batteryLow ? Colors.warnText : Colors.bar.text
     }
   }
 
@@ -246,12 +252,13 @@ BarWidget {
           fraction: root.stats.gpuPct / 100
           tint: root.critLoad(root.stats.gpuPct)
           value: root.stats.gpuPct + "%"
-          note: root.ghz(root.stats.gpuFreqMhz)
+          note: root.stats.gpuFreqMhz > 0 ? root.ghz(root.stats.gpuFreqMhz) : ""
         }
 
         Meter {
           visible: root.hasVram
           label: "VRAM"
+          history: root.vramHist
           fraction: root.vramPct / 100
           tint: root.critLoad(root.vramPct)
           value: Math.round(root.vramPct) + "%"
@@ -287,7 +294,7 @@ BarWidget {
         HudStat {
           visible: !root.hasGpuPct && root.stats.gpuFreqMhz > 0
           label: "GPU CLK"
-          value: root.stats.gpuFreqMhz + " MHz"
+          value: root.ghz(root.stats.gpuFreqMhz)
         }
 
         HudStat {
@@ -328,6 +335,7 @@ BarWidget {
           label: "BATTERY"
           value: Math.round(root.batteryFraction * 100) + "%" + (root.batteryTime ? " :: " + root.batteryTime : "")
           note: root.batteryNote
+          tint: root.batteryLow ? Colors.warnText : Colors.menu.text
         }
       }
 

@@ -21,7 +21,7 @@ export def system [cfg: record] {
 def sql [query: string]: nothing -> string {
     # postgres can not read the module dir
     cd /
-    if (do { ^systemctl is-active --quiet postgresql } | complete).exit_code == 0 {
+    if (unit-active postgresql) {
         ^runuser -u postgres -- psql -XqtA -v ON_ERROR_STOP=1 -c $query
     } else {
         $query | ^runuser -u postgres -- postgres --single -c log_checkpoints=off -D $DATA postgres

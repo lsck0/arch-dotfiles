@@ -1,8 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
 # The packages a module's hook can want under every profile and option, which mirror/packages.txt is built from, and
 # the run order's levels: group dependencies, a meta.deps edge to one specific module of another group, and a cycle.
-# A discover cache that is missing, empty, cut off or of the wrong shape is a miss, never a crash. Root runs the hooks
-# of system and packages modules, and a detect only where one of them reads its module.
+# A discover cache that is missing, empty, cut off or of the wrong shape is a miss, never a crash; each checkout
+# keeps its own, and a miss prunes those of removed checkouts. Root runs the hooks of system and packages modules, and
+# a detect only where one of them reads its module.
 use modules.nu [module-packages-every packages-every-context modules-graph modules-discover modules-root-run]
 use std/assert
 
@@ -70,7 +71,7 @@ def discover-cache-cases [] {
     let repo = $work | path join repo
     mkdir ($repo | path join configs g m)
     "export def link [cfg: record] { [] }\n" | save ($repo | path join configs g m mod.nu)
-    let cache = $work | path join cache dotfiles discover.nuon
+    let caches = {|| glob ($work | path join cache dotfiles discover*.nuon) }
     let cases = [
         [name content];
         ["none" null]
@@ -78,14 +79,30 @@ def discover-cache-cases [] {
         ["cut off" "{key: \"abc\", modules: [{id: "]
         ["a list" "[1 2]"]
     ]
+    let discover_in = {|r| with-env {XDG_CACHE_HOME: ($work | path join cache)} { modules-discover $r [g] } }
+    do $discover_in $repo
+    let cache = do $caches | first
     for c in $cases {
         rm --force $cache
-        if $c.content != null { mkdir ($cache | path dirname); $c.content | save $cache }
-        let found = with-env {XDG_CACHE_HOME: ($work | path join cache)} { modules-discover $repo [g] }
+        if $c.content != null { $c.content | save $cache }
+        let found = do $discover_in $repo
         assert equal $found.id [g/m] $"discover cache ($c.name): found ($found.id | to nuon)"
         assert equal (open $cache | get modules.id) [g/m] $"discover cache ($c.name): not written anew"
         assert equal (^stat -c "%a" $cache | str trim) "600" $"discover cache ($c.name): readable by others"
     }
+    # a second checkout keeps its own cache; a miss prunes the one of a removed checkout and the older single cache
+    let other = $work | path join other
+    mkdir ($other | path join configs g n)
+    "export def link [cfg: record] { [] }\n" | save ($other | path join configs g n mod.nu)
+    assert equal (do $discover_in $other | get id) [g/n] "discover cache: the second checkout read the first's"
+    assert equal (do $caches | length) 2 $"discover cache: checkouts share a file: (do $caches | to nuon)"
+    assert equal (open $cache | get modules.id) [g/m] "discover cache: the second checkout overwrote the first's"
+    let legacy = $work | path join cache dotfiles discover.nuon
+    "{key: \"\", modules: []}" | save $legacy
+    rm --recursive $other
+    "export def link [cfg: record] { [ ] }\n" | save --force ($repo | path join configs g m mod.nu)
+    do $discover_in $repo
+    assert equal (do $caches) [$cache] $"discover cache: stale caches kept: (do $caches | to nuon)"
     let shared = $repo | path join configs g shared.nu
     "export const V = \"old\"\n" | save $shared
     "use ../shared.nu [V]\nexport const options = {v: {type: string, default: $V}}\nexport def link [cfg: record] { [] }\n"

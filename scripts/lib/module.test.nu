@@ -5,8 +5,9 @@
 # mcp-compat (a failed build keeps the live venv), mcp-servers (only the installed agents' files), and
 # unit-timer's text (key order, Persistent with a calendar, the mains condition) and enabling, and xwayland-scale-for
 # (the compositor's option, else its monitors' main scale, else the form factor's), skill-dirs and skills-link, and
-# sync-link (linked only while the live dir is absent, empty or with --same identical; otherwise left with a note).
-use module.nu [desktop-set decls-flatten polkit-rules udev-reload udev-rules unit-dir unit-restart unit-timer mcp-uvx mcp-compat mcp-servers xwayland-scale-for skill-dirs skills-link sync-link]
+# sync-link (linked only while the live dir is absent, empty or with --same identical; otherwise left with a note),
+# and group-members-remove (one gpasswd -d per member /etc/group lists, nothing for a group without members).
+use module.nu [desktop-set decls-flatten polkit-rules udev-reload udev-rules unit-dir unit-restart unit-timer mcp-uvx mcp-compat mcp-servers xwayland-scale-for skill-dirs skills-link sync-link group-members group-members-remove]
 use std/assert
 
 def main [] {
@@ -129,6 +130,17 @@ def main [] {
     xwayland-cases
     skills-cases
     sync-link-cases
+    group-members-remove-cases
+}
+
+# Against the live /etc/group: a group nobody is in, and the first one with members, if any.
+def group-members-remove-cases [] {
+    assert equal (group-members-remove dot-test-absent-group) [] "group-members-remove: decls for a group without members"
+    let group = open /etc/group | lines | parse "{name}:{x}:{gid}:{members}" | where members != "" | get --optional 0.name
+    if $group == null { return }
+    let got = group-members-remove $group | select kind target argv
+    let wants = group-members $group | each {|m| {kind: exec, target: $"($group) drops ($m)", argv: [gpasswd -d $m $group]} }
+    assert equal $got $wants $"group-members-remove ($group): got ($got | to nuon)"
 }
 
 # A PATH of uv and stub commands for agents alone, so which agents count as installed is the test's choice.
