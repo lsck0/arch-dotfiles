@@ -134,10 +134,9 @@ def invariants []: nothing -> list<record> {
 }
 
 # Modules the last run of either layer left waiting on their packages, the network or a dependency (pending or failed):
-# pending, no failure of their own.
+# pending, no failure of their own. lines: pending-recorded's.
 # A run that found DNS-over-TLS blocked adds the way through it.
-def modules-pending []: nothing -> list<record> {
-    let lines = pending-recorded
+export def pending-reports [lines: list<string>]: nothing -> list<record> {
     if ($lines | is-empty) { return [(report ok pending "no module waits on its packages, the network or a dependency")] }
     let blocked = $lines | any { str contains $DNS_TLS_BLOCKED }
     let escape = if $blocked {
@@ -359,7 +358,7 @@ def preserved []: nothing -> list<record> {
 # or null.
 def checks [system: any]: nothing -> list<closure> {
     [
-        {|| failures} {|| crashes} {|| config-pending} {|| modules-pending} {|| reboot} {|| invariants} {|| apparmor} {|| snapshot}
+        {|| failures} {|| crashes} {|| config-pending} {|| pending-reports (pending-recorded)} {|| reboot} {|| invariants} {|| apparmor} {|| snapshot}
         {|| packages $system} {|| stuck} {|| firewall} {|| luks} {|| units} {|| hooks} {|| cores} {|| secrets} {|| preserved}
     ]
 }

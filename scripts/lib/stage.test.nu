@@ -69,8 +69,14 @@ def pending-cases []: nothing -> nothing {
     assert ($many | str contains "and 15 more") $"pending banner of many hides its count:\n($many)"
     let rooted = pending-banner {offline: [$"core/cli: ($OFFLINE_PENDING)"], waiting: []} --options-file $OPTIONS_ROOT
     assert (($rooted | str contains $ESCAPE_ROOT) and not ($rooted | str contains "Waiting on")) $"pending banner of root's options:\n($rooted)"
+    # VM run 6: root's options and dot blocked, only the 853 way through, no untrusted_policy edit that would not lift it
+    let blocked_root = pending-banner {offline: [$"core/cli: ($DNS_TLS_PENDING)"], waiting: []} --options-file $OPTIONS_ROOT
+    let generic = ["untrusted_policy" $ESCAPE_ROOT "Offline or on an untrusted network"] | where {|w| $blocked_root | str contains $w }
+    assert (($blocked_root | str contains "allow tcp 853 out") and ($generic | is-empty)) $"pending banner of root's options, dot blocked:\n($blocked_root)"
     let blocked = install-banner 3 [] --dns-tls
     assert (($blocked | str contains $DNS_TLS_BLOCKED) and not ($blocked | str contains $ESCAPE)) $"install banner with dot blocked:\n($blocked)"
+    let blocked_root = install-banner 3 [] --dns-tls --options-file $OPTIONS_ROOT
+    assert not ($blocked_root | str contains "untrusted_policy") $"install banner of root's options, dot blocked:\n($blocked_root)"
     assert ($blocked | lines | any { ($in | str trim) == $STAGE_RESUME }) $"install banner with dot blocked lost the resume:\n($blocked)"
 }
 

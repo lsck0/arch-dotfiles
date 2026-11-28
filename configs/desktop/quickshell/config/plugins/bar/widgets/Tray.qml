@@ -110,6 +110,13 @@ BarWidget {
     trayMenuOpen = true
   }
 
+  // An icon's menu asked from the manage popup: the popup goes first, then the menu docks to the tray on the bar. Opened
+  // over it instead, the menu's focus grab would clear the popup's, whose close() closes the menu with it.
+  function menuFromManager(item) {
+    managePopupOpen = false
+    Qt.callLater(function() { root.openTrayMenu(item, root, { x: root.width / 2, y: root.height }) })
+  }
+
   function iconIsSymbolic(icon) {
     var name = String(icon || "").split("?")[0]
     return name.slice(-9) === "-symbolic"
@@ -209,11 +216,14 @@ BarWidget {
         height: Style.bar.sizeHorizontal
         clip: true
 
+        // a fixed height with each item centred: the manage button is taller than an icon, and a Row grown to fit it
+        // would re-centre and lift every icon whenever it shows
         Row {
-          anchors.verticalCenter: parent.verticalCenter
+          height: parent.height
           spacing: root.trayItemGap
 
           WidgetButton {
+            anchors.verticalCenter: parent.verticalCenter
             visible: root.manageShown
             bar: root.bar
             fixedWidth: root.trayItemExtent
@@ -228,7 +238,7 @@ BarWidget {
 
           Repeater {
             model: root.drawerShown
-            TrayItem {}
+            TrayItem { anchors.verticalCenter: parent ? parent.verticalCenter : undefined }
           }
         }
       }
@@ -306,12 +316,12 @@ BarWidget {
                 rowRoot.modelData.secondaryActivate()
                 return
               }
-              if (mouse.button === Qt.RightButton) {
-                root.openTrayMenu(rowRoot.modelData, rowOpen, mouse)
+              const item = rowRoot.modelData
+              if (mouse.button === Qt.RightButton || item.onlyMenu) {
+                root.menuFromManager(item)
                 return
               }
-              const item = rowRoot.modelData
-              if (!item.onlyMenu) root.managePopupOpen = false
+              root.managePopupOpen = false
               root.activateItem(item, rowOpen, mouse)
             }
           }

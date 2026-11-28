@@ -5,7 +5,9 @@
 # systemd-run without --unit is its caller's, not a failed unit to report. The
 # printed lines put what needs action first and end on the count of each level. A package installed at a version no repo
 # carries is a stuck candidate, one an own build carries is not; core dumps are one note, the most frequent first.
-use doctor.nu [luks-reports crash-reports packages-reports doctor-lines units-owned stuck-candidates stuck-reports cores-reports]
+# Pending lines are notes; one with DNS-over-TLS blocked adds its own way through, never the untrusted_policy one.
+use doctor.nu [luks-reports crash-reports packages-reports pending-reports doctor-lines units-owned stuck-candidates stuck-reports cores-reports]
+use online.nu [OFFLINE_PENDING DNS_TLS_PENDING]
 use std/assert
 
 const UUID = "39244fe4-3a83-414e-aa5e-f1a17f10057d"
@@ -112,6 +114,16 @@ def cores-cases []: nothing -> nothing {
     assert ($got.0.text | str contains "b x2 a x1") "cores: most frequent first, basename only"
 }
 
+def pending-cases []: nothing -> nothing {
+    assert equal (pending-reports [] | get level) [ok] "pending: none"
+    let offline = pending-reports [$"core/cli: ($OFFLINE_PENDING)" "core/tmux: waits on core/cli (pending)"]
+    assert equal ($offline | get level) [note note] $"pending offline: ($offline | to nuon)"
+    let blocked = pending-reports [$"core/cli: ($DNS_TLS_PENDING)" "core/tmux: waits on core/cli (pending)"]
+    assert equal ($blocked | get level) [note note note] $"pending dot blocked: ($blocked | to nuon)"
+    assert ($blocked | last | get text | str contains "allow tcp 853 out") $"pending dot blocked, no way through: ($blocked | to nuon)"
+    assert not ($blocked.text | any { str contains "untrusted_policy" }) $"pending dot blocked names the policy: ($blocked | to nuon)"
+}
+
 def main []: nothing -> nothing {
     let dir = mktemp --directory --tmpdir dot-doctor-test-XXXXXX
     luks-cases
@@ -120,6 +132,7 @@ def main []: nothing -> nothing {
     lines-cases
     stuck-cases
     cores-cases
+    pending-cases
     crash-cases $dir
     rm --recursive --force $dir
 }

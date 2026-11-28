@@ -12,7 +12,7 @@ const PROBE_TIMEOUT_S = 5
 const CACHE_FILE = "online.nuon"
 const RETRIED = "retried on the next apply"
 export const OFFLINE_PENDING = $"offline, ($RETRIED)"
-# a link and tcp, but no names: resolved's strict DNS-over-TLS cannot reach its servers, which only answer on 853
+# names over plain DNS, but not over 853: resolved's strict DNS-over-TLS cannot reach its servers
 export const DNS_TLS_BLOCKED = "DNS-over-TLS unreachable (port 853 blocked?)"
 export const DNS_TLS_PENDING = $"offline, ($DNS_TLS_BLOCKED), ($RETRIED)"
 # a captive portal window: plain DNS from the link's own resolver for base/networkmanager.portal_window_s, then strict
@@ -22,9 +22,18 @@ const PORTAL_OPEN = $"pkexec ($PORTAL_HELPER) portal on"
 const DOT_PORT = 853
 # where a DNS-over-TLS server that also serves DNS-over-HTTPS (quad9) answers: tcp through, only 853 dropped
 const HTTPS_PORT = 443
+const DNS_PORT = 53
 const CONNECT_TIMEOUT_S = 3
 # bash's /dev/tcp: one tcp connect, no client of its own needed; $0 the address, $1 the port
 const CONNECT = 'exec 3<>"/dev/tcp/$0/$1"'
+# one DNS query over tcp ($2, printf escapes, length-prefixed), answered with QR set and RCODE 0 (NOERROR): the server
+# and its upstream answer, which a router whose uplink is down does not (SERVFAIL); flags are the reply's bytes 4 and 5
+const LOOKUP = 'exec 3<>"/dev/tcp/$0/$1" && printf "$2" >&3 && r=$(head -c 6 <&3 | od -An -tx1 | tr -d " \n") && [ "${#r}" = 12 ] && [ $((0x${r:8:4} & 0x800f)) = $((0x8000)) ]'
+# header: id 1, RD, one question; question: type A, class IN
+const QUERY_HEADER = 0x[0001 0100 0001 0000 0000 0000]
+const QUERY_TAIL = 0x[00 0001 0001]
+# a link resolver on this machine (portmaster, a local stub) says nothing about the network
+const LOOPBACK = '^(?:127\.|::1$)'
 # curl's code for a name it could not resolve, and its text for a lookup cut by its own time bound (28)
 const CURL_UNRESOLVED = 6
 const CURL_RESOLVE_TIMEOUT = '(?i)resolving timed out'
@@ -44,6 +53,21 @@ def reachable [address: string, port: int]: nothing -> bool {
     succeeds timeout $CONNECT_TIMEOUT_S bash -c $CONNECT $address $port
 }
 
+# name's A query as a tcp DNS message, in printf's \xHH escapes.
+def query-escaped [name: string]: nothing -> string {
+    let labels = $name | split row "." | each {|l| ($l | str length | into binary | bytes at 0..0) ++ ($l | encode utf8) }
+    let message = $labels | reduce --fold $QUERY_HEADER {|l, acc| $acc ++ $l } | $in ++ $QUERY_TAIL
+    let length = $message | bytes length | into binary --endian big | bytes at (-2)..
+    $length ++ $message | encode hex | split chars | chunks 2 | each { $"\\x($in | str join)" } | str join
+}
+
+def answers [address: string]: nothing -> bool {
+    let name = $PROBE_URL | url parse | get host
+    succeeds timeout $CONNECT_TIMEOUT_S bash -c $LOOKUP $address $DNS_PORT (query-escaped $name)
+}
+
+def server-bare []: string -> string { split row "#" | first | split row "%" | first }
+
 # The first DNS server resolved's global section names, without its #name or %interface, null unless that section
 # runs strict DNS-over-TLS. status: `resolvectl status`.
 export def resolved-tls-server [status: string]: nothing -> any {
@@ -55,18 +79,29 @@ export def resolved-tls-server [status: string]: nothing -> any {
     let listed = $global | where key == "DNS Servers" | get --optional 0.value | default "" | split row " " | where $it != ""
     let server = $current | default ($listed | get --optional 0)
     if $server == null { return null }
-    $server | split row "#" | first | split row "%" | first
+    $server | server-bare
+}
+
+# The DNS servers resolved's link sections name (a link's own, from DHCP), bare, without loopback ones, each once.
+# status: `resolvectl status`.
+export def resolved-link-servers [status: string]: nothing -> list<string> {
+    $status | lines | skip until { $in =~ '^Link \d+ ' }
+        | parse --regex '^\s*(?:Current DNS Server|DNS Servers):\s+(?<value>.*)$' | get value
+        | each { split row " " } | flatten | where $it != "" | each { server-bare } | where $it !~ $LOOPBACK | uniq
 }
 
 # Why a failed probe left this machine offline, as a pending text: DNS_TLS_PENDING when the name did not resolve, the
-# resolver runs strict DNS-over-TLS and its server takes tcp, but not on 853; else OFFLINE_PENDING. reach: {|address,
-# port| bool}, a tcp connect.
-export def offline-pending [probe: record, status: string, reach: closure]: nothing -> string {
+# resolver runs strict DNS-over-TLS, its server takes no tcp on 853, and the network is up all the same: that server
+# takes tcp on 443, or a link's own DNS server answers a lookup over tcp; else OFFLINE_PENDING, which a kill switch or
+# a dead link gets. reach: {|address, port| bool}, a tcp connect; answers: {|address| bool}, a lookup there.
+export def offline-pending [probe: record, status: string, reach: closure, answers: closure]: nothing -> string {
     let unresolved = $probe.exit_code == $CURL_UNRESOLVED or ($probe.stderr =~ $CURL_RESOLVE_TIMEOUT)
     if not $unresolved { return $OFFLINE_PENDING }
     let server = resolved-tls-server $status
-    if $server == null { return $OFFLINE_PENDING }
-    if not (do $reach $server $DOT_PORT) and (do $reach $server $HTTPS_PORT) { $DNS_TLS_PENDING } else { $OFFLINE_PENDING }
+    if $server == null or (do $reach $server $DOT_PORT) { return $OFFLINE_PENDING }
+    # each a bounded connect, asked at once: a dropped one costs CONNECT_TIMEOUT_S, not one per server
+    let evidence = [{ do $reach $server $HTTPS_PORT }] ++ (resolved-link-servers $status | each {|link| { do $answers $link } })
+    if ($evidence | par-each { do $in } | any { $in }) { $DNS_TLS_PENDING } else { $OFFLINE_PENDING }
 }
 
 # The way to names on a network that drops 853, for a banner or dot status: {why, command}; --portal adds the captive
@@ -87,7 +122,8 @@ def check [url: string]: nothing -> record {
     let probed = probe $url
     if $probed.exit_code == 0 { return {online: true, pending: ""} }
     let status = do { ^resolvectl status } | complete | get stdout
-    {online: false, pending: (offline-pending $probed $status {|address, port| reachable $address $port })}
+    let pending = offline-pending $probed $status {|address, port| reachable $address $port } {|address| answers $address }
+    {online: false, pending: $pending}
 }
 
 # The pending text for a download's failure the remote caused (an outage, a rate limit, a block of this exit), null
