@@ -25,12 +25,15 @@ BarWidget {
   readonly property var drawerItems: bucket("drawer")
   readonly property var allItems: bucket("all")
   // unpinned icons past the cap and hidden ones fold into one "+N" slot that opens the manage popup; with none folded
-  // it stays as a plain manage button, so an icon can always be hidden or brought back however few there are
+  // it is a plain manage button shown while the pointer is over the tray, so an icon can always be hidden or brought
+  // back however few there are. The slot is the tray's outer (left) edge and the right bar section is anchored right,
+  // so the tray grows into the free bar space and nothing already drawn moves when it appears.
   readonly property int drawerShownCountMax: 6
   readonly property var drawerShown: drawerItems.slice(0, drawerShownCountMax)
   readonly property int hiddenCount: allItems.length - pinnedItems.length - drawerItems.length
   readonly property int moreCount: drawerItems.length - drawerShown.length + hiddenCount
-  readonly property int drawerCount: drawerShown.length + 1
+  readonly property bool manageShown: moreCount > 0 || trayHover.hovered || managePopupOpen
+  readonly property int drawerCount: drawerShown.length + (manageShown ? 1 : 0)
   readonly property int trayItemExtent: Style.bar.iconSlot
   readonly property int trayItemGap: Style.bar.itemGap
   readonly property int drawerExtent: drawerCount > 0 ? drawerCount * trayItemExtent + (drawerCount - 1) * trayItemGap : 0
@@ -172,8 +175,6 @@ BarWidget {
   visible: allItems.length > 0
   implicitWidth: trayContent.implicitWidth
 
-  // the plain manage button shows only while the pointer is over the tray; its slot stays reserved, so nothing under
-  // the pointer moves when it appears
   HoverHandler { id: trayHover }
 
   Item {
@@ -212,23 +213,22 @@ BarWidget {
           anchors.verticalCenter: parent.verticalCenter
           spacing: root.trayItemGap
 
-          Repeater {
-            model: root.drawerShown
-            TrayItem {}
-          }
-
           WidgetButton {
+            visible: root.manageShown
             bar: root.bar
             fixedWidth: root.trayItemExtent
             fontSize: Style.font.caption
             hoverFill: true
-            keepSpace: true
-            concealed: root.moreCount === 0 && !trayHover.hovered && !root.managePopupOpen
             text: root.moreCount > 0 ? "+" + root.moreCount : "\u{f141}"
             tooltipText: (root.moreCount > 0
               ? Util.count(root.moreCount, "more tray icon") + (root.hiddenCount > 0 ? " (" + root.hiddenCount + " hidden)" : "")
               : "Tray icons") + " :: click to manage"
             onPressed: root.managePopupOpen = !root.managePopupOpen
+          }
+
+          Repeater {
+            model: root.drawerShown
+            TrayItem {}
           }
         }
       }
