@@ -6,13 +6,13 @@ body,
 .theme-dark,
 .theme-light,
 .theme-coal {
-    --wal-bg: #@bg @;
-    --wal-fg: #@fg @;
-    --wal-subtext: #@subtext @;
-    --wal-accent: #@accent @;
-    --wal-elevated: #@elevated @;
-    --wal-highlight: #@highlight @;
-    --wal-danger: #@danger @;
+    --wal-bg: #@bg@;
+    --wal-fg: #@fg@;
+    --wal-subtext: #@subtext@;
+    --wal-accent: #@accent@;
+    --wal-elevated: #@elevated@;
+    --wal-highlight: #@highlight@;
+    --wal-danger: #@danger@;
 
     /* Fluxer's surface scale, its stops' order kept: each a step from the background toward the text */
     --background-primary: var(--wal-bg) !important;
@@ -67,11 +67,11 @@ body,
     --text-on-brand-primary: var(--wal-bg) !important;
     --status-danger: var(--wal-danger) !important;
 
-    --radius-sm: @radius @px !important;
-    --radius-md: @radius @px !important;
-    --radius-lg: @radius @px !important;
-    --radius-xl: @radius @px !important;
-    --radius-2xl: @radius @px !important;
+    --radius-sm: @radius@px !important;
+    --radius-md: @radius@px !important;
+    --radius-lg: @radius@px !important;
+    --radius-xl: @radius@px !important;
+    --radius-2xl: @radius@px !important;
     --font-sans: "@font@", var(--font-fallback-sans) !important;
     --font-sans-primary: "@font@", var(--font-fallback-sans) !important;
 }
