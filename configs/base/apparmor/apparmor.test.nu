@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
-use mod.nu [HOOKS OVERRIDES TUNABLES hook-text override-text tunables]
+use mod.nu [HOOKS OVERRIDES TUNABLES hook-text modes-wrong override-text profile-built tunables]
 use scripts/profile-flags.nu [ETC MARKER OWN_SUFFIX SOURCE upstream-files]
 
 const HERE = path self .
@@ -167,6 +167,22 @@ def repo-path-check []: nothing -> list<string> {
     } | compact
 }
 
+# load's check: a stock stub aa-install left (program absent) is not a wrong mode, a built profile in the wrong one is
+def built-check []: nothing -> list<string> {
+    let etc = mktemp --directory
+    'profile chromium /usr/lib/chromium/chromium flags=(unconfined) {}' | save $"($etc)/chromium"
+    'profile signal-desktop /x flags=(unconfined) {}' | save $"($etc)/signal-desktop"
+    'profile signal-desktop /x {}' | save $"($etc)/signal-desktop.apparmor.d"
+    'profile feh /usr/bin/feh {}' | save $"($etc)/feh"
+    let built = [chromium signal-desktop feh] | where {|n| profile-built $n $etc }
+    rm --recursive --force $etc
+    let modes = {chromium: enforce, signal-desktop: enforce, feh: enforce}
+    let wrong = modes-wrong $modes $built {chromium: unconfined, signal-desktop: unconfined, feh: enforce}
+    if ($wrong.name? | default []) == [signal-desktop] { [] } else {
+        [$"load check: wrong modes ($wrong | to nuon), want only signal-desktop \(built ($built | to nuon)\)"]
+    }
+}
+
 def main []: nothing -> nothing {
     cd $HERE
     let source = $env.APPARMOR_D_SRC? | default $SOURCE
@@ -182,7 +198,7 @@ def main []: nothing -> nothing {
         print --stderr $"apparmor.test: skipped compiling: needs ($needs)"
         []
     }
-    let failures = (rows-check $rows) ++ (own-check $rows) ++ (required-check) ++ (sourced-check) ++ (repo-path-check) ++ $compiled
+    let failures = (rows-check $rows) ++ (own-check $rows) ++ (required-check) ++ (sourced-check) ++ (repo-path-check) ++ (built-check) ++ $compiled
     for f in $failures { print --stderr $"apparmor.test: ($f)" }
     if ($failures | is-not-empty) { exit 1 }
 }

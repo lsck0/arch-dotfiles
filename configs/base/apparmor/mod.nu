@@ -122,6 +122,21 @@ export def build []: nothing -> nothing {
     }
 }
 
+# Whether aa-install built name's profile: it builds only for installed programs (no --all), so for an absent one the
+# apparmor package's own stub stays, without <name>.apparmor.d beside it and unconfined by design.
+export def profile-built [name: string, etc: path = $ETC]: nothing -> bool {
+    let stub = $etc | path join $name
+    if not ($stub | path exists) or ($etc | path join $"($name).apparmor.d" | path exists) { return true }
+    let text = open --raw $stub
+    not ($text =~ 'flags=\(unconfined\)') or ($text | str contains $MARKER)
+}
+
+# The profiles of built whose loaded mode is not the one modes wants.
+export def modes-wrong [modes: record, built: list<string>, loaded: record]: nothing -> list<record> {
+    $modes | items {|name, want| {name: $name, want: $want, have: ($loaded | get --optional $name)} }
+    | where {|p| $p.name in $built and $p.have != $p.want }
+}
+
 export def load []: nothing -> nothing {
     if (file-trim /sys/module/apparmor/parameters/enabled) != "Y" {
         print "apparmor: not active in this kernel yet, the profiles load on the next boot"
@@ -134,8 +149,8 @@ export def load []: nothing -> nothing {
         | each { path basename | str replace --regex '\.apparmor\.d$' "" }
     let loaded = open --raw /sys/kernel/security/apparmor/profiles | lines
         | parse --regex '^(?<name>\S+) \((?<mode>[^)]*)\)' | reduce --fold {} {|p, acc| $acc | upsert $p.name $p.mode }
-    let wrong = modes | items {|name, want| {name: $name, want: $want, have: ($loaded | get --optional $name)} }
-        | where {|p| $p.name in $deployed and $p.have != $p.want }
+    let built = modes | columns | where {|n| $n in $deployed and (profile-built $n) }
+    let wrong = modes-wrong (modes) $built $loaded
     if ($wrong | is-not-empty) {
         let lines = $wrong | each { $"apparmor: ($in.name) is ($in.have | default 'not loaded'), expected ($in.want)" }
         error make {msg: ($lines | str join "\n")}
