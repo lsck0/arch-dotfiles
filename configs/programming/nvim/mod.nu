@@ -151,11 +151,18 @@ export def link [cfg: record] {
     ]
 }
 
+# One headless nvim run of these commands. Its progress ("Compiling parser", mason's downloads) goes to stderr, which
+# dot would print as warnings, so it is kept back: nvim exits 0 even when a fetch failed, and the pin and tool checks
+# after each run are what report a failure, with mason's own reason.
+def nvim-run [commands: list<string>]: nothing -> nothing {
+    ^env ...$QUIET_GIT nvim --headless ...$PREFETCH ...$commands "+qa" | complete | ignore
+}
+
 # Restore the plugins; nvim exits 0 even when every fetch failed, so the pins tell.
 export def prefetch [...restore: string]: nothing -> nothing {
-    if ($restore | is-not-empty) { ^env ...$QUIET_GIT nvim --headless ...$PREFETCH ...$restore "+qa" }
+    if ($restore | is-not-empty) { nvim-run $restore }
     # on a fresh install the plan ran before the config link existed, so the restore was never asked for
-    if (plugins-stale | is-not-empty) { ^env ...$QUIET_GIT nvim --headless ...$PREFETCH "+Lazy! restore" "+qa" }
+    if (plugins-stale | is-not-empty) { nvim-run ["+Lazy! restore"] }
     let stale = plugins-stale
     if ($stale | is-not-empty) {
         error make {msg: $"($stale | length) plugins are not at their lazy-lock.json pin after the restore: ($stale | str join ' ')"}
@@ -165,7 +172,7 @@ export def prefetch [...restore: string]: nothing -> nothing {
     for _ in 1..$INSTALL_PASSES {
         let pending = tools-missing
         if ($pending | is-empty) { break }
-        ^env ...$QUIET_GIT nvim --headless ...$PREFETCH ...(install-commands $pending) "+qa"
+        nvim-run (install-commands $pending)
     }
     let missing = tools-missing | where kind != unlisted
     if ($missing | is-not-empty) {
@@ -205,6 +212,14 @@ export def theme-push []: nothing -> nothing {
 
 # moves the plugin pins (lazy-lock.json in the repo, committed by the sync) and the mason tools and parsers
 export def update [cfg: record]: nothing -> nothing {
-    (^nvim --headless "+Lazy! sync" +MasonUpdate +MasonToolsUpdateSync
-        $"+lua require\('nvim-treesitter'\).update\(\):wait\(($TREESITTER_TIMEOUT_MS)\)" +qa)
+    # its progress stays back like nvim-run's; the pin and tool checks after it report a failure, with nvim's last lines
+    let run = (^nvim --headless "+Lazy! sync" +MasonUpdate +MasonToolsUpdateSync
+        $"+lua require\('nvim-treesitter'\).update\(\):wait\(($TREESITTER_TIMEOUT_MS)\)" +qa) | complete
+    let stale = plugins-stale
+    let missing = tools-missing | where kind != unlisted
+    if ($stale | is-not-empty) or ($missing | is-not-empty) {
+        let tail = $"($run.stdout)\n($run.stderr)" | lines | where $it != "" | last 5 | str join "\n"
+        let what = ($stale | each { $"plugin/($in)" }) ++ ($missing | each { $'($in.kind)/($in.name)' }) | str join ' '
+        error make {msg: $"update left these behind: ($what)\n($tail)"}
+    }
 }
