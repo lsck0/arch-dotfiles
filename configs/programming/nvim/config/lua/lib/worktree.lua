@@ -3,6 +3,8 @@
 local M = {}
 
 local WORKTREE_HOME = vim.fs.normalize("~/.worktrees")
+-- free in telescope's prompt: C-n is its next-item key
+local CREATE_KEY = "<C-b>"
 
 local function git_root()
     local name = vim.api.nvim_buf_get_name(0)
@@ -107,12 +109,21 @@ function M.pick_branch()
             table.insert(items, { display = branch, value = branch })
         end
     end
-    require("lib.pick").telescope("Worktree branch (new name creates it)", items, function(branch, query)
-        branch = branch or vim.trim(query)
-        if branch ~= "" then
+    -- Enter takes the fuzzy match, so a new name that matches an existing branch is created on its own key
+    local title = "Worktree branch (" .. CREATE_KEY .. " creates the typed name)"
+    require("lib.pick").telescope(title, items, function(branch)
+        if branch then
             M.add(branch)
         end
-    end)
+    end, {
+        key = CREATE_KEY,
+        fn = function(name)
+            if name == "" then
+                return vim.notify("worktree: type the new branch name", vim.log.levels.WARN)
+            end
+            M.add(name)
+        end,
+    })
 end
 
 function M.pick()

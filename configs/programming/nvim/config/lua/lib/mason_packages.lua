@@ -1,12 +1,13 @@
--- mason package names, installed eagerly by the module's link verb (mod.nu reads this list)
+-- mason package names, installed eagerly by the module's link verb (mod.nu reads this list); a tool pacman installs
+-- is not listed, mason's bin comes first on PATH and would shadow it: clangd (clang, programming/toolchains), codelldb
+-- (codelldb-bin, programming/debugging), latexindent and texlab (latex/latex), ruff (programming/python), shfmt
+-- (programming/formatting), tinymist (programming/toolchains)
 local packages = {
     "bash-language-server",
     "bibtex-tidy",
-    "clangd",
     "cljfmt",
     "clojure-lsp",
     "cobol-language-support",
-    "codelldb",
     "csharpier",
     "css-lsp",
     "cssmodules-language-server",
@@ -32,7 +33,6 @@ local packages = {
     "js-debug-adapter",
     "json-lsp",
     "ktlint",
-    "latexindent",
     "lemminx",
     "lua-language-server",
     "marksman",
@@ -42,9 +42,7 @@ local packages = {
     "php-cs-fixer",
     "pyright",
     "rubocop",
-    "ruff",
     "rust-analyzer",
-    -- shfmt is a pacman package (programming/formatting)
     "slang-server",
     "sql-formatter",
     "sqruff", -- sqlls is unmaintained and crashes on load
@@ -52,8 +50,6 @@ local packages = {
     "tailwindcss-language-server",
     "teal-language-server",
     "terraform-ls",
-    "texlab",
-    "tinymist",
     "typescript-language-server",
     "typos-lsp",
     "vim-language-server",

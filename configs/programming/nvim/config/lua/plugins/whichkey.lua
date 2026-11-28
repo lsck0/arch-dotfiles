@@ -29,6 +29,7 @@ return {
                 { "<leader>k", group = "keys/secrets" },
                 { "<leader>t", group = "trouble" },
                 { "<leader>T", group = "taskwarrior" },
+                { "<leader>Tp", group = "project" },
                 { "<leader>q", group = "session" },
                 { "<leader>c", group = "claude" },
                 { "<leader>C", group = "comment/doc" },

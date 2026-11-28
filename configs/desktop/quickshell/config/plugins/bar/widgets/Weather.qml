@@ -95,6 +95,14 @@ BarWidget {
   readonly property var radarFrames: radar.frames || []
   readonly property int radarSpanKm: radar.spanKm || 0
 
+  // weather.nu's topography mask, shown only under frames made at its exact extent, so the two always align
+  property var base: ({})
+  readonly property bool baseShown: !!base.file && !!radar.extent && base.extent === radar.extent
+  readonly property string radarAttribution: {
+    var names = [String(radar.attribution || "")].concat(baseShown ? base.attribution || [] : [])
+    return names.filter((n, i) => n !== "" && names.indexOf(n) === i).join(", ")
+  }
+
   readonly property real radarReachKm: radarSpanKm > 0 ? radarSpanKm / 2 : 0
 
   readonly property int radarRingStepKm: {
@@ -184,6 +192,16 @@ BarWidget {
     }
   }
 
+  FileView {
+    path: Paths.cache + "/radar/base.json"
+    onLoaded: {
+      try {
+        const d = JSON.parse(text())
+        if (d.ok && !root.base.file) root.base = d
+      } catch (e) {}
+    }
+  }
+
   JsonProcess {
     id: radarProc
     command: [Paths.barWidget("weather.nu"), "radar"]
@@ -191,6 +209,8 @@ BarWidget {
     onParsed: function (d) {
       if (d.radar.ok) root.radar = d.radar
       if (d.field.ok) root.field = d.field
+      // a failed base is one for a new extent, so the old mask would sit misaligned
+      root.base = d.base && d.base.ok ? d.base : ({})
     }
   }
 
@@ -622,6 +642,26 @@ BarWidget {
         readonly property real imgSize: width
         readonly property real yOffset: (height - imgSize) / 2
 
+        // the topography: relief, water and borders as one ink mask, tinted to a quiet backdrop under the rain
+        Image {
+          x: 0
+          y: radarBox.yOffset
+          width: radarBox.imgSize
+          height: radarBox.imgSize
+          visible: root.baseShown
+          source: root.baseShown ? Util.fileUrl(root.base.file) : ""
+          sourceSize.width: Math.ceil(width * Screen.devicePixelRatio)
+          sourceSize.height: Math.ceil(height * Screen.devicePixelRatio)
+          fillMode: Image.PreserveAspectFit
+          asynchronous: true
+          smooth: true
+          layer.enabled: true
+          layer.effect: MultiEffect {
+            colorization: 1
+            colorizationColor: Colors.textDim
+          }
+        }
+
         Image {
           x: 0
           y: radarBox.yOffset
@@ -958,16 +998,16 @@ BarWidget {
 
       Item {
         width: parent.width
-        readonly property bool sourceShown: root.radarFrames.length > 0 && !!root.radar.attribution
+        readonly property bool sourceShown: root.radarFrames.length > 0 && root.radarAttribution !== ""
         visible: sourceShown || radarPressure.text !== ""
         implicitHeight: radarSource.implicitHeight
 
-        // the radar source's licence requires its attribution next to the image
+        // the radar and topography sources' licences require their attribution next to the image
         Label {
           id: radarSource
           width: parent.width - radarPressure.implicitWidth - Style.spacing.sm
           visible: parent.sourceShown
-          text: "SOURCE :: " + String(root.radar.attribution || "")
+          text: "SOURCE :: " + root.radarAttribution
           elide: Text.ElideRight
           dim: true
           caption: true

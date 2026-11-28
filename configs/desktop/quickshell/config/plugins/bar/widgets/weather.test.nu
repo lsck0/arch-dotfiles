@@ -1,12 +1,17 @@
 #!/usr/bin/env -S nu --no-config-file
 # weather.nu alerts: a warning's start and end are unix seconds, so a cached reply served minutes later still names the
 # right times; serving it drops the warnings that ended since, and a cached reply from before those fields is a miss
-use weather.nu [alerts-current area-tokens-map place-current place-key reply-current windy-threshold]
+use weather.nu [
+    alerts-current area-tokens-map base-current base-for base-ink base-plan place-current place-key radar-bbox radar-extent
+    radar-plan-dwd reply-current windy-threshold
+]
 
 const WEATHER = path self weather.nu
 const NOW = 1_800_000_000
 
 def fail [msg: string] { error make {msg: $"weather.test: ($msg)"} }
+
+def query [url: string]: nothing -> record { $url | url parse | get params | transpose -dr }
 
 def reply [alerts: list]: nothing -> record { {ok: true, supported: true, alerts: $alerts, countryOthers: 0} }
 
@@ -52,6 +57,63 @@ def main [] {
         if "Bayern" in $texts and ($map | get -o Bayern) != [bayern] { fail $"shifted tokens: ($map | to nuon)" }
         if "Kreis Ansbach" in $texts and ($map | get -o "Kreis Ansbach") != [ansbach] { fail $"shifted tokens: ($map | to nuon)" }
     }
+
+    # the topography shares the radar's extent and pixel size, so the two align; Bundeslaender borders only in DWD's range
+    let half = 512 * 156543.03392 / 128 / 2 | into string --decimals 6
+    if (radar-bbox 0.0 0.0) != $"-($half),-($half),($half),($half)" { fail $"bbox at null island: (radar-bbox 0.0 0.0)" }
+    let plan = base-plan 52.52 13.40
+    let frame = query (radar-plan-dwd 52.52 13.40 | first | get url)
+    for part in [relief lines] {
+        let q = query ($plan | get $part)
+        for field in [bbox srs width height] {
+            if ($q | get $field) != ($frame | get $field) { fail $"base ($part) ($field): ($q | get $field)" }
+        }
+    }
+    if (query $plan.relief).transparent != "false" or (query $plan.lines).transparent != "true" { fail "base transparency" }
+    if (query $plan.lines).layers != "dwd:Warngebiete_Bundeslaender,dwd:Laender" { fail $"lines in dwd range: ($plan.lines)" }
+    if $plan.extent != (radar-extent 52.52 13.40) or $plan.extent == (radar-extent 52.53 13.40) { fail "extent key" }
+    if "GeoBasis-DE / BKG" not-in $plan.attribution { fail $"attribution in dwd range: ($plan.attribution)" }
+    let lisbon = base-plan 38.72 -9.14
+    if (query $lisbon.lines).layers != "dwd:Laender" or "GeoBasis-DE / BKG" in $lisbon.attribution {
+        fail $"bundeslaender outside dwd range: ($lisbon | to nuon)"
+    }
+
+    let scratch = mktemp -d
+    try {
+        # the ink: water and lines at their level, flat lowland near none, a shaded slope above it, all white
+        let relief = $scratch | path join relief.png
+        let lines = $scratch | path join lines.png
+        let mask = $scratch | path join mask.png
+        ^magick -size 40x40 xc:"rgb(60,140,220)" xc:"rgb(175,200,164)" xc:"rgb(100,110,90)" xc:"rgb(175,200,164)" +append $relief
+        ^magick -size 120x40 xc:none -size 40x40 xc:black +append $lines
+        if not (base-ink $relief $lines $mask) { fail "ink failed" }
+        let alpha = [20 60 100 140] | each {|x| ^magick $mask -format $"%[fx:p{($x),20}.a]" info: | into float }
+        let colour = ^magick $mask -format "%[channels] %[fx:minima.r]" info:
+        if ($alpha.0 - 0.3 | math abs) > 0.02 or $alpha.1 > 0.1 or $alpha.2 <= $alpha.1 or ($alpha.3 - 0.7 | math abs) > 0.02 {
+            fail $"ink levels: ($alpha)"
+        }
+        if not ($colour starts-with "graya") or not ($colour ends-with " 1") { fail $"ink is not white: ($colour)" }
+
+        # a cached topography holds only for its extent and recipe, while its mask exists
+        let file = $scratch | path join base.png
+        ^magick -size 1x1 xc:white $file
+        let base = {ok: true, file: $file, extent: $plan.extent, recipe: $plan.recipe, attribution: $plan.attribution}
+        if ($base | base-current $plan) != $base { fail "same extent base missed" }
+        if ($base | base-current $lisbon) != null { fail "other extent base served" }
+        if ($base | upsert recipe x | base-current $plan) != null { fail "other recipe base served" }
+        if ($base | upsert file ($scratch | path join gone.png) | base-current $plan) != null { fail "base without mask served" }
+        if ($base | upsert ok false | base-current $plan) != null or (null | base-current $plan) != null { fail "no base served" }
+
+        # end to end: a cached topography is served without a fetch and left as it is
+        mkdir ($scratch | path join quickshell radar)
+        let manifest = $scratch | path join quickshell radar base.json
+        $base | to json -r | save $manifest
+        ^touch -d "-400 days" $manifest
+        let before = ls -l $manifest | get 0.modified
+        let got = with-env {XDG_CACHE_HOME: $scratch} { base-for 52.52 13.40 }
+        if $got != $base or (ls -l $manifest | get 0.modified) != $before { fail $"base cache hit: ($got | to nuon)" }
+    } catch {|error| rm -rf $scratch; error make {msg: $error.msg} }
+    rm -rf $scratch
 
     # end to end: a cache hit for the pinned place needs no network, and its times pass through unchanged however old
     # the cache is

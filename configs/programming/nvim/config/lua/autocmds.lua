@@ -191,3 +191,61 @@ autocmd("BufReadPost", {
         end
     end,
 })
+
+-- a NUL in the first block is binary, as git and grep decide it; UTF-8 and latin1 text has none. The buffer is read,
+-- not the file: gpg and sops buffers hold the decrypted text.
+local BINARY_PROBE_BYTES = 8192
+local function buffer_has_nul(buf)
+    local bytes = 0
+    for row = 0, vim.api.nvim_buf_line_count(buf) - 1 do
+        local line = vim.api.nvim_buf_get_lines(buf, row, row + 1, true)[1]
+        if line:find("\0", 1, true) then
+            return true
+        end
+        bytes = bytes + #line + 1
+        if bytes >= BINARY_PROBE_BYTES then
+            return false
+        end
+    end
+    return false
+end
+
+autocmd("BufReadPost", {
+    desc = "Open binary files read-only",
+    group = group("binary-detect", { clear = true }),
+    callback = function(args)
+        -- 'binary' set: opened with -b or ++bin on purpose
+        if vim.bo[args.buf].buftype ~= "" or vim.bo[args.buf].binary or not buffer_has_nul(args.buf) then
+            return
+        end
+        vim.bo[args.buf].readonly = true
+        vim.notify(vim.fn.fnamemodify(args.file, ":~:.") .. ": binary, read-only; :Hex shows a hex dump")
+    end,
+})
+
+vim.api.nvim_create_user_command("Hex", function()
+    local path = vim.api.nvim_buf_get_name(0)
+    if path == "" or vim.bo.buftype ~= "" then
+        return vim.notify("Hex: not a file buffer", vim.log.levels.ERROR)
+    end
+    -- a second :Hex goes to the open dump: its buffer name is taken while it is shown
+    local name = "xxd://" .. path
+    for _, win in ipairs(vim.api.nvim_list_wins()) do
+        if vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(win)) == name then
+            return vim.api.nvim_set_current_win(win)
+        end
+    end
+    local dump = vim.system({ "xxd", path }, { text = true }):wait()
+    if dump.code ~= 0 then
+        return vim.notify("Hex: " .. vim.trim(dump.stderr), vim.log.levels.ERROR)
+    end
+    vim.cmd.vnew()
+    local buf = vim.api.nvim_get_current_buf()
+    vim.bo[buf].buftype = "nofile"
+    vim.bo[buf].bufhidden = "wipe"
+    vim.bo[buf].buflisted = false
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(dump.stdout, "\n", { trimempty = true }))
+    vim.api.nvim_buf_set_name(buf, name)
+    vim.bo[buf].modifiable = false
+    vim.bo[buf].filetype = "xxd"
+end, { desc = "Hex dump of the file (xxd) in a read-only split" })

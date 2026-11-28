@@ -1,5 +1,59 @@
 local mason_packages = require("lib.mason_packages")
 
+-- vscode-json-language-server knows no schema by itself: the files a project commits most
+local JSON_SCHEMAS = {
+    { fileMatch = { "package.json" }, url = "https://json.schemastore.org/package.json" },
+    { fileMatch = { "tsconfig.json", "tsconfig.*.json" }, url = "https://json.schemastore.org/tsconfig.json" },
+    { fileMatch = { "jsconfig.json", "jsconfig.*.json" }, url = "https://json.schemastore.org/jsconfig.json" },
+    { fileMatch = { ".eslintrc", ".eslintrc.json" }, url = "https://json.schemastore.org/eslintrc.json" },
+    { fileMatch = { ".prettierrc", ".prettierrc.json" }, url = "https://json.schemastore.org/prettierrc.json" },
+    {
+        fileMatch = { ".babelrc", ".babelrc.json", "babel.config.json" },
+        url = "https://json.schemastore.org/babelrc.json",
+    },
+    { fileMatch = { "composer.json" }, url = "https://getcomposer.org/schema.json" },
+    {
+        fileMatch = { ".luarc.json", ".luarc.jsonc" },
+        url = "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
+    },
+}
+
+-- taplo's default catalog (schemastore's) no longer parses in taplo 0.10, so no catalog and the files named here
+local TOML_SCHEMAS = {
+    ["(^|/)Cargo\\.toml$"] = "https://json.schemastore.org/cargo.json",
+    ["(^|/)pyproject\\.toml$"] = "https://json.schemastore.org/pyproject.json",
+    ["(^|/)\\.?rustfmt\\.toml$"] = "https://json.schemastore.org/rustfmt.json",
+    ["(^|/)\\.?ruff\\.toml$"] = "https://json.schemastore.org/ruff.json",
+    ["(^|/)\\.?taplo\\.toml$"] = "https://json.schemastore.org/taplo.json",
+    ["(^|/)[._]?typos\\.toml$"] = "https://raw.githubusercontent.com/crate-ci/typos/master/config.schema.json",
+}
+
+-- a project's own prettier config, else the personal one is passed
+local PRETTIER_CONFIGS = {
+    ".prettierrc",
+    ".prettierrc.json",
+    ".prettierrc.json5",
+    ".prettierrc.yaml",
+    ".prettierrc.yml",
+    ".prettierrc.toml",
+    ".prettierrc.js",
+    ".prettierrc.cjs",
+    ".prettierrc.mjs",
+    ".prettierrc.ts",
+    "prettier.config.js",
+    "prettier.config.cjs",
+    "prettier.config.mjs",
+    "prettier.config.ts",
+}
+-- formatted on save only under a project's prettier config: the personal one rewraps prose and tables, and the
+-- dotfiles gate (scripts/lib/gate.nu) leaves these alone
+local PROJECT_FORMAT_FILETYPES = { json = true, jsonc = true, markdown = true }
+-- lazy writes it one entry per line and rewrites it on every update
+local FORMAT_SKIP_NAMES = { ["lazy-lock.json"] = true }
+-- latexindent takes seconds on a long chapter: formatted after the write, so a save never waits or times out
+local FORMAT_AFTER_SAVE_FILETYPES = { plaintex = true, tex = true }
+local FORMAT_TIMEOUT_MS = 1000
+
 return {
     {
         "folke/lazydev.nvim",
@@ -34,6 +88,11 @@ return {
             { "Sebastian-Nielsen/better-type-hover", opts = {} },
             { "dmmulroy/ts-error-translator.nvim", opts = {} },
         },
+        -- mason's bin on PATH from startup, not from its first buffer: conform, :checkhealth and jobs started before
+        -- a file is read find the tools; setup skips its own prepend so the entry is not doubled
+        init = function()
+            vim.env.PATH = vim.fn.stdpath("data") .. "/mason/bin:" .. vim.env.PATH
+        end,
         config = function()
             vim.diagnostic.config({
                 severity_sort = true,
@@ -56,7 +115,7 @@ return {
                 },
             })
 
-            require("mason").setup()
+            require("mason").setup({ PATH = "skip" })
             -- uv setenv, scoped to installs: the events fire in a fast context and :terminal keeps the system luarocks
             local registry = require("mason-registry")
             local luarocks_config = vim.fn.stdpath("config") .. "/luarocks.lua"
@@ -187,13 +246,37 @@ return {
                 },
             })
 
-            -- root at the typos config, else its allowlist is ignored
+            -- root at the typos config, else its allowlist is ignored; it takes every filetype, so a snacks bigfile is
+            -- kept from it (the file's whole text would go to the server)
+            local typos_roots = { ".typos.toml", "_typos.toml", "typos.toml", ".git" }
             vim.lsp.config("typos_lsp", {
-                root_markers = { ".typos.toml", "_typos.toml", "typos.toml", ".git" },
+                root_dir = function(bufnr, on_dir)
+                    if vim.bo[bufnr].filetype == "bigfile" then
+                        return
+                    end
+                    local root = vim.fs.root(bufnr, typos_roots)
+                    if root then
+                        return on_dir(root)
+                    end
+                    -- without a root lsp.start looks the markers up again a tick later, on a buffer a session load
+                    -- may have wiped by then ("Invalid buffer id")
+                    vim.schedule(function()
+                        if vim.api.nvim_buf_is_valid(bufnr) then
+                            on_dir(nil)
+                        end
+                    end)
+                end,
                 init_options = {
                     config = (vim.env.XDG_CONFIG_HOME or (vim.env.HOME .. "/.config")) .. "/typos/typos.toml",
                 },
             })
+
+            vim.lsp.config("taplo", {
+                settings = {
+                    evenBetterToml = { schema = { enabled = true, catalogs = {}, associations = TOML_SCHEMAS } },
+                },
+            })
+            vim.lsp.config("jsonls", { settings = { json = { schemas = JSON_SCHEMAS, validate = { enable = true } } } })
 
             local vue_plugin = vim.fn.stdpath("data")
                 .. "/mason/packages/vue-language-server/node_modules/@vue/language-server"
@@ -276,11 +359,26 @@ return {
                 settings = {
                     texlab = {
                         build = { onSave = false, forwardSearchAfter = false },
-                        chktex = { onOpenAndSave = false, onEdit = false },
+                        chktex = { onOpenAndSave = true, onEdit = true },
                         latexindent = { modifyLineBreaks = true },
                         diagnosticsDelay = 300,
                         diagnostics = { ignoredPatterns = { "^Unused entry" } },
                     },
+                },
+                handlers = {
+                    -- texlab takes the first didOpen before it pulled these settings, so chktex skips the opened
+                    -- file; a didSave once they are answered runs it
+                    ["workspace/configuration"] = function(err, params, ctx)
+                        local answer = vim.lsp.handlers["workspace/configuration"](err, params, ctx)
+                        vim.schedule(function()
+                            local client = vim.lsp.get_client_by_id(ctx.client_id)
+                            for bufnr in pairs(client and client.attached_buffers or {}) do
+                                local document = { uri = vim.uri_from_bufnr(bufnr) }
+                                client:notify("textDocument/didSave", { textDocument = document })
+                            end
+                        end)
+                        return answer
+                    end,
                 },
             })
 
@@ -296,6 +394,9 @@ return {
 
             vim.lsp.enable("gdscript")
 
+            -- servers pacman installs (toolchains, python, latex, formatting): mason-lspconfig enables only its own
+            vim.lsp.enable({ "clangd", "ruff", "taplo", "texlab", "tinymist" })
+
             -- cobol_ls excluded: mason's config would clobber the custom jar cmd
             require("mason-lspconfig").setup({
                 automatic_enable = { exclude = { "cobol_ls" } },
@@ -305,6 +406,8 @@ return {
 
     {
         "stevearc/conform.nvim",
+        event = "BufWritePre",
+        cmd = { "ConformInfo", "FormatToggle" },
         config = function()
             local conform = require("conform")
             local formatters = conform.formatters
@@ -328,24 +431,9 @@ return {
             formatters.stylua = {
                 prepend_args = personal({ "stylua.toml", ".stylua.toml" }, "--config-path=", "stylua.toml"),
             }
-            formatters.prettier = {
-                prepend_args = personal({
-                    ".prettierrc",
-                    ".prettierrc.json",
-                    ".prettierrc.json5",
-                    ".prettierrc.yaml",
-                    ".prettierrc.yml",
-                    ".prettierrc.toml",
-                    ".prettierrc.js",
-                    ".prettierrc.cjs",
-                    ".prettierrc.mjs",
-                    ".prettierrc.ts",
-                    "prettier.config.js",
-                    "prettier.config.cjs",
-                    "prettier.config.mjs",
-                    "prettier.config.ts",
-                }, "--config=", "prettierrc.json"),
-            }
+            formatters.prettier = { prepend_args = personal(PRETTIER_CONFIGS, "--config=", "prettierrc.json") }
+            -- nixfmt reads no config: the width of Luca's style and the homelab's formatter check
+            formatters.nixfmt = { prepend_args = { "--width=120" } }
             -- the personal rustfmt.toml is nightly-only; a project's own config runs on its toolchain
             local rustfmt = personal({ "rustfmt.toml", ".rustfmt.toml" }, "--config-path=", "rustfmt.toml")
             formatters.rustfmt = {
@@ -395,7 +483,6 @@ return {
                 clojure = { "cljfmt" },
                 cpp = { "clang-format" },
                 cs = { "csharpier" },
-                elixir = { "mix" },
                 go = { "goimports", "gofumpt" },
                 haskell = { "ormolu" },
                 http = { "kulala-fmt" },
@@ -446,13 +533,34 @@ return {
                 formatters_by_ft[ft] = { "prettier" }
             end
 
+            ---@return "before"|"after"|nil
+            local function format_when(bufnr)
+                if vim.g.disable_autoformat or vim.b[bufnr].disable_autoformat then
+                    return nil
+                end
+                local name = vim.api.nvim_buf_get_name(bufnr)
+                if FORMAT_SKIP_NAMES[vim.fs.basename(name)] then
+                    return nil
+                end
+                local ft = vim.bo[bufnr].filetype
+                local dirname = vim.fs.dirname(name)
+                if
+                    PROJECT_FORMAT_FILETYPES[ft]
+                    and not vim.fs.find(PRETTIER_CONFIGS, { path = dirname, upward = true })[1]
+                then
+                    return nil
+                end
+                return FORMAT_AFTER_SAVE_FILETYPES[ft] and "after" or "before"
+            end
+
             conform.setup({
                 formatters_by_ft = formatters_by_ft,
                 format_on_save = function(bufnr)
-                    if vim.g.disable_autoformat or vim.b[bufnr].disable_autoformat then
-                        return
-                    end
-                    return { timeout_ms = 1000, lsp_format = "fallback" }
+                    local when = format_when(bufnr)
+                    return when == "before" and { timeout_ms = FORMAT_TIMEOUT_MS, lsp_format = "fallback" } or nil
+                end,
+                format_after_save = function(bufnr)
+                    return format_when(bufnr) == "after" and { lsp_format = "fallback" } or nil
                 end,
             })
 

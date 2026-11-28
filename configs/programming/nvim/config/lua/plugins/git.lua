@@ -75,6 +75,7 @@ return {
     {
         "nicolasgb/jj.nvim",
         version = "*",
+        cmd = { "J", "Jbrowse", "Jdiff", "Jedit", "Jhdiff", "Jread", "Jsplit", "Jtabedit", "Jvdiff", "Jvsplit" },
         opts = {},
     },
 

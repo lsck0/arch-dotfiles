@@ -3,8 +3,11 @@ import type { Register, ThemeSetArgs } from 'claude-code'
 import { makeColors } from './make-colors.js'
 
 // The palette programming/claude's theme verb writes beside this mod on every theme switch (wal's colors.json), read
-// at each session start, so a switch reaches every new session. A missing palette leaves the app's own look.
+// at each session start and again whenever it changes, so a switch reaches open sessions too. A missing palette
+// leaves the app's own look.
 const PALETTE = 'palette.json'
+// how often an open session looks at the palette's mtime: one stat, a theme switch shows within this
+const PALETTE_POLL_MS = 3000
 
 type Rgb = [number, number, number]
 
@@ -92,19 +95,34 @@ export function look(palette: Palette): {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    try {
-      const palette = JSON.parse(await $.fs.read(`${$.plugin.root}/${PALETTE}`)) as Palette
-      const { args, problems } = look(palette)
-      // a palette Desktop refuses to paint is a real failure: said once, the app's own look stays
-      const unpainted = problems.find(line => line.startsWith("Desktop won't paint"))
-      if (unpainted !== undefined) {
-        $.ui.log(`wallust-look: ${unpainted}`)
-      } else {
-        await $.theme.set(args)
+    const path = `${$.plugin.root}/${PALETTE}`
+    // the look for the palette as it is now; a palette Desktop refuses to paint is a real failure: said once per
+    // version, the look in place stays
+    const paint = async (): Promise<void> => {
+      try {
+        const { args, problems } = look(JSON.parse(await $.fs.read(path)) as Palette)
+        const unpainted = problems.find(line => line.startsWith("Desktop won't paint"))
+        if (unpainted !== undefined) $.ui.log(`wallust-look: ${unpainted}`)
+        else await $.theme.set(args)
+      } catch (error) {
+        $.ui.log(`wallust-look: ${PALETTE}: ${String(error)}`)
       }
-    } catch (error) {
-      $.ui.log(`wallust-look: ${PALETTE}: ${String(error)}`)
     }
+    const mtime = async (): Promise<number> => {
+      try {
+        return (await $.fs.stat(path)).mtimeMs
+      } catch {
+        return 0 // no palette (yet): the app's own look, nothing to say
+      }
+    }
+    let seen = await mtime()
+    await paint()
+    $.clock.every(PALETTE_POLL_MS, async () => {
+      const now = await mtime()
+      if (now === seen) return
+      seen = now
+      if (now !== 0) await paint()
+    })
     return next(e)
   })
 }

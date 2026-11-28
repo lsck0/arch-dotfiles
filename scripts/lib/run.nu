@@ -63,7 +63,7 @@ const CHECKUPDATES_NONE = 2
 # so a mod.nu edit is no reason to re-theme every module a second time
 const THEME_STAMP_PATHS = [configs/core/wallust themes]
 # a fresh install's theme: its wallpaper makes wallpaper.nu apply its palette
-const THEME_DEFAULT = path self ../../themes/shien.json
+const THEME_DEFAULT = path self ../../themes/kanagawa.json
 # in the user's state: id -> {input: what this user's system plan saw, root: root's converged record of it then}
 const SYSTEM_INPUTS = "system-inputs.nuon"
 

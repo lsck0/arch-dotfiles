@@ -15,9 +15,10 @@ BarWidget {
   property var zoneOffsets: []
   property real travelHours: 0
 
-  // today's calendar events, the agenda's own rows: the desktop agenda sits behind every window
-  readonly property int todayMax: 6
-  readonly property var todayEvents: CalendarState.events.filter(e => e.today)
+  // the next three days' calendar events (task-calendar's views), as the desktop agenda lists them; a later day's row
+  // names its weekday in front of its time
+  readonly property int upcomingMax: 8
+  readonly property var upcomingEvents: CalendarState.events
   // the open panel counts as a viewer of the calendar, which then fetches at its full rate
   property bool calendarHeld: false
   function calendarHold(wanted) {
@@ -215,50 +216,50 @@ BarWidget {
         HudFrame {}
       }
 
-      PanelSeparator { visible: root.todayEvents.length > 0 }
+      PanelSeparator { visible: root.upcomingEvents.length > 0 }
       PanelSectionHeader {
-        text: "TODAY" + (CalendarState.stale ? " :: OFFLINE" : "")
-        visible: root.todayEvents.length > 0
+        text: "NEXT 3 DAYS" + (CalendarState.stale ? " :: OFFLINE" : "")
+        visible: root.upcomingEvents.length > 0
       }
 
       Repeater {
-        model: root.todayEvents.slice(0, root.todayMax)
+        model: root.upcomingEvents.slice(0, root.upcomingMax)
         Item {
-          id: todayRow
+          id: eventRow
           required property var modelData
           width: content.width
-          implicitHeight: todayWhen.implicitHeight
+          implicitHeight: eventWhen.implicitHeight
           height: implicitHeight
           Label {
-            id: todayMark
+            id: eventMark
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            text: todayRow.modelData.marker
-            color: todayRow.modelData.markerColor
+            text: eventRow.modelData.marker
+            color: eventRow.modelData.markerColor
           }
           Label {
-            anchors.left: todayMark.right
+            anchors.left: eventMark.right
             anchors.leftMargin: Style.spacing.xs
-            anchors.right: todayWhen.left
+            anchors.right: eventWhen.left
             anchors.rightMargin: Style.spacing.xs
             anchors.verticalCenter: parent.verticalCenter
-            text: todayRow.modelData.summary
+            text: eventRow.modelData.summary
             color: Colors.menu.text
             elide: Text.ElideRight
           }
           Label {
-            id: todayWhen
+            id: eventWhen
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            text: todayRow.modelData.when
-            color: todayRow.modelData.allDay ? Colors.accent2Text : Colors.accentText
+            text: eventRow.modelData.when
+            color: eventRow.modelData.allDay ? Colors.accent2Text : Colors.accentText
           }
         }
       }
 
       Label {
-        visible: root.todayEvents.length > root.todayMax
-        text: "+" + (root.todayEvents.length - root.todayMax) + " MORE"
+        visible: root.upcomingEvents.length > root.upcomingMax
+        text: "+" + (root.upcomingEvents.length - root.upcomingMax) + " MORE"
         dim: true
         caption: true
       }

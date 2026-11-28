@@ -5,6 +5,13 @@ vim.keymap.set("t", "<Esc><Esc>", [[<C-\><C-n>]], { desc = "Exit terminal mode" 
 
 vim.keymap.set("n", "<M-x>", "@", { desc = "Apply macro (@)" })
 
+-- silent: with cmdheight 0 every "1 change; before #3" pops the message window; the undotree (<leader>u) has the history
+for lhs, desc in pairs({ u = "Undo", ["<C-r>"] = "Redo" }) do
+    vim.keymap.set("n", lhs, function()
+        vim.cmd("silent normal! " .. vim.v.count1 .. vim.keycode(lhs))
+    end, { desc = desc })
+end
+
 if vim.g.neovide then
     local ZOOM_STEP = 1.1
     local function scale(factor)
@@ -25,15 +32,19 @@ end
 
 vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>", { desc = "Clear search highlight" })
 
-vim.keymap.set("n", "<leader>x", "<cmd>normal gcc<CR>", { desc = "Comment line" })
-vim.keymap.set("v", "<leader>x", "<ESC><cmd>normal gvgc<CR>", { desc = "Comment selection" })
+vim.keymap.set("n", "<leader>x", "<cmd>normal gcc<CR>", { desc = "Toggle comment (line, gcc)" })
+vim.keymap.set("v", "<leader>x", "<ESC><cmd>normal gvgc<CR>", { desc = "Toggle comment (selection, gc)" })
 
 vim.keymap.set("n", "<C-d>", "<C-d>zz", { desc = "Half page down (centered)" })
 vim.keymap.set("n", "<C-u>", "<C-u>zz", { desc = "Half page up (centered)" })
 vim.keymap.set("n", "n", "nzzzv", { desc = "Next search match (centered)" })
 vim.keymap.set("n", "N", "Nzzzv", { desc = "Prev search match (centered)" })
 
-vim.keymap.set("n", "<M-t>", "<cmd>lua Snacks.terminal.toggle()<CR>", { desc = "Toggle terminal (float)" })
+-- inside the float M-t hides it again; buffer-local, so other terminals (claude's split) still get the key
+local TERMINAL_FLOAT = { win = { keys = { hide_float = { "<M-t>", "hide", mode = "t", desc = "Hide terminal" } } } }
+vim.keymap.set("n", "<M-t>", function()
+    Snacks.terminal.toggle(nil, TERMINAL_FLOAT)
+end, { desc = "Toggle terminal (float)" })
 vim.keymap.set("n", "<M-w>", "<cmd>lua Snacks.bufdelete()<CR>", { desc = "Close buffer (keep layout)" })
 vim.keymap.set("n", "<M-q>", "<cmd>tabclose <CR>", { desc = "Close tab" })
 vim.keymap.set("n", "<M-c>", "<cmd>tabnew <CR>", { desc = "New tab" })
@@ -99,8 +110,15 @@ vim.keymap.set(
     { desc = "Find files (dotfiles)" }
 )
 vim.keymap.set("n", "<leader>ff", tb("find_files"), { desc = "Find files" })
-vim.keymap.set("n", "<leader>fw", tb("live_grep"), { desc = "Live grep" })
+-- fw has been live grep since 2025; fg is the conventional key beside it
+for _, lhs in ipairs({ "<leader>fg", "<leader>fw" }) do
+    vim.keymap.set("n", lhs, tb("live_grep"), { desc = "Live grep" })
+end
 vim.keymap.set("n", "<leader>fb", tb("buffers"), { desc = "Buffers" })
+vim.keymap.set("n", "<leader>fr", tb("oldfiles"), { desc = "Recent files" })
+vim.keymap.set("n", "<leader>fh", tb("help_tags"), { desc = "Help tags" })
+vim.keymap.set("n", "<leader>fk", tb("keymaps"), { desc = "Keymaps" })
+vim.keymap.set("n", "<leader>f:", tb("commands"), { desc = "Commands" })
 vim.keymap.set("n", "<leader>f*", tb("grep_string"), { desc = "Grep word under cursor" })
 vim.keymap.set("n", "<leader>fC", "<cmd>lua require('lib.citation').pick()<CR>", { desc = "Citations (insert key)" })
 vim.keymap.set("n", "<leader>fp", "<cmd>lua require('lib.projects').pick()<CR>", { desc = "Projects" })
@@ -171,15 +189,58 @@ vim.keymap.set(
     "<cmd>lua require('dap').set_breakpoint(vim.fn.input('Condition: '))<CR>",
     { desc = "Conditional breakpoint" }
 )
+local function dap(fn)
+    return function()
+        require("dap")[fn]()
+    end
+end
+vim.keymap.set("n", "<leader>dq", dap("terminate"), { desc = "Terminate session" })
+vim.keymap.set("n", "<leader>dr", dap("restart"), { desc = "Restart session" })
+vim.keymap.set("n", "<leader>dc", dap("run_to_cursor"), { desc = "Run to cursor" })
+vim.keymap.set("n", "<leader>dR", function()
+    require("dap").repl.toggle()
+end, { desc = "Toggle REPL" })
+vim.keymap.set({ "n", "v" }, "<leader>de", function()
+    require("dap")
+    require("dapui").eval()
+end, { desc = "Evaluate expression (hover)" })
 vim.keymap.set("n", "<F5>", "<cmd>DapContinue<CR>", { desc = "Debug: continue" })
 vim.keymap.set("n", "<F10>", "<cmd>DapStepOver<CR>", { desc = "Debug: step over" })
 vim.keymap.set("n", "<F11>", "<cmd>DapStepInto<CR>", { desc = "Debug: step into" })
 vim.keymap.set("n", "<F12>", "<cmd>DapStepOut<CR>", { desc = "Debug: step out" })
 
 vim.keymap.set("n", "<leader>e", "<cmd>lua require('lib.explorer').toggle()<CR>", { desc = "File explorer (neo-tree)" })
-vim.keymap.set("n", "<leader>gs", "<cmd>G<CR>", { desc = "Git (fugitive)" })
+vim.keymap.set("n", "<leader>gs", "<cmd>G<CR>", { desc = "Git status (fugitive)" })
 vim.keymap.set("n", "<leader>gg", "<cmd>lua Snacks.lazygit()<CR>", { desc = "Lazygit" })
-vim.keymap.set("n", "<leader>gy", "<cmd>lua Snacks.gitbrowse()<CR>", { desc = "Open line on GitHub" })
+vim.keymap.set("n", "<leader>gy", "<cmd>lua Snacks.gitbrowse()<CR>", { desc = "Open line in browser (git remote)" })
+
+local function gitsigns(fn, args)
+    return function()
+        require("gitsigns")[fn](args)
+    end
+end
+local function gitsigns_range(fn)
+    return function()
+        require("gitsigns")[fn]({ vim.fn.line("."), vim.fn.line("v") })
+    end
+end
+-- ]c [c stay the native diff-mode jumps in a diff window and move between gitsigns hunks elsewhere
+for lhs, direction in pairs({ ["]c"] = "next", ["[c"] = "prev" }) do
+    vim.keymap.set("n", lhs, function()
+        if vim.wo.diff then
+            vim.cmd.normal({ lhs, bang = true })
+        else
+            require("gitsigns").nav_hunk(direction)
+        end
+    end, { desc = "Git hunk " .. direction })
+end
+vim.keymap.set("n", "<leader>ga", gitsigns("stage_hunk"), { desc = "Stage/unstage hunk" })
+vim.keymap.set("v", "<leader>ga", gitsigns_range("stage_hunk"), { desc = "Stage/unstage selected lines" })
+vim.keymap.set("n", "<leader>gr", gitsigns("reset_hunk"), { desc = "Reset hunk" })
+vim.keymap.set("v", "<leader>gr", gitsigns_range("reset_hunk"), { desc = "Reset selected lines" })
+vim.keymap.set("n", "<leader>gp", gitsigns("preview_hunk"), { desc = "Preview hunk" })
+vim.keymap.set("n", "<leader>gb", gitsigns("blame_line", { full = true }), { desc = "Blame line (popup)" })
+vim.keymap.set("n", "<leader>gB", gitsigns("toggle_current_line_blame"), { desc = "Toggle inline blame" })
 vim.keymap.set("n", "<leader>gf", "<cmd>lua require('lib.worktree').pick()<CR>", { desc = "Git worktrees" })
 vim.keymap.set(
     "n",
@@ -198,7 +259,7 @@ vim.keymap.set(
     "<cmd>lua require('grug-far').open({ prefills = { search = vim.fn.expand('<cword>') } })<CR>",
     { desc = "Search/replace word under cursor" }
 )
-vim.keymap.set("n", "<leader>tt", "<cmd>Trouble diagnostics<CR>", { desc = "Trouble diagnostics" })
+vim.keymap.set("n", "<leader>tt", "<cmd>Trouble diagnostics toggle<CR>", { desc = "Trouble diagnostics" })
 vim.keymap.set("n", "<leader>ts", "<cmd>Trouble symbols toggle<CR>", { desc = "Trouble symbols" })
 vim.keymap.set("n", "<leader>tl", "<cmd>Trouble lsp toggle<CR>", { desc = "Trouble LSP references" })
 -- m shadows the builtin mark command on purpose: compile-mode muscle memory wins here

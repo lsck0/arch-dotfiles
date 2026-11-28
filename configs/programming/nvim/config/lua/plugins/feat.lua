@@ -49,19 +49,21 @@ return {
         "piersolenski/import.nvim",
         opts = { picker = "telescope" },
         keys = {
-            { "<leader>i", "<cmd>lua require('import').pick()<cr>", desc = "Import" },
+            { "<leader>i", "<cmd>lua require('import').pick()<cr>", desc = "Add import statement (picker)" },
         },
     },
 
     {
         "olrtg/nvim-emmet",
-        config = function()
-            vim.keymap.set(
-                { "n", "v" },
+        keys = {
+            {
                 "<leader>E",
-                require("nvim-emmet").wrap_with_abbreviation,
-                { desc = "Emmet wrap with abbreviation" }
-            )
-        end,
+                function()
+                    require("nvim-emmet").wrap_with_abbreviation()
+                end,
+                mode = { "n", "v" },
+                desc = "Emmet wrap with abbreviation",
+            },
+        },
     },
 }

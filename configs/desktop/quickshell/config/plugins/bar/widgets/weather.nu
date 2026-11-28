@@ -86,6 +86,20 @@ const RADAR_SCALES = {
         ]
     }
 }
+# the topography under the radar: Natural Earth's shaded relief with its water, the borders of VMAP0's countries and,
+# inside DWD's range, of the Bundeslaender, all from DWD's GeoServer at the radar's own extent and pixel size; it never
+# changes with time, so it is fetched once per extent
+const BASE_TIMEOUT = 30sec
+const BASE_RELIEF = [[layer style]; ["dwd:Natural_Earth_Map" ""]]
+const BASE_LINES_DWD = [[layer style]; ["dwd:Warngebiete_Bundeslaender" "Warngebiete_Grenzen"] ["dwd:Laender" "Laender_schwarz"]]
+const BASE_LINES_WORLD = [[layer style]; ["dwd:Laender" "Laender_schwarz"]]
+# licence conditions: DWD's service, and the Bundeslaender geometry under dl-de/by-2.0; Natural Earth and VMAP0 are public
+# domain
+const BASE_ATTRIBUTION_DWD = ["Deutscher Wetterdienst" "GeoBasis-DE / BKG"]
+const BASE_ATTRIBUTION_WORLD = ["Deutscher Wetterdienst"]
+# the ink each part of the theme-free mask carries, the panel tints it to the palette: shaded slopes (the relief darker
+# than its lowlands), water (Natural Earth's blue), then the border lines
+const BASE_INK = {relief: 0.35, water: 0.3, lines: 0.7, relief_level: "18%,60%", water_blue_over_red: 0.12, water_blur: "0x0.7"}
 const MERCATOR_Z0_M_PER_PX = 156543.03392
 const EARTH_RADIUS_M = 6378137.0
 const RADIANS_PER_DEGREE = 0.017453292519943295
@@ -251,20 +265,39 @@ def forecast-get []: nothing -> record {
     } (cache-path weather.json)
 }
 
-def radar-plan-dwd [lat: float, lon: float]: nothing -> table {
+# The radar's Web-Mercator extent (EPSG:3857 metres) centred on the place: RADAR_SIZE_PX at RADAR_ZOOM, which every
+# layer under or over the radar shares so they align pixel for pixel.
+export def radar-bbox [lat: float, lon: float]: nothing -> string {
     let x = $lon * $RADIANS_PER_DEGREE * $EARTH_RADIUS_M
     let y = ($lat / 2 + 45 | math tan -d | math ln) * $EARTH_RADIUS_M
     let half = $RADAR_SIZE_PX * $MERCATOR_Z0_M_PER_PX / (2 ** $RADAR_ZOOM) / 2
+    [($x - $half) ($y - $half) ($x + $half) ($y + $half)] | each { into string --decimals 6 } | str join ","
+}
+
+# The extent hashed, so the radar and its topography can be matched on disk without coordinates.
+export def radar-extent [lat: float, lon: float]: nothing -> string { radar-bbox $lat $lon | hash sha256 }
+
+export def dwd-covers [lat: float, lon: float]: nothing -> bool {
+    ($lat >= $DWD_LAT_RANGE.0 and $lat <= $DWD_LAT_RANGE.1 and $lon >= $DWD_LON_RANGE.0 and $lon <= $DWD_LON_RANGE.1)
+}
+
+def wms-url [layers: table, bbox: string, transparent: bool, time?: string]: nothing -> string {
+    let query = {
+        service: WMS version: "1.1.1" request: GetMap layers: ($layers.layer | str join ",")
+        styles: ($layers.style | str join ",") srs: "EPSG:3857" bbox: $bbox width: $RADAR_SIZE_PX height: $RADAR_SIZE_PX
+        format: "image/png" transparent: ($transparent | into string)
+    }
+    $DWD_URL + ($query | merge (if $time == null { {} } else { {time: $time} }) | url build-query)
+}
+
+export def radar-plan-dwd [lat: float, lon: float]: nothing -> table {
     let step_s = $RADAR_STEP_MIN * 60
     let latest = ((epoch-now) - $DWD_LATENCY_S) // $step_s * $step_s
-    let bbox = [($x - $half) ($y - $half) ($x + $half) ($y + $half)] | each { into string --decimals 6 } | str join ","
+    let bbox = radar-bbox $lat $lon
     seq ($latest - $RADAR_HISTORY_MIN * 60) $step_s $latest | each {|unix_s|
-        let query = {
-            service: WMS version: "1.1.1" request: GetMap layers: $DWD_LAYER styles: "" srs: "EPSG:3857" bbox: $bbox
-            width: $RADAR_SIZE_PX height: $RADAR_SIZE_PX format: "image/png" transparent: "true"
-            time: ($unix_s * 1_000_000_000 | into datetime | format date "%Y-%m-%dT%H:%M:00.000Z")
-        }
-        {unix_s: $unix_s, url: ($DWD_URL + ($query | url build-query)), forecast: false}
+        let time = $unix_s * 1_000_000_000 | into datetime | format date "%Y-%m-%dT%H:%M:00.000Z"
+        let layers = [{layer: $DWD_LAYER, style: ""}]
+        {unix_s: $unix_s, url: (wms-url $layers $bbox true $time), forecast: false}
     }
 }
 
@@ -314,8 +347,7 @@ def radar-get []: nothing -> record {
     let cached = cache-load $manifest $RADAR_MAX_AGE | reply-current $key
     if $cached != null { return $cached }
 
-    let in_dwd = ($lat >= $DWD_LAT_RANGE.0 and $lat <= $DWD_LAT_RANGE.1
-        and $lon >= $DWD_LON_RANGE.0 and $lon <= $DWD_LON_RANGE.1)
+    let in_dwd = dwd-covers $lat $lon
     let plan = if $in_dwd { radar-plan-dwd $lat $lon } else { radar-plan-rainviewer $lat $lon }
     let scale = if $in_dwd { $RADAR_SCALES.dwd } else { $RADAR_SCALES.rainviewer }
     if ($plan | describe) == string { return (failure $plan) }
@@ -339,6 +371,7 @@ def radar-get []: nothing -> record {
         let attribution = if $in_dwd { "Deutscher Wetterdienst" } else { "RainViewer" }
         reply-publish {
             ok: true, frames: $frames, spanKm: (radar-span-km $lat), attribution: $attribution, key: $key
+            extent: (radar-extent $lat $lon)
         } $manifest
     }
     # prune only after publishing, a failed run keeps the live generation
@@ -347,6 +380,86 @@ def radar-get []: nothing -> record {
     }
     $doomed | each { rm -rf $in }
     $reply
+}
+
+# What the topography for a place is made of: the two WMS requests at the radar's extent, the attribution, and the
+# recipe (layers plus ink) that a cached mask must have been made with.
+export def base-plan [lat: float, lon: float]: nothing -> record {
+    let bbox = radar-bbox $lat $lon
+    let in_dwd = dwd-covers $lat $lon
+    let lines = if $in_dwd { $BASE_LINES_DWD } else { $BASE_LINES_WORLD }
+    {
+        extent: ($bbox | hash sha256)
+        recipe: ({relief: $BASE_RELIEF, lines: $lines, ink: $BASE_INK} | to nuon | hash sha256)
+        relief: (wms-url $BASE_RELIEF $bbox false)
+        lines: (wms-url $lines $bbox true)
+        attribution: (if $in_dwd { $BASE_ATTRIBUTION_DWD } else { $BASE_ATTRIBUTION_WORLD })
+    }
+}
+
+# A cached topography holds for the extent and recipe it was made with, while its mask is on disk; anything else is a
+# miss.
+export def base-current [plan: record]: any -> any {
+    let base = $in
+    if ($base | describe -d).type != record or $base.ok? != true { return null }
+    if $base.extent? == $plan.extent and $base.recipe? == $plan.recipe and ($base.file? | default "" | path exists) {
+        $base
+    }
+}
+
+# Folds the relief and the line layer into one white mask whose alpha is the ink: shaded slopes, water, then lines on
+# top, each at its BASE_INK level.
+export def base-ink [relief: path, lines: path, out: path]: nothing -> bool {
+    let args = [
+        $relief -alpha off -write mpr:relief +delete
+        "(" mpr:relief -colorspace gray -negate -level $BASE_INK.relief_level -evaluate multiply $BASE_INK.relief ")"
+        # softened: Natural Earth's rivers are coarse at this zoom and stair-step without it
+        "(" mpr:relief -fx $"b - r > ($BASE_INK.water_blue_over_red) ? ($BASE_INK.water) : 0" -blur $BASE_INK.water_blur ")"
+        -compose lighten -composite
+        "(" $lines -alpha extract -evaluate multiply $BASE_INK.lines ")" -compose lighten -composite
+        -write mpr:ink +delete
+        "(" mpr:relief -fill white -colorize 100 ")" mpr:ink -alpha off -compose copy-opacity -composite
+        -define png:color-type=4 $out
+    ]
+    (^magick ...$args | complete).exit_code == 0
+}
+
+def png-fetch [url: string, file: path]: nothing -> bool {
+    let body = http-fetch $url $BASE_TIMEOUT
+    if ($body | describe) != binary or ($body | bytes at 0..7 | bytes index-of $PNG_MAGIC) < 0 { return false }
+    $body | file-save-atomic $file
+    true
+}
+
+# The topography for a place, from the cache while its extent holds: one fetch per place, never on a timer.
+export def base-for [lat: float, lon: float]: nothing -> record {
+    let plan = base-plan $lat $lon
+    let manifest = cache-path radar/base.json
+    let cached = try { open --raw $manifest | from json } catch { null } | base-current $plan
+    if $cached != null { return $cached }
+
+    let radar_dir = cache-path radar
+    let stage = $radar_dir | path join $"base-stage-(epoch-now)"
+    rm -rf $stage
+    try { mkdir $stage } catch { return (failure "cache unavailable") }
+    let relief = $stage | path join relief.png
+    let lines = $stage | path join lines.png
+    let file = $radar_dir | path join $"base-($plan.extent | str substring 0..<16)-($plan.recipe | str substring 0..<8).png"
+    let made = (png-fetch $plan.relief $relief) and (png-fetch $plan.lines $lines) and (base-ink $relief $lines $file)
+    rm -rf $stage
+    if not $made { return (failure "no topography") }
+    let reply = reply-publish {
+        ok: true, file: $file, extent: $plan.extent, recipe: $plan.recipe, attribution: $plan.attribution
+    } $manifest
+    # prune only after publishing, a failed run keeps the live mask
+    if $reply.ok { ls $radar_dir | where name =~ '/base-[0-9a-f]+-[0-9a-f]+\.png$' and name != $file | each { rm -f $in.name } }
+    $reply
+}
+
+def base-get []: nothing -> record {
+    let location = location-resolve
+    if $location == null { return (failure "no location") }
+    base-for ($location.lat | into float) ($location.lon | into float)
 }
 
 def field-get []: nothing -> record {
@@ -578,7 +691,7 @@ def alerts-get []: nothing -> record {
 def main [command?: string] {
     let reply = match $command {
         forecast => (forecast-get)
-        radar => { {radar: (radar-get), field: (field-get)} }
+        radar => { {radar: (radar-get), field: (field-get), base: (base-get)} }
         alerts => { alerts-get | default [] alerts }
         _ => {
             print -e "usage: weather.nu forecast|radar|alerts"

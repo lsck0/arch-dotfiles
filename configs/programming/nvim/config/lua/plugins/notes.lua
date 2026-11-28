@@ -39,6 +39,12 @@ return {
     {
         "nvim-orgmode/orgmode",
         ft = "org",
+        cmd = "Org",
+        -- the global keys of its <leader>m prefix, reachable before an org file was opened
+        keys = {
+            { "<leader>ma", "<cmd>lua require('orgmode').action('agenda.prompt')<cr>", desc = "org agenda" },
+            { "<leader>mc", "<cmd>lua require('orgmode').action('capture.prompt')<cr>", desc = "org capture" },
+        },
         opts = {
             org_agenda_files = "~/sync/notes/**/*.org",
             org_default_notes_file = "~/sync/notes/refile.org",

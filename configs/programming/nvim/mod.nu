@@ -137,8 +137,11 @@ export def link [cfg: record] {
     let picked = $cfg | select spell_languages dictation_language
     let defaults = {spell_languages: $options.spell_languages.default, dictation_language: $options.dictation_language.default}
     let model = open $WHISPER_MODEL_PIN
+    # molten writes a kernel's connection file there and never creates it; only a jupyter server run does
+    let jupyter_runtime = xdg data jupyter runtime
     [
         (file-link config $config)
+        (exec jupyter-runtime [mkdir -p -m 700 $jupyter_runtime] --creates $jupyter_runtime)
         (if $picked != $defaults {
             file-text (xdg data nvim $OPTIONS_FILE) $"($picked | to json --indent 2)\n"
         })

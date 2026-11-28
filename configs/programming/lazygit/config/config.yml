@@ -18,3 +18,5 @@ git:
           name: delta side-by-side
 os:
     editPreset: nvim
+# the intro and what's-new popups block the first start on every fresh state dir
+disableStartupPopups: true

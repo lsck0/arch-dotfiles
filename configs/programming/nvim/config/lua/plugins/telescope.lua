@@ -55,6 +55,8 @@ return {
                         },
                     },
                 },
+                -- find_files previews through the grep previewer, which titles itself "Grep Preview"
+                pickers = { find_files = { preview_title = "File Preview" } },
                 extensions = {
                     fzf = {},
                 },

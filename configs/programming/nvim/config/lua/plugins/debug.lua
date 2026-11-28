@@ -1,5 +1,13 @@
 -- a java-debug command (main class, classpath) can take this long on a cold jdtls workspace
 local JDTLS_TIMEOUT_MS = 30000
+-- nvim-dap's own sign texts
+local DAP_SIGNS = {
+    DapBreakpoint = "B",
+    DapBreakpointCondition = "C",
+    DapBreakpointRejected = "R",
+    DapLogPoint = "L",
+    DapStopped = "\u{2192}",
+}
 
 return {
     {
@@ -8,7 +16,7 @@ return {
             "rcarriga/nvim-dap-ui",
             "theHamsta/nvim-dap-virtual-text",
         },
-        cmd = { "DapToggleBreakpoint", "DapContinue", "DapStepOver", "DapStepInto", "DapStepOut" },
+        cmd = { "DapToggleBreakpoint", "DapContinue", "DapStepOver", "DapStepInto", "DapStepOut", "DapTerminate" },
         init = function()
             local tunnels = {}
             vim.api.nvim_create_user_command("DapTunnel", function(o)
@@ -62,6 +70,16 @@ return {
             require("nvim-dap-virtual-text").setup()
             local dap, dapui = require("dap"), require("dapui")
             local pick_process = require("dap.utils").pick_process
+
+            -- texthl in the colorscheme's Dap groups (colors/wal.lua), the stopped line in debugPC
+            for name, text in pairs(DAP_SIGNS) do
+                vim.fn.sign_define(name, {
+                    text = text,
+                    texthl = name,
+                    linehl = name == "DapStopped" and "debugPC" or nil,
+                    numhl = name == "DapStopped" and name or nil,
+                })
+            end
 
             dapui.setup({
                 layouts = {
@@ -137,14 +155,9 @@ return {
                 },
             }
 
+            -- no attach by pid: yama's ptrace_scope 1 lets a debugger trace only what it launched, so gdb, codelldb
+            -- and debugpy attaches all fail with EPERM; a gdbserver started on the program (gdbserver :2345 prog) works
             local native_attach = {
-                {
-                    name = "Attach to process (gdb)",
-                    type = "gdb",
-                    request = "attach",
-                    pid = pick_process,
-                    cwd = "${workspaceFolder}",
-                },
                 {
                     name = "Attach to gdbserver (remote)",
                     type = "gdb",
@@ -170,26 +183,66 @@ return {
             dap.configurations.cpp = dap.configurations.c
             dap.configurations.asm = dap.configurations.c
 
+            -- runs in dap's coroutine: the build goes on in the background, the binary comes from cargo's own
+            -- artifact list (a workspace member, a target-dir from .cargo/config.toml)
+            local function cargo_build_binary()
+                local co = coroutine.running()
+                local progress = { id = "dap_cargo_build", title = "dap" }
+                vim.notify("cargo build", vim.log.levels.INFO, progress)
+                vim.system(
+                    { "cargo", "build", "--message-format=json-render-diagnostics" },
+                    { text = true },
+                    function(res)
+                        vim.schedule(function()
+                            coroutine.resume(co, res)
+                        end)
+                    end
+                )
+                local build = coroutine.yield()
+                if build.code ~= 0 then
+                    vim.notify("cargo build failed:\n" .. build.stderr, vim.log.levels.ERROR, progress)
+                    return dap.ABORT
+                end
+                local binaries = {}
+                for line in build.stdout:gmatch("[^\n]+") do
+                    local msg = vim.json.decode(line, { luanil = { object = true } })
+                    if
+                        msg.reason == "compiler-artifact"
+                        and msg.executable
+                        and vim.tbl_contains(msg.target.kind, "bin")
+                    then
+                        table.insert(binaries, msg.executable)
+                    end
+                end
+                if #binaries == 0 then
+                    vim.notify("cargo build: no binary target", vim.log.levels.ERROR, progress)
+                    return dap.ABORT
+                end
+                vim.notify("cargo build done", vim.log.levels.INFO, progress)
+                if #binaries == 1 then
+                    return binaries[1]
+                end
+                vim.ui.select(binaries, {
+                    prompt = "Binary: ",
+                    format_item = function(path)
+                        return vim.fn.fnamemodify(path, ":~:.")
+                    end,
+                }, function(path)
+                    -- a picker may answer before the yield below
+                    vim.schedule(function()
+                        coroutine.resume(co, path)
+                    end)
+                end)
+                return coroutine.yield() or dap.ABORT
+            end
+
             dap.configurations.rust = vim.list_extend({
                 {
                     name = "Launch (codelldb)",
                     type = "codelldb",
                     request = "launch",
-                    program = function()
-                        local out = vim.fn.system("cargo build")
-                        if vim.v.shell_error ~= 0 then
-                            error("cargo build failed:\n" .. out)
-                        end
-                        local target = vim.env.CARGO_TARGET_DIR or (vim.fn.getcwd() .. "/target")
-                        return vim.fn.input("Path to executable: ", target .. "/debug/", "file")
-                    end,
+                    program = cargo_build_binary,
                     cwd = "${workspaceFolder}",
-                },
-                {
-                    name = "Attach to process (codelldb)",
-                    type = "codelldb",
-                    request = "attach",
-                    pid = pick_process,
                 },
             }, native_attach)
 
@@ -219,13 +272,6 @@ return {
                     program = "${file}",
                     cwd = "${workspaceFolder}",
                     pythonPath = project_python,
-                },
-                {
-                    name = "Attach to process",
-                    type = "python",
-                    request = "attach",
-                    processId = pick_process,
-                    justMyCode = false,
                 },
                 {
                     name = "Attach to debugpy port (remote)",
@@ -314,6 +360,15 @@ return {
                     args = { js_debug_server, "${port}", "127.0.0.1" },
                 },
             }
+
+            -- the types a project's .vscode/launch.json names: VS Code's python extension writes debugpy, plain node
+            -- configs node; js-debug serves node only under its own pwa-node type
+            dap.adapters.debugpy = dap.adapters.python
+            dap.adapters.node = vim.tbl_extend("force", dap.adapters["pwa-node"], {
+                enrich_config = function(config, on_config)
+                    on_config(vim.tbl_extend("force", config, { type = "pwa-node" }))
+                end,
+            })
 
             dap.configurations.javascript = {
                 {

@@ -9,6 +9,8 @@ return {
                     -- Enter is blink's: autopairs' own <CR> map raced blink's per buffer and won in some,
                     -- so Enter made a newline under an open menu; blink falls back to autopairs below
                     map_cr = false,
+                    -- a pair is part of the insert: one u undoes the whole insert, not the text after the last pair
+                    break_undo = false,
                     fast_wrap = {},
                     disable_filetype = { "TelescopePrompt", "vim" },
                 },
@@ -83,6 +85,8 @@ return {
             signature = { enabled = true },
 
             completion = {
+                -- an accepted item is part of the insert, like typed text: one u undoes the whole insert
+                accept = { create_undo_point = false },
                 list = { selection = { preselect = true, auto_insert = false } },
                 documentation = { auto_show = true, auto_show_delay_ms = 200 },
                 menu = {

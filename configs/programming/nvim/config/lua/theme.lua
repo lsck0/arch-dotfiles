@@ -39,12 +39,6 @@ local AYU_LINENR = {
 local CLEAR_BG = {
     "Normal",
     "NormalNC",
-    "NormalFloat",
-    -- a float is the terminal's glass inside its hairline, frame and title included (ghostty fills a cell bg opaque)
-    "FloatBorder",
-    "FloatTitle",
-    "FloatFooter",
-    "Pmenu",
     "Comment",
     "Constant",
     "Special",
@@ -67,7 +61,6 @@ local CLEAR_BG = {
     "CursorLineNr",
     "StatusLineNC",
     "EndOfBuffer",
-    "TelescopeNormal",
     "TabLine",
     "TabLineFill",
     "WinSeparator",
@@ -78,6 +71,20 @@ local NEOVIDE_KEEP = { Normal = true, NormalNC = true }
 -- the sidebar tree is a split like the editor: its window takes Normal's bg, which neovide draws as the same glass
 local SIDEBAR_NORMAL = { NeoTreeNormal = "Normal", NeoTreeNormalNC = "NormalNC", NeoTreeEndOfBuffer = "EndOfBuffer" }
 local CLEAR_FG_BG = { "BufferCurrent", "BufferOffset", "BufferVisible", "StatusLine" }
+-- Floats keep the colorscheme's opaque bg (ghostty fills a cell bg opaque), so code over a busy wallpaper stays
+-- readable in them. A frame or picker group a colorscheme gives only a fg (ayu's FloatBorder, gruvbox's
+-- TelescopeNormal) takes NormalFloat's bg; one it leaves undefined keeps the plugin's own link.
+local FLOAT_FILL = { "FloatBorder", "FloatTitle", "FloatFooter", "TelescopeNormal", "TelescopeBorder" }
+-- snacks paints a notification with Normal and gives its frame only a fg, and defines those groups at the first
+-- notification, so they are set here: the body as NormalFloat, the frame in snacks' level colours on it.
+local NOTIFIER_LEVEL_FG = {
+    Error = "DiagnosticError",
+    Warn = "DiagnosticWarn",
+    Info = "DiagnosticInfo",
+    Debug = "NonText",
+    Trace = "NonText",
+}
+local NOTIFIER_PARTS = { "Border", "Title", "Footer", "Icon" }
 
 local function luminance(rgb)
     local function channel(shift)
@@ -104,8 +111,19 @@ end
 
 local style = json_read(STYLE_JSON) or {}
 
+-- Links followed by hand: with link = false nvim resolves through the current window's winhighlight, so a start on
+-- the snacks dashboard (NormalFloat:SnacksDashboardNormal) read the dashboard's bg for NormalFloat. The bound is
+-- nvim's own link depth, against a cycle.
+local LINK_DEPTH_MAX = 100
 local function hl_get(name)
-    return vim.api.nvim_get_hl(0, { name = name, link = false })
+    local hl = vim.api.nvim_get_hl(0, { name = name })
+    for _ = 1, LINK_DEPTH_MAX do
+        if not hl.link then
+            return hl
+        end
+        hl = vim.api.nvim_get_hl(0, { name = hl.link })
+    end
+    return {}
 end
 
 local function background_from_wal()
@@ -169,6 +187,21 @@ local function transparency_apply()
     for name, target in pairs(SIDEBAR_NORMAL) do
         vim.api.nvim_set_hl(0, name, { link = target })
     end
+    local float_bg = hl_get("NormalFloat").bg
+    for _, name in ipairs(FLOAT_FILL) do
+        local hl = hl_get(name)
+        if next(hl) and not hl.bg then
+            hl.bg = float_bg
+            vim.api.nvim_set_hl(0, name, hl)
+        end
+    end
+    for level, fg_group in pairs(NOTIFIER_LEVEL_FG) do
+        vim.api.nvim_set_hl(0, "SnacksNotifier" .. level, { link = "NormalFloat" })
+        local frame = { fg = hl_get(fg_group).fg, bg = float_bg }
+        for _, part in ipairs(NOTIFIER_PARTS) do
+            vim.api.nvim_set_hl(0, "SnacksNotifier" .. part .. level, frame)
+        end
+    end
 end
 
 local current = nil
@@ -204,11 +237,6 @@ function M.apply(name)
         -- unset first: setting 'background' reloads the outgoing colorscheme
         vim.g.colors_name = nil
         vim.o.background = background
-    end
-    -- neovide's background is the terminals' glass: the shell opacity of the theme's brightness
-    if vim.g.neovide and style.opacity_shell then
-        local light = (background or vim.o.background) == "light"
-        vim.g.neovide_normal_opacity = light and style.opacity_shell_light or style.opacity_shell
     end
     -- a colorscheme clears only when colors_name is set
     vim.cmd.highlight("clear")

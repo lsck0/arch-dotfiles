@@ -25,6 +25,8 @@ if vim.env.SSH_TTY or vim.env.SSH_CONNECTION then
 end
 set.cmdheight = 0
 set.colorcolumn = "120"
+-- :q and :qa on a changed buffer ask to save instead of failing with E37/E162 and a press-any-key prompt
+set.confirm = true
 set.cursorline = true
 set.expandtab = true
 set.fillchars = { eob = " " }
@@ -42,13 +44,16 @@ end
 set.ignorecase = true
 set.inccommand = "split"
 set.list = true
-set.listchars = { tab = "> ", trail = "-", eol = "\u{21b2}" }
+-- tab's first cell is a space: snacks' indent guide covers it, the arrow before the text tells a tab from spaces
+set.listchars = { tab = "  \u{bb}", trail = "\u{b7}", eol = "\u{21b2}" }
 set.laststatus = 3
 set.mousemoveevent = true
 set.number = true
 set.pumheight = 12
 set.relativenumber = true
 set.scrolloff = 8
+-- the default minus blank and terminal: a restored session would rerun a terminal's command and keep plugin windows
+set.sessionoptions = { "buffers", "curdir", "folds", "help", "tabpages", "winsize" }
 set.shortmess:append("I") -- no intro screen: an empty start is an empty buffer
 set.shell = "zsh"
 set.shiftwidth = 4
@@ -80,7 +85,9 @@ vim.g.loaded_ruby_provider = 0
 if vim.g.neovide then
     vim.g.neovide_scale_factor = 1.0
     vim.g.neovide_theme = "auto"
-    -- neovide_normal_opacity follows the theme: theme.lua sets it from style.json
+    -- near-solid: code over a busy wallpaper at the terminals' glass opacity is hard to read; a terminal nvim keeps the
+    -- terminal's own background
+    vim.g.neovide_normal_opacity = 0.92
     vim.g.neovide_remember_window_size = true
     vim.g.neovide_hide_mouse_when_typing = true
     vim.g.neovide_refresh_rate = 120

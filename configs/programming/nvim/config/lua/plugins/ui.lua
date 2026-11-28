@@ -65,8 +65,28 @@ return {
                             return "%{%v:lua.dropbar()%}"
                         end,
                     },
+                    -- [RO] read-only, [+] modified, [-] not modifiable
+                    "%r%m",
                 },
-                lualine_x = { "filetype" },
+                -- encoding and line endings only where they differ from utf-8 and unix
+                lualine_x = {
+                    {
+                        "encoding",
+                        show_bomb = true,
+                        cond = function()
+                            local encoding = vim.bo.fileencoding
+                            return vim.bo.bomb or (encoding ~= "" and encoding ~= "utf-8")
+                        end,
+                    },
+                    {
+                        "fileformat",
+                        symbols = { dos = "crlf", mac = "cr" },
+                        cond = function()
+                            return vim.bo.fileformat ~= "unix"
+                        end,
+                    },
+                    "filetype",
+                },
                 lualine_y = {},
                 lualine_z = { "location" },
             },
@@ -113,7 +133,71 @@ return {
         priority = 1000,
         opts = {
             bigfile = { enabled = true },
-            dashboard = { enabled = false },
+            -- the start page of a bare `nvim`: snacks' keys, then this directory's recent files and the projects; the
+            -- session key says when there is none (lib.session), a project opens as <leader>fp opens it
+            dashboard = {
+                enabled = true,
+                preset = {
+                    keys = {
+                        {
+                            icon = "\u{f002} ",
+                            key = "f",
+                            desc = "Find File",
+                            action = ":lua Snacks.dashboard.pick('files')",
+                        },
+                        { icon = "\u{f15b} ", key = "n", desc = "New File", action = ":ene | startinsert" },
+                        {
+                            icon = "\u{f022} ",
+                            key = "g",
+                            desc = "Find Text",
+                            action = ":lua Snacks.dashboard.pick('live_grep')",
+                        },
+                        {
+                            icon = "\u{f0c5} ",
+                            key = "r",
+                            desc = "Recent Files",
+                            action = ":lua Snacks.dashboard.pick('oldfiles')",
+                        },
+                        {
+                            icon = "\u{f423} ",
+                            key = "c",
+                            desc = "Config",
+                            action = ":lua Snacks.dashboard.pick('files', {cwd = vim.fn.stdpath('config')})",
+                        },
+                        {
+                            icon = "\u{e348} ",
+                            key = "s",
+                            desc = "Restore Session",
+                            action = ":lua require('lib.session').load()",
+                        },
+                        { icon = "\u{f04b2} ", key = "L", desc = "Lazy", action = ":Lazy" },
+                        { icon = "\u{f426} ", key = "q", desc = "Quit", action = ":qa" },
+                    },
+                },
+                sections = {
+                    { section = "header" },
+                    { section = "keys", gap = 1, padding = 1 },
+                    {
+                        icon = " ",
+                        title = "Recent Files",
+                        section = "recent_files",
+                        cwd = true,
+                        indent = 2,
+                        padding = 1,
+                    },
+                    {
+                        icon = " ",
+                        title = "Projects",
+                        section = "projects",
+                        indent = 2,
+                        padding = 1,
+                        action = function(dir)
+                            require("lib.projects").open(dir)
+                        end,
+                    },
+                    { section = "startup" },
+                },
+            },
             image = {
                 enabled = true,
                 doc = {

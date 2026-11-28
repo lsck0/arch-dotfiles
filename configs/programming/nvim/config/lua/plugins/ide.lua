@@ -50,8 +50,35 @@ return {
         "folke/persistence.nvim",
         event = "BufReadPre",
         opts = {},
+        -- the tree and terminals stay out of a session: a restore would bring the tree back as a file buffer and rerun
+        -- a terminal's command (perf record, claude); the tree opens anew after the load
+        config = function(_, opts)
+            require("persistence").setup(opts)
+            local group = vim.api.nvim_create_augroup("persistence-windows", { clear = true })
+            vim.api.nvim_create_autocmd("User", {
+                group = group,
+                pattern = "PersistenceSavePre",
+                callback = function()
+                    for _, win in ipairs(vim.api.nvim_list_wins()) do
+                        local buf = vim.api.nvim_win_get_buf(win)
+                        if vim.bo[buf].filetype == "neo-tree" or vim.bo[buf].buftype == "terminal" then
+                            -- the last window of the last tab stays, the session then holds an empty one
+                            pcall(vim.api.nvim_win_close, win, true)
+                        end
+                    end
+                end,
+            })
+            vim.api.nvim_create_autocmd("User", {
+                group = group,
+                pattern = "PersistenceLoadPost",
+                callback = function()
+                    require("lib.explorer").open()
+                end,
+            })
+        end,
         keys = {
-            { "<leader>qs", "<cmd>lua require('persistence').load()<cr>", desc = "Restore session (cwd)" },
+            { "<leader>qs", "<cmd>lua require('lib.session').load()<cr>", desc = "Restore session (cwd)" },
+            { "<leader>qS", "<cmd>lua require('persistence').select()<cr>", desc = "Pick a session" },
             {
                 "<leader>ql",
                 "<cmd>lua require('persistence').load({ last = true })<cr>",

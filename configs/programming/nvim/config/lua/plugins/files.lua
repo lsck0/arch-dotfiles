@@ -19,26 +19,11 @@ return {
             window = {
                 position = "left",
                 width = 24,
-                mapping_options = { noremap = true, nowait = true },
+                -- the rest are neo-tree's defaults; <space> stays its toggle_node without nowait, so the leader works
                 mappings = {
-                    ["<space>"] = "toggle_node",
-                    ["S"] = "open_split",
-                    ["s"] = "open_vsplit",
                     ["C"] = "close_all_subnodes",
                     ["z"] = "expand_all_nodes",
                     ["Z"] = "close_all_nodes",
-                    ["a"] = "add",
-                    ["A"] = "add_directory",
-                    ["d"] = "delete",
-                    ["r"] = "rename",
-                    ["y"] = "copy_to_clipboard",
-                    ["x"] = "cut_to_clipboard",
-                    ["p"] = "paste_from_clipboard",
-                    ["c"] = "copy",
-                    ["m"] = "move",
-                    ["q"] = "close_window",
-                    ["R"] = "refresh",
-                    ["?"] = "show_help",
                 },
             },
             filesystem = {
@@ -48,13 +33,16 @@ return {
                 -- the VimEnter autocmd opens it on a directory argument, so netrw's own listing never shows
                 hijack_netrw_behavior = "disabled",
                 use_libuv_file_watcher = true,
-                window = {
-                    mappings = {
-                        ["<bs>"] = "navigate_up",
-                        ["."] = "set_root",
-                        ["H"] = "toggle_hidden",
-                        ["/"] = "fuzzy_finder",
-                    },
+                components = {
+                    -- the root as its directory name, ~ for home: a full path does not fit the narrow window
+                    name = function(config, node, state)
+                        local name = require("neo-tree.sources.common.components").name(config, node, state)
+                        local tail = vim.fn.fnamemodify(node.path or "", ":~:t")
+                        if node:get_depth() == 1 and node.type == "directory" and tail ~= "" then
+                            name.text = tail .. name.text:sub(#node.name + 1)
+                        end
+                        return name
+                    end,
                 },
             },
         },

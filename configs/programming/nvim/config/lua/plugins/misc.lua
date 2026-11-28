@@ -1,6 +1,7 @@
 return {
     {
         "chrisgrieser/nvim-early-retirement",
+        event = "VeryLazy",
         opts = { retirementAgeMins = 3 },
     },
     {
@@ -29,6 +30,11 @@ return {
     { "jbyuki/venn.nvim", cmd = { "VBox", "VBoxD", "VBoxH", "VBoxO" } },
     {
         "mg979/vim-visual-multi",
+        keys = {
+            { "<M-d>", mode = { "n", "x" }, desc = "Multi-cursor: find under" },
+            { "<C-Down>", desc = "Multi-cursor: add below" },
+            { "<C-Up>", desc = "Multi-cursor: add above" },
+        },
         init = function()
             -- M-d, not M-n: herdr binds alt+n to next_agent and would swallow it
             vim.g.VM_maps = {
@@ -48,6 +54,7 @@ return {
     },
     {
         "nacro90/numb.nvim",
+        event = "VeryLazy",
         opts = {},
     },
     {
@@ -64,7 +71,7 @@ return {
     },
     { "sindrets/winshift.nvim", cmd = "WinShift" },
     { "tpope/vim-repeat" },
-    { "zeioth/garbage-day.nvim" },
+    { "zeioth/garbage-day.nvim", event = "VeryLazy" },
     {
         "ziontee113/icon-picker.nvim",
         cmd = { "IconPickerNormal", "IconPickerInsert", "IconPickerYank" },
@@ -72,6 +79,8 @@ return {
     },
     {
         "laytan/cloak.nvim",
+        -- a telescope preview of an .env is cloaked too, so that event loads it as well
+        event = { "BufReadPre *.env*", "BufNewFile *.env*", "User TelescopePreviewerLoaded" },
         opts = {
             cloak_character = "#",
             patterns = { { file_pattern = { "*.env*" }, cloak_pattern = "=.+" } },
@@ -112,6 +121,15 @@ return {
 
     {
         "dijeferson/gpg.nvim",
+        -- every event its autocmds take on *.gpg (the plaintext lockdown before a read, a rename, a write), so it is
+        -- loaded before any of them acts on such a file
+        event = {
+            "BufReadPre *.gpg",
+            "FileReadPre *.gpg",
+            "BufNewFile *.gpg",
+            "BufFilePost *.gpg",
+            "BufWriteCmd *.gpg",
+        },
         opts = {
             use_armor = true,
             allow_clipboard = true,
@@ -129,6 +147,17 @@ return {
     {
         "matthandzel/taskwarrior.nvim",
         main = "taskwarrior",
+        cmd = "Tw",
+        -- its global keys (opts below); the filter, sort and group keys exist only in its task buffers
+        keys = {
+            { "<leader>Ta", desc = "Task capture" },
+            { "<leader>Tt", desc = "Tasks" },
+            { "<leader>Tpa", desc = "Register cwd as project" },
+            { "<leader>Tc", desc = "Pick context" },
+            { "<leader>Tv", desc = "Pick view" },
+            { "<leader>Tr", desc = "Pick report" },
+            { "<leader>TF", desc = "Feedback" },
+        },
         opts = {
             capture_key = "<leader>Ta",
             open_key = "<leader>Tt",
