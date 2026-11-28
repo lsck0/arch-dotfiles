@@ -25,7 +25,8 @@ const FPRINT_LINE = "auth       sufficient pam_fprintd.so"
 # agent's tool shell) can neither raise a key or finger request nobody sees nor pipe a password in. Any pty passes: a
 # process that allocates one (script, a multiplexer pane) is not held back here
 const TTY_LINE = "auth       requisite  pam_succeed_if.so quiet_success tty =~ ?*"
-const HUMAN_UIDS = 1000..59999
+# the uids of human logins; desktop/ly reads its users from the same range
+export const HUMAN_UIDS = 1000..59999
 const SYSTEM_AUTH_INCLUDE = '^auth\s.*include.*system-auth'
 const AUTH_ANY = '^-?auth\s'
 

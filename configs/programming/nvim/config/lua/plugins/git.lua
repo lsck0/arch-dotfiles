@@ -54,18 +54,16 @@ return {
         },
     },
 
+    -- also the merge tool: during a merge or rebase DiffviewOpen shows each conflicted file 3-way; [x ]x jump between
+    -- conflicts, <leader>co / ct / cb / ca take ours / theirs / base / all, dx deletes the conflict region
     {
         "sindrets/diffview.nvim",
         cmd = { "DiffviewOpen", "DiffviewFileHistory", "DiffviewClose" },
         keys = {
-            { "<leader>gd", "<cmd>DiffviewOpen<cr>", desc = "Diffview open" },
+            { "<leader>gd", "<cmd>DiffviewOpen<cr>", desc = "Diffview open (merge tool during a conflict)" },
             { "<leader>gh", "<cmd>DiffviewFileHistory %<cr>", desc = "File history (current file)" },
         },
-    },
-
-    {
-        "akinsho/git-conflict.nvim",
-        config = true,
+        opts = { view = { merge_tool = { layout = "diff3_mixed" } } },
     },
 
     {

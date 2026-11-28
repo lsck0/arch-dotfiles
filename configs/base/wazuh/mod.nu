@@ -21,7 +21,10 @@ def wanted []: nothing -> bool {
 }
 
 export def system [cfg: record] {
-    if not (wanted) or not ($OSSEC | path join bin wazuh-agentd | path exists) { return [] }
+    if not (wanted) or not ($OSSEC | path exists) { return [] }
+    # the package's dir is the wazuh group's: a plan as the user sees neither the agent nor the password root wrote
+    if not (is-admin) { return (root-decides $OSSEC) }
+    if not ($OSSEC | path join bin wazuh-agentd | path exists) { return [] }
     let conf = $OSSEC | path join etc ossec.conf
     let pass = $OSSEC | path join etc authd.pass
     # a run with locked secrets is handed none: the password the last run wrote stays, so the agent is never undone

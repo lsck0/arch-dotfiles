@@ -23,6 +23,9 @@ export const options = {
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" or not (esp-supported) { return [] }
     [
+        # the initrd's systemd reads /etc/hostname, which mkinitcpio's systemd hook leaves out: without it every boot
+        # until the root mounts runs as the fallback hostname; the install writes the same file
+        (file-copy config/hostname.conf /etc/mkinitcpio.conf.d/hostname.conf)
         (step install ($cfg.menu_timeout_s | into string))
         # not a pacman hook: bootctl update would race sbctl's re-sign hook for the last place in hook order
         (unit-enable systemd-boot-update.service)

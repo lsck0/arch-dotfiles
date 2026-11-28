@@ -18,6 +18,8 @@ export const APPS = [
     {name: vpn, dir: null, files: [], items: {service: Proton}}
 ]
 export const MARKER = "proton-sessions/restored"
+# a backup of an app with nothing live: its archive stays as it was
+export const NOT_SIGNED_IN = "not signed in, kept"
 
 const BUS = "org.freedesktop.secrets"
 const SERVICE_PATH = "/org/freedesktop/secrets"
@@ -155,7 +157,7 @@ export def sessions-backup [archives: path]: nothing -> table {
             return {app: $app.name, status: "keyring locked, kept"}
         }
         let saved = session-backup $app ($archives | path join $"($app.name).tar")
-        {app: $app.name, status: (if $saved { "saved" } else { "not signed in, kept" })}
+        {app: $app.name, status: (if $saved { "saved" } else { $NOT_SIGNED_IN })}
     }
 }
 

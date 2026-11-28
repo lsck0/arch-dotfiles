@@ -1,5 +1,6 @@
 use module.nu *
 use ../../base/bootvine/mod.nu [CONSOLE_PALETTE palette-channels]
+use ../../base/pam/mod.nu [HUMAN_UIDS]
 
 # core/locale's language picks the greeter's
 export const meta = {packages: {pacman: [ly]}, reads: [core/locale]}
@@ -25,8 +26,6 @@ const SESSIONS = $ETC | path join sessions
 const SAVE = $ETC | path join save.txt
 const LANG_DIR = $ETC | path join lang
 const LANG_FALLBACK = "en"
-const UID_MIN = 1000
-const UID_MAX = 59999
 const NO_LOGIN = '(nologin|false)$'
 # ly puts one space between key hints; no-break spaces widen the gap, the ini parser trims plain ones
 const HINT_GAP = "\u{a0}\u{a0}\u{a0}"
@@ -79,7 +78,7 @@ export def save-defaults [session: string]: nothing -> nothing {
     let rows = if ($SAVE | path exists) { open --raw $SAVE | lines } else { ["1"] }
     let known = $rows | skip 1 | each { split row ":" | first }
     let users = open /etc/passwd | lines | split column ":" name x uid gid gecos home shell
-        | where {|u| ($u.uid | into int) in $UID_MIN..$UID_MAX and $u.shell !~ $NO_LOGIN } | get name
+        | where {|u| ($u.uid | into int) in $HUMAN_UIDS and $u.shell !~ $NO_LOGIN } | get name
     let added = ["root"] ++ $users | where $it not-in $known | each { $"($in):($index)" }
     $rows ++ $added | to text | save --force $SAVE
     ^chmod 644 $SAVE

@@ -5,9 +5,10 @@ description: "The one procedure for launching an app or game only to screenshot 
 
 # gui-testing
 
-A program launched only to check something never shows on Luca's monitors unless he says so. Default: a headless output
-of the agent's own, created only after he agreed. With his explicit permission (he is away, "use the pc") his real
-monitors are the other path.
+A program launched only to check something never shows on Luca's monitors unless he says so (`l-resources`, Luca's live
+session). First choice: the toolkit's offscreen driver, which needs no output (SDL: `SDL_VIDEO_DRIVER=offscreen
+SDL_AUDIO_DRIVER=dummy`). Otherwise a headless output of the agent's own, created only after he agreed. With his
+explicit permission (he is away, "use the pc") his real monitors are the other path.
 
 ## Never
 

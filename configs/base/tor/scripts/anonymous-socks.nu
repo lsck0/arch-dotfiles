@@ -1,6 +1,6 @@
 # Pool of isolated tor SOCKS ports on lo for toggle-anonymous-socks.
 
-use ../../../../scripts/lib/state.nu [xdg]
+use ../../../../scripts/lib/state.nu [unit-active xdg]
 
 const DEFAULTS = {
     PORT: 9061, RATE: 0, TOR_BIN: tor, POOL_SIZE: 10, CONTROL_PORT: 9161, MAX_CIRCUIT_DIRTINESS: 600, PERSONA: 1
@@ -160,7 +160,7 @@ export def anonymous-socks-up []: nothing -> nothing {
         error make {msg: "tor not found (set ANONYMOUS_SOCKS_TOR_BIN or: dot apply base/tor)"}
     }
     if ($s.VERIFIED | path exists) and (is-up $s) { return (err "already up") }
-    if (do { ^systemctl --user -q is-active $TOR_UNIT } | complete).exit_code == 0 {
+    if (unit-active --user $TOR_UNIT) {
         err "unverified instance running, restarting it"
         anonymous-socks-down
     }

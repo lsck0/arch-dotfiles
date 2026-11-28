@@ -12,7 +12,6 @@
 use system.nu [system-pack system-unpack system-files root-acts-on system-archive system-secrets system-secrets-digest entry-parses secrets-digest bootstrap-const SECRETS_PREFIX SECRETS_DIGEST ENTRY]
 use std/assert
 
-const SHA = "0123456789abcdef0123456789abcdef01234567"
 const SIGNING_KEY_FILE = "configs/group/app/key.asc"
 const TRUST_URL = "https://example.invalid/dotfiles.git"
 
@@ -53,8 +52,9 @@ def check [work: path]: nothing -> nothing {
     "export const meta = {reads: [group/probed]}\nexport def system [cfg: record] { [] }\n" | save ($reader | path join mod.nu)
     git-init $secrets
     git-init $checkout
+    let head = ^git -C $checkout rev-parse HEAD | str trim
 
-    system-pack $checkout $copy | system-unpack $copy $SHA
+    system-pack $checkout $copy | system-unpack $copy $head
     let modes = ^find ($copy | path join $SECRETS_PREFIX) -printf '%m %P\n' | lines
     let open = $modes | where {|m| ($m | str substring 1..2) != "00" }
     assert ($open | is-empty) $"($SECRETS_PREFIX) readable by others: ($open | str join ', ')"
@@ -98,7 +98,7 @@ def check [work: path]: nothing -> nothing {
     "token-b\n" | save ($keys | path join token)
     let handed = $work | path join handed
     mkdir $handed
-    system-archive $checkout "wg/lab.conf" | ^tar -x -C $handed -f - secrets.tar
+    system-archive $checkout "wg/lab.conf" $copy | ^tar -x -C $handed -f - secrets.tar
     let extracted = $work | path join extracted
     mkdir $extracted
     ^tar -x -C $extracted -f ($handed | path join secrets.tar)
@@ -112,13 +112,13 @@ def check [work: path]: nothing -> nothing {
     assert (entry-parses $copy) "the unpacked copy's entry does not parse"
     let source = open --raw ($copy | path join .source)
     "def main [] { let broken = \n" | save --force ($checkout | path join $ENTRY)
-    let refused = try { system-pack $checkout $copy | system-unpack $copy $SHA; "" } catch {|e| $e.msg }
+    let refused = try { system-pack $checkout $copy | system-unpack $copy $head; "" } catch {|e| $e.msg }
     assert ($refused | str contains "does not parse") $"an archive with a broken entry was unpacked: ($refused)"
     assert (entry-parses $copy) "the copy took the broken entry"
     assert equal (open --raw ($copy | path join .source)) $source "the refused archive changed the copy"
     assert not ($"($copy).new" | path exists) "the refused archive was left beside the copy"
     "use absent-module.nu [x]\n" | save --force ($checkout | path join $ENTRY)
-    assert ((try { system-pack $checkout $copy | system-unpack $copy $SHA; "" } catch {|e| $e.msg }) | str contains "does not parse") "an entry with a missing import was unpacked"
+    assert ((try { system-pack $checkout $copy | system-unpack $copy $head; "" } catch {|e| $e.msg }) | str contains "does not parse") "an entry with a missing import was unpacked"
 }
 
 def secrets-cases [repo: path]: nothing -> nothing {

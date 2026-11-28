@@ -15,7 +15,8 @@ Layout, UI copy rules, launcher prefixes, reminders and IPC summons: `configs/de
    held (a new type file or a changed library script restarts the shell instead: ask first).
 2. `journalctl --user -u quickshell -f -o cat` names file and line of a QML error. Fix, back to 1.
 3. No fresh `Configuration Loaded`, still broken or crashed: `~/.config/quickshell/restart.nu` (restarts the unit, kills
-   strays, bakes shaders; Luca's `SUPER+SHIFT+r`). It flickers his live bar: while he works, ask.
+   strays, bakes shaders; Luca's `SUPER+SHIFT+r`). It flickers his live bar: ask first (`l-resources`, Luca's live
+   session).
 
 ## IPC
 
@@ -55,7 +56,7 @@ Geometry is logical, the PNG physical (scale 1.67 on luca-pc).
 
 - Never start a second quickshell in Luca's session: it takes over notifications, and a test lock locks the real
   screen. A test shell runs only in the nested Hyprland (`l-dotfiles-gui-testing`).
-- A new QML type file or a changed `.pragma library` script (`Schema.js`, `Palette.js`, `Plugins.js`, the `*Model.js`):
+- A QML type file new to the tree or any changed `.pragma library` script (`type-file` and `library-js` in `mod.nu`):
   `dot apply desktop/quickshell` restarts `quickshell.service` itself (`shell-restart` in `mod.nu`), so ask Luca before
   applying it to his live shell. An inline component (`component X: ...`) added to an existing file still fails hot
   reload with "<Name> is not a type": `restart.nu`, after his yes.

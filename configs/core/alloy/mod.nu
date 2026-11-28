@@ -34,8 +34,12 @@ export def system [cfg: record] {
     # undone
     let password = if ($credential | path exists) {
         open --raw $credential | str trim | split row ":" | skip 1 | str join ":"
+    } else if ($secret | path exists) {
+        # a plan as the user is handed no credential and cannot read the password root wrote
+        if not (is-admin) { return (root-decides $secret) }
+        open --raw $secret
     } else {
-        try { open --raw $secret } catch { null }
+        null
     }
     if $password == null { return [] }
     let args = $ETC | path join dotfiles.env

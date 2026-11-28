@@ -6,7 +6,7 @@ description: "Reading the live system dot manages: dot status, dot log, FAILURES
 # live-debug
 
 Everything here only reads, except `dot module adopt|reset` and a user service restart. Never answer a prompt a run is
-waiting on, and never restart an app Luca is working in without asking.
+waiting on; restarting an app Luca has open: `l-resources`, Luca's live session.
 
 ## Triage
 

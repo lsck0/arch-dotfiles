@@ -16,7 +16,8 @@ export def ini-apply [values: record, missing_only: bool]: string -> string {
             } else if $missing_only {
                 $acc
             } else {
-                {lines: ($acc.lines | update $at $"($kv.key)=($kv.value)"), end: $acc.end}
+                # upsert, not update: a mod.nu's update verb shadows that builtin in every file the module imports
+                {lines: ($acc.lines | upsert $at $"($kv.key)=($kv.value)"), end: $acc.end}
             }
         } | get lines
     } | to text

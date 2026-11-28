@@ -33,10 +33,10 @@ created, the task removes when it ends, finished or abandoned:
 
 # Commits
 
-A commit is one line, a conventional commit: `type(scope): summary`, imperative, lowercase, no trailing period. No
-body; a reference trailer (`Refs: #12`, or `Spec:` where a spec drives the work) only when there is something to
-reference. A repo with its own fixed form (`Generation: <n>` in arch-dotfiles and homelab) keeps it. Full rules: skill
-`l-style-tooling`, Git.
+Past a repo's MVP, a commit is one line, a conventional commit: `type(scope): summary`, imperative, lowercase, no
+trailing period. No body; a reference trailer (`Refs: #12`, or `Spec:` where a spec drives the work) only when there is
+something to reference. A repo whose commits come from its own sync (`Generation: <n>` in arch-dotfiles and homelab)
+gets no agent commits. Full rules: skill `l-style-tooling`, Git.
 
 # No AI attribution, ever
 

@@ -2,7 +2,7 @@
 # Table cases for plan-module, state-write and the ledger diff: pure records in, actions and state records out.
 use converge.nu [plan-module json-claims state-write state-read recorded-hashes ask-batch apply-module observe]
 use state.nu [state-dir]
-use module.nu [file-text json-merge json-set exec step unit-enable]
+use module.nu [file-text json-merge json-set exec step unit-enable root-decides]
 use ledger.nu [ledger-diff ledger-remove ledger-get ledger-set]
 use std/assert
 
@@ -366,6 +366,17 @@ def hidden-cases [work: path]: nothing -> nothing {
     assert equal $orphan.kind unreadable $"orphan under a closed directory: ($orphan.kind) ($orphan.reason)"
 }
 
+# A module whose declarations root alone can read plans its path unreadable and leaves what it recorded, never its
+# removal; as root it is the plan's error.
+def root-decides-cases []: nothing -> nothing {
+    let prev = [{kind: file, target: $TARGET, hash: (sha $CONTENT), source: null}]
+    let planned = plan-module $ID [(root-decides $REPO) (file-text $TARGET $CONTENT_OTHER)] $prev (seen-file (sha $CONTENT)) {} $REPO false
+    assert equal ($planned | select kind target) [[kind target]; [unreadable $REPO]] $"root-decides: ($planned | select kind target | to nuon)"
+    if (is-admin) {
+        assert ((try { plan-module $ID [(root-decides $REPO)] [] (seen-none) {} $REPO false; "" } catch {|e| $e.msg }) | str contains "as root") "root-decides as root planned"
+    }
+}
+
 # Enabling a masked unit unmasks it first: systemctl enable refuses a masked one.
 def unmask-cases [work: path]: nothing -> nothing {
     let bin = $work | path join unmask-bin
@@ -397,6 +408,7 @@ def main [] {
             then-once-cases $work
             merge-keys-cases $work
             hidden-cases $work
+            root-decides-cases
             unmask-cases $work
             corrupted-state-cases
             with-env {DOTFILES_UNATTENDED: "1", DOT_TEST_REMOVED: ($work | path join removed)} {

@@ -6,6 +6,7 @@ use platform.nu [platform-load platform-env]
 use profile.nu [profile-load]
 use options.nu [options-resolve]
 use modules.nu [modules-discover modules-graph modules-eval modules-packages-each modules-root-run imports-walk imports-map EVAL_LIB]
+use module.nu [agents-installed]
 use converge.nu [state-read state-path observe-outputs recorded-hashes decls-check plan-module json-claims apply-module state-write mode-normal unit-state-holds]
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use cause.nu [failure-line cause-from-error cause-text]
@@ -463,6 +464,8 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
         (secret-is-plaintext ($ctx.repo | path join $OWNER_WITNESS)) $verb ($args | to nuon)
         # sync's backup rewrites keys/ every run: a theme verb reads none, so that churn must not re-run its reloads
         (if $verb == "theme" { "" } else { secrets-stamp $ctx.repo })
+        # skills-link and mcp-servers serve only the agents installed: one installed or removed re-runs the link layer
+        (if $ctx.layer == "user" { agents-installed | str join " " } else { "" })
     ] | str join "\n"
     let imports = $olds | each {|o| {id: $o.m.id, files: (imports-outside $o.m.dir $importing $import_map $mapped)} }
     # a shared import (the wallust palette) is hashed once, not once per module importing it

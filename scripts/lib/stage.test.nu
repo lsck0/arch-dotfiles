@@ -2,7 +2,7 @@
 # The banner of a chain stopped before config names the failure, that it is disarmed, the way online (a root edit where
 # the platform's options are root's, which dot set refuses) and the resume, within a tty's lines; the install stage's
 # next step follows the install pass file, not dot's exit code.
-use stage.nu [install-banner config-banner stage-next stage-sudoers STAGE_RESUME]
+use stage.nu [install-banner config-banner stage-argv stage-next stage-sudoers STAGE_RESUME]
 use std/assert
 
 const ESCAPE = "dot set --machine base/networkmanager.untrusted_policy firewall-only && dot apply --system"
@@ -38,13 +38,24 @@ def banner-cases []: nothing -> nothing {
     assert ($named | str contains $ESCAPE) $"banner of a repo platform lacks dot set:\n($named)"
     let kept = install-banner 3 [] --key-kept
     assert (($kept | str contains "unlocks without its passphrase") and not ($kept | str contains "is disarmed")) $"banner with the disk key kept:\n($kept)"
-    let config = config-banner (["base/x link/step y: z" ""] ++ (1..20 | each { $"m/($in) link/eval: e" }))
+    let config = config-banner (["base/x link/step y: z" ""] ++ (1..20 | each { $"m/($in) link/eval: e" })) 1
     for want in ["config stage failed" "base/x link/step y: z" "dot apply" "FAILURES.config"] {
         assert ($config | str contains $want) $"config banner lacks ($want | to nuon):\n($config)"
     }
     assert (($config | lines | length) <= $TTY_LINES) $"config banner is ($config | lines | length) lines"
     assert not ($config | lines | any { ($in | str trim) == "" }) "config banner shows an empty failure line"
-    assert not (config-banner [] | str contains "What failed") "config banner without failures lists some"
+    let bare = config-banner [] 125
+    assert not ($bare | str contains "What failed") "config banner without failures lists some"
+    assert ($bare | str contains "exited 125") $"config banner without failures hides the exit code:\n($bare)"
+}
+
+# the stage commands themselves run: GNU timeout refused nushell's `1min` once, so config never ran (VM run 2)
+def argv-cases []: nothing -> nothing {
+    for stage in [install config] {
+        let argv = stage-argv $stage ["true"]
+        let r = do { ^$argv.0 ...($argv | skip 1) } | complete
+        assert equal $r.exit_code 0 $"($stage) stage command ($argv | to nuon) failed: ($r.stderr)"
+    }
 }
 
 def next-cases []: nothing -> nothing {
@@ -83,4 +94,5 @@ def main [] {
     banner-cases
     next-cases
     sudoers-cases
+    argv-cases
 }

@@ -102,7 +102,8 @@ Every machine and user setting is reproducible from this repo through `dot` (`sc
   `~/sync/.stignore`, where `core/syncthing` keeps its `**/.identity` and `/vendor` lines (the capture and notes tools
   write their notes there at runtime).
 - Keep `$HOME` clean: env var to `configs/base/xdg/config/app-dirs.conf`, hardcoded dirs to `RECLAIM` in
-  `configs/base/xdg/mod.nu`, forced non-dot dirs to `home.hidden`.
+  `configs/base/xdg/mod.nu` (a row names its tool's file in `program`, and its link waits for that file), forced non-dot
+  dirs to `home.hidden`.
 - A module's sources are module-relative (`unit-file services/foo.service`, `dropin x.service services/foo.conf`,
   `link-commands scripts/foo.nu`); a new file goes under `config/`, `services/` (every systemd unit and drop-in),
   `scripts/` or `test/`, never loose at the module's top.

@@ -1,11 +1,12 @@
 #!/usr/bin/env -S nu --no-config-file
 # Table cases for desktop-set (whole keys replaced or added in the [Desktop Entry] group only), decls-flatten (any
 # depth), unit-restart's argv per layer and flags, and the udev and polkit rule declarations (target, source or
-# rendered content, --then), mcp-uvx (the venv built before the registration, which names the venv's entry point), and
+# rendered content, --then), mcp-uvx (the venv built before the registration, which names the venv's entry point),
+# mcp-compat (a failed build keeps the live venv), mcp-servers (only the installed agents' files), and
 # unit-timer's text (key order, Persistent with a calendar, the mains condition) and enabling, and xwayland-scale-for
 # (the compositor's option, else its monitors' main scale, else the form factor's), skill-dirs and skills-link, and
 # sync-link (linked only while the live dir is absent, empty or with --same identical; otherwise left with a note).
-use module.nu [desktop-set decls-flatten polkit-rules udev-reload udev-rules unit-dir unit-restart unit-timer mcp-uvx xwayland-scale-for skill-dirs skills-link sync-link]
+use module.nu [desktop-set decls-flatten polkit-rules udev-reload udev-rules unit-dir unit-restart unit-timer mcp-uvx mcp-compat mcp-servers xwayland-scale-for skill-dirs skills-link sync-link]
 use std/assert
 
 def main [] {
@@ -105,7 +106,7 @@ def main [] {
     }
     if (which uv | is-not-empty) {
         let venv = $dir | path join data mcp tool
-        let decls = with-env {XDG_DATA_HOME: ($dir | path join data)} { mcp-uvx tool "tool-mcp==1.2" "2026-01-01" [tool-mcp serve] tool_mcp --python "3.12" --env-vars {A: b} }
+        let decls = with-env {XDG_DATA_HOME: ($dir | path join data), PATH: (agents-path $dir [claude])} { mcp-uvx tool "tool-mcp==1.2" "2026-01-01" [tool-mcp serve] tool_mcp --python "3.12" --env-vars {A: b} }
         let build = $decls | first
         assert equal ($build | select kind creates key network undo) {kind: exec, creates: ($venv | path join bin python), key: "tool-mcp==1.2@2026-01-01-py3.12", network: true, undo: [rm -rf $venv]} $"mcp-uvx build: ($build | to nuon)"
         assert equal ($build.argv | skip 3) [$venv "2026-01-01" "tool-mcp==1.2" tool_mcp tool-mcp --python "3.12"] $"mcp-uvx build argv: ($build.argv | to nuon)"
@@ -121,11 +122,53 @@ def main [] {
         let claude = $decls | skip 1 | first | get edits.0.value
         assert equal $claude {type: stdio, command: ($venv | path join bin tool-mcp), args: [serve], env: {A: b}} $"mcp-uvx registration: ($claude | to nuon)"
     }
+    if (which uv | is-not-empty) { mcp-compat-cases $dir }
+    mcp-servers-cases $dir
     cd ($dir | path dirname)
     rm --recursive $dir
     xwayland-cases
     skills-cases
     sync-link-cases
+}
+
+# A PATH of uv and stub commands for agents alone, so which agents count as installed is the test's choice.
+def agents-path [dir: path, agents: list<string>]: nothing -> list<string> {
+    let bin = $dir | path join $"agents-(agents-key $agents)"
+    mkdir $bin
+    for agent in $agents {
+        "#!/bin/sh\n" | save --force ($bin | path join $agent)
+        ^chmod +x ($bin | path join $agent)
+    }
+    let uv = which uv | get --optional 0.path
+    if $uv != null { ^ln -sf $uv ($bin | path join uv) }
+    [$bin]
+}
+
+def agents-key [agents: list<string>]: nothing -> string { if ($agents | is-empty) { "none" } else { $agents | str join "-" } }
+
+def mcp-servers-cases [dir: path] {
+    let spec = {type: stdio, command: /bin/true, args: []}
+    let cases = [
+        [agents wants];
+        [[] []]
+        [[gemini] [".gemini/settings.json"]]
+        [[claude copilot] [".claude.json" ".copilot/mcp-config.json"]]
+    ]
+    for c in $cases {
+        let files = with-env {PATH: (agents-path $dir $c.agents)} { mcp-servers {tool: $spec} } | get target | each { path relative-to $nu.home-dir }
+        assert equal $files $c.wants $"mcp-servers with ($c.agents | to nuon) installed: ($files | to nuon)"
+    }
+}
+
+def mcp-compat-cases [dir: path] {
+    let built = with-env {XDG_DATA_HOME: ($dir | path join data)} { mcp-compat tool [mcp-compat-test-absent==0] }
+    let venv = $built.python | path dirname | path dirname
+    let argv = $built.decl.argv
+    mkdir ($venv | path join bin)
+    "live\n" | save ($venv | path join bin tool)
+    let failed = with-env {UV_OFFLINE: 1, UV_CACHE_DIR: ($dir | path join uv-cache)} { ^$argv.0 ...($argv | skip 1) | complete }
+    assert ($failed.exit_code != 0 and ($failed.stderr | str contains mcp-compat-test-absent)) $"mcp-compat build: not refused for the absent package: ($failed.stderr)"
+    assert equal (open --raw ($venv | path join bin tool)) "live\n" "mcp-compat build: a failed build replaced the live venv"
 }
 
 def skills-cases [] {

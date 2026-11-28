@@ -8,18 +8,18 @@ export use secrets.nu [secret-is-plaintext secret-path secret-seed-guard secret-
 use fetch.nu [fetch-file-done fetch-file-cached fetch-git-done]
 use state.nu [nu-bin LIB_DIR HOOK_WATCH_PREFIX HOOK_RUN_PREFIX]
 # what a module may read of the engine's state: its records, the root's state paths, the install chain's secrets
-# banner, a step's pending exit code, a running process, an existing group; and the text and file primitives
-export use state.nu [xdg env-file-load file-trim file-lines text-render sqlite-snapshot process-running group-exists recorded-hashes SYSTEM_STATE SYSTEM_REPO EXIT_PENDING SECRETS_ISSUE]
+# banner, a step's pending exit code, a running process or unit, an existing group; and the text and file primitives
+export use state.nu [xdg env-file-load file-trim file-lines text-render sqlite-snapshot process-running unit-active group-exists recorded-hashes SYSTEM_STATE SYSTEM_REPO EXIT_PENDING SECRETS_ISSUE]
 export use ../../configs/core/wallust/scripts/palette.nu [palette-load]
 
 export const DECL_KEYS = [kind target source content mode generated inplace edits state now argv creates key done undo requires then network timeout]
-export const DECL_KINDS = [file link json ini unit exec step]
+export const DECL_KINDS = [file link json ini unit exec step unreadable]
 const MODE_FILE = "644"
 const BIN_DIR = ".local/bin"
 const DESKTOP_SYSTEM_DIR = "/usr/share/applications"
 const DESKTOP_ENTRY = "[Desktop Entry]"
-# each agent harness skills-link serves, by its command, with its home dir
-const SKILL_HOMES = {claude: ".claude", copilot: ".copilot", gemini: ".gemini", hermes: ".hermes"}
+# each agent harness skills-link and mcp-servers serve, by its command, with its home dir
+const AGENT_HOMES = {claude: ".claude", copilot: ".copilot", gemini: ".gemini", hermes: ".hermes"}
 # an app rewriting a watched path in bursts would retrigger its hook in a loop
 const HOOK_BRAKE = "StartLimitIntervalSec=1min\nStartLimitBurst=20\n"
 const MCP_GATE = path self ../mcp-gate.py
@@ -71,6 +71,13 @@ export def file-copy [src: path, dest: path, --mode: string = $MODE_FILE, --in-p
     decl file $dest {source: (module-path $src), mode: $mode, inplace: $in_place, then: $then}
 }
 
+# A system verb's whole declaration while what decides it lies in path, which only root reads (a root-only password,
+# a dir of the package's own group): an unprivileged plan shows the module checked at apply and keeps what it recorded,
+# instead of planning its removal. Root reads every path, so as root it is the plan's error.
+export def root-decides [path: path]: nothing -> record {
+    decl unreadable $path {}
+}
+
 # --generated is overwritten without a drift check whenever its module runs; --in-place keeps the inode for watchers.
 export def file-text [dest: path, content: string, --mode: string = $MODE_FILE, --generated, --in-place, --then: list<string> = []]: nothing -> record {
     decl file $dest {content: $content, mode: $mode, generated: $generated, inplace: $in_place, then: $then}
@@ -115,14 +122,18 @@ export def skill-dirs [root: path]: nothing -> list<path> {
     glob ($root | path expand | path join "l-*") --no-file --no-symlink | sort
 }
 
+# The agent harnesses on PATH, by command; part of every module's input hash, so one installed later is served too.
+export def agents-installed []: nothing -> list<string> {
+    $AGENT_HOMES | columns | where {|agent| which $agent | is-not-empty }
+}
+
 # Links each skill dir under root into the skills dir of every installed agent harness.
 export def skills-link [root: path]: nothing -> list<record> {
     let dirs = skill-dirs $root
-    $SKILL_HOMES | items {|tool, home|
-        if (which $tool | is-not-empty) {
-            $dirs | each {|d| file-link $d ($nu.home-dir | path join $home skills ($d | path basename)) }
-        }
-    } | compact | flatten
+    agents-installed | each {|agent|
+        let home = $AGENT_HOMES | get $agent
+        $dirs | each {|d| file-link $d ($nu.home-dir | path join $home skills ($d | path basename)) }
+    } | flatten
 }
 
 # A step's body: replaces the live dir by a link to its synced copy in ~/sync while the live one is absent or empty
@@ -206,11 +217,11 @@ def mcp-form [agent: string]: any -> any {
     }
 }
 
-# Registers MCP servers with every coding agent, name -> spec in Claude Code's form ({type: stdio, command, args, env}
-# or {type: http, url, headers}), optionally with a `gate` (mcp-gated); null drops the name. Claude Code reads
-# ~/.claude.json, Gemini ~/.gemini/settings.json and Copilot ~/.copilot/mcp-config.json, each in its own form. Hermes
-# rewrites its YAML config itself, so its form goes to ~/.hermes/mcp-servers.json, a dropped name kept as null, and
-# programming/hermes sets that into each profile. A server with a headersHelper reaches Claude Code only.
+# Registers MCP servers with every installed coding agent, name -> spec in Claude Code's form ({type: stdio, command,
+# args, env} or {type: http, url, headers}), optionally with a `gate` (mcp-gated); null drops the name. Claude Code
+# reads ~/.claude.json, Gemini ~/.gemini/settings.json and Copilot ~/.copilot/mcp-config.json, each in its own form.
+# Hermes rewrites its YAML config itself, so its form goes to ~/.hermes/mcp-servers.json, a dropped name kept as null,
+# and programming/hermes sets that into each profile. A server with a headersHelper reaches Claude Code only.
 export def mcp-servers [servers: record]: nothing -> list<record> {
     let home = $nu.home-dir
     [
@@ -219,7 +230,7 @@ export def mcp-servers [servers: record]: nothing -> list<record> {
         [gemini ($home | path join .gemini settings.json) [mcpServers]]
         [copilot ($home | path join .copilot mcp-config.json) [mcpServers]]
         [hermes ($home | path join .hermes mcp-servers.json) []]
-    ] | each {|t|
+    ] | where agent in (agents-installed) | each {|t|
         let edits = $servers | items {|name, spec|
             let form = $spec | mcp-gated $name | mcp-form $t.agent
             if $form != null or $t.agent == hermes { json-set ($t.key | append $name) $form } else { json-delete ($t.key | append $name) }
@@ -277,20 +288,21 @@ export def mcp-uvx [
 }
 
 const MCP_COMPAT_FROZEN = "2026-11-20"
+# $0 the venv, $1 the cutoff date, the rest the pins
+const MCP_COMPAT_BUILD = 'venv=$0 cutoff=$1 && shift && rm -rf "$venv.new" && uv venv --quiet --relocatable --system-site-packages --python /usr/bin/python3 "$venv.new" && uv pip install --quiet --python "$venv.new/bin/python" --exclude-newer "$cutoff" "$@" && rm -rf "$venv" && mv "$venv.new" "$venv"'
 
 # Arch's python-mcp is 2.x, whose FastMCP rename broke the ghidra and semgrep servers, and misses extras like structlog:
 # a venv over the system site-packages holds these pip specs, frozen at MCP_COMPAT_FROZEN, and runs the system
-# script. Returns {python, decl}: the venv's python and the exec declaration that builds it.
+# script. Built beside the live venv and swapped in only when whole, as mcp-uvx does, so a failed build keeps the
+# server running. Returns {python, decl}: the venv's python and the exec declaration that builds it.
 export def mcp-compat [name: string, pins: list<string>]: nothing -> record {
     let py = ^python3 -c "import sys; print(f'{sys.version_info[0]}.{sys.version_info[1]}')" | str trim
     let dir = xdg data mcp-compat $name
     let version = $"($MCP_COMPAT_FROZEN)-py($py)-($pins | str join '_' | hash sha256 | str substring 0..<8)"
-    # $0 the venv, $1 the cutoff date, the rest the pins
-    let script = 'rm -rf "$0" && uv venv --quiet --system-site-packages --python /usr/bin/python3 "$0" && cutoff=$1 && shift && uv pip install --quiet --python "$0/bin/python" --exclude-newer "$cutoff" "$@"'
     let python = $dir | path join bin python
     {
         python: $python
-        decl: (exec $"mcp-compat ($name)" [sh -c $script $dir $MCP_COMPAT_FROZEN ...$pins] --creates $python --key $version --undo [rm -rf $dir] --network)
+        decl: (exec $"mcp-compat ($name)" [sh -c $MCP_COMPAT_BUILD $dir $MCP_COMPAT_FROZEN ...$pins] --creates $python --key $version --undo [rm -rf $dir] --network)
     }
 }
 

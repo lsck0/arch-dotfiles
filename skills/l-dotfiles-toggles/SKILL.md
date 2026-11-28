@@ -53,7 +53,8 @@ Kinds, with the file to copy:
      line as the cause.
    - `TOGGLES_QUIET=1` (a combined toggle's parts) keeps the ping and failures, drops the success toast.
 4. A dedicated quickshell control only: read the state with `ToggleState { script: "toggle-<name>.nu" }`
-   (`Commons/ToggleState.qml`, refreshed on `ToggleEvents.changed`), flip it with
+   (`Commons/ToggleState.qml`, refreshed on `ToggleEvents.changed`; bind `active` for a reader only an open panel
+   needs), flip it with
    `Quickshell.execDetached([Paths.toggle("toggle-<name>.nu"), "toggle"])`.
 
 ## Test

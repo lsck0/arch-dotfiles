@@ -224,8 +224,8 @@ export def system-secrets-digest [checkout: path, wireguard: any]: nothing -> st
 }
 
 # The repo tar and the plaintext system secrets, flat as DOTFILES_SECRETS/<file>, in one tar for system-apply.
-export def system-archive [checkout: path, wireguard: any]: nothing -> binary {
-    let repo = system-pack $checkout
+export def system-archive [checkout: path, wireguard: any, copy: path = $SYSTEM_REPO]: nothing -> binary {
+    let repo = system-pack $checkout $copy
     let plain = secrets-plain $checkout $wireguard
     # the plaintext secrets stay on the per-user tmpfs where there is one (the install chain's unit has none)
     let runtime = xdg runtime

@@ -1,5 +1,9 @@
-#!/usr/bin/nu --no-config-file
+#!/usr/bin/env -S nu --no-config-file -I /var/lib/dotfiles/repo/scripts/lib
 # fail safe: without a gateway no default and no rule, so game packets stay on the vpn
+
+# Resolved against the lib path, the root copy's scripts/lib here and the checkout's when the engine loads mod.nu, so
+# it holds in both; base/networkmanager's own dispatchers use their /etc copy beside them.
+use ../../configs/base/networkmanager/scripts/lib/dispatch.nu [attempt lab-env lab-nets link-physical out]
 
 # the skb mark games-bypass.nft sets and fw-egress' game_mark lets out; kept in sync with both
 const GAME_MARK = "0x6761"
@@ -8,32 +12,12 @@ const TABLE = "100"
 const PRIORITY = "9000"
 const FAMILIES = ["-4" "-6"]
 const HOMELAB_TABLE = "178"
-const HOMELAB_ENV = "/etc/NetworkManager/homelab.env"
 # games-bypass.nft's tunnel; its split default routes look connected
 const VPN_IFACE = "proton0"
-
-def --wrapped out [...argv: string]: nothing -> string {
-    do { run-external ...$argv } | complete | get stdout
-}
-
-def --wrapped attempt [...argv: string]: nothing -> nothing {
-    let r = do { run-external ...$argv } | complete
-    if $r.exit_code != 0 { print --stderr --no-newline $r.stderr }
-}
 
 def routes [family: string, table: string]: nothing -> list<record> {
     let listed = out ip -j $family route show table $table | str trim
     if $listed == "" { [] } else { $listed | from json }
-}
-
-def lab-value [key: string]: nothing -> string {
-    if not ($HOMELAB_ENV | path exists) { return "" }
-    open --raw $HOMELAB_ENV | lines | parse "{key}={value}" | where key == $key | get --optional 0.value
-    | default "" | str trim --char '"'
-}
-
-def lab-nets []: nothing -> list<string> {
-    lab-value HOMELAB_NETS | split row " " | where $it != ""
 }
 
 # Dev and gateway too: main holds fe80::/64 once per link at one metric, which a replace or add collapses to one.
@@ -81,8 +65,9 @@ def routes-sync [family: string]: nothing -> nothing {
     let connected = routes $family main
         | where $it.dst != "default" and $it.type? == null and $it.gateway? == null
         | where $it.dev? not-in [null $VPN_IFACE]
-    let metric = lab-value HOMELAB_UNREACHABLE_METRIC
-    let unreachable = lab-nets | where { ($in | str contains ":") == ($family == "-6") }
+    let lab = lab-env
+    let metric = $lab.HOMELAB_UNREACHABLE_METRIC? | default ""
+    let unreachable = lab-nets $lab | where { ($in | str contains ":") == ($family == "-6") }
         | each {|net| {type: unreachable dst: $net metric: $metric} }
     let wanted = $connected | append (routes $family $HOMELAB_TABLE) | append $unreachable
     let keys = $wanted | each { route-key $in }
@@ -99,7 +84,7 @@ def routes-sync [family: string]: nothing -> nothing {
 # The connected ethernet and wifi links with a device node, the ones whose gateway the table may point at.
 export def links-physical []: nothing -> list<string> {
     out nmcli -t -f DEVICE,TYPE,STATE device | lines | split column ":" dev type state
-    | where state == connected and type in [ethernet wifi] and ($"/sys/class/net/($it.dev)/device" | path exists)
+    | where state == connected and type in [ethernet wifi] and (link-physical $it.dev)
     | get dev
 }
 
@@ -111,7 +96,7 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
     if $action not-in [up dhcp4-change dhcp6-change down connectivity-change] { return }
 
     # virbr0, docker bridges and tunnels only change the mirrored routes; an unplugged link's node is gone by its down
-    let physical = $"/sys/class/net/($iface)/device" | path exists
+    let physical = link-physical $iface
     if $action == down {
         if $physical {
             for family in $FAMILIES { out ip $family route flush table $TABLE dev $iface | ignore }

@@ -42,6 +42,8 @@ const INSTALL_ATTEMPTS_MAX = 3
 const CONFIG_ATTEMPTS_MAX = 3
 # the longest a config pass runs before it counts as failed; it installs no packages
 const CONFIG_TIMEOUT = "2h"
+# how long timeout waits after its TERM before it kills; GNU timeout takes s, m, h or d, not nushell's 1min
+const CONFIG_KILL_AFTER = "1m"
 # the wait before the reboot that retries an install pass, times the attempt
 const INSTALL_BACKOFF = 1min
 const INSTALL_FAILURES_SHOWN = 5
@@ -133,6 +135,13 @@ export def stage-next [stage: string, status: int, passed: bool, attempts: int]:
     {ok: $ok, next: (if $attempts >= $INSTALL_ATTEMPTS_MAX { $STAGE_STOP } else { "install" })}
 }
 
+# The command a stage runs, dot its first words. Only config is bounded: a hung one would keep the passwordless sudo
+# for good, a timeout fails it like any error; install stays unbounded, a package download on a slow line may take hours.
+export def stage-argv [stage: string, dot: list<string>]: nothing -> list<string> {
+    if $stage == "install" { return [...$dot apply --packages] }
+    [timeout $"--kill-after=($CONFIG_KILL_AFTER)" $CONFIG_TIMEOUT ...$dot apply]
+}
+
 # How the banner gets a fail-closed machine online: ONLINE_ESCAPE where dot set may write the platform's options, else
 # a root edit of them, which dot set refuses.
 def online-escape [options_file: any]: nothing -> record {
@@ -166,11 +175,14 @@ export def install-banner [attempts: int, failures: list<string>, --key-kept, --
 
 # The login banner of a chain that ran to its end with a failed config stage: it is disarmed like a clean one, so only
 # this says some modules were not applied.
-export def config-banner [failures: list<string>]: nothing -> string {
+# status is the stage command's exit code: with no failures recorded, dot itself did not get to run or record them.
+export def config-banner [failures: list<string>, status: int]: nothing -> string {
     let shown = failures-group $failures | first $INSTALL_FAILURES_SHOWN | each { $"  ($in)" }
     [
         "dotfiles install chain finished, but its config stage failed: some modules are not applied."
-        ...(if ($shown | is-empty) { [] } else { ["What failed:" ...$shown] })
+        ...(if ($shown | is-empty) {
+            [$"The config pass exited ($status) before dot recorded what failed: config.log in the checkout has why."]
+        } else { ["What failed:" ...$shown] })
         "Fix what failed, then run `dot apply` at a terminal; this banner clears after one with no failure."
         $"Logs: config.log and ($FAILURES_CONFIG) in the checkout, `dot status`."
     ] | str join "\n"
@@ -253,10 +265,7 @@ export def stage-run [repo: path]: nothing -> nothing {
         note $"config: ($attempts - 1) passes never finished, the chain ends without another"
         1
     } else {
-        let dot = [nu --no-config-file ($repo | path join scripts dot.nu)]
-        # only config is bounded: a hung one would keep the passwordless sudo for good, a timeout fails it like any
-        # error; install stays unbounded, a package download on a slow line may take hours
-        let cmd = if $stage == "install" { [...$dot apply --packages] } else { [timeout --kill-after=1min $CONFIG_TIMEOUT ...$dot apply] }
+        let cmd = stage-argv $stage [nu --no-config-file ($repo | path join scripts dot.nu)]
         # teed here, not by dot's own terminal check: the banner and the report point at <stage>.log, which must exist
         # however the console, timeout's process group or an early exit left dot's stdout
         let logged = log-tee-argv ($repo | path join $"($stage).log") $cmd
@@ -288,7 +297,7 @@ export def stage-run [repo: path]: nothing -> nothing {
     if not $decided.ok {
         let failures = file-lines ($repo | path join $FAILURES_CONFIG)
         note "config: failed, the chain ends disarmed, see the login banner"
-        banner-write $CONFIG_ISSUE (config-banner $failures)
+        banner-write $CONFIG_ISSUE (config-banner $failures $status)
     }
     if (file-trim $STAGE_LUKS_DEVICE) != "" {
         note $"to rotate the disk's volume key \(slow, runs online\): sudo cryptsetup reencrypt (file-trim $STAGE_LUKS_DEVICE)"

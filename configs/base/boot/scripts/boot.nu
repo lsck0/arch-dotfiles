@@ -11,10 +11,11 @@ const HOOK_DIRS = [/etc/initcpio/install /usr/lib/initcpio/install]
 const SDBOOT_EFI = "/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
 export const SDBOOT_ESP_FILES = [$"($ESP)/EFI/systemd/systemd-bootx64.efi" $"($ESP)/EFI/BOOT/BOOTX64.EFI"]
 # What the boot chain is built from, the barrier's watch (base/boot/systemd-boot): mkinitcpio's own inputs, the
-# initramfs inputs other modules write, and sbctl's keys (signing starts once they exist).
+# initramfs inputs other modules write (/etc/hostname through systemd-boot's hostname.conf), and sbctl's keys
+# (signing starts once they exist).
 export const BOOT_WATCH = [
     $MKINITCPIO /etc/mkinitcpio.conf.d $PRESETS $CMDLINE /etc/crypttab.initramfs
-    /etc/modprobe.d /etc/vconsole.conf
+    /etc/modprobe.d /etc/vconsole.conf /etc/hostname
     /etc/bootvine.toml /etc/mkinitcpio-systemd-tool /etc/tinyssh
     /etc/systemd/system/initrd-tinysshd.service.d /etc/systemd/system/initrd-network.service.d
     /etc/systemd/system/initrd-wifi.service

@@ -3,7 +3,7 @@
 # whisper.cpp (programming/nvim's pinned model, language detected) and types the text into the focused window.
 
 const REPO = path self | path expand | path dirname --num-levels 5
-use ($REPO | path join scripts lib state.nu) [xdg]
+use ($REPO | path join scripts lib state.nu) [unit-active xdg]
 
 const UNIT = "dictation-record"
 # programming/nvim's model pin; its mod.nu fetches the file it names into the XDG data dir
@@ -21,7 +21,7 @@ def notify [title: string, body: string = ""]: nothing -> nothing {
 def wav []: nothing -> path { $env.XDG_RUNTIME_DIR | path join dictation.wav }
 
 def recording []: nothing -> bool {
-    (^systemctl --user is-active --quiet $"($UNIT).service" | complete).exit_code == 0
+    unit-active --user $"($UNIT).service"
 }
 
 def start []: nothing -> nothing {

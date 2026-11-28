@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file -I /var/lib/dotfiles/repo/scripts/lib
 # its own table, so portmaster's, docker's and fail2ban's rules stay untouched and stop is one table delete
 
-use state.nu [env-file-load file-lines text-render]
+use state.nu [env-file-load file-lines text-render unit-active]
 
 const TABLE = "tor_router"
 const TRANS_PORT = 9040
@@ -109,7 +109,7 @@ def home-fill []: nothing -> nothing {
 }
 
 def "main start" []: nothing -> nothing {
-    if (^systemctl is-active tor.service | complete).exit_code != 0 {
+    if not (unit-active tor.service) {
         print --stderr "tor-router: tor.service is not active, start it first"
         exit 1
     }

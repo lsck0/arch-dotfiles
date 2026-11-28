@@ -203,6 +203,11 @@ export def json-claims [id: string, items: list<record>]: nothing -> list<record
 # Undos of orphaned actions, declarations against disk, then the other orphans (disables and unmasks first).
 # all_targets: every module's declared targets; claimed_keys: json-claims of every module, this one's skipped.
 export def plan-module [id: string, decls: list<record>, prev: list<record>, seen: record, recorded: record, repo: string, force: bool, all_targets: list<string> = [], claimed_keys: list<record> = []]: nothing -> list<record> {
+    let hidden = $decls | where kind == unreadable
+    if ($hidden | is-not-empty) {
+        if (is-admin) { error make {msg: $"root-decides ($hidden.target | str join ', ') as root, which reads every path"} }
+        return ($hidden | each {|d| action $id unreadable $d.target $UNREADABLE_REASON $d null null })
+    }
     let wanted = (fold-merges $decls) | each {|d|
         let obs = $seen.paths | get --optional $d.target
         if $obs.hash? == $UNREADABLE { return (action $id unreadable $d.target $UNREADABLE_REASON $d null null) }

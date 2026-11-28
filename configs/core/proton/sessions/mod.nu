@@ -1,5 +1,5 @@
 use module.nu *
-use scripts/sessions.nu [sessions-archives sessions-backup sessions-restore sessions-settle MARKER]
+use scripts/sessions.nu [sessions-archives sessions-backup sessions-restore sessions-settle MARKER NOT_SIGNED_IN]
 
 export const meta = {packages: {pacman: [python-secretstorage sqlite]}, backup: {secrets: true}, volatile: true}
 
@@ -29,6 +29,8 @@ export def sessions-restore-now []: nothing -> nothing {
 
 export def backup [cfg: record]: nothing -> nothing {
     for row in (sessions-backup (sessions-archives $env.DOTFILES) | where status != saved) {
+        # an app never signed in to here (Meet, unused) is expected and keeps its archive: in the run file only
+        if $row.status == $NOT_SIGNED_IN { log-debug $"proton-sessions: ($row.app): ($row.status)"; continue }
         print -e $"proton-sessions: ($row.app): ($row.status)"
     }
 }

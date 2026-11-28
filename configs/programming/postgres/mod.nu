@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [lazysql postgresql postgresql-libs sqlite sqlitebrowser]}}
+export const meta = {packages: {pacman: [lazysql libpqxx postgresql postgresql-libs sqlite sqlitebrowser]}}
 
 const VERSION = "1.1.0"
 const SHA256 = "ca79e3054455b5505d3ac4ed4bc5d4cd074a57f108b8fe9ddcd3e24d16c5452a" # released 2026-09-04

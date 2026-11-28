@@ -1,7 +1,7 @@
 # The NM dispatchers' shared helpers, copied beside them to dispatcher.d/lib/ (NM runs no directory), so each one's
 # `use lib/dispatch.nu` holds in the repo and under /etc alike; state.nu comes from the root copy, which each
-# dispatcher's shebang puts on the lib path. A missing binary reads as a failed command, not a crash that leaves a link
-# undecided.
+# dispatcher's shebang puts on the lib path. gaming/vpn-bypass's games-route reaches this file through that lib path.
+# A missing binary reads as a failed command, not a crash that leaves a link undecided.
 
 export use state.nu [file-lines]
 use state.nu [env-file-load]

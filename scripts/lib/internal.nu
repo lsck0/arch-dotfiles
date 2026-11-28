@@ -180,7 +180,8 @@ def "main migrate" [--baseline]: nothing -> nothing {
     }
 }
 
-# preserved copies older than <days>, after a yes
+# this login's preserved copies older than <days>, after a yes. Root's need no pruner: they are the /etc files the
+# install took over and the rare --force overwrite, a few hundred kB written once, which dot status notes
 def "main prune" [days: int]: nothing -> nothing {
     guarded prune { preserve-prune $days }
 }
