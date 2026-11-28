@@ -21,7 +21,7 @@ use ($REPO | path join configs base yubikey scripts yubikey.nu) [yubikey-init yu
 use ($REPO | path join configs base yubikey scripts audit.nu) [audit-run audit-rotated audit-drilled]
 use ($REPO | path join configs core wallust scripts wallpaper.nu) [theme-set wallpaper-random wallpaper-pick]
 use ($LIB | path join sync.nu) [sync-commit sync-can-sign sync-pull]
-use ($LIB | path join run.nu) [failures-publish finish config-banner-clear admin system-allowed system-skipped pending-exit user-locked unlink-run system-part update-run log-tee INTERNAL PIPELINE_CLI]
+use ($LIB | path join run.nu) [failures-publish finish config-banner-clear pending-banner-clear admin system-allowed system-skipped pending-exit user-locked unlink-run system-part update-run log-tee INTERNAL PIPELINE_CLI]
 use ($LIB | path join system.nu) [RUN_ID]
 use ($LIB | path join set.nu) [options-list option-target option-target-check option-write option-apply platform-target platform-list platform-write platform-apply]
 
@@ -310,6 +310,7 @@ def "main sync" [
     guarded sync {
         sync-pull $REPO
         let run = update-run $yes $system
+        pending-banner-clear
         let clean = failures-publish $run.results
         if $clean { config-banner-clear }
         if not $no_push {

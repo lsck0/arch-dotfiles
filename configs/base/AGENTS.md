@@ -38,6 +38,11 @@ profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
   tor-router is up everything, those two included, reaches it redirected to loopback with oifname still the uplink,
   so fw-egress accepts loopback by address (`base/tor/tor-router.test.nu` runs both rulesets). The uids are looked up
   at unit start, so nftables never waits on base/tor (lint: `FAIL_CLOSED` in `scripts/lib/gate.nu`).
+- `nftables` fw-devtools (always on, every network and policy): loopback connections to the Chrome DevTools ports
+  other modules declare with `devtools-guard` (one `/etc/nftables.d/devtools.d/<module>.nft` each, from their system
+  verb) get a reset unless their uid is a desktop owner's; the unit fills `owner_uid` at start from
+  `/var/lib/dotfiles/owners`, every login's uid (1000 to 59999) on a machine without an owner. A new owner counts from
+  the next start or reload of `fw-devtools.service`, and a port whose module goes leaves the set then.
 - `powercap`: `powercap-watts.service` writes the RAPL package draw as whole watts to `/run/powercap/watts` for the
   bar, `energy_uj` stays root-only; a udev rule starts it once `intel_rapl_msr` loads.
 - `xdg`: the `$HOME` rules are the root `AGENTS.md`'s. A `RECLAIM` row names the file that shows its tool is installed

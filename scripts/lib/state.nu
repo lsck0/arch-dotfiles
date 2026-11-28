@@ -15,6 +15,9 @@ export const EXIT_PENDING = 3
 export const INSTALL_PASS_FILE = $SYSTEM_STATE | path join install-pass
 # the login banner of an install chain whose config stage failed; the next clean full dot apply removes it
 export const CONFIG_ISSUE = "/etc/issue.d/dotfiles-config.issue"
+# the login banner of an install chain that ended with modules waiting on the network; the first run that leaves none
+# waiting on it removes it
+export const PENDING_ISSUE = "/etc/issue.d/dotfiles-pending.issue"
 # the login banner of an install chain that reached config with secrets still locked; base/yubikey removes it once they unlock
 export const SECRETS_ISSUE = "/etc/issue.d/dotfiles-secrets.issue"
 # the Description= of a user-hook's path and service unit (module.nu user-hook) before "<name> hook"; doctor finds hooks by them

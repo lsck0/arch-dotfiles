@@ -2,7 +2,7 @@
 # Root's one entry: re-execs under one flock and interruptible.sh, only from the root-owned copy.
 
 use log.nu *
-use state.nu [SYSTEM_REPO SYSTEM_STATE NU_ROOT EXIT_ABORTED EXIT_PENDING INSTALL_PASS_FILE CONFIG_ISSUE process-running tmp-dir-run group-exists save-atomic file-lines]
+use state.nu [SYSTEM_REPO SYSTEM_STATE NU_ROOT EXIT_ABORTED EXIT_PENDING INSTALL_PASS_FILE CONFIG_ISSUE PENDING_ISSUE process-running tmp-dir-run group-exists save-atomic file-lines]
 use pipeline.nu [module-get pipeline-load pipeline-plan pipeline-apply pending-save barriers-run]
 use options.nu [ROOT_OPTIONS_DIR OPTION_ENABLE options-schema option-value-errors options-nuon-set enable-raised]
 use platform.nu [PLATFORM_TARGET platform-load platform-spec platform-errors platform-value-errors]
@@ -481,6 +481,13 @@ def "main migrate" [--baseline]: nothing -> nothing {
 def "main banner-clear" []: nothing -> nothing {
     repo-guard | ignore
     rm --force $CONFIG_ISSUE
+}
+
+# banner-pending-clear: the login banner of an install chain that ended waiting on the network, once the asking run
+# found no module waiting on it
+def "main banner-pending-clear" []: nothing -> nothing {
+    repo-guard | ignore
+    rm --force $PENDING_ISSUE
 }
 
 const USERNAME_PATTERN = '^[a-z_][a-z0-9_-]{0,31}$'

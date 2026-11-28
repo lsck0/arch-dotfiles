@@ -44,6 +44,11 @@ the sync's due logic.
 6. A failed config stage also ends the chain disarmed, with `/etc/issue.d/dotfiles-config.issue`; the first full
    `dot apply` (both layers) without failure removes it (`config-banner-clear` in `scripts/lib/run.nu`). A secrets
    profile whose YubiKey was missing gets `dotfiles-secrets.issue`; `base/yubikey` drops it once unlocked.
+7. A config stage that ends with modules waiting on the network (offline, or a remote down, and what waits behind them)
+   gets `dotfiles-pending.issue`: which, why and the one command once online. Strict DNS-over-TLS on a network that
+   drops tcp 853 reads `DNS-over-TLS unreachable (port 853 blocked?)` there, in `dot status` and the pending lines,
+   with the captive portal window (`pkexec /usr/local/bin/toggle-root portal on && dot apply`) as the way through;
+   the first run after which no module waits on the network removes it (`pending-banner-clear` in `scripts/lib/run.nu`).
 
 ## Updating
 

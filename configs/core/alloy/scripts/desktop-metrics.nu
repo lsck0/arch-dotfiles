@@ -14,6 +14,13 @@ const USER_FILE = "desktop-metrics.json"
 # a binary under development (a build in a checkout under ~/projects, an agent's scratch copy in /tmp) dies on its own
 # asserts as part of the work: its core dumps are no desktop health, so they never page
 const DEV_EXE = '^(/tmp/|/var/tmp/|/home/[^/]+/projects/)'
+# an agent's own process (a Claude desktop session's scope, a Claude Code shell, a command in its scratch dir or
+# worktree) crashing is the agent's work too, and so is a job under fence (systemd-run's run-p<pid> scope, the heavy
+# builds and tests): neither is the desktop's health, neither pages
+const AGENT_CGROUP = 'app-com\.anthropic\.Claude|/run-p[0-9]+-i[0-9]+\.scope$'
+const AGENT_CMDLINE = '/\.claude/shell-snapshots/|/tmp/claude-[0-9]+/'
+const AGENT_CWD = '^/tmp/claude-[0-9]+/|/\.claude/worktrees/'
+const COREDUMP_MESSAGE = "MESSAGE_ID=fc2e22bc6ee647b6b90729ab34a250b1"
 const HELP = {
     dot_run_last_timestamp_seconds: "Unix time the newest dot run of this verb ended"
     dot_run_last_success_timestamp_seconds: "Unix time the newest ok dot run of this verb ended"
@@ -216,15 +223,31 @@ def offload-rows []: nothing -> list<record> {
     offload-metrics ($OFFLOAD_WORKER | path exists) $states
 }
 
+# systemd-coredump's journal entries, less the crashes that are development or an agent's work: what is left is the
+# desktop's own programs dying.
+export def crashes-desktop []: list<record> -> list<record> {
+    where {|d|
+        let exe = $d.COREDUMP_EXE? | default ""
+        let cmdline = $d.COREDUMP_CMDLINE? | default ""
+        let cgroup = $d.COREDUMP_CGROUP? | default ""
+        let cwd = $d.COREDUMP_CWD? | default ""
+        ($exe != "" and $exe !~ $DEV_EXE and $cgroup !~ $AGENT_CGROUP and $cmdline !~ $AGENT_CMDLINE
+            and $cwd !~ $AGENT_CWD)
+    }
+    | each {|d|
+        {program: ($d.COREDUMP_EXE | path basename), time: (($d.__REALTIME_TIMESTAMP | into int) // 1_000_000)}
+    }
+}
+
 def "main system" []: nothing -> nothing {
     let denied = ^journalctl -k -b --no-pager -o cat --grep 'apparmor="DENIED"' | complete | get stdout | lines
         | each { parse --regex 'profile="(?<profile>[^"]+)"' | get --optional 0.profile } | compact
     let apparmor = $denied | uniq --count | each {|row|
         metric apparmor_denials_total counter {profile: $row.value} $row.count
     }
-    let dumps = ^coredumpctl list --json=short --no-pager --since $CRASH_WINDOW | complete
+    let dumps = ^journalctl $COREDUMP_MESSAGE --since $CRASH_WINDOW -o json --no-pager | complete
     let crashes = if $dumps.exit_code != 0 { [] } else {
-        $dumps.stdout | from json | where exe? != null and $it.exe !~ $DEV_EXE | each {|d| {program: ($d.exe | path basename), time: ($d.time // 1_000_000)} }
+        $dumps.stdout | lines | each { from json } | crashes-desktop
             | group-by program | items {|program, rows|
                 metric desktop_crash_last_timestamp_seconds gauge {program: $program} ($rows.time | math max)
             }

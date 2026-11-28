@@ -4,12 +4,12 @@ const REPO = path self ../..
 use log.nu *
 use cli.nu [flag jobs root-runner]
 export use reexec.nu [user-locked]
-use state.nu [SYSTEM_REPO SYSTEM_STATE LIB_DIR state-dir save-atomic EXIT_ABORTED EXIT_PENDING xdg CONFIG_ISSUE file-trim file-lines]
+use state.nu [SYSTEM_REPO SYSTEM_STATE LIB_DIR state-dir save-atomic EXIT_ABORTED EXIT_PENDING xdg CONFIG_ISSUE PENDING_ISSUE file-trim file-lines]
 use doctor.nu [doctor-checks]
 use platform.nu [platform-load PLATFORM_NAME_FILE]
 use profile.nu [profile-has]
 use modules.nu [modules-packages modules-packages-each]
-use pipeline.nu [module-get pipeline-load pipeline-plan pipeline-apply pending-save pipeline-progress flatpak-installed nix-installed nix-stale packages-absent THEME_VERB_TIMEOUT NIX_FLAGS PENDING_FILE]
+use pipeline.nu [module-get pipeline-load pipeline-plan pipeline-apply pending-save pipeline-progress pending-recorded pending-network flatpak-installed nix-installed nix-stale packages-absent THEME_VERB_TIMEOUT NIX_FLAGS PENDING_FILE]
 use converge.nu [state-read observe-outputs plan-module recorded-hashes apply-module state-write output-file-state unit-state-holds action-recorded dir-hidden]
 use ledger.nu [ledger-units ledger-get ledger-set ledger-diff ledger-remove packages-convergence awaited-names LEDGER_AWAITED LSCK0_DB]
 use migrate.nu [migrations-run migrations-pending]
@@ -17,7 +17,7 @@ use ../../configs/base/yubikey/scripts/yubikey.nu [yubikey-unlock]
 use system.nu [system-pack system-archive system-secrets-digest entry-parses entry-takes-run ENTRY SYSTEM_STAGES SYSTEM_SECRETS_DIGEST RUN_ID]
 use ../../configs/core/wallust/scripts/wallpaper.nu [wallpaper-set]
 use cause.nu [cause-from-error cause-text failure-line failure-is-system names-shown SYSTEM_FIX]
-use online.nu [network-online OFFLINE_PENDING]
+use online.nu [network-offline]
 use usage.nu [counted]
 use proc.nu [succeeds]
 
@@ -208,6 +208,7 @@ export def failures-publish [results: table, published: path = $FAILURES_PUBLISH
 
 export def finish [results: table]: nothing -> nothing {
     run-journal
+    pending-banner-clear
     if not (failures-publish $results) { exit 1 }
     config-banner-clear
 }
@@ -219,6 +220,16 @@ export def config-banner-clear []: nothing -> nothing {
     let runner = system-runner
     let r = ^$runner ($SYSTEM_REPO | path join $ENTRY) banner-clear | complete
     if $r.exit_code != 0 { log-note $"($CONFIG_ISSUE) left in place: ($runner) banner-clear exited ($r.exit_code)" }
+}
+
+# The login banner of an install chain that ended waiting on the network goes once no module of either layer waits on
+# it, whatever else failed.
+export def pending-banner-clear []: nothing -> nothing {
+    if not ($PENDING_ISSUE | path exists) or not (system-allowed) { return }
+    if (pending-network (pending-recorded) | get offline | is-not-empty) { return }
+    let runner = system-runner
+    let r = ^$runner ($SYSTEM_REPO | path join $ENTRY) banner-pending-clear | complete
+    if $r.exit_code != 0 { log-note $"($PENDING_ISSUE) left in place: ($runner) banner-pending-clear exited ($r.exit_code)" }
 }
 
 export def admin []: nothing -> bool {
@@ -543,9 +554,10 @@ def --env install-report [ran: record]: nothing -> int {
 
 # Rustup, flatpak and nix as the user: after root's entry, so nothing slow sits between two of them. ctx: the user layer.
 def --env install-user-run [ctx: record, yes: bool, offer_by_hand: bool]: nothing -> nothing {
-    let waiting = install-user (modules-packages $REPO $ctx.modules $ctx.platform) $ctx.platform $yes $offer_by_hand (network-online)
+    let offline = network-offline
+    let waiting = install-user (modules-packages $REPO $ctx.modules $ctx.platform) $ctx.platform $yes $offer_by_hand ($offline == null)
     if ($waiting | is-not-empty) {
-        log-note $"packages pending, ($OFFLINE_PENDING) --packages: ($waiting | str join ', ')"
+        log-note $"packages pending, ($offline) --packages: ($waiting | str join ', ')"
         $env.DOT_SYSTEM_PENDING = true
     }
 }

@@ -170,16 +170,24 @@ def repo-path-check []: nothing -> list<string> {
 # load's check: a stock stub aa-install left (program absent) is not a wrong mode, a built profile in the wrong one is
 def built-check []: nothing -> list<string> {
     let etc = mktemp --directory
-    'profile chromium /usr/lib/chromium/chromium flags=(unconfined) {}' | save $"($etc)/chromium"
+    # absent program: stock stub only, skipped; built: a .apparmor.d beside the stub; an own profile (own-x, no such
+    # program) with a stock stub and a stub whose program is installed (nu) still count
+    'profile chromium-absent-x /x flags=(unconfined) {}' | save $"($etc)/chromium-absent-x"
     'profile signal-desktop /x flags=(unconfined) {}' | save $"($etc)/signal-desktop"
     'profile signal-desktop /x {}' | save $"($etc)/signal-desktop.apparmor.d"
     'profile feh /usr/bin/feh {}' | save $"($etc)/feh"
-    let built = [chromium signal-desktop feh] | where {|n| profile-built $n $etc }
+    'profile own-x /x flags=(unconfined) {}' | save $"($etc)/own-x"
+    'profile nu /usr/bin/nu flags=(unconfined) {}' | save $"($etc)/nu"
+    let names = [chromium-absent-x signal-desktop feh own-x nu]
+    let built = $names | where {|n| profile-built $n $etc --own [own-x] }
     rm --recursive --force $etc
-    let modes = {chromium: enforce, signal-desktop: enforce, feh: enforce}
-    let wrong = modes-wrong $modes $built {chromium: unconfined, signal-desktop: unconfined, feh: enforce}
-    if ($wrong.name? | default []) == [signal-desktop] { [] } else {
-        [$"load check: wrong modes ($wrong | to nuon), want only signal-desktop \(built ($built | to nuon)\)"]
+    let modes = $names | each {|n| {$n: enforce} } | into record
+    let loaded = {
+        chromium-absent-x: unconfined, signal-desktop: unconfined, feh: enforce, own-x: unconfined, nu: unconfined
+    }
+    let wrong = modes-wrong $modes $built $loaded | get name | sort
+    if $wrong == [nu own-x signal-desktop] { [] } else {
+        [$"load check: wrong modes ($wrong | to nuon), want nu own-x signal-desktop \(built ($built | to nuon)\)"]
     }
 }
 

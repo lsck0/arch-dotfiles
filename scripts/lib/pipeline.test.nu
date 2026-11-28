@@ -2,11 +2,11 @@
 # Table cases for the package gate and the hold on dependents: pure records in, reasons and pending lines out, then
 # pipeline-apply's scheduler over rows that run nothing; what is absent and which link sources are alive against fake
 # tools first on PATH.
-use pipeline.nu [packages-gate packages-absent links-alive module-held pending-lines pipeline-apply modules-gone secrets-stamp lib-stamp barriers-run input-converged]
+use pipeline.nu [packages-gate packages-absent links-alive module-held pending-lines pending-network pipeline-apply modules-gone secrets-stamp lib-stamp barriers-run input-converged]
 use modules.nu [modules-eval]
 use module.nu [step]
 use cause.nu [cause-hint]
-use online.nu [OFFLINE_PENDING remote-pending]
+use online.nu [OFFLINE_PENDING DNS_TLS_PENDING remote-pending]
 use std/assert
 
 const MISSING_HINT = "dot apply --packages"
@@ -55,6 +55,28 @@ def held-cases []: nothing -> nothing {
         let got = module-held $c.m $done
         assert equal $got $c.wants $"held ($c.name): got ($got | to nuon), wants ($c.wants | to nuon)"
     }
+}
+
+# The VM's chain end: core/cli offline, four modules behind it and two behind those; a hold on packages is no network's.
+def pending-network-cases []: nothing -> nothing {
+    let lines = [
+        $"core/cli: ($DNS_TLS_PENDING)"
+        "core/tmux: waits on core/cli (pending)"
+        "core/wallust: waits on core/cli (pending)"
+        "core/btop: waits on core/wallust (pending)"
+        "core/yazi: waits on core/wallust (pending), base/x (failed)"
+        "base/tor: packages missing: tor"
+        "core/z: waits on base/tor (pending)"
+        $"core/fetch: (remote-pending 'returned error: 503')"
+    ]
+    let got = pending-network $lines
+    let wants = {
+        offline: [$"core/cli: ($DNS_TLS_PENDING)" $"core/fetch: (remote-pending 'returned error: 503')"]
+        waiting: [core/tmux core/wallust core/btop core/yazi]
+    }
+    assert equal $got $wants $"pending-network: got ($got | to nuon)"
+    assert equal (pending-network ["base/tor: packages missing: tor"]) {offline: [], waiting: []} "pending-network: no network hold"
+    assert equal (pending-network []) {offline: [], waiting: []} "pending-network: nothing pending"
 }
 
 def pending-lines-cases []: nothing -> nothing {
@@ -545,6 +567,7 @@ def main [] {
     gate-cases
     held-cases
     pending-lines-cases
+    pending-network-cases
     absent-cases $work
     alive-cases $work
     apply-cases

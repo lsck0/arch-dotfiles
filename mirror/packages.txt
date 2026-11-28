@@ -374,6 +374,7 @@ lib32-vkbasalt
 lib32-vkd3d
 lib32-vulkan-radeon
 libappimage
+libarchive
 libev
 libfido2
 libgcrypt

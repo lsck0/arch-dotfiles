@@ -8,7 +8,8 @@ use profile.nu [profile-has]
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use system.nu [system-files root-acts-on system-recorded secrets-digest SECRETS_PREFIX SECRETS_DIGEST]
 use preserve.nu [preserve-report]
-use pipeline.nu [pipeline-load PENDING_FILE]
+use pipeline.nu [pipeline-load pending-recorded]
+use online.nu [DNS_TLS_BLOCKED dns-tls-escape]
 use modules.nu [modules-packages]
 use cause.nu [failures-group names-shown]
 use invariants.nu [invariants-load]
@@ -134,12 +135,16 @@ def invariants []: nothing -> list<record> {
 
 # Modules the last run of either layer left waiting on their packages, the network or a dependency (pending or failed):
 # pending, no failure of their own.
+# A run that found DNS-over-TLS blocked adds the way through it.
 def modules-pending []: nothing -> list<record> {
-    let lines = [(with-env {DOT_LAYER: user} { state-dir }) $SYSTEM_STATE] | uniq | each {|dir|
-        try { open --raw ($dir | path join $PENDING_FILE) | lines | where $it != "" } catch { [] }
-    } | flatten | uniq
+    let lines = pending-recorded
     if ($lines | is-empty) { return [(report ok pending "no module waits on its packages, the network or a dependency")] }
-    $lines | each { report note pending $in }
+    let blocked = $lines | any { str contains $DNS_TLS_BLOCKED }
+    let escape = if $blocked {
+        let way = dns-tls-escape --portal
+        [(report note pending (if $way.command == null { $way.why } else { $"($way.why) ($way.command) && dot apply" }))]
+    } else { [] }
+    ($lines | each { report note pending $in }) ++ $escape
 }
 
 def apparmor []: nothing -> list<record> {

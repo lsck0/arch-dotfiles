@@ -3,6 +3,8 @@ use ini.nu [ini-rows]
 use ../../core/wallust/scripts/palette.nu [RADIUS_PX SHADE_CHROME SHADE_CURRENT condition-bg dim-toward lift palette-rgb readable-on rgb-to-hex selection-pair semantic shade vivify]
 use ../../core/wallust/scripts/font.nu [font-load]
 use scripts/hook/spicetify-apply.nu [apply-pending]
+use scripts/spotify-reload.nu [DEVTOOLS_PORT]
+use ../../base/nftables/mod.nu [devtools-guard]
 
 export const meta = {packages: {pacman: [spicetify-cli spotify spotify-player unzip websocat]}}
 
@@ -54,6 +56,12 @@ export def link [cfg: record] {
             "%h/.config/spotify/prefs" "/opt/spotify/Apps/xpui.spa"
         ])
     ]
+}
+
+# spotify-launch.nu opens Chrome DevTools on loopback (DEVTOOLS_PORT) for the streaming tooling; base/nftables'
+# fw-devtools keeps every uid but the desktop owners' off it
+export def system [cfg: record] {
+    devtools-guard spotify $DEVTOOLS_PORT
 }
 
 def extensions-wanted [cfg: record]: nothing -> list<string> {

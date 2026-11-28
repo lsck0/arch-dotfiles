@@ -1,0 +1,15 @@
+[Unit]
+# owns table inet fw_devtools on every network and policy; the owner uids are looked up on every start and reload
+Description=Loopback DevTools ports reachable by the desktop owners only
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c '{ cat /etc/nftables.d/fw-devtools.nft; if grep -q . /var/lib/dotfiles/owners 2>/dev/null; then while read -r l; do [ -z "$$l" ] || { u=$$(id -u "$$l") && echo "add element inet fw_devtools owner_uid { $$u }"; }; done < /var/lib/dotfiles/owners; else getent passwd | while IFS=: read -r _ _ u _; do [ "$$u" -lt 1000 ] || [ "$$u" -ge 60000 ] || echo "add element inet fw_devtools owner_uid { $$u }"; done; fi; } | /usr/sbin/nft -f -'
+ExecReload=/bin/sh -c '{ cat /etc/nftables.d/fw-devtools.nft; if grep -q . /var/lib/dotfiles/owners 2>/dev/null; then while read -r l; do [ -z "$$l" ] || { u=$$(id -u "$$l") && echo "add element inet fw_devtools owner_uid { $$u }"; }; done < /var/lib/dotfiles/owners; else getent passwd | while IFS=: read -r _ _ u _; do [ "$$u" -lt 1000 ] || [ "$$u" -ge 60000 ] || echo "add element inet fw_devtools owner_uid { $$u }"; done; fi; } | /usr/sbin/nft -f -'
+ExecStop=/usr/sbin/nft destroy table inet fw_devtools
+
+[Install]
+WantedBy=multi-user.target

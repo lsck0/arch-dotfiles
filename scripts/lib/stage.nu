@@ -1,14 +1,17 @@
 # One install stage per boot: install, then config, which disarms the chain and reboots.
 
 use log.nu *
-use state.nu [EXIT_PENDING file-trim file-lines INSTALL_PASS_FILE SYSTEM_REPO CONFIG_ISSUE SECRETS_ISSUE]
+use state.nu [EXIT_PENDING file-trim file-lines INSTALL_PASS_FILE SYSTEM_REPO CONFIG_ISSUE PENDING_ISSUE SECRETS_ISSUE]
 use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use system.nu [ENTRY]
 use profile.nu [profile-has]
-use cause.nu [failures-group ONLINE_ESCAPE SYSTEM_FIX]
+use cause.nu [failures-group names-shown ONLINE_ESCAPE SYSTEM_FIX]
 use platform.nu [platform-load]
 use run.nu [log-tee-argv]
 use proc.nu [succeeds]
+use online.nu [network-offline dns-tls-escape DNS_TLS_BLOCKED DNS_TLS_PENDING]
+use pipeline.nu [pending-recorded pending-network]
+use usage.nu [counted]
 
 const REPO = path self ../..
 const WITNESS = $REPO | path join $OWNER_WITNESS
@@ -47,6 +50,8 @@ const CONFIG_KILL_AFTER = "1m"
 # the wait before the reboot that retries an install pass, times the attempt
 const INSTALL_BACKOFF = 1min
 const INSTALL_FAILURES_SHOWN = 5
+# the modules a network banner names as waiting behind the offline ones
+const WAITING_SHOWN = 8
 const FAILURES_INSTALL = "FAILURES.install"
 const FAILURES_CONFIG = "FAILURES.config"
 # where dot set writes no options file: a custom or server platform's options are root's, under /etc/dotfiles
@@ -151,10 +156,21 @@ def online-escape [options_file: any]: nothing -> record {
     {how: $"Log in, set ($ONLINE_POLICY) in root's options and apply:", command: $"sudoedit ($options_file) && ($SYSTEM_FIX)"}
 }
 
-# The login banner of a chain stopped before config: what failed, that it is disarmed, how to get online and resume.
-# options_file is the platform's, which decides how it gets online.
-export def install-banner [attempts: int, failures: list<string>, --key-kept, --options-file: string]: nothing -> string {
+# The banner's way online, two lines: strict DNS-over-TLS blocked (dns_tls) has its own, else online-escape's.
+# --portal: a dot apply follows within the captive portal window, which no chain's reboot would.
+def online-lines [options_file: any, dns_tls: bool, --portal]: nothing -> list<string> {
+    if $dns_tls {
+        let way = dns-tls-escape --portal=$portal
+        return [$way.why ...(if $way.command == null { [] } else { [$"  ($way.command) && dot apply"] })]
+    }
     let escape = online-escape $options_file
+    [$"Offline or on an untrusted network? ($escape.how)" $"  ($escape.command)"]
+}
+
+# The login banner of a chain stopped before config: what failed, that it is disarmed, how to get online and resume.
+# options_file is the platform's, which decides how it gets online; --dns-tls: the stop found strict DNS-over-TLS
+# blocked.
+export def install-banner [attempts: int, failures: list<string>, --key-kept, --options-file: string, --dns-tls]: nothing -> string {
     let shown = failures-group $failures | first $INSTALL_FAILURES_SHOWN | each { $"  ($in)" }
     let disarmed = if $key_kept {
         "The temporary disk key could not be removed: the disk still unlocks without its passphrase. sudo asks again."
@@ -165,8 +181,7 @@ export def install-banner [attempts: int, failures: list<string>, --key-kept, --
         $"dotfiles install chain stopped: the package install failed ($attempts) times, so config did not run."
         ...(if ($shown | is-empty) { [] } else { ["What failed:" ...$shown] })
         $disarmed
-        $"Offline or on an untrusted network? ($escape.how)"
-        $"  ($escape.command)"
+        ...(online-lines $options_file $dns_tls)
         "then resume the chain from here (sudo asks once, each boot of it asks for the disk passphrase):"
         $"  ($STAGE_RESUME)"
         $"Logs: ($STAGE_STATE_DIR)/log and install.log in the checkout."
@@ -188,6 +203,24 @@ export def config-banner [failures: list<string>, status: int]: nothing -> strin
     ] | str join "\n"
 }
 
+# The login banner of a chain that ended with modules waiting on the network, a run's pending state and not a failure,
+# so nothing else would say the install is unfinished: which wait, why, the way online and the one command after.
+# network: pending-network's record; options_file as for install-banner.
+export def pending-banner [network: record, --options-file: string]: nothing -> string {
+    let shown = $network.offline | first $INSTALL_FAILURES_SHOWN | each { $"  ($in)" }
+    let more = ($network.offline | length) - ($shown | length)
+    let dns_tls = $network.offline | any { str contains $DNS_TLS_BLOCKED }
+    [
+        "dotfiles install chain finished, but these modules wait on the network it could not reach:"
+        ...$shown
+        ...(if $more > 0 { [$"  and ($more) more, see `dot status`"] } else { [] })
+        ...(if ($network.waiting | is-empty) { [] } else { [$"Waiting on them: (names-shown $network.waiting $WAITING_SHOWN)"] })
+        ...(online-lines $options_file $dns_tls --portal)
+        "Once online, run `dot apply` at a terminal; this banner clears once no module waits on the network."
+        "Logs: config.log in the checkout, `dot status`."
+    ] | str join "\n"
+}
+
 # A chain stopped before config disarms what leaves the machine open: the stage key slot and keyfile (the disk
 # unlocks by itself), the passwordless sudoers drop-in, and the unit with its next stage. The trade-off: a reboot no
 # longer retries on its own; a person at the console resumes with STAGE_RESUME, sudo asking once and each boot of the
@@ -197,7 +230,9 @@ def install-stop [repo: path, attempts: int]: nothing -> nothing {
     let key_kept = not (disarm-retried)
     note $"install: failed ($attempts) times, the chain stops before config and is disarmed(if $key_kept { ' but for its disk key' } else { '' }), see the login banner"
     let options_file = try { (platform-load $repo).options_file } catch { null }
-    banner-write $ISSUE (install-banner $attempts $failures --key-kept=$key_kept --options-file=$options_file)
+    # asked now, not per pass: the stop is where a person reads why
+    let dns_tls = (network-offline) == $DNS_TLS_PENDING
+    banner-write $ISSUE (install-banner $attempts $failures --key-kept=$key_kept --options-file=$options_file --dns-tls=$dns_tls)
     # a stopped chain uploads its logs too, the banner among them, and the report sends the verdict; the root copy
     # exists once the install ran as root
     let report = if ($STAGE_REPORT | path exists) and ($SYSTEM_REPO | path join scripts lib stage-report.nu | path exists) { $REPORT_RUN } else {
@@ -298,6 +333,12 @@ export def stage-run [repo: path]: nothing -> nothing {
         let failures = file-lines ($repo | path join $FAILURES_CONFIG)
         note "config: failed, the chain ends disarmed, see the login banner"
         banner-write $CONFIG_ISSUE (config-banner $failures $status)
+    }
+    let network = pending-network (pending-recorded)
+    if ($network.offline | is-not-empty) {
+        note $"config: (counted (($network.offline | length) + ($network.waiting | length)) module) left waiting on the network, see the login banner"
+        let options_file = try { (platform-load $repo).options_file } catch { null }
+        banner-write $PENDING_ISSUE (pending-banner $network --options-file=$options_file)
     }
     if (file-trim $STAGE_LUKS_DEVICE) != "" {
         note $"to rotate the disk's volume key \(slow, runs online\): sudo cryptsetup reencrypt (file-trim $STAGE_LUKS_DEVICE)"

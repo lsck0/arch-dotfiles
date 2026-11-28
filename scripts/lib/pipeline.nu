@@ -1,7 +1,7 @@
 # One layer's run: load, plan (unchanged modules skipped), apply in dependency order as parallel jobs.
 
 use log.nu *
-use state.nu [LIB_DIR state-dir save-atomic]
+use state.nu [LIB_DIR SYSTEM_STATE state-dir save-atomic file-lines]
 use platform.nu [platform-load platform-env]
 use profile.nu [profile-load]
 use options.nu [options-resolve]
@@ -12,6 +12,7 @@ use secrets.nu [secret-is-plaintext OWNER_WITNESS]
 use cause.nu [failure-line cause-from-error cause-text]
 use usage.nu [counted]
 use proc.nu [succeeds]
+use online.nu [pending-is-network]
 
 # %H: the dir the file was found under, so one find stamps every dir, a dir nested in another counted in both
 const HASH_STAMP = '%H\t%P %s %T@\n'
@@ -255,6 +256,29 @@ export def pending-save [planned: list<string>, results: table, --full, --keep: 
     let earlier = try { open --raw $file | lines } catch { [] }
     let now = pending-lines $earlier $planned $results $full $keep
     if ($now | is-empty) { rm --force $file } else { $now | to text | save-atomic $file }
+}
+
+# The pending lines both layers' last runs left, the user's first.
+export def pending-recorded []: nothing -> list<string> {
+    [(with-env {DOT_LAYER: user} { state-dir }) $SYSTEM_STATE] | uniq
+    | each {|dir| file-lines ($dir | path join $PENDING_FILE) } | flatten | where ($it | str trim) != "" | uniq
+}
+
+# Of pending lines, {offline: the lines waiting on the network (pending-is-network), waiting: the ids waiting on one of
+# them, however many holds away}.
+export def pending-network [lines: list<string>]: nothing -> record {
+    let rows = $lines | each {|l| let parts = $l | split row ": "; {id: $parts.0, why: ($parts | skip 1 | str join ": "), line: $l} }
+    let offline = $rows | where { pending-is-network $in.why }
+    mut held = $offline.id
+    mut waiting = []
+    loop {
+        let known = $held
+        let more = $rows | where {|r| $r.id not-in $known and (waits-on $r.why | any { $in in $known }) } | get id
+        if ($more | is-empty) { break }
+        $held = $held ++ $more
+        $waiting = $waiting ++ $more
+    }
+    {offline: $offline.line, waiting: ($waiting | uniq)}
 }
 
 # Each dir's files with size and mtime, sorted, from one find.

@@ -1,0 +1,19 @@
+#!/usr/sbin/nft -f
+# Chrome DevTools ports on loopback: CDP has no auth, so whoever connects drives the logged-in client. Only the desktop
+# owners reach them; every other uid (service users, a second login) gets a reset. Always loaded, whatever the network.
+
+add table inet fw_devtools
+delete table inet fw_devtools
+table inet fw_devtools {
+    # filled by fw-devtools.service from /var/lib/dotfiles/owners, or every login's uid on a machine without an owner
+    set owner_uid { type uid; }
+    # one file per module that opens a port, written by devtools-guard in mod.nu
+    set ports { type inet_service; }
+
+    chain output {
+        type filter hook output priority 0; policy accept;
+        oifname "lo" tcp dport @ports meta skuid != @owner_uid reject with tcp reset
+    }
+}
+
+include "/etc/nftables.d/devtools.d/*.nft"

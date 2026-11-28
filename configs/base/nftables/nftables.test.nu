@@ -3,11 +3,12 @@
 # filled in, also on a fresh install where the tor user does not exist yet. fw-inbound from a peer namespace over a
 # veth: sshd's port drops until the three ports were knocked in order, then accepts, and a source past ssh_rate is
 # dropped again; with base/ssh.server off the knock opens nothing. The system verb keeps the lockdown ruleset the
-# resting state, whose input policy is drop.
+# resting state, whose input policy is drop. fw-devtools: its unit fills the owners' uids (every login's without an
+# owner record) and the ports devtools-guard declares; a uid outside the set gets a reset, the owner's connect passes.
 
 use std/assert
 use module.nu [decls-flatten text-render]
-use mod.nu [system]
+use mod.nu [system devtools-guard]
 
 const HERE = path self .
 const UNIT = $HERE | path join services fw-egress.service
@@ -18,6 +19,13 @@ const INBOUND_VALUES = {
     SSH_KNOCK_WINDOW: "1h", SSH_PORT: "2222", SSH_RATE: "10/minute burst 10 packets"
     KNOCK_1: "7001", KNOCK_2: "7002", KNOCK_3: "7003", SSH_RULE_PREFIX: ""
 }
+const DEVTOOLS_UNIT = $HERE | path join services fw-devtools.service
+const DEVTOOLS_RULESET = $HERE | path join config fw-devtools.nft
+const DEVTOOLS_PORT = 9234
+# a uid no login has, standing in for a service user
+const FOREIGN_UID = 4242
+# the login uid range the unit falls back to without an owner record
+const LOGIN_UID_MIN = 1000
 # a rate low enough to cross in a few connections
 const PROBE_RATE = "4/minute burst 4 packets"
 const HOST_ADDRESS = "10.77.0.1"
@@ -157,6 +165,69 @@ def lockdown-default []: nothing -> nothing {
     assert equal $policy drop "fw-lockdown's input policy is not drop"
 }
 
+# fw-devtools.service's load against an owners file and a dir of port files, its ruleset copied with the include
+# pointed there; ExecReload must be the same load.
+def devtools-load [dir: path, owners: path]: nothing -> list {
+    let lines = open --raw $DEVTOOLS_UNIT | lines
+    let start = $lines | where ($it | str starts-with "ExecStart=") | get 0 | str replace "ExecStart=" ""
+    let reload = $lines | where ($it | str starts-with "ExecReload=") | get 0 | str replace "ExecReload=" ""
+    assert equal $reload $start "fw-devtools: ExecReload is not ExecStart's load"
+    let ruleset = $dir | path join fw-devtools.nft
+    open --raw $DEVTOOLS_RULESET | str replace /etc/nftables.d/devtools.d ($dir | path join ports) | save --force $ruleset
+    let command = $start | str replace "/bin/sh -c '" "" | str substring 0..-2 | str replace --all '$$' '$'
+        | str replace --all /etc/nftables.d/fw-devtools.nft $ruleset | str replace --all /usr/sbin/nft nft
+        | str replace --all /var/lib/dotfiles/owners $owners
+    let r = ^unshare -rn sh -c $"($command)\nnft -j list table inet fw_devtools" | complete
+    assert ($r.exit_code == 0) $"fw-devtools does not load: ($r.stderr)"
+    $r.stdout | from json | get nftables
+}
+
+# Connects to a listener on DEVTOOLS_PORT in a namespace holding fw-devtools with owner_uid {uid}: whether it got in.
+const DEVTOOLS_PROBE = 'ip link set lo up
+nft -f @RULES@ && nft add element inet fw_devtools owner_uid { @UID@ } || exit 2
+python3 -I -c "import socket, time
+s = socket.socket(); s.bind((\"127.0.0.1\", @PORT@)); s.listen(); time.sleep(3)" &
+sleep 0.3
+timeout 1 bash -c "echo > /dev/tcp/127.0.0.1/@PORT@" 2>/dev/null
+rc=$?
+kill $!
+exit $rc'
+
+def devtools-reaches [ruleset: path, uid: int]: nothing -> bool {
+    let script = $DEVTOOLS_PROBE | text-render {RULES: $ruleset, UID: $uid, PORT: $DEVTOOLS_PORT}
+    let r = ^unshare -rn bash -c $script | complete
+    assert ($r.exit_code in [0 1]) $"fw-devtools probe failed: ($r.stderr)"
+    $r.exit_code == 0
+}
+
+def devtools []: nothing -> nothing {
+    let dir = mktemp --directory --tmpdir dot-nftables-test-XXXXXX
+    let ports = $dir | path join ports
+    mkdir $ports
+    let guard = with-env {FORM_FACTOR: desktop} { devtools-guard fluxer $DEVTOOLS_PORT } | decls-flatten | get 0
+    assert equal $guard.target /etc/nftables.d/devtools.d/fluxer.nft "devtools-guard writes outside fw-devtools' include"
+    $guard.content | save ($ports | path join fluxer.nft)
+    assert equal (with-env {FORM_FACTOR: wsl} { devtools-guard fluxer $DEVTOOLS_PORT }) null "devtools-guard declares on wsl"
+    let me = ^id -u | str trim | into int
+    let owners = $dir | path join owners
+    $"(^id -un | str trim)\nno-such-login-dot-test\n" | save $owners
+    let rules = devtools-load $dir $owners
+    assert equal (set-elements $rules ports) [$DEVTOOLS_PORT] "fw-devtools ports did not take devtools-guard's file"
+    assert equal (set-elements $rules owner_uid) [$me] "fw-devtools owner_uid is not the owners' uids"
+    "" | save --force $owners
+    let fallback = set-elements (devtools-load $dir $owners) owner_uid
+    assert ($me in $fallback and ($fallback | all { $in >= $LOGIN_UID_MIN })) $"fw-devtools without an owner: ($fallback | to nuon)"
+    rm --force $owners
+    assert ($me in (set-elements (devtools-load $dir $owners) owner_uid)) "fw-devtools without an owners file"
+    if (which python3 | is-not-empty) {
+        let ruleset = $dir | path join fw-devtools.nft
+        # inside the namespace this process is uid 0
+        assert (devtools-reaches $ruleset 0) "fw-devtools resets the owner"
+        assert not (devtools-reaches $ruleset $FOREIGN_UID) "fw-devtools lets another uid onto the port"
+    }
+    rm --recursive --force $dir
+}
+
 def main [] {
     if (which nft unshare | length) < 2 or (^unshare -rn true | complete).exit_code != 0 {
         print --stderr "nftables.test: skipped: needs nft and unprivileged user namespaces"
@@ -187,4 +258,5 @@ def main [] {
     assert (inbound-rules $PENTEST_LINKS | str contains $PENTEST_IFACE) "fw-inbound leaves tun0 out with pentest_listeners"
     lockdown-default
     inbound-knock
+    devtools
 }

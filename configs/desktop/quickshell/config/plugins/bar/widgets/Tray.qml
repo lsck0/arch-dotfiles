@@ -172,6 +172,10 @@ BarWidget {
   visible: allItems.length > 0
   implicitWidth: trayContent.implicitWidth
 
+  // the plain manage button shows only while the pointer is over the tray; its slot stays reserved, so nothing under
+  // the pointer moves when it appears
+  HoverHandler { id: trayHover }
+
   Item {
     id: trayContent
     anchors.fill: parent
@@ -218,6 +222,8 @@ BarWidget {
             fixedWidth: root.trayItemExtent
             fontSize: Style.font.caption
             hoverFill: true
+            keepSpace: true
+            concealed: root.moreCount === 0 && !trayHover.hovered && !root.managePopupOpen
             text: root.moreCount > 0 ? "+" + root.moreCount : "\u{f141}"
             tooltipText: (root.moreCount > 0
               ? Util.count(root.moreCount, "more tray icon") + (root.hiddenCount > 0 ? " (" + root.hiddenCount + " hidden)" : "")

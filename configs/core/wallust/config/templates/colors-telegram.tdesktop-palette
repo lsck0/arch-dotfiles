@@ -1,4 +1,4 @@
-// re-import in telegram after a theme switch
+// the palette of the .tdesktop-theme configs/socials/telegram builds; Telegram reloads it itself (its README.md)
 // jinja, not pywal syntax: its own wallust.toml entry. Panels and bubbles carrying text take bg_alt, a step from the
 // background toward the foreground; color0 is dark on a light theme, so text on it (or on an accent) was unreadable
 {% set bg_alt = background | blend(foreground) | blend(background) | blend(background) -%}

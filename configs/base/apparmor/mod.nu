@@ -106,9 +106,7 @@ export def build []: nothing -> nothing {
     let have = open --raw $PARSER_CONF | lines
     let missing = $PARSER_LINES | where $it not-in $have
     $missing | to text | save --append $PARSER_CONF
-    if (which aa-install | is-not-empty) and (^aa-install --install --no-reload | complete).exit_code != 0 {
-        print "note: apparmor: aa-install failed, the profiles keep their last build"
-    }
+    let built = if (which aa-install | is-empty) { null } else { ^aa-install --install --no-reload | complete }
     # Own profile is the only source: drop apparmor.d's build, keep the stock unconfined stub disabled.
     let own = own
     mkdir ($ETC | path join disable)
@@ -120,15 +118,31 @@ export def build []: nothing -> nothing {
     for name in (modes | items {|name, mode| if $mode == enforce and $name not-in $own { $name }} | compact) {
         if not ($ETC | path join $"($name).apparmor.d" | path exists) { rm --force ($ETC | path join disable $name) }
     }
+    # raised after the own profiles' cleanup, so a failed build still leaves those in place; the profiles keep their
+    # last build. Before the first boot with the LSM on (a fresh install) it is pending, run again on the next apply.
+    if $built != null and $built.exit_code != 0 {
+        let why = $"($built.stdout)\n($built.stderr)" | str trim | lines | last 5 | str join "\n"
+        if (file-trim /sys/module/apparmor/parameters/enabled) != "Y" {
+            print $why
+            print "apparmor: aa-install failed while apparmor is not active in this kernel yet, retried on the next apply"
+            exit $EXIT_PENDING
+        }
+        error make {msg: $"apparmor: aa-install --install failed, the profiles keep their last build:\n($why)"}
+    }
 }
 
-# Whether aa-install built name's profile: it builds only for installed programs (no --all), so for an absent one the
-# apparmor package's own stub stays, without <name>.apparmor.d beside it and unconfined by design.
-export def profile-built [name: string, etc: path = $ETC]: nothing -> bool {
+# Whether name's profile should be loaded in its mode. aa-install builds only for installed programs (no --all), so for
+# an absent one the apparmor package's own stub stays, without <name>.apparmor.d beside it and unconfined by design.
+# Only that case is skipped: an own profile always counts, and so does a stub whose program is installed, so a failed
+# build never leaves an app unconfined unreported.
+export def profile-built [name: string, etc: path = $ETC, --own: list<string> = []]: nothing -> bool {
     let stub = $etc | path join $name
-    if not ($stub | path exists) or ($etc | path join $"($name).apparmor.d" | path exists) { return true }
+    if $name in $own or not ($stub | path exists) or ($etc | path join $"($name).apparmor.d" | path exists) {
+        return true
+    }
     let text = open --raw $stub
-    not ($text =~ 'flags=\(unconfined\)') or ($text | str contains $MARKER)
+    let stock = ($text =~ 'flags=\(unconfined\)') and not ($text | str contains $MARKER)
+    not $stock or (which $name | is-not-empty)
 }
 
 # The profiles of built whose loaded mode is not the one modes wants.
@@ -149,7 +163,8 @@ export def load []: nothing -> nothing {
         | each { path basename | str replace --regex '\.apparmor\.d$' "" }
     let loaded = open --raw /sys/kernel/security/apparmor/profiles | lines
         | parse --regex '^(?<name>\S+) \((?<mode>[^)]*)\)' | reduce --fold {} {|p, acc| $acc | upsert $p.name $p.mode }
-    let built = modes | columns | where {|n| $n in $deployed and (profile-built $n) }
+    let own = own
+    let built = modes | columns | where {|n| $n in $deployed and (profile-built $n --own $own) }
     let wrong = modes-wrong (modes) $built $loaded
     if ($wrong | is-not-empty) {
         let lines = $wrong | each { $"apparmor: ($in.name) is ($in.have | default 'not loaded'), expected ($in.want)" }

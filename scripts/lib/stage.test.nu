@@ -1,8 +1,10 @@
 #!/usr/bin/env -S nu --no-config-file
 # The banner of a chain stopped before config names the failure, that it is disarmed, the way online (a root edit where
 # the platform's options are root's, which dot set refuses) and the resume, within a tty's lines; the install stage's
-# next step follows the install pass file, not dot's exit code.
-use stage.nu [install-banner config-banner stage-argv stage-next stage-sudoers STAGE_RESUME]
+# next step follows the install pass file, not dot's exit code. A chain that ends with modules waiting on the network
+# says so, and why, where DNS-over-TLS was blocked.
+use stage.nu [install-banner config-banner pending-banner stage-argv stage-next stage-sudoers STAGE_RESUME]
+use online.nu [OFFLINE_PENDING DNS_TLS_PENDING DNS_TLS_BLOCKED]
 use std/assert
 
 const ESCAPE = "dot set --machine base/networkmanager.untrusted_policy firewall-only && dot apply --system"
@@ -49,6 +51,29 @@ def banner-cases []: nothing -> nothing {
     assert ($bare | str contains "exited 125") $"config banner without failures hides the exit code:\n($bare)"
 }
 
+# The VM's chain: core/cli's download offline, five modules behind it; strict dot blocked or plainly offline.
+def pending-cases []: nothing -> nothing {
+    let waiting = [core/tmux core/wallust core/git core/herdr core/btop core/yazi]
+    for c in [[pending dns_tls]; [$OFFLINE_PENDING false] [$DNS_TLS_PENDING true]] {
+        let banner = pending-banner {offline: [$"core/cli: ($c.pending)"], waiting: $waiting}
+        for want in ["wait on the network" $"core/cli: ($c.pending)" "core/tmux" "core/yazi" "dot apply" "dot status"] {
+            assert ($banner | str contains $want) $"pending banner lacks ($want | to nuon):\n($banner)"
+        }
+        assert equal ($banner | str contains $ESCAPE) (not $c.dns_tls) $"pending banner, dns_tls ($c.dns_tls), firewall escape:\n($banner)"
+        assert equal ($banner | str contains "allow tcp 853 out") $c.dns_tls $"pending banner, dns_tls ($c.dns_tls), 853 escape:\n($banner)"
+        assert (($banner | lines | length) <= $TTY_LINES) $"pending banner is ($banner | lines | length) lines"
+        assert not ($banner | lines | any { ($in | str trim) == "" }) "pending banner shows an empty line"
+    }
+    let many = pending-banner {offline: (1..20 | each { $"m/($in): ($OFFLINE_PENDING)" }), waiting: (1..30 | each { $"w/($in)" })}
+    assert (($many | lines | length) <= $TTY_LINES) $"pending banner of many is ($many | lines | length) lines"
+    assert ($many | str contains "and 15 more") $"pending banner of many hides its count:\n($many)"
+    let rooted = pending-banner {offline: [$"core/cli: ($OFFLINE_PENDING)"], waiting: []} --options-file $OPTIONS_ROOT
+    assert (($rooted | str contains $ESCAPE_ROOT) and not ($rooted | str contains "Waiting on")) $"pending banner of root's options:\n($rooted)"
+    let blocked = install-banner 3 [] --dns-tls
+    assert (($blocked | str contains $DNS_TLS_BLOCKED) and not ($blocked | str contains $ESCAPE)) $"install banner with dot blocked:\n($blocked)"
+    assert ($blocked | lines | any { ($in | str trim) == $STAGE_RESUME }) $"install banner with dot blocked lost the resume:\n($blocked)"
+}
+
 # the stage commands themselves run: GNU timeout refused nushell's `1min` once, so config never ran (VM run 2)
 def argv-cases []: nothing -> nothing {
     for stage in [install config] {
@@ -92,6 +117,7 @@ def sudoers-cases []: nothing -> nothing {
 
 def main [] {
     banner-cases
+    pending-cases
     next-cases
     sudoers-cases
     argv-cases

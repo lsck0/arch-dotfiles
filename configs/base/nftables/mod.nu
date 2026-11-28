@@ -27,7 +27,9 @@ export const options = {
 
 const DIR = "/etc/nftables.d"
 const HOOK = "/etc/pacman.d/hooks/fw-egress-uids.hook"
-const UNITS = [fw-inbound.service fw-lockdown.service fw-egress.service]
+const UNITS = [fw-inbound.service fw-lockdown.service fw-egress.service fw-devtools.service]
+# where devtools-guard puts each module's port into fw-devtools' set, read by fw-devtools.nft's include
+const DEVTOOLS_DIR = "/etc/nftables.d/devtools.d"
 const NFT_DURATION = '^(\d+(ms|[dhms]))+$'
 const NFT_RATE = '^\d+/(second|minute|hour|day)( burst \d+ packets)?$'
 const PENTEST_LINKS = 'elements = { "tun0" }'
@@ -77,6 +79,10 @@ export def system [cfg: record] {
         (file-copy config/fw-egress.nft $"($DIR)/fw-egress.nft"
             --then (unit-restart fw-egress.service --reload --if-running))
         (file-copy config/fw-egress-uids.hook $HOOK)
+        # the owner uids are filled in by the unit at start, from the owners record the system layer keeps
+        (file-copy config/fw-devtools.nft $"($DIR)/fw-devtools.nft"
+            --then (unit-restart fw-devtools.service --reload --if-running))
+        (unit-enable fw-devtools.service --now)
         (unit-disable fw-inbound.service)
         (unit-enable fw-lockdown.service)
         # fail closed: without tor, pacman's escape in fw-egress.nft is how tor gets installed
@@ -86,4 +92,12 @@ export def system [cfg: record] {
             unit-disable fw-egress.service --now
         })
     ]
+}
+
+# A system verb's declaration for a module that opens a Chrome DevTools port on loopback (name its module, port from
+# the const its launcher uses): fw-devtools then lets only the desktop owners connect to it.
+export def devtools-guard [name: string, port: int]: nothing -> any {
+    if (which nft | is-empty) or $env.FORM_FACTOR? == "wsl" { return null }
+    (file-text $"($DEVTOOLS_DIR)/($name).nft" $"add element inet fw_devtools ports { ($port) }\n"
+        --then (unit-restart fw-devtools.service --reload --if-running))
 }

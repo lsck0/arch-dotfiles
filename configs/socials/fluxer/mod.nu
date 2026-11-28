@@ -3,13 +3,14 @@ use ../spotify/mod.nu [spicetify-colors]
 use ../../core/wallust/scripts/palette.nu [RADIUS_PX]
 use ../../core/wallust/scripts/font.nu [font-load]
 use scripts/fluxer-voice.nu [DEVTOOLS_PORT]
+use ../../base/nftables/mod.nu [devtools-guard]
 
 # its theme reads spotify's spicetify colours, as discord's does, so it runs after spotify's
 export const meta = {deps: [socials/spotify], packages: {pacman: [fluxer-bin websocat]}}
 
 # Chrome DevTools on loopback (DEVTOOLS_PORT), as spotify's: scripts/fluxer-voice.nu reads the call state from it for
-# desktop/quickshell's Fluxer widget. CDP has no auth, so any local process can drive the logged-in session; accepted
-# as for spotify, electron binds loopback only.
+# desktop/quickshell's Fluxer widget. CDP has no auth: electron binds loopback only, and base/nftables' fw-devtools
+# keeps every uid but the desktop owners' off it (the system verb below).
 
 # a stable path in Fluxer's own config dir for the one link in README.md; Fluxer watches a linked file
 const THEME = "wal.theme.css"
@@ -21,6 +22,10 @@ export def link [cfg: record] {
         (link-commands scripts/fluxer-voice.nu)
         (unit-file services/fluxer-voice.service --enable --now)
     ]
+}
+
+export def system [cfg: record] {
+    devtools-guard fluxer $DEVTOOLS_PORT
 }
 
 export def theme [cfg: record, wallpaper: string] {

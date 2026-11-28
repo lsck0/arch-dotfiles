@@ -8,7 +8,7 @@ use json.nu [json-edits-apply json-keys-restore]
 use module.nu [DECL_KEYS DECL_KINDS unit-dir]
 use ini.nu [ini-apply]
 use cause.nu [cause-from-error cause-from-output cause-text argv-text]
-use online.nu [network-online remote-pending OFFLINE_PENDING]
+use online.nu [network-offline remote-pending]
 use proc.nu [succeeds]
 
 const UNREADABLE = "unreadable"
@@ -432,14 +432,16 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
     # pipeline-apply's --timeout cancels a module through this marker: a killed job's try would otherwise go on
     let cancel = $env.DOT_CANCEL_FILE? | default ""
     let recorded = if ($ordered | any { $in.kind == "merge" }) { recorded-hashes } else { {} }
+    # what a download waits with, null online; asked only by a module that downloads
+    let offline = if ($ordered | any { $in.kind in [exec step] and $in.decl.network? == true }) { network-offline } else { null }
     let run = $ordered | reduce --fold {written: $recorded, outcomes: []} {|a, acc|
         let start = date now
         let result = if $cancel != "" and ($cancel | path exists) {
             outcome {ok: false, error: "cancelled, the module timed out"}
         } else if $a.kind in [exec step] and $a.decl.requires? != null and not ($a.decl.requires | path exists) {
             outcome {pending: $"waits on ($a.decl.requires | home-short), not there yet"}
-        } else if $a.kind in [exec step] and $a.decl.network? == true and not (network-online) {
-            outcome {pending: $OFFLINE_PENDING}
+        } else if $a.kind in [exec step] and $a.decl.network? == true and $offline != null {
+            outcome {pending: $offline}
         } else { try {
             match $a.kind {
                 "create" | "update" => {
