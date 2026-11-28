@@ -3,7 +3,8 @@
     label: "Luca's desktop"
     form_factor: desktop
     groups: [base core fonts desktop socials gaming creating latex programming qemu llm rocm pentesting]
-    extra_packages: [it87-dkms-git]
+    # the dkms module builds against both kernels' headers (base/boot's KERNEL_HEADERS)
+    extra_packages: [it87-dkms-git linux-headers linux-lts-headers]
     facts: {
         homelab: true
         wireguard: wireguard/pc.conf

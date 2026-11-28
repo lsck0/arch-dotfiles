@@ -13,7 +13,7 @@ Constants are at the top of `scripts/lib/vm.nu`.
 ## Network
 
 - The nic is a qemu stream netdev to passt, inside a pasta namespace of the user's own (`network.log`); a scenario's
-  blocked cidrs are unreachable routes there. Launched through `pkexec /usr/local/bin/vm-net` (base/portmaster,
+  blocked cidrs are unreachable routes there. Launched through `pkexec /usr/local/bin/vm-net` (desktop/portmaster,
   unprompted via polkit, group vmnet so portmaster passes the guest's DoT to quad9); without it (not installed, pkexec
   refused over ssh) the plain launch runs and warns, and portmaster may then block the guest's DNS.
 - The guest sees `10.0.2.15/24`, gateway `10.0.2.2`, dns `10.0.2.3` or the scenario's. passt relays dns to the

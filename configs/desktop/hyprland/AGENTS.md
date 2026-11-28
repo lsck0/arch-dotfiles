@@ -13,7 +13,7 @@
 - The screen share picker is `omarchy-share-picker-git`, built from `mirror/pkgbuilds/` with a patch that lists
   floating windows too.
 - `GDK_SCALE` (`xwayland_scale`) reaches GTK only, never `Xft.dpi` (GTK would double its fonts). Every other xwayland
-  toolkit gets its own scale: Qt5 xcb `QT_SCALE_FACTOR` (`base/v4l-utils/scripts/qvidcap.sh`, `programming/renderdoc`),
+  toolkit gets its own scale: Qt5 xcb `QT_SCALE_FACTOR` (`desktop/v4l-utils/scripts/qvidcap.sh`, `programming/renderdoc`),
   Tk `tk scaling` (`desktop/applications/scripts/gitk.tcl`, `idle.py`), wine `LogPixels`
   (`desktop/applications/mod.nu`), plain Xft the point size (`desktop/nsxiv`), a pkexec'd root GTK app its own
   `GDK_SCALE` (`desktop/gparted/scripts/gparted-run.sh`), ONLYOFFICE `force-scale` (`desktop/applications/mod.nu`).

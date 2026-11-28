@@ -6,12 +6,12 @@ export const options = {
     interface: {
         type: string?
         default: null
-        doc: "Interface qBittorrent is bound to; empty, none; unset, base/protonvpn's proton0 where the profile has secrets"
+        doc: "Interface qBittorrent is bound to; empty, none; unset, proton/vpn's proton0 where the profile has secrets"
         label: "Bound interface"
     }
 }
 
-# base/protonvpn's tunnel, which only a profile with the secrets capability brings up
+# core/proton/vpn's tunnel, which only a profile with the secrets capability brings up
 const VPN_INTERFACE = "proton0"
 
 export def link [cfg: record] {

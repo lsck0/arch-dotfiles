@@ -2,8 +2,7 @@
     "base/endlessh": {enable: false}
     "base/fail2ban": {enable: false}
     "base/nftables": {enable: false}
-    "base/portmaster": {enable: false}
-    "base/protonvpn": {enable: false}
+    "core/proton/vpn": {enable: false}
     "base/protonvpn-netns": {enable: false}
     "base/tor": {enable: false}
     "base/wireguard": {enable: false}

@@ -57,7 +57,7 @@
         wake_host: "192.168.178.138"
         wake_router_tunnel: "10.0.0.1"
     }
-    "base/v4l2loopback": {
+    "creating/v4l2loopback": {
         video_nr: 2
     }
     # servers for files and CLIs, which no running app gates: off where the memory per agent session counts

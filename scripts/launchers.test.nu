@@ -63,7 +63,7 @@ def main [] {
     let cases = [
         [file swap given tail env];
         [configs/core/yt-dlp/scripts/yt-dlp.sh [/usr/local/bin/yt-dlp] $args $args {}]
-        [configs/base/v4l-utils/scripts/qvidcap.sh [/usr/bin/qvidcap] $args $args {}]
+        [configs/desktop/v4l-utils/scripts/qvidcap.sh [/usr/bin/qvidcap] $args $args {}]
         [configs/pentesting/zaproxy/scripts/zaproxy-launch.sh [/usr/share/zaproxy/zap.sh] $args ([-silent -configfile ($work | path join .ZAP mcp.properties)] ++ $args) {}]
         [configs/creating/blender/scripts/blender-mcp-bridge.sh [] $args ($args ++ [--python $start]) {}]
         [configs/core/zsh/scripts/fence.sh [] ($command ++ $args) ([nice -n19] ++ $command ++ $args) {}]

@@ -117,6 +117,7 @@ def derived-apply [file: path]: nothing -> nothing {
 def recolor [file: path, palette: string]: nothing -> bool {
     if not ($file | path exists) { error make {msg: $"wallpaper not found: ($file)"} }
     let switched = (wallpaper-get) != ($file | path expand) or (theme-get) != $palette
+    mkdir (wal)
     ^ln -sfn $file (wal wallpaper)
     $"($file)\n" | save --force (wal wallpaper_path)
     # a shell that is down shows the wal/wallpaper link when it starts

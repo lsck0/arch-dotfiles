@@ -5,10 +5,12 @@ export const meta = {
     packages: {
         pacman: [
             ani-cli-git bleachbit bluetui chawan filezilla font-manager gearlever geogebra-6-bin gnome-calculator
-            gnome-calendar gnome-maps gnome-text-editor hollywood josm kleopatra linecast localsend
+            gnome-calendar gnome-maps gnome-text-editor hollywood josm kleopatra libinput-tools linecast localsend
             logseq-desktop-bin lynx metadata-cleaner minder mov-cli mpg123 nemo gvfs okular onlyoffice-bin piper
             proton-authenticator-bin proton-pass-bin proton-vpn-qt-app snapshot sowon-git stirling-pdf-bin tlpui
             torbrowser-launcher waypipe wev wine-gecko wine-mono wine-staging xorg-xeyes yubico-authenticator-bin zenity
+            # gearlever's AppImages, the tk of the idle and gitk wrappers below
+            libappimage tk
         ]
         flatpak: {org.remmina.Remmina: b2a4f56c9b3ee7020266692e4fee0cf600ce5bc6c66acb65307a5c3033f7efc2} # built 2026-11-21
     }

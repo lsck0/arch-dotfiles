@@ -6,7 +6,8 @@ export const meta = {
             bacon cargo-afl cargo-audit cargo-bloat cargo-deny cargo-edit cargo-expand cargo-flamegraph cargo-fuzz
             cargo-generate cargo-info cargo-leptos cargo-llvm-cov cargo-make cargo-mutants cargo-nextest cargo-seek
             cargo-shear cargo-show-asm cargo-shuttle cargo-sort-derives cargo-update cargo-wizard cargo-zigbuild
-            crates-tui-git cross diesel-cli irust leptosfmt openbsd-netcat rustfilt sccache sqlx-cli tauri-cli trunk
+            crates-tui-git cross diesel-cli irust leptosfmt openbsd-netcat rustfilt rustup sccache sqlx-cli tauri-cli
+            trunk
         ]
     }
 }
@@ -30,6 +31,12 @@ const SHORT_HASH_LEN = 7
 
 export def link [cfg: record] {
     [(cargo-config $cfg) (afl-runtimes)]
+}
+
+# the stable toolchain floats by design; dated and nightly ones other modules pin stay put
+export def update [cfg: record]: nothing -> nothing {
+    # its progress goes to stderr, which an update verb's runner shows as a warning; -q leaves rustup's warnings
+    ^rustup --quiet update
 }
 
 def cargo-config [cfg: record] {

@@ -4,7 +4,8 @@ export use ../scripts/boot.nu [boot-commit]
 
 # its barrier rebuilds and signs the boot chain once after a system run that changed any of BOOT_WATCH
 export const meta = {
-    packages: {native: [amd-ucode intel-ucode kernel-modules-hook linux linux-headers linux-lts linux-lts-headers mkinitcpio]}
+    # linux-lts is the fallback kernel; the headers come with a dkms package (KERNEL_HEADERS)
+    packages: {native: [amd-ucode intel-ucode kernel-modules-hook linux linux-lts mkinitcpio]}
     volatile: true
     barrier: {run: boot-commit, watch: $BOOT_WATCH}
 }

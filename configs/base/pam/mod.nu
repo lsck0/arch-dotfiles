@@ -18,6 +18,9 @@ const U2F_MODULE = "/usr/lib/security/pam_u2f.so"
 const FPRINT_MODULE = "/usr/lib/security/pam_fprintd.so"
 const POLKIT_VENDOR = "/usr/lib/pam.d/polkit-1"
 const SUDO = "/etc/pam.d/sudo"
+const SYSTEM_AUTH = "/etc/pam.d/system-auth"
+# pambase's lines for systemd-homed, each a D-Bus activation of org.freedesktop.home1 that fails where homed is off
+const HOMED_LINE = 'pam_systemd_home[.]so'
 const SYSTEM_POLICY = "dev.lsck0.dotfiles.system.policy"
 const POLKIT_ACTIONS = "/usr/share/polkit-1/actions"
 const FPRINT_LINE = "auth       sufficient pam_fprintd.so"
@@ -49,6 +52,7 @@ export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [$policy] }
     let line = u2f-line $cfg.fido_origin
     let u2f = $U2F_MODULE | path exists
+    let homed = (^systemctl is-enabled systemd-homed.service | complete | get stdout | str trim) == "enabled"
     [
         $policy
         # copies, pam follows no symlinks
@@ -58,6 +62,7 @@ export def system [cfg: record] {
         (if (has-fprint) { file-copy config/quickshell-lock-fprint /etc/pam.d/quickshell-lock-fprint })
         (file-copy config/faillock.conf /etc/security/faillock.conf)
         (step sudo-stack ($u2f | into string) $line)
+        (step system-auth-homed ($homed | into string))
         # pkexec takes the same factors as sudo: the key, then an enrolled finger, then the password
         (if $u2f and ($POLKIT_VENDOR | path exists) {
             let with_u2f = auth-insert (open --raw $POLKIT_VENDOR | lines) $line
@@ -74,6 +79,41 @@ def has-fprint []: nothing -> bool {
     if (which fprintd-list | is-empty) { return false }
     open --raw /etc/passwd | lines | parse "{name}:{x}:{uid}:{rest}" | where ($it.uid | into int) in $HUMAN_UIDS
     | any {|u| ^fprintd-list $u.name | complete | get stdout | str contains "Fingerprints for user" }
+}
+
+# Without homed, every login, sudo and polkit check asks D-Bus for it and the bus logs "Activation request for
+# 'org.freedesktop.home1' failed": its lines go. Enabling homed puts the stock file back from the backup.
+export def system-auth-homed [homed: string]: nothing -> nothing {
+    let backup = $"($SYSTEM_AUTH).pre-homed.bak"
+    if $homed == "true" {
+        if ($backup | path exists) { ^mv -f $backup $SYSTEM_AUTH }
+        return
+    }
+    if not ($SYSTEM_AUTH | path exists) { return }
+    let before = open --raw $SYSTEM_AUTH | lines
+    let after = system-auth-lines $before
+    if $after == $before {
+        if ($before | any { $in =~ $HOMED_LINE }) {
+            print $"note: pam: a jump in ($SYSTEM_AUTH) crosses a homed line, left as it is"
+        }
+        return
+    }
+    if not ($backup | path exists) { ^cp -a $SYSTEM_AUTH $backup }
+    $after | to text | save --force $SYSTEM_AUTH
+}
+
+# system-auth without homed's lines. A jump (success=n) over one would land on another line once it is gone, which
+# could skip the password, so a stack with such a jump stays as it is.
+export def system-auth-lines [before: list<string>]: nothing -> list<string> {
+    let rules = $before | enumerate | where {|l| $l.item =~ '^-?[a-z]+\s' } | each {|l|
+        let jump = $l.item | parse --regex 'success=(?<n>\d+)' | get --optional 0.n
+        let type = $l.item | parse --regex '^-?(?<t>[a-z]+)' | get 0.t
+        {at: $l.index, type: $type, homed: ($l.item =~ $HOMED_LINE), jump: $jump}
+    }
+    let crossed = $rules | where {|r| not $r.homed and $r.jump != null } | any {|r|
+        $rules | where {|o| $o.type == $r.type and $o.at > $r.at } | first ($r.jump | into int) | any { $in.homed }
+    }
+    if $crossed { $before } else { $before | where not ($it =~ $HOMED_LINE) }
 }
 
 # The terminal gate first, then the yubikey line, so a changed one also drops the fprintd line, reinserted under it.

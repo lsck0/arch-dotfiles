@@ -56,6 +56,9 @@ const HOOKS = [base systemd autodetect microcode modconf kms keyboard sd-vconsol
 # the initrd's systemd reads /etc/hostname, which mkinitcpio's systemd hook leaves out: without it every boot until the
 # root mounts runs as the fallback hostname, archlinux
 const HOSTNAME_DROPIN = "/etc/mkinitcpio.conf.d/hostname.conf"
+# base/boot/luks's sd-encrypt module list, in place before the first build: without it every build before that module's
+# first apply in the install stage warns about qat_6xxx's missing firmware
+const LUKS_CRYPTO_DROPIN = "/etc/mkinitcpio.conf.d/luks-crypto-modules.conf"
 const CMDLINE_TAIL = "rw zswap.enabled=0 nmi_watchdog=0 slab_nomerge init_on_alloc=1 init_on_free=1 randomize_kstack_offset=on vsyscall=none page_alloc.shuffle=1"
 # openssh rides along, so ssh-sk-helper matches the libfido2 and openssl this -Sy brings
 const SECRETS_TOOLS = [age age-plugin-yubikey git-crypt pcsclite ccid libfido2 yubikey-manager openssh]
@@ -481,6 +484,9 @@ def target-system [c: record, root_uuid: string]: nothing -> nothing {
     open --raw (do $t /etc/mkinitcpio.conf) | str replace --regex --multiline '^HOOKS=.*$' $hooks | save --force (do $t /etc/mkinitcpio.conf)
     mkdir (do $t $HOSTNAME_DROPIN | path dirname)
     "FILES+=(/etc/hostname)\n" | save --force (do $t $HOSTNAME_DROPIN)
+    if $c.encrypt {
+        ^cp ($c.repo | path join configs base boot luks config crypto-modules.conf) (do $t $LUKS_CRYPTO_DROPIN)
+    }
     for preset in (glob (do $t /etc/mkinitcpio.d/*.preset)) {
         let pkgbase = $preset | path parse | get stem
         open --raw $preset | lines | where not ($it =~ '^#?default_(image|uki|cmdline)=') | each { str replace --regex '^PRESETS=.*' "PRESETS=('default')" }

@@ -1,6 +1,8 @@
 use module.nu *
+use ../../base/boot/scripts/boot.nu [KERNEL_HEADERS]
 
-export const meta = {packages: {native: [v4l2loopback-dkms v4l2loopback-utils]}, native_only: [system]}
+# out of tree and unsigned: loading it taints the kernel, so only machines with OBS's virtual camera carry it
+export const meta = {packages: {native: ([v4l2loopback-dkms v4l2loopback-utils] ++ $KERNEL_HEADERS)}, native_only: [system]}
 
 export const options = {
     video_nr: {

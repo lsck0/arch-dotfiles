@@ -23,7 +23,7 @@ hl.config({
             scroll_factor = platform.input.scroll_factor,
         },
         tablet = {
-            -- set globally: the compositor's "-1" suffix on the two pen interfaces is unstable (configs/base/tablet/)
+            -- set globally: the compositor's "-1" suffix on the two pen interfaces is unstable (configs/desktop/tablet/)
             output = platform.main_monitor,
         },
     },

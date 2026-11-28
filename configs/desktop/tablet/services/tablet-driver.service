@@ -1,6 +1,6 @@
 [Unit]
 Description=Userspace driver for the SZ PENG YI [T1161] graphics tablet
-Documentation=file:/var/lib/dotfiles/repo/configs/base/tablet/scripts/tablet-driver.py
+Documentation=file:/var/lib/dotfiles/repo/configs/desktop/tablet/scripts/tablet-driver.py
 
 [Service]
 Type=simple

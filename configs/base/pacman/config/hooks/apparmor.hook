@@ -1,0 +1,14 @@
+[Trigger]
+Type = Package
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Target = *
+
+[Action]
+# shadows apparmor.d-tools' own hook: in a kernel without apparmor active (a fresh install's first boot, before
+# base/apparmor's lsm= takes effect) its reload warns "unable to find a suitable fs in /proc/mounts"; there the profiles
+# are only built and apparmor.service loads them on the next boot
+Description = Updating AppArmor profiles...
+When = PostTransaction
+Exec = /usr/bin/sh -c '[ -x /usr/bin/aa-install ] || exit 0; if /usr/bin/aa-enabled -q 2>/dev/null; then exec /usr/bin/aa-install --install; fi; exec /usr/bin/aa-install --install --no-reload'

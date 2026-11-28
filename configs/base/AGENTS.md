@@ -12,8 +12,10 @@ profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
   owner's `configs/secrets/yubikey` module, mapped to the logins in `/var/lib/dotfiles/owners`, never by name. sudo's
   stack opens with a terminal gate (`TTY_LINE`): a process without a terminal gets no factor at all, so an agent's
   tool shell cannot raise a touch request nobody sees; one that allocates a pty (`script`, a multiplexer pane) passes.
-  `sudo`'s `05-timestamp` pins the per-terminal cache (15 min). `faillock.conf` (6 failures, 120 s) is one tally for
-  sudo, polkit, the lock screen and ly; the lock screen's fingerprint service exists only where `has-fprint`.
+  `sudo`'s `05-timestamp` pins the per-terminal cache (15 min). Without systemd-homed enabled, `system-auth` loses
+  pambase's `pam_systemd_home` lines (each a failing home1 bus activation), kept as `.pre-homed.bak` until homed is on.
+  `faillock.conf` (6 failures, 120 s) is one tally for sudo, polkit, the lock screen and ly; the lock screen's
+  fingerprint service exists only where `has-fprint`.
 - `networkmanager`: two tiers by gateway MAC. Home (`home_gateways`, secrets, the install answer) is the homelab's
   network: homelab routes and split DNS, the homelab mirror put back first, the NAS, printers; NM's connectivity
   probe resolves through the lab DNS. A home line is `<mac> <gateway address> <dhcp server identifier>` and needs all
@@ -43,7 +45,7 @@ profiles) is a `step`. Subdirs: `apparmor/`, `boot/` have their own AGENTS.md.
   keeps no link in `$HOME`. It also owns the user applications dir's `mimeinfo.cache`, rebuilt when an entry there is
   newer.
 - Owner rollouts here gate on `profile-has secrets` alone, not `owner-unlocked` (ssh's `ssh-add.service` and
-  `authorize`, protonvpn's `auto-vpn`, failure-notify's `recovery-drill`): what they need from the secrets is checked at
+  `authorize`, failure-notify's `recovery-drill`): what they need from the secrets is checked at
   run time (`ssh-add`'s `ExecCondition`, `authorize` appends only readable keys), so they work after an unlock without
   a re-apply. Personal files that point at owner state (the NAS bookmark) gate on `owner-unlocked`.
 - `keyboard` (qmk keymap) and `wsl` (`wsl.conf` template) are not modules.

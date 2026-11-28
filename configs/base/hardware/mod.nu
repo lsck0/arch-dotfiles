@@ -1,13 +1,11 @@
 use module.nu *
 export use ../boot/scripts/boot.nu [cmdline-set cmdline-unset]
-use ../boot/scripts/boot.nu [hooks-read hooks-write hooks-insert]
+use ../boot/scripts/boot.nu [KERNEL_HEADERS hooks-read hooks-write hooks-insert]
 
 export const meta = {
     packages: {
-        native: [
-            alsa-firmware intel-media-driver jolt lib32-vulkan-radeon libinput-tools libva-utils linux-firmware
-            linux-tools-meta lm_sensors sof-firmware vulkan-intel vulkan-nouveau vulkan-radeon wireless-regdb
-        ]
+        # the gpu's userspace drivers are desktop/graphics'
+        native: [alsa-firmware jolt linux-firmware linux-tools-meta lm_sensors sof-firmware wireless-regdb]
     }
     native_only: [system]
 }
@@ -53,7 +51,8 @@ export def nvidia-driver-for [id: int]: nothing -> string {
 }
 
 export def packages [cfg: record]: nothing -> record {
-    {native: ($NVIDIA_PACKAGES | get --optional ($cfg.nvidia_driver | default none) | default [])}
+    let driver = $NVIDIA_PACKAGES | get --optional ($cfg.nvidia_driver | default none)
+    {native: (if $driver == null { [] } else { $driver ++ $KERNEL_HEADERS })}
 }
 
 export def system [cfg: record] {

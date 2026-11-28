@@ -5,8 +5,8 @@ export const meta = {
     volatile: true
     packages: {
         pacman: [
-            curseforge heroic-games-launcher-bin kpat minecraft-launcher path-of-building-community-git r2modman-bin
-            rcon-cli vintagestory
+            curseforge heroic-games-launcher-bin kpat lua51-luautf8 minecraft-launcher path-of-building-community-git
+            r2modman-bin rcon-cli vintagestory
         ]
     }
 }

@@ -2,14 +2,8 @@
     "base/bootvine": {enable: false}
     "base/fprintd": {enable: false}
     "base/i2c": {enable: false}
-    "base/lact": {enable: false}
-    "base/portmaster": {enable: false}
-    "base/protonvpn": {enable: false}
     "base/protonvpn-netns": {enable: false}
-    "base/tablet": {enable: false}
     "base/tlp": {enable: false}
-    "base/v4l-utils": {enable: false}
-    "base/v4l2loopback": {enable: false}
     # a server has no untrusted networks: lockdown would close ssh and docker on any unlisted gateway
     "base/networkmanager": {home_wired: true, untrusted_policy: off}
 }

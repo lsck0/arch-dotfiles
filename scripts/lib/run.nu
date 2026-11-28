@@ -135,7 +135,8 @@ export def --env link-run [mods: list<string>, force: bool, --user-only, --ctx: 
         }
         let units = ledger-units $REPO ($ctx.modules | where cfg.enable) user
         $units.by_hand | each { log-info $"enabled by hand, not managed: ($in)" } | ignore
-        theme-init
+        # the theme is wallust's: a machine without it (a base install) has no palette and no ~/.cache/wal to theme
+        if ($ctx.modules | any {|m| $m.id == "core/wallust" and $m.cfg.enable and not $m.broken }) { theme-init }
     } else if "core/wallust" in $mods {
         # a changed template is rendered by this run, not by the next theme switch
         theme-init

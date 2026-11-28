@@ -5,6 +5,8 @@ export const EFI_SYSFS = "/sys/firmware/efi"
 export const CMDLINE = "/etc/kernel/cmdline"
 export const MKINITCPIO = "/etc/mkinitcpio.conf"
 export const PRESETS = "/etc/mkinitcpio.d"
+# the headers of both kernels base/boot/systemd-boot installs: a module with a dkms package declares them beside it
+export const KERNEL_HEADERS = [linux-headers linux-lts-headers]
 const BACKUP = ".arch-dotfiles-backup"
 export const UKI_DIR = $"($ESP)/EFI/Linux"
 const HOOK_DIRS = [/etc/initcpio/install /usr/lib/initcpio/install]

@@ -297,7 +297,7 @@ export def vm-network-command [net: record]: nothing -> list<string> {
     ]
 }
 
-# base/portmaster's launcher: pasta and passt as group vmnet, whose DoT to quad9 passes portmaster, unprompted
+# desktop/portmaster's launcher: pasta and passt as group vmnet, whose DoT to quad9 passes portmaster, unprompted
 # through polkit
 const VM_NET = "/usr/local/bin/vm-net"
 

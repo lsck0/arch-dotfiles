@@ -342,8 +342,14 @@ export def modules-packages-each [modules: table, platform: record]: nothing -> 
     $modules | each {|m|
         let hook = $computed | get --optional $m.id | default {ok: true, decls: {}}
         let p = $m.meta.packages | merge deep --strategy=append $hook.decls
-        {id: $m.id, pacman: ($p.pacman ++ (if $wsl { [] } else { $p.native })), flatpak: $p.flatpak, nix: $p.nix, ok: $hook.ok}
+        let pacman = $p.pacman ++ (if $wsl { [] } else { $p.native }) ++ (package-managers $p)
+        {id: $m.id, pacman: $pacman, flatpak: $p.flatpak, nix: $p.nix, ok: $hook.ok}
     }
+}
+
+# The pacman packages of the managers that install a module's flatpak and nix apps, so they come with the first app.
+def package-managers [p: record]: nothing -> list<string> {
+    [[name wanted]; [flatpak ($p.flatpak | is-not-empty)] [nix ($p.nix | is-not-empty)]] | where wanted | get name
 }
 
 # The pacman, flatpak and nix packages every enabled module on this platform declares.
@@ -373,8 +379,7 @@ export def packages-every-context [repo: path]: nothing -> record {
 # Every package a module can declare: meta's pacman and native, flatpak and nix for apps of theirs, and what its
 # packages hook returns under each profile of every and each option value from defaults, choices, bools and platforms.
 export def module-packages-every [m: record, every: record]: nothing -> list<string> {
-    let managers = [[name wanted]; [flatpak ($m.meta.packages.flatpak | is-not-empty)] [nix ($m.meta.packages.nix | is-not-empty)]]
-    let own = $m.meta.packages.pacman ++ $m.meta.packages.native ++ ($managers | where wanted | get name)
+    let own = $m.meta.packages.pacman ++ $m.meta.packages.native ++ (package-managers $m.meta.packages)
     if "packages" not-in $m.native { return $own }
     let defaults = $m.cfg | upsert enable true | merge ($m.options | items {|name, spec| [$name $spec.default] } | into record)
     let variants = $m.options | items {|name, spec|

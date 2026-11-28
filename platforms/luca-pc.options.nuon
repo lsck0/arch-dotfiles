@@ -132,7 +132,7 @@
     "base/boot/sata": {
         probe: false
     }
-    "base/v4l2loopback": {
+    "creating/v4l2loopback": {
         video_nr: 2
     }
     "base/ssh": {

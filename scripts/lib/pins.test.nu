@@ -41,7 +41,7 @@ const EXCEPTIONS = [
     [configs/programming/vscode/mod.nu extension "the vim extension, latest"]
     [configs/desktop/firefox/config/policies.json latest "store extensions, latest"]
     [configs/desktop/chromium/config/policy.json extension "store extensions, latest"]
-    [configs/base/essentials/mod.nu rustup "rustup toolchains track their channel"]
+    [configs/programming/cargo/mod.nu rustup "rustup toolchains track their channel"]
     [configs/programming/formatting/mod.nu rustup "rustfmt's nightly"]
     [scripts/lib/run.nu rustup "the default stable toolchain"]
     [mirror/pkgbuilds/lean-tui/PKGBUILD rustup "the nightly current at build time"]

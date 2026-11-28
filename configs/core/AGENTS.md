@@ -5,7 +5,8 @@ The user-layer baseline on every machine.
 - A themed program ships a wallust template (`core/wallust`), never a hardcoded palette: `l-dotfiles-theming`.
 - Toggles: `l-dotfiles-toggles`.
 - Owner-only modules (`ntfy`, `syncthing`, `proton/pass`, `proton/sessions`) gate on `owner-unlocked`
-  (`l-dotfiles-secrets-access`). `git`'s (and jj's) identity is the owner's only when `owner-unlocked`; any other
+  (`l-dotfiles-secrets-access`). `proton/vpn`'s `auto-vpn` gates on `profile-has secrets` alone, like base's owner
+  rollouts (`configs/base/AGENTS.md`). `git`'s (and jj's) identity is the owner's only when `owner-unlocked`; any other
   login's is `core/git.user_name` and `user_email`, each falling back to the profile's own where the profile lacks the
   secrets capability; without both, none. `gnupg`'s default-key only when `owner-unlocked`. `nas` is system layer: it
   mounts only with the `homelab` fact and the `samba-homelab` secret.

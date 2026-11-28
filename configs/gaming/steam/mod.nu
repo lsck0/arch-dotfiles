@@ -3,7 +3,11 @@ use ../../core/wallust/scripts/font.nu [font-load]
 use scripts/steam-launch-options.nu [LAUNCH_OPTIONS_DEFAULT launch-options-fingerprint steam-open wanted-file]
 use scripts/steam-bootstrap.nu [MILLENNIUM_LIB bootstrap-pending]
 
-export const meta = {deps: [gaming/gamemode gaming/mangohud], packages: {pacman: [millennium steam]}}
+# lib32-vulkan-radeon: vulkan for steam's and proton's 32-bit games on amd
+export const meta = {
+    deps: [gaming/gamemode gaming/mangohud]
+    packages: {pacman: [millennium steam], native: [lib32-vulkan-radeon]}
+}
 
 export const options = {
     launch_options: {
