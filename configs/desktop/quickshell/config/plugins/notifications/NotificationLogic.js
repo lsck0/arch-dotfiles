@@ -18,8 +18,10 @@ function stripImageTags(text) {
 }
 
 // sanitizeBody's text as StyledText
+// one line break per paragraph: a blank line spends one of the card's few body lines on nothing, and the elided
+// preview then ends after the first paragraph, as in a chat message with an empty line in it
 function styledBody(sanitized) {
-  return joinHyphens(String(sanitized || "").replace(/\r\n|\r|\n/g, "<br/>"))
+  return joinHyphens(String(sanitized || "").trim().replace(/[ \t]*(?:\r\n|\r|\n)\s*/g, "<br/>"))
 }
 
 // a word joiner after each hyphen outside a tag: the line breaker would split a unit name or a command flag there

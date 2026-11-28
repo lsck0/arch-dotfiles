@@ -6,6 +6,7 @@ return {
     },
 
     {
+        -- calls the table form of vim.validate (removed at nvim 1.0); kept, waiting on upstream, no report filed by us
         "bngarren/checkmate.nvim",
         ft = "markdown",
         opts = {

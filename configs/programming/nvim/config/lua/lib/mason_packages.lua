@@ -2,6 +2,8 @@
 -- is not listed, mason's bin comes first on PATH and would shadow it: clangd (clang, programming/toolchains), codelldb
 -- (codelldb-bin, programming/debugging), latexindent and texlab (latex/latex), ruff (programming/python), shfmt
 -- (programming/formatting), tinymist (programming/toolchains)
+-- the clojure, C#, haskell, kotlin, php and ruby servers and formatters stay on purpose, though no project uses
+-- them yet
 local packages = {
     "bash-language-server",
     "bibtex-tidy",

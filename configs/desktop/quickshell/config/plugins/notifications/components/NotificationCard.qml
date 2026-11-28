@@ -252,6 +252,27 @@ BorderSurface {
           wrapMode: Text.WrapAtWordBoundaryOrAnywhere
           elide: Text.ElideRight
           maximumLineCount: Math.max(1, root.bodyLines)
+
+          // Qt's ellipsis only marks a line cut in the middle: a body cut where a line ends shows none, so the last
+          // shown line gets one here, right after its text (a cut mid-line fills the width and leaves no room for it)
+          property real cutX: -1
+          property real cutY: 0
+          onLineLaidOut: function (line) {
+            if (line.number === 0) cutX = -1
+            if (line.number === maximumLineCount - 1) {
+              cutX = line.implicitWidth
+              cutY = line.y
+            }
+          }
+
+          Label {
+            x: bodyText.cutX
+            y: bodyText.cutY
+            font: bodyText.font
+            color: bodyText.color
+            text: "\u2026"
+            visible: bodyText.truncated && bodyText.cutX >= 0 && bodyText.cutX + width <= bodyText.width
+          }
         }
 
         Flow {

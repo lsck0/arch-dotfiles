@@ -60,6 +60,11 @@ TestCase {
     compare(NotificationLogic.stripImageTags("plain text"), "plain text")
   }
 
+  function test_styled_body() {
+    compare(NotificationLogic.styledBody("a :3 \n\nb\r\n\r\n\n c\n"), "a :3<br/>b<br/>c")
+    compare(NotificationLogic.styledBody("one\ntwo"), "one<br/>two")
+  }
+
   function test_join_hyphens() {
     compare(NotificationLogic.joinHyphens("-xeu run-p1"), "-\u2060xeu run-\u2060p1")
     compare(NotificationLogic.joinHyphens("<a href=\"https://a-b\">a-b</a>"), "<a href=\"https://a-b\">a-\u2060b</a>")
